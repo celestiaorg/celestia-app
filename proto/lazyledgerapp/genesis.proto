@@ -1,0 +1,9 @@
+syntax = "proto3";
+package lazyledger.lazyledgerapp.lazyledgerapp;
+
+option go_package = "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/types";
+
+// GenesisState defines the capability module's genesis state.
+message GenesisState {
+}
+
