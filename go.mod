@@ -23,4 +23,5 @@ require (
 replace (
 	github.com/cosmos/cosmos-sdk => github.com/lazyledger/cosmos-sdk v0.40.0-rc5
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
+	github.com/tendermint/tendermint v0.34.0 => github.com/lazyledger/lazyledger-core v0.32.7
 )
