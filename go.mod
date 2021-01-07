@@ -15,13 +15,13 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/tendermint/tendermint v0.34.1
 	github.com/tendermint/tm-db v0.6.3
-	google.golang.org/genproto v0.0.0-20201111145450-ac7456db90a6
-	google.golang.org/grpc v1.33.2
+	google.golang.org/genproto v0.0.0-20201119123407-9b1e624d6bc4
+	google.golang.org/grpc v1.34.0
 
 )
 
 replace (
 	github.com/cosmos/cosmos-sdk => github.com/lazyledger/cosmos-sdk v0.40.0-rc5
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
-	github.com/tendermint/tendermint v0.34.0 => github.com/lazyledger/lazyledger-core v0.32.7
+	github.com/tendermint/tendermint v0.34.0 => github.com/lazyledger/lazyledger-core v0.0.0-20201215200419-0332760f7e24
 )
