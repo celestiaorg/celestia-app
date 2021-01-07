@@ -1,6 +1,6 @@
 # lazyledgerapp
 
-**lazyledgerapp** is a blockchain application built using Cosmos SDK and Tendermint and generated with [Starport](https://github.com/tendermint/starport).
+**lazyledgerapp** is a blockchain application built using Cosmos SDK and Tendermint and generated with [Starport](https://github.com/tendermint/starport). It uses LazyLedger's fork of the cosmos sdk and [lazyledger-core](https://github.com/lazyledger/lazyledger-core) in place of tendermint.
 
 ## Get started
 
