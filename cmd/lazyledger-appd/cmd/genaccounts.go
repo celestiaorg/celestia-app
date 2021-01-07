@@ -52,9 +52,9 @@ contain valid denominations. Accounts may optionally be supplied with vesting pa
 			if err != nil {
 				inBuf := bufio.NewReader(cmd.InOrStdin())
 				keyringBackend, err := cmd.Flags().GetString(flags.FlagKeyringBackend)
-                if err != nil {
-                    return err
-                }
+				if err != nil {
+					return err
+				}
 
 				// attempt to lookup address from Keybase if no address was provided
 				kb, err := keyring.New(sdk.KeyringServiceName(), keyringBackend, clientCtx.HomeDir, inBuf)
@@ -70,25 +70,25 @@ contain valid denominations. Accounts may optionally be supplied with vesting pa
 				addr = info.GetAddress()
 			}
 
-			coins, err := sdk.ParseCoins(args[1])
+			coins, err := sdk.ParseCoinsNormalized(args[1])
 			if err != nil {
 				return fmt.Errorf("failed to parse coins: %w", err)
 			}
 
 			vestingStart, err := cmd.Flags().GetInt64(flagVestingStart)
-            if err != nil {
-                return err
-            }
+			if err != nil {
+				return err
+			}
 			vestingEnd, err := cmd.Flags().GetInt64(flagVestingEnd)
-            if err != nil {
-                return err
-            }
+			if err != nil {
+				return err
+			}
 			vestingAmtStr, err := cmd.Flags().GetString(flagVestingAmt)
-            if err != nil {
-                return err
-            }
+			if err != nil {
+				return err
+			}
 
-			vestingAmt, err := sdk.ParseCoins(vestingAmtStr)
+			vestingAmt, err := sdk.ParseCoinsNormalized(vestingAmtStr)
 			if err != nil {
 				return fmt.Errorf("failed to parse vesting amount: %w", err)
 			}
