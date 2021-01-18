@@ -10,9 +10,9 @@ import (
 	"github.com/pelletier/go-toml"
 	"github.com/spf13/cast"
 
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/log"
-	tmos "github.com/tendermint/tendermint/libs/os"
+	abci "github.com/lazyledger/lazyledger-core/abci/types"
+	"github.com/lazyledger/lazyledger-core/libs/log"
+	tmos "github.com/lazyledger/lazyledger-core/libs/os"
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -74,9 +74,9 @@ import (
 	"github.com/lazyledger/lazyledger-app/x/lazyledgerapp"
 	lazyledgerappkeeper "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/keeper"
 	lazyledgerapptypes "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/types"
-	tmjson "github.com/tendermint/tendermint/libs/json"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
+	tmjson "github.com/lazyledger/lazyledger-core/libs/json"
+	tmproto "github.com/lazyledger/lazyledger-core/proto/tendermint/types"
+	rpchttp "github.com/lazyledger/lazyledger-core/rpc/client/http"
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 )
 

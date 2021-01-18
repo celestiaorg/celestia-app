@@ -1,7 +1,7 @@
 syntax = "proto3";
 package tendermint.crypto;
 
-option go_package = "github.com/tendermint/tendermint/proto/tendermint/crypto";
+option go_package = "github.com/lazyledger/lazyledger-core/proto/tendermint/crypto";
 
 import "gogoproto/gogo.proto";
 
@@ -11,6 +11,7 @@ message PublicKey {
   option (gogoproto.equal)   = true;
 
   oneof sum {
-    bytes ed25519 = 1;
+    bytes ed25519   = 1;
+    bytes secp256k1 = 2;
   }
 }
