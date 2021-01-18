@@ -34,6 +34,9 @@ test:
 proto-gen:
 	$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace tendermintdev/sdk-proto-gen sh ./scripts/protocgen.sh
 
+proto-lint:
+	@$(DOCKER_BUF) check lint --error-format=json
+
 ###############################################################################
 ###                           Tests & Simulation                            ###
 ###############################################################################
