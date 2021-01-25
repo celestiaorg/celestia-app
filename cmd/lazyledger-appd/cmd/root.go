@@ -9,7 +9,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/snapshots"
 	"github.com/lazyledger/lazyledger-app/app/params"
+	"github.com/rs/zerolog"
 
+	tmcfg "github.com/lazyledger/lazyledger-core/config"
 	tmcli "github.com/lazyledger/lazyledger-core/libs/cli"
 	"github.com/lazyledger/lazyledger-core/libs/log"
 	"github.com/spf13/cast"
@@ -87,6 +89,9 @@ func Execute(rootCmd *cobra.Command) error {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, client.ClientContextKey, &client.Context{})
 	ctx = context.WithValue(ctx, server.ServerContextKey, server.NewDefaultContext())
+
+	rootCmd.PersistentFlags().String(flags.FlagLogLevel, zerolog.InfoLevel.String(), "The logging level (trace|debug|info|warn|error|fatal|panic)")
+	rootCmd.PersistentFlags().String(flags.FlagLogFormat, tmcfg.LogFormatPlain, "The logging format (json|plain)")
 
 	executor := tmcli.PrepareBaseCmd(rootCmd, "", app.DefaultNodeHome(appName))
 	return executor.ExecuteContext(ctx)
