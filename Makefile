@@ -1,5 +1,7 @@
 PACKAGES=$(shell go list ./... | grep -v '/simulation')
 COMMIT := $(shell git log -1 --format='%H')
+DOCKER := $(shell which docker)
+DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
 
 # don't use build flags until verions start being used.
 # VERSION := $(shell echo $(shell git describe --tags) | sed 's/^v//')
@@ -39,7 +41,7 @@ test:
 	@go test -mod=readonly $(PACKAGES)
 
 proto-gen:
-	@bash ./scripts/protocgen.sh
+	$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace tendermintdev/sdk-proto-gen sh ./scripts/protocgen.sh
 
 ###############################################################################
 ###                           Tests & Simulation                            ###
