@@ -41,3 +41,29 @@ test:
 proto-gen:
 	@bash ./scripts/protocgen.sh
 
+###############################################################################
+###                           Tests & Simulation                            ###
+###############################################################################
+# The below include contains the tools target.
+include contrib/devtools/Makefile
+include contrib/devtools/sims.mk
+
+test: test-unit test-build
+
+test-all: check test-race test-cover
+
+test-unit:
+	@VERSION=$(VERSION) go test -mod=readonly -tags='ledger test_ledger_mock' ./...
+
+test-race:
+	@VERSION=$(VERSION) go test -mod=readonly -race -tags='ledger test_ledger_mock' ./...
+
+benchmark:
+	@go test -mod=readonly -bench=. ./...
+
+test-cover:
+	@export VERSION=$(VERSION); bash -x contrib/test_cover.sh
+.PHONY: test-cover
+
+
+

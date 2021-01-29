@@ -13,9 +13,10 @@ jobs:
       - uses: actions/checkout@master
       - name: lint
         run: make proto-lint
-  breakage:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@master
-      - name: check-breakage
-        run: make proto-check-breaking
+  # add this back when we start using verisoning
+  # breakage:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@master
+  #     - name: check-breakage
+  #       run: make proto-check-breaking

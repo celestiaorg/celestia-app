@@ -11,15 +11,6 @@ updates:
     interval: daily
   open-pull-requests-limit: 10
   reviewers:
-  - alexanderbez
-  - fedekunze
   labels:
   - automerge
   - dependencies
-- package-ecosystem: npm
-  directory: "/docs"
-  schedule:
-    interval: daily
-  open-pull-requests-limit: 10
-  reviewers:
-  - fadeev

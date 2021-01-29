@@ -3,3 +3,4 @@ frontend/dist
 frontend/.cache
 secret.yml
 build
+coverage.txt
