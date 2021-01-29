@@ -31,7 +31,7 @@ jobs:
           path: ~/go/bin
           key: ${{ runner.os }}-go-tparse-binary
 
-  # don't use cosmovisor yet
+  # don't use cosmovisor until we have tests
   # test-cosmovisor:
   #   runs-on: ubuntu-latest
   #   steps:
@@ -252,12 +252,3 @@ jobs:
   #         ./contrib/localnet_liveness.sh 100 5 50 localhost
   #       if: env.GIT_DIFF
 
-# don't use docker build until we have docker images ready
-  # docker-build:
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 10
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - name: build docker image
-  #       run: |
-  #         docker build --pull --rm -f "Dockerfile" -t simapp:latest "."

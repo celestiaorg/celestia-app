@@ -3,15 +3,6 @@ COMMIT := $(shell git log -1 --format='%H')
 DOCKER := $(shell which docker)
 DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
 
-# don't use build flags until verions start being used.
-# VERSION := $(shell echo $(shell git describe --tags) | sed 's/^v//')
-# ldflags = -X github.com/lazyledger/cosmos-sdk/version.Name=lazyledger-app \
-# 	-X github.com/lazyledger/cosmos-sdk/version.ServerName=lazyledger-appd \
-# 	-X github.com/lazyledger/cosmos-sdk/version.Version=$(VERSION) \
-# 	-X github.com/lazyledger/cosmos-sdk/version.Commit=$(COMMIT) 
-
-# BUILD_FLAGS := -ldflags '$(ldflags)'
-
 all: install
 
 mod:
