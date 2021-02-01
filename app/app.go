@@ -138,7 +138,7 @@ var (
 // They are exported for convenience in creating helper functions, as object
 // capabilities aren't needed for testing.
 type App struct {
-	*baseapp.BaseApp
+	*wrappedBaseApp
 
 	appName string
 
@@ -209,7 +209,7 @@ func New(
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 
 	app := &App{
-		BaseApp:           bApp,
+		wrappedBaseApp:    &wrappedBaseApp{bApp: bApp},
 		appName:           appName,
 		cdc:               cdc,
 		appCodec:          appCodec,
@@ -322,7 +322,7 @@ func New(
 
 	app.mm = module.NewManager(
 		genutil.NewAppModule(
-			app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx,
+			app.AccountKeeper, app.StakingKeeper, app.BaseApp().DeliverTx,
 			encodingConfig.TxConfig,
 		),
 		auth.NewAppModule(appCodec, app.AccountKeeper, nil),
@@ -376,29 +376,30 @@ func New(
 		ibctransfertypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/initGenesis
 	)
+	wApp := app.bApp
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
-	app.mm.RegisterRoutes(app.Router(), app.QueryRouter(), encodingConfig.Amino)
-	app.mm.RegisterServices(module.NewConfigurator(app.MsgServiceRouter(), app.GRPCQueryRouter()))
+	app.mm.RegisterRoutes(wApp.Router(), wApp.QueryRouter(), encodingConfig.Amino)
+	app.mm.RegisterServices(module.NewConfigurator(wApp.MsgServiceRouter(), wApp.GRPCQueryRouter()))
 
 	// initialize stores
-	app.MountKVStores(keys)
-	app.MountTransientStores(tkeys)
-	app.MountMemoryStores(memKeys)
+	wApp.MountKVStores(keys)
+	wApp.MountTransientStores(tkeys)
+	wApp.MountMemoryStores(memKeys)
 
 	// initialize BaseApp
-	app.SetInitChainer(app.InitChainer)
-	app.SetBeginBlocker(app.BeginBlocker)
-	app.SetAnteHandler(
+	wApp.SetInitChainer(app.InitChainer)
+	wApp.SetBeginBlocker(app.BeginBlocker)
+	wApp.SetAnteHandler(
 		ante.NewAnteHandler(
 			app.AccountKeeper, app.BankKeeper, ante.DefaultSigVerificationGasConsumer,
 			encodingConfig.TxConfig.SignModeHandler(),
 		),
 	)
-	app.SetEndBlocker(app.EndBlocker)
+	wApp.SetEndBlocker(app.EndBlocker)
 
 	if loadLatest {
-		if err := app.LoadLatestVersion(); err != nil {
+		if err := wApp.LoadLatestVersion(); err != nil {
 			tmos.Exit(err.Error())
 		}
 
@@ -409,7 +410,7 @@ func New(
 		// that in-memory capabilities get regenerated on app restart.
 		// Note that since this reads from the store, we can only perform it when
 		// `loadLatest` is set to true.
-		ctx := app.BaseApp.NewUncachedContext(true, tmproto.Header{})
+		ctx := wApp.NewUncachedContext(true, tmproto.Header{})
 		app.CapabilityKeeper.InitializeAndSeal(ctx)
 	}
 
@@ -419,8 +420,13 @@ func New(
 	return app
 }
 
+// BaseApp forwards the wrapped base app for simplicity
+func (app *App) BaseApp() *baseapp.BaseApp {
+	return app.wrappedBaseApp.bApp
+}
+
 // Name returns the name of the App
-func (app *App) Name() string { return app.BaseApp.Name() }
+func (app *App) Name() string { return app.BaseApp().Name() }
 
 // BeginBlocker application updates every begin block
 func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
@@ -443,7 +449,7 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 
 // LoadHeight loads a particular height
 func (app *App) LoadHeight(height int64) error {
-	return app.LoadVersion(height)
+	return app.BaseApp().LoadVersion(height)
 }
 
 // ModuleAccountAddrs returns all the app's module account addresses.
@@ -546,7 +552,7 @@ func (app *App) RegisterTxService(clientCtx client.Context) {
 	}
 	clientCtx = clientCtx.WithClient(client)
 	// -- end of the workaround.
-	authtx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.BaseApp.Simulate, app.interfaceRegistry)
+	authtx.RegisterTxService(app.BaseApp().GRPCQueryRouter(), clientCtx, app.BaseApp().Simulate, app.interfaceRegistry)
 }
 
 // TODO(evan): fill in to actually register the service
