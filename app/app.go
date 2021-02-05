@@ -144,6 +144,8 @@ type App struct {
 
 	cdc               *codec.LegacyAmino
 	appCodec          codec.Marshaler
+	txDecoder         sdk.TxDecoder
+	txEncoder         sdk.TxEncoder
 	interfaceRegistry types.InterfaceRegistry
 
 	invCheckPeriod uint
@@ -191,6 +193,8 @@ func New(
 	appCodec := encodingConfig.Marshaler
 	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
+	txDecoder := encodingConfig.TxConfig.TxDecoder()
+	txEncoder := encodingConfig.TxConfig.TxEncoder()
 
 	bApp := baseapp.NewBaseApp(appName, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 	bApp.SetCommitMultiStoreTracer(traceStore)
@@ -213,6 +217,8 @@ func New(
 		appName:           appName,
 		cdc:               cdc,
 		appCodec:          appCodec,
+		txDecoder:         txDecoder,
+		txEncoder:         txEncoder,
 		interfaceRegistry: interfaceRegistry,
 		invCheckPeriod:    invCheckPeriod,
 		keys:              keys,
