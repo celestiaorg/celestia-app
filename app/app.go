@@ -2,6 +2,7 @@ package app
 
 import (
 	"io"
+	"math/big"
 	"os"
 	"path/filepath"
 
@@ -140,7 +141,8 @@ var (
 type App struct {
 	*baseapp.BaseApp
 
-	appName string
+	appName    string
+	squareSize uint64
 
 	cdc               *codec.LegacyAmino
 	appCodec          codec.Marshaler
@@ -213,8 +215,10 @@ func New(
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 
 	app := &App{
-		BaseApp:           bApp,
-		appName:           appName,
+		BaseApp: bApp,
+		appName: appName,
+		// todo(evan): don't hardcode square size
+		squareSize:        64,
 		cdc:               cdc,
 		appCodec:          appCodec,
 		txDecoder:         txDecoder,
@@ -273,7 +277,6 @@ func New(
 	// ... other modules keepers
 
 	// Create IBC Keeper
-	// TODO(evan): fix this so
 	ibcClientSubspace := paramstypes.NewSubspace(appCodec, cdc, keys[ibchost.StoreKey], keys[ibchost.StoreKey], "ibc")
 	app.IBCKeeper = ibckeeper.NewKeeper(
 		appCodec, keys[ibchost.StoreKey], ibcClientSubspace, app.StakingKeeper, scopedIBCKeeper,
@@ -312,7 +315,11 @@ func New(
 	app.EvidenceKeeper = *evidenceKeeper
 
 	app.lazyledgerappKeeper = *lazyledgerappkeeper.NewKeeper(
-		appCodec, keys[lazyledgerapptypes.StoreKey], keys[lazyledgerapptypes.MemStoreKey],
+		appCodec,
+		app.BankKeeper,
+		keys[lazyledgerapptypes.StoreKey],
+		keys[lazyledgerapptypes.MemStoreKey],
+		sdk.NewIntFromBigInt(big.NewInt(1000)),
 	)
 
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
@@ -557,6 +564,12 @@ func (app *App) RegisterTxService(clientCtx client.Context) {
 
 // TODO(evan): fill in to actually register the service
 func (app *App) RegisterTendermintService(clientCtx client.Context) {}
+
+// SquareSize returns the current square size. Currently, the square size is
+// hardcoded. todo(evan): don't hardcode the square size
+func (app *App) SquareSize() uint64 {
+	return app.squareSize
+}
 
 // GetMaccPerms returns a copy of the module account permissions
 func GetMaccPerms() map[string][]string {
