@@ -24,61 +24,39 @@ message MsgWirePayForMessage {
   uint64 message_size = 4;
   bytes message = 5;
   repeated ShareCommitAndSignature message_share_commitment = 6 [(gogoproto.nullable) = false];
-  bytes from = 7; // should this be included?
+  bytes public_key = 7; 
 }
 
 // WirePayForMessageResponse describes the response returned after the submission of a MsgWirePayForMessage
-message MsgWirePayForMessageResponse {
-  string error = 1;
-  bytes hash = 2;
-}
+message MsgWirePayForMessageResponse {}
 
 // ShareCommitAndSignature defines the 
 message ShareCommitAndSignature {
-  bytes share_commitment = 1;
-  bytes signature = 2; // signature on one SignedTransactionPayForMessage
+  uint64 k = 1;
+  bytes share_commitment = 2;
+  bytes signature = 3; // signature on one SignedTransactionPayForMessage
+}
+
+// TxSignedTransactionDataPayForMessage is a wrapper around
+// SignedTransactionDataPayForMessage that fullfills the sdk.Tx interface
+message TxSignedTransactionDataPayForMessage {
+  SignedTransactionDataPayForMessage message = 1;
+  bytes signature = 2;
+  bytes public_key = 3;
 }
 
 // SignedTransactionsDataPayForMessage is what gets signed by users when
 // creating ShareCommitSignatures. Multiple versions are signed and included.
 message SignedTransactionDataPayForMessage {
-    TransactionType type = 1;
-    TransactionFee fee = 2;
-    uint64 nonce = 3;
-    bytes message_namespace_id = 4;
-    uint64 message_size = 5;
-    bytes message_share_commitment = 6;
+    TransactionFee fee = 1;
+    uint64 nonce = 2;
+    bytes message_namespace_id = 3;
+    uint64 message_size = 4;
+    bytes message_share_commitment = 5;
 }
 
 // TransactionFee contains the base and tip rates.
 message TransactionFee {
     uint64 base_rate_max = 1;
     uint64 tip_rate_max = 2;
-}
-
-// the different types of valid transactions in lazyledger
-enum TransactionType {
-    option (gogoproto.goproto_enum_stringer) = true;
-    option (gogoproto.goproto_enum_prefix)   = false;
-    
-    // Unknown transaction type
-    TRANSACTION_TYPE_UNSPECIFIED = 0;
-    // Transfer moves tokens from one address to another
-    TRANSACTION_TYPE_TRANSFER = 1;
-    // PayForMessage removes funds from the account paying for the message
-    TRANSACTION_TYPE_PAY_FOR_MESSAGE = 2;
-    // CreateValidator creates a new validator
-    TRANSACTION_TYPE_CREATE_VALIDATOR = 3;
-    // BeginUnbondingValidator is meant to signal a validator's desire to unbond
-    TRANSACTION_TYPE_BEGIN_UNBONDING_VALIDATOR = 4;
-    // UnbondValidator unbonds
-    TRANSACTION_TYPE_UNBOND_VALIDATOR = 5;
-    // CreateDelegation begins the process of delegation to a bonded validator
-    TRANSACTION_TYPE_CREATE_DELEGATION = 6;
-    // BeginUnbondingDelegation starts the process to stop delegating
-    TRANSACTION_TYPE_BEGIN_UNBONDING_DELEGATION = 7;
-    // UnbondDelegation finalizes stopping delegation
-    TRANSACTION_TYPE_UNBOND_DELEGATION = 8;
-    // Burn burns tokens from one account
-    TRANSACTION_TYPE_BURN = 9;
 }
