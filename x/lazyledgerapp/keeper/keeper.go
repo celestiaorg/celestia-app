@@ -39,9 +39,9 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 }
 
 // PayForMessage moves a user's coins to the module address and burns them.
-func (k Keeper) PayForMessage(goCtx context.Context, msg *types.MsgWirePayForMessage) (*types.MsgWirePayForMessageResponse, error) {
+func (k Keeper) PayForMessage(goCtx context.Context, msg *types.MsgWirePayForMessage) (*types.MsgPayForMessageResponse, error) {
 	// don't pay for fees for the first version
-	return &types.MsgWirePayForMessageResponse{}, nil
+	return &types.MsgPayForMessageResponse{}, nil
 }
 
 // BankKeeper restricts the funtionality of the bank keeper used in the lazyledgerapp keeper

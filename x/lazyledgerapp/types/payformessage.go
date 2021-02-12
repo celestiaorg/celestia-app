@@ -7,7 +7,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/lazyledger/lazyledger-core/crypto/merkle"
 	"github.com/lazyledger/nmt"
 )
@@ -33,14 +32,6 @@ func (msg *MsgWirePayForMessage) Type() string { return TypeMsgPayforMessage }
 // interface
 func (msg *MsgWirePayForMessage) ValidateBasic() error {
 	pubK := msg.PubKey()
-	_, err := sdk.AccAddressFromBech32(pubK.Address().String())
-	if err != nil {
-		return sdkerrors.Wrapf(
-			sdkerrors.ErrInvalidAddress,
-			"Invalid sender address (%s)",
-			err,
-		)
-	}
 
 	// ensure that the namespace id is of length == 8
 	if len(msg.GetMessageNameSpaceId()) != 8 {
@@ -92,13 +83,18 @@ func (msg *MsgWirePayForMessage) ValidateBasic() error {
 // GetSignBytes returns messages bytes that need to be signed in order for the
 // message to be valid todo(evan): follow the spec so that each share commitment
 // is signed, instead of the entire message
+// TODO(evan): remove panic and add possibility to vary square size
 func (msg *MsgWirePayForMessage) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(msg))
+	out, err := msg.GetCommitSignBytes(64)
+	if err != nil {
+		panic(err)
+	}
+	return out
 }
 
 // GetSigners returns the addresses of the message signers
 func (msg *MsgWirePayForMessage) GetSigners() []sdk.AccAddress {
-	return []sdk.AccAddress{sdk.AccAddress(msg.PubKey().Address())}
+	return []sdk.AccAddress{sdk.AccAddress(msg.PubKey().Address().Bytes())}
 }
 
 // PubKey uses the string version of the public key to

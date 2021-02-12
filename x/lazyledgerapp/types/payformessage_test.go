@@ -92,6 +92,8 @@ func TestCreateCommit(t *testing.T) {
 	}
 }
 
+// this test only tests for changes, it doesn't actually test that the result is valid.
+// todo(evan): fixme
 func TestGetCommitSignBytes(t *testing.T) {
 	type test struct {
 		msg      MsgWirePayForMessage
@@ -109,7 +111,7 @@ func TestGetCommitSignBytes(t *testing.T) {
 					TipRateMax:  1000,
 				},
 			},
-			expected: []byte(`{"fee":{"base_rate_max":"10000","tip_rate_max":"1000"},"message_namespace_id":"AQIDBAECAwQ=","message_share_commitment":"kLkMnfL0wruFOdgRJ4KnyjJBLJWlKxbEyks8SI0cfZs=","message_size":"4","nonce":"1","type":2}`),
+			expected: []byte(`{"fee":{"base_rate_max":"10000","tip_rate_max":"1000"},"message_namespace_id":"AQIDBAECAwQ=","message_share_commitment":"kLkMnfL0wruFOdgRJ4KnyjJBLJWlKxbEyks8SI0cfZs=","message_size":"4","nonce":"1"}`),
 		},
 	}
 	for _, tt := range tests {

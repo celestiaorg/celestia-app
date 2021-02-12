@@ -10,7 +10,7 @@ option go_package = "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/types"
 // Msg defines the bank Msg service.
 service Msg {
     // PayForMessage allows the user to post data to made be available.
-    rpc PayForMessage(MsgWirePayForMessage) returns (MsgWirePayForMessageResponse) {
+    rpc PayForMessage(MsgWirePayForMessage) returns (MsgPayForMessageResponse) {
         option (google.api.http).get = "/layzyledger/lazyledgerapp/payformessage";
     }
   }
@@ -28,7 +28,7 @@ message MsgWirePayForMessage {
 }
 
 // WirePayForMessageResponse describes the response returned after the submission of a MsgWirePayForMessage
-message MsgWirePayForMessageResponse {}
+message MsgPayForMessageResponse {}
 
 // ShareCommitAndSignature defines the 
 message ShareCommitAndSignature {
