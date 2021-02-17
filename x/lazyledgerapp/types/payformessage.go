@@ -8,13 +8,16 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/lazyledger/lazyledger-core/crypto/merkle"
+	core "github.com/lazyledger/lazyledger-core/types"
 	"github.com/lazyledger/nmt"
 )
 
 const (
 	TypeMsgPayforMessage                   = "payformessage"
 	TypeSignedTransactionDataPayForMessage = "signedtransactiondatapayformessage"
-	ShareSize                              = 256
+	ShareSize                              = core.ShareSize
+	SquareSize                             = core.MaxSquareSize
+	NamespaceIDSize                        = core.NamespaceSize
 )
 
 ///////////////////////////////////////
@@ -33,11 +36,12 @@ func (msg *MsgWirePayForMessage) Type() string { return TypeMsgPayforMessage }
 func (msg *MsgWirePayForMessage) ValidateBasic() error {
 	pubK := msg.PubKey()
 
-	// ensure that the namespace id is of length == 8
-	if len(msg.GetMessageNameSpaceId()) != 8 {
+	// ensure that the namespace id is of length == NamespaceIDSize
+	if len(msg.GetMessageNameSpaceId()) != NamespaceIDSize {
 		return fmt.Errorf(
-			"invalid namespace length: got %d wanted 8",
+			"invalid namespace length: got %d wanted %d",
 			len(msg.GetMessageNameSpaceId()),
+			NamespaceIDSize,
 		)
 	}
 
@@ -67,7 +71,7 @@ func (msg *MsgWirePayForMessage) ValidateBasic() error {
 		}
 
 		// check that the signatures are valid
-		bytesToSign, err := msg.GetCommitSignBytes(commit.K)
+		bytesToSign, err := msg.GetCommitmentSignBytes(commit.K)
 		if err != nil {
 			return err
 		}
@@ -81,12 +85,15 @@ func (msg *MsgWirePayForMessage) ValidateBasic() error {
 }
 
 // GetSignBytes returns messages bytes that need to be signed in order for the
-// message to be valid todo(evan): follow the spec so that each share commitment
-// is signed, instead of the entire message
-// TODO(evan): remove panic and add possibility to vary square size
+// message to be valid
 func (msg *MsgWirePayForMessage) GetSignBytes() []byte {
-	out, err := msg.GetCommitSignBytes(64)
+	out, err := msg.GetCommitmentSignBytes(SquareSize)
 	if err != nil {
+		// this panic can only be reached if the nmt cannot push bytes onto the
+		// tree while creating the commit. This should never happen, as an error
+		// only occurs when out of order or varying sized namespaces are used,
+		// and we are using an identical namespace when pushing to the nmt
+		// https://github.com/lazyledger/nmt/blob/b22170d6f23796a186c07e87e4ef9856282ffd1a/nmt.go#L250
 		panic(err)
 	}
 	return out
@@ -97,13 +104,13 @@ func (msg *MsgWirePayForMessage) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{sdk.AccAddress(msg.PubKey().Address().Bytes())}
 }
 
-// PubKey uses the string version of the public key to
+// PubKey returns the public key of the creator of MsgWirePayForMessage
 func (msg *MsgWirePayForMessage) PubKey() *secp256k1.PubKey {
 	return &secp256k1.PubKey{Key: msg.PublicKey}
 }
 
-// GetCommitSignBytes generates the bytes that each need to be signed per share commit
-func (msg *MsgWirePayForMessage) GetCommitSignBytes(k uint64) ([]byte, error) {
+// GetCommitmentSignBytes generates the bytes that each need to be signed per share commit
+func (msg *MsgWirePayForMessage) GetCommitmentSignBytes(k uint64) ([]byte, error) {
 	sTxMsg, err := msg.SignedTransactionDataPayForMessage(k)
 	if err != nil {
 		return nil, err
@@ -166,11 +173,12 @@ func (msg *SignedTransactionDataPayForMessage) Type() string {
 // ValidateBasic fullfills the sdk.Msg interface by performing stateless
 // validity checks on the msg that also don't require having the actual message
 func (msg *SignedTransactionDataPayForMessage) ValidateBasic() error {
-	// ensure that the namespace id is of length == 8
-	if len(msg.GetMessageNamespaceId()) != 8 {
+	// ensure that the namespace id is of length == NamespaceIDSize
+	if len(msg.GetMessageNamespaceId()) != NamespaceIDSize {
 		return fmt.Errorf(
-			"invalid namespace length: got %d wanted 8",
+			"invalid namespace length: got %d wanted %d",
 			len(msg.GetMessageNamespaceId()),
+			NamespaceIDSize,
 		)
 	}
 	return nil
@@ -213,7 +221,7 @@ func CreateCommit(k uint64, namespace, message []byte) ([]byte, error) {
 	subTreeRoots := make([][]byte, len(leafSets))
 	for i, set := range leafSets {
 		// create the nmt
-		tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(8))
+		tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(NamespaceIDSize))
 		for _, leaf := range set {
 			err := tree.Push(namespace, leaf)
 			if err != nil {

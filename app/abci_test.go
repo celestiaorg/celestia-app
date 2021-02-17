@@ -416,7 +416,7 @@ func generateWirePayForMessage(t *testing.T, k uint64, key *secp256k1.PrivKey) *
 		},
 	}
 
-	rawTxPFM, err := msg.GetCommitSignBytes(k)
+	rawTxPFM, err := msg.GetCommitmentSignBytes(k)
 	if err != nil {
 		t.Error(err)
 	}
