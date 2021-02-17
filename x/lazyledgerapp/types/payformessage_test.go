@@ -94,7 +94,7 @@ func TestCreateCommit(t *testing.T) {
 
 // this test only tests for changes, it doesn't actually test that the result is valid.
 // todo(evan): fixme
-func TestGetCommitSignBytes(t *testing.T) {
+func TestGetCommitmentSignBytes(t *testing.T) {
 	type test struct {
 		msg      MsgWirePayForMessage
 		expected []byte
@@ -115,7 +115,7 @@ func TestGetCommitSignBytes(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		res, err := tt.msg.GetCommitSignBytes(64)
+		res, err := tt.msg.GetCommitmentSignBytes(64)
 		assert.NoError(t, err)
 		assert.Equal(t, tt.expected, res)
 	}

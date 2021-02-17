@@ -216,7 +216,7 @@ func New(
 		BaseApp: bApp,
 		appName: appName,
 		// todo(evan): don't hardcode square size
-		squareSize:        64,
+		squareSize:        lazyledgerapptypes.SquareSize,
 		cdc:               cdc,
 		appCodec:          appCodec,
 		txConfig:          txConfig,

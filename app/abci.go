@@ -12,7 +12,15 @@ import (
 	core "github.com/lazyledger/lazyledger-core/proto/tendermint/types"
 )
 
-// This file should contain all of the althered ABCI methods
+const (
+	// runTxModeDeliver determines if the tx being ran should only be checked,
+	// or if it should actually modify the state.
+	// copy and pasted from the sdk, as it is not exported
+	// https://github.com/lazyledger/cosmos-sdk/blob/3addd7f65d1c35f76716d67641ee629b01f5b9c7/baseapp/baseapp.go#L28
+	runTxModeDeliver = 3
+)
+
+// This file should contain all of the altered ABCI methods
 
 // PreprocessTxs fullfills the lazyledger-core version of the ACBI interface, by
 // performing basic validation for the incoming txs, and by cleanly separating
@@ -30,13 +38,14 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 			continue
 		}
 
-		// don't do anything if the transaction doesn't contain a PayForMessage sdk.Msg
+		// don't process the tx if the transaction doesn't contain a
+		// PayForMessage sdk.Msg
 		if !hasWirePayForMessage(tx) {
 			processedTxs = append(processedTxs, rawTx)
 			continue
 		}
 
-		// only support transactions that contain a single sdk.Msg for now
+		// only support transactions that contain a single sdk.Msg
 		if len(tx.GetMsgs()) != 1 {
 			continue
 		}
@@ -49,7 +58,7 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 			continue
 		}
 
-		// process and validate the message
+		// process the message
 		coreMsg, signedTx, err := app.processMsg(msg)
 		if err != nil {
 			continue
@@ -58,19 +67,17 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 		// execute the tx in runTxModeDeliver mode (3)
 		// execution includes all validation checks burning fees
 		// currently, no fees are burned
-		_, _, err = app.BaseApp.TxRunner()(3, rawTx)
+		_, _, err = app.BaseApp.TxRunner()(runTxModeDeliver, rawTx)
 		if err != nil {
-
 			continue
 		}
 
 		// increment the share counter by the number of shares taken by the message
-		sharesTaken := uint64(len(coreMsg.Data) / 256)
+		sharesTaken := uint64(len(coreMsg.Data) / types.ShareSize)
 		shareCounter += sharesTaken
 
 		// if there are too many shares stop processing and return the transactions
-		// this is related to issues 67 and 77 of lazyledger-core
-		if shareCounter > squareSize {
+		if shareCounter > squareSize*squareSize {
 			break
 		}
 
@@ -85,7 +92,7 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 		processedTxs = append(processedTxs, rawProcessedTx)
 	}
 
-	// sort messages lexographically
+	// sort messages lexigraphically
 	sort.Slice(shareMsgs, func(i, j int) bool {
 		return bytes.Compare(shareMsgs[i].NamespaceId, shareMsgs[j].NamespaceId) < 0
 	})
@@ -130,12 +137,6 @@ func (app *App) processMsg(msg sdk.Msg) (core.Message, *types.TxSignedTransactio
 		return core.Message{},
 			nil,
 			fmt.Errorf("No share commit for correct square size. Current square size: %d", squareSize)
-	}
-
-	// run basic validation on the msg
-	err := wireMsg.ValidateBasic()
-	if err != nil {
-		return core.Message{}, nil, err
 	}
 
 	// add the message to the list of core message to be returned to ll-core
