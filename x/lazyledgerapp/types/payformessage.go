@@ -206,7 +206,10 @@ func (msg *SignedTransactionDataPayForMessage) GetSigners() []sdk.AccAddress {
 // https://github.com/lazyledger/lazyledger-specs/blob/master/rationale/message_block_layout.md#non-interactive-default-rules
 func CreateCommit(k uint64, namespace, message []byte) ([]byte, error) {
 	// break message into shares
-	shares := ChunkMessage(message)
+	shares := chunkMessage(message)
+
+	// add padding if necessary
+	shares = addSharePadding(shares)
 
 	// organize shares for merkle mountain range
 	heights := PowerOf2MountainRange(uint64(len(shares)), k)
@@ -234,8 +237,8 @@ func CreateCommit(k uint64, namespace, message []byte) ([]byte, error) {
 	return merkle.HashFromByteSlices(subTreeRoots), nil
 }
 
-// ChunkMessage breaks the message into 256 byte pieces
-func ChunkMessage(message []byte) [][]byte {
+// chunkMessage breaks the message into 256 byte pieces
+func chunkMessage(message []byte) [][]byte {
 	var shares [][]byte
 	for i := 0; i < len(message); i += ShareSize {
 		end := i + ShareSize
@@ -244,6 +247,22 @@ func ChunkMessage(message []byte) [][]byte {
 		}
 		shares = append(shares, message[i:end])
 	}
+	return shares
+}
+
+// addSharePadding will add padding to the last share if necessary
+func addSharePadding(shares [][]byte) [][]byte {
+	if len(shares) == 0 {
+		return shares
+	}
+
+	// add padding to the last share if necessary
+	if len(shares[len(shares)-1]) != ShareSize {
+		padded := make([]byte, ShareSize)
+		copy(padded, shares[len(shares)-1])
+		shares[len(shares)-1] = padded
+	}
+
 	return shares
 }
 
