@@ -111,12 +111,39 @@ func TestGetCommitmentSignBytes(t *testing.T) {
 					TipRateMax:  1000,
 				},
 			},
-			expected: []byte(`{"fee":{"base_rate_max":"10000","tip_rate_max":"1000"},"message_namespace_id":"AQIDBAECAwQ=","message_share_commitment":"kLkMnfL0wruFOdgRJ4KnyjJBLJWlKxbEyks8SI0cfZs=","message_size":"4","nonce":"1"}`),
+			expected: []byte(`{"fee":{"base_rate_max":"10000","tip_rate_max":"1000"},"message_namespace_id":"AQIDBAECAwQ=","message_share_commitment":"byozRVIrw5NF/rU1PPyq6BAo3g2ny3uLTiOFedtgSwo=","message_size":"4","nonce":"1"}`),
 		},
 	}
 	for _, tt := range tests {
-		res, err := tt.msg.GetCommitmentSignBytes(64)
+		res, err := tt.msg.GetCommitmentSignBytes(SquareSize)
 		assert.NoError(t, err)
 		assert.Equal(t, tt.expected, res)
+	}
+}
+
+func TestShareChunkingAndPadding(t *testing.T) {
+	type test struct {
+		input  []byte
+		expect [][]byte
+	}
+	tests := []test{
+		{
+			input:  []byte{1},
+			expect: [][]byte{append([]byte{1}, bytes.Repeat([]byte{0}, ShareSize-1)...)},
+		},
+		{
+			input:  bytes.Repeat([]byte{1}, ShareSize),
+			expect: [][]byte{bytes.Repeat([]byte{1}, ShareSize)},
+		},
+	}
+	for _, tt := range tests {
+		shares := chunkMessage(tt.input)
+		shares = addSharePadding(shares)
+		for _, share := range shares {
+			if len(share) != ShareSize {
+				t.Errorf("invalid share length: got %d wanted core.ShareSize (%d)", len(share), ShareSize)
+			}
+		}
+		assert.Equal(t, tt.expect, shares)
 	}
 }
