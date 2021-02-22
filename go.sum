@@ -118,6 +118,7 @@ github.com/cosmos/go-bip39 v0.0.0-20180819234021-555e2067c45d/go.mod h1:tSxLoYXy
 github.com/cosmos/go-bip39 v1.0.0 h1:pcomnQdrdH22njcAatO0yWojsUnCO3y2tNoV1cb6hHY=
 github.com/cosmos/go-bip39 v1.0.0/go.mod h1:RNJv0H/pOIVgxw6KS7QeX2a0Uo0aKUlfhZ4xuwvCdJw=
 github.com/cosmos/iavl v0.15.0-rc3.0.20201009144442-230e9bdf52cd/go.mod h1:3xOIaNNX19p0QrX0VqWa6voPRoJRGGYtny+DH8NEPvE=
+github.com/cosmos/iavl v0.15.0-rc5 h1:AMKgaAjXwGANWv56NL4q4hV+a0puSkLYD6cCQAv3i44=
 github.com/cosmos/iavl v0.15.0-rc5/go.mod h1:WqoPL9yPTQ85QBMT45OOUzPxG/U/JcJoN7uMjgxke/I=
 github.com/cosmos/iavl v0.15.3 h1:xE9r6HW8GeKeoYJN4zefpljZ1oukVScP/7M8oj6SUts=
 github.com/cosmos/iavl v0.15.3/go.mod h1:OLjQiAQ4fGD2KDZooyJG9yz+p2ao2IAYSbke8mVvSA4=
@@ -369,8 +370,8 @@ github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORN
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
-github.com/lazyledger/cosmos-sdk v0.40.0-rc5.0.20210221170254-8943f1496a14 h1:dK4IDXe4hDeblk4IACHBjY4sIvAeu0NKMilRH+OGyD4=
-github.com/lazyledger/cosmos-sdk v0.40.0-rc5.0.20210221170254-8943f1496a14/go.mod h1:pPx3/tAjdExEctV+nKzvNeedZcvuys5fUD0A3r5XX20=
+github.com/lazyledger/cosmos-sdk v0.40.0-rc5.0.20210121152417-3addd7f65d1c h1:OFw8rVLTYvM2QDz8OMcnJEXm/+dCUTkBOyAPVccsLiU=
+github.com/lazyledger/cosmos-sdk v0.40.0-rc5.0.20210121152417-3addd7f65d1c/go.mod h1:pPx3/tAjdExEctV+nKzvNeedZcvuys5fUD0A3r5XX20=
 github.com/lazyledger/go-leopard v0.0.0-20200604113236-298f93361181 h1:mUeCGuCgjZVadW4CzA2dMBq7p2BqaoCfpnKjxMmSaSE=
 github.com/lazyledger/go-leopard v0.0.0-20200604113236-298f93361181/go.mod h1:v1o1CRihQ9i7hizx23KK4aR79lxA6VDUIzUCfDva0XQ=
 github.com/lazyledger/lazyledger-core v0.0.0-20210115223437-eff282ad2592/go.mod h1:yNWM9NVGWzSqRS56TL5cVdD6fS0eoxZlCZNHRvxjneE=
@@ -693,7 +694,6 @@ golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de/go.mod h1:LzIPMQfyMNhhGPh
 golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/crypto v0.0.0-20201117144127-c1f2f97bffc9/go.mod h1:jdWPYTVW3xRLrWPugEBEK3UY2ZEsg3UU495nc5E+M+I=
-golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad h1:DN0cp81fZ3njFcrLCytUHRSUkqBjfTo4Tx9RJTWs0EY=
 golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad/go.mod h1:jdWPYTVW3xRLrWPugEBEK3UY2ZEsg3UU495nc5E+M+I=
 golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 h1:/ZScEX8SfEmUGRHs0gxpqteO5nfNW6axyZbBdw9A12g=
 golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83/go.mod h1:jdWPYTVW3xRLrWPugEBEK3UY2ZEsg3UU495nc5E+M+I=
