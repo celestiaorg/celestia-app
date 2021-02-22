@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"errors"
 	fmt "fmt"
@@ -61,7 +62,7 @@ func (msg *MsgWirePayForMessage) ValidateBasic() error {
 
 	for _, commit := range msg.MessageShareCommitment {
 		// check that each commit is valid
-		calculatedCommit, err := CreateCommit(commit.K, msg.GetMessageNameSpaceId(), msg.Message)
+		calculatedCommit, err := CreateCommitment(commit.K, msg.GetMessageNameSpaceId(), msg.Message)
 		if err != nil {
 			return err
 		}
@@ -121,7 +122,9 @@ func (msg *MsgWirePayForMessage) GetCommitmentSignBytes(k uint64) ([]byte, error
 // SignedTransactionDataPayForMessage use the data in the MsgWirePayForMessage
 // to create a new SignedTransactionDataPayForMessage
 func (msg *MsgWirePayForMessage) SignedTransactionDataPayForMessage(k uint64) (*SignedTransactionDataPayForMessage, error) {
-	commit, err := CreateCommit(k, msg.MessageNameSpaceId, msg.Message)
+	// add padding to message if necessary
+	msg.parseMessage()
+	commit, err := CreateCommitment(k, msg.MessageNameSpaceId, msg.Message)
 	if err != nil {
 		return nil, err
 	}
@@ -136,6 +139,21 @@ func (msg *MsgWirePayForMessage) SignedTransactionDataPayForMessage(k uint64) (*
 		MessageShareCommitment: commit,
 	}
 	return &sTxMsg, nil
+}
+
+// parseMessage breaks the message into chunks and adds padding to msg.Message
+// if necessary
+func (msg *MsgWirePayForMessage) parseMessage() [][]byte {
+	// break message into shares
+	shares := chunkMessage(msg.Message)
+
+	// add padding if necessary
+	shares = addSharePadding(shares)
+
+	// modify the message to reflect padding
+	msg.Message = bytes.Join(shares, []byte{})
+
+	return shares
 }
 
 ///////////////////////////////////////
@@ -201,10 +219,10 @@ func (msg *SignedTransactionDataPayForMessage) GetSigners() []sdk.AccAddress {
 // 	Utilities
 ///////////////////////////////////////
 
-// CreateCommit generates the commit bytes for a given message, namespace, and
+// CreateCommitment generates the commit bytes for a given message, namespace, and
 // squaresize using a namespace merkle tree and the rules described at
 // https://github.com/lazyledger/lazyledger-specs/blob/master/rationale/message_block_layout.md#non-interactive-default-rules
-func CreateCommit(k uint64, namespace, message []byte) ([]byte, error) {
+func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 	// break message into shares
 	shares := chunkMessage(message)
 

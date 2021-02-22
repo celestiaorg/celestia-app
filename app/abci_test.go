@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	cliTx "github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -29,45 +30,19 @@ import (
 	dbm "github.com/tendermint/tm-db"
 )
 
-// TODO:
-// - flesh tests with more cases
-// 		- test for when the tx should fail
-
 // Get flags every time the simulator is run
 func init() {
 	simapp.GetSimulatorFlags()
 }
 
 func TestProcessMsg(t *testing.T) {
-	key := secp256k1.GenPrivKey()
+	testApp, key := setupApp(t)
 
-	testApp := setupApp(t)
-
-	for acc := range maccPerms {
-		require.Equal(t, !allowedReceivingModAcc[acc], testApp.BankKeeper.BlockedAddr(testApp.AccountKeeper.GetModuleAddress(acc)),
-			"ensure that blocked addresses are properly set in bank keeper")
-	}
-
-	genesisState := NewDefaultGenesisState()
-
-	genesisState, err := addGenesisAccount(sdk.AccAddress(key.PubKey().Address().Bytes()), genesisState, testApp.appCodec)
-	if err != nil {
-		t.Error(err)
-	}
-
-	stateBytes, err := json.MarshalIndent(genesisState, "", "  ")
-	require.NoError(t, err)
-
-	// Initialize the chain
-	testApp.InitChain(
-		abci.RequestInitChain{
-			Validators:    []abci.ValidatorUpdate{},
-			AppStateBytes: stateBytes,
-		},
-	)
+	ns := []byte{1, 1, 1, 1, 1, 1, 1, 1}
+	message := bytes.Repeat([]byte{1}, 256)
 
 	// create a tx
-	msg := generateWirePayForMessage(t, testApp.SquareSize(), key)
+	msg := generateWirePayForMessage(t, testApp.SquareSize(), key, ns, message)
 
 	tests := []struct {
 		name string
@@ -89,127 +64,54 @@ func TestProcessMsg(t *testing.T) {
 	}
 }
 
-// this belongs in the lazyledgerapp/simulation package
-func TestRunTx(t *testing.T) {
-	key := secp256k1.GenPrivKey()
+func TestPreprocessTxs(t *testing.T) {
+	testApp, key := setupApp(t)
 
-	testApp := setupApp(t)
-
-	for acc := range maccPerms {
-		require.Equal(t, !allowedReceivingModAcc[acc], testApp.BankKeeper.BlockedAddr(testApp.AccountKeeper.GetModuleAddress(acc)),
-			"ensure that blocked addresses are properly set in bank keeper")
+	type test struct {
+		input            abci.RequestPreprocessTxs
+		expectedMessages []*core.Message
+		expectedTxs      int
 	}
 
-	genesisState := NewDefaultGenesisState()
+	firstNS := []byte{2, 2, 2, 2, 2, 2, 2, 2}
+	firstMessage := bytes.Repeat([]byte{2}, 512)
+	firstRawTx := generateRawTx(t, key, testApp.txConfig, firstNS, firstMessage)
 
-	// give the key a bunch a coins for testing
-	genesisState, err := addGenesisAccount(sdk.AccAddress(key.PubKey().Address().Bytes()), genesisState, testApp.appCodec)
-	if err != nil {
-		t.Error(err)
-	}
+	secondNS := []byte{1, 1, 1, 1, 1, 1, 1, 1}
+	secondMessage := []byte{2}
+	secondRawTx := generateRawTx(t, key, testApp.txConfig, secondNS, secondMessage)
 
-	stateBytes, err := json.MarshalIndent(genesisState, "", "  ")
-	require.NoError(t, err)
+	thirdNS := []byte{3, 3, 3, 3, 3, 3, 3, 3}
+	thirdMessage := []byte{}
+	thirdRawTx := generateRawTx(t, key, testApp.txConfig, thirdNS, thirdMessage)
 
-	// Initialize the chain
-	testApp.InitChain(
-		abci.RequestInitChain{
-			Validators:    []abci.ValidatorUpdate{},
-			AppStateBytes: stateBytes,
-			ChainId:       "test-chain",
-		},
-	)
-
-	// create a msg
-	msg := generateWirePayForMessage(t, 64, key)
-
-	// this is returning a tx.wrapper
-	builder := testApp.txConfig.NewTxBuilder()
-	err = builder.SetMsgs(msg)
-	if err != nil {
-		t.Error(err)
-	}
-
-	coin := sdk.Coin{
-		Denom:  "token",
-		Amount: sdk.NewInt(1000),
-	}
-
-	builder.SetFeeAmount(sdk.NewCoins(coin))
-	builder.SetGasLimit(10000)
-	builder.SetTimeoutHeight(99)
-
-	signingData := authsigning.SignerData{
-		ChainID:       "test-chain",
-		AccountNumber: 0,
-		Sequence:      0,
-	}
-
-	// Important set the Signature to nil BEFORE actually signing
-	sigData := signing.SingleSignatureData{
-		SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-		Signature: nil,
-	}
-
-	sig := signing.SignatureV2{
-		PubKey:   key.PubKey(),
-		Data:     &sigData,
-		Sequence: 0,
-	}
-
-	// set the empty signature
-	err = builder.SetSignatures(sig)
-	if err != nil {
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	// create the actual signature
-	sigV2, err := cliTx.SignWithPrivKey(signing.SignMode_SIGN_MODE_DIRECT, signingData, builder, key, testApp.txConfig, 0)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// set the actual signature
-	err = builder.SetSignatures(sigV2)
-	if err != nil {
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	// finish the tx
-	tx := builder.GetTx()
-
-	// verify the signature before encoding
-	err = authsigning.VerifySignature(key.PubKey(), signingData, sigV2.Data, testApp.txConfig.SignModeHandler(), tx)
-	if err != nil {
-		t.Error(err)
-	}
-
-	rawTx, err := testApp.txConfig.TxEncoder()(tx)
-	if err != nil {
-		t.Error(err)
-	}
-
-	tests := []struct {
-		name  string
-		input []byte
-		want  core.Message
-		mode  uint8
-	}{
+	tests := []test{
 		{
-			name:  "basic",
-			mode:  3,
-			input: rawTx,
-			want:  core.Message{NamespaceId: msg.MessageNameSpaceId, Data: msg.Message},
+			input: abci.RequestPreprocessTxs{
+				Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
+			},
+			expectedMessages: []*core.Message{
+				{
+					NamespaceId: secondNS,                                           // the second message should be first
+					Data:        append([]byte{2}, bytes.Repeat([]byte{0}, 255)...), // check that the message is padded
+				},
+				{
+					NamespaceId: firstNS,
+					Data:        firstMessage,
+				},
+				{
+					NamespaceId: thirdNS,
+					Data:        nil,
+				},
+			},
+			expectedTxs: 3,
 		},
 	}
 
 	for _, tt := range tests {
-		_, _, err := testApp.TxRunner()(3, tt.input)
-		assert.NoError(t, err, "failure to validate and run tx")
+		res := testApp.PreprocessTxs(tt.input)
+		assert.Equal(t, tt.expectedMessages, res.Messages.MessagesList)
+		assert.Equal(t, tt.expectedTxs, len(res.Txs))
 	}
 }
 
@@ -220,8 +122,11 @@ func TestTxSignature(t *testing.T) {
 	encConf := MakeEncodingConfig()
 	txConf := encConf.TxConfig
 
+	ns := []byte{1, 1, 1, 1, 1, 1, 1, 1}
+	message := bytes.Repeat([]byte{1}, 256)
+
 	// create a msg
-	msg := generateWirePayForMessage(t, 64, key)
+	msg := generateWirePayForMessage(t, 64, key, ns, message)
 
 	// this is returning a tx.wrapper
 	builder := txConf.NewTxBuilder()
@@ -296,7 +201,7 @@ func TestTxSignature(t *testing.T) {
 //	Setup App
 /////////////////////////////
 
-func setupApp(t *testing.T) *App {
+func setupApp(t *testing.T) (*App, *secp256k1.PrivKey) {
 	// var cache sdk.MultiStorePersistentCache
 	// EmptyAppOptions is a stub implementing AppOptions
 	emptyOpts := emptyAppOptions{}
@@ -306,7 +211,7 @@ func setupApp(t *testing.T) *App {
 
 	skipUpgradeHeights := make(map[int64]bool)
 
-	return New(
+	testApp := New(
 		"test-app", logger, db, nil, true, skipUpgradeHeights,
 		cast.ToString(emptyOpts.Get(flags.FlagHome)),
 		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
@@ -314,6 +219,33 @@ func setupApp(t *testing.T) *App {
 		emptyOpts,
 		anteOpt,
 	)
+
+	key := secp256k1.GenPrivKey()
+
+	for acc := range maccPerms {
+		require.Equal(t, !allowedReceivingModAcc[acc], testApp.BankKeeper.BlockedAddr(testApp.AccountKeeper.GetModuleAddress(acc)),
+			"ensure that blocked addresses are properly set in bank keeper")
+	}
+
+	genesisState := NewDefaultGenesisState()
+
+	genesisState, err := addGenesisAccount(sdk.AccAddress(key.PubKey().Address().Bytes()), genesisState, testApp.appCodec)
+	if err != nil {
+		t.Error(err)
+	}
+
+	stateBytes, err := json.MarshalIndent(genesisState, "", "  ")
+	require.NoError(t, err)
+
+	// Initialize the chain
+	testApp.InitChain(
+		abci.RequestInitChain{
+			Validators:    []abci.ValidatorUpdate{},
+			AppStateBytes: stateBytes,
+		},
+	)
+
+	return testApp, key
 }
 
 type emptyAppOptions struct{}
@@ -390,13 +322,82 @@ func addGenesisAccount(addr sdk.AccAddress, appState map[string]json.RawMessage,
 //	Generate Txs
 /////////////////////////////
 
-func generateWirePayForMessage(t *testing.T, k uint64, key *secp256k1.PrivKey) *types.MsgWirePayForMessage {
+func generateRawTx(t *testing.T, key *secp256k1.PrivKey, txConfig client.TxConfig, ns, message []byte) (rawTx []byte) {
+	// create a msg
+	msg := generateWirePayForMessage(t, types.SquareSize, key, ns, message)
+
+	// this is returning a tx.wrapper
+	builder := txConfig.NewTxBuilder()
+	err := builder.SetMsgs(msg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	coin := sdk.Coin{
+		Denom:  "token",
+		Amount: sdk.NewInt(1000),
+	}
+
+	builder.SetFeeAmount(sdk.NewCoins(coin))
+	builder.SetGasLimit(10000)
+	builder.SetTimeoutHeight(99)
+
+	signingData := authsigning.SignerData{
+		ChainID:       "test-chain",
+		AccountNumber: 0,
+		Sequence:      0,
+	}
+
+	// Important set the Signature to nil BEFORE actually signing
+	sigData := signing.SingleSignatureData{
+		SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
+		Signature: nil,
+	}
+
+	sig := signing.SignatureV2{
+		PubKey:   key.PubKey(),
+		Data:     &sigData,
+		Sequence: 0,
+	}
+
+	// set the empty signature
+	err = builder.SetSignatures(sig)
+	if err != nil {
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	// create the actual signature
+	sigV2, err := cliTx.SignWithPrivKey(signing.SignMode_SIGN_MODE_DIRECT, signingData, builder, key, txConfig, 0)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// set the actual signature
+	err = builder.SetSignatures(sigV2)
+	if err != nil {
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	// finish the tx
+	tx := builder.GetTx()
+
+	// encode the tx
+	rawTx, err = txConfig.TxEncoder()(tx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	return rawTx
+}
+
+func generateWirePayForMessage(t *testing.T, k uint64, key *secp256k1.PrivKey, ns, message []byte) *types.MsgWirePayForMessage {
 	pubKey := key.PubKey()
 
-	message := bytes.Repeat([]byte{2}, 512)
-	nsp := []byte{1, 1, 1, 1, 1, 1, 1, 1}
-
-	commit, err := types.CreateCommit(k, nsp, message)
+	commit, err := types.CreateCommitment(k, ns, message)
 	if err != nil {
 		t.Error(err)
 	}
@@ -404,7 +405,7 @@ func generateWirePayForMessage(t *testing.T, k uint64, key *secp256k1.PrivKey) *
 	msg := &types.MsgWirePayForMessage{
 		Fee:                &types.TransactionFee{},
 		Nonce:              0,
-		MessageNameSpaceId: nsp,
+		MessageNameSpaceId: ns,
 		MessageSize:        512,
 		Message:            message,
 		PublicKey:          pubKey.Bytes(),

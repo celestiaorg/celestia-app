@@ -70,7 +70,7 @@ func TestNextPowerOf2(t *testing.T) {
 
 // TestCreateCommit only shows if something changed, it doesn't actually show
 // the commit is being created correctly todo(evan): fix me.
-func TestCreateCommit(t *testing.T) {
+func TestCreateCommitment(t *testing.T) {
 	type test struct {
 		k         uint64
 		namespace []byte
@@ -86,7 +86,7 @@ func TestCreateCommit(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		res, err := CreateCommit(tt.k, tt.namespace, tt.message)
+		res, err := CreateCommitment(tt.k, tt.namespace, tt.message)
 		assert.NoError(t, err)
 		assert.Equal(t, tt.expected, res)
 	}
