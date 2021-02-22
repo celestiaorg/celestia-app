@@ -27,7 +27,7 @@ message MsgWirePayForMessage {
   bytes public_key = 7; 
 }
 
-// WirePayForMessageResponse describes the response returned after the submission of a MsgWirePayForMessage
+// MsgPayForMessageResponse describes the response returned after the submission of a MsgWirePayForMessage
 message MsgPayForMessageResponse {}
 
 // ShareCommitAndSignature defines the 
@@ -54,6 +54,9 @@ message SignedTransactionDataPayForMessage {
     uint64 message_size = 4;
     bytes message_share_commitment = 5;
 }
+
+// SignedTransactionDataPayForMessageResponse describes the response returned after the submission of a SignedTransactionDataPayForMessage
+message SignedTransactionDataPayForMessageResponse {}
 
 // TransactionFee contains the base and tip rates.
 message TransactionFee {
