@@ -12,20 +12,11 @@ import (
 	core "github.com/lazyledger/lazyledger-core/proto/tendermint/types"
 )
 
-const (
-	// runTxModeDeliver determines if the tx being ran should only be checked,
-	// or if it should actually modify the state.
-	// copy and pasted from the sdk, as it is not exported
-	// https://github.com/lazyledger/cosmos-sdk/blob/3addd7f65d1c35f76716d67641ee629b01f5b9c7/baseapp/baseapp.go#L28
-	runTxModeDeliver = 3
-)
-
 // This file should contain all of the altered ABCI methods
 
 // PreprocessTxs fullfills the lazyledger-core version of the ACBI interface, by
 // performing basic validation for the incoming txs, and by cleanly separating
 // share messages from transactions
-// todo(evan): refactor out a for loop.
 func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePreprocessTxs {
 	squareSize := app.SquareSize()
 	shareCounter := uint64(0)
@@ -60,14 +51,6 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 
 		// process the message
 		coreMsg, signedTx, err := app.processMsg(msg)
-		if err != nil {
-			continue
-		}
-
-		// execute the tx in runTxModeDeliver mode (3)
-		// execution includes all validation checks burning fees
-		// currently, no fees are burned
-		_, _, err = app.BaseApp.TxRunner()(runTxModeDeliver, rawTx)
 		if err != nil {
 			continue
 		}
