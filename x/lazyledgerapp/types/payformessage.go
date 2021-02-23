@@ -5,6 +5,7 @@ import (
 	"errors"
 	fmt "fmt"
 
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/lazyledger/lazyledger-core/crypto/merkle"
@@ -24,7 +25,50 @@ const (
 // 	MsgWirePayForMessage
 ///////////////////////////////////////
 
-var _ sdk.MsgRequest = &MsgWirePayForMessage{}
+var _ sdk.Msg = &MsgWirePayForMessage{}
+
+// NewMsgWirePayForMessage creates a new MsgWirePayForMessage by using the
+// namespace and message to generate share commitments for the provided square sizes
+// Note that the share commitments generated still need to be signed using the Sign
+// method
+func NewMsgWirePayForMessage(namespace, message, pubK []byte, fee *TransactionFee, sizes ...uint64) (*MsgWirePayForMessage, error) {
+	out := &MsgWirePayForMessage{
+		Fee:                    fee,
+		Nonce:                  0,
+		MessageNameSpaceId:     namespace,
+		MessageSize:            uint64(len(message)),
+		Message:                message,
+		MessageShareCommitment: make([]ShareCommitAndSignature, len(sizes)),
+		PublicKey:              pubK,
+	}
+
+	// generate the share commitments
+	for i, size := range sizes {
+		commit, err := CreateCommitment(size, namespace, message)
+		if err != nil {
+			return nil, err
+		}
+		out.MessageShareCommitment[i] = ShareCommitAndSignature{K: size, ShareCommitment: commit}
+	}
+	return out, nil
+}
+
+// SignShareCommitments use the provided Keyring to sign each of the share commits
+// generated during the creation of the MsgWirePayForMessage
+func (msg *MsgWirePayForMessage) SignShareCommitments(accName string, ring keyring.Keyring) error {
+	for i, commit := range msg.MessageShareCommitment {
+		bytesToSign, err := msg.GetCommitmentSignBytes(commit.K)
+		if err != nil {
+			return err
+		}
+		sig, _, err := ring.Sign(accName, bytesToSign)
+		if err != nil {
+			return err
+		}
+		msg.MessageShareCommitment[i].Signature = sig
+	}
+	return nil
+}
 
 func (msg *MsgWirePayForMessage) Route() string { return RouterKey }
 
