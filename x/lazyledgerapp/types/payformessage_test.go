@@ -121,29 +121,31 @@ func TestGetCommitmentSignBytes(t *testing.T) {
 	}
 }
 
-func TestShareChunkingAndPadding(t *testing.T) {
+func TestPadMessage(t *testing.T) {
 	type test struct {
-		input  []byte
-		expect [][]byte
+		input    []byte
+		expected []byte
 	}
 	tests := []test{
 		{
-			input:  []byte{1},
-			expect: [][]byte{append([]byte{1}, bytes.Repeat([]byte{0}, ShareSize-1)...)},
+			input:    []byte{1},
+			expected: append([]byte{1}, bytes.Repeat([]byte{0}, ShareSize-1)...),
 		},
 		{
-			input:  bytes.Repeat([]byte{1}, ShareSize),
-			expect: [][]byte{bytes.Repeat([]byte{1}, ShareSize)},
+			input:    []byte{},
+			expected: []byte{},
+		},
+		{
+			input:    bytes.Repeat([]byte{1}, ShareSize),
+			expected: bytes.Repeat([]byte{1}, ShareSize),
+		},
+		{
+			input:    bytes.Repeat([]byte{1}, (3*ShareSize)-10),
+			expected: append(bytes.Repeat([]byte{1}, (3*ShareSize)-10), bytes.Repeat([]byte{0}, 10)...),
 		},
 	}
 	for _, tt := range tests {
-		shares := chunkMessage(tt.input)
-		shares = addSharePadding(shares)
-		for _, share := range shares {
-			if len(share) != ShareSize {
-				t.Errorf("invalid share length: got %d wanted core.ShareSize (%d)", len(share), ShareSize)
-			}
-		}
-		assert.Equal(t, tt.expect, shares)
+		res := PadMessage(tt.input)
+		assert.Equal(t, tt.expected, res)
 	}
 }

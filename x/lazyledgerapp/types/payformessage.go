@@ -1,7 +1,6 @@
 package types
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"errors"
 	fmt "fmt"
@@ -123,11 +122,15 @@ func (msg *MsgWirePayForMessage) GetCommitmentSignBytes(k uint64) ([]byte, error
 // to create a new SignedTransactionDataPayForMessage
 func (msg *MsgWirePayForMessage) SignedTransactionDataPayForMessage(k uint64) (*SignedTransactionDataPayForMessage, error) {
 	// add padding to message if necessary
-	msg.parseMessage()
+	msg.Message = PadMessage(msg.Message)
+
+	// create the commitment using the padded message
 	commit, err := CreateCommitment(k, msg.MessageNameSpaceId, msg.Message)
 	if err != nil {
 		return nil, err
 	}
+
+	//
 	sTxMsg := SignedTransactionDataPayForMessage{
 		Fee: &TransactionFee{
 			BaseRateMax: msg.Fee.BaseRateMax,
@@ -139,21 +142,6 @@ func (msg *MsgWirePayForMessage) SignedTransactionDataPayForMessage(k uint64) (*
 		MessageShareCommitment: commit,
 	}
 	return &sTxMsg, nil
-}
-
-// parseMessage breaks the message into chunks and adds padding to msg.Message
-// if necessary
-func (msg *MsgWirePayForMessage) parseMessage() [][]byte {
-	// break message into shares
-	shares := chunkMessage(msg.Message)
-
-	// add padding if necessary
-	shares = addSharePadding(shares)
-
-	// modify the message to reflect padding
-	msg.Message = bytes.Join(shares, []byte{})
-
-	return shares
 }
 
 ///////////////////////////////////////
@@ -223,11 +211,11 @@ func (msg *SignedTransactionDataPayForMessage) GetSigners() []sdk.AccAddress {
 // squaresize using a namespace merkle tree and the rules described at
 // https://github.com/lazyledger/lazyledger-specs/blob/master/rationale/message_block_layout.md#non-interactive-default-rules
 func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
+	// add padding to the message if necessary
+	message = PadMessage(message)
+
 	// break message into shares
 	shares := chunkMessage(message)
-
-	// add padding if necessary
-	shares = addSharePadding(shares)
 
 	// organize shares for merkle mountain range
 	heights := PowerOf2MountainRange(uint64(len(shares)), k)
@@ -255,7 +243,7 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 	return merkle.HashFromByteSlices(subTreeRoots), nil
 }
 
-// chunkMessage breaks the message into 256 byte pieces
+// chunkMessage breaks the message into ShareSize pieces
 func chunkMessage(message []byte) [][]byte {
 	var shares [][]byte
 	for i := 0; i < len(message); i += ShareSize {
@@ -268,20 +256,19 @@ func chunkMessage(message []byte) [][]byte {
 	return shares
 }
 
-// addSharePadding will add padding to the last share if necessary
-func addSharePadding(shares [][]byte) [][]byte {
-	if len(shares) == 0 {
-		return shares
+// PadMessage adds padding to the msg if the length of the msg is not divisible
+// by the share size specified in lazyledger-core
+func PadMessage(msg []byte) []byte {
+	// check if the message needs padding
+	if uint64(len(msg))%ShareSize == 0 {
+		return msg
 	}
 
-	// add padding to the last share if necessary
-	if len(shares[len(shares)-1]) != ShareSize {
-		padded := make([]byte, ShareSize)
-		copy(padded, shares[len(shares)-1])
-		shares[len(shares)-1] = padded
-	}
+	shareCount := (len(msg) / ShareSize) + 1
 
-	return shares
+	padded := make([]byte, shareCount*ShareSize)
+	copy(padded, msg)
+	return padded
 }
 
 // PowerOf2MountainRange returns the heights of the subtrees for binary merkle
