@@ -130,7 +130,6 @@ func (msg *MsgWirePayForMessage) SignedTransactionDataPayForMessage(k uint64) (*
 		return nil, err
 	}
 
-	//
 	sTxMsg := SignedTransactionDataPayForMessage{
 		Fee: &TransactionFee{
 			BaseRateMax: msg.Fee.BaseRateMax,
