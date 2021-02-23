@@ -547,8 +547,6 @@ func (c *msgClient) PayForMessage(ctx context.Context, in *MsgWirePayForMessage,
 type MsgServer interface {
 	// PayForMessage allows the user to post data to made be available.
 	PayForMessage(context.Context, *MsgWirePayForMessage) (*MsgPayForMessageResponse, error)
-	// PayForMessage allows the user to post data to made be available.
-	SignedTransactionDataPayForMessage(context.Context, *SignedTransactionDataPayForMessage) (*SignedTransactionDataPayForMessageResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.

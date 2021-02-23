@@ -1,8 +1,20 @@
 package keeper
 
-import "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/types"
+import (
+	"context"
+
+	"github.com/lazyledger/lazyledger-app/x/lazyledgerapp/types"
+)
 
 var _ types.MsgServer = msgServer{}
+
+// MsgServer is the server API for Msg service.
+type MsgServer interface {
+	// PayForMessage allows the user to post data to made be available.
+	PayForMessage(context.Context, *types.MsgWirePayForMessage) (*types.MsgPayForMessageResponse, error)
+	// PayForMessage allows the user to post data to made be available.
+	SignedTransactionDataPayForMessage(context.Context, *types.SignedTransactionDataPayForMessage) (*types.SignedTransactionDataPayForMessageResponse, error)
+}
 
 type msgServer struct {
 	Keeper
@@ -10,6 +22,6 @@ type msgServer struct {
 
 // NewMsgServerImpl returns an implementation of the bank MsgServer interface
 // for the provided Keeper.
-func NewMsgServerImpl(keeper Keeper) types.MsgServer {
+func NewMsgServerImpl(keeper Keeper) MsgServer {
 	return &msgServer{Keeper: keeper}
 }
