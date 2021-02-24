@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -148,4 +150,56 @@ func TestPadMessage(t *testing.T) {
 		res := PadMessage(tt.input)
 		assert.Equal(t, tt.expected, res)
 	}
+}
+
+func TestSignShareCommitments(t *testing.T) {
+	type test struct {
+		accName string
+		msg     *MsgWirePayForMessage
+	}
+
+	kb := generateKeyring(t, "test")
+
+	// create the first PFM for the first test
+	firstPubKey, err := kb.Key("test")
+	if err != nil {
+		t.Error(err)
+	}
+	firstNs := []byte{1, 1, 1, 1, 1, 1, 1, 1}
+	firstMsg := bytes.Repeat([]byte{1}, ShareSize)
+	firstPFM, err := NewMsgWirePayForMessage(
+		firstNs,
+		firstMsg,
+		firstPubKey.GetPubKey().Bytes(),
+		&TransactionFee{},
+		SquareSize,
+	)
+
+	tests := []test{
+		{
+			accName: "test",
+			msg:     firstPFM,
+		},
+	}
+
+	for _, tt := range tests {
+		err := tt.msg.SignShareCommitments(tt.accName, kb)
+		// there should be no error
+		assert.NoError(t, err)
+		// the signature should exist
+		assert.Equal(t, len(tt.msg.MessageShareCommitment[0].Signature), 64)
+	}
+}
+
+func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
+	kb := keyring.NewInMemory()
+
+	for _, acc := range accts {
+		_, _, err := kb.NewMnemonic(acc, keyring.English, "", hd.Secp256k1)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	return kb
 }
