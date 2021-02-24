@@ -174,6 +174,9 @@ func TestSignShareCommitments(t *testing.T) {
 		&TransactionFee{},
 		SquareSize,
 	)
+	if err != nil {
+		t.Error(err)
+	}
 
 	tests := []test{
 		{
