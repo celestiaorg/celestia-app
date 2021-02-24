@@ -10,9 +10,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	cliTx "github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -30,19 +31,26 @@ import (
 	dbm "github.com/tendermint/tm-db"
 )
 
+const testingKeyAcc = "test"
+
 // Get flags every time the simulator is run
 func init() {
 	simapp.GetSimulatorFlags()
 }
 
 func TestProcessMsg(t *testing.T) {
-	testApp, key := setupApp(t)
-
+	kb := keyring.NewInMemory()
+	info, _, err := kb.NewMnemonic(testingKeyAcc, keyring.English, "", hd.Secp256k1)
+	if err != nil {
+		t.Error(err)
+	}
 	ns := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	message := bytes.Repeat([]byte{1}, 256)
 
-	// create a tx
-	msg := generateWirePayForMessage(t, testApp.SquareSize(), key, ns, message)
+	// create a signed MsgWirePayFroMessage
+	msg := generateSignedWirePayForMessage(t, types.SquareSize, ns, message, kb)
+
+	testApp := setupApp(t, info.GetPubKey())
 
 	tests := []struct {
 		name string
@@ -65,7 +73,13 @@ func TestProcessMsg(t *testing.T) {
 }
 
 func TestPreprocessTxs(t *testing.T) {
-	testApp, key := setupApp(t)
+	kb := keyring.NewInMemory()
+	info, _, err := kb.NewMnemonic(testingKeyAcc, keyring.English, "", hd.Secp256k1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	testApp := setupApp(t, info.GetPubKey())
 
 	type test struct {
 		input            abci.RequestPreprocessTxs
@@ -75,15 +89,15 @@ func TestPreprocessTxs(t *testing.T) {
 
 	firstNS := []byte{2, 2, 2, 2, 2, 2, 2, 2}
 	firstMessage := bytes.Repeat([]byte{2}, 512)
-	firstRawTx := generateRawTx(t, key, testApp.txConfig, firstNS, firstMessage)
+	firstRawTx := generateRawTx(t, testApp.txConfig, firstNS, firstMessage, kb)
 
 	secondNS := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	secondMessage := []byte{2}
-	secondRawTx := generateRawTx(t, key, testApp.txConfig, secondNS, secondMessage)
+	secondRawTx := generateRawTx(t, testApp.txConfig, secondNS, secondMessage, kb)
 
 	thirdNS := []byte{3, 3, 3, 3, 3, 3, 3, 3}
 	thirdMessage := []byte{}
-	thirdRawTx := generateRawTx(t, key, testApp.txConfig, thirdNS, thirdMessage)
+	thirdRawTx := generateRawTx(t, testApp.txConfig, thirdNS, thirdMessage, kb)
 
 	tests := []test{
 		{
@@ -115,93 +129,11 @@ func TestPreprocessTxs(t *testing.T) {
 	}
 }
 
-// this is more of a sanity check
-func TestTxSignature(t *testing.T) {
-	key := secp256k1.GenPrivKey()
-
-	encConf := MakeEncodingConfig()
-	txConf := encConf.TxConfig
-
-	ns := []byte{1, 1, 1, 1, 1, 1, 1, 1}
-	message := bytes.Repeat([]byte{1}, 256)
-
-	// create a msg
-	msg := generateWirePayForMessage(t, 64, key, ns, message)
-
-	// this is returning a tx.wrapper
-	builder := txConf.NewTxBuilder()
-	err := builder.SetMsgs(msg)
-	if err != nil {
-		t.Error(err)
-	}
-
-	signingData := authsigning.SignerData{
-		ChainID:       "test-chain",
-		AccountNumber: 0,
-		Sequence:      0,
-	}
-
-	sigData := signing.SingleSignatureData{
-		SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-		Signature: nil,
-	}
-
-	sig := signing.SignatureV2{
-		PubKey:   key.PubKey(),
-		Data:     &sigData,
-		Sequence: 0,
-	}
-
-	// set the unsigned signature data (nil) first
-	// this is required for SignWithPriveKey to sign properly
-	err = builder.SetSignatures(sig)
-	if err != nil {
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	sigV2, err := cliTx.SignWithPrivKey(signing.SignMode_SIGN_MODE_DIRECT, signingData, builder, key, txConf, 0)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = builder.SetSignatures(sigV2)
-	if err != nil {
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	tx := builder.GetTx()
-
-	err = authsigning.VerifySignature(key.PubKey(), signingData, sigV2.Data, txConf.SignModeHandler(), tx)
-	if err != nil {
-		t.Error("failure to verify Signature")
-	}
-
-	rawTx, err := txConf.TxEncoder()(tx)
-	if err != nil {
-		t.Error(err)
-	}
-
-	stx, err := txConf.TxDecoder()(rawTx)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// verify the signature after decoding
-	err = authsigning.VerifySignature(key.PubKey(), signingData, sigV2.Data, txConf.SignModeHandler(), stx)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 /////////////////////////////
 //	Setup App
 /////////////////////////////
 
-func setupApp(t *testing.T) (*App, *secp256k1.PrivKey) {
+func setupApp(t *testing.T, pub cryptotypes.PubKey) *App {
 	// var cache sdk.MultiStorePersistentCache
 	// EmptyAppOptions is a stub implementing AppOptions
 	emptyOpts := emptyAppOptions{}
@@ -220,8 +152,6 @@ func setupApp(t *testing.T) (*App, *secp256k1.PrivKey) {
 		anteOpt,
 	)
 
-	key := secp256k1.GenPrivKey()
-
 	for acc := range maccPerms {
 		require.Equal(t, !allowedReceivingModAcc[acc], testApp.BankKeeper.BlockedAddr(testApp.AccountKeeper.GetModuleAddress(acc)),
 			"ensure that blocked addresses are properly set in bank keeper")
@@ -229,7 +159,7 @@ func setupApp(t *testing.T) (*App, *secp256k1.PrivKey) {
 
 	genesisState := NewDefaultGenesisState()
 
-	genesisState, err := addGenesisAccount(sdk.AccAddress(key.PubKey().Address().Bytes()), genesisState, testApp.appCodec)
+	genesisState, err := addGenesisAccount(sdk.AccAddress(pub.Address().Bytes()), genesisState, testApp.appCodec)
 	if err != nil {
 		t.Error(err)
 	}
@@ -245,7 +175,7 @@ func setupApp(t *testing.T) (*App, *secp256k1.PrivKey) {
 		},
 	)
 
-	return testApp, key
+	return testApp
 }
 
 type emptyAppOptions struct{}
@@ -322,13 +252,18 @@ func addGenesisAccount(addr sdk.AccAddress, appState map[string]json.RawMessage,
 //	Generate Txs
 /////////////////////////////
 
-func generateRawTx(t *testing.T, key *secp256k1.PrivKey, txConfig client.TxConfig, ns, message []byte) (rawTx []byte) {
+func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, ring keyring.Keyring) (rawTx []byte) {
 	// create a msg
-	msg := generateWirePayForMessage(t, types.SquareSize, key, ns, message)
+	msg := generateSignedWirePayForMessage(t, types.SquareSize, ns, message, ring)
+
+	info, err := ring.Key(testingKeyAcc)
+	if err != nil {
+		t.Error(err)
+	}
 
 	// this is returning a tx.wrapper
 	builder := txConfig.NewTxBuilder()
-	err := builder.SetMsgs(msg)
+	err = builder.SetMsgs(msg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -355,7 +290,7 @@ func generateRawTx(t *testing.T, key *secp256k1.PrivKey, txConfig client.TxConfi
 	}
 
 	sig := signing.SignatureV2{
-		PubKey:   key.PubKey(),
+		PubKey:   info.GetPubKey(),
 		Data:     &sigData,
 		Sequence: 0,
 	}
@@ -368,10 +303,34 @@ func generateRawTx(t *testing.T, key *secp256k1.PrivKey, txConfig client.TxConfi
 		}
 	}
 
-	// create the actual signature
-	sigV2, err := cliTx.SignWithPrivKey(signing.SignMode_SIGN_MODE_DIRECT, signingData, builder, key, txConfig, 0)
+	// Generate the bytes to be signed.
+	bytesToSign, err := txConfig.
+		SignModeHandler().
+		GetSignBytes(
+			signing.SignMode_SIGN_MODE_DIRECT,
+			signingData,
+			builder.GetTx(),
+		)
 	if err != nil {
 		t.Error(err)
+	}
+
+	// Sign those bytes
+	sigBytes, _, err := ring.Sign(testingKeyAcc, bytesToSign)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Construct the SignatureV2 struct
+	sigData = signing.SingleSignatureData{
+		SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
+		Signature: sigBytes,
+	}
+
+	sigV2 := signing.SignatureV2{
+		PubKey:   info.GetPubKey(),
+		Data:     &sigData,
+		Sequence: 0,
 	}
 
 	// set the actual signature
@@ -394,40 +353,21 @@ func generateRawTx(t *testing.T, key *secp256k1.PrivKey, txConfig client.TxConfi
 	return rawTx
 }
 
-func generateWirePayForMessage(t *testing.T, k uint64, key *secp256k1.PrivKey, ns, message []byte) *types.MsgWirePayForMessage {
-	pubKey := key.PubKey()
-
-	commit, err := types.CreateCommitment(k, ns, message)
+func generateSignedWirePayForMessage(t *testing.T, k uint64, ns, message []byte, ring keyring.Keyring) *types.MsgWirePayForMessage {
+	info, err := ring.Key(testingKeyAcc)
 	if err != nil {
 		t.Error(err)
 	}
 
-	msg := &types.MsgWirePayForMessage{
-		Fee:                &types.TransactionFee{},
-		Nonce:              0,
-		MessageNameSpaceId: ns,
-		MessageSize:        512,
-		Message:            message,
-		PublicKey:          pubKey.Bytes(),
-		MessageShareCommitment: []types.ShareCommitAndSignature{
-			{
-				K:               k,
-				ShareCommitment: commit,
-			},
-		},
-	}
-
-	rawTxPFM, err := msg.GetCommitmentSignBytes(k)
+	msg, err := types.NewMsgWirePayForMessage(ns, message, info.GetPubKey().Bytes(), &types.TransactionFee{}, k)
 	if err != nil {
 		t.Error(err)
 	}
 
-	signedTxPFM, err := key.Sign(rawTxPFM)
+	err = msg.SignShareCommitments(testingKeyAcc, ring)
 	if err != nil {
 		t.Error(err)
 	}
-
-	msg.MessageShareCommitment[0].Signature = signedTxPFM
 
 	return msg
 }
