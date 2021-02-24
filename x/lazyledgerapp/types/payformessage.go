@@ -32,6 +32,7 @@ var _ sdk.Msg = &MsgWirePayForMessage{}
 // Note that the share commitments generated still need to be signed using the Sign
 // method
 func NewMsgWirePayForMessage(namespace, message, pubK []byte, fee *TransactionFee, sizes ...uint64) (*MsgWirePayForMessage, error) {
+	message = PadMessage(message)
 	out := &MsgWirePayForMessage{
 		Fee:                    fee,
 		Nonce:                  0,
@@ -166,7 +167,7 @@ func (msg *MsgWirePayForMessage) GetCommitmentSignBytes(k uint64) ([]byte, error
 // to create a new SignedTransactionDataPayForMessage
 func (msg *MsgWirePayForMessage) SignedTransactionDataPayForMessage(k uint64) (*SignedTransactionDataPayForMessage, error) {
 	// add padding to message if necessary
-	msg.Message = PadMessage(msg.Message)
+	msg.padMessage()
 
 	// create the commitment using the padded message
 	commit, err := CreateCommitment(k, msg.MessageNameSpaceId, msg.Message)
@@ -185,6 +186,16 @@ func (msg *MsgWirePayForMessage) SignedTransactionDataPayForMessage(k uint64) (*
 		MessageShareCommitment: commit,
 	}
 	return &sTxMsg, nil
+}
+
+// padMessage adds padding to a message while also changing the declared message
+// length
+func (msg *MsgWirePayForMessage) padMessage() {
+	msg.Message = PadMessage(msg.Message)
+
+	if uint64(len(msg.Message)) != msg.MessageSize {
+		msg.MessageSize = uint64(msg.MessageSize)
+	}
 }
 
 ///////////////////////////////////////
