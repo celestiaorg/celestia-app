@@ -166,9 +166,6 @@ func (msg *MsgWirePayForMessage) GetCommitmentSignBytes(k uint64) ([]byte, error
 // SignedTransactionDataPayForMessage use the data in the MsgWirePayForMessage
 // to create a new SignedTransactionDataPayForMessage
 func (msg *MsgWirePayForMessage) SignedTransactionDataPayForMessage(k uint64) (*SignedTransactionDataPayForMessage, error) {
-	// add padding to message if necessary
-	msg.padMessage()
-
 	// create the commitment using the padded message
 	commit, err := CreateCommitment(k, msg.MessageNameSpaceId, msg.Message)
 	if err != nil {
@@ -186,16 +183,6 @@ func (msg *MsgWirePayForMessage) SignedTransactionDataPayForMessage(k uint64) (*
 		MessageShareCommitment: commit,
 	}
 	return &sTxMsg, nil
-}
-
-// padMessage adds padding to a message while also changing the declared message
-// length
-func (msg *MsgWirePayForMessage) padMessage() {
-	msg.Message = PadMessage(msg.Message)
-
-	if uint64(len(msg.Message)) != msg.MessageSize {
-		msg.MessageSize = uint64(msg.MessageSize)
-	}
 }
 
 ///////////////////////////////////////
