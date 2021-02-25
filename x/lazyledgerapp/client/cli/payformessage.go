@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -40,13 +41,13 @@ func CmdCreatePayForMessage() *cobra.Command {
 			// decode the namespace
 			namespace, err := hex.DecodeString(args[0])
 			if err != nil {
-				return err
+				return fmt.Errorf("failure to decode hex namespace: %s", err)
 			}
 
 			// decode the message
 			message, err := hex.DecodeString(args[1])
 			if err != nil {
-				return err
+				return fmt.Errorf("failure to decode hex message: %s", err)
 			}
 
 			// create the PayForMessage
