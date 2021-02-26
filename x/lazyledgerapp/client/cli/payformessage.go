@@ -41,7 +41,7 @@ func CmdCreatePayForMessage() *cobra.Command {
 			// decode the namespace
 			namespace, err := hex.DecodeString(args[0])
 			if err != nil {
-				return fmt.Errorf("failure to decode hex namespace: %s", err)
+				return fmt.Errorf("failure to decode hex namespace: %w", err)
 			}
 
 			// decode the message
