@@ -47,7 +47,7 @@ func CmdCreatePayForMessage() *cobra.Command {
 			// decode the message
 			message, err := hex.DecodeString(args[1])
 			if err != nil {
-				return fmt.Errorf("failure to decode hex message: %s", err)
+				return fmt.Errorf("failure to decode hex message: %w", err)
 			}
 
 			// create the PayForMessage
