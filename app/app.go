@@ -2,6 +2,7 @@ package app
 
 import (
 	"io"
+	"math/big"
 	"os"
 	"path/filepath"
 
@@ -10,9 +11,9 @@ import (
 	"github.com/pelletier/go-toml"
 	"github.com/spf13/cast"
 
-	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/libs/log"
-	tmos "github.com/tendermint/tendermint/libs/os"
+	abci "github.com/lazyledger/lazyledger-core/abci/types"
+	"github.com/lazyledger/lazyledger-core/libs/log"
+	tmos "github.com/lazyledger/lazyledger-core/libs/os"
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -74,9 +75,9 @@ import (
 	"github.com/lazyledger/lazyledger-app/x/lazyledgerapp"
 	lazyledgerappkeeper "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/keeper"
 	lazyledgerapptypes "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/types"
-	tmjson "github.com/tendermint/tendermint/libs/json"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
+	tmjson "github.com/lazyledger/lazyledger-core/libs/json"
+	tmproto "github.com/lazyledger/lazyledger-core/proto/tendermint/types"
+	rpchttp "github.com/lazyledger/lazyledger-core/rpc/client/http"
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 )
 
@@ -140,10 +141,12 @@ var (
 type App struct {
 	*baseapp.BaseApp
 
-	appName string
+	appName    string
+	squareSize uint64
 
 	cdc               *codec.LegacyAmino
 	appCodec          codec.Marshaler
+	txConfig          client.TxConfig
 	interfaceRegistry types.InterfaceRegistry
 
 	invCheckPeriod uint
@@ -191,6 +194,7 @@ func New(
 	appCodec := encodingConfig.Marshaler
 	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
+	txConfig := encodingConfig.TxConfig
 
 	bApp := baseapp.NewBaseApp(appName, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 	bApp.SetCommitMultiStoreTracer(traceStore)
@@ -209,10 +213,13 @@ func New(
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 
 	app := &App{
-		BaseApp:           bApp,
-		appName:           appName,
+		BaseApp: bApp,
+		appName: appName,
+		// todo(evan): don't hardcode square size
+		squareSize:        lazyledgerapptypes.SquareSize,
 		cdc:               cdc,
 		appCodec:          appCodec,
+		txConfig:          txConfig,
 		interfaceRegistry: interfaceRegistry,
 		invCheckPeriod:    invCheckPeriod,
 		keys:              keys,
@@ -267,7 +274,6 @@ func New(
 	// ... other modules keepers
 
 	// Create IBC Keeper
-	// TODO(evan): fix this so
 	ibcClientSubspace := paramstypes.NewSubspace(appCodec, cdc, keys[ibchost.StoreKey], keys[ibchost.StoreKey], "ibc")
 	app.IBCKeeper = ibckeeper.NewKeeper(
 		appCodec, keys[ibchost.StoreKey], ibcClientSubspace, app.StakingKeeper, scopedIBCKeeper,
@@ -306,7 +312,11 @@ func New(
 	app.EvidenceKeeper = *evidenceKeeper
 
 	app.lazyledgerappKeeper = *lazyledgerappkeeper.NewKeeper(
-		appCodec, keys[lazyledgerapptypes.StoreKey], keys[lazyledgerapptypes.MemStoreKey],
+		appCodec,
+		app.BankKeeper,
+		keys[lazyledgerapptypes.StoreKey],
+		keys[lazyledgerapptypes.MemStoreKey],
+		sdk.NewIntFromBigInt(big.NewInt(1000)),
 	)
 
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
@@ -551,6 +561,12 @@ func (app *App) RegisterTxService(clientCtx client.Context) {
 
 // TODO(evan): fill in to actually register the service
 func (app *App) RegisterTendermintService(clientCtx client.Context) {}
+
+// SquareSize returns the current square size. Currently, the square size is
+// hardcoded. todo(evan): don't hardcode the square size
+func (app *App) SquareSize() uint64 {
+	return app.squareSize
+}
 
 // GetMaccPerms returns a copy of the module account permissions
 func GetMaccPerms() map[string][]string {

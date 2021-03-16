@@ -1,7 +1,7 @@
 syntax = "proto3";
 package tendermint.abci;
 
-option go_package = "github.com/tendermint/tendermint/abci/types";
+option go_package = "github.com/lazyledger/lazyledger-core/abci/types";
 
 // For more information on gogo.proto, see:
 // https://github.com/gogo/protobuf/blob/master/extensions.md
@@ -24,18 +24,18 @@ message Request {
     RequestEcho               echo                 = 1;
     RequestFlush              flush                = 2;
     RequestInfo               info                 = 3;
-    RequestSetOption          set_option           = 4;
-    RequestInitChain          init_chain           = 5;
-    RequestQuery              query                = 6;
-    RequestBeginBlock         begin_block          = 7;
-    RequestCheckTx            check_tx             = 8;
-    RequestDeliverTx          deliver_tx           = 9;
-    RequestEndBlock           end_block            = 10;
-    RequestCommit             commit               = 11;
-    RequestListSnapshots      list_snapshots       = 12;
-    RequestOfferSnapshot      offer_snapshot       = 13;
-    RequestLoadSnapshotChunk  load_snapshot_chunk  = 14;
-    RequestApplySnapshotChunk apply_snapshot_chunk = 15;
+    RequestInitChain          init_chain           = 4;
+    RequestQuery              query                = 5;
+    RequestBeginBlock         begin_block          = 6;
+    RequestCheckTx            check_tx             = 7;
+    RequestDeliverTx          deliver_tx           = 8;
+    RequestEndBlock           end_block            = 9;
+    RequestCommit             commit               = 10;
+    RequestListSnapshots      list_snapshots       = 11;
+    RequestOfferSnapshot      offer_snapshot       = 12;
+    RequestLoadSnapshotChunk  load_snapshot_chunk  = 13;
+    RequestApplySnapshotChunk apply_snapshot_chunk = 14;
+    RequestPreprocessTxs      preprocess_txs       = 15;
   }
 }
 
@@ -49,12 +49,7 @@ message RequestInfo {
   string version       = 1;
   uint64 block_version = 2;
   uint64 p2p_version   = 3;
-}
-
-// nondeterministic
-message RequestSetOption {
-  string key   = 1;
-  string value = 2;
+  string abci_version = 4;
 }
 
 message RequestInitChain {
@@ -125,6 +120,10 @@ message RequestApplySnapshotChunk {
   string sender = 3;
 }
 
+message RequestPreprocessTxs {
+  repeated bytes txs = 1;
+}
+
 //----------------------------------------
 // Response types
 
@@ -134,18 +133,18 @@ message Response {
     ResponseEcho               echo                 = 2;
     ResponseFlush              flush                = 3;
     ResponseInfo               info                 = 4;
-    ResponseSetOption          set_option           = 5;
-    ResponseInitChain          init_chain           = 6;
-    ResponseQuery              query                = 7;
-    ResponseBeginBlock         begin_block          = 8;
-    ResponseCheckTx            check_tx             = 9;
-    ResponseDeliverTx          deliver_tx           = 10;
-    ResponseEndBlock           end_block            = 11;
-    ResponseCommit             commit               = 12;
-    ResponseListSnapshots      list_snapshots       = 13;
-    ResponseOfferSnapshot      offer_snapshot       = 14;
-    ResponseLoadSnapshotChunk  load_snapshot_chunk  = 15;
-    ResponseApplySnapshotChunk apply_snapshot_chunk = 16;
+    ResponseInitChain          init_chain           = 5;
+    ResponseQuery              query                = 6;
+    ResponseBeginBlock         begin_block          = 7;
+    ResponseCheckTx            check_tx             = 8;
+    ResponseDeliverTx          deliver_tx           = 9;
+    ResponseEndBlock           end_block            = 10;
+    ResponseCommit             commit               = 11;
+    ResponseListSnapshots      list_snapshots       = 12;
+    ResponseOfferSnapshot      offer_snapshot       = 13;
+    ResponseLoadSnapshotChunk  load_snapshot_chunk  = 14;
+    ResponseApplySnapshotChunk apply_snapshot_chunk = 15;
+    ResponsePreprocessTxs      preprocess_txs       = 16;
   }
 }
 
@@ -163,19 +162,12 @@ message ResponseFlush {}
 message ResponseInfo {
   string data = 1;
 
+  // this is the software version of the application. TODO: remove?
   string version     = 2;
   uint64 app_version = 3;
 
   int64 last_block_height   = 4;
   bytes last_block_app_hash = 5;
-}
-
-// nondeterministic
-message ResponseSetOption {
-  uint32 code = 1;
-  // bytes data = 2;
-  string log  = 3;
-  string info = 4;
 }
 
 message ResponseInitChain {
@@ -276,6 +268,11 @@ message ResponseApplySnapshotChunk {
   }
 }
 
+message ResponsePreprocessTxs {
+  repeated bytes            txs      = 1;
+  tendermint.types.Messages messages = 2;
+}
+
 //----------------------------------------
 // Misc.
 
@@ -334,9 +331,9 @@ message TxResult {
 
 // Validator
 message Validator {
-  bytes address = 1; // The first 20 bytes of SHA256(public key)
+  bytes address = 1;  // The first 20 bytes of SHA256(public key)
   // PubKey pub_key = 2 [(gogoproto.nullable)=false];
-  int64 power = 3; // The voting power
+  int64 power = 3;  // The voting power
 }
 
 // ValidatorUpdate
@@ -352,19 +349,19 @@ message VoteInfo {
 }
 
 enum EvidenceType {
-  UNKNOWN               = 0;
-  DUPLICATE_VOTE        = 1;
-  LIGHT_CLIENT_ATTACK   = 2;
+  UNKNOWN             = 0;
+  DUPLICATE_VOTE      = 1;
+  LIGHT_CLIENT_ATTACK = 2;
 }
 
 message Evidence {
-  EvidenceType              type      = 1;
+  EvidenceType type = 1;
   // The offending validator
-  Validator                 validator = 2 [(gogoproto.nullable) = false];
-  // The height when the offense occurred 
-  int64                     height    = 3;
+  Validator validator = 2 [(gogoproto.nullable) = false];
+  // The height when the offense occurred
+  int64 height = 3;
   // The corresponding time where the offense occurred
-  google.protobuf.Timestamp time      = 4 [
+  google.protobuf.Timestamp time = 4 [
     (gogoproto.nullable) = false,
     (gogoproto.stdtime)  = true
   ];
@@ -392,7 +389,6 @@ service ABCIApplication {
   rpc Echo(RequestEcho) returns (ResponseEcho);
   rpc Flush(RequestFlush) returns (ResponseFlush);
   rpc Info(RequestInfo) returns (ResponseInfo);
-  rpc SetOption(RequestSetOption) returns (ResponseSetOption);
   rpc DeliverTx(RequestDeliverTx) returns (ResponseDeliverTx);
   rpc CheckTx(RequestCheckTx) returns (ResponseCheckTx);
   rpc Query(RequestQuery) returns (ResponseQuery);
@@ -404,4 +400,5 @@ service ABCIApplication {
   rpc OfferSnapshot(RequestOfferSnapshot) returns (ResponseOfferSnapshot);
   rpc LoadSnapshotChunk(RequestLoadSnapshotChunk) returns (ResponseLoadSnapshotChunk);
   rpc ApplySnapshotChunk(RequestApplySnapshotChunk) returns (ResponseApplySnapshotChunk);
+  rpc PreprocessTxs(RequestPreprocessTxs) returns (ResponsePreprocessTxs);
 }
