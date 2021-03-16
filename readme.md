@@ -1,31 +1,22 @@
-# lazyledgerapp
+# lazyledger-app
 
-**lazyledgerapp** is a blockchain application built using Cosmos SDK and Tendermint and generated with [Starport](https://github.com/tendermint/starport). It uses LazyLedger's fork of the cosmos sdk and [lazyledger-core](https://github.com/lazyledger/lazyledger-core) in place of tendermint.
+**lazyledger-app** is a blockchain application built using Cosmos SDK and [lazyledger-core](https://github.com/lazyledger/lazyledger-core) in place of tendermint. Disclaimer: **WIP**
 
-## Get started
-
+## Install
 ```
-starport serve
+make install
 ```
 
-`serve` command installs dependencies, initializes and runs the application.
-
-## Configure
-
-Initialization parameters of your app are stored in `config.yml`.
-
-### `accounts`
-
-A list of user accounts created during genesis of your application.
-
-| Key   | Required | Type            | Description                                       |
-| ----- | -------- | --------------- | ------------------------------------------------- |
-| name  | Y        | String          | Local name of the key pair                        |
-| coins | Y        | List of Strings | Initial coins with denominations (e.g. "100coin") |
-
-## Learn more
-
-- [Starport](https://github.com/tendermint/starport)
-- [Cosmos SDK documentation](https://docs.cosmos.network)
-- [Cosmos Tutorials](https://tutorials.cosmos.network)
-- [Channel on Discord](https://discord.gg/W8trcGV)
+### Create your own single node devnet
+```
+lazyledger-appd init test --chain-id test
+lazyledger-appd keys add user1
+lazyledger-appd add-genesis-account <address from above command> 10000000stake,1000token
+lazyledger-appd gentx user1 100000stake --chain-id test
+lazyledger-appd collect-gentxs
+lazyledger-appd start
+```
+## Usage
+Use the `lazyledger-appd` daemon cli command to post data to a local devent. 
+  
+```lazyledger-appd tx lazyledgerapp payForMessage [hexNamespace] [hexMessage] [flags]```
