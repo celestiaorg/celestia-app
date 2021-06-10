@@ -92,7 +92,7 @@ func TestBroadcastPayForMessage(t *testing.T) {
 	encodedTx, err := b.EncodeTx(signedTx)
 	require.NoError(t, err)
 
-	resp, err := BroadcastTx(context.TODO(), rpcClient, tx.BroadcastMode_BROADCAST_MODE_SYNC, encodedTx)
+	resp, err := BroadcastTx(context.TODO(), rpcClient, tx.BroadcastMode_BROADCAST_MODE_BLOCK, encodedTx)
 	require.NoError(t, err)
 
 	require.Equal(t, "", resp.TxResponse.Data)
