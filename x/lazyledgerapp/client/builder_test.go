@@ -67,11 +67,11 @@ func TestBroadcastPayForMessage(t *testing.T) {
 	require.NoError(t, err)
 
 	b.SetGasLimit(100000)
+
 	coin := sdktypes.Coin{
 		Denom:  "token",
 		Amount: sdktypes.NewInt(10),
 	}
-
 	b.SetFeeAmount(sdktypes.NewCoins(coin))
 
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
