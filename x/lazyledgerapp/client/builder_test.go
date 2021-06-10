@@ -62,7 +62,9 @@ func TestBroadcastPayForMessage(t *testing.T) {
 	RPCAddress := "127.0.0.1:9090"
 
 	rpcClient, err := grpc.Dial(RPCAddress, grpc.WithInsecure())
+	require.NoError(t, err)
 	err = b.UpdateAccountNumber(context.TODO(), rpcClient)
+	require.NoError(t, err)
 
 	b.SetGasLimit(100000)
 	coin := sdktypes.Coin{
@@ -111,6 +113,7 @@ func TestUpdateAccountNumber(t *testing.T) {
 	RPCAddress := "127.0.0.1:9090"
 
 	rpcClient, err := grpc.Dial(RPCAddress, grpc.WithInsecure())
+	require.NoError(t, err)
 	err = b.UpdateAccountNumber(context.TODO(), rpcClient)
 	require.NoError(t, err)
 }
