@@ -43,7 +43,7 @@ func TestBuildSignedPayForMessage(t *testing.T) {
 	sigs, err := signedTx.GetSignaturesV2()
 	require.NoError(t, err)
 
-	err = authsigning.VerifySignature(info.GetPubKey(), b.SignerData(), sigs[0].Data, b.encCfg.TxConfig.SignModeHandler(), signedTx)
+	err = authsigning.VerifySignature(info.GetPubKey(), b.signerData(), sigs[0].Data, b.encCfg.TxConfig.SignModeHandler(), signedTx)
 	require.NoError(t, err)
 }
 

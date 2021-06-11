@@ -80,17 +80,10 @@ func (b *Builder) BuildSignedTx(msg sdktypes.Msg, kr keyring.Keyring) (authsigni
 		return nil, err
 	}
 
-	// generate the new signing data
-	signerData := authsigning.SignerData{
-		ChainID:       b.chainID,
-		AccountNumber: b.accountNum,
-		Sequence:      b.sequence,
-	}
-
 	// Generate the bytes to be signed.
 	bytesToSign, err := b.encCfg.TxConfig.SignModeHandler().GetSignBytes(
 		signing.SignMode_SIGN_MODE_DIRECT,
-		signerData,
+		b.signerData(),
 		b.GetTx(),
 	)
 	if err != nil {
@@ -128,8 +121,8 @@ func (b Builder) EncodeTx(tx sdktypes.Tx) ([]byte, error) {
 	return b.encCfg.TxConfig.TxEncoder()(tx)
 }
 
-// SignerData returns the signer data from the underlying builder
-func (b Builder) SignerData() authsigning.SignerData {
+// signerData returns the signer data from the underlying builder
+func (b Builder) signerData() authsigning.SignerData {
 	return authsigning.SignerData{
 		ChainID:       b.chainID,
 		AccountNumber: b.accountNum,
