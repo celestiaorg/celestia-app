@@ -35,7 +35,7 @@ func NewBuilder(address sdktypes.Address, chainID string) *Builder {
 	}
 }
 
-// UpdateAccountNumber queries the applicaiton to find the latest account number and
+// UpdateAccountNumber queries the application to find the latest account number and
 // sequence, updating the respective internal fields
 func (b *Builder) UpdateAccountNumber(ctx context.Context, conn *grpc.ClientConn) error {
 	accNum, seqNumb, err := QueryAccount(ctx, conn, b.encCfg, b.address.String())
