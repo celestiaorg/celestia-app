@@ -14,51 +14,58 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Builder wraps the standard sdkclient.TxBuilder add a few quality of life methods along
-// with keeping track of the account number to produce transactions
-type Builder struct {
-	sdkclient.TxBuilder
-	encCfg               params.EncodingConfig
-	address              sdktypes.Address
-	chainID              string
-	accountNum, sequence uint64
+// KeyringSigner uses a keyring to sign and build lazyledger-app transactions
+type KeyringSigner struct {
+	keyring.Keyring
+	keyringAccName string
+	accountNumber  uint64
+	sequence       uint64
+	chainID        string
+	encCfg         params.EncodingConfig
 }
 
-func NewBuilder(address sdktypes.Address, chainID string) *Builder {
-	encCfg := params.RegisterAccountInterface(params.MakeEncodingConfig())
-	txBuilder := encCfg.TxConfig.NewTxBuilder()
-	return &Builder{
-		TxBuilder: txBuilder,
-		encCfg:    encCfg,
-		address:   address,
-		chainID:   chainID,
+// NewKeyringSigner returns a new KeyringSigner using the provided keyring
+func NewKeyringSigner(ring keyring.Keyring, name string, chainID string) *KeyringSigner {
+	return &KeyringSigner{
+		Keyring:        ring,
+		keyringAccName: name,
+		chainID:        chainID,
+		encCfg:         params.RegisterAccountInterface(params.MakeEncodingConfig()),
 	}
 }
 
-// UpdateAccountNumber queries the applicaiton to find the latest account number and
+// QueryAccountNumber queries the applicaiton to find the latest account number and
 // sequence, updating the respective internal fields
-func (b *Builder) UpdateAccountNumber(ctx context.Context, conn *grpc.ClientConn) error {
-	accNum, seqNumb, err := QueryAccount(ctx, conn, b.encCfg, b.address.String())
+func (k *KeyringSigner) QueryAccountNumber(ctx context.Context, conn *grpc.ClientConn) error {
+	info, err := k.Key(k.keyringAccName)
 	if err != nil {
 		return err
 	}
-	b.accountNum = accNum
-	b.sequence = seqNumb
+
+	accNum, seqNumb, err := QueryAccount(ctx, conn, k.encCfg, info.GetAddress().String())
+	if err != nil {
+		return err
+	}
+	k.accountNumber = accNum
+	k.sequence = seqNumb
 	return nil
 }
 
-// BuildSignedTx creates a signed sdk.Tx that contains the provided WirePayForMessage.
-// The internal fees, the account number, and the sequence should be updated before calling this function
-// (see b.UpdateAccountNumber, sdkclient.TxBuilder.SetGasLimit, and sdkclient.TxBuilder.SetFeeAmount)
-func (b *Builder) BuildSignedTx(msg sdktypes.Msg, kr keyring.Keyring) (authsigning.Tx, error) {
+// NewTxBuilder returns the default sdk Tx builder using the lazyledger-app encoding config
+func (k KeyringSigner) NewTxBuilder() sdkclient.TxBuilder {
+	return k.encCfg.TxConfig.NewTxBuilder()
+}
+
+// BuildSignedTx creates and signs a sdk.Tx that contains the provided message
+func (k KeyringSigner) BuildSignedTx(builder sdkclient.TxBuilder, msg sdktypes.Msg) (authsigning.Tx, error) {
 	// set the msg
-	err := b.SetMsgs(msg)
+	err := builder.SetMsgs(msg)
 	if err != nil {
 		return nil, err
 	}
 
 	// lookup account info
-	keyInfo, err := kr.KeyByAddress(b.address)
+	keyInfo, err := k.Key(k.keyringAccName)
 	if err != nil {
 		return nil, err
 	}
@@ -71,34 +78,31 @@ func (b *Builder) BuildSignedTx(msg sdktypes.Msg, kr keyring.Keyring) (authsigni
 			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
 			Signature: nil,
 		},
-		Sequence: b.sequence,
+		Sequence: k.sequence,
 	}
 
 	// set the empty signature
-	err = b.SetSignatures(sigV2)
+	err = builder.SetSignatures(sigV2)
 	if err != nil {
 		return nil, err
 	}
 
-	// generate the new signing data
-	signerData := authsigning.SignerData{
-		ChainID:       b.chainID,
-		AccountNumber: b.accountNum,
-		Sequence:      b.sequence,
-	}
-
 	// Generate the bytes to be signed.
-	bytesToSign, err := b.encCfg.TxConfig.SignModeHandler().GetSignBytes(
+	bytesToSign, err := k.encCfg.TxConfig.SignModeHandler().GetSignBytes(
 		signing.SignMode_SIGN_MODE_DIRECT,
-		signerData,
-		b.GetTx(),
+		authsigning.SignerData{
+			ChainID:       k.chainID,
+			AccountNumber: k.accountNumber,
+			Sequence:      k.sequence,
+		},
+		builder.GetTx(),
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	// Sign those bytes using the keyring. we are ignoring the returned public key
-	sigBytes, _, err := kr.SignByAddress(b.address, bytesToSign)
+	sigBytes, _, err := k.SignByAddress(keyInfo.GetAddress(), bytesToSign)
 	if err != nil {
 		return nil, err
 	}
@@ -110,31 +114,37 @@ func (b *Builder) BuildSignedTx(msg sdktypes.Msg, kr keyring.Keyring) (authsigni
 			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
 			Signature: sigBytes,
 		},
-		Sequence: b.sequence,
+		Sequence: k.sequence,
 	}
 
 	// set the final signature
-	err = b.SetSignatures(sigV2)
+	err = builder.SetSignatures(sigV2)
 	if err != nil {
 		return nil, err
 	}
 
 	// return the signed transaction
-	return b.GetTx(), nil
+	return builder.GetTx(), nil
 }
 
-// EncodeTx uses the builder's encoding config to encode the provided sdk transaction
-func (b Builder) EncodeTx(tx sdktypes.Tx) ([]byte, error) {
-	return b.encCfg.TxConfig.TxEncoder()(tx)
+// SetAccountNumber manually sets the underlying account number
+func (k *KeyringSigner) SetAccountNumber(n uint64) {
+	k.accountNumber = n
 }
 
-// SignerData returns the signer data from the underlying builder
-func (b Builder) SignerData() authsigning.SignerData {
-	return authsigning.SignerData{
-		ChainID:       b.chainID,
-		AccountNumber: b.accountNum,
-		Sequence:      b.sequence,
-	}
+// SetSequence manually sets the underlying sequence number
+func (k *KeyringSigner) SetSequence(n uint64) {
+	k.sequence = n
+}
+
+// SetKeyringAccName manually sets the underlying keyring account name
+func (k *KeyringSigner) SetKeyringAccName(name string) {
+	k.keyringAccName = name
+}
+
+// EncodeTx uses the keyring signer's encoding config to encode the provided sdk transaction
+func (k KeyringSigner) EncodeTx(tx sdktypes.Tx) ([]byte, error) {
+	return k.encCfg.TxConfig.TxEncoder()(tx)
 }
 
 // BroadcastTx uses the provided grpc connection to broadcast a signed and encoded transaction

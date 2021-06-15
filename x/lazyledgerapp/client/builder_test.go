@@ -15,14 +15,12 @@ import (
 )
 
 func TestBuildSignedPayForMessage(t *testing.T) {
-	testRing := generateKeyring(t, "testAccount")
+	testRing := generateKeyring(t)
 
-	info, err := testRing.Key("testAccount")
+	info, err := testRing.Key(testAccName)
 	require.NoError(t, err)
 
-	testAddr := info.GetAddress()
-
-	b := NewBuilder(testAddr, "chain-id")
+	k := NewKeyringSigner(testRing, testAccName, "chain-id")
 	require.NoError(t, err)
 
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
@@ -37,42 +35,47 @@ func TestBuildSignedPayForMessage(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	signedTx, err := b.BuildSignedTx(msg, testRing)
+	signedTx, err := k.BuildSignedTx(k.NewTxBuilder(), msg)
 	require.NoError(t, err)
 
 	sigs, err := signedTx.GetSignaturesV2()
 	require.NoError(t, err)
 
-	err = authsigning.VerifySignature(info.GetPubKey(), b.SignerData(), sigs[0].Data, b.encCfg.TxConfig.SignModeHandler(), signedTx)
+	signerData := authsigning.SignerData{
+		ChainID:       k.chainID,
+		AccountNumber: k.accountNumber,
+		Sequence:      k.sequence,
+	}
+
+	err = authsigning.VerifySignature(info.GetPubKey(), signerData, sigs[0].Data, k.encCfg.TxConfig.SignModeHandler(), signedTx)
 	require.NoError(t, err)
 }
 
 func TestBroadcastPayForMessage(t *testing.T) {
-	t.Skip("no local connection to app and no funds in wallet")
-	testRing := generateKeyring(t, "testAccount")
+	// t.Skip("no local connection to app and no funds in wallet")
+	testRing := generateKeyring(t)
 
-	info, err := testRing.Key("testAccount")
+	info, err := testRing.Key(testAccName)
 	require.NoError(t, err)
 
-	testAddr := info.GetAddress()
-
-	b := NewBuilder(testAddr, "chain-id")
-	require.NoError(t, err)
+	k := NewKeyringSigner(testRing, testAccName, "test")
 
 	RPCAddress := "127.0.0.1:9090"
 
 	rpcClient, err := grpc.Dial(RPCAddress, grpc.WithInsecure())
 	require.NoError(t, err)
-	err = b.UpdateAccountNumber(context.TODO(), rpcClient)
+	err = k.QueryAccountNumber(context.TODO(), rpcClient)
 	require.NoError(t, err)
 
-	b.SetGasLimit(100000)
+	builder := k.NewTxBuilder()
+
+	builder.SetGasLimit(100000)
 
 	coin := sdktypes.Coin{
 		Denom:  "token",
 		Amount: sdktypes.NewInt(10),
 	}
-	b.SetFeeAmount(sdktypes.NewCoins(coin))
+	builder.SetFeeAmount(sdktypes.NewCoins(coin))
 
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	message := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
@@ -86,10 +89,10 @@ func TestBroadcastPayForMessage(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	signedTx, err := b.BuildSignedTx(msg, testRing)
+	signedTx, err := k.BuildSignedTx(builder, msg)
 	require.NoError(t, err)
 
-	encodedTx, err := b.EncodeTx(signedTx)
+	encodedTx, err := k.EncodeTx(signedTx)
 	require.NoError(t, err)
 
 	resp, err := BroadcastTx(context.TODO(), rpcClient, tx.BroadcastMode_BROADCAST_MODE_BLOCK, encodedTx)
@@ -98,23 +101,17 @@ func TestBroadcastPayForMessage(t *testing.T) {
 	require.Equal(t, "", resp.TxResponse.Data)
 }
 
-func TestUpdateAccountNumber(t *testing.T) {
+func TestQueryAccountNumber(t *testing.T) {
 	t.Skip("no local connection to app and no funds in wallet")
-	testRing := generateKeyring(t, "testAccount")
+	testRing := generateKeyring(t)
 
-	info, err := testRing.Key("testAccount")
-	require.NoError(t, err)
-
-	testAddr := info.GetAddress()
-
-	b := NewBuilder(testAddr, "test")
-	require.NoError(t, err)
+	k := NewKeyringSigner(testRing, testAccName, "test")
 
 	RPCAddress := "127.0.0.1:9090"
 
 	rpcClient, err := grpc.Dial(RPCAddress, grpc.WithInsecure())
 	require.NoError(t, err)
-	err = b.UpdateAccountNumber(context.TODO(), rpcClient)
+	err = k.QueryAccountNumber(context.TODO(), rpcClient)
 	require.NoError(t, err)
 }
 
