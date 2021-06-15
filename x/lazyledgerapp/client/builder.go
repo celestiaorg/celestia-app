@@ -35,7 +35,9 @@ func NewKeyringSigner(ring keyring.Keyring, name string, chainID string) *Keyrin
 }
 
 // QueryAccountNumber queries the applicaiton to find the latest account number and
-// sequence, updating the respective internal fields
+// sequence, updating the respective internal fields. The internal account number must
+// be set by this method or by manually calling k.SetAccountNumber in order for any built
+// transactions to be valide
 func (k *KeyringSigner) QueryAccountNumber(ctx context.Context, conn *grpc.ClientConn) error {
 	info, err := k.Key(k.keyringAccName)
 	if err != nil {
@@ -56,7 +58,9 @@ func (k KeyringSigner) NewTxBuilder() sdkclient.TxBuilder {
 	return k.encCfg.TxConfig.NewTxBuilder()
 }
 
-// BuildSignedTx creates and signs a sdk.Tx that contains the provided message
+// BuildSignedTx creates and signs a sdk.Tx that contains the provided message. The interal
+// account number must be set by calling k.QueryAccountNumber or by manually setting it via
+// k.SetAccountNumber for the built transactions to be valid.
 func (k KeyringSigner) BuildSignedTx(builder sdkclient.TxBuilder, msg sdktypes.Msg) (authsigning.Tx, error) {
 	// set the msg
 	err := builder.SetMsgs(msg)
