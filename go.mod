@@ -11,7 +11,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/lazyledger/lazyledger-core v0.0.0-20210122184344-b83e6766973c
 	github.com/lazyledger/nmt v0.1.0
-	github.com/pelletier/go-toml v1.8.0
+	github.com/pelletier/go-toml v1.9.3
 	github.com/regen-network/cosmos-proto v0.3.1
 	github.com/rs/zerolog v1.20.0
 	github.com/spf13/cast v1.3.1
