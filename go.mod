@@ -14,7 +14,7 @@ require (
 	github.com/pelletier/go-toml v1.8.0
 	github.com/regen-network/cosmos-proto v0.3.1
 	github.com/rs/zerolog v1.23.0
-	github.com/spf13/cast v1.3.1
+	github.com/spf13/cast v1.4.0
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
