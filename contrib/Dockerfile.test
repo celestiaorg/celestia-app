@@ -1,14 +1,14 @@
 # Simple usage with a mounted data directory:
-# > docker build -t lazyledger-app .
-# > docker run -it -p 46657:46657 -p 46656:46656 -v ~/.lazyledger-appd:/root/.lazyledger-appd -v ~/.lazyledger-appcli:/root/.lazyledger-appcli lazyledger-app lazyledger-appd init
-# > docker run -it -p 46657:46657 -p 46656:46656 -v ~/.lazyledger-appd:/root/.lazyledger-appd -v ~/.lazyledger-appcli:/root/.lazyledger-appcli lazyledger-app lazyledger-appd start
+# > docker build -t celestia-app .
+# > docker run -it -p 46657:46657 -p 46656:46656 -v ~/.celestia-appd:/root/.celestia-appd -v ~/.celestia-appcli:/root/.celestia-appcli celestia-app celestia-appd init
+# > docker run -it -p 46657:46657 -p 46656:46656 -v ~/.celestia-appd:/root/.celestia-appd -v ~/.celestia-appcli:/root/.celestia-appcli celestia-app celestia-appd start
 FROM golang:1.15-alpine AS build-env
 
 # Set up dependencies
 ENV PACKAGES curl make git libc-dev bash gcc linux-headers eudev-dev python3
 
 # Set working directory for the build
-WORKDIR /go/src/github.com/lazyledger/lazyledger-app
+WORKDIR /go/src/github.com/celestiaorg/celestia-app
 
 # Add source files
 COPY . .
@@ -25,7 +25,7 @@ RUN apk add --update ca-certificates
 WORKDIR /root
 
 # Copy over binaries from the build-env
-COPY --from=build-env /go/bin/lazyledger-appd /usr/bin/lazyledger-appd
+COPY --from=build-env /go/bin/celestia-appd /usr/bin/celestia-appd
 
 COPY ./contrib/single-node.sh .
 

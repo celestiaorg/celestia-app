@@ -1,8 +1,8 @@
 package app
 
 import (
+	"github.com/celestiaorg/celestia-app/app/params"
 	"github.com/cosmos/cosmos-sdk/std"
-	"github.com/lazyledger/lazyledger-app/app/params"
 )
 
 // MakeEncodingConfig creates an EncodingConfig for testing
