@@ -1,4 +1,4 @@
-package celestiaapp
+package payment
 
 import (
 	"encoding/json"
@@ -12,10 +12,10 @@ import (
 
 	abci "github.com/celestiaorg/celestia-core/abci/types"
 
-	"github.com/celestiaorg/celestia-app/x/celestiaapp/client/cli"
-	"github.com/celestiaorg/celestia-app/x/celestiaapp/client/rest"
-	"github.com/celestiaorg/celestia-app/x/celestiaapp/keeper"
-	"github.com/celestiaorg/celestia-app/x/celestiaapp/types"
+	"github.com/celestiaorg/celestia-app/x/payment/client/cli"
+	"github.com/celestiaorg/celestia-app/x/payment/client/rest"
+	"github.com/celestiaorg/celestia-app/x/payment/keeper"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"

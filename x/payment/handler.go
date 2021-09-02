@@ -1,10 +1,10 @@
-package celestiaapp
+package payment
 
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/x/celestiaapp/keeper"
-	"github.com/celestiaorg/celestia-app/x/celestiaapp/types"
+	"github.com/celestiaorg/celestia-app/x/payment/keeper"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )

@@ -1,17 +1,17 @@
 syntax = "proto3";
-package celestiaapp;
+package payment;
 
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/x/celestiaapp/types";
+option go_package = "github.com/celestiaorg/celestia-app/x/payment/types";
 
 
-// Msg defines the celestiaapp Msg service.
+// Msg defines the payment Msg service.
 service Msg {
     // PayForMessage allows the user to post data to made be available.
     rpc PayForMessage(MsgWirePayForMessage) returns (MsgPayForMessageResponse) {
-        option (google.api.http).get = "/celestia/celestiaapp/payformessage";
+        option (google.api.http).get = "/celestia/payment/payformessage";
     }
   }
 

@@ -3,7 +3,7 @@ package keeper
 import (
 	// this line is used by starport scaffolding # 1
 
-	"github.com/celestiaorg/celestia-app/x/celestiaapp/types"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"

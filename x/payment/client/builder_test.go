@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/x/celestiaapp/types"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"

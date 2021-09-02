@@ -7,7 +7,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	// "github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/celestiaorg/celestia-app/x/celestiaapp/types"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 )
 
 // GetTxCmd returns the transaction commands for this module

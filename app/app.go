@@ -17,9 +17,9 @@ import (
 	dbm "github.com/tendermint/tm-db"
 
 	appparams "github.com/celestiaorg/celestia-app/app/params"
-	"github.com/celestiaorg/celestia-app/x/celestiaapp"
-	celestiaappkeeper "github.com/celestiaorg/celestia-app/x/celestiaapp/keeper"
-	celestiaapptypes "github.com/celestiaorg/celestia-app/x/celestiaapp/types"
+	"github.com/celestiaorg/celestia-app/x/payment"
+	paymentkeeper "github.com/celestiaorg/celestia-app/x/payment/keeper"
+	paymenttypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	tmjson "github.com/celestiaorg/celestia-core/libs/json"
 	tmproto "github.com/celestiaorg/celestia-core/proto/tendermint/types"
 	rpchttp "github.com/celestiaorg/celestia-core/rpc/client/http"
@@ -84,7 +84,7 @@ import (
 var (
 	// DefaultNodeHome default home directories for the application daemon
 	DefaultNodeHome = func(appName string) string {
-		return os.ExpandEnv("$HOME/.celestiaapp")
+		return os.ExpandEnv("$HOME/.payment")
 	}
 
 	// ModuleBasics defines the module BasicManager is in charge of setting up basic,
@@ -109,7 +109,7 @@ var (
 		evidence.AppModuleBasic{},
 		transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
-		celestiaapp.AppModuleBasic{},
+		payment.AppModuleBasic{},
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
 	)
 
@@ -176,7 +176,7 @@ type App struct {
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
-	celestiaappKeeper celestiaappkeeper.Keeper
+	paymentKeeper paymentkeeper.Keeper
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 
 	// the module manager
@@ -206,7 +206,7 @@ func New(
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
 		paramstypes.StoreKey, ibchost.StoreKey, upgradetypes.StoreKey,
 		evidencetypes.StoreKey, ibctransfertypes.StoreKey, capabilitytypes.StoreKey,
-		celestiaapptypes.StoreKey,
+		paymenttypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
@@ -216,7 +216,7 @@ func New(
 		BaseApp: bApp,
 		appName: appName,
 		// todo(evan): don't hardcode square size
-		squareSize:        celestiaapptypes.SquareSize,
+		squareSize:        paymenttypes.SquareSize,
 		cdc:               cdc,
 		appCodec:          appCodec,
 		txConfig:          txConfig,
@@ -311,11 +311,11 @@ func New(
 	// If evidence needs to be handled for the app, set routes in router here and seal
 	app.EvidenceKeeper = *evidenceKeeper
 
-	app.celestiaappKeeper = *celestiaappkeeper.NewKeeper(
+	app.paymentKeeper = *paymentkeeper.NewKeeper(
 		appCodec,
 		app.BankKeeper,
-		keys[celestiaapptypes.StoreKey],
-		keys[celestiaapptypes.MemStoreKey],
+		keys[paymenttypes.StoreKey],
+		keys[paymenttypes.MemStoreKey],
 		sdk.NewIntFromBigInt(big.NewInt(1000)),
 	)
 
@@ -350,7 +350,7 @@ func New(
 		ibc.NewAppModule(app.IBCKeeper),
 		params.NewAppModule(app.ParamsKeeper),
 		transferModule,
-		celestiaapp.NewAppModule(appCodec, app.celestiaappKeeper),
+		payment.NewAppModule(appCodec, app.paymentKeeper),
 		// this line is used by starport scaffolding # stargate/app/appModule
 	)
 

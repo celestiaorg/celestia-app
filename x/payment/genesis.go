@@ -1,8 +1,8 @@
-package celestiaapp
+package payment
 
 import (
-	"github.com/celestiaorg/celestia-app/x/celestiaapp/keeper"
-	"github.com/celestiaorg/celestia-app/x/celestiaapp/types"
+	"github.com/celestiaorg/celestia-app/x/payment/keeper"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

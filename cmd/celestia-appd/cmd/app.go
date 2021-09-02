@@ -1,3 +1,3 @@
 package cmd
 
-const appName = "celestiaapp"
+const appName = "payment"

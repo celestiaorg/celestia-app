@@ -6,7 +6,7 @@ import (
 
 	"github.com/celestiaorg/celestia-core/libs/log"
 
-	"github.com/celestiaorg/celestia-app/x/celestiaapp/types"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -51,7 +51,7 @@ func (k Keeper) SignedTransactionDataPayForMessage(goCtx context.Context, msg *t
 	return &types.SignedTransactionDataPayForMessageResponse{}, nil
 }
 
-// BankKeeper restricts the funtionality of the bank keeper used in the celestiaapp keeper
+// BankKeeper restricts the funtionality of the bank keeper used in the payment keeper
 type BankKeeper interface {
 	SendCoinsFromAccountToModule(ctx sdk.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
 	BurnCoins(ctx sdk.Context, moduleName string, amt sdk.Coins) error

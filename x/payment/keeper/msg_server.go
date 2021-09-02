@@ -3,7 +3,7 @@ package keeper
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-app/x/celestiaapp/types"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 )
 
 var _ types.MsgServer = msgServer{}

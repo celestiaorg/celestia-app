@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/celestiaorg/celestia-app/x/celestiaapp/types"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 	abci "github.com/celestiaorg/celestia-core/abci/types"
 	core "github.com/celestiaorg/celestia-core/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"

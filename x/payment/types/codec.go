@@ -9,7 +9,7 @@ import (
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
 	// this line is used by starport scaffolding # 2
-	cdc.RegisterConcrete(&MsgWirePayForMessage{}, "celestiaapp/WirePayForMessage", nil)
+	cdc.RegisterConcrete(&MsgWirePayForMessage{}, "payment/WirePayForMessage", nil)
 }
 
 func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {

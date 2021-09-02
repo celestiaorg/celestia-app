@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/x/celestiaapp/types"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 	abci "github.com/celestiaorg/celestia-core/abci/types"
 	"github.com/celestiaorg/celestia-core/libs/log"
 	core "github.com/celestiaorg/celestia-core/proto/tendermint/types"
