@@ -18,7 +18,7 @@ require (
 	github.com/spf13/cobra v1.2.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
-	github.com/tendermint/tm-db v0.6.3
+	github.com/tendermint/tm-db v0.6.5
 	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d // indirect
 	google.golang.org/genproto v0.0.0-20210830153122-0bac4d21c8ea
 	google.golang.org/grpc v1.40.0
