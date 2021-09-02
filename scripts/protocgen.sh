@@ -19,12 +19,12 @@ for dir in $proto_dirs; do
   -I "proto" \
   -I "third_party/proto" \
   --gocosmos_out=plugins=interfacetype+grpc,\
-Mgoogle/protobuf/any.proto=github.com/lazyledger/lazyledger-app/codec/types:. \
+Mgoogle/protobuf/any.proto=github.com/celestiaorg/celestia-app/codec/types:. \
   --grpc-gateway_out=logtostderr=true:. \
   $(find "${dir}" -maxdepth 1 -name '*.proto')
 
 done
 
 # move proto files to the right places
-cp -r github.com/lazyledger/lazyledger-app/* ./
+cp -r github.com/celestiaorg/celestia-app/* ./
 rm -rf github.com

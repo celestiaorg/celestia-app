@@ -11,11 +11,18 @@ import (
 	"github.com/pelletier/go-toml"
 	"github.com/spf13/cast"
 
-	abci "github.com/lazyledger/lazyledger-core/abci/types"
-	"github.com/lazyledger/lazyledger-core/libs/log"
-	tmos "github.com/lazyledger/lazyledger-core/libs/os"
+	abci "github.com/celestiaorg/celestia-core/abci/types"
+	"github.com/celestiaorg/celestia-core/libs/log"
+	tmos "github.com/celestiaorg/celestia-core/libs/os"
 	dbm "github.com/tendermint/tm-db"
 
+	appparams "github.com/celestiaorg/celestia-app/app/params"
+	"github.com/celestiaorg/celestia-app/x/payment"
+	paymentkeeper "github.com/celestiaorg/celestia-app/x/payment/keeper"
+	paymenttypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	tmjson "github.com/celestiaorg/celestia-core/libs/json"
+	tmproto "github.com/celestiaorg/celestia-core/proto/tendermint/types"
+	rpchttp "github.com/celestiaorg/celestia-core/rpc/client/http"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -71,20 +78,13 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/upgrade"
 	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
-	appparams "github.com/lazyledger/lazyledger-app/app/params"
-	"github.com/lazyledger/lazyledger-app/x/lazyledgerapp"
-	lazyledgerappkeeper "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/keeper"
-	lazyledgerapptypes "github.com/lazyledger/lazyledger-app/x/lazyledgerapp/types"
-	tmjson "github.com/lazyledger/lazyledger-core/libs/json"
-	tmproto "github.com/lazyledger/lazyledger-core/proto/tendermint/types"
-	rpchttp "github.com/lazyledger/lazyledger-core/rpc/client/http"
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 )
 
 var (
 	// DefaultNodeHome default home directories for the application daemon
 	DefaultNodeHome = func(appName string) string {
-		return os.ExpandEnv("$HOME/.lazyledgerapp")
+		return os.ExpandEnv("$HOME/.payment")
 	}
 
 	// ModuleBasics defines the module BasicManager is in charge of setting up basic,
@@ -109,7 +109,7 @@ var (
 		evidence.AppModuleBasic{},
 		transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
-		lazyledgerapp.AppModuleBasic{},
+		payment.AppModuleBasic{},
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
 	)
 
@@ -176,7 +176,7 @@ type App struct {
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
-	lazyledgerappKeeper lazyledgerappkeeper.Keeper
+	paymentKeeper paymentkeeper.Keeper
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 
 	// the module manager
@@ -206,7 +206,7 @@ func New(
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
 		paramstypes.StoreKey, ibchost.StoreKey, upgradetypes.StoreKey,
 		evidencetypes.StoreKey, ibctransfertypes.StoreKey, capabilitytypes.StoreKey,
-		lazyledgerapptypes.StoreKey,
+		paymenttypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
@@ -216,7 +216,7 @@ func New(
 		BaseApp: bApp,
 		appName: appName,
 		// todo(evan): don't hardcode square size
-		squareSize:        lazyledgerapptypes.SquareSize,
+		squareSize:        paymenttypes.SquareSize,
 		cdc:               cdc,
 		appCodec:          appCodec,
 		txConfig:          txConfig,
@@ -311,11 +311,11 @@ func New(
 	// If evidence needs to be handled for the app, set routes in router here and seal
 	app.EvidenceKeeper = *evidenceKeeper
 
-	app.lazyledgerappKeeper = *lazyledgerappkeeper.NewKeeper(
+	app.paymentKeeper = *paymentkeeper.NewKeeper(
 		appCodec,
 		app.BankKeeper,
-		keys[lazyledgerapptypes.StoreKey],
-		keys[lazyledgerapptypes.MemStoreKey],
+		keys[paymenttypes.StoreKey],
+		keys[paymenttypes.MemStoreKey],
 		sdk.NewIntFromBigInt(big.NewInt(1000)),
 	)
 
@@ -350,7 +350,7 @@ func New(
 		ibc.NewAppModule(app.IBCKeeper),
 		params.NewAppModule(app.ParamsKeeper),
 		transferModule,
-		lazyledgerapp.NewAppModule(appCodec, app.lazyledgerappKeeper),
+		payment.NewAppModule(appCodec, app.paymentKeeper),
 		// this line is used by starport scaffolding # stargate/app/appModule
 	)
 

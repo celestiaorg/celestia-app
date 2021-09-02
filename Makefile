@@ -14,15 +14,15 @@ pre-build:
 
 build: mod pre-build
 	@go get -u github.com/gobuffalo/packr/v2/packr2
-	@cd ./cmd/lazyledger-appd && packr2
+	@cd ./cmd/celestia-appd && packr2
 	@mkdir -p build/
-	@go build -o build/ ./cmd/lazyledger-appd
+	@go build -o build/ ./cmd/celestia-appd
 	@packr2 clean
 	@go mod tidy
 
 install: go.sum
-		@echo "--> Installing lazyledger-appd"
-		@go install -mod=readonly ./cmd/lazyledger-appd
+		@echo "--> Installing celestia-appd"
+		@go install -mod=readonly ./cmd/celestia-appd
 
 go.sum: mod
 		@echo "--> Ensure dependencies have not been modified"

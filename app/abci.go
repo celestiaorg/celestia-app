@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/celestiaorg/celestia-app/x/payment/types"
+	abci "github.com/celestiaorg/celestia-core/abci/types"
+	core "github.com/celestiaorg/celestia-core/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/lazyledger/lazyledger-app/x/lazyledgerapp/types"
-	abci "github.com/lazyledger/lazyledger-core/abci/types"
-	core "github.com/lazyledger/lazyledger-core/proto/tendermint/types"
 )
 
 // This file should contain all of the altered ABCI methods
 
-// PreprocessTxs fullfills the lazyledger-core version of the ACBI interface, by
+// PreprocessTxs fullfills the celestia-core version of the ACBI interface, by
 // performing basic validation for the incoming txs, and by cleanly separating
 // share messages from transactions
 func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePreprocessTxs {
