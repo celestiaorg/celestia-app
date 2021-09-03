@@ -238,6 +238,10 @@ func TestMsgWirePayForMessage_ValidateBasic(t *testing.T) {
 	invalidMsgSizeMsg := validMsgWirePayForMessage(kr)
 	invalidMsgSizeMsg.Message = bytes.Repeat([]byte{1}, consts.ShareSize-20)
 
+	// pfm that has a wrong msg size
+	invalidDeclaredMsgSizeMsg := validMsgWirePayForMessage(kr)
+	invalidDeclaredMsgSizeMsg.MessageSize = 999
+
 	// pfm with bad sig
 	badSigMsg := validMsgWirePayForMessage(kr)
 	badSigMsg.MessageShareCommitment[0].Signature = []byte{1, 2, 3, 4}
@@ -268,6 +272,12 @@ func TestMsgWirePayForMessage_ValidateBasic(t *testing.T) {
 			msg:       invalidMsgSizeMsg,
 			expectErr: true,
 			errStr:    "Share message must be divisible",
+		},
+		{
+			name:      "bad declared message size",
+			msg:       invalidDeclaredMsgSizeMsg,
+			expectErr: true,
+			errStr:    "Declared Message size does not match actual Message size",
 		},
 		{
 			name:      "bad sig",
