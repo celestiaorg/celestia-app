@@ -21,10 +21,6 @@ const (
 	NamespaceIDSize                        = consts.NamespaceSize
 )
 
-///////////////////////////////////////
-// 	MsgWirePayForMessage
-///////////////////////////////////////
-
 var _ sdk.Msg = &MsgWirePayForMessage{}
 
 // NewMsgWirePayForMessage creates a new MsgWirePayForMessage by using the
@@ -185,10 +181,6 @@ func (msg *MsgWirePayForMessage) SignedTransactionDataPayForMessage(k uint64) (*
 	return &sTxMsg, nil
 }
 
-///////////////////////////////////////
-// 	SignedTransactionDataPayForMessage
-///////////////////////////////////////
-
 var _ sdk.Tx = &TxSignedTransactionDataPayForMessage{}
 
 // GetMsgs fullfills the sdk.Tx interface
@@ -243,10 +235,6 @@ func (msg *SignedTransactionDataPayForMessage) GetSignBytes() []byte {
 func (msg *SignedTransactionDataPayForMessage) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{}
 }
-
-///////////////////////////////////////
-// 	Utilities
-///////////////////////////////////////
 
 // CreateCommitment generates the commit bytes for a given message, namespace, and
 // squaresize using a namespace merkle tree and the rules described at
