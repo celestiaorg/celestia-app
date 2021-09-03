@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"errors"
 	fmt "fmt"
@@ -98,6 +99,11 @@ func (msg *MsgWirePayForMessage) ValidateBasic() error {
 			msg.MessageSize,
 			len(msg.Message),
 		)
+	}
+
+	// ensure that a reserved namespace is not used
+	if bytes.Compare(msg.GetMessageNameSpaceId(), consts.MaxReservedNamespace) < 1 {
+		return errors.New("message is not valid: uses a reserved namesapce ID")
 	}
 
 	for _, commit := range msg.MessageShareCommitment {
