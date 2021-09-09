@@ -4,9 +4,15 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/celestiaorg/celestia-core/pkg/consts"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+const (
+	testingKeyAcc = "test"
 )
 
 func TestMountainRange(t *testing.T) {
@@ -204,5 +210,127 @@ func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
 		}
 	}
 
+	return kb
+}
+
+func TestMsgWirePayForMessage_ValidateBasic(t *testing.T) {
+	type test struct {
+		name      string
+		msg       *MsgWirePayForMessage
+		expectErr bool
+		errStr    string
+	}
+
+	kr := newKeyring()
+
+	// valid pfm
+	validMsg := validMsgWirePayForMessage(kr)
+
+	// pfm with bad ns id
+	badIDMsg := validMsgWirePayForMessage(kr)
+	badIDMsg.MessageNameSpaceId = []byte{1, 2, 3, 4, 5, 6, 7}
+
+	// pfm that uses reserved ns id
+	reservedMsg := validMsgWirePayForMessage(kr)
+	reservedMsg.MessageNameSpaceId = []byte{0, 0, 0, 0, 0, 0, 0, 100}
+
+	// pfm that has a wrong msg size
+	invalidMsgSizeMsg := validMsgWirePayForMessage(kr)
+	invalidMsgSizeMsg.Message = bytes.Repeat([]byte{1}, consts.ShareSize-20)
+
+	// pfm that has a wrong msg size
+	invalidDeclaredMsgSizeMsg := validMsgWirePayForMessage(kr)
+	invalidDeclaredMsgSizeMsg.MessageSize = 999
+
+	// pfm with bad sig
+	badSigMsg := validMsgWirePayForMessage(kr)
+	badSigMsg.MessageShareCommitment[0].Signature = []byte{1, 2, 3, 4}
+
+	// pfm with bad commitment
+	badCommitMsg := validMsgWirePayForMessage(kr)
+	badCommitMsg.MessageShareCommitment[0].ShareCommitment = []byte{1, 2, 3, 4}
+
+	tests := []test{
+		{
+			name: "valid msg",
+			msg:  validMsg,
+		},
+		{
+			name:      "bad ns ID",
+			msg:       badIDMsg,
+			expectErr: true,
+			errStr:    "invalid namespace length",
+		},
+		{
+			name:      "reserved ns id",
+			msg:       reservedMsg,
+			expectErr: true,
+			errStr:    "uses a reserved namesapce ID",
+		},
+		{
+			name:      "invalid msg size",
+			msg:       invalidMsgSizeMsg,
+			expectErr: true,
+			errStr:    "Share message must be divisible",
+		},
+		{
+			name:      "bad declared message size",
+			msg:       invalidDeclaredMsgSizeMsg,
+			expectErr: true,
+			errStr:    "Declared Message size does not match actual Message size",
+		},
+		{
+			name:      "bad sig",
+			msg:       badSigMsg,
+			expectErr: true,
+			errStr:    "invalid signature for share commitment",
+		},
+		{
+			name:      "bad commitment",
+			msg:       badCommitMsg,
+			expectErr: true,
+			errStr:    "invalid commit for square size",
+		},
+	}
+
+	for _, tt := range tests {
+		err := tt.msg.ValidateBasic()
+		if tt.expectErr {
+			require.NotNil(t, err, tt.name)
+			require.Contains(t, err.Error(), tt.errStr, tt.name)
+			continue
+		}
+		require.NoError(t, err, tt.name)
+	}
+}
+
+func validMsgWirePayForMessage(keyring keyring.Keyring) *MsgWirePayForMessage {
+	info, err := keyring.Key(testingKeyAcc)
+	if err != nil {
+		panic(err)
+	}
+	msg, err := NewMsgWirePayForMessage(
+		[]byte{1, 2, 3, 4, 5, 6, 7, 8},
+		bytes.Repeat([]byte{1}, 1000),
+		info.GetPubKey().Bytes(),
+		&TransactionFee{},
+		16, 32, 64,
+	)
+	if err != nil {
+		panic(err)
+	}
+	err = msg.SignShareCommitments(testingKeyAcc, keyring)
+	if err != nil {
+		panic(err)
+	}
+	return msg
+}
+
+func newKeyring() keyring.Keyring {
+	kb := keyring.NewInMemory()
+	_, _, err := kb.NewMnemonic(testingKeyAcc, keyring.English, "", hd.Secp256k1)
+	if err != nil {
+		panic(err)
+	}
 	return kb
 }

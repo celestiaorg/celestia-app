@@ -129,10 +129,6 @@ func TestPreprocessTxs(t *testing.T) {
 	}
 }
 
-/////////////////////////////
-//	Setup App
-/////////////////////////////
-
 func setupApp(t *testing.T, pub cryptotypes.PubKey) *App {
 	// var cache sdk.MultiStorePersistentCache
 	// EmptyAppOptions is a stub implementing AppOptions
@@ -247,10 +243,6 @@ func addGenesisAccount(addr sdk.AccAddress, appState map[string]json.RawMessage,
 	appState[banktypes.ModuleName] = bankGenStateBz
 	return appState, nil
 }
-
-/////////////////////////////
-//	Generate Txs
-/////////////////////////////
 
 func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, ring keyring.Keyring) (rawTx []byte) {
 	// create a msg

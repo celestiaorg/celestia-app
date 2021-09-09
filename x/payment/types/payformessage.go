@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"errors"
 	fmt "fmt"
@@ -20,10 +21,6 @@ const (
 	SquareSize                             = consts.MaxSquareSize
 	NamespaceIDSize                        = consts.NamespaceSize
 )
-
-///////////////////////////////////////
-// 	MsgWirePayForMessage
-///////////////////////////////////////
 
 var _ sdk.Msg = &MsgWirePayForMessage{}
 
@@ -102,6 +99,11 @@ func (msg *MsgWirePayForMessage) ValidateBasic() error {
 			msg.MessageSize,
 			len(msg.Message),
 		)
+	}
+
+	// ensure that a reserved namespace is not used
+	if bytes.Compare(msg.GetMessageNameSpaceId(), consts.MaxReservedNamespace) < 1 {
+		return errors.New("message is not valid: uses a reserved namesapce ID")
 	}
 
 	for _, commit := range msg.MessageShareCommitment {
@@ -185,10 +187,6 @@ func (msg *MsgWirePayForMessage) SignedTransactionDataPayForMessage(k uint64) (*
 	return &sTxMsg, nil
 }
 
-///////////////////////////////////////
-// 	SignedTransactionDataPayForMessage
-///////////////////////////////////////
-
 var _ sdk.Tx = &TxSignedTransactionDataPayForMessage{}
 
 // GetMsgs fullfills the sdk.Tx interface
@@ -243,10 +241,6 @@ func (msg *SignedTransactionDataPayForMessage) GetSignBytes() []byte {
 func (msg *SignedTransactionDataPayForMessage) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{}
 }
-
-///////////////////////////////////////
-// 	Utilities
-///////////////////////////////////////
 
 // CreateCommitment generates the commit bytes for a given message, namespace, and
 // squaresize using a namespace merkle tree and the rules described at
