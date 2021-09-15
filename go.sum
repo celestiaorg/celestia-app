@@ -104,8 +104,6 @@ github.com/btcsuite/snappy-go v1.0.0/go.mod h1:8woku9dyThutzjeg+3xrA5iCpBRH8XEEg
 github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792/go.mod h1:ghJtEyQwv5/p4Mg4C0fgbePVuGr935/5ddU9Z3TmDRY=
 github.com/btcsuite/winsvc v1.0.0/go.mod h1:jsenWakMcC0zFBFurPLEAyrnc/teJEM1O46fmI40EZs=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-core v0.0.1-mvp-das-lightclient.0.20210831143948-ceaf5e5c3eec h1:FRa3UTfxQWEHlXewbn43IyDsfr34FGNR9wkrd6ph1Jc=
-github.com/celestiaorg/celestia-core v0.0.1-mvp-das-lightclient.0.20210831143948-ceaf5e5c3eec/go.mod h1:q0dlLrBebyylQK1LlEQxl33JpjNzrQlyNH8g52Jm1Uo=
 github.com/celestiaorg/go-leopard v0.1.0 h1:28z2EkvKJIez5J9CEaiiUEC+OxalRLtTGJJ1oScfE1g=
 github.com/celestiaorg/go-leopard v0.1.0/go.mod h1:NtO/rjlB8dw2aq7jr06vZFKGvryQcTDXaNHelmPNOAM=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
@@ -206,6 +204,8 @@ github.com/envoyproxy/go-control-plane v0.9.9-0.20210512163311-63b5d3c536b0/go.m
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/evan-forbes/cosmos-sdk v0.40.0-rc5.0.20210915111714-cf6cb22dd343 h1:HsIzf1R2dLlrPcYGW5hQfJeiHNYTNmDn+6DbBwroyzY=
 github.com/evan-forbes/cosmos-sdk v0.40.0-rc5.0.20210915111714-cf6cb22dd343/go.mod h1:7xk8IFsNuxGLKqCHdFJGxD7vuJzkUxJkDgTJE3u39bk=
+github.com/evan-forbes/totally-not-a-fork-of-celestia-core v0.0.0-20210915113311-038748d6a56d h1:eI+p39I0VfjZxGSsIMpoPJvXoEgSAqjWE84OaswhOfw=
+github.com/evan-forbes/totally-not-a-fork-of-celestia-core v0.0.0-20210915113311-038748d6a56d/go.mod h1:q0dlLrBebyylQK1LlEQxl33JpjNzrQlyNH8g52Jm1Uo=
 github.com/facebookgo/ensure v0.0.0-20160127193407-b4ab57deab51 h1:0JZ+dUmQeA8IIVUMzysrX4/AKuQwWhV2dYQuPZdvdSQ=
 github.com/facebookgo/ensure v0.0.0-20160127193407-b4ab57deab51/go.mod h1:Yg+htXGokKKdzcwhuNDwVvN+uBxDGXJ7G/VN1d8fa64=
 github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 h1:JWuenKqqX8nojtoVVWjGfOF9635RETekkoH6Cc9SX0A=

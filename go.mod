@@ -26,6 +26,7 @@ require (
 )
 
 replace (
+	github.com/celestiaorg/celestia-core => github.com/evan-forbes/totally-not-a-fork-of-celestia-core v0.0.0-20210915113311-038748d6a56d
 	github.com/cosmos/cosmos-sdk v0.40.0-rc5 => github.com/evan-forbes/cosmos-sdk v0.40.0-rc5.0.20210915111714-cf6cb22dd343
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 )

@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	abci "github.com/celestiaorg/celestia-core/abci/types"
 	"github.com/celestiaorg/celestia-core/libs/log"
+	"github.com/celestiaorg/celestia-core/pkg/consts"
 	core "github.com/celestiaorg/celestia-core/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -362,4 +363,8 @@ func generateSignedWirePayForMessage(t *testing.T, k uint64, ns, message []byte,
 	}
 
 	return msg
+}
+
+func TestForkUse(t *testing.T) {
+	fmt.Println(consts.ProofOfUsingFork)
 }
