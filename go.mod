@@ -26,6 +26,6 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk v0.40.0-rc5 => github.com/celestiaorg/cosmos-sdk v0.40.0-rc5.0.20210831150455-4a354186ed7a
+	github.com/cosmos/cosmos-sdk v0.40.0-rc5 => github.com/evan-forbes/cosmos-sdk v0.40.0-rc5.0.20210915111714-cf6cb22dd343
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 )
