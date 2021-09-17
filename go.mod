@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	github.com/celestiaorg/celestia-core v0.0.1-mvp-das-lightclient.0.20210831143948-ceaf5e5c3eec
-	github.com/celestiaorg/nmt v0.6.0
+	github.com/celestiaorg/nmt v0.7.0
 	github.com/cosmos/cosmos-sdk v0.40.0-rc5
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
