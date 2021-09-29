@@ -151,11 +151,6 @@ func setupApp(t *testing.T, pub cryptotypes.PubKey) *App {
 		anteOpt,
 	)
 
-	// for acc := range maccPerms {
-	// 	require.Equal(t, !allowedReceivingModAcc[acc], testApp.BankKeeper.BlockedAddr(testApp.AccountKeeper.GetModuleAddress(acc)),
-	// 		"ensure that blocked addresses are properly set in bank keeper")
-	// }
-
 	genesisState := NewDefaultGenesisState(encCfg.Marshaler)
 
 	genesisState, err := addGenesisAccount(sdk.AccAddress(pub.Address().Bytes()), genesisState, encCfg.Marshaler)
