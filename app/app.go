@@ -82,7 +82,7 @@ import (
 )
 
 const (
-	AccountAddressPrefix = "celest"
+	AccountAddressPrefix = "celes"
 	Name                 = "celestia-app"
 )
 
