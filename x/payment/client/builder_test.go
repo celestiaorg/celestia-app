@@ -27,11 +27,10 @@ func TestBuildSignedPayForMessage(t *testing.T) {
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	message := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 
-	msg, err := types.NewMsgWirePayForMessage(
+	msg, err := types.NewWirePayForMessage(
 		namespace,
 		message,
-		info.GetPubKey().Bytes(),
-		&types.TransactionFee{},
+		1,
 		4, 16, 32,
 	)
 	require.NoError(t, err)
@@ -80,11 +79,10 @@ func TestBroadcastPayForMessage(t *testing.T) {
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	message := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 
-	msg, err := types.NewMsgWirePayForMessage(
+	msg, err := types.NewWirePayForMessage(
 		namespace,
 		message,
-		info.GetPubKey().Bytes(),
-		&types.TransactionFee{},
+		1,
 		4, 16, 32,
 	)
 	require.NoError(t, err)

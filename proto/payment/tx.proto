@@ -10,7 +10,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/payment/types";
 // Msg defines the payment Msg service.
 service Msg {
     // PayForMessage allows the user to post data to made be available.
-    rpc PayForMessage(MsgWirePayForMessage) returns (MsgPayForMessageResponse) {
+    rpc PayForMessage(WirePayForMessage) returns (PayForMessageResponse) {
         option (google.api.http).get = "/celestia/payment/payformessage";
     }
   }
@@ -23,9 +23,10 @@ message WirePayForMessage {
   uint64 message_size = 3;
   bytes message = 4;
   repeated ShareCommitAndSignature message_share_commitment = 6 [(gogoproto.nullable) = false];
+  string signer = 7;
 }
 
-// PayForMessageResponse describes the response returned after the submission of a MsgWirePayForMessage
+// PayForMessageResponse describes the response returned after the submission of a WirePayForMessage
 message PayForMessageResponse {}
 
 // ShareCommitAndSignature defines the 
@@ -44,6 +45,6 @@ message SignedPayForMessage {
     bytes message_share_commitment = 5;
 }
 
-// SignedTransactionDataPayForMessageResponse describes the response returned after the submission of a SignedTransactionDataPayForMessage
+// SignedPayForMessageResponse describes the response returned after the submission of a SignedPayForMessage
 message SignedPayForMessageResponse {}
 

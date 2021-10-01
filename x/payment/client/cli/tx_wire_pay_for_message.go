@@ -7,7 +7,9 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
+	"github.com/tendermint/tendermint/pkg/consts"
 
+	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -33,12 +35,6 @@ func CmdWirePayForMessage() *cobra.Command {
 				return errors.New("no account name provided, please use the --from flag")
 			}
 
-			// get info on the key
-			keyInfo, err := clientCtx.Keyring.Key(accName)
-			if err != nil {
-				return err
-			}
-
 			// decode the namespace
 			namespace, err := hex.DecodeString(args[0])
 			if err != nil {
@@ -52,19 +48,18 @@ func CmdWirePayForMessage() *cobra.Command {
 			}
 
 			// create the PayForMessage
-			pfmMsg, err := types.NewMsgWirePayForMessage(
+			pfmMsg, err := types.NewWirePayForMessage(
 				namespace,
 				message,
-				keyInfo.GetPubKey().Bytes(),
-				&types.TransactionFee{}, // transaction fee is not yet used
-				types.SquareSize,
+				1,
+				consts.MaxSquareSize,
 			)
 			if err != nil {
 				return err
 			}
 
 			// sign the PayForMessage's ShareCommitments
-			err = pfmMsg.SignShareCommitments(accName, clientCtx.Keyring)
+			err = pfmMsg.SignShareCommitments(accName, clientCtx.Keyring, testutil.NewTxConfig()) // todo(evan) don't use testutil
 			if err != nil {
 				return err
 			}

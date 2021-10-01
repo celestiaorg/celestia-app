@@ -28,6 +28,7 @@ import (
 	"github.com/tendermint/spm/cosmoscmd"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 )
@@ -49,7 +50,7 @@ func TestProcessMsg(t *testing.T) {
 	message := bytes.Repeat([]byte{1}, 256)
 
 	// create a signed MsgWirePayFroMessage
-	msg := generateSignedWirePayForMessage(t, types.SquareSize, ns, message, kb)
+	msg := generateSignedWirePayForMessage(t, consts.MaxSquareSize, ns, message, kb)
 
 	testApp := setupApp(t, info.GetPubKey())
 
@@ -244,7 +245,7 @@ func addGenesisAccount(addr sdk.AccAddress, appState map[string]json.RawMessage,
 
 func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, ring keyring.Keyring) (rawTx []byte) {
 	// create a msg
-	msg := generateSignedWirePayForMessage(t, types.SquareSize, ns, message, ring)
+	msg := generateSignedWirePayForMessage(t, consts.MaxSquareSize, ns, message, ring)
 
 	info, err := ring.Key(testingKeyAcc)
 	if err != nil {
@@ -343,13 +344,13 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, r
 	return rawTx
 }
 
-func generateSignedWirePayForMessage(t *testing.T, k uint64, ns, message []byte, ring keyring.Keyring) *types.MsgWirePayForMessage {
+func generateSignedWirePayForMessage(t *testing.T, k uint64, ns, message []byte, ring keyring.Keyring) *types.WirePayForMessage {
 	info, err := ring.Key(testingKeyAcc)
 	if err != nil {
 		t.Error(err)
 	}
 
-	msg, err := types.NewMsgWirePayForMessage(ns, message, info.GetPubKey().Bytes(), &types.TransactionFee{}, k)
+	msg, err := types.NewWirePayForMessage(ns, message, info.GetPubKey().Bytes(), &types.TransactionFee{}, k)
 	if err != nil {
 		t.Error(err)
 	}

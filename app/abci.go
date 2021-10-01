@@ -2,8 +2,6 @@ package app
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
@@ -89,7 +87,7 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 
 // pfmURL is the URL expected for pfm. NOTE: this will be deleted when we upgrade from
 // sdk v0.44.0
-var pfmURL = sdk.MsgTypeURL(&types.MsgWirePayForMessage{})
+var pfmURL = sdk.MsgTypeURL(&types.WirePayForMessage{})
 
 func hasWirePayForMessage(tx sdk.Tx) bool {
 	for _, msg := range tx.GetMsgs() {
@@ -106,54 +104,6 @@ func hasWirePayForMessage(tx sdk.Tx) bool {
 		// }
 	}
 	return false
-}
-
-// processMsgs will perform the processing required by PreProcessTxs for a set
-// of sdk.Msg's from a single sdk.Tx
-func (app *App) processMsg(msg sdk.Msg) (core.Message, *types.TxSignedTransactionDataPayForMessage, error) {
-	squareSize := app.SquareSize()
-	// reject all msgs in tx if a single included msg is not correct type
-	wireMsg, ok := msg.(*types.MsgWirePayForMessage)
-	if !ok {
-		return core.Message{},
-			nil,
-			errors.New("transaction contained a message type other than types.MsgWirePayForMessage")
-	}
-
-	// make sure that a ShareCommitAndSignature of the correct size is
-	// included in the message
-	var shareCommit types.ShareCommitAndSignature
-	for _, commit := range wireMsg.MessageShareCommitment {
-		if commit.K == squareSize {
-			shareCommit = commit
-		}
-	}
-	// K == 0 means there was no share commit with the desired current square size
-	if shareCommit.K == 0 {
-		return core.Message{},
-			nil,
-			fmt.Errorf("No share commit for correct square size. Current square size: %d", squareSize)
-	}
-
-	// add the message to the list of core message to be returned to ll-core
-	coreMsg := core.Message{
-		NamespaceId: wireMsg.GetMessageNameSpaceId(),
-		Data:        wireMsg.GetMessage(),
-	}
-
-	// wrap the signed transaction data
-	sTxData, err := wireMsg.SignedTransactionDataPayForMessage(squareSize)
-	if err != nil {
-		return core.Message{}, nil, err
-	}
-
-	signedData := &types.TxSignedTransactionDataPayForMessage{
-		Message:   sTxData,
-		Signature: shareCommit.Signature,
-		PublicKey: wireMsg.PublicKey,
-	}
-
-	return coreMsg, signedData, nil
 }
 
 // SquareSize returns the current square size. Currently, the square size is

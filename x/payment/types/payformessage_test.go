@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/assert"
@@ -104,20 +105,15 @@ func TestCreateCommitment(t *testing.T) {
 // todo(evan): fixme
 func TestGetCommitmentSignBytes(t *testing.T) {
 	type test struct {
-		msg      MsgWirePayForMessage
+		msg      WirePayForMessage
 		expected []byte
 	}
 	tests := []test{
 		{
-			msg: MsgWirePayForMessage{
+			msg: WirePayForMessage{
 				MessageSize:        4,
 				Message:            []byte{1, 2, 3, 4},
 				MessageNameSpaceId: []byte{1, 2, 3, 4, 1, 2, 3, 4},
-				Nonce:              1,
-				Fee: &TransactionFee{
-					BaseRateMax: 10000,
-					TipRateMax:  1000,
-				},
 			},
 			expected: []byte(`{"fee":{"base_rate_max":"10000","tip_rate_max":"1000"},"message_namespace_id":"AQIDBAECAwQ=","message_share_commitment":"Elh5P8yB1FeiPP0uWCkp67mqSsaVat6iwjH2vSMQJys=","message_size":"4","nonce":"1"}`),
 		},
@@ -161,23 +157,18 @@ func TestPadMessage(t *testing.T) {
 func TestSignShareCommitments(t *testing.T) {
 	type test struct {
 		accName string
-		msg     *MsgWirePayForMessage
+		msg     *WirePayForMessage
 	}
 
 	kb := generateKeyring(t, "test")
 
 	// create the first PFM for the first test
-	firstPubKey, err := kb.Key("test")
-	if err != nil {
-		t.Error(err)
-	}
 	firstNs := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	firstMsg := bytes.Repeat([]byte{1}, ShareSize)
-	firstPFM, err := NewMsgWirePayForMessage(
+	firstPFM, err := NewWirePayForMessage(
 		firstNs,
 		firstMsg,
-		firstPubKey.GetPubKey().Bytes(),
-		&TransactionFee{},
+		1,
 		SquareSize,
 	)
 	if err != nil {
@@ -192,7 +183,7 @@ func TestSignShareCommitments(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		err := tt.msg.SignShareCommitments(tt.accName, kb)
+		err := tt.msg.SignShareCommitments(tt.accName, kb, testutil.NewTxConfig())
 		// there should be no error
 		assert.NoError(t, err)
 		// the signature should exist
@@ -213,10 +204,10 @@ func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
 	return kb
 }
 
-func TestMsgWirePayForMessage_ValidateBasic(t *testing.T) {
+func TestWirePayForMessage_ValidateBasic(t *testing.T) {
 	type test struct {
 		name      string
-		msg       *MsgWirePayForMessage
+		msg       *WirePayForMessage
 		expectErr bool
 		errStr    string
 	}
@@ -224,30 +215,30 @@ func TestMsgWirePayForMessage_ValidateBasic(t *testing.T) {
 	kr := newKeyring()
 
 	// valid pfm
-	validMsg := validMsgWirePayForMessage(kr)
+	validMsg := validWirePayForMessage(kr)
 
 	// pfm with bad ns id
-	badIDMsg := validMsgWirePayForMessage(kr)
+	badIDMsg := validWirePayForMessage(kr)
 	badIDMsg.MessageNameSpaceId = []byte{1, 2, 3, 4, 5, 6, 7}
 
 	// pfm that uses reserved ns id
-	reservedMsg := validMsgWirePayForMessage(kr)
+	reservedMsg := validWirePayForMessage(kr)
 	reservedMsg.MessageNameSpaceId = []byte{0, 0, 0, 0, 0, 0, 0, 100}
 
 	// pfm that has a wrong msg size
-	invalidMsgSizeMsg := validMsgWirePayForMessage(kr)
+	invalidMsgSizeMsg := validWirePayForMessage(kr)
 	invalidMsgSizeMsg.Message = bytes.Repeat([]byte{1}, consts.ShareSize-20)
 
 	// pfm that has a wrong msg size
-	invalidDeclaredMsgSizeMsg := validMsgWirePayForMessage(kr)
+	invalidDeclaredMsgSizeMsg := validWirePayForMessage(kr)
 	invalidDeclaredMsgSizeMsg.MessageSize = 999
 
 	// pfm with bad sig
-	badSigMsg := validMsgWirePayForMessage(kr)
+	badSigMsg := validWirePayForMessage(kr)
 	badSigMsg.MessageShareCommitment[0].Signature = []byte{1, 2, 3, 4}
 
 	// pfm with bad commitment
-	badCommitMsg := validMsgWirePayForMessage(kr)
+	badCommitMsg := validWirePayForMessage(kr)
 	badCommitMsg.MessageShareCommitment[0].ShareCommitment = []byte{1, 2, 3, 4}
 
 	tests := []test{
@@ -304,22 +295,18 @@ func TestMsgWirePayForMessage_ValidateBasic(t *testing.T) {
 	}
 }
 
-func validMsgWirePayForMessage(keyring keyring.Keyring) *MsgWirePayForMessage {
-	info, err := keyring.Key(testingKeyAcc)
-	if err != nil {
-		panic(err)
-	}
-	msg, err := NewMsgWirePayForMessage(
+func validWirePayForMessage(keyring keyring.Keyring) *WirePayForMessage {
+	msg, err := NewWirePayForMessage(
 		[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 		bytes.Repeat([]byte{1}, 1000),
-		info.GetPubKey().Bytes(),
-		&TransactionFee{},
+		1,
 		16, 32, 64,
 	)
 	if err != nil {
 		panic(err)
 	}
-	err = msg.SignShareCommitments(testingKeyAcc, keyring)
+
+	err = msg.SignShareCommitments(testingKeyAcc, keyring, testutil.NewTxConfig())
 	if err != nil {
 		panic(err)
 	}

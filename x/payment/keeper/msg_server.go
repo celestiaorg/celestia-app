@@ -11,7 +11,7 @@ var _ types.MsgServer = msgServer{}
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
 	// PayForMessage allows the user to post data to made be available.
-	SignedTransactionDataPayForMessage(context.Context, *types.SignedTransactionDataPayForMessage) (*types.SignedTransactionDataPayForMessageResponse, error)
+	SignedPayForMessage(context.Context, *types.SignedPayForMessage) (*types.SignedPayForMessageResponse, error)
 }
 
 type msgServer struct {
