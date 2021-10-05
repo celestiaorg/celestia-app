@@ -259,10 +259,10 @@ func (msg *PayForMessage) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{address}
 }
 
-// BuildPayForMessageTx creates an authsigning.Tx using data from the original
+// BuildPayForMessageTxFromWireTx creates an authsigning.Tx using data from the original
 // WirePayForMessage sdk.Tx and the signature provided. This is used while processing
 // the WirePayForMessages into Signed PayForMessage
-func BuildPayForMessageTxFrom(
+func BuildPayForMessageTxFromWireTx(
 	origTx authsigning.Tx,
 	builder sdkclient.TxBuilder,
 	signature []byte,
@@ -292,7 +292,10 @@ func BuildPayForMessageTxFrom(
 		Sequence: origSigs[0].Sequence,
 	}
 
-	builder.SetSignatures(newSig)
+	err = builder.SetSignatures(newSig)
+	if err != nil {
+		return nil, err
+	}
 
 	return builder.GetTx(), nil
 }

@@ -11,10 +11,6 @@ import (
 	"github.com/tendermint/tendermint/pkg/consts"
 )
 
-const (
-	testingKeyAcc = "test"
-)
-
 func TestMountainRange(t *testing.T) {
 	type test struct {
 		l, k     uint64
@@ -191,6 +187,7 @@ func TestSignShareCommitments(t *testing.T) {
 			},
 			tx,
 		)
+		require.NoError(t, err)
 
 		// verify the signature using the public key
 		assert.True(t, signer.GetSignerInfo().GetPubKey().VerifySignature(

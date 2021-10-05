@@ -58,8 +58,11 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 			continue
 		}
 
-		signedTx, err := types.BuildPayForMessageTxFrom(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFM)
-
+		signedTx, err := types.BuildPayForMessageTxFromWireTx(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFM)
+		if err != nil {
+			// todo(evan): log all of these potential errors
+			continue
+		}
 		// increment the share counter by the number of shares taken by the message
 		sharesTaken := uint64(len(coreMsg.Data) / types.ShareSize)
 		shareCounter += sharesTaken
