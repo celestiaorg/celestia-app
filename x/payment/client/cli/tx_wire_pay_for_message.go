@@ -20,7 +20,7 @@ var _ = strconv.Itoa(0)
 func CmdWirePayForMessage() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "payForMessage [hexNamespace] [hexMessage]",
-		Short: "Creates a new WirePayForMessage",
+		Short: "Creates a new MsgWirePayForMessage",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
@@ -46,7 +46,7 @@ func CmdWirePayForMessage() *cobra.Command {
 				return fmt.Errorf("failure to decode hex message: %w", err)
 			}
 
-			// create the PayForMessage
+			// create the  MsgPayForMessage
 			pfmMsg, err := types.NewWirePayForMessage(namespace, message, consts.MaxSquareSize)
 			if err != nil {
 				return err
@@ -54,8 +54,8 @@ func CmdWirePayForMessage() *cobra.Command {
 
 			signer := types.NewKeyringSigner(clientCtx.Keyring, accName, clientCtx.ChainID)
 
-			// sign the PayForMessage's ShareCommitments
-			err = pfmMsg.SignShareCommitments(signer, signer.NewTxBuilder()) // todo(evan) don't use testutil
+			// sign the  MsgPayForMessage's ShareCommitments
+			err = pfmMsg.SignShareCommitments(signer, signer.NewTxBuilder())
 			if err != nil {
 				return err
 			}

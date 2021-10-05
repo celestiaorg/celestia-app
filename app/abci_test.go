@@ -233,7 +233,7 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, r
 	return rawTx
 }
 
-func generateSignedWirePayForMessage(t *testing.T, k uint64, ns, message []byte, ring keyring.Keyring) *types.WirePayForMessage {
+func generateSignedWirePayForMessage(t *testing.T, k uint64, ns, message []byte, ring keyring.Keyring) *types.MsgWirePayForMessage {
 	signer := generateKeyringSigner(t, "test")
 
 	msg, err := types.NewWirePayForMessage(ns, message, k)

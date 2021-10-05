@@ -201,7 +201,7 @@ func TestSignShareCommitments(t *testing.T) {
 func TestWirePayForMessage_ValidateBasic(t *testing.T) {
 	type test struct {
 		name      string
-		msg       *WirePayForMessage
+		msg       *MsgWirePayForMessage
 		expectErr bool
 		errStr    string
 	}
@@ -283,10 +283,10 @@ func TestProcessMessage(t *testing.T) {
 		ns, msg   []byte
 		ss        uint64
 		expectErr bool
-		modify    func(*WirePayForMessage) *WirePayForMessage
+		modify    func(*MsgWirePayForMessage) *MsgWirePayForMessage
 	}
 
-	dontModify := func(in *WirePayForMessage) *WirePayForMessage {
+	dontModify := func(in *MsgWirePayForMessage) *MsgWirePayForMessage {
 		return in
 	}
 
@@ -314,7 +314,7 @@ func TestProcessMessage(t *testing.T) {
 			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
 			msg:  bytes.Repeat([]byte{2}, ShareSize*15),
 			ss:   4,
-			modify: func(wpfm *WirePayForMessage) *WirePayForMessage {
+			modify: func(wpfm *MsgWirePayForMessage) *MsgWirePayForMessage {
 				wpfm.MessageShareCommitment[0].K = 99999
 				return wpfm
 			},
@@ -346,7 +346,7 @@ func TestProcessMessage(t *testing.T) {
 	}
 }
 
-func validWirePayForMessage(t *testing.T) *WirePayForMessage {
+func validWirePayForMessage(t *testing.T) *MsgWirePayForMessage {
 	msg, err := NewWirePayForMessage(
 		[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 		bytes.Repeat([]byte{1}, 1000),

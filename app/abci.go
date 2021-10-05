@@ -33,7 +33,7 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 		}
 
 		// don't process the tx if the transaction doesn't contain a
-		// PayForMessage sdk.Msg
+		//  MsgPayForMessage sdk.Msg
 		if !hasWirePayForMessage(authTx) {
 			processedTxs = append(processedTxs, rawTx)
 			continue
@@ -46,7 +46,7 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 
 		msg := authTx.GetMsgs()[0]
 		// reject all msgs in tx if a single included msg is not correct type
-		wireMsg, ok := msg.(*types.WirePayForMessage)
+		wireMsg, ok := msg.(*types.MsgWirePayForMessage)
 		if !ok {
 			continue
 		}
@@ -101,7 +101,7 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 
 // pfmURL is the URL expected for pfm. NOTE: this will be deleted when we upgrade from
 // sdk v0.44.0
-var pfmURL = sdk.MsgTypeURL(&types.WirePayForMessage{})
+var pfmURL = sdk.MsgTypeURL(&types.MsgWirePayForMessage{})
 
 func hasWirePayForMessage(tx sdk.Tx) bool {
 	for _, msg := range tx.GetMsgs() {

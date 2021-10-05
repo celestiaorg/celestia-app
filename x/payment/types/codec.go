@@ -12,17 +12,17 @@ import (
 )
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
-	cdc.RegisterConcrete(&WirePayForMessage{}, "payment/WirePayForMessage", nil)
+	cdc.RegisterConcrete(&MsgWirePayForMessage{}, "payment/WirePayForMessage", nil)
 	// this line is used by starport scaffolding # 2
 }
 
 func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 	registry.RegisterImplementations((*sdk.Msg)(nil),
-		&WirePayForMessage{},
+		&MsgWirePayForMessage{},
 	)
 
 	registry.RegisterImplementations((*sdk.Msg)(nil),
-		&PayForMessage{},
+		&MsgPayForMessage{},
 	)
 
 	registry.RegisterInterface(
