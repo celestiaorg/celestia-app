@@ -234,7 +234,7 @@ func RegisterMsgHandlerClient(ctx context.Context, mux *runtime.ServeMux, client
 }
 
 var (
-	pattern_Msg_WirePayForMessage_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"celestia", "payment", "payformessage"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Msg_WirePayForMessage_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"celestia", "payment", "wirepayformessage"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_Msg_PayForMessage_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"celestia", "payment", "payformessage"}, "", runtime.AssumeColonVerbOpt(true)))
 )

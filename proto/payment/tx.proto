@@ -9,9 +9,9 @@ option go_package = "github.com/celestiaorg/celestia-app/x/payment/types";
 
 // Msg defines the payment Msg service.
 service Msg {
-    // PayForMessage allows the user to post data to made be available.
+    // WirePayForMessage allows the user to post data to made be available.
     rpc WirePayForMessage(WirePayForMessage) returns (WirePayForMessageResponse) {
-        option (google.api.http).get = "/celestia/payment/payformessage";
+        option (google.api.http).get = "/celestia/payment/wirepayformessage";
     }
     // PayForMessage allows the user to post data to made be available.
     rpc PayForMessage(PayForMessage) returns (PayForMessageResponse) {
