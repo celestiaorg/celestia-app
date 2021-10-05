@@ -277,6 +277,75 @@ func TestWirePayForMessage_ValidateBasic(t *testing.T) {
 	}
 }
 
+func TestProcessMessage(t *testing.T) {
+	type test struct {
+		name      string
+		ns, msg   []byte
+		ss        uint64
+		expectErr bool
+		modify    func(*WirePayForMessage) *WirePayForMessage
+	}
+
+	dontModify := func(in *WirePayForMessage) *WirePayForMessage {
+		return in
+	}
+
+	kb := generateKeyring(t, "test")
+
+	signer := NewKeyringSigner(kb, "test", "chain-id")
+
+	tests := []test{
+		{
+			name:   "single share square size 2",
+			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 1},
+			msg:    bytes.Repeat([]byte{1}, ShareSize),
+			ss:     2,
+			modify: dontModify,
+		},
+		{
+			name:   "15 shares square size 4",
+			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:    bytes.Repeat([]byte{2}, ShareSize*15),
+			ss:     4,
+			modify: dontModify,
+		},
+		{
+			name: "",
+			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:  bytes.Repeat([]byte{2}, ShareSize*15),
+			ss:   4,
+			modify: func(wpfm *WirePayForMessage) *WirePayForMessage {
+				wpfm.MessageShareCommitment[0].K = 99999
+				return wpfm
+			},
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		wpfm, err := NewWirePayForMessage(tt.ns, tt.msg, tt.ss)
+		require.NoError(t, err, tt.name)
+		err = wpfm.SignShareCommitments(signer, signer.NewTxBuilder())
+		assert.NoError(t, err)
+
+		wpfm = tt.modify(wpfm)
+
+		message, spfm, sig, err := ProcessWirePayForMessage(wpfm, tt.ss)
+		if tt.expectErr {
+			assert.Error(t, err, tt.name)
+			continue
+		}
+
+		// ensure that the shared fields are identical
+		assert.Equal(t, tt.msg, message.Data, tt.name)
+		assert.Equal(t, tt.ns, message.NamespaceId, tt.name)
+		assert.Equal(t, wpfm.Signer, spfm.Signer, tt.name)
+		assert.Equal(t, wpfm.MessageNameSpaceId, spfm.MessageNamespaceId, tt.name)
+		assert.Equal(t, wpfm.MessageShareCommitment[0].ShareCommitment, spfm.MessageShareCommitment, tt.name)
+		assert.Equal(t, wpfm.MessageShareCommitment[0].Signature, sig, tt.name)
+	}
+}
+
 func validWirePayForMessage(t *testing.T) *WirePayForMessage {
 	msg, err := NewWirePayForMessage(
 		[]byte{1, 2, 3, 4, 5, 6, 7, 8},

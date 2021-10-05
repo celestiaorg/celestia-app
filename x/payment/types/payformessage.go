@@ -178,22 +178,14 @@ func (msg *WirePayForMessage) unsignedPayForMessage(k uint64) (*PayForMessage, e
 	return &sPFM, nil
 }
 
-// ProcessWirePayForMessage will perform the processing required by PreProcessTxs for a set
-// of sdk.Msg's from a single sdk.Tx
-func ProcessWirePayForMessage(msg sdk.Msg, squareSize uint64) (*tmproto.Message, *PayForMessage, []byte, error) {
-	// reject all msgs in tx if a single included msg is not correct type
-	wireMsg, ok := msg.(*WirePayForMessage)
-	if !ok {
-		return nil,
-			nil,
-			nil,
-			errors.New("transaction contained a message type other than types.WirePayForMessage")
-	}
-
+// ProcessWirePayForMessage will perform the processing required by PreProcessTxs.
+// It parses the WirePayForMessage to produce the components needed to create a
+// single PayForMessage
+func ProcessWirePayForMessage(msg *WirePayForMessage, squareSize uint64) (*tmproto.Message, *PayForMessage, []byte, error) {
 	// make sure that a ShareCommitAndSignature of the correct size is
 	// included in the message
 	var shareCommit *ShareCommitAndSignature
-	for _, commit := range wireMsg.MessageShareCommitment {
+	for _, commit := range msg.MessageShareCommitment {
 		if commit.K == squareSize {
 			shareCommit = &commit
 		}
@@ -207,12 +199,12 @@ func ProcessWirePayForMessage(msg sdk.Msg, squareSize uint64) (*tmproto.Message,
 
 	// add the message to the list of core message to be returned to ll-core
 	coreMsg := tmproto.Message{
-		NamespaceId: wireMsg.GetMessageNameSpaceId(),
-		Data:        wireMsg.GetMessage(),
+		NamespaceId: msg.GetMessageNameSpaceId(),
+		Data:        msg.GetMessage(),
 	}
 
 	// wrap the signed transaction data
-	pfm, err := wireMsg.unsignedPayForMessage(squareSize)
+	pfm, err := msg.unsignedPayForMessage(squareSize)
 	if err != nil {
 		return nil, nil, nil, err
 	}

@@ -18,8 +18,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/spf13/cast"
@@ -39,41 +37,6 @@ const testingKeyAcc = "test"
 func init() {
 	simapp.GetSimulatorFlags()
 }
-
-// todo(evan): move test over to types
-// func TestProcessMsg(t *testing.T) {
-// 	kb := keyring.NewInMemory()
-// 	info, _, err := kb.NewMnemonic(testingKeyAcc, keyring.English, "", "", hd.Secp256k1)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// 	ns := []byte{1, 1, 1, 1, 1, 1, 1, 1}
-// 	message := bytes.Repeat([]byte{1}, 256)
-
-// 	// create a signed MsgWirePayFroMessage
-// 	msg := generateSignedWirePayForMessage(t, consts.MaxSquareSize, ns, message, kb)
-
-// 	testApp := setupApp(t, info.GetPubKey())
-
-// 	tests := []struct {
-// 		name string
-// 		args sdk.Msg
-// 		want core.Message
-// 	}{
-// 		{
-// 			name: "basic",
-// 			args: msg,
-// 			want: core.Message{NamespaceId: msg.MessageNameSpaceId, Data: msg.Message},
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		result, _, err := testApp.processMsg(tt.args)
-// 		if err != nil {
-// 			t.Error(err)
-// 		}
-// 		assert.Equal(t, tt.want, result, tt.name)
-// 	}
-// }
 
 func TestPreprocessTxs(t *testing.T) {
 	kb := keyring.NewInMemory()
@@ -248,17 +211,8 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, r
 	// create a msg
 	msg := generateSignedWirePayForMessage(t, consts.MaxSquareSize, ns, message, ring)
 
-	info, err := ring.Key(testingKeyAcc)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// this is returning a tx.wrapper
-	builder := txConfig.NewTxBuilder()
-	err = builder.SetMsgs(msg)
-	if err != nil {
-		t.Error(err)
-	}
+	krs := generateKeyringSigner(t, "test")
+	builder := krs.NewTxBuilder()
 
 	coin := sdk.Coin{
 		Denom:  "token",
@@ -269,78 +223,12 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, r
 	builder.SetGasLimit(10000)
 	builder.SetTimeoutHeight(99)
 
-	signingData := authsigning.SignerData{
-		ChainID:       "test-chain",
-		AccountNumber: 0,
-		Sequence:      0,
-	}
-
-	// Important set the Signature to nil BEFORE actually signing
-	sigData := signing.SingleSignatureData{
-		SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-		Signature: nil,
-	}
-
-	sig := signing.SignatureV2{
-		PubKey:   info.GetPubKey(),
-		Data:     &sigData,
-		Sequence: 0,
-	}
-
-	// set the empty signature
-	err = builder.SetSignatures(sig)
-	if err != nil {
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	// Generate the bytes to be signed.
-	bytesToSign, err := txConfig.
-		SignModeHandler().
-		GetSignBytes(
-			signing.SignMode_SIGN_MODE_DIRECT,
-			signingData,
-			builder.GetTx(),
-		)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// Sign those bytes
-	sigBytes, _, err := ring.Sign(testingKeyAcc, bytesToSign)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// Construct the SignatureV2 struct
-	sigData = signing.SingleSignatureData{
-		SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-		Signature: sigBytes,
-	}
-
-	sigV2 := signing.SignatureV2{
-		PubKey:   info.GetPubKey(),
-		Data:     &sigData,
-		Sequence: 0,
-	}
-
-	// set the actual signature
-	err = builder.SetSignatures(sigV2)
-	if err != nil {
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	// finish the tx
-	tx := builder.GetTx()
+	tx, err := krs.BuildSignedTx(builder, msg)
+	require.NoError(t, err)
 
 	// encode the tx
 	rawTx, err = txConfig.TxEncoder()(tx)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	return rawTx
 }

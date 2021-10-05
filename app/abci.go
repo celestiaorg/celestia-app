@@ -45,6 +45,11 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 		}
 
 		msg := authTx.GetMsgs()[0]
+		// reject all msgs in tx if a single included msg is not correct type
+		wireMsg, ok := msg.(*types.WirePayForMessage)
+		if !ok {
+			continue
+		}
 
 		// run basic validation on the transaction
 		err = authTx.ValidateBasic()
@@ -53,7 +58,7 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 		}
 
 		// process the message
-		coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForMessage(msg, app.SquareSize())
+		coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForMessage(wireMsg, app.SquareSize())
 		if err != nil {
 			continue
 		}
