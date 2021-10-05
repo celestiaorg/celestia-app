@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func TestBuildSignedPayForMessage(t *testing.T) {
+func TestBuildPayForMessage(t *testing.T) {
 	testRing := generateKeyring(t)
 
 	info, err := testRing.Key(testAccName)

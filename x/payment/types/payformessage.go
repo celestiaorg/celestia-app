@@ -18,11 +18,11 @@ import (
 )
 
 const (
-	TypeMsgPayforMessage    = "payformessage"
-	TypeSignedPayForMessage = "SignedPayForMessage"
-	ShareSize               = consts.ShareSize
-	SquareSize              = consts.MaxSquareSize
-	NamespaceIDSize         = consts.NamespaceSize
+	TypeMsgPayforMessage = "payformessage"
+	TypePayForMessage    = "PayForMessage"
+	ShareSize            = consts.ShareSize
+	SquareSize           = consts.MaxSquareSize
+	NamespaceIDSize      = consts.NamespaceSize
 )
 
 var _ sdk.Msg = &WirePayForMessage{}
@@ -161,25 +161,26 @@ func (msg *WirePayForMessage) createPayForMessageSignature(signer *KeyringSigner
 }
 
 // unsignedPayForMessage use the data in the WirePayForMessage
-// to create a new SignedPayForMessage
-func (msg *WirePayForMessage) unsignedPayForMessage(k uint64) (*SignedPayForMessage, error) {
+// to create a new PayForMessage
+func (msg *WirePayForMessage) unsignedPayForMessage(k uint64) (*PayForMessage, error) {
 	// create the commitment using the padded message
 	commit, err := CreateCommitment(k, msg.MessageNameSpaceId, msg.Message)
 	if err != nil {
 		return nil, err
 	}
 
-	sPFM := SignedPayForMessage{
+	sPFM := PayForMessage{
 		MessageNamespaceId:     msg.MessageNameSpaceId,
 		MessageSize:            msg.MessageSize,
 		MessageShareCommitment: commit,
+		Signer:                 msg.Signer,
 	}
 	return &sPFM, nil
 }
 
 // ProcessWirePayForMessage will perform the processing required by PreProcessTxs for a set
 // of sdk.Msg's from a single sdk.Tx
-func ProcessWirePayForMessage(msg sdk.Msg, squareSize uint64) (*tmproto.Message, *SignedPayForMessage, []byte, error) {
+func ProcessWirePayForMessage(msg sdk.Msg, squareSize uint64) (*tmproto.Message, *PayForMessage, []byte, error) {
 	// reject all msgs in tx if a single included msg is not correct type
 	wireMsg, ok := msg.(*WirePayForMessage)
 	if !ok {
@@ -219,19 +220,19 @@ func ProcessWirePayForMessage(msg sdk.Msg, squareSize uint64) (*tmproto.Message,
 	return &coreMsg, pfm, shareCommit.Signature, nil
 }
 
-var _ sdk.Msg = &SignedPayForMessage{}
+var _ sdk.Msg = &PayForMessage{}
 
 // Route fullfills the sdk.Msg interface
-func (msg *SignedPayForMessage) Route() string { return RouterKey }
+func (msg *PayForMessage) Route() string { return RouterKey }
 
 // Type fullfills the sdk.Msg interface
-func (msg *SignedPayForMessage) Type() string {
-	return TypeSignedPayForMessage
+func (msg *PayForMessage) Type() string {
+	return TypePayForMessage
 }
 
 // ValidateBasic fullfills the sdk.Msg interface by performing stateless
 // validity checks on the msg that also don't require having the actual message
-func (msg *SignedPayForMessage) ValidateBasic() error {
+func (msg *PayForMessage) ValidateBasic() error {
 	// ensure that the namespace id is of length == NamespaceIDSize
 	if len(msg.GetMessageNamespaceId()) != NamespaceIDSize {
 		return fmt.Errorf(
@@ -245,16 +246,17 @@ func (msg *SignedPayForMessage) ValidateBasic() error {
 
 // GetSignBytes fullfills the sdk.Msg interface by reterning a deterministic set
 // of bytes to sign over
-func (msg *SignedPayForMessage) GetSignBytes() []byte {
+func (msg *PayForMessage) GetSignBytes() []byte {
 	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(msg))
 }
 
-// GetSigners fullfills the sdk.Msg interface but does not return anything, as
-// SignTransactionDataPayForMessage doesn't have access the public key necessary
-// in WirePayForMessage
-func (msg *SignedPayForMessage) GetSigners() []sdk.AccAddress {
-	// todo(evan): return creator and update docs
-	return []sdk.AccAddress{}
+// GetSigners fullfills the sdk.Msg interface by returning the signer's address
+func (msg *PayForMessage) GetSigners() []sdk.AccAddress {
+	address, err := sdk.AccAddressFromBech32(msg.Signer)
+	if err != nil {
+		panic(err)
+	}
+	return []sdk.AccAddress{address}
 }
 
 // BuildPayForMessageTx creates an authsigning.Tx using data from the original
@@ -264,7 +266,7 @@ func BuildPayForMessageTxFrom(
 	origTx authsigning.Tx,
 	builder sdkclient.TxBuilder,
 	signature []byte,
-	msg *SignedPayForMessage,
+	msg *PayForMessage,
 ) (authsigning.Tx, error) {
 	err := builder.SetMsgs(msg)
 	if err != nil {

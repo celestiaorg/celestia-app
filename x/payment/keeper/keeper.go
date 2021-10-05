@@ -38,15 +38,15 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 }
 
 // PayForMessage moves a user's coins to the module address and burns them.
-func (k Keeper) PayForMessage(goCtx context.Context, msg *types.WirePayForMessage) (*types.PayForMessageResponse, error) {
-	// don't pay for fees for the first version
+func (k Keeper) PayForMessage(goCtx context.Context, msg *types.PayForMessage) (*types.PayForMessageResponse, error) {
+	// @liamsi here's where we can use the bank keeper to burn fees
 	return &types.PayForMessageResponse{}, nil
 }
 
-// SignedPayForMessage moves a user's coins to the module address and burns them.
-func (k Keeper) SignedPayForMessage(goCtx context.Context, msg *types.SignedPayForMessage) (*types.SignedPayForMessageResponse, error) {
-	// don't pay for fees for the first version
-	return &types.SignedPayForMessageResponse{}, nil
+// PayForMessage moves a user's coins to the module address and burns them.
+func (k Keeper) WirePayForMessage(goCtx context.Context, msg *types.WirePayForMessage) (*types.WirePayForMessageResponse, error) {
+	// this should never be called, but it's needed to fullfill typical proto/sdk interfaces
+	return &types.WirePayForMessageResponse{}, nil
 }
 
 // BankKeeper restricts the funtionality of the bank keeper used in the payment keeper

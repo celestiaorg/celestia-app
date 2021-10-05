@@ -22,7 +22,7 @@ func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 	)
 
 	registry.RegisterImplementations((*sdk.Msg)(nil),
-		&SignedPayForMessage{},
+		&PayForMessage{},
 	)
 
 	registry.RegisterInterface(
