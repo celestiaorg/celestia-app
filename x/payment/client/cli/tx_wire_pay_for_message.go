@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tendermint/tendermint/pkg/consts"
 
-	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -48,18 +47,15 @@ func CmdWirePayForMessage() *cobra.Command {
 			}
 
 			// create the PayForMessage
-			pfmMsg, err := types.NewWirePayForMessage(
-				namespace,
-				message,
-				1,
-				consts.MaxSquareSize,
-			)
+			pfmMsg, err := types.NewWirePayForMessage(namespace, message, consts.MaxSquareSize)
 			if err != nil {
 				return err
 			}
 
+			signer := types.NewKeyringSigner(clientCtx.Keyring, accName, clientCtx.ChainID)
+
 			// sign the PayForMessage's ShareCommitments
-			err = pfmMsg.SignShareCommitments(accName, clientCtx.Keyring, testutil.NewTxConfig()) // todo(evan) don't use testutil
+			err = pfmMsg.SignShareCommitments(signer, signer.NewTxBuilder()) // todo(evan) don't use testutil
 			if err != nil {
 				return err
 			}

@@ -40,39 +40,40 @@ func init() {
 	simapp.GetSimulatorFlags()
 }
 
-func TestProcessMsg(t *testing.T) {
-	kb := keyring.NewInMemory()
-	info, _, err := kb.NewMnemonic(testingKeyAcc, keyring.English, "", "", hd.Secp256k1)
-	if err != nil {
-		t.Error(err)
-	}
-	ns := []byte{1, 1, 1, 1, 1, 1, 1, 1}
-	message := bytes.Repeat([]byte{1}, 256)
+// todo(evan): move test over to types
+// func TestProcessMsg(t *testing.T) {
+// 	kb := keyring.NewInMemory()
+// 	info, _, err := kb.NewMnemonic(testingKeyAcc, keyring.English, "", "", hd.Secp256k1)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	ns := []byte{1, 1, 1, 1, 1, 1, 1, 1}
+// 	message := bytes.Repeat([]byte{1}, 256)
 
-	// create a signed MsgWirePayFroMessage
-	msg := generateSignedWirePayForMessage(t, consts.MaxSquareSize, ns, message, kb)
+// 	// create a signed MsgWirePayFroMessage
+// 	msg := generateSignedWirePayForMessage(t, consts.MaxSquareSize, ns, message, kb)
 
-	testApp := setupApp(t, info.GetPubKey())
+// 	testApp := setupApp(t, info.GetPubKey())
 
-	tests := []struct {
-		name string
-		args sdk.Msg
-		want core.Message
-	}{
-		{
-			name: "basic",
-			args: msg,
-			want: core.Message{NamespaceId: msg.MessageNameSpaceId, Data: msg.Message},
-		},
-	}
-	for _, tt := range tests {
-		result, _, err := testApp.processMsg(tt.args)
-		if err != nil {
-			t.Error(err)
-		}
-		assert.Equal(t, tt.want, result, tt.name)
-	}
-}
+// 	tests := []struct {
+// 		name string
+// 		args sdk.Msg
+// 		want core.Message
+// 	}{
+// 		{
+// 			name: "basic",
+// 			args: msg,
+// 			want: core.Message{NamespaceId: msg.MessageNameSpaceId, Data: msg.Message},
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		result, _, err := testApp.processMsg(tt.args)
+// 		if err != nil {
+// 			t.Error(err)
+// 		}
+// 		assert.Equal(t, tt.want, result, tt.name)
+// 	}
+// }
 
 func TestPreprocessTxs(t *testing.T) {
 	kb := keyring.NewInMemory()
@@ -345,20 +346,48 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, r
 }
 
 func generateSignedWirePayForMessage(t *testing.T, k uint64, ns, message []byte, ring keyring.Keyring) *types.WirePayForMessage {
-	info, err := ring.Key(testingKeyAcc)
+	signer := generateKeyringSigner(t, "test")
+
+	msg, err := types.NewWirePayForMessage(ns, message, k)
 	if err != nil {
 		t.Error(err)
 	}
 
-	msg, err := types.NewWirePayForMessage(ns, message, info.GetPubKey().Bytes(), &types.TransactionFee{}, k)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = msg.SignShareCommitments(testingKeyAcc, ring)
+	err = msg.SignShareCommitments(signer, signer.NewTxBuilder())
 	if err != nil {
 		t.Error(err)
 	}
 
 	return msg
 }
+
+func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
+	t.Helper()
+	kb := keyring.NewInMemory()
+
+	for _, acc := range accts {
+		_, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	_, err := kb.NewAccount(testAccName, testMnemo, "1234", "", hd.Secp256k1)
+	if err != nil {
+		panic(err)
+	}
+
+	return kb
+}
+
+func generateKeyringSigner(t *testing.T, accts ...string) *types.KeyringSigner {
+	kr := generateKeyring(t, accts...)
+	return types.NewKeyringSigner(kr, testAccName, testChainID)
+}
+
+const (
+	// nolint:lll
+	testMnemo   = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
+	testAccName = "test-account"
+	testChainID = "test-chain-1"
+)

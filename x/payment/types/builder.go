@@ -1,9 +1,8 @@
-package client
+package types
 
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-app/app"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -31,7 +30,7 @@ func NewKeyringSigner(ring keyring.Keyring, name string, chainID string) *Keyrin
 		Keyring:        ring,
 		keyringAccName: name,
 		chainID:        chainID,
-		encCfg:         app.RegisterAccountInterface(),
+		encCfg:         makeEncodingConfig(),
 	}
 }
 
@@ -145,6 +144,16 @@ func (k *KeyringSigner) SetSequence(n uint64) {
 // SetKeyringAccName manually sets the underlying keyring account name
 func (k *KeyringSigner) SetKeyringAccName(name string) {
 	k.keyringAccName = name
+}
+
+// GetSignerInfo returns the signer info for the KeyringSigner's account. panics
+// if the account in KeyringSigner does not exist.
+func (k *KeyringSigner) GetSignerInfo() keyring.Info {
+	info, err := k.Key(k.keyringAccName)
+	if err != nil {
+		panic(err)
+	}
+	return info
 }
 
 // EncodeTx uses the keyring signer's encoding config to encode the provided sdk transaction

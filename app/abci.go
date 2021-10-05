@@ -6,12 +6,11 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
-
-// This file should contain all of the altered ABCI methods
 
 // PreprocessTxs fullfills the celestia-core version of the ACBI interface, by
 // performing basic validation for the incoming txs, and by cleanly separating
@@ -28,31 +27,38 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 			continue
 		}
 
+		authTx, ok := tx.(signing.Tx)
+		if !ok {
+			continue
+		}
+
 		// don't process the tx if the transaction doesn't contain a
 		// PayForMessage sdk.Msg
-		if !hasWirePayForMessage(tx) {
+		if !hasWirePayForMessage(authTx) {
 			processedTxs = append(processedTxs, rawTx)
 			continue
 		}
 
 		// only support transactions that contain a single sdk.Msg
-		if len(tx.GetMsgs()) != 1 {
+		if len(authTx.GetMsgs()) != 1 {
 			continue
 		}
 
-		msg := tx.GetMsgs()[0]
+		msg := authTx.GetMsgs()[0]
 
 		// run basic validation on the transaction
-		err = tx.ValidateBasic()
+		err = authTx.ValidateBasic()
 		if err != nil {
 			continue
 		}
 
 		// process the message
-		coreMsg, signedTx, err := app.processMsg(msg)
+		coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForMessage(msg, app.SquareSize())
 		if err != nil {
 			continue
 		}
+
+		signedTx, err := types.BuildPayForMessageTxFrom(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFM)
 
 		// increment the share counter by the number of shares taken by the message
 		sharesTaken := uint64(len(coreMsg.Data) / types.ShareSize)
@@ -64,13 +70,13 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 		}
 
 		// encode the processed tx
-		rawProcessedTx, err := app.appCodec.Marshal(signedTx)
+		rawProcessedTx, err := app.txConfig.TxEncoder()(signedTx)
 		if err != nil {
 			continue
 		}
 
 		// add the message and tx to the output
-		shareMsgs = append(shareMsgs, &coreMsg)
+		shareMsgs = append(shareMsgs, coreMsg)
 		processedTxs = append(processedTxs, rawProcessedTx)
 	}
 

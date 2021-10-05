@@ -7,15 +7,14 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/nmt"
-	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/pkg/consts"
-	core "github.com/tendermint/tendermint/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 const (
@@ -32,10 +31,9 @@ var _ sdk.Msg = &WirePayForMessage{}
 // namespace and message to generate share commitments for the provided square sizes
 // Note that the share commitments generated still need to be signed using the Sign
 // method
-func NewWirePayForMessage(namespace, message []byte, gasPrice uint64, sizes ...uint64) (*WirePayForMessage, error) {
+func NewWirePayForMessage(namespace, message []byte, sizes ...uint64) (*WirePayForMessage, error) {
 	message = PadMessage(message)
 	out := &WirePayForMessage{
-		MessageGasPrice:        gasPrice,
 		MessageNameSpaceId:     namespace,
 		MessageSize:            uint64(len(message)),
 		Message:                message,
@@ -55,20 +53,11 @@ func NewWirePayForMessage(namespace, message []byte, gasPrice uint64, sizes ...u
 
 // SignShareCommitments use the provided Keyring to sign each of the share commits
 // generated during the creation of the WirePayForMessage
-func (msg *WirePayForMessage) SignShareCommitments(accName string, ring keyring.Keyring, txCnfg client.TxConfig) error {
-	// set signer
-	accInfo, err := ring.Key(accName)
-	if err != nil {
-		return err
-	}
-	msg.Signer = accInfo.GetAddress().String()
-	// sign each commitment todo(evan): refactor to use normal sdk.Txs
+func (msg *WirePayForMessage) SignShareCommitments(signer *KeyringSigner, builder sdkclient.TxBuilder) error {
+	msg.Signer = signer.GetSignerInfo().GetAddress().String()
+	// sign each commitment by creating an entire
 	for i, commit := range msg.MessageShareCommitment {
-		bytesToSign, err := msg.GetCommitmentSignBytes(commit.K)
-		if err != nil {
-			return err
-		}
-		sig, _, err := ring.Sign(accName, bytesToSign)
+		sig, err := msg.createPayForMessageSignature(signer, builder, commit.K)
 		if err != nil {
 			return err
 		}
@@ -147,71 +136,87 @@ func (msg *WirePayForMessage) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{address}
 }
 
-// GetCommitmentSignBytes generates the bytes that each need to be signed per share commit
-func (msg *WirePayForMessage) GetCommitmentSignBytes(k uint64) ([]byte, error) {
-	sTxMsg, err := msg.SignedPayForMessage(k)
+// createPayForMessageSignature generates the bytes that each need to be signed per share commit
+func (msg *WirePayForMessage) createPayForMessageSignature(signer *KeyringSigner, builder sdkclient.TxBuilder, k uint64) ([]byte, error) {
+	pfm, err := msg.unsignedPayForMessage(k)
 	if err != nil {
 		return nil, err
 	}
-	return sTxMsg.GetSignBytes(), nil
+	tx, err := signer.BuildSignedTx(builder, pfm)
+	if err != nil {
+		return nil, err
+	}
+	sigs, err := tx.GetSignaturesV2()
+	if err != nil {
+		return nil, err
+	}
+	if len(sigs) != 1 {
+		return nil, fmt.Errorf("expected a single signer: got %d", len(sigs))
+	}
+	sig, ok := sigs[0].Data.(*signing.SingleSignatureData)
+	if !ok {
+		return nil, fmt.Errorf("expected a single signer")
+	}
+	return sig.Signature, nil
 }
 
-// SignedPayForMessage use the data in the WirePayForMessage
+// unsignedPayForMessage use the data in the WirePayForMessage
 // to create a new SignedPayForMessage
-func (msg *WirePayForMessage) SignedPayForMessage(k uint64) (*SignedPayForMessage, error) {
+func (msg *WirePayForMessage) unsignedPayForMessage(k uint64) (*SignedPayForMessage, error) {
 	// create the commitment using the padded message
 	commit, err := CreateCommitment(k, msg.MessageNameSpaceId, msg.Message)
 	if err != nil {
 		return nil, err
 	}
 
-	sTxMsg := SignedPayForMessage{
+	sPFM := SignedPayForMessage{
 		MessageNamespaceId:     msg.MessageNameSpaceId,
 		MessageSize:            msg.MessageSize,
 		MessageShareCommitment: commit,
 	}
-	return &sTxMsg, nil
+	return &sPFM, nil
 }
 
 // ProcessWirePayForMessage will perform the processing required by PreProcessTxs for a set
 // of sdk.Msg's from a single sdk.Tx
-func ProcessWirePayForMessage(msg sdk.Msg, squareSize uint64) (core.Message, *SignedPayForMessage, error) {
+func ProcessWirePayForMessage(msg sdk.Msg, squareSize uint64) (*tmproto.Message, *SignedPayForMessage, []byte, error) {
 	// reject all msgs in tx if a single included msg is not correct type
 	wireMsg, ok := msg.(*WirePayForMessage)
 	if !ok {
-		return core.Message{},
+		return nil,
+			nil,
 			nil,
 			errors.New("transaction contained a message type other than types.WirePayForMessage")
 	}
 
 	// make sure that a ShareCommitAndSignature of the correct size is
 	// included in the message
-	var shareCommit ShareCommitAndSignature
+	var shareCommit *ShareCommitAndSignature
 	for _, commit := range wireMsg.MessageShareCommitment {
 		if commit.K == squareSize {
-			shareCommit = commit
+			shareCommit = &commit
 		}
 	}
-	// K == 0 means there was no share commit with the desired current square size
-	if shareCommit.K == 0 {
-		return core.Message{},
+	if shareCommit == nil {
+		return nil,
+			nil,
 			nil,
 			fmt.Errorf("No share commit for correct square size. Current square size: %d", squareSize)
 	}
 
 	// add the message to the list of core message to be returned to ll-core
-	coreMsg := core.Message{
-		NamespaceID: wireMsg.GetMessageNameSpaceId(),
+	coreMsg := tmproto.Message{
+		NamespaceId: wireMsg.GetMessageNameSpaceId(),
 		Data:        wireMsg.GetMessage(),
 	}
 
 	// wrap the signed transaction data
-	signedPFM, err := wireMsg.SignedPayForMessage(squareSize)
+	pfm, err := wireMsg.unsignedPayForMessage(squareSize)
 	if err != nil {
-		return core.Message{}, nil, err
+		return nil, nil, nil, err
 	}
 
-	return coreMsg, signedPFM, nil
+	return &coreMsg, pfm, shareCommit.Signature, nil
 }
 
 var _ sdk.Msg = &SignedPayForMessage{}
@@ -248,15 +253,18 @@ func (msg *SignedPayForMessage) GetSignBytes() []byte {
 // SignTransactionDataPayForMessage doesn't have access the public key necessary
 // in WirePayForMessage
 func (msg *SignedPayForMessage) GetSigners() []sdk.AccAddress {
+	// todo(evan): return creator and update docs
 	return []sdk.AccAddress{}
 }
 
-// BuildSignedPayForMessageTx creates an authsigning.Tx using the original tx and the signature
-func BuildSignedPayForMessageTx(
+// BuildPayForMessageTx creates an authsigning.Tx using data from the original
+// WirePayForMessage sdk.Tx and the signature provided. This is used while processing
+// the WirePayForMessages into Signed PayForMessage
+func BuildPayForMessageTxFrom(
 	origTx authsigning.Tx,
-	msg *SignedPayForMessage,
-	builder client.TxBuilder,
+	builder sdkclient.TxBuilder,
 	signature []byte,
+	msg *SignedPayForMessage,
 ) (authsigning.Tx, error) {
 	err := builder.SetMsgs(msg)
 	if err != nil {
@@ -264,31 +272,45 @@ func BuildSignedPayForMessageTx(
 	}
 	builder.SetGasLimit(origTx.GetGas())
 	builder.SetFeeAmount(origTx.GetFee())
-	sigs, err := origTx.GetSignaturesV2()
+
+	origSigs, err := origTx.GetSignaturesV2()
 	if err != nil {
 		return nil, err
 	}
-	if len(sigs) != 1 {
-		return nil, fmt.Errorf("unexpected number of signatures: expected 1 got %d", len(sigs))
+	if len(origSigs) != 1 {
+		return nil, fmt.Errorf("unexpected number of signers: %d", len(origSigs))
 	}
-	newSigningData := signing.SingleSignatureData{
-		SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-		Signature: signature,
+
+	newSig := signing.SignatureV2{
+		PubKey: origSigs[0].PubKey,
+		Data: &signing.SingleSignatureData{
+			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
+			Signature: signature,
+		},
+		Sequence: origSigs[0].Sequence,
 	}
-	sigs[0].Data = newSigningData
-	builder.SetSignatures(sigs[0])
+
+	builder.SetSignatures(newSig)
+
 	return builder.GetTx(), nil
 }
 
 // CreateCommitment generates the commit bytes for a given message, namespace, and
 // squaresize using a namespace merkle tree and the rules described at
-// https://github.com/celestiaorg/celestia-specs/blob/master/rationale/message_block_layout.md#non-interactive-default-rules
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#message-layout-rationale
 func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 	// add padding to the message if necessary
 	message = PadMessage(message)
 
 	// break message into shares
 	shares := chunkMessage(message)
+	// if the number of shares is larger than that in the square, throw an error
+	// note, we use k*k-1 here because at least a single share will be reserved
+	// for the transaction paying for the message, therefore the max number of
+	// shares a message can be is number of shares in square -1.
+	if uint64(len(shares)) > k*k-1 {
+		return nil, fmt.Errorf("message size exceeds square size")
+	}
 
 	// organize shares for merkle mountain range
 	heights := PowerOf2MountainRange(uint64(len(shares)), k)
