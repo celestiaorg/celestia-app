@@ -183,7 +183,7 @@ func ProcessWirePayForMessage(msg *MsgWirePayForMessage, squareSize uint64) (*tm
 		return nil,
 			nil,
 			nil,
-			fmt.Errorf("No share commit for correct square size. Current square size: %d", squareSize)
+			fmt.Errorf("message does not commit to current square size: %d", squareSize)
 	}
 
 	// add the message to the list of core message to be returned to ll-core
