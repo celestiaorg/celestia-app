@@ -17,7 +17,7 @@ var _ sdk.Msg = &MsgWirePayForMessage{}
 
 // NewWirePayForMessage creates a new MsgWirePayForMessage by using the
 // namespace and message to generate share commitments for the provided square sizes
-// Note that the share commitments generated still need to be signed using the Sign
+// Note that the share commitments generated still need to be signed using the SignShareCommitments
 // method
 func NewWirePayForMessage(namespace, message []byte, sizes ...uint64) (*MsgWirePayForMessage, error) {
 	message = padMessage(message)
@@ -39,7 +39,7 @@ func NewWirePayForMessage(namespace, message []byte, sizes ...uint64) (*MsgWireP
 	return out, nil
 }
 
-// SignShareCommitments use the provided Keyring to sign each of the share commits
+// SignShareCommitments use the provided Keyringsigner to sign each of the share commits
 // generated during the creation of the MsgWirePayForMessage
 func (msg *MsgWirePayForMessage) SignShareCommitments(signer *KeyringSigner, builder sdkclient.TxBuilder) error {
 	msg.Signer = signer.GetSignerInfo().GetAddress().String()
@@ -124,7 +124,8 @@ func (msg *MsgWirePayForMessage) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{address}
 }
 
-// createPayForMessageSignature generates the bytes that each need to be signed per share commit
+// createPayForMessageSignature generates the signature for a PayForMessage for a single square
+// size using the info from a MsgWirePayForMessage
 func (msg *MsgWirePayForMessage) createPayForMessageSignature(signer *KeyringSigner, builder sdkclient.TxBuilder, k uint64) ([]byte, error) {
 	pfm, err := msg.unsignedPayForMessage(k)
 	if err != nil {
