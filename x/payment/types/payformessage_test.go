@@ -2,8 +2,10 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/stretchr/testify/assert"
@@ -34,7 +36,7 @@ func TestMountainRange(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		res := PowerOf2MountainRange(tt.l, tt.k)
+		res := powerOf2MountainRange(tt.l, tt.k)
 		assert.Equal(t, tt.expected, res)
 	}
 }
@@ -131,7 +133,7 @@ func TestPadMessage(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		res := PadMessage(tt.input)
+		res := padMessage(tt.input)
 		assert.Equal(t, tt.expected, res)
 	}
 }
@@ -275,6 +277,10 @@ func TestWirePayForMessage_ValidateBasic(t *testing.T) {
 		}
 		require.NoError(t, err, tt.name)
 	}
+}
+
+func TestSSS(t *testing.T) {
+	fmt.Println(sdk.MsgTypeURL(&MsgWirePayForMessage{}))
 }
 
 func TestProcessMessage(t *testing.T) {

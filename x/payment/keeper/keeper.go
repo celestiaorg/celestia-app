@@ -11,9 +11,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// todo(evan): move these somewhere else
 const (
-	TokenDenomination = "token"
+	TokenDenomination = "tia"
 )
 
 // Keeper handles all the state changes for the celestia-app module.

@@ -45,29 +45,30 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 		}
 
 		msg := authTx.GetMsgs()[0]
-		// reject all msgs in tx if a single included msg is not correct type
 		wireMsg, ok := msg.(*types.MsgWirePayForMessage)
 		if !ok {
 			continue
 		}
 
-		// run basic validation on the transaction
 		err = authTx.ValidateBasic()
 		if err != nil {
 			continue
 		}
 
-		// process the message
+		// parse wire message and create a single message
 		coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForMessage(wireMsg, app.SquareSize())
 		if err != nil {
 			continue
 		}
 
+		// create the signed PayForMessage using the fees, gas limit, and sequence from
+		// the original transaction, along with the appropriate signature.
 		signedTx, err := types.BuildPayForMessageTxFromWireTx(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFM)
 		if err != nil {
-			// todo(evan): log all of these potential errors
+			app.Logger().Error("failure to create signed PayForMessage", err)
 			continue
 		}
+
 		// increment the share counter by the number of shares taken by the message
 		sharesTaken := uint64(len(coreMsg.Data) / types.ShareSize)
 		shareCounter += sharesTaken
@@ -77,13 +78,11 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 			break
 		}
 
-		// encode the processed tx
 		rawProcessedTx, err := app.txConfig.TxEncoder()(signedTx)
 		if err != nil {
 			continue
 		}
 
-		// add the message and tx to the output
 		shareMsgs = append(shareMsgs, coreMsg)
 		processedTxs = append(processedTxs, rawProcessedTx)
 	}
@@ -99,23 +98,12 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 	}
 }
 
-// pfmURL is the URL expected for pfm. NOTE: this will be deleted when we upgrade from
-// sdk v0.44.0
-var pfmURL = sdk.MsgTypeURL(&types.MsgWirePayForMessage{})
-
 func hasWirePayForMessage(tx sdk.Tx) bool {
 	for _, msg := range tx.GetMsgs() {
 		msgName := sdk.MsgTypeURL(msg)
-		if msgName == pfmURL {
+		if msgName == types.URLMsgWirePayforMessage {
 			return true
 		}
-		// note: this is what we will use in the future as proto.MessageName is
-		// deprecated
-		// svcMsg, ok := msg.(sdk.ServiceMsg) if !ok {
-		//  continue
-		// } if svcMsg.SerivceMethod == types.TypeMsgPayforMessage {
-		//  return true
-		// }
 	}
 	return false
 }
