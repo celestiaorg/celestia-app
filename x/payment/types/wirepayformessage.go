@@ -150,7 +150,7 @@ func (msg *MsgWirePayForMessage) createPayForMessageSignature(signer *KeyringSig
 }
 
 // unsignedPayForMessage use the data in the MsgWirePayForMessage
-// to create a new  MsgPayForMessage
+// to create a new MsgPayForMessage.
 func (msg *MsgWirePayForMessage) unsignedPayForMessage(k uint64) (*MsgPayForMessage, error) {
 	// create the commitment using the padded message
 	commit, err := CreateCommitment(k, msg.MessageNameSpaceId, msg.Message)
