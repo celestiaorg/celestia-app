@@ -18,7 +18,7 @@ var _ sdk.Msg = &MsgWirePayForMessage{}
 // NewWirePayForMessage creates a new MsgWirePayForMessage by using the
 // namespace and message to generate share commitments for the provided square sizes
 // Note that the share commitments generated still need to be signed using the SignShareCommitments
-// method
+// method.
 func NewWirePayForMessage(namespace, message []byte, sizes ...uint64) (*MsgWirePayForMessage, error) {
 	message = padMessage(message)
 	out := &MsgWirePayForMessage{
