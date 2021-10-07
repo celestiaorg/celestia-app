@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/celestiaorg/nmt v0.7.0
-	github.com/cosmos/cosmos-sdk v0.44.0
+	github.com/cosmos/cosmos-sdk v0.44.1
 	github.com/cosmos/ibc-go v1.2.0
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.2
