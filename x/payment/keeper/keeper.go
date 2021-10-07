@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-core/libs/log"
+	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -18,20 +18,18 @@ const (
 
 // Keeper handles all the state changes for the celestia-app module.
 type Keeper struct {
-	cdc      codec.Marshaler
+	cdc      codec.BinaryCodec
 	storeKey sdk.StoreKey
 	memKey   sdk.StoreKey
 	bank     BankKeeper
-	baseFee  sdk.Int
 }
 
-func NewKeeper(cdc codec.Marshaler, bank BankKeeper, storeKey, memKey sdk.StoreKey, baseFee sdk.Int) *Keeper {
+func NewKeeper(cdc codec.BinaryCodec, bank BankKeeper, storeKey, memKey sdk.StoreKey) *Keeper {
 	return &Keeper{
 		cdc:      cdc,
 		storeKey: storeKey,
 		memKey:   memKey,
 		bank:     bank,
-		baseFee:  baseFee,
 	}
 }
 

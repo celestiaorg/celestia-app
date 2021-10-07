@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"errors"
-	fmt "fmt"
+	"fmt"
 
-	"github.com/celestiaorg/celestia-core/crypto/merkle"
-	"github.com/celestiaorg/celestia-core/pkg/consts"
 	"github.com/celestiaorg/nmt"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/tendermint/tendermint/crypto/merkle"
+	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 const (
@@ -265,7 +265,7 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 	subTreeRoots := make([][]byte, len(leafSets))
 	for i, set := range leafSets {
 		// create the nmt
-		tree := nmt.New(sha256.New, nmt.NamespaceIDSize(NamespaceIDSize))
+		tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(NamespaceIDSize))
 		for _, leaf := range set {
 			nsLeaf := append(make([]byte, 0), append(namespace, leaf...)...)
 			err := tree.Push(nsLeaf)
@@ -274,7 +274,7 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 			}
 		}
 		// add the root
-		subTreeRoots[i] = tree.Root().Bytes()
+		subTreeRoots[i] = tree.Root()
 	}
 	return merkle.HashFromByteSlices(subTreeRoots), nil
 }

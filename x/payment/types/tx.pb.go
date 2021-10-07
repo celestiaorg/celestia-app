@@ -1300,10 +1300,7 @@ func (m *MsgWirePayForMessage) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthTx
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthTx
 			}
 			if (iNdEx + skippy) > l {
@@ -1353,10 +1350,7 @@ func (m *MsgPayForMessageResponse) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthTx
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthTx
 			}
 			if (iNdEx + skippy) > l {
@@ -1493,10 +1487,7 @@ func (m *ShareCommitAndSignature) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthTx
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthTx
 			}
 			if (iNdEx + skippy) > l {
@@ -1650,10 +1641,7 @@ func (m *TxSignedTransactionDataPayForMessage) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthTx
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthTx
 			}
 			if (iNdEx + skippy) > l {
@@ -1845,10 +1833,7 @@ func (m *SignedTransactionDataPayForMessage) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthTx
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthTx
 			}
 			if (iNdEx + skippy) > l {
@@ -1898,10 +1883,7 @@ func (m *SignedTransactionDataPayForMessageResponse) Unmarshal(dAtA []byte) erro
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthTx
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthTx
 			}
 			if (iNdEx + skippy) > l {
@@ -1989,10 +1971,7 @@ func (m *TransactionFee) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthTx
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthTx
 			}
 			if (iNdEx + skippy) > l {

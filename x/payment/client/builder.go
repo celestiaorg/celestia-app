@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-app/app/params"
+	"github.com/celestiaorg/celestia-app/app"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -11,6 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"github.com/tendermint/spm/cosmoscmd"
 	"google.golang.org/grpc"
 )
 
@@ -21,7 +22,7 @@ type KeyringSigner struct {
 	accountNumber  uint64
 	sequence       uint64
 	chainID        string
-	encCfg         params.EncodingConfig
+	encCfg         cosmoscmd.EncodingConfig
 }
 
 // NewKeyringSigner returns a new KeyringSigner using the provided keyring
@@ -30,7 +31,7 @@ func NewKeyringSigner(ring keyring.Keyring, name string, chainID string) *Keyrin
 		Keyring:        ring,
 		keyringAccName: name,
 		chainID:        chainID,
-		encCfg:         params.RegisterAccountInterface(params.MakeEncodingConfig()),
+		encCfg:         app.RegisterAccountInterface(),
 	}
 }
 
@@ -165,7 +166,7 @@ func BroadcastTx(ctx context.Context, conn *grpc.ClientConn, mode tx.BroadcastMo
 }
 
 // QueryAccount fetches the account number and sequence number from the celestia-app node.
-func QueryAccount(ctx context.Context, conn *grpc.ClientConn, encCfg params.EncodingConfig, address string) (accNum uint64, seqNum uint64, err error) {
+func QueryAccount(ctx context.Context, conn *grpc.ClientConn, encCfg cosmoscmd.EncodingConfig, address string) (accNum uint64, seqNum uint64, err error) {
 	qclient := authtypes.NewQueryClient(conn)
 	resp, err := qclient.Account(
 		ctx,
@@ -176,7 +177,7 @@ func QueryAccount(ctx context.Context, conn *grpc.ClientConn, encCfg params.Enco
 	}
 
 	var acc authtypes.AccountI
-	err = encCfg.Marshaler.UnpackAny(resp.Account, &acc)
+	err = encCfg.InterfaceRegistry.UnpackAny(resp.Account, &acc)
 	if err != nil {
 		return accNum, seqNum, err
 	}

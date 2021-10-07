@@ -8,9 +8,6 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
-	abci "github.com/celestiaorg/celestia-core/abci/types"
-	"github.com/celestiaorg/celestia-core/libs/log"
-	core "github.com/celestiaorg/celestia-core/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -28,6 +25,10 @@ import (
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/spm/cosmoscmd"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/libs/log"
+	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 )
 
@@ -40,7 +41,7 @@ func init() {
 
 func TestProcessMsg(t *testing.T) {
 	kb := keyring.NewInMemory()
-	info, _, err := kb.NewMnemonic(testingKeyAcc, keyring.English, "", hd.Secp256k1)
+	info, _, err := kb.NewMnemonic(testingKeyAcc, keyring.English, "", "", hd.Secp256k1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -74,7 +75,7 @@ func TestProcessMsg(t *testing.T) {
 
 func TestPreprocessTxs(t *testing.T) {
 	kb := keyring.NewInMemory()
-	info, _, err := kb.NewMnemonic(testingKeyAcc, keyring.English, "", hd.Secp256k1)
+	info, _, err := kb.NewMnemonic(testingKeyAcc, keyring.English, "", "", hd.Secp256k1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -139,23 +140,20 @@ func setupApp(t *testing.T, pub cryptotypes.PubKey) *App {
 
 	skipUpgradeHeights := make(map[int64]bool)
 
+	encCfg := cosmoscmd.MakeEncodingConfig(ModuleBasics)
+
 	testApp := New(
-		"test-app", logger, db, nil, true, skipUpgradeHeights,
+		logger, db, nil, true, skipUpgradeHeights,
 		cast.ToString(emptyOpts.Get(flags.FlagHome)),
 		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
-		MakeEncodingConfig(),
+		encCfg,
 		emptyOpts,
 		anteOpt,
 	)
 
-	for acc := range maccPerms {
-		require.Equal(t, !allowedReceivingModAcc[acc], testApp.BankKeeper.BlockedAddr(testApp.AccountKeeper.GetModuleAddress(acc)),
-			"ensure that blocked addresses are properly set in bank keeper")
-	}
+	genesisState := NewDefaultGenesisState(encCfg.Marshaler)
 
-	genesisState := NewDefaultGenesisState()
-
-	genesisState, err := addGenesisAccount(sdk.AccAddress(pub.Address().Bytes()), genesisState, testApp.appCodec)
+	genesisState, err := addGenesisAccount(sdk.AccAddress(pub.Address().Bytes()), genesisState, encCfg.Marshaler)
 	if err != nil {
 		t.Error(err)
 	}
@@ -184,7 +182,7 @@ func (ao emptyAppOptions) Get(o string) interface{} {
 // addGenesisAccount mimics the cli addGenesisAccount command, providing an
 // account with an allocation of to "token" and "stake" tokens in the genesis
 // state
-func addGenesisAccount(addr sdk.AccAddress, appState map[string]json.RawMessage, cdc codec.Marshaler) (map[string]json.RawMessage, error) {
+func addGenesisAccount(addr sdk.AccAddress, appState map[string]json.RawMessage, cdc codec.Codec) (map[string]json.RawMessage, error) {
 	// create concrete account type based on input parameters
 	var genAccount authtypes.GenesisAccount
 

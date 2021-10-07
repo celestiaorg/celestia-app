@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/celestiaorg/celestia-core/pkg/consts"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 const (
@@ -90,7 +90,7 @@ func TestCreateCommitment(t *testing.T) {
 			k:         4,
 			namespace: bytes.Repeat([]byte{0xFF}, 8),
 			message:   bytes.Repeat([]byte{0xFF}, 11*256),
-			expected:  []byte{0x5d, 0x43, 0xd7, 0x40, 0xe5, 0xe6, 0x5e, 0x2a, 0xb9, 0x10, 0x5c, 0xf9, 0x26, 0xf9, 0xf0, 0x1c, 0x3a, 0x11, 0x49, 0x1c, 0x71, 0x21, 0xdf, 0x46, 0xdd, 0x21, 0x94, 0x3f, 0xba, 0xb1, 0xcf, 0xd4},
+			expected:  []byte{0x1c, 0x57, 0x89, 0x2f, 0xbe, 0xbf, 0xa2, 0xa4, 0x4c, 0x41, 0x9e, 0x2d, 0x88, 0xd5, 0x87, 0xc0, 0xbd, 0x37, 0xc0, 0x85, 0xbd, 0x10, 0x3c, 0x36, 0xd9, 0xa2, 0x4d, 0x4e, 0x31, 0xa2, 0xf8, 0x4e},
 		},
 	}
 	for _, tt := range tests {
@@ -119,7 +119,7 @@ func TestGetCommitmentSignBytes(t *testing.T) {
 					TipRateMax:  1000,
 				},
 			},
-			expected: []byte(`{"fee":{"base_rate_max":"10000","tip_rate_max":"1000"},"message_namespace_id":"AQIDBAECAwQ=","message_share_commitment":"byozRVIrw5NF/rU1PPyq6BAo3g2ny3uLTiOFedtgSwo=","message_size":"4","nonce":"1"}`),
+			expected: []byte(`{"fee":{"base_rate_max":"10000","tip_rate_max":"1000"},"message_namespace_id":"AQIDBAECAwQ=","message_share_commitment":"Elh5P8yB1FeiPP0uWCkp67mqSsaVat6iwjH2vSMQJys=","message_size":"4","nonce":"1"}`),
 		},
 	}
 	for _, tt := range tests {
@@ -204,7 +204,7 @@ func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
 	kb := keyring.NewInMemory()
 
 	for _, acc := range accts {
-		_, _, err := kb.NewMnemonic(acc, keyring.English, "", hd.Secp256k1)
+		_, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
 		if err != nil {
 			t.Error(err)
 		}
@@ -328,7 +328,7 @@ func validMsgWirePayForMessage(keyring keyring.Keyring) *MsgWirePayForMessage {
 
 func newKeyring() keyring.Keyring {
 	kb := keyring.NewInMemory()
-	_, _, err := kb.NewMnemonic(testingKeyAcc, keyring.English, "", hd.Secp256k1)
+	_, _, err := kb.NewMnemonic(testingKeyAcc, keyring.English, "", "", hd.Secp256k1)
 	if err != nil {
 		panic(err)
 	}

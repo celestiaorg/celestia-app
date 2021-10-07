@@ -120,7 +120,7 @@ func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
 	kb := keyring.NewInMemory()
 
 	for _, acc := range accts {
-		_, _, err := kb.NewMnemonic(acc, keyring.English, "", hd.Secp256k1)
+		_, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
 		if err != nil {
 			t.Error(err)
 		}

@@ -4,18 +4,19 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
+
+	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
-	"github.com/spf13/cobra"
 )
 
-// CmdCreatePayForMessage returns a cobra command that uses the key ring backend
-// and locally running node to create and broadcast a new WirePayForMessage
-// transaction.
-func CmdCreatePayForMessage() *cobra.Command {
+var _ = strconv.Itoa(0)
+
+func CmdWirePayForMessage() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "payForMessage [hexNamespace] [hexMessage]",
 		Short: "Creates a new WirePayForMessage",

@@ -7,9 +7,10 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
-	abci "github.com/celestiaorg/celestia-core/abci/types"
-	core "github.com/celestiaorg/celestia-core/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/pkg/consts"
+	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 // This file should contain all of the altered ABCI methods
@@ -65,7 +66,7 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 		}
 
 		// encode the processed tx
-		rawProcessedTx, err := app.appCodec.MarshalBinaryBare(signedTx)
+		rawProcessedTx, err := app.appCodec.Marshal(signedTx)
 		if err != nil {
 			continue
 		}
@@ -86,11 +87,23 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 	}
 }
 
+// pfmURL is the URL expected for pfm. NOTE: this will be deleted when we upgrade from
+// sdk v0.44.0
+var pfmURL = sdk.MsgTypeURL(&types.MsgWirePayForMessage{})
+
 func hasWirePayForMessage(tx sdk.Tx) bool {
 	for _, msg := range tx.GetMsgs() {
-		if msg.Type() == types.TypeMsgPayforMessage {
+		msgName := sdk.MsgTypeURL(msg)
+		if msgName == pfmURL {
 			return true
 		}
+		// note: this is what we will use in the future as proto.MessageName is
+		// deprecated
+		// svcMsg, ok := msg.(sdk.ServiceMsg) if !ok {
+		//  continue
+		// } if svcMsg.SerivceMethod == types.TypeMsgPayforMessage {
+		//  return true
+		// }
 	}
 	return false
 }
@@ -141,4 +154,10 @@ func (app *App) processMsg(msg sdk.Msg) (core.Message, *types.TxSignedTransactio
 	}
 
 	return coreMsg, signedData, nil
+}
+
+// SquareSize returns the current square size. Currently, the square size is
+// hardcoded. todo(evan): don't hardcode the square size
+func (app *App) SquareSize() uint64 {
+	return consts.MaxSquareSize
 }
