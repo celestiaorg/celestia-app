@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/spf13/cobra"
 	"github.com/tendermint/tendermint/pkg/consts"
@@ -14,8 +13,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 )
-
-var _ = strconv.Itoa(0)
 
 func CmdWirePayForMessage() *cobra.Command {
 	cmd := &cobra.Command{
