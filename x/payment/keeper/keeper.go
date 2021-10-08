@@ -38,7 +38,6 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 
 //  MsgPayForMessage moves a user's coins to the module address and burns them.
 func (k Keeper) PayForMessage(goCtx context.Context, msg *types.MsgPayForMessage) (*types.MsgPayForMessageResponse, error) {
-	// @liamsi here's where we can use the bank keeper to burn fees
 	return &types.MsgPayForMessageResponse{}, nil
 }
 
