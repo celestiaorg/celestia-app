@@ -50,6 +50,7 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 			continue
 		}
 
+		// run basic validation on the transaction
 		err = authTx.ValidateBasic()
 		if err != nil {
 			continue
