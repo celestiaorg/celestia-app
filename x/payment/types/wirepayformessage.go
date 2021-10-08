@@ -43,7 +43,7 @@ func NewWirePayForMessage(namespace, message []byte, sizes ...uint64) (*MsgWireP
 // to complete each shares commitment.
 func (msg *MsgWirePayForMessage) SignShareCommitments(signer *KeyringSigner, builder sdkclient.TxBuilder) error {
 	msg.Signer = signer.GetSignerInfo().GetAddress().String()
-	// sign each commitment by creating an entire
+	// create an entire MsgPayForMessage and signing over it, including the signature in each commitment
 	for i, commit := range msg.MessageShareCommitment {
 		sig, err := msg.createPayForMessageSignature(signer, builder, commit.K)
 		if err != nil {
