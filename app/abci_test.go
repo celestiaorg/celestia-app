@@ -116,7 +116,7 @@ func setupApp(t *testing.T, pub cryptotypes.PubKey) *App {
 		anteOpt,
 	)
 
-	genesisState := NewDefaultGenesisState(encCfg.Marshaler)
+	genesisState := newDefaultGenesisState(encCfg.Marshaler)
 
 	genesisState, err := addGenesisAccount(sdk.AccAddress(pub.Address().Bytes()), genesisState, encCfg.Marshaler)
 	if err != nil {
@@ -279,3 +279,8 @@ const (
 	testAccName = "test-account"
 	testChainID = "test-chain-1"
 )
+
+// newDefaultGenesisState generates the default state for the application.
+func newDefaultGenesisState(cdc codec.JSONCodec) GenesisState {
+	return ModuleBasics.DefaultGenesis(cdc)
+}
