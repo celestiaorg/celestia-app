@@ -40,9 +40,9 @@ message ShareCommitAndSignature {
 // specific square size.
 message MsgPayForMessage {
     string signer = 1;
-    bytes message_namespace_id = 3;
-    uint64 message_size = 4;
-    bytes message_share_commitment = 5;
+    bytes message_namespace_id = 2;
+    uint64 message_size = 3;
+    bytes message_share_commitment = 4;
 }
 
 // MsgPayForMessageResponse describes the response returned after the submission of a PayForMessage
