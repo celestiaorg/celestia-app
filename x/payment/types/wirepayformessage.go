@@ -39,8 +39,8 @@ func NewWirePayForMessage(namespace, message []byte, sizes ...uint64) (*MsgWireP
 	return out, nil
 }
 
-// SignShareCommitments use the provided Keyringsigner to sign each of the share commits
-// generated during the creation of the MsgWirePayForMessage
+// SignShareCommitments creates and signs MsgPayForMessages for each square size configured in the MsgWirePayForMessage
+// to complete each shares commitment.
 func (msg *MsgWirePayForMessage) SignShareCommitments(signer *KeyringSigner, builder sdkclient.TxBuilder) error {
 	msg.Signer = signer.GetSignerInfo().GetAddress().String()
 	// sign each commitment by creating an entire
