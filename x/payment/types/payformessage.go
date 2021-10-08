@@ -35,7 +35,7 @@ func (msg *MsgPayForMessage) Type() string {
 // validity checks on the msg that also don't require having the actual message
 func (msg *MsgPayForMessage) ValidateBasic() error {
 	// ensure that the namespace id is of length == NamespaceIDSize
-	if len(msg.GetMessageNamespaceId()) != NamespaceIDSize {
+	if nsLen := len(msg.GetMessageNamespaceId()); nsLen != NamespaceIDSize {
 		return fmt.Errorf(
 			"invalid namespace length: got %d wanted %d",
 			len(msg.GetMessageNamespaceId()),

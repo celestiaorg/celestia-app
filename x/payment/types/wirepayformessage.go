@@ -62,7 +62,7 @@ func (msg *MsgWirePayForMessage) Route() string { return RouterKey }
 func (msg *MsgWirePayForMessage) ValidateBasic() error {
 
 	// ensure that the namespace id is of length == NamespaceIDSize
-	if len(msg.GetMessageNameSpaceId()) != NamespaceIDSize {
+	if nsLen := len(msg.GetMessageNameSpaceId()); nsLen != NamespaceIDSize {
 		return fmt.Errorf(
 			"invalid namespace length: got %d wanted %d",
 			len(msg.GetMessageNameSpaceId()),
@@ -75,7 +75,7 @@ func (msg *MsgWirePayForMessage) ValidateBasic() error {
 	}
 
 	// ensure that the included message is evenly divisble into shares
-	if uint64(len(msg.GetMessage()))%ShareSize != 0 {
+	if msgMod := uint64(len(msg.GetMessage())) % ShareSize; msgMod != 0 {
 		return fmt.Errorf("Share message must be divisible by %d", ShareSize)
 	}
 
