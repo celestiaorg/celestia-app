@@ -38,7 +38,7 @@ func (msg *MsgPayForMessage) ValidateBasic() error {
 	if nsLen := len(msg.GetMessageNamespaceId()); nsLen != NamespaceIDSize {
 		return fmt.Errorf(
 			"invalid namespace length: got %d wanted %d",
-			len(msg.GetMessageNamespaceId()),
+			nsLen,
 			NamespaceIDSize,
 		)
 	}
