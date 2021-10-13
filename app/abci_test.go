@@ -18,8 +18,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/spf13/cast"
@@ -28,6 +26,7 @@ import (
 	"github.com/tendermint/spm/cosmoscmd"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 )
@@ -37,40 +36,6 @@ const testingKeyAcc = "test"
 // Get flags every time the simulator is run
 func init() {
 	simapp.GetSimulatorFlags()
-}
-
-func TestProcessMsg(t *testing.T) {
-	kb := keyring.NewInMemory()
-	info, _, err := kb.NewMnemonic(testingKeyAcc, keyring.English, "", "", hd.Secp256k1)
-	if err != nil {
-		t.Error(err)
-	}
-	ns := []byte{1, 1, 1, 1, 1, 1, 1, 1}
-	message := bytes.Repeat([]byte{1}, 256)
-
-	// create a signed MsgWirePayFroMessage
-	msg := generateSignedWirePayForMessage(t, types.SquareSize, ns, message, kb)
-
-	testApp := setupApp(t, info.GetPubKey())
-
-	tests := []struct {
-		name string
-		args sdk.Msg
-		want core.Message
-	}{
-		{
-			name: "basic",
-			args: msg,
-			want: core.Message{NamespaceId: msg.MessageNameSpaceId, Data: msg.Message},
-		},
-	}
-	for _, tt := range tests {
-		result, _, err := testApp.processMsg(tt.args)
-		if err != nil {
-			t.Error(err)
-		}
-		assert.Equal(t, tt.want, result, tt.name)
-	}
 }
 
 func TestPreprocessTxs(t *testing.T) {
@@ -151,7 +116,7 @@ func setupApp(t *testing.T, pub cryptotypes.PubKey) *App {
 		anteOpt,
 	)
 
-	genesisState := NewDefaultGenesisState(encCfg.Marshaler)
+	genesisState := newDefaultGenesisState(encCfg.Marshaler)
 
 	genesisState, err := addGenesisAccount(sdk.AccAddress(pub.Address().Bytes()), genesisState, encCfg.Marshaler)
 	if err != nil {
@@ -244,19 +209,10 @@ func addGenesisAccount(addr sdk.AccAddress, appState map[string]json.RawMessage,
 
 func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, ring keyring.Keyring) (rawTx []byte) {
 	// create a msg
-	msg := generateSignedWirePayForMessage(t, types.SquareSize, ns, message, ring)
+	msg := generateSignedWirePayForMessage(t, consts.MaxSquareSize, ns, message, ring)
 
-	info, err := ring.Key(testingKeyAcc)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// this is returning a tx.wrapper
-	builder := txConfig.NewTxBuilder()
-	err = builder.SetMsgs(msg)
-	if err != nil {
-		t.Error(err)
-	}
+	krs := generateKeyringSigner(t, "test")
+	builder := krs.NewTxBuilder()
 
 	coin := sdk.Coin{
 		Denom:  "token",
@@ -267,97 +223,64 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, r
 	builder.SetGasLimit(10000)
 	builder.SetTimeoutHeight(99)
 
-	signingData := authsigning.SignerData{
-		ChainID:       "test-chain",
-		AccountNumber: 0,
-		Sequence:      0,
-	}
-
-	// Important set the Signature to nil BEFORE actually signing
-	sigData := signing.SingleSignatureData{
-		SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-		Signature: nil,
-	}
-
-	sig := signing.SignatureV2{
-		PubKey:   info.GetPubKey(),
-		Data:     &sigData,
-		Sequence: 0,
-	}
-
-	// set the empty signature
-	err = builder.SetSignatures(sig)
-	if err != nil {
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	// Generate the bytes to be signed.
-	bytesToSign, err := txConfig.
-		SignModeHandler().
-		GetSignBytes(
-			signing.SignMode_SIGN_MODE_DIRECT,
-			signingData,
-			builder.GetTx(),
-		)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// Sign those bytes
-	sigBytes, _, err := ring.Sign(testingKeyAcc, bytesToSign)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// Construct the SignatureV2 struct
-	sigData = signing.SingleSignatureData{
-		SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-		Signature: sigBytes,
-	}
-
-	sigV2 := signing.SignatureV2{
-		PubKey:   info.GetPubKey(),
-		Data:     &sigData,
-		Sequence: 0,
-	}
-
-	// set the actual signature
-	err = builder.SetSignatures(sigV2)
-	if err != nil {
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	// finish the tx
-	tx := builder.GetTx()
+	tx, err := krs.BuildSignedTx(builder, msg)
+	require.NoError(t, err)
 
 	// encode the tx
 	rawTx, err = txConfig.TxEncoder()(tx)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	return rawTx
 }
 
 func generateSignedWirePayForMessage(t *testing.T, k uint64, ns, message []byte, ring keyring.Keyring) *types.MsgWirePayForMessage {
-	info, err := ring.Key(testingKeyAcc)
+	signer := generateKeyringSigner(t, "test")
+
+	msg, err := types.NewWirePayForMessage(ns, message, k)
 	if err != nil {
 		t.Error(err)
 	}
 
-	msg, err := types.NewMsgWirePayForMessage(ns, message, info.GetPubKey().Bytes(), &types.TransactionFee{}, k)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = msg.SignShareCommitments(testingKeyAcc, ring)
+	err = msg.SignShareCommitments(signer, signer.NewTxBuilder())
 	if err != nil {
 		t.Error(err)
 	}
 
 	return msg
+}
+
+func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
+	t.Helper()
+	kb := keyring.NewInMemory()
+
+	for _, acc := range accts {
+		_, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	_, err := kb.NewAccount(testAccName, testMnemo, "1234", "", hd.Secp256k1)
+	if err != nil {
+		panic(err)
+	}
+
+	return kb
+}
+
+func generateKeyringSigner(t *testing.T, accts ...string) *types.KeyringSigner {
+	kr := generateKeyring(t, accts...)
+	return types.NewKeyringSigner(kr, testAccName, testChainID)
+}
+
+const (
+	// nolint:lll
+	testMnemo   = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
+	testAccName = "test-account"
+	testChainID = "test-chain-1"
+)
+
+// newDefaultGenesisState generates the default state for the application.
+func newDefaultGenesisState(cdc codec.JSONCodec) GenesisState {
+	return ModuleBasics.DefaultGenesis(cdc)
 }

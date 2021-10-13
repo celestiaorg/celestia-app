@@ -1,11 +1,10 @@
-package client
+package types
 
 import (
 	"context"
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -15,7 +14,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func TestBuildSignedPayForMessage(t *testing.T) {
+func TestBuildPayForMessage(t *testing.T) {
 	testRing := generateKeyring(t)
 
 	info, err := testRing.Key(testAccName)
@@ -27,13 +26,7 @@ func TestBuildSignedPayForMessage(t *testing.T) {
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	message := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 
-	msg, err := types.NewMsgWirePayForMessage(
-		namespace,
-		message,
-		info.GetPubKey().Bytes(),
-		&types.TransactionFee{},
-		4, 16, 32,
-	)
+	msg, err := NewWirePayForMessage(namespace, message, 4, 16, 32)
 	require.NoError(t, err)
 
 	signedTx, err := k.BuildSignedTx(k.NewTxBuilder(), msg)
@@ -80,13 +73,7 @@ func TestBroadcastPayForMessage(t *testing.T) {
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	message := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 
-	msg, err := types.NewMsgWirePayForMessage(
-		namespace,
-		message,
-		info.GetPubKey().Bytes(),
-		&types.TransactionFee{},
-		4, 16, 32,
-	)
+	msg, err := NewWirePayForMessage(namespace, message, 4, 16, 32)
 	require.NoError(t, err)
 
 	signedTx, err := k.BuildSignedTx(builder, msg)
@@ -134,8 +121,14 @@ func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
 	return kb
 }
 
+func generateKeyringSigner(t *testing.T, accts ...string) *KeyringSigner {
+	kr := generateKeyring(t, accts...)
+	return NewKeyringSigner(kr, testAccName, testChainID)
+}
+
 const (
 	// nolint:lll
 	testMnemo   = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
 	testAccName = "test-account"
+	testChainID = "test-chain-1"
 )

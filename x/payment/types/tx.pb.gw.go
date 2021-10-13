@@ -36,7 +36,7 @@ var (
 )
 
 func request_Msg_PayForMessage_0(ctx context.Context, marshaler runtime.Marshaler, client MsgClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq MsgWirePayForMessage
+	var protoReq MsgPayForMessage
 	var metadata runtime.ServerMetadata
 
 	if err := req.ParseForm(); err != nil {
@@ -52,7 +52,7 @@ func request_Msg_PayForMessage_0(ctx context.Context, marshaler runtime.Marshale
 }
 
 func local_request_Msg_PayForMessage_0(ctx context.Context, marshaler runtime.Marshaler, server MsgServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq MsgWirePayForMessage
+	var protoReq MsgPayForMessage
 	var metadata runtime.ServerMetadata
 
 	if err := req.ParseForm(); err != nil {

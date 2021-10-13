@@ -9,26 +9,24 @@ option go_package = "github.com/celestiaorg/celestia-app/x/payment/types";
 
 // Msg defines the payment Msg service.
 service Msg {
-    // PayForMessage allows the user to post data to made be available.
-    rpc PayForMessage(MsgWirePayForMessage) returns (MsgPayForMessageResponse) {
-        option (google.api.http).get = "/celestia/payment/payformessage";
-    }
+    // PayForMessage allows the user to pay for the inclusion of a message
+    rpc PayForMessage(MsgPayForMessage) returns (MsgPayForMessageResponse) {
+      option (google.api.http).get = "/celestia/payment/payformessage";
+  }
   }
 
-// WirePayForMessage describes the format of data that is sent over the wire for
+// MsgWirePayForMessage describes the format of data that is sent over the wire for
 // each PayForMessage
 message MsgWirePayForMessage {
-  TransactionFee fee = 1;
-  uint64 nonce = 2;
-  bytes message_name_space_id = 3; // assume this is 8 bytes!
-  uint64 message_size = 4;
-  bytes message = 5;
+  string signer = 1;
+  bytes message_name_space_id = 2; // assume this is 8 bytes!
+  uint64 message_size = 3;
+  bytes message = 4;
   repeated ShareCommitAndSignature message_share_commitment = 6 [(gogoproto.nullable) = false];
-  bytes public_key = 7; 
 }
 
-// MsgPayForMessageResponse describes the response returned after the submission of a MsgWirePayForMessage
-message MsgPayForMessageResponse {}
+// MsgWirePayForMessageResponse describes the response returned after the submission of a WirePayForMessage
+message MsgWirePayForMessageResponse {}
 
 // ShareCommitAndSignature defines the 
 message ShareCommitAndSignature {
@@ -37,29 +35,16 @@ message ShareCommitAndSignature {
   bytes signature = 3; // signature on one SignedTransactionPayForMessage
 }
 
-// TxSignedTransactionDataPayForMessage is a wrapper around
-// SignedTransactionDataPayForMessage that fullfills the sdk.Tx interface
-message TxSignedTransactionDataPayForMessage {
-  SignedTransactionDataPayForMessage message = 1;
-  bytes signature = 2;
-  bytes public_key = 3;
+// MsgPayForMessage is what gets signed by users when creating ShareCommitSignatures.
+//  Multiple versions are signed and included, each version creates a commitment for a 
+// specific square size.
+message MsgPayForMessage {
+    string signer = 1;
+    bytes message_namespace_id = 2;
+    uint64 message_size = 3;
+    bytes message_share_commitment = 4;
 }
 
-// SignedTransactionsDataPayForMessage is what gets signed by users when
-// creating ShareCommitSignatures. Multiple versions are signed and included.
-message SignedTransactionDataPayForMessage {
-    TransactionFee fee = 1;
-    uint64 nonce = 2;
-    bytes message_namespace_id = 3;
-    uint64 message_size = 4;
-    bytes message_share_commitment = 5;
-}
+// MsgPayForMessageResponse describes the response returned after the submission of a PayForMessage
+message MsgPayForMessageResponse {}
 
-// SignedTransactionDataPayForMessageResponse describes the response returned after the submission of a SignedTransactionDataPayForMessage
-message SignedTransactionDataPayForMessageResponse {}
-
-// TransactionFee contains the base and tip rates.
-message TransactionFee {
-    uint64 base_rate_max = 1;
-    uint64 tip_rate_max = 2;
-}

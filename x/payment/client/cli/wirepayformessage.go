@@ -4,9 +4,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/spf13/cobra"
+	"github.com/tendermint/tendermint/pkg/consts"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -14,12 +14,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/tx"
 )
 
-var _ = strconv.Itoa(0)
-
 func CmdWirePayForMessage() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "payForMessage [hexNamespace] [hexMessage]",
-		Short: "Creates a new WirePayForMessage",
+		Short: "Creates a new MsgWirePayForMessage",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
@@ -31,12 +29,6 @@ func CmdWirePayForMessage() *cobra.Command {
 			accName := clientCtx.GetFromName()
 			if accName == "" {
 				return errors.New("no account name provided, please use the --from flag")
-			}
-
-			// get info on the key
-			keyInfo, err := clientCtx.Keyring.Key(accName)
-			if err != nil {
-				return err
 			}
 
 			// decode the namespace
@@ -51,20 +43,16 @@ func CmdWirePayForMessage() *cobra.Command {
 				return fmt.Errorf("failure to decode hex message: %w", err)
 			}
 
-			// create the PayForMessage
-			pfmMsg, err := types.NewMsgWirePayForMessage(
-				namespace,
-				message,
-				keyInfo.GetPubKey().Bytes(),
-				&types.TransactionFee{}, // transaction fee is not yet used
-				types.SquareSize,
-			)
+			// create the  MsgPayForMessage
+			pfmMsg, err := types.NewWirePayForMessage(namespace, message, consts.MaxSquareSize)
 			if err != nil {
 				return err
 			}
 
-			// sign the PayForMessage's ShareCommitments
-			err = pfmMsg.SignShareCommitments(accName, clientCtx.Keyring)
+			signer := types.NewKeyringSigner(clientCtx.Keyring, accName, clientCtx.ChainID)
+
+			// sign the  MsgPayForMessage's ShareCommitments
+			err = pfmMsg.SignShareCommitments(signer, signer.NewTxBuilder())
 			if err != nil {
 				return err
 			}
