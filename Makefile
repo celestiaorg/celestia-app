@@ -37,6 +37,10 @@ proto-gen:
 proto-lint:
 	@$(DOCKER_BUF) lint --error-format=json
 
+build-docker:
+	$(DOCKER) build -t draft -f docker/Dockerfile .
+
+
 ###############################################################################
 ###                           Tests & Simulation                            ###
 ###############################################################################

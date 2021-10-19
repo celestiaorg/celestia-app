@@ -25,8 +25,6 @@ celestia-appd add-genesis-account $GENACCT $coins
 celestia-appd gentx validator 5000000000stake --keyring-backend="test" --chain-id $CHAINID
 celestia-appd collect-gentxs
 
-celestia-appd add-genesis-account celes1v8ns53vv7g938wvlhnfrjr943ct28e8746kly0 10000000000stake,100000000000samoleans
-
 # Set proper defaults and change ports
 sed -i 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' ~/.celestia-app/config/config.toml
 sed -i 's/timeout_commit = "5s"/timeout_commit = "1s"/g' ~/.celestia-app/config/config.toml
