@@ -87,10 +87,7 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 		}
 
 		parentHash := sha256.Sum256(rawTx)
-		var cParentHash []byte
-		copy(cParentHash, parentHash[:])
-
-		wrappedTx, err := coretypes.WrapChildTx(cParentHash, rawProcessedTx)
+		wrappedTx, err := coretypes.WrapChildTx(parentHash[:], rawProcessedTx)
 		if err != nil {
 			app.Logger().Error("failure to wrap child transaction with parent hash", "Error:", err)
 		}

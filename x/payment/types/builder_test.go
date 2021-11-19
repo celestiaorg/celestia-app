@@ -11,6 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/stretchr/testify/require"
+	coretypes "github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
 )
 
@@ -31,6 +32,12 @@ func TestBuildPayForMessage(t *testing.T) {
 
 	signedTx, err := k.BuildSignedTx(k.NewTxBuilder(), msg)
 	require.NoError(t, err)
+
+	rawTx, err := makeEncodingConfig().TxConfig.TxEncoder()(signedTx)
+	require.NoError(t, err)
+
+	_, _, isChild := coretypes.DecodeChildTx(rawTx)
+	require.False(t, isChild)
 
 	sigs, err := signedTx.GetSignaturesV2()
 	require.NoError(t, err)
