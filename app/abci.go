@@ -91,6 +91,9 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 		copy(cParentHash, parentHash[:])
 
 		wrappedTx, err := coretypes.WrapChildTx(cParentHash, rawProcessedTx)
+		if err != nil {
+			app.Logger().Error("failure to wrap child transaction with parent hash", "Error:", err)
+		}
 
 		shareMsgs = append(shareMsgs, coreMsg)
 		processedTxs = append(processedTxs, wrappedTx)
