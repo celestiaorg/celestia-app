@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
@@ -10,6 +11,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // PreprocessTxs fullfills the celestia-core version of the ACBI interface, by
@@ -84,8 +86,14 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 			continue
 		}
 
+		parentHash := sha256.Sum256(rawTx)
+		wrappedTx, err := coretypes.WrapChildTx(parentHash[:], rawProcessedTx)
+		if err != nil {
+			app.Logger().Error("failure to wrap child transaction with parent hash", "Error:", err)
+		}
+
 		shareMsgs = append(shareMsgs, coreMsg)
-		processedTxs = append(processedTxs, rawProcessedTx)
+		processedTxs = append(processedTxs, wrappedTx)
 	}
 
 	// sort messages lexigraphically
