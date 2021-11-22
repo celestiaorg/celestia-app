@@ -16,13 +16,13 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/spm v0.1.5
 	github.com/tendermint/tendermint v0.34.13
-	github.com/tendermint/tm-db v0.6.4
+	github.com/tendermint/tm-db v0.6.6
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.0.0-20210903162142-ad29c8ab022f // indirect
 	golang.org/x/sys v0.0.0-20210927094055-39ccf1dd6fa6 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	google.golang.org/genproto v0.0.0-20210903162649-d08c68adba83
-	google.golang.org/grpc v1.40.0
+	google.golang.org/grpc v1.42.0
 )
 
 require (
@@ -114,7 +114,7 @@ require (
 	github.com/tendermint/go-amino v0.16.0 // indirect
 	github.com/vivint/infectious v0.0.0-20200605153912-25a574ae18a3 // indirect
 	github.com/zondax/hid v0.9.0 // indirect
-	go.etcd.io/bbolt v1.3.5 // indirect
+	go.etcd.io/bbolt v1.3.6 // indirect
 	golang.org/x/text v0.3.6 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/ini.v1 v1.62.0 // indirect
