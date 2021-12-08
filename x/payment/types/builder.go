@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"sync"
 
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -22,6 +23,8 @@ type KeyringSigner struct {
 	sequence       uint64
 	chainID        string
 	encCfg         cosmoscmd.EncodingConfig
+
+	sync.RWMutex
 }
 
 // NewKeyringSigner returns a new KeyringSigner using the provided keyring
@@ -48,20 +51,28 @@ func (k *KeyringSigner) QueryAccountNumber(ctx context.Context, conn *grpc.Clien
 	if err != nil {
 		return err
 	}
+	k.Lock()
+	defer k.Unlock()
+
 	k.accountNumber = accNum
 	k.sequence = seqNumb
 	return nil
 }
 
 // NewTxBuilder returns the default sdk Tx builder using the celestia-app encoding config
-func (k KeyringSigner) NewTxBuilder() sdkclient.TxBuilder {
+func (k *KeyringSigner) NewTxBuilder() sdkclient.TxBuilder {
 	return k.encCfg.TxConfig.NewTxBuilder()
 }
 
 // BuildSignedTx creates and signs a sdk.Tx that contains the provided message. The interal
 // account number must be set by calling k.QueryAccountNumber or by manually setting it via
 // k.SetAccountNumber for the built transactions to be valid.
-func (k KeyringSigner) BuildSignedTx(builder sdkclient.TxBuilder, msg sdktypes.Msg) (authsigning.Tx, error) {
+func (k *KeyringSigner) BuildSignedTx(builder sdkclient.TxBuilder, msg sdktypes.Msg) (authsigning.Tx, error) {
+	k.RLock()
+	accountNumber := k.accountNumber
+	sequence := k.sequence
+	k.RUnlock()
+
 	// set the msg
 	err := builder.SetMsgs(msg)
 	if err != nil {
@@ -82,7 +93,7 @@ func (k KeyringSigner) BuildSignedTx(builder sdkclient.TxBuilder, msg sdktypes.M
 			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
 			Signature: nil,
 		},
-		Sequence: k.sequence,
+		Sequence: sequence,
 	}
 
 	// set the empty signature
@@ -96,8 +107,8 @@ func (k KeyringSigner) BuildSignedTx(builder sdkclient.TxBuilder, msg sdktypes.M
 		signing.SignMode_SIGN_MODE_DIRECT,
 		authsigning.SignerData{
 			ChainID:       k.chainID,
-			AccountNumber: k.accountNumber,
-			Sequence:      k.sequence,
+			AccountNumber: accountNumber,
+			Sequence:      sequence,
 		},
 		builder.GetTx(),
 	)
@@ -118,7 +129,7 @@ func (k KeyringSigner) BuildSignedTx(builder sdkclient.TxBuilder, msg sdktypes.M
 			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
 			Signature: sigBytes,
 		},
-		Sequence: k.sequence,
+		Sequence: sequence,
 	}
 
 	// set the final signature
@@ -133,11 +144,17 @@ func (k KeyringSigner) BuildSignedTx(builder sdkclient.TxBuilder, msg sdktypes.M
 
 // SetAccountNumber manually sets the underlying account number
 func (k *KeyringSigner) SetAccountNumber(n uint64) {
+	k.Lock()
+	defer k.Unlock()
+
 	k.accountNumber = n
 }
 
 // SetSequence manually sets the underlying sequence number
 func (k *KeyringSigner) SetSequence(n uint64) {
+	k.Lock()
+	defer k.Unlock()
+
 	k.sequence = n
 }
 
@@ -157,7 +174,7 @@ func (k *KeyringSigner) GetSignerInfo() keyring.Info {
 }
 
 // EncodeTx uses the keyring signer's encoding config to encode the provided sdk transaction
-func (k KeyringSigner) EncodeTx(tx sdktypes.Tx) ([]byte, error) {
+func (k *KeyringSigner) EncodeTx(tx sdktypes.Tx) ([]byte, error) {
 	return k.encCfg.TxConfig.TxEncoder()(tx)
 }
 
