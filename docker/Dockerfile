@@ -4,38 +4,32 @@ RUN apk update && \
     apk --no-cache add make \
     git libc-dev bash gcc linux-headers eudev-dev python3
 
+ENV APP /celestia-app
+
 # Add source files
-WORKDIR /go/src/github.com/celestiaorg/celestia-app
+WORKDIR ${APP}
 COPY . .
 
-RUN make install
+RUN make build
 
-FROM golang:1.17-alpine
+FROM alpine
 
-ENV APP /capp
-ENV CHAIN_ID "test"
-ENV NODE_NAME "user1"
-ENV KEY_TYPE "test"
-ENV COINS_TYPE "10000000000stake,100000000000samoleans"
+RUN apk add bash
+ENV APP /celestia-app
+WORKDIR ${APP}
 
-RUN apk update && \
-    apk upgrade && \
-    apk --no-cache add curl jq bash && \
-    addgroup cappuser && \
-    adduser -S -G cappuser cappuser -h "$APP"
-
-WORKDIR $APP
-
-# Run the container with cappuser by default
-USER cappuser
-
-WORKDIR $APP
-
-COPY --from=builder /go/bin/celestia-appd /usr/bin/celestia-appd
+# Copy in the binary
+COPY --from=builder ${APP}/build/celestia-appd .
 
 EXPOSE 26656 26657 1317 9090
-ADD /docker/entry.sh /capp/entry.sh
-USER root
-RUN chmod +x /capp/entry.sh
-USER cappuser
-ENTRYPOINT [ "/capp/entry.sh" ]
+
+COPY docker/priv_validator_state.json ${APP}/data/priv_validator_state.json
+
+# This allows us to always set the --home directory using an env 
+# var while still capturing all argumenmts passed at runtime
+ENTRYPOINT [ "/bin/bash", "-c", "exec ./celestia-appd \
+            --home ${APP} \
+            \"${@}\"", "--" ]
+# Default command to run if no arguments are passed
+CMD ["--help"] 
+
