@@ -12,7 +12,7 @@ pre-build:
 	@echo "Fetching latest tags"
 	@git fetch --tags
 
-build: mod pre-build
+build: mod
 	@go get -u github.com/gobuffalo/packr/v2/packr2
 	@cd ./cmd/celestia-appd && packr2
 	@mkdir -p build/
