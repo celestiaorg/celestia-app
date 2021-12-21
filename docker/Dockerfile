@@ -28,9 +28,9 @@ WORKDIR $HOME
 EXPOSE 26656 26657 1317 9090
 
 # This allows us to always set the --home directory using an env 
-# var while still capturing all argumenmts passed at runtime
+# var while still capturing all arguments passed at runtime
 ENTRYPOINT [ "/bin/bash", "-c", "exec ./celestia-appd \
             --home ${HOME} \
             \"${@}\"", "--" ]
 # Default command to run if no arguments are passed
-CMD ["--help"] 
+CMD ["--help"]
