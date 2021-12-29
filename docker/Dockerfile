@@ -1,41 +1,36 @@
-FROM golang:1.17-alpine AS builder
-RUN apk update && \
-    apk upgrade && \
-    apk --no-cache add make \
-    git libc-dev bash gcc linux-headers eudev-dev python3
-
-# Add source files
-WORKDIR /go/src/github.com/celestiaorg/celestia-app
-COPY . .
-
-RUN make install
-
-FROM golang:1.17-alpine
-
-ENV APP /capp
-ENV CHAIN_ID "test"
-ENV NODE_NAME "user1"
-ENV KEY_TYPE "test"
-ENV COINS_TYPE "10000000000stake,100000000000samoleans"
+# stage 1 Generate celestia-appd Binary
+FROM golang:1.17-alpine as builder
 
 RUN apk update && \
     apk upgrade && \
-    apk --no-cache add curl jq bash && \
-    addgroup cappuser && \
-    adduser -S -G cappuser cappuser -h "$APP"
+    apk --no-cache add make
 
-WORKDIR $APP
+ENV HOME /celestia-app
 
-# Run the container with cappuser by default
-USER cappuser
+COPY / ${HOME}
+WORKDIR ${HOME}
 
-WORKDIR $APP
+RUN make build
 
-COPY --from=builder /go/bin/celestia-appd /usr/bin/celestia-appd
+# stage 2
+FROM alpine
 
+RUN apk update && \
+    apk upgrade && \
+    apk --no-cache add curl jq bash
+
+ENV HOME /celestia-app
+COPY --from=builder ${HOME}/build/celestia-appd ${HOME}/celestia-appd
+COPY docker/priv_validator_state.json ${HOME}/data/priv_validator_state.json
+WORKDIR $HOME
+
+# p2p, rpc and prometheus port
 EXPOSE 26656 26657 1317 9090
-ADD /docker/entry.sh /capp/entry.sh
-USER root
-RUN chmod +x /capp/entry.sh
-USER cappuser
-ENTRYPOINT [ "/capp/entry.sh" ]
+
+# This allows us to always set the --home directory using an env 
+# var while still capturing all arguments passed at runtime
+ENTRYPOINT [ "/bin/bash", "-c", "exec ./celestia-appd \
+            --home ${HOME} \
+            \"${@}\"", "--" ]
+# Default command to run if no arguments are passed
+CMD ["--help"]
