@@ -16,21 +16,24 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/stretchr/testify/require"
 	"github.com/tendermint/spm/cosmoscmd"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmdb "github.com/tendermint/tm-db"
 )
 
-func New(t *testing.T, config network.Config, genAccNames ...string) (*network.Network, keyring.Keyring) {
+func New(t *testing.T, config network.Config, genAccNames ...string) *network.Network {
 	kr := generateKeyring(t)
 
 	// add genesis accounts
 	genAuthAccs := make([]authtypes.GenesisAccount, len(genAccNames))
 	genBalances := make([]banktypes.Balance, len(genAccNames))
+	mnemonics := make([]string, len(genAccNames))
 	for i, name := range genAccNames {
-		a, b := newGenAccout(kr, name, 1000000000000)
+		a, b, mnm := newGenAccout(kr, name, 1000000000000)
 		genAuthAccs[i] = a
 		genBalances[i] = b
+		mnemonics[i] = mnm
 	}
 
 	config, err := addGenAccounts(config, genAuthAccs, genBalances)
@@ -39,8 +42,15 @@ func New(t *testing.T, config network.Config, genAccNames ...string) (*network.N
 	}
 
 	net := network.New(t, config)
+
+	// add the keys to the keyring that is used by the integration test
+	for i, name := range genAccNames {
+		_, err := net.Validators[0].ClientCtx.Keyring.NewAccount(name, mnemonics[i], "", "", hd.Secp256k1)
+		require.NoError(t, err)
+	}
+
 	// t.Cleanup(net.Cleanup)
-	return net, kr
+	return net
 }
 
 // DefaultConfig will initialize config for the network with custom application,
@@ -101,8 +111,8 @@ func addGenAccounts(cfg network.Config, genAccounts []authtypes.GenesisAccount, 
 	return cfg, nil
 }
 
-func newGenAccout(kr keyring.Keyring, name string, amount int64) (authtypes.GenesisAccount, banktypes.Balance) {
-	info, _, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
+func newGenAccout(kr keyring.Keyring, name string, amount int64) (authtypes.GenesisAccount, banktypes.Balance, string) {
+	info, mnm, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
 	if err != nil {
 		panic(err)
 	}
@@ -118,7 +128,7 @@ func newGenAccout(kr keyring.Keyring, name string, amount int64) (authtypes.Gene
 		Coins:   balances.Sort(),
 	}
 
-	return authtypes.NewBaseAccount(info.GetAddress(), info.GetPubKey(), 0, 0), bal
+	return authtypes.NewBaseAccount(info.GetAddress(), info.GetPubKey(), 0, 0), bal, mnm
 }
 
 func generateKeyring(t *testing.T) keyring.Keyring {

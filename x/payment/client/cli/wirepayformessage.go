@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/spf13/cobra"
 	"github.com/tendermint/tendermint/pkg/consts"
@@ -64,11 +63,11 @@ func CmdWirePayForMessage() *cobra.Command {
 			signer.SetSequence(account.GetSequence())
 
 			// get and parse the gas limit for this tx
-			gasLimit, err := cmd.Flags().GetString(flags.FlagGas)
+			rawGasLimit, err := cmd.Flags().GetString(flags.FlagGas)
 			if err != nil {
 				return err
 			}
-			parsedGasLimit, err := strconv.ParseUint(gasLimit, 10, 64)
+			gasSetting, err := flags.ParseGasSetting(rawGasLimit)
 			if err != nil {
 				return err
 			}
@@ -85,7 +84,7 @@ func CmdWirePayForMessage() *cobra.Command {
 
 			// get the gas price and such and add it to the tx builder that is used to create the signed share commitments
 			builder := signer.NewTxBuilder()
-			builder.SetGasLimit(parsedGasLimit)
+			builder.SetGasLimit(gasSetting.Gas)
 			builder.SetFeeAmount(parsedFees)
 
 			// sign the  MsgPayForMessage's ShareCommitments

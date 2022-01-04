@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/suite"
@@ -15,15 +16,15 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+// username is used to create a funded genesis account under this name
 const username = "test"
 
 type IntegrationTestSuite struct {
 	suite.Suite
 
-	cfg      cosmosnet.Config
-	network  *cosmosnet.Network
-	kr       keyring.Keyring
-	userName string
+	cfg     cosmosnet.Config
+	network *cosmosnet.Network
+	kr      keyring.Keyring
 }
 
 func NewIntegrationTestSuite(cfg cosmosnet.Config) *IntegrationTestSuite {
@@ -32,18 +33,17 @@ func NewIntegrationTestSuite(cfg cosmosnet.Config) *IntegrationTestSuite {
 
 func (s *IntegrationTestSuite) SetupSuite() {
 	s.T().Log("setting up integration test suite")
-	const username = "test"
 
 	if testing.Short() {
 		s.T().Skip("skipping test in unit-tests mode.")
 	}
 
-	net, kr := network.New(s.T(), s.cfg, username)
+	net := network.New(s.T(), s.cfg, username)
+
 	s.network = net
-	s.kr = kr
+	s.kr = net.Validators[0].ClientCtx.Keyring
 	_, err := s.network.WaitForHeight(1)
 	s.Require().NoError(err)
-
 }
 
 func (s *IntegrationTestSuite) TearDownSuite() {
@@ -69,32 +69,14 @@ func (s *IntegrationTestSuite) TestNewCreateValidatorCmd() {
 		expectedCode uint32
 		respType     proto.Message
 	}{
-		// {
-		// 	"invalid transaction (missing moniker)",
-		// 	[]string{
-		// 		fmt.Sprintf("--%s=%s", cli.FlagPubKey, consPubKeyBz),
-		// 		fmt.Sprintf("--%s=%dstake", cli.FlagAmount, 100),
-		// 		fmt.Sprintf("--%s=AFAF00C4", cli.FlagIdentity),
-		// 		fmt.Sprintf("--%s=https://newvalidator.io", cli.FlagWebsite),
-		// 		fmt.Sprintf("--%s=contact@newvalidator.io", cli.FlagSecurityContact),
-		// 		fmt.Sprintf("--%s='Hey, I am a new validator. Please delegate!'", cli.FlagDetails),
-		// 		fmt.Sprintf("--%s=0.5", cli.FlagCommissionRate),
-		// 		fmt.Sprintf("--%s=1.0", cli.FlagCommissionMaxRate),
-		// 		fmt.Sprintf("--%s=0.1", cli.FlagCommissionMaxChangeRate),
-		// 		fmt.Sprintf("--%s=1", cli.FlagMinSelfDelegation),
-		// 		fmt.Sprintf("--%s=%s", flags.FlagFrom, newAddr),
-		// 		fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-		// 		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
-		// 		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(10))).String()),
-		// 	},
-		// 	true, 0, nil,
-		// },
 		{
 			"valid transaction",
 			[]string{
 				hexNS,
 				hexMsg,
 				fmt.Sprintf("--from=%s", username),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 			},
 			false, 0, &sdk.TxResponse{},
 		},
