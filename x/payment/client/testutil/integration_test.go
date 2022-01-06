@@ -51,16 +51,14 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 	s.network.Cleanup()
 }
 
-func (s *IntegrationTestSuite) TestNewCreateValidatorCmd() {
+func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 	require := s.Require()
 	val := s.network.Validators[0]
 
-	// some hex message
 	// some hex namespace
 	hexNS := "0102030405060708"
+	// some hex message
 	hexMsg := "0204033704032c0b162109000908094d425837422c2116"
-
-	// use the old code you had for the test where you added funded genesis accounts
 
 	testCases := []struct {
 		name         string
@@ -76,6 +74,7 @@ func (s *IntegrationTestSuite) TestNewCreateValidatorCmd() {
 				hexMsg,
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, "2stake"),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 			},
 			false, 0, &sdk.TxResponse{},
@@ -101,14 +100,10 @@ func (s *IntegrationTestSuite) TestNewCreateValidatorCmd() {
 				require.Equal(tc.expectedCode, txResp.Code,
 					"test: %s, output\n:", tc.name, out.String())
 
-				// events := txResp.Logs[0].GetEvents()
-				// for i := 0; i < len(events); i++ {
-				// 	if events[i].GetType() == "create_validator" {
-				// 		attributes := events[i].GetAttributes()
-				// 		require.Equal(attributes[1].Value, "100stake")
-				// 		break
-				// 	}
-				// }
+				events := txResp.Logs[0].GetEvents()
+				for i := 0; i < len(events); i++ {
+					s.Equal("/payment.MsgPayForMessage", events[i].GetAttributes()[0].Value)
+				}
 			}
 		})
 	}
