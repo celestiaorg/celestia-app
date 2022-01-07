@@ -75,6 +75,7 @@ import (
 
 	"github.com/tendermint/spm/cosmoscmd"
 
+	appparams "github.com/celestiaorg/celestia-app/app/params"
 	paymentmodule "github.com/celestiaorg/celestia-app/x/payment"
 	paymentmodulekeeper "github.com/celestiaorg/celestia-app/x/payment/keeper"
 	paymentmoduletypes "github.com/celestiaorg/celestia-app/x/payment/types"
@@ -194,11 +195,11 @@ func New(
 	skipUpgradeHeights map[int64]bool,
 	homePath string,
 	invCheckPeriod uint,
-	encodingConfig cosmoscmd.EncodingConfig,
+	encodingConfig appparams.EncodingConfig,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
-	appCodec := encodingConfig.Marshaler
+	appCodec := encodingConfig.Codec
 	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 

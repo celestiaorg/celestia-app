@@ -7,7 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -23,12 +22,14 @@ import (
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/spm/cosmoscmd"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
+
+	appparams "github.com/celestiaorg/celestia-app/app/params"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 )
 
 const testingKeyAcc = "test"
@@ -105,7 +106,7 @@ func setupApp(t *testing.T, pub cryptotypes.PubKey) *App {
 
 	skipUpgradeHeights := make(map[int64]bool)
 
-	encCfg := cosmoscmd.MakeEncodingConfig(ModuleBasics)
+	encCfg := appparams.MakeEncodingConfig()
 
 	testApp := New(
 		logger, db, nil, true, skipUpgradeHeights,
@@ -116,9 +117,9 @@ func setupApp(t *testing.T, pub cryptotypes.PubKey) *App {
 		anteOpt,
 	)
 
-	genesisState := newDefaultGenesisState(encCfg.Marshaler)
+	genesisState := newDefaultGenesisState(encCfg.Codec)
 
-	genesisState, err := addGenesisAccount(sdk.AccAddress(pub.Address().Bytes()), genesisState, encCfg.Marshaler)
+	genesisState, err := addGenesisAccount(sdk.AccAddress(pub.Address().Bytes()), genesisState, encCfg.Codec)
 	if err != nil {
 		t.Error(err)
 	}

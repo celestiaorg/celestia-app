@@ -14,15 +14,15 @@ pre-build:
 
 build: mod
 	@go get -u github.com/gobuffalo/packr/v2/packr2
-	@cd ./cmd/celestia-appd && packr2
+	@cd ./celestia-appd && packr2
 	@mkdir -p build/
-	@go build -o build/ ./cmd/celestia-appd
+	@go build -o build/ ./celestia-appd
 	@packr2 clean
 	@go mod tidy
 
 install: go.sum
 		@echo "--> Installing celestia-appd"
-		@go install -mod=readonly ./cmd/celestia-appd
+		@go install -mod=readonly ./celestia-appd
 
 go.sum: mod
 		@echo "--> Ensure dependencies have not been modified"
@@ -64,6 +64,3 @@ benchmark:
 test-cover:
 	@export VERSION=$(VERSION); bash -x contrib/test_cover.sh
 .PHONY: test-cover
-
-
-
