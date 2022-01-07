@@ -6,7 +6,7 @@ import (
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 
 	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/celestia-appd/cmd"
+	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
 )
 
 func main() {
