@@ -241,7 +241,7 @@ func generateSignedWirePayForMessage(t *testing.T, k uint64, ns, message []byte,
 		t.Error(err)
 	}
 
-	err = msg.SignShareCommitments(signer, signer.NewTxBuilder())
+	err = msg.SignShareCommitments(signer)
 	if err != nil {
 		t.Error(err)
 	}

@@ -2,8 +2,11 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
+	sdkclient "github.com/cosmos/cosmos-sdk/client"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/stretchr/testify/assert"
@@ -140,7 +143,8 @@ func TestSignShareCommitments(t *testing.T) {
 	type test struct {
 		name    string
 		ns, msg []byte
-		ss      uint64
+		ss      []uint64
+		options []TxBuilderOption
 	}
 
 	kb := generateKeyring(t, "test")
@@ -149,52 +153,60 @@ func TestSignShareCommitments(t *testing.T) {
 
 	tests := []test{
 		{
-			name: "single share square size 2",
-			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			msg:  bytes.Repeat([]byte{1}, ShareSize-8),
-			ss:   2,
+			name:    "single share",
+			ns:      []byte{1, 1, 1, 1, 1, 1, 1, 1},
+			msg:     bytes.Repeat([]byte{1}, ShareSize-8),
+			ss:      []uint64{2, 4, 8, 16, 64},
+			options: []TxBuilderOption{SetGasLimit(2000000)},
 		},
 		{
-			name: "15 shares square size 4",
+			name: "15 shares",
 			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:  bytes.Repeat([]byte{2}, ShareSize*15),
-			ss:   4,
+			msg:  bytes.Repeat([]byte{2}, ShareSize*12),
+			ss:   []uint64{4, 8, 16, 64, 128},
+			options: []TxBuilderOption{
+				SetGasLimit(123456789),
+				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("tio", sdk.NewInt(987654321))))},
 		},
 	}
 
 	for _, tt := range tests {
-		wpfm, err := NewWirePayForMessage(tt.ns, tt.msg, tt.ss)
+		wpfm, err := NewWirePayForMessage(tt.ns, tt.msg, tt.ss...)
 		require.NoError(t, err, tt.name)
-		err = wpfm.SignShareCommitments(signer, signer.NewTxBuilder())
+		err = wpfm.SignShareCommitments(signer, tt.options...)
 		// there should be no error
 		assert.NoError(t, err)
 		// the signature should exist
 		assert.Equal(t, len(wpfm.MessageShareCommitment[0].Signature), 64)
 
 		// verify the signature
-		unsignedPFM, err := wpfm.unsignedPayForMessage(tt.ss)
-		require.NoError(t, err)
-		tx, err := signer.BuildSignedTx(signer.NewTxBuilder(), unsignedPFM)
-		require.NoError(t, err)
+		for _, size := range tt.ss {
+			unsignedPFM, err := wpfm.unsignedPayForMessage(size)
+			require.NoError(t, err)
+			builder := applyOptions(signer.NewTxBuilder(), tt.options...)
+			tx, err := signer.BuildSignedTx(builder, unsignedPFM)
+			require.NoError(t, err)
 
-		// Generate the bytes to be signed.
-		bytesToSign, err := signer.encCfg.TxConfig.SignModeHandler().GetSignBytes(
-			signing.SignMode_SIGN_MODE_DIRECT,
-			authsigning.SignerData{
-				ChainID:       signer.chainID,
-				AccountNumber: signer.accountNumber,
-				Sequence:      signer.sequence,
-			},
-			tx,
-		)
-		require.NoError(t, err)
+			// Generate the bytes to be signed.
+			bytesToSign, err := signer.encCfg.TxConfig.SignModeHandler().GetSignBytes(
+				signing.SignMode_SIGN_MODE_DIRECT,
+				authsigning.SignerData{
+					ChainID:       signer.chainID,
+					AccountNumber: signer.accountNumber,
+					Sequence:      signer.sequence,
+				},
+				tx,
+			)
+			require.NoError(t, err)
 
-		// verify the signature using the public key
-		assert.True(t, signer.GetSignerInfo().GetPubKey().VerifySignature(
-			bytesToSign,
-			wpfm.MessageShareCommitment[0].Signature,
-		))
-
+			// verify the signature using the public key
+			assert.True(t, signer.GetSignerInfo().GetPubKey().VerifySignature(
+				bytesToSign,
+				wpfm.MessageShareCommitment[0].Signature,
+			),
+				fmt.Sprintf("test: %s size: %d", tt.name, size),
+			)
+		}
 	}
 }
 
@@ -325,7 +337,7 @@ func TestProcessMessage(t *testing.T) {
 	for _, tt := range tests {
 		wpfm, err := NewWirePayForMessage(tt.ns, tt.msg, tt.ss)
 		require.NoError(t, err, tt.name)
-		err = wpfm.SignShareCommitments(signer, signer.NewTxBuilder())
+		err = wpfm.SignShareCommitments(signer)
 		assert.NoError(t, err)
 
 		wpfm = tt.modify(wpfm)
@@ -358,9 +370,16 @@ func validWirePayForMessage(t *testing.T) *MsgWirePayForMessage {
 
 	signer := generateKeyringSigner(t)
 
-	err = msg.SignShareCommitments(signer, signer.NewTxBuilder())
+	err = msg.SignShareCommitments(signer)
 	if err != nil {
 		panic(err)
 	}
 	return msg
+}
+
+func applyOptions(builder sdkclient.TxBuilder, options ...TxBuilderOption) sdkclient.TxBuilder {
+	for _, option := range options {
+		builder = option(builder)
+	}
+	return builder
 }
