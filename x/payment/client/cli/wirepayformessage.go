@@ -57,6 +57,7 @@ func CmdWirePayForMessage() *cobra.Command {
 				return err
 			}
 
+			// use the keyring to programmatically sign multiple PayForMessage txs
 			signer := types.NewKeyringSigner(clientCtx.Keyring, accName, clientCtx.ChainID)
 
 			signer.SetAccountNumber(account.GetAccountNumber())
@@ -82,13 +83,12 @@ func CmdWirePayForMessage() *cobra.Command {
 				return err
 			}
 
-			// get the gas price and such and add it to the tx builder that is used to create the signed share commitments
-			builder := signer.NewTxBuilder()
-			builder.SetGasLimit(gasSetting.Gas)
-			builder.SetFeeAmount(parsedFees)
-
 			// sign the  MsgPayForMessage's ShareCommitments
-			err = pfmMsg.SignShareCommitments(signer, builder)
+			err = pfmMsg.SignShareCommitments(
+				signer,
+				types.SetGasLimit(gasSetting.Gas),
+				types.SetFeeAmount(parsedFees),
+			)
 			if err != nil {
 				return err
 			}
