@@ -10,7 +10,7 @@ Month, DD, YYYY
 
 ### FEATURES
 
-- [go package] (Link to PR) Description @username
+- [GH Action] Create docker-build GH Action
 
 ### IMPROVEMENTS
 
