@@ -1,4 +1,4 @@
-name: "pre-release"
+name: "docker-build"
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  pre-release:
+  docker-build:
     runs-on: "ubuntu-latest"
     permissions:
       contents: write 
@@ -35,5 +35,6 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           push: true
-          tags: ghcr.io/celestiaorg/celestia-node:latest
+          tags: ghcr.io/jbowen93/celestia-app:latest
+          # tags: ghcr.io/celestiaorg/celestia-app:latest
           file: docker/Dockerfile
