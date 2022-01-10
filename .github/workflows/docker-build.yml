@@ -35,6 +35,6 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           push: true
-          tags: ghcr.io/jbowen93/celestia-app:latest
-          # tags: ghcr.io/celestiaorg/celestia-app:latest
+          # tags: ghcr.io/jbowen93/celestia-app:latest
+          tags: ghcr.io/celestiaorg/celestia-app:latest
           file: docker/Dockerfile
