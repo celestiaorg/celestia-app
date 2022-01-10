@@ -9,7 +9,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/msgservice"
 	"github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/tendermint/spm/cosmoscmd"
+
+	appparams "github.com/celestiaorg/celestia-app/app/params"
 )
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
@@ -45,7 +46,7 @@ var (
 
 // makeEncodingConfig is copied here so that we don't have to have an
 //  import cycle. if possible, use cosmoscmd.MakeEncodingConfig
-func makeEncodingConfig() cosmoscmd.EncodingConfig {
+func makeEncodingConfig() appparams.EncodingConfig {
 	amino := codec.NewLegacyAmino()
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
 	RegisterInterfaces(interfaceRegistry)
@@ -53,9 +54,9 @@ func makeEncodingConfig() cosmoscmd.EncodingConfig {
 	marshaler := codec.NewProtoCodec(interfaceRegistry)
 	txCfg := tx.NewTxConfig(marshaler, tx.DefaultSignModes)
 
-	return cosmoscmd.EncodingConfig{
+	return appparams.EncodingConfig{
 		InterfaceRegistry: interfaceRegistry,
-		Marshaler:         marshaler,
+		Codec:             marshaler,
 		TxConfig:          txCfg,
 		Amino:             amino,
 	}

@@ -73,8 +73,6 @@ import (
 	tmos "github.com/tendermint/tendermint/libs/os"
 	dbm "github.com/tendermint/tm-db"
 
-	"github.com/tendermint/spm/cosmoscmd"
-
 	appparams "github.com/celestiaorg/celestia-app/app/params"
 	paymentmodule "github.com/celestiaorg/celestia-app/x/payment"
 	paymentmodulekeeper "github.com/celestiaorg/celestia-app/x/payment/keeper"
@@ -128,7 +126,6 @@ var (
 )
 
 var (
-	_ cosmoscmd.CosmosApp     = (*App)(nil)
 	_ servertypes.Application = (*App)(nil)
 )
 

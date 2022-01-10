@@ -11,8 +11,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/tendermint/spm/cosmoscmd"
 	"google.golang.org/grpc"
+
+	appparams "github.com/celestiaorg/celestia-app/app/params"
 )
 
 // KeyringSigner uses a keyring to sign and build celestia-app transactions
@@ -22,7 +23,7 @@ type KeyringSigner struct {
 	accountNumber  uint64
 	sequence       uint64
 	chainID        string
-	encCfg         cosmoscmd.EncodingConfig
+	encCfg         appparams.EncodingConfig
 
 	sync.RWMutex
 }
@@ -192,7 +193,7 @@ func BroadcastTx(ctx context.Context, conn *grpc.ClientConn, mode tx.BroadcastMo
 }
 
 // QueryAccount fetches the account number and sequence number from the celestia-app node.
-func QueryAccount(ctx context.Context, conn *grpc.ClientConn, encCfg cosmoscmd.EncodingConfig, address string) (accNum uint64, seqNum uint64, err error) {
+func QueryAccount(ctx context.Context, conn *grpc.ClientConn, encCfg appparams.EncodingConfig, address string) (accNum uint64, seqNum uint64, err error) {
 	qclient := authtypes.NewQueryClient(conn)
 	resp, err := qclient.Account(
 		ctx,
