@@ -49,7 +49,6 @@ func New(t *testing.T, config network.Config, genAccNames ...string) *network.Ne
 		require.NoError(t, err)
 	}
 
-	// t.Cleanup(net.Cleanup)
 	return net
 }
 
