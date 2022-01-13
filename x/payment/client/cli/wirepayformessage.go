@@ -12,6 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func CmdWirePayForMessage() *cobra.Command {
@@ -21,6 +22,13 @@ func CmdWirePayForMessage() *cobra.Command {
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			// query for account number
+			fromAddress := clientCtx.GetFromAddress()
+			account, err := clientCtx.AccountRetriever.GetAccount(clientCtx, fromAddress)
 			if err != nil {
 				return err
 			}
@@ -43,7 +51,7 @@ func CmdWirePayForMessage() *cobra.Command {
 				return fmt.Errorf("failure to decode hex message: %w", err)
 			}
 
-			// create the  MsgPayForMessage
+			// create the MsgPayForMessage
 			pfmMsg, err := types.NewWirePayForMessage(namespace, message, consts.MaxSquareSize)
 			if err != nil {
 				return err
@@ -51,8 +59,36 @@ func CmdWirePayForMessage() *cobra.Command {
 
 			signer := types.NewKeyringSigner(clientCtx.Keyring, accName, clientCtx.ChainID)
 
+			signer.SetAccountNumber(account.GetAccountNumber())
+			signer.SetSequence(account.GetSequence())
+
+			// get and parse the gas limit for this tx
+			rawGasLimit, err := cmd.Flags().GetString(flags.FlagGas)
+			if err != nil {
+				return err
+			}
+			gasSetting, err := flags.ParseGasSetting(rawGasLimit)
+			if err != nil {
+				return err
+			}
+
+			// get and parse the fees for this tx
+			fees, err := cmd.Flags().GetString(flags.FlagFees)
+			if err != nil {
+				return err
+			}
+			parsedFees, err := sdk.ParseCoinsNormalized(fees)
+			if err != nil {
+				return err
+			}
+
+			// get the gas price and such and add it to the tx builder that is used to create the signed share commitments
+			builder := signer.NewTxBuilder()
+			builder.SetGasLimit(gasSetting.Gas)
+			builder.SetFeeAmount(parsedFees)
+
 			// sign the  MsgPayForMessage's ShareCommitments
-			err = pfmMsg.SignShareCommitments(signer, signer.NewTxBuilder())
+			err = pfmMsg.SignShareCommitments(signer, builder)
 			if err != nil {
 				return err
 			}

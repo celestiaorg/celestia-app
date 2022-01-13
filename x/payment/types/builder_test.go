@@ -36,7 +36,7 @@ func TestBuildPayForMessage(t *testing.T) {
 	rawTx, err := makeEncodingConfig().TxConfig.TxEncoder()(signedTx)
 	require.NoError(t, err)
 
-	_, _, isChild := coretypes.DecodeChildTx(rawTx)
+	_, _, isChild := coretypes.UnwrapMalleatedTx(rawTx)
 	require.False(t, isChild)
 
 	sigs, err := signedTx.GetSignaturesV2()

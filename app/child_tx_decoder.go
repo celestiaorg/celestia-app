@@ -7,7 +7,7 @@ import (
 
 func ChildTxDecoder(dec sdk.TxDecoder) sdk.TxDecoder {
 	return func(txBytes []byte) (sdk.Tx, error) {
-		if _, childTx, has := coretypes.DecodeChildTx(txBytes); has {
+		if _, childTx, has := coretypes.UnwrapMalleatedTx(txBytes); has {
 			return dec(childTx)
 		}
 		return dec(txBytes)
