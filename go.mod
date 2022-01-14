@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app
 go 1.17
 
 require (
-	github.com/celestiaorg/nmt v0.7.0
+	github.com/celestiaorg/nmt v0.8.0
 	github.com/cosmos/cosmos-sdk v0.44.0
 	github.com/cosmos/ibc-go v1.2.0
 	github.com/gogo/protobuf v1.3.3
