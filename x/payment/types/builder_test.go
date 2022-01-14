@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func TestBuildPayForMessage(t *testing.T) {
+func TestBuildWirePayForMessage(t *testing.T) {
 	testRing := generateKeyring(t)
 
 	info, err := testRing.Key(testAccName)
@@ -36,8 +36,8 @@ func TestBuildPayForMessage(t *testing.T) {
 	rawTx, err := makeEncodingConfig().TxConfig.TxEncoder()(signedTx)
 	require.NoError(t, err)
 
-	_, _, isChild := coretypes.UnwrapMalleatedTx(rawTx)
-	require.False(t, isChild)
+	_, _, isMalleated := coretypes.UnwrapMalleatedTx(rawTx)
+	require.False(t, isMalleated)
 
 	sigs, err := signedTx.GetSignaturesV2()
 	require.NoError(t, err)
