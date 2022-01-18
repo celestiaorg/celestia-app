@@ -137,8 +137,8 @@ github.com/btcsuite/winsvc v1.0.0/go.mod h1:jsenWakMcC0zFBFurPLEAyrnc/teJEM1O46f
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
 github.com/celestiaorg/celestia-core v0.34.14-celestia.0.20220110174237-266919cced26 h1:rjRRkLQhqs/sVnYiDBRo3ndPaAKKKH0YuG+kl9lfD40=
 github.com/celestiaorg/celestia-core v0.34.14-celestia.0.20220110174237-266919cced26/go.mod h1:3n9kP3esPVYeAXMW/QSLALhMtraZInoTD5rcjteFpVQ=
-github.com/celestiaorg/cosmos-sdk v0.44.2-0.20220114150423-9c3bf7da0028 h1:ZvOtQKO3+/ZbFuqdkPAio28uJei/s0FTpeP5vif2KMw=
-github.com/celestiaorg/cosmos-sdk v0.44.2-0.20220114150423-9c3bf7da0028/go.mod h1:r6DTTo0VMO5+7iI3FLtsxh3OKwZ5VNglFRP8TIQ8pl4=
+github.com/celestiaorg/cosmos-sdk v0.44.2-0.20220117152225-998142f4eef9 h1:Uve0rZ4s5sL3eiKmyjE6wRHGtG+ERoHqYz/YvQMoHyo=
+github.com/celestiaorg/cosmos-sdk v0.44.2-0.20220117152225-998142f4eef9/go.mod h1:r6DTTo0VMO5+7iI3FLtsxh3OKwZ5VNglFRP8TIQ8pl4=
 github.com/celestiaorg/go-leopard v0.1.0 h1:28z2EkvKJIez5J9CEaiiUEC+OxalRLtTGJJ1oScfE1g=
 github.com/celestiaorg/go-leopard v0.1.0/go.mod h1:NtO/rjlB8dw2aq7jr06vZFKGvryQcTDXaNHelmPNOAM=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
