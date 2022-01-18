@@ -52,14 +52,19 @@ if err != nil {
 }
 
 // create  and sign the commitments to the data for all the the square sizes 
-err = pfmMsg.SignShareCommitments(keyringSigner, types.SetGasLimit(200000))
+gasLimOption := types.SetGasLimit(200000)
+err = pfmMsg.SignShareCommitments(keyringSigner, gasLimOption)
 if err != nil {
     return err
 }
 
 signedTx, err := keyringSigner.BuildSignedTx(
-    signer.NewTxBuilder().Set
+    gasLimOption(signer.NewTxBuilder()),
+    wpfmMsg,
 )
+if err != nil {
+    return err
+}
 ```
 
 ### How the commitments are generated
