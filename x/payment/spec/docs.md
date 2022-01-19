@@ -1,6 +1,6 @@
 ## Abstract
 
-The payment module is responsible for paying for arbitrary data that will be added to the Celestia blockchain. While the data being submitted can be arbitrary, the exact placement of that data is important for the transaction to be valid. This is why the payment module utilizes a malleated transaction scheme. Malleated transactions allow for users to create a single `Wire` transaction, which is composed of metadata and signatures for multiple variations of the actual transaction that will be included onchain. Depending on the square size of the block, the block producer selects the appropriate signature and creates a valid `MsgWirePayForMessage` transaction. This new malleated `MsgPayForMessage` transaction is what ends up onchain. This malleation process occurs during the added ABCI method `PreprocessTxs`, but will eventually be performed during the similar ABCI++ method, `PrepareProposal`. 
+The payment module is responsible for paying for arbitrary data that will be added to the Celestia blockchain. While the data being submitted can be arbitrary, the exact placement of that data is important for the transaction to be valid. This is why the payment module utilizes a malleated transaction scheme. Malleated transactions allow for users to create a single transaction, that can later be malleated by the block producer to create a variety of different valid transactions that are still signed over by the user. To accomplish this, users to create a single `MsgWirePayForMessage` transaction, which is composed of metadata and signatures for multiple variations of the transaction that will be included onchain. After the transaction is submitted to the network, the block producer selects the appropriate signature and creates a valid `MsgPayForMessage` transaction depending on the square size for that block. This new malleated `MsgPayForMessage` transaction is what ends up onchain. 
 
 ## State
 The only state that is modified is the sender’s account balance, via the bank keeper’s `Burn` method.
@@ -14,7 +14,7 @@ While this transaction is created and signed by the user, it never actually ends
 The malleated transaction that is created from metadata contained in the original`MsgWirePayFormessage`. It also burns some of the sender’s funds.
 
 ## PreProcessTxs
-Portions of the payment module are used to process `MsgWirePayForMessage`s into `MsgPayForMessage`s during the `PreProcessTxs`
+The malleation process occurs during the PreProcessTxs step.
 
 ## Events
 TODO after events are added.
@@ -58,10 +58,7 @@ if err != nil {
     return err
 }
 
-signedTx, err := keyringSigner.BuildSignedTx(
-    gasLimOption(signer.NewTxBuilder()),
-    wpfmMsg,
-)
+signedTx, err := keyringSigner.BuildSignedTx(wpfmMsg, gasLimOption)
 if err != nil {
     return err
 }
