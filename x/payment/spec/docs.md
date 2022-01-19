@@ -73,8 +73,3 @@ finalMessage = [length delimiter] + [namespace] + [message]
 3) pad until number of shares is a power of two
 4) create the commitment by aranging the shares into a merkle mountain range
 5) create a merkle root of the subtree roots
-
-
-
-
-
