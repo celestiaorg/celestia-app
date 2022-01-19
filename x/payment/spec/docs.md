@@ -2,6 +2,8 @@
 
 The payment module is responsible for paying for arbitrary data that will be added to the Celestia blockchain. While the data being submitted can be arbitrary, the exact placement of that data is important for the transaction to be valid. This is why the payment module utilizes a malleated transaction scheme. Malleated transactions allow for users to create a single transaction, that can later be malleated by the block producer to create a variety of different valid transactions that are still signed over by the user. To accomplish this, users create a single `MsgWirePayForMessage` transaction, which is composed of metadata and signatures for multiple variations of the transaction that will be included onchain. After the transaction is submitted to the network, the block producer selects the appropriate signature and creates a valid `MsgPayForMessage` transaction depending on the square size for that block. This new malleated `MsgPayForMessage` transaction is what ends up onchain. 
 
+Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
+
 ## State
 - The sender’s account balance, via the bank keeper’s [`Burn`](https://github.com/cosmos/cosmos-sdk/blob/master/x/bank/spec/01_state.md) method.
 - The standard incrememnt of the sender's account number via the [auth module](https://github.com/cosmos/cosmos-sdk/blob/master/x/auth/spec/02_state.md#accounts).
@@ -87,8 +89,6 @@ There are no parameters yet, but we might add
 - BaseFee
 - SquareSize
 - ShareSize
-
-Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
 
 ### Usage 
 `celestia-app tx payment payForMessage <hex encoded namespace> <hex encoded data> [flags]`
