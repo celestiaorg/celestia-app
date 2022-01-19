@@ -8,7 +8,7 @@ The only state that is modified is the sender’s account balance, via the bank 
 ## Messages
 - [`MsgWirePayForMessage`](https://github.com/celestiaorg/celestia-app/blob/b4c8ebdf35db200a9b99d295a13de01110802af4/x/payment/types/tx.pb.go#L32-L40)
 
-While this transaction is created and signed by the user, it never actually ends up onchain. Instead, it is used to create a new “malleated” transaction that does get included onchain.
+While this transaction is created and signed by the user, it never actually ends up onchain. Instead, it is used to create a new "malleated" transaction that does get included onchain.
 - [`MsgPayForMessage`](https://github.com/celestiaorg/celestia-app/blob/b4c8ebdf35db200a9b99d295a13de01110802af4/x/payment/types/tx.pb.go#L208-L216)
 
 The malleated transaction that is created from metadata contained in the original `MsgWirePayForMessage`. It also burns some of the sender’s funds.
