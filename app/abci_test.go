@@ -212,18 +212,13 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, r
 	msg := generateSignedWirePayForMessage(t, consts.MaxSquareSize, ns, message, ring)
 
 	krs := generateKeyringSigner(t, "test")
-	builder := krs.NewTxBuilder()
 
 	coin := sdk.Coin{
 		Denom:  "token",
 		Amount: sdk.NewInt(1000),
 	}
 
-	builder.SetFeeAmount(sdk.NewCoins(coin))
-	builder.SetGasLimit(10000)
-	builder.SetTimeoutHeight(99)
-
-	tx, err := krs.BuildSignedTx(builder, msg)
+	tx, err := krs.BuildSignedTx(msg, types.SetFeeAmount(sdk.NewCoins(coin)), types.SetGasLimit(200000))
 	require.NoError(t, err)
 
 	// encode the tx

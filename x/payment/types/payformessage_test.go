@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -189,8 +188,7 @@ func TestSignMalleatedTxs(t *testing.T) {
 			require.NoError(t, err)
 
 			// create a new tx builder to create an unsigned PayForMessage
-			builder := applyOptions(signer.NewTxBuilder(), tt.options...)
-			tx, err := signer.BuildSignedTx(builder, unsignedPFM)
+			tx, err := signer.BuildSignedTx(unsignedPFM, tt.options...)
 			require.NoError(t, err)
 
 			// Generate the bytes to be signed.
@@ -385,11 +383,4 @@ func validWirePayForMessage(t *testing.T) *MsgWirePayForMessage {
 		panic(err)
 	}
 	return msg
-}
-
-func applyOptions(builder sdkclient.TxBuilder, options ...TxBuilderOption) sdkclient.TxBuilder {
-	for _, option := range options {
-		builder = option(builder)
-	}
-	return builder
 }

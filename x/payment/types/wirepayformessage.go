@@ -5,7 +5,6 @@ import (
 	"errors"
 	fmt "fmt"
 
-	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -45,13 +44,7 @@ func (msg *MsgWirePayForMessage) SignShareCommitments(signer *KeyringSigner, opt
 	msg.Signer = signer.GetSignerInfo().GetAddress().String()
 	// create an entire MsgPayForMessage and signing over it, including the signature in each commitment
 	for i, commit := range msg.MessageShareCommitment {
-		builder := signer.NewTxBuilder()
-
-		for _, option := range options {
-			builder = option(builder)
-		}
-
-		sig, err := msg.createPayForMessageSignature(signer, builder, commit.K)
+		sig, err := msg.createPayForMessageSignature(signer, commit.K, options...)
 		if err != nil {
 			return err
 		}
@@ -132,12 +125,12 @@ func (msg *MsgWirePayForMessage) GetSigners() []sdk.AccAddress {
 
 // createPayForMessageSignature generates the signature for a PayForMessage for a single square
 // size using the info from a MsgWirePayForMessage
-func (msg *MsgWirePayForMessage) createPayForMessageSignature(signer *KeyringSigner, builder sdkclient.TxBuilder, k uint64) ([]byte, error) {
+func (msg *MsgWirePayForMessage) createPayForMessageSignature(signer *KeyringSigner, k uint64, options ...TxBuilderOption) ([]byte, error) {
 	pfm, err := msg.unsignedPayForMessage(k)
 	if err != nil {
 		return nil, err
 	}
-	tx, err := signer.BuildSignedTx(builder, pfm)
+	tx, err := signer.BuildSignedTx(pfm, options...)
 	if err != nil {
 		return nil, err
 	}
