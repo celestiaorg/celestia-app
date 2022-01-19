@@ -81,6 +81,9 @@ func BuildPayForMessageTxFromWireTx(
 	}
 	builder.SetGasLimit(origTx.GetGas())
 	builder.SetFeeAmount(origTx.GetFee())
+	builder.SetMemo(origTx.GetMemo())
+	builder.SetFeeGranter(origTx.FeeGranter())
+	builder.SetTimeoutHeight(origTx.GetTimeoutHeight())
 
 	origSigs, err := origTx.GetSignaturesV2()
 	if err != nil {
