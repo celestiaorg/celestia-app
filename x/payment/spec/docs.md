@@ -16,6 +16,68 @@ The malleated transaction that is created from metadata contained in the origina
 
 ## PreProcessTxs
 The malleation process occurs during the PreProcessTxs step.
+```go
+// ProcessWirePayForMessage will perform the processing required by PreProcessTxs.
+// It parses the MsgWirePayForMessage to produce the components needed to create a
+// single  MsgPayForMessage
+func ProcessWirePayForMessage(msg *MsgWirePayForMessage, squareSize uint64) (*tmproto.Message, *MsgPayForMessage, []byte, error) {
+	// make sure that a ShareCommitAndSignature of the correct size is
+	// included in the message
+	var shareCommit *ShareCommitAndSignature
+	for _, commit := range msg.MessageShareCommitment {
+		if commit.K == squareSize {
+			shareCommit = &commit
+		}
+	}
+	if shareCommit == nil {
+		return nil,
+			nil,
+			nil,
+			fmt.Errorf("message does not commit to current square size: %d", squareSize)
+	}
+
+	// add the message to the list of core message to be returned to ll-core
+	coreMsg := tmproto.Message{
+		NamespaceId: msg.GetMessageNameSpaceId(),
+		Data:        msg.GetMessage(),
+	}
+
+	// wrap the signed transaction data
+	pfm, err := msg.unsignedPayForMessage(squareSize)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return &coreMsg, pfm, shareCommit.Signature, nil
+}
+
+// PreprocessTxs fullfills the celestia-core version of the ACBI interface, by
+// performing basic validation for the incoming txs, and by cleanly separating
+// share messages from transactions
+func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePreprocessTxs {
+	squareSize := app.SquareSize()
+	var shareMsgs []*core.Message
+	var processedTxs [][]byte
+	for _, rawTx := range txs.Txs {
+        // boiler plate
+		...
+		// parse wire message and create a single message
+		coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForMessage(wireMsg, app.SquareSize())
+		if err != nil {
+			continue
+		}
+
+		// create the signed PayForMessage using the fees, gas limit, and sequence from
+		// the original transaction, along with the appropriate signature.
+		signedTx, err := types.BuildPayForMessageTxFromWireTx(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFM)
+		if err != nil {
+			app.Logger().Error("failure to create signed PayForMessage", err)
+			continue
+		}
+    ...
+	// boiler plate
+}
+```
 
 ## Events
 TODO after events are added.
