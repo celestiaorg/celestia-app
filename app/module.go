@@ -19,7 +19,7 @@ type stakingModule struct {
 	staking.AppModuleBasic
 }
 
-// DefaultGenesis returns custom Umee x/staking module genesis state.
+// DefaultGenesis returns custom x/staking module genesis state.
 func (stakingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	params := stakingtypes.DefaultParams()
 	params.BondDenom = BondDenom
@@ -33,7 +33,7 @@ type crisisModule struct {
 	crisis.AppModuleBasic
 }
 
-// DefaultGenesis returns custom Umee x/crisis module genesis state.
+// DefaultGenesis returns custom x/crisis module genesis state.
 func (crisisModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(&crisistypes.GenesisState{
 		ConstantFee: sdk.NewCoin(BondDenom, sdk.NewInt(1000)),
@@ -44,7 +44,7 @@ type mintModule struct {
 	mint.AppModuleBasic
 }
 
-// DefaultGenesis returns custom Umee x/crisis module genesis state.
+// DefaultGenesis returns custom x/mint module genesis state.
 func (mintModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	params := minttypes.DefaultParams()
 	params.MintDenom = BondDenom
