@@ -35,17 +35,6 @@ jobs:
         run: |
           go test ./... -mod=readonly -timeout 12m -race -coverprofile=coverage.txt -covermode=atomic -tags='ledger test_ledger_mock'
         if: "env.GIT_DIFF != ''"
-      - name: filter out DONTCOVER
-        run: |
-          excludelist="$(find ./ -type f -name '*.go' | xargs grep -l 'DONTCOVER')"
-          excludelist+=" $(find ./ -type f -name '*.pb.go')"
-          excludelist+=" $(find ./ -type f -path './tests/mocks/*.go')"
-          for filename in ${excludelist}; do
-            filename=$(echo $filename | sed 's/^./github.com\/celestiaorg\/celestia-app/g')
-            echo "Excluding ${filename} from coverage report..."
-            sed -i.bak "/$(echo $filename | sed 's/\//\\\//g')/d" coverage.txt
-          done
-        if: "env.GIT_DIFF != ''"
       - uses: codecov/codecov-action@v2.1.0
         with:
           file: ./coverage.txt # optional
