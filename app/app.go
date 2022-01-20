@@ -328,6 +328,7 @@ func New(
 
 	app.mm = module.NewManager(
 		genutil.NewAppModule(
+
 			app.AccountKeeper, app.StakingKeeper, app.BaseApp.DeliverTx,
 			encodingConfig.TxConfig,
 		),
