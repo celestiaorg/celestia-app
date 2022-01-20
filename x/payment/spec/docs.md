@@ -53,7 +53,7 @@ func ProcessWirePayForMessage(msg *MsgWirePayForMessage, squareSize uint64) (*tm
 	return &coreMsg, pfm, shareCommit.Signature, nil
 }
 
-// PreprocessTxs fullfills the celestia-core version of the ACBI interface, by
+// PreprocessTxs fulfills the celestia-core version of the ABCI interface, by
 // performing basic validation for the incoming txs, and by cleanly separating
 // share messages from transactions
 func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePreprocessTxs {
