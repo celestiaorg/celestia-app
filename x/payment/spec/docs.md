@@ -5,8 +5,8 @@ The payment module is responsible for paying for arbitrary data that will be add
 Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
 
 ## State
-- The sender’s account balance, via the bank keeper’s [`Burn`](https://github.com/cosmos/cosmos-sdk/blob/master/x/bank/spec/01_state.md) method.
-- The standard incrememnt of the sender's account number via the [auth module](https://github.com/cosmos/cosmos-sdk/blob/master/x/auth/spec/02_state.md#accounts).
+- The sender’s account balance, via the bank keeper’s [`Burn`](https://github.com/cosmos/cosmos-sdk/blob/531bf5084516425e8e3d24bae637601b4d36a191/x/bank/spec/01_state.md) method.
+- The standard incrememnt of the sender's account number via the [auth module](https://github.com/cosmos/cosmos-sdk/blob/531bf5084516425e8e3d24bae637601b4d36a191/x/auth/spec/02_state.md).
 
 ## Messages
 - [`MsgWirePayForMessage`](https://github.com/celestiaorg/celestia-app/blob/b4c8ebdf35db200a9b99d295a13de01110802af4/x/payment/types/tx.pb.go#L32-L40)
