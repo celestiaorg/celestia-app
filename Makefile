@@ -2,6 +2,8 @@ PACKAGES=$(shell go list ./... | grep -v '/simulation')
 COMMIT := $(shell git log -1 --format='%H')
 DOCKER := $(shell which docker)
 DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
+IMAGE := ghcr.io/tendermint/docker-build-proto:latest
+DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 
 all: install
 
@@ -36,6 +38,11 @@ proto-gen:
 
 proto-lint:
 	@$(DOCKER_BUF) lint --error-format=json
+
+proto-format:
+	@echo "Formatting Protobuf files"
+	@$(DOCKER_PROTO_BUILDER) find . -name '*.proto' -path "./proto/*" -exec clang-format -i {} \;
+.PHONY: proto-format
 
 build-docker:
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .

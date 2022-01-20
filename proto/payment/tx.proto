@@ -6,45 +6,48 @@ import "google/api/annotations.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/payment/types";
 
-
 // Msg defines the payment Msg service.
 service Msg {
-    // PayForMessage allows the user to pay for the inclusion of a message
-    rpc PayForMessage(MsgPayForMessage) returns (MsgPayForMessageResponse) {
-      option (google.api.http).get = "/celestia/payment/payformessage";
+  // PayForMessage allows the user to pay for the inclusion of a message
+  rpc PayForMessage(MsgPayForMessage) returns (MsgPayForMessageResponse) {
+    option (google.api.http).get = "/celestia/payment/payformessage";
   }
-  }
+}
 
-// MsgWirePayForMessage describes the format of data that is sent over the wire for
-// each PayForMessage
+// MsgWirePayForMessage describes the format of data that is sent over the wire
+// for each PayForMessage
 message MsgWirePayForMessage {
   string signer = 1;
   bytes message_name_space_id = 2; // assume this is 8 bytes!
   uint64 message_size = 3;
   bytes message = 4;
-  repeated ShareCommitAndSignature message_share_commitment = 6 [(gogoproto.nullable) = false];
+  repeated ShareCommitAndSignature message_share_commitment = 6
+      [ (gogoproto.nullable) = false ];
 }
 
-// MsgWirePayForMessageResponse describes the response returned after the submission of a WirePayForMessage
+// MsgWirePayForMessageResponse describes the response returned after the
+// submission of a WirePayForMessage
 message MsgWirePayForMessageResponse {}
 
-// ShareCommitAndSignature defines the 
+// ShareCommitAndSignature defines the
 message ShareCommitAndSignature {
   uint64 k = 1;
   bytes share_commitment = 2;
   bytes signature = 3; // signature on one SignedTransactionPayForMessage
 }
 
-// MsgPayForMessage is what gets signed by users when creating ShareCommitSignatures.
-//  Multiple versions are signed and included, each version creates a commitment for a 
+// MsgPayForMessage is what gets signed by users when creating
+// ShareCommitSignatures.
+//  Multiple versions are signed and included, each version creates a commitment
+//  for a
 // specific square size.
 message MsgPayForMessage {
-    string signer = 1;
-    bytes message_namespace_id = 2;
-    uint64 message_size = 3;
-    bytes message_share_commitment = 4;
+  string signer = 1;
+  bytes message_namespace_id = 2;
+  uint64 message_size = 3;
+  bytes message_share_commitment = 4;
 }
 
-// MsgPayForMessageResponse describes the response returned after the submission of a PayForMessage
+// MsgPayForMessageResponse describes the response returned after the submission
+// of a PayForMessage
 message MsgPayForMessageResponse {}
-
