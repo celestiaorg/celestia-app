@@ -84,6 +84,8 @@ import (
 const (
 	AccountAddressPrefix = "celes"
 	Name                 = "celestia-app"
+	// BondDenom defines the native staking token denomination.
+	BondDenom = "celes"
 )
 
 var (
@@ -98,11 +100,11 @@ var (
 		genutil.AppModuleBasic{},
 		bank.AppModuleBasic{},
 		capability.AppModuleBasic{},
-		staking.AppModuleBasic{},
-		mint.AppModuleBasic{},
+		stakingModule{},
+		mintModule{},
 		distr.AppModuleBasic{},
 		params.AppModuleBasic{},
-		crisis.AppModuleBasic{},
+		crisisModule{},
 		slashing.AppModuleBasic{},
 		feegrantmodule.AppModuleBasic{},
 		ibc.AppModuleBasic{},
