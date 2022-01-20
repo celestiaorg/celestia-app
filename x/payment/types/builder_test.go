@@ -30,7 +30,7 @@ func TestBuildWirePayForMessage(t *testing.T) {
 	msg, err := NewWirePayForMessage(namespace, message, 4, 16, 32)
 	require.NoError(t, err)
 
-	signedTx, err := k.BuildSignedTx(msg)
+	signedTx, err := k.BuildSignedTx(k.NewTxBuilder(), msg)
 	require.NoError(t, err)
 
 	rawTx, err := makeEncodingConfig().TxConfig.TxEncoder()(signedTx)
@@ -83,7 +83,7 @@ func TestBroadcastPayForMessage(t *testing.T) {
 	msg, err := NewWirePayForMessage(namespace, message, 4, 16, 32)
 	require.NoError(t, err)
 
-	signedTx, err := k.BuildSignedTx(msg)
+	signedTx, err := k.BuildSignedTx(builder, msg)
 	require.NoError(t, err)
 
 	encodedTx, err := k.EncodeTx(signedTx)
