@@ -125,6 +125,8 @@ if err != nil {
     return err
 }
 
+// Build and sign the final `WirePayForMessage` tx that now contians the signatures
+// for potential `MsgPayForMessage`s
 signedTx, err := keyringSigner.BuildSignedTx(
     gasLimOption(signer.NewTxBuilder()),
     wpfmMsg,
