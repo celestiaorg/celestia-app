@@ -33,7 +33,7 @@ jobs:
           make build
       - name: test & coverage report creation
         run: |
-          go test ./... -mod=readonly -timeout 12m -race -coverprofile=coverage.txt -covermode=atomic -tags='ledger test_ledger_mock'
+          go test ./... -mod=readonly -timeout 12m -coverprofile=coverage.txt -covermode=atomic -tags='ledger test_ledger_mock'
         if: "env.GIT_DIFF != ''"
       - uses: codecov/codecov-action@v2.1.0
         with:
