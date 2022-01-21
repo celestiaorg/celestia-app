@@ -153,7 +153,7 @@ func addGenesisAccount(addr sdk.AccAddress, appState map[string]json.RawMessage,
 
 	coins := sdk.Coins{
 		sdk.NewCoin("token", sdk.NewInt(1000000)),
-		sdk.NewCoin("celes", sdk.NewInt(1000000)),
+		sdk.NewCoin(BondDenom, sdk.NewInt(1000000)),
 	}
 
 	balances := banktypes.Balance{Address: addr.String(), Coins: coins.Sort()}

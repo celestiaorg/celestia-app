@@ -76,8 +76,8 @@ func DefaultConfig() network.Config {
 		TimeoutCommit:   2 * time.Second,
 		ChainID:         "chain-" + tmrand.NewRand().Str(6),
 		NumValidators:   1,
-		BondDenom:       "celes",
-		MinGasPrices:    fmt.Sprintf("0.000006%s", "celes"),
+		BondDenom:       app.BondDenom,
+		MinGasPrices:    fmt.Sprintf("0.000006%s", app.BondDenom),
 		AccountTokens:   sdk.TokensFromConsensusPower(1000, sdk.DefaultPowerReduction),
 		StakingTokens:   sdk.TokensFromConsensusPower(500, sdk.DefaultPowerReduction),
 		BondedTokens:    sdk.TokensFromConsensusPower(100, sdk.DefaultPowerReduction),
@@ -120,7 +120,7 @@ func newGenAccout(kr keyring.Keyring, name string, amount int64) (authtypes.Gene
 	// create coin
 	balances := sdk.NewCoins(
 		sdk.NewCoin(fmt.Sprintf("%stoken", name), sdk.NewInt(amount)),
-		sdk.NewCoin("celes", sdk.NewInt(amount)),
+		sdk.NewCoin(app.BondDenom, sdk.NewInt(amount)),
 	)
 
 	bal := banktypes.Balance{
