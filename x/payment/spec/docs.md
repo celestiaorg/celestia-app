@@ -1,0 +1,147 @@
+## Abstract
+
+The payment module is responsible for paying for arbitrary data that will be added to the Celestia blockchain. While the data being submitted can be arbitrary, the exact placement of that data is important for the transaction to be valid. This is why the payment module utilizes a malleated transaction scheme. Malleated transactions allow for users to create a single transaction, that can later be malleated by the block producer to create a variety of different valid transactions that are still signed over by the user. To accomplish this, users create a single `MsgWirePayForMessage` transaction, which is composed of metadata and signatures for multiple variations of the transaction that will be included onchain. After the transaction is submitted to the network, the block producer selects the appropriate signature and creates a valid `MsgPayForMessage` transaction depending on the square size for that block. This new malleated `MsgPayForMessage` transaction is what ends up onchain. 
+
+Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
+
+## State
+- The sender’s account balance, via the bank keeper’s [`Burn`](https://github.com/cosmos/cosmos-sdk/blob/531bf5084516425e8e3d24bae637601b4d36a191/x/bank/spec/01_state.md) method.
+- The standard incrememnt of the sender's account number via the [auth module](https://github.com/cosmos/cosmos-sdk/blob/531bf5084516425e8e3d24bae637601b4d36a191/x/auth/spec/02_state.md).
+
+## Messages
+- [`MsgWirePayForMessage`](https://github.com/celestiaorg/celestia-app/blob/b4c8ebdf35db200a9b99d295a13de01110802af4/x/payment/types/tx.pb.go#L32-L40)
+
+While this transaction is created and signed by the user, it never actually ends up onchain. Instead, it is used to create a new "malleated" transaction that does get included onchain.
+- [`MsgPayForMessage`](https://github.com/celestiaorg/celestia-app/blob/b4c8ebdf35db200a9b99d295a13de01110802af4/x/payment/types/tx.pb.go#L208-L216)
+
+The malleated transaction that is created from metadata contained in the original `MsgWirePayForMessage`. It also burns some of the sender’s funds.
+
+## PreProcessTxs
+The malleation process occurs during the PreProcessTxs step.
+```go
+// ProcessWirePayForMessage will perform the processing required by PreProcessTxs.
+// It parses the MsgWirePayForMessage to produce the components needed to create a
+// single  MsgPayForMessage
+func ProcessWirePayForMessage(msg *MsgWirePayForMessage, squareSize uint64) (*tmproto.Message, *MsgPayForMessage, []byte, error) {
+	// make sure that a ShareCommitAndSignature of the correct size is
+	// included in the message
+	var shareCommit *ShareCommitAndSignature
+	for _, commit := range msg.MessageShareCommitment {
+		if commit.K == squareSize {
+			shareCommit = &commit
+		}
+	}
+	if shareCommit == nil {
+		return nil,
+			nil,
+			nil,
+			fmt.Errorf("message does not commit to current square size: %d", squareSize)
+	}
+
+	// add the message to the list of core message to be returned to ll-core
+	coreMsg := tmproto.Message{
+		NamespaceId: msg.GetMessageNameSpaceId(),
+		Data:        msg.GetMessage(),
+	}
+
+	// wrap the signed transaction data
+	pfm, err := msg.unsignedPayForMessage(squareSize)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return &coreMsg, pfm, shareCommit.Signature, nil
+}
+
+// PreprocessTxs fulfills the celestia-core version of the ABCI interface, by
+// performing basic validation for the incoming txs, and by cleanly separating
+// share messages from transactions
+func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePreprocessTxs {
+	squareSize := app.SquareSize()
+	var shareMsgs []*core.Message
+	var processedTxs [][]byte
+	for _, rawTx := range txs.Txs {
+        // boiler plate
+		...
+		// parse wire message and create a single message
+		coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForMessage(wireMsg, app.SquareSize())
+		if err != nil {
+			continue
+		}
+
+		// create the signed PayForMessage using the fees, gas limit, and sequence from
+		// the original transaction, along with the appropriate signature.
+		signedTx, err := types.BuildPayForMessageTxFromWireTx(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFM)
+		if err != nil {
+			app.Logger().Error("failure to create signed PayForMessage", err)
+			continue
+		}
+    ...
+	// boiler plate
+}
+```
+
+## Events
+TODO after events are added.
+
+## Parameters
+There are no parameters yet, but we might add
+- BaseFee
+- SquareSize
+- ShareSize
+
+### Usage 
+`celestia-app tx payment payForMessage <hex encoded namespace> <hex encoded data> [flags]`
+
+### Programmatic Usage
+There are tools to programmatically create, sign, and broadcast `MsgWirePayForMessages`
+```go
+// create the raw WirePayForMessage transaction
+wpfmMsg, err := apptypes.NewWirePayForMessage(block.Header.NamespaceId, message, 16, 32, 64, 128)
+if err != nil {
+    return err
+}
+
+// we need to create a signature for each `MsgPayForMessage`s that 
+// could be generated by the block producer
+// to do this, we create a custom `KeyringSigner` to sign messages programmatically
+// which uses the standard cosmos-sdk `Keyring` to sign each `MsgPayForMessage`
+keyringSigner, err := NewKeyringSigner(keyring, "keyring account name", "chain-id-1")
+if err != nil {
+    return err
+}
+
+// query for account information necessary to sign a valid tx
+err = keyringSigner.QueryAccount(ctx, grpcClientConn)
+if err != nil {
+    return err
+}
+
+// generate the signatures for each `MsgPayForMessage` using the `KeyringSigner`, 
+// then set the gas limit for the tx 
+gasLimOption := types.SetGasLimit(200000)
+err = pfmMsg.SignShareCommitments(keyringSigner, gasLimOption)
+if err != nil {
+    return err
+}
+
+// Build and sign the final `WirePayForMessage` tx that now contians the signatures
+// for potential `MsgPayForMessage`s
+signedTx, err := keyringSigner.BuildSignedTx(
+    gasLimOption(signer.NewTxBuilder()),
+    wpfmMsg,
+)
+if err != nil {
+    return err
+}
+```
+
+### How the commitments are generated
+1) create the final version of the message by adding the length delimiter, the namespace, and then the message together into a single string of bytes
+```
+finalMessage = [length delimiter] + [namespace] + [message]
+```
+2) chunk the finalMessage into shares of size `consts.ShareSize`
+3) pad until number of shares is a power of two
+4) create the commitment by aranging the shares into a merkle mountain range
+5) create a merkle root of the subtree roots
