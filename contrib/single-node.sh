@@ -16,13 +16,13 @@ if [ -z "$2" ]; then
 fi
 
 # Build genesis file incl account for passed address
-coins="10000000000stake,100000000000samoleans"
+coins="10000000000celes,100000000000samoleans"
 celestia-appd init $CHAINID --chain-id $CHAINID 
 celestia-appd keys add validator --keyring-backend="test"
 # this won't work because the some proto types are decalared twice and the logs output to stdout (dependency hell involving iavl)
 celestia-appd add-genesis-account $(celestia-appd keys show validator -a --keyring-backend="test") $coins
 celestia-appd add-genesis-account $GENACCT $coins
-celestia-appd gentx validator 5000000000stake --keyring-backend="test" --chain-id $CHAINID
+celestia-appd gentx validator 5000000000celes --keyring-backend="test" --chain-id $CHAINID
 celestia-appd collect-gentxs
 
 # Set proper defaults and change ports
