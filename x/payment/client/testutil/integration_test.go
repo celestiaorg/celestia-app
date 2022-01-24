@@ -16,6 +16,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	paycli "github.com/celestiaorg/celestia-app/x/payment/client/cli"
+	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
 )
 
 // username is used to create a funded genesis account under this name
