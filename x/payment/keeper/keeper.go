@@ -11,10 +11,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-const (
-	TokenDenomination = "tia"
-)
-
 // Keeper handles all the state changes for the celestia-app module.
 type Keeper struct {
 	cdc      codec.BinaryCodec

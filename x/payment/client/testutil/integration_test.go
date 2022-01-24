@@ -9,11 +9,12 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/celestiaorg/celestia-app/testutil/network"
-	paycli "github.com/celestiaorg/celestia-app/x/payment/client/cli"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	cosmosnet "github.com/cosmos/cosmos-sdk/testutil/network"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/celestiaorg/celestia-app/testutil/network"
+	paycli "github.com/celestiaorg/celestia-app/x/payment/client/cli"
 )
 
 // username is used to create a funded genesis account under this name
@@ -74,7 +75,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 				hexMsg,
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
-				fmt.Sprintf("--%s=%s", flags.FlagFees, "2stake"),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 			},
 			false, 0, &sdk.TxResponse{},

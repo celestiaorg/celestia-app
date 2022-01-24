@@ -145,7 +145,7 @@ func (ao emptyAppOptions) Get(o string) interface{} {
 }
 
 // addGenesisAccount mimics the cli addGenesisAccount command, providing an
-// account with an allocation of to "token" and "stake" tokens in the genesis
+// account with an allocation of to "token" and "celes" tokens in the genesis
 // state
 func addGenesisAccount(addr sdk.AccAddress, appState map[string]json.RawMessage, cdc codec.Codec) (map[string]json.RawMessage, error) {
 	// create concrete account type based on input parameters
@@ -153,7 +153,7 @@ func addGenesisAccount(addr sdk.AccAddress, appState map[string]json.RawMessage,
 
 	coins := sdk.Coins{
 		sdk.NewCoin("token", sdk.NewInt(1000000)),
-		sdk.NewCoin("stake", sdk.NewInt(1000000)),
+		sdk.NewCoin(BondDenom, sdk.NewInt(1000000)),
 	}
 
 	balances := banktypes.Balance{Address: addr.String(), Coins: coins.Sort()}

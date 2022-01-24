@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -20,6 +19,8 @@ import (
 	"github.com/tendermint/spm/cosmoscmd"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmdb "github.com/tendermint/tm-db"
+
+	"github.com/celestiaorg/celestia-app/app"
 )
 
 func New(t *testing.T, config network.Config, genAccNames ...string) *network.Network {
@@ -75,8 +76,8 @@ func DefaultConfig() network.Config {
 		TimeoutCommit:   2 * time.Second,
 		ChainID:         "chain-" + tmrand.NewRand().Str(6),
 		NumValidators:   1,
-		BondDenom:       sdk.DefaultBondDenom,
-		MinGasPrices:    fmt.Sprintf("0.000006%s", sdk.DefaultBondDenom),
+		BondDenom:       app.BondDenom,
+		MinGasPrices:    fmt.Sprintf("0.000006%s", app.BondDenom),
 		AccountTokens:   sdk.TokensFromConsensusPower(1000, sdk.DefaultPowerReduction),
 		StakingTokens:   sdk.TokensFromConsensusPower(500, sdk.DefaultPowerReduction),
 		BondedTokens:    sdk.TokensFromConsensusPower(100, sdk.DefaultPowerReduction),
@@ -119,7 +120,7 @@ func newGenAccout(kr keyring.Keyring, name string, amount int64) (authtypes.Gene
 	// create coin
 	balances := sdk.NewCoins(
 		sdk.NewCoin(fmt.Sprintf("%stoken", name), sdk.NewInt(amount)),
-		sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(amount)),
+		sdk.NewCoin(app.BondDenom, sdk.NewInt(amount)),
 	)
 
 	bal := banktypes.Balance{
