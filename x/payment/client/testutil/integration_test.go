@@ -3,6 +3,7 @@ package testutil
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	paycli "github.com/celestiaorg/celestia-app/x/payment/client/cli"
+	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
 )
 
 // username is used to create a funded genesis account under this name
@@ -105,6 +107,17 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 				for i := 0; i < len(events); i++ {
 					s.Equal("/payment.MsgPayForMessage", events[i].GetAttributes()[0].Value)
 				}
+
+				// wait for the tx to be indexed
+				time.Sleep(time.Second * 3)
+
+				// attempt to query for the malleated transaction using the original tx's hash
+				qTxCmd := authcmd.QueryTxCmd()
+				out, err := clitestutil.ExecTestCLICmd(clientCtx, qTxCmd, []string{txResp.TxHash, "--output=json"})
+				require.NoError(err)
+
+				var result sdk.TxResponse
+				s.Require().NoError(val.ClientCtx.Codec.UnmarshalJSON(out.Bytes(), &result))
 			}
 		})
 	}

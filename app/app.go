@@ -206,7 +206,7 @@ func New(
 
 	dec := encodingConfig.TxConfig.TxDecoder()
 
-	bApp := baseapp.NewBaseApp(Name, logger, db, ChildTxDecoder(dec), baseAppOptions...)
+	bApp := baseapp.NewBaseApp(Name, logger, db, MalleatedTxDecoder(dec), baseAppOptions...)
 	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)

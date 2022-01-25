@@ -4,6 +4,4 @@ package payment;
 option go_package = "github.com/celestiaorg/celestia-app/x/payment/types";
 
 // GenesisState defines the capability module's genesis state.
-message GenesisState {
-}
-
+message GenesisState {}
