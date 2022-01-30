@@ -86,7 +86,7 @@ const (
 	Name                 = "celestia-app"
 	// BondDenom defines the native staking token denomination.
 	BondDenom = "uceles"
-	// DisplayDenom defines the name, symbol, and display value of the umee token.
+	// DisplayDenom defines the name, symbol, and display value of the celes token.
 	DisplayDenom = "CELES"
 )
 
