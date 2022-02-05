@@ -6,11 +6,11 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/tendermint/tendermint/pkg/consts"
+	//"github.com/tendermint/tendermint/pkg/consts"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/celestiaorg/celestia-app/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -52,7 +52,12 @@ func CmdWirePayForMessage() *cobra.Command {
 			}
 
 			// create the MsgPayForMessage
-			pfmMsg, err := types.NewWirePayForMessage(namespace, message, consts.MaxSquareSize)
+			squareSize, err := cmd.Flags().GetUint64("square-size")
+			if err != nil {
+				return err
+			}
+			pfmMsg, err := types.NewWirePayForMessage(namespace, message, squareSize)
+
 			if err != nil {
 				return err
 			}
