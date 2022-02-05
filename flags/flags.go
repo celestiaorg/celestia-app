@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
-
+	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 )
 
@@ -124,7 +124,7 @@ func AddTxFlagsToCmd(cmd *cobra.Command) {
 	cmd.Flags().String(FlagTip, "", "Tip is the amount that is going to be transferred to the fee payer on the target chain. This flag is only valid when used with --aux")
 	cmd.Flags().String(FlagTipper, "", "Tipper will pay for tips for executing the tx on the target chain. This flag is only valid when used with --aux")
 	cmd.Flags().Bool(FlagAux, false, "Generate aux signer data instead of sending a tx")
-	cmd.Flags().Uint64(FlagSquareSize, 16, "Square size")
+	cmd.Flags().Uint64(FlagSquareSize, consts.MaxSquareSize, "Specify the square size")
 
 	// --gas can accept integers and "auto"
 	cmd.Flags().String(FlagGas, "", fmt.Sprintf("gas limit to set per-transaction; set to %q to calculate sufficient gas automatically (default %d)", GasFlagAuto, DefaultGasLimit))
