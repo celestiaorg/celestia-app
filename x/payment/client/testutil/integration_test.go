@@ -5,7 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/client/flags"
+	//"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/celestiaorg/celestia-app/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/suite"
@@ -79,6 +80,19 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+			},
+			false, 0, &sdk.TxResponse{},
+		},
+		{
+			"valid transaction square size 64",
+			[]string{
+				hexNS,
+				hexMsg,
+				fmt.Sprintf("--from=%s", username),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+				fmt.Sprintf("--%s=%s", flags.FlagSquareSize, "64"),
 			},
 			false, 0, &sdk.TxResponse{},
 		},
