@@ -85,7 +85,9 @@ const (
 	AccountAddressPrefix = "celes"
 	Name                 = "celestia-app"
 	// BondDenom defines the native staking token denomination.
-	BondDenom = "celes"
+	BondDenom = "uceles"
+	// DisplayDenom defines the name, symbol, and display value of the celes token.
+	DisplayDenom = "CELES"
 )
 
 var (
@@ -98,7 +100,7 @@ var (
 	ModuleBasics = module.NewBasicManager(
 		auth.AppModuleBasic{},
 		genutil.AppModuleBasic{},
-		bank.AppModuleBasic{},
+		bankModule{},
 		capability.AppModuleBasic{},
 		stakingModule{},
 		mintModule{},

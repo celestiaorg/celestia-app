@@ -5,6 +5,8 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/bank"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 	"github.com/cosmos/cosmos-sdk/x/mint"
@@ -12,6 +14,42 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
+
+// bankModule defines a custom wrapper around the x/bank module's AppModuleBasic
+// implementation to provide custom default genesis state.
+type bankModule struct {
+	bank.AppModuleBasic
+}
+
+// DefaultGenesis returns custom x/bank module genesis state.
+func (bankModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
+	metadata := banktypes.Metadata{
+		Description: "The native staking token of the Celestia network.",
+		Base:        BondDenom,
+		Name:        DisplayDenom,
+		Display:     DisplayDenom,
+		Symbol:      DisplayDenom,
+		DenomUnits: []*banktypes.DenomUnit{
+			{
+				Denom:    BondDenom,
+				Exponent: 0,
+				Aliases: []string{
+					"microceles",
+				},
+			},
+			{
+				Denom:    DisplayDenom,
+				Exponent: 6,
+				Aliases:  []string{},
+			},
+		},
+	}
+
+	genState := banktypes.DefaultGenesisState()
+	genState.DenomMetadata = append(genState.DenomMetadata, metadata)
+
+	return cdc.MustMarshalJSON(genState)
+}
 
 // stakingModule wraps the x/staking module in order to overwrite specific
 // ModuleManager APIs.
