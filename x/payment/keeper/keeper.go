@@ -34,6 +34,14 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 
 //  MsgPayForMessage moves a user's coins to the module address and burns them.
 func (k Keeper) PayForMessage(goCtx context.Context, msg *types.MsgPayForMessage) (*types.MsgPayForMessageResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	// todo(evan) add a more sophisticated fee calculation.
+	gasPrice := ctx.MinGasPrices()
+
+	err := k.bank.BurnCoins(ctx, types.ModuleName, sdk.NewCoins(sdk.NewCoin(gasPrice.GetDenomByIndex(0), sdk.NewIntFromUint64(msg.MessageSize))))
+	if err != nil {
+		return nil, err
+	}
 	return &types.MsgPayForMessageResponse{}, nil
 }
 
