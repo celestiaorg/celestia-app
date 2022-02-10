@@ -12,7 +12,7 @@ import (
 	"github.com/tendermint/spm/cosmoscmd"
 )
 
-func RegisterCodec(cdc *codec.LegacyAmino) {
+func RegisterCodec(cdc *codec.LegacyAmino) { // Add ones for QGB
 	cdc.RegisterConcrete(&MsgWirePayForMessage{}, "payment/WirePayForMessage", nil)
 	// this line is used by starport scaffolding # 2
 }
