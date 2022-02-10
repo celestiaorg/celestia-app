@@ -26,8 +26,6 @@ import (
 	dbm "github.com/tendermint/tm-db"
 )
 
-const testingKeyAcc = "test"
-
 // Get flags every time the simulator is run
 func init() {
 	simapp.GetSimulatorFlags()
