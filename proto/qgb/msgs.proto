@@ -6,11 +6,13 @@ import "google/api/annotations.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
-// Msg defines the state transitions possible within gravity
+// Msg defines the state transitions possible for QGB
 service Msg {
+  // ValsetConfirm allows the validators to submit their signatures over the validator set.
   rpc ValsetConfirm(MsgValsetConfirm) returns (MsgValsetConfirmResponse) {
     option (google.api.http).post = "/qgb/valset_confirm";
   }
+  // DataCommitmentConfirm allows the validators to submit a confirmation for a data commitment.
   rpc DataCommitmentConfirm(MsgDataCommitmentConfirm) returns (MsgDataCommitmentConfirmResponse) {
     option (google.api.http).post = "/qgb/data_commitment_confirm";
   }
