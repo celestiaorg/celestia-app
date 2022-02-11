@@ -1,0 +1,7 @@
+syntax = "proto3";
+package qgb;
+
+option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
+
+// GenesisState defines the capability module's genesis state.
+message GenesisState {}
