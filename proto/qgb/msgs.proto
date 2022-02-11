@@ -38,12 +38,15 @@ message MsgValsetConfirm {
   string signature    = 4;
 }
 
+// MsgValsetConfirmResponse describes the response returned after the submission
+// of a MsgValsetConfirm.
 message MsgValsetConfirmResponse {}
 
-// DataCommitmentConfirm
-// Does something
+// MsgDataCommitmentConfirm describes a data commitment for a set of blocks.
 message MsgDataCommitmentConfirm {
   bytes data_root = 1;
 }
 
+// MsgValsetConfirmResponse describes the response returned after the submission
+// of a MsgDataCommitmentConfirm.
 message MsgDataCommitmentConfirmResponse {}
