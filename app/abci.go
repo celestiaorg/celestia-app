@@ -58,7 +58,6 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 			continue
 		}
 
-		squareSize := wireMsg.MessageShareCommitment[0].K
 		// parse wire message and create a single message
 		coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForMessage(wireMsg, app.SquareSize())
 		if err != nil {
