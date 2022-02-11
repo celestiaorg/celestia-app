@@ -30,6 +30,9 @@ func NewWirePayForMessage(namespace, message []byte, sizes ...uint64) (*MsgWireP
 
 	// generate the share commitments
 	for i, size := range sizes {
+		if !powerOf2(size) {
+			return nil, fmt.Errorf("Invalid square size, the size must be power of 2: %d", size)
+		}
 		commit, err := CreateCommitment(size, namespace, message)
 		if err != nil {
 			return nil, err
@@ -104,6 +107,10 @@ func (msg *MsgWirePayForMessage) ValidateBasic() error {
 		calculatedCommit, err := CreateCommitment(commit.K, msg.GetMessageNameSpaceId(), msg.Message)
 		if err != nil {
 			return err
+		}
+
+		if !powerOf2(commit.K) {
+			return fmt.Errorf("invalid square size, the size must be power of 2: %d", commit.K)
 		}
 
 		if string(calculatedCommit) != string(commit.ShareCommitment) {
@@ -205,4 +212,14 @@ func ProcessWirePayForMessage(msg *MsgWirePayForMessage, squareSize uint64) (*tm
 	}
 
 	return &coreMsg, pfm, shareCommit.Signature, nil
+}
+
+
+// Check if number is power of 2
+func powerOf2(size uint64) bool {
+	if size & (size-1) == 0 {
+		return true
+	} else {
+		return false
+	}
 }
