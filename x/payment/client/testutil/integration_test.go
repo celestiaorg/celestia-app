@@ -84,7 +84,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 			false, 0, &sdk.TxResponse{},
 		},
 		{
-			"valid transaction square size 64",
+			"valid transaction list of square sizes",
 			[]string{
 				hexNS,
 				hexMsg,
@@ -92,7 +92,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-				fmt.Sprintf("--%s=%s", cflags.FlagSquareSize, "64"),
+				fmt.Sprintf("--%s=%s", cflags.FlagSquareSizes, "256,128,64"),
 			},
 			false, 0, &sdk.TxResponse{},
 		},
