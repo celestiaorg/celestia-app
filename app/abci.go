@@ -9,6 +9,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -17,6 +18,7 @@ import (
 // performing basic validation for the incoming txs, and by cleanly separating
 // share messages from transactions
 func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePreprocessTxs {
+	squareSize := app.SquareSize()
 	shareCounter := uint64(0)
 	var shareMsgs []*core.Message
 	var processedTxs [][]byte
@@ -58,7 +60,7 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 
 		squareSize := wireMsg.MessageShareCommitment[0].K
 		// parse wire message and create a single message
-		coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForMessage(wireMsg, squareSize)
+		coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForMessage(wireMsg, app.SquareSize())
 		if err != nil {
 			continue
 		}
@@ -114,4 +116,10 @@ func hasWirePayForMessage(tx sdk.Tx) bool {
 		}
 	}
 	return false
+}
+
+// SquareSize returns the current square size. Currently, the square size is
+// hardcoded. todo(evan): don't hardcode the square size
+func (app *App) SquareSize() uint64 {
+	return consts.MaxSquareSize
 }
