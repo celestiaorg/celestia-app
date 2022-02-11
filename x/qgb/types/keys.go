@@ -12,4 +12,7 @@ const (
 
 	// QuerierRoute to be used for querierer msgs
 	QuerierRoute = ModuleName
+
+	// MemStoreKey defines the in-memory store key
+	MemStoreKey = "mem_payment"
 )

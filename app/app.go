@@ -312,13 +312,19 @@ func New(
 	// If evidence needs to be handled for the app, set routes in router here and seal
 	app.EvidenceKeeper = *evidenceKeeper
 
-	app.PaymentKeeper = *paymentmodulekeeper.NewKeeper( // ? also similar ?
+	app.PaymentKeeper = *paymentmodulekeeper.NewKeeper(
 		appCodec,
 		app.BankKeeper,
 		keys[paymentmoduletypes.StoreKey],
 		keys[paymentmoduletypes.MemStoreKey],
 	)
 	paymentmodule := paymentmodule.NewAppModule(appCodec, app.PaymentKeeper)
+
+	app.QgbKeeper = *qgbmodulekeeper.NewKeeper(
+		appCodec,
+		keys[qgbmoduletypes.StoreKey],
+		keys[qgbmoduletypes.MemStoreKey],
+	)
 	qgbmodule := qgbmodule.NewAppModule(appCodec, app.QgbKeeper)
 
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
