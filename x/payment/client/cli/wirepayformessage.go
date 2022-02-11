@@ -58,10 +58,7 @@ func CmdWirePayForMessage() *cobra.Command {
 				return err
 			}
 
-			squareSizes64 := make([]uint64, len(squareSizes))
-			for i := range squareSizes {
-				squareSizes64[i] = uint64(squareSizes[i])
-			}
+			squareSizes64 := parseSquareSizes(squareSizes)
 			pfmMsg, err := types.NewWirePayForMessage(namespace, message, squareSizes64...)
 
 			if err != nil {
@@ -115,4 +112,12 @@ func CmdWirePayForMessage() *cobra.Command {
 	cflags.AddTxFlagsToCmd(cmd)
 
 	return cmd
+}
+
+func parseSquareSizes(squareSizes []uint) []uint64 {
+	squareSizes64 := make([]uint64, len(squareSizes))
+	for i := range squareSizes {
+		squareSizes64[i] = uint64(squareSizes[i])
+	}
+	return squareSizes64
 }
