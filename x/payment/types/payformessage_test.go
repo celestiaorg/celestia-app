@@ -75,6 +75,43 @@ func TestNextPowerOf2(t *testing.T) {
 	}
 }
 
+func TestPowerOf2 (t *testing.T) {
+	type test struct {
+		input uint64
+		expected bool
+	}
+	tests := []test {
+		{
+			input: 1,
+			expected: true,
+		},
+		{
+			input: 2,
+			expected: true,
+		},
+		{
+			input: 256,
+			expected: true,
+		},
+		{
+			input: 3,
+			expected: false,
+		},
+		{
+			input: 79,
+			expected: false,
+		},
+		{
+			input: 0,
+			expected: false,
+		},
+	}
+	for _, tt := range tests {
+		res := powerOf2(tt.input)
+		assert.Equal(t, tt.expected, res)
+	}
+}
+
 // TestCreateCommit only shows if something changed, it doesn't actually show
 // the commit is being created correctly todo(evan): fix me.
 func TestCreateCommitment(t *testing.T) {
