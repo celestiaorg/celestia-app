@@ -213,13 +213,3 @@ func ProcessWirePayForMessage(msg *MsgWirePayForMessage, squareSize uint64) (*tm
 
 	return &coreMsg, pfm, shareCommit.Signature, nil
 }
-
-
-// Check if number is power of 2
-func powerOf2(size uint64) bool {
-	if size & (size-1) == 0 {
-		return true
-	} else {
-		return false
-	}
-}
