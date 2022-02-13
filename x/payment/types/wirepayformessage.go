@@ -104,13 +104,13 @@ func (msg *MsgWirePayForMessage) ValidateBasic() error {
 
 	for _, commit := range msg.MessageShareCommitment {
 		// check that each commit is valid
+		if !powerOf2(commit.K) {
+			return fmt.Errorf("invalid square size, the size must be power of 2: %d", commit.K)
+		}
+
 		calculatedCommit, err := CreateCommitment(commit.K, msg.GetMessageNameSpaceId(), msg.Message)
 		if err != nil {
 			return err
-		}
-
-		if !powerOf2(commit.K) {
-			return fmt.Errorf("invalid square size, the size must be power of 2: %d", commit.K)
 		}
 
 		if string(calculatedCommit) != string(commit.ShareCommitment) {
