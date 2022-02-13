@@ -57,10 +57,8 @@ func CmdWirePayForMessage() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
 			squareSizes64 := parseSquareSizes(squareSizes)
 			pfmMsg, err := types.NewWirePayForMessage(namespace, message, squareSizes64...)
-
 			if err != nil {
 				return err
 			}
