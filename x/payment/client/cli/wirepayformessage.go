@@ -11,7 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	cflags "github.com/celestiaorg/celestia-app/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -55,7 +54,7 @@ func CmdWirePayForMessage() *cobra.Command {
 			}
 
 			// create the MsgPayForMessage
-			squareSizes, err := cmd.Flags().GetUintSlice(cflags.FlagSquareSizes)
+			squareSizes, err := cmd.Flags().GetUintSlice(FlagSquareSizes)
 			if err != nil {
 				return err
 			}

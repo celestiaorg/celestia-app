@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	cflags "github.com/celestiaorg/celestia-app/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/suite"
@@ -92,7 +91,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-				fmt.Sprintf("--%s=%s", cflags.FlagSquareSizes, "256,128,64"),
+				fmt.Sprintf("--%s=%s", paycli.FlagSquareSizes, "256,128,64"),
 			},
 			false, 0, &sdk.TxResponse{},
 		},
@@ -105,7 +104,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-				fmt.Sprintf("--%s=%s", cflags.FlagSquareSizes, "256,123,64"),
+				fmt.Sprintf("--%s=%s", paycli.FlagSquareSizes, "256,123,64"),
 			},
 			true, 0, &sdk.TxResponse{},
 		},
