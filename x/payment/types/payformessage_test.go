@@ -288,6 +288,10 @@ func TestWirePayForMessage_ValidateBasic(t *testing.T) {
 	badCommitMsg := validWirePayForMessage(t)
 	badCommitMsg.MessageShareCommitment[0].ShareCommitment = []byte{1, 2, 3, 4}
 
+	// pfm that has a wrong square size
+	badSquareSizeMsg := validWirePayForMessage(t)
+	badSquareSizeMsg.MessageShareCommitment[0].K = 15
+
 	tests := []test{
 		{
 			name: "valid msg",
@@ -322,6 +326,12 @@ func TestWirePayForMessage_ValidateBasic(t *testing.T) {
 			msg:       badCommitMsg,
 			expectErr: true,
 			errStr:    "invalid commit for square size",
+		},
+		{
+			name:      "bad square size",
+			msg:       badSquareSizeMsg,
+			expectErr: true,
+			errStr:    fmt.Sprintf("invalid square size, the size must be power of 2: %d", badSquareSizeMsg.MessageShareCommitment[0].K),
 		},
 	}
 
