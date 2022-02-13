@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	//"github.com/tendermint/tendermint/pkg/consts"
+	"github.com/tendermint/tendermint/pkg/consts"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -15,6 +15,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
+
+const FlagSquareSizes = "square-sizes"
 
 func CmdWirePayForMessage() *cobra.Command {
 	cmd := &cobra.Command{
@@ -107,7 +109,8 @@ func CmdWirePayForMessage() *cobra.Command {
 		},
 	}
 
-	cflags.AddTxFlagsToCmd(cmd)
+	flags.AddTxFlagsToCmd(cmd)
+	cmd.Flags().UintSlice(FlagSquareSizes, []uint{consts.MaxSquareSize, 128, 64}, "Specify the square sizes, must be power of 2")
 
 	return cmd
 }
