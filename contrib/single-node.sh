@@ -2,27 +2,15 @@
 
 set -o errexit -o nounset
 
-CHAINID=$1
-GENACCT=$2
-
-if [ -z "$1" ]; then
-  echo "Need to input chain id..."
-  exit 1
-fi
-
-if [ -z "$2" ]; then
-  echo "Need to input genesis account address..."
-  exit 1
-fi
+CHAINID="test"
 
 # Build genesis file incl account for passed address
-coins="10000000000celes,100000000000samoleans"
+coins="1000000000000000uceles"
 celestia-appd init $CHAINID --chain-id $CHAINID 
 celestia-appd keys add validator --keyring-backend="test"
 # this won't work because the some proto types are decalared twice and the logs output to stdout (dependency hell involving iavl)
 celestia-appd add-genesis-account $(celestia-appd keys show validator -a --keyring-backend="test") $coins
-celestia-appd add-genesis-account $GENACCT $coins
-celestia-appd gentx validator 5000000000celes --keyring-backend="test" --chain-id $CHAINID
+celestia-appd gentx validator 5000000000uceles --keyring-backend="test" --chain-id $CHAINID
 celestia-appd collect-gentxs
 
 # Set proper defaults and change ports
