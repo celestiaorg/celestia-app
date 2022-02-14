@@ -15,6 +15,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+const FlagSquareSizes = "square-sizes"
+
 func CmdWirePayForMessage() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "payForMessage [hexNamespace] [hexMessage]",
@@ -52,7 +54,12 @@ func CmdWirePayForMessage() *cobra.Command {
 			}
 
 			// create the MsgPayForMessage
-			pfmMsg, err := types.NewWirePayForMessage(namespace, message, consts.MaxSquareSize)
+			squareSizes, err := cmd.Flags().GetUintSlice(FlagSquareSizes)
+			if err != nil {
+				return err
+			}
+			squareSizes64 := parseSquareSizes(squareSizes)
+			pfmMsg, err := types.NewWirePayForMessage(namespace, message, squareSizes64...)
 			if err != nil {
 				return err
 			}
@@ -102,6 +109,15 @@ func CmdWirePayForMessage() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
+	cmd.Flags().UintSlice(FlagSquareSizes, []uint{consts.MaxSquareSize, 128, 64}, "Specify the square sizes, must be power of 2")
 
 	return cmd
+}
+
+func parseSquareSizes(squareSizes []uint) []uint64 {
+	squareSizes64 := make([]uint64, len(squareSizes))
+	for i := range squareSizes {
+		squareSizes64[i] = uint64(squareSizes[i])
+	}
+	return squareSizes64
 }

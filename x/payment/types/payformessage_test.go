@@ -75,6 +75,43 @@ func TestNextPowerOf2(t *testing.T) {
 	}
 }
 
+func TestPowerOf2 (t *testing.T) {
+	type test struct {
+		input uint64
+		expected bool
+	}
+	tests := []test {
+		{
+			input: 1,
+			expected: true,
+		},
+		{
+			input: 2,
+			expected: true,
+		},
+		{
+			input: 256,
+			expected: true,
+		},
+		{
+			input: 3,
+			expected: false,
+		},
+		{
+			input: 79,
+			expected: false,
+		},
+		{
+			input: 0,
+			expected: false,
+		},
+	}
+	for _, tt := range tests {
+		res := powerOf2(tt.input)
+		assert.Equal(t, tt.expected, res)
+	}
+}
+
 // TestCreateCommit only shows if something changed, it doesn't actually show
 // the commit is being created correctly todo(evan): fix me.
 func TestCreateCommitment(t *testing.T) {
@@ -251,6 +288,14 @@ func TestWirePayForMessage_ValidateBasic(t *testing.T) {
 	badCommitMsg := validWirePayForMessage(t)
 	badCommitMsg.MessageShareCommitment[0].ShareCommitment = []byte{1, 2, 3, 4}
 
+	// pfm that has invalid square size (not power of 2)
+	invalidSquareSizeMsg := validWirePayForMessage(t)
+	invalidSquareSizeMsg.MessageShareCommitment[0].K = 15
+
+	// pfm that has a different power of 2 square size
+	badSquareSizeMsg := validWirePayForMessage(t)
+	badSquareSizeMsg.MessageShareCommitment[0].K = 4
+
 	tests := []test{
 		{
 			name: "valid msg",
@@ -285,6 +330,18 @@ func TestWirePayForMessage_ValidateBasic(t *testing.T) {
 			msg:       badCommitMsg,
 			expectErr: true,
 			errStr:    "invalid commit for square size",
+		},
+		{
+			name:      "invalid square size",
+			msg:       invalidSquareSizeMsg,
+			expectErr: true,
+			errStr:    fmt.Sprintf("invalid square size, the size must be power of 2: %d", invalidSquareSizeMsg.MessageShareCommitment[0].K),
+		},
+		{
+			name:      "wrong but valid square size",
+			msg:       badSquareSizeMsg,
+			expectErr: true,
+			errStr:    fmt.Sprintf("invalid commit for square size %d", badSquareSizeMsg.MessageShareCommitment[0].K),
 		},
 	}
 
@@ -371,7 +428,7 @@ func TestProcessMessage(t *testing.T) {
 func validWirePayForMessage(t *testing.T) *MsgWirePayForMessage {
 	msg, err := NewWirePayForMessage(
 		[]byte{1, 2, 3, 4, 5, 6, 7, 8},
-		bytes.Repeat([]byte{1}, 1000),
+		bytes.Repeat([]byte{1}, 2000),
 		16, 32, 64,
 	)
 	if err != nil {

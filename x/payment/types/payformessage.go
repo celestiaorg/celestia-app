@@ -226,3 +226,12 @@ func nextPowerOf2(v uint64) uint64 {
 	// return the next lowest power
 	return v / 2
 }
+
+// Check if number is power of 2
+func powerOf2(v uint64) bool {
+	if v & (v-1) == 0 && v != 0 {
+		return true
+	} else {
+		return false
+	}
+}
