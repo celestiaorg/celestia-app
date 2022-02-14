@@ -294,7 +294,7 @@ func TestWirePayForMessage_ValidateBasic(t *testing.T) {
 
 	// pfm that has a different power of 2 square size
 	badSquareSizeMsg := validWirePayForMessage(t)
-	badSquareSizeMsg.MessageShareCommitment[0].K = 128
+	badSquareSizeMsg.MessageShareCommitment[0].K = 4
 
 	tests := []test{
 		{
@@ -428,7 +428,7 @@ func TestProcessMessage(t *testing.T) {
 func validWirePayForMessage(t *testing.T) *MsgWirePayForMessage {
 	msg, err := NewWirePayForMessage(
 		[]byte{1, 2, 3, 4, 5, 6, 7, 8},
-		bytes.Repeat([]byte{1}, 1000),
+		bytes.Repeat([]byte{1}, 2000),
 		16, 32, 64,
 	)
 	if err != nil {
