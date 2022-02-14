@@ -45,9 +45,7 @@ message MsgValsetConfirm {
 message MsgValsetConfirmResponse {}
 
 // MsgDataCommitmentConfirm describes a data commitment for a set of blocks.
-message MsgDataCommitmentConfirm {
-  bytes data_root = 1;
-}
+message MsgDataCommitmentConfirm {}
 
 // MsgValsetConfirmResponse describes the response returned after the submission
 // of a MsgDataCommitmentConfirm.

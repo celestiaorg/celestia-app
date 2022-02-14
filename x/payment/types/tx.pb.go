@@ -29,8 +29,8 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// MsgWirePayForMessage describes the format of data that is sent over the wire for
-// each PayForMessage
+// MsgWirePayForMessage describes the format of data that is sent over the wire
+// for each PayForMessage
 type MsgWirePayForMessage struct {
 	Signer                 string                    `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 	MessageNameSpaceId     []byte                    `protobuf:"bytes,2,opt,name=message_name_space_id,json=messageNameSpaceId,proto3" json:"message_name_space_id,omitempty"`
@@ -107,7 +107,8 @@ func (m *MsgWirePayForMessage) GetMessageShareCommitment() []ShareCommitAndSigna
 	return nil
 }
 
-// MsgWirePayForMessageResponse describes the response returned after the submission of a WirePayForMessage
+// MsgWirePayForMessageResponse describes the response returned after the
+// submission of a WirePayForMessage
 type MsgWirePayForMessageResponse struct {
 }
 
@@ -205,8 +206,10 @@ func (m *ShareCommitAndSignature) GetSignature() []byte {
 	return nil
 }
 
-// MsgPayForMessage is what gets signed by users when creating ShareCommitSignatures.
-//  Multiple versions are signed and included, each version creates a commitment for a
+// MsgPayForMessage is what gets signed by users when creating
+// ShareCommitSignatures.
+//  Multiple versions are signed and included, each version creates a commitment
+//  for a
 // specific square size.
 type MsgPayForMessage struct {
 	Signer                 string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
@@ -276,7 +279,8 @@ func (m *MsgPayForMessage) GetMessageShareCommitment() []byte {
 	return nil
 }
 
-// MsgPayForMessageResponse describes the response returned after the submission of a PayForMessage
+// MsgPayForMessageResponse describes the response returned after the submission
+// of a PayForMessage
 type MsgPayForMessageResponse struct {
 }
 
