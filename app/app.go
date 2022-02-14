@@ -78,6 +78,10 @@ import (
 	paymentmodule "github.com/celestiaorg/celestia-app/x/payment"
 	paymentmodulekeeper "github.com/celestiaorg/celestia-app/x/payment/keeper"
 	paymentmoduletypes "github.com/celestiaorg/celestia-app/x/payment/types"
+
+	qgbmodule "github.com/celestiaorg/celestia-app/x/qgb"
+	qgbmodulekeeper "github.com/celestiaorg/celestia-app/x/qgb/keeper"
+	qgbmoduletypes "github.com/celestiaorg/celestia-app/x/qgb/types"
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 )
 
@@ -115,6 +119,7 @@ var (
 		transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
 		paymentmodule.AppModuleBasic{},
+		qgbmodule.AppModuleBasic{},
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
 	)
 
@@ -183,6 +188,7 @@ type App struct {
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
 	PaymentKeeper paymentmodulekeeper.Keeper
+	QgbKeeper     qgbmodulekeeper.Keeper
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 
 	// the module manager
@@ -219,6 +225,7 @@ func New(
 		paramstypes.StoreKey, ibchost.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
 		evidencetypes.StoreKey, ibctransfertypes.StoreKey, capabilitytypes.StoreKey,
 		paymentmoduletypes.StoreKey,
+		qgbmoduletypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
@@ -313,6 +320,13 @@ func New(
 	)
 	paymentmodule := paymentmodule.NewAppModule(appCodec, app.PaymentKeeper)
 
+	app.QgbKeeper = *qgbmodulekeeper.NewKeeper(
+		appCodec,
+		keys[qgbmoduletypes.StoreKey],
+		keys[qgbmoduletypes.MemStoreKey],
+	)
+	qgbmodule := qgbmodule.NewAppModule(appCodec, app.QgbKeeper)
+
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 
 	// Create static IBC router, add transfer route, then set and seal it
@@ -351,6 +365,7 @@ func New(
 		params.NewAppModule(app.ParamsKeeper),
 		transferModule,
 		paymentmodule,
+		qgbmodule,
 		// this line is used by starport scaffolding # stargate/app/appModule
 	)
 
@@ -385,6 +400,7 @@ func New(
 		evidencetypes.ModuleName,
 		ibctransfertypes.ModuleName,
 		paymentmoduletypes.ModuleName,
+		qgbmoduletypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/initGenesis
 	)
 
@@ -568,6 +584,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	paramsKeeper.Subspace(ibchost.ModuleName)
 	paramsKeeper.Subspace(paymentmoduletypes.ModuleName)
+	paramsKeeper.Subspace(qgbmoduletypes.ModuleName)
 	// this line is used by starport scaffolding # stargate/app/paramSubspace
 
 	return paramsKeeper
