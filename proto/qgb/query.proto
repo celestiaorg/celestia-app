@@ -37,8 +37,8 @@ message QueryDelegateKeysByOrchestratorAddress {
   string orchestrator_address = 1;
 }
 
-// QueryDelegateKeysByOrchestratorAddressResponse Delegate keys by orchestrator address query response
-message QueryDelegateKeysByOrchestratorAddressResponse {
+// QueryGetDelegateKeyByOrchestratorResponse Delegate keys by orchestrator address query response
+message QueryGetDelegateKeyByOrchestratorResponse {
   string validator_address = 1;
   string eth_address       = 2;
 }
