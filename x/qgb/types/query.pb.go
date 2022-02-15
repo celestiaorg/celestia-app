@@ -29,6 +29,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// QueryValsetConfirmRequest ValSet confirm query request
 type QueryValsetConfirmRequest struct {
 	Nonce   uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
 	Address string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
@@ -125,6 +126,7 @@ func (m *QueryValsetConfirmResponse) GetConfirm() *MsgValsetConfirm {
 	return nil
 }
 
+// QueryDelegateKeysByOrchestratorAddress Delegate keys query request by orchestrator address
 type QueryDelegateKeysByOrchestratorAddress struct {
 	OrchestratorAddress string `protobuf:"bytes,1,opt,name=orchestrator_address,json=orchestratorAddress,proto3" json:"orchestrator_address,omitempty"`
 }
@@ -282,7 +284,9 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type QueryClient interface {
+	// ValsetConfirm Queries ValSetConfirm
 	ValsetConfirm(ctx context.Context, in *QueryValsetConfirmRequest, opts ...grpc.CallOption) (*QueryValsetConfirmResponse, error)
+	// GetDelegateKeyByOrchestrator Queries delegate key by orchestrator
 	GetDelegateKeyByOrchestrator(ctx context.Context, in *QueryDelegateKeysByOrchestratorAddress, opts ...grpc.CallOption) (*QueryDelegateKeysByOrchestratorAddressResponse, error)
 }
 
@@ -314,7 +318,9 @@ func (c *queryClient) GetDelegateKeyByOrchestrator(ctx context.Context, in *Quer
 
 // QueryServer is the server API for Query service.
 type QueryServer interface {
+	// ValsetConfirm Queries ValSetConfirm
 	ValsetConfirm(context.Context, *QueryValsetConfirmRequest) (*QueryValsetConfirmResponse, error)
+	// GetDelegateKeyByOrchestrator Queries delegate key by orchestrator
 	GetDelegateKeyByOrchestrator(context.Context, *QueryDelegateKeysByOrchestratorAddress) (*QueryDelegateKeysByOrchestratorAddressResponse, error)
 }
 
