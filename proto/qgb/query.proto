@@ -3,13 +3,36 @@ package qgb;
 
 import "google/api/annotations.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
+import "qgb/msgs.proto";
 // this line is used by starport scaffolding # 1
 
 option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
 // Query defines the gRPC querier service.
 service Query {
+  rpc ValsetConfirm(QueryValsetConfirmRequest) returns (QueryValsetConfirmResponse) {
+    option (google.api.http).get = "/gravity/v1beta/valset/confirm";
+  }
+  rpc GetDelegateKeyByOrchestrator(QueryDelegateKeysByOrchestratorAddress) returns (QueryDelegateKeysByOrchestratorAddressResponse) {
+    option (google.api.http).get = "/gravity/v1beta/query_delegate_keys_by_orchestrator";
+  }
   // this line is used by starport scaffolding # 2
+}
+
+message QueryValsetConfirmRequest {
+  uint64 nonce   = 1;
+  string address = 2;
+}
+message QueryValsetConfirmResponse {
+  MsgValsetConfirm confirm = 1;
+}
+
+message QueryDelegateKeysByOrchestratorAddress {
+  string orchestrator_address = 1;
+}
+message QueryDelegateKeysByOrchestratorAddressResponse {
+  string validator_address = 1;
+  string eth_address       = 2;
 }
 
 // this line is used by starport scaffolding # 3

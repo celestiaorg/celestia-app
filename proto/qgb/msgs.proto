@@ -16,7 +16,32 @@ service Msg {
   rpc DataCommitmentConfirm(MsgDataCommitmentConfirm) returns (MsgDataCommitmentConfirmResponse) {
     option (google.api.http).post = "/qgb/data_commitment_confirm";
   }
+  // SetOrchestratorAddress allows to set the orchestrator address
+  rpc SetOrchestratorAddress(MsgSetOrchestratorAddress) returns (MsgSetOrchestratorAddressResponse) {
+    option (google.api.http).post = "/gravity/v1/set_orchestrator_address";
+  }
 }
+
+// MsgSetOrchestratorAddress
+// this message allows validators to delegate their voting responsibilities
+// to a given key. This key is then used as an optional authentication method
+// for sigining oracle claims
+// VALIDATOR
+// The validator field is a cosmosvaloper1... string (i.e. sdk.ValAddress)
+// that references a validator in the active set
+// ORCHESTRATOR
+// The orchestrator field is a cosmos1... string  (i.e. sdk.AccAddress) that
+// references the key that is being delegated to
+// ETH_ADDRESS
+// This is a hex encoded 0x Ethereum public key that will be used by this validator
+// on Ethereum
+message MsgSetOrchestratorAddress {
+  string validator    = 1;
+  string orchestrator = 2;
+  string eth_address  = 3;
+}
+
+message MsgSetOrchestratorAddressResponse {}
 
 // MsgValsetConfirm
 // this is the message sent by the validators when they wish to submit their
