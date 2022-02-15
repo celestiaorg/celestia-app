@@ -27,15 +27,17 @@ message QueryValsetConfirmRequest {
   string address = 2;
 }
 
+// QueryValsetConfirmResponse ValSet confirm query response
 message QueryValsetConfirmResponse {
   MsgValsetConfirm confirm = 1;
 }
 
-// QueryDelegateKeysByOrchestratorAddress Delegate keys query request by orchestrator address
+// QueryDelegateKeysByOrchestratorAddress Delegate keys by orchestrator address query request
 message QueryDelegateKeysByOrchestratorAddress {
   string orchestrator_address = 1;
 }
 
+// QueryDelegateKeysByOrchestratorAddressResponse Delegate keys by orchestrator address query response
 message QueryDelegateKeysByOrchestratorAddressResponse {
   string validator_address = 1;
   string eth_address       = 2;
