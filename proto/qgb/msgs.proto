@@ -41,6 +41,7 @@ message MsgSetOrchestratorAddress {
   string eth_address  = 3;
 }
 
+// MsgSetOrchestratorAddressResponse
 message MsgSetOrchestratorAddressResponse {}
 
 // MsgValsetConfirm
