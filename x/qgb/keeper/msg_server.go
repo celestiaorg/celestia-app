@@ -30,5 +30,4 @@ func (k msgServer) DataCommitmentConfirm(context.Context, *types.MsgDataCommitme
 func (k msgServer) SetOrchestratorAddress(c context.Context, msg *types.MsgSetOrchestratorAddress) (*types.MsgSetOrchestratorAddressResponse, error) {
 	// TODO
 	return &types.MsgSetOrchestratorAddressResponse{}, nil
-
 }

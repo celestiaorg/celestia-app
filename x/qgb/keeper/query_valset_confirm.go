@@ -9,5 +9,6 @@ import (
 func (k Keeper) ValsetConfirm(
 	c context.Context,
 	req *types.QueryValsetConfirmRequest) (*types.QueryValsetConfirmResponse, error) {
+	// TODO
 	return &types.QueryValsetConfirmResponse{}, nil
 }

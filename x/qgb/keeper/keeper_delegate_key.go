@@ -24,5 +24,6 @@ func (k Keeper) GetDelegateKeyByOrchestrator(
 //
 // For the time being this will serve
 func (k Keeper) GetDelegateKeys(ctx sdk.Context) []types.MsgSetOrchestratorAddress {
+	// TODO
 	return nil
 }
