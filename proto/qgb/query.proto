@@ -15,7 +15,7 @@ service Query {
     option (google.api.http).get = "/gravity/v1beta/valset/confirm";
   }
   // GetDelegateKeyByOrchestrator Queries delegate key by orchestrator
-  rpc GetDelegateKeyByOrchestrator(QueryDelegateKeysByOrchestratorAddress) returns (QueryDelegateKeysByOrchestratorAddressResponse) {
+  rpc GetDelegateKeyByOrchestrator(QueryDelegateKeysByOrchestratorAddress) returns (QueryGetDelegateKeyByOrchestratorResponse) {
     option (google.api.http).get = "/gravity/v1beta/query_delegate_keys_by_orchestrator";
   }
   // this line is used by starport scaffolding # 2
