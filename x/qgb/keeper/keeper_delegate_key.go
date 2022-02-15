@@ -8,9 +8,9 @@ import (
 
 func (k Keeper) GetDelegateKeyByOrchestrator(
 	c context.Context,
-	req *types.QueryDelegateKeysByOrchestratorAddress) (*types.QueryDelegateKeysByOrchestratorAddressResponse, error) {
+	req *types.QueryDelegateKeysByOrchestratorAddress) (*types.MsgDataCommitmentConfirmResponse, error) {
 	// TODO
-	return &types.QueryDelegateKeysByOrchestratorAddressResponse{}, nil
+	return &types.MsgDataCommitmentConfirmResponse{}, nil
 }
 
 // GetDelegateKeys iterates both the EthAddress and Orchestrator address indexes to produce
