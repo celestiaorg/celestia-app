@@ -7,7 +7,7 @@ import (
 
 func (k Keeper) GetDelegateKeyByOrchestrator(
 	c context.Context,
-	req *types.QueryDelegateKeysByOrchestratorAddress) (*types.QueryGetDelegateKeyByOrchestratorResponse, error) {
+	req *types.QueryGetDelegateKeysByOrchestratorAddress) (*types.QueryGetDelegateKeyByOrchestratorResponse, error) {
 	// TODO
 	return &types.QueryGetDelegateKeyByOrchestratorResponse{}, nil
 }

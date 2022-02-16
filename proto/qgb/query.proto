@@ -15,7 +15,7 @@ service Query {
     option (google.api.http).get = "/qgb/valset/confirm";
   }
   // GetDelegateKeyByOrchestrator Queries delegate key by orchestrator
-  rpc GetDelegateKeyByOrchestrator(QueryDelegateKeysByOrchestratorAddress) returns (QueryGetDelegateKeyByOrchestratorResponse) {
+  rpc GetDelegateKeyByOrchestrator(QueryGetDelegateKeysByOrchestratorAddress) returns (QueryGetDelegateKeyByOrchestratorResponse) {
     option (google.api.http).get = "/qgb/query_delegate_keys_by_orchestrator";
   }
   // this line is used by starport scaffolding # 2
@@ -32,8 +32,8 @@ message QueryValsetConfirmResponse {
   MsgValsetConfirm confirm = 1;
 }
 
-// QueryDelegateKeysByOrchestratorAddress Delegate keys by orchestrator address query request
-message QueryDelegateKeysByOrchestratorAddress {
+// QueryGetDelegateKeysByOrchestratorAddress Delegate keys by orchestrator address query request
+message QueryGetDelegateKeysByOrchestratorAddress {
   string orchestrator_address = 1;
 }
 
