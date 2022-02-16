@@ -1,9 +1,13 @@
 package keeper
 
-// Commented for linting
-//func (k Keeper) drchestrator(
-//	c context.Context,
-//	req *types.QueryDelegateKeysByOrchestratorAddress) (*types.MsgDataCommitmentConfirmResponse, error) {
-//	// TODO
-//	return &types.MsgDataCommitmentConfirmResponse{}, nil
-//}
+import (
+	"context"
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
+)
+
+func (k Keeper) GetDelegateKeyByOrchestrator(
+	c context.Context,
+	req *types.QueryDelegateKeysByOrchestratorAddress) (*types.QueryGetDelegateKeyByOrchestratorResponse, error) {
+	// TODO
+	return &types.QueryGetDelegateKeyByOrchestratorResponse{}, nil
+}

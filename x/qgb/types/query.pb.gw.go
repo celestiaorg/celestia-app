@@ -234,9 +234,9 @@ func RegisterQueryHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 }
 
 var (
-	pattern_Query_ValsetConfirm_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"gravity", "v1beta", "valset", "confirm"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_ValsetConfirm_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"qgb", "valset", "confirm"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_GetDelegateKeyByOrchestrator_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"gravity", "v1beta", "query_delegate_keys_by_orchestrator"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_GetDelegateKeyByOrchestrator_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"qgb", "query_delegate_keys_by_orchestrator"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (

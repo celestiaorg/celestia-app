@@ -11,7 +11,7 @@ import (
 func RegisterCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgDataCommitmentConfirm{}, "qgb/DataCommitmentConfirm", nil)
 	cdc.RegisterConcrete(&MsgValsetConfirm{}, "qgb/ValSetConfirm", nil)
-	cdc.RegisterConcrete(&MsgSetOrchestratorAddress{}, "gravity/MsgSetOrchestratorAddress", nil)
+	cdc.RegisterConcrete(&MsgSetOrchestratorAddress{}, "qgb/MsgSetOrchestratorAddress", nil)
 	// this line is used by starport scaffolding # 2
 }
 

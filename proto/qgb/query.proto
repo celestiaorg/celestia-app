@@ -12,11 +12,11 @@ option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 service Query {
   // ValsetConfirm Queries ValSetConfirm
   rpc ValsetConfirm(QueryValsetConfirmRequest) returns (QueryValsetConfirmResponse) {
-    option (google.api.http).get = "/gravity/v1beta/valset/confirm";
+    option (google.api.http).get = "/qgb/valset/confirm";
   }
   // GetDelegateKeyByOrchestrator Queries delegate key by orchestrator
   rpc GetDelegateKeyByOrchestrator(QueryDelegateKeysByOrchestratorAddress) returns (QueryGetDelegateKeyByOrchestratorResponse) {
-    option (google.api.http).get = "/gravity/v1beta/query_delegate_keys_by_orchestrator";
+    option (google.api.http).get = "/qgb/query_delegate_keys_by_orchestrator";
   }
   // this line is used by starport scaffolding # 2
 }
