@@ -3,13 +3,44 @@ package qgb;
 
 import "google/api/annotations.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
+import "qgb/msgs.proto";
 // this line is used by starport scaffolding # 1
 
 option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
 // Query defines the gRPC querier service.
 service Query {
+  // ValsetConfirm Queries ValSetConfirm
+  rpc ValsetConfirm(QueryValsetConfirmRequest) returns (QueryValsetConfirmResponse) {
+    option (google.api.http).get = "/qgb/valset/confirm";
+  }
+  // GetDelegateKeyByOrchestrator Queries delegate key by orchestrator
+  rpc GetDelegateKeyByOrchestrator(QueryGetDelegateKeysByOrchestratorAddress) returns (QueryGetDelegateKeyByOrchestratorResponse) {
+    option (google.api.http).get = "/qgb/query_delegate_keys_by_orchestrator";
+  }
   // this line is used by starport scaffolding # 2
+}
+
+// QueryValsetConfirmRequest ValSet confirm query request
+message QueryValsetConfirmRequest {
+  uint64 nonce   = 1;
+  string address = 2;
+}
+
+// QueryValsetConfirmResponse ValSet confirm query response
+message QueryValsetConfirmResponse {
+  MsgValsetConfirm confirm = 1;
+}
+
+// QueryGetDelegateKeysByOrchestratorAddress Delegate keys by orchestrator address query request
+message QueryGetDelegateKeysByOrchestratorAddress {
+  string orchestrator_address = 1;
+}
+
+// QueryGetDelegateKeyByOrchestratorResponse Delegate keys by orchestrator address query response
+message QueryGetDelegateKeyByOrchestratorResponse {
+  string validator_address = 1;
+  string eth_address       = 2;
 }
 
 // this line is used by starport scaffolding # 3
