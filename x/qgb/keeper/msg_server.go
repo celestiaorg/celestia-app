@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"context"
-
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 )
 
@@ -26,4 +25,9 @@ func (k msgServer) ValsetConfirm(c context.Context, msg *types.MsgValsetConfirm)
 func (k msgServer) DataCommitmentConfirm(context.Context, *types.MsgDataCommitmentConfirm) (*types.MsgDataCommitmentConfirmResponse, error) {
 	// TODO
 	return &types.MsgDataCommitmentConfirmResponse{}, nil
+}
+
+func (k msgServer) SetOrchestratorAddress(c context.Context, msg *types.MsgSetOrchestratorAddress) (*types.MsgSetOrchestratorAddressResponse, error) {
+	// TODO
+	return &types.MsgSetOrchestratorAddressResponse{}, nil
 }

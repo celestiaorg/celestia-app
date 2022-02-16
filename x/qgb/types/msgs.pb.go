@@ -29,6 +29,113 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// MsgSetOrchestratorAddress
+// this message allows validators to delegate their voting responsibilities
+// to a given key. This key is then used as an optional authentication method
+// for sigining oracle claims
+type MsgSetOrchestratorAddress struct {
+	// The validator field is a celesvaloper1... string (i.e. sdk.ValAddress)
+	// that references a validator in the active set
+	Validator string `protobuf:"bytes,1,opt,name=validator,proto3" json:"validator,omitempty"`
+	// The orchestrator field is a celes1... string  (i.e. sdk.AccAddress) that
+	// references the key that is being delegated to
+	Orchestrator string `protobuf:"bytes,2,opt,name=orchestrator,proto3" json:"orchestrator,omitempty"`
+	// This is a hex encoded 0x Ethereum public key that will be used by this validator
+	// on Ethereum
+	EthAddress string `protobuf:"bytes,3,opt,name=eth_address,json=ethAddress,proto3" json:"eth_address,omitempty"`
+}
+
+func (m *MsgSetOrchestratorAddress) Reset()         { *m = MsgSetOrchestratorAddress{} }
+func (m *MsgSetOrchestratorAddress) String() string { return proto.CompactTextString(m) }
+func (*MsgSetOrchestratorAddress) ProtoMessage()    {}
+func (*MsgSetOrchestratorAddress) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c696c358dc748aba, []int{0}
+}
+func (m *MsgSetOrchestratorAddress) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgSetOrchestratorAddress) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgSetOrchestratorAddress.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgSetOrchestratorAddress) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgSetOrchestratorAddress.Merge(m, src)
+}
+func (m *MsgSetOrchestratorAddress) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgSetOrchestratorAddress) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgSetOrchestratorAddress.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgSetOrchestratorAddress proto.InternalMessageInfo
+
+func (m *MsgSetOrchestratorAddress) GetValidator() string {
+	if m != nil {
+		return m.Validator
+	}
+	return ""
+}
+
+func (m *MsgSetOrchestratorAddress) GetOrchestrator() string {
+	if m != nil {
+		return m.Orchestrator
+	}
+	return ""
+}
+
+func (m *MsgSetOrchestratorAddress) GetEthAddress() string {
+	if m != nil {
+		return m.EthAddress
+	}
+	return ""
+}
+
+// MsgSetOrchestratorAddressResponse
+type MsgSetOrchestratorAddressResponse struct {
+}
+
+func (m *MsgSetOrchestratorAddressResponse) Reset()         { *m = MsgSetOrchestratorAddressResponse{} }
+func (m *MsgSetOrchestratorAddressResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgSetOrchestratorAddressResponse) ProtoMessage()    {}
+func (*MsgSetOrchestratorAddressResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c696c358dc748aba, []int{1}
+}
+func (m *MsgSetOrchestratorAddressResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgSetOrchestratorAddressResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgSetOrchestratorAddressResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgSetOrchestratorAddressResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgSetOrchestratorAddressResponse.Merge(m, src)
+}
+func (m *MsgSetOrchestratorAddressResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgSetOrchestratorAddressResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgSetOrchestratorAddressResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgSetOrchestratorAddressResponse proto.InternalMessageInfo
+
 // MsgValsetConfirm
 // this is the message sent by the validators when they wish to submit their
 // signatures over the validator set at a given block height. A validator must
@@ -55,7 +162,7 @@ func (m *MsgValsetConfirm) Reset()         { *m = MsgValsetConfirm{} }
 func (m *MsgValsetConfirm) String() string { return proto.CompactTextString(m) }
 func (*MsgValsetConfirm) ProtoMessage()    {}
 func (*MsgValsetConfirm) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c696c358dc748aba, []int{0}
+	return fileDescriptor_c696c358dc748aba, []int{2}
 }
 func (m *MsgValsetConfirm) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -121,7 +228,7 @@ func (m *MsgValsetConfirmResponse) Reset()         { *m = MsgValsetConfirmRespon
 func (m *MsgValsetConfirmResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgValsetConfirmResponse) ProtoMessage()    {}
 func (*MsgValsetConfirmResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c696c358dc748aba, []int{1}
+	return fileDescriptor_c696c358dc748aba, []int{3}
 }
 func (m *MsgValsetConfirmResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -158,7 +265,7 @@ func (m *MsgDataCommitmentConfirm) Reset()         { *m = MsgDataCommitmentConfi
 func (m *MsgDataCommitmentConfirm) String() string { return proto.CompactTextString(m) }
 func (*MsgDataCommitmentConfirm) ProtoMessage()    {}
 func (*MsgDataCommitmentConfirm) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c696c358dc748aba, []int{2}
+	return fileDescriptor_c696c358dc748aba, []int{4}
 }
 func (m *MsgDataCommitmentConfirm) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -196,7 +303,7 @@ func (m *MsgDataCommitmentConfirmResponse) Reset()         { *m = MsgDataCommitm
 func (m *MsgDataCommitmentConfirmResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgDataCommitmentConfirmResponse) ProtoMessage()    {}
 func (*MsgDataCommitmentConfirmResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c696c358dc748aba, []int{3}
+	return fileDescriptor_c696c358dc748aba, []int{5}
 }
 func (m *MsgDataCommitmentConfirmResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -226,6 +333,8 @@ func (m *MsgDataCommitmentConfirmResponse) XXX_DiscardUnknown() {
 var xxx_messageInfo_MsgDataCommitmentConfirmResponse proto.InternalMessageInfo
 
 func init() {
+	proto.RegisterType((*MsgSetOrchestratorAddress)(nil), "qgb.MsgSetOrchestratorAddress")
+	proto.RegisterType((*MsgSetOrchestratorAddressResponse)(nil), "qgb.MsgSetOrchestratorAddressResponse")
 	proto.RegisterType((*MsgValsetConfirm)(nil), "qgb.MsgValsetConfirm")
 	proto.RegisterType((*MsgValsetConfirmResponse)(nil), "qgb.MsgValsetConfirmResponse")
 	proto.RegisterType((*MsgDataCommitmentConfirm)(nil), "qgb.MsgDataCommitmentConfirm")
@@ -235,31 +344,35 @@ func init() {
 func init() { proto.RegisterFile("qgb/msgs.proto", fileDescriptor_c696c358dc748aba) }
 
 var fileDescriptor_c696c358dc748aba = []byte{
-	// 374 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x52, 0x3d, 0x4f, 0xe3, 0x40,
-	0x14, 0xcc, 0x26, 0xb9, 0x93, 0xb2, 0xf7, 0xa1, 0x93, 0x2f, 0x91, 0x2c, 0x5f, 0xce, 0x17, 0x59,
-	0x77, 0x52, 0x9a, 0xf3, 0x4a, 0xf0, 0x0b, 0x20, 0x34, 0x14, 0x69, 0x52, 0x50, 0xd0, 0x44, 0x6b,
-	0x67, 0x59, 0x5b, 0x8a, 0xf7, 0x39, 0xbb, 0x2f, 0x08, 0x5a, 0x28, 0x69, 0x90, 0xf8, 0x53, 0x94,
-	0x91, 0x68, 0x28, 0x51, 0x42, 0xcf, 0x5f, 0x40, 0xd9, 0xc4, 0x46, 0x89, 0x02, 0xdd, 0x7b, 0x33,
-	0xf3, 0x66, 0xc6, 0xf2, 0xd2, 0xef, 0x13, 0x19, 0xb1, 0xcc, 0x48, 0x13, 0xe6, 0x1a, 0x10, 0x9c,
-	0xda, 0x44, 0x46, 0x5e, 0x53, 0x82, 0x04, 0xbb, 0xb3, 0xe5, 0xb4, 0xa2, 0xbc, 0xb6, 0x04, 0x90,
-	0x63, 0xc1, 0x78, 0x9e, 0x32, 0xae, 0x14, 0x20, 0xc7, 0x14, 0xd4, 0xfa, 0x30, 0xb8, 0x21, 0xf4,
-	0x47, 0xdf, 0xc8, 0x13, 0x3e, 0x36, 0x02, 0x7b, 0xa0, 0xce, 0x52, 0x9d, 0x39, 0x4d, 0xfa, 0x49,
-	0x81, 0x8a, 0x85, 0x4b, 0x3a, 0xa4, 0x5b, 0x1f, 0xac, 0x16, 0x27, 0xa0, 0x5f, 0x41, 0xc7, 0x89,
-	0x30, 0xa8, 0x39, 0x82, 0x76, 0xab, 0x1d, 0xd2, 0x6d, 0x0c, 0x36, 0x30, 0xe7, 0x0f, 0xfd, 0x22,
-	0x30, 0x19, 0xf2, 0xd1, 0x48, 0x0b, 0x63, 0xdc, 0x9a, 0x95, 0x50, 0x81, 0xc9, 0xc1, 0x0a, 0x71,
-	0xda, 0xb4, 0x61, 0x52, 0xa9, 0x38, 0x4e, 0xb5, 0x70, 0xeb, 0x96, 0x7e, 0x03, 0x02, 0x8f, 0xba,
-	0xdb, 0x65, 0x06, 0xc2, 0xe4, 0xa0, 0x4c, 0xc1, 0x1d, 0x71, 0xe4, 0x3d, 0xc8, 0xb2, 0x14, 0x33,
-	0xa1, 0x0a, 0x4d, 0x10, 0xd0, 0xce, 0x7b, 0x5c, 0x71, 0xbf, 0xf7, 0x42, 0x68, 0xad, 0x6f, 0xa4,
-	0x13, 0xd1, 0x6f, 0x9b, 0x5f, 0xdb, 0x0a, 0x27, 0x32, 0x0a, 0xb7, 0x73, 0xbd, 0xdf, 0x3b, 0xe1,
-	0xb2, 0xce, 0xaf, 0xab, 0x87, 0xe7, 0xbb, 0x6a, 0x2b, 0xf8, 0xc9, 0x96, 0xbf, 0xe2, 0xdc, 0x6a,
-	0x86, 0xf1, 0xda, 0xf2, 0x9a, 0xd0, 0xd6, 0xce, 0x36, 0x4e, 0xe9, 0xba, 0x93, 0xf6, 0xfe, 0x7d,
-	0x48, 0x97, 0xe1, 0x7f, 0x6d, 0xb8, 0x1f, 0xb4, 0x6d, 0xf8, 0x88, 0x23, 0x1f, 0xc6, 0xa5, 0xb8,
-	0x68, 0x71, 0x78, 0x7c, 0x3f, 0xf7, 0xc9, 0x6c, 0xee, 0x93, 0xa7, 0xb9, 0x4f, 0x6e, 0x17, 0x7e,
-	0x65, 0xb6, 0xf0, 0x2b, 0x8f, 0x0b, 0xbf, 0x72, 0xca, 0x64, 0x8a, 0xc9, 0x34, 0x0a, 0x63, 0xc8,
-	0x58, 0x2c, 0xc6, 0xc2, 0x60, 0xca, 0x41, 0xcb, 0x72, 0xfe, 0xcf, 0xf3, 0x9c, 0x5d, 0x58, 0x73,
-	0xbc, 0xcc, 0x85, 0x89, 0x3e, 0xdb, 0xd7, 0xb2, 0xff, 0x1a, 0x00, 0x00, 0xff, 0xff, 0x07, 0xdd,
-	0x60, 0xa7, 0x78, 0x02, 0x00, 0x00,
+	// 447 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x93, 0xbf, 0x6f, 0x13, 0x31,
+	0x14, 0xc7, 0xe3, 0xa4, 0x20, 0xd5, 0xfc, 0x10, 0x3a, 0x1a, 0x74, 0x1c, 0xa9, 0x5b, 0x0c, 0x45,
+	0x2c, 0xc4, 0x12, 0xfc, 0x05, 0x50, 0x16, 0x86, 0x08, 0x29, 0x48, 0x0c, 0x2c, 0x91, 0xef, 0x62,
+	0x1c, 0x4b, 0x39, 0xbf, 0x8b, 0xfd, 0x5a, 0xc1, 0xc2, 0x00, 0x03, 0x03, 0x0b, 0x12, 0xff, 0x14,
+	0x63, 0x25, 0x16, 0x46, 0x94, 0xf0, 0x4f, 0xb0, 0xa1, 0xf3, 0x25, 0xa6, 0xad, 0x92, 0x4e, 0x6c,
+	0xf6, 0xfb, 0x7e, 0xfd, 0xbe, 0x9f, 0x77, 0x7a, 0x47, 0xaf, 0xcf, 0x74, 0x2e, 0x4a, 0xaf, 0x7d,
+	0xbf, 0x72, 0x80, 0x90, 0x74, 0x66, 0x3a, 0xcf, 0x76, 0x34, 0x68, 0x08, 0x77, 0x51, 0x9f, 0x1a,
+	0x29, 0xeb, 0x69, 0x00, 0x3d, 0x55, 0x42, 0x56, 0x46, 0x48, 0x6b, 0x01, 0x25, 0x1a, 0xb0, 0xcb,
+	0x87, 0xfc, 0x03, 0xbd, 0x3d, 0xf0, 0xfa, 0x95, 0xc2, 0x97, 0xae, 0x98, 0x28, 0x8f, 0x4e, 0x22,
+	0xb8, 0xa7, 0xe3, 0xb1, 0x53, 0xde, 0x27, 0x3d, 0xba, 0x7d, 0x2c, 0xa7, 0x66, 0x5c, 0xd7, 0x52,
+	0xb2, 0x4f, 0x1e, 0x6e, 0x0f, 0xff, 0x15, 0x12, 0x4e, 0xaf, 0xc2, 0xa9, 0x47, 0x69, 0x3b, 0x18,
+	0xce, 0xd4, 0x92, 0x3d, 0x7a, 0x45, 0xe1, 0x64, 0x24, 0x9b, 0x86, 0x69, 0x27, 0x58, 0xa8, 0xc2,
+	0xc9, 0x32, 0x82, 0xdf, 0xa3, 0x77, 0x37, 0xe6, 0x0f, 0x95, 0xaf, 0xc0, 0x7a, 0xc5, 0xbf, 0x10,
+	0x7a, 0x63, 0xe0, 0xf5, 0x6b, 0x39, 0xf5, 0x0a, 0x0f, 0xc1, 0xbe, 0x35, 0xae, 0x4c, 0x76, 0xe8,
+	0x25, 0x0b, 0xb6, 0x50, 0x01, 0x6c, 0x6b, 0xd8, 0x5c, 0xfe, 0x0b, 0x54, 0x3d, 0xb7, 0x37, 0xda,
+	0x4a, 0x3c, 0x72, 0x2a, 0xdd, 0x6a, 0xe6, 0x8e, 0x05, 0x9e, 0xd1, 0xf4, 0x3c, 0x4c, 0x24, 0x6d,
+	0xb4, 0xe7, 0x12, 0xe5, 0x21, 0x94, 0xa5, 0xc1, 0x52, 0xd9, 0x95, 0x87, 0x73, 0xba, 0xbf, 0x49,
+	0x5b, 0xbd, 0x7f, 0xfc, 0xa7, 0x4d, 0x3b, 0x03, 0xaf, 0x93, 0x9c, 0x5e, 0x3b, 0x3b, 0x6d, 0xb7,
+	0x3f, 0xd3, 0x79, 0xff, 0x7c, 0x6e, 0xb6, 0xbb, 0xb6, 0x1c, 0x71, 0xee, 0x7c, 0xfc, 0xf1, 0xfb,
+	0x5b, 0xbb, 0xcb, 0x6f, 0x8a, 0x7a, 0x5f, 0x8e, 0x83, 0x67, 0x54, 0x2c, 0x5b, 0x7e, 0x22, 0xb4,
+	0xbb, 0x96, 0x26, 0x89, 0x5d, 0xd7, 0xca, 0xd9, 0xc1, 0x85, 0x72, 0x0c, 0xbf, 0x1f, 0xc2, 0x19,
+	0xef, 0x85, 0xf0, 0xb1, 0x44, 0x39, 0x2a, 0xa2, 0x39, 0x52, 0x7c, 0x26, 0xf4, 0xd6, 0x86, 0xf5,
+	0x63, 0xab, 0x9c, 0xf5, 0x7a, 0xf6, 0xe0, 0x62, 0x3d, 0x82, 0x1c, 0x04, 0x90, 0x3d, 0xbe, 0x1b,
+	0x40, 0xea, 0x4f, 0x70, 0x7a, 0x1d, 0x56, 0x7b, 0xf0, 0xec, 0xc5, 0xf7, 0x39, 0x23, 0x27, 0x73,
+	0x46, 0x7e, 0xcd, 0x19, 0xf9, 0xba, 0x60, 0xad, 0x93, 0x05, 0x6b, 0xfd, 0x5c, 0xb0, 0xd6, 0x1b,
+	0xa1, 0x0d, 0x4e, 0x8e, 0xf2, 0x7e, 0x01, 0xa5, 0x28, 0xd4, 0x54, 0x79, 0x34, 0x12, 0x9c, 0x8e,
+	0xe7, 0x47, 0xb2, 0xaa, 0xc4, 0xbb, 0xd0, 0x1d, 0xdf, 0x57, 0xca, 0xe7, 0x97, 0xc3, 0xcf, 0xf5,
+	0xe4, 0x6f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x5c, 0xce, 0xae, 0x9e, 0xa7, 0x03, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -278,6 +391,8 @@ type MsgClient interface {
 	ValsetConfirm(ctx context.Context, in *MsgValsetConfirm, opts ...grpc.CallOption) (*MsgValsetConfirmResponse, error)
 	// DataCommitmentConfirm allows the validators to submit a confirmation for a data commitment.
 	DataCommitmentConfirm(ctx context.Context, in *MsgDataCommitmentConfirm, opts ...grpc.CallOption) (*MsgDataCommitmentConfirmResponse, error)
+	// SetOrchestratorAddress allows to set the orchestrator address
+	SetOrchestratorAddress(ctx context.Context, in *MsgSetOrchestratorAddress, opts ...grpc.CallOption) (*MsgSetOrchestratorAddressResponse, error)
 }
 
 type msgClient struct {
@@ -306,12 +421,23 @@ func (c *msgClient) DataCommitmentConfirm(ctx context.Context, in *MsgDataCommit
 	return out, nil
 }
 
+func (c *msgClient) SetOrchestratorAddress(ctx context.Context, in *MsgSetOrchestratorAddress, opts ...grpc.CallOption) (*MsgSetOrchestratorAddressResponse, error) {
+	out := new(MsgSetOrchestratorAddressResponse)
+	err := c.cc.Invoke(ctx, "/qgb.Msg/SetOrchestratorAddress", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
 	// ValsetConfirm allows the validators to submit their signatures over the validator set.
 	ValsetConfirm(context.Context, *MsgValsetConfirm) (*MsgValsetConfirmResponse, error)
 	// DataCommitmentConfirm allows the validators to submit a confirmation for a data commitment.
 	DataCommitmentConfirm(context.Context, *MsgDataCommitmentConfirm) (*MsgDataCommitmentConfirmResponse, error)
+	// SetOrchestratorAddress allows to set the orchestrator address
+	SetOrchestratorAddress(context.Context, *MsgSetOrchestratorAddress) (*MsgSetOrchestratorAddressResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.
@@ -323,6 +449,9 @@ func (*UnimplementedMsgServer) ValsetConfirm(ctx context.Context, req *MsgValset
 }
 func (*UnimplementedMsgServer) DataCommitmentConfirm(ctx context.Context, req *MsgDataCommitmentConfirm) (*MsgDataCommitmentConfirmResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentConfirm not implemented")
+}
+func (*UnimplementedMsgServer) SetOrchestratorAddress(ctx context.Context, req *MsgSetOrchestratorAddress) (*MsgSetOrchestratorAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetOrchestratorAddress not implemented")
 }
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
@@ -365,6 +494,24 @@ func _Msg_DataCommitmentConfirm_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Msg_SetOrchestratorAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgSetOrchestratorAddress)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).SetOrchestratorAddress(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qgb.Msg/SetOrchestratorAddress",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).SetOrchestratorAddress(ctx, req.(*MsgSetOrchestratorAddress))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Msg_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "qgb.Msg",
 	HandlerType: (*MsgServer)(nil),
@@ -377,9 +524,80 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 			MethodName: "DataCommitmentConfirm",
 			Handler:    _Msg_DataCommitmentConfirm_Handler,
 		},
+		{
+			MethodName: "SetOrchestratorAddress",
+			Handler:    _Msg_SetOrchestratorAddress_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "qgb/msgs.proto",
+}
+
+func (m *MsgSetOrchestratorAddress) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgSetOrchestratorAddress) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgSetOrchestratorAddress) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.EthAddress) > 0 {
+		i -= len(m.EthAddress)
+		copy(dAtA[i:], m.EthAddress)
+		i = encodeVarintMsgs(dAtA, i, uint64(len(m.EthAddress)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Orchestrator) > 0 {
+		i -= len(m.Orchestrator)
+		copy(dAtA[i:], m.Orchestrator)
+		i = encodeVarintMsgs(dAtA, i, uint64(len(m.Orchestrator)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Validator) > 0 {
+		i -= len(m.Validator)
+		copy(dAtA[i:], m.Validator)
+		i = encodeVarintMsgs(dAtA, i, uint64(len(m.Validator)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgSetOrchestratorAddressResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgSetOrchestratorAddressResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgSetOrchestratorAddressResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
 }
 
 func (m *MsgValsetConfirm) Marshal() (dAtA []byte, err error) {
@@ -511,6 +729,36 @@ func encodeVarintMsgs(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
+func (m *MsgSetOrchestratorAddress) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Validator)
+	if l > 0 {
+		n += 1 + l + sovMsgs(uint64(l))
+	}
+	l = len(m.Orchestrator)
+	if l > 0 {
+		n += 1 + l + sovMsgs(uint64(l))
+	}
+	l = len(m.EthAddress)
+	if l > 0 {
+		n += 1 + l + sovMsgs(uint64(l))
+	}
+	return n
+}
+
+func (m *MsgSetOrchestratorAddressResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
 func (m *MsgValsetConfirm) Size() (n int) {
 	if m == nil {
 		return 0
@@ -567,6 +815,202 @@ func sovMsgs(x uint64) (n int) {
 }
 func sozMsgs(x uint64) (n int) {
 	return sovMsgs(uint64((x << 1) ^ uint64((int64(x) >> 63))))
+}
+func (m *MsgSetOrchestratorAddress) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowMsgs
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgSetOrchestratorAddress: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgSetOrchestratorAddress: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Validator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgs
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMsgs
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgs
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Validator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Orchestrator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgs
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMsgs
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgs
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Orchestrator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EthAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgs
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMsgs
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgs
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.EthAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipMsgs(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthMsgs
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgSetOrchestratorAddressResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowMsgs
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgSetOrchestratorAddressResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgSetOrchestratorAddressResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipMsgs(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthMsgs
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
 }
 func (m *MsgValsetConfirm) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
