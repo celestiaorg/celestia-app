@@ -34,6 +34,11 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 
 //  MsgPayForMessage moves a user's coins to the module address and burns them.
 func (k Keeper) PayForMessage(goCtx context.Context, msg *types.MsgPayForMessage) (*types.MsgPayForMessageResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	ctx.EventManager().EmitEvent(
+		types.NewPayforMessageEvent(sdk.AccAddress(msg.Signer), msg.GetMessageSize()),
+	)
+
 	return &types.MsgPayForMessageResponse{}, nil
 }
 
