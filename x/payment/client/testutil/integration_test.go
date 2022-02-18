@@ -16,6 +16,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	paycli "github.com/celestiaorg/celestia-app/x/payment/client/cli"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
 )
 
@@ -131,7 +132,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 
 				events := txResp.Logs[0].GetEvents()
 				for i := 0; i < len(events); i++ {
-					s.Equal("/payment.MsgPayForMessage", events[i].GetAttributes()[0].Value)
+					s.Equal(types.URLMsgPayforMessage, events[i].GetAttributes()[0].Value)
 				}
 
 				// wait for the tx to be indexed
