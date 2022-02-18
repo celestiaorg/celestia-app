@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"fmt"
-
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -13,14 +12,19 @@ import (
 type Keeper struct {
 	cdc      codec.BinaryCodec
 	storeKey sdk.StoreKey
-	memKey   sdk.StoreKey
+
+	// FIXME: should these modules be added now ? Or we can keep them until later along with slashing? Probably, we would need some of them when adding tests
+	//bankKeeper     *bankkeeper.BaseKeeper
+	//StakingKeeper  *stakingkeeper.Keeper
+	//SlashingKeeper *slashingkeeper.Keeper
+	//DistKeeper     *distrkeeper.Keeper
+	//accountKeeper  *authkeeper.AccountKeeper
 }
 
-func NewKeeper(cdc codec.BinaryCodec, storeKey, memKey sdk.StoreKey) *Keeper {
+func NewKeeper(cdc codec.BinaryCodec, storeKey sdk.StoreKey) *Keeper {
 	return &Keeper{
 		cdc:      cdc,
 		storeKey: storeKey,
-		memKey:   memKey,
 	}
 }
 

@@ -40,7 +40,7 @@ func (k Keeper) SetValsetConfirm(ctx sdk.Context, valsetConf types.MsgValsetConf
 	return key
 }
 
-// GetValsetConfirms
+// GetValsetConfirms get all ValsetConfirms with the provided nonce
 func (k Keeper) GetValsetConfirms(ctx sdk.Context, nonce uint64) (confirms []types.MsgValsetConfirm) {
 	prefixStore := prefix.NewStore(ctx.KVStore(k.storeKey), []byte(types.ValsetConfirmKey))
 	start, end := prefixRange([]byte(types.ConvertByteArrToString(types.UInt64Bytes(nonce))))
@@ -62,7 +62,7 @@ func (k Keeper) GetValsetConfirms(ctx sdk.Context, nonce uint64) (confirms []typ
 	return confirms
 }
 
-// DeleteValsetConfirms
+// DeleteValsetConfirms deletes all ValsetConfirms with the provided nonce
 func (k Keeper) DeleteValsetConfirms(ctx sdk.Context, nonce uint64) {
 	store := ctx.KVStore(k.storeKey)
 	for _, confirm := range k.GetValsetConfirms(ctx, nonce) {
