@@ -4,6 +4,7 @@ package qgb;
 import "google/api/annotations.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
 import "qgb/msgs.proto";
+import "gogoproto/gogo.proto";
 // this line is used by starport scaffolding # 1
 
 option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
@@ -14,11 +15,38 @@ service Query {
   rpc ValsetConfirm(QueryValsetConfirmRequest) returns (QueryValsetConfirmResponse) {
     option (google.api.http).get = "/qgb/valset/confirm";
   }
+  // ValsetConfirmsByNonce
+  rpc ValsetConfirmsByNonce(QueryValsetConfirmsByNonceRequest) returns (QueryValsetConfirmsByNonceResponse) {
+    option (google.api.http).get = "/qgb/confirms/{nonce}";
+  }
   // GetDelegateKeyByOrchestrator Queries delegate key by orchestrator
   rpc GetDelegateKeyByOrchestrator(QueryGetDelegateKeysByOrchestratorAddress) returns (QueryGetDelegateKeyByOrchestratorResponse) {
     option (google.api.http).get = "/qgb/query_delegate_keys_by_orchestrator";
   }
   // this line is used by starport scaffolding # 2
+}
+
+// FIXME: Should we also have support for `Valset`s ? Or only `ValsetConfirm`s ?
+//// QueryCurrentValsetRequest
+//message QueryCurrentValsetRequest {}
+//// QueryCurrentValsetResponse
+//message QueryCurrentValsetResponse {
+//  Valset valset = 1 [(gogoproto.nullable) = false];
+//}
+//
+// QueryValsetRequestRequest
+//message QueryValsetRequestRequest {
+//  uint64 nonce = 1;
+//}
+
+// QueryValsetConfirmsByNonceRequest
+message QueryValsetConfirmsByNonceRequest {
+  uint64 nonce = 1;
+}
+
+// QueryValsetConfirmsByNonceResponse
+message QueryValsetConfirmsByNonceResponse {
+  repeated MsgValsetConfirm confirms = 1 [(gogoproto.nullable) = false];
 }
 
 // QueryValsetConfirmRequest ValSet confirm query request
