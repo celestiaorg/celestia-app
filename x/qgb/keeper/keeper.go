@@ -12,13 +12,6 @@ import (
 type Keeper struct {
 	cdc      codec.BinaryCodec
 	storeKey sdk.StoreKey
-
-	// FIXME: should these modules be added now ? Or we can keep them until later along with slashing? Probably, we would need some of them when adding tests
-	//bankKeeper     *bankkeeper.BaseKeeper
-	//StakingKeeper  *stakingkeeper.Keeper
-	//SlashingKeeper *slashingkeeper.Keeper
-	//DistKeeper     *distrkeeper.Keeper
-	//accountKeeper  *authkeeper.AccountKeeper
 }
 
 func NewKeeper(cdc codec.BinaryCodec, storeKey sdk.StoreKey) *Keeper {
@@ -39,8 +32,6 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 //
 // In case of an overflow the end is set to nil.
 //		Example: []byte{255, 255, 255, 255} becomes nil
-// MARK finish-batches: this is where some crazy shit happens
-// FIXME: should we keep these funny comments ?
 func prefixRange(prefix []byte) ([]byte, []byte) {
 	if prefix == nil {
 		panic("nil key not allowed")
@@ -56,13 +47,12 @@ func prefixRange(prefix []byte) ([]byte, []byte) {
 	l := len(end) - 1
 	end[l]++
 
-	// wait, what if that overflowed?....
 	for end[l] == 0 && l > 0 {
 		l--
 		end[l]++
 	}
 
-	// okay, funny guy, you gave us FFF, no end to this range...
+	// set the end as nil in case of overflow
 	if l == 0 && end[0] == 0 {
 		end = nil
 	}
