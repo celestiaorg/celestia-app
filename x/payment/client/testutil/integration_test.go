@@ -14,7 +14,7 @@ import (
 	cosmosnet "github.com/cosmos/cosmos-sdk/testutil/network"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	etypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	paycli "github.com/celestiaorg/celestia-app/x/payment/client/cli"
@@ -134,8 +134,8 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 				events := txResp.Logs[0].GetEvents()
 				for _, e := range events {
 					switch e.Type {
-					case etypes.AttributeKeySpender:
-						s.Equal("payformessage", e.Type)
+					case types.AttributeKeySpender:
+						s.Equal(types.EventTypePayForMessage, e)
 					}
 					//s.Equal("/payment.MsgPayForMessage", events[i].GetAttributes()[0].Value)
 					//s.Equal(hexMsg, events[i].GetAttributes()[1].Value)
