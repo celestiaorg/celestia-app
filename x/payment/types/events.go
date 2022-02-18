@@ -1,6 +1,8 @@
 package types
 
 import (
+	"strconv"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -16,6 +18,6 @@ func NewPayforMessageEvent(spender sdk.AccAddress, size uint64) sdk.Event {
 	return sdk.NewEvent(
 		EventTypePayForMessage,
 		sdk.NewAttribute(AttributeKeySpender, spender.String()),
-		sdk.NewAttribute(AttributeKeySize, string(size)),
+		sdk.NewAttribute(AttributeKeySize, strconv.FormatUint(size, 10)),
 	)
 }
