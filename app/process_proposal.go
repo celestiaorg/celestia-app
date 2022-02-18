@@ -19,7 +19,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	// extract the commitments from any MsgPayForMessages in the block
 	commitments := make(map[string]struct{})
 	for _, rawTx := range req.BlockData.Txs {
-		tx, err := app.txConfig.TxDecoder()(rawTx)
+		tx, err := MalleatedTxDecoder(app.txConfig.TxDecoder())(rawTx)
 		if err != nil {
 			continue
 		}
