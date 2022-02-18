@@ -2,6 +2,12 @@ package types
 
 // this line is used by starport scaffolding # genesis/types/import
 
+// DefaultParamspace defines the default auth module parameter subspace
+const (
+	// todo: implement oracle constants as params
+	DefaultParamspace = ModuleName
+)
+
 // DefaultIndex is the default capability global index
 const DefaultIndex uint64 = 1
 

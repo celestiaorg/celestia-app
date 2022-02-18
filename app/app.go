@@ -323,7 +323,6 @@ func New(
 	app.QgbKeeper = *qgbmodulekeeper.NewKeeper(
 		appCodec,
 		keys[qgbmoduletypes.StoreKey],
-		keys[qgbmoduletypes.MemStoreKey],
 	)
 	qgbmodule := qgbmodule.NewAppModule(appCodec, app.QgbKeeper)
 
