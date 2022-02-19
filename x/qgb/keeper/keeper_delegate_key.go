@@ -165,7 +165,7 @@ func (k Keeper) GetOrchestratorValidator(ctx sdk.Context, orch sdk.AccAddress) (
 	}, false
 }
 
-// GetEthAddressByValidator returns the eth address for a given gravity validator
+// GetEthAddressByValidator returns the eth address for a given qgb validator
 func (k Keeper) GetEthAddressByValidator(ctx sdk.Context, validator sdk.ValAddress) (ethAddress *types.EthAddress, found bool) {
 	if err := sdk.VerifyAddressFormat(validator); err != nil {
 		panic(sdkerrors.Wrap(err, "invalid validator address"))
