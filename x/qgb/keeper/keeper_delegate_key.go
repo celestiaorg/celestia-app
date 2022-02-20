@@ -94,75 +94,8 @@ func (k Keeper) GetOrchestratorValidator(ctx sdk.Context, orch sdk.AccAddress) (
 		ctx.Logger().Error("invalid orch address")
 		return validator, false
 	}
-	store := ctx.KVStore(k.storeKey)
-	valAddr := store.Get([]byte(types.GetOrchestratorAddressKey(orch)))
-	if valAddr == nil {
-		return stakingtypes.Validator{
-			OperatorAddress: "",
-			ConsensusPubkey: &codectypes.Any{
-				TypeUrl:              "",
-				Value:                []byte{},
-				XXX_NoUnkeyedLiteral: struct{}{},
-				XXX_unrecognized:     []byte{},
-				XXX_sizecache:        0,
-			},
-			Jailed:          false,
-			Status:          0,
-			Tokens:          sdk.Int{},
-			DelegatorShares: sdk.Dec{},
-			Description: stakingtypes.Description{
-				Moniker:         "",
-				Identity:        "",
-				Website:         "",
-				SecurityContact: "",
-				Details:         "",
-			},
-			UnbondingHeight: 0,
-			UnbondingTime:   time.Time{},
-			Commission: stakingtypes.Commission{
-				CommissionRates: stakingtypes.CommissionRates{
-					Rate:          sdk.Dec{},
-					MaxRate:       sdk.Dec{},
-					MaxChangeRate: sdk.Dec{},
-				},
-				UpdateTime: time.Time{},
-			},
-			MinSelfDelegation: sdk.Int{},
-		}, false
-	}
-
-	return stakingtypes.Validator{
-		OperatorAddress: "",
-		ConsensusPubkey: &codectypes.Any{
-			TypeUrl:              "",
-			Value:                []byte{},
-			XXX_NoUnkeyedLiteral: struct{}{},
-			XXX_unrecognized:     []byte{},
-			XXX_sizecache:        0,
-		},
-		Jailed:          false,
-		Status:          0,
-		Tokens:          sdk.Int{},
-		DelegatorShares: sdk.Dec{},
-		Description: stakingtypes.Description{
-			Moniker:         "",
-			Identity:        "",
-			Website:         "",
-			SecurityContact: "",
-			Details:         "",
-		},
-		UnbondingHeight: 0,
-		UnbondingTime:   time.Time{},
-		Commission: stakingtypes.Commission{
-			CommissionRates: stakingtypes.CommissionRates{
-				Rate:          sdk.Dec{},
-				MaxRate:       sdk.Dec{},
-				MaxChangeRate: sdk.Dec{},
-			},
-			UpdateTime: time.Time{},
-		},
-		MinSelfDelegation: sdk.Int{},
-	}, false
+	// TODO look for the validator when the staking module is added
+	return stakingtypes.Validator{}, false
 }
 
 // GetEthAddressByValidator returns the eth address for a given qgb validator
