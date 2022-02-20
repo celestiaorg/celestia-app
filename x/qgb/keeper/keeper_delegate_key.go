@@ -2,12 +2,10 @@ package keeper
 
 import (
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"sort"
-	"time"
 )
 
 // GetDelegateKeys iterates both the EthAddress and Orchestrator address indexes to produce
