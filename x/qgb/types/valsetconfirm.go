@@ -40,3 +40,6 @@ func (msg *MsgValsetConfirm) ValidateBasic() (err error) {
 	}
 	return nil
 }
+
+// Type should return the action
+func (msg *MsgValsetConfirm) Type() string { return "valset_confirm" }
