@@ -27,6 +27,8 @@ service Query {
   rpc DataCommitmentConfirmsByRange(QueryDataCommitmentConfirmsByRangeRequest) returns (QueryDataCommitmentConfirmsByRangeResponse) {
     option (google.api.http).get = "/qgb/data_commitment/confirms/begin_block/{begin_block}/end_block/{end_block}";
   }
+  // TODO add more queries for the other data commitment confirm fields
+
   // ValsetConfirm Queries ValSetConfirm
   rpc ValsetConfirm(QueryValsetConfirmRequest) returns (QueryValsetConfirmResponse) {
     option (google.api.http).get = "/qgb/valset/confirm";

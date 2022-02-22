@@ -28,6 +28,8 @@ var (
 	// FIXME: For our keys, should they be `gravity1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm` or `qgb1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm`?
 	// i.e gravity1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm
 	ValsetConfirmKey = "ValsetConfirmKey"
+	// DataCommitmentConfirmKey indexes data commitment confirmations by commitment and the validator account address
+	DataCommitmentConfirmKey = "DataCommitmentConfirmKey"
 	// EthAddressByValidatorKey indexes cosmos validator account addresses
 	// i.e. gravity1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm
 	EthAddressByValidatorKey = "EthAddressValidatorKey"
@@ -82,4 +84,14 @@ func GetEthAddressByValidatorKey(validator sdk.ValAddress) string {
 // [0xf9][0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B]
 func GetValidatorByEthAddressKey(ethAddress EthAddress) string {
 	return ValidatorByEthAddressKey + string([]byte(ethAddress.GetAddress()))
+}
+
+// GetDataCommitmentConfirmKey returns the following key format
+// prefix   commitment                    validator-address
+// [0x0][0 0 0 0 0 0 0 1][qgb1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm] // Key to be investigated
+func GetDataCommitmentConfirmKey(commitment string, validator sdk.AccAddress) string {
+	if err := sdk.VerifyAddressFormat(validator); err != nil {
+		panic(sdkerrors.Wrap(err, "invalid validator address"))
+	}
+	return DataCommitmentConfirmKey + commitment + string(validator.Bytes())
 }
