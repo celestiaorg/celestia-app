@@ -68,7 +68,13 @@ message MsgValsetConfirm {
 message MsgValsetConfirmResponse {}
 
 // MsgDataCommitmentConfirm describes a data commitment for a set of blocks.
-message MsgDataCommitmentConfirm {}
+message MsgDataCommitmentConfirm {
+  string signature = 1;
+  string validator_address = 2;
+  string commitment = 3;
+  int64 begin_block = 4;
+  int64 end_block = 5;
+}
 
 // MsgValsetConfirmResponse describes the response returned after the submission
 // of a MsgDataCommitmentConfirm.
