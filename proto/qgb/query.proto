@@ -12,7 +12,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 // Query defines the gRPC querier service.
 service Query {
   // DataCommitmentConfirm Queries the data commitment confirm by the commitment and the validator address
-  rpc DataCommitmentConfirm(QueryDataCommitmentConfirmsRequest) returns (QueryDataCommitmentConfirmsResponse) {
+  rpc DataCommitmentConfirm(QueryDataCommitmentConfirmRequest) returns (QueryDataCommitmentConfirmResponse) {
     option (google.api.http).get = "/qgb/data_commitment/confirm/address/{address}/commitment/{commitment}";
   }
   // DataCommitmentConfirmsByValidator Queries data commitment confirms by validator address
@@ -75,13 +75,13 @@ message QueryGetDelegateKeyByOrchestratorResponse {
 }
 
 // QueryDataCommitmentConfirmsRequest
-message QueryDataCommitmentConfirmsRequest {
+message QueryDataCommitmentConfirmRequest {
   string commitment = 1;
   string address = 2;
 }
 
 // QueryDataCommitmentConfirmsResponse
-message QueryDataCommitmentConfirmsResponse {
+message QueryDataCommitmentConfirmResponse {
   MsgDataCommitmentConfirm confirm = 1;
 }
 

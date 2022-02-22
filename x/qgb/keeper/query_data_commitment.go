@@ -5,7 +5,7 @@ import (
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 )
 
-func (k Keeper) DataCommitmentConfirm(ctx context.Context, request *types.QueryDataCommitmentConfirmsRequest) (*types.QueryDataCommitmentConfirmsResponse, error) {
+func (k Keeper) DataCommitmentConfirm(ctx context.Context, request *types.QueryDataCommitmentConfirmRequest) (*types.QueryDataCommitmentConfirmResponse, error) {
 	//TODO implement me
 	panic("implement me")
 }
