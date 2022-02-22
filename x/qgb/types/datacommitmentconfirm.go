@@ -9,14 +9,16 @@ import (
 func NewMsgDataCommitmentConfirm(
 	commitment string,
 	signature string,
-	validatorSignature string,
+	validatorSignature sdk.AccAddress,
+	ethAddress EthAddress,
 	beginBlock int64,
 	endBlock int64,
 ) *MsgDataCommitmentConfirm {
 	return &MsgDataCommitmentConfirm{
 		Commitment:       commitment,
 		Signature:        signature,
-		ValidatorAddress: validatorSignature,
+		ValidatorAddress: validatorSignature.String(),
+		EthAddress:       ethAddress.GetAddress(),
 		BeginBlock:       beginBlock,
 		EndBlock:         endBlock,
 	}
@@ -39,6 +41,11 @@ func (msg *MsgDataCommitmentConfirm) ValidateBasic() (err error) {
 	if msg.BeginBlock > msg.EndBlock {
 		return sdkerrors.Wrap(err, "begin block should be less than end block")
 	}
-	// FIXME: add `that the provided validator's bridge address is the one associated with that validator`
+	if err := ValidateEthAddress(msg.EthAddress); err != nil {
+		return sdkerrors.Wrap(err, "ethereum address")
+	}
 	return nil
 }
+
+// Type should return the action
+func (msg *MsgDataCommitmentConfirm) Type() string { return "data_commitment_confirm" }

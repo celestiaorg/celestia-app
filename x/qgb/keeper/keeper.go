@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"fmt"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -57,4 +58,14 @@ func prefixRange(prefix []byte) ([]byte, []byte) {
 		end = nil
 	}
 	return prefix, end
+}
+
+// GetAccountValidator returns the validator key associated with an account address
+func GetAccountValidator(ctx sdk.Context, acc sdk.AccAddress) (validator stakingtypes.Validator, found bool) { //  check the ones calling these not to do any verification or use
+	if err := sdk.VerifyAddressFormat(acc); err != nil {
+		ctx.Logger().Error("invalid validator address")
+		return validator, false
+	}
+	// TODO look for the validator when the staking module is added and return accordingly
+	return stakingtypes.Validator{}, true
 }

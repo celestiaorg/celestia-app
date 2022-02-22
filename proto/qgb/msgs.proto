@@ -71,9 +71,10 @@ message MsgValsetConfirmResponse {}
 message MsgDataCommitmentConfirm {
   string signature = 1;
   string validator_address = 2;
-  string commitment = 3;
-  int64 begin_block = 4;
-  int64 end_block = 5;
+  string eth_address = 3;
+  string commitment = 4;
+  int64 begin_block = 5;
+  int64 end_block = 6;
 }
 
 // MsgValsetConfirmResponse describes the response returned after the submission
