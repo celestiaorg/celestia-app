@@ -87,7 +87,7 @@ func (k msgServer) DataCommitmentConfirm(c context.Context, msg *types.MsgDataCo
 		return nil, sdkerrors.Wrap(types.ErrInvalid, fmt.Sprintf("signature verification failed expected sig by %s with checkpoint %s found %s", ethAddress, msg.Commitment, msg.Signature))
 	}
 
-	// TODO set data commitment confirm when we start persisting state
+	k.SetDataCommitmentConfirm(ctx, *msg)
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
