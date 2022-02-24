@@ -324,6 +324,406 @@ func (m *QueryGetDelegateKeyByOrchestratorResponse) GetEthAddress() string {
 	return ""
 }
 
+// QueryDataCommitmentConfirmsRequest Data commitment confirm by commitment and validator address request
+type QueryDataCommitmentConfirmRequest struct {
+	Commitment string `protobuf:"bytes,1,opt,name=commitment,proto3" json:"commitment,omitempty"`
+	Address    string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
+}
+
+func (m *QueryDataCommitmentConfirmRequest) Reset()         { *m = QueryDataCommitmentConfirmRequest{} }
+func (m *QueryDataCommitmentConfirmRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryDataCommitmentConfirmRequest) ProtoMessage()    {}
+func (*QueryDataCommitmentConfirmRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{6}
+}
+func (m *QueryDataCommitmentConfirmRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryDataCommitmentConfirmRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryDataCommitmentConfirmRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryDataCommitmentConfirmRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryDataCommitmentConfirmRequest.Merge(m, src)
+}
+func (m *QueryDataCommitmentConfirmRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryDataCommitmentConfirmRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryDataCommitmentConfirmRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryDataCommitmentConfirmRequest proto.InternalMessageInfo
+
+func (m *QueryDataCommitmentConfirmRequest) GetCommitment() string {
+	if m != nil {
+		return m.Commitment
+	}
+	return ""
+}
+
+func (m *QueryDataCommitmentConfirmRequest) GetAddress() string {
+	if m != nil {
+		return m.Address
+	}
+	return ""
+}
+
+// QueryDataCommitmentConfirmsResponse Data commitment confirm by commitment and validator address response
+type QueryDataCommitmentConfirmResponse struct {
+	Confirm *MsgDataCommitmentConfirm `protobuf:"bytes,1,opt,name=confirm,proto3" json:"confirm,omitempty"`
+}
+
+func (m *QueryDataCommitmentConfirmResponse) Reset()         { *m = QueryDataCommitmentConfirmResponse{} }
+func (m *QueryDataCommitmentConfirmResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryDataCommitmentConfirmResponse) ProtoMessage()    {}
+func (*QueryDataCommitmentConfirmResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{7}
+}
+func (m *QueryDataCommitmentConfirmResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryDataCommitmentConfirmResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryDataCommitmentConfirmResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryDataCommitmentConfirmResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryDataCommitmentConfirmResponse.Merge(m, src)
+}
+func (m *QueryDataCommitmentConfirmResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryDataCommitmentConfirmResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryDataCommitmentConfirmResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryDataCommitmentConfirmResponse proto.InternalMessageInfo
+
+func (m *QueryDataCommitmentConfirmResponse) GetConfirm() *MsgDataCommitmentConfirm {
+	if m != nil {
+		return m.Confirm
+	}
+	return nil
+}
+
+// QueryDataCommitmentConfirmsRequest Data commitment confirms by commitment request
+type QueryDataCommitmentConfirmsByCommitmentRequest struct {
+	Commitment string `protobuf:"bytes,1,opt,name=commitment,proto3" json:"commitment,omitempty"`
+}
+
+func (m *QueryDataCommitmentConfirmsByCommitmentRequest) Reset() {
+	*m = QueryDataCommitmentConfirmsByCommitmentRequest{}
+}
+func (m *QueryDataCommitmentConfirmsByCommitmentRequest) String() string {
+	return proto.CompactTextString(m)
+}
+func (*QueryDataCommitmentConfirmsByCommitmentRequest) ProtoMessage() {}
+func (*QueryDataCommitmentConfirmsByCommitmentRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{8}
+}
+func (m *QueryDataCommitmentConfirmsByCommitmentRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryDataCommitmentConfirmsByCommitmentRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryDataCommitmentConfirmsByCommitmentRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryDataCommitmentConfirmsByCommitmentRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryDataCommitmentConfirmsByCommitmentRequest.Merge(m, src)
+}
+func (m *QueryDataCommitmentConfirmsByCommitmentRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryDataCommitmentConfirmsByCommitmentRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryDataCommitmentConfirmsByCommitmentRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryDataCommitmentConfirmsByCommitmentRequest proto.InternalMessageInfo
+
+func (m *QueryDataCommitmentConfirmsByCommitmentRequest) GetCommitment() string {
+	if m != nil {
+		return m.Commitment
+	}
+	return ""
+}
+
+// QueryDataCommitmentConfirmsResponse Data commitment confirms by commitment response
+type QueryDataCommitmentConfirmsByCommitmentResponse struct {
+	Confirms []MsgDataCommitmentConfirm `protobuf:"bytes,1,rep,name=confirms,proto3" json:"confirms"`
+}
+
+func (m *QueryDataCommitmentConfirmsByCommitmentResponse) Reset() {
+	*m = QueryDataCommitmentConfirmsByCommitmentResponse{}
+}
+func (m *QueryDataCommitmentConfirmsByCommitmentResponse) String() string {
+	return proto.CompactTextString(m)
+}
+func (*QueryDataCommitmentConfirmsByCommitmentResponse) ProtoMessage() {}
+func (*QueryDataCommitmentConfirmsByCommitmentResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{9}
+}
+func (m *QueryDataCommitmentConfirmsByCommitmentResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryDataCommitmentConfirmsByCommitmentResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryDataCommitmentConfirmsByCommitmentResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryDataCommitmentConfirmsByCommitmentResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryDataCommitmentConfirmsByCommitmentResponse.Merge(m, src)
+}
+func (m *QueryDataCommitmentConfirmsByCommitmentResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryDataCommitmentConfirmsByCommitmentResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryDataCommitmentConfirmsByCommitmentResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryDataCommitmentConfirmsByCommitmentResponse proto.InternalMessageInfo
+
+func (m *QueryDataCommitmentConfirmsByCommitmentResponse) GetConfirms() []MsgDataCommitmentConfirm {
+	if m != nil {
+		return m.Confirms
+	}
+	return nil
+}
+
+// QueryDataCommitmentConfirmsByRangeRequest Data commitment confirms by range request
+type QueryDataCommitmentConfirmsByRangeRequest struct {
+	BeginBlock int64 `protobuf:"varint,1,opt,name=begin_block,json=beginBlock,proto3" json:"begin_block,omitempty"`
+	EndBlock   int64 `protobuf:"varint,2,opt,name=end_block,json=endBlock,proto3" json:"end_block,omitempty"`
+}
+
+func (m *QueryDataCommitmentConfirmsByRangeRequest) Reset() {
+	*m = QueryDataCommitmentConfirmsByRangeRequest{}
+}
+func (m *QueryDataCommitmentConfirmsByRangeRequest) String() string {
+	return proto.CompactTextString(m)
+}
+func (*QueryDataCommitmentConfirmsByRangeRequest) ProtoMessage() {}
+func (*QueryDataCommitmentConfirmsByRangeRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{10}
+}
+func (m *QueryDataCommitmentConfirmsByRangeRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryDataCommitmentConfirmsByRangeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryDataCommitmentConfirmsByRangeRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryDataCommitmentConfirmsByRangeRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryDataCommitmentConfirmsByRangeRequest.Merge(m, src)
+}
+func (m *QueryDataCommitmentConfirmsByRangeRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryDataCommitmentConfirmsByRangeRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryDataCommitmentConfirmsByRangeRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryDataCommitmentConfirmsByRangeRequest proto.InternalMessageInfo
+
+func (m *QueryDataCommitmentConfirmsByRangeRequest) GetBeginBlock() int64 {
+	if m != nil {
+		return m.BeginBlock
+	}
+	return 0
+}
+
+func (m *QueryDataCommitmentConfirmsByRangeRequest) GetEndBlock() int64 {
+	if m != nil {
+		return m.EndBlock
+	}
+	return 0
+}
+
+// QueryDataCommitmentConfirmsByRangeResponse Data commitment confirms by range response
+type QueryDataCommitmentConfirmsByRangeResponse struct {
+	Confirms []MsgDataCommitmentConfirm `protobuf:"bytes,1,rep,name=confirms,proto3" json:"confirms"`
+}
+
+func (m *QueryDataCommitmentConfirmsByRangeResponse) Reset() {
+	*m = QueryDataCommitmentConfirmsByRangeResponse{}
+}
+func (m *QueryDataCommitmentConfirmsByRangeResponse) String() string {
+	return proto.CompactTextString(m)
+}
+func (*QueryDataCommitmentConfirmsByRangeResponse) ProtoMessage() {}
+func (*QueryDataCommitmentConfirmsByRangeResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{11}
+}
+func (m *QueryDataCommitmentConfirmsByRangeResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryDataCommitmentConfirmsByRangeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryDataCommitmentConfirmsByRangeResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryDataCommitmentConfirmsByRangeResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryDataCommitmentConfirmsByRangeResponse.Merge(m, src)
+}
+func (m *QueryDataCommitmentConfirmsByRangeResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryDataCommitmentConfirmsByRangeResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryDataCommitmentConfirmsByRangeResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryDataCommitmentConfirmsByRangeResponse proto.InternalMessageInfo
+
+func (m *QueryDataCommitmentConfirmsByRangeResponse) GetConfirms() []MsgDataCommitmentConfirm {
+	if m != nil {
+		return m.Confirms
+	}
+	return nil
+}
+
+// QueryDataCommitmentConfirmsByValidatorRequest Data commitment confirms by validator address request
+type QueryDataCommitmentConfirmsByValidatorRequest struct {
+	Address string `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+}
+
+func (m *QueryDataCommitmentConfirmsByValidatorRequest) Reset() {
+	*m = QueryDataCommitmentConfirmsByValidatorRequest{}
+}
+func (m *QueryDataCommitmentConfirmsByValidatorRequest) String() string {
+	return proto.CompactTextString(m)
+}
+func (*QueryDataCommitmentConfirmsByValidatorRequest) ProtoMessage() {}
+func (*QueryDataCommitmentConfirmsByValidatorRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{12}
+}
+func (m *QueryDataCommitmentConfirmsByValidatorRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryDataCommitmentConfirmsByValidatorRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryDataCommitmentConfirmsByValidatorRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorRequest.Merge(m, src)
+}
+func (m *QueryDataCommitmentConfirmsByValidatorRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryDataCommitmentConfirmsByValidatorRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorRequest proto.InternalMessageInfo
+
+func (m *QueryDataCommitmentConfirmsByValidatorRequest) GetAddress() string {
+	if m != nil {
+		return m.Address
+	}
+	return ""
+}
+
+// QueryDataCommitmentConfirmsByValidatorResponse Data commitment confirms by validator address response
+type QueryDataCommitmentConfirmsByValidatorResponse struct {
+	Confirms []MsgDataCommitmentConfirm `protobuf:"bytes,1,rep,name=confirms,proto3" json:"confirms"`
+}
+
+func (m *QueryDataCommitmentConfirmsByValidatorResponse) Reset() {
+	*m = QueryDataCommitmentConfirmsByValidatorResponse{}
+}
+func (m *QueryDataCommitmentConfirmsByValidatorResponse) String() string {
+	return proto.CompactTextString(m)
+}
+func (*QueryDataCommitmentConfirmsByValidatorResponse) ProtoMessage() {}
+func (*QueryDataCommitmentConfirmsByValidatorResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{13}
+}
+func (m *QueryDataCommitmentConfirmsByValidatorResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryDataCommitmentConfirmsByValidatorResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryDataCommitmentConfirmsByValidatorResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorResponse.Merge(m, src)
+}
+func (m *QueryDataCommitmentConfirmsByValidatorResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryDataCommitmentConfirmsByValidatorResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorResponse proto.InternalMessageInfo
+
+func (m *QueryDataCommitmentConfirmsByValidatorResponse) GetConfirms() []MsgDataCommitmentConfirm {
+	if m != nil {
+		return m.Confirms
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*QueryValsetConfirmsByNonceRequest)(nil), "qgb.QueryValsetConfirmsByNonceRequest")
 	proto.RegisterType((*QueryValsetConfirmsByNonceResponse)(nil), "qgb.QueryValsetConfirmsByNonceResponse")
@@ -331,47 +731,74 @@ func init() {
 	proto.RegisterType((*QueryValsetConfirmResponse)(nil), "qgb.QueryValsetConfirmResponse")
 	proto.RegisterType((*QueryGetDelegateKeysByOrchestratorAddress)(nil), "qgb.QueryGetDelegateKeysByOrchestratorAddress")
 	proto.RegisterType((*QueryGetDelegateKeyByOrchestratorResponse)(nil), "qgb.QueryGetDelegateKeyByOrchestratorResponse")
+	proto.RegisterType((*QueryDataCommitmentConfirmRequest)(nil), "qgb.QueryDataCommitmentConfirmRequest")
+	proto.RegisterType((*QueryDataCommitmentConfirmResponse)(nil), "qgb.QueryDataCommitmentConfirmResponse")
+	proto.RegisterType((*QueryDataCommitmentConfirmsByCommitmentRequest)(nil), "qgb.QueryDataCommitmentConfirmsByCommitmentRequest")
+	proto.RegisterType((*QueryDataCommitmentConfirmsByCommitmentResponse)(nil), "qgb.QueryDataCommitmentConfirmsByCommitmentResponse")
+	proto.RegisterType((*QueryDataCommitmentConfirmsByRangeRequest)(nil), "qgb.QueryDataCommitmentConfirmsByRangeRequest")
+	proto.RegisterType((*QueryDataCommitmentConfirmsByRangeResponse)(nil), "qgb.QueryDataCommitmentConfirmsByRangeResponse")
+	proto.RegisterType((*QueryDataCommitmentConfirmsByValidatorRequest)(nil), "qgb.QueryDataCommitmentConfirmsByValidatorRequest")
+	proto.RegisterType((*QueryDataCommitmentConfirmsByValidatorResponse)(nil), "qgb.QueryDataCommitmentConfirmsByValidatorResponse")
 }
 
 func init() { proto.RegisterFile("qgb/query.proto", fileDescriptor_f3c1fd86445aad81) }
 
 var fileDescriptor_f3c1fd86445aad81 = []byte{
-	// 547 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x94, 0x4f, 0x6f, 0xd3, 0x3e,
-	0x18, 0xc7, 0xeb, 0x75, 0xfb, 0xed, 0x87, 0x27, 0xfe, 0x79, 0xad, 0x28, 0x61, 0xa4, 0x25, 0x07,
-	0x28, 0x43, 0xd4, 0x74, 0x1c, 0x10, 0x47, 0x0a, 0x12, 0x42, 0xd3, 0x40, 0xf4, 0xc0, 0x01, 0x09,
-	0x22, 0x27, 0x7d, 0x70, 0x23, 0xda, 0x38, 0x8d, 0xdd, 0x8a, 0x08, 0x71, 0xe1, 0xc2, 0x15, 0x89,
-	0x37, 0x82, 0xc4, 0x9b, 0xd8, 0x71, 0x12, 0x17, 0x4e, 0x08, 0xb5, 0xbc, 0x10, 0x14, 0xe7, 0x0f,
-	0x2b, 0x4b, 0x0a, 0x37, 0x3b, 0xfe, 0x3e, 0xdf, 0xe7, 0x93, 0xc7, 0x5f, 0x19, 0x9f, 0x9d, 0x70,
-	0x87, 0x4e, 0xa6, 0x10, 0x46, 0x9d, 0x20, 0x14, 0x4a, 0x90, 0xea, 0x84, 0x3b, 0xc6, 0x0e, 0x17,
-	0x82, 0x8f, 0x80, 0xb2, 0xc0, 0xa3, 0xcc, 0xf7, 0x85, 0x62, 0xca, 0x13, 0xbe, 0x4c, 0x24, 0xc6,
-	0xae, 0x2b, 0xe4, 0x58, 0x48, 0xea, 0x30, 0x09, 0x49, 0x2d, 0x9d, 0x75, 0x1d, 0x50, 0xac, 0x4b,
-	0x03, 0xc6, 0x3d, 0x5f, 0x8b, 0x53, 0xed, 0x99, 0xd8, 0x7f, 0x2c, 0x79, 0x56, 0x5b, 0xe3, 0x82,
-	0x0b, 0xbd, 0xa4, 0xf1, 0x2a, 0xf9, 0x6a, 0xdd, 0xc5, 0x57, 0x9e, 0xc6, 0x3e, 0xcf, 0xd8, 0x48,
-	0x82, 0xba, 0x2f, 0xfc, 0x57, 0x5e, 0x38, 0x96, 0xbd, 0xe8, 0xb1, 0xf0, 0x5d, 0xe8, 0xc3, 0x64,
-	0x0a, 0x52, 0x91, 0x1a, 0xde, 0xf0, 0xe3, 0x7d, 0x03, 0xb5, 0x50, 0x7b, 0xbd, 0x9f, 0x6c, 0xac,
-	0x17, 0xd8, 0x5a, 0x55, 0x2a, 0x03, 0xe1, 0x4b, 0x20, 0x77, 0xf0, 0xff, 0x6e, 0x7a, 0xd4, 0x40,
-	0xad, 0x6a, 0x7b, 0x6b, 0xaf, 0xde, 0x99, 0x70, 0xa7, 0x73, 0x20, 0xf9, 0x52, 0x61, 0x6f, 0xfd,
-	0xf0, 0x7b, 0xb3, 0xd2, 0xcf, 0xc5, 0xd6, 0x3e, 0xbe, 0x78, 0xd2, 0x7e, 0x25, 0x11, 0x69, 0xe0,
-	0x4d, 0x36, 0x18, 0x84, 0x20, 0x65, 0x63, 0xad, 0x85, 0xda, 0xa7, 0xfa, 0xd9, 0xd6, 0x3a, 0xc0,
-	0x46, 0x91, 0x59, 0xca, 0x48, 0xf1, 0x66, 0xda, 0x56, 0xfb, 0x95, 0x21, 0xf6, 0x33, 0x95, 0xf5,
-	0x12, 0x5f, 0xd7, 0x76, 0x0f, 0x41, 0x3d, 0x80, 0x11, 0x70, 0xa6, 0x60, 0x1f, 0x22, 0xd9, 0x8b,
-	0x9e, 0x84, 0xee, 0x10, 0xa4, 0x0a, 0x99, 0x12, 0xe1, 0xbd, 0xa4, 0x37, 0xe9, 0xe2, 0x9a, 0x38,
-	0xf6, 0xd9, 0xce, 0x10, 0x91, 0x46, 0xdc, 0x16, 0x27, 0x4b, 0xac, 0xa8, 0xd0, 0x7f, 0xd9, 0x3e,
-	0xa7, 0xbf, 0x81, 0xcf, 0xcf, 0xd8, 0xc8, 0x1b, 0x14, 0x98, 0x9f, 0xcb, 0x0f, 0x32, 0x98, 0x26,
-	0xde, 0x02, 0x35, 0xb4, 0x97, 0xc7, 0x84, 0x41, 0x0d, 0x53, 0xc1, 0xde, 0x97, 0x2a, 0xde, 0xd0,
-	0xbd, 0xc9, 0x18, 0x9f, 0x5e, 0xfa, 0x7d, 0x62, 0xea, 0xa9, 0x94, 0x5e, 0x8a, 0xd1, 0x2c, 0x3d,
-	0x4f, 0x48, 0xad, 0x4b, 0xef, 0xbf, 0xfe, 0xfc, 0xb4, 0x56, 0x27, 0xdb, 0x34, 0xce, 0xe6, 0x4c,
-	0x6b, 0x68, 0x3a, 0x53, 0xf2, 0x01, 0xe1, 0x7a, 0x61, 0x94, 0xc8, 0xd5, 0x12, 0xdf, 0x3f, 0x62,
-	0x6a, 0x5c, 0xfb, 0xab, 0x2e, 0xe5, 0xb8, 0xac, 0x39, 0x2e, 0x90, 0xba, 0xe6, 0xc8, 0x12, 0x47,
-	0xdf, 0xea, 0x14, 0xbd, 0x23, 0x9f, 0x11, 0xde, 0x59, 0x35, 0x79, 0xd2, 0xf9, 0xdd, 0xe8, 0x5f,
-	0x12, 0x60, 0x94, 0xea, 0x8b, 0x6f, 0xd4, 0xba, 0xa5, 0xf9, 0x76, 0x49, 0x9b, 0xe6, 0x6f, 0x84,
-	0x3d, 0x48, 0xab, 0xec, 0xd7, 0x10, 0x49, 0xdb, 0x89, 0xec, 0xe3, 0xb9, 0xe9, 0x3d, 0x3a, 0x9c,
-	0x9b, 0xe8, 0x68, 0x6e, 0xa2, 0x1f, 0x73, 0x13, 0x7d, 0x5c, 0x98, 0x95, 0xa3, 0x85, 0x59, 0xf9,
-	0xb6, 0x30, 0x2b, 0xcf, 0x29, 0xf7, 0xd4, 0x70, 0xea, 0x74, 0x5c, 0x31, 0xa6, 0x2e, 0x8c, 0x40,
-	0x2a, 0x8f, 0x89, 0x90, 0xe7, 0xeb, 0x9b, 0x2c, 0x08, 0xe8, 0x1b, 0xdd, 0x48, 0x45, 0x01, 0x48,
-	0xe7, 0x3f, 0xfd, 0x30, 0xdc, 0xfe, 0x15, 0x00, 0x00, 0xff, 0xff, 0x28, 0x2b, 0x15, 0x21, 0xa0,
-	0x04, 0x00, 0x00,
+	// 855 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x56, 0x4f, 0x4f, 0xdb, 0x48,
+	0x14, 0x8f, 0xf9, 0xb3, 0xc0, 0xa0, 0xfd, 0x37, 0x10, 0x6d, 0xd6, 0x80, 0x03, 0x3e, 0xec, 0x66,
+	0x59, 0x91, 0xd9, 0xc0, 0xae, 0xd0, 0x1e, 0x56, 0xab, 0x0d, 0x68, 0x77, 0x11, 0x02, 0xda, 0x48,
+	0xe5, 0x50, 0x89, 0x5a, 0x63, 0x67, 0xea, 0x58, 0xc4, 0x9e, 0xc4, 0x33, 0xa0, 0x5a, 0x51, 0x2e,
+	0xbd, 0xf4, 0x5a, 0xa9, 0x5f, 0xa4, 0xc7, 0x7e, 0x81, 0x4a, 0x9c, 0x2a, 0xa4, 0x1e, 0xda, 0x53,
+	0xd5, 0x42, 0x3f, 0x48, 0x95, 0xc9, 0xd8, 0x71, 0x88, 0xe3, 0x04, 0x89, 0xdb, 0x78, 0xde, 0x7b,
+	0xbf, 0xf7, 0xfb, 0xcd, 0x7b, 0x33, 0x7e, 0xe0, 0xdb, 0xa6, 0x6d, 0xa2, 0xe6, 0x19, 0xf1, 0x83,
+	0x62, 0xc3, 0xa7, 0x9c, 0xc2, 0xc9, 0xa6, 0x6d, 0xaa, 0xcb, 0x36, 0xa5, 0x76, 0x9d, 0x20, 0xdc,
+	0x70, 0x10, 0xf6, 0x3c, 0xca, 0x31, 0x77, 0xa8, 0xc7, 0xba, 0x2e, 0xea, 0xba, 0x45, 0x99, 0x4b,
+	0x19, 0x32, 0x31, 0x23, 0xdd, 0x58, 0x74, 0x5e, 0x32, 0x09, 0xc7, 0x25, 0xd4, 0xc0, 0xb6, 0xe3,
+	0x09, 0x67, 0xe9, 0xfb, 0x4d, 0x07, 0xdf, 0x65, 0x76, 0x18, 0xbb, 0x68, 0x53, 0x9b, 0x8a, 0x25,
+	0xea, 0xac, 0xba, 0xbb, 0xfa, 0x9f, 0x60, 0xed, 0x7e, 0x07, 0xe7, 0x18, 0xd7, 0x19, 0xe1, 0x3b,
+	0xd4, 0x7b, 0xec, 0xf8, 0x2e, 0x2b, 0x07, 0x87, 0xd4, 0xb3, 0x48, 0x85, 0x34, 0xcf, 0x08, 0xe3,
+	0x70, 0x11, 0x4c, 0x7b, 0x9d, 0xef, 0x9c, 0xb2, 0xaa, 0x14, 0xa6, 0x2a, 0xdd, 0x0f, 0xfd, 0x04,
+	0xe8, 0x69, 0xa1, 0xac, 0x41, 0x3d, 0x46, 0xe0, 0x36, 0x98, 0xb5, 0xa4, 0x29, 0xa7, 0xac, 0x4e,
+	0x16, 0xe6, 0x37, 0xb3, 0xc5, 0xa6, 0x6d, 0x16, 0x0f, 0x98, 0xdd, 0x17, 0x58, 0x9e, 0xba, 0xf8,
+	0x90, 0xcf, 0x54, 0x22, 0x67, 0x7d, 0x1f, 0xfc, 0x38, 0x08, 0x9f, 0xca, 0x08, 0xe6, 0xc0, 0x0c,
+	0xae, 0x56, 0x7d, 0xc2, 0x58, 0x6e, 0x62, 0x55, 0x29, 0xcc, 0x55, 0xc2, 0x4f, 0xfd, 0x00, 0xa8,
+	0x49, 0x60, 0x92, 0x23, 0x02, 0x33, 0x32, 0xad, 0xc0, 0x1b, 0x46, 0xb1, 0x12, 0x7a, 0xe9, 0x8f,
+	0xc0, 0x2f, 0x02, 0xee, 0x3f, 0xc2, 0x77, 0x49, 0x9d, 0xd8, 0x98, 0x93, 0x7d, 0x12, 0xb0, 0x72,
+	0x70, 0xe4, 0x5b, 0x35, 0xc2, 0xb8, 0x8f, 0x39, 0xf5, 0xff, 0xe9, 0xe6, 0x86, 0x25, 0xb0, 0x48,
+	0x63, 0xdb, 0x46, 0x48, 0x51, 0x11, 0x14, 0x17, 0xe8, 0x60, 0x88, 0x1e, 0x24, 0xe2, 0xf7, 0xc3,
+	0x47, 0xec, 0x7f, 0x05, 0xdf, 0x9f, 0xe3, 0xba, 0x53, 0x4d, 0x00, 0xff, 0x2e, 0x32, 0x84, 0x64,
+	0xf2, 0x60, 0x9e, 0xf0, 0x9a, 0xd1, 0x7f, 0x4c, 0x80, 0xf0, 0x5a, 0x98, 0xfa, 0x44, 0x36, 0xc4,
+	0x2e, 0xe6, 0x78, 0x87, 0xba, 0xae, 0xc3, 0x5d, 0xe2, 0xdd, 0x3c, 0x7e, 0x0d, 0x00, 0x2b, 0xb2,
+	0xc9, 0x5c, 0xb1, 0x9d, 0x94, 0x42, 0x84, 0x4d, 0x33, 0x04, 0x3e, 0x6a, 0x9a, 0x1b, 0x05, 0x59,
+	0x09, 0x0b, 0x92, 0x1c, 0x17, 0x15, 0xe6, 0x1e, 0x28, 0x0e, 0x87, 0x67, 0xe5, 0xa0, 0xb7, 0x37,
+	0xa6, 0x14, 0xdd, 0x07, 0x68, 0x6c, 0x44, 0xc9, 0xfe, 0xef, 0x81, 0x96, 0x4f, 0xa7, 0x3f, 0xd0,
+	0xfa, 0x8e, 0x2c, 0xff, 0xb0, 0x9c, 0x15, 0xec, 0xd9, 0xd1, 0xe5, 0xcc, 0x83, 0x79, 0x93, 0xd8,
+	0x8e, 0x67, 0x98, 0x75, 0x6a, 0x9d, 0x0a, 0x05, 0x93, 0x15, 0x20, 0xb6, 0xca, 0x9d, 0x1d, 0xb8,
+	0x04, 0xe6, 0x88, 0x57, 0x95, 0xe6, 0x09, 0x61, 0x9e, 0x25, 0x5e, 0x55, 0x18, 0x75, 0x17, 0xac,
+	0x8f, 0x93, 0xea, 0xae, 0x94, 0xed, 0x81, 0x8d, 0xd4, 0x74, 0xc7, 0x61, 0xbf, 0x86, 0xea, 0x62,
+	0x9d, 0xa4, 0xf4, 0x77, 0x52, 0x73, 0x44, 0xa9, 0x63, 0x50, 0x77, 0xc4, 0x7e, 0xf3, 0xd3, 0x1c,
+	0x98, 0x16, 0x39, 0xe1, 0x2b, 0x05, 0x64, 0x13, 0x63, 0xe0, 0x4f, 0x02, 0x72, 0xe4, 0x15, 0x52,
+	0x7f, 0x1e, 0xe9, 0xd7, 0x65, 0xad, 0x1f, 0x3e, 0x7d, 0xfb, 0xf9, 0xc5, 0xc4, 0xff, 0xf0, 0x5f,
+	0xd4, 0x79, 0xd0, 0xab, 0x98, 0x63, 0xa3, 0xd7, 0x9e, 0x48, 0x72, 0x43, 0xf2, 0x54, 0x50, 0x4b,
+	0x2e, 0xda, 0x28, 0xe6, 0xd4, 0xea, 0xad, 0xdb, 0xf0, 0xb5, 0x02, 0xd6, 0x46, 0x9e, 0x19, 0xdc,
+	0x1c, 0x41, 0x2f, 0xa1, 0x56, 0xea, 0xd6, 0xad, 0x62, 0xa4, 0xbc, 0x6d, 0x21, 0xaf, 0x04, 0x51,
+	0x9a, 0x3c, 0x36, 0xa8, 0x0f, 0xbe, 0x51, 0x80, 0x3e, 0xfa, 0x52, 0xc2, 0x31, 0x48, 0x0d, 0x3c,
+	0x0a, 0xea, 0xef, 0xb7, 0x0b, 0x92, 0x52, 0xfe, 0x12, 0x52, 0xb6, 0xe1, 0x1f, 0xe9, 0x52, 0x86,
+	0x15, 0xe6, 0x9d, 0x02, 0x56, 0x52, 0xaf, 0x21, 0x2c, 0x8e, 0xa6, 0x15, 0x7f, 0x1a, 0x54, 0x34,
+	0xb6, 0xbf, 0x54, 0xf0, 0x40, 0x28, 0x38, 0x82, 0x07, 0xe9, 0x0a, 0x62, 0xef, 0x0d, 0x6a, 0xc5,
+	0x3e, 0xda, 0x28, 0x7a, 0x68, 0x50, 0x2b, 0x5a, 0xb6, 0xa1, 0x0b, 0xbe, 0xee, 0xfb, 0x91, 0x42,
+	0xad, 0x47, 0x2c, 0xe9, 0xf7, 0xae, 0xe6, 0x87, 0xda, 0x25, 0xd1, 0x25, 0x41, 0x34, 0x0b, 0x17,
+	0x04, 0xd1, 0x73, 0xe1, 0x13, 0xf2, 0x83, 0xcf, 0x14, 0x90, 0x4d, 0x1c, 0x4a, 0xe2, 0x97, 0x33,
+	0x6d, 0xe0, 0x89, 0x5f, 0xce, 0xd4, 0xe9, 0x46, 0x5f, 0x11, 0x3c, 0x7e, 0x80, 0x59, 0xc1, 0x23,
+	0x3a, 0xa0, 0x96, 0x98, 0x47, 0xda, 0xf0, 0xa5, 0x02, 0x96, 0xd3, 0xfe, 0xe1, 0xf1, 0x8a, 0x8e,
+	0x33, 0x4b, 0xa8, 0x43, 0xfd, 0x93, 0x67, 0x03, 0xfd, 0x37, 0xc1, 0x6f, 0x1d, 0x16, 0x50, 0x34,
+	0x6d, 0x1a, 0x55, 0x19, 0x65, 0x9c, 0x92, 0x80, 0x19, 0x66, 0x60, 0xc4, 0x27, 0x90, 0xf2, 0xde,
+	0xc5, 0x95, 0xa6, 0x5c, 0x5e, 0x69, 0xca, 0xc7, 0x2b, 0x4d, 0x79, 0x7e, 0xad, 0x65, 0x2e, 0xaf,
+	0xb5, 0xcc, 0xfb, 0x6b, 0x2d, 0xf3, 0x10, 0xd9, 0x0e, 0xaf, 0x9d, 0x99, 0x45, 0x8b, 0xba, 0xc8,
+	0x22, 0x75, 0xc2, 0xb8, 0x83, 0xa9, 0x6f, 0x47, 0xeb, 0x0d, 0xdc, 0x68, 0xa0, 0x27, 0x22, 0x11,
+	0x0f, 0x1a, 0x84, 0x99, 0x5f, 0x89, 0x11, 0x73, 0xeb, 0x4b, 0x00, 0x00, 0x00, 0xff, 0xff, 0x47,
+	0xa5, 0x98, 0x7c, 0xea, 0x0a, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -386,6 +813,14 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type QueryClient interface {
+	// DataCommitmentConfirm Queries the data commitment confirm by the commitment and the validator address
+	DataCommitmentConfirm(ctx context.Context, in *QueryDataCommitmentConfirmRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmResponse, error)
+	// DataCommitmentConfirmsByValidator Queries data commitment confirms by validator address
+	DataCommitmentConfirmsByValidator(ctx context.Context, in *QueryDataCommitmentConfirmsByValidatorRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByValidatorResponse, error)
+	// DataCommitmentConfirms Queries data commitment confirms by the actual commitment
+	DataCommitmentConfirmsByCommitment(ctx context.Context, in *QueryDataCommitmentConfirmsByCommitmentRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByCommitmentResponse, error)
+	// DataCommitmentConfirmsByRange Queries data commitment confirms by a block range
+	DataCommitmentConfirmsByRange(ctx context.Context, in *QueryDataCommitmentConfirmsByRangeRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByRangeResponse, error)
 	// ValsetConfirm Queries ValSetConfirm
 	ValsetConfirm(ctx context.Context, in *QueryValsetConfirmRequest, opts ...grpc.CallOption) (*QueryValsetConfirmResponse, error)
 	// ValsetConfirmsByNonce
@@ -400,6 +835,42 @@ type queryClient struct {
 
 func NewQueryClient(cc grpc1.ClientConn) QueryClient {
 	return &queryClient{cc}
+}
+
+func (c *queryClient) DataCommitmentConfirm(ctx context.Context, in *QueryDataCommitmentConfirmRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmResponse, error) {
+	out := new(QueryDataCommitmentConfirmResponse)
+	err := c.cc.Invoke(ctx, "/qgb.Query/DataCommitmentConfirm", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) DataCommitmentConfirmsByValidator(ctx context.Context, in *QueryDataCommitmentConfirmsByValidatorRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByValidatorResponse, error) {
+	out := new(QueryDataCommitmentConfirmsByValidatorResponse)
+	err := c.cc.Invoke(ctx, "/qgb.Query/DataCommitmentConfirmsByValidator", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) DataCommitmentConfirmsByCommitment(ctx context.Context, in *QueryDataCommitmentConfirmsByCommitmentRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByCommitmentResponse, error) {
+	out := new(QueryDataCommitmentConfirmsByCommitmentResponse)
+	err := c.cc.Invoke(ctx, "/qgb.Query/DataCommitmentConfirmsByCommitment", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) DataCommitmentConfirmsByRange(ctx context.Context, in *QueryDataCommitmentConfirmsByRangeRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByRangeResponse, error) {
+	out := new(QueryDataCommitmentConfirmsByRangeResponse)
+	err := c.cc.Invoke(ctx, "/qgb.Query/DataCommitmentConfirmsByRange", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *queryClient) ValsetConfirm(ctx context.Context, in *QueryValsetConfirmRequest, opts ...grpc.CallOption) (*QueryValsetConfirmResponse, error) {
@@ -431,6 +902,14 @@ func (c *queryClient) GetDelegateKeyByOrchestrator(ctx context.Context, in *Quer
 
 // QueryServer is the server API for Query service.
 type QueryServer interface {
+	// DataCommitmentConfirm Queries the data commitment confirm by the commitment and the validator address
+	DataCommitmentConfirm(context.Context, *QueryDataCommitmentConfirmRequest) (*QueryDataCommitmentConfirmResponse, error)
+	// DataCommitmentConfirmsByValidator Queries data commitment confirms by validator address
+	DataCommitmentConfirmsByValidator(context.Context, *QueryDataCommitmentConfirmsByValidatorRequest) (*QueryDataCommitmentConfirmsByValidatorResponse, error)
+	// DataCommitmentConfirms Queries data commitment confirms by the actual commitment
+	DataCommitmentConfirmsByCommitment(context.Context, *QueryDataCommitmentConfirmsByCommitmentRequest) (*QueryDataCommitmentConfirmsByCommitmentResponse, error)
+	// DataCommitmentConfirmsByRange Queries data commitment confirms by a block range
+	DataCommitmentConfirmsByRange(context.Context, *QueryDataCommitmentConfirmsByRangeRequest) (*QueryDataCommitmentConfirmsByRangeResponse, error)
 	// ValsetConfirm Queries ValSetConfirm
 	ValsetConfirm(context.Context, *QueryValsetConfirmRequest) (*QueryValsetConfirmResponse, error)
 	// ValsetConfirmsByNonce
@@ -443,6 +922,18 @@ type QueryServer interface {
 type UnimplementedQueryServer struct {
 }
 
+func (*UnimplementedQueryServer) DataCommitmentConfirm(ctx context.Context, req *QueryDataCommitmentConfirmRequest) (*QueryDataCommitmentConfirmResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentConfirm not implemented")
+}
+func (*UnimplementedQueryServer) DataCommitmentConfirmsByValidator(ctx context.Context, req *QueryDataCommitmentConfirmsByValidatorRequest) (*QueryDataCommitmentConfirmsByValidatorResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentConfirmsByValidator not implemented")
+}
+func (*UnimplementedQueryServer) DataCommitmentConfirmsByCommitment(ctx context.Context, req *QueryDataCommitmentConfirmsByCommitmentRequest) (*QueryDataCommitmentConfirmsByCommitmentResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentConfirmsByCommitment not implemented")
+}
+func (*UnimplementedQueryServer) DataCommitmentConfirmsByRange(ctx context.Context, req *QueryDataCommitmentConfirmsByRangeRequest) (*QueryDataCommitmentConfirmsByRangeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentConfirmsByRange not implemented")
+}
 func (*UnimplementedQueryServer) ValsetConfirm(ctx context.Context, req *QueryValsetConfirmRequest) (*QueryValsetConfirmResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ValsetConfirm not implemented")
 }
@@ -455,6 +946,78 @@ func (*UnimplementedQueryServer) GetDelegateKeyByOrchestrator(ctx context.Contex
 
 func RegisterQueryServer(s grpc1.Server, srv QueryServer) {
 	s.RegisterService(&_Query_serviceDesc, srv)
+}
+
+func _Query_DataCommitmentConfirm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryDataCommitmentConfirmRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).DataCommitmentConfirm(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qgb.Query/DataCommitmentConfirm",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).DataCommitmentConfirm(ctx, req.(*QueryDataCommitmentConfirmRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_DataCommitmentConfirmsByValidator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryDataCommitmentConfirmsByValidatorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).DataCommitmentConfirmsByValidator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qgb.Query/DataCommitmentConfirmsByValidator",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).DataCommitmentConfirmsByValidator(ctx, req.(*QueryDataCommitmentConfirmsByValidatorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_DataCommitmentConfirmsByCommitment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryDataCommitmentConfirmsByCommitmentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).DataCommitmentConfirmsByCommitment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qgb.Query/DataCommitmentConfirmsByCommitment",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).DataCommitmentConfirmsByCommitment(ctx, req.(*QueryDataCommitmentConfirmsByCommitmentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_DataCommitmentConfirmsByRange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryDataCommitmentConfirmsByRangeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).DataCommitmentConfirmsByRange(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qgb.Query/DataCommitmentConfirmsByRange",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).DataCommitmentConfirmsByRange(ctx, req.(*QueryDataCommitmentConfirmsByRangeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Query_ValsetConfirm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -515,6 +1078,22 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "qgb.Query",
 	HandlerType: (*QueryServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "DataCommitmentConfirm",
+			Handler:    _Query_DataCommitmentConfirm_Handler,
+		},
+		{
+			MethodName: "DataCommitmentConfirmsByValidator",
+			Handler:    _Query_DataCommitmentConfirmsByValidator_Handler,
+		},
+		{
+			MethodName: "DataCommitmentConfirmsByCommitment",
+			Handler:    _Query_DataCommitmentConfirmsByCommitment_Handler,
+		},
+		{
+			MethodName: "DataCommitmentConfirmsByRange",
+			Handler:    _Query_DataCommitmentConfirmsByRange_Handler,
+		},
 		{
 			MethodName: "ValsetConfirm",
 			Handler:    _Query_ValsetConfirm_Handler,
@@ -734,6 +1313,282 @@ func (m *QueryGetDelegateKeyByOrchestratorResponse) MarshalToSizedBuffer(dAtA []
 	return len(dAtA) - i, nil
 }
 
+func (m *QueryDataCommitmentConfirmRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryDataCommitmentConfirmRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryDataCommitmentConfirmRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Address) > 0 {
+		i -= len(m.Address)
+		copy(dAtA[i:], m.Address)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Address)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Commitment) > 0 {
+		i -= len(m.Commitment)
+		copy(dAtA[i:], m.Commitment)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Commitment)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryDataCommitmentConfirmResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryDataCommitmentConfirmResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryDataCommitmentConfirmResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Confirm != nil {
+		{
+			size, err := m.Confirm.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintQuery(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryDataCommitmentConfirmsByCommitmentRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryDataCommitmentConfirmsByCommitmentRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryDataCommitmentConfirmsByCommitmentRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Commitment) > 0 {
+		i -= len(m.Commitment)
+		copy(dAtA[i:], m.Commitment)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Commitment)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryDataCommitmentConfirmsByCommitmentResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryDataCommitmentConfirmsByCommitmentResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryDataCommitmentConfirmsByCommitmentResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Confirms) > 0 {
+		for iNdEx := len(m.Confirms) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Confirms[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintQuery(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryDataCommitmentConfirmsByRangeRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryDataCommitmentConfirmsByRangeRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryDataCommitmentConfirmsByRangeRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.EndBlock != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.EndBlock))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.BeginBlock != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.BeginBlock))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryDataCommitmentConfirmsByRangeResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryDataCommitmentConfirmsByRangeResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryDataCommitmentConfirmsByRangeResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Confirms) > 0 {
+		for iNdEx := len(m.Confirms) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Confirms[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintQuery(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryDataCommitmentConfirmsByValidatorRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryDataCommitmentConfirmsByValidatorRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryDataCommitmentConfirmsByValidatorRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Address) > 0 {
+		i -= len(m.Address)
+		copy(dAtA[i:], m.Address)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Address)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryDataCommitmentConfirmsByValidatorResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryDataCommitmentConfirmsByValidatorResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryDataCommitmentConfirmsByValidatorResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Confirms) > 0 {
+		for iNdEx := len(m.Confirms) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Confirms[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintQuery(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
 	offset -= sovQuery(v)
 	base := offset
@@ -827,6 +1682,122 @@ func (m *QueryGetDelegateKeyByOrchestratorResponse) Size() (n int) {
 	l = len(m.EthAddress)
 	if l > 0 {
 		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryDataCommitmentConfirmRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Commitment)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.Address)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryDataCommitmentConfirmResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Confirm != nil {
+		l = m.Confirm.Size()
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryDataCommitmentConfirmsByCommitmentRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Commitment)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryDataCommitmentConfirmsByCommitmentResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Confirms) > 0 {
+		for _, e := range m.Confirms {
+			l = e.Size()
+			n += 1 + l + sovQuery(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *QueryDataCommitmentConfirmsByRangeRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.BeginBlock != 0 {
+		n += 1 + sovQuery(uint64(m.BeginBlock))
+	}
+	if m.EndBlock != 0 {
+		n += 1 + sovQuery(uint64(m.EndBlock))
+	}
+	return n
+}
+
+func (m *QueryDataCommitmentConfirmsByRangeResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Confirms) > 0 {
+		for _, e := range m.Confirms {
+			l = e.Size()
+			n += 1 + l + sovQuery(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *QueryDataCommitmentConfirmsByValidatorRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Address)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryDataCommitmentConfirmsByValidatorResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Confirms) > 0 {
+		for _, e := range m.Confirms {
+			l = e.Size()
+			n += 1 + l + sovQuery(uint64(l))
+		}
 	}
 	return n
 }
@@ -1351,6 +2322,710 @@ func (m *QueryGetDelegateKeyByOrchestratorResponse) Unmarshal(dAtA []byte) error
 				return io.ErrUnexpectedEOF
 			}
 			m.EthAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryDataCommitmentConfirmRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryDataCommitmentConfirmRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryDataCommitmentConfirmRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Commitment", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Commitment = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Address", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Address = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryDataCommitmentConfirmResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryDataCommitmentConfirmResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryDataCommitmentConfirmResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Confirm", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Confirm == nil {
+				m.Confirm = &MsgDataCommitmentConfirm{}
+			}
+			if err := m.Confirm.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryDataCommitmentConfirmsByCommitmentRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByCommitmentRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByCommitmentRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Commitment", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Commitment = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryDataCommitmentConfirmsByCommitmentResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByCommitmentResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByCommitmentResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Confirms", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Confirms = append(m.Confirms, MsgDataCommitmentConfirm{})
+			if err := m.Confirms[len(m.Confirms)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryDataCommitmentConfirmsByRangeRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByRangeRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByRangeRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BeginBlock", wireType)
+			}
+			m.BeginBlock = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.BeginBlock |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EndBlock", wireType)
+			}
+			m.EndBlock = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.EndBlock |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryDataCommitmentConfirmsByRangeResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByRangeResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByRangeResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Confirms", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Confirms = append(m.Confirms, MsgDataCommitmentConfirm{})
+			if err := m.Confirms[len(m.Confirms)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryDataCommitmentConfirmsByValidatorRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByValidatorRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByValidatorRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Address", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Address = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryDataCommitmentConfirmsByValidatorResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByValidatorResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByValidatorResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Confirms", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Confirms = append(m.Confirms, MsgDataCommitmentConfirm{})
+			if err := m.Confirms[len(m.Confirms)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

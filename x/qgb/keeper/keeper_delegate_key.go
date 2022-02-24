@@ -4,7 +4,6 @@ import (
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"sort"
 )
 
@@ -84,16 +83,6 @@ func (k Keeper) GetDelegateKeys(ctx sdk.Context) []types.MsgSetOrchestratorAddre
 	})
 
 	return result
-}
-
-// GetOrchestratorValidator returns the validator key associated with an orchestrator key
-func (k Keeper) GetOrchestratorValidator(ctx sdk.Context, orch sdk.AccAddress) (validator stakingtypes.Validator, found bool) {
-	if err := sdk.VerifyAddressFormat(orch); err != nil {
-		ctx.Logger().Error("invalid orch address")
-		return validator, false
-	}
-	// TODO look for the validator when the staking module is added
-	return stakingtypes.Validator{}, false
 }
 
 // GetEthAddressByValidator returns the eth address for a given qgb validator

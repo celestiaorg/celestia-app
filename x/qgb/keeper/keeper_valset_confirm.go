@@ -8,7 +8,11 @@ import (
 )
 
 // GetValsetConfirm returns a valSet confirmation by a nonce and validator address
-func (k Keeper) GetValsetConfirm(ctx sdk.Context, nonce uint64, validator sdk.AccAddress) *types.MsgValsetConfirm {
+func (k Keeper) GetValsetConfirm(
+	ctx sdk.Context,
+	nonce uint64,
+	validator sdk.AccAddress,
+) *types.MsgValsetConfirm {
 	store := ctx.KVStore(k.storeKey)
 	if err := sdk.VerifyAddressFormat(validator); err != nil {
 		ctx.Logger().Error("invalid validator address")
@@ -18,12 +22,7 @@ func (k Keeper) GetValsetConfirm(ctx sdk.Context, nonce uint64, validator sdk.Ac
 	if entity == nil {
 		return nil
 	}
-	confirm := types.MsgValsetConfirm{
-		Nonce:        nonce,
-		Orchestrator: "",
-		EthAddress:   "",
-		Signature:    "",
-	}
+	confirm := types.MsgValsetConfirm{Nonce: nonce}
 	k.cdc.MustUnmarshal(entity, &confirm)
 	return &confirm
 }
