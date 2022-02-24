@@ -324,7 +324,7 @@ func (m *QueryGetDelegateKeyByOrchestratorResponse) GetEthAddress() string {
 	return ""
 }
 
-// QueryDataCommitmentConfirmsRequest
+// QueryDataCommitmentConfirmsRequest Data commitment confirm by commitment and validator address request
 type QueryDataCommitmentConfirmRequest struct {
 	Commitment string `protobuf:"bytes,1,opt,name=commitment,proto3" json:"commitment,omitempty"`
 	Address    string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
@@ -377,7 +377,7 @@ func (m *QueryDataCommitmentConfirmRequest) GetAddress() string {
 	return ""
 }
 
-// QueryDataCommitmentConfirmsResponse
+// QueryDataCommitmentConfirmsResponse Data commitment confirm by commitment and validator address response
 type QueryDataCommitmentConfirmResponse struct {
 	Confirm *MsgDataCommitmentConfirm `protobuf:"bytes,1,opt,name=confirm,proto3" json:"confirm,omitempty"`
 }
@@ -422,7 +422,7 @@ func (m *QueryDataCommitmentConfirmResponse) GetConfirm() *MsgDataCommitmentConf
 	return nil
 }
 
-// QueryDataCommitmentConfirmsRequest
+// QueryDataCommitmentConfirmsRequest Data commitment confirms by commitment request
 type QueryDataCommitmentConfirmsByCommitmentRequest struct {
 	Commitment string `protobuf:"bytes,1,opt,name=commitment,proto3" json:"commitment,omitempty"`
 }
@@ -471,7 +471,7 @@ func (m *QueryDataCommitmentConfirmsByCommitmentRequest) GetCommitment() string 
 	return ""
 }
 
-// QueryDataCommitmentConfirmsResponse
+// QueryDataCommitmentConfirmsResponse Data commitment confirms by commitment response
 type QueryDataCommitmentConfirmsByCommitmentResponse struct {
 	Confirms []MsgDataCommitmentConfirm `protobuf:"bytes,1,rep,name=confirms,proto3" json:"confirms"`
 }
@@ -520,7 +520,7 @@ func (m *QueryDataCommitmentConfirmsByCommitmentResponse) GetConfirms() []MsgDat
 	return nil
 }
 
-// QueryDataCommitmentConfirmsByRangeRequest
+// QueryDataCommitmentConfirmsByRangeRequest Data commitment confirms by range request
 type QueryDataCommitmentConfirmsByRangeRequest struct {
 	BeginBlock int64 `protobuf:"varint,1,opt,name=begin_block,json=beginBlock,proto3" json:"begin_block,omitempty"`
 	EndBlock   int64 `protobuf:"varint,2,opt,name=end_block,json=endBlock,proto3" json:"end_block,omitempty"`
@@ -577,7 +577,7 @@ func (m *QueryDataCommitmentConfirmsByRangeRequest) GetEndBlock() int64 {
 	return 0
 }
 
-// QueryDataCommitmentConfirmsByRangeResponse
+// QueryDataCommitmentConfirmsByRangeResponse Data commitment confirms by range response
 type QueryDataCommitmentConfirmsByRangeResponse struct {
 	Confirms []MsgDataCommitmentConfirm `protobuf:"bytes,1,rep,name=confirms,proto3" json:"confirms"`
 }
@@ -626,7 +626,7 @@ func (m *QueryDataCommitmentConfirmsByRangeResponse) GetConfirms() []MsgDataComm
 	return nil
 }
 
-// QueryDataCommitmentConfirmsByValidatorRequest
+// QueryDataCommitmentConfirmsByValidatorRequest Data commitment confirms by validator address request
 type QueryDataCommitmentConfirmsByValidatorRequest struct {
 	Address string `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
 }
@@ -675,7 +675,7 @@ func (m *QueryDataCommitmentConfirmsByValidatorRequest) GetAddress() string {
 	return ""
 }
 
-// QueryDataCommitmentConfirmsByValidatorResponse
+// QueryDataCommitmentConfirmsByValidatorResponse Data commitment confirms by validator address response
 type QueryDataCommitmentConfirmsByValidatorResponse struct {
 	Confirms []MsgDataCommitmentConfirm `protobuf:"bytes,1,rep,name=confirms,proto3" json:"confirms"`
 }

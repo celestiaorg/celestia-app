@@ -27,7 +27,6 @@ service Query {
   rpc DataCommitmentConfirmsByRange(QueryDataCommitmentConfirmsByRangeRequest) returns (QueryDataCommitmentConfirmsByRangeResponse) {
     option (google.api.http).get = "/qgb/data_commitment/confirms/begin_block/{begin_block}/end_block/{end_block}";
   }
-  // TODO add more queries for the other data commitment confirm fields
 
   // ValsetConfirm Queries ValSetConfirm
   rpc ValsetConfirm(QueryValsetConfirmRequest) returns (QueryValsetConfirmResponse) {
@@ -76,44 +75,44 @@ message QueryGetDelegateKeyByOrchestratorResponse {
   string eth_address       = 2;
 }
 
-// QueryDataCommitmentConfirmsRequest
+// QueryDataCommitmentConfirmsRequest Data commitment confirm by commitment and validator address request
 message QueryDataCommitmentConfirmRequest {
   string commitment = 1;
   string address = 2;
 }
 
-// QueryDataCommitmentConfirmsResponse
+// QueryDataCommitmentConfirmsResponse Data commitment confirm by commitment and validator address response
 message QueryDataCommitmentConfirmResponse {
   MsgDataCommitmentConfirm confirm = 1;
 }
 
-// QueryDataCommitmentConfirmsRequest
+// QueryDataCommitmentConfirmsRequest Data commitment confirms by commitment request
 message QueryDataCommitmentConfirmsByCommitmentRequest {
   string commitment = 1;
 }
 
-// QueryDataCommitmentConfirmsResponse
+// QueryDataCommitmentConfirmsResponse Data commitment confirms by commitment response
 message QueryDataCommitmentConfirmsByCommitmentResponse {
   repeated MsgDataCommitmentConfirm confirms = 1 [(gogoproto.nullable) = false];
 }
 
-// QueryDataCommitmentConfirmsByRangeRequest
+// QueryDataCommitmentConfirmsByRangeRequest Data commitment confirms by range request
 message QueryDataCommitmentConfirmsByRangeRequest {
   int64 begin_block = 1;
   int64 end_block = 2;
 }
 
-// QueryDataCommitmentConfirmsByRangeResponse
+// QueryDataCommitmentConfirmsByRangeResponse Data commitment confirms by range response
 message QueryDataCommitmentConfirmsByRangeResponse {
   repeated MsgDataCommitmentConfirm confirms = 1 [(gogoproto.nullable) = false];
 }
 
-// QueryDataCommitmentConfirmsByValidatorRequest
+// QueryDataCommitmentConfirmsByValidatorRequest Data commitment confirms by validator address request
 message QueryDataCommitmentConfirmsByValidatorRequest {
   string address = 1;
 }
 
-// QueryDataCommitmentConfirmsByValidatorResponse
+// QueryDataCommitmentConfirmsByValidatorResponse Data commitment confirms by validator address response
 message QueryDataCommitmentConfirmsByValidatorResponse {
   repeated MsgDataCommitmentConfirm confirms = 1 [(gogoproto.nullable) = false];
 }
