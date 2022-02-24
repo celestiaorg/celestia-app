@@ -76,7 +76,7 @@ func (k msgServer) DataCommitmentConfirm(c context.Context, msg *types.MsgDataCo
 	if err != nil {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, fmt.Sprintf("signature verification failed expected sig by %s with checkpoint %s found %s", ethAddress, msg.Commitment, msg.Signature))
 	}
-	ethAddressFromStore, found := k.GetEthAddressByValidator(ctx, validator.GetOperator()) // check what to do with operator
+	ethAddressFromStore, found := k.GetEthAddressByValidator(ctx, validator.GetOperator())
 	if !found {
 		return nil, sdkerrors.Wrap(types.ErrEmpty, "no eth address set for validator")
 	}
