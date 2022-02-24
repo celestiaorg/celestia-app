@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"fmt"
+	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/tendermint/tendermint/libs/log"
 
@@ -11,14 +12,16 @@ import (
 )
 
 type Keeper struct {
-	cdc      codec.BinaryCodec
-	storeKey sdk.StoreKey
+	cdc           codec.BinaryCodec
+	storeKey      sdk.StoreKey
+	StakingKeeper *stakingkeeper.Keeper
 }
 
-func NewKeeper(cdc codec.BinaryCodec, storeKey sdk.StoreKey) *Keeper {
+func NewKeeper(cdc codec.BinaryCodec, storeKey sdk.StoreKey, stakingKeeper *stakingkeeper.Keeper) *Keeper {
 	return &Keeper{
-		cdc:      cdc,
-		storeKey: storeKey,
+		cdc:           cdc,
+		storeKey:      storeKey,
+		StakingKeeper: stakingKeeper,
 	}
 }
 
@@ -60,12 +63,21 @@ func prefixRange(prefix []byte) ([]byte, []byte) {
 	return prefix, end
 }
 
-// GetAccountValidator returns the validator key associated with an account address
-func GetAccountValidator(ctx sdk.Context, acc sdk.AccAddress) (validator stakingtypes.Validator, found bool) { //  check the ones calling these not to do any verification or use
+// GetOrchestratorValidator returns the validator key associated with an account address
+func (k Keeper) GetOrchestratorValidator(ctx sdk.Context, acc sdk.AccAddress) (validator stakingtypes.Validator, found bool) {
 	if err := sdk.VerifyAddressFormat(acc); err != nil {
 		ctx.Logger().Error("invalid validator address")
 		return validator, false
 	}
-	// TODO look for the validator when the staking module is added and return accordingly
-	return stakingtypes.Validator{}, true
+	store := ctx.KVStore(k.storeKey)
+	valAddr := store.Get([]byte(types.GetOrchestratorAddressKey(acc)))
+
+	if valAddr == nil {
+		return stakingtypes.Validator{}, false
+	}
+	validator, found = k.StakingKeeper.GetValidator(ctx, valAddr)
+	if !found {
+		return stakingtypes.Validator{}, false
+	}
+	return validator, true
 }

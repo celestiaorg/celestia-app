@@ -59,7 +59,7 @@ func (k msgServer) DataCommitmentConfirm(c context.Context, msg *types.MsgDataCo
 	if err != nil {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "validator address invalid")
 	}
-	validator, found := GetAccountValidator(ctx, validatorAddress)
+	validator, found := k.GetOrchestratorValidator(ctx, validatorAddress)
 	if !found {
 		return nil, sdkerrors.Wrap(types.ErrUnknown, "validator")
 	}
@@ -115,7 +115,7 @@ func (k msgServer) SetOrchestratorAddress(c context.Context, msg *types.MsgSetOr
 	}
 
 	// check that the validator does not have an existing key
-	_, foundExistingOrchestratorKey := GetAccountValidator(ctx, orch)
+	_, foundExistingOrchestratorKey := k.GetOrchestratorValidator(ctx, orch)
 	_, foundExistingEthAddress := k.GetEthAddressByValidator(ctx, val)
 
 	// ensure that the validator exists
