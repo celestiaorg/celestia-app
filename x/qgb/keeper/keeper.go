@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"fmt"
-	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/tendermint/tendermint/libs/log"
 
@@ -14,15 +13,20 @@ import (
 type Keeper struct {
 	cdc           codec.BinaryCodec
 	storeKey      sdk.StoreKey
-	StakingKeeper *stakingkeeper.Keeper
+	stakingKeeper StakingKeeper
 }
 
-func NewKeeper(cdc codec.BinaryCodec, storeKey sdk.StoreKey, stakingKeeper *stakingkeeper.Keeper) *Keeper {
+func NewKeeper(cdc codec.BinaryCodec, storeKey sdk.StoreKey, stakingKeeper StakingKeeper) *Keeper {
 	return &Keeper{
 		cdc:           cdc,
 		storeKey:      storeKey,
-		StakingKeeper: stakingKeeper,
+		stakingKeeper: stakingKeeper,
 	}
+}
+
+// StakingKeeper restricts the functionality of the bank keeper used in the payment keeper
+type StakingKeeper interface {
+	GetValidator(ctx sdk.Context, addr sdk.ValAddress) (validator stakingtypes.Validator, found bool)
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {
@@ -75,7 +79,7 @@ func (k Keeper) GetOrchestratorValidator(ctx sdk.Context, acc sdk.AccAddress) (v
 	if valAddr == nil {
 		return stakingtypes.Validator{}, false
 	}
-	validator, found = k.StakingKeeper.GetValidator(ctx, valAddr)
+	validator, found = k.stakingKeeper.GetValidator(ctx, valAddr)
 	if !found {
 		return stakingtypes.Validator{}, false
 	}
