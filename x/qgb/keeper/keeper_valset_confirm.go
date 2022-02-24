@@ -18,12 +18,7 @@ func (k Keeper) GetValsetConfirm(ctx sdk.Context, nonce uint64, validator sdk.Ac
 	if entity == nil {
 		return nil
 	}
-	confirm := types.MsgValsetConfirm{ // FIXME: do we need this initialization here ? {} should be enough
-		Nonce:        nonce,
-		Orchestrator: "",
-		EthAddress:   "",
-		Signature:    "",
-	}
+	confirm := types.MsgValsetConfirm{Nonce: nonce}
 	k.cdc.MustUnmarshal(entity, &confirm)
 	return &confirm
 }

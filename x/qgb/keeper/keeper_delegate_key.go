@@ -91,7 +91,7 @@ func (k Keeper) GetEthAddressByValidator(ctx sdk.Context, validator sdk.ValAddre
 		panic(sdkerrors.Wrap(err, "invalid validator address"))
 	}
 	store := ctx.KVStore(k.storeKey)
-	ethAddr := store.Get([]byte(types.GetEthAddressByValidatorKey(validator))) // which store is this ?
+	ethAddr := store.Get([]byte(types.GetEthAddressByValidatorKey(validator)))
 	if ethAddr == nil {
 		return nil, false
 	}
