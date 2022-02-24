@@ -54,37 +54,34 @@ func (k msgServer) DataCommitmentConfirm(c context.Context, msg *types.MsgDataCo
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "signature decoding")
 	}
 
+	// verify validator address
+	validatorAddress, err := sdk.AccAddressFromBech32(msg.ValidatorAddress)
+	if err != nil {
+		return nil, sdkerrors.Wrap(types.ErrInvalid, "validator address invalid")
+	}
+	validator, found := GetAccountValidator(ctx, validatorAddress)
+	if !found {
+		return nil, sdkerrors.Wrap(types.ErrUnknown, "validator")
+	}
+	if err := sdk.VerifyAddressFormat(validator.GetOperator()); err != nil {
+		return nil, sdkerrors.Wrapf(err, "discovered invalid validator address for validator %v", validatorAddress)
+	}
+
+	// verify ethereum address
 	ethAddress, err := types.NewEthAddress(msg.EthAddress)
 	if err != nil {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "invalid eth address")
 	}
-
-	// TODO uncomment when we add slashing module
-	//_, err = sdk.AccAddressFromBech32(msg.ValidatorAddress)
-	//if err != nil {
-	//	return nil, sdkerrors.Wrap(types.ErrInvalid, "validator address invalid")
-	//}
-	//validator, found := GetAccountValidator(ctx, validatorAddress)
-	//if !found {
-	//	return nil, sdkerrors.Wrap(types.ErrUnknown, "validator")
-	//}
-	//if err := sdk.VerifyAddressFormat(validator.GetOperator()); err != nil {
-	//	return nil, sdkerrors.Wrapf(err, "discovered invalid validator address for validator %v", validatorAddress)
-	//}
-
-	// TODO get eth address from store
-	//ethAddressFromStore, found := k.GetEthAddressByValidator(ctx, validator.GetOperator())
-	//if !found {
-	//	return nil, sdkerrors.Wrap(types.ErrEmpty, "no eth address set for validator")
-	//}
-	//
-	//if *ethAddressFromStore != *submittedEthAddress {
-	//	return nil, sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
-	//}
-
 	err = types.ValidateEthereumSignature([]byte(msg.Commitment), sigBytes, *ethAddress)
 	if err != nil {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, fmt.Sprintf("signature verification failed expected sig by %s with checkpoint %s found %s", ethAddress, msg.Commitment, msg.Signature))
+	}
+	ethAddressFromStore, found := k.GetEthAddressByValidator(ctx, validator.GetOperator()) // check what to do with operator
+	if !found {
+		return nil, sdkerrors.Wrap(types.ErrEmpty, "no eth address set for validator")
+	}
+	if *ethAddressFromStore != *ethAddress {
+		return nil, sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
 	}
 
 	k.SetDataCommitmentConfirm(ctx, *msg)
