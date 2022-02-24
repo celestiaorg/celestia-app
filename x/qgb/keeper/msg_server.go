@@ -2,6 +2,8 @@ package keeper
 
 import (
 	"context"
+	"encoding/hex"
+	"fmt"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -18,7 +20,10 @@ func NewMsgServerImpl(keeper Keeper) types.MsgServer {
 }
 
 // ValsetConfirm handles MsgValsetConfirm
-func (k msgServer) ValsetConfirm(c context.Context, msg *types.MsgValsetConfirm) (*types.MsgValsetConfirmResponse, error) {
+func (k msgServer) ValsetConfirm(
+	c context.Context,
+	msg *types.MsgValsetConfirm,
+) (*types.MsgValsetConfirmResponse, error) {
 	ctx := sdk.UnwrapSDKContext(c)
 	// TODO check if valset exists when we add the remaining modules
 
@@ -45,12 +50,72 @@ func (k msgServer) ValsetConfirm(c context.Context, msg *types.MsgValsetConfirm)
 }
 
 // DataCommitmentConfirm handles MsgDataCommitmentConfirm
-func (k msgServer) DataCommitmentConfirm(context.Context, *types.MsgDataCommitmentConfirm) (*types.MsgDataCommitmentConfirmResponse, error) {
-	// TODO
+func (k msgServer) DataCommitmentConfirm(
+	c context.Context,
+	msg *types.MsgDataCommitmentConfirm,
+) (*types.MsgDataCommitmentConfirmResponse, error) {
+	ctx := sdk.UnwrapSDKContext(c)
+	sigBytes, err := hex.DecodeString(msg.Signature)
+	if err != nil {
+		return nil, sdkerrors.Wrap(types.ErrInvalid, "signature decoding")
+	}
+
+	// verify validator address
+	validatorAddress, err := sdk.AccAddressFromBech32(msg.ValidatorAddress)
+	if err != nil {
+		return nil, sdkerrors.Wrap(types.ErrInvalid, "validator address invalid")
+	}
+	validator, found := k.GetOrchestratorValidator(ctx, validatorAddress)
+	if !found {
+		return nil, sdkerrors.Wrap(types.ErrUnknown, "validator")
+	}
+	if err := sdk.VerifyAddressFormat(validator.GetOperator()); err != nil {
+		return nil, sdkerrors.Wrapf(err, "discovered invalid validator address for validator %v", validatorAddress)
+	}
+
+	// verify ethereum address
+	ethAddress, err := types.NewEthAddress(msg.EthAddress)
+	if err != nil {
+		return nil, sdkerrors.Wrap(types.ErrInvalid, "invalid eth address")
+	}
+	err = types.ValidateEthereumSignature([]byte(msg.Commitment), sigBytes, *ethAddress)
+	if err != nil {
+		return nil,
+			sdkerrors.Wrap(
+				types.ErrInvalid,
+				fmt.Sprintf(
+					"signature verification failed expected sig by %s with checkpoint %s found %s",
+					ethAddress,
+					msg.Commitment,
+					msg.Signature,
+				),
+			)
+	}
+	ethAddressFromStore, found := k.GetEthAddressByValidator(ctx, validator.GetOperator())
+	if !found {
+		return nil, sdkerrors.Wrap(types.ErrEmpty, "no eth address set for validator")
+	}
+	if *ethAddressFromStore != *ethAddress {
+		return nil, sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
+	}
+
+	k.SetDataCommitmentConfirm(ctx, *msg)
+
+	ctx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			sdk.EventTypeMessage,
+			sdk.NewAttribute(sdk.AttributeKeyModule, msg.Type()),
+			sdk.NewAttribute(types.AttributeKeyDataCommitmentConfirmKey, msg.String()),
+		),
+	)
+
 	return &types.MsgDataCommitmentConfirmResponse{}, nil
 }
 
-func (k msgServer) SetOrchestratorAddress(c context.Context, msg *types.MsgSetOrchestratorAddress) (*types.MsgSetOrchestratorAddressResponse, error) {
+func (k msgServer) SetOrchestratorAddress(
+	c context.Context,
+	msg *types.MsgSetOrchestratorAddress,
+) (*types.MsgSetOrchestratorAddressResponse, error) {
 	// ensure that this passes validation, checks the key validity
 	err := msg.ValidateBasic()
 	if err != nil {
