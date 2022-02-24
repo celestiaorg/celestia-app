@@ -94,7 +94,7 @@ message QueryDataCommitmentConfirmsByCommitmentRequest {
 
 // QueryDataCommitmentConfirmsResponse
 message QueryDataCommitmentConfirmsByCommitmentResponse {
-  repeated MsgDataCommitmentConfirm confirm = 1 [(gogoproto.nullable) = false];
+  repeated MsgDataCommitmentConfirm confirms = 1 [(gogoproto.nullable) = false];
 }
 
 // QueryDataCommitmentConfirmsByRangeRequest
@@ -105,7 +105,7 @@ message QueryDataCommitmentConfirmsByRangeRequest {
 
 // QueryDataCommitmentConfirmsByRangeResponse
 message QueryDataCommitmentConfirmsByRangeResponse {
-  repeated MsgDataCommitmentConfirm confirm = 1 [(gogoproto.nullable) = false];
+  repeated MsgDataCommitmentConfirm confirms = 1 [(gogoproto.nullable) = false];
 }
 
 // QueryDataCommitmentConfirmsByValidatorRequest
@@ -115,6 +115,6 @@ message QueryDataCommitmentConfirmsByValidatorRequest {
 
 // QueryDataCommitmentConfirmsByValidatorResponse
 message QueryDataCommitmentConfirmsByValidatorResponse {
-  repeated MsgDataCommitmentConfirm confirm = 1 [(gogoproto.nullable) = false];
+  repeated MsgDataCommitmentConfirm confirms = 1 [(gogoproto.nullable) = false];
 }
 // this line is used by starport scaffolding # 3

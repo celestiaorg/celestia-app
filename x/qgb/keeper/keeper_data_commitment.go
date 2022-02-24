@@ -39,10 +39,28 @@ func (k Keeper) GetDataCommitmentConfirmsByCommitment(ctx sdk.Context, commitmen
 	return confirms
 }
 
-// GetDataCommitmentConfirmsByAddress Returns data commitment confirms by validator address
-func (k Keeper) GetDataCommitmentConfirmsByAddress(sdk.Context, sdk.AccAddress) (confirms []types.MsgDataCommitmentConfirm) {
-	// TODO
-	return nil
+// GetDataCommitmentConfirmsByValidator Returns data commitment confirms by validator address
+func (k Keeper) GetDataCommitmentConfirmsByValidator(ctx sdk.Context, validator sdk.AccAddress) (confirms []types.MsgDataCommitmentConfirm) {
+	if err := sdk.VerifyAddressFormat(validator); err != nil {
+		ctx.Logger().Error("invalid validator address")
+		return nil
+	}
+
+	prefixStore := prefix.NewStore(ctx.KVStore(k.storeKey), []byte(types.DataCommitmentConfirmKey))
+	start, end := prefixRange([]byte(types.DataCommitmentConfirmKey)) // FIXME can we make this faster ?
+	iterator := prefixStore.Iterator(start, end)
+
+	defer iterator.Close()
+
+	for ; iterator.Valid(); iterator.Next() {
+		confirm := types.MsgDataCommitmentConfirm{}
+		k.cdc.MustUnmarshal(iterator.Value(), &confirm)
+		if confirm.ValidatorAddress == validator.String() {
+			confirms = append(confirms, confirm)
+		}
+	}
+
+	return confirms
 }
 
 // SetDataCommitmentConfirm Sets the data commitment confirm and indexes it by commitment and validator address

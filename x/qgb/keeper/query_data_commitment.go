@@ -16,12 +16,15 @@ func (k Keeper) DataCommitmentConfirm(c context.Context, request *types.QueryDat
 }
 
 func (k Keeper) DataCommitmentConfirmsByValidator(ctx context.Context, request *types.QueryDataCommitmentConfirmsByValidatorRequest) (*types.QueryDataCommitmentConfirmsByValidatorResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	addr, err := sdk.AccAddressFromBech32(request.Address)
+	if err != nil {
+		return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "address invalid")
+	}
+	return &types.QueryDataCommitmentConfirmsByValidatorResponse{Confirms: k.GetDataCommitmentConfirmsByValidator(sdk.UnwrapSDKContext(ctx), addr)}, nil
 }
 
 func (k Keeper) DataCommitmentConfirmsByCommitment(c context.Context, request *types.QueryDataCommitmentConfirmsByCommitmentRequest) (*types.QueryDataCommitmentConfirmsByCommitmentResponse, error) {
-	return &types.QueryDataCommitmentConfirmsByCommitmentResponse{Confirm: k.GetDataCommitmentConfirmsByCommitment(sdk.UnwrapSDKContext(c), request.Commitment)}, nil
+	return &types.QueryDataCommitmentConfirmsByCommitmentResponse{Confirms: k.GetDataCommitmentConfirmsByCommitment(sdk.UnwrapSDKContext(c), request.Commitment)}, nil
 }
 
 func (k Keeper) DataCommitmentConfirmsByRange(ctx context.Context, request *types.QueryDataCommitmentConfirmsByRangeRequest) (*types.QueryDataCommitmentConfirmsByRangeResponse, error) {
