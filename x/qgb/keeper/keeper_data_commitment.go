@@ -7,7 +7,11 @@ import (
 )
 
 // GetDataCommitmentConfirm Returns a data commitment confirm by commitment and validator address
-func (k Keeper) GetDataCommitmentConfirm(ctx sdk.Context, commitment string, validator sdk.AccAddress) *types.MsgDataCommitmentConfirm {
+func (k Keeper) GetDataCommitmentConfirm(
+	ctx sdk.Context,
+	commitment string,
+	validator sdk.AccAddress,
+) *types.MsgDataCommitmentConfirm {
 	store := ctx.KVStore(k.storeKey)
 	if err := sdk.VerifyAddressFormat(validator); err != nil {
 		ctx.Logger().Error("invalid validator address")
@@ -23,7 +27,10 @@ func (k Keeper) GetDataCommitmentConfirm(ctx sdk.Context, commitment string, val
 }
 
 // GetDataCommitmentConfirmsByCommitment Returns data commitment confirms by commitment
-func (k Keeper) GetDataCommitmentConfirmsByCommitment(ctx sdk.Context, commitment string) (confirms []types.MsgDataCommitmentConfirm) {
+func (k Keeper) GetDataCommitmentConfirmsByCommitment(
+	ctx sdk.Context,
+	commitment string,
+) (confirms []types.MsgDataCommitmentConfirm) {
 	prefixStore := prefix.NewStore(ctx.KVStore(k.storeKey), []byte(types.DataCommitmentConfirmKey))
 	start, end := prefixRange([]byte(commitment)) // How does this work?
 	iterator := prefixStore.Iterator(start, end)
@@ -40,7 +47,10 @@ func (k Keeper) GetDataCommitmentConfirmsByCommitment(ctx sdk.Context, commitmen
 }
 
 // GetDataCommitmentConfirmsByValidator Returns data commitment confirms by validator address
-func (k Keeper) GetDataCommitmentConfirmsByValidator(ctx sdk.Context, validator sdk.AccAddress) (confirms []types.MsgDataCommitmentConfirm) {
+func (k Keeper) GetDataCommitmentConfirmsByValidator(
+	ctx sdk.Context,
+	validator sdk.AccAddress,
+) (confirms []types.MsgDataCommitmentConfirm) {
 	if err := sdk.VerifyAddressFormat(validator); err != nil {
 		ctx.Logger().Error("invalid validator address")
 		return nil
@@ -64,7 +74,11 @@ func (k Keeper) GetDataCommitmentConfirmsByValidator(ctx sdk.Context, validator 
 }
 
 // GetDataCommitmentConfirmsByRange Returns data commitment confirms by the provided range
-func (k Keeper) GetDataCommitmentConfirmsByRange(ctx sdk.Context, beginBlock int64, endBlock int64) (confirms []types.MsgDataCommitmentConfirm) {
+func (k Keeper) GetDataCommitmentConfirmsByRange(
+	ctx sdk.Context,
+	beginBlock int64,
+	endBlock int64,
+) (confirms []types.MsgDataCommitmentConfirm) {
 	prefixStore := prefix.NewStore(ctx.KVStore(k.storeKey), []byte(types.DataCommitmentConfirmKey))
 	start, end := prefixRange([]byte(types.DataCommitmentConfirmKey)) // FIXME can we make this faster ?
 	iterator := prefixStore.Iterator(start, end)

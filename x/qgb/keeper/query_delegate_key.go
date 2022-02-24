@@ -23,7 +23,10 @@ func (k Keeper) GetDelegateKeyByOrchestrator(
 			panic("Invalid validator addr in store!")
 		}
 		if reqValidator.Equals(keyValidator) {
-			return &types.QueryGetDelegateKeyByOrchestratorResponse{EthAddress: key.EthAddress, ValidatorAddress: key.Orchestrator}, nil
+			return &types.QueryGetDelegateKeyByOrchestratorResponse{
+				EthAddress:       key.EthAddress,
+				ValidatorAddress: key.Orchestrator,
+			}, nil
 		}
 	}
 

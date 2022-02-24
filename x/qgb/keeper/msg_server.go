@@ -20,7 +20,10 @@ func NewMsgServerImpl(keeper Keeper) types.MsgServer {
 }
 
 // ValsetConfirm handles MsgValsetConfirm
-func (k msgServer) ValsetConfirm(c context.Context, msg *types.MsgValsetConfirm) (*types.MsgValsetConfirmResponse, error) {
+func (k msgServer) ValsetConfirm(
+	c context.Context,
+	msg *types.MsgValsetConfirm,
+) (*types.MsgValsetConfirmResponse, error) {
 	ctx := sdk.UnwrapSDKContext(c)
 	// TODO check if valset exists when we add the remaining modules
 
@@ -47,7 +50,10 @@ func (k msgServer) ValsetConfirm(c context.Context, msg *types.MsgValsetConfirm)
 }
 
 // DataCommitmentConfirm handles MsgDataCommitmentConfirm
-func (k msgServer) DataCommitmentConfirm(c context.Context, msg *types.MsgDataCommitmentConfirm) (*types.MsgDataCommitmentConfirmResponse, error) {
+func (k msgServer) DataCommitmentConfirm(
+	c context.Context,
+	msg *types.MsgDataCommitmentConfirm,
+) (*types.MsgDataCommitmentConfirmResponse, error) {
 	ctx := sdk.UnwrapSDKContext(c)
 	sigBytes, err := hex.DecodeString(msg.Signature)
 	if err != nil {
@@ -74,7 +80,16 @@ func (k msgServer) DataCommitmentConfirm(c context.Context, msg *types.MsgDataCo
 	}
 	err = types.ValidateEthereumSignature([]byte(msg.Commitment), sigBytes, *ethAddress)
 	if err != nil {
-		return nil, sdkerrors.Wrap(types.ErrInvalid, fmt.Sprintf("signature verification failed expected sig by %s with checkpoint %s found %s", ethAddress, msg.Commitment, msg.Signature))
+		return nil,
+			sdkerrors.Wrap(
+				types.ErrInvalid,
+				fmt.Sprintf(
+					"signature verification failed expected sig by %s with checkpoint %s found %s",
+					ethAddress,
+					msg.Commitment,
+					msg.Signature,
+				),
+			)
 	}
 	ethAddressFromStore, found := k.GetEthAddressByValidator(ctx, validator.GetOperator())
 	if !found {
@@ -97,7 +112,10 @@ func (k msgServer) DataCommitmentConfirm(c context.Context, msg *types.MsgDataCo
 	return &types.MsgDataCommitmentConfirmResponse{}, nil
 }
 
-func (k msgServer) SetOrchestratorAddress(c context.Context, msg *types.MsgSetOrchestratorAddress) (*types.MsgSetOrchestratorAddressResponse, error) {
+func (k msgServer) SetOrchestratorAddress(
+	c context.Context,
+	msg *types.MsgSetOrchestratorAddress,
+) (*types.MsgSetOrchestratorAddressResponse, error) {
 	// ensure that this passes validation, checks the key validity
 	err := msg.ValidateBasic()
 	if err != nil {
