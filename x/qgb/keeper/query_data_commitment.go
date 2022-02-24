@@ -23,11 +23,10 @@ func (k Keeper) DataCommitmentConfirmsByValidator(ctx context.Context, request *
 	return &types.QueryDataCommitmentConfirmsByValidatorResponse{Confirms: k.GetDataCommitmentConfirmsByValidator(sdk.UnwrapSDKContext(ctx), addr)}, nil
 }
 
-func (k Keeper) DataCommitmentConfirmsByCommitment(c context.Context, request *types.QueryDataCommitmentConfirmsByCommitmentRequest) (*types.QueryDataCommitmentConfirmsByCommitmentResponse, error) {
-	return &types.QueryDataCommitmentConfirmsByCommitmentResponse{Confirms: k.GetDataCommitmentConfirmsByCommitment(sdk.UnwrapSDKContext(c), request.Commitment)}, nil
+func (k Keeper) DataCommitmentConfirmsByCommitment(ctx context.Context, request *types.QueryDataCommitmentConfirmsByCommitmentRequest) (*types.QueryDataCommitmentConfirmsByCommitmentResponse, error) {
+	return &types.QueryDataCommitmentConfirmsByCommitmentResponse{Confirms: k.GetDataCommitmentConfirmsByCommitment(sdk.UnwrapSDKContext(ctx), request.Commitment)}, nil
 }
 
 func (k Keeper) DataCommitmentConfirmsByRange(ctx context.Context, request *types.QueryDataCommitmentConfirmsByRangeRequest) (*types.QueryDataCommitmentConfirmsByRangeResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	return &types.QueryDataCommitmentConfirmsByRangeResponse{Confirms: k.GetDataCommitmentConfirmsByRange(sdk.UnwrapSDKContext(ctx), request.BeginBlock, request.EndBlock)}, nil
 }
