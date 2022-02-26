@@ -1,7 +1,9 @@
 package app
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"sort"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -88,6 +90,17 @@ func WriteSquare(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
 		processedTxs = append(processedTxs, malTx)
 		messages.MessagesList = append(messages.MessagesList, message)
 	}
+
+	sort.Slice(messages.MessagesList, func(i, j int) bool {
+		return bytes.Compare(messages.MessagesList[i].NamespaceId, messages.MessagesList[j].NamespaceId) < 0
+	})
+
+	return sqwr.export(), &core.Data{
+		Txs:                    processedTxs,
+		Messages:               messages,
+		Evidence:               data.Evidence,
+		IntermediateStateRoots: data.IntermediateStateRoots,
+	}, nil
 }
 
 // squareWriter write a data square using provided block data. It also ensures
@@ -194,7 +207,7 @@ func (sqwr *squareWriter) writeMalleatedTx(
 		Data:        coreMsg.Data,
 	})
 
-	return
+	return true, wrappedTx, coreMsg, nil
 }
 
 func (sqwr *squareWriter) hasRoomForBoth(tx, msg []byte) bool {
@@ -203,6 +216,7 @@ func (sqwr *squareWriter) hasRoomForBoth(tx, msg []byte) bool {
 	if sqwr.shareCount()+maxTxSharesTaken+maxMsgSharesTaken > sqwr.maxShareCount {
 		return false
 	}
+
 	return true
 }
 
