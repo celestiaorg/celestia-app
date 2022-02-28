@@ -69,7 +69,7 @@ func TestNextPowerOf2(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		res := nextPowerOf2(tt.input)
+		res := NextPowerOf2(tt.input)
 		assert.Equal(t, tt.expected, res)
 	}
 }

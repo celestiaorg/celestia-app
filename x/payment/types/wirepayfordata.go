@@ -213,5 +213,5 @@ func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.
 		return nil, nil, nil, err
 	}
 
-	return &coreMsg, pfd, shareCommit.Signature, nil
+	return &coreMsg, pfm, shareCommit.Signature, nil
 }

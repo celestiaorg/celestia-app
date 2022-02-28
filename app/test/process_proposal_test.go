@@ -50,6 +50,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 				},
 			},
 		},
+		OriginalSquareSize: 4,
 	}
 
 	// block with a missing message
@@ -66,6 +67,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 				},
 			},
 		},
+		OriginalSquareSize: 4,
 	}
 
 	// block with all messages included, but the commitment is changed

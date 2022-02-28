@@ -110,9 +110,10 @@ type squareWriter struct {
 	txWriter  *coretypes.ContiguousShareWriter
 	msgWriter *coretypes.MessageShareWriter
 
-	// we aren't doing anything with evidence, so we don't need to lazily
-	// generate those shares lazily
+	// we aren't doing anything with evidence or isrs yet, so we don't need to
+	// lazily generate those shares lazily
 	evdShares [][]byte
+	isrShares [][]byte
 
 	squareSize    uint64
 	maxShareCount int
@@ -134,6 +135,8 @@ func newSquareWriter(txConf client.TxConfig, squareSize uint64, data *core.Data)
 	if evdData != nil {
 		sqwr.evdShares = evdData.SplitIntoShares().RawShares()
 	}
+	isrData := coretypes.IntermediateStateRootsFromProto(data.IntermediateStateRoots)
+	sqwr.isrShares = isrData.SplitIntoShares().RawShares()
 
 	sqwr.txWriter = coretypes.NewContiguousShareWriter(consts.TxNamespaceID)
 	sqwr.msgWriter = coretypes.NewMessageShareWriter()
@@ -191,7 +194,6 @@ func (sqwr *squareWriter) writeMalleatedTx(
 
 	// check if we have room for both the tx and message it is crucial that we
 	// add both atomically, otherwise the block is invalid
-
 	if !sqwr.hasRoomForBoth(wrappedTx, coreMsg.Data) {
 		return false, nil, nil, nil
 	}
@@ -211,33 +213,46 @@ func (sqwr *squareWriter) writeMalleatedTx(
 }
 
 func (sqwr *squareWriter) hasRoomForBoth(tx, msg []byte) bool {
-	maxTxSharesTaken := (len(tx) / consts.TxShareSize) + 1
-	maxMsgSharesTaken := (len(msg) / consts.MsgShareSize) + 1
-	if sqwr.shareCount()+maxTxSharesTaken+maxMsgSharesTaken > sqwr.maxShareCount {
-		return false
+	currentShareCount, availableBytes := sqwr.shareCount()
+
+	txBytesTaken := delimLen(uint64(len(tx))) + len(tx)
+
+	maxTxSharesTaken := ((txBytesTaken - availableBytes) / consts.TxShareSize) + 1 // plus one becuase we have to add at least one share
+
+	if len(msg)%consts.MsgShareSize == 0 {
 	}
 
-	return true
+	maxMsgSharesTaken := len(msg) / consts.MsgShareSize
+
+	return currentShareCount+maxTxSharesTaken+maxMsgSharesTaken <= sqwr.maxShareCount
 }
 
 func (sqwr *squareWriter) hasRoomForTx(tx []byte) bool {
-	maxSharesTaken := (len(tx) / consts.TxShareSize) + 1
-	// check if we have room
-	if sqwr.shareCount()+maxSharesTaken > sqwr.maxShareCount {
-		// we don't (yet) have a way of knowing how many bytes are left in the
-		// pending share, so instead we assume we don't have room. Not maximally
-		// efficient as it is still possible that the tx could fit
-		return false
+	currentShareCount, availableBytes := sqwr.shareCount()
+
+	bytesTaken := delimLen(uint64(len(tx))) + len(tx)
+	if bytesTaken <= availableBytes {
+		return true
 	}
-	return true
+
+	maxSharesTaken := ((bytesTaken - availableBytes) / consts.TxShareSize) + 1 // plus one becuase we have to add at least one share
+
+	return currentShareCount+maxSharesTaken <= sqwr.maxShareCount
 }
 
-func (sqwr *squareWriter) shareCount() int {
-	return sqwr.txWriter.Count() + len(sqwr.evdShares) + sqwr.msgWriter.Count()
+func (sqwr *squareWriter) shareCount() (count, availableTxBytes int) {
+	txsShareCount, availableBytes := sqwr.txWriter.Count()
+	return txsShareCount + len(sqwr.isrShares) + len(sqwr.evdShares) + sqwr.msgWriter.Count(),
+		availableBytes
 }
 
 func (sqwr *squareWriter) export() [][]byte {
-	shares := make([][]byte, sqwr.shareCount())
+	count, pendingTxBytes := sqwr.shareCount()
+	// increment the count if there are any pending tx bytes
+	if pendingTxBytes > 0 {
+		count++
+	}
+	shares := make([][]byte, sqwr.maxShareCount)
 
 	txShares := sqwr.txWriter.Export().RawShares()
 	txShareCount := len(txShares)
@@ -245,13 +260,27 @@ func (sqwr *squareWriter) export() [][]byte {
 		shares[i] = txShare
 	}
 
-	evdShareCount := len(sqwr.evdShares)
-	for i, evdShare := range sqwr.evdShares {
-		shares[i+txShareCount] = evdShare
+	isrShareCount := len(sqwr.isrShares)
+	for i, isrShare := range sqwr.isrShares {
+		shares[i+txShareCount] = isrShare
 	}
 
-	for i, msgShare := range sqwr.msgWriter.Export().RawShares() {
-		shares[i+txShareCount+evdShareCount] = msgShare
+	evdShareCount := len(sqwr.evdShares)
+	for i, evdShare := range sqwr.evdShares {
+		shares[i+txShareCount+isrShareCount] = evdShare
+	}
+
+	msgShares := sqwr.msgWriter.Export()
+	msgShareCount := len(msgShares)
+	for i, msgShare := range msgShares {
+		shares[i+txShareCount+isrShareCount+evdShareCount] = msgShare.Share
+	}
+
+	tailShares := coretypes.TailPaddingShares(sqwr.maxShareCount - count).RawShares()
+
+	for i, tShare := range tailShares {
+		d := i + txShareCount + isrShareCount + evdShareCount + msgShareCount
+		shares[d] = tShare
 	}
 
 	return shares
@@ -265,4 +294,13 @@ func hasWirePayForMessage(tx sdk.Tx) bool {
 		}
 	}
 	return false
+}
+
+func delimLen(x uint64) int {
+	i := 0
+	for x >= 0x80 {
+		x >>= 7
+		i++
+	}
+	return i + 1
 }
