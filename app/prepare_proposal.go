@@ -128,23 +128,3 @@ func estimateMsgShares(txConf client.TxConfig, txs [][]byte) int {
 
 	return int(msgShares)
 }
-
-func isEmpty(data *core.Data) bool {
-	if len(data.Txs) != 0 {
-		return false
-	}
-
-	if len(data.IntermediateStateRoots.RawRootsList) != 0 {
-		return false
-	}
-
-	if len(data.Evidence.Evidence) != 0 {
-		return false
-	}
-
-	if len(data.Messages.MessagesList) != 0 {
-		return false
-	}
-
-	return true
-}

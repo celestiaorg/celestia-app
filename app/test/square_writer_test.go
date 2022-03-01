@@ -53,6 +53,15 @@ func TestWriteSquare(t *testing.T) {
 			expectedTxCount: 2,
 		},
 		{
+			// attempt with only a single tx that can fit in a square of size 2
+			squareSize: 2,
+			data: &core.Data{
+				Txs: [][]byte{secondRawTx},
+			},
+			expectErr:       false,
+			expectedTxCount: 1,
+		},
+		{
 			// calculate the square using the same txs but using a square size
 			// of 8
 			squareSize: 8,
@@ -93,6 +102,8 @@ func TestWriteSquare(t *testing.T) {
 		parsedData, err := coretypes.DataFromSquare(eds)
 		require.NoError(t, err)
 
+		assert.Equal(t, data.Txs, parsedData.Txs.ToSliceOfBytes())
+
 		parsedShares, _, err := parsedData.ComputeShares(tt.squareSize)
 		require.NoError(t, err)
 
@@ -100,14 +111,5 @@ func TestWriteSquare(t *testing.T) {
 		fmt.Println(len(square), len(rawParsedShares))
 
 		require.Equal(t, square, parsedShares.RawShares())
-
-		// protoParsedData := parsedData.ToProto()
-		// protoParsedData.Hash = data.Hash
-
-		// in order to compare properly, we have to set the evidence to a non
-		// nil slice and we also don't calculate the hash
-		data.Evidence = core.EvidenceList{Evidence: []core.Evidence{}}
-
-		// require.Equal(t, data, &protoParsedData)
 	}
 }

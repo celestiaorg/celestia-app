@@ -17,6 +17,7 @@ import (
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func TestMessageInclusionCheck(t *testing.T) {
@@ -27,8 +28,8 @@ func TestMessageInclusionCheck(t *testing.T) {
 
 	encConf := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
 
-	firstValidPFM, msg1 := genRandMsgPayForMessage(t, signer, 4)
-	secondValidPFM, msg2 := genRandMsgPayForMessage(t, signer, 4)
+	firstValidPFM, msg1 := genRandMsgPayForMessage(t, signer, 8)
+	secondValidPFM, msg2 := genRandMsgPayForMessage(t, signer, 8)
 
 	invalidCommitmentPFM, msg3 := genRandMsgPayForMessage(t, signer, 4)
 	invalidCommitmentPFM.MessageShareCommitment = tmrand.Bytes(32)
@@ -145,13 +146,16 @@ func TestMessageInclusionCheck(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		dataSquare, _, err := app.WriteSquare(
-			encConf.TxConfig,
-			tt.input.BlockData.OriginalSquareSize,
-			tt.input.BlockData,
-		)
+		data, err := coretypes.DataFromProto(tt.input.BlockData)
 		require.NoError(t, err)
-		eds, err := da.ExtendShares(tt.input.BlockData.OriginalSquareSize, dataSquare)
+
+		shares, _, err := data.ComputeShares(tt.input.BlockData.OriginalSquareSize)
+		require.NoError(t, err)
+
+		rawShares := shares.RawShares()
+
+		require.NoError(t, err)
+		eds, err := da.ExtendShares(tt.input.BlockData.OriginalSquareSize, rawShares)
 		require.NoError(t, err)
 		dah := da.NewDataAvailabilityHeader(eds)
 		tt.input.Header.DataHash = dah.Hash()
@@ -166,7 +170,7 @@ func genRandMsgPayForMessage(t *testing.T, signer *types.KeyringSigner, squareSi
 	_, err := rand.Read(ns)
 	require.NoError(t, err)
 
-	message := make([]byte, tmrand.Intn(3000))
+	message := make([]byte, 20)
 	_, err = rand.Read(message)
 	require.NoError(t, err)
 

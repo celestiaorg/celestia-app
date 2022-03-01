@@ -7,6 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/pkg/da"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 const (
@@ -85,14 +86,23 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	// check that the data matches the data hash
-	dataSquare, _, err := WriteSquare(app.txConfig, req.BlockData.OriginalSquareSize, req.BlockData)
+	data, err := coretypes.DataFromProto(req.BlockData)
 	if err != nil {
-		// todo(evan): see if we can get rid of this panic
-		panic(err)
+		app.Logger().Error(rejectedPropBlockLog, "reason", "failure to unmarshal block data:", err)
+		return abci.ResponseProcessProposal{
+			Result: abci.ResponseProcessProposal_REJECT,
+		}
 	}
 
-	eds, err := da.ExtendShares(req.BlockData.OriginalSquareSize, dataSquare)
+	shares, _, err := data.ComputeShares(req.BlockData.OriginalSquareSize)
+	if err != nil {
+		app.Logger().Error(rejectedPropBlockLog, "reason", "failure to compute shares from block data:", err)
+		return abci.ResponseProcessProposal{
+			Result: abci.ResponseProcessProposal_REJECT,
+		}
+	}
+
+	eds, err := da.ExtendShares(req.BlockData.OriginalSquareSize, shares.RawShares())
 	if err != nil {
 		app.Logger().Error(
 			rejectedPropBlockLog,
@@ -109,7 +119,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	dah := da.NewDataAvailabilityHeader(eds)
 
 	if !bytes.Equal(dah.Hash(), req.Header.DataHash) {
-		app.Logger().Info(
+		app.Logger().Error(
 			rejectedPropBlockLog,
 			"reason",
 			"proposed data root differs from calculated data root",
