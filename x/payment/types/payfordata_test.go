@@ -106,7 +106,7 @@ func TestPowerOf2(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		res := powerOf2(tt.input)
+		res := PowerOf2(tt.input)
 		assert.Equal(t, tt.expected, res)
 	}
 }

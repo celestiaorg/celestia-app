@@ -228,7 +228,7 @@ func NextPowerOf2(v uint64) uint64 {
 }
 
 // Check if number is power of 2
-func powerOf2(v uint64) bool {
+func PowerOf2(v uint64) bool {
 	if v&(v-1) == 0 && v != 0 {
 		return true
 	} else {

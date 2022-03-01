@@ -283,6 +283,10 @@ func (sqwr *squareWriter) export() [][]byte {
 		shares[d] = tShare
 	}
 
+	if len(shares[0]) == 0 {
+		shares = coretypes.TailPaddingShares(consts.MinSharecount).RawShares()
+	}
+
 	return shares
 }
 

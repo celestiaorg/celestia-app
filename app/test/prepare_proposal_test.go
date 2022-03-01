@@ -117,7 +117,3 @@ func generateSignedWirePayForMessage(t *testing.T, ns, message []byte, signer *t
 const (
 	testAccName = "test-account"
 )
-
-func TestSquareSize(t *testing.T) {
-
-}

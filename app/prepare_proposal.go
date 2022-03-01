@@ -52,19 +52,28 @@ func (app *App) estimateSquareSize(data *core.Data) uint64 {
 	for _, tx := range data.Txs {
 		txBytes += len(tx) + delimLen(uint64(len(tx)))
 	}
-	txShareEstimate := txBytes/consts.TxShareSize + 1 // add one to round up
+	txShareEstimate := txBytes / consts.TxShareSize
+	if txBytes > 0 {
+		txShareEstimate++ // add one to round up
+	}
 
 	evdBytes := 0
 	for _, evd := range data.Evidence.Evidence {
 		evdBytes += evd.Size() + delimLen(uint64(evd.Size()))
 	}
-	evdShareEstimate := evdBytes/consts.TxShareSize + 1 // add one to round up
+	evdShareEstimate := evdBytes / consts.TxShareSize
+	if evdBytes > 0 {
+		evdShareEstimate++ // add one to round up
+	}
 
 	isrBytes := 0
 	for _, isr := range data.IntermediateStateRoots.RawRootsList {
 		isrBytes += len(isr) + delimLen(uint64(len(isr)))
 	}
-	isrShareEstimate := isrBytes/consts.TxShareSize + 1 // add one to round up
+	isrShareEstimate := isrBytes / consts.TxShareSize
+	if isrBytes > 0 {
+		isrShareEstimate++ // add one to round up
+	}
 
 	msgShareEstimate := estimateMsgShares(app.txConfig, data.Txs)
 
@@ -118,4 +127,24 @@ func estimateMsgShares(txConf client.TxConfig, txs [][]byte) int {
 	}
 
 	return int(msgShares)
+}
+
+func isEmpty(data *core.Data) bool {
+	if len(data.Txs) != 0 {
+		return false
+	}
+
+	if len(data.IntermediateStateRoots.RawRootsList) != 0 {
+		return false
+	}
+
+	if len(data.Evidence.Evidence) != 0 {
+		return false
+	}
+
+	if len(data.Messages.MessagesList) != 0 {
+		return false
+	}
+
+	return true
 }
