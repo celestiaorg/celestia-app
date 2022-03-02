@@ -219,9 +219,6 @@ func (sqwr *squareWriter) hasRoomForBoth(tx, msg []byte) bool {
 
 	maxTxSharesTaken := ((txBytesTaken - availableBytes) / consts.TxShareSize) + 1 // plus one becuase we have to add at least one share
 
-	if len(msg)%consts.MsgShareSize == 0 {
-	}
-
 	maxMsgSharesTaken := len(msg) / consts.MsgShareSize
 
 	return currentShareCount+maxTxSharesTaken+maxMsgSharesTaken <= sqwr.maxShareCount
@@ -256,9 +253,7 @@ func (sqwr *squareWriter) export() [][]byte {
 
 	txShares := sqwr.txWriter.Export().RawShares()
 	txShareCount := len(txShares)
-	for i, txShare := range txShares {
-		shares[i] = txShare
-	}
+	copy(shares, txShares)
 
 	isrShareCount := len(sqwr.isrShares)
 	for i, isrShare := range sqwr.isrShares {
