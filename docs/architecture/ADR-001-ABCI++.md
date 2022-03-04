@@ -2,7 +2,7 @@
 
 ## Changelog
 
-- 03/03/2022: Initial Commit
+- 2022-03-03: Initial Commit
 
 ## Context
 
