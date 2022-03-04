@@ -19,8 +19,7 @@ We need this functionality in order for block producers to
 
 We also need this functionality for validators to verify that
 
-- Messages that are paid for by users are actually included in the block
-- The block producer doesn’t also include messages that are not paid for
+- For every `MsgPayForMessage` included in the block, there is also a corresponding message and vice versa.
 - That the data hash represents the properly erasured block data for the selected block size
 - Included messages are arranged in the expected locations in the square according to the non-interactive default rules (not done here)
 
