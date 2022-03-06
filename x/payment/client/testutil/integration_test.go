@@ -139,9 +139,9 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 						signer := e.GetAttributes()[0].GetValue()
 						_, err = sdk.AccAddressFromBech32(signer)
 						require.NoError(err)
-						squareSize, err := strconv.ParseUint(e.GetAttributes()[1].GetValue(), 10, 64)
+						msgSize, err := strconv.ParseUint(e.GetAttributes()[1].GetValue(), 10, 64)
 						require.NoError(err)
-						s.Equal(0, squareSize%256)
+						s.Equal(uint64(0), msgSize%256, "Message length should be multiplication of 256")
 					}
 					//s.Equal("/payment.MsgPayForMessage", events[i].GetAttributes()[0].Value)
 					//s.Equal(hexMsg, events[i].GetAttributes()[1].Value)
