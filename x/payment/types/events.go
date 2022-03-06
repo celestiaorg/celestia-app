@@ -14,7 +14,7 @@ const (
 )
 
 //NewPayForMessageEvent construt a new payformessge sdk.Event
-func NewPayforMessageEvent(spender sdk.AccAddress, size uint64) sdk.Event {
+func NewPayForMessageEvent(spender sdk.AccAddress, size uint64) sdk.Event {
 	return sdk.NewEvent(
 		EventTypePayForMessage,
 		sdk.NewAttribute(AttributeKeySpender, spender.String()),
