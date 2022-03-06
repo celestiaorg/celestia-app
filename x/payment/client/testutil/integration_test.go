@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -138,8 +139,9 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 						signer := e.GetAttributes()[0].GetValue()
 						_, err = sdk.AccAddressFromBech32(signer)
 						require.NoError(err)
-						squareSize := e.GetAttributes()[1].GetValue()
-						s.Equal("256", squareSize)
+						squareSize, err := strconv.ParseUint(e.GetAttributes()[1].GetValue(), 10, 64)
+						require.NoError(err)
+						s.Equal(0, squareSize%256)
 					}
 					//s.Equal("/payment.MsgPayForMessage", events[i].GetAttributes()[0].Value)
 					//s.Equal(hexMsg, events[i].GetAttributes()[1].Value)
