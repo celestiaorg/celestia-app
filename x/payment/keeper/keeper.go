@@ -36,7 +36,7 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 func (k Keeper) PayForMessage(goCtx context.Context, msg *types.MsgPayForMessage) (*types.MsgPayForMessageResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 	ctx.EventManager().EmitEvent(
-		types.NewPayForMessageEvent(sdk.AccAddress(msg.Signer), msg.GetMessageSize()),
+		types.NewPayForMessageEvent(sdk.AccAddress(msg.Signer).String(), msg.GetMessageSize()),
 	)
 
 	return &types.MsgPayForMessageResponse{}, nil
