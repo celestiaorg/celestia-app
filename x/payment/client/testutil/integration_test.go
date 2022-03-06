@@ -131,16 +131,15 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 				require.Equal(tc.expectedCode, txResp.Code,
 					"test: %s, output\n:", tc.name, out.String())
 
-				// event1 = sdk.Event{
-				// 	Type: types.EventTypePayForMessage,
-				// 	Attributes: []abci.EventAttribute{},
-				// }
 				events := txResp.Logs[0].GetEvents()
 				for _, e := range events {
 					switch e.Type {
 					case types.EventTypePayForMessage:
-						//s.Equal(clientCtx.GetFeeGranterAddress(), sdk.AccAddress(e.GetAttributes()[0].Value))
-						s.Equal(out.dataString(), e.GetAttributes()[1].Value)
+						signer := e.GetAttributes()[0].GetValue()
+						_, err = sdk.AccAddressFromBech32(signer)
+						require.NoError(err)
+						squareSize := e.GetAttributes()[1].GetValue()
+						s.Equal("256", squareSize)
 					}
 					//s.Equal("/payment.MsgPayForMessage", events[i].GetAttributes()[0].Value)
 					//s.Equal(hexMsg, events[i].GetAttributes()[1].Value)
