@@ -15,7 +15,7 @@ We need this functionality in order for block producers to
 - Separate rollup block data from the stateful portion of the transaction
 - Use the appropriate signature for the selected block size
 - Follow the non-interactive default rules (not done here)
-- Create celestia specific data hash by erasuring the block data
+- Create Celestia-specific data hash by erasure-coding the block data
 
 We also need this functionality for validators to verify that
 
