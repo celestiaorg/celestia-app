@@ -10,7 +10,7 @@ Among other things, ABCI++ enables arbitrary logic to be performed by the applic
 
 We need this functionality in order for block producers to
 
-- Pick a square size / Fill the data square efficiently
+- Pick a square size / fill the data square efficiently
 - Malleate user transactions
 - Separate rollup block data from the stateful portion of the transaction
 - Use the appropriate signature for the selected block size
