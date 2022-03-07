@@ -2,21 +2,25 @@ package keeper
 
 import (
 	"fmt"
+
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
 type Keeper struct {
-	cdc           codec.BinaryCodec
-	storeKey      sdk.StoreKey
+	cdc        codec.BinaryCodec
+	storeKey   sdk.StoreKey
+	paramSpace paramtypes.Subspace
+
 	stakingKeeper StakingKeeper
 }
 
-func NewKeeper(cdc codec.BinaryCodec, storeKey sdk.StoreKey, stakingKeeper StakingKeeper) *Keeper {
+func NewKeeper(cdc codec.BinaryCodec, storeKey sdk.StoreKey, paramSpace paramtypes.Subspace, stakingKeeper StakingKeeper) *Keeper {
 	return &Keeper{
 		cdc:           cdc,
 		storeKey:      storeKey,
@@ -24,9 +28,22 @@ func NewKeeper(cdc codec.BinaryCodec, storeKey sdk.StoreKey, stakingKeeper Staki
 	}
 }
 
+// GetParams returns the parameters from the store
+func (k Keeper) GetParams(ctx sdk.Context) (params types.Params) {
+	k.paramSpace.GetParamSet(ctx, &params)
+	return
+}
+
+// SetParams sets the parameters in the store
+func (k Keeper) SetParams(ctx sdk.Context, ps types.Params) {
+	k.paramSpace.SetParamSet(ctx, &ps)
+}
+
 // StakingKeeper restricts the functionality of the bank keeper used in the payment keeper
 type StakingKeeper interface {
 	GetValidator(ctx sdk.Context, addr sdk.ValAddress) (validator stakingtypes.Validator, found bool)
+	GetBondedValidatorsByPower(ctx sdk.Context) []stakingtypes.Validator
+	GetLastValidatorPower(ctx sdk.Context, valAddr sdk.ValAddress) int64
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {

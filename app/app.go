@@ -284,10 +284,21 @@ func New(
 	app.FeeGrantKeeper = feegrantkeeper.NewKeeper(appCodec, keys[feegrant.StoreKey], app.AccountKeeper)
 	app.UpgradeKeeper = upgradekeeper.NewKeeper(skipUpgradeHeights, keys[upgradetypes.StoreKey], appCodec, homePath, app.BaseApp)
 
+	app.QgbKeeper = *qgbmodulekeeper.NewKeeper(
+		appCodec,
+		keys[qgbmoduletypes.StoreKey],
+		app.GetSubspace(qgbmoduletypes.ModuleName),
+		&stakingKeeper,
+	)
+	qgbmodule := qgbmodule.NewAppModule(appCodec, app.QgbKeeper)
+
 	// register the staking hooks
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
 	app.StakingKeeper = *stakingKeeper.SetHooks(
-		stakingtypes.NewMultiStakingHooks(app.DistrKeeper.Hooks(), app.SlashingKeeper.Hooks()),
+		stakingtypes.NewMultiStakingHooks(app.DistrKeeper.Hooks(),
+			app.SlashingKeeper.Hooks(),
+			app.QgbKeeper.Hooks(),
+		),
 	)
 
 	// ... other modules keepers
@@ -319,13 +330,6 @@ func New(
 		keys[paymentmoduletypes.MemStoreKey],
 	)
 	paymentmodule := paymentmodule.NewAppModule(appCodec, app.PaymentKeeper)
-
-	app.QgbKeeper = *qgbmodulekeeper.NewKeeper(
-		appCodec,
-		keys[qgbmoduletypes.StoreKey],
-		&stakingKeeper,
-	)
-	qgbmodule := qgbmodule.NewAppModule(appCodec, app.QgbKeeper)
 
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 
