@@ -189,7 +189,7 @@ func (k Keeper) GetLastUnBondingBlockHeight(ctx sdk.Context) uint64 {
 // you should call this function, evaluate if you want to save this new valset, and discard
 // it or save
 func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
-	validators := k.stakingKeeper.GetBondedValidatorsByPower(ctx)
+	validators := k.StakingKeeper.GetBondedValidatorsByPower(ctx)
 	if len(validators) == 0 {
 		return types.Valset{}, types.ErrNoValidators
 	}
@@ -206,7 +206,7 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 			return types.Valset{}, sdkerrors.Wrap(err, types.ErrInvalidValAddress.Error())
 		}
 
-		p := sdk.NewInt(k.stakingKeeper.GetLastValidatorPower(ctx, val))
+		p := sdk.NewInt(k.StakingKeeper.GetLastValidatorPower(ctx, val))
 
 		if ethAddr, found := k.GetEthAddressByValidator(ctx, val); found {
 			bv := types.BridgeValidator{Power: p.Uint64(), EthereumAddress: ethAddr.GetAddress()}

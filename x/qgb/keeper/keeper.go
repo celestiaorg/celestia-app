@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"fmt"
+	"time"
 
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/tendermint/tendermint/libs/log"
@@ -17,14 +18,14 @@ type Keeper struct {
 	storeKey   sdk.StoreKey
 	paramSpace paramtypes.Subspace
 
-	stakingKeeper StakingKeeper
+	StakingKeeper StakingKeeper
 }
 
 func NewKeeper(cdc codec.BinaryCodec, storeKey sdk.StoreKey, paramSpace paramtypes.Subspace, stakingKeeper StakingKeeper) *Keeper {
 	return &Keeper{
 		cdc:           cdc,
 		storeKey:      storeKey,
-		stakingKeeper: stakingKeeper,
+		StakingKeeper: stakingKeeper,
 	}
 }
 
@@ -39,11 +40,23 @@ func (k Keeper) SetParams(ctx sdk.Context, ps types.Params) {
 	k.paramSpace.SetParamSet(ctx, &ps)
 }
 
+// DeserializeValidatorIterator returns validators from the validator iterator.
+// Adding here in gravity keeper as cdc is not available inside endblocker.
+func (k Keeper) DeserializeValidatorIterator(vals []byte) stakingtypes.ValAddresses {
+	validators := stakingtypes.ValAddresses{
+		Addresses: []string{},
+	}
+	k.cdc.MustUnmarshal(vals, &validators)
+	return validators
+}
+
 // StakingKeeper restricts the functionality of the bank keeper used in the payment keeper
 type StakingKeeper interface {
 	GetValidator(ctx sdk.Context, addr sdk.ValAddress) (validator stakingtypes.Validator, found bool)
 	GetBondedValidatorsByPower(ctx sdk.Context) []stakingtypes.Validator
 	GetLastValidatorPower(ctx sdk.Context, valAddr sdk.ValAddress) int64
+	GetParams(ctx sdk.Context) stakingtypes.Params
+	ValidatorQueueIterator(ctx sdk.Context, endTime time.Time, endHeight int64) sdk.Iterator
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {
@@ -96,7 +109,7 @@ func (k Keeper) GetOrchestratorValidator(ctx sdk.Context, acc sdk.AccAddress) (v
 	if valAddr == nil {
 		return stakingtypes.Validator{}, false
 	}
-	validator, found = k.stakingKeeper.GetValidator(ctx, valAddr)
+	validator, found = k.StakingKeeper.GetValidator(ctx, valAddr)
 	if !found {
 		return stakingtypes.Validator{}, false
 	}
