@@ -8,6 +8,13 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
+func (k Keeper) Params(c context.Context, request *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
+	params := k.GetParams(sdk.UnwrapSDKContext(c))
+	return &types.QueryParamsResponse{
+		Params: params,
+	}, nil
+}
+
 func (k Keeper) DataCommitmentConfirm(
 	c context.Context,
 	request *types.QueryDataCommitmentConfirmRequest,
