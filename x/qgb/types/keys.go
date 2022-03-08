@@ -1,9 +1,10 @@
 package types
 
 import (
+	"strings"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"strings"
 )
 
 const (
@@ -23,7 +24,10 @@ const (
 	MemStoreKey = "mem_payment"
 )
 
-var (
+const (
+	// ValsetRequestKey indexes valset requests by nonce
+	ValsetRequestKey = "ValsetRequestKey"
+
 	// ValsetConfirmKey indexes valset confirmations by nonce and the validator account address
 	// FIXME: For our keys, should they be `gravity1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm` or `qgb1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm`?
 	// i.e gravity1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm
@@ -38,6 +42,12 @@ var (
 	// ValidatorByEthAddressKey indexes ethereum addresses
 	// i.e. 0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B
 	ValidatorByEthAddressKey = "ValidatorByEthAddressKey"
+
+	// LastUnBondingBlockHeight indexes the last validator unbonding block height
+	LastUnBondingBlockHeight = "LastUnBondingBlockHeight"
+
+	// LatestValsetNonce indexes the latest valset nonce
+	LatestValsetNonce = "LatestValsetNonce"
 )
 
 // GetValsetConfirmKey returns the following key format
@@ -49,6 +59,13 @@ func GetValsetConfirmKey(nonce uint64, validator sdk.AccAddress) string {
 		panic(sdkerrors.Wrap(err, "invalid validator address"))
 	}
 	return ValsetConfirmKey + ConvertByteArrToString(UInt64Bytes(nonce)) + string(validator.Bytes())
+}
+
+// GetValsetKey returns the following key format
+// prefix    nonce
+// [0x0][0 0 0 0 0 0 0 1]
+func GetValsetKey(nonce uint64) string {
+	return ValsetRequestKey + string(UInt64Bytes(nonce))
 }
 
 func ConvertByteArrToString(value []byte) string {

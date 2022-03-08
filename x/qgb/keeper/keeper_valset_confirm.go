@@ -1,6 +1,8 @@
 package keeper
 
 import (
+	"encoding/binary"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 
@@ -73,4 +75,9 @@ func (k Keeper) DeleteValsetConfirms(ctx sdk.Context, nonce uint64) {
 			}
 		}
 	}
+}
+
+// UInt64FromBytes create uint from binary big endian representation
+func UInt64FromBytes(s []byte) uint64 {
+	return binary.BigEndian.Uint64(s)
 }

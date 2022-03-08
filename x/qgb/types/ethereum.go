@@ -1,9 +1,11 @@
 package types
 
 import (
+	"bytes"
 	"fmt"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"regexp"
+
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 const (
@@ -53,4 +55,14 @@ func ValidateEthAddress(address string) error {
 	}
 
 	return nil
+}
+
+// Performs validation on the wrapped string
+func (ea EthAddress) ValidateBasic() error {
+	return ValidateEthAddress(ea.address)
+}
+
+// EthAddrLessThan migrates the Ethereum address less than function
+func EthAddrLessThan(e EthAddress, o EthAddress) bool {
+	return bytes.Compare([]byte(e.GetAddress())[:], []byte(o.GetAddress())[:]) == -1
 }
