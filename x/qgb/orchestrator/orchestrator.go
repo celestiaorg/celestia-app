@@ -202,7 +202,7 @@ func (oc *orchClient) watchForDataCommitments() error {
 		}
 
 		// create and send the data commitment
-		oc.tendermintRPC.DataCommitment(oc.ctx, fmt.Sprintf(""))
+		oc.tendermintRPC.DataCommitment(oc.ctx, fmt.Sprintf("block.height >= %d AND block.height <= %d", height-int64(params.DataCommitmentWindow), height))
 
 	}
 	return nil
