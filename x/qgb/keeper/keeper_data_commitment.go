@@ -26,25 +26,25 @@ func (k Keeper) GetDataCommitmentConfirm(
 	return &confirm
 }
 
-// GetDataCommitmentConfirmsByCommitment Returns data commitment confirms by commitment
-func (k Keeper) GetDataCommitmentConfirmsByCommitment(
-	ctx sdk.Context,
-	commitment string,
-) (confirms []types.MsgDataCommitmentConfirm) {
-	prefixStore := prefix.NewStore(ctx.KVStore(k.storeKey), []byte(types.DataCommitmentConfirmKey))
-	start, end := prefixRange([]byte(commitment)) // How does this work?
-	iterator := prefixStore.Iterator(start, end)
+// // GetDataCommitmentConfirmsByCommitment Returns data commitment confirms by commitment
+// func (k Keeper) GetDataCommitmentConfirmsByCommitment(
+// 	ctx sdk.Context,
+// 	commitment string,
+// ) (confirms []types.MsgDataCommitmentConfirm) {
+// 	prefixStore := prefix.NewStore(ctx.KVStore(k.storeKey), []byte(types.DataCommitmentConfirmKey))
+// 	start, end := prefixRange([]byte(commitment)) // How does this work?
+// 	iterator := prefixStore.Iterator(start, end)
 
-	defer iterator.Close()
+// 	defer iterator.Close()
 
-	for ; iterator.Valid(); iterator.Next() {
-		confirm := types.MsgDataCommitmentConfirm{}
-		k.cdc.MustUnmarshal(iterator.Value(), &confirm)
-		confirms = append(confirms, confirm)
-	}
+// 	for ; iterator.Valid(); iterator.Next() {
+// 		confirm := types.MsgDataCommitmentConfirm{}
+// 		k.cdc.MustUnmarshal(iterator.Value(), &confirm)
+// 		confirms = append(confirms, confirm)
+// 	}
 
-	return confirms
-}
+// 	return confirms
+// }
 
 // GetDataCommitmentConfirmsByValidator Returns data commitment confirms by validator address
 func (k Keeper) GetDataCommitmentConfirmsByValidator(

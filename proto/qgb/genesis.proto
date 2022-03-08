@@ -1,7 +1,26 @@
 syntax = "proto3";
 package qgb;
 
+import "gogoproto/gogo.proto";
+import "qgb/types.proto";
+import "qgb/msgs.proto";
+
 option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
-// GenesisState defines the capability module's genesis state.
-message GenesisState {}
+// Params represent the Quantum Gravity Bridge genesis and store parameters.
+message Params {
+  option (gogoproto.stringer) = false;
+
+  uint64 data_commitment_window       = 1;
+}
+
+// GenesisState struct, containing all persistant data required by the Gravity module
+message GenesisState {
+  Params                             params              = 1;
+}
+
+// GravityCounters contains the many noces and counters required to maintain the bridge state in the genesis
+message GravityNonces {
+  // the nonce of the last generated validator set
+  uint64 latest_valset_nonce = 1;
+}
