@@ -1,8 +1,6 @@
 package keeper
 
 import (
-	"fmt"
-
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -147,8 +145,6 @@ func CreateTestEnv(t *testing.T) TestInput {
 	cdc := MakeTestCodec()
 	marshaler := MakeTestMarshaler()
 
-	testQGBParams := types.DefaultGenesis().Params
-
 	paramsKeeper := paramskeeper.NewKeeper(marshaler, cdc, keyParams, tkeyParams)
 	paramsKeeper.Subspace(authtypes.ModuleName)
 	paramsKeeper.Subspace(banktypes.ModuleName)
@@ -185,10 +181,13 @@ func CreateTestEnv(t *testing.T) TestInput {
 		getSubspace(paramsKeeper, banktypes.ModuleName),
 		blockedAddr,
 	)
-	bankKeeper.SetParams(ctx, banktypes.Params{
-		SendEnabled:        []*banktypes.SendEnabled{},
-		DefaultSendEnabled: true,
-	})
+	bankKeeper.SetParams(
+		ctx,
+		banktypes.Params{
+			SendEnabled:        []*banktypes.SendEnabled{},
+			DefaultSendEnabled: true,
+		},
+	)
 
 	stakingKeeper := stakingkeeper.NewKeeper(marshaler, keyStaking, accountKeeper, bankKeeper, getSubspace(paramsKeeper, stakingtypes.ModuleName))
 	stakingKeeper.SetParams(ctx, TestingStakeParams)
@@ -244,6 +243,8 @@ func CreateTestEnv(t *testing.T) TestInput {
 	)
 
 	k := NewKeeper(marshaler, qgbKey, getSubspace(paramsKeeper, types.DefaultParamspace), &stakingKeeper)
+	testQGBParams := types.DefaultGenesis().Params
+	k.SetParams(ctx, *testQGBParams)
 
 	stakingKeeper = *stakingKeeper.SetHooks(
 		stakingtypes.NewMultiStakingHooks(
@@ -252,11 +253,6 @@ func CreateTestEnv(t *testing.T) TestInput {
 			k.Hooks(),
 		),
 	)
-
-	k.SetParams(ctx, *testQGBParams)
-	params := k.GetParams(ctx)
-
-	fmt.Println(params)
 
 	return TestInput{
 		QgbKeeper:      k,
