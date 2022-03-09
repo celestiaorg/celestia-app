@@ -55,7 +55,7 @@ type Application interface {
 }
 ```
 
-It's also important to note the changes made to the request types for both methods. In upstream, they are only passing the transactions to the applications. This has been modifed to pass the entire block data.
+It's also important to note the changes made to the request types for both methods. In upstream, they are only passing the transactions to the applications. This has been modified to pass the entire block data.
 ```protobuf
 message RequestPrepareProposal {
  // block_data is an array of transactions that will be included in a block,
