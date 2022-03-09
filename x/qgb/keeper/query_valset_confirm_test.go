@@ -83,18 +83,15 @@ func TestAllValsetConfirmsBynonce(t *testing.T) {
 		"cosmos1v4s3yfg8rujaz56yt5a3xznqjqgyeff4552l40",
 		"cosmos1dz6pu605p5x79dh5pz4dardhuzws6c0qqr0l6e",
 		"cosmos1er9mgk7x30aspqd2zwn970ywfls36ktdmgyzry",
-		//"cosmos12ck7y9wrgyk0alnxmnsac75vxr365tw3mn0zsf",
 	}
 	var (
-		nonce                     = uint64(1)
-		myValidatorCosmosAddr1, _ = sdk.AccAddressFromBech32(addrs[0])
-		myValidatorCosmosAddr2, _ = sdk.AccAddressFromBech32(addrs[1])
-		myValidatorCosmosAddr3, _ = sdk.AccAddressFromBech32(addrs[2])
-		//myValidatorCosmosAddr4, _   = sdk.AccAddressFromBech32(addrs[3])
+		nonce                       = uint64(1)
+		myValidatorCosmosAddr1, _   = sdk.AccAddressFromBech32(addrs[0])
+		myValidatorCosmosAddr2, _   = sdk.AccAddressFromBech32(addrs[1])
+		myValidatorCosmosAddr3, _   = sdk.AccAddressFromBech32(addrs[2])
 		myValidatorEthereumAddr1, _ = types.NewEthAddress("0x0101010101010101010101010101010101010101")
 		myValidatorEthereumAddr2, _ = types.NewEthAddress("0x0202020202020202020202020202020202020202")
 		myValidatorEthereumAddr3, _ = types.NewEthAddress("0x0303030303030303030303030303030303030303")
-		//myValidatorEthereumAddr4, _ = types.NewEthAddress("0x0404040404040404040404040404040404040404")
 	)
 
 	input := CreateTestEnv(t)
