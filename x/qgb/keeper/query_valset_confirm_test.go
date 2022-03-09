@@ -77,8 +77,7 @@ func TestQueryValsetConfirm(t *testing.T) {
 	}
 }
 
-//nolint: exhaustivestruct
-func TestAllValsetConfirmsBynonce(t *testing.T) {
+func TestAllValsetConfirmsByNonce(t *testing.T) {
 	addrs := []string{
 		"cosmos1v4s3yfg8rujaz56yt5a3xznqjqgyeff4552l40",
 		"cosmos1dz6pu605p5x79dh5pz4dardhuzws6c0qqr0l6e",
