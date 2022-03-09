@@ -144,3 +144,41 @@ func TestAllValsetConfirmsByNonce(t *testing.T) {
 		})
 	}
 }
+
+func TestQueryCurrentValset(t *testing.T) {
+	var (
+		expectedValset = types.Valset{
+			Nonce:  1,
+			Height: 1234567,
+			Members: []types.BridgeValidator{
+				{
+					Power:           858993459,
+					EthereumAddress: "0x0101010101010101010101010101010101010101",
+				},
+				{
+					Power:           858993459,
+					EthereumAddress: "0x0202020202020202020202020202020202020202",
+				},
+				{
+					Power:           858993459,
+					EthereumAddress: "0x0303030303030303030303030303030303030303",
+				},
+				{
+					Power:           858993459,
+					EthereumAddress: "0x0404040404040404040404040404040404040404",
+				},
+				{
+					Power:           858993459,
+					EthereumAddress: "0x0505050505050505050505050505050505050505",
+				},
+			},
+		}
+	)
+	input, _ := SetupFiveValChain(t)
+	sdkCtx := input.Context
+
+	currentValset, err := input.QgbKeeper.GetCurrentValset(sdkCtx)
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedValset, currentValset)
+}

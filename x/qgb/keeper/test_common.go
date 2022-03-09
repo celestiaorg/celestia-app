@@ -1,11 +1,15 @@
 package keeper
 
 import (
+	"bytes"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	ccodec "github.com/cosmos/cosmos-sdk/crypto/codec"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	ccrypto "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/std"
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -35,6 +39,7 @@ import (
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/cosmos/cosmos-sdk/x/upgrade"
+	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -72,6 +77,105 @@ var (
 		HistoricalEntries: 10000,
 		BondDenom:         "stake",
 	}
+
+	// ConsPrivKeys generate ed25519 ConsPrivKeys to be used for validator operator keys
+	ConsPrivKeys = []ccrypto.PrivKey{
+		ed25519.GenPrivKey(),
+		ed25519.GenPrivKey(),
+		ed25519.GenPrivKey(),
+		ed25519.GenPrivKey(),
+		ed25519.GenPrivKey(),
+	}
+
+	// ConsPubKeys holds the consensus public keys to be used for validator operator keys
+	ConsPubKeys = []ccrypto.PubKey{
+		ConsPrivKeys[0].PubKey(),
+		ConsPrivKeys[1].PubKey(),
+		ConsPrivKeys[2].PubKey(),
+		ConsPrivKeys[3].PubKey(),
+		ConsPrivKeys[4].PubKey(),
+	}
+
+	// AccPrivKeys generate secp256k1 pubkeys to be used for account pub keys
+	AccPrivKeys = []ccrypto.PrivKey{
+		secp256k1.GenPrivKey(),
+		secp256k1.GenPrivKey(),
+		secp256k1.GenPrivKey(),
+		secp256k1.GenPrivKey(),
+		secp256k1.GenPrivKey(),
+	}
+
+	// AccPubKeys holds the pub keys for the account keys
+	AccPubKeys = []ccrypto.PubKey{
+		AccPrivKeys[0].PubKey(),
+		AccPrivKeys[1].PubKey(),
+		AccPrivKeys[2].PubKey(),
+		AccPrivKeys[3].PubKey(),
+		AccPrivKeys[4].PubKey(),
+	}
+
+	// AccAddrs holds the sdk.AccAddresses
+	AccAddrs = []sdk.AccAddress{
+		sdk.AccAddress(AccPubKeys[0].Address()),
+		sdk.AccAddress(AccPubKeys[1].Address()),
+		sdk.AccAddress(AccPubKeys[2].Address()),
+		sdk.AccAddress(AccPubKeys[3].Address()),
+		sdk.AccAddress(AccPubKeys[4].Address()),
+	}
+
+	// ValAddrs holds the sdk.ValAddresses
+	ValAddrs = []sdk.ValAddress{
+		sdk.ValAddress(AccPubKeys[0].Address()),
+		sdk.ValAddress(AccPubKeys[1].Address()),
+		sdk.ValAddress(AccPubKeys[2].Address()),
+		sdk.ValAddress(AccPubKeys[3].Address()),
+		sdk.ValAddress(AccPubKeys[4].Address()),
+	}
+
+	// OrchPubKeys AccPubKeys holds the pub keys for the account keys
+	OrchPubKeys = []ccrypto.PubKey{
+		OrchPrivKeys[0].PubKey(),
+		OrchPrivKeys[1].PubKey(),
+		OrchPrivKeys[2].PubKey(),
+		OrchPrivKeys[3].PubKey(),
+		OrchPrivKeys[4].PubKey(),
+	}
+
+	// OrchPrivKeys Orchestrator private keys
+	OrchPrivKeys = []ccrypto.PrivKey{
+		secp256k1.GenPrivKey(),
+		secp256k1.GenPrivKey(),
+		secp256k1.GenPrivKey(),
+		secp256k1.GenPrivKey(),
+		secp256k1.GenPrivKey(),
+	}
+
+	// OrchAddrs AccAddrs holds the sdk.AccAddresses
+	OrchAddrs = []sdk.AccAddress{
+		sdk.AccAddress(OrchPubKeys[0].Address()),
+		sdk.AccAddress(OrchPubKeys[1].Address()),
+		sdk.AccAddress(OrchPubKeys[2].Address()),
+		sdk.AccAddress(OrchPubKeys[3].Address()),
+		sdk.AccAddress(OrchPubKeys[4].Address()),
+	}
+
+	// EthAddrs holds etheruem addresses
+	EthAddrs = []gethcommon.Address{
+		gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(1)}, 20)),
+		gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(2)}, 20)),
+		gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(3)}, 20)),
+		gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(4)}, 20)),
+		gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(5)}, 20)),
+	}
+
+	// InitTokens holds the number of tokens to initialize an account with
+	InitTokens = sdk.TokensFromConsensusPower(110, sdk.DefaultPowerReduction)
+
+	// InitCoins holds the number of coins to initialize an account with
+	InitCoins = sdk.NewCoins(sdk.NewCoin(TestingStakeParams.BondDenom, InitTokens))
+
+	// StakingAmount holds the staking power to start a validator with
+	StakingAmount = sdk.TokensFromConsensusPower(10, sdk.DefaultPowerReduction)
 )
 
 // TestInput stores the various keepers required to test gravity
@@ -246,6 +350,9 @@ func CreateTestEnv(t *testing.T) TestInput {
 	testQGBParams := types.DefaultGenesis().Params
 	k.SetParams(ctx, *testQGBParams)
 
+	// set gravityIDs for batches and tx items, simulating genesis setup
+	k.SetLatestValsetNonce(ctx, 0)
+
 	stakingKeeper = *stakingKeeper.SetHooks(
 		stakingtypes.NewMultiStakingHooks(
 			distKeeper.Hooks(),
@@ -294,4 +401,76 @@ func MakeTestMarshaler() codec.Codec {
 	ModuleBasics.RegisterInterfaces(interfaceRegistry)
 	types.RegisterInterfaces(interfaceRegistry)
 	return codec.NewProtoCodec(interfaceRegistry)
+}
+
+// SetupFiveValChain does all the initialization for a 5 Validator chain using the keys here
+func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
+	t.Helper()
+	input := CreateTestEnv(t)
+
+	// Set the params for our modules
+	input.StakingKeeper.SetParams(input.Context, TestingStakeParams)
+
+	// Initialize each of the validators
+	sh := staking.NewHandler(input.StakingKeeper)
+	for i := range []int{0, 1, 2, 3, 4} {
+
+		// Initialize the account for the key
+		acc := input.AccountKeeper.NewAccount(
+			input.Context,
+			authtypes.NewBaseAccount(AccAddrs[i], AccPubKeys[i], uint64(i), 0),
+		)
+
+		// Set the balance for the account
+		require.NoError(t, input.BankKeeper.MintCoins(input.Context, types.ModuleName, InitCoins))
+		input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, types.ModuleName, acc.GetAddress(), InitCoins)
+
+		// Set the account in state
+		input.AccountKeeper.SetAccount(input.Context, acc)
+
+		// Create a validator for that account using some tokens in the account
+		// and the staking handler
+		_, err := sh(
+			input.Context,
+			NewTestMsgCreateValidator(ValAddrs[i], ConsPubKeys[i], StakingAmount),
+		)
+
+		// Return error if one exists
+		require.NoError(t, err)
+	}
+
+	// Run the staking endblocker to ensure valset is correct in state
+	staking.EndBlocker(input.Context, input.StakingKeeper)
+
+	// Register eth addresses and orchestrator address for each validator
+	for i, addr := range ValAddrs {
+		ethAddr, err := types.NewEthAddress(EthAddrs[i].String())
+		if err != nil {
+			panic("found invalid address in EthAddrs")
+		}
+		input.QgbKeeper.SetEthAddressForValidator(input.Context, addr, *ethAddr)
+
+		input.QgbKeeper.SetOrchestratorValidator(input.Context, addr, OrchAddrs[i])
+	}
+
+	// Return the test input
+	return input, input.Context
+}
+
+func NewTestMsgCreateValidator(address sdk.ValAddress, pubKey ccrypto.PubKey, amt sdk.Int) *stakingtypes.MsgCreateValidator {
+	commission := stakingtypes.NewCommissionRates(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec())
+	out, err := stakingtypes.NewMsgCreateValidator(
+		address, pubKey, sdk.NewCoin("stake", amt),
+		stakingtypes.Description{
+			Moniker:         "",
+			Identity:        "",
+			Website:         "",
+			SecurityContact: "",
+			Details:         "",
+		}, commission, sdk.OneInt(),
+	)
+	if err != nil {
+		panic(err)
+	}
+	return out
 }
