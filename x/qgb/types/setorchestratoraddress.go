@@ -5,6 +5,15 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
+// NewMsgSetOrchestratorAddress returns a new msgSetOrchestratorAddress
+func NewMsgSetOrchestratorAddress(val sdk.ValAddress, oper sdk.AccAddress, eth EthAddress) *MsgSetOrchestratorAddress {
+	return &MsgSetOrchestratorAddress{
+		Validator:    val.String(),
+		Orchestrator: oper.String(),
+		EthAddress:   eth.GetAddress(),
+	}
+}
+
 // GetSigners defines whose signature is required
 func (msg *MsgSetOrchestratorAddress) GetSigners() []sdk.AccAddress {
 	acc, err := sdk.ValAddressFromBech32(msg.Validator)

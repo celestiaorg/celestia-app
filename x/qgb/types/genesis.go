@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
@@ -32,7 +33,9 @@ func DefaultGenesis() *GenesisState {
 // failure.
 func (gs GenesisState) Validate() error {
 	// this line is used by starport scaffolding # genesis/types/validate
-
+	if err := gs.Params.ValidateBasic(); err != nil {
+		return sdkerrors.Wrap(err, "params")
+	}
 	return nil
 }
 
@@ -57,6 +60,14 @@ func validateDataCommitmentWindow(i interface{}) error {
 		return fmt.Errorf("invalid parameter type: %T", i)
 	} else if val < 100 {
 		return fmt.Errorf("invalid average Ethereum block time, too short for latency limitations")
+	}
+	return nil
+}
+
+// ValidateBasic checks that the parameters have valid values.
+func (p Params) ValidateBasic() error {
+	if err := validateDataCommitmentWindow(p.DataCommitmentWindow); err != nil {
+		return sdkerrors.Wrap(err, "data commitment window")
 	}
 	return nil
 }
