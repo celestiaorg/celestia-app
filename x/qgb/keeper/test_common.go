@@ -474,3 +474,77 @@ func NewTestMsgCreateValidator(address sdk.ValAddress, pubKey ccrypto.PubKey, am
 	}
 	return out
 }
+
+// SetupTestChain sets up a test environment with the provided validator voting weights
+func SetupTestChain(t *testing.T, weights []uint64, setDelegateAddresses bool) (TestInput, sdk.Context) {
+	t.Helper()
+	input := CreateTestEnv(t)
+
+	// Set the params for our modules
+	TestingStakeParams.MaxValidators = 100
+	input.StakingKeeper.SetParams(input.Context, TestingStakeParams)
+
+	// Initialize each of the validators
+	sh := staking.NewHandler(input.StakingKeeper)
+	for i, weight := range weights {
+		consPrivKey := ed25519.GenPrivKey()
+		consPubKey := consPrivKey.PubKey()
+		valPrivKey := secp256k1.GenPrivKey()
+		valPubKey := valPrivKey.PubKey()
+		valAddr := sdk.ValAddress(valPubKey.Address())
+		accAddr := sdk.AccAddress(valPubKey.Address())
+
+		// Initialize the account for the key
+		acc := input.AccountKeeper.NewAccount(
+			input.Context,
+			authtypes.NewBaseAccount(accAddr, valPubKey, uint64(i), 0),
+		)
+
+		// Set the balance for the account
+		weightCoins := sdk.NewCoins(sdk.NewInt64Coin(TestingStakeParams.BondDenom, int64(weight)))
+		require.NoError(t, input.BankKeeper.MintCoins(input.Context, types.ModuleName, weightCoins))
+		require.NoError(t, input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, types.ModuleName, accAddr, weightCoins))
+
+		// Set the account in state
+		input.AccountKeeper.SetAccount(input.Context, acc)
+
+		// Create a validator for that account using some of the tokens in the account
+		// and the staking handler
+		_, err := sh(
+			input.Context,
+			NewTestMsgCreateValidator(valAddr, consPubKey, sdk.NewIntFromUint64(weight)),
+		)
+		require.NoError(t, err)
+
+		// Run the staking endblocker to ensure valset is correct in state
+		staking.EndBlocker(input.Context, input.StakingKeeper)
+
+		if setDelegateAddresses {
+			// set the delegate addresses for this key
+			ethAddr, err := types.NewEthAddress(gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i)}, 20)).String())
+			if err != nil {
+				panic("found invalid address in EthAddrs")
+			}
+			input.QgbKeeper.SetEthAddressForValidator(input.Context, valAddr, *ethAddr)
+			input.QgbKeeper.SetOrchestratorValidator(input.Context, valAddr, accAddr)
+
+			// increase block height by 100 blocks
+			input.Context = input.Context.WithBlockHeight(input.Context.BlockHeight() + 100)
+
+			// Run the staking endblocker to ensure valset is correct in state
+			staking.EndBlocker(input.Context, input.StakingKeeper)
+
+			// set a request every time.
+			input.QgbKeeper.SetValsetRequest(input.Context)
+		}
+
+	}
+
+	// some inputs can cause the validator creation ot not work, this checks that
+	// everything was successful
+	validators := input.StakingKeeper.GetBondedValidatorsByPower(input.Context)
+	require.Equal(t, len(weights), len(validators))
+
+	// Return the test input
+	return input, input.Context
+}
