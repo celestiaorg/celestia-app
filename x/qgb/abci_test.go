@@ -31,6 +31,7 @@ func TestValsetCreationUponUnbonding(t *testing.T) {
 	// begin unbonding
 	sh := staking.NewHandler(input.StakingKeeper)
 	undelegateMsg := keeper.NewTestMsgUnDelegateValidator(keeper.ValAddrs[0], keeper.StakingAmount)
+	// nolint
 	sh(input.Context, undelegateMsg)
 
 	// Run the staking endblocker to ensure valset is set in state
