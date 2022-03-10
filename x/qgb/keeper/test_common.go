@@ -548,3 +548,8 @@ func SetupTestChain(t *testing.T, weights []uint64, setDelegateAddresses bool) (
 	// Return the test input
 	return input, input.Context
 }
+
+func NewTestMsgUnDelegateValidator(address sdk.ValAddress, amt sdk.Int) *stakingtypes.MsgUndelegate {
+	msg := stakingtypes.NewMsgUndelegate(sdk.AccAddress(address), address, sdk.NewCoin("stake", amt))
+	return msg
+}
