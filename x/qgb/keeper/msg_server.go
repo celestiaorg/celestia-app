@@ -25,13 +25,19 @@ func (k msgServer) ValsetConfirm(
 	msg *types.MsgValsetConfirm,
 ) (*types.MsgValsetConfirmResponse, error) {
 	ctx := sdk.UnwrapSDKContext(c)
-	// TODO check if valset exists when we add the remaining modules
+	valset := k.GetValset(ctx, msg.Nonce)
+	if valset == nil {
+		return nil, sdkerrors.Wrap(types.ErrInvalid, "couldn't find valset")
+	}
 
 	orchaddr, err := sdk.AccAddressFromBech32(msg.Orchestrator)
 	if err != nil {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "acc address invalid")
 	}
-
+	err = k.confirmHandlerCommon(ctx, msg.EthAddress, msg.Orchestrator, msg.Signature)
+	if err != nil {
+		return nil, err
+	}
 	// persist signature
 	if k.GetValsetConfirm(ctx, msg.Nonce, orchaddr) != nil {
 		return nil, sdkerrors.Wrap(types.ErrDuplicate, "signature duplicate")
@@ -166,4 +172,39 @@ func (k msgServer) SetOrchestratorAddress(
 	)
 
 	return &types.MsgSetOrchestratorAddressResponse{}, nil
+}
+
+// confirmHandlerCommon is an internal function that provides common code for processing claim messages
+func (k msgServer) confirmHandlerCommon(ctx sdk.Context, ethAddress string, orchestrator string, signature string) error {
+	_, err := hex.DecodeString(signature)
+	if err != nil {
+		return sdkerrors.Wrap(types.ErrInvalid, "signature decoding")
+	}
+
+	submittedEthAddress, err := types.NewEthAddress(ethAddress)
+	if err != nil {
+		return sdkerrors.Wrap(types.ErrInvalid, "invalid eth address")
+	}
+
+	orchaddr, err := sdk.AccAddressFromBech32(orchestrator)
+	if err != nil {
+		return sdkerrors.Wrap(types.ErrInvalid, "acc address invalid")
+	}
+	validator, found := k.GetOrchestratorValidator(ctx, orchaddr)
+	if !found {
+		return sdkerrors.Wrap(types.ErrUnknown, "validator")
+	}
+	if err := sdk.VerifyAddressFormat(validator.GetOperator()); err != nil {
+		return sdkerrors.Wrapf(err, "discovered invalid validator address for orchestrator %v", orchaddr)
+	}
+
+	ethAddressFromStore, found := k.GetEthAddressByValidator(ctx, validator.GetOperator())
+	if !found {
+		return sdkerrors.Wrap(types.ErrEmpty, "no eth address set for validator")
+	}
+
+	if *ethAddressFromStore != *submittedEthAddress {
+		return sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
+	}
+	return nil
 }
