@@ -13,6 +13,7 @@ import (
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/celestiaorg/quantum-gravity-bridge/orchestrator/ethereum/keystore"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -37,6 +38,7 @@ type orchClient struct {
 	singerFn         bind.SignerFn
 	personalSignerFn keystore.PersonalSignFn
 	orchestratorAddr ethcmn.Address
+	bridgeID         ethcmn.Hash
 
 	// celestia related signing
 	signer *paytypes.KeyringSigner
@@ -46,6 +48,7 @@ func newOrchClient(
 	ctx context.Context,
 	logger zerolog.Logger,
 	appSigner *paytypes.KeyringSigner,
+	bridgeID ethcmn.Hash,
 	chainID uint64,
 	tendermintRPC,
 	qgbRPC,
@@ -81,6 +84,7 @@ func newOrchClient(
 		wg:               &sync.WaitGroup{},
 		orchestratorAddr: orchAddr,
 		signer:           appSigner,
+		bridgeID:         bridgeID,
 	}, nil
 }
 
@@ -133,7 +137,7 @@ func (oc *orchClient) watchForValsetChanges() error {
 
 			valset := lastValsetResp.Valsets[0]
 
-			valsetHash := EncodeValsetConfirm(&valset)
+			valsetHash := EncodeValsetConfirm(oc.bridgeID, &valset)
 			signature, err := oc.personalSignerFn(oc.orchestratorAddr, valsetHash.Bytes())
 			if err != nil {
 				return err
@@ -147,28 +151,9 @@ func (oc *orchClient) watchForValsetChanges() error {
 				Signature:    ethcmn.Bytes2Hex(signature),
 			}
 
-			err = oc.signer.QueryAccountNumber(oc.ctx, oc.qgbRPC)
+			err = oc.broadcastTx(msg)
 			if err != nil {
 				return err
-			}
-
-			tx, err := oc.signer.BuildSignedTx(oc.signer.NewTxBuilder(), msg)
-			if err != nil {
-				return err
-			}
-
-			rawTx, err := oc.signer.EncodeTx(tx)
-			if err != nil {
-				return err
-			}
-
-			resp, err := paytypes.BroadcastTx(oc.ctx, oc.qgbRPC, 1, rawTx)
-			if err != nil {
-				return err
-			}
-
-			if resp.TxResponse.Code != 0 {
-				return fmt.Errorf("failure to broadcast tx: %s", resp.TxResponse.Data)
 			}
 		}
 	}
@@ -201,10 +186,78 @@ func (oc *orchClient) watchForDataCommitments() error {
 			continue
 		}
 
+		// TODO: calculate start height some other way that can handle changes
+		// in the data window param
+		startHeight := height - int64(params.DataCommitmentWindow)
+		endHeight := height
+
 		// create and send the data commitment
-		oc.tendermintRPC.DataCommitment(oc.ctx, fmt.Sprintf("block.height >= %d AND block.height <= %d", height-int64(params.DataCommitmentWindow), height))
+		dcResp, err := oc.tendermintRPC.DataCommitment(
+			oc.ctx,
+			fmt.Sprintf("block.height >= %d AND block.height <= %d",
+				startHeight,
+				endHeight,
+			),
+		)
+		if err != nil {
+			return err
+		}
+
+		// TODO: get nonce using rpc
+		nonce := uint64(0)
+
+		dataRootHash := EncodeDataCommitmentConfirm(oc.bridgeID, nonce, dcResp.DataCommitment)
+
+		dcSig, err := oc.personalSignerFn(oc.orchestratorAddr, dataRootHash.Bytes())
+		if err != nil {
+			return err
+		}
+
+		msg := &types.MsgDataCommitmentConfirm{
+			EthAddress:       oc.orchestratorAddr.String(),
+			Commitment:       dcResp.DataCommitment.String(),
+			BeginBlock:       startHeight,
+			EndBlock:         endHeight,
+			ValidatorAddress: oc.signer.GetSignerInfo().GetAddress().String(),
+			Signature:        ethcmn.Bytes2Hex(dcSig),
+		}
+
+		err = oc.broadcastTx(msg)
+		if err != nil {
+			return err
+		}
 
 	}
+	return nil
+}
+
+// TODO: have a way to retry assuming something goes wrong
+func (oc *orchClient) broadcastTx(msg sdk.Msg) error {
+	err := oc.signer.QueryAccountNumber(oc.ctx, oc.qgbRPC)
+	if err != nil {
+		return err
+	}
+
+	// TODO: update this api via https://github.com/celestiaorg/celestia-app/pull/187/commits/37f96d9af30011736a3e6048bbb35bad6f5b795c
+	tx, err := oc.signer.BuildSignedTx(oc.signer.NewTxBuilder(), msg)
+	if err != nil {
+		return err
+	}
+
+	rawTx, err := oc.signer.EncodeTx(tx)
+	if err != nil {
+		return err
+	}
+
+	resp, err := paytypes.BroadcastTx(oc.ctx, oc.qgbRPC, 1, rawTx)
+	if err != nil {
+		return err
+	}
+
+	if resp.TxResponse.Code != 0 {
+		return fmt.Errorf("failure to broadcast tx: %s", resp.TxResponse.Data)
+	}
+
 	return nil
 }
 
