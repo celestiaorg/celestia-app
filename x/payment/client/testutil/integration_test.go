@@ -10,6 +10,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/suite"
+	"github.com/tendermint/tendermint/pkg/consts"
 
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	cosmosnet "github.com/cosmos/cosmos-sdk/testutil/network"
@@ -141,7 +142,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 						require.NoError(err)
 						msgSize, err := strconv.ParseUint(e.GetAttributes()[1].GetValue(), 10, 64)
 						require.NoError(err)
-						s.Equal(uint64(0), msgSize%256, "Message length should be multiplication of 256")
+						s.Equal(uint64(0), msgSize%consts.ShareSize, "Message length should be multiplication of 256")
 					}
 					//s.Equal("/payment.MsgPayForMessage", events[i].GetAttributes()[0].Value)
 					//s.Equal(hexMsg, events[i].GetAttributes()[1].Value)
