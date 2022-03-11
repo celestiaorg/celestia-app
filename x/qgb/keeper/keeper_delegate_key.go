@@ -4,8 +4,29 @@ import (
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"sort"
 )
+
+// GetOrchestratorValidator returns the validator key associated with an account address
+func (k Keeper) GetOrchestratorValidator(ctx sdk.Context, acc sdk.AccAddress) (validator stakingtypes.Validator, found bool) {
+	if err := sdk.VerifyAddressFormat(acc); err != nil {
+		ctx.Logger().Error("invalid validator address")
+		return validator, false
+	}
+	store := ctx.KVStore(k.storeKey)
+	key := types.GetOrchestratorAddressKey(acc)
+	valAddr := store.Get([]byte(key))
+
+	if valAddr == nil {
+		return stakingtypes.Validator{}, false
+	}
+	validator, found = k.StakingKeeper.GetValidator(ctx, valAddr)
+	if !found {
+		return stakingtypes.Validator{}, false
+	}
+	return validator, true
+}
 
 // GetDelegateKeys iterates both the EthAddress and Orchestrator address indexes to produce
 // a vector of MsgSetOrchestratorAddress entries containing all the delegate keys for state
@@ -123,4 +144,19 @@ func (k Keeper) SetEthAddressForValidator(ctx sdk.Context, validator sdk.ValAddr
 	store := ctx.KVStore(k.storeKey)
 	store.Set([]byte(types.GetEthAddressByValidatorKey(validator)), []byte(ethAddr.GetAddress()))
 	store.Set([]byte(types.GetValidatorByEthAddressKey(ethAddr)), validator)
+}
+
+// GetValidatorByEthAddress returns the validator for a given eth address
+func (k Keeper) GetValidatorByEthAddress(ctx sdk.Context, ethAddr types.EthAddress) (validator stakingtypes.Validator, found bool) {
+	store := ctx.KVStore(k.storeKey)
+	valAddr := store.Get([]byte(types.GetValidatorByEthAddressKey(ethAddr)))
+	if valAddr == nil {
+		return stakingtypes.Validator{}, false
+	}
+	validator, found = k.StakingKeeper.GetValidator(ctx, valAddr)
+	if !found {
+		return stakingtypes.Validator{}, false
+	}
+
+	return validator, true
 }
