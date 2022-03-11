@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
@@ -39,7 +40,7 @@ func (msg *MsgDataCommitmentConfirm) ValidateBasic() (err error) {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, msg.ValidatorAddress)
 	}
 	if msg.BeginBlock > msg.EndBlock {
-		return sdkerrors.Wrap(err, "begin block should be less than end block")
+		return errors.New("begin block should be less than end block")
 	}
 	if err := ValidateEthAddress(msg.EthAddress); err != nil {
 		return sdkerrors.Wrap(err, "ethereum address")

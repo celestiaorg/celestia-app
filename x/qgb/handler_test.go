@@ -119,3 +119,48 @@ func TestMsgValsetConfirm(t *testing.T) {
 	_, err = h(ctx, msg)
 	require.NoError(t, err)
 }
+
+//// TestMsgDataCommitmentConfirm ensures that the data commitment confirm message sets a commitment in the store
+//func TestMsgDataCommitmentConfirm(t *testing.T) {
+//	var (
+//		blockTime                    = time.Date(2020, 9, 14, 15, 20, 10, 0, time.UTC)
+//		blockHeight   int64          = 200
+//		cosmosAddress sdk.AccAddress = bytes.Repeat([]byte{0x5}, 20)
+//		signature                    = "7c331bd8f2f586b04a2e2cafc6542442ef52e8b8be49533fa6b8962e822bc01e295a62733abfd65a412a8de8286f2794134c160c27a2827bdb71044b94b003cc1c"
+//		ethAddress                   = "0xb462864E395d88d6bc7C5dd5F3F5eb4cc2599256"
+//	)
+//	ethAddressParsed, err := types.NewEthAddress(ethAddress)
+//	require.NoError(t, err)
+//
+//	input, ctx := keeper.SetupFiveValChain(t)
+//	k := input.QgbKeeper
+//
+//	h := NewHandler(*input.QgbKeeper)
+//
+//	ctx = ctx.WithBlockTime(blockTime)
+//	valAddress, err := sdk.ValAddressFromBech32(input.StakingKeeper.GetValidators(ctx, 10)[3].OperatorAddress)
+//	require.NoError(t, err)
+//
+//	//test setting keys
+//	res, _ := k.GetOrchestratorValidator(ctx, cosmosAddress)
+//	print(res.String())
+//	setOrchMsg := types.NewMsgSetOrchestratorAddress(valAddress, cosmosAddress, *ethAddressParsed)
+//	ctx = ctx.WithBlockTime(blockTime).WithBlockHeight(blockHeight)
+//	_, err = h(ctx, setOrchMsg)
+//	require.NoError(t, err)
+//	k.SetEthAddressForValidator(input.Context, valAddress, *ethAddressParsed)
+//
+//	setDCCMsg := &types.MsgDataCommitmentConfirm{
+//		Signature:        signature,
+//		ValidatorAddress: cosmosAddress.String(),
+//		EthAddress:       ethAddress,
+//		Commitment:       "commitment",
+//		BeginBlock:       1,
+//		EndBlock:         100,
+//	}
+//	_, err = h(ctx, setDCCMsg)
+//	require.NoError(t, err)
+//
+//	commitment := k.GetDataCommitmentConfirm(ctx, "commitment", keeper.AccAddrs[0])
+//	assert.Equal(t, setDCCMsg, commitment)
+//}
