@@ -190,10 +190,18 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		BeginBlock:       1,
 		EndBlock:         100,
 	}
-	_, err = h(ctx, setDCCMsg)
+	result, err := h(ctx, setDCCMsg)
 	require.NoError(t, err)
 
 	// Checking if it was correctly submitted
 	actualCommitment := k.GetDataCommitmentConfirm(ctx, "commitment", orchAddress)
 	assert.Equal(t, setDCCMsg, actualCommitment)
+
+	// Checking if the event was successfully sent
+	actualEvent := result.Events[0]
+	assert.Equal(t, sdk.EventTypeMessage, actualEvent.Type)
+	assert.Equal(t, sdk.AttributeKeyModule, string(actualEvent.Attributes[0].Key))
+	assert.Equal(t, setDCCMsg.Type(), string(actualEvent.Attributes[0].Value))
+	assert.Equal(t, types.AttributeKeyDataCommitmentConfirmKey, string(actualEvent.Attributes[1].Key))
+	assert.Equal(t, setDCCMsg.String(), string(actualEvent.Attributes[1].Value))
 }
