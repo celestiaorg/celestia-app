@@ -102,22 +102,3 @@ func prefixRange(prefix []byte) ([]byte, []byte) {
 	}
 	return prefix, end
 }
-
-// GetOrchestratorValidator returns the validator key associated with an account address
-func (k Keeper) GetOrchestratorValidator(ctx sdk.Context, acc sdk.AccAddress) (validator stakingtypes.Validator, found bool) {
-	if err := sdk.VerifyAddressFormat(acc); err != nil {
-		ctx.Logger().Error("invalid validator address")
-		return validator, false
-	}
-	store := ctx.KVStore(k.storeKey)
-	valAddr := store.Get([]byte(types.GetOrchestratorAddressKey(acc)))
-
-	if valAddr == nil {
-		return stakingtypes.Validator{}, false
-	}
-	validator, found = k.StakingKeeper.GetValidator(ctx, valAddr)
-	if !found {
-		return stakingtypes.Validator{}, false
-	}
-	return validator, true
-}
