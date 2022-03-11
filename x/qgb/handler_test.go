@@ -2,9 +2,15 @@ package qgb
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"encoding/hex"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"github.com/cosmos/cosmos-sdk/x/staking"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -120,47 +126,82 @@ func TestMsgValsetConfirm(t *testing.T) {
 	require.NoError(t, err)
 }
 
-//// TestMsgDataCommitmentConfirm ensures that the data commitment confirm message sets a commitment in the store
-//func TestMsgDataCommitmentConfirm(t *testing.T) {
-//	var (
-//		blockTime                    = time.Date(2020, 9, 14, 15, 20, 10, 0, time.UTC)
-//		blockHeight   int64          = 200
-//		cosmosAddress sdk.AccAddress = bytes.Repeat([]byte{0x5}, 20)
-//		signature                    = "7c331bd8f2f586b04a2e2cafc6542442ef52e8b8be49533fa6b8962e822bc01e295a62733abfd65a412a8de8286f2794134c160c27a2827bdb71044b94b003cc1c"
-//		ethAddress                   = "0xb462864E395d88d6bc7C5dd5F3F5eb4cc2599256"
-//	)
-//	ethAddressParsed, err := types.NewEthAddress(ethAddress)
-//	require.NoError(t, err)
-//
-//	input, ctx := keeper.SetupFiveValChain(t)
-//	k := input.QgbKeeper
-//
-//	h := NewHandler(*input.QgbKeeper)
-//
-//	ctx = ctx.WithBlockTime(blockTime)
-//	valAddress, err := sdk.ValAddressFromBech32(input.StakingKeeper.GetValidators(ctx, 10)[3].OperatorAddress)
-//	require.NoError(t, err)
-//
-//	//test setting keys
-//	res, _ := k.GetOrchestratorValidator(ctx, cosmosAddress)
-//	print(res.String())
-//	setOrchMsg := types.NewMsgSetOrchestratorAddress(valAddress, cosmosAddress, *ethAddressParsed)
-//	ctx = ctx.WithBlockTime(blockTime).WithBlockHeight(blockHeight)
-//	_, err = h(ctx, setOrchMsg)
-//	require.NoError(t, err)
-//	k.SetEthAddressForValidator(input.Context, valAddress, *ethAddressParsed)
-//
-//	setDCCMsg := &types.MsgDataCommitmentConfirm{
-//		Signature:        signature,
-//		ValidatorAddress: cosmosAddress.String(),
-//		EthAddress:       ethAddress,
-//		Commitment:       "commitment",
-//		BeginBlock:       1,
-//		EndBlock:         100,
-//	}
-//	_, err = h(ctx, setDCCMsg)
-//	require.NoError(t, err)
-//
-//	commitment := k.GetDataCommitmentConfirm(ctx, "commitment", keeper.AccAddrs[0])
-//	assert.Equal(t, setDCCMsg, commitment)
-//}
+// TestMsgDataCommitmentConfirm ensures that the data commitment confirm message sets a commitment in the store
+func TestMsgDataCommitmentConfirm(t *testing.T) {
+	var (
+		blockTime = time.Date(2020, 9, 14, 15, 20, 10, 0, time.UTC)
+
+		validatorAccPrivateKey = secp256k1.GenPrivKey()
+		validatorAccPublicKey  = validatorAccPrivateKey.PubKey()
+		validatorAccAddress    = sdk.AccAddress(validatorAccPublicKey.Address())
+		validatorValAddress    = sdk.ValAddress(validatorAccPublicKey.Address())
+
+		orchEthPrivateKey, _ = crypto.GenerateKey()
+		orchEthPublicKey     = orchEthPrivateKey.Public().(*ecdsa.PublicKey)
+		orchEthAddress       = crypto.PubkeyToAddress(*orchEthPublicKey).Hex()
+		ethAddr, _           = types.NewEthAddress(orchEthAddress)
+
+		orchPrivateKey = secp256k1.GenPrivKey()
+		orchPublicKey  = orchPrivateKey.PubKey()
+		orchAddress    = sdk.AccAddress(orchPublicKey.Address())
+	)
+
+	// Init chain
+	input, ctx := keeper.SetupFiveValChain(t)
+	k := input.QgbKeeper
+
+	// Create a new validator
+	acc := input.AccountKeeper.NewAccount(
+		input.Context,
+		authtypes.NewBaseAccount(validatorAccAddress, validatorAccPublicKey, uint64(120), 0),
+	)
+	require.NoError(t, input.BankKeeper.MintCoins(input.Context, types.ModuleName, keeper.InitCoins))
+	// nolint
+	input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, types.ModuleName, acc.GetAddress(), keeper.InitCoins)
+	input.AccountKeeper.SetAccount(input.Context, acc)
+
+	sh := staking.NewHandler(input.StakingKeeper)
+	_, err := sh(
+		input.Context,
+		keeper.NewTestMsgCreateValidator(validatorValAddress, validatorAccPublicKey, keeper.StakingAmount),
+	)
+	require.NoError(t, err)
+	staking.EndBlocker(input.Context, input.StakingKeeper)
+
+	// Sets eth address and orchestrator for validator
+	input.QgbKeeper.SetEthAddressForValidator(input.Context, validatorValAddress, *ethAddr)
+	input.QgbKeeper.SetOrchestratorValidator(input.Context, validatorValAddress, orchAddress)
+
+	h := NewHandler(*input.QgbKeeper)
+	ctx = ctx.WithBlockTime(blockTime)
+
+	// Signs the commitment using the orth eth private key
+	signature, err := types.NewEthereumSignature([]byte("commitment"), orchEthPrivateKey)
+	if err != nil {
+		panic(err)
+	}
+
+	// Sending a data commitment confirm
+	setDCCMsg := &types.MsgDataCommitmentConfirm{
+		Signature:        hex.EncodeToString(signature),
+		ValidatorAddress: orchAddress.String(),
+		EthAddress:       orchEthAddress,
+		Commitment:       "commitment",
+		BeginBlock:       1,
+		EndBlock:         100,
+	}
+	result, err := h(ctx, setDCCMsg)
+	require.NoError(t, err)
+
+	// Checking if it was correctly submitted
+	actualCommitment := k.GetDataCommitmentConfirm(ctx, "commitment", orchAddress)
+	assert.Equal(t, setDCCMsg, actualCommitment)
+
+	// Checking if the event was successfully sent
+	actualEvent := result.Events[0]
+	assert.Equal(t, sdk.EventTypeMessage, actualEvent.Type)
+	assert.Equal(t, sdk.AttributeKeyModule, string(actualEvent.Attributes[0].Key))
+	assert.Equal(t, setDCCMsg.Type(), string(actualEvent.Attributes[0].Value))
+	assert.Equal(t, types.AttributeKeyDataCommitmentConfirmKey, string(actualEvent.Attributes[1].Key))
+	assert.Equal(t, setDCCMsg.String(), string(actualEvent.Attributes[1].Value))
+}

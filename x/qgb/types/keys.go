@@ -17,7 +17,7 @@ const (
 	// RouterKey is the module name router key
 	RouterKey = ModuleName
 
-	// QuerierRoute to be used for querierer msgs
+	// QuerierRoute to be used for querier msgs
 	QuerierRoute = ModuleName
 
 	// MemStoreKey defines the in-memory store key
@@ -29,13 +29,12 @@ const (
 	ValsetRequestKey = "ValsetRequestKey"
 
 	// ValsetConfirmKey indexes valset confirmations by nonce and the validator account address
-	// FIXME: For our keys, should they be `gravity1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm` or `qgb1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm`?
-	// i.e gravity1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm
+	// i.e celes1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm
 	ValsetConfirmKey = "ValsetConfirmKey"
 	// DataCommitmentConfirmKey indexes data commitment confirmations by commitment and the validator account address
 	DataCommitmentConfirmKey = "DataCommitmentConfirmKey"
 	// EthAddressByValidatorKey indexes cosmos validator account addresses
-	// i.e. gravity1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm
+	// i.e. celes1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm
 	EthAddressByValidatorKey = "EthAddressValidatorKey"
 	// KeyOrchestratorAddress indexes the validator keys for an orchestrator
 	KeyOrchestratorAddress = "KeyOrchestratorAddress"
@@ -52,8 +51,7 @@ const (
 
 // GetValsetConfirmKey returns the following key format
 // prefix   nonce                    validator-address
-// [0x0][0 0 0 0 0 0 0 1][gravity1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm]
-// FIXME: For our keys, should they be `gravity1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm` or `qgb1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm`?
+// [0x0][0 0 0 0 0 0 0 1][celes1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm]
 func GetValsetConfirmKey(nonce uint64, validator sdk.AccAddress) string {
 	if err := sdk.VerifyAddressFormat(validator); err != nil {
 		panic(sdkerrors.Wrap(err, "invalid validator address"))
@@ -78,7 +76,7 @@ func ConvertByteArrToString(value []byte) string {
 
 // GetOrchestratorAddressKey returns the following key format
 // prefix
-// [0xe8][gravity1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm]
+// [0xe8][celes1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm]
 func GetOrchestratorAddressKey(orc sdk.AccAddress) string {
 	if err := sdk.VerifyAddressFormat(orc); err != nil {
 		panic(sdkerrors.Wrap(err, "invalid orchestrator address"))
@@ -88,7 +86,7 @@ func GetOrchestratorAddressKey(orc sdk.AccAddress) string {
 
 // GetEthAddressByValidatorKey returns the following key format
 // prefix              cosmos-validator
-// [0x0][gravityvaloper1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm]
+// [0x0][celesvaloper1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm]
 func GetEthAddressByValidatorKey(validator sdk.ValAddress) string {
 	if err := sdk.VerifyAddressFormat(validator); err != nil {
 		panic(sdkerrors.Wrap(err, "invalid validator address"))
@@ -105,7 +103,7 @@ func GetValidatorByEthAddressKey(ethAddress EthAddress) string {
 
 // GetDataCommitmentConfirmKey returns the following key format
 // prefix   commitment                    validator-address
-// [0x0][0 0 0 0 0 0 0 1][qgb1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm] // Key to be investigated
+// [0x0][0 0 0 0 0 0 0 1][celes1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm]
 func GetDataCommitmentConfirmKey(commitment string, validator sdk.AccAddress) string {
 	if err := sdk.VerifyAddressFormat(validator); err != nil {
 		panic(sdkerrors.Wrap(err, "invalid validator address"))

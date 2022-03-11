@@ -1,6 +1,7 @@
 package types
 
 import (
+	"crypto/ecdsa"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -8,6 +9,15 @@ import (
 const (
 	signaturePrefix = "\x19Ethereum Signed Message:\n32"
 )
+
+// NewEthereumSignature creates a new signature over a given byte array
+func NewEthereumSignature(hash []byte, privateKey *ecdsa.PrivateKey) ([]byte, error) {
+	if privateKey == nil {
+		return nil, sdkerrors.Wrap(ErrEmpty, "private key")
+	}
+	protectedHash := crypto.Keccak256Hash(append([]uint8(signaturePrefix), hash...))
+	return crypto.Sign(protectedHash.Bytes(), privateKey)
+}
 
 func EthAddressFromSignature(hash []byte, signature []byte) (*EthAddress, error) {
 	if len(signature) < 65 {
