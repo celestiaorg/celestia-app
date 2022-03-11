@@ -46,10 +46,10 @@ func (k Keeper) DataCommitmentConfirmsByCommitment(
 	request *types.QueryDataCommitmentConfirmsByCommitmentRequest,
 ) (*types.QueryDataCommitmentConfirmsByCommitmentResponse, error) {
 	return &types.QueryDataCommitmentConfirmsByCommitmentResponse{
-		// Confirms: k.GetDataCommitmentConfirmsByCommitment(
-		// 	sdk.UnwrapSDKContext(ctx),
-		// 	request.Commitment,
-		// ),
+		Confirms: k.GetDataCommitmentConfirmsByCommitment(
+			sdk.UnwrapSDKContext(ctx),
+			request.Commitment,
+		),
 	}, nil
 }
 

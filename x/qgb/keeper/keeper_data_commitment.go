@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -26,25 +25,29 @@ func (k Keeper) GetDataCommitmentConfirm(
 	return &confirm
 }
 
-// // GetDataCommitmentConfirmsByCommitment Returns data commitment confirms by commitment
-// func (k Keeper) GetDataCommitmentConfirmsByCommitment(
-// 	ctx sdk.Context,
-// 	commitment string,
-// ) (confirms []types.MsgDataCommitmentConfirm) {
-// 	prefixStore := prefix.NewStore(ctx.KVStore(k.storeKey), []byte(types.DataCommitmentConfirmKey))
-// 	start, end := prefixRange([]byte(commitment)) // How does this work?
-// 	iterator := prefixStore.Iterator(start, end)
+// GetDataCommitmentConfirmsByCommitment Returns data commitment confirms by commitment
+func (k Keeper) GetDataCommitmentConfirmsByCommitment(
+	ctx sdk.Context,
+	commitment string,
+) (confirms []types.MsgDataCommitmentConfirm) {
+	store := ctx.KVStore(k.storeKey)
+	iterator := store.Iterator(nil, nil) // Can we make this faster?
 
-// 	defer iterator.Close()
+	defer iterator.Close()
 
-// 	for ; iterator.Valid(); iterator.Next() {
-// 		confirm := types.MsgDataCommitmentConfirm{}
-// 		k.cdc.MustUnmarshal(iterator.Value(), &confirm)
-// 		confirms = append(confirms, confirm)
-// 	}
+	for ; iterator.Valid(); iterator.Next() {
+		confirm := types.MsgDataCommitmentConfirm{}
+		err := k.cdc.Unmarshal(iterator.Value(), &confirm)
+		if err != nil {
+			continue
+		}
+		if commitment == confirm.Commitment {
+			confirms = append(confirms, confirm)
+		}
+	}
 
-// 	return confirms
-// }
+	return confirms
+}
 
 // GetDataCommitmentConfirmsByValidator Returns data commitment confirms by validator address
 func (k Keeper) GetDataCommitmentConfirmsByValidator(
@@ -56,15 +59,17 @@ func (k Keeper) GetDataCommitmentConfirmsByValidator(
 		return nil
 	}
 
-	prefixStore := prefix.NewStore(ctx.KVStore(k.storeKey), []byte(types.DataCommitmentConfirmKey))
-	start, end := prefixRange([]byte(types.DataCommitmentConfirmKey)) // FIXME can we make this faster ?
-	iterator := prefixStore.Iterator(start, end)
+	store := ctx.KVStore(k.storeKey)
+	iterator := store.Iterator(nil, nil) // Can we make this faster?
 
 	defer iterator.Close()
 
 	for ; iterator.Valid(); iterator.Next() {
 		confirm := types.MsgDataCommitmentConfirm{}
-		k.cdc.MustUnmarshal(iterator.Value(), &confirm)
+		err := k.cdc.Unmarshal(iterator.Value(), &confirm)
+		if err != nil {
+			continue
+		}
 		if confirm.ValidatorAddress == validator.String() {
 			confirms = append(confirms, confirm)
 		}
@@ -79,16 +84,18 @@ func (k Keeper) GetDataCommitmentConfirmsByRange(
 	beginBlock int64,
 	endBlock int64,
 ) (confirms []types.MsgDataCommitmentConfirm) {
-	prefixStore := prefix.NewStore(ctx.KVStore(k.storeKey), []byte(types.DataCommitmentConfirmKey))
-	start, end := prefixRange([]byte(types.DataCommitmentConfirmKey)) // FIXME can we make this faster ?
-	iterator := prefixStore.Iterator(start, end)
+	store := ctx.KVStore(k.storeKey)
+	iterator := store.Iterator(nil, nil) // Can we make this faster?
 
 	defer iterator.Close()
 
 	for ; iterator.Valid(); iterator.Next() {
 		confirm := types.MsgDataCommitmentConfirm{}
-		k.cdc.MustUnmarshal(iterator.Value(), &confirm)
-		if confirm.BeginBlock <= beginBlock && confirm.EndBlock >= endBlock {
+		err := k.cdc.Unmarshal(iterator.Value(), &confirm)
+		if err != nil {
+			continue
+		}
+		if beginBlock <= confirm.BeginBlock && endBlock >= confirm.EndBlock {
 			confirms = append(confirms, confirm)
 		}
 	}
