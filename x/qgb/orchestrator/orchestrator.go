@@ -136,9 +136,21 @@ func (oc *orchClient) watchForValsetChanges() error {
 			}
 
 			valset := lastValsetResp.Valsets[0]
+			height := int64(valset.Height)
 
-			valsetHash := EncodeValsetConfirm(oc.bridgeID, &valset)
-			signature, err := oc.personalSignerFn(oc.orchestratorAddr, valsetHash.Bytes())
+			// we need the validator set hash for this height.
+			blockRes, err := oc.tendermintRPC.Block(oc.ctx, &height)
+			if err != nil {
+				return err
+			}
+
+			rawVSHash := blockRes.Block.Header.ValidatorsHash.Bytes()
+			var ethVSHash ethcmn.Hash
+			copy(ethVSHash[:], rawVSHash)
+
+			signBytes := EncodeValsetConfirm(oc.bridgeID, &valset, ethVSHash)
+
+			signature, err := oc.personalSignerFn(oc.orchestratorAddr, signBytes.Bytes())
 			if err != nil {
 				return err
 			}

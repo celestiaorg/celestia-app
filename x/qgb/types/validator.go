@@ -205,6 +205,16 @@ func (v *Valset) WithoutEmptyMembers() *Valset {
 	return &r
 }
 
+func (v *Valset) TwoThirdsThreshold() uint64 {
+	totalPower := uint64(0)
+	for _, member := range v.Members {
+		totalPower += member.Power
+	}
+
+	oneThird := (totalPower / 3) + 1 // +1 to round up
+	return 2 * oneThird
+}
+
 // Valsets is a collection of valset
 type Valsets []Valset
 
