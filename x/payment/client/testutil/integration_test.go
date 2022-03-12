@@ -144,9 +144,6 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 						require.NoError(err)
 						s.Equal(uint64(0), msgSize%consts.ShareSize, "Message length should be multiples of const.ShareSize=%v", consts.ShareSize)
 					}
-					//s.Equal("/payment.MsgPayForMessage", events[i].GetAttributes()[0].Value)
-					//s.Equal(hexMsg, events[i].GetAttributes()[1].Value)
-					//fmt.Errorf("%d ", i) //events[i].GetAttributes()[0].Value)
 				}
 
 				// wait for the tx to be indexed
