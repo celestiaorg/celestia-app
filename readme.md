@@ -11,8 +11,8 @@ make install
 ```
 celestia-appd init test --chain-id test
 celestia-appd keys add user1
-celestia-appd add-genesis-account <address from above command> 10000000celes,1000token
-celestia-appd gentx user1 100000celes --chain-id test
+celestia-appd add-genesis-account <address from above command> 10000000uceles,1000token
+celestia-appd gentx user1 1000000uceles --chain-id test
 celestia-appd collect-gentxs
 celestia-appd start
 ```
