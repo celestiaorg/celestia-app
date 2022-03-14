@@ -361,7 +361,7 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 	secondCommitmentMsg.BeginBlock = ranges[0].beingBlock
 	secondCommitmentMsg.EndBlock = ranges[0].endBlock
 	secondCommitmentMsg.ValidatorAddress = addr.String()
-	secondCommitmentMsg.Signature = fmt.Sprintf("signature 1")
+	secondCommitmentMsg.Signature = "signature 1"
 	input.QgbKeeper.SetDataCommitmentConfirm(sdkCtx, secondCommitmentMsg)
 
 	specs := map[string]struct {
