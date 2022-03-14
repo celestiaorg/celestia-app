@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -9,10 +10,13 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/suite"
+	"github.com/tendermint/tendermint/pkg/consts"
 
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	cosmosnet "github.com/cosmos/cosmos-sdk/testutil/network"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	paycli "github.com/celestiaorg/celestia-app/x/payment/client/cli"
@@ -130,8 +134,16 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 					"test: %s, output\n:", tc.name, out.String())
 
 				events := txResp.Logs[0].GetEvents()
-				for i := 0; i < len(events); i++ {
-					s.Equal("/payment.MsgPayForMessage", events[i].GetAttributes()[0].Value)
+				for _, e := range events {
+					switch e.Type {
+					case types.EventTypePayForMessage:
+						signer := e.GetAttributes()[0].GetValue()
+						_, err = sdk.AccAddressFromBech32(signer)
+						require.NoError(err)
+						msgSize, err := strconv.ParseUint(e.GetAttributes()[1].GetValue(), 10, 64)
+						require.NoError(err)
+						s.Equal(uint64(0), msgSize%consts.ShareSize, "Message length should be multiples of const.ShareSize=%v", consts.ShareSize)
+					}
 				}
 
 				// wait for the tx to be indexed

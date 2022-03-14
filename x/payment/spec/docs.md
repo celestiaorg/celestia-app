@@ -82,7 +82,8 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 ```
 
 ## Events
-TODO after events are added.
+- [`NewPayForMessageEvent`](https://github.com/celestiaorg/celestia-app/pull/213/files#diff-1ce55bda42cf160deca2e5ea1f4382b65f3b689c7e00c88085d7ce219e77303dR17-R21)
+Emit an event that has the signer's address and size of the message that is paid for.
 
 ## Parameters
 There are no parameters yet, but we might add
