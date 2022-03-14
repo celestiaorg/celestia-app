@@ -31,7 +31,7 @@ func (k Keeper) GetDataCommitmentConfirmsByCommitment(
 	commitment string,
 ) (confirms []types.MsgDataCommitmentConfirm) {
 	store := ctx.KVStore(k.storeKey)
-	iterator := store.Iterator(nil, nil) // Can we make this faster?
+	iterator := sdk.KVStorePrefixIterator(store, []byte(types.DataCommitmentConfirmKey+commitment))
 
 	defer iterator.Close()
 

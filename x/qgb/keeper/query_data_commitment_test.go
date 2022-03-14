@@ -175,7 +175,7 @@ func TestAllDataCommitmentsByValidator(t *testing.T) {
 	}
 }
 
-func TestAllDataCommitmentsByCommitment(t *testing.T) {
+func TestAllDataCommitmentsByRange(t *testing.T) {
 	commitment := "commitment"
 	addrs := []string{
 		"cosmos1v4s3yfg8rujaz56yt5a3xznqjqgyeff4552l40",
@@ -294,6 +294,118 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
 			got, err := k.DataCommitmentConfirmsByRange(ctx, &spec.src)
+			if spec.expErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			var gotArray []types.MsgDataCommitmentConfirm
+			if len(spec.expResp.Confirms) != 0 {
+				gotArray = make([]types.MsgDataCommitmentConfirm, len(got.Confirms))
+				copy(gotArray, got.Confirms)
+			}
+			assert.Equal(t, spec.expResp.Confirms, gotArray)
+		})
+	}
+}
+
+func TestAllDataCommitmentsByCommitment(t *testing.T) {
+	commitment := "commitment"
+	secondCommitment := "second commitment"
+	addrs := []string{
+		"cosmos1v4s3yfg8rujaz56yt5a3xznqjqgyeff4552l40",
+		"cosmos1dz6pu605p5x79dh5pz4dardhuzws6c0qqr0l6e",
+		"cosmos1er9mgk7x30aspqd2zwn970ywfls36ktdmgyzry",
+	}
+	type blockRange struct {
+		beingBlock int64
+		endBlock   int64
+	}
+	ranges := []blockRange{
+		{1, 101},
+		{15, 120},
+		{300, 450},
+	}
+	var (
+		myValidatorCosmosAddr1, _   = sdk.AccAddressFromBech32(addrs[0])
+		myValidatorCosmosAddr2, _   = sdk.AccAddressFromBech32(addrs[1])
+		myValidatorCosmosAddr3, _   = sdk.AccAddressFromBech32(addrs[2])
+		myValidatorEthereumAddr1, _ = types.NewEthAddress("0x0101010101010101010101010101010101010101")
+		myValidatorEthereumAddr2, _ = types.NewEthAddress("0x0202020202020202020202020202020202020202")
+		myValidatorEthereumAddr3, _ = types.NewEthAddress("0x0303030303030303030303030303030303030303")
+	)
+
+	input := CreateTestEnv(t)
+	sdkCtx := input.Context
+	ctx := sdk.WrapSDKContext(input.Context)
+	k := input.QgbKeeper
+
+	// seed confirmations
+	for i := 0; i < 3; i++ {
+		addr, _ := sdk.AccAddressFromBech32(addrs[i])
+		msg := types.MsgDataCommitmentConfirm{}
+		msg.EthAddress = gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20)).String()
+		msg.Commitment = commitment
+		msg.BeginBlock = ranges[i].beingBlock
+		msg.EndBlock = ranges[i].endBlock
+		msg.ValidatorAddress = addr.String()
+		msg.Signature = fmt.Sprintf("signature %d", i+1)
+		input.QgbKeeper.SetDataCommitmentConfirm(sdkCtx, msg)
+	}
+
+	// seed a second commitment message
+	addr, _ := sdk.AccAddressFromBech32(addrs[0])
+	secondCommitmentMsg := types.MsgDataCommitmentConfirm{}
+	secondCommitmentMsg.EthAddress = gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(1)}, 20)).String()
+	secondCommitmentMsg.Commitment = secondCommitment
+	secondCommitmentMsg.BeginBlock = ranges[0].beingBlock
+	secondCommitmentMsg.EndBlock = ranges[0].endBlock
+	secondCommitmentMsg.ValidatorAddress = addr.String()
+	secondCommitmentMsg.Signature = "signature 1"
+	input.QgbKeeper.SetDataCommitmentConfirm(sdkCtx, secondCommitmentMsg)
+
+	specs := map[string]struct {
+		src     types.QueryDataCommitmentConfirmsByCommitmentRequest
+		expErr  bool
+		expResp types.QueryDataCommitmentConfirmsByCommitmentResponse
+	}{
+		"existing commitment": {
+			src: types.QueryDataCommitmentConfirmsByCommitmentRequest{Commitment: commitment},
+			expResp: types.QueryDataCommitmentConfirmsByCommitmentResponse{Confirms: []types.MsgDataCommitmentConfirm{
+				*types.NewMsgDataCommitmentConfirm(
+					commitment,
+					"signature 1",
+					myValidatorCosmosAddr1,
+					*myValidatorEthereumAddr1,
+					ranges[0].beingBlock,
+					ranges[0].endBlock,
+				),
+				*types.NewMsgDataCommitmentConfirm(
+					commitment,
+					"signature 2",
+					myValidatorCosmosAddr2,
+					*myValidatorEthereumAddr2,
+					ranges[1].beingBlock,
+					ranges[1].endBlock,
+				),
+				*types.NewMsgDataCommitmentConfirm(
+					commitment,
+					"signature 3",
+					myValidatorCosmosAddr3,
+					*myValidatorEthereumAddr3,
+					ranges[2].beingBlock,
+					ranges[2].endBlock,
+				),
+			}},
+		},
+		"unknown commitment": {
+			src:     types.QueryDataCommitmentConfirmsByCommitmentRequest{Commitment: "unknown commitment"},
+			expResp: types.QueryDataCommitmentConfirmsByCommitmentResponse{},
+		},
+	}
+	for msg, spec := range specs {
+		t.Run(msg, func(t *testing.T) {
+			got, err := k.DataCommitmentConfirmsByCommitment(ctx, &spec.src)
 			if spec.expErr {
 				require.Error(t, err)
 				return
