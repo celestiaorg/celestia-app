@@ -125,11 +125,6 @@ It contains:
 ## Status
 Accepted
 
-## Consequences
-
-### Positive
-Have the same binary for Celestia and also for QGB.
-
 ## References
 
 - {reference link}
