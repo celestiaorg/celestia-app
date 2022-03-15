@@ -61,7 +61,7 @@ func EncodeValsetConfirm(bridgeID common.Hash, valset *types.Valset, vsHash ethc
 // EncodeValsetConfirm takes the required input data and produces the required signature to confirm a validator
 // set update on the Peggy Ethereum contract. This value will then be signed before being
 // submitted to Cosmos, verified, and then relayed to Ethereum
-func EncodeDataCommitmentConfirm(bridgeID common.Hash, nonce uint64, commitment []byte) common.Hash {
+func EncodeDataCommitmentConfirm(bridgeID common.Hash, nonce *big.Int, commitment []byte) common.Hash {
 	transactionBatchBytes := []uint8("transactionBatch")
 	var transactionBatch [32]uint8
 	copy(transactionBatch[:], transactionBatchBytes)
@@ -76,7 +76,7 @@ func EncodeDataCommitmentConfirm(bridgeID common.Hash, nonce uint64, commitment 
 		"transactionBatch",
 		bridgeID,
 		transactionBatch,
-		big.NewInt(int64(nonce)),
+		nonce,
 		dataCommitment,
 	)
 	// this should never happen outside of test since any case that could crash on encoding

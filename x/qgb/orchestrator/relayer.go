@@ -9,134 +9,55 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
-	"github.com/celestiaorg/quantum-gravity-bridge/orchestrator/ethereum/committer"
-	"github.com/celestiaorg/quantum-gravity-bridge/orchestrator/ethereum/provider"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	ethcmn "github.com/ethereum/go-ethereum/common"
-	"github.com/rs/zerolog"
+	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
 type relayer struct {
 	orchClient
 
-	logger zerolog.Logger
-	committer.EVMCommitter
-
-	ethProvider provider.EVMProvider
-	address     common.Address
-	wrapper     *wrapper.QuantumGravityBridge
+	wrapper *wrapper.QuantumGravityBridge
 }
 
-func (r *relayer) relayValsets(opts *bind.TransactOpts) error {
+func (r *relayer) relayValsets(ctx context.Context, opts *bind.TransactOpts) error {
 	r.wg.Add(1)
 	defer r.wg.Done()
-	results, err := r.tendermintRPC.Subscribe(r.ctx, "valset-changes", "tm.event='Tx' AND message.module='qgb'")
+	results, err := r.tendermintRPC.Subscribe(ctx, "valset-changes", "tm.event='Tx' AND message.module='qgb'")
 	if err != nil {
+		// TODO: add an exponential backoff retry
+		// TODO: add some business logic for handling relaying past validator
+		// sets
 		return err
 	}
-	for ev := range results {
-		attributes := ev.Events[types.EventTypeValsetRequest]
-		for _, attr := range attributes {
-			if attr != types.AttributeKeyNonce {
-				continue
-			}
 
-			queryClient := types.NewQueryClient(r.qgbRPC)
-
-			// query for the latest valset (sorted for us already)
-			lastValsetResp, err := queryClient.LastValsetRequests(r.ctx, &types.QueryLastValsetRequestsRequest{})
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case ev := <-results:
+			err = r.processValsetEvents(ctx, opts, ev)
 			if err != nil {
+				// TODO: add an exponential backoff retry
 				return err
 			}
-
-			// todo: double check that the first validator set is found
-			if len(lastValsetResp.Valsets) < 1 {
-				return errors.New("no validator sets found")
-			}
-
-			valset := lastValsetResp.Valsets[0]
-			height := int64(valset.Height)
-
-			// we need the validator set hash for this height.
-			blockRes, err := r.tendermintRPC.Block(r.ctx, &height)
-			if err != nil {
-				return err
-			}
-
-			rawVSHash := blockRes.Block.Header.ValidatorsHash.Bytes()
-			var ethVSHash ethcmn.Hash
-			copy(ethVSHash[:], rawVSHash)
-
-			confirms, err := r.queryTwoThirdsValsetConfirms(r.ctx, time.Minute*30, queryClient, valset)
-			if err != nil {
-				return err
-			}
-
-			err = r.updateValidatorSet(
-				r.ctx,
-				opts,
-				valset.Nonce,
-				valset.TwoThirdsThreshold(),
-				ethVSHash,
-				valset,
-				confirms,
-			)
-			if err != nil {
-				return err
-			}
-
 		}
 	}
-	return nil
 }
 
-func (r *relayer) relayDataCommitments() error {
-	r.wg.Add(1)
-	defer r.wg.Done()
-
-	queryClient := types.NewQueryClient(r.qgbRPC)
-
-	resp, err := queryClient.Params(r.ctx, &types.QueryParamsRequest{})
-	if err != nil {
-		return err
-	}
-
-	params := resp.Params
-
-	results, err := r.tendermintRPC.Subscribe(r.ctx, "height", coretypes.EventQueryNewBlockHeader.String())
-	if err != nil {
-		return err
-	}
-	for msg := range results {
-		eventDataHeader := msg.Data.(coretypes.EventDataNewBlockHeader)
-		height := eventDataHeader.Header.Height
-		// todo: refactor to ensure that no ranges of blocks are missed if the
-		// parameters are changed
-		if height%int64(params.DataCommitmentWindow) != 0 {
+func (r *relayer) processValsetEvents(ctx context.Context, opts *bind.TransactOpts, ev rpctypes.ResultEvent) error {
+	attributes := ev.Events[types.EventTypeValsetRequest]
+	for _, attr := range attributes {
+		if attr != types.AttributeKeyNonce {
 			continue
 		}
 
-		// TODO: calculate start height some other way that can handle changes
-		// in the data window param
-		startHeight := height - int64(params.DataCommitmentWindow)
-		endHeight := height
-
-		// create and send the data commitment
-		dcResp, err := r.tendermintRPC.DataCommitment(
-			r.ctx,
-			fmt.Sprintf("block.height >= %d AND block.height <= %d",
-				startHeight,
-				endHeight,
-			),
-		)
-		if err != nil {
-			return err
-		}
+		queryClient := types.NewQueryClient(r.qgbRPC)
 
 		// query for the latest valset (sorted for us already)
-		lastValsetResp, err := queryClient.LastValsetRequests(r.ctx, &types.QueryLastValsetRequestsRequest{})
+		lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
 		if err != nil {
 			return err
 		}
@@ -147,13 +68,127 @@ func (r *relayer) relayDataCommitments() error {
 		}
 
 		valset := lastValsetResp.Valsets[0]
+		height := int64(valset.Height)
 
-		dataRootHash := EncodeDataCommitmentConfirm(r.bridgeID, valset.Nonce, dcResp.DataCommitment)
+		// we need the validator set hash for this height.
+		blockRes, err := r.tendermintRPC.Block(ctx, &height)
+		if err != nil {
+			return err
+		}
 
-		r.queryTwoThirdsDataCommitmentConfirms(r.ctx, time.Minute*30, queryClient, valset, dataRootHash.String())
+		rawVSHash := blockRes.Block.Header.ValidatorsHash.Bytes()
+		var ethVSHash ethcmn.Hash
+		copy(ethVSHash[:], rawVSHash)
 
+		confirms, err := r.queryTwoThirdsValsetConfirms(ctx, time.Minute*30, queryClient, valset)
+		if err != nil {
+			return err
+		}
+
+		err = r.updateValidatorSet(
+			ctx,
+			opts,
+			valset.Nonce,
+			valset.TwoThirdsThreshold(),
+			ethVSHash,
+			valset,
+			confirms,
+		)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+func (r *relayer) relayDataCommitments(ctx context.Context) error {
+	r.wg.Add(1)
+	defer r.wg.Done()
+
+	queryClient := types.NewQueryClient(r.qgbRPC)
+
+	resp, err := queryClient.Params(ctx, &types.QueryParamsRequest{})
+	if err != nil {
+		return err
+	}
+
+	params := resp.Params
+
+	results, err := r.tendermintRPC.Subscribe(ctx, "height", coretypes.EventQueryNewBlockHeader.String())
+	if err != nil {
+		return err
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case ev := <-results:
+			r.processDataCommitmentEvents(ctx, params.DataCommitmentWindow, ev)
+		}
+	}
+	return nil
+}
+
+func (r *relayer) processDataCommitments(
+	ctx context.Context,
+	client types.QueryClient,
+	window uint64,
+	msg rpctypes.ResultEvent,
+) error {
+	eventDataHeader := msg.Data.(coretypes.EventDataNewBlockHeader)
+	height := eventDataHeader.Header.Height
+	// todo: refactor to ensure that no ranges of blocks are missed if the
+	// parameters are changed
+	if height%int64(window) != 0 {
+		return nil
+	}
+
+	// TODO: calculate start height some other way that can handle changes
+	// in the data window param
+	startHeight := height - int64(window)
+	endHeight := height
+
+	// create and send the data commitment
+	dcResp, err := r.tendermintRPC.DataCommitment(
+		ctx,
+		fmt.Sprintf("block.height >= %d AND block.height <= %d",
+			startHeight,
+			endHeight,
+		),
+	)
+	if err != nil {
+		return err
+	}
+
+	// query for the latest valset (sorted for us already)
+	lastValsetResp, err := client.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
+	if err != nil {
+		return err
+	}
+
+	// todo: double check that the first validator set is found
+	if len(lastValsetResp.Valsets) < 1 {
+		return errors.New("no validator sets found")
+	}
+
+	valset := lastValsetResp.Valsets[0]
+
+	nonce, err := r.wrapper.StateLastMessageTupleRootNonce(&bind.CallOpts{})
+	if err != nil {
+		return err
+	}
+
+	nonce.Add(nonce, big.NewInt(1))
+
+	dataRootHash := EncodeDataCommitmentConfirm(r.bridgeID, nonce, dcResp.DataCommitment)
+
+	confirms, err := r.queryTwoThirdsDataCommitmentConfirms(ctx, time.Minute*30, client, valset, dataRootHash.String())
+	if err != nil {
+		return err
+	}
+
+	return r.submitDataRootTupleRoot(ctx, &bind.TransactOpts{}, dataRootHash, valset, confirms)
 }
 
 func (r *relayer) queryTwoThirdsDataCommitmentConfirms(ctx context.Context, timeout time.Duration, client types.QueryClient, valset types.Valset, commitment string) ([]types.MsgDataCommitmentConfirm, error) {
@@ -173,7 +208,7 @@ func (r *relayer) queryTwoThirdsDataCommitmentConfirms(ctx context.Context, time
 			return nil, fmt.Errorf("failure to query for majority validator set confirms: timout %s", timeout)
 		default:
 			currThreshHold := uint64(0)
-			confirmsResp, err := client.DataCommitmentConfirmsByCommitment(r.ctx, &types.QueryDataCommitmentConfirmsByCommitmentRequest{
+			confirmsResp, err := client.DataCommitmentConfirmsByCommitment(ctx, &types.QueryDataCommitmentConfirmsByCommitmentRequest{
 				Commitment: commitment,
 			})
 			if err != nil {
@@ -194,6 +229,7 @@ func (r *relayer) queryTwoThirdsDataCommitmentConfirms(ctx context.Context, time
 
 			r.logger.Debug().Str("foundDataCommitmentConfirms", fmt.Sprintf("total power %d number of confirms %d", currThreshHold, len(confirmsResp.Confirms)))
 		}
+		time.Sleep(time.Second * 30)
 	}
 }
 
@@ -214,7 +250,7 @@ func (r *relayer) queryTwoThirdsValsetConfirms(ctx context.Context, timeout time
 			return nil, fmt.Errorf("failure to query for majority validator set confirms: timout %s", timeout)
 		default:
 			currThreshHold := uint64(0)
-			confirmsResp, err := client.ValsetConfirmsByNonce(r.ctx, &types.QueryValsetConfirmsByNonceRequest{
+			confirmsResp, err := client.ValsetConfirmsByNonce(ctx, &types.QueryValsetConfirmsByNonceRequest{
 				Nonce: valset.Nonce,
 			})
 			if err != nil {
@@ -235,6 +271,7 @@ func (r *relayer) queryTwoThirdsValsetConfirms(ctx context.Context, timeout time
 
 			r.logger.Debug().Str("foundValsetConfirms", fmt.Sprintf("total power %d number of confirms %d", currThreshHold, len(confirmsResp.Confirms)))
 		}
+		time.Sleep(time.Second * 30)
 	}
 }
 
@@ -273,7 +310,6 @@ func (r *relayer) updateValidatorSet(
 func (r *relayer) submitDataRootTupleRoot(
 	ctx context.Context,
 	opts *bind.TransactOpts,
-	nonce uint64,
 	tupleRoot common.Hash,
 	currentValset types.Valset,
 	confirms []types.MsgDataCommitmentConfirm,
@@ -289,9 +325,17 @@ func (r *relayer) submitDataRootTupleRoot(
 		return err
 	}
 
+	lastDataCommitmentNonce, err := r.wrapper.StateLastMessageTupleRootNonce(&bind.CallOpts{})
+	if err != nil {
+		return err
+	}
+
+	// increment the nonce before submitting the new tuple root
+	lastDataCommitmentNonce.Add(lastDataCommitmentNonce, big.NewInt(1))
+
 	tx, err := r.wrapper.SubmitMessageTupleRoot(
 		opts,
-		big.NewInt(int64(currentValset.Nonce)), //TODO: actually use the correct nonce here!!!
+		lastDataCommitmentNonce,
 		tupleRoot,
 		ethVals,
 		sigs,
@@ -381,42 +425,4 @@ func ethValset(valset types.Valset) ([]wrapper.Validator, error) {
 		}
 	}
 	return ethVals, nil
-}
-
-// Gets the latest validator set nonce
-func (r *relayer) GetValsetNonce(
-	ctx context.Context,
-	callerAddress common.Address,
-) (*big.Int, error) {
-
-	nonce, err := r.wrapper.StateLastValidatorSetNonce(&bind.CallOpts{
-		From:    callerAddress,
-		Context: ctx,
-	})
-
-	if err != nil {
-		err = fmt.Errorf("StateLastValsetNonce call failed: %w", err)
-		return nil, err
-	}
-
-	return nonce, nil
-}
-
-// Gets the bridgeID
-func (r *relayer) GetBridgeID(
-	ctx context.Context,
-	callerAddress common.Address,
-) (common.Hash, error) {
-
-	qgbID, err := r.wrapper.BRIDGEID(&bind.CallOpts{
-		From:    callerAddress,
-		Context: ctx,
-	})
-
-	if err != nil {
-		err = fmt.Errorf("BRIDGEID call failed: %w", err)
-		return common.Hash{}, err
-	}
-
-	return qgbID, nil
 }
