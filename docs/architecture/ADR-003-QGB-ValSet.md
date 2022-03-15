@@ -122,6 +122,162 @@ It contains:
 - `eth_address`: the Ethereum address, associated to the orchestrator, used to sign the `ValSet` message.
 - `signature`: the `ValSet` message signature.
 
+### ValSetConfirm Processing
+Upon receiving a `MsgValSetConfirm`, we go for the following:
+
+#### ValSet check
+We start off by checking if the `ValSet` referenced by the provided `nonce` exists. If so, we 
+get it. If not, we return an error:
+```go
+	valset := k.GetValset(ctx, msg.Nonce)
+	if valset == nil {
+		return nil, sdkerrors.Wrap(types.ErrInvalid, "couldn't find valset")
+	}
+```
+
+#### Check the address and signature
+Next, we check the orchestrator address: 
+```go
+orchaddr, err := sdk.AccAddressFromBech32(msg.Orchestrator)
+	if err != nil {
+		return nil, sdkerrors.Wrap(types.ErrInvalid, "acc address invalid")
+	}
+```
+
+Then, we verify if the signature is well-formed, and it is signed using a private key whose address
+is the one sent in the request:
+```go
+    err = k.confirmHandlerCommon(ctx, msg.EthAddress, msg.Orchestrator, msg.Signature)
+	if err != nil {
+		return nil, err
+	}
+    // persist signature
+    if k.GetValsetConfirm(ctx, msg.Nonce, orchaddr) != nil {
+        return nil, sdkerrors.Wrap(types.ErrDuplicate, "signature duplicate")
+    }
+```
+
+The `confirmHandlerCommon` is an internal function that provides common code for processing signatures:
+```go
+func (k msgServer) confirmHandlerCommon(ctx sdk.Context, ethAddress string, orchestrator string, signature string) error {
+	_, err := hex.DecodeString(signature)
+	if err != nil {
+		return sdkerrors.Wrap(types.ErrInvalid, "signature decoding")
+	}
+
+	submittedEthAddress, err := types.NewEthAddress(ethAddress)
+	if err != nil {
+		return sdkerrors.Wrap(types.ErrInvalid, "invalid eth address")
+	}
+
+	orchaddr, err := sdk.AccAddressFromBech32(orchestrator)
+	if err != nil {
+		return sdkerrors.Wrap(types.ErrInvalid, "acc address invalid")
+	}
+	validator, found := k.GetOrchestratorValidator(ctx, orchaddr)
+	if !found {
+		return sdkerrors.Wrap(types.ErrUnknown, "validator")
+	}
+	if err := sdk.VerifyAddressFormat(validator.GetOperator()); err != nil {
+		return sdkerrors.Wrapf(err, "discovered invalid validator address for orchestrator %v", orchaddr)
+	}
+
+	ethAddressFromStore, found := k.GetEthAddressByValidator(ctx, validator.GetOperator())
+	if !found {
+		return sdkerrors.Wrap(types.ErrEmpty, "no eth address set for validator")
+	}
+
+	if *ethAddressFromStore != *submittedEthAddress {
+		return sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
+	}
+	return nil
+}
+```
+And, then check if the signature is a duplicate, i.e. whether another `ValSetConfirm` reflecting the same 
+truth has already been commited to.
+
+#### Persist the ValSet confirm and emit an event
+Lastly, we persist the `ValSetConfirm` message and broadcast an event:
+```go
+	key := k.SetValsetConfirm(ctx, *msg)
+
+	ctx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			sdk.EventTypeMessage,
+			sdk.NewAttribute(sdk.AttributeKeyModule, msg.Type()),
+			sdk.NewAttribute(types.AttributeKeyValsetConfirmKey, string(key)),
+		),
+	)
+```
+
+### SetOrchestratorAddress Processing
+Upon receiving a `MsgSetOrchestratorAddress`, we go for the following:
+
+#### Basic validation
+We start off by validating the parameters:
+```go
+// ensure that this passes validation, checks the key validity
+	err := msg.ValidateBasic()
+	if err != nil {
+		return nil, sdkerrors.Wrap(err, "Key not valid")
+	}
+
+	ctx := sdk.UnwrapSDKContext(c)
+
+	// check the following, all should be validated in validate basic
+	val, e1 := sdk.ValAddressFromBech32(msg.Validator)
+	orch, e2 := sdk.AccAddressFromBech32(msg.Orchestrator)
+	addr, e3 := types.NewEthAddress(msg.EthAddress)
+	if e1 != nil || e2 != nil || e3 != nil {
+		return nil, sdkerrors.Wrap(err, "Key not valid")
+	}
+
+	// check that the validator does not have an existing key
+	_, foundExistingOrchestratorKey := k.GetOrchestratorValidator(ctx, orch)
+	_, foundExistingEthAddress := k.GetEthAddressByValidator(ctx, val)
+
+	// ensure that the validator exists
+	if foundExistingOrchestratorKey || foundExistingEthAddress {
+		return nil, sdkerrors.Wrap(types.ErrResetDelegateKeys, val.String())
+	}
+```
+
+Then, verify that neither keys is a duplicate:
+```go
+	// check that neither key is a duplicate
+	delegateKeys := k.GetDelegateKeys(ctx)
+	for i := range delegateKeys {
+		if delegateKeys[i].EthAddress == addr.GetAddress() {
+			return nil, sdkerrors.Wrap(err, "Duplicate Ethereum Key")
+		}
+		if delegateKeys[i].Orchestrator == orch.String() {
+			return nil, sdkerrors.Wrap(err, "Duplicate Orchestrator Key")
+		}
+	}
+```
+
+#### Persist the Orchestrator and Ethereum address and emit an event
+Lastly, we persist the orchestrator validator address:
+```go
+    k.SetOrchestratorValidator(ctx, val, orch)
+```
+
+Then, we set the corresponding Ethereum address:
+```go
+   k.SetEthAddressForValidator(ctx, val, *addr)
+```
+
+And finally, emit an event:
+```go
+	ctx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			sdk.EventTypeMessage,
+			sdk.NewAttribute(sdk.AttributeKeyModule, msg.Type()),
+			sdk.NewAttribute(types.AttributeKeySetOperatorAddr, orch.String()),
+		),
+	)
+```
+
 ## Status
 Accepted
 
