@@ -223,7 +223,7 @@ type squareWriter struct {
 // WriteSquare uses the provided block data to create a flattened data square.
 // Any MsgWirePayForMessages are malleated, and their corresponding
 // MsgPayForMessage and Message are written atomically. If there are
-// transactions that will node fit in the given square size, then they are
+// transactions that will not fit in the given square size, then they are
 // discarded. This is reflected in the returned block data. Note: pointers to
 // block data are only used to avoid dereferencing, not because we need the block
 // data to be mutable.
