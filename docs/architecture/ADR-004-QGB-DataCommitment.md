@@ -12,8 +12,14 @@ We will need to add support for `DataCommitment`s messages, i.e. commitments gen
 Add the `DataCommitmentConfirm` type of messages in order to attest that a set of blocks has been finalized.
 
 ## Detailed Design
-Data commitment messages attest that a certain set of blocks have been commited to in the Celestia chain. These commitments are used to update the data commitment checkpoint
-defined in the Ethereum smart contract of the QGB.
+To accommodate the QGB, validators need a way to submit signatures for a data commitments so that relayers can easily find them and 
+submit them to the bridged chain. To do this, we will introduce `MsgDataCommitmentConfirm` messages.
+
+Data commitment messages attest that a certain set of blocks have been committed to in the Celestia chain. These commitments are used to
+update the data commitment checkpoint defined in the Ethereum smart contract of the QGB.
+
+Thus, they will contain the commitments along the signatures and will be used to check if an attestation has been signed by 2/3+ of the
+network validators and can be committed to the bridge contract.
 
 #### MsgDataCommitmentConfirm
 `MsgDataCommitmentConfirm` describe a data commitment for a set of blocks signed by an orchestrator.

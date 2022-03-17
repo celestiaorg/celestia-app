@@ -5,71 +5,39 @@
 - {date}: {changelog}
 
 ## Context
+Various Rollups on EVM L1s may have a need for using Celestia as a DA layer, while keeping fraud/validity proof verification in the EVM.
+To that end, two concrete possibilities exist: the Gravity bridge and a native EVM light client.
 
-> This section contains all the context one needs to understand the current state, and why there is a problem.
-> It should be as succinct as possible and introduce the high level idea behind the solution.
-
-Following the [Quantum Gravity Bridge](https://github.com/celestiaorg/quantum-gravity-bridge) development, we decided to make the orchestrator and relayer part of Celestia-app.
-
-## Alternative Approaches
-
-> This section contains information around alternative options that are considered before making a decision.
-> It should contain a explanation on why the alternative approach(es) were not chosen.
+## Approaches
+The following issue summarizes the two viable approaches to accommodate this: [#4](https://github.com/celestiaorg/quantum-gravity-bridge/issues/4)
 
 ## Decision
-
-> This section records the decision that was made.
-> It is best to record as much info as possible from the discussion that happened.
-> This aids in not having to go back to the Pull Request to get the needed information.
+We decided to go for the gravity bridge approach and move the orchestrator/relayer logic to Celestia-app.
 
 ## Detailed Design
+The QGB allows Celestia block header data roots to be relayed in one direction, from Celestia to an EVM chain. It does not support
+bridging assets such as fungible or non-fungible tokens directly, and cannot send messages from the EVM chain back to Celestia.
 
-> This section does not need to be filled in at the start of the ADR, but must be completed prior to the merging of the implementation.
->
-> Here are some common questions that get answered as part of the detailed design:
->
-> - What are the user requirements?
->
-> - What systems will be affected?
->
-> - What new data structures are needed, what data structures will be changed?
->
-> - What new APIs will be needed, what APIs will be changed?
->
-> - What are the efficiency considerations (time/space)?
->
-> - What are the expected access patterns (load/throughput)?
->
-> - Are there any logging, monitoring or observability needs?
->
-> - Are there any security considerations?
->
-> - Are there any privacy considerations?
->
-> - How will the changes be tested?
->
-> - If the change is large, how will the changes be broken up for ease of review?
->
-> - Will these changes require a breaking (major) release?
->
-> - Does this change require coordination with the SDK or other?
+For the state, it is currently changed by confirmation messages via mapping the orchestrator's address to the confirmation. This latter will
+be used for slashing afterwards.
+
+We decided to rewrite the relayer and the orchestrator because our relayer can be designed to be trust minimized,
+where-as a two-way bridge would require each validator to run a trusted relayer.
+And, since we had to rewrite them, and they were simplified, we decided to move things to the app.
+
 ## Status
+Accept
 
-> A decision may be "proposed" if it hasn't been agreed upon yet, or "accepted" once it is agreed upon.
-> Once the ADR has been implemented mark the ADR as "implemented".
-> If a later ADR changes or reverses a decision, it may be marked as "deprecated" or "superseded" with a reference to its replacement.
-{Deprecated|Proposed|Accepted|Declined}
+## Consequences of moving the logic to the app
 
-## Consequences
-
-> This section describes the consequences, after applying the decision. All consequences should be summarized here, not just the "positive" ones.
 ### Positive
-
-### Negative
+- Single binary containing the orchestrator and also Celestia-app.
+- Ease of maintainability.
 
 ### Neutral
+- Single binary will force validators who only want to join the Celestia chain, to also have the bridge logic. However, it should be alright
+since it's only a small amount of code.
 
 ## References
 
-> Are there any relevant PR comments, issues that led up to this, or articles referenced for why we made the given design choice? If so link them here!
 - {reference link}
