@@ -23,7 +23,7 @@ We also need this functionality for validators to verify that
 - That the data hash represents the properly-erasure-coded block data for the selected block size.
 - Included messages are arranged in the expected locations in the square according to the non-interactive default rules (not done here)
 
-Technically, we don’t have to use ABCI++ yet, we could still test some needed features in the upcoming testnet without it. However, these implementations would not be representative of the implementations that would actually make it to mainnet, as they would have to be significantly different from their ABCI++ counterparts. The decision to adopt ABCI++ earlier becomes easier considering that the tendermint team has already done most of the work for us, and it is possible to start working on the needed features without waiting for the cosmos-sdk team to use them. We explain our plans below to do just this, by creating a simplified version of ABCI++ (ABCI+?) using only the new methods that are necessary, finished, and easy to incorporate into the cosmos-sdk.
+Technically, we don’t have to use ABCI++ yet, we could still test some needed features in the upcoming testnet without it. However, these implementations would not be representative of the implementations that would actually make it to mainnet, as they would have to be significantly different from their ABCI++ counterparts. The decision to adopt ABCI++ earlier becomes easier considering that the tendermint team has already done most of the heavy lifting, and it is possible to start working on the needed features without waiting for the cosmos-sdk team to use them. We explain our plans below to do just this, by using a subset of ABCI++ (ABCI+?) using only the new methods that are necessary, finished, and easy to incorporate into the cosmos-sdk.
 
 ## Alternative Approaches
 
@@ -223,7 +223,7 @@ type squareWriter struct {
 // SplitShares uses the provided block data to create a flattened data square.
 // Any MsgWirePayForMessages are malleated, and their corresponding
 // MsgPayForMessage and Message are written atomically. If there are
-// transactions that will node fit in the given square size, then they are
+// transactions that will not fit in the given square size, then they are
 // discarded. This is reflected in the returned block data. Note: pointers to
 // block data are only used to avoid dereferencing, not because we need the block
 // data to be mutable.
@@ -302,7 +302,7 @@ func (sqwr *squareWriter) writeTx(tx []byte) (ok bool, err error) {
    return true, nil
 }
 
-// writeMalleated malleates a MsgWirePayForMessage into a MsgPayForMessage and
+// writeMalleatedTx malleates a MsgWirePayForMessage into a MsgPayForMessage and
 // its corresponding message provided that it has a MsgPayForMessage for the
 // preselected square size. Returns true if the write was successful, false if
 // there was not enough room in the square.
