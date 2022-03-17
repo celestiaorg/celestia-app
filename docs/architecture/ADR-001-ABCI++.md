@@ -302,7 +302,7 @@ func (sqwr *squareWriter) writeTx(tx []byte) (ok bool, err error) {
    return true, nil
 }
 
-// writeMalleated malleates a MsgWirePayForMessage into a MsgPayForMessage and
+// writeMalleatedTx malleates a MsgWirePayForMessage into a MsgPayForMessage and
 // its corresponding message provided that it has a MsgPayForMessage for the
 // preselected square size. Returns true if the write was successful, false if
 // there was not enough room in the square.
