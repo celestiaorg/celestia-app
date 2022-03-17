@@ -5,8 +5,8 @@ package orchestrator
 // 	testPriv = "64a1d6f0e760a8d62b4afdde4096f16f51b401eaaecc915740f71770ea76a8ad"
 // )
 
-// func TestOrchClient(t *testing.T) {
-// 	oc, err := newOrchClient(
+// func Testclient(t *testing.T) {
+// 	oc, err := newclient(
 // 		context.TODO(),
 // 		zerolog.New(os.Stdout),
 // 		5,

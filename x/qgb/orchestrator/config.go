@@ -4,101 +4,13 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"log"
-	"os"
 	"path/filepath"
-	"strings"
-	"time"
 
-	"github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/spf13/cobra"
+
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/rs/zerolog"
-	"github.com/spf13/cobra"
 )
-
-var (
-	HomeDir string
-)
-
-func init() {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal(err)
-	}
-	HomeDir = homeDir
-}
-
-func OrchestratorCmd() *cobra.Command {
-	command := &cobra.Command{
-		Use:     "orchestrator <flags>",
-		Aliases: []string{"orch"},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			config, err := parseOrchestratorFlags(cmd)
-			if err != nil {
-				return err
-			}
-
-			// open a keyring using the configured settings
-			// TODO: optionally ask for input for a password
-			ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringAccount, strings.NewReader("."))
-			if err != nil {
-				return err
-			}
-
-			orch, err := newOrchClient(
-				zerolog.New(os.Stdout),
-				types.NewKeyringSigner(ring, config.keyringAccount, config.celestiaChainID),
-				config,
-			)
-			if err != nil {
-				return err
-			}
-
-			go func() {
-				for {
-					select {
-					case <-cmd.Context().Done():
-						return
-					default:
-						err = orch.watchForValsetChanges(cmd.Context())
-						if err != nil {
-							orch.logger.Err(err)
-							time.Sleep(time.Second * 30)
-							continue
-						}
-						return
-					}
-				}
-
-			}()
-
-			go func() {
-				for {
-					select {
-					case <-cmd.Context().Done():
-						return
-					default:
-						err = orch.watchForDataCommitments(cmd.Context())
-						if err != nil {
-							orch.logger.Err(err)
-							time.Sleep(time.Second * 30)
-							continue
-						}
-						return
-					}
-				}
-
-			}()
-
-			orch.wg.Wait()
-
-			return nil
-		},
-	}
-	return addOrchestratorFlags(command)
-}
 
 const (
 	// cosmos-sdk keyring flags
@@ -216,14 +128,4 @@ func parseOrchestratorFlags(cmd *cobra.Command) (config, error) {
 		tendermintRPC:   tendermintRPC,
 		contractAddr:    address,
 	}, nil
-}
-
-func RelayerCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:     "orchestrator <flags>",
-		Aliases: []string{"orch"},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return nil
-		},
-	}
 }

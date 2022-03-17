@@ -17,19 +17,14 @@ import (
 )
 
 type relayer struct {
-	orchClient
+	*client
 
 	wrapper *wrapper.QuantumGravityBridge
 }
 
-func (r *relayer) relayValsets(ctx context.Context, opts *bind.TransactOpts) error {
-	r.wg.Add(1)
-	defer r.wg.Done()
+func (r *relayer) relayValsets(ctx context.Context) error {
 	results, err := r.tendermintRPC.Subscribe(ctx, "valset-changes", "tm.event='Tx' AND message.module='qgb'")
 	if err != nil {
-		// TODO: add an exponential backoff retry
-		// TODO: add some business logic for handling relaying past validator
-		// sets
 		return err
 	}
 
@@ -38,16 +33,15 @@ func (r *relayer) relayValsets(ctx context.Context, opts *bind.TransactOpts) err
 		case <-ctx.Done():
 			return nil
 		case ev := <-results:
-			err = r.processValsetEvents(ctx, opts, ev)
+			err = r.processValsetEvents(ctx, ev)
 			if err != nil {
-				// TODO: add an exponential backoff retry
 				return err
 			}
 		}
 	}
 }
 
-func (r *relayer) processValsetEvents(ctx context.Context, opts *bind.TransactOpts, ev rpctypes.ResultEvent) error {
+func (r *relayer) processValsetEvents(ctx context.Context, ev rpctypes.ResultEvent) error {
 	attributes := ev.Events[types.EventTypeValsetRequest]
 	for _, attr := range attributes {
 		if attr != types.AttributeKeyNonce {
@@ -85,6 +79,11 @@ func (r *relayer) processValsetEvents(ctx context.Context, opts *bind.TransactOp
 			return err
 		}
 
+		opts, err := r.transactOpsBuilder(ctx, r.ethRPC, 1000000)
+		if err != nil {
+			return err
+		}
+
 		err = r.updateValidatorSet(
 			ctx,
 			opts,
@@ -102,9 +101,6 @@ func (r *relayer) processValsetEvents(ctx context.Context, opts *bind.TransactOp
 }
 
 func (r *relayer) relayDataCommitments(ctx context.Context) error {
-	r.wg.Add(1)
-	defer r.wg.Done()
-
 	queryClient := types.NewQueryClient(r.qgbRPC)
 
 	resp, err := queryClient.Params(ctx, &types.QueryParamsRequest{})
@@ -124,13 +120,13 @@ func (r *relayer) relayDataCommitments(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case ev := <-results:
-			r.processDataCommitmentEvents(ctx, params.DataCommitmentWindow, ev)
+			r.processDataCommitmentEvents(ctx, queryClient, params.DataCommitmentWindow, ev)
 		}
 	}
 	return nil
 }
 
-func (r *relayer) processDataCommitments(
+func (r *relayer) processDataCommitmentEvents(
 	ctx context.Context,
 	client types.QueryClient,
 	window uint64,
@@ -167,13 +163,13 @@ func (r *relayer) processDataCommitments(
 		return err
 	}
 
-	// todo: double check that the first validator set is found
 	if len(lastValsetResp.Valsets) < 1 {
 		return errors.New("no validator sets found")
 	}
 
 	valset := lastValsetResp.Valsets[0]
 
+	// todo, this assumes that the evm chain we are relaying to is update to data, which is not a good assumption
 	nonce, err := r.wrapper.StateLastMessageTupleRootNonce(&bind.CallOpts{})
 	if err != nil {
 		return err
@@ -183,12 +179,18 @@ func (r *relayer) processDataCommitments(
 
 	dataRootHash := EncodeDataCommitmentConfirm(r.bridgeID, nonce, dcResp.DataCommitment)
 
+	// todo: make times configurable
 	confirms, err := r.queryTwoThirdsDataCommitmentConfirms(ctx, time.Minute*30, client, valset, dataRootHash.String())
 	if err != nil {
 		return err
 	}
 
-	return r.submitDataRootTupleRoot(ctx, &bind.TransactOpts{}, dataRootHash, valset, confirms)
+	opts, err := r.transactOpsBuilder(ctx, r.ethRPC, 1000000)
+	if err != nil {
+		return err
+	}
+
+	return r.submitDataRootTupleRoot(ctx, opts, dataRootHash, valset, confirms)
 }
 
 func (r *relayer) queryTwoThirdsDataCommitmentConfirms(ctx context.Context, timeout time.Duration, client types.QueryClient, valset types.Valset, commitment string) ([]types.MsgDataCommitmentConfirm, error) {
@@ -412,7 +414,6 @@ func sigToVRS(sigHex string) (v uint8, r, s common.Hash) {
 }
 
 func ethValset(valset types.Valset) ([]wrapper.Validator, error) {
-
 	ethVals := make([]wrapper.Validator, len(valset.Members))
 	for i, v := range valset.Members {
 		if ok := common.IsHexAddress(v.EthereumAddress); !ok {
