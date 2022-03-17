@@ -161,7 +161,7 @@ The way that we create proposal blocks will be refactored (previously [`PrePrepr
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
    squareSize := app.estimateSquareSize(req.BlockData)
 
-   dataSquare, data, err := WriteSquare(app.txConfig, squareSize, req.BlockData)
+   dataSquare, data, err := SplitShares(app.txConfig, squareSize, req.BlockData)
    if err != nil {
        panic(err)
    }
@@ -220,14 +220,14 @@ type squareWriter struct {
 ```
 
 ```go
-// WriteSquare uses the provided block data to create a flattened data square.
+// SplitShares uses the provided block data to create a flattened data square.
 // Any MsgWirePayForMessages are malleated, and their corresponding
 // MsgPayForMessage and Message are written atomically. If there are
 // transactions that will node fit in the given square size, then they are
 // discarded. This is reflected in the returned block data. Note: pointers to
 // block data are only used to avoid dereferencing, not because we need the block
 // data to be mutable.
-func WriteSquare(txConf client.TxConfig, squareSize uint64, data *core.Data) ([][]byte, *core.Data, error) {
+func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([][]byte, *core.Data, error) {
    var (
        processedTxs [][]byte
        messages     core.Messages
