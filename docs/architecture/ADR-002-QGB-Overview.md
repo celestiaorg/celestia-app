@@ -18,12 +18,16 @@ We decided to go for the gravity bridge approach and move the orchestrator/relay
 The QGB allows Celestia block header data roots to be relayed in one direction, from Celestia to an EVM chain. It does not support
 bridging assets such as fungible or non-fungible tokens directly, and cannot send messages from the EVM chain back to Celestia.
 
-For the state, it is currently changed by confirmation messages via mapping the orchestrator's address to the confirmation. This latter will
-be used for slashing afterwards.
+Thus, choosing the gravity bridge approach makes more sense because:
+- The QGB is a one way bridge which doesn't need to handle any state. This makes it significantly simpler to implement.
+- The native EVM light client would take more time to build and wouldn't have any significant added value in our case.
 
-We decided to rewrite the relayer and the orchestrator because our relayer can be designed to be trust minimized,
+Also, we decided to rewrite the relayer and the orchestrator because our relayer can be designed to be trust minimized,
 where-as a two-way bridge would require each validator to run a trusted relayer.
 And, since we had to rewrite them, and they were simplified, we decided to move things to the app.
+
+For the state, it is currently changed by confirmation messages via mapping the orchestrator's address to the confirmation. This latter will
+be used for slashing afterwards.
 
 ## Status
 Accept
