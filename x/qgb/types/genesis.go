@@ -71,28 +71,3 @@ func (p Params) ValidateBasic() error {
 	}
 	return nil
 }
-
-// ParamKeyTable for auth module
-func ParamKeyTable() paramtypes.KeyTable {
-	return paramtypes.NewKeyTable().RegisterParamSet(&Params{
-		DataCommitmentWindow: 0,
-	})
-}
-
-// ParamSetPairs implements the ParamSet interface and returns all the key/value pairs
-// pairs of auth module's parameters.
-func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
-	return paramtypes.ParamSetPairs{
-		paramtypes.NewParamSetPair(ParamsStoreKeyDataCommitmentWindow, &p.DataCommitmentWindow, validateDataCommitmentWindow),
-	}
-}
-
-func validateDataCommitmentWindow(i interface{}) error {
-	val, ok := i.(uint64)
-	if !ok {
-		return fmt.Errorf("invalid parameter type: %T", i)
-	} else if val < 100 {
-		return fmt.Errorf("invalid average Ethereum block time, too short for latency limitations")
-	}
-	return nil
-}
