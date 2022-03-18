@@ -12,23 +12,19 @@ func (k Keeper) GetDelegateKeyByOrchestrator(
 	req *types.QueryGetDelegateKeysByOrchestratorAddress) (*types.QueryGetDelegateKeyByOrchestratorResponse, error) {
 	ctx := sdk.UnwrapSDKContext(c)
 	keys := k.GetDelegateKeys(ctx)
-	reqValidator, err := sdk.ValAddressFromBech32(req.OrchestratorAddress)
+	reqOrchestrator, err := sdk.AccAddressFromBech32(req.OrchestratorAddress)
 	if err != nil {
 		return nil, err
 	}
 	for _, key := range keys {
-		keyValidator, err := sdk.ValAddressFromBech32(key.Validator)
-		// this should be impossible due to the `validate basic` on the set orchestrator message
+		keyOrchestrator, err := sdk.AccAddressFromBech32(key.Orchestrator)
+		// this should be impossible due to the validate basic on the set orchestrator message
 		if err != nil {
-			panic("Invalid validator addr in store!")
+			panic("Invalid orchestrator addr in store!")
 		}
-		if reqValidator.Equals(keyValidator) {
-			return &types.QueryGetDelegateKeyByOrchestratorResponse{
-				EthAddress:       key.EthAddress,
-				ValidatorAddress: key.Orchestrator,
-			}, nil
+		if reqOrchestrator.Equals(keyOrchestrator) {
+			return &types.QueryGetDelegateKeyByOrchestratorResponse{ValidatorAddress: key.Validator, EthAddress: key.EthAddress}, nil
 		}
 	}
-
 	return nil, sdkerrors.Wrap(types.ErrInvalid, "No validator")
 }
