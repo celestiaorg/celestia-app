@@ -61,9 +61,14 @@ message MsgSetOrchestratorAddressResponse {}
 // chain store and submit them to Ethereum to update the validator set
 // -------------
 message MsgValsetConfirm {
+  // Unique number referencing the `ValSet`.
   uint64 nonce = 1;
+  // Orchestrator `celes1` account address.
   string orchestrator = 2;
+  // Ethereum address, associated to the orchestrator, used to sign the `ValSet`
+  // message.
   string eth_address = 3;
+  // The `ValSet` message signature.
   string signature = 4;
 }
 
@@ -73,11 +78,22 @@ message MsgValsetConfirmResponse {}
 
 // MsgDataCommitmentConfirm describes a data commitment for a set of blocks.
 message MsgDataCommitmentConfirm {
+  // Signature over the commitment, the range of blocks, the validator address
+  // and the Ethereum address.
   string signature = 1;
+  // Orchestrator account address who will be signing the message.
   string validator_address = 2;
+  // Hex `0x` encoded Ethereum public key that will be used by this validator on
+  // Ethereum.
   string eth_address = 3;
+  // Merkle root over a merkle tree containing the data roots of a set of
+  // blocks.
   string commitment = 4;
+  // First block defining the ordered set of blocks used to create the
+  // commitment.
   int64 begin_block = 5;
+  // Last block defining the ordered set of blocks used to create the
+  // commitment.
   int64 end_block = 6;
 }
 

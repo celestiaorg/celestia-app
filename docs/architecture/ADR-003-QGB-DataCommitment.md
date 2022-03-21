@@ -22,21 +22,25 @@ Thus, they will contain the commitments along the signatures and will be used to
 `MsgDataCommitmentConfirm` describe a data commitment for a set of blocks signed by an orchestrator.
 ```protobuf
 message MsgDataCommitmentConfirm {
+  // Signature over the commitment, the range of blocks, the validator address
+  // and the Ethereum address.
   string signature = 1;
+  // Orchestrator account address who will be signing the message.
   string validator_address = 2;
+  // Hex `0x` encoded Ethereum public key that will be used by this validator on
+  // Ethereum.
   string eth_address = 3;
+  // Merkle root over a merkle tree containing the data roots of a set of
+  // blocks.
   string commitment = 4;
+  // First block defining the ordered set of blocks used to create the
+  // commitment.
   int64 begin_block = 5;
+  // Last block defining the ordered set of blocks used to create the
+  // commitment.
   int64 end_block = 6;
 }
 ```
-It contains:
-- `signature`: the signature over the commitment, the range of blocks, the validator address and the Ethereum address.
-- `validator_address`: the orchestrator account address who will be signing the message.
-- `eth_address`: the hex `0x` encoded Ethereum public key that will be used by this validator on Ethereum.
-- `commitment`: the merkle root over a merkle tree containing the data roots of a set of blocks.
-- `begin_block`: the first block defining the ordered set of blocks used to create the commitment.
-- `end_block`: the last block defining the ordered set of blocks used to create the commitment.
 
 ### Data commitment message processing
 When handling a `MsgDataCommitmentConfirm`, we go for the following:

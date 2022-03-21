@@ -36,41 +36,41 @@ We added the following messages types:
 The `BridgeValidator` represents a validator's ETH address and its power.
 ```protobuf
 message BridgeValidator {
-  uint64 power            = 1;
-  string ethereum_address = 2;
+   // Voting power of the validator.
+   uint64 power = 1;
+   // Ethereum address that will be used by the validator to sign messages.
+   string ethereum_address = 2;
 }
 ```
-It contains:
-- `power`: the voting power of the validator.
-- `ethereum_address`: the Ethereum address that will be used by the validator to sign messages.
 
 #### ValSet
 `Valset` is the Ethereum Bridge Multsig Set, each qgb validator also maintains an ETH key to sign messages, these are used to check signatures on ETH because of the significant gas savings.
 ```protobuf
 message Valset {
-  uint64                   nonce   = 1;
-  repeated BridgeValidator members = 2 [(gogoproto.nullable) = false];
-  uint64                   height  = 3;
+   // Unique number referencing the `ValSet`.
+   uint64 nonce = 1;
+   // List of BridgeValidator containing the current validator set.
+   repeated BridgeValidator members = 2 [ (gogoproto.nullable) = false ];
+   // Current chain height
+   uint64 height = 3;
 }
 ```
-It contains:
-- `nonce`: a unique number referencing the `ValSet`.
-- `BridgeValidator`: a list of [BridgeValidator](#Bridge-Validator) containing the current validator set.
-- `height`: the current chain height.
 
 #### MsgSetOrchestratorAddress
 `MsgSetOrchestratorAddress` allows validators to delegate their voting responsibilities to a given key. This key is then used as an optional authentication method for signing oracle claims.
 ```protobuf
 message MsgSetOrchestratorAddress {
-   string validator    = 1;
+   // The validator field is a celesvaloper1... string (i.e. sdk.ValAddress)
+   // that references a validator in the active set
+   string validator = 1;
+   // The orchestrator field is a celes1... string  (i.e. sdk.AccAddress) that
+   // references the key that is being delegated to
    string orchestrator = 2;
-   string eth_address  = 3;
+   // This is a hex encoded 0x Ethereum public key that will be used by this
+   // validator on Ethereum
+   string eth_address = 3;
 }
 ```
-It contains:
-- `validator`: a `celesvaloper1` address referencing the validator in the current `ValSet`.
-- `orchestrator`: a `celes1` account address referencing the key that is being delegated to.
-- `eth_address`: the hex `0x` encoded Ethereum public key that will be used by this validator on Ethereum.
 
 #### ValSetConfirm
 `MsgValsetConfirm` is the message sent by the validators when they wish to submit their signatures over the validator set at a given block height. A validator must first call `SetOrchestratorAddress` to set their Ethereum address to be used for signing. Then, someone (anyone) must make a `ValsetRequest`, the request is essentially a messaging mechanism to determine which block all validators  should submit signatures over. Finally, validators sign the `validator set`, `powers`, and `Ethereum addresses` of the entire validator set at the height of a `Valset` and submit that signature with this message.
@@ -81,17 +81,18 @@ If a sufficient number of validators (66% of voting power):
 it is then possible for anyone to view these signatures in the chain store and submit them to Ethereum to update the validator set.
 ```protobuf
 message MsgValsetConfirm {
-  uint64 nonce        = 1;
-  string orchestrator = 2;
-  string eth_address  = 3;
-  string signature    = 4;
+   // Unique number referencing the `ValSet`.
+   uint64 nonce = 1;
+   // Orchestrator `celes1` account address.
+   string orchestrator = 2;
+   // Ethereum address, associated to the orchestrator, used to sign the `ValSet`
+   // message.
+   string eth_address = 3;
+   // The `ValSet` message signature.
+   string signature = 4;
 }
+
 ```
-It contains:
-- `nonce`: a unique number referencing the `ValSet`.
-- `orchestrator`: the orchestrator `celes1` account address.
-- `eth_address`: the Ethereum address, associated to the orchestrator, used to sign the `ValSet` message.
-- `signature`: the `ValSet` message signature.
 
 ### ValSetConfirm Processing
 Upon receiving a `MsgValSetConfirm`, we go for the following:
