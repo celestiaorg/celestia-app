@@ -73,7 +73,7 @@ message MsgSetOrchestratorAddress {
 ```
 
 #### ValSetConfirm
-`MsgValsetConfirm` is the message sent by the validators when they wish to submit their signatures over the validator set at a given block height. A validator must first call `SetOrchestratorAddress` to set their Ethereum address to be used for signing. Then, someone (anyone) must make a `ValsetRequest`, the request is essentially a messaging mechanism to determine which block all validators  should submit signatures over. Finally, validators sign the `validator set`, `powers`, and `Ethereum addresses` of the entire validator set at the height of a `Valset` and submit that signature with this message.
+`MsgValsetConfirm` is the message sent by the validators when they wish to submit their signatures over the validator set at a given block height. A validator must first call `SetOrchestratorAddress` to set their Ethereum address to be used for signing. Then, using `EndBlocker()`, the protocol makes a `ValsetRequest`, the request is essentially a messaging mechanism to determine which block all validators should submit signatures over. Finally, validators sign the `validator set`, `powers`, and `Ethereum addresses` of the entire validator set at the height of a `Valset` and submit that signature with this message.
 
 If a sufficient number of validators (66% of voting power):
 - have set Ethereum addresses and,
@@ -92,6 +92,44 @@ message MsgValsetConfirm {
    string signature = 4;
 }
 
+```
+
+### ValSetRequest Handling
+`ValSetRequest`s are created at the `EndBlocker` function:
+```go
+func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
+	...
+}
+```
+
+#### Get latest valset and unbonding height
+We start by getting the latest valset, unbonding height and also initializing the power difference between valsets.
+```go
+	latestValset := k.GetLatestValset(ctx)
+	lastUnbondingHeight := k.GetLastUnBondingBlockHeight(ctx)
+
+	significantPowerDiff := false
+```
+
+#### Check if there was a signification power difference between valsets
+If the previous valset is not null, then we had a previous set of validators defining a certain power.
+We check if the current valset power is significantly different from the previous one. If so, we set the `significantPowerDiff` to true.
+
+The significance of power difference is calculated using a pre-defined constant. Currently, it is `0.05`.
+For more information on the normalization of power, check:
+https://github.com/celestiaorg/celestia-app/blob/df46d122da5f1fab1bd99bfb2bfcf9002f5bc154/x/qgb/types/validator.go#L101
+
+#### Create a ValSet 
+Finally, if one of the following conditions hold:
+- There was no valsets already committed to. 
+- The power difference between the previous valsets and the current one is significant.
+- A validator started unbonding in the current block height.
+We set a new valset request to be signed by the network and ultimately submitted to the QGB contracts.
+```go
+	if (latestValset == nil) || (lastUnbondingHeight == uint64(ctx.BlockHeight())) || significantPowerDiff {
+		// if the conditions are true, put in a new validator set request to be signed and submitted to Ethereum
+		k.SetValsetRequest(ctx)
+	}
 ```
 
 ### ValSetConfirm Processing
@@ -163,7 +201,7 @@ func (k msgServer) confirmHandlerCommon(ctx sdk.Context, ethAddress string, orch
 	return nil
 }
 ```
-And, then check if the signature is a duplicate, i.e. whether another `ValSetConfirm` reflecting the same truth has already been commited to.
+And, then check if the signature is a duplicate, i.e. whether another `ValSetConfirm` reflecting the same truth has already been committed to.
 
 #### Persist the ValSet confirm and emit an event
 Lastly, we persist the `ValSetConfirm` message and broadcast an event:
