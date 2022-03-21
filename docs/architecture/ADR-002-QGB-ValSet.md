@@ -26,7 +26,7 @@ Finally, if there are no validator set updates for the unbonding window, the bri
 1. If there are no valSet requests, create a new one
 2. If there is at least one validator who started unbonding in current block. (we persist last unbonded block height in `hooks.go`)
    This will make sure the unbonding validator has to provide an attestation to a new ValSet
-   that excludes him before he completely Unbonds. Otherwise, he will be slashed.
+   that excludes him before he completely unbonds. Otherwise, he will be slashed.
 3. If power change between validators of CurrentValSet and latest valSet request is > 5%
 
 ### Message types
@@ -73,7 +73,7 @@ message MsgSetOrchestratorAddress {
 ```
 
 #### ValSetConfirm
-`MsgValsetConfirm` is the message sent by the validators when they wish to submit their signatures over the validator set at a given block height. A validator must first call `SetOrchestratorAddress` to set their Ethereum address to be used for signing. Then, using `EndBlocker()`, the protocol makes a `ValsetRequest`, the request is essentially a messaging mechanism to determine which block all validators should submit signatures over. Finally, validators sign the `validator set`, `powers`, and `Ethereum addresses` of the entire validator set at the height of a `Valset` and submit that signature with this message.
+`MsgValsetConfirm` is the message sent by the validators when they wish to submit their signatures over the validator set at a given block height. A validator must first call `SetOrchestratorAddress` to set their Ethereum's address to be used for signing. Then, using `EndBlocker()`, the protocol makes a `ValsetRequest`, the request is essentially a messaging mechanism to determine which block all validators should submit signatures over. Finally, validators sign the `validator set`, `powers`, and `Ethereum addresses` of the entire validator set at the height of a `Valset` and submit that signature with this message.
 
 If a sufficient number of validators (66% of voting power):
 - have set Ethereum addresses and,
