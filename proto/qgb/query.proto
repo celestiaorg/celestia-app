@@ -11,109 +11,133 @@ option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
 // Query defines the gRPC querier service.
 service Query {
-  // DataCommitmentConfirm Queries the data commitment confirm by the commitment and the validator address
-  rpc DataCommitmentConfirm(QueryDataCommitmentConfirmRequest) returns (QueryDataCommitmentConfirmResponse) {
-    option (google.api.http).get = "/qgb/data_commitment/confirm/address/{address}/commitment/{commitment}";
+  // DataCommitmentConfirm Queries the data commitment confirm by the commitment
+  // and the validator address
+  rpc DataCommitmentConfirm(QueryDataCommitmentConfirmRequest)
+      returns (QueryDataCommitmentConfirmResponse) {
+    option (google.api.http).get = "/qgb/data_commitment/confirm/address/"
+                                   "{address}/commitment/{commitment}";
   }
-  // DataCommitmentConfirmsByValidator Queries data commitment confirms by validator address
-  rpc DataCommitmentConfirmsByValidator(QueryDataCommitmentConfirmsByValidatorRequest) returns (QueryDataCommitmentConfirmsByValidatorResponse) {
-    option (google.api.http).get = "/qgb/data_commitment/confirms/address/{address}";
+  // DataCommitmentConfirmsByValidator Queries data commitment confirms by
+  // validator address
+  rpc DataCommitmentConfirmsByValidator(
+      QueryDataCommitmentConfirmsByValidatorRequest)
+      returns (QueryDataCommitmentConfirmsByValidatorResponse) {
+    option (google.api.http).get =
+        "/qgb/data_commitment/confirms/address/{address}";
   }
-  // DataCommitmentConfirms Queries data commitment confirms by the actual commitment
-  rpc DataCommitmentConfirmsByCommitment(QueryDataCommitmentConfirmsByCommitmentRequest) returns (QueryDataCommitmentConfirmsByCommitmentResponse) {
-    option (google.api.http).get = "/qgb/data_commitment/confirms/commitment/{commitment}";
+  // DataCommitmentConfirms Queries data commitment confirms by the actual
+  // commitment
+  rpc DataCommitmentConfirmsByCommitment(
+      QueryDataCommitmentConfirmsByCommitmentRequest)
+      returns (QueryDataCommitmentConfirmsByCommitmentResponse) {
+    option (google.api.http).get =
+        "/qgb/data_commitment/confirms/commitment/{commitment}";
   }
-  // DataCommitmentConfirmsByRange Queries data commitment confirms by a block range
-  rpc DataCommitmentConfirmsByRange(QueryDataCommitmentConfirmsByRangeRequest) returns (QueryDataCommitmentConfirmsByRangeResponse) {
-    option (google.api.http).get = "/qgb/data_commitment/confirms/begin_block/{begin_block}/end_block/{end_block}";
+  // DataCommitmentConfirmsByRange Queries data commitment confirms by a block
+  // range
+  rpc DataCommitmentConfirmsByRange(QueryDataCommitmentConfirmsByRangeRequest)
+      returns (QueryDataCommitmentConfirmsByRangeResponse) {
+    option (google.api.http).get = "/qgb/data_commitment/confirms/begin_block/"
+                                   "{begin_block}/end_block/{end_block}";
   }
 
   // ValsetConfirm Queries ValSetConfirm
-  rpc ValsetConfirm(QueryValsetConfirmRequest) returns (QueryValsetConfirmResponse) {
+  rpc ValsetConfirm(QueryValsetConfirmRequest)
+      returns (QueryValsetConfirmResponse) {
     option (google.api.http).get = "/qgb/valset/confirm";
   }
   // ValsetConfirmsByNonce
-  rpc ValsetConfirmsByNonce(QueryValsetConfirmsByNonceRequest) returns (QueryValsetConfirmsByNonceResponse) {
+  rpc ValsetConfirmsByNonce(QueryValsetConfirmsByNonceRequest)
+      returns (QueryValsetConfirmsByNonceResponse) {
     option (google.api.http).get = "/qgb/confirms/{nonce}";
   }
   // GetDelegateKeyByOrchestrator Queries delegate key by orchestrator
-  rpc GetDelegateKeyByOrchestrator(QueryGetDelegateKeysByOrchestratorAddress) returns (QueryGetDelegateKeyByOrchestratorResponse) {
+  rpc GetDelegateKeyByOrchestrator(QueryGetDelegateKeysByOrchestratorAddress)
+      returns (QueryGetDelegateKeyByOrchestratorResponse) {
     option (google.api.http).get = "/qgb/query_delegate_keys_by_orchestrator";
   }
   // this line is used by starport scaffolding # 2
 }
 
 // QueryValsetConfirmsByNonceRequest
-message QueryValsetConfirmsByNonceRequest {
-  uint64 nonce = 1;
-}
+message QueryValsetConfirmsByNonceRequest { uint64 nonce = 1; }
 
 // QueryValsetConfirmsByNonceResponse
 message QueryValsetConfirmsByNonceResponse {
-  repeated MsgValsetConfirm confirms = 1 [(gogoproto.nullable) = false];
+  repeated MsgValsetConfirm confirms = 1 [ (gogoproto.nullable) = false ];
 }
 
 // QueryValsetConfirmRequest ValSet confirm query request
 message QueryValsetConfirmRequest {
-  uint64 nonce   = 1;
+  uint64 nonce = 1;
   string address = 2;
 }
 
 // QueryValsetConfirmResponse ValSet confirm query response
-message QueryValsetConfirmResponse {
-  MsgValsetConfirm confirm = 1;
-}
+message QueryValsetConfirmResponse { MsgValsetConfirm confirm = 1; }
 
-// QueryGetDelegateKeysByOrchestratorAddress Delegate keys by orchestrator address query request
+// QueryGetDelegateKeysByOrchestratorAddress Delegate keys by orchestrator
+// address query request
 message QueryGetDelegateKeysByOrchestratorAddress {
   string orchestrator_address = 1;
 }
 
-// QueryGetDelegateKeyByOrchestratorResponse Delegate keys by orchestrator address query response
+// QueryGetDelegateKeyByOrchestratorResponse Delegate keys by orchestrator
+// address query response
 message QueryGetDelegateKeyByOrchestratorResponse {
   string validator_address = 1;
-  string eth_address       = 2;
+  string eth_address = 2;
 }
 
-// QueryDataCommitmentConfirmsRequest Data commitment confirm by commitment and validator address request
+// QueryDataCommitmentConfirmsRequest Data commitment confirm by commitment and
+// validator address request
 message QueryDataCommitmentConfirmRequest {
   string commitment = 1;
   string address = 2;
 }
 
-// QueryDataCommitmentConfirmsResponse Data commitment confirm by commitment and validator address response
+// QueryDataCommitmentConfirmsResponse Data commitment confirm by commitment and
+// validator address response
 message QueryDataCommitmentConfirmResponse {
   MsgDataCommitmentConfirm confirm = 1;
 }
 
-// QueryDataCommitmentConfirmsRequest Data commitment confirms by commitment request
+// QueryDataCommitmentConfirmsRequest Data commitment confirms by commitment
+// request
 message QueryDataCommitmentConfirmsByCommitmentRequest {
   string commitment = 1;
 }
 
-// QueryDataCommitmentConfirmsResponse Data commitment confirms by commitment response
+// QueryDataCommitmentConfirmsResponse Data commitment confirms by commitment
+// response
 message QueryDataCommitmentConfirmsByCommitmentResponse {
-  repeated MsgDataCommitmentConfirm confirms = 1 [(gogoproto.nullable) = false];
+  repeated MsgDataCommitmentConfirm confirms = 1
+      [ (gogoproto.nullable) = false ];
 }
 
-// QueryDataCommitmentConfirmsByRangeRequest Data commitment confirms by range request
+// QueryDataCommitmentConfirmsByRangeRequest Data commitment confirms by range
+// request
 message QueryDataCommitmentConfirmsByRangeRequest {
   int64 begin_block = 1;
   int64 end_block = 2;
 }
 
-// QueryDataCommitmentConfirmsByRangeResponse Data commitment confirms by range response
+// QueryDataCommitmentConfirmsByRangeResponse Data commitment confirms by range
+// response
 message QueryDataCommitmentConfirmsByRangeResponse {
-  repeated MsgDataCommitmentConfirm confirms = 1 [(gogoproto.nullable) = false];
+  repeated MsgDataCommitmentConfirm confirms = 1
+      [ (gogoproto.nullable) = false ];
 }
 
-// QueryDataCommitmentConfirmsByValidatorRequest Data commitment confirms by validator address request
-message QueryDataCommitmentConfirmsByValidatorRequest {
-  string address = 1;
-}
+// QueryDataCommitmentConfirmsByValidatorRequest Data commitment confirms by
+// validator address request
+message QueryDataCommitmentConfirmsByValidatorRequest { string address = 1; }
 
-// QueryDataCommitmentConfirmsByValidatorResponse Data commitment confirms by validator address response
+// QueryDataCommitmentConfirmsByValidatorResponse Data commitment confirms by
+// validator address response
 message QueryDataCommitmentConfirmsByValidatorResponse {
-  repeated MsgDataCommitmentConfirm confirms = 1 [(gogoproto.nullable) = false];
+  repeated MsgDataCommitmentConfirm confirms = 1
+      [ (gogoproto.nullable) = false ];
 }
 // this line is used by starport scaffolding # 3

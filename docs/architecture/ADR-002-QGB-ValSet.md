@@ -5,24 +5,19 @@
 - {date}: {changelog}
 
 ## Context
-To accommodate the requirements of the [Quantum Gravity Bridge](https://github.com/celestiaorg/quantum-gravity-bridge/blob/master/ethereum/solidity/src/QuantumGravityBridge.sol),
-We will need to add support for `ValSet`s, i.e. Validator Sets, which reflect the current state of the bridge validators.
+To accommodate the requirements of the [Quantum Gravity Bridge](https://github.com/celestiaorg/quantum-gravity-bridge/blob/master/ethereum/solidity/src/QuantumGravityBridge.sol), We will need to add support for `ValSet`s, i.e. Validator Sets, which reflect the current state of the bridge validators.
 
 ## Decision
 Add the `ValSet` and `ValSetConfirm` type of messages in order to track the state of the validator set.
 
 ## Detailed Design
-Since the QGB is only a one way bridge and is not transferring assets, it doesn't require the portions of the gravity module
-that recreate state from the bridged chain. We only need to keep things relating to signing over the validator set (such as
-`MsgSetOrchestratorAddress` and `MsgValsetConfirm`) and relayer queries (such as `ValsetConfirm` and `GetDelegateKeyByOrchestrator`).
+Since the QGB is only a one way bridge and is not transferring assets, it doesn't require the portions of the gravity module that recreate state from the bridged chain. We only need to keep things relating to signing over the validator set (such as`MsgSetOrchestratorAddress` and `MsgValsetConfirm`) and relayer queries (such as `ValsetConfirm` and `GetDelegateKeyByOrchestrator`).
 
 It works by relying on a set of signers to attest to some event on Celestia: the Celestia validator set.
 
-The QGB contract keeps track of the Celestia validator set by updating its view of the validator set with `updateValidatorSet()`.
-More than 2/3 of the voting power of the current view of the validator set must sign off on new relayed events, submitted with
+The QGB contract keeps track of the Celestia validator set by updating its view of the validator set with `updateValidatorSet()`. More than 2/3 of the voting power of the current view of the validator set must sign off on new relayed events, submitted with
 [`submitDataRootTupleRoot()`](https://github.com/celestiaorg/quantum-gravity-bridge/blob/980b9c68abc34b8d2e4d20ca644b8aa3025a239e/ethereum/solidity/src/QuantumGravityBridge.sol#L328).
-Each event is a batch of `DataRootTuples`, with each tuple representing a single data root (i.e. block header).
-Relayed tuples are in the same order as Celestia block headers.
+Each event is a batch of `DataRootTuples`, with each tuple representing a single data root (i.e. block header). Relayed tuples are in the same order as Celestia block headers.
 For more details, check the data commitment ADR.
 
 Finally, if there are no validator set updates for the unbonding window, the bridge must halt.
@@ -50,8 +45,7 @@ It contains:
 - `ethereum_address`: the Ethereum address that will be used by the validator to sign messages.
 
 #### ValSet
-`Valset` is the Ethereum Bridge Multsig Set, each qgb validator also maintains an ETH key
-to sign messages, these are used to check signatures on ETH because of the significant gas savings.
+`Valset` is the Ethereum Bridge Multsig Set, each qgb validator also maintains an ETH key to sign messages, these are used to check signatures on ETH because of the significant gas savings.
 ```protobuf
 message Valset {
   uint64                   nonce   = 1;
@@ -65,9 +59,7 @@ It contains:
 - `height`: the current chain height.
 
 #### MsgSetOrchestratorAddress
-`MsgSetOrchestratorAddress` allows validators to delegate their voting responsibilities
-to a given key. This key is then used as an optional authentication method for signing
-oracle claims.
+`MsgSetOrchestratorAddress` allows validators to delegate their voting responsibilities to a given key. This key is then used as an optional authentication method for signing oracle claims.
 ```protobuf
 message MsgSetOrchestratorAddress {
    string validator    = 1;
@@ -81,19 +73,12 @@ It contains:
 - `eth_address`: the hex `0x` encoded Ethereum public key that will be used by this validator on Ethereum.
 
 #### ValSetConfirm
-`MsgValsetConfirm` is the message sent by the validators when they wish to submit their signatures
-over the validator set at a given block height. A validator must first call `MsgSetEthAddress` to
-set their Ethereum address to be used for signing.
-Then, someone (anyone) must make a `ValsetRequest`, the request is essentially a messaging mechanism
-to determine which block all validators  should submit signatures over. Finally, validators sign
-the `validator set`, `powers`, and `Ethereum addresses` of the entire validator set at the height
-of a `Valset` and submit that signature with this message.
+`MsgValsetConfirm` is the message sent by the validators when they wish to submit their signatures over the validator set at a given block height. A validator must first call `SetOrchestratorAddress` to set their Ethereum address to be used for signing. Then, someone (anyone) must make a `ValsetRequest`, the request is essentially a messaging mechanism to determine which block all validators  should submit signatures over. Finally, validators sign the `validator set`, `powers`, and `Ethereum addresses` of the entire validator set at the height of a `Valset` and submit that signature with this message.
 
 If a sufficient number of validators (66% of voting power):
 - have set Ethereum addresses and,
 - submit `ValsetConfirm` messages with their signatures,
-it is then possible for anyone to view these signatures in the chain store and submit them 
-to Ethereum to update the validator set.
+it is then possible for anyone to view these signatures in the chain store and submit them to Ethereum to update the validator set.
 ```protobuf
 message MsgValsetConfirm {
   uint64 nonce        = 1;
@@ -112,8 +97,7 @@ It contains:
 Upon receiving a `MsgValSetConfirm`, we go for the following:
 
 #### ValSet check
-We start off by checking if the `ValSet` referenced by the provided `nonce` exists. If so, we 
-get it. If not, we return an error:
+We start off by checking if the `ValSet` referenced by the provided `nonce` exists. If so, we get it. If not, we return an error:
 ```go
 	valset := k.GetValset(ctx, msg.Nonce)
 	if valset == nil {
@@ -130,8 +114,7 @@ orchaddr, err := sdk.AccAddressFromBech32(msg.Orchestrator)
 	}
 ```
 
-Then, we verify if the signature is well-formed, and it is signed using a private key whose address
-is the one sent in the request:
+Then, we verify if the signature is well-formed, and it is signed using a private key whose address is the one sent in the request:
 ```go
     err = k.confirmHandlerCommon(ctx, msg.EthAddress, msg.Orchestrator, msg.Signature)
 	if err != nil {
@@ -179,8 +162,7 @@ func (k msgServer) confirmHandlerCommon(ctx sdk.Context, ethAddress string, orch
 	return nil
 }
 ```
-And, then check if the signature is a duplicate, i.e. whether another `ValSetConfirm` reflecting the same 
-truth has already been commited to.
+And, then check if the signature is a duplicate, i.e. whether another `ValSetConfirm` reflecting the same truth has already been commited to.
 
 #### Persist the ValSet confirm and emit an event
 Lastly, we persist the `ValSetConfirm` message and broadcast an event:
