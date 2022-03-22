@@ -21,7 +21,7 @@ const (
 
 	// ethereum signing
 	privateKeyFlag = "eth-priv-key"
-	bridgeID       = "bridge-id"
+	bridgeIDFlag   = "bridge-id"
 	evnChainIDFlag = "evm-chain-id"
 
 	// rpc
@@ -38,7 +38,7 @@ func addOrchestratorFlags(cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().StringP(keyringAccountName, "name", "user", "Specify the account name used with the keyring")
 	cmd.Flags().StringP(privateKeyFlag, "priv", "", "Provide the private key used to sign relayed evm transactions or to sign orchestrator commitments")
 	cmd.Flags().StringP(chainIDFlag, "cid", "user", "Specify the celestia chain id")
-	cmd.Flags().StringP(bridgeID, "bid", "universal", "Specify the bridge id")
+	cmd.Flags().StringP(bridgeIDFlag, "bid", "universal", "Specify the bridge id")
 	cmd.Flags().Uint64P(evnChainIDFlag, "eid", 5, "Specify the evm chain id")
 
 	cmd.Flags().StringP(celesGRPCFlag, "cRPC", "tcp://localhost:9090", "Specify the grpc address")
@@ -88,7 +88,7 @@ func parseOrchestratorFlags(cmd *cobra.Command) (config, error) {
 	if err != nil {
 		return config{}, err
 	}
-	rawBridgeID, err := cmd.Flags().GetString(bridgeID)
+	rawBridgeID, err := cmd.Flags().GetString(bridgeIDFlag)
 	if err != nil {
 		return config{}, err
 	}

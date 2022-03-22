@@ -1,13 +1,14 @@
 package orchestrator
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"math/big"
 	"strings"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	wrappers "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	ethcmn "github.com/ethereum/go-ethereum/common"
@@ -19,7 +20,7 @@ var qgbContractABI abi.ABI
 func init() {
 	// error case here should not occur outside of testing since the above is a constant
 	// todo: update the abi used
-	contractAbi, abiErr := abi.JSON(strings.NewReader(wrappers.QuantumGravityBridgeMetaData.ABI))
+	contractAbi, abiErr := abi.JSON(strings.NewReader(wrapper.QuantumGravityBridgeMetaData.ABI))
 	if abiErr != nil {
 		log.Fatalln("bad ABI constant")
 	}
@@ -90,6 +91,41 @@ func EncodeDataCommitmentConfirm(bridgeID common.Hash, nonce *big.Int, commitmen
 	// then need to adjust how many bytes you truncate off the front to get the output of abi.encode()
 	hash := crypto.Keccak256Hash(bytes[4:])
 	return hash
+}
+
+var (
+	solValidatorType, _ = abi.NewType("Validator", "validator", []abi.ArgumentMarshaling{
+		{Name: "addr", Type: "address"},
+		{Name: "power", Type: "uint256"},
+	})
+
+	args = abi.Arguments{
+		{Type: solValidatorType, Name: "validator"},
+	}
+)
+
+func ComputeValSetHash(vals types.Valset) (ethcmn.Hash, error) {
+	rawVals := make([][]byte, len(vals.Members))
+	for i, val := range vals.Members {
+		solVal := wrapper.Validator{
+			Addr:  ethcmn.HexToAddress(val.EthereumAddress),
+			Power: big.NewInt(int64(val.Power)),
+		}
+		rawVal, err := args.Pack(&solVal)
+		if err != nil {
+			return ethcmn.Hash{}, err
+		}
+		rawVals[i] = rawVal
+	}
+
+	combinedVals := bytes.Join(rawVals, nil)
+
+	rawValSetHash := crypto.Keccak256(combinedVals)
+
+	var valSetHash ethcmn.Hash
+	copy(valSetHash[:], rawValSetHash)
+
+	return valSetHash, nil
 }
 
 const (

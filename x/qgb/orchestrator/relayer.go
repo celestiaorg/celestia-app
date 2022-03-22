@@ -362,7 +362,7 @@ func matchValsetConfirmSigs(confirms []types.MsgValsetConfirm, valset types.Vals
 			return nil, fmt.Errorf("missing orchestrator eth address: %s", c.EthAddress)
 		}
 
-		v, r, s := sigToVRS(sig)
+		v, r, s := SigToVRS(sig)
 
 		sigs[i] = wrapper.Signature{
 			V: v,
@@ -386,7 +386,7 @@ func matchDataCommitmentConfirmSigs(confirms []types.MsgDataCommitmentConfirm, v
 			return nil, fmt.Errorf("missing orchestrator eth address: %s", c.EthAddress)
 		}
 
-		v, r, s := sigToVRS(sig)
+		v, r, s := SigToVRS(sig)
 
 		sigs[i] = wrapper.Signature{
 			V: v,
@@ -397,7 +397,7 @@ func matchDataCommitmentConfirmSigs(confirms []types.MsgDataCommitmentConfirm, v
 	return sigs, nil
 }
 
-func sigToVRS(sigHex string) (v uint8, r, s common.Hash) {
+func SigToVRS(sigHex string) (v uint8, r, s common.Hash) {
 	signatureBytes := common.FromHex(sigHex)
 	vParam := signatureBytes[64]
 	if vParam == byte(0) {

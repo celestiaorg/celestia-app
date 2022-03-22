@@ -101,7 +101,6 @@ func (oc *orchestrator) orchestrateValsetChanges(ctx context.Context) error {
 			}
 		}
 	}
-	return nil
 }
 
 func (oc *client) stop() {

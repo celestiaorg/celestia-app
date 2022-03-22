@@ -56,19 +56,13 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, ev rpctypes.Res
 		}
 
 		valset := lastValsetResp.Valsets[0]
-		height := int64(valset.Height)
 
-		// we need the validator set hash for this height.
-		blockRes, err := oc.tendermintRPC.Block(ctx, &height)
+		valSetHash, err := ComputeValSetHash(valset)
 		if err != nil {
 			return err
 		}
 
-		rawVSHash := blockRes.Block.Header.ValidatorsHash.Bytes()
-		var ethVSHash ethcmn.Hash
-		copy(ethVSHash[:], rawVSHash)
-
-		signBytes := EncodeValsetConfirm(oc.bridgeID, &valset, ethVSHash)
+		signBytes := EncodeValsetConfirm(oc.bridgeID, &valset, valSetHash)
 
 		signature, err := oc.personalSignerFn(oc.evmAddress, signBytes.Bytes())
 		if err != nil {
