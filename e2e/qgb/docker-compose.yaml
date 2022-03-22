@@ -1,0 +1,136 @@
+version: '3'
+
+services:
+  core0:
+    container_name: core0
+    build:
+      context: ../..
+      args:
+        CELESTIA_HOME_DIR: /opt
+    environment:
+      - MY_VAL_ADDRESS=celes1d9qrpq56t765g9umqwhvey3vn25fcmf8f6yeyx
+      - DALC_ADDRESS=celes1dm7fp7uwrr5y68v48gg8jhd2cku7vt7f4l8w0s
+    command: [
+        "/opt/celestia-appd",
+        "start", "--home", "/opt",
+        "--moniker", "core0",
+        "--p2p.persistent_peers",
+      # Core1
+        "8d63f92a4de96c749a6d51645d9fe3893fd73687@172.0.10.3:26656",
+      # Core2
+#        "015803505e1aa9b25e9360cebbef3f3f437dfc60@172.0.10.4:26656",
+      # Core3
+        "27647373272190e55ebdfbb1dfa6ccfbd3f21d64@172.0.10.5:26656",
+        "--rpc.laddr", "tcp://0.0.0.0:26657"
+    ]
+    volumes:
+      - ${PWD}/celestia-app/core0/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
+      - ${PWD}/celestia-app/core0/config/node_key.json:/opt/config/node_key.json:ro
+      - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
+      - ${PWD}/celestia-app/core0/keyring-test:/opt/keyring-test:ro
+      - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
+    networks:
+      localnet:
+        ipv4_address: 172.0.10.2
+
+  core1:
+    container_name: core1
+    build:
+      context: ../..
+      args:
+        CELESTIA_HOME_DIR: /opt
+    environment:
+      - MY_VAL_ADDRESS=celes1e5yt4l20alra9gtl4d9uncc4lm23zdxsjqhmsz
+    command: [
+        "/opt/celestia-appd",
+        "start", "--home", "/opt",
+        "--moniker", "core1",
+        "--p2p.persistent_peers",
+      # Core0
+        "af063288498ed84bec45f99b4280b18d2ca0dea7@172.0.10.2:26656",
+      # Core2
+#        "015803505e1aa9b25e9360cebbef3f3f437dfc60@172.0.10.4:26656",
+      # Core3
+        "27647373272190e55ebdfbb1dfa6ccfbd3f21d64@172.0.10.5:26656",
+        "--rpc.laddr", "tcp://0.0.0.0:26657"
+    ]
+    volumes:
+      - ${PWD}/celestia-app/core1/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
+      - ${PWD}/celestia-app/core1/config/node_key.json:/opt/config/node_key.json:ro
+      - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
+      - ${PWD}/celestia-app/core1/keyring-test:/opt/keyring-test:ro
+      - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
+    networks:
+      localnet:
+        ipv4_address: 172.0.10.3
+
+#  core2:
+#    container_name: core2
+#    build:
+#      context: ../..
+#      args:
+#        CELESTIA_HOME_DIR: /opt
+#    environment:
+#      - MY_VAL_ADDRESS=celes1qqan0fj73dhqfgwkuuh4qj2e77g4tugkrhy2jn
+#    command: [
+#        "/opt/celestia-appd",
+#        "start", "--home", "/opt",
+#        "--moniker", "core2",
+#        "--p2p.persistent_peers",
+#      # Core0
+#        "af063288498ed84bec45f99b4280b18d2ca0dea7@172.0.10.2:26656",
+#      # Core1
+#        "8d63f92a4de96c749a6d51645d9fe3893fd73687@172.0.10.3:26656",
+#      # Core3
+#        "27647373272190e55ebdfbb1dfa6ccfbd3f21d64@172.0.10.5:26656",
+#        "--rpc.laddr", "tcp://0.0.0.0:26657"
+#    ]
+#    volumes:
+#      - ${PWD}/celestia-app/core2/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
+#      - ${PWD}/celestia-app/core2/config/node_key.json:/opt/config/node_key.json:ro
+#      - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
+#      - ${PWD}/celestia-app/core2/keyring-test:/opt/keyring-test:ro
+#      - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
+#    networks:
+#      localnet:
+#        ipv4_address: 172.0.10.4
+
+  core3:
+    container_name: core3
+    build:
+      context: ../..
+      args:
+        CELESTIA_HOME_DIR: /opt
+    environment:
+      - MY_VAL_ADDRESS=celes1gf9hty6c0pwp7h763lz5gf4hng55prscdv8q79
+    command: [
+        "/opt/celestia-appd",
+        "start", "--home", "/opt",
+        "--moniker", "core3",
+        "--p2p.persistent_peers",
+      # Core0
+        "af063288498ed84bec45f99b4280b18d2ca0dea7@172.0.10.2:26656",
+      # Core1
+        "8d63f92a4de96c749a6d51645d9fe3893fd73687@172.0.10.3:26656",
+      # Core 2
+#        "015803505e1aa9b25e9360cebbef3f3f437dfc60@172.0.10.4:26656",
+        "--rpc.laddr", "tcp://0.0.0.0:26657"
+    ]
+    volumes:
+      - ${PWD}/celestia-app/core3/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
+      - ${PWD}/celestia-app/core3/config/node_key.json:/opt/config/node_key.json:ro
+      - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
+      - ${PWD}/celestia-app/core3/keyring-test:/opt/keyring-test:ro
+      - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
+    networks:
+      localnet:
+        ipv4_address: 172.0.10.5
+
+networks:
+  localnet:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        -
+          subnet: 172.0.10.0/16

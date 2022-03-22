@@ -10,8 +10,8 @@ jobs:
   docker-build:
     runs-on: "ubuntu-latest"
     permissions:
-      contents: write 
-      packages: write 
+      contents: write
+      packages: write
     steps:
       - name: "Checkout source code"
         uses: "actions/checkout@v2"
@@ -37,3 +37,7 @@ jobs:
           push: true
           tags: ghcr.io/celestiaorg/celestia-app:latest
           file: docker/Dockerfile
+          build-args: |
+            CELESTIA_HOME_DIR=/opt
+          
+
