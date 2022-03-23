@@ -397,22 +397,6 @@ func matchDataCommitmentConfirmSigs(confirms []types.MsgDataCommitmentConfirm, v
 	return sigs, nil
 }
 
-func SigToVRS(sigHex string) (v uint8, r, s common.Hash) {
-	signatureBytes := common.FromHex(sigHex)
-	vParam := signatureBytes[64]
-	if vParam == byte(0) {
-		vParam = byte(27)
-	} else if vParam == byte(1) {
-		vParam = byte(28)
-	}
-
-	v = vParam
-	r = common.BytesToHash(signatureBytes[0:32])
-	s = common.BytesToHash(signatureBytes[32:64])
-
-	return
-}
-
 func ethValset(valset types.Valset) ([]wrapper.Validator, error) {
 	ethVals := make([]wrapper.Validator, len(valset.Members))
 	for i, v := range valset.Members {
