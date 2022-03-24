@@ -70,6 +70,9 @@ func (s *QGBTestSuite) SetupTest() {
 	vsHash, err := orchestrator.ComputeValSetHash(valSet)
 	s.NoError(err)
 
+	// initialCheckpoint, err := orchestrator.ValsetSignBytes(bID, initialValSet)
+	// s.NoError(err)
+
 	genBal := &big.Int{}
 	genBal.SetString("999999999999999999999999999999999999999999", 20)
 
@@ -83,7 +86,7 @@ func (s *QGBTestSuite) SetupTest() {
 		s.auth,
 		s.sim,
 		bID,
-		big.NewInt(int64(valSet.Members[0].Power)),
+		big.NewInt(int64(initialValSet.TwoThirdsThreshold())),
 		vsHash,
 	)
 	fmt.Println("qgb contract deployed", contractAddress.Hex())
@@ -100,7 +103,8 @@ func (s *QGBTestSuite) SetupTest() {
 func (s *QGBTestSuite) TestEncodeValset() {
 	vsHash, err := orchestrator.ComputeValSetHash(initialValSet)
 	s.NoError(err)
-	signBytes := orchestrator.EncodeValsetConfirm(bID, &initialValSet, vsHash)
+	signBytes, err := orchestrator.ValsetSignBytes(bID, initialValSet)
+	s.NoError(err)
 	signature, err := s.pSigner(s.address, signBytes.Bytes())
 	s.NoError(err)
 
@@ -113,8 +117,6 @@ func (s *QGBTestSuite) TestEncodeValset() {
 	}
 
 	s.NoError(err)
-
-	s.auth.NoSend = true
 
 	v, r, ss := orchestrator.SigToVRS(hexSig)
 	tx, err := s.wrapper.UpdateValidatorSet(

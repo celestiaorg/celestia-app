@@ -15,6 +15,10 @@ import (
 )
 
 const (
+	// ethSignPrefix is used to mimic the expected encoding. see
+	// https://github.com/OpenZeppelin/openzeppelin-contracts/blob/c9f328ef66251db7fac7c704dd6c5523fc53b0ab/contracts/cryptography/ECDSA.sol#L69-L82 //nolint:lll
+	ethSignPrefix = "\x19Ethereum Signed Message:\n32"
+
 	// internalQGBABIJSON is the json encoded abi for private functions in the
 	// qgb contract. This is needed to encode data that is signed over in a way
 	// that the contracts can easily verify.
@@ -124,6 +128,10 @@ const (
 			"type": "function"
 			}
 		]`
+
+	// Domain separator constants copied directly from the contracts
+	ValidatorSetDomainSeparator   = "0x636865636b706f696e7400000000000000000000000000000000000000000000"
+	DataCommitmentDomainSeparator = "0x7472616e73616374696f6e426174636800000000000000000000000000000000"
 )
 
 var (
@@ -131,8 +139,8 @@ var (
 	internalQGBABI abi.ABI
 	validatorArgs  abi.Arguments
 
-	transactionBatch [32]uint8
-	checkpoint       [32]uint8
+	VsDomainSeparator ethcmn.Hash
+	DcDomainSeparator ethcmn.Hash
 )
 
 func init() {
@@ -160,26 +168,28 @@ func init() {
 		{Type: solValidatorType, Name: "Validator"},
 	}
 
-	// create the domain separator for transaction hashes
-	transactionBatchBytes := []uint8("transactionBatch")
-	copy(transactionBatch[:], transactionBatchBytes)
-
 	// create the domain separator for valset hashes
-	checkpointBytes := []uint8("checkpoint")
-	copy(checkpoint[:], checkpointBytes)
+	VsDomainSeparator = ethcmn.HexToHash(ValidatorSetDomainSeparator)
+	DcDomainSeparator = ethcmn.HexToHash(DataCommitmentDomainSeparator)
+
 }
 
-// EncodeValsetConfirm takes the required input data and produces the required signature to confirm a validator
+// ValsetSignBytes takes the required input data and produces the required signature to confirm a validator
 // set update on the Peggy Ethereum contract. This value will then be signed before being
 // submitted to Cosmos, verified, and then relayed to Ethereum
-func EncodeValsetConfirm(bridgeID common.Hash, valset *types.Valset, vsHash ethcmn.Hash) common.Hash {
+func ValsetSignBytes(bridgeID common.Hash, valset types.Valset) (common.Hash, error) {
+	vsHash, err := ComputeValSetHash(valset)
+	if err != nil {
+		return ethcmn.Hash{}, err
+	}
+
 	// the word 'checkpoint' needs to be the same as the 'name' above in the checkpointAbiJson
 	// but other than that it's a constant that has no impact on the output. This is because
 	// it gets encoded as a function name which we must then discard.
 	bytes, err := internalQGBABI.Pack(
 		"domainSeparateValidatorSetHash",
 		bridgeID,
-		checkpoint,
+		VsDomainSeparator,
 		big.NewInt(int64(valset.Nonce)),
 		big.NewInt(int64(valset.TwoThirdsThreshold())),
 		vsHash,
@@ -190,15 +200,12 @@ func EncodeValsetConfirm(bridgeID common.Hash, valset *types.Valset, vsHash ethc
 		panic(fmt.Sprintf("Error packing checkpoint! %s/n", err))
 	}
 
-	// we hash the resulting encoded bytes discarding the first 4 bytes these 4 bytes are the constant
-	// method name 'checkpoint'. If you where to replace the checkpoint constant in this code you would
-	// then need to adjust how many bytes you truncate off the front to get the output of abi.encode()
-	// TODO: do we need this [4:]?
 	hash := crypto.Keccak256Hash(bytes[4:])
-	return hash
+
+	return ethSignBytes(hash), nil
 }
 
-// EncodeValsetConfirm takes the required input data and produces the required signature to confirm a validator
+// EncodeDomainSeparatedDataCommitment takes the required input data and produces the required signature to confirm a validator
 // set update on the Peggy Ethereum contract. This value will then be signed before being
 // submitted to Cosmos, verified, and then relayed to Ethereum
 func EncodeDataCommitmentConfirm(bridgeID common.Hash, nonce *big.Int, commitment []byte) common.Hash {
@@ -211,7 +218,7 @@ func EncodeDataCommitmentConfirm(bridgeID common.Hash, nonce *big.Int, commitmen
 	bytes, err := internalQGBABI.Pack(
 		"domainSeparateDataRootTupleRoot",
 		bridgeID,
-		transactionBatch,
+		DcDomainSeparator,
 		nonce,
 		dataCommitment,
 	)
@@ -224,33 +231,11 @@ func EncodeDataCommitmentConfirm(bridgeID common.Hash, nonce *big.Int, commitmen
 	// we hash the resulting encoded bytes discarding the first 4 bytes these 4 bytes are the constant
 	// method name 'checkpoint'. If you where to replace the checkpoint constant in this code you would
 	// then need to adjust how many bytes you truncate off the front to get the output of abi.encode()
-	hash := crypto.Keccak256Hash(bytes)
-	return hash
+	hash := crypto.Keccak256Hash(bytes[4:])
+	return ethSignBytes(hash)
 }
 
 func ComputeValSetHash(vals types.Valset) (ethcmn.Hash, error) {
-	// rawVals := make([][]byte, len(vals.Members))
-	// for i, val := range vals.Members {
-	// 	solVal := wrapper.Validator{
-	// 		Addr:  ethcmn.HexToAddress(val.EthereumAddress),
-	// 		Power: big.NewInt(int64(val.Power)),
-	// 	}
-	// 	rawVal, err := validatorArgs.Pack(solVal)
-	// 	if err != nil {
-	// 		return ethcmn.Hash{}, err
-	// 	}
-	// 	rawVals[i] = rawVal
-	// }
-
-	// combinedVals := bytes.Join(rawVals, nil)
-
-	// rawValSetHash := crypto.Keccak256(combinedVals)
-
-	// var valSetHash ethcmn.Hash
-	// copy(valSetHash[:], rawValSetHash)
-
-	// return valSetHash, nil
-
 	ethVals := make([]wrapper.Validator, len(vals.Members))
 	for i, val := range vals.Members {
 		ethVals[i] = wrapper.Validator{
@@ -264,7 +249,13 @@ func ComputeValSetHash(vals types.Valset) (ethcmn.Hash, error) {
 		return ethcmn.Hash{}, err
 	}
 
-	return crypto.Keccak256Hash(encodedVals), nil
+	return crypto.Keccak256Hash(encodedVals[4:]), nil
+}
+
+func ethSignBytes(hash ethcmn.Hash) ethcmn.Hash {
+	packedABIEncoding := []byte(ethSignPrefix)
+	packedABIEncoding = append(packedABIEncoding, hash[:]...)
+	return crypto.Keccak256Hash(packedABIEncoding)
 }
 
 // SigToVRS breaks apart a signature into its components to make it compatible with the contracts

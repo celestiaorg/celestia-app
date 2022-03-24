@@ -57,12 +57,10 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, ev rpctypes.Res
 
 		valset := lastValsetResp.Valsets[0]
 
-		valSetHash, err := ComputeValSetHash(valset)
+		signBytes, err := ValsetSignBytes(oc.bridgeID, valset)
 		if err != nil {
 			return err
 		}
-
-		signBytes := EncodeValsetConfirm(oc.bridgeID, &valset, valSetHash)
 
 		signature, err := oc.personalSignerFn(oc.evmAddress, signBytes.Bytes())
 		if err != nil {
