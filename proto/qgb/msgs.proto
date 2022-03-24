@@ -8,16 +8,20 @@ option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
 // Msg defines the state transitions possible for QGB
 service Msg {
-  // ValsetConfirm allows the validators to submit their signatures over the validator set.
+  // ValsetConfirm allows the validators to submit their signatures over the
+  // validator set.
   rpc ValsetConfirm(MsgValsetConfirm) returns (MsgValsetConfirmResponse) {
     option (google.api.http).post = "/qgb/valset_confirm";
   }
-  // DataCommitmentConfirm allows the validators to submit a confirmation for a data commitment.
-  rpc DataCommitmentConfirm(MsgDataCommitmentConfirm) returns (MsgDataCommitmentConfirmResponse) {
+  // DataCommitmentConfirm allows the validators to submit a confirmation for a
+  // data commitment.
+  rpc DataCommitmentConfirm(MsgDataCommitmentConfirm)
+      returns (MsgDataCommitmentConfirmResponse) {
     option (google.api.http).post = "/qgb/data_commitment_confirm";
   }
   // SetOrchestratorAddress allows to set the orchestrator address
-  rpc SetOrchestratorAddress(MsgSetOrchestratorAddress) returns (MsgSetOrchestratorAddressResponse) {
+  rpc SetOrchestratorAddress(MsgSetOrchestratorAddress)
+      returns (MsgSetOrchestratorAddressResponse) {
     option (google.api.http).post = "/qgb/set_orchestrator_address";
   }
 }
@@ -29,13 +33,13 @@ service Msg {
 message MsgSetOrchestratorAddress {
   // The validator field is a celesvaloper1... string (i.e. sdk.ValAddress)
   // that references a validator in the active set
-  string validator    = 1;
+  string validator = 1;
   // The orchestrator field is a celes1... string  (i.e. sdk.AccAddress) that
   // references the key that is being delegated to
   string orchestrator = 2;
-  // This is a hex encoded 0x Ethereum public key that will be used by this validator
-  // on Ethereum
-  string eth_address  = 3;
+  // This is a hex encoded 0x Ethereum public key that will be used by this
+  // validator on Ethereum
+  string eth_address = 3;
 }
 
 // MsgSetOrchestratorAddressResponse
@@ -57,10 +61,15 @@ message MsgSetOrchestratorAddressResponse {}
 // chain store and submit them to Ethereum to update the validator set
 // -------------
 message MsgValsetConfirm {
-  uint64 nonce        = 1;
+  // Unique number referencing the `ValSet`.
+  uint64 nonce = 1;
+  // Orchestrator `celes1` account address.
   string orchestrator = 2;
-  string eth_address  = 3;
-  string signature    = 4;
+  // Ethereum address, associated to the orchestrator, used to sign the `ValSet`
+  // message.
+  string eth_address = 3;
+  // The `ValSet` message signature.
+  string signature = 4;
 }
 
 // MsgValsetConfirmResponse describes the response returned after the submission
@@ -69,11 +78,22 @@ message MsgValsetConfirmResponse {}
 
 // MsgDataCommitmentConfirm describes a data commitment for a set of blocks.
 message MsgDataCommitmentConfirm {
+  // Signature over the commitment, the range of blocks, the validator address
+  // and the Ethereum address.
   string signature = 1;
+  // Orchestrator account address who will be signing the message.
   string validator_address = 2;
+  // Hex `0x` encoded Ethereum public key that will be used by this validator on
+  // Ethereum.
   string eth_address = 3;
+  // Merkle root over a merkle tree containing the data roots of a set of
+  // blocks.
   string commitment = 4;
+  // First block defining the ordered set of blocks used to create the
+  // commitment.
   int64 begin_block = 5;
+  // Last block defining the ordered set of blocks used to create the
+  // commitment.
   int64 end_block = 6;
 }
 
