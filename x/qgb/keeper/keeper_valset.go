@@ -135,7 +135,7 @@ func (k Keeper) GetValsets(ctx sdk.Context) (out []types.Valset) {
 }
 
 // GetLatestValset returns the latest validator set in store. This is different
-// from the CurrrentValset because this one has been saved and is therefore *the* valset
+// from the CurrentValset because this one has been saved and is therefore *the* valset
 // for this nonce. GetCurrentValset shows you what could be, if you chose to save it, this function
 // shows you what is the latest valset that was saved.
 func (k Keeper) GetLatestValset(ctx sdk.Context) (out *types.Valset) {
@@ -152,7 +152,7 @@ func (k Keeper) SetLastUnBondingBlockHeight(ctx sdk.Context, unbondingBlockHeigh
 }
 
 // GetLastUnBondingBlockHeight returns the last unbonding block height, returns zero if not set, this is not
-// saved or loaded ing enesis and is reset to zero on chain upgrade
+// saved or loaded in genesis and is reset to zero on chain upgrade
 func (k Keeper) GetLastUnBondingBlockHeight(ctx sdk.Context) uint64 {
 	store := ctx.KVStore(k.storeKey)
 	bytes := store.Get([]byte(types.LastUnBondingBlockHeight))

@@ -5,7 +5,9 @@ option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
 // BridgeValidator represents a validator's ETH address and its power
 message BridgeValidator {
-  uint64 power            = 1;
+  // Voting power of the validator.
+  uint64 power = 1;
+  // Ethereum address that will be used by the validator to sign messages.
   string ethereum_address = 2;
 }
 
@@ -13,7 +15,10 @@ message BridgeValidator {
 // maintains an ETH key to sign messages, these are used to check signatures on
 // ETH because of the significant gas savings
 message Valset {
-  uint64                   nonce   = 1;
-  repeated BridgeValidator members = 2 [(gogoproto.nullable) = false];
-  uint64                   height  = 3;
+  // Unique number referencing the `ValSet`.
+  uint64 nonce = 1;
+  // List of BridgeValidator containing the current validator set.
+  repeated BridgeValidator members = 2 [ (gogoproto.nullable) = false ];
+  // Current chain height
+  uint64 height = 3;
 }
