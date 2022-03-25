@@ -201,14 +201,13 @@ func ValsetSignBytes(bridgeID common.Hash, valset types.Valset) (common.Hash, er
 	}
 
 	hash := crypto.Keccak256Hash(bytes[4:])
-
-	return ethSignBytes(hash), nil
+	return hash, nil
 }
 
 // EncodeDomainSeparatedDataCommitment takes the required input data and produces the required signature to confirm a validator
 // set update on the Peggy Ethereum contract. This value will then be signed before being
 // submitted to Cosmos, verified, and then relayed to Ethereum
-func EncodeDataCommitmentConfirm(bridgeID common.Hash, nonce *big.Int, commitment []byte) common.Hash {
+func DataCommitmentTupleRootSignBytes(bridgeID common.Hash, nonce *big.Int, commitment []byte) common.Hash {
 	var dataCommitment [32]uint8
 	copy(dataCommitment[:], commitment)
 
@@ -232,7 +231,7 @@ func EncodeDataCommitmentConfirm(bridgeID common.Hash, nonce *big.Int, commitmen
 	// method name 'checkpoint'. If you where to replace the checkpoint constant in this code you would
 	// then need to adjust how many bytes you truncate off the front to get the output of abi.encode()
 	hash := crypto.Keccak256Hash(bytes[4:])
-	return ethSignBytes(hash)
+	return hash
 }
 
 func ComputeValSetHash(vals types.Valset) (ethcmn.Hash, error) {

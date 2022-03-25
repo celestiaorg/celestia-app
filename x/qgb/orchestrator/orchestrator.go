@@ -134,14 +134,14 @@ func (oc *orchestrator) processDataCommitmentEvents(ctx context.Context, window 
 		return err
 	}
 
-	nonce, err := oc.wrapper.StateLastMessageTupleRootNonce(&bind.CallOpts{})
+	nonce, err := oc.wrapper.StateLastDataRootTupleRootNonce(&bind.CallOpts{})
 	if err != nil {
 		return err
 	}
 
 	nonce.Add(nonce, big.NewInt(1))
 
-	dataRootHash := EncodeDataCommitmentConfirm(oc.bridgeID, nonce, dcResp.DataCommitment)
+	dataRootHash := DataCommitmentTupleRootSignBytes(oc.bridgeID, nonce, dcResp.DataCommitment)
 
 	dcSig, err := oc.personalSignerFn(oc.evmAddress, dataRootHash.Bytes())
 	if err != nil {

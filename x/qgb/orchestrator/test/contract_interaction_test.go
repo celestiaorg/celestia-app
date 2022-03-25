@@ -1,7 +1,6 @@
 package test
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"math/big"
@@ -11,27 +10,29 @@ import (
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
 	"github.com/celestiaorg/quantum-gravity-bridge/orchestrator/ethereum/keystore"
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/suite"
 )
 
+const (
+	testAddr  = "9c2B12b5a07FC6D719Ed7646e5041A7E85758329"
+	testPriv  = "64a1d6f0e760a8d62b4afdde4096f16f51b401eaaecc915740f71770ea76a8ad"
+	testAddr2 = "e650B084f05C6194f6e552e3b9f08718Bc8a9d56"
+	testPriv2 = "6e8bdfa979ab645b41c4d17cb1329b2a44684c82b61b1b060ea9b6e1c927a4f4"
+)
+
 var (
-	bID           = ethcmn.HexToHash("0x13370000000000000000000000000000")
+	bID           = ethcmn.HexToHash(orchestrator.ValidatorSetDomainSeparator)
 	initialValSet types.Valset
 )
 
 type QGBTestSuite struct {
 	suite.Suite
 	auth    *bind.TransactOpts
-	address ethcmn.Address
 	gAlloc  core.GenesisAlloc
 	sim     *backends.SimulatedBackend
 	wrapper *wrapper.QuantumGravityBridge
@@ -43,13 +44,12 @@ func TestRunQGBSuite(t *testing.T) {
 }
 
 func (s *QGBTestSuite) SetupTest() {
-	key, _ := crypto.GenerateKey()
+	key, err := crypto.HexToECDSA(testPriv)
+	s.Require().NoError(err)
+
 	s.auth = bind.NewKeyedTransactor(key)
-	s.auth.GasLimit = 1000000000000000
+	s.auth.GasLimit = 10000000000000
 	s.auth.GasPrice = big.NewInt(8750000000)
-	// s.auth.GasFeeCap = big.NewInt(999999999999999999)
-	// s.auth.GasTipCap = big.NewInt(999999999999999999)
-	s.address = s.auth.From
 	personalSignFn, err := keystore.PrivateKeyPersonalSignFn(key)
 	s.NoError(err)
 	s.pSigner = personalSignFn
@@ -60,7 +60,7 @@ func (s *QGBTestSuite) SetupTest() {
 		Members: []types.BridgeValidator{
 			{
 				Power:           5000,
-				EthereumAddress: s.auth.From.Hex(),
+				EthereumAddress: testAddr,
 			},
 		},
 	}
@@ -70,26 +70,22 @@ func (s *QGBTestSuite) SetupTest() {
 	vsHash, err := orchestrator.ComputeValSetHash(valSet)
 	s.NoError(err)
 
-	// initialCheckpoint, err := orchestrator.ValsetSignBytes(bID, initialValSet)
-	// s.NoError(err)
-
 	genBal := &big.Int{}
 	genBal.SetString("999999999999999999999999999999999999999999", 20)
 
 	s.gAlloc = map[ethcmn.Address]core.GenesisAccount{
-		s.address: {Balance: genBal},
+		s.auth.From: {Balance: genBal},
 	}
 
-	s.sim = backends.NewSimulatedBackend(s.gAlloc, 1000000000000000)
+	s.sim = backends.NewSimulatedBackend(s.gAlloc, 100000000000000)
 
-	contractAddress, _, qgbWrapper, err := wrapper.DeployQuantumGravityBridge(
+	_, _, qgbWrapper, err := wrapper.DeployQuantumGravityBridge(
 		s.auth,
 		s.sim,
 		bID,
 		big.NewInt(int64(initialValSet.TwoThirdsThreshold())),
 		vsHash,
 	)
-	fmt.Println("qgb contract deployed", contractAddress.Hex())
 	s.NoError(err)
 	s.wrapper = qgbWrapper
 
@@ -100,31 +96,33 @@ func (s *QGBTestSuite) SetupTest() {
 	s.Require().Equal(bID.Hex(), "0x"+ethcmn.Bytes2Hex(cbid[:]))
 }
 
-func (s *QGBTestSuite) TestEncodeValset() {
-	vsHash, err := orchestrator.ComputeValSetHash(initialValSet)
-	s.NoError(err)
-	signBytes, err := orchestrator.ValsetSignBytes(bID, initialValSet)
-	s.NoError(err)
-	signature, err := s.pSigner(s.address, signBytes.Bytes())
+func (s *QGBTestSuite) TestSubmitDataCommitment() {
+	// we just need something to sign over, it doesn't matter what
+	commitment := ethcmn.HexToHash(orchestrator.ValidatorSetDomainSeparator)
+	signBytes := orchestrator.DataCommitmentTupleRootSignBytes(
+		bID,
+		big.NewInt(1),
+		commitment[:],
+	)
+
+	signature, err := s.pSigner(s.auth.From, signBytes.Bytes())
 	s.NoError(err)
 
-	hexSig := ethcmn.Bytes2Hex(signature)
-	ethValSet := []wrapper.Validator{
-		{
-			Addr:  s.address,
-			Power: big.NewInt(5000),
-		},
+	ethVals := make([]wrapper.Validator, len(initialValSet.Members))
+	for i, val := range initialValSet.Members {
+		ethVals[i] = wrapper.Validator{
+			Addr:  ethcmn.HexToAddress(val.EthereumAddress),
+			Power: big.NewInt(int64(val.Power)),
+		}
 	}
 
-	s.NoError(err)
-
+	hexSig := ethcmn.Bytes2Hex(signature)
 	v, r, ss := orchestrator.SigToVRS(hexSig)
-	tx, err := s.wrapper.UpdateValidatorSet(
+	tx, err := s.wrapper.SubmitDataRootTupleRoot(
 		s.auth,
 		big.NewInt(1),
-		big.NewInt(5000),
-		vsHash,
-		ethValSet,
+		commitment,
+		ethVals,
 		[]wrapper.Signature{
 			{
 				V: v,
@@ -134,87 +132,88 @@ func (s *QGBTestSuite) TestEncodeValset() {
 		},
 	)
 	s.NoError(err)
-
-	// msg := ethereum.CallMsg{
-	// 	From:     s.auth.From,
-	// 	To:       tx.To(),
-	// 	Gas:      tx.Gas(),
-	// 	GasPrice: tx.GasPrice(),
-	// 	// GasFeeCap: tx.GasFeeCap(),
-	// 	// GasTipCap: tx.GasTipCap(),
-	// 	Value: tx.Value(),
-	// 	Data:  tx.Data(),
-	// }
-
-	// _, err = s.sim.EstimateGas(context.Background(), msg)
-	// if err != nil {
-	// 	fmt.Println("********************", err)
-	// }
-
-	reason, err := s.errorReason(context.Background(), tx, big.NewInt(int64(1)))
-	fmt.Println("*********************", reason, err)
-
 	s.sim.Commit()
 
 	recp, err := s.sim.TransactionReceipt(context.TODO(), tx.Hash())
 	s.NoError(err)
-	s.Require().Equal(uint64(1), recp.Status)
-	fmt.Println("logs", recp.Logs, recp.GasUsed, recp.BlockNumber, recp.Status)
-	fmt.Printf("%+v\n", recp)
+	s.Assert().Equal(uint64(1), recp.Status)
 
-	// block := s.sim.Blockchain().GetBlockByNumber(2)
-	// fmt.Println(s.sim.ev)
+	dcNonce, err := s.wrapper.StateLastDataRootTupleRootNonce(nil)
+	s.Assert().Equal(0, dcNonce.Cmp(big.NewInt(1)))
+}
 
-	valSetNonce, err := s.wrapper.StateLastValidatorSetNonce(nil)
+func (s *QGBTestSuite) TestUpdateValset() {
+	updatedValset := types.Valset{
+		Members: []types.BridgeValidator{
+			{
+				EthereumAddress: testAddr,
+				Power:           5000,
+			},
+			{
+				EthereumAddress: testAddr2,
+				Power:           5000,
+			},
+		},
+		Nonce:  1,
+		Height: 2,
+	}
+
+	newVsHash, err := orchestrator.ComputeValSetHash(updatedValset)
+	s.NoError(err)
+	signBytes, err := orchestrator.ValsetSignBytes(bID, updatedValset)
+	s.NoError(err)
+	signature, err := s.pSigner(s.auth.From, signBytes.Bytes())
 	s.NoError(err)
 
-	fmt.Println(valSetNonce.String())
+	hexSig := ethcmn.Bytes2Hex(signature)
 
-	s.Equal(0, valSetNonce.Cmp(big.NewInt(1)))
+	ethVals := make([]wrapper.Validator, len(initialValSet.Members))
+	for i, val := range initialValSet.Members {
+		ethVals[i] = wrapper.Validator{
+			Addr:  ethcmn.HexToAddress(val.EthereumAddress),
+			Power: big.NewInt(int64(val.Power)),
+		}
+	}
+
+	thresh := updatedValset.TwoThirdsThreshold()
+
+	err = s.updateNonce()
+	s.Require().NoError(err)
+
+	v, r, ss := orchestrator.SigToVRS(hexSig)
+	fmt.Println("signature", v, r, ss)
+	tx, err := s.wrapper.UpdateValidatorSet(
+		s.auth,
+		big.NewInt(1),
+		big.NewInt(int64(thresh)),
+		newVsHash,
+		ethVals,
+		[]wrapper.Signature{
+			{
+				V: v,
+				R: r,
+				S: ss,
+			},
+		},
+	)
+	s.NoError(err)
+	s.sim.Commit()
+
+	recp, err := s.sim.TransactionReceipt(context.TODO(), tx.Hash())
+	s.NoError(err)
+	s.Equal(uint64(1), recp.Status)
+
+	valSetThresh, err := s.wrapper.StatePowerThreshold(nil)
+	s.NoError(err)
+
+	s.Equal(0, valSetThresh.Cmp(big.NewInt(6668)))
 }
 
 func (s *QGBTestSuite) updateNonce() error {
-	nonce, err := s.sim.NonceAt(context.TODO(), s.address, nil)
+	nonce, err := s.sim.NonceAt(context.TODO(), s.auth.From, nil)
 	if err != nil {
 		return err
 	}
-	fmt.Println("updated nonce", nonce)
-	s.auth.Nonce = big.NewInt(int64(nonce + 1))
+	s.auth.Nonce = big.NewInt(int64(nonce))
 	return nil
-}
-
-// func (s *QGBTestSuite) TestDataCommitmentEncoding() {
-// 	orchestrator.EncodeDataCommitmentConfirm(bID, big.NewInt(1), []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-// }
-
-func (s *QGBTestSuite) errorReason(ctx context.Context, tx *ethtypes.Transaction, blockNum *big.Int) (string, error) {
-	msg := ethereum.CallMsg{
-		From:     s.auth.From,
-		To:       tx.To(),
-		Gas:      tx.Gas(),
-		GasPrice: tx.GasPrice(),
-		Value:    tx.Value(),
-		Data:     tx.Data(),
-	}
-	res, err := s.sim.CallContract(ctx, msg, blockNum)
-	if err != nil {
-		return "", errors.Wrap(err, "CallContract")
-	}
-	return unpackError(res)
-}
-
-var (
-	errorSig     = []byte{0x08, 0xc3, 0x79, 0xa0} // Keccak256("Error(string)")[:4]
-	abiString, _ = abi.NewType("string", "", nil)
-)
-
-func unpackError(result []byte) (string, error) {
-	if len(result) < 4 || !bytes.Equal(result[:4], errorSig) {
-		return "<tx result not Error(string)>", errors.New("TX result not of type Error(string)")
-	}
-	vs, err := abi.Arguments{{Type: abiString}}.UnpackValues(result[4:])
-	if err != nil {
-		return "<invalid tx result>", errors.Wrap(err, "unpacking revert reason")
-	}
-	return vs[0].(string), nil
 }

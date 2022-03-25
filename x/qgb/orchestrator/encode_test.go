@@ -31,6 +31,8 @@ var (
 	}
 )
 
+// NOTE: These tests are more documentation than actual tests
+
 // TestValsetHashABIEncode is a sanity check is ensure that the abi encoding is working as expected
 func TestValsetHashABIEncode(t *testing.T) {
 	const (
@@ -92,3 +94,54 @@ func TestSignatureABIEncode(t *testing.T) {
 
 	assert.Equal(t, firstExpected, i)
 }
+
+// used to generate signatures for testing the contracts
+// const (
+// 	testAddr  = "0x9c2B12b5a07FC6D719Ed7646e5041A7E85758329"
+// 	testPriv  = "64a1d6f0e760a8d62b4afdde4096f16f51b401eaaecc915740f71770ea76a8ad"
+// 	testAddr2 = "0xe650B084f05C6194f6e552e3b9f08718Bc8a9d56"
+// 	testPriv2 = "6e8bdfa979ab645b41c4d17cb1329b2a44684c82b61b1b060ea9b6e1c927a4f4"
+// )
+
+// func TestValSetSignBytes(t *testing.T) {
+// 	vs := types.Valset{
+// 		Members: []types.BridgeValidator{
+// 			{
+// 				EthereumAddress: testAddr,
+// 				Power:           5000,
+// 			},
+// 			{
+// 				EthereumAddress: testAddr2,
+// 				Power:           5000,
+// 			},
+// 		},
+// 		Nonce: 0,
+// 	}
+// 	bID := ethcmn.HexToHash("0x636865636b706f696e7400000000000000000000000000000000000000000000")
+// 	s, err := ValsetSignBytes(bID, vs)
+// 	require.NoError(t, err)
+
+// 	key, err := crypto.HexToECDSA(testPriv)
+// 	require.NoError(t, err)
+
+// 	personalSignFn, err := keystore.PrivateKeyPersonalSignFn(key)
+// 	require.NoError(t, err)
+// 	sig, err := personalSignFn(ethcmn.HexToAddress(testAddr), s[:])
+// 	require.NoError(t, err)
+// 	v, r, s := SigToVRS(ethcmn.Bytes2Hex(sig))
+// }
+
+// func TestTupleRootSignBytes(t *testing.T) {
+// 	bID := ethcmn.HexToHash("0x636865636b706f696e7400000000000000000000000000000000000000000000")
+// 	tupleRoot := ethcmn.HexToHash("0x636865636b706f696e7400000000000000000000000000000000000000000000")
+// 	s := DataCommitmentTupleRootSignBytes(bID, big.NewInt(1), tupleRoot[:])
+
+// 	key, err := crypto.HexToECDSA(testPriv2)
+// 	require.NoError(t, err)
+
+// 	personalSignFn, err := keystore.PrivateKeyPersonalSignFn(key)
+// 	require.NoError(t, err)
+// 	sig, err := personalSignFn(ethcmn.HexToAddress(testAddr2), s[:])
+// 	require.NoError(t, err)
+// 	v, r, s := SigToVRS(ethcmn.Bytes2Hex(sig))
+// }

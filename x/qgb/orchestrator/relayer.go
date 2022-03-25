@@ -123,7 +123,6 @@ func (r *relayer) relayDataCommitments(ctx context.Context) error {
 			r.processDataCommitmentEvents(ctx, queryClient, params.DataCommitmentWindow, ev)
 		}
 	}
-	return nil
 }
 
 func (r *relayer) processDataCommitmentEvents(
@@ -170,14 +169,14 @@ func (r *relayer) processDataCommitmentEvents(
 	valset := lastValsetResp.Valsets[0]
 
 	// todo, this assumes that the evm chain we are relaying to is update to data, which is not a good assumption
-	nonce, err := r.wrapper.StateLastMessageTupleRootNonce(&bind.CallOpts{})
+	nonce, err := r.wrapper.StateLastDataRootTupleRootNonce(&bind.CallOpts{})
 	if err != nil {
 		return err
 	}
 
 	nonce.Add(nonce, big.NewInt(1))
 
-	dataRootHash := EncodeDataCommitmentConfirm(r.bridgeID, nonce, dcResp.DataCommitment)
+	dataRootHash := DataCommitmentTupleRootSignBytes(r.bridgeID, nonce, dcResp.DataCommitment)
 
 	// todo: make times configurable
 	confirms, err := r.queryTwoThirdsDataCommitmentConfirms(ctx, time.Minute*30, client, valset, dataRootHash.String())
@@ -327,7 +326,7 @@ func (r *relayer) submitDataRootTupleRoot(
 		return err
 	}
 
-	lastDataCommitmentNonce, err := r.wrapper.StateLastMessageTupleRootNonce(&bind.CallOpts{})
+	lastDataCommitmentNonce, err := r.wrapper.StateLastDataRootTupleRootNonce(&bind.CallOpts{})
 	if err != nil {
 		return err
 	}
@@ -335,7 +334,7 @@ func (r *relayer) submitDataRootTupleRoot(
 	// increment the nonce before submitting the new tuple root
 	lastDataCommitmentNonce.Add(lastDataCommitmentNonce, big.NewInt(1))
 
-	tx, err := r.wrapper.SubmitMessageTupleRoot(
+	tx, err := r.wrapper.SubmitDataRootTupleRoot(
 		opts,
 		lastDataCommitmentNonce,
 		tupleRoot,
