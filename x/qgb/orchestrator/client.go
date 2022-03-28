@@ -9,10 +9,8 @@ import (
 	"strings"
 	"syscall"
 
-	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
 	"github.com/celestiaorg/quantum-gravity-bridge/orchestrator/ethereum/keystore"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -38,12 +36,9 @@ type client struct {
 	transactOpsBuilder transactOpsBuilder
 	evmAddress         ethcmn.Address
 	bridgeID           ethcmn.Hash
-
-	// celestia related signing
-	signer *paytypes.KeyringSigner
 }
 
-func newClient(logger zerolog.Logger, appSigner *paytypes.KeyringSigner, cfg config) (*client, error) {
+func newClient(logger zerolog.Logger, cfg config) (*client, error) {
 	trpc, err := http.New(cfg.tendermintRPC, "/websocket")
 	if err != nil {
 		return nil, err
@@ -79,7 +74,6 @@ func newClient(logger zerolog.Logger, appSigner *paytypes.KeyringSigner, cfg con
 		logger:             logger,
 		qgbRPC:             qgbGRPC,
 		evmAddress:         orchAddr,
-		signer:             appSigner,
 		bridgeID:           cfg.bridgeID,
 		wrapper:            qgbWrapper,
 	}, nil
@@ -192,33 +186,4 @@ func ethPassFromStdin() (string, error) {
 
 	password := string(bytePassword)
 	return strings.TrimSpace(password), nil
-}
-
-func (oc *client) broadcastTx(ctx context.Context, msg sdk.Msg) error {
-	err := oc.signer.QueryAccountNumber(ctx, oc.qgbRPC)
-	if err != nil {
-		return err
-	}
-
-	// TODO: update this api via https://github.com/celestiaorg/celestia-app/pull/187/commits/37f96d9af30011736a3e6048bbb35bad6f5b795c
-	tx, err := oc.signer.BuildSignedTx(oc.signer.NewTxBuilder(), msg)
-	if err != nil {
-		return err
-	}
-
-	rawTx, err := oc.signer.EncodeTx(tx)
-	if err != nil {
-		return err
-	}
-
-	resp, err := paytypes.BroadcastTx(ctx, oc.qgbRPC, 1, rawTx)
-	if err != nil {
-		return err
-	}
-
-	if resp.TxResponse.Code != 0 {
-		return fmt.Errorf("failure to broadcast tx: %s", resp.TxResponse.Data)
-	}
-
-	return nil
 }

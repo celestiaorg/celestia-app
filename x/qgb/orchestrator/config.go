@@ -33,19 +33,19 @@ const (
 )
 
 func addOrchestratorFlags(cmd *cobra.Command) *cobra.Command {
-	cmd.Flags().StringP(keyringBackendFlag, "back", "test", "Select keyring's backend (os|file|kwallet|pass|test)")
-	cmd.Flags().StringP(keyringPathFlag, "path", filepath.Join(HomeDir, ".celestia-app"), "Specify the path to the keyring keys")
-	cmd.Flags().StringP(keyringAccountName, "name", "user", "Specify the account name used with the keyring")
-	cmd.Flags().StringP(privateKeyFlag, "priv", "", "Provide the private key used to sign relayed evm transactions or to sign orchestrator commitments")
-	cmd.Flags().StringP(chainIDFlag, "cid", "user", "Specify the celestia chain id")
-	cmd.Flags().StringP(bridgeIDFlag, "bid", "universal", "Specify the bridge id")
-	cmd.Flags().Uint64P(evnChainIDFlag, "eid", 5, "Specify the evm chain id")
+	cmd.Flags().StringP(keyringBackendFlag, "b", "test", "Select keyring's backend (os|file|kwallet|pass|test)")
+	cmd.Flags().StringP(keyringPathFlag, "p", filepath.Join(HomeDir, ".celestia-app"), "Specify the path to the keyring keys")
+	cmd.Flags().StringP(keyringAccountName, "n", "user", "Specify the account name used with the keyring")
+	cmd.Flags().StringP(privateKeyFlag, "d", "", "Provide the private key used to sign relayed evm transactions or to sign orchestrator commitments")
+	cmd.Flags().StringP(chainIDFlag, "x", "user", "Specify the celestia chain id")
+	cmd.Flags().StringP(bridgeIDFlag, "y", "universal", "Specify the bridge id")
+	cmd.Flags().Uint64P(evnChainIDFlag, "z", 5, "Specify the evm chain id")
 
-	cmd.Flags().StringP(celesGRPCFlag, "cRPC", "tcp://localhost:9090", "Specify the grpc address")
-	cmd.Flags().StringP(tendermintRPCFlag, "tRPC", "http://localhost:26657", "Specify the rest rpc address")
-	cmd.Flags().StringP(ethRPCFlag, "eRPC", "http://localhost:8545", "Specify the ethereum rpc address")
+	cmd.Flags().StringP(celesGRPCFlag, "c", "tcp://localhost:9090", "Specify the grpc address")
+	cmd.Flags().StringP(tendermintRPCFlag, "t", "http://localhost:26657", "Specify the rest rpc address")
+	cmd.Flags().StringP(ethRPCFlag, "e", "http://localhost:8545", "Specify the ethereum rpc address")
 
-	cmd.Flags().StringP(contractAddressFlag, "c", "", "Specify the contract at which the qgb is deployed")
+	cmd.Flags().StringP(contractAddressFlag, "a", "", "Specify the contract at which the qgb is deployed")
 
 	return cmd
 }

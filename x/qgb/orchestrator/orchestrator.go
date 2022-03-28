@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"math/big"
 
+	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -15,6 +17,9 @@ import (
 
 type orchestrator struct {
 	*client
+
+	// celestia related signing
+	signer *paytypes.KeyringSigner
 }
 
 func (oc *orchestrator) orchestrateValsets(ctx context.Context) error {
@@ -158,4 +163,33 @@ func (oc *orchestrator) processDataCommitmentEvents(ctx context.Context, window 
 	}
 
 	return oc.broadcastTx(ctx, msg)
+}
+
+func (oc *orchestrator) broadcastTx(ctx context.Context, msg sdk.Msg) error {
+	err := oc.signer.QueryAccountNumber(ctx, oc.qgbRPC)
+	if err != nil {
+		return err
+	}
+
+	// TODO: update this api via https://github.com/celestiaorg/celestia-app/pull/187/commits/37f96d9af30011736a3e6048bbb35bad6f5b795c
+	tx, err := oc.signer.BuildSignedTx(oc.signer.NewTxBuilder(), msg)
+	if err != nil {
+		return err
+	}
+
+	rawTx, err := oc.signer.EncodeTx(tx)
+	if err != nil {
+		return err
+	}
+
+	resp, err := paytypes.BroadcastTx(ctx, oc.qgbRPC, 1, rawTx)
+	if err != nil {
+		return err
+	}
+
+	if resp.TxResponse.Code != 0 {
+		return fmt.Errorf("failure to broadcast tx: %s", resp.TxResponse.Data)
+	}
+
+	return nil
 }

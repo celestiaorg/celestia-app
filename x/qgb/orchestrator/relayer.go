@@ -18,8 +18,6 @@ import (
 
 type relayer struct {
 	*client
-
-	wrapper *wrapper.QuantumGravityBridge
 }
 
 func (r *relayer) relayValsets(ctx context.Context) error {

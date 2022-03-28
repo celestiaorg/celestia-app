@@ -37,21 +37,27 @@ func OrchestratorCmd() *cobra.Command {
 
 			// open a keyring using the configured settings
 			// TODO: optionally ask for input for a password
-			ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringAccount, strings.NewReader("."))
+			ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringAccount, strings.NewReader(""))
 			if err != nil {
 				return err
 			}
 
 			client, err := newClient(
 				zerolog.New(os.Stdout),
-				paytypes.NewKeyringSigner(ring, config.keyringAccount, config.celestiaChainID),
 				config,
 			)
 			if err != nil {
 				return err
 			}
 
-			orch := orchestrator{client: client}
+			orch := orchestrator{
+				client: client,
+				signer: paytypes.NewKeyringSigner(
+					ring,
+					config.keyringAccount,
+					config.celestiaChainID,
+				),
+			}
 
 			wg := &sync.WaitGroup{}
 			ctx := cmd.Context()
@@ -67,6 +73,7 @@ func OrchestratorCmd() *cobra.Command {
 						err = orch.orchestrateValsets(ctx)
 						if err != nil {
 							orch.logger.Err(err)
+							// todo: refactor to make a more sophisticated retry mechanism
 							time.Sleep(time.Second * 30)
 							continue
 						}

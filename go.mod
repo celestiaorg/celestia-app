@@ -27,7 +27,6 @@ require (
 
 require (
 	github.com/ethereum/go-ethereum v1.10.16
-	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.26.0
 )
 
@@ -110,6 +109,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
 	github.com/petermattis/goid v0.0.0-20180202154549-b0b1615b78e5 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
