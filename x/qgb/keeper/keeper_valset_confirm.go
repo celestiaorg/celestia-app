@@ -50,12 +50,7 @@ func (k Keeper) GetValsetConfirms(ctx sdk.Context, nonce uint64) (confirms []typ
 	defer iterator.Close()
 
 	for ; iterator.Valid(); iterator.Next() {
-		confirm := types.MsgValsetConfirm{
-			Nonce:        nonce,
-			Orchestrator: "",
-			EthAddress:   "",
-			Signature:    "",
-		}
+		confirm := types.MsgValsetConfirm{}
 		k.cdc.MustUnmarshal(iterator.Value(), &confirm)
 		confirms = append(confirms, confirm)
 	}
