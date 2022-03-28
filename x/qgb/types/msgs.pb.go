@@ -40,8 +40,8 @@ type MsgSetOrchestratorAddress struct {
 	// The orchestrator field is a celes1... string  (i.e. sdk.AccAddress) that
 	// references the key that is being delegated to
 	Orchestrator string `protobuf:"bytes,2,opt,name=orchestrator,proto3" json:"orchestrator,omitempty"`
-	// This is a hex encoded 0x Ethereum public key that will be used by this validator
-	// on Ethereum
+	// This is a hex encoded 0x Ethereum public key that will be used by this
+	// validator on Ethereum
 	EthAddress string `protobuf:"bytes,3,opt,name=eth_address,json=ethAddress,proto3" json:"eth_address,omitempty"`
 }
 
@@ -440,9 +440,11 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	// ValsetConfirm allows the validators to submit their signatures over the validator set.
+	// ValsetConfirm allows the validators to submit their signatures over the
+	// validator set.
 	ValsetConfirm(ctx context.Context, in *MsgValsetConfirm, opts ...grpc.CallOption) (*MsgValsetConfirmResponse, error)
-	// DataCommitmentConfirm allows the validators to submit a confirmation for a data commitment.
+	// DataCommitmentConfirm allows the validators to submit a confirmation for a
+	// data commitment.
 	DataCommitmentConfirm(ctx context.Context, in *MsgDataCommitmentConfirm, opts ...grpc.CallOption) (*MsgDataCommitmentConfirmResponse, error)
 	// SetOrchestratorAddress allows to set the orchestrator address
 	SetOrchestratorAddress(ctx context.Context, in *MsgSetOrchestratorAddress, opts ...grpc.CallOption) (*MsgSetOrchestratorAddressResponse, error)
@@ -485,9 +487,11 @@ func (c *msgClient) SetOrchestratorAddress(ctx context.Context, in *MsgSetOrches
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	// ValsetConfirm allows the validators to submit their signatures over the validator set.
+	// ValsetConfirm allows the validators to submit their signatures over the
+	// validator set.
 	ValsetConfirm(context.Context, *MsgValsetConfirm) (*MsgValsetConfirmResponse, error)
-	// DataCommitmentConfirm allows the validators to submit a confirmation for a data commitment.
+	// DataCommitmentConfirm allows the validators to submit a confirmation for a
+	// data commitment.
 	DataCommitmentConfirm(context.Context, *MsgDataCommitmentConfirm) (*MsgDataCommitmentConfirmResponse, error)
 	// SetOrchestratorAddress allows to set the orchestrator address
 	SetOrchestratorAddress(context.Context, *MsgSetOrchestratorAddress) (*MsgSetOrchestratorAddressResponse, error)

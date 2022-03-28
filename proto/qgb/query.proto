@@ -1,6 +1,8 @@
 syntax = "proto3";
 package qgb;
 
+import "qgb/genesis.proto";
+import "qgb/types.proto";
 import "google/api/annotations.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
 import "qgb/msgs.proto";
@@ -11,6 +13,11 @@ option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
 // Query defines the gRPC querier service.
 service Query {
+  // Params Queries the current parameters for the qgb module
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/qgb/params";
+  }
+
   // DataCommitmentConfirm Queries the data commitment confirm by the commitment
   // and the validator address
   rpc DataCommitmentConfirm(QueryDataCommitmentConfirmRequest)
@@ -41,7 +48,11 @@ service Query {
     option (google.api.http).get = "/qgb/data_commitment/confirms/begin_block/"
                                    "{begin_block}/end_block/{end_block}";
   }
-
+  // LastValsetRequests queries for the latest valset requests
+  rpc LastValsetRequests(QueryLastValsetRequestsRequest)
+      returns (QueryLastValsetRequestsResponse) {
+    option (google.api.http).get = "/gravity/v1beta/valset/requests";
+  }
   // ValsetConfirm Queries ValSetConfirm
   rpc ValsetConfirm(QueryValsetConfirmRequest)
       returns (QueryValsetConfirmResponse) {
@@ -58,6 +69,19 @@ service Query {
     option (google.api.http).get = "/qgb/query_delegate_keys_by_orchestrator";
   }
   // this line is used by starport scaffolding # 2
+}
+
+// QueryLastValsetRequestsRequest
+message QueryLastValsetRequestsRequest {}
+
+// QueryLastValsetRequestsResponse
+message QueryLastValsetRequestsResponse {
+  repeated Valset valsets = 1 [ (gogoproto.nullable) = false ];
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse {
+  Params params = 1 [ (gogoproto.nullable) = false ];
 }
 
 // QueryValsetConfirmsByNonceRequest
