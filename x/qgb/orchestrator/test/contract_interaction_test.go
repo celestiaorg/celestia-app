@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"testing"
 
@@ -181,7 +180,7 @@ func (s *QGBTestSuite) TestUpdateValset() {
 	s.Require().NoError(err)
 
 	v, r, ss := orchestrator.SigToVRS(hexSig)
-	fmt.Println("signature", v, r, ss)
+
 	tx, err := s.wrapper.UpdateValidatorSet(
 		s.auth,
 		big.NewInt(1),
