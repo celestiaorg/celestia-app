@@ -26,7 +26,7 @@ const (
 )
 
 var (
-	bID           = ethcmn.HexToHash(orchestrator.ValidatorSetDomainSeparator)
+	bID           = ethcmn.HexToHash(types.ValidatorSetDomainSeparator)
 	initialValSet types.Valset
 )
 
@@ -67,7 +67,7 @@ func (s *QGBTestSuite) SetupTest() {
 
 	initialValSet = valSet
 
-	vsHash, err := orchestrator.ComputeValSetHash(valSet)
+	vsHash, err := valSet.Hash()
 	s.NoError(err)
 
 	genBal := &big.Int{}
@@ -98,7 +98,7 @@ func (s *QGBTestSuite) SetupTest() {
 
 func (s *QGBTestSuite) TestSubmitDataCommitment() {
 	// we just need something to sign over, it doesn't matter what
-	commitment := ethcmn.HexToHash(orchestrator.ValidatorSetDomainSeparator)
+	commitment := ethcmn.HexToHash(types.ValidatorSetDomainSeparator)
 	signBytes := orchestrator.DataCommitmentTupleRootSignBytes(
 		bID,
 		big.NewInt(1),
@@ -158,9 +158,9 @@ func (s *QGBTestSuite) TestUpdateValset() {
 		Height: 2,
 	}
 
-	newVsHash, err := orchestrator.ComputeValSetHash(updatedValset)
+	newVsHash, err := updatedValset.Hash()
 	s.NoError(err)
-	signBytes, err := orchestrator.ValsetSignBytes(bID, updatedValset)
+	signBytes, err := updatedValset.SignBytes(bID)
 	s.NoError(err)
 	signature, err := s.pSigner(s.auth.From, signBytes.Bytes())
 	s.NoError(err)
@@ -205,7 +205,7 @@ func (s *QGBTestSuite) TestUpdateValset() {
 
 	valSetThresh, err := s.wrapper.StatePowerThreshold(nil)
 	s.NoError(err)
-
+	// check that the validator set was changed.
 	s.Equal(0, valSetThresh.Cmp(big.NewInt(6668)))
 }
 

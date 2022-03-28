@@ -4,7 +4,9 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
+	"github.com/celestiaorg/quantum-gravity-bridge/orchestrator/ethereum/keystore"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
@@ -31,7 +33,8 @@ var (
 	}
 )
 
-// NOTE: These tests are more documentation than actual tests
+// NOTE: These tests are more documentation than actual tests. All vaules used
+// where derived using the contracts and the evm.
 
 // TestValsetHashABIEncode is a sanity check is ensure that the abi encoding is working as expected
 func TestValsetHashABIEncode(t *testing.T) {
@@ -48,18 +51,18 @@ func TestValsetHashABIEncode(t *testing.T) {
 		secondHash     = ethcmn.HexToHash(secondExpectedHash)
 	)
 
-	encodedVals, err := internalQGBABI.Pack("computeValidatorSetHash", firstValset)
+	encodedVals, err := types.InternalQGBabi.Pack("computeValidatorSetHash", firstValset)
 	require.NoError(t, err)
 	assert.Equal(t, firstExpected, encodedVals[4:])
 	assert.Equal(t, firstHash[:], crypto.Keccak256(firstExpected))
 
-	encodedVals, err = internalQGBABI.Pack("computeValidatorSetHash", secondValset)
+	encodedVals, err = types.InternalQGBabi.Pack("computeValidatorSetHash", secondValset)
 	require.NoError(t, err)
 	assert.Equal(t, secondExpected, encodedVals[4:])
 	assert.Equal(t, secondHash[:], crypto.Keccak256(secondExpected))
 }
 
-func TestValsetConfirmEncodeABIEncode(t *testing.T) {
+func TestValsetConfirmEncodeABI(t *testing.T) {
 	const (
 		firstExpectedData = "636865636b706f696e7400000000000000000000000000000000000000000000636865636b706f696e740000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000002710636865636b706f696e7400000000000000000000000000000000000000000000" // nolint:lll
 	)
@@ -67,13 +70,13 @@ func TestValsetConfirmEncodeABIEncode(t *testing.T) {
 		firstExpected = ethcmn.Hex2Bytes(firstExpectedData)
 	)
 
-	bytes, err := internalQGBABI.Pack(
+	bytes, err := types.InternalQGBabi.Pack(
 		"domainSeparateValidatorSetHash",
-		VsDomainSeparator,
-		VsDomainSeparator,
+		types.VsDomainSeparator,
+		types.VsDomainSeparator,
 		big.NewInt(int64(1)),
 		big.NewInt(int64(10000)),
-		VsDomainSeparator,
+		types.VsDomainSeparator,
 	)
 	require.NoError(t, err)
 
@@ -89,59 +92,63 @@ func TestSignatureABIEncode(t *testing.T) {
 		firstExpected = ethcmn.Hex2Bytes(firstExpectedData)
 	)
 
-	i := []byte(ethSignPrefix)
-	i = append(i, VsDomainSeparator[:]...)
+	i := []byte(types.EthSignPrefix)
+	i = append(i, types.VsDomainSeparator[:]...)
 
 	assert.Equal(t, firstExpected, i)
 }
 
-// used to generate signatures for testing the contracts
-// const (
-// 	testAddr  = "0x9c2B12b5a07FC6D719Ed7646e5041A7E85758329"
-// 	testPriv  = "64a1d6f0e760a8d62b4afdde4096f16f51b401eaaecc915740f71770ea76a8ad"
-// 	testAddr2 = "0xe650B084f05C6194f6e552e3b9f08718Bc8a9d56"
-// 	testPriv2 = "6e8bdfa979ab645b41c4d17cb1329b2a44684c82b61b1b060ea9b6e1c927a4f4"
-// )
+// Here, we can generate the signatures needed to test the smart contracts
+const (
+	testAddr  = "0x9c2B12b5a07FC6D719Ed7646e5041A7E85758329"
+	testPriv  = "64a1d6f0e760a8d62b4afdde4096f16f51b401eaaecc915740f71770ea76a8ad"
+	testAddr2 = "0xe650B084f05C6194f6e552e3b9f08718Bc8a9d56"
+	testPriv2 = "6e8bdfa979ab645b41c4d17cb1329b2a44684c82b61b1b060ea9b6e1c927a4f4"
+)
 
-// func TestValSetSignBytes(t *testing.T) {
-// 	vs := types.Valset{
-// 		Members: []types.BridgeValidator{
-// 			{
-// 				EthereumAddress: testAddr,
-// 				Power:           5000,
-// 			},
-// 			{
-// 				EthereumAddress: testAddr2,
-// 				Power:           5000,
-// 			},
-// 		},
-// 		Nonce: 0,
-// 	}
-// 	bID := ethcmn.HexToHash("0x636865636b706f696e7400000000000000000000000000000000000000000000")
-// 	s, err := ValsetSignBytes(bID, vs)
-// 	require.NoError(t, err)
+func Test_genValSetSignBytes(t *testing.T) {
+	vs := types.Valset{
+		Members: []types.BridgeValidator{
+			{
+				EthereumAddress: testAddr,
+				Power:           5000,
+			},
+			{
+				EthereumAddress: testAddr2,
+				Power:           5000,
+			},
+		},
+		Nonce: 0,
+	}
+	bID := ethcmn.HexToHash("0x636865636b706f696e7400000000000000000000000000000000000000000000")
+	s, err := vs.SignBytes(bID)
+	require.NoError(t, err)
 
-// 	key, err := crypto.HexToECDSA(testPriv)
-// 	require.NoError(t, err)
+	key, err := crypto.HexToECDSA(testPriv)
+	require.NoError(t, err)
 
-// 	personalSignFn, err := keystore.PrivateKeyPersonalSignFn(key)
-// 	require.NoError(t, err)
-// 	sig, err := personalSignFn(ethcmn.HexToAddress(testAddr), s[:])
-// 	require.NoError(t, err)
-// 	v, r, s := SigToVRS(ethcmn.Bytes2Hex(sig))
-// }
+	personalSignFn, err := keystore.PrivateKeyPersonalSignFn(key)
+	require.NoError(t, err)
+	sig, err := personalSignFn(ethcmn.HexToAddress(testAddr), s[:])
+	require.NoError(t, err)
+	_, _, s = SigToVRS(ethcmn.Bytes2Hex(sig))
+	// this test doesn't test anything meanfully, but can be used to generate
+	// signatures for testing the smart contracts
+}
 
-// func TestTupleRootSignBytes(t *testing.T) {
-// 	bID := ethcmn.HexToHash("0x636865636b706f696e7400000000000000000000000000000000000000000000")
-// 	tupleRoot := ethcmn.HexToHash("0x636865636b706f696e7400000000000000000000000000000000000000000000")
-// 	s := DataCommitmentTupleRootSignBytes(bID, big.NewInt(1), tupleRoot[:])
+func Test_genTupleRootSignBytes(t *testing.T) {
+	bID := ethcmn.HexToHash("0x636865636b706f696e7400000000000000000000000000000000000000000000")
+	tupleRoot := ethcmn.HexToHash("0x636865636b706f696e7400000000000000000000000000000000000000000000")
+	s := DataCommitmentTupleRootSignBytes(bID, big.NewInt(1), tupleRoot[:])
 
-// 	key, err := crypto.HexToECDSA(testPriv2)
-// 	require.NoError(t, err)
+	key, err := crypto.HexToECDSA(testPriv2)
+	require.NoError(t, err)
 
-// 	personalSignFn, err := keystore.PrivateKeyPersonalSignFn(key)
-// 	require.NoError(t, err)
-// 	sig, err := personalSignFn(ethcmn.HexToAddress(testAddr2), s[:])
-// 	require.NoError(t, err)
-// 	v, r, s := SigToVRS(ethcmn.Bytes2Hex(sig))
-// }
+	personalSignFn, err := keystore.PrivateKeyPersonalSignFn(key)
+	require.NoError(t, err)
+	sig, err := personalSignFn(ethcmn.HexToAddress(testAddr2), s[:])
+	require.NoError(t, err)
+	_, _, s = SigToVRS(ethcmn.Bytes2Hex(sig))
+	// this test doesn't test anything meanfully, but can be used to generate
+	// signatures for testing the smart contracts
+}

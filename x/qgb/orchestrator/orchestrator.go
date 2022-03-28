@@ -57,7 +57,7 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, ev rpctypes.Res
 
 		valset := lastValsetResp.Valsets[0]
 
-		signBytes, err := ValsetSignBytes(oc.bridgeID, valset)
+		signBytes, err := valset.SignBytes(oc.bridgeID)
 		if err != nil {
 			return err
 		}
