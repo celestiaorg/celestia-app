@@ -112,6 +112,7 @@ func (m *QueryLastValsetRequestsResponse) GetValsets() []Valset {
 	return nil
 }
 
+// QueryParamsRequest
 type QueryParamsRequest struct {
 }
 
@@ -148,6 +149,7 @@ func (m *QueryParamsRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_QueryParamsRequest proto.InternalMessageInfo
 
+// QueryParamsResponse
 type QueryParamsResponse struct {
 	Params Params `protobuf:"bytes,1,opt,name=params,proto3" json:"params"`
 }
