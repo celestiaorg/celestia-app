@@ -51,7 +51,7 @@ service Query {
   // LastValsetRequests queries for the latest valset requests
   rpc LastValsetRequests(QueryLastValsetRequestsRequest)
       returns (QueryLastValsetRequestsResponse) {
-    option (google.api.http).get = "/gravity/v1beta/valset/requests";
+    option (google.api.http).get = "/qgb/valset/requests";
   }
   // ValsetConfirm Queries ValSetConfirm
   rpc ValsetConfirm(QueryValsetConfirmRequest)
