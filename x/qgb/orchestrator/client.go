@@ -189,3 +189,20 @@ func ethPassFromStdin() (string, error) {
 	password := string(bytePassword)
 	return strings.TrimSpace(password), nil
 }
+
+// SigToVRS breaks apart a signature into its components to make it compatible with the contracts
+func SigToVRS(sigHex string) (v uint8, r, s ethcmn.Hash) {
+	signatureBytes := ethcmn.FromHex(sigHex)
+	vParam := signatureBytes[64]
+	if vParam == byte(0) {
+		vParam = byte(27)
+	} else if vParam == byte(1) {
+		vParam = byte(28)
+	}
+
+	v = vParam
+	r = ethcmn.BytesToHash(signatureBytes[0:32])
+	s = ethcmn.BytesToHash(signatureBytes[32:64])
+
+	return
+}
