@@ -29,7 +29,7 @@ func (k Keeper) ValsetConfirmsByNonce(
 
 const maxValsetRequestsReturned = 5
 
-// LastValsetRequests queries the LastValsetRequests of the gravity module
+// LastValsetRequests queries the LastValsetRequests of the qgb module
 func (k Keeper) LastValsetRequests(
 	c context.Context,
 	req *types.QueryLastValsetRequestsRequest) (*types.QueryLastValsetRequestsResponse, error) {
