@@ -24,7 +24,7 @@ func (ea EthAddress) GetAddress() string {
 }
 
 // SetAddress Sets the contained address, performing validation before updating the value
-func (ea EthAddress) SetAddress(address string) error {
+func (ea *EthAddress) SetAddress(address string) error {
 	if err := ValidateEthAddress(address); err != nil {
 		return err
 	}

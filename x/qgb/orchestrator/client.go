@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -10,9 +11,11 @@ import (
 	"syscall"
 
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
-	"github.com/celestiaorg/quantum-gravity-bridge/orchestrator/ethereum/keystore"
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	ethcmn "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog"
@@ -32,7 +35,7 @@ type client struct {
 
 	// orchestrator signing
 	singerFn           bind.SignerFn
-	personalSignerFn   keystore.PersonalSignFn
+	personalSignerFn   PersonalSignFn
 	transactOpsBuilder transactOpsBuilder
 	evmAddress         ethcmn.Address
 	bridgeID           ethcmn.Hash
@@ -134,13 +137,30 @@ func newTransactOptsBuilder(privKey *ecdsa.PrivateKey) transactOpsBuilder {
 	}
 }
 
+type PersonalSignFn func(account ethcmn.Address, data []byte) (sig []byte, err error)
+
+func PrivateKeyPersonalSignFn(privKey *ecdsa.PrivateKey) (PersonalSignFn, error) {
+	keyAddress := crypto.PubkeyToAddress(privKey.PublicKey)
+
+	signFn := func(from common.Address, data []byte) (sig []byte, err error) {
+		if from != keyAddress {
+			return nil, errors.New("from address mismatch")
+		}
+
+		protectedHash := accounts.TextHash(data)
+		return crypto.Sign(protectedHash, privKey)
+	}
+
+	return signFn, nil
+}
+
 func initEthSigners(
 	ethChainID uint64,
 	ethPrivKey *ecdsa.PrivateKey,
 ) (
 	ethcmn.Address,
 	bind.SignerFn,
-	keystore.PersonalSignFn,
+	PersonalSignFn,
 	error,
 ) {
 
@@ -151,7 +171,7 @@ func initEthSigners(
 		return ethcmn.Address{}, nil, nil, fmt.Errorf("failed to init NewKeyedTransactorWithChainID: %w", err)
 	}
 
-	personalSignFn, err := keystore.PrivateKeyPersonalSignFn(ethPrivKey)
+	personalSignFn, err := PrivateKeyPersonalSignFn(ethPrivKey)
 	if err != nil {
 		return ethcmn.Address{}, nil, nil, fmt.Errorf("failed to init PrivateKeyPersonalSignFn: %w", err)
 	}
@@ -168,21 +188,4 @@ func ethPassFromStdin() (string, error) {
 
 	password := string(bytePassword)
 	return strings.TrimSpace(password), nil
-}
-
-// SigToVRS breaks apart a signature into its components to make it compatible with the contracts
-func SigToVRS(sigHex string) (v uint8, r, s ethcmn.Hash) {
-	signatureBytes := ethcmn.FromHex(sigHex)
-	vParam := signatureBytes[64]
-	if vParam == byte(0) {
-		vParam = byte(27)
-	} else if vParam == byte(1) {
-		vParam = byte(28)
-	}
-
-	v = vParam
-	r = ethcmn.BytesToHash(signatureBytes[0:32])
-	s = ethcmn.BytesToHash(signatureBytes[32:64])
-
-	return
 }
