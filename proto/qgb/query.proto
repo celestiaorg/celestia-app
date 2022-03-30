@@ -79,7 +79,9 @@ message QueryLastValsetRequestsResponse {
   repeated Valset valsets = 1 [ (gogoproto.nullable) = false ];
 }
 
+// QueryParamsRequest
 message QueryParamsRequest {}
+// QueryParamsResponse
 message QueryParamsResponse {
   Params params = 1 [ (gogoproto.nullable) = false ];
 }
