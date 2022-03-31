@@ -108,7 +108,10 @@ func (oc *orchestrator) orchestrateDataCommitments(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case ev := <-results:
-			oc.processDataCommitmentEvents(ctx, params.DataCommitmentWindow, ev)
+			err = oc.processDataCommitmentEvents(ctx, params.DataCommitmentWindow, ev)
+			if err != nil {
+				oc.logger.Err(err)
+			}
 		}
 	}
 }

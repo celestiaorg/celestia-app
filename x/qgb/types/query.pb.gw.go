@@ -874,7 +874,7 @@ var (
 
 	pattern_Query_DataCommitmentConfirmsByRange_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 4}, []string{"qgb", "data_commitment", "confirms", "begin_block", "end_block"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_LastValsetRequests_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"gravity", "v1beta", "valset", "requests"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_LastValsetRequests_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"qgb", "valset", "requests"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_Query_ValsetConfirm_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"qgb", "valset", "confirm"}, "", runtime.AssumeColonVerbOpt(true)))
 
