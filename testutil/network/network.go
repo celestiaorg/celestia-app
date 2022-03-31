@@ -121,6 +121,7 @@ func newGenAccout(kr keyring.Keyring, name string, amount int64) (authtypes.Gene
 	balances := sdk.NewCoins(
 		sdk.NewCoin(fmt.Sprintf("%stoken", name), sdk.NewInt(amount)),
 		sdk.NewCoin(app.BondDenom, sdk.NewInt(amount)),
+		sdk.NewCoin(app.DisplayDenom, sdk.NewInt(amount)),
 	)
 
 	bal := banktypes.Balance{
