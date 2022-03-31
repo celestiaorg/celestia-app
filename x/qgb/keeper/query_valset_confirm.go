@@ -8,6 +8,8 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
+const maxValsetRequestsReturned = 5
+
 // ValsetConfirm queries the ValsetConfirm of the qgb module
 func (k Keeper) ValsetConfirm(
 	c context.Context,
@@ -26,8 +28,6 @@ func (k Keeper) ValsetConfirmsByNonce(
 	confirms := k.GetValsetConfirms(sdk.UnwrapSDKContext(c), req.Nonce)
 	return &types.QueryValsetConfirmsByNonceResponse{Confirms: confirms}, nil
 }
-
-const maxValsetRequestsReturned = 5
 
 // LastValsetRequests queries the LastValsetRequests of the qgb module
 func (k Keeper) LastValsetRequests(
