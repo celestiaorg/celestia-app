@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -19,10 +20,32 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog"
+	"github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"golang.org/x/term"
 	"google.golang.org/grpc"
 )
+
+type Client interface {
+	// LatestValset returns the most recent stored validator set that is
+	// supposed to be signed over.
+	LatestValset() (types.Valset, error)
+}
+
+// OrchestratorClient wraps the necessary rpc clients that are needed to query
+// all orchestrator related data.
+type OrchestratorClient interface {
+	Client
+	// DataCommitment return the data commitment for a given range of blocks
+	DataCommitment(start, end uint64) (bytes.HexBytes, error)
+	// LastDataTupleRootNonce returns the nonce for the latest data commitment
+	LastDataTupleRootNonce() (uint64, error)
+}
+
+// RelayerClient wraps the necessary rpc clients that are needed to query all
+// relayer related data.
+type RelayerClient interface {
+}
 
 type client struct {
 	logger zerolog.Logger
