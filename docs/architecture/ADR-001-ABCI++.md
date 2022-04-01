@@ -55,7 +55,7 @@ type Application interface {
 }
 ```
 
-It's also important to note the changes made to the request types for both methods. In upstream, they are only passing the transactions to the applications. This has been modified to pass the entire block data.
+It's also important to note the changes made to the request types for both methods. In upstream, they are only passing the transactions to the applications. This has been modified to pass the entire block data. This is because Celestia separates some block data that cannot modify state (messages), and the application has to have access to both normal transaction data and messages to perform the necessary processing and checks.
 ```protobuf
 message RequestPrepareProposal {
  // block_data is an array of transactions that will be included in a block,
