@@ -14,7 +14,7 @@ We need this functionality in order for block producers to
 - Malleate user transactions
 - Separate rollup block data from the stateful portion of the transaction
 - Use the appropriate signature for the selected block size
-- Follow the [non-interactive default rules](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules) (not done here)
+- Follow the [non-interactive default rules](https://github.com/celestiaorg/celestia-specs/blob/65d4d528beafaf8d84f7eb805db940f05f2a2c93/src/rationale/message_block_layout.md#non-interactive-default-rules) (not done here)
 - Create Celestia-specific data hash by erasure-coding the block data
 
 We also need this functionality for validators to verify that
