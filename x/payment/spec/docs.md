@@ -1,6 +1,6 @@
 ## Abstract
 
-The payment module is responsible for paying for arbitrary data that will be added to the Celestia blockchain. While the data being submitted can be arbitrary, the exact placement of that data is important for the transaction to be valid. This is why the payment module utilizes a malleated transaction scheme. Malleated transactions allow for users to create a single transaction, that can later be malleated by the block producer to create a variety of different valid transactions that are still signed over by the user. To accomplish this, users create a single `MsgWirePayForMessage` transaction, which is composed of metadata and signatures for multiple variations of the transaction that will be included onchain. After the transaction is submitted to the network, the block producer selects the appropriate signature and creates a valid `MsgPayForMessage` transaction depending on the square size for that block. This new malleated `MsgPayForMessage` transaction is what ends up onchain. 
+The payment module is responsible for paying for arbitrary data that will be added to the Celestia blockchain. While the data being submitted can be arbitrary, the exact placement of that data is important for the transaction to be valid. This is why the payment module utilizes a malleated transaction scheme. Malleated transactions allow for users to create a single transaction, that can later be malleated by the block producer to create a variety of different valid transactions that are still signed over by the user. To accomplish this, users create a single `MsgWirePayForData` transaction, which is composed of metadata and signatures for multiple variations of the transaction that will be included onchain. After the transaction is submitted to the network, the block producer selects the appropriate signature and creates a valid `MsgPayForData` transaction depending on the square size for that block. This new malleated `MsgPayForData` transaction is what ends up onchain. 
 
 Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
 
@@ -9,20 +9,20 @@ Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-
 - The standard incrememnt of the sender's account number via the [auth module](https://github.com/cosmos/cosmos-sdk/blob/531bf5084516425e8e3d24bae637601b4d36a191/x/auth/spec/02_state.md).
 
 ## Messages
-- [`MsgWirePayForMessage`](https://github.com/celestiaorg/celestia-app/blob/b4c8ebdf35db200a9b99d295a13de01110802af4/x/payment/types/tx.pb.go#L32-L40)
+- [`MsgWirePayForData`](https://github.com/celestiaorg/celestia-app/blob/b4c8ebdf35db200a9b99d295a13de01110802af4/x/payment/types/tx.pb.go#L32-L40)
 
 While this transaction is created and signed by the user, it never actually ends up onchain. Instead, it is used to create a new "malleated" transaction that does get included onchain.
-- [`MsgPayForMessage`](https://github.com/celestiaorg/celestia-app/blob/b4c8ebdf35db200a9b99d295a13de01110802af4/x/payment/types/tx.pb.go#L208-L216)
+- [`MsgPayForData`](https://github.com/celestiaorg/celestia-app/blob/b4c8ebdf35db200a9b99d295a13de01110802af4/x/payment/types/tx.pb.go#L208-L216)
 
-The malleated transaction that is created from metadata contained in the original `MsgWirePayForMessage`. It also burns some of the sender’s funds.
+The malleated transaction that is created from metadata contained in the original `MsgWirePayForData`. It also burns some of the sender’s funds.
 
 ## PreProcessTxs
 The malleation process occurs during the PreProcessTxs step.
 ```go
-// ProcessWirePayForMessage will perform the processing required by PreProcessTxs.
-// It parses the MsgWirePayForMessage to produce the components needed to create a
-// single  MsgPayForMessage
-func ProcessWirePayForMessage(msg *MsgWirePayForMessage, squareSize uint64) (*tmproto.Message, *MsgPayForMessage, []byte, error) {
+// ProcessWirePayForData will perform the processing required by PreProcessTxs.
+// It parses the MsgWirePayForData to produce the components needed to create a
+// single  MsgPayForData
+func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.Message, *MsgPayForData, []byte, error) {
 	// make sure that a ShareCommitAndSignature of the correct size is
 	// included in the message
 	var shareCommit *ShareCommitAndSignature
@@ -45,7 +45,7 @@ func ProcessWirePayForMessage(msg *MsgWirePayForMessage, squareSize uint64) (*tm
 	}
 
 	// wrap the signed transaction data
-	pfm, err := msg.unsignedPayForMessage(squareSize)
+	pfm, err := msg.unsignedPayForData(squareSize)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -64,16 +64,16 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
         // boiler plate
 		...
 		// parse wire message and create a single message
-		coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForMessage(wireMsg, app.SquareSize())
+		coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForData(wireMsg, app.SquareSize())
 		if err != nil {
 			continue
 		}
 
-		// create the signed PayForMessage using the fees, gas limit, and sequence from
+		// create the signed PayForData using the fees, gas limit, and sequence from
 		// the original transaction, along with the appropriate signature.
-		signedTx, err := types.BuildPayForMessageTxFromWireTx(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFM)
+		signedTx, err := types.BuildPayForDataTxFromWireTx(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFM)
 		if err != nil {
-			app.Logger().Error("failure to create signed PayForMessage", err)
+			app.Logger().Error("failure to create signed PayForData", err)
 			continue
 		}
     ...
@@ -82,7 +82,7 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 ```
 
 ## Events
-- [`NewPayForMessageEvent`](https://github.com/celestiaorg/celestia-app/pull/213/files#diff-1ce55bda42cf160deca2e5ea1f4382b65f3b689c7e00c88085d7ce219e77303dR17-R21)
+- [`NewPayForDataEvent`](https://github.com/celestiaorg/celestia-app/pull/213/files#diff-1ce55bda42cf160deca2e5ea1f4382b65f3b689c7e00c88085d7ce219e77303dR17-R21)
 Emit an event that has the signer's address and size of the message that is paid for.
 
 ## Parameters
@@ -92,21 +92,21 @@ There are no parameters yet, but we might add
 - ShareSize
 
 ### Usage 
-`celestia-app tx payment payForMessage <hex encoded namespace> <hex encoded data> [flags]`
+`celestia-app tx payment payForData <hex encoded namespace> <hex encoded data> [flags]`
 
 ### Programmatic Usage
-There are tools to programmatically create, sign, and broadcast `MsgWirePayForMessages`
+There are tools to programmatically create, sign, and broadcast `MsgWirePayForDatas`
 ```go
-// create the raw WirePayForMessage transaction
-wpfmMsg, err := apptypes.NewWirePayForMessage(block.Header.NamespaceId, message, 16, 32, 64, 128)
+// create the raw WirePayForData transaction
+wpfmMsg, err := apptypes.NewWirePayForData(block.Header.NamespaceId, message, 16, 32, 64, 128)
 if err != nil {
     return err
 }
 
-// we need to create a signature for each `MsgPayForMessage`s that 
+// we need to create a signature for each `MsgPayForData`s that 
 // could be generated by the block producer
 // to do this, we create a custom `KeyringSigner` to sign messages programmatically
-// which uses the standard cosmos-sdk `Keyring` to sign each `MsgPayForMessage`
+// which uses the standard cosmos-sdk `Keyring` to sign each `MsgPayForData`
 keyringSigner, err := NewKeyringSigner(keyring, "keyring account name", "chain-id-1")
 if err != nil {
     return err
@@ -118,7 +118,7 @@ if err != nil {
     return err
 }
 
-// generate the signatures for each `MsgPayForMessage` using the `KeyringSigner`, 
+// generate the signatures for each `MsgPayForData` using the `KeyringSigner`, 
 // then set the gas limit for the tx 
 gasLimOption := types.SetGasLimit(200000)
 err = pfmMsg.SignShareCommitments(keyringSigner, gasLimOption)
@@ -126,8 +126,8 @@ if err != nil {
     return err
 }
 
-// Build and sign the final `WirePayForMessage` tx that now contians the signatures
-// for potential `MsgPayForMessage`s
+// Build and sign the final `WirePayForData` tx that now contians the signatures
+// for potential `MsgPayForData`s
 signedTx, err := keyringSigner.BuildSignedTx(
     gasLimOption(signer.NewTxBuilder()),
     wpfmMsg,

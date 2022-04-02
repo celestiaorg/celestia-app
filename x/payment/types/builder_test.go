@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func TestBuildWirePayForMessage(t *testing.T) {
+func TestBuildWirePayForData(t *testing.T) {
 	testRing := generateKeyring(t)
 
 	info, err := testRing.Key(testAccName)
@@ -27,7 +27,7 @@ func TestBuildWirePayForMessage(t *testing.T) {
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	message := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 
-	msg, err := NewWirePayForMessage(namespace, message, 4, 16, 32)
+	msg, err := NewWirePayForData(namespace, message, 4, 16, 32)
 	require.NoError(t, err)
 
 	signedTx, err := k.BuildSignedTx(k.NewTxBuilder(), msg)
@@ -52,7 +52,7 @@ func TestBuildWirePayForMessage(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestBroadcastPayForMessage(t *testing.T) {
+func TestBroadcastPayForData(t *testing.T) {
 	testRing := generateKeyring(t)
 	info, err := testRing.Key(testAccName)
 	require.NoError(t, err)
@@ -80,7 +80,7 @@ func TestBroadcastPayForMessage(t *testing.T) {
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	message := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 
-	msg, err := NewWirePayForMessage(namespace, message, 4, 16, 32)
+	msg, err := NewWirePayForData(namespace, message, 4, 16, 32)
 	require.NoError(t, err)
 
 	signedTx, err := k.BuildSignedTx(builder, msg)

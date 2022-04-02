@@ -75,7 +75,7 @@ func TestPreprocessTxs(t *testing.T) {
 
 func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner) (rawTx []byte) {
 	// create a msg
-	msg := generateSignedWirePayForMessage(t, consts.MaxSquareSize, ns, message, signer)
+	msg := generateSignedWirePayForData(t, consts.MaxSquareSize, ns, message, signer)
 
 	builder := signer.NewTxBuilder()
 
@@ -98,8 +98,8 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, s
 	return rawTx
 }
 
-func generateSignedWirePayForMessage(t *testing.T, k uint64, ns, message []byte, signer *types.KeyringSigner) *types.MsgWirePayForMessage {
-	msg, err := types.NewWirePayForMessage(ns, message, k)
+func generateSignedWirePayForData(t *testing.T, k uint64, ns, message []byte, signer *types.KeyringSigner) *types.MsgWirePayForData {
+	msg, err := types.NewWirePayForData(ns, message, k)
 	if err != nil {
 		t.Error(err)
 	}

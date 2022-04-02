@@ -29,9 +29,9 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// MsgWirePayForMessage describes the format of data that is sent over the wire
-// for each PayForMessage
-type MsgWirePayForMessage struct {
+// MsgWirePayForData describes the format of data that is sent over the wire
+// for each PayForData
+type MsgWirePayForData struct {
 	Signer                 string                    `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 	MessageNameSpaceId     []byte                    `protobuf:"bytes,2,opt,name=message_name_space_id,json=messageNameSpaceId,proto3" json:"message_name_space_id,omitempty"`
 	MessageSize            uint64                    `protobuf:"varint,3,opt,name=message_size,json=messageSize,proto3" json:"message_size,omitempty"`
@@ -39,18 +39,18 @@ type MsgWirePayForMessage struct {
 	MessageShareCommitment []ShareCommitAndSignature `protobuf:"bytes,6,rep,name=message_share_commitment,json=messageShareCommitment,proto3" json:"message_share_commitment"`
 }
 
-func (m *MsgWirePayForMessage) Reset()         { *m = MsgWirePayForMessage{} }
-func (m *MsgWirePayForMessage) String() string { return proto.CompactTextString(m) }
-func (*MsgWirePayForMessage) ProtoMessage()    {}
-func (*MsgWirePayForMessage) Descriptor() ([]byte, []int) {
+func (m *MsgWirePayForData) Reset()         { *m = MsgWirePayForData{} }
+func (m *MsgWirePayForData) String() string { return proto.CompactTextString(m) }
+func (*MsgWirePayForData) ProtoMessage()    {}
+func (*MsgWirePayForData) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9897659aff976806, []int{0}
 }
-func (m *MsgWirePayForMessage) XXX_Unmarshal(b []byte) error {
+func (m *MsgWirePayForData) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgWirePayForMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgWirePayForData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgWirePayForMessage.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgWirePayForData.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -60,70 +60,70 @@ func (m *MsgWirePayForMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte
 		return b[:n], nil
 	}
 }
-func (m *MsgWirePayForMessage) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgWirePayForMessage.Merge(m, src)
+func (m *MsgWirePayForData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgWirePayForData.Merge(m, src)
 }
-func (m *MsgWirePayForMessage) XXX_Size() int {
+func (m *MsgWirePayForData) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgWirePayForMessage) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgWirePayForMessage.DiscardUnknown(m)
+func (m *MsgWirePayForData) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgWirePayForData.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgWirePayForMessage proto.InternalMessageInfo
+var xxx_messageInfo_MsgWirePayForData proto.InternalMessageInfo
 
-func (m *MsgWirePayForMessage) GetSigner() string {
+func (m *MsgWirePayForData) GetSigner() string {
 	if m != nil {
 		return m.Signer
 	}
 	return ""
 }
 
-func (m *MsgWirePayForMessage) GetMessageNameSpaceId() []byte {
+func (m *MsgWirePayForData) GetMessageNameSpaceId() []byte {
 	if m != nil {
 		return m.MessageNameSpaceId
 	}
 	return nil
 }
 
-func (m *MsgWirePayForMessage) GetMessageSize() uint64 {
+func (m *MsgWirePayForData) GetMessageSize() uint64 {
 	if m != nil {
 		return m.MessageSize
 	}
 	return 0
 }
 
-func (m *MsgWirePayForMessage) GetMessage() []byte {
+func (m *MsgWirePayForData) GetMessage() []byte {
 	if m != nil {
 		return m.Message
 	}
 	return nil
 }
 
-func (m *MsgWirePayForMessage) GetMessageShareCommitment() []ShareCommitAndSignature {
+func (m *MsgWirePayForData) GetMessageShareCommitment() []ShareCommitAndSignature {
 	if m != nil {
 		return m.MessageShareCommitment
 	}
 	return nil
 }
 
-// MsgWirePayForMessageResponse describes the response returned after the
-// submission of a WirePayForMessage
-type MsgWirePayForMessageResponse struct {
+// MsgWirePayForDataResponse describes the response returned after the
+// submission of a WirePayForData
+type MsgWirePayForDataResponse struct {
 }
 
-func (m *MsgWirePayForMessageResponse) Reset()         { *m = MsgWirePayForMessageResponse{} }
-func (m *MsgWirePayForMessageResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgWirePayForMessageResponse) ProtoMessage()    {}
-func (*MsgWirePayForMessageResponse) Descriptor() ([]byte, []int) {
+func (m *MsgWirePayForDataResponse) Reset()         { *m = MsgWirePayForDataResponse{} }
+func (m *MsgWirePayForDataResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgWirePayForDataResponse) ProtoMessage()    {}
+func (*MsgWirePayForDataResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9897659aff976806, []int{1}
 }
-func (m *MsgWirePayForMessageResponse) XXX_Unmarshal(b []byte) error {
+func (m *MsgWirePayForDataResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgWirePayForMessageResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgWirePayForDataResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgWirePayForMessageResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgWirePayForDataResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -133,17 +133,17 @@ func (m *MsgWirePayForMessageResponse) XXX_Marshal(b []byte, deterministic bool)
 		return b[:n], nil
 	}
 }
-func (m *MsgWirePayForMessageResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgWirePayForMessageResponse.Merge(m, src)
+func (m *MsgWirePayForDataResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgWirePayForDataResponse.Merge(m, src)
 }
-func (m *MsgWirePayForMessageResponse) XXX_Size() int {
+func (m *MsgWirePayForDataResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgWirePayForMessageResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgWirePayForMessageResponse.DiscardUnknown(m)
+func (m *MsgWirePayForDataResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgWirePayForDataResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgWirePayForMessageResponse proto.InternalMessageInfo
+var xxx_messageInfo_MsgWirePayForDataResponse proto.InternalMessageInfo
 
 // ShareCommitAndSignature defines the
 type ShareCommitAndSignature struct {
@@ -206,30 +206,30 @@ func (m *ShareCommitAndSignature) GetSignature() []byte {
 	return nil
 }
 
-// MsgPayForMessage is what gets signed by users when creating
+// MsgPayForData is what gets signed by users when creating
 // ShareCommitSignatures.
 //  Multiple versions are signed and included, each version creates a commitment
 //  for a
 // specific square size.
-type MsgPayForMessage struct {
+type MsgPayForData struct {
 	Signer                 string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 	MessageNamespaceId     []byte `protobuf:"bytes,2,opt,name=message_namespace_id,json=messageNamespaceId,proto3" json:"message_namespace_id,omitempty"`
 	MessageSize            uint64 `protobuf:"varint,3,opt,name=message_size,json=messageSize,proto3" json:"message_size,omitempty"`
 	MessageShareCommitment []byte `protobuf:"bytes,4,opt,name=message_share_commitment,json=messageShareCommitment,proto3" json:"message_share_commitment,omitempty"`
 }
 
-func (m *MsgPayForMessage) Reset()         { *m = MsgPayForMessage{} }
-func (m *MsgPayForMessage) String() string { return proto.CompactTextString(m) }
-func (*MsgPayForMessage) ProtoMessage()    {}
-func (*MsgPayForMessage) Descriptor() ([]byte, []int) {
+func (m *MsgPayForData) Reset()         { *m = MsgPayForData{} }
+func (m *MsgPayForData) String() string { return proto.CompactTextString(m) }
+func (*MsgPayForData) ProtoMessage()    {}
+func (*MsgPayForData) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9897659aff976806, []int{3}
 }
-func (m *MsgPayForMessage) XXX_Unmarshal(b []byte) error {
+func (m *MsgPayForData) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgPayForMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgPayForData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgPayForMessage.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgPayForData.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -239,63 +239,63 @@ func (m *MsgPayForMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, er
 		return b[:n], nil
 	}
 }
-func (m *MsgPayForMessage) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgPayForMessage.Merge(m, src)
+func (m *MsgPayForData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgPayForData.Merge(m, src)
 }
-func (m *MsgPayForMessage) XXX_Size() int {
+func (m *MsgPayForData) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgPayForMessage) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgPayForMessage.DiscardUnknown(m)
+func (m *MsgPayForData) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgPayForData.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgPayForMessage proto.InternalMessageInfo
+var xxx_messageInfo_MsgPayForData proto.InternalMessageInfo
 
-func (m *MsgPayForMessage) GetSigner() string {
+func (m *MsgPayForData) GetSigner() string {
 	if m != nil {
 		return m.Signer
 	}
 	return ""
 }
 
-func (m *MsgPayForMessage) GetMessageNamespaceId() []byte {
+func (m *MsgPayForData) GetMessageNamespaceId() []byte {
 	if m != nil {
 		return m.MessageNamespaceId
 	}
 	return nil
 }
 
-func (m *MsgPayForMessage) GetMessageSize() uint64 {
+func (m *MsgPayForData) GetMessageSize() uint64 {
 	if m != nil {
 		return m.MessageSize
 	}
 	return 0
 }
 
-func (m *MsgPayForMessage) GetMessageShareCommitment() []byte {
+func (m *MsgPayForData) GetMessageShareCommitment() []byte {
 	if m != nil {
 		return m.MessageShareCommitment
 	}
 	return nil
 }
 
-// MsgPayForMessageResponse describes the response returned after the submission
-// of a PayForMessage
-type MsgPayForMessageResponse struct {
+// MsgPayForDataResponse describes the response returned after the submission
+// of a PayForData
+type MsgPayForDataResponse struct {
 }
 
-func (m *MsgPayForMessageResponse) Reset()         { *m = MsgPayForMessageResponse{} }
-func (m *MsgPayForMessageResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgPayForMessageResponse) ProtoMessage()    {}
-func (*MsgPayForMessageResponse) Descriptor() ([]byte, []int) {
+func (m *MsgPayForDataResponse) Reset()         { *m = MsgPayForDataResponse{} }
+func (m *MsgPayForDataResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgPayForDataResponse) ProtoMessage()    {}
+func (*MsgPayForDataResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_9897659aff976806, []int{4}
 }
-func (m *MsgPayForMessageResponse) XXX_Unmarshal(b []byte) error {
+func (m *MsgPayForDataResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgPayForMessageResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgPayForDataResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgPayForMessageResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgPayForDataResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -305,24 +305,24 @@ func (m *MsgPayForMessageResponse) XXX_Marshal(b []byte, deterministic bool) ([]
 		return b[:n], nil
 	}
 }
-func (m *MsgPayForMessageResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgPayForMessageResponse.Merge(m, src)
+func (m *MsgPayForDataResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgPayForDataResponse.Merge(m, src)
 }
-func (m *MsgPayForMessageResponse) XXX_Size() int {
+func (m *MsgPayForDataResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgPayForMessageResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgPayForMessageResponse.DiscardUnknown(m)
+func (m *MsgPayForDataResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgPayForDataResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgPayForMessageResponse proto.InternalMessageInfo
+var xxx_messageInfo_MsgPayForDataResponse proto.InternalMessageInfo
 
 func init() {
-	proto.RegisterType((*MsgWirePayForMessage)(nil), "payment.MsgWirePayForMessage")
-	proto.RegisterType((*MsgWirePayForMessageResponse)(nil), "payment.MsgWirePayForMessageResponse")
+	proto.RegisterType((*MsgWirePayForData)(nil), "payment.MsgWirePayForData")
+	proto.RegisterType((*MsgWirePayForDataResponse)(nil), "payment.MsgWirePayForDataResponse")
 	proto.RegisterType((*ShareCommitAndSignature)(nil), "payment.ShareCommitAndSignature")
-	proto.RegisterType((*MsgPayForMessage)(nil), "payment.MsgPayForMessage")
-	proto.RegisterType((*MsgPayForMessageResponse)(nil), "payment.MsgPayForMessageResponse")
+	proto.RegisterType((*MsgPayForData)(nil), "payment.MsgPayForData")
+	proto.RegisterType((*MsgPayForDataResponse)(nil), "payment.MsgPayForDataResponse")
 }
 
 func init() { proto.RegisterFile("payment/tx.proto", fileDescriptor_9897659aff976806) }
@@ -373,8 +373,8 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	// PayForMessage allows the user to pay for the inclusion of a message
-	PayForMessage(ctx context.Context, in *MsgPayForMessage, opts ...grpc.CallOption) (*MsgPayForMessageResponse, error)
+	// PayForData allows the user to pay for the inclusion of a message
+	PayForData(ctx context.Context, in *MsgPayForData, opts ...grpc.CallOption) (*MsgPayForDataResponse, error)
 }
 
 type msgClient struct {
@@ -385,9 +385,9 @@ func NewMsgClient(cc grpc1.ClientConn) MsgClient {
 	return &msgClient{cc}
 }
 
-func (c *msgClient) PayForMessage(ctx context.Context, in *MsgPayForMessage, opts ...grpc.CallOption) (*MsgPayForMessageResponse, error) {
-	out := new(MsgPayForMessageResponse)
-	err := c.cc.Invoke(ctx, "/payment.Msg/PayForMessage", in, out, opts...)
+func (c *msgClient) PayForData(ctx context.Context, in *MsgPayForData, opts ...grpc.CallOption) (*MsgPayForDataResponse, error) {
+	out := new(MsgPayForDataResponse)
+	err := c.cc.Invoke(ctx, "/payment.Msg/PayForData", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -396,36 +396,36 @@ func (c *msgClient) PayForMessage(ctx context.Context, in *MsgPayForMessage, opt
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	// PayForMessage allows the user to pay for the inclusion of a message
-	PayForMessage(context.Context, *MsgPayForMessage) (*MsgPayForMessageResponse, error)
+	// PayForData allows the user to pay for the inclusion of a message
+	PayForData(context.Context, *MsgPayForData) (*MsgPayForDataResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.
 type UnimplementedMsgServer struct {
 }
 
-func (*UnimplementedMsgServer) PayForMessage(ctx context.Context, req *MsgPayForMessage) (*MsgPayForMessageResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PayForMessage not implemented")
+func (*UnimplementedMsgServer) PayForData(ctx context.Context, req *MsgPayForData) (*MsgPayForDataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PayForData not implemented")
 }
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
 	s.RegisterService(&_Msg_serviceDesc, srv)
 }
 
-func _Msg_PayForMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgPayForMessage)
+func _Msg_PayForData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgPayForData)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).PayForMessage(ctx, in)
+		return srv.(MsgServer).PayForData(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/payment.Msg/PayForMessage",
+		FullMethod: "/payment.Msg/PayForData",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).PayForMessage(ctx, req.(*MsgPayForMessage))
+		return srv.(MsgServer).PayForData(ctx, req.(*MsgPayForData))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -435,15 +435,15 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*MsgServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "PayForMessage",
-			Handler:    _Msg_PayForMessage_Handler,
+			MethodName: "PayForData",
+			Handler:    _Msg_PayForData_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "payment/tx.proto",
 }
 
-func (m *MsgWirePayForMessage) Marshal() (dAtA []byte, err error) {
+func (m *MsgWirePayForData) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -453,12 +453,12 @@ func (m *MsgWirePayForMessage) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgWirePayForMessage) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgWirePayForData) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgWirePayForMessage) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgWirePayForData) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -506,7 +506,7 @@ func (m *MsgWirePayForMessage) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgWirePayForMessageResponse) Marshal() (dAtA []byte, err error) {
+func (m *MsgWirePayForDataResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -516,12 +516,12 @@ func (m *MsgWirePayForMessageResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgWirePayForMessageResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgWirePayForDataResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgWirePayForMessageResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgWirePayForDataResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -571,7 +571,7 @@ func (m *ShareCommitAndSignature) MarshalToSizedBuffer(dAtA []byte) (int, error)
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgPayForMessage) Marshal() (dAtA []byte, err error) {
+func (m *MsgPayForData) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -581,12 +581,12 @@ func (m *MsgPayForMessage) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgPayForMessage) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgPayForData) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgPayForMessage) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgPayForData) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -620,7 +620,7 @@ func (m *MsgPayForMessage) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgPayForMessageResponse) Marshal() (dAtA []byte, err error) {
+func (m *MsgPayForDataResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -630,12 +630,12 @@ func (m *MsgPayForMessageResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgPayForMessageResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgPayForDataResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgPayForMessageResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgPayForDataResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -654,7 +654,7 @@ func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *MsgWirePayForMessage) Size() (n int) {
+func (m *MsgWirePayForData) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -684,7 +684,7 @@ func (m *MsgWirePayForMessage) Size() (n int) {
 	return n
 }
 
-func (m *MsgWirePayForMessageResponse) Size() (n int) {
+func (m *MsgWirePayForDataResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -713,7 +713,7 @@ func (m *ShareCommitAndSignature) Size() (n int) {
 	return n
 }
 
-func (m *MsgPayForMessage) Size() (n int) {
+func (m *MsgPayForData) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -737,7 +737,7 @@ func (m *MsgPayForMessage) Size() (n int) {
 	return n
 }
 
-func (m *MsgPayForMessageResponse) Size() (n int) {
+func (m *MsgPayForDataResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -752,7 +752,7 @@ func sovTx(x uint64) (n int) {
 func sozTx(x uint64) (n int) {
 	return sovTx(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *MsgWirePayForMessage) Unmarshal(dAtA []byte) error {
+func (m *MsgWirePayForData) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -775,10 +775,10 @@ func (m *MsgWirePayForMessage) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgWirePayForMessage: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgWirePayForData: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgWirePayForMessage: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgWirePayForData: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -955,7 +955,7 @@ func (m *MsgWirePayForMessage) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgWirePayForMessageResponse) Unmarshal(dAtA []byte) error {
+func (m *MsgWirePayForDataResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -978,10 +978,10 @@ func (m *MsgWirePayForMessageResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgWirePayForMessageResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgWirePayForDataResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgWirePayForMessageResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgWirePayForDataResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:
@@ -1142,7 +1142,7 @@ func (m *ShareCommitAndSignature) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgPayForMessage) Unmarshal(dAtA []byte) error {
+func (m *MsgPayForData) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1165,10 +1165,10 @@ func (m *MsgPayForMessage) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgPayForMessage: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgPayForData: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgPayForMessage: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgPayForData: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1311,7 +1311,7 @@ func (m *MsgPayForMessage) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgPayForMessageResponse) Unmarshal(dAtA []byte) error {
+func (m *MsgPayForDataResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1334,10 +1334,10 @@ func (m *MsgPayForMessageResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgPayForMessageResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgPayForDataResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgPayForMessageResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgPayForDataResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:
