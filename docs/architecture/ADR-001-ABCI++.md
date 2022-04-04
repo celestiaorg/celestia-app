@@ -30,7 +30,6 @@ Technically, we don’t have to use ABCI++ yet, we could still test some needed 
 While the adoption of ABCI++ is inevitable given the already made decision by upstream to implement it, here are some alternatives to the features that we need that do not use ABCI++.
 
 - [Alternatives for Message Inclusion.](https://github.com/celestiaorg/celestia-app/blob/92341dd68ee6e555ec6c0bb780afa3a1c8243a93/adrs/adr008:adopt-ABC%2B%2B-early.md#alternative-approaches)
-
 - [Alternatives for Picking a square size.](https://github.com/celestiaorg/celestia-core/issues/454)
 
 ## Decision
