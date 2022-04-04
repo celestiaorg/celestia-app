@@ -20,7 +20,7 @@ We need this functionality in order for block producers to:
 We also need this functionality for validators to verify that:
 
 - For every `MsgPayForMessage` included in the block, there is also a corresponding message and vice versa.
-- That the data hash represents the properly-erasure-coded block data for the selected block size.
+- The data hash represents the properly-erasure-coded block data for the selected block size.
 - Included messages are arranged in the expected locations in the square according to the non-interactive default rules (not done here)
 
 Technically, we don’t have to use ABCI++ yet, we could still test some needed features in the upcoming testnet without it. However, these implementations would not be representative of the implementations that would actually make it to mainnet, as they would have to be significantly different from their ABCI++ counterparts. The decision to adopt ABCI++ earlier becomes easier considering that the tendermint team has already done most of the heavy lifting, and it is possible to start working on the needed features without waiting for the cosmos-sdk team to use them. We explain our plans below to do just this, by using a subset of ABCI++ (ABCI+?) using only the new methods that are necessary, finished, and easy to incorporate into the cosmos-sdk.
