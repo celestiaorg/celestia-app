@@ -8,7 +8,7 @@
 
 Among other things, ABCI++ enables arbitrary logic to be performed by the application to create and verify proposal blocks.
 
-We need this functionality in order for block producers to
+We need this functionality in order for block producers to:
 
 - Pick a square size / fill the data square efficiently
 - Malleate user transactions
