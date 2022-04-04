@@ -42,6 +42,11 @@ func (bankModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 				Exponent: 6,
 				Aliases:  []string{},
 			},
+			{
+				Denom:    TokenDenom,
+				Exponent: 6,
+				Aliases:  []string{},
+			},
 		},
 	}
 
