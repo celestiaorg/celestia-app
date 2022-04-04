@@ -17,7 +17,7 @@ We need this functionality in order for block producers to:
 - Follow the [non-interactive default rules](https://github.com/celestiaorg/celestia-specs/blob/65d4d528beafaf8d84f7eb805db940f05f2a2c93/src/rationale/message_block_layout.md#non-interactive-default-rules) (not done here)
 - Create Celestia-specific data hash by erasure-coding the block data
 
-We also need this functionality for validators to verify that
+We also need this functionality for validators to verify that:
 
 - For every `MsgPayForMessage` included in the block, there is also a corresponding message and vice versa.
 - That the data hash represents the properly-erasure-coded block data for the selected block size.
