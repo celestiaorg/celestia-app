@@ -4,6 +4,7 @@ package qgb;
 import "google/api/annotations.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
 import "qgb/msgs.proto";
+import "qgb/types.proto";
 import "gogoproto/gogo.proto";
 // this line is used by starport scaffolding # 1
 
@@ -41,14 +42,18 @@ service Query {
     option (google.api.http).get = "/qgb/data_commitment/confirms/begin_block/"
                                    "{begin_block}/end_block/{end_block}";
   }
+  // DataCommitmentRequest Queries data commitment request by nonce.
   rpc DataCommitmentRequest(QueryDataCommitmentRequestRequest)
       returns (QueryDataCommitmentRequestResponse) {
     option (google.api.http).get = "/qgb/data_commitment";
   }
+  // LastDataCommitmentRequests Query the last data commitments.
   rpc LastDataCommitmentRequests(QueryLastDataCommitmentRequestsRequest)
       returns (QueryLastDataCommitmentRequestsResponse) {
     option (google.api.http).get = "/qgb/data_commitment/requests";
   }
+  // LastPendingDataCommitmentRequestByAddr Query the last pending data
+  // commitment request by address.
   rpc LastPendingDataCommitmentRequestByAddr(
       QueryLastPendingDataCommitmentRequestByAddrRequest)
       returns (QueryLastPendingDataCommitmentRequestByAddrResponse) {
@@ -154,15 +159,31 @@ message QueryDataCommitmentConfirmsByValidatorResponse {
       [ (gogoproto.nullable) = false ];
 }
 
+// QueryDataCommitmentRequestRequest Data commitment by nonce request
+message QueryDataCommitmentRequestRequest {
+  // Unique number referencing the `DataCommitment`.
+  uint64 nonce = 1;
+}
+// QueryDataCommitmentRequestResponse Data commitment by nonce response
+message QueryDataCommitmentRequestResponse {
+  repeated DataCommitment commitments = 1 [ (gogoproto.nullable) = false ];
+}
+
+// QueryLastDataCommitmentRequestsRequest Last data commitment request
 message QueryLastDataCommitmentRequestsRequest {}
+// QueryLastDataCommitmentRequestsResponse Last data commitment response
 message QueryLastDataCommitmentRequestsResponse {
   repeated DataCommitment commitments = 1 [ (gogoproto.nullable) = false ];
 }
 
+// QueryLastPendingDataCommitmentRequestByAddrRequest Last pending data
+// commitment to be signed by address request
 message QueryLastPendingDataCommitmentRequestByAddrRequest {
   // Orchestrator account address who will be signing the message.
   string validator_address = 1;
 }
+// QueryLastPendingDataCommitmentRequestByAddrResponse Last pending data
+// commitment to be signed by address response
 message QueryLastPendingDataCommitmentRequestByAddrResponse {
   repeated DataCommitment commitments = 1 [ (gogoproto.nullable) = false ];
 }
