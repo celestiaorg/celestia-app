@@ -4,8 +4,8 @@ go 1.17
 
 require (
 	github.com/celestiaorg/nmt v0.8.0
-	github.com/cosmos/cosmos-sdk v0.44.0
-	github.com/cosmos/ibc-go v1.2.0
+	github.com/cosmos/cosmos-sdk v0.44.3
+	github.com/cosmos/ibc-go v1.2.2
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.8.0
@@ -13,8 +13,8 @@ require (
 	github.com/spf13/cast v1.4.1
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
-	github.com/tendermint/spm v0.1.5
-	github.com/tendermint/tendermint v0.34.13
+	github.com/tendermint/spm v0.1.9
+	github.com/tendermint/tendermint v0.34.14
 	github.com/tendermint/tm-db v0.6.4
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
