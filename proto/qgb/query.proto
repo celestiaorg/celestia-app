@@ -41,6 +41,19 @@ service Query {
     option (google.api.http).get = "/qgb/data_commitment/confirms/begin_block/"
                                    "{begin_block}/end_block/{end_block}";
   }
+  rpc DataCommitmentRequest(QueryDataCommitmentRequestRequest)
+      returns (QueryDataCommitmentRequestResponse) {
+    option (google.api.http).get = "/qgb/data_commitment";
+  }
+  rpc LastDataCommitmentRequests(QueryLastDataCommitmentRequestsRequest)
+      returns (QueryLastDataCommitmentRequestsResponse) {
+    option (google.api.http).get = "/qgb/data_commitment/requests";
+  }
+  rpc LastPendingDataCommitmentRequestByAddr(
+      QueryLastPendingDataCommitmentRequestByAddrRequest)
+      returns (QueryLastPendingDataCommitmentRequestByAddrResponse) {
+    option (google.api.http).get = "/qgb/data_commitment/last";
+  }
 
   // ValsetConfirm Queries ValSetConfirm
   rpc ValsetConfirm(QueryValsetConfirmRequest)
@@ -140,4 +153,16 @@ message QueryDataCommitmentConfirmsByValidatorResponse {
   repeated MsgDataCommitmentConfirm confirms = 1
       [ (gogoproto.nullable) = false ];
 }
-// this line is used by starport scaffolding # 3
+
+message QueryLastDataCommitmentRequestsRequest {}
+message QueryLastDataCommitmentRequestsResponse {
+  repeated DataCommitment commitments = 1 [ (gogoproto.nullable) = false ];
+}
+
+message QueryLastPendingDataCommitmentRequestByAddrRequest {
+  // Orchestrator account address who will be signing the message.
+  string validator_address = 1;
+}
+message QueryLastPendingDataCommitmentRequestByAddrResponse {
+  repeated DataCommitment commitments = 1 [ (gogoproto.nullable) = false ];
+}
