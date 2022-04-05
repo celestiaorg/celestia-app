@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	tmlog "github.com/tendermint/tendermint/libs/log"
 	"os"
 	"strings"
 	"sync"
@@ -29,16 +30,18 @@ func OrchestratorCmd() *cobra.Command {
 				return err
 			}
 
-			client, err := newClient(
-				zerolog.New(os.Stdout),
-				config,
+			client, err := NewAppClient(
+				tmlog.NewTMLogger(os.Stdout),
+				config.tendermintRPC,
+				config.qgbRPC,
 			)
 			if err != nil {
 				return err
 			}
 
 			orch := orchestrator{
-				client: client,
+				logger:    zerolog.New(os.Stdout),
+				appClient: client,
 				signer: paytypes.NewKeyringSigner(
 					ring,
 					config.keyringAccount,
@@ -57,7 +60,8 @@ func OrchestratorCmd() *cobra.Command {
 					case <-ctx.Done():
 						return
 					default:
-						err = orch.orchestrateValsets(ctx)
+						valsetChan, err := client.SubscribeValset(ctx)
+						err = orch.processValsetEvents(ctx, valsetChan)
 						if err != nil {
 							orch.logger.Err(err)
 							// todo: refactor to make a more sophisticated retry mechanism
@@ -78,7 +82,8 @@ func OrchestratorCmd() *cobra.Command {
 					case <-ctx.Done():
 						return
 					default:
-						err = orch.orchestrateDataCommitments(ctx)
+						dcChan, err := client.SubscribeDataCommitment(ctx)
+						err = orch.processDataCommitmentEvents(ctx, dcChan)
 						if err != nil {
 							orch.logger.Err(err)
 							time.Sleep(time.Second * 30)

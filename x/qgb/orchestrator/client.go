@@ -30,13 +30,14 @@ type RelayerClient interface {
 }
 
 type client struct {
-	logger zerolog.Logger
 
 	// RPC
 	tendermintRPC *http.HTTP
 	qgbRPC        *grpc.ClientConn
 	ethRPC        *ethclient.Client
 	wrapper       *wrapper.QuantumGravityBridge
+
+	logger zerolog.Logger
 
 	// orchestrator signing
 	singerFn           bind.SignerFn
