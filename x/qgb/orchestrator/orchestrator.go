@@ -2,65 +2,35 @@ package orchestrator
 
 import (
 	"context"
-	"errors"
-	"fmt"
+	"github.com/rs/zerolog"
 	"math/big"
 
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcmn "github.com/ethereum/go-ethereum/common"
-	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 type orchestrator struct {
-	*client
+	logger zerolog.Logger
+
+	// client
+	appClient AppClient
+
+	// orchestrator signing
+	singerFn           bind.SignerFn
+	personalSignerFn   PersonalSignFn
+	transactOpsBuilder transactOpsBuilder
+	evmAddress         ethcmn.Address
+	bridgeID           ethcmn.Hash
 
 	// celestia related signing
 	signer *paytypes.KeyringSigner
 }
 
-func (oc *orchestrator) orchestrateValsets(ctx context.Context) error {
-	results, err := oc.tendermintRPC.Subscribe(ctx, "valset-changes", "tm.event='Tx' AND message.module='qgb'")
-	if err != nil {
-		return err
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case ev := <-results:
-			err = oc.processValsetEvents(ctx, ev)
-			if err != nil {
-				return err
-			}
-		}
-	}
-}
-
-func (oc *orchestrator) processValsetEvents(ctx context.Context, ev rpctypes.ResultEvent) error {
-	attributes := ev.Events[types.EventTypeValsetRequest]
-	for _, attr := range attributes {
-		if attr != types.AttributeKeyNonce {
-			continue
-		}
-
-		queryClient := types.NewQueryClient(oc.qgbRPC)
-
-		lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
-		if err != nil {
-			return err
-		}
-
-		// todo: double check that the first validator set is found
-		if len(lastValsetResp.Valsets) < 1 {
-			return errors.New("no validator sets found")
-		}
-
-		valset := lastValsetResp.Valsets[0]
+func (oc *orchestrator) processValsetEvents(ctx context.Context, valSetChannel <-chan types.Valset) error {
+	for range valSetChannel {
+		valset := <-valSetChannel
 
 		signBytes, err := valset.SignBytes(oc.bridgeID)
 		if err != nil {
@@ -88,111 +58,36 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, ev rpctypes.Res
 	return nil
 }
 
-func (oc *orchestrator) orchestrateDataCommitments(ctx context.Context) error {
-	queryClient := types.NewQueryClient(oc.qgbRPC)
+func (oc *orchestrator) processDataCommitmentEvents(ctx context.Context, dataCommitmentChannel <-chan ExtendedDataCommitment) error {
+	for range dataCommitmentChannel {
+		dc := <-dataCommitmentChannel
 
-	resp, err := queryClient.Params(ctx, &types.QueryParamsRequest{})
-	if err != nil {
-		return err
-	}
+		nonce, err := oc.appClient.GetNonce()
+		if err != nil {
+			return err
+		}
 
-	params := resp.Params
+		nonce.Add(nonce, big.NewInt(1))
 
-	results, err := oc.tendermintRPC.Subscribe(ctx, "height", coretypes.EventQueryNewBlockHeader.String())
-	if err != nil {
-		return err
-	}
+		dataRootHash := types.DataCommitmentTupleRootSignBytes(oc.bridgeID, nonce, dc.Commitment)
+		dcSig, err := oc.personalSignerFn(oc.evmAddress, dataRootHash.Bytes())
+		if err != nil {
+			return err
+		}
 
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case ev := <-results:
-			err = oc.processDataCommitmentEvents(ctx, params.DataCommitmentWindow, ev)
-			if err != nil {
-				oc.logger.Err(err)
-			}
+		msg := &types.MsgDataCommitmentConfirm{
+			EthAddress:       oc.evmAddress.String(),
+			Commitment:       string(dc.Commitment),
+			BeginBlock:       dc.Start,
+			EndBlock:         dc.End,
+			ValidatorAddress: oc.signer.GetSignerInfo().GetAddress().String(),
+			Signature:        ethcmn.Bytes2Hex(dcSig),
+		}
+
+		err = oc.broadcastTx(ctx, msg)
+		if err != nil {
+			return err
 		}
 	}
-}
-
-func (oc *orchestrator) processDataCommitmentEvents(ctx context.Context, window uint64, ev rpctypes.ResultEvent) error {
-	eventDataHeader := ev.Data.(coretypes.EventDataNewBlockHeader)
-	height := eventDataHeader.Header.Height
-	// todo: refactor to ensure that no ranges of blocks are missed if the
-	// parameters are changed
-	if height%int64(window) != 0 {
-		return nil
-	}
-
-	// TODO: calculate start height some other way that can handle changes
-	// in the data window param
-	startHeight := height - int64(window)
-	endHeight := height
-
-	// create and send the data commitment
-	dcResp, err := oc.tendermintRPC.DataCommitment(
-		ctx,
-		fmt.Sprintf("block.height >= %d AND block.height <= %d",
-			startHeight,
-			endHeight,
-		),
-	)
-	if err != nil {
-		return err
-	}
-
-	nonce, err := oc.wrapper.StateLastDataRootTupleRootNonce(&bind.CallOpts{})
-	if err != nil {
-		return err
-	}
-
-	nonce.Add(nonce, big.NewInt(1))
-
-	dataRootHash := types.DataCommitmentTupleRootSignBytes(oc.bridgeID, nonce, dcResp.DataCommitment)
-
-	dcSig, err := oc.personalSignerFn(oc.evmAddress, dataRootHash.Bytes())
-	if err != nil {
-		return err
-	}
-
-	msg := &types.MsgDataCommitmentConfirm{
-		EthAddress:       oc.evmAddress.String(),
-		Commitment:       dcResp.DataCommitment.String(),
-		BeginBlock:       startHeight,
-		EndBlock:         endHeight,
-		ValidatorAddress: oc.signer.GetSignerInfo().GetAddress().String(),
-		Signature:        ethcmn.Bytes2Hex(dcSig),
-	}
-
-	return oc.broadcastTx(ctx, msg)
-}
-
-func (oc *orchestrator) broadcastTx(ctx context.Context, msg sdk.Msg) error {
-	err := oc.signer.QueryAccountNumber(ctx, oc.qgbRPC)
-	if err != nil {
-		return err
-	}
-
-	// TODO: update this api via https://github.com/celestiaorg/celestia-app/pull/187/commits/37f96d9af30011736a3e6048bbb35bad6f5b795c
-	tx, err := oc.signer.BuildSignedTx(oc.signer.NewTxBuilder(), msg)
-	if err != nil {
-		return err
-	}
-
-	rawTx, err := oc.signer.EncodeTx(tx)
-	if err != nil {
-		return err
-	}
-
-	resp, err := paytypes.BroadcastTx(ctx, oc.qgbRPC, 1, rawTx)
-	if err != nil {
-		return err
-	}
-
-	if resp.TxResponse.Code != 0 {
-		return fmt.Errorf("failure to broadcast tx: %s", resp.TxResponse.Data)
-	}
-
 	return nil
 }

@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/tendermint/tendermint/libs/bytes"
@@ -15,6 +16,7 @@ import (
 type AppClient interface {
 	SubscribeValset(ctx context.Context) (<-chan types.Valset, error)
 	SubscribeDataCommitment(ctx context.Context) (<-chan ExtendedDataCommitment, error)
+	GetNonce() (*big.Int, error)
 }
 
 type appClient struct {
@@ -90,7 +92,7 @@ func (ac *appClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, 
 type ExtendedDataCommitment struct {
 	Commitment bytes.HexBytes
 	Start, End int64
-	Nonce      uint64
+	Nonce      *big.Int
 }
 
 func (ac *appClient) SubscribeDataCommitment(ctx context.Context) (<-chan ExtendedDataCommitment, error) {
@@ -147,7 +149,7 @@ func (ac *appClient) SubscribeDataCommitment(ctx context.Context) (<-chan Extend
 
 				// TODO: store the nonce in the state somehwere, so that we don't have
 				// to assume that the nonce on the evm chain is up to date!!!
-				nonce, err := ac.getNonce()
+				nonce, err := ac.GetNonce()
 				if err != nil {
 					ac.logger.Error(err.Error())
 					continue
@@ -168,7 +170,7 @@ func (ac *appClient) SubscribeDataCommitment(ctx context.Context) (<-chan Extend
 	return dataCommitments, nil
 }
 
-func (ac *appClient) getNonce() (uint64, error) {
+func (ac *appClient) GetNonce() (*big.Int, error) {
 	// todo implement after we commit the nonce to state.
-	return 0, nil
+	return big.NewInt(0), nil
 }
