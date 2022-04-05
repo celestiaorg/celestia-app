@@ -40,8 +40,8 @@ type MsgSetOrchestratorAddress struct {
 	// The orchestrator field is a celes1... string  (i.e. sdk.AccAddress) that
 	// references the key that is being delegated to
 	Orchestrator string `protobuf:"bytes,2,opt,name=orchestrator,proto3" json:"orchestrator,omitempty"`
-	// This is a hex encoded 0x Ethereum public key that will be used by this validator
-	// on Ethereum
+	// This is a hex encoded 0x Ethereum public key that will be used by this
+	// validator on Ethereum
 	EthAddress string `protobuf:"bytes,3,opt,name=eth_address,json=ethAddress,proto3" json:"eth_address,omitempty"`
 }
 
@@ -152,10 +152,15 @@ var xxx_messageInfo_MsgSetOrchestratorAddressResponse proto.InternalMessageInfo
 // chain store and submit them to Ethereum to update the validator set
 // -------------
 type MsgValsetConfirm struct {
-	Nonce        uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	// Unique number referencing the `ValSet`.
+	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	// Orchestrator `celes1` account address.
 	Orchestrator string `protobuf:"bytes,2,opt,name=orchestrator,proto3" json:"orchestrator,omitempty"`
-	EthAddress   string `protobuf:"bytes,3,opt,name=eth_address,json=ethAddress,proto3" json:"eth_address,omitempty"`
-	Signature    string `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
+	// Ethereum address, associated to the orchestrator, used to sign the `ValSet`
+	// message.
+	EthAddress string `protobuf:"bytes,3,opt,name=eth_address,json=ethAddress,proto3" json:"eth_address,omitempty"`
+	// The `ValSet` message signature.
+	Signature string `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
 }
 
 func (m *MsgValsetConfirm) Reset()         { *m = MsgValsetConfirm{} }
@@ -259,12 +264,23 @@ var xxx_messageInfo_MsgValsetConfirmResponse proto.InternalMessageInfo
 
 // MsgDataCommitmentConfirm describes a data commitment for a set of blocks.
 type MsgDataCommitmentConfirm struct {
-	Signature        string `protobuf:"bytes,1,opt,name=signature,proto3" json:"signature,omitempty"`
+	// Signature over the commitment, the range of blocks, the validator address
+	// and the Ethereum address.
+	Signature string `protobuf:"bytes,1,opt,name=signature,proto3" json:"signature,omitempty"`
+	// Orchestrator account address who will be signing the message.
 	ValidatorAddress string `protobuf:"bytes,2,opt,name=validator_address,json=validatorAddress,proto3" json:"validator_address,omitempty"`
-	EthAddress       string `protobuf:"bytes,3,opt,name=eth_address,json=ethAddress,proto3" json:"eth_address,omitempty"`
-	Commitment       string `protobuf:"bytes,4,opt,name=commitment,proto3" json:"commitment,omitempty"`
-	BeginBlock       int64  `protobuf:"varint,5,opt,name=begin_block,json=beginBlock,proto3" json:"begin_block,omitempty"`
-	EndBlock         int64  `protobuf:"varint,6,opt,name=end_block,json=endBlock,proto3" json:"end_block,omitempty"`
+	// Hex `0x` encoded Ethereum public key that will be used by this validator on
+	// Ethereum.
+	EthAddress string `protobuf:"bytes,3,opt,name=eth_address,json=ethAddress,proto3" json:"eth_address,omitempty"`
+	// Merkle root over a merkle tree containing the data roots of a set of
+	// blocks.
+	Commitment string `protobuf:"bytes,4,opt,name=commitment,proto3" json:"commitment,omitempty"`
+	// First block defining the ordered set of blocks used to create the
+	// commitment.
+	BeginBlock int64 `protobuf:"varint,5,opt,name=begin_block,json=beginBlock,proto3" json:"begin_block,omitempty"`
+	// Last block defining the ordered set of blocks used to create the
+	// commitment.
+	EndBlock int64 `protobuf:"varint,6,opt,name=end_block,json=endBlock,proto3" json:"end_block,omitempty"`
 }
 
 func (m *MsgDataCommitmentConfirm) Reset()         { *m = MsgDataCommitmentConfirm{} }
@@ -440,9 +456,11 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	// ValsetConfirm allows the validators to submit their signatures over the validator set.
+	// ValsetConfirm allows the validators to submit their signatures over the
+	// validator set.
 	ValsetConfirm(ctx context.Context, in *MsgValsetConfirm, opts ...grpc.CallOption) (*MsgValsetConfirmResponse, error)
-	// DataCommitmentConfirm allows the validators to submit a confirmation for a data commitment.
+	// DataCommitmentConfirm allows the validators to submit a confirmation for a
+	// data commitment.
 	DataCommitmentConfirm(ctx context.Context, in *MsgDataCommitmentConfirm, opts ...grpc.CallOption) (*MsgDataCommitmentConfirmResponse, error)
 	// SetOrchestratorAddress allows to set the orchestrator address
 	SetOrchestratorAddress(ctx context.Context, in *MsgSetOrchestratorAddress, opts ...grpc.CallOption) (*MsgSetOrchestratorAddressResponse, error)
@@ -485,9 +503,11 @@ func (c *msgClient) SetOrchestratorAddress(ctx context.Context, in *MsgSetOrches
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	// ValsetConfirm allows the validators to submit their signatures over the validator set.
+	// ValsetConfirm allows the validators to submit their signatures over the
+	// validator set.
 	ValsetConfirm(context.Context, *MsgValsetConfirm) (*MsgValsetConfirmResponse, error)
-	// DataCommitmentConfirm allows the validators to submit a confirmation for a data commitment.
+	// DataCommitmentConfirm allows the validators to submit a confirmation for a
+	// data commitment.
 	DataCommitmentConfirm(context.Context, *MsgDataCommitmentConfirm) (*MsgDataCommitmentConfirmResponse, error)
 	// SetOrchestratorAddress allows to set the orchestrator address
 	SetOrchestratorAddress(context.Context, *MsgSetOrchestratorAddress) (*MsgSetOrchestratorAddressResponse, error)

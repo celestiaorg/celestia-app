@@ -68,7 +68,8 @@ func (m *Params) GetDataCommitmentWindow() uint64 {
 	return 0
 }
 
-// GenesisState struct, containing all persistant data required by the Gravity module
+// GenesisState struct, containing all persistant data required by the Gravity
+// module
 type GenesisState struct {
 	Params *Params `protobuf:"bytes,1,opt,name=params,proto3" json:"params,omitempty"`
 }
@@ -113,7 +114,8 @@ func (m *GenesisState) GetParams() *Params {
 	return nil
 }
 
-// GravityCounters contains the many noces and counters required to maintain the bridge state in the genesis
+// GravityCounters contains the many noces and counters required to maintain the
+// bridge state in the genesis
 type GravityNonces struct {
 	// the nonce of the last generated validator set
 	LatestValsetNonce uint64 `protobuf:"varint,1,opt,name=latest_valset_nonce,json=latestValsetNonce,proto3" json:"latest_valset_nonce,omitempty"`
