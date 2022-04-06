@@ -11,8 +11,11 @@ jobs:
   golangci:
     name: golangci-lint
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 8
     steps:
+      - uses: actions/setup-go@v2
+        with: 
+          go-version: 1.17.1
       - uses: actions/checkout@v3
       - uses: technote-space/get-diff-action@v6.0.1
         with:
@@ -23,7 +26,8 @@ jobs:
       - uses: golangci/golangci-lint-action@v2.5.2
         with:
           # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
-          version: v1.38
+          version: v1.42.1
           args: --timeout 10m
           github-token: ${{ secrets.github_token }}
+          skip-go-installation: true  
         if: env.GIT_DIFF
