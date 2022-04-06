@@ -2,8 +2,10 @@ package orchestrator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -21,6 +23,8 @@ type AppClient interface {
 	SubscribeDataCommitment(ctx context.Context) (<-chan ExtendedDataCommitment, error)
 	BroadcastTx(ctx context.Context, msg sdk.Msg) error
 	QueryDataCommitments(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error)
+	QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, timeout time.Duration, commitment string) ([]types.MsgDataCommitmentConfirm, error)
+	QueryTwoThirdsValsetConfirms(ctx context.Context, timeout time.Duration, valset types.Valset) ([]types.MsgValsetConfirm, error)
 }
 
 type ExtendedDataCommitment struct {
@@ -36,7 +40,7 @@ type appClient struct {
 	signer        *paytypes.KeyringSigner
 }
 
-func NewAppClient(logger tmlog.Logger, keyringAccount, chainID, coreRPC, appRPC string) (AppClient, error) {
+func NewAppClient(logger tmlog.Logger, keyringAccount, chainID, coreRPC, appRPC string) (*appClient, error) {
 	trpc, err := http.New(coreRPC, "/websocket")
 	if err != nil {
 		return nil, err
@@ -225,4 +229,102 @@ func (ac *appClient) QueryDataCommitments(ctx context.Context, commit string) ([
 	}
 
 	return confirmsResp.Confirms, nil
+}
+
+func (ac *appClient) QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, timeout time.Duration, commitment string) ([]types.MsgDataCommitmentConfirm, error) {
+	// query for the latest valset (sorted for us already)
+	queryClient := types.NewQueryClient(ac.qgbRPC)
+	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(lastValsetResp.Valsets) < 1 {
+		return nil, errors.New("no validator sets found")
+	}
+
+	valset := lastValsetResp.Valsets[0]
+
+	// create a map to easily search for power
+	vals := make(map[string]types.BridgeValidator)
+	for _, val := range valset.Members {
+		vals[val.GetEthereumAddress()] = val
+	}
+
+	majThreshHold := valset.TwoThirdsThreshold()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, nil
+		case <-time.After(timeout):
+			return nil, fmt.Errorf("failure to query for majority validator set confirms: timout %s", timeout)
+		default:
+			currThreshHold := uint64(0)
+			confirmsResp, err := queryClient.DataCommitmentConfirmsByCommitment(ctx, &types.QueryDataCommitmentConfirmsByCommitmentRequest{
+				Commitment: commitment,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			for _, dataCommitmentConfirm := range confirmsResp.Confirms {
+				val, has := vals[dataCommitmentConfirm.EthAddress]
+				if !has {
+					return nil, fmt.Errorf("dataCommitmentConfirm signer not found in stored validator set: address %s nonce %d", val.EthereumAddress, valset.Nonce)
+				}
+				currThreshHold += val.Power
+			}
+
+			if currThreshHold >= majThreshHold {
+				return confirmsResp.Confirms, nil
+			}
+
+			ac.logger.Debug("foundDataCommitmentConfirms", fmt.Sprintf("total power %d number of confirms %d", currThreshHold, len(confirmsResp.Confirms)))
+		}
+		time.Sleep(time.Second * 30)
+	}
+}
+
+func (ac *appClient) QueryTwoThirdsValsetConfirms(ctx context.Context, timeout time.Duration, valset types.Valset) ([]types.MsgValsetConfirm, error) {
+	// create a map to easily search for power
+	vals := make(map[string]types.BridgeValidator)
+	for _, val := range valset.Members {
+		vals[val.GetEthereumAddress()] = val
+	}
+
+	majThreshHold := valset.TwoThirdsThreshold()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, nil
+		case <-time.After(timeout):
+			return nil, fmt.Errorf("failure to query for majority validator set confirms: timout %s", timeout)
+		default:
+			currThreshHold := uint64(0)
+			queryClient := types.NewQueryClient(ac.qgbRPC)
+			confirmsResp, err := queryClient.ValsetConfirmsByNonce(ctx, &types.QueryValsetConfirmsByNonceRequest{
+				Nonce: valset.Nonce,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			for _, valsetConfirm := range confirmsResp.Confirms {
+				val, has := vals[valsetConfirm.EthAddress]
+				if !has {
+					return nil, fmt.Errorf("valSetConfirm signer not found in stored validator set: address %s nonce %d", val.EthereumAddress, valset.Nonce)
+				}
+				currThreshHold += val.Power
+			}
+
+			if currThreshHold >= majThreshHold {
+				return confirmsResp.Confirms, nil
+			}
+
+			ac.logger.Debug("foundValsetConfirms", fmt.Sprintf("total power %d number of confirms %d", currThreshHold, len(confirmsResp.Confirms)))
+		}
+		time.Sleep(time.Second * 30)
+	}
 }

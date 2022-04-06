@@ -19,11 +19,10 @@ type orchestrator struct {
 	appClient AppClient
 
 	// orchestrator signing
-	singerFn           bind.SignerFn
-	personalSignerFn   PersonalSignFn
-	transactOpsBuilder transactOpsBuilder
-	evmAddress         ethcmn.Address
-	bridgeID           ethcmn.Hash
+	singerFn         bind.SignerFn
+	personalSignerFn PersonalSignFn
+	evmAddress       ethcmn.Address
+	bridgeID         ethcmn.Hash
 
 	// celestia related signing
 	signer *paytypes.KeyringSigner
@@ -63,9 +62,7 @@ func (oc *orchestrator) processDataCommitmentEvents(ctx context.Context, dataCom
 	for range dataCommitmentChannel {
 		dc := <-dataCommitmentChannel
 
-		nonce := dc.Nonce
-
-		nonce++
+		nonce := dc.Nonce + 1
 
 		dataRootHash := types.DataCommitmentTupleRootSignBytes(oc.bridgeID, big.NewInt(int64(nonce)), dc.Commitment)
 		dcSig, err := oc.personalSignerFn(oc.evmAddress, dataRootHash.Bytes())

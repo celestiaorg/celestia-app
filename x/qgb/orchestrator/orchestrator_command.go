@@ -33,8 +33,8 @@ func OrchestratorCmd() *cobra.Command {
 
 			client, err := NewAppClient(
 				tmlog.NewTMLogger(os.Stdout),
-				"test",
-				"test",
+				config.keyringAccount,
+				config.celestiaChainID,
 				config.tendermintRPC,
 				config.qgbRPC,
 			)
