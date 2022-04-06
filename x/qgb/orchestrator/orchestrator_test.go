@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -42,5 +43,12 @@ func (mac *mockAppClient) BroadcastTx(ctx context.Context, msg sdk.Msg) error {
 }
 
 func (mac *mockAppClient) QueryDataCommitments(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error) {
+	return nil, nil
+}
+
+func (mac *mockAppClient) QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, timeout time.Duration, commitment string) ([]types.MsgDataCommitmentConfirm, error) {
+	return nil, nil
+}
+func (mac *mockAppClient) QueryTwoThirdsValsetConfirms(ctx context.Context, timeout time.Duration, valset types.Valset) ([]types.MsgValsetConfirm, error) {
 	return nil, nil
 }
