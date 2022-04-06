@@ -4,16 +4,14 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/rs/zerolog"
-
-	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcmn "github.com/ethereum/go-ethereum/common"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 )
 
 type orchestrator struct {
-	logger zerolog.Logger
+	logger tmlog.Logger
 
 	// client
 	appClient AppClient
@@ -25,7 +23,7 @@ type orchestrator struct {
 	bridgeID         ethcmn.Hash
 
 	// celestia related signing
-	signer *paytypes.KeyringSigner
+	orchestratorAddress string
 }
 
 func (oc *orchestrator) processValsetEvents(ctx context.Context, valSetChannel <-chan types.Valset) error {
@@ -44,7 +42,7 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, valSetChannel <
 
 		// create and send the valset hash
 		msg := &types.MsgValsetConfirm{
-			Orchestrator: oc.signer.GetSignerInfo().GetAddress().String(),
+			Orchestrator: oc.orchestratorAddress,
 			EthAddress:   oc.evmAddress.Hex(),
 			Nonce:        valset.Nonce,
 			Signature:    ethcmn.Bytes2Hex(signature),
@@ -75,7 +73,7 @@ func (oc *orchestrator) processDataCommitmentEvents(ctx context.Context, dataCom
 			Commitment:       string(dc.Commitment),
 			BeginBlock:       dc.Start,
 			EndBlock:         dc.End,
-			ValidatorAddress: oc.signer.GetSignerInfo().GetAddress().String(),
+			ValidatorAddress: oc.orchestratorAddress,
 			Signature:        ethcmn.Bytes2Hex(dcSig),
 		}
 

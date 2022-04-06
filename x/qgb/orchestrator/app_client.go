@@ -25,6 +25,7 @@ type AppClient interface {
 	QueryDataCommitments(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error)
 	QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, timeout time.Duration, commitment string) ([]types.MsgDataCommitmentConfirm, error)
 	QueryTwoThirdsValsetConfirms(ctx context.Context, timeout time.Duration, valset types.Valset) ([]types.MsgValsetConfirm, error)
+	OrchestratorAddress() sdk.AccAddress
 }
 
 type ExtendedDataCommitment struct {
@@ -282,6 +283,7 @@ func (ac *appClient) QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, t
 
 			ac.logger.Debug("foundDataCommitmentConfirms", fmt.Sprintf("total power %d number of confirms %d", currThreshHold, len(confirmsResp.Confirms)))
 		}
+		// TODO: make the timeout configurable
 		time.Sleep(time.Second * 30)
 	}
 }
@@ -299,6 +301,7 @@ func (ac *appClient) QueryTwoThirdsValsetConfirms(ctx context.Context, timeout t
 		select {
 		case <-ctx.Done():
 			return nil, nil
+		// TODO: remove this extra case, and we can instead rely on the caller to pass a context with a timeout
 		case <-time.After(timeout):
 			return nil, fmt.Errorf("failure to query for majority validator set confirms: timout %s", timeout)
 		default:
@@ -325,6 +328,11 @@ func (ac *appClient) QueryTwoThirdsValsetConfirms(ctx context.Context, timeout t
 
 			ac.logger.Debug("foundValsetConfirms", fmt.Sprintf("total power %d number of confirms %d", currThreshHold, len(confirmsResp.Confirms)))
 		}
+		// TODO: make the timeout configurable
 		time.Sleep(time.Second * 30)
 	}
+}
+
+func (ac *appClient) OrchestratorAddress() sdk.AccAddress {
+	return ac.signer.GetSignerInfo().GetAddress()
 }

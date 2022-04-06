@@ -2,15 +2,11 @@ package orchestrator
 
 import (
 	"os"
-	"strings"
 	"sync"
 	"time"
 
 	tmlog "github.com/tendermint/tendermint/libs/log"
 
-	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
 
@@ -24,15 +20,10 @@ func OrchestratorCmd() *cobra.Command {
 				return err
 			}
 
-			// open a keyring using the configured settings
-			// TODO: optionally ask for input for a password
-			ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringAccount, strings.NewReader(""))
-			if err != nil {
-				return err
-			}
+			logger := tmlog.NewTMLogger(os.Stdout)
 
 			client, err := NewAppClient(
-				tmlog.NewTMLogger(os.Stdout),
+				logger,
 				config.keyringAccount,
 				config.celestiaChainID,
 				config.tendermintRPC,
@@ -43,13 +34,9 @@ func OrchestratorCmd() *cobra.Command {
 			}
 
 			orch := orchestrator{
-				logger:    zerolog.New(os.Stdout),
-				appClient: client,
-				signer: paytypes.NewKeyringSigner(
-					ring,
-					config.keyringAccount,
-					config.celestiaChainID,
-				),
+				logger:              tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout)),
+				appClient:           client,
+				orchestratorAddress: client.OrchestratorAddress().String(),
 			}
 
 			wg := &sync.WaitGroup{}
@@ -66,7 +53,7 @@ func OrchestratorCmd() *cobra.Command {
 						valsetChan, err := client.SubscribeValset(ctx)
 						err = orch.processValsetEvents(ctx, valsetChan)
 						if err != nil {
-							orch.logger.Err(err)
+							logger.Error(err.Error())
 							// todo: refactor to make a more sophisticated retry mechanism
 							time.Sleep(time.Second * 30)
 							continue
@@ -88,7 +75,7 @@ func OrchestratorCmd() *cobra.Command {
 						dcChan, err := client.SubscribeDataCommitment(ctx)
 						err = orch.processDataCommitmentEvents(ctx, dcChan)
 						if err != nil {
-							orch.logger.Err(err)
+							logger.Error(err.Error())
 							time.Sleep(time.Second * 30)
 							continue
 						}
