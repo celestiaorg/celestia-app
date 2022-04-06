@@ -1,11 +1,12 @@
 package orchestrator
 
 import (
+	"github.com/rs/zerolog"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 	"os"
 	"sync"
 	"time"
 
-	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
 
@@ -18,15 +19,21 @@ func RelayerCmd() *cobra.Command {
 				return err
 			}
 
-			client, err := newClient(
-				zerolog.New(os.Stdout),
-				config,
+			client, err := NewAppClient(
+				tmlog.NewTMLogger(os.Stdout),
+				config.keyringAccount,
+				config.celestiaChainID,
+				config.tendermintRPC,
+				config.qgbRPC,
 			)
 			if err != nil {
 				return err
 			}
 
-			relay := relayer{client: client}
+			relay := relayer{
+				logger:    zerolog.New(os.Stdout),
+				appClient: client,
+			}
 
 			wg := &sync.WaitGroup{}
 
@@ -38,7 +45,8 @@ func RelayerCmd() *cobra.Command {
 					case <-cmd.Context().Done():
 						return
 					default:
-						err = relay.relayValsets(cmd.Context())
+						valsetChan, err := client.SubscribeValset(cmd.Context())
+						err = relay.processValsetEvents(cmd.Context(), valsetChan)
 						if err != nil {
 							relay.logger.Err(err)
 							time.Sleep(time.Second * 30)
