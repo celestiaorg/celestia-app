@@ -1,11 +1,12 @@
 package orchestrator
 
 import (
-	tmlog "github.com/tendermint/tendermint/libs/log"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	tmlog "github.com/tendermint/tendermint/libs/log"
 
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -32,6 +33,8 @@ func OrchestratorCmd() *cobra.Command {
 
 			client, err := NewAppClient(
 				tmlog.NewTMLogger(os.Stdout),
+				"test",
+				"test",
 				config.tendermintRPC,
 				config.qgbRPC,
 			)

@@ -2,8 +2,9 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/rs/zerolog"
 	"math/big"
+
+	"github.com/rs/zerolog"
 
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -50,7 +51,7 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, valSetChannel <
 			Signature:    ethcmn.Bytes2Hex(signature),
 		}
 
-		err = oc.broadcastTx(ctx, msg)
+		err = oc.appClient.BroadcastTx(ctx, msg)
 		if err != nil {
 			return err
 		}
@@ -62,14 +63,11 @@ func (oc *orchestrator) processDataCommitmentEvents(ctx context.Context, dataCom
 	for range dataCommitmentChannel {
 		dc := <-dataCommitmentChannel
 
-		nonce, err := oc.appClient.GetNonce()
-		if err != nil {
-			return err
-		}
+		nonce := dc.Nonce
 
-		nonce.Add(nonce, big.NewInt(1))
+		nonce++
 
-		dataRootHash := types.DataCommitmentTupleRootSignBytes(oc.bridgeID, nonce, dc.Commitment)
+		dataRootHash := types.DataCommitmentTupleRootSignBytes(oc.bridgeID, big.NewInt(int64(nonce)), dc.Commitment)
 		dcSig, err := oc.personalSignerFn(oc.evmAddress, dataRootHash.Bytes())
 		if err != nil {
 			return err
@@ -84,7 +82,7 @@ func (oc *orchestrator) processDataCommitmentEvents(ctx context.Context, dataCom
 			Signature:        ethcmn.Bytes2Hex(dcSig),
 		}
 
-		err = oc.broadcastTx(ctx, msg)
+		err = oc.appClient.BroadcastTx(ctx, msg)
 		if err != nil {
 			return err
 		}

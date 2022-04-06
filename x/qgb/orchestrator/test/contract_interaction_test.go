@@ -98,7 +98,7 @@ func (s *QGBTestSuite) SetupTest() {
 func (s *QGBTestSuite) TestSubmitDataCommitment() {
 	// we just need something to sign over, it doesn't matter what
 	commitment := ethcmn.HexToHash(types.ValidatorSetDomainSeparator)
-	signBytes := orchestrator.DataCommitmentTupleRootSignBytes(
+	signBytes := types.DataCommitmentTupleRootSignBytes(
 		bID,
 		big.NewInt(1),
 		commitment[:],

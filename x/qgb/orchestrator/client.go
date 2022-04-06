@@ -24,11 +24,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// RelayerClient wraps the necessary rpc clients that are needed to query all
-// relayer related data.
-type RelayerClient interface {
-}
-
 type client struct {
 
 	// RPC
