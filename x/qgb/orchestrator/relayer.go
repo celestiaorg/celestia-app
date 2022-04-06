@@ -22,7 +22,8 @@ type relayer struct {
 	appClient AppClient
 
 	// relayer
-	bridgeID ethcmn.Hash
+	bridgeID  ethcmn.Hash
+	evmClient EVMClient
 }
 
 func (r *relayer) processValsetEvents(ctx context.Context, valSetChannel <-chan types.Valset) error {
@@ -34,25 +35,8 @@ func (r *relayer) processValsetEvents(ctx context.Context, valSetChannel <-chan 
 			return err
 		}
 
-		ethVSHash, err := valset.Hash()
-		if err != nil {
-			return err
-		}
-
-		opts, err := r.transactOpsBuilder(ctx, r.ethRPC, 1000000)
-		if err != nil {
-			return err
-		}
-
-		err = r.updateValidatorSet(
-			ctx,
-			opts,
-			valset.Nonce,
-			valset.TwoThirdsThreshold(),
-			ethVSHash,
-			valset,
-			confirms,
-		)
+		// FIXME: arguments to be verified
+		err = r.updateValidatorSet(ctx, valset, valset.TwoThirdsThreshold(), valset, confirms)
 		if err != nil {
 			return err
 		}
@@ -75,88 +59,75 @@ func (r *relayer) processDataCommitmentEvents(
 			return err
 		}
 
-		opts, err := r.transactOpsBuilder(ctx, r.ethRPC, 1000000)
+		// todo: make gas limit configurable
+		valset, err := r.appClient.QueryLatestValset(ctx)
 		if err != nil {
 			return err
 		}
 
-		return r.submitDataRootTupleRoot(ctx, opts, dataRootHash, valset, confirms)
+		return r.submitDataRootTupleRoot(ctx, valset, confirms)
 	}
+	return nil
 }
 
 func (r *relayer) updateValidatorSet(
 	ctx context.Context,
-	opts *bind.TransactOpts,
-	nonce uint64,
+	valset types.Valset,
 	newThreshhold uint64,
-	newValsetHash common.Hash,
 	currentValset types.Valset,
 	confirms []types.MsgValsetConfirm,
 ) error {
 
-	sigs, err := matchValsetConfirmSigs(confirms, currentValset)
-
-	ethVals, err := ethValset(currentValset)
+	sigs, err := matchValsetConfirmSigs(confirms)
 	if err != nil {
 		return err
 	}
 
-	tx, err := r.wrapper.UpdateValidatorSet(
-		opts,
-		big.NewInt(int64(currentValset.Nonce)),
-		big.NewInt(int64(newThreshhold)),
-		newValsetHash,
-		ethVals,
+	err = r.evmClient.UpdateValidatorSet(
+		ctx,
+		currentValset.Nonce,
+		newThreshhold,
+		valset,
 		sigs,
 	)
 	if err != nil {
 		return err
 	}
-	r.logger.Info().Str("ValSetUpdate", tx.Hash().String())
 	return nil
 }
 
 func (r *relayer) submitDataRootTupleRoot(
 	ctx context.Context,
-	opts *bind.TransactOpts,
-	tupleRoot common.Hash,
 	currentValset types.Valset,
 	confirms []types.MsgDataCommitmentConfirm,
 ) error {
 
-	sigs, err := matchDataCommitmentConfirmSigs(confirms, currentValset)
+	sigs, err := matchDataCommitmentConfirmSigs(confirms)
 	if err != nil {
 		return err
 	}
 
-	ethVals, err := ethValset(currentValset)
-	if err != nil {
-		return err
-	}
-
-	lastDataCommitmentNonce, err := r.wrapper.StateLastDataRootTupleRootNonce(&bind.CallOpts{})
+	lastDataCommitmentNonce, err := r.evmClient.StateLastDataRootTupleRootNonce(&bind.CallOpts{})
 	if err != nil {
 		return err
 	}
 
 	// increment the nonce before submitting the new tuple root
-	lastDataCommitmentNonce.Add(lastDataCommitmentNonce, big.NewInt(1))
+	newDataCommitmentNonce := lastDataCommitmentNonce + 1
 
-	tx, err := r.wrapper.SubmitDataRootTupleRoot(
-		opts,
-		lastDataCommitmentNonce,
-		tupleRoot,
-		ethVals,
+	err = r.evmClient.SubmitDataRootTupleRoot(
+		ctx,
+		newDataCommitmentNonce,
+		currentValset,
 		sigs,
 	)
 	if err != nil {
 		return err
 	}
-	r.logger.Info().Str("DataRootTupleRootUpdated", tx.Hash().String())
 	return nil
 }
 
-func matchValsetConfirmSigs(confirms []types.MsgValsetConfirm, valset types.Valset) ([]wrapper.Signature, error) {
+func matchValsetConfirmSigs(confirms []types.MsgValsetConfirm) ([]wrapper.Signature, error) {
 	vals := make(map[string]string)
 	for _, v := range confirms {
 		vals[v.EthAddress] = v.Signature
@@ -180,7 +151,7 @@ func matchValsetConfirmSigs(confirms []types.MsgValsetConfirm, valset types.Vals
 	return sigs, nil
 }
 
-func matchDataCommitmentConfirmSigs(confirms []types.MsgDataCommitmentConfirm, valset types.Valset) ([]wrapper.Signature, error) {
+func matchDataCommitmentConfirmSigs(confirms []types.MsgDataCommitmentConfirm) ([]wrapper.Signature, error) {
 	vals := make(map[string]string)
 	for _, v := range confirms {
 		vals[v.EthAddress] = v.Signature

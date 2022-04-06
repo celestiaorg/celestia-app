@@ -23,6 +23,7 @@ type AppClient interface {
 	SubscribeDataCommitment(ctx context.Context) (<-chan ExtendedDataCommitment, error)
 	BroadcastTx(ctx context.Context, msg sdk.Msg) error
 	QueryDataCommitments(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error)
+	QueryLatestValset(ctx context.Context) (types.Valset, error)
 	QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, timeout time.Duration, commitment string) ([]types.MsgDataCommitmentConfirm, error)
 	QueryTwoThirdsValsetConfirms(ctx context.Context, timeout time.Duration, valset types.Valset) ([]types.MsgValsetConfirm, error)
 }
