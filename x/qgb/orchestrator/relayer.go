@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/rs/zerolog"
 	"math/big"
@@ -11,7 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 )
 
@@ -35,8 +33,13 @@ func (r *relayer) processValsetEvents(ctx context.Context, valSetChannel <-chan 
 			return err
 		}
 
+		currentValset, err := r.appClient.QueryLatestValset(ctx)
+		if err != nil {
+			return err
+		}
+
 		// FIXME: arguments to be verified
-		err = r.updateValidatorSet(ctx, valset, valset.TwoThirdsThreshold(), valset, confirms)
+		err = r.updateValidatorSet(ctx, valset, valset.TwoThirdsThreshold(), currentValset, confirms)
 		if err != nil {
 			return err
 		}
@@ -65,7 +68,7 @@ func (r *relayer) processDataCommitmentEvents(
 			return err
 		}
 
-		return r.submitDataRootTupleRoot(ctx, valset, confirms)
+		return r.submitDataRootTupleRoot(ctx, valset, dc.Commitment.String(), confirms)
 	}
 	return nil
 }
@@ -98,6 +101,7 @@ func (r *relayer) updateValidatorSet(
 func (r *relayer) submitDataRootTupleRoot(
 	ctx context.Context,
 	currentValset types.Valset,
+	commitment string,
 	confirms []types.MsgDataCommitmentConfirm,
 ) error {
 
@@ -114,8 +118,11 @@ func (r *relayer) submitDataRootTupleRoot(
 	// increment the nonce before submitting the new tuple root
 	newDataCommitmentNonce := lastDataCommitmentNonce + 1
 
+	dataRootHash := types.DataCommitmentTupleRootSignBytes(r.bridgeID, big.NewInt(int64(newDataCommitmentNonce)), []byte(commitment))
+
 	err = r.evmClient.SubmitDataRootTupleRoot(
 		ctx,
+		dataRootHash,
 		newDataCommitmentNonce,
 		currentValset,
 		sigs,
@@ -172,19 +179,4 @@ func matchDataCommitmentConfirmSigs(confirms []types.MsgDataCommitmentConfirm) (
 		}
 	}
 	return sigs, nil
-}
-
-func ethValset(valset types.Valset) ([]wrapper.Validator, error) {
-	ethVals := make([]wrapper.Validator, len(valset.Members))
-	for i, v := range valset.Members {
-		if ok := common.IsHexAddress(v.EthereumAddress); !ok {
-			return nil, errors.New("invalid ethereum address found in validator set")
-		}
-		addr := common.HexToAddress(v.EthereumAddress)
-		ethVals[i] = wrapper.Validator{
-			Addr:  addr,
-			Power: big.NewInt(int64(v.Power)),
-		}
-	}
-	return ethVals, nil
 }

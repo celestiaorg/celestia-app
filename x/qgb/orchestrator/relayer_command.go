@@ -46,7 +46,12 @@ func RelayerCmd() *cobra.Command {
 				logger:    zerolog.New(os.Stdout),
 				appClient: client,
 				bridgeID:  config.bridgeID,
-				evmClient: NewEvmClient(*qgbWrapper),
+				evmClient: NewEvmClient(
+					tmlog.NewTMLogger(os.Stdout),
+					*qgbWrapper,
+					config.privateKey,
+					config.evmRPC,
+				),
 			}
 
 			wg := &sync.WaitGroup{}
