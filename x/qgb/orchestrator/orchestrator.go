@@ -5,7 +5,6 @@ import (
 	"math/big"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 )
@@ -17,7 +16,6 @@ type orchestrator struct {
 	appClient AppClient
 
 	// orchestrator signing
-	singerFn         bind.SignerFn
 	personalSignerFn PersonalSignFn
 	evmAddress       ethcmn.Address
 	bridgeID         ethcmn.Hash

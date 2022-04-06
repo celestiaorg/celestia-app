@@ -10,6 +10,7 @@ import (
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 )
 
@@ -17,8 +18,6 @@ const (
 	firstDataCommitmet = "commit"
 	firstDCStartHeight = 1
 	firstDCEndHeight   = 100
-	// testAddr           = "9c2B12b5a07FC6D719Ed7646e5041A7E85758329"
-	testPriv = "64a1d6f0e760a8d62b4afdde4096f16f51b401eaaecc915740f71770ea76a8ad"
 )
 
 func TestOrchestrate(t *testing.T) {
@@ -27,10 +26,18 @@ func TestOrchestrate(t *testing.T) {
 }
 
 func setupTestOrchestrator(t *testing.T, ac AppClient) *orchestrator {
-
+	priv, err := crypto.HexToECDSA(testPriv)
+	if err != nil {
+		panic(err)
+	}
+	psFunc, err := PrivateKeyPersonalSignFn(priv)
+	if err != nil {
+		panic(err)
+	}
 	return &orchestrator{
-		appClient: ac,
-		logger:    tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stderr)),
+		appClient:        ac,
+		logger:           tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stderr)),
+		personalSignerFn: psFunc,
 	}
 }
 
@@ -42,9 +49,10 @@ type mockAppClient struct {
 
 	signer *paytypes.KeyringSigner
 
-	broadCasted []sdk.Msg
-	dcConfirms  map[string][]types.MsgDataCommitmentConfirm
-	vsConfirms  map[uint64][]types.MsgValsetConfirm
+	broadCasted  []sdk.Msg
+	dcConfirms   map[string][]types.MsgDataCommitmentConfirm
+	vsConfirms   map[uint64][]types.MsgValsetConfirm
+	latestValset types.Valset
 }
 
 func newMockAppClient(t *testing.T) *mockAppClient {
@@ -78,6 +86,10 @@ func (mac *mockAppClient) setValsetConfirms(nonce uint64, confirms []types.MsgVa
 	mac.vsConfirms[nonce] = confirms
 }
 
+func (mac *mockAppClient) setLatestValset(valset types.Valset) {
+	mac.latestValset = valset
+}
+
 func (mac *mockAppClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, error) {
 	return mac.valsets, nil
 }
@@ -104,4 +116,8 @@ func (mac *mockAppClient) QueryTwoThirdsValsetConfirms(ctx context.Context, time
 
 func (mac *mockAppClient) OrchestratorAddress() sdk.AccAddress {
 	return mac.signer.GetSignerInfo().GetAddress()
+}
+
+func (mac *mockAppClient) QueryLatestValset(ctx context.Context) (types.Valset, error) {
+	return mac.latestValset, nil
 }

@@ -42,7 +42,7 @@ type appClient struct {
 	signer        *paytypes.KeyringSigner
 }
 
-func NewAppClient(logger tmlog.Logger, keyringAccount, chainID, coreRPC, appRPC string) (*appClient, error) {
+func NewAppClient(logger tmlog.Logger, keyringAccount, chainID, coreRPC, appRPC string) (AppClient, error) {
 	trpc, err := http.New(coreRPC, "/websocket")
 	if err != nil {
 		return nil, err
