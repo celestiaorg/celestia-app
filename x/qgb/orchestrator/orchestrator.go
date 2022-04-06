@@ -78,7 +78,7 @@ func (oc *orchestrator) processDataCommitmentEvents(ctx context.Context, dataCom
 			Signature:        ethcmn.Bytes2Hex(dcSig),
 		}
 
-		err = oc.broadcastTx(ctx, msg)
+		err = oc.appClient.BroadcastTx(ctx, msg)
 		if err != nil {
 			return err
 		}
