@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	URLMsgWirePayforMessage = "/payment.MsgWirePayForData"
-	URLMsgPayforMessage     = "/payment.MsgPayForData"
+	URLMsgWirePayforData 	= "/payment.MsgWirePayForData"
+	URLMsgPayforData     	= "/payment.MsgPayForData"
 	ShareSize               = consts.ShareSize
 	SquareSize              = consts.MaxSquareSize
 	NamespaceIDSize         = consts.NamespaceSize
@@ -28,7 +28,7 @@ func (msg *MsgPayForData) Route() string { return RouterKey }
 
 // Type fullfills the sdk.Msg interface
 func (msg *MsgPayForData) Type() string {
-	return URLMsgPayforMessage
+	return URLMsgPayforData
 }
 
 // ValidateBasic fullfills the sdk.Msg interface by performing stateless
