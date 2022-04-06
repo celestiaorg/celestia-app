@@ -33,7 +33,7 @@ func (ec *evmClient) SubmitDataRootTupleRoot(ctx context.Context, nonce uint64, 
 	return nil
 }
 
-func (ec *evmClient) NewTransactOpts(gasLim uint64) (*bind.TransactOpts, error) {
+func (ec *evmClient) NewTransactOpts(ctx context.Context, gasLim uint64) (*bind.TransactOpts, error) {
 	return nil, nil
 }
 

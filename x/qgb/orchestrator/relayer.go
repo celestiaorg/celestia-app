@@ -75,8 +75,7 @@ func (r *relayer) updateValidatorSet(
 	valset types.Valset,
 	newThreshhold uint64,
 	currentValset types.Valset,
-	confirms []types.MsgValsetConfirm,
-) error {
+	confirms []types.MsgValsetConfirm) error {
 
 	sigs, err := matchValsetConfirmSigs(confirms)
 	if err != nil {
