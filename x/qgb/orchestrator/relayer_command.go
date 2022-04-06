@@ -1,6 +1,8 @@
 package orchestrator
 
 import (
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"os"
@@ -30,9 +32,21 @@ func RelayerCmd() *cobra.Command {
 				return err
 			}
 
+			ethClient, err := ethclient.Dial(config.evmRPC)
+			if err != nil {
+				return err
+			}
+
+			qgbWrapper, err := wrapper.NewQuantumGravityBridge(config.contractAddr, ethClient)
+			if err != nil {
+				return err
+			}
+
 			relay := relayer{
 				logger:    zerolog.New(os.Stdout),
 				appClient: client,
+				bridgeID:  config.bridgeID,
+				evmClient: NewEvmClient(*qgbWrapper),
 			}
 
 			wg := &sync.WaitGroup{}
@@ -66,7 +80,8 @@ func RelayerCmd() *cobra.Command {
 					case <-cmd.Context().Done():
 						return
 					default:
-						err = relay.relayDataCommitments(cmd.Context())
+						dcChan, err := client.SubscribeDataCommitment(cmd.Context())
+						err = relay.processDataCommitmentEvents(cmd.Context(), dcChan)
 						if err != nil {
 							relay.logger.Err(err)
 							time.Sleep(time.Second * 30)
