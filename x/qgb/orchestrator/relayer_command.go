@@ -1,13 +1,13 @@
 package orchestrator
 
 import (
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/rs/zerolog"
-	tmlog "github.com/tendermint/tendermint/libs/log"
 	"os"
 	"sync"
 	"time"
+
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
+	"github.com/ethereum/go-ethereum/ethclient"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 
 	"github.com/spf13/cobra"
 )
@@ -43,7 +43,7 @@ func RelayerCmd() *cobra.Command {
 			}
 
 			relay := relayer{
-				logger:    zerolog.New(os.Stdout),
+				logger:    tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout)),
 				appClient: client,
 				bridgeID:  config.bridgeID,
 				evmClient: NewEvmClient(
@@ -67,7 +67,7 @@ func RelayerCmd() *cobra.Command {
 						valsetChan, err := client.SubscribeValset(cmd.Context())
 						err = relay.processValsetEvents(cmd.Context(), valsetChan)
 						if err != nil {
-							relay.logger.Err(err)
+							relay.logger.Error(err.Error())
 							time.Sleep(time.Second * 30)
 							continue
 						}
@@ -88,7 +88,7 @@ func RelayerCmd() *cobra.Command {
 						dcChan, err := client.SubscribeDataCommitment(cmd.Context())
 						err = relay.processDataCommitmentEvents(cmd.Context(), dcChan)
 						if err != nil {
-							relay.logger.Err(err)
+							relay.logger.Error(err.Error())
 							time.Sleep(time.Second * 30)
 							continue
 						}
