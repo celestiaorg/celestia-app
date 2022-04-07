@@ -23,9 +23,6 @@ func setupTestOrchestrator(t *testing.T, ac AppClient) *orchestrator {
 	if err != nil {
 		panic(err)
 	}
-	if err != nil {
-		panic(err)
-	}
 	return &orchestrator{
 		appClient:           ac,
 		logger:              tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stderr)),
