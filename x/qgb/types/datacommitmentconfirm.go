@@ -56,7 +56,7 @@ func (msg *MsgDataCommitmentConfirm) ValidateBasic() (err error) {
 // Type should return the action
 func (msg *MsgDataCommitmentConfirm) Type() string { return "data_commitment_confirm" }
 
-// EncodeDomainSeparatedDataCommitment takes the required input data and produces the required signature to confirm a validator
+// DataCommitmentTupleRootSignBytes EncodeDomainSeparatedDataCommitment takes the required input data and produces the required signature to confirm a validator
 // set update on the QGB Ethereum contract. This value will then be signed before being
 // submitted to Cosmos, verified, and then relayed to Ethereum
 func DataCommitmentTupleRootSignBytes(bridgeID ethcmn.Hash, nonce *big.Int, commitment []byte) ethcmn.Hash {

@@ -55,9 +55,7 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, valsetChannel <
 
 func (oc *orchestrator) processDataCommitmentEvents(ctx context.Context, dataCommitmentChannel <-chan ExtendedDataCommitment) error {
 	for dc := range dataCommitmentChannel {
-		nonce := dc.Nonce + 1
-
-		dataRootHash := types.DataCommitmentTupleRootSignBytes(oc.bridgeID, big.NewInt(int64(nonce)), dc.Commitment)
+		dataRootHash := types.DataCommitmentTupleRootSignBytes(oc.bridgeID, big.NewInt(int64(dc.Nonce)), dc.Commitment)
 		dcSig, err := crypto.Sign(dataRootHash.Bytes(), &oc.evmPrivateKey)
 		if err != nil {
 			return err
