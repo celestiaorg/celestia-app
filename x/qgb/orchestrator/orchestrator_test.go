@@ -54,7 +54,7 @@ func TestOrchestratorDataCommitments(t *testing.T) {
 	specs := map[string]struct {
 		count int
 	}{
-		"1 valset channel": {count: 1},
+		"1 data commitment channel": {count: 1},
 	}
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
@@ -67,6 +67,7 @@ func TestOrchestratorDataCommitments(t *testing.T) {
 				require.NoError(t, err)
 			}()
 			time.Sleep(2 * time.Second)
+			mac.close()
 
 			if len(mac.broadCasted) != spec.count {
 				t.Error("Not all received data commitments got signed")

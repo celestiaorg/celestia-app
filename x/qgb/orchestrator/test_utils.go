@@ -113,7 +113,7 @@ func verifyOrchestratorDcSignatures(broadCasted []sdk.Msg, dcs []ExtendedDataCom
 		}
 		dataRootHash := types.DataCommitmentTupleRootSignBytes(
 			bridgeID,
-			big.NewInt(int64(dcs[i].Nonce+1)),
+			big.NewInt(int64(dcs[i].Nonce)),
 			dcs[i].Commitment,
 		)
 		sigPublicKeyECDSA, err := crypto.SigToPub(dataRootHash.Bytes(), common.Hex2Bytes(msg.Signature))
