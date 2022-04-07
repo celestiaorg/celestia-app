@@ -3,7 +3,6 @@ package orchestrator
 import (
 	"context"
 	"fmt"
-	"github.com/rs/zerolog"
 	"math/big"
 	"time"
 
@@ -11,10 +10,11 @@ import (
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcmn "github.com/ethereum/go-ethereum/common"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 )
 
 type relayer struct {
-	logger zerolog.Logger
+	logger tmlog.Logger
 
 	// client
 	appClient AppClient
@@ -25,14 +25,14 @@ type relayer struct {
 }
 
 func (r *relayer) processValsetEvents(ctx context.Context, valSetChannel <-chan types.Valset) error {
-	for range valSetChannel {
-		valset := <-valSetChannel
+	for valset := range valSetChannel {
 
 		confirms, err := r.appClient.QueryTwoThirdsValsetConfirms(ctx, time.Minute*30, valset)
 		if err != nil {
 			return err
 		}
 
+		// TODO: WE NEED to pass the old validator set here.
 		currentValset, err := r.appClient.QueryLatestValset(ctx)
 		if err != nil {
 			return err
@@ -110,6 +110,7 @@ func (r *relayer) submitDataRootTupleRoot(
 		return err
 	}
 
+	// TODO: don't assume that the evm contracts are up to date with the latest nonce
 	lastDataCommitmentNonce, err := r.evmClient.StateLastDataRootTupleRootNonce(&bind.CallOpts{})
 	if err != nil {
 		return err
