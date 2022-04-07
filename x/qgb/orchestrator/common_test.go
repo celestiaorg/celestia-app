@@ -39,10 +39,10 @@ type mockAppClient struct {
 
 	signer *paytypes.KeyringSigner
 
-	broadCasted  []sdk.Msg
-	dcConfirms   map[string][]types.MsgDataCommitmentConfirm
-	vsConfirms   map[uint64][]types.MsgValsetConfirm
-	latestValset types.Valset
+	broadCasted []sdk.Msg
+	dcConfirms  map[string][]types.MsgDataCommitmentConfirm
+	vsConfirms  map[uint64][]types.MsgValsetConfirm
+	lastValset  types.Valset
 }
 
 func newMockAppClient(t *testing.T) *mockAppClient {
@@ -77,7 +77,7 @@ func (mac *mockAppClient) setValsetConfirms(nonce uint64, confirms []types.MsgVa
 }
 
 func (mac *mockAppClient) setLatestValset(valset types.Valset) {
-	mac.latestValset = valset
+	mac.lastValset = valset
 }
 
 func (mac *mockAppClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, error) {
@@ -108,6 +108,6 @@ func (mac *mockAppClient) OrchestratorAddress() sdk.AccAddress {
 	return mac.signer.GetSignerInfo().GetAddress()
 }
 
-func (mac *mockAppClient) QueryLatestValset(ctx context.Context) (types.Valset, error) {
-	return mac.latestValset, nil
+func (mac *mockAppClient) QueryLastValset(ctx context.Context) (types.Valset, error) {
+	return mac.lastValset, nil
 }
