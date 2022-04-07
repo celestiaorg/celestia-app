@@ -2,15 +2,19 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-app/testutil"
-	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	tmlog "github.com/tendermint/tendermint/libs/log"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/celestiaorg/celestia-app/testutil"
+	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 )
 
 func setupTestOrchestrator(t *testing.T, ac AppClient) *orchestrator {
@@ -108,4 +112,52 @@ func (mac *mockAppClient) OrchestratorAddress() sdk.AccAddress {
 
 func (mac *mockAppClient) QueryLatestValset(ctx context.Context) (types.Valset, error) {
 	return mac.latestValset, nil
+}
+
+type mockEVMClient struct {
+	vasletUpdates      []valsetUpdate
+	dataRootTupleRoots []dataRootTupleRoot
+}
+
+type (
+	valsetUpdate struct {
+		nonce, threshHold uint64
+		valset            types.Valset
+		sigs              []wrapper.Signature
+	}
+	dataRootTupleRoot struct {
+		tupleRoot               common.Hash
+		lastDataCommitmentNonce uint64
+		currentValset           types.Valset
+		sigs                    []wrapper.Signature
+	}
+)
+
+func (mec *mockEVMClient) UpdateValidatorSet(ctx context.Context, nonce, threshHold uint64, valset types.Valset, sigs []wrapper.Signature) error {
+	mec.vasletUpdates = append(
+		mec.vasletUpdates,
+		valsetUpdate{
+			nonce:      nonce,
+			threshHold: threshHold,
+			valset:     valset,
+			sigs:       sigs,
+		},
+	)
+	return nil
+}
+
+func (mec *mockEVMClient) SubmitDataRootTupleRoot(ctx context.Context, tupleRoot common.Hash, lastDataCommitmentNonce uint64, currentValset types.Valset, sigs []wrapper.Signature) error {
+	mec.dataRootTupleRoots = append(
+		mec.dataRootTupleRoots,
+		dataRootTupleRoot{
+			tupleRoot:               tupleRoot,
+			lastDataCommitmentNonce: lastDataCommitmentNonce,
+			currentValset:           currentValset,
+			sigs:                    sigs,
+		},
+	)
+	return nil
+}
+func (mec *mockEVMClient) StateLastDataRootTupleRootNonce(opts *bind.CallOpts) (uint64, error) {
+	return uint64(len(mec.dataRootTupleRoots)), nil
 }
