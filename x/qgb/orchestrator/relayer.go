@@ -33,13 +33,8 @@ func (r *relayer) processValsetEvents(ctx context.Context, valSetChannel <-chan 
 			return err
 		}
 
-		currentValset, err := r.appClient.QueryLatestValset(ctx)
-		if err != nil {
-			return err
-		}
-
 		// FIXME: arguments to be verified
-		err = r.updateValidatorSet(ctx, valset, valset.TwoThirdsThreshold(), currentValset, confirms)
+		err = r.updateValidatorSet(ctx, valset, valset.TwoThirdsThreshold(), confirms)
 		if err != nil {
 			return err
 		}
@@ -63,7 +58,7 @@ func (r *relayer) processDataCommitmentEvents(
 		}
 
 		// todo: make gas limit configurable
-		valset, err := r.appClient.QueryLatestValset(ctx)
+		valset, err := r.appClient.QueryLastValset(ctx)
 		if err != nil {
 			return err
 		}
@@ -77,19 +72,19 @@ func (r *relayer) updateValidatorSet(
 	ctx context.Context,
 	valset types.Valset,
 	newThreshhold uint64,
-	currentValset types.Valset,
-	confirms []types.MsgValsetConfirm) error {
-
+	confirms []types.MsgValsetConfirm,
+) error {
 	sigs, err := matchValsetConfirmSigs(confirms)
 	if err != nil {
 		return err
 	}
 
+	currentValset, err := r.appClient.QueryLastValset(ctx)
 	err = r.evmClient.UpdateValidatorSet(
 		ctx,
-		currentValset.Nonce,
+		valset.Nonce,
 		newThreshhold,
-		valset,
+		currentValset,
 		sigs,
 	)
 	if err != nil {
