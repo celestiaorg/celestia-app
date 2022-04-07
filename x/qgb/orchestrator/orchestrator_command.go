@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"context"
 	"os"
 	"sync"
 	"time"
@@ -50,14 +51,23 @@ func OrchestratorCmd() *cobra.Command {
 					case <-ctx.Done():
 						return
 					default:
+						ctx, cancel := context.WithCancel(ctx)
 						valsetChan, err := client.SubscribeValset(ctx)
+						if err != nil {
+							cancel()
+							logger.Error(err.Error())
+							time.Sleep(time.Second * 30)
+							continue
+						}
 						err = orch.processValsetEvents(ctx, valsetChan)
 						if err != nil {
+							cancel()
 							logger.Error(err.Error())
 							// todo: refactor to make a more sophisticated retry mechanism
 							time.Sleep(time.Second * 30)
 							continue
 						}
+						cancel()
 						return
 					}
 				}
