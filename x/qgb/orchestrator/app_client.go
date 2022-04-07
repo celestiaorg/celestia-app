@@ -23,7 +23,7 @@ type AppClient interface {
 	SubscribeDataCommitment(ctx context.Context) (<-chan ExtendedDataCommitment, error)
 	BroadcastTx(ctx context.Context, msg sdk.Msg) error
 	QueryDataCommitments(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error)
-	QueryLatestValset(ctx context.Context) (types.Valset, error)
+	QueryLastValset(ctx context.Context) (types.Valset, error)
 	QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, timeout time.Duration, commitment string) ([]types.MsgDataCommitmentConfirm, error)
 	QueryTwoThirdsValsetConfirms(ctx context.Context, timeout time.Duration, valset types.Valset) ([]types.MsgValsetConfirm, error)
 	OrchestratorAddress() sdk.AccAddress
@@ -338,17 +338,17 @@ func (ac *appClient) OrchestratorAddress() sdk.AccAddress {
 	return ac.signer.GetSignerInfo().GetAddress()
 }
 
-func (ac *appClient) QueryLatestValset(ctx context.Context) (types.Valset, error) {
+func (ac *appClient) QueryLastValset(ctx context.Context) (types.Valset, error) {
 	queryClient := types.NewQueryClient(ac.qgbRPC)
 	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
 	if err != nil {
 		return types.Valset{}, err
 	}
 
-	if len(lastValsetResp.Valsets) < 1 {
+	if len(lastValsetResp.Valsets) < 2 {
 		return types.Valset{}, errors.New("no validator sets found")
 	}
 
-	valset := lastValsetResp.Valsets[0]
+	valset := lastValsetResp.Valsets[1]
 	return valset, nil
 }

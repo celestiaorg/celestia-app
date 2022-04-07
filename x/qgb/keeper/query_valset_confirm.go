@@ -41,6 +41,7 @@ func (k Keeper) LastValsetRequests(
 	} else {
 		retLen = maxValsetRequestsReturned
 	}
+	// TODO: check if we need the first ones or the last ones
 	return &types.QueryLastValsetRequestsResponse{Valsets: valReq[0:retLen]}, nil
 }
 
