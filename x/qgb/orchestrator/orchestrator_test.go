@@ -30,7 +30,10 @@ func TestOrchestratorValsets(t *testing.T) {
 			require.NoError(t, err)
 
 			populateValsetChan(mac.valsets, valsets)
-			go orch.processValsetEvents(ctx, mac.valsets)
+			go func() {
+				err := orch.processValsetEvents(ctx, mac.valsets)
+				require.NoError(t, err)
+			}()
 			time.Sleep(2 * time.Second)
 
 			if len(mac.broadCasted) != spec.count {
