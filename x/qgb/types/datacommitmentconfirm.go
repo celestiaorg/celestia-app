@@ -15,7 +15,7 @@ import (
 func NewMsgDataCommitmentConfirm(
 	commitment string,
 	signature string,
-	validatorSignature sdk.AccAddress,
+	validatorAddress sdk.AccAddress,
 	ethAddress EthAddress,
 	beginBlock int64,
 	endBlock int64,
@@ -23,7 +23,7 @@ func NewMsgDataCommitmentConfirm(
 	return &MsgDataCommitmentConfirm{
 		Commitment:       commitment,
 		Signature:        signature,
-		ValidatorAddress: validatorSignature.String(),
+		ValidatorAddress: validatorAddress.String(),
 		EthAddress:       ethAddress.GetAddress(),
 		BeginBlock:       beginBlock,
 		EndBlock:         endBlock,
