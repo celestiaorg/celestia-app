@@ -37,7 +37,9 @@ func OrchestratorCmd() *cobra.Command {
 			orch := orchestrator{
 				logger:              tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout)),
 				appClient:           client,
-				orchestratorAddress: client.OrchestratorAddress().String(),
+				evmPrivateKey:       *config.privateKey,
+				bridgeID:            config.bridgeID,
+				orchestratorAddress: config.keyringAccount,
 			}
 
 			wg := &sync.WaitGroup{}

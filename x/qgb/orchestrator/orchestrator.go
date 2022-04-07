@@ -2,6 +2,8 @@ package orchestrator
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -16,24 +18,21 @@ type orchestrator struct {
 	appClient AppClient
 
 	// orchestrator signing
-	personalSignerFn PersonalSignFn
-	evmAddress       ethcmn.Address
-	bridgeID         ethcmn.Hash
+	evmPrivateKey ecdsa.PrivateKey
+	bridgeID      ethcmn.Hash
 
 	// celestia related signing
 	orchestratorAddress string
 }
 
-func (oc *orchestrator) processValsetEvents(ctx context.Context, valSetChannel <-chan types.Valset) error {
-	for range valSetChannel {
-		valset := <-valSetChannel
-
+func (oc *orchestrator) processValsetEvents(ctx context.Context, valsetChannel <-chan types.Valset) error {
+	for valset := range valsetChannel {
 		signBytes, err := valset.SignBytes(oc.bridgeID)
 		if err != nil {
 			return err
 		}
 
-		signature, err := oc.personalSignerFn(oc.evmAddress, signBytes.Bytes())
+		signature, err := crypto.Sign(signBytes.Bytes(), &oc.evmPrivateKey)
 		if err != nil {
 			return err
 		}
@@ -41,7 +40,7 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, valSetChannel <
 		// create and send the valset hash
 		msg := &types.MsgValsetConfirm{
 			Orchestrator: oc.orchestratorAddress,
-			EthAddress:   oc.evmAddress.Hex(),
+			EthAddress:   crypto.PubkeyToAddress(oc.evmPrivateKey.PublicKey).Hex(),
 			Nonce:        valset.Nonce,
 			Signature:    ethcmn.Bytes2Hex(signature),
 		}
@@ -55,19 +54,17 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, valSetChannel <
 }
 
 func (oc *orchestrator) processDataCommitmentEvents(ctx context.Context, dataCommitmentChannel <-chan ExtendedDataCommitment) error {
-	for range dataCommitmentChannel {
-		dc := <-dataCommitmentChannel
-
+	for dc := range dataCommitmentChannel {
 		nonce := dc.Nonce + 1
 
 		dataRootHash := types.DataCommitmentTupleRootSignBytes(oc.bridgeID, big.NewInt(int64(nonce)), dc.Commitment)
-		dcSig, err := oc.personalSignerFn(oc.evmAddress, dataRootHash.Bytes())
+		dcSig, err := crypto.Sign(dataRootHash.Bytes(), &oc.evmPrivateKey)
 		if err != nil {
 			return err
 		}
 
 		msg := &types.MsgDataCommitmentConfirm{
-			EthAddress:       oc.evmAddress.String(),
+			EthAddress:       crypto.PubkeyToAddress(oc.evmPrivateKey.PublicKey).Hex(),
 			Commitment:       string(dc.Commitment),
 			BeginBlock:       dc.Start,
 			EndBlock:         dc.End,
