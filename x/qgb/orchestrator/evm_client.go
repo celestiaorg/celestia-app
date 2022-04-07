@@ -4,10 +4,11 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	tmlog "github.com/tendermint/tendermint/libs/log"
-	"math/big"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
@@ -78,6 +79,7 @@ func (ec *evmClient) SubmitDataRootTupleRoot(ctx context.Context, tupleRoot comm
 		return err
 	}
 
+	// todo: why are we using the last nonce here? shouldn't we just use the new nonce?
 	tx, err := ec.wrapper.SubmitDataRootTupleRoot(
 		opts,
 		big.NewInt(int64(lastDataCommitmentNonce)),
