@@ -35,6 +35,7 @@ func TestOrchestratorValsets(t *testing.T) {
 				require.NoError(t, err)
 			}()
 			time.Sleep(2 * time.Second)
+			mac.close()
 
 			if len(mac.broadCasted) != spec.count {
 				t.Error("Not all received valsets got signed")
