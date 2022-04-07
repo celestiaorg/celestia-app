@@ -21,7 +21,7 @@ func verifyOrchestratorValsetSignatures(broadCasted []sdk.Msg, valsets []*types.
 			return err
 		}
 		ethAddress := crypto.PubkeyToAddress(*sigPublicKeyECDSA).Hex()
-		if strings.Compare(ethAddress, msg.Signature) == 0 {
+		if strings.Compare(msg.EthAddress, ethAddress) != 0 {
 			return errors.New("wrong signature for valset")
 		}
 	}
