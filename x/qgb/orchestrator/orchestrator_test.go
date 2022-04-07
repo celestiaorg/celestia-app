@@ -3,13 +3,14 @@ package orchestrator
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -24,25 +25,18 @@ func TestOrchestratorValsets(t *testing.T) {
 	orch := setupTestOrchestrator(t, mac)
 
 	specs := map[string]struct {
-		count  int
-		expErr bool
+		count int
 	}{
-		"1 valset channel":   {count: 1, expErr: false},
-		"10 valset channel":  {count: 10, expErr: false},
-		"100 valset channel": {count: 100, expErr: false},
+		"1 valset channel": {count: 1},
 	}
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
-			valsets, err := generateValsets(spec.count)
+			valsets, err := generateValsets(spec.count, crypto.PubkeyToAddress(orch.evmPrivateKey.PublicKey).Hex())
 			require.NoError(t, err)
-			populateValsetChan(mac.valsets, valsets)
 
-			err = orch.processValsetEvents(ctx, mac.valsets)
-			if spec.expErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
+			populateValsetChan(mac.valsets, valsets)
+			go orch.processValsetEvents(ctx, mac.valsets)
+			time.Sleep(2 * time.Second)
 
 			if len(mac.broadCasted) != spec.count {
 				t.Error("Not all received valsets got signed")
@@ -61,20 +55,20 @@ func verifyOrchestratorValsetSignatures(broadCasted []sdk.Msg, valsets []*types.
 			return errors.New("couldn't cast sdk.Msg to *types.MsgValsetConfirm")
 		}
 		hash, err := valsets[i].SignBytes(bridgeID)
-		sigPublicKeyECDSA, err := crypto.SigToPub(hash.Bytes(), []byte(msg.Signature))
+		sigPublicKeyECDSA, err := crypto.SigToPub(hash.Bytes(), common.Hex2Bytes(msg.Signature))
 		if err != nil {
 			return err
 		}
 		ethAddress := crypto.PubkeyToAddress(*sigPublicKeyECDSA).Hex()
-		if ethAddress != msg.Signature {
+		if strings.Compare(ethAddress, msg.Signature) == 0 {
 			return errors.New("wrong signature for valset")
 		}
 	}
 	return nil
 }
 
-func generateValset(nonce int) (*types.Valset, error) {
-	validators, err := populateValidators()
+func generateValset(nonce int, ethAddress string) (*types.Valset, error) {
+	validators, err := populateValidators(ethAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -89,10 +83,10 @@ func generateValset(nonce int) (*types.Valset, error) {
 	return valset, err
 }
 
-func generateValsets(count int) ([]*types.Valset, error) {
+func generateValsets(count int, ethAddress string) ([]*types.Valset, error) {
 	valsets := make([]*types.Valset, count)
 	for i := 0; i < count; i++ {
-		valset, err := generateValset(i)
+		valset, err := generateValset(i, ethAddress)
 		if err != nil {
 			return nil, err
 		}
@@ -107,17 +101,16 @@ func populateValsetChan(valsetChannel chan types.Valset, valsets []*types.Valset
 	}
 }
 
-func populateValidators() (types.InternalBridgeValidators, error) {
-	validators := make(types.InternalBridgeValidators, 5)
-	for i := 0; i < 5; i++ {
-		validator, err := types.NewInternalBridgeValidator(types.BridgeValidator{
-			Power:           10,
-			EthereumAddress: fmt.Sprintf("0x9c2B12b5a07FC6D719Ed7646e5041A7E8575832%d", i),
+func populateValidators(ethAddress string) (types.InternalBridgeValidators, error) {
+	validators := make(types.InternalBridgeValidators, 1)
+	validator, err := types.NewInternalBridgeValidator(
+		types.BridgeValidator{
+			Power:           80,
+			EthereumAddress: ethAddress,
 		})
-		if err != nil {
-			return nil, err
-		}
-		validators[i] = validator
+	if err != nil {
+		return nil, err
 	}
+	validators[0] = validator
 	return validators, nil
 }

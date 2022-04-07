@@ -6,6 +6,7 @@ import (
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"os"
@@ -18,14 +19,15 @@ func setupTestOrchestrator(t *testing.T, ac AppClient) *orchestrator {
 	if err != nil {
 		panic(err)
 	}
-	psFunc, err := PrivateKeyPersonalSignFn(priv)
 	if err != nil {
 		panic(err)
 	}
 	return &orchestrator{
-		appClient:        ac,
-		logger:           tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stderr)),
-		personalSignerFn: psFunc,
+		appClient:           ac,
+		logger:              tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stderr)),
+		orchestratorAddress: crypto.PubkeyToAddress(priv.PublicKey).Hex(),
+		bridgeID:            ethcmn.BytesToHash([]byte("test bridge")),
+		evmPrivateKey:       *priv,
 	}
 }
 
