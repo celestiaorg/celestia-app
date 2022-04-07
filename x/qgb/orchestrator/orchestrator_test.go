@@ -45,3 +45,35 @@ func TestOrchestratorValsets(t *testing.T) {
 		})
 	}
 }
+
+func TestOrchestratorDataCommitments(t *testing.T) {
+	ctx := context.TODO()
+	mac := newMockAppClient(t)
+	orch := setupTestOrchestrator(t, mac)
+
+	specs := map[string]struct {
+		count int
+	}{
+		"1 valset channel": {count: 1},
+	}
+	for msg, spec := range specs {
+		t.Run(msg, func(t *testing.T) {
+			dcs, err := generateDataCommitments(spec.count)
+			require.NoError(t, err)
+
+			populateDcChan(mac.commitments, dcs)
+			go func() {
+				err := orch.processDataCommitmentEvents(ctx, mac.commitments)
+				require.NoError(t, err)
+			}()
+			time.Sleep(2 * time.Second)
+
+			if len(mac.broadCasted) != spec.count {
+				t.Error("Not all received data commitments got signed")
+			}
+
+			err = verifyOrchestratorDcSignatures(mac.broadCasted, dcs, orch.bridgeID)
+			require.NoError(t, err)
+		})
+	}
+}

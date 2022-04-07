@@ -172,7 +172,7 @@ func (ac *appClient) SubscribeDataCommitment(ctx context.Context) (<-chan Extend
 					continue
 				}
 
-				// TODO: store the nonce in the state somehwere, so that we don't have
+				// TODO: store the nonce in the state somewhere, so that we don't have
 				// to assume what the nonce is
 				nonce := uint64(height) / window
 
