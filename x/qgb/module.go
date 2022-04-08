@@ -12,6 +12,7 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 
+	"github.com/celestiaorg/celestia-app/x/qgb/client/cli"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -82,8 +83,7 @@ func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *r
 
 // GetTxCmd returns the capability module's root tx command.
 func (a AppModuleBasic) GetTxCmd() *cobra.Command {
-	// TODO
-	return nil
+	return cli.GetTxCmd()
 }
 
 // GetQueryCmd returns the capability module's root query command.
