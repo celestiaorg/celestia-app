@@ -76,7 +76,8 @@ func (k Keeper) CheckLatestValsetNonce(ctx sdk.Context) bool {
 // GetLatestValsetNonce returns the latest valset nonce
 func (k Keeper) GetLatestValsetNonce(ctx sdk.Context) uint64 {
 	if !k.CheckLatestValsetNonce(ctx) {
-		panic("Valset nonce not initialized from genesis")
+		// TODO: handle this case for genesis properly. Note for Evan: write an issue
+		return 0
 	}
 
 	store := ctx.KVStore(k.storeKey)
@@ -140,6 +141,11 @@ func (k Keeper) GetValsets(ctx sdk.Context) (out []types.Valset) {
 // shows you what is the latest valset that was saved.
 func (k Keeper) GetLatestValset(ctx sdk.Context) (out *types.Valset) {
 	latestValsetNonce := k.GetLatestValsetNonce(ctx)
+	if latestValsetNonce == 0 {
+		valset := k.SetValsetRequest(ctx)
+		return &valset
+	}
+
 	out = k.GetValset(ctx, latestValsetNonce)
 	return
 }
