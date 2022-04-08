@@ -26,7 +26,9 @@ func main() {
 	)
 
 	rootCmd.AddCommand(
+		orchestrator.DeployCmd(),
 		orchestrator.OrchestratorCmd(),
+		orchestrator.RelayerCmd(),
 	)
 
 	if err := svrcmd.Execute(rootCmd, app.DefaultNodeHome); err != nil {
