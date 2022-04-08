@@ -18,16 +18,12 @@ require (
 	github.com/tendermint/tendermint v0.34.14
 	github.com/tendermint/tm-db v0.6.4
 	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
-	golang.org/x/sys v0.0.0-20220405210540-1e041c57c461 // indirect
+	golang.org/x/sys v0.0.0-20220406163625-3f8b81556e12 // indirect
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa
 	google.golang.org/grpc v1.42.0
 )
 
-require (
-	github.com/ethereum/go-ethereum v1.10.12
-	github.com/rs/zerolog v1.26.0
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
-)
+require github.com/ethereum/go-ethereum v1.10.12
 
 require (
 	filippo.io/edwards25519 v1.0.0-beta.2 // indirect
@@ -123,6 +119,7 @@ require (
 	github.com/rjeczalik/notify v0.9.1 // indirect
 	github.com/rogpeppe/go-internal v1.8.1 // indirect
 	github.com/rs/cors v1.7.0 // indirect
+	github.com/rs/zerolog v1.26.0 // indirect
 	github.com/sasha-s/go-deadlock v0.2.1-0.20190427202633-1595213edefa // indirect
 	github.com/shirou/gopsutil v3.21.6+incompatible // indirect
 	github.com/spf13/afero v1.6.0 // indirect
@@ -141,6 +138,7 @@ require (
 	github.com/zondax/hid v0.9.0 // indirect
 	go.etcd.io/bbolt v1.3.6 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
+	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/ini.v1 v1.66.2 // indirect
