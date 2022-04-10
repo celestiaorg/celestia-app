@@ -70,7 +70,7 @@ message RequestProcessProposal {
 
 ...
 
-// Data contains the set of transactions, evidence, intermediate state roots,
+// Data contains the set of transactions, evidence,
 // and messages to be included in the block
 message Data {
  // Txs that will be applied by state @ block.Height+1.
