@@ -4,3 +4,4 @@ frontend/.cache
 secret.yml
 build
 coverage.txt
+tools-stamp
