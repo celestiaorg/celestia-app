@@ -78,7 +78,6 @@ message Data {
  // This means that block.AppHash does not include these txs.
  repeated bytes txs = 1;
 
- IntermediateStateRoots intermediate_state_roots = 2 [(gogoproto.nullable) = false];
  EvidenceList           evidence                 = 3 [(gogoproto.nullable) = false];
  Messages               messages                 = 4 [(gogoproto.nullable) = false];
  uint64                 original_square_size     = 5;
@@ -277,7 +276,6 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
        Txs:                    processedTxs,
        Messages:               messages,
        Evidence:               data.Evidence,
-       IntermediateStateRoots: data.IntermediateStateRoots,
    }, nil
 }
 
