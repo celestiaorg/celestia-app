@@ -15,7 +15,7 @@ pre-build:
 	@git fetch --tags
 
 build: mod
-	@go install -u github.com/gobuffalo/packr/v2/packr2
+	@go install github.com/gobuffalo/packr/v2/packr2
 	@cd ./cmd/celestia-appd && packr2
 	@mkdir -p build/
 	@go build -o build/ ./cmd/celestia-appd
