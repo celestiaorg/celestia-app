@@ -113,7 +113,7 @@ if err != nil {
 }
 
 // query for account information necessary to sign a valid tx
-err = keyringSigner.QueryAccount(ctx, grpcClientConn)
+err = keyringSigner.QueryAccountNumber(ctx, grpcClientConn)
 if err != nil {
     return err
 }
@@ -121,7 +121,7 @@ if err != nil {
 // generate the signatures for each `MsgPayForMessage` using the `KeyringSigner`, 
 // then set the gas limit for the tx 
 gasLimOption := types.SetGasLimit(200000)
-err = pfmMsg.SignShareCommitments(keyringSigner, gasLimOption)
+err = wpfmMsg.SignShareCommitments(keyringSigner, gasLimOption)
 if err != nil {
     return err
 }
