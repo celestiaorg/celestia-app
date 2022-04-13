@@ -2,11 +2,11 @@ package qgb
 
 import (
 	"fmt"
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 // EndBlocker is called at the end of every block
