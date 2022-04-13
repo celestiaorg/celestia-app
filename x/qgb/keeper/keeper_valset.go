@@ -169,33 +169,6 @@ func (k Keeper) GetLastUnBondingBlockHeight(ctx sdk.Context) uint64 {
 	return UInt64FromBytes(bytes)
 }
 
-// GetCurrentValset gets powers from the store and normalizes them
-// into an integer percentage with a resolution of uint32 Max meaning
-// a given validators 'gravity power' is computed as
-// Cosmos power for that validator / total cosmos power = x / uint32 Max
-// where x is the voting power on the gravity contract. This allows us
-// to only use integer division which produces a known rounding error
-// from truncation equal to the ratio of the validators
-// Cosmos power / total cosmos power ratio, leaving us at uint32 Max - 1
-// total voting power. This is an acceptable rounding error since floating
-// point may cause consensus problems if different floating point unit
-// implementations are involved.
-//
-// 'total cosmos power' has an edge case, if a validator has not set their
-// Ethereum key they are not included in the total. If they where control
-// of the bridge could be lost in the following situation.
-//
-// If we have 100 total power, and 100 total power joins the validator set
-// the new validators hold more than 33% of the bridge power, if we generate
-// and submit a valset and they don't have their eth keys set they can never
-// update the validator set again and the bridge and all its' funds are lost.
-// For this reason we exclude validators with unset eth keys from validator sets
-//
-// The function is intended to return what the valset would look like if you made one now
-// you should call this function, evaluate if you want to save this new valset, and discard
-// it or save
-var count int = 0
-
 func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 	validators := k.StakingKeeper.GetBondedValidatorsByPower(ctx)
 	if len(validators) == 0 {
