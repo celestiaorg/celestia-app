@@ -23,6 +23,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// TODO can this also be deleted ?
 // BridgeValidator represents a validator's ETH address and its power
 type BridgeValidator struct {
 	// Voting power of the validator.
