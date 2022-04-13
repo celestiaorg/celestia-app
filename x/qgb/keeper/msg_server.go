@@ -71,7 +71,7 @@ func (k msgServer) DataCommitmentConfirm(
 	if err != nil {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "validator address invalid")
 	}
-	validator, found := k.StakingKeeper.GetValidator(ctx, sdk.ValAddress(validatorAddress))
+	validator, found := k.StakingKeeper.GetValidatorByOrchestrator(ctx, validatorAddress)
 	if !found {
 		return nil, sdkerrors.Wrap(types.ErrUnknown, "validator")
 	}
@@ -98,11 +98,8 @@ func (k msgServer) DataCommitmentConfirm(
 			)
 	}
 	k.StakingKeeper.GetValidator(ctx, validator.GetOperator())
-	ethAddressFromStore, found := k.GetEthAddressByValidator(ctx)
-	if !found {
-		return nil, sdkerrors.Wrap(types.ErrEmpty, "no eth address set for validator")
-	}
-	if *ethAddressFromStore != *ethAddress {
+	// TODO check if this comparison is right
+	if validator.EthAddress != ethAddress.GetAddress() {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
 	}
 
@@ -131,12 +128,12 @@ func (k msgServer) confirmHandlerCommon(ctx sdk.Context, ethAddress string, orch
 		return sdkerrors.Wrap(types.ErrInvalid, "invalid eth address")
 	}
 
-	orchaddr, err := sdk.ValAddressFromBech32(orchestrator)
+	orchaddr, err := sdk.AccAddressFromBech32(orchestrator)
 	if err != nil {
-		return sdkerrors.Wrap(types.ErrInvalid, "acc val address invalid")
+		return sdkerrors.Wrap(types.ErrInvalid, "orch acc address invalid")
 	}
 
-	validator, found := k.StakingKeeper.GetValidator(ctx, orchaddr)
+	validator, found := k.StakingKeeper.GetValidatorByOrchestrator(ctx, orchaddr)
 	if !found {
 		return sdkerrors.Wrap(types.ErrUnknown, "validator")
 	}
@@ -144,13 +141,8 @@ func (k msgServer) confirmHandlerCommon(ctx sdk.Context, ethAddress string, orch
 		return sdkerrors.Wrapf(err, "discovered invalid validator address for orchestrator %v", orchaddr)
 	}
 
-	ethAddressFromValidator := validator.EthAddress
-	if !found {
-		return sdkerrors.Wrap(types.ErrEmpty, "no eth address set for validator")
-	}
-
 	// TODO check if this makes sense
-	if ethAddressFromValidator != submittedEthAddress.GetAddress() {
+	if validator.EthAddress != submittedEthAddress.GetAddress() {
 		return sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
 	}
 	return nil
