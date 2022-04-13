@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -87,6 +88,10 @@ func OrchestratorCmd() *cobra.Command {
 						return
 					default:
 						dcChan, err := client.SubscribeDataCommitment(ctx)
+						if err != nil {
+							fmt.Println(err.Error())
+							return
+						}
 						err = orch.processDataCommitmentEvents(ctx, dcChan)
 						if err != nil {
 							logger.Error(err.Error())

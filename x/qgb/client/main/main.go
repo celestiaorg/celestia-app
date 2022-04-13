@@ -18,6 +18,7 @@ func main() {
 		return
 	}
 
+	//nolint
 	results, err := trpc.Subscribe(ctx, "valset-changes", "eventType.eventAttribute='valset_request'")
 	//trpc.
 	for {

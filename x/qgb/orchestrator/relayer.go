@@ -62,7 +62,10 @@ func (r *relayer) processDataCommitmentEvents(
 			return err
 		}
 
-		return r.submitDataRootTupleRoot(ctx, valset, dc.Commitment.String(), confirms)
+		err = r.submitDataRootTupleRoot(ctx, valset, dc.Commitment.String(), confirms)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -79,6 +82,9 @@ func (r *relayer) updateValidatorSet(
 	}
 
 	currentValset, err := r.appClient.QueryLastValset(ctx)
+	if err != nil {
+		return err
+	}
 	err = r.evmClient.UpdateValidatorSet(
 		ctx,
 		valset.Nonce,
