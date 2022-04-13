@@ -216,6 +216,7 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 
 		p := sdk.NewInt(k.StakingKeeper.GetLastValidatorPower(ctx, val))
 
+		// TODO make sure this  is always the case
 		bv := types.BridgeValidator{Power: p.Uint64(), EthereumAddress: validator.EthAddress}
 		ibv, err := types.NewInternalBridgeValidator(bv)
 		if err != nil {
@@ -223,16 +224,6 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 		}
 		bridgeValidators = append(bridgeValidators, ibv)
 		totalPower = totalPower.Add(p)
-
-		//if ethAddr, found := k.GetEthAddressByValidator(ctx, val); found {
-		//	bv := types.BridgeValidator{Power: p.Uint64(), EthereumAddress: ethAddr.GetAddress()}
-		//	ibv, err := types.NewInternalBridgeValidator(bv)
-		//	if err != nil {
-		//		return types.Valset{}, sdkerrors.Wrapf(err, types.ErrInvalidEthAddress.Error(), val)
-		//	}
-		//	bridgeValidators = append(bridgeValidators, ibv)
-		//	totalPower = totalPower.Add(p)
-		//}
 	}
 	// normalize power values to the maximum bridge power which is 2^32
 	for i := range bridgeValidators {
