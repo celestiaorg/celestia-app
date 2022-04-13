@@ -16,7 +16,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/spm v0.1.5
 	github.com/tendermint/tendermint v0.34.14
-	github.com/tendermint/tm-db v0.6.4
+	github.com/tendermint/tm-db v0.6.6
 	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
 	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa
@@ -109,7 +109,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/prometheus/common v0.29.0 // indirect
+	github.com/prometheus/common v0.30.0 // indirect
 	github.com/prometheus/procfs v0.7.0 // indirect
 	github.com/prometheus/tsdb v0.7.1 // indirect
 	github.com/rakyll/statik v0.1.7 // indirect
