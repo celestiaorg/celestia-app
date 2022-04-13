@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -67,6 +68,11 @@ func RelayerCmd() *cobra.Command {
 						return
 					default:
 						valsetChan, err := client.SubscribeValset(cmd.Context())
+						if err != nil {
+							// TODO is this the correct way ?
+							fmt.Println(err.Error())
+							return
+						}
 						err = relay.processValsetEvents(cmd.Context(), valsetChan)
 						if err != nil {
 							relay.logger.Error(err.Error())
@@ -88,6 +94,11 @@ func RelayerCmd() *cobra.Command {
 						return
 					default:
 						dcChan, err := client.SubscribeDataCommitment(cmd.Context())
+						if err != nil {
+							// TODO is this the correct way ?
+							fmt.Println(err.Error())
+							return
+						}
 						err = relay.processDataCommitmentEvents(cmd.Context(), dcChan)
 						if err != nil {
 							relay.logger.Error(err.Error())
