@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -44,6 +45,7 @@ type mockAppClient struct {
 	dcConfirms  map[string][]types.MsgDataCommitmentConfirm
 	vsConfirms  map[uint64][]types.MsgValsetConfirm
 	lastValset  types.Valset
+	mutex       *sync.Mutex
 }
 
 func newMockAppClient(t *testing.T) *mockAppClient {
@@ -53,6 +55,7 @@ func newMockAppClient(t *testing.T) *mockAppClient {
 		dcConfirms:  make(map[string][]types.MsgDataCommitmentConfirm),
 		vsConfirms:  make(map[uint64][]types.MsgValsetConfirm),
 		signer:      testutil.GenerateKeyringSigner(t, testutil.TestAccName),
+		mutex:       &sync.Mutex{},
 	}
 }
 
@@ -96,6 +99,8 @@ func (mac *mockAppClient) SubscribeDataCommitment(ctx context.Context) (<-chan E
 }
 
 func (mac *mockAppClient) BroadcastTx(ctx context.Context, msg sdk.Msg) error {
+	mac.mutex.Lock()
+	defer mac.mutex.Unlock()
 	mac.broadCasted = append(mac.broadCasted, msg)
 	return nil
 }
@@ -128,6 +133,7 @@ func (mac *mockAppClient) QueryLastValsets(ctx context.Context) ([]types.Valset,
 type mockEVMClient struct {
 	vasletUpdates      []valsetUpdate
 	dataRootTupleRoots []dataRootTupleRoot
+	mtx                *sync.Mutex
 }
 
 type (
@@ -148,6 +154,8 @@ type (
 
 // nolint
 func (mec *mockEVMClient) UpdateValidatorSet(ctx context.Context, nonce, threshHold uint64, valset types.Valset, sigs []wrapper.Signature) error {
+	mec.mtx.Lock()
+	defer mec.mtx.Unlock()
 	mec.vasletUpdates = append(
 		mec.vasletUpdates,
 		valsetUpdate{
@@ -162,6 +170,8 @@ func (mec *mockEVMClient) UpdateValidatorSet(ctx context.Context, nonce, threshH
 
 // nolint
 func (mec *mockEVMClient) SubmitDataRootTupleRoot(ctx context.Context, tupleRoot common.Hash, lastDataCommitmentNonce uint64, currentValset types.Valset, sigs []wrapper.Signature) error {
+	mec.mtx.Lock()
+	defer mec.mtx.Unlock()
 	mec.dataRootTupleRoots = append(
 		mec.dataRootTupleRoots,
 		dataRootTupleRoot{

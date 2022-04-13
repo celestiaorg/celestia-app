@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
@@ -41,6 +42,7 @@ type appClient struct {
 	qgbRPC        *grpc.ClientConn
 	logger        tmlog.Logger
 	signer        *paytypes.KeyringSigner
+	mutex         *sync.Mutex
 }
 
 func NewAppClient(logger tmlog.Logger, keyringAccount, backend, rootDir, chainID, coreRPC, appRPC string) (AppClient, error) {
@@ -72,6 +74,7 @@ func NewAppClient(logger tmlog.Logger, keyringAccount, backend, rootDir, chainID
 		qgbRPC:        qgbGRPC,
 		logger:        logger,
 		signer:        signer,
+		mutex:         &sync.Mutex{},
 	}, nil
 }
 
@@ -193,6 +196,8 @@ func (ac *appClient) SubscribeDataCommitment(ctx context.Context) (<-chan Extend
 }
 
 func (ac *appClient) BroadcastTx(ctx context.Context, msg sdk.Msg) error {
+	ac.mutex.Lock()
+	defer ac.mutex.Unlock()
 	err := ac.signer.QueryAccountNumber(ctx, ac.qgbRPC)
 	if err != nil {
 		return err

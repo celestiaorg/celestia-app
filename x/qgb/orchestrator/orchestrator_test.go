@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -40,11 +41,15 @@ func TestOrchestratorValsets(t *testing.T) {
 			time.Sleep(2 * time.Second)
 			mac.close()
 
+			mac.mutex.Lock()
+			defer mac.mutex.Unlock()
 			if len(mac.broadCasted) != spec.count {
 				t.Error("Not all received valsets got signed")
 			}
 
-			err = verifyOrchestratorValsetSignatures(mac.broadCasted, valsets, orch.bridgeID)
+			broadcastedCopy := make([]sdktypes.Msg, len(mac.broadCasted))
+			copy(broadcastedCopy, mac.broadCasted)
+			err = verifyOrchestratorValsetSignatures(broadcastedCopy, valsets, orch.bridgeID)
 			require.NoError(t, err)
 		})
 	}
@@ -73,6 +78,8 @@ func TestOrchestratorDataCommitments(t *testing.T) {
 			time.Sleep(2 * time.Second)
 			mac.close()
 
+			mac.mutex.Lock()
+			defer mac.mutex.Unlock()
 			if len(mac.broadCasted) != spec.count {
 				t.Error("Not all received data commitments got signed")
 			}
