@@ -9,9 +9,12 @@ import (
 )
 
 const (
+	// nolint
 	firstDataCommitmet = "commit"
+	// nolint
 	firstDCStartHeight = 1
-	firstDCEndHeight   = 100
+	// nolint
+	firstDCEndHeight = 100
 )
 
 func TestOrchestratorValsets(t *testing.T) {

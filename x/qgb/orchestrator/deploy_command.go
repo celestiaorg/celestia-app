@@ -1,7 +1,6 @@
 package orchestrator
 
 import (
-	"errors"
 	"fmt"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -55,11 +54,9 @@ func DeployCmd() *cobra.Command {
 			// get latest valset
 			lastValset, err := client.QueryLastValsets(cmd.Context())
 			if err != nil {
-				return errors.New(
-					fmt.Sprintf(
-						"Cannot initialize the QGB contract without having a valset request: %s",
-						err.Error(),
-					),
+				return fmt.Errorf(
+					"Cannot initialize the QGB contract without having a valset request: %s",
+					err.Error(),
 				)
 			}
 

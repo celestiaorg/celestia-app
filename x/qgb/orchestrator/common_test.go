@@ -61,22 +61,27 @@ func (mac *mockAppClient) close() {
 	close(mac.valsets)
 }
 
+// nolint
 func (mac *mockAppClient) pushValidatorSet(valset types.Valset) {
 	mac.valsets <- valset
 }
 
+// nolint
 func (mac *mockAppClient) pushDataCommitment(commit ExtendedDataCommitment) {
 	mac.commitments <- commit
 }
 
+// nolint
 func (mac *mockAppClient) setDataCommitmentConfirms(commit string, confirms []types.MsgDataCommitmentConfirm) {
 	mac.dcConfirms[commit] = confirms
 }
 
+// nolint
 func (mac *mockAppClient) setValsetConfirms(nonce uint64, confirms []types.MsgValsetConfirm) {
 	mac.vsConfirms[nonce] = confirms
 }
 
+// nolint
 func (mac *mockAppClient) setLatestValset(valset types.Valset) {
 	mac.lastValset = valset
 }
@@ -118,17 +123,20 @@ func (mac *mockAppClient) QueryLastValsets(ctx context.Context) ([]types.Valset,
 	return nil, nil
 }
 
+// nolint
 type mockEVMClient struct {
 	vasletUpdates      []valsetUpdate
 	dataRootTupleRoots []dataRootTupleRoot
 }
 
 type (
+	// nolint
 	valsetUpdate struct {
 		nonce, threshHold uint64
 		valset            types.Valset
 		sigs              []wrapper.Signature
 	}
+	// nolint
 	dataRootTupleRoot struct {
 		tupleRoot               common.Hash
 		lastDataCommitmentNonce uint64
@@ -137,6 +145,7 @@ type (
 	}
 )
 
+// nolint
 func (mec *mockEVMClient) UpdateValidatorSet(ctx context.Context, nonce, threshHold uint64, valset types.Valset, sigs []wrapper.Signature) error {
 	mec.vasletUpdates = append(
 		mec.vasletUpdates,
@@ -150,6 +159,7 @@ func (mec *mockEVMClient) UpdateValidatorSet(ctx context.Context, nonce, threshH
 	return nil
 }
 
+// nolint
 func (mec *mockEVMClient) SubmitDataRootTupleRoot(ctx context.Context, tupleRoot common.Hash, lastDataCommitmentNonce uint64, currentValset types.Valset, sigs []wrapper.Signature) error {
 	mec.dataRootTupleRoots = append(
 		mec.dataRootTupleRoots,
@@ -162,6 +172,8 @@ func (mec *mockEVMClient) SubmitDataRootTupleRoot(ctx context.Context, tupleRoot
 	)
 	return nil
 }
+
+// nolint
 func (mec *mockEVMClient) StateLastDataRootTupleRootNonce(opts *bind.CallOpts) (uint64, error) {
 	return uint64(len(mec.dataRootTupleRoots)), nil
 }
