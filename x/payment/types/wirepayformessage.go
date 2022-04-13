@@ -2,7 +2,6 @@ package types
 
 import (
 	"bytes"
-	"errors"
 	fmt "fmt"
 
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
@@ -72,8 +71,7 @@ func (msg *MsgWirePayForMessage) ValidateBasic() error {
 
 	// ensure that the namespace id is of length == NamespaceIDSize
 	if nsLen := len(msg.GetMessageNameSpaceId()); nsLen != NamespaceIDSize {
-		return fmt.Errorf(
-			"invalid namespace length: got %d wanted %d",
+		return ErrInvalidNamespaceLen.Wrapf("got: %d want: %d",
 			nsLen,
 			NamespaceIDSize,
 		)
@@ -83,15 +81,19 @@ func (msg *MsgWirePayForMessage) ValidateBasic() error {
 		return sdkerrors.ErrInvalidAddress.Wrapf("invalid 'from' address: %s", err)
 	}
 
-	// ensure that the included message is evenly divisble into shares
+	// ensure that the included message is evenly divisible into shares
 	if msgMod := uint64(len(msg.GetMessage())) % ShareSize; msgMod != 0 {
-		return fmt.Errorf("Share message must be divisible by %d", ShareSize)
+		return ErrInvalidDataSize.Wrapf(
+			"shareSize: %d, data length: %d",
+			len(msg.Message),
+			ShareSize,
+		)
 	}
 
 	// make sure that the message size matches the actual size of the message
 	if msg.MessageSize != uint64(len(msg.Message)) {
-		return fmt.Errorf(
-			"Declared Message size does not match actual Message size, %d vs %d",
+		return ErrDeclaredActualDataSizeMismatch.Wrapf(
+			"declared: %d vs actual: %d",
 			msg.MessageSize,
 			len(msg.Message),
 		)
@@ -99,22 +101,22 @@ func (msg *MsgWirePayForMessage) ValidateBasic() error {
 
 	// ensure that a reserved namespace is not used
 	if bytes.Compare(msg.GetMessageNameSpaceId(), consts.MaxReservedNamespace) < 1 {
-		return errors.New("message is not valid: uses a reserved namesapce ID")
+		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", msg.GetMessageNameSpaceId(), consts.MaxReservedNamespace)
 	}
 
-	for _, commit := range msg.MessageShareCommitment {
+	for idx, commit := range msg.MessageShareCommitment {
 		// check that each commit is valid
 		if !powerOf2(commit.K) {
-			return fmt.Errorf("invalid square size, the size must be power of 2: %d", commit.K)
+			return ErrCommittedSquareSizeNotPowOf2.Wrapf("committed to square size: %d", commit.K)
 		}
 
 		calculatedCommit, err := CreateCommitment(commit.K, msg.GetMessageNameSpaceId(), msg.Message)
 		if err != nil {
-			return err
+			return ErrCalculateCommit.Wrap(err.Error())
 		}
 
-		if string(calculatedCommit) != string(commit.ShareCommitment) {
-			return fmt.Errorf("invalid commit for square size %d", commit.K)
+		if !bytes.Equal(calculatedCommit, commit.ShareCommitment) {
+			return ErrInvalidShareCommit.Wrapf("for square size %d and commit number %v", commit.K, idx)
 		}
 	}
 
