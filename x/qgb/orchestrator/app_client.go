@@ -339,6 +339,7 @@ func (ac *appClient) OrchestratorAddress() sdk.AccAddress {
 	return ac.signer.GetSignerInfo().GetAddress()
 }
 
+// QueryLastValset TODO change name to reflect the functionality correctly
 func (ac *appClient) QueryLastValset(ctx context.Context) (types.Valset, error) {
 	queryClient := types.NewQueryClient(ac.qgbRPC)
 	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
