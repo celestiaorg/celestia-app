@@ -53,7 +53,7 @@ func DeployCmd() *cobra.Command {
 			copy(bridgeId[:], config.bridgeID.Bytes()) // is this safe?
 
 			// get latest valset
-			lastValset, err := client.QueryLastValsetRequests(cmd.Context())
+			lastValset, err := client.QueryLastValsets(cmd.Context())
 			if err != nil {
 				return errors.New(
 					fmt.Sprintf(

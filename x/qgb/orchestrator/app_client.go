@@ -27,7 +27,7 @@ type AppClient interface {
 	QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, timeout time.Duration, commitment string) ([]types.MsgDataCommitmentConfirm, error)
 	QueryTwoThirdsValsetConfirms(ctx context.Context, timeout time.Duration, valset types.Valset) ([]types.MsgValsetConfirm, error)
 	OrchestratorAddress() sdk.AccAddress
-	QueryLastValsetRequests(ctx context.Context) ([]types.Valset, error)
+	QueryLastValsets(ctx context.Context) ([]types.Valset, error)
 }
 
 type ExtendedDataCommitment struct {
@@ -353,7 +353,7 @@ func (ac *appClient) QueryLastValset(ctx context.Context) (types.Valset, error) 
 	valset := lastValsetResp.Valsets[1]
 	return valset, nil
 }
-func (ac *appClient) QueryLastValsetRequests(ctx context.Context) ([]types.Valset, error) {
+func (ac *appClient) QueryLastValsets(ctx context.Context) ([]types.Valset, error) {
 	queryClient := types.NewQueryClient(ac.qgbRPC)
 	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
 	if err != nil {

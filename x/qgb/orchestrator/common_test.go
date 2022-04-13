@@ -113,7 +113,7 @@ func (mac *mockAppClient) QueryLastValset(ctx context.Context) (types.Valset, er
 	return mac.lastValset, nil
 }
 
-func (mac *mockAppClient) QueryLastValsetRequests(ctx context.Context) ([]types.Valset, error) {
+func (mac *mockAppClient) QueryLastValsets(ctx context.Context) ([]types.Valset, error) {
 	// TODO update
 	return nil, nil
 }
