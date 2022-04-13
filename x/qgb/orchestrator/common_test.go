@@ -66,6 +66,7 @@ func (mac *mockAppClient) pushValidatorSet(valset types.Valset) {
 	mac.valsets <- valset
 }
 
+// TODO fix all of the `nolint` flags
 // nolint
 func (mac *mockAppClient) pushDataCommitment(commit ExtendedDataCommitment) {
 	mac.commitments <- commit
