@@ -1,7 +1,6 @@
 package qgb
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
@@ -10,63 +9,13 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 )
-
-func TestMsgSetOrchestratorAddresses(t *testing.T) {
-	var (
-		ethAddress, _                 = types.NewEthAddress("0xb462864E395d88d6bc7C5dd5F3F5eb4cc2599255")
-		cosmosAddress  sdk.AccAddress = bytes.Repeat([]byte{0x1}, 20)
-		ethAddress2, _                = types.NewEthAddress("0x26126048c706fB45a5a6De8432F428e794d0b952")
-		cosmosAddress2 sdk.AccAddress = bytes.Repeat([]byte{0x2}, 20)
-		blockTime                     = time.Date(2020, 9, 14, 15, 20, 10, 0, time.UTC)
-		blockTime2                    = time.Date(2020, 9, 15, 15, 20, 10, 0, time.UTC)
-		blockHeight    int64          = 200
-		blockHeight2   int64          = 210
-	)
-	input, ctx := keeper.SetupTestChain(t, []uint64{1000000000}, false)
-	wctx := sdk.WrapSDKContext(ctx)
-	k := input.QgbKeeper
-	h := NewHandler(*input.QgbKeeper)
-	ctx = ctx.WithBlockTime(blockTime)
-	valAddress, err := sdk.ValAddressFromBech32(input.StakingKeeper.GetValidators(ctx, 10)[0].OperatorAddress)
-	require.NoError(t, err)
-
-	// test setting keys
-	msg := types.NewMsgSetOrchestratorAddress(valAddress, cosmosAddress, *ethAddress)
-	ctx = ctx.WithBlockTime(blockTime).WithBlockHeight(blockHeight)
-	_, err = h(ctx, msg)
-	require.NoError(t, err)
-
-	// test all lookup methods
-
-	// individual lookups
-	ethLookup, found := k.GetEthAddressByValidator(ctx, valAddress)
-	assert.True(t, found)
-	assert.Equal(t, ethLookup, ethAddress)
-
-	valLookup, found := k.GetOrchestratorValidator(ctx, cosmosAddress)
-	assert.True(t, found)
-	assert.Equal(t, valLookup.GetOperator(), valAddress)
-
-	// query endpoints
-	queryO := types.QueryGetDelegateKeysByOrchestratorAddress{
-		OrchestratorAddress: cosmosAddress.String(),
-	}
-	_, err = k.GetDelegateKeyByOrchestrator(wctx, &queryO)
-	require.NoError(t, err)
-
-	// try to set values again. This should fail see issue #344 for why allowing this
-	// would require keeping a history of all validators delegate keys forever
-	msg = types.NewMsgSetOrchestratorAddress(valAddress, cosmosAddress2, *ethAddress2)
-	ctx = ctx.WithBlockTime(blockTime2).WithBlockHeight(blockHeight2)
-	_, err = h(ctx, msg)
-	require.Error(t, err)
-}
 
 // TestMsgValsetConfirm ensures that the valset confirm message sets a validator set confirm
 // in the store
@@ -139,7 +88,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		orchEthPrivateKey, _ = crypto.GenerateKey()
 		orchEthPublicKey     = orchEthPrivateKey.Public().(*ecdsa.PublicKey)
 		orchEthAddress       = crypto.PubkeyToAddress(*orchEthPublicKey).Hex()
-		ethAddr, _           = types.NewEthAddress(orchEthAddress)
+		ethAddr, _           = stakingtypes.NewEthAddress(orchEthAddress)
 
 		orchPrivateKey = secp256k1.GenPrivKey()
 		orchPublicKey  = orchPrivateKey.PubKey()
@@ -163,14 +112,10 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 	sh := staking.NewHandler(input.StakingKeeper)
 	_, err := sh(
 		input.Context,
-		keeper.NewTestMsgCreateValidator(validatorValAddress, validatorAccPublicKey, keeper.StakingAmount),
+		keeper.NewTestMsgCreateValidator(validatorValAddress, validatorAccPublicKey, keeper.StakingAmount, orchAddress, *ethAddr),
 	)
 	require.NoError(t, err)
 	staking.EndBlocker(input.Context, input.StakingKeeper)
-
-	// Sets eth address and orchestrator for validator
-	input.QgbKeeper.SetEthAddressForValidator(input.Context, validatorValAddress, *ethAddr)
-	input.QgbKeeper.SetOrchestratorValidator(input.Context, validatorValAddress, orchAddress)
 
 	h := NewHandler(*input.QgbKeeper)
 	ctx = ctx.WithBlockTime(blockTime)

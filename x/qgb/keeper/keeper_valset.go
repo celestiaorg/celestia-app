@@ -18,7 +18,7 @@ import (
 // is the only function to call when you want to create a validator set that
 // is signed by consensus. If you want to peek at the present state of the set
 // and perhaps take action based on that use k.GetCurrentValset
-// i.e. {"nonce": 1, "memebers": [{"eth_addr": "foo", "power": 11223}]}
+// i.e. {"nonce": 1, "members": [{"eth_addr": "foo", "power": 11223}]}
 func (k Keeper) SetValsetRequest(ctx sdk.Context) types.Valset {
 	valset, err := k.GetCurrentValset(ctx)
 	if err != nil {
@@ -194,6 +194,8 @@ func (k Keeper) GetLastUnBondingBlockHeight(ctx sdk.Context) uint64 {
 // The function is intended to return what the valset would look like if you made one now
 // you should call this function, evaluate if you want to save this new valset, and discard
 // it or save
+var count int = 0
+
 func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 	validators := k.StakingKeeper.GetBondedValidatorsByPower(ctx)
 	if len(validators) == 0 {
@@ -214,15 +216,23 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 
 		p := sdk.NewInt(k.StakingKeeper.GetLastValidatorPower(ctx, val))
 
-		if ethAddr, found := k.GetEthAddressByValidator(ctx, val); found {
-			bv := types.BridgeValidator{Power: p.Uint64(), EthereumAddress: ethAddr.GetAddress()}
-			ibv, err := types.NewInternalBridgeValidator(bv)
-			if err != nil {
-				return types.Valset{}, sdkerrors.Wrapf(err, types.ErrInvalidEthAddress.Error(), val)
-			}
-			bridgeValidators = append(bridgeValidators, ibv)
-			totalPower = totalPower.Add(p)
+		bv := types.BridgeValidator{Power: p.Uint64(), EthereumAddress: validator.EthAddress}
+		ibv, err := types.NewInternalBridgeValidator(bv)
+		if err != nil {
+			return types.Valset{}, sdkerrors.Wrapf(err, types.ErrInvalidEthAddress.Error(), val)
 		}
+		bridgeValidators = append(bridgeValidators, ibv)
+		totalPower = totalPower.Add(p)
+
+		//if ethAddr, found := k.GetEthAddressByValidator(ctx, val); found {
+		//	bv := types.BridgeValidator{Power: p.Uint64(), EthereumAddress: ethAddr.GetAddress()}
+		//	ibv, err := types.NewInternalBridgeValidator(bv)
+		//	if err != nil {
+		//		return types.Valset{}, sdkerrors.Wrapf(err, types.ErrInvalidEthAddress.Error(), val)
+		//	}
+		//	bridgeValidators = append(bridgeValidators, ibv)
+		//	totalPower = totalPower.Add(p)
+		//}
 	}
 	// normalize power values to the maximum bridge power which is 2^32
 	for i := range bridgeValidators {

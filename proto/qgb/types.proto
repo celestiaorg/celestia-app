@@ -3,6 +3,7 @@ package qgb;
 import "gogoproto/gogo.proto";
 option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
+// TODO can this also be deleted ?
 // BridgeValidator represents a validator's ETH address and its power
 message BridgeValidator {
   // Voting power of the validator.

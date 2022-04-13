@@ -18,7 +18,7 @@ func TestCurrentValsetNormalization(t *testing.T) {
 	for i := 0; i < 64; i++ {
 		maxPower64[i] = uint64(9223372036854775807)
 		expPower64[i] = 67108864 // 2^32 split amongst 64 validators
-		ethAddrs64[i] = gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i)}, 20))
+		ethAddrs64[i] = gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20))
 	}
 
 	// any lower than this and a validator won't be created
@@ -52,7 +52,7 @@ func TestCurrentValsetNormalization(t *testing.T) {
 	for msg, spec := range specs {
 		spec := spec
 		t.Run(msg, func(t *testing.T) {
-			input, ctx := SetupTestChain(t, spec.srcPowers, true)
+			input, ctx := SetupTestChain(t, spec.srcPowers)
 			r, err := input.QgbKeeper.GetCurrentValset(ctx)
 			require.NoError(t, err)
 			rMembers, err := types.BridgeValidators(r.Members).ToInternal()
