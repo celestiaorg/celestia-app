@@ -26,6 +26,8 @@ func DeployCmd() *cobra.Command {
 			client, err := NewAppClient(
 				tmlog.NewTMLogger(os.Stdout),
 				config.keyringAccount,
+				config.keyringBackend,
+				config.keyringPath,
 				config.celestiaChainID,
 				config.tendermintRPC,
 				config.qgbRPC,

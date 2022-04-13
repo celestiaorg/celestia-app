@@ -26,6 +26,8 @@ func OrchestratorCmd() *cobra.Command {
 			client, err := NewAppClient(
 				logger,
 				config.keyringAccount,
+				config.keyringBackend,
+				config.keyringPath,
 				config.celestiaChainID,
 				config.tendermintRPC,
 				config.qgbRPC,

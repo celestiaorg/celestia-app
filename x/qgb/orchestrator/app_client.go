@@ -42,7 +42,7 @@ type appClient struct {
 	signer        *paytypes.KeyringSigner
 }
 
-func NewAppClient(logger tmlog.Logger, keyringAccount, chainID, coreRPC, appRPC string) (AppClient, error) {
+func NewAppClient(logger tmlog.Logger, keyringAccount, backend, rootDir, chainID, coreRPC, appRPC string) (AppClient, error) {
 	trpc, err := http.New(coreRPC, "/websocket")
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func NewAppClient(logger tmlog.Logger, keyringAccount, chainID, coreRPC, appRPC 
 
 	// open a keyring using the configured settings
 	// TODO: optionally ask for input for a password
-	ring, err := keyring.New("orchestrator", "test", "", strings.NewReader(""))
+	ring, err := keyring.New("orchestrator", backend, rootDir, strings.NewReader(""))
 	if err != nil {
 		return nil, err
 	}
