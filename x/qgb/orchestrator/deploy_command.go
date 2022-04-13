@@ -44,6 +44,9 @@ func DeployCmd() *cobra.Command {
 
 			// init evm account
 			auth, err := bind.NewKeyedTransactorWithChainID(config.privateKey, big.NewInt(int64(config.evmChainID)))
+			if err != nil {
+				return err
+			}
 
 			// init bridgeID
 			var bridgeId [32]byte
