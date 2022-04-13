@@ -63,7 +63,7 @@ func DeployCmd() *cobra.Command {
 				)
 			}
 
-			ethVsHash, err := lastValset.Hash()
+			ethVsHash, err := lastValset[0].Hash()
 			if err != nil {
 				return err
 			}
@@ -73,7 +73,7 @@ func DeployCmd() *cobra.Command {
 				auth,
 				ethClient,
 				bridgeId,
-				big.NewInt(int64(lastValset.TwoThirdsThreshold())),
+				big.NewInt(int64(lastValset[0].TwoThirdsThreshold())),
 				ethVsHash,
 			)
 			if err != nil {
