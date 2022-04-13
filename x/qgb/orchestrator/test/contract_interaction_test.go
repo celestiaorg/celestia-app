@@ -21,7 +21,6 @@ const (
 	testAddr  = "9c2B12b5a07FC6D719Ed7646e5041A7E85758329"
 	testPriv  = "64a1d6f0e760a8d62b4afdde4096f16f51b401eaaecc915740f71770ea76a8ad"
 	testAddr2 = "e650B084f05C6194f6e552e3b9f08718Bc8a9d56"
-	testPriv2 = "6e8bdfa979ab645b41c4d17cb1329b2a44684c82b61b1b060ea9b6e1c927a4f4"
 )
 
 var (
@@ -46,6 +45,7 @@ func (s *QGBTestSuite) SetupTest() {
 	key, err := crypto.HexToECDSA(testPriv)
 	s.Require().NoError(err)
 
+	//nolint
 	s.auth = bind.NewKeyedTransactor(key)
 	s.auth.GasLimit = 10000000000000
 	s.auth.GasPrice = big.NewInt(8750000000)
@@ -138,6 +138,7 @@ func (s *QGBTestSuite) TestSubmitDataCommitment() {
 	s.Assert().Equal(uint64(1), recp.Status)
 
 	dcNonce, err := s.wrapper.StateLastDataRootTupleRootNonce(nil)
+	s.NoError(err)
 	s.Assert().Equal(0, dcNonce.Cmp(big.NewInt(1)))
 }
 

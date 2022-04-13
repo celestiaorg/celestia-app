@@ -63,11 +63,6 @@ service Query {
       returns (QueryValsetConfirmsByNonceResponse) {
     option (google.api.http).get = "/qgb/confirms/{nonce}";
   }
-  // GetDelegateKeyByOrchestrator Queries delegate key by orchestrator
-  rpc GetDelegateKeyByOrchestrator(QueryGetDelegateKeysByOrchestratorAddress)
-      returns (QueryGetDelegateKeyByOrchestratorResponse) {
-    option (google.api.http).get = "/qgb/query_delegate_keys_by_orchestrator";
-  }
   // this line is used by starport scaffolding # 2
 }
 
@@ -102,19 +97,6 @@ message QueryValsetConfirmRequest {
 
 // QueryValsetConfirmResponse ValSet confirm query response
 message QueryValsetConfirmResponse { MsgValsetConfirm confirm = 1; }
-
-// QueryGetDelegateKeysByOrchestratorAddress Delegate keys by orchestrator
-// address query request
-message QueryGetDelegateKeysByOrchestratorAddress {
-  string orchestrator_address = 1;
-}
-
-// QueryGetDelegateKeyByOrchestratorResponse Delegate keys by orchestrator
-// address query response
-message QueryGetDelegateKeyByOrchestratorResponse {
-  string validator_address = 1;
-  string eth_address = 2;
-}
 
 // QueryDataCommitmentConfirmsRequest Data commitment confirm by commitment and
 // validator address request

@@ -1,7 +1,6 @@
 package orchestrator
 
 import (
-	"errors"
 	"fmt"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -26,6 +25,8 @@ func DeployCmd() *cobra.Command {
 			client, err := NewAppClient(
 				tmlog.NewTMLogger(os.Stdout),
 				config.keyringAccount,
+				config.keyringBackend,
+				config.keyringPath,
 				config.celestiaChainID,
 				config.tendermintRPC,
 				config.qgbRPC,
@@ -42,23 +43,24 @@ func DeployCmd() *cobra.Command {
 
 			// init evm account
 			auth, err := bind.NewKeyedTransactorWithChainID(config.privateKey, big.NewInt(int64(config.evmChainID)))
+			if err != nil {
+				return err
+			}
 
 			// init bridgeID
 			var bridgeId [32]byte
 			copy(bridgeId[:], config.bridgeID.Bytes()) // is this safe?
 
 			// get latest valset
-			lastValset, err := client.QueryLastValset(cmd.Context())
+			lastValset, err := client.QueryLastValsets(cmd.Context())
 			if err != nil {
-				return errors.New(
-					fmt.Sprintf(
-						"Cannot initialize the QGB contract without having a valset request: %s",
-						err.Error(),
-					),
+				return fmt.Errorf(
+					"Cannot initialize the QGB contract without having a valset request: %s",
+					err.Error(),
 				)
 			}
 
-			ethVsHash, err := lastValset.Hash()
+			ethVsHash, err := lastValset[0].Hash()
 			if err != nil {
 				return err
 			}
@@ -68,7 +70,7 @@ func DeployCmd() *cobra.Command {
 				auth,
 				ethClient,
 				bridgeId,
-				big.NewInt(int64(lastValset.TwoThirdsThreshold())),
+				big.NewInt(int64(lastValset[0].TwoThirdsThreshold())),
 				ethVsHash,
 			)
 			if err != nil {

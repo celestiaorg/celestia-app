@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -44,6 +45,7 @@ type mockAppClient struct {
 	dcConfirms  map[string][]types.MsgDataCommitmentConfirm
 	vsConfirms  map[uint64][]types.MsgValsetConfirm
 	lastValset  types.Valset
+	mutex       *sync.Mutex
 }
 
 func newMockAppClient(t *testing.T) *mockAppClient {
@@ -53,6 +55,7 @@ func newMockAppClient(t *testing.T) *mockAppClient {
 		dcConfirms:  make(map[string][]types.MsgDataCommitmentConfirm),
 		vsConfirms:  make(map[uint64][]types.MsgValsetConfirm),
 		signer:      testutil.GenerateKeyringSigner(t, testutil.TestAccName),
+		mutex:       &sync.Mutex{},
 	}
 }
 
@@ -61,22 +64,28 @@ func (mac *mockAppClient) close() {
 	close(mac.valsets)
 }
 
+// nolint
 func (mac *mockAppClient) pushValidatorSet(valset types.Valset) {
 	mac.valsets <- valset
 }
 
+// TODO fix all of the `nolint` flags
+// nolint
 func (mac *mockAppClient) pushDataCommitment(commit ExtendedDataCommitment) {
 	mac.commitments <- commit
 }
 
+// nolint
 func (mac *mockAppClient) setDataCommitmentConfirms(commit string, confirms []types.MsgDataCommitmentConfirm) {
 	mac.dcConfirms[commit] = confirms
 }
 
+// nolint
 func (mac *mockAppClient) setValsetConfirms(nonce uint64, confirms []types.MsgValsetConfirm) {
 	mac.vsConfirms[nonce] = confirms
 }
 
+// nolint
 func (mac *mockAppClient) setLatestValset(valset types.Valset) {
 	mac.lastValset = valset
 }
@@ -90,6 +99,8 @@ func (mac *mockAppClient) SubscribeDataCommitment(ctx context.Context) (<-chan E
 }
 
 func (mac *mockAppClient) BroadcastTx(ctx context.Context, msg sdk.Msg) error {
+	mac.mutex.Lock()
+	defer mac.mutex.Unlock()
 	mac.broadCasted = append(mac.broadCasted, msg)
 	return nil
 }
@@ -113,17 +124,26 @@ func (mac *mockAppClient) QueryLastValset(ctx context.Context) (types.Valset, er
 	return mac.lastValset, nil
 }
 
+func (mac *mockAppClient) QueryLastValsets(ctx context.Context) ([]types.Valset, error) {
+	// TODO update
+	return nil, nil
+}
+
+// nolint
 type mockEVMClient struct {
 	vasletUpdates      []valsetUpdate
 	dataRootTupleRoots []dataRootTupleRoot
+	mtx                *sync.Mutex
 }
 
 type (
+	// nolint
 	valsetUpdate struct {
 		nonce, threshHold uint64
 		valset            types.Valset
 		sigs              []wrapper.Signature
 	}
+	// nolint
 	dataRootTupleRoot struct {
 		tupleRoot               common.Hash
 		lastDataCommitmentNonce uint64
@@ -132,7 +152,10 @@ type (
 	}
 )
 
+// nolint
 func (mec *mockEVMClient) UpdateValidatorSet(ctx context.Context, nonce, threshHold uint64, valset types.Valset, sigs []wrapper.Signature) error {
+	mec.mtx.Lock()
+	defer mec.mtx.Unlock()
 	mec.vasletUpdates = append(
 		mec.vasletUpdates,
 		valsetUpdate{
@@ -145,7 +168,10 @@ func (mec *mockEVMClient) UpdateValidatorSet(ctx context.Context, nonce, threshH
 	return nil
 }
 
+// nolint
 func (mec *mockEVMClient) SubmitDataRootTupleRoot(ctx context.Context, tupleRoot common.Hash, lastDataCommitmentNonce uint64, currentValset types.Valset, sigs []wrapper.Signature) error {
+	mec.mtx.Lock()
+	defer mec.mtx.Unlock()
 	mec.dataRootTupleRoots = append(
 		mec.dataRootTupleRoots,
 		dataRootTupleRoot{
@@ -157,6 +183,8 @@ func (mec *mockEVMClient) SubmitDataRootTupleRoot(ctx context.Context, tupleRoot
 	)
 	return nil
 }
+
+// nolint
 func (mec *mockEVMClient) StateLastDataRootTupleRootNonce(opts *bind.CallOpts) (uint64, error) {
 	return uint64(len(mec.dataRootTupleRoots)), nil
 }

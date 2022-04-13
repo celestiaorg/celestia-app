@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
@@ -27,6 +28,7 @@ type AppClient interface {
 	QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, timeout time.Duration, commitment string) ([]types.MsgDataCommitmentConfirm, error)
 	QueryTwoThirdsValsetConfirms(ctx context.Context, timeout time.Duration, valset types.Valset) ([]types.MsgValsetConfirm, error)
 	OrchestratorAddress() sdk.AccAddress
+	QueryLastValsets(ctx context.Context) ([]types.Valset, error)
 }
 
 type ExtendedDataCommitment struct {
@@ -40,9 +42,10 @@ type appClient struct {
 	qgbRPC        *grpc.ClientConn
 	logger        tmlog.Logger
 	signer        *paytypes.KeyringSigner
+	mutex         *sync.Mutex
 }
 
-func NewAppClient(logger tmlog.Logger, keyringAccount, chainID, coreRPC, appRPC string) (AppClient, error) {
+func NewAppClient(logger tmlog.Logger, keyringAccount, backend, rootDir, chainID, coreRPC, appRPC string) (AppClient, error) {
 	trpc, err := http.New(coreRPC, "/websocket")
 	if err != nil {
 		return nil, err
@@ -55,7 +58,7 @@ func NewAppClient(logger tmlog.Logger, keyringAccount, chainID, coreRPC, appRPC 
 
 	// open a keyring using the configured settings
 	// TODO: optionally ask for input for a password
-	ring, err := keyring.New("orchestrator", "test", "", strings.NewReader(""))
+	ring, err := keyring.New("orchestrator", backend, rootDir, strings.NewReader(""))
 	if err != nil {
 		return nil, err
 	}
@@ -71,6 +74,7 @@ func NewAppClient(logger tmlog.Logger, keyringAccount, chainID, coreRPC, appRPC 
 		qgbRPC:        qgbGRPC,
 		logger:        logger,
 		signer:        signer,
+		mutex:         &sync.Mutex{},
 	}, nil
 }
 
@@ -192,6 +196,8 @@ func (ac *appClient) SubscribeDataCommitment(ctx context.Context) (<-chan Extend
 }
 
 func (ac *appClient) BroadcastTx(ctx context.Context, msg sdk.Msg) error {
+	ac.mutex.Lock()
+	defer ac.mutex.Unlock()
 	err := ac.signer.QueryAccountNumber(ctx, ac.qgbRPC)
 	if err != nil {
 		return err
@@ -338,6 +344,7 @@ func (ac *appClient) OrchestratorAddress() sdk.AccAddress {
 	return ac.signer.GetSignerInfo().GetAddress()
 }
 
+// QueryLastValset TODO change name to reflect the functionality correctly
 func (ac *appClient) QueryLastValset(ctx context.Context) (types.Valset, error) {
 	queryClient := types.NewQueryClient(ac.qgbRPC)
 	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
@@ -351,4 +358,13 @@ func (ac *appClient) QueryLastValset(ctx context.Context) (types.Valset, error) 
 
 	valset := lastValsetResp.Valsets[1]
 	return valset, nil
+}
+func (ac *appClient) QueryLastValsets(ctx context.Context) ([]types.Valset, error) {
+	queryClient := types.NewQueryClient(ac.qgbRPC)
+	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	return lastValsetResp.Valsets, nil
 }

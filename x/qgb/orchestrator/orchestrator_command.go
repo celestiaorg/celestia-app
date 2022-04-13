@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -26,6 +27,8 @@ func OrchestratorCmd() *cobra.Command {
 			client, err := NewAppClient(
 				logger,
 				config.keyringAccount,
+				config.keyringBackend,
+				config.keyringPath,
 				config.celestiaChainID,
 				config.tendermintRPC,
 				config.qgbRPC,
@@ -85,6 +88,10 @@ func OrchestratorCmd() *cobra.Command {
 						return
 					default:
 						dcChan, err := client.SubscribeDataCommitment(ctx)
+						if err != nil {
+							fmt.Println(err.Error())
+							return
+						}
 						err = orch.processDataCommitmentEvents(ctx, dcChan)
 						if err != nil {
 							logger.Error(err.Error())

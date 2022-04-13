@@ -17,6 +17,9 @@ func verifyOrchestratorValsetSignatures(broadCasted []sdk.Msg, valsets []*types.
 			return errors.New("couldn't cast sdk.Msg to *types.MsgValsetConfirm")
 		}
 		hash, err := valsets[i].SignBytes(bridgeID)
+		if err != nil {
+			return err
+		}
 		sigPublicKeyECDSA, err := crypto.SigToPub(hash.Bytes(), common.Hex2Bytes(msg.Signature))
 		if err != nil {
 			return err

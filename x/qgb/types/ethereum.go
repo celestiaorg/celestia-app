@@ -8,6 +8,7 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
+// TODO use either  this or the one from the cosmos-sdk
 const (
 	// ETHContractAddressLen is the length of contract address strings
 	ETHContractAddressLen = 42
