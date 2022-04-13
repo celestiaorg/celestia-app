@@ -11,6 +11,7 @@ import (
 
 // EndBlocker is called at the end of every block
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
+	// TODO cleanup
 	fmt.Println("running the qgb endblocker ======================================================")
 	// get the last valsets to compare against
 	latestValset := k.GetLatestValset(ctx)
