@@ -289,7 +289,7 @@ func (ac *appClient) QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, t
 		vals[val.GetEthereumAddress()] = val
 	}
 
-	majThreshHold := valset.TwoThirdsThreshold()
+	// majThreshHold := valset.TwoThirdsThreshold()
 
 	for {
 		select {
@@ -314,10 +314,10 @@ func (ac *appClient) QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, t
 				currThreshHold += val.Power
 			}
 
-			if currThreshHold >= majThreshHold {
-				return confirmsResp.Confirms, nil
-			}
+			// if currThreshHold >= majThreshHold {
 
+			// }
+			return confirmsResp.Confirms, nil
 			ac.logger.Debug("foundDataCommitmentConfirms", fmt.Sprintf("total power %d number of confirms %d", currThreshHold, len(confirmsResp.Confirms)))
 		}
 		// TODO: make the timeout configurable
@@ -332,7 +332,7 @@ func (ac *appClient) QueryTwoThirdsValsetConfirms(ctx context.Context, timeout t
 		vals[val.GetEthereumAddress()] = val
 	}
 
-	majThreshHold := valset.TwoThirdsThreshold()
+	// majThreshHold := valset.TwoThirdsThreshold()
 
 	for {
 		select {
@@ -359,10 +359,10 @@ func (ac *appClient) QueryTwoThirdsValsetConfirms(ctx context.Context, timeout t
 				currThreshHold += val.Power
 			}
 
-			if currThreshHold >= majThreshHold {
-				return confirmsResp.Confirms, nil
-			}
-
+			// if currThreshHold >= majThreshHold {
+			// 	return confirmsResp.Confirms, nil
+			// }
+			return confirmsResp.Confirms, nil
 			ac.logger.Debug("foundValsetConfirms", fmt.Sprintf("total power %d number of confirms %d", currThreshHold, len(confirmsResp.Confirms)))
 		}
 		// TODO: make the timeout configurable
