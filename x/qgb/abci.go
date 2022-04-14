@@ -6,6 +6,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+var count int = 0
+
 // EndBlocker is called at the end of every block
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
 	// TODO cleanup
@@ -44,6 +46,10 @@ func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
 	// if the conditions are true, put in a new validator set request to be signed and submitted to Ethereum
 	//k.SetValsetRequest(ctx)
 	//}
-	fmt.Println("Creating valset===========================")
-	k.SetValsetRequest(ctx)
+	if count%5 == 0 {
+		fmt.Println("Creating valset===========================")
+		k.SetValsetRequest(ctx)
+	} else {
+		count++
+	}
 }

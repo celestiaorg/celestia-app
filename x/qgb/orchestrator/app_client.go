@@ -23,7 +23,7 @@ import (
 type AppClient interface {
 	SubscribeValset(ctx context.Context) (<-chan types.Valset, error)
 	SubscribeDataCommitment(ctx context.Context) (<-chan ExtendedDataCommitment, error)
-	BroadcastTx(ctx context.Context, msg sdk.Msg) error
+	BroadcastTx(ctx context.Context, msg sdk.Msg) (string, error)
 	QueryDataCommitments(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error)
 	QueryLastValset(ctx context.Context) (types.Valset, error)
 	QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, timeout time.Duration, commitment string) ([]types.MsgDataCommitmentConfirm, error)
@@ -48,6 +48,10 @@ type appClient struct {
 
 func NewAppClient(logger tmlog.Logger, keyringAccount, backend, rootDir, chainID, coreRPC, appRPC string) (AppClient, error) {
 	trpc, err := http.New(coreRPC, "/websocket")
+	if err != nil {
+		return nil, err
+	}
+	err = trpc.Start()
 	if err != nil {
 		return nil, err
 	}
@@ -150,19 +154,20 @@ func (ac *appClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, 
 func (ac *appClient) SubscribeDataCommitment(ctx context.Context) (<-chan ExtendedDataCommitment, error) {
 	dataCommitments := make(chan ExtendedDataCommitment)
 
-	queryClient := types.NewQueryClient(ac.qgbRPC)
+	// queryClient := types.NewQueryClient(ac.qgbRPC)
 
-	resp, err := queryClient.Params(ctx, &types.QueryParamsRequest{})
+	// resp, err := queryClient.Params(ctx, &types.QueryParamsRequest{})
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// params := resp.Params
+	window := uint64(10)
+
+	q := coretypes.EventQueryNewBlockHeader.String()
+	results, err := ac.tendermintRPC.Subscribe(ctx, "height", q)
 	if err != nil {
-		return nil, nil
-	}
-
-	params := resp.Params
-	window := params.DataCommitmentWindow
-
-	results, err := ac.tendermintRPC.Subscribe(ctx, "height", coretypes.EventQueryNewBlockHeader.String())
-	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	go func() {
@@ -218,12 +223,12 @@ func (ac *appClient) SubscribeDataCommitment(ctx context.Context) (<-chan Extend
 	return dataCommitments, nil
 }
 
-func (ac *appClient) BroadcastTx(ctx context.Context, msg sdk.Msg) error {
+func (ac *appClient) BroadcastTx(ctx context.Context, msg sdk.Msg) (string, error) {
 	ac.mutex.Lock()
 	defer ac.mutex.Unlock()
 	err := ac.signer.QueryAccountNumber(ctx, ac.qgbRPC)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	builder := ac.signer.NewTxBuilder()
@@ -231,25 +236,24 @@ func (ac *appClient) BroadcastTx(ctx context.Context, msg sdk.Msg) error {
 	// TODO: update this api via https://github.com/celestiaorg/celestia-app/pull/187/commits/37f96d9af30011736a3e6048bbb35bad6f5b795c
 	tx, err := ac.signer.BuildSignedTx(builder, msg)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	rawTx, err := ac.signer.EncodeTx(tx)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	resp, err := paytypes.BroadcastTx(ctx, ac.qgbRPC, 1, rawTx)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if resp.TxResponse.Code != 0 {
-		return fmt.Errorf("\nfailure to broadcast tx: %s\n", resp.TxResponse.Info)
+		return "", fmt.Errorf("\nfailure to broadcast tx: %s\n", resp.TxResponse.Info)
 	}
 
-	fmt.Printf("\nsigned valset tx hash: %s\n", resp.TxResponse.TxHash)
-	return nil
+	return resp.TxResponse.TxHash, nil
 }
 
 func (ac *appClient) QueryDataCommitments(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error) {

@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 
@@ -45,10 +46,11 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, valsetChannel <
 			Signature:    ethcmn.Bytes2Hex(signature),
 		}
 
-		err = oc.appClient.BroadcastTx(ctx, msg)
+		hash, err := oc.appClient.BroadcastTx(ctx, msg)
 		if err != nil {
 			return err
 		}
+		fmt.Printf("\nsigned Valset %d : %s\n", msg.Nonce, hash)
 	}
 	return nil
 }
@@ -70,10 +72,11 @@ func (oc *orchestrator) processDataCommitmentEvents(ctx context.Context, dataCom
 			Signature:        ethcmn.Bytes2Hex(dcSig),
 		}
 
-		err = oc.appClient.BroadcastTx(ctx, msg)
+		hash, err := oc.appClient.BroadcastTx(ctx, msg)
 		if err != nil {
 			return err
 		}
+		fmt.Printf("\nsigned commitment %d-%d: %s\n", msg.BeginBlock, msg.EndBlock, hash)
 	}
 	return nil
 }

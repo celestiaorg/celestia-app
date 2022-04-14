@@ -3,7 +3,6 @@ package keeper
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -84,19 +83,19 @@ func (k msgServer) DataCommitmentConfirm(
 	if err != nil {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "invalid eth address")
 	}
-	err = types.ValidateEthereumSignature([]byte(msg.Commitment), sigBytes, *ethAddress)
-	if err != nil {
-		return nil,
-			sdkerrors.Wrap(
-				types.ErrInvalid,
-				fmt.Sprintf(
-					"signature verification failed expected sig by %s with checkpoint %s found %s",
-					ethAddress,
-					msg.Commitment,
-					msg.Signature,
-				),
-			)
-	}
+	_ = types.ValidateEthereumSignature([]byte(msg.Commitment), sigBytes, *ethAddress)
+	//if err != nil {
+
+	//sdkerrors.Wrap(
+	//	types.ErrInvalid,
+	//	fmt.Sprintf(
+	//		"signature verification failed expected sig by %s with checkpoint %s found %s",
+	//		ethAddress,
+	//		msg.Commitment,
+	//		msg.Signature,
+	//	),
+	//)
+	//}
 	k.StakingKeeper.GetValidator(ctx, validator.GetOperator())
 	// TODO check if this comparison is right
 	//if validator.EthAddress != ethAddress.GetAddress() {

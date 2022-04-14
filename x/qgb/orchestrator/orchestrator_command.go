@@ -3,12 +3,13 @@ package orchestrator
 import (
 	"context"
 	"fmt"
-	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 
 	tmlog "github.com/tendermint/tendermint/libs/log"
 
