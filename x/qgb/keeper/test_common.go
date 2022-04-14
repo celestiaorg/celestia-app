@@ -160,13 +160,7 @@ var (
 	}
 
 	// EthAddrs holds etheruem addresses
-	EthAddrs = []gethcommon.Address{
-		gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(1)}, 20)),
-		gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(2)}, 20)),
-		gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(3)}, 20)),
-		gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(4)}, 20)),
-		gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(5)}, 20)),
-	}
+	EthAddrs = initEthAddrs(1000000) // TODO update 1000000 with a more realistic value
 
 	// InitTokens holds the number of tokens to initialize an account with
 	InitTokens = sdk.TokensFromConsensusPower(110, sdk.DefaultPowerReduction)
@@ -177,6 +171,15 @@ var (
 	// StakingAmount holds the staking power to start a validator with
 	StakingAmount = sdk.TokensFromConsensusPower(10, sdk.DefaultPowerReduction)
 )
+
+func initEthAddrs(count int) []stakingtypes.EthAddress {
+	addresses := make([]stakingtypes.EthAddress, count)
+	for i := 0; i < count; i++ {
+		ethAddr, _ := stakingtypes.NewEthAddress(gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i)}, 20)).Hex())
+		addresses[i] = *ethAddr
+	}
+	return addresses
+}
 
 // TestInput stores the various keepers required to test gravity
 type TestInput struct {
@@ -433,7 +436,7 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 		// and the staking handler
 		_, err := sh(
 			input.Context,
-			NewTestMsgCreateValidator(ValAddrs[i], ConsPubKeys[i], StakingAmount),
+			NewTestMsgCreateValidator(ValAddrs[i], ConsPubKeys[i], StakingAmount, OrchAddrs[i], EthAddrs[i]),
 		)
 
 		// Return error if one exists
@@ -443,22 +446,11 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 	// Run the staking endblocker to ensure valset is correct in state
 	staking.EndBlocker(input.Context, input.StakingKeeper)
 
-	// Register eth addresses and orchestrator address for each validator
-	for i, addr := range ValAddrs {
-		ethAddr, err := types.NewEthAddress(EthAddrs[i].String())
-		if err != nil {
-			panic("found invalid address in EthAddrs")
-		}
-		input.QgbKeeper.SetEthAddressForValidator(input.Context, addr, *ethAddr)
-
-		input.QgbKeeper.SetOrchestratorValidator(input.Context, addr, OrchAddrs[i])
-	}
-
 	// Return the test input
 	return input, input.Context
 }
 
-func NewTestMsgCreateValidator(address sdk.ValAddress, pubKey ccrypto.PubKey, amt sdk.Int) *stakingtypes.MsgCreateValidator {
+func NewTestMsgCreateValidator(address sdk.ValAddress, pubKey ccrypto.PubKey, amt sdk.Int, orchAddr sdk.AccAddress, ethAddr stakingtypes.EthAddress) *stakingtypes.MsgCreateValidator {
 	commission := stakingtypes.NewCommissionRates(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec())
 	out, err := stakingtypes.NewMsgCreateValidator(
 		address, pubKey, sdk.NewCoin("stake", amt),
@@ -469,6 +461,7 @@ func NewTestMsgCreateValidator(address sdk.ValAddress, pubKey ccrypto.PubKey, am
 			SecurityContact: "",
 			Details:         "",
 		}, commission, sdk.OneInt(),
+		orchAddr, ethAddr,
 	)
 	if err != nil {
 		panic(err)
@@ -477,7 +470,7 @@ func NewTestMsgCreateValidator(address sdk.ValAddress, pubKey ccrypto.PubKey, am
 }
 
 // SetupTestChain sets up a test environment with the provided validator voting weights
-func SetupTestChain(t *testing.T, weights []uint64, setDelegateAddresses bool) (TestInput, sdk.Context) {
+func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 	t.Helper()
 	input := CreateTestEnv(t)
 
@@ -513,32 +506,12 @@ func SetupTestChain(t *testing.T, weights []uint64, setDelegateAddresses bool) (
 		// and the staking handler
 		_, err := sh(
 			input.Context,
-			NewTestMsgCreateValidator(valAddr, consPubKey, sdk.NewIntFromUint64(weight)),
+			NewTestMsgCreateValidator(valAddr, consPubKey, sdk.NewIntFromUint64(weight), accAddr, EthAddrs[i]),
 		)
 		require.NoError(t, err)
 
 		// Run the staking endblocker to ensure valset is correct in state
 		staking.EndBlocker(input.Context, input.StakingKeeper)
-
-		if setDelegateAddresses {
-			// set the delegate addresses for this key
-			ethAddr, err := types.NewEthAddress(gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i)}, 20)).String())
-			if err != nil {
-				panic("found invalid address in EthAddrs")
-			}
-			input.QgbKeeper.SetEthAddressForValidator(input.Context, valAddr, *ethAddr)
-			input.QgbKeeper.SetOrchestratorValidator(input.Context, valAddr, accAddr)
-
-			// increase block height by 100 blocks
-			input.Context = input.Context.WithBlockHeight(input.Context.BlockHeight() + 100)
-
-			// Run the staking endblocker to ensure valset is correct in state
-			staking.EndBlocker(input.Context, input.StakingKeeper)
-
-			// set a request every time.
-			input.QgbKeeper.SetValsetRequest(input.Context)
-		}
-
 	}
 
 	// some inputs can cause the validator creation ot not work, this checks that

@@ -71,7 +71,7 @@ func (k msgServer) DataCommitmentConfirm(
 	if err != nil {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "validator address invalid")
 	}
-	validator, found := k.GetOrchestratorValidator(ctx, validatorAddress)
+	validator, found := k.StakingKeeper.GetValidatorByOrchestrator(ctx, validatorAddress)
 	if !found {
 		return nil, sdkerrors.Wrap(types.ErrUnknown, "validator")
 	}
@@ -97,11 +97,9 @@ func (k msgServer) DataCommitmentConfirm(
 				),
 			)
 	}
-	ethAddressFromStore, found := k.GetEthAddressByValidator(ctx, validator.GetOperator())
-	if !found {
-		return nil, sdkerrors.Wrap(types.ErrEmpty, "no eth address set for validator")
-	}
-	if *ethAddressFromStore != *ethAddress {
+	k.StakingKeeper.GetValidator(ctx, validator.GetOperator())
+	// TODO check if this comparison is right
+	if validator.EthAddress != ethAddress.GetAddress() {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
 	}
 
@@ -118,62 +116,6 @@ func (k msgServer) DataCommitmentConfirm(
 	return &types.MsgDataCommitmentConfirmResponse{}, nil
 }
 
-func (k msgServer) SetOrchestratorAddress(
-	c context.Context,
-	msg *types.MsgSetOrchestratorAddress,
-) (*types.MsgSetOrchestratorAddressResponse, error) {
-	// ensure that this passes validation, checks the key validity
-	err := msg.ValidateBasic()
-	if err != nil {
-		return nil, sdkerrors.Wrap(err, "Key not valid")
-	}
-
-	ctx := sdk.UnwrapSDKContext(c)
-
-	// check the following, all should be validated in validate basic
-	val, e1 := sdk.ValAddressFromBech32(msg.Validator)
-	orch, e2 := sdk.AccAddressFromBech32(msg.Orchestrator)
-	addr, e3 := types.NewEthAddress(msg.EthAddress)
-	if e1 != nil || e2 != nil || e3 != nil {
-		return nil, sdkerrors.Wrap(err, "Key not valid")
-	}
-
-	// check that the validator does not have an existing key
-	_, foundExistingOrchestratorKey := k.GetOrchestratorValidator(ctx, orch)
-	_, foundExistingEthAddress := k.GetEthAddressByValidator(ctx, val)
-
-	// ensure that the validator exists
-	if foundExistingOrchestratorKey || foundExistingEthAddress {
-		return nil, sdkerrors.Wrap(types.ErrResetDelegateKeys, val.String())
-	}
-
-	// check that neither key is a duplicate
-	delegateKeys := k.GetDelegateKeys(ctx)
-	for i := range delegateKeys {
-		if delegateKeys[i].EthAddress == addr.GetAddress() {
-			return nil, sdkerrors.Wrap(err, "Duplicate Ethereum Key")
-		}
-		if delegateKeys[i].Orchestrator == orch.String() {
-			return nil, sdkerrors.Wrap(err, "Duplicate Orchestrator Key")
-		}
-	}
-
-	// set the orchestrator address
-	k.SetOrchestratorValidator(ctx, val, orch)
-	// set the ethereum address
-	k.SetEthAddressForValidator(ctx, val, *addr)
-
-	ctx.EventManager().EmitEvent(
-		sdk.NewEvent(
-			sdk.EventTypeMessage,
-			sdk.NewAttribute(sdk.AttributeKeyModule, msg.Type()),
-			sdk.NewAttribute(types.AttributeKeySetOperatorAddr, orch.String()),
-		),
-	)
-
-	return &types.MsgSetOrchestratorAddressResponse{}, nil
-}
-
 // confirmHandlerCommon is an internal function that provides common code for processing claim messages
 func (k msgServer) confirmHandlerCommon(ctx sdk.Context, ethAddress string, orchestrator string, signature string) error {
 	_, err := hex.DecodeString(signature)
@@ -188,9 +130,10 @@ func (k msgServer) confirmHandlerCommon(ctx sdk.Context, ethAddress string, orch
 
 	orchaddr, err := sdk.AccAddressFromBech32(orchestrator)
 	if err != nil {
-		return sdkerrors.Wrap(types.ErrInvalid, "acc address invalid")
+		return sdkerrors.Wrap(types.ErrInvalid, "orch acc address invalid")
 	}
-	validator, found := k.GetOrchestratorValidator(ctx, orchaddr)
+
+	validator, found := k.StakingKeeper.GetValidatorByOrchestrator(ctx, orchaddr)
 	if !found {
 		return sdkerrors.Wrap(types.ErrUnknown, "validator")
 	}
@@ -198,12 +141,8 @@ func (k msgServer) confirmHandlerCommon(ctx sdk.Context, ethAddress string, orch
 		return sdkerrors.Wrapf(err, "discovered invalid validator address for orchestrator %v", orchaddr)
 	}
 
-	ethAddressFromStore, found := k.GetEthAddressByValidator(ctx, validator.GetOperator())
-	if !found {
-		return sdkerrors.Wrap(types.ErrEmpty, "no eth address set for validator")
-	}
-
-	if *ethAddressFromStore != *submittedEthAddress {
+	// TODO check if this makes sense
+	if validator.EthAddress != submittedEthAddress.GetAddress() {
 		return sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
 	}
 	return nil

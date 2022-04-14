@@ -1,14 +1,18 @@
 package qgb
 
 import (
-	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
+	"fmt"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+
+	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // EndBlocker is called at the end of every block
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
+	// TODO cleanup
+	fmt.Println("running the qgb endblocker ======================================================")
 	// get the last valsets to compare against
 	latestValset := k.GetLatestValset(ctx)
 	lastUnbondingHeight := k.GetLastUnBondingBlockHeight(ctx)

@@ -17,10 +17,3 @@ message Params {
 // GenesisState struct, containing all persistant data required by the Gravity
 // module
 message GenesisState { Params params = 1; }
-
-// GravityCounters contains the many noces and counters required to maintain the
-// bridge state in the genesis
-message GravityNonces {
-  // the nonce of the last generated validator set
-  uint64 latest_valset_nonce = 1;
-}
