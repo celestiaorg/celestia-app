@@ -79,6 +79,16 @@ func NewAppClient(logger tmlog.Logger, keyringAccount, backend, rootDir, chainID
 	}, nil
 }
 
+func contains(s []uint64, nonce uint64) bool {
+	for _, v := range s {
+		if v == nonce {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (ac *appClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, error) {
 	valsets := make(chan types.Valset, 10)
 	// do the same for the others
@@ -94,12 +104,7 @@ func (ac *appClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, 
 	//	return nil, err
 	//}
 	queryClient := types.NewQueryClient(ac.qgbRPC)
-
-	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
-	if err != nil {
-		ac.logger.Error(err.Error())
-		return nil, err
-	}
+	nonces := make([]uint64, 10000)
 
 	go func() {
 		defer close(valsets)
@@ -117,13 +122,12 @@ func (ac *appClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, 
 				//		continue
 				//	}
 
-				lastValsetResp, err = queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
+				lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
 				if err != nil {
 					ac.logger.Error(err.Error())
 					return
 				}
 
-				fmt.Printf("\nGot a valset with nonce: %d\n", lastValsetResp.Valsets[0].Nonce)
 				// todo: double check that the first validator set is found
 				if len(lastValsetResp.Valsets) < 1 {
 					ac.logger.Error("no validator sets found")
@@ -132,10 +136,12 @@ func (ac *appClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, 
 
 				valset := lastValsetResp.Valsets[0]
 
-				valsets <- valset
+				if !contains(nonces, valset.Nonce) {
+					valsets <- valset
+					nonces = append(nonces, valset.Nonce)
+				}
 			}
 		}
-
 	}()
 
 	return valsets, nil
@@ -220,8 +226,6 @@ func (ac *appClient) BroadcastTx(ctx context.Context, msg sdk.Msg) error {
 		return err
 	}
 
-	msg_url := sdk.MsgTypeURL(msg)
-	fmt.Println(msg_url)
 	builder := ac.signer.NewTxBuilder()
 	builder.SetGasLimit(9999999999999)
 	// TODO: update this api via https://github.com/celestiaorg/celestia-app/pull/187/commits/37f96d9af30011736a3e6048bbb35bad6f5b795c
@@ -241,10 +245,10 @@ func (ac *appClient) BroadcastTx(ctx context.Context, msg sdk.Msg) error {
 	}
 
 	if resp.TxResponse.Code != 0 {
-		return fmt.Errorf("failure to broadcast tx: %s", resp.TxResponse.Data)
+		return fmt.Errorf("\nfailure to broadcast tx: %s\n", resp.TxResponse.Info)
 	}
 
-	fmt.Printf(resp.TxResponse.TxHash)
+	fmt.Printf("\nsigned valset tx hash: %s\n", resp.TxResponse.TxHash)
 	return nil
 }
 
