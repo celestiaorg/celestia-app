@@ -21,7 +21,7 @@ const (
 	QuerierRoute = ModuleName
 
 	// MemStoreKey defines the in-memory store key
-	MemStoreKey = "mem_payment"
+	MemStoreKey = "mem_qgb"
 )
 
 const (

@@ -8,9 +8,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/tendermint/libs/bytes"
 	tmlog "github.com/tendermint/tendermint/libs/log"
@@ -56,8 +57,8 @@ func NewAppClient(logger tmlog.Logger, keyringAccount, backend, rootDir, chainID
 		return nil, err
 	}
 
-	// open a keyring using the configured settings
-	// TODO: optionally ask for input for a password
+	//open a keyring using the configured settings
+	//TODO: optionally ask for input for a password
 	ring, err := keyring.New("orchestrator", backend, rootDir, strings.NewReader(""))
 	if err != nil {
 		return nil, err
@@ -80,8 +81,23 @@ func NewAppClient(logger tmlog.Logger, keyringAccount, backend, rootDir, chainID
 
 func (ac *appClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, error) {
 	valsets := make(chan types.Valset, 10)
-	results, err := ac.tendermintRPC.Subscribe(ctx, "valset-changes", "tm.event='Tx' AND message.module='qgb'")
+	// do the same for the others
+	//err := ac.tendermintRPC.Start()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//defer ac.tendermintRPC.Stop()
+	//
+	//results, err := ac.tendermintRPC.Subscribe(ctx, "valset-changes", "")
+
+	//if err != nil {
+	//	return nil, err
+	//}
+	queryClient := types.NewQueryClient(ac.qgbRPC)
+
+	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
 	if err != nil {
+		ac.logger.Error(err.Error())
 		return nil, err
 	}
 
@@ -91,31 +107,32 @@ func (ac *appClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, 
 			select {
 			case <-ctx.Done():
 				return
-			case ev := <-results:
-				attributes := ev.Events[types.EventTypeValsetRequest]
-				for _, attr := range attributes {
-					if attr != types.AttributeKeyNonce {
-						continue
-					}
+			//case ev := <-results:
+			default:
 
-					queryClient := types.NewQueryClient(ac.qgbRPC)
+				//attributes := ev.Events[types.EventTypeValsetRequest]
 
-					lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
-					if err != nil {
-						ac.logger.Error(err.Error())
-						return
-					}
+				//for _, attr := range attributes {
+				//	if attr != types.AttributeKeyNonce {
+				//		continue
+				//	}
 
-					// todo: double check that the first validator set is found
-					if len(lastValsetResp.Valsets) < 1 {
-						ac.logger.Error("no validator sets found")
-						return
-					}
-
-					valset := lastValsetResp.Valsets[0]
-
-					valsets <- valset
+				lastValsetResp, err = queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
+				if err != nil {
+					ac.logger.Error(err.Error())
+					return
 				}
+
+				fmt.Printf("\nGot a valset with nonce: %d\n", lastValsetResp.Valsets[0].Nonce)
+				// todo: double check that the first validator set is found
+				if len(lastValsetResp.Valsets) < 1 {
+					ac.logger.Error("no validator sets found")
+					return
+				}
+
+				valset := lastValsetResp.Valsets[0]
+
+				valsets <- valset
 			}
 		}
 
@@ -203,8 +220,12 @@ func (ac *appClient) BroadcastTx(ctx context.Context, msg sdk.Msg) error {
 		return err
 	}
 
+	msg_url := sdk.MsgTypeURL(msg)
+	fmt.Println(msg_url)
+	builder := ac.signer.NewTxBuilder()
+	builder.SetGasLimit(9999999999999)
 	// TODO: update this api via https://github.com/celestiaorg/celestia-app/pull/187/commits/37f96d9af30011736a3e6048bbb35bad6f5b795c
-	tx, err := ac.signer.BuildSignedTx(ac.signer.NewTxBuilder(), msg)
+	tx, err := ac.signer.BuildSignedTx(builder, msg)
 	if err != nil {
 		return err
 	}
@@ -223,6 +244,7 @@ func (ac *appClient) BroadcastTx(ctx context.Context, msg sdk.Msg) error {
 		return fmt.Errorf("failure to broadcast tx: %s", resp.TxResponse.Data)
 	}
 
+	fmt.Printf(resp.TxResponse.TxHash)
 	return nil
 }
 

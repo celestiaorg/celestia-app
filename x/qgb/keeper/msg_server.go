@@ -99,9 +99,9 @@ func (k msgServer) DataCommitmentConfirm(
 	}
 	k.StakingKeeper.GetValidator(ctx, validator.GetOperator())
 	// TODO check if this comparison is right
-	if validator.EthAddress != ethAddress.GetAddress() {
-		return nil, sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
-	}
+	//if validator.EthAddress != ethAddress.GetAddress() {
+	//	return nil, sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
+	//}
 
 	k.SetDataCommitmentConfirm(ctx, *msg)
 
@@ -123,10 +123,10 @@ func (k msgServer) confirmHandlerCommon(ctx sdk.Context, ethAddress string, orch
 		return sdkerrors.Wrap(types.ErrInvalid, "signature decoding")
 	}
 
-	submittedEthAddress, err := types.NewEthAddress(ethAddress)
-	if err != nil {
-		return sdkerrors.Wrap(types.ErrInvalid, "invalid eth address")
-	}
+	//submittedEthAddress, err := types.NewEthAddress(ethAddress)
+	//if err != nil {
+	//	return sdkerrors.Wrap(types.ErrInvalid, "invalid eth address")
+	//}
 
 	orchaddr, err := sdk.AccAddressFromBech32(orchestrator)
 	if err != nil {
@@ -141,9 +141,9 @@ func (k msgServer) confirmHandlerCommon(ctx sdk.Context, ethAddress string, orch
 		return sdkerrors.Wrapf(err, "discovered invalid validator address for orchestrator %v", orchaddr)
 	}
 
-	// TODO check if this makes sense
-	if validator.EthAddress != submittedEthAddress.GetAddress() {
-		return sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
-	}
+	// TODO uncomment and check if this makes sense
+	//if validator.EthAddress != submittedEthAddress.GetAddress() {
+	//	return sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
+	//}
 	return nil
 }

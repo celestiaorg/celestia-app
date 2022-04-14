@@ -3,7 +3,10 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,12 +21,26 @@ func OrchestratorCmd() *cobra.Command {
 		Aliases: []string{"orch"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			config, err := parseOrchestratorFlags(cmd)
+			//clientCtx, err := cosmosclient.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
 
 			logger := tmlog.NewTMLogger(os.Stdout)
 
+			ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringPath, strings.NewReader(""))
+			if err != nil {
+				return err
+			}
+
+			signer := paytypes.NewKeyringSigner(
+				ring,
+				config.keyringAccount,
+				config.celestiaChainID,
+			)
+
+			//fmt.Println(clientCtx.GetFromAddress())
+			//signer := types.NewKeyringSigner(clientCtx.Keyring, "validator1", config.celestiaChainID)
 			client, err := NewAppClient(
 				logger,
 				config.keyringAccount,
@@ -42,7 +59,7 @@ func OrchestratorCmd() *cobra.Command {
 				appClient:           client,
 				evmPrivateKey:       *config.privateKey,
 				bridgeID:            config.bridgeID,
-				orchestratorAddress: config.keyringAccount,
+				orchestratorAddress: signer.GetSignerInfo().GetAddress().String(),
 			}
 
 			wg := &sync.WaitGroup{}
