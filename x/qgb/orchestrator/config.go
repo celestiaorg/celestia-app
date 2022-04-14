@@ -44,9 +44,13 @@ const (
 	ethRPCFlag        = "eth-rpc"
 
 	contractAddressFlag = "contract"
+	replayFlag          = "replay"
+	followFlag          = "follow"
+	timeoutFlag         = "timeout"
 )
 
 func addOrchestratorFlags(cmd *cobra.Command) *cobra.Command {
+	cmd.Flags().StringP(contractAddressFlag, "a", "", "Specify the contract at which the qgb is deployed")
 	cmd.Flags().StringP(keyringBackendFlag, "b", "test", "Select keyring's backend (os|file|kwallet|pass|test)")
 	cmd.Flags().StringP(keyringPathFlag, "p", filepath.Join(HomeDir, ".celestia-app"), "Specify the path to the keyring keys")
 	cmd.Flags().StringP(keyringAccountName, "n", "user", "Specify the account name used with the keyring")
@@ -59,7 +63,9 @@ func addOrchestratorFlags(cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().StringP(tendermintRPCFlag, "t", "http://localhost:26657", "Specify the rest rpc address")
 	cmd.Flags().StringP(ethRPCFlag, "e", "http://localhost:8545", "Specify the ethereum rpc address")
 
-	cmd.Flags().StringP(contractAddressFlag, "a", "", "Specify the contract at which the qgb is deployed")
+	cmd.Flags().StringP(replayFlag, "u", "true", "Set to false not to replay the missing old signatures.")
+	cmd.Flags().StringP(followFlag, "f", "true", "Set to false not to follow signing the new requests.")
+	cmd.Flags().StringP(timeoutFlag, "t", "30", "Specify the timeout for replaying/following requests.")
 
 	return cmd
 }
@@ -72,6 +78,8 @@ type config struct {
 	evmChainID                                  uint64
 	qgbRPC, tendermintRPC, evmRPC               string
 	contractAddr                                ethcmn.Address
+	timeout                                     uint64
+	replay, follow                              bool
 }
 
 func parseOrchestratorFlags(cmd *cobra.Command) (config, error) {
@@ -134,6 +142,19 @@ func parseOrchestratorFlags(cmd *cobra.Command) (config, error) {
 		return config{}, err
 	}
 
+	replay, err := cmd.Flags().GetBool(replayFlag)
+	if err != nil {
+		return config{}, err
+	}
+	follow, err := cmd.Flags().GetBool(followFlag)
+	if err != nil {
+		return config{}, err
+	}
+	timeout, err := cmd.Flags().GetUint64(timeoutFlag)
+	if err != nil {
+		return config{}, err
+	}
+
 	return config{
 		keyringBackend:  keyringBackend,
 		keyringPath:     keyringPath,
@@ -146,5 +167,8 @@ func parseOrchestratorFlags(cmd *cobra.Command) (config, error) {
 		tendermintRPC:   tendermintRPC,
 		contractAddr:    address,
 		evmRPC:          ethRpc,
+		replay:          replay,
+		follow:          follow,
+		timeout:         timeout,
 	}, nil
 }

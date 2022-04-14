@@ -145,7 +145,6 @@ func (ac *appClient) SubscribeDataCommitment(ctx context.Context) (<-chan Extend
 
 	go func() {
 		defer close(dataCommitments)
-
 		for {
 			select {
 			case <-ctx.Done():
@@ -187,7 +186,6 @@ func (ac *appClient) SubscribeDataCommitment(ctx context.Context) (<-chan Extend
 					End:        endHeight,
 					Nonce:      nonce,
 				}
-
 			}
 		}
 

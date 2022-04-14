@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"crypto/ecdsa"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 
@@ -25,32 +26,38 @@ type orchestrator struct {
 	orchestratorAddress string
 }
 
-func (oc *orchestrator) processValsetEvents(ctx context.Context, valsetChannel <-chan types.Valset) error {
-	for valset := range valsetChannel {
-		signBytes, err := valset.SignBytes(oc.bridgeID)
-		if err != nil {
-			return err
-		}
+func (oc *orchestrator) processValsetEvents(ctx context.Context, valsetChannel <-chan types.Valset) (<-chan sdk.Msg, error) {
+	msgs := make(chan sdk.Msg, 10)
+	go func() {
+		defer close(msgs)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case valset := <-valsetChannel:
+				signBytes, err := valset.SignBytes(oc.bridgeID)
+				if err != nil {
+					return
+				}
 
-		signature, err := crypto.Sign(signBytes.Bytes(), &oc.evmPrivateKey)
-		if err != nil {
-			return err
-		}
+				signature, err := crypto.Sign(signBytes.Bytes(), &oc.evmPrivateKey)
+				if err != nil {
+					return
+				}
 
-		// create and send the valset hash
-		msg := &types.MsgValsetConfirm{
-			Orchestrator: oc.orchestratorAddress,
-			EthAddress:   crypto.PubkeyToAddress(oc.evmPrivateKey.PublicKey).Hex(),
-			Nonce:        valset.Nonce,
-			Signature:    ethcmn.Bytes2Hex(signature),
+				// create and send the valset hash
+				msg := &types.MsgValsetConfirm{
+					Orchestrator: oc.orchestratorAddress,
+					EthAddress:   crypto.PubkeyToAddress(oc.evmPrivateKey.PublicKey).Hex(),
+					Nonce:        valset.Nonce,
+					Signature:    ethcmn.Bytes2Hex(signature),
+				}
+				msgs <- msg
+			}
 		}
+	}()
 
-		err = oc.appClient.BroadcastTx(ctx, msg)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return msgs, nil
 }
 
 func (oc *orchestrator) processDataCommitmentEvents(ctx context.Context, dataCommitmentChannel <-chan ExtendedDataCommitment) error {

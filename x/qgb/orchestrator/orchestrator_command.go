@@ -1,13 +1,8 @@
 package orchestrator
 
 import (
-	"context"
-	"fmt"
-	"os"
-	"sync"
-	"time"
-
 	tmlog "github.com/tendermint/tendermint/libs/log"
+	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -45,67 +40,17 @@ func OrchestratorCmd() *cobra.Command {
 				orchestratorAddress: config.keyringAccount,
 			}
 
-			wg := &sync.WaitGroup{}
 			ctx := cmd.Context()
-
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for {
-					select {
-					case <-ctx.Done():
-						return
-					default:
-						ctx, cancel := context.WithCancel(ctx)
-						valsetChan, err := client.SubscribeValset(ctx)
-						if err != nil {
-							cancel()
-							logger.Error(err.Error())
-							time.Sleep(time.Second * 30)
-							continue
-						}
-						err = orch.processValsetEvents(ctx, valsetChan)
-						if err != nil {
-							cancel()
-							logger.Error(err.Error())
-							// todo: refactor to make a more sophisticated retry mechanism
-							time.Sleep(time.Second * 30)
-							continue
-						}
-						cancel()
-						return
-					}
-				}
-
-			}()
-
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for {
-					select {
-					case <-ctx.Done():
-						return
-					default:
-						dcChan, err := client.SubscribeDataCommitment(ctx)
-						if err != nil {
-							fmt.Println(err.Error())
-							return
-						}
-						err = orch.processDataCommitmentEvents(ctx, dcChan)
-						if err != nil {
-							logger.Error(err.Error())
-							time.Sleep(time.Second * 30)
-							continue
-						}
-						return
-					}
-				}
-
-			}()
-
-			wg.Wait()
-
+			err = NewOrchestratorEngine(
+				ctx,
+				orch,
+				config.timeout,
+				config.replay,
+				config.follow,
+			).Start()
+			if err != nil {
+				return err
+			}
 			return nil
 		},
 	}
