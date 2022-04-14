@@ -11,7 +11,6 @@ import (
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 func TestMountainRange(t *testing.T) {
@@ -75,34 +74,34 @@ func TestNextPowerOf2(t *testing.T) {
 	}
 }
 
-func TestPowerOf2 (t *testing.T) {
+func TestPowerOf2(t *testing.T) {
 	type test struct {
-		input uint64
+		input    uint64
 		expected bool
 	}
-	tests := []test {
+	tests := []test{
 		{
-			input: 1,
+			input:    1,
 			expected: true,
 		},
 		{
-			input: 2,
+			input:    2,
 			expected: true,
 		},
 		{
-			input: 256,
+			input:    256,
 			expected: true,
 		},
 		{
-			input: 3,
+			input:    3,
 			expected: false,
 		},
 		{
-			input: 79,
+			input:    79,
 			expected: false,
 		},
 		{
-			input: 0,
+			input:    0,
 			expected: false,
 		},
 	}
@@ -254,105 +253,6 @@ func TestSignMalleatedTxs(t *testing.T) {
 				fmt.Sprintf("test: %s size: %d", tt.name, size),
 			)
 		}
-	}
-}
-
-func TestWirePayForMessage_ValidateBasic(t *testing.T) {
-	type test struct {
-		name      string
-		msg       *MsgWirePayForMessage
-		expectErr bool
-		errStr    string
-	}
-
-	// valid pfm
-	validMsg := validWirePayForMessage(t)
-
-	// pfm with bad ns id
-	badIDMsg := validWirePayForMessage(t)
-	badIDMsg.MessageNameSpaceId = []byte{1, 2, 3, 4, 5, 6, 7}
-
-	// pfm that uses reserved ns id
-	reservedMsg := validWirePayForMessage(t)
-	reservedMsg.MessageNameSpaceId = []byte{0, 0, 0, 0, 0, 0, 0, 100}
-
-	// pfm that has a wrong msg size
-	invalidMsgSizeMsg := validWirePayForMessage(t)
-	invalidMsgSizeMsg.Message = bytes.Repeat([]byte{1}, consts.ShareSize-20)
-
-	// pfm that has a wrong msg size
-	invalidDeclaredMsgSizeMsg := validWirePayForMessage(t)
-	invalidDeclaredMsgSizeMsg.MessageSize = 999
-
-	// pfm with bad commitment
-	badCommitMsg := validWirePayForMessage(t)
-	badCommitMsg.MessageShareCommitment[0].ShareCommitment = []byte{1, 2, 3, 4}
-
-	// pfm that has invalid square size (not power of 2)
-	invalidSquareSizeMsg := validWirePayForMessage(t)
-	invalidSquareSizeMsg.MessageShareCommitment[0].K = 15
-
-	// pfm that has a different power of 2 square size
-	badSquareSizeMsg := validWirePayForMessage(t)
-	badSquareSizeMsg.MessageShareCommitment[0].K = 4
-
-	tests := []test{
-		{
-			name: "valid msg",
-			msg:  validMsg,
-		},
-		{
-			name:      "bad ns ID",
-			msg:       badIDMsg,
-			expectErr: true,
-			errStr:    "invalid namespace length",
-		},
-		{
-			name:      "reserved ns id",
-			msg:       reservedMsg,
-			expectErr: true,
-			errStr:    "uses a reserved namesapce ID",
-		},
-		{
-			name:      "invalid msg size",
-			msg:       invalidMsgSizeMsg,
-			expectErr: true,
-			errStr:    "Share message must be divisible",
-		},
-		{
-			name:      "bad declared message size",
-			msg:       invalidDeclaredMsgSizeMsg,
-			expectErr: true,
-			errStr:    "Declared Message size does not match actual Message size",
-		},
-		{
-			name:      "bad commitment",
-			msg:       badCommitMsg,
-			expectErr: true,
-			errStr:    "invalid commit for square size",
-		},
-		{
-			name:      "invalid square size",
-			msg:       invalidSquareSizeMsg,
-			expectErr: true,
-			errStr:    fmt.Sprintf("invalid square size, the size must be power of 2: %d", invalidSquareSizeMsg.MessageShareCommitment[0].K),
-		},
-		{
-			name:      "wrong but valid square size",
-			msg:       badSquareSizeMsg,
-			expectErr: true,
-			errStr:    fmt.Sprintf("invalid commit for square size %d", badSquareSizeMsg.MessageShareCommitment[0].K),
-		},
-	}
-
-	for _, tt := range tests {
-		err := tt.msg.ValidateBasic()
-		if tt.expectErr {
-			require.NotNil(t, err, tt.name)
-			require.Contains(t, err.Error(), tt.errStr, tt.name)
-			continue
-		}
-		require.NoError(t, err, tt.name)
 	}
 }
 
