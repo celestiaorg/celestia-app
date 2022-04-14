@@ -31,6 +31,7 @@ type AppClient interface {
 	QueryLastValsets(ctx context.Context) ([]types.Valset, error)
 }
 
+// TODO  remove this one after having the DataCommitmentRequest
 type ExtendedDataCommitment struct {
 	Commitment bytes.HexBytes
 	Start, End int64
@@ -359,6 +360,7 @@ func (ac *appClient) QueryLastValset(ctx context.Context) (types.Valset, error) 
 	valset := lastValsetResp.Valsets[1]
 	return valset, nil
 }
+
 func (ac *appClient) QueryLastValsets(ctx context.Context) ([]types.Valset, error) {
 	queryClient := types.NewQueryClient(ac.qgbRPC)
 	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
