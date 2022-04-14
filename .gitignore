@@ -4,3 +4,5 @@ frontend/.cache
 secret.yml
 build
 coverage.txt
+.idea
+.vscode

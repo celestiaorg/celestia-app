@@ -23,9 +23,12 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// TODO can this also be deleted ?
 // BridgeValidator represents a validator's ETH address and its power
 type BridgeValidator struct {
-	Power           uint64 `protobuf:"varint,1,opt,name=power,proto3" json:"power,omitempty"`
+	// Voting power of the validator.
+	Power uint64 `protobuf:"varint,1,opt,name=power,proto3" json:"power,omitempty"`
+	// Ethereum address that will be used by the validator to sign messages.
 	EthereumAddress string `protobuf:"bytes,2,opt,name=ethereum_address,json=ethereumAddress,proto3" json:"ethereum_address,omitempty"`
 }
 
@@ -76,13 +79,16 @@ func (m *BridgeValidator) GetEthereumAddress() string {
 	return ""
 }
 
-// Valset is the Ethereum Bridge Multsig Set, each gravity validator also
+// Valset is the Ethereum Bridge Multsig Set, each qgb validator also
 // maintains an ETH key to sign messages, these are used to check signatures on
 // ETH because of the significant gas savings
 type Valset struct {
-	Nonce   uint64            `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	// Unique number referencing the `ValSet`.
+	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	// List of BridgeValidator containing the current validator set.
 	Members []BridgeValidator `protobuf:"bytes,2,rep,name=members,proto3" json:"members"`
-	Height  uint64            `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
+	// Current chain height
+	Height uint64 `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
 }
 
 func (m *Valset) Reset()         { *m = Valset{} }

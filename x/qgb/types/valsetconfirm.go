@@ -5,6 +5,8 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
+var _ sdk.Msg = &MsgValsetConfirm{}
+
 // NewMsgValsetConfirm returns a new msgValSetConfirm
 func NewMsgValsetConfirm(
 	nonce uint64,
