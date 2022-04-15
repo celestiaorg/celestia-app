@@ -17,7 +17,7 @@ celestia-appd add-genesis-account $(celestia-appd keys show validator3 -a --keyr
 celestia-appd gentx validator1 5000000000uceles \
   --keyring-backend="test" \
   --chain-id $CHAINID \
-  --orchestrator-address celes1x30agm6v5x6te4scyqclpady6ml7t83w83yzze \
+  --orchestrator-address $(celestia-appd keys show validator1 -a --keyring-backend="test") \
   --ethereum-address 0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488
 
 celestia-appd collect-gentxs

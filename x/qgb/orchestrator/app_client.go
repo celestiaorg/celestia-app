@@ -95,18 +95,12 @@ func contains(s []uint64, nonce uint64) bool {
 
 func (ac *appClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, error) {
 	valsets := make(chan types.Valset, 10)
-	// do the same for the others
-	//err := ac.tendermintRPC.Start()
-	//if err != nil {
-	//	return nil, err
-	//}
-	//defer ac.tendermintRPC.Stop()
-	//
-	//results, err := ac.tendermintRPC.Subscribe(ctx, "valset-changes", "")
 
-	//if err != nil {
-	//	return nil, err
-	//}
+	results, err := ac.tendermintRPC.Subscribe(ctx, "valset-changes", fmt.Sprintf("%s.%s='%s'", types.EventTypeValsetRequest, sdk.AttributeKeyModule, types.ModuleName))
+
+	if err != nil {
+		return nil, err
+	}
 	queryClient := types.NewQueryClient(ac.qgbRPC)
 	nonces := make([]uint64, 10000)
 
@@ -116,16 +110,7 @@ func (ac *appClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, 
 			select {
 			case <-ctx.Done():
 				return
-			//case ev := <-results:
-			default:
-
-				//attributes := ev.Events[types.EventTypeValsetRequest]
-
-				//for _, attr := range attributes {
-				//	if attr != types.AttributeKeyNonce {
-				//		continue
-				//	}
-
+			case _ = <-results:
 				lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
 				if err != nil {
 					ac.logger.Error(err.Error())
@@ -140,9 +125,11 @@ func (ac *appClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, 
 
 				valset := lastValsetResp.Valsets[0]
 
-				if !contains(nonces, valset.Nonce) {
-					valsets <- valset
+				// Checking if we already signed this valset
+				resp, err := queryClient.ValsetConfirm(ctx, &types.QueryValsetConfirmRequest{Nonce: valset.Nonce, Address: ac.OrchestratorAddress().String()})
+				if resp.Confirm == nil && !contains(nonces, valset.Nonce) {
 					nonces = append(nonces, valset.Nonce)
+					valsets <- valset
 				}
 			}
 		}
@@ -250,7 +237,7 @@ func (ac *appClient) BroadcastTx(ctx context.Context, msg sdk.Msg) (string, erro
 	}
 
 	if resp.TxResponse.Code != 0 {
-		return "", fmt.Errorf("\nfailure to broadcast tx: %s\n", resp.TxResponse.Info)
+		return "", fmt.Errorf("\nfailure to broadcast tx: %s\n", resp.TxResponse.RawLog)
 	}
 
 	return resp.TxResponse.TxHash, nil
