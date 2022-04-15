@@ -35,7 +35,6 @@ const (
 
 	// ethereum signing
 	privateKeyFlag = "eth-priv-key"
-	bridgeIDFlag   = "bridge-id"
 	evmChainIDFlag = "evm-chain-id"
 
 	// rpc
@@ -52,7 +51,6 @@ func addOrchestratorFlags(cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().StringP(keyringAccountName, "n", "user", "Specify the account name used with the keyring")
 	cmd.Flags().StringP(privateKeyFlag, "d", "", "Provide the private key used to sign relayed evm transactions or to sign orchestrator commitments")
 	cmd.Flags().StringP(chainIDFlag, "x", "user", "Specify the celestia chain id")
-	cmd.Flags().StringP(bridgeIDFlag, "y", "universal", "Specify the bridge id")
 	cmd.Flags().Uint64P(evmChainIDFlag, "z", 5, "Specify the evm chain id")
 
 	cmd.Flags().StringP(celesGRPCFlag, "c", "localhost:9090", "Specify the grpc address")
@@ -68,7 +66,6 @@ type config struct {
 	keyringBackend, keyringPath, keyringAccount string
 	celestiaChainID                             string
 	privateKey                                  *ecdsa.PrivateKey
-	bridgeID                                    ethcmn.Hash
 	evmChainID                                  uint64
 	qgbRPC, tendermintRPC, evmRPC               string
 	contractAddr                                ethcmn.Address
@@ -99,10 +96,6 @@ func parseOrchestratorFlags(cmd *cobra.Command) (config, error) {
 		return config{}, fmt.Errorf("failed to hex-decode Ethereum ECDSA Private Key: %w", err)
 	}
 	chainID, err := cmd.Flags().GetString(chainIDFlag)
-	if err != nil {
-		return config{}, err
-	}
-	rawBridgeID, err := cmd.Flags().GetString(bridgeIDFlag)
 	if err != nil {
 		return config{}, err
 	}
@@ -140,7 +133,6 @@ func parseOrchestratorFlags(cmd *cobra.Command) (config, error) {
 		keyringAccount:  keyringAccount,
 		privateKey:      ethPrivKey,
 		celestiaChainID: chainID,
-		bridgeID:        ethcmn.HexToHash(rawBridgeID),
 		evmChainID:      evmChainID,
 		qgbRPC:          qgbRPC,
 		tendermintRPC:   tendermintRPC,

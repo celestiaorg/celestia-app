@@ -98,11 +98,11 @@ func (mac *mockAppClient) SubscribeDataCommitment(ctx context.Context) (<-chan E
 	return mac.commitments, nil
 }
 
-func (mac *mockAppClient) BroadcastTx(ctx context.Context, msg sdk.Msg) error {
+func (mac *mockAppClient) BroadcastTx(ctx context.Context, msg sdk.Msg) (string, error) {
 	mac.mutex.Lock()
 	defer mac.mutex.Unlock()
 	mac.broadCasted = append(mac.broadCasted, msg)
-	return nil
+	return "", nil
 }
 
 func (mac *mockAppClient) QueryDataCommitments(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error) {

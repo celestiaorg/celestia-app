@@ -3,6 +3,9 @@ package keeper
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
+	"math/big"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -83,24 +86,29 @@ func (k msgServer) DataCommitmentConfirm(
 	if err != nil {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "invalid eth address")
 	}
-	_ = types.ValidateEthereumSignature([]byte(msg.Commitment), sigBytes, *ethAddress)
-	//if err != nil {
-
-	//sdkerrors.Wrap(
-	//	types.ErrInvalid,
-	//	fmt.Sprintf(
-	//		"signature verification failed expected sig by %s with checkpoint %s found %s",
-	//		ethAddress,
-	//		msg.Commitment,
-	//		msg.Signature,
-	//	),
-	//)
-	//}
+	nonce := msg.EndBlock / types.DataCommitmentWindow
+	commitment, err := hex.DecodeString(msg.Commitment)
+	if err != nil {
+		return nil, err
+	}
+	hash := types.DataCommitmentTupleRootSignBytes(types.BridgeId, big.NewInt(nonce), commitment)
+	err = types.ValidateEthereumSignature(hash.Bytes(), sigBytes, *ethAddress)
+	if err != nil {
+		sdkerrors.Wrap(
+			types.ErrInvalid,
+			fmt.Sprintf(
+				"signature verification failed expected sig by %s with checkpoint %s found %s",
+				ethAddress,
+				msg.Commitment,
+				msg.Signature,
+			),
+		)
+	}
 	k.StakingKeeper.GetValidator(ctx, validator.GetOperator())
 	// TODO check if this comparison is right
-	//if validator.EthAddress != ethAddress.GetAddress() {
-	//	return nil, sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
-	//}
+	if validator.EthAddress != ethAddress.GetAddress() {
+		return nil, sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
+	}
 
 	k.SetDataCommitmentConfirm(ctx, *msg)
 
@@ -122,10 +130,10 @@ func (k msgServer) confirmHandlerCommon(ctx sdk.Context, ethAddress string, orch
 		return sdkerrors.Wrap(types.ErrInvalid, "signature decoding")
 	}
 
-	//submittedEthAddress, err := types.NewEthAddress(ethAddress)
-	//if err != nil {
-	//	return sdkerrors.Wrap(types.ErrInvalid, "invalid eth address")
-	//}
+	submittedEthAddress, err := types.NewEthAddress(ethAddress)
+	if err != nil {
+		return sdkerrors.Wrap(types.ErrInvalid, "invalid eth address")
+	}
 
 	orchaddr, err := sdk.AccAddressFromBech32(orchestrator)
 	if err != nil {
@@ -141,8 +149,8 @@ func (k msgServer) confirmHandlerCommon(ctx sdk.Context, ethAddress string, orch
 	}
 
 	// TODO uncomment and check if this makes sense
-	//if validator.EthAddress != submittedEthAddress.GetAddress() {
-	//	return sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
-	//}
+	if validator.EthAddress != submittedEthAddress.GetAddress() {
+		return sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
+	}
 	return nil
 }

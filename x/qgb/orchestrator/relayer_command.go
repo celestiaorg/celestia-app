@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"fmt"
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"os"
 	"sync"
 	"time"
@@ -48,7 +49,7 @@ func RelayerCmd() *cobra.Command {
 			relay := relayer{
 				logger:    tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout)),
 				appClient: client,
-				bridgeID:  config.bridgeID,
+				bridgeID:  types.BridgeId,
 				evmClient: NewEvmClient(
 					tmlog.NewTMLogger(os.Stdout),
 					*qgbWrapper,

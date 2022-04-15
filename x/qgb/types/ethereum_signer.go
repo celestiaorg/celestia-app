@@ -2,12 +2,13 @@ package types
 
 import (
 	"crypto/ecdsa"
+
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
 const (
-	signaturePrefix = "\x19Ethereum Signed Message:\n32"
+	signaturePrefix = "\x19Ethereum Signed Message:32\n"
 )
 
 // NewEthereumSignature creates a new signature over a given byte array

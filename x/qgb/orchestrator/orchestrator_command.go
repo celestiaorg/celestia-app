@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"os"
 	"strings"
 	"sync"
@@ -59,7 +60,7 @@ func OrchestratorCmd() *cobra.Command {
 				logger:              tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout)),
 				appClient:           client,
 				evmPrivateKey:       *config.privateKey,
-				bridgeID:            config.bridgeID,
+				bridgeID:            types.BridgeId,
 				orchestratorAddress: signer.GetSignerInfo().GetAddress().String(),
 			}
 

@@ -4,8 +4,9 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
@@ -33,7 +34,7 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, valsetChannel <
 			return err
 		}
 
-		signature, err := crypto.Sign(signBytes.Bytes(), &oc.evmPrivateKey)
+		signature, err := types.NewEthereumSignature(signBytes.Bytes(), &oc.evmPrivateKey)
 		if err != nil {
 			return err
 		}
@@ -58,14 +59,14 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, valsetChannel <
 func (oc *orchestrator) processDataCommitmentEvents(ctx context.Context, dataCommitmentChannel <-chan ExtendedDataCommitment) error {
 	for dc := range dataCommitmentChannel {
 		dataRootHash := types.DataCommitmentTupleRootSignBytes(oc.bridgeID, big.NewInt(int64(dc.Nonce)), dc.Commitment)
-		dcSig, err := crypto.Sign(dataRootHash.Bytes(), &oc.evmPrivateKey)
+		dcSig, err := types.NewEthereumSignature(dataRootHash.Bytes(), &oc.evmPrivateKey)
 		if err != nil {
 			return err
 		}
 
 		msg := &types.MsgDataCommitmentConfirm{
 			EthAddress:       crypto.PubkeyToAddress(oc.evmPrivateKey.PublicKey).Hex(),
-			Commitment:       string(dc.Commitment),
+			Commitment:       dc.Commitment.String(),
 			BeginBlock:       dc.Start,
 			EndBlock:         dc.End,
 			ValidatorAddress: oc.orchestratorAddress,

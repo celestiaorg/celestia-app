@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"fmt"
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -49,7 +50,7 @@ func DeployCmd() *cobra.Command {
 
 			// init bridgeID
 			var bridgeId [32]byte
-			copy(bridgeId[:], config.bridgeID.Bytes()) // is this safe?
+			copy(bridgeId[:], types.BridgeId.Bytes()) // is this safe?
 
 			// get latest valset
 			lastValset, err := client.QueryLastValsets(cmd.Context())

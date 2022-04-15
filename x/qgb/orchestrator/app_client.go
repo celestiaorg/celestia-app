@@ -149,8 +149,6 @@ func (ac *appClient) SubscribeDataCommitment(ctx context.Context) (<-chan Extend
 	// }
 
 	// params := resp.Params
-	window := uint64(10)
-
 	q := coretypes.EventQueryNewBlockHeader.String()
 	results, err := ac.tendermintRPC.Subscribe(ctx, "height", q)
 	if err != nil {
@@ -169,13 +167,13 @@ func (ac *appClient) SubscribeDataCommitment(ctx context.Context) (<-chan Extend
 				height := eventDataHeader.Header.Height
 				// todo: refactor to ensure that no ranges of blocks are missed if the
 				// parameters are changed
-				if height%int64(window) != 0 {
+				if height%int64(types.DataCommitmentWindow) != 0 {
 					continue
 				}
 
 				// TODO: calculate start height some other way that can handle changes
 				// in the data window param
-				startHeight := height - int64(window)
+				startHeight := height - int64(types.DataCommitmentWindow)
 				endHeight := height
 
 				// create and send the data commitment
@@ -193,7 +191,7 @@ func (ac *appClient) SubscribeDataCommitment(ctx context.Context) (<-chan Extend
 
 				// TODO: store the nonce in the state somewhere, so that we don't have
 				// to assume what the nonce is
-				nonce := uint64(height) / window
+				nonce := uint64(height) / types.DataCommitmentWindow
 
 				dataCommitments <- ExtendedDataCommitment{
 					Commitment: dcResp.DataCommitment,
