@@ -49,6 +49,7 @@ func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
 	if count%5 == 0 {
 		fmt.Println("Creating valset===========================")
 		k.SetValsetRequest(ctx)
+		count++
 	} else {
 		count++
 	}
