@@ -17,12 +17,12 @@ import (
 // PreprocessTxs fullfills the celestia-core version of the ACBI interface, by
 // performing basic validation for the incoming txs, and by cleanly separating
 // share messages from transactions
-func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePreprocessTxs {
+func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	squareSize := app.SquareSize()
 	shareCounter := uint64(0)
 	var shareMsgs []*core.Message
 	var processedTxs [][]byte
-	for _, rawTx := range txs.Txs {
+	for _, rawTx := range req.BlockData.Txs {
 		// decode the Tx
 		tx, err := app.txConfig.TxDecoder()(rawTx)
 		if err != nil {
@@ -101,9 +101,12 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 		return bytes.Compare(shareMsgs[i].NamespaceId, shareMsgs[j].NamespaceId) < 0
 	})
 
-	return abci.ResponsePreprocessTxs{
-		Txs:      processedTxs,
-		Messages: &core.Messages{MessagesList: shareMsgs},
+	return abci.ResponsePrepareProposal{
+		BlockData: &core.Data{
+			Txs:      processedTxs,
+			Evidence: req.BlockData.Evidence,
+			Messages: core.Messages{MessagesList: shareMsgs},
+		},
 	}
 }
 
