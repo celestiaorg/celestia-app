@@ -5,28 +5,30 @@ import (
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
-	"strings"
 )
 
-func verifyOrchestratorValsetSignatures(broadCasted []sdk.Msg, valsets []*types.Valset, bridgeID common.Hash) error {
+func verifyOrchestratorValsetSignatures(broadCasted []sdk.Msg, valsets []*types.Valset) error {
 	for i := 0; i < len(broadCasted); i++ {
 		msg := broadCasted[i].(*types.MsgValsetConfirm)
 		if msg == nil {
 			return errors.New("couldn't cast sdk.Msg to *types.MsgValsetConfirm")
 		}
-		hash, err := valsets[i].SignBytes(bridgeID)
+		hash, err := valsets[i].SignBytes(types.BridgeId)
 		if err != nil {
 			return err
 		}
-		sigPublicKeyECDSA, err := crypto.SigToPub(hash.Bytes(), common.Hex2Bytes(msg.Signature))
+		ethAddress, err := types.NewEthAddress(msg.EthAddress)
 		if err != nil {
 			return err
 		}
-		ethAddress := crypto.PubkeyToAddress(*sigPublicKeyECDSA).Hex()
-		if strings.Compare(msg.EthAddress, ethAddress) != 0 {
-			return errors.New("wrong signature for valset")
+		err = types.ValidateEthereumSignature(
+			hash.Bytes(),
+			common.Hex2Bytes(msg.Signature),
+			*ethAddress,
+		)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -108,24 +110,28 @@ func populateDcChan(dcChannel chan ExtendedDataCommitment, dcs []ExtendedDataCom
 	}
 }
 
-func verifyOrchestratorDcSignatures(broadCasted []sdk.Msg, dcs []ExtendedDataCommitment, bridgeID common.Hash) error {
+func verifyOrchestratorDcSignatures(broadCasted []sdk.Msg, dcs []ExtendedDataCommitment) error {
 	for i := 0; i < len(broadCasted); i++ {
 		msg := broadCasted[i].(*types.MsgDataCommitmentConfirm)
 		if msg == nil {
 			return errors.New("couldn't cast sdk.Msg to *types.MsgDataCommitmentConfirm")
 		}
 		dataRootHash := types.DataCommitmentTupleRootSignBytes(
-			bridgeID,
+			types.BridgeId,
 			big.NewInt(int64(dcs[i].Nonce)),
 			dcs[i].Commitment,
 		)
-		sigPublicKeyECDSA, err := crypto.SigToPub(dataRootHash.Bytes(), common.Hex2Bytes(msg.Signature))
+		ethAddress, err := types.NewEthAddress(msg.EthAddress)
 		if err != nil {
 			return err
 		}
-		ethAddress := crypto.PubkeyToAddress(*sigPublicKeyECDSA).Hex()
-		if strings.Compare(ethAddress, msg.EthAddress) != 0 {
-			return errors.New("wrong signature for data commitment")
+		err = types.ValidateEthereumSignature(
+			dataRootHash.Bytes(),
+			common.Hex2Bytes(msg.Signature),
+			*ethAddress,
+		)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

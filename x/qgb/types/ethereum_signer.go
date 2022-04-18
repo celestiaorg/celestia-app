@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	signaturePrefix = "\x19Ethereum Signed Message:32\n"
+	signaturePrefix = "\x19Ethereum Signed Message:\n32"
 )
 
 // NewEthereumSignature creates a new signature over a given byte array

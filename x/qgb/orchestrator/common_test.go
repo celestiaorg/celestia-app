@@ -14,7 +14,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 )
@@ -28,7 +27,7 @@ func setupTestOrchestrator(t *testing.T, ac AppClient) *orchestrator {
 		appClient:           ac,
 		logger:              tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stderr)),
 		orchestratorAddress: crypto.PubkeyToAddress(priv.PublicKey).Hex(),
-		bridgeID:            ethcmn.BytesToHash([]byte("test bridge")),
+		bridgeID:            types.BridgeId,
 		evmPrivateKey:       *priv,
 	}
 }

@@ -26,8 +26,16 @@ type AppClient interface {
 	BroadcastTx(ctx context.Context, msg sdk.Msg) (string, error)
 	QueryDataCommitments(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error)
 	QueryLastValset(ctx context.Context) (types.Valset, error)
-	QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, timeout time.Duration, commitment string) ([]types.MsgDataCommitmentConfirm, error)
-	QueryTwoThirdsValsetConfirms(ctx context.Context, timeout time.Duration, valset types.Valset) ([]types.MsgValsetConfirm, error)
+	QueryTwoThirdsDataCommitmentConfirms(
+		ctx context.Context,
+		timeout time.Duration,
+		commitment string,
+	) ([]types.MsgDataCommitmentConfirm, error)
+	QueryTwoThirdsValsetConfirms(
+		ctx context.Context,
+		timeout time.Duration,
+		valset types.Valset,
+	) ([]types.MsgValsetConfirm, error)
 	OrchestratorAddress() sdk.AccAddress
 	QueryLastValsets(ctx context.Context) ([]types.Valset, error)
 }
