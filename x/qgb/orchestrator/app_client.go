@@ -235,12 +235,18 @@ func (ac *appClient) BroadcastTx(ctx context.Context, msg sdk.Msg) (string, erro
 	return resp.TxResponse.TxHash, nil
 }
 
-func (ac *appClient) QueryDataCommitments(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error) {
+func (ac *appClient) QueryDataCommitments(
+	ctx context.Context,
+	commit string,
+) ([]types.MsgDataCommitmentConfirm, error) {
 	queryClient := types.NewQueryClient(ac.qgbRPC)
 
-	confirmsResp, err := queryClient.DataCommitmentConfirmsByCommitment(ctx, &types.QueryDataCommitmentConfirmsByCommitmentRequest{
-		Commitment: commit,
-	})
+	confirmsResp, err := queryClient.DataCommitmentConfirmsByCommitment(
+		ctx,
+		&types.QueryDataCommitmentConfirmsByCommitmentRequest{
+			Commitment: commit,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +254,11 @@ func (ac *appClient) QueryDataCommitments(ctx context.Context, commit string) ([
 	return confirmsResp.Confirms, nil
 }
 
-func (ac *appClient) QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, timeout time.Duration, commitment string) ([]types.MsgDataCommitmentConfirm, error) {
+func (ac *appClient) QueryTwoThirdsDataCommitmentConfirms(
+	ctx context.Context,
+	timeout time.Duration,
+	commitment string,
+) ([]types.MsgDataCommitmentConfirm, error) {
 	// query for the latest valset (sorted for us already)
 	queryClient := types.NewQueryClient(ac.qgbRPC)
 	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
@@ -268,7 +278,7 @@ func (ac *appClient) QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, t
 		vals[val.GetEthereumAddress()] = val
 	}
 
-	// majThreshHold := valset.TwoThirdsThreshold()
+	majThreshHold := valset.TwoThirdsThreshold()
 
 	for {
 		select {
@@ -278,9 +288,12 @@ func (ac *appClient) QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, t
 			return nil, fmt.Errorf("failure to query for majority validator set confirms: timout %s", timeout)
 		default:
 			currThreshHold := uint64(0)
-			confirmsResp, err := queryClient.DataCommitmentConfirmsByCommitment(ctx, &types.QueryDataCommitmentConfirmsByCommitmentRequest{
-				Commitment: commitment,
-			})
+			confirmsResp, err := queryClient.DataCommitmentConfirmsByCommitment(
+				ctx,
+				&types.QueryDataCommitmentConfirmsByCommitmentRequest{
+					Commitment: commitment,
+				},
+			)
 			if err != nil {
 				return nil, err
 			}
@@ -288,15 +301,18 @@ func (ac *appClient) QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, t
 			for _, dataCommitmentConfirm := range confirmsResp.Confirms {
 				val, has := vals[dataCommitmentConfirm.EthAddress]
 				if !has {
-					return nil, fmt.Errorf("dataCommitmentConfirm signer not found in stored validator set: address %s nonce %d", val.EthereumAddress, valset.Nonce)
+					return nil, fmt.Errorf(
+						"dataCommitmentConfirm signer not found in stored validator set: address %s nonce %d",
+						val.EthereumAddress,
+						valset.Nonce,
+					)
 				}
 				currThreshHold += val.Power
 			}
 
-			// if currThreshHold >= majThreshHold {
-
-			// }
-			return confirmsResp.Confirms, nil
+			if currThreshHold >= majThreshHold {
+				return confirmsResp.Confirms, nil
+			}
 			ac.logger.Debug("foundDataCommitmentConfirms", fmt.Sprintf("total power %d number of confirms %d", currThreshHold, len(confirmsResp.Confirms)))
 		}
 		// TODO: make the timeout configurable
