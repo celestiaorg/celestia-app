@@ -9,7 +9,6 @@ import (
 
 // EndBlocker is called at the end of every block
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
-	// TODO cleanup
 	//get the last valsets to compare against
 	latestValset := k.GetLatestValset(ctx)
 	lastUnbondingHeight := k.GetLastUnBondingBlockHeight(ctx)
