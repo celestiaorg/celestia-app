@@ -18,6 +18,7 @@ import (
 	"time"
 )
 
+// TODO add test for all the possible scenarios defined in msg_server.go
 var (
 	blockTime = time.Date(2020, 9, 14, 15, 20, 10, 0, time.UTC)
 
