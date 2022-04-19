@@ -30,24 +30,21 @@ func OrchestratorCmd() *cobra.Command {
 
 			logger := tmlog.NewTMLogger(os.Stdout)
 
+			// creates the signer
+			//TODO: optionally ask for input for a password
 			ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringPath, strings.NewReader(""))
 			if err != nil {
 				return err
 			}
-
 			signer := paytypes.NewKeyringSigner(
 				ring,
 				config.keyringAccount,
 				config.celestiaChainID,
 			)
 
-			//fmt.Println(clientCtx.GetFromAddress())
-			//signer := types.NewKeyringSigner(clientCtx.Keyring, "validator1", config.celestiaChainID)
 			client, err := NewAppClient(
 				logger,
-				config.keyringAccount,
-				config.keyringBackend,
-				config.keyringPath,
+				signer,
 				config.celestiaChainID,
 				config.tendermintRPC,
 				config.qgbRPC,

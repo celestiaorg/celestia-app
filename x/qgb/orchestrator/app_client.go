@@ -4,11 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
-
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -50,11 +47,12 @@ type appClient struct {
 	tendermintRPC *http.HTTP
 	qgbRPC        *grpc.ClientConn
 	logger        tmlog.Logger
-	signer        *paytypes.KeyringSigner
-	mutex         *sync.Mutex
+	// TODO check if we can move the keyring outside from the paytypes.
+	signer *paytypes.KeyringSigner
+	mutex  *sync.Mutex
 }
 
-func NewAppClient(logger tmlog.Logger, keyringAccount, backend, rootDir, chainID, coreRPC, appRPC string) (AppClient, error) {
+func NewAppClient(logger tmlog.Logger, signer *paytypes.KeyringSigner, chainID, coreRPC, appRPC string) (AppClient, error) {
 	trpc, err := http.New(coreRPC, "/websocket")
 	if err != nil {
 		return nil, err
@@ -68,19 +66,6 @@ func NewAppClient(logger tmlog.Logger, keyringAccount, backend, rootDir, chainID
 	if err != nil {
 		return nil, err
 	}
-
-	//open a keyring using the configured settings
-	//TODO: optionally ask for input for a password
-	ring, err := keyring.New("orchestrator", backend, rootDir, strings.NewReader(""))
-	if err != nil {
-		return nil, err
-	}
-
-	signer := paytypes.NewKeyringSigner(
-		ring,
-		keyringAccount,
-		chainID,
-	)
 
 	return &appClient{
 		tendermintRPC: trpc,
@@ -319,14 +304,18 @@ func (ac *appClient) QueryTwoThirdsDataCommitmentConfirms(ctx context.Context, t
 	}
 }
 
-func (ac *appClient) QueryTwoThirdsValsetConfirms(ctx context.Context, timeout time.Duration, valset types.Valset) ([]types.MsgValsetConfirm, error) {
+func (ac *appClient) QueryTwoThirdsValsetConfirms(
+	ctx context.Context,
+	timeout time.Duration,
+	valset types.Valset,
+) ([]types.MsgValsetConfirm, error) {
 	// create a map to easily search for power
 	vals := make(map[string]types.BridgeValidator)
 	for _, val := range valset.Members {
 		vals[val.GetEthereumAddress()] = val
 	}
 
-	// majThreshHold := valset.TwoThirdsThreshold()
+	majThreshHold := valset.TwoThirdsThreshold()
 
 	for {
 		select {
@@ -348,15 +337,18 @@ func (ac *appClient) QueryTwoThirdsValsetConfirms(ctx context.Context, timeout t
 			for _, valsetConfirm := range confirmsResp.Confirms {
 				val, has := vals[valsetConfirm.EthAddress]
 				if !has {
-					return nil, fmt.Errorf("valSetConfirm signer not found in stored validator set: address %s nonce %d", val.EthereumAddress, valset.Nonce)
+					return nil, fmt.Errorf(
+						"valSetConfirm signer not found in stored validator set: address %s nonce %d",
+						val.EthereumAddress,
+						valset.Nonce,
+					)
 				}
 				currThreshHold += val.Power
 			}
 
-			// if currThreshHold >= majThreshHold {
-			// 	return confirmsResp.Confirms, nil
-			// }
-			return confirmsResp.Confirms, nil
+			if currThreshHold >= majThreshHold {
+				return confirmsResp.Confirms, nil
+			}
 			ac.logger.Debug("foundValsetConfirms", fmt.Sprintf("total power %d number of confirms %d", currThreshHold, len(confirmsResp.Confirms)))
 		}
 		// TODO: make the timeout configurable
