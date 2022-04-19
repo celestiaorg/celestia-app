@@ -14,11 +14,11 @@ import (
 )
 
 const (
-	URLMsgWirePayforMessage = "/payment.MsgWirePayForData"
-	URLMsgPayforMessage     = "/payment.MsgPayForData"
-	ShareSize               = consts.ShareSize
-	SquareSize              = consts.MaxSquareSize
-	NamespaceIDSize         = consts.NamespaceSize
+	URLMsgWirePayForData = "/payment.MsgWirePayForData"
+	URLMsgPayForData     = "/payment.MsgPayForData"
+	ShareSize            = consts.ShareSize
+	SquareSize           = consts.MaxSquareSize
+	NamespaceIDSize      = consts.NamespaceSize
 )
 
 var _ sdk.Msg = &MsgPayForData{}
@@ -28,7 +28,7 @@ func (msg *MsgPayForData) Route() string { return RouterKey }
 
 // Type fullfills the sdk.Msg interface
 func (msg *MsgPayForData) Type() string {
-	return URLMsgPayforMessage
+	return URLMsgPayForData
 }
 
 // ValidateBasic fullfills the sdk.Msg interface by performing stateless
@@ -229,7 +229,7 @@ func nextPowerOf2(v uint64) uint64 {
 
 // Check if number is power of 2
 func powerOf2(v uint64) bool {
-	if v & (v-1) == 0 && v != 0 {
+	if v&(v-1) == 0 && v != 0 {
 		return true
 	} else {
 		return false

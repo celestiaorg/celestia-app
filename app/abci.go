@@ -110,7 +110,7 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 func hasWirePayForData(tx sdk.Tx) bool {
 	for _, msg := range tx.GetMsgs() {
 		msgName := sdk.MsgTypeURL(msg)
-		if msgName == types.URLMsgWirePayforMessage {
+		if msgName == types.URLMsgWirePayForData {
 			return true
 		}
 	}
