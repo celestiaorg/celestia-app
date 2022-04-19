@@ -52,7 +52,11 @@ type appClient struct {
 	mutex  *sync.Mutex
 }
 
-func NewAppClient(logger tmlog.Logger, signer *paytypes.KeyringSigner, chainID, coreRPC, appRPC string) (AppClient, error) {
+func NewAppClient(
+	logger tmlog.Logger,
+	signer *paytypes.KeyringSigner,
+	chainID, coreRPC, appRPC string,
+) (AppClient, error) {
 	trpc, err := http.New(coreRPC, "/websocket")
 	if err != nil {
 		return nil, err
@@ -89,7 +93,11 @@ func contains(s []uint64, nonce uint64) bool {
 func (ac *appClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, error) {
 	valsets := make(chan types.Valset, 10)
 
-	results, err := ac.tendermintRPC.Subscribe(ctx, "valset-changes", fmt.Sprintf("%s.%s='%s'", types.EventTypeValsetRequest, sdk.AttributeKeyModule, types.ModuleName))
+	results, err := ac.tendermintRPC.Subscribe(
+		ctx,
+		"valset-changes",
+		fmt.Sprintf("%s.%s='%s'", types.EventTypeValsetRequest, sdk.AttributeKeyModule, types.ModuleName),
+	)
 
 	if err != nil {
 		return nil, err
@@ -103,7 +111,7 @@ func (ac *appClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, 
 			select {
 			case <-ctx.Done():
 				return
-			case _ = <-results:
+			case <-results:
 				lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
 				if err != nil {
 					ac.logger.Error(err.Error())
@@ -119,7 +127,14 @@ func (ac *appClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, 
 				valset := lastValsetResp.Valsets[0]
 
 				// Checking if we already signed this valset
-				resp, err := queryClient.ValsetConfirm(ctx, &types.QueryValsetConfirmRequest{Nonce: valset.Nonce, Address: ac.OrchestratorAddress().String()})
+				resp, err := queryClient.ValsetConfirm(
+					ctx,
+					&types.QueryValsetConfirmRequest{Nonce: valset.Nonce, Address: ac.OrchestratorAddress().String()},
+				)
+				if err != nil {
+					ac.logger.Error(err.Error())
+					return
+				}
 				if resp.Confirm == nil && !contains(nonces, valset.Nonce) {
 					nonces = append(nonces, valset.Nonce)
 					valsets <- valset
@@ -212,7 +227,8 @@ func (ac *appClient) BroadcastTx(ctx context.Context, msg sdk.Msg) (string, erro
 	builder := ac.signer.NewTxBuilder()
 	// TODO make gas limit configurable
 	builder.SetGasLimit(9999999999999)
-	// TODO: update this api via https://github.com/celestiaorg/celestia-app/pull/187/commits/37f96d9af30011736a3e6048bbb35bad6f5b795c
+	// TODO: update this api
+	// via https://github.com/celestiaorg/celestia-app/pull/187/commits/37f96d9af30011736a3e6048bbb35bad6f5b795c
 	tx, err := ac.signer.BuildSignedTx(builder, msg)
 	if err != nil {
 		return "", err
@@ -229,7 +245,7 @@ func (ac *appClient) BroadcastTx(ctx context.Context, msg sdk.Msg) (string, erro
 	}
 
 	if resp.TxResponse.Code != 0 {
-		return "", fmt.Errorf("\nfailure to broadcast tx: %s\n", resp.TxResponse.RawLog)
+		return "", fmt.Errorf("failure to broadcast tx: %s", resp.TxResponse.RawLog)
 	}
 
 	return resp.TxResponse.TxHash, nil
@@ -313,7 +329,14 @@ func (ac *appClient) QueryTwoThirdsDataCommitmentConfirms(
 			if currThreshHold >= majThreshHold {
 				return confirmsResp.Confirms, nil
 			}
-			ac.logger.Debug("foundDataCommitmentConfirms", fmt.Sprintf("total power %d number of confirms %d", currThreshHold, len(confirmsResp.Confirms)))
+			ac.logger.Debug(
+				"foundDataCommitmentConfirms",
+				fmt.Sprintf(
+					"total power %d number of confirms %d",
+					currThreshHold,
+					len(confirmsResp.Confirms),
+				),
+			)
 		}
 		// TODO: make the timeout configurable
 		time.Sleep(time.Second * 30)
@@ -365,7 +388,14 @@ func (ac *appClient) QueryTwoThirdsValsetConfirms(
 			if currThreshHold >= majThreshHold {
 				return confirmsResp.Confirms, nil
 			}
-			ac.logger.Debug("foundValsetConfirms", fmt.Sprintf("total power %d number of confirms %d", currThreshHold, len(confirmsResp.Confirms)))
+			ac.logger.Debug(
+				"foundValsetConfirms",
+				fmt.Sprintf(
+					"total power %d number of confirms %d",
+					currThreshHold,
+					len(confirmsResp.Confirms),
+				),
+			)
 		}
 		// TODO: make the timeout configurable
 		time.Sleep(time.Second * 30)
