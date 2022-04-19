@@ -225,6 +225,7 @@ func (ac *appClient) BroadcastTx(ctx context.Context, msg sdk.Msg) (string, erro
 	}
 
 	builder := ac.signer.NewTxBuilder()
+	// TODO make gas limit configurable
 	builder.SetGasLimit(9999999999999)
 	// TODO: update this api via https://github.com/celestiaorg/celestia-app/pull/187/commits/37f96d9af30011736a3e6048bbb35bad6f5b795c
 	tx, err := ac.signer.BuildSignedTx(builder, msg)
