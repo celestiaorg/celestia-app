@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	"fmt"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"os"
 	"strings"
@@ -103,17 +102,22 @@ func OrchestratorCmd() *cobra.Command {
 					case <-ctx.Done():
 						return
 					default:
+						ctx, cancel := context.WithCancel(ctx)
 						dcChan, err := client.SubscribeDataCommitment(ctx)
 						if err != nil {
-							fmt.Println(err.Error())
-							return
-						}
-						err = orch.processDataCommitmentEvents(ctx, dcChan)
-						if err != nil {
+							cancel()
 							logger.Error(err.Error())
 							time.Sleep(time.Second * 30)
 							continue
 						}
+						err = orch.processDataCommitmentEvents(ctx, dcChan)
+						if err != nil {
+							cancel()
+							logger.Error(err.Error())
+							time.Sleep(time.Second * 30)
+							continue
+						}
+						cancel()
 						return
 					}
 				}
