@@ -14,7 +14,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 )
@@ -28,7 +27,7 @@ func setupTestOrchestrator(t *testing.T, ac AppClient) *orchestrator {
 		appClient:           ac,
 		logger:              tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stderr)),
 		orchestratorAddress: crypto.PubkeyToAddress(priv.PublicKey).Hex(),
-		bridgeID:            ethcmn.BytesToHash([]byte("test bridge")),
+		bridgeID:            types.BridgeId,
 		evmPrivateKey:       *priv,
 	}
 }
@@ -98,11 +97,11 @@ func (mac *mockAppClient) SubscribeDataCommitment(ctx context.Context) (<-chan E
 	return mac.commitments, nil
 }
 
-func (mac *mockAppClient) BroadcastTx(ctx context.Context, msg sdk.Msg) error {
+func (mac *mockAppClient) BroadcastTx(ctx context.Context, msg sdk.Msg) (string, error) {
 	mac.mutex.Lock()
 	defer mac.mutex.Unlock()
 	mac.broadCasted = append(mac.broadCasted, msg)
-	return nil
+	return "", nil
 }
 
 func (mac *mockAppClient) QueryDataCommitments(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error) {

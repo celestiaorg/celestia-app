@@ -2,10 +2,14 @@ package orchestrator
 
 import (
 	"context"
-	"fmt"
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"os"
+	"strings"
 	"sync"
 	"time"
+
+	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 
 	tmlog "github.com/tendermint/tendermint/libs/log"
 
@@ -18,17 +22,28 @@ func OrchestratorCmd() *cobra.Command {
 		Aliases: []string{"orch"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			config, err := parseOrchestratorFlags(cmd)
+			//clientCtx, err := cosmosclient.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
 
 			logger := tmlog.NewTMLogger(os.Stdout)
 
+			// creates the signer
+			//TODO: optionally ask for input for a password
+			ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringPath, strings.NewReader(""))
+			if err != nil {
+				return err
+			}
+			signer := paytypes.NewKeyringSigner(
+				ring,
+				config.keyringAccount,
+				config.celestiaChainID,
+			)
+
 			client, err := NewAppClient(
 				logger,
-				config.keyringAccount,
-				config.keyringBackend,
-				config.keyringPath,
+				signer,
 				config.celestiaChainID,
 				config.tendermintRPC,
 				config.qgbRPC,
@@ -41,8 +56,8 @@ func OrchestratorCmd() *cobra.Command {
 				logger:              tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout)),
 				appClient:           client,
 				evmPrivateKey:       *config.privateKey,
-				bridgeID:            config.bridgeID,
-				orchestratorAddress: config.keyringAccount,
+				bridgeID:            types.BridgeId,
+				orchestratorAddress: signer.GetSignerInfo().GetAddress().String(),
 			}
 
 			wg := &sync.WaitGroup{}
@@ -87,17 +102,22 @@ func OrchestratorCmd() *cobra.Command {
 					case <-ctx.Done():
 						return
 					default:
+						ctx, cancel := context.WithCancel(ctx)
 						dcChan, err := client.SubscribeDataCommitment(ctx)
 						if err != nil {
-							fmt.Println(err.Error())
-							return
-						}
-						err = orch.processDataCommitmentEvents(ctx, dcChan)
-						if err != nil {
+							cancel()
 							logger.Error(err.Error())
 							time.Sleep(time.Second * 30)
 							continue
 						}
+						err = orch.processDataCommitmentEvents(ctx, dcChan)
+						if err != nil {
+							cancel()
+							logger.Error(err.Error())
+							time.Sleep(time.Second * 30)
+							continue
+						}
+						cancel()
 						return
 					}
 				}

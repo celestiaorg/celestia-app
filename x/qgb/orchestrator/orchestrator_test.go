@@ -49,7 +49,7 @@ func TestOrchestratorValsets(t *testing.T) {
 
 			broadcastedCopy := make([]sdktypes.Msg, len(mac.broadCasted))
 			copy(broadcastedCopy, mac.broadCasted)
-			err = verifyOrchestratorValsetSignatures(broadcastedCopy, valsets, orch.bridgeID)
+			err = verifyOrchestratorValsetSignatures(broadcastedCopy, valsets)
 			require.NoError(t, err)
 		})
 	}
@@ -84,7 +84,7 @@ func TestOrchestratorDataCommitments(t *testing.T) {
 				t.Error("Not all received data commitments got signed")
 			}
 
-			err = verifyOrchestratorDcSignatures(mac.broadCasted, dcs, orch.bridgeID)
+			err = verifyOrchestratorDcSignatures(mac.broadCasted, dcs)
 			require.NoError(t, err)
 		})
 	}

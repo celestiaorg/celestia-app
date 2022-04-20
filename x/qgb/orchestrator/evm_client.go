@@ -16,8 +16,19 @@ import (
 )
 
 type EVMClient interface {
-	UpdateValidatorSet(ctx context.Context, nonce, threshHold uint64, valset types.Valset, sigs []wrapper.Signature) error
-	SubmitDataRootTupleRoot(ctx context.Context, tupleRoot common.Hash, lastDataCommitmentNonce uint64, currentValset types.Valset, sigs []wrapper.Signature) error
+	UpdateValidatorSet(
+		ctx context.Context,
+		nonce, threshHold uint64,
+		valset types.Valset,
+		sigs []wrapper.Signature,
+	) error
+	SubmitDataRootTupleRoot(
+		ctx context.Context,
+		tupleRoot common.Hash,
+		lastDataCommitmentNonce uint64,
+		currentValset types.Valset,
+		sigs []wrapper.Signature,
+	) error
 	StateLastDataRootTupleRootNonce(opts *bind.CallOpts) (uint64, error)
 }
 
@@ -28,7 +39,12 @@ type evmClient struct {
 	evmRpc     string
 }
 
-func NewEvmClient(logger tmlog.Logger, wrapper wrapper.QuantumGravityBridge, privateKey *ecdsa.PrivateKey, evmRpc string) EVMClient {
+func NewEvmClient(
+	logger tmlog.Logger,
+	wrapper wrapper.QuantumGravityBridge,
+	privateKey *ecdsa.PrivateKey,
+	evmRpc string,
+) EVMClient {
 	return &evmClient{
 		logger:     logger,
 		wrapper:    wrapper,
@@ -37,7 +53,12 @@ func NewEvmClient(logger tmlog.Logger, wrapper wrapper.QuantumGravityBridge, pri
 	}
 }
 
-func (ec *evmClient) UpdateValidatorSet(ctx context.Context, nonce, newThreshHold uint64, valset types.Valset, sigs []wrapper.Signature) error {
+func (ec *evmClient) UpdateValidatorSet(
+	ctx context.Context,
+	nonce, newThreshHold uint64,
+	valset types.Valset,
+	sigs []wrapper.Signature,
+) error {
 	opts, err := ec.NewTransactOpts(ctx, 1000000)
 	if err != nil {
 		return err
@@ -68,7 +89,13 @@ func (ec *evmClient) UpdateValidatorSet(ctx context.Context, nonce, newThreshHol
 	return nil
 }
 
-func (ec *evmClient) SubmitDataRootTupleRoot(ctx context.Context, tupleRoot common.Hash, lastDataCommitmentNonce uint64, currentValset types.Valset, sigs []wrapper.Signature) error {
+func (ec *evmClient) SubmitDataRootTupleRoot(
+	ctx context.Context,
+	tupleRoot common.Hash,
+	lastDataCommitmentNonce uint64,
+	currentValset types.Valset,
+	sigs []wrapper.Signature,
+) error {
 	opts, err := ec.NewTransactOpts(ctx, 1000000)
 	if err != nil {
 		return err
