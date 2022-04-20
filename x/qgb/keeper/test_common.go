@@ -450,7 +450,13 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 	return input, input.Context
 }
 
-func NewTestMsgCreateValidator(address sdk.ValAddress, pubKey ccrypto.PubKey, amt sdk.Int, orchAddr sdk.AccAddress, ethAddr stakingtypes.EthAddress) *stakingtypes.MsgCreateValidator {
+func NewTestMsgCreateValidator(
+	address sdk.ValAddress,
+	pubKey ccrypto.PubKey,
+	amt sdk.Int,
+	orchAddr sdk.AccAddress,
+	ethAddr stakingtypes.EthAddress,
+) *stakingtypes.MsgCreateValidator {
 	commission := stakingtypes.NewCommissionRates(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec())
 	out, err := stakingtypes.NewMsgCreateValidator(
 		address, pubKey, sdk.NewCoin("stake", amt),

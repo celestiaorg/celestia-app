@@ -2,12 +2,16 @@ package orchestrator
 
 import (
 	"fmt"
+	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"math/big"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -22,11 +26,22 @@ func DeployCmd() *cobra.Command {
 				return err
 			}
 
+			// creates the signer
+			//TODO: optionally ask for input for a password
+			ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringPath, strings.NewReader(""))
+			if err != nil {
+				return err
+			}
+			signer := paytypes.NewKeyringSigner(
+				ring,
+				config.keyringAccount,
+				config.celestiaChainID,
+			)
+
+			// TODO the deployer doesn't need the signer
 			client, err := NewAppClient(
 				tmlog.NewTMLogger(os.Stdout),
-				config.keyringAccount,
-				config.keyringBackend,
-				config.keyringPath,
+				signer,
 				config.celestiaChainID,
 				config.tendermintRPC,
 				config.qgbRPC,
@@ -49,7 +64,7 @@ func DeployCmd() *cobra.Command {
 
 			// init bridgeID
 			var bridgeId [32]byte
-			copy(bridgeId[:], config.bridgeID.Bytes()) // is this safe?
+			copy(bridgeId[:], types.BridgeId.Bytes()) // is this safe?
 
 			// get latest valset
 			lastValset, err := client.QueryLastValsets(cmd.Context())

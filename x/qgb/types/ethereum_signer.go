@@ -2,6 +2,7 @@ package types
 
 import (
 	"crypto/ecdsa"
+
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/ethereum/go-ethereum/crypto"
 )

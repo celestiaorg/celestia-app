@@ -3,8 +3,10 @@ package orchestrator
 import (
 	"context"
 	"crypto/ecdsa"
-	"github.com/ethereum/go-ethereum/crypto"
+	"fmt"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
@@ -32,7 +34,7 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, valsetChannel <
 			return err
 		}
 
-		signature, err := crypto.Sign(signBytes.Bytes(), &oc.evmPrivateKey)
+		signature, err := types.NewEthereumSignature(signBytes.Bytes(), &oc.evmPrivateKey)
 		if err != nil {
 			return err
 		}
@@ -45,35 +47,40 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, valsetChannel <
 			Signature:    ethcmn.Bytes2Hex(signature),
 		}
 
-		err = oc.appClient.BroadcastTx(ctx, msg)
+		hash, err := oc.appClient.BroadcastTx(ctx, msg)
 		if err != nil {
 			return err
 		}
+		fmt.Printf("\nsigned Valset %d : %s\n", msg.Nonce, hash)
 	}
 	return nil
 }
 
-func (oc *orchestrator) processDataCommitmentEvents(ctx context.Context, dataCommitmentChannel <-chan ExtendedDataCommitment) error {
+func (oc *orchestrator) processDataCommitmentEvents(
+	ctx context.Context,
+	dataCommitmentChannel <-chan ExtendedDataCommitment,
+) error {
 	for dc := range dataCommitmentChannel {
 		dataRootHash := types.DataCommitmentTupleRootSignBytes(oc.bridgeID, big.NewInt(int64(dc.Nonce)), dc.Commitment)
-		dcSig, err := crypto.Sign(dataRootHash.Bytes(), &oc.evmPrivateKey)
+		dcSig, err := types.NewEthereumSignature(dataRootHash.Bytes(), &oc.evmPrivateKey)
 		if err != nil {
 			return err
 		}
 
 		msg := &types.MsgDataCommitmentConfirm{
 			EthAddress:       crypto.PubkeyToAddress(oc.evmPrivateKey.PublicKey).Hex(),
-			Commitment:       string(dc.Commitment),
+			Commitment:       dc.Commitment.String(),
 			BeginBlock:       dc.Start,
 			EndBlock:         dc.End,
 			ValidatorAddress: oc.orchestratorAddress,
 			Signature:        ethcmn.Bytes2Hex(dcSig),
 		}
 
-		err = oc.appClient.BroadcastTx(ctx, msg)
+		hash, err := oc.appClient.BroadcastTx(ctx, msg)
 		if err != nil {
 			return err
 		}
+		fmt.Printf("\nsigned commitment %d-%d: %s\n", msg.BeginBlock, msg.EndBlock, hash)
 	}
 	return nil
 }
