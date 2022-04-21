@@ -183,13 +183,18 @@ func NewValset(nonce, height uint64, members InternalBridgeValidators) (*Valset,
 		return nil, sdkerrors.Wrap(err, "invalid members")
 	}
 	members.Sort()
-	var mem []BridgeValidator
+	mem := make([]BridgeValidator, 0)
 	for _, val := range members {
 		mem = append(mem, val.ToExternal())
 	}
-	vs := Valset{Nonce: uint64(nonce), Members: mem, Height: height}
-	return &vs,
-		nil
+	vs := Valset{Nonce: nonce, Members: mem, Height: height}
+	return &vs, nil
+}
+
+// CopyValset returns a new valset from an existing one
+func CopyValset(v Valset) (*Valset, error) {
+	vs := Valset{Nonce: v.Nonce, Members: v.Members, Height: v.Height}
+	return &vs, nil
 }
 
 // WithoutEmptyMembers returns a new Valset without member that have 0 power or an empty Ethereum address.
