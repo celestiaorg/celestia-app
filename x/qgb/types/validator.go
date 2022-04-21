@@ -191,6 +191,12 @@ func NewValset(nonce, height uint64, members InternalBridgeValidators) (*Valset,
 	return &vs, nil
 }
 
+// CopyValset returns a new valset from an existing one
+func CopyValset(v Valset) (*Valset, error) {
+	vs := Valset{Nonce: v.Nonce, Members: v.Members, Height: v.Height}
+	return &vs, nil
+}
+
 // WithoutEmptyMembers returns a new Valset without member that have 0 power or an empty Ethereum address.
 func (v *Valset) WithoutEmptyMembers() *Valset {
 	if v == nil {
