@@ -7,20 +7,12 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/tendermint/tendermint/libs/bytes"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
 var _ AppClient = &orchestratorClient{}
-
-// TODO replace with data commitment request when we have it
-type ExtendedDataCommitment struct {
-	Commitment bytes.HexBytes
-	Start, End int64
-	Nonce      uint64
-}
 
 type orchestratorClient struct {
 	tendermintRPC       *http.HTTP

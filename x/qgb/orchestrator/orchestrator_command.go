@@ -41,7 +41,7 @@ func OrchestratorCmd() *cobra.Command {
 				config.celestiaChainID,
 			)
 
-			querier, err := NewQuerier(config.qgbRPC, logger)
+			querier, err := NewQuerier(config.qgbRPC, config.tendermintRPC, logger)
 			if err != nil {
 				return err
 			}
