@@ -85,6 +85,16 @@ message QueryValsetRequestByNonceRequest { uint64 nonce = 1; }
 // QueryValsetRequestByNonceResponse
 message QueryValsetRequestByNonceResponse { Valset valset = 1; }
 
+// QueryValsetRequestByNonceRequest
+message QueryValsetRequestByNonceRequest {
+  uint64 nonce = 1;
+}
+
+// QueryValsetRequestByNonceResponse
+message QueryValsetRequestByNonceResponse {
+  Valset valset = 1;
+}
+
 // QueryParamsRequest
 message QueryParamsRequest {}
 // QueryParamsResponse

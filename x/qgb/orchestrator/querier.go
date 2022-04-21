@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/tendermint/tendermint/rpc/client/http"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -28,22 +29,35 @@ type Querier interface {
 	) ([]types.MsgValsetConfirm, error)
 	QueryLastValsets(ctx context.Context) ([]types.Valset, error)
 	QueryValsetConfirm(ctx context.Context, nonce uint64, address string) (*types.MsgValsetConfirm, error)
+	QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error)
+	QueryHeight(ctx context.Context) (int64, error)
 }
 
 type querier struct {
-	qgbRPC *grpc.ClientConn
-	logger tmlog.Logger
+	qgbRPC        *grpc.ClientConn
+	logger        tmlog.Logger
+	tendermintRPC *http.HTTP
 }
 
-func NewQuerier(qgbRpcAddr string, logger tmlog.Logger) (*querier, error) {
+func NewQuerier(qgbRpcAddr, tendermintRpc string, logger tmlog.Logger) (*querier, error) {
 	qgbGRPC, err := grpc.Dial(qgbRpcAddr, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
 
+	trpc, err := http.New(tendermintRpc, "/websocket")
+	if err != nil {
+		return nil, err
+	}
+	err = trpc.Start()
+	if err != nil {
+		return nil, err
+	}
+
 	return &querier{
-		qgbRPC: qgbGRPC,
-		logger: logger,
+		qgbRPC:        qgbGRPC,
+		logger:        logger,
+		tendermintRPC: trpc,
 	}, nil
 }
 
@@ -225,6 +239,16 @@ func (q *querier) QueryLastValsets(ctx context.Context) ([]types.Valset, error) 
 	return lastValsetResp.Valsets, nil
 }
 
+func (q *querier) QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error) {
+	queryClient := types.NewQueryClient(q.qgbRPC)
+	lastValsetResp, err := queryClient.ValsetRequestByNonce(ctx, &types.QueryValsetRequestByNonceRequest{Nonce: nonce})
+	if err != nil {
+		return nil, err
+	}
+
+	return lastValsetResp.Valset, nil
+}
+
 func (q *querier) QueryValsetConfirm(ctx context.Context, nonce uint64, address string) (*types.MsgValsetConfirm, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
 	resp, err := queryClient.ValsetConfirm(ctx, &types.QueryValsetConfirmRequest{Nonce: nonce, Address: address})
@@ -233,4 +257,13 @@ func (q *querier) QueryValsetConfirm(ctx context.Context, nonce uint64, address 
 	}
 
 	return resp.Confirm, nil
+}
+
+func (q *querier) QueryHeight(ctx context.Context) (int64, error) {
+	resp, err := q.tendermintRPC.Status(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	return resp.SyncInfo.LatestBlockHeight, nil
 }
