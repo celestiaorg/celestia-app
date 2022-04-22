@@ -25,7 +25,7 @@ func DeployCmd() *cobra.Command {
 			logger := tmlog.NewTMLogger(os.Stdout)
 
 			// TODO make the deployer config only have the required params
-			querier, err := NewQuerier(config.qgbRPC, logger)
+			querier, err := NewQuerier(config.qgbRPC, config.tendermintRPC, logger)
 			if err != nil {
 				return err
 			}
