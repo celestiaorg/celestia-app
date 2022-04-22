@@ -72,7 +72,11 @@ func DeployCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("QGB contract deployed successfuly.\n- Transaction hash: %s\n- Contract address: %s\n", tx.Hash(), addr.Hex())
+			fmt.Printf(
+				"QGB contract deployed successfuly.\n- Transaction hash: %s\n- Contract address: %s\n",
+				tx.Hash(),
+				addr.Hex(),
+			)
 			return nil
 		},
 	}
