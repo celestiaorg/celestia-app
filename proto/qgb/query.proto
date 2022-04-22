@@ -68,7 +68,11 @@ service Query {
       returns (QueryValsetConfirmsByNonceResponse) {
     option (google.api.http).get = "/qgb/confirms/{nonce}";
   }
-  // this line is used by starport scaffolding # 2
+  // LastUnbondingHeight
+  rpc LastUnbondingHeight(QueryLastUnbondingHeightRequest)
+      returns (QueryLastUnbondingHeightResponse) {
+    option (google.api.http).get = "/qgb/unbonding";
+  }
 }
 
 // QueryLastValsetRequestsRequest
@@ -159,4 +163,9 @@ message QueryDataCommitmentConfirmsByValidatorResponse {
   repeated MsgDataCommitmentConfirm confirms = 1
       [ (gogoproto.nullable) = false ];
 }
-// this line is used by starport scaffolding # 3
+
+// QueryLastUnbondingHeightRequest
+message QueryLastUnbondingHeightRequest {}
+
+// QueryLastUnbondingHeightResponse
+message QueryLastUnbondingHeightResponse { int64 height = 1; }
