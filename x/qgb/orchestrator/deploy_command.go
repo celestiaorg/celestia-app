@@ -43,14 +43,14 @@ func DeployCmd() *cobra.Command {
 			}
 
 			// init bridgeID
-			var bridgeId [32]byte
-			copy(bridgeId[:], types.BridgeId.Bytes()) // is this safe?
+			var bridgeID [32]byte
+			copy(bridgeID[:], types.BridgeId.Bytes()) // is this safe?
 
 			// get latest valset
 			lastValset, err := querier.QueryLastValsets(cmd.Context())
 			if err != nil {
 				return fmt.Errorf(
-					"Cannot initialize the QGB contract without having a valset request: %s",
+					"cannot initialize the QGB contract without having a valset request: %s",
 					err.Error(),
 				)
 			}
@@ -65,7 +65,7 @@ func DeployCmd() *cobra.Command {
 			addr, tx, _, err := wrapper.DeployQuantumGravityBridge(
 				auth,
 				ethClient,
-				bridgeId,
+				bridgeID,
 				big.NewInt(int64(lastValset[0].TwoThirdsThreshold())),
 				ethVsHash,
 			)
@@ -73,7 +73,7 @@ func DeployCmd() *cobra.Command {
 				return err
 			}
 			fmt.Printf(
-				"QGB contract deployed successfuly.\n- Transaction hash: %s\n- Contract address: %s\n",
+				"QGB contract deployed successfully.\n- Transaction hash: %s\n- Contract address: %s\n",
 				tx.Hash(),
 				addr.Hex(),
 			)
