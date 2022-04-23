@@ -53,6 +53,11 @@ service Query {
       returns (QueryLastValsetRequestsResponse) {
     option (google.api.http).get = "/qgb/valset/requests";
   }
+  // LastValsetRequests queries for the latest valset requests
+  rpc ValsetRequestByNonce(QueryValsetRequestByNonceRequest)
+      returns (QueryValsetRequestByNonceResponse) {
+    option (google.api.http).get = "/qgb/valset/requests/{nonce}";
+  }
   // ValsetConfirm Queries ValSetConfirm
   rpc ValsetConfirm(QueryValsetConfirmRequest)
       returns (QueryValsetConfirmResponse) {
@@ -73,6 +78,12 @@ message QueryLastValsetRequestsRequest {}
 message QueryLastValsetRequestsResponse {
   repeated Valset valsets = 1 [ (gogoproto.nullable) = false ];
 }
+
+// QueryValsetRequestByNonceRequest
+message QueryValsetRequestByNonceRequest { uint64 nonce = 1; }
+
+// QueryValsetRequestByNonceResponse
+message QueryValsetRequestByNonceResponse { Valset valset = 1; }
 
 // QueryParamsRequest
 message QueryParamsRequest {}
