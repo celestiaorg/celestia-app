@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v3
       - name: lint
         run: make proto-lint
-  # add this back when we start using verisoning
+  # add this back when we start using versioning
   # breakage:
   #   runs-on: ubuntu-latest
   #   steps:
