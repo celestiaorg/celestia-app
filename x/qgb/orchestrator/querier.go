@@ -31,6 +31,7 @@ type Querier interface {
 	QueryValsetConfirm(ctx context.Context, nonce uint64, address string) (*types.MsgValsetConfirm, error)
 	QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error)
 	QueryHeight(ctx context.Context) (int64, error)
+	QueryLastUnbondingHeight(ctx context.Context) (int64, error)
 }
 
 type querier struct {
@@ -249,7 +250,11 @@ func (q *querier) QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.
 	return lastValsetResp.Valset, nil
 }
 
-func (q *querier) QueryValsetConfirm(ctx context.Context, nonce uint64, address string) (*types.MsgValsetConfirm, error) {
+func (q *querier) QueryValsetConfirm(
+	ctx context.Context,
+	nonce uint64,
+	address string,
+) (*types.MsgValsetConfirm, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
 	resp, err := queryClient.ValsetConfirm(ctx, &types.QueryValsetConfirmRequest{Nonce: nonce, Address: address})
 	if err != nil {
@@ -266,4 +271,14 @@ func (q *querier) QueryHeight(ctx context.Context) (int64, error) {
 	}
 
 	return resp.SyncInfo.LatestBlockHeight, nil
+}
+
+func (q *querier) QueryLastUnbondingHeight(ctx context.Context) (int64, error) {
+	queryClient := types.NewQueryClient(q.qgbRPC)
+	resp, err := queryClient.LastUnbondingHeight(ctx, &types.QueryLastUnbondingHeightRequest{})
+	if err != nil {
+		return 0, err
+	}
+
+	return resp.Height, nil
 }
