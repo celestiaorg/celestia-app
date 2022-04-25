@@ -41,20 +41,29 @@ func OrchestratorCmd() *cobra.Command {
 				config.celestiaChainID,
 			)
 
-			client, err := NewAppClient(
+			querier, err := NewQuerier(config.qgbRPC, config.tendermintRPC, logger)
+			if err != nil {
+				return err
+			}
+
+			client, err := NewOrchestratorClient(
 				logger,
-				signer,
-				config.celestiaChainID,
 				config.tendermintRPC,
-				config.qgbRPC,
+				querier,
+				signer.GetSignerInfo().GetAddress().String(),
 			)
 			if err != nil {
 				return err
 			}
 
+			// TODO change config.qgbRPC to a more meaningful name
+			broadcaster, err := NewBroadcaster(config.qgbRPC, signer)
+			if err != nil {
+				return nil
+			}
+
 			orch := orchestrator{
-				logger:              tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout)),
-				appClient:           client,
+				broadcaster:         broadcaster,
 				evmPrivateKey:       *config.privateKey,
 				bridgeID:            types.BridgeId,
 				orchestratorAddress: signer.GetSignerInfo().GetAddress().String(),

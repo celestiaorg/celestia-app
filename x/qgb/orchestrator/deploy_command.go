@@ -2,18 +2,14 @@ package orchestrator
 
 import (
 	"fmt"
-	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/spf13/cobra"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"math/big"
 	"os"
-	"strings"
-
-	"github.com/spf13/cobra"
 )
 
 func DeployCmd() *cobra.Command {
@@ -26,26 +22,10 @@ func DeployCmd() *cobra.Command {
 				return err
 			}
 
-			// creates the signer
-			//TODO: optionally ask for input for a password
-			ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringPath, strings.NewReader(""))
-			if err != nil {
-				return err
-			}
-			signer := paytypes.NewKeyringSigner(
-				ring,
-				config.keyringAccount,
-				config.celestiaChainID,
-			)
+			logger := tmlog.NewTMLogger(os.Stdout)
 
-			// TODO the deployer doesn't need the signer
-			client, err := NewAppClient(
-				tmlog.NewTMLogger(os.Stdout),
-				signer,
-				config.celestiaChainID,
-				config.tendermintRPC,
-				config.qgbRPC,
-			)
+			// TODO make the deployer config only have the required params
+			querier, err := NewQuerier(config.qgbRPC, config.tendermintRPC, logger)
 			if err != nil {
 				return err
 			}
@@ -63,14 +43,14 @@ func DeployCmd() *cobra.Command {
 			}
 
 			// init bridgeID
-			var bridgeId [32]byte
-			copy(bridgeId[:], types.BridgeId.Bytes()) // is this safe?
+			var bridgeID [32]byte
+			copy(bridgeID[:], types.BridgeId.Bytes()) // is this safe?
 
 			// get latest valset
-			lastValset, err := client.QueryLastValsets(cmd.Context())
+			lastValset, err := querier.QueryLastValsets(cmd.Context())
 			if err != nil {
 				return fmt.Errorf(
-					"Cannot initialize the QGB contract without having a valset request: %s",
+					"cannot initialize the QGB contract without having a valset request: %s",
 					err.Error(),
 				)
 			}
@@ -81,17 +61,22 @@ func DeployCmd() *cobra.Command {
 			}
 
 			// deploy the QGB contract using the chain parameters
+			// TODO move the deploy to the evm client
 			addr, tx, _, err := wrapper.DeployQuantumGravityBridge(
 				auth,
 				ethClient,
-				bridgeId,
+				bridgeID,
 				big.NewInt(int64(lastValset[0].TwoThirdsThreshold())),
 				ethVsHash,
 			)
 			if err != nil {
 				return err
 			}
-			fmt.Printf("QGB contract deployed successfuly.\n- Transaction hash: %s\n- Contract address: %s\n", tx.Hash(), addr.Hex())
+			fmt.Printf(
+				"QGB contract deployed successfully.\n- Transaction hash: %s\n- Contract address: %s\n",
+				tx.Hash(),
+				addr.Hex(),
+			)
 			return nil
 		},
 	}
