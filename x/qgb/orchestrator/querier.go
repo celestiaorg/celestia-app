@@ -16,6 +16,8 @@ var _ Querier = &querier{}
 
 type Querier interface {
 	QueryDataCommitments(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error)
+	QueryDataCommitmentConfirm(ctx context.Context, commit string, address string) (*types.MsgDataCommitmentConfirm, error)
+	QueryDataCommitmentConfirmByAddressAndRange(ctx context.Context, address string, beginBlock int64, endBlock int64) (*types.MsgDataCommitmentConfirm, error)
 	QueryLastValset(ctx context.Context) (types.Valset, error)
 	QueryTwoThirdsDataCommitmentConfirms(
 		ctx context.Context,
@@ -281,4 +283,53 @@ func (q *querier) QueryLastUnbondingHeight(ctx context.Context) (int64, error) {
 	}
 
 	return resp.Height, nil
+}
+
+func (q *querier) QueryDataCommitmentConfirm(
+	ctx context.Context,
+	commit string,
+	address string,
+) (*types.MsgDataCommitmentConfirm, error) {
+	queryClient := types.NewQueryClient(q.qgbRPC)
+
+	confirmsResp, err := queryClient.DataCommitmentConfirm(
+		ctx,
+		&types.QueryDataCommitmentConfirmRequest{
+			Commitment: commit,
+			Address:    address,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return confirmsResp.Confirm, nil
+}
+
+func (q *querier) QueryDataCommitmentConfirmByAddressAndRange(
+	ctx context.Context,
+	address string,
+	beginBlock int64,
+	endBlock int64,
+) (*types.MsgDataCommitmentConfirm, error) {
+	queryClient := types.NewQueryClient(q.qgbRPC)
+
+	confirmsResp, err := queryClient.DataCommitmentConfirmsByRange(
+		ctx,
+		&types.QueryDataCommitmentConfirmsByRangeRequest{
+			BeginBlock: beginBlock,
+			EndBlock:   endBlock,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	for _, dc := range confirmsResp.Confirms {
+		if dc.ValidatorAddress == address {
+			// Is it okey to return a pointer to a loop variable?
+			return &dc, nil
+		}
+	}
+
+	return nil, nil
 }

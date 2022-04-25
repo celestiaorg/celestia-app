@@ -21,8 +21,13 @@ type orchestratorClient struct {
 	orchestratorAddress string
 }
 
-func NewOrchestratorClient(logger tmlog.Logger, tendermintRpc string, querier Querier, orchAddr string) (AppClient, error) {
-	trpc, err := http.New(tendermintRpc, "/websocket")
+func NewOrchestratorClient(
+	logger tmlog.Logger,
+	tendermintRPC string,
+	querier Querier,
+	orchAddr string,
+) (AppClient, error) {
+	trpc, err := http.New(tendermintRPC, "/websocket")
 	if err != nil {
 		return nil, err
 	}
@@ -117,6 +122,9 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 	return valsetsChan, nil
 }
 
+// Will be removed when we have the new design
+var dcCatchup = true
+
 func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-chan ExtendedDataCommitment, error) {
 	dataCommitments := make(chan ExtendedDataCommitment)
 
@@ -178,7 +186,54 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 					End:        endHeight,
 					Nonce:      nonce,
 				}
-
+				// Should this stay here or we can move it to a separate function?
+				if dcCatchup {
+					lastUnbondingHeight, err := oc.querier.QueryLastUnbondingHeight(ctx)
+					if err != nil {
+						oc.logger.Error(err.Error())
+						continue
+					}
+					var previousBeginBlock int64
+					var previousEndBlock int64
+					for {
+						// Will be refactored when we have data commitment requests
+						previousEndBlock = previousBeginBlock
+						previousBeginBlock = previousEndBlock - int64(types.DataCommitmentWindow)
+						lastDcConfirm, err := oc.querier.QueryDataCommitmentConfirmByAddressAndRange(
+							ctx,
+							oc.orchestratorAddress,
+							previousBeginBlock,
+							previousEndBlock,
+						)
+						if err != nil {
+							oc.logger.Error(err.Error())
+							continue
+						}
+						if previousEndBlock < lastUnbondingHeight || lastDcConfirm != nil {
+							// Most likely, we're up to date and don't need to catchup anymore
+							dcCatchup = false
+							break
+						}
+						previousCommitment, err := oc.tendermintRPC.DataCommitment(
+							ctx,
+							fmt.Sprintf("block.height >= %d AND block.height <= %d",
+								previousBeginBlock,
+								previousEndBlock,
+							),
+						)
+						if err != nil {
+							oc.logger.Error(err.Error())
+							continue
+						}
+						previousNonce := uint64(previousEndBlock) / types.DataCommitmentWindow
+						dataCommitments <- ExtendedDataCommitment{
+							Commitment: previousCommitment.DataCommitment,
+							Start:      previousBeginBlock,
+							End:        previousEndBlock,
+							Nonce:      previousNonce,
+						}
+					}
+				}
 			}
 		}
 
