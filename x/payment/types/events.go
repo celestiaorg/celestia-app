@@ -7,16 +7,16 @@ import (
 )
 
 const (
-	EventTypePayForMessage = "payformessage"
+	EventTypePayForData = "payfordata"
 
 	AttributeKeySigner = "signer"
 	AttributeKeySize   = "size"
 )
 
-//NewPayForMessageEvent construt a new payformessge sdk.Event
-func NewPayForMessageEvent(signer string, size uint64) sdk.Event {
+//NewPayForDataEvent construt a new payformessge sdk.Event
+func NewPayForDataEvent(signer string, size uint64) sdk.Event {
 	return sdk.NewEvent(
-		EventTypePayForMessage,
+		EventTypePayForData,
 		sdk.NewAttribute(AttributeKeySigner, signer),
 		sdk.NewAttribute(AttributeKeySize, strconv.FormatUint(size, 10)),
 	)

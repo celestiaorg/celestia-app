@@ -14,26 +14,26 @@ import (
 )
 
 const (
-	URLMsgWirePayforMessage = "/payment.MsgWirePayForMessage"
-	URLMsgPayforMessage     = "/payment.MsgPayForMessage"
-	ShareSize               = consts.ShareSize
-	SquareSize              = consts.MaxSquareSize
-	NamespaceIDSize         = consts.NamespaceSize
+	URLMsgWirePayForData = "/payment.MsgWirePayForData"
+	URLMsgPayForData     = "/payment.MsgPayForData"
+	ShareSize            = consts.ShareSize
+	SquareSize           = consts.MaxSquareSize
+	NamespaceIDSize      = consts.NamespaceSize
 )
 
-var _ sdk.Msg = &MsgPayForMessage{}
+var _ sdk.Msg = &MsgPayForData{}
 
 // Route fullfills the sdk.Msg interface
-func (msg *MsgPayForMessage) Route() string { return RouterKey }
+func (msg *MsgPayForData) Route() string { return RouterKey }
 
 // Type fullfills the sdk.Msg interface
-func (msg *MsgPayForMessage) Type() string {
-	return URLMsgPayforMessage
+func (msg *MsgPayForData) Type() string {
+	return URLMsgPayForData
 }
 
 // ValidateBasic fullfills the sdk.Msg interface by performing stateless
 // validity checks on the msg that also don't require having the actual message
-func (msg *MsgPayForMessage) ValidateBasic() error {
+func (msg *MsgPayForData) ValidateBasic() error {
 	// ensure that the namespace id is of length == NamespaceIDSize
 	if nsLen := len(msg.GetMessageNamespaceId()); nsLen != NamespaceIDSize {
 		return fmt.Errorf(
@@ -53,12 +53,12 @@ func (msg *MsgPayForMessage) ValidateBasic() error {
 
 // GetSignBytes fullfills the sdk.Msg interface by reterning a deterministic set
 // of bytes to sign over
-func (msg *MsgPayForMessage) GetSignBytes() []byte {
+func (msg *MsgPayForData) GetSignBytes() []byte {
 	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(msg))
 }
 
 // GetSigners fullfills the sdk.Msg interface by returning the signer's address
-func (msg *MsgPayForMessage) GetSigners() []sdk.AccAddress {
+func (msg *MsgPayForData) GetSigners() []sdk.AccAddress {
 	address, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		panic(err)
@@ -66,14 +66,14 @@ func (msg *MsgPayForMessage) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{address}
 }
 
-// BuildPayForMessageTxFromWireTx creates an authsigning.Tx using data from the original
-// MsgWirePayForMessage sdk.Tx and the signature provided. This is used while processing
-// the MsgWirePayForMessages into Signed  MsgPayForMessage
-func BuildPayForMessageTxFromWireTx(
+// BuildPayForDataTxFromWireTx creates an authsigning.Tx using data from the original
+// MsgWirePayForData sdk.Tx and the signature provided. This is used while processing
+// the MsgWirePayForDatas into Signed  MsgPayForData
+func BuildPayForDataTxFromWireTx(
 	origTx authsigning.Tx,
 	builder sdkclient.TxBuilder,
 	signature []byte,
-	msg *MsgPayForMessage,
+	msg *MsgPayForData,
 ) (authsigning.Tx, error) {
 	err := builder.SetMsgs(msg)
 	if err != nil {
@@ -229,7 +229,7 @@ func nextPowerOf2(v uint64) uint64 {
 
 // Check if number is power of 2
 func powerOf2(v uint64) bool {
-	if v & (v-1) == 0 && v != 0 {
+	if v&(v-1) == 0 && v != 0 {
 		return true
 	} else {
 		return false

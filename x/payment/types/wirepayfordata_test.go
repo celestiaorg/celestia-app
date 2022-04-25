@@ -9,42 +9,42 @@ import (
 	"github.com/tendermint/tendermint/pkg/consts"
 )
 
-func TestWirePayForMessage_ValidateBasic(t *testing.T) {
+func TestWirePayForData_ValidateBasic(t *testing.T) {
 	type test struct {
 		name    string
-		msg     *MsgWirePayForMessage
+		msg     *MsgWirePayForData
 		wantErr *sdkerrors.Error
 	}
 
 	// valid pfm
-	validMsg := validWirePayForMessage(t)
+	validMsg := validWirePayForData(t)
 
 	// pfm with bad ns id
-	badIDMsg := validWirePayForMessage(t)
+	badIDMsg := validWirePayForData(t)
 	badIDMsg.MessageNameSpaceId = []byte{1, 2, 3, 4, 5, 6, 7}
 
 	// pfm that uses reserved ns id
-	reservedMsg := validWirePayForMessage(t)
+	reservedMsg := validWirePayForData(t)
 	reservedMsg.MessageNameSpaceId = []byte{0, 0, 0, 0, 0, 0, 0, 100}
 
 	// pfm that has a wrong msg size
-	invalidMsgSizeMsg := validWirePayForMessage(t)
+	invalidMsgSizeMsg := validWirePayForData(t)
 	invalidMsgSizeMsg.Message = bytes.Repeat([]byte{1}, consts.ShareSize-20)
 
 	// pfm that has a wrong msg size
-	invalidDeclaredMsgSizeMsg := validWirePayForMessage(t)
+	invalidDeclaredMsgSizeMsg := validWirePayForData(t)
 	invalidDeclaredMsgSizeMsg.MessageSize = 999
 
 	// pfm with bad commitment
-	badCommitMsg := validWirePayForMessage(t)
+	badCommitMsg := validWirePayForData(t)
 	badCommitMsg.MessageShareCommitment[0].ShareCommitment = []byte{1, 2, 3, 4}
 
 	// pfm that has invalid square size (not power of 2)
-	invalidSquareSizeMsg := validWirePayForMessage(t)
+	invalidSquareSizeMsg := validWirePayForData(t)
 	invalidSquareSizeMsg.MessageShareCommitment[0].K = 15
 
 	// pfm that has a different power of 2 square size
-	badSquareSizeMsg := validWirePayForMessage(t)
+	badSquareSizeMsg := validWirePayForData(t)
 	badSquareSizeMsg.MessageShareCommitment[0].K = 4
 
 	tests := []test{

@@ -19,4 +19,4 @@ celestia-appd start
 ## Usage
 Use the `celestia-appd` daemon cli command to post data to a local devent. 
   
-```celestia-appd tx payment payForMessage [hexNamespace] [hexMessage] [flags]```
+```celestia-appd tx payment payForData [hexNamespace] [hexMessage] [flags]```

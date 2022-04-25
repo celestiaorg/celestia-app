@@ -58,7 +58,7 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 	s.network.Cleanup()
 }
 
-func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
+func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 	require := s.Require()
 	val := s.network.Validators[0]
 
@@ -118,7 +118,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 		tc := tc
 
 		s.Run(tc.name, func() {
-			cmd := paycli.CmdWirePayForMessage()
+			cmd := paycli.CmdWirePayForData()
 			clientCtx := val.ClientCtx
 
 			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
@@ -136,7 +136,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForMessage() {
 				events := txResp.Logs[0].GetEvents()
 				for _, e := range events {
 					switch e.Type {
-					case types.EventTypePayForMessage:
+					case types.EventTypePayForData:
 						signer := e.GetAttributes()[0].GetValue()
 						_, err = sdk.AccAddressFromBech32(signer)
 						require.NoError(err)

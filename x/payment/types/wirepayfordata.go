@@ -12,15 +12,15 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
-var _ sdk.Msg = &MsgWirePayForMessage{}
+var _ sdk.Msg = &MsgWirePayForData{}
 
-// NewWirePayForMessage creates a new MsgWirePayForMessage by using the
+// NewWirePayForData creates a new MsgWirePayForData by using the
 // namespace and message to generate share commitments for the provided square sizes
 // Note that the share commitments generated still need to be signed using the SignShareCommitments
 // method.
-func NewWirePayForMessage(namespace, message []byte, sizes ...uint64) (*MsgWirePayForMessage, error) {
+func NewWirePayForData(namespace, message []byte, sizes ...uint64) (*MsgWirePayForData, error) {
 	message = padMessage(message)
-	out := &MsgWirePayForMessage{
+	out := &MsgWirePayForData{
 		MessageNameSpaceId:     namespace,
 		MessageSize:            uint64(len(message)),
 		Message:                message,
@@ -41,11 +41,11 @@ func NewWirePayForMessage(namespace, message []byte, sizes ...uint64) (*MsgWireP
 	return out, nil
 }
 
-// SignShareCommitments creates and signs MsgPayForMessages for each square size configured in the MsgWirePayForMessage
+// SignShareCommitments creates and signs MsgPayForDatas for each square size configured in the MsgWirePayForData
 // to complete each shares commitment.
-func (msg *MsgWirePayForMessage) SignShareCommitments(signer *KeyringSigner, options ...TxBuilderOption) error {
+func (msg *MsgWirePayForData) SignShareCommitments(signer *KeyringSigner, options ...TxBuilderOption) error {
 	msg.Signer = signer.GetSignerInfo().GetAddress().String()
-	// create an entire MsgPayForMessage and signing over it, including the signature in each commitment
+	// create an entire MsgPayForData and signing over it, including the signature in each commitment
 	for i, commit := range msg.MessageShareCommitment {
 		builder := signer.NewTxBuilder()
 
@@ -53,7 +53,7 @@ func (msg *MsgWirePayForMessage) SignShareCommitments(signer *KeyringSigner, opt
 			builder = option(builder)
 		}
 
-		sig, err := msg.createPayForMessageSignature(signer, builder, commit.K)
+		sig, err := msg.createPayForDataSignature(signer, builder, commit.K)
 		if err != nil {
 			return err
 		}
@@ -62,12 +62,12 @@ func (msg *MsgWirePayForMessage) SignShareCommitments(signer *KeyringSigner, opt
 	return nil
 }
 
-func (msg *MsgWirePayForMessage) Route() string { return RouterKey }
+func (msg *MsgWirePayForData) Route() string { return RouterKey }
 
 // ValidateBasic checks for valid namespace length, declared message size, share
 // commitments, signatures for those share commitments, and fulfills the sdk.Msg
 // interface
-func (msg *MsgWirePayForMessage) ValidateBasic() error {
+func (msg *MsgWirePayForData) ValidateBasic() error {
 
 	// ensure that the namespace id is of length == NamespaceIDSize
 	if nsLen := len(msg.GetMessageNameSpaceId()); nsLen != NamespaceIDSize {
@@ -123,15 +123,15 @@ func (msg *MsgWirePayForMessage) ValidateBasic() error {
 	return nil
 }
 
-// GetSignBytes returns the bytes that are expected to be signed for the MsgWirePayForMessage.
+// GetSignBytes returns the bytes that are expected to be signed for the MsgWirePayForData.
 // The signature of these bytes will never actually get included on chain. Note: instead the
 // signature in the ShareCommitAndSignature of the appropriate square size is used
-func (msg *MsgWirePayForMessage) GetSignBytes() []byte {
+func (msg *MsgWirePayForData) GetSignBytes() []byte {
 	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(msg))
 }
 
 // GetSigners returns the addresses of the message signers
-func (msg *MsgWirePayForMessage) GetSigners() []sdk.AccAddress {
+func (msg *MsgWirePayForData) GetSigners() []sdk.AccAddress {
 	address, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		panic(err)
@@ -139,10 +139,10 @@ func (msg *MsgWirePayForMessage) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{address}
 }
 
-// createPayForMessageSignature generates the signature for a PayForMessage for a single square
-// size using the info from a MsgWirePayForMessage
-func (msg *MsgWirePayForMessage) createPayForMessageSignature(signer *KeyringSigner, builder sdkclient.TxBuilder, k uint64) ([]byte, error) {
-	pfm, err := msg.unsignedPayForMessage(k)
+// createPayForDataSignature generates the signature for a PayForData for a single square
+// size using the info from a MsgWirePayForData
+func (msg *MsgWirePayForData) createPayForDataSignature(signer *KeyringSigner, builder sdkclient.TxBuilder, k uint64) ([]byte, error) {
+	pfm, err := msg.unsignedPayForData(k)
 	if err != nil {
 		return nil, err
 	}
@@ -164,16 +164,16 @@ func (msg *MsgWirePayForMessage) createPayForMessageSignature(signer *KeyringSig
 	return sig.Signature, nil
 }
 
-// unsignedPayForMessage use the data in the MsgWirePayForMessage
-// to create a new MsgPayForMessage.
-func (msg *MsgWirePayForMessage) unsignedPayForMessage(k uint64) (*MsgPayForMessage, error) {
+// unsignedPayForData use the data in the MsgWirePayForData
+// to create a new MsgPayForData.
+func (msg *MsgWirePayForData) unsignedPayForData(k uint64) (*MsgPayForData, error) {
 	// create the commitment using the padded message
 	commit, err := CreateCommitment(k, msg.MessageNameSpaceId, msg.Message)
 	if err != nil {
 		return nil, err
 	}
 
-	sPFM := MsgPayForMessage{
+	sPFM := MsgPayForData{
 		MessageNamespaceId:     msg.MessageNameSpaceId,
 		MessageSize:            msg.MessageSize,
 		MessageShareCommitment: commit,
@@ -182,10 +182,10 @@ func (msg *MsgWirePayForMessage) unsignedPayForMessage(k uint64) (*MsgPayForMess
 	return &sPFM, nil
 }
 
-// ProcessWirePayForMessage will perform the processing required by PreProcessTxs.
-// It parses the MsgWirePayForMessage to produce the components needed to create a
-// single  MsgPayForMessage
-func ProcessWirePayForMessage(msg *MsgWirePayForMessage, squareSize uint64) (*tmproto.Message, *MsgPayForMessage, []byte, error) {
+// ProcessWirePayForData will perform the processing required by PreProcessTxs.
+// It parses the MsgWirePayForData to produce the components needed to create a
+// single  MsgPayForData
+func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.Message, *MsgPayForData, []byte, error) {
 	// make sure that a ShareCommitAndSignature of the correct size is
 	// included in the message
 	var shareCommit *ShareCommitAndSignature
@@ -208,7 +208,7 @@ func ProcessWirePayForMessage(msg *MsgWirePayForMessage, squareSize uint64) (*tm
 	}
 
 	// wrap the signed transaction data
-	pfm, err := msg.unsignedPayForMessage(squareSize)
+	pfm, err := msg.unsignedPayForData(squareSize)
 	if err != nil {
 		return nil, nil, nil, err
 	}

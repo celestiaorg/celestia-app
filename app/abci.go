@@ -35,8 +35,8 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		}
 
 		// don't process the tx if the transaction doesn't contain a
-		//  MsgPayForMessage sdk.Msg
-		if !hasWirePayForMessage(authTx) {
+		//  MsgPayForData sdk.Msg
+		if !hasWirePayForData(authTx) {
 			processedTxs = append(processedTxs, rawTx)
 			continue
 		}
@@ -47,7 +47,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		}
 
 		msg := authTx.GetMsgs()[0]
-		wireMsg, ok := msg.(*types.MsgWirePayForMessage)
+		wireMsg, ok := msg.(*types.MsgWirePayForData)
 		if !ok {
 			continue
 		}
@@ -59,16 +59,16 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		}
 
 		// parse wire message and create a single message
-		coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForMessage(wireMsg, app.SquareSize())
+		coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForData(wireMsg, app.SquareSize())
 		if err != nil {
 			continue
 		}
 
-		// create the signed PayForMessage using the fees, gas limit, and sequence from
+		// create the signed PayForData using the fees, gas limit, and sequence from
 		// the original transaction, along with the appropriate signature.
-		signedTx, err := types.BuildPayForMessageTxFromWireTx(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFM)
+		signedTx, err := types.BuildPayForDataTxFromWireTx(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFM)
 		if err != nil {
-			app.Logger().Error("failure to create signed PayForMessage", err)
+			app.Logger().Error("failure to create signed PayForData", err)
 			continue
 		}
 
@@ -110,10 +110,10 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	}
 }
 
-func hasWirePayForMessage(tx sdk.Tx) bool {
+func hasWirePayForData(tx sdk.Tx) bool {
 	for _, msg := range tx.GetMsgs() {
 		msgName := sdk.MsgTypeURL(msg)
-		if msgName == types.URLMsgWirePayforMessage {
+		if msgName == types.URLMsgWirePayForData {
 			return true
 		}
 	}
