@@ -10,14 +10,11 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
-	tmlog "github.com/tendermint/tendermint/libs/log"
 )
 
 type orchestrator struct {
-	logger tmlog.Logger
-
-	// client
-	appClient AppClient
+	// TODO this will change once we have the worker pool pattern
+	broadcaster Broadcaster
 
 	// orchestrator signing
 	evmPrivateKey ecdsa.PrivateKey
@@ -47,7 +44,7 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, valsetChannel <
 			Signature:    ethcmn.Bytes2Hex(signature),
 		}
 
-		hash, err := oc.appClient.BroadcastTx(ctx, msg)
+		hash, err := oc.broadcaster.BroadcastTx(ctx, msg)
 		if err != nil {
 			return err
 		}
@@ -76,7 +73,7 @@ func (oc *orchestrator) processDataCommitmentEvents(
 			Signature:        ethcmn.Bytes2Hex(dcSig),
 		}
 
-		hash, err := oc.appClient.BroadcastTx(ctx, msg)
+		hash, err := oc.broadcaster.BroadcastTx(ctx, msg)
 		if err != nil {
 			return err
 		}

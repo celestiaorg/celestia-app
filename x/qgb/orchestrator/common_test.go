@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -15,17 +14,16 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	tmlog "github.com/tendermint/tendermint/libs/log"
 )
 
-func setupTestOrchestrator(t *testing.T, ac AppClient) *orchestrator {
+// TODO update the tests to reflect the new design
+func setupTestOrchestrator(t *testing.T, bc Broadcaster) *orchestrator {
 	priv, err := crypto.HexToECDSA(testPriv)
 	if err != nil {
 		panic(err)
 	}
 	return &orchestrator{
-		appClient:           ac,
-		logger:              tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stderr)),
+		broadcaster:         bc,
 		orchestratorAddress: crypto.PubkeyToAddress(priv.PublicKey).Hex(),
 		bridgeID:            types.BridgeId,
 		evmPrivateKey:       *priv,

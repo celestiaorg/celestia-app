@@ -10,14 +10,11 @@ import (
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcmn "github.com/ethereum/go-ethereum/common"
-	tmlog "github.com/tendermint/tendermint/libs/log"
 )
 
 type relayer struct {
-	logger tmlog.Logger
-
 	// client
-	appClient AppClient
+	querier Querier
 
 	// relayer
 	bridgeID  ethcmn.Hash
@@ -27,7 +24,7 @@ type relayer struct {
 func (r *relayer) processValsetEvents(ctx context.Context, valSetChannel <-chan types.Valset) error {
 	for valset := range valSetChannel {
 
-		confirms, err := r.appClient.QueryTwoThirdsValsetConfirms(ctx, time.Minute*30, valset)
+		confirms, err := r.querier.QueryTwoThirdsValsetConfirms(ctx, time.Minute*30, valset)
 		if err != nil {
 			return err
 		}
@@ -51,13 +48,13 @@ func (r *relayer) processDataCommitmentEvents(
 		nonce := dc.Nonce + 1
 		dataRootHash := types.DataCommitmentTupleRootSignBytes(r.bridgeID, big.NewInt(int64(nonce)), dc.Commitment)
 		// todo: make times configurable
-		confirms, err := r.appClient.QueryTwoThirdsDataCommitmentConfirms(ctx, time.Minute*30, dataRootHash.String())
+		confirms, err := r.querier.QueryTwoThirdsDataCommitmentConfirms(ctx, time.Minute*30, dataRootHash.String())
 		if err != nil {
 			return err
 		}
 
 		// todo: make gas limit configurable
-		valset, err := r.appClient.QueryLastValset(ctx)
+		valset, err := r.querier.QueryLastValset(ctx)
 		if err != nil {
 			return err
 		}
@@ -81,7 +78,7 @@ func (r *relayer) updateValidatorSet(
 		return err
 	}
 
-	currentValset, err := r.appClient.QueryLastValset(ctx)
+	currentValset, err := r.querier.QueryLastValset(ctx)
 	if err != nil {
 		return err
 	}

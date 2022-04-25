@@ -38,32 +38,42 @@ func RelayerCmd() *cobra.Command {
 				config.celestiaChainID,
 			)
 
-			// TODO the relayer doesn't need the signer
-			client, err := NewAppClient(
-				tmlog.NewTMLogger(os.Stdout),
-				signer,
-				config.celestiaChainID,
-				config.tendermintRPC,
-				config.qgbRPC,
-			)
-			if err != nil {
-				return err
-			}
+			logger := tmlog.NewTMLogger(os.Stdout)
 
+			// TODO the relayer doesn't need the signer
 			ethClient, err := ethclient.Dial(config.evmRPC)
 			if err != nil {
 				return err
 			}
-
 			qgbWrapper, err := wrapper.NewQuantumGravityBridge(config.contractAddr, ethClient)
 			if err != nil {
 				return err
 			}
 
+			querier, err := NewQuerier(config.qgbRPC, config.tendermintRPC, logger)
+			if err != nil {
+				return err
+			}
+
+			client, err := NewRelayerClient(
+				logger,
+				config.tendermintRPC,
+				querier,
+				signer.GetSignerInfo().GetAddress().String(),
+				NewEvmClient(
+					tmlog.NewTMLogger(os.Stdout),
+					*qgbWrapper,
+					config.privateKey,
+					config.evmRPC,
+				),
+			)
+			if err != nil {
+				return err
+			}
+
+			// TODO add NewRelayer method
 			relay := relayer{
-				logger:    tmlog.NewTMLogger(tmlog.NewSyncWriter(os.Stdout)),
-				appClient: client,
-				bridgeID:  types.BridgeId,
+				bridgeID: types.BridgeId,
 				evmClient: NewEvmClient(
 					tmlog.NewTMLogger(os.Stdout),
 					*qgbWrapper,
@@ -85,12 +95,12 @@ func RelayerCmd() *cobra.Command {
 						valsetChan, err := client.SubscribeValset(cmd.Context())
 						if err != nil {
 							// TODO is this the correct way ?
-							fmt.Println(err.Error())
+							logger.Error(err.Error())
 							return
 						}
 						err = relay.processValsetEvents(cmd.Context(), valsetChan)
 						if err != nil {
-							relay.logger.Error(err.Error())
+							logger.Error(err.Error())
 							time.Sleep(time.Second * 30)
 							continue
 						}
@@ -116,7 +126,7 @@ func RelayerCmd() *cobra.Command {
 						}
 						err = relay.processDataCommitmentEvents(cmd.Context(), dcChan)
 						if err != nil {
-							relay.logger.Error(err.Error())
+							logger.Error(err.Error())
 							time.Sleep(time.Second * 30)
 							continue
 						}
@@ -125,9 +135,7 @@ func RelayerCmd() *cobra.Command {
 				}
 
 			}()
-
 			wg.Wait()
-
 			return nil
 		},
 	}

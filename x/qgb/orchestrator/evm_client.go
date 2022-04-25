@@ -30,6 +30,7 @@ type EVMClient interface {
 		sigs []wrapper.Signature,
 	) error
 	StateLastDataRootTupleRootNonce(opts *bind.CallOpts) (uint64, error)
+	StateLastValsetNonce(opts *bind.CallOpts) (uint64, error)
 }
 
 type evmClient struct {
@@ -138,6 +139,14 @@ func (ec *evmClient) NewTransactOpts(ctx context.Context, gasLim uint64) (*bind.
 
 func (ec *evmClient) StateLastDataRootTupleRootNonce(opts *bind.CallOpts) (uint64, error) {
 	nonce, err := ec.wrapper.StateLastDataRootTupleRootNonce(opts)
+	if err != nil {
+		return 0, err
+	}
+	return nonce.Uint64(), nil
+}
+
+func (ec *evmClient) StateLastValsetNonce(opts *bind.CallOpts) (uint64, error) {
+	nonce, err := ec.wrapper.StateLastValidatorSetNonce(opts)
 	if err != nil {
 		return 0, err
 	}
