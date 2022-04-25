@@ -23,8 +23,14 @@ type relayerClient struct {
 	orchestratorAddress string
 }
 
-func NewRelayerClient(logger tmlog.Logger, tendermintRpc string, querier Querier, orchAddr string, evmClient EVMClient) (AppClient, error) {
-	trpc, err := http.New(tendermintRpc, "/websocket")
+func NewRelayerClient(
+	logger tmlog.Logger,
+	tendermintRPC string,
+	querier Querier,
+	orchAddr string,
+	evmClient EVMClient,
+) (AppClient, error) {
+	trpc, err := http.New(tendermintRPC, "/websocket")
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +92,7 @@ func (oc *relayerClient) SubscribeValset(ctx context.Context) (<-chan types.Vals
 					continue
 				}
 				valsetsChan <- *newVs
-				// Give some time for newVs to be commited before we continue
+				// Give some time for newVs to be committed before we continue
 				// This will change with the worker pool design pattern we will adopt
 				time.Sleep(10 * time.Second)
 			}
