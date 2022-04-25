@@ -27,13 +27,14 @@ func SubmitPayForData(
 	nID namespace.ID,
 	data []byte,
 	gasLim uint64,
+	opts ...types.TxBuilderOption,
 ) (*sdk.TxResponse, error) {
 	pfd, err := BuildPayForData(ctx, signer, conn, nID, data, gasLim)
 	if err != nil {
 		return nil, err
 	}
 
-	signed, err := SignPayForData(signer, pfd, types.SetGasLimit(gasLim))
+	signed, err := SignPayForData(signer, pfd, append(opts, types.SetGasLimit(gasLim))...)
 	if err != nil {
 		return nil, err
 	}
@@ -86,12 +87,16 @@ func BuildPayForData(
 func SignPayForData(
 	signer *types.KeyringSigner,
 	pfd *types.MsgWirePayForData,
-	gasLimOption types.TxBuilderOption,
+	opts ...types.TxBuilderOption,
 ) (signing.Tx, error) {
 	// Build and sign the final `WirePayForMessage` tx that now contains the signatures
 	// for potential `MsgPayForMessage`s
+	builder := signer.NewTxBuilder()
+	for _, opt := range opts {
+		opt(builder)
+	}
 	return signer.BuildSignedTx(
-		gasLimOption(signer.NewTxBuilder()),
+		builder,
 		pfd,
 	)
 }
