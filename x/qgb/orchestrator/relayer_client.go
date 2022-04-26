@@ -86,7 +86,7 @@ func (oc *relayerClient) SubscribeValset(ctx context.Context) (<-chan types.Vals
 					continue
 				}
 				valsetsChan <- *newVs
-				// Give some time for newVs to be commited before we continue
+				// Give some time for newVs to be committed before we continue
 				// This will change with the worker pool design pattern we will adopt
 				time.Sleep(10 * time.Second)
 			}
