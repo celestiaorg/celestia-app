@@ -57,7 +57,7 @@ func contains(s []uint64, nonce uint64) bool {
 func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, error) {
 	valsetsChan := make(chan types.Valset, 100)
 
-	// TODO add a flag to command to catchup or not (without starting it in a go routine)
+	// will change once we have the new design
 	go oc.signOldVSAttestations(ctx, valsetsChan) //nolint:errcheck
 
 	results, err := oc.tendermintRPC.Subscribe(
@@ -111,7 +111,7 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 }
 
 func (oc *orchestratorClient) signOldVSAttestations(ctx context.Context, valsetsChan chan types.Valset) error {
-	oc.logger.Info("Beginning Valsets attestation signature catchup")
+	oc.logger.Info("Started Valsets attestation signature catchup")
 	lastUnbondingHeight, err := oc.querier.QueryLastUnbondingHeight(ctx)
 	if err != nil {
 		oc.logger.Error(err.Error())
@@ -164,11 +164,11 @@ func (oc *orchestratorClient) signOldVSAttestations(ctx context.Context, valsets
 	}
 }
 
-// Will be removed when we have the new design
-var dcCatchup = true
-
 func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-chan ExtendedDataCommitment, error) {
-	dataCommitments := make(chan ExtendedDataCommitment)
+	dataCommitments := make(chan ExtendedDataCommitment, 100)
+
+	// will change once we have the new design
+	go oc.signOldDCAttestations(ctx, dataCommitments) //nolint:errcheck
 
 	// queryClient := types.NewQueryClient(orchestratorClient.qgbRPC)
 
@@ -228,58 +228,87 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 					End:        endHeight,
 					Nonce:      nonce,
 				}
-				// Should this stay here or we can move it to a separate function?
-				if dcCatchup {
-					lastUnbondingHeight, err := oc.querier.QueryLastUnbondingHeight(ctx)
-					if err != nil {
-						oc.logger.Error(err.Error())
-						continue
-					}
-					var previousBeginBlock int64
-					var previousEndBlock int64
-					for {
-						// Will be refactored when we have data commitment requests
-						previousEndBlock = previousBeginBlock
-						previousBeginBlock = previousEndBlock - int64(types.DataCommitmentWindow)
-						lastDcConfirm, err := oc.querier.QueryDataCommitmentConfirmByAddressAndRange(
-							ctx,
-							oc.orchestratorAddress,
-							previousBeginBlock,
-							previousEndBlock,
-						)
-						if err != nil {
-							oc.logger.Error(err.Error())
-							continue
-						}
-						if previousEndBlock < lastUnbondingHeight || lastDcConfirm != nil {
-							// Most likely, we're up to date and don't need to catchup anymore
-							dcCatchup = false
-							break
-						}
-						previousCommitment, err := oc.tendermintRPC.DataCommitment(
-							ctx,
-							fmt.Sprintf("block.height >= %d AND block.height <= %d",
-								previousBeginBlock,
-								previousEndBlock,
-							),
-						)
-						if err != nil {
-							oc.logger.Error(err.Error())
-							continue
-						}
-						previousNonce := uint64(previousEndBlock) / types.DataCommitmentWindow
-						dataCommitments <- ExtendedDataCommitment{
-							Commitment: previousCommitment.DataCommitment,
-							Start:      previousBeginBlock,
-							End:        previousEndBlock,
-							Nonce:      previousNonce,
-						}
-					}
-				}
 			}
 		}
-
 	}()
 
 	return dataCommitments, nil
+}
+
+func (oc *orchestratorClient) signOldDCAttestations(
+	ctx context.Context,
+	dataCommitmentsChan chan ExtendedDataCommitment,
+) error {
+	oc.logger.Info("Started Data Commitments attestation signature catchup")
+	lastUnbondingHeight, err := oc.querier.QueryLastUnbondingHeight(ctx)
+	if err != nil {
+		oc.logger.Error(err.Error())
+		return err
+	}
+
+	currentHeight, err := oc.querier.QueryHeight(ctx)
+	if err != nil {
+		oc.logger.Error(err.Error())
+		return err
+	}
+
+	var previousBeginBlock int64
+	var previousEndBlock int64
+
+	if currentHeight%types.DataCommitmentWindow == 0 {
+		previousBeginBlock = currentHeight
+	} else {
+		// to have a correct range
+		previousBeginBlock = currentHeight - currentHeight%types.DataCommitmentWindow
+	}
+
+	for {
+		// Will be refactored when we have data commitment requests
+		previousEndBlock = previousBeginBlock
+		previousBeginBlock = previousEndBlock - int64(types.DataCommitmentWindow)
+
+		if previousBeginBlock == 0 {
+			oc.logger.Info("Finished Data Commitments attestation signature catchup")
+			return nil
+		}
+
+		previousCommitment, err := oc.tendermintRPC.DataCommitment(
+			ctx,
+			fmt.Sprintf("block.height >= %d AND block.height <= %d",
+				previousBeginBlock,
+				previousEndBlock,
+			),
+		)
+		if err != nil {
+			oc.logger.Error(err.Error())
+			continue
+		}
+
+		existingConfirm, err := oc.querier.QueryDataCommitmentConfirm(
+			ctx,
+			previousCommitment.DataCommitment.String(),
+			oc.orchestratorAddress,
+		)
+		if err != nil {
+			oc.logger.Error(err.Error())
+			continue
+		}
+
+		if previousEndBlock < lastUnbondingHeight {
+			// Most likely, we're up to date and don't need to catchup anymore
+			oc.logger.Info("Finished Data Commitments attestation signature catchup")
+			return nil
+		}
+		if existingConfirm != nil {
+			// In case we have holes in the signatures
+			continue
+		}
+		previousNonce := uint64(previousEndBlock) / types.DataCommitmentWindow
+		dataCommitmentsChan <- ExtendedDataCommitment{
+			Commitment: previousCommitment.DataCommitment,
+			Start:      previousBeginBlock,
+			End:        previousEndBlock,
+			Nonce:      previousNonce,
+		}
+	}
 }

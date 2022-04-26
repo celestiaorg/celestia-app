@@ -66,7 +66,8 @@ func (oc *orchestrator) processDataCommitmentEvents(
 		dataRootHash := types.DataCommitmentTupleRootSignBytes(oc.bridgeID, big.NewInt(int64(dc.Nonce)), dc.Commitment)
 		dcSig, err := types.NewEthereumSignature(dataRootHash.Bytes(), &oc.evmPrivateKey)
 		if err != nil {
-			return err
+			oc.logger.Error(fmt.Sprintf("data commitment range %d-%d: %s", dc.Start, dc.End, err.Error()))
+			continue
 		}
 
 		msg := &types.MsgDataCommitmentConfirm{
@@ -80,9 +81,10 @@ func (oc *orchestrator) processDataCommitmentEvents(
 
 		hash, err := oc.broadcaster.BroadcastTx(ctx, msg)
 		if err != nil {
-			return err
+			oc.logger.Error(fmt.Sprintf("data commitment range %d-%d: %s", dc.Start, dc.End, err.Error()))
+			continue
 		}
-		fmt.Printf("\nsigned commitment %d-%d: %s\n", msg.BeginBlock, msg.EndBlock, hash)
+		oc.logger.Info(fmt.Sprintf("signed commitment %d-%d: %s", msg.BeginBlock, msg.EndBlock, hash))
 	}
 	return nil
 }
