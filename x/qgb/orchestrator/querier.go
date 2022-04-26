@@ -12,12 +12,11 @@ import (
 	"google.golang.org/grpc"
 )
 
-var _ Querier = &querier{}
+var _ Querier = &OrchQuerier{}
 
 type Querier interface {
 	QueryDataCommitments(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error)
 	QueryDataCommitmentConfirm(ctx context.Context, commit string, address string) (*types.MsgDataCommitmentConfirm, error)
-	QueryDataCommitmentConfirmByAddressAndRange(ctx context.Context, address string, beginBlock int64, endBlock int64) (*types.MsgDataCommitmentConfirm, error)
 	QueryLastValset(ctx context.Context) (types.Valset, error)
 	QueryTwoThirdsDataCommitmentConfirms(
 		ctx context.Context,
@@ -36,14 +35,14 @@ type Querier interface {
 	QueryLastUnbondingHeight(ctx context.Context) (int64, error)
 }
 
-type querier struct {
+type OrchQuerier struct {
 	qgbRPC        *grpc.ClientConn
 	logger        tmlog.Logger
 	tendermintRPC *http.HTTP
 }
 
-func NewQuerier(qgbRpcAddr, tendermintRpc string, logger tmlog.Logger) (*querier, error) {
-	qgbGRPC, err := grpc.Dial(qgbRpcAddr, grpc.WithInsecure())
+func NewQuerier(qgbRPCAddr, tendermintRpc string, logger tmlog.Logger) (*OrchQuerier, error) {
+	qgbGRPC, err := grpc.Dial(qgbRPCAddr, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
@@ -57,14 +56,14 @@ func NewQuerier(qgbRpcAddr, tendermintRpc string, logger tmlog.Logger) (*querier
 		return nil, err
 	}
 
-	return &querier{
+	return &OrchQuerier{
 		qgbRPC:        qgbGRPC,
 		logger:        logger,
 		tendermintRPC: trpc,
 	}, nil
 }
 
-func (q *querier) QueryDataCommitments(
+func (q *OrchQuerier) QueryDataCommitments(
 	ctx context.Context,
 	commit string,
 ) ([]types.MsgDataCommitmentConfirm, error) {
@@ -83,7 +82,7 @@ func (q *querier) QueryDataCommitments(
 	return confirmsResp.Confirms, nil
 }
 
-func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
+func (q *OrchQuerier) QueryTwoThirdsDataCommitmentConfirms(
 	ctx context.Context,
 	timeout time.Duration,
 	commitment string,
@@ -156,7 +155,7 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 	}
 }
 
-func (q *querier) QueryTwoThirdsValsetConfirms(
+func (q *OrchQuerier) QueryTwoThirdsValsetConfirms(
 	ctx context.Context,
 	timeout time.Duration,
 	valset types.Valset,
@@ -217,7 +216,7 @@ func (q *querier) QueryTwoThirdsValsetConfirms(
 
 // QueryLastValset TODO change name to reflect the functionality correctly
 // TODO make this return a pointer
-func (q *querier) QueryLastValset(ctx context.Context) (types.Valset, error) {
+func (q *OrchQuerier) QueryLastValset(ctx context.Context) (types.Valset, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
 	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
 	if err != nil {
@@ -232,7 +231,7 @@ func (q *querier) QueryLastValset(ctx context.Context) (types.Valset, error) {
 	return valset, nil
 }
 
-func (q *querier) QueryLastValsets(ctx context.Context) ([]types.Valset, error) {
+func (q *OrchQuerier) QueryLastValsets(ctx context.Context) ([]types.Valset, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
 	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
 	if err != nil {
@@ -242,7 +241,7 @@ func (q *querier) QueryLastValsets(ctx context.Context) ([]types.Valset, error) 
 	return lastValsetResp.Valsets, nil
 }
 
-func (q *querier) QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error) {
+func (q *OrchQuerier) QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
 	lastValsetResp, err := queryClient.ValsetRequestByNonce(ctx, &types.QueryValsetRequestByNonceRequest{Nonce: nonce})
 	if err != nil {
@@ -252,7 +251,7 @@ func (q *querier) QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.
 	return lastValsetResp.Valset, nil
 }
 
-func (q *querier) QueryValsetConfirm(
+func (q *OrchQuerier) QueryValsetConfirm(
 	ctx context.Context,
 	nonce uint64,
 	address string,
@@ -266,7 +265,7 @@ func (q *querier) QueryValsetConfirm(
 	return resp.Confirm, nil
 }
 
-func (q *querier) QueryHeight(ctx context.Context) (int64, error) {
+func (q *OrchQuerier) QueryHeight(ctx context.Context) (int64, error) {
 	resp, err := q.tendermintRPC.Status(ctx)
 	if err != nil {
 		return 0, err
@@ -275,7 +274,7 @@ func (q *querier) QueryHeight(ctx context.Context) (int64, error) {
 	return resp.SyncInfo.LatestBlockHeight, nil
 }
 
-func (q *querier) QueryLastUnbondingHeight(ctx context.Context) (int64, error) {
+func (q *OrchQuerier) QueryLastUnbondingHeight(ctx context.Context) (int64, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
 	resp, err := queryClient.LastUnbondingHeight(ctx, &types.QueryLastUnbondingHeightRequest{})
 	if err != nil {
@@ -285,7 +284,7 @@ func (q *querier) QueryLastUnbondingHeight(ctx context.Context) (int64, error) {
 	return resp.Height, nil
 }
 
-func (q *querier) QueryDataCommitmentConfirm(
+func (q *OrchQuerier) QueryDataCommitmentConfirm(
 	ctx context.Context,
 	commit string,
 	address string,
@@ -304,32 +303,4 @@ func (q *querier) QueryDataCommitmentConfirm(
 	}
 
 	return confirmsResp.Confirm, nil
-}
-
-func (q *querier) QueryDataCommitmentConfirmByAddressAndRange(
-	ctx context.Context,
-	address string,
-	beginBlock int64,
-	endBlock int64,
-) (*types.MsgDataCommitmentConfirm, error) {
-	queryClient := types.NewQueryClient(q.qgbRPC)
-
-	confirmsResp, err := queryClient.DataCommitmentConfirmsByRange(
-		ctx,
-		&types.QueryDataCommitmentConfirmsByRangeRequest{
-			BeginBlock: beginBlock,
-			EndBlock:   endBlock,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-	for _, dc := range confirmsResp.Confirms {
-		if dc.ValidatorAddress == address {
-			// Is it okey to return a pointer to a loop variable?
-			return &dc, nil
-		}
-	}
-
-	return nil, nil
 }
