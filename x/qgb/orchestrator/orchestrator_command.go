@@ -67,6 +67,7 @@ func OrchestratorCmd() *cobra.Command {
 				evmPrivateKey:       *config.privateKey,
 				bridgeID:            types.BridgeId,
 				orchestratorAddress: signer.GetSignerInfo().GetAddress().String(),
+				logger:              logger,
 			}
 
 			wg := &sync.WaitGroup{}

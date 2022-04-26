@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/tendermint/tendermint/libs/log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -13,6 +14,7 @@ import (
 )
 
 type orchestrator struct {
+	logger log.Logger
 	// TODO this will change once we have the worker pool pattern
 	broadcaster Broadcaster
 
@@ -28,12 +30,14 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, valsetChannel <
 	for valset := range valsetChannel {
 		signBytes, err := valset.SignBytes(oc.bridgeID)
 		if err != nil {
-			return err
+			oc.logger.Error(fmt.Sprintf("valset nonce %d: %s", valset.Nonce, err.Error()))
+			continue
 		}
 
 		signature, err := types.NewEthereumSignature(signBytes.Bytes(), &oc.evmPrivateKey)
 		if err != nil {
-			return err
+			oc.logger.Error(fmt.Sprintf("valset nonce %d: %s", valset.Nonce, err.Error()))
+			continue
 		}
 
 		// create and send the valset hash
@@ -46,9 +50,10 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, valsetChannel <
 
 		hash, err := oc.broadcaster.BroadcastTx(ctx, msg)
 		if err != nil {
-			return err
+			oc.logger.Error(fmt.Sprintf("valset nonce %d: %s", valset.Nonce, err.Error()))
+			continue
 		}
-		fmt.Printf("\nsigned Valset %d : %s\n", msg.Nonce, hash)
+		oc.logger.Info(fmt.Sprintf("signed Valset %d : %s", msg.Nonce, hash))
 	}
 	return nil
 }

@@ -3,12 +3,12 @@ package orchestrator
 import (
 	"context"
 	"fmt"
-	"sync"
-
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	coretypes "github.com/tendermint/tendermint/types"
+	"sync"
 )
 
 var _ AppClient = &orchestratorClient{}
@@ -45,11 +45,31 @@ func NewOrchestratorClient(
 	}, nil
 }
 
-// will be removed with the new design
-var vsCatchup = true
+func contains(s []uint64, nonce uint64) bool {
+	for _, v := range s {
+		if v == nonce {
+			return true
+		}
+	}
+	return false
+}
 
 func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, error) {
-	valsetsChan := make(chan types.Valset, 10)
+	valsetsChan := make(chan types.Valset, 100)
+
+	// TODO add a flag to command to catchup or not (without starting it in a go routine)
+	go oc.signOldVSAttestations(ctx, valsetsChan) //nolint:errcheck
+
+	results, err := oc.tendermintRPC.Subscribe(
+		ctx,
+		"valset-changes",
+		fmt.Sprintf("%s.%s='%s'", types.EventTypeValsetRequest, sdk.AttributeKeyModule, types.ModuleName),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	nonces := make([]uint64, 10000)
 
 	go func() {
 		defer close(valsetsChan)
@@ -57,7 +77,7 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 			select {
 			case <-ctx.Done():
 				return
-			default:
+			case <-results:
 				valsets, err := oc.querier.QueryLastValsets(ctx)
 				if err != nil {
 					oc.logger.Error(err.Error())
@@ -79,47 +99,69 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 					continue
 				}
 
-				if resp == nil {
+				if resp == nil && !contains(nonces, valset.Nonce) {
 					valsetsChan <- valset
-					// Should this stay here or we can move it to a separate function?
-					if vsCatchup {
-						lastUnbondingHeight, err := oc.querier.QueryLastUnbondingHeight(ctx)
-						if err != nil {
-							oc.logger.Error(err.Error())
-							continue
-						}
-						previousNonce := valset.Nonce
-						if previousNonce == 0 {
-							break
-						}
-						for {
-							previousNonce = previousNonce - 1
-							lastVsConfirm, err := oc.querier.QueryValsetConfirm(ctx, previousNonce, oc.orchestratorAddress)
-							if err != nil {
-								oc.logger.Error(err.Error())
-								continue
-							}
-							// The valset signed by the orchestrator to get lastVsConfirm
-							// Used to get the height that valset waas first introduced
-							correspondingVs, err := oc.querier.QueryValsetByNonce(ctx, previousNonce)
-							if err != nil {
-								oc.logger.Error(err.Error())
-								continue
-							}
-							if int64(correspondingVs.Height) < lastUnbondingHeight || lastVsConfirm != nil {
-								// Most likely, we're up to date and don't need to catchup anymore
-								vsCatchup = false
-								break
-							}
-							valsetsChan <- *correspondingVs
-						}
-					}
+					nonces = append(nonces, valset.Nonce)
 				}
 			}
 		}
 	}()
 
 	return valsetsChan, nil
+}
+
+func (oc *orchestratorClient) signOldVSAttestations(ctx context.Context, valsetsChan chan types.Valset) error {
+	oc.logger.Info("Beginning Valsets attestation signature catchup")
+	lastUnbondingHeight, err := oc.querier.QueryLastUnbondingHeight(ctx)
+	if err != nil {
+		oc.logger.Error(err.Error())
+		return err
+	}
+
+	valsets, err := oc.querier.QueryLastValsets(ctx)
+	if err != nil {
+		oc.logger.Error(err.Error())
+		return err
+	}
+
+	// todo: double check that the first validator set is found
+	if len(valsets) < 1 {
+		oc.logger.Error("no validator sets found")
+		return nil
+	}
+	valsetsChan <- valsets[0]
+
+	previousNonce := valsets[0].Nonce
+	for {
+		if previousNonce == 1 {
+			oc.logger.Info("Finished Valsets attestation signature catchup")
+			return nil
+		}
+		previousNonce = previousNonce - 1
+		lastVsConfirm, err := oc.querier.QueryValsetConfirm(ctx, previousNonce, oc.orchestratorAddress)
+		if err != nil {
+			oc.logger.Error(err.Error())
+			return err
+		}
+		// The valset signed by the orchestrator to get lastVsConfirm
+		// Used to get the height that valset waas first introduced
+		correspondingVs, err := oc.querier.QueryValsetByNonce(ctx, previousNonce)
+		if err != nil {
+			oc.logger.Error(err.Error())
+			return err
+		}
+		if int64(correspondingVs.Height) < lastUnbondingHeight {
+			// Most likely, we're up to date and don't need to catchup anymore
+			oc.logger.Info("Finished Valsets attestation signature catchup")
+			return nil
+		}
+		if lastVsConfirm != nil {
+			// in case we have holes in the signatures
+			continue
+		}
+
+		valsetsChan <- *correspondingVs
+	}
 }
 
 // Will be removed when we have the new design
