@@ -224,6 +224,11 @@ func (q *querier) QueryLastValset(ctx context.Context) (types.Valset, error) {
 		return types.Valset{}, err
 	}
 
+	if len(lastValsetResp.Valsets) == 1 && lastValsetResp.Valsets[0].Nonce == 1 {
+		// genesis case
+		return lastValsetResp.Valsets[0], nil
+	}
+
 	if len(lastValsetResp.Valsets) < 2 {
 		return types.Valset{}, errors.New("no validator sets found")
 	}
