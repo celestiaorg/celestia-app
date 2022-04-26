@@ -58,7 +58,7 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 	valsetsChan := make(chan types.Valset, 100)
 
 	// will change once we have the new design
-	go oc.signOldVSAttestations(ctx, valsetsChan) //nolint:errcheck
+	go oc.addOldVSAttestations(ctx, valsetsChan) //nolint:errcheck
 
 	results, err := oc.tendermintRPC.Subscribe(
 		ctx,
@@ -110,7 +110,7 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 	return valsetsChan, nil
 }
 
-func (oc *orchestratorClient) signOldVSAttestations(ctx context.Context, valsetsChan chan types.Valset) error {
+func (oc *orchestratorClient) addOldVSAttestations(ctx context.Context, valsetsChan chan types.Valset) error {
 	oc.logger.Info("Started Valsets attestation signature catchup")
 	lastUnbondingHeight, err := oc.querier.QueryLastUnbondingHeight(ctx)
 	if err != nil {
@@ -168,7 +168,7 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 	dataCommitments := make(chan ExtendedDataCommitment, 100)
 
 	// will change once we have the new design
-	go oc.signOldDCAttestations(ctx, dataCommitments) //nolint:errcheck
+	go oc.addOldDCAttestations(ctx, dataCommitments) //nolint:errcheck
 
 	// queryClient := types.NewQueryClient(orchestratorClient.qgbRPC)
 
@@ -235,7 +235,7 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 	return dataCommitments, nil
 }
 
-func (oc *orchestratorClient) signOldDCAttestations(
+func (oc *orchestratorClient) addOldDCAttestations(
 	ctx context.Context,
 	dataCommitmentsChan chan ExtendedDataCommitment,
 ) error {
