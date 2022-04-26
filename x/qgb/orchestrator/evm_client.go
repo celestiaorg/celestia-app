@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -37,20 +39,20 @@ type evmClient struct {
 	logger     tmlog.Logger
 	wrapper    wrapper.QuantumGravityBridge
 	privateKey *ecdsa.PrivateKey
-	evmRpc     string
+	evmRPC     string
 }
 
 func NewEvmClient(
 	logger tmlog.Logger,
 	wrapper wrapper.QuantumGravityBridge,
 	privateKey *ecdsa.PrivateKey,
-	evmRpc string,
+	evmRPC string,
 ) EVMClient {
 	return &evmClient{
 		logger:     logger,
 		wrapper:    wrapper,
 		privateKey: privateKey,
-		evmRpc:     evmRpc,
+		evmRPC:     evmRPC,
 	}
 }
 
@@ -60,6 +62,7 @@ func (ec *evmClient) UpdateValidatorSet(
 	valset types.Valset,
 	sigs []wrapper.Signature,
 ) error {
+	ec.logger.Info(fmt.Sprintf("relaying valset %d...", nonce))
 	opts, err := ec.NewTransactOpts(ctx, 1000000)
 	if err != nil {
 		return err
@@ -86,7 +89,22 @@ func (ec *evmClient) UpdateValidatorSet(
 	if err != nil {
 		return err
 	}
-	ec.logger.Info("ValSetUpdate", tx.Hash().String())
+
+	// TODO put this in a separate function and listen for new EVM blocks instead of just sleeping
+	for i := 0; i < 60; i++ {
+		ec.logger.Debug(fmt.Sprintf("waiting for valset %d to be confirmed: %s", nonce, tx.Hash().String()))
+		lastNonce, err := ec.StateLastValsetNonce(&bind.CallOpts{Context: ctx})
+		if err != nil {
+			return err
+		}
+		if lastNonce == nonce {
+			ec.logger.Info(fmt.Sprintf("relayed valset %d: %s", nonce, tx.Hash().String()))
+			return nil
+		}
+		time.Sleep(10 * time.Second)
+	}
+
+	ec.logger.Error(fmt.Sprintf("failed valset %d: %s", nonce, tx.Hash().String()))
 	return nil
 }
 
@@ -118,14 +136,45 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 	if err != nil {
 		return err
 	}
-	ec.logger.Info("DataRootTupleRootUpdated", tx.Hash().String())
+
+	// TODO put this in a separate function and listen for new EVM blocks instead of just sleeping
+	for i := 0; i < 60; i++ {
+		ec.logger.Debug(fmt.Sprintf(
+			"waiting for data commitment %d-%d to be confirmed: %s",
+			lastDataCommitmentNonce,
+			lastDataCommitmentNonce-types.DataCommitmentWindow,
+			tx.Hash().String(),
+		))
+		lastNonce, err := ec.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: ctx})
+		if err != nil {
+			return err
+		}
+		if lastNonce == lastDataCommitmentNonce {
+			ec.logger.Info(fmt.Sprintf(
+				"relayed data commitment %d-%d: %s",
+				lastDataCommitmentNonce,
+				lastDataCommitmentNonce-types.DataCommitmentWindow,
+				tx.Hash().String(),
+			))
+			return nil
+		}
+		time.Sleep(10 * time.Second)
+	}
+	ec.logger.Error(
+		fmt.Sprintf(
+			"failed to relay data commitment %d-%d: %s",
+			lastDataCommitmentNonce,
+			lastDataCommitmentNonce-types.DataCommitmentWindow,
+			tx.Hash().String(),
+		),
+	)
 	return nil
 }
 
 func (ec *evmClient) NewTransactOpts(ctx context.Context, gasLim uint64) (*bind.TransactOpts, error) {
 	builder := newTransactOptsBuilder(ec.privateKey)
 
-	ethClient, err := ethclient.Dial(ec.evmRpc)
+	ethClient, err := ethclient.Dial(ec.evmRPC)
 	if err != nil {
 		return nil, err
 	}
