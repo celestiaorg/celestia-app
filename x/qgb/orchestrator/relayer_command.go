@@ -2,13 +2,13 @@ package orchestrator
 
 import (
 	"fmt"
-	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -71,15 +71,17 @@ func RelayerCmd() *cobra.Command {
 				return err
 			}
 
-			// TODO add NewRelayer method
-			relay := relayer{
-				bridgeID: types.BridgeId,
-				evmClient: NewEvmClient(
+			relay, err := NewRelayer(
+				querier,
+				NewEvmClient(
 					tmlog.NewTMLogger(os.Stdout),
 					*qgbWrapper,
 					config.privateKey,
 					config.evmRPC,
 				),
+			)
+			if err != nil {
+				return err
 			}
 
 			wg := &sync.WaitGroup{}
