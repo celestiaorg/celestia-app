@@ -18,6 +18,9 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 	// extract the commitments from any MsgPayForDatas in the block
 	commitments := make(map[string]struct{})
+	// we have a separate counter so that identical messages also get counted
+	// also see https://github.com/celestiaorg/celestia-app/issues/226
+	commitmentCounter := 0
 	for _, rawTx := range req.BlockData.Txs {
 		tx, err := MalleatedTxDecoder(app.txConfig.TxDecoder())(rawTx)
 		if err != nil {
@@ -35,13 +38,19 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			}
 
 			commitments[string(pfm.MessageShareCommitment)] = struct{}{}
+			commitmentCounter++
 		}
 
 	}
 
 	// quickly compare the number of PFMs and messages, if they aren't
 	// identical, then  we already know this block is invalid
-	if len(commitments) != len(req.BlockData.Messages.MessagesList) {
+	if commitmentCounter != len(req.BlockData.Messages.MessagesList) {
+		app.Logger().Error(
+			rejectedPropBlockLog,
+			"reason",
+			"varying number of messages and payForData txs in the same block",
+		)
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
