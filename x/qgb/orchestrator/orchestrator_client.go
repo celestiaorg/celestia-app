@@ -129,16 +129,16 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 				return
 			case ev := <-results:
 				eventDataHeader := ev.Data.(coretypes.EventDataNewBlockHeader)
-				height := eventDataHeader.Header.Height
+				height := uint64(eventDataHeader.Header.Height)
 				// todo: refactor to ensure that no ranges of blocks are missed if the
 				// parameters are changed
-				if height%int64(types.DataCommitmentWindow) != 0 {
+				if height%types.DataCommitmentWindow != 0 {
 					continue
 				}
 
 				// TODO: calculate start height some other way that can handle changes
 				// in the data window param
-				startHeight := height - int64(types.DataCommitmentWindow)
+				startHeight := height - types.DataCommitmentWindow
 				endHeight := height
 
 				// create and send the data commitment
@@ -156,7 +156,7 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 
 				// TODO: store the nonce in the state somewhere, so that we don't have
 				// to assume what the nonce is
-				nonce := uint64(height) / types.DataCommitmentWindow
+				nonce := height / types.DataCommitmentWindow
 
 				dataCommitments <- ExtendedDataCommitment{
 					Commitment: dcResp.DataCommitment,

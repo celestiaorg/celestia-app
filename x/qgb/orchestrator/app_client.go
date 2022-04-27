@@ -14,6 +14,6 @@ type AppClient interface {
 // TODO replace with data commitment request when we have it
 type ExtendedDataCommitment struct {
 	Commitment bytes.HexBytes
-	Start, End int64
+	Start, End uint64
 	Nonce      uint64
 }

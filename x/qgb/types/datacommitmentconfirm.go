@@ -17,8 +17,8 @@ func NewMsgDataCommitmentConfirm(
 	signature string,
 	validatorAddress sdk.AccAddress,
 	ethAddress EthAddress,
-	beginBlock int64,
-	endBlock int64,
+	beginBlock uint64,
+	endBlock uint64,
 ) *MsgDataCommitmentConfirm {
 	return &MsgDataCommitmentConfirm{
 		Commitment:       commitment,
@@ -56,9 +56,9 @@ func (msg *MsgDataCommitmentConfirm) ValidateBasic() (err error) {
 // Type should return the action
 func (msg *MsgDataCommitmentConfirm) Type() string { return "data_commitment_confirm" }
 
-// DataCommitmentTupleRootSignBytes EncodeDomainSeparatedDataCommitment takes the required input data and produces the required signature to confirm a validator
-// set update on the QGB Ethereum contract. This value will then be signed before being
-// submitted to Cosmos, verified, and then relayed to Ethereum
+// DataCommitmentTupleRootSignBytes EncodeDomainSeparatedDataCommitment takes the required input data and
+// produces the required signature to confirm a validator set update on the QGB Ethereum contract.
+//This value will then be signed before being submitted to Cosmos, verified, and then relayed to Ethereum
 func DataCommitmentTupleRootSignBytes(bridgeID ethcmn.Hash, nonce *big.Int, commitment []byte) ethcmn.Hash {
 	var dataCommitment [32]uint8
 	copy(dataCommitment[:], commitment)

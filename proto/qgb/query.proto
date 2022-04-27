@@ -142,8 +142,8 @@ message QueryDataCommitmentConfirmsByCommitmentResponse {
 // QueryDataCommitmentConfirmsByRangeRequest Data commitment confirms by range
 // request
 message QueryDataCommitmentConfirmsByRangeRequest {
-  int64 begin_block = 1;
-  int64 end_block = 2;
+  uint64 begin_block = 1;
+  uint64 end_block = 2;
 }
 
 // QueryDataCommitmentConfirmsByRangeResponse Data commitment confirms by range
@@ -168,4 +168,4 @@ message QueryDataCommitmentConfirmsByValidatorResponse {
 message QueryLastUnbondingHeightRequest {}
 
 // QueryLastUnbondingHeightResponse
-message QueryLastUnbondingHeightResponse { int64 height = 1; }
+message QueryLastUnbondingHeightResponse { uint64 height = 1; }

@@ -183,8 +183,8 @@ func TestAllDataCommitmentsByRange(t *testing.T) {
 		"cosmos1er9mgk7x30aspqd2zwn970ywfls36ktdmgyzry",
 	}
 	type blockRange struct {
-		beingBlock int64
-		endBlock   int64
+		beginBlock uint64
+		endBlock   uint64
 	}
 	ranges := []blockRange{
 		{1, 101},
@@ -211,7 +211,7 @@ func TestAllDataCommitmentsByRange(t *testing.T) {
 		msg := types.MsgDataCommitmentConfirm{}
 		msg.EthAddress = gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20)).String()
 		msg.Commitment = commitment
-		msg.BeginBlock = ranges[i].beingBlock
+		msg.BeginBlock = ranges[i].beginBlock
 		msg.EndBlock = ranges[i].endBlock
 		msg.ValidatorAddress = addr.String()
 		msg.Signature = fmt.Sprintf("signature %d", i+1)
@@ -231,7 +231,7 @@ func TestAllDataCommitmentsByRange(t *testing.T) {
 					"signature 1",
 					myValidatorCosmosAddr1,
 					*myValidatorEthereumAddr1,
-					ranges[0].beingBlock,
+					ranges[0].beginBlock,
 					ranges[0].endBlock,
 				),
 				*types.NewMsgDataCommitmentConfirm(
@@ -239,7 +239,7 @@ func TestAllDataCommitmentsByRange(t *testing.T) {
 					"signature 2",
 					myValidatorCosmosAddr2,
 					*myValidatorEthereumAddr2,
-					ranges[1].beingBlock,
+					ranges[1].beginBlock,
 					ranges[1].endBlock,
 				),
 				*types.NewMsgDataCommitmentConfirm(
@@ -247,7 +247,7 @@ func TestAllDataCommitmentsByRange(t *testing.T) {
 					"signature 3",
 					myValidatorCosmosAddr3,
 					*myValidatorEthereumAddr3,
-					ranges[2].beingBlock,
+					ranges[2].beginBlock,
 					ranges[2].endBlock,
 				),
 			}},
@@ -260,7 +260,7 @@ func TestAllDataCommitmentsByRange(t *testing.T) {
 					"signature 1",
 					myValidatorCosmosAddr1,
 					*myValidatorEthereumAddr1,
-					ranges[0].beingBlock,
+					ranges[0].beginBlock,
 					ranges[0].endBlock,
 				),
 				*types.NewMsgDataCommitmentConfirm(
@@ -268,7 +268,7 @@ func TestAllDataCommitmentsByRange(t *testing.T) {
 					"signature 2",
 					myValidatorCosmosAddr2,
 					*myValidatorEthereumAddr2,
-					ranges[1].beingBlock,
+					ranges[1].beginBlock,
 					ranges[1].endBlock,
 				),
 			}},
@@ -281,7 +281,7 @@ func TestAllDataCommitmentsByRange(t *testing.T) {
 					"signature 3",
 					myValidatorCosmosAddr3,
 					*myValidatorEthereumAddr3,
-					ranges[2].beingBlock,
+					ranges[2].beginBlock,
 					ranges[2].endBlock,
 				),
 			}},
@@ -318,8 +318,8 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 		"cosmos1er9mgk7x30aspqd2zwn970ywfls36ktdmgyzry",
 	}
 	type blockRange struct {
-		beingBlock int64
-		endBlock   int64
+		beingBlock uint64
+		endBlock   uint64
 	}
 	ranges := []blockRange{
 		{1, 101},

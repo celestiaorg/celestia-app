@@ -128,8 +128,8 @@ func (oc *relayerClient) SubscribeDataCommitment(ctx context.Context) (<-chan Ex
 
 				// TODO: calculate start height some other way that can handle changes
 				// in the data window param
-				startHeight := int64(lastContractNonce) * int64(types.DataCommitmentWindow)
-				endHeight := (int64(lastContractNonce) + 1) * int64(types.DataCommitmentWindow)
+				startHeight := lastContractNonce * types.DataCommitmentWindow
+				endHeight := (lastContractNonce + 1) * types.DataCommitmentWindow
 
 				// create and send the data commitment
 				dcResp, err := oc.tendermintRPC.DataCommitment(

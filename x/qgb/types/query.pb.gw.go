@@ -249,7 +249,7 @@ func request_Query_DataCommitmentConfirmsByRange_0(ctx context.Context, marshale
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "begin_block")
 	}
 
-	protoReq.BeginBlock, err = runtime.Int64(val)
+	protoReq.BeginBlock, err = runtime.Uint64(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "begin_block", err)
@@ -260,7 +260,7 @@ func request_Query_DataCommitmentConfirmsByRange_0(ctx context.Context, marshale
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "end_block")
 	}
 
-	protoReq.EndBlock, err = runtime.Int64(val)
+	protoReq.EndBlock, err = runtime.Uint64(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "end_block", err)
@@ -287,7 +287,7 @@ func local_request_Query_DataCommitmentConfirmsByRange_0(ctx context.Context, ma
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "begin_block")
 	}
 
-	protoReq.BeginBlock, err = runtime.Int64(val)
+	protoReq.BeginBlock, err = runtime.Uint64(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "begin_block", err)
@@ -298,7 +298,7 @@ func local_request_Query_DataCommitmentConfirmsByRange_0(ctx context.Context, ma
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "end_block")
 	}
 
-	protoReq.EndBlock, err = runtime.Int64(val)
+	protoReq.EndBlock, err = runtime.Uint64(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "end_block", err)
