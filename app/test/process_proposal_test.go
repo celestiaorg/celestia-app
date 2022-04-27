@@ -26,10 +26,10 @@ func TestMessageInclusionCheck(t *testing.T) {
 
 	encConf := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
 
-	firstValidPFM, msg1 := genRandMsgPayForMessage(t, signer)
-	secondValidPFM, msg2 := genRandMsgPayForMessage(t, signer)
+	firstValidPFM, msg1 := genRandMsgPayForData(t, signer)
+	secondValidPFM, msg2 := genRandMsgPayForData(t, signer)
 
-	invalidCommitmentPFM, msg3 := genRandMsgPayForMessage(t, signer)
+	invalidCommitmentPFM, msg3 := genRandMsgPayForData(t, signer)
 	invalidCommitmentPFM.MessageShareCommitment = tmrand.Bytes(32)
 
 	// block with all messages included
@@ -146,7 +146,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 
 }
 
-func genRandMsgPayForMessage(t *testing.T, signer *types.KeyringSigner) (*types.MsgPayForMessage, []byte) {
+func genRandMsgPayForData(t *testing.T, signer *types.KeyringSigner) (*types.MsgPayForData, []byte) {
 	ns := make([]byte, consts.NamespaceSize)
 	_, err := rand.Read(ns)
 	require.NoError(t, err)
@@ -158,7 +158,7 @@ func genRandMsgPayForMessage(t *testing.T, signer *types.KeyringSigner) (*types.
 	commit, err := types.CreateCommitment(consts.MaxSquareSize, ns, message)
 	require.NoError(t, err)
 
-	pfm := types.MsgPayForMessage{
+	pfm := types.MsgPayForData{
 		MessageShareCommitment: commit,
 		MessageNamespaceId:     ns,
 	}

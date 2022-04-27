@@ -12,11 +12,11 @@ const (
 
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
 	// Check for message inclusion:
-	//  - each MsgPayForMessage included in a block should have a corresponding message also in the block data
+	//  - each MsgPayForData included in a block should have a corresponding message also in the block data
 	//  - the commitment in each PFM should match that of its corresponding message
 	//  - there should be no unpaid for messages
 
-	// extract the commitments from any MsgPayForMessages in the block
+	// extract the commitments from any MsgPayForDatas in the block
 	commitments := make(map[string]struct{})
 	for _, rawTx := range req.BlockData.Txs {
 		tx, err := MalleatedTxDecoder(app.txConfig.TxDecoder())(rawTx)
@@ -25,11 +25,11 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 
 		for _, msg := range tx.GetMsgs() {
-			if sdk.MsgTypeURL(msg) != types.URLMsgPayforMessage {
+			if sdk.MsgTypeURL(msg) != types.URLMsgPayForData {
 				continue
 			}
 
-			pfm, ok := msg.(*types.MsgPayForMessage)
+			pfm, ok := msg.(*types.MsgPayForData)
 			if !ok {
 				continue
 			}
@@ -65,7 +65,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 
 		if _, has := commitments[string(commit)]; !has {
-			app.Logger().Info(rejectedPropBlockLog, "reason", "missing MsgPayForMessage for included message")
+			app.Logger().Info(rejectedPropBlockLog, "reason", "missing MsgPayForData for included message")
 			return abci.ResponseProcessProposal{
 				Result: abci.ResponseProcessProposal_REJECT,
 			}

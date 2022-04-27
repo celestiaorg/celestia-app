@@ -2,6 +2,7 @@ package payment
 
 import (
 	"context"
+
 	"google.golang.org/grpc"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -60,7 +61,7 @@ func BuildPayForData(
 	message []byte,
 	gasLim uint64,
 ) (*types.MsgWirePayForData, error) {
-	// create the raw WirePayForMessage transaction
+	// create the raw WirePayForData transaction
 	wpfd, err := types.NewWirePayForData(nID, message, shareSizes...)
 	if err != nil {
 		return nil, err
@@ -72,7 +73,7 @@ func BuildPayForData(
 		return nil, err
 	}
 
-	// generate the signatures for each `MsgPayForMessage` using the `KeyringSigner`,
+	// generate the signatures for each `MsgPayForData` using the `KeyringSigner`,
 	// then set the gas limit for the tx
 	gasLimOption := types.SetGasLimit(gasLim)
 	err = wpfd.SignShareCommitments(signer, gasLimOption)
@@ -89,8 +90,8 @@ func SignPayForData(
 	pfd *types.MsgWirePayForData,
 	opts ...types.TxBuilderOption,
 ) (signing.Tx, error) {
-	// Build and sign the final `WirePayForMessage` tx that now contains the signatures
-	// for potential `MsgPayForMessage`s
+	// Build and sign the final `WirePayForData` tx that now contains the signatures
+	// for potential `MsgPayForData`s
 	builder := signer.NewTxBuilder()
 	for _, opt := range opts {
 		opt(builder)
