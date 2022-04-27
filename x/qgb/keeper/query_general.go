@@ -11,6 +11,6 @@ func (k Keeper) LastUnbondingHeight(
 	c context.Context,
 	req *types.QueryLastUnbondingHeightRequest) (*types.QueryLastUnbondingHeightResponse, error) {
 	return &types.QueryLastUnbondingHeightResponse{
-		Height: int64(k.GetLastUnBondingBlockHeight(sdk.UnwrapSDKContext(c))),
+		Height: k.GetLastUnBondingBlockHeight(sdk.UnwrapSDKContext(c)),
 	}, nil
 }

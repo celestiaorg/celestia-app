@@ -21,6 +21,14 @@ type relayer struct {
 	evmClient EVMClient
 }
 
+func NewRelayer(querier Querier, evmClient EVMClient) (*relayer, error) {
+	return &relayer{
+		querier:   querier,
+		bridgeID:  types.BridgeId,
+		evmClient: evmClient,
+	}, nil
+}
+
 func (r *relayer) processValsetEvents(ctx context.Context, valSetChannel <-chan types.Valset) error {
 	for valset := range valSetChannel {
 
