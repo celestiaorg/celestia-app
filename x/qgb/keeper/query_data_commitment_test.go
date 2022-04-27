@@ -183,8 +183,8 @@ func TestAllDataCommitmentsByRange(t *testing.T) {
 		"cosmos1er9mgk7x30aspqd2zwn970ywfls36ktdmgyzry",
 	}
 	type blockRange struct {
-		beingBlock int64
-		endBlock   int64
+		beingBlock uint64
+		endBlock   uint64
 	}
 	ranges := []blockRange{
 		{1, 101},
@@ -318,8 +318,8 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 		"cosmos1er9mgk7x30aspqd2zwn970ywfls36ktdmgyzry",
 	}
 	type blockRange struct {
-		beingBlock int64
-		endBlock   int64
+		beingBlock uint64
+		endBlock   uint64
 	}
 	ranges := []blockRange{
 		{1, 101},

@@ -138,8 +138,8 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 
 				// TODO: calculate start height some other way that can handle changes
 				// in the data window param
-				startHeight := height - int64(types.DataCommitmentWindow)
-				endHeight := height
+				startHeight := uint64(height) - types.DataCommitmentWindow
+				endHeight := uint64(height)
 
 				// create and send the data commitment
 				dcResp, err := oc.tendermintRPC.DataCommitment(

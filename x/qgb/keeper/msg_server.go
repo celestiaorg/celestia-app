@@ -138,7 +138,7 @@ func (k msgServer) DataCommitmentConfirm(
 	if err != nil {
 		return nil, err
 	}
-	hash := types.DataCommitmentTupleRootSignBytes(types.BridgeId, big.NewInt(nonce), commitment)
+	hash := types.DataCommitmentTupleRootSignBytes(types.BridgeId, big.NewInt(int64(nonce)), commitment)
 	err = types.ValidateEthereumSignature(hash.Bytes(), sigBytes, *ethAddress)
 	if err != nil {
 		return nil, sdkerrors.Wrap(
