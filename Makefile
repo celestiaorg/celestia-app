@@ -1,9 +1,23 @@
+#!/usr/bin/make -f
+
 PACKAGES=$(shell go list ./... | grep -v '/simulation')
+VERSION := $(shell echo $(shell git describe --tags) | sed 's/^v//')
 COMMIT := $(shell git log -1 --format='%H')
 DOCKER := $(shell which docker)
 DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
 IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
+
+# process linker flags
+
+ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
+		  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
+		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
+		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
+		  -X "github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma_sep)"
+ldflags += $(LDFLAGS)
+
+BUILD_FLAGS := -ldflags '$(ldflags)'
 
 all: install
 
@@ -24,7 +38,7 @@ build: mod
 
 install: go.sum
 		@echo "--> Installing celestia-appd"
-		@go install -mod=readonly ./cmd/celestia-appd
+		@go install -mod=readonly $(BUILD_FLAGS) ./cmd/celestia-appd
 
 go.sum: mod
 		@echo "--> Ensure dependencies have not been modified"
