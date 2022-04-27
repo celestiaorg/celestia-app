@@ -20,7 +20,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	paycli "github.com/celestiaorg/celestia-app/x/payment/client/cli"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
 	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
 )
 
