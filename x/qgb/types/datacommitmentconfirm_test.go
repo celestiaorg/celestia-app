@@ -14,8 +14,8 @@ func TestValidateMsgDataCommitmentConfirm(t *testing.T) {
 		cosmosAddress sdk.AccAddress = bytes.Repeat([]byte{0x1}, 20)
 	)
 	specs := map[string]struct {
-		beginBlock int64
-		endBlock   int64
+		beginBlock uint64
+		endBlock   uint64
 		expErr     bool
 	}{
 		"all good": {

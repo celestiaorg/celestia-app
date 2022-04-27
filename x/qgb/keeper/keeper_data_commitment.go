@@ -81,8 +81,8 @@ func (k Keeper) GetDataCommitmentConfirmsByValidator(
 // GetDataCommitmentConfirmsByRange Returns data commitment confirms by the provided range
 func (k Keeper) GetDataCommitmentConfirmsByRange(
 	ctx sdk.Context,
-	beginBlock int64,
-	endBlock int64,
+	beginBlock uint64,
+	endBlock uint64,
 ) (confirms []types.MsgDataCommitmentConfirm) {
 	store := ctx.KVStore(k.storeKey)
 	iterator := store.Iterator(nil, nil) // Can we make this faster?

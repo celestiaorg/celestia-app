@@ -113,7 +113,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 	require.NoError(t, err)
 	dataHash := types.DataCommitmentTupleRootSignBytes(
 		types.BridgeId,
-		big.NewInt(100/types.DataCommitmentWindow),
+		big.NewInt(int64(100/types.DataCommitmentWindow)),
 		bytesCommitment,
 	)
 

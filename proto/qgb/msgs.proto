@@ -67,10 +67,10 @@ message MsgDataCommitmentConfirm {
   string commitment = 4;
   // First block defining the ordered set of blocks used to create the
   // commitment.
-  int64 begin_block = 5;
+  uint64 begin_block = 5;
   // Last block defining the ordered set of blocks used to create the
   // commitment.
-  int64 end_block = 6;
+  uint64 end_block = 6;
 }
 
 // MsgValsetConfirmResponse describes the response returned after the submission
