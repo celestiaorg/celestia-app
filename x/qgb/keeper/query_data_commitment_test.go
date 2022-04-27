@@ -39,7 +39,8 @@ func TestQueryDataCommitment(t *testing.T) {
 	}{
 		"all good": {
 			src: types.QueryDataCommitmentConfirmRequest{
-				Commitment: "commitment",
+				BeginBlock: 10,
+				EndBlock:   200,
 				Address:    myValidatorCosmosAddr.String(),
 			},
 			expResp: types.QueryDataCommitmentConfirmResponse{
@@ -54,16 +55,26 @@ func TestQueryDataCommitment(t *testing.T) {
 			},
 			expErr: false,
 		},
-		"unknown commitment": {
+		"unknown end block": {
 			src: types.QueryDataCommitmentConfirmRequest{
-				Commitment: "wrong commitment",
+				BeginBlock: 10,
+				EndBlock:   199,
+				Address:    myValidatorCosmosAddr.String(),
+			},
+			expResp: types.QueryDataCommitmentConfirmResponse{Confirm: nil},
+		},
+		"unknown begin block": {
+			src: types.QueryDataCommitmentConfirmRequest{
+				BeginBlock: 11,
+				EndBlock:   200,
 				Address:    myValidatorCosmosAddr.String(),
 			},
 			expResp: types.QueryDataCommitmentConfirmResponse{Confirm: nil},
 		},
 		"invalid address": {
 			src: types.QueryDataCommitmentConfirmRequest{
-				Commitment: "commitment",
+				BeginBlock: 10,
+				EndBlock:   200,
 				Address:    "wrong address",
 			},
 			expErr: true,
@@ -112,8 +123,8 @@ func TestAllDataCommitmentsByValidator(t *testing.T) {
 		msg.Commitment = commitments[i]
 		msg.ValidatorAddress = addr.String()
 		msg.Signature = fmt.Sprintf("signature %d", i+1)
-		msg.BeginBlock = 1
-		msg.EndBlock = 200
+		msg.BeginBlock = uint64(i * 10)
+		msg.EndBlock = uint64(i*10 + 10)
 		input.QgbKeeper.SetDataCommitmentConfirm(sdkCtx, msg)
 	}
 
@@ -130,24 +141,24 @@ func TestAllDataCommitmentsByValidator(t *testing.T) {
 					"signature 1",
 					myValidatorCosmosAddr1,
 					*myValidatorEthereumAddr1,
-					1,
-					200,
+					0,
+					10,
 				),
 				*types.NewMsgDataCommitmentConfirm(
 					commitments[1],
 					"signature 2",
 					myValidatorCosmosAddr1,
 					*myValidatorEthereumAddr1,
-					1,
-					200,
+					10,
+					20,
 				),
 				*types.NewMsgDataCommitmentConfirm(
 					commitments[2],
 					"signature 3",
 					myValidatorCosmosAddr1,
 					*myValidatorEthereumAddr1,
-					1,
-					200,
+					20,
+					30,
 				),
 			}},
 		},
@@ -165,12 +176,10 @@ func TestAllDataCommitmentsByValidator(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			var gotArray []types.MsgDataCommitmentConfirm
-			if len(spec.expResp.Confirms) != 0 {
-				gotArray = make([]types.MsgDataCommitmentConfirm, len(got.Confirms))
-				copy(gotArray, got.Confirms)
+			assert.Equal(t, len(got.Confirms), len(spec.expResp.Confirms))
+			for i := 0; i < len(spec.expResp.Confirms); i++ {
+				assert.Contains(t, spec.expResp.Confirms, got.Confirms[i])
 			}
-			assert.Equal(t, spec.expResp.Confirms, gotArray)
 		})
 	}
 }
@@ -299,12 +308,10 @@ func TestAllDataCommitmentsByRange(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			var gotArray []types.MsgDataCommitmentConfirm
-			if len(spec.expResp.Confirms) != 0 {
-				gotArray = make([]types.MsgDataCommitmentConfirm, len(got.Confirms))
-				copy(gotArray, got.Confirms)
+			assert.Equal(t, len(got.Confirms), len(spec.expResp.Confirms))
+			for i := 0; i < len(spec.expResp.Confirms); i++ {
+				assert.Contains(t, spec.expResp.Confirms, got.Confirms[i])
 			}
-			assert.Equal(t, spec.expResp.Confirms, gotArray)
 		})
 	}
 }
@@ -318,7 +325,7 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 		"cosmos1er9mgk7x30aspqd2zwn970ywfls36ktdmgyzry",
 	}
 	type blockRange struct {
-		beingBlock uint64
+		beginBlock uint64
 		endBlock   uint64
 	}
 	ranges := []blockRange{
@@ -346,7 +353,7 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 		msg := types.MsgDataCommitmentConfirm{}
 		msg.EthAddress = gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20)).String()
 		msg.Commitment = commitment
-		msg.BeginBlock = ranges[i].beingBlock
+		msg.BeginBlock = ranges[i].beginBlock
 		msg.EndBlock = ranges[i].endBlock
 		msg.ValidatorAddress = addr.String()
 		msg.Signature = fmt.Sprintf("signature %d", i+1)
@@ -358,8 +365,8 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 	secondCommitmentMsg := types.MsgDataCommitmentConfirm{}
 	secondCommitmentMsg.EthAddress = gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(1)}, 20)).String()
 	secondCommitmentMsg.Commitment = secondCommitment
-	secondCommitmentMsg.BeginBlock = ranges[0].beingBlock
-	secondCommitmentMsg.EndBlock = ranges[0].endBlock
+	secondCommitmentMsg.BeginBlock = 800
+	secondCommitmentMsg.EndBlock = 900
 	secondCommitmentMsg.ValidatorAddress = addr.String()
 	secondCommitmentMsg.Signature = "signature 1"
 	input.QgbKeeper.SetDataCommitmentConfirm(sdkCtx, secondCommitmentMsg)
@@ -377,7 +384,7 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 					"signature 1",
 					myValidatorCosmosAddr1,
 					*myValidatorEthereumAddr1,
-					ranges[0].beingBlock,
+					ranges[0].beginBlock,
 					ranges[0].endBlock,
 				),
 				*types.NewMsgDataCommitmentConfirm(
@@ -385,7 +392,7 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 					"signature 2",
 					myValidatorCosmosAddr2,
 					*myValidatorEthereumAddr2,
-					ranges[1].beingBlock,
+					ranges[1].beginBlock,
 					ranges[1].endBlock,
 				),
 				*types.NewMsgDataCommitmentConfirm(
@@ -393,7 +400,7 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 					"signature 3",
 					myValidatorCosmosAddr3,
 					*myValidatorEthereumAddr3,
-					ranges[2].beingBlock,
+					ranges[2].beginBlock,
 					ranges[2].endBlock,
 				),
 			}},
@@ -411,12 +418,10 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			var gotArray []types.MsgDataCommitmentConfirm
-			if len(spec.expResp.Confirms) != 0 {
-				gotArray = make([]types.MsgDataCommitmentConfirm, len(got.Confirms))
-				copy(gotArray, got.Confirms)
+			assert.Equal(t, len(got.Confirms), len(spec.expResp.Confirms))
+			for i := 0; i < len(spec.expResp.Confirms); i++ {
+				assert.Contains(t, spec.expResp.Confirms, got.Confirms[i])
 			}
-			assert.Equal(t, spec.expResp.Confirms, gotArray)
 		})
 	}
 }

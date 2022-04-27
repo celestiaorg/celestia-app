@@ -1,6 +1,7 @@
 package types
 
 import (
+	"strconv"
 	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -102,11 +103,14 @@ func GetValidatorByEthAddressKey(ethAddress EthAddress) string {
 }
 
 // GetDataCommitmentConfirmKey returns the following key format
-// prefix   commitment                    validator-address
-// [0x0][0 0 0 0 0 0 0 1][celes1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm]
-func GetDataCommitmentConfirmKey(commitment string, validator sdk.AccAddress) string {
+// prefix  endBlock         beginBlock       validator-address
+// [0x0][0 0 0 0 0 0 0 1][0 0 0 0 0 0 0 1][celes1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm]
+func GetDataCommitmentConfirmKey(endBlock uint64, beginBlock uint64, validator sdk.AccAddress) string {
 	if err := sdk.VerifyAddressFormat(validator); err != nil {
 		panic(sdkerrors.Wrap(err, "invalid validator address"))
 	}
-	return DataCommitmentConfirmKey + commitment + string(validator.Bytes())
+	return DataCommitmentConfirmKey +
+		strconv.FormatInt(int64(endBlock), 16) +
+		strconv.FormatInt(int64(beginBlock), 16) +
+		string(validator.Bytes())
 }

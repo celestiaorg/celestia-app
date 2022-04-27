@@ -22,8 +22,9 @@ service Query {
   // and the validator address
   rpc DataCommitmentConfirm(QueryDataCommitmentConfirmRequest)
       returns (QueryDataCommitmentConfirmResponse) {
-    option (google.api.http).get = "/qgb/data_commitment/confirm/address/"
-                                   "{address}/commitment/{commitment}";
+    option (google.api.http).get =
+        "/qgb/data_commitment/confirm/begin/"
+        "{begin_block}/end/{end_block}/address/{address}";
   }
   // DataCommitmentConfirmsByValidator Queries data commitment confirms by
   // validator address
@@ -75,6 +76,13 @@ service Query {
   }
 }
 
+// QueryParamsRequest
+message QueryParamsRequest {}
+// QueryParamsResponse
+message QueryParamsResponse {
+  Params params = 1 [ (gogoproto.nullable) = false ];
+}
+
 // QueryLastValsetRequestsRequest
 message QueryLastValsetRequestsRequest {}
 
@@ -88,13 +96,6 @@ message QueryValsetRequestByNonceRequest { uint64 nonce = 1; }
 
 // QueryValsetRequestByNonceResponse
 message QueryValsetRequestByNonceResponse { Valset valset = 1; }
-
-// QueryParamsRequest
-message QueryParamsRequest {}
-// QueryParamsResponse
-message QueryParamsResponse {
-  Params params = 1 [ (gogoproto.nullable) = false ];
-}
 
 // QueryValsetConfirmsByNonceRequest
 message QueryValsetConfirmsByNonceRequest { uint64 nonce = 1; }
@@ -116,8 +117,9 @@ message QueryValsetConfirmResponse { MsgValsetConfirm confirm = 1; }
 // QueryDataCommitmentConfirmsRequest Data commitment confirm by commitment and
 // validator address request
 message QueryDataCommitmentConfirmRequest {
-  string commitment = 1;
-  string address = 2;
+  uint64 begin_block = 1;
+  uint64 end_block = 2;
+  string address = 3;
 }
 
 // QueryDataCommitmentConfirmsResponse Data commitment confirm by commitment and

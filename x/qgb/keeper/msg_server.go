@@ -153,7 +153,7 @@ func (k msgServer) DataCommitmentConfirm(
 	}
 
 	// Check if the signature was already posted
-	if k.GetDataCommitmentConfirm(ctx, msg.Commitment, validatorAddress) != nil {
+	if k.GetDataCommitmentConfirm(ctx, msg.EndBlock, msg.BeginBlock, validatorAddress) != nil {
 		return nil, sdkerrors.Wrap(types.ErrDuplicate, "signature duplicate")
 	}
 
