@@ -60,6 +60,28 @@ func request_Query_DataCommitmentConfirm_0(ctx context.Context, marshaler runtim
 		_   = err
 	)
 
+	val, ok = pathParams["begin_block"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "begin_block")
+	}
+
+	protoReq.BeginBlock, err = runtime.Uint64(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "begin_block", err)
+	}
+
+	val, ok = pathParams["end_block"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "end_block")
+	}
+
+	protoReq.EndBlock, err = runtime.Uint64(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "end_block", err)
+	}
+
 	val, ok = pathParams["address"]
 	if !ok {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "address")
@@ -69,17 +91,6 @@ func request_Query_DataCommitmentConfirm_0(ctx context.Context, marshaler runtim
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "address", err)
-	}
-
-	val, ok = pathParams["commitment"]
-	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "commitment")
-	}
-
-	protoReq.Commitment, err = runtime.String(val)
-
-	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "commitment", err)
 	}
 
 	msg, err := client.DataCommitmentConfirm(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
@@ -98,6 +109,28 @@ func local_request_Query_DataCommitmentConfirm_0(ctx context.Context, marshaler 
 		_   = err
 	)
 
+	val, ok = pathParams["begin_block"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "begin_block")
+	}
+
+	protoReq.BeginBlock, err = runtime.Uint64(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "begin_block", err)
+	}
+
+	val, ok = pathParams["end_block"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "end_block")
+	}
+
+	protoReq.EndBlock, err = runtime.Uint64(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "end_block", err)
+	}
+
 	val, ok = pathParams["address"]
 	if !ok {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "address")
@@ -107,17 +140,6 @@ func local_request_Query_DataCommitmentConfirm_0(ctx context.Context, marshaler 
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "address", err)
-	}
-
-	val, ok = pathParams["commitment"]
-	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "commitment")
-	}
-
-	protoReq.Commitment, err = runtime.String(val)
-
-	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "commitment", err)
 	}
 
 	msg, err := server.DataCommitmentConfirm(ctx, &protoReq)
@@ -942,7 +964,7 @@ func RegisterQueryHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 var (
 	pattern_Query_Params_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"qgb", "params"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_Query_DataCommitmentConfirm_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 4}, []string{"qgb", "data_commitment", "confirm", "address", "commitment"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_Query_DataCommitmentConfirm_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 2, 5, 1, 0, 4, 1, 5, 6, 2, 7, 1, 0, 4, 1, 5, 7}, []string{"qgb", "data_commitment", "confirm", "begin", "begin_block", "end", "end_block", "address"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_Query_DataCommitmentConfirmsByValidator_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 3}, []string{"qgb", "data_commitment", "confirms", "address"}, "", runtime.AssumeColonVerbOpt(true)))
 

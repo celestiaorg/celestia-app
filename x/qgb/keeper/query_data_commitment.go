@@ -19,7 +19,8 @@ func (k Keeper) DataCommitmentConfirm(
 	return &types.QueryDataCommitmentConfirmResponse{
 		Confirm: k.GetDataCommitmentConfirm(
 			sdk.UnwrapSDKContext(c),
-			request.Commitment,
+			request.EndBlock,
+			request.BeginBlock,
 			addr,
 		),
 	}, nil

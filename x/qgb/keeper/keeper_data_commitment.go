@@ -5,10 +5,12 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// GetDataCommitmentConfirm Returns a data commitment confirm by commitment and validator address
+// GetDataCommitmentConfirm Returns a data commitment confirm by nonce and validator address
+// nonce = endBlock % data window in decimal base
 func (k Keeper) GetDataCommitmentConfirm(
 	ctx sdk.Context,
-	commitment string,
+	endBlock uint64,
+	beginBlock uint64,
 	validator sdk.AccAddress,
 ) *types.MsgDataCommitmentConfirm {
 	store := ctx.KVStore(k.storeKey)
@@ -16,7 +18,7 @@ func (k Keeper) GetDataCommitmentConfirm(
 		ctx.Logger().Error("invalid validator address")
 		return nil
 	}
-	key := store.Get([]byte(types.GetDataCommitmentConfirmKey(commitment, validator)))
+	key := store.Get([]byte(types.GetDataCommitmentConfirmKey(endBlock, beginBlock, validator)))
 	if key == nil {
 		return nil
 	}
@@ -25,13 +27,14 @@ func (k Keeper) GetDataCommitmentConfirm(
 	return &confirm
 }
 
-// GetDataCommitmentConfirmsByCommitment Returns data commitment confirms by commitment
+// GetDataCommitmentConfirmsByCommitment Returns data commitment confirms by nonce
+// Too heavy, shouldn't be primarily used
 func (k Keeper) GetDataCommitmentConfirmsByCommitment(
 	ctx sdk.Context,
 	commitment string,
 ) (confirms []types.MsgDataCommitmentConfirm) {
 	store := ctx.KVStore(k.storeKey)
-	iterator := sdk.KVStorePrefixIterator(store, []byte(types.DataCommitmentConfirmKey+commitment))
+	iterator := store.Iterator(nil, nil)
 
 	defer iterator.Close()
 
@@ -110,19 +113,24 @@ func (k Keeper) SetDataCommitmentConfirm(ctx sdk.Context, dcConf types.MsgDataCo
 	if err != nil {
 		panic(err)
 	}
-	key := []byte(types.GetDataCommitmentConfirmKey(dcConf.Commitment, addr))
+	key := []byte(types.GetDataCommitmentConfirmKey(dcConf.EndBlock, dcConf.BeginBlock, addr))
 	store.Set(key, k.cdc.MustMarshal(&dcConf))
 	return key
 }
 
-// DeleteDataCommitmentConfirms deletes a data commitment confirm by commitment and validator address
-func (k Keeper) DeleteDataCommitmentConfirms(ctx sdk.Context, commitment string, validator sdk.AccAddress) {
+// DeleteDataCommitmentConfirms deletes a data commitment confirm by range and validator address
+func (k Keeper) DeleteDataCommitmentConfirms(
+	ctx sdk.Context,
+	endBlock uint64,
+	beginBlock uint64,
+	validator sdk.AccAddress,
+) {
 	store := ctx.KVStore(k.storeKey)
 	if err := sdk.VerifyAddressFormat(validator); err != nil {
 		ctx.Logger().Error("invalid validator address")
 		return
 	}
-	key := store.Get([]byte(types.GetDataCommitmentConfirmKey(commitment, validator)))
+	key := store.Get([]byte(types.GetDataCommitmentConfirmKey(endBlock, beginBlock, validator)))
 	if key == nil {
 		return
 	}

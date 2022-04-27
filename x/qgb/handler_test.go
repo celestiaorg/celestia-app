@@ -134,7 +134,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 	require.NoError(t, err)
 
 	// Checking if it was correctly submitted
-	actualCommitment := k.GetDataCommitmentConfirm(ctx, commitment, orchAddress)
+	actualCommitment := k.GetDataCommitmentConfirm(ctx, 100, 1, orchAddress)
 	assert.Equal(t, setDCCMsg, actualCommitment)
 
 	// Checking if the event was successfully sent
