@@ -73,6 +73,11 @@ service Query {
       returns (QueryValsetConfirmResponse) {
     option (google.api.http).get = "/qgb/valset/confirm";
   }
+  // LastValsetBeforeHeight Queries last Valset before height
+  rpc LastValsetBeforeHeight(QueryLastValsetBeforeHeightRequest)
+      returns (QueryLastValsetBeforeHeightResponse) {
+    option (google.api.http).get = "/qgb/valset/request/before/{height}";
+  }
   // ValsetConfirmsByNonce
   rpc ValsetConfirmsByNonce(QueryValsetConfirmsByNonceRequest)
       returns (QueryValsetConfirmsByNonceResponse) {
@@ -122,6 +127,14 @@ message QueryValsetConfirmRequest {
 
 // QueryValsetConfirmResponse ValSet confirm query response
 message QueryValsetConfirmResponse { MsgValsetConfirm confirm = 1; }
+
+// QueryLastValsetRequestBeforeHeightRequest last Valset request before height
+// request
+message QueryLastValsetBeforeHeightRequest { uint64 height = 1; }
+
+// QueryLastValsetRequestBeforeHeightResponse last Valset request before height
+// response
+message QueryLastValsetBeforeHeightResponse { Valset valset = 1; }
 
 // QueryDataCommitmentConfirmsRequest Data commitment confirm by commitment and
 // validator address request
