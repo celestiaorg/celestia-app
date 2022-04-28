@@ -66,3 +66,16 @@ func (k Keeper) DataCommitmentConfirmsByRange(
 		),
 	}, nil
 }
+
+func (k Keeper) DataCommitmentConfirmsByExactRange(
+	ctx context.Context,
+	request *types.QueryDataCommitmentConfirmsByExactRangeRequest,
+) (*types.QueryDataCommitmentConfirmsByExactRangeResponse, error) {
+	return &types.QueryDataCommitmentConfirmsByExactRangeResponse{
+		Confirms: k.GetDataCommitmentConfirmsByExactRange(
+			sdk.UnwrapSDKContext(ctx),
+			request.BeginBlock,
+			request.EndBlock,
+		),
+	}, nil
+}
