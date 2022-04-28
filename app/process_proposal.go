@@ -43,7 +43,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 	}
 
-	// quickly compare the number of PFMs and messages, if they aren't
+	// quickly compare the number of PFDs and messages, if they aren't
 	// identical, then  we already know this block is invalid
 	if commitmentCounter != len(req.BlockData.Messages.MessagesList) {
 		app.Logger().Error(
