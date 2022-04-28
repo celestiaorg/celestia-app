@@ -3,7 +3,10 @@ package keeper
 import (
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"strconv"
 )
+
+// TODO add unit tests for alll the keepers
 
 // GetDataCommitmentConfirm Returns a data commitment confirm by nonce and validator address
 // nonce = endBlock % data window in decimal base
@@ -99,6 +102,37 @@ func (k Keeper) GetDataCommitmentConfirmsByRange(
 			continue
 		}
 		if beginBlock <= confirm.BeginBlock && endBlock >= confirm.EndBlock {
+			confirms = append(confirms, confirm)
+		}
+	}
+
+	return confirms
+}
+
+// GetDataCommitmentConfirmsByExactRange Returns data commitment confirms by the provided exact range
+func (k Keeper) GetDataCommitmentConfirmsByExactRange(
+	ctx sdk.Context,
+	beginBlock uint64,
+	endBlock uint64,
+) (confirms []types.MsgDataCommitmentConfirm) {
+	store := ctx.KVStore(k.storeKey)
+	iterator := sdk.KVStorePrefixIterator(
+		store,
+		[]byte(types.DataCommitmentConfirmKey+
+			strconv.FormatInt(int64(endBlock), 16)+
+			strconv.FormatInt(int64(beginBlock), 16),
+		),
+	)
+
+	defer iterator.Close()
+
+	for ; iterator.Valid(); iterator.Next() {
+		confirm := types.MsgDataCommitmentConfirm{}
+		err := k.cdc.Unmarshal(iterator.Value(), &confirm)
+		if err != nil {
+			continue
+		}
+		if beginBlock == confirm.BeginBlock && endBlock == confirm.EndBlock {
 			confirms = append(confirms, confirm)
 		}
 	}
