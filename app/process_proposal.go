@@ -13,7 +13,7 @@ const (
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
 	// Check for message inclusion:
 	//  - each MsgPayForData included in a block should have a corresponding message also in the block data
-	//  - the commitment in each PFM should match that of its corresponding message
+	//  - the commitment in each PFD should match that of its corresponding data
 	//  - there should be no unpaid for messages
 
 	// extract the commitments from any MsgPayForDatas in the block
