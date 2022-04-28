@@ -50,7 +50,7 @@ func (k Keeper) LastValsetBeforeHeight(
 	valReq := k.GetValsets(sdk.UnwrapSDKContext(c))
 	for _, valset := range valReq {
 		if !k.HasValsetRequest(sdk.UnwrapSDKContext(c), valset.Nonce+1) ||
-			(valset.Height <= req.Height && k.GetValset(sdk.UnwrapSDKContext(c), valset.Nonce+1).Height >= req.Height) {
+			(valset.Height < req.Height && k.GetValset(sdk.UnwrapSDKContext(c), valset.Nonce+1).Height >= req.Height) {
 			vs, err := types.CopyValset(valset)
 			if err != nil {
 				return nil, err
