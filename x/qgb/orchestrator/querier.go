@@ -17,7 +17,12 @@ var _ Querier = &querier{}
 
 type Querier interface {
 	QueryDataCommitments(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error)
-	QueryDataCommitmentConfirm(ctx context.Context, commit string, address string) (*types.MsgDataCommitmentConfirm, error)
+	QueryDataCommitmentConfirm(
+		ctx context.Context,
+		endBlock uint64,
+		beginBlock uint64,
+		address string,
+	) (*types.MsgDataCommitmentConfirm, error)
 	QueryLastValset(ctx context.Context) (types.Valset, error)
 	QueryTwoThirdsDataCommitmentConfirms(
 		ctx context.Context,
@@ -32,8 +37,8 @@ type Querier interface {
 	QueryLastValsets(ctx context.Context) ([]types.Valset, error)
 	QueryValsetConfirm(ctx context.Context, nonce uint64, address string) (*types.MsgValsetConfirm, error)
 	QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error)
-	QueryHeight(ctx context.Context) (int64, error)
-	QueryLastUnbondingHeight(ctx context.Context) (int64, error)
+	QueryHeight(ctx context.Context) (uint64, error)
+	QueryLastUnbondingHeight(ctx context.Context) (uint64, error)
 }
 
 type querier struct {
@@ -271,16 +276,16 @@ func (q *querier) QueryValsetConfirm(
 	return resp.Confirm, nil
 }
 
-func (q *querier) QueryHeight(ctx context.Context) (int64, error) {
+func (q *querier) QueryHeight(ctx context.Context) (uint64, error) {
 	resp, err := q.tendermintRPC.Status(ctx)
 	if err != nil {
 		return 0, err
 	}
 
-	return resp.SyncInfo.LatestBlockHeight, nil
+	return uint64(resp.SyncInfo.LatestBlockHeight), nil
 }
 
-func (q *querier) QueryLastUnbondingHeight(ctx context.Context) (int64, error) {
+func (q *querier) QueryLastUnbondingHeight(ctx context.Context) (uint64, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
 	resp, err := queryClient.LastUnbondingHeight(ctx, &types.QueryLastUnbondingHeightRequest{})
 	if err != nil {
@@ -292,7 +297,8 @@ func (q *querier) QueryLastUnbondingHeight(ctx context.Context) (int64, error) {
 
 func (q *querier) QueryDataCommitmentConfirm(
 	ctx context.Context,
-	commit string,
+	endBlock uint64,
+	beginBlock uint64,
 	address string,
 ) (*types.MsgDataCommitmentConfirm, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
@@ -300,7 +306,8 @@ func (q *querier) QueryDataCommitmentConfirm(
 	confirmsResp, err := queryClient.DataCommitmentConfirm(
 		ctx,
 		&types.QueryDataCommitmentConfirmRequest{
-			Commitment: commit,
+			EndBlock:   endBlock,
+			BeginBlock: beginBlock,
 			Address:    address,
 		},
 	)

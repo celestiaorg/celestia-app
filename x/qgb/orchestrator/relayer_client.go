@@ -124,10 +124,10 @@ func (oc *relayerClient) SubscribeDataCommitment(ctx context.Context) (<-chan Ex
 					oc.logger.Error(err.Error())
 					continue
 				}
-				currentNonce := currentHeight % int64(types.DataCommitmentWindow)
+				currentNonce := currentHeight % types.DataCommitmentWindow
 
 				// If we're at the latest nonce, we sleep
-				if int64(lastContractNonce) >= currentNonce {
+				if lastContractNonce >= currentNonce {
 					time.Sleep(10 * time.Second)
 					continue
 				}

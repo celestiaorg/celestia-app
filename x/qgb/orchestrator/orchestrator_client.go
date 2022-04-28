@@ -150,7 +150,7 @@ func (oc *orchestratorClient) addOldVSAttestations(ctx context.Context, valsetsC
 			oc.logger.Error(err.Error())
 			return err
 		}
-		if int64(correspondingVs.Height) < lastUnbondingHeight {
+		if correspondingVs.Height < lastUnbondingHeight {
 			// Most likely, we're up to date and don't need to catchup anymore
 			oc.logger.Info("Finished Valsets attestation signature catchup")
 			return nil
@@ -252,8 +252,8 @@ func (oc *orchestratorClient) addOldDCAttestations(
 		return err
 	}
 
-	var previousBeginBlock int64
-	var previousEndBlock int64
+	var previousBeginBlock uint64
+	var previousEndBlock uint64
 
 	if currentHeight%types.DataCommitmentWindow == 0 {
 		previousBeginBlock = currentHeight
@@ -265,28 +265,17 @@ func (oc *orchestratorClient) addOldDCAttestations(
 	for {
 		// Will be refactored when we have data commitment requests
 		previousEndBlock = previousBeginBlock
-		previousBeginBlock = previousEndBlock - int64(types.DataCommitmentWindow)
+		previousBeginBlock = previousEndBlock - types.DataCommitmentWindow
 
 		if previousBeginBlock == 0 {
 			oc.logger.Info("Finished Data Commitments attestation signature catchup")
 			return nil
 		}
 
-		previousCommitment, err := oc.tendermintRPC.DataCommitment(
-			ctx,
-			fmt.Sprintf("block.height >= %d AND block.height <= %d",
-				previousBeginBlock,
-				previousEndBlock,
-			),
-		)
-		if err != nil {
-			oc.logger.Error(err.Error())
-			continue
-		}
-
 		existingConfirm, err := oc.querier.QueryDataCommitmentConfirm(
 			ctx,
-			previousCommitment.DataCommitment.String(),
+			previousEndBlock,
+			previousBeginBlock,
 			oc.orchestratorAddress,
 		)
 		if err != nil {
@@ -303,7 +292,20 @@ func (oc *orchestratorClient) addOldDCAttestations(
 			// In case we have holes in the signatures
 			continue
 		}
-		previousNonce := uint64(previousEndBlock) / types.DataCommitmentWindow
+		previousNonce := previousEndBlock / types.DataCommitmentWindow
+
+		previousCommitment, err := oc.tendermintRPC.DataCommitment(
+			ctx,
+			fmt.Sprintf("block.height >= %d AND block.height <= %d",
+				previousBeginBlock,
+				previousEndBlock,
+			),
+		)
+		if err != nil {
+			oc.logger.Error(err.Error())
+			continue
+		}
+
 		dataCommitmentsChan <- ExtendedDataCommitment{
 			Commitment: previousCommitment.DataCommitment,
 			Start:      previousBeginBlock,
