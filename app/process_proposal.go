@@ -32,7 +32,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 				continue
 			}
 
-			pfm, ok := msg.(*types.MsgPayForData)
+			pfd, ok := msg.(*types.MsgPayForData)
 			if !ok {
 				continue
 			}
