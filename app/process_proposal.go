@@ -37,7 +37,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 				continue
 			}
 
-			commitments[string(pfm.MessageShareCommitment)] = struct{}{}
+			commitments[string(pfd.MessageShareCommitment)] = struct{}{}
 			commitmentCounter++
 		}
 
