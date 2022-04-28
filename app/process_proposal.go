@@ -18,7 +18,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 	// extract the commitments from any MsgPayForDatas in the block
 	commitments := make(map[string]struct{})
-	// we have a separate counter so that identical messages also get counted
+	// we have a separate counter so that identical data also get counted
 	// also see https://github.com/celestiaorg/celestia-app/issues/226
 	commitmentCounter := 0
 	for _, rawTx := range req.BlockData.Txs {
