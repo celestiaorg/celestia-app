@@ -14,7 +14,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	// Check for message inclusion:
 	//  - each MsgPayForData included in a block should have a corresponding data also in the block body
 	//  - the commitment in each PFD should match that of its corresponding data
-	//  - there should be no unpaid for messages
+	//  - there should be no unpaid-for data
 
 	// extract the commitments from any MsgPayForDatas in the block
 	commitments := make(map[string]struct{})
