@@ -49,6 +49,15 @@ service Query {
     option (google.api.http).get = "/qgb/data_commitment/confirms/begin_block/"
                                    "{begin_block}/end_block/{end_block}";
   }
+  // DataCommitmentConfirmsByExactRange Queries data commitment confirms by an
+  // exact block range
+  rpc DataCommitmentConfirmsByExactRange(
+      QueryDataCommitmentConfirmsByExactRangeRequest)
+      returns (QueryDataCommitmentConfirmsByExactRangeResponse) {
+    option (google.api.http).get =
+        "/qgb/data_commitment/confirms/exact/begin_block/"
+        "{begin_block}/end_block/{end_block}";
+  }
   // LastValsetRequests queries for the latest valset requests
   rpc LastValsetRequests(QueryLastValsetRequestsRequest)
       returns (QueryLastValsetRequestsResponse) {
@@ -151,6 +160,20 @@ message QueryDataCommitmentConfirmsByRangeRequest {
 // QueryDataCommitmentConfirmsByRangeResponse Data commitment confirms by range
 // response
 message QueryDataCommitmentConfirmsByRangeResponse {
+  repeated MsgDataCommitmentConfirm confirms = 1
+      [ (gogoproto.nullable) = false ];
+}
+
+// QueryDataCommitmentConfirmsByExactRangeRequest Data commitment confirms by
+// exact range request
+message QueryDataCommitmentConfirmsByExactRangeRequest {
+  uint64 begin_block = 1;
+  uint64 end_block = 2;
+}
+
+// QueryDataCommitmentConfirmsByExactRangeResponse Data commitment confirms by
+// exact range response
+message QueryDataCommitmentConfirmsByExactRangeResponse {
   repeated MsgDataCommitmentConfirm confirms = 1
       [ (gogoproto.nullable) = false ];
 }
