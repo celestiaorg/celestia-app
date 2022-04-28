@@ -2,6 +2,8 @@ package orchestrator
 
 import (
 	"context"
+	tmlog "github.com/tendermint/tendermint/libs/log"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -27,6 +29,7 @@ func setupTestOrchestrator(t *testing.T, bc Broadcaster) *orchestrator {
 		orchestratorAddress: crypto.PubkeyToAddress(priv.PublicKey).Hex(),
 		bridgeID:            types.BridgeId,
 		evmPrivateKey:       *priv,
+		logger:              tmlog.NewTMLogger(os.Stdout),
 	}
 }
 
