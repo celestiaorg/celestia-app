@@ -8,6 +8,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+// TODO add unit tests for all of these requests
 // LastValsetRequests queries the LastValsetRequests of the qgb module
 func (k Keeper) LastValsetRequests(
 	c context.Context,
@@ -40,4 +41,22 @@ func (k Keeper) ValsetRequestByNonce(
 	}
 
 	return nil, sdkerrors.Wrap(sdkerrors.ErrNotFound, "valset request nonce not found")
+}
+
+// LastValsetBeforeHeight queries the last valset request before height
+func (k Keeper) LastValsetBeforeHeight(
+	c context.Context,
+	req *types.QueryLastValsetBeforeHeightRequest) (*types.QueryLastValsetBeforeHeightResponse, error) {
+	valReq := k.GetValsets(sdk.UnwrapSDKContext(c))
+	for _, valset := range valReq {
+		if valset.Height <= req.Height && k.GetValset(sdk.UnwrapSDKContext(c), valset.Nonce+1).Height >= req.Height {
+			vs, err := types.CopyValset(valset)
+			if err != nil {
+				return nil, err
+			}
+			return &types.QueryLastValsetBeforeHeightResponse{Valset: vs}, nil
+		}
+	}
+
+	return nil, sdkerrors.Wrap(sdkerrors.ErrNotFound, "last valset request before height not found")
 }
