@@ -59,7 +59,7 @@ func CmdWirePayForData() *cobra.Command {
 				return err
 			}
 			squareSizes64 := parseSquareSizes(squareSizes)
-			pfmMsg, err := types.NewWirePayForData(namespace, message, squareSizes64...)
+			pfdMsg, err := types.NewWirePayForData(namespace, message, squareSizes64...)
 			if err != nil {
 				return err
 			}
@@ -91,7 +91,7 @@ func CmdWirePayForData() *cobra.Command {
 			}
 
 			// sign the  MsgPayForData's ShareCommitments
-			err = pfmMsg.SignShareCommitments(
+			err = pfdMsg.SignShareCommitments(
 				signer,
 				types.SetGasLimit(gasSetting.Gas),
 				types.SetFeeAmount(parsedFees),
@@ -101,10 +101,10 @@ func CmdWirePayForData() *cobra.Command {
 			}
 
 			// run message checks
-			if err = pfmMsg.ValidateBasic(); err != nil {
+			if err = pfdMsg.ValidateBasic(); err != nil {
 				return err
 			}
-			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), pfmMsg)
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), pfdMsg)
 		},
 	}
 
