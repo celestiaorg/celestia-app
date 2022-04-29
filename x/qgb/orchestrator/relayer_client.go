@@ -104,7 +104,7 @@ func (oc *relayerClient) SubscribeValset(ctx context.Context) (<-chan types.Vals
 }
 
 func (oc *relayerClient) SubscribeDataCommitment(ctx context.Context) (<-chan ExtendedDataCommitment, error) {
-	dataCommitments := make(chan ExtendedDataCommitment, 10)
+	dataCommitments := make(chan ExtendedDataCommitment)
 
 	go func() {
 		defer close(dataCommitments)
