@@ -49,7 +49,14 @@ func (k Keeper) LastValsetBeforeHeight(
 	req *types.QueryLastValsetBeforeHeightRequest) (*types.QueryLastValsetBeforeHeightResponse, error) {
 	valReq := k.GetValsets(sdk.UnwrapSDKContext(c))
 	for _, valset := range valReq {
-		if valset.Height <= req.Height && k.GetValset(sdk.UnwrapSDKContext(c), valset.Nonce+1).Height >= req.Height {
+		// The first check is correct because we will always have a valset at block 0.
+		// We're creating valsets:
+		//  - If we have no valset
+		//	- We're an unbonding height
+		//	- There was a significant power difference in the validator set
+		// For more information, check qgb/abci.go.EndBlocker:42
+		if !k.HasValsetRequest(sdk.UnwrapSDKContext(c), valset.Nonce+1) ||
+			(valset.Height < req.Height && k.GetValset(sdk.UnwrapSDKContext(c), valset.Nonce+1).Height >= req.Height) {
 			vs, err := types.CopyValset(valset)
 			if err != nil {
 				return nil, err
