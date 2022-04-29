@@ -3,12 +3,13 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	coretypes "github.com/tendermint/tendermint/types"
-	"sync"
 )
 
 var _ AppClient = &orchestratorClient{}
