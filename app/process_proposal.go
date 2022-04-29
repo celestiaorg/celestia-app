@@ -56,7 +56,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	// iterate through all of the messages and ensure that a PFM with the exact
+	// iterate through all of the messages and ensure that a PFD with the exact
 	// commitment exists
 	for _, msg := range req.BlockData.Messages.MessagesList {
 		commit, err := types.CreateCommitment(app.SquareSize(), msg.NamespaceId, msg.Data)

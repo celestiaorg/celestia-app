@@ -26,26 +26,26 @@ func TestMessageInclusionCheck(t *testing.T) {
 
 	encConf := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
 
-	firstValidPFM, msg1 := genRandMsgPayForData(t, signer)
-	secondValidPFM, msg2 := genRandMsgPayForData(t, signer)
+	firstValidPFD, msg1 := genRandMsgPayForData(t, signer)
+	secondValidPFD, msg2 := genRandMsgPayForData(t, signer)
 
-	invalidCommitmentPFM, msg3 := genRandMsgPayForData(t, signer)
-	invalidCommitmentPFM.MessageShareCommitment = tmrand.Bytes(32)
+	invalidCommitmentPFD, msg3 := genRandMsgPayForData(t, signer)
+	invalidCommitmentPFD.MessageShareCommitment = tmrand.Bytes(32)
 
 	// block with all messages included
 	validData := core.Data{
 		Txs: [][]byte{
-			buildTx(t, signer, encConf.TxConfig, firstValidPFM),
-			buildTx(t, signer, encConf.TxConfig, secondValidPFM),
+			buildTx(t, signer, encConf.TxConfig, firstValidPFD),
+			buildTx(t, signer, encConf.TxConfig, secondValidPFD),
 		},
 		Messages: core.Messages{
 			MessagesList: []*core.Message{
 				{
-					NamespaceId: firstValidPFM.MessageNamespaceId,
+					NamespaceId: firstValidPFD.MessageNamespaceId,
 					Data:        msg1,
 				},
 				{
-					NamespaceId: secondValidPFM.MessageNamespaceId,
+					NamespaceId: secondValidPFD.MessageNamespaceId,
 					Data:        msg2,
 				},
 			},
@@ -55,13 +55,13 @@ func TestMessageInclusionCheck(t *testing.T) {
 	// block with a missing message
 	missingMessageData := core.Data{
 		Txs: [][]byte{
-			buildTx(t, signer, encConf.TxConfig, firstValidPFM),
-			buildTx(t, signer, encConf.TxConfig, secondValidPFM),
+			buildTx(t, signer, encConf.TxConfig, firstValidPFD),
+			buildTx(t, signer, encConf.TxConfig, secondValidPFD),
 		},
 		Messages: core.Messages{
 			MessagesList: []*core.Message{
 				{
-					NamespaceId: firstValidPFM.MessageNamespaceId,
+					NamespaceId: firstValidPFD.MessageNamespaceId,
 					Data:        msg1,
 				},
 			},
@@ -71,17 +71,17 @@ func TestMessageInclusionCheck(t *testing.T) {
 	// block with all messages included, but the commitment is changed
 	invalidData := core.Data{
 		Txs: [][]byte{
-			buildTx(t, signer, encConf.TxConfig, firstValidPFM),
-			buildTx(t, signer, encConf.TxConfig, secondValidPFM),
+			buildTx(t, signer, encConf.TxConfig, firstValidPFD),
+			buildTx(t, signer, encConf.TxConfig, secondValidPFD),
 		},
 		Messages: core.Messages{
 			MessagesList: []*core.Message{
 				{
-					NamespaceId: firstValidPFM.MessageNamespaceId,
+					NamespaceId: firstValidPFD.MessageNamespaceId,
 					Data:        msg1,
 				},
 				{
-					NamespaceId: invalidCommitmentPFM.MessageNamespaceId,
+					NamespaceId: invalidCommitmentPFD.MessageNamespaceId,
 					Data:        msg3,
 				},
 			},
@@ -91,16 +91,16 @@ func TestMessageInclusionCheck(t *testing.T) {
 	// block with all messages included
 	extraMessageData := core.Data{
 		Txs: [][]byte{
-			buildTx(t, signer, encConf.TxConfig, firstValidPFM),
+			buildTx(t, signer, encConf.TxConfig, firstValidPFD),
 		},
 		Messages: core.Messages{
 			MessagesList: []*core.Message{
 				{
-					NamespaceId: firstValidPFM.MessageNamespaceId,
+					NamespaceId: firstValidPFD.MessageNamespaceId,
 					Data:        msg1,
 				},
 				{
-					NamespaceId: secondValidPFM.MessageNamespaceId,
+					NamespaceId: secondValidPFD.MessageNamespaceId,
 					Data:        msg2,
 				},
 			},
@@ -158,12 +158,12 @@ func genRandMsgPayForData(t *testing.T, signer *types.KeyringSigner) (*types.Msg
 	commit, err := types.CreateCommitment(consts.MaxSquareSize, ns, message)
 	require.NoError(t, err)
 
-	pfm := types.MsgPayForData{
+	pfd := types.MsgPayForData{
 		MessageShareCommitment: commit,
 		MessageNamespaceId:     ns,
 	}
 
-	return &pfm, message
+	return &pfd, message
 }
 
 func buildTx(t *testing.T, signer *types.KeyringSigner, txCfg client.TxConfig, msg sdk.Msg) []byte {
