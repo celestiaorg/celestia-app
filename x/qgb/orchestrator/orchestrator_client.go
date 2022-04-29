@@ -160,6 +160,8 @@ func (oc *orchestratorClient) addOldValsetAttestations(ctx context.Context, vals
 			continue
 		}
 
+		// valsetChan is the ordinary valset channel used above. The orchestrator keeps adding to it
+		// old attestations same as with new ones when listening.
 		valsetsChan <- *correspondingVs
 	}
 }
