@@ -3,12 +3,13 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	coretypes "github.com/tendermint/tendermint/types"
-	"sync"
 )
 
 var _ AppClient = &orchestratorClient{}
@@ -58,7 +59,7 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 	valsetsChan := make(chan types.Valset, 100)
 
 	// will change once we have the new design
-	go oc.addOldVSAttestations(ctx, valsetsChan) //nolint:errcheck
+	go oc.addOldValsetAttestations(ctx, valsetsChan) //nolint:errcheck
 
 	results, err := oc.tendermintRPC.Subscribe(
 		ctx,
@@ -110,8 +111,9 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 	return valsetsChan, nil
 }
 
-func (oc *orchestratorClient) addOldVSAttestations(ctx context.Context, valsetsChan chan types.Valset) error {
+func (oc *orchestratorClient) addOldValsetAttestations(ctx context.Context, valsetsChan chan types.Valset) error {
 	oc.logger.Info("Started adding Valsets attestation to queue")
+	defer oc.logger.Info("Finished adding Valsets attestation to queue")
 	lastUnbondingHeight, err := oc.querier.QueryLastUnbondingHeight(ctx)
 	if err != nil {
 		oc.logger.Error(err.Error())
@@ -134,7 +136,6 @@ func (oc *orchestratorClient) addOldVSAttestations(ctx context.Context, valsetsC
 	previousNonce := valsets[0].Nonce
 	for {
 		if previousNonce == 1 {
-			oc.logger.Info("Finished adding Valsets attestation to queue")
 			return nil
 		}
 		previousNonce = previousNonce - 1
@@ -144,7 +145,7 @@ func (oc *orchestratorClient) addOldVSAttestations(ctx context.Context, valsetsC
 			return err
 		}
 		// The valset signed by the orchestrator to get lastVsConfirm
-		// Used to get the height that valset waas first introduced
+		// Used to get the height that valset was first introduced
 		correspondingVs, err := oc.querier.QueryValsetByNonce(ctx, previousNonce)
 		if err != nil {
 			oc.logger.Error(err.Error())
@@ -152,7 +153,6 @@ func (oc *orchestratorClient) addOldVSAttestations(ctx context.Context, valsetsC
 		}
 		if correspondingVs.Height < lastUnbondingHeight {
 			// Most likely, we're up to date and don't need to catchup anymore
-			oc.logger.Info("Finished adding Valsets attestation to queue")
 			return nil
 		}
 		if lastVsConfirm != nil {
@@ -160,6 +160,8 @@ func (oc *orchestratorClient) addOldVSAttestations(ctx context.Context, valsetsC
 			continue
 		}
 
+		// valsetChan is the ordinary valset channel used above. The orchestrator keeps adding to it
+		// old attestations same as with new ones when listening.
 		valsetsChan <- *correspondingVs
 	}
 }
@@ -168,7 +170,7 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 	dataCommitments := make(chan ExtendedDataCommitment, 100)
 
 	// will change once we have the new design
-	go oc.addOldDCAttestations(ctx, dataCommitments) //nolint:errcheck
+	go oc.addOldDataCommitmentAttestations(ctx, dataCommitments) //nolint:errcheck
 
 	// queryClient := types.NewQueryClient(orchestratorClient.qgbRPC)
 
@@ -235,11 +237,12 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 	return dataCommitments, nil
 }
 
-func (oc *orchestratorClient) addOldDCAttestations(
+func (oc *orchestratorClient) addOldDataCommitmentAttestations(
 	ctx context.Context,
 	dataCommitmentsChan chan ExtendedDataCommitment,
 ) error {
 	oc.logger.Info("Started adding old Data Commitments attestation to queue")
+	defer oc.logger.Info("Finished adding old Data Commitments attestation to queue")
 	lastUnbondingHeight, err := oc.querier.QueryLastUnbondingHeight(ctx)
 	if err != nil {
 		oc.logger.Error(err.Error())
@@ -268,7 +271,6 @@ func (oc *orchestratorClient) addOldDCAttestations(
 		previousBeginBlock = previousEndBlock - types.DataCommitmentWindow
 
 		if previousEndBlock == 0 {
-			oc.logger.Info("Finished adding old Data Commitments attestation to queue")
 			return nil
 		}
 
@@ -285,7 +287,6 @@ func (oc *orchestratorClient) addOldDCAttestations(
 
 		if previousEndBlock < lastUnbondingHeight {
 			// Most likely, we're up to date and don't need to catchup anymore
-			oc.logger.Info("Finished Data Commitments attestation signature catchup")
 			return nil
 		}
 		if existingConfirm != nil {
