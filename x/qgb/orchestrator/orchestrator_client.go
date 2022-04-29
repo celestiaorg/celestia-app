@@ -46,6 +46,7 @@ func NewOrchestratorClient(
 	}, nil
 }
 
+// TODO this will be removed when we use the new job/worker design for the client
 func contains(s []uint64, nonce uint64) bool {
 	for _, v := range s {
 		if v == nonce {
@@ -111,49 +112,49 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 	return valsetsChan, nil
 }
 
-func (oc *orchestratorClient) addOldValsetAttestations(ctx context.Context, valsetsChan chan types.Valset) error {
+func (oc *orchestratorClient) addOldValsetAttestations(ctx context.Context, valsetsChan chan types.Valset) {
 	oc.logger.Info("Started adding Valsets attestation to queue")
 	defer oc.logger.Info("Finished adding Valsets attestation to queue")
 	lastUnbondingHeight, err := oc.querier.QueryLastUnbondingHeight(ctx)
 	if err != nil {
 		oc.logger.Error(err.Error())
-		return err
+		return
 	}
 
 	valsets, err := oc.querier.QueryLastValsets(ctx)
 	if err != nil {
 		oc.logger.Error(err.Error())
-		return err
+		return
 	}
 
 	// todo: double check that the first validator set is found
 	if len(valsets) < 1 {
 		oc.logger.Error("no validator sets found")
-		return nil
+		return
 	}
 	valsetsChan <- valsets[0]
 
 	previousNonce := valsets[0].Nonce
 	for {
 		if previousNonce == 1 {
-			return nil
+			return
 		}
 		previousNonce = previousNonce - 1
 		lastVsConfirm, err := oc.querier.QueryValsetConfirm(ctx, previousNonce, oc.orchestratorAddress)
 		if err != nil {
 			oc.logger.Error(err.Error())
-			return err
+			return
 		}
 		// The valset signed by the orchestrator to get lastVsConfirm
 		// Used to get the height that valset was first introduced
 		correspondingVs, err := oc.querier.QueryValsetByNonce(ctx, previousNonce)
 		if err != nil {
 			oc.logger.Error(err.Error())
-			return err
+			return
 		}
 		if correspondingVs.Height < lastUnbondingHeight {
 			// Most likely, we're up to date and don't need to catchup anymore
-			return nil
+			return
 		}
 		if lastVsConfirm != nil {
 			// in case we have holes in the signatures
@@ -240,19 +241,19 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 func (oc *orchestratorClient) addOldDataCommitmentAttestations(
 	ctx context.Context,
 	dataCommitmentsChan chan ExtendedDataCommitment,
-) error {
+) {
 	oc.logger.Info("Started adding old Data Commitments attestation to queue")
 	defer oc.logger.Info("Finished adding old Data Commitments attestation to queue")
 	lastUnbondingHeight, err := oc.querier.QueryLastUnbondingHeight(ctx)
 	if err != nil {
 		oc.logger.Error(err.Error())
-		return err
+		return
 	}
 
 	currentHeight, err := oc.querier.QueryHeight(ctx)
 	if err != nil {
 		oc.logger.Error(err.Error())
-		return err
+		return
 	}
 
 	var previousBeginBlock uint64
@@ -271,7 +272,7 @@ func (oc *orchestratorClient) addOldDataCommitmentAttestations(
 		previousBeginBlock = previousEndBlock - types.DataCommitmentWindow
 
 		if previousEndBlock == 0 {
-			return nil
+			return
 		}
 
 		existingConfirm, err := oc.querier.QueryDataCommitmentConfirm(
@@ -287,7 +288,7 @@ func (oc *orchestratorClient) addOldDataCommitmentAttestations(
 
 		if previousEndBlock < lastUnbondingHeight {
 			// Most likely, we're up to date and don't need to catchup anymore
-			return nil
+			return
 		}
 		if existingConfirm != nil {
 			// In case we have holes in the signatures

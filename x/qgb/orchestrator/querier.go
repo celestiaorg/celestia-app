@@ -224,7 +224,7 @@ func (q *querier) QueryLastValset(ctx context.Context) (types.Valset, error) {
 		return types.Valset{}, err
 	}
 
-	if len(lastValsetResp.Valsets) == 1 && lastValsetResp.Valsets[0].Nonce == 1 {
+	if len(lastValsetResp.Valsets) == 1 {
 		// genesis case
 		return lastValsetResp.Valsets[0], nil
 	}
@@ -295,25 +295,6 @@ func (q *querier) QueryHeight(ctx context.Context) (uint64, error) {
 	}
 
 	return uint64(resp.SyncInfo.LatestBlockHeight), nil
-}
-
-func (q *querier) QueryDataCommitmentConfirmsByExactRange(
-	ctx context.Context,
-	start uint64,
-	end uint64,
-) ([]types.MsgDataCommitmentConfirm, error) {
-	queryClient := types.NewQueryClient(q.qgbRPC)
-	confirmsResp, err := queryClient.DataCommitmentConfirmsByExactRange(
-		ctx,
-		&types.QueryDataCommitmentConfirmsByExactRangeRequest{
-			BeginBlock: start,
-			EndBlock:   end,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-	return confirmsResp.Confirms, nil
 }
 
 func (q *querier) QueryLastUnbondingHeight(ctx context.Context) (uint64, error) {
