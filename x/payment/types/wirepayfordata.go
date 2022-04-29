@@ -142,11 +142,11 @@ func (msg *MsgWirePayForData) GetSigners() []sdk.AccAddress {
 // createPayForDataSignature generates the signature for a PayForData for a single square
 // size using the info from a MsgWirePayForData
 func (msg *MsgWirePayForData) createPayForDataSignature(signer *KeyringSigner, builder sdkclient.TxBuilder, k uint64) ([]byte, error) {
-	pfm, err := msg.unsignedPayForData(k)
+	pfd, err := msg.unsignedPayForData(k)
 	if err != nil {
 		return nil, err
 	}
-	tx, err := signer.BuildSignedTx(builder, pfm)
+	tx, err := signer.BuildSignedTx(builder, pfd)
 	if err != nil {
 		return nil, err
 	}
@@ -173,13 +173,13 @@ func (msg *MsgWirePayForData) unsignedPayForData(k uint64) (*MsgPayForData, erro
 		return nil, err
 	}
 
-	sPFM := MsgPayForData{
+	sPFD := MsgPayForData{
 		MessageNamespaceId:     msg.MessageNameSpaceId,
 		MessageSize:            msg.MessageSize,
 		MessageShareCommitment: commit,
 		Signer:                 msg.Signer,
 	}
-	return &sPFM, nil
+	return &sPFD, nil
 }
 
 // ProcessWirePayForData will perform the processing required by PreProcessTxs.
@@ -208,10 +208,10 @@ func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.
 	}
 
 	// wrap the signed transaction data
-	pfm, err := msg.unsignedPayForData(squareSize)
+	pfd, err := msg.unsignedPayForData(squareSize)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	return &coreMsg, pfm, shareCommit.Signature, nil
+	return &coreMsg, pfd, shareCommit.Signature, nil
 }

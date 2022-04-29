@@ -59,14 +59,14 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		}
 
 		// parse wire message and create a single message
-		coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForData(wireMsg, app.SquareSize())
+		coreMsg, unsignedPFD, sig, err := types.ProcessWirePayForData(wireMsg, app.SquareSize())
 		if err != nil {
 			continue
 		}
 
 		// create the signed PayForData using the fees, gas limit, and sequence from
 		// the original transaction, along with the appropriate signature.
-		signedTx, err := types.BuildPayForDataTxFromWireTx(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFM)
+		signedTx, err := types.BuildPayForDataTxFromWireTx(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFD)
 		if err != nil {
 			app.Logger().Error("failure to create signed PayForData", err)
 			continue

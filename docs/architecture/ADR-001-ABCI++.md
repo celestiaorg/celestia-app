@@ -304,7 +304,7 @@ func (sqwr *squareWriter) writeTx(tx []byte) (ok bool, err error) {
 func (sqwr *squareWriter) writeMalleatedTx(
    parentHash []byte,
    tx signing.Tx,
-   wpfm *types.MsgWirePayForData,
+   wpfd *types.MsgWirePayForData,
 ) (ok bool, malleatedTx coretypes.Tx, msg *core.Message, err error) {
    ... // process the malleated tx and extract the message.
 
@@ -339,18 +339,18 @@ During `ProcessProposal`, we
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
    // Check for message inclusion:
    //  - each MsgPayForData included in a block should have a corresponding message also in the block data
-   //  - the commitment in each PFM should match that of its corresponding message
+   //  - the commitment in each PFD should match that of its corresponding message
    //  - there should be no unpaid for messages
 
    // extract the commitments from any MsgPayForDatas in the block
    commitments := make(map[string]struct{})
    for _, rawTx := range req.BlockData.Txs {
        ...
-       commitments[string(pfm.MessageShareCommitment)] = struct{}{}
+       commitments[string(pfd.MessageShareCommitment)] = struct{}{}
        ...
    }
 
-   // quickly compare the number of PFMs and messages, if they aren't
+   // quickly compare the number of PFDs and messages, if they aren't
    // identical, then  we already know this block is invalid
    if len(commitments) != len(req.BlockData.Messages.MessagesList) {
        ... // logging and rejecting
