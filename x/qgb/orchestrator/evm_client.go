@@ -115,6 +115,11 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 	currentValset types.Valset,
 	sigs []wrapper.Signature,
 ) error {
+	ec.logger.Info(fmt.Sprintf(
+		"relaying data commitment %d-%d...",
+		(lastDataCommitmentNonce-1)*types.DataCommitmentWindow, // because the nonce was already incremented
+		lastDataCommitmentNonce*types.DataCommitmentWindow,
+	))
 	opts, err := ec.NewTransactOpts(ctx, 1000000)
 	if err != nil {
 		return err
@@ -141,8 +146,8 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 	for i := 0; i < 60; i++ {
 		ec.logger.Debug(fmt.Sprintf(
 			"waiting for data commitment %d-%d to be confirmed: %s",
-			lastDataCommitmentNonce,
-			lastDataCommitmentNonce-types.DataCommitmentWindow,
+			(lastDataCommitmentNonce-1)*types.DataCommitmentWindow, // because the nonce was already incremented
+			lastDataCommitmentNonce*types.DataCommitmentWindow,
 			tx.Hash().String(),
 		))
 		lastNonce, err := ec.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: ctx})
@@ -152,8 +157,8 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 		if lastNonce == lastDataCommitmentNonce {
 			ec.logger.Info(fmt.Sprintf(
 				"relayed data commitment %d-%d: %s",
-				lastDataCommitmentNonce,
-				lastDataCommitmentNonce-types.DataCommitmentWindow,
+				(lastDataCommitmentNonce-1)*types.DataCommitmentWindow, // because the nonce was already incremented
+				lastDataCommitmentNonce*types.DataCommitmentWindow,
 				tx.Hash().String(),
 			))
 			return nil
@@ -163,8 +168,8 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 	ec.logger.Error(
 		fmt.Sprintf(
 			"failed to relay data commitment %d-%d: %s",
-			lastDataCommitmentNonce,
-			lastDataCommitmentNonce-types.DataCommitmentWindow,
+			(lastDataCommitmentNonce-1)*types.DataCommitmentWindow, // because the nonce was already incremented
+			lastDataCommitmentNonce*types.DataCommitmentWindow,
 			tx.Hash().String(),
 		),
 	)

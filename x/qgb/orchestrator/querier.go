@@ -27,7 +27,7 @@ type Querier interface {
 	QueryTwoThirdsDataCommitmentConfirms(
 		ctx context.Context,
 		timeout time.Duration,
-		commitment string,
+		dc ExtendedDataCommitment,
 	) ([]types.MsgDataCommitmentConfirm, error)
 	QueryTwoThirdsValsetConfirms(
 		ctx context.Context,
@@ -37,8 +37,17 @@ type Querier interface {
 	QueryLastValsets(ctx context.Context) ([]types.Valset, error)
 	QueryValsetConfirm(ctx context.Context, nonce uint64, address string) (*types.MsgValsetConfirm, error)
 	QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error)
-	QueryHeight(ctx context.Context) (uint64, error)
 	QueryLastUnbondingHeight(ctx context.Context) (uint64, error)
+	QueryHeight(ctx context.Context) (uint64, error)
+	QueryLastValsetBeforeHeight(
+		ctx context.Context,
+		height uint64,
+	) (*types.Valset, error)
+	QueryDataCommitmentConfirmsByExactRange(
+		ctx context.Context,
+		start uint64,
+		end uint64,
+	) ([]types.MsgDataCommitmentConfirm, error)
 }
 
 type querier struct {
@@ -91,20 +100,12 @@ func (q *querier) QueryDataCommitments(
 func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 	ctx context.Context,
 	timeout time.Duration,
-	commitment string,
+	dc ExtendedDataCommitment,
 ) ([]types.MsgDataCommitmentConfirm, error) {
-	// query for the latest valset (sorted for us already)
-	queryClient := types.NewQueryClient(q.qgbRPC)
-	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
+	valset, err := q.QueryLastValsetBeforeHeight(ctx, dc.End)
 	if err != nil {
 		return nil, err
 	}
-
-	if len(lastValsetResp.Valsets) < 1 {
-		return nil, errors.New("no validator sets found")
-	}
-
-	valset := lastValsetResp.Valsets[0]
 
 	// create a map to easily search for power
 	vals := make(map[string]types.BridgeValidator)
@@ -122,17 +123,12 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 			return nil, fmt.Errorf("failure to query for majority validator set confirms: timout %s", timeout)
 		default:
 			currThreshHold := uint64(0)
-			confirmsResp, err := queryClient.DataCommitmentConfirmsByCommitment(
-				ctx,
-				&types.QueryDataCommitmentConfirmsByCommitmentRequest{
-					Commitment: commitment,
-				},
-			)
+			confirms, err := q.QueryDataCommitmentConfirmsByExactRange(ctx, dc.Start, dc.End)
 			if err != nil {
 				return nil, err
 			}
 
-			for _, dataCommitmentConfirm := range confirmsResp.Confirms {
+			for _, dataCommitmentConfirm := range confirms {
 				val, has := vals[dataCommitmentConfirm.EthAddress]
 				if !has {
 					return nil, fmt.Errorf(
@@ -145,14 +141,13 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 			}
 
 			if currThreshHold >= majThreshHold {
-				return confirmsResp.Confirms, nil
+				return confirms, nil
 			}
 			q.logger.Debug(
-				"foundDataCommitmentConfirms",
 				fmt.Sprintf(
-					"total power %d number of confirms %d",
+					"found DataCommitmentConfirms total power %d number of confirms %d",
 					currThreshHold,
-					len(confirmsResp.Confirms),
+					len(confirms),
 				),
 			)
 		}
@@ -276,6 +271,23 @@ func (q *querier) QueryValsetConfirm(
 	return resp.Confirm, nil
 }
 
+func (q *querier) QueryLastValsetBeforeHeight(
+	ctx context.Context,
+	height uint64,
+) (*types.Valset, error) {
+	queryClient := types.NewQueryClient(q.qgbRPC)
+	lastValsetResp, err := queryClient.LastValsetBeforeHeight(
+		ctx,
+		&types.QueryLastValsetBeforeHeightRequest{
+			Height: height,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return lastValsetResp.Valset, nil
+}
+
 func (q *querier) QueryHeight(ctx context.Context) (uint64, error) {
 	resp, err := q.tendermintRPC.Status(ctx)
 	if err != nil {
@@ -316,4 +328,23 @@ func (q *querier) QueryDataCommitmentConfirm(
 	}
 
 	return confirmsResp.Confirm, nil
+}
+
+func (q *querier) QueryDataCommitmentConfirmsByExactRange(
+	ctx context.Context,
+	start uint64,
+	end uint64,
+) ([]types.MsgDataCommitmentConfirm, error) {
+	queryClient := types.NewQueryClient(q.qgbRPC)
+	confirmsResp, err := queryClient.DataCommitmentConfirmsByExactRange(
+		ctx,
+		&types.QueryDataCommitmentConfirmsByExactRangeRequest{
+			BeginBlock: start,
+			EndBlock:   end,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return confirmsResp.Confirms, nil
 }

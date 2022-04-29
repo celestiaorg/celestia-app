@@ -3,7 +3,6 @@ package orchestrator
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -50,24 +49,21 @@ func (r *relayer) processDataCommitmentEvents(
 	ctx context.Context,
 	dataCommitmentChannel <-chan ExtendedDataCommitment,
 ) error {
-	for range dataCommitmentChannel {
-		dc := <-dataCommitmentChannel
+	for dc := range dataCommitmentChannel {
 
-		nonce := dc.Nonce + 1
-		dataRootHash := types.DataCommitmentTupleRootSignBytes(r.bridgeID, big.NewInt(int64(nonce)), dc.Commitment)
 		// todo: make times configurable
-		confirms, err := r.querier.QueryTwoThirdsDataCommitmentConfirms(ctx, time.Minute*30, dataRootHash.String())
+		confirms, err := r.querier.QueryTwoThirdsDataCommitmentConfirms(ctx, time.Minute*30, dc)
 		if err != nil {
 			return err
 		}
 
 		// todo: make gas limit configurable
-		valset, err := r.querier.QueryLastValset(ctx)
+		valset, err := r.querier.QueryLastValsetBeforeHeight(ctx, dc.End)
 		if err != nil {
 			return err
 		}
 
-		err = r.submitDataRootTupleRoot(ctx, valset, dc.Commitment.String(), confirms)
+		err = r.submitDataRootTupleRoot(ctx, *valset, dc.Commitment.String(), confirms)
 		if err != nil {
 			return err
 		}
@@ -125,15 +121,9 @@ func (r *relayer) submitDataRootTupleRoot(
 	// increment the nonce before submitting the new tuple root
 	newDataCommitmentNonce := lastDataCommitmentNonce + 1
 
-	dataRootHash := types.DataCommitmentTupleRootSignBytes(
-		r.bridgeID,
-		big.NewInt(int64(newDataCommitmentNonce)),
-		[]byte(commitment),
-	)
-
 	err = r.evmClient.SubmitDataRootTupleRoot(
 		ctx,
-		dataRootHash,
+		ethcmn.HexToHash(commitment),
 		newDataCommitmentNonce,
 		currentValset,
 		sigs,
