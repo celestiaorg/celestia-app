@@ -45,12 +45,12 @@ func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.
 	}
 
 	// wrap the signed transaction data
-	pfm, err := msg.unsignedPayForData(squareSize)
+	pfd, err := msg.unsignedPayForData(squareSize)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	return &coreMsg, pfm, shareCommit.Signature, nil
+	return &coreMsg, pfd, shareCommit.Signature, nil
 }
 
 // PreprocessTxs fulfills the celestia-core version of the ABCI interface, by
@@ -64,14 +64,14 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
         // boiler plate
 		...
 		// parse wire message and create a single message
-		coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForData(wireMsg, app.SquareSize())
+		coreMsg, unsignedPFD, sig, err := types.ProcessWirePayForData(wireMsg, app.SquareSize())
 		if err != nil {
 			continue
 		}
 
 		// create the signed PayForData using the fees, gas limit, and sequence from
 		// the original transaction, along with the appropriate signature.
-		signedTx, err := types.BuildPayForDataTxFromWireTx(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFM)
+		signedTx, err := types.BuildPayForDataTxFromWireTx(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFD)
 		if err != nil {
 			app.Logger().Error("failure to create signed PayForData", err)
 			continue
@@ -98,7 +98,7 @@ There are no parameters yet, but we might add
 There are tools to programmatically create, sign, and broadcast `MsgWirePayForDatas`
 ```go
 // create the raw WirePayForData transaction
-wpfmMsg, err := apptypes.NewWirePayForData(block.Header.NamespaceId, message, 16, 32, 64, 128)
+wpfdMsg, err := apptypes.NewWirePayForData(block.Header.NamespaceId, message, 16, 32, 64, 128)
 if err != nil {
     return err
 }
@@ -121,7 +121,7 @@ if err != nil {
 // generate the signatures for each `MsgPayForData` using the `KeyringSigner`, 
 // then set the gas limit for the tx 
 gasLimOption := types.SetGasLimit(200000)
-err = pfmMsg.SignShareCommitments(keyringSigner, gasLimOption)
+err = pfdMsg.SignShareCommitments(keyringSigner, gasLimOption)
 if err != nil {
     return err
 }
@@ -130,7 +130,7 @@ if err != nil {
 // for potential `MsgPayForData`s
 signedTx, err := keyringSigner.BuildSignedTx(
     gasLimOption(signer.NewTxBuilder()),
-    wpfmMsg,
+    wpfdMsg,
 )
 if err != nil {
     return err

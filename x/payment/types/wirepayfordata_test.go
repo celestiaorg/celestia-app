@@ -16,34 +16,34 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 		wantErr *sdkerrors.Error
 	}
 
-	// valid pfm
+	// valid pfd
 	validMsg := validWirePayForData(t)
 
-	// pfm with bad ns id
+	// pfd with bad ns id
 	badIDMsg := validWirePayForData(t)
 	badIDMsg.MessageNameSpaceId = []byte{1, 2, 3, 4, 5, 6, 7}
 
-	// pfm that uses reserved ns id
+	// pfd that uses reserved ns id
 	reservedMsg := validWirePayForData(t)
 	reservedMsg.MessageNameSpaceId = []byte{0, 0, 0, 0, 0, 0, 0, 100}
 
-	// pfm that has a wrong msg size
+	// pfd that has a wrong msg size
 	invalidMsgSizeMsg := validWirePayForData(t)
 	invalidMsgSizeMsg.Message = bytes.Repeat([]byte{1}, consts.ShareSize-20)
 
-	// pfm that has a wrong msg size
+	// pfd that has a wrong msg size
 	invalidDeclaredMsgSizeMsg := validWirePayForData(t)
 	invalidDeclaredMsgSizeMsg.MessageSize = 999
 
-	// pfm with bad commitment
+	// pfd with bad commitment
 	badCommitMsg := validWirePayForData(t)
 	badCommitMsg.MessageShareCommitment[0].ShareCommitment = []byte{1, 2, 3, 4}
 
-	// pfm that has invalid square size (not power of 2)
+	// pfd that has invalid square size (not power of 2)
 	invalidSquareSizeMsg := validWirePayForData(t)
 	invalidSquareSizeMsg.MessageShareCommitment[0].K = 15
 
-	// pfm that has a different power of 2 square size
+	// pfd that has a different power of 2 square size
 	badSquareSizeMsg := validWirePayForData(t)
 	badSquareSizeMsg.MessageShareCommitment[0].K = 4
 
