@@ -113,6 +113,7 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 
 func (oc *orchestratorClient) addOldValsetAttestations(ctx context.Context, valsetsChan chan types.Valset) error {
 	oc.logger.Info("Started adding Valsets attestation to queue")
+	defer oc.logger.Info("Finished adding Valsets attestation to queue")
 	lastUnbondingHeight, err := oc.querier.QueryLastUnbondingHeight(ctx)
 	if err != nil {
 		oc.logger.Error(err.Error())
@@ -135,7 +136,6 @@ func (oc *orchestratorClient) addOldValsetAttestations(ctx context.Context, vals
 	previousNonce := valsets[0].Nonce
 	for {
 		if previousNonce == 1 {
-			oc.logger.Info("Finished adding Valsets attestation to queue")
 			return nil
 		}
 		previousNonce = previousNonce - 1
@@ -153,7 +153,6 @@ func (oc *orchestratorClient) addOldValsetAttestations(ctx context.Context, vals
 		}
 		if correspondingVs.Height < lastUnbondingHeight {
 			// Most likely, we're up to date and don't need to catchup anymore
-			oc.logger.Info("Finished adding Valsets attestation to queue")
 			return nil
 		}
 		if lastVsConfirm != nil {
@@ -241,6 +240,7 @@ func (oc *orchestratorClient) addOldDataCommitmentAttestations(
 	dataCommitmentsChan chan ExtendedDataCommitment,
 ) error {
 	oc.logger.Info("Started adding old Data Commitments attestation to queue")
+	defer oc.logger.Info("Finished adding old Data Commitments attestation to queue")
 	lastUnbondingHeight, err := oc.querier.QueryLastUnbondingHeight(ctx)
 	if err != nil {
 		oc.logger.Error(err.Error())
@@ -269,7 +269,6 @@ func (oc *orchestratorClient) addOldDataCommitmentAttestations(
 		previousBeginBlock = previousEndBlock - types.DataCommitmentWindow
 
 		if previousEndBlock == 0 {
-			oc.logger.Info("Finished adding old Data Commitments attestation to queue")
 			return nil
 		}
 
@@ -286,7 +285,6 @@ func (oc *orchestratorClient) addOldDataCommitmentAttestations(
 
 		if previousEndBlock < lastUnbondingHeight {
 			// Most likely, we're up to date and don't need to catchup anymore
-			oc.logger.Info("Finished Data Commitments attestation signature catchup")
 			return nil
 		}
 		if existingConfirm != nil {
