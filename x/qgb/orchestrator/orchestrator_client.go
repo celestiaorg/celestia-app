@@ -144,7 +144,7 @@ func (oc *orchestratorClient) addOldVSAttestations(ctx context.Context, valsetsC
 			return err
 		}
 		// The valset signed by the orchestrator to get lastVsConfirm
-		// Used to get the height that valset waas first introduced
+		// Used to get the height that valset was first introduced
 		correspondingVs, err := oc.querier.QueryValsetByNonce(ctx, previousNonce)
 		if err != nil {
 			oc.logger.Error(err.Error())
