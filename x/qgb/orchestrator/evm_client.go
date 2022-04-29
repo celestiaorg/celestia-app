@@ -116,7 +116,7 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 	sigs []wrapper.Signature,
 ) error {
 	ec.logger.Info(fmt.Sprintf(
-		"relaying data commitment  %d-%d...",
+		"relaying data commitment %d-%d...",
 		(lastDataCommitmentNonce-1)*types.DataCommitmentWindow,
 		lastDataCommitmentNonce*types.DataCommitmentWindow,
 	))
