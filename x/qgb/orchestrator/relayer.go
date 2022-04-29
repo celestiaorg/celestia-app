@@ -86,6 +86,7 @@ func (r *relayer) updateValidatorSet(
 		return err
 	}
 
+	// TODO should this valset be with (nonce - 1)?
 	currentValset, err := r.querier.QueryLastValset(ctx)
 	if err != nil {
 		return err
@@ -124,7 +125,11 @@ func (r *relayer) submitDataRootTupleRoot(
 	// increment the nonce before submitting the new tuple root
 	newDataCommitmentNonce := lastDataCommitmentNonce + 1
 
-	dataRootHash := types.DataCommitmentTupleRootSignBytes(r.bridgeID, big.NewInt(int64(newDataCommitmentNonce)), []byte(commitment))
+	dataRootHash := types.DataCommitmentTupleRootSignBytes(
+		r.bridgeID,
+		big.NewInt(int64(newDataCommitmentNonce)),
+		[]byte(commitment),
+	)
 
 	err = r.evmClient.SubmitDataRootTupleRoot(
 		ctx,

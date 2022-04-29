@@ -23,8 +23,14 @@ type relayerClient struct {
 	orchestratorAddress string
 }
 
-func NewRelayerClient(logger tmlog.Logger, tendermintRpc string, querier Querier, orchAddr string, evmClient EVMClient) (AppClient, error) {
-	trpc, err := http.New(tendermintRpc, "/websocket")
+func NewRelayerClient(
+	logger tmlog.Logger,
+	tendermintRPC string,
+	querier Querier,
+	orchAddr string,
+	evmClient EVMClient,
+) (AppClient, error) {
+	trpc, err := http.New(tendermintRPC, "/websocket")
 	if err != nil {
 		return nil, err
 	}
@@ -118,10 +124,10 @@ func (oc *relayerClient) SubscribeDataCommitment(ctx context.Context) (<-chan Ex
 					oc.logger.Error(err.Error())
 					continue
 				}
-				currentNonce := currentHeight % int64(types.DataCommitmentWindow)
+				currentNonce := currentHeight % types.DataCommitmentWindow
 
 				// If we're at the latest nonce, we sleep
-				if int64(lastContractNonce) >= currentNonce {
+				if lastContractNonce >= currentNonce {
 					time.Sleep(10 * time.Second)
 					continue
 				}
