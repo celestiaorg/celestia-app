@@ -229,7 +229,7 @@ func (q *querier) QueryLastValset(ctx context.Context) (types.Valset, error) {
 		return types.Valset{}, err
 	}
 
-	if len(lastValsetResp.Valsets) == 1 && lastValsetResp.Valsets[0].Nonce == 1 {
+	if len(lastValsetResp.Valsets) == 1 {
 		// genesis case
 		return lastValsetResp.Valsets[0], nil
 	}
