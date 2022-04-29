@@ -46,6 +46,7 @@ func NewOrchestratorClient(
 	}, nil
 }
 
+// TODO this will be removed when we use the new job/worker design for the client
 func contains(s []uint64, nonce uint64) bool {
 	for _, v := range s {
 		if v == nonce {

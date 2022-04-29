@@ -3,9 +3,10 @@ package orchestrator
 import (
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	tmlog "github.com/tendermint/tendermint/libs/log"
@@ -94,7 +95,7 @@ func (oc *relayerClient) SubscribeValset(ctx context.Context) (<-chan types.Vals
 				valsetsChan <- *newVs
 				// Give some time for newVs to be committed before we continue
 				// This will change with the worker pool design pattern we will adopt
-				time.Sleep(10 * time.Second)
+				time.Sleep(time.Minute)
 			}
 		}
 	}()
@@ -124,7 +125,7 @@ func (oc *relayerClient) SubscribeDataCommitment(ctx context.Context) (<-chan Ex
 					oc.logger.Error(err.Error())
 					continue
 				}
-				currentNonce := currentHeight % types.DataCommitmentWindow
+				currentNonce := currentHeight / types.DataCommitmentWindow
 
 				// If we're at the latest nonce, we sleep
 				if lastContractNonce >= currentNonce {
@@ -160,7 +161,7 @@ func (oc *relayerClient) SubscribeDataCommitment(ctx context.Context) (<-chan Ex
 					End:        endHeight,
 					Nonce:      nonce,
 				}
-
+				time.Sleep(time.Minute)
 			}
 		}
 

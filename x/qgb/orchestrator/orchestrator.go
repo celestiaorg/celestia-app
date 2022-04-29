@@ -84,7 +84,13 @@ func (oc *orchestrator) processDataCommitmentEvents(
 			oc.logger.Error(fmt.Sprintf("data commitment range %d-%d: %s", dc.Start, dc.End, err.Error()))
 			continue
 		}
-		oc.logger.Info(fmt.Sprintf("signed commitment %d-%d: %s", msg.BeginBlock, msg.EndBlock, hash))
+		oc.logger.Info(fmt.Sprintf(
+			"signed commitment %d-%d: %s tx hash: %s",
+			msg.BeginBlock,
+			msg.EndBlock,
+			dc.Commitment.String(),
+			hash,
+		))
 	}
 	return nil
 }
