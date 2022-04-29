@@ -123,7 +123,7 @@ func (r *relayer) submitDataRootTupleRoot(
 
 	err = r.evmClient.SubmitDataRootTupleRoot(
 		ctx,
-		ethcmn.BytesToHash([]byte(commitment)),
+		ethcmn.HexToHash(commitment),
 		newDataCommitmentNonce,
 		currentValset,
 		sigs,
