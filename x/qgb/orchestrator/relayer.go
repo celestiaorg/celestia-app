@@ -86,7 +86,7 @@ func (r *relayer) updateValidatorSet(
 		return err
 	}
 
-	// this should probably be valset with nonce -1
+	// TODO should this valset be with (nonce - 1)?
 	currentValset, err := r.querier.QueryLastValset(ctx)
 	if err != nil {
 		return err
