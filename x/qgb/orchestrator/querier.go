@@ -329,3 +329,22 @@ func (q *querier) QueryDataCommitmentConfirm(
 
 	return confirmsResp.Confirm, nil
 }
+
+func (q *querier) QueryDataCommitmentConfirmsByExactRange(
+	ctx context.Context,
+	start uint64,
+	end uint64,
+) ([]types.MsgDataCommitmentConfirm, error) {
+	queryClient := types.NewQueryClient(q.qgbRPC)
+	confirmsResp, err := queryClient.DataCommitmentConfirmsByExactRange(
+		ctx,
+		&types.QueryDataCommitmentConfirmsByExactRangeRequest{
+			BeginBlock: start,
+			EndBlock:   end,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return confirmsResp.Confirms, nil
+}
