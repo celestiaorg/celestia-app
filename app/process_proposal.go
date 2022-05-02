@@ -40,7 +40,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			commitments[string(pfd.MessageShareCommitment)] = struct{}{}
 			commitmentCounter++
 		}
-
 	}
 
 	// quickly compare the number of PFDs and messages, if they aren't
