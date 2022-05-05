@@ -34,6 +34,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 			pfd, ok := msg.(*types.MsgPayForData)
 			if !ok {
+				app.Logger().Error("Msg type does not match MsgPayForData URL")
 				continue
 			}
 
