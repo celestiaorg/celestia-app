@@ -73,6 +73,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			}
 		}
 
+		// TODO: refactor to actually check for subtree roots instead of simply inclusion see issues #382 and #383
 		if _, has := commitments[string(commit)]; !has {
 			app.Logger().Info(rejectedPropBlockLog, "reason", "missing MsgPayForData for included message")
 			return abci.ResponseProcessProposal{
