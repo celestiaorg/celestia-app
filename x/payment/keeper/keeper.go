@@ -15,16 +15,12 @@ const payForDataGasDescriptor = "pay for data"
 
 // Keeper handles all the state changes for the celestia-app module.
 type Keeper struct {
-	cdc      codec.BinaryCodec
-	storeKey sdk.StoreKey
-	memKey   sdk.StoreKey
+	cdc codec.BinaryCodec
 }
 
-func NewKeeper(cdc codec.BinaryCodec, storeKey, memKey sdk.StoreKey) *Keeper {
+func NewKeeper(cdc codec.BinaryCodec) *Keeper {
 	return &Keeper{
-		cdc:      cdc,
-		storeKey: storeKey,
-		memKey:   memKey,
+		cdc: cdc,
 	}
 }
 
