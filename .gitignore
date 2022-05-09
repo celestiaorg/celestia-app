@@ -6,3 +6,4 @@ build
 coverage.txt
 .idea
 .vscode
+tools-stamp

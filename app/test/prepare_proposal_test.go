@@ -17,7 +17,7 @@ import (
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
-func TestPreprocessTxs(t *testing.T) {
+func TestPrepareProposal(t *testing.T) {
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
 	info := signer.GetSignerInfo()
 
@@ -26,7 +26,7 @@ func TestPreprocessTxs(t *testing.T) {
 	testApp := testutil.SetupTestApp(t, info.GetAddress())
 
 	type test struct {
-		input            abci.RequestPreprocessTxs
+		input            abci.RequestPrepareProposal
 		expectedMessages []*core.Message
 		expectedTxs      int
 	}
@@ -45,8 +45,10 @@ func TestPreprocessTxs(t *testing.T) {
 
 	tests := []test{
 		{
-			input: abci.RequestPreprocessTxs{
-				Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
+			input: abci.RequestPrepareProposal{
+				BlockData: &core.Data{
+					Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
+				},
 			},
 			expectedMessages: []*core.Message{
 				{
@@ -67,15 +69,15 @@ func TestPreprocessTxs(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		res := testApp.PreprocessTxs(tt.input)
-		assert.Equal(t, tt.expectedMessages, res.Messages.MessagesList)
-		assert.Equal(t, tt.expectedTxs, len(res.Txs))
+		res := testApp.PrepareProposal(tt.input)
+		assert.Equal(t, tt.expectedMessages, res.BlockData.Messages.MessagesList)
+		assert.Equal(t, tt.expectedTxs, len(res.BlockData.Txs))
 	}
 }
 
 func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner) (rawTx []byte) {
 	// create a msg
-	msg := generateSignedWirePayForMessage(t, consts.MaxSquareSize, ns, message, signer)
+	msg := generateSignedWirePayForData(t, consts.MaxSquareSize, ns, message, signer)
 
 	builder := signer.NewTxBuilder()
 
@@ -98,8 +100,8 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, s
 	return rawTx
 }
 
-func generateSignedWirePayForMessage(t *testing.T, k uint64, ns, message []byte, signer *types.KeyringSigner) *types.MsgWirePayForMessage {
-	msg, err := types.NewWirePayForMessage(ns, message, k)
+func generateSignedWirePayForData(t *testing.T, k uint64, ns, message []byte, signer *types.KeyringSigner) *types.MsgWirePayForData {
+	msg, err := types.NewWirePayForData(ns, message, k)
 	if err != nil {
 		t.Error(err)
 	}
