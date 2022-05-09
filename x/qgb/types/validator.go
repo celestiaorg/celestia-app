@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	math "math"
 	"math/big"
 	"sort"
@@ -35,13 +36,17 @@ func (b BridgeValidators) ToInternal() (*InternalBridgeValidators, error) {
 // Bridge Validator but with validated EthereumAddress
 type InternalBridgeValidator struct {
 	Power           uint64
-	EthereumAddress EthAddress
+	EthereumAddress stakingtypes.EthAddress
 }
 
 func NewInternalBridgeValidator(bridgeValidator BridgeValidator) (*InternalBridgeValidator, error) {
+	validatorEthAddr, err := stakingtypes.NewEthAddress(bridgeValidator.EthereumAddress)
+	if err != nil {
+		return nil, err
+	}
 	i := &InternalBridgeValidator{
 		Power:           bridgeValidator.Power,
-		EthereumAddress: EthAddress{bridgeValidator.EthereumAddress},
+		EthereumAddress: *validatorEthAddr,
 	}
 	if err := i.ValidateBasic(); err != nil {
 		return nil, sdkerrors.Wrap(err, "invalid bridge validator")
@@ -83,7 +88,7 @@ func (b InternalBridgeValidators) Sort() {
 	sort.Slice(b, func(i, j int) bool {
 		if b[i].Power == b[j].Power {
 			// Secondary sort on eth address in case powers are equal
-			return EthAddrLessThan(b[i].EthereumAddress, b[j].EthereumAddress)
+			return stakingtypes.EthAddrLessThan(b[i].EthereumAddress, b[j].EthereumAddress)
 		}
 		return b[i].Power > b[j].Power
 	})

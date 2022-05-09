@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,7 +16,7 @@ func TestQueryDataCommitment(t *testing.T) {
 	var (
 		addrStr                       = "cosmos1v4s3yfg8rujaz56yt5a3xznqjqgyeff4552l40"
 		myValidatorCosmosAddr, err1   = sdk.AccAddressFromBech32(addrStr)
-		myValidatorEthereumAddr, err2 = types.NewEthAddress("0x3232323232323232323232323232323232323232")
+		myValidatorEthereumAddr, err2 = stakingtypes.NewEthAddress("0x3232323232323232323232323232323232323232")
 	)
 	require.NoError(t, err1)
 	require.NoError(t, err2)
@@ -107,7 +108,7 @@ func TestAllDataCommitmentsByValidator(t *testing.T) {
 	}
 	var (
 		myValidatorCosmosAddr1, _   = sdk.AccAddressFromBech32(addr)
-		myValidatorEthereumAddr1, _ = types.NewEthAddress("0x0101010101010101010101010101010101010101")
+		myValidatorEthereumAddr1, _ = stakingtypes.NewEthAddress("0x0101010101010101010101010101010101010101")
 	)
 
 	input := CreateTestEnv(t)
@@ -204,9 +205,9 @@ func TestAllDataCommitmentsByRange(t *testing.T) {
 		myValidatorCosmosAddr1, _   = sdk.AccAddressFromBech32(addrs[0])
 		myValidatorCosmosAddr2, _   = sdk.AccAddressFromBech32(addrs[1])
 		myValidatorCosmosAddr3, _   = sdk.AccAddressFromBech32(addrs[2])
-		myValidatorEthereumAddr1, _ = types.NewEthAddress("0x0101010101010101010101010101010101010101")
-		myValidatorEthereumAddr2, _ = types.NewEthAddress("0x0202020202020202020202020202020202020202")
-		myValidatorEthereumAddr3, _ = types.NewEthAddress("0x0303030303030303030303030303030303030303")
+		myValidatorEthereumAddr1, _ = stakingtypes.NewEthAddress("0x0101010101010101010101010101010101010101")
+		myValidatorEthereumAddr2, _ = stakingtypes.NewEthAddress("0x0202020202020202020202020202020202020202")
+		myValidatorEthereumAddr3, _ = stakingtypes.NewEthAddress("0x0303030303030303030303030303030303030303")
 	)
 
 	input := CreateTestEnv(t)
@@ -337,9 +338,9 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 		myValidatorCosmosAddr1, _   = sdk.AccAddressFromBech32(addrs[0])
 		myValidatorCosmosAddr2, _   = sdk.AccAddressFromBech32(addrs[1])
 		myValidatorCosmosAddr3, _   = sdk.AccAddressFromBech32(addrs[2])
-		myValidatorEthereumAddr1, _ = types.NewEthAddress("0x0101010101010101010101010101010101010101")
-		myValidatorEthereumAddr2, _ = types.NewEthAddress("0x0202020202020202020202020202020202020202")
-		myValidatorEthereumAddr3, _ = types.NewEthAddress("0x0303030303030303030303030303030303030303")
+		myValidatorEthereumAddr1, _ = stakingtypes.NewEthAddress("0x0101010101010101010101010101010101010101")
+		myValidatorEthereumAddr2, _ = stakingtypes.NewEthAddress("0x0202020202020202020202020202020202020202")
+		myValidatorEthereumAddr3, _ = stakingtypes.NewEthAddress("0x0303030303030303030303030303030303030303")
 	)
 
 	input := CreateTestEnv(t)

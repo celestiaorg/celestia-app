@@ -1,6 +1,7 @@
 package types
 
 import (
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"strconv"
 	"strings"
 
@@ -98,7 +99,7 @@ func GetEthAddressByValidatorKey(validator sdk.ValAddress) string {
 // GetValidatorByEthAddressKey returns the following key format
 // prefix              cosmos-validator
 // [0xf9][0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B]
-func GetValidatorByEthAddressKey(ethAddress EthAddress) string {
+func GetValidatorByEthAddressKey(ethAddress stakingtypes.EthAddress) string {
 	return ValidatorByEthAddressKey + string([]byte(ethAddress.GetAddress()))
 }
 

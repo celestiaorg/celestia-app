@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 )
@@ -18,7 +19,7 @@ func verifyOrchestratorValsetSignatures(broadCasted []sdk.Msg, valsets []*types.
 		if err != nil {
 			return err
 		}
-		ethAddress, err := types.NewEthAddress(msg.EthAddress)
+		ethAddress, err := stakingtypes.NewEthAddress(msg.EthAddress)
 		if err != nil {
 			return err
 		}
@@ -121,7 +122,7 @@ func verifyOrchestratorDcSignatures(broadCasted []sdk.Msg, dcs []ExtendedDataCom
 			big.NewInt(int64(dcs[i].Nonce)),
 			dcs[i].Commitment,
 		)
-		ethAddress, err := types.NewEthAddress(msg.EthAddress)
+		ethAddress, err := stakingtypes.NewEthAddress(msg.EthAddress)
 		if err != nil {
 			return err
 		}

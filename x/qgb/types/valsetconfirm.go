@@ -3,6 +3,7 @@ package types
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 var _ sdk.Msg = &MsgValsetConfirm{}
@@ -10,7 +11,7 @@ var _ sdk.Msg = &MsgValsetConfirm{}
 // NewMsgValsetConfirm returns a new msgValSetConfirm
 func NewMsgValsetConfirm(
 	nonce uint64,
-	ethAddress EthAddress,
+	ethAddress stakingtypes.EthAddress,
 	validator sdk.AccAddress,
 	signature string,
 ) *MsgValsetConfirm {
@@ -38,7 +39,7 @@ func (msg *MsgValsetConfirm) ValidateBasic() (err error) {
 	if _, err = sdk.AccAddressFromBech32(msg.Orchestrator); err != nil {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, msg.Orchestrator)
 	}
-	if err := ValidateEthAddress(msg.EthAddress); err != nil {
+	if err := stakingtypes.ValidateEthAddress(msg.EthAddress); err != nil {
 		return sdkerrors.Wrap(err, "ethereum address")
 	}
 	return nil
