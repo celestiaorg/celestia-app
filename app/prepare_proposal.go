@@ -17,12 +17,12 @@ import (
 // PreprocessTxs fullfills the celestia-core version of the ACBI interface, by
 // performing basic validation for the incoming txs, and by cleanly separating
 // share messages from transactions
-func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePreprocessTxs {
+func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	squareSize := app.SquareSize()
 	shareCounter := uint64(0)
 	var shareMsgs []*core.Message
 	var processedTxs [][]byte
-	for _, rawTx := range txs.Txs {
+	for _, rawTx := range req.BlockData.Txs {
 		// decode the Tx
 		tx, err := app.txConfig.TxDecoder()(rawTx)
 		if err != nil {
@@ -35,8 +35,8 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 		}
 
 		// don't process the tx if the transaction doesn't contain a
-		//  MsgPayForMessage sdk.Msg
-		if !hasWirePayForMessage(authTx) {
+		//  MsgPayForData sdk.Msg
+		if !hasWirePayForData(authTx) {
 			processedTxs = append(processedTxs, rawTx)
 			continue
 		}
@@ -47,7 +47,7 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 		}
 
 		msg := authTx.GetMsgs()[0]
-		wireMsg, ok := msg.(*types.MsgWirePayForMessage)
+		wireMsg, ok := msg.(*types.MsgWirePayForData)
 		if !ok {
 			continue
 		}
@@ -59,16 +59,16 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 		}
 
 		// parse wire message and create a single message
-		coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForMessage(wireMsg, app.SquareSize())
+		coreMsg, unsignedPFD, sig, err := types.ProcessWirePayForData(wireMsg, app.SquareSize())
 		if err != nil {
 			continue
 		}
 
-		// create the signed PayForMessage using the fees, gas limit, and sequence from
+		// create the signed PayForData using the fees, gas limit, and sequence from
 		// the original transaction, along with the appropriate signature.
-		signedTx, err := types.BuildPayForMessageTxFromWireTx(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFM)
+		signedTx, err := types.BuildPayForDataTxFromWireTx(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFD)
 		if err != nil {
-			app.Logger().Error("failure to create signed PayForMessage", err)
+			app.Logger().Error("failure to create signed PayForData", err)
 			continue
 		}
 
@@ -101,16 +101,19 @@ func (app *App) PreprocessTxs(txs abci.RequestPreprocessTxs) abci.ResponsePrepro
 		return bytes.Compare(shareMsgs[i].NamespaceId, shareMsgs[j].NamespaceId) < 0
 	})
 
-	return abci.ResponsePreprocessTxs{
-		Txs:      processedTxs,
-		Messages: &core.Messages{MessagesList: shareMsgs},
+	return abci.ResponsePrepareProposal{
+		BlockData: &core.Data{
+			Txs:      processedTxs,
+			Evidence: req.BlockData.Evidence,
+			Messages: core.Messages{MessagesList: shareMsgs},
+		},
 	}
 }
 
-func hasWirePayForMessage(tx sdk.Tx) bool {
+func hasWirePayForData(tx sdk.Tx) bool {
 	for _, msg := range tx.GetMsgs() {
 		msgName := sdk.MsgTypeURL(msg)
-		if msgName == types.URLMsgWirePayforMessage {
+		if msgName == types.URLMsgWirePayForData {
 			return true
 		}
 	}
