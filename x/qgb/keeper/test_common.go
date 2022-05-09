@@ -175,7 +175,7 @@ var (
 func initEthAddrs(count int) []stakingtypes.EthAddress {
 	addresses := make([]stakingtypes.EthAddress, count)
 	for i := 0; i < count; i++ {
-		ethAddr, _ := stakingtypes.NewEthAddress(gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i)}, 20)).Hex())
+		ethAddr, _ := stakingtypes.NewEthAddress(gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20)).Hex())
 		addresses[i] = *ethAddr
 	}
 	return addresses
