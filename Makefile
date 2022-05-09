@@ -34,7 +34,8 @@ build: mod
 	@mkdir -p build/
 	@go build -o build/ ./cmd/celestia-appd
 	@packr2 clean
-	@go mod tidy
+	@go mod tidy -compat=1.17
+.PHONY: build build-linux
 
 install: go.sum
 		@echo "--> Installing celestia-appd"
