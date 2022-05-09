@@ -11,8 +11,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 
 	authmiddleware "github.com/cosmos/cosmos-sdk/x/auth/middleware"
-	IBCKeeper "github.com/cosmos/ibc-go/v3/modules/core/keeper"
-	ibcmiddleware "github.com/cosmos/ibc-go/v3/modules/core/middleware"
 )
 
 // ComposeMiddlewares compose multiple middlewares on top of a tx.Handler. The
@@ -42,7 +40,7 @@ type TxHandlerOptions struct {
 	TxDecoder sdk.TxDecoder
 
 	authmiddleware.TxHandlerOptions
-	IBCKeeper         *IBCKeeper.Keeper
+	// IBCKeeper         *IBCKeeper.Keeper
 	TXCounterStoreKey storetypes.StoreKey
 	LegacyRouter      sdk.Router
 	MsgServiceRouter  *authmiddleware.MsgServiceRouter
@@ -123,6 +121,6 @@ func NewDefaultTxHandler(options TxHandlerOptions) (tx.Handler, error) {
 		authmiddleware.ConsumeBlockGasMiddleware,
 		authmiddleware.NewTipMiddleware(options.BankKeeper),
 		// Ibc v3 middleware
-		ibcmiddleware.IBCTxMiddleware(options.IBCKeeper),
+		// ibcmiddleware.IBCTxMiddleware(options.IBCKeeper),
 	), nil
 }
