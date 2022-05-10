@@ -14,7 +14,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// WriteSquare uses the provided block data to create a flattened data square.
+// SplitShares uses the provided block data to create a flattened data square.
 // Any MsgWirePayForDatas are malleated, and their corresponding
 // MsgPayForData and Message are written atomically. If there are
 // transactions that will node fit in the given square size, then they are
