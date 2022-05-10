@@ -12,9 +12,13 @@ import (
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
-// PreprocessTxs fullfills the celestia-core version of the ACBI interface, by
-// performing basic validation for the incoming txs, and by cleanly separating
-// share messages from transactions
+// PrepareProposal fullfills the celestia-core version of the ACBI interface by
+// preparing the proposal block data. The square size is determined by first
+// estimating it via the size of the passed block data. Then the included
+// MsgWirePayForData messages are malleated into MsgPayForData messages by
+// separating the message and transaction that pays for that message. Lastly,
+// this method generates the data root for the proposal block and passes it the
+// blockdata.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	squareSize := app.estimateSquareSize(req.BlockData)
 
