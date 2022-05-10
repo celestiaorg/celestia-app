@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -18,7 +19,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/spm/cosmoscmd"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
@@ -41,7 +41,7 @@ func SetupTestApp(t *testing.T, addr sdk.AccAddress) *app.App {
 
 	skipUpgradeHeights := make(map[int64]bool)
 
-	encCfg := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
+	encCfg := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
 
 	testApp := app.New(
 		logger, db, nil, true, skipUpgradeHeights,
@@ -51,9 +51,9 @@ func SetupTestApp(t *testing.T, addr sdk.AccAddress) *app.App {
 		emptyOpts,
 	)
 
-	genesisState := NewDefaultGenesisState(encCfg.Marshaler)
+	genesisState := NewDefaultGenesisState(encCfg.Codec)
 
-	genesisState, err = AddGenesisAccount(addr, genesisState, encCfg.Marshaler)
+	genesisState, err = AddGenesisAccount(addr, genesisState, encCfg.Codec)
 	if err != nil {
 		t.Error(err)
 	}
@@ -164,8 +164,8 @@ func generateKeyring(t *testing.T, cdc codec.Codec, accts ...string) keyring.Key
 // GenerateKeyringSigner creates a types.KeyringSigner with keys generated for
 // the provided accounts
 func GenerateKeyringSigner(t *testing.T, acct string) *types.KeyringSigner {
-	encCfg := app.MakeEncodingConfig()
-	kr := generateKeyring(t, encCfg.Marshaler)
+	encCfg := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
+	kr := generateKeyring(t, encCfg.Codec)
 	return types.NewKeyringSigner(kr, acct, testChainID)
 }
 

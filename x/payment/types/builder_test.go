@@ -33,7 +33,7 @@ func TestBuildWirePayForData(t *testing.T) {
 	signedTx, err := k.BuildSignedTx(k.NewTxBuilder(), msg)
 	require.NoError(t, err)
 
-	rawTx, err := makeEncodingConfig().TxConfig.TxEncoder()(signedTx)
+	rawTx, err := makePaymentEncodingConfig().TxConfig.TxEncoder()(signedTx)
 	require.NoError(t, err)
 
 	_, _, isMalleated := coretypes.UnwrapMalleatedTx(rawTx)
@@ -116,8 +116,8 @@ func TestQueryAccountNumber(t *testing.T) {
 
 func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
 	t.Helper()
-	encCfg := makeEncodingConfig()
-	kb := keyring.NewInMemory(encCfg.Marshaler)
+	encCfg := makePaymentEncodingConfig()
+	kb := keyring.NewInMemory(encCfg.Codec)
 
 	for _, acc := range accts {
 		_, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
