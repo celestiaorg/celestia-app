@@ -22,7 +22,6 @@ func TestWriteSquare(t *testing.T) {
 	type test struct {
 		squareSize      uint64
 		data            *core.Data
-		expectErr       bool
 		expectedTxCount int
 	}
 
@@ -49,7 +48,6 @@ func TestWriteSquare(t *testing.T) {
 			data: &core.Data{
 				Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
 			},
-			expectErr:       false,
 			expectedTxCount: 2,
 		},
 		{
@@ -58,7 +56,6 @@ func TestWriteSquare(t *testing.T) {
 			data: &core.Data{
 				Txs: [][]byte{secondRawTx},
 			},
-			expectErr:       false,
 			expectedTxCount: 1,
 		},
 		{
@@ -68,7 +65,6 @@ func TestWriteSquare(t *testing.T) {
 			data: &core.Data{
 				Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
 			},
-			expectErr:       false,
 			expectedTxCount: 3,
 		},
 	}
