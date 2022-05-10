@@ -65,18 +65,9 @@ func (app *App) estimateSquareSize(data *core.Data) uint64 {
 		evdShareEstimate++ // add one to round up
 	}
 
-	isrBytes := 0
-	for _, isr := range data.IntermediateStateRoots.RawRootsList {
-		isrBytes += len(isr) + delimLen(uint64(len(isr)))
-	}
-	isrShareEstimate := isrBytes / consts.TxShareSize
-	if isrBytes > 0 {
-		isrShareEstimate++ // add one to round up
-	}
-
 	msgShareEstimate := estimateMsgShares(app.txConfig, data.Txs)
 
-	totalShareEstimate := txShareEstimate + evdShareEstimate + isrShareEstimate + msgShareEstimate
+	totalShareEstimate := txShareEstimate + evdShareEstimate + msgShareEstimate
 
 	estimatedSize := types.NextPowerOf2(uint64(math.Sqrt(float64(totalShareEstimate))))
 
@@ -106,7 +97,7 @@ func estimateMsgShares(txConf client.TxConfig, txs [][]byte) int {
 		}
 
 		// write the tx to the square if it normal
-		if !hasWirePayForMessage(authTx) {
+		if !hasWirePayForData(authTx) {
 			continue
 		}
 
@@ -116,7 +107,7 @@ func estimateMsgShares(txConf client.TxConfig, txs [][]byte) int {
 		}
 
 		msg := authTx.GetMsgs()[0]
-		wireMsg, ok := msg.(*types.MsgWirePayForMessage)
+		wireMsg, ok := msg.(*types.MsgWirePayForData)
 		if !ok {
 			continue
 		}

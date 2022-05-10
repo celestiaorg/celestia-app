@@ -202,13 +202,13 @@ type MessageShareWriter struct {
 }
 ```
 
-These types are combined in a new celestia-app type, `squareWriter`, which is responsible for atomically writing transactions and their corresponding messages to the data square and the returned block data.
+These types are combined in a new celestia-app type, `shareSplitter`, which is responsible for atomically writing transactions and their corresponding messages to the data square and the returned block data.
 
 ```go
-// squareWriter writes a data square using provided block data. It also ensures
+// shareSplitter writes a data square using provided block data. It also ensures
 // that message and their corresponding txs get written to the square
 // atomically.
-type squareWriter struct {
+type shareSplitter struct {
    txWriter  *coretypes.ContiguousShareWriter
    msgWriter *coretypes.MessageShareWriter
    ...
@@ -228,7 +228,7 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
        processedTxs [][]byte
        messages     core.Messages
    )
-   sqwr, err := newSquareWriter(txConf, squareSize, data)
+   sqwr, err := newShareSplitter(txConf, squareSize, data)
    if err != nil {
        return nil, nil, err
    }
@@ -283,7 +283,7 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
 
 // writeTx marshals the tx and lazily writes it to the square. Returns true if
 // the write was successful, false if there was not enough room in the square.
-func (sqwr *squareWriter) writeTx(tx []byte) (ok bool, err error) {
+func (sqwr *shareSplitter) writeTx(tx []byte) (ok bool, err error) {
    delimTx, err := coretypes.Tx(tx).MarshalDelimited()
    if err != nil {
        return false, err
@@ -301,7 +301,7 @@ func (sqwr *squareWriter) writeTx(tx []byte) (ok bool, err error) {
 // its corresponding message provided that it has a MsgPayForData for the
 // preselected square size. Returns true if the write was successful, false if
 // there was not enough room in the square.
-func (sqwr *squareWriter) writeMalleatedTx(
+func (sqwr *shareSplitter) writeMalleatedTx(
    parentHash []byte,
    tx signing.Tx,
    wpfd *types.MsgWirePayForData,

@@ -106,8 +106,8 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 
 	for idx, commit := range msg.MessageShareCommitment {
 		// check that each commit is valid
-		if !PowerOf2(commit.K) {
-			return fmt.Errorf("invalid square size, the size must be power of 2: %d", commit.K)
+		if !powerOf2(commit.K) {
+			return ErrCommittedSquareSizeNotPowOf2.Wrapf("committed to square size: %d", commit.K)
 		}
 
 		calculatedCommit, err := CreateCommitment(commit.K, msg.GetMessageNameSpaceId(), msg.Message)
@@ -213,5 +213,5 @@ func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.
 		return nil, nil, nil, err
 	}
 
-	return &coreMsg, pfm, shareCommit.Signature, nil
+	return &coreMsg, pfd, shareCommit.Signature, nil
 }

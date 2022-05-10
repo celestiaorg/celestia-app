@@ -15,8 +15,8 @@ import (
 )
 
 // WriteSquare uses the provided block data to create a flattened data square.
-// Any MsgWirePayForMessages are malleated, and their corresponding
-// MsgPayForMessage and Message are written atomically. If there are
+// Any MsgWirePayForDatas are malleated, and their corresponding
+// MsgPayForData and Message are written atomically. If there are
 // transactions that will node fit in the given square size, then they are
 // discarded. This is reflected in the returned block data. Note: pointers to
 // block data are only used to avoid dereferening, not because we need the block
@@ -41,7 +41,7 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
 		}
 
 		// write the tx to the square if it normal
-		if !hasWirePayForMessage(authTx) {
+		if !hasWirePayForData(authTx) {
 			success, err := sqwr.writeTx(rawTx)
 			if err != nil {
 				continue
@@ -60,7 +60,7 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
 		}
 
 		msg := authTx.GetMsgs()[0]
-		wireMsg, ok := msg.(*types.MsgWirePayForMessage)
+		wireMsg, ok := msg.(*types.MsgWirePayForData)
 		if !ok {
 			continue
 		}
@@ -100,10 +100,10 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
 	}
 }
 
-// squareWriter write a data square using provided block data. It also ensures
+// shareSplitter write a data square using provided block data. It also ensures
 // that message and their corresponding txs get written to the square
 // atomically.
-type squareWriter struct {
+type shareSplitter struct {
 	txWriter  *coretypes.ContiguousShareWriter
 	msgWriter *coretypes.MessageShareWriter
 
@@ -139,7 +139,7 @@ func newShareSplitter(txConf client.TxConfig, squareSize uint64, data *core.Data
 
 // writeTx marshals the tx and lazily writes it to the square. Returns true if
 // the write was successful, false if there was not enough room in the square.
-func (sqwr *squareWriter) writeTx(tx []byte) (ok bool, err error) {
+func (sqwr *shareSplitter) writeTx(tx []byte) (ok bool, err error) {
 	delimTx, err := coretypes.Tx(tx).MarshalDelimited()
 	if err != nil {
 		return false, err
@@ -153,24 +153,24 @@ func (sqwr *squareWriter) writeTx(tx []byte) (ok bool, err error) {
 	return true, nil
 }
 
-// writeMalleated malleates a MsgWirePayForMessage into a MsgPayForMessage and
-// its corresponding message provided that it has a MsgPayForMessage for the
+// writeMalleated malleates a MsgWirePayForData into a MsgPayForData and
+// its corresponding message provided that it has a MsgPayForData for the
 // preselected square size. Returns true if the write was successful, false if
 // there was not enough room in the square.
-func (sqwr *squareWriter) writeMalleatedTx(
+func (sqwr *shareSplitter) writeMalleatedTx(
 	parentHash []byte,
 	tx signing.Tx,
-	wpfm *types.MsgWirePayForMessage,
+	wpfd *types.MsgWirePayForData,
 ) (ok bool, malleatedTx coretypes.Tx, msg *core.Message, err error) {
 	// parse wire message and create a single message
-	coreMsg, unsignedPFM, sig, err := types.ProcessWirePayForMessage(wpfm, sqwr.squareSize)
+	coreMsg, unsignedPFD, sig, err := types.ProcessWirePayForData(wpfd, sqwr.squareSize)
 	if err != nil {
 		return false, nil, nil, err
 	}
 
-	// create the signed PayForMessage using the fees, gas limit, and sequence from
+	// create the signed PayForData using the fees, gas limit, and sequence from
 	// the original transaction, along with the appropriate signature.
-	signedTx, err := types.BuildPayForMessageTxFromWireTx(tx, sqwr.txConf.NewTxBuilder(), sig, unsignedPFM)
+	signedTx, err := types.BuildPayForDataTxFromWireTx(tx, sqwr.txConf.NewTxBuilder(), sig, unsignedPFD)
 	if err != nil {
 		return false, nil, nil, err
 	}
@@ -205,7 +205,7 @@ func (sqwr *squareWriter) writeMalleatedTx(
 	return true, wrappedTx, coreMsg, nil
 }
 
-func (sqwr *squareWriter) hasRoomForBoth(tx, msg []byte) bool {
+func (sqwr *shareSplitter) hasRoomForBoth(tx, msg []byte) bool {
 	currentShareCount, availableBytes := sqwr.shareCount()
 
 	txBytesTaken := delimLen(uint64(len(tx))) + len(tx)
@@ -217,7 +217,7 @@ func (sqwr *squareWriter) hasRoomForBoth(tx, msg []byte) bool {
 	return currentShareCount+maxTxSharesTaken+maxMsgSharesTaken <= sqwr.maxShareCount
 }
 
-func (sqwr *squareWriter) hasRoomForTx(tx []byte) bool {
+func (sqwr *shareSplitter) hasRoomForTx(tx []byte) bool {
 	currentShareCount, availableBytes := sqwr.shareCount()
 
 	bytesTaken := delimLen(uint64(len(tx))) + len(tx)
@@ -230,13 +230,13 @@ func (sqwr *squareWriter) hasRoomForTx(tx []byte) bool {
 	return currentShareCount+maxSharesTaken <= sqwr.maxShareCount
 }
 
-func (sqwr *squareWriter) shareCount() (count, availableTxBytes int) {
+func (sqwr *shareSplitter) shareCount() (count, availableTxBytes int) {
 	txsShareCount, availableBytes := sqwr.txWriter.Count()
 	return txsShareCount + len(sqwr.isrShares) + len(sqwr.evdShares) + sqwr.msgWriter.Count(),
 		availableBytes
 }
 
-func (sqwr *squareWriter) export() [][]byte {
+func (sqwr *shareSplitter) export() [][]byte {
 	count, pendingTxBytes := sqwr.shareCount()
 	// increment the count if there are any pending tx bytes
 	if pendingTxBytes > 0 {
@@ -278,10 +278,10 @@ func (sqwr *squareWriter) export() [][]byte {
 	return shares
 }
 
-func hasWirePayForMessage(tx sdk.Tx) bool {
+func hasWirePayForData(tx sdk.Tx) bool {
 	for _, msg := range tx.GetMsgs() {
 		msgName := sdk.MsgTypeURL(msg)
-		if msgName == types.URLMsgWirePayforMessage {
+		if msgName == types.URLMsgWirePayForData {
 			return true
 		}
 	}
