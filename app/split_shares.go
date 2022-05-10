@@ -153,7 +153,7 @@ func (sqwr *shareSplitter) writeTx(tx []byte) (ok bool, err error) {
 	return true, nil
 }
 
-// writeMalleated malleates a MsgWirePayForData into a MsgPayForData and
+// writeMalleatedTx malleates a MsgWirePayForData into a MsgPayForData and
 // its corresponding message provided that it has a MsgPayForData for the
 // preselected square size. Returns true if the write was successful, false if
 // there was not enough room in the square.
