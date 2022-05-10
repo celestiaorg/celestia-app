@@ -74,11 +74,7 @@ func TestWriteSquare(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		square, data, err := app.WriteSquare(encCfg.TxConfig, tt.squareSize, tt.data)
-		if tt.expectErr {
-			assert.Error(t, err)
-			continue
-		}
+		square, data := app.SplitShares(encCfg.TxConfig, tt.squareSize, tt.data)
 
 		// has the expected number of txs
 		assert.Equal(t, tt.expectedTxCount, len(data.Txs))
