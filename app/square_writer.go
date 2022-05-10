@@ -21,15 +21,13 @@ import (
 // discarded. This is reflected in the returned block data. Note: pointers to
 // block data are only used to avoid dereferening, not because we need the block
 // data to be mutable.
-func WriteSquare(txConf client.TxConfig, squareSize uint64, data *core.Data) ([][]byte, *core.Data, error) {
+func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([][]byte, *core.Data) {
 	var (
 		processedTxs [][]byte
 		messages     core.Messages
 	)
-	sqwr, err := newSquareWriter(txConf, squareSize, data)
-	if err != nil {
-		return nil, nil, err
-	}
+	sqwr := newShareSplitter(txConf, squareSize, data)
+
 	for _, rawTx := range data.Txs {
 		// decode the Tx
 		tx, err := txConf.TxDecoder()(rawTx)
@@ -96,11 +94,10 @@ func WriteSquare(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
 	})
 
 	return sqwr.export(), &core.Data{
-		Txs:                    processedTxs,
-		Messages:               messages,
-		Evidence:               data.Evidence,
-		IntermediateStateRoots: data.IntermediateStateRoots,
-	}, nil
+		Txs:      processedTxs,
+		Messages: messages,
+		Evidence: data.Evidence,
+	}
 }
 
 // squareWriter write a data square using provided block data. It also ensures
@@ -120,8 +117,8 @@ type squareWriter struct {
 	txConf        client.TxConfig
 }
 
-func newSquareWriter(txConf client.TxConfig, squareSize uint64, data *core.Data) (*squareWriter, error) {
-	sqwr := squareWriter{
+func newShareSplitter(txConf client.TxConfig, squareSize uint64, data *core.Data) *shareSplitter {
+	sqwr := shareSplitter{
 		squareSize:    squareSize,
 		maxShareCount: int(squareSize * squareSize),
 		txConf:        txConf,
@@ -130,18 +127,14 @@ func newSquareWriter(txConf client.TxConfig, squareSize uint64, data *core.Data)
 	evdData := new(coretypes.EvidenceData)
 	err := evdData.FromProto(&data.Evidence)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	if evdData != nil {
-		sqwr.evdShares = evdData.SplitIntoShares().RawShares()
-	}
-	isrData := coretypes.IntermediateStateRootsFromProto(data.IntermediateStateRoots)
-	sqwr.isrShares = isrData.SplitIntoShares().RawShares()
+	sqwr.evdShares = evdData.SplitIntoShares().RawShares()
 
 	sqwr.txWriter = coretypes.NewContiguousShareWriter(consts.TxNamespaceID)
 	sqwr.msgWriter = coretypes.NewMessageShareWriter()
 
-	return &sqwr, nil
+	return &sqwr
 }
 
 // writeTx marshals the tx and lazily writes it to the square. Returns true if

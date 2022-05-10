@@ -18,12 +18,7 @@ import (
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	squareSize := app.estimateSquareSize(req.BlockData)
 
-	// todo(evan): create the DAH using the square
-	dataSquare, data, err := WriteSquare(app.txConfig, squareSize, req.BlockData)
-	if err != nil {
-		// todo(evan): see if we can get rid of this panic
-		panic(err)
-	}
+	dataSquare, data := SplitShares(app.txConfig, squareSize, req.BlockData)
 
 	eds, err := da.ExtendShares(squareSize, dataSquare)
 	if err != nil {
