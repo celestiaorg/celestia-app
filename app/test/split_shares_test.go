@@ -16,7 +16,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func TestWriteSquare(t *testing.T) {
+func TestSplitShares(t *testing.T) {
 	encCfg := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
 
 	type test struct {
