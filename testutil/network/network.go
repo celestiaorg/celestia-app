@@ -24,7 +24,7 @@ import (
 )
 
 func New(t *testing.T, config network.Config, genAccNames ...string) *network.Network {
-	kr := generateKeyring(t)
+	kr := keyring.NewInMemory(config.Codec)
 
 	// add genesis accounts
 	genAuthAccs := make([]authtypes.GenesisAccount, len(genAccNames))
@@ -42,7 +42,12 @@ func New(t *testing.T, config network.Config, genAccNames ...string) *network.Ne
 		panic(err)
 	}
 
-	net := network.New(t, config)
+	tmpDir := t.TempDir()
+
+	net, err := network.New(t, tmpDir, config)
+	if err != nil {
+		panic(err)
+	}
 
 	// add the keys to the keyring that is used by the integration test
 	for i, name := range genAccNames {
@@ -74,7 +79,7 @@ func DefaultConfig() network.Config {
 		},
 		GenesisState:    app.ModuleBasics.DefaultGenesis(encoding.Marshaler),
 		TimeoutCommit:   2 * time.Second,
-		ChainID:         "chain-" + tmrand.NewRand().Str(6),
+		ChainID:         "chain-" + tmrand.Str(6),
 		NumValidators:   1,
 		BondDenom:       app.BondDenom,
 		MinGasPrices:    fmt.Sprintf("0.000006%s", app.BondDenom),
@@ -123,16 +128,20 @@ func newGenAccout(kr keyring.Keyring, name string, amount int64) (authtypes.Gene
 		sdk.NewCoin(app.BondDenom, sdk.NewInt(amount)),
 	)
 
+	addr, err := info.GetAddress()
+	if err != nil {
+		panic(err)
+	}
+
 	bal := banktypes.Balance{
-		Address: info.GetAddress().String(),
+		Address: addr.String(),
 		Coins:   balances.Sort(),
 	}
 
-	return authtypes.NewBaseAccount(info.GetAddress(), info.GetPubKey(), 0, 0), bal, mnm
-}
+	pub, err := info.GetPubKey()
+	if err != nil {
+		panic(err)
+	}
 
-func generateKeyring(t *testing.T) keyring.Keyring {
-	t.Helper()
-	kb := keyring.NewInMemory()
-	return kb
+	return authtypes.NewBaseAccount(addr, pub, 0, 0), bal, mnm
 }

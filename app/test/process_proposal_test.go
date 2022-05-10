@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"crypto/rand"
+	"math/big"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -22,7 +23,10 @@ func TestMessageInclusionCheck(t *testing.T) {
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
 	info := signer.GetSignerInfo()
 
-	testApp := testutil.SetupTestApp(t, info.GetAddress())
+	addr, err := info.GetAddress()
+	require.NoError(t, err)
+
+	testApp := testutil.SetupTestApp(t, addr)
 
 	encConf := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
 
@@ -151,7 +155,7 @@ func genRandMsgPayForData(t *testing.T, signer *types.KeyringSigner) (*types.Msg
 	_, err := rand.Read(ns)
 	require.NoError(t, err)
 
-	message := make([]byte, tmrand.Intn(3000))
+	message := make([]byte, randomInt(3000))
 	_, err = rand.Read(message)
 	require.NoError(t, err)
 
@@ -174,4 +178,9 @@ func buildTx(t *testing.T, signer *types.KeyringSigner, txCfg client.TxConfig, m
 	require.NoError(t, err)
 
 	return rawTx
+}
+
+func randomInt(max int64) int64 {
+	i, _ := rand.Int(rand.Reader, big.NewInt(max))
+	return i.Int64()
 }

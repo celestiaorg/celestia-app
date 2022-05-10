@@ -162,6 +162,7 @@ type App struct {
 	legacyAmino       *codec.LegacyAmino
 	appCodec          codec.Codec
 	interfaceRegistry types.InterfaceRegistry
+	txConfig          client.TxConfig
 	msgSvcRouter      *authmiddleware.MsgServiceRouter
 	legacyRouter      sdk.Router
 
@@ -241,6 +242,7 @@ func New(
 		BaseApp:           bApp,
 		appCodec:          appCodec,
 		interfaceRegistry: interfaceRegistry,
+		txConfig:          encodingConfig.TxConfig,
 		legacyRouter:      authmiddleware.NewLegacyRouter(),
 		msgSvcRouter:      authmiddleware.NewMsgServiceRouter(interfaceRegistry),
 		invCheckPeriod:    invCheckPeriod,
@@ -562,7 +564,7 @@ func (app *App) RegisterTxService(clientCtx client.Context) {
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.
 func (app *App) RegisterTendermintService(clientCtx client.Context) {
-	tmservice.RegisterTendermintService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.interfaceRegistry)
+	tmservice.RegisterTendermintService(clientCtx, app.BaseApp.GRPCQueryRouter(), app.interfaceRegistry, nil)
 }
 
 // GetMaccPerms returns a copy of the module account permissions

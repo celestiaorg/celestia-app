@@ -47,7 +47,12 @@ func (k *KeyringSigner) QueryAccountNumber(ctx context.Context, conn *grpc.Clien
 		return err
 	}
 
-	accNum, seqNumb, err := QueryAccount(ctx, conn, k.encCfg, info.GetAddress().String())
+	addr, err := info.GetAddress()
+	if err != nil {
+		return err
+	}
+
+	accNum, seqNumb, err := QueryAccount(ctx, conn, k.encCfg, addr.String())
 	if err != nil {
 		return err
 	}
@@ -85,10 +90,15 @@ func (k *KeyringSigner) BuildSignedTx(builder sdkclient.TxBuilder, msg sdktypes.
 		return nil, err
 	}
 
+	pub, err := keyInfo.GetPubKey()
+	if err != nil {
+		return nil, err
+	}
+
 	// we must first set an empty signature in order generate
 	// the correct sign bytes
 	sigV2 := signing.SignatureV2{
-		PubKey: keyInfo.GetPubKey(),
+		PubKey: pub,
 		Data: &signing.SingleSignatureData{
 			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
 			Signature: nil,
@@ -116,15 +126,20 @@ func (k *KeyringSigner) BuildSignedTx(builder sdkclient.TxBuilder, msg sdktypes.
 		return nil, err
 	}
 
+	addr, err := keyInfo.GetAddress()
+	if err != nil {
+		return nil, err
+	}
+
 	// Sign those bytes using the keyring. we are ignoring the returned public key
-	sigBytes, _, err := k.SignByAddress(keyInfo.GetAddress(), bytesToSign)
+	sigBytes, _, err := k.SignByAddress(addr, bytesToSign)
 	if err != nil {
 		return nil, err
 	}
 
 	// Construct the SignatureV2 struct, this time including a real signature
 	sigV2 = signing.SignatureV2{
-		PubKey: keyInfo.GetPubKey(),
+		PubKey: pub,
 		Data: &signing.SingleSignatureData{
 			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
 			Signature: sigBytes,
@@ -165,7 +180,7 @@ func (k *KeyringSigner) SetKeyringAccName(name string) {
 
 // GetSignerInfo returns the signer info for the KeyringSigner's account. panics
 // if the account in KeyringSigner does not exist.
-func (k *KeyringSigner) GetSignerInfo() keyring.Info {
+func (k *KeyringSigner) GetSignerInfo() *keyring.Record {
 	info, err := k.Key(k.keyringAccName)
 	if err != nil {
 		panic(err)

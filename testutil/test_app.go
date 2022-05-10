@@ -3,12 +3,10 @@ package testutil
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -36,9 +34,10 @@ func SetupTestApp(t *testing.T, addr sdk.AccAddress) *app.App {
 	// var cache sdk.MultiStorePersistentCache
 	// EmptyAppOptions is a stub implementing AppOptions
 	emptyOpts := emptyAppOptions{}
-	var anteOpt = func(bapp *baseapp.BaseApp) { bapp.SetAnteHandler(nil) }
+	// var anteOpt = func(bapp *baseapp.BaseApp) { bapp.SetAnteHandler(nil) }
 	db := dbm.NewMemDB()
-	logger := log.NewTMLogger(log.NewSyncWriter(os.Stderr))
+	logger, err := log.NewDefaultLogger("plain", "info", false)
+	require.NoError(t, err)
 
 	skipUpgradeHeights := make(map[int64]bool)
 
@@ -50,12 +49,11 @@ func SetupTestApp(t *testing.T, addr sdk.AccAddress) *app.App {
 		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
 		encCfg,
 		emptyOpts,
-		anteOpt,
 	)
 
 	genesisState := NewDefaultGenesisState(encCfg.Marshaler)
 
-	genesisState, err := AddGenesisAccount(addr, genesisState, encCfg.Marshaler)
+	genesisState, err = AddGenesisAccount(addr, genesisState, encCfg.Marshaler)
 	if err != nil {
 		t.Error(err)
 	}
@@ -84,7 +82,7 @@ func (ao emptyAppOptions) Get(o string) interface{} {
 // AddGenesisAccount mimics the cli addGenesisAccount command, providing an
 // account with an allocation of to "token" and "celes" tokens in the genesis
 // state
-func AddGenesisAccount(addr sdk.AccAddress, appState map[string]json.RawMessage, cdc codec.Codec) (map[string]json.RawMessage, error) {
+func AddGenesisAccount(addr sdk.AccAddress, appState app.GenesisState, cdc codec.Codec) (map[string]json.RawMessage, error) {
 	// create concrete account type based on input parameters
 	var genAccount authtypes.GenesisAccount
 
@@ -144,9 +142,9 @@ func AddGenesisAccount(addr sdk.AccAddress, appState map[string]json.RawMessage,
 	return appState, nil
 }
 
-func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
+func generateKeyring(t *testing.T, cdc codec.Codec, accts ...string) keyring.Keyring {
 	t.Helper()
-	kb := keyring.NewInMemory()
+	kb := keyring.NewInMemory(cdc)
 
 	for _, acc := range accts {
 		_, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
@@ -166,7 +164,8 @@ func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
 // GenerateKeyringSigner creates a types.KeyringSigner with keys generated for
 // the provided accounts
 func GenerateKeyringSigner(t *testing.T, acct string) *types.KeyringSigner {
-	kr := generateKeyring(t)
+	encCfg := app.MakeEncodingConfig()
+	kr := generateKeyring(t, encCfg.Marshaler)
 	return types.NewKeyringSigner(kr, acct, testChainID)
 }
 

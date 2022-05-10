@@ -245,8 +245,11 @@ func TestSignMalleatedTxs(t *testing.T) {
 			// that of independently generated PayForData
 			assert.Equal(t, unsignedPFD.MessageShareCommitment, wpfd.MessageShareCommitment[i].ShareCommitment)
 
+			pub, err := signer.GetSignerInfo().GetPubKey()
+			require.NoError(t, err)
+
 			// verify the signature
-			assert.True(t, signer.GetSignerInfo().GetPubKey().VerifySignature(
+			assert.True(t, pub.VerifySignature(
 				bytesToSign,
 				wpfd.MessageShareCommitment[i].Signature,
 			),

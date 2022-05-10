@@ -48,7 +48,10 @@ func TestBuildWirePayForData(t *testing.T) {
 		Sequence:      k.sequence,
 	}
 
-	err = authsigning.VerifySignature(info.GetPubKey(), signerData, sigs[0].Data, k.encCfg.TxConfig.SignModeHandler(), signedTx)
+	pub, err := info.GetPubKey()
+	require.NoError(t, err)
+
+	err = authsigning.VerifySignature(pub, signerData, sigs[0].Data, k.encCfg.TxConfig.SignModeHandler(), signedTx)
 	require.NoError(t, err)
 }
 
@@ -56,7 +59,9 @@ func TestBroadcastPayForData(t *testing.T) {
 	testRing := generateKeyring(t)
 	info, err := testRing.Key(testAccName)
 	require.NoError(t, err)
-	t.Skip(fmt.Sprintf("no local connection to app and no funds in wallet %s", info.GetAddress()))
+	addr, err := info.GetAddress()
+	require.NoError(t, err)
+	t.Skip(fmt.Sprintf("no local connection to app and no funds in wallet %s"), addr)
 
 	k := NewKeyringSigner(testRing, testAccName, "test")
 
@@ -111,7 +116,8 @@ func TestQueryAccountNumber(t *testing.T) {
 
 func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
 	t.Helper()
-	kb := keyring.NewInMemory()
+	encCfg := makeEncodingConfig()
+	kb := keyring.NewInMemory(encCfg.Marshaler)
 
 	for _, acc := range accts {
 		_, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
