@@ -2,6 +2,7 @@ package types
 
 import (
 	"crypto/ecdsa"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -20,7 +21,7 @@ func NewEthereumSignature(hash []byte, privateKey *ecdsa.PrivateKey) ([]byte, er
 	return crypto.Sign(protectedHash.Bytes(), privateKey)
 }
 
-func EthAddressFromSignature(hash []byte, signature []byte) (*EthAddress, error) {
+func EthAddressFromSignature(hash []byte, signature []byte) (*stakingtypes.EthAddress, error) {
 	if len(signature) < 65 {
 		return nil, sdkerrors.Wrap(ErrInvalid, "signature too short")
 	}
@@ -49,7 +50,7 @@ func EthAddressFromSignature(hash []byte, signature []byte) (*EthAddress, error)
 		return nil, sdkerrors.Wrap(err, "signature to public key")
 	}
 
-	addr, err := NewEthAddress(crypto.PubkeyToAddress(*pubkey).Hex())
+	addr, err := stakingtypes.NewEthAddress(crypto.PubkeyToAddress(*pubkey).Hex())
 	if err != nil {
 		return nil, sdkerrors.Wrap(err, "invalid address from public key")
 	}
@@ -59,7 +60,7 @@ func EthAddressFromSignature(hash []byte, signature []byte) (*EthAddress, error)
 
 // ValidateEthereumSignature takes a message, an associated signature and public key and
 // returns an error if the signature isn't valid
-func ValidateEthereumSignature(hash []byte, signature []byte, ethAddress EthAddress) error {
+func ValidateEthereumSignature(hash []byte, signature []byte, ethAddress stakingtypes.EthAddress) error {
 	addr, err := EthAddressFromSignature(hash, signature)
 
 	if err != nil {

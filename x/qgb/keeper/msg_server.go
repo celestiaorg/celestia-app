@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"math/big"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -50,7 +51,7 @@ func (k msgServer) ValsetConfirm(
 	}
 
 	// Verify ethereum address match
-	submittedEthAddress, err := types.NewEthAddress(msg.EthAddress)
+	submittedEthAddress, err := stakingtypes.NewEthAddress(msg.EthAddress)
 	if err != nil {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "invalid eth address")
 	}
@@ -124,7 +125,7 @@ func (k msgServer) DataCommitmentConfirm(
 	}
 
 	// Verify ethereum address
-	ethAddress, err := types.NewEthAddress(msg.EthAddress)
+	ethAddress, err := stakingtypes.NewEthAddress(msg.EthAddress)
 	if err != nil {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "invalid eth address")
 	}
