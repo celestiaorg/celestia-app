@@ -8,15 +8,15 @@ option go_package = "github.com/celestiaorg/celestia-app/x/payment/types";
 
 // Msg defines the payment Msg service.
 service Msg {
-  // PayForMessage allows the user to pay for the inclusion of a message
-  rpc PayForMessage(MsgPayForMessage) returns (MsgPayForMessageResponse) {
-    option (google.api.http).get = "/celestia/payment/payformessage";
+  // PayForData allows the user to pay for the inclusion of a message
+  rpc PayForData(MsgPayForData) returns (MsgPayForDataResponse) {
+    option (google.api.http).get = "/celestia/payment/payfordata";
   }
 }
 
-// MsgWirePayForMessage describes the format of data that is sent over the wire
-// for each PayForMessage
-message MsgWirePayForMessage {
+// MsgWirePayForData describes the format of data that is sent over the wire
+// for each PayForData
+message MsgWirePayForData {
   string signer = 1;
   bytes message_name_space_id = 2; // assume this is 8 bytes!
   uint64 message_size = 3;
@@ -25,29 +25,29 @@ message MsgWirePayForMessage {
       [ (gogoproto.nullable) = false ];
 }
 
-// MsgWirePayForMessageResponse describes the response returned after the
-// submission of a WirePayForMessage
-message MsgWirePayForMessageResponse {}
+// MsgWirePayForDataResponse describes the response returned after the
+// submission of a WirePayForData
+message MsgWirePayForDataResponse {}
 
 // ShareCommitAndSignature defines the
 message ShareCommitAndSignature {
   uint64 k = 1;
   bytes share_commitment = 2;
-  bytes signature = 3; // signature on one SignedTransactionPayForMessage
+  bytes signature = 3; // signature on one SignedTransactionPayForData
 }
 
-// MsgPayForMessage is what gets signed by users when creating
+// MsgPayForData is what gets signed by users when creating
 // ShareCommitSignatures.
 //  Multiple versions are signed and included, each version creates a commitment
 //  for a
 // specific square size.
-message MsgPayForMessage {
+message MsgPayForData {
   string signer = 1;
   bytes message_namespace_id = 2;
   uint64 message_size = 3;
   bytes message_share_commitment = 4;
 }
 
-// MsgPayForMessageResponse describes the response returned after the submission
-// of a PayForMessage
-message MsgPayForMessageResponse {}
+// MsgPayForDataResponse describes the response returned after the submission
+// of a PayForData
+message MsgPayForDataResponse {}

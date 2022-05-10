@@ -5,6 +5,8 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
+var _ sdk.Msg = &MsgValsetConfirm{}
+
 // NewMsgValsetConfirm returns a new msgValSetConfirm
 func NewMsgValsetConfirm(
 	nonce uint64,
@@ -43,4 +45,7 @@ func (msg *MsgValsetConfirm) ValidateBasic() (err error) {
 }
 
 // Type should return the action
-func (msg *MsgValsetConfirm) Type() string { return "valset_confirm" }
+func (msg *MsgValsetConfirm) Type() string { return "/qgb.MsgValsetConfirm" }
+
+// Route fullfills the sdk.Msg interface
+func (msg *MsgValsetConfirm) Route() string { return RouterKey }

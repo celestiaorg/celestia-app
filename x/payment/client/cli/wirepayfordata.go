@@ -17,10 +17,10 @@ import (
 
 const FlagSquareSizes = "square-sizes"
 
-func CmdWirePayForMessage() *cobra.Command {
+func CmdWirePayForData() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "payForMessage [hexNamespace] [hexMessage]",
-		Short: "Creates a new MsgWirePayForMessage",
+		Use:   "payForData [hexNamespace] [hexMessage]",
+		Short: "Creates a new MsgWirePayForData",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
@@ -53,18 +53,18 @@ func CmdWirePayForMessage() *cobra.Command {
 				return fmt.Errorf("failure to decode hex message: %w", err)
 			}
 
-			// create the MsgPayForMessage
+			// create the MsgPayForData
 			squareSizes, err := cmd.Flags().GetUintSlice(FlagSquareSizes)
 			if err != nil {
 				return err
 			}
 			squareSizes64 := parseSquareSizes(squareSizes)
-			pfmMsg, err := types.NewWirePayForMessage(namespace, message, squareSizes64...)
+			pfdMsg, err := types.NewWirePayForData(namespace, message, squareSizes64...)
 			if err != nil {
 				return err
 			}
 
-			// use the keyring to programmatically sign multiple PayForMessage txs
+			// use the keyring to programmatically sign multiple PayForData txs
 			signer := types.NewKeyringSigner(clientCtx.Keyring, accName, clientCtx.ChainID)
 
 			signer.SetAccountNumber(account.GetAccountNumber())
@@ -90,8 +90,8 @@ func CmdWirePayForMessage() *cobra.Command {
 				return err
 			}
 
-			// sign the  MsgPayForMessage's ShareCommitments
-			err = pfmMsg.SignShareCommitments(
+			// sign the  MsgPayForData's ShareCommitments
+			err = pfdMsg.SignShareCommitments(
 				signer,
 				types.SetGasLimit(gasSetting.Gas),
 				types.SetFeeAmount(parsedFees),
@@ -101,10 +101,10 @@ func CmdWirePayForMessage() *cobra.Command {
 			}
 
 			// run message checks
-			if err = pfmMsg.ValidateBasic(); err != nil {
+			if err = pfdMsg.ValidateBasic(); err != nil {
 				return err
 			}
-			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), pfmMsg)
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), pfdMsg)
 		},
 	}
 

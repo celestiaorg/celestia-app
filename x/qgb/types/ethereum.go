@@ -8,6 +8,7 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
+// TODO use either  this or the one from the cosmos-sdk
 const (
 	// ETHContractAddressLen is the length of contract address strings
 	ETHContractAddressLen = 42
@@ -24,7 +25,7 @@ func (ea EthAddress) GetAddress() string {
 }
 
 // SetAddress Sets the contained address, performing validation before updating the value
-func (ea EthAddress) SetAddress(address string) error {
+func (ea *EthAddress) SetAddress(address string) error {
 	if err := ValidateEthAddress(address); err != nil {
 		return err
 	}

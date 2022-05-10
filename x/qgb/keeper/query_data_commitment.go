@@ -19,7 +19,8 @@ func (k Keeper) DataCommitmentConfirm(
 	return &types.QueryDataCommitmentConfirmResponse{
 		Confirm: k.GetDataCommitmentConfirm(
 			sdk.UnwrapSDKContext(c),
-			request.Commitment,
+			request.EndBlock,
+			request.BeginBlock,
 			addr,
 		),
 	}, nil
@@ -59,6 +60,19 @@ func (k Keeper) DataCommitmentConfirmsByRange(
 ) (*types.QueryDataCommitmentConfirmsByRangeResponse, error) {
 	return &types.QueryDataCommitmentConfirmsByRangeResponse{
 		Confirms: k.GetDataCommitmentConfirmsByRange(
+			sdk.UnwrapSDKContext(ctx),
+			request.BeginBlock,
+			request.EndBlock,
+		),
+	}, nil
+}
+
+func (k Keeper) DataCommitmentConfirmsByExactRange(
+	ctx context.Context,
+	request *types.QueryDataCommitmentConfirmsByExactRangeRequest,
+) (*types.QueryDataCommitmentConfirmsByExactRangeResponse, error) {
+	return &types.QueryDataCommitmentConfirmsByExactRangeResponse{
+		Confirms: k.GetDataCommitmentConfirmsByExactRange(
 			sdk.UnwrapSDKContext(ctx),
 			request.BeginBlock,
 			request.EndBlock,

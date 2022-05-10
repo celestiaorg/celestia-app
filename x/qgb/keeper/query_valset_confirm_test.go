@@ -145,23 +145,23 @@ func TestQueryCurrentValset(t *testing.T) {
 			Members: []types.BridgeValidator{
 				{
 					Power:           858993459,
-					EthereumAddress: "0x0101010101010101010101010101010101010101",
+					EthereumAddress: EthAddrs[0].GetAddress(),
 				},
 				{
 					Power:           858993459,
-					EthereumAddress: "0x0202020202020202020202020202020202020202",
+					EthereumAddress: EthAddrs[1].GetAddress(),
 				},
 				{
 					Power:           858993459,
-					EthereumAddress: "0x0303030303030303030303030303030303030303",
+					EthereumAddress: EthAddrs[2].GetAddress(),
 				},
 				{
 					Power:           858993459,
-					EthereumAddress: "0x0404040404040404040404040404040404040404",
+					EthereumAddress: EthAddrs[3].GetAddress(),
 				},
 				{
 					Power:           858993459,
-					EthereumAddress: "0x0505050505050505050505050505050505050505",
+					EthereumAddress: EthAddrs[4].GetAddress(),
 				},
 			},
 		}

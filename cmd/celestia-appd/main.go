@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -23,6 +24,13 @@ func main() {
 		appBuilder,
 		// this line is used by starport scaffolding # root/arguments
 	)
+
+	rootCmd.AddCommand(
+		orchestrator.DeployCmd(),
+		orchestrator.OrchestratorCmd(),
+		orchestrator.RelayerCmd(),
+	)
+
 	if err := svrcmd.Execute(rootCmd, app.DefaultNodeHome); err != nil {
 		os.Exit(1)
 	}
