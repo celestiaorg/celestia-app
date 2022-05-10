@@ -3,6 +3,7 @@ package types
 import (
 	"errors"
 	"fmt"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -16,7 +17,7 @@ func NewMsgDataCommitmentConfirm(
 	commitment string,
 	signature string,
 	validatorAddress sdk.AccAddress,
-	ethAddress EthAddress,
+	ethAddress stakingtypes.EthAddress,
 	beginBlock uint64,
 	endBlock uint64,
 ) *MsgDataCommitmentConfirm {
@@ -47,7 +48,7 @@ func (msg *MsgDataCommitmentConfirm) ValidateBasic() (err error) {
 	if msg.BeginBlock > msg.EndBlock {
 		return errors.New("begin block should be less than end block")
 	}
-	if err := ValidateEthAddress(msg.EthAddress); err != nil {
+	if err := stakingtypes.ValidateEthAddress(msg.EthAddress); err != nil {
 		return sdkerrors.Wrap(err, "ethereum address")
 	}
 	return nil

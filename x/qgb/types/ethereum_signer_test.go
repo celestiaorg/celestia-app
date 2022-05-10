@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/hex"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -74,7 +75,7 @@ func TestValsetConfirmSig(t *testing.T) {
 			require.NoError(t, err)
 
 			// when
-			ethAddr, err := NewEthAddress(spec.srcETHAddr)
+			ethAddr, err := stakingtypes.NewEthAddress(spec.srcETHAddr)
 			assert.NoError(t, err)
 			err = ValidateEthereumSignature(hashBytes, sigBytes, *ethAddr)
 			if spec.expErr {
