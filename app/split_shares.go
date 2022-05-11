@@ -185,8 +185,8 @@ func (sqwr *shareSplitter) writeMalleatedTx(
 		return false, nil, nil, err
 	}
 
-	// check if we have room for both the tx and message it is crucial that we
-	// add both atomically, otherwise the block is invalid
+	// Check if we have room for both the tx and message. It is crucial that we
+	// add both atomically, otherwise the block would be invalid.
 	if !sqwr.hasRoomForBoth(wrappedTx, coreMsg.Data) {
 		return false, nil, nil, nil
 	}
