@@ -19,14 +19,10 @@ import (
 
 func TestPrepareProposal(t *testing.T) {
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
-	info := signer.GetSignerInfo()
-
-	addr, err := info.GetAddress()
-	require.NoError(t, err)
 
 	encCfg := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
 
-	testApp := testutil.SetupTestApp(t, addr)
+	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 
 	type test struct {
 		input            abci.RequestPrepareProposal

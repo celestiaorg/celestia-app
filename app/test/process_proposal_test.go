@@ -21,12 +21,8 @@ import (
 
 func TestMessageInclusionCheck(t *testing.T) {
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
-	info := signer.GetSignerInfo()
 
-	addr, err := info.GetAddress()
-	require.NoError(t, err)
-
-	testApp := testutil.SetupTestApp(t, addr)
+	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 
 	encConf := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
 
