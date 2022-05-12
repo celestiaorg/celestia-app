@@ -110,7 +110,6 @@ type shareSplitter struct {
 	// we aren't doing anything with evidence or isrs yet, so we don't need to
 	// lazily generate those shares lazily
 	evdShares [][]byte
-	isrShares [][]byte
 
 	squareSize    uint64
 	maxShareCount int
@@ -232,7 +231,7 @@ func (sqwr *shareSplitter) hasRoomForTx(tx []byte) bool {
 
 func (sqwr *shareSplitter) shareCount() (count, availableTxBytes int) {
 	txsShareCount, availableBytes := sqwr.txWriter.Count()
-	return txsShareCount + len(sqwr.isrShares) + len(sqwr.evdShares) + sqwr.msgWriter.Count(),
+	return txsShareCount + len(sqwr.evdShares) + sqwr.msgWriter.Count(),
 		availableBytes
 }
 
@@ -248,26 +247,21 @@ func (sqwr *shareSplitter) export() [][]byte {
 	txShareCount := len(txShares)
 	copy(shares, txShares)
 
-	isrShareCount := len(sqwr.isrShares)
-	for i, isrShare := range sqwr.isrShares {
-		shares[i+txShareCount] = isrShare
-	}
-
 	evdShareCount := len(sqwr.evdShares)
 	for i, evdShare := range sqwr.evdShares {
-		shares[i+txShareCount+isrShareCount] = evdShare
+		shares[i+txShareCount] = evdShare
 	}
 
 	msgShares := sqwr.msgWriter.Export()
 	msgShareCount := len(msgShares)
 	for i, msgShare := range msgShares {
-		shares[i+txShareCount+isrShareCount+evdShareCount] = msgShare.Share
+		shares[i+txShareCount+evdShareCount] = msgShare.Share
 	}
 
 	tailShares := coretypes.TailPaddingShares(sqwr.maxShareCount - count).RawShares()
 
 	for i, tShare := range tailShares {
-		d := i + txShareCount + isrShareCount + evdShareCount + msgShareCount
+		d := i + txShareCount + evdShareCount + msgShareCount
 		shares[d] = tShare
 	}
 
