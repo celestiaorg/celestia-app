@@ -496,7 +496,7 @@ func New(
 	app.SetInitChainer(app.InitChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetEndBlocker(app.EndBlocker)
-	app.setTxHandler(encodingConfig.TxConfig, cast.ToStringSlice(appOpts.Get(server.FlagIndexEvents)), keys)
+	app.setTxHandler(encodingConfig.TxConfig, cast.ToStringSlice(appOpts.Get(server.FlagIndexEvents)))
 
 	if loadLatest {
 		if err := app.LoadLatestVersion(); err != nil {
@@ -669,13 +669,12 @@ func getGovProposalHandlers() []govclient.ProposalHandler {
 	return govProposalHandlers
 }
 
-// Set Transaction Handler.
-func (app *App) setTxHandler(txConfig client.TxConfig, indexEventsStr []string, keys map[string]*storetypes.KVStoreKey) {
+func (app *App) setTxHandler(txConfig client.TxConfig, indexEventsStr []string) {
 	indexEvents := map[string]struct{}{}
 	for _, e := range indexEventsStr {
 		indexEvents[e] = struct{}{}
 	}
-	txHandler, err := NewDefaultTxHandler(TxHandlerOptions{
+	txHandler, err := authmiddleware.NewDefaultTxHandler(authmiddleware.TxHandlerOptions{
 		Debug:            app.Trace(),
 		IndexEvents:      indexEvents,
 		LegacyRouter:     app.legacyRouter,
