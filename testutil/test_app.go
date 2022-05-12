@@ -58,51 +58,6 @@ var DefaultConsensusParams = &tmproto.ConsensusParams{
 	},
 }
 
-// SetupTestApp initializes a celestia-app application with a funded account
-// func SetupTestApp(t *testing.T, info *keyring.Record) *app.App {
-// 	// var cache sdk.MultiStorePersistentCache
-// 	// EmptyAppOptions is a stub implementing AppOptions
-// 	emptyOpts := emptyAppOptions{}
-// 	// var anteOpt = func(bapp *baseapp.BaseApp) { bapp.SetAnteHandler(nil) }
-// 	db := dbm.NewMemDB()
-// 	logger, err := log.NewDefaultLogger("plain", "info", false)
-// 	require.NoError(t, err)
-
-// 	skipUpgradeHeights := make(map[int64]bool)
-
-// 	encCfg := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
-
-// 	testApp := app.New(
-// 		logger, db, nil, true, skipUpgradeHeights,
-// 		cast.ToString(emptyOpts.Get(flags.FlagHome)),
-// 		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
-// 		encCfg,
-// 		emptyOpts,
-// 	)
-
-// 	genesisState := GenesisStateWithSingleValidator(t, testApp)
-
-// 	addr, _ := info.GetAddress()
-
-// 	genesisState, err = AddGenesisAccount(addr, genesisState, encCfg.Codec)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-
-// 	stateBytes, err := json.MarshalIndent(genesisState, "", "  ")
-// 	require.NoError(t, err)
-
-// 	// Initialize the chain
-// 	testApp.InitChain(
-// 		abci.RequestInitChain{
-// 			Validators:    []abci.ValidatorUpdate{},
-// 			AppStateBytes: stateBytes,
-// 		},
-// 	)
-
-// 	return testApp
-// }
-
 type emptyAppOptions struct{}
 
 // Get implements AppOptions
