@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"crypto/sha256"
+	"math/bits"
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
@@ -284,10 +285,5 @@ func hasWirePayForData(tx sdk.Tx) bool {
 }
 
 func delimLen(x uint64) int {
-	i := 0
-	for x >= 0x80 {
-		x >>= 7
-		i++
-	}
-	return i + 1
+	return 8 - bits.LeadingZeros64(x)%8
 }
