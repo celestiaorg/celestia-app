@@ -16,19 +16,17 @@ import (
 var _ AppClient = &relayerClient{}
 
 type relayerClient struct {
-	tendermintRPC       *http.HTTP
-	logger              tmlog.Logger
-	querier             Querier
-	mutex               *sync.Mutex // TODO check if we need the mutex here
-	evmClient           EVMClient
-	orchestratorAddress string
+	tendermintRPC *http.HTTP
+	logger        tmlog.Logger
+	querier       Querier
+	mutex         *sync.Mutex // TODO check if we need the mutex here
+	evmClient     EVMClient
 }
 
 func NewRelayerClient(
 	logger tmlog.Logger,
 	tendermintRPC string,
 	querier Querier,
-	orchAddr string,
 	evmClient EVMClient,
 ) (AppClient, error) {
 	trpc, err := http.New(tendermintRPC, "/websocket")
@@ -41,12 +39,11 @@ func NewRelayerClient(
 	}
 
 	return &relayerClient{
-		tendermintRPC:       trpc,
-		logger:              logger,
-		querier:             querier,
-		mutex:               &sync.Mutex{},
-		orchestratorAddress: orchAddr,
-		evmClient:           evmClient,
+		tendermintRPC: trpc,
+		logger:        logger,
+		querier:       querier,
+		mutex:         &sync.Mutex{},
+		evmClient:     evmClient,
 	}, nil
 }
 
