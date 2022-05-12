@@ -7,9 +7,6 @@ services:
       context: ../..
       args:
         CELESTIA_HOME_DIR: /opt
-    environment:
-      - MY_VAL_ADDRESS=celes1d9qrpq56t765g9umqwhvey3vn25fcmf8f6yeyx
-      - DALC_ADDRESS=celes1dm7fp7uwrr5y68v48gg8jhd2cku7vt7f4l8w0s
     ports:
       - "9090:9090"
       - "26657:26657"
@@ -19,6 +16,7 @@ services:
         "--moniker", "core0",
         "--rpc.laddr", "tcp://0.0.0.0:26657"
     ]
+    # Eth Address: 0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488:da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
     volumes:
       - ${PWD}/celestia-app/core0/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
       - ${PWD}/celestia-app/core0/config/node_key.json:/opt/config/node_key.json:ro
@@ -32,18 +30,23 @@ services:
       context: ../..
       args:
         CELESTIA_HOME_DIR: /opt
+    depends_on:
+      - core0
     environment:
-      - MY_VAL_ADDRESS=celes1e5yt4l20alra9gtl4d9uncc4lm23zdxsjqhmsz
+      - MONIKER=core1
+      - CELESTIA_HOME=/opt
+      # private key: 002ad18ca3def673345897b063bfa98d829a4d812dbd07f1938676828a82c4f9
+      - ETH_ADDRESS=0x91DEd26b5f38B065FC0204c7929Da1b2A21877Ad
+      - AMOUNT=5000000000uceles
     command: [
         "/bin/bash",
-        "/opt/start_node_and_create_validator_core1.sh"
+        "/opt/start_node_and_create_validator.sh"
     ] # celestia-appd start --home /opt --moniker core1 --p2p.persistent_peers 7b5ef9ef378a3907be7591863a566634d191b58b@core0:26656 --rpc.laddr tcp://0.0.0.0:26657
     volumes:
       - ${PWD}/celestia-app/core1/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
       - ${PWD}/celestia-app/core1/config/node_key.json:/opt/config/node_key.json:ro
       - ${PWD}/celestia-app/core1/keyring-test:/opt/keyring-test:ro
-      - ${PWD}/celestia-app/core1/create_core1_validator.sh:/opt/create_core1_validator.sh:ro
-      - ${PWD}/celestia-app/core1/start_node_and_create_validator_core1.sh:/opt/start_node_and_create_validator_core1.sh:ro
+      - ${PWD}/celestia-app/start_node_and_create_validator.sh:/opt/start_node_and_create_validator.sh:ro
       - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
       - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
 
@@ -53,18 +56,23 @@ services:
       context: ../..
       args:
         CELESTIA_HOME_DIR: /opt
+    depends_on:
+      - core0
     environment:
-      - MY_VAL_ADDRESS=celes1qqan0fj73dhqfgwkuuh4qj2e77g4tugkrhy2jn
+      - MONIKER=core2
+      - CELESTIA_HOME=/opt
+      # private key: 6adac8b5de0ba702ec8feab6d386a0c7334c6720b9174c02333700d431057af8
+      - ETH_ADDRESS=0x3d22f0C38251ebdBE92e14BBF1bd2067F1C3b7D7
+      - AMOUNT=5000000000uceles
     command: [
       "/bin/bash",
-      "/opt/start_node_and_create_validator_core2.sh"
+      "/opt/start_node_and_create_validator.sh"
     ]
     volumes:
       - ${PWD}/celestia-app/core2/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
       - ${PWD}/celestia-app/core2/config/node_key.json:/opt/config/node_key.json:ro
       - ${PWD}/celestia-app/core2/keyring-test:/opt/keyring-test:ro
-      - ${PWD}/celestia-app/core2/create_core2_validator.sh:/opt/create_core2_validator.sh:ro
-      - ${PWD}/celestia-app/core2/start_node_and_create_validator_core2.sh:/opt/start_node_and_create_validator_core2.sh:ro
+      - ${PWD}/celestia-app/start_node_and_create_validator.sh:/opt/start_node_and_create_validator.sh:ro
       - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
       - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
 
@@ -74,18 +82,23 @@ services:
       context: ../..
       args:
         CELESTIA_HOME_DIR: /opt
+    depends_on:
+      - core0
     environment:
-      - MY_VAL_ADDRESS=celes1gf9hty6c0pwp7h763lz5gf4hng55prscdv8q79
+      - MONIKER=core3
+      - CELESTIA_HOME=/opt
+      # private key: 2f7f6763500dfb48b710a4c5c6c6a487b8aa6c7bc8b8a9b637a23f651f1c9b51
+      - ETH_ADDRESS=0x3EE99606625E740D8b29C8570d855Eb387F3c790
+      - AMOUNT=5000000000uceles
     command: [
       "/bin/bash",
-      "/opt/start_node_and_create_validator_core3.sh"
+      "/opt/start_node_and_create_validator.sh"
     ]
     volumes:
       - ${PWD}/celestia-app/core3/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
       - ${PWD}/celestia-app/core3/config/node_key.json:/opt/config/node_key.json:ro
       - ${PWD}/celestia-app/core3/keyring-test:/opt/keyring-test:ro
-      - ${PWD}/celestia-app/core3/create_core3_validator.sh:/opt/create_core3_validator.sh:ro
-      - ${PWD}/celestia-app/core3/start_node_and_create_validator_core3.sh:/opt/start_node_and_create_validator_core3.sh:ro
+      - ${PWD}/celestia-app/start_node_and_create_validator.sh:/opt/start_node_and_create_validator.sh:ro
       - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
       - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
 
