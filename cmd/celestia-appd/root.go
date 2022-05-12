@@ -36,7 +36,7 @@ import (
 	dbm "github.com/tendermint/tm-db"
 )
 
-// NewRootCmd creates a new root command for simd. It is called once in the
+// NewRootCmd creates a new root command for celestia-appd. It is called once in the
 // main function.
 func NewRootCmd() *cobra.Command {
 	encodingConfig := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
