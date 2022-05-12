@@ -71,15 +71,14 @@ func (app *App) estimateSquareSize(data *core.Data) uint64 {
 
 	estimatedSize := types.NextPowerOf2(uint64(math.Sqrt(float64(totalShareEstimate))))
 
-	if estimatedSize > consts.MaxSquareSize {
+	switch {
+	case estimatedSize > consts.MaxSquareSize:
 		return consts.MaxSquareSize
+	case estimatedSize < consts.MinSquareSize:
+		return consts.MinSquareSize
+	default:
+		return estimatedSize
 	}
-
-	if estimatedSize < consts.MinSquareSize {
-		estimatedSize = consts.MinSquareSize
-	}
-
-	return estimatedSize
 }
 
 func estimateMsgShares(txConf client.TxConfig, txs [][]byte) int {
