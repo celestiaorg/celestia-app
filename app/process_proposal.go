@@ -88,7 +88,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 	data, err := coretypes.DataFromProto(req.BlockData)
 	if err != nil {
-		app.Logger().Error(rejectedPropBlockLog, "reason", "failure to unmarshal block data:", err)
+		app.Logger().Error(rejectedPropBlockLog, "reason", "failure to unmarshal block data:", "error", err)
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
@@ -96,7 +96,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 	shares, _, err := data.ComputeShares(req.BlockData.OriginalSquareSize)
 	if err != nil {
-		app.Logger().Error(rejectedPropBlockLog, "reason", "failure to compute shares from block data:", err)
+		app.Logger().Error(rejectedPropBlockLog, "reason", "failure to compute shares from block data:", "error", err)
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
@@ -109,7 +109,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			"reason",
 			"failure to erasure the data square",
 			"error",
-			err.Error(),
+			err,
 		)
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
