@@ -2,11 +2,12 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -22,7 +23,6 @@ func OrchestratorCmd() *cobra.Command {
 		Aliases: []string{"orch"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			config, err := parseOrchestratorFlags(cmd)
-			//clientCtx, err := cosmosclient.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
@@ -41,7 +41,7 @@ func OrchestratorCmd() *cobra.Command {
 				config.celestiaChainID,
 			)
 
-			querier, err := NewQuerier(config.qgbRPC, config.tendermintRPC, logger)
+			querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger)
 			if err != nil {
 				return err
 			}
@@ -56,8 +56,7 @@ func OrchestratorCmd() *cobra.Command {
 				return err
 			}
 
-			// TODO change config.qgbRPC to a more meaningful name
-			broadcaster, err := NewBroadcaster(config.qgbRPC, signer)
+			broadcaster, err := NewBroadcaster(config.celesGRPC, signer)
 			if err != nil {
 				return nil
 			}
