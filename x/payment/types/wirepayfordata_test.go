@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	sdkerrors "github.com/cosmos/cosmos-sdk/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/tendermint/tendermint/pkg/consts"
 )

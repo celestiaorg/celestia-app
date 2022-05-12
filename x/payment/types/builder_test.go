@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestBuildWirePayForData(t *testing.T) {
@@ -67,7 +68,7 @@ func TestBroadcastPayForData(t *testing.T) {
 
 	RPCAddress := "127.0.0.1:9090"
 
-	rpcClient, err := grpc.Dial(RPCAddress, grpc.WithInsecure())
+	rpcClient, err := grpc.Dial(RPCAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	err = k.QueryAccountNumber(context.TODO(), rpcClient)
 	require.NoError(t, err)
@@ -108,7 +109,7 @@ func TestQueryAccountNumber(t *testing.T) {
 
 	RPCAddress := "127.0.0.1:9090"
 
-	rpcClient, err := grpc.Dial(RPCAddress, grpc.WithInsecure())
+	rpcClient, err := grpc.Dial(RPCAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	err = k.QueryAccountNumber(context.TODO(), rpcClient)
 	require.NoError(t, err)
