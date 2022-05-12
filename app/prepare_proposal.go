@@ -96,7 +96,7 @@ func estimateMsgShares(txConf client.TxConfig, txs [][]byte) int {
 			continue
 		}
 
-		// write the tx to the square if it normal
+		// skip txs that don't contain messages
 		if !hasWirePayForData(authTx) {
 			continue
 		}
