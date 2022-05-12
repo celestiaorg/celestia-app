@@ -107,8 +107,9 @@ type shareSplitter struct {
 	txWriter  *coretypes.ContiguousShareWriter
 	msgWriter *coretypes.MessageShareWriter
 
-	// we aren't doing anything with evidence or isrs yet, so we don't need to
-	// lazily generate those shares lazily
+	// Since evidence will always be included in a block, we do not need to
+	// generate these share lazily. Therefore instead of a ContiguousShareWriter
+	// we use the normal eager mechanism
 	evdShares [][]byte
 
 	squareSize    uint64
