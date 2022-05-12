@@ -28,10 +28,10 @@ func init() {
 
 const (
 	// cosmos-sdk keyring flags
-	keyringBackendFlag = "keyring-backend"
-	keyringPathFlag    = "keyring-path"
-	keyringAccountName = "keyring-account"
-	chainIDFlag        = "celes-chain-id"
+	keyringBackendFlag  = "keyring-backend"
+	keyringPathFlag     = "keyring-path"
+	keyringAccountName  = "keyring-account"
+	celestiaChainIDFlag = "celes-chain-id"
 
 	// ethereum signing
 	privateKeyFlag = "eth-priv-key"
@@ -40,103 +40,212 @@ const (
 	// rpc
 	celesGRPCFlag     = "celes-grpc"
 	tendermintRPCFlag = "celes-http-rpc"
-	ethRPCFlag        = "eth-rpc"
+	evmRPCFlag        = "evm-rpc"
 
-	contractAddressFlag = "contract"
+	contractAddressFlag = "contract-address"
 )
 
 func addOrchestratorFlags(cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().StringP(keyringBackendFlag, "b", "test", "Select keyring's backend (os|file|kwallet|pass|test)")
-	cmd.Flags().StringP(keyringPathFlag, "p", filepath.Join(HomeDir, ".celestia-app"), "Specify the path to the keyring keys")
+	cmd.Flags().StringP(
+		keyringPathFlag,
+		"p",
+		filepath.Join(HomeDir, ".celestia-app"),
+		"Specify the path to the keyring keys",
+	)
 	cmd.Flags().StringP(keyringAccountName, "n", "user", "Specify the account name used with the keyring")
-	cmd.Flags().StringP(privateKeyFlag, "d", "", "Provide the private key used to sign relayed evm transactions or to sign orchestrator commitments")
-	cmd.Flags().StringP(chainIDFlag, "x", "user", "Specify the celestia chain id")
-	cmd.Flags().Uint64P(evmChainIDFlag, "z", 5, "Specify the evm chain id")
-
-	cmd.Flags().StringP(celesGRPCFlag, "c", "localhost:9090", "Specify the grpc address")
+	cmd.Flags().StringP(celestiaChainIDFlag, "x", "user", "Specify the celestia chain id")
 	cmd.Flags().StringP(tendermintRPCFlag, "t", "http://localhost:26657", "Specify the rest rpc address")
-	cmd.Flags().StringP(ethRPCFlag, "e", "http://localhost:8545", "Specify the ethereum rpc address")
-
-	cmd.Flags().StringP(contractAddressFlag, "a", "", "Specify the contract at which the qgb is deployed")
+	cmd.Flags().StringP(celesGRPCFlag, "c", "localhost:9090", "Specify the grpc address")
+	cmd.Flags().StringP(
+		privateKeyFlag,
+		"d",
+		"",
+		"Specify the ECDSA private key used to sign orchestrator commitments in hex",
+	)
 
 	return cmd
 }
 
-type config struct {
+type orchestratorConfig struct {
 	keyringBackend, keyringPath, keyringAccount string
-	celestiaChainID                             string
+	celestiaChainID, celesGRPC, tendermintRPC   string
 	privateKey                                  *ecdsa.PrivateKey
-	evmChainID                                  uint64
-	qgbRPC, tendermintRPC, evmRPC               string
-	contractAddr                                ethcmn.Address
 }
 
-func parseOrchestratorFlags(cmd *cobra.Command) (config, error) {
+func parseOrchestratorFlags(cmd *cobra.Command) (orchestratorConfig, error) {
 	keyringBackend, err := cmd.Flags().GetString(keyringBackendFlag)
 	if err != nil {
-		return config{}, err
+		return orchestratorConfig{}, err
 	}
 	keyringPath, err := cmd.Flags().GetString(keyringPathFlag)
 	if err != nil {
-		return config{}, err
+		return orchestratorConfig{}, err
 	}
 	keyringAccount, err := cmd.Flags().GetString(keyringAccountName)
 	if err != nil {
-		return config{}, err
+		return orchestratorConfig{}, err
 	}
 	rawPrivateKey, err := cmd.Flags().GetString(privateKeyFlag)
 	if err != nil {
-		return config{}, err
+		return orchestratorConfig{}, err
 	}
 	if rawPrivateKey == "" {
-		return config{}, errors.New("private key flag required")
+		return orchestratorConfig{}, errors.New("private key flag required")
 	}
 	ethPrivKey, err := ethcrypto.HexToECDSA(rawPrivateKey)
 	if err != nil {
-		return config{}, fmt.Errorf("failed to hex-decode Ethereum ECDSA Private Key: %w", err)
+		return orchestratorConfig{}, fmt.Errorf("failed to hex-decode Ethereum ECDSA Private Key: %w", err)
 	}
-	chainID, err := cmd.Flags().GetString(chainIDFlag)
+	chainID, err := cmd.Flags().GetString(celestiaChainIDFlag)
 	if err != nil {
-		return config{}, err
-	}
-	evmChainID, err := cmd.Flags().GetUint64(evmChainIDFlag)
-	if err != nil {
-		return config{}, err
+		return orchestratorConfig{}, err
 	}
 	tendermintRPC, err := cmd.Flags().GetString(tendermintRPCFlag)
 	if err != nil {
-		return config{}, err
+		return orchestratorConfig{}, err
 	}
-	qgbRPC, err := cmd.Flags().GetString(celesGRPCFlag)
+	celesGRPC, err := cmd.Flags().GetString(celesGRPCFlag)
 	if err != nil {
-		return config{}, err
-	}
-	contractAddr, err := cmd.Flags().GetString(contractAddressFlag)
-	if err != nil {
-		return config{}, err
-	}
-	if contractAddr == "" {
-		return config{}, fmt.Errorf("contract address flag is required: %s", contractAddressFlag)
-	}
-	if !ethcmn.IsHexAddress(contractAddr) {
-		return config{}, fmt.Errorf("valid contract address flag is required: %s", contractAddressFlag)
-	}
-	address := ethcmn.HexToAddress(contractAddr)
-	ethRpc, err := cmd.Flags().GetString(ethRPCFlag)
-	if err != nil {
-		return config{}, err
+		return orchestratorConfig{}, err
 	}
 
-	return config{
+	return orchestratorConfig{
 		keyringBackend:  keyringBackend,
 		keyringPath:     keyringPath,
 		keyringAccount:  keyringAccount,
 		privateKey:      ethPrivKey,
 		celestiaChainID: chainID,
-		evmChainID:      evmChainID,
-		qgbRPC:          qgbRPC,
+		celesGRPC:       celesGRPC,
 		tendermintRPC:   tendermintRPC,
-		contractAddr:    address,
-		evmRPC:          ethRpc,
+	}, nil
+}
+
+func addRelayerFlags(cmd *cobra.Command) *cobra.Command {
+	cmd.Flags().StringP(privateKeyFlag, "d", "", "Provide the private key used to sign relayed evm transactions")
+	cmd.Flags().Uint64P(evmChainIDFlag, "z", 5, "Specify the evm chain id")
+	cmd.Flags().StringP(celesGRPCFlag, "c", "localhost:9090", "Specify the grpc address")
+	cmd.Flags().StringP(tendermintRPCFlag, "t", "http://localhost:26657", "Specify the rest rpc address")
+	cmd.Flags().StringP(evmRPCFlag, "e", "http://localhost:8545", "Specify the ethereum rpc address")
+	cmd.Flags().StringP(contractAddressFlag, "a", "", "Specify the contract at which the qgb is deployed")
+
+	return cmd
+}
+
+type relayerConfig struct {
+	evmChainID                       uint64
+	evmRPC, celesGRPC, tendermintRPC string
+	privateKey                       *ecdsa.PrivateKey
+	contractAddr                     ethcmn.Address
+}
+
+func parseRelayerFlags(cmd *cobra.Command) (relayerConfig, error) {
+	rawPrivateKey, err := cmd.Flags().GetString(privateKeyFlag)
+	if err != nil {
+		return relayerConfig{}, err
+	}
+	if rawPrivateKey == "" {
+		return relayerConfig{}, errors.New("private key flag required")
+	}
+	ethPrivKey, err := ethcrypto.HexToECDSA(rawPrivateKey)
+	if err != nil {
+		return relayerConfig{}, fmt.Errorf("failed to hex-decode Ethereum ECDSA Private Key: %w", err)
+	}
+	evmChainID, err := cmd.Flags().GetUint64(evmChainIDFlag)
+	if err != nil {
+		return relayerConfig{}, err
+	}
+	tendermintRPC, err := cmd.Flags().GetString(tendermintRPCFlag)
+	if err != nil {
+		return relayerConfig{}, err
+	}
+	celesGRPC, err := cmd.Flags().GetString(celesGRPCFlag)
+	if err != nil {
+		return relayerConfig{}, err
+	}
+	contractAddr, err := cmd.Flags().GetString(contractAddressFlag)
+	if err != nil {
+		return relayerConfig{}, err
+	}
+	if contractAddr == "" {
+		return relayerConfig{}, fmt.Errorf("contract address flag is required: %s", contractAddressFlag)
+	}
+	if !ethcmn.IsHexAddress(contractAddr) {
+		return relayerConfig{}, fmt.Errorf("valid contract address flag is required: %s", contractAddressFlag)
+	}
+	address := ethcmn.HexToAddress(contractAddr)
+	ethRpc, err := cmd.Flags().GetString(evmRPCFlag)
+	if err != nil {
+		return relayerConfig{}, err
+	}
+
+	return relayerConfig{
+		privateKey:    ethPrivKey,
+		evmChainID:    evmChainID,
+		celesGRPC:     celesGRPC,
+		tendermintRPC: tendermintRPC,
+		contractAddr:  address,
+		evmRPC:        ethRpc,
+	}, nil
+}
+
+func addDeployFlags(cmd *cobra.Command) *cobra.Command {
+	cmd.Flags().StringP(privateKeyFlag, "d", "", "Provide the private key used to sign the deploy transaction")
+	cmd.Flags().StringP(celestiaChainIDFlag, "x", "user", "Specify the celestia chain id")
+	cmd.Flags().Uint64P(evmChainIDFlag, "z", 5, "Specify the evm chain id")
+	cmd.Flags().StringP(celesGRPCFlag, "c", "localhost:9090", "Specify the grpc address")
+	cmd.Flags().StringP(tendermintRPCFlag, "t", "http://localhost:26657", "Specify the rest rpc address")
+	cmd.Flags().StringP(evmRPCFlag, "e", "http://localhost:8545", "Specify the ethereum rpc address")
+
+	return cmd
+}
+
+type deployConfig struct {
+	celestiaChainID                  string
+	evmRPC, celesGRPC, tendermintRPC string
+	evmChainID                       uint64
+	privateKey                       *ecdsa.PrivateKey
+}
+
+func parseDeployFlags(cmd *cobra.Command) (deployConfig, error) {
+	rawPrivateKey, err := cmd.Flags().GetString(privateKeyFlag)
+	if err != nil {
+		return deployConfig{}, err
+	}
+	if rawPrivateKey == "" {
+		return deployConfig{}, errors.New("private key flag required")
+	}
+	ethPrivKey, err := ethcrypto.HexToECDSA(rawPrivateKey)
+	if err != nil {
+		return deployConfig{}, fmt.Errorf("failed to hex-decode Ethereum ECDSA Private Key: %w", err)
+	}
+	chainID, err := cmd.Flags().GetString(celestiaChainIDFlag)
+	if err != nil {
+		return deployConfig{}, err
+	}
+	evmChainID, err := cmd.Flags().GetUint64(evmChainIDFlag)
+	if err != nil {
+		return deployConfig{}, err
+	}
+	tendermintRPC, err := cmd.Flags().GetString(tendermintRPCFlag)
+	if err != nil {
+		return deployConfig{}, err
+	}
+	celesGRPC, err := cmd.Flags().GetString(celesGRPCFlag)
+	if err != nil {
+		return deployConfig{}, err
+	}
+	evmRPC, err := cmd.Flags().GetString(evmRPCFlag)
+	if err != nil {
+		return deployConfig{}, err
+	}
+
+	return deployConfig{
+		privateKey:      ethPrivKey,
+		celestiaChainID: chainID,
+		evmChainID:      evmChainID,
+		celesGRPC:       celesGRPC,
+		tendermintRPC:   tendermintRPC,
+		evmRPC:          evmRPC,
 	}, nil
 }

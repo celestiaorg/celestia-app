@@ -2,14 +2,15 @@ package orchestrator
 
 import (
 	"fmt"
+	"math/big"
+	"os"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
 	tmlog "github.com/tendermint/tendermint/libs/log"
-	"math/big"
-	"os"
 )
 
 func DeployCmd() *cobra.Command {
@@ -17,15 +18,14 @@ func DeployCmd() *cobra.Command {
 		Use:   "deploy <flags>",
 		Short: "Deploys the QGB contract and initializes it using the provided Celestia chain",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			config, err := parseOrchestratorFlags(cmd)
+			config, err := parseDeployFlags(cmd)
 			if err != nil {
 				return err
 			}
 
 			logger := tmlog.NewTMLogger(os.Stdout)
 
-			// TODO make the deployer config only have the required params
-			querier, err := NewQuerier(config.qgbRPC, config.tendermintRPC, logger)
+			querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger)
 			if err != nil {
 				return err
 			}
@@ -80,5 +80,5 @@ func DeployCmd() *cobra.Command {
 			return nil
 		},
 	}
-	return addOrchestratorFlags(command)
+	return addDeployFlags(command)
 }

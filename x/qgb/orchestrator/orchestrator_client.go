@@ -173,7 +173,7 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 	// will change once we have the new design
 	go oc.addOldDataCommitmentAttestations(ctx, dataCommitments) //nolint:errcheck
 
-	// queryClient := types.NewQueryClient(orchestratorClient.qgbRPC)
+	// queryClient := types.NewQueryClient(orchestratorClient.celesGRPC)
 
 	// resp, err := queryClient.Params(ctx, &types.QueryParamsRequest{})
 	// if err != nil {

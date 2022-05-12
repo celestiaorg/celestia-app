@@ -3,12 +3,8 @@ package orchestrator
 import (
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"time"
-
-	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -21,26 +17,13 @@ func RelayerCmd() *cobra.Command {
 	command := &cobra.Command{
 		Use: "relayer <flags>",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			config, err := parseOrchestratorFlags(cmd)
+			config, err := parseRelayerFlags(cmd)
 			if err != nil {
 				return err
 			}
-
-			// creates the signer
-			//TODO: optionally ask for input for a password
-			ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringPath, strings.NewReader(""))
-			if err != nil {
-				return err
-			}
-			signer := paytypes.NewKeyringSigner(
-				ring,
-				config.keyringAccount,
-				config.celestiaChainID,
-			)
 
 			logger := tmlog.NewTMLogger(os.Stdout)
 
-			// TODO the relayer doesn't need the signer
 			ethClient, err := ethclient.Dial(config.evmRPC)
 			if err != nil {
 				return err
@@ -50,7 +33,7 @@ func RelayerCmd() *cobra.Command {
 				return err
 			}
 
-			querier, err := NewQuerier(config.qgbRPC, config.tendermintRPC, logger)
+			querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger)
 			if err != nil {
 				return err
 			}
@@ -59,7 +42,6 @@ func RelayerCmd() *cobra.Command {
 				logger,
 				config.tendermintRPC,
 				querier,
-				signer.GetSignerInfo().GetAddress().String(),
 				NewEvmClient(
 					tmlog.NewTMLogger(os.Stdout),
 					*qgbWrapper,
@@ -141,5 +123,5 @@ func RelayerCmd() *cobra.Command {
 			return nil
 		},
 	}
-	return addOrchestratorFlags(command)
+	return addRelayerFlags(command)
 }
