@@ -3,9 +3,7 @@ package testutil
 import (
 	"fmt"
 	"strconv"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -75,19 +73,18 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 		expectedCode uint32
 		respType     proto.Message
 	}{
-		// TODO(evan): reenable test after figuring out why txs are being submitted out of order
-		// {
-		// 	"valid transaction",
-		// 	[]string{
-		// 		hexNS,
-		// 		hexMsg,
-		// 		fmt.Sprintf("--from=%s", username),
-		// 		fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
-		// 		fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
-		// 		fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-		// 	},
-		// 	false, 0, &sdk.TxResponse{},
-		// },
+		{
+			"valid transaction",
+			[]string{
+				hexNS,
+				hexMsg,
+				fmt.Sprintf("--from=%s", username),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+			},
+			false, 0, &sdk.TxResponse{},
+		},
 		{
 			"valid transaction list of square sizes",
 			[]string{
@@ -118,10 +115,8 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 
 	for _, tc := range testCases {
 		tc := tc
-		var wg sync.WaitGroup
-		wg.Add(1)
+		s.Require().NoError(s.network.WaitForNextBlock())
 		s.Run(tc.name, func() {
-			defer wg.Done()
 			cmd := paycli.CmdWirePayForData()
 			clientCtx := val.ClientCtx
 
@@ -151,7 +146,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 				}
 
 				// wait for the tx to be indexed
-				time.Sleep(time.Second * 3)
+				s.Require().NoError(s.network.WaitForNextBlock())
 
 				// attempt to query for the malleated transaction using the original tx's hash
 				qTxCmd := authcmd.QueryTxCmd()
@@ -162,7 +157,6 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 				s.Require().NoError(val.ClientCtx.Codec.UnmarshalJSON(out.Bytes(), &result))
 			}
 		})
-		wg.Wait()
 	}
 }
 
