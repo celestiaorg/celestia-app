@@ -89,7 +89,7 @@ import (
 )
 
 const (
-	AccountAddressPrefix = "celes"
+	AccountAddressPrefix = "celestia"
 	Name                 = "celestia-app"
 	// BondDenom defines the native staking token denomination.
 	BondDenom = "uceles"
