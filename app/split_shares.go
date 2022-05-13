@@ -41,7 +41,7 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
 			continue
 		}
 
-		// write the tx to the square if it normal
+		// skip txs that don't contain messages
 		if !hasWirePayForData(authTx) {
 			success, err := sqwr.writeTx(rawTx)
 			if err != nil {
