@@ -18,30 +18,45 @@ const (
 	Ganache
 )
 
+const (
+	// represent the docker-compose services names
+	CORE0     = "core0"
+	COREOORCH = "core0-orch"
+	CORE1     = "core1"
+	CORE1ORCH = "core1-orch"
+	CORE2     = "core2"
+	CORE2ORCH = "core2-orch"
+	CORE3     = "core3"
+	CORE3ORCH = "core3-orch"
+	DEPLOYER  = "deployer"
+	RELAYER   = "relayer"
+	GANACHE   = "ganache"
+)
+
 func (n Service) toString() (string, error) {
 	switch n {
 	case Core0:
-		return "core0", nil
+		return CORE0, nil
 	case Core0Orch:
-		return "core0-orch", nil
+		return COREOORCH, nil
 	case Core1:
-		return "core1", nil
+		return CORE1, nil
 	case Core1Orch:
-		return "core1-orch", nil
+		return CORE1ORCH, nil
 	case Core2:
-		return "core2", nil
+		return CORE2, nil
 	case Core2Orch:
-		return "core2-orch", nil
+		return CORE2ORCH, nil
 	case Core3:
-		return "core3", nil
+		return CORE3, nil
 	case Core3Orch:
-		return "core3-orch", nil
+		return CORE3ORCH, nil
 	case Deployer:
-		return "deployer", nil
+		return DEPLOYER, nil
 	case Relayer:
-		return "relayer", nil
+		return RELAYER, nil
 	case Ganache:
-		return "ganache", nil
+		return GANACHE, nil
 	}
-	return "", fmt.Errorf("Unknown service")
+	return "", fmt.Errorf("unknown service")
 }

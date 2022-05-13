@@ -1,15 +1,22 @@
 package e2e
 
 import (
+	"context"
+	"fmt"
 	"github.com/google/uuid"
+	"github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/testcontainers/testcontainers-go"
 	"strings"
+	"time"
 )
 
 type QGBNetwork struct {
-	ComposePaths []string
-	Identifier   string
-	Instance     *testcontainers.LocalDockerCompose
+	ComposePaths  []string
+	Identifier    string
+	Instance      *testcontainers.LocalDockerCompose
+	EVMRPC        string
+	TendermintRPC string
+	CelestiaGRPC  string
 }
 
 func NewQGBNetwork() (*QGBNetwork, error) {
@@ -18,9 +25,12 @@ func NewQGBNetwork() (*QGBNetwork, error) {
 	instance := testcontainers.NewLocalDockerCompose(paths, id)
 
 	return &QGBNetwork{
-		Identifier:   id,
-		ComposePaths: paths,
-		Instance:     instance,
+		Identifier:    id,
+		ComposePaths:  paths,
+		Instance:      instance,
+		EVMRPC:        "http://localhost:8545",
+		TendermintRPC: "tcp://localhost:26657",
+		CelestiaGRPC:  "localhost:9090",
 	}, nil
 }
 
@@ -127,4 +137,50 @@ func (network QGBNetwork) StartBase() error {
 		return err
 	}
 	return nil
+}
+
+func (network QGBNetwork) WaitForNodeToStart(rpcAddr string) error {
+	for {
+		select {
+		case <-time.After(15 * time.Minute):
+			return fmt.Errorf("node %s not initialized in time", rpcAddr)
+		default:
+			trpc, err := http.New(rpcAddr, "/websocket")
+			if err != nil || trpc.Start() != nil {
+				fmt.Println("waiting for node to start...")
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			return nil
+		}
+	}
+}
+
+func (network QGBNetwork) WaitForBlock(ctx context.Context, height int64) error {
+	err := network.WaitForNodeToStart(network.TendermintRPC)
+	if err != nil {
+		return err
+	}
+	trpc, err := http.New(network.TendermintRPC, "/websocket")
+	if err != nil {
+		return err
+	}
+	err = trpc.Start()
+	if err != nil {
+		return err
+	}
+	for {
+		select {
+		case <-time.After(15 * time.Minute):
+			return fmt.Errorf("chain didn't reach height in time")
+		default:
+			status, err := trpc.Status(ctx)
+			if err != nil || status.SyncInfo.LatestBlockHeight < height {
+				fmt.Printf("current height: %d\n", status.SyncInfo.LatestBlockHeight)
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			return nil
+		}
+	}
 }
