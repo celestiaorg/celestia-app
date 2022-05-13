@@ -103,3 +103,28 @@ func (network QGBNetwork) ExecCommand(service Service, command []string) error {
 	}
 	return nil
 }
+
+// StartMinimal starts a network containing: 1 validator, 1 orchestrator, 1 relayer
+// and a ganache instance
+func (network QGBNetwork) StartMinimal() error {
+	err := network.Instance.
+		WithCommand([]string{"up", "-d", "core0", "core0-orch", "relayer", "ganache"}).
+		Invoke().Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// StartBase starts the very minimal component to have a network.
+// It consists of starting `core0` as it is the genesis validator, and the docker network
+// will be created along with it, allowing more containers to join it.
+func (network QGBNetwork) StartBase() error {
+	err := network.Instance.
+		WithCommand([]string{"up", "-d", "core0"}).
+		Invoke().Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
