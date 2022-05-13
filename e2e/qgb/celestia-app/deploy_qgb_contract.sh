@@ -22,7 +22,7 @@ fi
 # wait for the node to get up and running
 while true
 do
-  status_code=$(curl --write-out '%{http_code}' --silent --output /dev/null core0:26657/status)
+  status_code=$(curl --write-out '%{http_code}' --silent --output /dev/null core0:26657/status) # TODO don't use a hardcoded address
   if [[ "$status_code" -eq 200 ]] ; then
     break
   fi
