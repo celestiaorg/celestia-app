@@ -46,8 +46,8 @@ func DeployCmd() *cobra.Command {
 			var bridgeID [32]byte
 			copy(bridgeID[:], types.BridgeId.Bytes()) // is this safe?
 
-			// get latest valset
-			lastValset, err := querier.QueryLastValsets(cmd.Context())
+			// get the first valset
+			vs, err := querier.QueryValsetByNonce(cmd.Context(), 1)
 			if err != nil {
 				return fmt.Errorf(
 					"cannot initialize the QGB contract without having a valset request: %s",
@@ -55,7 +55,7 @@ func DeployCmd() *cobra.Command {
 				)
 			}
 
-			ethVsHash, err := lastValset[0].Hash()
+			ethVsHash, err := vs.Hash()
 			if err != nil {
 				return err
 			}
@@ -66,7 +66,7 @@ func DeployCmd() *cobra.Command {
 				auth,
 				ethClient,
 				bridgeID,
-				big.NewInt(int64(lastValset[0].TwoThirdsThreshold())),
+				big.NewInt(int64(vs.TwoThirdsThreshold())),
 				ethVsHash,
 			)
 			if err != nil {
