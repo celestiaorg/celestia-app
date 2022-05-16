@@ -82,6 +82,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+				fmt.Sprintf("--%s=%s", paycli.FlagSquareSizes, "2"),
 			},
 			false, 0, &sdk.TxResponse{},
 		},
