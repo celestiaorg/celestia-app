@@ -135,6 +135,8 @@ var (
 		crisisModule{},
 		slashing.AppModuleBasic{},
 		feegrantmodule.AppModuleBasic{},
+		// commented out until there is a compatible release of ibc
+		// see https://github.com/celestiaorg/celestia-app/issues/412
 		// ibc.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
 		evidence.AppModuleBasic{},
@@ -153,8 +155,9 @@ var (
 		minttypes.ModuleName:           {authtypes.Minter},
 		stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
 		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
+		// commented out until there is a compatible release of ibc
+		// see https://github.com/celestiaorg/celestia-app/issues/412
 		// ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
-		// this line is used by starport scaffolding # stargate/app/maccPerms
 	}
 )
 
