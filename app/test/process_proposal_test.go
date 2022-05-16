@@ -170,7 +170,7 @@ func genRandMsgPayForData(t *testing.T, signer *types.KeyringSigner, squareSize 
 	_, err := rand.Read(ns)
 	require.NoError(t, err)
 
-	message := make([]byte, randomInt(3000))
+	message := make([]byte, randomInt(20))
 	_, err = rand.Read(message)
 	require.NoError(t, err)
 

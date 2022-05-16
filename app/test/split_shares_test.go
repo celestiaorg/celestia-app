@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/spm/cosmoscmd"
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -17,7 +17,7 @@ import (
 )
 
 func TestSplitShares(t *testing.T) {
-	encCfg := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
+	encCfg := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
 
 	type test struct {
 		squareSize      uint64
