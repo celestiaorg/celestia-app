@@ -15,7 +15,6 @@ var (
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgWirePayForData{}, "payment/WirePayForData", nil)
-	// this line is used by starport scaffolding # 2
 }
 
 func RegisterInterfaces(registry codectypes.InterfaceRegistry) {

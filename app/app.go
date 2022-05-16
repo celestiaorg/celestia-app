@@ -85,7 +85,6 @@ import (
 	qgbmodule "github.com/celestiaorg/celestia-app/x/qgb"
 	qgbmodulekeeper "github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	qgbmoduletypes "github.com/celestiaorg/celestia-app/x/qgb/types"
-	// this line is used by starport scaffolding # stargate/app/moduleImport
 )
 
 const (
@@ -144,7 +143,6 @@ var (
 		vesting.AppModuleBasic{},
 		paymentmodule.AppModuleBasic{},
 		qgbmodule.AppModuleBasic{},
-		// this line is used by starport scaffolding # stargate/app/moduleBasic
 	)
 
 	// module account permissions
@@ -217,7 +215,6 @@ type App struct {
 
 	PaymentKeeper paymentmodulekeeper.Keeper
 	QgbKeeper     qgbmodulekeeper.Keeper
-	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 
 	// the module manager
 	mm *module.Manager
@@ -254,7 +251,6 @@ func New(
 		qgbmoduletypes.StoreKey,
 		// ibctransfertypes.StoreKey,
 		// ibchost.StoreKey,
-		// this line is used by starport scaffolding # stargate/app/storeKey
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
@@ -283,7 +279,6 @@ func New(
 	// grant capabilities for the ibc and ibc-transfer modules
 	// scopedIBCKeeper := app.CapabilityKeeper.ScopeToModule(ibchost.ModuleName)
 	// scopedTransferKeeper := app.CapabilityKeeper.ScopeToModule(ibctransfertypes.ModuleName)
-	// this line is used by starport scaffolding # stargate/app/scopedKeeper
 
 	// add keepers
 	app.AccountKeeper = authkeeper.NewAccountKeeper(
@@ -369,12 +364,9 @@ func New(
 	)
 	qgbmodule := qgbmodule.NewAppModule(appCodec, app.QgbKeeper)
 
-	// this line is used by starport scaffolding # stargate/app/keeperDefinition
-
 	// // Create static IBC router, add transfer route, then set and seal it
 	// ibcRouter := ibcporttypes.NewRouter()
 	// ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferIBCModule)
-	// // this line is used by starport scaffolding # ibc/app/router
 	// app.IBCKeeper.SetRouter(ibcRouter)
 
 	/****  Module Options ****/
@@ -409,7 +401,6 @@ func New(
 		// transferModule,
 		paymentmodule,
 		qgbmodule,
-		// this line is used by starport scaffolding # stargate/app/appModule
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -509,7 +500,6 @@ func New(
 
 	// app.ScopedIBCKeeper = scopedIBCKeeper
 	// app.ScopedTransferKeeper = scopedTransferKeeper
-	// this line is used by starport scaffolding # stargate/app/beforeInitReturn
 
 	return app
 }
@@ -650,14 +640,12 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	// paramsKeeper.Subspace(ibchost.ModuleName)
 	paramsKeeper.Subspace(paymentmoduletypes.ModuleName)
 	paramsKeeper.Subspace(qgbmoduletypes.ModuleName)
-	// this line is used by starport scaffolding # stargate/app/paramSubspace
 
 	return paramsKeeper
 }
 
 func getGovProposalHandlers() []govclient.ProposalHandler {
 	var govProposalHandlers []govclient.ProposalHandler
-	// this line is used by starport scaffolding # stargate/app/govProposalHandlers
 
 	govProposalHandlers = append(govProposalHandlers,
 		paramsclient.ProposalHandler,
@@ -666,7 +654,6 @@ func getGovProposalHandlers() []govclient.ProposalHandler {
 		upgradeclient.LegacyCancelProposalHandler,
 		// ibcclientclient.UpdateClientProposalHandler,
 		// ibcclientclient.UpgradeProposalHandler,
-		// this line is used by starport scaffolding # stargate/app/govProposalHandler
 	)
 
 	return govProposalHandlers
