@@ -168,7 +168,7 @@ func chunkMessage(message []byte) [][]byte {
 // by the share size specified in celestia-core
 func padMessage(msg []byte) []byte {
 	// check if the message needs padding
-	if uint64(len(msg))%ShareSize == 0 {
+	if len(msg)%ShareSize == 0 {
 		return msg
 	}
 
@@ -190,7 +190,7 @@ func powerOf2MountainRange(l, k uint64) []uint64 {
 			output = append(output, k)
 			l = l - k
 		case l < k:
-			p := nextPowerOf2(l)
+			p := NextPowerOf2(l)
 			output = append(output, p)
 			l = l - p
 		}
@@ -199,9 +199,9 @@ func powerOf2MountainRange(l, k uint64) []uint64 {
 	return output
 }
 
-// nextPowerOf2 returns the next lowest power of 2 unless the input is a power
+// NextPowerOf2 returns the next lowest power of 2 unless the input is a power
 // of two, in which case it returns the input
-func nextPowerOf2(v uint64) uint64 {
+func NextPowerOf2(v uint64) uint64 {
 	if v == 1 {
 		return 1
 	}
