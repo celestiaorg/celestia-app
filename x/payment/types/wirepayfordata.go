@@ -30,7 +30,7 @@ func NewWirePayForData(namespace, message []byte, sizes ...uint64) (*MsgWirePayF
 	// generate the share commitments
 	for i, size := range sizes {
 		if !powerOf2(size) {
-			return nil, fmt.Errorf("Invalid square size, the size must be power of 2: %d", size)
+			return nil, fmt.Errorf("invalid square size, the size must be power of 2: %d", size)
 		}
 		commit, err := CreateCommitment(size, namespace, message)
 		if err != nil {
@@ -66,7 +66,7 @@ func (msg *MsgWirePayForData) Route() string { return RouterKey }
 
 // ValidateBasic checks for valid namespace length, declared message size, share
 // commitments, signatures for those share commitments, and fulfills the sdk.Msg
-// interface
+// interface.
 func (msg *MsgWirePayForData) ValidateBasic() error {
 
 	// ensure that the namespace id is of length == NamespaceIDSize
@@ -125,7 +125,7 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 
 // GetSignBytes returns the bytes that are expected to be signed for the MsgWirePayForData.
 // The signature of these bytes will never actually get included on chain. Note: instead the
-// signature in the ShareCommitAndSignature of the appropriate square size is used
+// signature in the ShareCommitAndSignature of the appropriate square size is used.
 func (msg *MsgWirePayForData) GetSignBytes() []byte {
 	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(msg))
 }
@@ -140,7 +140,7 @@ func (msg *MsgWirePayForData) GetSigners() []sdk.AccAddress {
 }
 
 // createPayForDataSignature generates the signature for a PayForData for a single square
-// size using the info from a MsgWirePayForData
+// size using the info from a MsgWirePayForData.
 func (msg *MsgWirePayForData) createPayForDataSignature(signer *KeyringSigner, builder sdkclient.TxBuilder, k uint64) ([]byte, error) {
 	pfd, err := msg.unsignedPayForData(k)
 	if err != nil {
@@ -182,9 +182,9 @@ func (msg *MsgWirePayForData) unsignedPayForData(k uint64) (*MsgPayForData, erro
 	return &sPFD, nil
 }
 
-// ProcessWirePayForData will perform the processing required by PreProcessTxs.
-// It parses the MsgWirePayForData to produce the components needed to create a
-// single  MsgPayForData
+// ProcessWirePayForData performs the malleation process that occurs before
+// creating a block. It parses the MsgWirePayForData to produce the components
+// needed to create a single MsgPayForData.
 func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.Message, *MsgPayForData, []byte, error) {
 	// make sure that a ShareCommitAndSignature of the correct size is
 	// included in the message

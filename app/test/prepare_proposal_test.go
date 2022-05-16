@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/spm/cosmoscmd"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -32,22 +31,23 @@ func TestPrepareProposal(t *testing.T) {
 	}
 
 	firstNS := []byte{2, 2, 2, 2, 2, 2, 2, 2}
-	firstMessage := bytes.Repeat([]byte{2}, 512)
-	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNS, firstMessage, signer)
+	firstMessage := bytes.Repeat([]byte{4}, 512)
+	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNS, firstMessage, signer, 2, 4, 8)
 
 	secondNS := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	secondMessage := []byte{2}
-	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNS, secondMessage, signer)
+	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNS, secondMessage, signer, 2, 4, 8)
 
 	thirdNS := []byte{3, 3, 3, 3, 3, 3, 3, 3}
-	thirdMessage := []byte{}
-	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNS, thirdMessage, signer)
+	thirdMessage := []byte{1}
+	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNS, thirdMessage, signer, 2, 4, 8)
 
 	tests := []test{
 		{
 			input: abci.RequestPrepareProposal{
 				BlockData: &core.Data{
-					Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
+					Txs:                [][]byte{firstRawTx, secondRawTx, thirdRawTx},
+					OriginalSquareSize: 4,
 				},
 			},
 			expectedMessages: []*core.Message{
@@ -61,7 +61,7 @@ func TestPrepareProposal(t *testing.T) {
 				},
 				{
 					NamespaceId: thirdNS,
-					Data:        nil,
+					Data:        append([]byte{1}, bytes.Repeat([]byte{0}, 255)...),
 				},
 			},
 			expectedTxs: 3,
@@ -75,9 +75,9 @@ func TestPrepareProposal(t *testing.T) {
 	}
 }
 
-func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner) (rawTx []byte) {
+func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, ks ...uint64) (rawTx []byte) {
 	// create a msg
-	msg := generateSignedWirePayForData(t, consts.MaxSquareSize, ns, message, signer)
+	msg := generateSignedWirePayForData(t, ns, message, signer, ks...)
 
 	builder := signer.NewTxBuilder()
 
@@ -100,8 +100,8 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, s
 	return rawTx
 }
 
-func generateSignedWirePayForData(t *testing.T, k uint64, ns, message []byte, signer *types.KeyringSigner) *types.MsgWirePayForData {
-	msg, err := types.NewWirePayForData(ns, message, k)
+func generateSignedWirePayForData(t *testing.T, ns, message []byte, signer *types.KeyringSigner, ks ...uint64) *types.MsgWirePayForData {
+	msg, err := types.NewWirePayForData(ns, message, ks...)
 	if err != nil {
 		t.Error(err)
 	}

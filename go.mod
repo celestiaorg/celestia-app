@@ -36,7 +36,7 @@ require (
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/celestiaorg/go-leopard v0.1.0 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
-	github.com/celestiaorg/rsmt2d v0.3.1 // indirect
+	github.com/celestiaorg/rsmt2d v0.4.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/coinbase/rosetta-sdk-go v0.6.10 // indirect
@@ -126,6 +126,6 @@ replace (
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.1.7-0.20210622111912-ef00f8ac3d76
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.0.1-sdk-v0.44.2
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.0.1-tm-v0.34.16
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.1.1-tm-v0.34.16
 	google.golang.org/grpc => google.golang.org/grpc v1.33.2
 )

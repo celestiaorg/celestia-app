@@ -15,7 +15,9 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/pkg/consts"
+	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func TestMessageInclusionCheck(t *testing.T) {
@@ -26,10 +28,10 @@ func TestMessageInclusionCheck(t *testing.T) {
 
 	encConf := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
 
-	firstValidPFD, msg1 := genRandMsgPayForData(t, signer)
-	secondValidPFD, msg2 := genRandMsgPayForData(t, signer)
+	firstValidPFD, msg1 := genRandMsgPayForData(t, signer, 8)
+	secondValidPFD, msg2 := genRandMsgPayForData(t, signer, 8)
 
-	invalidCommitmentPFD, msg3 := genRandMsgPayForData(t, signer)
+	invalidCommitmentPFD, msg3 := genRandMsgPayForData(t, signer, 4)
 	invalidCommitmentPFD.MessageShareCommitment = tmrand.Bytes(32)
 
 	// block with all messages included
@@ -50,6 +52,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 				},
 			},
 		},
+		OriginalSquareSize: 4,
 	}
 
 	// block with a missing message
@@ -66,6 +69,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 				},
 			},
 		},
+		OriginalSquareSize: 4,
 	}
 
 	// block with all messages included, but the commitment is changed
@@ -86,6 +90,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 				},
 			},
 		},
+		OriginalSquareSize: 4,
 	}
 
 	// block with all messages included
@@ -105,6 +110,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 				},
 			},
 		},
+		OriginalSquareSize: 4,
 	}
 
 	type test struct {
@@ -140,22 +146,35 @@ func TestMessageInclusionCheck(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		data, err := coretypes.DataFromProto(tt.input.BlockData)
+		require.NoError(t, err)
+
+		shares, _, err := data.ComputeShares(tt.input.BlockData.OriginalSquareSize)
+		require.NoError(t, err)
+
+		rawShares := shares.RawShares()
+
+		require.NoError(t, err)
+		eds, err := da.ExtendShares(tt.input.BlockData.OriginalSquareSize, rawShares)
+		require.NoError(t, err)
+		dah := da.NewDataAvailabilityHeader(eds)
+		tt.input.Header.DataHash = dah.Hash()
 		res := testApp.ProcessProposal(tt.input)
 		assert.Equal(t, tt.expectedResult, res.Result)
 	}
 
 }
 
-func genRandMsgPayForData(t *testing.T, signer *types.KeyringSigner) (*types.MsgPayForData, []byte) {
+func genRandMsgPayForData(t *testing.T, signer *types.KeyringSigner, squareSize uint64) (*types.MsgPayForData, []byte) {
 	ns := make([]byte, consts.NamespaceSize)
 	_, err := rand.Read(ns)
 	require.NoError(t, err)
 
-	message := make([]byte, tmrand.Intn(3000))
+	message := make([]byte, 20)
 	_, err = rand.Read(message)
 	require.NoError(t, err)
 
-	commit, err := types.CreateCommitment(consts.MaxSquareSize, ns, message)
+	commit, err := types.CreateCommitment(squareSize, ns, message)
 	require.NoError(t, err)
 
 	pfd := types.MsgPayForData{

@@ -148,8 +148,8 @@ github.com/btcsuite/snappy-go v1.0.0/go.mod h1:8woku9dyThutzjeg+3xrA5iCpBRH8XEEg
 github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792/go.mod h1:ghJtEyQwv5/p4Mg4C0fgbePVuGr935/5ddU9Z3TmDRY=
 github.com/btcsuite/winsvc v1.0.0/go.mod h1:jsenWakMcC0zFBFurPLEAyrnc/teJEM1O46fmI40EZs=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-core v1.0.1-tm-v0.34.16 h1:5oHY4W127OgrylTkNagd95u3hr9szUbvRiEs7G2yiqc=
-github.com/celestiaorg/celestia-core v1.0.1-tm-v0.34.16/go.mod h1:8n+hOhQO5nehIOWKaXZhC0TihqGxdeROId+HLo9zauM=
+github.com/celestiaorg/celestia-core v1.1.1-tm-v0.34.16 h1:iPQTftttlV+8APy2l5AfWlyyBXzRG8fdZMBsL0Vd76g=
+github.com/celestiaorg/celestia-core v1.1.1-tm-v0.34.16/go.mod h1:4TCikjhwJbLepx0OZP4mSeP9BNyFRmVZljpnjTbTbRo=
 github.com/celestiaorg/cosmos-sdk v1.0.1-sdk-v0.44.2 h1:5kbvoUVSCZO+/FlDGwNnxno2ZF3XmiCN/gwvjMSfYPA=
 github.com/celestiaorg/cosmos-sdk v1.0.1-sdk-v0.44.2/go.mod h1:Qk2OZRgmyDpLDv19ERULo+avN8NGAQJ5QOlNBoxszX8=
 github.com/celestiaorg/go-leopard v0.1.0 h1:28z2EkvKJIez5J9CEaiiUEC+OxalRLtTGJJ1oScfE1g=
@@ -158,8 +158,8 @@ github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4/go.mod h1:fzuHnhzj1pUygGz+1ZkB3uQbEUL4htqCGJ4Qs2LwMZA=
 github.com/celestiaorg/nmt v0.8.0 h1:wtX7GRouLbmBe+ffnc8+cOg2UbWteM+Y1imZuZ/EeqU=
 github.com/celestiaorg/nmt v0.8.0/go.mod h1:3bqzTj8xKj0DgQUpOgZzoxvtNkC3MS/hTbQ6dn8SIa0=
-github.com/celestiaorg/rsmt2d v0.3.1 h1:qFp6oZXG+QsMO8FqnI34EQ/j+yuJnlddC+nnAkQCq1Y=
-github.com/celestiaorg/rsmt2d v0.3.1/go.mod h1:2Frw4GEYUnVu6Mvlo+CUzuC2/8wn+zLwVVtp+muN6vg=
+github.com/celestiaorg/rsmt2d v0.4.0 h1:mpICbeXYKE1yNW8VBzgBrcnzuMKzutpROH1g2xI7Ls4=
+github.com/celestiaorg/rsmt2d v0.4.0/go.mod h1:EZ+O2KdCq8xI7WFwjATLdhtMdrdClmAs2w7zENDr010=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=

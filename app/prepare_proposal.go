@@ -1,30 +1,91 @@
 package app
 
 import (
-	"bytes"
-	"crypto/sha256"
-	"sort"
+	"math"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/pkg/consts"
+	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// PreprocessTxs fullfills the celestia-core version of the ACBI interface, by
-// performing basic validation for the incoming txs, and by cleanly separating
-// share messages from transactions
+// PrepareProposal fullfills the celestia-core version of the ABCI interface by
+// preparing the proposal block data. The square size is determined by first
+// estimating it via the size of the passed block data. Then the included
+// MsgWirePayForData messages are malleated into MsgPayForData messages by
+// separating the message and transaction that pays for that message. Lastly,
+// this method generates the data root for the proposal block and passes it the
+// blockdata.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-	squareSize := app.SquareSize()
-	shareCounter := uint64(0)
-	var shareMsgs []*core.Message
-	var processedTxs [][]byte
-	for _, rawTx := range req.BlockData.Txs {
+	squareSize := app.estimateSquareSize(req.BlockData)
+
+	dataSquare, data := SplitShares(app.txConfig, squareSize, req.BlockData)
+
+	eds, err := da.ExtendShares(squareSize, dataSquare)
+	if err != nil {
+		app.Logger().Error(
+			"failure to erasure the data square while creating a proposal block",
+			"error",
+			err.Error(),
+		)
+		panic(err)
+	}
+
+	dah := da.NewDataAvailabilityHeader(eds)
+	data.Hash = dah.Hash()
+	data.OriginalSquareSize = squareSize
+
+	return abci.ResponsePrepareProposal{
+		BlockData: data,
+	}
+}
+
+// estimateSquareSize returns an estimate of the needed square size to fit the
+// provided block data. It assumes that every malleatable tx has a viable commit
+// for whatever square size that we end up picking.
+func (app *App) estimateSquareSize(data *core.Data) uint64 {
+	txBytes := 0
+	for _, tx := range data.Txs {
+		txBytes += len(tx) + delimLen(uint64(len(tx)))
+	}
+	txShareEstimate := txBytes / consts.TxShareSize
+	if txBytes > 0 {
+		txShareEstimate++ // add one to round up
+	}
+
+	evdBytes := 0
+	for _, evd := range data.Evidence.Evidence {
+		evdBytes += evd.Size() + delimLen(uint64(evd.Size()))
+	}
+	evdShareEstimate := evdBytes / consts.TxShareSize
+	if evdBytes > 0 {
+		evdShareEstimate++ // add one to round up
+	}
+
+	msgShareEstimate := estimateMsgShares(app.txConfig, data.Txs)
+
+	totalShareEstimate := txShareEstimate + evdShareEstimate + msgShareEstimate
+
+	estimatedSize := types.NextPowerOf2(uint64(math.Sqrt(float64(totalShareEstimate))))
+
+	switch {
+	case estimatedSize > consts.MaxSquareSize:
+		return consts.MaxSquareSize
+	case estimatedSize < consts.MinSquareSize:
+		return consts.MinSquareSize
+	default:
+		return estimatedSize
+	}
+}
+
+func estimateMsgShares(txConf client.TxConfig, txs [][]byte) int {
+	msgShares := uint64(0)
+	for _, rawTx := range txs {
 		// decode the Tx
-		tx, err := app.txConfig.TxDecoder()(rawTx)
+		tx, err := txConf.TxDecoder()(rawTx)
 		if err != nil {
 			continue
 		}
@@ -34,14 +95,12 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 			continue
 		}
 
-		// don't process the tx if the transaction doesn't contain a
-		//  MsgPayForData sdk.Msg
+		// skip txs that don't contain messages
 		if !hasWirePayForData(authTx) {
-			processedTxs = append(processedTxs, rawTx)
 			continue
 		}
 
-		// only support transactions that contain a single sdk.Msg
+		// only support malleated transactions that contain a single sdk.Msg
 		if len(authTx.GetMsgs()) != 1 {
 			continue
 		}
@@ -52,76 +111,9 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 			continue
 		}
 
-		// run basic validation on the transaction
-		err = authTx.ValidateBasic()
-		if err != nil {
-			continue
-		}
+		msgShares += (wireMsg.MessageSize / consts.MsgShareSize) + 1 // plus one to round up
 
-		// parse wire message and create a single message
-		coreMsg, unsignedPFD, sig, err := types.ProcessWirePayForData(wireMsg, app.SquareSize())
-		if err != nil {
-			continue
-		}
-
-		// create the signed PayForData using the fees, gas limit, and sequence from
-		// the original transaction, along with the appropriate signature.
-		signedTx, err := types.BuildPayForDataTxFromWireTx(authTx, app.txConfig.NewTxBuilder(), sig, unsignedPFD)
-		if err != nil {
-			app.Logger().Error("failure to create signed PayForData", err)
-			continue
-		}
-
-		// increment the share counter by the number of shares taken by the message
-		sharesTaken := uint64(len(coreMsg.Data) / types.ShareSize)
-		shareCounter += sharesTaken
-
-		// if there are too many shares stop processing and return the transactions
-		if shareCounter > squareSize*squareSize {
-			break
-		}
-
-		rawProcessedTx, err := app.txConfig.TxEncoder()(signedTx)
-		if err != nil {
-			continue
-		}
-
-		parentHash := sha256.Sum256(rawTx)
-		wrappedTx, err := coretypes.WrapMalleatedTx(parentHash[:], rawProcessedTx)
-		if err != nil {
-			app.Logger().Error("failure to wrap child transaction with parent hash", "Error:", err)
-		}
-
-		shareMsgs = append(shareMsgs, coreMsg)
-		processedTxs = append(processedTxs, wrappedTx)
 	}
 
-	// sort messages lexigraphically
-	sort.Slice(shareMsgs, func(i, j int) bool {
-		return bytes.Compare(shareMsgs[i].NamespaceId, shareMsgs[j].NamespaceId) < 0
-	})
-
-	return abci.ResponsePrepareProposal{
-		BlockData: &core.Data{
-			Txs:      processedTxs,
-			Evidence: req.BlockData.Evidence,
-			Messages: core.Messages{MessagesList: shareMsgs},
-		},
-	}
-}
-
-func hasWirePayForData(tx sdk.Tx) bool {
-	for _, msg := range tx.GetMsgs() {
-		msgName := sdk.MsgTypeURL(msg)
-		if msgName == types.URLMsgWirePayForData {
-			return true
-		}
-	}
-	return false
-}
-
-// SquareSize returns the current square size. Currently, the square size is
-// hardcoded. todo(evan): don't hardcode the square size
-func (app *App) SquareSize() uint64 {
-	return consts.MaxSquareSize
+	return int(msgShares)
 }

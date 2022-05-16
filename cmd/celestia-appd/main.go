@@ -30,7 +30,7 @@ func main() {
 
 // appBuilder wraps the app.New func to return a cosmoscmd.App interface instead
 // of the raw app.App. The New func has to return a raw app.App, because we need
-// to call PreprocessTxs
+// to call PrepareProposal
 func appBuilder(
 	logger log.Logger,
 	db dbm.DB,
