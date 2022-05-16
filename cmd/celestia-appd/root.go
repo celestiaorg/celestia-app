@@ -56,7 +56,7 @@ func NewRootCmd() *cobra.Command {
 		WithAccountRetriever(types.AccountRetriever{}).
 		WithBroadcastMode(flags.BroadcastBlock).
 		WithHomeDir(app.DefaultNodeHome).
-		WithViper("CELESTIA")
+		WithViper(envPrefix)
 
 	rootCmd := &cobra.Command{
 		Use:   "celestia-appd",
