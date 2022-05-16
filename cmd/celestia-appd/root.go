@@ -99,6 +99,11 @@ func initAppConfig() (string, interface{}) {
 	// server config.
 	srvCfg := serverconfig.DefaultConfig()
 	srvCfg.API.Enable = true
+
+	// the default snapshot interval was determined by picking a large enough
+	// value as to not dramatically increase resource requirements while also
+	// being greater than zero so that there are more nodes that will serve
+	// snapshots to nodes that state sync
 	srvCfg.StateSync.SnapshotInterval = 1500
 	srvCfg.StateSync.SnapshotKeepRecent = 2
 	srvCfg.MinGasPrices = fmt.Sprintf("0%s", app.BondDenom)
