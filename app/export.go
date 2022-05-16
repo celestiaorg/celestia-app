@@ -115,6 +115,7 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 
 		err := app.DistrKeeper.Hooks().AfterValidatorCreated(ctx, val.GetOperator())
 		if err != nil {
+			// we can panic here as we do not know how to handle invalid validator state
 			panic(err)
 		}
 		return false
