@@ -51,8 +51,8 @@ func TestPrepareProposal(t *testing.T) {
 			},
 			expectedMessages: []*core.Message{
 				{
-					NamespaceId: secondNS,                                           // the second message should be first
-					Data:        append([]byte{2}, bytes.Repeat([]byte{0}, 255)...), // check that the message is padded
+					NamespaceId: secondNS,  // the second message should be first
+					Data:        []byte{2}, // check that the message is padded
 				},
 				{
 					NamespaceId: firstNS,
@@ -60,7 +60,7 @@ func TestPrepareProposal(t *testing.T) {
 				},
 				{
 					NamespaceId: thirdNS,
-					Data:        append([]byte{1}, bytes.Repeat([]byte{0}, 255)...),
+					Data:        []byte{1},
 				},
 			},
 			expectedTxs: 3,
