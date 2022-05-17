@@ -7,7 +7,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/gogo/protobuf/proto"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	cosmosnet "github.com/cosmos/cosmos-sdk/testutil/network"
@@ -19,9 +18,6 @@ import (
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
-
-// username is used to create a funded genesis account under this name
-const username = "test"
 
 type IntegrationTestSuite struct {
 	suite.Suite
@@ -46,13 +42,8 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	s.network = net
 	s.kr = net.Validators[0].ClientCtx.Keyring
-	rec, err := net.Validators[0].ClientCtx.Keyring.Key(testAccName)
-	require.NoError(s.T(), err)
-	addr, err := rec.GetAddress()
-	require.NoError(s.T(), err)
-	fmt.Println(addr.String())
 
-	_, err = s.network.WaitForHeight(1)
+	_, err := s.network.WaitForHeight(1)
 	s.Require().NoError(err)
 }
 
@@ -64,9 +55,6 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 	require := s.Require()
 	val := s.network.Validators[0]
-
-	// some hex message
-	// hexMsg := "0204033704032c0b162109000908094d425837422c2116 5555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555"
 
 	encCfg := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
 	signer := types.NewKeyringSigner(val.ClientCtx.Keyring, testAccName, val.ClientCtx.ChainID)
@@ -80,7 +68,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 	}{
 		{
 			"valid transaction",
-			generateRawTx(s.T(), encCfg.TxConfig, []byte{1, 2, 3, 4, 5, 6, 7, 8}, bytes.Repeat([]byte{2, 3, 4}, 100), signer, 2, 4, 8, 16, 32, 64),
+			generateRawTx(s.T(), encCfg.TxConfig, []byte{1, 2, 3, 4, 5, 6, 7, 8}, bytes.Repeat([]byte{2, 3, 4}, 1000), signer, 4, 8, 16, 32, 64),
 			false, 0, &sdk.TxResponse{},
 		},
 	}
@@ -101,5 +89,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 }
 
 func TestIntegrationTestSuite(t *testing.T) {
-	suite.Run(t, NewIntegrationTestSuite(network.DefaultConfig()))
+	cfg := network.DefaultConfig()
+	cfg.EnableTMLogging = false
+	suite.Run(t, NewIntegrationTestSuite(cfg))
 }

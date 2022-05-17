@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
@@ -22,7 +21,6 @@ import (
 // blockdata.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	squareSize := app.estimateSquareSize(req.BlockData)
-	fmt.Println("------------- square size:", squareSize, len(req.BlockData.Txs))
 
 	dataSquare, data := SplitShares(app.txConfig, squareSize, req.BlockData)
 
@@ -70,9 +68,8 @@ func (app *App) estimateSquareSize(data *core.Data) uint64 {
 	msgShareEstimate := estimateMsgShares(app.txConfig, data.Txs)
 
 	totalShareEstimate := txShareEstimate + evdShareEstimate + msgShareEstimate
-
-	estimatedSize := types.NextPowerOf2(uint64(math.Sqrt(float64(totalShareEstimate))))
-
+	sr := math.Sqrt(float64(totalShareEstimate))
+	estimatedSize := types.NextHighestPowerOf2(uint64(sr))
 	switch {
 	case estimatedSize > consts.MaxSquareSize:
 		return consts.MaxSquareSize
@@ -113,9 +110,11 @@ func estimateMsgShares(txConf client.TxConfig, txs [][]byte) int {
 			continue
 		}
 
-		msgShares += (wireMsg.MessageSize / consts.MsgShareSize) + 1 // plus one to round up
+		msgSize := wireMsg.MessageSize
+		delimSize := delimLen(msgSize)
+
+		msgShares += ((msgSize + uint64(delimSize)) / consts.MsgShareSize) + 1 // plus one to round up
 
 	}
-
 	return int(msgShares)
 }
