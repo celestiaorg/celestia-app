@@ -41,7 +41,7 @@ func TestMountainRange(t *testing.T) {
 	}
 }
 
-func TestNextPowerOf2(t *testing.T) {
+func TestNextLowestPowerOf2(t *testing.T) {
 	type test struct {
 		input    uint64
 		expected uint64
@@ -69,7 +69,7 @@ func TestNextPowerOf2(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		res := NextPowerOf2(tt.input)
+		res := nextLowestPowerOf2(tt.input)
 		assert.Equal(t, tt.expected, res)
 	}
 }
