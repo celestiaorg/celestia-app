@@ -5,3 +5,4 @@ secret.yml
 build
 coverage.txt
 tools-stamp
+.vscode
