@@ -126,7 +126,7 @@ func TestCreateCommitment(t *testing.T) {
 			k:         4,
 			namespace: bytes.Repeat([]byte{0xFF}, 8),
 			message:   bytes.Repeat([]byte{0xFF}, 11*ShareSize),
-			expected:  []byte{0x1c, 0x57, 0x89, 0x2f, 0xbe, 0xbf, 0xa2, 0xa4, 0x4c, 0x41, 0x9e, 0x2d, 0x88, 0xd5, 0x87, 0xc0, 0xbd, 0x37, 0xc0, 0x85, 0xbd, 0x10, 0x3c, 0x36, 0xd9, 0xa2, 0x4d, 0x4e, 0x31, 0xa2, 0xf8, 0x4e},
+			expected:  []byte{0xf2, 0xd4, 0xfc, 0x39, 0x4e, 0xf3, 0x97, 0x9d, 0xf4, 0x4c, 0x99, 0x87, 0x36, 0x7d, 0x7d, 0x4, 0xf2, 0xa7, 0x89, 0x26, 0x6d, 0xf5, 0x78, 0xe1, 0xff, 0x72, 0xb4, 0x75, 0x12, 0x1e, 0x71, 0xc3},
 		},
 		{
 			k:         2,
@@ -142,35 +142,6 @@ func TestCreateCommitment(t *testing.T) {
 			continue
 		}
 		assert.NoError(t, err)
-		assert.Equal(t, tt.expected, res)
-	}
-}
-
-func TestPadMessage(t *testing.T) {
-	type test struct {
-		input    []byte
-		expected []byte
-	}
-	tests := []test{
-		{
-			input:    []byte{1},
-			expected: append([]byte{1}, bytes.Repeat([]byte{0}, ShareSize-1)...),
-		},
-		{
-			input:    []byte{},
-			expected: []byte{},
-		},
-		{
-			input:    bytes.Repeat([]byte{1}, ShareSize),
-			expected: bytes.Repeat([]byte{1}, ShareSize),
-		},
-		{
-			input:    bytes.Repeat([]byte{1}, (3*ShareSize)-10),
-			expected: append(bytes.Repeat([]byte{1}, (3*ShareSize)-10), bytes.Repeat([]byte{0}, 10)...),
-		},
-	}
-	for _, tt := range tests {
-		res := padMessage(tt.input)
 		assert.Equal(t, tt.expected, res)
 	}
 }
