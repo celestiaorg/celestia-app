@@ -81,12 +81,12 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, s
 	builder := signer.NewTxBuilder()
 
 	coin := sdk.Coin{
-		Denom:  "token",
-		Amount: sdk.NewInt(1000),
+		Denom:  app.BondDenom,
+		Amount: sdk.NewInt(10),
 	}
 
 	builder.SetFeeAmount(sdk.NewCoins(coin))
-	builder.SetGasLimit(10000)
+	builder.SetGasLimit(1000000)
 	builder.SetTimeoutHeight(99)
 
 	tx, err := signer.BuildSignedTx(builder, msg)

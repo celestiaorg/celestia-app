@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -128,7 +129,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
 	}
-
+	fmt.Println("accepting a block ++++++++", len(req.BlockData.Txs), len(data.Txs))
 	return abci.ResponseProcessProposal{
 		Result: abci.ResponseProcessProposal_ACCEPT,
 	}

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
@@ -21,6 +22,7 @@ import (
 // blockdata.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	squareSize := app.estimateSquareSize(req.BlockData)
+	fmt.Println("------------- square size:", squareSize, len(req.BlockData.Txs))
 
 	dataSquare, data := SplitShares(app.txConfig, squareSize, req.BlockData)
 

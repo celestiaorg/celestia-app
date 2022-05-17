@@ -15,7 +15,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmdb "github.com/tendermint/tm-db"
 
@@ -49,11 +48,13 @@ func New(t *testing.T, config network.Config, genAccNames ...string) *network.Ne
 		panic(err)
 	}
 
-	// add the keys to the keyring that is used by the integration test
-	for i, name := range genAccNames {
-		_, err := net.Validators[0].ClientCtx.Keyring.NewAccount(name, mnemonics[i], "", "", hd.Secp256k1)
-		require.NoError(t, err)
-	}
+	net.Validators[0].ClientCtx.Keyring = kr
+
+	// // add the keys to the keyring that is used by the integration test
+	// for i, name := range genAccNames {
+	// 	_, err := net.Validators[0].ClientCtx.Keyring.NewAccount(name, mnemonics[i], "", "", hd.Secp256k1)
+	// 	require.NoError(t, err)
+	// }
 
 	return net
 }

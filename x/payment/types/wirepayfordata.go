@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"errors"
 	fmt "fmt"
 
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
@@ -55,6 +56,13 @@ func (msg *MsgWirePayForData) SignShareCommitments(signer *KeyringSigner, option
 	addr, err := signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return err
+	}
+
+	if addr == nil {
+		return errors.New("failed to get address")
+	}
+	if addr.Empty() {
+		return errors.New("failed to get address")
 	}
 
 	msg.Signer = addr.String()
