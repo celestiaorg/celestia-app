@@ -10,8 +10,11 @@ FROM alpine
 RUN apk update && apk --no-cache add bash
 
 COPY --from=builder /celestia-app/build/celestia-appd /bin/celestia-appd
+COPY  docker/entrypoint.sh /opt/entrypoint.sh
 
 # p2p, rpc and prometheus port
 EXPOSE 26656 26657 1317 9090
 
-ENTRYPOINT [ "/bin/celestia-appd" ]
+ENV CELESTIA_HOME /opt
+
+ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh", "--home", "${CELESTIA_HOME_DIR}" ]
