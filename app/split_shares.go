@@ -23,10 +23,9 @@ import (
 // block data are only used to avoid dereferening, not because we need the block
 // data to be mutable.
 func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([][]byte, *core.Data) {
-	var (
-		processedTxs [][]byte
-		messages     core.Messages
-	)
+	processedTxs := make([][]byte, 0)
+	messages := core.Messages{}
+
 	sqwr := newShareSplitter(txConf, squareSize, data)
 
 	for _, rawTx := range data.Txs {
@@ -238,9 +237,9 @@ func (sqwr *shareSplitter) shareCount() (count, availableTxBytes int) {
 }
 
 func (sqwr *shareSplitter) export() [][]byte {
-	count, pendingTxBytes := sqwr.shareCount()
+	count, availableBytes := sqwr.shareCount()
 	// increment the count if there are any pending tx bytes
-	if pendingTxBytes > 0 {
+	if availableBytes < consts.TxShareSize {
 		count++
 	}
 	shares := make([][]byte, sqwr.maxShareCount)
