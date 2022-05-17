@@ -17,4 +17,4 @@ EXPOSE 26656 26657 1317 9090
 
 ENV CELESTIA_HOME /opt
 
-ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh", "--home", "${CELESTIA_HOME_DIR}" ]
+ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh", "--home", "${CELESTIA_HOME}" ]
