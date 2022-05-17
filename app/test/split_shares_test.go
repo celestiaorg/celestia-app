@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -98,9 +97,6 @@ func TestSplitShares(t *testing.T) {
 
 		parsedShares, _, err := parsedData.ComputeShares(tt.squareSize)
 		require.NoError(t, err)
-
-		rawParsedShares := parsedShares.RawShares()
-		fmt.Println(len(square), len(rawParsedShares))
 
 		require.Equal(t, square, parsedShares.RawShares())
 	}
