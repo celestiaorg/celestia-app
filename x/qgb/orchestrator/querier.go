@@ -78,6 +78,19 @@ func NewQuerier(qgbRPCAddr, tendermintRPC string, logger tmlog.Logger) (*querier
 	}, nil
 }
 
+
+// TODO add the other stop methods for other clients
+func (q *querier) Stop() {
+	err := q.qgbRPC.Close()
+	if err != nil {
+		q.logger.Error(err.Error())
+	}
+	err = q.tendermintRPC.Stop()
+	if err != nil {
+		q.logger.Error(err.Error())
+	}
+}
+
 func (q *querier) QueryDataCommitments(
 	ctx context.Context,
 	commit string,

@@ -77,6 +77,7 @@ func DeployCmd() *cobra.Command {
 				tx.Hash(),
 				addr.Hex(),
 			)
+			querier.Stop()
 			return nil
 		},
 	}
