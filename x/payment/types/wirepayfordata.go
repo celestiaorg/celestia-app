@@ -19,6 +19,14 @@ var _ sdk.Msg = &MsgWirePayForData{}
 // Note that the share commitments generated still need to be signed using the SignShareCommitments
 // method.
 func NewWirePayForData(namespace, message []byte, sizes ...uint64) (*MsgWirePayForData, error) {
+	// sanity check namespace ID size
+	if len(namespace) != NamespaceIDSize {
+		return nil, ErrInvalidNamespaceLen.Wrapf("got: %d want: %d",
+			len(namespace),
+			NamespaceIDSize,
+		)
+	}
+
 	message = padMessage(message)
 	out := &MsgWirePayForData{
 		MessageNameSpaceId:     namespace,
@@ -37,11 +45,6 @@ func NewWirePayForData(namespace, message []byte, sizes ...uint64) (*MsgWirePayF
 			return nil, err
 		}
 		out.MessageShareCommitment[i] = ShareCommitAndSignature{K: size, ShareCommitment: commit}
-	}
-
-	err := out.ValidateBasic()
-	if err != nil {
-		return nil, err
 	}
 	return out, nil
 }
