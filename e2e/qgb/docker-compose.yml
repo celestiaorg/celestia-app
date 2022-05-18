@@ -5,16 +5,13 @@ services:
     container_name: core0
     build:
       context: ../..
-      args:
-        CELESTIA_HOME_DIR: /opt
     ports:
       - "9090:9090"
       - "26657:26657"
     command: [
-        "/bin/celestia-appd",
-        "start", "--home", "/opt",
-        "--moniker", "core0",
-        "--rpc.laddr", "tcp://0.0.0.0:26657"
+      "start",
+      "--moniker", "core0",
+      "--rpc.laddr", "tcp://0.0.0.0:26657"
     ]
     # Eth Address: 0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488:da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
     volumes:
@@ -33,7 +30,6 @@ services:
     depends_on:
       - core0
     command: [
-        "/bin/celestia-appd",
         "orchestrator", "-p", "/opt",
         "-x", "qgb-e2e",
         "-d", "da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9",
@@ -59,9 +55,11 @@ services:
       # private key: 002ad18ca3def673345897b063bfa98d829a4d812dbd07f1938676828a82c4f9
       - ETH_ADDRESS=0x91DEd26b5f38B065FC0204c7929Da1b2A21877Ad
       - AMOUNT=5000000000uceles
+    entrypoint: [
+      "/bin/bash"
+    ]
     command: [
-        "/bin/bash",
-        "/opt/start_node_and_create_validator.sh"
+      "/opt/start_node_and_create_validator.sh"
     ] # celestia-appd start --home /opt --moniker core1 --p2p.persistent_peers 7b5ef9ef378a3907be7591863a566634d191b58b@core0:26656 --rpc.laddr tcp://0.0.0.0:26657
     volumes:
       - ${PWD}/celestia-app/core1/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
@@ -85,8 +83,10 @@ services:
       - PRIVATE_KEY=002ad18ca3def673345897b063bfa98d829a4d812dbd07f1938676828a82c4f9
       - TENDERMINT_RPC=tcp://core1:26657
       - CELESTIA_GRPC=core1:9090
+    entrypoint: [
+      "/bin/bash"
+    ]
     command: [
-      "/bin/bash",
       "/opt/start_orchestrator_after_validator_created.sh"
     ]
     volumes:
@@ -107,8 +107,10 @@ services:
       # private key: 6adac8b5de0ba702ec8feab6d386a0c7334c6720b9174c02333700d431057af8
       - ETH_ADDRESS=0x3d22f0C38251ebdBE92e14BBF1bd2067F1C3b7D7
       - AMOUNT=5000000000uceles
+    entrypoint: [
+      "/bin/bash"
+    ]
     command: [
-      "/bin/bash",
       "/opt/start_node_and_create_validator.sh"
     ]
     volumes:
@@ -133,8 +135,10 @@ services:
       - PRIVATE_KEY=6adac8b5de0ba702ec8feab6d386a0c7334c6720b9174c02333700d431057af8
       - TENDERMINT_RPC=tcp://core2:26657
       - CELESTIA_GRPC=core2:9090
+    entrypoint: [
+      "/bin/bash"
+    ]
     command: [
-      "/bin/bash",
       "/opt/start_orchestrator_after_validator_created.sh"
     ]
     volumes:
@@ -155,8 +159,10 @@ services:
       # private key: 2f7f6763500dfb48b710a4c5c6c6a487b8aa6c7bc8b8a9b637a23f651f1c9b51
       - ETH_ADDRESS=0x3EE99606625E740D8b29C8570d855Eb387F3c790
       - AMOUNT=5000000000uceles
+    entrypoint: [
+      "/bin/bash"
+    ]
     command: [
-      "/bin/bash",
       "/opt/start_node_and_create_validator.sh"
     ]
     volumes:
@@ -181,8 +187,10 @@ services:
       - PRIVATE_KEY=2f7f6763500dfb48b710a4c5c6c6a487b8aa6c7bc8b8a9b637a23f651f1c9b51
       - TENDERMINT_RPC=tcp://core3:26657
       - CELESTIA_GRPC=core3:9090
+    entrypoint: [
+      "/bin/bash"
+    ]
     command: [
-      "/bin/bash",
       "/opt/start_orchestrator_after_validator_created.sh"
     ]
     volumes:
@@ -233,8 +241,10 @@ services:
       - CELESTIA_GRPC=core0:9090
       - EVM_CHAIN_ID=1234
       - EVM_ENDPOINT=http://ganache:8545
+    entrypoint: [
+      "/bin/bash"
+    ]
     command: [
-      "/bin/bash",
       "/opt/deploy_qgb_contract.sh"
     ]
     volumes:
@@ -259,8 +269,10 @@ services:
       - CELESTIA_GRPC=core0:9090
       - EVM_CHAIN_ID=1234
       - EVM_ENDPOINT=http://ganache:8545
+    entrypoint: [
+      "/bin/bash"
+    ]
     command: [
-      "/bin/bash",
       "/opt/start_relayer.sh"
     ]
     volumes:
