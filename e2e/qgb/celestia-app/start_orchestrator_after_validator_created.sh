@@ -11,6 +11,9 @@ then
   exit -1
 fi
 
+# install needed dependencies
+apk add curl
+
 # wait for the validator to be created before starting the orchestrator
 VAL_ADDRESS=$(celestia-appd keys show ${MONIKER} --keyring-backend test --bech=val --home /opt -a)
 while true
