@@ -2,8 +2,6 @@ package payment
 
 import (
 	"context"
-	"fmt"
-
 	"google.golang.org/grpc"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -62,10 +60,6 @@ func BuildPayForData(
 	message []byte,
 	gasLim uint64,
 ) (*types.MsgWirePayForData, error) {
-	// sanity check nID size
-	if len(nID) != types.NamespaceIDSize {
-		return nil, fmt.Errorf("expected namespace ID of size %d, got %d", types.NamespaceIDSize, len(nID))
-	}
 	// create the raw WirePayForData transaction
 	wpfd, err := types.NewWirePayForData(nID, message, shareSizes...)
 	if err != nil {

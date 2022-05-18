@@ -38,6 +38,11 @@ func NewWirePayForData(namespace, message []byte, sizes ...uint64) (*MsgWirePayF
 		}
 		out.MessageShareCommitment[i] = ShareCommitAndSignature{K: size, ShareCommitment: commit}
 	}
+
+	err := out.ValidateBasic()
+	if err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -68,7 +73,6 @@ func (msg *MsgWirePayForData) Route() string { return RouterKey }
 // commitments, signatures for those share commitments, and fulfills the sdk.Msg
 // interface.
 func (msg *MsgWirePayForData) ValidateBasic() error {
-
 	// ensure that the namespace id is of length == NamespaceIDSize
 	if nsLen := len(msg.GetMessageNameSpaceId()); nsLen != NamespaceIDSize {
 		return ErrInvalidNamespaceLen.Wrapf("got: %d want: %d",
