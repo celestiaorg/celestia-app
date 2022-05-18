@@ -19,11 +19,11 @@ apk add curl
 # wait for the node to get up and running
 while true
 do
-  status_code=$(curl --write-out '%{http_code}' --silent --output /dev/null core0:26657/status) # TODO don't use a hardcoded address
-  if [[ "$status_code" -eq 200 ]] ; then
+  height=$(/bin/celestia-appd query block 1 -n ${TENDERMINT_RPC} 2>/dev/null)
+  if [[ ! -z $height ]] ; then
     break
   fi
-  echo "Waiting for node to be up..."
+  echo "Waiting for block 1 to be generated..."
   sleep 5s
 done
 
