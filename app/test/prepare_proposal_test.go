@@ -5,24 +5,23 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/spm/cosmoscmd"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 func TestPrepareProposal(t *testing.T) {
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
-	info := signer.GetSignerInfo()
 
-	encCfg := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
+	encCfg := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
 
-	testApp := testutil.SetupTestApp(t, info.GetAddress())
+	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 
 	type test struct {
 		input            abci.RequestPrepareProposal

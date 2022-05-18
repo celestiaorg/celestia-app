@@ -3,6 +3,7 @@ package keeper
 import (
 	"fmt"
 
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -12,11 +13,11 @@ import (
 
 type Keeper struct {
 	cdc      codec.BinaryCodec
-	storeKey sdk.StoreKey
-	memKey   sdk.StoreKey
+	storeKey storetypes.StoreKey
+	memKey   storetypes.StoreKey
 }
 
-func NewKeeper(cdc codec.BinaryCodec, storeKey, memKey sdk.StoreKey) *Keeper {
+func NewKeeper(cdc codec.BinaryCodec, storeKey, memKey storetypes.StoreKey) *Keeper {
 	return &Keeper{
 		cdc:      cdc,
 		storeKey: storeKey,

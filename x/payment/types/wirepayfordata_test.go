@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	sdkerrors "github.com/cosmos/cosmos-sdk/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/tendermint/tendermint/pkg/consts"
 )
@@ -76,7 +76,7 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 		{
 			name:    "bad commitment",
 			msg:     badCommitMsg,
-			wantErr: ErrCommittedSquareSizeNotPowOf2,
+			wantErr: ErrInvalidShareCommit,
 		},
 		{
 			name:    "invalid square size",
@@ -94,7 +94,7 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.msg.ValidateBasic()
 			if tt.wantErr != nil {
-				assert.ErrorAs(t, err, tt.wantErr)
+				assert.Contains(t, err.Error(), tt.wantErr.Error())
 				space, code, log := sdkerrors.ABCIInfo(err, false)
 				assert.Equal(t, tt.wantErr.Codespace(), space)
 				assert.Equal(t, tt.wantErr.ABCICode(), code)
