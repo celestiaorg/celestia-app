@@ -16,15 +16,15 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/spm/cosmoscmd"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmdb "github.com/tendermint/tm-db"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 )
 
 func New(t *testing.T, config network.Config, genAccNames ...string) *network.Network {
-	kr := generateKeyring(t)
+	kr := keyring.NewInMemory(config.Codec)
 
 	// add genesis accounts
 	genAuthAccs := make([]authtypes.GenesisAccount, len(genAccNames))
@@ -42,7 +42,12 @@ func New(t *testing.T, config network.Config, genAccNames ...string) *network.Ne
 		panic(err)
 	}
 
-	net := network.New(t, config)
+	tmpDir := t.TempDir()
+
+	net, err := network.New(t, tmpDir, config)
+	if err != nil {
+		panic(err)
+	}
 
 	// add the keys to the keyring that is used by the integration test
 	for i, name := range genAccNames {
@@ -54,27 +59,29 @@ func New(t *testing.T, config network.Config, genAccNames ...string) *network.Ne
 }
 
 // DefaultConfig will initialize config for the network with custom application,
-// genesis and single validator. All other parameters are inherited from cosmos-sdk/testutil/network.DefaultConfig
+// genesis and single validator. All other parameters are inherited from
+// cosmos-sdk/testutil/network.DefaultConfig
 func DefaultConfig() network.Config {
-	encoding := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
+	encCfg := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
+
 	return network.Config{
-		Codec:             encoding.Marshaler,
-		TxConfig:          encoding.TxConfig,
-		LegacyAmino:       encoding.Amino,
-		InterfaceRegistry: encoding.InterfaceRegistry,
+		Codec:             encCfg.Codec,
+		TxConfig:          encCfg.TxConfig,
+		LegacyAmino:       encCfg.Amino,
+		InterfaceRegistry: encCfg.InterfaceRegistry,
 		AccountRetriever:  authtypes.AccountRetriever{},
 		AppConstructor: func(val network.Validator) servertypes.Application {
 			return app.New(
 				val.Ctx.Logger, tmdb.NewMemDB(), nil, true, map[int64]bool{}, val.Ctx.Config.RootDir, 0,
-				encoding,
+				encCfg,
 				simapp.EmptyAppOptions{},
 				baseapp.SetPruning(storetypes.NewPruningOptionsFromString(val.AppConfig.Pruning)),
 				baseapp.SetMinGasPrices(val.AppConfig.MinGasPrices),
 			)
 		},
-		GenesisState:    app.ModuleBasics.DefaultGenesis(encoding.Marshaler),
+		GenesisState:    app.ModuleBasics.DefaultGenesis(encCfg.Codec),
 		TimeoutCommit:   2 * time.Second,
-		ChainID:         "chain-" + tmrand.NewRand().Str(6),
+		ChainID:         "chain-" + tmrand.Str(6),
 		NumValidators:   1,
 		BondDenom:       app.BondDenom,
 		MinGasPrices:    fmt.Sprintf("0.000006%s", app.BondDenom),
@@ -85,6 +92,7 @@ func DefaultConfig() network.Config {
 		CleanupDir:      true,
 		SigningAlgo:     string(hd.Secp256k1Type),
 		KeyringOptions:  []keyring.Option{},
+		PrintMnemonic:   false,
 	}
 }
 
@@ -123,16 +131,20 @@ func newGenAccout(kr keyring.Keyring, name string, amount int64) (authtypes.Gene
 		sdk.NewCoin(app.BondDenom, sdk.NewInt(amount)),
 	)
 
+	addr, err := info.GetAddress()
+	if err != nil {
+		panic(err)
+	}
+
 	bal := banktypes.Balance{
-		Address: info.GetAddress().String(),
+		Address: addr.String(),
 		Coins:   balances.Sort(),
 	}
 
-	return authtypes.NewBaseAccount(info.GetAddress(), info.GetPubKey(), 0, 0), bal, mnm
-}
+	pub, err := info.GetPubKey()
+	if err != nil {
+		panic(err)
+	}
 
-func generateKeyring(t *testing.T) keyring.Keyring {
-	t.Helper()
-	kb := keyring.NewInMemory()
-	return kb
+	return authtypes.NewBaseAccount(addr, pub, 0, 0), bal, mnm
 }

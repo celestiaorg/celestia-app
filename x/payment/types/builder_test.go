@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestBuildWirePayForData(t *testing.T) {
@@ -33,7 +34,7 @@ func TestBuildWirePayForData(t *testing.T) {
 	signedTx, err := k.BuildSignedTx(k.NewTxBuilder(), msg)
 	require.NoError(t, err)
 
-	rawTx, err := makeEncodingConfig().TxConfig.TxEncoder()(signedTx)
+	rawTx, err := makePaymentEncodingConfig().TxConfig.TxEncoder()(signedTx)
 	require.NoError(t, err)
 
 	_, _, isMalleated := coretypes.UnwrapMalleatedTx(rawTx)
@@ -48,7 +49,10 @@ func TestBuildWirePayForData(t *testing.T) {
 		Sequence:      k.sequence,
 	}
 
-	err = authsigning.VerifySignature(info.GetPubKey(), signerData, sigs[0].Data, k.encCfg.TxConfig.SignModeHandler(), signedTx)
+	pub, err := info.GetPubKey()
+	require.NoError(t, err)
+
+	err = authsigning.VerifySignature(pub, signerData, sigs[0].Data, k.encCfg.TxConfig.SignModeHandler(), signedTx)
 	require.NoError(t, err)
 }
 
@@ -56,13 +60,15 @@ func TestBroadcastPayForData(t *testing.T) {
 	testRing := generateKeyring(t)
 	info, err := testRing.Key(testAccName)
 	require.NoError(t, err)
-	t.Skip(fmt.Sprintf("no local connection to app and no funds in wallet %s", info.GetAddress()))
+	addr, err := info.GetAddress()
+	require.NoError(t, err)
+	t.Skip(fmt.Sprintf("no local connection to app and no funds in wallet %s", addr))
 
 	k := NewKeyringSigner(testRing, testAccName, "test")
 
 	RPCAddress := "127.0.0.1:9090"
 
-	rpcClient, err := grpc.Dial(RPCAddress, grpc.WithInsecure())
+	rpcClient, err := grpc.Dial(RPCAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	err = k.QueryAccountNumber(context.TODO(), rpcClient)
 	require.NoError(t, err)
@@ -103,7 +109,7 @@ func TestQueryAccountNumber(t *testing.T) {
 
 	RPCAddress := "127.0.0.1:9090"
 
-	rpcClient, err := grpc.Dial(RPCAddress, grpc.WithInsecure())
+	rpcClient, err := grpc.Dial(RPCAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	err = k.QueryAccountNumber(context.TODO(), rpcClient)
 	require.NoError(t, err)
@@ -111,7 +117,8 @@ func TestQueryAccountNumber(t *testing.T) {
 
 func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
 	t.Helper()
-	kb := keyring.NewInMemory()
+	encCfg := makePaymentEncodingConfig()
+	kb := keyring.NewInMemory(encCfg.Codec)
 
 	for _, acc := range accts {
 		_, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)

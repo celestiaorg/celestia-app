@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -83,7 +82,20 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-				fmt.Sprintf("--%s=%s", paycli.FlagSquareSizes, "2,4,8,16"),
+				fmt.Sprintf("--%s=%s", paycli.FlagSquareSizes, "2"),
+			},
+			false, 0, &sdk.TxResponse{},
+		},
+		{
+			"valid transaction list of square sizes",
+			[]string{
+				hexNS,
+				hexMsg,
+				fmt.Sprintf("--from=%s", username),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+				fmt.Sprintf("--%s=%s", paycli.FlagSquareSizes, "2,4,8,16,32"),
 			},
 			false, 0, &sdk.TxResponse{},
 		},
@@ -104,7 +116,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 
 	for _, tc := range testCases {
 		tc := tc
-
+		s.Require().NoError(s.network.WaitForNextBlock())
 		s.Run(tc.name, func() {
 			cmd := paycli.CmdWirePayForData()
 			clientCtx := val.ClientCtx
@@ -135,7 +147,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 				}
 
 				// wait for the tx to be indexed
-				time.Sleep(time.Second * 3)
+				s.Require().NoError(s.network.WaitForNextBlock())
 
 				// attempt to query for the malleated transaction using the original tx's hash
 				qTxCmd := authcmd.QueryTxCmd()

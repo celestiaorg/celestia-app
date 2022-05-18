@@ -2,14 +2,13 @@ package app_test
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/spm/cosmoscmd"
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -17,7 +16,7 @@ import (
 )
 
 func TestSplitShares(t *testing.T) {
-	encCfg := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
+	encCfg := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
 
 	type test struct {
 		squareSize      uint64
@@ -98,9 +97,6 @@ func TestSplitShares(t *testing.T) {
 
 		parsedShares, _, err := parsedData.ComputeShares(tt.squareSize)
 		require.NoError(t, err)
-
-		rawParsedShares := parsedShares.RawShares()
-		fmt.Println(len(square), len(rawParsedShares))
 
 		require.Equal(t, square, parsedShares.RawShares())
 	}

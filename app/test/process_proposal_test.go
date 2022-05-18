@@ -2,16 +2,17 @@ package app_test
 
 import (
 	"crypto/rand"
+	"math/big"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/spm/cosmoscmd"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/pkg/consts"
@@ -22,11 +23,10 @@ import (
 
 func TestMessageInclusionCheck(t *testing.T) {
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
-	info := signer.GetSignerInfo()
 
-	testApp := testutil.SetupTestApp(t, info.GetAddress())
+	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 
-	encConf := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
+	encConf := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
 
 	firstValidPFD, msg1 := genRandMsgPayForData(t, signer, 8)
 	secondValidPFD, msg2 := genRandMsgPayForData(t, signer, 8)
@@ -170,7 +170,7 @@ func genRandMsgPayForData(t *testing.T, signer *types.KeyringSigner, squareSize 
 	_, err := rand.Read(ns)
 	require.NoError(t, err)
 
-	message := make([]byte, 20)
+	message := make([]byte, randomInt(20))
 	_, err = rand.Read(message)
 	require.NoError(t, err)
 
@@ -193,4 +193,9 @@ func buildTx(t *testing.T, signer *types.KeyringSigner, txCfg client.TxConfig, m
 	require.NoError(t, err)
 
 	return rawTx
+}
+
+func randomInt(max int64) int64 {
+	i, _ := rand.Int(rand.Reader, big.NewInt(max))
+	return i.Int64()
 }
