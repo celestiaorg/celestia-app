@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	qgbnet "github.com/celestiaorg/celestia-app/e2e/qgb/network"
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -15,7 +14,7 @@ func TestRelayerWithOneValidator(t *testing.T) {
 	//if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
 	//	t.Skip("Skipping QGB integration tests")
 	//}
-	network, err := qgbnet.NewQGBNetwork()
+	network, err := NewQGBNetwork()
 	assert.NoError(t, err)
 	// preferably, run this also when ctrl+c
 	defer network.DeleteAll() //nolint:errcheck
@@ -27,8 +26,20 @@ func TestRelayerWithOneValidator(t *testing.T) {
 	err = network.WaitForBlock(ctx, int64(types.DataCommitmentWindow+5))
 	assert.NoError(t, err)
 
-	bridge, err := qgbnet.GetLatestDeployedQGBContract(ctx, network.EVMRPC)
+	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
 	assert.NoError(t, err)
+
+	bridge, err := network.GetLatestDeployedQGBContract(ctx)
+	if err != nil {
+		assert.NoError(t, err)
+		t.FailNow()
+	}
+
+	err = network.WaitForRelayerToStart(ctx, bridge)
+	if err != nil {
+		assert.NoError(t, err)
+		t.FailNow()
+	}
 
 	// FIXME should we use the evm client here or go for raw queries?
 	evmClient := orchestrator.NewEvmClient(nil, *bridge, nil, network.EVMRPC)
@@ -47,7 +58,7 @@ func TestRelayerWithTwoValidators(t *testing.T) {
 	//if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
 	//	t.Skip("Skipping QGB integration tests")
 	//}
-	network, err := qgbnet.NewQGBNetwork()
+	network, err := NewQGBNetwork()
 	assert.NoError(t, err)
 	// preferably, run this also when ctrl+c
 	defer network.DeleteAll() //nolint:errcheck
@@ -57,12 +68,12 @@ func TestRelayerWithTwoValidators(t *testing.T) {
 		t.FailNow()
 	}
 	// add second validator
-	err = network.Start(qgbnet.Core1)
+	err = network.Start(Core1)
 	if err != nil {
 		t.FailNow()
 	}
 	// add second orchestrator
-	err = network.Start(qgbnet.Core1Orch)
+	err = network.Start(Core1Orch)
 	if err != nil {
 		t.FailNow()
 	}
@@ -71,8 +82,23 @@ func TestRelayerWithTwoValidators(t *testing.T) {
 	err = network.WaitForBlock(ctx, int64(types.DataCommitmentWindow+5))
 	assert.NoError(t, err)
 
-	bridge, err := qgbnet.GetLatestDeployedQGBContract(ctx, network.EVMRPC)
+	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
 	assert.NoError(t, err)
+
+	err = network.WaitForOrchestratorToStart(ctx, CORE1ACCOUNTADDRESS)
+	assert.NoError(t, err)
+
+	bridge, err := network.GetLatestDeployedQGBContract(ctx)
+	if err != nil {
+		assert.NoError(t, err)
+		t.FailNow()
+	}
+
+	err = network.WaitForRelayerToStart(ctx, bridge)
+	if err != nil {
+		assert.NoError(t, err)
+		t.FailNow()
+	}
 
 	// FIXME should we use the evm client here or go for raw queries?
 	evmClient := orchestrator.NewEvmClient(nil, *bridge, nil, network.EVMRPC)
@@ -91,7 +117,7 @@ func TestRelayerWithMultipleValidators(t *testing.T) {
 	//if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
 	//	t.Skip("Skipping QGB integration tests")
 	//}
-	network, err := qgbnet.NewQGBNetwork()
+	network, err := NewQGBNetwork()
 	assert.NoError(t, err)
 	// preferably, run this also when ctrl+c
 	defer network.DeleteAll() //nolint:errcheck
@@ -109,13 +135,33 @@ func TestRelayerWithMultipleValidators(t *testing.T) {
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
 	assert.NoError(t, err)
 
-	// FIXME should we use the querier here or go for raw queries?
-	lastValset, err := querier.QueryLastValset(ctx)
+	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
 	assert.NoError(t, err)
-	assert.Equal(t, 4, len(lastValset.Members))
 
-	bridge, err := qgbnet.GetLatestDeployedQGBContract(ctx, network.EVMRPC)
+	err = network.WaitForOrchestratorToStart(ctx, CORE1ACCOUNTADDRESS)
 	assert.NoError(t, err)
+
+	err = network.WaitForOrchestratorToStart(ctx, CORE2ACCOUNTADDRESS)
+	assert.NoError(t, err)
+
+	err = network.WaitForOrchestratorToStart(ctx, CORE3ACCOUNTADDRESS)
+	assert.NoError(t, err)
+
+	lastValsets, err := querier.QueryLastValsets(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, 4, len(lastValsets[0].Members))
+
+	bridge, err := network.GetLatestDeployedQGBContract(ctx)
+	if err != nil {
+		assert.NoError(t, err)
+		t.FailNow()
+	}
+
+	err = network.WaitForRelayerToStart(ctx, bridge)
+	if err != nil {
+		assert.NoError(t, err)
+		t.FailNow()
+	}
 
 	// FIXME should we use the evm client here or go for raw queries?
 	evmClient := orchestrator.NewEvmClient(nil, *bridge, nil, network.EVMRPC)
