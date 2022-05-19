@@ -347,3 +347,9 @@ func (network QGBNetwork) WaitForRelayerToStart(ctx context.Context, bridge *wra
 		}
 	}
 }
+
+func (network QGBNetwork) PrintLogs() {
+	_ = network.Instance.
+		WithCommand([]string{"logs"}).
+		Invoke()
+}
