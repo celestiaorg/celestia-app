@@ -35,10 +35,10 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err)
 
+	// FIXME should we use the querier here or go for raw queries?
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
 	HandleNetworkError(t, network, err)
 
-	// FIXME should we use the querier here or go for raw queries?
 	vsConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
@@ -46,7 +46,6 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE0EVMADDRESS, vsConfirm.EthAddress)
 
-	// FIXME should we use the querier here or go for raw queries?
 	dcConfirm, err := querier.QueryDataCommitmentConfirm(ctx, types.DataCommitmentWindow, 0, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
