@@ -1,12 +1,10 @@
 package types
 
 import (
-	"bytes"
 	"testing"
 
 	sdkerrors "github.com/cosmos/cosmos-sdk/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 func TestWirePayForData_ValidateBasic(t *testing.T) {
@@ -26,10 +24,6 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 	// pfd that uses reserved ns id
 	reservedMsg := validWirePayForData(t)
 	reservedMsg.MessageNameSpaceId = []byte{0, 0, 0, 0, 0, 0, 0, 100}
-
-	// pfd that has a wrong msg size
-	invalidMsgSizeMsg := validWirePayForData(t)
-	invalidMsgSizeMsg.Message = bytes.Repeat([]byte{1}, consts.ShareSize-20)
 
 	// pfd that has a wrong msg size
 	invalidDeclaredMsgSizeMsg := validWirePayForData(t)
@@ -62,11 +56,6 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 			name:    "reserved ns id",
 			msg:     reservedMsg,
 			wantErr: ErrReservedNamespace,
-		},
-		{
-			name:    "invalid msg size",
-			msg:     invalidMsgSizeMsg,
-			wantErr: ErrInvalidDataSize,
 		},
 		{
 			name:    "bad declared message size",
