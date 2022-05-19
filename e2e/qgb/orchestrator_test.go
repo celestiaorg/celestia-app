@@ -14,30 +14,28 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 	//	t.Skip("Skipping QGB integration tests")
 	//}
 	network, err := NewQGBNetwork()
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
+
 	// preferably, run this also when ctrl+c
 	defer network.DeleteAll() //nolint:errcheck
+
 	// start 1 validator
 	err = network.StartBase()
-	if err != nil {
-		assert.NoError(t, err)
-		t.FailNow()
-	}
+	HandleNetworkError(t, network, err)
+
 	// add orchestrator
 	err = network.Start(Core0Orch)
-	if err != nil {
-		assert.NoError(t, err)
-		t.FailNow()
-	}
+	HandleNetworkError(t, network, err)
+
 	ctx := context.TODO()
 	err = network.WaitForBlock(ctx, int64(types.DataCommitmentWindow+5))
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	// FIXME should we use the querier here or go for raw queries?
 	vsConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)
@@ -62,48 +60,40 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 	//	t.Skip("Skipping QGB integration tests")
 	//}
 	network, err := NewQGBNetwork()
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
+
 	// preferably, run this also when ctrl+c
 	defer network.DeleteAll() //nolint:errcheck
+
 	// start minimal network with one validator
 	// start 1 validator
 	err = network.StartBase()
-	if err != nil {
-		assert.NoError(t, err)
-		t.FailNow()
-	}
+	HandleNetworkError(t, network, err)
+
 	// add core 0 orchestrator
 	err = network.Start(Core0Orch)
-	if err != nil {
-		assert.NoError(t, err)
-		t.FailNow()
-	}
+	HandleNetworkError(t, network, err)
 
 	// add core1 validator
 	err = network.Start(Core1)
-	if err != nil {
-		assert.NoError(t, err)
-		t.FailNow()
-	}
+	HandleNetworkError(t, network, err)
+
 	// add core1 orchestrator
 	err = network.Start(Core1Orch)
-	if err != nil {
-		assert.NoError(t, err)
-		t.FailNow()
-	}
+	HandleNetworkError(t, network, err)
 
 	ctx := context.TODO()
 	err = network.WaitForBlock(ctx, int64(types.DataCommitmentWindow+10))
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE1ACCOUNTADDRESS)
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	// check core0 submited the valset confirm
 	core0ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 2, CORE0ACCOUNTADDRESS)
@@ -155,33 +145,32 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	//}
 	network, err := NewQGBNetwork()
 	assert.NoError(t, err)
+
 	// preferably, run this also when ctrl+c
 	defer network.DeleteAll() //nolint:errcheck
+
 	// start full network with four validatorS
 	err = network.StartAll()
-	if err != nil {
-		assert.NoError(t, err)
-		t.FailNow()
-	}
+	HandleNetworkError(t, network, err)
 
 	ctx := context.TODO()
 	err = network.WaitForBlock(ctx, int64(types.DataCommitmentWindow+10))
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE1ACCOUNTADDRESS)
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE2ACCOUNTADDRESS)
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE3ACCOUNTADDRESS)
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	lastValsets, err := querier.QueryLastValsets(ctx)
 	assert.NoError(t, err)
@@ -278,52 +267,44 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	//	t.Skip("Skipping QGB integration tests")
 	//}
 	network, err := NewQGBNetwork()
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
+
 	// preferably, run this also when ctrl+c
 	defer network.DeleteAll() //nolint:errcheck
+
 	// start 1 validator
 	err = network.StartBase()
-	if err != nil {
-		assert.NoError(t, err)
-		t.FailNow()
-	}
+	HandleNetworkError(t, network, err)
+
 	// add core1 validator
 	err = network.Start(Core1)
-	if err != nil {
-		assert.NoError(t, err)
-		t.FailNow()
-	}
+	HandleNetworkError(t, network, err)
 
 	ctx := context.TODO()
 	err = network.WaitForBlock(ctx, int64(2*types.DataCommitmentWindow))
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	// add core0  orchestrator
 	err = network.Start(Core0Orch)
-	if err != nil {
-		assert.NoError(t, err)
-		t.FailNow()
-	}
+	HandleNetworkError(t, network, err)
+
 	// add core1 orchestrator
 	err = network.Start(Core1Orch)
-	if err != nil {
-		assert.NoError(t, err)
-		t.FailNow()
-	}
+	HandleNetworkError(t, network, err)
 
 	// give time for the orchestrators to submit confirms
 	err = network.WaitForBlock(ctx, int64(2*types.DataCommitmentWindow+10))
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE1ACCOUNTADDRESS)
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	// FIXME should we use the querier here or go for raw queries?
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
-	assert.NoError(t, err)
+	HandleNetworkError(t, network, err)
 
 	// check core0 submitted valset 1 confirm
 	vs1Core0Confirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)
