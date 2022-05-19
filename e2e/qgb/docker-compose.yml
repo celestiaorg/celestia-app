@@ -25,8 +25,6 @@ services:
     container_name: core0-orch
     build:
       context: ../..
-      args:
-        CELESTIA_HOME_DIR: /opt
     depends_on:
       - core0
     command: [
@@ -45,8 +43,6 @@ services:
     container_name: core1
     build:
       context: ../..
-      args:
-        CELESTIA_HOME_DIR: /opt
     depends_on:
       - core0
     environment:
@@ -73,8 +69,6 @@ services:
     container_name: core1-orch
     build:
       context: ../..
-      args:
-        CELESTIA_HOME_DIR: /opt
     depends_on:
       - core1
     environment:
@@ -97,8 +91,6 @@ services:
     container_name: core2
     build:
       context: ../..
-      args:
-        CELESTIA_HOME_DIR: /opt
     depends_on:
       - core0
     environment:
@@ -125,8 +117,6 @@ services:
     container_name: core2-orch
     build:
       context: ../..
-      args:
-        CELESTIA_HOME_DIR: /opt
     depends_on:
       - core2
     environment:
@@ -149,8 +139,6 @@ services:
     container_name: core3
     build:
       context: ../..
-      args:
-        CELESTIA_HOME_DIR: /opt
     depends_on:
       - core0
     environment:
@@ -177,8 +165,6 @@ services:
     container_name: core3-orch
     build:
       context: ../..
-      args:
-        CELESTIA_HOME_DIR: /opt
     depends_on:
       - core3
     environment:
@@ -227,8 +213,6 @@ services:
     container_name: deployer
     build:
       context: ../..
-      args:
-        CELESTIA_HOME_DIR: /opt
     depends_on:
       - ganache
       - core0
@@ -254,8 +238,6 @@ services:
     container_name: relayer
     build:
       context: ../..
-      args:
-        CELESTIA_HOME_DIR: /opt
     depends_on:
       - ganache
       - core0
