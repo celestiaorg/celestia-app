@@ -10,6 +10,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 func TestMountainRange(t *testing.T) {
@@ -257,21 +258,21 @@ func TestProcessMessage(t *testing.T) {
 		{
 			name:   "single share square size 2",
 			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			msg:    bytes.Repeat([]byte{1}, ShareSize),
+			msg:    bytes.Repeat([]byte{1}, totalMsgSize(consts.MsgShareSize)),
 			ss:     2,
 			modify: dontModify,
 		},
 		{
 			name:   "15 shares square size 4",
 			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:    bytes.Repeat([]byte{2}, ShareSize*15),
+			msg:    bytes.Repeat([]byte{2}, totalMsgSize(consts.MsgShareSize*15)),
 			ss:     4,
 			modify: dontModify,
 		},
 		{
-			name: "",
+			name: "incorrect square size",
 			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:  bytes.Repeat([]byte{2}, ShareSize*15),
+			msg:  bytes.Repeat([]byte{2}, totalMsgSize(consts.MsgShareSize*15)),
 			ss:   4,
 			modify: func(wpfd *MsgWirePayForData) *MsgWirePayForData {
 				wpfd.MessageShareCommitment[0].K = 99999
@@ -303,6 +304,12 @@ func TestProcessMessage(t *testing.T) {
 		assert.Equal(t, wpfd.MessageShareCommitment[0].ShareCommitment, spfd.MessageShareCommitment, tt.name)
 		assert.Equal(t, wpfd.MessageShareCommitment[0].Signature, sig, tt.name)
 	}
+}
+
+// totalMsgSize subtracts the delimiter size from the desired total size. this
+// is useful for testing for messages that occupy exactly so many shares.
+func totalMsgSize(size int) int {
+	return size - DelimLen(uint64(size))
 }
 
 func validWirePayForData(t *testing.T) *MsgWirePayForData {
