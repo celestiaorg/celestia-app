@@ -218,14 +218,6 @@ func TestSignMalleatedTxs(t *testing.T) {
 			pub, err := signer.GetSignerInfo().GetPubKey()
 			require.NoError(t, err)
 
-			// assert.True(t,
-			// 	authsigning.VerifySignature(
-			// 		pub,
-			// 		signerData,
-
-			// 	),
-			// )
-
 			// verify the signature
 			assert.True(t, pub.VerifySignature(
 				bytesToSign,
