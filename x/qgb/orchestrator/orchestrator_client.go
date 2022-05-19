@@ -60,7 +60,7 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 	valsetsChan := make(chan types.Valset, 100)
 
 	// will change once we have the new design
-	go oc.addOldValsetAttestations(ctx, valsetsChan) //nolint:errcheck
+	go oc.addOldValsetAttestations(ctx, valsetsChan)
 
 	results, err := oc.tendermintRPC.Subscribe(
 		ctx,
