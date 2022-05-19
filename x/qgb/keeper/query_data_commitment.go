@@ -8,6 +8,7 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
+// FIXME should we return an error if it doesn't exist? for this one and the others?
 func (k Keeper) DataCommitmentConfirm(
 	c context.Context,
 	request *types.QueryDataCommitmentConfirmRequest,
