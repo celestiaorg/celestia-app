@@ -8,7 +8,6 @@ import (
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -200,14 +199,13 @@ func TestSignMalleatedTxs(t *testing.T) {
 			tx, err := signer.BuildSignedTx(builder, unsignedPFD)
 			require.NoError(t, err)
 
+			signerData, err := signer.GetSignerData()
+			require.NoError(t, err)
+
 			// Generate the bytes to be signed.
 			bytesToSign, err := signer.encCfg.TxConfig.SignModeHandler().GetSignBytes(
 				signing.SignMode_SIGN_MODE_DIRECT,
-				authsigning.SignerData{
-					ChainID:       signer.chainID,
-					AccountNumber: signer.accountNumber,
-					Sequence:      signer.sequence,
-				},
+				signerData,
 				tx,
 			)
 			require.NoError(t, err)
@@ -218,6 +216,14 @@ func TestSignMalleatedTxs(t *testing.T) {
 
 			pub, err := signer.GetSignerInfo().GetPubKey()
 			require.NoError(t, err)
+
+			// assert.True(t,
+			// 	authsigning.VerifySignature(
+			// 		pub,
+			// 		signerData,
+
+			// 	),
+			// )
 
 			// verify the signature
 			assert.True(t, pub.VerifySignature(

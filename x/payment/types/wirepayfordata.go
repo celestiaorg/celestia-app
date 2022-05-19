@@ -67,11 +67,7 @@ func (msg *MsgWirePayForData) SignShareCommitments(signer *KeyringSigner, option
 	msg.Signer = addr.String()
 	// create an entire MsgPayForData and signing over it, including the signature in each commitment
 	for i, commit := range msg.MessageShareCommitment {
-		builder := signer.NewTxBuilder()
-
-		for _, option := range options {
-			builder = option(builder)
-		}
+		builder := signer.NewTxBuilder(options...)
 
 		sig, err := msg.createPayForDataSignature(signer, builder, commit.K)
 		if err != nil {

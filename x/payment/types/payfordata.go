@@ -129,8 +129,8 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 	// note, we use k*k-1 here because at least a single share will be reserved
 	// for the transaction paying for the message, therefore the max number of
 	// shares a message can be is number of shares in square -1.
-	if uint64(len(shares)) > k*k-1 {
-		return nil, fmt.Errorf("message size exceeds square size")
+	if uint64(len(shares)) > (k*k)-1 {
+		return nil, fmt.Errorf("message size exceeds max shares for square size %d: max %d taken %d", k, (k*k)-1, len(shares))
 	}
 
 	// organize shares for merkle mountain range

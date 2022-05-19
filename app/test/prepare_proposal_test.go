@@ -75,19 +75,20 @@ func TestPrepareProposal(t *testing.T) {
 }
 
 func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, ks ...uint64) (rawTx []byte) {
-	// create a msg
-	msg := generateSignedWirePayForData(t, ns, message, signer, ks...)
-
-	builder := signer.NewTxBuilder()
-
 	coin := sdk.Coin{
 		Denom:  app.BondDenom,
 		Amount: sdk.NewInt(10),
 	}
 
-	builder.SetFeeAmount(sdk.NewCoins(coin))
-	builder.SetGasLimit(1000000)
-	builder.SetTimeoutHeight(99)
+	opts := []types.TxBuilderOption{
+		types.SetFeeAmount(sdk.NewCoins(coin)),
+		types.SetGasLimit(10000000),
+	}
+
+	// create a msg
+	msg := generateSignedWirePayForData(t, ns, message, signer, opts, ks...)
+
+	builder := signer.NewTxBuilder(opts...)
 
 	tx, err := signer.BuildSignedTx(builder, msg)
 	require.NoError(t, err)
@@ -99,13 +100,13 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, s
 	return rawTx
 }
 
-func generateSignedWirePayForData(t *testing.T, ns, message []byte, signer *types.KeyringSigner, ks ...uint64) *types.MsgWirePayForData {
+func generateSignedWirePayForData(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption, ks ...uint64) *types.MsgWirePayForData {
 	msg, err := types.NewWirePayForData(ns, message, ks...)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = msg.SignShareCommitments(signer)
+	err = msg.SignShareCommitments(signer, options...)
 	if err != nil {
 		t.Error(err)
 	}
