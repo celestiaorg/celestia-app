@@ -222,7 +222,7 @@ func (network QGBNetwork) StartBase() error {
 func (network QGBNetwork) WaitForNodeToStart(rpcAddr string) error {
 	for {
 		select {
-		case <-time.After(15 * time.Minute):
+		case <-time.After(5 * time.Minute):
 			return fmt.Errorf("node %s not initialized in time", rpcAddr)
 		default:
 			trpc, err := http.New(rpcAddr, "/websocket")
@@ -251,7 +251,7 @@ func (network QGBNetwork) WaitForBlock(ctx context.Context, height int64) error 
 	}
 	for {
 		select {
-		case <-time.After(15 * time.Minute):
+		case <-time.After(5 * time.Minute):
 			return fmt.Errorf("chain didn't reach height in time")
 		default:
 			status, err := trpc.Status(ctx)
@@ -338,7 +338,7 @@ func (network QGBNetwork) WaitForRelayerToStart(ctx context.Context, bridge *wra
 		case <-time.After(5 * time.Minute):
 			return fmt.Errorf("relayer didn't start correctly")
 		default:
-			nonce, err := bridge.StateLastValidatorSetNonce(&bind.CallOpts{Context: ctx})
+			nonce, err := bridge.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: ctx})
 			if err == nil && nonce != nil && nonce.Int64() >= 1 {
 				return nil
 			}
