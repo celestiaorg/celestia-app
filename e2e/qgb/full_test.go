@@ -6,6 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
 )
 
@@ -13,10 +14,10 @@ import (
 // the valsets and data commitments are relayed correctly.
 // currently, it takes around 10min to reach 120 block.
 func TestFullLongBehaviour(t *testing.T) {
-	// TODO uncomment when pushing final
-	//if os.Getenv("QGB_FULL_INTEGRATION_TEST") != "true" {
-	//	t.Skip("Skipping QGB full integration tests")
-	//}
+	if os.Getenv("QGB_FULL_INTEGRATION_TEST") != "true" {
+		t.Skip("Skipping QGB full integration tests")
+	}
+
 	network, err := NewQGBNetwork()
 	HandleNetworkError(t, network, err)
 

@@ -5,14 +5,15 @@ import (
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
 )
 
 func TestOrchestratorWithOneValidator(t *testing.T) {
-	// TODO uncomment when pushing final
-	//if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
-	//	t.Skip("Skipping QGB integration tests")
-	//}
+	if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
+		t.Skip("Skipping QGB integration tests")
+	}
+
 	network, err := NewQGBNetwork()
 	HandleNetworkError(t, network, err)
 
@@ -55,10 +56,10 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 }
 
 func TestOrchestratorWithTwoValidators(t *testing.T) {
-	// TODO uncomment when pushing final
-	//if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
-	//	t.Skip("Skipping QGB integration tests")
-	//}
+	if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
+		t.Skip("Skipping QGB integration tests")
+	}
+
 	network, err := NewQGBNetwork()
 	HandleNetworkError(t, network, err)
 
@@ -139,10 +140,10 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 }
 
 func TestOrchestratorWithMultipleValidators(t *testing.T) {
-	// TODO uncomment when pushing final
-	//if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
-	//	t.Skip("Skipping QGB integration tests")
-	//}
+	if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
+		t.Skip("Skipping QGB integration tests")
+	}
+
 	network, err := NewQGBNetwork()
 	assert.NoError(t, err)
 
@@ -262,10 +263,10 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 }
 
 func TestOrchestratorReplayOld(t *testing.T) {
-	// TODO uncomment when pushing final
-	//if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
-	//	t.Skip("Skipping QGB integration tests")
-	//}
+	if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
+		t.Skip("Skipping QGB integration tests")
+	}
+
 	network, err := NewQGBNetwork()
 	HandleNetworkError(t, network, err)
 

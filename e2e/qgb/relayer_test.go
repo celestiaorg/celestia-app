@@ -6,14 +6,15 @@ import (
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
 )
 
 func TestRelayerWithOneValidator(t *testing.T) {
-	// TODO uncomment when pushing final
-	//if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
-	//	t.Skip("Skipping QGB integration tests")
-	//}
+	if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
+		t.Skip("Skipping QGB integration tests")
+	}
+
 	network, err := NewQGBNetwork()
 	HandleNetworkError(t, network, err)
 
@@ -49,10 +50,10 @@ func TestRelayerWithOneValidator(t *testing.T) {
 }
 
 func TestRelayerWithTwoValidators(t *testing.T) {
-	// TODO uncomment when pushing final
-	//if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
-	//	t.Skip("Skipping QGB integration tests")
-	//}
+	if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
+		t.Skip("Skipping QGB integration tests")
+	}
+
 	network, err := NewQGBNetwork()
 	HandleNetworkError(t, network, err)
 
@@ -100,10 +101,10 @@ func TestRelayerWithTwoValidators(t *testing.T) {
 }
 
 func TestRelayerWithMultipleValidators(t *testing.T) {
-	// TODO uncomment when pushing final
-	//if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
-	//	t.Skip("Skipping QGB integration tests")
-	//}
+	if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
+		t.Skip("Skipping QGB integration tests")
+	}
+
 	network, err := NewQGBNetwork()
 	HandleNetworkError(t, network, err)
 
