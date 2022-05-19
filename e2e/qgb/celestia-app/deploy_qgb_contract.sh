@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script deploys the QGB contract and outputs the address in `qgb_address.txt` file
+# This script deploys the QGB contract and outputs the address to stdout.
 
 # check whether to deploy a new contract or no need
 if [[ "${DEPLOY_NEW_CONTRACT}" != "true" ]]

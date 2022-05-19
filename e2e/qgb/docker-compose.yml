@@ -249,7 +249,6 @@ services:
     ]
     volumes:
       - ${PWD}/celestia-app/deploy_qgb_contract.sh:/opt/deploy_qgb_contract.sh:ro
-      - ${PWD}/celestia-app/qgb_address.txt:/opt/qgb_address.txt:rw
 
   relayer:
     container_name: relayer
@@ -261,7 +260,6 @@ services:
       - ganache
       - core0
     environment:
-      - DEPLOY_NEW_CONTRACT=true
       - EVM_CHAIN_ID=qgb-e2e
       # Eth Address: 0x95359c3348e189ef7781546e6E13c80230fC9fB5
       - PRIVATE_KEY=0e9688e585562e828dcbd4f402d5eddf686f947fb6bf75894a85bf008b017401
@@ -269,6 +267,8 @@ services:
       - CELESTIA_GRPC=core0:9090
       - EVM_CHAIN_ID=1234
       - EVM_ENDPOINT=http://ganache:8545
+#    set this environment to some value if you want to relay to an existing contract.
+#      - QGB_CONTRACT=0x123
     entrypoint: [
       "/bin/bash"
     ]
@@ -276,6 +276,5 @@ services:
       "/opt/start_relayer.sh"
     ]
     volumes:
-      - ${PWD}/celestia-app/qgb_address.txt:/opt/qgb_address.txt:rw
       - ${PWD}/celestia-app/start_relayer.sh:/opt/start_relayer.sh:ro
       - ${PWD}/celestia-app/deploy_qgb_contract.sh:/opt/deploy_qgb_contract.sh:ro

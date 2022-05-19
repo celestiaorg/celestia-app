@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# This script runs the QGB relayer with the ability to inject any QGB contract
-# address via overwriting the content of the `qgb_address.txt` file.
+# This script runs the QGB relayer with the ability to deploy a new QGB contract or
+# pass one as an environment variable QGB_CONTRACT
 
 # check if environment variables are set
 if [[ -z "${EVM_CHAIN_ID}" || -z "${PRIVATE_KEY}" ]] || \
@@ -28,14 +28,13 @@ do
 done
 
 # check whether to deploy a new contract or use an existing one
-if [[ "${DEPLOY_NEW_CONTRACT}" == "true" ]]
+if [[ -z "${QGB_CONTRACT}" ]]
 then
+  export DEPLOY_NEW_CONTRACT=true
   /bin/bash /opt/deploy_qgb_contract.sh
 fi
 
 # get the address from the `qgb_address.txt` file
-# the reason for this is to allow testing against a wrong QGB contract, a faulty one, and
-# a contract that is not up to date.
 QGB_CONTRACT=$(cat /opt/qgb_address.txt)
 
 /bin/celestia-appd relayer \
