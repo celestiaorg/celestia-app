@@ -2,7 +2,6 @@ package payment
 
 import (
 	"context"
-
 	"google.golang.org/grpc"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
