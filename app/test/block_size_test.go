@@ -258,16 +258,6 @@ func queryWithOutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.R
 // https://github.com/celestiaorg/celestia-app/issues/236
 // https://github.com/celestiaorg/celestia-app/issues/239
 
-// SharesUsed calculates the minimum number of shares a message will take up
-func SharesUsed(msgSize int) int {
-	shareCount := msgSize / consts.MsgShareSize
-	// increment the share count if the message overflows the last counted share
-	if msgSize%consts.MsgShareSize != 0 {
-		shareCount++
-	}
-	return shareCount
-}
-
 // generateAllSquareSizes generates and returns all of the possible square sizes
 // using the maximum and minimum square sizes
 func generateAllSquareSizes() []int {
@@ -285,7 +275,7 @@ func generateAllSquareSizes() []int {
 func AllSquareSizes(msgSize int) []uint64 {
 	allSizes := generateAllSquareSizes()
 	fitSizes := []uint64{}
-	shareCount := SharesUsed(msgSize)
+	shareCount := app.MsgSharesUsed(msgSize)
 	for _, size := range allSizes {
 		// if the number of shares is larger than that in the square, throw an error
 		// note, we use k*k-1 here because at least a single share will be reserved

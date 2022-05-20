@@ -111,9 +111,8 @@ func estimateMsgShares(txConf client.TxConfig, txs [][]byte) int {
 		}
 
 		msgSize := wireMsg.MessageSize
-		delimSize := types.DelimLen(msgSize)
 
-		msgShares += ((msgSize + uint64(delimSize)) / consts.MsgShareSize) + 1 // plus one to round up
+		msgShares += uint64(MsgSharesUsed(int(msgSize)))
 
 	}
 	return int(msgShares)
