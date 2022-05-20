@@ -375,7 +375,7 @@ func (network QGBNetwork) WaitForRelayerToStart(ctx context.Context, bridge *wra
 		case <-timeoutChan:
 			return fmt.Errorf("relayer didn't start correctly")
 		default:
-			nonce, err := bridge.StateLastValidatorSetNonce(&bind.CallOpts{Context: ctx})
+			nonce, err := bridge.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: ctx})
 			if err == nil && nonce != nil && nonce.Int64() >= 1 {
 				return nil
 			}
