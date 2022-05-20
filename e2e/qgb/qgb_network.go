@@ -107,9 +107,31 @@ func (network QGBNetwork) Start(service Service) error {
 	return nil
 }
 
+// DeployQGBContract uses the Deployer service to deploy a new QGB contract
+// based on the existing running network. If no Celestia-app or ganache are
+// started, it creates them automatically.
+func (network QGBNetwork) DeployQGBContract() error {
+	err := network.Instance.
+		WithCommand([]string{"build", DEPLOYER}).
+		Invoke().Error
+	if err != nil {
+		return err
+	}
+	err = network.Instance.
+		WithCommand([]string{"run", "-e", "DEPLOY_NEW_CONTRACT=true", DEPLOYER}).
+		Invoke().Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // StartMultiple start multiple services. Make sure to call `Stop`, in the
 // end, to release the resources.
 func (network QGBNetwork) StartMultiple(services ...Service) error {
+	if len(services) == 0 {
+		return fmt.Errorf("empty list of services provided")
+	}
 	serviceNames := make([]string, 0)
 	for _, s := range services {
 		name, err := s.toString()
@@ -150,6 +172,9 @@ func (network QGBNetwork) Stop(service Service) error {
 // StopMultiple start multiple services. Make sure to call `Stop` or `StopMultiple`, in the
 // end, to release the resources.
 func (network QGBNetwork) StopMultiple(services ...Service) error {
+	if len(services) == 0 {
+		return fmt.Errorf("empty list of services provided")
+	}
 	serviceNames := make([]string, 0)
 	for _, s := range services {
 		name, err := s.toString()
@@ -220,9 +245,10 @@ func (network QGBNetwork) StartBase() error {
 }
 
 func (network QGBNetwork) WaitForNodeToStart(rpcAddr string) error {
+	timeoutChan := time.After(5 * time.Minute)
 	for {
 		select {
-		case <-time.After(5 * time.Minute):
+		case <-timeoutChan:
 			return fmt.Errorf("node %s not initialized in time", rpcAddr)
 		default:
 			trpc, err := http.New(rpcAddr, "/websocket")
@@ -249,9 +275,10 @@ func (network QGBNetwork) WaitForBlock(ctx context.Context, height int64) error 
 	if err != nil {
 		return err
 	}
+	timeoutChan := time.After(5 * time.Minute)
 	for {
 		select {
-		case <-time.After(5 * time.Minute):
+		case <-timeoutChan:
 			return fmt.Errorf("chain didn't reach height in time")
 		default:
 			status, err := trpc.Status(ctx)
@@ -275,9 +302,10 @@ func (network QGBNetwork) WaitForOrchestratorToStart(ctx context.Context, accoun
 		return err
 	}
 	defer querier.Stop()
+	timeoutChan := time.After(5 * time.Minute)
 	for {
 		select {
-		case <-time.After(5 * time.Minute):
+		case <-timeoutChan:
 			return fmt.Errorf("orchestrator didn't start correctly")
 		default:
 			confirm, err := querier.QueryDataCommitmentConfirm(ctx, types.DataCommitmentWindow, 0, accountAddress)
@@ -291,18 +319,27 @@ func (network QGBNetwork) WaitForOrchestratorToStart(ctx context.Context, accoun
 }
 
 func (network QGBNetwork) GetLatestDeployedQGBContract(ctx context.Context) (*wrapper.QuantumGravityBridge, error) {
+	return network.GetLatestDeployedQGBContractWithCustomTimeout(ctx, 5*time.Minute)
+}
+
+func (network QGBNetwork) GetLatestDeployedQGBContractWithCustomTimeout(
+	ctx context.Context,
+	timeout time.Duration,
+) (*wrapper.QuantumGravityBridge, error) {
 	client, err := ethclient.Dial(network.EVMRPC)
 	if err != nil {
 		return nil, err
 	}
 	height := 0
+	timeoutChan := time.After(timeout)
 	for {
 		select {
-		case <-time.After(5 * time.Minute):
-			return nil, fmt.Errorf("relayer didn't start correctly")
+		case <-timeoutChan:
+			return nil, fmt.Errorf("timeout. couldn't find deployed qgb contract")
 		default:
 			block, err := client.BlockByNumber(ctx, big.NewInt(int64(height)))
 			if err != nil {
+				time.Sleep(5 * time.Second)
 				continue
 			}
 			height++
@@ -327,15 +364,15 @@ func (network QGBNetwork) GetLatestDeployedQGBContract(ctx context.Context) (*wr
 				}
 				return bridge, nil
 			}
-			time.Sleep(5 * time.Second)
 		}
 	}
 }
 
 func (network QGBNetwork) WaitForRelayerToStart(ctx context.Context, bridge *wrapper.QuantumGravityBridge) error {
+	timeoutChan := time.After(5 * time.Minute)
 	for {
 		select {
-		case <-time.After(5 * time.Minute):
+		case <-timeoutChan:
 			return fmt.Errorf("relayer didn't start correctly")
 		default:
 			nonce, err := bridge.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: ctx})
