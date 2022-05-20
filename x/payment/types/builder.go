@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/cosmos/cosmos-sdk/client"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -61,6 +62,27 @@ func (k *KeyringSigner) QueryAccountNumber(ctx context.Context, conn *grpc.Clien
 
 	k.accountNumber = accNum
 	k.sequence = seqNumb
+	return nil
+}
+
+func (k *KeyringSigner) UpdateAccountFromClient(clientCtx client.Context) error {
+	// clientCtx.AccountRetriever.
+
+	rec := k.GetSignerInfo()
+
+	addr, err := rec.GetAddress()
+	if err != nil {
+		return err
+	}
+
+	accNum, seq, err := clientCtx.AccountRetriever.GetAccountNumberSequence(clientCtx, addr)
+	if err != nil {
+		return err
+	}
+
+	k.SetAccountNumber(accNum)
+	k.SetSequence(seq)
+
 	return nil
 }
 

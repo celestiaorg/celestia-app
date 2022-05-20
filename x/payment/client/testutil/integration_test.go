@@ -2,14 +2,12 @@ package testutil
 
 import (
 	"fmt"
-	"strconv"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/suite"
-	"github.com/tendermint/tendermint/pkg/consts"
 
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	cosmosnet "github.com/cosmos/cosmos-sdk/testutil/network"
@@ -140,9 +138,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 						signer := e.GetAttributes()[0].GetValue()
 						_, err = sdk.AccAddressFromBech32(signer)
 						require.NoError(err)
-						msgSize, err := strconv.ParseUint(e.GetAttributes()[1].GetValue(), 10, 64)
-						require.NoError(err)
-						s.Equal(uint64(0), msgSize%consts.ShareSize, "Message length should be multiples of const.ShareSize=%v", consts.ShareSize)
+						require.Equal(tc.args[1], e.GetAttributes()[1].GetValue())
 					}
 				}
 
