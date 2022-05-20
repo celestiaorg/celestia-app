@@ -129,6 +129,9 @@ func (network QGBNetwork) DeployQGBContract() error {
 // StartMultiple start multiple services. Make sure to call `Stop`, in the
 // end, to release the resources.
 func (network QGBNetwork) StartMultiple(services ...Service) error {
+	if len(services) == 0 {
+		return fmt.Errorf("empty list of services provided")
+	}
 	serviceNames := make([]string, 0)
 	for _, s := range services {
 		name, err := s.toString()
@@ -169,6 +172,9 @@ func (network QGBNetwork) Stop(service Service) error {
 // StopMultiple start multiple services. Make sure to call `Stop` or `StopMultiple`, in the
 // end, to release the resources.
 func (network QGBNetwork) StopMultiple(services ...Service) error {
+	if len(services) == 0 {
+		return fmt.Errorf("empty list of services provided")
+	}
 	serviceNames := make([]string, 0)
 	for _, s := range services {
 		name, err := s.toString()
