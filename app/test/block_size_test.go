@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"fmt"
-	"math/bits"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -48,7 +46,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		s.T().Skip("skipping test in unit-tests mode.")
 	}
 
-	numAccounts := 2
+	numAccounts := 100
 	s.accounts = make([]string, numAccounts)
 	for i := 0; i < numAccounts; i++ {
 		s.accounts[i] = tmrand.Str(20)
@@ -69,60 +67,103 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 	s.network.Cleanup()
 }
 
-func (s *IntegrationTestSuite) TestSubmit1000WirePayForData() {
+func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 	require := s.Require()
 	assert := s.Assert()
 	val := s.network.Validators[0]
-	txs, err := generateSignedWirePayForDataTxs(val.ClientCtx, s.cfg.TxConfig, s.kr, 900000, s.accounts...)
-	require.NoError(err)
 
-	s.Run("1000 1kb txs", func() {
-		hashes := make([]string, len(txs))
+	// tendermint's default tx size limit is 1Mb, so we get close to that
+	equallySized1MbTxGen := func(c client.Context) []coretypes.Tx {
+		equallySized1MbTxs, err := generateSignedWirePayForDataTxs(c, s.cfg.TxConfig, s.kr, 970000, s.accounts[:20]...)
+		require.NoError(err)
+		return equallySized1MbTxs
+	}
 
-		for i, tx := range txs {
-			res, err := val.ClientCtx.BroadcastTxSync(tx)
-			require.NoError(err)
-			fmt.Println("---", i, res.Code, res.Data, res.Logs, res.RawLog, res.GasWanted, res.GasUsed, res.Info, res.Events, res.TxHash)
-			hashes[i] = res.TxHash
-		}
+	// generate 100 randomly sized txs (max size == 100kb) by generating these
+	// transaction using some of the same accounts as the previous genertor, we
+	// are also testing to ensure that the sequence number is being utilized
+	// corrected in malleated txs
+	randoTxGen := func(c client.Context) []coretypes.Tx {
+		randomTxs, err := generateSignedWirePayForDataTxs(c, s.cfg.TxConfig, s.kr, -1, s.accounts...)
+		require.NoError(err)
+		return randomTxs
+	}
 
-		// wait two blocks to clear the txs
-		for i := 0; i < 3; i++ {
-			require.NoError(s.network.WaitForNextBlock())
-		}
-		heights := make(map[int64]int)
-		for _, hash := range hashes {
-			// TODO: once we are able to query txs that span more than two
-			// shares, we should switch to proving txs existence in the block
-			resp, err := queryWithOutProof(val.ClientCtx, hash)
-			assert.NoError(err)
-			assert.Equal(uint32(0), abci.CodeTypeOK)
-			if resp.TxResult.Code == abci.CodeTypeOK {
-				heights[resp.Height]++
-			} else {
-				fmt.Println("code ", resp.TxResult.Code, resp.TxResult.Log, resp.TxResult.Info)
+	type test struct {
+		name        string
+		txGenerator func(clientCtx client.Context) []coretypes.Tx
+	}
+
+	tests := []test{
+		{
+			"20 ~1Mb txs",
+			equallySized1MbTxGen,
+		},
+		{
+			"100 random txs",
+			randoTxGen,
+		},
+	}
+	for _, tc := range tests {
+		s.Run(tc.name, func() {
+			txs := tc.txGenerator(val.ClientCtx)
+			hashes := make([]string, len(txs))
+
+			for i, tx := range txs {
+				res, err := val.ClientCtx.BroadcastTxSync(tx)
+				require.NoError(err)
+				require.Equal(abci.CodeTypeOK, res.Code)
+				hashes[i] = res.TxHash
 			}
-		}
 
-		require.Greater(len(heights), 0)
+			// wait a few blocks to clear the txs
+			for i := 0; i < 10; i++ {
+				require.NoError(s.network.WaitForNextBlock())
+			}
 
-		// check the square size
-		for height := range heights {
-			node, err := val.ClientCtx.GetNode()
-			require.NoError(err)
-			blockRes, err := node.Block(context.Background(), &height)
-			require.NoError(err)
-			fmt.Println("square size", blockRes.Block.Data.OriginalSquareSize)
-		}
+			heights := make(map[int64]int)
+			for _, hash := range hashes {
+				// TODO: once we are able to query txs that span more than two
+				// shares, we should switch to proving txs existence in the block
+				resp, err := queryWithOutProof(val.ClientCtx, hash)
+				assert.NoError(err)
+				assert.Equal(uint32(0), abci.CodeTypeOK)
+				if resp.TxResult.Code == abci.CodeTypeOK {
+					heights[resp.Height]++
+				}
+			}
 
-	})
-	require.NoError(s.network.WaitForNextBlock())
+			require.Greater(len(heights), 0)
+
+			sizes := []uint64{}
+			// check the square size
+			for height := range heights {
+				node, err := val.ClientCtx.GetNode()
+				require.NoError(err)
+				blockRes, err := node.Block(context.Background(), &height)
+				require.NoError(err)
+				size := blockRes.Block.Data.OriginalSquareSize
+
+				// perform basic checks on the size of the square
+				assert.LessOrEqual(size, uint64(consts.MaxSquareSize))
+				assert.GreaterOrEqual(size, uint64(consts.MinSquareSize))
+				sizes = append(sizes, size)
+			}
+
+			// ensure that at least one of the blocks used the max square size
+			assert.Contains(sizes, uint64(consts.MaxSquareSize))
+
+		})
+		require.NoError(s.network.WaitForNextBlock())
+	}
+
 }
 
 func TestIntegrationTestSuite(t *testing.T) {
 	cfg := network.DefaultConfig()
 	cfg.EnableTMLogging = false
 	cfg.MinGasPrices = "0uceles"
+	cfg.NumValidators = 2
 	suite.Run(t, NewIntegrationTestSuite(cfg))
 }
 
@@ -256,8 +297,4 @@ func AllSquareSizes(msgSize int) []uint64 {
 		fitSizes = append(fitSizes, uint64(size))
 	}
 	return fitSizes
-}
-
-func delimLen(x uint64) int {
-	return 8 - bits.LeadingZeros64(x)%8
 }
