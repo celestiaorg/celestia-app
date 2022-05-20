@@ -96,15 +96,6 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 		return sdkerrors.ErrInvalidAddress.Wrapf("invalid 'from' address: %s", err)
 	}
 
-	// // ensure that the included message is evenly divisible into shares
-	// if msgMod := uint64(len(msg.GetMessage())) % ShareSize; msgMod != 0 {
-	// 	return ErrInvalidDataSize.Wrapf(
-	// 		"shareSize: %d, data length: %d",
-	// 		len(msg.Message),
-	// 		ShareSize,
-	// 	)
-	// }
-
 	// make sure that the message size matches the actual size of the message
 	if msg.MessageSize != uint64(len(msg.Message)) {
 		return ErrDeclaredActualDataSizeMismatch.Wrapf(
