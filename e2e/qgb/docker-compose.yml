@@ -184,20 +184,6 @@ services:
       - ${PWD}/celestia-app/start_orchestrator_after_validator_created.sh:/opt/start_orchestrator_after_validator_created.sh:ro
 
   ganache:
-#    image: ethereum/client-go:alltools-stable
-#    command: [
-#        "geth",
-#        "--datadir=/root/.ethereum/devchain",
-##        "--nodekeyhex=091bd6067cb4612df85d9c1ff85cc47f259ced4d4cd99816b14f35650f59c322",
-#        "--http.api=personal,db,eth,net,web3,txpool,miner",
-#        "--http.corsdomain=*",
-#        "--maxpeers=0",
-#        "--networkid=1234", "--http", "--http.addr=0.0.0.0", "--mine"
-#    ]
-#    volumes:
-##      - ${PWD}/ethereum/password:/root/files/password:ro
-#      - ${PWD}/ethereum/genesis.json:/root/files/genesis.json:ro
-#      - ${PWD}/ethereum/keystore:/root/.ethereum/devchain/keystore:ro
     image: trufflesuite/ganache-cli
     command: [
       "--port=8545",
