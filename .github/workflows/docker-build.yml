@@ -36,4 +36,4 @@ jobs:
         with:
           push: true
           tags: ghcr.io/celestiaorg/celestia-app:latest
-          file: docker/Dockerfile
+          file: Dockerfile

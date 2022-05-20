@@ -22,6 +22,7 @@ type EncodingConfig struct {
 // MakeEncodingConfig creates an encoding config for the app.
 func MakeEncodingConfig(regs ...InterfaceRegister) EncodingConfig {
 	amino := codec.NewLegacyAmino()
+	std.RegisterLegacyAminoCodec(amino)
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
 	std.RegisterInterfaces(interfaceRegistry)
 	for _, reg := range regs {
