@@ -116,7 +116,7 @@ func SetupTestAppWithGenesisValSet(t *testing.T) *app.App {
 }
 
 // AddGenesisAccount mimics the cli addGenesisAccount command, providing an
-// account with an allocation of to "token" and "celes" tokens in the genesis
+// account with an allocation of to "token" and "tia" tokens in the genesis
 // state
 func AddGenesisAccount(addr sdk.AccAddress, appState app.GenesisState, cdc codec.Codec) (map[string]json.RawMessage, error) {
 	// create concrete account type based on input parameters
