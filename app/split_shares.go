@@ -3,7 +3,6 @@ package app
 import (
 	"bytes"
 	"crypto/sha256"
-	"math/bits"
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
@@ -208,11 +207,11 @@ func (sqwr *shareSplitter) writeMalleatedTx(
 func (sqwr *shareSplitter) hasRoomForBoth(tx, msg []byte) bool {
 	currentShareCount, availableBytes := sqwr.shareCount()
 
-	txBytesTaken := delimLen(uint64(len(tx))) + len(tx)
+	txBytesTaken := types.DelimLen(uint64(len(tx))) + len(tx)
 
 	maxTxSharesTaken := ((txBytesTaken - availableBytes) / consts.TxShareSize) + 1 // plus one becuase we have to add at least one share
 
-	msgBytesTaken := delimLen(uint64(len(tx))) + len(msg)
+	msgBytesTaken := types.DelimLen(uint64(len(tx))) + len(msg)
 
 	maxMsgSharesTaken := msgBytesTaken / consts.MsgShareSize
 
@@ -228,7 +227,7 @@ func (sqwr *shareSplitter) hasRoomForBoth(tx, msg []byte) bool {
 func (sqwr *shareSplitter) hasRoomForTx(tx []byte) bool {
 	currentShareCount, availableBytes := sqwr.shareCount()
 
-	bytesTaken := delimLen(uint64(len(tx))) + len(tx)
+	bytesTaken := types.DelimLen(uint64(len(tx))) + len(tx)
 	if bytesTaken <= availableBytes {
 		return true
 	}
@@ -289,8 +288,4 @@ func hasWirePayForData(tx sdk.Tx) bool {
 		}
 	}
 	return false
-}
-
-func delimLen(x uint64) int {
-	return 8 - bits.LeadingZeros64(x)%8
 }

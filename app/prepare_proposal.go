@@ -49,7 +49,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 func (app *App) estimateSquareSize(data *core.Data) uint64 {
 	txBytes := 0
 	for _, tx := range data.Txs {
-		txBytes += len(tx) + delimLen(uint64(len(tx)))
+		txBytes += len(tx) + types.DelimLen(uint64(len(tx)))
 	}
 	txShareEstimate := txBytes / consts.TxShareSize
 	if txBytes > 0 {
@@ -58,7 +58,7 @@ func (app *App) estimateSquareSize(data *core.Data) uint64 {
 
 	evdBytes := 0
 	for _, evd := range data.Evidence.Evidence {
-		evdBytes += evd.Size() + delimLen(uint64(evd.Size()))
+		evdBytes += evd.Size() + types.DelimLen(uint64(evd.Size()))
 	}
 	evdShareEstimate := evdBytes / consts.TxShareSize
 	if evdBytes > 0 {
@@ -111,7 +111,7 @@ func estimateMsgShares(txConf client.TxConfig, txs [][]byte) int {
 		}
 
 		msgSize := wireMsg.MessageSize
-		delimSize := delimLen(msgSize)
+		delimSize := types.DelimLen(msgSize)
 
 		msgShares += ((msgSize + uint64(delimSize)) / consts.MsgShareSize) + 1 // plus one to round up
 
