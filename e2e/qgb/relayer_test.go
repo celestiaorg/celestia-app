@@ -50,7 +50,7 @@ func TestRelayerWithOneValidator(t *testing.T) {
 }
 
 func TestRelayerWithTwoValidators(t *testing.T) {
-	if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
+	if os.Getenv("QGB_INTEGRATION_TEST") != TRUE {
 		t.Skip("Skipping QGB integration tests")
 	}
 
@@ -101,7 +101,7 @@ func TestRelayerWithTwoValidators(t *testing.T) {
 }
 
 func TestRelayerWithMultipleValidators(t *testing.T) {
-	if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
+	if os.Getenv("QGB_INTEGRATION_TEST") != TRUE {
 		t.Skip("Skipping QGB integration tests")
 	}
 

@@ -10,7 +10,7 @@ import (
 )
 
 func TestOrchestratorWithOneValidator(t *testing.T) {
-	if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
+	if os.Getenv("QGB_INTEGRATION_TEST") != TRUE {
 		t.Skip("Skipping QGB integration tests")
 	}
 
@@ -55,7 +55,7 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 }
 
 func TestOrchestratorWithTwoValidators(t *testing.T) {
-	if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
+	if os.Getenv("QGB_INTEGRATION_TEST") != TRUE {
 		t.Skip("Skipping QGB integration tests")
 	}
 
@@ -139,7 +139,7 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 }
 
 func TestOrchestratorWithMultipleValidators(t *testing.T) {
-	if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
+	if os.Getenv("QGB_INTEGRATION_TEST") != TRUE {
 		t.Skip("Skipping QGB integration tests")
 	}
 
