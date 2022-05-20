@@ -107,6 +107,25 @@ func (network QGBNetwork) Start(service Service) error {
 	return nil
 }
 
+// DeployQGBContract uses the Deployer service to deploy a new QGB contract
+// based on the existing running network. If no Celestia-app or ganache are
+// started, it creates them automatically.
+func (network QGBNetwork) DeployQGBContract() error {
+	err := network.Instance.
+		WithCommand([]string{"build", DEPLOYER}).
+		Invoke().Error
+	if err != nil {
+		return err
+	}
+	err = network.Instance.
+		WithCommand([]string{"run", "-e", "DEPLOY_NEW_CONTRACT=true", DEPLOYER}).
+		Invoke().Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // StartMultiple start multiple services. Make sure to call `Stop`, in the
 // end, to release the resources.
 func (network QGBNetwork) StartMultiple(services ...Service) error {
