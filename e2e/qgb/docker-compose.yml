@@ -203,7 +203,8 @@ services:
       - ganache
       - core0
     environment:
-      - DEPLOY_NEW_CONTRACT=false # by default, we don't want to run the deploy on each run
+#      By default, we don't want to run the deploy on each run.
+      - DEPLOY_NEW_CONTRACT=false
       - EVM_CHAIN_ID=qgb-e2e
       # Eth Address: 0x95359c3348e189ef7781546e6E13c80230fC9fB5
       - PRIVATE_KEY=0e9688e585562e828dcbd4f402d5eddf686f947fb6bf75894a85bf008b017401
@@ -235,7 +236,7 @@ services:
       - CELESTIA_GRPC=core0:9090
       - EVM_CHAIN_ID=1234
       - EVM_ENDPOINT=http://ganache:8545
-#    set this environment to some value if you want to relay to an existing contract.
+#      set this environment to some value if you want to relay to an existing contract.
 #      - QGB_CONTRACT=0x123
     entrypoint: [
       "/bin/bash"
