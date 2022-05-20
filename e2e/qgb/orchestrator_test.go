@@ -15,29 +15,29 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 	}
 
 	network, err := NewQGBNetwork()
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// preferably, run this also when ctrl+c
 	defer network.DeleteAll() //nolint:errcheck
 
 	// start 1 validator
 	err = network.StartBase()
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// add orchestrator
 	err = network.Start(Core0Orch)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
 	err = network.WaitForBlock(ctx, int64(types.DataCommitmentWindow+5))
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// FIXME should we use the querier here or go for raw queries?
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	vsConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
@@ -60,7 +60,7 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 	}
 
 	network, err := NewQGBNetwork()
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// preferably, run this also when ctrl+c
 	defer network.DeleteAll() //nolint:errcheck
@@ -68,32 +68,32 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 	// start minimal network with one validator
 	// start 1 validator
 	err = network.StartBase()
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// add core 0 orchestrator
 	err = network.Start(Core0Orch)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// add core1 validator
 	err = network.Start(Core1)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// add core1 orchestrator
 	err = network.Start(Core1Orch)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
 	err = network.WaitForBlock(ctx, int64(types.DataCommitmentWindow+10))
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE1ACCOUNTADDRESS)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// check core0 submited the valset confirm
 	core0ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 2, CORE0ACCOUNTADDRESS)
@@ -151,26 +151,26 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 
 	// start full network with four validatorS
 	err = network.StartAll()
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
 	err = network.WaitForBlock(ctx, int64(types.DataCommitmentWindow+10))
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE1ACCOUNTADDRESS)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE2ACCOUNTADDRESS)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE3ACCOUNTADDRESS)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	lastValsets, err := querier.QueryLastValsets(ctx)
 	assert.NoError(t, err)
@@ -262,49 +262,49 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 }
 
 func TestOrchestratorReplayOld(t *testing.T) {
-	if os.Getenv("QGB_INTEGRATION_TEST") != "true" {
+	if os.Getenv("QGB_INTEGRATION_TEST") != TRUE {
 		t.Skip("Skipping QGB integration tests")
 	}
 
 	network, err := NewQGBNetwork()
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// preferably, run this also when ctrl+c
 	defer network.DeleteAll() //nolint:errcheck
 
 	// start 1 validator
 	err = network.StartBase()
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// add core1 validator
 	err = network.Start(Core1)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
 	err = network.WaitForBlock(ctx, int64(2*types.DataCommitmentWindow))
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// add core0  orchestrator
 	err = network.Start(Core0Orch)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// add core1 orchestrator
 	err = network.Start(Core1Orch)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// give time for the orchestrators to submit confirms
 	err = network.WaitForBlock(ctx, int64(2*types.DataCommitmentWindow+10))
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(ctx, CORE1ACCOUNTADDRESS)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// FIXME should we use the querier here or go for raw queries?
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// check core0 submitted valset 1 confirm
 	vs1Core0Confirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)

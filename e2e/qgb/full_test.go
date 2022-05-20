@@ -19,22 +19,22 @@ func TestFullLongBehaviour(t *testing.T) {
 	}
 
 	network, err := NewQGBNetwork()
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// preferably, run this also when ctrl+c
 	defer network.DeleteAll() //nolint:errcheck
 
 	// start full network with four validatorS
 	err = network.StartAll()
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
 	err = network.WaitForBlock(ctx, 120)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// check whether the four validators are up and running
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	// check whether all the validators are up and running
 	lastValsets, err := querier.QueryLastValsets(ctx)
@@ -43,7 +43,7 @@ func TestFullLongBehaviour(t *testing.T) {
 
 	// check whether the QGB contract was deployed
 	bridge, err := network.GetLatestDeployedQGBContract(ctx)
-	HandleNetworkError(t, network, err)
+	HandleNetworkError(t, network, err, false)
 
 	evmClient := orchestrator.NewEvmClient(nil, *bridge, nil, network.EVMRPC)
 
