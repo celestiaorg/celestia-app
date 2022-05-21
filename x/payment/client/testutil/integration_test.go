@@ -142,7 +142,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 						require.NoError(err)
 						msgSize, err := strconv.ParseUint(e.GetAttributes()[1].GetValue(), 10, 64)
 						require.NoError(err)
-						s.Equal(uint64(0), msgSize%consts.ShareSize, "Message length should be multiples of const.ShareSize=%v", consts.ShareSize)
+						require.Equal(uint64(consts.ShareSize), msgSize, "Message length should be %v", consts.ShareSize)
 					}
 				}
 
