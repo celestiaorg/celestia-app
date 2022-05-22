@@ -14,7 +14,8 @@ var (
 )
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
-	cdc.RegisterConcrete(&MsgWirePayForData{}, "payment/WirePayForData", nil)
+	cdc.RegisterConcrete(&MsgWirePayForData{}, URLMsgWirePayForData, nil)
+	cdc.RegisterConcrete(&MsgPayForData{}, URLMsgPayForData, nil)
 }
 
 func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
@@ -39,9 +40,21 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
 }
 
+type localEncoder struct {
+}
+
+func (localEncoder) RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
+	RegisterCodec(cdc)
+}
+
+func (localEncoder) RegisterInterfaces(r codectypes.InterfaceRegistry) {
+	RegisterInterfaces(r)
+}
+
 // makePaymentEncodingConfig uses the payment modules RegisterInterfaces
 // function to create an encoding config for the payment module. This is useful
 // so that we don't have to import the app package.
 func makePaymentEncodingConfig() encoding.EncodingConfig {
-	return encoding.MakeEncodingConfig(RegisterInterfaces)
+	e := localEncoder{}
+	return encoding.MakeEncodingConfig(e)
 }

@@ -54,7 +54,7 @@ func New(t *testing.T, config network.Config, genAccNames ...string) *network.Ne
 // genesis and single validator. All other parameters are inherited from
 // cosmos-sdk/testutil/network.DefaultConfig
 func DefaultConfig() network.Config {
-	encCfg := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
+	encCfg := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
 
 	return network.Config{
 		Codec:             encCfg.Codec,
