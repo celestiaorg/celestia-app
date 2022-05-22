@@ -74,6 +74,39 @@ func TestNextLowestPowerOf2(t *testing.T) {
 	}
 }
 
+func TestNextHighestPowerOf2(t *testing.T) {
+	type test struct {
+		input    uint64
+		expected uint64
+	}
+	tests := []test{
+		{
+			input:    2,
+			expected: 4,
+		},
+		{
+			input:    11,
+			expected: 16,
+		},
+		{
+			input:    511,
+			expected: 512,
+		},
+		{
+			input:    1,
+			expected: 2,
+		},
+		{
+			input:    0,
+			expected: 0,
+		},
+	}
+	for _, tt := range tests {
+		res := NextHighestPowerOf2(tt.input)
+		assert.Equal(t, tt.expected, res)
+	}
+}
+
 func TestPowerOf2(t *testing.T) {
 	type test struct {
 		input    uint64

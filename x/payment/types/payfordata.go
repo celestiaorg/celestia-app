@@ -184,9 +184,8 @@ func powerOf2MountainRange(l, k uint64) []uint64 {
 // NextHighestPowerOf2 returns the next lowest power of 2 unless the input is a power
 // of two, in which case it returns the input
 func NextHighestPowerOf2(v uint64) uint64 {
-	if v == 1 {
-		return 1
-	}
+	// keep track of the value to check if its the same later
+	i := v
 
 	// find the next highest power using bit mashing
 	v--
@@ -198,7 +197,11 @@ func NextHighestPowerOf2(v uint64) uint64 {
 	v |= v >> 32
 	v++
 
-	// return the next highest power
+	// force the value to the next highest power of two if its the same
+	if v == i {
+		return 2 * v
+	}
+
 	return v
 }
 
