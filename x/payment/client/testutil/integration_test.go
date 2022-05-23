@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"testing"
@@ -142,7 +143,11 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 						require.NoError(err)
 						msgSize, err := strconv.ParseUint(e.GetAttributes()[1].GetValue(), 10, 64)
 						require.NoError(err)
-						require.Equal(uint64(consts.ShareSize), msgSize, "Message length should be %v", consts.ShareSize)
+						msg, err := hex.DecodeString(tc.args[1])
+						require.NoError(err)
+						msg = s.padMessage(msg)
+						require.NoError(err)
+						require.Equal(len(msg), int(msgSize))
 					}
 				}
 
@@ -159,6 +164,22 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 			}
 		})
 	}
+
+}
+
+// padMessage adds padding to the msg if the length of the msg is not divisible
+// by the share size specified in celestia-core
+func (s *IntegrationTestSuite) padMessage(msg []byte) []byte {
+	// check if the message needs padding
+	if len(msg)%consts.ShareSize == 0 {
+		return msg
+	}
+
+	shareCount := (len(msg) / consts.ShareSize) + 1
+
+	padded := make([]byte, shareCount*consts.ShareSize)
+	copy(padded, msg)
+	return padded
 }
 
 func TestIntegrationTestSuite(t *testing.T) {
