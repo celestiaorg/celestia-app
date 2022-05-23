@@ -40,10 +40,6 @@ func NewIntegrationTestSuite(cfg cosmosnet.Config) *IntegrationTestSuite {
 func (s *IntegrationTestSuite) SetupSuite() {
 	s.T().Log("setting up integration test suite")
 
-	if testing.Short() {
-		s.T().Skip("skipping test in unit-tests mode.")
-	}
-
 	net := network.New(s.T(), s.cfg, username)
 
 	s.network = net
