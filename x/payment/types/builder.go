@@ -66,8 +66,6 @@ func (k *KeyringSigner) QueryAccountNumber(ctx context.Context, conn *grpc.Clien
 }
 
 func (k *KeyringSigner) UpdateAccountFromClient(clientCtx client.Context) error {
-	// clientCtx.AccountRetriever.
-
 	rec := k.GetSignerInfo()
 
 	addr, err := rec.GetAddress()
