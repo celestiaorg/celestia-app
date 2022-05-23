@@ -113,7 +113,6 @@ func BuildPayForDataTxFromWireTx(
 // squaresize using a namespace merkle tree and the rules described at
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#message-layout-rationale
 func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
-	// add padding to the message if necessary
 	msg := coretypes.Messages{
 		MessagesList: []coretypes.Message{
 			{

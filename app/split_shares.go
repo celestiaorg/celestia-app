@@ -23,6 +23,8 @@ import (
 // data to be mutable.
 func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([][]byte, *core.Data) {
 	processedTxs := make([][]byte, 0)
+	// we initiate this struct here so that the empty output is identiacal in
+	// tests
 	messages := core.Messages{}
 
 	sqwr := newShareSplitter(txConf, squareSize, data)
