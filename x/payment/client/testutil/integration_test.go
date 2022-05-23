@@ -141,7 +141,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 						signer := e.GetAttributes()[0].GetValue()
 						_, err = sdk.AccAddressFromBech32(signer)
 						require.NoError(err)
-						msgSize, err := strconv.ParseUint(e.GetAttributes()[1].GetValue(), 10, 64)
+						msgSize, err := strconv.ParseInt(e.GetAttributes()[1].GetValue(), 10, 64)
 						require.NoError(err)
 						msg, err := hex.DecodeString(tc.args[1])
 						require.NoError(err)
