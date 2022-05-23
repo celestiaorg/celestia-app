@@ -1,0 +1,249 @@
+version: '3'
+
+services:
+  core0:
+    container_name: core0
+    build:
+      context: ../..
+    ports:
+      - "9090:9090"
+      - "26657:26657"
+    command: [
+      "start",
+      "--moniker", "core0",
+      "--rpc.laddr", "tcp://0.0.0.0:26657"
+    ]
+    # Eth Address: 0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488:da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
+    volumes:
+      - ${PWD}/celestia-app/core0/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
+      - ${PWD}/celestia-app/core0/config/node_key.json:/opt/config/node_key.json:ro
+      - ${PWD}/celestia-app/core0/keyring-test:/opt/keyring-test:ro
+      - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
+      - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
+
+  core0-orch:
+    container_name: core0-orch
+    build:
+      context: ../..
+    depends_on:
+      - core0
+    command: [
+        "orchestrator", "-p", "/opt",
+        "-x", "qgb-e2e",
+        "-d", "da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9",
+        "--keyring-account", "core0",
+        "-t", "tcp://core0:26657",
+        "-c", "core0:9090"
+    ]
+    # Eth Address: 0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488:da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
+    volumes:
+      - ${PWD}/celestia-app/core0/keyring-test:/opt/keyring-test:ro
+
+  core1:
+    container_name: core1
+    build:
+      context: ../..
+    depends_on:
+      - core0
+    environment:
+      - MONIKER=core1
+      - CELESTIA_HOME=/opt
+      # private key: 002ad18ca3def673345897b063bfa98d829a4d812dbd07f1938676828a82c4f9
+      - ETH_ADDRESS=0x91DEd26b5f38B065FC0204c7929Da1b2A21877Ad
+      - AMOUNT=5000000000uceles
+    entrypoint: [
+      "/bin/bash"
+    ]
+    command: [
+      "/opt/start_node_and_create_validator.sh"
+    ] # celestia-appd start --home /opt --moniker core1 --p2p.persistent_peers 7b5ef9ef378a3907be7591863a566634d191b58b@core0:26656 --rpc.laddr tcp://0.0.0.0:26657
+    volumes:
+      - ${PWD}/celestia-app/core1/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
+      - ${PWD}/celestia-app/core1/config/node_key.json:/opt/config/node_key.json:ro
+      - ${PWD}/celestia-app/core1/keyring-test:/opt/keyring-test:ro
+      - ${PWD}/celestia-app/start_node_and_create_validator.sh:/opt/start_node_and_create_validator.sh:ro
+      - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
+      - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
+
+  core1-orch:
+    container_name: core1-orch
+    build:
+      context: ../..
+    depends_on:
+      - core1
+    environment:
+      - MONIKER=core1
+      # eth address: 0x91DEd26b5f38B065FC0204c7929Da1b2A21877Ad
+      - PRIVATE_KEY=002ad18ca3def673345897b063bfa98d829a4d812dbd07f1938676828a82c4f9
+      - TENDERMINT_RPC=tcp://core1:26657
+      - CELESTIA_GRPC=core1:9090
+    entrypoint: [
+      "/bin/bash"
+    ]
+    command: [
+      "/opt/start_orchestrator_after_validator_created.sh"
+    ]
+    volumes:
+      - ${PWD}/celestia-app/core1/keyring-test:/opt/keyring-test:ro
+      - ${PWD}/celestia-app/start_orchestrator_after_validator_created.sh:/opt/start_orchestrator_after_validator_created.sh:ro
+
+  core2:
+    container_name: core2
+    build:
+      context: ../..
+    depends_on:
+      - core0
+    environment:
+      - MONIKER=core2
+      - CELESTIA_HOME=/opt
+      # private key: 6adac8b5de0ba702ec8feab6d386a0c7334c6720b9174c02333700d431057af8
+      - ETH_ADDRESS=0x3d22f0C38251ebdBE92e14BBF1bd2067F1C3b7D7
+      - AMOUNT=5000000000uceles
+    entrypoint: [
+      "/bin/bash"
+    ]
+    command: [
+      "/opt/start_node_and_create_validator.sh"
+    ]
+    volumes:
+      - ${PWD}/celestia-app/core2/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
+      - ${PWD}/celestia-app/core2/config/node_key.json:/opt/config/node_key.json:ro
+      - ${PWD}/celestia-app/core2/keyring-test:/opt/keyring-test:ro
+      - ${PWD}/celestia-app/start_node_and_create_validator.sh:/opt/start_node_and_create_validator.sh:ro
+      - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
+      - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
+
+  core2-orch:
+    container_name: core2-orch
+    build:
+      context: ../..
+    depends_on:
+      - core2
+    environment:
+      - MONIKER=core2
+      # eth address: 0x3d22f0C38251ebdBE92e14BBF1bd2067F1C3b7D7
+      - PRIVATE_KEY=6adac8b5de0ba702ec8feab6d386a0c7334c6720b9174c02333700d431057af8
+      - TENDERMINT_RPC=tcp://core2:26657
+      - CELESTIA_GRPC=core2:9090
+    entrypoint: [
+      "/bin/bash"
+    ]
+    command: [
+      "/opt/start_orchestrator_after_validator_created.sh"
+    ]
+    volumes:
+      - ${PWD}/celestia-app/core2/keyring-test:/opt/keyring-test:ro
+      - ${PWD}/celestia-app/start_orchestrator_after_validator_created.sh:/opt/start_orchestrator_after_validator_created.sh:ro
+
+  core3:
+    container_name: core3
+    build:
+      context: ../..
+    depends_on:
+      - core0
+    environment:
+      - MONIKER=core3
+      - CELESTIA_HOME=/opt
+      # private key: 2f7f6763500dfb48b710a4c5c6c6a487b8aa6c7bc8b8a9b637a23f651f1c9b51
+      - ETH_ADDRESS=0x3EE99606625E740D8b29C8570d855Eb387F3c790
+      - AMOUNT=5000000000uceles
+    entrypoint: [
+      "/bin/bash"
+    ]
+    command: [
+      "/opt/start_node_and_create_validator.sh"
+    ]
+    volumes:
+      - ${PWD}/celestia-app/core3/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
+      - ${PWD}/celestia-app/core3/config/node_key.json:/opt/config/node_key.json:ro
+      - ${PWD}/celestia-app/core3/keyring-test:/opt/keyring-test:ro
+      - ${PWD}/celestia-app/start_node_and_create_validator.sh:/opt/start_node_and_create_validator.sh:ro
+      - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
+      - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
+
+  core3-orch:
+    container_name: core3-orch
+    build:
+      context: ../..
+    depends_on:
+      - core3
+    environment:
+      - MONIKER=core3
+      # eth address: 0x3EE99606625E740D8b29C8570d855Eb387F3c790
+      - PRIVATE_KEY=2f7f6763500dfb48b710a4c5c6c6a487b8aa6c7bc8b8a9b637a23f651f1c9b51
+      - TENDERMINT_RPC=tcp://core3:26657
+      - CELESTIA_GRPC=core3:9090
+    entrypoint: [
+      "/bin/bash"
+    ]
+    command: [
+      "/opt/start_orchestrator_after_validator_created.sh"
+    ]
+    volumes:
+      - ${PWD}/celestia-app/core3/keyring-test:/opt/keyring-test:ro
+      - ${PWD}/celestia-app/start_orchestrator_after_validator_created.sh:/opt/start_orchestrator_after_validator_created.sh:ro
+
+  ganache:
+    image: trufflesuite/ganache-cli
+    command: [
+      "--port=8545",
+      "--host=0.0.0.0",
+      "--networkId=1234",
+      "--chainId=1234",
+      "--account=\"0x0e9688e585562e828dcbd4f402d5eddf686f947fb6bf75894a85bf008b017401,0x90000000000000000000000\""
+    ]
+    ports:
+      - "8545:8545"
+
+  deployer:
+    container_name: deployer
+    build:
+      context: ../..
+    depends_on:
+      - ganache
+      - core0
+    environment:
+#      By default, we don't want to run the deploy on each run.
+      - DEPLOY_NEW_CONTRACT=false
+      - EVM_CHAIN_ID=qgb-e2e
+      # Eth Address: 0x95359c3348e189ef7781546e6E13c80230fC9fB5
+      - PRIVATE_KEY=0e9688e585562e828dcbd4f402d5eddf686f947fb6bf75894a85bf008b017401
+      - TENDERMINT_RPC=tcp://core0:26657
+      - CELESTIA_GRPC=core0:9090
+      - EVM_CHAIN_ID=1234
+      - EVM_ENDPOINT=http://ganache:8545
+    entrypoint: [
+      "/bin/bash"
+    ]
+    command: [
+      "/opt/deploy_qgb_contract.sh"
+    ]
+    volumes:
+      - ${PWD}/celestia-app/deploy_qgb_contract.sh:/opt/deploy_qgb_contract.sh:ro
+
+  relayer:
+    container_name: relayer
+    build:
+      context: ../..
+    depends_on:
+      - ganache
+      - core0
+    environment:
+      - EVM_CHAIN_ID=qgb-e2e
+      # Eth Address: 0x95359c3348e189ef7781546e6E13c80230fC9fB5
+      - PRIVATE_KEY=0e9688e585562e828dcbd4f402d5eddf686f947fb6bf75894a85bf008b017401
+      - TENDERMINT_RPC=tcp://core0:26657
+      - CELESTIA_GRPC=core0:9090
+      - EVM_CHAIN_ID=1234
+      - EVM_ENDPOINT=http://ganache:8545
+#      set this environment to some value if you want to relay to an existing contract.
+#      - QGB_CONTRACT=0x123
+    entrypoint: [
+      "/bin/bash"
+    ]
+    command: [
+      "/opt/start_relayer.sh"
+    ]
+    volumes:
+      - ${PWD}/celestia-app/start_relayer.sh:/opt/start_relayer.sh:ro
+      - ${PWD}/celestia-app/deploy_qgb_contract.sh:/opt/deploy_qgb_contract.sh:ro
