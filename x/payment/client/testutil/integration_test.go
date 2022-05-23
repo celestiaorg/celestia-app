@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"testing"
@@ -9,7 +10,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/suite"
-	"github.com/tendermint/tendermint/pkg/consts"
 
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
 	cosmosnet "github.com/cosmos/cosmos-sdk/testutil/network"
@@ -39,10 +39,6 @@ func NewIntegrationTestSuite(cfg cosmosnet.Config) *IntegrationTestSuite {
 
 func (s *IntegrationTestSuite) SetupSuite() {
 	s.T().Log("setting up integration test suite")
-
-	if testing.Short() {
-		s.T().Skip("skipping test in unit-tests mode.")
-	}
 
 	net := network.New(s.T(), s.cfg, username)
 
@@ -82,20 +78,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-				fmt.Sprintf("--%s=%s", paycli.FlagSquareSizes, "2"),
-			},
-			false, 0, &sdk.TxResponse{},
-		},
-		{
-			"valid transaction list of square sizes",
-			[]string{
-				hexNS,
-				hexMsg,
-				fmt.Sprintf("--from=%s", username),
-				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
-				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
-				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-				fmt.Sprintf("--%s=%s", paycli.FlagSquareSizes, "2,4,8,16,32"),
+				fmt.Sprintf("--%s=%s", paycli.FlagSquareSizes, "2,4,8,16"),
 			},
 			false, 0, &sdk.TxResponse{},
 		},
@@ -124,39 +107,43 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
 			if tc.expectErr {
 				require.Error(err)
-			} else {
-				require.NoError(err, "test: %s\noutput: %s", tc.name, out.String())
-				err = clientCtx.Codec.UnmarshalJSON(out.Bytes(), tc.respType)
-				require.NoError(err, out.String(), "test: %s, output\n:", tc.name, out.String())
-
-				txResp := tc.respType.(*sdk.TxResponse)
-				require.Equal(tc.expectedCode, txResp.Code,
-					"test: %s, output\n:", tc.name, out.String())
-
-				events := txResp.Logs[0].GetEvents()
-				for _, e := range events {
-					switch e.Type {
-					case types.EventTypePayForData:
-						signer := e.GetAttributes()[0].GetValue()
-						_, err = sdk.AccAddressFromBech32(signer)
-						require.NoError(err)
-						msgSize, err := strconv.ParseUint(e.GetAttributes()[1].GetValue(), 10, 64)
-						require.NoError(err)
-						s.Equal(uint64(0), msgSize%consts.ShareSize, "Message length should be multiples of const.ShareSize=%v", consts.ShareSize)
-					}
-				}
-
-				// wait for the tx to be indexed
-				s.Require().NoError(s.network.WaitForNextBlock())
-
-				// attempt to query for the malleated transaction using the original tx's hash
-				qTxCmd := authcmd.QueryTxCmd()
-				out, err := clitestutil.ExecTestCLICmd(clientCtx, qTxCmd, []string{txResp.TxHash, "--output=json"})
-				require.NoError(err)
-
-				var result sdk.TxResponse
-				s.Require().NoError(val.ClientCtx.Codec.UnmarshalJSON(out.Bytes(), &result))
+				return
 			}
+			require.NoError(err, "test: %s\noutput: %s", tc.name, out.String())
+
+			err = clientCtx.Codec.UnmarshalJSON(out.Bytes(), tc.respType)
+			require.NoError(err, out.String(), "test: %s, output\n:", tc.name, out.String())
+
+			txResp := tc.respType.(*sdk.TxResponse)
+			require.Equal(tc.expectedCode, txResp.Code,
+				"test: %s, output\n:", tc.name, out.String())
+
+			events := txResp.Logs[0].GetEvents()
+			for _, e := range events {
+				switch e.Type {
+				case types.EventTypePayForData:
+					signer := e.GetAttributes()[0].GetValue()
+					_, err = sdk.AccAddressFromBech32(signer)
+					require.NoError(err)
+					msg, err := hex.DecodeString(tc.args[1])
+					require.NoError(err)
+					msgSize, err := strconv.ParseInt(e.GetAttributes()[1].GetValue(), 10, 64)
+					require.NoError(err)
+					require.Equal(len(msg), int(msgSize))
+				}
+			}
+
+			// wait for the tx to be indexed
+			s.Require().NoError(s.network.WaitForNextBlock())
+
+			// attempt to query for the malleated transaction using the original tx's hash
+			qTxCmd := authcmd.QueryTxCmd()
+			out, err = clitestutil.ExecTestCLICmd(clientCtx, qTxCmd, []string{txResp.TxHash, "--output=json"})
+			require.NoError(err)
+
+			var result sdk.TxResponse
+			s.Require().NoError(val.ClientCtx.Codec.UnmarshalJSON(out.Bytes(), &result))
+
 		})
 	}
 }

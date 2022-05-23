@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"errors"
 	fmt "fmt"
 
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
@@ -27,7 +28,6 @@ func NewWirePayForData(namespace, message []byte, sizes ...uint64) (*MsgWirePayF
 		)
 	}
 
-	message = padMessage(message)
 	out := &MsgWirePayForData{
 		MessageNameSpaceId:     namespace,
 		MessageSize:            uint64(len(message)),
@@ -57,14 +57,17 @@ func (msg *MsgWirePayForData) SignShareCommitments(signer *KeyringSigner, option
 		return err
 	}
 
+	if addr == nil {
+		return errors.New("failed to get address")
+	}
+	if addr.Empty() {
+		return errors.New("failed to get address")
+	}
+
 	msg.Signer = addr.String()
 	// create an entire MsgPayForData and signing over it, including the signature in each commitment
 	for i, commit := range msg.MessageShareCommitment {
-		builder := signer.NewTxBuilder()
-
-		for _, option := range options {
-			builder = option(builder)
-		}
+		builder := signer.NewTxBuilder(options...)
 
 		sig, err := msg.createPayForDataSignature(signer, builder, commit.K)
 		if err != nil {
@@ -91,15 +94,6 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 
 	if _, err := sdk.AccAddressFromBech32(msg.Signer); err != nil {
 		return sdkerrors.ErrInvalidAddress.Wrapf("invalid 'from' address: %s", err)
-	}
-
-	// ensure that the included message is evenly divisible into shares
-	if msgMod := uint64(len(msg.GetMessage())) % ShareSize; msgMod != 0 {
-		return ErrInvalidDataSize.Wrapf(
-			"shareSize: %d, data length: %d",
-			len(msg.Message),
-			ShareSize,
-		)
 	}
 
 	// make sure that the message size matches the actual size of the message

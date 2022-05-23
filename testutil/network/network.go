@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -15,12 +17,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmdb "github.com/tendermint/tm-db"
-
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
 )
 
 func New(t *testing.T, config network.Config, genAccNames ...string) *network.Network {
@@ -29,12 +27,10 @@ func New(t *testing.T, config network.Config, genAccNames ...string) *network.Ne
 	// add genesis accounts
 	genAuthAccs := make([]authtypes.GenesisAccount, len(genAccNames))
 	genBalances := make([]banktypes.Balance, len(genAccNames))
-	mnemonics := make([]string, len(genAccNames))
 	for i, name := range genAccNames {
-		a, b, mnm := newGenAccout(kr, name, 1000000000000)
+		a, b := newGenAccout(kr, name, 1000000000000)
 		genAuthAccs[i] = a
 		genBalances[i] = b
-		mnemonics[i] = mnm
 	}
 
 	config, err := addGenAccounts(config, genAuthAccs, genBalances)
@@ -49,11 +45,7 @@ func New(t *testing.T, config network.Config, genAccNames ...string) *network.Ne
 		panic(err)
 	}
 
-	// add the keys to the keyring that is used by the integration test
-	for i, name := range genAccNames {
-		_, err := net.Validators[0].ClientCtx.Keyring.NewAccount(name, mnemonics[i], "", "", hd.Secp256k1)
-		require.NoError(t, err)
-	}
+	net.Validators[0].ClientCtx.Keyring = kr
 
 	return net
 }
@@ -62,7 +54,7 @@ func New(t *testing.T, config network.Config, genAccNames ...string) *network.Ne
 // genesis and single validator. All other parameters are inherited from
 // cosmos-sdk/testutil/network.DefaultConfig
 func DefaultConfig() network.Config {
-	encCfg := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
+	encCfg := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
 
 	return network.Config{
 		Codec:             encCfg.Codec,
@@ -119,15 +111,15 @@ func addGenAccounts(cfg network.Config, genAccounts []authtypes.GenesisAccount, 
 	return cfg, nil
 }
 
-func newGenAccout(kr keyring.Keyring, name string, amount int64) (authtypes.GenesisAccount, banktypes.Balance, string) {
-	info, mnm, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
+func newGenAccout(kr keyring.Keyring, name string, amount int64) (authtypes.GenesisAccount, banktypes.Balance) {
+	info, _, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
 	if err != nil {
 		panic(err)
 	}
 
 	// create coin
 	balances := sdk.NewCoins(
-		sdk.NewCoin(fmt.Sprintf("%stoken", name), sdk.NewInt(amount)),
+		sdk.NewCoin(fmt.Sprintf("%stoken", app.BondDenom), sdk.NewInt(amount)),
 		sdk.NewCoin(app.BondDenom, sdk.NewInt(amount)),
 	)
 
@@ -146,5 +138,5 @@ func newGenAccout(kr keyring.Keyring, name string, amount int64) (authtypes.Gene
 		panic(err)
 	}
 
-	return authtypes.NewBaseAccount(addr, pub, 0, 0), bal, mnm
+	return authtypes.NewBaseAccount(addr, pub, 0, 0), bal
 }

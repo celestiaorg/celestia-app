@@ -8,7 +8,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/tx"
 )
 
-type InterfaceRegister func(codectypes.InterfaceRegistry)
+type ModuleRegister interface {
+	RegisterLegacyAminoCodec(*codec.LegacyAmino)
+	RegisterInterfaces(codectypes.InterfaceRegistry)
+}
 
 // EncodingConfig specifies the concrete encoding types to use for a given app.
 // This is provided for compatibility between protobuf and amino implementations.
@@ -20,14 +23,22 @@ type EncodingConfig struct {
 }
 
 // MakeEncodingConfig creates an encoding config for the app.
-func MakeEncodingConfig(regs ...InterfaceRegister) EncodingConfig {
+func MakeEncodingConfig(regs ...ModuleRegister) EncodingConfig {
+	// create the codec
 	amino := codec.NewLegacyAmino()
-	std.RegisterLegacyAminoCodec(amino)
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
+
+	// register the standard types from the sdk
+	std.RegisterLegacyAminoCodec(amino)
 	std.RegisterInterfaces(interfaceRegistry)
+
+	// register specific modules
 	for _, reg := range regs {
-		reg(interfaceRegistry)
+		reg.RegisterInterfaces(interfaceRegistry)
+		reg.RegisterLegacyAminoCodec(amino)
 	}
+
+	// create the final configuration
 	marshaler := codec.NewProtoCodec(interfaceRegistry)
 	txCfg := tx.NewTxConfig(marshaler, tx.DefaultSignModes)
 

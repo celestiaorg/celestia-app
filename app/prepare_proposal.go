@@ -49,7 +49,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 func (app *App) estimateSquareSize(data *core.Data) uint64 {
 	txBytes := 0
 	for _, tx := range data.Txs {
-		txBytes += len(tx) + delimLen(uint64(len(tx)))
+		txBytes += len(tx) + types.DelimLen(uint64(len(tx)))
 	}
 	txShareEstimate := txBytes / consts.TxShareSize
 	if txBytes > 0 {
@@ -58,7 +58,7 @@ func (app *App) estimateSquareSize(data *core.Data) uint64 {
 
 	evdBytes := 0
 	for _, evd := range data.Evidence.Evidence {
-		evdBytes += evd.Size() + delimLen(uint64(evd.Size()))
+		evdBytes += evd.Size() + types.DelimLen(uint64(evd.Size()))
 	}
 	evdShareEstimate := evdBytes / consts.TxShareSize
 	if evdBytes > 0 {
@@ -68,9 +68,8 @@ func (app *App) estimateSquareSize(data *core.Data) uint64 {
 	msgShareEstimate := estimateMsgShares(app.txConfig, data.Txs)
 
 	totalShareEstimate := txShareEstimate + evdShareEstimate + msgShareEstimate
-
-	estimatedSize := types.NextPowerOf2(uint64(math.Sqrt(float64(totalShareEstimate))))
-
+	sr := math.Sqrt(float64(totalShareEstimate))
+	estimatedSize := types.NextHighestPowerOf2(uint64(sr))
 	switch {
 	case estimatedSize > consts.MaxSquareSize:
 		return consts.MaxSquareSize
@@ -111,9 +110,7 @@ func estimateMsgShares(txConf client.TxConfig, txs [][]byte) int {
 			continue
 		}
 
-		msgShares += (wireMsg.MessageSize / consts.MsgShareSize) + 1 // plus one to round up
-
+		msgShares += uint64(MsgSharesUsed(int(wireMsg.MessageSize)))
 	}
-
 	return int(msgShares)
 }
