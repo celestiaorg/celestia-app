@@ -162,7 +162,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 func TestIntegrationTestSuite(t *testing.T) {
 	cfg := network.DefaultConfig()
 	cfg.EnableTMLogging = false
-	cfg.MinGasPrices = "0uceles"
+	cfg.MinGasPrices = "0utia"
 	cfg.NumValidators = 2
 	suite.Run(t, NewIntegrationTestSuite(cfg))
 }
