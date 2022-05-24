@@ -2,6 +2,7 @@ package payment
 
 import (
 	"context"
+
 	"google.golang.org/grpc"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -10,12 +11,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/nmt/namespace"
-)
-
-var (
-	// shareSizes includes all the possible share sizes of the given data
-	// that the signer must sign over.
-	shareSizes = []uint64{16, 32, 64, 128}
 )
 
 // SubmitPayForData constructs, signs and synchronously submits a PayForData
@@ -61,7 +56,7 @@ func BuildPayForData(
 	gasLim uint64,
 ) (*types.MsgWirePayForData, error) {
 	// create the raw WirePayForData transaction
-	wpfd, err := types.NewWirePayForData(nID, message, shareSizes...)
+	wpfd, err := types.NewWirePayForData(nID, message, types.AllSquareSizes(len(message))...)
 	if err != nil {
 		return nil, err
 	}

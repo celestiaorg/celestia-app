@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/tendermint/tendermint/pkg/consts"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -46,13 +45,7 @@ func CmdWirePayForData() *cobra.Command {
 				return fmt.Errorf("failure to decode hex message: %w", err)
 			}
 
-			// create the MsgPayForData
-			squareSizes, err := cmd.Flags().GetUintSlice(FlagSquareSizes)
-			if err != nil {
-				return err
-			}
-			squareSizes64 := parseSquareSizes(squareSizes)
-			pfdMsg, err := types.NewWirePayForData(namespace, message, squareSizes64...)
+			pfdMsg, err := types.NewWirePayForData(namespace, message, types.AllSquareSizes(len(message))...)
 			if err != nil {
 				return err
 			}
@@ -105,7 +98,6 @@ func CmdWirePayForData() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
-	cmd.Flags().UintSlice(FlagSquareSizes, []uint{consts.MaxSquareSize, 128, 64}, "Specify the square sizes, must be power of 2")
 
 	return cmd
 }
