@@ -213,7 +213,7 @@ func (sqwr *shareSplitter) hasRoomForBoth(tx, msg []byte) bool {
 
 	maxTxSharesTaken := ((txBytesTaken - availableBytes) / consts.TxShareSize) + 1 // plus one becuase we have to add at least one share
 
-	maxMsgSharesTaken := MsgSharesUsed(len(msg))
+	maxMsgSharesTaken := types.MsgSharesUsed(len(msg))
 
 	return currentShareCount+maxTxSharesTaken+maxMsgSharesTaken <= sqwr.maxShareCount
 }
@@ -272,19 +272,6 @@ func (sqwr *shareSplitter) export() [][]byte {
 	}
 
 	return shares
-}
-
-// MsgSharesUsed calculates the minimum number of shares a message will take up.
-// It accounts for the necessary delimiter and potential padding.
-func MsgSharesUsed(msgSize int) int {
-	// add the delimiter to the message size
-	msgSize = types.DelimLen(uint64(msgSize)) + msgSize
-	shareCount := msgSize / consts.MsgShareSize
-	// increment the share count if the message overflows the last counted share
-	if msgSize%consts.MsgShareSize != 0 {
-		shareCount++
-	}
-	return shareCount
 }
 
 func hasWirePayForData(tx sdk.Tx) bool {
