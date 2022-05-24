@@ -48,7 +48,7 @@ func (network QGBNetwork) StartAll() error {
 	// if some container accidentally changed some files when running.
 	// This to speed up a bit the execution.
 	err := network.Instance.
-		WithCommand([]string{"build"}).
+		WithCommand([]string{"build", "--quiet"}).
 		Invoke().Error
 	if err != nil {
 		return err
@@ -93,7 +93,7 @@ func (network QGBNetwork) Start(service Service) error {
 		return err
 	}
 	err = network.Instance.
-		WithCommand([]string{"build", serviceName}).
+		WithCommand([]string{"build", "--quiet", serviceName}).
 		Invoke().Error
 	if err != nil {
 		return err
@@ -112,7 +112,7 @@ func (network QGBNetwork) Start(service Service) error {
 // started, it creates them automatically.
 func (network QGBNetwork) DeployQGBContract() error {
 	err := network.Instance.
-		WithCommand([]string{"build", DEPLOYER}).
+		WithCommand([]string{"build", "--quiet", DEPLOYER}).
 		Invoke().Error
 	if err != nil {
 		return err
@@ -141,7 +141,7 @@ func (network QGBNetwork) StartMultiple(services ...Service) error {
 		serviceNames = append(serviceNames, name)
 	}
 	err := network.Instance.
-		WithCommand(append([]string{"build"}, serviceNames...)).
+		WithCommand(append([]string{"build", "--quiet"}, serviceNames...)).
 		Invoke().Error
 	if err != nil {
 		return err
@@ -211,7 +211,7 @@ func (network QGBNetwork) ExecCommand(service Service, command []string) error {
 // and a ganache instance
 func (network QGBNetwork) StartMinimal() error {
 	err := network.Instance.
-		WithCommand([]string{"build", "core0", "core0-orch", "relayer", "ganache"}).
+		WithCommand([]string{"build", "--quiet", "core0", "core0-orch", "relayer", "ganache"}).
 		Invoke().Error
 	if err != nil {
 		return err
@@ -230,7 +230,7 @@ func (network QGBNetwork) StartMinimal() error {
 // will be created along with it, allowing more containers to join it.
 func (network QGBNetwork) StartBase() error {
 	err := network.Instance.
-		WithCommand([]string{"build", "core0"}).
+		WithCommand([]string{"build", "--quiet", "core0"}).
 		Invoke().Error
 	if err != nil {
 		return err
@@ -347,7 +347,7 @@ func (network QGBNetwork) GetLatestDeployedQGBContractWithCustomTimeout(
 		default:
 			block, err := client.BlockByNumber(ctx, big.NewInt(int64(height)))
 			if err != nil {
-				time.Sleep(5 * time.Second)
+				time.Sleep(2 * time.Second)
 				continue
 			}
 			height++
@@ -377,7 +377,7 @@ func (network QGBNetwork) GetLatestDeployedQGBContractWithCustomTimeout(
 }
 
 func (network QGBNetwork) WaitForRelayerToStart(ctx context.Context, bridge *wrapper.QuantumGravityBridge) error {
-	timeoutChan := time.After(5 * time.Minute)
+	timeoutChan := time.After(2 * time.Minute)
 	for {
 		select {
 		case <-timeoutChan:
