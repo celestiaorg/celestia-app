@@ -20,8 +20,8 @@ import (
 type EVMClient interface {
 	UpdateValidatorSet(
 		ctx context.Context,
-		nonce, threshHold uint64,
-		valset types.Valset,
+		newNonce, newThreshHold uint64,
+		currentValset, newValset types.Valset,
 		sigs []wrapper.Signature,
 	) error
 	SubmitDataRootTupleRoot(
@@ -58,29 +58,29 @@ func NewEvmClient(
 
 func (ec *evmClient) UpdateValidatorSet(
 	ctx context.Context,
-	nonce, newThreshHold uint64,
-	valset types.Valset,
+	newNonce, newThreshHold uint64,
+	currentValset, newValset types.Valset,
 	sigs []wrapper.Signature,
 ) error {
-	ec.logger.Info(fmt.Sprintf("relaying valset %d...", nonce))
+	ec.logger.Info(fmt.Sprintf("relaying valset %d...", newNonce))
 	opts, err := ec.NewTransactOpts(ctx, 1000000)
 	if err != nil {
 		return err
 	}
 
-	ethVals, err := ethValset(valset)
+	ethVals, err := ethValset(currentValset)
 	if err != nil {
 		return err
 	}
 
-	ethVsHash, err := valset.Hash()
+	ethVsHash, err := newValset.Hash()
 	if err != nil {
 		return err
 	}
 
 	tx, err := ec.wrapper.UpdateValidatorSet(
 		opts,
-		big.NewInt(int64(nonce)),
+		big.NewInt(int64(newNonce)),
 		big.NewInt(int64(newThreshHold)),
 		ethVsHash,
 		ethVals,
@@ -92,33 +92,33 @@ func (ec *evmClient) UpdateValidatorSet(
 
 	// TODO put this in a separate function and listen for new EVM blocks instead of just sleeping
 	for i := 0; i < 60; i++ {
-		ec.logger.Debug(fmt.Sprintf("waiting for valset %d to be confirmed: %s", nonce, tx.Hash().String()))
+		ec.logger.Debug(fmt.Sprintf("waiting for valset %d to be confirmed: %s", newNonce, tx.Hash().String()))
 		lastNonce, err := ec.StateLastValsetNonce(&bind.CallOpts{Context: ctx})
 		if err != nil {
 			return err
 		}
-		if lastNonce == nonce {
-			ec.logger.Info(fmt.Sprintf("relayed valset %d: %s", nonce, tx.Hash().String()))
+		if lastNonce == newNonce {
+			ec.logger.Info(fmt.Sprintf("relayed valset %d: %s", newNonce, tx.Hash().String()))
 			return nil
 		}
 		time.Sleep(10 * time.Second)
 	}
 
-	ec.logger.Error(fmt.Sprintf("failed valset %d: %s", nonce, tx.Hash().String()))
+	ec.logger.Error(fmt.Sprintf("failed valset %d: %s", newNonce, tx.Hash().String()))
 	return nil
 }
 
 func (ec *evmClient) SubmitDataRootTupleRoot(
 	ctx context.Context,
 	tupleRoot common.Hash,
-	lastDataCommitmentNonce uint64,
+	newNonce uint64,
 	currentValset types.Valset,
 	sigs []wrapper.Signature,
 ) error {
 	ec.logger.Info(fmt.Sprintf(
 		"relaying data commitment %d-%d...",
-		(lastDataCommitmentNonce-1)*types.DataCommitmentWindow, // because the nonce was already incremented
-		lastDataCommitmentNonce*types.DataCommitmentWindow,
+		(newNonce-1)*types.DataCommitmentWindow, // because the nonce was already incremented
+		newNonce*types.DataCommitmentWindow,
 	))
 	opts, err := ec.NewTransactOpts(ctx, 1000000)
 	if err != nil {
@@ -133,7 +133,7 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 	// todo: why are we using the last nonce here? shouldn't we just use the new nonce?
 	tx, err := ec.wrapper.SubmitDataRootTupleRoot(
 		opts,
-		big.NewInt(int64(lastDataCommitmentNonce)),
+		big.NewInt(int64(newNonce)),
 		tupleRoot,
 		ethVals,
 		sigs,
@@ -146,19 +146,19 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 	for i := 0; i < 60; i++ {
 		ec.logger.Debug(fmt.Sprintf(
 			"waiting for data commitment %d-%d to be confirmed: %s",
-			(lastDataCommitmentNonce-1)*types.DataCommitmentWindow, // because the nonce was already incremented
-			lastDataCommitmentNonce*types.DataCommitmentWindow,
+			(newNonce-1)*types.DataCommitmentWindow, // because the nonce was already incremented
+			newNonce*types.DataCommitmentWindow,
 			tx.Hash().String(),
 		))
 		lastNonce, err := ec.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: ctx})
 		if err != nil {
 			return err
 		}
-		if lastNonce == lastDataCommitmentNonce {
+		if lastNonce == newNonce {
 			ec.logger.Info(fmt.Sprintf(
 				"relayed data commitment %d-%d: %s",
-				(lastDataCommitmentNonce-1)*types.DataCommitmentWindow, // because the nonce was already incremented
-				lastDataCommitmentNonce*types.DataCommitmentWindow,
+				(newNonce-1)*types.DataCommitmentWindow, // because the nonce was already incremented
+				newNonce*types.DataCommitmentWindow,
 				tx.Hash().String(),
 			))
 			return nil
@@ -168,8 +168,8 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 	ec.logger.Error(
 		fmt.Sprintf(
 			"failed to relay data commitment %d-%d: %s",
-			(lastDataCommitmentNonce-1)*types.DataCommitmentWindow, // because the nonce was already incremented
-			lastDataCommitmentNonce*types.DataCommitmentWindow,
+			(newNonce-1)*types.DataCommitmentWindow, // because the nonce was already incremented
+			newNonce*types.DataCommitmentWindow,
 			tx.Hash().String(),
 		),
 	)
