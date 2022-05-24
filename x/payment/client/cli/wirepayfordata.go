@@ -101,11 +101,3 @@ func CmdWirePayForData() *cobra.Command {
 
 	return cmd
 }
-
-func parseSquareSizes(squareSizes []uint) []uint64 {
-	squareSizes64 := make([]uint64, len(squareSizes))
-	for i := range squareSizes {
-		squareSizes64[i] = uint64(squareSizes[i])
-	}
-	return squareSizes64
-}
