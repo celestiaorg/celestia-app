@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/cosmos/cosmos-sdk/client"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -64,9 +65,32 @@ func (k *KeyringSigner) QueryAccountNumber(ctx context.Context, conn *grpc.Clien
 	return nil
 }
 
+func (k *KeyringSigner) UpdateAccountFromClient(clientCtx client.Context) error {
+	rec := k.GetSignerInfo()
+
+	addr, err := rec.GetAddress()
+	if err != nil {
+		return err
+	}
+
+	accNum, seq, err := clientCtx.AccountRetriever.GetAccountNumberSequence(clientCtx, addr)
+	if err != nil {
+		return err
+	}
+
+	k.SetAccountNumber(accNum)
+	k.SetSequence(seq)
+
+	return nil
+}
+
 // NewTxBuilder returns the default sdk Tx builder using the celestia-app encoding config
-func (k *KeyringSigner) NewTxBuilder() sdkclient.TxBuilder {
-	return k.encCfg.TxConfig.NewTxBuilder()
+func (k *KeyringSigner) NewTxBuilder(opts ...TxBuilderOption) sdkclient.TxBuilder {
+	builder := k.encCfg.TxConfig.NewTxBuilder()
+	for _, opt := range opts {
+		builder = opt(builder)
+	}
+	return builder
 }
 
 // BuildSignedTx creates and signs a sdk.Tx that contains the provided message. The interal
@@ -74,7 +98,6 @@ func (k *KeyringSigner) NewTxBuilder() sdkclient.TxBuilder {
 // k.SetAccountNumber for the built transactions to be valid.
 func (k *KeyringSigner) BuildSignedTx(builder sdkclient.TxBuilder, msg sdktypes.Msg) (authsigning.Tx, error) {
 	k.RLock()
-	accountNumber := k.accountNumber
 	sequence := k.sequence
 	k.RUnlock()
 
@@ -112,14 +135,15 @@ func (k *KeyringSigner) BuildSignedTx(builder sdkclient.TxBuilder, msg sdktypes.
 		return nil, err
 	}
 
+	signerData, err := k.GetSignerData()
+	if err != nil {
+		return nil, err
+	}
+
 	// Generate the bytes to be signed.
 	bytesToSign, err := k.encCfg.TxConfig.SignModeHandler().GetSignBytes(
 		signing.SignMode_SIGN_MODE_DIRECT,
-		authsigning.SignerData{
-			ChainID:       k.chainID,
-			AccountNumber: accountNumber,
-			Sequence:      sequence,
-		},
+		signerData,
 		builder.GetTx(),
 	)
 	if err != nil {
@@ -186,6 +210,33 @@ func (k *KeyringSigner) GetSignerInfo() *keyring.Record {
 		panic(err)
 	}
 	return info
+}
+
+func (k *KeyringSigner) GetSignerData() (authsigning.SignerData, error) {
+	k.RLock()
+	accountNumber := k.accountNumber
+	sequence := k.sequence
+	k.RUnlock()
+
+	record, err := k.Key(k.keyringAccName)
+	if err != nil {
+		return authsigning.SignerData{}, err
+	}
+
+	pubKey, err := record.GetPubKey()
+	if err != nil {
+		return authsigning.SignerData{}, err
+	}
+
+	address := pubKey.Address()
+
+	return authsigning.SignerData{
+		Address:       address.String(),
+		ChainID:       k.chainID,
+		AccountNumber: accountNumber,
+		Sequence:      sequence,
+		PubKey:        pubKey,
+	}, nil
 }
 
 // EncodeTx uses the keyring signer's encoding config to encode the provided sdk transaction

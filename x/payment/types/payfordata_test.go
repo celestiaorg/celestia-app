@@ -8,9 +8,9 @@ import (
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 func TestMountainRange(t *testing.T) {
@@ -41,7 +41,7 @@ func TestMountainRange(t *testing.T) {
 	}
 }
 
-func TestNextPowerOf2(t *testing.T) {
+func TestNextLowestPowerOf2(t *testing.T) {
 	type test struct {
 		input    uint64
 		expected uint64
@@ -69,7 +69,40 @@ func TestNextPowerOf2(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		res := NextPowerOf2(tt.input)
+		res := nextLowestPowerOf2(tt.input)
+		assert.Equal(t, tt.expected, res)
+	}
+}
+
+func TestNextHighestPowerOf2(t *testing.T) {
+	type test struct {
+		input    uint64
+		expected uint64
+	}
+	tests := []test{
+		{
+			input:    2,
+			expected: 4,
+		},
+		{
+			input:    11,
+			expected: 16,
+		},
+		{
+			input:    511,
+			expected: 512,
+		},
+		{
+			input:    1,
+			expected: 2,
+		},
+		{
+			input:    0,
+			expected: 0,
+		},
+	}
+	for _, tt := range tests {
+		res := NextHighestPowerOf2(tt.input)
 		assert.Equal(t, tt.expected, res)
 	}
 }
@@ -126,7 +159,7 @@ func TestCreateCommitment(t *testing.T) {
 			k:         4,
 			namespace: bytes.Repeat([]byte{0xFF}, 8),
 			message:   bytes.Repeat([]byte{0xFF}, 11*ShareSize),
-			expected:  []byte{0x1c, 0x57, 0x89, 0x2f, 0xbe, 0xbf, 0xa2, 0xa4, 0x4c, 0x41, 0x9e, 0x2d, 0x88, 0xd5, 0x87, 0xc0, 0xbd, 0x37, 0xc0, 0x85, 0xbd, 0x10, 0x3c, 0x36, 0xd9, 0xa2, 0x4d, 0x4e, 0x31, 0xa2, 0xf8, 0x4e},
+			expected:  []byte{0xf2, 0xd4, 0xfc, 0x39, 0x4e, 0xf3, 0x97, 0x9d, 0xf4, 0x4c, 0x99, 0x87, 0x36, 0x7d, 0x7d, 0x4, 0xf2, 0xa7, 0x89, 0x26, 0x6d, 0xf5, 0x78, 0xe1, 0xff, 0x72, 0xb4, 0x75, 0x12, 0x1e, 0x71, 0xc3},
 		},
 		{
 			k:         2,
@@ -142,35 +175,6 @@ func TestCreateCommitment(t *testing.T) {
 			continue
 		}
 		assert.NoError(t, err)
-		assert.Equal(t, tt.expected, res)
-	}
-}
-
-func TestPadMessage(t *testing.T) {
-	type test struct {
-		input    []byte
-		expected []byte
-	}
-	tests := []test{
-		{
-			input:    []byte{1},
-			expected: append([]byte{1}, bytes.Repeat([]byte{0}, ShareSize-1)...),
-		},
-		{
-			input:    []byte{},
-			expected: []byte{},
-		},
-		{
-			input:    bytes.Repeat([]byte{1}, ShareSize),
-			expected: bytes.Repeat([]byte{1}, ShareSize),
-		},
-		{
-			input:    bytes.Repeat([]byte{1}, (3*ShareSize)-10),
-			expected: append(bytes.Repeat([]byte{1}, (3*ShareSize)-10), bytes.Repeat([]byte{0}, 10)...),
-		},
-	}
-	for _, tt := range tests {
-		res := padMessage(tt.input)
 		assert.Equal(t, tt.expected, res)
 	}
 }
@@ -229,14 +233,13 @@ func TestSignMalleatedTxs(t *testing.T) {
 			tx, err := signer.BuildSignedTx(builder, unsignedPFD)
 			require.NoError(t, err)
 
+			signerData, err := signer.GetSignerData()
+			require.NoError(t, err)
+
 			// Generate the bytes to be signed.
 			bytesToSign, err := signer.encCfg.TxConfig.SignModeHandler().GetSignBytes(
 				signing.SignMode_SIGN_MODE_DIRECT,
-				authsigning.SignerData{
-					ChainID:       signer.chainID,
-					AccountNumber: signer.accountNumber,
-					Sequence:      signer.sequence,
-				},
+				signerData,
 				tx,
 			)
 			require.NoError(t, err)
@@ -280,21 +283,21 @@ func TestProcessMessage(t *testing.T) {
 		{
 			name:   "single share square size 2",
 			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			msg:    bytes.Repeat([]byte{1}, ShareSize),
+			msg:    bytes.Repeat([]byte{1}, totalMsgSize(consts.MsgShareSize)),
 			ss:     2,
 			modify: dontModify,
 		},
 		{
 			name:   "15 shares square size 4",
 			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:    bytes.Repeat([]byte{2}, ShareSize*15),
+			msg:    bytes.Repeat([]byte{2}, totalMsgSize(consts.MsgShareSize*15)),
 			ss:     4,
 			modify: dontModify,
 		},
 		{
-			name: "",
+			name: "incorrect square size",
 			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:  bytes.Repeat([]byte{2}, ShareSize*15),
+			msg:  bytes.Repeat([]byte{2}, totalMsgSize(consts.MsgShareSize*15)),
 			ss:   4,
 			modify: func(wpfd *MsgWirePayForData) *MsgWirePayForData {
 				wpfd.MessageShareCommitment[0].K = 99999
@@ -326,6 +329,12 @@ func TestProcessMessage(t *testing.T) {
 		assert.Equal(t, wpfd.MessageShareCommitment[0].ShareCommitment, spfd.MessageShareCommitment, tt.name)
 		assert.Equal(t, wpfd.MessageShareCommitment[0].Signature, sig, tt.name)
 	}
+}
+
+// totalMsgSize subtracts the delimiter size from the desired total size. this
+// is useful for testing for messages that occupy exactly so many shares.
+func totalMsgSize(size int) int {
+	return size - DelimLen(uint64(size))
 }
 
 func validWirePayForData(t *testing.T) *MsgWirePayForData {

@@ -28,13 +28,6 @@ func CmdWirePayForData() *cobra.Command {
 				return err
 			}
 
-			// query for account number
-			fromAddress := clientCtx.GetFromAddress()
-			account, err := clientCtx.AccountRetriever.GetAccount(clientCtx, fromAddress)
-			if err != nil {
-				return err
-			}
-
 			// get the account name
 			accName := clientCtx.GetFromName()
 			if accName == "" {
@@ -67,8 +60,10 @@ func CmdWirePayForData() *cobra.Command {
 			// use the keyring to programmatically sign multiple PayForData txs
 			signer := types.NewKeyringSigner(clientCtx.Keyring, accName, clientCtx.ChainID)
 
-			signer.SetAccountNumber(account.GetAccountNumber())
-			signer.SetSequence(account.GetSequence())
+			err = signer.UpdateAccountFromClient(clientCtx)
+			if err != nil {
+				return err
+			}
 
 			// get and parse the gas limit for this tx
 			rawGasLimit, err := cmd.Flags().GetString(flags.FlagGas)
@@ -104,6 +99,7 @@ func CmdWirePayForData() *cobra.Command {
 			if err = pfdMsg.ValidateBasic(); err != nil {
 				return err
 			}
+
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), pfdMsg)
 		},
 	}

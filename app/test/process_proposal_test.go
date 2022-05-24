@@ -26,7 +26,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 
-	encConf := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
+	encConf := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
 
 	firstValidPFD, msg1 := genRandMsgPayForData(t, signer, 8)
 	secondValidPFD, msg2 := genRandMsgPayForData(t, signer, 8)

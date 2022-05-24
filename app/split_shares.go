@@ -3,7 +3,6 @@ package app
 import (
 	"bytes"
 	"crypto/sha256"
-	"math/bits"
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
@@ -23,10 +22,11 @@ import (
 // block data are only used to avoid dereferening, not because we need the block
 // data to be mutable.
 func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([][]byte, *core.Data) {
-	var (
-		processedTxs [][]byte
-		messages     core.Messages
-	)
+	processedTxs := make([][]byte, 0)
+	// we initiate this struct here so that the empty output is identiacal in
+	// tests
+	messages := core.Messages{}
+
 	sqwr := newShareSplitter(txConf, squareSize, data)
 
 	for _, rawTx := range data.Txs {
@@ -209,11 +209,11 @@ func (sqwr *shareSplitter) writeMalleatedTx(
 func (sqwr *shareSplitter) hasRoomForBoth(tx, msg []byte) bool {
 	currentShareCount, availableBytes := sqwr.shareCount()
 
-	txBytesTaken := delimLen(uint64(len(tx))) + len(tx)
+	txBytesTaken := types.DelimLen(uint64(len(tx))) + len(tx)
 
 	maxTxSharesTaken := ((txBytesTaken - availableBytes) / consts.TxShareSize) + 1 // plus one becuase we have to add at least one share
 
-	maxMsgSharesTaken := len(msg) / consts.MsgShareSize
+	maxMsgSharesTaken := MsgSharesUsed(len(msg))
 
 	return currentShareCount+maxTxSharesTaken+maxMsgSharesTaken <= sqwr.maxShareCount
 }
@@ -221,7 +221,7 @@ func (sqwr *shareSplitter) hasRoomForBoth(tx, msg []byte) bool {
 func (sqwr *shareSplitter) hasRoomForTx(tx []byte) bool {
 	currentShareCount, availableBytes := sqwr.shareCount()
 
-	bytesTaken := delimLen(uint64(len(tx))) + len(tx)
+	bytesTaken := types.DelimLen(uint64(len(tx))) + len(tx)
 	if bytesTaken <= availableBytes {
 		return true
 	}
@@ -238,9 +238,9 @@ func (sqwr *shareSplitter) shareCount() (count, availableTxBytes int) {
 }
 
 func (sqwr *shareSplitter) export() [][]byte {
-	count, pendingTxBytes := sqwr.shareCount()
+	count, availableBytes := sqwr.shareCount()
 	// increment the count if there are any pending tx bytes
-	if pendingTxBytes > 0 {
+	if availableBytes < consts.TxShareSize {
 		count++
 	}
 	shares := make([][]byte, sqwr.maxShareCount)
@@ -274,6 +274,19 @@ func (sqwr *shareSplitter) export() [][]byte {
 	return shares
 }
 
+// MsgSharesUsed calculates the minimum number of shares a message will take up.
+// It accounts for the necessary delimiter and potential padding.
+func MsgSharesUsed(msgSize int) int {
+	// add the delimiter to the message size
+	msgSize = types.DelimLen(uint64(msgSize)) + msgSize
+	shareCount := msgSize / consts.MsgShareSize
+	// increment the share count if the message overflows the last counted share
+	if msgSize%consts.MsgShareSize != 0 {
+		shareCount++
+	}
+	return shareCount
+}
+
 func hasWirePayForData(tx sdk.Tx) bool {
 	for _, msg := range tx.GetMsgs() {
 		msgName := sdk.MsgTypeURL(msg)
@@ -282,8 +295,4 @@ func hasWirePayForData(tx sdk.Tx) bool {
 		}
 	}
 	return false
-}
-
-func delimLen(x uint64) int {
-	return 8 - bits.LeadingZeros64(x)%8
 }

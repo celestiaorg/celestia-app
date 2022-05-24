@@ -145,6 +145,10 @@ var (
 		qgbmodule.AppModuleBasic{},
 	)
 
+	// ModuleEncodingRegisters keeps track of all the module methods needed to
+	// register interfaces and specific type to encoding config
+	ModuleEncodingRegisters = moduleMapToSlice(ModuleBasics)
+
 	// module account permissions
 	maccPerms = map[string][]string{
 		authtypes.FeeCollectorName:     nil,
@@ -682,4 +686,15 @@ func (app *App) setTxHandler(txConfig client.TxConfig, indexEventsStr []string) 
 	}
 
 	app.SetTxHandler(txHandler)
+}
+
+func moduleMapToSlice(m module.BasicManager) []encoding.ModuleRegister {
+	// TODO: might be able to use some standard generics in go 1.18
+	s := make([]encoding.ModuleRegister, len(m))
+	i := 0
+	for _, v := range m {
+		s[i] = v
+		i++
+	}
+	return s
 }

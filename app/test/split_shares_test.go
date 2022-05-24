@@ -16,7 +16,7 @@ import (
 )
 
 func TestSplitShares(t *testing.T) {
-	encCfg := encoding.MakeEncodingConfig(app.ModuleBasics.RegisterInterfaces)
+	encCfg := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
 
 	type test struct {
 		squareSize      uint64
@@ -65,6 +65,16 @@ func TestSplitShares(t *testing.T) {
 				Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
 			},
 			expectedTxCount: 3,
+		},
+		{
+			// calculate the square using the same txs but using a square size
+			// of 16, this should remove all of the txs as they weren't signed
+			// over for that square size
+			squareSize: 16,
+			data: &core.Data{
+				Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
+			},
+			expectedTxCount: 0,
 		},
 	}
 
