@@ -19,18 +19,17 @@ func TestFullLongBehaviour(t *testing.T) {
 		t.Skip("Skipping QGB integration tests")
 	}
 
-	network, err := NewQGBNetwork()
+	network, err := NewQGBNetwork(context.Background())
 	HandleNetworkError(t, network, err, false)
 
-	// preferably, run this also when ctrl+c
+	// to release resources after tests
 	defer network.DeleteAll() //nolint:errcheck
 
 	// start full network with four validatorS
 	err = network.StartAll()
 	HandleNetworkError(t, network, err, false)
 
-	ctx := context.TODO()
-	err = network.WaitForBlockWithCustomTimeout(ctx, 120, 8*time.Minute)
+	err = network.WaitForBlockWithCustomTimeout(network.Context, 120, 8*time.Minute)
 	HandleNetworkError(t, network, err, false)
 
 	// check whether the four validators are up and running
@@ -38,23 +37,23 @@ func TestFullLongBehaviour(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	// check whether all the validators are up and running
-	lastValsets, err := querier.QueryLastValsets(ctx)
+	lastValsets, err := querier.QueryLastValsets(network.Context)
 	assert.NoError(t, err)
 	assert.Equal(t, 4, len(lastValsets[0].Members))
 
 	// check whether the QGB contract was deployed
-	bridge, err := network.GetLatestDeployedQGBContract(ctx)
+	bridge, err := network.GetLatestDeployedQGBContract(network.Context)
 	HandleNetworkError(t, network, err, false)
 
 	evmClient := orchestrator.NewEvmClient(nil, *bridge, nil, network.EVMRPC)
 
 	// check whether the relayer relayed all data commitments
-	dcNonce, err := evmClient.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: ctx})
+	dcNonce, err := evmClient.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: network.Context})
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, dcNonce, 100/types.DataCommitmentWindow)
 
 	// check whether the relayer relayed all valsets
-	vsNonce, err := evmClient.StateLastValsetNonce(&bind.CallOpts{Context: ctx})
+	vsNonce, err := evmClient.StateLastValsetNonce(&bind.CallOpts{Context: network.Context})
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, vsNonce, lastValsets[0].Nonce)
 }
