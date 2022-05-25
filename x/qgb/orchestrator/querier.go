@@ -224,7 +224,7 @@ func (q *querier) QueryTwoThirdsValsetConfirms(
 					// thus, the relayer finds correct confirms and also incorrect ones. By incorrect, I mean signatures from
 					// orchestrators that didn't belong to the valset in question, but they still signed it
 					// as part of their catching up mechanism.
-					// should be fixed with the new design.
+					// should be fixed with the new design. and https://github.com/celestiaorg/celestia-app/issues/406
 					q.logger.Debug(
 						fmt.Sprintf(
 							"valSetConfirm signer not found in stored validator set: address %s nonce %d",
