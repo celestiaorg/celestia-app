@@ -263,6 +263,14 @@ func (network QGBNetwork) WaitForNodeToStart(rpcAddr string) error {
 }
 
 func (network QGBNetwork) WaitForBlock(ctx context.Context, height int64) error {
+	return network.WaitForBlockWithCustomTimeout(ctx, height, 5*time.Minute)
+}
+
+func (network QGBNetwork) WaitForBlockWithCustomTimeout(
+	ctx context.Context,
+	height int64,
+	timeout time.Duration,
+) error {
 	err := network.WaitForNodeToStart(network.TendermintRPC)
 	if err != nil {
 		return err
@@ -275,7 +283,7 @@ func (network QGBNetwork) WaitForBlock(ctx context.Context, height int64) error 
 	if err != nil {
 		return err
 	}
-	timeoutChan := time.After(5 * time.Minute)
+	timeoutChan := time.After(timeout)
 	for {
 		select {
 		case <-timeoutChan:

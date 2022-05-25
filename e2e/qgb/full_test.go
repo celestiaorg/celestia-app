@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+	"time"
 )
 
 // TestFullLongBehaviour mainly lets a multiple validator network run for 100 blocks, then checks if
@@ -29,7 +30,7 @@ func TestFullLongBehaviour(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
-	err = network.WaitForBlock(ctx, 120)
+	err = network.WaitForBlockWithCustomTimeout(ctx, 120, 8*time.Minute)
 	HandleNetworkError(t, network, err, false)
 
 	// check whether the four validators are up and running
