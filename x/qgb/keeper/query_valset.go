@@ -56,8 +56,9 @@ func (k Keeper) LastValsetBeforeHeight(
 		//	- There was a significant power difference in the validator set
 		// For more information, check qgb/abci.go.EndBlocker:42
 		if valset.Height < req.Height &&
-			k.HasValsetRequest(sdk.UnwrapSDKContext(c), valset.Nonce+1) &&
-			k.GetValset(sdk.UnwrapSDKContext(c), valset.Nonce+1).Height >= req.Height {
+			(!k.HasValsetRequest(sdk.UnwrapSDKContext(c), valset.Nonce+1) ||
+				(k.HasValsetRequest(sdk.UnwrapSDKContext(c), valset.Nonce+1) &&
+					k.GetValset(sdk.UnwrapSDKContext(c), valset.Nonce+1).Height >= req.Height)) {
 			vs, err := types.CopyValset(valset)
 			if err != nil {
 				return nil, err
