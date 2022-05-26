@@ -30,17 +30,18 @@ docker container rm /deployer 2> /dev/null
 
 # handle ganache
 ganache_ids=$(docker container ps -a | grep ganache | cut -f 1 -d\ )
-for id in $ganache_ids ; do
-  echo $id
-  docker container kill $id 2> /dev/null
-  docker container rm $id 2> /dev/null
+for id in ${ganache_ids} ; do
+  echo ${id}
+  docker container kill ${id} 2> /dev/null
+  docker container rm ${id} 2> /dev/null
 done
 
 # remove potential networks that might have been created by docker-compose
 potential_networks=$(docker network ls | grep default | cut -f 1 -d\ )
-for net in $potential_networks ; do
-  echo $net
-  docker network rm $net 2> /dev/null
+for net in ${potential_networks} ; do
+  echo ${net}
+  docker network rm ${net} 2> /dev/null
 done
 
 echo "done."
+exit 0
