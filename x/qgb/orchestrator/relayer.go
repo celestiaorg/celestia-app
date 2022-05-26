@@ -82,16 +82,23 @@ func (r *relayer) updateValidatorSet(
 		return err
 	}
 
-	// TODO should this valset be with (nonce - 1)?
-	currentValset, err := r.querier.QueryLastValset(ctx)
-	if err != nil {
-		return err
+	var currentValset types.Valset
+	if valset.Nonce == 1 {
+		currentValset = valset
+	} else {
+		vs, err := r.querier.QueryValsetByNonce(ctx, valset.Nonce-1)
+		if err != nil {
+			return err
+		}
+		currentValset = *vs
 	}
+
 	err = r.evmClient.UpdateValidatorSet(
 		ctx,
 		valset.Nonce,
 		newThreshhold,
 		currentValset,
+		valset,
 		sigs,
 	)
 	if err != nil {

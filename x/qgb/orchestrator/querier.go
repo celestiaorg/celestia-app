@@ -78,7 +78,6 @@ func NewQuerier(qgbRPCAddr, tendermintRPC string, logger tmlog.Logger) (*querier
 	}, nil
 }
 
-
 // TODO add the other stop methods for other clients
 func (q *querier) Stop() {
 	err := q.qgbRPC.Close()
@@ -141,20 +140,28 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 				return nil, err
 			}
 
+			correctConfirms := make([]types.MsgDataCommitmentConfirm, 0)
 			for _, dataCommitmentConfirm := range confirms {
 				val, has := vals[dataCommitmentConfirm.EthAddress]
 				if !has {
-					return nil, fmt.Errorf(
+					// currently, the orchestrators sign everything even if they didn't exist during a certain valset
+					// thus, the relayer finds correct confirms and also incorrect ones. By incorrect, I mean signatures from
+					// orchestrators that didn't belong to the valset in question, but they still signed it
+					// as part of their catching up mechanism.
+					// should be fixed with the new design and https://github.com/celestiaorg/celestia-app/issues/406
+					q.logger.Debug(fmt.Sprintf(
 						"dataCommitmentConfirm signer not found in stored validator set: address %s nonce %d",
 						val.EthereumAddress,
 						valset.Nonce,
-					)
+					))
+					continue
 				}
 				currThreshHold += val.Power
+				correctConfirms = append(correctConfirms, dataCommitmentConfirm)
 			}
 
 			if currThreshHold >= majThreshHold {
-				return confirms, nil
+				return correctConfirms, nil
 			}
 			q.logger.Debug(
 				fmt.Sprintf(
@@ -174,9 +181,19 @@ func (q *querier) QueryTwoThirdsValsetConfirms(
 	timeout time.Duration,
 	valset types.Valset,
 ) ([]types.MsgValsetConfirm, error) {
+	var currentValset types.Valset
+	if valset.Nonce == 1 {
+		currentValset = valset
+	} else {
+		vs, err := q.QueryValsetByNonce(ctx, valset.Nonce-1)
+		if err != nil {
+			return nil, err
+		}
+		currentValset = *vs
+	}
 	// create a map to easily search for power
 	vals := make(map[string]types.BridgeValidator)
-	for _, val := range valset.Members {
+	for _, val := range currentValset.Members {
 		vals[val.GetEthereumAddress()] = val
 	}
 
@@ -199,20 +216,29 @@ func (q *querier) QueryTwoThirdsValsetConfirms(
 				return nil, err
 			}
 
+			confirms := make([]types.MsgValsetConfirm, 0)
 			for _, valsetConfirm := range confirmsResp.Confirms {
 				val, has := vals[valsetConfirm.EthAddress]
 				if !has {
-					return nil, fmt.Errorf(
-						"valSetConfirm signer not found in stored validator set: address %s nonce %d",
-						val.EthereumAddress,
-						valset.Nonce,
-					)
+					// currently, the orchestrators sign everything even if they didn't exist during a certain valset
+					// thus, the relayer finds correct confirms and also incorrect ones. By incorrect, I mean signatures from
+					// orchestrators that didn't belong to the valset in question, but they still signed it
+					// as part of their catching up mechanism.
+					// should be fixed with the new design. and https://github.com/celestiaorg/celestia-app/issues/406
+					q.logger.Debug(
+						fmt.Sprintf(
+							"valSetConfirm signer not found in stored validator set: address %s nonce %d",
+							val.EthereumAddress,
+							valset.Nonce,
+						))
+					continue
 				}
 				currThreshHold += val.Power
+				confirms = append(confirms, valsetConfirm)
 			}
 
 			if currThreshHold >= majThreshHold {
-				return confirmsResp.Confirms, nil
+				return confirms, nil
 			}
 			q.logger.Debug(
 				"foundValsetConfirms",
