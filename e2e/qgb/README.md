@@ -34,7 +34,7 @@ $ QGB_INTEGRATION_TEST=true go test -mod=readonly -test.timeout 30m -v -run <tes
 ### Run all the tests using `go` directly
 
 ```shell
-$ QGB_INTEGRATION_TEST=true go test -mod=readonly -test.timeout 30m -failfast -v
+$ QGB_INTEGRATION_TEST=true go test -mod=readonly -test.timeout 30m -v
 ```
 
 ## Common issues

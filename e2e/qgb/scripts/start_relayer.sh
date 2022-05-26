@@ -10,7 +10,7 @@ if [[ -z "${EVM_CHAIN_ID}" || -z "${PRIVATE_KEY}" ]] || \
 then
   echo "Environment not setup correctly. Please set:"
   echo "EVM_CHAIN_ID, PRIVATE_KEY, TENDERMINT_RPC, CELESTIA_GRPC, EVM_ENDPOINT variables"
-  exit -1
+  exit 1
 fi
 
 # install needed dependencies
@@ -20,7 +20,7 @@ apk add curl
 while true
 do
   height=$(/bin/celestia-appd query block 1 -n ${TENDERMINT_RPC} 2>/dev/null)
-  if [[ ! -z $height ]] ; then
+  if [[ -n ${height} ]] ; then
     break
   fi
   echo "Waiting for block 1 to be generated..."
@@ -39,9 +39,9 @@ fi
 QGB_CONTRACT=$(cat /opt/qgb_address.txt)
 
 /bin/celestia-appd relayer \
-  -d ${PRIVATE_KEY} \
-  -t ${TENDERMINT_RPC} \
-  -c ${CELESTIA_GRPC} \
-  -z ${EVM_CHAIN_ID} \
-  -e ${EVM_ENDPOINT} \
-  -a ${QGB_CONTRACT}
+  -d=${PRIVATE_KEY} \
+  -t=${TENDERMINT_RPC} \
+  -c=${CELESTIA_GRPC} \
+  -z=${EVM_CHAIN_ID} \
+  -e=${EVM_ENDPOINT} \
+  -a=${QGB_CONTRACT}

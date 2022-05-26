@@ -8,7 +8,7 @@ if [[ -z "${MONIKER}" || -z "${PRIVATE_KEY}" ]] || \
 then
   echo "Environment not setup correctly. Please set:"
   echo "MONIKER, PRIVATE_KEY, TENDERMINT_RPC, CELESTIA_GRPC variables"
-  exit -1
+  exit 1
 fi
 
 # install needed dependencies
@@ -19,7 +19,7 @@ VAL_ADDRESS=$(celestia-appd keys show ${MONIKER} --keyring-backend test --bech=v
 while true
 do
   output=$(celestia-appd query staking validator ${VAL_ADDRESS} --node $TENDERMINT_RPC 2>/dev/null)
-  if [[ ! -z "${output}" ]] ; then
+  if [[ -n "${output}" ]] ; then
     break
   fi
   echo "Waiting for validator to be created..."
@@ -27,9 +27,9 @@ do
 done
 
 /bin/celestia-appd orchestrator \
-  -p /opt \
-  -x qgb-e2e \
-  -d ${PRIVATE_KEY} \
-  --keyring-account ${MONIKER} \
-  -t ${TENDERMINT_RPC} \
-  -c ${CELESTIA_GRPC}
+  -p=/opt \
+  -x=qgb-e2e \
+  -d=${PRIVATE_KEY} \
+  --keyring-account=${MONIKER} \
+  -t=${TENDERMINT_RPC} \
+  -c=${CELESTIA_GRPC}
