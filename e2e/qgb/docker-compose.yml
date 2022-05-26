@@ -61,7 +61,7 @@ services:
       - ${PWD}/celestia-app/core1/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
       - ${PWD}/celestia-app/core1/config/node_key.json:/opt/config/node_key.json:ro
       - ${PWD}/celestia-app/core1/keyring-test:/opt/keyring-test:ro
-      - ${PWD}/celestia-app/start_node_and_create_validator.sh:/opt/start_node_and_create_validator.sh:ro
+      - ${PWD}/scripts/start_node_and_create_validator.sh:/opt/start_node_and_create_validator.sh:ro
       - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
       - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
 
@@ -85,7 +85,7 @@ services:
     ]
     volumes:
       - ${PWD}/celestia-app/core1/keyring-test:/opt/keyring-test:ro
-      - ${PWD}/celestia-app/start_orchestrator_after_validator_created.sh:/opt/start_orchestrator_after_validator_created.sh:ro
+      - ${PWD}/scripts/start_orchestrator_after_validator_created.sh:/opt/start_orchestrator_after_validator_created.sh:ro
 
   core2:
     container_name: core2
@@ -109,7 +109,7 @@ services:
       - ${PWD}/celestia-app/core2/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
       - ${PWD}/celestia-app/core2/config/node_key.json:/opt/config/node_key.json:ro
       - ${PWD}/celestia-app/core2/keyring-test:/opt/keyring-test:ro
-      - ${PWD}/celestia-app/start_node_and_create_validator.sh:/opt/start_node_and_create_validator.sh:ro
+      - ${PWD}/scripts/start_node_and_create_validator.sh:/opt/start_node_and_create_validator.sh:ro
       - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
       - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
 
@@ -133,7 +133,7 @@ services:
     ]
     volumes:
       - ${PWD}/celestia-app/core2/keyring-test:/opt/keyring-test:ro
-      - ${PWD}/celestia-app/start_orchestrator_after_validator_created.sh:/opt/start_orchestrator_after_validator_created.sh:ro
+      - ${PWD}/scripts/start_orchestrator_after_validator_created.sh:/opt/start_orchestrator_after_validator_created.sh:ro
 
   core3:
     container_name: core3
@@ -157,7 +157,7 @@ services:
       - ${PWD}/celestia-app/core3/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
       - ${PWD}/celestia-app/core3/config/node_key.json:/opt/config/node_key.json:ro
       - ${PWD}/celestia-app/core3/keyring-test:/opt/keyring-test:ro
-      - ${PWD}/celestia-app/start_node_and_create_validator.sh:/opt/start_node_and_create_validator.sh:ro
+      - ${PWD}/scripts/start_node_and_create_validator.sh:/opt/start_node_and_create_validator.sh:ro
       - ${PWD}/celestia-app/config.toml:/opt/config/config.toml:ro
       - ${PWD}/celestia-app/genesis.json:/opt/config/genesis.json:ro
 
@@ -181,7 +181,7 @@ services:
     ]
     volumes:
       - ${PWD}/celestia-app/core3/keyring-test:/opt/keyring-test:ro
-      - ${PWD}/celestia-app/start_orchestrator_after_validator_created.sh:/opt/start_orchestrator_after_validator_created.sh:ro
+      - ${PWD}/scripts/start_orchestrator_after_validator_created.sh:/opt/start_orchestrator_after_validator_created.sh:ro
 
   ganache:
     image: trufflesuite/ganache-cli
@@ -219,7 +219,7 @@ services:
       "/opt/deploy_qgb_contract.sh"
     ]
     volumes:
-      - ${PWD}/celestia-app/deploy_qgb_contract.sh:/opt/deploy_qgb_contract.sh:ro
+      - ${PWD}/scripts/deploy_qgb_contract.sh:/opt/deploy_qgb_contract.sh:ro
 
   relayer:
     container_name: relayer
@@ -245,5 +245,5 @@ services:
       "/opt/start_relayer.sh"
     ]
     volumes:
-      - ${PWD}/celestia-app/start_relayer.sh:/opt/start_relayer.sh:ro
-      - ${PWD}/celestia-app/deploy_qgb_contract.sh:/opt/deploy_qgb_contract.sh:ro
+      - ${PWD}/scripts/start_relayer.sh:/opt/start_relayer.sh:ro
+      - ${PWD}/scripts/deploy_qgb_contract.sh:/opt/deploy_qgb_contract.sh:ro

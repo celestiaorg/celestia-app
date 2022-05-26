@@ -47,6 +47,7 @@ func (network QGBNetwork) StartAll() error {
 	// the reason for building before executing `up` is to avoid rebuilding all the images
 	// if some container accidentally changed some files when running.
 	// This to speed up a bit the execution.
+	fmt.Println("building images...")
 	err := network.Instance.
 		WithCommand([]string{"build", "--quiet"}).
 		Invoke().Error
@@ -92,6 +93,7 @@ func (network QGBNetwork) Start(service Service) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("building images...")
 	err = network.Instance.
 		WithCommand([]string{"build", "--quiet", serviceName}).
 		Invoke().Error
@@ -111,6 +113,7 @@ func (network QGBNetwork) Start(service Service) error {
 // based on the existing running network. If no Celestia-app or ganache are
 // started, it creates them automatically.
 func (network QGBNetwork) DeployQGBContract() error {
+	fmt.Println("building images...")
 	err := network.Instance.
 		WithCommand([]string{"build", "--quiet", DEPLOYER}).
 		Invoke().Error
@@ -140,6 +143,7 @@ func (network QGBNetwork) StartMultiple(services ...Service) error {
 		}
 		serviceNames = append(serviceNames, name)
 	}
+	fmt.Println("building images...")
 	err := network.Instance.
 		WithCommand(append([]string{"build", "--quiet"}, serviceNames...)).
 		Invoke().Error
@@ -210,6 +214,7 @@ func (network QGBNetwork) ExecCommand(service Service, command []string) error {
 // StartMinimal starts a network containing: 1 validator, 1 orchestrator, 1 relayer
 // and a ganache instance
 func (network QGBNetwork) StartMinimal() error {
+	fmt.Println("building images...")
 	err := network.Instance.
 		WithCommand([]string{"build", "--quiet", "core0", "core0-orch", "relayer", "ganache"}).
 		Invoke().Error
@@ -229,6 +234,7 @@ func (network QGBNetwork) StartMinimal() error {
 // It consists of starting `core0` as it is the genesis validator, and the docker network
 // will be created along with it, allowing more containers to join it.
 func (network QGBNetwork) StartBase() error {
+	fmt.Println("building images...")
 	err := network.Instance.
 		WithCommand([]string{"build", "--quiet", "core0"}).
 		Invoke().Error
