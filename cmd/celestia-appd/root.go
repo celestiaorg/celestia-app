@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -78,7 +79,19 @@ func NewRootCmd() *cobra.Command {
 			tmCfg := tmcfg.DefaultConfig()
 
 			customAppTemplate, customAppConfig := initAppConfig()
-			return server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
+
+			err = server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
+			if err != nil {
+				return err
+			}
+
+			// re-load the server config and force our own settings
+			sCtx := server.GetServerContextFromCmd(cmd)
+			sCtx.Config.Consensus.TimeoutCommit = time.Second * 25
+			sCtx.Config.Consensus.SkipTimeoutCommit = false
+			sCtx.Config.P2P.UseLegacy = true
+
+			return server.SetCmdServerContext(cmd, sCtx)
 		},
 		SilenceUsage: true,
 	}
