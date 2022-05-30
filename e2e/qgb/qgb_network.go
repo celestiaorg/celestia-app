@@ -52,6 +52,9 @@ func NewQGBNetwork(_ctx context.Context) (*QGBNetwork, error) {
 }
 
 // registerGracefulExit traps SIGINT or waits for ctx.Done() to release the docker resources before exiting
+// it is not calling `DeleteAll()` here as it is being called inside the tests. No need to call it two times.
+// this comes from the fact that we're sticking with unit tests style tests to be able to run individual tests
+// https://github.com/celestiaorg/celestia-app/issues/428
 func registerGracefulExit(cancel context.CancelFunc, network *QGBNetwork) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
