@@ -53,13 +53,15 @@ Currently, the attestations that need to be signed are defined by the state mach
 
 The request oriented design means providing users (relayers mainly) with the ability to post data commitment requests and ask orchestrators to sign them.
 
-To avoid spamming the network with requests, these signatures can be added to the block data in specific namespaces and the we can charge per request.
+The main issue with this approach is spamming and state bloat. In fact, allowing attestations signatures' requests would allow anyone to spam the network with unnecessary signatures and make orchestrators do unnecessary work. This gets worse if signatures are part of the state, since this latter is costly.
+
+A proposition to remediate the issues described above is to make the signatures part of the block data in specific namespaces. Then, we can charge per request and even make asking for attestations signatures a bit costly.
 
 - Pros
 	- Would allow anyone to ask for signatures over commitments, ie, the QGB can then be used by any team without changing anything.
 
 - Cons
-	- Makes slashing more complicated
+	- Makes slashing more complicated. In fact, to slash for liveness, providing the whole history of blocks, proving that a certain orchestrator didn't sign an attestation in the given period, will be hard to implement and the proofs will be big. Compared to the attestations being part of the state, which can be queried easilly.
 
 ## Decision
 
