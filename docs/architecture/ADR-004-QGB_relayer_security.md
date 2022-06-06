@@ -88,12 +88,7 @@ the **Synchronous QGB : Universal nonce approach** will be implemented as it wil
 
 ## Detailed Design
 
-The implementation will mainly consist of:
-
-- Updating the state machine to output valset requests with the correct nonce
-- Add state machine tests
-- Update the orchestrator to generate the right nonce for data commitments 
-- Update the relayer implementation to be sequential
+TODO [#471](https://github.com/celestiaorg/celestia-app/issues/471)
 
 ## Status
 
