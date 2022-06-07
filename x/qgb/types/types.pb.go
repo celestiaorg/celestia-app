@@ -23,6 +23,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// TODO can this also be deleted ?
 // BridgeValidator represents a validator's ETH address and its power
 type BridgeValidator struct {
 	// Voting power of the validator.
@@ -78,7 +79,7 @@ func (m *BridgeValidator) GetEthereumAddress() string {
 	return ""
 }
 
-// Valset is the Ethereum Bridge Multsig Set, each gravity validator also
+// Valset is the Ethereum Bridge Multsig Set, each qgb validator also
 // maintains an ETH key to sign messages, these are used to check signatures on
 // ETH because of the significant gas savings
 type Valset struct {

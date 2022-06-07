@@ -1,6 +1,8 @@
 package types
 
 import (
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"strconv"
 	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -21,7 +23,7 @@ const (
 	QuerierRoute = ModuleName
 
 	// MemStoreKey defines the in-memory store key
-	MemStoreKey = "mem_payment"
+	MemStoreKey = "mem_qgb"
 )
 
 const (
@@ -97,16 +99,19 @@ func GetEthAddressByValidatorKey(validator sdk.ValAddress) string {
 // GetValidatorByEthAddressKey returns the following key format
 // prefix              cosmos-validator
 // [0xf9][0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B]
-func GetValidatorByEthAddressKey(ethAddress EthAddress) string {
+func GetValidatorByEthAddressKey(ethAddress stakingtypes.EthAddress) string {
 	return ValidatorByEthAddressKey + string([]byte(ethAddress.GetAddress()))
 }
 
 // GetDataCommitmentConfirmKey returns the following key format
-// prefix   commitment                    validator-address
-// [0x0][0 0 0 0 0 0 0 1][celes1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm]
-func GetDataCommitmentConfirmKey(commitment string, validator sdk.AccAddress) string {
+// prefix  endBlock         beginBlock       validator-address
+// [0x0][0 0 0 0 0 0 0 1][0 0 0 0 0 0 0 1][celes1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm]
+func GetDataCommitmentConfirmKey(endBlock uint64, beginBlock uint64, validator sdk.AccAddress) string {
 	if err := sdk.VerifyAddressFormat(validator); err != nil {
 		panic(sdkerrors.Wrap(err, "invalid validator address"))
 	}
-	return DataCommitmentConfirmKey + commitment + string(validator.Bytes())
+	return DataCommitmentConfirmKey +
+		strconv.FormatInt(int64(endBlock), 16) +
+		strconv.FormatInt(int64(beginBlock), 16) +
+		string(validator.Bytes())
 }

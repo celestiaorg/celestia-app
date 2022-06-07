@@ -22,9 +22,6 @@ func NewHandler(k keeper.Keeper) sdk.Handler {
 		case *types.MsgDataCommitmentConfirm:
 			res, err := msgServer.DataCommitmentConfirm(sdk.WrapSDKContext(ctx), msg)
 			return sdk.WrapServiceResult(ctx, res, err)
-		case *types.MsgSetOrchestratorAddress:
-			res, err := msgServer.SetOrchestratorAddress(sdk.WrapSDKContext(ctx), msg)
-			return sdk.WrapServiceResult(ctx, res, err)
 		default:
 			errMsg := fmt.Sprintf("unrecognized %s message type: %T", types.ModuleName, msg)
 			return nil, sdkerrors.Wrap(sdkerrors.ErrUnknownRequest, errMsg)

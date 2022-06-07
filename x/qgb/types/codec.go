@@ -10,15 +10,13 @@ import (
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgDataCommitmentConfirm{}, "qgb/DataCommitmentConfirm", nil)
-	cdc.RegisterConcrete(&MsgValsetConfirm{}, "qgb/ValSetConfirm", nil)
-	cdc.RegisterConcrete(&MsgSetOrchestratorAddress{}, "qgb/MsgSetOrchestratorAddress", nil)
+	cdc.RegisterConcrete(&MsgValsetConfirm{}, "qgb/MsgValSetConfirm", nil)
 	// this line is used by starport scaffolding # 2
 }
 
 func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 	registry.RegisterImplementations((*sdk.Msg)(nil),
 		&MsgDataCommitmentConfirm{},
-		&MsgSetOrchestratorAddress{},
 		&MsgValsetConfirm{},
 	)
 

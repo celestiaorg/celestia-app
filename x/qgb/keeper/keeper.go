@@ -63,6 +63,8 @@ type StakingKeeper interface {
 	GetLastValidatorPower(ctx sdk.Context, valAddr sdk.ValAddress) int64
 	GetParams(ctx sdk.Context) stakingtypes.Params
 	ValidatorQueueIterator(ctx sdk.Context, endTime time.Time, endHeight int64) sdk.Iterator
+	GetValidatorByOrchestrator(ctx sdk.Context, addr sdk.AccAddress) (validator stakingtypes.Validator, found bool)
+	GetValidatorByEthereum(ctx sdk.Context, addr stakingtypes.EthAddress) (validator stakingtypes.Validator, found bool)
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {
