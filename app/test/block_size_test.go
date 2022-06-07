@@ -117,7 +117,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 			}
 
 			// wait a few blocks to clear the txs
-			for i := 0; i < 10; i++ {
+			for i := 0; i < 8; i++ {
 				require.NoError(s.network.WaitForNextBlock())
 			}
 
@@ -163,7 +163,7 @@ func TestIntegrationTestSuite(t *testing.T) {
 	cfg := network.DefaultConfig()
 	cfg.EnableTMLogging = false
 	cfg.MinGasPrices = "0utia"
-	cfg.NumValidators = 2
+	cfg.NumValidators = 1
 	suite.Run(t, NewIntegrationTestSuite(cfg))
 }
 
