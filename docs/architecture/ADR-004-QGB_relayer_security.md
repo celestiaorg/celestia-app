@@ -24,11 +24,13 @@ Now, if the relayer is missing some data commitments or valset updates, then it 
 - Relay the next valset  
 - And, so on.
 
-The problem with this approach is that there is constant risk of this happening for any relayer. Also, a malicious relayer, can target any honest QGB relayer in normal mode, or while catching up, and submit a valset before the honest relayer submits all the data commitments that were signed with the previous valset:
+The problem with this approach is that there is constant risk for any relayer to mess the ordering of the attestations submission, ie relaying the next valset before relaying all the data commitments that were signed using the previous valset, and end up with signatures holes.
+
+Also, a malicious relayer, can target any honest QGB relayer in normal mode, or while catching up, and mess its attestations submission order, as follows:
 
 - Get the latest relayed valset
 - Listen for new signed valsets
-- Once a new valset is signed by 2/3 of the network, submit it immediately to be included in next block
+- Once a new valset is signed by 2/3 of the network, submit it immediately to be included in next block without waiting for the data commitments to be relayed also
 
 Then, this would create holes in the signatures as the honest relayer will no longer be able to submit the previous data commitments as they're not, in general, signed by the valset relayed by the malicious relayer. And the only solution is to jump to the ones that were signed with the current valset.
 
