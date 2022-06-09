@@ -15,36 +15,35 @@ func TestDeployer(t *testing.T) {
 		t.Skip("Skipping QGB integration tests")
 	}
 
-	network, err := NewQGBNetwork()
+	network, err := NewQGBNetwork(context.Background())
 	HandleNetworkError(t, network, err, false)
 
-	// preferably, run this also when ctrl+c
+	// to release resources after tests
 	defer network.DeleteAll() //nolint:errcheck
 
 	err = network.StartMultiple(Core0, Ganache)
 	HandleNetworkError(t, network, err, false)
 
-	ctx := context.Background()
-	err = network.WaitForBlock(ctx, 2)
+	err = network.WaitForBlock(network.Context, 2)
 	HandleNetworkError(t, network, err, false)
 
-	_, err = network.GetLatestDeployedQGBContractWithCustomTimeout(ctx, 15*time.Second)
+	_, err = network.GetLatestDeployedQGBContractWithCustomTimeout(network.Context, 15*time.Second)
 	HandleNetworkError(t, network, err, true)
 
 	err = network.DeployQGBContract()
 	HandleNetworkError(t, network, err, false)
 
-	bridge, err := network.GetLatestDeployedQGBContract(ctx)
+	bridge, err := network.GetLatestDeployedQGBContract(network.Context)
 	HandleNetworkError(t, network, err, false)
 
 	// FIXME should we use the evm client here or go for raw queries?
 	evmClient := orchestrator.NewEvmClient(nil, *bridge, nil, network.EVMRPC)
 
-	vsNonce, err := evmClient.StateLastValsetNonce(&bind.CallOpts{Context: ctx})
+	vsNonce, err := evmClient.StateLastValsetNonce(&bind.CallOpts{Context: network.Context})
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(0), vsNonce)
 
-	dcNonce, err := evmClient.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: ctx})
+	dcNonce, err := evmClient.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: network.Context})
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(0), dcNonce)
 }

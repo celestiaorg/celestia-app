@@ -13,11 +13,14 @@ import (
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/testcontainers/testcontainers-go"
 	"math/big"
+	"os"
+	"os/signal"
 	"strings"
 	"time"
 )
 
 type QGBNetwork struct {
+	Context       context.Context
 	ComposePaths  []string
 	Identifier    string
 	Instance      *testcontainers.LocalDockerCompose
@@ -26,19 +29,51 @@ type QGBNetwork struct {
 	CelestiaGRPC  string
 }
 
-func NewQGBNetwork() (*QGBNetwork, error) {
+func NewQGBNetwork(_ctx context.Context) (*QGBNetwork, error) {
 	id := strings.ToLower(uuid.New().String())
 	paths := []string{"./docker-compose.yml"}
 	instance := testcontainers.NewLocalDockerCompose(paths, id)
-
-	return &QGBNetwork{
+	ctx, cancel := context.WithCancel(_ctx)
+	network := &QGBNetwork{
+		Context:       ctx,
 		Identifier:    id,
 		ComposePaths:  paths,
 		Instance:      instance,
 		EVMRPC:        "http://localhost:8545",
 		TendermintRPC: "tcp://localhost:26657",
 		CelestiaGRPC:  "localhost:9090",
-	}, nil
+	}
+
+	// trap Ctrl+C or ctx.Done()
+	// helps release the docker resources without having to do it manually
+	registerGracefulExit(cancel, network)
+
+	return network, nil
+}
+
+// registerGracefulExit traps SIGINT or waits for ctx.Done() to release the docker resources before exiting
+// it is not calling `DeleteAll()` here as it is being called inside the tests. No need to call it two times.
+// this comes from the fact that we're sticking with unit tests style tests to be able to run individual tests
+// https://github.com/celestiaorg/celestia-app/issues/428
+func registerGracefulExit(cancel context.CancelFunc, network *QGBNetwork) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		if <-c; true {
+			cancel()
+			forceExitIfNeeded(1)
+		}
+	}()
+}
+
+// forceExitIfNeeded forces stopping the network is SIGINT is sent a second time
+func forceExitIfNeeded(exitCode int) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	if <-c; true {
+		fmt.Println("forcing exit. some resources might not have been cleaned.")
+		os.Exit(1)
+	}
 }
 
 // StartAll starts the whole QGB cluster with multiple validators, orchestrators and a relayer
@@ -79,6 +114,17 @@ func (network QGBNetwork) StopAll() error {
 func (network QGBNetwork) DeleteAll() error {
 	err := network.Instance.
 		WithCommand([]string{"down"}).
+		Invoke()
+	if err.Error != nil {
+		return err.Error
+	}
+	return nil
+}
+
+// KillAll kills all the containers.
+func (network QGBNetwork) KillAll() error {
+	err := network.Instance.
+		WithCommand([]string{"kill"}).
 		Invoke()
 	if err.Error != nil {
 		return err.Error
@@ -250,12 +296,15 @@ func (network QGBNetwork) StartBase() error {
 	return nil
 }
 
-func (network QGBNetwork) WaitForNodeToStart(rpcAddr string) error {
-	timeoutChan := time.After(5 * time.Minute)
+func (network QGBNetwork) WaitForNodeToStart(_ctx context.Context, rpcAddr string) error {
+	ctx, _ := context.WithTimeout(_ctx, 5*time.Minute) //nolint:govet
 	for {
 		select {
-		case <-timeoutChan:
-			return fmt.Errorf("node %s not initialized in time", rpcAddr)
+		case <-ctx.Done():
+			if ctx.Err() == context.DeadlineExceeded {
+				return fmt.Errorf("node %s not initialized in time", rpcAddr)
+			}
+			return ctx.Err()
 		default:
 			trpc, err := http.New(rpcAddr, "/websocket")
 			if err != nil || trpc.Start() != nil {
@@ -268,16 +317,16 @@ func (network QGBNetwork) WaitForNodeToStart(rpcAddr string) error {
 	}
 }
 
-func (network QGBNetwork) WaitForBlock(ctx context.Context, height int64) error {
-	return network.WaitForBlockWithCustomTimeout(ctx, height, 5*time.Minute)
+func (network QGBNetwork) WaitForBlock(_ctx context.Context, height int64) error {
+	return network.WaitForBlockWithCustomTimeout(_ctx, height, 5*time.Minute)
 }
 
 func (network QGBNetwork) WaitForBlockWithCustomTimeout(
-	ctx context.Context,
+	_ctx context.Context,
 	height int64,
 	timeout time.Duration,
 ) error {
-	err := network.WaitForNodeToStart(network.TendermintRPC)
+	err := network.WaitForNodeToStart(_ctx, network.TendermintRPC)
 	if err != nil {
 		return err
 	}
@@ -289,11 +338,14 @@ func (network QGBNetwork) WaitForBlockWithCustomTimeout(
 	if err != nil {
 		return err
 	}
-	timeoutChan := time.After(timeout)
+	ctx, _ := context.WithTimeout(_ctx, timeout) //nolint:govet
 	for {
 		select {
-		case <-timeoutChan:
-			return fmt.Errorf("chain didn't reach height in time")
+		case <-ctx.Done():
+			if ctx.Err() == context.DeadlineExceeded {
+				return fmt.Errorf("chain didn't reach height in time")
+			}
+			return ctx.Err()
 		default:
 			status, err := trpc.Status(ctx)
 			if err != nil || status.SyncInfo.LatestBlockHeight < height {
@@ -310,17 +362,20 @@ func (network QGBNetwork) WaitForBlockWithCustomTimeout(
 // to sign the first data commitment (could be upgraded to get any signature, either valset or data commitment,
 // and for any nonce, but would require adding a new method to the querier. Don't think it is worth it now as
 // the number of valsets that will be signed is trivial and reaching 0 would be in no time).
-func (network QGBNetwork) WaitForOrchestratorToStart(ctx context.Context, accountAddress string) error {
+func (network QGBNetwork) WaitForOrchestratorToStart(_ctx context.Context, accountAddress string) error {
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
 	if err != nil {
 		return err
 	}
 	defer querier.Stop()
-	timeoutChan := time.After(5 * time.Minute)
+	ctx, _ := context.WithTimeout(_ctx, 5*time.Minute) //nolint:govet
 	for {
 		select {
-		case <-timeoutChan:
-			return fmt.Errorf("orchestrator didn't start correctly")
+		case <-ctx.Done():
+			if ctx.Err() == context.DeadlineExceeded {
+				return fmt.Errorf("orchestrator didn't start correctly")
+			}
+			return ctx.Err()
 		default:
 			confirm, err := querier.QueryDataCommitmentConfirm(ctx, types.DataCommitmentWindow, 0, accountAddress)
 			if err == nil && confirm != nil {
@@ -332,12 +387,12 @@ func (network QGBNetwork) WaitForOrchestratorToStart(ctx context.Context, accoun
 	}
 }
 
-func (network QGBNetwork) GetLatestDeployedQGBContract(ctx context.Context) (*wrapper.QuantumGravityBridge, error) {
-	return network.GetLatestDeployedQGBContractWithCustomTimeout(ctx, 5*time.Minute)
+func (network QGBNetwork) GetLatestDeployedQGBContract(_ctx context.Context) (*wrapper.QuantumGravityBridge, error) {
+	return network.GetLatestDeployedQGBContractWithCustomTimeout(_ctx, 5*time.Minute)
 }
 
 func (network QGBNetwork) GetLatestDeployedQGBContractWithCustomTimeout(
-	ctx context.Context,
+	_ctx context.Context,
 	timeout time.Duration,
 ) (*wrapper.QuantumGravityBridge, error) {
 	client, err := ethclient.Dial(network.EVMRPC)
@@ -345,11 +400,14 @@ func (network QGBNetwork) GetLatestDeployedQGBContractWithCustomTimeout(
 		return nil, err
 	}
 	height := 0
-	timeoutChan := time.After(timeout)
+	ctx, _ := context.WithTimeout(_ctx, timeout) //nolint:govet
 	for {
 		select {
-		case <-timeoutChan:
-			return nil, fmt.Errorf("timeout. couldn't find deployed qgb contract")
+		case <-ctx.Done():
+			if ctx.Err() == context.DeadlineExceeded {
+				return nil, fmt.Errorf("timeout. couldn't find deployed qgb contract")
+			}
+			return nil, ctx.Err()
 		default:
 			block, err := client.BlockByNumber(ctx, big.NewInt(int64(height)))
 			if err != nil {
@@ -382,12 +440,15 @@ func (network QGBNetwork) GetLatestDeployedQGBContractWithCustomTimeout(
 	}
 }
 
-func (network QGBNetwork) WaitForRelayerToStart(ctx context.Context, bridge *wrapper.QuantumGravityBridge) error {
-	timeoutChan := time.After(2 * time.Minute)
+func (network QGBNetwork) WaitForRelayerToStart(_ctx context.Context, bridge *wrapper.QuantumGravityBridge) error {
+	ctx, _ := context.WithTimeout(_ctx, 2*time.Minute) //nolint:govet
 	for {
 		select {
-		case <-timeoutChan:
-			return fmt.Errorf("relayer didn't start correctly")
+		case <-ctx.Done():
+			if ctx.Err() == context.DeadlineExceeded {
+				return fmt.Errorf("relayer didn't start correctly")
+			}
+			return ctx.Err()
 		default:
 			nonce, err := bridge.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: ctx})
 			if err == nil && nonce != nil && nonce.Int64() >= 1 {
