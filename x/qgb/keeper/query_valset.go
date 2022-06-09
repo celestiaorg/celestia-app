@@ -29,18 +29,11 @@ func (k Keeper) LastValsetRequests(
 func (k Keeper) ValsetRequestByNonce(
 	c context.Context,
 	req *types.QueryValsetRequestByNonceRequest) (*types.QueryValsetRequestByNonceResponse, error) {
-	valReq := k.GetValsets(sdk.UnwrapSDKContext(c))
-	for _, valset := range valReq {
-		if valset.Nonce == req.Nonce {
-			vs, err := types.CopyValset(valset)
-			if err != nil {
-				return nil, err
-			}
-			return &types.QueryValsetRequestByNonceResponse{Valset: vs}, nil
-		}
-	}
-
-	return nil, sdkerrors.Wrap(sdkerrors.ErrNotFound, "valset request nonce not found")
+	// TODO add test for this
+	return &types.QueryValsetRequestByNonceResponse{Valset: k.GetValset(
+		sdk.UnwrapSDKContext(c),
+		req.Nonce,
+	)}, nil
 }
 
 // LastValsetBeforeHeight queries the last valset request before height

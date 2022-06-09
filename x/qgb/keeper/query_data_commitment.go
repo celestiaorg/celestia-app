@@ -5,78 +5,42 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// FIXME should we return an error if it doesn't exist? for this one and the others?
-func (k Keeper) DataCommitmentConfirm(
-	c context.Context,
-	request *types.QueryDataCommitmentConfirmRequest,
-) (*types.QueryDataCommitmentConfirmResponse, error) {
-	addr, err := sdk.AccAddressFromBech32(request.Address)
-	if err != nil {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "address invalid")
+const maxDataCommitmentRequestsReturned = 5
+
+func (k Keeper) DataCommitmentRequestByNonce(
+	ctx context.Context,
+	request *types.QueryDataCommitmentRequestByNonceRequest,
+) (*types.QueryDataCommitmentRequestByNonceResponse, error) {
+	return &types.QueryDataCommitmentRequestByNonceResponse{
+		Commitment: k.GetDataCommitment(
+			sdk.UnwrapSDKContext(ctx),
+			request.Nonce,
+		),
+	}, nil
+}
+
+func (k Keeper) LastDataCommitmentRequests(
+	ctx context.Context,
+	request *types.QueryLastDataCommitmentRequestsRequest,
+) (*types.QueryLastDataCommitmentRequestsResponse, error) {
+	dcReq := k.GetDataCommitments(sdk.UnwrapSDKContext(ctx))
+	dcReqLen := len(dcReq)
+	retLen := 0
+	if dcReqLen < maxDataCommitmentRequestsReturned {
+		retLen = dcReqLen
+	} else {
+		retLen = maxDataCommitmentRequestsReturned
 	}
-	return &types.QueryDataCommitmentConfirmResponse{
-		Confirm: k.GetDataCommitmentConfirm(
-			sdk.UnwrapSDKContext(c),
-			request.EndBlock,
-			request.BeginBlock,
-			addr,
-		),
-	}, nil
+	return &types.QueryLastDataCommitmentRequestsResponse{Commitments: dcReq[0:retLen]}, nil
 }
 
-func (k Keeper) DataCommitmentConfirmsByValidator(
+func (k Keeper) LatestDataCommitmentNonce(
 	ctx context.Context,
-	request *types.QueryDataCommitmentConfirmsByValidatorRequest,
-) (*types.QueryDataCommitmentConfirmsByValidatorResponse, error) {
-	addr, err := sdk.AccAddressFromBech32(request.Address)
-	if err != nil {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "address invalid")
-	}
-	return &types.QueryDataCommitmentConfirmsByValidatorResponse{
-		Confirms: k.GetDataCommitmentConfirmsByValidator(
-			sdk.UnwrapSDKContext(ctx),
-			addr,
-		),
-	}, nil
-}
-
-func (k Keeper) DataCommitmentConfirmsByCommitment(
-	ctx context.Context,
-	request *types.QueryDataCommitmentConfirmsByCommitmentRequest,
-) (*types.QueryDataCommitmentConfirmsByCommitmentResponse, error) {
-	return &types.QueryDataCommitmentConfirmsByCommitmentResponse{
-		Confirms: k.GetDataCommitmentConfirmsByCommitment(
-			sdk.UnwrapSDKContext(ctx),
-			request.Commitment,
-		),
-	}, nil
-}
-
-func (k Keeper) DataCommitmentConfirmsByRange(
-	ctx context.Context,
-	request *types.QueryDataCommitmentConfirmsByRangeRequest,
-) (*types.QueryDataCommitmentConfirmsByRangeResponse, error) {
-	return &types.QueryDataCommitmentConfirmsByRangeResponse{
-		Confirms: k.GetDataCommitmentConfirmsByRange(
-			sdk.UnwrapSDKContext(ctx),
-			request.BeginBlock,
-			request.EndBlock,
-		),
-	}, nil
-}
-
-func (k Keeper) DataCommitmentConfirmsByExactRange(
-	ctx context.Context,
-	request *types.QueryDataCommitmentConfirmsByExactRangeRequest,
-) (*types.QueryDataCommitmentConfirmsByExactRangeResponse, error) {
-	return &types.QueryDataCommitmentConfirmsByExactRangeResponse{
-		Confirms: k.GetDataCommitmentConfirmsByExactRange(
-			sdk.UnwrapSDKContext(ctx),
-			request.BeginBlock,
-			request.EndBlock,
-		),
+	request *types.QueryLatestDataCommitmentNonceRequest,
+) (*types.QueryLatestDataCommitmentNonceResponse, error) {
+	return &types.QueryLatestDataCommitmentNonceResponse{
+		Nonce: k.GetLatestDataCommitmentNonce(sdk.UnwrapSDKContext(ctx)),
 	}, nil
 }

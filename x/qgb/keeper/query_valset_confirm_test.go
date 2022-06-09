@@ -40,7 +40,12 @@ func TestQueryValsetConfirm(t *testing.T) {
 		"all good": {
 			src: types.QueryValsetConfirmRequest{Nonce: 1, Address: myValidatorCosmosAddr.String()},
 			expResp: types.QueryValsetConfirmResponse{
-				Confirm: types.NewMsgValsetConfirm(1, *myValidatorEthereumAddr, myValidatorCosmosAddr, "alksdjhflkasjdfoiasjdfiasjdfoiasdj")},
+				Confirm: types.NewMsgValsetConfirm(
+					1,
+					*myValidatorEthereumAddr,
+					myValidatorCosmosAddr,
+					"alksdjhflkasjdfoiasjdfiasjdfoiasdj",
+				)},
 			expErr: false,
 		},
 		"unknown nonce": {

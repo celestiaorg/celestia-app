@@ -30,13 +30,10 @@ message Valset {
 message DataCommitment {
   // Unique number referencing the `DataCommitment`.
   uint64 nonce = 1;
-  // Merkle root over a merkle tree containing the data roots of the set of
-  // blocks starting in `begin_block` and ending at `end_block`.
-  string commitment = 2;
   // First block defining the ordered set of blocks used to create the
   // commitment.
-  int64 begin_block = 3;
+  uint64 begin_block = 2;
   // Last block defining the ordered set of blocks used to create the
   // commitment.
-  int64 end_block = 4;
+  uint64 end_block = 3;
 }

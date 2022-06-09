@@ -11,9 +11,9 @@ type AppClient interface {
 	SubscribeDataCommitment(ctx context.Context) (<-chan ExtendedDataCommitment, error)
 }
 
-// TODO replace with data commitment request when we have it
+// ExtendedDataCommitment adds the `types.DataCommitment` to also contain the commitment
+// retrieved from celestia-core.
 type ExtendedDataCommitment struct {
+	Data       types.DataCommitment
 	Commitment bytes.HexBytes
-	Start, End uint64
-	Nonce      uint64
 }
