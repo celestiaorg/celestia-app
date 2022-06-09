@@ -14,10 +14,10 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 		t.Skip("Skipping QGB integration tests")
 	}
 
-	network, err := NewQGBNetwork()
+	network, err := NewQGBNetwork(context.Background())
 	HandleNetworkError(t, network, err, false)
 
-	// preferably, run this also when ctrl+c
+	// to release resources after tests
 	defer network.DeleteAll() //nolint:errcheck
 
 	// start 1 validator
@@ -29,10 +29,10 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
-	err = network.WaitForBlock(ctx, int64(types.DataCommitmentWindow+5))
+	err = network.WaitForBlock(network.Context, int64(types.DataCommitmentWindow+5))
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
 	// FIXME should we use the querier here or go for raw queries?
@@ -59,10 +59,10 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 		t.Skip("Skipping QGB integration tests")
 	}
 
-	network, err := NewQGBNetwork()
+	network, err := NewQGBNetwork(context.Background())
 	HandleNetworkError(t, network, err, false)
 
-	// preferably, run this also when ctrl+c
+	// to release resources after tests
 	defer network.DeleteAll() //nolint:errcheck
 
 	// start minimal network with one validator
@@ -83,13 +83,13 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
-	err = network.WaitForBlock(ctx, int64(types.DataCommitmentWindow+10))
+	err = network.WaitForBlock(network.Context, int64(types.DataCommitmentWindow+10))
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(ctx, CORE1ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(network.Context, CORE1ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
@@ -143,10 +143,10 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 		t.Skip("Skipping QGB integration tests")
 	}
 
-	network, err := NewQGBNetwork()
+	network, err := NewQGBNetwork(context.Background())
 	assert.NoError(t, err)
 
-	// preferably, run this also when ctrl+c
+	// to release resources after tests
 	defer network.DeleteAll() //nolint:errcheck
 
 	// start full network with four validatorS
@@ -154,19 +154,19 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
-	err = network.WaitForBlock(ctx, int64(types.DataCommitmentWindow+10))
+	err = network.WaitForBlock(network.Context, int64(types.DataCommitmentWindow+10))
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(ctx, CORE1ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(network.Context, CORE1ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(ctx, CORE2ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(network.Context, CORE2ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(ctx, CORE3ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(network.Context, CORE3ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
@@ -266,10 +266,10 @@ func TestOrchestratorReplayOld(t *testing.T) {
 		t.Skip("Skipping QGB integration tests")
 	}
 
-	network, err := NewQGBNetwork()
+	network, err := NewQGBNetwork(context.Background())
 	HandleNetworkError(t, network, err, false)
 
-	// preferably, run this also when ctrl+c
+	// to release resources after tests
 	defer network.DeleteAll() //nolint:errcheck
 
 	// start 1 validator
@@ -281,7 +281,7 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
-	err = network.WaitForBlock(ctx, int64(2*types.DataCommitmentWindow))
+	err = network.WaitForBlock(network.Context, int64(2*types.DataCommitmentWindow))
 	HandleNetworkError(t, network, err, false)
 
 	// add core0  orchestrator
@@ -293,13 +293,13 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	// give time for the orchestrators to submit confirms
-	err = network.WaitForBlock(ctx, int64(2*types.DataCommitmentWindow+10))
+	err = network.WaitForBlock(network.Context, int64(2*types.DataCommitmentWindow+10))
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(ctx, CORE1ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(network.Context, CORE1ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
 	// FIXME should we use the querier here or go for raw queries?
