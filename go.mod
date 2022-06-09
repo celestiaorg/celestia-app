@@ -15,7 +15,6 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/spf13/cast v1.4.1
 	github.com/spf13/cobra v1.3.0
-	github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4
 	github.com/stretchr/testify v1.7.0
 	github.com/tendermint/spm v0.1.9
 	github.com/tendermint/tendermint v0.34.16

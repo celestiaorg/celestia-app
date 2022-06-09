@@ -117,30 +117,37 @@ func (oc *relayerClient) SubscribeDataCommitment(ctx context.Context) (<-chan Ex
 					continue
 				}
 
-				currentHeight, err := oc.querier.QueryHeight(ctx)
+				latestDCNonce, err := oc.querier.QueryLatestDataCommitmentNonce(ctx)
 				if err != nil {
 					oc.logger.Error(err.Error())
+					time.Sleep(5 * time.Second)
 					continue
 				}
-				currentNonce := currentHeight / types.DataCommitmentWindow
 
 				// If we're at the latest nonce, we sleep
-				if lastContractNonce >= currentNonce {
+				if lastContractNonce >= latestDCNonce {
 					time.Sleep(10 * time.Second)
 					continue
 				}
 
-				// TODO: calculate start height some other way that can handle changes
-				// in the data window param
-				startHeight := lastContractNonce * types.DataCommitmentWindow
-				endHeight := (lastContractNonce + 1) * types.DataCommitmentWindow
+				// query data commitment request
+				dc, err := oc.querier.QueryDataCommitmentByNonce(ctx, lastContractNonce+1)
+				if err != nil {
+					oc.logger.Error(err.Error())
+					time.Sleep(5 * time.Second)
+					continue
+				}
+				if dc == nil {
+					time.Sleep(5 * time.Second)
+					continue
+				}
 
 				// create and send the data commitment
 				dcResp, err := oc.tendermintRPC.DataCommitment(
 					ctx,
 					fmt.Sprintf("block.height >= %d AND block.height <= %d",
-						startHeight,
-						endHeight,
+						dc.BeginBlock,
+						dc.EndBlock,
 					),
 				)
 				if err != nil {
@@ -148,15 +155,13 @@ func (oc *relayerClient) SubscribeDataCommitment(ctx context.Context) (<-chan Ex
 					continue
 				}
 
-				// TODO: store the nonce in the state somewhere, so that we don't have
-				// to assume what the nonce is
-				nonce := lastContractNonce + 1
-
 				dataCommitments <- ExtendedDataCommitment{
 					Commitment: dcResp.DataCommitment,
-					Start:      startHeight,
-					End:        endHeight,
-					Nonce:      nonce,
+					Data: *types.NewDataCommitment(
+						dc.Nonce,
+						dc.BeginBlock,
+						dc.EndBlock,
+					),
 				}
 				time.Sleep(10 * time.Second)
 			}

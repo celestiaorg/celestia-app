@@ -58,7 +58,7 @@ func (r *relayer) processDataCommitmentEvents(
 		}
 
 		// todo: make gas limit configurable
-		valset, err := r.querier.QueryLastValsetBeforeHeight(ctx, dc.End)
+		valset, err := r.querier.QueryLastValsetBeforeHeight(ctx, dc.Data.EndBlock)
 		if err != nil {
 			return err
 		}

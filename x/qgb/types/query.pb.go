@@ -1170,6 +1170,273 @@ func (m *QueryLastUnbondingHeightResponse) GetHeight() uint64 {
 	return 0
 }
 
+// QueryDataCommitmentRequestRequest Data commitment by nonce request
+type QueryDataCommitmentRequestByNonceRequest struct {
+	// Unique number referencing the `DataCommitment`.
+	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+}
+
+func (m *QueryDataCommitmentRequestByNonceRequest) Reset() {
+	*m = QueryDataCommitmentRequestByNonceRequest{}
+}
+func (m *QueryDataCommitmentRequestByNonceRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryDataCommitmentRequestByNonceRequest) ProtoMessage()    {}
+func (*QueryDataCommitmentRequestByNonceRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{24}
+}
+func (m *QueryDataCommitmentRequestByNonceRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryDataCommitmentRequestByNonceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryDataCommitmentRequestByNonceRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryDataCommitmentRequestByNonceRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryDataCommitmentRequestByNonceRequest.Merge(m, src)
+}
+func (m *QueryDataCommitmentRequestByNonceRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryDataCommitmentRequestByNonceRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryDataCommitmentRequestByNonceRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryDataCommitmentRequestByNonceRequest proto.InternalMessageInfo
+
+func (m *QueryDataCommitmentRequestByNonceRequest) GetNonce() uint64 {
+	if m != nil {
+		return m.Nonce
+	}
+	return 0
+}
+
+// QueryDataCommitmentRequestResponse Data commitment by nonce response
+type QueryDataCommitmentRequestByNonceResponse struct {
+	Commitment *DataCommitment `protobuf:"bytes,1,opt,name=commitment,proto3" json:"commitment,omitempty"`
+}
+
+func (m *QueryDataCommitmentRequestByNonceResponse) Reset() {
+	*m = QueryDataCommitmentRequestByNonceResponse{}
+}
+func (m *QueryDataCommitmentRequestByNonceResponse) String() string {
+	return proto.CompactTextString(m)
+}
+func (*QueryDataCommitmentRequestByNonceResponse) ProtoMessage() {}
+func (*QueryDataCommitmentRequestByNonceResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{25}
+}
+func (m *QueryDataCommitmentRequestByNonceResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryDataCommitmentRequestByNonceResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryDataCommitmentRequestByNonceResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryDataCommitmentRequestByNonceResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryDataCommitmentRequestByNonceResponse.Merge(m, src)
+}
+func (m *QueryDataCommitmentRequestByNonceResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryDataCommitmentRequestByNonceResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryDataCommitmentRequestByNonceResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryDataCommitmentRequestByNonceResponse proto.InternalMessageInfo
+
+func (m *QueryDataCommitmentRequestByNonceResponse) GetCommitment() *DataCommitment {
+	if m != nil {
+		return m.Commitment
+	}
+	return nil
+}
+
+// QueryLastDataCommitmentRequestsRequest Last data commitment request
+type QueryLastDataCommitmentRequestsRequest struct {
+}
+
+func (m *QueryLastDataCommitmentRequestsRequest) Reset() {
+	*m = QueryLastDataCommitmentRequestsRequest{}
+}
+func (m *QueryLastDataCommitmentRequestsRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryLastDataCommitmentRequestsRequest) ProtoMessage()    {}
+func (*QueryLastDataCommitmentRequestsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{26}
+}
+func (m *QueryLastDataCommitmentRequestsRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryLastDataCommitmentRequestsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryLastDataCommitmentRequestsRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryLastDataCommitmentRequestsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryLastDataCommitmentRequestsRequest.Merge(m, src)
+}
+func (m *QueryLastDataCommitmentRequestsRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryLastDataCommitmentRequestsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryLastDataCommitmentRequestsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryLastDataCommitmentRequestsRequest proto.InternalMessageInfo
+
+// QueryLastDataCommitmentRequestsResponse Last data commitment response
+type QueryLastDataCommitmentRequestsResponse struct {
+	Commitments []DataCommitment `protobuf:"bytes,1,rep,name=commitments,proto3" json:"commitments"`
+}
+
+func (m *QueryLastDataCommitmentRequestsResponse) Reset() {
+	*m = QueryLastDataCommitmentRequestsResponse{}
+}
+func (m *QueryLastDataCommitmentRequestsResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryLastDataCommitmentRequestsResponse) ProtoMessage()    {}
+func (*QueryLastDataCommitmentRequestsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{27}
+}
+func (m *QueryLastDataCommitmentRequestsResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryLastDataCommitmentRequestsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryLastDataCommitmentRequestsResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryLastDataCommitmentRequestsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryLastDataCommitmentRequestsResponse.Merge(m, src)
+}
+func (m *QueryLastDataCommitmentRequestsResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryLastDataCommitmentRequestsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryLastDataCommitmentRequestsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryLastDataCommitmentRequestsResponse proto.InternalMessageInfo
+
+func (m *QueryLastDataCommitmentRequestsResponse) GetCommitments() []DataCommitment {
+	if m != nil {
+		return m.Commitments
+	}
+	return nil
+}
+
+// QueryLatestDataCommitmentNonceRequest Latest data commitment nonce request
+type QueryLatestDataCommitmentNonceRequest struct {
+}
+
+func (m *QueryLatestDataCommitmentNonceRequest) Reset()         { *m = QueryLatestDataCommitmentNonceRequest{} }
+func (m *QueryLatestDataCommitmentNonceRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryLatestDataCommitmentNonceRequest) ProtoMessage()    {}
+func (*QueryLatestDataCommitmentNonceRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{28}
+}
+func (m *QueryLatestDataCommitmentNonceRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryLatestDataCommitmentNonceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryLatestDataCommitmentNonceRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryLatestDataCommitmentNonceRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryLatestDataCommitmentNonceRequest.Merge(m, src)
+}
+func (m *QueryLatestDataCommitmentNonceRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryLatestDataCommitmentNonceRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryLatestDataCommitmentNonceRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryLatestDataCommitmentNonceRequest proto.InternalMessageInfo
+
+// QueryLatestDataCommitmentNonceResponse Latest data commitment nonce response
+type QueryLatestDataCommitmentNonceResponse struct {
+	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+}
+
+func (m *QueryLatestDataCommitmentNonceResponse) Reset() {
+	*m = QueryLatestDataCommitmentNonceResponse{}
+}
+func (m *QueryLatestDataCommitmentNonceResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryLatestDataCommitmentNonceResponse) ProtoMessage()    {}
+func (*QueryLatestDataCommitmentNonceResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{29}
+}
+func (m *QueryLatestDataCommitmentNonceResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryLatestDataCommitmentNonceResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryLatestDataCommitmentNonceResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryLatestDataCommitmentNonceResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryLatestDataCommitmentNonceResponse.Merge(m, src)
+}
+func (m *QueryLatestDataCommitmentNonceResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryLatestDataCommitmentNonceResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryLatestDataCommitmentNonceResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryLatestDataCommitmentNonceResponse proto.InternalMessageInfo
+
+func (m *QueryLatestDataCommitmentNonceResponse) GetNonce() uint64 {
+	if m != nil {
+		return m.Nonce
+	}
+	return 0
+}
+
 func init() {
 	proto.RegisterType((*QueryParamsRequest)(nil), "qgb.QueryParamsRequest")
 	proto.RegisterType((*QueryParamsResponse)(nil), "qgb.QueryParamsResponse")
@@ -1195,82 +1462,98 @@ func init() {
 	proto.RegisterType((*QueryDataCommitmentConfirmsByValidatorResponse)(nil), "qgb.QueryDataCommitmentConfirmsByValidatorResponse")
 	proto.RegisterType((*QueryLastUnbondingHeightRequest)(nil), "qgb.QueryLastUnbondingHeightRequest")
 	proto.RegisterType((*QueryLastUnbondingHeightResponse)(nil), "qgb.QueryLastUnbondingHeightResponse")
+	proto.RegisterType((*QueryDataCommitmentRequestByNonceRequest)(nil), "qgb.QueryDataCommitmentRequestByNonceRequest")
+	proto.RegisterType((*QueryDataCommitmentRequestByNonceResponse)(nil), "qgb.QueryDataCommitmentRequestByNonceResponse")
+	proto.RegisterType((*QueryLastDataCommitmentRequestsRequest)(nil), "qgb.QueryLastDataCommitmentRequestsRequest")
+	proto.RegisterType((*QueryLastDataCommitmentRequestsResponse)(nil), "qgb.QueryLastDataCommitmentRequestsResponse")
+	proto.RegisterType((*QueryLatestDataCommitmentNonceRequest)(nil), "qgb.QueryLatestDataCommitmentNonceRequest")
+	proto.RegisterType((*QueryLatestDataCommitmentNonceResponse)(nil), "qgb.QueryLatestDataCommitmentNonceResponse")
 }
 
 func init() { proto.RegisterFile("qgb/query.proto", fileDescriptor_f3c1fd86445aad81) }
 
 var fileDescriptor_f3c1fd86445aad81 = []byte{
-	// 1110 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x57, 0xcf, 0x6f, 0xdc, 0xc4,
-	0x17, 0x8f, 0x93, 0x36, 0x69, 0x5e, 0xd4, 0xf6, 0xfb, 0x7d, 0xc9, 0xa6, 0xc1, 0x4d, 0x9c, 0xc4,
-	0x69, 0xd2, 0xb4, 0x55, 0x77, 0x94, 0x14, 0x14, 0x40, 0x20, 0xd0, 0x16, 0xa4, 0x16, 0x48, 0x09,
-	0x0b, 0xe9, 0xa1, 0x08, 0x55, 0xe3, 0xdd, 0xa9, 0x63, 0xb1, 0xf6, 0xec, 0x7a, 0x9c, 0xaa, 0x61,
-	0xb5, 0x17, 0x2e, 0x1c, 0xb8, 0x20, 0x71, 0xe1, 0xc6, 0x3f, 0x03, 0x52, 0x4f, 0xa8, 0x12, 0x07,
-	0x38, 0x21, 0x94, 0x70, 0xe4, 0x8f, 0x40, 0x3b, 0x1e, 0x7b, 0xbd, 0x6b, 0xaf, 0xbd, 0x91, 0xf6,
-	0x66, 0xbf, 0x79, 0x3f, 0x3e, 0x9f, 0xf7, 0x9e, 0xdf, 0x3c, 0xc3, 0xd5, 0x96, 0x6d, 0x91, 0xd6,
-	0x31, 0xf3, 0x4f, 0xca, 0x4d, 0x9f, 0x07, 0x1c, 0xa7, 0x5a, 0xb6, 0xa5, 0xff, 0xbf, 0x2b, 0xb5,
-	0x99, 0xc7, 0x84, 0x23, 0x42, 0xb9, 0x2e, 0x15, 0x83, 0x93, 0x26, 0x8b, 0x04, 0xcb, 0x36, 0xe7,
-	0x76, 0x83, 0x11, 0xda, 0x74, 0x08, 0xf5, 0x3c, 0x1e, 0xd0, 0xc0, 0xe1, 0x5e, 0x74, 0x7a, 0xbb,
-	0xc6, 0x85, 0xcb, 0x05, 0xb1, 0xa8, 0x60, 0xa1, 0x7f, 0xf2, 0x7c, 0xc7, 0x62, 0x01, 0xdd, 0x21,
-	0x4d, 0x6a, 0x3b, 0x9e, 0x54, 0x56, 0xba, 0x57, 0xba, 0xae, 0x5d, 0x61, 0x47, 0xb6, 0x0b, 0x36,
-	0xb7, 0xb9, 0x7c, 0x24, 0xdd, 0xa7, 0x50, 0x6a, 0x2e, 0x00, 0x7e, 0xd6, 0xf5, 0x73, 0x40, 0x7d,
-	0xea, 0x8a, 0x2a, 0x6b, 0x1d, 0x33, 0x11, 0x98, 0xef, 0xc3, 0x7c, 0x9f, 0x54, 0x34, 0xb9, 0x27,
-	0x18, 0xde, 0x82, 0xe9, 0xa6, 0x94, 0x2c, 0x69, 0x6b, 0xda, 0xf6, 0xdc, 0xee, 0x5c, 0xb9, 0x65,
-	0x5b, 0xe5, 0x50, 0xa9, 0x72, 0xe1, 0xe5, 0x5f, 0xab, 0x13, 0x55, 0xa5, 0x60, 0xae, 0x81, 0x21,
-	0x3d, 0x7c, 0x42, 0x45, 0xf0, 0x98, 0x36, 0x04, 0x0b, 0x94, 0xef, 0x38, 0xc6, 0x23, 0x58, 0x1d,
-	0xaa, 0xa1, 0xe2, 0xdd, 0x81, 0x99, 0xe7, 0xf2, 0xa4, 0x1b, 0x70, 0x2a, 0x0e, 0x18, 0x6a, 0xab,
-	0x80, 0x91, 0x86, 0xf9, 0x26, 0xac, 0x49, 0x7f, 0x7d, 0xbe, 0x2a, 0x27, 0x8f, 0xb8, 0x57, 0x63,
-	0xea, 0x0d, 0x17, 0xe0, 0xa2, 0xd7, 0x7d, 0x97, 0xf8, 0x2f, 0x54, 0xc3, 0x17, 0xf3, 0x01, 0xac,
-	0xe7, 0x58, 0x2a, 0x2c, 0x1b, 0x30, 0x1d, 0x46, 0xea, 0xe3, 0xae, 0x4c, 0xd4, 0x91, 0xf9, 0x56,
-	0x9f, 0xa7, 0xfb, 0xdc, 0x7b, 0xe6, 0xf8, 0xae, 0x18, 0x09, 0xc4, 0x57, 0x60, 0xe6, 0x99, 0x2a,
-	0x14, 0x7b, 0x70, 0xa9, 0xa6, 0x8e, 0x54, 0x4a, 0x4a, 0x12, 0xc7, 0xbe, 0xb0, 0xfb, 0x0c, 0x55,
-	0x72, 0x62, 0x65, 0xf3, 0x63, 0x78, 0x2d, 0xed, 0x3e, 0x17, 0x11, 0x2e, 0xc1, 0x0c, 0xad, 0xd7,
-	0x7d, 0x26, 0xc4, 0xd2, 0xe4, 0x9a, 0xb6, 0x3d, 0x5b, 0x8d, 0x5e, 0xcd, 0x7d, 0xd0, 0xb3, 0x9c,
-	0x29, 0x8c, 0x04, 0x66, 0x54, 0x58, 0x95, 0xaa, 0x6c, 0x88, 0xd5, 0x48, 0xcb, 0x7c, 0x47, 0x51,
-	0xef, 0x75, 0x42, 0x85, 0x3d, 0xe3, 0x3e, 0x7b, 0xc0, 0x1c, 0xfb, 0x28, 0xaa, 0x07, 0x2e, 0xc2,
-	0xf4, 0x91, 0x14, 0x28, 0x94, 0xea, 0xcd, 0xfc, 0x08, 0x36, 0x72, 0xad, 0xcf, 0x53, 0xbf, 0xb6,
-	0xaa, 0xdf, 0x07, 0x34, 0xa0, 0xf7, 0xb9, 0xeb, 0x3a, 0x81, 0xcb, 0xbc, 0xc1, 0x6c, 0xad, 0xc2,
-	0x9c, 0xc5, 0x6c, 0xc7, 0x7b, 0x6a, 0x35, 0x78, 0xed, 0x6b, 0x85, 0x06, 0xa4, 0xa8, 0xd2, 0x95,
-	0xe0, 0x75, 0x98, 0x65, 0x5e, 0x5d, 0x1d, 0x4f, 0xca, 0xe3, 0x4b, 0xcc, 0xab, 0x87, 0x87, 0x89,
-	0xac, 0x4e, 0xf5, 0x67, 0x35, 0xea, 0x80, 0x21, 0xc1, 0xe3, 0x0e, 0x18, 0xc8, 0xee, 0x4a, 0x94,
-	0xdd, 0x6c, 0xbb, 0x38, 0xcb, 0x07, 0x50, 0x1e, 0xee, 0x5e, 0x54, 0x4e, 0x7a, 0xb2, 0x88, 0xa8,
-	0x01, 0x50, 0x8b, 0x85, 0x32, 0xda, 0x6c, 0x35, 0x21, 0x31, 0x7d, 0x20, 0x23, 0x7b, 0x54, 0xe8,
-	0xdf, 0x4b, 0xf5, 0x6f, 0x3e, 0xfc, 0x54, 0x1f, 0x3b, 0x70, 0x2b, 0x37, 0x66, 0x95, 0x7a, 0x36,
-	0x1b, 0x4b, 0xa5, 0x4c, 0x17, 0x6e, 0x8f, 0x12, 0x6a, 0x5c, 0xcc, 0xbc, 0x82, 0xfa, 0x7c, 0xf8,
-	0x82, 0xd6, 0x82, 0x31, 0xd2, 0x2b, 0xaa, 0x5e, 0x32, 0xde, 0xb8, 0x38, 0x3e, 0x84, 0xbb, 0xb9,
-	0x31, 0x1f, 0xd3, 0x86, 0x53, 0xa7, 0x01, 0xf7, 0x23, 0x8a, 0x89, 0xaf, 0x45, 0xeb, 0xff, 0x5a,
-	0x5a, 0x05, 0xe9, 0x4a, 0xb8, 0x1a, 0x17, 0xfa, 0xf5, 0xc4, 0x8d, 0x75, 0xe8, 0x59, 0xdc, 0xab,
-	0x3b, 0x9e, 0xdd, 0x37, 0xa4, 0xcc, 0xb7, 0xd5, 0x25, 0x94, 0xa9, 0xa2, 0x70, 0x0c, 0x19, 0x64,
-	0xbb, 0x3f, 0x5f, 0x85, 0x8b, 0xd2, 0x18, 0x0f, 0x60, 0x3a, 0xbc, 0x54, 0xf1, 0x9a, 0x44, 0x98,
-	0xbe, 0xa1, 0xf5, 0xa5, 0xf4, 0x41, 0xe8, 0xde, 0x9c, 0xff, 0xf6, 0xf7, 0x7f, 0x7e, 0x9c, 0xbc,
-	0x8c, 0x73, 0xa4, 0xbb, 0x00, 0x84, 0xd7, 0x31, 0xfe, 0xa2, 0x41, 0x29, 0x93, 0x24, 0x6e, 0xf5,
-	0x1c, 0xe5, 0x4d, 0x3d, 0xfd, 0x66, 0xa1, 0x9e, 0x8a, 0xff, 0x44, 0xc6, 0xff, 0x02, 0xab, 0x32,
-	0x7e, 0x9d, 0x06, 0xf4, 0x69, 0x6f, 0x66, 0x10, 0x95, 0x4c, 0x22, 0xbb, 0x94, 0xb4, 0x13, 0xfd,
-	0xdb, 0x21, 0xcc, 0xab, 0x93, 0x76, 0xdc, 0xb0, 0x1d, 0xa2, 0x4a, 0x4d, 0xda, 0xea, 0xa1, 0x83,
-	0xbf, 0x6a, 0xb0, 0x5e, 0x58, 0x70, 0xdc, 0x2d, 0x80, 0x9a, 0xd1, 0x68, 0xfa, 0xbd, 0x73, 0xd9,
-	0x28, 0xaa, 0x7b, 0x92, 0xea, 0x0e, 0x92, 0x3c, 0xaa, 0x22, 0x83, 0xc7, 0x6f, 0x1a, 0x98, 0xc5,
-	0x53, 0x13, 0x47, 0x00, 0x95, 0x9a, 0xda, 0xfa, 0xeb, 0xe7, 0x33, 0x52, 0x54, 0xde, 0x95, 0x54,
-	0xf6, 0xf0, 0x8d, 0x7c, 0x2a, 0x09, 0x59, 0xbb, 0xf7, 0xdc, 0xc1, 0x3f, 0x34, 0x58, 0xc9, 0x9d,
-	0x93, 0x58, 0x2e, 0x86, 0x95, 0x1c, 0x6e, 0x3a, 0x19, 0x59, 0x5f, 0x31, 0x38, 0x94, 0x0c, 0x3e,
-	0xc5, 0xfd, 0x7c, 0x06, 0x89, 0x8e, 0x4b, 0xb7, 0x5f, 0x24, 0xef, 0x35, 0x21, 0xfe, 0x9b, 0x53,
-	0xaa, 0xde, 0x88, 0x1c, 0xa5, 0x54, 0xa9, 0x01, 0x3e, 0x4a, 0xa9, 0xd2, 0x53, 0xd8, 0xfc, 0x52,
-	0x12, 0x3d, 0xc4, 0xcf, 0xf3, 0x89, 0xb2, 0xae, 0xe5, 0xb9, 0xe9, 0x76, 0x00, 0xd3, 0x0b, 0x39,
-	0x6e, 0xf4, 0x80, 0x0e, 0x5d, 0xe8, 0xf5, 0x1b, 0xf9, 0x4a, 0x0a, 0xfd, 0xb2, 0x44, 0xbf, 0x88,
-	0x0b, 0x12, 0x7d, 0xb8, 0x77, 0x11, 0x3f, 0x0a, 0xf4, 0xbd, 0x06, 0x0b, 0x59, 0x6b, 0x38, 0x6e,
-	0xf6, 0x9c, 0xe7, 0x2c, 0xf8, 0xfa, 0x56, 0x91, 0x9a, 0x42, 0x71, 0x43, 0xa2, 0x30, 0x70, 0x39,
-	0x0b, 0x05, 0x69, 0xcb, 0x05, 0xb8, 0x83, 0x2e, 0x5c, 0xee, 0x5b, 0x59, 0xd1, 0x18, 0x74, 0x3f,
-	0x30, 0x24, 0x57, 0x87, 0x9e, 0xab, 0xb8, 0xd7, 0x65, 0xdc, 0x12, 0xce, 0x27, 0xe3, 0xaa, 0x92,
-	0xe1, 0x4f, 0x1a, 0x2c, 0x66, 0x6f, 0xb1, 0x78, 0x33, 0x2b, 0xb7, 0x19, 0x5b, 0xb2, 0xbe, 0x5d,
-	0xac, 0xa8, 0xa0, 0xdc, 0x91, 0x50, 0x36, 0x71, 0x23, 0x23, 0x05, 0xc4, 0x92, 0x16, 0xa4, 0x1d,
-	0x5e, 0x4d, 0x1d, 0xfc, 0x4e, 0x83, 0x52, 0xe6, 0x9f, 0x09, 0x6e, 0x0d, 0xa1, 0x3c, 0xf0, 0xd7,
-	0x93, 0xbc, 0x3f, 0x72, 0x7f, 0x71, 0xcc, 0x15, 0x89, 0xeb, 0x1a, 0x96, 0x24, 0xae, 0xb8, 0x9d,
-	0xa3, 0x9a, 0x7c, 0x03, 0xf3, 0x19, 0x97, 0x2b, 0x0e, 0x34, 0x5f, 0xf6, 0xf5, 0xac, 0x6f, 0x16,
-	0x68, 0x29, 0x08, 0x8b, 0x12, 0xc2, 0xff, 0xf0, 0x8a, 0x84, 0x70, 0x1c, 0x69, 0x55, 0x1e, 0xbe,
-	0x3c, 0x35, 0xb4, 0x57, 0xa7, 0x86, 0xf6, 0xf7, 0xa9, 0xa1, 0xfd, 0x70, 0x66, 0x4c, 0xbc, 0x3a,
-	0x33, 0x26, 0xfe, 0x3c, 0x33, 0x26, 0x9e, 0x10, 0xdb, 0x09, 0x8e, 0x8e, 0xad, 0x72, 0x8d, 0xbb,
-	0xa4, 0xc6, 0x1a, 0x4c, 0x04, 0x0e, 0xe5, 0xbe, 0x1d, 0x3f, 0xdf, 0xa5, 0xcd, 0x26, 0x79, 0x41,
-	0xe2, 0xbf, 0x7d, 0x6b, 0x5a, 0xfe, 0x7e, 0xdf, 0xfb, 0x2f, 0x00, 0x00, 0xff, 0xff, 0x5a, 0xc7,
-	0xfd, 0xf7, 0x2a, 0x10, 0x00, 0x00,
+	// 1280 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x58, 0x4b, 0x6f, 0x1b, 0xd5,
+	0x17, 0xcf, 0x34, 0x6d, 0xd2, 0x1c, 0xab, 0xfd, 0xff, 0x39, 0x4e, 0xd2, 0x74, 0x9a, 0x38, 0xc9,
+	0xa4, 0xce, 0x93, 0xf8, 0x2a, 0x09, 0x28, 0xbc, 0xa9, 0x5c, 0x90, 0x5a, 0x20, 0x25, 0x18, 0xd2,
+	0x45, 0x11, 0x2a, 0x63, 0xfb, 0x66, 0x32, 0xc2, 0x9e, 0xb1, 0x3d, 0x93, 0xaa, 0xc1, 0xf2, 0x86,
+	0x0d, 0x0b, 0x36, 0x20, 0x36, 0xac, 0xe0, 0x0b, 0xf0, 0x31, 0x40, 0xea, 0x0a, 0x55, 0x62, 0x01,
+	0x2b, 0x84, 0x12, 0x96, 0x7c, 0x08, 0xe4, 0x3b, 0x67, 0xc6, 0x63, 0xfb, 0xce, 0x23, 0x52, 0x76,
+	0x33, 0xe7, 0xfe, 0xce, 0x39, 0xbf, 0xf3, 0x98, 0x7b, 0xcf, 0x1d, 0xf8, 0x5f, 0xd3, 0x28, 0xb3,
+	0xe6, 0x31, 0x6f, 0x9d, 0x14, 0x1a, 0x2d, 0xdb, 0xb5, 0x71, 0xb4, 0x69, 0x94, 0xd5, 0x17, 0xba,
+	0x52, 0x83, 0x5b, 0xdc, 0x31, 0x1d, 0x4f, 0xae, 0x0a, 0xa0, 0x7b, 0xd2, 0xe0, 0xbe, 0x60, 0xd6,
+	0xb0, 0x6d, 0xa3, 0xc6, 0x99, 0xde, 0x30, 0x99, 0x6e, 0x59, 0xb6, 0xab, 0xbb, 0xa6, 0x6d, 0xf9,
+	0xab, 0xeb, 0x15, 0xdb, 0xa9, 0xdb, 0x0e, 0x2b, 0xeb, 0x0e, 0xf7, 0xec, 0xb3, 0x27, 0x5b, 0x65,
+	0xee, 0xea, 0x5b, 0xac, 0xa1, 0x1b, 0xa6, 0x25, 0xc0, 0x84, 0xbd, 0xde, 0x35, 0x5d, 0x77, 0x0c,
+	0x5f, 0x77, 0xd2, 0xb0, 0x0d, 0x5b, 0x3c, 0xb2, 0xee, 0x93, 0x27, 0xd5, 0x26, 0x01, 0x3f, 0xea,
+	0xda, 0xd9, 0xd7, 0x5b, 0x7a, 0xdd, 0x29, 0xf1, 0xe6, 0x31, 0x77, 0x5c, 0xed, 0x0e, 0x64, 0xfb,
+	0xa4, 0x4e, 0xc3, 0xb6, 0x1c, 0x8e, 0x6b, 0x30, 0xd6, 0x10, 0x92, 0x19, 0x65, 0x41, 0x59, 0xcd,
+	0x6c, 0x67, 0x0a, 0x4d, 0xa3, 0x5c, 0xf0, 0x40, 0xc5, 0xcb, 0xcf, 0xfe, 0x9a, 0x1f, 0x29, 0x11,
+	0x40, 0x5b, 0x80, 0x9c, 0xb0, 0xf0, 0x81, 0xee, 0xb8, 0x0f, 0xf5, 0x9a, 0xc3, 0x5d, 0xb2, 0x1d,
+	0xf8, 0x78, 0x00, 0xf3, 0x91, 0x08, 0xf2, 0xb7, 0x01, 0xe3, 0x4f, 0xc4, 0x4a, 0xd7, 0xe1, 0x68,
+	0xe0, 0xd0, 0x43, 0x93, 0x43, 0x1f, 0xa1, 0xbd, 0x02, 0x0b, 0xc2, 0x5e, 0x9f, 0xad, 0xe2, 0xc9,
+	0x03, 0xdb, 0xaa, 0x70, 0x7a, 0xc3, 0x49, 0xb8, 0x62, 0x75, 0xdf, 0x05, 0xff, 0xcb, 0x25, 0xef,
+	0x45, 0xbb, 0x07, 0x8b, 0x31, 0x9a, 0xc4, 0x65, 0x09, 0xc6, 0x3c, 0x4f, 0x7d, 0xb1, 0x93, 0x0a,
+	0x2d, 0x69, 0xaf, 0xf6, 0x59, 0xba, 0x6b, 0x5b, 0x87, 0x66, 0xab, 0xee, 0xa4, 0x22, 0xf1, 0x19,
+	0x68, 0x71, 0xaa, 0xc4, 0x62, 0x17, 0xae, 0x56, 0x68, 0x89, 0x52, 0x32, 0x25, 0x78, 0xec, 0x39,
+	0x46, 0x9f, 0x22, 0x25, 0x27, 0x00, 0x6b, 0xef, 0xc3, 0xcd, 0x61, 0xf3, 0xb1, 0x8c, 0x70, 0x06,
+	0xc6, 0xf5, 0x6a, 0xb5, 0xc5, 0x1d, 0x67, 0xe6, 0xd2, 0x82, 0xb2, 0x3a, 0x51, 0xf2, 0x5f, 0xb5,
+	0x3d, 0x50, 0x65, 0xc6, 0x88, 0x23, 0x83, 0x71, 0x72, 0x4b, 0xa9, 0x92, 0x53, 0x2c, 0xf9, 0x28,
+	0xed, 0x0d, 0x0a, 0xbd, 0xd7, 0x09, 0x45, 0x7e, 0x68, 0xb7, 0xf8, 0x3d, 0x6e, 0x1a, 0x47, 0x7e,
+	0x3d, 0x70, 0x1a, 0xc6, 0x8e, 0x84, 0x80, 0x58, 0xd2, 0x9b, 0xf6, 0x1e, 0x2c, 0xc5, 0x6a, 0x9f,
+	0xa7, 0x7e, 0x6d, 0xaa, 0xdf, 0x3b, 0xba, 0xab, 0xdf, 0xb5, 0xeb, 0x75, 0xd3, 0xad, 0x73, 0x6b,
+	0x30, 0x5b, 0xf3, 0x90, 0x29, 0x73, 0xc3, 0xb4, 0x1e, 0x97, 0x6b, 0x76, 0xe5, 0x0b, 0x62, 0x03,
+	0x42, 0x54, 0xec, 0x4a, 0xf0, 0x16, 0x4c, 0x70, 0xab, 0x4a, 0xcb, 0x97, 0xc4, 0xf2, 0x55, 0x6e,
+	0x55, 0xbd, 0xc5, 0x50, 0x56, 0x47, 0xfb, 0xb3, 0xea, 0x77, 0x40, 0x84, 0xf3, 0xa0, 0x03, 0x06,
+	0xb2, 0x3b, 0xe7, 0x67, 0x57, 0xae, 0x17, 0x64, 0x79, 0x1f, 0x0a, 0xd1, 0xe6, 0x9d, 0xe2, 0x49,
+	0x4f, 0xe6, 0x07, 0x9a, 0x03, 0xa8, 0x04, 0x42, 0xe1, 0x6d, 0xa2, 0x14, 0x92, 0x68, 0x2d, 0x60,
+	0xa9, 0x2d, 0x12, 0xfb, 0xb7, 0x87, 0xfa, 0x37, 0x9e, 0xfe, 0x50, 0x1f, 0x9b, 0xb0, 0x16, 0xeb,
+	0xb3, 0xa4, 0x5b, 0x06, 0xbf, 0x90, 0x4a, 0x69, 0x75, 0x58, 0x4f, 0xe3, 0xea, 0xa2, 0x22, 0xb3,
+	0x12, 0xea, 0xf3, 0xee, 0x53, 0xbd, 0xe2, 0x5e, 0x60, 0x78, 0x49, 0xd5, 0x0b, 0xfb, 0xbb, 0xa8,
+	0x18, 0xef, 0xc3, 0x66, 0xac, 0xcf, 0x87, 0x7a, 0xcd, 0xac, 0xea, 0xae, 0xdd, 0xf2, 0x43, 0x0c,
+	0x7d, 0x2d, 0x4a, 0xff, 0xd7, 0xd2, 0x4c, 0x48, 0x57, 0xc8, 0xd4, 0x45, 0xb1, 0x5f, 0x0c, 0x9d,
+	0x58, 0x07, 0x56, 0xd9, 0xb6, 0xaa, 0xa6, 0x65, 0xf4, 0x6d, 0x52, 0xda, 0x6b, 0x74, 0x08, 0x49,
+	0x21, 0xc4, 0x23, 0x6a, 0x23, 0xbb, 0x03, 0xab, 0x92, 0x88, 0xce, 0x73, 0x90, 0x7d, 0x2e, 0xfd,
+	0x38, 0x22, 0x0e, 0xb4, 0x9d, 0xa1, 0xaf, 0x3b, 0xb3, 0x9d, 0x15, 0x09, 0x19, 0x50, 0x0f, 0x7f,
+	0xf2, 0xab, 0xb0, 0x1c, 0xc4, 0x27, 0xf5, 0x12, 0x1c, 0xef, 0x87, 0xb0, 0x92, 0x88, 0x24, 0x26,
+	0xaf, 0x43, 0xa6, 0xe7, 0xc2, 0xaf, 0x8d, 0x8c, 0x0a, 0x55, 0x24, 0x8c, 0xd6, 0x56, 0x20, 0x4f,
+	0x7e, 0x5c, 0x3e, 0xe8, 0x29, 0x9c, 0x32, 0xed, 0xad, 0x80, 0x7a, 0x24, 0x90, 0xf8, 0x48, 0x93,
+	0xbb, 0xfd, 0x5d, 0x16, 0xae, 0x08, 0x03, 0xb8, 0x0f, 0x63, 0xde, 0xcc, 0x83, 0x37, 0x04, 0xc9,
+	0xe1, 0x01, 0x4a, 0x9d, 0x19, 0x5e, 0xf0, 0x8c, 0x6b, 0xd9, 0xaf, 0x7e, 0xff, 0xe7, 0xfb, 0x4b,
+	0xd7, 0x30, 0xc3, 0xba, 0xf3, 0x99, 0x37, 0x2d, 0xe1, 0xcf, 0x0a, 0xcc, 0xc6, 0x15, 0x0d, 0x37,
+	0x7b, 0xf6, 0x52, 0xb4, 0x87, 0x5a, 0x48, 0x0b, 0x27, 0x52, 0x9b, 0x82, 0xd4, 0x0a, 0xe6, 0x05,
+	0xa9, 0xaa, 0xee, 0xea, 0x8f, 0x7b, 0x39, 0x66, 0x2d, 0x2a, 0x18, 0x6b, 0x8b, 0x4c, 0x74, 0xf0,
+	0x47, 0x05, 0xd4, 0xe8, 0xba, 0xe2, 0x46, 0xcf, 0x7b, 0x62, 0x9f, 0xa8, 0x2f, 0xa6, 0x03, 0x13,
+	0xd1, 0xbc, 0x20, 0x3a, 0x8f, 0x73, 0xb1, 0x44, 0xf1, 0x27, 0x05, 0x6e, 0x46, 0xd6, 0x19, 0xd7,
+	0xc3, 0x2e, 0xe3, 0xbb, 0x46, 0xdd, 0x48, 0x85, 0x25, 0x76, 0x6b, 0x82, 0xdd, 0x12, 0x2e, 0x4a,
+	0xd9, 0x89, 0xe4, 0xb1, 0x9a, 0xb0, 0x82, 0xbf, 0x28, 0x30, 0x25, 0xdd, 0x75, 0x70, 0x39, 0xaa,
+	0x76, 0xfd, 0x63, 0x88, 0xba, 0x92, 0x88, 0x23, 0x56, 0x8f, 0x04, 0xab, 0x4f, 0xb0, 0x24, 0x65,
+	0x45, 0xbb, 0x1b, 0x13, 0xc7, 0x06, 0x6b, 0x87, 0x0e, 0x94, 0x0e, 0xe3, 0x56, 0x95, 0xb5, 0x83,
+	0x13, 0xa4, 0xc3, 0x68, 0xef, 0x65, 0x6d, 0x7a, 0xe8, 0xe0, 0xaf, 0x0a, 0x2c, 0x26, 0xee, 0xc0,
+	0xb8, 0x9d, 0x40, 0x55, 0xb2, 0xf3, 0xab, 0x3b, 0xe7, 0xd2, 0xa1, 0x50, 0x77, 0x45, 0xa8, 0x5b,
+	0xc8, 0xe2, 0x42, 0x75, 0x24, 0x71, 0xfc, 0xa6, 0x80, 0x96, 0x3c, 0xc6, 0x60, 0x0a, 0x52, 0x43,
+	0xcd, 0xab, 0xbe, 0x74, 0x3e, 0x25, 0x0a, 0xe5, 0x4d, 0x11, 0xca, 0x2e, 0xbe, 0x1c, 0x1f, 0x4a,
+	0x48, 0xd6, 0xee, 0x3d, 0x77, 0xf0, 0x0f, 0x05, 0xe6, 0x62, 0x07, 0x17, 0x2c, 0x24, 0xd3, 0x0a,
+	0x4f, 0x1b, 0x2a, 0x4b, 0x8d, 0xa7, 0x08, 0x0e, 0x44, 0x04, 0x1f, 0xe2, 0x5e, 0x7c, 0x04, 0xa1,
+	0x8e, 0x1b, 0x6e, 0x3f, 0x5f, 0xde, 0x6b, 0x42, 0xfc, 0x37, 0xa6, 0x54, 0xbd, 0x99, 0x25, 0x4d,
+	0xa9, 0x86, 0x26, 0xaa, 0x34, 0xa5, 0x1a, 0x1e, 0x8b, 0xb4, 0x4f, 0x45, 0xa0, 0x07, 0xf8, 0x71,
+	0x7c, 0xa0, 0xbc, 0xab, 0x79, 0xee, 0x70, 0x3b, 0x80, 0xc3, 0x37, 0x64, 0x5c, 0xea, 0xdf, 0x35,
+	0xa5, 0x37, 0x6c, 0xf5, 0x76, 0x3c, 0x88, 0xd8, 0xcf, 0x0a, 0xf6, 0xd3, 0x38, 0x29, 0xd8, 0x7b,
+	0x17, 0xa1, 0xde, 0x4e, 0xfa, 0x8d, 0x02, 0x93, 0xb2, 0x7b, 0x31, 0xe6, 0x7b, 0xc6, 0x63, 0x6e,
+	0xdc, 0xea, 0x72, 0x12, 0x8c, 0x58, 0xdc, 0x16, 0x2c, 0x72, 0x38, 0x2b, 0x63, 0x11, 0x1c, 0x3c,
+	0x75, 0xb8, 0xd6, 0x77, 0x87, 0xc4, 0xdc, 0xa0, 0xf9, 0x81, 0x4d, 0x72, 0x3e, 0x72, 0x9d, 0xfc,
+	0xde, 0x12, 0x7e, 0xa7, 0x30, 0x1b, 0xf6, 0x4b, 0x25, 0xc3, 0x1f, 0x14, 0x98, 0x96, 0x5f, 0x2b,
+	0x71, 0x45, 0x96, 0x5b, 0xc9, 0xb5, 0x55, 0x5d, 0x4d, 0x06, 0x12, 0x95, 0x0d, 0x41, 0x25, 0x8f,
+	0x4b, 0x92, 0x14, 0xb0, 0xb2, 0xd0, 0x60, 0x6d, 0x6f, 0x56, 0xec, 0xe0, 0xd7, 0x0a, 0x4c, 0x49,
+	0x7f, 0x15, 0xe0, 0x72, 0x44, 0xc8, 0x03, 0xbf, 0x21, 0xc2, 0xe7, 0x47, 0xec, 0x3f, 0x07, 0x6d,
+	0x4e, 0xf0, 0xba, 0x81, 0x53, 0x82, 0x57, 0xd0, 0xce, 0x7e, 0x4d, 0xbe, 0x84, 0xac, 0x64, 0xda,
+	0xc5, 0x81, 0xe6, 0x93, 0xcf, 0xcb, 0x6a, 0x3e, 0x01, 0x45, 0x14, 0xa6, 0x05, 0x85, 0xff, 0xe3,
+	0x75, 0x41, 0xe1, 0xd8, 0x47, 0x15, 0xef, 0x3f, 0x3b, 0xcd, 0x29, 0xcf, 0x4f, 0x73, 0xca, 0xdf,
+	0xa7, 0x39, 0xe5, 0xdb, 0xb3, 0xdc, 0xc8, 0xf3, 0xb3, 0xdc, 0xc8, 0x9f, 0x67, 0xb9, 0x91, 0x47,
+	0xcc, 0x30, 0xdd, 0xa3, 0xe3, 0x72, 0xa1, 0x62, 0xd7, 0x59, 0x85, 0xd7, 0xb8, 0xe3, 0x9a, 0xba,
+	0xdd, 0x32, 0x82, 0xe7, 0x4d, 0xbd, 0xd1, 0x60, 0x4f, 0x59, 0xf0, 0xfb, 0xad, 0x3c, 0x26, 0xfe,
+	0x87, 0xed, 0xfc, 0x17, 0x00, 0x00, 0xff, 0xff, 0xce, 0xda, 0x76, 0x7a, 0xbb, 0x13, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1287,6 +1570,12 @@ const _ = grpc.SupportPackageIsVersion4
 type QueryClient interface {
 	// Params Queries the current parameters for the qgb module
 	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
+	// DataCommitmentRequest Queries data commitment request by nonce.
+	DataCommitmentRequestByNonce(ctx context.Context, in *QueryDataCommitmentRequestByNonceRequest, opts ...grpc.CallOption) (*QueryDataCommitmentRequestByNonceResponse, error)
+	// LastDataCommitmentRequests Query the last data commitments.
+	LastDataCommitmentRequests(ctx context.Context, in *QueryLastDataCommitmentRequestsRequest, opts ...grpc.CallOption) (*QueryLastDataCommitmentRequestsResponse, error)
+	// LatestDataCommitmentNonce
+	LatestDataCommitmentNonce(ctx context.Context, in *QueryLatestDataCommitmentNonceRequest, opts ...grpc.CallOption) (*QueryLatestDataCommitmentNonceResponse, error)
 	// DataCommitmentConfirm Queries the data commitment confirm by the commitment
 	// and the validator address
 	DataCommitmentConfirm(ctx context.Context, in *QueryDataCommitmentConfirmRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmResponse, error)
@@ -1327,6 +1616,33 @@ func NewQueryClient(cc grpc1.ClientConn) QueryClient {
 func (c *queryClient) Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error) {
 	out := new(QueryParamsResponse)
 	err := c.cc.Invoke(ctx, "/qgb.Query/Params", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) DataCommitmentRequestByNonce(ctx context.Context, in *QueryDataCommitmentRequestByNonceRequest, opts ...grpc.CallOption) (*QueryDataCommitmentRequestByNonceResponse, error) {
+	out := new(QueryDataCommitmentRequestByNonceResponse)
+	err := c.cc.Invoke(ctx, "/qgb.Query/DataCommitmentRequestByNonce", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) LastDataCommitmentRequests(ctx context.Context, in *QueryLastDataCommitmentRequestsRequest, opts ...grpc.CallOption) (*QueryLastDataCommitmentRequestsResponse, error) {
+	out := new(QueryLastDataCommitmentRequestsResponse)
+	err := c.cc.Invoke(ctx, "/qgb.Query/LastDataCommitmentRequests", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) LatestDataCommitmentNonce(ctx context.Context, in *QueryLatestDataCommitmentNonceRequest, opts ...grpc.CallOption) (*QueryLatestDataCommitmentNonceResponse, error) {
+	out := new(QueryLatestDataCommitmentNonceResponse)
+	err := c.cc.Invoke(ctx, "/qgb.Query/LatestDataCommitmentNonce", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1436,6 +1752,12 @@ func (c *queryClient) LastUnbondingHeight(ctx context.Context, in *QueryLastUnbo
 type QueryServer interface {
 	// Params Queries the current parameters for the qgb module
 	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)
+	// DataCommitmentRequest Queries data commitment request by nonce.
+	DataCommitmentRequestByNonce(context.Context, *QueryDataCommitmentRequestByNonceRequest) (*QueryDataCommitmentRequestByNonceResponse, error)
+	// LastDataCommitmentRequests Query the last data commitments.
+	LastDataCommitmentRequests(context.Context, *QueryLastDataCommitmentRequestsRequest) (*QueryLastDataCommitmentRequestsResponse, error)
+	// LatestDataCommitmentNonce
+	LatestDataCommitmentNonce(context.Context, *QueryLatestDataCommitmentNonceRequest) (*QueryLatestDataCommitmentNonceResponse, error)
 	// DataCommitmentConfirm Queries the data commitment confirm by the commitment
 	// and the validator address
 	DataCommitmentConfirm(context.Context, *QueryDataCommitmentConfirmRequest) (*QueryDataCommitmentConfirmResponse, error)
@@ -1471,6 +1793,15 @@ type UnimplementedQueryServer struct {
 
 func (*UnimplementedQueryServer) Params(ctx context.Context, req *QueryParamsRequest) (*QueryParamsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Params not implemented")
+}
+func (*UnimplementedQueryServer) DataCommitmentRequestByNonce(ctx context.Context, req *QueryDataCommitmentRequestByNonceRequest) (*QueryDataCommitmentRequestByNonceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentRequestByNonce not implemented")
+}
+func (*UnimplementedQueryServer) LastDataCommitmentRequests(ctx context.Context, req *QueryLastDataCommitmentRequestsRequest) (*QueryLastDataCommitmentRequestsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LastDataCommitmentRequests not implemented")
+}
+func (*UnimplementedQueryServer) LatestDataCommitmentNonce(ctx context.Context, req *QueryLatestDataCommitmentNonceRequest) (*QueryLatestDataCommitmentNonceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LatestDataCommitmentNonce not implemented")
 }
 func (*UnimplementedQueryServer) DataCommitmentConfirm(ctx context.Context, req *QueryDataCommitmentConfirmRequest) (*QueryDataCommitmentConfirmResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentConfirm not implemented")
@@ -1524,6 +1855,60 @@ func _Query_Params_Handler(srv interface{}, ctx context.Context, dec func(interf
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryServer).Params(ctx, req.(*QueryParamsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_DataCommitmentRequestByNonce_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryDataCommitmentRequestByNonceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).DataCommitmentRequestByNonce(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qgb.Query/DataCommitmentRequestByNonce",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).DataCommitmentRequestByNonce(ctx, req.(*QueryDataCommitmentRequestByNonceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_LastDataCommitmentRequests_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryLastDataCommitmentRequestsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).LastDataCommitmentRequests(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qgb.Query/LastDataCommitmentRequests",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).LastDataCommitmentRequests(ctx, req.(*QueryLastDataCommitmentRequestsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_LatestDataCommitmentNonce_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryLatestDataCommitmentNonceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).LatestDataCommitmentNonce(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qgb.Query/LatestDataCommitmentNonce",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).LatestDataCommitmentNonce(ctx, req.(*QueryLatestDataCommitmentNonceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1733,6 +2118,18 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Params",
 			Handler:    _Query_Params_Handler,
+		},
+		{
+			MethodName: "DataCommitmentRequestByNonce",
+			Handler:    _Query_DataCommitmentRequestByNonce_Handler,
+		},
+		{
+			MethodName: "LastDataCommitmentRequests",
+			Handler:    _Query_LastDataCommitmentRequests_Handler,
+		},
+		{
+			MethodName: "LatestDataCommitmentNonce",
+			Handler:    _Query_LatestDataCommitmentNonce_Handler,
 		},
 		{
 			MethodName: "DataCommitmentConfirm",
@@ -2560,6 +2957,180 @@ func (m *QueryLastUnbondingHeightResponse) MarshalToSizedBuffer(dAtA []byte) (in
 	return len(dAtA) - i, nil
 }
 
+func (m *QueryDataCommitmentRequestByNonceRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryDataCommitmentRequestByNonceRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryDataCommitmentRequestByNonceRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Nonce != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.Nonce))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryDataCommitmentRequestByNonceResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryDataCommitmentRequestByNonceResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryDataCommitmentRequestByNonceResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Commitment != nil {
+		{
+			size, err := m.Commitment.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintQuery(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryLastDataCommitmentRequestsRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryLastDataCommitmentRequestsRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryLastDataCommitmentRequestsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryLastDataCommitmentRequestsResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryLastDataCommitmentRequestsResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryLastDataCommitmentRequestsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Commitments) > 0 {
+		for iNdEx := len(m.Commitments) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Commitments[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintQuery(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryLatestDataCommitmentNonceRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryLatestDataCommitmentNonceRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryLatestDataCommitmentNonceRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryLatestDataCommitmentNonceResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryLatestDataCommitmentNonceResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryLatestDataCommitmentNonceResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Nonce != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.Nonce))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
 	offset -= sovQuery(v)
 	base := offset
@@ -2886,6 +3457,76 @@ func (m *QueryLastUnbondingHeightResponse) Size() (n int) {
 	_ = l
 	if m.Height != 0 {
 		n += 1 + sovQuery(uint64(m.Height))
+	}
+	return n
+}
+
+func (m *QueryDataCommitmentRequestByNonceRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Nonce != 0 {
+		n += 1 + sovQuery(uint64(m.Nonce))
+	}
+	return n
+}
+
+func (m *QueryDataCommitmentRequestByNonceResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Commitment != nil {
+		l = m.Commitment.Size()
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryLastDataCommitmentRequestsRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *QueryLastDataCommitmentRequestsResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Commitments) > 0 {
+		for _, e := range m.Commitments {
+			l = e.Size()
+			n += 1 + l + sovQuery(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *QueryLatestDataCommitmentNonceRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *QueryLatestDataCommitmentNonceResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Nonce != 0 {
+		n += 1 + sovQuery(uint64(m.Nonce))
 	}
 	return n
 }
@@ -4789,6 +5430,414 @@ func (m *QueryLastUnbondingHeightResponse) Unmarshal(dAtA []byte) error {
 				b := dAtA[iNdEx]
 				iNdEx++
 				m.Height |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryDataCommitmentRequestByNonceRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryDataCommitmentRequestByNonceRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryDataCommitmentRequestByNonceRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Nonce", wireType)
+			}
+			m.Nonce = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Nonce |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryDataCommitmentRequestByNonceResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryDataCommitmentRequestByNonceResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryDataCommitmentRequestByNonceResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Commitment", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Commitment == nil {
+				m.Commitment = &DataCommitment{}
+			}
+			if err := m.Commitment.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryLastDataCommitmentRequestsRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryLastDataCommitmentRequestsRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryLastDataCommitmentRequestsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryLastDataCommitmentRequestsResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryLastDataCommitmentRequestsResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryLastDataCommitmentRequestsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Commitments", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Commitments = append(m.Commitments, DataCommitment{})
+			if err := m.Commitments[len(m.Commitments)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryLatestDataCommitmentNonceRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryLatestDataCommitmentNonceRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryLatestDataCommitmentNonceRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryLatestDataCommitmentNonceResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryLatestDataCommitmentNonceResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryLatestDataCommitmentNonceResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Nonce", wireType)
+			}
+			m.Nonce = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Nonce |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}

@@ -7,7 +7,6 @@ import "google/api/annotations.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
 import "qgb/msgs.proto";
 import "gogoproto/gogo.proto";
-// this line is used by starport scaffolding # 1
 
 option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
@@ -17,6 +16,26 @@ service Query {
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
     option (google.api.http).get = "/qgb/params";
   }
+
+  // data commitment request queries
+
+  // DataCommitmentRequest Queries data commitment request by nonce.
+  rpc DataCommitmentRequestByNonce(QueryDataCommitmentRequestByNonceRequest)
+      returns (QueryDataCommitmentRequestByNonceResponse) {
+    option (google.api.http).get = "/qgb/data_commitment/requests/{nonce}";
+  }
+  // LastDataCommitmentRequests Query the last data commitments.
+  rpc LastDataCommitmentRequests(QueryLastDataCommitmentRequestsRequest)
+      returns (QueryLastDataCommitmentRequestsResponse) {
+    option (google.api.http).get = "/qgb/data_commitment/requests";
+  }
+  // LatestDataCommitmentNonce
+  rpc LatestDataCommitmentNonce(QueryLatestDataCommitmentNonceRequest)
+      returns (QueryLatestDataCommitmentNonceResponse) {
+    option (google.api.http).get = "/qgb/data_commitment/nonce/latest";
+  }
+
+  // Data commitment confirm queries
 
   // DataCommitmentConfirm Queries the data commitment confirm by the commitment
   // and the validator address
@@ -58,6 +77,9 @@ service Query {
         "/qgb/data_commitment/confirms/exact/begin_block/"
         "{begin_block}/end_block/{end_block}";
   }
+
+  // valset request queries
+
   // LastValsetRequests queries for the latest valset requests
   rpc LastValsetRequests(QueryLastValsetRequestsRequest)
       returns (QueryLastValsetRequestsResponse) {
@@ -68,6 +90,9 @@ service Query {
       returns (QueryValsetRequestByNonceResponse) {
     option (google.api.http).get = "/qgb/valset/requests/{nonce}";
   }
+
+  // valset confirm queries
+
   // ValsetConfirm Queries ValSetConfirm
   rpc ValsetConfirm(QueryValsetConfirmRequest)
       returns (QueryValsetConfirmResponse) {
@@ -83,6 +108,9 @@ service Query {
       returns (QueryValsetConfirmsByNonceResponse) {
     option (google.api.http).get = "/qgb/confirms/{nonce}";
   }
+
+  // misc
+
   // LastUnbondingHeight
   rpc LastUnbondingHeight(QueryLastUnbondingHeightRequest)
       returns (QueryLastUnbondingHeightResponse) {
@@ -207,3 +235,25 @@ message QueryLastUnbondingHeightRequest {}
 
 // QueryLastUnbondingHeightResponse
 message QueryLastUnbondingHeightResponse { uint64 height = 1; }
+
+// QueryDataCommitmentRequestRequest Data commitment by nonce request
+message QueryDataCommitmentRequestByNonceRequest {
+  // Unique number referencing the `DataCommitment`.
+  uint64 nonce = 1;
+}
+// QueryDataCommitmentRequestResponse Data commitment by nonce response
+message QueryDataCommitmentRequestByNonceResponse {
+  DataCommitment commitment = 1;
+}
+
+// QueryLastDataCommitmentRequestsRequest Last data commitment request
+message QueryLastDataCommitmentRequestsRequest {}
+// QueryLastDataCommitmentRequestsResponse Last data commitment response
+message QueryLastDataCommitmentRequestsResponse {
+  repeated DataCommitment commitments = 1 [ (gogoproto.nullable) = false ];
+}
+
+// QueryLatestDataCommitmentNonceRequest Latest data commitment nonce request
+message QueryLatestDataCommitmentNonceRequest {}
+// QueryLatestDataCommitmentNonceResponse Latest data commitment nonce response
+message QueryLatestDataCommitmentNonceResponse { uint64 nonce = 1; }

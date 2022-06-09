@@ -97,10 +97,8 @@ func generateDataCommitments(count int) ([]ExtendedDataCommitment, error) {
 
 func generateDc(nonce int) (ExtendedDataCommitment, error) {
 	dc := ExtendedDataCommitment{
+		*types.NewDataCommitment(uint64(nonce), 1, 30),
 		[]byte("test_commitment"),
-		1,
-		30,
-		uint64(nonce),
 	}
 	return dc, nil
 }
@@ -119,7 +117,7 @@ func verifyOrchestratorDcSignatures(broadCasted []sdk.Msg, dcs []ExtendedDataCom
 		}
 		dataRootHash := types.DataCommitmentTupleRootSignBytes(
 			types.BridgeId,
-			big.NewInt(int64(dcs[i].Nonce)),
+			big.NewInt(int64(dcs[i].Data.Nonce)),
 			dcs[i].Commitment,
 		)
 		ethAddress, err := stakingtypes.NewEthAddress(msg.EthAddress)

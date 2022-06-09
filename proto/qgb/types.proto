@@ -23,3 +23,19 @@ message Valset {
   // Current chain height
   uint64 height = 3;
 }
+
+// DataCommitment is the data commitment request message that will be signed
+// using orchestrators.
+// It does not contain a `commitment` field as this message will be created
+// inside the state machine and it doesn't make sense to ask tendermint for the
+// commitment there.
+message DataCommitment {
+  // Unique number referencing the `DataCommitment`.
+  uint64 nonce = 1;
+  // First block defining the ordered set of blocks used to create the
+  // commitment.
+  uint64 begin_block = 2;
+  // Last block defining the ordered set of blocks used to create the
+  // commitment.
+  uint64 end_block = 3;
+}

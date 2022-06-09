@@ -127,6 +127,8 @@ func (k Keeper) IterateValsets(ctx sdk.Context, cb func(key []byte, val *types.V
 
 // GetValsets returns all the validator sets in state
 func (k Keeper) GetValsets(ctx sdk.Context) (out []types.Valset) {
+	// TODO this should definitely be optimized. Adding support for paging or providing a range
+	// is way better
 	k.IterateValsets(ctx, func(_ []byte, val *types.Valset) bool {
 		out = append(out, *val)
 		return false

@@ -63,25 +63,25 @@ func (oc *orchestrator) processDataCommitmentEvents(
 	dataCommitmentChannel <-chan ExtendedDataCommitment,
 ) error {
 	for dc := range dataCommitmentChannel {
-		dataRootHash := types.DataCommitmentTupleRootSignBytes(oc.bridgeID, big.NewInt(int64(dc.Nonce)), dc.Commitment)
+		dataRootHash := types.DataCommitmentTupleRootSignBytes(oc.bridgeID, big.NewInt(int64(dc.Data.Nonce)), dc.Commitment)
 		dcSig, err := types.NewEthereumSignature(dataRootHash.Bytes(), &oc.evmPrivateKey)
 		if err != nil {
-			oc.logger.Error(fmt.Sprintf("data commitment range %d-%d: %s", dc.Start, dc.End, err.Error()))
+			oc.logger.Error(fmt.Sprintf("data commitment range %d-%d: %s", dc.Data.BeginBlock, dc.Data.EndBlock, err.Error()))
 			continue
 		}
 
 		msg := &types.MsgDataCommitmentConfirm{
 			EthAddress:       crypto.PubkeyToAddress(oc.evmPrivateKey.PublicKey).Hex(),
 			Commitment:       dc.Commitment.String(),
-			BeginBlock:       dc.Start,
-			EndBlock:         dc.End,
+			BeginBlock:       dc.Data.BeginBlock,
+			EndBlock:         dc.Data.EndBlock,
 			ValidatorAddress: oc.orchestratorAddress,
 			Signature:        ethcmn.Bytes2Hex(dcSig),
 		}
 
 		hash, err := oc.broadcaster.BroadcastTx(ctx, msg)
 		if err != nil {
-			oc.logger.Error(fmt.Sprintf("data commitment range %d-%d: %s", dc.Start, dc.End, err.Error()))
+			oc.logger.Error(fmt.Sprintf("data commitment range %d-%d: %s", dc.Data.BeginBlock, dc.Data.EndBlock, err.Error()))
 			continue
 		}
 		oc.logger.Info(fmt.Sprintf(

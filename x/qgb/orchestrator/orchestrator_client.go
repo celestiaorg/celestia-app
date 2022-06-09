@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/rpc/client/http"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 var _ AppClient = &orchestratorClient{}
@@ -80,6 +80,7 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 			case <-ctx.Done():
 				return
 			case <-results:
+				// TODO add query for LatestValsetNonce and use it instead of this
 				valsets, err := oc.querier.QueryLastValsets(ctx)
 				if err != nil {
 					oc.logger.Error(err.Error())
@@ -121,6 +122,7 @@ func (oc *orchestratorClient) addOldValsetAttestations(ctx context.Context, vals
 		return
 	}
 
+	// TODO add query for LatestValsetNonce and use it instead of this
 	valsets, err := oc.querier.QueryLastValsets(ctx)
 	if err != nil {
 		oc.logger.Error(err.Error())
@@ -181,11 +183,8 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 	// }
 
 	// params := resp.Params
-	q := coretypes.EventQueryNewBlockHeader.String()
-	results, err := oc.tendermintRPC.Subscribe(ctx, "height", q)
-	if err != nil {
-		return nil, err
-	}
+
+	nonces := make([]uint64, 10000)
 
 	go func() {
 		defer close(dataCommitments)
@@ -194,43 +193,58 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 			select {
 			case <-ctx.Done():
 				return
-			case ev := <-results:
-				eventDataHeader := ev.Data.(coretypes.EventDataNewBlockHeader)
-				height := uint64(eventDataHeader.Header.Height)
-				// todo: refactor to ensure that no ranges of blocks are missed if the
-				// parameters are changed
-				if height%types.DataCommitmentWindow != 0 {
+			default:
+				latestDCNonce, err := oc.querier.QueryLatestDataCommitmentNonce(ctx)
+				if err != nil {
+					oc.logger.Error(err.Error())
+					time.Sleep(5 * time.Second)
 					continue
 				}
 
-				// TODO: calculate start height some other way that can handle changes
-				// in the data window param
-				startHeight := height - types.DataCommitmentWindow
-				endHeight := height
+				// query data commitment request
+				dc, err := oc.querier.QueryDataCommitmentByNonce(ctx, latestDCNonce)
+				if err != nil {
+					oc.logger.Error(err.Error())
+					time.Sleep(5 * time.Second)
+					continue
+				}
+				if dc == nil {
+					time.Sleep(5 * time.Second)
+					continue
+				}
 
-				// create and send the data commitment
+				// check if already signed
+				signed, err := oc.querier.QueryDataCommitmentConfirm(ctx, dc.EndBlock, dc.BeginBlock, oc.orchestratorAddress)
+				if err != nil {
+					oc.logger.Error(err.Error())
+					time.Sleep(5 * time.Second)
+					continue
+				}
+				if signed != nil {
+					time.Sleep(5 * time.Second)
+					continue
+				}
+
+				// get the commitment
 				dcResp, err := oc.tendermintRPC.DataCommitment(
 					ctx,
 					fmt.Sprintf("block.height >= %d AND block.height <= %d",
-						startHeight,
-						endHeight,
+						dc.BeginBlock,
+						dc.EndBlock,
 					),
 				)
 				if err != nil {
 					oc.logger.Error(err.Error())
 					continue
 				}
-
-				// TODO: store the nonce in the state somewhere, so that we don't have
-				// to assume what the nonce is
-				nonce := height / types.DataCommitmentWindow
-
-				dataCommitments <- ExtendedDataCommitment{
-					Commitment: dcResp.DataCommitment,
-					Start:      startHeight,
-					End:        endHeight,
-					Nonce:      nonce,
+				if !contains(nonces, dc.Nonce) {
+					dataCommitments <- ExtendedDataCommitment{
+						Commitment: dcResp.DataCommitment,
+						Data:       *dc,
+					}
+					nonces = append(nonces, dc.Nonce)
 				}
+				time.Sleep(5 * time.Second)
 			}
 		}
 	}()
@@ -250,35 +264,31 @@ func (oc *orchestratorClient) addOldDataCommitmentAttestations(
 		return
 	}
 
-	currentHeight, err := oc.querier.QueryHeight(ctx)
+	latestDCNonce, err := oc.querier.QueryLatestDataCommitmentNonce(ctx)
 	if err != nil {
 		oc.logger.Error(err.Error())
 		return
 	}
 
-	var previousBeginBlock uint64
-	var previousEndBlock uint64
+	for n := uint64(0); n <= latestDCNonce; n++ {
 
-	if currentHeight%types.DataCommitmentWindow == 0 {
-		previousBeginBlock = currentHeight
-	} else {
-		// to have a correct range
-		previousBeginBlock = currentHeight - currentHeight%types.DataCommitmentWindow
-	}
+		// To start signing from new to old
+		nonce := latestDCNonce - n
 
-	for {
-		// Will be refactored when we have data commitment requests
-		previousEndBlock = previousBeginBlock
-		previousBeginBlock = previousEndBlock - types.DataCommitmentWindow
-
-		if previousEndBlock == 0 {
+		// query data commitment request
+		dc, err := oc.querier.QueryDataCommitmentByNonce(ctx, nonce)
+		if err != nil {
+			oc.logger.Error(err.Error())
+			return
+		}
+		if dc == nil {
 			return
 		}
 
 		existingConfirm, err := oc.querier.QueryDataCommitmentConfirm(
 			ctx,
-			previousEndBlock,
-			previousBeginBlock,
+			dc.EndBlock,
+			dc.BeginBlock,
 			oc.orchestratorAddress,
 		)
 		if err != nil {
@@ -286,7 +296,7 @@ func (oc *orchestratorClient) addOldDataCommitmentAttestations(
 			continue
 		}
 
-		if previousEndBlock < lastUnbondingHeight {
+		if dc.EndBlock < lastUnbondingHeight {
 			// Most likely, we're up to date and don't need to catchup anymore
 			return
 		}
@@ -294,13 +304,12 @@ func (oc *orchestratorClient) addOldDataCommitmentAttestations(
 			// In case we have holes in the signatures
 			continue
 		}
-		previousNonce := previousEndBlock / types.DataCommitmentWindow
 
 		previousCommitment, err := oc.tendermintRPC.DataCommitment(
 			ctx,
 			fmt.Sprintf("block.height >= %d AND block.height <= %d",
-				previousBeginBlock,
-				previousEndBlock,
+				dc.BeginBlock,
+				dc.EndBlock,
 			),
 		)
 		if err != nil {
@@ -310,9 +319,7 @@ func (oc *orchestratorClient) addOldDataCommitmentAttestations(
 
 		dataCommitmentsChan <- ExtendedDataCommitment{
 			Commitment: previousCommitment.DataCommitment,
-			Start:      previousBeginBlock,
-			End:        previousEndBlock,
-			Nonce:      previousNonce,
+			Data:       *dc,
 		}
 	}
 }

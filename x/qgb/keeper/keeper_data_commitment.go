@@ -1,174 +1,130 @@
 package keeper
 
 import (
+	"fmt"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"strconv"
+	"sort"
 )
 
 // TODO add unit tests for alll the keepers
 
-// GetDataCommitmentConfirm Returns a data commitment confirm by nonce and validator address
-// nonce = endBlock % data window in decimal base
-func (k Keeper) GetDataCommitmentConfirm(
-	ctx sdk.Context,
-	endBlock uint64,
-	beginBlock uint64,
-	validator sdk.AccAddress,
-) *types.MsgDataCommitmentConfirm {
-	store := ctx.KVStore(k.storeKey)
-	if err := sdk.VerifyAddressFormat(validator); err != nil {
-		ctx.Logger().Error("invalid validator address")
-		return nil
-	}
-	key := store.Get([]byte(types.GetDataCommitmentConfirmKey(endBlock, beginBlock, validator)))
-	if key == nil {
-		return nil
-	}
-	confirm := types.MsgDataCommitmentConfirm{}
-	k.cdc.MustUnmarshal(key, &confirm)
-	return &confirm
-}
-
-// GetDataCommitmentConfirmsByCommitment Returns data commitment confirms by nonce
-// Too heavy, shouldn't be primarily used
-func (k Keeper) GetDataCommitmentConfirmsByCommitment(
-	ctx sdk.Context,
-	commitment string,
-) (confirms []types.MsgDataCommitmentConfirm) {
-	store := ctx.KVStore(k.storeKey)
-	iterator := store.Iterator(nil, nil)
-
-	defer iterator.Close()
-
-	for ; iterator.Valid(); iterator.Next() {
-		confirm := types.MsgDataCommitmentConfirm{}
-		err := k.cdc.Unmarshal(iterator.Value(), &confirm)
-		if err != nil {
-			continue
-		}
-		if commitment == confirm.Commitment {
-			confirms = append(confirms, confirm)
-		}
-	}
-
-	return confirms
-}
-
-// GetDataCommitmentConfirmsByValidator Returns data commitment confirms by validator address
-func (k Keeper) GetDataCommitmentConfirmsByValidator(
-	ctx sdk.Context,
-	validator sdk.AccAddress,
-) (confirms []types.MsgDataCommitmentConfirm) {
-	if err := sdk.VerifyAddressFormat(validator); err != nil {
-		ctx.Logger().Error("invalid validator address")
-		return nil
-	}
-
-	store := ctx.KVStore(k.storeKey)
-	iterator := store.Iterator(nil, nil) // Can we make this faster?
-
-	defer iterator.Close()
-
-	for ; iterator.Valid(); iterator.Next() {
-		confirm := types.MsgDataCommitmentConfirm{}
-		err := k.cdc.Unmarshal(iterator.Value(), &confirm)
-		if err != nil {
-			continue
-		}
-		if confirm.ValidatorAddress == validator.String() {
-			confirms = append(confirms, confirm)
-		}
-	}
-
-	return confirms
-}
-
-// GetDataCommitmentConfirmsByRange Returns data commitment confirms by the provided range
-func (k Keeper) GetDataCommitmentConfirmsByRange(
-	ctx sdk.Context,
-	beginBlock uint64,
-	endBlock uint64,
-) (confirms []types.MsgDataCommitmentConfirm) {
-	store := ctx.KVStore(k.storeKey)
-	iterator := store.Iterator(nil, nil) // Can we make this faster?
-
-	defer iterator.Close()
-
-	for ; iterator.Valid(); iterator.Next() {
-		confirm := types.MsgDataCommitmentConfirm{}
-		err := k.cdc.Unmarshal(iterator.Value(), &confirm)
-		if err != nil {
-			continue
-		}
-		if beginBlock <= confirm.BeginBlock && endBlock >= confirm.EndBlock {
-			confirms = append(confirms, confirm)
-		}
-	}
-
-	return confirms
-}
-
-// GetDataCommitmentConfirmsByExactRange Returns data commitment confirms by the provided exact range
-func (k Keeper) GetDataCommitmentConfirmsByExactRange(
-	ctx sdk.Context,
-	beginBlock uint64,
-	endBlock uint64,
-) (confirms []types.MsgDataCommitmentConfirm) {
-	store := ctx.KVStore(k.storeKey)
-	iterator := sdk.KVStorePrefixIterator(
-		store,
-		[]byte(types.DataCommitmentConfirmKey+
-			strconv.FormatInt(int64(endBlock), 16)+
-			strconv.FormatInt(int64(beginBlock), 16),
-		),
-	)
-
-	defer iterator.Close()
-
-	for ; iterator.Valid(); iterator.Next() {
-		confirm := types.MsgDataCommitmentConfirm{}
-		err := k.cdc.Unmarshal(iterator.Value(), &confirm)
-		if err != nil {
-			continue
-		}
-		if beginBlock == confirm.BeginBlock && endBlock == confirm.EndBlock {
-			confirms = append(confirms, confirm)
-		}
-	}
-
-	return confirms
-}
-
-// SetDataCommitmentConfirm Sets the data commitment confirm and indexes it by commitment and validator address
-func (k Keeper) SetDataCommitmentConfirm(ctx sdk.Context, dcConf types.MsgDataCommitmentConfirm) []byte {
-	store := ctx.KVStore(k.storeKey)
-	addr, err := sdk.AccAddressFromBech32(dcConf.ValidatorAddress)
+// SetDataCommitmentRequest Sets a new data commitment request to the store to be signed
+// by orchestrators afterwards.
+func (k Keeper) SetDataCommitmentRequest(ctx sdk.Context) types.DataCommitment {
+	dataCommitment, err := k.GetCurrentDataCommitment(ctx)
 	if err != nil {
 		panic(err)
 	}
-	key := []byte(types.GetDataCommitmentConfirmKey(dcConf.EndBlock, dcConf.BeginBlock, addr))
-	store.Set(key, k.cdc.MustMarshal(&dcConf))
-	return key
+	k.StoreDataCommitment(ctx, dataCommitment)
+	k.SetLatestDataCommitmentNonce(ctx, dataCommitment.Nonce)
+
+	ctx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			types.EventTypeDataCommitmentRequest,
+			sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
+			sdk.NewAttribute(types.AttributeKeyNonce, fmt.Sprint(dataCommitment.Nonce)),
+		),
+	)
+
+	return dataCommitment
 }
 
-// DeleteDataCommitmentConfirms deletes a data commitment confirm by range and validator address
-func (k Keeper) DeleteDataCommitmentConfirms(
-	ctx sdk.Context,
-	endBlock uint64,
-	beginBlock uint64,
-	validator sdk.AccAddress,
-) {
+// GetCurrentDataCommitment Creates latest data commitment at current height according to
+// the data commitment window specified
+func (k Keeper) GetCurrentDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
+	beginBlock := uint64(ctx.BlockHeight()) - types.DataCommitmentWindow
+	endBlock := uint64(ctx.BlockHeight())
+	nonce := uint64(ctx.BlockHeight()) / types.DataCommitmentWindow
+
+	dataCommitment := types.NewDataCommitment(nonce, beginBlock, endBlock)
+	return *dataCommitment, nil
+}
+
+// StoreDataCommitment
+func (k Keeper) StoreDataCommitment(ctx sdk.Context, dc types.DataCommitment) {
+	key := []byte(types.GetDataCommitmentKey(dc.Nonce))
 	store := ctx.KVStore(k.storeKey)
-	if err := sdk.VerifyAddressFormat(validator); err != nil {
-		ctx.Logger().Error("invalid validator address")
-		return
-	}
-	key := store.Get([]byte(types.GetDataCommitmentConfirmKey(endBlock, beginBlock, validator)))
-	if key == nil {
-		return
-	}
+
 	if store.Has(key) {
-		store.Delete(key)
+		panic("Trying to overwrite existing data commitment request!")
+	}
+
+	store.Set((key), k.cdc.MustMarshal(&dc))
+}
+
+// SetLatestDataCommitmentNonce sets the latest data commitment nonce, since it's
+// expected that this value will only increase it panics on an attempt
+// to decrement
+func (k Keeper) SetLatestDataCommitmentNonce(ctx sdk.Context, nonce uint64) {
+	// this is purely an increasing counter and should never decrease
+	if k.CheckLatestValsetNonce(ctx) && k.GetLatestValsetNonce(ctx) > nonce {
+		panic("Decrementing data commitment nonce!")
+	}
+
+	store := ctx.KVStore(k.storeKey)
+	store.Set([]byte(types.LatestDataCommitmentNonce), types.UInt64Bytes(nonce))
+}
+
+// CheckLatestDataCommitmentNonce returns true if the latest data commitment nonce
+// is declared in the store and false if it has not been initialized
+func (k Keeper) CheckLatestDataCommitmentNonce(ctx sdk.Context) bool {
+	store := ctx.KVStore(k.storeKey)
+	has := store.Has([]byte(types.LatestDataCommitmentNonce))
+	return has
+}
+
+// GetLatestDataCommitmentNonce returns the latest data commitment nonce
+func (k Keeper) GetLatestDataCommitmentNonce(ctx sdk.Context) uint64 {
+	if !k.CheckLatestDataCommitmentNonce(ctx) {
+		// TODO: handle this case for genesis properly. Note for Evan: write an issue
+		return 0
+	}
+
+	store := ctx.KVStore(k.storeKey)
+	bytes := store.Get([]byte(types.LatestDataCommitmentNonce))
+	return UInt64FromBytes(bytes)
+}
+
+// GetDataCommitment returns a data commitment by nonce
+func (k Keeper) GetDataCommitment(ctx sdk.Context, nonce uint64) *types.DataCommitment {
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get([]byte(types.GetDataCommitmentKey(nonce)))
+	if bz == nil {
+		return nil
+	}
+	var dc types.DataCommitment
+	k.cdc.MustUnmarshal(bz, &dc)
+	return &dc
+}
+
+// DataCommitments is a collection of DataCommitment
+type DataCommitments []types.DataCommitment
+
+// GetDataCommitments returns all the data commitments in state
+func (k Keeper) GetDataCommitments(ctx sdk.Context) (out []types.DataCommitment) {
+	// TODO this should definitely be optimized. Adding support for paging or providing a range
+	// is way better
+	k.IterateDataCommitments(ctx, func(_ []byte, val *types.DataCommitment) bool {
+		out = append(out, *val)
+		return false
+	})
+	sort.Sort(types.DataCommitments(out))
+	return
+}
+
+// IterateDataCommitments retruns all DataCommitmentRequests
+func (k Keeper) IterateDataCommitments(ctx sdk.Context, cb func(key []byte, val *types.DataCommitment) bool) {
+	prefixStore := prefix.NewStore(ctx.KVStore(k.storeKey), []byte(types.DataCommitmentRequestKey))
+	iter := prefixStore.ReverseIterator(nil, nil)
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		var dc types.DataCommitment
+		k.cdc.MustUnmarshal(iter.Value(), &dc)
+		// cb returns true to stop early
+		if cb(iter.Key(), &dc) {
+			break
+		}
 	}
 }

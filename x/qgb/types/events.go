@@ -1,7 +1,8 @@
 package types
 
 const (
-	EventTypeValsetRequest = "ValsetRequest"
+	EventTypeValsetRequest         = "ValsetRequest"
+	EventTypeDataCommitmentRequest = "DataCommitmentRequest"
 
 	AttributeKeyValsetConfirmKey         = "valset_confirm_key"
 	AttributeKeySetOperatorAddr          = "set_operator_address"

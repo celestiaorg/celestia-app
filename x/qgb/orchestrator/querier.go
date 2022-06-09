@@ -16,7 +16,10 @@ import (
 var _ Querier = &querier{}
 
 type Querier interface {
-	QueryDataCommitments(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error)
+	QueryLatestDataCommitmentNonce(ctx context.Context) (uint64, error)
+	QueryLastDataCommitments(ctx context.Context) ([]types.DataCommitment, error)
+	QueryDataCommitmentByNonce(ctx context.Context, nonce uint64) (*types.DataCommitment, error)
+	QueryDataCommitmentConfirms(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error)
 	QueryDataCommitmentConfirm(
 		ctx context.Context,
 		endBlock uint64,
@@ -90,7 +93,7 @@ func (q *querier) Stop() {
 	}
 }
 
-func (q *querier) QueryDataCommitments(
+func (q *querier) QueryDataCommitmentConfirms(
 	ctx context.Context,
 	commit string,
 ) ([]types.MsgDataCommitmentConfirm, error) {
@@ -114,7 +117,7 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 	timeout time.Duration,
 	dc ExtendedDataCommitment,
 ) ([]types.MsgDataCommitmentConfirm, error) {
-	valset, err := q.QueryLastValsetBeforeHeight(ctx, dc.End)
+	valset, err := q.QueryLastValsetBeforeHeight(ctx, dc.Data.EndBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +138,7 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 			return nil, fmt.Errorf("failure to query for majority validator set confirms: timout %s", timeout)
 		default:
 			currThreshHold := uint64(0)
-			confirms, err := q.QueryDataCommitmentConfirmsByExactRange(ctx, dc.Start, dc.End)
+			confirms, err := q.QueryDataCommitmentConfirmsByExactRange(ctx, dc.Data.BeginBlock, dc.Data.EndBlock)
 			if err != nil {
 				return nil, err
 			}
@@ -386,4 +389,46 @@ func (q *querier) QueryDataCommitmentConfirmsByExactRange(
 		return nil, err
 	}
 	return confirmsResp.Confirms, nil
+}
+
+func (q *querier) QueryDataCommitmentByNonce(ctx context.Context, nonce uint64) (*types.DataCommitment, error) {
+	queryClient := types.NewQueryClient(q.qgbRPC)
+
+	dc, err := queryClient.DataCommitmentRequestByNonce(
+		ctx,
+		&types.QueryDataCommitmentRequestByNonceRequest{Nonce: nonce},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return dc.Commitment, nil
+}
+
+func (q *querier) QueryLastDataCommitments(ctx context.Context) ([]types.DataCommitment, error) {
+	queryClient := types.NewQueryClient(q.qgbRPC)
+
+	dcs, err := queryClient.LastDataCommitmentRequests(
+		ctx,
+		&types.QueryLastDataCommitmentRequestsRequest{},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return dcs.Commitments, nil
+}
+
+func (q *querier) QueryLatestDataCommitmentNonce(ctx context.Context) (uint64, error) {
+	queryClient := types.NewQueryClient(q.qgbRPC)
+
+	dc, err := queryClient.LatestDataCommitmentNonce(
+		ctx,
+		&types.QueryLatestDataCommitmentNonceRequest{},
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	return dc.Nonce, nil
 }
