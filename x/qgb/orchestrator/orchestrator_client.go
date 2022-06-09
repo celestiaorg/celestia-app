@@ -258,8 +258,6 @@ func (oc *orchestratorClient) addOldDataCommitmentAttestations(
 ) {
 	oc.logger.Info("Started adding old Data Commitments attestation to queue")
 	defer oc.logger.Info("Finished adding old Data Commitments attestation to queue")
-	// FIXME I guess we can remove this until we have slashing. The reason being, without slashing
-	// it would be good to just sign everything. So that all attestations are signed.
 	lastUnbondingHeight, err := oc.querier.QueryLastUnbondingHeight(ctx)
 	if err != nil {
 		oc.logger.Error(err.Error())
