@@ -8,6 +8,8 @@ import (
 	"sort"
 )
 
+// TODO add unit tests for alll the keepers
+
 // SetDataCommitmentRequest Sets a new data commitment request to the store to be signed
 // by orchestrators afterwards.
 func (k Keeper) SetDataCommitmentRequest(ctx sdk.Context) types.DataCommitment {
@@ -32,12 +34,6 @@ func (k Keeper) SetDataCommitmentRequest(ctx sdk.Context) types.DataCommitment {
 // GetCurrentDataCommitment Creates latest data commitment at current height according to
 // the data commitment window specified
 func (k Keeper) GetCurrentDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
-	//beginBlock := uint64(ctx.BlockHeight()) - types.DataCommitmentWindow
-	//endBlock := uint64(ctx.BlockHeight())
-	//// the use of begin block is to have intervals defined as:
-	//// [nonce * beginBlock, (nonce+1) * beginBlock]
-	//// also, so the nonces start at 0 and not 1
-	//nonce := beginBlock / types.DataCommitmentWindow
 	beginBlock := uint64(ctx.BlockHeight()) - types.DataCommitmentWindow
 	endBlock := uint64(ctx.BlockHeight())
 	nonce := uint64(ctx.BlockHeight()) / types.DataCommitmentWindow

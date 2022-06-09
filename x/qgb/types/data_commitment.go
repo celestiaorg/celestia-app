@@ -13,7 +13,7 @@ func NewDataCommitment(
 	}
 }
 
-// Valsets is a collection of valset
+// DataCommitments is a collection of DataCommitment
 type DataCommitments []DataCommitment
 
 func (dc DataCommitments) Len() int {

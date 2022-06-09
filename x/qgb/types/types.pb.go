@@ -145,9 +145,11 @@ func (m *Valset) GetHeight() uint64 {
 	return 0
 }
 
-// Valset is the Ethereum Bridge Multsig Set, each gravity validator also
-// maintains an ETH key to sign messages, these are used to check signatures on
-// ETH because of the significant gas savings
+// DataCommitment is the data commitment request message that will be signed
+// using orchestrators.
+// It does not contain a `commitment` field as this message will be created
+// inside the state machine and it doesn't make sense to ask tendermint for the
+// commitment there.
 type DataCommitment struct {
 	// Unique number referencing the `DataCommitment`.
 	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
