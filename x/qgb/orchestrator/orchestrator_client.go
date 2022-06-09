@@ -272,7 +272,10 @@ func (oc *orchestratorClient) addOldDataCommitmentAttestations(
 		return
 	}
 
-	for nonce := latestDCNonce; nonce >= 0; nonce-- { //nolint:staticcheck
+	for n := uint64(0); n <= latestDCNonce; n++ {
+
+		// To start signing from new to old
+		nonce := latestDCNonce - n
 
 		// query data commitment request
 		dc, err := oc.querier.QueryDataCommitmentByNonce(ctx, nonce)

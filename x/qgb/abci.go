@@ -9,18 +9,18 @@ import (
 
 // EndBlocker is called at the end of every block
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
-	handleValset(ctx, k)
-	handleDataCommitment(ctx, k)
+	handleValsetRequest(ctx, k)
+	handleDataCommitmentRequest(ctx, k)
 }
 
-func handleDataCommitment(ctx sdk.Context, k keeper.Keeper) {
+func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
 	if ctx.BlockHeight()%int64(types.DataCommitmentWindow) != 0 {
 		return
 	}
 	k.SetDataCommitmentRequest(ctx)
 }
 
-func handleValset(ctx sdk.Context, k keeper.Keeper) {
+func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 	//get the last valsets to compare against
 	latestValset := k.GetLatestValset(ctx)
 	lastUnbondingHeight := k.GetLastUnBondingBlockHeight(ctx)
