@@ -58,8 +58,9 @@ func (k Keeper) StoreDataCommitment(ctx sdk.Context, dc types.DataCommitment) {
 // expected that this value will only increase it panics on an attempt
 // to decrement
 func (k Keeper) SetLatestDataCommitmentNonce(ctx sdk.Context, nonce uint64) {
+	// TODO add test
 	// this is purely an increasing counter and should never decrease
-	if k.CheckLatestValsetNonce(ctx) && k.GetLatestValsetNonce(ctx) > nonce {
+	if k.CheckLatestDataCommitmentNonce(ctx) && k.GetLatestDataCommitmentNonce(ctx) > nonce {
 		panic("Decrementing data commitment nonce!")
 	}
 
