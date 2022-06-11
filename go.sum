@@ -122,8 +122,8 @@ github.com/btcsuite/snappy-go v0.0.0-20151229074030-0bdef8d06723/go.mod h1:8woku
 github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792/go.mod h1:ghJtEyQwv5/p4Mg4C0fgbePVuGr935/5ddU9Z3TmDRY=
 github.com/btcsuite/winsvc v1.0.0/go.mod h1:jsenWakMcC0zFBFurPLEAyrnc/teJEM1O46fmI40EZs=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-core v1.2.3-tm-v0.35.6 h1:PlOGOdzZNTklBuTepWncOdD7k50g9tTywzJSYTIMzQw=
-github.com/celestiaorg/celestia-core v1.2.3-tm-v0.35.6/go.mod h1:4J51zu8jaHB7vlgwfKC1eyGKpRP3C0REiipTwPPfvCE=
+github.com/celestiaorg/celestia-core v1.2.4-tm-v0.35.6 h1:vKYvdlHpmWDcDP+jKfU64oEp2H74jAWJxCDjTHlXYSs=
+github.com/celestiaorg/celestia-core v1.2.4-tm-v0.35.6/go.mod h1:4J51zu8jaHB7vlgwfKC1eyGKpRP3C0REiipTwPPfvCE=
 github.com/celestiaorg/cosmos-sdk v1.1.1-sdk-v0.46.0 h1:C0FRN6YDoAVtmIE92mXJErBcrscC+ic+fuX+tXk8KvM=
 github.com/celestiaorg/cosmos-sdk v1.1.1-sdk-v0.46.0/go.mod h1:GqLQYM+p8fKlafrn3cRAJgonJBPvSV6h5BUSnuInyvk=
 github.com/celestiaorg/go-leopard v0.1.0 h1:28z2EkvKJIez5J9CEaiiUEC+OxalRLtTGJJ1oScfE1g=
