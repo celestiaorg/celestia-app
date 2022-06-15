@@ -1,6 +1,6 @@
 # celestia-app
 
-**celestia-app** is a blockchain application built using Cosmos SDK and [celestia-core](https://github.com/celestiaorg/celestia-core) in place of tendermint. Disclaimer: **WIP**
+**celestia-app** is a blockchain application built using Cosmos SDK and [celestia-core](https://github.com/celestiaorg/celestia-core) in place of tendermint. 
 
 ## Install
 ```
@@ -20,3 +20,7 @@ celestia-appd start
 Use the `celestia-appd` daemon cli command to post data to a local devent. 
   
 ```celestia-appd tx payment payForData [hexNamespace] [hexMessage] [flags]```
+
+## Careers
+
+We are hiring Go engineers! Join us in building the future of blockchain scaling and interoperability. [Apply here](https://jobs.lever.co/celestia).
