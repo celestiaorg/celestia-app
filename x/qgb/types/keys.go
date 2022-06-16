@@ -31,6 +31,8 @@ const (
 	ValsetRequestKey = "ValsetRequestKey"
 	// ValsetRequestKey indexes valset requests by nonce
 	DataCommitmentRequestKey = "DataCommitmentRequestKey"
+	// ValsetRequestKey indexes valset requests by nonce
+	AttestationRequestKey = "AttestationRequestKey"
 
 	// ValsetConfirmKey indexes valset confirmations by nonce and the validator account address
 	// i.e celes1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm
@@ -77,6 +79,13 @@ func GetValsetKey(nonce uint64) string {
 // [0x0][0 0 0 0 0 0 0 1]
 func GetDataCommitmentKey(nonce uint64) string {
 	return DataCommitmentRequestKey + string(UInt64Bytes(nonce))
+}
+
+// GetAttestationKey returns the following key format
+// prefix    nonce
+// [0x0][0 0 0 0 0 0 0 1]
+func GetAttestationKey(nonce uint64) string {
+	return AttestationRequestKey + string(UInt64Bytes(nonce))
 }
 
 func ConvertByteArrToString(value []byte) string {

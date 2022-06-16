@@ -7,6 +7,8 @@ import "google/api/annotations.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
 import "qgb/msgs.proto";
 import "gogoproto/gogo.proto";
+import "cosmos_proto/cosmos.proto";
+import "google/protobuf/any.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
@@ -17,22 +19,17 @@ service Query {
     option (google.api.http).get = "/qgb/params";
   }
 
-  // data commitment request queries
+  // attestations' requests queries
 
   // DataCommitmentRequest Queries data commitment request by nonce.
-  rpc DataCommitmentRequestByNonce(QueryDataCommitmentRequestByNonceRequest)
-      returns (QueryDataCommitmentRequestByNonceResponse) {
-    option (google.api.http).get = "/qgb/data_commitment/requests/{nonce}";
-  }
-  // LastDataCommitmentRequests Query the last data commitments.
-  rpc LastDataCommitmentRequests(QueryLastDataCommitmentRequestsRequest)
-      returns (QueryLastDataCommitmentRequestsResponse) {
-    option (google.api.http).get = "/qgb/data_commitment/requests";
+  rpc AttestationRequestByNonce(QueryAttestationRequestByNonceRequest)
+      returns (QueryAttestationRequestByNonceResponse) {
+    option (google.api.http).get = "/qgb/attestations/requests/{nonce}";
   }
   // LatestDataCommitmentNonce
-  rpc LatestDataCommitmentNonce(QueryLatestDataCommitmentNonceRequest)
-      returns (QueryLatestDataCommitmentNonceResponse) {
-    option (google.api.http).get = "/qgb/data_commitment/nonce/latest";
+  rpc LatestAttestationNonce(QueryLatestAttestationNonceRequest)
+      returns (QueryLatestAttestationNonceResponse) {
+    option (google.api.http).get = "/qgb/attestations/nonce/latest";
   }
 
   // Data commitment confirm queries
@@ -78,19 +75,6 @@ service Query {
         "{begin_block}/end_block/{end_block}";
   }
 
-  // valset request queries
-
-  // LastValsetRequests queries for the latest valset requests
-  rpc LastValsetRequests(QueryLastValsetRequestsRequest)
-      returns (QueryLastValsetRequestsResponse) {
-    option (google.api.http).get = "/qgb/valset/requests";
-  }
-  // LastValsetRequests queries for the latest valset requests
-  rpc ValsetRequestByNonce(QueryValsetRequestByNonceRequest)
-      returns (QueryValsetRequestByNonceResponse) {
-    option (google.api.http).get = "/qgb/valset/requests/{nonce}";
-  }
-
   // valset confirm queries
 
   // ValsetConfirm Queries ValSetConfirm
@@ -125,19 +109,28 @@ message QueryParamsResponse {
   Params params = 1 [ (gogoproto.nullable) = false ];
 }
 
-// QueryLastValsetRequestsRequest
-message QueryLastValsetRequestsRequest {}
+// QueryAttestationRequestByNonceRequest
+message QueryAttestationRequestByNonceRequest { uint64 nonce = 1; }
 
-// QueryLastValsetRequestsResponse
-message QueryLastValsetRequestsResponse {
-  repeated Valset valsets = 1 [ (gogoproto.nullable) = false ];
+// QueryAttestationRequestByNonceResponse
+message QueryAttestationRequestByNonceResponse {
+  // AttestationRequestI is either a Data Commitment or a Valset.
+  // This was decided as part of the universal nonce approach under:
+  // https://github.com/celestiaorg/celestia-app/issues/468#issuecomment-1156887715
+  google.protobuf.Any attestation = 1
+      [ (cosmos_proto.accepts_interface) = "AttestationRequestI" ];
 }
 
-// QueryValsetRequestByNonceRequest
-message QueryValsetRequestByNonceRequest { uint64 nonce = 1; }
-
-// QueryValsetRequestByNonceResponse
-message QueryValsetRequestByNonceResponse { Valset valset = 1; }
+// QueryLatestAttestationNonceRequest Latest attestation nonce request
+message QueryLatestAttestationNonceRequest {}
+// QueryLatestAttestationNonceResponse Latest attestation nonce response
+message QueryLatestAttestationNonceResponse {
+  // AttestationRequestI is either a DataCommitment or a Valset.
+  // This was decided as part of the universal nonce approach under:
+  // https://github.com/celestiaorg/celestia-app/issues/468#issuecomment-1156887715
+  google.protobuf.Any attestation = 1
+      [ (cosmos_proto.accepts_interface) = "AttestationRequestI" ];
+}
 
 // QueryValsetConfirmsByNonceRequest
 message QueryValsetConfirmsByNonceRequest { uint64 nonce = 1; }
@@ -235,25 +228,3 @@ message QueryLastUnbondingHeightRequest {}
 
 // QueryLastUnbondingHeightResponse
 message QueryLastUnbondingHeightResponse { uint64 height = 1; }
-
-// QueryDataCommitmentRequestRequest Data commitment by nonce request
-message QueryDataCommitmentRequestByNonceRequest {
-  // Unique number referencing the `DataCommitment`.
-  uint64 nonce = 1;
-}
-// QueryDataCommitmentRequestResponse Data commitment by nonce response
-message QueryDataCommitmentRequestByNonceResponse {
-  DataCommitment commitment = 1;
-}
-
-// QueryLastDataCommitmentRequestsRequest Last data commitment request
-message QueryLastDataCommitmentRequestsRequest {}
-// QueryLastDataCommitmentRequestsResponse Last data commitment response
-message QueryLastDataCommitmentRequestsResponse {
-  repeated DataCommitment commitments = 1 [ (gogoproto.nullable) = false ];
-}
-
-// QueryLatestDataCommitmentNonceRequest Latest data commitment nonce request
-message QueryLatestDataCommitmentNonceRequest {}
-// QueryLatestDataCommitmentNonceResponse Latest data commitment nonce response
-message QueryLatestDataCommitmentNonceResponse { uint64 nonce = 1; }

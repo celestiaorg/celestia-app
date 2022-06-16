@@ -9,12 +9,12 @@ import (
 
 const maxDataCommitmentRequestsReturned = 5
 
-func (k Keeper) DataCommitmentRequestByNonce(
+func (k Keeper) AttestationRequestByNonce(
 	ctx context.Context,
-	request *types.QueryDataCommitmentRequestByNonceRequest,
-) (*types.QueryDataCommitmentRequestByNonceResponse, error) {
-	return &types.QueryDataCommitmentRequestByNonceResponse{
-		Commitment: k.GetDataCommitment(
+	request *types.QueryAttestationRequestByNonceRequest,
+) (*types.QueryAttestationRequestByNonceResponse, error) {
+	return &types.QueryAttestationRequestByNonceResponse{
+		Attestation: k.GetAttestationByNonce(
 			sdk.UnwrapSDKContext(ctx),
 			request.Nonce,
 		),
