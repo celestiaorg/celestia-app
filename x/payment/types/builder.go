@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	fmt "fmt"
 	"sync"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -88,6 +89,7 @@ func (k *KeyringSigner) UpdateAccountFromClient(clientCtx client.Context) error 
 func (k *KeyringSigner) NewTxBuilder(opts ...TxBuilderOption) sdkclient.TxBuilder {
 	builder := k.encCfg.TxConfig.NewTxBuilder()
 	for _, opt := range opts {
+		fmt.Println("setting option in builder &&&&&&&&&&&&&&&&&&&&&&&&&")
 		builder = opt(builder)
 	}
 	return builder
@@ -149,6 +151,8 @@ func (k *KeyringSigner) BuildSignedTx(builder sdkclient.TxBuilder, msg sdktypes.
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("pubkey", pub.String())
+	fmt.Println("build sign bytes", len(bytesToSign), bytesToSign)
 
 	addr, err := keyInfo.GetAddress()
 	if err != nil {
@@ -160,6 +164,8 @@ func (k *KeyringSigner) BuildSignedTx(builder sdkclient.TxBuilder, msg sdktypes.
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Println("signature when building", sigBytes)
 
 	// Construct the SignatureV2 struct, this time including a real signature
 	sigV2 = signing.SignatureV2{

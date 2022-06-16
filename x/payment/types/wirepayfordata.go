@@ -68,6 +68,8 @@ func (msg *MsgWirePayForData) SignShareCommitments(signer *KeyringSigner, option
 	// create an entire MsgPayForData and signing over it, including the signature in each commitment
 	for i, commit := range msg.MessageShareCommitment {
 		builder := signer.NewTxBuilder(options...)
+		sigs, err := builder.GetTx().GetSignaturesV2()
+		fmt.Println("new builder?", sigs, err)
 
 		sig, err := msg.createPayForDataSignature(signer, builder, commit.K)
 		if err != nil {
@@ -129,13 +131,6 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 	return nil
 }
 
-// GetSignBytes returns the bytes that are expected to be signed for the MsgWirePayForData.
-// The signature of these bytes will never actually get included on chain. Note: instead the
-// signature in the ShareCommitAndSignature of the appropriate square size is used.
-func (msg *MsgWirePayForData) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(msg))
-}
-
 // GetSigners returns the addresses of the message signers
 func (msg *MsgWirePayForData) GetSigners() []sdk.AccAddress {
 	address, err := sdk.AccAddressFromBech32(msg.Signer)
@@ -152,10 +147,12 @@ func (msg *MsgWirePayForData) createPayForDataSignature(signer *KeyringSigner, b
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("creating a signed pfd ---------------------------------------------")
 	tx, err := signer.BuildSignedTx(builder, pfd)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("-------------------------------------------------------------")
 	sigs, err := tx.GetSignaturesV2()
 	if err != nil {
 		return nil, err
@@ -220,4 +217,34 @@ func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.
 	}
 
 	return &coreMsg, pfd, shareCommit.Signature, nil
+}
+
+func HasWirePayForData(tx sdk.Tx) bool {
+	for _, msg := range tx.GetMsgs() {
+		msgName := sdk.MsgTypeURL(msg)
+		if msgName == URLMsgWirePayForData {
+			return true
+		}
+	}
+	return false
+}
+
+func ExtractMsgWirePayForData(tx sdk.Tx) (*MsgWirePayForData, error) {
+	noWirePFDError := errors.New("sdk.Tx does not contain MsgWirePayForData sdk.Msg")
+	if !HasWirePayForData(tx) {
+		return nil, noWirePFDError
+	}
+
+	// only support malleated transactions that contain a single sdk.Msg
+	if len(tx.GetMsgs()) != 1 {
+		return nil, errors.New("sdk.Txs with a single MsgWirePayForData are currently supported")
+	}
+
+	msg := tx.GetMsgs()[0]
+	wireMsg, ok := msg.(*MsgWirePayForData)
+	if !ok {
+		return nil, noWirePFDError
+	}
+
+	return wireMsg, nil
 }

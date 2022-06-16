@@ -94,19 +94,11 @@ func estimateMsgShares(txConf client.TxConfig, txs [][]byte) int {
 			continue
 		}
 
-		// skip txs that don't contain messages
-		if !hasWirePayForData(authTx) {
-			continue
-		}
-
-		// only support malleated transactions that contain a single sdk.Msg
-		if len(authTx.GetMsgs()) != 1 {
-			continue
-		}
-
-		msg := authTx.GetMsgs()[0]
-		wireMsg, ok := msg.(*types.MsgWirePayForData)
-		if !ok {
+		wireMsg, err := types.ExtractMsgWirePayForData(authTx)
+		if err != nil {
+			// we catch this error because it is expected that there will be txs
+			// without MsgWirePayForData txs. If the tx doesn't have a wirePFD,
+			// then it won't contribute any message shares and we can move on.
 			continue
 		}
 

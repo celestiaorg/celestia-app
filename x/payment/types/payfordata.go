@@ -81,8 +81,7 @@ func BuildPayForDataTxFromWireTx(
 	if err != nil {
 		return nil, err
 	}
-	builder.SetGasLimit(origTx.GetGas())
-	builder.SetFeeAmount(origTx.GetFee())
+	builder = InheritTxConfig(builder, origTx)
 
 	origSigs, err := origTx.GetSignaturesV2()
 	if err != nil {
@@ -133,9 +132,12 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 		return nil, fmt.Errorf("message size exceeds max shares for square size %d: max %d taken %d", k, (k*k)-1, len(shares))
 	}
 
+	fmt.Println("share len", len(shares))
+
 	// organize shares for merkle mountain range
 	heights := powerOf2MountainRange(uint64(len(shares)), k)
 	leafSets := make([][][]byte, len(heights))
+	fmt.Println("leafsets", len(heights), heights)
 	cursor := uint64(0)
 	for i, height := range heights {
 		leafSets[i] = shares[cursor : cursor+height]
