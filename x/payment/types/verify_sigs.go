@@ -2,7 +2,6 @@ package types
 
 import (
 	"errors"
-	fmt "fmt"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -19,8 +18,6 @@ func VerifySig(signerData authsigning.SignerData, txConfig client.TxConfig, auth
 	if err != nil {
 		return false, err
 	}
-	fmt.Println("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-	fmt.Println("verify sign bytes", len(signBytes), signBytes)
 
 	sigs, err := authTx.GetSignaturesV2()
 	if err != nil {
@@ -36,8 +33,6 @@ func VerifySig(signerData authsigning.SignerData, txConfig client.TxConfig, auth
 	if !ok {
 		return false, errorSinglSignerExpected
 	}
-
-	fmt.Println(signerData.PubKey.String(), rawSig.Signature)
 
 	return signerData.PubKey.VerifySignature(signBytes, rawSig.Signature), nil
 }
@@ -66,7 +61,6 @@ func VerifyPFDSigs(signerData authsigning.SignerData, txConfig client.TxConfig, 
 
 		valid, err := VerifySig(signerData, txConfig, pfdTx)
 		if err != nil || !valid {
-			fmt.Println("returning false", commit.K)
 			return false, err
 		}
 	}

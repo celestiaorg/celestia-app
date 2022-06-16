@@ -293,7 +293,7 @@ func genesisStateWithValSet(t *testing.T,
 // the provided accounts
 func GenerateKeyringSigner(t *testing.T, acct string) *types.KeyringSigner {
 	encCfg := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
-	kr := generateKeyring(t, encCfg.Codec)
+	kr := generateKeyring(t, encCfg.Codec, acct)
 	return types.NewKeyringSigner(kr, acct, testChainID)
 }
 

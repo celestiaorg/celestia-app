@@ -1,8 +1,6 @@
 package types
 
 import (
-	fmt "fmt"
-
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
@@ -64,37 +62,36 @@ func SetFeeGranter(feeGranter sdk.AccAddress) TxBuilderOption {
 // into a a give client.TxBuilder
 func InheritTxConfig(builder sdkclient.TxBuilder, tx authsigning.Tx) sdkclient.TxBuilder {
 	if gas := tx.GetGas(); gas != 0 {
-		fmt.Println("setting ***********************************", gas)
 		builder.SetGasLimit(gas)
 	}
 
 	if feeAmmount := tx.GetFee(); !feeAmmount.AmountOf("utia").Equal(sdk.NewInt(0)) {
-		fmt.Println("setting ***********************************", feeAmmount.String())
 		builder.SetFeeAmount(tx.GetFee())
 	}
 
 	if memo := tx.GetMemo(); memo != "" {
-		fmt.Println("setting ***********************************", memo)
 		builder.SetMemo(tx.GetMemo())
 	}
 
 	if tip := tx.GetTip(); tip != nil {
-		fmt.Println("setting ***********************************", tip)
 		builder.SetTip(tip)
 	}
 
 	if timeoutHeight := tx.GetTimeoutHeight(); timeoutHeight != 0 {
-		fmt.Println("setting ***********************************", timeoutHeight)
 		builder.SetTimeoutHeight(timeoutHeight)
 	}
 
-	if feePayer := tx.FeePayer(); !feePayer.Empty() {
-		fmt.Println("setting *********************************** fee payour", feePayer.String())
-		// builder.SetFeePayer(tx.FeePayer())
+	signers := tx.GetSigners()
+	// Note: if there are multiple signers in a PFD, then this could create an
+	// invalid signature. This is not an issue at this time because we currently
+	// ignore pfds with multiple signers
+	if len(signers) == 1 {
+		if feePayer := tx.FeeGranter(); !feePayer.Equals(signers[0]) {
+			builder.SetFeeGranter(tx.FeeGranter())
+		}
 	}
 
 	if feeGranter := tx.FeeGranter(); !feeGranter.Empty() {
-		fmt.Println("setting ***********************************", feeGranter.String())
 		builder.SetFeeGranter(tx.FeeGranter())
 	}
 

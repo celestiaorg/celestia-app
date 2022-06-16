@@ -2,7 +2,6 @@ package types
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -203,8 +202,17 @@ func TestSignMalleatedTxs(t *testing.T) {
 		{
 			name: "12 shares",
 			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:  bytes.Repeat([]byte{2}, (consts.MsgShareSize*12)-10),
+			msg:  bytes.Repeat([]byte{2}, (consts.MsgShareSize*12)-4), // subtract a few bytes for the delimiter
 			ss:   []uint64{4, 8, 16, 64},
+			options: []TxBuilderOption{
+				SetGasLimit(123456789),
+				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321))))},
+		},
+		{
+			name: "12 shares",
+			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:  bytes.Repeat([]byte{1, 2, 3, 4, 5}, 10000), // subtract a few bytes for the delimiter
+			ss:   AllSquareSizes(50000),
 			options: []TxBuilderOption{
 				SetGasLimit(123456789),
 				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321))))},
@@ -221,12 +229,14 @@ func TestSignMalleatedTxs(t *testing.T) {
 		assert.Equal(t, len(wpfd.MessageShareCommitment[0].Signature), 64)
 
 		sData, err := signer.GetSignerData()
-		fmt.Println("signer data", sData)
 		require.NoError(t, err)
 
 		wpfdTx, err := signer.BuildSignedTx(signer.NewTxBuilder(tt.options...), wpfd)
 		require.NoError(t, err)
 
+		// VerifyPFDSigs goes through the entire malleation process for every
+		// square size, creating PfDs from the wirePfD and check that the
+		// signature is valid
 		valid, err := VerifyPFDSigs(sData, signer.encCfg.TxConfig, wpfdTx)
 		assert.NoError(t, err)
 		assert.True(t, valid, tt.name)

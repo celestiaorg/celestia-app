@@ -68,8 +68,6 @@ func (msg *MsgWirePayForData) SignShareCommitments(signer *KeyringSigner, option
 	// create an entire MsgPayForData and signing over it, including the signature in each commitment
 	for i, commit := range msg.MessageShareCommitment {
 		builder := signer.NewTxBuilder(options...)
-		sigs, err := builder.GetTx().GetSignaturesV2()
-		fmt.Println("new builder?", sigs, err)
 
 		sig, err := msg.createPayForDataSignature(signer, builder, commit.K)
 		if err != nil {
@@ -147,12 +145,10 @@ func (msg *MsgWirePayForData) createPayForDataSignature(signer *KeyringSigner, b
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("creating a signed pfd ---------------------------------------------")
 	tx, err := signer.BuildSignedTx(builder, pfd)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("-------------------------------------------------------------")
 	sigs, err := tx.GetSignaturesV2()
 	if err != nil {
 		return nil, err
@@ -191,13 +187,14 @@ func (msg *MsgWirePayForData) unsignedPayForData(k uint64) (*MsgPayForData, erro
 func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.Message, *MsgPayForData, []byte, error) {
 	// make sure that a ShareCommitAndSignature of the correct size is
 	// included in the message
-	var shareCommit *ShareCommitAndSignature
+	var shareCommit ShareCommitAndSignature
 	for _, commit := range msg.MessageShareCommitment {
 		if commit.K == squareSize {
-			shareCommit = &commit
+			shareCommit = commit
+			break
 		}
 	}
-	if shareCommit == nil {
+	if shareCommit.Signature == nil {
 		return nil,
 			nil,
 			nil,
