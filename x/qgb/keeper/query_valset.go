@@ -37,26 +37,20 @@ import (
 //}
 
 // LastValsetBeforeHeight queries the last valset request before height
-func (k Keeper) LastValsetBeforeHeight(
+func (k Keeper) LastValsetBeforeNonce(
 	c context.Context,
-	req *types.QueryLastValsetBeforeHeightRequest) (*types.QueryLastValsetBeforeHeightResponse, error) {
-	valReq := k.GetValsets(sdk.UnwrapSDKContext(c))
-	for _, valset := range valReq {
-		// The first check is correct because we will always have a valset at block 0.
-		// We're creating valsets:
-		//  - If we have no valset
-		//	- We're an unbonding height
-		//	- There was a significant power difference in the validator set
-		// For more information, check qgb/abci.go.EndBlocker:42
-		if valset.Height < req.Height &&
-			(!k.HasValsetRequest(sdk.UnwrapSDKContext(c), valset.Nonce+1) ||
-				(k.HasValsetRequest(sdk.UnwrapSDKContext(c), valset.Nonce+1) &&
-					k.GetValset(sdk.UnwrapSDKContext(c), valset.Nonce+1).Height >= req.Height)) {
-			vs, err := types.CopyValset(valset)
-			if err != nil {
-				return nil, err
+	req *types.QueryLastValsetBeforeNonceRequest,
+) (*types.QueryLastValsetBeforeNonceResponse, error) {
+	// starting at 1 because the current nonce can be a valset
+	// and we need the previous one.
+	for i := uint64(1); i <= req.Nonce; i++ {
+		at := k.GetAttestationByNonce(sdk.UnwrapSDKContext(c), req.Nonce-i)
+		if at.Type() == types.ValsetRequestType {
+			valset, ok := at.(*types.Valset)
+			if !ok {
+				return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
 			}
-			return &types.QueryLastValsetBeforeHeightResponse{Valset: vs}, nil
+			return &types.QueryLastValsetBeforeNonceResponse{Valset: valset}, nil
 		}
 	}
 

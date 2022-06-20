@@ -126,3 +126,15 @@ func (v Valsets) Swap(i, j int) {
 func (v Valset) Type() AttestationType {
 	return ValsetRequestType
 }
+
+func hehe() {
+	desired := 4
+	l := []int{4, 8, 16, 32}
+	var found *int
+	for _, i := range l {
+		if i == desired {
+			found = &i
+		}
+	}
+	fmt.Println(*found)
+}

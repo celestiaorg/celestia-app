@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -16,8 +15,8 @@ import (
 var _ Querier = &querier{}
 
 type Querier interface {
-	QueryLatestDataCommitmentNonce(ctx context.Context) (uint64, error)
-	QueryLastDataCommitments(ctx context.Context) ([]types.DataCommitment, error)
+	//QueryLatestDataCommitmentNonce(ctx context.Context) (uint64, error)
+	//QueryLastDataCommitments(ctx context.Context) ([]types.DataCommitment, error)
 	QueryDataCommitmentByNonce(ctx context.Context, nonce uint64) (*types.DataCommitment, error)
 	QueryDataCommitmentConfirms(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error)
 	QueryDataCommitmentConfirm(
@@ -26,7 +25,7 @@ type Querier interface {
 		beginBlock uint64,
 		address string,
 	) (*types.MsgDataCommitmentConfirm, error)
-	QueryLastValset(ctx context.Context) (types.Valset, error)
+	//QueryLastValset(ctx context.Context) (types.Valset, error)
 	QueryTwoThirdsDataCommitmentConfirms(
 		ctx context.Context,
 		timeout time.Duration,
@@ -37,20 +36,21 @@ type Querier interface {
 		timeout time.Duration,
 		valset types.Valset,
 	) ([]types.MsgValsetConfirm, error)
-	QueryLastValsets(ctx context.Context) ([]types.Valset, error)
+	//QueryLastValsets(ctx context.Context) ([]types.Valset, error)
 	QueryValsetConfirm(ctx context.Context, nonce uint64, address string) (*types.MsgValsetConfirm, error)
 	QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error)
 	QueryLastUnbondingHeight(ctx context.Context) (uint64, error)
 	QueryHeight(ctx context.Context) (uint64, error)
-	QueryLastValsetBeforeHeight(
+	QueryLastValsetBeforeNonce(
 		ctx context.Context,
-		height uint64,
+		nonce uint64,
 	) (*types.Valset, error)
 	QueryDataCommitmentConfirmsByExactRange(
 		ctx context.Context,
 		start uint64,
 		end uint64,
 	) ([]types.MsgDataCommitmentConfirm, error)
+	QueryLatestAttestationNonce(ctx context.Context) (uint64, error)
 }
 
 type querier struct {
@@ -117,7 +117,7 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 	timeout time.Duration,
 	dc ExtendedDataCommitment,
 ) ([]types.MsgDataCommitmentConfirm, error) {
-	valset, err := q.QueryLastValsetBeforeHeight(ctx, dc.Data.EndBlock)
+	valset, err := q.QueryLastValsetBeforeNonce(ctx, dc.Data.Nonce)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func (q *querier) QueryTwoThirdsValsetConfirms(
 	if valset.Nonce == 1 {
 		currentValset = valset
 	} else {
-		vs, err := q.QueryValsetByNonce(ctx, valset.Nonce-1)
+		vs, err := q.QueryLastValsetBeforeNonce(ctx, valset.Nonce)
 		if err != nil {
 			return nil, err
 		}
@@ -259,44 +259,47 @@ func (q *querier) QueryTwoThirdsValsetConfirms(
 
 // QueryLastValset TODO change name to reflect the functionality correctly
 // TODO make this return a pointer
-func (q *querier) QueryLastValset(ctx context.Context) (types.Valset, error) {
+//func (q *querier) QueryLastValset(ctx context.Context) (types.Valset, error) {
+//	queryClient := types.NewQueryClient(q.qgbRPC)
+//	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
+//	if err != nil {
+//		return types.Valset{}, err
+//	}
+//
+//	if len(lastValsetResp.Valsets) == 1 {
+//		// genesis case
+//		return lastValsetResp.Valsets[0], nil
+//	}
+//
+//	if len(lastValsetResp.Valsets) < 2 {
+//		return types.Valset{}, errors.New("no validator sets found")
+//	}
+//
+//	valset := lastValsetResp.Valsets[1]
+//	return valset, nil
+//}
+
+//func (q *querier) QueryLastValsets(ctx context.Context) ([]types.Valset, error) {
+//	queryClient := types.NewQueryClient(q.qgbRPC)
+//	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return lastValsetResp.Valsets, nil
+//}
+
+func (q *querier) QueryLastValsetBeforeNonce(ctx context.Context, nonce uint64) (*types.Valset, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
-	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
-	if err != nil {
-		return types.Valset{}, err
-	}
-
-	if len(lastValsetResp.Valsets) == 1 {
-		// genesis case
-		return lastValsetResp.Valsets[0], nil
-	}
-
-	if len(lastValsetResp.Valsets) < 2 {
-		return types.Valset{}, errors.New("no validator sets found")
-	}
-
-	valset := lastValsetResp.Valsets[1]
-	return valset, nil
-}
-
-func (q *querier) QueryLastValsets(ctx context.Context) ([]types.Valset, error) {
-	queryClient := types.NewQueryClient(q.qgbRPC)
-	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
+	resp, err := queryClient.LastValsetBeforeNonce(
+		ctx,
+		&types.QueryLastValsetBeforeNonceRequest{Nonce: nonce},
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	return lastValsetResp.Valsets, nil
-}
-
-func (q *querier) QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error) {
-	queryClient := types.NewQueryClient(q.qgbRPC)
-	lastValsetResp, err := queryClient.ValsetRequestByNonce(ctx, &types.QueryValsetRequestByNonceRequest{Nonce: nonce})
-	if err != nil {
-		return nil, err
-	}
-
-	return lastValsetResp.Valset, nil
+	return resp.Valset, nil
 }
 
 func (q *querier) QueryValsetConfirm(
@@ -311,23 +314,6 @@ func (q *querier) QueryValsetConfirm(
 	}
 
 	return resp.Confirm, nil
-}
-
-func (q *querier) QueryLastValsetBeforeHeight(
-	ctx context.Context,
-	height uint64,
-) (*types.Valset, error) {
-	queryClient := types.NewQueryClient(q.qgbRPC)
-	lastValsetResp, err := queryClient.LastValsetBeforeHeight(
-		ctx,
-		&types.QueryLastValsetBeforeHeightRequest{
-			Height: height,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-	return lastValsetResp.Valset, nil
 }
 
 func (q *querier) QueryHeight(ctx context.Context) (uint64, error) {
@@ -394,41 +380,51 @@ func (q *querier) QueryDataCommitmentConfirmsByExactRange(
 func (q *querier) QueryDataCommitmentByNonce(ctx context.Context, nonce uint64) (*types.DataCommitment, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
 
-	dc, err := queryClient.DataCommitmentRequestByNonce(
+	dc, err := queryClient.AttestationRequestByNonce(
 		ctx,
-		&types.QueryDataCommitmentRequestByNonceRequest{Nonce: nonce},
+		&types.QueryAttestationRequestByNonceRequest{Nonce: nonce},
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return dc.Commitment, nil
+	value, ok := dc.Attestation.GetCachedValue().(types.DataCommitment)
+	if !ok {
+		return nil, types.ErrAttestationNotDataCommitmentRequest
+	}
+
+	return &value, nil
 }
 
-func (q *querier) QueryLastDataCommitments(ctx context.Context) ([]types.DataCommitment, error) {
+func (q *querier) QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
 
-	dcs, err := queryClient.LastDataCommitmentRequests(
+	dc, err := queryClient.AttestationRequestByNonce(
 		ctx,
-		&types.QueryLastDataCommitmentRequestsRequest{},
+		&types.QueryAttestationRequestByNonceRequest{Nonce: nonce},
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return dcs.Commitments, nil
+	value, ok := dc.Attestation.GetCachedValue().(types.Valset)
+	if !ok {
+		return nil, types.ErrAttestationNotValsetRequest
+	}
+
+	return &value, nil
 }
 
-func (q *querier) QueryLatestDataCommitmentNonce(ctx context.Context) (uint64, error) {
+func (q *querier) QueryLatestAttestationNonce(ctx context.Context) (uint64, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
 
-	dc, err := queryClient.LatestDataCommitmentNonce(
+	resp, err := queryClient.LatestAttestationNonce(
 		ctx,
-		&types.QueryLatestDataCommitmentNonceRequest{},
+		&types.QueryLatestAttestationNonceRequest{},
 	)
 	if err != nil {
 		return 0, err
 	}
 
-	return dc.Nonce, nil
+	return resp.Nonce, nil
 }

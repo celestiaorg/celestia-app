@@ -82,10 +82,10 @@ service Query {
       returns (QueryValsetConfirmResponse) {
     option (google.api.http).get = "/qgb/valset/confirm";
   }
-  // LastValsetBeforeHeight Queries last Valset before height
-  rpc LastValsetBeforeHeight(QueryLastValsetBeforeHeightRequest)
-      returns (QueryLastValsetBeforeHeightResponse) {
-    option (google.api.http).get = "/qgb/valset/request/before/{height}";
+  // LastValsetBeforeNonce Queries last Valset before height
+  rpc LastValsetBeforeNonce(QueryLastValsetBeforeNonceRequest)
+      returns (QueryLastValsetBeforeNonceResponse) {
+    option (google.api.http).get = "/qgb/valset/request/before/{nonce}";
   }
   // ValsetConfirmsByNonce
   rpc ValsetConfirmsByNonce(QueryValsetConfirmsByNonceRequest)
@@ -125,11 +125,7 @@ message QueryAttestationRequestByNonceResponse {
 message QueryLatestAttestationNonceRequest {}
 // QueryLatestAttestationNonceResponse Latest attestation nonce response
 message QueryLatestAttestationNonceResponse {
-  // AttestationRequestI is either a DataCommitment or a Valset.
-  // This was decided as part of the universal nonce approach under:
-  // https://github.com/celestiaorg/celestia-app/issues/468#issuecomment-1156887715
-  google.protobuf.Any attestation = 1
-      [ (cosmos_proto.accepts_interface) = "AttestationRequestI" ];
+  uint64 nonce = 1;
 }
 
 // QueryValsetConfirmsByNonceRequest
@@ -149,13 +145,13 @@ message QueryValsetConfirmRequest {
 // QueryValsetConfirmResponse ValSet confirm query response
 message QueryValsetConfirmResponse { MsgValsetConfirm confirm = 1; }
 
-// QueryLastValsetRequestBeforeHeightRequest last Valset request before height
+// QueryLastValsetBeforeNonceRequest last Valset request before universal nonce
 // request
-message QueryLastValsetBeforeHeightRequest { uint64 height = 1; }
+message QueryLastValsetBeforeNonceRequest { uint64 nonce = 1; }
 
-// QueryLastValsetRequestBeforeHeightResponse last Valset request before height
+// QueryLastValsetBeforeNonceResponse last Valset request before height
 // response
-message QueryLastValsetBeforeHeightResponse { Valset valset = 1; }
+message QueryLastValsetBeforeNonceResponse { Valset valset = 1; }
 
 // QueryDataCommitmentConfirmsRequest Data commitment confirm by commitment and
 // validator address request

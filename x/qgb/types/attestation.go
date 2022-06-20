@@ -1,6 +1,9 @@
 package types
 
-import "github.com/gogo/protobuf/proto"
+import (
+	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/gogo/protobuf/proto"
+)
 
 //var _ AttestationRequestI = &AttestationRequest{}
 
@@ -16,7 +19,9 @@ const (
 // https://github.com/celestiaorg/celestia-app/issues/468#issuecomment-1156887715
 type AttestationRequestI interface {
 	proto.Message
+	codec.ProtoMarshaler
 	Type() AttestationType
+	GetNonce() uint64
 }
 
 //type AttestationRequest struct {

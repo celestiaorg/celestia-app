@@ -81,19 +81,17 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 				return
 			case <-results:
 				// TODO add query for LatestValsetNonce and use it instead of this
-				valsets, err := oc.querier.QueryLastValsets(ctx)
+				latestNonce, err := oc.querier.QueryLatestAttestationNonce(ctx)
 				if err != nil {
 					oc.logger.Error(err.Error())
 					continue
 				}
 
-				// todo: double check that the first validator set is found
-				if len(valsets) < 1 {
-					oc.logger.Error("no validator sets found")
+				valset, err := oc.querier.QueryValsetByNonce(ctx, latestNonce)
+				if err != nil {
+					oc.logger.Error(err.Error())
 					continue
 				}
-
-				valset := valsets[0]
 
 				// Checking if we already signed this valset
 				resp, err := oc.querier.QueryValsetConfirm(ctx, valset.Nonce, oc.orchestratorAddress)
@@ -103,7 +101,7 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 				}
 
 				if resp == nil && !contains(nonces, valset.Nonce) {
-					valsetsChan <- valset
+					valsetsChan <- *valset
 					nonces = append(nonces, valset.Nonce)
 				}
 			}
@@ -122,21 +120,13 @@ func (oc *orchestratorClient) addOldValsetAttestations(ctx context.Context, vals
 		return
 	}
 
-	// TODO add query for LatestValsetNonce and use it instead of this
-	valsets, err := oc.querier.QueryLastValsets(ctx)
+	latestNonce, err := oc.querier.QueryLatestAttestationNonce(ctx)
 	if err != nil {
 		oc.logger.Error(err.Error())
 		return
 	}
 
-	// todo: double check that the first validator set is found
-	if len(valsets) < 1 {
-		oc.logger.Error("no validator sets found")
-		return
-	}
-	valsetsChan <- valsets[0]
-
-	previousNonce := valsets[0].Nonce
+	previousNonce := latestNonce
 	for {
 		if previousNonce == 1 {
 			return
@@ -194,7 +184,7 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 			case <-ctx.Done():
 				return
 			default:
-				latestDCNonce, err := oc.querier.QueryLatestDataCommitmentNonce(ctx)
+				latestNonce, err := oc.querier.QueryLatestAttestationNonce(ctx)
 				if err != nil {
 					oc.logger.Error(err.Error())
 					time.Sleep(5 * time.Second)
@@ -202,7 +192,7 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 				}
 
 				// query data commitment request
-				dc, err := oc.querier.QueryDataCommitmentByNonce(ctx, latestDCNonce)
+				dc, err := oc.querier.QueryDataCommitmentByNonce(ctx, latestNonce)
 				if err != nil {
 					oc.logger.Error(err.Error())
 					time.Sleep(5 * time.Second)
@@ -264,16 +254,16 @@ func (oc *orchestratorClient) addOldDataCommitmentAttestations(
 		return
 	}
 
-	latestDCNonce, err := oc.querier.QueryLatestDataCommitmentNonce(ctx)
+	latestNonce, err := oc.querier.QueryLatestAttestationNonce(ctx)
 	if err != nil {
 		oc.logger.Error(err.Error())
 		return
 	}
 
-	for n := uint64(0); n <= latestDCNonce; n++ {
+	for n := uint64(0); n <= latestNonce; n++ {
 
 		// To start signing from new to old
-		nonce := latestDCNonce - n
+		nonce := latestNonce - n
 
 		// query data commitment request
 		dc, err := oc.querier.QueryDataCommitmentByNonce(ctx, nonce)

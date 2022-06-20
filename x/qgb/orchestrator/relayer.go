@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 )
@@ -58,7 +58,7 @@ func (r *relayer) processDataCommitmentEvents(
 		}
 
 		// todo: make gas limit configurable
-		valset, err := r.querier.QueryLastValsetBeforeHeight(ctx, dc.Data.EndBlock)
+		valset, err := r.querier.QueryLastValsetBeforeNonce(ctx, dc.Data.EndBlock)
 		if err != nil {
 			return err
 		}

@@ -55,6 +55,8 @@ const (
 	LatestValsetNonce = "LatestValsetNonce"
 	// LatestDataCommitmentNonce indexes the latest data commitment nonce
 	LatestDataCommitmentNonce = "LatestDataCommitmentNonce"
+	// LatestDataCommitmentNonce indexes the latest data commitment nonce
+	LatestAttestationtNonce = "LatestAttestationNonce"
 )
 
 // GetValsetConfirmKey returns the following key format

@@ -3,51 +3,14 @@ package orchestrator
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	tmlog "github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
-var _ AppClient = &relayerClient{}
-
-type relayerClient struct {
-	tendermintRPC *http.HTTP
-	logger        tmlog.Logger
-	querier       Querier
-	mutex         *sync.Mutex // TODO check if we need the mutex here
-	evmClient     EVMClient
-}
-
-func NewRelayerClient(
-	logger tmlog.Logger,
-	tendermintRPC string,
-	querier Querier,
-	evmClient EVMClient,
-) (AppClient, error) {
-	trpc, err := http.New(tendermintRPC, "/websocket")
-	if err != nil {
-		return nil, err
-	}
-	err = trpc.Start()
-	if err != nil {
-		return nil, err
-	}
-
-	return &relayerClient{
-		tendermintRPC: trpc,
-		logger:        logger,
-		querier:       querier,
-		mutex:         &sync.Mutex{},
-		evmClient:     evmClient,
-	}, nil
-}
-
-func (oc *relayerClient) SubscribeValset(ctx context.Context) (<-chan types.Valset, error) {
+func (oc *relayerClient) SubscribeValset1(ctx context.Context) (<-chan types.Valset, error) {
 	valsetsChan := make(chan types.Valset, 10)
 
 	go func() {
@@ -88,7 +51,7 @@ func (oc *relayerClient) SubscribeValset(ctx context.Context) (<-chan types.Vals
 	return valsetsChan, nil
 }
 
-func (oc *relayerClient) SubscribeDataCommitment(ctx context.Context) (<-chan ExtendedDataCommitment, error) {
+func (oc *relayerClient) SubscribeDataCommitment1(ctx context.Context) (<-chan ExtendedDataCommitment, error) {
 	dataCommitments := make(chan ExtendedDataCommitment)
 
 	go func() {
