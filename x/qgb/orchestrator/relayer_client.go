@@ -57,7 +57,7 @@ func (oc *relayerClient) SubscribeValset(ctx context.Context) (<-chan types.Vals
 			case <-ctx.Done():
 				return
 			default:
-				lastContractNonce, err := oc.evmClient.StateLastValsetNonce(&bind.CallOpts{})
+				lastContractNonce, err := oc.evmClient.StateLastEventNonce(&bind.CallOpts{})
 				if err != nil {
 					oc.logger.Error(err.Error())
 					continue
@@ -99,7 +99,7 @@ func (oc *relayerClient) SubscribeDataCommitment(ctx context.Context) (<-chan Ex
 			case <-ctx.Done():
 				return
 			default:
-				lastContractNonce, err := oc.evmClient.StateLastDataRootTupleRootNonce(&bind.CallOpts{})
+				lastContractNonce, err := oc.evmClient.StateLastEventNonce(&bind.CallOpts{})
 				if err != nil {
 					oc.logger.Error(err.Error())
 					continue

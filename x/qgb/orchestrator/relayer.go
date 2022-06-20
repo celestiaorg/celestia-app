@@ -120,7 +120,7 @@ func (r *relayer) submitDataRootTupleRoot(
 	}
 
 	// TODO: don't assume that the evm contracts are up to date with the latest nonce
-	lastDataCommitmentNonce, err := r.evmClient.StateLastDataRootTupleRootNonce(&bind.CallOpts{})
+	lastDataCommitmentNonce, err := r.evmClient.StateLastEventNonce(&bind.CallOpts{})
 	if err != nil {
 		return err
 	}

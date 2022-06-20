@@ -308,6 +308,7 @@ func (q *querier) QueryValsetConfirm(
 	address string,
 ) (*types.MsgValsetConfirm, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
+	// machi bdarora this nonce is for a valset confirm
 	resp, err := queryClient.ValsetConfirm(ctx, &types.QueryValsetConfirmRequest{Nonce: nonce, Address: address})
 	if err != nil {
 		return nil, err

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -450,7 +450,7 @@ func (network QGBNetwork) WaitForRelayerToStart(_ctx context.Context, bridge *wr
 			}
 			return ctx.Err()
 		default:
-			nonce, err := bridge.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: ctx})
+			nonce, err := bridge.StateEventNonce(&bind.CallOpts{Context: ctx})
 			if err == nil && nonce != nil && nonce.Int64() >= 1 {
 				return nil
 			}

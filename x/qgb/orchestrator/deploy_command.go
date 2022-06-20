@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
@@ -66,6 +66,7 @@ func DeployCmd() *cobra.Command {
 				auth,
 				ethClient,
 				bridgeID,
+				big.NewInt(0), // TODO get the latest instead
 				big.NewInt(int64(vs.TwoThirdsThreshold())),
 				ethVsHash,
 			)

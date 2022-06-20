@@ -37,9 +37,19 @@ func TestFullLongBehaviour(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	// check whether all the validators are up and running
-	lastValsets, err := querier.QueryLastValsets(network.Context)
+	//lastValset, err := querier.QueryLastValsetBeforeNonce(network.Context)
+	latestNonce, err := querier.QueryLatestAttestationNonce(network.Context)
 	assert.NoError(t, err)
-	assert.Equal(t, 4, len(lastValsets[0].Members))
+
+	var lastValset *types.Valset
+	if vs, err := querier.QueryValsetByNonce(network.Context, latestNonce); err != nil {
+		lastValset = vs
+	} else {
+		lastValset, err = querier.QueryLastValsetBeforeNonce(network.Context, latestNonce)
+		assert.NoError(t, err)
+	}
+	assert.NoError(t, err)
+	assert.Equal(t, 4, len(lastValset.Members))
 
 	// check whether the QGB contract was deployed
 	bridge, err := network.GetLatestDeployedQGBContract(network.Context)
@@ -47,13 +57,9 @@ func TestFullLongBehaviour(t *testing.T) {
 
 	evmClient := orchestrator.NewEvmClient(nil, *bridge, nil, network.EVMRPC)
 
-	// check whether the relayer relayed all data commitments
-	dcNonce, err := evmClient.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: network.Context})
+	// check whether the relayer relayed all attestations
+	eventNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: network.Context})
 	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, dcNonce, 100/types.DataCommitmentWindow)
-
-	// check whether the relayer relayed all valsets
-	vsNonce, err := evmClient.StateLastValsetNonce(&bind.CallOpts{Context: network.Context})
-	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, vsNonce, lastValsets[0].Nonce)
+	// attestations are either data commitments or valsets
+	assert.GreaterOrEqual(t, eventNonce, 100/types.DataCommitmentWindow+lastValset.Nonce)
 }

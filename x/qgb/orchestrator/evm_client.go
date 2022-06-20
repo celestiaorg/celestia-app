@@ -13,9 +13,11 @@ import (
 	tmlog "github.com/tendermint/tendermint/libs/log"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
+
+var _ EVMClient = &evmClient{}
 
 type EVMClient interface {
 	UpdateValidatorSet(
@@ -31,8 +33,7 @@ type EVMClient interface {
 		currentValset types.Valset,
 		sigs []wrapper.Signature,
 	) error
-	StateLastDataRootTupleRootNonce(opts *bind.CallOpts) (uint64, error)
-	StateLastValsetNonce(opts *bind.CallOpts) (uint64, error)
+	StateLastEventNonce(opts *bind.CallOpts) (uint64, error)
 }
 
 type evmClient struct {
@@ -47,7 +48,7 @@ func NewEvmClient(
 	wrapper wrapper.QuantumGravityBridge,
 	privateKey *ecdsa.PrivateKey,
 	evmRPC string,
-) EVMClient {
+) *evmClient {
 	return &evmClient{
 		logger:     logger,
 		wrapper:    wrapper,
@@ -93,7 +94,7 @@ func (ec *evmClient) UpdateValidatorSet(
 	// TODO put this in a separate function and listen for new EVM blocks instead of just sleeping
 	for i := 0; i < 60; i++ {
 		ec.logger.Debug(fmt.Sprintf("waiting for valset %d to be confirmed: %s", newNonce, tx.Hash().String()))
-		lastNonce, err := ec.StateLastValsetNonce(&bind.CallOpts{Context: ctx})
+		lastNonce, err := ec.StateLastEventNonce(&bind.CallOpts{Context: ctx})
 		if err != nil {
 			return err
 		}
@@ -134,6 +135,7 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 	tx, err := ec.wrapper.SubmitDataRootTupleRoot(
 		opts,
 		big.NewInt(int64(newNonce)),
+		big.NewInt(int64(currentValset.Nonce)),
 		tupleRoot,
 		ethVals,
 		sigs,
@@ -150,7 +152,7 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 			newNonce*types.DataCommitmentWindow,
 			tx.Hash().String(),
 		))
-		lastNonce, err := ec.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: ctx})
+		lastNonce, err := ec.StateLastEventNonce(&bind.CallOpts{Context: ctx})
 		if err != nil {
 			return err
 		}
@@ -191,16 +193,8 @@ func (ec *evmClient) NewTransactOpts(ctx context.Context, gasLim uint64) (*bind.
 	return opts, nil
 }
 
-func (ec *evmClient) StateLastDataRootTupleRootNonce(opts *bind.CallOpts) (uint64, error) {
-	nonce, err := ec.wrapper.StateLastDataRootTupleRootNonce(opts)
-	if err != nil {
-		return 0, err
-	}
-	return nonce.Uint64(), nil
-}
-
-func (ec *evmClient) StateLastValsetNonce(opts *bind.CallOpts) (uint64, error) {
-	nonce, err := ec.wrapper.StateLastValidatorSetNonce(opts)
+func (ec *evmClient) StateLastEventNonce(opts *bind.CallOpts) (uint64, error) {
+	nonce, err := ec.wrapper.StateEventNonce(opts)
 	if err != nil {
 		return 0, err
 	}

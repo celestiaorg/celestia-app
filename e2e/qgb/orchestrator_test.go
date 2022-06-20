@@ -172,11 +172,11 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
 	HandleNetworkError(t, network, err, false)
 
-	lastValsets, err := querier.QueryLastValsets(ctx)
+	latestNonce, err := querier.QueryLatestAttestationNonce(network.Context)
 	assert.NoError(t, err)
 
 	// check core0 submited the valset confirm
-	core0ValsetConfirm, err := querier.QueryValsetConfirm(ctx, lastValsets[0].Nonce, CORE0ACCOUNTADDRESS)
+	core0ValsetConfirm, err := querier.QueryValsetConfirm(ctx, latestNonce, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core0ValsetConfirm)
@@ -197,7 +197,7 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	assert.Equal(t, CORE0EVMADDRESS, core0DataCommitmentConfirm.EthAddress)
 
 	// check core1 submited the valset confirm
-	core1ValsetConfirm, err := querier.QueryValsetConfirm(ctx, lastValsets[0].Nonce, CORE1ACCOUNTADDRESS)
+	core1ValsetConfirm, err := querier.QueryValsetConfirm(ctx, latestNonce, CORE1ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core1ValsetConfirm)
@@ -218,7 +218,7 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	assert.Equal(t, CORE1EVMADDRESS, core1DataCommitmentConfirm.EthAddress)
 
 	// check core2 submited the valset confirm
-	core2ValsetConfirm, err := querier.QueryValsetConfirm(ctx, lastValsets[0].Nonce, CORE2ACCOUNTADDRESS)
+	core2ValsetConfirm, err := querier.QueryValsetConfirm(ctx, latestNonce, CORE2ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core2ValsetConfirm)
@@ -240,7 +240,7 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	assert.Equal(t, CORE2EVMADDRESS, core2DataCommitmentConfirm.EthAddress)
 
 	// check core3 submited the valset confirm
-	core3ValsetConfirm, err := querier.QueryValsetConfirm(ctx, lastValsets[0].Nonce, CORE3ACCOUNTADDRESS)
+	core3ValsetConfirm, err := querier.QueryValsetConfirm(ctx, latestNonce, CORE3ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core3ValsetConfirm)

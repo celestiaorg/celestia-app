@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/ethclient"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 

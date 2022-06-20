@@ -4,9 +4,9 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/x/qgb/keeper/keystore"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
-	"github.com/celestiaorg/quantum-gravity-bridge/orchestrator/ethereum/keystore"
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
