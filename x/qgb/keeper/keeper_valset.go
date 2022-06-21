@@ -141,15 +141,20 @@ func (k Keeper) GetValsets(ctx sdk.Context) (out []types.Valset) {
 // from the CurrentValset because this one has been saved and is therefore *the* valset
 // for this nonce. GetCurrentValset shows you what could be, if you chose to save it, this function
 // shows you what is the latest valset that was saved.
-func (k Keeper) GetLatestValset(ctx sdk.Context) (out *types.Valset) {
-	latestValsetNonce := k.GetLatestValsetNonce(ctx)
-	if latestValsetNonce == 0 {
-		valset := k.SetValsetRequest(ctx)
-		return &valset
+func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
+	nonce := k.GetLatestAttestationNonce(ctx)
+	for i := uint64(0); i <= nonce; i++ {
+		at := k.GetAttestationByNonce(ctx, nonce-i)
+		if at.Type() == types.ValsetRequestType {
+			valset, ok := at.(*types.Valset)
+			if !ok {
+				return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
+			}
+			return valset, nil
+		}
 	}
-
-	out = k.GetValset(ctx, latestValsetNonce)
-	return
+	// should never execute
+	return nil, sdkerrors.Wrap(sdkerrors.ErrNotFound, "couldn't find latest valset")
 }
 
 // SetLastUnBondingBlockHeight sets the last unbonding block height. Note this value is not saved and loaded in genesis
@@ -206,7 +211,7 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 	}
 
 	// increment the nonce, since this potential future valset should be after the current valset
-	valsetNonce := k.GetLatestValsetNonce(ctx) + 1
+	valsetNonce := k.GetLatestAttestationNonce(ctx) + 1
 
 	valset, err := types.NewValset(valsetNonce, uint64(ctx.BlockHeight()), bridgeValidators)
 	if err != nil {
@@ -231,4 +236,20 @@ func normalizeValidatorPower(rawPower uint64, totalValidatorPower sdk.Int) uint6
 	power.Mul(power, multiplier)
 	power.Quo(power, quotient)
 	return power.Uint64()
+}
+
+func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.Valset, error) {
+	// starting at 1 because the current nonce can be a valset
+	// and we need the previous one.
+	for i := uint64(1); i <= nonce; i++ {
+		at := k.GetAttestationByNonce(ctx, nonce-i)
+		if at.Type() == types.ValsetRequestType {
+			valset, ok := at.(*types.Valset)
+			if !ok {
+				return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
+			}
+			return valset, nil
+		}
+	}
+	return nil, sdkerrors.Wrap(sdkerrors.ErrNotFound, "couldn't find valset")
 }

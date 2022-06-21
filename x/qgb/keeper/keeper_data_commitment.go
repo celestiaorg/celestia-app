@@ -36,7 +36,7 @@ func (k Keeper) SetDataCommitmentRequest(ctx sdk.Context) types.DataCommitment {
 func (k Keeper) GetCurrentDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
 	beginBlock := uint64(ctx.BlockHeight()) - types.DataCommitmentWindow
 	endBlock := uint64(ctx.BlockHeight())
-	nonce := uint64(ctx.BlockHeight()) / types.DataCommitmentWindow
+	nonce := k.GetLatestAttestationNonce(ctx) + 1
 
 	dataCommitment := types.NewDataCommitment(nonce, beginBlock, endBlock)
 	return *dataCommitment, nil

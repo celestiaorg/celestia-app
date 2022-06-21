@@ -131,7 +131,7 @@ func (oc *orchestratorClient) addOldValsetAttestations(ctx context.Context, vals
 		if previousNonce == 1 {
 			return
 		}
-		previousNonce = previousNonce - 1
+		previousNonce--
 		lastVsConfirm, err := oc.querier.QueryValsetConfirm(ctx, previousNonce, oc.orchestratorAddress)
 		if err != nil {
 			oc.logger.Error(err.Error())

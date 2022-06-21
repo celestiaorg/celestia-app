@@ -389,12 +389,24 @@ func (q *querier) QueryDataCommitmentByNonce(ctx context.Context, nonce uint64) 
 		return nil, err
 	}
 
-	value, ok := dc.Attestation.GetCachedValue().(types.DataCommitment)
+	encCfg := MakeEncodingConfig()
+
+	var unmarshalledAttestation types.AttestationRequestI
+	err = encCfg.InterfaceRegistry.UnpackAny(dc.Attestation, &unmarshalledAttestation)
+	if err != nil {
+		return nil, err
+	}
+
+	if unmarshalledAttestation.Type() != types.DataCommitmentRequestType {
+		return nil, types.ErrAttestationNotDataCommitmentRequest
+	}
+
+	dcc, ok := unmarshalledAttestation.(*types.DataCommitment)
 	if !ok {
 		return nil, types.ErrAttestationNotDataCommitmentRequest
 	}
 
-	return &value, nil
+	return dcc, nil
 }
 
 func (q *querier) QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error) {

@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"fmt"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -14,7 +15,7 @@ func (k Keeper) SetAttestationRequest(ctx sdk.Context, at types.AttestationReque
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
-			types.EventTypeDataCommitmentRequest,
+			types.EventTypeAttestationRequest,
 			sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
 			sdk.NewAttribute(types.AttributeKeyNonce, fmt.Sprint(at.GetNonce())),
 		),
@@ -32,7 +33,11 @@ func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) 
 		panic("Trying to overwrite existing attestation request!")
 	}
 
-	store.Set((key), k.cdc.MustMarshal(at))
+	b, err := k.cdc.MarshalInterface(at)
+	if err != nil {
+		panic(err)
+	}
+	store.Set((key), b)
 }
 
 // SetLatestAttestationNonce sets the latest data commitment nonce, since it's
@@ -46,7 +51,7 @@ func (k Keeper) SetLatestAttestationNonce(ctx sdk.Context, nonce uint64) {
 	}
 
 	store := ctx.KVStore(k.storeKey)
-	store.Set([]byte(types.LatestDataCommitmentNonce), types.UInt64Bytes(nonce))
+	store.Set([]byte(types.LatestAttestationtNonce), types.UInt64Bytes(nonce))
 }
 
 // CheckLatestDataCommitmentNonce returns true if the latest data commitment nonce
@@ -77,6 +82,9 @@ func (k Keeper) GetAttestationByNonce(ctx sdk.Context, nonce uint64) types.Attes
 		return nil
 	}
 	var at types.AttestationRequestI
-	k.cdc.MustUnmarshal(bz, at)
+	err := k.cdc.UnmarshalInterface(bz, &at)
+	if err != nil {
+		panic(err)
+	}
 	return at
 }

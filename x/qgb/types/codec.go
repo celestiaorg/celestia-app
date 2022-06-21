@@ -2,10 +2,9 @@ package types
 
 import (
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/types/msgservice"
-
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/msgservice"
 )
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
@@ -22,7 +21,13 @@ func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 	)
 
 	// TODO check if it works without
-	registry.RegisterInterface("AttestationRequestI", (*AttestationRequestI)(nil))
+	// TODO use a name like: celestia.qgb.shit idk
+	registry.RegisterInterface(
+		"AttestationRequestI",
+		(*AttestationRequestI)(nil),
+		&DataCommitment{},
+		&Valset{},
+	)
 
 	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
 }
