@@ -216,6 +216,10 @@ func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.
 	return &coreMsg, pfd, shareCommit.Signature, nil
 }
 
+// HasWirePayForData performs a quick but not definitive check to see if a tx
+// contains a MsgWirePayForData. The check is quick but not definitive because
+// it only uses a proto.Message generated method instead of performing a full
+// type check.
 func HasWirePayForData(tx sdk.Tx) bool {
 	for _, msg := range tx.GetMsgs() {
 		msgName := sdk.MsgTypeURL(msg)
@@ -226,8 +230,11 @@ func HasWirePayForData(tx sdk.Tx) bool {
 	return false
 }
 
+// ExtractMsgWirePayForData attempts to extract a MsgWirePayForData from a
+// provided sdk.Tx. It returns an error if no MsgWirePayForData is found.
 func ExtractMsgWirePayForData(tx sdk.Tx) (*MsgWirePayForData, error) {
 	noWirePFDError := errors.New("sdk.Tx does not contain MsgWirePayForData sdk.Msg")
+	// perform a quick check before attempting a type check
 	if !HasWirePayForData(tx) {
 		return nil, noWirePFDError
 	}

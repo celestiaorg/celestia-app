@@ -96,9 +96,11 @@ func estimateMsgShares(txConf client.TxConfig, txs [][]byte) int {
 
 		wireMsg, err := types.ExtractMsgWirePayForData(authTx)
 		if err != nil {
-			// we catch this error because it is expected that there will be txs
-			// without MsgWirePayForData txs. If the tx doesn't have a wirePFD,
-			// then it won't contribute any message shares and we can move on.
+			// we catch this error because it means that there are no
+			// potentially valid MsgWirePayForData messages in this tx. If the
+			// tx doesn't have a wirePFD, then it won't contribute any message
+			// shares to the block, and since we're only estimating here, we can
+			// move on without handling or bubbling the error.
 			continue
 		}
 
