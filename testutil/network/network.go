@@ -24,12 +24,6 @@ import (
 func New(t *testing.T, config network.Config, genAccNames ...string) *network.Network {
 	kr := keyring.NewInMemory(config.Codec)
 
-	cfg := sdk.GetConfig()
-	cfg.SetBech32PrefixForAccount(app.Bech32PrefixAccAddr, app.Bech32PrefixAccPub)
-	cfg.SetBech32PrefixForValidator(app.Bech32PrefixValAddr, app.Bech32PrefixValPub)
-	cfg.SetBech32PrefixForConsensusNode(app.Bech32PrefixConsAddr, app.Bech32PrefixConsPub)
-	cfg.Seal()
-
 	// add genesis accounts
 	genAuthAccs := make([]authtypes.GenesisAccount, len(genAccNames))
 	genBalances := make([]banktypes.Balance, len(genAccNames))
