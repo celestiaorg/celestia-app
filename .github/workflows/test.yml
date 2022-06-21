@@ -41,7 +41,7 @@ jobs:
   #         go-version: 1.17
   #     - name: Display go version
   #       run: go version
-  #     - uses: technote-space/get-diff-action@v6.0.1
+  #     - uses: technote-space/get-diff-action@v6.1.0
   #       id: git_diff
   #       with:
   #         PREFIX_FILTER: |
@@ -92,7 +92,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: 1.17
-      - uses: technote-space/get-diff-action@v6.0.1
+      - uses: technote-space/get-diff-action@v6.1.0
         with:
           PATTERNS: |
             **/**.go
@@ -116,7 +116,7 @@ jobs:
     needs: tests
     steps:
       - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6.0.1
+      - uses: technote-space/get-diff-action@v6.1.0
         with:
           PATTERNS: |
             **/**.go
@@ -170,7 +170,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: 1.17
-      - uses: technote-space/get-diff-action@v6.0.1
+      - uses: technote-space/get-diff-action@v6.1.0
         with:
           PATTERNS: |
             **/**.go
@@ -195,7 +195,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6.0.1
+      - uses: technote-space/get-diff-action@v6.1.0
         id: git_diff
         with:
           PATTERNS: |
@@ -236,7 +236,7 @@ jobs:
   #     - uses: actions/setup-go@v3
   #       with:
   #         go-version: 1.17
-  #     - uses: technote-space/get-diff-action@v6.0.1
+  #     - uses: technote-space/get-diff-action@v6.1.0
   #       id: git_diff
   #       with:
   #         PATTERNS: |
