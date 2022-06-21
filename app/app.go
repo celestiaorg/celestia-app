@@ -187,7 +187,6 @@ type App struct {
 	interfaceRegistry types.InterfaceRegistry
 	txConfig          client.TxConfig
 	msgSvcRouter      *baseapp.MsgServiceRouter
-	legacyRouter      sdk.Router
 
 	invCheckPeriod uint
 
