@@ -24,7 +24,9 @@ require (
 
 require (
 	cosmossdk.io/errors v1.0.0-beta.6
+	github.com/armon/go-metrics v0.3.11
 	github.com/cosmos/cosmos-sdk/errors v1.0.0-beta.3
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -37,7 +39,6 @@ require (
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect
 	github.com/99designs/keyring v1.1.6 // indirect
 	github.com/Workiva/go-datastructures v1.0.53 // indirect
-	github.com/armon/go-metrics v0.3.11 // indirect
 	github.com/aws/aws-sdk-go v1.40.45 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
@@ -152,7 +153,6 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/ini.v1 v1.66.6 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	nhooyr.io/websocket v1.8.6 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
@@ -160,7 +160,7 @@ require (
 
 replace (
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.1.7-0.20210622111912-ef00f8ac3d76
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.1.1-sdk-v0.46.0.0.20220606173414-2b1cf4b790a9 //v1.1.1-sdk-v0.46.0
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.1.1-sdk-v0.46.0.0.20220621235059-8b5307c2ff71 // v1.1.1-sdk-v0.46.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/tendermint/tendermint v0.35.4 => github.com/celestiaorg/celestia-core v1.2.4-tm-v0.35.6.0.20220620181736-49f005f6aeb3 // v1.2.2-tm-v0.35.4
 )
