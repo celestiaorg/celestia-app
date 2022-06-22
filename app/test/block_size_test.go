@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil/network"
+	"github.com/celestiaorg/celestia-app/x/payment"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/nmt/namespace"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -54,11 +55,14 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	net := network.New(s.T(), s.cfg, s.accounts...)
 
+	err := network.GRPCConn(net)
+	s.Require().NoError(err)
+
 	s.network = net
 	s.kr = net.Validators[0].ClientCtx.Keyring
 	s.encCfg = encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
 
-	_, err := s.network.WaitForHeight(1)
+	_, err = s.network.WaitForHeight(1)
 	s.Require().NoError(err)
 }
 
@@ -67,7 +71,7 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 	s.network.Cleanup()
 }
 
-func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
+func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	require := s.Require()
 	assert := s.Assert()
 	val := s.network.Validators[0]
@@ -127,7 +131,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 				// shares, we should switch to proving txs existence in the block
 				resp, err := queryWithOutProof(val.ClientCtx, hash)
 				assert.NoError(err)
-				assert.Equal(uint32(0), abci.CodeTypeOK)
+				assert.Equal(abci.CodeTypeOK, resp.TxResult.Code)
 				if resp.TxResult.Code == abci.CodeTypeOK {
 					heights[resp.Height]++
 				}
@@ -155,6 +159,63 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 
 		})
 		require.NoError(s.network.WaitForNextBlock())
+	}
+}
+
+func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
+	require := s.Require()
+	assert := s.Assert()
+	val := s.network.Validators[0]
+
+	type test struct {
+		name    string
+		ns      []byte
+		message []byte
+		opts    []types.TxBuilderOption
+	}
+
+	tests := []test{
+		{
+			"small random typical",
+			[]byte{1, 2, 3, 4, 5, 6, 7, 8},
+			tmrand.Bytes(3000),
+			[]types.TxBuilderOption{
+				types.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
+			},
+		},
+		{
+			"large random typical",
+			[]byte{2, 3, 4, 5, 6, 7, 8, 9},
+			tmrand.Bytes(900000),
+			[]types.TxBuilderOption{
+				types.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
+			},
+		},
+		{
+			"medium random with memo",
+			[]byte{2, 3, 4, 5, 6, 7, 8, 9},
+			tmrand.Bytes(100000),
+			[]types.TxBuilderOption{
+				types.SetMemo("lol I could stick the rollup block here if I wanted to"),
+			},
+		},
+		{
+			"medium random with timeout height",
+			[]byte{2, 3, 4, 5, 6, 7, 8, 9},
+			tmrand.Bytes(100000),
+			[]types.TxBuilderOption{
+				types.SetTimeoutHeight(1000),
+			},
+		},
+	}
+	for _, tc := range tests {
+		s.Run(tc.name, func() {
+			signer := types.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
+			res, err := payment.SubmitPayForData(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.message, 10000000, tc.opts...)
+			assert.NoError(err)
+			assert.Equal(abci.CodeTypeOK, res.Code)
+			require.NoError(s.network.WaitForNextBlock())
+		})
 	}
 
 }

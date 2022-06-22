@@ -7,7 +7,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -42,7 +41,7 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
 		}
 
 		// skip txs that don't contain messages
-		if !hasWirePayForData(authTx) {
+		if !types.HasWirePayForData(authTx) {
 			success, err := sqwr.writeTx(rawTx)
 			if err != nil {
 				continue
@@ -272,14 +271,4 @@ func (sqwr *shareSplitter) export() [][]byte {
 	}
 
 	return shares
-}
-
-func hasWirePayForData(tx sdk.Tx) bool {
-	for _, msg := range tx.GetMsgs() {
-		msgName := sdk.MsgTypeURL(msg)
-		if msgName == types.URLMsgWirePayForData {
-			return true
-		}
-	}
-	return false
 }

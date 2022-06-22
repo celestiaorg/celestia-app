@@ -81,8 +81,7 @@ func BuildPayForDataTxFromWireTx(
 	if err != nil {
 		return nil, err
 	}
-	builder.SetGasLimit(origTx.GetGas())
-	builder.SetFeeAmount(origTx.GetFee())
+	builder = InheritTxConfig(builder, origTx)
 
 	origSigs, err := origTx.GetSignaturesV2()
 	if err != nil {
