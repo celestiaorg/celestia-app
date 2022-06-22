@@ -141,8 +141,8 @@ func (oc *orchestratorClient) addOldValsetAttestations(ctx context.Context, vals
 		// Used to get the height that valset was first introduced
 		correspondingVs, err := oc.querier.QueryValsetByNonce(ctx, previousNonce)
 		if err != nil {
-			oc.logger.Error(err.Error())
-			return
+			//oc.logger.Error(err.Error())
+			continue
 		}
 		if correspondingVs.Height < lastUnbondingHeight {
 			// Most likely, we're up to date and don't need to catchup anymore
@@ -269,7 +269,7 @@ func (oc *orchestratorClient) addOldDataCommitmentAttestations(
 		dc, err := oc.querier.QueryDataCommitmentByNonce(ctx, nonce)
 		if err != nil {
 			oc.logger.Error(err.Error())
-			return
+			continue
 		}
 		if dc == nil {
 			return

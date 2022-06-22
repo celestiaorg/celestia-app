@@ -29,7 +29,7 @@ type Querier interface {
 	QueryTwoThirdsDataCommitmentConfirms(
 		ctx context.Context,
 		timeout time.Duration,
-		dc ExtendedDataCommitment,
+		dc types.DataCommitment,
 	) ([]types.MsgDataCommitmentConfirm, error)
 	QueryTwoThirdsValsetConfirms(
 		ctx context.Context,
@@ -39,6 +39,7 @@ type Querier interface {
 	//QueryLastValsets(ctx context.Context) ([]types.Valset, error)
 	QueryValsetConfirm(ctx context.Context, nonce uint64, address string) (*types.MsgValsetConfirm, error)
 	QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error)
+	QueryAttestationByNonce(ctx context.Context, nonce uint64) (*types.AttestationRequestI, error)
 	QueryLastUnbondingHeight(ctx context.Context) (uint64, error)
 	QueryHeight(ctx context.Context) (uint64, error)
 	QueryLastValsetBeforeNonce(
@@ -115,9 +116,9 @@ func (q *querier) QueryDataCommitmentConfirms(
 func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 	ctx context.Context,
 	timeout time.Duration,
-	dc ExtendedDataCommitment,
+	dc types.DataCommitment,
 ) ([]types.MsgDataCommitmentConfirm, error) {
-	valset, err := q.QueryLastValsetBeforeNonce(ctx, dc.Data.Nonce)
+	valset, err := q.QueryLastValsetBeforeNonce(ctx, dc.Nonce)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +139,7 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 			return nil, fmt.Errorf("failure to query for majority validator set confirms: timout %s", timeout)
 		default:
 			currThreshHold := uint64(0)
-			confirms, err := q.QueryDataCommitmentConfirmsByExactRange(ctx, dc.Data.BeginBlock, dc.Data.EndBlock)
+			confirms, err := q.QueryDataCommitmentConfirmsByExactRange(ctx, dc.BeginBlock, dc.EndBlock)
 			if err != nil {
 				return nil, err
 			}
@@ -409,6 +410,28 @@ func (q *querier) QueryDataCommitmentByNonce(ctx context.Context, nonce uint64) 
 	return dcc, nil
 }
 
+func (q *querier) QueryAttestationByNonce(ctx context.Context, nonce uint64) (*types.AttestationRequestI, error) {
+	queryClient := types.NewQueryClient(q.qgbRPC)
+
+	dc, err := queryClient.AttestationRequestByNonce(
+		ctx,
+		&types.QueryAttestationRequestByNonceRequest{Nonce: nonce},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	encCfg := MakeEncodingConfig()
+
+	var unmarshalledAttestation types.AttestationRequestI
+	err = encCfg.InterfaceRegistry.UnpackAny(dc.Attestation, &unmarshalledAttestation)
+	if err != nil {
+		return nil, err
+	}
+
+	return &unmarshalledAttestation, nil
+}
+
 func (q *querier) QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
 
@@ -420,12 +443,24 @@ func (q *querier) QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.
 		return nil, err
 	}
 
-	value, ok := dc.Attestation.GetCachedValue().(types.Valset)
-	if !ok {
+	encCfg := MakeEncodingConfig()
+
+	var unmarshalledAttestation types.AttestationRequestI
+	err = encCfg.InterfaceRegistry.UnpackAny(dc.Attestation, &unmarshalledAttestation)
+	if err != nil {
+		return nil, err
+	}
+
+	if unmarshalledAttestation.Type() != types.ValsetRequestType {
 		return nil, types.ErrAttestationNotValsetRequest
 	}
 
-	return &value, nil
+	value, ok := unmarshalledAttestation.(*types.Valset)
+	if !ok {
+		return nil, types.ErrAttestationNotDataCommitmentRequest
+	}
+
+	return value, nil
 }
 
 func (q *querier) QueryLatestAttestationNonce(ctx context.Context) (uint64, error) {

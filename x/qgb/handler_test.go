@@ -1,8 +1,9 @@
-package qgb
+package qgb_test
 
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
+	"github.com/celestiaorg/celestia-app/x/qgb"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -44,7 +45,7 @@ func TestMsgValsetConfirm(t *testing.T) {
 
 	input, ctx := keeper.SetupFiveValChain(t)
 	k := input.QgbKeeper
-	h := NewHandler(*input.QgbKeeper)
+	h := qgb.NewHandler(*input.QgbKeeper)
 
 	// create new validator
 	err := createNewValidator(input)
@@ -105,7 +106,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 	err := createNewValidator(input)
 	require.NoError(t, err)
 
-	h := NewHandler(*input.QgbKeeper)
+	h := qgb.NewHandler(*input.QgbKeeper)
 	ctx = ctx.WithBlockTime(blockTime)
 
 	commitment := "102030"

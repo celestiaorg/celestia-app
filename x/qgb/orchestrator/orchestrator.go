@@ -77,6 +77,7 @@ func (oc *orchestrator) processDataCommitmentEvents(
 			EndBlock:         dc.Data.EndBlock,
 			ValidatorAddress: oc.orchestratorAddress,
 			Signature:        ethcmn.Bytes2Hex(dcSig),
+			Nonce:            dc.Data.Nonce,
 		}
 
 		hash, err := oc.broadcaster.BroadcastTx(ctx, msg)

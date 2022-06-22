@@ -16,56 +16,79 @@ type relayer struct {
 	querier Querier
 
 	// relayer
-	bridgeID  ethcmn.Hash
-	evmClient EVMClient
+	bridgeID      ethcmn.Hash
+	evmClient     EVMClient
+	relayerClient relayerClient
 }
 
-func NewRelayer(querier Querier, evmClient EVMClient) (*relayer, error) {
+func NewRelayer(querier Querier, evmClient EVMClient, relayerClient relayerClient) (*relayer, error) {
 	return &relayer{
-		querier:   querier,
-		bridgeID:  types.BridgeId,
-		evmClient: evmClient,
+		querier:       querier,
+		bridgeID:      types.BridgeId,
+		evmClient:     evmClient,
+		relayerClient: relayerClient,
 	}, nil
 }
 
-func (r *relayer) processValsetEvents(ctx context.Context, valSetChannel <-chan types.Valset) error {
-	for valset := range valSetChannel {
-
-		confirms, err := r.querier.QueryTwoThirdsValsetConfirms(ctx, time.Minute*30, valset)
+func (r *relayer) processEvents(ctx context.Context) error {
+	for {
+		lastContractNonce, err := r.relayerClient.evmClient.StateLastEventNonce(&bind.CallOpts{})
 		if err != nil {
-			return err
+			r.relayerClient.logger.Error(err.Error())
+			continue
+		}
+		latestNonce, err := r.relayerClient.querier.QueryLatestAttestationNonce(ctx)
+
+		// If the contract has already the last version, no need to relay anything
+		if lastContractNonce >= latestNonce {
+			time.Sleep(10 * time.Second)
+			continue
 		}
 
-		// FIXME: arguments to be verified
-		err = r.updateValidatorSet(ctx, valset, valset.TwoThirdsThreshold(), confirms)
+		// we're incrementing by 1 since we still don't support heights
+		// instead of nonce: https://github.com/celestiaorg/quantum-gravity-bridge/issues/104
+		att1, err := r.relayerClient.querier.QueryAttestationByNonce(ctx, lastContractNonce+1)
 		if err != nil {
-			return err
+			r.relayerClient.logger.Error(err.Error())
+			continue
 		}
-	}
-	return nil
-}
+		att := *att1
+		if att.Type() == types.ValsetRequestType {
+			vs, ok := att.(*types.Valset)
+			if !ok {
+				return types.ErrAttestationNotValsetRequest
+			}
+			confirms, err := r.querier.QueryTwoThirdsValsetConfirms(ctx, time.Minute*30, *vs)
+			if err != nil {
+				return err
+			}
 
-func (r *relayer) processDataCommitmentEvents(
-	ctx context.Context,
-	dataCommitmentChannel <-chan ExtendedDataCommitment,
-) error {
-	for dc := range dataCommitmentChannel {
+			// FIXME: arguments to be verified
+			err = r.updateValidatorSet(ctx, *vs, vs.TwoThirdsThreshold(), confirms)
+			if err != nil {
+				return err
+			}
+		} else {
+			dc, ok := att.(*types.DataCommitment)
+			if !ok {
+				return types.ErrAttestationNotDataCommitmentRequest
+			}
+			// todo: make times configurable
+			confirms, err := r.querier.QueryTwoThirdsDataCommitmentConfirms(ctx, time.Minute*30, *dc)
+			if err != nil {
+				return err
+			}
 
-		// todo: make times configurable
-		confirms, err := r.querier.QueryTwoThirdsDataCommitmentConfirms(ctx, time.Minute*30, dc)
-		if err != nil {
-			return err
-		}
+			// todo: make gas limit configurable
+			valset, err := r.querier.QueryLastValsetBeforeNonce(ctx, dc.Nonce)
+			if err != nil {
+				return err
+			}
 
-		// todo: make gas limit configurable
-		valset, err := r.querier.QueryLastValsetBeforeNonce(ctx, dc.Data.EndBlock)
-		if err != nil {
-			return err
-		}
-
-		err = r.submitDataRootTupleRoot(ctx, *valset, dc.Commitment.String(), confirms)
-		if err != nil {
-			return err
+			err = r.submitDataRootTupleRoot(ctx, *valset, confirms[0].Commitment, confirms)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -86,7 +109,7 @@ func (r *relayer) updateValidatorSet(
 	if valset.Nonce == 1 {
 		currentValset = valset
 	} else {
-		vs, err := r.querier.QueryValsetByNonce(ctx, valset.Nonce-1)
+		vs, err := r.querier.QueryLastValsetBeforeNonce(ctx, valset.Nonce-1)
 		if err != nil {
 			return err
 		}

@@ -1,7 +1,8 @@
-package types
+package types_test
 
 import (
 	"encoding/hex"
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"testing"
 
@@ -77,7 +78,7 @@ func TestValsetConfirmSig(t *testing.T) {
 			// when
 			ethAddr, err := stakingtypes.NewEthAddress(spec.srcETHAddr)
 			assert.NoError(t, err)
-			err = ValidateEthereumSignature(hashBytes, sigBytes, *ethAddr)
+			err = types.ValidateEthereumSignature(hashBytes, sigBytes, *ethAddr)
 			if spec.expErr {
 				assert.Error(t, err)
 				return

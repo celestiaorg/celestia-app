@@ -1,8 +1,9 @@
-package keeper
+package keeper_test
 
 import (
 	"bytes"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -21,7 +22,7 @@ func TestQueryValsetConfirm(t *testing.T) {
 	)
 	require.NoError(t, err1)
 	require.NoError(t, err2)
-	input := CreateTestEnv(t)
+	input := keeper.CreateTestEnv(t)
 	sdkCtx := input.Context
 	ctx := sdk.WrapSDKContext(input.Context)
 	k := input.QgbKeeper
@@ -91,7 +92,7 @@ func TestAllValsetConfirmsByNonce(t *testing.T) {
 		myValidatorEthereumAddr3, _ = stakingtypes.NewEthAddress("0x0303030303030303030303030303030303030303")
 	)
 
-	input := CreateTestEnv(t)
+	input := keeper.CreateTestEnv(t)
 	sdkCtx := input.Context
 	ctx := sdk.WrapSDKContext(input.Context)
 	k := input.QgbKeeper
@@ -151,28 +152,28 @@ func TestQueryCurrentValset(t *testing.T) {
 			Members: []types.BridgeValidator{
 				{
 					Power:           858993459,
-					EthereumAddress: EthAddrs[0].GetAddress(),
+					EthereumAddress: keeper.EthAddrs[0].GetAddress(),
 				},
 				{
 					Power:           858993459,
-					EthereumAddress: EthAddrs[1].GetAddress(),
+					EthereumAddress: keeper.EthAddrs[1].GetAddress(),
 				},
 				{
 					Power:           858993459,
-					EthereumAddress: EthAddrs[2].GetAddress(),
+					EthereumAddress: keeper.EthAddrs[2].GetAddress(),
 				},
 				{
 					Power:           858993459,
-					EthereumAddress: EthAddrs[3].GetAddress(),
+					EthereumAddress: keeper.EthAddrs[3].GetAddress(),
 				},
 				{
 					Power:           858993459,
-					EthereumAddress: EthAddrs[4].GetAddress(),
+					EthereumAddress: keeper.EthAddrs[4].GetAddress(),
 				},
 			},
 		}
 	)
-	input, _ := SetupFiveValChain(t)
+	input, _ := keeper.SetupFiveValChain(t)
 	sdkCtx := input.Context
 
 	currentValset, err := input.QgbKeeper.GetCurrentValset(sdkCtx)

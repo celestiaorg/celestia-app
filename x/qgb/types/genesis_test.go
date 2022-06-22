@@ -1,6 +1,7 @@
-package types
+package types_test
 
 import (
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -8,17 +9,17 @@ import (
 
 func TestGenesisStateValidate(t *testing.T) {
 	specs := map[string]struct {
-		src    *GenesisState
+		src    *types.GenesisState
 		expErr bool
 	}{
-		"default params": {src: DefaultGenesis(), expErr: false},
-		"empty params": {src: &GenesisState{
-			Params: &Params{
+		"default params": {src: types.DefaultGenesis(), expErr: false},
+		"empty params": {src: &types.GenesisState{
+			Params: &types.Params{
 				DataCommitmentWindow: 0,
 			},
 		}, expErr: true},
-		"invalid params: short block time": {src: &GenesisState{
-			Params: &Params{
+		"invalid params: short block time": {src: &types.GenesisState{
+			Params: &types.Params{
 				DataCommitmentWindow: 10,
 			},
 		}, expErr: true},

@@ -71,6 +71,8 @@ message MsgDataCommitmentConfirm {
   // Last block defining the ordered set of blocks used to create the
   // commitment.
   uint64 end_block = 6;
+  // Unique number referencing the `ValSet`.
+  uint64 nonce = 7;
 }
 
 // MsgValsetConfirmResponse describes the response returned after the submission

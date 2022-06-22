@@ -66,7 +66,7 @@ func DeployCmd() *cobra.Command {
 				auth,
 				ethClient,
 				bridgeID,
-				big.NewInt(0), // TODO get the latest instead
+				big.NewInt(0), // TODO get the latest instead or make it a parameter
 				big.NewInt(int64(vs.TwoThirdsThreshold())),
 				ethVsHash,
 			)

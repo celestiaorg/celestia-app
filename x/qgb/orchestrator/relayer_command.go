@@ -1,7 +1,6 @@
 package orchestrator
 
 import (
-	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -61,6 +60,7 @@ func RelayerCmd() *cobra.Command {
 					config.privateKey,
 					config.evmRPC,
 				),
+				*client,
 			)
 			if err != nil {
 				return err
@@ -76,39 +76,7 @@ func RelayerCmd() *cobra.Command {
 					case <-cmd.Context().Done():
 						return
 					default:
-						valsetChan, err := client.SubscribeValset(cmd.Context())
-						if err != nil {
-							// TODO is this the correct way ?
-							logger.Error(err.Error())
-							return
-						}
-						err = relay.processValsetEvents(cmd.Context(), valsetChan)
-						if err != nil {
-							logger.Error(err.Error())
-							time.Sleep(time.Second * 30)
-							continue
-						}
-						return
-					}
-				}
-
-			}()
-
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for {
-					select {
-					case <-cmd.Context().Done():
-						return
-					default:
-						dcChan, err := client.SubscribeDataCommitment(cmd.Context())
-						if err != nil {
-							// TODO is this the correct way ?
-							fmt.Println(err.Error())
-							return
-						}
-						err = relay.processDataCommitmentEvents(cmd.Context(), dcChan)
+						err = relay.processEvents(cmd.Context())
 						if err != nil {
 							logger.Error(err.Error())
 							time.Sleep(time.Second * 30)

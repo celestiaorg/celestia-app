@@ -30,9 +30,17 @@ func (k msgServer) ValsetConfirm(
 	ctx := sdk.UnwrapSDKContext(c)
 
 	// Get valset by nonce
-	valset := k.GetValset(ctx, msg.Nonce)
-	if valset == nil {
-		return nil, sdkerrors.Wrap(types.ErrInvalid, "couldn't find valset")
+	// TODO refactor
+	at := k.GetAttestationByNonce(ctx, msg.Nonce)
+	var valset types.Valset
+	if at.Type() == types.ValsetRequestType {
+		vs, ok := at.(*types.Valset)
+		if !ok {
+			return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
+		}
+		valset = *vs
+	} else {
+		return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
 	}
 
 	// Get orchestrator account from message
@@ -134,12 +142,11 @@ func (k msgServer) DataCommitmentConfirm(
 	}
 
 	// Verify signature
-	nonce := msg.EndBlock / types.DataCommitmentWindow
 	commitment, err := hex.DecodeString(msg.Commitment)
 	if err != nil {
 		return nil, err
 	}
-	hash := types.DataCommitmentTupleRootSignBytes(types.BridgeId, big.NewInt(int64(nonce)), commitment)
+	hash := types.DataCommitmentTupleRootSignBytes(types.BridgeId, big.NewInt(int64(msg.Nonce)), commitment)
 	err = types.ValidateEthereumSignature(hash.Bytes(), sigBytes, *ethAddress)
 	if err != nil {
 		return nil, sdkerrors.Wrap(

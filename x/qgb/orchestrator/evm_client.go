@@ -64,6 +64,7 @@ func (ec *evmClient) UpdateValidatorSet(
 	sigs []wrapper.Signature,
 ) error {
 	ec.logger.Info(fmt.Sprintf("relaying valset %d...", newNonce))
+	// TODO gasLimit ?
 	opts, err := ec.NewTransactOpts(ctx, 1000000)
 	if err != nil {
 		return err

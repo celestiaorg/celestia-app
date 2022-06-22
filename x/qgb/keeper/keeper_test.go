@@ -1,6 +1,7 @@
-package keeper
+package keeper_test
 
 import (
+	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -28,11 +29,11 @@ func TestPrefixRange(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			if tc.expPanic {
 				require.Panics(t, func() {
-					prefixRange(tc.src)
+					keeper.PrefixRange(tc.src)
 				})
 				return
 			}
-			start, end := prefixRange(tc.src)
+			start, end := keeper.PrefixRange(tc.src)
 			assert.Equal(t, tc.expStart, start)
 			assert.Equal(t, tc.expEnd, end)
 		})

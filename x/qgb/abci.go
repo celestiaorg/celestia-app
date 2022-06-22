@@ -14,16 +14,18 @@ func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
 }
 
 func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
-	if ctx.BlockHeight() == 0 || ctx.BlockHeight()%int64(types.DataCommitmentWindow) != 0 {
-		return
+	if ctx.BlockHeight() != 0 && ctx.BlockHeight()%int64(types.DataCommitmentWindow) == 0 {
+		dataCommitment, err := k.GetCurrentDataCommitment(ctx)
+		if err != nil {
+			panic(sdkerrors.Wrap(err, "coudln't get current data commitment"))
+		}
+		k.StoreAttestation(ctx, &dataCommitment)
+		k.SetLatestAttestationNonce(ctx, dataCommitment.Nonce)
 	}
-	dataCommitment, err := k.GetCurrentDataCommitment(ctx)
-	if err != nil {
-		panic(sdkerrors.Wrap(err, "coudln't get current data commitment"))
-	}
-	k.StoreAttestation(ctx, &dataCommitment)
-	k.SetLatestAttestationNonce(ctx, dataCommitment.Nonce)
 }
+
+// for accesing the store twice? Idk
+var InMemoryNonce uint64
 
 func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 	// get the last valsets to compare against
