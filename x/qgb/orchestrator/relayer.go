@@ -151,6 +151,12 @@ func (r *relayer) submitDataRootTupleRoot(
 	// increment the nonce before submitting the new tuple root
 	newDataCommitmentNonce := lastDataCommitmentNonce + 1
 
+	r.relayerClient.logger.Info(fmt.Sprintf(
+		"relaying data commitment %d-%d...",
+		confirms[0].BeginBlock, // because the nonce was already incremented
+		confirms[0].EndBlock,
+	))
+
 	err = r.evmClient.SubmitDataRootTupleRoot(
 		ctx,
 		ethcmn.HexToHash(commitment),

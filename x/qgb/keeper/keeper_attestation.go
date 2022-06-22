@@ -64,7 +64,7 @@ func (k Keeper) CheckLatestAttestationNonce(ctx sdk.Context) bool {
 
 // GetLatestDataCommitmentNonce returns the latest data commitment nonce
 func (k Keeper) GetLatestAttestationNonce(ctx sdk.Context) uint64 {
-	if !k.CheckLatestAttestationNonce(ctx) {
+	if ctx.BlockHeight() <= int64(1) { // temporarily to avoid concurrent map exception
 		// TODO: handle this case for genesis properly. Note for Evan: write an issue
 		return 0
 	}

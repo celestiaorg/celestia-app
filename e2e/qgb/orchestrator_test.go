@@ -96,7 +96,7 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	// check core0 submited the valset confirm
-	core0ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 2, CORE0ACCOUNTADDRESS)
+	core0ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core0ValsetConfirm)
@@ -117,7 +117,7 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 	assert.Equal(t, CORE0EVMADDRESS, core0DataCommitmentConfirm.EthAddress)
 
 	// check core1 submited the valset confirm
-	core1ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 2, CORE1ACCOUNTADDRESS)
+	core1ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE1ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core1ValsetConfirm)
@@ -172,11 +172,8 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
 	HandleNetworkError(t, network, err, false)
 
-	latestNonce, err := querier.QueryLatestAttestationNonce(network.Context)
-	assert.NoError(t, err)
-
 	// check core0 submited the valset confirm
-	core0ValsetConfirm, err := querier.QueryValsetConfirm(ctx, latestNonce, CORE0ACCOUNTADDRESS)
+	core0ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core0ValsetConfirm)
@@ -197,7 +194,7 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	assert.Equal(t, CORE0EVMADDRESS, core0DataCommitmentConfirm.EthAddress)
 
 	// check core1 submited the valset confirm
-	core1ValsetConfirm, err := querier.QueryValsetConfirm(ctx, latestNonce, CORE1ACCOUNTADDRESS)
+	core1ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE1ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core1ValsetConfirm)
@@ -218,7 +215,7 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	assert.Equal(t, CORE1EVMADDRESS, core1DataCommitmentConfirm.EthAddress)
 
 	// check core2 submited the valset confirm
-	core2ValsetConfirm, err := querier.QueryValsetConfirm(ctx, latestNonce, CORE2ACCOUNTADDRESS)
+	core2ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE2ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core2ValsetConfirm)
@@ -240,7 +237,7 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	assert.Equal(t, CORE2EVMADDRESS, core2DataCommitmentConfirm.EthAddress)
 
 	// check core3 submited the valset confirm
-	core3ValsetConfirm, err := querier.QueryValsetConfirm(ctx, latestNonce, CORE3ACCOUNTADDRESS)
+	core3ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE3ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core3ValsetConfirm)
@@ -315,7 +312,7 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	assert.Equal(t, CORE0EVMADDRESS, vs1Core0Confirm.EthAddress)
 
 	// check core0 submitted valset 2 confirm
-	vs2Core0Confirm, err := querier.QueryValsetConfirm(ctx, 2, CORE0ACCOUNTADDRESS)
+	vs2Core0Confirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, vs2Core0Confirm)
@@ -331,7 +328,7 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	assert.Equal(t, CORE1EVMADDRESS, vs1Core1Confirm.EthAddress)
 
 	// check core1 submitted valset 2 confirm
-	vs2Core1Confirm, err := querier.QueryValsetConfirm(ctx, 2, CORE1ACCOUNTADDRESS)
+	vs2Core1Confirm, err := querier.QueryValsetConfirm(ctx, 1, CORE1ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, vs2Core1Confirm)

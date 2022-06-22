@@ -309,7 +309,7 @@ func (q *querier) QueryValsetConfirm(
 	address string,
 ) (*types.MsgValsetConfirm, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
-	// machi bdarora this nonce is for a valset confirm
+	// TODO machi bdarora this nonce is for a valset confirm
 	resp, err := queryClient.ValsetConfirm(ctx, &types.QueryValsetConfirmRequest{Nonce: nonce, Address: address})
 	if err != nil {
 		return nil, err
@@ -441,6 +441,10 @@ func (q *querier) QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if dc.Attestation == nil {
+		return nil, nil // TODO throw error
 	}
 
 	encCfg := MakeEncodingConfig()

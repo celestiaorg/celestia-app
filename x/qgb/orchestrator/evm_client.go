@@ -63,6 +63,7 @@ func (ec *evmClient) UpdateValidatorSet(
 	currentValset, newValset types.Valset,
 	sigs []wrapper.Signature,
 ) error {
+	// TODO in addition to the nonce, log more interesting information
 	ec.logger.Info(fmt.Sprintf("relaying valset %d...", newNonce))
 	// TODO gasLimit ?
 	opts, err := ec.NewTransactOpts(ctx, 1000000)
@@ -117,11 +118,6 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 	currentValset types.Valset,
 	sigs []wrapper.Signature,
 ) error {
-	ec.logger.Info(fmt.Sprintf(
-		"relaying data commitment %d-%d...",
-		(newNonce-1)*types.DataCommitmentWindow, // because the nonce was already incremented
-		newNonce*types.DataCommitmentWindow,
-	))
 	opts, err := ec.NewTransactOpts(ctx, 1000000)
 	if err != nil {
 		return err
@@ -148,9 +144,7 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 	// TODO put this in a separate function and listen for new EVM blocks instead of just sleeping
 	for i := 0; i < 60; i++ {
 		ec.logger.Debug(fmt.Sprintf(
-			"waiting for data commitment %d-%d to be confirmed: %s",
-			(newNonce-1)*types.DataCommitmentWindow, // because the nonce was already incremented
-			newNonce*types.DataCommitmentWindow,
+			"waiting for data commitment to be confirmed: %s",
 			tx.Hash().String(),
 		))
 		lastNonce, err := ec.StateLastEventNonce(&bind.CallOpts{Context: ctx})
@@ -159,9 +153,7 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 		}
 		if lastNonce == newNonce {
 			ec.logger.Info(fmt.Sprintf(
-				"relayed data commitment %d-%d: %s",
-				(newNonce-1)*types.DataCommitmentWindow, // because the nonce was already incremented
-				newNonce*types.DataCommitmentWindow,
+				"relayed data commitment: %s",
 				tx.Hash().String(),
 			))
 			return nil
@@ -170,9 +162,7 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 	}
 	ec.logger.Error(
 		fmt.Sprintf(
-			"failed to relay data commitment %d-%d: %s",
-			(newNonce-1)*types.DataCommitmentWindow, // because the nonce was already incremented
-			newNonce*types.DataCommitmentWindow,
+			"failed to relay data commitment: %s",
 			tx.Hash().String(),
 		),
 	)
