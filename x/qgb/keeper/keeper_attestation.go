@@ -23,7 +23,7 @@ func (k Keeper) SetAttestationRequest(ctx sdk.Context, at types.AttestationReque
 	return nil
 }
 
-// StoreDataCommitment
+// StoreAttestation
 func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) {
 	nonce := at.GetNonce()
 	key := []byte(types.GetAttestationKey(nonce))
@@ -40,7 +40,7 @@ func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) 
 	store.Set((key), b)
 }
 
-// SetLatestAttestationNonce sets the latest data commitment nonce, since it's
+// SetLatestAttestationNonce sets the latest attestation request nonce, since it's
 // expected that this value will only increase it panics on an attempt
 // to decrement
 func (k Keeper) SetLatestAttestationNonce(ctx sdk.Context, nonce uint64) {
@@ -54,7 +54,7 @@ func (k Keeper) SetLatestAttestationNonce(ctx sdk.Context, nonce uint64) {
 	store.Set([]byte(types.LatestAttestationtNonce), types.UInt64Bytes(nonce))
 }
 
-// CheckLatestDataCommitmentNonce returns true if the latest data commitment nonce
+// CheckLatestAttestationNonce returns true if the latest attestation request nonce
 // is declared in the store and false if it has not been initialized
 func (k Keeper) CheckLatestAttestationNonce(ctx sdk.Context) bool {
 	store := ctx.KVStore(k.storeKey)
@@ -62,7 +62,7 @@ func (k Keeper) CheckLatestAttestationNonce(ctx sdk.Context) bool {
 	return has
 }
 
-// GetLatestDataCommitmentNonce returns the latest data commitment nonce
+// GetLatestAttestationNonce returns the latest attestation request nonce
 func (k Keeper) GetLatestAttestationNonce(ctx sdk.Context) uint64 {
 	if ctx.BlockHeight() <= int64(1) { // temporarily to avoid concurrent map exception
 		// TODO: handle this case for genesis properly. Note for Evan: write an issue
@@ -74,7 +74,7 @@ func (k Keeper) GetLatestAttestationNonce(ctx sdk.Context) uint64 {
 	return UInt64FromBytes(bytes)
 }
 
-// GetDataCommitment returns a data commitment by nonce
+// GetAttestationByNonce returns an attestation request by nonce
 func (k Keeper) GetAttestationByNonce(ctx sdk.Context, nonce uint64) types.AttestationRequestI {
 	store := ctx.KVStore(k.storeKey)
 	bz := store.Get([]byte(types.GetAttestationKey(nonce)))
