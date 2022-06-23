@@ -81,9 +81,17 @@ func (ec *evmClient) UpdateValidatorSet(
 		return err
 	}
 
+	var currentNonce uint64
+	if newValset.Nonce == 1 {
+		currentNonce = 0
+	} else {
+		currentNonce = currentValset.Nonce
+	}
+
 	tx, err := ec.wrapper.UpdateValidatorSet(
 		opts,
 		big.NewInt(int64(newNonce)),
+		big.NewInt(int64(currentNonce)),
 		big.NewInt(int64(newThreshHold)),
 		ethVsHash,
 		ethVals,

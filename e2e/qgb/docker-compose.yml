@@ -187,6 +187,7 @@ services:
     image: trufflesuite/ganache-cli
     command: [
       "--port=8545",
+      "--verbose",
       "--host=0.0.0.0",
       "--networkId=1234",
       "--chainId=1234",

@@ -141,7 +141,7 @@ func (s *QGBTestSuite) TestSubmitDataCommitment() {
 
 	dcNonce, err := s.wrapper.StateEventNonce(nil)
 	s.NoError(err)
-	s.Assert().Equal(0, dcNonce.Cmp(big.NewInt(2)))
+	s.Assert().Equal(0, dcNonce.Cmp(big.NewInt(1)))
 }
 
 func (s *QGBTestSuite) TestUpdateValset() {
@@ -187,6 +187,7 @@ func (s *QGBTestSuite) TestUpdateValset() {
 	tx, err := s.wrapper.UpdateValidatorSet(
 		s.auth,
 		big.NewInt(1),
+		big.NewInt(0),
 		big.NewInt(int64(thresh)),
 		newVsHash,
 		ethVals,
