@@ -20,8 +20,6 @@ func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 		&MsgValsetConfirm{},
 	)
 
-	// TODO check if it works without
-	// TODO use a name like: celestia.qgb.shit idk
 	registry.RegisterInterface(
 		"AttestationRequestI",
 		(*AttestationRequestI)(nil),

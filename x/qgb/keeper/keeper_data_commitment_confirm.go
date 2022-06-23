@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-// TODO add unit tests for alll the keepers
+// TODO add unit tests for all the keepers
 
 // GetDataCommitmentConfirm Returns a data commitment confirm by nonce and validator address
 // nonce = endBlock % data window in decimal base

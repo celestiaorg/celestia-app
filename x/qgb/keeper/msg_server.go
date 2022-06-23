@@ -30,7 +30,6 @@ func (k msgServer) ValsetConfirm(
 	ctx := sdk.UnwrapSDKContext(c)
 
 	// Get valset by nonce
-	// TODO refactor
 	at := k.GetAttestationByNonce(ctx, msg.Nonce)
 	if at == nil {
 		return nil, types.ErrAttestationNotFound

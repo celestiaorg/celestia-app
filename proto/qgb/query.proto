@@ -21,12 +21,12 @@ service Query {
 
   // attestations' requests queries
 
-  // DataCommitmentRequest Queries data commitment request by nonce.
+  // AttestationRequestByNonce Queries attestation request by nonce.
   rpc AttestationRequestByNonce(QueryAttestationRequestByNonceRequest)
       returns (QueryAttestationRequestByNonceResponse) {
     option (google.api.http).get = "/qgb/attestations/requests/{nonce}";
   }
-  // LatestDataCommitmentNonce
+  // LatestAttestationNonce Queries latest attestation nonce.
   rpc LatestAttestationNonce(QueryLatestAttestationNonceRequest)
       returns (QueryLatestAttestationNonceResponse) {
     option (google.api.http).get = "/qgb/attestations/nonce/latest";

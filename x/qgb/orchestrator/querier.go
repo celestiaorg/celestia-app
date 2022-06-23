@@ -302,7 +302,8 @@ func (q *querier) QueryValsetConfirm(
 	address string,
 ) (*types.MsgValsetConfirm, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
-	// TODO machi bdarora this nonce is for a valset confirm
+	// FIXME this is not always a valset confirm (the nonce can be of a data commitment)
+	// and might return an empty list. Should we worry?
 	resp, err := queryClient.ValsetConfirm(ctx, &types.QueryValsetConfirmRequest{Nonce: nonce, Address: address})
 	if err != nil {
 		return nil, err

@@ -1303,9 +1303,9 @@ const _ = grpc.SupportPackageIsVersion4
 type QueryClient interface {
 	// Params Queries the current parameters for the qgb module
 	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
-	// DataCommitmentRequest Queries data commitment request by nonce.
+	// AttestationRequestByNonce Queries attestation request by nonce.
 	AttestationRequestByNonce(ctx context.Context, in *QueryAttestationRequestByNonceRequest, opts ...grpc.CallOption) (*QueryAttestationRequestByNonceResponse, error)
-	// LatestDataCommitmentNonce
+	// LatestAttestationNonce Queries latest attestation nonce.
 	LatestAttestationNonce(ctx context.Context, in *QueryLatestAttestationNonceRequest, opts ...grpc.CallOption) (*QueryLatestAttestationNonceResponse, error)
 	// DataCommitmentConfirm Queries the data commitment confirm by the commitment
 	// and the validator address
@@ -1456,9 +1456,9 @@ func (c *queryClient) LastUnbondingHeight(ctx context.Context, in *QueryLastUnbo
 type QueryServer interface {
 	// Params Queries the current parameters for the qgb module
 	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)
-	// DataCommitmentRequest Queries data commitment request by nonce.
+	// AttestationRequestByNonce Queries attestation request by nonce.
 	AttestationRequestByNonce(context.Context, *QueryAttestationRequestByNonceRequest) (*QueryAttestationRequestByNonceResponse, error)
-	// LatestDataCommitmentNonce
+	// LatestAttestationNonce Queries latest attestation nonce.
 	LatestAttestationNonce(context.Context, *QueryLatestAttestationNonceRequest) (*QueryLatestAttestationNonceResponse, error)
 	// DataCommitmentConfirm Queries the data commitment confirm by the commitment
 	// and the validator address
