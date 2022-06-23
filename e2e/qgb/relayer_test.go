@@ -131,7 +131,7 @@ func TestRelayerWithMultipleValidators(t *testing.T) {
 	assert.NoError(t, err)
 
 	var lastValset *types.Valset
-	if vs, err := querier.QueryValsetByNonce(network.Context, latestNonce); err != nil {
+	if vs, err := querier.QueryValsetByNonce(network.Context, latestNonce); err != nil && vs != nil { //TODO fix
 		lastValset = vs
 	} else {
 		lastValset, err = querier.QueryLastValsetBeforeNonce(network.Context, latestNonce)
