@@ -2,6 +2,8 @@ package orchestrator
 
 import (
 	"context"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"os"
 	"strings"
 	"sync"
@@ -61,11 +63,17 @@ func OrchestratorCmd() *cobra.Command {
 				return nil
 			}
 
+			orchEthAddr, err := stakingtypes.NewEthAddress(crypto.PubkeyToAddress(config.privateKey.PublicKey).Hex())
+			if err != nil {
+				return err
+			}
+
 			orch := orchestrator{
 				broadcaster:         broadcaster,
 				evmPrivateKey:       *config.privateKey,
 				bridgeID:            types.BridgeId,
-				orchestratorAddress: signer.GetSignerInfo().GetAddress().String(),
+				orchestratorAddress: signer.GetSignerInfo().GetAddress(),
+				orchEthAddress:      *orchEthAddr,
 				logger:              logger,
 			}
 

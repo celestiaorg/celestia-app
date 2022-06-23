@@ -12,8 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-// TODO use NewMsgDataCommitmentConfirm() instead of initializing the struct
-// separatly everywhere
 // NewMsgDataCommitmentConfirm creates a new NewMsgDataCommitmentConfirm
 func NewMsgDataCommitmentConfirm(
 	commitment string,

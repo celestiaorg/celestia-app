@@ -26,12 +26,12 @@ func TestQueryValsetConfirm(t *testing.T) {
 	sdkCtx := input.Context
 	ctx := sdk.WrapSDKContext(input.Context)
 	k := input.QgbKeeper
-	input.QgbKeeper.SetValsetConfirm(sdkCtx, types.MsgValsetConfirm{
-		Nonce:        nonce,
-		Orchestrator: myValidatorCosmosAddr.String(),
-		EthAddress:   myValidatorEthereumAddr.GetAddress(),
-		Signature:    "alksdjhflkasjdfoiasjdfiasjdfoiasdj",
-	})
+	input.QgbKeeper.SetValsetConfirm(sdkCtx, *types.NewMsgValsetConfirm(
+		nonce,
+		*myValidatorEthereumAddr,
+		myValidatorCosmosAddr,
+		"alksdjhflkasjdfoiasjdfiasjdfoiasdj",
+	))
 
 	specs := map[string]struct {
 		src     types.QueryValsetConfirmRequest

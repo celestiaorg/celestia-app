@@ -67,33 +67,33 @@ func TestMsgValsetConfirm(t *testing.T) {
 	require.NoError(t, err)
 
 	// try wrong eth address
-	msg := &types.MsgValsetConfirm{
-		Nonce:        1,
-		Orchestrator: keeper.OrchAddrs[0].String(),
-		EthAddress:   keeper.EthAddrs[1].GetAddress(), // wrong because validator 0 should have EthAddrs[0]
-		Signature:    signature,
-	}
+	msg := types.NewMsgValsetConfirm(
+		1,
+		keeper.EthAddrs[1], // wrong because validator 0 should have EthAddrs[0]
+		keeper.OrchAddrs[0],
+		signature,
+	)
 	ctx = ctx.WithBlockTime(blockTime).WithBlockHeight(blockHeight)
 	_, err = h(ctx, msg)
 	require.Error(t, err)
 
 	// try a nonexisting valset
-	msg = &types.MsgValsetConfirm{
-		Nonce:        10,
-		Orchestrator: keeper.OrchAddrs[0].String(),
-		EthAddress:   keeper.EthAddrs[0].GetAddress(),
-		Signature:    signature,
-	}
+	msg = types.NewMsgValsetConfirm(
+		10,
+		keeper.EthAddrs[0],
+		keeper.OrchAddrs[0],
+		signature,
+	)
 	ctx = ctx.WithBlockTime(blockTime).WithBlockHeight(blockHeight)
 	_, err = h(ctx, msg)
 	require.Error(t, err)
 
-	msg = &types.MsgValsetConfirm{
-		Nonce:        1,
-		Orchestrator: orchAddress.String(),
-		EthAddress:   orchEthAddress,
-		Signature:    signature,
-	}
+	msg = types.NewMsgValsetConfirm(
+		1,
+		*ethAddr,
+		orchAddress,
+		signature,
+	)
 	ctx = ctx.WithBlockTime(blockTime).WithBlockHeight(blockHeight)
 	_, err = h(ctx, msg)
 	require.NoError(t, err)
@@ -125,16 +125,15 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 	require.NoError(t, err)
 
 	// Sending a data commitment confirm
-	// TODO use NEW METHOD!!!
-	setDCCMsg := &types.MsgDataCommitmentConfirm{
-		Signature:        hex.EncodeToString(signature),
-		ValidatorAddress: orchAddress.String(),
-		EthAddress:       orchEthAddress,
-		Commitment:       commitment,
-		BeginBlock:       1,
-		EndBlock:         100,
-		Nonce:            10,
-	}
+	setDCCMsg := types.NewMsgDataCommitmentConfirm(
+		commitment,
+		hex.EncodeToString(signature),
+		orchAddress,
+		*ethAddr,
+		1,
+		100,
+		10,
+	)
 	result, err := h(ctx, setDCCMsg)
 	require.NoError(t, err)
 
