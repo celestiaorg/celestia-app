@@ -8,8 +8,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-const maxDataCommitmentRequestsReturned = 5
-
 func (k Keeper) AttestationRequestByNonce(
 	ctx context.Context,
 	request *types.QueryAttestationRequestByNonceRequest,
