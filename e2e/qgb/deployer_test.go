@@ -41,5 +41,5 @@ func TestDeployer(t *testing.T) {
 
 	eventNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: network.Context})
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(1), eventNonce)
+	assert.Equal(t, uint64(0), eventNonce)
 }

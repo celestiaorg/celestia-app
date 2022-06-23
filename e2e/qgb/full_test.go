@@ -42,7 +42,7 @@ func TestFullLongBehaviour(t *testing.T) {
 	assert.NoError(t, err)
 
 	var lastValset *types.Valset
-	if vs, err := querier.QueryValsetByNonce(network.Context, latestNonce); err != nil {
+	if vs, err := querier.QueryValsetByNonce(network.Context, latestNonce); err != nil && vs != nil { // TODO fix this mess
 		lastValset = vs
 	} else {
 		lastValset, err = querier.QueryLastValsetBeforeNonce(network.Context, latestNonce)
@@ -61,5 +61,5 @@ func TestFullLongBehaviour(t *testing.T) {
 	eventNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: network.Context})
 	assert.NoError(t, err)
 	// attestations are either data commitments or valsets
-	assert.GreaterOrEqual(t, eventNonce, 100/types.DataCommitmentWindow+lastValset.Nonce)
+	assert.GreaterOrEqual(t, eventNonce, latestNonce-1)
 }
