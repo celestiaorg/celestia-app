@@ -28,10 +28,6 @@ const (
 
 const (
 	// ValsetRequestKey indexes valset requests by nonce
-	ValsetRequestKey = "ValsetRequestKey"
-	// ValsetRequestKey indexes valset requests by nonce
-	DataCommitmentRequestKey = "DataCommitmentRequestKey"
-	// ValsetRequestKey indexes valset requests by nonce
 	AttestationRequestKey = "AttestationRequestKey"
 
 	// ValsetConfirmKey indexes valset confirmations by nonce and the validator account address
@@ -67,20 +63,6 @@ func GetValsetConfirmKey(nonce uint64, validator sdk.AccAddress) string {
 		panic(sdkerrors.Wrap(err, "invalid validator address"))
 	}
 	return ValsetConfirmKey + ConvertByteArrToString(UInt64Bytes(nonce)) + string(validator.Bytes())
-}
-
-// GetValsetKey returns the following key format
-// prefix    nonce
-// [0x0][0 0 0 0 0 0 0 1]
-func GetValsetKey(nonce uint64) string {
-	return ValsetRequestKey + string(UInt64Bytes(nonce))
-}
-
-// GetDataCommitmentKey returns the following key format
-// prefix    nonce
-// [0x0][0 0 0 0 0 0 0 1]
-func GetDataCommitmentKey(nonce uint64) string {
-	return DataCommitmentRequestKey + string(UInt64Bytes(nonce))
 }
 
 // GetAttestationKey returns the following key format

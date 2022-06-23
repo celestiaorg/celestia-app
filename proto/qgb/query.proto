@@ -44,6 +44,7 @@ service Query {
   }
   // DataCommitmentConfirmsByValidator Queries data commitment confirms by
   // validator address
+  // FIXME can be deleted
   rpc DataCommitmentConfirmsByValidator(
       QueryDataCommitmentConfirmsByValidatorRequest)
       returns (QueryDataCommitmentConfirmsByValidatorResponse) {
@@ -60,6 +61,7 @@ service Query {
   }
   // DataCommitmentConfirmsByRange Queries data commitment confirms by a block
   // range
+  // FIXME can be deleted
   rpc DataCommitmentConfirmsByRange(QueryDataCommitmentConfirmsByRangeRequest)
       returns (QueryDataCommitmentConfirmsByRangeResponse) {
     option (google.api.http).get = "/qgb/data_commitment/confirms/begin_block/"
@@ -82,9 +84,11 @@ service Query {
       returns (QueryValsetConfirmResponse) {
     option (google.api.http).get = "/qgb/valset/confirm";
   }
-  // LastValsetBeforeNonce Queries last Valset before height
-  rpc LastValsetBeforeNonce(QueryLastValsetBeforeNonceRequest)
-      returns (QueryLastValsetBeforeNonceResponse) {
+  // LastValsetRequestBeforeNonce Queries last Valset request before nonce.
+  // And, even if the current nonce is a valset, if will return the previous
+  // one.
+  rpc LastValsetRequestBeforeNonce(QueryLastValsetRequestBeforeNonceRequest)
+      returns (QueryLastValsetRequestBeforeNonceResponse) {
     option (google.api.http).get = "/qgb/valset/request/before/{nonce}";
   }
   // ValsetConfirmsByNonce
@@ -124,9 +128,7 @@ message QueryAttestationRequestByNonceResponse {
 // QueryLatestAttestationNonceRequest Latest attestation nonce request
 message QueryLatestAttestationNonceRequest {}
 // QueryLatestAttestationNonceResponse Latest attestation nonce response
-message QueryLatestAttestationNonceResponse {
-  uint64 nonce = 1;
-}
+message QueryLatestAttestationNonceResponse { uint64 nonce = 1; }
 
 // QueryValsetConfirmsByNonceRequest
 message QueryValsetConfirmsByNonceRequest { uint64 nonce = 1; }
@@ -145,13 +147,13 @@ message QueryValsetConfirmRequest {
 // QueryValsetConfirmResponse ValSet confirm query response
 message QueryValsetConfirmResponse { MsgValsetConfirm confirm = 1; }
 
-// QueryLastValsetBeforeNonceRequest last Valset request before universal nonce
-// request
-message QueryLastValsetBeforeNonceRequest { uint64 nonce = 1; }
+// QueryLastValsetRequestBeforeNonceRequest last Valset request before universal
+// nonce request
+message QueryLastValsetRequestBeforeNonceRequest { uint64 nonce = 1; }
 
-// QueryLastValsetBeforeNonceResponse last Valset request before height
+// QueryLastValsetRequestBeforeNonceResponse last Valset request before height
 // response
-message QueryLastValsetBeforeNonceResponse { Valset valset = 1; }
+message QueryLastValsetRequestBeforeNonceResponse { Valset valset = 1; }
 
 // QueryDataCommitmentConfirmsRequest Data commitment confirm by commitment and
 // validator address request

@@ -25,30 +25,6 @@ func NewValset(nonce, height uint64, members InternalBridgeValidators) (*Valset,
 	return &vs, nil
 }
 
-// CopyValset returns a new valset from an existing one
-func CopyValset(v Valset) (*Valset, error) {
-	vs := Valset{Nonce: v.Nonce, Members: v.Members, Height: v.Height}
-	return &vs, nil
-}
-
-// WithoutEmptyMembers returns a new Valset without member that have 0 power or an empty Ethereum address.
-func (v *Valset) WithoutEmptyMembers() *Valset {
-	if v == nil {
-		return nil
-	}
-	r := Valset{
-		Nonce:   v.Nonce,
-		Members: make([]BridgeValidator, 0, len(v.Members)),
-		Height:  0,
-	}
-	for i := range v.Members {
-		if _, err := v.Members[i].ToInternal(); err == nil {
-			r.Members = append(r.Members, v.Members[i])
-		}
-	}
-	return &r
-}
-
 // SignBytes produces the bytes that celestia validators are required to sign
 // over when the validator set changes.
 func (v *Valset) SignBytes(bridgeID ethcmn.Hash) (ethcmn.Hash, error) {
@@ -108,33 +84,6 @@ func (v *Valset) TwoThirdsThreshold() uint64 {
 	return 2 * oneThird
 }
 
-// Valsets is a collection of valset
-type Valsets []Valset
-
-func (v Valsets) Len() int {
-	return len(v)
-}
-
-func (v Valsets) Less(i, j int) bool {
-	return v[i].Nonce > v[j].Nonce
-}
-
-func (v Valsets) Swap(i, j int) {
-	v[i], v[j] = v[j], v[i]
-}
-
 func (v Valset) Type() AttestationType {
 	return ValsetRequestType
-}
-
-func hehe() {
-	desired := 4
-	l := []int{4, 8, 16, 32}
-	var found *int
-	for _, i := range l {
-		if i == desired {
-			found = &i
-		}
-	}
-	fmt.Println(*found)
 }

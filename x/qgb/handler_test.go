@@ -56,7 +56,9 @@ func TestMsgValsetConfirm(t *testing.T) {
 	require.NoError(t, err)
 	vs.Height = uint64(1)
 	vs.Nonce = uint64(1)
-	k.StoreValset(ctx, vs) // TODO this should store the attestation
+
+	err = k.SetAttestationRequest(ctx, &vs)
+	require.Nil(t, err)
 
 	signBytes, err := vs.SignBytes(types.BridgeId)
 	require.NoError(t, err)
@@ -114,7 +116,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 	require.NoError(t, err)
 	dataHash := types.DataCommitmentTupleRootSignBytes(
 		types.BridgeId,
-		big.NewInt(int64(100/types.DataCommitmentWindow)),
+		big.NewInt(10),
 		bytesCommitment,
 	)
 
@@ -123,6 +125,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 	require.NoError(t, err)
 
 	// Sending a data commitment confirm
+	// TODO use NEW METHOD!!!
 	setDCCMsg := &types.MsgDataCommitmentConfirm{
 		Signature:        hex.EncodeToString(signature),
 		ValidatorAddress: orchAddress.String(),
@@ -130,6 +133,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		Commitment:       commitment,
 		BeginBlock:       1,
 		EndBlock:         100,
+		Nonce:            10,
 	}
 	result, err := h(ctx, setDCCMsg)
 	require.NoError(t, err)

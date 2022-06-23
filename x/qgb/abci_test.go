@@ -26,8 +26,11 @@ func TestValsetCreationUponUnbonding(t *testing.T) {
 	input, ctx := keeper.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
-	currentValsetNonce := pk.GetLatestValsetNonce(ctx)
-	pk.SetValsetRequest(ctx)
+	currentValsetNonce := pk.GetLatestAttestationNonce(ctx)
+	vs, err := pk.GetCurrentValset(ctx)
+	require.Nil(t, err)
+	err = pk.SetAttestationRequest(ctx, &vs)
+	require.Nil(t, err)
 
 	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
 	// begin unbonding
@@ -40,7 +43,7 @@ func TestValsetCreationUponUnbonding(t *testing.T) {
 	staking.EndBlocker(input.Context, input.StakingKeeper)
 	qgb.EndBlocker(input.Context, *pk)
 
-	assert.NotEqual(t, currentValsetNonce, pk.GetLatestValsetNonce(ctx))
+	assert.NotEqual(t, currentValsetNonce, pk.GetLatestAttestationNonce(ctx))
 }
 
 func TestValsetEmission(t *testing.T) {
@@ -65,9 +68,13 @@ func TestValsetEmission(t *testing.T) {
 func TestValsetSetting(t *testing.T) {
 	input, ctx := keeper.SetupFiveValChain(t)
 	pk := input.QgbKeeper
-	pk.SetValsetRequest(ctx)
-	valsets := pk.GetValsets(ctx)
-	require.True(t, len(valsets) == 1)
+
+	vs, err := pk.GetCurrentValset(ctx)
+	require.Nil(t, err)
+	err = pk.SetAttestationRequest(ctx, &vs)
+	require.Nil(t, err)
+
+	require.Equal(t, uint64(1), pk.GetLatestAttestationNonce(ctx))
 }
 
 // Add data commitment window tests
