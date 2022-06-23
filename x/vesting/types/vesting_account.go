@@ -7,6 +7,7 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
+	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/x/vesting/exported"
 	vestexported "github.com/celestiaorg/celestia-app/x/vesting/exported"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -44,7 +45,7 @@ func NewBaseVestingAccount(baseAccount *authtypes.BaseAccount, originalVesting s
 //
 // CONTRACT: Delegated vesting coins and vestingCoins must be sorted.
 func (bva BaseVestingAccount) LockedCoinsFromVesting(vestingCoins sdk.Coins) sdk.Coins {
-	lockedCoins := vestingCoins.Sub(vestingCoins.Min(bva.DelegatedVesting))
+	lockedCoins := vestingCoins.Sub(vestingCoins.Min(bva.DelegatedVesting)...)
 	if lockedCoins == nil {
 		return sdk.Coins{}
 	}
@@ -114,12 +115,12 @@ func (bva *BaseVestingAccount) TrackUndelegation(amount sdk.Coins) {
 
 		if !x.IsZero() {
 			xCoin := sdk.NewCoin(coin.Denom, x)
-			bva.DelegatedFree = bva.DelegatedFree.Sub(sdk.Coins{xCoin})
+			bva.DelegatedFree = bva.DelegatedFree.Sub(xCoin)
 		}
 
 		if !y.IsZero() {
 			yCoin := sdk.NewCoin(coin.Denom, y)
-			bva.DelegatedVesting = bva.DelegatedVesting.Sub(sdk.Coins{yCoin})
+			bva.DelegatedVesting = bva.DelegatedVesting.Sub(yCoin)
 		}
 	}
 }
@@ -241,7 +242,7 @@ func (cva ContinuousVestingAccount) GetVestedCoins(blockTime time.Time) sdk.Coin
 	s := sdk.NewDec(x).Quo(sdk.NewDec(y))
 
 	for _, ovc := range cva.OriginalVesting {
-		vestedAmt := ovc.Amount.ToDec().Mul(s).RoundInt()
+		vestedAmt := sdk.NewDecFromInt(ovc.Amount).Mul(s).RoundInt()
 		vestedCoins = append(vestedCoins, sdk.NewCoin(ovc.Denom, vestedAmt))
 	}
 
@@ -251,7 +252,7 @@ func (cva ContinuousVestingAccount) GetVestedCoins(blockTime time.Time) sdk.Coin
 // GetVestingCoins returns the total number of vesting coins. If no coins are
 // vesting, nil is returned.
 func (cva ContinuousVestingAccount) GetVestingCoins(blockTime time.Time) sdk.Coins {
-	return cva.OriginalVesting.Sub(cva.GetVestedCoins(blockTime))
+	return cva.OriginalVesting.Sub(cva.GetVestedCoins(blockTime)...)
 }
 
 // LockedCoins returns the set of coins that are not spendable (i.e. locked),
@@ -354,7 +355,7 @@ func (pva PeriodicVestingAccount) GetVestedCoins(blockTime time.Time) sdk.Coins 
 // GetVestingCoins returns the total number of vesting coins. If no coins are
 // vesting, nil is returned.
 func (pva PeriodicVestingAccount) GetVestingCoins(blockTime time.Time) sdk.Coins {
-	return pva.OriginalVesting.Sub(pva.GetVestedCoins(blockTime))
+	return pva.OriginalVesting.Sub(pva.GetVestedCoins(blockTime)...)
 }
 
 // LockedCoins returns the set of coins that are not spendable (i.e. locked),
@@ -479,7 +480,7 @@ func (pva *PeriodicVestingAccount) addGrant(ctx sdk.Context, sk StakingKeeper, g
 
 	// discover what has been slashed
 	oldDelegated := pva.DelegatedVesting.Add(pva.DelegatedFree...)
-	slashed := oldDelegated.Sub(coinsMin(oldDelegated, delegated))
+	slashed := oldDelegated.Sub(coinsMin(oldDelegated, delegated)...)
 
 	// rebase the DV+DF by capping slashed at the current unvested amount
 	unvested := pva.GetVestingCoins(ctx.BlockTime())
@@ -497,7 +498,7 @@ func (pva *PeriodicVestingAccount) addGrant(ctx sdk.Context, sk StakingKeeper, g
 	// cap DV at the current unvested amount, DF rounds out to newTotalDelegated
 	unvested2 := pva.GetVestingCoins(ctx.BlockTime())
 	pva.DelegatedVesting = coinsMin(newTotalDelegated, unvested2)
-	pva.DelegatedFree = newTotalDelegated.Sub(pva.DelegatedVesting)
+	pva.DelegatedFree = newTotalDelegated.Sub(pva.DelegatedVesting...)
 }
 
 // Delayed Vesting Account
@@ -536,7 +537,7 @@ func (dva DelayedVestingAccount) GetVestedCoins(blockTime time.Time) sdk.Coins {
 // GetVestingCoins returns the total number of vesting coins for a delayed
 // vesting account.
 func (dva DelayedVestingAccount) GetVestingCoins(blockTime time.Time) sdk.Coins {
-	return dva.OriginalVesting.Sub(dva.GetVestedCoins(blockTime))
+	return dva.OriginalVesting.Sub(dva.GetVestedCoins(blockTime)...)
 }
 
 // LockedCoins returns the set of coins that are not spendable (i.e. locked),
@@ -697,7 +698,7 @@ func (va ClawbackVestingAccount) GetVestedCoins(blockTime time.Time) sdk.Coins {
 // GetVestingCoins returns the total number of vesting coins. If no coins are
 // vesting, nil is returned.
 func (va ClawbackVestingAccount) GetVestingCoins(blockTime time.Time) sdk.Coins {
-	return va.OriginalVesting.Sub(va.GetVestedCoins(blockTime))
+	return va.OriginalVesting.Sub(va.GetVestedCoins(blockTime)...)
 }
 
 // LockedCoins returns the set of coins that are not spendable (i.e. locked),
@@ -851,10 +852,10 @@ func (va *ClawbackVestingAccount) addGrant(ctx sdk.Context, sk StakingKeeper, gr
 
 	// discover what has been slashed
 	oldDelegated := va.DelegatedVesting.Add(va.DelegatedFree...)
-	slashed := oldDelegated.Sub(coinsMin(oldDelegated, delegated))
+	slashed := oldDelegated.Sub(coinsMin(oldDelegated, delegated)...)
 
 	// rebase the DV + DF by capping slashed at the current unvested amount
-	unvested := va.OriginalVesting.Sub(va.GetVestedOnly(ctx.BlockTime()))
+	unvested := va.OriginalVesting.Sub(va.GetVestedOnly(ctx.BlockTime())...)
 	newSlashed := coinsMin(slashed, unvested)
 	newDelegated := delegated.Add(newSlashed...)
 
@@ -874,7 +875,7 @@ func (va *ClawbackVestingAccount) addGrant(ctx sdk.Context, sk StakingKeeper, gr
 	// cap DV at the current unvested amount, DF rounds out to newDelegated
 	unvested2 := va.GetVestingCoins(ctx.BlockTime())
 	va.DelegatedVesting = coinsMin(newDelegated, unvested2)
-	va.DelegatedFree = newDelegated.Sub(va.DelegatedVesting)
+	va.DelegatedFree = newDelegated.Sub(va.DelegatedVesting...)
 }
 
 // GetFunder implements the exported.ClawbackVestingAccountI interface.
@@ -960,12 +961,12 @@ func (va *ClawbackVestingAccount) computeClawback(clawbackTime int64) sdk.Coins 
 func (va *ClawbackVestingAccount) updateDelegation(encumbered, toClawBack, bonded, unbonding, unbonded sdk.Coins) sdk.Coins {
 	delegated := bonded.Add(unbonding...)
 	oldDelegated := va.DelegatedVesting.Add(va.DelegatedFree...)
-	slashed := oldDelegated.Sub(coinsMin(delegated, oldDelegated))
+	slashed := oldDelegated.Sub(coinsMin(delegated, oldDelegated)...)
 	total := delegated.Add(unbonded...)
 	toClawBack = coinsMin(toClawBack, total) // might have been slashed
-	newDelegated := coinsMin(delegated, total.Sub(toClawBack)).Add(slashed...)
+	newDelegated := coinsMin(delegated, total.Sub(toClawBack...)).Add(slashed...)
 	va.DelegatedVesting = coinsMin(encumbered, newDelegated)
-	va.DelegatedFree = newDelegated.Sub(va.DelegatedVesting)
+	va.DelegatedFree = newDelegated.Sub(va.DelegatedVesting...)
 	return toClawBack
 }
 
@@ -1043,7 +1044,7 @@ func (va *ClawbackVestingAccount) clawback(ctx sdk.Context, dest sdk.AccAddress,
 	if err != nil {
 		return err // shouldn't happen, given spendable check
 	}
-	toClawBack = toClawBack.Sub(toXfer)
+	toClawBack = toClawBack.Sub(toXfer...)
 
 	// We need to traverse the staking data structures to update the
 	// vesting account bookkeeping, and to recover more funds if necessary.
@@ -1118,11 +1119,12 @@ func (va ClawbackVestingAccount) distributeReward(ctx sdk.Context, ak AccountKee
 	runningTotReward := sdk.NewCoins()
 	runningTotStaking := sdk.ZeroInt()
 	for i := firstUnvestedPeriod; i < len(va.VestingPeriods); i++ {
+		sdkmath.NewInt(2)
 		period := va.VestingPeriods[i]
 		runningTotStaking = runningTotStaking.Add(period.Amount.AmountOf(bondDenom))
-		runningTotRatio := runningTotStaking.ToDec().Quo(unvestedTokens.ToDec())
+		runningTotRatio := sdk.NewDecFromInt(runningTotStaking).Quo(sdk.NewDecFromInt(unvestedTokens))
 		targetCoins := scaleCoins(reward, runningTotRatio)
-		thisReward := targetCoins.Sub(runningTotReward)
+		thisReward := targetCoins.Sub(runningTotReward...)
 		runningTotReward = targetCoins
 		period.Amount = period.Amount.Add(thisReward...)
 		va.VestingPeriods[i] = period
@@ -1136,7 +1138,7 @@ func (va ClawbackVestingAccount) distributeReward(ctx sdk.Context, ak AccountKee
 func scaleCoins(coins sdk.Coins, scale sdk.Dec) sdk.Coins {
 	scaledCoins := sdk.NewCoins()
 	for _, coin := range coins {
-		amt := coin.Amount.ToDec().Mul(scale).TruncateInt() // round down
+		amt := sdk.NewDecFromInt(coin.Amount).Mul(scale).TruncateInt() // round down
 		scaledCoins = scaledCoins.Add(sdk.NewCoin(coin.Denom, amt))
 	}
 	return scaledCoins
@@ -1222,7 +1224,11 @@ func (va ClawbackVestingAccount) postReward(ctx sdk.Context, reward sdk.Coins, a
 		va.distributeReward(ctx, ak, bondDenom, reward)
 		return
 	}
-	unvestedRatio := unvested.ToDec().QuoTruncate(bonded.ToDec()) // round down
+	unvestedRatio := toDec(unvested).QuoTruncate(sdk.NewDecFromInt(bonded)) // round down
 	unvestedReward := scaleCoins(reward, unvestedRatio)
 	va.distributeReward(ctx, ak, bondDenom, unvestedReward)
+}
+
+func toDec(i sdk.Int) sdk.Dec {
+	return sdk.NewDecFromInt(i)
 }

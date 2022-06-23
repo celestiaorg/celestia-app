@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/x/vesting/types"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktestutil "github.com/cosmos/cosmos-sdk/x/bank/testutil"
 )
 
 type HandlerTestSuite struct {
@@ -22,7 +23,7 @@ type HandlerTestSuite struct {
 
 func (suite *HandlerTestSuite) SetupTest() {
 	checkTx := false
-	app := simapp.Setup(checkTx)
+	app := simapp.Setup(suite.T(), checkTx)
 
 	suite.handler = vesting.NewHandler(app.AccountKeeper, app.BankKeeper, app.StakingKeeper)
 	suite.app = app
@@ -38,7 +39,7 @@ func (suite *HandlerTestSuite) TestMsgCreateVestingAccount() {
 
 	acc1 := suite.app.AccountKeeper.NewAccountWithAddress(ctx, addr1)
 	suite.app.AccountKeeper.SetAccount(ctx, acc1)
-	suite.Require().NoError(simapp.FundAccount(suite.app.BankKeeper, ctx, addr1, balances))
+	suite.Require().NoError(banktestutil.FundAccount(suite.app.BankKeeper, ctx, addr1, balances))
 
 	testCases := []struct {
 		name      string
@@ -103,7 +104,7 @@ func (suite *HandlerTestSuite) TestMsgCreatePeriodicVestingAccount() {
 
 	period := []types.Period{{Length: 5000, Amount: balances}}
 	suite.app.AccountKeeper.SetAccount(ctx, acc1)
-	suite.Require().NoError(simapp.FundAccount(suite.app.BankKeeper, ctx, addr1, balances))
+	suite.Require().NoError(banktestutil.FundAccount(suite.app.BankKeeper, ctx, addr1, balances))
 
 	testCases := []struct {
 		name      string
@@ -191,7 +192,7 @@ func (suite *HandlerTestSuite) TestMsgCreatePeriodicVestingAccount_Merge() {
 	// Create the funding account
 	acc1 := suite.app.AccountKeeper.NewAccountWithAddress(ctx, addr1)
 	suite.app.AccountKeeper.SetAccount(ctx, acc1)
-	suite.Require().NoError(simapp.FundAccount(suite.app.BankKeeper, ctx, addr1, sdk.NewCoins(tst(1000))))
+	suite.Require().NoError(banktestutil.FundAccount(suite.app.BankKeeper, ctx, addr1, sdk.NewCoins(tst(1000))))
 
 	// Create a normal account - cannot merge into it
 	acc2 := suite.app.AccountKeeper.NewAccountWithAddress(ctx, addr2)
@@ -351,7 +352,7 @@ func (suite *HandlerTestSuite) TestMsgCreateClawbackVestingAccount() {
 
 		suite.Run(tc.name, func() {
 			if !tc.expectErr {
-				suite.Require().NoError(simapp.FundAccount(suite.app.BankKeeper, ctx, addr1, balances))
+				suite.Require().NoError(banktestutil.FundAccount(suite.app.BankKeeper, ctx, addr1, balances))
 			}
 			res, err := suite.handler(ctx, tc.msg)
 			if tc.expectErr {
@@ -391,7 +392,7 @@ func (suite *HandlerTestSuite) TestMsgClawback() {
 
 	funder := suite.app.AccountKeeper.NewAccountWithAddress(ctx, addr1)
 	suite.app.AccountKeeper.SetAccount(ctx, funder)
-	suite.Require().NoError(simapp.FundAccount(suite.app.BankKeeper, ctx, addr1, balances))
+	suite.Require().NoError(banktestutil.FundAccount(suite.app.BankKeeper, ctx, addr1, balances))
 
 	lockupPeriods := []types.Period{{Length: 5000, Amount: balances}}
 	vestingPeriods := []types.Period{
