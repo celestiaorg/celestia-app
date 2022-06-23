@@ -15,7 +15,8 @@ import (
 // the valsets and data commitments are relayed correctly.
 // currently, it takes around 10min to reach 120 block.
 func TestFullLongBehaviour(t *testing.T) {
-	if os.Getenv("QGB_INTEGRATION_TEST") != TRUE {
+	// Separating it from other e2e as it takes around 20min to finish
+	if os.Getenv("QGB_INTEGRATION_FULL_TEST") != TRUE {
 		t.Skip("Skipping QGB integration tests")
 	}
 
