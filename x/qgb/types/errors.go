@@ -14,6 +14,7 @@ var (
 	ErrInvalidValset                       = sdkerrors.Register(ModuleName, 15, "generated invalid valset")
 	ErrAttestationNotValsetRequest         = sdkerrors.Register(ModuleName, 16, "attestation is not a valset request")
 	ErrAttestationNotDataCommitmentRequest = sdkerrors.Register(ModuleName, 17, "attestation is not a data commitment request")
-	ErrNilDataCommitmentRequest            = sdkerrors.Register(ModuleName, 18, "data commitment cannot be nil when setting attestation") //nolint:lll
-	ErrNilValsetRequest                    = sdkerrors.Register(ModuleName, 19, "valset cannot be nil when setting attestation")
+	ErrAttestationNotFound                 = sdkerrors.Register(ModuleName, 18, "attestation not found")
+	ErrNilDataCommitmentRequest            = sdkerrors.Register(ModuleName, 19, "data commitment cannot be nil when setting attestation") //nolint:lll
+	ErrNilValsetRequest                    = sdkerrors.Register(ModuleName, 20, "valset cannot be nil when setting attestation")
 )

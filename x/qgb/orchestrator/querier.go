@@ -3,6 +3,9 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
+	"github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/tendermint/spm/cosmoscmd"
 	"time"
 
 	"github.com/tendermint/tendermint/rpc/client/http"
@@ -15,9 +18,14 @@ import (
 var _ Querier = &querier{}
 
 type Querier interface {
-	//QueryLatestDataCommitmentNonce(ctx context.Context) (uint64, error)
-	//QueryLastDataCommitments(ctx context.Context) ([]types.DataCommitment, error)
+	// attestation queries
+	QueryAttestationByNonce(ctx context.Context, nonce uint64) (types.AttestationRequestI, error)
+	QueryLatestAttestationNonce(ctx context.Context) (uint64, error)
+
+	// data commitment queries
 	QueryDataCommitmentByNonce(ctx context.Context, nonce uint64) (*types.DataCommitment, error)
+
+	// data commitment confirm queries
 	QueryDataCommitmentConfirms(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error)
 	QueryDataCommitmentConfirm(
 		ctx context.Context,
@@ -25,42 +33,50 @@ type Querier interface {
 		beginBlock uint64,
 		address string,
 	) (*types.MsgDataCommitmentConfirm, error)
-	//QueryLastValset(ctx context.Context) (types.Valset, error)
-	QueryTwoThirdsDataCommitmentConfirms(
-		ctx context.Context,
-		timeout time.Duration,
-		dc types.DataCommitment,
-	) ([]types.MsgDataCommitmentConfirm, error)
-	QueryTwoThirdsValsetConfirms(
-		ctx context.Context,
-		timeout time.Duration,
-		valset types.Valset,
-	) ([]types.MsgValsetConfirm, error)
-	//QueryLastValsets(ctx context.Context) ([]types.Valset, error)
-	QueryValsetConfirm(ctx context.Context, nonce uint64, address string) (*types.MsgValsetConfirm, error)
-	QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error)
-	QueryAttestationByNonce(ctx context.Context, nonce uint64) (*types.AttestationRequestI, error)
-	QueryLastUnbondingHeight(ctx context.Context) (uint64, error)
-	QueryHeight(ctx context.Context) (uint64, error)
-	QueryLastValsetBeforeNonce(
-		ctx context.Context,
-		nonce uint64,
-	) (*types.Valset, error)
 	QueryDataCommitmentConfirmsByExactRange(
 		ctx context.Context,
 		start uint64,
 		end uint64,
 	) ([]types.MsgDataCommitmentConfirm, error)
-	QueryLatestAttestationNonce(ctx context.Context) (uint64, error)
+	QueryTwoThirdsDataCommitmentConfirms(
+		ctx context.Context,
+		timeout time.Duration,
+		dc types.DataCommitment,
+	) ([]types.MsgDataCommitmentConfirm, error)
+
+	// valset queries
+	QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error)
+	QueryLatestValset(ctx context.Context) (*types.Valset, error)
+	QueryLastValsetBeforeNonce(
+		ctx context.Context,
+		nonce uint64,
+	) (*types.Valset, error)
+
+	// valset confirm queries
+	QueryTwoThirdsValsetConfirms(
+		ctx context.Context,
+		timeout time.Duration,
+		valset types.Valset,
+	) ([]types.MsgValsetConfirm, error)
+	QueryValsetConfirm(ctx context.Context, nonce uint64, address string) (*types.MsgValsetConfirm, error)
+
+	// misc queries
+	QueryHeight(ctx context.Context) (uint64, error)
+	QueryLastUnbondingHeight(ctx context.Context) (uint64, error)
 }
 
 type querier struct {
 	qgbRPC        *grpc.ClientConn
 	logger        tmlog.Logger
 	tendermintRPC *http.HTTP
+	encCfg        cosmoscmd.EncodingConfig
 }
 
-func NewQuerier(qgbRPCAddr, tendermintRPC string, logger tmlog.Logger) (*querier, error) {
+func NewQuerier(
+	qgbRPCAddr, tendermintRPC string,
+	logger tmlog.Logger,
+	encCft cosmoscmd.EncodingConfig,
+) (*querier, error) { // TODO should we export Querier?
 	qgbGRPC, err := grpc.Dial(qgbRPCAddr, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
@@ -79,10 +95,11 @@ func NewQuerier(qgbRPCAddr, tendermintRPC string, logger tmlog.Logger) (*querier
 		qgbRPC:        qgbGRPC,
 		logger:        logger,
 		tendermintRPC: trpc,
+		encCfg:        encCft,
 	}, nil
 }
 
-// TODO add the other stop methods for other clients
+// TODO add the other stop methods for other clients.
 func (q *querier) Stop() {
 	err := q.qgbRPC.Close()
 	if err != nil {
@@ -136,7 +153,10 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 		case <-ctx.Done():
 			return nil, nil
 		case <-time.After(timeout):
-			return nil, fmt.Errorf("failure to query for majority validator set confirms: timout %s", timeout)
+			return nil, errors.Wrap(
+				ErrNotEnoughDataCommitmentConfirms,
+				fmt.Sprintf("failure to query for majority validator set confirms: timout %s", timeout),
+			)
 		default:
 			currThreshHold := uint64(0)
 			confirms, err := q.QueryDataCommitmentConfirmsByExactRange(ctx, dc.BeginBlock, dc.EndBlock)
@@ -149,7 +169,7 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 				val, has := vals[dataCommitmentConfirm.EthAddress]
 				if !has {
 					// currently, the orchestrators sign everything even if they didn't exist during a certain valset
-					// thus, the relayer finds correct confirms and also incorrect ones. By incorrect, I mean signatures from
+					// thus, the Relayer finds correct confirms and also incorrect ones. By incorrect, I mean signatures from
 					// orchestrators that didn't belong to the valset in question, but they still signed it
 					// as part of their catching up mechanism.
 					// should be fixed with the new design and https://github.com/celestiaorg/celestia-app/issues/406
@@ -209,7 +229,10 @@ func (q *querier) QueryTwoThirdsValsetConfirms(
 			return nil, nil
 		// TODO: remove this extra case, and we can instead rely on the caller to pass a context with a timeout
 		case <-time.After(timeout):
-			return nil, fmt.Errorf("failure to query for majority validator set confirms: timout %s", timeout)
+			return nil, errors.Wrap(
+				ErrNotEnoughValsetConfirms,
+				fmt.Sprintf("failure to query for majority validator set confirms: timout %s", timeout),
+			)
 		default:
 			currThreshHold := uint64(0)
 			queryClient := types.NewQueryClient(q.qgbRPC)
@@ -225,7 +248,7 @@ func (q *querier) QueryTwoThirdsValsetConfirms(
 				val, has := vals[valsetConfirm.EthAddress]
 				if !has {
 					// currently, the orchestrators sign everything even if they didn't exist during a certain valset
-					// thus, the relayer finds correct confirms and also incorrect ones. By incorrect, I mean signatures from
+					// thus, the Relayer finds correct confirms and also incorrect ones. By incorrect, I mean signatures from
 					// orchestrators that didn't belong to the valset in question, but they still signed it
 					// as part of their catching up mechanism.
 					// should be fixed with the new design. and https://github.com/celestiaorg/celestia-app/issues/406
@@ -258,38 +281,8 @@ func (q *querier) QueryTwoThirdsValsetConfirms(
 	}
 }
 
-// QueryLastValset TODO change name to reflect the functionality correctly
-// TODO make this return a pointer
-//func (q *querier) QueryLastValset(ctx context.Context) (types.Valset, error) {
-//	queryClient := types.NewQueryClient(q.qgbRPC)
-//	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
-//	if err != nil {
-//		return types.Valset{}, err
-//	}
-//
-//	if len(lastValsetResp.Valsets) == 1 {
-//		// genesis case
-//		return lastValsetResp.Valsets[0], nil
-//	}
-//
-//	if len(lastValsetResp.Valsets) < 2 {
-//		return types.Valset{}, errors.New("no validator sets found")
-//	}
-//
-//	valset := lastValsetResp.Valsets[1]
-//	return valset, nil
-//}
-
-//func (q *querier) QueryLastValsets(ctx context.Context) ([]types.Valset, error) {
-//	queryClient := types.NewQueryClient(q.qgbRPC)
-//	lastValsetResp, err := queryClient.LastValsetRequests(ctx, &types.QueryLastValsetRequestsRequest{})
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	return lastValsetResp.Valsets, nil
-//}
-
+// QueryLastValsetBeforeNonce returns the last valset before nonce.
+// the provided `nonce` can be a valset, but this will return the valset before it.
 func (q *querier) QueryLastValsetBeforeNonce(ctx context.Context, nonce uint64) (*types.Valset, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
 	resp, err := queryClient.LastValsetBeforeNonce(
@@ -380,29 +373,16 @@ func (q *querier) QueryDataCommitmentConfirmsByExactRange(
 }
 
 func (q *querier) QueryDataCommitmentByNonce(ctx context.Context, nonce uint64) (*types.DataCommitment, error) {
-	queryClient := types.NewQueryClient(q.qgbRPC)
-
-	dc, err := queryClient.AttestationRequestByNonce(
-		ctx,
-		&types.QueryAttestationRequestByNonceRequest{Nonce: nonce},
-	)
+	attestation, err := q.QueryAttestationByNonce(ctx, nonce)
 	if err != nil {
 		return nil, err
 	}
 
-	encCfg := MakeEncodingConfig()
-
-	var unmarshalledAttestation types.AttestationRequestI
-	err = encCfg.InterfaceRegistry.UnpackAny(dc.Attestation, &unmarshalledAttestation)
-	if err != nil {
-		return nil, err
-	}
-
-	if unmarshalledAttestation.Type() != types.DataCommitmentRequestType {
+	if attestation.Type() != types.DataCommitmentRequestType {
 		return nil, types.ErrAttestationNotDataCommitmentRequest
 	}
 
-	dcc, ok := unmarshalledAttestation.(*types.DataCommitment)
+	dcc, ok := attestation.(*types.DataCommitment)
 	if !ok {
 		return nil, types.ErrAttestationNotDataCommitmentRequest
 	}
@@ -410,61 +390,64 @@ func (q *querier) QueryDataCommitmentByNonce(ctx context.Context, nonce uint64) 
 	return dcc, nil
 }
 
-func (q *querier) QueryAttestationByNonce(ctx context.Context, nonce uint64) (*types.AttestationRequestI, error) {
+func (q *querier) QueryAttestationByNonce(
+	ctx context.Context,
+	nonce uint64,
+) (types.AttestationRequestI, error) { // FIXME is it alright to return interface?
 	queryClient := types.NewQueryClient(q.qgbRPC)
-
-	dc, err := queryClient.AttestationRequestByNonce(
+	atResp, err := queryClient.AttestationRequestByNonce(
 		ctx,
 		&types.QueryAttestationRequestByNonceRequest{Nonce: nonce},
 	)
 	if err != nil {
 		return nil, err
 	}
+	if atResp.Attestation == nil {
+		return nil, types.ErrAttestationNotFound
+	}
 
-	encCfg := MakeEncodingConfig()
-
-	var unmarshalledAttestation types.AttestationRequestI
-	err = encCfg.InterfaceRegistry.UnpackAny(dc.Attestation, &unmarshalledAttestation)
+	unmarshalledAttestation, err := q.unmarshallAttestation(atResp.Attestation)
 	if err != nil {
 		return nil, err
 	}
 
-	return &unmarshalledAttestation, nil
+	return unmarshalledAttestation, nil
 }
 
 func (q *querier) QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error) {
-	queryClient := types.NewQueryClient(q.qgbRPC)
-
-	dc, err := queryClient.AttestationRequestByNonce(
-		ctx,
-		&types.QueryAttestationRequestByNonceRequest{Nonce: nonce},
-	)
+	attestation, err := q.QueryAttestationByNonce(ctx, nonce)
 	if err != nil {
 		return nil, err
 	}
 
-	if dc.Attestation == nil {
-		return nil, nil // TODO throw error
-	}
-
-	encCfg := MakeEncodingConfig()
-
-	var unmarshalledAttestation types.AttestationRequestI
-	err = encCfg.InterfaceRegistry.UnpackAny(dc.Attestation, &unmarshalledAttestation)
-	if err != nil {
-		return nil, err
-	}
-
-	if unmarshalledAttestation.Type() != types.ValsetRequestType {
+	if attestation.Type() != types.ValsetRequestType {
 		return nil, types.ErrAttestationNotValsetRequest
 	}
 
-	value, ok := unmarshalledAttestation.(*types.Valset)
+	value, ok := attestation.(*types.Valset)
 	if !ok {
-		return nil, types.ErrAttestationNotDataCommitmentRequest
+		return nil, ErrUnmarshallValset
 	}
 
 	return value, nil
+}
+
+func (q *querier) QueryLatestValset(ctx context.Context) (*types.Valset, error) {
+	latestNonce, err := q.QueryLatestAttestationNonce(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var latestValset *types.Valset
+	if vs, err := q.QueryValsetByNonce(ctx, latestNonce); err == nil {
+		latestValset = vs
+	} else {
+		latestValset, err = q.QueryLastValsetBeforeNonce(ctx, latestNonce)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return latestValset, nil
 }
 
 func (q *querier) QueryLatestAttestationNonce(ctx context.Context) (uint64, error) {
@@ -479,4 +462,13 @@ func (q *querier) QueryLatestAttestationNonce(ctx context.Context) (uint64, erro
 	}
 
 	return resp.Nonce, nil
+}
+
+func (q *querier) unmarshallAttestation(attestation *cdctypes.Any) (types.AttestationRequestI, error) {
+	var unmarshalledAttestation types.AttestationRequestI
+	err := q.encCfg.InterfaceRegistry.UnpackAny(attestation, &unmarshalledAttestation)
+	if err != nil {
+		return nil, err
+	}
+	return unmarshalledAttestation, nil
 }

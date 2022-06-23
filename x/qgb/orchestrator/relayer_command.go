@@ -32,22 +32,7 @@ func RelayerCmd() *cobra.Command {
 				return err
 			}
 
-			querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger)
-			if err != nil {
-				return err
-			}
-
-			client, err := NewRelayerClient(
-				logger,
-				config.tendermintRPC,
-				querier,
-				NewEvmClient(
-					tmlog.NewTMLogger(os.Stdout),
-					*qgbWrapper,
-					config.privateKey,
-					config.evmRPC,
-				),
-			)
+			querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger, MakeEncodingConfig())
 			if err != nil {
 				return err
 			}
@@ -60,7 +45,7 @@ func RelayerCmd() *cobra.Command {
 					config.privateKey,
 					config.evmRPC,
 				),
-				*client,
+				logger,
 			)
 			if err != nil {
 				return err

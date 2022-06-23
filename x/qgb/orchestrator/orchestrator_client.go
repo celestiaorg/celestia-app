@@ -46,7 +46,7 @@ func NewOrchestratorClient(
 	}, nil
 }
 
-// TODO this will be removed when we use the new job/worker design for the client
+// TODO this will be removed when we use the new job/worker design for the client.
 func contains(s []uint64, nonce uint64) bool {
 	for _, v := range s {
 		if v == nonce {
@@ -64,21 +64,14 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 	// will change once we have the new design
 	go oc.addOldValsetAttestations(ctx, valsetsChan)
 
-	//results, err := oc.tendermintRPC.Subscribe(
-	//	ctx,
-	//	"valset-changes",
-	//	fmt.Sprintf("%s.%s='%s'", types.EventTypeValsetRequest, sdk.AttributeKeyModule, types.ModuleName),
-	//)
-	//if err != nil {
-	//	return nil, err
-	//}
-
 	latestNonce, err := oc.querier.QueryLatestAttestationNonce(ctx)
 	if err != nil {
 		oc.logger.Error(err.Error())
 		time.Sleep(1 * time.Second)
 	}
-	nonce := latestNonce + 1
+	if latestNonce == 0 {
+		latestNonce++
+	}
 	go func() {
 		defer close(valsetsChan)
 		for {
@@ -86,13 +79,11 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 			case <-ctx.Done():
 				return
 			default:
-				// TODO add query for LatestValsetNonce and use it instead of this
-				oc.logger.Error(fmt.Sprintf("vs current nonce: %d", nonce))
-
-				valset, err := oc.querier.QueryValsetByNonce(ctx, nonce)
+				valset, err := oc.querier.QueryValsetByNonce(ctx, latestNonce)
 				if err != nil {
 					if errors.Is(err, types.ErrAttestationNotValsetRequest) {
-						nonce++
+						latestNonce++
+						continue
 					}
 					time.Sleep(1 * time.Second)
 					continue
@@ -110,8 +101,7 @@ func (oc *orchestratorClient) SubscribeValset(ctx context.Context) (<-chan types
 					valsetsChan <- *valset
 					nonces = append(nonces, valset.Nonce)
 				}
-				time.Sleep(1 * time.Second)
-				nonce++
+				latestNonce++
 			}
 		}
 	}()
@@ -136,6 +126,9 @@ func (oc *orchestratorClient) addOldValsetAttestations(ctx context.Context, vals
 
 	previousNonce := latestNonce - 1
 	for previousNonce < latestNonce {
+		if previousNonce == 0 {
+			break
+		}
 		lastVsConfirm, err := oc.querier.QueryValsetConfirm(ctx, previousNonce, oc.orchestratorAddress)
 		if err != nil {
 			oc.logger.Error(err.Error())
@@ -176,23 +169,16 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 	// will change once we have the new design
 	go oc.addOldDataCommitmentAttestations(ctx, dataCommitments) //nolint:errcheck
 
-	// queryClient := types.NewQueryClient(orchestratorClient.celesGRPC)
-
-	// resp, err := queryClient.Params(ctx, &types.QueryParamsRequest{})
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// params := resp.Params
-
 	nonces := make([]uint64, 10000)
 
-	// TODO retry this guy
+	// TODO retry
 	latestNonce, err := oc.querier.QueryLatestAttestationNonce(ctx)
 	if err != nil {
 		oc.logger.Error(err.Error())
 	}
-	nonce := latestNonce + 1
+	if latestNonce == 0 {
+		latestNonce++
+	}
 
 	go func() {
 		defer close(dataCommitments)
@@ -202,13 +188,11 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 			case <-ctx.Done():
 				return
 			default:
-				oc.logger.Error(fmt.Sprintf("dc current nonce: %d", nonce))
 				// query data commitment request
-				dc, err := oc.querier.QueryDataCommitmentByNonce(ctx, nonce)
+				dc, err := oc.querier.QueryDataCommitmentByNonce(ctx, latestNonce)
 				if err != nil {
-					//oc.logger.Error(err.Error())
 					if errors.Is(err, types.ErrAttestationNotDataCommitmentRequest) {
-						nonce++
+						latestNonce++
 					}
 					time.Sleep(1 * time.Second)
 					continue
@@ -251,7 +235,7 @@ func (oc *orchestratorClient) SubscribeDataCommitment(ctx context.Context) (<-ch
 					nonces = append(nonces, dc.Nonce)
 				}
 				time.Sleep(5 * time.Second)
-				nonce++
+				latestNonce++
 			}
 		}
 	}()

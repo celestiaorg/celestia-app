@@ -14,11 +14,14 @@ func (k Keeper) AttestationRequestByNonce(
 	ctx context.Context,
 	request *types.QueryAttestationRequestByNonceRequest,
 ) (*types.QueryAttestationRequestByNonceResponse, error) {
-	val, err := codectypes.NewAnyWithValue(
-		k.GetAttestationByNonce(
-			sdk.UnwrapSDKContext(ctx),
-			request.Nonce,
-		))
+	attestation := k.GetAttestationByNonce(
+		sdk.UnwrapSDKContext(ctx),
+		request.Nonce,
+	)
+	if attestation == nil {
+		return &types.QueryAttestationRequestByNonceResponse{}, types.ErrAttestationNotFound
+	}
+	val, err := codectypes.NewAnyWithValue(attestation)
 	if err != nil {
 		return nil, err
 	}

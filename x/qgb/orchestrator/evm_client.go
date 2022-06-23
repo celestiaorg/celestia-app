@@ -136,7 +136,6 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 		return err
 	}
 
-	// todo: why are we using the last nonce here? shouldn't we just use the new nonce?
 	tx, err := ec.wrapper.SubmitDataRootTupleRoot(
 		opts,
 		big.NewInt(int64(newNonce)),

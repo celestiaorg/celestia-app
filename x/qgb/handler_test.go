@@ -56,7 +56,7 @@ func TestMsgValsetConfirm(t *testing.T) {
 	require.NoError(t, err)
 	vs.Height = uint64(1)
 	vs.Nonce = uint64(1)
-	k.StoreValset(ctx, vs)
+	k.StoreValset(ctx, vs) // TODO this should store the attestation
 
 	signBytes, err := vs.SignBytes(types.BridgeId)
 	require.NoError(t, err)

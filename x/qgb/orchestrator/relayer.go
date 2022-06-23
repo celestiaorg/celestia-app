@@ -3,6 +3,8 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"github.com/cosmos/cosmos-sdk/types/errors"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -11,33 +13,35 @@ import (
 	ethcmn "github.com/ethereum/go-ethereum/common"
 )
 
-type relayer struct {
-	// client
-	querier Querier
-
-	// relayer
-	bridgeID      ethcmn.Hash
-	evmClient     EVMClient
-	relayerClient relayerClient
+type Relayer struct {
+	querier   Querier
+	evmClient EVMClient
+	bridgeID  ethcmn.Hash
+	logger    tmlog.Logger
 }
 
-func NewRelayer(querier Querier, evmClient EVMClient, relayerClient relayerClient) (*relayer, error) {
-	return &relayer{
-		querier:       querier,
-		bridgeID:      types.BridgeId,
-		evmClient:     evmClient,
-		relayerClient: relayerClient,
+func NewRelayer(querier Querier, evmClient EVMClient, logger tmlog.Logger) (*Relayer, error) {
+	return &Relayer{
+		querier:   querier,
+		bridgeID:  types.BridgeId,
+		evmClient: evmClient,
+		logger:    logger,
 	}, nil
 }
 
-func (r *relayer) processEvents(ctx context.Context) error {
+func (r *Relayer) processEvents(ctx context.Context) error {
 	for {
-		lastContractNonce, err := r.relayerClient.evmClient.StateLastEventNonce(&bind.CallOpts{})
+		lastContractNonce, err := r.evmClient.StateLastEventNonce(&bind.CallOpts{})
 		if err != nil {
-			r.relayerClient.logger.Error(err.Error())
+			r.logger.Error(err.Error())
 			continue
 		}
-		latestNonce, err := r.relayerClient.querier.QueryLatestAttestationNonce(ctx)
+
+		latestNonce, err := r.querier.QueryLatestAttestationNonce(ctx)
+		if err != nil {
+			r.logger.Error(err.Error())
+			continue
+		}
 
 		// If the contract has already the last version, no need to relay anything
 		if lastContractNonce >= latestNonce {
@@ -45,14 +49,11 @@ func (r *relayer) processEvents(ctx context.Context) error {
 			continue
 		}
 
-		// we're incrementing by 1 since we still don't support heights
-		// instead of nonce: https://github.com/celestiaorg/quantum-gravity-bridge/issues/104
-		att1, err := r.relayerClient.querier.QueryAttestationByNonce(ctx, lastContractNonce+1)
+		att, err := r.querier.QueryAttestationByNonce(ctx, lastContractNonce+1)
 		if err != nil {
-			r.relayerClient.logger.Error(err.Error())
+			r.logger.Error(err.Error())
 			continue
 		}
-		att := *att1
 		if att.Type() == types.ValsetRequestType {
 			vs, ok := att.(*types.Valset)
 			if !ok {
@@ -91,10 +92,9 @@ func (r *relayer) processEvents(ctx context.Context) error {
 			}
 		}
 	}
-	return nil
 }
 
-func (r *relayer) updateValidatorSet(
+func (r *Relayer) updateValidatorSet(
 	ctx context.Context,
 	valset types.Valset,
 	newThreshhold uint64,
@@ -136,7 +136,7 @@ func (r *relayer) updateValidatorSet(
 	return nil
 }
 
-func (r *relayer) submitDataRootTupleRoot(
+func (r *Relayer) submitDataRootTupleRoot(
 	ctx context.Context,
 	currentValset types.Valset,
 	commitment string,
@@ -156,7 +156,7 @@ func (r *relayer) submitDataRootTupleRoot(
 	// the confirm carries the correct nonce to be submitted
 	newDataCommitmentNonce := confirms[0].Nonce
 
-	r.relayerClient.logger.Info(fmt.Sprintf(
+	r.logger.Info(fmt.Sprintf(
 		"relaying data commitment %d-%d...",
 		confirms[0].BeginBlock,
 		confirms[0].EndBlock,
@@ -176,7 +176,7 @@ func (r *relayer) submitDataRootTupleRoot(
 }
 
 // matchAttestationConfirmSigs matches and sorts the confirm signatures with the valset
-// members as expected by the QGB contract
+// members as expected by the QGB contract.
 func matchAttestationConfirmSigs(
 	signatures map[string]string,
 	currentValset types.Valset,
@@ -186,7 +186,10 @@ func matchAttestationConfirmSigs(
 	for i, val := range currentValset.Members {
 		sig, has := signatures[val.EthereumAddress]
 		if !has {
-			return nil, fmt.Errorf("missing signature for orchestrator eth address: %s", val.EthereumAddress)
+			return nil, errors.Wrap(
+				ErrConfirmSignatureNotFound,
+				fmt.Sprintf("missing signature for orchestrator eth address: %s", val.EthereumAddress),
+			)
 		}
 		v, r, s := SigToVRS(sig)
 

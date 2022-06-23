@@ -3,9 +3,9 @@ package e2e
 import (
 	"context"
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 	"time"
@@ -33,23 +33,14 @@ func TestFullLongBehaviour(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	// check whether the four validators are up and running
-	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
+	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
 	HandleNetworkError(t, network, err, false)
 
 	// check whether all the validators are up and running
-	//lastValset, err := querier.QueryLastValsetBeforeNonce(network.Context)
-	latestNonce, err := querier.QueryLatestAttestationNonce(network.Context)
+	latestValset, err := querier.QueryLatestValset(network.Context)
 	assert.NoError(t, err)
-
-	var lastValset *types.Valset
-	if vs, err := querier.QueryValsetByNonce(network.Context, latestNonce); err != nil && vs != nil { // TODO fix this mess
-		lastValset = vs
-	} else {
-		lastValset, err = querier.QueryLastValsetBeforeNonce(network.Context, latestNonce)
-		assert.NoError(t, err)
-	}
-	assert.NoError(t, err)
-	assert.Equal(t, 4, len(lastValset.Members))
+	require.NotNil(t, latestValset)
+	assert.Equal(t, 4, len(latestValset.Members))
 
 	// check whether the QGB contract was deployed
 	bridge, err := network.GetLatestDeployedQGBContract(network.Context)
@@ -60,6 +51,9 @@ func TestFullLongBehaviour(t *testing.T) {
 	// check whether the relayer relayed all attestations
 	eventNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: network.Context})
 	assert.NoError(t, err)
+
 	// attestations are either data commitments or valsets
+	latestNonce, err := querier.QueryLatestAttestationNonce(network.Context)
+	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, eventNonce, latestNonce-1)
 }

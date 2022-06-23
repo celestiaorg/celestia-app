@@ -238,6 +238,8 @@ func normalizeValidatorPower(rawPower uint64, totalValidatorPower sdk.Int) uint6
 	return power.Uint64()
 }
 
+// GetLastValsetBeforeNonce returns the previous valset before the provided `nonce`.
+// the `nonce` can be a valset, but this method will return the previous one.
 func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.Valset, error) {
 	// starting at 1 because the current nonce can be a valset
 	// and we need the previous one.

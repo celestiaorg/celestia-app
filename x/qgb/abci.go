@@ -24,13 +24,15 @@ func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
 	}
 }
 
-// for accesing the store twice? Idk
-var InMemoryNonce uint64
-
 func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
+	// FIXME can this be done here?
+	// We need to initialize this value in the begining...
+	if !k.CheckLatestAttestationNonce(ctx) {
+		k.SetLatestAttestationNonce(ctx, 0)
+	}
 	// get the last valsets to compare against
 	var latestValset *types.Valset
-	if k.GetLatestAttestationNonce(ctx) != 0 {
+	if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx) != 0 {
 		var err error
 		latestValset, err = k.GetLatestValset(ctx)
 		if err != nil {

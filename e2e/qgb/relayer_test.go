@@ -124,21 +124,12 @@ func TestRelayerWithMultipleValidators(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	// check whether the four validators are up and running
-	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
+	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
 	HandleNetworkError(t, network, err, false)
 
-	latestNonce, err := querier.QueryLatestAttestationNonce(network.Context)
+	latestValset, err := querier.QueryLatestValset(network.Context)
 	assert.NoError(t, err)
-
-	var lastValset *types.Valset
-	if vs, err := querier.QueryValsetByNonce(network.Context, latestNonce); err != nil && vs != nil { //TODO fix
-		lastValset = vs
-	} else {
-		lastValset, err = querier.QueryLastValsetBeforeNonce(network.Context, latestNonce)
-		assert.NoError(t, err)
-	}
-	assert.NoError(t, err)
-	assert.Equal(t, 4, len(lastValset.Members))
+	assert.Equal(t, 4, len(latestValset.Members))
 
 	bridge, err := network.GetLatestDeployedQGBContract(network.Context)
 	HandleNetworkError(t, network, err, false)
