@@ -111,7 +111,13 @@ func (r *relayer) updateValidatorSet(
 		currentValset = *vs
 	}
 
-	sigs, err := matchValsetConfirmSigs(confirms, currentValset)
+	sigsMap := make(map[string]string)
+	// to fetch the signatures easilly by eth address
+	for _, c := range confirms {
+		sigsMap[c.EthAddress] = c.Signature
+	}
+
+	sigs, err := matchAttestationConfirmSigs(sigsMap, currentValset)
 	if err != nil {
 		return err
 	}
@@ -136,24 +142,23 @@ func (r *relayer) submitDataRootTupleRoot(
 	commitment string,
 	confirms []types.MsgDataCommitmentConfirm,
 ) error {
+	sigsMap := make(map[string]string)
+	// to fetch the signatures easilly by eth address
+	for _, c := range confirms {
+		sigsMap[c.EthAddress] = c.Signature
+	}
 
-	sigs, err := matchDataCommitmentConfirmSigs(confirms, currentValset)
+	sigs, err := matchAttestationConfirmSigs(sigsMap, currentValset)
 	if err != nil {
 		return err
 	}
 
-	// TODO: don't assume that the evm contracts are up to date with the latest nonce
-	lastDataCommitmentNonce, err := r.evmClient.StateLastEventNonce(&bind.CallOpts{})
-	if err != nil {
-		return err
-	}
-
-	// increment the nonce before submitting the new tuple root
-	newDataCommitmentNonce := lastDataCommitmentNonce + 1
+	// the confirm carries the correct nonce to be submitted
+	newDataCommitmentNonce := confirms[0].Nonce
 
 	r.relayerClient.logger.Info(fmt.Sprintf(
 		"relaying data commitment %d-%d...",
-		confirms[0].BeginBlock, // because the nonce was already incremented
+		confirms[0].BeginBlock,
 		confirms[0].EndBlock,
 	))
 
@@ -170,64 +175,20 @@ func (r *relayer) submitDataRootTupleRoot(
 	return nil
 }
 
-//
-//func matchSigsWithValidators(sigs []wrapper.Signature, valset types.Valset) ([]wrapper.Signature, error) {
-//	for validator := range valset.Members {
-//		validator
-//	}
-//}
-
-func matchValsetConfirmSigs(
-	confirms []types.MsgValsetConfirm,
+// matchAttestationConfirmSigs matches and sorts the confirm signatures with the valset
+// members as expected by the QGB contract
+func matchAttestationConfirmSigs(
+	signatures map[string]string,
 	currentValset types.Valset,
 ) ([]wrapper.Signature, error) {
-	confirmsMap := make(map[string]types.MsgValsetConfirm)
-	// to fetch the signatures easilly by eth address
-	for _, c := range confirms {
-		confirmsMap[c.EthAddress] = c
-	}
-
-	sigs := make([]wrapper.Signature, len(confirms))
+	sigs := make([]wrapper.Signature, len(signatures))
 	// the QGB contract expects the signatures to be ordered by validators in valset
 	for i, val := range currentValset.Members {
-		v, r, s := SigToVRS(confirmsMap[val.EthereumAddress].Signature)
-
-		sigs[i] = wrapper.Signature{
-			V: v,
-			R: r,
-			S: s,
-		}
-	}
-
-	return sigs, nil
-}
-
-// TODO kinda duplicate. refactor
-func matchDataCommitmentConfirmSigs(confirms []types.MsgDataCommitmentConfirm, currentValset types.Valset) ([]wrapper.Signature, error) {
-	//vals := make(map[string]string)
-	//for _, v := range confirms {
-	//	vals[v.EthAddress] = v.Signature
-	//}
-
-	// create a map to easily search for power
-	vals2 := make(map[string]types.BridgeValidator)
-	for _, val := range currentValset.Members {
-		vals2[val.GetEthereumAddress()] = val
-	}
-
-	confirmsMap := make(map[string]types.MsgDataCommitmentConfirm)
-	for _, c := range confirms {
-		confirmsMap[c.EthAddress] = c
-	}
-
-	sigs := make([]wrapper.Signature, len(confirms))
-	for i, val := range currentValset.Members {
-		validatorEthAddr := val.EthereumAddress
-		confirm, has := confirmsMap[validatorEthAddr]
+		sig, has := signatures[val.EthereumAddress]
 		if !has {
-			return nil, fmt.Errorf("missing orchestrator eth address: %s", validatorEthAddr)
+			return nil, fmt.Errorf("missing signature for orchestrator eth address: %s", val.EthereumAddress)
 		}
-		v, r, s := SigToVRS(confirm.Signature)
+		v, r, s := SigToVRS(sig)
 
 		sigs[i] = wrapper.Signature{
 			V: v,
@@ -236,19 +197,5 @@ func matchDataCommitmentConfirmSigs(confirms []types.MsgDataCommitmentConfirm, c
 		}
 	}
 
-	//for i, c := range confirms {
-	//	sig, has := vals[c.EthAddress]
-	//	if !has {
-	//		return nil, fmt.Errorf("missing orchestrator eth address: %s", c.EthAddress)
-	//	}
-	//
-	//	v, r, s := SigToVRS(sig)
-	//
-	//	sigs[i] = wrapper.Signature{
-	//		V: v,
-	//		R: r,
-	//		S: s,
-	//	}
-	//}
 	return sigs, nil
 }
