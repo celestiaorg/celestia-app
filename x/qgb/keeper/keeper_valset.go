@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"fmt"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"math/big"
@@ -111,10 +112,11 @@ func normalizeValidatorPower(rawPower uint64, totalValidatorPower sdk.Int) uint6
 
 // GetLastValsetBeforeNonce returns the previous valset before the provided `nonce`.
 // the `nonce` can be a valset, but this method will return the previous one.
+// If the provided nonce is 1. It will return an error. Because, there is no valset before nonce 1.
 func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.Valset, error) {
 	// starting at 1 because the current nonce can be a valset
 	// and we need the previous one.
-	for i := uint64(1); i <= nonce; i++ {
+	for i := uint64(1); i < nonce; i++ {
 		at := k.GetAttestationByNonce(ctx, nonce-i)
 		if at.Type() == types.ValsetRequestType {
 			valset, ok := at.(*types.Valset)
@@ -124,5 +126,8 @@ func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.
 			return valset, nil
 		}
 	}
-	return nil, sdkerrors.Wrap(sdkerrors.ErrNotFound, "couldn't find valset")
+	return nil, sdkerrors.Wrap(
+		sdkerrors.ErrNotFound,
+		fmt.Sprintf("couldn't find valset before nonce %d", nonce),
+	)
 }

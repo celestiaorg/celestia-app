@@ -139,7 +139,9 @@ func (oc *orchestratorClient) addOldValsetAttestations(ctx context.Context, vals
 		// Used to get the height that valset was first introduced
 		correspondingVs, err := oc.querier.QueryValsetByNonce(ctx, previousNonce)
 		if err != nil {
-			oc.logger.Error(fmt.Sprintf("nonce %d: %s", previousNonce, err.Error()))
+			if !errors.Is(err, types.ErrAttestationNotValsetRequest) {
+				oc.logger.Error(fmt.Sprintf("nonce %d: %s", previousNonce, err.Error()))
+			}
 			previousNonce--
 			continue
 		}
@@ -270,9 +272,10 @@ func (oc *orchestratorClient) addOldDataCommitmentAttestations(
 		// query data commitment request
 		dc, err := oc.querier.QueryDataCommitmentByNonce(ctx, nonce)
 		if err != nil {
-			oc.logger.Error(fmt.Sprintf("dc nonce %d: %s", nonce, err.Error()))
+			if !errors.Is(err, types.ErrAttestationNotDataCommitmentRequest) {
+				oc.logger.Error(fmt.Sprintf("dc nonce %d: %s", nonce, err.Error()))
+			}
 			n++
-			time.Sleep(1 * time.Second)
 			continue
 		}
 		if dc == nil {

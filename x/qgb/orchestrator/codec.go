@@ -11,6 +11,8 @@ import (
 
 // MakeEncodingConfig is copied here so that we don't have to have an
 //  import cycle. if possible, use cosmoscmd.MakeEncodingConfig
+// TODO use the existing encoding config when merging to master.
+// https://github.com/celestiaorg/celestia-app/issues/499
 func MakeEncodingConfig() cosmoscmd.EncodingConfig {
 	amino := codec.NewLegacyAmino()
 	interfaceRegistry := codectypes.NewInterfaceRegistry()

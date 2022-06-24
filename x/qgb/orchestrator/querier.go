@@ -283,6 +283,7 @@ func (q *querier) QueryTwoThirdsValsetConfirms(
 
 // QueryLastValsetBeforeNonce returns the last valset before nonce.
 // the provided `nonce` can be a valset, but this will return the valset before it.
+// If nonce is 1, it will return an error. Because, there is no valset before nonce 1.
 func (q *querier) QueryLastValsetBeforeNonce(ctx context.Context, nonce uint64) (*types.Valset, error) {
 	queryClient := types.NewQueryClient(q.qgbRPC)
 	resp, err := queryClient.LastValsetRequestBeforeNonce(

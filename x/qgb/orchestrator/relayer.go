@@ -104,7 +104,7 @@ func (r *Relayer) updateValidatorSet(
 	if valset.Nonce == 1 {
 		currentValset = valset
 	} else {
-		vs, err := r.querier.QueryLastValsetBeforeNonce(ctx, valset.Nonce-1)
+		vs, err := r.querier.QueryLastValsetBeforeNonce(ctx, valset.Nonce)
 		if err != nil {
 			return err
 		}
