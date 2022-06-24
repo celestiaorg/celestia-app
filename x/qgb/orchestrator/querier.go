@@ -76,7 +76,7 @@ func NewQuerier(
 	qgbRPCAddr, tendermintRPC string,
 	logger tmlog.Logger,
 	encCft cosmoscmd.EncodingConfig,
-) (*querier, error) { // TODO should we export Querier?
+) (*querier, error) {
 	qgbGRPC, err := grpc.Dial(qgbRPCAddr, grpc.WithInsecure())
 	if err != nil {
 		return nil, err

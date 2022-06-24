@@ -785,114 +785,6 @@ func (m *QueryDataCommitmentConfirmsByCommitmentResponse) GetConfirms() []MsgDat
 	return nil
 }
 
-// QueryDataCommitmentConfirmsByRangeRequest Data commitment confirms by range
-// request
-type QueryDataCommitmentConfirmsByRangeRequest struct {
-	BeginBlock uint64 `protobuf:"varint,1,opt,name=begin_block,json=beginBlock,proto3" json:"begin_block,omitempty"`
-	EndBlock   uint64 `protobuf:"varint,2,opt,name=end_block,json=endBlock,proto3" json:"end_block,omitempty"`
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeRequest) Reset() {
-	*m = QueryDataCommitmentConfirmsByRangeRequest{}
-}
-func (m *QueryDataCommitmentConfirmsByRangeRequest) String() string {
-	return proto.CompactTextString(m)
-}
-func (*QueryDataCommitmentConfirmsByRangeRequest) ProtoMessage() {}
-func (*QueryDataCommitmentConfirmsByRangeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{16}
-}
-func (m *QueryDataCommitmentConfirmsByRangeRequest) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryDataCommitmentConfirmsByRangeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryDataCommitmentConfirmsByRangeRequest.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryDataCommitmentConfirmsByRangeRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryDataCommitmentConfirmsByRangeRequest.Merge(m, src)
-}
-func (m *QueryDataCommitmentConfirmsByRangeRequest) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryDataCommitmentConfirmsByRangeRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryDataCommitmentConfirmsByRangeRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryDataCommitmentConfirmsByRangeRequest proto.InternalMessageInfo
-
-func (m *QueryDataCommitmentConfirmsByRangeRequest) GetBeginBlock() uint64 {
-	if m != nil {
-		return m.BeginBlock
-	}
-	return 0
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeRequest) GetEndBlock() uint64 {
-	if m != nil {
-		return m.EndBlock
-	}
-	return 0
-}
-
-// QueryDataCommitmentConfirmsByRangeResponse Data commitment confirms by range
-// response
-type QueryDataCommitmentConfirmsByRangeResponse struct {
-	Confirms []MsgDataCommitmentConfirm `protobuf:"bytes,1,rep,name=confirms,proto3" json:"confirms"`
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeResponse) Reset() {
-	*m = QueryDataCommitmentConfirmsByRangeResponse{}
-}
-func (m *QueryDataCommitmentConfirmsByRangeResponse) String() string {
-	return proto.CompactTextString(m)
-}
-func (*QueryDataCommitmentConfirmsByRangeResponse) ProtoMessage() {}
-func (*QueryDataCommitmentConfirmsByRangeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{17}
-}
-func (m *QueryDataCommitmentConfirmsByRangeResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryDataCommitmentConfirmsByRangeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryDataCommitmentConfirmsByRangeResponse.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryDataCommitmentConfirmsByRangeResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryDataCommitmentConfirmsByRangeResponse.Merge(m, src)
-}
-func (m *QueryDataCommitmentConfirmsByRangeResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryDataCommitmentConfirmsByRangeResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryDataCommitmentConfirmsByRangeResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryDataCommitmentConfirmsByRangeResponse proto.InternalMessageInfo
-
-func (m *QueryDataCommitmentConfirmsByRangeResponse) GetConfirms() []MsgDataCommitmentConfirm {
-	if m != nil {
-		return m.Confirms
-	}
-	return nil
-}
-
 // QueryDataCommitmentConfirmsByExactRangeRequest Data commitment confirms by
 // exact range request
 type QueryDataCommitmentConfirmsByExactRangeRequest struct {
@@ -908,7 +800,7 @@ func (m *QueryDataCommitmentConfirmsByExactRangeRequest) String() string {
 }
 func (*QueryDataCommitmentConfirmsByExactRangeRequest) ProtoMessage() {}
 func (*QueryDataCommitmentConfirmsByExactRangeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{18}
+	return fileDescriptor_f3c1fd86445aad81, []int{16}
 }
 func (m *QueryDataCommitmentConfirmsByExactRangeRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -965,7 +857,7 @@ func (m *QueryDataCommitmentConfirmsByExactRangeResponse) String() string {
 }
 func (*QueryDataCommitmentConfirmsByExactRangeResponse) ProtoMessage() {}
 func (*QueryDataCommitmentConfirmsByExactRangeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{19}
+	return fileDescriptor_f3c1fd86445aad81, []int{17}
 }
 func (m *QueryDataCommitmentConfirmsByExactRangeResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1001,106 +893,6 @@ func (m *QueryDataCommitmentConfirmsByExactRangeResponse) GetConfirms() []MsgDat
 	return nil
 }
 
-// QueryDataCommitmentConfirmsByValidatorRequest Data commitment confirms by
-// validator address request
-type QueryDataCommitmentConfirmsByValidatorRequest struct {
-	Address string `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) Reset() {
-	*m = QueryDataCommitmentConfirmsByValidatorRequest{}
-}
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) String() string {
-	return proto.CompactTextString(m)
-}
-func (*QueryDataCommitmentConfirmsByValidatorRequest) ProtoMessage() {}
-func (*QueryDataCommitmentConfirmsByValidatorRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{20}
-}
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorRequest.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorRequest.Merge(m, src)
-}
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorRequest proto.InternalMessageInfo
-
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) GetAddress() string {
-	if m != nil {
-		return m.Address
-	}
-	return ""
-}
-
-// QueryDataCommitmentConfirmsByValidatorResponse Data commitment confirms by
-// validator address response
-type QueryDataCommitmentConfirmsByValidatorResponse struct {
-	Confirms []MsgDataCommitmentConfirm `protobuf:"bytes,1,rep,name=confirms,proto3" json:"confirms"`
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) Reset() {
-	*m = QueryDataCommitmentConfirmsByValidatorResponse{}
-}
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) String() string {
-	return proto.CompactTextString(m)
-}
-func (*QueryDataCommitmentConfirmsByValidatorResponse) ProtoMessage() {}
-func (*QueryDataCommitmentConfirmsByValidatorResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{21}
-}
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorResponse.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorResponse.Merge(m, src)
-}
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorResponse proto.InternalMessageInfo
-
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) GetConfirms() []MsgDataCommitmentConfirm {
-	if m != nil {
-		return m.Confirms
-	}
-	return nil
-}
-
 // QueryLastUnbondingHeightRequest
 type QueryLastUnbondingHeightRequest struct {
 }
@@ -1109,7 +901,7 @@ func (m *QueryLastUnbondingHeightRequest) Reset()         { *m = QueryLastUnbond
 func (m *QueryLastUnbondingHeightRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryLastUnbondingHeightRequest) ProtoMessage()    {}
 func (*QueryLastUnbondingHeightRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{22}
+	return fileDescriptor_f3c1fd86445aad81, []int{18}
 }
 func (m *QueryLastUnbondingHeightRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1147,7 +939,7 @@ func (m *QueryLastUnbondingHeightResponse) Reset()         { *m = QueryLastUnbon
 func (m *QueryLastUnbondingHeightResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryLastUnbondingHeightResponse) ProtoMessage()    {}
 func (*QueryLastUnbondingHeightResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{23}
+	return fileDescriptor_f3c1fd86445aad81, []int{19}
 }
 func (m *QueryLastUnbondingHeightResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1200,12 +992,8 @@ func init() {
 	proto.RegisterType((*QueryDataCommitmentConfirmResponse)(nil), "qgb.QueryDataCommitmentConfirmResponse")
 	proto.RegisterType((*QueryDataCommitmentConfirmsByCommitmentRequest)(nil), "qgb.QueryDataCommitmentConfirmsByCommitmentRequest")
 	proto.RegisterType((*QueryDataCommitmentConfirmsByCommitmentResponse)(nil), "qgb.QueryDataCommitmentConfirmsByCommitmentResponse")
-	proto.RegisterType((*QueryDataCommitmentConfirmsByRangeRequest)(nil), "qgb.QueryDataCommitmentConfirmsByRangeRequest")
-	proto.RegisterType((*QueryDataCommitmentConfirmsByRangeResponse)(nil), "qgb.QueryDataCommitmentConfirmsByRangeResponse")
 	proto.RegisterType((*QueryDataCommitmentConfirmsByExactRangeRequest)(nil), "qgb.QueryDataCommitmentConfirmsByExactRangeRequest")
 	proto.RegisterType((*QueryDataCommitmentConfirmsByExactRangeResponse)(nil), "qgb.QueryDataCommitmentConfirmsByExactRangeResponse")
-	proto.RegisterType((*QueryDataCommitmentConfirmsByValidatorRequest)(nil), "qgb.QueryDataCommitmentConfirmsByValidatorRequest")
-	proto.RegisterType((*QueryDataCommitmentConfirmsByValidatorResponse)(nil), "qgb.QueryDataCommitmentConfirmsByValidatorResponse")
 	proto.RegisterType((*QueryLastUnbondingHeightRequest)(nil), "qgb.QueryLastUnbondingHeightRequest")
 	proto.RegisterType((*QueryLastUnbondingHeightResponse)(nil), "qgb.QueryLastUnbondingHeightResponse")
 }
@@ -1213,80 +1001,74 @@ func init() {
 func init() { proto.RegisterFile("qgb/query.proto", fileDescriptor_f3c1fd86445aad81) }
 
 var fileDescriptor_f3c1fd86445aad81 = []byte{
-	// 1166 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x58, 0x4f, 0x6f, 0x1b, 0x45,
-	0x14, 0xcf, 0x26, 0x6d, 0xda, 0x3c, 0xab, 0x2d, 0x4c, 0xfe, 0x6f, 0x1b, 0x27, 0xd9, 0xa6, 0x69,
-	0x1a, 0x14, 0x8f, 0x92, 0x82, 0x22, 0x40, 0x15, 0xad, 0x0b, 0x12, 0x11, 0x84, 0x06, 0x43, 0x7a,
-	0x28, 0x42, 0xd1, 0xac, 0x3d, 0xd9, 0xac, 0xb0, 0x67, 0x6c, 0xcf, 0xa6, 0xaa, 0xb1, 0x72, 0xe1,
-	0xc2, 0x15, 0xa9, 0x5f, 0x80, 0x2b, 0x77, 0x3e, 0x02, 0x48, 0x15, 0x07, 0x54, 0x89, 0x03, 0x1c,
-	0x10, 0x42, 0x09, 0x47, 0x3e, 0x44, 0xe5, 0xd9, 0xb7, 0xf6, 0xba, 0xbb, 0xde, 0xdd, 0x48, 0xbe,
-	0xed, 0xbc, 0x79, 0x7f, 0x7e, 0xbf, 0xf7, 0xde, 0xcc, 0x1b, 0x1b, 0xae, 0x35, 0x1c, 0x9b, 0x36,
-	0x8e, 0x79, 0xb3, 0x55, 0xa8, 0x37, 0xa5, 0x27, 0xc9, 0x58, 0xc3, 0xb1, 0xcd, 0x37, 0x3b, 0x52,
-	0x87, 0x0b, 0xae, 0x5c, 0xe5, 0xcb, 0x4d, 0xad, 0xe8, 0xb5, 0xea, 0x3c, 0x10, 0xdc, 0x70, 0xa4,
-	0x74, 0xaa, 0x9c, 0xb2, 0xba, 0x4b, 0x99, 0x10, 0xd2, 0x63, 0x9e, 0x2b, 0x45, 0xb0, 0xbb, 0x5e,
-	0x96, 0xaa, 0x26, 0x15, 0xb5, 0x99, 0xe2, 0xbe, 0x7f, 0xfa, 0x74, 0xd3, 0xe6, 0x1e, 0xdb, 0xa4,
-	0x75, 0xe6, 0xb8, 0x42, 0x2b, 0xa3, 0xee, 0xd5, 0x8e, 0xeb, 0x9a, 0x72, 0x02, 0xdb, 0x29, 0x47,
-	0x3a, 0x52, 0x7f, 0xd2, 0xce, 0x17, 0x4a, 0xe7, 0x7d, 0x8f, 0x07, 0xfe, 0x86, 0xbf, 0x08, 0xb6,
-	0x10, 0x8a, 0x5e, 0xd9, 0xc7, 0x87, 0x94, 0x09, 0xa4, 0x63, 0x4d, 0x01, 0xf9, 0xbc, 0x13, 0x7d,
-	0x8f, 0x35, 0x59, 0x4d, 0x95, 0x78, 0xe3, 0x98, 0x2b, 0xcf, 0xba, 0x0f, 0x93, 0x7d, 0x52, 0x55,
-	0x97, 0x42, 0x71, 0x72, 0x07, 0xc6, 0xeb, 0x5a, 0x32, 0x67, 0x2c, 0x19, 0x6b, 0xb9, 0xad, 0x5c,
-	0xa1, 0xe1, 0xd8, 0x05, 0x5f, 0xa9, 0x78, 0xe1, 0xc5, 0x3f, 0x8b, 0x23, 0x25, 0x54, 0xb0, 0xee,
-	0xc1, 0x2d, 0xed, 0xe1, 0x81, 0xe7, 0x71, 0xe5, 0x53, 0x47, 0xe7, 0xc5, 0xd6, 0x67, 0x52, 0x94,
-	0x39, 0xae, 0xc8, 0x14, 0x5c, 0x14, 0x9d, 0xb5, 0x76, 0x79, 0xa1, 0xe4, 0x2f, 0xac, 0x16, 0xac,
-	0xa6, 0x99, 0x23, 0xa6, 0x47, 0x90, 0x63, 0x3d, 0x25, 0x04, 0x36, 0x55, 0xf0, 0x19, 0x17, 0x02,
-	0xc6, 0x85, 0x07, 0xa2, 0x55, 0x9c, 0xfd, 0xed, 0xe7, 0x8d, 0xc9, 0xa8, 0xc7, 0x9d, 0x52, 0xd8,
-	0x83, 0xb5, 0x02, 0x96, 0x0e, 0xfd, 0x29, 0xeb, 0xc8, 0x42, 0xea, 0x61, 0xd8, 0xd6, 0xfb, 0x70,
-	0x33, 0x51, 0x0b, 0xd1, 0xc5, 0xb3, 0x7b, 0x17, 0x96, 0xb5, 0xf1, 0x63, 0x56, 0x55, 0xdc, 0x7b,
-	0x28, 0xc5, 0xa1, 0xdb, 0xac, 0xa9, 0x4c, 0x89, 0xf9, 0x1a, 0xd1, 0x0d, 0x30, 0xc5, 0xb0, 0xdb,
-	0x70, 0xb9, 0x8c, 0x5b, 0x73, 0xc6, 0xd2, 0xd8, 0x5a, 0x6e, 0x6b, 0x5a, 0x97, 0x6a, 0x57, 0x39,
-	0x7d, 0x86, 0x58, 0xb4, 0xae, 0xb2, 0xf5, 0x09, 0xcc, 0x47, 0xdd, 0x27, 0x22, 0x22, 0x73, 0x70,
-	0x89, 0x55, 0x2a, 0x4d, 0xae, 0xd4, 0xdc, 0xe8, 0x92, 0xb1, 0x36, 0x51, 0x0a, 0x96, 0xd6, 0x2e,
-	0x98, 0x71, 0xce, 0x10, 0x23, 0x85, 0x4b, 0x18, 0x16, 0x8b, 0x16, 0x0f, 0xb1, 0x14, 0x68, 0x59,
-	0xf7, 0x61, 0x0d, 0x53, 0xae, 0x3c, 0x5f, 0x25, 0x68, 0x09, 0x7e, 0x28, 0x9b, 0x3c, 0x43, 0xf2,
-	0xf6, 0xe0, 0x4e, 0x06, 0x0f, 0x88, 0xef, 0x26, 0x8c, 0x3f, 0xd5, 0x3a, 0x7d, 0xcd, 0x8e, 0x66,
-	0xb8, 0x65, 0xb5, 0xb1, 0x92, 0x1f, 0x32, 0x8f, 0x3d, 0x94, 0xb5, 0x9a, 0xeb, 0xd5, 0xb8, 0x78,
-	0x3d, 0x6f, 0x8b, 0x90, 0xb3, 0xb9, 0xe3, 0x8a, 0x03, 0xbb, 0x2a, 0xcb, 0xdf, 0x20, 0x24, 0xd0,
-	0xa2, 0x62, 0x47, 0x42, 0xae, 0xc3, 0x04, 0x17, 0x15, 0xdc, 0x1e, 0xd5, 0xdb, 0x97, 0xb9, 0xa8,
-	0xf8, 0x9b, 0xa1, 0xfc, 0x8e, 0xf5, 0xe7, 0x37, 0xe8, 0x85, 0x01, 0xc1, 0xbb, 0xbd, 0xf0, 0x5a,
-	0x9e, 0x17, 0x82, 0x3c, 0xc7, 0xdb, 0x75, 0xf3, 0xbd, 0x07, 0x85, 0xc1, 0xee, 0x55, 0xb1, 0xd5,
-	0x93, 0x05, 0x44, 0xf3, 0x00, 0xe5, 0xae, 0x50, 0x47, 0x9b, 0x28, 0x85, 0x24, 0x56, 0x13, 0x68,
-	0x66, 0x8f, 0x88, 0xfe, 0x83, 0x48, 0x27, 0x27, 0xc3, 0x8f, 0x74, 0xb4, 0x8b, 0x35, 0x1f, 0x14,
-	0xb3, 0xc4, 0x84, 0xc3, 0x87, 0x52, 0x29, 0xab, 0x06, 0xeb, 0x59, 0x42, 0x0d, 0x8b, 0x99, 0x48,
-	0xa9, 0xcf, 0x47, 0xcf, 0x58, 0xd9, 0x1b, 0x22, 0xbd, 0xb4, 0xea, 0x85, 0xe3, 0x0d, 0x8b, 0xe3,
-	0x0e, 0x6c, 0x24, 0xc6, 0x7c, 0xcc, 0xaa, 0x6e, 0x85, 0x79, 0xb2, 0x19, 0x50, 0x0c, 0x9d, 0x16,
-	0xa3, 0xff, 0xb4, 0x34, 0x52, 0xd2, 0x15, 0x72, 0x35, 0x2c, 0xf4, 0xcb, 0xb0, 0xd8, 0xbd, 0x6f,
-	0xf6, 0x85, 0x2d, 0x45, 0xc5, 0x15, 0xce, 0xc7, 0xdc, 0x75, 0x8e, 0x82, 0x23, 0x63, 0xbd, 0x07,
-	0x4b, 0x83, 0x55, 0x10, 0xc7, 0x0c, 0x8c, 0x1f, 0x69, 0x09, 0x56, 0x0c, 0x57, 0x5b, 0x7f, 0x5f,
-	0x83, 0x8b, 0xda, 0x98, 0xec, 0xc1, 0xb8, 0x3f, 0x85, 0xc9, 0xac, 0x46, 0x18, 0x1d, 0xe9, 0xe6,
-	0x5c, 0x74, 0xc3, 0x77, 0x6f, 0x4d, 0x7e, 0xf7, 0xc7, 0x7f, 0xcf, 0x47, 0xaf, 0x90, 0x1c, 0xed,
-	0xbc, 0x33, 0xfc, 0xf9, 0x4d, 0x7e, 0x34, 0x60, 0x7e, 0xe0, 0xf0, 0x25, 0xeb, 0x3d, 0x67, 0x69,
-	0x03, 0xde, 0x7c, 0x2b, 0x93, 0x2e, 0x62, 0x59, 0xd7, 0x58, 0x56, 0x88, 0xa5, 0xb1, 0x84, 0xc6,
-	0xb2, 0xa2, 0x4d, 0xdf, 0x42, 0xd1, 0xb6, 0xbe, 0xcc, 0x4f, 0xc8, 0x73, 0x03, 0x66, 0xe2, 0xc7,
-	0x2f, 0xb9, 0xdd, 0x8b, 0x99, 0x38, 0xc6, 0xcd, 0xb5, 0x74, 0x45, 0x44, 0xb6, 0xaa, 0x91, 0x2d,
-	0x91, 0x7c, 0x14, 0x99, 0xc6, 0x43, 0xab, 0xda, 0x9e, 0xfc, 0x62, 0xc0, 0x74, 0x6c, 0x77, 0x90,
-	0xd5, 0x5e, 0xac, 0xa4, 0x71, 0x61, 0xde, 0x4e, 0xd5, 0x43, 0x48, 0x4f, 0x34, 0xa4, 0x2f, 0x49,
-	0x49, 0x43, 0xaa, 0x30, 0x8f, 0x1d, 0xf4, 0x2e, 0x5b, 0x8a, 0x5d, 0x48, 0xf5, 0xf1, 0xa6, 0xed,
-	0xd0, 0xc1, 0x3f, 0xa1, 0x5c, 0x54, 0x68, 0xbb, 0x7b, 0xd2, 0x4f, 0x28, 0x9e, 0x11, 0xda, 0xc6,
-	0x8f, 0x13, 0xf2, 0xab, 0x01, 0xcb, 0xa9, 0x27, 0x85, 0x6c, 0xa5, 0x40, 0x8d, 0x39, 0xa1, 0xe6,
-	0xdd, 0x73, 0xd9, 0x20, 0xd5, 0x6d, 0x4d, 0x75, 0x93, 0xd0, 0x24, 0xaa, 0x2a, 0x86, 0xc7, 0xef,
-	0x06, 0x58, 0xe9, 0xe3, 0x86, 0x64, 0x00, 0x15, 0x19, 0x77, 0xe6, 0xdb, 0xe7, 0x33, 0x42, 0x2a,
-	0xf7, 0x34, 0x95, 0x6d, 0xf2, 0x4e, 0x32, 0x95, 0x90, 0xac, 0xdd, 0xfb, 0x3e, 0x21, 0x7f, 0x1a,
-	0xb0, 0x90, 0x38, 0x60, 0x48, 0x21, 0x1d, 0x56, 0x78, 0x2a, 0x98, 0x34, 0xb3, 0x3e, 0x32, 0xd8,
-	0xd7, 0x0c, 0x1e, 0x91, 0xdd, 0x64, 0x06, 0xa1, 0x8e, 0x8b, 0xb6, 0x5f, 0x20, 0xef, 0x35, 0x21,
-	0xf9, 0x3f, 0xa1, 0x54, 0xbd, 0xd9, 0x92, 0xa5, 0x54, 0x91, 0xc9, 0x97, 0xa5, 0x54, 0xd1, 0xf1,
-	0x65, 0x7d, 0xa5, 0x89, 0xee, 0x93, 0x2f, 0x92, 0x89, 0xf2, 0x8e, 0xe5, 0xb9, 0xe9, 0xd6, 0xe0,
-	0x4a, 0xdf, 0x43, 0x97, 0xe4, 0x7b, 0x18, 0xe3, 0x9e, 0xdf, 0xe6, 0xe2, 0xc0, 0x7d, 0x84, 0x7b,
-	0x5d, 0xc3, 0x9d, 0x26, 0x93, 0x1a, 0xae, 0xff, 0x42, 0x0d, 0x50, 0x92, 0x9f, 0x0c, 0xb8, 0x91,
-	0xf4, 0xee, 0x25, 0x1b, 0xe1, 0xab, 0x30, 0xf5, 0x85, 0x6d, 0x16, 0xb2, 0xaa, 0xc7, 0xde, 0xec,
-	0x08, 0x0e, 0xef, 0x74, 0x6a, 0x6b, 0x83, 0xee, 0xcd, 0xfe, 0xbd, 0x01, 0xd3, 0xb1, 0x3f, 0x70,
-	0xc2, 0x77, 0x68, 0xd2, 0x8f, 0xa7, 0xf0, 0x1d, 0x9a, 0xf8, 0x4b, 0xc9, 0x5a, 0xd0, 0xb0, 0x66,
-	0xc9, 0xb4, 0x86, 0xd5, 0x2d, 0x69, 0x80, 0xe4, 0x5b, 0x98, 0x8c, 0x99, 0xcc, 0x64, 0xa5, 0x9f,
-	0x7c, 0xfc, 0x6c, 0x37, 0x6f, 0xa5, 0x68, 0x21, 0x84, 0x19, 0x0d, 0xe1, 0x0d, 0x72, 0x55, 0x43,
-	0x38, 0x0e, 0xb4, 0x8a, 0x3b, 0x2f, 0x4e, 0xf3, 0xc6, 0xcb, 0xd3, 0xbc, 0xf1, 0xef, 0x69, 0xde,
-	0xf8, 0xe1, 0x2c, 0x3f, 0xf2, 0xf2, 0x2c, 0x3f, 0xf2, 0xd7, 0x59, 0x7e, 0xe4, 0x09, 0x75, 0x5c,
-	0xef, 0xe8, 0xd8, 0x2e, 0x94, 0x65, 0x8d, 0x96, 0x79, 0x95, 0x2b, 0xcf, 0x65, 0xb2, 0xe9, 0x74,
-	0xbf, 0x37, 0x58, 0xbd, 0x4e, 0x9f, 0xd1, 0xee, 0x3f, 0x12, 0xf6, 0xb8, 0xfe, 0x1d, 0x7c, 0xf7,
-	0x55, 0x00, 0x00, 0x00, 0xff, 0xff, 0xa9, 0x0a, 0x4a, 0x89, 0xce, 0x10, 0x00, 0x00,
+	// 1062 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x97, 0xcd, 0x6f, 0x1b, 0x45,
+	0x14, 0xc0, 0xb3, 0x49, 0x9b, 0x36, 0xcf, 0xb4, 0xc0, 0xe4, 0xcb, 0xd9, 0xb6, 0x8e, 0xbb, 0x4d,
+	0x53, 0x37, 0x28, 0x1e, 0x35, 0x05, 0x55, 0x80, 0x2a, 0x5a, 0x17, 0x24, 0x2a, 0x28, 0x04, 0x43,
+	0x39, 0x14, 0xa1, 0x68, 0xd6, 0x9e, 0x6c, 0x56, 0xd8, 0x33, 0xb6, 0x67, 0x5d, 0xd5, 0x58, 0xbe,
+	0x70, 0xe1, 0x8a, 0xd4, 0x7f, 0x80, 0x2b, 0x77, 0x4e, 0x9c, 0x39, 0x54, 0x1c, 0x50, 0x25, 0x2e,
+	0x9c, 0x10, 0x4a, 0x38, 0xf2, 0x47, 0x20, 0xcf, 0xbe, 0xfd, 0x70, 0x77, 0xbd, 0x6b, 0xa4, 0xde,
+	0x76, 0xde, 0xd7, 0xfc, 0xde, 0xbc, 0x99, 0x37, 0xb3, 0xf0, 0x6a, 0xd7, 0xb1, 0x69, 0xb7, 0xcf,
+	0x7b, 0x83, 0x6a, 0xa7, 0x27, 0x3d, 0x49, 0x16, 0xba, 0x8e, 0x6d, 0xbe, 0x3e, 0x96, 0x3a, 0x5c,
+	0x70, 0xe5, 0x2a, 0x5f, 0x6e, 0x6a, 0x43, 0x6f, 0xd0, 0xe1, 0x81, 0xe0, 0xa2, 0x23, 0xa5, 0xd3,
+	0xe2, 0x94, 0x75, 0x5c, 0xca, 0x84, 0x90, 0x1e, 0xf3, 0x5c, 0x29, 0x02, 0xed, 0x4e, 0x43, 0xaa,
+	0xb6, 0x54, 0xd4, 0x66, 0x8a, 0xfb, 0xf1, 0xe9, 0xe3, 0x1b, 0x36, 0xf7, 0xd8, 0x0d, 0xda, 0x61,
+	0x8e, 0x2b, 0xb4, 0x31, 0xda, 0x9e, 0x1f, 0x87, 0x6e, 0x2b, 0x27, 0xf0, 0x5d, 0x71, 0xa4, 0x23,
+	0xf5, 0x27, 0x1d, 0x7f, 0xa1, 0x74, 0xc3, 0x8f, 0x78, 0xe0, 0x2b, 0xfc, 0x41, 0xa0, 0x42, 0x14,
+	0x3d, 0xb2, 0xfb, 0x87, 0x94, 0x09, 0x4c, 0xc7, 0x5a, 0x01, 0xf2, 0xd9, 0x78, 0xf6, 0x7d, 0xd6,
+	0x63, 0x6d, 0x55, 0xe7, 0xdd, 0x3e, 0x57, 0x9e, 0x75, 0x07, 0x96, 0x27, 0xa4, 0xaa, 0x23, 0x85,
+	0xe2, 0xe4, 0x3a, 0x2c, 0x76, 0xb4, 0xa4, 0x68, 0x94, 0x8d, 0x4a, 0x61, 0xaf, 0x50, 0xed, 0x3a,
+	0x76, 0xd5, 0x37, 0xaa, 0x9d, 0x7a, 0xf6, 0xd7, 0xe6, 0x5c, 0x1d, 0x0d, 0xac, 0xdb, 0x70, 0x55,
+	0x47, 0xb8, 0xeb, 0x79, 0x5c, 0xf9, 0xa9, 0x63, 0xf0, 0xda, 0xe0, 0x13, 0x29, 0x1a, 0x1c, 0x47,
+	0x64, 0x05, 0x4e, 0x8b, 0xf1, 0x58, 0x87, 0x3c, 0x55, 0xf7, 0x07, 0xd6, 0x00, 0xb6, 0xf3, 0xdc,
+	0x91, 0xe9, 0x53, 0x28, 0xb0, 0xc8, 0x08, 0xc1, 0x56, 0xaa, 0x7e, 0xc6, 0xd5, 0x20, 0xe3, 0xea,
+	0x5d, 0x31, 0xa8, 0xad, 0xff, 0xf6, 0xf3, 0xee, 0x72, 0x32, 0xe2, 0xfd, 0x7a, 0x3c, 0x82, 0xb5,
+	0x05, 0x96, 0x9e, 0xfa, 0x63, 0x36, 0x96, 0xc5, 0xcc, 0xe3, 0xd8, 0xd6, 0xbb, 0x70, 0x25, 0xd3,
+	0x0a, 0xe9, 0xd2, 0xb3, 0x7b, 0x1b, 0x2e, 0x6b, 0xe7, 0x2f, 0x59, 0x4b, 0x71, 0xef, 0x9e, 0x14,
+	0x87, 0x6e, 0xaf, 0xad, 0x66, 0x5a, 0x98, 0xaf, 0x91, 0x6e, 0x8a, 0x2b, 0x4e, 0x7b, 0x0b, 0xce,
+	0x36, 0x50, 0x55, 0x34, 0xca, 0x0b, 0x95, 0xc2, 0xde, 0xaa, 0x2e, 0xd5, 0x03, 0xe5, 0x4c, 0x38,
+	0x62, 0xd1, 0x42, 0x63, 0xeb, 0x23, 0xd8, 0x48, 0x86, 0xcf, 0x24, 0x22, 0x45, 0x38, 0xc3, 0x9a,
+	0xcd, 0x1e, 0x57, 0xaa, 0x38, 0x5f, 0x36, 0x2a, 0x4b, 0xf5, 0x60, 0x68, 0x3d, 0x00, 0x33, 0x2d,
+	0x18, 0x32, 0x52, 0x38, 0x83, 0xd3, 0x62, 0xd1, 0xd2, 0x11, 0xeb, 0x81, 0x95, 0x75, 0x07, 0x2a,
+	0xb8, 0xe4, 0xca, 0xf3, 0x4d, 0x82, 0x2d, 0xc1, 0x0f, 0x65, 0x8f, 0xcf, 0xb0, 0x78, 0xfb, 0x70,
+	0x7d, 0x86, 0x08, 0xc8, 0x77, 0x05, 0x16, 0x1f, 0x6b, 0x9b, 0x89, 0xcd, 0x8e, 0x6e, 0xa8, 0xb2,
+	0x86, 0x58, 0xc9, 0xf7, 0x99, 0xc7, 0xee, 0xc9, 0x76, 0xdb, 0xf5, 0xda, 0x5c, 0xbc, 0xb8, 0x6e,
+	0x9b, 0x50, 0xb0, 0xb9, 0xe3, 0x8a, 0x03, 0xbb, 0x25, 0x1b, 0xdf, 0x20, 0x12, 0x68, 0x51, 0x6d,
+	0x2c, 0x21, 0x17, 0x60, 0x89, 0x8b, 0x26, 0xaa, 0xe7, 0xb5, 0xfa, 0x2c, 0x17, 0x4d, 0x5f, 0x19,
+	0x5b, 0xdf, 0x85, 0xc9, 0xf5, 0x0d, 0xf6, 0xc2, 0x94, 0xc9, 0xc3, 0xbd, 0xf0, 0xc2, 0x3a, 0x5f,
+	0x0a, 0xd6, 0x39, 0xdd, 0x2f, 0x5c, 0xef, 0x7d, 0xa8, 0x4e, 0x0f, 0xaf, 0x6a, 0x83, 0x48, 0x16,
+	0x24, 0x5a, 0x02, 0x68, 0x84, 0x42, 0x3d, 0xdb, 0x52, 0x3d, 0x26, 0xb1, 0x7a, 0x40, 0x67, 0x8e,
+	0x88, 0xf4, 0xef, 0x25, 0x76, 0x72, 0x36, 0x7e, 0x62, 0x47, 0x8b, 0x9c, 0x2c, 0x3e, 0x78, 0xc2,
+	0x1a, 0x5e, 0x9d, 0x09, 0x87, 0xbf, 0x94, 0x72, 0xe5, 0xe6, 0x18, 0x9f, 0xef, 0x65, 0xe5, 0x78,
+	0x19, 0x36, 0xc3, 0x7d, 0xfd, 0x50, 0xd8, 0x52, 0x34, 0x5d, 0xe1, 0x7c, 0xc8, 0x5d, 0xe7, 0x28,
+	0x28, 0x8d, 0xf5, 0x0e, 0x94, 0xa7, 0x9b, 0x20, 0xc7, 0x1a, 0x2c, 0x1e, 0x69, 0x09, 0xe6, 0x8c,
+	0xa3, 0xbd, 0x5f, 0x5e, 0x81, 0xd3, 0xda, 0x99, 0xec, 0xc3, 0xa2, 0xdf, 0xed, 0xc9, 0xba, 0x26,
+	0x4c, 0x5e, 0x1d, 0x66, 0x31, 0xa9, 0xf0, 0xc3, 0x5b, 0xcb, 0xdf, 0xfd, 0xf1, 0xcf, 0xd3, 0xf9,
+	0x73, 0xa4, 0x40, 0xc7, 0xf7, 0x99, 0x7f, 0x4f, 0x90, 0x1f, 0x0d, 0xd8, 0x98, 0xda, 0xe4, 0xc9,
+	0x4e, 0x14, 0x2c, 0xef, 0x22, 0x31, 0xdf, 0x98, 0xc9, 0x16, 0x59, 0x76, 0x34, 0xcb, 0x16, 0xb1,
+	0x34, 0x4b, 0xac, 0xfd, 0x2b, 0xda, 0xf3, 0x3d, 0x14, 0x1d, 0xea, 0xa6, 0x31, 0x22, 0x4f, 0x0d,
+	0x58, 0x4b, 0x6f, 0xf3, 0xe4, 0x5a, 0x34, 0x67, 0xe6, 0x75, 0x61, 0x56, 0xf2, 0x0d, 0x91, 0x6c,
+	0x5b, 0x93, 0x95, 0x49, 0x29, 0x49, 0xa6, 0x79, 0x68, 0x4b, 0xfb, 0x93, 0x5f, 0x0d, 0x58, 0x4d,
+	0xdd, 0x1d, 0x64, 0x3b, 0x9a, 0x2b, 0xab, 0x2d, 0x99, 0xd7, 0x72, 0xed, 0x10, 0xe9, 0x91, 0x46,
+	0xfa, 0x82, 0xd4, 0x35, 0x52, 0x93, 0x79, 0xec, 0x20, 0x3a, 0xd4, 0x14, 0x77, 0x21, 0xd5, 0x07,
+	0x84, 0x0e, 0x63, 0x47, 0x67, 0x44, 0xb9, 0x68, 0xd2, 0x61, 0x78, 0x56, 0x46, 0x14, 0x3b, 0x17,
+	0x1d, 0xe2, 0xc7, 0x88, 0xfc, 0x6e, 0x80, 0x95, 0xdf, 0x0e, 0xc8, 0xcd, 0x1c, 0xd6, 0xb4, 0x76,
+	0x64, 0xbe, 0xf9, 0xff, 0x9c, 0x30, 0xdb, 0xdb, 0x3a, 0xdb, 0x5b, 0xe4, 0xad, 0xac, 0x6c, 0x15,
+	0x8d, 0xc9, 0x86, 0xd1, 0xf7, 0x88, 0xfc, 0x9b, 0x91, 0x50, 0x74, 0xf6, 0x67, 0x49, 0x28, 0xd1,
+	0x99, 0x66, 0x49, 0x28, 0xd9, 0x5e, 0xac, 0xaf, 0x74, 0x42, 0x0f, 0xc9, 0xe7, 0xd9, 0x09, 0xf1,
+	0xb1, 0x27, 0x8d, 0x95, 0x2f, 0x59, 0xcb, 0x40, 0x1e, 0x55, 0x94, 0xb4, 0xe1, 0xdc, 0xc4, 0x75,
+	0x4d, 0x4a, 0x11, 0x63, 0xda, 0x23, 0xc2, 0xdc, 0x9c, 0xaa, 0x47, 0xdc, 0x0b, 0x1a, 0x77, 0x95,
+	0x2c, 0x6b, 0x5c, 0xff, 0x9e, 0x0d, 0x28, 0xc9, 0x4f, 0x06, 0x5c, 0xcc, 0xba, 0xbd, 0xc9, 0x6e,
+	0xfc, 0xa0, 0xe5, 0xbe, 0x13, 0xcc, 0xea, 0xac, 0xe6, 0xa9, 0x7d, 0x03, 0xe1, 0xb0, 0x63, 0x50,
+	0x5b, 0x3b, 0x84, 0x7d, 0xe3, 0x7b, 0x03, 0x56, 0x53, 0x9f, 0x69, 0xf1, 0x13, 0x9a, 0xf5, 0x04,
+	0x8c, 0x9f, 0xd0, 0xcc, 0xf7, 0x9e, 0x75, 0x49, 0x63, 0xad, 0x93, 0x55, 0x8d, 0x15, 0x96, 0x34,
+	0x20, 0xf9, 0x16, 0x96, 0x53, 0xfa, 0x3e, 0xd9, 0x9a, 0x4c, 0x3e, 0xfd, 0xe6, 0x30, 0xaf, 0xe6,
+	0x58, 0x21, 0xc2, 0x9a, 0x46, 0x78, 0x8d, 0x9c, 0xd7, 0x08, 0xfd, 0xc0, 0xaa, 0x76, 0xff, 0xd9,
+	0x71, 0xc9, 0x78, 0x7e, 0x5c, 0x32, 0xfe, 0x3e, 0x2e, 0x19, 0x3f, 0x9c, 0x94, 0xe6, 0x9e, 0x9f,
+	0x94, 0xe6, 0xfe, 0x3c, 0x29, 0xcd, 0x3d, 0xa2, 0x8e, 0xeb, 0x1d, 0xf5, 0xed, 0x6a, 0x43, 0xb6,
+	0x69, 0x83, 0xb7, 0xb8, 0xf2, 0x5c, 0x26, 0x7b, 0x4e, 0xf8, 0xbd, 0xcb, 0x3a, 0x1d, 0xfa, 0x84,
+	0x86, 0xff, 0x55, 0xf6, 0xa2, 0x7e, 0xcd, 0xdf, 0xfc, 0x2f, 0x00, 0x00, 0xff, 0xff, 0x81, 0xe2,
+	0xc2, 0x58, 0x94, 0x0d, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1310,17 +1092,9 @@ type QueryClient interface {
 	// DataCommitmentConfirm Queries the data commitment confirm by the commitment
 	// and the validator address
 	DataCommitmentConfirm(ctx context.Context, in *QueryDataCommitmentConfirmRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmResponse, error)
-	// DataCommitmentConfirmsByValidator Queries data commitment confirms by
-	// validator address
-	// FIXME can be deleted
-	DataCommitmentConfirmsByValidator(ctx context.Context, in *QueryDataCommitmentConfirmsByValidatorRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByValidatorResponse, error)
 	// DataCommitmentConfirms Queries data commitment confirms by the actual
 	// commitment
 	DataCommitmentConfirmsByCommitment(ctx context.Context, in *QueryDataCommitmentConfirmsByCommitmentRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByCommitmentResponse, error)
-	// DataCommitmentConfirmsByRange Queries data commitment confirms by a block
-	// range
-	// FIXME can be deleted
-	DataCommitmentConfirmsByRange(ctx context.Context, in *QueryDataCommitmentConfirmsByRangeRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByRangeResponse, error)
 	// DataCommitmentConfirmsByExactRange Queries data commitment confirms by an
 	// exact block range
 	DataCommitmentConfirmsByExactRange(ctx context.Context, in *QueryDataCommitmentConfirmsByExactRangeRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByExactRangeResponse, error)
@@ -1380,27 +1154,9 @@ func (c *queryClient) DataCommitmentConfirm(ctx context.Context, in *QueryDataCo
 	return out, nil
 }
 
-func (c *queryClient) DataCommitmentConfirmsByValidator(ctx context.Context, in *QueryDataCommitmentConfirmsByValidatorRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByValidatorResponse, error) {
-	out := new(QueryDataCommitmentConfirmsByValidatorResponse)
-	err := c.cc.Invoke(ctx, "/qgb.Query/DataCommitmentConfirmsByValidator", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *queryClient) DataCommitmentConfirmsByCommitment(ctx context.Context, in *QueryDataCommitmentConfirmsByCommitmentRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByCommitmentResponse, error) {
 	out := new(QueryDataCommitmentConfirmsByCommitmentResponse)
 	err := c.cc.Invoke(ctx, "/qgb.Query/DataCommitmentConfirmsByCommitment", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *queryClient) DataCommitmentConfirmsByRange(ctx context.Context, in *QueryDataCommitmentConfirmsByRangeRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByRangeResponse, error) {
-	out := new(QueryDataCommitmentConfirmsByRangeResponse)
-	err := c.cc.Invoke(ctx, "/qgb.Query/DataCommitmentConfirmsByRange", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1463,17 +1219,9 @@ type QueryServer interface {
 	// DataCommitmentConfirm Queries the data commitment confirm by the commitment
 	// and the validator address
 	DataCommitmentConfirm(context.Context, *QueryDataCommitmentConfirmRequest) (*QueryDataCommitmentConfirmResponse, error)
-	// DataCommitmentConfirmsByValidator Queries data commitment confirms by
-	// validator address
-	// FIXME can be deleted
-	DataCommitmentConfirmsByValidator(context.Context, *QueryDataCommitmentConfirmsByValidatorRequest) (*QueryDataCommitmentConfirmsByValidatorResponse, error)
 	// DataCommitmentConfirms Queries data commitment confirms by the actual
 	// commitment
 	DataCommitmentConfirmsByCommitment(context.Context, *QueryDataCommitmentConfirmsByCommitmentRequest) (*QueryDataCommitmentConfirmsByCommitmentResponse, error)
-	// DataCommitmentConfirmsByRange Queries data commitment confirms by a block
-	// range
-	// FIXME can be deleted
-	DataCommitmentConfirmsByRange(context.Context, *QueryDataCommitmentConfirmsByRangeRequest) (*QueryDataCommitmentConfirmsByRangeResponse, error)
 	// DataCommitmentConfirmsByExactRange Queries data commitment confirms by an
 	// exact block range
 	DataCommitmentConfirmsByExactRange(context.Context, *QueryDataCommitmentConfirmsByExactRangeRequest) (*QueryDataCommitmentConfirmsByExactRangeResponse, error)
@@ -1505,14 +1253,8 @@ func (*UnimplementedQueryServer) LatestAttestationNonce(ctx context.Context, req
 func (*UnimplementedQueryServer) DataCommitmentConfirm(ctx context.Context, req *QueryDataCommitmentConfirmRequest) (*QueryDataCommitmentConfirmResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentConfirm not implemented")
 }
-func (*UnimplementedQueryServer) DataCommitmentConfirmsByValidator(ctx context.Context, req *QueryDataCommitmentConfirmsByValidatorRequest) (*QueryDataCommitmentConfirmsByValidatorResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentConfirmsByValidator not implemented")
-}
 func (*UnimplementedQueryServer) DataCommitmentConfirmsByCommitment(ctx context.Context, req *QueryDataCommitmentConfirmsByCommitmentRequest) (*QueryDataCommitmentConfirmsByCommitmentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentConfirmsByCommitment not implemented")
-}
-func (*UnimplementedQueryServer) DataCommitmentConfirmsByRange(ctx context.Context, req *QueryDataCommitmentConfirmsByRangeRequest) (*QueryDataCommitmentConfirmsByRangeResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentConfirmsByRange not implemented")
 }
 func (*UnimplementedQueryServer) DataCommitmentConfirmsByExactRange(ctx context.Context, req *QueryDataCommitmentConfirmsByExactRangeRequest) (*QueryDataCommitmentConfirmsByExactRangeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentConfirmsByExactRange not implemented")
@@ -1606,24 +1348,6 @@ func _Query_DataCommitmentConfirm_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Query_DataCommitmentConfirmsByValidator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryDataCommitmentConfirmsByValidatorRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(QueryServer).DataCommitmentConfirmsByValidator(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/qgb.Query/DataCommitmentConfirmsByValidator",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueryServer).DataCommitmentConfirmsByValidator(ctx, req.(*QueryDataCommitmentConfirmsByValidatorRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Query_DataCommitmentConfirmsByCommitment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(QueryDataCommitmentConfirmsByCommitmentRequest)
 	if err := dec(in); err != nil {
@@ -1638,24 +1362,6 @@ func _Query_DataCommitmentConfirmsByCommitment_Handler(srv interface{}, ctx cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryServer).DataCommitmentConfirmsByCommitment(ctx, req.(*QueryDataCommitmentConfirmsByCommitmentRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Query_DataCommitmentConfirmsByRange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryDataCommitmentConfirmsByRangeRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(QueryServer).DataCommitmentConfirmsByRange(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/qgb.Query/DataCommitmentConfirmsByRange",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueryServer).DataCommitmentConfirmsByRange(ctx, req.(*QueryDataCommitmentConfirmsByRangeRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1771,16 +1477,8 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Query_DataCommitmentConfirm_Handler,
 		},
 		{
-			MethodName: "DataCommitmentConfirmsByValidator",
-			Handler:    _Query_DataCommitmentConfirmsByValidator_Handler,
-		},
-		{
 			MethodName: "DataCommitmentConfirmsByCommitment",
 			Handler:    _Query_DataCommitmentConfirmsByCommitment_Handler,
-		},
-		{
-			MethodName: "DataCommitmentConfirmsByRange",
-			Handler:    _Query_DataCommitmentConfirmsByRange_Handler,
 		},
 		{
 			MethodName: "DataCommitmentConfirmsByExactRange",
@@ -2317,76 +2015,6 @@ func (m *QueryDataCommitmentConfirmsByCommitmentResponse) MarshalToSizedBuffer(d
 	return len(dAtA) - i, nil
 }
 
-func (m *QueryDataCommitmentConfirmsByRangeRequest) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeRequest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.EndBlock != 0 {
-		i = encodeVarintQuery(dAtA, i, uint64(m.EndBlock))
-		i--
-		dAtA[i] = 0x10
-	}
-	if m.BeginBlock != 0 {
-		i = encodeVarintQuery(dAtA, i, uint64(m.BeginBlock))
-		i--
-		dAtA[i] = 0x8
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeResponse) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeResponse) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.Confirms) > 0 {
-		for iNdEx := len(m.Confirms) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Confirms[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintQuery(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0xa
-		}
-	}
-	return len(dAtA) - i, nil
-}
-
 func (m *QueryDataCommitmentConfirmsByExactRangeRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -2436,73 +2064,6 @@ func (m *QueryDataCommitmentConfirmsByExactRangeResponse) MarshalTo(dAtA []byte)
 }
 
 func (m *QueryDataCommitmentConfirmsByExactRangeResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.Confirms) > 0 {
-		for iNdEx := len(m.Confirms) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Confirms[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintQuery(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0xa
-		}
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.Address) > 0 {
-		i -= len(m.Address)
-		copy(dAtA[i:], m.Address)
-		i = encodeVarintQuery(dAtA, i, uint64(len(m.Address)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -2793,36 +2354,6 @@ func (m *QueryDataCommitmentConfirmsByCommitmentResponse) Size() (n int) {
 	return n
 }
 
-func (m *QueryDataCommitmentConfirmsByRangeRequest) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.BeginBlock != 0 {
-		n += 1 + sovQuery(uint64(m.BeginBlock))
-	}
-	if m.EndBlock != 0 {
-		n += 1 + sovQuery(uint64(m.EndBlock))
-	}
-	return n
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeResponse) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if len(m.Confirms) > 0 {
-		for _, e := range m.Confirms {
-			l = e.Size()
-			n += 1 + l + sovQuery(uint64(l))
-		}
-	}
-	return n
-}
-
 func (m *QueryDataCommitmentConfirmsByExactRangeRequest) Size() (n int) {
 	if m == nil {
 		return 0
@@ -2839,34 +2370,6 @@ func (m *QueryDataCommitmentConfirmsByExactRangeRequest) Size() (n int) {
 }
 
 func (m *QueryDataCommitmentConfirmsByExactRangeResponse) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if len(m.Confirms) > 0 {
-		for _, e := range m.Confirms {
-			l = e.Size()
-			n += 1 + l + sovQuery(uint64(l))
-		}
-	}
-	return n
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.Address)
-	if l > 0 {
-		n += 1 + l + sovQuery(uint64(l))
-	}
-	return n
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -4182,178 +3685,6 @@ func (m *QueryDataCommitmentConfirmsByCommitmentResponse) Unmarshal(dAtA []byte)
 	}
 	return nil
 }
-func (m *QueryDataCommitmentConfirmsByRangeRequest) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByRangeRequest: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByRangeRequest: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field BeginBlock", wireType)
-			}
-			m.BeginBlock = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQuery
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.BeginBlock |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field EndBlock", wireType)
-			}
-			m.EndBlock = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQuery
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.EndBlock |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *QueryDataCommitmentConfirmsByRangeResponse) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByRangeResponse: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByRangeResponse: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Confirms", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQuery
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthQuery
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Confirms = append(m.Confirms, MsgDataCommitmentConfirm{})
-			if err := m.Confirms[len(m.Confirms)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
 func (m *QueryDataCommitmentConfirmsByExactRangeRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -4469,172 +3800,6 @@ func (m *QueryDataCommitmentConfirmsByExactRangeResponse) Unmarshal(dAtA []byte)
 		}
 		if fieldNum <= 0 {
 			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByExactRangeResponse: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Confirms", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQuery
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthQuery
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Confirms = append(m.Confirms, MsgDataCommitmentConfirm{})
-			if err := m.Confirms[len(m.Confirms)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByValidatorRequest: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByValidatorRequest: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Address", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQuery
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthQuery
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Address = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByValidatorResponse: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByValidatorResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:

@@ -42,15 +42,6 @@ service Query {
         "/qgb/data_commitment/confirm/begin/"
         "{begin_block}/end/{end_block}/address/{address}";
   }
-  // DataCommitmentConfirmsByValidator Queries data commitment confirms by
-  // validator address
-  // FIXME can be deleted
-  rpc DataCommitmentConfirmsByValidator(
-      QueryDataCommitmentConfirmsByValidatorRequest)
-      returns (QueryDataCommitmentConfirmsByValidatorResponse) {
-    option (google.api.http).get =
-        "/qgb/data_commitment/confirms/address/{address}";
-  }
   // DataCommitmentConfirms Queries data commitment confirms by the actual
   // commitment
   rpc DataCommitmentConfirmsByCommitment(
@@ -58,14 +49,6 @@ service Query {
       returns (QueryDataCommitmentConfirmsByCommitmentResponse) {
     option (google.api.http).get =
         "/qgb/data_commitment/confirms/commitment/{commitment}";
-  }
-  // DataCommitmentConfirmsByRange Queries data commitment confirms by a block
-  // range
-  // FIXME can be deleted
-  rpc DataCommitmentConfirmsByRange(QueryDataCommitmentConfirmsByRangeRequest)
-      returns (QueryDataCommitmentConfirmsByRangeResponse) {
-    option (google.api.http).get = "/qgb/data_commitment/confirms/begin_block/"
-                                   "{begin_block}/end_block/{end_block}";
   }
   // DataCommitmentConfirmsByExactRange Queries data commitment confirms by an
   // exact block range
@@ -182,20 +165,6 @@ message QueryDataCommitmentConfirmsByCommitmentResponse {
       [ (gogoproto.nullable) = false ];
 }
 
-// QueryDataCommitmentConfirmsByRangeRequest Data commitment confirms by range
-// request
-message QueryDataCommitmentConfirmsByRangeRequest {
-  uint64 begin_block = 1;
-  uint64 end_block = 2;
-}
-
-// QueryDataCommitmentConfirmsByRangeResponse Data commitment confirms by range
-// response
-message QueryDataCommitmentConfirmsByRangeResponse {
-  repeated MsgDataCommitmentConfirm confirms = 1
-      [ (gogoproto.nullable) = false ];
-}
-
 // QueryDataCommitmentConfirmsByExactRangeRequest Data commitment confirms by
 // exact range request
 message QueryDataCommitmentConfirmsByExactRangeRequest {
@@ -206,17 +175,6 @@ message QueryDataCommitmentConfirmsByExactRangeRequest {
 // QueryDataCommitmentConfirmsByExactRangeResponse Data commitment confirms by
 // exact range response
 message QueryDataCommitmentConfirmsByExactRangeResponse {
-  repeated MsgDataCommitmentConfirm confirms = 1
-      [ (gogoproto.nullable) = false ];
-}
-
-// QueryDataCommitmentConfirmsByValidatorRequest Data commitment confirms by
-// validator address request
-message QueryDataCommitmentConfirmsByValidatorRequest { string address = 1; }
-
-// QueryDataCommitmentConfirmsByValidatorResponse Data commitment confirms by
-// validator address response
-message QueryDataCommitmentConfirmsByValidatorResponse {
   repeated MsgDataCommitmentConfirm confirms = 1
       [ (gogoproto.nullable) = false ];
 }
