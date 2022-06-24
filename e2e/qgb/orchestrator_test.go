@@ -5,6 +5,7 @@ import (
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 )
@@ -42,7 +43,7 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 	vsConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
-	assert.NotNil(t, vsConfirm)
+	require.NotNil(t, vsConfirm)
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE0EVMADDRESS, vsConfirm.EthAddress)
 
