@@ -40,13 +40,9 @@ func TestRelayerWithOneValidator(t *testing.T) {
 	// FIXME should we use the evm client here or go for raw queries?
 	evmClient := orchestrator.NewEvmClient(nil, *bridge, nil, network.EVMRPC)
 
-	vsNonce, err := evmClient.StateLastValsetNonce(&bind.CallOpts{Context: ctx})
+	vsNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: ctx})
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(1), vsNonce)
-
-	dcNonce, err := evmClient.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: ctx})
-	assert.NoError(t, err)
-	assert.Equal(t, uint64(1), dcNonce)
+	assert.GreaterOrEqual(t, vsNonce, uint64(2))
 }
 
 func TestRelayerWithTwoValidators(t *testing.T) {
@@ -91,13 +87,9 @@ func TestRelayerWithTwoValidators(t *testing.T) {
 	// FIXME should we use the evm client here or go for raw queries?
 	evmClient := orchestrator.NewEvmClient(nil, *bridge, nil, network.EVMRPC)
 
-	dcNonce, err := evmClient.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: ctx})
+	dcNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: ctx})
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(1), dcNonce)
-
-	vsNonce, err := evmClient.StateLastValsetNonce(&bind.CallOpts{Context: ctx})
-	assert.NoError(t, err)
-	assert.Equal(t, uint64(2), vsNonce)
+	assert.GreaterOrEqual(t, dcNonce, uint64(3))
 }
 
 func TestRelayerWithMultipleValidators(t *testing.T) {
@@ -132,12 +124,12 @@ func TestRelayerWithMultipleValidators(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	// check whether the four validators are up and running
-	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
+	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
 	HandleNetworkError(t, network, err, false)
 
-	lastValsets, err := querier.QueryLastValsets(ctx)
+	latestValset, err := querier.QueryLatestValset(network.Context)
 	assert.NoError(t, err)
-	assert.Equal(t, 4, len(lastValsets[0].Members))
+	assert.Equal(t, 4, len(latestValset.Members))
 
 	bridge, err := network.GetLatestDeployedQGBContract(network.Context)
 	HandleNetworkError(t, network, err, false)
@@ -148,11 +140,7 @@ func TestRelayerWithMultipleValidators(t *testing.T) {
 	// FIXME should we use the evm client here or go for raw queries?
 	evmClient := orchestrator.NewEvmClient(nil, *bridge, nil, network.EVMRPC)
 
-	dcNonce, err := evmClient.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: ctx})
+	dcNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: ctx})
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(1), dcNonce)
-
-	vsNonce, err := evmClient.StateLastValsetNonce(&bind.CallOpts{Context: ctx})
-	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, uint64(2), vsNonce)
+	assert.GreaterOrEqual(t, dcNonce, uint64(3))
 }

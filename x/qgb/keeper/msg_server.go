@@ -22,7 +22,7 @@ func NewMsgServerImpl(keeper Keeper) types.MsgServer {
 	return &msgServer{Keeper: keeper}
 }
 
-// ValsetConfirm handles MsgValsetConfirm
+// ValsetConfirm handles MsgValsetConfirm.
 func (k msgServer) ValsetConfirm(
 	c context.Context,
 	msg *types.MsgValsetConfirm,
@@ -30,9 +30,17 @@ func (k msgServer) ValsetConfirm(
 	ctx := sdk.UnwrapSDKContext(c)
 
 	// Get valset by nonce
-	valset := k.GetValset(ctx, msg.Nonce)
-	if valset == nil {
-		return nil, sdkerrors.Wrap(types.ErrInvalid, "couldn't find valset")
+	at := k.GetAttestationByNonce(ctx, msg.Nonce)
+	if at == nil {
+		return nil, types.ErrAttestationNotFound
+	}
+	if at.Type() != types.ValsetRequestType {
+		return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "attestation is not a valset request")
+	}
+
+	valset, ok := at.(*types.Valset)
+	if !ok {
+		return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
 	}
 
 	// Get orchestrator account from message
@@ -100,7 +108,7 @@ func (k msgServer) ValsetConfirm(
 	return &types.MsgValsetConfirmResponse{}, nil
 }
 
-// DataCommitmentConfirm handles MsgDataCommitmentConfirm
+// DataCommitmentConfirm handles MsgDataCommitmentConfirm.
 func (k msgServer) DataCommitmentConfirm(
 	c context.Context,
 	msg *types.MsgDataCommitmentConfirm,
@@ -134,12 +142,11 @@ func (k msgServer) DataCommitmentConfirm(
 	}
 
 	// Verify signature
-	nonce := msg.EndBlock / types.DataCommitmentWindow
 	commitment, err := hex.DecodeString(msg.Commitment)
 	if err != nil {
 		return nil, err
 	}
-	hash := types.DataCommitmentTupleRootSignBytes(types.BridgeId, big.NewInt(int64(nonce)), commitment)
+	hash := types.DataCommitmentTupleRootSignBytes(types.BridgeId, big.NewInt(int64(msg.Nonce)), commitment)
 	err = types.ValidateEthereumSignature(hash.Bytes(), sigBytes, *ethAddress)
 	if err != nil {
 		return nil, sdkerrors.Wrap(

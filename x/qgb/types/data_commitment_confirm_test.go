@@ -1,8 +1,9 @@
-package types
+package types_test
 
 import (
 	"bytes"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/assert"
@@ -33,13 +34,14 @@ func TestValidateMsgDataCommitmentConfirm(t *testing.T) {
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
 			println(fmt.Sprintf("Spec is %v", msg))
-			msg := NewMsgDataCommitmentConfirm(
+			msg := types.NewMsgDataCommitmentConfirm(
 				"commitment",
 				"signature",
 				cosmosAddress,
 				*ethAddress,
 				spec.beginBlock,
 				spec.endBlock,
+				20,
 			)
 			// when
 			err := msg.ValidateBasic()

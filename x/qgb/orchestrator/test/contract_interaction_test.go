@@ -5,10 +5,10 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/x/qgb/keeper/keystore"
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
-	"github.com/celestiaorg/quantum-gravity-bridge/orchestrator/ethereum/keystore"
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	ethcmn "github.com/ethereum/go-ethereum/common"
@@ -82,6 +82,7 @@ func (s *QGBTestSuite) SetupTest() {
 		s.auth,
 		s.sim,
 		bID,
+		big.NewInt(int64(initialValSet.Nonce)),
 		big.NewInt(int64(initialValSet.TwoThirdsThreshold())),
 		vsHash,
 	)
@@ -120,6 +121,7 @@ func (s *QGBTestSuite) TestSubmitDataCommitment() {
 	tx, err := s.wrapper.SubmitDataRootTupleRoot(
 		s.auth,
 		big.NewInt(1),
+		big.NewInt(0), // TODO get this from the setup
 		commitment,
 		ethVals,
 		[]wrapper.Signature{
@@ -137,7 +139,7 @@ func (s *QGBTestSuite) TestSubmitDataCommitment() {
 	s.NoError(err)
 	s.Assert().Equal(uint64(1), recp.Status)
 
-	dcNonce, err := s.wrapper.StateLastDataRootTupleRootNonce(nil)
+	dcNonce, err := s.wrapper.StateEventNonce(nil)
 	s.NoError(err)
 	s.Assert().Equal(0, dcNonce.Cmp(big.NewInt(1)))
 }
@@ -185,6 +187,7 @@ func (s *QGBTestSuite) TestUpdateValset() {
 	tx, err := s.wrapper.UpdateValidatorSet(
 		s.auth,
 		big.NewInt(1),
+		big.NewInt(0),
 		big.NewInt(int64(thresh)),
 		newVsHash,
 		ethVals,

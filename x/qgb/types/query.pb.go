@@ -6,10 +6,12 @@ package types
 import (
 	context "context"
 	fmt "fmt"
+	types "github.com/cosmos/cosmos-sdk/codec/types"
 	_ "github.com/cosmos/cosmos-sdk/types/query"
 	_ "github.com/gogo/protobuf/gogoproto"
 	grpc1 "github.com/gogo/protobuf/grpc"
 	proto "github.com/gogo/protobuf/proto"
+	_ "github.com/regen-network/cosmos-proto"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -112,105 +114,23 @@ func (m *QueryParamsResponse) GetParams() Params {
 	return Params{}
 }
 
-// QueryLastValsetRequestsRequest
-type QueryLastValsetRequestsRequest struct {
-}
-
-func (m *QueryLastValsetRequestsRequest) Reset()         { *m = QueryLastValsetRequestsRequest{} }
-func (m *QueryLastValsetRequestsRequest) String() string { return proto.CompactTextString(m) }
-func (*QueryLastValsetRequestsRequest) ProtoMessage()    {}
-func (*QueryLastValsetRequestsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{2}
-}
-func (m *QueryLastValsetRequestsRequest) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryLastValsetRequestsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryLastValsetRequestsRequest.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryLastValsetRequestsRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryLastValsetRequestsRequest.Merge(m, src)
-}
-func (m *QueryLastValsetRequestsRequest) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryLastValsetRequestsRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryLastValsetRequestsRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryLastValsetRequestsRequest proto.InternalMessageInfo
-
-// QueryLastValsetRequestsResponse
-type QueryLastValsetRequestsResponse struct {
-	Valsets []Valset `protobuf:"bytes,1,rep,name=valsets,proto3" json:"valsets"`
-}
-
-func (m *QueryLastValsetRequestsResponse) Reset()         { *m = QueryLastValsetRequestsResponse{} }
-func (m *QueryLastValsetRequestsResponse) String() string { return proto.CompactTextString(m) }
-func (*QueryLastValsetRequestsResponse) ProtoMessage()    {}
-func (*QueryLastValsetRequestsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{3}
-}
-func (m *QueryLastValsetRequestsResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryLastValsetRequestsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryLastValsetRequestsResponse.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryLastValsetRequestsResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryLastValsetRequestsResponse.Merge(m, src)
-}
-func (m *QueryLastValsetRequestsResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryLastValsetRequestsResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryLastValsetRequestsResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryLastValsetRequestsResponse proto.InternalMessageInfo
-
-func (m *QueryLastValsetRequestsResponse) GetValsets() []Valset {
-	if m != nil {
-		return m.Valsets
-	}
-	return nil
-}
-
-// QueryValsetRequestByNonceRequest
-type QueryValsetRequestByNonceRequest struct {
+// QueryAttestationRequestByNonceRequest
+type QueryAttestationRequestByNonceRequest struct {
 	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
 }
 
-func (m *QueryValsetRequestByNonceRequest) Reset()         { *m = QueryValsetRequestByNonceRequest{} }
-func (m *QueryValsetRequestByNonceRequest) String() string { return proto.CompactTextString(m) }
-func (*QueryValsetRequestByNonceRequest) ProtoMessage()    {}
-func (*QueryValsetRequestByNonceRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{4}
+func (m *QueryAttestationRequestByNonceRequest) Reset()         { *m = QueryAttestationRequestByNonceRequest{} }
+func (m *QueryAttestationRequestByNonceRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryAttestationRequestByNonceRequest) ProtoMessage()    {}
+func (*QueryAttestationRequestByNonceRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{2}
 }
-func (m *QueryValsetRequestByNonceRequest) XXX_Unmarshal(b []byte) error {
+func (m *QueryAttestationRequestByNonceRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *QueryValsetRequestByNonceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *QueryAttestationRequestByNonceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_QueryValsetRequestByNonceRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_QueryAttestationRequestByNonceRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -220,42 +140,47 @@ func (m *QueryValsetRequestByNonceRequest) XXX_Marshal(b []byte, deterministic b
 		return b[:n], nil
 	}
 }
-func (m *QueryValsetRequestByNonceRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryValsetRequestByNonceRequest.Merge(m, src)
+func (m *QueryAttestationRequestByNonceRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryAttestationRequestByNonceRequest.Merge(m, src)
 }
-func (m *QueryValsetRequestByNonceRequest) XXX_Size() int {
+func (m *QueryAttestationRequestByNonceRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *QueryValsetRequestByNonceRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryValsetRequestByNonceRequest.DiscardUnknown(m)
+func (m *QueryAttestationRequestByNonceRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryAttestationRequestByNonceRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_QueryValsetRequestByNonceRequest proto.InternalMessageInfo
+var xxx_messageInfo_QueryAttestationRequestByNonceRequest proto.InternalMessageInfo
 
-func (m *QueryValsetRequestByNonceRequest) GetNonce() uint64 {
+func (m *QueryAttestationRequestByNonceRequest) GetNonce() uint64 {
 	if m != nil {
 		return m.Nonce
 	}
 	return 0
 }
 
-// QueryValsetRequestByNonceResponse
-type QueryValsetRequestByNonceResponse struct {
-	Valset *Valset `protobuf:"bytes,1,opt,name=valset,proto3" json:"valset,omitempty"`
+// QueryAttestationRequestByNonceResponse
+type QueryAttestationRequestByNonceResponse struct {
+	// AttestationRequestI is either a Data Commitment or a Valset.
+	// This was decided as part of the universal nonce approach under:
+	// https://github.com/celestiaorg/celestia-app/issues/468#issuecomment-1156887715
+	Attestation *types.Any `protobuf:"bytes,1,opt,name=attestation,proto3" json:"attestation,omitempty"`
 }
 
-func (m *QueryValsetRequestByNonceResponse) Reset()         { *m = QueryValsetRequestByNonceResponse{} }
-func (m *QueryValsetRequestByNonceResponse) String() string { return proto.CompactTextString(m) }
-func (*QueryValsetRequestByNonceResponse) ProtoMessage()    {}
-func (*QueryValsetRequestByNonceResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{5}
+func (m *QueryAttestationRequestByNonceResponse) Reset() {
+	*m = QueryAttestationRequestByNonceResponse{}
 }
-func (m *QueryValsetRequestByNonceResponse) XXX_Unmarshal(b []byte) error {
+func (m *QueryAttestationRequestByNonceResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryAttestationRequestByNonceResponse) ProtoMessage()    {}
+func (*QueryAttestationRequestByNonceResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{3}
+}
+func (m *QueryAttestationRequestByNonceResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *QueryValsetRequestByNonceResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *QueryAttestationRequestByNonceResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_QueryValsetRequestByNonceResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_QueryAttestationRequestByNonceResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -265,23 +190,105 @@ func (m *QueryValsetRequestByNonceResponse) XXX_Marshal(b []byte, deterministic 
 		return b[:n], nil
 	}
 }
-func (m *QueryValsetRequestByNonceResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryValsetRequestByNonceResponse.Merge(m, src)
+func (m *QueryAttestationRequestByNonceResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryAttestationRequestByNonceResponse.Merge(m, src)
 }
-func (m *QueryValsetRequestByNonceResponse) XXX_Size() int {
+func (m *QueryAttestationRequestByNonceResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *QueryValsetRequestByNonceResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryValsetRequestByNonceResponse.DiscardUnknown(m)
+func (m *QueryAttestationRequestByNonceResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryAttestationRequestByNonceResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_QueryValsetRequestByNonceResponse proto.InternalMessageInfo
+var xxx_messageInfo_QueryAttestationRequestByNonceResponse proto.InternalMessageInfo
 
-func (m *QueryValsetRequestByNonceResponse) GetValset() *Valset {
+func (m *QueryAttestationRequestByNonceResponse) GetAttestation() *types.Any {
 	if m != nil {
-		return m.Valset
+		return m.Attestation
 	}
 	return nil
+}
+
+// QueryLatestAttestationNonceRequest Latest attestation nonce request
+type QueryLatestAttestationNonceRequest struct {
+}
+
+func (m *QueryLatestAttestationNonceRequest) Reset()         { *m = QueryLatestAttestationNonceRequest{} }
+func (m *QueryLatestAttestationNonceRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryLatestAttestationNonceRequest) ProtoMessage()    {}
+func (*QueryLatestAttestationNonceRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{4}
+}
+func (m *QueryLatestAttestationNonceRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryLatestAttestationNonceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryLatestAttestationNonceRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryLatestAttestationNonceRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryLatestAttestationNonceRequest.Merge(m, src)
+}
+func (m *QueryLatestAttestationNonceRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryLatestAttestationNonceRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryLatestAttestationNonceRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryLatestAttestationNonceRequest proto.InternalMessageInfo
+
+// QueryLatestAttestationNonceResponse Latest attestation nonce response
+type QueryLatestAttestationNonceResponse struct {
+	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+}
+
+func (m *QueryLatestAttestationNonceResponse) Reset()         { *m = QueryLatestAttestationNonceResponse{} }
+func (m *QueryLatestAttestationNonceResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryLatestAttestationNonceResponse) ProtoMessage()    {}
+func (*QueryLatestAttestationNonceResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{5}
+}
+func (m *QueryLatestAttestationNonceResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryLatestAttestationNonceResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryLatestAttestationNonceResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryLatestAttestationNonceResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryLatestAttestationNonceResponse.Merge(m, src)
+}
+func (m *QueryLatestAttestationNonceResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryLatestAttestationNonceResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryLatestAttestationNonceResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryLatestAttestationNonceResponse proto.InternalMessageInfo
+
+func (m *QueryLatestAttestationNonceResponse) GetNonce() uint64 {
+	if m != nil {
+		return m.Nonce
+	}
+	return 0
 }
 
 // QueryValsetConfirmsByNonceRequest
@@ -472,24 +479,26 @@ func (m *QueryValsetConfirmResponse) GetConfirm() *MsgValsetConfirm {
 	return nil
 }
 
-// QueryLastValsetRequestBeforeHeightRequest last Valset request before height
-// request
-type QueryLastValsetBeforeHeightRequest struct {
-	Height uint64 `protobuf:"varint,1,opt,name=height,proto3" json:"height,omitempty"`
+// QueryLastValsetRequestBeforeNonceRequest last Valset request before universal
+// nonce request
+type QueryLastValsetRequestBeforeNonceRequest struct {
+	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
 }
 
-func (m *QueryLastValsetBeforeHeightRequest) Reset()         { *m = QueryLastValsetBeforeHeightRequest{} }
-func (m *QueryLastValsetBeforeHeightRequest) String() string { return proto.CompactTextString(m) }
-func (*QueryLastValsetBeforeHeightRequest) ProtoMessage()    {}
-func (*QueryLastValsetBeforeHeightRequest) Descriptor() ([]byte, []int) {
+func (m *QueryLastValsetRequestBeforeNonceRequest) Reset() {
+	*m = QueryLastValsetRequestBeforeNonceRequest{}
+}
+func (m *QueryLastValsetRequestBeforeNonceRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryLastValsetRequestBeforeNonceRequest) ProtoMessage()    {}
+func (*QueryLastValsetRequestBeforeNonceRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f3c1fd86445aad81, []int{10}
 }
-func (m *QueryLastValsetBeforeHeightRequest) XXX_Unmarshal(b []byte) error {
+func (m *QueryLastValsetRequestBeforeNonceRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *QueryLastValsetBeforeHeightRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *QueryLastValsetRequestBeforeNonceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_QueryLastValsetBeforeHeightRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_QueryLastValsetRequestBeforeNonceRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -499,43 +508,47 @@ func (m *QueryLastValsetBeforeHeightRequest) XXX_Marshal(b []byte, deterministic
 		return b[:n], nil
 	}
 }
-func (m *QueryLastValsetBeforeHeightRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryLastValsetBeforeHeightRequest.Merge(m, src)
+func (m *QueryLastValsetRequestBeforeNonceRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryLastValsetRequestBeforeNonceRequest.Merge(m, src)
 }
-func (m *QueryLastValsetBeforeHeightRequest) XXX_Size() int {
+func (m *QueryLastValsetRequestBeforeNonceRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *QueryLastValsetBeforeHeightRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryLastValsetBeforeHeightRequest.DiscardUnknown(m)
+func (m *QueryLastValsetRequestBeforeNonceRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryLastValsetRequestBeforeNonceRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_QueryLastValsetBeforeHeightRequest proto.InternalMessageInfo
+var xxx_messageInfo_QueryLastValsetRequestBeforeNonceRequest proto.InternalMessageInfo
 
-func (m *QueryLastValsetBeforeHeightRequest) GetHeight() uint64 {
+func (m *QueryLastValsetRequestBeforeNonceRequest) GetNonce() uint64 {
 	if m != nil {
-		return m.Height
+		return m.Nonce
 	}
 	return 0
 }
 
-// QueryLastValsetRequestBeforeHeightResponse last Valset request before height
+// QueryLastValsetRequestBeforeNonceResponse last Valset request before height
 // response
-type QueryLastValsetBeforeHeightResponse struct {
+type QueryLastValsetRequestBeforeNonceResponse struct {
 	Valset *Valset `protobuf:"bytes,1,opt,name=valset,proto3" json:"valset,omitempty"`
 }
 
-func (m *QueryLastValsetBeforeHeightResponse) Reset()         { *m = QueryLastValsetBeforeHeightResponse{} }
-func (m *QueryLastValsetBeforeHeightResponse) String() string { return proto.CompactTextString(m) }
-func (*QueryLastValsetBeforeHeightResponse) ProtoMessage()    {}
-func (*QueryLastValsetBeforeHeightResponse) Descriptor() ([]byte, []int) {
+func (m *QueryLastValsetRequestBeforeNonceResponse) Reset() {
+	*m = QueryLastValsetRequestBeforeNonceResponse{}
+}
+func (m *QueryLastValsetRequestBeforeNonceResponse) String() string {
+	return proto.CompactTextString(m)
+}
+func (*QueryLastValsetRequestBeforeNonceResponse) ProtoMessage() {}
+func (*QueryLastValsetRequestBeforeNonceResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f3c1fd86445aad81, []int{11}
 }
-func (m *QueryLastValsetBeforeHeightResponse) XXX_Unmarshal(b []byte) error {
+func (m *QueryLastValsetRequestBeforeNonceResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *QueryLastValsetBeforeHeightResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *QueryLastValsetRequestBeforeNonceResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_QueryLastValsetBeforeHeightResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_QueryLastValsetRequestBeforeNonceResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -545,19 +558,19 @@ func (m *QueryLastValsetBeforeHeightResponse) XXX_Marshal(b []byte, deterministi
 		return b[:n], nil
 	}
 }
-func (m *QueryLastValsetBeforeHeightResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryLastValsetBeforeHeightResponse.Merge(m, src)
+func (m *QueryLastValsetRequestBeforeNonceResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryLastValsetRequestBeforeNonceResponse.Merge(m, src)
 }
-func (m *QueryLastValsetBeforeHeightResponse) XXX_Size() int {
+func (m *QueryLastValsetRequestBeforeNonceResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *QueryLastValsetBeforeHeightResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryLastValsetBeforeHeightResponse.DiscardUnknown(m)
+func (m *QueryLastValsetRequestBeforeNonceResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryLastValsetRequestBeforeNonceResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_QueryLastValsetBeforeHeightResponse proto.InternalMessageInfo
+var xxx_messageInfo_QueryLastValsetRequestBeforeNonceResponse proto.InternalMessageInfo
 
-func (m *QueryLastValsetBeforeHeightResponse) GetValset() *Valset {
+func (m *QueryLastValsetRequestBeforeNonceResponse) GetValset() *Valset {
 	if m != nil {
 		return m.Valset
 	}
@@ -772,114 +785,6 @@ func (m *QueryDataCommitmentConfirmsByCommitmentResponse) GetConfirms() []MsgDat
 	return nil
 }
 
-// QueryDataCommitmentConfirmsByRangeRequest Data commitment confirms by range
-// request
-type QueryDataCommitmentConfirmsByRangeRequest struct {
-	BeginBlock uint64 `protobuf:"varint,1,opt,name=begin_block,json=beginBlock,proto3" json:"begin_block,omitempty"`
-	EndBlock   uint64 `protobuf:"varint,2,opt,name=end_block,json=endBlock,proto3" json:"end_block,omitempty"`
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeRequest) Reset() {
-	*m = QueryDataCommitmentConfirmsByRangeRequest{}
-}
-func (m *QueryDataCommitmentConfirmsByRangeRequest) String() string {
-	return proto.CompactTextString(m)
-}
-func (*QueryDataCommitmentConfirmsByRangeRequest) ProtoMessage() {}
-func (*QueryDataCommitmentConfirmsByRangeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{16}
-}
-func (m *QueryDataCommitmentConfirmsByRangeRequest) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryDataCommitmentConfirmsByRangeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryDataCommitmentConfirmsByRangeRequest.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryDataCommitmentConfirmsByRangeRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryDataCommitmentConfirmsByRangeRequest.Merge(m, src)
-}
-func (m *QueryDataCommitmentConfirmsByRangeRequest) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryDataCommitmentConfirmsByRangeRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryDataCommitmentConfirmsByRangeRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryDataCommitmentConfirmsByRangeRequest proto.InternalMessageInfo
-
-func (m *QueryDataCommitmentConfirmsByRangeRequest) GetBeginBlock() uint64 {
-	if m != nil {
-		return m.BeginBlock
-	}
-	return 0
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeRequest) GetEndBlock() uint64 {
-	if m != nil {
-		return m.EndBlock
-	}
-	return 0
-}
-
-// QueryDataCommitmentConfirmsByRangeResponse Data commitment confirms by range
-// response
-type QueryDataCommitmentConfirmsByRangeResponse struct {
-	Confirms []MsgDataCommitmentConfirm `protobuf:"bytes,1,rep,name=confirms,proto3" json:"confirms"`
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeResponse) Reset() {
-	*m = QueryDataCommitmentConfirmsByRangeResponse{}
-}
-func (m *QueryDataCommitmentConfirmsByRangeResponse) String() string {
-	return proto.CompactTextString(m)
-}
-func (*QueryDataCommitmentConfirmsByRangeResponse) ProtoMessage() {}
-func (*QueryDataCommitmentConfirmsByRangeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{17}
-}
-func (m *QueryDataCommitmentConfirmsByRangeResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryDataCommitmentConfirmsByRangeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryDataCommitmentConfirmsByRangeResponse.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryDataCommitmentConfirmsByRangeResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryDataCommitmentConfirmsByRangeResponse.Merge(m, src)
-}
-func (m *QueryDataCommitmentConfirmsByRangeResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryDataCommitmentConfirmsByRangeResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryDataCommitmentConfirmsByRangeResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryDataCommitmentConfirmsByRangeResponse proto.InternalMessageInfo
-
-func (m *QueryDataCommitmentConfirmsByRangeResponse) GetConfirms() []MsgDataCommitmentConfirm {
-	if m != nil {
-		return m.Confirms
-	}
-	return nil
-}
-
 // QueryDataCommitmentConfirmsByExactRangeRequest Data commitment confirms by
 // exact range request
 type QueryDataCommitmentConfirmsByExactRangeRequest struct {
@@ -895,7 +800,7 @@ func (m *QueryDataCommitmentConfirmsByExactRangeRequest) String() string {
 }
 func (*QueryDataCommitmentConfirmsByExactRangeRequest) ProtoMessage() {}
 func (*QueryDataCommitmentConfirmsByExactRangeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{18}
+	return fileDescriptor_f3c1fd86445aad81, []int{16}
 }
 func (m *QueryDataCommitmentConfirmsByExactRangeRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -952,7 +857,7 @@ func (m *QueryDataCommitmentConfirmsByExactRangeResponse) String() string {
 }
 func (*QueryDataCommitmentConfirmsByExactRangeResponse) ProtoMessage() {}
 func (*QueryDataCommitmentConfirmsByExactRangeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{19}
+	return fileDescriptor_f3c1fd86445aad81, []int{17}
 }
 func (m *QueryDataCommitmentConfirmsByExactRangeResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -988,106 +893,6 @@ func (m *QueryDataCommitmentConfirmsByExactRangeResponse) GetConfirms() []MsgDat
 	return nil
 }
 
-// QueryDataCommitmentConfirmsByValidatorRequest Data commitment confirms by
-// validator address request
-type QueryDataCommitmentConfirmsByValidatorRequest struct {
-	Address string `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) Reset() {
-	*m = QueryDataCommitmentConfirmsByValidatorRequest{}
-}
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) String() string {
-	return proto.CompactTextString(m)
-}
-func (*QueryDataCommitmentConfirmsByValidatorRequest) ProtoMessage() {}
-func (*QueryDataCommitmentConfirmsByValidatorRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{20}
-}
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorRequest.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorRequest.Merge(m, src)
-}
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorRequest proto.InternalMessageInfo
-
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) GetAddress() string {
-	if m != nil {
-		return m.Address
-	}
-	return ""
-}
-
-// QueryDataCommitmentConfirmsByValidatorResponse Data commitment confirms by
-// validator address response
-type QueryDataCommitmentConfirmsByValidatorResponse struct {
-	Confirms []MsgDataCommitmentConfirm `protobuf:"bytes,1,rep,name=confirms,proto3" json:"confirms"`
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) Reset() {
-	*m = QueryDataCommitmentConfirmsByValidatorResponse{}
-}
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) String() string {
-	return proto.CompactTextString(m)
-}
-func (*QueryDataCommitmentConfirmsByValidatorResponse) ProtoMessage() {}
-func (*QueryDataCommitmentConfirmsByValidatorResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{21}
-}
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorResponse.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorResponse.Merge(m, src)
-}
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryDataCommitmentConfirmsByValidatorResponse proto.InternalMessageInfo
-
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) GetConfirms() []MsgDataCommitmentConfirm {
-	if m != nil {
-		return m.Confirms
-	}
-	return nil
-}
-
 // QueryLastUnbondingHeightRequest
 type QueryLastUnbondingHeightRequest struct {
 }
@@ -1096,7 +901,7 @@ func (m *QueryLastUnbondingHeightRequest) Reset()         { *m = QueryLastUnbond
 func (m *QueryLastUnbondingHeightRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryLastUnbondingHeightRequest) ProtoMessage()    {}
 func (*QueryLastUnbondingHeightRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{22}
+	return fileDescriptor_f3c1fd86445aad81, []int{18}
 }
 func (m *QueryLastUnbondingHeightRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1134,7 +939,7 @@ func (m *QueryLastUnbondingHeightResponse) Reset()         { *m = QueryLastUnbon
 func (m *QueryLastUnbondingHeightResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryLastUnbondingHeightResponse) ProtoMessage()    {}
 func (*QueryLastUnbondingHeightResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{23}
+	return fileDescriptor_f3c1fd86445aad81, []int{19}
 }
 func (m *QueryLastUnbondingHeightResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1170,390 +975,100 @@ func (m *QueryLastUnbondingHeightResponse) GetHeight() uint64 {
 	return 0
 }
 
-// QueryDataCommitmentRequestRequest Data commitment by nonce request
-type QueryDataCommitmentRequestByNonceRequest struct {
-	// Unique number referencing the `DataCommitment`.
-	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
-}
-
-func (m *QueryDataCommitmentRequestByNonceRequest) Reset() {
-	*m = QueryDataCommitmentRequestByNonceRequest{}
-}
-func (m *QueryDataCommitmentRequestByNonceRequest) String() string { return proto.CompactTextString(m) }
-func (*QueryDataCommitmentRequestByNonceRequest) ProtoMessage()    {}
-func (*QueryDataCommitmentRequestByNonceRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{24}
-}
-func (m *QueryDataCommitmentRequestByNonceRequest) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryDataCommitmentRequestByNonceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryDataCommitmentRequestByNonceRequest.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryDataCommitmentRequestByNonceRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryDataCommitmentRequestByNonceRequest.Merge(m, src)
-}
-func (m *QueryDataCommitmentRequestByNonceRequest) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryDataCommitmentRequestByNonceRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryDataCommitmentRequestByNonceRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryDataCommitmentRequestByNonceRequest proto.InternalMessageInfo
-
-func (m *QueryDataCommitmentRequestByNonceRequest) GetNonce() uint64 {
-	if m != nil {
-		return m.Nonce
-	}
-	return 0
-}
-
-// QueryDataCommitmentRequestResponse Data commitment by nonce response
-type QueryDataCommitmentRequestByNonceResponse struct {
-	Commitment *DataCommitment `protobuf:"bytes,1,opt,name=commitment,proto3" json:"commitment,omitempty"`
-}
-
-func (m *QueryDataCommitmentRequestByNonceResponse) Reset() {
-	*m = QueryDataCommitmentRequestByNonceResponse{}
-}
-func (m *QueryDataCommitmentRequestByNonceResponse) String() string {
-	return proto.CompactTextString(m)
-}
-func (*QueryDataCommitmentRequestByNonceResponse) ProtoMessage() {}
-func (*QueryDataCommitmentRequestByNonceResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{25}
-}
-func (m *QueryDataCommitmentRequestByNonceResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryDataCommitmentRequestByNonceResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryDataCommitmentRequestByNonceResponse.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryDataCommitmentRequestByNonceResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryDataCommitmentRequestByNonceResponse.Merge(m, src)
-}
-func (m *QueryDataCommitmentRequestByNonceResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryDataCommitmentRequestByNonceResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryDataCommitmentRequestByNonceResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryDataCommitmentRequestByNonceResponse proto.InternalMessageInfo
-
-func (m *QueryDataCommitmentRequestByNonceResponse) GetCommitment() *DataCommitment {
-	if m != nil {
-		return m.Commitment
-	}
-	return nil
-}
-
-// QueryLastDataCommitmentRequestsRequest Last data commitment request
-type QueryLastDataCommitmentRequestsRequest struct {
-}
-
-func (m *QueryLastDataCommitmentRequestsRequest) Reset() {
-	*m = QueryLastDataCommitmentRequestsRequest{}
-}
-func (m *QueryLastDataCommitmentRequestsRequest) String() string { return proto.CompactTextString(m) }
-func (*QueryLastDataCommitmentRequestsRequest) ProtoMessage()    {}
-func (*QueryLastDataCommitmentRequestsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{26}
-}
-func (m *QueryLastDataCommitmentRequestsRequest) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryLastDataCommitmentRequestsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryLastDataCommitmentRequestsRequest.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryLastDataCommitmentRequestsRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryLastDataCommitmentRequestsRequest.Merge(m, src)
-}
-func (m *QueryLastDataCommitmentRequestsRequest) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryLastDataCommitmentRequestsRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryLastDataCommitmentRequestsRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryLastDataCommitmentRequestsRequest proto.InternalMessageInfo
-
-// QueryLastDataCommitmentRequestsResponse Last data commitment response
-type QueryLastDataCommitmentRequestsResponse struct {
-	Commitments []DataCommitment `protobuf:"bytes,1,rep,name=commitments,proto3" json:"commitments"`
-}
-
-func (m *QueryLastDataCommitmentRequestsResponse) Reset() {
-	*m = QueryLastDataCommitmentRequestsResponse{}
-}
-func (m *QueryLastDataCommitmentRequestsResponse) String() string { return proto.CompactTextString(m) }
-func (*QueryLastDataCommitmentRequestsResponse) ProtoMessage()    {}
-func (*QueryLastDataCommitmentRequestsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{27}
-}
-func (m *QueryLastDataCommitmentRequestsResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryLastDataCommitmentRequestsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryLastDataCommitmentRequestsResponse.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryLastDataCommitmentRequestsResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryLastDataCommitmentRequestsResponse.Merge(m, src)
-}
-func (m *QueryLastDataCommitmentRequestsResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryLastDataCommitmentRequestsResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryLastDataCommitmentRequestsResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryLastDataCommitmentRequestsResponse proto.InternalMessageInfo
-
-func (m *QueryLastDataCommitmentRequestsResponse) GetCommitments() []DataCommitment {
-	if m != nil {
-		return m.Commitments
-	}
-	return nil
-}
-
-// QueryLatestDataCommitmentNonceRequest Latest data commitment nonce request
-type QueryLatestDataCommitmentNonceRequest struct {
-}
-
-func (m *QueryLatestDataCommitmentNonceRequest) Reset()         { *m = QueryLatestDataCommitmentNonceRequest{} }
-func (m *QueryLatestDataCommitmentNonceRequest) String() string { return proto.CompactTextString(m) }
-func (*QueryLatestDataCommitmentNonceRequest) ProtoMessage()    {}
-func (*QueryLatestDataCommitmentNonceRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{28}
-}
-func (m *QueryLatestDataCommitmentNonceRequest) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryLatestDataCommitmentNonceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryLatestDataCommitmentNonceRequest.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryLatestDataCommitmentNonceRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryLatestDataCommitmentNonceRequest.Merge(m, src)
-}
-func (m *QueryLatestDataCommitmentNonceRequest) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryLatestDataCommitmentNonceRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryLatestDataCommitmentNonceRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryLatestDataCommitmentNonceRequest proto.InternalMessageInfo
-
-// QueryLatestDataCommitmentNonceResponse Latest data commitment nonce response
-type QueryLatestDataCommitmentNonceResponse struct {
-	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
-}
-
-func (m *QueryLatestDataCommitmentNonceResponse) Reset() {
-	*m = QueryLatestDataCommitmentNonceResponse{}
-}
-func (m *QueryLatestDataCommitmentNonceResponse) String() string { return proto.CompactTextString(m) }
-func (*QueryLatestDataCommitmentNonceResponse) ProtoMessage()    {}
-func (*QueryLatestDataCommitmentNonceResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f3c1fd86445aad81, []int{29}
-}
-func (m *QueryLatestDataCommitmentNonceResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *QueryLatestDataCommitmentNonceResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_QueryLatestDataCommitmentNonceResponse.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *QueryLatestDataCommitmentNonceResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryLatestDataCommitmentNonceResponse.Merge(m, src)
-}
-func (m *QueryLatestDataCommitmentNonceResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *QueryLatestDataCommitmentNonceResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryLatestDataCommitmentNonceResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_QueryLatestDataCommitmentNonceResponse proto.InternalMessageInfo
-
-func (m *QueryLatestDataCommitmentNonceResponse) GetNonce() uint64 {
-	if m != nil {
-		return m.Nonce
-	}
-	return 0
-}
-
 func init() {
 	proto.RegisterType((*QueryParamsRequest)(nil), "qgb.QueryParamsRequest")
 	proto.RegisterType((*QueryParamsResponse)(nil), "qgb.QueryParamsResponse")
-	proto.RegisterType((*QueryLastValsetRequestsRequest)(nil), "qgb.QueryLastValsetRequestsRequest")
-	proto.RegisterType((*QueryLastValsetRequestsResponse)(nil), "qgb.QueryLastValsetRequestsResponse")
-	proto.RegisterType((*QueryValsetRequestByNonceRequest)(nil), "qgb.QueryValsetRequestByNonceRequest")
-	proto.RegisterType((*QueryValsetRequestByNonceResponse)(nil), "qgb.QueryValsetRequestByNonceResponse")
+	proto.RegisterType((*QueryAttestationRequestByNonceRequest)(nil), "qgb.QueryAttestationRequestByNonceRequest")
+	proto.RegisterType((*QueryAttestationRequestByNonceResponse)(nil), "qgb.QueryAttestationRequestByNonceResponse")
+	proto.RegisterType((*QueryLatestAttestationNonceRequest)(nil), "qgb.QueryLatestAttestationNonceRequest")
+	proto.RegisterType((*QueryLatestAttestationNonceResponse)(nil), "qgb.QueryLatestAttestationNonceResponse")
 	proto.RegisterType((*QueryValsetConfirmsByNonceRequest)(nil), "qgb.QueryValsetConfirmsByNonceRequest")
 	proto.RegisterType((*QueryValsetConfirmsByNonceResponse)(nil), "qgb.QueryValsetConfirmsByNonceResponse")
 	proto.RegisterType((*QueryValsetConfirmRequest)(nil), "qgb.QueryValsetConfirmRequest")
 	proto.RegisterType((*QueryValsetConfirmResponse)(nil), "qgb.QueryValsetConfirmResponse")
-	proto.RegisterType((*QueryLastValsetBeforeHeightRequest)(nil), "qgb.QueryLastValsetBeforeHeightRequest")
-	proto.RegisterType((*QueryLastValsetBeforeHeightResponse)(nil), "qgb.QueryLastValsetBeforeHeightResponse")
+	proto.RegisterType((*QueryLastValsetRequestBeforeNonceRequest)(nil), "qgb.QueryLastValsetRequestBeforeNonceRequest")
+	proto.RegisterType((*QueryLastValsetRequestBeforeNonceResponse)(nil), "qgb.QueryLastValsetRequestBeforeNonceResponse")
 	proto.RegisterType((*QueryDataCommitmentConfirmRequest)(nil), "qgb.QueryDataCommitmentConfirmRequest")
 	proto.RegisterType((*QueryDataCommitmentConfirmResponse)(nil), "qgb.QueryDataCommitmentConfirmResponse")
 	proto.RegisterType((*QueryDataCommitmentConfirmsByCommitmentRequest)(nil), "qgb.QueryDataCommitmentConfirmsByCommitmentRequest")
 	proto.RegisterType((*QueryDataCommitmentConfirmsByCommitmentResponse)(nil), "qgb.QueryDataCommitmentConfirmsByCommitmentResponse")
-	proto.RegisterType((*QueryDataCommitmentConfirmsByRangeRequest)(nil), "qgb.QueryDataCommitmentConfirmsByRangeRequest")
-	proto.RegisterType((*QueryDataCommitmentConfirmsByRangeResponse)(nil), "qgb.QueryDataCommitmentConfirmsByRangeResponse")
 	proto.RegisterType((*QueryDataCommitmentConfirmsByExactRangeRequest)(nil), "qgb.QueryDataCommitmentConfirmsByExactRangeRequest")
 	proto.RegisterType((*QueryDataCommitmentConfirmsByExactRangeResponse)(nil), "qgb.QueryDataCommitmentConfirmsByExactRangeResponse")
-	proto.RegisterType((*QueryDataCommitmentConfirmsByValidatorRequest)(nil), "qgb.QueryDataCommitmentConfirmsByValidatorRequest")
-	proto.RegisterType((*QueryDataCommitmentConfirmsByValidatorResponse)(nil), "qgb.QueryDataCommitmentConfirmsByValidatorResponse")
 	proto.RegisterType((*QueryLastUnbondingHeightRequest)(nil), "qgb.QueryLastUnbondingHeightRequest")
 	proto.RegisterType((*QueryLastUnbondingHeightResponse)(nil), "qgb.QueryLastUnbondingHeightResponse")
-	proto.RegisterType((*QueryDataCommitmentRequestByNonceRequest)(nil), "qgb.QueryDataCommitmentRequestByNonceRequest")
-	proto.RegisterType((*QueryDataCommitmentRequestByNonceResponse)(nil), "qgb.QueryDataCommitmentRequestByNonceResponse")
-	proto.RegisterType((*QueryLastDataCommitmentRequestsRequest)(nil), "qgb.QueryLastDataCommitmentRequestsRequest")
-	proto.RegisterType((*QueryLastDataCommitmentRequestsResponse)(nil), "qgb.QueryLastDataCommitmentRequestsResponse")
-	proto.RegisterType((*QueryLatestDataCommitmentNonceRequest)(nil), "qgb.QueryLatestDataCommitmentNonceRequest")
-	proto.RegisterType((*QueryLatestDataCommitmentNonceResponse)(nil), "qgb.QueryLatestDataCommitmentNonceResponse")
 }
 
 func init() { proto.RegisterFile("qgb/query.proto", fileDescriptor_f3c1fd86445aad81) }
 
 var fileDescriptor_f3c1fd86445aad81 = []byte{
-	// 1280 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x58, 0x4b, 0x6f, 0x1b, 0xd5,
-	0x17, 0xcf, 0x34, 0x6d, 0xd2, 0x1c, 0xab, 0xfd, 0xff, 0x39, 0x4e, 0xd2, 0x74, 0x9a, 0x38, 0xc9,
-	0xa4, 0xce, 0x93, 0xf8, 0x2a, 0x09, 0x28, 0xbc, 0xa9, 0x5c, 0x90, 0x5a, 0x20, 0x25, 0x18, 0xd2,
-	0x45, 0x11, 0x2a, 0x63, 0xfb, 0x66, 0x32, 0xc2, 0x9e, 0xb1, 0x3d, 0x93, 0xaa, 0xc1, 0xf2, 0x86,
-	0x0d, 0x0b, 0x36, 0x20, 0x36, 0xac, 0xe0, 0x0b, 0xf0, 0x31, 0x40, 0xea, 0x0a, 0x55, 0x62, 0x01,
-	0x2b, 0x84, 0x12, 0x96, 0x7c, 0x08, 0xe4, 0x3b, 0x67, 0xc6, 0x63, 0xfb, 0xce, 0x23, 0x52, 0x76,
-	0x33, 0xe7, 0xfe, 0xce, 0x39, 0xbf, 0xf3, 0x98, 0x7b, 0xcf, 0x1d, 0xf8, 0x5f, 0xd3, 0x28, 0xb3,
-	0xe6, 0x31, 0x6f, 0x9d, 0x14, 0x1a, 0x2d, 0xdb, 0xb5, 0x71, 0xb4, 0x69, 0x94, 0xd5, 0x17, 0xba,
-	0x52, 0x83, 0x5b, 0xdc, 0x31, 0x1d, 0x4f, 0xae, 0x0a, 0xa0, 0x7b, 0xd2, 0xe0, 0xbe, 0x60, 0xd6,
-	0xb0, 0x6d, 0xa3, 0xc6, 0x99, 0xde, 0x30, 0x99, 0x6e, 0x59, 0xb6, 0xab, 0xbb, 0xa6, 0x6d, 0xf9,
-	0xab, 0xeb, 0x15, 0xdb, 0xa9, 0xdb, 0x0e, 0x2b, 0xeb, 0x0e, 0xf7, 0xec, 0xb3, 0x27, 0x5b, 0x65,
-	0xee, 0xea, 0x5b, 0xac, 0xa1, 0x1b, 0xa6, 0x25, 0xc0, 0x84, 0xbd, 0xde, 0x35, 0x5d, 0x77, 0x0c,
-	0x5f, 0x77, 0xd2, 0xb0, 0x0d, 0x5b, 0x3c, 0xb2, 0xee, 0x93, 0x27, 0xd5, 0x26, 0x01, 0x3f, 0xea,
-	0xda, 0xd9, 0xd7, 0x5b, 0x7a, 0xdd, 0x29, 0xf1, 0xe6, 0x31, 0x77, 0x5c, 0xed, 0x0e, 0x64, 0xfb,
-	0xa4, 0x4e, 0xc3, 0xb6, 0x1c, 0x8e, 0x6b, 0x30, 0xd6, 0x10, 0x92, 0x19, 0x65, 0x41, 0x59, 0xcd,
-	0x6c, 0x67, 0x0a, 0x4d, 0xa3, 0x5c, 0xf0, 0x40, 0xc5, 0xcb, 0xcf, 0xfe, 0x9a, 0x1f, 0x29, 0x11,
-	0x40, 0x5b, 0x80, 0x9c, 0xb0, 0xf0, 0x81, 0xee, 0xb8, 0x0f, 0xf5, 0x9a, 0xc3, 0x5d, 0xb2, 0x1d,
-	0xf8, 0x78, 0x00, 0xf3, 0x91, 0x08, 0xf2, 0xb7, 0x01, 0xe3, 0x4f, 0xc4, 0x4a, 0xd7, 0xe1, 0x68,
-	0xe0, 0xd0, 0x43, 0x93, 0x43, 0x1f, 0xa1, 0xbd, 0x02, 0x0b, 0xc2, 0x5e, 0x9f, 0xad, 0xe2, 0xc9,
-	0x03, 0xdb, 0xaa, 0x70, 0x7a, 0xc3, 0x49, 0xb8, 0x62, 0x75, 0xdf, 0x05, 0xff, 0xcb, 0x25, 0xef,
-	0x45, 0xbb, 0x07, 0x8b, 0x31, 0x9a, 0xc4, 0x65, 0x09, 0xc6, 0x3c, 0x4f, 0x7d, 0xb1, 0x93, 0x0a,
-	0x2d, 0x69, 0xaf, 0xf6, 0x59, 0xba, 0x6b, 0x5b, 0x87, 0x66, 0xab, 0xee, 0xa4, 0x22, 0xf1, 0x19,
-	0x68, 0x71, 0xaa, 0xc4, 0x62, 0x17, 0xae, 0x56, 0x68, 0x89, 0x52, 0x32, 0x25, 0x78, 0xec, 0x39,
-	0x46, 0x9f, 0x22, 0x25, 0x27, 0x00, 0x6b, 0xef, 0xc3, 0xcd, 0x61, 0xf3, 0xb1, 0x8c, 0x70, 0x06,
-	0xc6, 0xf5, 0x6a, 0xb5, 0xc5, 0x1d, 0x67, 0xe6, 0xd2, 0x82, 0xb2, 0x3a, 0x51, 0xf2, 0x5f, 0xb5,
-	0x3d, 0x50, 0x65, 0xc6, 0x88, 0x23, 0x83, 0x71, 0x72, 0x4b, 0xa9, 0x92, 0x53, 0x2c, 0xf9, 0x28,
-	0xed, 0x0d, 0x0a, 0xbd, 0xd7, 0x09, 0x45, 0x7e, 0x68, 0xb7, 0xf8, 0x3d, 0x6e, 0x1a, 0x47, 0x7e,
-	0x3d, 0x70, 0x1a, 0xc6, 0x8e, 0x84, 0x80, 0x58, 0xd2, 0x9b, 0xf6, 0x1e, 0x2c, 0xc5, 0x6a, 0x9f,
-	0xa7, 0x7e, 0x6d, 0xaa, 0xdf, 0x3b, 0xba, 0xab, 0xdf, 0xb5, 0xeb, 0x75, 0xd3, 0xad, 0x73, 0x6b,
-	0x30, 0x5b, 0xf3, 0x90, 0x29, 0x73, 0xc3, 0xb4, 0x1e, 0x97, 0x6b, 0x76, 0xe5, 0x0b, 0x62, 0x03,
-	0x42, 0x54, 0xec, 0x4a, 0xf0, 0x16, 0x4c, 0x70, 0xab, 0x4a, 0xcb, 0x97, 0xc4, 0xf2, 0x55, 0x6e,
-	0x55, 0xbd, 0xc5, 0x50, 0x56, 0x47, 0xfb, 0xb3, 0xea, 0x77, 0x40, 0x84, 0xf3, 0xa0, 0x03, 0x06,
-	0xb2, 0x3b, 0xe7, 0x67, 0x57, 0xae, 0x17, 0x64, 0x79, 0x1f, 0x0a, 0xd1, 0xe6, 0x9d, 0xe2, 0x49,
-	0x4f, 0xe6, 0x07, 0x9a, 0x03, 0xa8, 0x04, 0x42, 0xe1, 0x6d, 0xa2, 0x14, 0x92, 0x68, 0x2d, 0x60,
-	0xa9, 0x2d, 0x12, 0xfb, 0xb7, 0x87, 0xfa, 0x37, 0x9e, 0xfe, 0x50, 0x1f, 0x9b, 0xb0, 0x16, 0xeb,
-	0xb3, 0xa4, 0x5b, 0x06, 0xbf, 0x90, 0x4a, 0x69, 0x75, 0x58, 0x4f, 0xe3, 0xea, 0xa2, 0x22, 0xb3,
-	0x12, 0xea, 0xf3, 0xee, 0x53, 0xbd, 0xe2, 0x5e, 0x60, 0x78, 0x49, 0xd5, 0x0b, 0xfb, 0xbb, 0xa8,
-	0x18, 0xef, 0xc3, 0x66, 0xac, 0xcf, 0x87, 0x7a, 0xcd, 0xac, 0xea, 0xae, 0xdd, 0xf2, 0x43, 0x0c,
-	0x7d, 0x2d, 0x4a, 0xff, 0xd7, 0xd2, 0x4c, 0x48, 0x57, 0xc8, 0xd4, 0x45, 0xb1, 0x5f, 0x0c, 0x9d,
-	0x58, 0x07, 0x56, 0xd9, 0xb6, 0xaa, 0xa6, 0x65, 0xf4, 0x6d, 0x52, 0xda, 0x6b, 0x74, 0x08, 0x49,
-	0x21, 0xc4, 0x23, 0x6a, 0x23, 0xbb, 0x03, 0xab, 0x92, 0x88, 0xce, 0x73, 0x90, 0x7d, 0x2e, 0xfd,
-	0x38, 0x22, 0x0e, 0xb4, 0x9d, 0xa1, 0xaf, 0x3b, 0xb3, 0x9d, 0x15, 0x09, 0x19, 0x50, 0x0f, 0x7f,
-	0xf2, 0xab, 0xb0, 0x1c, 0xc4, 0x27, 0xf5, 0x12, 0x1c, 0xef, 0x87, 0xb0, 0x92, 0x88, 0x24, 0x26,
-	0xaf, 0x43, 0xa6, 0xe7, 0xc2, 0xaf, 0x8d, 0x8c, 0x0a, 0x55, 0x24, 0x8c, 0xd6, 0x56, 0x20, 0x4f,
-	0x7e, 0x5c, 0x3e, 0xe8, 0x29, 0x9c, 0x32, 0xed, 0xad, 0x80, 0x7a, 0x24, 0x90, 0xf8, 0x48, 0x93,
-	0xbb, 0xfd, 0x5d, 0x16, 0xae, 0x08, 0x03, 0xb8, 0x0f, 0x63, 0xde, 0xcc, 0x83, 0x37, 0x04, 0xc9,
-	0xe1, 0x01, 0x4a, 0x9d, 0x19, 0x5e, 0xf0, 0x8c, 0x6b, 0xd9, 0xaf, 0x7e, 0xff, 0xe7, 0xfb, 0x4b,
-	0xd7, 0x30, 0xc3, 0xba, 0xf3, 0x99, 0x37, 0x2d, 0xe1, 0xcf, 0x0a, 0xcc, 0xc6, 0x15, 0x0d, 0x37,
-	0x7b, 0xf6, 0x52, 0xb4, 0x87, 0x5a, 0x48, 0x0b, 0x27, 0x52, 0x9b, 0x82, 0xd4, 0x0a, 0xe6, 0x05,
-	0xa9, 0xaa, 0xee, 0xea, 0x8f, 0x7b, 0x39, 0x66, 0x2d, 0x2a, 0x18, 0x6b, 0x8b, 0x4c, 0x74, 0xf0,
-	0x47, 0x05, 0xd4, 0xe8, 0xba, 0xe2, 0x46, 0xcf, 0x7b, 0x62, 0x9f, 0xa8, 0x2f, 0xa6, 0x03, 0x13,
-	0xd1, 0xbc, 0x20, 0x3a, 0x8f, 0x73, 0xb1, 0x44, 0xf1, 0x27, 0x05, 0x6e, 0x46, 0xd6, 0x19, 0xd7,
-	0xc3, 0x2e, 0xe3, 0xbb, 0x46, 0xdd, 0x48, 0x85, 0x25, 0x76, 0x6b, 0x82, 0xdd, 0x12, 0x2e, 0x4a,
-	0xd9, 0x89, 0xe4, 0xb1, 0x9a, 0xb0, 0x82, 0xbf, 0x28, 0x30, 0x25, 0xdd, 0x75, 0x70, 0x39, 0xaa,
-	0x76, 0xfd, 0x63, 0x88, 0xba, 0x92, 0x88, 0x23, 0x56, 0x8f, 0x04, 0xab, 0x4f, 0xb0, 0x24, 0x65,
-	0x45, 0xbb, 0x1b, 0x13, 0xc7, 0x06, 0x6b, 0x87, 0x0e, 0x94, 0x0e, 0xe3, 0x56, 0x95, 0xb5, 0x83,
-	0x13, 0xa4, 0xc3, 0x68, 0xef, 0x65, 0x6d, 0x7a, 0xe8, 0xe0, 0xaf, 0x0a, 0x2c, 0x26, 0xee, 0xc0,
-	0xb8, 0x9d, 0x40, 0x55, 0xb2, 0xf3, 0xab, 0x3b, 0xe7, 0xd2, 0xa1, 0x50, 0x77, 0x45, 0xa8, 0x5b,
-	0xc8, 0xe2, 0x42, 0x75, 0x24, 0x71, 0xfc, 0xa6, 0x80, 0x96, 0x3c, 0xc6, 0x60, 0x0a, 0x52, 0x43,
-	0xcd, 0xab, 0xbe, 0x74, 0x3e, 0x25, 0x0a, 0xe5, 0x4d, 0x11, 0xca, 0x2e, 0xbe, 0x1c, 0x1f, 0x4a,
-	0x48, 0xd6, 0xee, 0x3d, 0x77, 0xf0, 0x0f, 0x05, 0xe6, 0x62, 0x07, 0x17, 0x2c, 0x24, 0xd3, 0x0a,
-	0x4f, 0x1b, 0x2a, 0x4b, 0x8d, 0xa7, 0x08, 0x0e, 0x44, 0x04, 0x1f, 0xe2, 0x5e, 0x7c, 0x04, 0xa1,
-	0x8e, 0x1b, 0x6e, 0x3f, 0x5f, 0xde, 0x6b, 0x42, 0xfc, 0x37, 0xa6, 0x54, 0xbd, 0x99, 0x25, 0x4d,
-	0xa9, 0x86, 0x26, 0xaa, 0x34, 0xa5, 0x1a, 0x1e, 0x8b, 0xb4, 0x4f, 0x45, 0xa0, 0x07, 0xf8, 0x71,
-	0x7c, 0xa0, 0xbc, 0xab, 0x79, 0xee, 0x70, 0x3b, 0x80, 0xc3, 0x37, 0x64, 0x5c, 0xea, 0xdf, 0x35,
-	0xa5, 0x37, 0x6c, 0xf5, 0x76, 0x3c, 0x88, 0xd8, 0xcf, 0x0a, 0xf6, 0xd3, 0x38, 0x29, 0xd8, 0x7b,
-	0x17, 0xa1, 0xde, 0x4e, 0xfa, 0x8d, 0x02, 0x93, 0xb2, 0x7b, 0x31, 0xe6, 0x7b, 0xc6, 0x63, 0x6e,
-	0xdc, 0xea, 0x72, 0x12, 0x8c, 0x58, 0xdc, 0x16, 0x2c, 0x72, 0x38, 0x2b, 0x63, 0x11, 0x1c, 0x3c,
-	0x75, 0xb8, 0xd6, 0x77, 0x87, 0xc4, 0xdc, 0xa0, 0xf9, 0x81, 0x4d, 0x72, 0x3e, 0x72, 0x9d, 0xfc,
-	0xde, 0x12, 0x7e, 0xa7, 0x30, 0x1b, 0xf6, 0x4b, 0x25, 0xc3, 0x1f, 0x14, 0x98, 0x96, 0x5f, 0x2b,
-	0x71, 0x45, 0x96, 0x5b, 0xc9, 0xb5, 0x55, 0x5d, 0x4d, 0x06, 0x12, 0x95, 0x0d, 0x41, 0x25, 0x8f,
-	0x4b, 0x92, 0x14, 0xb0, 0xb2, 0xd0, 0x60, 0x6d, 0x6f, 0x56, 0xec, 0xe0, 0xd7, 0x0a, 0x4c, 0x49,
-	0x7f, 0x15, 0xe0, 0x72, 0x44, 0xc8, 0x03, 0xbf, 0x21, 0xc2, 0xe7, 0x47, 0xec, 0x3f, 0x07, 0x6d,
-	0x4e, 0xf0, 0xba, 0x81, 0x53, 0x82, 0x57, 0xd0, 0xce, 0x7e, 0x4d, 0xbe, 0x84, 0xac, 0x64, 0xda,
-	0xc5, 0x81, 0xe6, 0x93, 0xcf, 0xcb, 0x6a, 0x3e, 0x01, 0x45, 0x14, 0xa6, 0x05, 0x85, 0xff, 0xe3,
-	0x75, 0x41, 0xe1, 0xd8, 0x47, 0x15, 0xef, 0x3f, 0x3b, 0xcd, 0x29, 0xcf, 0x4f, 0x73, 0xca, 0xdf,
-	0xa7, 0x39, 0xe5, 0xdb, 0xb3, 0xdc, 0xc8, 0xf3, 0xb3, 0xdc, 0xc8, 0x9f, 0x67, 0xb9, 0x91, 0x47,
-	0xcc, 0x30, 0xdd, 0xa3, 0xe3, 0x72, 0xa1, 0x62, 0xd7, 0x59, 0x85, 0xd7, 0xb8, 0xe3, 0x9a, 0xba,
-	0xdd, 0x32, 0x82, 0xe7, 0x4d, 0xbd, 0xd1, 0x60, 0x4f, 0x59, 0xf0, 0xfb, 0xad, 0x3c, 0x26, 0xfe,
-	0x87, 0xed, 0xfc, 0x17, 0x00, 0x00, 0xff, 0xff, 0xce, 0xda, 0x76, 0x7a, 0xbb, 0x13, 0x00, 0x00,
+	// 1062 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x97, 0xcd, 0x6f, 0x1b, 0x45,
+	0x14, 0xc0, 0xb3, 0x49, 0x9b, 0x36, 0xcf, 0xb4, 0xc0, 0xe4, 0xcb, 0xd9, 0xb6, 0x8e, 0xbb, 0x4d,
+	0x53, 0x37, 0x28, 0x1e, 0x35, 0x05, 0x55, 0x80, 0x2a, 0x5a, 0x17, 0x24, 0x2a, 0x28, 0x04, 0x43,
+	0x39, 0x14, 0xa1, 0x68, 0xd6, 0x9e, 0x6c, 0x56, 0xd8, 0x33, 0xb6, 0x67, 0x5d, 0xd5, 0x58, 0xbe,
+	0x70, 0xe1, 0x8a, 0xd4, 0x7f, 0x80, 0x2b, 0x77, 0x4e, 0x9c, 0x39, 0x54, 0x1c, 0x50, 0x25, 0x2e,
+	0x9c, 0x10, 0x4a, 0x38, 0xf2, 0x47, 0x20, 0xcf, 0xbe, 0xfd, 0x70, 0x77, 0xbd, 0x6b, 0xa4, 0xde,
+	0x76, 0xde, 0xd7, 0xfc, 0xde, 0xbc, 0x99, 0x37, 0xb3, 0xf0, 0x6a, 0xd7, 0xb1, 0x69, 0xb7, 0xcf,
+	0x7b, 0x83, 0x6a, 0xa7, 0x27, 0x3d, 0x49, 0x16, 0xba, 0x8e, 0x6d, 0xbe, 0x3e, 0x96, 0x3a, 0x5c,
+	0x70, 0xe5, 0x2a, 0x5f, 0x6e, 0x6a, 0x43, 0x6f, 0xd0, 0xe1, 0x81, 0xe0, 0xa2, 0x23, 0xa5, 0xd3,
+	0xe2, 0x94, 0x75, 0x5c, 0xca, 0x84, 0x90, 0x1e, 0xf3, 0x5c, 0x29, 0x02, 0xed, 0x4e, 0x43, 0xaa,
+	0xb6, 0x54, 0xd4, 0x66, 0x8a, 0xfb, 0xf1, 0xe9, 0xe3, 0x1b, 0x36, 0xf7, 0xd8, 0x0d, 0xda, 0x61,
+	0x8e, 0x2b, 0xb4, 0x31, 0xda, 0x9e, 0x1f, 0x87, 0x6e, 0x2b, 0x27, 0xf0, 0x5d, 0x71, 0xa4, 0x23,
+	0xf5, 0x27, 0x1d, 0x7f, 0xa1, 0x74, 0xc3, 0x8f, 0x78, 0xe0, 0x2b, 0xfc, 0x41, 0xa0, 0x42, 0x14,
+	0x3d, 0xb2, 0xfb, 0x87, 0x94, 0x09, 0x4c, 0xc7, 0x5a, 0x01, 0xf2, 0xd9, 0x78, 0xf6, 0x7d, 0xd6,
+	0x63, 0x6d, 0x55, 0xe7, 0xdd, 0x3e, 0x57, 0x9e, 0x75, 0x07, 0x96, 0x27, 0xa4, 0xaa, 0x23, 0x85,
+	0xe2, 0xe4, 0x3a, 0x2c, 0x76, 0xb4, 0xa4, 0x68, 0x94, 0x8d, 0x4a, 0x61, 0xaf, 0x50, 0xed, 0x3a,
+	0x76, 0xd5, 0x37, 0xaa, 0x9d, 0x7a, 0xf6, 0xd7, 0xe6, 0x5c, 0x1d, 0x0d, 0xac, 0xdb, 0x70, 0x55,
+	0x47, 0xb8, 0xeb, 0x79, 0x5c, 0xf9, 0xa9, 0x63, 0xf0, 0xda, 0xe0, 0x13, 0x29, 0x1a, 0x1c, 0x47,
+	0x64, 0x05, 0x4e, 0x8b, 0xf1, 0x58, 0x87, 0x3c, 0x55, 0xf7, 0x07, 0xd6, 0x00, 0xb6, 0xf3, 0xdc,
+	0x91, 0xe9, 0x53, 0x28, 0xb0, 0xc8, 0x08, 0xc1, 0x56, 0xaa, 0x7e, 0xc6, 0xd5, 0x20, 0xe3, 0xea,
+	0x5d, 0x31, 0xa8, 0xad, 0xff, 0xf6, 0xf3, 0xee, 0x72, 0x32, 0xe2, 0xfd, 0x7a, 0x3c, 0x82, 0xb5,
+	0x05, 0x96, 0x9e, 0xfa, 0x63, 0x36, 0x96, 0xc5, 0xcc, 0xe3, 0xd8, 0xd6, 0xbb, 0x70, 0x25, 0xd3,
+	0x0a, 0xe9, 0xd2, 0xb3, 0x7b, 0x1b, 0x2e, 0x6b, 0xe7, 0x2f, 0x59, 0x4b, 0x71, 0xef, 0x9e, 0x14,
+	0x87, 0x6e, 0xaf, 0xad, 0x66, 0x5a, 0x98, 0xaf, 0x91, 0x6e, 0x8a, 0x2b, 0x4e, 0x7b, 0x0b, 0xce,
+	0x36, 0x50, 0x55, 0x34, 0xca, 0x0b, 0x95, 0xc2, 0xde, 0xaa, 0x2e, 0xd5, 0x03, 0xe5, 0x4c, 0x38,
+	0x62, 0xd1, 0x42, 0x63, 0xeb, 0x23, 0xd8, 0x48, 0x86, 0xcf, 0x24, 0x22, 0x45, 0x38, 0xc3, 0x9a,
+	0xcd, 0x1e, 0x57, 0xaa, 0x38, 0x5f, 0x36, 0x2a, 0x4b, 0xf5, 0x60, 0x68, 0x3d, 0x00, 0x33, 0x2d,
+	0x18, 0x32, 0x52, 0x38, 0x83, 0xd3, 0x62, 0xd1, 0xd2, 0x11, 0xeb, 0x81, 0x95, 0x75, 0x07, 0x2a,
+	0xb8, 0xe4, 0xca, 0xf3, 0x4d, 0x82, 0x2d, 0xc1, 0x0f, 0x65, 0x8f, 0xcf, 0xb0, 0x78, 0xfb, 0x70,
+	0x7d, 0x86, 0x08, 0xc8, 0x77, 0x05, 0x16, 0x1f, 0x6b, 0x9b, 0x89, 0xcd, 0x8e, 0x6e, 0xa8, 0xb2,
+	0x86, 0x58, 0xc9, 0xf7, 0x99, 0xc7, 0xee, 0xc9, 0x76, 0xdb, 0xf5, 0xda, 0x5c, 0xbc, 0xb8, 0x6e,
+	0x9b, 0x50, 0xb0, 0xb9, 0xe3, 0x8a, 0x03, 0xbb, 0x25, 0x1b, 0xdf, 0x20, 0x12, 0x68, 0x51, 0x6d,
+	0x2c, 0x21, 0x17, 0x60, 0x89, 0x8b, 0x26, 0xaa, 0xe7, 0xb5, 0xfa, 0x2c, 0x17, 0x4d, 0x5f, 0x19,
+	0x5b, 0xdf, 0x85, 0xc9, 0xf5, 0x0d, 0xf6, 0xc2, 0x94, 0xc9, 0xc3, 0xbd, 0xf0, 0xc2, 0x3a, 0x5f,
+	0x0a, 0xd6, 0x39, 0xdd, 0x2f, 0x5c, 0xef, 0x7d, 0xa8, 0x4e, 0x0f, 0xaf, 0x6a, 0x83, 0x48, 0x16,
+	0x24, 0x5a, 0x02, 0x68, 0x84, 0x42, 0x3d, 0xdb, 0x52, 0x3d, 0x26, 0xb1, 0x7a, 0x40, 0x67, 0x8e,
+	0x88, 0xf4, 0xef, 0x25, 0x76, 0x72, 0x36, 0x7e, 0x62, 0x47, 0x8b, 0x9c, 0x2c, 0x3e, 0x78, 0xc2,
+	0x1a, 0x5e, 0x9d, 0x09, 0x87, 0xbf, 0x94, 0x72, 0xe5, 0xe6, 0x18, 0x9f, 0xef, 0x65, 0xe5, 0x78,
+	0x19, 0x36, 0xc3, 0x7d, 0xfd, 0x50, 0xd8, 0x52, 0x34, 0x5d, 0xe1, 0x7c, 0xc8, 0x5d, 0xe7, 0x28,
+	0x28, 0x8d, 0xf5, 0x0e, 0x94, 0xa7, 0x9b, 0x20, 0xc7, 0x1a, 0x2c, 0x1e, 0x69, 0x09, 0xe6, 0x8c,
+	0xa3, 0xbd, 0x5f, 0x5e, 0x81, 0xd3, 0xda, 0x99, 0xec, 0xc3, 0xa2, 0xdf, 0xed, 0xc9, 0xba, 0x26,
+	0x4c, 0x5e, 0x1d, 0x66, 0x31, 0xa9, 0xf0, 0xc3, 0x5b, 0xcb, 0xdf, 0xfd, 0xf1, 0xcf, 0xd3, 0xf9,
+	0x73, 0xa4, 0x40, 0xc7, 0xf7, 0x99, 0x7f, 0x4f, 0x90, 0x1f, 0x0d, 0xd8, 0x98, 0xda, 0xe4, 0xc9,
+	0x4e, 0x14, 0x2c, 0xef, 0x22, 0x31, 0xdf, 0x98, 0xc9, 0x16, 0x59, 0x76, 0x34, 0xcb, 0x16, 0xb1,
+	0x34, 0x4b, 0xac, 0xfd, 0x2b, 0xda, 0xf3, 0x3d, 0x14, 0x1d, 0xea, 0xa6, 0x31, 0x22, 0x4f, 0x0d,
+	0x58, 0x4b, 0x6f, 0xf3, 0xe4, 0x5a, 0x34, 0x67, 0xe6, 0x75, 0x61, 0x56, 0xf2, 0x0d, 0x91, 0x6c,
+	0x5b, 0x93, 0x95, 0x49, 0x29, 0x49, 0xa6, 0x79, 0x68, 0x4b, 0xfb, 0x93, 0x5f, 0x0d, 0x58, 0x4d,
+	0xdd, 0x1d, 0x64, 0x3b, 0x9a, 0x2b, 0xab, 0x2d, 0x99, 0xd7, 0x72, 0xed, 0x10, 0xe9, 0x91, 0x46,
+	0xfa, 0x82, 0xd4, 0x35, 0x52, 0x93, 0x79, 0xec, 0x20, 0x3a, 0xd4, 0x14, 0x77, 0x21, 0xd5, 0x07,
+	0x84, 0x0e, 0x63, 0x47, 0x67, 0x44, 0xb9, 0x68, 0xd2, 0x61, 0x78, 0x56, 0x46, 0x14, 0x3b, 0x17,
+	0x1d, 0xe2, 0xc7, 0x88, 0xfc, 0x6e, 0x80, 0x95, 0xdf, 0x0e, 0xc8, 0xcd, 0x1c, 0xd6, 0xb4, 0x76,
+	0x64, 0xbe, 0xf9, 0xff, 0x9c, 0x30, 0xdb, 0xdb, 0x3a, 0xdb, 0x5b, 0xe4, 0xad, 0xac, 0x6c, 0x15,
+	0x8d, 0xc9, 0x86, 0xd1, 0xf7, 0x88, 0xfc, 0x9b, 0x91, 0x50, 0x74, 0xf6, 0x67, 0x49, 0x28, 0xd1,
+	0x99, 0x66, 0x49, 0x28, 0xd9, 0x5e, 0xac, 0xaf, 0x74, 0x42, 0x0f, 0xc9, 0xe7, 0xd9, 0x09, 0xf1,
+	0xb1, 0x27, 0x8d, 0x95, 0x2f, 0x59, 0xcb, 0x40, 0x1e, 0x55, 0x94, 0xb4, 0xe1, 0xdc, 0xc4, 0x75,
+	0x4d, 0x4a, 0x11, 0x63, 0xda, 0x23, 0xc2, 0xdc, 0x9c, 0xaa, 0x47, 0xdc, 0x0b, 0x1a, 0x77, 0x95,
+	0x2c, 0x6b, 0x5c, 0xff, 0x9e, 0x0d, 0x28, 0xc9, 0x4f, 0x06, 0x5c, 0xcc, 0xba, 0xbd, 0xc9, 0x6e,
+	0xfc, 0xa0, 0xe5, 0xbe, 0x13, 0xcc, 0xea, 0xac, 0xe6, 0xa9, 0x7d, 0x03, 0xe1, 0xb0, 0x63, 0x50,
+	0x5b, 0x3b, 0x84, 0x7d, 0xe3, 0x7b, 0x03, 0x56, 0x53, 0x9f, 0x69, 0xf1, 0x13, 0x9a, 0xf5, 0x04,
+	0x8c, 0x9f, 0xd0, 0xcc, 0xf7, 0x9e, 0x75, 0x49, 0x63, 0xad, 0x93, 0x55, 0x8d, 0x15, 0x96, 0x34,
+	0x20, 0xf9, 0x16, 0x96, 0x53, 0xfa, 0x3e, 0xd9, 0x9a, 0x4c, 0x3e, 0xfd, 0xe6, 0x30, 0xaf, 0xe6,
+	0x58, 0x21, 0xc2, 0x9a, 0x46, 0x78, 0x8d, 0x9c, 0xd7, 0x08, 0xfd, 0xc0, 0xaa, 0x76, 0xff, 0xd9,
+	0x71, 0xc9, 0x78, 0x7e, 0x5c, 0x32, 0xfe, 0x3e, 0x2e, 0x19, 0x3f, 0x9c, 0x94, 0xe6, 0x9e, 0x9f,
+	0x94, 0xe6, 0xfe, 0x3c, 0x29, 0xcd, 0x3d, 0xa2, 0x8e, 0xeb, 0x1d, 0xf5, 0xed, 0x6a, 0x43, 0xb6,
+	0x69, 0x83, 0xb7, 0xb8, 0xf2, 0x5c, 0x26, 0x7b, 0x4e, 0xf8, 0xbd, 0xcb, 0x3a, 0x1d, 0xfa, 0x84,
+	0x86, 0xff, 0x55, 0xf6, 0xa2, 0x7e, 0xcd, 0xdf, 0xfc, 0x2f, 0x00, 0x00, 0xff, 0xff, 0x81, 0xe2,
+	0xc2, 0x58, 0x94, 0x0d, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1570,35 +1085,25 @@ const _ = grpc.SupportPackageIsVersion4
 type QueryClient interface {
 	// Params Queries the current parameters for the qgb module
 	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
-	// DataCommitmentRequest Queries data commitment request by nonce.
-	DataCommitmentRequestByNonce(ctx context.Context, in *QueryDataCommitmentRequestByNonceRequest, opts ...grpc.CallOption) (*QueryDataCommitmentRequestByNonceResponse, error)
-	// LastDataCommitmentRequests Query the last data commitments.
-	LastDataCommitmentRequests(ctx context.Context, in *QueryLastDataCommitmentRequestsRequest, opts ...grpc.CallOption) (*QueryLastDataCommitmentRequestsResponse, error)
-	// LatestDataCommitmentNonce
-	LatestDataCommitmentNonce(ctx context.Context, in *QueryLatestDataCommitmentNonceRequest, opts ...grpc.CallOption) (*QueryLatestDataCommitmentNonceResponse, error)
+	// AttestationRequestByNonce Queries attestation request by nonce.
+	AttestationRequestByNonce(ctx context.Context, in *QueryAttestationRequestByNonceRequest, opts ...grpc.CallOption) (*QueryAttestationRequestByNonceResponse, error)
+	// LatestAttestationNonce Queries latest attestation nonce.
+	LatestAttestationNonce(ctx context.Context, in *QueryLatestAttestationNonceRequest, opts ...grpc.CallOption) (*QueryLatestAttestationNonceResponse, error)
 	// DataCommitmentConfirm Queries the data commitment confirm by the commitment
 	// and the validator address
 	DataCommitmentConfirm(ctx context.Context, in *QueryDataCommitmentConfirmRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmResponse, error)
-	// DataCommitmentConfirmsByValidator Queries data commitment confirms by
-	// validator address
-	DataCommitmentConfirmsByValidator(ctx context.Context, in *QueryDataCommitmentConfirmsByValidatorRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByValidatorResponse, error)
 	// DataCommitmentConfirms Queries data commitment confirms by the actual
 	// commitment
 	DataCommitmentConfirmsByCommitment(ctx context.Context, in *QueryDataCommitmentConfirmsByCommitmentRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByCommitmentResponse, error)
-	// DataCommitmentConfirmsByRange Queries data commitment confirms by a block
-	// range
-	DataCommitmentConfirmsByRange(ctx context.Context, in *QueryDataCommitmentConfirmsByRangeRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByRangeResponse, error)
 	// DataCommitmentConfirmsByExactRange Queries data commitment confirms by an
 	// exact block range
 	DataCommitmentConfirmsByExactRange(ctx context.Context, in *QueryDataCommitmentConfirmsByExactRangeRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByExactRangeResponse, error)
-	// LastValsetRequests queries for the latest valset requests
-	LastValsetRequests(ctx context.Context, in *QueryLastValsetRequestsRequest, opts ...grpc.CallOption) (*QueryLastValsetRequestsResponse, error)
-	// LastValsetRequests queries for the latest valset requests
-	ValsetRequestByNonce(ctx context.Context, in *QueryValsetRequestByNonceRequest, opts ...grpc.CallOption) (*QueryValsetRequestByNonceResponse, error)
 	// ValsetConfirm Queries ValSetConfirm
 	ValsetConfirm(ctx context.Context, in *QueryValsetConfirmRequest, opts ...grpc.CallOption) (*QueryValsetConfirmResponse, error)
-	// LastValsetBeforeHeight Queries last Valset before height
-	LastValsetBeforeHeight(ctx context.Context, in *QueryLastValsetBeforeHeightRequest, opts ...grpc.CallOption) (*QueryLastValsetBeforeHeightResponse, error)
+	// LastValsetRequestBeforeNonce Queries last Valset request before nonce.
+	// And, even if the current nonce is a valset, if will return the previous
+	// one.
+	LastValsetRequestBeforeNonce(ctx context.Context, in *QueryLastValsetRequestBeforeNonceRequest, opts ...grpc.CallOption) (*QueryLastValsetRequestBeforeNonceResponse, error)
 	// ValsetConfirmsByNonce
 	ValsetConfirmsByNonce(ctx context.Context, in *QueryValsetConfirmsByNonceRequest, opts ...grpc.CallOption) (*QueryValsetConfirmsByNonceResponse, error)
 	// LastUnbondingHeight
@@ -1622,27 +1127,18 @@ func (c *queryClient) Params(ctx context.Context, in *QueryParamsRequest, opts .
 	return out, nil
 }
 
-func (c *queryClient) DataCommitmentRequestByNonce(ctx context.Context, in *QueryDataCommitmentRequestByNonceRequest, opts ...grpc.CallOption) (*QueryDataCommitmentRequestByNonceResponse, error) {
-	out := new(QueryDataCommitmentRequestByNonceResponse)
-	err := c.cc.Invoke(ctx, "/qgb.Query/DataCommitmentRequestByNonce", in, out, opts...)
+func (c *queryClient) AttestationRequestByNonce(ctx context.Context, in *QueryAttestationRequestByNonceRequest, opts ...grpc.CallOption) (*QueryAttestationRequestByNonceResponse, error) {
+	out := new(QueryAttestationRequestByNonceResponse)
+	err := c.cc.Invoke(ctx, "/qgb.Query/AttestationRequestByNonce", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *queryClient) LastDataCommitmentRequests(ctx context.Context, in *QueryLastDataCommitmentRequestsRequest, opts ...grpc.CallOption) (*QueryLastDataCommitmentRequestsResponse, error) {
-	out := new(QueryLastDataCommitmentRequestsResponse)
-	err := c.cc.Invoke(ctx, "/qgb.Query/LastDataCommitmentRequests", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *queryClient) LatestDataCommitmentNonce(ctx context.Context, in *QueryLatestDataCommitmentNonceRequest, opts ...grpc.CallOption) (*QueryLatestDataCommitmentNonceResponse, error) {
-	out := new(QueryLatestDataCommitmentNonceResponse)
-	err := c.cc.Invoke(ctx, "/qgb.Query/LatestDataCommitmentNonce", in, out, opts...)
+func (c *queryClient) LatestAttestationNonce(ctx context.Context, in *QueryLatestAttestationNonceRequest, opts ...grpc.CallOption) (*QueryLatestAttestationNonceResponse, error) {
+	out := new(QueryLatestAttestationNonceResponse)
+	err := c.cc.Invoke(ctx, "/qgb.Query/LatestAttestationNonce", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1658,27 +1154,9 @@ func (c *queryClient) DataCommitmentConfirm(ctx context.Context, in *QueryDataCo
 	return out, nil
 }
 
-func (c *queryClient) DataCommitmentConfirmsByValidator(ctx context.Context, in *QueryDataCommitmentConfirmsByValidatorRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByValidatorResponse, error) {
-	out := new(QueryDataCommitmentConfirmsByValidatorResponse)
-	err := c.cc.Invoke(ctx, "/qgb.Query/DataCommitmentConfirmsByValidator", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *queryClient) DataCommitmentConfirmsByCommitment(ctx context.Context, in *QueryDataCommitmentConfirmsByCommitmentRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByCommitmentResponse, error) {
 	out := new(QueryDataCommitmentConfirmsByCommitmentResponse)
 	err := c.cc.Invoke(ctx, "/qgb.Query/DataCommitmentConfirmsByCommitment", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *queryClient) DataCommitmentConfirmsByRange(ctx context.Context, in *QueryDataCommitmentConfirmsByRangeRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByRangeResponse, error) {
-	out := new(QueryDataCommitmentConfirmsByRangeResponse)
-	err := c.cc.Invoke(ctx, "/qgb.Query/DataCommitmentConfirmsByRange", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1694,24 +1172,6 @@ func (c *queryClient) DataCommitmentConfirmsByExactRange(ctx context.Context, in
 	return out, nil
 }
 
-func (c *queryClient) LastValsetRequests(ctx context.Context, in *QueryLastValsetRequestsRequest, opts ...grpc.CallOption) (*QueryLastValsetRequestsResponse, error) {
-	out := new(QueryLastValsetRequestsResponse)
-	err := c.cc.Invoke(ctx, "/qgb.Query/LastValsetRequests", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *queryClient) ValsetRequestByNonce(ctx context.Context, in *QueryValsetRequestByNonceRequest, opts ...grpc.CallOption) (*QueryValsetRequestByNonceResponse, error) {
-	out := new(QueryValsetRequestByNonceResponse)
-	err := c.cc.Invoke(ctx, "/qgb.Query/ValsetRequestByNonce", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *queryClient) ValsetConfirm(ctx context.Context, in *QueryValsetConfirmRequest, opts ...grpc.CallOption) (*QueryValsetConfirmResponse, error) {
 	out := new(QueryValsetConfirmResponse)
 	err := c.cc.Invoke(ctx, "/qgb.Query/ValsetConfirm", in, out, opts...)
@@ -1721,9 +1181,9 @@ func (c *queryClient) ValsetConfirm(ctx context.Context, in *QueryValsetConfirmR
 	return out, nil
 }
 
-func (c *queryClient) LastValsetBeforeHeight(ctx context.Context, in *QueryLastValsetBeforeHeightRequest, opts ...grpc.CallOption) (*QueryLastValsetBeforeHeightResponse, error) {
-	out := new(QueryLastValsetBeforeHeightResponse)
-	err := c.cc.Invoke(ctx, "/qgb.Query/LastValsetBeforeHeight", in, out, opts...)
+func (c *queryClient) LastValsetRequestBeforeNonce(ctx context.Context, in *QueryLastValsetRequestBeforeNonceRequest, opts ...grpc.CallOption) (*QueryLastValsetRequestBeforeNonceResponse, error) {
+	out := new(QueryLastValsetRequestBeforeNonceResponse)
+	err := c.cc.Invoke(ctx, "/qgb.Query/LastValsetRequestBeforeNonce", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1752,35 +1212,25 @@ func (c *queryClient) LastUnbondingHeight(ctx context.Context, in *QueryLastUnbo
 type QueryServer interface {
 	// Params Queries the current parameters for the qgb module
 	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)
-	// DataCommitmentRequest Queries data commitment request by nonce.
-	DataCommitmentRequestByNonce(context.Context, *QueryDataCommitmentRequestByNonceRequest) (*QueryDataCommitmentRequestByNonceResponse, error)
-	// LastDataCommitmentRequests Query the last data commitments.
-	LastDataCommitmentRequests(context.Context, *QueryLastDataCommitmentRequestsRequest) (*QueryLastDataCommitmentRequestsResponse, error)
-	// LatestDataCommitmentNonce
-	LatestDataCommitmentNonce(context.Context, *QueryLatestDataCommitmentNonceRequest) (*QueryLatestDataCommitmentNonceResponse, error)
+	// AttestationRequestByNonce Queries attestation request by nonce.
+	AttestationRequestByNonce(context.Context, *QueryAttestationRequestByNonceRequest) (*QueryAttestationRequestByNonceResponse, error)
+	// LatestAttestationNonce Queries latest attestation nonce.
+	LatestAttestationNonce(context.Context, *QueryLatestAttestationNonceRequest) (*QueryLatestAttestationNonceResponse, error)
 	// DataCommitmentConfirm Queries the data commitment confirm by the commitment
 	// and the validator address
 	DataCommitmentConfirm(context.Context, *QueryDataCommitmentConfirmRequest) (*QueryDataCommitmentConfirmResponse, error)
-	// DataCommitmentConfirmsByValidator Queries data commitment confirms by
-	// validator address
-	DataCommitmentConfirmsByValidator(context.Context, *QueryDataCommitmentConfirmsByValidatorRequest) (*QueryDataCommitmentConfirmsByValidatorResponse, error)
 	// DataCommitmentConfirms Queries data commitment confirms by the actual
 	// commitment
 	DataCommitmentConfirmsByCommitment(context.Context, *QueryDataCommitmentConfirmsByCommitmentRequest) (*QueryDataCommitmentConfirmsByCommitmentResponse, error)
-	// DataCommitmentConfirmsByRange Queries data commitment confirms by a block
-	// range
-	DataCommitmentConfirmsByRange(context.Context, *QueryDataCommitmentConfirmsByRangeRequest) (*QueryDataCommitmentConfirmsByRangeResponse, error)
 	// DataCommitmentConfirmsByExactRange Queries data commitment confirms by an
 	// exact block range
 	DataCommitmentConfirmsByExactRange(context.Context, *QueryDataCommitmentConfirmsByExactRangeRequest) (*QueryDataCommitmentConfirmsByExactRangeResponse, error)
-	// LastValsetRequests queries for the latest valset requests
-	LastValsetRequests(context.Context, *QueryLastValsetRequestsRequest) (*QueryLastValsetRequestsResponse, error)
-	// LastValsetRequests queries for the latest valset requests
-	ValsetRequestByNonce(context.Context, *QueryValsetRequestByNonceRequest) (*QueryValsetRequestByNonceResponse, error)
 	// ValsetConfirm Queries ValSetConfirm
 	ValsetConfirm(context.Context, *QueryValsetConfirmRequest) (*QueryValsetConfirmResponse, error)
-	// LastValsetBeforeHeight Queries last Valset before height
-	LastValsetBeforeHeight(context.Context, *QueryLastValsetBeforeHeightRequest) (*QueryLastValsetBeforeHeightResponse, error)
+	// LastValsetRequestBeforeNonce Queries last Valset request before nonce.
+	// And, even if the current nonce is a valset, if will return the previous
+	// one.
+	LastValsetRequestBeforeNonce(context.Context, *QueryLastValsetRequestBeforeNonceRequest) (*QueryLastValsetRequestBeforeNonceResponse, error)
 	// ValsetConfirmsByNonce
 	ValsetConfirmsByNonce(context.Context, *QueryValsetConfirmsByNonceRequest) (*QueryValsetConfirmsByNonceResponse, error)
 	// LastUnbondingHeight
@@ -1794,41 +1244,26 @@ type UnimplementedQueryServer struct {
 func (*UnimplementedQueryServer) Params(ctx context.Context, req *QueryParamsRequest) (*QueryParamsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Params not implemented")
 }
-func (*UnimplementedQueryServer) DataCommitmentRequestByNonce(ctx context.Context, req *QueryDataCommitmentRequestByNonceRequest) (*QueryDataCommitmentRequestByNonceResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentRequestByNonce not implemented")
+func (*UnimplementedQueryServer) AttestationRequestByNonce(ctx context.Context, req *QueryAttestationRequestByNonceRequest) (*QueryAttestationRequestByNonceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AttestationRequestByNonce not implemented")
 }
-func (*UnimplementedQueryServer) LastDataCommitmentRequests(ctx context.Context, req *QueryLastDataCommitmentRequestsRequest) (*QueryLastDataCommitmentRequestsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method LastDataCommitmentRequests not implemented")
-}
-func (*UnimplementedQueryServer) LatestDataCommitmentNonce(ctx context.Context, req *QueryLatestDataCommitmentNonceRequest) (*QueryLatestDataCommitmentNonceResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method LatestDataCommitmentNonce not implemented")
+func (*UnimplementedQueryServer) LatestAttestationNonce(ctx context.Context, req *QueryLatestAttestationNonceRequest) (*QueryLatestAttestationNonceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LatestAttestationNonce not implemented")
 }
 func (*UnimplementedQueryServer) DataCommitmentConfirm(ctx context.Context, req *QueryDataCommitmentConfirmRequest) (*QueryDataCommitmentConfirmResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentConfirm not implemented")
 }
-func (*UnimplementedQueryServer) DataCommitmentConfirmsByValidator(ctx context.Context, req *QueryDataCommitmentConfirmsByValidatorRequest) (*QueryDataCommitmentConfirmsByValidatorResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentConfirmsByValidator not implemented")
-}
 func (*UnimplementedQueryServer) DataCommitmentConfirmsByCommitment(ctx context.Context, req *QueryDataCommitmentConfirmsByCommitmentRequest) (*QueryDataCommitmentConfirmsByCommitmentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentConfirmsByCommitment not implemented")
-}
-func (*UnimplementedQueryServer) DataCommitmentConfirmsByRange(ctx context.Context, req *QueryDataCommitmentConfirmsByRangeRequest) (*QueryDataCommitmentConfirmsByRangeResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentConfirmsByRange not implemented")
 }
 func (*UnimplementedQueryServer) DataCommitmentConfirmsByExactRange(ctx context.Context, req *QueryDataCommitmentConfirmsByExactRangeRequest) (*QueryDataCommitmentConfirmsByExactRangeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataCommitmentConfirmsByExactRange not implemented")
 }
-func (*UnimplementedQueryServer) LastValsetRequests(ctx context.Context, req *QueryLastValsetRequestsRequest) (*QueryLastValsetRequestsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method LastValsetRequests not implemented")
-}
-func (*UnimplementedQueryServer) ValsetRequestByNonce(ctx context.Context, req *QueryValsetRequestByNonceRequest) (*QueryValsetRequestByNonceResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ValsetRequestByNonce not implemented")
-}
 func (*UnimplementedQueryServer) ValsetConfirm(ctx context.Context, req *QueryValsetConfirmRequest) (*QueryValsetConfirmResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ValsetConfirm not implemented")
 }
-func (*UnimplementedQueryServer) LastValsetBeforeHeight(ctx context.Context, req *QueryLastValsetBeforeHeightRequest) (*QueryLastValsetBeforeHeightResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method LastValsetBeforeHeight not implemented")
+func (*UnimplementedQueryServer) LastValsetRequestBeforeNonce(ctx context.Context, req *QueryLastValsetRequestBeforeNonceRequest) (*QueryLastValsetRequestBeforeNonceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LastValsetRequestBeforeNonce not implemented")
 }
 func (*UnimplementedQueryServer) ValsetConfirmsByNonce(ctx context.Context, req *QueryValsetConfirmsByNonceRequest) (*QueryValsetConfirmsByNonceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ValsetConfirmsByNonce not implemented")
@@ -1859,56 +1294,38 @@ func _Query_Params_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Query_DataCommitmentRequestByNonce_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryDataCommitmentRequestByNonceRequest)
+func _Query_AttestationRequestByNonce_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryAttestationRequestByNonceRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(QueryServer).DataCommitmentRequestByNonce(ctx, in)
+		return srv.(QueryServer).AttestationRequestByNonce(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/qgb.Query/DataCommitmentRequestByNonce",
+		FullMethod: "/qgb.Query/AttestationRequestByNonce",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueryServer).DataCommitmentRequestByNonce(ctx, req.(*QueryDataCommitmentRequestByNonceRequest))
+		return srv.(QueryServer).AttestationRequestByNonce(ctx, req.(*QueryAttestationRequestByNonceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Query_LastDataCommitmentRequests_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryLastDataCommitmentRequestsRequest)
+func _Query_LatestAttestationNonce_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryLatestAttestationNonceRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(QueryServer).LastDataCommitmentRequests(ctx, in)
+		return srv.(QueryServer).LatestAttestationNonce(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/qgb.Query/LastDataCommitmentRequests",
+		FullMethod: "/qgb.Query/LatestAttestationNonce",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueryServer).LastDataCommitmentRequests(ctx, req.(*QueryLastDataCommitmentRequestsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Query_LatestDataCommitmentNonce_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryLatestDataCommitmentNonceRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(QueryServer).LatestDataCommitmentNonce(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/qgb.Query/LatestDataCommitmentNonce",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueryServer).LatestDataCommitmentNonce(ctx, req.(*QueryLatestDataCommitmentNonceRequest))
+		return srv.(QueryServer).LatestAttestationNonce(ctx, req.(*QueryLatestAttestationNonceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1931,24 +1348,6 @@ func _Query_DataCommitmentConfirm_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Query_DataCommitmentConfirmsByValidator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryDataCommitmentConfirmsByValidatorRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(QueryServer).DataCommitmentConfirmsByValidator(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/qgb.Query/DataCommitmentConfirmsByValidator",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueryServer).DataCommitmentConfirmsByValidator(ctx, req.(*QueryDataCommitmentConfirmsByValidatorRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Query_DataCommitmentConfirmsByCommitment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(QueryDataCommitmentConfirmsByCommitmentRequest)
 	if err := dec(in); err != nil {
@@ -1963,24 +1362,6 @@ func _Query_DataCommitmentConfirmsByCommitment_Handler(srv interface{}, ctx cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(QueryServer).DataCommitmentConfirmsByCommitment(ctx, req.(*QueryDataCommitmentConfirmsByCommitmentRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Query_DataCommitmentConfirmsByRange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryDataCommitmentConfirmsByRangeRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(QueryServer).DataCommitmentConfirmsByRange(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/qgb.Query/DataCommitmentConfirmsByRange",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueryServer).DataCommitmentConfirmsByRange(ctx, req.(*QueryDataCommitmentConfirmsByRangeRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2003,42 +1384,6 @@ func _Query_DataCommitmentConfirmsByExactRange_Handler(srv interface{}, ctx cont
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Query_LastValsetRequests_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryLastValsetRequestsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(QueryServer).LastValsetRequests(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/qgb.Query/LastValsetRequests",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueryServer).LastValsetRequests(ctx, req.(*QueryLastValsetRequestsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Query_ValsetRequestByNonce_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryValsetRequestByNonceRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(QueryServer).ValsetRequestByNonce(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/qgb.Query/ValsetRequestByNonce",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueryServer).ValsetRequestByNonce(ctx, req.(*QueryValsetRequestByNonceRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Query_ValsetConfirm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(QueryValsetConfirmRequest)
 	if err := dec(in); err != nil {
@@ -2057,20 +1402,20 @@ func _Query_ValsetConfirm_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Query_LastValsetBeforeHeight_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryLastValsetBeforeHeightRequest)
+func _Query_LastValsetRequestBeforeNonce_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryLastValsetRequestBeforeNonceRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(QueryServer).LastValsetBeforeHeight(ctx, in)
+		return srv.(QueryServer).LastValsetRequestBeforeNonce(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/qgb.Query/LastValsetBeforeHeight",
+		FullMethod: "/qgb.Query/LastValsetRequestBeforeNonce",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueryServer).LastValsetBeforeHeight(ctx, req.(*QueryLastValsetBeforeHeightRequest))
+		return srv.(QueryServer).LastValsetRequestBeforeNonce(ctx, req.(*QueryLastValsetRequestBeforeNonceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2120,52 +1465,32 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Query_Params_Handler,
 		},
 		{
-			MethodName: "DataCommitmentRequestByNonce",
-			Handler:    _Query_DataCommitmentRequestByNonce_Handler,
+			MethodName: "AttestationRequestByNonce",
+			Handler:    _Query_AttestationRequestByNonce_Handler,
 		},
 		{
-			MethodName: "LastDataCommitmentRequests",
-			Handler:    _Query_LastDataCommitmentRequests_Handler,
-		},
-		{
-			MethodName: "LatestDataCommitmentNonce",
-			Handler:    _Query_LatestDataCommitmentNonce_Handler,
+			MethodName: "LatestAttestationNonce",
+			Handler:    _Query_LatestAttestationNonce_Handler,
 		},
 		{
 			MethodName: "DataCommitmentConfirm",
 			Handler:    _Query_DataCommitmentConfirm_Handler,
 		},
 		{
-			MethodName: "DataCommitmentConfirmsByValidator",
-			Handler:    _Query_DataCommitmentConfirmsByValidator_Handler,
-		},
-		{
 			MethodName: "DataCommitmentConfirmsByCommitment",
 			Handler:    _Query_DataCommitmentConfirmsByCommitment_Handler,
-		},
-		{
-			MethodName: "DataCommitmentConfirmsByRange",
-			Handler:    _Query_DataCommitmentConfirmsByRange_Handler,
 		},
 		{
 			MethodName: "DataCommitmentConfirmsByExactRange",
 			Handler:    _Query_DataCommitmentConfirmsByExactRange_Handler,
 		},
 		{
-			MethodName: "LastValsetRequests",
-			Handler:    _Query_LastValsetRequests_Handler,
-		},
-		{
-			MethodName: "ValsetRequestByNonce",
-			Handler:    _Query_ValsetRequestByNonce_Handler,
-		},
-		{
 			MethodName: "ValsetConfirm",
 			Handler:    _Query_ValsetConfirm_Handler,
 		},
 		{
-			MethodName: "LastValsetBeforeHeight",
-			Handler:    _Query_LastValsetBeforeHeight_Handler,
+			MethodName: "LastValsetRequestBeforeNonce",
+			Handler:    _Query_LastValsetRequestBeforeNonce_Handler,
 		},
 		{
 			MethodName: "ValsetConfirmsByNonce",
@@ -2236,7 +1561,7 @@ func (m *QueryParamsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *QueryLastValsetRequestsRequest) Marshal() (dAtA []byte, err error) {
+func (m *QueryAttestationRequestByNonceRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -2246,72 +1571,12 @@ func (m *QueryLastValsetRequestsRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *QueryLastValsetRequestsRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *QueryAttestationRequestByNonceRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *QueryLastValsetRequestsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	return len(dAtA) - i, nil
-}
-
-func (m *QueryLastValsetRequestsResponse) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryLastValsetRequestsResponse) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryLastValsetRequestsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.Valsets) > 0 {
-		for iNdEx := len(m.Valsets) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Valsets[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintQuery(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0xa
-		}
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *QueryValsetRequestByNonceRequest) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryValsetRequestByNonceRequest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryValsetRequestByNonceRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *QueryAttestationRequestByNonceRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -2324,7 +1589,7 @@ func (m *QueryValsetRequestByNonceRequest) MarshalToSizedBuffer(dAtA []byte) (in
 	return len(dAtA) - i, nil
 }
 
-func (m *QueryValsetRequestByNonceResponse) Marshal() (dAtA []byte, err error) {
+func (m *QueryAttestationRequestByNonceResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -2334,19 +1599,19 @@ func (m *QueryValsetRequestByNonceResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *QueryValsetRequestByNonceResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *QueryAttestationRequestByNonceResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *QueryValsetRequestByNonceResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *QueryAttestationRequestByNonceResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Valset != nil {
+	if m.Attestation != nil {
 		{
-			size, err := m.Valset.MarshalToSizedBuffer(dAtA[:i])
+			size, err := m.Attestation.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
@@ -2355,6 +1620,57 @@ func (m *QueryValsetRequestByNonceResponse) MarshalToSizedBuffer(dAtA []byte) (i
 		}
 		i--
 		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryLatestAttestationNonceRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryLatestAttestationNonceRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryLatestAttestationNonceRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryLatestAttestationNonceResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryLatestAttestationNonceResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryLatestAttestationNonceResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Nonce != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.Nonce))
+		i--
+		dAtA[i] = 0x8
 	}
 	return len(dAtA) - i, nil
 }
@@ -2494,7 +1810,7 @@ func (m *QueryValsetConfirmResponse) MarshalToSizedBuffer(dAtA []byte) (int, err
 	return len(dAtA) - i, nil
 }
 
-func (m *QueryLastValsetBeforeHeightRequest) Marshal() (dAtA []byte, err error) {
+func (m *QueryLastValsetRequestBeforeNonceRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -2504,25 +1820,25 @@ func (m *QueryLastValsetBeforeHeightRequest) Marshal() (dAtA []byte, err error) 
 	return dAtA[:n], nil
 }
 
-func (m *QueryLastValsetBeforeHeightRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *QueryLastValsetRequestBeforeNonceRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *QueryLastValsetBeforeHeightRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *QueryLastValsetRequestBeforeNonceRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Height != 0 {
-		i = encodeVarintQuery(dAtA, i, uint64(m.Height))
+	if m.Nonce != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.Nonce))
 		i--
 		dAtA[i] = 0x8
 	}
 	return len(dAtA) - i, nil
 }
 
-func (m *QueryLastValsetBeforeHeightResponse) Marshal() (dAtA []byte, err error) {
+func (m *QueryLastValsetRequestBeforeNonceResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -2532,12 +1848,12 @@ func (m *QueryLastValsetBeforeHeightResponse) Marshal() (dAtA []byte, err error)
 	return dAtA[:n], nil
 }
 
-func (m *QueryLastValsetBeforeHeightResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *QueryLastValsetRequestBeforeNonceResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *QueryLastValsetBeforeHeightResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *QueryLastValsetRequestBeforeNonceResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -2699,76 +2015,6 @@ func (m *QueryDataCommitmentConfirmsByCommitmentResponse) MarshalToSizedBuffer(d
 	return len(dAtA) - i, nil
 }
 
-func (m *QueryDataCommitmentConfirmsByRangeRequest) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeRequest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.EndBlock != 0 {
-		i = encodeVarintQuery(dAtA, i, uint64(m.EndBlock))
-		i--
-		dAtA[i] = 0x10
-	}
-	if m.BeginBlock != 0 {
-		i = encodeVarintQuery(dAtA, i, uint64(m.BeginBlock))
-		i--
-		dAtA[i] = 0x8
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeResponse) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeResponse) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.Confirms) > 0 {
-		for iNdEx := len(m.Confirms) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Confirms[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintQuery(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0xa
-		}
-	}
-	return len(dAtA) - i, nil
-}
-
 func (m *QueryDataCommitmentConfirmsByExactRangeRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -2818,73 +2064,6 @@ func (m *QueryDataCommitmentConfirmsByExactRangeResponse) MarshalTo(dAtA []byte)
 }
 
 func (m *QueryDataCommitmentConfirmsByExactRangeResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.Confirms) > 0 {
-		for iNdEx := len(m.Confirms) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Confirms[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintQuery(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0xa
-		}
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.Address) > 0 {
-		i -= len(m.Address)
-		copy(dAtA[i:], m.Address)
-		i = encodeVarintQuery(dAtA, i, uint64(len(m.Address)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -2957,180 +2136,6 @@ func (m *QueryLastUnbondingHeightResponse) MarshalToSizedBuffer(dAtA []byte) (in
 	return len(dAtA) - i, nil
 }
 
-func (m *QueryDataCommitmentRequestByNonceRequest) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryDataCommitmentRequestByNonceRequest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryDataCommitmentRequestByNonceRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.Nonce != 0 {
-		i = encodeVarintQuery(dAtA, i, uint64(m.Nonce))
-		i--
-		dAtA[i] = 0x8
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *QueryDataCommitmentRequestByNonceResponse) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryDataCommitmentRequestByNonceResponse) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryDataCommitmentRequestByNonceResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.Commitment != nil {
-		{
-			size, err := m.Commitment.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintQuery(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *QueryLastDataCommitmentRequestsRequest) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryLastDataCommitmentRequestsRequest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryLastDataCommitmentRequestsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	return len(dAtA) - i, nil
-}
-
-func (m *QueryLastDataCommitmentRequestsResponse) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryLastDataCommitmentRequestsResponse) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryLastDataCommitmentRequestsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.Commitments) > 0 {
-		for iNdEx := len(m.Commitments) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Commitments[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintQuery(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0xa
-		}
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *QueryLatestDataCommitmentNonceRequest) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryLatestDataCommitmentNonceRequest) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryLatestDataCommitmentNonceRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	return len(dAtA) - i, nil
-}
-
-func (m *QueryLatestDataCommitmentNonceResponse) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *QueryLatestDataCommitmentNonceResponse) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *QueryLatestDataCommitmentNonceResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.Nonce != 0 {
-		i = encodeVarintQuery(dAtA, i, uint64(m.Nonce))
-		i--
-		dAtA[i] = 0x8
-	}
-	return len(dAtA) - i, nil
-}
-
 func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
 	offset -= sovQuery(v)
 	base := offset
@@ -3162,31 +2167,7 @@ func (m *QueryParamsResponse) Size() (n int) {
 	return n
 }
 
-func (m *QueryLastValsetRequestsRequest) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	return n
-}
-
-func (m *QueryLastValsetRequestsResponse) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if len(m.Valsets) > 0 {
-		for _, e := range m.Valsets {
-			l = e.Size()
-			n += 1 + l + sovQuery(uint64(l))
-		}
-	}
-	return n
-}
-
-func (m *QueryValsetRequestByNonceRequest) Size() (n int) {
+func (m *QueryAttestationRequestByNonceRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -3198,15 +2179,36 @@ func (m *QueryValsetRequestByNonceRequest) Size() (n int) {
 	return n
 }
 
-func (m *QueryValsetRequestByNonceResponse) Size() (n int) {
+func (m *QueryAttestationRequestByNonceResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if m.Valset != nil {
-		l = m.Valset.Size()
+	if m.Attestation != nil {
+		l = m.Attestation.Size()
 		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryLatestAttestationNonceRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *QueryLatestAttestationNonceResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Nonce != 0 {
+		n += 1 + sovQuery(uint64(m.Nonce))
 	}
 	return n
 }
@@ -3267,19 +2269,19 @@ func (m *QueryValsetConfirmResponse) Size() (n int) {
 	return n
 }
 
-func (m *QueryLastValsetBeforeHeightRequest) Size() (n int) {
+func (m *QueryLastValsetRequestBeforeNonceRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if m.Height != 0 {
-		n += 1 + sovQuery(uint64(m.Height))
+	if m.Nonce != 0 {
+		n += 1 + sovQuery(uint64(m.Nonce))
 	}
 	return n
 }
 
-func (m *QueryLastValsetBeforeHeightResponse) Size() (n int) {
+func (m *QueryLastValsetRequestBeforeNonceResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -3352,36 +2354,6 @@ func (m *QueryDataCommitmentConfirmsByCommitmentResponse) Size() (n int) {
 	return n
 }
 
-func (m *QueryDataCommitmentConfirmsByRangeRequest) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.BeginBlock != 0 {
-		n += 1 + sovQuery(uint64(m.BeginBlock))
-	}
-	if m.EndBlock != 0 {
-		n += 1 + sovQuery(uint64(m.EndBlock))
-	}
-	return n
-}
-
-func (m *QueryDataCommitmentConfirmsByRangeResponse) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if len(m.Confirms) > 0 {
-		for _, e := range m.Confirms {
-			l = e.Size()
-			n += 1 + l + sovQuery(uint64(l))
-		}
-	}
-	return n
-}
-
 func (m *QueryDataCommitmentConfirmsByExactRangeRequest) Size() (n int) {
 	if m == nil {
 		return 0
@@ -3398,34 +2370,6 @@ func (m *QueryDataCommitmentConfirmsByExactRangeRequest) Size() (n int) {
 }
 
 func (m *QueryDataCommitmentConfirmsByExactRangeResponse) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if len(m.Confirms) > 0 {
-		for _, e := range m.Confirms {
-			l = e.Size()
-			n += 1 + l + sovQuery(uint64(l))
-		}
-	}
-	return n
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.Address)
-	if l > 0 {
-		n += 1 + l + sovQuery(uint64(l))
-	}
-	return n
-}
-
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -3457,76 +2401,6 @@ func (m *QueryLastUnbondingHeightResponse) Size() (n int) {
 	_ = l
 	if m.Height != 0 {
 		n += 1 + sovQuery(uint64(m.Height))
-	}
-	return n
-}
-
-func (m *QueryDataCommitmentRequestByNonceRequest) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.Nonce != 0 {
-		n += 1 + sovQuery(uint64(m.Nonce))
-	}
-	return n
-}
-
-func (m *QueryDataCommitmentRequestByNonceResponse) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.Commitment != nil {
-		l = m.Commitment.Size()
-		n += 1 + l + sovQuery(uint64(l))
-	}
-	return n
-}
-
-func (m *QueryLastDataCommitmentRequestsRequest) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	return n
-}
-
-func (m *QueryLastDataCommitmentRequestsResponse) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if len(m.Commitments) > 0 {
-		for _, e := range m.Commitments {
-			l = e.Size()
-			n += 1 + l + sovQuery(uint64(l))
-		}
-	}
-	return n
-}
-
-func (m *QueryLatestDataCommitmentNonceRequest) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	return n
-}
-
-func (m *QueryLatestDataCommitmentNonceResponse) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if m.Nonce != 0 {
-		n += 1 + sovQuery(uint64(m.Nonce))
 	}
 	return n
 }
@@ -3670,7 +2544,7 @@ func (m *QueryParamsResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *QueryLastValsetRequestsRequest) Unmarshal(dAtA []byte) error {
+func (m *QueryAttestationRequestByNonceRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -3693,144 +2567,10 @@ func (m *QueryLastValsetRequestsRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: QueryLastValsetRequestsRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: QueryAttestationRequestByNonceRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryLastValsetRequestsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *QueryLastValsetRequestsResponse) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryLastValsetRequestsResponse: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryLastValsetRequestsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Valsets", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQuery
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthQuery
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Valsets = append(m.Valsets, Valset{})
-			if err := m.Valsets[len(m.Valsets)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *QueryValsetRequestByNonceRequest) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryValsetRequestByNonceRequest: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryValsetRequestByNonceRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: QueryAttestationRequestByNonceRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -3873,7 +2613,7 @@ func (m *QueryValsetRequestByNonceRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *QueryValsetRequestByNonceResponse) Unmarshal(dAtA []byte) error {
+func (m *QueryAttestationRequestByNonceResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -3896,15 +2636,15 @@ func (m *QueryValsetRequestByNonceResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: QueryValsetRequestByNonceResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: QueryAttestationRequestByNonceResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryValsetRequestByNonceResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: QueryAttestationRequestByNonceResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Valset", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Attestation", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -3931,13 +2671,132 @@ func (m *QueryValsetRequestByNonceResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Valset == nil {
-				m.Valset = &Valset{}
+			if m.Attestation == nil {
+				m.Attestation = &types.Any{}
 			}
-			if err := m.Valset.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.Attestation.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryLatestAttestationNonceRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryLatestAttestationNonceRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryLatestAttestationNonceRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryLatestAttestationNonceResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryLatestAttestationNonceResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryLatestAttestationNonceResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Nonce", wireType)
+			}
+			m.Nonce = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Nonce |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipQuery(dAtA[iNdEx:])
@@ -4299,7 +3158,7 @@ func (m *QueryValsetConfirmResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *QueryLastValsetBeforeHeightRequest) Unmarshal(dAtA []byte) error {
+func (m *QueryLastValsetRequestBeforeNonceRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -4322,17 +3181,17 @@ func (m *QueryLastValsetBeforeHeightRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: QueryLastValsetBeforeHeightRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: QueryLastValsetRequestBeforeNonceRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryLastValsetBeforeHeightRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: QueryLastValsetRequestBeforeNonceRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Height", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Nonce", wireType)
 			}
-			m.Height = 0
+			m.Nonce = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowQuery
@@ -4342,7 +3201,7 @@ func (m *QueryLastValsetBeforeHeightRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Height |= uint64(b&0x7F) << shift
+				m.Nonce |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -4368,7 +3227,7 @@ func (m *QueryLastValsetBeforeHeightRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *QueryLastValsetBeforeHeightResponse) Unmarshal(dAtA []byte) error {
+func (m *QueryLastValsetRequestBeforeNonceResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -4391,10 +3250,10 @@ func (m *QueryLastValsetBeforeHeightResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: QueryLastValsetBeforeHeightResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: QueryLastValsetRequestBeforeNonceResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryLastValsetBeforeHeightResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: QueryLastValsetRequestBeforeNonceResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -4826,178 +3685,6 @@ func (m *QueryDataCommitmentConfirmsByCommitmentResponse) Unmarshal(dAtA []byte)
 	}
 	return nil
 }
-func (m *QueryDataCommitmentConfirmsByRangeRequest) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByRangeRequest: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByRangeRequest: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field BeginBlock", wireType)
-			}
-			m.BeginBlock = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQuery
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.BeginBlock |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field EndBlock", wireType)
-			}
-			m.EndBlock = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQuery
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.EndBlock |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *QueryDataCommitmentConfirmsByRangeResponse) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByRangeResponse: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByRangeResponse: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Confirms", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQuery
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthQuery
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Confirms = append(m.Confirms, MsgDataCommitmentConfirm{})
-			if err := m.Confirms[len(m.Confirms)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
 func (m *QueryDataCommitmentConfirmsByExactRangeRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -5170,172 +3857,6 @@ func (m *QueryDataCommitmentConfirmsByExactRangeResponse) Unmarshal(dAtA []byte)
 	}
 	return nil
 }
-func (m *QueryDataCommitmentConfirmsByValidatorRequest) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByValidatorRequest: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByValidatorRequest: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Address", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQuery
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthQuery
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Address = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *QueryDataCommitmentConfirmsByValidatorResponse) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByValidatorResponse: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryDataCommitmentConfirmsByValidatorResponse: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Confirms", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQuery
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthQuery
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Confirms = append(m.Confirms, MsgDataCommitmentConfirm{})
-			if err := m.Confirms[len(m.Confirms)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
 func (m *QueryLastUnbondingHeightRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -5430,414 +3951,6 @@ func (m *QueryLastUnbondingHeightResponse) Unmarshal(dAtA []byte) error {
 				b := dAtA[iNdEx]
 				iNdEx++
 				m.Height |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *QueryDataCommitmentRequestByNonceRequest) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryDataCommitmentRequestByNonceRequest: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryDataCommitmentRequestByNonceRequest: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Nonce", wireType)
-			}
-			m.Nonce = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQuery
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Nonce |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *QueryDataCommitmentRequestByNonceResponse) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryDataCommitmentRequestByNonceResponse: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryDataCommitmentRequestByNonceResponse: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Commitment", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQuery
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthQuery
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Commitment == nil {
-				m.Commitment = &DataCommitment{}
-			}
-			if err := m.Commitment.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *QueryLastDataCommitmentRequestsRequest) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryLastDataCommitmentRequestsRequest: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryLastDataCommitmentRequestsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *QueryLastDataCommitmentRequestsResponse) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryLastDataCommitmentRequestsResponse: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryLastDataCommitmentRequestsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Commitments", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQuery
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthQuery
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Commitments = append(m.Commitments, DataCommitment{})
-			if err := m.Commitments[len(m.Commitments)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *QueryLatestDataCommitmentNonceRequest) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryLatestDataCommitmentNonceRequest: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryLatestDataCommitmentNonceRequest: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		default:
-			iNdEx = preIndex
-			skippy, err := skipQuery(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthQuery
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *QueryLatestDataCommitmentNonceResponse) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowQuery
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: QueryLatestDataCommitmentNonceResponse: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryLatestDataCommitmentNonceResponse: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Nonce", wireType)
-			}
-			m.Nonce = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowQuery
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Nonce |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}

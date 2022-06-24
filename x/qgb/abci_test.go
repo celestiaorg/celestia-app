@@ -1,6 +1,7 @@
-package qgb
+package qgb_test
 
 import (
+	"github.com/celestiaorg/celestia-app/x/qgb"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
@@ -9,23 +10,27 @@ import (
 	"testing"
 )
 
-func TestValsetCreationIfNotAvailable(t *testing.T) {
+func TestAttestationCreationWhenStartingTheChain(t *testing.T) {
 	input, ctx := keeper.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
 	// EndBlocker should set a new validator set if not available
-	EndBlocker(ctx, *pk)
-	require.NotNil(t, pk.GetValset(ctx, pk.GetLatestValsetNonce(ctx)))
-	valsets := pk.GetValsets(ctx)
-	require.True(t, len(valsets) == 1)
+	qgb.EndBlocker(ctx, *pk)
+	require.Equal(t, uint64(1), pk.GetLatestAttestationNonce(ctx))
+	attestation := pk.GetAttestationByNonce(ctx, 1)
+	require.NotNil(t, attestation)
+	require.Equal(t, uint64(1), attestation.GetNonce())
 }
 
 func TestValsetCreationUponUnbonding(t *testing.T) {
 	input, ctx := keeper.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
-	currentValsetNonce := pk.GetLatestValsetNonce(ctx)
-	pk.SetValsetRequest(ctx)
+	currentValsetNonce := pk.GetLatestAttestationNonce(ctx)
+	vs, err := pk.GetCurrentValset(ctx)
+	require.Nil(t, err)
+	err = pk.SetAttestationRequest(ctx, &vs)
+	require.Nil(t, err)
 
 	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
 	// begin unbonding
@@ -36,39 +41,40 @@ func TestValsetCreationUponUnbonding(t *testing.T) {
 
 	// Run the staking endblocker to ensure valset is set in state
 	staking.EndBlocker(input.Context, input.StakingKeeper)
-	EndBlocker(input.Context, *pk)
+	qgb.EndBlocker(input.Context, *pk)
 
-	assert.NotEqual(t, currentValsetNonce, pk.GetLatestValsetNonce(ctx))
+	assert.NotEqual(t, currentValsetNonce, pk.GetLatestAttestationNonce(ctx))
 }
 
 func TestValsetEmission(t *testing.T) {
 	input, ctx := keeper.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
-	// Store a validator set with a power change as the most recent validator set
-	vs, err := pk.GetCurrentValset(ctx)
-	require.NoError(t, err)
-	vs.Nonce--
-	internalMembers, err := types.BridgeValidators(vs.Members).ToInternal()
-	require.NoError(t, err)
-	delta := float64(internalMembers.TotalPower()) * 0.05
-	vs.Members[0].Power = uint64(float64(vs.Members[0].Power) - delta/2)
-	vs.Members[1].Power = uint64(float64(vs.Members[1].Power) + delta/2)
-	pk.StoreValset(ctx, vs)
-
 	// EndBlocker should set a new validator set
-	EndBlocker(ctx, *pk)
-	require.NotNil(t, pk.GetValset(ctx, uint64(pk.GetLatestValsetNonce(ctx))))
-	valsets := pk.GetValsets(ctx)
-	require.True(t, len(valsets) == 2)
+	qgb.EndBlocker(ctx, *pk)
+
+	require.Equal(t, uint64(1), pk.GetLatestAttestationNonce(ctx))
+	attestation := pk.GetAttestationByNonce(ctx, 1)
+	require.NotNil(t, attestation)
+	require.Equal(t, uint64(1), attestation.GetNonce())
+
+	// get the valsets
+	require.Equal(t, types.ValsetRequestType, attestation.Type())
+	vs, ok := attestation.(*types.Valset)
+	require.True(t, ok)
+	require.NotNil(t, vs)
 }
 
 func TestValsetSetting(t *testing.T) {
 	input, ctx := keeper.SetupFiveValChain(t)
 	pk := input.QgbKeeper
-	pk.SetValsetRequest(ctx)
-	valsets := pk.GetValsets(ctx)
-	require.True(t, len(valsets) == 1)
+
+	vs, err := pk.GetCurrentValset(ctx)
+	require.Nil(t, err)
+	err = pk.SetAttestationRequest(ctx, &vs)
+	require.Nil(t, err)
+
+	require.Equal(t, uint64(1), pk.GetLatestAttestationNonce(ctx))
 }
 
 // Add data commitment window tests

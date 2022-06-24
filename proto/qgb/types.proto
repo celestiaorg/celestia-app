@@ -1,9 +1,11 @@
 syntax = "proto3";
 package qgb;
+
 import "gogoproto/gogo.proto";
+import "cosmos_proto/cosmos.proto";
+
 option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
-// TODO can this also be deleted ?
 // BridgeValidator represents a validator's ETH address and its power
 message BridgeValidator {
   // Voting power of the validator.
@@ -16,7 +18,9 @@ message BridgeValidator {
 // maintains an ETH key to sign messages, these are used to check signatures on
 // ETH because of the significant gas savings
 message Valset {
-  // Unique number referencing the `ValSet`.
+  option (cosmos_proto.implements_interface) = "AttestationRequestI";
+  // Universal nonce defined under:
+  // https://github.com/celestiaorg/celestia-app/pull/464
   uint64 nonce = 1;
   // List of BridgeValidator containing the current validator set.
   repeated BridgeValidator members = 2 [ (gogoproto.nullable) = false ];
@@ -30,7 +34,9 @@ message Valset {
 // inside the state machine and it doesn't make sense to ask tendermint for the
 // commitment there.
 message DataCommitment {
-  // Unique number referencing the `DataCommitment`.
+  option (cosmos_proto.implements_interface) = "AttestationRequestI";
+  // Universal nonce defined under:
+  // https://github.com/celestiaorg/celestia-app/pull/464
   uint64 nonce = 1;
   // First block defining the ordered set of blocks used to create the
   // commitment.

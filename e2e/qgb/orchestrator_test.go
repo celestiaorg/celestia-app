@@ -5,6 +5,7 @@ import (
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 )
@@ -36,13 +37,13 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	// FIXME should we use the querier here or go for raw queries?
-	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
+	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
 	HandleNetworkError(t, network, err, false)
 
 	vsConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
-	assert.NotNil(t, vsConfirm)
+	require.NotNil(t, vsConfirm)
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE0EVMADDRESS, vsConfirm.EthAddress)
 
@@ -92,11 +93,11 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 	err = network.WaitForOrchestratorToStart(network.Context, CORE1ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
+	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
 	HandleNetworkError(t, network, err, false)
 
 	// check core0 submited the valset confirm
-	core0ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 2, CORE0ACCOUNTADDRESS)
+	core0ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core0ValsetConfirm)
@@ -117,7 +118,7 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 	assert.Equal(t, CORE0EVMADDRESS, core0DataCommitmentConfirm.EthAddress)
 
 	// check core1 submited the valset confirm
-	core1ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 2, CORE1ACCOUNTADDRESS)
+	core1ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE1ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core1ValsetConfirm)
@@ -169,14 +170,11 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	err = network.WaitForOrchestratorToStart(network.Context, CORE3ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
+	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
 	HandleNetworkError(t, network, err, false)
 
-	lastValsets, err := querier.QueryLastValsets(ctx)
-	assert.NoError(t, err)
-
 	// check core0 submited the valset confirm
-	core0ValsetConfirm, err := querier.QueryValsetConfirm(ctx, lastValsets[0].Nonce, CORE0ACCOUNTADDRESS)
+	core0ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core0ValsetConfirm)
@@ -197,7 +195,7 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	assert.Equal(t, CORE0EVMADDRESS, core0DataCommitmentConfirm.EthAddress)
 
 	// check core1 submited the valset confirm
-	core1ValsetConfirm, err := querier.QueryValsetConfirm(ctx, lastValsets[0].Nonce, CORE1ACCOUNTADDRESS)
+	core1ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE1ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core1ValsetConfirm)
@@ -218,7 +216,7 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	assert.Equal(t, CORE1EVMADDRESS, core1DataCommitmentConfirm.EthAddress)
 
 	// check core2 submited the valset confirm
-	core2ValsetConfirm, err := querier.QueryValsetConfirm(ctx, lastValsets[0].Nonce, CORE2ACCOUNTADDRESS)
+	core2ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE2ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core2ValsetConfirm)
@@ -240,7 +238,7 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	assert.Equal(t, CORE2EVMADDRESS, core2DataCommitmentConfirm.EthAddress)
 
 	// check core3 submited the valset confirm
-	core3ValsetConfirm, err := querier.QueryValsetConfirm(ctx, lastValsets[0].Nonce, CORE3ACCOUNTADDRESS)
+	core3ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE3ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core3ValsetConfirm)
@@ -303,7 +301,7 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	// FIXME should we use the querier here or go for raw queries?
-	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
+	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
 	HandleNetworkError(t, network, err, false)
 
 	// check core0 submitted valset 1 confirm
@@ -315,7 +313,7 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	assert.Equal(t, CORE0EVMADDRESS, vs1Core0Confirm.EthAddress)
 
 	// check core0 submitted valset 2 confirm
-	vs2Core0Confirm, err := querier.QueryValsetConfirm(ctx, 2, CORE0ACCOUNTADDRESS)
+	vs2Core0Confirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, vs2Core0Confirm)
@@ -331,7 +329,7 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	assert.Equal(t, CORE1EVMADDRESS, vs1Core1Confirm.EthAddress)
 
 	// check core1 submitted valset 2 confirm
-	vs2Core1Confirm, err := querier.QueryValsetConfirm(ctx, 2, CORE1ACCOUNTADDRESS)
+	vs2Core1Confirm, err := querier.QueryValsetConfirm(ctx, 1, CORE1ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, vs2Core1Confirm)

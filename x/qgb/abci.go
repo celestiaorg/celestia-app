@@ -9,20 +9,37 @@ import (
 
 // EndBlocker is called at the end of every block
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
-	handleValsetRequest(ctx, k)
 	handleDataCommitmentRequest(ctx, k)
+	handleValsetRequest(ctx, k)
 }
 
 func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
-	if ctx.BlockHeight()%int64(types.DataCommitmentWindow) != 0 {
-		return
+	if ctx.BlockHeight() != 0 && ctx.BlockHeight()%int64(types.DataCommitmentWindow) == 0 {
+		dataCommitment, err := k.GetCurrentDataCommitment(ctx)
+		if err != nil {
+			panic(sdkerrors.Wrap(err, "coudln't get current data commitment"))
+		}
+		k.StoreAttestation(ctx, &dataCommitment)
+		k.SetLatestAttestationNonce(ctx, dataCommitment.Nonce)
 	}
-	k.SetDataCommitmentRequest(ctx)
 }
 
 func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
-	//get the last valsets to compare against
-	latestValset := k.GetLatestValset(ctx)
+	// FIXME can this be done here?
+	// We need to initialize this value in the begining...
+	if !k.CheckLatestAttestationNonce(ctx) {
+		k.SetLatestAttestationNonce(ctx, 0)
+	}
+	// get the last valsets to compare against
+	var latestValset *types.Valset
+	if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx) != 0 {
+		var err error
+		latestValset, err = k.GetLatestValset(ctx)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	lastUnbondingHeight := k.GetLastUnBondingBlockHeight(ctx)
 
 	significantPowerDiff := false
@@ -53,6 +70,11 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 
 	if (latestValset == nil) || (lastUnbondingHeight == uint64(ctx.BlockHeight())) || significantPowerDiff {
 		// if the conditions are true, put in a new validator set request to be signed and submitted to Ethereum
-		k.SetValsetRequest(ctx)
+		valset, err := k.GetCurrentValset(ctx)
+		if err != nil {
+			panic(err)
+		}
+		k.StoreAttestation(ctx, &valset)
+		k.SetLatestAttestationNonce(ctx, valset.Nonce)
 	}
 }

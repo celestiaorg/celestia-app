@@ -39,11 +39,7 @@ func TestDeployer(t *testing.T) {
 	// FIXME should we use the evm client here or go for raw queries?
 	evmClient := orchestrator.NewEvmClient(nil, *bridge, nil, network.EVMRPC)
 
-	vsNonce, err := evmClient.StateLastValsetNonce(&bind.CallOpts{Context: network.Context})
+	eventNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: network.Context})
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(0), vsNonce)
-
-	dcNonce, err := evmClient.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: network.Context})
-	assert.NoError(t, err)
-	assert.Equal(t, uint64(0), dcNonce)
+	assert.Equal(t, uint64(0), eventNonce)
 }

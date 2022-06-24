@@ -27,22 +27,6 @@ func (k Keeper) DataCommitmentConfirm(
 	}, nil
 }
 
-func (k Keeper) DataCommitmentConfirmsByValidator(
-	ctx context.Context,
-	request *types.QueryDataCommitmentConfirmsByValidatorRequest,
-) (*types.QueryDataCommitmentConfirmsByValidatorResponse, error) {
-	addr, err := sdk.AccAddressFromBech32(request.Address)
-	if err != nil {
-		return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "address invalid")
-	}
-	return &types.QueryDataCommitmentConfirmsByValidatorResponse{
-		Confirms: k.GetDataCommitmentConfirmsByValidator(
-			sdk.UnwrapSDKContext(ctx),
-			addr,
-		),
-	}, nil
-}
-
 func (k Keeper) DataCommitmentConfirmsByCommitment(
 	ctx context.Context,
 	request *types.QueryDataCommitmentConfirmsByCommitmentRequest,
@@ -51,19 +35,6 @@ func (k Keeper) DataCommitmentConfirmsByCommitment(
 		Confirms: k.GetDataCommitmentConfirmsByCommitment(
 			sdk.UnwrapSDKContext(ctx),
 			request.Commitment,
-		),
-	}, nil
-}
-
-func (k Keeper) DataCommitmentConfirmsByRange(
-	ctx context.Context,
-	request *types.QueryDataCommitmentConfirmsByRangeRequest,
-) (*types.QueryDataCommitmentConfirmsByRangeResponse, error) {
-	return &types.QueryDataCommitmentConfirmsByRangeResponse{
-		Confirms: k.GetDataCommitmentConfirmsByRange(
-			sdk.UnwrapSDKContext(ctx),
-			request.BeginBlock,
-			request.EndBlock,
 		),
 	}, nil
 }

@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/tendermint/tendermint/libs/log"
 	"math/big"
-
-	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
@@ -23,7 +23,8 @@ type orchestrator struct {
 	bridgeID      ethcmn.Hash
 
 	// celestia related signing
-	orchestratorAddress string
+	orchestratorAddress sdk.AccAddress
+	orchEthAddress      stakingtypes.EthAddress
 }
 
 func (oc *orchestrator) processValsetEvents(ctx context.Context, valsetChannel <-chan types.Valset) error {
@@ -41,12 +42,12 @@ func (oc *orchestrator) processValsetEvents(ctx context.Context, valsetChannel <
 		}
 
 		// create and send the valset hash
-		msg := &types.MsgValsetConfirm{
-			Orchestrator: oc.orchestratorAddress,
-			EthAddress:   crypto.PubkeyToAddress(oc.evmPrivateKey.PublicKey).Hex(),
-			Nonce:        valset.Nonce,
-			Signature:    ethcmn.Bytes2Hex(signature),
-		}
+		msg := types.NewMsgValsetConfirm(
+			valset.Nonce,
+			oc.orchEthAddress,
+			oc.orchestratorAddress,
+			ethcmn.Bytes2Hex(signature),
+		)
 
 		hash, err := oc.broadcaster.BroadcastTx(ctx, msg)
 		if err != nil {
@@ -70,14 +71,15 @@ func (oc *orchestrator) processDataCommitmentEvents(
 			continue
 		}
 
-		msg := &types.MsgDataCommitmentConfirm{
-			EthAddress:       crypto.PubkeyToAddress(oc.evmPrivateKey.PublicKey).Hex(),
-			Commitment:       dc.Commitment.String(),
-			BeginBlock:       dc.Data.BeginBlock,
-			EndBlock:         dc.Data.EndBlock,
-			ValidatorAddress: oc.orchestratorAddress,
-			Signature:        ethcmn.Bytes2Hex(dcSig),
-		}
+		msg := types.NewMsgDataCommitmentConfirm(
+			dc.Commitment.String(),
+			ethcmn.Bytes2Hex(dcSig),
+			oc.orchestratorAddress,
+			oc.orchEthAddress,
+			dc.Data.BeginBlock,
+			dc.Data.EndBlock,
+			dc.Data.Nonce,
+		)
 
 		hash, err := oc.broadcaster.BroadcastTx(ctx, msg)
 		if err != nil {

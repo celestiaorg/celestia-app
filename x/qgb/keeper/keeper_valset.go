@@ -2,154 +2,31 @@ package keeper
 
 import (
 	"fmt"
-	"math/big"
-	"sort"
-
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
-
-// SetValsetRequest returns a new instance of the Gravity BridgeValidatorSet
-// by taking a snapshot of the current set, this validator set is also placed
-// into the store to be signed by validators and submitted to Ethereum. This
-// is the only function to call when you want to create a validator set that
-// is signed by consensus. If you want to peek at the present state of the set
-// and perhaps take action based on that use k.GetCurrentValset
-// i.e. {"nonce": 1, "members": [{"eth_addr": "foo", "power": 11223}]}
-func (k Keeper) SetValsetRequest(ctx sdk.Context) types.Valset {
-	valset, err := k.GetCurrentValset(ctx)
-	if err != nil {
-		panic(err)
-	}
-	k.StoreValset(ctx, valset)
-	k.SetLatestValsetNonce(ctx, valset.Nonce)
-
-	ctx.EventManager().EmitEvent(
-		sdk.NewEvent(
-			types.EventTypeValsetRequest,
-			sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
-			sdk.NewAttribute(types.AttributeKeyNonce, fmt.Sprint(valset.Nonce)),
-		),
-	)
-
-	return valset
-}
-
-// StoreValset is for storing a valiator set at a given height, once this function is called
-// the validator set will be available to the Ethereum Signers (orchestrators) to submit signatures
-// therefore this function will panic if you attempt to overwrite an existing key. Any changes to
-// historical valsets can not possibly be correct, as it would invalidate the signatures. The only
-// valid operation on the same index is store followed by delete when it is time to prune state
-func (k Keeper) StoreValset(ctx sdk.Context, valset types.Valset) {
-	key := []byte(types.GetValsetKey(valset.Nonce))
-	store := ctx.KVStore(k.storeKey)
-
-	if store.Has(key) {
-		panic("Trying to overwrite existing valset!")
-	}
-
-	store.Set((key), k.cdc.MustMarshal(&valset))
-}
-
-// HasValsetRequest returns true if a valset defined by a nonce exists
-func (k Keeper) HasValsetRequest(ctx sdk.Context, nonce uint64) bool {
-	store := ctx.KVStore(k.storeKey)
-	return store.Has([]byte(types.GetValsetKey(nonce)))
-}
-
-// DeleteValset deletes the valset at a given nonce from state
-func (k Keeper) DeleteValset(ctx sdk.Context, nonce uint64) {
-	ctx.KVStore(k.storeKey).Delete([]byte(types.GetValsetKey(nonce)))
-}
-
-// CheckLatestValsetNonce returns true if the latest valset nonce
-// is declared in the store and false if it has not been initialized
-func (k Keeper) CheckLatestValsetNonce(ctx sdk.Context) bool {
-	store := ctx.KVStore(k.storeKey)
-	has := store.Has([]byte(types.LatestValsetNonce))
-	return has
-}
-
-// GetLatestValsetNonce returns the latest valset nonce
-func (k Keeper) GetLatestValsetNonce(ctx sdk.Context) uint64 {
-	if !k.CheckLatestValsetNonce(ctx) {
-		// TODO: handle this case for genesis properly. Note for Evan: write an issue
-		return 0
-	}
-
-	store := ctx.KVStore(k.storeKey)
-	bytes := store.Get([]byte(types.LatestValsetNonce))
-	return UInt64FromBytes(bytes)
-}
-
-// SetLatestValsetNonce sets the latest valset nonce, since it's
-// expected that this value will only increase it panics on an attempt
-// to decrement
-func (k Keeper) SetLatestValsetNonce(ctx sdk.Context, nonce uint64) {
-	// this is purely an increasing counter and should never decrease
-	if k.CheckLatestValsetNonce(ctx) && k.GetLatestValsetNonce(ctx) > nonce {
-		panic("Decrementing valset nonce!")
-	}
-
-	store := ctx.KVStore(k.storeKey)
-	store.Set([]byte(types.LatestValsetNonce), types.UInt64Bytes(nonce))
-}
-
-// GetValset returns a valset by nonce
-func (k Keeper) GetValset(ctx sdk.Context, nonce uint64) *types.Valset {
-	store := ctx.KVStore(k.storeKey)
-	bz := store.Get([]byte(types.GetValsetKey(nonce)))
-	if bz == nil {
-		return nil
-	}
-	var valset types.Valset
-	k.cdc.MustUnmarshal(bz, &valset)
-	return &valset
-}
-
-// IterateValsets retruns all valsetRequests
-func (k Keeper) IterateValsets(ctx sdk.Context, cb func(key []byte, val *types.Valset) bool) {
-	prefixStore := prefix.NewStore(ctx.KVStore(k.storeKey), []byte(types.ValsetRequestKey))
-	iter := prefixStore.ReverseIterator(nil, nil)
-	defer iter.Close()
-	for ; iter.Valid(); iter.Next() {
-		var valset types.Valset
-		k.cdc.MustUnmarshal(iter.Value(), &valset)
-		// cb returns true to stop early
-		if cb(iter.Key(), &valset) {
-			break
-		}
-	}
-}
-
-// GetValsets returns all the validator sets in state
-func (k Keeper) GetValsets(ctx sdk.Context) (out []types.Valset) {
-	// TODO this should definitely be optimized. Adding support for paging or providing a range
-	// is way better
-	k.IterateValsets(ctx, func(_ []byte, val *types.Valset) bool {
-		out = append(out, *val)
-		return false
-	})
-	sort.Sort(types.Valsets(out))
-	return
-}
 
 // GetLatestValset returns the latest validator set in store. This is different
 // from the CurrentValset because this one has been saved and is therefore *the* valset
 // for this nonce. GetCurrentValset shows you what could be, if you chose to save it, this function
 // shows you what is the latest valset that was saved.
-func (k Keeper) GetLatestValset(ctx sdk.Context) (out *types.Valset) {
-	latestValsetNonce := k.GetLatestValsetNonce(ctx)
-	if latestValsetNonce == 0 {
-		valset := k.SetValsetRequest(ctx)
-		return &valset
+func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
+	nonce := k.GetLatestAttestationNonce(ctx)
+	for i := uint64(0); i <= nonce; i++ {
+		at := k.GetAttestationByNonce(ctx, nonce-i)
+		if at.Type() == types.ValsetRequestType {
+			valset, ok := at.(*types.Valset)
+			if !ok {
+				return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
+			}
+			return valset, nil
+		}
 	}
-
-	out = k.GetValset(ctx, latestValsetNonce)
-	return
+	// should never execute
+	return nil, sdkerrors.Wrap(sdkerrors.ErrNotFound, "couldn't find latest valset")
 }
 
 // SetLastUnBondingBlockHeight sets the last unbonding block height. Note this value is not saved and loaded in genesis
@@ -206,7 +83,7 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 	}
 
 	// increment the nonce, since this potential future valset should be after the current valset
-	valsetNonce := k.GetLatestValsetNonce(ctx) + 1
+	valsetNonce := k.GetLatestAttestationNonce(ctx) + 1
 
 	valset, err := types.NewValset(valsetNonce, uint64(ctx.BlockHeight()), bridgeValidators)
 	if err != nil {
@@ -231,4 +108,26 @@ func normalizeValidatorPower(rawPower uint64, totalValidatorPower sdk.Int) uint6
 	power.Mul(power, multiplier)
 	power.Quo(power, quotient)
 	return power.Uint64()
+}
+
+// GetLastValsetBeforeNonce returns the previous valset before the provided `nonce`.
+// the `nonce` can be a valset, but this method will return the previous one.
+// If the provided nonce is 1. It will return an error. Because, there is no valset before nonce 1.
+func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.Valset, error) {
+	// starting at 1 because the current nonce can be a valset
+	// and we need the previous one.
+	for i := uint64(1); i < nonce; i++ {
+		at := k.GetAttestationByNonce(ctx, nonce-i)
+		if at.Type() == types.ValsetRequestType {
+			valset, ok := at.(*types.Valset)
+			if !ok {
+				return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
+			}
+			return valset, nil
+		}
+	}
+	return nil, sdkerrors.Wrap(
+		sdkerrors.ErrNotFound,
+		fmt.Sprintf("couldn't find valset before nonce %d", nonce),
+	)
 }

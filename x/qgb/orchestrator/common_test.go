@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"os"
 	"sync"
@@ -11,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/testutil"
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -24,12 +25,17 @@ func setupTestOrchestrator(t *testing.T, bc Broadcaster) *orchestrator {
 	if err != nil {
 		panic(err)
 	}
+	orchEthAddr, err := stakingtypes.NewEthAddress(crypto.PubkeyToAddress(priv.PublicKey).Hex())
+	if err != nil {
+		panic(err)
+	}
 	return &orchestrator{
 		broadcaster:         bc,
-		orchestratorAddress: crypto.PubkeyToAddress(priv.PublicKey).Hex(),
+		orchestratorAddress: sdk.AccAddress(crypto.PubkeyToAddress(priv.PublicKey).Hex()),
 		bridgeID:            types.BridgeId,
 		evmPrivateKey:       *priv,
 		logger:              tmlog.NewTMLogger(os.Stdout),
+		orchEthAddress:      *orchEthAddr,
 	}
 }
 

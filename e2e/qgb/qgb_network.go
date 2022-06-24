@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/google/uuid"
+	"github.com/tendermint/spm/cosmoscmd"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/testcontainers/testcontainers-go"
 	"math/big"
@@ -27,6 +28,7 @@ type QGBNetwork struct {
 	EVMRPC        string
 	TendermintRPC string
 	CelestiaGRPC  string
+	EncCfg        cosmoscmd.EncodingConfig
 }
 
 func NewQGBNetwork(_ctx context.Context) (*QGBNetwork, error) {
@@ -42,6 +44,7 @@ func NewQGBNetwork(_ctx context.Context) (*QGBNetwork, error) {
 		EVMRPC:        "http://localhost:8545",
 		TendermintRPC: "tcp://localhost:26657",
 		CelestiaGRPC:  "localhost:9090",
+		EncCfg:        orchestrator.MakeEncodingConfig(),
 	}
 
 	// trap Ctrl+C or ctx.Done()
@@ -363,7 +366,7 @@ func (network QGBNetwork) WaitForBlockWithCustomTimeout(
 // and for any nonce, but would require adding a new method to the querier. Don't think it is worth it now as
 // the number of valsets that will be signed is trivial and reaching 0 would be in no time).
 func (network QGBNetwork) WaitForOrchestratorToStart(_ctx context.Context, accountAddress string) error {
-	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil)
+	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
 	if err != nil {
 		return err
 	}
@@ -450,7 +453,7 @@ func (network QGBNetwork) WaitForRelayerToStart(_ctx context.Context, bridge *wr
 			}
 			return ctx.Err()
 		default:
-			nonce, err := bridge.StateLastDataRootTupleRootNonce(&bind.CallOpts{Context: ctx})
+			nonce, err := bridge.StateEventNonce(&bind.CallOpts{Context: ctx})
 			if err == nil && nonce != nil && nonce.Int64() >= 1 {
 				return nil
 			}

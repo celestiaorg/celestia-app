@@ -27,17 +27,21 @@ services:
       context: ../..
     depends_on:
       - core0
-    command: [
-        "orchestrator", "-p", "/opt",
-        "-x", "qgb-e2e",
-        "-d", "da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9",
-        "--keyring-account", "core0",
-        "-t", "tcp://core0:26657",
-        "-c", "core0:9090"
+    environment:
+      - MONIKER=core0
+      # eth address: 0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488
+      - PRIVATE_KEY=da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
+      - TENDERMINT_RPC=tcp://core0:26657
+      - CELESTIA_GRPC=core0:9090
+    entrypoint: [
+      "/bin/bash"
     ]
-    # Eth Address: 0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488:da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
+    command: [
+      "/opt/start_orchestrator_after_validator_created.sh"
+    ]
     volumes:
       - ${PWD}/celestia-app/core0/keyring-test:/opt/keyring-test:ro
+      - ${PWD}/scripts/start_orchestrator_after_validator_created.sh:/opt/start_orchestrator_after_validator_created.sh:ro
 
   core1:
     container_name: core1
@@ -187,6 +191,7 @@ services:
     image: trufflesuite/ganache-cli
     command: [
       "--port=8545",
+      "--verbose",
       "--host=0.0.0.0",
       "--networkId=1234",
       "--chainId=1234",

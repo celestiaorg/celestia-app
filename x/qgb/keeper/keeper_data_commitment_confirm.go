@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-// TODO add unit tests for alll the keepers
+// TODO add unit tests for all the keepers
 
 // GetDataCommitmentConfirm Returns a data commitment confirm by nonce and validator address
 // nonce = endBlock % data window in decimal base
@@ -48,60 +48,6 @@ func (k Keeper) GetDataCommitmentConfirmsByCommitment(
 			continue
 		}
 		if commitment == confirm.Commitment {
-			confirms = append(confirms, confirm)
-		}
-	}
-
-	return confirms
-}
-
-// GetDataCommitmentConfirmsByValidator Returns data commitment confirms by validator address
-func (k Keeper) GetDataCommitmentConfirmsByValidator(
-	ctx sdk.Context,
-	validator sdk.AccAddress,
-) (confirms []types.MsgDataCommitmentConfirm) {
-	if err := sdk.VerifyAddressFormat(validator); err != nil {
-		ctx.Logger().Error("invalid validator address")
-		return nil
-	}
-
-	store := ctx.KVStore(k.storeKey)
-	iterator := store.Iterator(nil, nil) // Can we make this faster?
-
-	defer iterator.Close()
-
-	for ; iterator.Valid(); iterator.Next() {
-		confirm := types.MsgDataCommitmentConfirm{}
-		err := k.cdc.Unmarshal(iterator.Value(), &confirm)
-		if err != nil {
-			continue
-		}
-		if confirm.ValidatorAddress == validator.String() {
-			confirms = append(confirms, confirm)
-		}
-	}
-
-	return confirms
-}
-
-// GetDataCommitmentConfirmsByRange Returns data commitment confirms by the provided range
-func (k Keeper) GetDataCommitmentConfirmsByRange(
-	ctx sdk.Context,
-	beginBlock uint64,
-	endBlock uint64,
-) (confirms []types.MsgDataCommitmentConfirm) {
-	store := ctx.KVStore(k.storeKey)
-	iterator := store.Iterator(nil, nil) // Can we make this faster?
-
-	defer iterator.Close()
-
-	for ; iterator.Valid(); iterator.Next() {
-		confirm := types.MsgDataCommitmentConfirm{}
-		err := k.cdc.Unmarshal(iterator.Value(), &confirm)
-		if err != nil {
-			continue
-		}
-		if beginBlock <= confirm.BeginBlock && endBlock >= confirm.EndBlock {
 			confirms = append(confirms, confirm)
 		}
 	}

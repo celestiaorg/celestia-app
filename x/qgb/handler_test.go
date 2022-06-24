@@ -1,8 +1,9 @@
-package qgb
+package qgb_test
 
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
+	"github.com/celestiaorg/celestia-app/x/qgb"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -44,7 +45,7 @@ func TestMsgValsetConfirm(t *testing.T) {
 
 	input, ctx := keeper.SetupFiveValChain(t)
 	k := input.QgbKeeper
-	h := NewHandler(*input.QgbKeeper)
+	h := qgb.NewHandler(*input.QgbKeeper)
 
 	// create new validator
 	err := createNewValidator(input)
@@ -55,7 +56,9 @@ func TestMsgValsetConfirm(t *testing.T) {
 	require.NoError(t, err)
 	vs.Height = uint64(1)
 	vs.Nonce = uint64(1)
-	k.StoreValset(ctx, vs)
+
+	err = k.SetAttestationRequest(ctx, &vs)
+	require.Nil(t, err)
 
 	signBytes, err := vs.SignBytes(types.BridgeId)
 	require.NoError(t, err)
@@ -64,33 +67,33 @@ func TestMsgValsetConfirm(t *testing.T) {
 	require.NoError(t, err)
 
 	// try wrong eth address
-	msg := &types.MsgValsetConfirm{
-		Nonce:        1,
-		Orchestrator: keeper.OrchAddrs[0].String(),
-		EthAddress:   keeper.EthAddrs[1].GetAddress(), // wrong because validator 0 should have EthAddrs[0]
-		Signature:    signature,
-	}
+	msg := types.NewMsgValsetConfirm(
+		1,
+		keeper.EthAddrs[1], // wrong because validator 0 should have EthAddrs[0]
+		keeper.OrchAddrs[0],
+		signature,
+	)
 	ctx = ctx.WithBlockTime(blockTime).WithBlockHeight(blockHeight)
 	_, err = h(ctx, msg)
 	require.Error(t, err)
 
 	// try a nonexisting valset
-	msg = &types.MsgValsetConfirm{
-		Nonce:        10,
-		Orchestrator: keeper.OrchAddrs[0].String(),
-		EthAddress:   keeper.EthAddrs[0].GetAddress(),
-		Signature:    signature,
-	}
+	msg = types.NewMsgValsetConfirm(
+		10,
+		keeper.EthAddrs[0],
+		keeper.OrchAddrs[0],
+		signature,
+	)
 	ctx = ctx.WithBlockTime(blockTime).WithBlockHeight(blockHeight)
 	_, err = h(ctx, msg)
 	require.Error(t, err)
 
-	msg = &types.MsgValsetConfirm{
-		Nonce:        1,
-		Orchestrator: orchAddress.String(),
-		EthAddress:   orchEthAddress,
-		Signature:    signature,
-	}
+	msg = types.NewMsgValsetConfirm(
+		1,
+		*ethAddr,
+		orchAddress,
+		signature,
+	)
 	ctx = ctx.WithBlockTime(blockTime).WithBlockHeight(blockHeight)
 	_, err = h(ctx, msg)
 	require.NoError(t, err)
@@ -105,7 +108,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 	err := createNewValidator(input)
 	require.NoError(t, err)
 
-	h := NewHandler(*input.QgbKeeper)
+	h := qgb.NewHandler(*input.QgbKeeper)
 	ctx = ctx.WithBlockTime(blockTime)
 
 	commitment := "102030"
@@ -113,7 +116,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 	require.NoError(t, err)
 	dataHash := types.DataCommitmentTupleRootSignBytes(
 		types.BridgeId,
-		big.NewInt(int64(100/types.DataCommitmentWindow)),
+		big.NewInt(10),
 		bytesCommitment,
 	)
 
@@ -122,14 +125,15 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 	require.NoError(t, err)
 
 	// Sending a data commitment confirm
-	setDCCMsg := &types.MsgDataCommitmentConfirm{
-		Signature:        hex.EncodeToString(signature),
-		ValidatorAddress: orchAddress.String(),
-		EthAddress:       orchEthAddress,
-		Commitment:       commitment,
-		BeginBlock:       1,
-		EndBlock:         100,
-	}
+	setDCCMsg := types.NewMsgDataCommitmentConfirm(
+		commitment,
+		hex.EncodeToString(signature),
+		orchAddress,
+		*ethAddr,
+		1,
+		100,
+		10,
+	)
 	result, err := h(ctx, setDCCMsg)
 	require.NoError(t, err)
 

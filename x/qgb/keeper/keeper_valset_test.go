@@ -1,7 +1,8 @@
-package keeper
+package keeper_test
 
 import (
 	"bytes"
+	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
@@ -52,7 +53,7 @@ func TestCurrentValsetNormalization(t *testing.T) {
 	for msg, spec := range specs {
 		spec := spec
 		t.Run(msg, func(t *testing.T) {
-			input, ctx := SetupTestChain(t, spec.srcPowers)
+			input, ctx := keeper.SetupTestChain(t, spec.srcPowers)
 			r, err := input.QgbKeeper.GetCurrentValset(ctx)
 			require.NoError(t, err)
 			rMembers, err := types.BridgeValidators(r.Members).ToInternal()

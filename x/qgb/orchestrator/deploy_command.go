@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/ethereum/solidity/wrappers/QuantumGravityBridge.sol"
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
@@ -25,7 +25,7 @@ func DeployCmd() *cobra.Command {
 
 			logger := tmlog.NewTMLogger(os.Stdout)
 
-			querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger)
+			querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger, MakeEncodingConfig())
 			if err != nil {
 				return err
 			}
@@ -44,8 +44,9 @@ func DeployCmd() *cobra.Command {
 
 			// init bridgeID
 			var bridgeID [32]byte
-			copy(bridgeID[:], types.BridgeId.Bytes()) // is this safe?
+			copy(bridgeID[:], types.BridgeId.Bytes())
 
+			// TODO change to get the current valaset
 			// get the first valset
 			vs, err := querier.QueryValsetByNonce(cmd.Context(), 1)
 			if err != nil {
@@ -66,6 +67,7 @@ func DeployCmd() *cobra.Command {
 				auth,
 				ethClient,
 				bridgeID,
+				big.NewInt(0), // TODO get the latest instead or make it a parameter
 				big.NewInt(int64(vs.TwoThirdsThreshold())),
 				ethVsHash,
 			)

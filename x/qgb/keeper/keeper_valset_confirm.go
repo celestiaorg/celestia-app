@@ -44,7 +44,7 @@ func (k Keeper) SetValsetConfirm(ctx sdk.Context, valsetConf types.MsgValsetConf
 // GetValsetConfirms get all ValsetConfirms with the provided nonce
 func (k Keeper) GetValsetConfirms(ctx sdk.Context, nonce uint64) (confirms []types.MsgValsetConfirm) {
 	prefixStore := prefix.NewStore(ctx.KVStore(k.storeKey), []byte(types.ValsetConfirmKey))
-	start, end := prefixRange([]byte(types.ConvertByteArrToString(types.UInt64Bytes(nonce))))
+	start, end := PrefixRange([]byte(types.ConvertByteArrToString(types.UInt64Bytes(nonce))))
 	iterator := prefixStore.Iterator(start, end)
 
 	defer iterator.Close()
