@@ -19,8 +19,10 @@ func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
 		if err != nil {
 			panic(sdkerrors.Wrap(err, "coudln't get current data commitment"))
 		}
-		k.StoreAttestation(ctx, &dataCommitment)
-		k.SetLatestAttestationNonce(ctx, dataCommitment.Nonce)
+		err = k.SetAttestationRequest(ctx, &dataCommitment)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -74,7 +76,9 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 		if err != nil {
 			panic(err)
 		}
-		k.StoreAttestation(ctx, &valset)
-		k.SetLatestAttestationNonce(ctx, valset.Nonce)
+		err = k.SetAttestationRequest(ctx, &valset)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
