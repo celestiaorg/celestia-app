@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"os"
 	"sync"
+	"time"
 
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/ethclient"
