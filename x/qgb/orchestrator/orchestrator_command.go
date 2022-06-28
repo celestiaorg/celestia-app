@@ -53,7 +53,7 @@ func StartOrchestrator(ctx context.Context, config orchestratorConfig) error {
 	)
 	workers := make([]*Worker, workerNumber)
 	for i := range workers {
-		workers[i] = NewWorker(ctx, *workerContext, noncesQueue)
+		workers[i] = NewWorker(ctx, *workerContext, noncesQueue, 5)
 	}
 
 	waitGroup.Add(1)
@@ -130,6 +130,7 @@ func enqueueMissingEvents(ctx context.Context, queue chan uint64, logger tmlog.L
 	// +2 to be sure we're not missing any nonce due to some delay when starting the pool
 	for i := uint64(1); i <= latestNonce+2; i++ {
 		logger.Debug("enqueueing missing nonce", "nonce", i)
+		// TODO enqueue only if not already signed
 		queue <- i
 	}
 }

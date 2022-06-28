@@ -4,11 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"math/big"
-	"strconv"
-	"strings"
-	"sync"
-
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -20,6 +15,11 @@ import (
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
+	"math/big"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 )
 
 var (
@@ -106,34 +106,63 @@ func NewWorkerContext(
 }
 
 type Worker struct {
-	Ctx         context.Context
-	Context     WorkerContext
-	NoncesQueue chan uint64
+	Ctx           context.Context
+	Context       WorkerContext
+	NoncesQueue   <-chan uint64
+	RetriesNumber int
 }
 
 func NewWorker(
 	ctx context.Context,
 	context WorkerContext,
-	noncesQueue chan uint64,
+	noncesQueue <-chan uint64,
+	retriesNumber int,
 ) *Worker {
 	return &Worker{
-		Ctx:         ctx,
-		NoncesQueue: noncesQueue,
-		Context:     context,
+		Ctx:           ctx,
+		NoncesQueue:   noncesQueue,
+		Context:       context,
+		RetriesNumber: retriesNumber,
 	}
 }
 
 func (w Worker) Start() {
 	for i := range w.NoncesQueue {
 		if err := w.Process(i); err != nil {
-			// re-enqueue any failed job
-			// TODO: Implement exponential backoff or max retries for a block height.
-			go func() {
-				w.Context.logger.Error("re-enqueueing failed nonce", "nonce", i, "err", err)
-				w.NoncesQueue <- i
-			}()
+			w.Context.logger.Error(
+				"failed to process nonce, retrying...",
+				"nonce",
+				i,
+				"err",
+				err,
+			)
+			if w.Retry(i) != nil {
+				panic(err)
+			}
 		}
 	}
+}
+
+func (w Worker) Retry(nonce uint64) error {
+	var err error
+	for i := 0; i <= w.RetriesNumber; i++ {
+		// We can implement some exponential backoff in here
+		time.Sleep(10 * time.Second)
+		w.Context.logger.Info("retrying", "nonce", nonce, "retry number", i, "retries left", w.RetriesNumber-i)
+		err = w.Process(nonce)
+		if err == nil {
+			w.Context.logger.Info(
+				"nonce processing succeeded",
+				"nonce",
+				nonce,
+				"retries number",
+				i,
+			)
+			return nil
+		}
+		w.Context.logger.Error("failed to process nonce", "nonce", nonce, "retry", i, "err", err)
+	}
+	return err
 }
 
 func (w Worker) Process(nonce uint64) error {
