@@ -107,6 +107,7 @@ func startNewEventsListener(ctx context.Context, queue chan uint64, logger tmlog
 		case <-ctx.Done():
 			return
 		case result := <-results:
+			// FIXME for  some reason, we receive each nonce twice
 			nonce, err := strconv.Atoi(result.Events[eventName][0])
 			if err != nil {
 				panic(err)
