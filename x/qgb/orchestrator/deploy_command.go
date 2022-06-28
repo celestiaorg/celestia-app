@@ -2,13 +2,8 @@ package orchestrator
 
 import (
 	"fmt"
-	"math/big"
 	"os"
 
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 )
@@ -30,22 +25,6 @@ func DeployCmd() *cobra.Command {
 				return err
 			}
 
-			// init ethClient
-			ethClient, err := ethclient.Dial(config.evmRPC)
-			if err != nil {
-				return err
-			}
-
-			// init evm account
-			auth, err := bind.NewKeyedTransactorWithChainID(config.privateKey, big.NewInt(int64(config.evmChainID)))
-			if err != nil {
-				return err
-			}
-
-			// init bridgeID
-			var bridgeID [32]byte
-			copy(bridgeID[:], types.BridgeId.Bytes())
-
 			// TODO change to get the current valaset
 			// get the first valset
 			vs, err := querier.QueryValsetByNonce(cmd.Context(), 1)
@@ -56,29 +35,26 @@ func DeployCmd() *cobra.Command {
 				)
 			}
 
-			ethVsHash, err := vs.Hash()
+			evmClient := NewEvmClient(
+				tmlog.NewTMLogger(os.Stdout),
+				nil,
+				config.privateKey,
+				config.evmRPC,
+			)
+
+			// the deploy QGB contract will handle the logging of the address
+			_, _, _, err = evmClient.DeployQGBContract(
+				cmd.Context(),
+				*vs,
+				0,
+				config.evmChainID,
+				true,
+				false,
+			)
 			if err != nil {
 				return err
 			}
 
-			// deploy the QGB contract using the chain parameters
-			// TODO move the deploy to the evm client
-			addr, tx, _, err := wrapper.DeployQuantumGravityBridge(
-				auth,
-				ethClient,
-				bridgeID,
-				big.NewInt(0), // TODO get the latest instead or make it a parameter
-				big.NewInt(int64(vs.TwoThirdsThreshold())),
-				ethVsHash,
-			)
-			if err != nil {
-				return err
-			}
-			fmt.Printf(
-				"QGB contract deployed successfully.\n- Transaction hash: %s\n- Contract address: %s\n",
-				tx.Hash(),
-				addr.Hex(),
-			)
 			querier.Stop()
 			return nil
 		},

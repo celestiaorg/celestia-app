@@ -45,4 +45,4 @@ echo "deploying QGB contract..."
 
 echo $(cat /opt/output)
 
-cat /opt/output | tail -n 1 | cut -d\  -f 4 > /opt/qgb_address.txt
+cat /opt/output | cut -f 2 -d = | cut -f 1 -d\ > /opt/qgb_address.txt

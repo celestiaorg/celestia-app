@@ -129,6 +129,7 @@ func (r *Relayer) updateValidatorSet(
 		currentValset,
 		valset,
 		sigs,
+		true,
 	)
 	if err != nil {
 		return err
@@ -168,6 +169,7 @@ func (r *Relayer) submitDataRootTupleRoot(
 		newDataCommitmentNonce,
 		currentValset,
 		sigs,
+		true,
 	)
 	if err != nil {
 		return err
