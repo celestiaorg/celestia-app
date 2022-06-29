@@ -41,7 +41,7 @@ func RelayerCmd() *cobra.Command {
 				querier,
 				NewEvmClient(
 					tmlog.NewTMLogger(os.Stdout),
-					*qgbWrapper,
+					qgbWrapper,
 					config.privateKey,
 					config.evmRPC,
 				),

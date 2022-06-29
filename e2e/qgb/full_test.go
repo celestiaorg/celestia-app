@@ -47,7 +47,7 @@ func TestFullLongBehaviour(t *testing.T) {
 	bridge, err := network.GetLatestDeployedQGBContract(network.Context)
 	HandleNetworkError(t, network, err, false)
 
-	evmClient := orchestrator.NewEvmClient(nil, *bridge, nil, network.EVMRPC)
+	evmClient := orchestrator.NewEvmClient(nil, bridge, nil, network.EVMRPC)
 
 	// check whether the relayer relayed all attestations
 	eventNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: network.Context})
