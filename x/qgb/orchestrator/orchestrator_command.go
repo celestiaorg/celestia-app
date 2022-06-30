@@ -2,21 +2,14 @@ package orchestrator
 
 import (
 	"context"
-	"fmt"
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/cosmos/cosmos-sdk/types/errors"
-	corerpctypes "github.com/tendermint/tendermint/rpc/core/types"
-	coretypes "github.com/tendermint/tendermint/types"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 
 	"github.com/spf13/cobra"
@@ -65,7 +58,6 @@ func StartOrchestrator(ctx context.Context, config orchestratorConfig) error {
 	}
 
 	retrier := NewRetrier(logger, 5)
-	noncesQueue := make(chan uint64, 100)
 	orch := NewOrchestrator(
 		ctx,
 		logger,
@@ -74,7 +66,6 @@ func StartOrchestrator(ctx context.Context, config orchestratorConfig) error {
 		retrier,
 		signer,
 		*config.privateKey,
-		noncesQueue,
 	)
 
 	logger.Debug("starting orchestrator")
@@ -86,71 +77,9 @@ func StartOrchestrator(ctx context.Context, config orchestratorConfig) error {
 	// Listen for and trap any OS signal to gracefully shutdown and exit
 	trapSignal(logger, wg)
 
-	if config.signOldNonces {
-		go enqueueMissingEvents(ctx, noncesQueue, logger, querier)
-	}
-
-	if config.signNewNonces {
-		go startNewEventsListener(ctx, noncesQueue, logger, querier)
-	}
-
-	// FIXME should we add  another go routine that keep checking if all the attestations
-	// were signed every 10min for example?
-
 	// Block main process (signal capture will call WaitGroup's Done)
 	wg.Wait()
 	return nil
-}
-
-func startNewEventsListener(ctx context.Context, queue chan<- uint64, logger tmlog.Logger, querier Querier) {
-	results, err := querier.SubscribeEvents(ctx, "attestation-changes", fmt.Sprintf("%s.%s='%s'", types.EventTypeAttestationRequest, sdk.AttributeKeyModule, types.ModuleName))
-	if err != nil {
-		panic(err)
-	}
-	attestationEventName := fmt.Sprintf("%s.%s", types.EventTypeAttestationRequest, types.AttributeKeyNonce)
-	logger.Info("listening for new block events...")
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case result := <-results:
-			blockEvent := mustGetEvent(result, coretypes.EventTypeKey)
-			isBlock := blockEvent[0] == coretypes.EventNewBlock
-			if !isBlock {
-				// we only want to handle the attestation when the block is committed
-				continue
-			}
-
-			attestationEvent := mustGetEvent(result, attestationEventName)
-			nonce, err := strconv.Atoi(attestationEvent[0])
-			if err != nil {
-				panic(err)
-			}
-
-			logger.Debug("enqueueing new attestation nonce", "nonce", nonce)
-			queue <- uint64(nonce)
-		}
-	}
-}
-
-func enqueueMissingEvents(ctx context.Context, queue chan uint64, logger tmlog.Logger, querier Querier) {
-	latestNonce, err := querier.QueryLatestAttestationNonce(ctx)
-	if err != nil {
-		panic(err)
-	}
-
-	lastUnbondingHeight, err := querier.QueryLastUnbondingHeight(ctx)
-	if err != nil {
-		panic(err)
-	}
-
-	logger.Info("syncing missing nonces", "latest_nonce", latestNonce, "last_unbonding_height", lastUnbondingHeight)
-	defer logger.Info("finished syncing missing nonces", "latest_nonce", latestNonce, "last_unbonding_height", lastUnbondingHeight)
-
-	for i := lastUnbondingHeight; i < latestNonce; i++ {
-		logger.Debug("enqueueing missing attestation nonce", "nonce", latestNonce-i)
-		queue <- latestNonce - i
-	}
 }
 
 // trapSignal will listen for any OS signal and invoke Done on the main
@@ -166,21 +95,4 @@ func trapSignal(logger tmlog.Logger, wg *sync.WaitGroup) {
 		logger.Info("caught signal; shutting down", "signal", sig.String())
 		defer wg.Done()
 	}()
-}
-
-// mustGetEvent takes a corerpctypes.ResultEvent and checks whether it has
-// the provided eventName. If not, it panics.
-func mustGetEvent(result corerpctypes.ResultEvent, eventName string) []string {
-	ev := result.Events[eventName]
-	if ev == nil || len(ev) == 0 {
-		panic(errors.Wrap(
-			types.ErrEmpty,
-			fmt.Sprintf(
-				"%s not found in event %s",
-				coretypes.EventTypeKey,
-				result.Events,
-			),
-		))
-	}
-	return ev
 }

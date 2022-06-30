@@ -13,6 +13,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
 	tmlog "github.com/tendermint/tendermint/libs/log"
+	corerpctypes "github.com/tendermint/tendermint/rpc/core/types"
+	coretypes "github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
 	"math/big"
 	"strconv"
@@ -24,11 +26,9 @@ type Orchestrator struct {
 	ctx    context.Context
 	logger tmlog.Logger // maybe use a more general interface
 
-	evmPrivateKey ecdsa.PrivateKey
-	signer        *paytypes.KeyringSigner
-
+	evmPrivateKey  ecdsa.PrivateKey
+	signer         *paytypes.KeyringSigner
 	orchEthAddress stakingtypes.EthAddress
-	noncesQueue    <-chan uint64
 
 	querier     Querier
 	broadcaster Broadcaster
@@ -43,7 +43,6 @@ func NewOrchestrator(
 	retrier Retrier,
 	signer *paytypes.KeyringSigner,
 	evmPrivateKey ecdsa.PrivateKey,
-	noncesQueue <-chan uint64,
 ) *Orchestrator {
 	orchEthAddr, err := stakingtypes.NewEthAddress(crypto.PubkeyToAddress(evmPrivateKey.PublicKey).Hex())
 	if err != nil {
@@ -57,14 +56,77 @@ func NewOrchestrator(
 		evmPrivateKey:  evmPrivateKey,
 		orchEthAddress: *orchEthAddr,
 		querier:        querier,
-		noncesQueue:    noncesQueue,
 		broadcaster:    broadcaster,
 		retrier:        retrier,
 	}
 }
 
 func (orch Orchestrator) Start() {
-	for i := range orch.noncesQueue {
+	noncesQueue := make(chan uint64, 100)
+
+	go orch.enqueueMissingEvents(noncesQueue)
+
+	go orch.startNewEventsListener(noncesQueue)
+
+	go orch.processNonces(noncesQueue)
+
+	// FIXME should we add  another go routine that keep checking if all the attestations
+	// were signed every 10min for example?
+}
+
+func (orch Orchestrator) startNewEventsListener(queue chan<- uint64) {
+	results, err := orch.querier.SubscribeEvents(orch.ctx, "attestation-changes", fmt.Sprintf("%s.%s='%s'", types.EventTypeAttestationRequest, sdk.AttributeKeyModule, types.ModuleName))
+	if err != nil {
+		panic(err)
+	}
+	attestationEventName := fmt.Sprintf("%s.%s", types.EventTypeAttestationRequest, types.AttributeKeyNonce)
+	orch.logger.Info("listening for new block events...")
+	for {
+		select {
+		case <-orch.ctx.Done():
+			return
+		case result := <-results:
+			blockEvent := mustGetEvent(result, coretypes.EventTypeKey)
+			isBlock := blockEvent[0] == coretypes.EventNewBlock
+			if !isBlock {
+				// we only want to handle the attestation when the block is committed
+				continue
+			}
+
+			attestationEvent := mustGetEvent(result, attestationEventName)
+			nonce, err := strconv.Atoi(attestationEvent[0])
+			if err != nil {
+				panic(err)
+			}
+
+			orch.logger.Debug("enqueueing new attestation nonce", "nonce", nonce)
+			queue <- uint64(nonce)
+		}
+	}
+}
+
+func (orch Orchestrator) enqueueMissingEvents(queue chan<- uint64) {
+	latestNonce, err := orch.querier.QueryLatestAttestationNonce(orch.ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	lastUnbondingHeight, err := orch.querier.QueryLastUnbondingHeight(orch.ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	orch.logger.Info("syncing missing nonces", "latest_nonce", latestNonce, "last_unbonding_height", lastUnbondingHeight)
+	defer orch.logger.Info("finished syncing missing nonces", "latest_nonce", latestNonce, "last_unbonding_height", lastUnbondingHeight)
+
+	for i := lastUnbondingHeight; i < latestNonce; i++ {
+		orch.logger.Debug("enqueueing missing attestation nonce", "nonce", latestNonce-i)
+		queue <- latestNonce - i
+	}
+}
+
+func (orch Orchestrator) processNonces(noncesQueue <-chan uint64) {
+	for i := range noncesQueue {
 		orch.logger.Debug("processing nonce", "nonce", i)
 		if err := orch.Process(i); err != nil {
 			orch.logger.Error("failed to process nonce, retrying...", "nonce", i, "err", err)
@@ -295,4 +357,21 @@ func (r retrier) RetryThenFail(nonce uint64, retryMethod func(uint64) error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// mustGetEvent takes a corerpctypes.ResultEvent and checks whether it has
+// the provided eventName. If not, it panics.
+func mustGetEvent(result corerpctypes.ResultEvent, eventName string) []string {
+	ev := result.Events[eventName]
+	if ev == nil || len(ev) == 0 {
+		panic(errors.Wrap(
+			types.ErrEmpty,
+			fmt.Sprintf(
+				"%s not found in event %s",
+				coretypes.EventTypeKey,
+				result.Events,
+			),
+		))
+	}
+	return ev
 }
