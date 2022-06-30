@@ -92,13 +92,11 @@ func (orch Orchestrator) startNewEventsListener(queue chan<- uint64) {
 				// we only want to handle the attestation when the block is committed
 				continue
 			}
-
 			attestationEvent := mustGetEvent(result, attestationEventName)
 			nonce, err := strconv.Atoi(attestationEvent[0])
 			if err != nil {
 				panic(err)
 			}
-
 			orch.logger.Debug("enqueueing new attestation nonce", "nonce", nonce)
 			queue <- uint64(nonce)
 		}
@@ -146,7 +144,6 @@ func (orch Orchestrator) Process(nonce uint64) error {
 		if !ok {
 			return errors.Wrap(types.ErrAttestationNotValsetRequest, strconv.FormatUint(nonce, 10))
 		}
-
 		resp, err := orch.querier.QueryValsetConfirm(orch.ctx, nonce, orch.signer.GetSignerInfo().GetAddress().String())
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("valset %d", nonce))
@@ -155,7 +152,6 @@ func (orch Orchestrator) Process(nonce uint64) error {
 			orch.logger.Debug("already signed valset", "nonce", nonce, "signature", resp.Signature)
 			return nil
 		}
-
 		err = orch.processValsetEvent(orch.ctx, *vs)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("valset %d", nonce))
@@ -167,7 +163,6 @@ func (orch Orchestrator) Process(nonce uint64) error {
 		if !ok {
 			return errors.Wrap(types.ErrAttestationNotDataCommitmentRequest, strconv.FormatUint(nonce, 10))
 		}
-
 		resp, err := orch.querier.QueryDataCommitmentConfirm(orch.ctx, dc.EndBlock, dc.BeginBlock, orch.signer.GetSignerInfo().GetAddress().String())
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("data commitment %d", nonce))
@@ -176,12 +171,10 @@ func (orch Orchestrator) Process(nonce uint64) error {
 			orch.logger.Debug("already signed data commitment", "nonce", nonce, "begin_block", resp.BeginBlock, "end_block", resp.EndBlock, "commitment", resp.Commitment, "signature", resp.Signature)
 			return nil
 		}
-
 		err = orch.processDataCommitmentEvent(orch.ctx, *dc)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("data commitment %d", nonce))
 		}
-
 		return nil
 	default:
 		return errors.Wrap(ErrUnknownAttestationType, strconv.FormatUint(nonce, 10))
@@ -193,7 +186,6 @@ func (orch Orchestrator) processValsetEvent(ctx context.Context, valset types.Va
 	if err != nil {
 		return err
 	}
-
 	signature, err := types.NewEthereumSignature(signBytes.Bytes(), &orch.evmPrivateKey)
 	if err != nil {
 		return err
@@ -206,7 +198,6 @@ func (orch Orchestrator) processValsetEvent(ctx context.Context, valset types.Va
 		orch.signer.GetSignerInfo().GetAddress(),
 		ethcmn.Bytes2Hex(signature),
 	)
-
 	hash, err := orch.broadcaster.BroadcastTx(ctx, msg)
 	if err != nil {
 		return err
@@ -229,7 +220,6 @@ func (orch Orchestrator) processDataCommitmentEvent(
 	if err != nil {
 		return err
 	}
-
 	dataRootHash := types.DataCommitmentTupleRootSignBytes(types.BridgeId, big.NewInt(int64(dc.Nonce)), commitment)
 	dcSig, err := types.NewEthereumSignature(dataRootHash.Bytes(), &orch.evmPrivateKey)
 	if err != nil {
@@ -245,7 +235,6 @@ func (orch Orchestrator) processDataCommitmentEvent(
 		dc.EndBlock,
 		dc.Nonce,
 	)
-
 	hash, err := orch.broadcaster.BroadcastTx(ctx, msg)
 	if err != nil {
 		return err
@@ -340,13 +329,11 @@ func (r retrier) Retry(nonce uint64, retryMethod func(uint64) error) error {
 		// We can implement some exponential backoff in here
 		time.Sleep(10 * time.Second)
 		r.logger.Info("retrying", "nonce", nonce, "retry_number", i, "retries_left", r.retriesNumber-i)
-
 		err = retryMethod(nonce)
 		if err == nil {
 			r.logger.Info("nonce processing succeeded", "nonce", nonce, "retries_number", i)
 			return nil
 		}
-
 		r.logger.Error("failed to process nonce", "nonce", nonce, "retry", i, "err", err)
 	}
 	return err
