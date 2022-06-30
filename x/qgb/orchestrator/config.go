@@ -63,6 +63,7 @@ func addOrchestratorFlags(cmd *cobra.Command) *cobra.Command {
 		"",
 		"Specify the ECDSA private key used to sign orchestrator commitments in hex",
 	)
+
 	return cmd
 }
 
