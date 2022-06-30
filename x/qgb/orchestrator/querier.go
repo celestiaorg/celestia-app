@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/tendermint/spm/cosmoscmd"
+	"github.com/tendermint/tendermint/libs/bytes"
+	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"time"
 
 	"github.com/tendermint/tendermint/rpc/client/http"
@@ -63,6 +66,10 @@ type Querier interface {
 	// misc queries
 	QueryHeight(ctx context.Context) (uint64, error)
 	QueryLastUnbondingHeight(ctx context.Context) (uint64, error)
+
+	// tendermint
+	QueryCommitment(ctx context.Context, query string) (bytes.HexBytes, error)
+	SubscribeEvents(ctx context.Context, subscriptionName string, eventName string) (<-chan coretypes.ResultEvent, error)
 }
 
 type querier struct {
@@ -464,6 +471,28 @@ func (q *querier) QueryLatestAttestationNonce(ctx context.Context) (uint64, erro
 	}
 
 	return resp.Nonce, nil
+}
+
+// QueryCommitment queries the commitment over a set of blocks defined in the query.
+func (q querier) QueryCommitment(ctx context.Context, query string) (bytes.HexBytes, error) {
+	dcResp, err := q.tendermintRPC.DataCommitment(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	return dcResp.DataCommitment, nil
+}
+
+func (q querier) SubscribeEvents(ctx context.Context, subscriptionName string, eventName string) (<-chan coretypes.ResultEvent, error) {
+	// This doesn't seem to complain when the node is down
+	results, err := q.tendermintRPC.Subscribe(
+		ctx,
+		"attestation-changes",
+		fmt.Sprintf("%s.%s='%s'", types.EventTypeAttestationRequest, sdk.AttributeKeyModule, types.ModuleName),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return results, err
 }
 
 func (q *querier) unmarshallAttestation(attestation *cdctypes.Any) (types.AttestationRequestI, error) {

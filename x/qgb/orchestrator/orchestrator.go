@@ -6,123 +6,66 @@ import (
 	"fmt"
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdktypestx "github.com/cosmos/cosmos-sdk/types/tx"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
 	tmlog "github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
 	"math/big"
 	"strconv"
-	"strings"
+	"sync"
 	"time"
 )
 
 type Orchestrator struct {
 	ctx    context.Context
-	logger tmlog.Logger
+	logger tmlog.Logger // maybe use a more general interface
 
-	// orch signing signing
 	evmPrivateKey ecdsa.PrivateKey
 	signer        *paytypes.KeyringSigner
-	bridgeID      ethcmn.Hash
 
-	// orch related
-	orchestratorAddress sdk.AccAddress
-	orchEthAddress      stakingtypes.EthAddress
-	noncesQueue         <-chan uint64
-	retriesNumber       int
+	orchEthAddress stakingtypes.EthAddress
+	noncesQueue    <-chan uint64
+	retriesNumber  int
 
-	// query related
-	querier       Querier
-	tendermintRPC *http.HTTP
-	qgbGrpc       *grpc.ClientConn
+	querier     Querier
+	broadcaster Broadcaster
 }
 
 func NewOrchestrator(
 	ctx context.Context,
 	logger tmlog.Logger,
-	keyringAccount,
-	keyringPath,
-	keyringBackend,
-	tendermintRPC,
-	celesGRPC,
-	celestiaChainID string,
+	querier Querier,
+	broadcaster Broadcaster,
+	signer *paytypes.KeyringSigner,
 	evmPrivateKey ecdsa.PrivateKey,
-	bridgeId ethcmn.Hash,
 	noncesQueue <-chan uint64,
 	retriesNumber int,
 ) *Orchestrator {
-	// creates the signer
-	//TODO: optionally ask for input for a password
-	ring, err := keyring.New("orchestrator", keyringBackend, keyringPath, strings.NewReader(""))
-	if err != nil {
-		panic(err)
-	}
-	signer := paytypes.NewKeyringSigner(
-		ring,
-		keyringAccount,
-		celestiaChainID,
-	)
-
 	orchEthAddr, err := stakingtypes.NewEthAddress(crypto.PubkeyToAddress(evmPrivateKey.PublicKey).Hex())
 	if err != nil {
 		panic(err)
 	}
 
-	querier, err := NewQuerier(celesGRPC, tendermintRPC, logger, MakeEncodingConfig())
-	if err != nil {
-		panic(err)
-	}
-
-	// TODO close these connections
-	trpc, err := http.New(tendermintRPC, "/websocket")
-	if err != nil {
-		panic(err)
-	}
-	err = trpc.Start()
-	if err != nil {
-		panic(err)
-	}
-
-	cGRPC, err := grpc.Dial(celesGRPC, grpc.WithInsecure())
-	if err != nil {
-		panic(err)
-	}
-
 	return &Orchestrator{
-		ctx:                 ctx,
-		logger:              logger,
-		signer:              signer,
-		evmPrivateKey:       evmPrivateKey,
-		bridgeID:            bridgeId,
-		orchestratorAddress: signer.GetSignerInfo().GetAddress(),
-		orchEthAddress:      *orchEthAddr,
-		querier:             querier,
-		tendermintRPC:       trpc,
-		qgbGrpc:             cGRPC,
-		noncesQueue:         noncesQueue,
-		retriesNumber:       retriesNumber,
-	}
-}
-
-func (orch Orchestrator) Stop() {
-	err := orch.tendermintRPC.Stop()
-	if err != nil {
-		panic(err)
-	}
-	err = orch.qgbGrpc.Close()
-	if err != nil {
-		panic(err)
+		ctx:            ctx,
+		logger:         logger,
+		signer:         signer,
+		evmPrivateKey:  evmPrivateKey,
+		orchEthAddress: *orchEthAddr,
+		querier:        querier,
+		noncesQueue:    noncesQueue,
+		retriesNumber:  retriesNumber,
+		broadcaster:    broadcaster,
 	}
 }
 
 func (orch Orchestrator) Start() {
 	for i := range orch.noncesQueue {
-		orch.logger.Info("processing nonce", "nonce", i)
+		orch.logger.Debug("processing nonce", "nonce", i)
 		if err := orch.Process(i); err != nil {
 			orch.logger.Error("failed to process nonce, retrying...", "nonce", i, "err", err)
 			if orch.Retry(i) != nil {
@@ -159,12 +102,12 @@ func (orch Orchestrator) Process(nonce uint64) error {
 		if !ok {
 			return errors.Wrap(types.ErrAttestationNotValsetRequest, strconv.FormatUint(nonce, 10))
 		}
-		resp, err := orch.querier.QueryValsetConfirm(orch.ctx, nonce, orch.orchestratorAddress.String())
+		resp, err := orch.querier.QueryValsetConfirm(orch.ctx, nonce, orch.signer.GetSignerInfo().GetAddress().String())
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("valset %d", nonce))
 		}
 		if resp != nil {
-			orch.logger.Info("already signed valset", "nonce", nonce, "signature", resp.Signature)
+			orch.logger.Debug("already signed valset", "nonce", nonce, "signature", resp.Signature)
 			return nil
 		}
 		err = orch.processValsetEvent(orch.ctx, *vs)
@@ -177,12 +120,12 @@ func (orch Orchestrator) Process(nonce uint64) error {
 		if !ok {
 			return errors.Wrap(types.ErrAttestationNotDataCommitmentRequest, strconv.FormatUint(nonce, 10))
 		}
-		resp, err := orch.querier.QueryDataCommitmentConfirm(orch.ctx, dc.EndBlock, dc.BeginBlock, orch.orchestratorAddress.String())
+		resp, err := orch.querier.QueryDataCommitmentConfirm(orch.ctx, dc.EndBlock, dc.BeginBlock, orch.signer.GetSignerInfo().GetAddress().String())
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("data commitment %d", nonce))
 		}
 		if resp != nil {
-			orch.logger.Info("already signed data commitment", "nonce", nonce, "begin_block", resp.BeginBlock, "end_block", resp.EndBlock, "commitment", resp.Commitment, "signature", resp.Signature)
+			orch.logger.Debug("already signed data commitment", "nonce", nonce, "begin_block", resp.BeginBlock, "end_block", resp.EndBlock, "commitment", resp.Commitment, "signature", resp.Signature)
 			return nil
 		}
 		err = orch.processDataCommitmentEvent(orch.ctx, *dc)
@@ -196,7 +139,7 @@ func (orch Orchestrator) Process(nonce uint64) error {
 }
 
 func (orch Orchestrator) processValsetEvent(ctx context.Context, valset types.Valset) error {
-	signBytes, err := valset.SignBytes(orch.bridgeID)
+	signBytes, err := valset.SignBytes(types.BridgeId)
 	if err != nil {
 		return err
 	}
@@ -210,11 +153,11 @@ func (orch Orchestrator) processValsetEvent(ctx context.Context, valset types.Va
 	msg := types.NewMsgValsetConfirm(
 		valset.Nonce,
 		orch.orchEthAddress,
-		orch.orchestratorAddress,
+		orch.signer.GetSignerInfo().GetAddress(),
 		ethcmn.Bytes2Hex(signature),
 	)
 
-	hash, err := orch.broadcastTx(ctx, msg)
+	hash, err := orch.broadcaster.BroadcastTx(ctx, msg)
 	if err != nil {
 		return err
 	}
@@ -226,8 +169,7 @@ func (orch Orchestrator) processDataCommitmentEvent(
 	ctx context.Context,
 	dc types.DataCommitment,
 ) error {
-
-	dcResp, err := orch.tendermintRPC.DataCommitment(
+	commitment, err := orch.querier.QueryCommitment(
 		ctx,
 		fmt.Sprintf("block.height >= %d AND block.height <= %d",
 			dc.BeginBlock,
@@ -237,55 +179,79 @@ func (orch Orchestrator) processDataCommitmentEvent(
 	if err != nil {
 		return err
 	}
-	dataRootHash := types.DataCommitmentTupleRootSignBytes(orch.bridgeID, big.NewInt(int64(dc.Nonce)), dcResp.DataCommitment)
+	dataRootHash := types.DataCommitmentTupleRootSignBytes(types.BridgeId, big.NewInt(int64(dc.Nonce)), commitment)
 	dcSig, err := types.NewEthereumSignature(dataRootHash.Bytes(), &orch.evmPrivateKey)
 	if err != nil {
 		return err
 	}
 
 	msg := types.NewMsgDataCommitmentConfirm(
-		dcResp.DataCommitment.String(),
+		commitment.String(),
 		ethcmn.Bytes2Hex(dcSig),
-		orch.orchestratorAddress,
+		orch.signer.GetSignerInfo().GetAddress(),
 		orch.orchEthAddress,
 		dc.BeginBlock,
 		dc.EndBlock,
 		dc.Nonce,
 	)
 
-	hash, err := orch.broadcastTx(ctx, msg)
+	hash, err := orch.broadcaster.BroadcastTx(ctx, msg)
 	if err != nil {
 		return err
 	}
-	orch.logger.Info("signed commitment", "nonce", msg.Nonce, "begin_block", msg.BeginBlock, "end_block", msg.EndBlock, "commitment", dcResp.DataCommitment, "tx_hash", hash)
+	orch.logger.Info("signed commitment", "nonce", msg.Nonce, "begin_block", msg.BeginBlock, "end_block", msg.EndBlock, "commitment", commitment, "tx_hash", hash)
 	return nil
 }
 
-func (orch Orchestrator) broadcastTx(ctx context.Context, msg sdk.Msg) (string, error) {
-	//bc.mutex.Lock()
-	//defer bc.mutex.Unlock()
-	err := orch.signer.QueryAccountNumber(ctx, orch.qgbGrpc)
+var _ Broadcaster = &broadcaster{}
+
+type Broadcaster interface {
+	BroadcastTx(ctx context.Context, msg sdk.Msg) (string, error)
+}
+
+type broadcaster struct {
+	mutex   *sync.Mutex
+	signer  *paytypes.KeyringSigner
+	qgbGrpc *grpc.ClientConn
+}
+
+func NewBroadcaster(qgbGrpcAddr string, signer *paytypes.KeyringSigner) (Broadcaster, error) {
+	qgbGrpc, err := grpc.Dial(qgbGrpcAddr, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	return &broadcaster{
+		mutex:   &sync.Mutex{}, // investigate if this is needed
+		signer:  signer,
+		qgbGrpc: qgbGrpc,
+	}, nil
+}
+
+func (bc *broadcaster) BroadcastTx(ctx context.Context, msg sdk.Msg) (string, error) {
+	bc.mutex.Lock()
+	defer bc.mutex.Unlock()
+	err := bc.signer.QueryAccountNumber(ctx, bc.qgbGrpc)
 	if err != nil {
 		return "", err
 	}
 
-	builder := orch.signer.NewTxBuilder()
+	builder := bc.signer.NewTxBuilder()
 	// TODO make gas limit configurable
 	builder.SetGasLimit(9999999999999)
 	// TODO: update this api
 	// via https://github.com/celestiaorg/celestia-app/pull/187/commits/37f96d9af30011736a3e6048bbb35bad6f5b795c
-	tx, err := orch.signer.BuildSignedTx(builder, msg)
+	tx, err := bc.signer.BuildSignedTx(builder, msg)
 	if err != nil {
 		return "", err
 	}
 
-	rawTx, err := orch.signer.EncodeTx(tx)
+	rawTx, err := bc.signer.EncodeTx(tx)
 	if err != nil {
 		return "", err
 	}
 
 	// TODO  check if we can move this outside of the paytypes
-	resp, err := paytypes.BroadcastTx(ctx, orch.qgbGrpc, 1, rawTx)
+	resp, err := paytypes.BroadcastTx(ctx, bc.qgbGrpc, sdktypestx.BroadcastMode_BROADCAST_MODE_BLOCK, rawTx)
 	if err != nil {
 		return "", err
 	}

@@ -3,19 +3,20 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	corerpctypes "github.com/tendermint/tendermint/rpc/core/types"
 	coretypes "github.com/tendermint/tendermint/types"
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/tendermint/tendermint/rpc/client/http"
-
 	tmlog "github.com/tendermint/tendermint/libs/log"
 
 	"github.com/spf13/cobra"
@@ -41,18 +42,36 @@ func OrchestratorCmd() *cobra.Command {
 func StartOrchestrator(ctx context.Context, config orchestratorConfig) error {
 	logger := tmlog.NewTMLogger(os.Stdout)
 
+	querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger, MakeEncodingConfig())
+	if err != nil {
+		panic(err)
+	}
+
+	// creates the signer
+	//TODO: optionally ask for input for a password
+	ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringPath, strings.NewReader(""))
+	if err != nil {
+		panic(err)
+	}
+	signer := paytypes.NewKeyringSigner(
+		ring,
+		config.keyringAccount,
+		config.celestiaChainID,
+	)
+
+	broadcaster, err := NewBroadcaster(config.celesGRPC, signer)
+	if err != nil {
+		panic(err)
+	}
+
 	noncesQueue := make(chan uint64, 100)
 	orch := NewOrchestrator(
 		ctx,
 		logger,
-		config.keyringAccount,
-		config.keyringPath,
-		config.keyringBackend,
-		config.tendermintRPC,
-		config.celesGRPC,
-		config.celestiaChainID,
+		querier,
+		broadcaster,
+		signer,
 		*config.privateKey,
-		types.BridgeId,
 		noncesQueue,
 		5,
 	)
@@ -64,37 +83,26 @@ func StartOrchestrator(ctx context.Context, config orchestratorConfig) error {
 	go orch.Start()
 
 	// Listen for and trap any OS signal to gracefully shutdown and exit
-	orch.trapSignal(wg)
+	trapSignal(logger, wg)
 
 	if config.signOldNonces {
-		go enqueueMissingEvents(ctx, noncesQueue, logger, config.celesGRPC, config.tendermintRPC)
+		go enqueueMissingEvents(ctx, noncesQueue, logger, querier)
 	}
 
 	if config.signNewNonces {
-		go startNewEventsListener(ctx, noncesQueue, logger, config.tendermintRPC)
+		go startNewEventsListener(ctx, noncesQueue, logger, querier)
 	}
+
+	// FIXME should we add  another go routine that keep checking if all the attestations
+	// were signed every 10min for example?
 
 	// Block main process (signal capture will call WaitGroup's Done)
 	wg.Wait()
 	return nil
 }
 
-func startNewEventsListener(ctx context.Context, queue chan<- uint64, logger tmlog.Logger, tendermintRPC string) {
-	trpc, err := http.New(tendermintRPC, "/websocket")
-	if err != nil {
-		panic(err)
-	}
-	err = trpc.Start()
-	if err != nil {
-		panic(err)
-	}
-	defer trpc.Stop()
-	// This doesn't seem to complain when the node is down
-	results, err := trpc.Subscribe(
-		ctx,
-		"attestation-changes",
-		fmt.Sprintf("%s.%s='%s'", types.EventTypeAttestationRequest, sdk.AttributeKeyModule, types.ModuleName),
-	)
+func startNewEventsListener(ctx context.Context, queue chan<- uint64, logger tmlog.Logger, querier Querier) {
+	results, err := querier.SubscribeEvents(ctx, "attestation-changes", fmt.Sprintf("%s.%s='%s'", types.EventTypeAttestationRequest, sdk.AttributeKeyModule, types.ModuleName))
 	if err != nil {
 		panic(err)
 	}
@@ -122,11 +130,7 @@ func startNewEventsListener(ctx context.Context, queue chan<- uint64, logger tml
 	}
 }
 
-func enqueueMissingEvents(ctx context.Context, queue chan uint64, logger tmlog.Logger, celesGRPC, tendermintRPC string) {
-	querier, err := NewQuerier(celesGRPC, tendermintRPC, logger, MakeEncodingConfig())
-	if err != nil {
-		panic(err)
-	}
+func enqueueMissingEvents(ctx context.Context, queue chan uint64, logger tmlog.Logger, querier Querier) {
 	latestNonce, err := querier.QueryLatestAttestationNonce(ctx)
 	if err != nil {
 		panic(err)
@@ -146,7 +150,7 @@ func enqueueMissingEvents(ctx context.Context, queue chan uint64, logger tmlog.L
 
 // trapSignal will listen for any OS signal and invoke Done on the main
 // WaitGroup allowing the main process to gracefully exit.
-func (orch Orchestrator) trapSignal(wg *sync.WaitGroup) {
+func trapSignal(logger tmlog.Logger, wg *sync.WaitGroup) {
 	var sigCh = make(chan os.Signal)
 
 	signal.Notify(sigCh, syscall.SIGTERM)
@@ -154,8 +158,7 @@ func (orch Orchestrator) trapSignal(wg *sync.WaitGroup) {
 
 	go func() {
 		sig := <-sigCh
-		orch.logger.Info("caught signal; shutting down", "signal", sig.String())
-		orch.Stop()
+		logger.Info("caught signal; shutting down", "signal", sig.String())
 		defer wg.Done()
 	}()
 }
