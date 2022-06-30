@@ -23,7 +23,6 @@ import (
 )
 
 type Orchestrator struct {
-	ctx    context.Context
 	logger tmlog.Logger // maybe use a more general interface
 
 	evmPrivateKey  ecdsa.PrivateKey
@@ -36,7 +35,6 @@ type Orchestrator struct {
 }
 
 func NewOrchestrator(
-	ctx context.Context,
 	logger tmlog.Logger,
 	querier Querier,
 	broadcaster Broadcaster,
@@ -50,7 +48,6 @@ func NewOrchestrator(
 	}
 
 	return &Orchestrator{
-		ctx:            ctx,
 		logger:         logger,
 		signer:         signer,
 		evmPrivateKey:  evmPrivateKey,
@@ -61,21 +58,63 @@ func NewOrchestrator(
 	}
 }
 
-func (orch Orchestrator) Start() {
+func (orch Orchestrator) Start(ctx context.Context) {
+	// this channel will contain the nonces that will be signed by the orchestrator.
 	noncesQueue := make(chan uint64, 100)
 
-	go orch.enqueueMissingEvents(noncesQueue)
+	// this channel will be used to send a signal when the nonces processor
+	// wants to notify the nonces enqueuing services to stop.
+	signalChan := make(chan struct{})
+	defer close(noncesQueue)
 
-	go orch.startNewEventsListener(noncesQueue)
+	withCancel, cancel := context.WithCancel(ctx)
 
-	go orch.processNonces(noncesQueue)
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		err := orch.enqueueMissingEvents(withCancel, noncesQueue, signalChan)
+		if err != nil {
+			orch.logger.Error("error enqueing missing attestations", "err", err)
+			cancel()
+		}
+		orch.logger.Error("stopping enqueing missing attestations")
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		err := orch.startNewEventsListener(withCancel, noncesQueue, signalChan)
+		if err != nil {
+			orch.logger.Error("error listening to new attestations", "err", err)
+			cancel()
+		}
+		orch.logger.Error("stopping listening to new attestations")
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		err := orch.processNonces(withCancel, noncesQueue, signalChan)
+		if err != nil {
+			orch.logger.Error("error processing attestations", "err", err)
+			cancel()
+		}
+		orch.logger.Error("stopping processing attestations")
+		wg.Done()
+	}()
 
 	// FIXME should we add  another go routine that keep checking if all the attestations
 	// were signed every 10min for example?
+
+	select {
+	case <-withCancel.Done():
+		wg.Wait()
+		return
+	}
 }
 
-func (orch Orchestrator) startNewEventsListener(queue chan<- uint64) {
-	results, err := orch.querier.SubscribeEvents(orch.ctx, "attestation-changes", fmt.Sprintf("%s.%s='%s'", types.EventTypeAttestationRequest, sdk.AttributeKeyModule, types.ModuleName))
+func (orch Orchestrator) startNewEventsListener(ctx context.Context, queue chan<- uint64, signalChan <-chan struct{}) error {
+	results, err := orch.querier.SubscribeEvents(ctx, "attestation-changes", fmt.Sprintf("%s.%s='%s'", types.EventTypeAttestationRequest, sdk.AttributeKeyModule, types.ModuleName))
 	if err != nil {
 		panic(err)
 	}
@@ -83,8 +122,10 @@ func (orch Orchestrator) startNewEventsListener(queue chan<- uint64) {
 	orch.logger.Info("listening for new block events...")
 	for {
 		select {
-		case <-orch.ctx.Done():
-			return
+		case <-signalChan:
+			return nil
+		case <-ctx.Done():
+			return nil
 		case result := <-results:
 			blockEvent := mustGetEvent(result, coretypes.EventTypeKey)
 			isBlock := blockEvent[0] == coretypes.EventNewBlock
@@ -95,46 +136,71 @@ func (orch Orchestrator) startNewEventsListener(queue chan<- uint64) {
 			attestationEvent := mustGetEvent(result, attestationEventName)
 			nonce, err := strconv.Atoi(attestationEvent[0])
 			if err != nil {
-				panic(err)
+				return err
 			}
 			orch.logger.Debug("enqueueing new attestation nonce", "nonce", nonce)
-			queue <- uint64(nonce)
+			select {
+			case <-signalChan:
+				return nil
+			case queue <- uint64(nonce):
+			}
 		}
 	}
 }
 
-func (orch Orchestrator) enqueueMissingEvents(queue chan<- uint64) {
-	latestNonce, err := orch.querier.QueryLatestAttestationNonce(orch.ctx)
+func (orch Orchestrator) enqueueMissingEvents(ctx context.Context, queue chan<- uint64, signalChan <-chan struct{}) error {
+	latestNonce, err := orch.querier.QueryLatestAttestationNonce(ctx)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	lastUnbondingHeight, err := orch.querier.QueryLastUnbondingHeight(orch.ctx)
+	lastUnbondingHeight, err := orch.querier.QueryLastUnbondingHeight(ctx)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	orch.logger.Info("syncing missing nonces", "latest_nonce", latestNonce, "last_unbonding_height", lastUnbondingHeight)
-	defer orch.logger.Info("finished syncing missing nonces", "latest_nonce", latestNonce, "last_unbonding_height", lastUnbondingHeight)
 
 	for i := lastUnbondingHeight; i < latestNonce; i++ {
-		orch.logger.Debug("enqueueing missing attestation nonce", "nonce", latestNonce-i)
-		queue <- latestNonce - i
+		select {
+		case <-signalChan:
+			return nil
+		case <-ctx.Done():
+			return nil
+		default:
+			orch.logger.Debug("enqueueing missing attestation nonce", "nonce", latestNonce-i)
+			select {
+			case <-signalChan:
+				return nil
+			case queue <- latestNonce - i:
+			}
+		}
 	}
+	orch.logger.Info("finished syncing missing nonces", "latest_nonce", latestNonce, "last_unbonding_height", lastUnbondingHeight)
+	return nil
 }
 
-func (orch Orchestrator) processNonces(noncesQueue <-chan uint64) {
-	for i := range noncesQueue {
-		orch.logger.Debug("processing nonce", "nonce", i)
-		if err := orch.Process(i); err != nil {
-			orch.logger.Error("failed to process nonce, retrying...", "nonce", i, "err", err)
-			go orch.retrier.RetryThenFail(i, orch.Process)
+func (orch Orchestrator) processNonces(ctx context.Context, noncesQueue <-chan uint64, signalChan chan<- struct{}) error {
+	for {
+		select {
+		case <-ctx.Done():
+			close(signalChan)
+			return nil
+		case nonce := <-noncesQueue:
+			orch.logger.Debug("processing nonce", "nonce", nonce)
+			if err := orch.Process(ctx, nonce); err != nil {
+				orch.logger.Error("failed to process nonce, retrying...", "nonce", nonce, "err", err)
+				if err := orch.retrier.Retry(nonce, ctx, orch.Process); err != nil {
+					close(signalChan)
+					return err
+				}
+			}
 		}
 	}
 }
 
-func (orch Orchestrator) Process(nonce uint64) error {
-	att, err := orch.querier.QueryAttestationByNonce(orch.ctx, nonce)
+func (orch Orchestrator) Process(ctx context.Context, nonce uint64) error {
+	att, err := orch.querier.QueryAttestationByNonce(ctx, nonce)
 	if err != nil {
 		return err
 	}
@@ -144,7 +210,7 @@ func (orch Orchestrator) Process(nonce uint64) error {
 		if !ok {
 			return errors.Wrap(types.ErrAttestationNotValsetRequest, strconv.FormatUint(nonce, 10))
 		}
-		resp, err := orch.querier.QueryValsetConfirm(orch.ctx, nonce, orch.signer.GetSignerInfo().GetAddress().String())
+		resp, err := orch.querier.QueryValsetConfirm(ctx, nonce, orch.signer.GetSignerInfo().GetAddress().String())
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("valset %d", nonce))
 		}
@@ -152,18 +218,18 @@ func (orch Orchestrator) Process(nonce uint64) error {
 			orch.logger.Debug("already signed valset", "nonce", nonce, "signature", resp.Signature)
 			return nil
 		}
-		err = orch.processValsetEvent(orch.ctx, *vs)
+		err = orch.processValsetEvent(ctx, *vs)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("valset %d", nonce))
 		}
-
 		return nil
+
 	case types.DataCommitmentRequestType:
 		dc, ok := att.(*types.DataCommitment)
 		if !ok {
 			return errors.Wrap(types.ErrAttestationNotDataCommitmentRequest, strconv.FormatUint(nonce, 10))
 		}
-		resp, err := orch.querier.QueryDataCommitmentConfirm(orch.ctx, dc.EndBlock, dc.BeginBlock, orch.signer.GetSignerInfo().GetAddress().String())
+		resp, err := orch.querier.QueryDataCommitmentConfirm(ctx, dc.EndBlock, dc.BeginBlock, orch.signer.GetSignerInfo().GetAddress().String())
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("data commitment %d", nonce))
 		}
@@ -171,11 +237,12 @@ func (orch Orchestrator) Process(nonce uint64) error {
 			orch.logger.Debug("already signed data commitment", "nonce", nonce, "begin_block", resp.BeginBlock, "end_block", resp.EndBlock, "commitment", resp.Commitment, "signature", resp.Signature)
 			return nil
 		}
-		err = orch.processDataCommitmentEvent(orch.ctx, *dc)
+		err = orch.processDataCommitmentEvent(ctx, *dc)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("data commitment %d", nonce))
 		}
 		return nil
+
 	default:
 		return errors.Wrap(ErrUnknownAttestationType, strconv.FormatUint(nonce, 10))
 	}
@@ -319,28 +386,33 @@ func NewRetrier(logger tmlog.Logger, retriesNumber int) *retrier {
 }
 
 type Retrier interface {
-	Retry(nonce uint64, retryMethod func(uint642 uint64) error) error
-	RetryThenFail(nonce uint64, retryMethod func(uint642 uint64) error)
+	Retry(nonce uint64, ctx context.Context, retryMethod func(context.Context, uint64) error) error
+	RetryThenFail(nonce uint64, ctx context.Context, retryMethod func(context.Context, uint64) error)
 }
 
-func (r retrier) Retry(nonce uint64, retryMethod func(uint64) error) error {
+func (r retrier) Retry(nonce uint64, ctx context.Context, retryMethod func(context.Context, uint64) error) error {
 	var err error
 	for i := 0; i <= r.retriesNumber; i++ {
 		// We can implement some exponential backoff in here
-		time.Sleep(10 * time.Second)
-		r.logger.Info("retrying", "nonce", nonce, "retry_number", i, "retries_left", r.retriesNumber-i)
-		err = retryMethod(nonce)
-		if err == nil {
-			r.logger.Info("nonce processing succeeded", "nonce", nonce, "retries_number", i)
+		select {
+		case <-ctx.Done():
 			return nil
+		default:
+			time.Sleep(10 * time.Second)
+			r.logger.Info("retrying", "nonce", nonce, "retry_number", i, "retries_left", r.retriesNumber-i)
+			err = retryMethod(ctx, nonce)
+			if err == nil {
+				r.logger.Info("nonce processing succeeded", "nonce", nonce, "retries_number", i)
+				return nil
+			}
+			r.logger.Error("failed to process nonce", "nonce", nonce, "retry", i, "err", err)
 		}
-		r.logger.Error("failed to process nonce", "nonce", nonce, "retry", i, "err", err)
 	}
 	return err
 }
 
-func (r retrier) RetryThenFail(nonce uint64, retryMethod func(uint64) error) {
-	err := r.Retry(nonce, retryMethod)
+func (r retrier) RetryThenFail(nonce uint64, ctx context.Context, retryMethod func(context.Context, uint64) error) {
+	err := r.Retry(nonce, ctx, retryMethod)
 	if err != nil {
 		panic(err)
 	}
