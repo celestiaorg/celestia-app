@@ -64,16 +64,17 @@ func StartOrchestrator(ctx context.Context, config orchestratorConfig) error {
 		panic(err)
 	}
 
+	retrier := NewRetrier(logger, 5)
 	noncesQueue := make(chan uint64, 100)
 	orch := NewOrchestrator(
 		ctx,
 		logger,
 		querier,
 		broadcaster,
+		retrier,
 		signer,
 		*config.privateKey,
 		noncesQueue,
-		5,
 	)
 
 	logger.Debug("starting orchestrator")
@@ -119,11 +120,13 @@ func startNewEventsListener(ctx context.Context, queue chan<- uint64, logger tml
 				// we only want to handle the attestation when the block is committed
 				continue
 			}
+
 			attestationEvent := mustGetEvent(result, attestationEventName)
 			nonce, err := strconv.Atoi(attestationEvent[0])
 			if err != nil {
 				panic(err)
 			}
+
 			logger.Debug("enqueueing new attestation nonce", "nonce", nonce)
 			queue <- uint64(nonce)
 		}
@@ -135,13 +138,15 @@ func enqueueMissingEvents(ctx context.Context, queue chan uint64, logger tmlog.L
 	if err != nil {
 		panic(err)
 	}
+
 	lastUnbondingHeight, err := querier.QueryLastUnbondingHeight(ctx)
 	if err != nil {
 		panic(err)
 	}
+
 	logger.Info("syncing missing nonces", "latest_nonce", latestNonce, "last_unbonding_height", lastUnbondingHeight)
 	defer logger.Info("finished syncing missing nonces", "latest_nonce", latestNonce, "last_unbonding_height", lastUnbondingHeight)
-	// TODO make sure the latestNonce+1 was enqueied in the new events listener
+
 	for i := lastUnbondingHeight; i < latestNonce; i++ {
 		logger.Debug("enqueueing missing attestation nonce", "nonce", latestNonce-i)
 		queue <- latestNonce - i

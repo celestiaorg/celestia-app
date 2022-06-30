@@ -29,10 +29,10 @@ type Orchestrator struct {
 
 	orchEthAddress stakingtypes.EthAddress
 	noncesQueue    <-chan uint64
-	retriesNumber  int
 
 	querier     Querier
 	broadcaster Broadcaster
+	retrier     Retrier
 }
 
 func NewOrchestrator(
@@ -40,10 +40,10 @@ func NewOrchestrator(
 	logger tmlog.Logger,
 	querier Querier,
 	broadcaster Broadcaster,
+	retrier Retrier,
 	signer *paytypes.KeyringSigner,
 	evmPrivateKey ecdsa.PrivateKey,
 	noncesQueue <-chan uint64,
-	retriesNumber int,
 ) *Orchestrator {
 	orchEthAddr, err := stakingtypes.NewEthAddress(crypto.PubkeyToAddress(evmPrivateKey.PublicKey).Hex())
 	if err != nil {
@@ -58,8 +58,8 @@ func NewOrchestrator(
 		orchEthAddress: *orchEthAddr,
 		querier:        querier,
 		noncesQueue:    noncesQueue,
-		retriesNumber:  retriesNumber,
 		broadcaster:    broadcaster,
+		retrier:        retrier,
 	}
 }
 
@@ -68,27 +68,9 @@ func (orch Orchestrator) Start() {
 		orch.logger.Debug("processing nonce", "nonce", i)
 		if err := orch.Process(i); err != nil {
 			orch.logger.Error("failed to process nonce, retrying...", "nonce", i, "err", err)
-			if orch.Retry(i) != nil {
-				panic(err)
-			}
+			go orch.retrier.RetryThenFail(i, orch.Process)
 		}
 	}
-}
-
-func (orch Orchestrator) Retry(nonce uint64) error {
-	var err error
-	for i := 0; i <= orch.retriesNumber; i++ {
-		// We can implement some exponential backoff in here
-		time.Sleep(10 * time.Second)
-		orch.logger.Info("retrying", "nonce", nonce, "retry_number", i, "retries_left", orch.retriesNumber-i)
-		err = orch.Process(nonce)
-		if err == nil {
-			orch.logger.Info("nonce processing succeeded", "nonce", nonce, "retries_number", i)
-			return nil
-		}
-		orch.logger.Error("failed to process nonce", "nonce", nonce, "retry", i, "err", err)
-	}
-	return err
 }
 
 func (orch Orchestrator) Process(nonce uint64) error {
@@ -102,6 +84,7 @@ func (orch Orchestrator) Process(nonce uint64) error {
 		if !ok {
 			return errors.Wrap(types.ErrAttestationNotValsetRequest, strconv.FormatUint(nonce, 10))
 		}
+
 		resp, err := orch.querier.QueryValsetConfirm(orch.ctx, nonce, orch.signer.GetSignerInfo().GetAddress().String())
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("valset %d", nonce))
@@ -110,16 +93,19 @@ func (orch Orchestrator) Process(nonce uint64) error {
 			orch.logger.Debug("already signed valset", "nonce", nonce, "signature", resp.Signature)
 			return nil
 		}
+
 		err = orch.processValsetEvent(orch.ctx, *vs)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("valset %d", nonce))
 		}
+
 		return nil
 	case types.DataCommitmentRequestType:
 		dc, ok := att.(*types.DataCommitment)
 		if !ok {
 			return errors.Wrap(types.ErrAttestationNotDataCommitmentRequest, strconv.FormatUint(nonce, 10))
 		}
+
 		resp, err := orch.querier.QueryDataCommitmentConfirm(orch.ctx, dc.EndBlock, dc.BeginBlock, orch.signer.GetSignerInfo().GetAddress().String())
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("data commitment %d", nonce))
@@ -128,10 +114,12 @@ func (orch Orchestrator) Process(nonce uint64) error {
 			orch.logger.Debug("already signed data commitment", "nonce", nonce, "begin_block", resp.BeginBlock, "end_block", resp.EndBlock, "commitment", resp.Commitment, "signature", resp.Signature)
 			return nil
 		}
+
 		err = orch.processDataCommitmentEvent(orch.ctx, *dc)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("data commitment %d", nonce))
 		}
+
 		return nil
 	default:
 		return errors.Wrap(ErrUnknownAttestationType, strconv.FormatUint(nonce, 10))
@@ -179,6 +167,7 @@ func (orch Orchestrator) processDataCommitmentEvent(
 	if err != nil {
 		return err
 	}
+
 	dataRootHash := types.DataCommitmentTupleRootSignBytes(types.BridgeId, big.NewInt(int64(dc.Nonce)), commitment)
 	dcSig, err := types.NewEthereumSignature(dataRootHash.Bytes(), &orch.evmPrivateKey)
 	if err != nil {
@@ -220,6 +209,7 @@ func NewBroadcaster(qgbGrpcAddr string, signer *paytypes.KeyringSigner) (Broadca
 	if err != nil {
 		return nil, err
 	}
+
 	return &broadcaster{
 		mutex:   &sync.Mutex{}, // investigate if this is needed
 		signer:  signer,
@@ -261,4 +251,48 @@ func (bc *broadcaster) BroadcastTx(ctx context.Context, msg sdk.Msg) (string, er
 	}
 
 	return resp.TxResponse.TxHash, nil
+}
+
+var _ Retrier = &retrier{}
+
+type retrier struct {
+	logger        tmlog.Logger
+	retriesNumber int
+}
+
+func NewRetrier(logger tmlog.Logger, retriesNumber int) *retrier {
+	return &retrier{
+		logger:        logger,
+		retriesNumber: retriesNumber,
+	}
+}
+
+type Retrier interface {
+	Retry(nonce uint64, retryMethod func(uint642 uint64) error) error
+	RetryThenFail(nonce uint64, retryMethod func(uint642 uint64) error)
+}
+
+func (r retrier) Retry(nonce uint64, retryMethod func(uint64) error) error {
+	var err error
+	for i := 0; i <= r.retriesNumber; i++ {
+		// We can implement some exponential backoff in here
+		time.Sleep(10 * time.Second)
+		r.logger.Info("retrying", "nonce", nonce, "retry_number", i, "retries_left", r.retriesNumber-i)
+
+		err = retryMethod(nonce)
+		if err == nil {
+			r.logger.Info("nonce processing succeeded", "nonce", nonce, "retries_number", i)
+			return nil
+		}
+
+		r.logger.Error("failed to process nonce", "nonce", nonce, "retry", i, "err", err)
+	}
+	return err
+}
+
+func (r retrier) RetryThenFail(nonce uint64, retryMethod func(uint64) error) {
+	err := r.Retry(nonce, retryMethod)
+	if err != nil {
+		panic(err)
+	}
 }
