@@ -43,6 +43,10 @@ const (
 	evmRPCFlag        = "evm-rpc"
 
 	contractAddressFlag = "contract-address"
+
+	// orchestrator
+	signNewNonces = "sign-new-nonces"
+	signOldNonces = "sign-old-nonces"
 )
 
 func addOrchestratorFlags(cmd *cobra.Command) *cobra.Command {
@@ -63,7 +67,8 @@ func addOrchestratorFlags(cmd *cobra.Command) *cobra.Command {
 		"",
 		"Specify the ECDSA private key used to sign orchestrator commitments in hex",
 	)
-
+	cmd.Flags().BoolP(signNewNonces, "s", true, "listen for new attestations and sign them")
+	cmd.Flags().BoolP(signOldNonces, "o", true, "sign previous attestations")
 	return cmd
 }
 
@@ -71,6 +76,7 @@ type orchestratorConfig struct {
 	keyringBackend, keyringPath, keyringAccount string
 	celestiaChainID, celesGRPC, tendermintRPC   string
 	privateKey                                  *ecdsa.PrivateKey
+	signOldNonces, signNewNonces                bool
 }
 
 func parseOrchestratorFlags(cmd *cobra.Command) (orchestratorConfig, error) {
@@ -109,6 +115,14 @@ func parseOrchestratorFlags(cmd *cobra.Command) (orchestratorConfig, error) {
 	if err != nil {
 		return orchestratorConfig{}, err
 	}
+	signNewNonces, err := cmd.Flags().GetBool(signNewNonces)
+	if err != nil {
+		return orchestratorConfig{}, err
+	}
+	signOldNonces, err := cmd.Flags().GetBool(signOldNonces)
+	if err != nil {
+		return orchestratorConfig{}, err
+	}
 
 	return orchestratorConfig{
 		keyringBackend:  keyringBackend,
@@ -118,6 +132,8 @@ func parseOrchestratorFlags(cmd *cobra.Command) (orchestratorConfig, error) {
 		celestiaChainID: chainID,
 		celesGRPC:       celesGRPC,
 		tendermintRPC:   tendermintRPC,
+		signOldNonces:   signOldNonces,
+		signNewNonces:   signNewNonces,
 	}, nil
 }
 
