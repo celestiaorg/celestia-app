@@ -230,7 +230,7 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 		0,
 		CORE2ACCOUNTADDRESS,
 	)
-	// assert the confirm exist
+	// check the confirm exist
 	require.NoError(t, err)
 	require.NotNil(t, core2DataCommitmentConfirm)
 	// assert that it carries the right eth address
