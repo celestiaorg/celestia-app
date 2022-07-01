@@ -59,11 +59,10 @@ func NewOrchestrator(
 }
 
 func (orch Orchestrator) Start(ctx context.Context) {
-	// this channel will contain the nonces that will be signed by the orchestrator.
+	// contains the nonces that will be signed by the orchestrator.
 	noncesQueue := make(chan uint64, 100)
 
-	// this channel will be used to send a signal when the nonces processor
-	// wants to notify the nonces enqueuing services to stop.
+	// used to send a signal when the nonces processor wants to notify the nonces enqueuing services to stop.
 	signalChan := make(chan struct{})
 	defer close(noncesQueue)
 
@@ -358,6 +357,11 @@ func (bc *broadcaster) BroadcastTx(ctx context.Context, msg sdk.Msg) (string, er
 		return "", err
 	}
 
+	// FIXME sdktypestx.BroadcastMode_BROADCAST_MODE_BLOCK waits for a block to be minted containing
+	// the transaction to continue. This makes the orchestrator slow to catchup.
+	// It would be better to just send the transaction. Then, another job would keep an eye
+	// if the transaction was included. If not, retry it. But this would mean we should increment ourselves
+	// the sequence number after each broadcasted transaction.
 	// TODO  check if we can move this outside of the paytypes
 	resp, err := paytypes.BroadcastTx(ctx, bc.qgbGrpc, sdktypestx.BroadcastMode_BROADCAST_MODE_BLOCK, rawTx)
 	if err != nil {
