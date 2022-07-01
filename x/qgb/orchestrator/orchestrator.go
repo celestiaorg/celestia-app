@@ -362,6 +362,9 @@ func (bc *broadcaster) BroadcastTx(ctx context.Context, msg sdk.Msg) (string, er
 	// It would be better to just send the transaction. Then, another job would keep an eye
 	// if the transaction was included. If not, retry it. But this would mean we should increment ourselves
 	// the sequence number after each broadcasted transaction.
+	// We can also use BroadcastMode_BROADCAST_MODE_SYNC but it will also fail due to a non incremented
+	// sequence number.
+
 	// TODO  check if we can move this outside of the paytypes
 	resp, err := paytypes.BroadcastTx(ctx, bc.qgbGrpc, sdktypestx.BroadcastMode_BROADCAST_MODE_BLOCK, rawTx)
 	if err != nil {
