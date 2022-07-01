@@ -188,7 +188,7 @@ func (orch Orchestrator) processNonces(ctx context.Context, noncesQueue <-chan u
 		case nonce := <-noncesQueue:
 			orch.logger.Debug("processing nonce", "nonce", nonce)
 			if err := orch.Process(ctx, nonce); err != nil {
-				orch.logger.Error("failed to process nonce, retrying...", "nonce", nonce, "err", err)
+				orch.logger.Error("failed to process nonce, retrying", "nonce", nonce, "err", err)
 				if err := orch.retrier.Retry(nonce, ctx, orch.Process); err != nil {
 					close(signalChan)
 					return err
