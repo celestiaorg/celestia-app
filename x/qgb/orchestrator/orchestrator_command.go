@@ -86,7 +86,7 @@ func trapSignal(logger tmlog.Logger, cancel context.CancelFunc) {
 
 	go func() {
 		sig := <-sigCh
-		logger.Info("caught signal; shutting down", "signal", sig.String())
+		logger.Info("caught signal; shutting down...", "signal", sig.String())
 		cancel()
 	}()
 }
