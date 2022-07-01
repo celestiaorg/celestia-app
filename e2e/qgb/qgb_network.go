@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
@@ -68,7 +69,7 @@ func registerGracefulExit(cancel context.CancelFunc, network *QGBNetwork) {
 	}()
 }
 
-// forceExitIfNeeded forces stopping the network is SIGINT is sent a second time
+// forceExitIfNeeded forces stopping the network is SIGINT is sent a second time.
 func forceExitIfNeeded(exitCode int) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -244,7 +245,7 @@ func (network QGBNetwork) StopMultiple(services ...Service) error {
 	return nil
 }
 
-// TODO investigate the change on the Dockerfile from entrypoint to command
+// TODO investigate the change on the Dockerfile from entrypoint to command.
 func (network QGBNetwork) ExecCommand(service Service, command []string) error {
 	serviceName, err := service.toString()
 	if err != nil {
@@ -260,7 +261,7 @@ func (network QGBNetwork) ExecCommand(service Service, command []string) error {
 }
 
 // StartMinimal starts a network containing: 1 validator, 1 orchestrator, 1 relayer
-// and a ganache instance
+// and a ganache instance.
 func (network QGBNetwork) StartMinimal() error {
 	fmt.Println("building images...")
 	err := network.Instance.
@@ -303,7 +304,7 @@ func (network QGBNetwork) WaitForNodeToStart(_ctx context.Context, rpcAddr strin
 	for {
 		select {
 		case <-ctx.Done():
-			if ctx.Err() == context.DeadlineExceeded {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				return fmt.Errorf("node %s not initialized in time", rpcAddr)
 			}
 			return ctx.Err()
@@ -344,7 +345,7 @@ func (network QGBNetwork) WaitForBlockWithCustomTimeout(
 	for {
 		select {
 		case <-ctx.Done():
-			if ctx.Err() == context.DeadlineExceeded {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				return fmt.Errorf("chain didn't reach height in time")
 			}
 			return ctx.Err()
@@ -374,7 +375,7 @@ func (network QGBNetwork) WaitForOrchestratorToStart(_ctx context.Context, accou
 	for {
 		select {
 		case <-ctx.Done():
-			if ctx.Err() == context.DeadlineExceeded {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				return fmt.Errorf("orchestrator didn't start correctly")
 			}
 			return ctx.Err()
@@ -406,7 +407,7 @@ func (network QGBNetwork) GetLatestDeployedQGBContractWithCustomTimeout(
 	for {
 		select {
 		case <-ctx.Done():
-			if ctx.Err() == context.DeadlineExceeded {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				return nil, fmt.Errorf("timeout. couldn't find deployed qgb contract")
 			}
 			return nil, ctx.Err()
@@ -447,7 +448,7 @@ func (network QGBNetwork) WaitForRelayerToStart(_ctx context.Context, bridge *wr
 	for {
 		select {
 		case <-ctx.Done():
-			if ctx.Err() == context.DeadlineExceeded {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				return fmt.Errorf("relayer didn't start correctly")
 			}
 			return ctx.Err()
