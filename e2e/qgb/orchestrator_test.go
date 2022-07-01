@@ -238,7 +238,7 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 
 	// check core3 submited the valset confirm
 	core3ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE3ACCOUNTADDRESS)
-	// assert the confirm exist
+	// check the confirm exist
 	require.NoError(t, err)
 	require.NotNil(t, core3ValsetConfirm)
 	// assert that it carries the right eth address
