@@ -120,8 +120,8 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 	// check core1 submited the valset confirm
 	core1ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE1ACCOUNTADDRESS)
 	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, core1ValsetConfirm)
+	require.NoError(t, err)
+	require.NotNil(t, core1ValsetConfirm)
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE1EVMADDRESS, core1ValsetConfirm.EthAddress)
 
@@ -133,8 +133,8 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 		CORE1ACCOUNTADDRESS,
 	)
 	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, core1DataCommitmentConfirm)
+	require.NoError(t, err)
+	require.NotNil(t, core1DataCommitmentConfirm)
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE1EVMADDRESS, core1DataCommitmentConfirm.EthAddress)
 }
@@ -176,8 +176,8 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	// check core0 submited the valset confirm
 	core0ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, core0ValsetConfirm)
+	require.NoError(t, err)
+	require.NotNil(t, core0ValsetConfirm)
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE0EVMADDRESS, core0ValsetConfirm.EthAddress)
 
@@ -189,16 +189,16 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 		CORE0ACCOUNTADDRESS,
 	)
 	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, core0DataCommitmentConfirm)
+	require.NoError(t, err)
+	require.NotNil(t, core0DataCommitmentConfirm)
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE0EVMADDRESS, core0DataCommitmentConfirm.EthAddress)
 
 	// check core1 submited the valset confirm
 	core1ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE1ACCOUNTADDRESS)
 	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, core1ValsetConfirm)
+	require.NoError(t, err)
+	require.NotNil(t, core1ValsetConfirm)
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE1EVMADDRESS, core1ValsetConfirm.EthAddress)
 
@@ -210,16 +210,16 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 		CORE1ACCOUNTADDRESS,
 	)
 	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, core1DataCommitmentConfirm)
+	require.NoError(t, err)
+	require.NotNil(t, core1DataCommitmentConfirm)
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE1EVMADDRESS, core1DataCommitmentConfirm.EthAddress)
 
 	// check core2 submited the valset confirm
 	core2ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE2ACCOUNTADDRESS)
 	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, core2ValsetConfirm)
+	require.NoError(t, err)
+	require.NotNil(t, core2ValsetConfirm)
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE2EVMADDRESS, core2ValsetConfirm.EthAddress)
 
@@ -231,17 +231,16 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 		CORE2ACCOUNTADDRESS,
 	)
 	// assert the confirm exist
-	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, core2DataCommitmentConfirm)
+	require.NoError(t, err)
+	require.NotNil(t, core2DataCommitmentConfirm)
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE2EVMADDRESS, core2DataCommitmentConfirm.EthAddress)
 
 	// check core3 submited the valset confirm
 	core3ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE3ACCOUNTADDRESS)
 	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, core3ValsetConfirm)
+	require.NoError(t, err)
+	require.NotNil(t, core3ValsetConfirm)
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE3EVMADDRESS, core3ValsetConfirm.EthAddress)
 
@@ -253,8 +252,8 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 		CORE3ACCOUNTADDRESS,
 	)
 	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, core3DataCommitmentConfirm)
+	require.NoError(t, err)
+	require.NotNil(t, core3DataCommitmentConfirm)
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE3EVMADDRESS, core3DataCommitmentConfirm.EthAddress)
 }
