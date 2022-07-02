@@ -61,61 +61,57 @@ func NewOrchestrator(
 func (orch Orchestrator) Start(ctx context.Context) {
 	// contains the nonces that will be signed by the orchestrator.
 	noncesQueue := make(chan uint64, 100)
+	defer close(noncesQueue)
 
 	// used to send a signal when the nonces processor wants to notify the nonces enqueuing services to stop.
 	signalChan := make(chan struct{})
-	defer close(noncesQueue)
 
 	withCancel, cancel := context.WithCancel(ctx)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		err := orch.enqueueMissingEvents(withCancel, noncesQueue, signalChan)
 		if err != nil {
 			orch.logger.Error("error enqueing missing attestations", "err", err)
 			cancel()
 		}
 		orch.logger.Error("stopping enqueing missing attestations")
-		wg.Done()
 	}()
 
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		err := orch.startNewEventsListener(withCancel, noncesQueue, signalChan)
 		if err != nil {
 			orch.logger.Error("error listening to new attestations", "err", err)
 			cancel()
 		}
 		orch.logger.Error("stopping listening to new attestations")
-		wg.Done()
 	}()
 
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		err := orch.processNonces(withCancel, noncesQueue, signalChan)
 		if err != nil {
 			orch.logger.Error("error processing attestations", "err", err)
 			cancel()
 		}
 		orch.logger.Error("stopping processing attestations")
-		wg.Done()
 	}()
 
 	// FIXME should we add  another go routine that keep checking if all the attestations
 	// were signed every 10min for example?
 
-	select {
-	case <-withCancel.Done():
-		wg.Wait()
-		return
-	}
+	wg.Wait()
 }
 
 func (orch Orchestrator) startNewEventsListener(ctx context.Context, queue chan<- uint64, signalChan <-chan struct{}) error {
 	results, err := orch.querier.SubscribeEvents(ctx, "attestation-changes", fmt.Sprintf("%s.%s='%s'", types.EventTypeAttestationRequest, sdk.AttributeKeyModule, types.ModuleName))
 	if err != nil {
-		panic(err)
+		return err
 	}
 	attestationEventName := fmt.Sprintf("%s.%s", types.EventTypeAttestationRequest, types.AttributeKeyNonce)
 	orch.logger.Info("listening for new block events...")

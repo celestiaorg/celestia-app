@@ -22,71 +22,65 @@ func OrchestratorCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			logger := tmlog.NewTMLogger(os.Stdout)
 
-			ctx := cmd.Context()
-			return StartOrchestrator(ctx, config)
+			logger.Debug("initializing orchestrator")
+
+			ctx, cancel := context.WithCancel(cmd.Context())
+
+			querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger, MakeEncodingConfig())
+			if err != nil {
+				panic(err)
+			}
+
+			// creates the signer
+			//TODO: optionally ask for input for a password
+			ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringPath, strings.NewReader(""))
+			if err != nil {
+				panic(err)
+			}
+			signer := paytypes.NewKeyringSigner(
+				ring,
+				config.keyringAccount,
+				config.celestiaChainID,
+			)
+
+			broadcaster, err := NewBroadcaster(config.celesGRPC, signer)
+			if err != nil {
+				panic(err)
+			}
+
+			retrier := NewRetrier(logger, 5)
+			orch := NewOrchestrator(
+				logger,
+				querier,
+				broadcaster,
+				retrier,
+				signer,
+				*config.privateKey,
+			)
+
+			logger.Debug("starting orchestrator")
+
+			// Listen for and trap any OS signal to gracefully shutdown and exit
+			go trapSignal(logger, cancel)
+
+			orch.Start(ctx)
+
+			return nil
 		},
 	}
 	return addOrchestratorFlags(command)
 }
 
-func StartOrchestrator(ctx context.Context, config orchestratorConfig) error {
-	ctx, cancel := context.WithCancel(ctx)
-	logger := tmlog.NewTMLogger(os.Stdout)
-
-	querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger, MakeEncodingConfig())
-	if err != nil {
-		panic(err)
-	}
-
-	// creates the signer
-	//TODO: optionally ask for input for a password
-	ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringPath, strings.NewReader(""))
-	if err != nil {
-		panic(err)
-	}
-	signer := paytypes.NewKeyringSigner(
-		ring,
-		config.keyringAccount,
-		config.celestiaChainID,
-	)
-
-	broadcaster, err := NewBroadcaster(config.celesGRPC, signer)
-	if err != nil {
-		panic(err)
-	}
-
-	retrier := NewRetrier(logger, 5)
-	orch := NewOrchestrator(
-		logger,
-		querier,
-		broadcaster,
-		retrier,
-		signer,
-		*config.privateKey,
-	)
-
-	logger.Debug("starting orchestrator")
-
-	// Listen for and trap any OS signal to gracefully shutdown and exit
-	trapSignal(logger, cancel)
-
-	orch.Start(ctx)
-
-	return nil
-}
-
-// trapSignal will listen for any OS signal and invoke Done on the main
-// WaitGroup allowing the main process to gracefully exit.
+// trapSignal will listen for any OS signal and gracefully exit.
 func trapSignal(logger tmlog.Logger, cancel context.CancelFunc) {
 	var sigCh = make(chan os.Signal)
 
 	signal.Notify(sigCh, syscall.SIGTERM)
 	signal.Notify(sigCh, syscall.SIGINT)
 
-	go func() {
-		sig := <-sigCh
-		logger.Info("caught signal; shutting down...", "signal", sig.String())
-		cancel()
-	}()
+	sig := <-sigCh
+	logger.Info("caught signal; shutting down...", "signal", sig.String())
+	cancel()
 }
