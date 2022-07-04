@@ -33,7 +33,7 @@ func OrchestratorCmd() *cobra.Command {
 				panic(err)
 			}
 
-			// creates the signer
+			// creates the Signer
 			//TODO: optionally ask for input for a password
 			ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringPath, strings.NewReader(""))
 			if err != nil {
