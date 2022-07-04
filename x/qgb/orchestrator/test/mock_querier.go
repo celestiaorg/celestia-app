@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/tendermint/tendermint/libs/bytes"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"time"
@@ -125,9 +124,5 @@ func (q mockQuerier) QueryCommitment(ctx context.Context, query string) (bytes.H
 }
 
 func (q mockQuerier) SubscribeEvents(ctx context.Context, subscriptionName string, eventName string) (<-chan coretypes.ResultEvent, error) {
-	return nil, nil
-}
-
-func (q *mockQuerier) unmarshallAttestation(attestation *cdctypes.Any) (types.AttestationRequestI, error) {
 	return nil, nil
 }

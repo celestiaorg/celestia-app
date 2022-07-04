@@ -75,7 +75,7 @@ func OrchestratorCmd() *cobra.Command {
 
 // trapSignal will listen for any OS signal and gracefully exit.
 func trapSignal(logger tmlog.Logger, cancel context.CancelFunc) {
-	var sigCh = make(chan os.Signal)
+	var sigCh = make(chan os.Signal, 1)
 
 	signal.Notify(sigCh, syscall.SIGTERM)
 	signal.Notify(sigCh, syscall.SIGINT)
