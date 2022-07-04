@@ -3,6 +3,8 @@ package keeper_test
 import (
 	"bytes"
 	"fmt"
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -10,7 +12,6 @@ import (
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestQueryDataCommitment(t *testing.T) {

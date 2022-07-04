@@ -4,11 +4,12 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
+	"math/big"
+
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	coregethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	tmlog "github.com/tendermint/tendermint/libs/log"
-	"math/big"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"

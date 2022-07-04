@@ -3,11 +3,12 @@ package types_test
 import (
 	"bytes"
 	"fmt"
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestValidateMsgDataCommitmentConfirm(t *testing.T) {

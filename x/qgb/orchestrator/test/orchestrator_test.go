@@ -2,9 +2,10 @@ package test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestOrchestratorProcessValset(t *testing.T) {

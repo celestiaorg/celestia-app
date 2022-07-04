@@ -1,13 +1,14 @@
 package qgb_test
 
 import (
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/x/qgb"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestAttestationCreationWhenStartingTheChain(t *testing.T) {

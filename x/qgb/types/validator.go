@@ -1,9 +1,10 @@
 package types
 
 import (
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	math "math"
 	"sort"
+
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )

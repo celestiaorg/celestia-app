@@ -1,8 +1,9 @@
 package e2e
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const TRUE = "true"

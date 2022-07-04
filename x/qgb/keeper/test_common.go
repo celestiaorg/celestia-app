@@ -2,6 +2,9 @@ package keeper
 
 import (
 	"bytes"
+	"testing"
+	"time"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -46,8 +49,6 @@ import (
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 
 	// TODO add payment module
-	"testing"
-	"time"
 
 	dbm "github.com/tendermint/tm-db"
 )
@@ -379,7 +380,7 @@ func CreateTestEnv(t *testing.T) TestInput {
 
 // MakeTestCodec creates a legacy amino codec for testing
 func MakeTestCodec() *codec.LegacyAmino {
-	var cdc = codec.NewLegacyAmino()
+	cdc := codec.NewLegacyAmino()
 	auth.AppModuleBasic{}.RegisterLegacyAminoCodec(cdc)
 	bank.AppModuleBasic{}.RegisterLegacyAminoCodec(cdc)
 	staking.AppModuleBasic{}.RegisterLegacyAminoCodec(cdc)

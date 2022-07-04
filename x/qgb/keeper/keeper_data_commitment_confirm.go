@@ -1,9 +1,10 @@
 package keeper
 
 import (
+	"strconv"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"strconv"
 )
 
 // TODO add unit tests for all the keepers

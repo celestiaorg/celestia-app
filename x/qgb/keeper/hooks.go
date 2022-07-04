@@ -21,7 +21,6 @@ func (k Keeper) Hooks() Hooks {
 }
 
 func (h Hooks) AfterValidatorBeginUnbonding(ctx sdk.Context, _ sdk.ConsAddress, _ sdk.ValAddress) {
-
 	// When Validator starts Unbonding, Persist the block height in the store
 	// Later in endblocker, check if there is at least one validator who started unbonding and create a valset request.
 	// The reason for creating valset requests in endblock is to create only one valset request per block,
@@ -31,7 +30,6 @@ func (h Hooks) AfterValidatorBeginUnbonding(ctx sdk.Context, _ sdk.ConsAddress, 
 	// in the endblocker therefore we call the keeper function ourselves there.
 
 	h.k.SetLastUnBondingBlockHeight(ctx, uint64(ctx.BlockHeight()))
-
 }
 
 func (h Hooks) BeforeDelegationCreated(_ sdk.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress) {
@@ -45,5 +43,6 @@ func (h Hooks) AfterValidatorRemoved(ctx sdk.Context, _ sdk.ConsAddress, valAddr
 func (h Hooks) BeforeValidatorSlashed(ctx sdk.Context, valAddr sdk.ValAddress, fraction sdk.Dec) {}
 func (h Hooks) BeforeDelegationSharesModified(ctx sdk.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress) {
 }
+
 func (h Hooks) AfterDelegationModified(ctx sdk.Context, delAddr sdk.AccAddress, valAddr sdk.ValAddress) {
 }
