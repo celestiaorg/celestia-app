@@ -11,8 +11,8 @@ import (
 	"math/big"
 )
 
-func verifyOrchestratorValsetSignature(broadCasted sdk.Msg, valset *types.Valset) error {
-	msg := broadCasted.(*types.MsgValsetConfirm)
+func verifyOrchestratorValsetSignature(broadcasted sdk.Msg, valset *types.Valset) error {
+	msg := broadcasted.(*types.MsgValsetConfirm)
 	if msg == nil {
 		return errors.New("couldn't cast sdk.Msg to *types.MsgValsetConfirm")
 	}
@@ -70,8 +70,8 @@ func generateDc(nonce int) (types.DataCommitment, error) {
 	return dc, nil
 }
 
-func verifyOrchestratorDcSignature(broadCasted sdk.Msg, dc types.DataCommitment) error {
-	msg := broadCasted.(*types.MsgDataCommitmentConfirm)
+func verifyOrchestratorDcSignature(broadcasted sdk.Msg, dc types.DataCommitment) error {
+	msg := broadcasted.(*types.MsgDataCommitmentConfirm)
 	if msg == nil {
 		return errors.New("couldn't cast sdk.Msg to *types.MsgDataCommitmentConfirm")
 	}
