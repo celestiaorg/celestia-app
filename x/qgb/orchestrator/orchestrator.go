@@ -246,7 +246,7 @@ func (orch Orchestrator) Process(ctx context.Context, nonce uint64) error {
 	}
 	if !keeper.ValidatorPartOfValset(previousValset.Members, orch.OrchEthAddress.GetAddress()) {
 		// no need to sign if the orchestrator is not part of the validator set that needs to sign the attestation
-		orch.Logger.Debug("validator not part of valset. won't signing", "nonce", nonce)
+		orch.Logger.Debug("validator not part of valset. won't sign", "nonce", nonce)
 		return nil
 	}
 	switch att.Type() {
