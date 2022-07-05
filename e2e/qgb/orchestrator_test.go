@@ -258,7 +258,7 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	assert.Equal(t, CORE0EVMADDRESS, vs1Core0Confirm.EthAddress)
 
 	// get the last valset where all validators were created
-	vs, err := network.GetValsetContainingVals(ctx, 4)
+	vs, err := network.GetValsetContainingVals(ctx, 2)
 	require.NoError(t, err)
 	require.NotNil(t, vs)
 
