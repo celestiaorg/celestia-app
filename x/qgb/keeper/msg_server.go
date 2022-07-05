@@ -30,17 +30,9 @@ func (k msgServer) ValsetConfirm(
 	ctx := sdk.UnwrapSDKContext(c)
 
 	// Get valset by nonce
-	at := k.GetAttestationByNonce(ctx, msg.Nonce)
-	if at == nil {
-		return nil, types.ErrAttestationNotFound
-	}
-	if at.Type() != types.ValsetRequestType {
-		return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "attestation is not a valset request")
-	}
-
-	valset, ok := at.(*types.Valset)
-	if !ok {
-		return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
+	valset, err := k.GetValsetByNonce(ctx, msg.Nonce)
+	if err != nil {
+		return nil, err
 	}
 
 	// Get orchestrator account from message
@@ -59,11 +51,18 @@ func (k msgServer) ValsetConfirm(
 	}
 
 	// Verify if validator is part of the previous valset
-	previousValset, err := k.GetLastValsetBeforeNonce(ctx, msg.Nonce)
-	if err != nil {
-		return nil, err
+	var previousValset *types.Valset
+	// TODO add test for case nonce == 1.
+	if msg.Nonce == 1 {
+		// if the msg.Nonce == 1, the current valset should sign the first valset
+		previousValset = valset
+	} else {
+		previousValset, err = k.GetLastValsetBeforeNonce(ctx, msg.Nonce)
+		if err != nil {
+			return nil, err
+		}
 	}
-	if !ValidatorPartOfValset(previousValset, validator) {
+	if !ValidatorPartOfValset(previousValset.Members, validator.EthAddress) {
 		return nil, sdkerrors.Wrap(
 			types.ErrValidatorNotInValset,
 			fmt.Sprintf("validator %s not part of valset %d", validator.Orchestrator, previousValset.Nonce),
@@ -154,14 +153,24 @@ func (k msgServer) DataCommitmentConfirm(
 	}
 
 	// Verify if validator is part of the previous valset
-	valset, err := k.GetLastValsetBeforeNonce(ctx, msg.Nonce)
-	if err != nil {
-		return nil, err
+	var previousValset *types.Valset
+	// TODO add test for case nonce == 1.
+	if msg.Nonce == 1 {
+		// if the msg.Nonce == 1, the current valset should sign the first valset
+		previousValset, err = k.GetValsetByNonce(ctx, msg.Nonce)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		previousValset, err = k.GetLastValsetBeforeNonce(ctx, msg.Nonce)
+		if err != nil {
+			return nil, err
+		}
 	}
-	if !ValidatorPartOfValset(valset, validator) {
+	if !ValidatorPartOfValset(previousValset.Members, validator.EthAddress) {
 		return nil, sdkerrors.Wrap(
 			types.ErrValidatorNotInValset,
-			fmt.Sprintf("validator %s not part of valset %d", validator.Orchestrator, valset.Nonce),
+			fmt.Sprintf("validator %s not part of valset %d", validator.Orchestrator, previousValset.Nonce),
 		)
 	}
 
@@ -203,9 +212,9 @@ func (k msgServer) DataCommitmentConfirm(
 	return &types.MsgDataCommitmentConfirmResponse{}, nil
 }
 
-func ValidatorPartOfValset(valset *types.Valset, validator stakingtypes.Validator) bool {
-	for _, val := range valset.Members {
-		if val.EthereumAddress == validator.EthAddress {
+func ValidatorPartOfValset(members []types.BridgeValidator, ethAddr string) bool {
+	for _, val := range members {
+		if val.EthereumAddress == ethAddr {
 			return true
 		}
 	}

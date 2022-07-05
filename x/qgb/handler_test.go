@@ -222,15 +222,23 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	// set a validator set in the store
+	vs, err := k.GetCurrentValset(ctx)
+	require.NoError(t, err)
+	vs.Height = uint64(1)
+	vs.Nonce = uint64(1)
+
+	err = k.SetAttestationRequest(ctx, &vs)
+	require.Nil(t, err)
+
 	h := qgb.NewHandler(*input.QgbKeeper)
-	ctx = ctx.WithBlockTime(blockTime)
 
 	commitment := "102030"
 	bytesCommitment, err := hex.DecodeString(commitment)
 	require.NoError(t, err)
 	dataHash := types.DataCommitmentTupleRootSignBytes(
 		types.BridgeId,
-		big.NewInt(10),
+		big.NewInt(2),
 		bytesCommitment,
 	)
 
@@ -246,7 +254,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		*orch1EthAddress,
 		1,
 		100,
-		10,
+		2,
 	)
 	result, err := h(ctx, setDCCMsg)
 	require.NoError(t, err)
