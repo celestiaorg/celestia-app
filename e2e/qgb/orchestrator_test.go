@@ -2,12 +2,14 @@ package e2e
 
 import (
 	"context"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os"
-	"testing"
 )
 
 func TestOrchestratorWithOneValidator(t *testing.T) {
@@ -245,6 +247,9 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	err = network.WaitForOrchestratorToStart(network.Context, CORE1ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
+	// give the orchestrators some time to catchup
+	time.Sleep(30 * time.Second)
+
 	// FIXME should we use the querier here or go for raw queries?
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
 	HandleNetworkError(t, network, err, false)
@@ -252,8 +257,8 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	// check core0 submitted valset 1 confirm
 	vs1Core0Confirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, vs1Core0Confirm)
+	require.NoError(t, err)
+	require.NotNil(t, vs1Core0Confirm)
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE0EVMADDRESS, vs1Core0Confirm.EthAddress)
 
@@ -271,15 +276,5 @@ func TestOrchestratorReplayOld(t *testing.T) {
 		core1Confirm, err := network.GetAttestationConfirm(ctx, i, CORE1ACCOUNTADDRESS)
 		require.NoError(t, err)
 		require.NotNil(t, core1Confirm)
-
-		// check core2 submited the attestation confirm
-		core2Confirm, err := network.GetAttestationConfirm(ctx, i, CORE2ACCOUNTADDRESS)
-		require.NoError(t, err)
-		require.NotNil(t, core2Confirm)
-
-		// check core3 submited the attestation confirm
-		core3Confirm, err := network.GetAttestationConfirm(ctx, i, CORE3ACCOUNTADDRESS)
-		require.NoError(t, err)
-		require.NotNil(t, core3Confirm)
 	}
 }
