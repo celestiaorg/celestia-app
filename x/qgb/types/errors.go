@@ -19,4 +19,6 @@ var (
 	ErrNilValsetRequest                    = sdkerrors.Register(ModuleName, 20, "valset cannot be nil when setting attestation")
 	ErrValidatorNotInValset                = sdkerrors.Register(ModuleName, 21, "validator signing is not in the valset")
 	ErrNilAttestation                      = sdkerrors.Register(ModuleName, 22, "nil attestation")
+	ErrAttestationNotCastToDataCommitment  = sdkerrors.Register(ModuleName, 23, "couldn't cast attestation to data commitment")
+	ErrDataCommitmentConfirmWrongRange     = sdkerrors.Register(ModuleName, 24, "the confirm range is different than the requested one")
 )

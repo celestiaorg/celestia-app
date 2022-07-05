@@ -126,6 +126,35 @@ func (k msgServer) DataCommitmentConfirm(
 	msg *types.MsgDataCommitmentConfirm,
 ) (*types.MsgDataCommitmentConfirmResponse, error) {
 	ctx := sdk.UnwrapSDKContext(c)
+
+	// Verify the attestation is a data commitment
+	at := k.GetAttestationByNonce(ctx, msg.Nonce)
+	if at == nil {
+		return nil, sdkerrors.Wrap(
+			types.ErrNilAttestation,
+			"confirm sent to a non existent attestation",
+		)
+	}
+	if at.Type() != types.DataCommitmentRequestType {
+		return nil, sdkerrors.Wrap(
+			types.ErrAttestationNotDataCommitmentRequest,
+			"confirm sent to an attestation that is not a data commitment request",
+		)
+	}
+
+	// Verify the range is correct
+	dcAt, ok := at.(*types.DataCommitment)
+	if !ok {
+		return nil, types.ErrAttestationNotCastToDataCommitment
+	}
+	if dcAt == nil {
+		return nil, types.ErrNilDataCommitmentRequest
+	}
+	if dcAt.BeginBlock != msg.BeginBlock || dcAt.EndBlock != msg.EndBlock {
+		return nil, types.ErrDataCommitmentConfirmWrongRange
+	}
+
+	// Decode the signature
 	sigBytes, err := hex.DecodeString(msg.Signature)
 	if err != nil {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "signature decoding")
