@@ -58,6 +58,18 @@ func (k msgServer) ValsetConfirm(
 		return nil, sdkerrors.Wrapf(err, "discovered invalid validator address for orchestrator %v", orchaddr)
 	}
 
+	// Verify if validator is part of the previous valset
+	previousValset, err := k.GetLastValsetBeforeNonce(ctx, msg.Nonce)
+	if err != nil {
+		return nil, err
+	}
+	if !ValidatorPartOfValset(previousValset, validator) {
+		return nil, sdkerrors.Wrap(
+			types.ErrValidatorNotInValset,
+			fmt.Sprintf("validator %s not part of valset %d", validator.Orchestrator, previousValset.Nonce),
+		)
+	}
+
 	// Verify ethereum address match
 	submittedEthAddress, err := stakingtypes.NewEthAddress(msg.EthAddress)
 	if err != nil {
@@ -141,6 +153,18 @@ func (k msgServer) DataCommitmentConfirm(
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
 	}
 
+	// Verify if validator is part of the previous valset
+	valset, err := k.GetLastValsetBeforeNonce(ctx, msg.Nonce)
+	if err != nil {
+		return nil, err
+	}
+	if !ValidatorPartOfValset(valset, validator) {
+		return nil, sdkerrors.Wrap(
+			types.ErrValidatorNotInValset,
+			fmt.Sprintf("validator %s not part of valset %d", validator.Orchestrator, valset.Nonce),
+		)
+	}
+
 	// Verify signature
 	commitment, err := hex.DecodeString(msg.Commitment)
 	if err != nil {
@@ -177,4 +201,13 @@ func (k msgServer) DataCommitmentConfirm(
 	)
 
 	return &types.MsgDataCommitmentConfirmResponse{}, nil
+}
+
+func ValidatorPartOfValset(valset *types.Valset, validator stakingtypes.Validator) bool {
+	for _, val := range valset.Members {
+		if val.EthereumAddress == validator.EthAddress {
+			return true
+		}
+	}
+	return false
 }
