@@ -38,6 +38,9 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
+	// give the orchestrators some time to catchup
+	time.Sleep(30 * time.Second)
+
 	// FIXME should we use the querier here or go for raw queries?
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
 	HandleNetworkError(t, network, err, false)
@@ -94,6 +97,9 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 
 	err = network.WaitForOrchestratorToStart(network.Context, CORE1ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
+
+	// give the orchestrators some time to catchup
+	time.Sleep(30 * time.Second)
 
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
 	HandleNetworkError(t, network, err, false)
@@ -160,6 +166,9 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 
 	err = network.WaitForOrchestratorToStart(network.Context, CORE3ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
+
+	// give the orchestrators some time to catchup
+	time.Sleep(30 * time.Second)
 
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
 	HandleNetworkError(t, network, err, false)

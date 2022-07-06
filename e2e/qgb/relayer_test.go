@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -79,6 +80,9 @@ func TestRelayerWithTwoValidators(t *testing.T) {
 	err = network.WaitForOrchestratorToStart(network.Context, CORE1ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
+	// give the orchestrators some time to catchup
+	time.Sleep(30 * time.Second)
+
 	bridge, err := network.GetLatestDeployedQGBContract(network.Context)
 	HandleNetworkError(t, network, err, false)
 
@@ -123,6 +127,9 @@ func TestRelayerWithMultipleValidators(t *testing.T) {
 
 	err = network.WaitForOrchestratorToStart(network.Context, CORE3ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
+
+	// give the orchestrators some time to catchup
+	time.Sleep(30 * time.Second)
 
 	// check whether the four validators are up and running
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
