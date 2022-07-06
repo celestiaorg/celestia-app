@@ -1,10 +1,11 @@
-package keeper
+package testutil
 
 import (
 	"bytes"
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -184,7 +185,7 @@ func initEthAddrs(count int) []stakingtypes.EthAddress {
 
 // TestInput stores the various keepers required to test gravity
 type TestInput struct {
-	QgbKeeper      *Keeper
+	QgbKeeper      *keeper.Keeper
 	AccountKeeper  authkeeper.AccountKeeper
 	StakingKeeper  stakingkeeper.Keeper
 	SlashingKeeper slashingkeeper.Keeper
@@ -350,7 +351,7 @@ func CreateTestEnv(t *testing.T) TestInput {
 		getSubspace(paramsKeeper, slashingtypes.ModuleName).WithKeyTable(slashingtypes.ParamKeyTable()),
 	)
 
-	k := NewKeeper(marshaler, qgbKey, getSubspace(paramsKeeper, types.DefaultParamspace), &stakingKeeper)
+	k := keeper.NewKeeper(marshaler, qgbKey, getSubspace(paramsKeeper, types.DefaultParamspace), &stakingKeeper)
 	testQGBParams := types.DefaultGenesis().Params
 	k.SetParams(ctx, *testQGBParams)
 
