@@ -113,7 +113,7 @@ func TestRelayerWithMultipleValidators(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(types.DataCommitmentWindow+5))
+	err = network.WaitForBlock(network.Context, int64(2*types.DataCommitmentWindow+5))
 	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
