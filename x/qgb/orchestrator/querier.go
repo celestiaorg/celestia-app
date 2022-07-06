@@ -204,7 +204,7 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 			)
 		}
 		// TODO: make the timeout configurable
-		time.Sleep(time.Second * 30)
+		time.Sleep(10 * time.Second)
 	}
 }
 
@@ -285,7 +285,7 @@ func (q *querier) QueryTwoThirdsValsetConfirms(
 			)
 		}
 		// TODO: make the timeout configurable
-		time.Sleep(time.Second * 30)
+		time.Sleep(10 * time.Second)
 	}
 }
 
