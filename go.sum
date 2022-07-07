@@ -1329,8 +1329,8 @@ github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5Cc
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/subosito/gotenv v1.2.0 h1:Slr1R9HxAlEKefgq5jn9U+DnETlIUa6HfgEzj0g5d7s=
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
-github.com/sweexordious/cosmos-sdk v0.44.2-celestia-rc-1.0.20220707144421-9a6cf116043d h1:M4OrIDMwRNwGwNu4ao/KPeKFTEgIKJSv2LESGcnuyG4=
-github.com/sweexordious/cosmos-sdk v0.44.2-celestia-rc-1.0.20220707144421-9a6cf116043d/go.mod h1:LCNv5xPuLG/4aHwBIR1epm6+dijG3lW/MUfKheRB9sQ=
+github.com/sweexordious/cosmos-sdk v0.44.2-celestia-rc-1.0.20220707182059-0c85e6e25e1b h1:CX2CsjOn9igVngLIb/jaXSEbJEm9UjtRivBKZWYo33Q=
+github.com/sweexordious/cosmos-sdk v0.44.2-celestia-rc-1.0.20220707182059-0c85e6e25e1b/go.mod h1:LCNv5xPuLG/4aHwBIR1epm6+dijG3lW/MUfKheRB9sQ=
 github.com/syndtr/gocapability v0.0.0-20170704070218-db04d3cc01c8/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
 github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
 github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
