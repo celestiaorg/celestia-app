@@ -2,10 +2,10 @@ package test
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"math/big"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/x/qgb/keeper/keystore"
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
@@ -28,7 +28,7 @@ type QGBTestSuite struct {
 	gAlloc  core.GenesisAlloc
 	sim     *backends.SimulatedBackend
 	wrapper *wrapper.QuantumGravityBridge
-	pSigner keystore.PersonalSignFn
+	key     *ecdsa.PrivateKey
 }
 
 func TestRunQGBSuite(t *testing.T) {
@@ -38,14 +38,12 @@ func TestRunQGBSuite(t *testing.T) {
 func (s *QGBTestSuite) SetupTest() {
 	key, err := crypto.HexToECDSA(testPriv)
 	s.Require().NoError(err)
+	s.key = key
 
 	//nolint
 	s.auth = bind.NewKeyedTransactor(key)
 	s.auth.GasLimit = 10000000000000
 	s.auth.GasPrice = big.NewInt(8750000000)
-	personalSignFn, err := keystore.PrivateKeyPersonalSignFn(key)
-	s.NoError(err)
-	s.pSigner = personalSignFn
 
 	valSet := types.Valset{
 		Nonce:  0,
@@ -99,7 +97,7 @@ func (s *QGBTestSuite) TestSubmitDataCommitment() {
 		commitment[:],
 	)
 
-	signature, err := s.pSigner(s.auth.From, signBytes.Bytes())
+	signature, err := types.NewEthereumSignature(signBytes.Bytes(), s.key)
 	s.NoError(err)
 
 	ethVals := make([]wrapper.Validator, len(initialValSet.Members))
@@ -158,7 +156,7 @@ func (s *QGBTestSuite) TestUpdateValset() {
 	s.NoError(err)
 	signBytes, err := updatedValset.SignBytes(bID)
 	s.NoError(err)
-	signature, err := s.pSigner(s.auth.From, signBytes.Bytes())
+	signature, err := types.NewEthereumSignature(signBytes.Bytes(), s.key)
 	s.NoError(err)
 
 	hexSig := ethcmn.Bytes2Hex(signature)

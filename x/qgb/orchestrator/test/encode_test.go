@@ -6,7 +6,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 
-	"github.com/celestiaorg/celestia-app/x/qgb/keeper/keystore"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	ethcmn "github.com/ethereum/go-ethereum/common"
@@ -38,7 +37,7 @@ var (
 // NOTE: These tests are more documentation than actual tests. All vaules used
 // where derived using the contracts and the evm.
 
-// TestValsetHashABIEncode is a sanity check is ensure that the abi encoding is working as expected
+// TestValsetHashABIEncode is a sanity check is ensure that the abi encoding is working as expected.
 func TestValsetHashABIEncode(t *testing.T) {
 	const (
 		firstExpectedData  = "00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001000000000000000000000000b33fdd9c00076a15b599f4ab0d29d59720a94e6a0000000000000000000000000000000000000000000000000000000000001388" // nolint:lll
@@ -124,11 +123,11 @@ func Test_genValSetSignBytes(t *testing.T) {
 	key, err := crypto.HexToECDSA(testPriv)
 	require.NoError(t, err)
 
-	personalSignFn, err := keystore.PrivateKeyPersonalSignFn(key)
+	sig, err := types.NewEthereumSignature(s.Bytes(), key)
 	require.NoError(t, err)
-	sig, err := personalSignFn(ethcmn.HexToAddress(testAddr), s[:])
-	require.NoError(t, err)
+
 	_, _, s = orchestrator.SigToVRS(ethcmn.Bytes2Hex(sig))
+	require.NotNil(t, s)
 	// this test doesn't test anything meanfully, but can be used to generate
 	// signatures for testing the smart contracts
 }
@@ -141,11 +140,10 @@ func Test_genTupleRootSignBytes(t *testing.T) {
 	key, err := crypto.HexToECDSA(testPriv2)
 	require.NoError(t, err)
 
-	personalSignFn, err := keystore.PrivateKeyPersonalSignFn(key)
-	require.NoError(t, err)
-	sig, err := personalSignFn(ethcmn.HexToAddress(testAddr2), s[:])
+	sig, err := types.NewEthereumSignature(s.Bytes(), key)
 	require.NoError(t, err)
 	_, _, s = orchestrator.SigToVRS(ethcmn.Bytes2Hex(sig))
+	require.NotNil(t, s)
 	// this test doesn't test anything meanfully, but can be used to generate
 	// signatures for testing the smart contracts
 }
