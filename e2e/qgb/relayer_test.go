@@ -94,7 +94,7 @@ func TestRelayerWithTwoValidators(t *testing.T) {
 
 	dcNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: ctx})
 	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, dcNonce, uint64(3))
+	assert.GreaterOrEqual(t, dcNonce, uint64(2))
 }
 
 func TestRelayerWithMultipleValidators(t *testing.T) {
@@ -150,5 +150,5 @@ func TestRelayerWithMultipleValidators(t *testing.T) {
 
 	dcNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: ctx})
 	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, dcNonce, uint64(3))
+	assert.GreaterOrEqual(t, dcNonce, uint64(2))
 }
