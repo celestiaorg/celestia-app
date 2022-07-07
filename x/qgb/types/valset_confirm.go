@@ -4,6 +4,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 var _ sdk.Msg = &MsgValsetConfirm{}
@@ -11,14 +12,14 @@ var _ sdk.Msg = &MsgValsetConfirm{}
 // NewMsgValsetConfirm returns a new msgValSetConfirm
 func NewMsgValsetConfirm(
 	nonce uint64,
-	ethAddress stakingtypes.EthAddress,
+	ethAddress common.Address,
 	validator sdk.AccAddress,
 	signature string,
 ) *MsgValsetConfirm {
 	return &MsgValsetConfirm{
 		Nonce:        nonce,
 		Orchestrator: validator.String(),
-		EthAddress:   ethAddress.GetAddress(),
+		EthAddress:   ethAddress.Hex(),
 		Signature:    signature,
 	}
 }
@@ -39,8 +40,8 @@ func (msg *MsgValsetConfirm) ValidateBasic() (err error) {
 	if _, err = sdk.AccAddressFromBech32(msg.Orchestrator); err != nil {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, msg.Orchestrator)
 	}
-	if err := stakingtypes.ValidateEthAddress(msg.EthAddress); err != nil {
-		return sdkerrors.Wrap(err, "ethereum address")
+	if !common.IsHexAddress(msg.EthAddress) {
+		return sdkerrors.Wrap(stakingtypes.ErrEthAddressNotHex, "ethereum address")
 	}
 	return nil
 }

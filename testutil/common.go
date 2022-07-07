@@ -174,11 +174,11 @@ var (
 	StakingAmount = sdk.TokensFromConsensusPower(10, sdk.DefaultPowerReduction)
 )
 
-func initEthAddrs(count int) []stakingtypes.EthAddress {
-	addresses := make([]stakingtypes.EthAddress, count)
+func initEthAddrs(count int) []gethcommon.Address {
+	addresses := make([]gethcommon.Address, count)
 	for i := 0; i < count; i++ {
-		ethAddr, _ := stakingtypes.NewEthAddress(gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20)).Hex())
-		addresses[i] = *ethAddr
+		ethAddr := gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20))
+		addresses[i] = ethAddr
 	}
 	return addresses
 }
@@ -457,7 +457,7 @@ func NewTestMsgCreateValidator(
 	pubKey ccrypto.PubKey,
 	amt sdk.Int,
 	orchAddr sdk.AccAddress,
-	ethAddr stakingtypes.EthAddress,
+	ethAddr gethcommon.Address,
 ) *stakingtypes.MsgCreateValidator {
 	commission := stakingtypes.NewCommissionRates(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec())
 	out, err := stakingtypes.NewMsgCreateValidator(

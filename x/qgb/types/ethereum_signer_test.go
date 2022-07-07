@@ -2,11 +2,10 @@ package types_test
 
 import (
 	"encoding/hex"
+	"github.com/ethereum/go-ethereum/common"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -77,9 +76,8 @@ func TestValsetConfirmSig(t *testing.T) {
 			require.NoError(t, err)
 
 			// when
-			ethAddr, err := stakingtypes.NewEthAddress(spec.srcETHAddr)
-			assert.NoError(t, err)
-			err = types.ValidateEthereumSignature(hashBytes, sigBytes, *ethAddr)
+			ethAddr := common.HexToAddress(spec.srcETHAddr)
+			err = types.ValidateEthereumSignature(hashBytes, sigBytes, ethAddr)
 			if spec.expErr {
 				assert.Error(t, err)
 				return

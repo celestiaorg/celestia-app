@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -71,11 +72,11 @@ func (k msgServer) ValsetConfirm(
 	}
 
 	// Verify ethereum address match
-	submittedEthAddress, err := stakingtypes.NewEthAddress(msg.EthAddress)
-	if err != nil {
-		return nil, sdkerrors.Wrap(types.ErrInvalid, "invalid eth address")
+	if !common.IsHexAddress(msg.EthAddress) {
+		return nil, sdkerrors.Wrap(stakingtypes.ErrEthAddressNotHex, "ethereum address")
 	}
-	if validator.EthAddress != submittedEthAddress.GetAddress() {
+	submittedEthAddress := common.HexToAddress(msg.EthAddress)
+	if validator.EthAddress != submittedEthAddress.Hex() {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "signing eth address does not match delegate eth address")
 	}
 
@@ -88,13 +89,13 @@ func (k msgServer) ValsetConfirm(
 	if err != nil {
 		return nil, err
 	}
-	err = types.ValidateEthereumSignature(signBytes.Bytes(), bytesSignature, *submittedEthAddress)
+	err = types.ValidateEthereumSignature(signBytes.Bytes(), bytesSignature, submittedEthAddress)
 	if err != nil {
 		return nil, sdkerrors.Wrap(
 			types.ErrInvalid,
 			fmt.Sprintf(
 				"signature verification failed expected sig by %s for valset nonce %d found %s",
-				submittedEthAddress.GetAddress(),
+				submittedEthAddress.Hex(),
 				msg.Nonce,
 				msg.Signature,
 			),
@@ -174,11 +175,11 @@ func (k msgServer) DataCommitmentConfirm(
 	}
 
 	// Verify ethereum address
-	ethAddress, err := stakingtypes.NewEthAddress(msg.EthAddress)
-	if err != nil {
-		return nil, sdkerrors.Wrap(types.ErrInvalid, "invalid eth address")
+	if !common.IsHexAddress(msg.EthAddress) {
+		return nil, sdkerrors.Wrap(stakingtypes.ErrEthAddressNotHex, "ethereum address")
 	}
-	if validator.EthAddress != ethAddress.GetAddress() {
+	ethAddress := common.HexToAddress(msg.EthAddress)
+	if validator.EthAddress != ethAddress.Hex() {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
 	}
 
@@ -210,13 +211,13 @@ func (k msgServer) DataCommitmentConfirm(
 		return nil, err
 	}
 	hash := types.DataCommitmentTupleRootSignBytes(types.BridgeId, big.NewInt(int64(msg.Nonce)), commitment)
-	err = types.ValidateEthereumSignature(hash.Bytes(), sigBytes, *ethAddress)
+	err = types.ValidateEthereumSignature(hash.Bytes(), sigBytes, ethAddress)
 	if err != nil {
 		return nil, sdkerrors.Wrap(
 			types.ErrInvalid,
 			fmt.Sprintf(
 				"signature verification failed expected sig by %s with checkpoint %s found %s",
-				ethAddress.GetAddress(),
+				ethAddress.Hex(),
 				msg.Commitment,
 				msg.Signature,
 			),

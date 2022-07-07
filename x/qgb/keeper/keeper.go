@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"time"
 
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -64,7 +65,7 @@ type StakingKeeper interface {
 	GetParams(ctx sdk.Context) stakingtypes.Params
 	ValidatorQueueIterator(ctx sdk.Context, endTime time.Time, endHeight int64) sdk.Iterator
 	GetValidatorByOrchestrator(ctx sdk.Context, addr sdk.AccAddress) (validator stakingtypes.Validator, found bool)
-	GetValidatorByEthereum(ctx sdk.Context, addr stakingtypes.EthAddress) (validator stakingtypes.Validator, found bool)
+	GetValidatorByEthereumAddress(ctx sdk.Context, addr common.Address) (validator stakingtypes.Validator, found bool)
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {

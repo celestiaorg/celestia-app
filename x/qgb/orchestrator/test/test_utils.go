@@ -7,7 +7,6 @@ import (
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 )
@@ -21,14 +20,11 @@ func verifyOrchestratorValsetSignature(broadcasted sdk.Msg, valset *types.Valset
 	if err != nil {
 		return err
 	}
-	ethAddress, err := stakingtypes.NewEthAddress(msg.EthAddress)
-	if err != nil {
-		return err
-	}
+	ethAddress := common.HexToAddress(msg.EthAddress)
 	err = types.ValidateEthereumSignature(
 		hash.Bytes(),
 		common.Hex2Bytes(msg.Signature),
-		*ethAddress,
+		ethAddress,
 	)
 	if err != nil {
 		return err
@@ -82,14 +78,11 @@ func verifyOrchestratorDcSignature(broadcasted sdk.Msg, dc types.DataCommitment)
 		big.NewInt(int64(dc.Nonce)),
 		commitmentFromQuery(orchestrator.CommitmentQueryByRange(dc.BeginBlock, dc.EndBlock)),
 	)
-	ethAddress, err := stakingtypes.NewEthAddress(msg.EthAddress)
-	if err != nil {
-		return err
-	}
-	err = types.ValidateEthereumSignature(
+	ethAddress := common.HexToAddress(msg.EthAddress)
+	err := types.ValidateEthereumSignature(
 		dataRootHash.Bytes(),
 		common.Hex2Bytes(msg.Signature),
-		*ethAddress,
+		ethAddress,
 	)
 	if err != nil {
 		return err
