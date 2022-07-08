@@ -31,7 +31,7 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+5))
+	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
@@ -88,7 +88,7 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+10))
+	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
@@ -151,7 +151,7 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+10))
+	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
@@ -246,7 +246,7 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	// give time for the orchestrators to submit confirms
-	err = network.WaitForBlock(network.Context, int64(2*network.DataCommitmentWindow+10))
+	err = network.WaitForBlock(network.Context, int64(2*network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)

@@ -26,7 +26,7 @@ func TestRelayerWithOneValidator(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+5))
+	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
@@ -38,7 +38,6 @@ func TestRelayerWithOneValidator(t *testing.T) {
 	err = network.WaitForRelayerToStart(network.Context, bridge)
 	HandleNetworkError(t, network, err, false)
 
-	// FIXME should we use the evm client here or go for raw queries?
 	evmClient := orchestrator.NewEvmClient(nil, bridge, nil, network.EVMRPC)
 
 	vsNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: ctx})
@@ -70,7 +69,7 @@ func TestRelayerWithTwoValidators(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+5))
+	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
@@ -112,7 +111,7 @@ func TestRelayerWithMultipleValidators(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(2*network.DataCommitmentWindow+5))
+	err = network.WaitForBlock(network.Context, int64(2*network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
