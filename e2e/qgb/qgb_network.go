@@ -50,7 +50,7 @@ func NewQGBNetwork(_ctx context.Context) (*QGBNetwork, error) {
 		TendermintRPC:        "tcp://localhost:26657",
 		CelestiaGRPC:         "localhost:9090",
 		EncCfg:               orchestrator.MakeEncodingConfig(),
-		DataCommitmentWindow: 10, // If this one is changed, make sure to change also the genesis file
+		DataCommitmentWindow: 101, // If this one is changed, make sure to change also the genesis file
 	}
 
 	// trap Ctrl+C or ctx.Done()
