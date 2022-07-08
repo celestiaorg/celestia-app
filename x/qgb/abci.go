@@ -14,7 +14,7 @@ func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
 }
 
 func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
-	if ctx.BlockHeight() != 0 && ctx.BlockHeight()%int64(types.DataCommitmentWindow) == 0 {
+	if ctx.BlockHeight() != 0 && ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx)) == 0 {
 		dataCommitment, err := k.GetCurrentDataCommitment(ctx)
 		if err != nil {
 			panic(sdkerrors.Wrap(err, "coudln't get current data commitment"))
@@ -27,11 +27,6 @@ func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
 }
 
 func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
-	// FIXME can this be done here?
-	// We need to initialize this value in the begining...
-	if !k.CheckLatestAttestationNonce(ctx) {
-		k.SetLatestAttestationNonce(ctx, 0)
-	}
 	// get the last valsets to compare against
 	var latestValset *types.Valset
 	if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx) != 0 {

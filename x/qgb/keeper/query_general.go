@@ -16,3 +16,10 @@ func (k Keeper) LastUnbondingHeight(
 		Height: k.GetLastUnBondingBlockHeight(sdk.UnwrapSDKContext(c)),
 	}, nil
 }
+
+func (k Keeper) Params(c context.Context, request *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
+	params := k.GetParams(sdk.UnwrapSDKContext(c))
+	return &types.QueryParamsResponse{
+		Params: params,
+	}, nil
+}

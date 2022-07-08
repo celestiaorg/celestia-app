@@ -127,7 +127,6 @@ const (
 	// Domain separator constants copied directly from the contracts
 	ValidatorSetDomainSeparator   = "0x636865636b706f696e7400000000000000000000000000000000000000000000"
 	DataCommitmentDomainSeparator = "0x7472616e73616374696f6e426174636800000000000000000000000000000000"
-	DataCommitmentWindow          = uint64(10) // TODO change when we're able to access the params
 )
 
 var (

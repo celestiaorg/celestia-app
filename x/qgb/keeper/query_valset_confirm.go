@@ -28,10 +28,3 @@ func (k Keeper) ValsetConfirmsByNonce(
 	confirms := k.GetValsetConfirms(sdk.UnwrapSDKContext(c), req.Nonce)
 	return &types.QueryValsetConfirmsByNonceResponse{Confirms: confirms}, nil
 }
-
-func (k Keeper) Params(c context.Context, request *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
-	params := k.GetParams(sdk.UnwrapSDKContext(c))
-	return &types.QueryParamsResponse{
-		Params: params,
-	}, nil
-}

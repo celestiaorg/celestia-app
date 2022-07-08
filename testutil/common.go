@@ -355,7 +355,6 @@ func CreateTestEnv(t *testing.T) TestInput {
 	testQGBParams := types.DefaultGenesis().Params
 	k.SetParams(ctx, *testQGBParams)
 
-	// set gravityIDs for batches and tx items, simulating genesis setup
 	k.SetLatestAttestationNonce(ctx, 0)
 
 	stakingKeeper = *stakingKeeper.SetHooks(

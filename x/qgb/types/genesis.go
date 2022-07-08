@@ -8,16 +8,13 @@ import (
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
-// DefaultParamspace defines the default auth module parameter subspace
+// DefaultParamspace defines the default qgb module parameter subspace
 const (
 	DefaultParamspace = ModuleName
 )
 
 // ParamsStoreKeyDataCommitmentWindow
 var ParamsStoreKeyDataCommitmentWindow = []byte("DataCommitmentWindow")
-
-// DefaultIndex is the default capability global index
-const DefaultIndex uint64 = 1
 
 // DefaultGenesis returns the default Capability genesis state
 func DefaultGenesis() *GenesisState {
@@ -38,11 +35,9 @@ func (gs GenesisState) Validate() error {
 	return nil
 }
 
-// ParamKeyTable for auth module
+// ParamKeyTable for qgb module
 func ParamKeyTable() paramtypes.KeyTable {
-	return paramtypes.NewKeyTable().RegisterParamSet(&Params{
-		DataCommitmentWindow: 0,
-	})
+	return paramtypes.NewKeyTable().RegisterParamSet(&Params{})
 }
 
 // ParamSetPairs implements the ParamSet interface and returns all the key/value pairs
@@ -54,12 +49,15 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 }
 
 func validateDataCommitmentWindow(i interface{}) error {
-	val, ok := i.(uint64)
+	_, ok := i.(uint64)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
-	} else if val < 100 {
-		return fmt.Errorf("invalid average Ethereum block time, too short for latency limitations")
 	}
+	// TODO enable after we're done with dev. The QGB E2E will take a lot of time if
+	// we use a window > 100.
+	//else if val < 100 {
+	//	return fmt.Errorf("invalid average Ethereum block time, too short for latency limitations")
+	//}
 	return nil
 }
 

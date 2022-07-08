@@ -21,4 +21,5 @@ var (
 	ErrNilAttestation                      = sdkerrors.Register(ModuleName, 22, "nil attestation")
 	ErrAttestationNotCastToDataCommitment  = sdkerrors.Register(ModuleName, 23, "couldn't cast attestation to data commitment")
 	ErrDataCommitmentConfirmWrongRange     = sdkerrors.Register(ModuleName, 24, "the confirm range is different than the requested one")
+	ErrWindowNotFound                      = sdkerrors.Register(ModuleName, 25, "couldn't find data commitment window in store")
 )
