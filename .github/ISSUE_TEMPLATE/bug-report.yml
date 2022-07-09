@@ -40,9 +40,7 @@ body:
     attributes:
       label: For Admin Use (do not edit)
       options:
-        - Not duplicate issue
-        - Appropriate labels applied
-        - Appropriate contributors tagged
-        - Contributor assigned/self-assigned
-    validations:
-      required: false
+        - label: Not duplicate issue
+        - label: Appropriate labels applied
+        - label: Appropriate contributors tagged
+        - label: Contributor assigned/self-assigned
