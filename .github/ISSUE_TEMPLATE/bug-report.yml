@@ -38,7 +38,8 @@ body:
   - type: checkboxes
     id: admin
     attributes:
-      label: For Admin Use (do not edit)
+      label: For Admin Use
+      description: (do not edit)
       options:
         - label: Not duplicate issue
         - label: Appropriate labels applied
