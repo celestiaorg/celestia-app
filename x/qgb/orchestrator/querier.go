@@ -3,13 +3,14 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"time"
+
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/tendermint/spm/cosmoscmd"
 	"github.com/tendermint/tendermint/libs/bytes"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
-	"time"
 
 	"github.com/tendermint/tendermint/rpc/client/http"
 

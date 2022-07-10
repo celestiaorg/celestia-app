@@ -2,11 +2,12 @@ package test
 
 import (
 	"context"
+	"time"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/tendermint/tendermint/libs/bytes"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
-	"time"
 )
 
 var _ orchestrator.Querier = &mockQuerier{}

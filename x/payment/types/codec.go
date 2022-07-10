@@ -39,9 +39,7 @@ func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
 }
 
-var (
-	ModuleCdc = codec.NewProtoCodec(cdctypes.NewInterfaceRegistry())
-)
+var ModuleCdc = codec.NewProtoCodec(cdctypes.NewInterfaceRegistry())
 
 // makeEncodingConfig is copied here so that we don't have to have an
 //  import cycle. if possible, use cosmoscmd.MakeEncodingConfig

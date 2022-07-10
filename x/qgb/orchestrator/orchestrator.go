@@ -4,6 +4,11 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
+	"strconv"
+	"sync"
+	"time"
+
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -16,10 +21,6 @@ import (
 	corerpctypes "github.com/tendermint/tendermint/rpc/core/types"
 	coretypes "github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
-	"math/big"
-	"strconv"
-	"sync"
-	"time"
 )
 
 var _ I = &Orchestrator{}
