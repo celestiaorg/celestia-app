@@ -2,10 +2,6 @@ package test
 
 import (
 	"context"
-	"os"
-	"sync"
-	"testing"
-
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -14,6 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	tmlog "github.com/tendermint/tendermint/libs/log"
+	"os"
+	"sync"
+	"testing"
 )
 
 // TODO update the tests to reflect the new design.

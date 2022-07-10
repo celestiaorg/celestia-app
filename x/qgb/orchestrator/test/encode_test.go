@@ -1,6 +1,7 @@
 package test
 
 import (
+	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"math/big"
 	"testing"
 
