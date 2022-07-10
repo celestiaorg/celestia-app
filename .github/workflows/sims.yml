@@ -54,7 +54,7 @@ jobs:
           go-version: 1.17
       - name: Display go version
         run: go version
-      - uses: technote-space/get-diff-action@v6.0.1
+      - uses: technote-space/get-diff-action@v6.1.0
         with:
           PATTERNS: |
             **/**.go
@@ -80,7 +80,7 @@ jobs:
           go-version: 1.17
       - name: Display go version
         run: go version
-      - uses: technote-space/get-diff-action@v6.0.1
+      - uses: technote-space/get-diff-action@v6.1.0
         with:
           SUFFIX_FILTER: |
             **/**.go
@@ -108,7 +108,7 @@ jobs:
           go-version: 1.17
       - name: Display go version
         run: go version
-      - uses: technote-space/get-diff-action@v6.0.1
+      - uses: technote-space/get-diff-action@v6.1.0
         with:
           SUFFIX_FILTER: |
             **/**.go
@@ -136,7 +136,7 @@ jobs:
           go-version: 1.17
       - name: Display go version
         run: go version
-      - uses: technote-space/get-diff-action@v6.0.1
+      - uses: technote-space/get-diff-action@v6.1.0
         with:
           SUFFIX_FILTER: |
             **/**.go
