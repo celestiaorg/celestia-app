@@ -6,8 +6,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 
-	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
-
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper/keystore"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
