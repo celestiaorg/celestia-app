@@ -1,6 +1,7 @@
-package orchestrator
+package test
 
 import (
+	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"math/big"
 	"testing"
 
@@ -131,7 +132,7 @@ func Test_genValSetSignBytes(t *testing.T) {
 	require.NoError(t, err)
 	sig, err := personalSignFn(ethcmn.HexToAddress(testAddr), s[:])
 	require.NoError(t, err)
-	_, _, s = SigToVRS(ethcmn.Bytes2Hex(sig))
+	_, _, s = orchestrator.SigToVRS(ethcmn.Bytes2Hex(sig))
 	// this test doesn't test anything meanfully, but can be used to generate
 	// signatures for testing the smart contracts
 }
@@ -148,7 +149,7 @@ func Test_genTupleRootSignBytes(t *testing.T) {
 	require.NoError(t, err)
 	sig, err := personalSignFn(ethcmn.HexToAddress(testAddr2), s[:])
 	require.NoError(t, err)
-	_, _, s = SigToVRS(ethcmn.Bytes2Hex(sig))
+	_, _, s = orchestrator.SigToVRS(ethcmn.Bytes2Hex(sig))
 	// this test doesn't test anything meanfully, but can be used to generate
 	// signatures for testing the smart contracts
 }

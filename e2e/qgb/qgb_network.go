@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -381,7 +380,7 @@ func (network QGBNetwork) WaitForOrchestratorToStart(_ctx context.Context, accou
 			}
 			return ctx.Err()
 		default:
-			confirm, err := querier.QueryDataCommitmentConfirm(ctx, types.DataCommitmentWindow, 0, accountAddress)
+			confirm, err := querier.QueryValsetConfirm(ctx, 1, accountAddress)
 			if err == nil && confirm != nil {
 				return nil
 			}

@@ -2,19 +2,13 @@ package orchestrator
 
 import (
 	"context"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"os"
-	"strings"
-	"sync"
-	"time"
-
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
-
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-
 	tmlog "github.com/tendermint/tendermint/libs/log"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
 
 	"github.com/spf13/cobra"
 )
@@ -28,14 +22,22 @@ func OrchestratorCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
 			logger := tmlog.NewTMLogger(os.Stdout)
 
-			// creates the signer
+			logger.Debug("initializing orchestrator")
+
+			ctx, cancel := context.WithCancel(cmd.Context())
+
+			querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger, MakeEncodingConfig())
+			if err != nil {
+				panic(err)
+			}
+
+			// creates the Signer
 			//TODO: optionally ask for input for a password
 			ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringPath, strings.NewReader(""))
 			if err != nil {
-				return err
+				panic(err)
 			}
 			signer := paytypes.NewKeyringSigner(
 				ring,
@@ -43,108 +45,42 @@ func OrchestratorCmd() *cobra.Command {
 				config.celestiaChainID,
 			)
 
-			querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger, MakeEncodingConfig())
-			if err != nil {
-				return err
-			}
-
-			client, err := NewOrchestratorClient(
-				logger,
-				config.tendermintRPC,
-				querier,
-				signer.GetSignerInfo().GetAddress().String(),
-			)
-			if err != nil {
-				return err
-			}
-
 			broadcaster, err := NewBroadcaster(config.celesGRPC, signer)
 			if err != nil {
-				return nil
+				panic(err)
 			}
 
-			orchEthAddr, err := stakingtypes.NewEthAddress(crypto.PubkeyToAddress(config.privateKey.PublicKey).Hex())
-			if err != nil {
-				return err
-			}
+			retrier := NewRetrier(logger, 5)
+			orch := NewOrchestrator(
+				logger,
+				querier,
+				broadcaster,
+				retrier,
+				signer,
+				*config.privateKey,
+			)
 
-			orch := orchestrator{
-				broadcaster:         broadcaster,
-				evmPrivateKey:       *config.privateKey,
-				bridgeID:            types.BridgeId,
-				orchestratorAddress: signer.GetSignerInfo().GetAddress(),
-				orchEthAddress:      *orchEthAddr,
-				logger:              logger,
-			}
+			logger.Debug("starting orchestrator")
 
-			wg := &sync.WaitGroup{}
-			ctx := cmd.Context()
+			// Listen for and trap any OS signal to gracefully shutdown and exit
+			go trapSignal(logger, cancel)
 
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for {
-					select {
-					case <-ctx.Done():
-						return
-					default:
-						ctx, cancel := context.WithCancel(ctx)
-						valsetChan, err := client.SubscribeValset(ctx)
-						if err != nil {
-							cancel()
-							logger.Error(err.Error())
-							time.Sleep(time.Second * 30)
-							continue
-						}
-						err = orch.processValsetEvents(ctx, valsetChan)
-						if err != nil {
-							cancel()
-							logger.Error(err.Error())
-							// todo: refactor to make a more sophisticated retry mechanism
-							time.Sleep(time.Second * 30)
-							continue
-						}
-						cancel()
-						return
-					}
-				}
-
-			}()
-
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for {
-					select {
-					case <-ctx.Done():
-						return
-					default:
-						ctx, cancel := context.WithCancel(ctx)
-						dcChan, err := client.SubscribeDataCommitment(ctx)
-						if err != nil {
-							cancel()
-							logger.Error(err.Error())
-							time.Sleep(time.Second * 30)
-							continue
-						}
-						err = orch.processDataCommitmentEvents(ctx, dcChan)
-						if err != nil {
-							cancel()
-							logger.Error(err.Error())
-							time.Sleep(time.Second * 30)
-							continue
-						}
-						cancel()
-						return
-					}
-				}
-
-			}()
-
-			wg.Wait()
+			orch.Start(ctx)
 
 			return nil
 		},
 	}
 	return addOrchestratorFlags(command)
+}
+
+// trapSignal will listen for any OS signal and gracefully exit.
+func trapSignal(logger tmlog.Logger, cancel context.CancelFunc) {
+	var sigCh = make(chan os.Signal, 1)
+
+	signal.Notify(sigCh, syscall.SIGTERM)
+	signal.Notify(sigCh, syscall.SIGINT)
+
+	sig := <-sigCh
+	logger.Info("caught signal; shutting down...", "signal", sig.String())
+	cancel()
 }

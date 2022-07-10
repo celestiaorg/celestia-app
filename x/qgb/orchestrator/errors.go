@@ -10,4 +10,6 @@ var (
 	ErrConfirmSignatureNotFound        = errors.New("confirm signature not found")
 	ErrNotEnoughValsetConfirms         = errors.New("couldn't find enough valset confirms")
 	ErrNotEnoughDataCommitmentConfirms = errors.New("couldn't find enough data commitment confirms")
+	ErrUnknownAttestationType          = errors.New("unknown attestation type")
+	ErrFailedBroadcast                 = errors.New("failed to broadcast transaction")
 )
