@@ -2,6 +2,7 @@ package types
 
 import (
 	"crypto/ecdsa"
+
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -62,7 +63,6 @@ func EthAddressFromSignature(hash []byte, signature []byte) (*stakingtypes.EthAd
 // returns an error if the signature isn't valid
 func ValidateEthereumSignature(hash []byte, signature []byte, ethAddress stakingtypes.EthAddress) error {
 	addr, err := EthAddressFromSignature(hash, signature)
-
 	if err != nil {
 		return sdkerrors.Wrap(err, "unable to get address from signature")
 	}

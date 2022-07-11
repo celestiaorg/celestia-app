@@ -3,8 +3,9 @@ package types
 import (
 	"errors"
 	"fmt"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"math/big"
+
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -61,7 +62,7 @@ func (msg *MsgDataCommitmentConfirm) Type() string { return "data_commitment_con
 
 // DataCommitmentTupleRootSignBytes EncodeDomainSeparatedDataCommitment takes the required input data and
 // produces the required signature to confirm a validator set update on the QGB Ethereum contract.
-//This value will then be signed before being submitted to Cosmos, verified, and then relayed to Ethereum
+// This value will then be signed before being submitted to Cosmos, verified, and then relayed to Ethereum
 func DataCommitmentTupleRootSignBytes(bridgeID ethcmn.Hash, nonce *big.Int, commitment []byte) ethcmn.Hash {
 	var dataCommitment [32]uint8
 	copy(dataCommitment[:], commitment)

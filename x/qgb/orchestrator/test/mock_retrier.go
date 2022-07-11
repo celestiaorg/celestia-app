@@ -2,13 +2,13 @@ package test
 
 import (
 	"context"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 )
 
 var _ orchestrator.RetrierI = &mockRetrier{}
 
-type mockRetrier struct {
-}
+type mockRetrier struct{}
 
 func NewMockRetrier() *mockRetrier {
 	return &mockRetrier{}

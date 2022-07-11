@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+
 	"github.com/tendermint/tendermint/rpc/client/http"
 )
 
@@ -20,7 +21,7 @@ func main() {
 
 	//nolint
 	results, err := trpc.Subscribe(ctx, "valset-changes", "eventType.eventAttribute='valset_request'")
-	//trpc.
+	// trpc.
 	for {
 		select {
 		case <-ctx.Done():

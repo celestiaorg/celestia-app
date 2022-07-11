@@ -2,13 +2,14 @@ package orchestrator
 
 import (
 	"context"
-	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	tmlog "github.com/tendermint/tendermint/libs/log"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+
+	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 
 	"github.com/spf13/cobra"
 )
@@ -34,7 +35,7 @@ func OrchestratorCmd() *cobra.Command {
 			}
 
 			// creates the Signer
-			//TODO: optionally ask for input for a password
+			// TODO: optionally ask for input for a password
 			ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringPath, strings.NewReader(""))
 			if err != nil {
 				panic(err)
@@ -75,7 +76,7 @@ func OrchestratorCmd() *cobra.Command {
 
 // trapSignal will listen for any OS signal and gracefully exit.
 func trapSignal(logger tmlog.Logger, cancel context.CancelFunc) {
-	var sigCh = make(chan os.Signal, 1)
+	sigCh := make(chan os.Signal, 1)
 
 	signal.Notify(sigCh, syscall.SIGTERM)
 	signal.Notify(sigCh, syscall.SIGINT)

@@ -70,7 +70,6 @@ func RelayerCmd() *cobra.Command {
 						return
 					}
 				}
-
 			}()
 			wg.Wait()
 			return nil

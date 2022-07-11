@@ -2,13 +2,14 @@ package e2e
 
 import (
 	"context"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os"
-	"testing"
-	"time"
 )
 
 // TestFullLongBehaviour mainly lets a multiple validator network run for 100 blocks, then checks if

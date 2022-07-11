@@ -2,11 +2,12 @@ package types
 
 import (
 	"fmt"
+	"math/big"
+
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"math/big"
 )
 
 var _ AttestationRequestI = &Valset{}

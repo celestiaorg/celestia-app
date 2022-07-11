@@ -1,10 +1,11 @@
 package keeper_test
 
 import (
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestPrefixRange(t *testing.T) {
@@ -18,8 +19,10 @@ func TestPrefixRange(t *testing.T) {
 		"normal short":        {src: []byte{79}, expStart: []byte{79}, expEnd: []byte{80}},
 		"empty case":          {src: []byte{}},
 		"roll-over example 1": {src: []byte{17, 28, 255}, expStart: []byte{17, 28, 255}, expEnd: []byte{17, 29, 0}},
-		"roll-over example 2": {src: []byte{15, 42, 255, 255},
-			expStart: []byte{15, 42, 255, 255}, expEnd: []byte{15, 43, 0, 0}},
+		"roll-over example 2": {
+			src:      []byte{15, 42, 255, 255},
+			expStart: []byte{15, 42, 255, 255}, expEnd: []byte{15, 43, 0, 0},
+		},
 		"pathological roll-over": {src: []byte{255, 255, 255, 255}, expStart: []byte{255, 255, 255, 255}},
 		"nil prohibited":         {expPanic: true},
 	}

@@ -2,13 +2,14 @@ package test
 
 import (
 	"errors"
+	"math/big"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/tendermint/tendermint/crypto/tmhash"
-	"math/big"
 )
 
 func verifyOrchestratorValsetSignature(broadcasted sdk.Msg, valset *types.Valset) error {

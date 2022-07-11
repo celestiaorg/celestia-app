@@ -168,5 +168,4 @@ func init() {
 	// create the domain separator for valset hashes
 	VsDomainSeparator = ethcmn.HexToHash(ValidatorSetDomainSeparator)
 	DcDomainSeparator = ethcmn.HexToHash(DataCommitmentDomainSeparator)
-
 }

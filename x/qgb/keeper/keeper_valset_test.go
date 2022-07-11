@@ -2,12 +2,13 @@ package keeper_test
 
 import (
 	"bytes"
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 // Test that valset creation produces the expected normalized power values

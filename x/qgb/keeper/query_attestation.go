@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"

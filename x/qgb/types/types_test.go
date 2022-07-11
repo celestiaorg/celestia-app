@@ -2,11 +2,12 @@ package types_test
 
 import (
 	"bytes"
+	mrand "math/rand"
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
-	mrand "math/rand"
-	"testing"
 )
 
 func TestValsetPowerDiff(t *testing.T) {

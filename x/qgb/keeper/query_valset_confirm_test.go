@@ -3,6 +3,8 @@ package keeper_test
 import (
 	"bytes"
 	"fmt"
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -10,7 +12,6 @@ import (
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestQueryValsetConfirm(t *testing.T) {
@@ -46,7 +47,8 @@ func TestQueryValsetConfirm(t *testing.T) {
 					*myValidatorEthereumAddr,
 					myValidatorCosmosAddr,
 					"alksdjhflkasjdfoiasjdfiasjdfoiasdj",
-				)},
+				),
+			},
 			expErr: false,
 		},
 		"unknown nonce": {
@@ -145,34 +147,32 @@ func TestAllValsetConfirmsByNonce(t *testing.T) {
 }
 
 func TestQueryCurrentValset(t *testing.T) {
-	var (
-		expectedValset = types.Valset{
-			Nonce:  1,
-			Height: 1234567,
-			Members: []types.BridgeValidator{
-				{
-					Power:           858993459,
-					EthereumAddress: keeper.EthAddrs[0].GetAddress(),
-				},
-				{
-					Power:           858993459,
-					EthereumAddress: keeper.EthAddrs[1].GetAddress(),
-				},
-				{
-					Power:           858993459,
-					EthereumAddress: keeper.EthAddrs[2].GetAddress(),
-				},
-				{
-					Power:           858993459,
-					EthereumAddress: keeper.EthAddrs[3].GetAddress(),
-				},
-				{
-					Power:           858993459,
-					EthereumAddress: keeper.EthAddrs[4].GetAddress(),
-				},
+	expectedValset := types.Valset{
+		Nonce:  1,
+		Height: 1234567,
+		Members: []types.BridgeValidator{
+			{
+				Power:           858993459,
+				EthereumAddress: keeper.EthAddrs[0].GetAddress(),
 			},
-		}
-	)
+			{
+				Power:           858993459,
+				EthereumAddress: keeper.EthAddrs[1].GetAddress(),
+			},
+			{
+				Power:           858993459,
+				EthereumAddress: keeper.EthAddrs[2].GetAddress(),
+			},
+			{
+				Power:           858993459,
+				EthereumAddress: keeper.EthAddrs[3].GetAddress(),
+			},
+			{
+				Power:           858993459,
+				EthereumAddress: keeper.EthAddrs[4].GetAddress(),
+			},
+		},
+	}
 	input, _ := keeper.SetupFiveValChain(t)
 	sdkCtx := input.Context
 

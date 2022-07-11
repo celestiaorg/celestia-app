@@ -13,11 +13,9 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-var (
-	// shareSizes includes all the possible share sizes of the given data
-	// that the signer must sign over.
-	shareSizes = []uint64{16, 32, 64, 128}
-)
+// shareSizes includes all the possible share sizes of the given data
+// that the signer must sign over.
+var shareSizes = []uint64{16, 32, 64, 128}
 
 // SubmitPayForData constructs, signs and synchronously submits a PayForData
 // transaction, returning a sdk.TxResponse upon submission.
