@@ -11,7 +11,8 @@ import (
 // ValsetConfirm queries the ValsetConfirm of the qgb module
 func (k Keeper) ValsetConfirm(
 	c context.Context,
-	req *types.QueryValsetConfirmRequest) (*types.QueryValsetConfirmResponse, error) {
+	req *types.QueryValsetConfirmRequest,
+) (*types.QueryValsetConfirmResponse, error) {
 	addr, err := sdk.AccAddressFromBech32(req.Address)
 	if err != nil {
 		return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "address invalid")
@@ -22,7 +23,8 @@ func (k Keeper) ValsetConfirm(
 // ValsetConfirmsByNonce queries the ValsetConfirmsByNonce of the qgb module
 func (k Keeper) ValsetConfirmsByNonce(
 	c context.Context,
-	req *types.QueryValsetConfirmsByNonceRequest) (*types.QueryValsetConfirmsByNonceResponse, error) {
+	req *types.QueryValsetConfirmsByNonceRequest,
+) (*types.QueryValsetConfirmsByNonceResponse, error) {
 	confirms := k.GetValsetConfirms(sdk.UnwrapSDKContext(c), req.Nonce)
 	return &types.QueryValsetConfirmsByNonceResponse{Confirms: confirms}, nil
 }

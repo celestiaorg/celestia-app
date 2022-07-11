@@ -2,12 +2,13 @@ package e2e
 
 import (
 	"context"
+	"os"
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os"
-	"testing"
 )
 
 func TestOrchestratorWithOneValidator(t *testing.T) {

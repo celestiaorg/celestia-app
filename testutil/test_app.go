@@ -36,7 +36,7 @@ func SetupTestApp(t *testing.T, addr sdk.AccAddress) *app.App {
 	// var cache sdk.MultiStorePersistentCache
 	// EmptyAppOptions is a stub implementing AppOptions
 	emptyOpts := emptyAppOptions{}
-	var anteOpt = func(bapp *baseapp.BaseApp) { bapp.SetAnteHandler(nil) }
+	anteOpt := func(bapp *baseapp.BaseApp) { bapp.SetAnteHandler(nil) }
 	db := dbm.NewMemDB()
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stderr))
 

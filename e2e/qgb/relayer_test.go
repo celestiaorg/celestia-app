@@ -2,12 +2,13 @@ package e2e
 
 import (
 	"context"
+	"os"
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"testing"
 )
 
 func TestRelayerWithOneValidator(t *testing.T) {

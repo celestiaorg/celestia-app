@@ -3,6 +3,10 @@ package qgb_test
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
+	"math/big"
+	"testing"
+	"time"
+
 	"github.com/celestiaorg/celestia-app/x/qgb"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -14,9 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"math/big"
-	"testing"
-	"time"
 )
 
 // TODO add test for all the possible scenarios defined in msg_server.go

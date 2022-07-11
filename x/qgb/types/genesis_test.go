@@ -1,8 +1,9 @@
 package types_test
 
 import (
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 
 	"github.com/stretchr/testify/require"
 )

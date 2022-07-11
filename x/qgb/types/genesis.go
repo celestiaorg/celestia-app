@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
@@ -12,10 +13,8 @@ const (
 	DefaultParamspace = ModuleName
 )
 
-var (
-	// ParamsStoreKeyDataCommitmentWindow
-	ParamsStoreKeyDataCommitmentWindow = []byte("DataCommitmentWindow")
-)
+// ParamsStoreKeyDataCommitmentWindow
+var ParamsStoreKeyDataCommitmentWindow = []byte("DataCommitmentWindow")
 
 // DefaultIndex is the default capability global index
 const DefaultIndex uint64 = 1

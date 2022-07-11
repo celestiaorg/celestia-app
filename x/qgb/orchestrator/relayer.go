@@ -3,9 +3,10 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	tmlog "github.com/tendermint/tendermint/libs/log"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"

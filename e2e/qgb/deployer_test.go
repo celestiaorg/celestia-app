@@ -2,12 +2,13 @@ package e2e
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDeployer(t *testing.T) {

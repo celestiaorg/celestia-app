@@ -4,6 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
+	"os"
+	"os/signal"
+	"strings"
+	"time"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -13,11 +19,6 @@ import (
 	"github.com/tendermint/spm/cosmoscmd"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/testcontainers/testcontainers-go"
-	"math/big"
-	"os"
-	"os/signal"
-	"strings"
-	"time"
 )
 
 type QGBNetwork struct {

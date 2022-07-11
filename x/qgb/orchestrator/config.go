@@ -14,9 +14,7 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
-var (
-	HomeDir string
-)
+var HomeDir string
 
 func init() {
 	homeDir, err := os.UserHomeDir()

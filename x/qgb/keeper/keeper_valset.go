@@ -2,9 +2,10 @@ package keeper
 
 import (
 	"fmt"
+	"math/big"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"math/big"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )

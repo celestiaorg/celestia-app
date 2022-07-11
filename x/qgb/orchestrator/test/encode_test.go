@@ -1,9 +1,10 @@
 package test
 
 import (
-	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"math/big"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper/keystore"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -67,9 +68,7 @@ func TestValsetConfirmEncodeABI(t *testing.T) {
 	const (
 		firstExpectedData = "636865636b706f696e7400000000000000000000000000000000000000000000636865636b706f696e740000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000002710636865636b706f696e7400000000000000000000000000000000000000000000" // nolint:lll
 	)
-	var (
-		firstExpected = ethcmn.Hex2Bytes(firstExpectedData)
-	)
+	firstExpected := ethcmn.Hex2Bytes(firstExpectedData)
 
 	bytes, err := types.InternalQGBabi.Pack(
 		"domainSeparateValidatorSetHash",
@@ -82,16 +81,13 @@ func TestValsetConfirmEncodeABI(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, firstExpected, bytes[4:])
-
 }
 
 func TestSignatureABIEncode(t *testing.T) {
 	const (
 		firstExpectedData = "19457468657265756d205369676e6564204d6573736167653a0a3332636865636b706f696e7400000000000000000000000000000000000000000000" // nolint:lll
 	)
-	var (
-		firstExpected = ethcmn.Hex2Bytes(firstExpectedData)
-	)
+	firstExpected := ethcmn.Hex2Bytes(firstExpectedData)
 
 	i := []byte(types.EthSignPrefix)
 	i = append(i, types.VsDomainSeparator[:]...)

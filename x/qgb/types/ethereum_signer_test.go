@@ -2,9 +2,10 @@ package types_test
 
 import (
 	"encoding/hex"
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
