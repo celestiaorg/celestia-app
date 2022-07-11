@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"math/big"
 	"os"
 	"os/signal"
 	"strings"
 	"time"
+
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
