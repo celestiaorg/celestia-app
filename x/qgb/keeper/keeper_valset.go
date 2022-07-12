@@ -119,6 +119,12 @@ func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.
 	// and we need the previous one.
 	for i := uint64(1); i < nonce; i++ {
 		at := k.GetAttestationByNonce(ctx, nonce-i)
+		if at == nil {
+			return nil, sdkerrors.Wrap(
+				types.ErrNilAttestation,
+				fmt.Sprintf("nonce=%d", nonce-i),
+			)
+		}
 		if at.Type() == types.ValsetRequestType {
 			valset, ok := at.(*types.Valset)
 			if !ok {
@@ -131,4 +137,21 @@ func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.
 		sdkerrors.ErrNotFound,
 		fmt.Sprintf("couldn't find valset before nonce %d", nonce),
 	)
+}
+
+// TODO add query for this method and make the orchestrator Querier use it.
+func (k Keeper) GetValsetByNonce(ctx sdk.Context, nonce uint64) (*types.Valset, error) {
+	at := k.GetAttestationByNonce(ctx, nonce)
+	if at == nil {
+		return nil, types.ErrAttestationNotFound
+	}
+	if at.Type() != types.ValsetRequestType {
+		return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "attestation is not a valset request")
+	}
+
+	valset, ok := at.(*types.Valset)
+	if !ok {
+		return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
+	}
+	return valset, nil
 }

@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -381,11 +384,121 @@ func (network QGBNetwork) WaitForOrchestratorToStart(_ctx context.Context, accou
 			}
 			return ctx.Err()
 		default:
-			confirm, err := querier.QueryValsetConfirm(ctx, 1, accountAddress)
-			if err == nil && confirm != nil {
-				return nil
-			}
 			fmt.Println("waiting for orchestrator to start ...")
+			lastNonce, err := querier.QueryLatestAttestationNonce(ctx)
+			if err != nil {
+				fmt.Println(err.Error())
+				continue
+			}
+			for i := uint64(0); i < lastNonce; i++ {
+				vsConfirm, err := querier.QueryValsetConfirm(ctx, lastNonce-i, accountAddress)
+				if err == nil && vsConfirm != nil {
+					return nil
+				}
+				dcConfirm, err := querier.QueryDataCommitmentConfirm(
+					ctx,
+					(lastNonce-i+1)*types.DataCommitmentWindow,
+					(lastNonce-i)*types.DataCommitmentWindow,
+					accountAddress,
+				)
+				if err == nil && dcConfirm != nil {
+					return nil
+				}
+			}
+			time.Sleep(5 * time.Second)
+		}
+	}
+}
+
+// GetValsetContainingVals Gets the last valset that contains a certain number of validator.
+// This is used after enabling orchestrators not to sign unless they belong to some valset.
+// Thus, any nonce after the returned valset should be signed by all orchestrators.
+func (network QGBNetwork) GetValsetContainingVals(_ctx context.Context, number int) (*types.Valset, error) {
+	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
+	if err != nil {
+		return nil, err
+	}
+	defer querier.Stop()
+	ctx, _ := context.WithTimeout(_ctx, 5*time.Minute) //nolint:govet
+	for {
+		select {
+		case <-ctx.Done():
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				return nil, fmt.Errorf("couldn't find any valset containing %d validators", number)
+			}
+			return nil, ctx.Err()
+		default:
+			fmt.Printf("searching for valset with %d validator...\n", number)
+			lastNonce, err := querier.QueryLatestAttestationNonce(ctx)
+			if err != nil {
+				fmt.Println(err.Error())
+				continue
+			}
+			for i := uint64(0); i < lastNonce; i++ {
+				vs, err := querier.QueryValsetByNonce(ctx, lastNonce-i)
+				if err == nil && vs != nil && len(vs.Members) == number {
+					return vs, nil
+				}
+			}
+			time.Sleep(5 * time.Second)
+		}
+	}
+}
+
+// GetAttestationConfirm Returns the confirm sdk.Msg message for either a valset confirm or
+// a data commitment confirm.
+// Will be used as long as we don't have support for AttestationConfirm.
+// https://github.com/celestiaorg/celestia-app/issues/505
+func (network QGBNetwork) GetAttestationConfirm(
+	_ctx context.Context,
+	nonce uint64,
+	account string,
+) (sdk.Msg, error) {
+	ctx, _ := context.WithTimeout(_ctx, 2*time.Minute) //nolint:govet
+	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
+	if err != nil {
+		return nil, err
+	}
+	defer querier.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				return nil, fmt.Errorf("couldn't find confirm for nonce=%d", nonce)
+			}
+			return nil, ctx.Err()
+		default:
+			att, err := querier.QueryAttestationByNonce(ctx, nonce)
+			if err != nil {
+				continue
+			}
+			switch att.Type() {
+			case types.ValsetRequestType:
+				_, ok := att.(*types.Valset)
+				if !ok {
+					continue
+				}
+				resp, err := querier.QueryValsetConfirm(ctx, nonce, account)
+				if err == nil && resp != nil {
+					return resp, nil
+				}
+
+			case types.DataCommitmentRequestType:
+				dc, ok := att.(*types.DataCommitment)
+				if !ok {
+					continue
+				}
+				resp, err := querier.QueryDataCommitmentConfirm(
+					ctx,
+					dc.EndBlock,
+					dc.BeginBlock,
+					account,
+				)
+				if err == nil && resp != nil {
+					return resp, nil
+				}
+			}
+			fmt.Printf("waiting for confirm for nonce=%d\n", nonce)
 			time.Sleep(5 * time.Second)
 		}
 	}

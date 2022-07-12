@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
+
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -227,6 +229,25 @@ func (orch Orchestrator) Process(ctx context.Context, nonce uint64) error {
 	att, err := orch.Querier.QueryAttestationByNonce(ctx, nonce)
 	if err != nil {
 		return err
+	}
+	// check if the validator is part of the needed valset
+	var previousValset *types.Valset
+	if att.GetNonce() == 1 {
+		// if nonce == 1, then, the current valset should sign the confirm
+		previousValset, err = orch.Querier.QueryValsetByNonce(ctx, att.GetNonce())
+		if err != nil {
+			return err
+		}
+	} else {
+		previousValset, err = orch.Querier.QueryLastValsetBeforeNonce(ctx, att.GetNonce())
+		if err != nil {
+			return err
+		}
+	}
+	if !keeper.ValidatorPartOfValset(previousValset.Members, orch.OrchEthAddress.GetAddress()) {
+		// no need to sign if the orchestrator is not part of the validator set that needs to sign the attestation
+		orch.Logger.Debug("validator not part of valset. won't sign", "nonce", nonce)
+		return nil
 	}
 	switch att.Type() {
 	case types.ValsetRequestType:

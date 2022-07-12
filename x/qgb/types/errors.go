@@ -17,4 +17,6 @@ var (
 	ErrAttestationNotFound                 = sdkerrors.Register(ModuleName, 18, "attestation not found")
 	ErrNilDataCommitmentRequest            = sdkerrors.Register(ModuleName, 19, "data commitment cannot be nil when setting attestation") //nolint:lll
 	ErrNilValsetRequest                    = sdkerrors.Register(ModuleName, 20, "valset cannot be nil when setting attestation")
+	ErrValidatorNotInValset                = sdkerrors.Register(ModuleName, 21, "validator signing is not in the valset")
+	ErrNilAttestation                      = sdkerrors.Register(ModuleName, 22, "nil attestation")
 )

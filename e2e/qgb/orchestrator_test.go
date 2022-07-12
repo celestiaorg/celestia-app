@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -118,26 +119,15 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE0EVMADDRESS, core0DataCommitmentConfirm.EthAddress)
 
-	// check core1 submited the valset confirm
-	core1ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE1ACCOUNTADDRESS)
-	// check the confirm exist
+	// get the last valset where all validators were created
+	vs, err := network.GetValsetContainingVals(ctx, 2)
 	require.NoError(t, err)
-	require.NotNil(t, core1ValsetConfirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE1EVMADDRESS, core1ValsetConfirm.EthAddress)
+	require.NotNil(t, vs)
 
-	// check core1 submitted the data commitment confirm
-	core1DataCommitmentConfirm, err := querier.QueryDataCommitmentConfirm(
-		ctx,
-		types.DataCommitmentWindow,
-		0,
-		CORE1ACCOUNTADDRESS,
-	)
-	// check the confirm exist
+	// check core1 submited the attestation confirm
+	core1Confirm, err := network.GetAttestationConfirm(ctx, vs.Nonce+1, CORE1ACCOUNTADDRESS)
 	require.NoError(t, err)
-	require.NotNil(t, core1DataCommitmentConfirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE1EVMADDRESS, core1DataCommitmentConfirm.EthAddress)
+	require.NotNil(t, core1Confirm)
 }
 
 func TestOrchestratorWithMultipleValidators(t *testing.T) {
@@ -195,68 +185,25 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE0EVMADDRESS, core0DataCommitmentConfirm.EthAddress)
 
-	// check core1 submited the valset confirm
-	core1ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE1ACCOUNTADDRESS)
-	// check the confirm exist
+	// get the last valset where all validators were created
+	vs, err := network.GetValsetContainingVals(ctx, 4)
 	require.NoError(t, err)
-	require.NotNil(t, core1ValsetConfirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE1EVMADDRESS, core1ValsetConfirm.EthAddress)
+	require.NotNil(t, vs)
 
-	// check core1 submitted the data commitment confirm
-	core1DataCommitmentConfirm, err := querier.QueryDataCommitmentConfirm(
-		ctx,
-		types.DataCommitmentWindow,
-		0,
-		CORE1ACCOUNTADDRESS,
-	)
-	// check the confirm exist
+	// check core1 submited the attestation confirm
+	core1Confirm, err := network.GetAttestationConfirm(ctx, vs.Nonce+1, CORE1ACCOUNTADDRESS)
 	require.NoError(t, err)
-	require.NotNil(t, core1DataCommitmentConfirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE1EVMADDRESS, core1DataCommitmentConfirm.EthAddress)
+	require.NotNil(t, core1Confirm)
 
-	// check core2 submited the valset confirm
-	core2ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE2ACCOUNTADDRESS)
-	// check the confirm exist
+	// check core2 submited the attestation confirm
+	core2Confirm, err := network.GetAttestationConfirm(ctx, vs.Nonce+1, CORE2ACCOUNTADDRESS)
 	require.NoError(t, err)
-	require.NotNil(t, core2ValsetConfirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE2EVMADDRESS, core2ValsetConfirm.EthAddress)
+	require.NotNil(t, core2Confirm)
 
-	// check core1 submitted the data commitment confirm
-	core2DataCommitmentConfirm, err := querier.QueryDataCommitmentConfirm(
-		ctx,
-		types.DataCommitmentWindow,
-		0,
-		CORE2ACCOUNTADDRESS,
-	)
-	// check the confirm exist
+	// check core3 submited the attestation confirm
+	core3Confirm, err := network.GetAttestationConfirm(ctx, vs.Nonce+1, CORE3ACCOUNTADDRESS)
 	require.NoError(t, err)
-	require.NotNil(t, core2DataCommitmentConfirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE2EVMADDRESS, core2DataCommitmentConfirm.EthAddress)
-
-	// check core3 submited the valset confirm
-	core3ValsetConfirm, err := querier.QueryValsetConfirm(ctx, 1, CORE3ACCOUNTADDRESS)
-	// check the confirm exist
-	require.NoError(t, err)
-	require.NotNil(t, core3ValsetConfirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE3EVMADDRESS, core3ValsetConfirm.EthAddress)
-
-	// check core1 submitted the data commitment confirm
-	core3DataCommitmentConfirm, err := querier.QueryDataCommitmentConfirm(
-		ctx,
-		types.DataCommitmentWindow,
-		0,
-		CORE3ACCOUNTADDRESS,
-	)
-	// check the confirm exist
-	require.NoError(t, err)
-	require.NotNil(t, core3DataCommitmentConfirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE3EVMADDRESS, core3DataCommitmentConfirm.EthAddress)
+	require.NotNil(t, core3Confirm)
 }
 
 func TestOrchestratorReplayOld(t *testing.T) {
@@ -300,6 +247,9 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	err = network.WaitForOrchestratorToStart(network.Context, CORE1ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
+	// give the orchestrators some time to catchup
+	time.Sleep(30 * time.Second)
+
 	// FIXME should we use the querier here or go for raw queries?
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
 	HandleNetworkError(t, network, err, false)
@@ -307,84 +257,24 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	// check core0 submitted valset 1 confirm
 	vs1Core0Confirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, vs1Core0Confirm)
+	require.NoError(t, err)
+	require.NotNil(t, vs1Core0Confirm)
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE0EVMADDRESS, vs1Core0Confirm.EthAddress)
 
-	// check core0 submitted valset 2 confirm
-	vs2Core0Confirm, err := querier.QueryValsetConfirm(ctx, 1, CORE0ACCOUNTADDRESS)
-	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, vs2Core0Confirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE0EVMADDRESS, vs2Core0Confirm.EthAddress)
+	// get the last valset where all validators were created
+	vs, err := network.GetValsetContainingVals(ctx, 2)
+	require.NoError(t, err)
+	require.NotNil(t, vs)
 
-	// check core1 submitted valset 1 confirm
-	vs1Core1Confirm, err := querier.QueryValsetConfirm(ctx, 1, CORE1ACCOUNTADDRESS)
-	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, vs1Core1Confirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE1EVMADDRESS, vs1Core1Confirm.EthAddress)
+	latestNonce, err := querier.QueryLatestAttestationNonce(ctx)
+	require.NoError(t, err)
 
-	// check core1 submitted valset 2 confirm
-	vs2Core1Confirm, err := querier.QueryValsetConfirm(ctx, 1, CORE1ACCOUNTADDRESS)
-	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, vs2Core1Confirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE1EVMADDRESS, vs2Core1Confirm.EthAddress)
-
-	// check core0 submitted data commitment confirm 0->window
-	dc0Core0Confirm, err := querier.QueryDataCommitmentConfirm(
-		ctx,
-		types.DataCommitmentWindow,
-		0,
-		CORE0ACCOUNTADDRESS,
-	)
-	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, dc0Core0Confirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE0EVMADDRESS, dc0Core0Confirm.EthAddress)
-
-	// check core0 submitted data commitment confirm window->2*window
-	dc1Core0Confirm, err := querier.QueryDataCommitmentConfirm(
-		ctx,
-		2*types.DataCommitmentWindow,
-		types.DataCommitmentWindow,
-		CORE0ACCOUNTADDRESS,
-	)
-	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, dc1Core0Confirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE0EVMADDRESS, dc1Core0Confirm.EthAddress)
-
-	// check core1 submitted data commitment confirm 0->window
-	dc0Core1Confirm, err := querier.QueryDataCommitmentConfirm(
-		ctx,
-		types.DataCommitmentWindow,
-		0,
-		CORE1ACCOUNTADDRESS,
-	)
-	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, dc0Core1Confirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE1EVMADDRESS, dc0Core1Confirm.EthAddress)
-
-	// check core0 submitted data commitment confirm window->2*window
-	dc1Core1Confirm, err := querier.QueryDataCommitmentConfirm(
-		ctx,
-		2*types.DataCommitmentWindow,
-		types.DataCommitmentWindow,
-		CORE1ACCOUNTADDRESS,
-	)
-	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, dc1Core1Confirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE1EVMADDRESS, dc1Core1Confirm.EthAddress)
+	// checks that all nonces where all validators were part of the valset were signed
+	for i := vs.Nonce + 1; i <= latestNonce; i++ {
+		// check core1 submited the attestation confirm
+		core1Confirm, err := network.GetAttestationConfirm(ctx, i, CORE1ACCOUNTADDRESS)
+		require.NoError(t, err)
+		require.NotNil(t, core1Confirm)
+	}
 }

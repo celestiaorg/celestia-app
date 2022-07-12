@@ -31,17 +31,9 @@ func (k msgServer) ValsetConfirm(
 	ctx := sdk.UnwrapSDKContext(c)
 
 	// Get valset by nonce
-	at := k.GetAttestationByNonce(ctx, msg.Nonce)
-	if at == nil {
-		return nil, types.ErrAttestationNotFound
-	}
-	if at.Type() != types.ValsetRequestType {
-		return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "attestation is not a valset request")
-	}
-
-	valset, ok := at.(*types.Valset)
-	if !ok {
-		return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
+	valset, err := k.GetValsetByNonce(ctx, msg.Nonce)
+	if err != nil {
+		return nil, err
 	}
 
 	// Get orchestrator account from message
@@ -57,6 +49,25 @@ func (k msgServer) ValsetConfirm(
 	}
 	if err := sdk.VerifyAddressFormat(validator.GetOperator()); err != nil {
 		return nil, sdkerrors.Wrapf(err, "discovered invalid validator address for orchestrator %v", orchaddr)
+	}
+
+	// Verify if validator is part of the previous valset
+	var previousValset *types.Valset
+	// TODO add test for case nonce == 1.
+	if msg.Nonce == 1 {
+		// if the msg.Nonce == 1, the current valset should sign the first valset. Because, it's the first attestation, and there is no prior validator set defined that should sign this change.
+		previousValset = valset
+	} else {
+		previousValset, err = k.GetLastValsetBeforeNonce(ctx, msg.Nonce)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if !ValidatorPartOfValset(previousValset.Members, validator.EthAddress) {
+		return nil, sdkerrors.Wrap(
+			types.ErrValidatorNotInValset,
+			fmt.Sprintf("validator %s not part of valset %d", validator.Orchestrator, previousValset.Nonce),
+		)
 	}
 
 	// Verify ethereum address match
@@ -142,6 +153,28 @@ func (k msgServer) DataCommitmentConfirm(
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
 	}
 
+	// Verify if validator is part of the previous valset
+	var previousValset *types.Valset
+	// TODO add test for case nonce == 1.
+	if msg.Nonce == 1 {
+		// if the msg.Nonce == 1, the current valset should sign the first valset. Because, it's the first attestation, and there is no prior validator set defined that should sign this change.
+		previousValset, err = k.GetValsetByNonce(ctx, msg.Nonce)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		previousValset, err = k.GetLastValsetBeforeNonce(ctx, msg.Nonce)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if !ValidatorPartOfValset(previousValset.Members, validator.EthAddress) {
+		return nil, sdkerrors.Wrap(
+			types.ErrValidatorNotInValset,
+			fmt.Sprintf("validator %s not part of valset %d", validator.Orchestrator, previousValset.Nonce),
+		)
+	}
+
 	// Verify signature
 	commitment, err := hex.DecodeString(msg.Commitment)
 	if err != nil {
@@ -178,4 +211,13 @@ func (k msgServer) DataCommitmentConfirm(
 	)
 
 	return &types.MsgDataCommitmentConfirmResponse{}, nil
+}
+
+func ValidatorPartOfValset(members []types.BridgeValidator, ethAddr string) bool {
+	for _, val := range members {
+		if val.EthereumAddress == ethAddr {
+			return true
+		}
+	}
+	return false
 }
