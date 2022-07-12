@@ -55,7 +55,7 @@ func (k msgServer) ValsetConfirm(
 	var previousValset *types.Valset
 	// TODO add test for case nonce == 1.
 	if msg.Nonce == 1 {
-		// if the msg.Nonce == 1, the current valset should sign the first valset
+		// if the msg.Nonce == 1, the current valset should sign the first valset. Because, it's the first attestation, and there is no prior validator set defined that should sign this change.
 		previousValset = valset
 	} else {
 		previousValset, err = k.GetLastValsetBeforeNonce(ctx, msg.Nonce)
