@@ -129,13 +129,6 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 	return nil
 }
 
-// GetSignBytes returns the bytes that are expected to be signed for the MsgWirePayForData.
-// The signature of these bytes will never actually get included on chain. Note: instead the
-// signature in the ShareCommitAndSignature of the appropriate square size is used.
-func (msg *MsgWirePayForData) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(msg))
-}
-
 // GetSigners returns the addresses of the message signers
 func (msg *MsgWirePayForData) GetSigners() []sdk.AccAddress {
 	address, err := sdk.AccAddressFromBech32(msg.Signer)
@@ -194,13 +187,14 @@ func (msg *MsgWirePayForData) unsignedPayForData(k uint64) (*MsgPayForData, erro
 func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.Message, *MsgPayForData, []byte, error) {
 	// make sure that a ShareCommitAndSignature of the correct size is
 	// included in the message
-	var shareCommit *ShareCommitAndSignature
+	var shareCommit ShareCommitAndSignature
 	for _, commit := range msg.MessageShareCommitment {
 		if commit.K == squareSize {
-			shareCommit = &commit
+			shareCommit = commit
+			break
 		}
 	}
-	if shareCommit == nil {
+	if shareCommit.Signature == nil {
 		return nil,
 			nil,
 			nil,
@@ -220,4 +214,41 @@ func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.
 	}
 
 	return &coreMsg, pfd, shareCommit.Signature, nil
+}
+
+// HasWirePayForData performs a quick but not definitive check to see if a tx
+// contains a MsgWirePayForData. The check is quick but not definitive because
+// it only uses a proto.Message generated method instead of performing a full
+// type check.
+func HasWirePayForData(tx sdk.Tx) bool {
+	for _, msg := range tx.GetMsgs() {
+		msgName := sdk.MsgTypeURL(msg)
+		if msgName == URLMsgWirePayForData {
+			return true
+		}
+	}
+	return false
+}
+
+// ExtractMsgWirePayForData attempts to extract a MsgWirePayForData from a
+// provided sdk.Tx. It returns an error if no MsgWirePayForData is found.
+func ExtractMsgWirePayForData(tx sdk.Tx) (*MsgWirePayForData, error) {
+	noWirePFDError := errors.New("sdk.Tx does not contain MsgWirePayForData sdk.Msg")
+	// perform a quick check before attempting a type check
+	if !HasWirePayForData(tx) {
+		return nil, noWirePFDError
+	}
+
+	// only support malleated transactions that contain a single sdk.Msg
+	if len(tx.GetMsgs()) != 1 {
+		return nil, errors.New("sdk.Txs with a single MsgWirePayForData are currently supported")
+	}
+
+	msg := tx.GetMsgs()[0]
+	wireMsg, ok := msg.(*MsgWirePayForData)
+	if !ok {
+		return nil, noWirePFDError
+	}
+
+	return wireMsg, nil
 }

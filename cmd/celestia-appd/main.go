@@ -4,14 +4,14 @@ import (
 	"os"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
+
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 )
 
-const envPrefix = "CELESTIA"
-
 func main() {
-	rootCmd := NewRootCmd()
-	if err := svrcmd.Execute(rootCmd, envPrefix, app.DefaultNodeHome); err != nil {
+	rootCmd := cmd.NewRootCmd()
+	if err := svrcmd.Execute(rootCmd, cmd.EnvPrefix, app.DefaultNodeHome); err != nil {
 		os.Exit(1)
 	}
 }
