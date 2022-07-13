@@ -1,8 +1,9 @@
 package qgb_test
 
 import (
-	"github.com/celestiaorg/celestia-app/testutil"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/testutil"
 
 	"github.com/celestiaorg/celestia-app/x/qgb"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"

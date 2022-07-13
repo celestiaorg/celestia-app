@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestValidateMsgDataCommitmentConfirm(t *testing.T) {
 	var (
-		ethAddress, _                = stakingtypes.NewEthAddress("0xb462864E395d88d6bc7C5dd5F3F5eb4cc2599255")
+		ethAddress                   = common.HexToAddress("0xb462864E395d88d6bc7C5dd5F3F5eb4cc2599255")
 		cosmosAddress sdk.AccAddress = bytes.Repeat([]byte{0x1}, 20)
 	)
 	specs := map[string]struct {
@@ -39,7 +40,7 @@ func TestValidateMsgDataCommitmentConfirm(t *testing.T) {
 				"commitment",
 				"signature",
 				cosmosAddress,
-				*ethAddress,
+				ethAddress,
 				spec.beginBlock,
 				spec.endBlock,
 				20,

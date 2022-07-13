@@ -18,7 +18,7 @@ func NewMsgDataCommitmentConfirm(
 	commitment string,
 	signature string,
 	validatorAddress sdk.AccAddress,
-	ethAddress stakingtypes.EthAddress,
+	ethAddress ethcmn.Address,
 	beginBlock uint64,
 	endBlock uint64,
 	nonce uint64,
@@ -27,7 +27,7 @@ func NewMsgDataCommitmentConfirm(
 		Commitment:       commitment,
 		Signature:        signature,
 		ValidatorAddress: validatorAddress.String(),
-		EthAddress:       ethAddress.GetAddress(),
+		EthAddress:       ethAddress.Hex(),
 		BeginBlock:       beginBlock,
 		EndBlock:         endBlock,
 		Nonce:            nonce,
@@ -51,8 +51,8 @@ func (msg *MsgDataCommitmentConfirm) ValidateBasic() (err error) {
 	if msg.BeginBlock > msg.EndBlock {
 		return errors.New("begin block should be less than end block")
 	}
-	if err := stakingtypes.ValidateEthAddress(msg.EthAddress); err != nil {
-		return sdkerrors.Wrap(err, "ethereum address")
+	if !ethcmn.IsHexAddress(msg.EthAddress) {
+		return sdkerrors.Wrap(stakingtypes.ErrEthAddressNotHex, "ethereum address")
 	}
 	return nil
 }

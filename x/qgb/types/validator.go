@@ -1,8 +1,11 @@
 package types
 
 import (
+	"bytes"
 	math "math"
 	"sort"
+
+	"github.com/ethereum/go-ethereum/common"
 
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
@@ -32,17 +35,17 @@ func (b BridgeValidators) ToInternal() (*InternalBridgeValidators, error) {
 // Bridge Validator but with validated EthereumAddress
 type InternalBridgeValidator struct {
 	Power           uint64
-	EthereumAddress stakingtypes.EthAddress
+	EthereumAddress common.Address
 }
 
 func NewInternalBridgeValidator(bridgeValidator BridgeValidator) (*InternalBridgeValidator, error) {
-	validatorEthAddr, err := stakingtypes.NewEthAddress(bridgeValidator.EthereumAddress)
-	if err != nil {
-		return nil, err
+	if !common.IsHexAddress(bridgeValidator.EthereumAddress) {
+		return nil, stakingtypes.ErrEthAddressNotHex
 	}
+	validatorEthAddr := common.HexToAddress(bridgeValidator.EthereumAddress)
 	i := &InternalBridgeValidator{
 		Power:           bridgeValidator.Power,
-		EthereumAddress: *validatorEthAddr,
+		EthereumAddress: validatorEthAddr,
 	}
 	if err := i.ValidateBasic(); err != nil {
 		return nil, sdkerrors.Wrap(err, "invalid bridge validator")
@@ -54,16 +57,13 @@ func (i InternalBridgeValidator) ValidateBasic() error {
 	if i.Power == 0 {
 		return sdkerrors.Wrap(ErrEmpty, "power")
 	}
-	if err := i.EthereumAddress.ValidateBasic(); err != nil {
-		return sdkerrors.Wrap(err, "ethereum address")
-	}
 	return nil
 }
 
 func (i InternalBridgeValidator) ToExternal() BridgeValidator {
 	return BridgeValidator{
 		Power:           i.Power,
-		EthereumAddress: i.EthereumAddress.GetAddress(),
+		EthereumAddress: i.EthereumAddress.Hex(),
 	}
 }
 
@@ -84,10 +84,15 @@ func (b InternalBridgeValidators) Sort() {
 	sort.Slice(b, func(i, j int) bool {
 		if b[i].Power == b[j].Power {
 			// Secondary sort on eth address in case powers are equal
-			return stakingtypes.EthAddrLessThan(b[i].EthereumAddress, b[j].EthereumAddress)
+			return EthAddrLessThan(b[i].EthereumAddress, b[j].EthereumAddress)
 		}
 		return b[i].Power > b[j].Power
 	})
+}
+
+// EthAddrLessThan migrates the Ethereum address less than function
+func EthAddrLessThan(e common.Address, o common.Address) bool {
+	return bytes.Compare([]byte(e.Hex())[:], []byte(o.Hex())[:]) == -1
 }
 
 // PowerDiff returns the difference in power between two bridge validator sets
@@ -108,16 +113,16 @@ func (b InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) float64 
 	powers := map[string]int64{}
 	// loop over b and initialize the map with their powers
 	for _, bv := range b {
-		powers[bv.EthereumAddress.GetAddress()] = int64(bv.Power)
+		powers[bv.EthereumAddress.Hex()] = int64(bv.Power)
 	}
 
 	// subtract c powers from powers in the map, initializing
 	// uninitialized keys with negative numbers
 	for _, bv := range c {
-		if val, ok := powers[bv.EthereumAddress.GetAddress()]; ok {
-			powers[bv.EthereumAddress.GetAddress()] = val - int64(bv.Power)
+		if val, ok := powers[bv.EthereumAddress.Hex()]; ok {
+			powers[bv.EthereumAddress.Hex()] = val - int64(bv.Power)
 		} else {
-			powers[bv.EthereumAddress.GetAddress()] = -int64(bv.Power)
+			powers[bv.EthereumAddress.Hex()] = -int64(bv.Power)
 		}
 	}
 
@@ -144,7 +149,7 @@ func (b InternalBridgeValidators) HasDuplicates() bool {
 	// creates a hashmap then ensures that the hashmap and the array
 	// have the same length, this acts as an O(n) duplicates check
 	for i := range b {
-		m[b[i].EthereumAddress.GetAddress()] = struct{}{}
+		m[b[i].EthereumAddress.Hex()] = struct{}{}
 	}
 	return len(m) != len(b)
 }

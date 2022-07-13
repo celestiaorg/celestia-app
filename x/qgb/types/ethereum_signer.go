@@ -3,7 +3,7 @@ package types
 import (
 	"crypto/ecdsa"
 
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/ethereum/go-ethereum/common"
 
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -22,9 +22,9 @@ func NewEthereumSignature(hash []byte, privateKey *ecdsa.PrivateKey) ([]byte, er
 	return crypto.Sign(protectedHash.Bytes(), privateKey)
 }
 
-func EthAddressFromSignature(hash []byte, signature []byte) (*stakingtypes.EthAddress, error) {
+func EthAddressFromSignature(hash []byte, signature []byte) (common.Address, error) {
 	if len(signature) < 65 {
-		return nil, sdkerrors.Wrap(ErrInvalid, "signature too short")
+		return common.Address{}, sdkerrors.Wrap(ErrInvalid, "signature too short")
 	}
 	// To verify signature
 	// - use crypto.SigToPub to get the public key
@@ -48,26 +48,22 @@ func EthAddressFromSignature(hash []byte, signature []byte) (*stakingtypes.EthAd
 
 	pubkey, err := crypto.SigToPub(protectedHash.Bytes(), signature)
 	if err != nil {
-		return nil, sdkerrors.Wrap(err, "signature to public key")
+		return common.Address{}, sdkerrors.Wrap(err, "signature to public key")
 	}
 
-	addr, err := stakingtypes.NewEthAddress(crypto.PubkeyToAddress(*pubkey).Hex())
-	if err != nil {
-		return nil, sdkerrors.Wrap(err, "invalid address from public key")
-	}
-
+	addr := crypto.PubkeyToAddress(*pubkey)
 	return addr, nil
 }
 
 // ValidateEthereumSignature takes a message, an associated signature and public key and
 // returns an error if the signature isn't valid
-func ValidateEthereumSignature(hash []byte, signature []byte, ethAddress stakingtypes.EthAddress) error {
+func ValidateEthereumSignature(hash []byte, signature []byte, ethAddress common.Address) error {
 	addr, err := EthAddressFromSignature(hash, signature)
 	if err != nil {
 		return sdkerrors.Wrap(err, "unable to get address from signature")
 	}
 
-	if addr.GetAddress() != ethAddress.GetAddress() {
+	if addr.Hex() != ethAddress.Hex() {
 		return sdkerrors.Wrap(ErrInvalid, "signature not matching")
 	}
 

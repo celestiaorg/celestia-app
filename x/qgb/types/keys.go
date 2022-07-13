@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/ethereum/go-ethereum/common"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -100,8 +100,8 @@ func GetEthAddressByValidatorKey(validator sdk.ValAddress) string {
 // GetValidatorByEthAddressKey returns the following key format
 // prefix              cosmos-validator
 // [0xf9][0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B]
-func GetValidatorByEthAddressKey(ethAddress stakingtypes.EthAddress) string {
-	return ValidatorByEthAddressKey + string([]byte(ethAddress.GetAddress()))
+func GetValidatorByEthAddressKey(ethAddress common.Address) string {
+	return ValidatorByEthAddressKey + string([]byte(ethAddress.Hex()))
 }
 
 // GetDataCommitmentConfirmKey returns the following key format

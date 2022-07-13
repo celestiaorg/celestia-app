@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,13 +15,12 @@ import (
 
 func TestQueryDataCommitment(t *testing.T) {
 	var (
-		addrStr                       = "cosmos1v4s3yfg8rujaz56yt5a3xznqjqgyeff4552l40"
-		myValidatorCosmosAddr, err1   = sdk.AccAddressFromBech32(addrStr)
-		myValidatorEthereumAddr, err2 = stakingtypes.NewEthAddress("0x3232323232323232323232323232323232323232")
-		nonce                         = uint64(20)
+		addrStr                     = "cosmos1v4s3yfg8rujaz56yt5a3xznqjqgyeff4552l40"
+		myValidatorCosmosAddr, err1 = sdk.AccAddressFromBech32(addrStr)
+		myValidatorEthereumAddr     = gethcommon.HexToAddress("0x3232323232323232323232323232323232323232")
+		nonce                       = uint64(20)
 	)
 	require.NoError(t, err1)
-	require.NoError(t, err2)
 	input := testutil.CreateTestEnv(t)
 	sdkCtx := input.Context
 	ctx := sdk.WrapSDKContext(input.Context)
@@ -33,7 +31,7 @@ func TestQueryDataCommitment(t *testing.T) {
 			"commitment",
 			"alksdjhflkasjdfoiasjdfiasjdfoiasdj",
 			myValidatorCosmosAddr,
-			*myValidatorEthereumAddr,
+			myValidatorEthereumAddr,
 			10,
 			200,
 			nonce,
@@ -56,7 +54,7 @@ func TestQueryDataCommitment(t *testing.T) {
 					"commitment",
 					"alksdjhflkasjdfoiasjdfiasjdfoiasdj",
 					myValidatorCosmosAddr,
-					*myValidatorEthereumAddr,
+					myValidatorEthereumAddr,
 					10,
 					200,
 					nonce,
@@ -125,13 +123,13 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 			{15, 120},
 			{300, 450},
 		}
-		myValidatorCosmosAddr1, _   = sdk.AccAddressFromBech32(addrs[0])
-		myValidatorCosmosAddr2, _   = sdk.AccAddressFromBech32(addrs[1])
-		myValidatorCosmosAddr3, _   = sdk.AccAddressFromBech32(addrs[2])
-		myValidatorEthereumAddr1, _ = stakingtypes.NewEthAddress("0x0101010101010101010101010101010101010101")
-		myValidatorEthereumAddr2, _ = stakingtypes.NewEthAddress("0x0202020202020202020202020202020202020202")
-		myValidatorEthereumAddr3, _ = stakingtypes.NewEthAddress("0x0303030303030303030303030303030303030303")
-		nonce                       = uint64(20)
+		myValidatorCosmosAddr1, _ = sdk.AccAddressFromBech32(addrs[0])
+		myValidatorCosmosAddr2, _ = sdk.AccAddressFromBech32(addrs[1])
+		myValidatorCosmosAddr3, _ = sdk.AccAddressFromBech32(addrs[2])
+		myValidatorEthereumAddr1  = gethcommon.HexToAddress("0x0101010101010101010101010101010101010101")
+		myValidatorEthereumAddr2  = gethcommon.HexToAddress("0x0202020202020202020202020202020202020202")
+		myValidatorEthereumAddr3  = gethcommon.HexToAddress("0x0303030303030303030303030303030303030303")
+		nonce                     = uint64(20)
 	)
 
 	input := testutil.CreateTestEnv(t)
@@ -142,14 +140,14 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 	// seed confirmations
 	for i := 0; i < 3; i++ {
 		addr, _ := sdk.AccAddressFromBech32(addrs[i])
-		ethAddr, _ := stakingtypes.NewEthAddress(gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20)).String())
+		ethAddr := gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20))
 		input.QgbKeeper.SetDataCommitmentConfirm(
 			sdkCtx,
 			*types.NewMsgDataCommitmentConfirm(
 				commitment,
 				fmt.Sprintf("signature %d", i+1),
 				addr,
-				*ethAddr,
+				ethAddr,
 				ranges[i].beginBlock,
 				ranges[i].endBlock,
 				nonce,
@@ -159,7 +157,7 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 
 	// seed a second commitment message
 	addr, _ := sdk.AccAddressFromBech32(addrs[0])
-	ethAddr, _ := stakingtypes.NewEthAddress(gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(1)}, 20)).String())
+	ethAddr := gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(1)}, 20))
 
 	input.QgbKeeper.SetDataCommitmentConfirm(
 		sdkCtx,
@@ -167,7 +165,7 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 			secondCommitment,
 			"signature 1",
 			addr,
-			*ethAddr,
+			ethAddr,
 			800,
 			900,
 			nonce,
@@ -186,7 +184,7 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 					commitment,
 					"signature 1",
 					myValidatorCosmosAddr1,
-					*myValidatorEthereumAddr1,
+					myValidatorEthereumAddr1,
 					ranges[0].beginBlock,
 					ranges[0].endBlock,
 					nonce,
@@ -195,7 +193,7 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 					commitment,
 					"signature 2",
 					myValidatorCosmosAddr2,
-					*myValidatorEthereumAddr2,
+					myValidatorEthereumAddr2,
 					ranges[1].beginBlock,
 					ranges[1].endBlock,
 					nonce,
@@ -204,7 +202,7 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 					commitment,
 					"signature 3",
 					myValidatorCosmosAddr3,
-					*myValidatorEthereumAddr3,
+					myValidatorEthereumAddr3,
 					ranges[2].beginBlock,
 					ranges[2].endBlock,
 					nonce,

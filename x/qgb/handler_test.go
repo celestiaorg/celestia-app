@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/qgb"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -15,7 +17,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,8 +38,7 @@ var (
 
 	orch1EthPrivateKey, _ = crypto.GenerateKey()
 	orch1EthPublicKey     = orch1EthPrivateKey.Public().(*ecdsa.PublicKey)
-	orch1HexEthAddress    = crypto.PubkeyToAddress(*orch1EthPublicKey).Hex()
-	orch1EthAddress, _    = stakingtypes.NewEthAddress(orch1HexEthAddress)
+	orch1EthAddress       = crypto.PubkeyToAddress(*orch1EthPublicKey)
 
 	orch1PrivateKey = secp256k1.GenPrivKey()
 	orch1PublicKey  = orch1PrivateKey.PubKey()
@@ -46,8 +46,8 @@ var (
 
 	orch2EthPrivateKey, _ = crypto.GenerateKey()
 	orch2EthPublicKey     = orch2EthPrivateKey.Public().(*ecdsa.PublicKey)
-	orch2HexEthAddress    = crypto.PubkeyToAddress(*orch2EthPublicKey).Hex()
-	orch2EthAddress, _    = stakingtypes.NewEthAddress(orch2HexEthAddress)
+	orch2EthAddress       = crypto.PubkeyToAddress(*orch2EthPublicKey)
+	orch2HexEthAddress    = orch2EthAddress.Hex()
 
 	orch2PrivateKey = secp256k1.GenPrivKey()
 	orch2PublicKey  = orch2PrivateKey.PubKey()
@@ -74,7 +74,7 @@ func TestMsgValsetConfirm(t *testing.T) {
 		uint64(120),
 		0,
 		orch1Address,
-		*orch1EthAddress,
+		orch1EthAddress,
 		validator1ValAddress,
 		validator1AccPublicKey,
 	)
@@ -119,7 +119,7 @@ func TestMsgValsetConfirm(t *testing.T) {
 
 	msg = types.NewMsgValsetConfirm(
 		1,
-		*orch1EthAddress,
+		orch1EthAddress,
 		orch1Address,
 		signature,
 	)
@@ -143,7 +143,7 @@ func TestMsgValsetConfirmWithValidatorNotPartOfValset(t *testing.T) {
 		uint64(120),
 		0,
 		orch1Address,
-		*orch1EthAddress,
+		orch1EthAddress,
 		validator1ValAddress,
 		validator1AccPublicKey,
 	)
@@ -166,7 +166,7 @@ func TestMsgValsetConfirmWithValidatorNotPartOfValset(t *testing.T) {
 		uint64(121),
 		0,
 		orch2Address,
-		*orch2EthAddress,
+		orch2EthAddress,
 		validator2ValAddress,
 		validator2AccPublicKey,
 	)
@@ -196,7 +196,7 @@ func TestMsgValsetConfirmWithValidatorNotPartOfValset(t *testing.T) {
 	// Signature from a validator that is not part of the valset
 	msg := types.NewMsgValsetConfirm(
 		2,
-		*orch2EthAddress,
+		orch2EthAddress,
 		orch2Address,
 		signature,
 	)
@@ -217,7 +217,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		uint64(120),
 		0,
 		orch1Address,
-		*orch1EthAddress,
+		orch1EthAddress,
 		validator1ValAddress,
 		validator1AccPublicKey,
 	)
@@ -256,7 +256,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		commitment,
 		hex.EncodeToString(signature),
 		orch1Address,
-		*orch1EthAddress,
+		orch1EthAddress,
 		1,
 		100,
 		1,
@@ -269,7 +269,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		commitment,
 		hex.EncodeToString(signature),
 		orch1Address,
-		*orch1EthAddress,
+		orch1EthAddress,
 		2,
 		100,
 		2,
@@ -282,7 +282,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		commitment,
 		hex.EncodeToString(signature),
 		orch1Address,
-		*orch1EthAddress,
+		orch1EthAddress,
 		1,
 		101,
 		2,
@@ -295,7 +295,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		commitment,
 		hex.EncodeToString(signature),
 		orch1Address,
-		*orch1EthAddress,
+		orch1EthAddress,
 		2,
 		101,
 		2,
@@ -308,7 +308,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		commitment,
 		hex.EncodeToString(signature),
 		orch1Address,
-		*orch1EthAddress,
+		orch1EthAddress,
 		1,
 		100,
 		2,
@@ -344,7 +344,7 @@ func TestMsgDataCommimtentConfirmWithValidatorNotPartOfValset(t *testing.T) {
 		uint64(120),
 		0,
 		orch1Address,
-		*orch1EthAddress,
+		orch1EthAddress,
 		validator1ValAddress,
 		validator1AccPublicKey,
 	)
@@ -367,7 +367,7 @@ func TestMsgDataCommimtentConfirmWithValidatorNotPartOfValset(t *testing.T) {
 		uint64(121),
 		0,
 		orch2Address,
-		*orch2EthAddress,
+		orch2EthAddress,
 		validator2ValAddress,
 		validator2AccPublicKey,
 	)
@@ -407,7 +407,7 @@ func TestMsgDataCommimtentConfirmWithValidatorNotPartOfValset(t *testing.T) {
 		commitment,
 		hex.EncodeToString(signature),
 		orch2Address,
-		*orch2EthAddress,
+		orch2EthAddress,
 		0,
 		100,
 		2,
@@ -423,7 +423,7 @@ func createNewValidator(
 	accountNumber uint64,
 	sequence uint64,
 	orchAddr sdk.AccAddress,
-	orchEthAddr stakingtypes.EthAddress,
+	orchEthAddr common.Address,
 	valAddress sdk.ValAddress,
 	valAccPublicKey cryptotypes.PubKey,
 ) error {
