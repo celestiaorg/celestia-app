@@ -243,11 +243,67 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		bytesCommitment,
 	)
 
+	dataCommitment := types.NewDataCommitment(2, 1, 100)
+	err = k.SetAttestationRequest(ctx, dataCommitment)
+	require.Nil(t, err)
+
 	// Signs the commitment using the orth eth private key
 	signature, err := types.NewEthereumSignature(dataHash.Bytes(), orch1EthPrivateKey)
 	require.NoError(t, err)
 
-	// Sending a data commitment confirm
+	// Sending a data commitment confirm with a nonce referring to a valset nonce
+	wrongDCConfirmConfirm := types.NewMsgDataCommitmentConfirm(
+		commitment,
+		hex.EncodeToString(signature),
+		orch1Address,
+		*orch1EthAddress,
+		1,
+		100,
+		1,
+	)
+	_, err = h(ctx, wrongDCConfirmConfirm)
+	require.Error(t, err)
+
+	// Sending a data commitment confirm with a wrong begin block
+	wrongDCConfirmConfirm = types.NewMsgDataCommitmentConfirm(
+		commitment,
+		hex.EncodeToString(signature),
+		orch1Address,
+		*orch1EthAddress,
+		2,
+		100,
+		2,
+	)
+	_, err = h(ctx, wrongDCConfirmConfirm)
+	require.Error(t, err)
+
+	// Sending a data commitment confirm with a wrong end block
+	wrongDCConfirmConfirm = types.NewMsgDataCommitmentConfirm(
+		commitment,
+		hex.EncodeToString(signature),
+		orch1Address,
+		*orch1EthAddress,
+		1,
+		101,
+		2,
+	)
+	_, err = h(ctx, wrongDCConfirmConfirm)
+	require.Error(t, err)
+
+	// Sending a data commitment confirm with a wrong begin and end block
+	wrongDCConfirmConfirm = types.NewMsgDataCommitmentConfirm(
+		commitment,
+		hex.EncodeToString(signature),
+		orch1Address,
+		*orch1EthAddress,
+		2,
+		101,
+		2,
+	)
+	_, err = h(ctx, wrongDCConfirmConfirm)
+	require.Error(t, err)
+
+	// Sending a correct data commitment confirm
 	setDCCMsg := types.NewMsgDataCommitmentConfirm(
 		commitment,
 		hex.EncodeToString(signature),
@@ -273,8 +329,8 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 	assert.Equal(t, setDCCMsg.String(), string(actualEvent.Attributes[1].Value))
 }
 
-// TestMsgDataCommimtentConfirmWithValidatorNotPartOfValset ensures that the data commitment confirm message is not accepted
-// if the validator signing it is not part of the valset
+// TestMsgDataCommimtentConfirmWithValidatorNotPartOfValset ensures that the data commitment
+// confirm message is not accepted if the validator signing it is not part of the valset.
 func TestMsgDataCommimtentConfirmWithValidatorNotPartOfValset(t *testing.T) {
 	input, ctx := keeper.SetupFiveValChain(t)
 	k := input.QgbKeeper
