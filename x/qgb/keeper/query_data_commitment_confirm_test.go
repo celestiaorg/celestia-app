@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
+	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -23,7 +23,7 @@ func TestQueryDataCommitment(t *testing.T) {
 	)
 	require.NoError(t, err1)
 	require.NoError(t, err2)
-	input := keeper.CreateTestEnv(t)
+	input := testutil.CreateTestEnv(t)
 	sdkCtx := input.Context
 	ctx := sdk.WrapSDKContext(input.Context)
 	k := input.QgbKeeper
@@ -134,7 +134,7 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 		nonce                       = uint64(20)
 	)
 
-	input := keeper.CreateTestEnv(t)
+	input := testutil.CreateTestEnv(t)
 	sdkCtx := input.Context
 	ctx := sdk.WrapSDKContext(input.Context)
 	k := input.QgbKeeper

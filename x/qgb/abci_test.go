@@ -1,10 +1,10 @@
 package qgb_test
 
 import (
+	"github.com/celestiaorg/celestia-app/testutil"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/x/qgb"
-	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	"github.com/stretchr/testify/assert"
@@ -12,7 +12,7 @@ import (
 )
 
 func TestAttestationCreationWhenStartingTheChain(t *testing.T) {
-	input, ctx := keeper.SetupFiveValChain(t)
+	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
 	// EndBlocker should set a new validator set if not available
@@ -24,7 +24,7 @@ func TestAttestationCreationWhenStartingTheChain(t *testing.T) {
 }
 
 func TestValsetCreationUponUnbonding(t *testing.T) {
-	input, ctx := keeper.SetupFiveValChain(t)
+	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
 	currentValsetNonce := pk.GetLatestAttestationNonce(ctx)
@@ -36,7 +36,7 @@ func TestValsetCreationUponUnbonding(t *testing.T) {
 	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
 	// begin unbonding
 	sh := staking.NewHandler(input.StakingKeeper)
-	undelegateMsg := keeper.NewTestMsgUnDelegateValidator(keeper.ValAddrs[0], keeper.StakingAmount)
+	undelegateMsg := testutil.NewTestMsgUnDelegateValidator(testutil.ValAddrs[0], testutil.StakingAmount)
 	// nolint
 	sh(input.Context, undelegateMsg)
 
@@ -48,7 +48,7 @@ func TestValsetCreationUponUnbonding(t *testing.T) {
 }
 
 func TestValsetEmission(t *testing.T) {
-	input, ctx := keeper.SetupFiveValChain(t)
+	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
 	// EndBlocker should set a new validator set
@@ -67,7 +67,7 @@ func TestValsetEmission(t *testing.T) {
 }
 
 func TestValsetSetting(t *testing.T) {
-	input, ctx := keeper.SetupFiveValChain(t)
+	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
 	vs, err := pk.GetCurrentValset(ctx)

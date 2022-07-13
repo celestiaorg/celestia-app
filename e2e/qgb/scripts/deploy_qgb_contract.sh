@@ -33,6 +33,24 @@ do
   sleep 5s
 done
 
+# wait for the ethereum node to start
+while true
+do
+    status_code=$(curl --write-out '%{http_code}' --silent --output /dev/null \
+                      --location --request POST ${EVM_ENDPOINT} \
+                      --header 'Content-Type: application/json' \
+                      --data-raw "{
+                  	    \"jsonrpc\":\"2.0\",
+                  	    \"method\":\"eth_blockNumber\",
+                  	    \"params\":[],
+                  	    \"id\":${EVM_CHAIN_ID}}")
+    if [[ "${status_code}" -eq 200 ]] ; then
+      break
+    fi
+    echo "Waiting for ethereum node to be up..."
+    sleep 2s
+done
+
 echo "deploying QGB contract..."
 
 /bin/celestia-appd deploy \

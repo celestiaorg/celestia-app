@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/qgb"
-	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
@@ -62,7 +62,7 @@ var (
 func TestMsgValsetConfirm(t *testing.T) {
 	blockHeight := int64(200)
 
-	input, ctx := keeper.SetupFiveValChain(t)
+	input, ctx := testutil.SetupFiveValChain(t)
 	k := input.QgbKeeper
 	h := qgb.NewHandler(*input.QgbKeeper)
 
@@ -98,8 +98,8 @@ func TestMsgValsetConfirm(t *testing.T) {
 	// try wrong eth address
 	msg := types.NewMsgValsetConfirm(
 		1,
-		keeper.EthAddrs[1], // wrong because validator 0 should have EthAddrs[0]
-		keeper.OrchAddrs[0],
+		testutil.EthAddrs[1], // wrong because validator 0 should have EthAddrs[0]
+		testutil.OrchAddrs[0],
 		signature,
 	)
 	ctx = ctx.WithBlockTime(blockTime).WithBlockHeight(blockHeight)
@@ -109,8 +109,8 @@ func TestMsgValsetConfirm(t *testing.T) {
 	// try a nonexisting valset
 	msg = types.NewMsgValsetConfirm(
 		10,
-		keeper.EthAddrs[0],
-		keeper.OrchAddrs[0],
+		testutil.EthAddrs[0],
+		testutil.OrchAddrs[0],
 		signature,
 	)
 	ctx = ctx.WithBlockTime(blockTime).WithBlockHeight(blockHeight)
@@ -131,7 +131,7 @@ func TestMsgValsetConfirm(t *testing.T) {
 // TestMsgValsetConfirmWithValidatorNotPartOfValset ensures that the valset confirm message is not accepted
 // if the validator is not part of the valset that needs to sign.
 func TestMsgValsetConfirmWithValidatorNotPartOfValset(t *testing.T) {
-	input, ctx := keeper.SetupFiveValChain(t)
+	input, ctx := testutil.SetupFiveValChain(t)
 	k := input.QgbKeeper
 	h := qgb.NewHandler(*input.QgbKeeper)
 
@@ -207,7 +207,7 @@ func TestMsgValsetConfirmWithValidatorNotPartOfValset(t *testing.T) {
 // TestMsgDataCommitmentConfirm ensures that the data commitment confirm message sets a commitment in the store.
 func TestMsgDataCommitmentConfirm(t *testing.T) {
 	// Init chain
-	input, ctx := keeper.SetupFiveValChain(t)
+	input, ctx := testutil.SetupFiveValChain(t)
 	k := input.QgbKeeper
 
 	err := createNewValidator(
@@ -332,7 +332,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 // TestMsgDataCommimtentConfirmWithValidatorNotPartOfValset ensures that the data commitment
 // confirm message is not accepted if the validator signing it is not part of the valset.
 func TestMsgDataCommimtentConfirmWithValidatorNotPartOfValset(t *testing.T) {
-	input, ctx := keeper.SetupFiveValChain(t)
+	input, ctx := testutil.SetupFiveValChain(t)
 	k := input.QgbKeeper
 	h := qgb.NewHandler(*input.QgbKeeper)
 
@@ -417,7 +417,7 @@ func TestMsgDataCommimtentConfirmWithValidatorNotPartOfValset(t *testing.T) {
 }
 
 func createNewValidator(
-	input keeper.TestInput,
+	input testutil.TestInput,
 	addr sdk.AccAddress,
 	pubKey cryptotypes.PubKey,
 	accountNumber uint64,
@@ -432,7 +432,7 @@ func createNewValidator(
 		input.Context,
 		authtypes.NewBaseAccount(addr, pubKey, accountNumber, sequence),
 	)
-	err := input.BankKeeper.MintCoins(input.Context, types.ModuleName, keeper.InitCoins)
+	err := input.BankKeeper.MintCoins(input.Context, types.ModuleName, testutil.InitCoins)
 	if err != nil {
 		return err
 	}
@@ -440,7 +440,7 @@ func createNewValidator(
 		input.Context,
 		types.ModuleName,
 		acc.GetAddress(),
-		keeper.InitCoins,
+		testutil.InitCoins,
 	)
 	if err != nil {
 		return err
@@ -450,10 +450,10 @@ func createNewValidator(
 	sh := staking.NewHandler(input.StakingKeeper)
 	_, err = sh(
 		input.Context,
-		keeper.NewTestMsgCreateValidator(
+		testutil.NewTestMsgCreateValidator(
 			valAddress,
 			valAccPublicKey,
-			keeper.StakingAmount,
+			testutil.StakingAmount,
 			orchAddr,
 			orchEthAddr,
 		),
