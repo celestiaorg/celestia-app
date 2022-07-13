@@ -25,14 +25,15 @@ import (
 )
 
 type QGBNetwork struct {
-	Context       context.Context
-	ComposePaths  []string
-	Identifier    string
-	Instance      *testcontainers.LocalDockerCompose
-	EVMRPC        string
-	TendermintRPC string
-	CelestiaGRPC  string
-	EncCfg        cosmoscmd.EncodingConfig
+	Context              context.Context
+	ComposePaths         []string
+	Identifier           string
+	Instance             *testcontainers.LocalDockerCompose
+	EVMRPC               string
+	TendermintRPC        string
+	CelestiaGRPC         string
+	EncCfg               cosmoscmd.EncodingConfig
+	DataCommitmentWindow uint64
 }
 
 func NewQGBNetwork(_ctx context.Context) (*QGBNetwork, error) {
@@ -41,14 +42,15 @@ func NewQGBNetwork(_ctx context.Context) (*QGBNetwork, error) {
 	instance := testcontainers.NewLocalDockerCompose(paths, id)
 	ctx, cancel := context.WithCancel(_ctx)
 	network := &QGBNetwork{
-		Context:       ctx,
-		Identifier:    id,
-		ComposePaths:  paths,
-		Instance:      instance,
-		EVMRPC:        "http://localhost:8545",
-		TendermintRPC: "tcp://localhost:26657",
-		CelestiaGRPC:  "localhost:9090",
-		EncCfg:        orchestrator.MakeEncodingConfig(),
+		Context:              ctx,
+		Identifier:           id,
+		ComposePaths:         paths,
+		Instance:             instance,
+		EVMRPC:               "http://localhost:8545",
+		TendermintRPC:        "tcp://localhost:26657",
+		CelestiaGRPC:         "localhost:9090",
+		EncCfg:               orchestrator.MakeEncodingConfig(),
+		DataCommitmentWindow: 101, // If this one is changed, make sure to change also the genesis file
 	}
 
 	// trap Ctrl+C or ctx.Done()
@@ -397,8 +399,9 @@ func (network QGBNetwork) WaitForOrchestratorToStart(_ctx context.Context, accou
 				}
 				dcConfirm, err := querier.QueryDataCommitmentConfirm(
 					ctx,
-					(lastNonce-i+1)*types.DataCommitmentWindow,
-					(lastNonce-i)*types.DataCommitmentWindow,
+					// this is testing potential ranges. Can be improved
+					(lastNonce-i+1)*network.DataCommitmentWindow,
+					(lastNonce-i)*network.DataCommitmentWindow,
 					accountAddress,
 				)
 				if err == nil && dcConfirm != nil {

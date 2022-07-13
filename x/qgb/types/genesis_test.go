@@ -15,9 +15,7 @@ func TestGenesisStateValidate(t *testing.T) {
 	}{
 		"default params": {src: types.DefaultGenesis(), expErr: false},
 		"empty params": {src: &types.GenesisState{
-			Params: &types.Params{
-				DataCommitmentWindow: 0,
-			},
+			Params: &types.Params{},
 		}, expErr: true},
 		"invalid params: short block time": {src: &types.GenesisState{
 			Params: &types.Params{

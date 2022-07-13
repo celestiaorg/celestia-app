@@ -64,11 +64,6 @@ func (k Keeper) CheckLatestAttestationNonce(ctx sdk.Context) bool {
 
 // GetLatestAttestationNonce returns the latest attestation request nonce
 func (k Keeper) GetLatestAttestationNonce(ctx sdk.Context) uint64 {
-	if !k.CheckLatestAttestationNonce(ctx) { // temporarily to avoid concurrent map exception
-		// TODO: handle this case for genesis properly. Note for Evan: write an issue
-		return 0
-	}
-
 	store := ctx.KVStore(k.storeKey)
 	bytes := store.Get([]byte(types.LatestAttestationtNonce))
 	return UInt64FromBytes(bytes)

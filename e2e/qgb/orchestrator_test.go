@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,7 +31,7 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(types.DataCommitmentWindow+5))
+	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
@@ -52,7 +51,7 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE0EVMADDRESS, vsConfirm.EthAddress)
 
-	dcConfirm, err := querier.QueryDataCommitmentConfirm(ctx, types.DataCommitmentWindow, 0, CORE0ACCOUNTADDRESS)
+	dcConfirm, err := querier.QueryDataCommitmentConfirm(ctx, network.DataCommitmentWindow, 0, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, dcConfirm)
@@ -89,7 +88,7 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(types.DataCommitmentWindow+10))
+	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
@@ -115,7 +114,7 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 	// check core0 submitted the data commitment confirm
 	core0DataCommitmentConfirm, err := querier.QueryDataCommitmentConfirm(
 		ctx,
-		types.DataCommitmentWindow,
+		network.DataCommitmentWindow,
 		0,
 		CORE0ACCOUNTADDRESS,
 	)
@@ -152,7 +151,7 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(types.DataCommitmentWindow+10))
+	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
@@ -184,7 +183,7 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	// check core0 submitted the data commitment confirm
 	core0DataCommitmentConfirm, err := querier.QueryDataCommitmentConfirm(
 		ctx,
-		types.DataCommitmentWindow,
+		network.DataCommitmentWindow,
 		0,
 		CORE0ACCOUNTADDRESS,
 	)
@@ -235,7 +234,7 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(2*types.DataCommitmentWindow))
+	err = network.WaitForBlock(network.Context, int64(2*network.DataCommitmentWindow))
 	HandleNetworkError(t, network, err, false)
 
 	// add core0  orchestrator
@@ -247,7 +246,7 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	// give time for the orchestrators to submit confirms
-	err = network.WaitForBlock(network.Context, int64(2*types.DataCommitmentWindow+10))
+	err = network.WaitForBlock(network.Context, int64(2*network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
 	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)

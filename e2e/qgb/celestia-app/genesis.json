@@ -305,7 +305,7 @@
     "payment": {},
     "qgb": {
       "params": {
-        "data_commitment_window": "400"
+        "data_commitment_window": "101"
       }
     },
     "slashing": {

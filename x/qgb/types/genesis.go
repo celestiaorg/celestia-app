@@ -8,16 +8,13 @@ import (
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
-// DefaultParamspace defines the default auth module parameter subspace
+// DefaultParamspace defines the default qgb module parameter subspace
 const (
 	DefaultParamspace = ModuleName
 )
 
 // ParamsStoreKeyDataCommitmentWindow
 var ParamsStoreKeyDataCommitmentWindow = []byte("DataCommitmentWindow")
-
-// DefaultIndex is the default capability global index
-const DefaultIndex uint64 = 1
 
 // DefaultGenesis returns the default Capability genesis state
 func DefaultGenesis() *GenesisState {
@@ -38,11 +35,9 @@ func (gs GenesisState) Validate() error {
 	return nil
 }
 
-// ParamKeyTable for auth module
+// ParamKeyTable for qgb module
 func ParamKeyTable() paramtypes.KeyTable {
-	return paramtypes.NewKeyTable().RegisterParamSet(&Params{
-		DataCommitmentWindow: 0,
-	})
+	return paramtypes.NewKeyTable().RegisterParamSet(&Params{})
 }
 
 // ParamSetPairs implements the ParamSet interface and returns all the key/value pairs
