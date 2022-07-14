@@ -19,7 +19,7 @@ We need this functionality in order for block producers to:
 
 We also need this functionality for validators to verify that:
 
-- For every `MsgPayForData` (previously `MsgPayForData`) included in the block, there is also a corresponding message and vice versa.
+- For every `MsgPayForData` (previously `MsgPayForMessage`) included in the block, there is also a corresponding message and vice versa.
 - The data hash represents the properly-erasure-coded block data for the selected block size.
 - The included messages are arranged in the expected locations in the square according to the non-interactive default rules (not done here)
 

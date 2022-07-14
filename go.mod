@@ -40,7 +40,7 @@ require (
 	github.com/btcsuite/btcd v0.22.1 // indirect
 	github.com/celestiaorg/go-leopard v0.1.0 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
-	github.com/celestiaorg/rsmt2d v0.5.0 // indirect
+	github.com/celestiaorg/rsmt2d v0.6.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -156,5 +156,5 @@ require (
 replace (
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.1.1-sdk-v0.46.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
-	github.com/tendermint/tendermint v0.35.4 => github.com/celestiaorg/celestia-core v1.2.4-tm-v0.35.6
+	github.com/tendermint/tendermint v0.35.4 => github.com/celestiaorg/celestia-core v1.2.5-tm-v0.35.6
 )
