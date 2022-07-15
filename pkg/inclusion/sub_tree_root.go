@@ -22,7 +22,7 @@ func newSubTreeRootCacher() *subTreeRootCacher {
 	return &subTreeRootCacher{cache: make(map[string][2]string)}
 }
 
-// Visit fullfills the nmt.VisitorNode function definition. It store each inner
+// Visit fullfills the nmt.VisitorNode function definition. It stores each inner
 // node in a simple map, which can later be used to walk the tree. This function
 // is called by the nmt when calculating the root.
 func (strc *subTreeRootCacher) Visit(hash []byte, children ...[]byte) {
