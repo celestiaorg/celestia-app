@@ -22,7 +22,10 @@ require (
 	google.golang.org/grpc v1.47.0
 )
 
-require github.com/cosmos/cosmos-sdk/errors v1.0.0-beta.3
+require (
+	github.com/celestiaorg/rsmt2d v0.6.0
+	github.com/cosmos/cosmos-sdk/errors v1.0.0-beta.3
+)
 
 require (
 	cloud.google.com/go v0.100.2 // indirect
@@ -40,7 +43,6 @@ require (
 	github.com/btcsuite/btcd v0.22.1 // indirect
 	github.com/celestiaorg/go-leopard v0.1.0 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
-	github.com/celestiaorg/rsmt2d v0.6.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
