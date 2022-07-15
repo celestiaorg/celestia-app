@@ -69,10 +69,9 @@ func (strc subTreeRootCacher) walk(root []byte, path []bool) ([]byte, error) {
 
 // EDSSubTreeRootCacher caches the the inner nodes for each row so that we can
 // traverse it later to check for message inclusion. NOTE: Currently this has to
-// cache both rows and columns, use a leaky abstraction (see docs on counter
-// field below), and is not threadsafe, but with a future refactor, we could
-// simply read from rsmt2d and not use the tree constructor which would fix both
-// of these issues.
+// use a leaky abstraction (see docs on counter field below), and is not
+// threadsafe, but with a future refactor, we could simply read from rsmt2d and
+// not use the tree constructor which would fix both of these issues.
 type EDSSubTreeRootCacher struct {
 	caches     []*subTreeRootCacher
 	squareSize uint64
@@ -94,7 +93,7 @@ func NewCachedSubtreeCacher(squareSize uint64) *EDSSubTreeRootCacher {
 // Constructor fullfills the rsmt2d.TreeCreatorFn by keeping a pointer to the
 // cache and embedding it as a nmt.NodeVisitor into a new wrapped nmt. I only
 func (stc *EDSSubTreeRootCacher) Constructor() rsmt2d.Tree {
-	// the counter so we can ignore columns. see docs of counter field for more
+	// see docs of counter field for more
 	// info. if the counter is even or == 0, then we make the assumption that we
 	// are creating a tree for a row
 	var newTree wrapper.ErasuredNamespacedMerkleTree
