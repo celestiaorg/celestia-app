@@ -1,17 +1,17 @@
 package types
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"math/bits"
 
-	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/rsmt2d"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/pkg/consts"
+	"github.com/tendermint/tendermint/pkg/wrapper"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -145,13 +145,13 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 	subTreeRoots := make([][]byte, len(leafSets))
 	for i, set := range leafSets {
 		// create the nmt todo(evan) use nmt wrapper
-		tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(NamespaceIDSize))
+		tree := wrapper.NewErasuredNamespacedMerkleTree(k)
 		for _, leaf := range set {
 			nsLeaf := append(make([]byte, 0), append(namespace, leaf...)...)
-			err := tree.Push(nsLeaf)
-			if err != nil {
-				return nil, err
-			}
+			// note: we're not concerned about adding the correct namespace to
+			// erasure data since we're only dealing with original square data,
+			// so we can push to the wrapped nmt using Axis and Cell == 0
+			tree.Push(nsLeaf, rsmt2d.SquareIndex{Axis: 0, Cell: 0})
 		}
 		// add the root
 		subTreeRoots[i] = tree.Root()
