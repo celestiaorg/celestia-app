@@ -67,7 +67,7 @@ func (strc subTreeRootCacher) walk(root []byte, path []bool) ([]byte, error) {
 	}
 }
 
-// EDSSubTreeRootCacher caches the the inner nodes for each row so that we can
+// EDSSubTreeRootCacher caches the inner nodes for each row so that we can
 // traverse it later to check for message inclusion. NOTE: Currently this has to
 // use a leaky abstraction (see docs on counter field below), and is not
 // threadsafe, but with a future refactor, we could simply read from rsmt2d and
