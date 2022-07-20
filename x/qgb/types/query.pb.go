@@ -1086,25 +1086,34 @@ type QueryClient interface {
 	// Params Queries the current parameters for the qgb module
 	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
 	// AttestationRequestByNonce Queries attestation request by nonce.
+	// Returns nil if not found.
 	AttestationRequestByNonce(ctx context.Context, in *QueryAttestationRequestByNonceRequest, opts ...grpc.CallOption) (*QueryAttestationRequestByNonceResponse, error)
 	// LatestAttestationNonce Queries latest attestation nonce.
 	LatestAttestationNonce(ctx context.Context, in *QueryLatestAttestationNonceRequest, opts ...grpc.CallOption) (*QueryLatestAttestationNonceResponse, error)
 	// DataCommitmentConfirm Queries the data commitment confirm by the commitment
 	// and the validator address
+	// Returns nil if not found.
 	DataCommitmentConfirm(ctx context.Context, in *QueryDataCommitmentConfirmRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmResponse, error)
 	// DataCommitmentConfirms Queries data commitment confirms by the actual
-	// commitment
+	// commitment.
+	// Too heavy, shouldn't mainly be used.
+	// Returns empty array if no element is found.
 	DataCommitmentConfirmsByCommitment(ctx context.Context, in *QueryDataCommitmentConfirmsByCommitmentRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByCommitmentResponse, error)
 	// DataCommitmentConfirmsByExactRange Queries data commitment confirms by an
-	// exact block range
+	// exact block range.
+	// Returns empty array if no element is found.
 	DataCommitmentConfirmsByExactRange(ctx context.Context, in *QueryDataCommitmentConfirmsByExactRangeRequest, opts ...grpc.CallOption) (*QueryDataCommitmentConfirmsByExactRangeResponse, error)
 	// ValsetConfirm Queries ValSetConfirm
+	// Returns nil if not found.
 	ValsetConfirm(ctx context.Context, in *QueryValsetConfirmRequest, opts ...grpc.CallOption) (*QueryValsetConfirmResponse, error)
 	// LastValsetRequestBeforeNonce Queries last Valset request before nonce.
 	// And, even if the current nonce is a valset, if will return the previous
 	// one.
+	// If the provided nonce is 1. It will return an error. Because, there is
+	// no valset before nonce 1.
 	LastValsetRequestBeforeNonce(ctx context.Context, in *QueryLastValsetRequestBeforeNonceRequest, opts ...grpc.CallOption) (*QueryLastValsetRequestBeforeNonceResponse, error)
 	// ValsetConfirmsByNonce
+	// Returns empty array if no element is found.
 	ValsetConfirmsByNonce(ctx context.Context, in *QueryValsetConfirmsByNonceRequest, opts ...grpc.CallOption) (*QueryValsetConfirmsByNonceResponse, error)
 	// LastUnbondingHeight
 	LastUnbondingHeight(ctx context.Context, in *QueryLastUnbondingHeightRequest, opts ...grpc.CallOption) (*QueryLastUnbondingHeightResponse, error)
@@ -1213,25 +1222,34 @@ type QueryServer interface {
 	// Params Queries the current parameters for the qgb module
 	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)
 	// AttestationRequestByNonce Queries attestation request by nonce.
+	// Returns nil if not found.
 	AttestationRequestByNonce(context.Context, *QueryAttestationRequestByNonceRequest) (*QueryAttestationRequestByNonceResponse, error)
 	// LatestAttestationNonce Queries latest attestation nonce.
 	LatestAttestationNonce(context.Context, *QueryLatestAttestationNonceRequest) (*QueryLatestAttestationNonceResponse, error)
 	// DataCommitmentConfirm Queries the data commitment confirm by the commitment
 	// and the validator address
+	// Returns nil if not found.
 	DataCommitmentConfirm(context.Context, *QueryDataCommitmentConfirmRequest) (*QueryDataCommitmentConfirmResponse, error)
 	// DataCommitmentConfirms Queries data commitment confirms by the actual
-	// commitment
+	// commitment.
+	// Too heavy, shouldn't mainly be used.
+	// Returns empty array if no element is found.
 	DataCommitmentConfirmsByCommitment(context.Context, *QueryDataCommitmentConfirmsByCommitmentRequest) (*QueryDataCommitmentConfirmsByCommitmentResponse, error)
 	// DataCommitmentConfirmsByExactRange Queries data commitment confirms by an
-	// exact block range
+	// exact block range.
+	// Returns empty array if no element is found.
 	DataCommitmentConfirmsByExactRange(context.Context, *QueryDataCommitmentConfirmsByExactRangeRequest) (*QueryDataCommitmentConfirmsByExactRangeResponse, error)
 	// ValsetConfirm Queries ValSetConfirm
+	// Returns nil if not found.
 	ValsetConfirm(context.Context, *QueryValsetConfirmRequest) (*QueryValsetConfirmResponse, error)
 	// LastValsetRequestBeforeNonce Queries last Valset request before nonce.
 	// And, even if the current nonce is a valset, if will return the previous
 	// one.
+	// If the provided nonce is 1. It will return an error. Because, there is
+	// no valset before nonce 1.
 	LastValsetRequestBeforeNonce(context.Context, *QueryLastValsetRequestBeforeNonceRequest) (*QueryLastValsetRequestBeforeNonceResponse, error)
 	// ValsetConfirmsByNonce
+	// Returns empty array if no element is found.
 	ValsetConfirmsByNonce(context.Context, *QueryValsetConfirmsByNonceRequest) (*QueryValsetConfirmsByNonceResponse, error)
 	// LastUnbondingHeight
 	LastUnbondingHeight(context.Context, *QueryLastUnbondingHeightRequest) (*QueryLastUnbondingHeightResponse, error)
