@@ -110,7 +110,7 @@ func (stc *EDSSubTreeRootCacher) Constructor() rsmt2d.Tree {
 	return &newTree
 }
 
-// GetSubTreeRoot traverses the nmt of of the selected row and returns the
+// GetSubTreeRoot traverses the nmt of the selected row and returns the
 // subtree root. An error is thrown if the subtree cannot be found.
 func (stc *EDSSubTreeRootCacher) GetSubTreeRoot(dah da.DataAvailabilityHeader, row int, path []bool) ([]byte, error) {
 	const unexpectedDAHErr = "data availability header has unexpected number of row roots: expected %d got %d"
