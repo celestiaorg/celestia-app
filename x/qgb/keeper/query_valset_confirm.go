@@ -17,7 +17,13 @@ func (k Keeper) ValsetConfirm(
 	if err != nil {
 		return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "address invalid")
 	}
-	return &types.QueryValsetConfirmResponse{Confirm: k.GetValsetConfirm(sdk.UnwrapSDKContext(c), req.Nonce, addr)}, nil
+	// _ because if the attestation is not found, the method will return nil
+	// and we want to bubble the nil to the user.
+	confirm, _, err := k.GetValsetConfirm(sdk.UnwrapSDKContext(c), req.Nonce, addr)
+	if err != nil {
+		return nil, err
+	}
+	return &types.QueryValsetConfirmResponse{Confirm: confirm}, nil
 }
 
 // ValsetConfirmsByNonce queries the ValsetConfirmsByNonce of the qgb module

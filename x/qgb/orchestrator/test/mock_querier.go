@@ -45,7 +45,7 @@ func (q *mockQuerier) QueryTwoThirdsDataCommitmentConfirms(
 	timeout time.Duration,
 	dc types.DataCommitment,
 ) ([]types.MsgDataCommitmentConfirm, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (q *mockQuerier) QueryTwoThirdsValsetConfirms(
@@ -53,14 +53,14 @@ func (q *mockQuerier) QueryTwoThirdsValsetConfirms(
 	timeout time.Duration,
 	valset types.Valset,
 ) ([]types.MsgValsetConfirm, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 // QueryLastValsetBeforeNonce returns the last valset before nonce.
 // the provided `nonce` can be a valset, but this will return the valset before it.
 // If nonce is 1, it will return an error. Because, there is no valset before nonce 1.
 func (q *mockQuerier) QueryLastValsetBeforeNonce(ctx context.Context, nonce uint64) (*types.Valset, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (q *mockQuerier) QueryValsetConfirm(
@@ -68,7 +68,7 @@ func (q *mockQuerier) QueryValsetConfirm(
 	nonce uint64,
 	address string,
 ) (*types.MsgValsetConfirm, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (q *mockQuerier) QueryHeight(ctx context.Context) (uint64, error) {
@@ -85,7 +85,7 @@ func (q *mockQuerier) QueryDataCommitmentConfirm(
 	beginBlock uint64,
 	address string,
 ) (*types.MsgDataCommitmentConfirm, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (q *mockQuerier) QueryDataCommitmentConfirmsByExactRange(
@@ -93,30 +93,30 @@ func (q *mockQuerier) QueryDataCommitmentConfirmsByExactRange(
 	start uint64,
 	end uint64,
 ) ([]types.MsgDataCommitmentConfirm, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (q *mockQuerier) QueryDataCommitmentByNonce(ctx context.Context, nonce uint64) (*types.DataCommitment, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (q *mockQuerier) QueryAttestationByNonce(
 	ctx context.Context,
 	nonce uint64,
 ) (types.AttestationRequestI, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (q *mockQuerier) QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (q *mockQuerier) QueryLatestValset(ctx context.Context) (*types.Valset, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (q *mockQuerier) QueryLatestAttestationNonce(ctx context.Context) (uint64, error) {
-	return 0, nil
+	return 0, nil //nolint:nilnil
 }
 
 // QueryCommitment queries the commitment over a set of blocks defined in the query.
@@ -125,5 +125,5 @@ func (q mockQuerier) QueryCommitment(ctx context.Context, query string) (bytes.H
 }
 
 func (q mockQuerier) SubscribeEvents(ctx context.Context, subscriptionName string, eventName string) (<-chan coretypes.ResultEvent, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }

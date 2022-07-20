@@ -17,14 +17,18 @@ func (k Keeper) DataCommitmentConfirm(
 	if err != nil {
 		return nil, sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "address invalid")
 	}
-	return &types.QueryDataCommitmentConfirmResponse{
-		Confirm: k.GetDataCommitmentConfirm(
-			sdk.UnwrapSDKContext(c),
-			request.EndBlock,
-			request.BeginBlock,
-			addr,
-		),
-	}, nil
+	// _ because if the confirm is not found, the method will return nil
+	// and we want to bubble the nil to the user.
+	confirm, _, err := k.GetDataCommitmentConfirm(
+		sdk.UnwrapSDKContext(c),
+		request.EndBlock,
+		request.BeginBlock,
+		addr,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &types.QueryDataCommitmentConfirmResponse{Confirm: confirm}, nil
 }
 
 func (k Keeper) DataCommitmentConfirmsByCommitment(

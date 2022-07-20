@@ -22,6 +22,7 @@ service Query {
   // attestations' requests queries
 
   // AttestationRequestByNonce Queries attestation request by nonce.
+  // Returns nil if not found.
   rpc AttestationRequestByNonce(QueryAttestationRequestByNonceRequest)
       returns (QueryAttestationRequestByNonceResponse) {
     option (google.api.http).get = "/qgb/attestations/requests/{nonce}";
@@ -36,6 +37,7 @@ service Query {
 
   // DataCommitmentConfirm Queries the data commitment confirm by the commitment
   // and the validator address
+  // Returns nil if not found.
   rpc DataCommitmentConfirm(QueryDataCommitmentConfirmRequest)
       returns (QueryDataCommitmentConfirmResponse) {
     option (google.api.http).get =
@@ -43,7 +45,9 @@ service Query {
         "{begin_block}/end/{end_block}/address/{address}";
   }
   // DataCommitmentConfirms Queries data commitment confirms by the actual
-  // commitment
+  // commitment.
+  // Too heavy, shouldn't mainly be used.
+  // Returns empty array if no element is found.
   rpc DataCommitmentConfirmsByCommitment(
       QueryDataCommitmentConfirmsByCommitmentRequest)
       returns (QueryDataCommitmentConfirmsByCommitmentResponse) {
@@ -51,7 +55,8 @@ service Query {
         "/qgb/data_commitment/confirms/commitment/{commitment}";
   }
   // DataCommitmentConfirmsByExactRange Queries data commitment confirms by an
-  // exact block range
+  // exact block range.
+  // Returns empty array if no element is found.
   rpc DataCommitmentConfirmsByExactRange(
       QueryDataCommitmentConfirmsByExactRangeRequest)
       returns (QueryDataCommitmentConfirmsByExactRangeResponse) {
@@ -63,6 +68,7 @@ service Query {
   // valset confirm queries
 
   // ValsetConfirm Queries ValSetConfirm
+  // Returns nil if not found.
   rpc ValsetConfirm(QueryValsetConfirmRequest)
       returns (QueryValsetConfirmResponse) {
     option (google.api.http).get = "/qgb/valset/confirm";
@@ -70,11 +76,14 @@ service Query {
   // LastValsetRequestBeforeNonce Queries last Valset request before nonce.
   // And, even if the current nonce is a valset, if will return the previous
   // one.
+  // If the provided nonce is 1. It will return an error. Because, there is
+  // no valset before nonce 1.
   rpc LastValsetRequestBeforeNonce(QueryLastValsetRequestBeforeNonceRequest)
       returns (QueryLastValsetRequestBeforeNonceResponse) {
     option (google.api.http).get = "/qgb/valset/request/before/{nonce}";
   }
   // ValsetConfirmsByNonce
+  // Returns empty array if no element is found.
   rpc ValsetConfirmsByNonce(QueryValsetConfirmsByNonceRequest)
       returns (QueryValsetConfirmsByNonceResponse) {
     option (google.api.http).get = "/qgb/confirms/{nonce}";

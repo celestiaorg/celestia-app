@@ -33,9 +33,12 @@ func (k msgServer) ValsetConfirm(
 	ctx := sdk.UnwrapSDKContext(c)
 
 	// Get valset by nonce
-	valset, err := k.GetValsetByNonce(ctx, msg.Nonce)
+	valset, found, err := k.GetValsetByNonce(ctx, msg.Nonce)
 	if err != nil {
 		return nil, err
+	}
+	if !found {
+		return nil, sdkerrors.Wrap(types.ErrAttestationNotFound, "valset attestation for nonce not found")
 	}
 
 	// Get orchestrator account from message
@@ -104,12 +107,20 @@ func (k msgServer) ValsetConfirm(
 	}
 
 	// Check if the signature was already posted
-	if k.GetValsetConfirm(ctx, msg.Nonce, orchaddr) != nil {
+	_, found, err = k.GetValsetConfirm(ctx, msg.Nonce, orchaddr)
+	if err != nil {
+		return nil, sdkerrors.Wrap(err, "couldn't check for existing valset confirm")
+	}
+	if found {
 		return nil, sdkerrors.Wrap(types.ErrDuplicate, "signature duplicate")
 	}
 
 	// Persist signature
-	key := k.SetValsetConfirm(ctx, *msg)
+	key, err := k.SetValsetConfirm(ctx, *msg)
+	if err != nil {
+		// Should we include more details in the error?
+		return nil, sdkerrors.Wrap(err, "couldn't set valset confirm")
+	}
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
@@ -130,8 +141,11 @@ func (k msgServer) DataCommitmentConfirm(
 	ctx := sdk.UnwrapSDKContext(c)
 
 	// Verify the attestation is a data commitment
-	at := k.GetAttestationByNonce(ctx, msg.Nonce)
-	if at == nil {
+	at, found, err := k.GetAttestationByNonce(ctx, msg.Nonce)
+	if err != nil {
+		return nil, sdkerrors.Wrap(err, "couldn't get attestation for nonce")
+	}
+	if !found {
 		return nil, sdkerrors.Wrap(
 			types.ErrNilAttestation,
 			"confirm sent to a non existent attestation",
@@ -188,10 +202,14 @@ func (k msgServer) DataCommitmentConfirm(
 	var previousValset *types.Valset
 	// TODO add test for case nonce == 1.
 	if msg.Nonce == 1 {
-		// if the msg.Nonce == 1, the current valset should sign the first valset. Because, it's the first attestation, and there is no prior validator set defined that should sign this change.
-		previousValset, err = k.GetValsetByNonce(ctx, msg.Nonce)
+		// if the msg.Nonce == 1, the current valset should sign the first valset.
+		// Because, it's the first attestation, and there is no prior validator set defined that should sign this change.
+		previousValset, found, err = k.GetValsetByNonce(ctx, msg.Nonce)
 		if err != nil {
 			return nil, err
+		}
+		if !found {
+			return nil, sdkerrors.Wrap(types.ErrAttestationNotFound, "valset attestation not found")
 		}
 	} else {
 		previousValset, err = k.GetLastValsetBeforeNonce(ctx, msg.Nonce)
@@ -226,12 +244,19 @@ func (k msgServer) DataCommitmentConfirm(
 	}
 
 	// Check if the signature was already posted
-	if k.GetDataCommitmentConfirm(ctx, msg.EndBlock, msg.BeginBlock, validatorAddress) != nil {
+	_, found, err = k.GetDataCommitmentConfirm(ctx, msg.EndBlock, msg.BeginBlock, validatorAddress)
+	if err != nil {
+		return nil, sdkerrors.Wrap(err, "couldn't check for existing data commitment confirm")
+	}
+	if found {
 		return nil, sdkerrors.Wrap(types.ErrDuplicate, "signature duplicate")
 	}
 
 	// Persist signature
-	k.SetDataCommitmentConfirm(ctx, *msg)
+	_, err = k.SetDataCommitmentConfirm(ctx, *msg)
+	if err != nil {
+		return nil, err
+	}
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(

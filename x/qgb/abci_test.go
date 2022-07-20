@@ -19,7 +19,9 @@ func TestAttestationCreationWhenStartingTheChain(t *testing.T) {
 	// EndBlocker should set a new validator set if not available
 	qgb.EndBlocker(ctx, *pk)
 	require.Equal(t, uint64(1), pk.GetLatestAttestationNonce(ctx))
-	attestation := pk.GetAttestationByNonce(ctx, 1)
+	attestation, found, err := pk.GetAttestationByNonce(ctx, 1)
+	require.True(t, found)
+	require.Nil(t, err)
 	require.NotNil(t, attestation)
 	require.Equal(t, uint64(1), attestation.GetNonce())
 }
@@ -56,7 +58,9 @@ func TestValsetEmission(t *testing.T) {
 	qgb.EndBlocker(ctx, *pk)
 
 	require.Equal(t, uint64(1), pk.GetLatestAttestationNonce(ctx))
-	attestation := pk.GetAttestationByNonce(ctx, 1)
+	attestation, found, err := pk.GetAttestationByNonce(ctx, 1)
+	require.Nil(t, err)
+	require.True(t, found)
 	require.NotNil(t, attestation)
 	require.Equal(t, uint64(1), attestation.GetNonce())
 

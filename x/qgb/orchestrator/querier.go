@@ -159,7 +159,7 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		case <-time.After(timeout):
 			return nil, errors.Wrap(
 				ErrNotEnoughDataCommitmentConfirms,
@@ -234,7 +234,7 @@ func (q *querier) QueryTwoThirdsValsetConfirms(
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		// TODO: remove this extra case, and we can instead rely on the caller to pass a context with a timeout
 		case <-time.After(timeout):
 			return nil, errors.Wrap(
