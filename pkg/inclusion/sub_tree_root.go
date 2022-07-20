@@ -38,7 +38,7 @@ func (strc *subTreeRootCacher) Visit(hash []byte, children ...[]byte) {
 
 // walk recursively traverses the subTreeRootCacher's internal tree by using the
 // provided sub tree root and path. The provided path should be a []bool, false
-// indicating that the first child node (right most node) should be used to find
+// indicating that the first child node (left most node) should be used to find
 // the next path, and the true indicating that the second (left) should be used.
 // walk throws an error if the sub tree cannot be found.
 func (strc subTreeRootCacher) walk(root []byte, path []bool) ([]byte, error) {
