@@ -53,8 +53,8 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 
 	dcConfirm, err := querier.QueryDataCommitmentConfirm(ctx, network.DataCommitmentWindow, 0, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, dcConfirm)
+	require.NoError(t, err)
+	require.NotNil(t, dcConfirm)
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE0EVMADDRESS, dcConfirm.EthAddress)
 }
@@ -119,8 +119,8 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 		CORE0ACCOUNTADDRESS,
 	)
 	// assert the confirm exist
-	assert.NoError(t, err)
-	assert.NotNil(t, core0DataCommitmentConfirm)
+	require.NoError(t, err)
+	require.NotNil(t, core0DataCommitmentConfirm)
 	// assert that it carries the right eth address
 	assert.Equal(t, CORE0EVMADDRESS, core0DataCommitmentConfirm.EthAddress)
 

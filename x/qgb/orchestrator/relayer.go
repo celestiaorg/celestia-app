@@ -55,6 +55,10 @@ func (r *Relayer) processEvents(ctx context.Context) error {
 			r.logger.Error(err.Error())
 			continue
 		}
+		if att == nil {
+			r.logger.Error(types.ErrAttestationNotFound.Error())
+			continue
+		}
 		if att.Type() == types.ValsetRequestType {
 			vs, ok := att.(*types.Valset)
 			if !ok {

@@ -472,7 +472,7 @@ func (network QGBNetwork) GetAttestationConfirm(
 			return nil, ctx.Err()
 		default:
 			att, err := querier.QueryAttestationByNonce(ctx, nonce)
-			if err != nil {
+			if err != nil || att == nil {
 				continue
 			}
 			switch att.Type() {
