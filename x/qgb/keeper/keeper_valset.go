@@ -160,7 +160,7 @@ func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.
 }
 
 // TODO add query for this method and make the orchestrator Querier use it.
-// GetValsetByNonce returns the valset in store with nonce nonce.
+// GetValsetByNonce returns the stored valset associated with the provided nonce.
 // Returns (nil, false, nil) if not found.
 func (k Keeper) GetValsetByNonce(ctx sdk.Context, nonce uint64) (*types.Valset, bool, error) {
 	at, found, err := k.GetAttestationByNonce(ctx, nonce)
