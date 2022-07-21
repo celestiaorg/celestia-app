@@ -25,7 +25,7 @@ func TestQueryDataCommitment(t *testing.T) {
 	sdkCtx := input.Context
 	ctx := sdk.WrapSDKContext(input.Context)
 	k := input.QgbKeeper
-	input.QgbKeeper.SetDataCommitmentConfirm(
+	_, _ = input.QgbKeeper.SetDataCommitmentConfirm(
 		sdkCtx,
 		*types.NewMsgDataCommitmentConfirm(
 			"commitment",
@@ -141,7 +141,7 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		addr, _ := sdk.AccAddressFromBech32(addrs[i])
 		ethAddr := gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20))
-		input.QgbKeeper.SetDataCommitmentConfirm(
+		_, _ = input.QgbKeeper.SetDataCommitmentConfirm(
 			sdkCtx,
 			*types.NewMsgDataCommitmentConfirm(
 				commitment,
@@ -159,7 +159,7 @@ func TestAllDataCommitmentsByCommitment(t *testing.T) {
 	addr, _ := sdk.AccAddressFromBech32(addrs[0])
 	ethAddr := gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(1)}, 20))
 
-	input.QgbKeeper.SetDataCommitmentConfirm(
+	_, _ = input.QgbKeeper.SetDataCommitmentConfirm(
 		sdkCtx,
 		*types.NewMsgDataCommitmentConfirm(
 			secondCommitment,

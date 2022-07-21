@@ -23,7 +23,8 @@ func (k Keeper) SetAttestationRequest(ctx sdk.Context, at types.AttestationReque
 	return nil
 }
 
-// StoreAttestation
+// StoreAttestation Saves the attestation in store.
+// Should panic if overwriting existing one.
 func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) {
 	nonce := at.GetNonce()
 	key := []byte(types.GetAttestationKey(nonce))
@@ -41,13 +42,10 @@ func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) 
 }
 
 // SetLatestAttestationNonce sets the latest attestation request nonce, since it's
-// expected that this value will only increase it panics on an attempt
-// to decrement
+// expected that this value will only increase by one and it panics otherwise.
 func (k Keeper) SetLatestAttestationNonce(ctx sdk.Context, nonce uint64) {
-	// TODO add test
-	// this is purely an increasing counter and should never decrease
-	if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx) > nonce {
-		panic("Decrementing attestation nonce!")
+	if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx)+1 != nonce {
+		panic("not incrementing latest attestation nonce correctly!")
 	}
 
 	store := ctx.KVStore(k.storeKey)
@@ -55,31 +53,39 @@ func (k Keeper) SetLatestAttestationNonce(ctx sdk.Context, nonce uint64) {
 }
 
 // CheckLatestAttestationNonce returns true if the latest attestation request nonce
-// is declared in the store and false if it has not been initialized
+// is declared in the store and false if it has not been initialized.
 func (k Keeper) CheckLatestAttestationNonce(ctx sdk.Context) bool {
 	store := ctx.KVStore(k.storeKey)
 	has := store.Has([]byte(types.LatestAttestationtNonce))
 	return has
 }
 
-// GetLatestAttestationNonce returns the latest attestation request nonce
+// GetLatestAttestationNonce returns the latest attestation request nonce.
+// Panics if the latest attestation nonce doesn't exit. Make sure to call `CheckLatestAttestationNonce`
+// before getting the nonce.
+// This value is set on chain startup, it shouldn't panic in normal conditions.
+// Check x/qgb/genesis.go for more information.
 func (k Keeper) GetLatestAttestationNonce(ctx sdk.Context) uint64 {
 	store := ctx.KVStore(k.storeKey)
 	bytes := store.Get([]byte(types.LatestAttestationtNonce))
+	if bytes == nil {
+		panic("Nil LatestAttestationNonce")
+	}
 	return UInt64FromBytes(bytes)
 }
 
-// GetAttestationByNonce returns an attestation request by nonce
-func (k Keeper) GetAttestationByNonce(ctx sdk.Context, nonce uint64) types.AttestationRequestI {
+// GetAttestationByNonce returns an attestation request by nonce.
+// Returns (nil, false, nil) if the attestation is not found .
+func (k Keeper) GetAttestationByNonce(ctx sdk.Context, nonce uint64) (types.AttestationRequestI, bool, error) {
 	store := ctx.KVStore(k.storeKey)
 	bz := store.Get([]byte(types.GetAttestationKey(nonce)))
 	if bz == nil {
-		return nil
+		return nil, false, nil
 	}
 	var at types.AttestationRequestI
 	err := k.cdc.UnmarshalInterface(bz, &at)
 	if err != nil {
-		panic(err)
+		return nil, false, types.ErrUnmarshalllAttestation
 	}
-	return at
+	return at, true, nil
 }

@@ -25,7 +25,7 @@ func TestQueryValsetConfirm(t *testing.T) {
 	sdkCtx := input.Context
 	ctx := sdk.WrapSDKContext(input.Context)
 	k := input.QgbKeeper
-	input.QgbKeeper.SetValsetConfirm(sdkCtx, *types.NewMsgValsetConfirm(
+	_, _ = input.QgbKeeper.SetValsetConfirm(sdkCtx, *types.NewMsgValsetConfirm(
 		nonce,
 		myValidatorEthereumAddr,
 		myValidatorCosmosAddr,
@@ -105,7 +105,7 @@ func TestAllValsetConfirmsByNonce(t *testing.T) {
 		msg.Nonce = uint64(1)
 		msg.Orchestrator = addr.String()
 		msg.Signature = fmt.Sprintf("signature %d", i+1)
-		input.QgbKeeper.SetValsetConfirm(sdkCtx, msg)
+		_, _ = input.QgbKeeper.SetValsetConfirm(sdkCtx, msg)
 	}
 
 	specs := map[string]struct {

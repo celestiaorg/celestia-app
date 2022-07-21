@@ -86,7 +86,7 @@ func PrefixRange(prefix []byte) ([]byte, []byte) {
 	}
 	// special case: no prefix is whole range
 	if len(prefix) == 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	// copy the prefix and update last byte

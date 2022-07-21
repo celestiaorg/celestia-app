@@ -23,13 +23,18 @@ var _ Querier = &querier{}
 
 type Querier interface {
 	// attestation queries
+
+	// QueryAttestationByNonce Queries the attestation with nonce `nonce.
+	// Returns nil if not found.
 	QueryAttestationByNonce(ctx context.Context, nonce uint64) (types.AttestationRequestI, error)
 	QueryLatestAttestationNonce(ctx context.Context) (uint64, error)
 
 	// data commitment queries
+
 	QueryDataCommitmentByNonce(ctx context.Context, nonce uint64) (*types.DataCommitment, error)
 
 	// data commitment confirm queries
+
 	QueryDataCommitmentConfirms(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error)
 	QueryDataCommitmentConfirm(
 		ctx context.Context,
@@ -49,6 +54,7 @@ type Querier interface {
 	) ([]types.MsgDataCommitmentConfirm, error)
 
 	// valset queries
+
 	QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.Valset, error)
 	QueryLatestValset(ctx context.Context) (*types.Valset, error)
 	QueryLastValsetBeforeNonce(
@@ -57,6 +63,7 @@ type Querier interface {
 	) (*types.Valset, error)
 
 	// valset confirm queries
+
 	QueryTwoThirdsValsetConfirms(
 		ctx context.Context,
 		timeout time.Duration,
@@ -65,10 +72,12 @@ type Querier interface {
 	QueryValsetConfirm(ctx context.Context, nonce uint64, address string) (*types.MsgValsetConfirm, error)
 
 	// misc queries
+
 	QueryHeight(ctx context.Context) (uint64, error)
 	QueryLastUnbondingHeight(ctx context.Context) (uint64, error)
 
 	// tendermint
+
 	QueryCommitment(ctx context.Context, query string) (bytes.HexBytes, error)
 	SubscribeEvents(ctx context.Context, subscriptionName string, eventName string) (<-chan coretypes.ResultEvent, error)
 }
@@ -159,7 +168,7 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		case <-time.After(timeout):
 			return nil, errors.Wrap(
 				ErrNotEnoughDataCommitmentConfirms,
@@ -234,7 +243,7 @@ func (q *querier) QueryTwoThirdsValsetConfirms(
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		// TODO: remove this extra case, and we can instead rely on the caller to pass a context with a timeout
 		case <-time.After(timeout):
 			return nil, errors.Wrap(
@@ -387,6 +396,9 @@ func (q *querier) QueryDataCommitmentByNonce(ctx context.Context, nonce uint64) 
 	if err != nil {
 		return nil, err
 	}
+	if attestation == nil {
+		return nil, types.ErrAttestationNotFound
+	}
 
 	if attestation.Type() != types.DataCommitmentRequestType {
 		return nil, types.ErrAttestationNotDataCommitmentRequest
@@ -413,7 +425,7 @@ func (q *querier) QueryAttestationByNonce(
 		return nil, err
 	}
 	if atResp.Attestation == nil {
-		return nil, types.ErrAttestationNotFound
+		return nil, nil
 	}
 
 	unmarshalledAttestation, err := q.unmarshallAttestation(atResp.Attestation)
@@ -428,6 +440,9 @@ func (q *querier) QueryValsetByNonce(ctx context.Context, nonce uint64) (*types.
 	attestation, err := q.QueryAttestationByNonce(ctx, nonce)
 	if err != nil {
 		return nil, err
+	}
+	if attestation == nil {
+		return nil, types.ErrAttestationNotFound
 	}
 
 	if attestation.Type() != types.ValsetRequestType {
