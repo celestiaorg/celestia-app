@@ -26,7 +26,7 @@ func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
 		if !found {
 			panic(sdkerrors.Wrap(
 				types.ErrNilAttestation,
-				fmt.Sprintf("stumbeled upon nil attestation for nonce %d", i),
+				fmt.Sprintf("stumbled upon nil attestation for nonce %d", i),
 			))
 		}
 		if at.Type() == types.ValsetRequestType {
