@@ -185,11 +185,6 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 			for _, dataCommitmentConfirm := range confirms {
 				val, has := vals[dataCommitmentConfirm.EthAddress]
 				if !has {
-					// currently, the orchestrators sign everything even if they didn't exist during a certain valset
-					// thus, the Relayer finds correct confirms and also incorrect ones. By incorrect, I mean signatures from
-					// orchestrators that didn't belong to the valset in question, but they still signed it
-					// as part of their catching up mechanism.
-					// should be fixed with the new design and https://github.com/celestiaorg/celestia-app/issues/406
 					q.logger.Debug(fmt.Sprintf(
 						"dataCommitmentConfirm signer not found in stored validator set: address %s nonce %d",
 						val.EthereumAddress,
@@ -264,11 +259,6 @@ func (q *querier) QueryTwoThirdsValsetConfirms(
 			for _, valsetConfirm := range confirmsResp.Confirms {
 				val, has := vals[valsetConfirm.EthAddress]
 				if !has {
-					// currently, the orchestrators sign everything even if they didn't exist during a certain valset
-					// thus, the Relayer finds correct confirms and also incorrect ones. By incorrect, I mean signatures from
-					// orchestrators that didn't belong to the valset in question, but they still signed it
-					// as part of their catching up mechanism.
-					// should be fixed with the new design. and https://github.com/celestiaorg/celestia-app/issues/406
 					q.logger.Debug(
 						fmt.Sprintf(
 							"valSetConfirm signer not found in stored validator set: address %s nonce %d",
