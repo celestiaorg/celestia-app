@@ -60,7 +60,13 @@ func (k msgServer) ValsetConfirm(
 	var previousValset *types.Valset
 	// TODO add test for case nonce == 1.
 	if msg.Nonce == 1 {
-		// if the msg.Nonce == 1, the current valset should sign the first valset. Because, it's the first attestation, and there is no prior validator set defined that should sign this change.
+		// if the msg.Nonce == 1, the current valset should sign the first valset.
+		// Because, it's the first attestation, and there is no prior validator set defined
+		// that should sign this change.
+		// In fact, the first nonce should never be signed. Because, the first attestation, in the case
+		// where the `earliest` flag is specified when deploying the contract, will be relayed as part of
+		// the deployment of the QGB contract.
+		// It will be signed temporarily for now.
 		previousValset = valset
 	} else {
 		previousValset, err = k.GetLastValsetBeforeNonce(ctx, msg.Nonce)
@@ -199,23 +205,9 @@ func (k msgServer) DataCommitmentConfirm(
 	}
 
 	// Verify if validator is part of the previous valset
-	var previousValset *types.Valset
-	// TODO add test for case nonce == 1.
-	if msg.Nonce == 1 {
-		// if the msg.Nonce == 1, the current valset should sign the first valset.
-		// Because, it's the first attestation, and there is no prior validator set defined that should sign this change.
-		previousValset, found, err = k.GetValsetByNonce(ctx, msg.Nonce)
-		if err != nil {
-			return nil, err
-		}
-		if !found {
-			return nil, sdkerrors.Wrap(types.ErrAttestationNotFound, "valset attestation not found")
-		}
-	} else {
-		previousValset, err = k.GetLastValsetBeforeNonce(ctx, msg.Nonce)
-		if err != nil {
-			return nil, err
-		}
+	previousValset, err := k.GetLastValsetBeforeNonce(ctx, msg.Nonce)
+	if err != nil {
+		return nil, err
 	}
 	if !ValidatorPartOfValset(previousValset.Members, validator.EthAddress) {
 		return nil, sdkerrors.Wrap(

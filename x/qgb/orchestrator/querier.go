@@ -219,6 +219,10 @@ func (q *querier) QueryTwoThirdsValsetConfirms(
 ) ([]types.MsgValsetConfirm, error) {
 	var currentValset types.Valset
 	if valset.Nonce == 1 {
+		// In fact, the first nonce should never be signed. Because, the first attestation, in the case
+		// where the `earliest` flag is specified when deploying the contract, will be relayed as part of
+		// the deployment of the QGB contract.
+		// It will be signed temporarily for now.
 		currentValset = valset
 	} else {
 		vs, err := q.QueryLastValsetBeforeNonce(ctx, valset.Nonce)
