@@ -239,7 +239,11 @@ func (orch Orchestrator) Process(ctx context.Context, nonce uint64) error {
 	// check if the validator is part of the needed valset
 	var previousValset *types.Valset
 	if att.GetNonce() == 1 {
-		// if nonce == 1, then, the current valset should sign the confirm
+		// if nonce == 1, then, the current valset should sign the confirm.
+		// In fact, the first nonce should never be signed. Because, the first attestation, in the case
+		// where the `earliest` flag is specified when deploying the contract, will be relayed as part of
+		// the deployment of the QGB contract.
+		// It will be signed temporarily for now.
 		previousValset, err = orch.Querier.QueryValsetByNonce(ctx, att.GetNonce())
 		if err != nil {
 			return err
