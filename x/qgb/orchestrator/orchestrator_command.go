@@ -46,7 +46,7 @@ func OrchestratorCmd() *cobra.Command {
 				config.celestiaChainID,
 			)
 
-			broadcaster, err := NewBroadcaster(config.celesGRPC, signer)
+			broadcaster, err := NewBroadcaster(config.celesGRPC, signer, config.celestiaGasLimit)
 			if err != nil {
 				panic(err)
 			}

@@ -217,6 +217,7 @@ services:
       - CELESTIA_GRPC=core0:9090
       - EVM_CHAIN_ID=1234
       - EVM_ENDPOINT=http://ganache:8545
+      - STARTING_NONCE=earliest
     entrypoint: [
       "/bin/bash"
     ]

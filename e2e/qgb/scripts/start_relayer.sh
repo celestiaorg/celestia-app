@@ -31,6 +31,7 @@ done
 if [[ -z "${QGB_CONTRACT}" ]]
 then
   export DEPLOY_NEW_CONTRACT=true
+  export STARTING_NONCE=earliest
   # expects the script to be mounted to this directory
   /bin/bash /opt/deploy_qgb_contract.sh
 fi
