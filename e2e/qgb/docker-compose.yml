@@ -195,6 +195,7 @@ services:
       "--host=0.0.0.0",
       "--networkId=1234",
       "--chainId=1234",
+      "--gasLimit=30000000",
       "--account=\"0x0e9688e585562e828dcbd4f402d5eddf686f947fb6bf75894a85bf008b017401,0x90000000000000000000000\""
     ]
     ports:
@@ -217,6 +218,7 @@ services:
       - CELESTIA_GRPC=core0:9090
       - EVM_CHAIN_ID=1234
       - EVM_ENDPOINT=http://ganache:8545
+      - STARTING_NONCE=earliest
     entrypoint: [
       "/bin/bash"
     ]

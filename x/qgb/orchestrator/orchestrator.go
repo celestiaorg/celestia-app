@@ -374,6 +374,8 @@ func CommitmentQueryByRange(beginBlock uint64, endBlock uint64) string {
 	)
 }
 
+const DEFAULTCELESTIAGASLIMIT = 100000
+
 var _ BroadcasterI = &Broadcaster{}
 
 type BroadcasterI interface {
@@ -381,21 +383,23 @@ type BroadcasterI interface {
 }
 
 type Broadcaster struct {
-	mutex   *sync.Mutex
-	signer  *paytypes.KeyringSigner
-	qgbGrpc *grpc.ClientConn
+	mutex            *sync.Mutex
+	signer           *paytypes.KeyringSigner
+	qgbGrpc          *grpc.ClientConn
+	celestiaGasLimit uint64
 }
 
-func NewBroadcaster(qgbGrpcAddr string, signer *paytypes.KeyringSigner) (*Broadcaster, error) {
+func NewBroadcaster(qgbGrpcAddr string, signer *paytypes.KeyringSigner, celestiaGasLimit uint64) (*Broadcaster, error) {
 	qgbGrpc, err := grpc.Dial(qgbGrpcAddr, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
 
 	return &Broadcaster{
-		mutex:   &sync.Mutex{}, // investigate if this is needed
-		signer:  signer,
-		qgbGrpc: qgbGrpc,
+		mutex:            &sync.Mutex{}, // investigate if this is needed
+		signer:           signer,
+		qgbGrpc:          qgbGrpc,
+		celestiaGasLimit: celestiaGasLimit,
 	}, nil
 }
 
@@ -408,8 +412,7 @@ func (bc *Broadcaster) BroadcastTx(ctx context.Context, msg sdk.Msg) (string, er
 	}
 
 	builder := bc.signer.NewTxBuilder()
-	// TODO make gas limit configurable
-	builder.SetGasLimit(9999999999999)
+	builder.SetGasLimit(bc.celestiaGasLimit)
 	// TODO: update this api
 	// via https://github.com/celestiaorg/celestia-app/pull/187/commits/37f96d9af30011736a3e6048bbb35bad6f5b795c
 	tx, err := bc.signer.BuildSignedTx(builder, msg)

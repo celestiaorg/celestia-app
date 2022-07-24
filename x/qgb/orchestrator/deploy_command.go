@@ -1,8 +1,11 @@
 package orchestrator
 
 import (
-	"fmt"
+	"context"
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	"github.com/cosmos/cosmos-sdk/types/errors"
 	"os"
+	"strconv"
 
 	"github.com/spf13/cobra"
 	tmlog "github.com/tendermint/tendermint/libs/log"
@@ -25,13 +28,11 @@ func DeployCmd() *cobra.Command {
 				return err
 			}
 
-			// TODO change to get the current valaset
-			// get the first valset
-			vs, err := querier.QueryValsetByNonce(cmd.Context(), 1)
+			vs, err := getStartingValset(cmd.Context(), querier, config.startingNonce)
 			if err != nil {
-				return fmt.Errorf(
+				return errors.Wrap(
+					err,
 					"cannot initialize the QGB contract without having a valset request: %s",
-					err.Error(),
 				)
 			}
 
@@ -40,13 +41,14 @@ func DeployCmd() *cobra.Command {
 				nil,
 				config.privateKey,
 				config.evmRPC,
+				config.evmGasLimit,
 			)
 
 			// the deploy QGB contract will handle the logging of the address
 			_, _, _, err = evmClient.DeployQGBContract(
 				cmd.Context(),
 				*vs,
-				0,
+				vs.Nonce,
 				config.evmChainID,
 				true,
 				false,
@@ -60,4 +62,33 @@ func DeployCmd() *cobra.Command {
 		},
 	}
 	return addDeployFlags(command)
+}
+
+func getStartingValset(ctx context.Context, q *querier, snonce string) (*types.Valset, error) {
+	switch snonce {
+	case "latest":
+		return q.QueryLatestValset(ctx)
+	case "earliest":
+		return q.QueryValsetByNonce(ctx, 1)
+	default:
+		nonce, err := strconv.ParseUint(snonce, 10, 0)
+		if err != nil {
+			return nil, err
+		}
+		attestation, err := q.QueryAttestationByNonce(ctx, nonce)
+		if err != nil {
+			return nil, err
+		}
+		if attestation == nil {
+			return nil, types.ErrNilAttestation
+		}
+		if attestation.Type() == types.ValsetRequestType {
+			value, ok := attestation.(*types.Valset)
+			if !ok {
+				return nil, ErrUnmarshallValset
+			}
+			return value, nil
+		}
+		return q.QueryLastValsetBeforeNonce(ctx, nonce)
+	}
 }

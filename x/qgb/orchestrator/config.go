@@ -4,11 +4,10 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"path/filepath"
-
-	"github.com/spf13/cobra"
 
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -40,7 +39,10 @@ const (
 	tendermintRPCFlag = "celes-http-rpc"
 	evmRPCFlag        = "evm-rpc"
 
-	contractAddressFlag = "contract-address"
+	contractAddressFlag  = "contract-address"
+	startingNonceFlag    = "starting-nonce"
+	evmGasLimitFlag      = "evm-gas-limit"
+	celestiaGasLimitFlag = "celestia-gas-limit"
 )
 
 func addOrchestratorFlags(cmd *cobra.Command) *cobra.Command {
@@ -61,6 +63,7 @@ func addOrchestratorFlags(cmd *cobra.Command) *cobra.Command {
 		"",
 		"Specify the ECDSA private key used to sign orchestrator commitments in hex",
 	)
+	cmd.Flags().Uint64P(celestiaGasLimitFlag, "l", DEFAULTCELESTIAGASLIMIT, "Specify the celestia gas limit")
 
 	return cmd
 }
@@ -69,6 +72,7 @@ type orchestratorConfig struct {
 	keyringBackend, keyringPath, keyringAccount string
 	celestiaChainID, celesGRPC, tendermintRPC   string
 	privateKey                                  *ecdsa.PrivateKey
+	celestiaGasLimit                            uint64
 }
 
 func parseOrchestratorFlags(cmd *cobra.Command) (orchestratorConfig, error) {
@@ -107,15 +111,20 @@ func parseOrchestratorFlags(cmd *cobra.Command) (orchestratorConfig, error) {
 	if err != nil {
 		return orchestratorConfig{}, err
 	}
+	celestiaGasLimit, err := cmd.Flags().GetUint64(celestiaGasLimitFlag)
+	if err != nil {
+		return orchestratorConfig{}, err
+	}
 
 	return orchestratorConfig{
-		keyringBackend:  keyringBackend,
-		keyringPath:     keyringPath,
-		keyringAccount:  keyringAccount,
-		privateKey:      ethPrivKey,
-		celestiaChainID: chainID,
-		celesGRPC:       celesGRPC,
-		tendermintRPC:   tendermintRPC,
+		keyringBackend:   keyringBackend,
+		keyringPath:      keyringPath,
+		keyringAccount:   keyringAccount,
+		privateKey:       ethPrivKey,
+		celestiaChainID:  chainID,
+		celesGRPC:        celesGRPC,
+		tendermintRPC:    tendermintRPC,
+		celestiaGasLimit: celestiaGasLimit,
 	}, nil
 }
 
@@ -126,6 +135,7 @@ func addRelayerFlags(cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().StringP(tendermintRPCFlag, "t", "http://localhost:26657", "Specify the rest rpc address")
 	cmd.Flags().StringP(evmRPCFlag, "e", "http://localhost:8545", "Specify the ethereum rpc address")
 	cmd.Flags().StringP(contractAddressFlag, "a", "", "Specify the contract at which the qgb is deployed")
+	cmd.Flags().Uint64P(evmGasLimitFlag, "l", DEFAULTEVMGASLIMIT, "Specify the evm gas limit")
 
 	return cmd
 }
@@ -135,6 +145,7 @@ type relayerConfig struct {
 	evmRPC, celesGRPC, tendermintRPC string
 	privateKey                       *ecdsa.PrivateKey
 	contractAddr                     ethcmn.Address
+	evmGasLimit                      uint64
 }
 
 func parseRelayerFlags(cmd *cobra.Command) (relayerConfig, error) {
@@ -172,7 +183,11 @@ func parseRelayerFlags(cmd *cobra.Command) (relayerConfig, error) {
 		return relayerConfig{}, fmt.Errorf("valid contract address flag is required: %s", contractAddressFlag)
 	}
 	address := ethcmn.HexToAddress(contractAddr)
-	ethRpc, err := cmd.Flags().GetString(evmRPCFlag)
+	ethRPC, err := cmd.Flags().GetString(evmRPCFlag)
+	if err != nil {
+		return relayerConfig{}, err
+	}
+	evmGasLimit, err := cmd.Flags().GetUint64(evmGasLimitFlag)
 	if err != nil {
 		return relayerConfig{}, err
 	}
@@ -183,7 +198,8 @@ func parseRelayerFlags(cmd *cobra.Command) (relayerConfig, error) {
 		celesGRPC:     celesGRPC,
 		tendermintRPC: tendermintRPC,
 		contractAddr:  address,
-		evmRPC:        ethRpc,
+		evmRPC:        ethRPC,
+		evmGasLimit:   evmGasLimit,
 	}, nil
 }
 
@@ -194,6 +210,16 @@ func addDeployFlags(cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().StringP(celesGRPCFlag, "c", "localhost:9090", "Specify the grpc address")
 	cmd.Flags().StringP(tendermintRPCFlag, "t", "http://localhost:26657", "Specify the rest rpc address")
 	cmd.Flags().StringP(evmRPCFlag, "e", "http://localhost:8545", "Specify the ethereum rpc address")
+	cmd.Flags().StringP(
+		startingNonceFlag,
+		"n",
+		"latest",
+		"Specify the nonce to start the QGB contract from. "+
+			"\"earliest\": for genesis, "+
+			"\"latest\": for latest valset nonce, "+
+			"\"nonce\": for the latest valset before the provided nonce, provided nonce included.",
+	)
+	cmd.Flags().Uint64P(evmGasLimitFlag, "l", DEFAULTEVMGASLIMIT, "Specify the evm gas limit")
 
 	return cmd
 }
@@ -203,6 +229,8 @@ type deployConfig struct {
 	evmRPC, celesGRPC, tendermintRPC string
 	evmChainID                       uint64
 	privateKey                       *ecdsa.PrivateKey
+	startingNonce                    string
+	evmGasLimit                      uint64
 }
 
 func parseDeployFlags(cmd *cobra.Command) (deployConfig, error) {
@@ -237,6 +265,14 @@ func parseDeployFlags(cmd *cobra.Command) (deployConfig, error) {
 	if err != nil {
 		return deployConfig{}, err
 	}
+	startingNonce, err := cmd.Flags().GetString(startingNonceFlag)
+	if err != nil {
+		return deployConfig{}, err
+	}
+	evmGasLimit, err := cmd.Flags().GetUint64(evmGasLimitFlag)
+	if err != nil {
+		return deployConfig{}, err
+	}
 
 	return deployConfig{
 		privateKey:      ethPrivKey,
@@ -245,5 +281,7 @@ func parseDeployFlags(cmd *cobra.Command) (deployConfig, error) {
 		celesGRPC:       celesGRPC,
 		tendermintRPC:   tendermintRPC,
 		evmRPC:          evmRPC,
+		startingNonce:   startingNonce,
+		evmGasLimit:     evmGasLimit,
 	}, nil
 }

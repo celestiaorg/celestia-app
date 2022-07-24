@@ -38,7 +38,7 @@ func TestRelayerWithOneValidator(t *testing.T) {
 	err = network.WaitForRelayerToStart(network.Context, bridge)
 	HandleNetworkError(t, network, err, false)
 
-	evmClient := orchestrator.NewEvmClient(nil, bridge, nil, network.EVMRPC)
+	evmClient := orchestrator.NewEvmClient(nil, bridge, nil, network.EVMRPC, orchestrator.DEFAULTEVMGASLIMIT)
 
 	vsNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: ctx})
 	assert.NoError(t, err)
@@ -88,7 +88,7 @@ func TestRelayerWithTwoValidators(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	// FIXME should we use the evm client here or go for raw queries?
-	evmClient := orchestrator.NewEvmClient(nil, bridge, nil, network.EVMRPC)
+	evmClient := orchestrator.NewEvmClient(nil, bridge, nil, network.EVMRPC, orchestrator.DEFAULTEVMGASLIMIT)
 
 	dcNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: ctx})
 	assert.NoError(t, err)
@@ -144,7 +144,7 @@ func TestRelayerWithMultipleValidators(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	// FIXME should we use the evm client here or go for raw queries?
-	evmClient := orchestrator.NewEvmClient(nil, bridge, nil, network.EVMRPC)
+	evmClient := orchestrator.NewEvmClient(nil, bridge, nil, network.EVMRPC, orchestrator.DEFAULTEVMGASLIMIT)
 
 	dcNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: ctx})
 	assert.NoError(t, err)

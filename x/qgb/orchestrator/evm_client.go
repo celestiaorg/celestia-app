@@ -16,6 +16,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
 
+const DEFAULTEVMGASLIMIT = uint64(25000000)
+
 var _ EVMClient = &evmClient{}
 
 type EVMClient interface {
@@ -50,6 +52,7 @@ type evmClient struct {
 	wrapper    *wrapper.QuantumGravityBridge
 	privateKey *ecdsa.PrivateKey
 	evmRPC     string
+	gasLimit   uint64
 }
 
 // NewEvmClient Creates a new EVM Client that can be used to deploy the QGB contract and
@@ -60,12 +63,14 @@ func NewEvmClient(
 	wrapper *wrapper.QuantumGravityBridge,
 	privateKey *ecdsa.PrivateKey,
 	evmRPC string,
+	gasLimit uint64,
 ) *evmClient {
 	return &evmClient{
 		logger:     logger,
 		wrapper:    wrapper,
 		privateKey: privateKey,
 		evmRPC:     evmRPC,
+		gasLimit:   gasLimit,
 	}
 }
 
@@ -137,8 +142,7 @@ func (ec *evmClient) UpdateValidatorSet(
 ) error {
 	// TODO in addition to the nonce, log more interesting information
 	ec.logger.Info("relaying valset", "nonce", newNonce)
-	// TODO gasLimit ?
-	opts, err := ec.NewTransactOpts(ctx, 1000000)
+	opts, err := ec.NewTransactOpts(ctx, ec.gasLimit)
 	if err != nil {
 		return err
 	}
@@ -195,7 +199,7 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 	sigs []wrapper.Signature,
 	waitToBeMined bool,
 ) error {
-	opts, err := ec.NewTransactOpts(ctx, 1000000)
+	opts, err := ec.NewTransactOpts(ctx, ec.gasLimit)
 	if err != nil {
 		return err
 	}

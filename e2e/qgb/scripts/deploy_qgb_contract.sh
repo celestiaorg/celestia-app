@@ -12,10 +12,10 @@ fi
 # check if environment variables are set
 if [[ -z "${EVM_CHAIN_ID}" || -z "${PRIVATE_KEY}" ]] || \
    [[ -z "${TENDERMINT_RPC}" || -z "${CELESTIA_GRPC}" ]] || \
-   [[ -z "${EVM_ENDPOINT}" ]]
+   [[ -z "${EVM_ENDPOINT}" || -z "${STARTING_NONCE}" ]]
 then
   echo "Environment not setup correctly. Please set:"
-  echo "EVM_CHAIN_ID, PRIVATE_KEY, TENDERMINT_RPC, CELESTIA_GRPC, EVM_ENDPOINT variables"
+  echo "EVM_CHAIN_ID, PRIVATE_KEY, TENDERMINT_RPC, CELESTIA_GRPC, EVM_ENDPOINT, STARTING_NONCE variables"
   exit 1
 fi
 
@@ -59,6 +59,7 @@ echo "deploying QGB contract..."
   -t ${TENDERMINT_RPC} \
   -c ${CELESTIA_GRPC} \
   -z ${EVM_CHAIN_ID} \
+  -n ${STARTING_NONCE} \
   -e ${EVM_ENDPOINT} > /opt/output
 
 echo $(cat /opt/output)

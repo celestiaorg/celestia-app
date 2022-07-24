@@ -44,6 +44,7 @@ func RelayerCmd() *cobra.Command {
 					qgbWrapper,
 					config.privateKey,
 					config.evmRPC,
+					config.evmGasLimit,
 				),
 				logger,
 			)

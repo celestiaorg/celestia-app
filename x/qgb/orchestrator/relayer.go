@@ -85,7 +85,6 @@ func (r *Relayer) processEvents(ctx context.Context) error {
 				return err
 			}
 
-			// todo: make gas limit configurable
 			valset, err := r.querier.QueryLastValsetBeforeNonce(ctx, dc.Nonce)
 			if err != nil {
 				return err
