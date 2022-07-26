@@ -13,6 +13,13 @@ jobs:
       - uses: actions/checkout@v3
       - name: lint
         run: make proto-lint
+  proto-gen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v3
+      - name: proto-gen
+        run: make proto-gen
   # add this back when we start using versioning
   # breakage:
   #   runs-on: ubuntu-latest
