@@ -2,6 +2,7 @@ package network
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmdb "github.com/tendermint/tm-db"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func New(t *testing.T, config network.Config, genAccNames ...string) *network.Network {
@@ -48,6 +51,15 @@ func New(t *testing.T, config network.Config, genAccNames ...string) *network.Ne
 	net.Validators[0].ClientCtx.Keyring = kr
 
 	return net
+}
+
+// GRPCConn creates and connects a grpc client to the first validator in the
+// network. The resulting grpc client connection is stored in the client context
+func GRPCConn(net *network.Network) error {
+	nodeGRPCAddr := strings.Replace(net.Validators[0].AppConfig.GRPC.Address, "0.0.0.0", "localhost", 1)
+	conn, err := grpc.Dial(nodeGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	net.Validators[0].ClientCtx.GRPCClient = conn
+	return err
 }
 
 // DefaultConfig will initialize config for the network with custom application,

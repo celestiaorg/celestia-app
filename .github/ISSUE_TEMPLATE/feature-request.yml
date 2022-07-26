@@ -1,0 +1,51 @@
+name: Feature Request
+description: Create a proposal to request a feature
+title: "<title>"
+labels: ["enhancement"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ✰ Thanks for opening an issue! ✰
+        Before smashing the submit button please fill in the template.
+        Word of caution: poorly thought-out proposals may be rejected without deliberation.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Short, concise description of the proposed feature.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Definition
+      description: |
+        Why do we need this feature?
+        What problems may be addressed by introducing this feature?
+        What benefits does the SDK stand to gain by including this feature?
+        Are there any disadvantages of including this feature?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Detailed description of requirements of implementation.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: admin
+    attributes:
+      label: For Admin Use
+      description: (do not edit)
+      options:
+        - label: Not duplicate issue
+        - label: Appropriate labels applied
+        - label: Appropriate contributors tagged
+        - label: Contributor assigned/self-assigned
