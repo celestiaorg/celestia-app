@@ -16,7 +16,7 @@ func TestRelayerWithOneValidator(t *testing.T) {
 		t.Skip("Skipping QGB integration tests")
 	}
 
-	network, err := NewQGBNetwork(context.Background())
+	network, err := NewQGBNetwork()
 	HandleNetworkError(t, network, err, false)
 
 	// to release resources after tests
@@ -25,17 +25,17 @@ func TestRelayerWithOneValidator(t *testing.T) {
 	err = network.StartMinimal()
 	HandleNetworkError(t, network, err, false)
 
-	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+50))
+	ctx := context.Background()
+	err = network.WaitForBlock(ctx, int64(network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	bridge, err := network.GetLatestDeployedQGBContract(network.Context)
+	bridge, err := network.GetLatestDeployedQGBContract(ctx)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForRelayerToStart(network.Context, bridge)
+	err = network.WaitForRelayerToStart(ctx, bridge)
 	HandleNetworkError(t, network, err, false)
 
 	evmClient := orchestrator.NewEvmClient(nil, bridge, nil, network.EVMRPC, orchestrator.DEFAULTEVMGASLIMIT)
@@ -50,7 +50,7 @@ func TestRelayerWithTwoValidators(t *testing.T) {
 		t.Skip("Skipping QGB integration tests")
 	}
 
-	network, err := NewQGBNetwork(context.Background())
+	network, err := NewQGBNetwork()
 	HandleNetworkError(t, network, err, false)
 
 	// to release resources after tests
@@ -68,23 +68,24 @@ func TestRelayerWithTwoValidators(t *testing.T) {
 	err = network.Start(Core1Orch)
 	HandleNetworkError(t, network, err, false)
 
-	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+50))
+	ctx := context.Background()
+
+	err = network.WaitForBlock(ctx, int64(network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(network.Context, CORE1ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(ctx, CORE1ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
 	// give the orchestrators some time to catchup
 	time.Sleep(30 * time.Second)
 
-	bridge, err := network.GetLatestDeployedQGBContract(network.Context)
+	bridge, err := network.GetLatestDeployedQGBContract(ctx)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForRelayerToStart(network.Context, bridge)
+	err = network.WaitForRelayerToStart(ctx, bridge)
 	HandleNetworkError(t, network, err, false)
 
 	// FIXME should we use the evm client here or go for raw queries?
@@ -100,7 +101,7 @@ func TestRelayerWithMultipleValidators(t *testing.T) {
 		t.Skip("Skipping QGB integration tests")
 	}
 
-	network, err := NewQGBNetwork(context.Background())
+	network, err := NewQGBNetwork()
 	HandleNetworkError(t, network, err, false)
 
 	// to release resources after tests
@@ -110,20 +111,20 @@ func TestRelayerWithMultipleValidators(t *testing.T) {
 	err = network.StartAll()
 	HandleNetworkError(t, network, err, false)
 
-	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(2*network.DataCommitmentWindow+50))
+	ctx := context.Background()
+	err = network.WaitForBlock(ctx, int64(2*network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(network.Context, CORE1ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(ctx, CORE1ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(network.Context, CORE2ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(ctx, CORE2ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(network.Context, CORE3ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(ctx, CORE3ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
 	// give the orchestrators some time to catchup
@@ -133,14 +134,14 @@ func TestRelayerWithMultipleValidators(t *testing.T) {
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
 	HandleNetworkError(t, network, err, false)
 
-	latestValset, err := querier.QueryLatestValset(network.Context)
+	latestValset, err := querier.QueryLatestValset(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, 4, len(latestValset.Members))
 
-	bridge, err := network.GetLatestDeployedQGBContract(network.Context)
+	bridge, err := network.GetLatestDeployedQGBContract(ctx)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForRelayerToStart(network.Context, bridge)
+	err = network.WaitForRelayerToStart(ctx, bridge)
 	HandleNetworkError(t, network, err, false)
 
 	// FIXME should we use the evm client here or go for raw queries?
