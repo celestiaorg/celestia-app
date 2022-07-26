@@ -34,7 +34,7 @@ func (bankModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 				Denom:    BondDenom,
 				Exponent: 0,
 				Aliases: []string{
-					"microceles",
+					BondDenomAlias,
 				},
 			},
 			{
