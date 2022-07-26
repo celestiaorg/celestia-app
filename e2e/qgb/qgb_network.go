@@ -393,6 +393,7 @@ func (network QGBNetwork) WaitForBlockWithCustomTimeout(
 				return nil
 			}
 			fmt.Printf("current height: %d\n", status.SyncInfo.LatestBlockHeight)
+			time.Sleep(5 * time.Second)
 		}
 	}
 }
