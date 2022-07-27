@@ -52,12 +52,12 @@ func (msg *MsgPayForData) ValidateBasic() error {
 	}
 
 	// ensure that ParitySharesNamespaceID is not used
-	if bytes.Compare(msg.GetMessageNamespaceId(), consts.ParitySharesNamespaceID) == 0 {
+	if bytes.Equal(msg.GetMessageNamespaceId(), consts.ParitySharesNamespaceID) {
 		return ErrParitySharesNamespace
 	}
 
 	// ensure that TailPaddingNamespaceID is not used
-	if bytes.Compare(msg.GetMessageNamespaceId(), consts.TailPaddingNamespaceID) == 0 {
+	if bytes.Equal(msg.GetMessageNamespaceId(), consts.TailPaddingNamespaceID) {
 		return ErrTailPaddingNamespace
 	}
 

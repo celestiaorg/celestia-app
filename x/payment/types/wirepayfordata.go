@@ -111,12 +111,12 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 	}
 
 	// ensure that ParitySharesNamespaceID is not used
-	if bytes.Compare(msg.GetMessageNameSpaceId(), consts.ParitySharesNamespaceID) == 0 {
+	if bytes.Equal(msg.GetMessageNameSpaceId(), consts.ParitySharesNamespaceID) {
 		return ErrParitySharesNamespace
 	}
 
 	// ensure that TailPaddingNamespaceID is not used
-	if bytes.Compare(msg.GetMessageNameSpaceId(), consts.TailPaddingNamespaceID) == 0 {
+	if bytes.Equal(msg.GetMessageNameSpaceId(), consts.TailPaddingNamespaceID) {
 		return ErrTailPaddingNamespace
 	}
 
