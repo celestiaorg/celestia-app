@@ -156,7 +156,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 
 			// ensure that at least one of the blocks used the max square size
 			assert.Contains(sizes, uint64(consts.MaxSquareSize))
-
 		})
 		require.NoError(s.network.WaitForNextBlock())
 	}
@@ -217,7 +216,6 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 			require.NoError(s.network.WaitForNextBlock())
 		})
 	}
-
 }
 
 func TestIntegrationTestSuite(t *testing.T) {

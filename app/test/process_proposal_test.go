@@ -162,7 +162,6 @@ func TestMessageInclusionCheck(t *testing.T) {
 		res := testApp.ProcessProposal(tt.input)
 		assert.Equal(t, tt.expectedResult, res.Result)
 	}
-
 }
 
 func genRandMsgPayForData(t *testing.T, signer *types.KeyringSigner, squareSize uint64) (*types.MsgPayForData, []byte) {
