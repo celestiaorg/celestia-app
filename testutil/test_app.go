@@ -229,7 +229,8 @@ func GenesisStateWithSingleValidator(t *testing.T, testApp *app.App) (app.Genesi
 func genesisStateWithValSet(t *testing.T,
 	app *app.App, genesisState app.GenesisState,
 	valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount,
-	balances ...banktypes.Balance) app.GenesisState {
+	balances ...banktypes.Balance,
+) app.GenesisState {
 	// set genesis accounts
 	authGenesis := authtypes.NewGenesisState(authtypes.DefaultParams(), genAccs)
 	genesisState[authtypes.ModuleName] = app.AppCodec().MustMarshalJSON(authGenesis)

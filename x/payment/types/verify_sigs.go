@@ -8,9 +8,7 @@ import (
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
-var (
-	errorSinglSignerExpected = errors.New("only a single signer is supported")
-)
+var errorSinglSignerExpected = errors.New("only a single signer is supported")
 
 // VerifySig checks that the signature over the provided transaction is valid using the provided signer data.
 func VerifySig(signerData authsigning.SignerData, txConfig client.TxConfig, authTx authsigning.Tx) (bool, error) {

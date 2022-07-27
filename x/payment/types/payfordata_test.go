@@ -27,7 +27,7 @@ func TestMountainRange(t *testing.T) {
 			k:        64,
 			expected: []uint64{2},
 		},
-		{ //should this test throw an error? we
+		{ // should this test throw an error? we
 			l:        64,
 			k:        8,
 			expected: []uint64{8, 8, 8, 8, 8, 8, 8, 8},
@@ -207,7 +207,8 @@ func TestSignMalleatedTxs(t *testing.T) {
 			ss:   []uint64{4, 8, 16, 64},
 			options: []TxBuilderOption{
 				SetGasLimit(123456789),
-				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321))))},
+				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321)))),
+			},
 		},
 		{
 			name: "12 shares",
@@ -216,7 +217,8 @@ func TestSignMalleatedTxs(t *testing.T) {
 			ss:   AllSquareSizes(50000),
 			options: []TxBuilderOption{
 				SetGasLimit(123456789),
-				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321))))},
+				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321)))),
+			},
 		},
 	}
 
