@@ -16,7 +16,7 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 		t.Skip("Skipping QGB integration tests")
 	}
 
-	network, err := NewQGBNetwork(context.Background())
+	network, err := NewQGBNetwork()
 	HandleNetworkError(t, network, err, false)
 
 	// to release resources after tests
@@ -30,11 +30,11 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 	err = network.Start(Core0Orch)
 	HandleNetworkError(t, network, err, false)
 
-	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+50))
+	ctx := context.Background()
+	err = network.WaitForBlock(ctx, int64(network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
 	// give the orchestrators some time to catchup
@@ -64,7 +64,7 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 		t.Skip("Skipping QGB integration tests")
 	}
 
-	network, err := NewQGBNetwork(context.Background())
+	network, err := NewQGBNetwork()
 	HandleNetworkError(t, network, err, false)
 
 	// to release resources after tests
@@ -87,14 +87,15 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 	err = network.Start(Core1Orch)
 	HandleNetworkError(t, network, err, false)
 
-	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+50))
+	ctx := context.Background()
+
+	err = network.WaitForBlock(ctx, int64(network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(network.Context, CORE1ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(ctx, CORE1ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
 	// give the orchestrators some time to catchup
@@ -140,7 +141,7 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 		t.Skip("Skipping QGB integration tests")
 	}
 
-	network, err := NewQGBNetwork(context.Background())
+	network, err := NewQGBNetwork()
 	assert.NoError(t, err)
 
 	// to release resources after tests
@@ -150,20 +151,21 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	err = network.StartAll()
 	HandleNetworkError(t, network, err, false)
 
-	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(network.DataCommitmentWindow+50))
+	ctx := context.Background()
+
+	err = network.WaitForBlock(ctx, int64(network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(network.Context, CORE1ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(ctx, CORE1ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(network.Context, CORE2ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(ctx, CORE2ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(network.Context, CORE3ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(ctx, CORE3ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
 	// give the orchestrators some time to catchup
@@ -219,7 +221,7 @@ func TestOrchestratorReplayOld(t *testing.T) {
 		t.Skip("Skipping QGB integration tests")
 	}
 
-	network, err := NewQGBNetwork(context.Background())
+	network, err := NewQGBNetwork()
 	HandleNetworkError(t, network, err, false)
 
 	// to release resources after tests
@@ -233,8 +235,9 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	err = network.Start(Core1)
 	HandleNetworkError(t, network, err, false)
 
-	ctx := context.TODO()
-	err = network.WaitForBlock(network.Context, int64(2*network.DataCommitmentWindow))
+	ctx := context.Background()
+
+	err = network.WaitForBlock(ctx, int64(2*network.DataCommitmentWindow))
 	HandleNetworkError(t, network, err, false)
 
 	// add core0  orchestrator
@@ -246,13 +249,13 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	// give time for the orchestrators to submit confirms
-	err = network.WaitForBlock(network.Context, int64(2*network.DataCommitmentWindow+50))
+	err = network.WaitForBlock(ctx, int64(2*network.DataCommitmentWindow+50))
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(network.Context, CORE0ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(ctx, CORE0ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForOrchestratorToStart(network.Context, CORE1ACCOUNTADDRESS)
+	err = network.WaitForOrchestratorToStart(ctx, CORE1ACCOUNTADDRESS)
 	HandleNetworkError(t, network, err, false)
 
 	// give the orchestrators some time to catchup

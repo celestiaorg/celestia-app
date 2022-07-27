@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,6 +17,10 @@ func HandleNetworkError(t *testing.T, network *QGBNetwork, err error, expectErro
 	} else if !expectError && err != nil {
 		network.PrintLogs()
 		assert.NoError(t, err)
+		if errors.Is(err, ErrNetworkStopped) {
+			// if some other error orrured, we notify.
+			network.toStopChan <- struct{}{}
+		}
 		t.FailNow()
 	}
 }

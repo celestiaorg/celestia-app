@@ -21,7 +21,7 @@ func TestFullLongBehaviour(t *testing.T) {
 		t.Skip("Skipping QGB integration tests")
 	}
 
-	network, err := NewQGBNetwork(context.Background())
+	network, err := NewQGBNetwork()
 	HandleNetworkError(t, network, err, false)
 
 	// to release resources after tests
@@ -31,7 +31,9 @@ func TestFullLongBehaviour(t *testing.T) {
 	err = network.StartAll()
 	HandleNetworkError(t, network, err, false)
 
-	err = network.WaitForBlockWithCustomTimeout(network.Context, 120, 8*time.Minute)
+	ctx := context.Background()
+
+	err = network.WaitForBlockWithCustomTimeout(ctx, 120, 8*time.Minute)
 	HandleNetworkError(t, network, err, false)
 
 	// check whether the four validators are up and running
@@ -39,23 +41,23 @@ func TestFullLongBehaviour(t *testing.T) {
 	HandleNetworkError(t, network, err, false)
 
 	// check whether all the validators are up and running
-	latestValset, err := querier.QueryLatestValset(network.Context)
+	latestValset, err := querier.QueryLatestValset(ctx)
 	assert.NoError(t, err)
 	require.NotNil(t, latestValset)
 	assert.Equal(t, 4, len(latestValset.Members))
 
 	// check whether the QGB contract was deployed
-	bridge, err := network.GetLatestDeployedQGBContract(network.Context)
+	bridge, err := network.GetLatestDeployedQGBContract(ctx)
 	HandleNetworkError(t, network, err, false)
 
 	evmClient := orchestrator.NewEvmClient(nil, bridge, nil, network.EVMRPC, orchestrator.DEFAULTEVMGASLIMIT)
 
 	// check whether the relayer relayed all attestations
-	eventNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: network.Context})
+	eventNonce, err := evmClient.StateLastEventNonce(&bind.CallOpts{Context: ctx})
 	assert.NoError(t, err)
 
 	// attestations are either data commitments or valsets
-	latestNonce, err := querier.QueryLatestAttestationNonce(network.Context)
+	latestNonce, err := querier.QueryLatestAttestationNonce(ctx)
 	assert.NoError(t, err)
 	assert.GreaterOrEqual(t, eventNonce, latestNonce-1)
 }

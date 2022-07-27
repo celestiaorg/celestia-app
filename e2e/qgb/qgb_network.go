@@ -25,7 +25,6 @@ import (
 )
 
 type QGBNetwork struct {
-	Context              context.Context
 	ComposePaths         []string
 	Identifier           string
 	Instance             *testcontainers.LocalDockerCompose
@@ -34,15 +33,22 @@ type QGBNetwork struct {
 	CelestiaGRPC         string
 	EncCfg               cosmoscmd.EncodingConfig
 	DataCommitmentWindow uint64
+
+	// used by the moderator to notify all the workers.
+	stopChan <-chan struct{}
+	// used by the workers to notify the moderator.
+	toStopChan chan<- struct{}
 }
 
-func NewQGBNetwork(_ctx context.Context) (*QGBNetwork, error) {
+func NewQGBNetwork() (*QGBNetwork, error) {
 	id := strings.ToLower(uuid.New().String())
 	paths := []string{"./docker-compose.yml"}
 	instance := testcontainers.NewLocalDockerCompose(paths, id)
-	ctx, cancel := context.WithCancel(_ctx)
+	stopChan := make(chan struct{})
+	// given an initial capacity to avoid blocking in case multiple services failed
+	// and wanted to notify the moderator.
+	toStopChan := make(chan struct{}, 10)
 	network := &QGBNetwork{
-		Context:              ctx,
 		Identifier:           id,
 		ComposePaths:         paths,
 		Instance:             instance,
@@ -51,25 +57,38 @@ func NewQGBNetwork(_ctx context.Context) (*QGBNetwork, error) {
 		CelestiaGRPC:         "localhost:9090",
 		EncCfg:               orchestrator.MakeEncodingConfig(),
 		DataCommitmentWindow: 101, // If this one is changed, make sure to change also the genesis file
+		stopChan:             stopChan,
+		toStopChan:           toStopChan,
 	}
 
-	// trap Ctrl+C or ctx.Done()
-	// helps release the docker resources without having to do it manually
-	registerGracefulExit(cancel, network)
+	// moderate stop notifications from waiters.
+	registerModerator(stopChan, toStopChan)
+
+	// trap SIGINT
+	// helps release the docker resources without having to do it manually.
+	registerGracefulExit(network)
 
 	return network, nil
+}
+
+// registerModerator handles stop signals from a worker and notifies the others to stop.
+func registerModerator(stopChan chan<- struct{}, toStopChan <-chan struct{}) {
+	go func() {
+		<-toStopChan
+		stopChan <- struct{}{}
+	}()
 }
 
 // registerGracefulExit traps SIGINT or waits for ctx.Done() to release the docker resources before exiting
 // it is not calling `DeleteAll()` here as it is being called inside the tests. No need to call it two times.
 // this comes from the fact that we're sticking with unit tests style tests to be able to run individual tests
 // https://github.com/celestiaorg/celestia-app/issues/428
-func registerGracefulExit(cancel context.CancelFunc, network *QGBNetwork) {
+func registerGracefulExit(network *QGBNetwork) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
 		if <-c; true {
-			cancel()
+			network.toStopChan <- struct{}{}
 			forceExitIfNeeded(1)
 		}
 	}()
@@ -306,10 +325,14 @@ func (network QGBNetwork) StartBase() error {
 }
 
 func (network QGBNetwork) WaitForNodeToStart(_ctx context.Context, rpcAddr string) error {
-	ctx, _ := context.WithTimeout(_ctx, 5*time.Minute) //nolint:govet
+	ctx, cancel := context.WithTimeout(_ctx, 5*time.Minute)
 	for {
 		select {
+		case <-network.stopChan:
+			cancel()
+			return ErrNetworkStopped
 		case <-ctx.Done():
+			cancel()
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				return fmt.Errorf("node %s not initialized in time", rpcAddr)
 			}
@@ -321,6 +344,7 @@ func (network QGBNetwork) WaitForNodeToStart(_ctx context.Context, rpcAddr strin
 				time.Sleep(5 * time.Second)
 				continue
 			}
+			cancel()
 			return nil
 		}
 	}
@@ -347,22 +371,29 @@ func (network QGBNetwork) WaitForBlockWithCustomTimeout(
 	if err != nil {
 		return err
 	}
-	ctx, _ := context.WithTimeout(_ctx, timeout) //nolint:govet
+	ctx, cancel := context.WithTimeout(_ctx, timeout)
 	for {
 		select {
+		case <-network.stopChan:
+			cancel()
+			return ErrNetworkStopped
 		case <-ctx.Done():
+			cancel()
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				return fmt.Errorf("chain didn't reach height in time")
+				return fmt.Errorf(" chain didn't reach height in time")
 			}
 			return ctx.Err()
 		default:
 			status, err := trpc.Status(ctx)
-			if err != nil || status.SyncInfo.LatestBlockHeight < height {
-				fmt.Printf("current height: %d\n", status.SyncInfo.LatestBlockHeight)
-				time.Sleep(5 * time.Second)
+			if err != nil {
 				continue
 			}
-			return nil
+			if status.SyncInfo.LatestBlockHeight >= height {
+				cancel()
+				return nil
+			}
+			fmt.Printf("current height: %d\n", status.SyncInfo.LatestBlockHeight)
+			time.Sleep(5 * time.Second)
 		}
 	}
 }
@@ -377,10 +408,14 @@ func (network QGBNetwork) WaitForOrchestratorToStart(_ctx context.Context, accou
 		return err
 	}
 	defer querier.Stop()
-	ctx, _ := context.WithTimeout(_ctx, 5*time.Minute) //nolint:govet
+	ctx, cancel := context.WithTimeout(_ctx, 5*time.Minute)
 	for {
 		select {
+		case <-network.stopChan:
+			cancel()
+			return ErrNetworkStopped
 		case <-ctx.Done():
+			cancel()
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				return fmt.Errorf("orchestrator didn't start correctly")
 			}
@@ -395,6 +430,7 @@ func (network QGBNetwork) WaitForOrchestratorToStart(_ctx context.Context, accou
 			for i := uint64(0); i < lastNonce; i++ {
 				vsConfirm, err := querier.QueryValsetConfirm(ctx, lastNonce-i, accountAddress)
 				if err == nil && vsConfirm != nil {
+					cancel()
 					return nil
 				}
 				dcConfirm, err := querier.QueryDataCommitmentConfirm(
@@ -405,6 +441,7 @@ func (network QGBNetwork) WaitForOrchestratorToStart(_ctx context.Context, accou
 					accountAddress,
 				)
 				if err == nil && dcConfirm != nil {
+					cancel()
 					return nil
 				}
 			}
@@ -422,10 +459,14 @@ func (network QGBNetwork) GetValsetContainingVals(_ctx context.Context, number i
 		return nil, err
 	}
 	defer querier.Stop()
-	ctx, _ := context.WithTimeout(_ctx, 5*time.Minute) //nolint:govet
+	ctx, cancel := context.WithTimeout(_ctx, 5*time.Minute)
 	for {
 		select {
+		case <-network.stopChan:
+			cancel()
+			return nil, ErrNetworkStopped
 		case <-ctx.Done():
+			cancel()
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				return nil, fmt.Errorf("couldn't find any valset containing %d validators", number)
 			}
@@ -440,6 +481,7 @@ func (network QGBNetwork) GetValsetContainingVals(_ctx context.Context, number i
 			for i := uint64(0); i < lastNonce; i++ {
 				vs, err := querier.QueryValsetByNonce(ctx, lastNonce-i)
 				if err == nil && vs != nil && len(vs.Members) == number {
+					cancel()
 					return vs, nil
 				}
 			}
@@ -457,15 +499,19 @@ func (network QGBNetwork) GetAttestationConfirm(
 	nonce uint64,
 	account string,
 ) (sdk.Msg, error) {
-	ctx, _ := context.WithTimeout(_ctx, 2*time.Minute) //nolint:govet
 	querier, err := orchestrator.NewQuerier(network.CelestiaGRPC, network.TendermintRPC, nil, network.EncCfg)
 	if err != nil {
 		return nil, err
 	}
+	ctx, cancel := context.WithTimeout(_ctx, 2*time.Minute)
 	defer querier.Stop()
 	for {
 		select {
+		case <-network.stopChan:
+			cancel()
+			return nil, ErrNetworkStopped
 		case <-ctx.Done():
+			cancel()
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				return nil, fmt.Errorf("couldn't find confirm for nonce=%d", nonce)
 			}
@@ -483,6 +529,7 @@ func (network QGBNetwork) GetAttestationConfirm(
 				}
 				resp, err := querier.QueryValsetConfirm(ctx, nonce, account)
 				if err == nil && resp != nil {
+					cancel()
 					return resp, nil
 				}
 
@@ -498,6 +545,7 @@ func (network QGBNetwork) GetAttestationConfirm(
 					account,
 				)
 				if err == nil && resp != nil {
+					cancel()
 					return resp, nil
 				}
 			}
@@ -520,10 +568,14 @@ func (network QGBNetwork) GetLatestDeployedQGBContractWithCustomTimeout(
 		return nil, err
 	}
 	height := 0
-	ctx, _ := context.WithTimeout(_ctx, timeout) //nolint:govet
+	ctx, cancel := context.WithTimeout(_ctx, timeout)
 	for {
 		select {
+		case <-network.stopChan:
+			cancel()
+			return nil, ErrNetworkStopped
 		case <-ctx.Done():
+			cancel()
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				return nil, fmt.Errorf("timeout. couldn't find deployed qgb contract")
 			}
@@ -542,6 +594,7 @@ func (network QGBNetwork) GetLatestDeployedQGBContractWithCustomTimeout(
 				}
 				receipt, err := client.TransactionReceipt(ctx, tx.Hash())
 				if err != nil {
+					cancel()
 					return nil, err
 				}
 				// TODO check if this check is actually checking if it's
@@ -554,6 +607,7 @@ func (network QGBNetwork) GetLatestDeployedQGBContractWithCustomTimeout(
 				if err != nil {
 					continue
 				}
+				cancel()
 				return bridge, nil
 			}
 		}
@@ -561,10 +615,14 @@ func (network QGBNetwork) GetLatestDeployedQGBContractWithCustomTimeout(
 }
 
 func (network QGBNetwork) WaitForRelayerToStart(_ctx context.Context, bridge *wrapper.QuantumGravityBridge) error {
-	ctx, _ := context.WithTimeout(_ctx, 2*time.Minute) //nolint:govet
+	ctx, cancel := context.WithTimeout(_ctx, 2*time.Minute)
 	for {
 		select {
+		case <-network.stopChan:
+			cancel()
+			return ErrNetworkStopped
 		case <-ctx.Done():
+			cancel()
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				return fmt.Errorf("relayer didn't start correctly")
 			}
@@ -572,6 +630,7 @@ func (network QGBNetwork) WaitForRelayerToStart(_ctx context.Context, bridge *wr
 		default:
 			nonce, err := bridge.StateEventNonce(&bind.CallOpts{Context: ctx})
 			if err == nil && nonce != nil && nonce.Int64() >= 1 {
+				cancel()
 				return nil
 			}
 			fmt.Println("waiting for relayer to start ...")
