@@ -110,6 +110,16 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", msg.GetMessageNameSpaceId(), consts.MaxReservedNamespace)
 	}
 
+	// ensure that ParitySharesNamespaceID is not used
+	if bytes.Compare(msg.GetMessageNameSpaceId(), consts.ParitySharesNamespaceID) == 0 {
+		return ErrParitySharesNamespace
+	}
+
+	// ensure that TailPaddingNamespaceID is not used
+	if bytes.Compare(msg.GetMessageNameSpaceId(), consts.TailPaddingNamespaceID) == 0 {
+		return ErrTailPaddingNamespace
+	}
+
 	for idx, commit := range msg.MessageShareCommitment {
 		// check that each commit is valid
 		if !powerOf2(commit.K) {
