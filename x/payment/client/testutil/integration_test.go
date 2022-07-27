@@ -129,7 +129,6 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 
 			var result sdk.TxResponse
 			s.Require().NoError(val.ClientCtx.Codec.UnmarshalJSON(out.Bytes(), &result))
-
 		})
 	}
 }

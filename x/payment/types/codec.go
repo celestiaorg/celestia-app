@@ -9,9 +9,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
-var (
-	ModuleCdc = codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
-)
+var ModuleCdc = codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgWirePayForData{}, URLMsgWirePayForData, nil)
@@ -40,8 +38,7 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
 }
 
-type localEncoder struct {
-}
+type localEncoder struct{}
 
 func (localEncoder) RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	RegisterCodec(cdc)
