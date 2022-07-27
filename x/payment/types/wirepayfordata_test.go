@@ -25,6 +25,14 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 	reservedMsg := validWirePayForData(t)
 	reservedMsg.MessageNameSpaceId = []byte{0, 0, 0, 0, 0, 0, 0, 100}
 
+	// pfd that uses parity shares namespace id
+	paritySharesMsg := validWirePayForData(t)
+	paritySharesMsg.MessageNameSpaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+
+	// pfd that uses parity shares namespace id
+	tailPaddingMsg := validWirePayForData(t)
+	tailPaddingMsg.MessageNameSpaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
+
 	// pfd that has a wrong msg size
 	invalidDeclaredMsgSizeMsg := validWirePayForData(t)
 	invalidDeclaredMsgSizeMsg.MessageSize = 999
@@ -76,6 +84,16 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 			name:    "wrong but valid square size",
 			msg:     badSquareSizeMsg,
 			wantErr: ErrInvalidShareCommit,
+		},
+		{
+			name:    "parity shares namespace id",
+			msg:     paritySharesMsg,
+			wantErr: ErrParitySharesNamespace,
+		},
+		{
+			name:    "tail padding namespace id",
+			msg:     tailPaddingMsg,
+			wantErr: ErrTailPaddingNamespace,
 		},
 	}
 

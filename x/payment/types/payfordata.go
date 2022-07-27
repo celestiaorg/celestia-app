@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"math/bits"
@@ -48,6 +49,16 @@ func (msg *MsgPayForData) ValidateBasic() error {
 	_, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		return err
+	}
+
+	// ensure that ParitySharesNamespaceID is not used
+	if bytes.Equal(msg.GetMessageNamespaceId(), consts.ParitySharesNamespaceID) {
+		return ErrParitySharesNamespace
+	}
+
+	// ensure that TailPaddingNamespaceID is not used
+	if bytes.Equal(msg.GetMessageNamespaceId(), consts.TailPaddingNamespaceID) {
+		return ErrTailPaddingNamespace
 	}
 
 	return nil
