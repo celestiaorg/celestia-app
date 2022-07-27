@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-app
 
-go 1.17
+go 1.18
 
 require (
 	github.com/celestiaorg/nmt v0.10.0
