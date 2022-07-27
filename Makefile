@@ -22,7 +22,7 @@ BUILD_FLAGS := -ldflags '$(ldflags)'
 all: install
 
 mod:
-	@go mod tidy -compat=1.17
+	@go mod tidy -compat=1.18
 
 pre-build:
 	@echo "Fetching latest tags"
@@ -34,7 +34,7 @@ build: mod
 	@mkdir -p build/
 	@go build -o build/ ./cmd/celestia-appd
 	@packr2 clean
-	@go mod tidy -compat=1.17
+	@go mod tidy -compat=1.18
 
 install: go.sum
 		@echo "--> Installing celestia-appd"
