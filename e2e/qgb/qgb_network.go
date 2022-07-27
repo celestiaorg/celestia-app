@@ -71,7 +71,7 @@ func NewQGBNetwork() (*QGBNetwork, error) {
 	return network, nil
 }
 
-// registerModerator handles stop signales from a worker and notifies the others to stop.
+// registerModerator handles stop signals from a worker and notifies the others to stop.
 func registerModerator(stopChan chan<- struct{}, toStopChan <-chan struct{}) {
 	go func() {
 		<-toStopChan
