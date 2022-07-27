@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"math/bits"
@@ -50,6 +51,19 @@ func (msg *MsgPayForData) ValidateBasic() error {
 		return err
 	}
 
+	// ensure that ParitySharesNamespaceID is not used
+	if bytes.Compare(msg.GetMessageNamespaceId(), consts.ParitySharesNamespaceID) == 0 {
+		return ErrParitySharesNamespace
+	}
+
+	// ensure that TailPaddingNamespaceID is not used
+	if bytes.Compare(msg.GetMessageNamespaceId(), consts.TailPaddingNamespaceID) == 0 {
+		return ErrTailPaddingNamespace
+	}
+
+	// TODO: why doesn't this function throw an error if NamespaceID is lower
+	// than the max reserved namespace ID?
+	// https://github.com/celestiaorg/celestia-app/blob/master/x/payment/types/wirepayfordata.go#L108-L111=
 	return nil
 }
 
