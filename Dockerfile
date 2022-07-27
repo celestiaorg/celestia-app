@@ -1,5 +1,5 @@
 # stage 1 Generate celestia-appd Binary
-FROM golang:1.17-alpine as builder
+FROM golang:1.18-alpine as builder
 RUN apk update && apk --no-cache add make gcc git musl-dev
 COPY . /celestia-app
 WORKDIR /celestia-app
