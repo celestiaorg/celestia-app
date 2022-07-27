@@ -61,9 +61,6 @@ func (msg *MsgPayForData) ValidateBasic() error {
 		return ErrTailPaddingNamespace
 	}
 
-	// TODO: why doesn't this function throw an error if NamespaceID is lower
-	// than the max reserved namespace ID?
-	// https://github.com/celestiaorg/celestia-app/blob/master/x/payment/types/wirepayfordata.go#L108-L111=
 	return nil
 }
 
