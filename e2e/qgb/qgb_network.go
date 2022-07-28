@@ -380,7 +380,7 @@ func (network QGBNetwork) WaitForBlockWithCustomTimeout(
 		case <-ctx.Done():
 			cancel()
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				return fmt.Errorf("height=%d: %w", height, ErrHeightNotReached)
+				return fmt.Errorf("desired height=%d: %w", height, ErrHeightNotReached)
 			}
 			return ctx.Err()
 		default:
