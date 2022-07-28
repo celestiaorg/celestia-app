@@ -2,10 +2,11 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	"github.com/cosmos/cosmos-sdk/types/errors"
 	"os"
 	"strconv"
+
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	"github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/spf13/cobra"
 	tmlog "github.com/tendermint/tendermint/libs/log"
