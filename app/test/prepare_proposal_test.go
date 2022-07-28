@@ -20,7 +20,7 @@ import (
 func TestPrepareProposal(t *testing.T) {
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
 
-	encCfg := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 

@@ -79,7 +79,7 @@ func SetupTestAppWithGenesisValSet(t *testing.T) *app.App {
 	db := dbm.NewMemDB()
 	skipUpgradeHeights := make(map[int64]bool)
 
-	encCfg := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	testApp := app.New(
 		log.NewNopLogger(), db, nil, true, skipUpgradeHeights,
@@ -293,7 +293,7 @@ func genesisStateWithValSet(t *testing.T,
 // GenerateKeyringSigner creates a types.KeyringSigner with keys generated for
 // the provided accounts
 func GenerateKeyringSigner(t *testing.T, acct string) *types.KeyringSigner {
-	encCfg := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	kr := generateKeyring(t, encCfg.Codec, acct)
 	return types.NewKeyringSigner(kr, acct, testChainID)
 }

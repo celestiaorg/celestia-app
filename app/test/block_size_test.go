@@ -30,7 +30,7 @@ type IntegrationTestSuite struct {
 	suite.Suite
 
 	cfg      cosmosnet.Config
-	encCfg   encoding.EncodingConfig
+	encCfg   encoding.Config
 	network  *cosmosnet.Network
 	kr       keyring.Keyring
 	accounts []string
@@ -60,7 +60,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	s.network = net
 	s.kr = net.Validators[0].ClientCtx.Keyring
-	s.encCfg = encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
+	s.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	_, err = s.network.WaitForHeight(1)
 	s.Require().NoError(err)

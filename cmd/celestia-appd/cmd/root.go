@@ -41,7 +41,7 @@ const EnvPrefix = "CELESTIA"
 // NewRootCmd creates a new root command for celestia-appd. It is called once in the
 // main function.
 func NewRootCmd() *cobra.Command {
-	encodingConfig := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	cfg := sdk.GetConfig()
 	cfg.SetBech32PrefixForAccount(app.Bech32PrefixAccAddr, app.Bech32PrefixAccPub)
@@ -117,7 +117,7 @@ func initAppConfig() (string, interface{}) {
 	return CelestiaAppTemplate, CelestiaAppCfg
 }
 
-func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.EncodingConfig) {
+func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 	cfg := sdk.GetConfig()
 	cfg.Seal()
 
@@ -222,7 +222,7 @@ func newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts serverty
 		logger, db, traceStore, true, skipUpgradeHeights,
 		cast.ToString(appOpts.Get(flags.FlagHome)),
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
-		encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...), // Ideally, we would reuse the one created by NewRootCmd.
+		encoding.MakeConfig(app.ModuleEncodingRegisters...), // Ideally, we would reuse the one created by NewRootCmd.
 		appOpts,
 		baseapp.SetPruning(pruningOpts),
 		baseapp.SetMinGasPrices(cast.ToString(appOpts.Get(server.FlagMinGasPrices))),
@@ -240,7 +240,7 @@ func createAppAndExport(
 	logger log.Logger, db dbm.DB, traceStore io.Writer, height int64, forZeroHeight bool, jailWhiteList []string,
 	appOpts servertypes.AppOptions,
 ) (servertypes.ExportedApp, error) {
-	encCfg := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...) // Ideally, we would reuse the one created by NewRootCmd.
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...) // Ideally, we would reuse the one created by NewRootCmd.
 	encCfg.Codec = codec.NewProtoCodec(encCfg.InterfaceRegistry)
 	var capp *app.App
 	if height != -1 {

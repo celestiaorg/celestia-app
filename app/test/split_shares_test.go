@@ -16,7 +16,7 @@ import (
 )
 
 func TestSplitShares(t *testing.T) {
-	encCfg := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	type test struct {
 		squareSize      uint64
