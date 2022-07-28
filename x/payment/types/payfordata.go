@@ -171,7 +171,7 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 }
 
 // powerOf2MountainRange returns the heights of the subtrees for binary merkle
-// mountian range
+// mountain range
 func powerOf2MountainRange(l, k uint64) []uint64 {
 	var output []uint64
 
