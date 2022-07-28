@@ -31,33 +31,6 @@ func (k Keeper) GetDataCommitmentConfirm(
 	return &confirm, true, nil
 }
 
-// GetDataCommitmentConfirmsByCommitment Returns data commitment confirms by nonce.
-// Returns empty array if no element is found.
-// Too heavy, shouldn't be primarily used.
-// PS: not currently used. Can be deleted later.
-func (k Keeper) GetDataCommitmentConfirmsByCommitment(
-	ctx sdk.Context,
-	commitment string,
-) (confirms []types.MsgDataCommitmentConfirm) {
-	store := ctx.KVStore(k.storeKey)
-	iterator := store.Iterator(nil, nil)
-
-	defer iterator.Close()
-
-	for ; iterator.Valid(); iterator.Next() {
-		confirm := types.MsgDataCommitmentConfirm{}
-		err := k.cdc.Unmarshal(iterator.Value(), &confirm)
-		if err != nil {
-			continue
-		}
-		if commitment == confirm.Commitment {
-			confirms = append(confirms, confirm)
-		}
-	}
-
-	return confirms
-}
-
 // GetDataCommitmentConfirmsByExactRange Returns data commitment confirms by the provided exact range.
 // Returns empty array if no element is found.
 func (k Keeper) GetDataCommitmentConfirmsByExactRange(

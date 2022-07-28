@@ -44,16 +44,6 @@ service Query {
         "/qgb/data_commitment/confirm/begin/"
         "{begin_block}/end/{end_block}/address/{address}";
   }
-  // DataCommitmentConfirms Queries data commitment confirms by the actual
-  // commitment.
-  // Too heavy, shouldn't mainly be used.
-  // Returns empty array if no element is found.
-  rpc DataCommitmentConfirmsByCommitment(
-      QueryDataCommitmentConfirmsByCommitmentRequest)
-      returns (QueryDataCommitmentConfirmsByCommitmentResponse) {
-    option (google.api.http).get =
-        "/qgb/data_commitment/confirms/commitment/{commitment}";
-  }
   // DataCommitmentConfirmsByExactRange Queries data commitment confirms by an
   // exact block range.
   // Returns empty array if no element is found.
@@ -159,19 +149,6 @@ message QueryDataCommitmentConfirmRequest {
 // validator address response
 message QueryDataCommitmentConfirmResponse {
   MsgDataCommitmentConfirm confirm = 1;
-}
-
-// QueryDataCommitmentConfirmsRequest Data commitment confirms by commitment
-// request
-message QueryDataCommitmentConfirmsByCommitmentRequest {
-  string commitment = 1;
-}
-
-// QueryDataCommitmentConfirmsResponse Data commitment confirms by commitment
-// response
-message QueryDataCommitmentConfirmsByCommitmentResponse {
-  repeated MsgDataCommitmentConfirm confirms = 1
-      [ (gogoproto.nullable) = false ];
 }
 
 // QueryDataCommitmentConfirmsByExactRangeRequest Data commitment confirms by

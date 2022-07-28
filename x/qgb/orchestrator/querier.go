@@ -35,7 +35,6 @@ type Querier interface {
 
 	// data commitment confirm queries
 
-	QueryDataCommitmentConfirms(ctx context.Context, commit string) ([]types.MsgDataCommitmentConfirm, error)
 	QueryDataCommitmentConfirm(
 		ctx context.Context,
 		endBlock uint64,
@@ -126,25 +125,6 @@ func (q *querier) Stop() {
 	if err != nil {
 		q.logger.Error(err.Error())
 	}
-}
-
-func (q *querier) QueryDataCommitmentConfirms(
-	ctx context.Context,
-	commit string,
-) ([]types.MsgDataCommitmentConfirm, error) {
-	queryClient := types.NewQueryClient(q.qgbRPC)
-
-	confirmsResp, err := queryClient.DataCommitmentConfirmsByCommitment(
-		ctx,
-		&types.QueryDataCommitmentConfirmsByCommitmentRequest{
-			Commitment: commit,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return confirmsResp.Confirms, nil
 }
 
 func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
