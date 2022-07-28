@@ -7,7 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// LastUnbondingHeight queries the last unbonding height
+// LastUnbondingHeight queries the last unbonding height.
 func (k Keeper) LastUnbondingHeight(
 	c context.Context,
 	req *types.QueryLastUnbondingHeightRequest,

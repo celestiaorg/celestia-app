@@ -16,7 +16,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktypestx "github.com/cosmos/cosmos-sdk/types/tx"
 	ethcmn "github.com/ethereum/go-ethereum/common"
-	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
 	tmlog "github.com/tendermint/tendermint/libs/log"
@@ -42,7 +41,7 @@ type Orchestrator struct {
 
 	EvmPrivateKey  ecdsa.PrivateKey
 	Signer         *paytypes.KeyringSigner
-	OrchEthAddress gethcommon.Address
+	OrchEthAddress ethcmn.Address
 
 	Querier     Querier
 	Broadcaster BroadcasterI

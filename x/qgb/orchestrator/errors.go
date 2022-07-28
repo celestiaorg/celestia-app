@@ -12,4 +12,6 @@ var (
 	ErrNotEnoughDataCommitmentConfirms = errors.New("couldn't find enough data commitment confirms")
 	ErrUnknownAttestationType          = errors.New("unknown attestation type")
 	ErrFailedBroadcast                 = errors.New("failed to broadcast transaction")
+	ErrEmpty                           = errors.New("empty")
+	ErrInvalid                         = errors.New("invalid")
 )

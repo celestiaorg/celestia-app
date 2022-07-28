@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"crypto/ecdsa"
-	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
 	"log"
@@ -24,17 +23,17 @@ func init() {
 }
 
 const (
-	// cosmos-sdk keyring flags
+	// cosmos-sdk keyring flags.
 	keyringBackendFlag  = "keyring-backend"
 	keyringPathFlag     = "keyring-path"
 	keyringAccountName  = "keyring-account"
 	celestiaChainIDFlag = "celes-chain-id"
 
-	// ethereum signing
+	// ethereum signing.
 	privateKeyFlag = "eth-priv-key"
 	evmChainIDFlag = "evm-chain-id"
 
-	// rpc
+	// rpc.
 	celesGRPCFlag     = "celes-grpc"
 	tendermintRPCFlag = "celes-http-rpc"
 	evmRPCFlag        = "evm-rpc"
@@ -93,7 +92,7 @@ func parseOrchestratorFlags(cmd *cobra.Command) (orchestratorConfig, error) {
 		return orchestratorConfig{}, err
 	}
 	if rawPrivateKey == "" {
-		return orchestratorConfig{}, errors.New("private key flag required")
+		return orchestratorConfig{}, fmt.Errorf("%s: %w", privateKeyFlag, ErrEmpty)
 	}
 	ethPrivKey, err := ethcrypto.HexToECDSA(rawPrivateKey)
 	if err != nil {
@@ -154,7 +153,7 @@ func parseRelayerFlags(cmd *cobra.Command) (relayerConfig, error) {
 		return relayerConfig{}, err
 	}
 	if rawPrivateKey == "" {
-		return relayerConfig{}, errors.New("private key flag required")
+		return relayerConfig{}, fmt.Errorf("%s: %w", privateKeyFlag, ErrEmpty)
 	}
 	ethPrivKey, err := ethcrypto.HexToECDSA(rawPrivateKey)
 	if err != nil {
@@ -177,10 +176,10 @@ func parseRelayerFlags(cmd *cobra.Command) (relayerConfig, error) {
 		return relayerConfig{}, err
 	}
 	if contractAddr == "" {
-		return relayerConfig{}, fmt.Errorf("contract address flag is required: %s", contractAddressFlag)
+		return relayerConfig{}, fmt.Errorf("%s: %w", contractAddressFlag, ErrEmpty)
 	}
 	if !ethcmn.IsHexAddress(contractAddr) {
-		return relayerConfig{}, fmt.Errorf("valid contract address flag is required: %s", contractAddressFlag)
+		return relayerConfig{}, fmt.Errorf("%s: %w", contractAddressFlag, ErrInvalid)
 	}
 	address := ethcmn.HexToAddress(contractAddr)
 	ethRPC, err := cmd.Flags().GetString(evmRPCFlag)
@@ -239,7 +238,7 @@ func parseDeployFlags(cmd *cobra.Command) (deployConfig, error) {
 		return deployConfig{}, err
 	}
 	if rawPrivateKey == "" {
-		return deployConfig{}, errors.New("private key flag required")
+		return deployConfig{}, fmt.Errorf("%s: %w", privateKeyFlag, ErrEmpty)
 	}
 	ethPrivKey, err := ethcrypto.HexToECDSA(rawPrivateKey)
 	if err != nil {
