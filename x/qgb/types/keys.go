@@ -4,8 +4,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
@@ -75,33 +73,6 @@ func ConvertByteArrToString(value []byte) string {
 		ret.WriteString(string(value[i]))
 	}
 	return ret.String()
-}
-
-// GetOrchestratorAddressKey returns the following key format
-// prefix
-// [0xe8][celes1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm]
-func GetOrchestratorAddressKey(orc sdk.AccAddress) string {
-	if err := sdk.VerifyAddressFormat(orc); err != nil {
-		panic(sdkerrors.Wrap(err, "invalid orchestrator address"))
-	}
-	return KeyOrchestratorAddress + string(orc.Bytes())
-}
-
-// GetEthAddressByValidatorKey returns the following key format
-// prefix              cosmos-validator
-// [0x0][celesvaloper1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm]
-func GetEthAddressByValidatorKey(validator sdk.ValAddress) string {
-	if err := sdk.VerifyAddressFormat(validator); err != nil {
-		panic(sdkerrors.Wrap(err, "invalid validator address"))
-	}
-	return EthAddressByValidatorKey + string(validator.Bytes())
-}
-
-// GetValidatorByEthAddressKey returns the following key format
-// prefix              cosmos-validator
-// [0xf9][0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B]
-func GetValidatorByEthAddressKey(ethAddress common.Address) string {
-	return ValidatorByEthAddressKey + string([]byte(ethAddress.Hex()))
 }
 
 // GetDataCommitmentConfirmKey returns the following key format
