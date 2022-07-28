@@ -5,3 +5,4 @@ run:
 linters:
   enable:
     - gofumpt
+    - misspell
