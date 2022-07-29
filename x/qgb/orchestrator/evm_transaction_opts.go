@@ -9,14 +9,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	ethcmn "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-// TODO: make gas price configurable
+// TODO: make gas price configurable.
 type transactOpsBuilder func(ctx context.Context, client *ethclient.Client, gasLim uint64) (*bind.TransactOpts, error)
 
 func newTransactOptsBuilder(privKey *ecdsa.PrivateKey) transactOpsBuilder {
@@ -60,15 +58,15 @@ func newTransactOptsBuilder(privKey *ecdsa.PrivateKey) transactOpsBuilder {
 type PersonalSignFn func(account ethcmn.Address, data []byte) (sig []byte, err error)
 
 func PrivateKeyPersonalSignFn(privKey *ecdsa.PrivateKey) (PersonalSignFn, error) {
-	keyAddress := crypto.PubkeyToAddress(privKey.PublicKey)
+	keyAddress := ethcrypto.PubkeyToAddress(privKey.PublicKey)
 
-	signFn := func(from common.Address, data []byte) (sig []byte, err error) {
+	signFn := func(from ethcmn.Address, data []byte) (sig []byte, err error) {
 		if from != keyAddress {
 			return nil, errors.New("from address mismatch")
 		}
 
 		protectedHash := accounts.TextHash(data)
-		return crypto.Sign(protectedHash, privKey)
+		return ethcrypto.Sign(protectedHash, privKey)
 	}
 
 	return signFn, nil

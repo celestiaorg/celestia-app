@@ -9,7 +9,7 @@ import (
 
 var _ sdk.Msg = &MsgValsetConfirm{}
 
-// NewMsgValsetConfirm returns a new msgValSetConfirm
+// NewMsgValsetConfirm returns a new msgValSetConfirm.
 func NewMsgValsetConfirm(
 	nonce uint64,
 	ethAddress common.Address,
@@ -24,7 +24,7 @@ func NewMsgValsetConfirm(
 	}
 }
 
-// GetSigners defines whose signature is required
+// GetSigners defines whose signature is required.
 func (msg *MsgValsetConfirm) GetSigners() []sdk.AccAddress {
 	// TODO: figure out how to convert between AccAddress and ValAddress properly
 	acc, err := sdk.AccAddressFromBech32(msg.Orchestrator)
@@ -35,7 +35,7 @@ func (msg *MsgValsetConfirm) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{acc}
 }
 
-// ValidateBasic performs stateless checks
+// ValidateBasic performs stateless checks.
 func (msg *MsgValsetConfirm) ValidateBasic() (err error) {
 	if _, err = sdk.AccAddressFromBech32(msg.Orchestrator); err != nil {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, msg.Orchestrator)
@@ -46,8 +46,8 @@ func (msg *MsgValsetConfirm) ValidateBasic() (err error) {
 	return nil
 }
 
-// Type should return the action
+// Type should return the action.
 func (msg *MsgValsetConfirm) Type() string { return "/qgb.MsgValsetConfirm" }
 
-// Route fullfills the sdk.Msg interface
+// Route fullfills the sdk.Msg interface.
 func (msg *MsgValsetConfirm) Route() string { return RouterKey }

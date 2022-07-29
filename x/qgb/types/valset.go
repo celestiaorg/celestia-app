@@ -12,7 +12,7 @@ import (
 
 var _ AttestationRequestI = &Valset{}
 
-// NewValset returns a new valset
+// NewValset returns a new valset.
 func NewValset(nonce, height uint64, members InternalBridgeValidators) (*Valset, error) {
 	if err := members.ValidateBasic(); err != nil {
 		return nil, sdkerrors.Wrap(err, "invalid members")

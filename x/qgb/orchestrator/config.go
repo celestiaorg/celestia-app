@@ -4,10 +4,11 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/spf13/cobra"
 
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -24,17 +25,17 @@ func init() {
 }
 
 const (
-	// cosmos-sdk keyring flags
+	// cosmos-sdk keyring flags.
 	keyringBackendFlag  = "keyring-backend"
 	keyringPathFlag     = "keyring-path"
 	keyringAccountName  = "keyring-account"
 	celestiaChainIDFlag = "celes-chain-id"
 
-	// ethereum signing
+	// ethereum signing.
 	privateKeyFlag = "eth-priv-key"
 	evmChainIDFlag = "evm-chain-id"
 
-	// rpc
+	// rpc.
 	celesGRPCFlag     = "celes-grpc"
 	tendermintRPCFlag = "celes-http-rpc"
 	evmRPCFlag        = "evm-rpc"

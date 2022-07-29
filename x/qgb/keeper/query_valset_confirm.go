@@ -8,7 +8,7 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// ValsetConfirm queries the ValsetConfirm of the qgb module
+// ValsetConfirm queries the ValsetConfirm of the qgb module.
 func (k Keeper) ValsetConfirm(
 	c context.Context,
 	req *types.QueryValsetConfirmRequest,
@@ -26,7 +26,7 @@ func (k Keeper) ValsetConfirm(
 	return &types.QueryValsetConfirmResponse{Confirm: confirm}, nil
 }
 
-// ValsetConfirmsByNonce queries the ValsetConfirmsByNonce of the qgb module
+// ValsetConfirmsByNonce queries the ValsetConfirmsByNonce of the qgb module.
 func (k Keeper) ValsetConfirmsByNonce(
 	c context.Context,
 	req *types.QueryValsetConfirmsByNonceRequest,

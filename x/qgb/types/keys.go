@@ -9,19 +9,19 @@ import (
 )
 
 const (
-	// ModuleName is the name of the module
+	// ModuleName is the name of the module.
 	ModuleName = "qgb"
 
-	// StoreKey to be used when creating the KVStore
+	// StoreKey to be used when creating the KVStore.
 	StoreKey = ModuleName
 
-	// RouterKey is the module name router key
+	// RouterKey is the module name router key.
 	RouterKey = ModuleName
 
-	// QuerierRoute to be used for querier msgs
+	// QuerierRoute to be used for querier msgs.
 	QuerierRoute = ModuleName
 
-	// MemStoreKey defines the in-memory store key
+	// MemStoreKey defines the in-memory store key.
 	MemStoreKey = "mem_qgb"
 )
 

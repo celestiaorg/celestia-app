@@ -1,7 +1,6 @@
 package types
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 
@@ -13,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-// NewMsgDataCommitmentConfirm creates a new NewMsgDataCommitmentConfirm
+// NewMsgDataCommitmentConfirm creates a new NewMsgDataCommitmentConfirm.
 func NewMsgDataCommitmentConfirm(
 	commitment string,
 	signature string,
@@ -34,7 +33,7 @@ func NewMsgDataCommitmentConfirm(
 	}
 }
 
-// GetSigners defines whose signature is required
+// GetSigners defines whose signature is required.
 func (msg *MsgDataCommitmentConfirm) GetSigners() []sdk.AccAddress {
 	acc, err := sdk.AccAddressFromBech32(msg.ValidatorAddress)
 	if err != nil {
@@ -43,13 +42,13 @@ func (msg *MsgDataCommitmentConfirm) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{acc}
 }
 
-// ValidateBasic performs stateless checks
+// ValidateBasic performs stateless checks.
 func (msg *MsgDataCommitmentConfirm) ValidateBasic() (err error) {
 	if _, err = sdk.AccAddressFromBech32(msg.ValidatorAddress); err != nil {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, msg.ValidatorAddress)
 	}
 	if msg.BeginBlock > msg.EndBlock {
-		return errors.New("begin block should be less than end block")
+		return sdkerrors.Wrap(ErrInvalid, "begin block should be less than end block")
 	}
 	if !ethcmn.IsHexAddress(msg.EthAddress) {
 		return sdkerrors.Wrap(stakingtypes.ErrEthAddressNotHex, "ethereum address")
@@ -57,12 +56,12 @@ func (msg *MsgDataCommitmentConfirm) ValidateBasic() (err error) {
 	return nil
 }
 
-// Type should return the action
+// Type should return the action.
 func (msg *MsgDataCommitmentConfirm) Type() string { return "data_commitment_confirm" }
 
 // DataCommitmentTupleRootSignBytes EncodeDomainSeparatedDataCommitment takes the required input data and
 // produces the required signature to confirm a validator set update on the QGB Ethereum contract.
-// This value will then be signed before being submitted to Cosmos, verified, and then relayed to Ethereum
+// This value will then be signed before being submitted to Cosmos, verified, and then relayed to Ethereum.
 func DataCommitmentTupleRootSignBytes(bridgeID ethcmn.Hash, nonce *big.Int, commitment []byte) ethcmn.Hash {
 	var dataCommitment [32]uint8
 	copy(dataCommitment[:], commitment)

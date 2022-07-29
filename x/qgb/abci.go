@@ -1,13 +1,15 @@
 package qgb
 
 import (
+	"errors"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// EndBlocker is called at the end of every block
+// EndBlocker is called at the end of every block.
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
 	handleDataCommitmentRequest(ctx, k)
 	handleValsetRequest(ctx, k)
@@ -45,7 +47,7 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 		if err != nil {
 			// this condition should only occur in the simulator
 			// ref : https://github.com/Gravity-Bridge/Gravity-Bridge/issues/35
-			if err == types.ErrNoValidators {
+			if errors.Is(err, types.ErrNoValidators) {
 				ctx.Logger().Error("no bonded validators",
 					"cause", err.Error(),
 				)
