@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -93,7 +94,7 @@ func parseOrchestratorFlags(cmd *cobra.Command) (orchestratorConfig, error) {
 		return orchestratorConfig{}, err
 	}
 	if rawPrivateKey == "" {
-		return orchestratorConfig{}, fmt.Errorf("%s: %w", privateKeyFlag, ErrEmpty)
+		return orchestratorConfig{}, errors.New("private key flag required")
 	}
 	ethPrivKey, err := ethcrypto.HexToECDSA(rawPrivateKey)
 	if err != nil {
@@ -154,7 +155,7 @@ func parseRelayerFlags(cmd *cobra.Command) (relayerConfig, error) {
 		return relayerConfig{}, err
 	}
 	if rawPrivateKey == "" {
-		return relayerConfig{}, fmt.Errorf("%s: %w", privateKeyFlag, ErrEmpty)
+		return relayerConfig{}, errors.New("private key flag required")
 	}
 	ethPrivKey, err := ethcrypto.HexToECDSA(rawPrivateKey)
 	if err != nil {
@@ -177,10 +178,10 @@ func parseRelayerFlags(cmd *cobra.Command) (relayerConfig, error) {
 		return relayerConfig{}, err
 	}
 	if contractAddr == "" {
-		return relayerConfig{}, fmt.Errorf("%s: %w", contractAddressFlag, ErrEmpty)
+		return relayerConfig{}, fmt.Errorf("contract address flag is required: %s", contractAddressFlag)
 	}
 	if !ethcmn.IsHexAddress(contractAddr) {
-		return relayerConfig{}, fmt.Errorf("%s: %w", contractAddressFlag, ErrInvalid)
+		return relayerConfig{}, fmt.Errorf("valid contract address flag is required: %s", contractAddressFlag)
 	}
 	address := ethcmn.HexToAddress(contractAddr)
 	ethRPC, err := cmd.Flags().GetString(evmRPCFlag)
@@ -239,7 +240,7 @@ func parseDeployFlags(cmd *cobra.Command) (deployConfig, error) {
 		return deployConfig{}, err
 	}
 	if rawPrivateKey == "" {
-		return deployConfig{}, fmt.Errorf("%s: %w", privateKeyFlag, ErrEmpty)
+		return deployConfig{}, errors.New("private key flag required")
 	}
 	ethPrivKey, err := ethcrypto.HexToECDSA(rawPrivateKey)
 	if err != nil {

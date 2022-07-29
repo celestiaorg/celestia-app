@@ -3,7 +3,7 @@ package orchestrator
 import (
 	"context"
 	"crypto/ecdsa"
-	"fmt"
+	"errors"
 	"math/big"
 
 	gethcommon "github.com/ethereum/go-ethereum/common"
@@ -275,7 +275,7 @@ func ethValset(valset types.Valset) ([]wrapper.Validator, error) {
 	ethVals := make([]wrapper.Validator, len(valset.Members))
 	for i, v := range valset.Members {
 		if ok := gethcommon.IsHexAddress(v.EthereumAddress); !ok {
-			return nil, fmt.Errorf("invalid ethereum address found in validator set: %w", ErrInvalid)
+			return nil, errors.New("invalid ethereum address found in validator set")
 		}
 		addr := gethcommon.HexToAddress(v.EthereumAddress)
 		ethVals[i] = wrapper.Validator{

@@ -207,7 +207,7 @@ func (network QGBNetwork) DeployQGBContract() error {
 // end, to release the resources.
 func (network QGBNetwork) StartMultiple(services ...Service) error {
 	if len(services) == 0 {
-		return fmt.Errorf("list of services provided: %w", ErrEmpty)
+		return fmt.Errorf("empty list of services provided")
 	}
 	serviceNames := make([]string, 0)
 	for _, s := range services {
@@ -251,7 +251,7 @@ func (network QGBNetwork) Stop(service Service) error {
 // end, to release the resources.
 func (network QGBNetwork) StopMultiple(services ...Service) error {
 	if len(services) == 0 {
-		return fmt.Errorf("list of services provided: %w", ErrEmpty)
+		return fmt.Errorf("empty list of services provided")
 	}
 	serviceNames := make([]string, 0)
 	for _, s := range services {
@@ -334,7 +334,7 @@ func (network QGBNetwork) WaitForNodeToStart(_ctx context.Context, rpcAddr strin
 		case <-ctx.Done():
 			cancel()
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				return fmt.Errorf("node %s: %w", rpcAddr, ErrNodeStart)
+				return fmt.Errorf("node %s not initialized in time", rpcAddr)
 			}
 			return ctx.Err()
 		default:
@@ -380,7 +380,7 @@ func (network QGBNetwork) WaitForBlockWithCustomTimeout(
 		case <-ctx.Done():
 			cancel()
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				return fmt.Errorf("desired height=%d: %w", height, ErrHeightNotReached)
+				return fmt.Errorf(" chain didn't reach height in time")
 			}
 			return ctx.Err()
 		default:
@@ -417,7 +417,7 @@ func (network QGBNetwork) WaitForOrchestratorToStart(_ctx context.Context, accou
 		case <-ctx.Done():
 			cancel()
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				return ErrOrchestratorStart
+				return fmt.Errorf("orchestrator didn't start correctly")
 			}
 			return ctx.Err()
 		default:
@@ -468,7 +468,7 @@ func (network QGBNetwork) GetValsetContainingVals(_ctx context.Context, number i
 		case <-ctx.Done():
 			cancel()
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				return nil, fmt.Errorf("couldn't find any valset containing %d validators: %w", number, ErrValsetNotFound)
+				return nil, fmt.Errorf("couldn't find any valset containing %d validators", number)
 			}
 			return nil, ctx.Err()
 		default:
@@ -513,7 +513,7 @@ func (network QGBNetwork) GetAttestationConfirm(
 		case <-ctx.Done():
 			cancel()
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				return nil, fmt.Errorf("nonce=%d: %w", nonce, ErrConfirmNotFound)
+				return nil, fmt.Errorf("couldn't find confirm for nonce=%d", nonce)
 			}
 			return nil, ctx.Err()
 		default:
@@ -577,7 +577,7 @@ func (network QGBNetwork) GetLatestDeployedQGBContractWithCustomTimeout(
 		case <-ctx.Done():
 			cancel()
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				return nil, fmt.Errorf("timeout: %w", ErrQGBContractNotFound)
+				return nil, fmt.Errorf("timeout. couldn't find deployed qgb contract")
 			}
 			return nil, ctx.Err()
 		default:
@@ -624,7 +624,7 @@ func (network QGBNetwork) WaitForRelayerToStart(_ctx context.Context, bridge *wr
 		case <-ctx.Done():
 			cancel()
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				return ErrRelayerStart
+				return fmt.Errorf("relayer didn't start correctly")
 			}
 			return ctx.Err()
 		default:
