@@ -3,7 +3,6 @@ package app
 import (
 	"math"
 
-	"github.com/celestiaorg/celestia-app/pkg/util"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -70,7 +69,7 @@ func (app *App) estimateSquareSize(data *core.Data) uint64 {
 
 	totalShareEstimate := txShareEstimate + evdShareEstimate + msgShareEstimate
 	sr := math.Sqrt(float64(totalShareEstimate))
-	estimatedSize := util.NextHighestPowerOf2(uint64(sr))
+	estimatedSize := types.NextHighestPowerOf2(uint64(sr))
 	switch {
 	case estimatedSize > consts.MaxSquareSize:
 		return consts.MaxSquareSize
