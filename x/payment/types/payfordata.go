@@ -226,9 +226,8 @@ func nextLowestPowerOf2(v uint64) uint64 {
 func powerOf2(v uint64) bool {
 	if v&(v-1) == 0 && v != 0 {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 // DelimLen calculates the length of the delimiter for a given message size

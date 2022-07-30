@@ -51,7 +51,7 @@ func (localEncoder) RegisterInterfaces(r codectypes.InterfaceRegistry) {
 // makePaymentEncodingConfig uses the payment modules RegisterInterfaces
 // function to create an encoding config for the payment module. This is useful
 // so that we don't have to import the app package.
-func makePaymentEncodingConfig() encoding.EncodingConfig {
+func makePaymentEncodingConfig() encoding.Config {
 	e := localEncoder{}
-	return encoding.MakeEncodingConfig(e)
+	return encoding.MakeConfig(e)
 }

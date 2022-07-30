@@ -6,3 +6,4 @@ linters:
   enable:
     - gofumpt
     - misspell
+    - revive
