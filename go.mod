@@ -161,7 +161,7 @@ require (
 
 replace (
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.1.7-0.20210622111912-ef00f8ac3d76
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.1.1-sdk-v0.46.0.0.20220726220815-b0dd52071252 //v1.1.1-sdk-v0.46.0
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.2.0-sdk-v0.46.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.1.1-tm-v0.34.16.0.20220727021442-49ab47e1aef6
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.3.0-tm-v0.34.20
 )
