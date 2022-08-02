@@ -3,8 +3,7 @@ package types
 import (
 	"testing"
 
-	errorsmod "cosmossdk.io/errors"
-	sdkerrors "github.com/cosmos/cosmos-sdk/errors"
+	sdkerrors "cosmossdk.io/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,7 +11,7 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 	type test struct {
 		name    string
 		msg     *MsgWirePayForData
-		wantErr *errorsmod.Error
+		wantErr *sdkerrors.Error
 	}
 
 	// valid pfd
