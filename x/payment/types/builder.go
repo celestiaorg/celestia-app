@@ -23,7 +23,7 @@ type KeyringSigner struct {
 	accountNumber  uint64
 	sequence       uint64
 	chainID        string
-	encCfg         encoding.EncodingConfig
+	encCfg         encoding.Config
 
 	sync.RWMutex
 }
@@ -38,7 +38,7 @@ func NewKeyringSigner(ring keyring.Keyring, name string, chainID string) *Keyrin
 	}
 }
 
-// QueryAccountNumber queries the applicaiton to find the latest account number and
+// QueryAccountNumber queries the application to find the latest account number and
 // sequence, updating the respective internal fields. The internal account number must
 // be set by this method or by manually calling k.SetAccountNumber in order for any built
 // transactions to be valide
@@ -258,7 +258,7 @@ func BroadcastTx(ctx context.Context, conn *grpc.ClientConn, mode tx.BroadcastMo
 }
 
 // QueryAccount fetches the account number and sequence number from the celestia-app node.
-func QueryAccount(ctx context.Context, conn *grpc.ClientConn, encCfg encoding.EncodingConfig, address string) (accNum uint64, seqNum uint64, err error) {
+func QueryAccount(ctx context.Context, conn *grpc.ClientConn, encCfg encoding.Config, address string) (accNum uint64, seqNum uint64, err error) {
 	qclient := authtypes.NewQueryClient(conn)
 	resp, err := qclient.Account(
 		ctx,

@@ -66,7 +66,7 @@ func GRPCConn(net *network.Network) error {
 // genesis and single validator. All other parameters are inherited from
 // cosmos-sdk/testutil/network.DefaultConfig
 func DefaultConfig() network.Config {
-	encCfg := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	return network.Config{
 		Codec:             encCfg.Codec,

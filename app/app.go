@@ -92,6 +92,8 @@ const (
 	Name                 = "celestia-app"
 	// BondDenom defines the native staking token denomination.
 	BondDenom = "utia"
+	// BondDenomAlias defines an alias for BondDenom.
+	BondDenomAlias = "microtia"
 	// DisplayDenom defines the name, symbol, and display value of the celes token.
 	DisplayDenom = "TIA"
 )
@@ -163,9 +165,7 @@ var (
 	}
 )
 
-var (
-	_ servertypes.Application = (*App)(nil)
-)
+var _ servertypes.Application = (*App)(nil)
 
 func init() {
 	userHomeDir, err := os.UserHomeDir()
@@ -232,7 +232,7 @@ func New(
 	skipUpgradeHeights map[int64]bool,
 	homePath string,
 	invCheckPeriod uint,
-	encodingConfig encoding.EncodingConfig,
+	encodingConfig encoding.Config,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -374,7 +374,7 @@ func New(
 
 	// NOTE: we may consider parsing `appOpts` inside module constructors. For the moment
 	// we prefer to be more strict in what arguments the modules expect.
-	var skipGenesisInvariants = cast.ToBool(appOpts.Get(crisis.FlagSkipGenesisInvariants))
+	skipGenesisInvariants := cast.ToBool(appOpts.Get(crisis.FlagSkipGenesisInvariants))
 
 	// NOTE: Any module instantiated in the module manager that is later modified
 	// must be passed by reference here.

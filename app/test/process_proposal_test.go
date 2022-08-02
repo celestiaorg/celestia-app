@@ -26,7 +26,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 
-	encConf := encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
+	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	firstValidPFD, msg1 := genRandMsgPayForData(t, signer, 8)
 	secondValidPFD, msg2 := genRandMsgPayForData(t, signer, 8)
@@ -162,7 +162,6 @@ func TestMessageInclusionCheck(t *testing.T) {
 		res := testApp.ProcessProposal(tt.input)
 		assert.Equal(t, tt.expectedResult, res.Result)
 	}
-
 }
 
 func genRandMsgPayForData(t *testing.T, signer *types.KeyringSigner, squareSize uint64) (*types.MsgPayForData, []byte) {

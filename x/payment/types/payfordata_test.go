@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	sdkerrors "github.com/cosmos/cosmos-sdk/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +27,7 @@ func TestMountainRange(t *testing.T) {
 			k:        64,
 			expected: []uint64{2},
 		},
-		{ //should this test throw an error? we
+		{ // should this test throw an error? we
 			l:        64,
 			k:        8,
 			expected: []uint64{8, 8, 8, 8, 8, 8, 8, 8},
@@ -206,7 +207,8 @@ func TestSignMalleatedTxs(t *testing.T) {
 			ss:   []uint64{4, 8, 16, 64},
 			options: []TxBuilderOption{
 				SetGasLimit(123456789),
-				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321))))},
+				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321)))),
+			},
 		},
 		{
 			name: "12 shares",
@@ -215,7 +217,8 @@ func TestSignMalleatedTxs(t *testing.T) {
 			ss:   AllSquareSizes(50000),
 			options: []TxBuilderOption{
 				SetGasLimit(123456789),
-				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321))))},
+				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321)))),
+			},
 		},
 	}
 
@@ -312,6 +315,55 @@ func TestProcessMessage(t *testing.T) {
 	}
 }
 
+func TestValidateBasic(t *testing.T) {
+	type test struct {
+		name    string
+		msg     *MsgPayForData
+		wantErr *sdkerrors.Error
+	}
+
+	validMsg := validMsgPayForData(t)
+
+	// MsgPayForData that uses parity shares namespace id
+	paritySharesMsg := validMsgPayForData(t)
+	paritySharesMsg.MessageNamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+
+	// MsgPayForData that uses tail padding namespace id
+	tailPaddingMsg := validMsgPayForData(t)
+	tailPaddingMsg.MessageNamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
+
+	tests := []test{
+		{
+			name:    "valid msg",
+			msg:     validMsg,
+			wantErr: nil,
+		},
+		{
+			name:    "parity shares namespace id",
+			msg:     paritySharesMsg,
+			wantErr: ErrParitySharesNamespace,
+		},
+		{
+			name:    "tail padding namespace id",
+			msg:     tailPaddingMsg,
+			wantErr: ErrTailPaddingNamespace,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.msg.ValidateBasic()
+			if tt.wantErr != nil {
+				assert.Contains(t, err.Error(), tt.wantErr.Error())
+				space, code, log := sdkerrors.ABCIInfo(err, false)
+				assert.Equal(t, tt.wantErr.Codespace(), space)
+				assert.Equal(t, tt.wantErr.ABCICode(), code)
+				t.Log(log)
+			}
+		})
+	}
+}
+
 // totalMsgSize subtracts the delimiter size from the desired total size. this
 // is useful for testing for messages that occupy exactly so many shares.
 func totalMsgSize(size int) int {
@@ -335,4 +387,23 @@ func validWirePayForData(t *testing.T) *MsgWirePayForData {
 		panic(err)
 	}
 	return msg
+}
+
+func validMsgPayForData(t *testing.T) *MsgPayForData {
+	kb := generateKeyring(t, "test")
+	signer := NewKeyringSigner(kb, "test", "chain-id")
+	ns := []byte{1, 1, 1, 1, 1, 1, 1, 2}
+	msg := bytes.Repeat([]byte{2}, totalMsgSize(consts.MsgShareSize*15))
+	ss := uint64(4)
+
+	wpfd, err := NewWirePayForData(ns, msg, ss)
+	assert.NoError(t, err)
+
+	err = wpfd.SignShareCommitments(signer)
+	assert.NoError(t, err)
+
+	_, spfd, _, err := ProcessWirePayForData(wpfd, ss)
+	require.NoError(t, err)
+
+	return spfd
 }

@@ -41,6 +41,7 @@ Proposed and initial implementation is complete.
 ### [#631](https://github.com/celestiaorg/celestia-core/pull/631) Simplified version of ABCI++ (`celestia-core`)
 
 Here we are adding only the two new methods that are necessary for the features that we need.  
+
 ```go
 // Application is an interface that enables any finite, deterministic state machine
 // to be driven by a blockchain-based replication engine via the ABCI.
@@ -53,6 +54,7 @@ type Application interface {
 ```
 
 It's also important to note the changes made to the request types for both methods. In upstream, they are only passing the transactions to the applications. This has been modified to pass the entire block data. This is because Celestia separates some block data that cannot modify state (messages), and the application has to have access to both normal transaction data and messages to perform the necessary processing and checks.
+
 ```protobuf
 message RequestPrepareProposal {
  // block_data is an array of transactions that will be included in a block,
@@ -375,11 +377,13 @@ Proposed and initial implementation is complete.
 ## Consequences
 
 ### Positive
+
 - Don't have to wait for the cosmos-sdk or tendermint teams to finish ABCI++
 - Get to test important features in the upcoming testnet
 - We won't have to implement hacky temporary versions of important features.
 
 ### Negative
+
 - We will still have to slightly refactor the code here after ABCI++ comes out
 
 ## References
