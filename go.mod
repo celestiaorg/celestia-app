@@ -22,10 +22,7 @@ require (
 	google.golang.org/grpc v1.48.0
 )
 
-require (
-	cosmossdk.io/errors v1.0.0-beta.7
-	github.com/cosmos/cosmos-sdk/errors v1.0.0-beta.3
-)
+require cosmossdk.io/errors v1.0.0-beta.7
 
 require (
 	cloud.google.com/go v0.100.2 // indirect
