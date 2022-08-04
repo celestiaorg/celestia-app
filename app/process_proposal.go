@@ -8,7 +8,6 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/pkg/da"
 	coretypes "github.com/tendermint/tendermint/types"
-	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 const (
@@ -64,7 +63,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	// iterate through all of the messages and ensure that a PFD with the exact
 	// commitment exists
 	for _, msg := range req.BlockData.Messages.MessagesList {
-		if err := tmtypes.ValidateMessageNamespaceID(msg.NamespaceId); err != nil {
+		if err := types.ValidateMessageNamespaceID(msg.NamespaceId); err != nil {
 			app.Logger().Error(
 				rejectedPropBlockLog,
 				"reason",
