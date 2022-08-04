@@ -121,7 +121,7 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 	return nil
 }
 
-// ValidateMessageNamespaceID performs basic validation of messages namespace ID
+// ValidateMessageNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.
 func ValidateMessageNamespaceID(ns namespace.ID) error {
 	// ensure that the namespace id is of length == NamespaceIDSize
 	if nsLen := len(ns); nsLen != NamespaceIDSize {
