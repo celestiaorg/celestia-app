@@ -145,7 +145,6 @@ func ValidateMessageNamespaceID(ns namespace.ID) error {
 		return ErrTailPaddingNamespace
 	}
 
-
 	return nil
 }
 
