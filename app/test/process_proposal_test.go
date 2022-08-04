@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
@@ -160,6 +161,63 @@ func TestMessageInclusionCheck(t *testing.T) {
 		dah := da.NewDataAvailabilityHeader(eds)
 		tt.input.Header.DataHash = dah.Hash()
 		res := testApp.ProcessProposal(tt.input)
+		assert.Equal(t, tt.expectedResult, res.Result)
+	}
+}
+
+func TestProcessMessagesWithReservedNamespaces(t *testing.T) {
+	testApp := testutil.SetupTestAppWithGenesisValSet(t)
+	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	pfd, msg := genRandMsgPayForData(t, signer, 8)
+
+	type test struct {
+		name           string
+		namespace      namespace.ID
+		expectedResult abci.ResponseProcessProposal_Result
+	}
+
+	tests := []test{
+		{"transaction namespace id for message", consts.TxNamespaceID, abci.ResponseProcessProposal_REJECT},
+		{"evidence namespace id for message", consts.EvidenceNamespaceID, abci.ResponseProcessProposal_REJECT},
+		{"tail padding namespace id for message", consts.TailPaddingNamespaceID, abci.ResponseProcessProposal_REJECT},
+		{"parity shares namespace id for message", consts.ParitySharesNamespaceID, abci.ResponseProcessProposal_REJECT},
+		{"namespace id 200 for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, abci.ResponseProcessProposal_REJECT},
+		{"correct namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, abci.ResponseProcessProposal_ACCEPT},
+	}
+
+	for _, tt := range tests {
+		input := abci.RequestProcessProposal{
+			BlockData: &core.Data{
+				Txs: [][]byte{
+					buildTx(t, signer, encConf.TxConfig, pfd),
+				},
+				Messages: core.Messages{
+					MessagesList: []*core.Message{
+						{
+							NamespaceId: tt.namespace,
+							Data:        msg,
+						},
+					},
+				},
+				OriginalSquareSize: 2,
+			},
+		}
+		data, err := coretypes.DataFromProto(input.BlockData)
+		require.NoError(t, err)
+
+		shares, _, err := data.ComputeShares(input.BlockData.OriginalSquareSize)
+		require.NoError(t, err)
+
+		rawShares := shares.RawShares()
+
+		require.NoError(t, err)
+		eds, err := da.ExtendShares(input.BlockData.OriginalSquareSize, rawShares)
+		require.NoError(t, err)
+		dah := da.NewDataAvailabilityHeader(eds)
+		input.Header.DataHash = dah.Hash()
+		res := testApp.ProcessProposal(input)
 		assert.Equal(t, tt.expectedResult, res.Result)
 	}
 }
