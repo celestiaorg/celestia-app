@@ -227,37 +227,25 @@ func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
 
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
 
-	type test struct {
-		name           string
-		namespace      namespace.ID
-		expectedResult abci.ResponseProcessProposal_Result
-	}
-
-	tests := []test{
-		{"parity shares namespace id for message", consts.ParitySharesNamespaceID, abci.ResponseProcessProposal_REJECT},
-	}
-
-	for _, tt := range tests {
-		pfd, msg := genRandMsgPayForDataForNamespace(t, signer, 8, tt.namespace)
-		input := abci.RequestProcessProposal{
-			BlockData: &core.Data{
-				Txs: [][]byte{
-					buildTx(t, signer, encConf.TxConfig, pfd),
-				},
-				Messages: core.Messages{
-					MessagesList: []*core.Message{
-						{
-							NamespaceId: pfd.GetMessageNamespaceId(),
-							Data:        msg,
-						},
+	pfd, msg := genRandMsgPayForDataForNamespace(t, signer, 8, consts.ParitySharesNamespaceID)
+	input := abci.RequestProcessProposal{
+		BlockData: &core.Data{
+			Txs: [][]byte{
+				buildTx(t, signer, encConf.TxConfig, pfd),
+			},
+			Messages: core.Messages{
+				MessagesList: []*core.Message{
+					{
+						NamespaceId: pfd.GetMessageNamespaceId(),
+						Data:        msg,
 					},
 				},
-				OriginalSquareSize: 8,
 			},
-		}
-		res := testApp.ProcessProposal(input)
-		assert.Equal(t, tt.expectedResult, res.Result)
+			OriginalSquareSize: 8,
+		},
 	}
+	res := testApp.ProcessProposal(input)
+	assert.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
 }
 
 func genRandMsgPayForData(t *testing.T, signer *types.KeyringSigner, squareSize uint64) (*types.MsgPayForData, []byte) {
