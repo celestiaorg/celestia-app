@@ -184,7 +184,7 @@ func TestProcessMessagesWithReservedNamespaces(t *testing.T) {
 		//{"parity shares namespace id for message", consts.ParitySharesNamespaceID, abci.ResponseProcessProposal_REJECT},
 		// this case is commented because the shares are ordered. Then, when adding a message with namespace consts.ParitySharesNamespaceID,
 		// it panics as it is higher than the maximum allowed namespace ID.
-		// issue:
+		// issue: https://github.com/celestiaorg/celestia-app/issues/596
 		{"namespace id 200 for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, abci.ResponseProcessProposal_REJECT},
 		{"correct namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, abci.ResponseProcessProposal_ACCEPT},
 	}
