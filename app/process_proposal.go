@@ -67,7 +67,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			app.Logger().Error(
 				rejectedPropBlockLog,
 				"reason",
-				"found a message using a wrong namespace id",
+				"found a message that uses an invalid namespace id",
 				"error",
 				err.Error(),
 			)
