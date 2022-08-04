@@ -10,6 +10,7 @@ import (
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmtypes "github.com/tendermint/tendermint/types"
 )
 
 // PrepareProposal fullfills the celestia-core version of the ABCI interface by
@@ -20,6 +21,12 @@ import (
 // this method generates the data root for the proposal block and passes it the
 // blockdata.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+	for _, msg := range req.BlockData.Messages.MessagesList {
+		if err := tmtypes.ValidateMessageNamespaceID(msg.NamespaceId); err != nil {
+			panic(err)
+		}
+	}
+
 	squareSize := app.estimateSquareSize(req.BlockData)
 
 	dataSquare, data := SplitShares(app.txConfig, squareSize, req.BlockData)
