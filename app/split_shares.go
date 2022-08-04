@@ -60,7 +60,6 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
 		}
 
 		msg := authTx.GetMsgs()[0]
-
 		wireMsg, ok := msg.(*types.MsgWirePayForData)
 		if !ok {
 			continue
