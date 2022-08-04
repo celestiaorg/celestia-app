@@ -122,7 +122,7 @@ func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
 		{"tail padding namespace id for message", consts.TailPaddingNamespaceID, 0},
 		{"parity shares namespace id for message", consts.ParitySharesNamespaceID, 0},
 		{"reserved namespace id for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, 0},
-		{"correct namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, 1},
+		{"valid namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, 1},
 	}
 
 	for _, tt := range tests {
