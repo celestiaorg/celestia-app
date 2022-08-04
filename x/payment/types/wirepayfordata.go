@@ -145,15 +145,6 @@ func ValidateMessageNamespaceID(ns namespace.ID) error {
 		return ErrTailPaddingNamespace
 	}
 
-	// ensure that TxNamespaceID is not used
-	if bytes.Equal(ns, consts.TxNamespaceID) {
-		return ErrTxNamespace
-	}
-
-	// ensure that EvidenceNamespaceID is not used
-	if bytes.Equal(ns, consts.EvidenceNamespaceID) {
-		return ErrEvidenceNamespace
-	}
 
 	return nil
 }
