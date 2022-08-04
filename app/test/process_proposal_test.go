@@ -170,7 +170,6 @@ func TestProcessMessagesWithReservedNamespaces(t *testing.T) {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
-	pfd, msg := genRandMsgPayForData(t, signer, 8)
 
 	type test struct {
 		name           string
@@ -182,12 +181,13 @@ func TestProcessMessagesWithReservedNamespaces(t *testing.T) {
 		{"transaction namespace id for message", consts.TxNamespaceID, abci.ResponseProcessProposal_REJECT},
 		{"evidence namespace id for message", consts.EvidenceNamespaceID, abci.ResponseProcessProposal_REJECT},
 		{"tail padding namespace id for message", consts.TailPaddingNamespaceID, abci.ResponseProcessProposal_REJECT},
-		{"parity shares namespace id for message", consts.ParitySharesNamespaceID, abci.ResponseProcessProposal_REJECT},
+		//{"parity shares namespace id for message", consts.ParitySharesNamespaceID, abci.ResponseProcessProposal_REJECT},
 		{"namespace id 200 for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, abci.ResponseProcessProposal_REJECT},
 		{"correct namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, abci.ResponseProcessProposal_ACCEPT},
 	}
 
 	for _, tt := range tests {
+		pfd, msg := genRandMsgPayForDataForNamespace(t, signer, 8, tt.namespace)
 		input := abci.RequestProcessProposal{
 			BlockData: &core.Data{
 				Txs: [][]byte{
@@ -196,12 +196,12 @@ func TestProcessMessagesWithReservedNamespaces(t *testing.T) {
 				Messages: core.Messages{
 					MessagesList: []*core.Message{
 						{
-							NamespaceId: tt.namespace,
+							NamespaceId: pfd.GetMessageNamespaceId(),
 							Data:        msg,
 						},
 					},
 				},
-				OriginalSquareSize: 2,
+				OriginalSquareSize: 8,
 			},
 		}
 		data, err := coretypes.DataFromProto(input.BlockData)
@@ -226,9 +226,12 @@ func genRandMsgPayForData(t *testing.T, signer *types.KeyringSigner, squareSize 
 	ns := make([]byte, consts.NamespaceSize)
 	_, err := rand.Read(ns)
 	require.NoError(t, err)
+	return genRandMsgPayForDataForNamespace(t, signer, squareSize, ns)
+}
 
+func genRandMsgPayForDataForNamespace(t *testing.T, signer *types.KeyringSigner, squareSize uint64, ns namespace.ID) (*types.MsgPayForData, []byte) {
 	message := make([]byte, randomInt(20))
-	_, err = rand.Read(message)
+	_, err := rand.Read(message)
 	require.NoError(t, err)
 
 	commit, err := types.CreateCommitment(squareSize, ns, message)
