@@ -5,6 +5,7 @@ import (
 	"errors"
 	fmt "fmt"
 
+	"github.com/celestiaorg/nmt/namespace"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -84,12 +85,8 @@ func (msg *MsgWirePayForData) Route() string { return RouterKey }
 // commitments, signatures for those share commitments, and fulfills the sdk.Msg
 // interface.
 func (msg *MsgWirePayForData) ValidateBasic() error {
-	// ensure that the namespace id is of length == NamespaceIDSize
-	if nsLen := len(msg.GetMessageNameSpaceId()); nsLen != NamespaceIDSize {
-		return ErrInvalidNamespaceLen.Wrapf("got: %d want: %d",
-			nsLen,
-			NamespaceIDSize,
-		)
+	if err := ValidateMessageNamespaceID(msg.GetMessageNameSpaceId()); err != nil {
+		return err
 	}
 
 	if _, err := sdk.AccAddressFromBech32(msg.Signer); err != nil {
@@ -103,21 +100,6 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 			msg.MessageSize,
 			len(msg.Message),
 		)
-	}
-
-	// ensure that a reserved namespace is not used
-	if bytes.Compare(msg.GetMessageNameSpaceId(), consts.MaxReservedNamespace) < 1 {
-		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", msg.GetMessageNameSpaceId(), consts.MaxReservedNamespace)
-	}
-
-	// ensure that ParitySharesNamespaceID is not used
-	if bytes.Equal(msg.GetMessageNameSpaceId(), consts.ParitySharesNamespaceID) {
-		return ErrParitySharesNamespace
-	}
-
-	// ensure that TailPaddingNamespaceID is not used
-	if bytes.Equal(msg.GetMessageNameSpaceId(), consts.TailPaddingNamespaceID) {
-		return ErrTailPaddingNamespace
 	}
 
 	for idx, commit := range msg.MessageShareCommitment {
@@ -134,6 +116,33 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 		if !bytes.Equal(calculatedCommit, commit.ShareCommitment) {
 			return ErrInvalidShareCommit.Wrapf("for square size %d and commit number %v", commit.K, idx)
 		}
+	}
+
+	return nil
+}
+
+// ValidateMessageNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.
+func ValidateMessageNamespaceID(ns namespace.ID) error {
+	// ensure that the namespace id is of length == NamespaceIDSize
+	if nsLen := len(ns); nsLen != NamespaceIDSize {
+		return ErrInvalidNamespaceLen.Wrapf("got: %d want: %d",
+			nsLen,
+			NamespaceIDSize,
+		)
+	}
+	// ensure that a reserved namespace is not used
+	if bytes.Compare(ns, consts.MaxReservedNamespace) < 1 {
+		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", ns, consts.MaxReservedNamespace)
+	}
+
+	// ensure that ParitySharesNamespaceID is not used
+	if bytes.Equal(ns, consts.ParitySharesNamespaceID) {
+		return ErrParitySharesNamespace
+	}
+
+	// ensure that TailPaddingNamespaceID is not used
+	if bytes.Equal(ns, consts.TailPaddingNamespaceID) {
+		return ErrTailPaddingNamespace
 	}
 
 	return nil

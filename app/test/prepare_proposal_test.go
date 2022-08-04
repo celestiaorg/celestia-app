@@ -8,12 +8,14 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -99,6 +101,39 @@ func TestPrepareProposal(t *testing.T) {
 			)
 			assert.NoError(t, err)
 		}
+	}
+}
+
+func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
+	testApp := testutil.SetupTestAppWithGenesisValSet(t)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	signer := testutil.GenerateKeyringSigner(t, testAccName)
+
+	type test struct {
+		name             string
+		namespace        namespace.ID
+		expectedMessages int
+	}
+
+	tests := []test{
+		{"transaction namespace id for message", consts.TxNamespaceID, 0},
+		{"evidence namespace id for message", consts.EvidenceNamespaceID, 0},
+		{"tail padding namespace id for message", consts.TailPaddingNamespaceID, 0},
+		{"parity shares namespace id for message", consts.ParitySharesNamespaceID, 0},
+		{"reserved namespace id for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, 0},
+		{"valid namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, 1},
+	}
+
+	for _, tt := range tests {
+		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, []byte{1}, signer, 2, 4, 8, 16)
+		input := abci.RequestPrepareProposal{
+			BlockData: &core.Data{
+				Txs: [][]byte{tx},
+			},
+		}
+		res := testApp.PrepareProposal(input)
+		assert.Equal(t, tt.expectedMessages, len(res.BlockData.Messages.MessagesList))
 	}
 }
 
