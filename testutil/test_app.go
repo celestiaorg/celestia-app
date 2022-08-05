@@ -1,7 +1,6 @@
 package testutil
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -41,8 +40,8 @@ func init() {
 
 // DefaultConsensusParams defines the default Tendermint consensus params used in
 // SimApp testing.
-var DefaultConsensusParams = &tmproto.ConsensusParams{
-	Block: &tmproto.BlockParams{
+var DefaultConsensusParams = &abci.ConsensusParams{
+	Block: &abci.BlockParams{
 		MaxBytes: 200000,
 		MaxGas:   2000000,
 	},
@@ -203,7 +202,7 @@ func GenesisStateWithSingleValidator(t *testing.T, testApp *app.App) (app.Genesi
 	t.Helper()
 
 	privVal := mock.NewPV()
-	pubKey, err := privVal.GetPubKey(context.TODO())
+	pubKey, err := privVal.GetPubKey()
 	require.NoError(t, err)
 
 	// create validator set with single validator
