@@ -2,39 +2,38 @@ package network
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/simapp"
-	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil/network"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/stretchr/testify/require"
-	"github.com/tendermint/spm/cosmoscmd"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmdb "github.com/tendermint/tm-db"
-
-	"github.com/celestiaorg/celestia-app/app"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func New(t *testing.T, config network.Config, genAccNames ...string) *network.Network {
-	kr := generateKeyring(t)
+	kr := keyring.NewInMemory(config.Codec)
 
 	// add genesis accounts
 	genAuthAccs := make([]authtypes.GenesisAccount, len(genAccNames))
 	genBalances := make([]banktypes.Balance, len(genAccNames))
-	mnemonics := make([]string, len(genAccNames))
 	for i, name := range genAccNames {
-		a, b, mnm := newGenAccout(kr, name, 1000000000000)
+		a, b := newGenAccout(kr, name, 1000000000000)
 		genAuthAccs[i] = a
 		genBalances[i] = b
-		mnemonics[i] = mnm
 	}
 
 	config, err := addGenAccounts(config, genAuthAccs, genBalances)
@@ -42,49 +41,62 @@ func New(t *testing.T, config network.Config, genAccNames ...string) *network.Ne
 		panic(err)
 	}
 
-	net := network.New(t, config)
+	tmpDir := t.TempDir()
 
-	// add the keys to the keyring that is used by the integration test
-	for i, name := range genAccNames {
-		_, err := net.Validators[0].ClientCtx.Keyring.NewAccount(name, mnemonics[i], "", "", hd.Secp256k1)
-		require.NoError(t, err)
+	net, err := network.New(t, tmpDir, config)
+	if err != nil {
+		panic(err)
 	}
+
+	net.Validators[0].ClientCtx.Keyring = kr
 
 	return net
 }
 
+// GRPCConn creates and connects a grpc client to the first validator in the
+// network. The resulting grpc client connection is stored in the client context
+func GRPCConn(net *network.Network) error {
+	nodeGRPCAddr := strings.Replace(net.Validators[0].AppConfig.GRPC.Address, "0.0.0.0", "localhost", 1)
+	conn, err := grpc.Dial(nodeGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	net.Validators[0].ClientCtx.GRPCClient = conn
+	return err
+}
+
 // DefaultConfig will initialize config for the network with custom application,
-// genesis and single validator. All other parameters are inherited from cosmos-sdk/testutil/network.DefaultConfig
+// genesis and single validator. All other parameters are inherited from
+// cosmos-sdk/testutil/network.DefaultConfig
 func DefaultConfig() network.Config {
-	encoding := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
 	return network.Config{
-		Codec:             encoding.Marshaler,
-		TxConfig:          encoding.TxConfig,
-		LegacyAmino:       encoding.Amino,
-		InterfaceRegistry: encoding.InterfaceRegistry,
+		Codec:             encCfg.Codec,
+		TxConfig:          encCfg.TxConfig,
+		LegacyAmino:       encCfg.Amino,
+		InterfaceRegistry: encCfg.InterfaceRegistry,
 		AccountRetriever:  authtypes.AccountRetriever{},
 		AppConstructor: func(val network.Validator) servertypes.Application {
 			return app.New(
 				val.Ctx.Logger, tmdb.NewMemDB(), nil, true, map[int64]bool{}, val.Ctx.Config.RootDir, 0,
-				encoding,
+				encCfg,
 				simapp.EmptyAppOptions{},
-				baseapp.SetPruning(storetypes.NewPruningOptionsFromString(val.AppConfig.Pruning)),
+				baseapp.SetPruning(pruningtypes.NewPruningOptionsFromString(val.AppConfig.Pruning)),
 				baseapp.SetMinGasPrices(val.AppConfig.MinGasPrices),
 			)
 		},
-		GenesisState:    app.ModuleBasics.DefaultGenesis(encoding.Marshaler),
+		GenesisState:    app.ModuleBasics.DefaultGenesis(encCfg.Codec),
 		TimeoutCommit:   2 * time.Second,
-		ChainID:         "chain-" + tmrand.NewRand().Str(6),
+		ChainID:         "chain-" + tmrand.Str(6),
 		NumValidators:   1,
 		BondDenom:       app.BondDenom,
 		MinGasPrices:    fmt.Sprintf("0.000006%s", app.BondDenom),
 		AccountTokens:   sdk.TokensFromConsensusPower(1000, sdk.DefaultPowerReduction),
 		StakingTokens:   sdk.TokensFromConsensusPower(500, sdk.DefaultPowerReduction),
 		BondedTokens:    sdk.TokensFromConsensusPower(100, sdk.DefaultPowerReduction),
-		PruningStrategy: storetypes.PruningOptionNothing,
+		PruningStrategy: pruningtypes.PruningOptionNothing,
 		CleanupDir:      true,
 		SigningAlgo:     string(hd.Secp256k1Type),
 		KeyringOptions:  []keyring.Option{},
+		PrintMnemonic:   false,
 	}
 }
 
@@ -111,28 +123,32 @@ func addGenAccounts(cfg network.Config, genAccounts []authtypes.GenesisAccount, 
 	return cfg, nil
 }
 
-func newGenAccout(kr keyring.Keyring, name string, amount int64) (authtypes.GenesisAccount, banktypes.Balance, string) {
-	info, mnm, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
+func newGenAccout(kr keyring.Keyring, name string, amount int64) (authtypes.GenesisAccount, banktypes.Balance) {
+	info, _, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
 	if err != nil {
 		panic(err)
 	}
 
 	// create coin
 	balances := sdk.NewCoins(
-		sdk.NewCoin(fmt.Sprintf("%stoken", name), sdk.NewInt(amount)),
+		sdk.NewCoin(fmt.Sprintf("%stoken", app.BondDenom), sdk.NewInt(amount)),
 		sdk.NewCoin(app.BondDenom, sdk.NewInt(amount)),
 	)
 
+	addr, err := info.GetAddress()
+	if err != nil {
+		panic(err)
+	}
+
 	bal := banktypes.Balance{
-		Address: info.GetAddress().String(),
+		Address: addr.String(),
 		Coins:   balances.Sort(),
 	}
 
-	return authtypes.NewBaseAccount(info.GetAddress(), info.GetPubKey(), 0, 0), bal, mnm
-}
+	pub, err := info.GetPubKey()
+	if err != nil {
+		panic(err)
+	}
 
-func generateKeyring(t *testing.T) keyring.Keyring {
-	t.Helper()
-	kb := keyring.NewInMemory()
-	return kb
+	return authtypes.NewBaseAccount(addr, pub, 0, 0), bal
 }

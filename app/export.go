@@ -26,7 +26,10 @@ func (app *App) ExportAppStateAndValidators(
 	height := app.LastBlockHeight() + 1
 	if forZeroHeight {
 		height = 0
-		app.prepForZeroHeightGenesis(ctx, jailAllowedAddrs)
+		err := app.prepForZeroHeightGenesis(ctx, jailAllowedAddrs)
+		if err != nil {
+			return servertypes.ExportedApp{}, err
+		}
 	}
 
 	genState := app.mm.ExportGenesis(ctx, app.appCodec)
@@ -50,7 +53,7 @@ func (app *App) ExportAppStateAndValidators(
 // prepare for fresh start at zero height
 // NOTE zero height genesis is a temporary feature which will be deprecated
 //      in favour of export at a block height
-func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []string) {
+func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []string) error {
 	applyAllowedAddrs := false
 
 	// check if there is a allowed address list
@@ -109,14 +112,25 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 		feePool.CommunityPool = feePool.CommunityPool.Add(scraps...)
 		app.DistrKeeper.SetFeePool(ctx, feePool)
 
-		app.DistrKeeper.Hooks().AfterValidatorCreated(ctx, val.GetOperator())
+		err := app.DistrKeeper.Hooks().AfterValidatorCreated(ctx, val.GetOperator())
+		if err != nil {
+			// we can panic here as we do not know how to handle invalid validator state
+			panic(err)
+		}
 		return false
 	})
 
 	// reinitialize all delegations
 	for _, del := range dels {
-		app.DistrKeeper.Hooks().BeforeDelegationCreated(ctx, del.GetDelegatorAddr(), del.GetValidatorAddr())
-		app.DistrKeeper.Hooks().AfterDelegationModified(ctx, del.GetDelegatorAddr(), del.GetValidatorAddr())
+		err := app.DistrKeeper.Hooks().BeforeDelegationCreated(ctx, del.GetDelegatorAddr(), del.GetValidatorAddr())
+		// note: these errors aren't handled by the cosmos-sdk,
+		if err != nil {
+			return err
+		}
+		err = app.DistrKeeper.Hooks().AfterDelegationModified(ctx, del.GetDelegatorAddr(), del.GetValidatorAddr())
+		if err != nil {
+			return err
+		}
 	}
 
 	// reset context height
@@ -167,7 +181,7 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 	iter.Close()
 
 	if _, err := app.StakingKeeper.ApplyAndReturnValidatorSetUpdates(ctx); err != nil {
-		panic(err)
+		return err
 	}
 
 	/* Handle slashing state. */
@@ -181,4 +195,6 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 			return false
 		},
 	)
+
+	return nil
 }

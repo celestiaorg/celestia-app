@@ -1,6 +1,6 @@
 name: Tests / Code Coverage
 #  Tests / Code Coverage workflow runs unit tests and uploads a code coverage report
-#  This workflow is run on pushes to master & every Pull Requests where a .go, .mod, .sum have been changed
+#  This workflow is run on pushes to main & every Pull Requests where a .go, .mod, .sum have been changed
 on:
   pull_request:
   push:
@@ -21,13 +21,13 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.17
+          go-version: 1.18
       - name: Display go version
         run: go version
       - name: install tparse
         run: |
           export GO111MODULE="on" && go install github.com/mfridman/tparse@v0.8.3
-      - uses: actions/cache@v3.0.2
+      - uses: actions/cache@v3.0.5
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-tparse-binary
@@ -39,10 +39,10 @@ jobs:
   #     - uses: actions/checkout@v3
   #     - uses: actions/setup-go@v3
   #       with:
-  #         go-version: 1.17
+  #         go-version: 1.18
   #     - name: Display go version
   #       run: go version
-  #     - uses: technote-space/get-diff-action@v6.0.1
+  #     - uses: technote-space/get-diff-action@v6.1.0
   #       id: git_diff
   #       with:
   #         PREFIX_FILTER: |
@@ -92,8 +92,8 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.17
-      - uses: technote-space/get-diff-action@v6.0.1
+          go-version: 1.18
+      - uses: technote-space/get-diff-action@v6.1.0
         with:
           PATTERNS: |
             **/**.go
@@ -117,7 +117,7 @@ jobs:
     needs: tests
     steps:
       - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6.0.1
+      - uses: technote-space/get-diff-action@v6.1.0
         with:
           PATTERNS: |
             **/**.go
@@ -170,8 +170,8 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.17
-      - uses: technote-space/get-diff-action@v6.0.1
+          go-version: 1.18
+      - uses: technote-space/get-diff-action@v6.1.0
         with:
           PATTERNS: |
             **/**.go
@@ -183,7 +183,7 @@ jobs:
         if: env.GIT_DIFF
       - name: test & coverage report creation
         run: |
-          cat pkgs.txt.part.${{ matrix.part }} | xargs go test -mod=readonly -json -timeout 30m -race -tags='cgo ledger test_ledger_mock'  > ${{ matrix.part }}-race-output.txt
+          cat pkgs.txt.part.${{ matrix.part }} | xargs go test -mod=readonly -json -timeout 30m -race -test.short -tags='cgo ledger test_ledger_mock'  > ${{ matrix.part }}-race-output.txt
         if: env.GIT_DIFF
       - uses: actions/upload-artifact@v3
         with:
@@ -196,7 +196,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6.0.1
+      - uses: technote-space/get-diff-action@v6.1.0
         id: git_diff
         with:
           PATTERNS: |
@@ -219,7 +219,7 @@ jobs:
         with:
           name: "${{ github.sha }}-03-race-output"
         if: env.GIT_DIFF
-      - uses: actions/cache@v3.0.2
+      - uses: actions/cache@v3.0.5
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-tparse-binary
@@ -236,8 +236,8 @@ jobs:
   #     - uses: actions/checkout@v3
   #     - uses: actions/setup-go@v3
   #       with:
-  #         go-version: 1.17
-  #     - uses: technote-space/get-diff-action@v6.0.1
+  #         go-version: 1.18
+  #     - uses: technote-space/get-diff-action@v6.1.0
   #       id: git_diff
   #       with:
   #         PATTERNS: |

@@ -19,7 +19,7 @@ We need this functionality in order for block producers to:
 
 We also need this functionality for validators to verify that:
 
-- For every `MsgPayForData` (previously `MsgPayForData`) included in the block, there is also a corresponding message and vice versa.
+- For every `MsgPayForData` (previously `MsgPayForMessage`) included in the block, there is also a corresponding message and vice versa.
 - The data hash represents the properly-erasure-coded block data for the selected block size.
 - The included messages are arranged in the expected locations in the square according to the non-interactive default rules (not done here)
 
@@ -41,6 +41,7 @@ Proposed and initial implementation is complete.
 ### [#631](https://github.com/celestiaorg/celestia-core/pull/631) Simplified version of ABCI++ (`celestia-core`)
 
 Here we are adding only the two new methods that are necessary for the features that we need.  
+
 ```go
 // Application is an interface that enables any finite, deterministic state machine
 // to be driven by a blockchain-based replication engine via the ABCI.
@@ -53,6 +54,7 @@ type Application interface {
 ```
 
 It's also important to note the changes made to the request types for both methods. In upstream, they are only passing the transactions to the applications. This has been modified to pass the entire block data. This is because Celestia separates some block data that cannot modify state (messages), and the application has to have access to both normal transaction data and messages to perform the necessary processing and checks.
+
 ```protobuf
 message RequestPrepareProposal {
  // block_data is an array of transactions that will be included in a block,
@@ -202,13 +204,13 @@ type MessageShareWriter struct {
 }
 ```
 
-These types are combined in a new celestia-app type, `squareWriter`, which is responsible for atomically writing transactions and their corresponding messages to the data square and the returned block data.
+These types are combined in a new celestia-app type, `shareSplitter`, which is responsible for atomically writing transactions and their corresponding messages to the data square and the returned block data.
 
 ```go
-// squareWriter writes a data square using provided block data. It also ensures
+// shareSplitter writes a data square using provided block data. It also ensures
 // that message and their corresponding txs get written to the square
 // atomically.
-type squareWriter struct {
+type shareSplitter struct {
    txWriter  *coretypes.ContiguousShareWriter
    msgWriter *coretypes.MessageShareWriter
    ...
@@ -228,7 +230,7 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
        processedTxs [][]byte
        messages     core.Messages
    )
-   sqwr, err := newSquareWriter(txConf, squareSize, data)
+   sqwr, err := newShareSplitter(txConf, squareSize, data)
    if err != nil {
        return nil, nil, err
    }
@@ -283,7 +285,7 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
 
 // writeTx marshals the tx and lazily writes it to the square. Returns true if
 // the write was successful, false if there was not enough room in the square.
-func (sqwr *squareWriter) writeTx(tx []byte) (ok bool, err error) {
+func (sqwr *shareSplitter) writeTx(tx []byte) (ok bool, err error) {
    delimTx, err := coretypes.Tx(tx).MarshalDelimited()
    if err != nil {
        return false, err
@@ -301,7 +303,7 @@ func (sqwr *squareWriter) writeTx(tx []byte) (ok bool, err error) {
 // its corresponding message provided that it has a MsgPayForData for the
 // preselected square size. Returns true if the write was successful, false if
 // there was not enough room in the square.
-func (sqwr *squareWriter) writeMalleatedTx(
+func (sqwr *shareSplitter) writeMalleatedTx(
    parentHash []byte,
    tx signing.Tx,
    wpfd *types.MsgWirePayForData,
@@ -375,11 +377,13 @@ Proposed and initial implementation is complete.
 ## Consequences
 
 ### Positive
+
 - Don't have to wait for the cosmos-sdk or tendermint teams to finish ABCI++
 - Get to test important features in the upcoming testnet
 - We won't have to implement hacky temporary versions of important features.
 
 ### Negative
+
 - We will still have to slightly refactor the code here after ABCI++ comes out
 
 ## References
