@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/qgb"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -17,6 +15,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
+	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -449,8 +449,8 @@ func createNewValidator(
 	}
 	input.AccountKeeper.SetAccount(input.Context, acc)
 
-	sh := staking.NewHandler(input.StakingKeeper)
-	_, err = sh(
+	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
+	_, err = msgServer.CreateValidator(
 		input.Context,
 		testutil.NewTestMsgCreateValidator(
 			valAddress,

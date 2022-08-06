@@ -42,6 +42,7 @@ type Orchestrator struct {
 	EvmPrivateKey  ecdsa.PrivateKey
 	Signer         *paytypes.KeyringSigner
 	OrchEthAddress ethcmn.Address
+	OrchAccAddress sdk.AccAddress
 
 	Querier     Querier
 	Broadcaster BroadcasterI
@@ -55,8 +56,13 @@ func NewOrchestrator(
 	retrier RetrierI,
 	signer *paytypes.KeyringSigner,
 	evmPrivateKey ecdsa.PrivateKey,
-) *Orchestrator {
+) (*Orchestrator, error) {
 	orchEthAddr := crypto.PubkeyToAddress(evmPrivateKey.PublicKey)
+
+	orchAccAddr, err := signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		return nil, err
+	}
 
 	return &Orchestrator{
 		Logger:         logger,
@@ -66,7 +72,8 @@ func NewOrchestrator(
 		Querier:        querier,
 		Broadcaster:    broadcaster,
 		Retrier:        retrier,
-	}
+		OrchAccAddress: orchAccAddr,
+	}, nil
 }
 
 func (orch Orchestrator) Start(ctx context.Context) {
@@ -264,7 +271,7 @@ func (orch Orchestrator) Process(ctx context.Context, nonce uint64) error {
 		if !ok {
 			return errors.Wrap(types.ErrAttestationNotValsetRequest, strconv.FormatUint(nonce, 10))
 		}
-		resp, err := orch.Querier.QueryValsetConfirm(ctx, nonce, orch.Signer.GetSignerInfo().GetAddress().String())
+		resp, err := orch.Querier.QueryValsetConfirm(ctx, nonce, orch.OrchAccAddress.String())
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("valset %d", nonce))
 		}
@@ -287,7 +294,7 @@ func (orch Orchestrator) Process(ctx context.Context, nonce uint64) error {
 			ctx,
 			dc.EndBlock,
 			dc.BeginBlock,
-			orch.Signer.GetSignerInfo().GetAddress().String(),
+			orch.OrchAccAddress.String(),
 		)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("data commitment %d", nonce))
@@ -321,7 +328,7 @@ func (orch Orchestrator) ProcessValsetEvent(ctx context.Context, valset types.Va
 	msg := types.NewMsgValsetConfirm(
 		valset.Nonce,
 		orch.OrchEthAddress,
-		orch.Signer.GetSignerInfo().GetAddress(),
+		orch.OrchAccAddress,
 		ethcmn.Bytes2Hex(signature),
 	)
 	hash, err := orch.Broadcaster.BroadcastTx(ctx, msg)
@@ -352,7 +359,7 @@ func (orch Orchestrator) ProcessDataCommitmentEvent(
 	msg := types.NewMsgDataCommitmentConfirm(
 		commitment.String(),
 		ethcmn.Bytes2Hex(dcSig),
-		orch.Signer.GetSignerInfo().GetAddress(),
+		orch.OrchAccAddress,
 		orch.OrchEthAddress,
 		dc.BeginBlock,
 		dc.EndBlock,

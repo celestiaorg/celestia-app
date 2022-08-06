@@ -10,16 +10,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/google/uuid"
-	"github.com/tendermint/spm/cosmoscmd"
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"github.com/testcontainers/testcontainers-go"
 )
@@ -31,7 +31,7 @@ type QGBNetwork struct {
 	EVMRPC               string
 	TendermintRPC        string
 	CelestiaGRPC         string
-	EncCfg               cosmoscmd.EncodingConfig
+	EncCfg               encoding.Config
 	DataCommitmentWindow uint64
 
 	// used by the moderator to notify all the workers.
@@ -55,7 +55,7 @@ func NewQGBNetwork() (*QGBNetwork, error) {
 		EVMRPC:               "http://localhost:8545",
 		TendermintRPC:        "tcp://localhost:26657",
 		CelestiaGRPC:         "localhost:9090",
-		EncCfg:               orchestrator.MakeEncodingConfig(),
+		EncCfg:               encoding.MakeConfig(app.ModuleEncodingRegisters...),
 		DataCommitmentWindow: 101, // If this one is changed, make sure to change also the genesis file
 		stopChan:             stopChan,
 		toStopChan:           toStopChan,

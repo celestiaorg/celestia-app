@@ -188,7 +188,7 @@ func generateKeyring(t *testing.T, cdc codec.Codec, accts ...string) keyring.Key
 		}
 	}
 
-	_, err := kb.NewAccount(testAccName, testMnemo, "1234", "", hd.Secp256k1)
+	_, err := kb.NewAccount(TestAccName, testMnemo, "1234", "", hd.Secp256k1)
 	if err != nil {
 		panic(err)
 	}
@@ -300,7 +300,7 @@ func GenerateKeyringSigner(t *testing.T, acct string) *types.KeyringSigner {
 const (
 	// nolint:lll
 	testMnemo   = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
-	testAccName = "test-account"
+	TestAccName = "test-account"
 	testChainID = "test-chain-1"
 )
 
