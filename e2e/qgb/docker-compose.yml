@@ -54,7 +54,7 @@ services:
       - CELESTIA_HOME=/opt
       # private key: 002ad18ca3def673345897b063bfa98d829a4d812dbd07f1938676828a82c4f9
       - ETH_ADDRESS=0x91DEd26b5f38B065FC0204c7929Da1b2A21877Ad
-      - AMOUNT=5000000000uceles
+      - AMOUNT=1000000000000000utia
     entrypoint: [
       "/bin/bash"
     ]
@@ -102,7 +102,7 @@ services:
       - CELESTIA_HOME=/opt
       # private key: 6adac8b5de0ba702ec8feab6d386a0c7334c6720b9174c02333700d431057af8
       - ETH_ADDRESS=0x3d22f0C38251ebdBE92e14BBF1bd2067F1C3b7D7
-      - AMOUNT=5000000000uceles
+      - AMOUNT=1000000000000000utia
     entrypoint: [
       "/bin/bash"
     ]
@@ -150,7 +150,7 @@ services:
       - CELESTIA_HOME=/opt
       # private key: 2f7f6763500dfb48b710a4c5c6c6a487b8aa6c7bc8b8a9b637a23f651f1c9b51
       - ETH_ADDRESS=0x3EE99606625E740D8b29C8570d855Eb387F3c790
-      - AMOUNT=5000000000uceles
+      - AMOUNT=1000000000000000utia
     entrypoint: [
       "/bin/bash"
     ]
