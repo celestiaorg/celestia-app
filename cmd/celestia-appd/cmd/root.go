@@ -150,7 +150,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 	// add qgb related commands
 	rootCmd.AddCommand(
 		orchestrator.DeployCmd(),
-		orchestrator.OrchestratorCmd(),
+		orchestrator.OrchCmd(),
 		orchestrator.RelayerCmd(),
 	)
 }

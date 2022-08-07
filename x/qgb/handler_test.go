@@ -89,7 +89,7 @@ func TestMsgValsetConfirm(t *testing.T) {
 	err = k.SetAttestationRequest(ctx, &vs)
 	require.Nil(t, err)
 
-	signBytes, err := vs.SignBytes(types.BridgeId)
+	signBytes, err := vs.SignBytes(types.BridgeID)
 	require.NoError(t, err)
 	signatureBytes, err := types.NewEthereumSignature(signBytes.Bytes(), orch1EthPrivateKey)
 	signature := hex.EncodeToString(signatureBytes)
@@ -186,7 +186,7 @@ func TestMsgValsetConfirmWithValidatorNotPartOfValset(t *testing.T) {
 	err = k.SetAttestationRequest(ctx, &newVs)
 	require.Nil(t, err)
 
-	signBytes, err := newVs.SignBytes(types.BridgeId)
+	signBytes, err := newVs.SignBytes(types.BridgeID)
 	require.NoError(t, err)
 	signatureBytes, err := types.NewEthereumSignature(signBytes.Bytes(), orch2EthPrivateKey)
 	require.NoError(t, err)
@@ -238,7 +238,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 	bytesCommitment, err := hex.DecodeString(commitment)
 	require.NoError(t, err)
 	dataHash := types.DataCommitmentTupleRootSignBytes(
-		types.BridgeId,
+		types.BridgeID,
 		big.NewInt(2),
 		bytesCommitment,
 	)
@@ -395,7 +395,7 @@ func TestMsgDataCommimtentConfirmWithValidatorNotPartOfValset(t *testing.T) {
 	bytesCommitment, err := hex.DecodeString(commitment)
 	require.NoError(t, err)
 	dataHash := types.DataCommitmentTupleRootSignBytes(
-		types.BridgeId,
+		types.BridgeID,
 		big.NewInt(2),
 		bytesCommitment,
 	)

@@ -15,6 +15,7 @@ import (
 	"github.com/tendermint/tendermint/rpc/client/http"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var _ Querier = &querier{}
@@ -91,7 +92,7 @@ func NewQuerier(
 	logger tmlog.Logger,
 	encCft encoding.Config,
 ) (*querier, error) {
-	qgbGRPC, err := grpc.Dial(qgbRPCAddr, grpc.WithInsecure())
+	qgbGRPC, err := grpc.Dial(qgbRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}

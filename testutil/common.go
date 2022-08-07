@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	cosmosmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -443,7 +444,7 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 func NewTestMsgCreateValidator(
 	address sdk.ValAddress,
 	pubKey ccrypto.PubKey,
-	amt sdk.Int,
+	amt cosmosmath.Int,
 	orchAddr sdk.AccAddress,
 	ethAddr gethcommon.Address,
 ) *stakingtypes.MsgCreateValidator {
@@ -519,7 +520,7 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 	return input, input.Context
 }
 
-func NewTestMsgUnDelegateValidator(address sdk.ValAddress, amt sdk.Int) *stakingtypes.MsgUndelegate {
+func NewTestMsgUnDelegateValidator(address sdk.ValAddress, amt cosmosmath.Int) *stakingtypes.MsgUndelegate {
 	msg := stakingtypes.NewMsgUndelegate(sdk.AccAddress(address), address, sdk.NewCoin("stake", amt))
 	return msg
 }

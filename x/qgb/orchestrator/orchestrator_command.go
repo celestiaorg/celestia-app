@@ -15,7 +15,7 @@ import (
 	tmlog "github.com/tendermint/tendermint/libs/log"
 )
 
-func OrchestratorCmd() *cobra.Command {
+func OrchCmd() *cobra.Command {
 	command := &cobra.Command{
 		Use:     "orchestrator <flags>",
 		Aliases: []string{"orch"},

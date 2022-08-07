@@ -9,9 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
-
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktypestx "github.com/cosmos/cosmos-sdk/types/tx"
@@ -22,6 +21,7 @@ import (
 	corerpctypes "github.com/tendermint/tendermint/rpc/core/types"
 	coretypes "github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var _ I = &Orchestrator{}
@@ -315,7 +315,7 @@ func (orch Orchestrator) Process(ctx context.Context, nonce uint64) error {
 }
 
 func (orch Orchestrator) ProcessValsetEvent(ctx context.Context, valset types.Valset) error {
-	signBytes, err := valset.SignBytes(types.BridgeId)
+	signBytes, err := valset.SignBytes(types.BridgeID)
 	if err != nil {
 		return err
 	}
@@ -350,7 +350,7 @@ func (orch Orchestrator) ProcessDataCommitmentEvent(
 	if err != nil {
 		return err
 	}
-	dataRootHash := types.DataCommitmentTupleRootSignBytes(types.BridgeId, big.NewInt(int64(dc.Nonce)), commitment)
+	dataRootHash := types.DataCommitmentTupleRootSignBytes(types.BridgeID, big.NewInt(int64(dc.Nonce)), commitment)
 	dcSig, err := types.NewEthereumSignature(dataRootHash.Bytes(), &orch.EvmPrivateKey)
 	if err != nil {
 		return err
@@ -396,7 +396,7 @@ type Broadcaster struct {
 }
 
 func NewBroadcaster(qgbGrpcAddr string, signer *paytypes.KeyringSigner, celestiaGasLimit uint64) (*Broadcaster, error) {
-	qgbGrpc, err := grpc.Dial(qgbGrpcAddr, grpc.WithInsecure())
+	qgbGrpc, err := grpc.Dial(qgbGrpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}

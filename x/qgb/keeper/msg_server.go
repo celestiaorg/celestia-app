@@ -95,7 +95,7 @@ func (k msgServer) ValsetConfirm(
 	if err != nil {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "signature decoding")
 	}
-	signBytes, err := valset.SignBytes(types.BridgeId)
+	signBytes, err := valset.SignBytes(types.BridgeID)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func (k msgServer) DataCommitmentConfirm(
 	if err != nil {
 		return nil, err
 	}
-	hash := types.DataCommitmentTupleRootSignBytes(types.BridgeId, big.NewInt(int64(msg.Nonce)), commitment)
+	hash := types.DataCommitmentTupleRootSignBytes(types.BridgeID, big.NewInt(int64(msg.Nonce)), commitment)
 	err = types.ValidateEthereumSignature(hash.Bytes(), sigBytes, ethAddress)
 	if err != nil {
 		return nil, sdkerrors.Wrap(
