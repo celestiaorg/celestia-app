@@ -315,7 +315,7 @@ func New(
 		app.GetSubspace(qgbmoduletypes.ModuleName),
 		&stakingKeeper,
 	)
-	qgbmodule := qgbmodule.NewAppModule(appCodec, app.QgbKeeper)
+	qgbmod := qgbmodule.NewAppModule(appCodec, app.QgbKeeper)
 
 	// register the staking hooks
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
@@ -339,7 +339,7 @@ func New(
 		AddRoute(paramproposal.RouterKey, params.NewParamChangeProposalHandler(app.ParamsKeeper)).
 		AddRoute(distrtypes.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.DistrKeeper)).
 		AddRoute(upgradetypes.RouterKey, upgrade.NewSoftwareUpgradeProposalHandler(app.UpgradeKeeper))
-		// AddRoute(ibcclienttypes.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
+	// AddRoute(ibcclienttypes.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
 
 	// Create Transfer Keepers
 	// app.TransferKeeper = ibctransferkeeper.NewKeeper(
@@ -367,7 +367,7 @@ func New(
 	app.PaymentKeeper = *paymentmodulekeeper.NewKeeper(
 		appCodec,
 	)
-	paymentmodule := paymentmodule.NewAppModule(appCodec, app.PaymentKeeper)
+	paymentmod := paymentmodule.NewAppModule(appCodec, app.PaymentKeeper)
 
 	// // Create static IBC router, add transfer route, then set and seal it
 	// ibcRouter := ibcporttypes.NewRouter()
@@ -404,8 +404,8 @@ func New(
 		// ibc.NewAppModule(app.IBCKeeper),
 		params.NewAppModule(app.ParamsKeeper),
 		// transferModule,
-		paymentmodule,
-		qgbmodule,
+		paymentmod,
+		qgbmod,
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -453,8 +453,6 @@ func New(
 		paramstypes.ModuleName,
 		vestingtypes.ModuleName,
 	)
-
-	app.mm.SetOrderEndBlockers(crisistypes.ModuleName, govtypes.ModuleName, stakingtypes.ModuleName, qgbmoduletypes.ModuleName)
 
 	// NOTE: The genutils module must occur after staking so that pools are
 	// properly initialized with tokens from genesis accounts.

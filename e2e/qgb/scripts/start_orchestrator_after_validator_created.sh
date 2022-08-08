@@ -18,6 +18,16 @@ apk add curl
 VAL_ADDRESS=$(celestia-appd keys show ${MONIKER} --keyring-backend test --bech=val --home /opt -a)
 while true
 do
+  # verify that the node is listening on gRPC
+  nc -z -w5 $(echo $CELESTIA_GRPC | cut -d : -f 1) $(echo $CELESTIA_GRPC | cut -d : -f 2)
+  result=$?
+  if [ "${result}" != "0" ]; then
+    echo "Waiting for node gRPC to be available ..."
+    sleep 5s
+    continue
+  fi
+
+  # verify if RPC is running and the validator was created
   output=$(celestia-appd query staking validator ${VAL_ADDRESS} --node $TENDERMINT_RPC 2>/dev/null)
   if [[ -n "${output}" ]] ; then
     break

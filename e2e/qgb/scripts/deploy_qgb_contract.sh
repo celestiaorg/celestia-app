@@ -25,6 +25,15 @@ apk add curl
 # wait for the node to get up and running
 while true
 do
+  # verify that the node is listening on gRPC
+  nc -z -w5 $(echo $CELESTIA_GRPC | cut -d : -f 1) $(echo $CELESTIA_GRPC | cut -d : -f 2)
+  result=$?
+  if [ "${result}" != "0" ]; then
+    echo "Waiting for node gRPC to be available ..."
+    sleep 5s
+    continue
+  fi
+
   height=$(/bin/celestia-appd query block 1 -n ${TENDERMINT_RPC} 2>/dev/null)
   if [[ -n ${height} ]] ; then
     break

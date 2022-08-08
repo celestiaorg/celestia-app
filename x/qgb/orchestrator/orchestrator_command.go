@@ -7,14 +7,15 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	tmlog "github.com/tendermint/tendermint/libs/log"
-
 	"github.com/spf13/cobra"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 )
 
-func OrchestratorCmd() *cobra.Command {
+func OrchCmd() *cobra.Command {
 	command := &cobra.Command{
 		Use:     "orchestrator <flags>",
 		Aliases: []string{"orch"},
@@ -29,14 +30,16 @@ func OrchestratorCmd() *cobra.Command {
 
 			ctx, cancel := context.WithCancel(cmd.Context())
 
-			querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger, MakeEncodingConfig())
+			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+			querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger, encCfg)
 			if err != nil {
 				panic(err)
 			}
 
 			// creates the Signer
 			// TODO: optionally ask for input for a password
-			ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringPath, strings.NewReader(""))
+			ring, err := keyring.New("orchestrator", config.keyringBackend, config.keyringPath, strings.NewReader(""), encCfg.Codec)
 			if err != nil {
 				panic(err)
 			}
@@ -52,7 +55,7 @@ func OrchestratorCmd() *cobra.Command {
 			}
 
 			retrier := NewRetrier(logger, 5)
-			orch := NewOrchestrator(
+			orch, err := NewOrchestrator(
 				logger,
 				querier,
 				broadcaster,
@@ -60,6 +63,9 @@ func OrchestratorCmd() *cobra.Command {
 				signer,
 				*config.privateKey,
 			)
+			if err != nil {
+				panic(err)
+			}
 
 			logger.Debug("starting orchestrator")
 

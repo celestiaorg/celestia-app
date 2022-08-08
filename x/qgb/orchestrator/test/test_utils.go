@@ -16,7 +16,7 @@ func verifyOrchestratorValsetSignature(broadcasted sdk.Msg, valset *types.Valset
 	if msg == nil {
 		return errors.New("couldn't cast sdk.Msg to *types.MsgValsetConfirm")
 	}
-	hash, err := valset.SignBytes(types.BridgeId)
+	hash, err := valset.SignBytes(types.BridgeID)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func verifyOrchestratorDcSignature(broadcasted sdk.Msg, dc types.DataCommitment)
 	}
 
 	dataRootHash := types.DataCommitmentTupleRootSignBytes(
-		types.BridgeId,
+		types.BridgeID,
 		big.NewInt(int64(dc.Nonce)),
 		commitmentFromQuery(orchestrator.CommitmentQueryByRange(dc.BeginBlock, dc.EndBlock)),
 	)

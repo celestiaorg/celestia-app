@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
+	cosmosmath "cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	ccodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -16,6 +17,7 @@ import (
 	ccrypto "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/std"
 	"github.com/cosmos/cosmos-sdk/store"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/auth"
@@ -78,6 +80,7 @@ var (
 		MaxEntries:        10,
 		HistoricalEntries: 10000,
 		BondDenom:         "stake",
+		MinCommissionRate: sdk.NewDecWithPrec(0, 0),
 	}
 
 	// ConsPrivKeys generate ed25519 ConsPrivKeys to be used for validator operator keys
@@ -213,14 +216,14 @@ func CreateTestEnv(t *testing.T) TestInput {
 	// Initialize memory database and mount stores on it
 	db := dbm.NewMemDB()
 	ms := store.NewCommitMultiStore(db)
-	ms.MountStoreWithDB(qgbKey, sdk.StoreTypeIAVL, db)
-	ms.MountStoreWithDB(keyAcc, sdk.StoreTypeIAVL, db)
-	ms.MountStoreWithDB(keyParams, sdk.StoreTypeIAVL, db)
-	ms.MountStoreWithDB(keyStaking, sdk.StoreTypeIAVL, db)
-	ms.MountStoreWithDB(keyBank, sdk.StoreTypeIAVL, db)
-	ms.MountStoreWithDB(keyDistro, sdk.StoreTypeIAVL, db)
-	ms.MountStoreWithDB(tkeyParams, sdk.StoreTypeTransient, db)
-	ms.MountStoreWithDB(keySlashing, sdk.StoreTypeIAVL, db)
+	ms.MountStoreWithDB(qgbKey, storetypes.StoreTypeIAVL, db)
+	ms.MountStoreWithDB(keyAcc, storetypes.StoreTypeIAVL, db)
+	ms.MountStoreWithDB(keyParams, storetypes.StoreTypeIAVL, db)
+	ms.MountStoreWithDB(keyStaking, storetypes.StoreTypeIAVL, db)
+	ms.MountStoreWithDB(keyBank, storetypes.StoreTypeIAVL, db)
+	ms.MountStoreWithDB(keyDistro, storetypes.StoreTypeIAVL, db)
+	ms.MountStoreWithDB(tkeyParams, storetypes.StoreTypeTransient, db)
+	ms.MountStoreWithDB(keySlashing, storetypes.StoreTypeIAVL, db)
 	err := ms.LoadLatestVersion()
 	require.Nil(t, err)
 
@@ -277,6 +280,7 @@ func CreateTestEnv(t *testing.T) TestInput {
 		getSubspace(paramsKeeper, authtypes.ModuleName),
 		authtypes.ProtoBaseAccount, // prototype
 		maccPerms,
+		app.Bech32PrefixAccAddr,
 	)
 
 	blockedAddr := make(map[string]bool, len(maccPerms))
@@ -301,7 +305,7 @@ func CreateTestEnv(t *testing.T) TestInput {
 	stakingKeeper := stakingkeeper.NewKeeper(marshaler, keyStaking, accountKeeper, bankKeeper, getSubspace(paramsKeeper, stakingtypes.ModuleName))
 	stakingKeeper.SetParams(ctx, TestingStakeParams)
 
-	distKeeper := distrkeeper.NewKeeper(marshaler, keyDistro, getSubspace(paramsKeeper, distrtypes.ModuleName), accountKeeper, bankKeeper, stakingKeeper, authtypes.FeeCollectorName, nil)
+	distKeeper := distrkeeper.NewKeeper(marshaler, keyDistro, getSubspace(paramsKeeper, distrtypes.ModuleName), accountKeeper, bankKeeper, stakingKeeper, authtypes.FeeCollectorName)
 	distKeeper.SetParams(ctx, distrtypes.DefaultParams())
 
 	// set genesis items required for distribution
@@ -332,17 +336,6 @@ func CreateTestEnv(t *testing.T) TestInput {
 	stakeAddr := authtypes.NewModuleAddress(stakingtypes.BondedPoolName)
 	moduleAcct := accountKeeper.GetAccount(ctx, stakeAddr)
 	require.NotNil(t, moduleAcct)
-
-	router := baseapp.NewRouter()
-	router.AddRoute(bank.AppModule{
-		AppModuleBasic: bank.AppModuleBasic{},
-	}.Route())
-	router.AddRoute(staking.AppModule{
-		AppModuleBasic: staking.AppModuleBasic{},
-	}.Route())
-	router.AddRoute(distribution.AppModule{
-		AppModuleBasic: distribution.AppModuleBasic{},
-	}.Route())
 
 	slashingKeeper := slashingkeeper.NewKeeper(
 		marshaler,
@@ -416,7 +409,7 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 	input.StakingKeeper.SetParams(input.Context, TestingStakeParams)
 
 	// Initialize each of the validators
-	sh := staking.NewHandler(input.StakingKeeper)
+	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
 	for i := range []int{0, 1, 2, 3, 4} {
 
 		// Initialize the account for the key
@@ -435,10 +428,7 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 
 		// Create a validator for that account using some tokens in the account
 		// and the staking handler
-		_, err := sh(
-			input.Context,
-			NewTestMsgCreateValidator(ValAddrs[i], ConsPubKeys[i], StakingAmount, OrchAddrs[i], EthAddrs[i]),
-		)
+		_, err := msgServer.CreateValidator(input.Context, NewTestMsgCreateValidator(ValAddrs[i], ConsPubKeys[i], StakingAmount, OrchAddrs[i], EthAddrs[i]))
 
 		// Return error if one exists
 		require.NoError(t, err)
@@ -454,7 +444,7 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 func NewTestMsgCreateValidator(
 	address sdk.ValAddress,
 	pubKey ccrypto.PubKey,
-	amt sdk.Int,
+	amt cosmosmath.Int,
 	orchAddr sdk.AccAddress,
 	ethAddr gethcommon.Address,
 ) *stakingtypes.MsgCreateValidator {
@@ -486,7 +476,7 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 	input.StakingKeeper.SetParams(input.Context, TestingStakeParams)
 
 	// Initialize each of the validators
-	sh := staking.NewHandler(input.StakingKeeper)
+	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
 	for i, weight := range weights {
 		consPrivKey := ed25519.GenPrivKey()
 		consPubKey := consPrivKey.PubKey()
@@ -511,7 +501,7 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 
 		// Create a validator for that account using some of the tokens in the account
 		// and the staking handler
-		_, err := sh(
+		_, err := msgServer.CreateValidator(
 			input.Context,
 			NewTestMsgCreateValidator(valAddr, consPubKey, sdk.NewIntFromUint64(weight), accAddr, EthAddrs[i]),
 		)
@@ -530,7 +520,7 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 	return input, input.Context
 }
 
-func NewTestMsgUnDelegateValidator(address sdk.ValAddress, amt sdk.Int) *stakingtypes.MsgUndelegate {
+func NewTestMsgUnDelegateValidator(address sdk.ValAddress, amt cosmosmath.Int) *stakingtypes.MsgUndelegate {
 	msg := stakingtypes.NewMsgUndelegate(sdk.AccAddress(address), address, sdk.NewCoin("stake", amt))
 	return msg
 }

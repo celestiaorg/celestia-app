@@ -5,11 +5,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/ethclient"
-	tmlog "github.com/tendermint/tendermint/libs/log"
-
 	"github.com/spf13/cobra"
+	tmlog "github.com/tendermint/tendermint/libs/log"
 )
 
 func RelayerCmd() *cobra.Command {
@@ -32,7 +33,9 @@ func RelayerCmd() *cobra.Command {
 				return err
 			}
 
-			querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger, MakeEncodingConfig())
+			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+			querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger, encCfg)
 			if err != nil {
 				return err
 			}

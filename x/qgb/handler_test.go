@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/qgb"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -17,6 +15,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
+	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -89,7 +89,7 @@ func TestMsgValsetConfirm(t *testing.T) {
 	err = k.SetAttestationRequest(ctx, &vs)
 	require.Nil(t, err)
 
-	signBytes, err := vs.SignBytes(types.BridgeId)
+	signBytes, err := vs.SignBytes(types.BridgeID)
 	require.NoError(t, err)
 	signatureBytes, err := types.NewEthereumSignature(signBytes.Bytes(), orch1EthPrivateKey)
 	signature := hex.EncodeToString(signatureBytes)
@@ -186,7 +186,7 @@ func TestMsgValsetConfirmWithValidatorNotPartOfValset(t *testing.T) {
 	err = k.SetAttestationRequest(ctx, &newVs)
 	require.Nil(t, err)
 
-	signBytes, err := newVs.SignBytes(types.BridgeId)
+	signBytes, err := newVs.SignBytes(types.BridgeID)
 	require.NoError(t, err)
 	signatureBytes, err := types.NewEthereumSignature(signBytes.Bytes(), orch2EthPrivateKey)
 	require.NoError(t, err)
@@ -238,7 +238,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 	bytesCommitment, err := hex.DecodeString(commitment)
 	require.NoError(t, err)
 	dataHash := types.DataCommitmentTupleRootSignBytes(
-		types.BridgeId,
+		types.BridgeID,
 		big.NewInt(2),
 		bytesCommitment,
 	)
@@ -395,7 +395,7 @@ func TestMsgDataCommimtentConfirmWithValidatorNotPartOfValset(t *testing.T) {
 	bytesCommitment, err := hex.DecodeString(commitment)
 	require.NoError(t, err)
 	dataHash := types.DataCommitmentTupleRootSignBytes(
-		types.BridgeId,
+		types.BridgeID,
 		big.NewInt(2),
 		bytesCommitment,
 	)
@@ -449,8 +449,8 @@ func createNewValidator(
 	}
 	input.AccountKeeper.SetAccount(input.Context, acc)
 
-	sh := staking.NewHandler(input.StakingKeeper)
-	_, err = sh(
+	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
+	_, err = msgServer.CreateValidator(
 		input.Context,
 		testutil.NewTestMsgCreateValidator(
 			valAddress,
