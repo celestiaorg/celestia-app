@@ -1,12 +1,10 @@
 package types
 
 import (
-	"bytes"
 	"testing"
 
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	sdkerrors "cosmossdk.io/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 func TestWirePayForData_ValidateBasic(t *testing.T) {
@@ -27,9 +25,13 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 	reservedMsg := validWirePayForData(t)
 	reservedMsg.MessageNameSpaceId = []byte{0, 0, 0, 0, 0, 0, 0, 100}
 
-	// pfd that has a wrong msg size
-	invalidMsgSizeMsg := validWirePayForData(t)
-	invalidMsgSizeMsg.Message = bytes.Repeat([]byte{1}, consts.ShareSize-20)
+	// pfd that uses parity shares namespace id
+	paritySharesMsg := validWirePayForData(t)
+	paritySharesMsg.MessageNameSpaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+
+	// pfd that uses parity shares namespace id
+	tailPaddingMsg := validWirePayForData(t)
+	tailPaddingMsg.MessageNameSpaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
 
 	// pfd that has a wrong msg size
 	invalidDeclaredMsgSizeMsg := validWirePayForData(t)
@@ -64,11 +66,6 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 			wantErr: ErrReservedNamespace,
 		},
 		{
-			name:    "invalid msg size",
-			msg:     invalidMsgSizeMsg,
-			wantErr: ErrInvalidDataSize,
-		},
-		{
 			name:    "bad declared message size",
 			msg:     invalidDeclaredMsgSizeMsg,
 			wantErr: ErrDeclaredActualDataSizeMismatch,
@@ -76,7 +73,7 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 		{
 			name:    "bad commitment",
 			msg:     badCommitMsg,
-			wantErr: ErrCommittedSquareSizeNotPowOf2,
+			wantErr: ErrInvalidShareCommit,
 		},
 		{
 			name:    "invalid square size",
@@ -88,13 +85,23 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 			msg:     badSquareSizeMsg,
 			wantErr: ErrInvalidShareCommit,
 		},
+		{
+			name:    "parity shares namespace id",
+			msg:     paritySharesMsg,
+			wantErr: ErrParitySharesNamespace,
+		},
+		{
+			name:    "tail padding namespace id",
+			msg:     tailPaddingMsg,
+			wantErr: ErrTailPaddingNamespace,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.msg.ValidateBasic()
 			if tt.wantErr != nil {
-				assert.ErrorAs(t, err, tt.wantErr)
+				assert.Contains(t, err.Error(), tt.wantErr.Error())
 				space, code, log := sdkerrors.ABCIInfo(err, false)
 				assert.Equal(t, tt.wantErr.Codespace(), space)
 				assert.Equal(t, tt.wantErr.ABCICode(), code)

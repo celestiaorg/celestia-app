@@ -13,10 +13,6 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-// shareSizes includes all the possible share sizes of the given data
-// that the signer must sign over.
-var shareSizes = []uint64{16, 32, 64, 128}
-
 // SubmitPayForData constructs, signs and synchronously submits a PayForData
 // transaction, returning a sdk.TxResponse upon submission.
 func SubmitPayForData(
@@ -28,12 +24,14 @@ func SubmitPayForData(
 	gasLim uint64,
 	opts ...types.TxBuilderOption,
 ) (*sdk.TxResponse, error) {
-	pfd, err := BuildPayForData(ctx, signer, conn, nID, data, gasLim)
+	opts = append(opts, types.SetGasLimit(gasLim))
+
+	pfd, err := BuildPayForData(ctx, signer, conn, nID, data, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	signed, err := SignPayForData(signer, pfd, append(opts, types.SetGasLimit(gasLim))...)
+	signed, err := SignPayForData(signer, pfd, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -57,10 +55,10 @@ func BuildPayForData(
 	conn *grpc.ClientConn,
 	nID namespace.ID,
 	message []byte,
-	gasLim uint64,
+	opts ...types.TxBuilderOption,
 ) (*types.MsgWirePayForData, error) {
 	// create the raw WirePayForData transaction
-	wpfd, err := types.NewWirePayForData(nID, message, shareSizes...)
+	wpfd, err := types.NewWirePayForData(nID, message, types.AllSquareSizes(len(message))...)
 	if err != nil {
 		return nil, err
 	}
@@ -73,8 +71,7 @@ func BuildPayForData(
 
 	// generate the signatures for each `MsgPayForData` using the `KeyringSigner`,
 	// then set the gas limit for the tx
-	gasLimOption := types.SetGasLimit(gasLim)
-	err = wpfd.SignShareCommitments(signer, gasLimOption)
+	err = wpfd.SignShareCommitments(signer, opts...)
 	if err != nil {
 		return nil, err
 	}

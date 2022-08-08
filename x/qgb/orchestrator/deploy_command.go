@@ -5,9 +5,10 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
-
 	"github.com/spf13/cobra"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 )
@@ -24,7 +25,9 @@ func DeployCmd() *cobra.Command {
 
 			logger := tmlog.NewTMLogger(os.Stdout)
 
-			querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger, MakeEncodingConfig())
+			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+			querier, err := NewQuerier(config.celesGRPC, config.tendermintRPC, logger, encCfg)
 			if err != nil {
 				return err
 			}

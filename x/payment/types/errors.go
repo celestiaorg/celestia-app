@@ -14,4 +14,8 @@ var (
 	ErrCommittedSquareSizeNotPowOf2   = sdkerrors.Register(ModuleName, 11114, "committed to invalid square size: must be power of two")
 	ErrCalculateCommit                = sdkerrors.Register(ModuleName, 11115, "unexpected error calculating commit for share")
 	ErrInvalidShareCommit             = sdkerrors.Register(ModuleName, 11116, "invalid commit for share")
+	ErrParitySharesNamespace          = sdkerrors.Register(ModuleName, 11117, "cannot use parity shares namespace ID")
+	ErrTailPaddingNamespace           = sdkerrors.Register(ModuleName, 11118, "cannot use tail padding namespace ID")
+	ErrTxNamespace                    = sdkerrors.Register(ModuleName, 11119, "cannot use transaction namespace ID")
+	ErrEvidenceNamespace              = sdkerrors.Register(ModuleName, 11120, "cannot use evidence namespace ID")
 )

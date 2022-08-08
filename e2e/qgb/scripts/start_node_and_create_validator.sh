@@ -61,5 +61,5 @@ apk add curl
 celestia-appd start \
 --home=${CELESTIA_HOME} \
 --moniker=${MONIKER} \
---p2p.persistent_peers=7b5ef9ef378a3907be7591863a566634d191b58b@core0:26656 \
+--p2p.persistent_peers=a6b8e77b70336cb015723d2971b9d222c5ad1bd2@core0:26656 \
 --rpc.laddr=tcp://0.0.0.0:26657

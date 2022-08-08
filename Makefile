@@ -22,7 +22,7 @@ BUILD_FLAGS := -ldflags '$(ldflags)'
 all: install
 
 mod:
-	@go mod tidy
+	@go mod tidy -compat=1.18
 
 pre-build:
 	@echo "Fetching latest tags"
@@ -32,9 +32,9 @@ build: mod
 	@go install github.com/gobuffalo/packr/v2/packr2@latest
 	@cd ./cmd/celestia-appd && packr2
 	@mkdir -p build/
-	@go build -o build/ ./cmd/celestia-appd
+	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
 	@packr2 clean
-	@go mod tidy
+	@go mod tidy -compat=1.18
 
 install: go.sum
 		@echo "--> Installing celestia-appd"
@@ -77,7 +77,7 @@ test-unit:
 	@VERSION=$(VERSION) go test -mod=readonly -tags='ledger test_ledger_mock' ./...
 
 test-race:
-	@VERSION=$(VERSION) go test -mod=readonly -race -tags='ledger test_ledger_mock' ./...
+	@VERSION=$(VERSION) go test -mod=readonly -race -test.short -tags='ledger test_ledger_mock' ./...
 
 benchmark:
 	@go test -mod=readonly -bench=. ./...
@@ -85,6 +85,3 @@ benchmark:
 test-cover:
 	@export VERSION=$(VERSION); bash -x contrib/test_cover.sh
 .PHONY: test-cover
-
-
-

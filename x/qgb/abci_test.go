@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/testutil"
-
 	"github.com/celestiaorg/celestia-app/x/qgb"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
+	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,10 +38,11 @@ func TestValsetCreationUponUnbonding(t *testing.T) {
 
 	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
 	// begin unbonding
-	sh := staking.NewHandler(input.StakingKeeper)
+	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
 	undelegateMsg := testutil.NewTestMsgUnDelegateValidator(testutil.ValAddrs[0], testutil.StakingAmount)
 	// nolint
-	sh(input.Context, undelegateMsg)
+	_, err = msgServer.Undelegate(input.Context, undelegateMsg)
+	require.NoError(t, err)
 
 	// Run the staking endblocker to ensure valset is set in state
 	staking.EndBlocker(input.Context, input.StakingKeeper)

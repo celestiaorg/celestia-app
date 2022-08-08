@@ -1,7 +1,9 @@
 # Quantum Gravity Bridge end to end integration test
+
 This directory contains the QGB e2e integration tests. It serves as a way to fully test the QGB orchestrator and relayer in real network scenarios
 
 ## Topology
+
 as discussed under [#398](https://github.com/celestiaorg/celestia-app/issues/398) The e2e network defined under `qgb_network.go` has the following components:
 
 - 4 Celestia-app nodes that can be validators
@@ -14,30 +16,34 @@ For more information on the environment variables required to run these tests, p
 
 ## How to run
 
-#### Requirements
+### Requirements
+
 To run the e2e tests, a working installation of [docker-compose](https://docs.docker.com/compose/install/) is  needed.
 
 ### Makefile
+
 A Makefile has been defined under this directory to run the tests, with a `test` target:
 
 ```shell
-$ make test
+make test
 ```
 
 ### Run a specific test
+
 To run a single test, run the following:
 
 ```shell
-$ QGB_INTEGRATION_TEST=true go test -mod=readonly -test.timeout 30m -v -run <test_name>
+QGB_INTEGRATION_TEST=true go test -mod=readonly -test.timeout 30m -v -run <test_name>
 ```
 
 ### Run all the tests using `go` directly
 
 ```shell
-$ QGB_INTEGRATION_TEST=true go test -mod=readonly -test.timeout 30m -v
+QGB_INTEGRATION_TEST=true go test -mod=readonly -test.timeout 30m -v
 ```
 
 ## Common issues
+
 Currently, when the tests are run using the above ways, there are possible issues that might happen.
 
 ### hanging docker containers after a sudden network stop
@@ -64,7 +70,7 @@ Attaching to 626fbf28-7c90-4842-be8e-3346f864b369_ganache_1
 To fix it, run the `cleanup.sh` script under `scripts` directory :
 
 ```shell
-$ ./scripts/cleanup.sh
+./scripts/cleanup.sh
 ```
 
 NB : This will kill and remove hanging containers and networks related to the executed. But, might also delete unrelated ones if they have the same name.

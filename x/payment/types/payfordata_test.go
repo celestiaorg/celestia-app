@@ -2,15 +2,13 @@ package types
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 
-	sdkclient "github.com/cosmos/cosmos-sdk/client"
+	sdkerrors "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 func TestMountainRange(t *testing.T) {
@@ -41,7 +39,7 @@ func TestMountainRange(t *testing.T) {
 	}
 }
 
-func TestNextPowerOf2(t *testing.T) {
+func TestNextLowestPowerOf2(t *testing.T) {
 	type test struct {
 		input    uint64
 		expected uint64
@@ -69,7 +67,40 @@ func TestNextPowerOf2(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		res := nextPowerOf2(tt.input)
+		res := nextLowestPowerOf2(tt.input)
+		assert.Equal(t, tt.expected, res)
+	}
+}
+
+func TestNextHighestPowerOf2(t *testing.T) {
+	type test struct {
+		input    uint64
+		expected uint64
+	}
+	tests := []test{
+		{
+			input:    2,
+			expected: 4,
+		},
+		{
+			input:    11,
+			expected: 16,
+		},
+		{
+			input:    511,
+			expected: 512,
+		},
+		{
+			input:    1,
+			expected: 2,
+		},
+		{
+			input:    0,
+			expected: 0,
+		},
+	}
+	for _, tt := range tests {
+		res := NextHighestPowerOf2(tt.input)
 		assert.Equal(t, tt.expected, res)
 	}
 }
@@ -126,7 +157,7 @@ func TestCreateCommitment(t *testing.T) {
 			k:         4,
 			namespace: bytes.Repeat([]byte{0xFF}, 8),
 			message:   bytes.Repeat([]byte{0xFF}, 11*ShareSize),
-			expected:  []byte{0x1c, 0x57, 0x89, 0x2f, 0xbe, 0xbf, 0xa2, 0xa4, 0x4c, 0x41, 0x9e, 0x2d, 0x88, 0xd5, 0x87, 0xc0, 0xbd, 0x37, 0xc0, 0x85, 0xbd, 0x10, 0x3c, 0x36, 0xd9, 0xa2, 0x4d, 0x4e, 0x31, 0xa2, 0xf8, 0x4e},
+			expected:  []byte{0xf2, 0xd4, 0xfc, 0x39, 0x4e, 0xf3, 0x97, 0x9d, 0xf4, 0x4c, 0x99, 0x87, 0x36, 0x7d, 0x7d, 0x4, 0xf2, 0xa7, 0x89, 0x26, 0x6d, 0xf5, 0x78, 0xe1, 0xff, 0x72, 0xb4, 0x75, 0x12, 0x1e, 0x71, 0xc3},
 		},
 		{
 			k:         2,
@@ -146,35 +177,6 @@ func TestCreateCommitment(t *testing.T) {
 	}
 }
 
-func TestPadMessage(t *testing.T) {
-	type test struct {
-		input    []byte
-		expected []byte
-	}
-	tests := []test{
-		{
-			input:    []byte{1},
-			expected: append([]byte{1}, bytes.Repeat([]byte{0}, ShareSize-1)...),
-		},
-		{
-			input:    []byte{},
-			expected: []byte{},
-		},
-		{
-			input:    bytes.Repeat([]byte{1}, ShareSize),
-			expected: bytes.Repeat([]byte{1}, ShareSize),
-		},
-		{
-			input:    bytes.Repeat([]byte{1}, (3*ShareSize)-10),
-			expected: append(bytes.Repeat([]byte{1}, (3*ShareSize)-10), bytes.Repeat([]byte{0}, 10)...),
-		},
-	}
-	for _, tt := range tests {
-		res := padMessage(tt.input)
-		assert.Equal(t, tt.expected, res)
-	}
-}
-
 // TestSignMalleatedTxs checks to see that the signatures that are generated for
 // the PayForDatas malleated from the original WirePayForData are actually
 // valid.
@@ -188,24 +190,34 @@ func TestSignMalleatedTxs(t *testing.T) {
 
 	kb := generateKeyring(t, "test")
 
-	signer := NewKeyringSigner(kb, "test", "chain-id")
+	signer := NewKeyringSigner(kb, "test", "test-chain-id")
 
 	tests := []test{
 		{
 			name:    "single share",
 			ns:      []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			msg:     bytes.Repeat([]byte{1}, ShareSize-8),
+			msg:     bytes.Repeat([]byte{1}, consts.MsgShareSize),
 			ss:      []uint64{2, 4, 8, 16},
 			options: []TxBuilderOption{SetGasLimit(2000000)},
 		},
 		{
-			name: "15 shares",
+			name: "12 shares",
 			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:  bytes.Repeat([]byte{2}, ShareSize*12),
+			msg:  bytes.Repeat([]byte{2}, (consts.MsgShareSize*12)-4), // subtract a few bytes for the delimiter
 			ss:   []uint64{4, 8, 16, 64},
 			options: []TxBuilderOption{
 				SetGasLimit(123456789),
-				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("tio", sdk.NewInt(987654321)))),
+				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321)))),
+			},
+		},
+		{
+			name: "12 shares",
+			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:  bytes.Repeat([]byte{1, 2, 3, 4, 5}, 10000), // subtract a few bytes for the delimiter
+			ss:   AllSquareSizes(50000),
+			options: []TxBuilderOption{
+				SetGasLimit(123456789),
+				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321)))),
 			},
 		},
 	}
@@ -219,41 +231,18 @@ func TestSignMalleatedTxs(t *testing.T) {
 		// the signature should exist
 		assert.Equal(t, len(wpfd.MessageShareCommitment[0].Signature), 64)
 
-		// verify the signature for the PayForDatas derived from the
-		// WirePayForData
-		for i, size := range tt.ss {
-			unsignedPFD, err := wpfd.unsignedPayForData(size)
-			require.NoError(t, err)
+		sData, err := signer.GetSignerData()
+		require.NoError(t, err)
 
-			// create a new tx builder to create an unsigned PayForData
-			builder := applyOptions(signer.NewTxBuilder(), tt.options...)
-			tx, err := signer.BuildSignedTx(builder, unsignedPFD)
-			require.NoError(t, err)
+		wpfdTx, err := signer.BuildSignedTx(signer.NewTxBuilder(tt.options...), wpfd)
+		require.NoError(t, err)
 
-			// Generate the bytes to be signed.
-			bytesToSign, err := signer.encCfg.TxConfig.SignModeHandler().GetSignBytes(
-				signing.SignMode_SIGN_MODE_DIRECT,
-				authsigning.SignerData{
-					ChainID:       signer.chainID,
-					AccountNumber: signer.accountNumber,
-					Sequence:      signer.sequence,
-				},
-				tx,
-			)
-			require.NoError(t, err)
-
-			// compare the commitments generated by the WirePayForData with
-			// that of independently generated PayForData
-			assert.Equal(t, unsignedPFD.MessageShareCommitment, wpfd.MessageShareCommitment[i].ShareCommitment)
-
-			// verify the signature
-			assert.True(t, signer.GetSignerInfo().GetPubKey().VerifySignature(
-				bytesToSign,
-				wpfd.MessageShareCommitment[i].Signature,
-			),
-				fmt.Sprintf("test: %s size: %d", tt.name, size),
-			)
-		}
+		// VerifyPFDSigs goes through the entire malleation process for every
+		// square size, creating PfDs from the wirePfD and check that the
+		// signature is valid
+		valid, err := VerifyPFDSigs(sData, signer.encCfg.TxConfig, wpfdTx)
+		assert.NoError(t, err)
+		assert.True(t, valid, tt.name)
 	}
 }
 
@@ -278,21 +267,21 @@ func TestProcessMessage(t *testing.T) {
 		{
 			name:   "single share square size 2",
 			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			msg:    bytes.Repeat([]byte{1}, ShareSize),
+			msg:    bytes.Repeat([]byte{1}, totalMsgSize(consts.MsgShareSize)),
 			ss:     2,
 			modify: dontModify,
 		},
 		{
 			name:   "15 shares square size 4",
 			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:    bytes.Repeat([]byte{2}, ShareSize*15),
+			msg:    bytes.Repeat([]byte{2}, totalMsgSize(consts.MsgShareSize*15)),
 			ss:     4,
 			modify: dontModify,
 		},
 		{
-			name: "",
+			name: "incorrect square size",
 			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:  bytes.Repeat([]byte{2}, ShareSize*15),
+			msg:  bytes.Repeat([]byte{2}, totalMsgSize(consts.MsgShareSize*15)),
 			ss:   4,
 			modify: func(wpfd *MsgWirePayForData) *MsgWirePayForData {
 				wpfd.MessageShareCommitment[0].K = 99999
@@ -326,6 +315,61 @@ func TestProcessMessage(t *testing.T) {
 	}
 }
 
+func TestValidateBasic(t *testing.T) {
+	type test struct {
+		name    string
+		msg     *MsgPayForData
+		wantErr *sdkerrors.Error
+	}
+
+	validMsg := validMsgPayForData(t)
+
+	// MsgPayForData that uses parity shares namespace id
+	paritySharesMsg := validMsgPayForData(t)
+	paritySharesMsg.MessageNamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+
+	// MsgPayForData that uses tail padding namespace id
+	tailPaddingMsg := validMsgPayForData(t)
+	tailPaddingMsg.MessageNamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
+
+	tests := []test{
+		{
+			name:    "valid msg",
+			msg:     validMsg,
+			wantErr: nil,
+		},
+		{
+			name:    "parity shares namespace id",
+			msg:     paritySharesMsg,
+			wantErr: ErrParitySharesNamespace,
+		},
+		{
+			name:    "tail padding namespace id",
+			msg:     tailPaddingMsg,
+			wantErr: ErrTailPaddingNamespace,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.msg.ValidateBasic()
+			if tt.wantErr != nil {
+				assert.Contains(t, err.Error(), tt.wantErr.Error())
+				space, code, log := sdkerrors.ABCIInfo(err, false)
+				assert.Equal(t, tt.wantErr.Codespace(), space)
+				assert.Equal(t, tt.wantErr.ABCICode(), code)
+				t.Log(log)
+			}
+		})
+	}
+}
+
+// totalMsgSize subtracts the delimiter size from the desired total size. this
+// is useful for testing for messages that occupy exactly so many shares.
+func totalMsgSize(size int) int {
+	return size - DelimLen(uint64(size))
+}
+
 func validWirePayForData(t *testing.T) *MsgWirePayForData {
 	msg, err := NewWirePayForData(
 		[]byte{1, 2, 3, 4, 5, 6, 7, 8},
@@ -345,9 +389,21 @@ func validWirePayForData(t *testing.T) *MsgWirePayForData {
 	return msg
 }
 
-func applyOptions(builder sdkclient.TxBuilder, options ...TxBuilderOption) sdkclient.TxBuilder {
-	for _, option := range options {
-		builder = option(builder)
-	}
-	return builder
+func validMsgPayForData(t *testing.T) *MsgPayForData {
+	kb := generateKeyring(t, "test")
+	signer := NewKeyringSigner(kb, "test", "chain-id")
+	ns := []byte{1, 1, 1, 1, 1, 1, 1, 2}
+	msg := bytes.Repeat([]byte{2}, totalMsgSize(consts.MsgShareSize*15))
+	ss := uint64(4)
+
+	wpfd, err := NewWirePayForData(ns, msg, ss)
+	assert.NoError(t, err)
+
+	err = wpfd.SignShareCommitments(signer)
+	assert.NoError(t, err)
+
+	_, spfd, _, err := ProcessWirePayForData(wpfd, ss)
+	require.NoError(t, err)
+
+	return spfd
 }

@@ -27,7 +27,7 @@ func setupTestOrchestrator(t *testing.T, bc orchestrator.BroadcasterI) *orchestr
 		0)
 	mockRetier := NewMockRetrier()
 
-	return orchestrator.NewOrchestrator(
+	orch, err := orchestrator.NewOrchestrator(
 		tmlog.NewTMLogger(os.Stdout),
 		mockQuerier,
 		bc,
@@ -35,6 +35,10 @@ func setupTestOrchestrator(t *testing.T, bc orchestrator.BroadcasterI) *orchestr
 		testutil.GenerateKeyringSigner(t, testutil.TestAccName),
 		*priv,
 	)
+	if err != nil {
+		panic(err)
+	}
+	return orch
 }
 
 // nolint

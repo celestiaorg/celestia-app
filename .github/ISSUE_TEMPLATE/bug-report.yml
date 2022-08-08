@@ -1,0 +1,47 @@
+name: Bug Report
+description: Create a report to help us squash bugs!
+title: "<title>"
+labels: ["bug"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        IMPORTANT: Prior to opening a bug report, check if it affects one of the core modules
+        and if its eligible for a bug bounty on `SECURITY.md`. Bugs that are not submitted
+        through the appropriate channels won't receive any bounty.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary of Bug
+      description: Concisely describe the issue.
+    validations:
+      required: true
+
+  - type: textarea
+    id: version
+    attributes:
+      label: Version
+      description: git commit hash or release version
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to Reproduce
+      description: What commands in order should someone run to reproduce your problem?
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: admin
+    attributes:
+      label: For Admin Use
+      description: (do not edit)
+      options:
+        - label: Not duplicate issue
+        - label: Appropriate labels applied
+        - label: Appropriate contributors tagged
+        - label: Contributor assigned/self-assigned

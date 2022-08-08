@@ -24,7 +24,7 @@ type Relayer struct {
 func NewRelayer(querier Querier, evmClient EVMClient, logger tmlog.Logger) (*Relayer, error) {
 	return &Relayer{
 		querier:   querier,
-		bridgeID:  types.BridgeId,
+		bridgeID:  types.BridgeID,
 		evmClient: evmClient,
 		logger:    logger,
 	}, nil

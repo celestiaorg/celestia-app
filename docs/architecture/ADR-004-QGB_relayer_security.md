@@ -2,7 +2,7 @@
 
 ## Changelog
 
-- 2022-06-05: Synchronous QGB implementation 
+- 2022-06-05: Synchronous QGB implementation
 
 ## Context
 
@@ -36,7 +36,7 @@ Then, this would create holes in the signatures as the honest relayer will no lo
 
 ## Alternative Approaches
 
-###  More  synchrony : Deploy the QGB contract with a data commitment window
+### More  synchrony : Deploy the QGB contract with a data commitment window
 
 When deploying the QGB  contract,  also  set the data commitment window,  ie, the number of blocks between the `beginBlock` and `endBlock` of each data  commitment confirm.
 
@@ -45,9 +45,9 @@ Then, update the QGB contract to check when receiving a new valset if the latest
 This also would mean adding, for example, a `DataCommitmentWindowConfirm` representing signatures of the validator set for a certain `DataCommitmentWindow`, since this latter can be updated using gov proposals.
 
 - Cons:
-	- More complexity and state in the contract
+  - More complexity and state in the contract
 - Pros:
-	- Fix the race condition issue
+  - Fix the race condition issue
 
 ### Synchronous QGB : Universal nonce approach
 
@@ -62,11 +62,11 @@ This approach consists of switching to a synchronous QGB design utilizing univer
 
 Update the QGB contract to store the valset hashes + their nonces:
 
-- Cons:  
-		- Would make the contract more complex  
-- Pros:  
-		- Would make the relayer parallelizable (can submit data commitments and valsets in any order as long as the valset is committed)  
-		- would allow the QGB to catchup correctly even in the existence of a malicious relayer  
+- Cons:
+  - Would make the contract more complex  
+- Pros:
+  - Would make the relayer parallelizable (can submit data commitments and valsets in any order as long as the valset is committed)  
+  - would allow the QGB to catchup correctly even in the existence of a malicious relayer  
 
 ### A request oriented design
 
@@ -79,10 +79,9 @@ The main issue with this approach is spamming and state bloat. In fact, allowing
 A proposition to remediate the issues described above is to make the signatures part of the block data in specific namespaces. Then, we can charge per request and even make asking for attestations signatures a bit costly.
 
 - Pros
-	- Would allow anyone to ask for signatures over commitments, ie, the QGB can then be used by any team without changing anything.
-
+  - Would allow anyone to ask for signatures over commitments, ie, the QGB can then be used by any team without changing anything.
 - Cons
-	- Makes slashing more complicated. In fact, to slash for liveness, providing the whole history of blocks, proving that a certain orchestrator didn't sign an attestation in the given period, will be hard to implement and the proofs will be big. Compared to the attestations being part of the state, which can be queried easilly.
+  - Makes slashing more complicated. In fact, to slash for liveness, providing the whole history of blocks, proving that a certain orchestrator didn't sign an attestation in the given period, will be hard to implement and the proofs will be big. Compared to the attestations being part of the state, which can be queried easilly.
 
 ## Decision
 
@@ -98,4 +97,4 @@ Accepted
 
 ## References
 
-- Tracker issue for the tasks: https://github.com/celestiaorg/celestia-app/issues/467
+- Tracker issue for the tasks [here](https://github.com/celestiaorg/celestia-app/issues/467).

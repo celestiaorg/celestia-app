@@ -107,7 +107,7 @@ func (ec *evmClient) DeployQGBContract(
 	addr, tx, bridge, err := wrapper.DeployQuantumGravityBridge(
 		opts,
 		ethClient,
-		types.BridgeId,
+		types.BridgeID,
 		big.NewInt(int64(contractInitNonce)),
 		big.NewInt(int64(contractInitValset.TwoThirdsThreshold())),
 		ethVsHash,

@@ -5,18 +5,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/tendermint/spm/cosmoscmd"
 	"github.com/tendermint/tendermint/libs/bytes"
-	coretypes "github.com/tendermint/tendermint/rpc/core/types"
-
-	"github.com/tendermint/tendermint/rpc/client/http"
-
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	tmlog "github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/rpc/client/http"
+	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var _ Querier = &querier{}
@@ -85,15 +84,15 @@ type querier struct {
 	qgbRPC        *grpc.ClientConn
 	logger        tmlog.Logger
 	tendermintRPC *http.HTTP
-	encCfg        cosmoscmd.EncodingConfig
+	encCfg        encoding.Config
 }
 
 func NewQuerier(
 	qgbRPCAddr, tendermintRPC string,
 	logger tmlog.Logger,
-	encCft cosmoscmd.EncodingConfig,
+	encCft encoding.Config,
 ) (*querier, error) {
-	qgbGRPC, err := grpc.Dial(qgbRPCAddr, grpc.WithInsecure())
+	qgbGRPC, err := grpc.Dial(qgbRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
