@@ -22,7 +22,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/pkg/consts"
-	rpctypes "github.com/tendermint/tendermint/rpc/coretypes"
+	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -30,7 +30,7 @@ type IntegrationTestSuite struct {
 	suite.Suite
 
 	cfg      cosmosnet.Config
-	encCfg   encoding.EncodingConfig
+	encCfg   encoding.Config
 	network  *cosmosnet.Network
 	kr       keyring.Keyring
 	accounts []string
@@ -60,7 +60,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	s.network = net
 	s.kr = net.Validators[0].ClientCtx.Keyring
-	s.encCfg = encoding.MakeEncodingConfig(app.ModuleEncodingRegisters...)
+	s.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	_, err = s.network.WaitForHeight(1)
 	s.Require().NoError(err)
@@ -121,7 +121,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			}
 
 			// wait a few blocks to clear the txs
-			for i := 0; i < 10; i++ {
+			for i := 0; i < 8; i++ {
 				require.NoError(s.network.WaitForNextBlock())
 			}
 
@@ -222,7 +222,7 @@ func TestIntegrationTestSuite(t *testing.T) {
 	cfg := network.DefaultConfig()
 	cfg.EnableTMLogging = false
 	cfg.MinGasPrices = "0utia"
-	cfg.NumValidators = 2
+	cfg.NumValidators = 1
 	suite.Run(t, NewIntegrationTestSuite(cfg))
 }
 

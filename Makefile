@@ -22,7 +22,7 @@ BUILD_FLAGS := -ldflags '$(ldflags)'
 all: install
 
 mod:
-	@go mod tidy -compat=1.17
+	@go mod tidy -compat=1.18
 
 pre-build:
 	@echo "Fetching latest tags"
@@ -32,9 +32,9 @@ build: mod
 	@go install github.com/gobuffalo/packr/v2/packr2@latest
 	@cd ./cmd/celestia-appd && packr2
 	@mkdir -p build/
-	@go build -o build/ ./cmd/celestia-appd
+	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
 	@packr2 clean
-	@go mod tidy -compat=1.17
+	@go mod tidy -compat=1.18
 
 install: go.sum
 		@echo "--> Installing celestia-appd"
@@ -85,6 +85,3 @@ benchmark:
 test-cover:
 	@export VERSION=$(VERSION); bash -x contrib/test_cover.sh
 .PHONY: test-cover
-
-
-

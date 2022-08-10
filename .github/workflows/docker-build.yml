@@ -3,22 +3,22 @@ name: "docker-build"
 on:
   push:
     branches:
-      - "master"
+      - "main"
   workflow_dispatch:
 
 jobs:
   docker-build:
     runs-on: "ubuntu-latest"
     permissions:
-      contents: write 
-      packages: write 
+      contents: write
+      packages: write
     steps:
       - name: "Checkout source code"
         uses: "actions/checkout@v3"
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.17
+          go-version: 1.18
       - name: "Build"
         run: "make build"
       - name: Set up QEMU
@@ -49,7 +49,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.17
+          go-version: 1.18
       - name: "Build"
         run: "make build"
       - name: Set up QEMU

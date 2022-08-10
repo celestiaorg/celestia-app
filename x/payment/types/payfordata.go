@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"math/bits"
@@ -48,6 +49,16 @@ func (msg *MsgPayForData) ValidateBasic() error {
 	_, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		return err
+	}
+
+	// ensure that ParitySharesNamespaceID is not used
+	if bytes.Equal(msg.GetMessageNamespaceId(), consts.ParitySharesNamespaceID) {
+		return ErrParitySharesNamespace
+	}
+
+	// ensure that TailPaddingNamespaceID is not used
+	if bytes.Equal(msg.GetMessageNamespaceId(), consts.TailPaddingNamespaceID) {
+		return ErrTailPaddingNamespace
 	}
 
 	return nil
@@ -160,7 +171,7 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 }
 
 // powerOf2MountainRange returns the heights of the subtrees for binary merkle
-// mountian range
+// mountain range
 func powerOf2MountainRange(l, k uint64) []uint64 {
 	var output []uint64
 
@@ -215,9 +226,8 @@ func nextLowestPowerOf2(v uint64) uint64 {
 func powerOf2(v uint64) bool {
 	if v&(v-1) == 0 && v != 0 {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 // DelimLen calculates the length of the delimiter for a given message size

@@ -13,17 +13,17 @@ type ModuleRegister interface {
 	RegisterInterfaces(codectypes.InterfaceRegistry)
 }
 
-// EncodingConfig specifies the concrete encoding types to use for a given app.
+// Config specifies the concrete encoding types to use for a given app.
 // This is provided for compatibility between protobuf and amino implementations.
-type EncodingConfig struct {
+type Config struct {
 	InterfaceRegistry codectypes.InterfaceRegistry
 	Codec             codec.Codec
 	TxConfig          client.TxConfig
 	Amino             *codec.LegacyAmino
 }
 
-// MakeEncodingConfig creates an encoding config for the app.
-func MakeEncodingConfig(regs ...ModuleRegister) EncodingConfig {
+// MakeConfig creates an encoding config for the app.
+func MakeConfig(regs ...ModuleRegister) Config {
 	// create the codec
 	amino := codec.NewLegacyAmino()
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
@@ -42,7 +42,7 @@ func MakeEncodingConfig(regs ...ModuleRegister) EncodingConfig {
 	marshaler := codec.NewProtoCodec(interfaceRegistry)
 	txCfg := tx.NewTxConfig(marshaler, tx.DefaultSignModes)
 
-	return EncodingConfig{
+	return Config{
 		InterfaceRegistry: interfaceRegistry,
 		Codec:             marshaler,
 		TxConfig:          txCfg,
