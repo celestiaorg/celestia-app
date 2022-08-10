@@ -221,6 +221,60 @@ func TestProcessMessagesWithReservedNamespaces(t *testing.T) {
 	}
 }
 
+func TestProcessMessageWithOutOfOrderMessages(t *testing.T) {
+	testApp := testutil.SetupTestAppWithGenesisValSet(t)
+	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	signer := testutil.GenerateKeyringSigner(t, testAccName)
+
+	namespaceOne := namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}
+	namespaceTwo := namespace.ID{2, 2, 2, 2, 2, 2, 2, 2}
+
+	pfdOne, msgOne := genRandMsgPayForDataForNamespace(t, signer, 8, namespaceOne)
+	pfdTwo, msgTwo := genRandMsgPayForDataForNamespace(t, signer, 8, namespaceTwo)
+
+	input := abci.RequestProcessProposal{
+		BlockData: &core.Data{
+			Txs: [][]byte{
+				buildTx(t, signer, encConf.TxConfig, pfdOne),
+				buildTx(t, signer, encConf.TxConfig, pfdTwo),
+			},
+			Messages: core.Messages{
+				MessagesList: []*core.Message{
+					{
+						NamespaceId: pfdTwo.GetMessageNamespaceId(),
+						Data:        msgTwo,
+					},
+					{
+						NamespaceId: pfdOne.GetMessageNamespaceId(),
+						Data:        msgOne,
+					},
+				},
+			},
+			OriginalSquareSize: 8,
+		},
+	}
+	data, err := coretypes.DataFromProto(input.BlockData)
+	require.NoError(t, err)
+
+	shares, _, err := data.ComputeShares(input.BlockData.OriginalSquareSize)
+	require.NoError(t, err)
+
+	rawShares := shares.RawShares()
+
+	require.NoError(t, err)
+	eds, err := da.ExtendShares(input.BlockData.OriginalSquareSize, rawShares)
+	require.NoError(t, err)
+	dah := da.NewDataAvailabilityHeader(eds)
+	input.Header.DataHash = dah.Hash()
+
+	got := testApp.ProcessProposal(input)
+
+	// Question: why does ProcessProposal accept this block if the messages are
+	// out of order with respect to namespace ID?
+	assert.Equal(t, got.Result, abci.ResponseProcessProposal_ACCEPT)
+}
+
 func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
