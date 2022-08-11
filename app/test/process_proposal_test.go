@@ -221,7 +221,7 @@ func TestProcessMessagesWithReservedNamespaces(t *testing.T) {
 	}
 }
 
-func TestProcessMessageWithOutOfOrderMessages(t *testing.T) {
+func TestProcessMessageWithUnsortedMessages(t *testing.T) {
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
@@ -270,9 +270,7 @@ func TestProcessMessageWithOutOfOrderMessages(t *testing.T) {
 
 	got := testApp.ProcessProposal(input)
 
-	// Question: why does ProcessProposal accept this block if the messages are
-	// out of order with respect to namespace ID?
-	assert.Equal(t, got.Result, abci.ResponseProcessProposal_ACCEPT)
+	assert.Equal(t, got.Result, abci.ResponseProcessProposal_REJECT)
 }
 
 func TestProcessMessageWithParityShareNamespaces(t *testing.T) {

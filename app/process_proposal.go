@@ -107,6 +107,13 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
+	if !data.Messages.IsSorted() {
+		app.Logger().Error(rejectedPropBlockLog, "reason", "messages are unsorted", "error", err)
+		return abci.ResponseProcessProposal{
+			Result: abci.ResponseProcessProposal_REJECT,
+		}
+	}
+
 	shares, _, err := data.ComputeShares(req.BlockData.OriginalSquareSize)
 	if err != nil {
 		app.Logger().Error(rejectedPropBlockLog, "reason", "failure to compute shares from block data:", "error", err)
