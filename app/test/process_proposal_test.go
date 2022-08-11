@@ -29,10 +29,10 @@ func TestMessageInclusionCheck(t *testing.T) {
 
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	firstValidPFD, msg1 := genRandMsgPayForData(t, signer, 8)
-	secondValidPFD, msg2 := genRandMsgPayForData(t, signer, 8)
+	firstValidPFD, msg1 := genRandMsgPayForDataForNamespace(t, signer, 8, namespace.ID{1, 1, 1, 1, 1, 1, 1, 1})
+	secondValidPFD, msg2 := genRandMsgPayForDataForNamespace(t, signer, 8, namespace.ID{2, 2, 2, 2, 2, 2, 2, 2})
 
-	invalidCommitmentPFD, msg3 := genRandMsgPayForData(t, signer, 4)
+	invalidCommitmentPFD, msg3 := genRandMsgPayForDataForNamespace(t, signer, 4, namespace.ID{3, 3, 3, 3, 3, 3, 3, 3})
 	invalidCommitmentPFD.MessageShareCommitment = tmrand.Bytes(32)
 
 	// block with all messages included
