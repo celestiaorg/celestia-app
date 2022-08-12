@@ -123,11 +123,11 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	}
 }
 
-func logInvalidPropBlock(l log.Logger, h tmproto.Header, msg string) {
+func logInvalidPropBlock(l log.Logger, h tmproto.Header, reason string) {
 	l.Error(
 		rejectedPropBlockLog,
 		"reason",
-		msg,
+		reason,
 		"proposer",
 		h.ProposerAddress,
 	)
