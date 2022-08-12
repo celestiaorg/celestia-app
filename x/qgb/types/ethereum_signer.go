@@ -32,7 +32,7 @@ func EthAddressFromSignature(hash []byte, signature []byte) (common.Address, err
 	}
 	pubKey, err := crypto.UnmarshalPubkey(sigPublicKey)
 	if err != nil {
-		return common.Address{}, sdkerrors.Wrap(err, "unmarshall signture public key failed")
+		return common.Address{}, sdkerrors.Wrap(err, "unmarshalling signature' public key failed")
 	}
 	addr := crypto.PubkeyToAddress(*pubKey)
 	return addr, nil
