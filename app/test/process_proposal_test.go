@@ -94,7 +94,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 		OriginalSquareSize: 4,
 	}
 
-	// block with all messages included
+	// block with extra message included
 	extraMessageData := core.Data{
 		Txs: [][]byte{
 			buildTx(t, signer, encConf.TxConfig, firstValidPFD),
