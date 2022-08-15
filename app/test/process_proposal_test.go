@@ -300,13 +300,6 @@ func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
 	assert.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
 }
 
-func genRandMsgPayForData(t *testing.T, signer *types.KeyringSigner, squareSize uint64) (*types.MsgPayForData, []byte) {
-	ns := make([]byte, consts.NamespaceSize)
-	_, err := rand.Read(ns)
-	require.NoError(t, err)
-	return genRandMsgPayForDataForNamespace(t, signer, squareSize, ns)
-}
-
 func genRandMsgPayForDataForNamespace(t *testing.T, signer *types.KeyringSigner, squareSize uint64, ns namespace.ID) (*types.MsgPayForData, []byte) {
 	message := make([]byte, randomInt(20))
 	_, err := rand.Read(message)
