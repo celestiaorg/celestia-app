@@ -29,10 +29,10 @@ func TestMessageInclusionCheck(t *testing.T) {
 
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	firstValidPFD, msg1 := genRandMsgPayForData(t, signer, 8)
-	secondValidPFD, msg2 := genRandMsgPayForData(t, signer, 8)
+	firstValidPFD, msg1 := genRandMsgPayForDataForNamespace(t, signer, 8, namespace.ID{1, 1, 1, 1, 1, 1, 1, 1})
+	secondValidPFD, msg2 := genRandMsgPayForDataForNamespace(t, signer, 8, namespace.ID{2, 2, 2, 2, 2, 2, 2, 2})
 
-	invalidCommitmentPFD, msg3 := genRandMsgPayForData(t, signer, 4)
+	invalidCommitmentPFD, msg3 := genRandMsgPayForDataForNamespace(t, signer, 4, namespace.ID{3, 3, 3, 3, 3, 3, 3, 3})
 	invalidCommitmentPFD.MessageShareCommitment = tmrand.Bytes(32)
 
 	// block with all messages included
@@ -221,6 +221,58 @@ func TestProcessMessagesWithReservedNamespaces(t *testing.T) {
 	}
 }
 
+func TestProcessMessageWithUnsortedMessages(t *testing.T) {
+	testApp := testutil.SetupTestAppWithGenesisValSet(t)
+	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	signer := testutil.GenerateKeyringSigner(t, testAccName)
+
+	namespaceOne := namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}
+	namespaceTwo := namespace.ID{2, 2, 2, 2, 2, 2, 2, 2}
+
+	pfdOne, msgOne := genRandMsgPayForDataForNamespace(t, signer, 8, namespaceOne)
+	pfdTwo, msgTwo := genRandMsgPayForDataForNamespace(t, signer, 8, namespaceTwo)
+
+	input := abci.RequestProcessProposal{
+		BlockData: &core.Data{
+			Txs: [][]byte{
+				buildTx(t, signer, encConf.TxConfig, pfdOne),
+				buildTx(t, signer, encConf.TxConfig, pfdTwo),
+			},
+			Messages: core.Messages{
+				MessagesList: []*core.Message{
+					{
+						NamespaceId: pfdTwo.GetMessageNamespaceId(),
+						Data:        msgTwo,
+					},
+					{
+						NamespaceId: pfdOne.GetMessageNamespaceId(),
+						Data:        msgOne,
+					},
+				},
+			},
+			OriginalSquareSize: 8,
+		},
+	}
+	data, err := coretypes.DataFromProto(input.BlockData)
+	require.NoError(t, err)
+
+	shares, _, err := data.ComputeShares(input.BlockData.OriginalSquareSize)
+	require.NoError(t, err)
+
+	rawShares := shares.RawShares()
+
+	require.NoError(t, err)
+	eds, err := da.ExtendShares(input.BlockData.OriginalSquareSize, rawShares)
+	require.NoError(t, err)
+	dah := da.NewDataAvailabilityHeader(eds)
+	input.Header.DataHash = dah.Hash()
+
+	got := testApp.ProcessProposal(input)
+
+	assert.Equal(t, got.Result, abci.ResponseProcessProposal_REJECT)
+}
+
 func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -246,13 +298,6 @@ func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
 	}
 	res := testApp.ProcessProposal(input)
 	assert.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
-}
-
-func genRandMsgPayForData(t *testing.T, signer *types.KeyringSigner, squareSize uint64) (*types.MsgPayForData, []byte) {
-	ns := make([]byte, consts.NamespaceSize)
-	_, err := rand.Read(ns)
-	require.NoError(t, err)
-	return genRandMsgPayForDataForNamespace(t, signer, squareSize, ns)
 }
 
 func genRandMsgPayForDataForNamespace(t *testing.T, signer *types.KeyringSigner, squareSize uint64, ns namespace.ID) (*types.MsgPayForData, []byte) {
