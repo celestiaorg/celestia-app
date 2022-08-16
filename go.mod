@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/celestiaorg/nmt v0.11.0
 	github.com/celestiaorg/quantum-gravity-bridge v1.2.0
+	github.com/cosmos/cosmos-sdk v0.44.3
 	github.com/ethereum/go-ethereum v1.10.17
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.2
@@ -14,6 +15,8 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/cobra v1.5.0
+	github.com/stretchr/testify v1.8.0
+	github.com/tendermint/tendermint v0.34.20
 	github.com/stretchr/testify v1.8.1
 	github.com/tendermint/tm-db v0.6.7
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
