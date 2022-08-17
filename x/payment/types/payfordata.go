@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"fmt"
 	"math/bits"
 
@@ -48,6 +49,16 @@ func (msg *MsgPayForData) ValidateBasic() error {
 	_, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		return err
+	}
+
+	// ensure that ParitySharesNamespaceID is not used
+	if bytes.Equal(msg.GetMessageNamespaceId(), consts.ParitySharesNamespaceID) {
+		return ErrParitySharesNamespace
+	}
+
+	// ensure that TailPaddingNamespaceID is not used
+	if bytes.Equal(msg.GetMessageNamespaceId(), consts.TailPaddingNamespaceID) {
+		return ErrTailPaddingNamespace
 	}
 
 	return nil
@@ -144,23 +155,20 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 	// create the commits by pushing each leaf set onto an nmt
 	subTreeRoots := make([][]byte, len(leafSets))
 	for i, set := range leafSets {
-		// create the nmt todo(evan) use nmt wrapper
-		tree := wrapper.NewErasuredNamespacedMerkleTree(k)
+		tree := wrapper.NewErasuredNamespacedMerkleTree(consts.MaxSquareSize)
 		for _, leaf := range set {
 			nsLeaf := append(make([]byte, 0), append(namespace, leaf...)...)
-			// note: we're not concerned about adding the correct namespace to
-			// erasure data since we're only dealing with original square data,
-			// so we can push to the wrapped nmt using Axis and Cell == 0
+			// here we hardcode pushing as axis 0 cell 0 because we never want
+			// to add the parity namespace to our shares when we create roots.
 			tree.Push(nsLeaf, rsmt2d.SquareIndex{Axis: 0, Cell: 0})
 		}
-		// add the root
 		subTreeRoots[i] = tree.Root()
 	}
 	return merkle.HashFromByteSlices(subTreeRoots), nil
 }
 
 // powerOf2MountainRange returns the heights of the subtrees for binary merkle
-// mountian range
+// mountain range
 func powerOf2MountainRange(l, k uint64) []uint64 {
 	var output []uint64
 
@@ -215,9 +223,8 @@ func nextLowestPowerOf2(v uint64) uint64 {
 func powerOf2(v uint64) bool {
 	if v&(v-1) == 0 && v != 0 {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 // DelimLen calculates the length of the delimiter for a given message size

@@ -2,7 +2,6 @@ package types
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -62,7 +61,7 @@ func TestBroadcastPayForData(t *testing.T) {
 	require.NoError(t, err)
 	addr, err := info.GetAddress()
 	require.NoError(t, err)
-	t.Skip(fmt.Sprintf("no local connection to app and no funds in wallet %s", addr))
+	t.Skipf("no local connection to app and no funds in wallet %s", addr)
 
 	k := NewKeyringSigner(testRing, testAccName, "test")
 

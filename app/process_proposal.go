@@ -63,6 +63,19 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	// iterate through all of the messages and ensure that a PFD with the exact
 	// commitment exists
 	for _, msg := range req.BlockData.Messages.MessagesList {
+		if err := types.ValidateMessageNamespaceID(msg.NamespaceId); err != nil {
+			app.Logger().Error(
+				rejectedPropBlockLog,
+				"reason",
+				"found a message that uses an invalid namespace id",
+				"error",
+				err.Error(),
+			)
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
+			}
+		}
+
 		commit, err := types.CreateCommitment(req.BlockData.OriginalSquareSize, msg.NamespaceId, msg.Data)
 		if err != nil {
 			app.Logger().Error(
@@ -89,6 +102,13 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	data, err := coretypes.DataFromProto(req.BlockData)
 	if err != nil {
 		app.Logger().Error(rejectedPropBlockLog, "reason", "failure to unmarshal block data:", "error", err)
+		return abci.ResponseProcessProposal{
+			Result: abci.ResponseProcessProposal_REJECT,
+		}
+	}
+
+	if !data.Messages.IsSorted() {
+		app.Logger().Error(rejectedPropBlockLog, "reason", "messages are unsorted", "error", err)
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
