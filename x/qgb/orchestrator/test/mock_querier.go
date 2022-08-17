@@ -120,8 +120,8 @@ func (q *mockQuerier) QueryLatestAttestationNonce(ctx context.Context) (uint64, 
 }
 
 // QueryCommitment queries the commitment over a set of blocks defined in the query.
-func (q mockQuerier) QueryCommitment(ctx context.Context, query string) (bytes.HexBytes, error) {
-	return commitmentFromQuery(query), nil
+func (q mockQuerier) QueryCommitment(ctx context.Context, beginBlock uint64, endBlock uint64) (bytes.HexBytes, error) {
+	return commitmentFromRange(beginBlock, endBlock), nil
 }
 
 func (q mockQuerier) SubscribeEvents(ctx context.Context, subscriptionName string, eventName string) (<-chan coretypes.ResultEvent, error) {
