@@ -147,22 +147,6 @@ func (r *Relayer) submitDataRootTupleRoot(
 	commitment string,
 	confirms []types.MsgDataCommitmentConfirm,
 ) error {
-	// sanitizing the confirms commitments
-	for _, conf := range confirms {
-		if conf.Commitment != commitment {
-			r.logger.Error("confirms don't have the same commitment",
-				"expected_commitment",
-				commitment,
-				"confirm_commitment",
-				conf.Commitment,
-				"nonce",
-				conf.Nonce,
-				"signer_eth_address",
-				conf.EthAddress)
-			return ErrInvalidCommitmentInConfirm
-		}
-	}
-
 	sigsMap := make(map[string]string)
 	// to fetch the signatures easilly by eth address
 	for _, c := range confirms {

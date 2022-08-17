@@ -160,6 +160,11 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 				return nil, err
 			}
 
+			// used to be tested against when checking if all confirms have the correct commitment.
+			// this can be extended to slashing the validators who proposed commitments that
+			// have wrong commitments or signatures.
+			// https://github.com/celestiaorg/celestia-app/pull/613/files#r947992851
+			commitment := q.QueryCommitment()
 			correctConfirms := make([]types.MsgDataCommitmentConfirm, 0)
 			for _, dataCommitmentConfirm := range confirms {
 				val, has := vals[dataCommitmentConfirm.EthAddress]
@@ -169,6 +174,17 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 						val.EthereumAddress,
 						valset.Nonce,
 					))
+					continue
+				}
+				if err := validateDCConfirm(commitment, dataCommitmentConfirm); err != nil {
+					q.logger.Error("found an invalid data commitment confirm",
+						"nonce",
+						dataCommitmentConfirm.Nonce,
+						"signer_eth_address",
+						dataCommitmentConfirm.EthAddress,
+						"err",
+						err.Error(),
+					)
 					continue
 				}
 				currThreshold += val.Power
@@ -195,6 +211,22 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 		// TODO: make the timeout configurable
 		time.Sleep(10 * time.Second)
 	}
+}
+
+// validateDCConfirm runs validation on the data commitment confirm to make sure it was well created.
+// it tests if the commitment it carries is the correct commitment. Then, checks whether the signature
+// is valid.
+func validateDCConfirm(commitment string, confirm types.MsgDataCommitmentConfirm) error {
+	if confirm.Commitment != commitment {
+		return ErrInvalidCommitmentInConfirm
+	}
+	bCommitment := common.Hex2Bytes(commitment)
+	dataRootHash := types.DataCommitmentTupleRootSignBytes(types.BridgeID, big.NewInt(int64(confirm.Nonce)), bCommitment)
+	err := types.ValidateEthereumSignature(dataRootHash.Bytes(), common.Hex2Bytes(confirm.Signature), common.HexToAddress(confirm.EthAddress))
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (q querier) QueryTwoThirdsValsetConfirms(
