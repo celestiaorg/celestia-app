@@ -264,7 +264,7 @@ func (q querier) QueryTwoThirdsValsetConfirms(
 				return confirms, nil
 			}
 			q.logger.Debug(
-				"foundValsetConfirms",
+				"found ValsetConfirms",
 				"nonce",
 				valset.Nonce,
 				"total_power",
