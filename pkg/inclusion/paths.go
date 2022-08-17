@@ -52,7 +52,7 @@ func calculateSubTreeRootCoordinates(maxDepth, start, end uint64) []coord {
 	// finding the subtree root for some set. When leafCursor == end, we are
 	// finished calculating sub tree roots
 	leafCursor := start
-	// nodeCursor keeps track of the current node tree node when finding sub
+	// nodeCursor keeps track of the current tree node when finding sub
 	// tree roots
 	nodeCursor := coord{
 		depth:    maxDepth,
