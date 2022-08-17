@@ -2,7 +2,8 @@ package inclusion
 
 // genSubTreeRootPath calculates the path to a given subtree root of a node, given the
 // depth and position of the node. note: the root of the tree is depth 0.
-// nolint
+// The following nolint can be removed after this function is used.
+//nolint:unused,deadcode
 func genSubTreeRootPath(depth int, pos uint) []bool {
 	path := make([]bool, depth)
 	for i := depth; i >= 0; i-- {
