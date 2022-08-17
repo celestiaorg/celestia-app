@@ -1,10 +1,5 @@
 package inclusion
 
-type path struct {
-	instructions []bool
-	row          int
-}
-
 // genSubTreeRootPath calculates the path to a given subtree root of a node, given the
 // depth and position of the node. note: the root of the tree is depth 0.
 func genSubTreeRootPath(depth int, pos uint) []bool {
