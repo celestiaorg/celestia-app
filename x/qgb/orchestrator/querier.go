@@ -154,7 +154,7 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 				fmt.Sprintf("failure to query for majority validator set confirms: timout %s", timeout),
 			)
 		default:
-			currThreshHold := uint64(0)
+			currThreshold := uint64(0)
 			confirms, err := q.QueryDataCommitmentConfirmsByExactRange(ctx, dc.BeginBlock, dc.EndBlock)
 			if err != nil {
 				return nil, err
@@ -171,11 +171,11 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 					))
 					continue
 				}
-				currThreshHold += val.Power
+				currThreshold += val.Power
 				correctConfirms = append(correctConfirms, dataCommitmentConfirm)
 			}
 
-			if currThreshHold >= majThreshHold {
+			if currThreshold >= majThreshHold {
 				return correctConfirms, nil
 			}
 			q.logger.Debug(
@@ -185,7 +185,7 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 				"end_bloc",
 				dc.EndBlock,
 				"total_power",
-				currThreshHold,
+				currThreshold,
 				"number_of_confirms",
 				len(confirms),
 				"missing_confirms",
@@ -235,7 +235,7 @@ func (q querier) QueryTwoThirdsValsetConfirms(
 				fmt.Sprintf("failure to query for majority validator set confirms: timout %s", timeout),
 			)
 		default:
-			currThreshHold := uint64(0)
+			currThreshold := uint64(0)
 			queryClient := types.NewQueryClient(q.qgbRPC)
 			confirmsResp, err := queryClient.ValsetConfirmsByNonce(ctx, &types.QueryValsetConfirmsByNonceRequest{
 				Nonce: valset.Nonce,
@@ -256,11 +256,11 @@ func (q querier) QueryTwoThirdsValsetConfirms(
 						))
 					continue
 				}
-				currThreshHold += val.Power
+				currThreshold += val.Power
 				confirms = append(confirms, valsetConfirm)
 			}
 
-			if currThreshHold >= majThreshHold {
+			if currThreshold >= majThreshHold {
 				return confirms, nil
 			}
 			q.logger.Debug(
@@ -268,7 +268,7 @@ func (q querier) QueryTwoThirdsValsetConfirms(
 				"nonce",
 				valset.Nonce,
 				"total_power",
-				currThreshHold,
+				currThreshold,
 				"number_of_confirms",
 				len(confirmsResp.Confirms),
 				"missing_confirms",
