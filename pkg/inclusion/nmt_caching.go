@@ -113,13 +113,11 @@ func (stc *EDSSubTreeRootCacher) Constructor() rsmt2d.Tree {
 // GetSubTreeRoot traverses the nmt of the selected row and returns the
 // subtree root. An error is thrown if the subtree cannot be found.
 func (stc *EDSSubTreeRootCacher) GetSubTreeRoot(dah da.DataAvailabilityHeader, row int, path []bool) ([]byte, error) {
-	const unexpectedDAHErr = "data availability header has unexpected number of row roots: expected %d got %d"
 	if len(stc.caches) != len(dah.RowsRoots) {
-		return nil, fmt.Errorf(unexpectedDAHErr, len(stc.caches), len(dah.RowsRoots))
+		return nil, fmt.Errorf("data availability header has unexpected number of row roots: expected %d got %d", len(stc.caches), len(dah.RowsRoots))
 	}
-	const rowOutOfBoundsErr = "row exceeds range of cache: max %d got %d"
 	if row >= len(stc.caches) {
-		return nil, fmt.Errorf(rowOutOfBoundsErr, len(stc.caches), row)
+		return nil, fmt.Errorf("row exceeds range of cache: max %d got %d", len(stc.caches), row)
 	}
 	return stc.caches[row].walk(dah.RowsRoots[row], path)
 }
