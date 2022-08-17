@@ -76,7 +76,7 @@ func verifyOrchestratorDcSignature(broadcasted sdk.Msg, dc types.DataCommitment)
 	dataRootHash := types.DataCommitmentTupleRootSignBytes(
 		types.BridgeID,
 		big.NewInt(int64(dc.Nonce)),
-		commitmentFromQuery(dc.BeginBlock, dc.EndBlock),
+		commitmentFromRange(dc.BeginBlock, dc.EndBlock),
 	)
 	ethAddress := common.HexToAddress(msg.EthAddress)
 	err := types.ValidateEthereumSignature(
@@ -90,6 +90,6 @@ func verifyOrchestratorDcSignature(broadcasted sdk.Msg, dc types.DataCommitment)
 	return nil
 }
 
-func commitmentFromQuery(beginBlock uint64, endBlock uint64) []byte {
+func commitmentFromRange(beginBlock uint64, endBlock uint64) []byte {
 	return tmhash.Sum([]byte(fmt.Sprintf("[%d:%d]", beginBlock, endBlock)))
 }
