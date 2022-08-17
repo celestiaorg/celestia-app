@@ -59,7 +59,7 @@ func calculateSubTreeRootCoordinates(maxDepth, start, end uint64) []coord {
 		position: start,
 	}
 	// lastNodeCursor keeps track of the last node cursor so that when we climb
-	// to high, we can use this node as a sub tree root
+	// too high, we can use this node as a sub tree root
 	lastNodeCursor := nodeCursor
 	lastLeafCursor := leafCursor
 	// nodeRangeCursor keeps track of the number of leaves that are under the
