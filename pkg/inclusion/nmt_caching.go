@@ -91,7 +91,7 @@ func NewCachedSubtreeCacher(squareSize uint64) *EDSSubTreeRootCacher {
 }
 
 // Constructor fullfills the rsmt2d.TreeCreatorFn by keeping a pointer to the
-// cache and embedding it as a nmt.NodeVisitor into a new wrapped nmt. I only
+// cache and embedding it as a nmt.NodeVisitor into a new wrapped nmt.
 func (stc *EDSSubTreeRootCacher) Constructor() rsmt2d.Tree {
 	// see docs of counter field for more
 	// info. if the counter is even or == 0, then we make the assumption that we
