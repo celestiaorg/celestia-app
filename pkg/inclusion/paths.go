@@ -2,6 +2,7 @@ package inclusion
 
 // genSubTreeRootPath calculates the path to a given subtree root of a node, given the
 // depth and position of the node. note: the root of the tree is depth 0.
+// nolint
 func genSubTreeRootPath(depth int, pos uint) []bool {
 	path := make([]bool, depth)
 	for i := depth; i >= 0; i-- {
@@ -12,14 +13,6 @@ func genSubTreeRootPath(depth int, pos uint) []bool {
 		}
 	}
 	return path
-}
-
-func twoToThePowerOf(depth int) int {
-	cursor := 1
-	for i := 0; i < depth; i++ {
-		cursor = cursor * 2
-	}
-	return cursor
 }
 
 // coord identifies a tree node using the depth and position
