@@ -347,7 +347,6 @@ func (orch Orchestrator) ProcessDataCommitmentEvent(
 		ctx,
 		dc.BeginBlock,
 		dc.EndBlock,
-		
 	)
 	if err != nil {
 		return err
