@@ -182,7 +182,7 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 				"found DataCommitmentConfirms",
 				"begin_block",
 				dc.BeginBlock,
-				"end_bloc",
+				"end_block",
 				dc.EndBlock,
 				"total_power",
 				currThreshold,
