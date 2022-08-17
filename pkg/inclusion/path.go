@@ -89,7 +89,10 @@ func calculateSubTreeRootCoordinates(maxDepth, start, end uint64) []coord {
 		}
 		nodeRangeCursor = uint64(1)
 	}
-	// recursively climb the tree starting at the left most leaf node (the starting leaf).
+	// recursively climb the tree starting at the left most leaf node (the
+	// starting leaf), and save each subtree root as we find it. After finding a
+	// subtree root, if there's still leaves left in the message, then restart
+	// the process from that leaf.
 	for {
 		switch {
 		// check if we're finished, if so add the last coord and return
@@ -110,7 +113,7 @@ func calculateSubTreeRootCoordinates(maxDepth, start, end uint64) []coord {
 			leafCursor++
 			reset()
 		// proceed to climb higher by incrementing the relevant state and
-		// proceeding through the loop.
+		// progressing through the loop.
 		default:
 			lastLeafCursor = leafCursor
 			lastNodeCursor = nodeCursor
