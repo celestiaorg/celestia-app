@@ -76,7 +76,7 @@ type Querier interface {
 
 	// tendermint
 
-	QueryCommitment(ctx context.Context, query string) (bytes.HexBytes, error)
+	QueryCommitment(ctx context.Context, beginBlock uint64, endBlock uint64) (bytes.HexBytes, error)
 	SubscribeEvents(ctx context.Context, subscriptionName string, eventName string) (<-chan coretypes.ResultEvent, error)
 }
 
@@ -179,11 +179,17 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 				return correctConfirms, nil
 			}
 			q.logger.Debug(
-				fmt.Sprintf(
-					"found DataCommitmentConfirms total power %d number of confirms %d",
-					currThreshHold,
-					len(confirms),
-				),
+				"found DataCommitmentConfirms",
+				"begin_block",
+				dc.BeginBlock,
+				"end_bloc",
+				dc.EndBlock,
+				"total_power",
+				currThreshHold,
+				"number_of_confirms",
+				len(confirms),
+				"missing_confirms",
+				len(valset.Members)-len(confirms),
 			)
 		}
 		// TODO: make the timeout configurable
@@ -259,11 +265,14 @@ func (q querier) QueryTwoThirdsValsetConfirms(
 			}
 			q.logger.Debug(
 				"foundValsetConfirms",
-				fmt.Sprintf(
-					"total power %d number of confirms %d",
-					currThreshHold,
-					len(confirmsResp.Confirms),
-				),
+				"nonce",
+				valset.Nonce,
+				"total_power",
+				currThreshHold,
+				"number_of_confirms",
+				len(confirmsResp.Confirms),
+				"missing_confirms",
+				len(currentValset.Members)-len(confirmsResp.Confirms),
 			)
 		}
 		// TODO: make the timeout configurable
@@ -463,8 +472,8 @@ func (q querier) QueryLatestAttestationNonce(ctx context.Context) (uint64, error
 }
 
 // QueryCommitment queries the commitment over a set of blocks defined in the query.
-func (q querier) QueryCommitment(ctx context.Context, query string) (bytes.HexBytes, error) {
-	dcResp, err := q.tendermintRPC.DataCommitment(ctx, query)
+func (q querier) QueryCommitment(ctx context.Context, beginBlock uint64, endBlock uint64) (bytes.HexBytes, error) {
+	dcResp, err := q.tendermintRPC.DataCommitment(ctx, beginBlock, endBlock)
 	if err != nil {
 		return nil, err
 	}

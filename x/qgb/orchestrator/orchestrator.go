@@ -345,7 +345,8 @@ func (orch Orchestrator) ProcessDataCommitmentEvent(
 ) error {
 	commitment, err := orch.Querier.QueryCommitment(
 		ctx,
-		CommitmentQueryByRange(dc.BeginBlock, dc.EndBlock),
+		dc.BeginBlock,
+		dc.EndBlock,
 	)
 	if err != nil {
 		return err
@@ -371,13 +372,6 @@ func (orch Orchestrator) ProcessDataCommitmentEvent(
 	}
 	orch.Logger.Info("signed commitment", "nonce", msg.Nonce, "begin_block", msg.BeginBlock, "end_block", msg.EndBlock, "commitment", commitment, "tx_hash", hash)
 	return nil
-}
-
-func CommitmentQueryByRange(beginBlock uint64, endBlock uint64) string {
-	return fmt.Sprintf("block.height >= %d AND block.height <= %d",
-		beginBlock,
-		endBlock,
-	)
 }
 
 const DEFAULTCELESTIAGASLIMIT = 100000
