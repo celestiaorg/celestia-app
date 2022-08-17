@@ -27,15 +27,15 @@ func TestWalkCachedSubTreeRoot(t *testing.T) {
 	}
 	highestRoot := tr.Root()
 
-	// create a small sub tree
-	subTree1 := wrapper.NewErasuredNamespacedMerkleTree(oss)
+	// create a short sub tree
+	shortSubTree := wrapper.NewErasuredNamespacedMerkleTree(oss)
 	for i := 0; i < 2; i++ {
-		subTree1.Push(d, rsmt2d.SquareIndex{
+		shortSubTree.Push(d, rsmt2d.SquareIndex{
 			Axis: uint(rsmt2d.Row),
 			Cell: uint(i),
 		})
 	}
-	shortSTR := subTree1.Root()
+	shortSTR := shortSubTree.Root()
 
 	// create a larger sub tree root
 	subTree2 := wrapper.NewErasuredNamespacedMerkleTree(oss)
