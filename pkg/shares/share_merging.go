@@ -262,7 +262,7 @@ func nextMsg(
 
 	// the msg we're looking for is contained in the current share
 	case msgLen <= uint64(len(current)):
-		msg := coretypes.Message{nid, current[:msgLen]}
+		msg := coretypes.Message{NamespaceID: nid, Data: current[:msgLen]}
 		cursor++
 
 		// call it a day if the work is done
