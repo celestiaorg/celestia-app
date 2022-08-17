@@ -48,7 +48,7 @@ func (c coord) canClimbRight() bool {
 // working our way right.
 func calculateSubTreeRootCoordinates(maxDepth, start, end uint64) []coord {
 	cds := []coord{}
-	// leafCursor keeps track current leaf that we are starting with when
+	// leafCursor keeps track of the current leaf that we are starting with when
 	// finding the subtree root for some set. When leafCursor == end, we are
 	// finished calculating sub tree roots
 	leafCursor := start
