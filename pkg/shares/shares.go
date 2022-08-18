@@ -1,4 +1,4 @@
-package types
+package shares
 
 import (
 	"encoding/binary"

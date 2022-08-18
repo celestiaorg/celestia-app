@@ -121,7 +121,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	nsshares, _, err := shares.ComputeShares(&data, req.BlockData.OriginalSquareSize)
+	rawShares, err := shares.Split(data)
 	if err != nil {
 		app.Logger().Error(rejectedPropBlockLog, "reason", "failure to compute shares from block data:", "error", err, "proposerAddress", req.Header.ProposerAddress)
 		return abci.ResponseProcessProposal{
@@ -129,7 +129,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	eds, err := da.ExtendShares(req.BlockData.OriginalSquareSize, nsshares.RawShares())
+	eds, err := da.ExtendShares(req.BlockData.OriginalSquareSize, rawShares)
 	if err != nil {
 		app.Logger().Error(
 			rejectedPropBlockLog,
