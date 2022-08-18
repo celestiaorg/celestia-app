@@ -69,7 +69,7 @@ build-docker:
 include contrib/devtools/Makefile
 include contrib/devtools/sims.mk
 
-test: test-unit test-build
+test: test-unit
 
 test-all: check test-race test-cover
 
