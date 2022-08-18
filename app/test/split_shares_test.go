@@ -6,6 +6,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -105,7 +106,7 @@ func TestSplitShares(t *testing.T) {
 
 		assert.Equal(t, data.Txs, parsedData.Txs.ToSliceOfBytes())
 
-		parsedShares, _, err := parsedData.ComputeShares(tt.squareSize)
+		parsedShares, _, err := shares.ComputeShares(&parsedData, tt.squareSize)
 		require.NoError(t, err)
 
 		require.Equal(t, square, parsedShares.RawShares())
