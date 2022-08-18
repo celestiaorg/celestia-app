@@ -11,26 +11,45 @@
 
 ## Install
 
-```shell
-make install
-```
+1. [Install Go](https://go.dev/doc/install) 1.18+
+1. Clone this repo
+1. Install the celestia-app CLI
 
-### Create your own single node devnet
+    ```shell
+    make install
+    ```
 
-```shell
+## Usage
+
+```sh
+# Print help message
+celestia-appd --help
+
+# Create your own single node devnet
 celestia-appd init test --chain-id test
 celestia-appd keys add user1
 celestia-appd add-genesis-account <address from above command> 10000000utia,1000token
 celestia-appd gentx user1 1000000utia --chain-id test
 celestia-appd collect-gentxs
 celestia-appd start
+
+# Post data to the local devnet
+celestia-appd tx payment payForData [hexNamespace] [hexMessage] [flags]
 ```
 
-## Usage
+See <https://docs.celestia.org/category/celestia-app> for more information
 
-Use the `celestia-appd` daemon cli command to post data to a local devent.
+## Contributing
 
-```celestia-appd tx payment payForData [hexNamespace] [hexMessage] [flags]```
+### Helpful Commands
+
+```sh
+# Build a new celestia-app binary and output to build/celestia-appd
+make build
+
+# Run tests
+make test
+```
 
 ## Careers
 
