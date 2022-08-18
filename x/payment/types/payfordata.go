@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/bits"
 
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/rsmt2d"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -134,7 +135,7 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 
 	// split into shares that are length delimited and include the namespace in
 	// each share
-	shares := msg.SplitIntoShares().RawShares()
+	shares := shares.SplitMessagesIntoShares(msg).RawShares()
 	// if the number of shares is larger than that in the square, throw an error
 	// note, we use k*k-1 here because at least a single share will be reserved
 	// for the transaction paying for the message, therefore the max number of
