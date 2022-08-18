@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/types/errors"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -183,19 +182,18 @@ func (r *Relayer) submitDataRootTupleRoot(
 
 // matchAttestationConfirmSigs matches and sorts the confirm signatures with the valset
 // members as expected by the QGB contract.
+// Also, it leaves the non provided signatures as nil in the `sigs` slice:
+// https://github.com/celestiaorg/celestia-app/issues/628
 func matchAttestationConfirmSigs(
 	signatures map[string]string,
 	currentValset types.Valset,
 ) ([]wrapper.Signature, error) {
-	sigs := make([]wrapper.Signature, len(signatures))
+	sigs := make([]wrapper.Signature, len(currentValset.Members))
 	// the QGB contract expects the signatures to be ordered by validators in valset
 	for i, val := range currentValset.Members {
 		sig, has := signatures[val.EthereumAddress]
 		if !has {
-			return nil, errors.Wrap(
-				ErrConfirmSignatureNotFound,
-				fmt.Sprintf("missing signature for orchestrator eth address: %s", val.EthereumAddress),
-			)
+			continue
 		}
 		v, r, s := SigToVRS(sig)
 
