@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"sort"
 
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -136,7 +137,7 @@ func newShareSplitter(txConf client.TxConfig, squareSize uint64, data *core.Data
 	if err != nil {
 		panic(err)
 	}
-	sqwr.evdShares = evdData.SplitIntoShares().RawShares()
+	sqwr.evdShares = shares.SplitEvidenceIntoShares(evdData).RawShares()
 
 	sqwr.txWriter = coretypes.NewContiguousShareWriter(consts.TxNamespaceID)
 	sqwr.msgWriter = coretypes.NewMessageShareWriter()
