@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/nmt/namespace"
@@ -150,7 +151,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 		data, err := coretypes.DataFromProto(tt.input.BlockData)
 		require.NoError(t, err)
 
-		shares, _, err := data.ComputeShares(tt.input.BlockData.OriginalSquareSize)
+		shares, _, err := shares.ComputeShares(&data, tt.input.BlockData.OriginalSquareSize)
 		require.NoError(t, err)
 
 		rawShares := shares.RawShares()
@@ -206,7 +207,7 @@ func TestProcessMessagesWithReservedNamespaces(t *testing.T) {
 		data, err := coretypes.DataFromProto(input.BlockData)
 		require.NoError(t, err)
 
-		shares, _, err := data.ComputeShares(input.BlockData.OriginalSquareSize)
+		shares, _, err := shares.ComputeShares(&data, input.BlockData.OriginalSquareSize)
 		require.NoError(t, err)
 
 		rawShares := shares.RawShares()
@@ -257,7 +258,7 @@ func TestProcessMessageWithUnsortedMessages(t *testing.T) {
 	data, err := coretypes.DataFromProto(input.BlockData)
 	require.NoError(t, err)
 
-	shares, _, err := data.ComputeShares(input.BlockData.OriginalSquareSize)
+	shares, _, err := shares.ComputeShares(&data, input.BlockData.OriginalSquareSize)
 	require.NoError(t, err)
 
 	rawShares := shares.RawShares()
