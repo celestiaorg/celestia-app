@@ -1,27 +1,23 @@
 package shares
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"math"
 	"math/rand"
 	"reflect"
-	"sort"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/crypto/tmhash"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/pkg/consts"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-var defaultVoteTime = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
+// var defaultVoteTime = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 
 // TODO: refactor into different tests
 // func TestMakeShares(t *testing.T) {
@@ -568,88 +564,4 @@ func generateRandomMessage(size int) coretypes.Message {
 		Data:        tmrand.Bytes(size),
 	}
 	return msg
-}
-
-func generateRandomNamespacedShares(count, msgSize int) [][]byte {
-	shares := generateRandNamespacedRawData(uint32(count), consts.NamespaceSize, uint32(msgSize))
-	msgs := make([]coretypes.Message, count)
-	for i, s := range shares {
-		msgs[i] = coretypes.Message{
-			Data:        s[consts.NamespaceSize:],
-			NamespaceID: s[:consts.NamespaceSize],
-		}
-	}
-
-	shares, _ = SplitMessages(nil, msgs)
-
-	return shares
-}
-
-func generateRandNamespacedRawData(total, nidSize, leafSize uint32) [][]byte {
-	data := make([][]byte, total)
-	for i := uint32(0); i < total; i++ {
-		nid := make([]byte, nidSize)
-		rand.Read(nid)
-		data[i] = nid
-	}
-	sortByteArrays(data)
-	for i := uint32(0); i < total; i++ {
-		d := make([]byte, leafSize)
-		rand.Read(d)
-		data[i] = append(data[i], d...)
-	}
-
-	return data
-}
-
-func makeVote(
-	t *testing.T,
-	val coretypes.PrivValidator,
-	chainID string,
-	valIndex int32,
-	height int64,
-	round int32,
-	step int,
-	blockID coretypes.BlockID,
-	time time.Time,
-) *coretypes.Vote {
-	pubKey, err := val.GetPubKey()
-	require.NoError(t, err)
-	v := &coretypes.Vote{
-		ValidatorAddress: pubKey.Address(),
-		ValidatorIndex:   valIndex,
-		Height:           height,
-		Round:            round,
-		Type:             tmproto.SignedMsgType(step),
-		BlockID:          blockID,
-		Timestamp:        time,
-	}
-
-	vpb := v.ToProto()
-	err = val.SignVote(chainID, vpb)
-	if err != nil {
-		panic(err)
-	}
-	v.Signature = vpb.Signature
-	return v
-}
-
-func makeBlockID(hash []byte, partSetSize uint32, partSetHash []byte) coretypes.BlockID {
-	var (
-		h   = make([]byte, tmhash.Size)
-		psH = make([]byte, tmhash.Size)
-	)
-	copy(h, hash)
-	copy(psH, partSetHash)
-	return coretypes.BlockID{
-		Hash: h,
-		PartSetHeader: coretypes.PartSetHeader{
-			Total: partSetSize,
-			Hash:  psH,
-		},
-	}
-}
-
-func sortByteArrays(src [][]byte) {
-	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
 }

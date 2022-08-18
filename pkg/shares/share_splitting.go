@@ -10,7 +10,7 @@ import (
 
 var (
 	ErrIncorrectNumberOfIndexes = errors.New(
-		"number of malleated transations is not identical to the number of wrapped transactions",
+		"number of malleated transactions is not identical to the number of wrapped transactions",
 	)
 	ErrUnexpectedFirstMessageShareIndex = errors.New(
 		"the first message started at an unexpected index",
@@ -34,7 +34,7 @@ func Split(data coretypes.Data) ([][]byte, error) {
 	currentShareCount += len(evdShares)
 
 	// msgIndexes will be nil if we are working with a list of txs that do not
-	// have a msg index. this preserves backwards compatability with old blocks
+	// have a msg index. this preserves backwards compatibility with old blocks
 	// that do not follow the non-interactive defaults
 	msgIndexes := ExtractShareIndexes(data.Txs)
 

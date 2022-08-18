@@ -178,7 +178,6 @@ func namespacedPaddedShares(ns []byte, count int) []NamespacedShare {
 				make([]byte, consts.MsgShareSize)...),
 			ID: ns,
 		}
-
 	}
 	return shares
 }

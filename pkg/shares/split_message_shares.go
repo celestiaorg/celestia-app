@@ -1,9 +1,7 @@
 package shares
 
 import (
-	"bytes"
 	"fmt"
-	"sort"
 
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/tendermint/tendermint/pkg/consts"
@@ -89,14 +87,6 @@ func (msw *MessageShareSplitter) Export() NamespacedShares {
 		}
 	}
 	return shares
-}
-
-// note: as an optimization we can probably get rid of this if we just add
-// checks each time we write.
-func (msw *MessageShareSplitter) sortMsgs() {
-	sort.SliceStable(msw.shares, func(i, j int) bool {
-		return bytes.Compare(msw.shares[i][0].ID, msw.shares[j][0].ID) < 0
-	})
 }
 
 // Count returns the current number of shares that will be made if exporting.
