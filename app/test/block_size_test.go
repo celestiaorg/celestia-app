@@ -16,7 +16,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil/network"
-	"github.com/celestiaorg/celestia-app/x/payment"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/nmt/namespace"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -210,7 +209,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 	for _, tc := range tests {
 		s.Run(tc.name, func() {
 			signer := types.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
-			res, err := payment.SubmitPayForData(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.message, 10000000, tc.opts...)
+			res, err := SubmitPayForData(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.message, 10000000, tc.opts...)
 			assert.NoError(err)
 			assert.Equal(abci.CodeTypeOK, res.Code)
 			require.NoError(s.network.WaitForNextBlock())
