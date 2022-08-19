@@ -56,17 +56,13 @@ func (msw *MessageShareSplitter) RemoveMessage(i int) (int, error) {
 	return initialCount - msw.count, nil
 }
 
-func (msw *MessageShareSplitter) Defrag(i, squareSize int) {
-	// remove each message as needed
-	// we need to remove the padding for all message starting at index i and ending when a row is already full
-}
 
 // WriteNamespacedPaddedShares adds empty shares using the namespace of the last written share.
 // This is useful to follow the message layout rules. It assumes that at least
 // one share has already been written, if not it panics.
 func (msw *MessageShareSplitter) WriteNamespacedPaddedShares(count int) {
 	if len(msw.shares) == 0 {
-		panic("Cannot write empty namespaced shares on an empty MessageShareSplitter")
+		panic("cannot write empty namespaced shares on an empty MessageShareSplitter")
 	}
 	if count == 0 {
 		return
@@ -94,7 +90,7 @@ func (msw *MessageShareSplitter) Count() int {
 	return msw.count
 }
 
-// appendToShares appends raw data as shares.
+// AppendToShares appends raw data as shares.
 // Used for messages.
 func AppendToShares(shares []NamespacedShare, nid namespace.ID, rawData []byte) []NamespacedShare {
 	if len(rawData) <= consts.MsgShareSize {

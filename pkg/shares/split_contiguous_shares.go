@@ -48,7 +48,7 @@ func (csw *ContiguousShareSplitter) WriteEvidence(evd coretypes.Evidence) error 
 	return nil
 }
 
-// Write adds the delimited data to the underlying contiguous shares.
+// WriteBytes adds the delimited data to the underlying contiguous shares.
 func (csw *ContiguousShareSplitter) WriteBytes(rawData []byte) {
 	// if this is the first time writing to a pending share, we must add the
 	// reserved bytes
