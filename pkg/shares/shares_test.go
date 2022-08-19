@@ -440,29 +440,6 @@ func TestParsePaddedMsg(t *testing.T) {
 	require.Equal(t, msgs.MessagesList, pmsgs)
 }
 
-// func TestRemoveMessageShare(t *testing.T) {
-// 	msgs := coretypes.Messages{
-// 		MessagesList: []coretypes.Message{},
-// 	}
-// 	for i := 0; i < 16; i++ {
-// 		randomMsg := generateRandomMessage(10000)
-// 		msgs.MessagesList = append(msgs.MessagesList, randomMsg)
-// 	}
-// 	msgs.SortMessages()
-// 	writer, indexes, err := SplitMessagesUsingNIDefaults(0, 8, msgs.MessagesList)
-// 	require.NoError(t, err)
-
-// 	type test struct {
-// 		start, squareSize int
-// 		remove            []int
-// 		expected          size
-// 	}
-// 	tests := []test{
-// 		{0, 8, []int{}, 100},
-// 	}
-
-// }
-
 func TestContigShareWriter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
 	// tests occur in TestMerge and Test_processContiguousShares
