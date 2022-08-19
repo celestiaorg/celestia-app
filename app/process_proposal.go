@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -54,6 +55,8 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			rejectedPropBlockLog,
 			"reason",
 			"varying number of messages and payForData txs in the same block",
+			"proposerAddress",
+			req.Header.ProposerAddress,
 		)
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
@@ -70,6 +73,8 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 				"found a message that uses an invalid namespace id",
 				"error",
 				err.Error(),
+				"proposerAddress",
+				req.Header.ProposerAddress,
 			)
 			return abci.ResponseProcessProposal{
 				Result: abci.ResponseProcessProposal_REJECT,
@@ -84,6 +89,8 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 				"failure to create commitment for included message",
 				"error",
 				err.Error(),
+				"proposerAddress",
+				req.Header.ProposerAddress,
 			)
 			return abci.ResponseProcessProposal{
 				Result: abci.ResponseProcessProposal_REJECT,
@@ -92,7 +99,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 		// TODO: refactor to actually check for subtree roots instead of simply inclusion see issues #382 and #383
 		if _, has := commitments[string(commit)]; !has {
-			app.Logger().Info(rejectedPropBlockLog, "reason", "missing MsgPayForData for included message")
+			app.Logger().Error(rejectedPropBlockLog, "reason", "missing MsgPayForData for included message", "proposerAddress", req.Header.ProposerAddress)
 			return abci.ResponseProcessProposal{
 				Result: abci.ResponseProcessProposal_REJECT,
 			}
@@ -101,7 +108,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 	data, err := coretypes.DataFromProto(req.BlockData)
 	if err != nil {
-		app.Logger().Error(rejectedPropBlockLog, "reason", "failure to unmarshal block data:", "error", err)
+		app.Logger().Error(rejectedPropBlockLog, "reason", "failure to unmarshal block data:", "error", err, "proposerAddress", req.Header.ProposerAddress)
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
@@ -114,15 +121,15 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	shares, _, err := data.ComputeShares(req.BlockData.OriginalSquareSize)
+	nsshares, _, err := shares.ComputeShares(&data, req.BlockData.OriginalSquareSize)
 	if err != nil {
-		app.Logger().Error(rejectedPropBlockLog, "reason", "failure to compute shares from block data:", "error", err)
+		app.Logger().Error(rejectedPropBlockLog, "reason", "failure to compute shares from block data:", "error", err, "proposerAddress", req.Header.ProposerAddress)
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
 	}
 
-	eds, err := da.ExtendShares(req.BlockData.OriginalSquareSize, shares.RawShares())
+	eds, err := da.ExtendShares(req.BlockData.OriginalSquareSize, nsshares.RawShares())
 	if err != nil {
 		app.Logger().Error(
 			rejectedPropBlockLog,
@@ -130,6 +137,8 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			"failure to erasure the data square",
 			"error",
 			err,
+			"proposerAddress",
+			req.Header.ProposerAddress,
 		)
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
@@ -143,6 +152,8 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			rejectedPropBlockLog,
 			"reason",
 			"proposed data root differs from calculated data root",
+			"proposerAddress",
+			req.Header.ProposerAddress,
 		)
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,

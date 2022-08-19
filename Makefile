@@ -69,7 +69,7 @@ build-docker:
 include contrib/devtools/Makefile
 include contrib/devtools/sims.mk
 
-test: test-unit test-build
+test: test-unit
 
 test-all: check test-race test-cover
 
@@ -83,5 +83,5 @@ benchmark:
 	@go test -mod=readonly -bench=. ./...
 
 test-cover:
-	@export VERSION=$(VERSION); bash -x contrib/test_cover.sh
+	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-cover
