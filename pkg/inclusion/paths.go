@@ -17,6 +17,15 @@ func genSubTreeRootPath(depth int, pos uint) []bool {
 }
 
 // coord identifies a tree node using the depth and position
+// Depth       Position
+// 0              0
+//               / \
+//              /   \
+// 1           0     1
+//            /\     /\
+// 2         0  1   2  3
+//          /\  /\ /\  /\
+// 3       0 1 2 3 4 5 6 7
 type coord struct {
 	// depth is the typical depth of a tree, 0 being the root
 	depth uint64
