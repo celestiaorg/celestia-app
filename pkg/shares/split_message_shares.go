@@ -56,7 +56,6 @@ func (msw *MessageShareSplitter) RemoveMessage(i int) (int, error) {
 	return initialCount - msw.count, nil
 }
 
-
 // WriteNamespacedPaddedShares adds empty shares using the namespace of the last written share.
 // This is useful to follow the message layout rules. It assumes that at least
 // one share has already been written, if not it panics.
