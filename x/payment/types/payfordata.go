@@ -38,13 +38,8 @@ func (msg *MsgPayForData) Type() string {
 // ValidateBasic fullfills the sdk.Msg interface by performing stateless
 // validity checks on the msg that also don't require having the actual message
 func (msg *MsgPayForData) ValidateBasic() error {
-	// ensure that the namespace id is of length == NamespaceIDSize
-	if nsLen := len(msg.GetMessageNamespaceId()); nsLen != NamespaceIDSize {
-		return fmt.Errorf(
-			"invalid namespace length: got %d wanted %d",
-			nsLen,
-			NamespaceIDSize,
-		)
+	if err := ValidateMessageNamespaceID(msg.GetMessageNamespaceId()); err != nil {
+		return err
 	}
 
 	_, err := sdk.AccAddressFromBech32(msg.Signer)
