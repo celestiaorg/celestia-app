@@ -62,7 +62,6 @@ build-docker:
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
 
 fmt:
-	@go mod tidy -compat=1.17
 	@golangci-lint run --fix
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
