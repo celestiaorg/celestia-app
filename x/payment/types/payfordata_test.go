@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	sdkerrors "cosmossdk.io/errors"
+	"github.com/celestiaorg/nmt/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -332,6 +333,22 @@ func TestValidateBasic(t *testing.T) {
 	tailPaddingMsg := validMsgPayForData(t)
 	tailPaddingMsg.MessageNamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
 
+	// MsgPayForData that uses transaction namespace id
+	txNamespaceMsg := validMsgPayForData(t)
+	txNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 1}
+
+	// MsgPayForData that uses intermediateStateRoots namespace id
+	intermediateStateRootsNamespaceMsg := validMsgPayForData(t)
+	intermediateStateRootsNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 2}
+
+	// MsgPayForData that uses evidence namespace id
+	evidenceNamespaceMsg := validMsgPayForData(t)
+	evidenceNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
+
+	// MsgPayForData that uses the max reserved namespace id
+	maxReservedNamespaceMsg := validMsgPayForData(t)
+	maxReservedNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
+
 	tests := []test{
 		{
 			name:    "valid msg",
@@ -347,6 +364,26 @@ func TestValidateBasic(t *testing.T) {
 			name:    "tail padding namespace id",
 			msg:     tailPaddingMsg,
 			wantErr: ErrTailPaddingNamespace,
+		},
+		{
+			name:    "transaction namspace namespace id",
+			msg:     txNamespaceMsg,
+			wantErr: ErrReservedNamespace,
+		},
+		{
+			name:    "intermediate state root namespace id",
+			msg:     intermediateStateRootsNamespaceMsg,
+			wantErr: ErrReservedNamespace,
+		},
+		{
+			name:    "evidence namspace namespace id",
+			msg:     evidenceNamespaceMsg,
+			wantErr: ErrReservedNamespace,
+		},
+		{
+			name:    "max reserved namespace id",
+			msg:     maxReservedNamespaceMsg,
+			wantErr: ErrReservedNamespace,
 		},
 	}
 
