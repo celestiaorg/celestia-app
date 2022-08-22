@@ -41,6 +41,11 @@ See <https://docs.celestia.org/category/celestia-app> for more information
 
 ## Contributing
 
+### Tools
+
+1. Install [golangci-lint](https://golangci-lint.run/usage/install/)
+1. Install [markdownlint](https://github.com/DavidAnson/markdownlint)
+
 ### Helpful Commands
 
 ```sh
@@ -49,6 +54,9 @@ make build
 
 # Run tests
 make test
+
+# Format code with linters (this assumes golangci-lint and markdownlint are installed)
+make fmt
 ```
 
 ## Careers

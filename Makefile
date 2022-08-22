@@ -62,6 +62,16 @@ proto-format:
 build-docker:
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
 
+fmt:
+	@golangci-lint run --fix
+	@markdownlint --fix --quiet --config .markdownlint.yaml .
+.PHONY: fmt
+
+lint:
+	@echo "--> Running linter"
+	@golangci-lint run
+	@markdownlint --config .markdownlint.yaml '**/*.md'
+.PHONY: lint
 
 ###############################################################################
 ###                           Tests & Simulation                            ###
