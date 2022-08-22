@@ -154,7 +154,7 @@ func (k msgServer) DataCommitmentConfirm(
 		return nil, sdkerrors.Wrap(stakingtypes.ErrEthAddressNotHex, "ethereum address")
 	}
 	ethAddress := common.HexToAddress(msg.EthAddress)
-  
+
 	// Verify signature
 	commitment, err := hex.DecodeString(msg.Commitment)
 	if err != nil {
