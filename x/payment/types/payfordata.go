@@ -188,7 +188,11 @@ func powerOf2MountainRange(l, k uint64) []uint64 {
 	return output
 }
 
-// NextHighestPowerOf2 returns the next highest power of 2
+// NextHighestPowerOf2 returns the next highest power of 2.
+// Examples:
+// NextHighestPowerOf2(1) = 2
+// NextHighestPowerOf2(2) = 4
+// NextHighestPowerOf2(5) = 8
 func NextHighestPowerOf2(v uint64) uint64 {
 	// keep track of the value to check if its the same later
 	i := v
