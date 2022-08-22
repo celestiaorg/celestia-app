@@ -69,7 +69,7 @@ func (app *App) estimateSquareSize(data *core.Data) uint64 {
 
 	totalShareEstimate := txShareEstimate + evdShareEstimate + msgShareEstimate
 	sr := math.Sqrt(float64(totalShareEstimate))
-	estimatedSize := types.NextHighestPowerOf2(uint64(sr))
+	estimatedSize := types.NextHigherPowerOf2(uint64(sr))
 	switch {
 	case estimatedSize > consts.MaxSquareSize:
 		return consts.MaxSquareSize
