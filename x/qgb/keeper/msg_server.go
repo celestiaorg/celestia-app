@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
-
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type msgServer struct {
@@ -54,31 +52,6 @@ func (k msgServer) ValsetConfirm(
 	}
 	if err := sdk.VerifyAddressFormat(validator.GetOperator()); err != nil {
 		return nil, sdkerrors.Wrapf(err, "discovered invalid validator address for orchestrator %v", orchaddr)
-	}
-
-	// Verify if validator is part of the previous valset
-	var previousValset *types.Valset
-	// TODO add test for case nonce == 1.
-	if msg.Nonce == 1 {
-		// if the msg.Nonce == 1, the current valset should sign the first valset.
-		// Because, it's the first attestation, and there is no prior validator set defined
-		// that should sign this change.
-		// In fact, the first nonce should never be signed. Because, the first attestation, in the case
-		// where the `earliest` flag is specified when deploying the contract, will be relayed as part of
-		// the deployment of the QGB contract.
-		// It will be signed temporarily for now.
-		previousValset = valset
-	} else {
-		previousValset, err = k.GetLastValsetBeforeNonce(ctx, msg.Nonce)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if !ValidatorPartOfValset(previousValset.Members, validator.EthAddress) {
-		return nil, sdkerrors.Wrap(
-			types.ErrValidatorNotInValset,
-			fmt.Sprintf("validator %s not part of valset %d", validator.Orchestrator, previousValset.Nonce),
-		)
 	}
 
 	// Verify ethereum address match
@@ -202,18 +175,6 @@ func (k msgServer) DataCommitmentConfirm(
 	ethAddress := common.HexToAddress(msg.EthAddress)
 	if validator.EthAddress != ethAddress.Hex() {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
-	}
-
-	// Verify if validator is part of the previous valset
-	previousValset, err := k.GetLastValsetBeforeNonce(ctx, msg.Nonce)
-	if err != nil {
-		return nil, err
-	}
-	if !ValidatorPartOfValset(previousValset.Members, validator.EthAddress) {
-		return nil, sdkerrors.Wrap(
-			types.ErrValidatorNotInValset,
-			fmt.Sprintf("validator %s not part of valset %d", validator.Orchestrator, previousValset.Nonce),
-		)
 	}
 
 	// Verify signature
