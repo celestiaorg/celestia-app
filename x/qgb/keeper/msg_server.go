@@ -45,23 +45,11 @@ func (k msgServer) ValsetConfirm(
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "acc address invalid")
 	}
 
-	// Verify if validator exists
-	validator, found := k.StakingKeeper.GetValidatorByOrchestrator(ctx, orchaddr)
-	if !found {
-		return nil, sdkerrors.Wrap(types.ErrUnknown, "validator")
-	}
-	if err := sdk.VerifyAddressFormat(validator.GetOperator()); err != nil {
-		return nil, sdkerrors.Wrapf(err, "discovered invalid validator address for orchestrator %v", orchaddr)
-	}
-
 	// Verify ethereum address match
 	if !common.IsHexAddress(msg.EthAddress) {
 		return nil, sdkerrors.Wrap(stakingtypes.ErrEthAddressNotHex, "ethereum address")
 	}
 	submittedEthAddress := common.HexToAddress(msg.EthAddress)
-	if validator.EthAddress != submittedEthAddress.Hex() {
-		return nil, sdkerrors.Wrap(types.ErrInvalid, "signing eth address does not match delegate eth address")
-	}
 
 	// Verify if signature is correct
 	bytesSignature, err := hex.DecodeString(msg.Signature)
@@ -160,22 +148,12 @@ func (k msgServer) DataCommitmentConfirm(
 	if err != nil {
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "validator address invalid")
 	}
-	validator, found := k.StakingKeeper.GetValidatorByOrchestrator(ctx, validatorAddress)
-	if !found {
-		return nil, sdkerrors.Wrap(types.ErrUnknown, "validator")
-	}
-	if err := sdk.VerifyAddressFormat(validator.GetOperator()); err != nil {
-		return nil, sdkerrors.Wrapf(err, "discovered invalid validator address for validator %v", validatorAddress)
-	}
 
 	// Verify ethereum address
 	if !common.IsHexAddress(msg.EthAddress) {
 		return nil, sdkerrors.Wrap(stakingtypes.ErrEthAddressNotHex, "ethereum address")
 	}
 	ethAddress := common.HexToAddress(msg.EthAddress)
-	if validator.EthAddress != ethAddress.Hex() {
-		return nil, sdkerrors.Wrap(types.ErrInvalid, "submitted eth address does not match delegate eth address")
-	}
 
 	// Verify signature
 	commitment, err := hex.DecodeString(msg.Commitment)
