@@ -18,7 +18,7 @@ var (
 )
 
 func Split(data coretypes.Data) ([][]byte, error) {
-	if data.OriginalSquareSize == 0 || !powerOf2(data.OriginalSquareSize) {
+	if data.OriginalSquareSize == 0 || !isPowerOf2(data.OriginalSquareSize) {
 		return nil, fmt.Errorf("square size is not a power of two: %d", data.OriginalSquareSize)
 	}
 	wantShareCount := int(data.OriginalSquareSize * data.OriginalSquareSize)
