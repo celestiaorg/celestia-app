@@ -174,7 +174,7 @@ func powerOf2MountainRange(l, k uint64) []uint64 {
 			output = append(output, k)
 			l = l - k
 		case l < k:
-			p := nextLowestPowerOf2(l)
+			p := nextLowerPowerOf2(l)
 			output = append(output, p)
 			l = l - p
 		}
@@ -183,12 +183,12 @@ func powerOf2MountainRange(l, k uint64) []uint64 {
 	return output
 }
 
-// NextHighestPowerOf2 returns the next highest power of 2.
+// NextHigherPowerOf2 returns the next power of 2 that is higher than v.
 // Examples:
-// NextHighestPowerOf2(1) = 2
-// NextHighestPowerOf2(2) = 4
-// NextHighestPowerOf2(5) = 8
-func NextHighestPowerOf2(v uint64) uint64 {
+// NextHigherPowerOf2(1) = 2
+// NextHigherPowerOf2(2) = 4
+// NextHigherPowerOf2(5) = 8
+func NextHigherPowerOf2(v uint64) uint64 {
 	// keep track of the value to check if its the same later
 	i := v
 
@@ -210,8 +210,13 @@ func NextHighestPowerOf2(v uint64) uint64 {
 	return v
 }
 
-func nextLowestPowerOf2(v uint64) uint64 {
-	c := NextHighestPowerOf2(v)
+// nextLowerPowerOf2 returns the next power of 2 that is lower than v unless v
+// is a power of 2 in which case it returns v. Examples:
+// nextLowerPowerOf2(1) = 1
+// nextLowerPowerOf2(2) = 2
+// nextLowerPowerOf2(5) = 4
+func nextLowerPowerOf2(v uint64) uint64 {
+	c := NextHigherPowerOf2(v)
 	if c == v {
 		return c
 	}

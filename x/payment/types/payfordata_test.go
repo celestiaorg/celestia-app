@@ -47,8 +47,20 @@ func TestNextLowestPowerOf2(t *testing.T) {
 	}
 	tests := []test{
 		{
+			input:    0,
+			expected: 0,
+		},
+		{
+			input:    1,
+			expected: 1,
+		},
+		{
 			input:    2,
 			expected: 2,
+		},
+		{
+			input:    5,
+			expected: 4,
 		},
 		{
 			input:    11,
@@ -58,17 +70,9 @@ func TestNextLowestPowerOf2(t *testing.T) {
 			input:    511,
 			expected: 256,
 		},
-		{
-			input:    1,
-			expected: 1,
-		},
-		{
-			input:    0,
-			expected: 0,
-		},
 	}
 	for _, tt := range tests {
-		res := nextLowestPowerOf2(tt.input)
+		res := nextLowerPowerOf2(tt.input)
 		assert.Equal(t, tt.expected, res)
 	}
 }
@@ -80,8 +84,20 @@ func TestNextHighestPowerOf2(t *testing.T) {
 	}
 	tests := []test{
 		{
+			input:    0,
+			expected: 0,
+		},
+		{
+			input:    1,
+			expected: 2,
+		},
+		{
 			input:    2,
 			expected: 4,
+		},
+		{
+			input:    5,
+			expected: 8,
 		},
 		{
 			input:    11,
@@ -91,17 +107,9 @@ func TestNextHighestPowerOf2(t *testing.T) {
 			input:    511,
 			expected: 512,
 		},
-		{
-			input:    1,
-			expected: 2,
-		},
-		{
-			input:    0,
-			expected: 0,
-		},
 	}
 	for _, tt := range tests {
-		res := NextHighestPowerOf2(tt.input)
+		res := NextHigherPowerOf2(tt.input)
 		assert.Equal(t, tt.expected, res)
 	}
 }
