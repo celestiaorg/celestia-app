@@ -102,12 +102,13 @@ func ParseDelimiter(input []byte) ([]byte, uint64, error) {
 
 func zeroPadIfNecessary(share []byte, width int) []byte {
 	oldLen := len(share)
-	if oldLen < width {
-		missingBytes := width - oldLen
-		padByte := []byte{0}
-		padding := bytes.Repeat(padByte, missingBytes)
-		share = append(share, padding...)
+	if oldLen >= width {
 		return share
 	}
+
+	missingBytes := width - oldLen
+	padByte := []byte{0}
+	padding := bytes.Repeat(padByte, missingBytes)
+	share = append(share, padding...)
 	return share
 }
