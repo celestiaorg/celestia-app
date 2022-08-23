@@ -191,6 +191,8 @@ func (sqwr *shareSplitter) writeMalleatedTx(
 		return false, nil, nil, err
 	}
 
+	// we use a share index of 0 here because this implementation doesn't
+	// support non-interactive defaults or the usuage of wrapped txs
 	wrappedTx, err := coretypes.WrapMalleatedTx(parentHash[:], 0, rawProcessedTx)
 	if err != nil {
 		return false, nil, nil, err
