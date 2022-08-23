@@ -21,9 +21,11 @@ func processContiguousShares(shares [][]byte) (txs [][]byte, err error) {
 
 // shareStack holds variables for peel
 type shareStack struct {
-	shares [][]byte
-	txLen  uint64
-	txs    [][]byte
+	shares  [][]byte
+	dataLen uint64
+	// data may be transactions, intermediate state roots, or evidence depending
+	// on the namespace ID for this share
+	data   [][]byte
 	cursor int
 }
 
@@ -36,7 +38,7 @@ func (ss *shareStack) resolve() ([][]byte, error) {
 		return nil, nil
 	}
 	err := ss.peel(ss.shares[0][consts.NamespaceSize+consts.ShareReservedBytes:], true)
-	return ss.txs, err
+	return ss.data, err
 }
 
 // peel recursively parses each chunk of data (either a transaction,
@@ -51,7 +53,7 @@ func (ss *shareStack) peel(share []byte, delimited bool) (err error) {
 		if txLen == 0 {
 			return nil
 		}
-		ss.txLen = txLen
+		ss.dataLen = txLen
 	}
 	// safeLen describes the point in the share where it can be safely split. If
 	// split beyond this point, it is possible to break apart a length
@@ -60,9 +62,9 @@ func (ss *shareStack) peel(share []byte, delimited bool) (err error) {
 	if safeLen < 0 {
 		safeLen = 0
 	}
-	if ss.txLen <= uint64(safeLen) {
-		ss.txs = append(ss.txs, share[:ss.txLen])
-		share = share[ss.txLen:]
+	if ss.dataLen <= uint64(safeLen) {
+		ss.data = append(ss.data, share[:ss.dataLen])
+		share = share[ss.dataLen:]
 		return ss.peel(share, true)
 	}
 	// add the next share to the current share to continue merging if possible
@@ -72,9 +74,9 @@ func (ss *shareStack) peel(share []byte, delimited bool) (err error) {
 		return ss.peel(share, false)
 	}
 	// collect any remaining data
-	if ss.txLen <= uint64(len(share)) {
-		ss.txs = append(ss.txs, share[:ss.txLen])
-		share = share[ss.txLen:]
+	if ss.dataLen <= uint64(len(share)) {
+		ss.data = append(ss.data, share[:ss.dataLen])
+		share = share[ss.dataLen:]
 		return ss.peel(share, true)
 	}
 	return errors.New("failure to parse block data: transaction length exceeded data length")
