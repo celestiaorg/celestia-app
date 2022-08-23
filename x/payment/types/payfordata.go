@@ -211,10 +211,10 @@ func NextHigherPowerOf2(v uint64) uint64 {
 }
 
 // nextLowerPowerOf2 returns the next power of 2 that is lower than v unless v
-// is a power of 2 in which case it returns v.
-// Examples: nextLowerPowerOf2(1) = 1
-// Examples: nextLowerPowerOf2(2) = 2
-// Examples: nextLowerPowerOf2(5) = 4
+// is a power of 2 in which case it returns v. Examples:
+// nextLowerPowerOf2(1) = 1
+// nextLowerPowerOf2(2) = 2
+// nextLowerPowerOf2(5) = 4
 func nextLowerPowerOf2(v uint64) uint64 {
 	c := NextHigherPowerOf2(v)
 	if c == v {
