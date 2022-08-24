@@ -118,6 +118,10 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 		}
 	}
 
+	if len(msg.MessageShareCommitment) == 0 {
+		return ErrNoMessageShareCommitments
+	}
+
 	return nil
 }
 
