@@ -57,6 +57,10 @@ func (msg *MsgPayForData) ValidateBasic() error {
 		return ErrTailPaddingNamespace
 	}
 
+	if len(msg.MessageShareCommitment) == 0 {
+		return ErrNoMessageShareCommitments
+	}
+
 	return nil
 }
 
