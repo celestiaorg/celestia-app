@@ -13,36 +13,36 @@
 **reserved**: is the location of the first transaction, ISR, or evidence in this share if there is one and `0` if there isn't one
 **message length**: is the length of the entire message in bytes
 
-The current contiguous (transaction, ISRs, evidence) share format is:<br>`nid (8 bytes) | reserved (1 byte) | share data`
+The current reserved namespace (transaction, ISRs, evidence) share format is:<br>`nid (8 bytes) | reserved (1 byte) | share data`
 
-The current non-contigous (message) share format is:
+The current unreserved namespace (message) share format is:
 
 - First share of message:<br>`nid (8 bytes) | message length (varint) | share data`
 - Contiguous share in message:<br>`nid (8 bytes) | share data`
 
 The current share format poses multiple challenges:
 
-1. Clients must have two share parsing implementations (one for contiguous shares and one for non-contiguous shares).
+1. Clients must have two share parsing implementations (one for reserved namespace shares and one for unreserved namespace shares).
 1. It is difficult to make changes to the share format in a backwards compatible way because clients can't determine which version of the share format an individual share conforms to.
-1. It is not possible for a client that samples a random share to determine if the share is the start of a namespace (for reserved namespaces) / message (for non-reserved namespaces) or a contiguous share.
+1. It is not possible for a client that samples a random share to determine if the share is the first share of that namespace or a contiguous share.
 
 ## Proposal
 
-Introduce a universal share encoding that applies to both contiguous and non-contiguous share formats:
+Introduce a universal share encoding that applies to both reserved and unreserved share formats:
 
-- First share of namespace (for reserved namespaces) or message (for non-reserved namespaces):<br>`nid (8 bytes) | info (1 byte) | message length (varint) | data`
-- Contiguous shares in namespace / message:<br>`nid (8 bytes) | info (1 byte) | data`
+- First share of namespace (for reserved namespaces) or message (for unreserved namespaces):<br>`nid (8 bytes) | info (1 byte) | message length (varint) | data`
+- Contiguous shares in namespace:<br>`nid (8 bytes) | info (1 byte) | data`
 
-The contiguous share format has the added constraint: the first byte of `data` is a reserved byte so the format is:<br>`nid (8 bytes) | info (1 byte) | message length (varint) | reserved (1 byte) | data`
+The reserved share format has the added constraint: the first byte of `data` is a reserved byte so the format is:<br>`nid (8 bytes) | info (1 byte) | message length (varint) | reserved (1 byte) | data`
 
 Where info byte is a byte with the following structure:
 
-- the first 7 bits are reserved for the version information in big endian form (initially, this will just be 0000000 until further notice);
-- the last bit is a *message start indicator*, that is 1 if the share is at the start of a namespace (for reserved namespaces) / message (for non-reserved namespaces).
+- the first 7 bits are reserved for the version information in big endian form (initially, this will just be `0000000` until further notice);
+- the last bit is a *message start indicator*, that is `1` if the share is at the start of a namespace or `0` if it is a contiguous share within a namespace.
 
 Rationale:
 
-1. The first 9 bytes of a share are formatted in a consistent way regardless of the type of share (contiguous or non-contiguous). Clients can therefore parse shares into data via one mechanism rather than two.
+1. The first 9 bytes of a share are formatted in a consistent way regardless of the type of share (reserved or unreserved namespace). Clients can therefore parse shares into data via one mechanism rather than two.
 1. The message start indicator allows clients to parse a whole message in the middle of a namespace, without needing to read the whole namespace.
 1. The version bits allow us to upgrade the share format in the future, if we need to do so in a way that different share formats can be mixed within a block.
 
@@ -54,7 +54,7 @@ Rationale:
 
 ## Alternative Approaches
 
-We briefly considered adding the info byte to only non-contiguous (message) shares, see <https://github.com/celestiaorg/celestia-app/pull/651>. This approach was a miscommunication / earlier proposal and was deprecated in favor of this ADR.
+We briefly considered adding the info byte to only unreserved namespace shares, see <https://github.com/celestiaorg/celestia-app/pull/651>. This approach was a miscommunication or earlier proposal and was deprecated in favor of this ADR.
 
 ## Decision
 
@@ -131,13 +131,13 @@ This proposal resolves challenges posed above.
 
 ### Negative
 
-This proposal reduces the number of bytes a message share can use for data by one byte.
+This proposal reduces the number of bytes a share can use for data by one byte.
 
 ### Neutral
 
-If 127 versions is larger than required, the share format spec can be updated (in a subsequent version) to reserve fewer bits for the version in order to use some bits for other purposes.
+If 127 versions is larger than required, the share format can be updated (in a subsequent version) to reserve fewer bits for the version in order to use some bits for other purposes.
 
-If 127 versions is smaller than required, the share format spec can be updated (in a subsequent version) to occupy multiple bytes for the version. For example if the 7 bits are `1111111` then read an additional byte.
+If 127 versions is smaller than required, the share format can be updated (in a subsequent version) to occupy multiple bytes for the version. For example if the 7 bits are `1111111` then read an additional byte.
 
 ## References
 
