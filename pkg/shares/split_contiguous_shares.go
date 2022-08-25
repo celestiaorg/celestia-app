@@ -19,7 +19,7 @@ type ContiguousShareSplitter struct {
 	namespace    namespace.ID
 }
 
-// NewContiguousShareSplitter returns a ContigousShareWriter using the provided
+// NewContiguousShareSplitter returns a ContiguousShareSplitter using the provided
 // namespace.
 func NewContiguousShareSplitter(ns namespace.ID) *ContiguousShareSplitter {
 	pendingShare := NamespacedShare{ID: ns, Share: make([]byte, 0, consts.ShareSize)}
