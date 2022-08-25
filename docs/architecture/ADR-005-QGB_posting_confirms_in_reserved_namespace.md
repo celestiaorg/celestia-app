@@ -6,7 +6,7 @@
 
 ## Context
 
-Currently, the QGB is using the state solely to save all the attestations and confirms it needs.
+Currently, the QGB is using the state to save all the attestations and confirms it needs.
 We propose to post `Valset Confirms` and `DataCommitment Confirms` in a reserved namespace instead of adding them to the state to achieve the following:
 
 - Reduce the state machine complexity
@@ -25,7 +25,7 @@ The approach that we were planning to take is to cleanup the state after the unb
 This way, we will always have a fixed sized state instead of a gigantic one, issue defining this: [Prune the QGB state after the unbonding period ends #309](https://github.com/celestiaorg/celestia-app/issues/309).
 This would mean that the QGB contracts deployed after genesis will never have the whole history of attestations.
 
-### Remove state definitively
+### Separate P2P network
 
 This would mean gossiping the confirms and attestations in a separate P2P network.
 The pros of this approach are that it will be cheaper and wouldn't involve any state changes.
@@ -36,7 +36,7 @@ However, slashing will not be possible.
 Deploy the QGB as a Rollup that posts its data to Celestia, and, uses a separate settlement layer for slashing.
 This might be the end goal of the QGB, but it will be very involved to build at this stage.
 
-Also, if this ADR got accepted, it will be an important stepping stone into the Rollup direction.
+Also, if this ADR got accepted, it will be an important stepping stone in the Rollup direction.
 
 ## Decision
 
@@ -53,14 +53,14 @@ The following issue lists these checks: [QGB data commitments/valsets state mach
 Also, the state machine for the QGB module became complex and more prone to bugs that might end up halting/forking the chain.
 
 In addition to this, with the gas leak issue discussed in this [comment](https://github.com/celestiaorg/celestia-app/issues/631#issuecomment-1220848130), we ended up removing the sanitizing checks we used to run on the submitted `Valset Confirms` and `DataCommitment Confirms`.
-This was done in the goal of not charging orchestrators increasing gas fees with every posted attestations.
+This was done with the goal of not charging orchestrators increasing gas fees for every posted attestation.
 A simple benchmark showed that the gas usage multiplied 2 times from `~50 000` to `100 000` after submitting 16 attestation.
 Also, even if removing the checks was the most practical solution, it ended up opening new attack vectors on the QGB module state, such as flooding the network with incorrect attestations from users who are not even validators.
 Which would increase the burden on validators to handle all of that state.
 Furthermore, it put the responsibility on the relayer to cherry-pick the right confirms from the invalid ones.
 
 This led us to think that the direction we're taking makes more sense if it moves the confirms from the state to the block space.
-This way, we can remove all the complex logic handling the Valset Confirms and DataCommitment Confirms to the orchestrator side, and also block any opportunity for any malicious party to post data to state.
+This way, we can remove all the complex logic handling the Valset Confirms and DataCommitment Confirms to the orchestrator side, and also block any opportunity for a malicious party to post data to state.
 
 In fact, we will be able to remove the `MsgValsetConfirm` defined in [here](https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L24-L49)
 And also, the `MsgDataCommitmentConfirm` defined in [here](
@@ -85,7 +85,7 @@ Proposed
 
 - Reduce significantly the gas fees paid by orchestrators.
 - Reduce significantly the use of Celestia state.
-- Keep the whole QGB confirms history via using block data, instead of being forced to delete it after the unbonding period not to end up with a super gigantic state. This would allow any QGB contract to have the whole history on any EVM chain.
+- Keep the whole QGB confirms history via using block data, instead of being forced to delete it after the unbonding period to not end up with a super gigantic state. This would allow any QGB contract to have the whole history on any EVM chain.
 
 ### Negative
 
