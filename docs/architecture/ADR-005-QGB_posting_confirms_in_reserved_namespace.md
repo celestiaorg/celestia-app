@@ -89,7 +89,7 @@ Proposed
 
 ### Negative
 
-- Reducing the checks applied on the confirms: everyone will be able to post commitments, and we will have no way to sanitize them before adding them to a block. This would add an extra overhead for the relayer to choose the right commitments. However, it is alright, since we will not have a lot of Also, we will need to decide if this will be relayers, and we can give them enough computation power to compensate the overhead.
+- Reducing the checks applied on the confirms: everyone will be able to post commitments, and we will have no way to sanitize them before adding them to a block. This would add an extra overhead for the relayer to choose the right commitments. However, it is alright, since we will not have a lot of relayers, and we can give them enough computation power to compensate the overhead.
 - Potentially harder slashing as fraud proofs will need data from blocks and also state, compared to depending only on state for verification.
 
 ### Neutral
