@@ -9,6 +9,26 @@
 
 **celestia-app** is a blockchain application built using Cosmos SDK and [celestia-core](https://github.com/celestiaorg/celestia-core) in place of Tendermint.
 
+## Diagram
+
+```ascii
+                ^  +-------------------------------+  ^
+                |  |                               |  |
+                |  |  State-machine = Application  |  |
+                |  |                               |  |   celestia-app (built with Cosmos SDK)
+                |  |            ^      +           |  |
+                |  +----------- | ABCI | ----------+  v
+Celestia        |  |            +      v           |  ^
+validator or    |  |                               |  |
+full consensus  |  |           Consensus           |  |
+node            |  |                               |  |
+                |  +-------------------------------+  |   celestia-core (fork of Tendermint Core)
+                |  |                               |  |
+                |  |           Networking          |  |
+                |  |                               |  |
+                v  +-------------------------------+  v
+```
+
 ## Install
 
 1. [Install Go](https://go.dev/doc/install) 1.18+
