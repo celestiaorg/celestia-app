@@ -18,7 +18,7 @@ We propose to post `Valset Confirms` and `DataCommitment Confirms` in a reserved
 ### Keep the existing design
 
 Keeping the current design would entail using the state extensively.
-This proves bad when the state grows after a few hundred attestations, and performing checks on the `Valset Confirms` and `DataCommitment Confirms` becomes so expensive.
+This proves bad when the state grows after a few hundred attestations, and performing checks on the `Valset Confirms` and `DataCommitment Confirms` becomes too expensive.
 An example of such issue in here: [QGB data commitments/valsets state machine checks #631](https://github.com/celestiaorg/celestia-app/issues/631) and [Investigate the QGB transactions cost #603](https://github.com/celestiaorg/celestia-app/issues/603).
 
 Also, we will be forced to prune the state after the unbonding period not to end up with a gigantic state, issue defining this: [Prune the QGB state after the unbonding period ends #309](https://github.com/celestiaorg/celestia-app/issues/309).
