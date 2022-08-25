@@ -21,7 +21,8 @@ Keeping the current design would entail using the state extensively.
 This proves bad when the state grows after a few hundred attestations, and performing checks on the `Valset Confirms` and `DataCommitment Confirms` becomes too expensive.
 An example of such issue in here: [QGB data commitments/valsets state machine checks #631](https://github.com/celestiaorg/celestia-app/issues/631) and [Investigate the QGB transactions cost #603](https://github.com/celestiaorg/celestia-app/issues/603).
 
-Also, we will be forced to prune the state after the unbonding period not to end up with a gigantic state, issue defining this: [Prune the QGB state after the unbonding period ends #309](https://github.com/celestiaorg/celestia-app/issues/309).
+The approach that we were planning to take is to cleanup the state after the unbonding period.
+This way, we will always have a fixed sized state instead of a gigantic one, issue defining this: [Prune the QGB state after the unbonding period ends #309](https://github.com/celestiaorg/celestia-app/issues/309).
 This would mean that the QGB contracts deployed after genesis will never have the whole history of attestations.
 
 ### Remove state definitively
