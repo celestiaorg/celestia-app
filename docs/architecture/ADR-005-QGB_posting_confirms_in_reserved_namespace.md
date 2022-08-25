@@ -1,4 +1,4 @@
-# ADR 5: Using block space instead of state to post attestations confirms
+# ADR 5: Reduce QGB state
 
 ## Changelog
 
