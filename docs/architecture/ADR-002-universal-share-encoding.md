@@ -9,33 +9,31 @@
 
 ## Context
 
-The current contiguous (transaction, ISRs, evidence) share format is:
+**nid**: namespace id
+**reserved**: is the location of the first transaction, ISR, or evidence in this share if there is one and `0` if there isn't one
+**message length**: is the length of the entire message in bytes
 
-- First share of namespace: `nid (8 bytes) | reserved byte | share data`
-- Contiguous share in namespace: `nid (8 bytes) | share data`
+The current contiguous (transaction, ISRs, evidence) share format is:<br>`nid (8 bytes) | reserved (1 byte) | share data`
 
 The current non-contigous (message) share format is:
 
-- First share of message: `nid (8 bytes) | message length (varint) | share data`
-- Contiguous share in message: `nid (8 bytes) | share data`
+- First share of message:<br>`nid (8 bytes) | message length (varint) | share data`
+- Contiguous share in message:<br>`nid (8 bytes) | share data`
 
 The current share format poses multiple challenges:
 
 1. Clients must have two share parsing implementations (one for contiguous shares and one for non-contiguous shares).
 1. It is difficult to make changes to the share format in a backwards compatible way because clients can't determine which version of the share format an individual share conforms to.
-1. It is not possible for a client that samples a random share to determine if the share is the start of a namespace (for reserved namespaces) / message (for non-reserved namespaces) or a contiguous share for a multi-share namespace / message.
+1. It is not possible for a client that samples a random share to determine if the share is the start of a namespace (for reserved namespaces) / message (for non-reserved namespaces) or a contiguous share.
 
 ## Proposal
 
 Introduce a universal share encoding that applies to both contiguous and non-contiguous share formats:
 
-- First share of namespace (for reserved namespaces) or message (for non-reserved namespaces): `nid (8 bytes) | info (1 byte)| message length (varint) | data`
-- Contiguous shares in namespace / message: `nid (8 bytes) | info (1 byte)| data`
+- First share of namespace (for reserved namespaces) or message (for non-reserved namespaces):<br>`nid (8 bytes) | info (1 byte) | message length (varint) | data`
+- Contiguous shares in namespace / message:<br>`nid (8 bytes) | info (1 byte) | data`
 
-The contiguous share format has the added constraint:
-
-- First share of namespace: the first byte of `data` is a reserved byte so the format is: `nid (8 bytes) | info (1 byte) | message length (varint) | reserved (1 byte) | data`
-- Contiguous shares in namespace: no additional constraint
+The contiguous share format has the added constraint: the first byte of `data` is a reserved byte so the format is:<br>`nid (8 bytes) | info (1 byte) | message length (varint) | reserved (1 byte) | data`
 
 Where info byte is a byte with the following structure:
 
@@ -46,16 +44,17 @@ Rationale:
 
 1. The first 9 bytes of a share are formatted in a consistent way regardless of the type of share (contiguous or non-contiguous). Clients can therefore parse shares into data via one mechanism rather than two.
 1. The message start indicator allows clients to parse a whole message in the middle of a namespace, without needing to read the whole namespace.
-1. The version bits allow us to upgrade the share format in the future, if we need to do so in such a way that different share formats can be mixed within a block.
+1. The version bits allow us to upgrade the share format in the future, if we need to do so in a way that different share formats can be mixed within a block.
 
 ## Questions
 
 1. Does the info byte introduce any new attack vectors?
 1. What happens if a block producer publishes a message with a version that isn't in the list of supported versions (initially only `0000000`)?
+    1. It seems like this could be a `ProcessProposal` validity check. Validators already compute the shares in `ProcessProposal` [here](https://github.com/rootulp/celestia-app/blob/ad050e28678119adae02536db3ef5ce083ea1436/app/process_proposal.go#L104-L110) so we can add a check to verify that every share has a valid version.
 
 ## Alternative Approaches
 
-// TODO
+We briefly considered adding the info byte to only non-contiguous (message) shares, see <https://github.com/celestiaorg/celestia-app/pull/651>. This approach was a miscommunication / earlier proposal and was deprecated in favor of this ADR.
 
 ## Decision
 
@@ -63,11 +62,7 @@ Rationale:
 
 ## Implementation Details
 
-### Protobuf
-
-1. (Potentially) add `Version` to [`MsgPayForData`](https://github.com/celestiaorg/celestia-app/blob/main/proto/payment/tx.proto#L44)
-
-**NOTE**: Protobuf does not support the byte type (see [Scalar Value Types](https://developers.google.com/protocol-buffers/docs/proto3#scalar)) so a `uint32` will be used for `Version`. Since `Version` is constrained to 2^7 bits (0 to 127 inclusive), a `Version` outside the supported range (i.e. 128) will seriealize / deserialize correctly but be considered invalid by the application. Adding this field increases the size of the message by one byte + protobuf overhead.
+A share version is not set by a user who submits a `PayForData`. Instead, it is set by the block producer when data is split into shares.
 
 ### Constants
 
