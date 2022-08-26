@@ -419,7 +419,7 @@ func validWirePayForData(t *testing.T) *MsgWirePayForData {
 	msg, err := NewWirePayForData(
 		[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 		bytes.Repeat([]byte{1}, 2000),
-		16, 32, 64,
+		4, 8, 16, 32, 64, 128,
 	)
 	if err != nil {
 		panic(err)

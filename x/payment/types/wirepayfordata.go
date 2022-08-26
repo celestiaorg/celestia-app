@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	fmt "fmt"
+	"reflect"
+	"sort"
 
 	"github.com/celestiaorg/nmt/namespace"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
@@ -102,6 +104,16 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 		)
 	}
 
+	if err := msg.ValidateMessageShareCommitments(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ValidateMessageShareCommitments returns an error if the message share
+// commitments are invalid.
+func (msg *MsgWirePayForData) ValidateMessageShareCommitments() error {
 	for idx, commit := range msg.MessageShareCommitment {
 		// check that each commit is valid
 		if !powerOf2(commit.K) {
@@ -118,7 +130,34 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 		}
 	}
 
+	if err := msg.ValidateAllSquareSizesCommitedTo(); err != nil {
+		return err
+	}
 	return nil
+}
+
+// ValidateAllSquareSizesCommitedTo returns an error if the list of square sizes
+// committed to don't match all squares sizes expected for this message size.
+func (msg *MsgWirePayForData) ValidateAllSquareSizesCommitedTo() error {
+	allSquareSizes := AllSquareSizes(int(msg.MessageSize))
+	sort.Slice(allSquareSizes, func(i, j int) bool { return allSquareSizes[i] < allSquareSizes[j] })
+
+	committedSquareSizes := msg.committedSquareSizes()
+	sort.Slice(committedSquareSizes, func(i, j int) bool { return committedSquareSizes[i] < committedSquareSizes[j] })
+
+	if !reflect.DeepEqual(allSquareSizes, committedSquareSizes) {
+		return ErrInvalidShareCommitments.Wrapf("all square sizes: %v, committed square sizes: %v", allSquareSizes, committedSquareSizes)
+	}
+	return nil
+}
+
+// commitedSquareSizes returns a list of square sizes that are present in a
+// message's share commitment.
+func (msg *MsgWirePayForData) committedSquareSizes() (squareSizes []uint64) {
+	for _, commit := range msg.MessageShareCommitment {
+		squareSizes = append(squareSizes, commit.K)
+	}
+	return squareSizes
 }
 
 // ValidateMessageNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.
