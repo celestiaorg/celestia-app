@@ -136,7 +136,7 @@ func (msg *MsgWirePayForData) ValidateMessageShareCommitments() error {
 }
 
 // ValidateAllSquareSizesCommitedTo returns an error if the list of square sizes
-// committed to don't match all squares sizes expected for this message size.
+// committed to don't match all square sizes expected for this message size.
 func (msg *MsgWirePayForData) ValidateAllSquareSizesCommitedTo() error {
 	allSquareSizes := AllSquareSizes(int(msg.MessageSize))
 	committedSquareSizes := msg.committedSquareSizes()
