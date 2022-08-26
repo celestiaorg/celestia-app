@@ -50,8 +50,8 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 	badSquareSizeMsg.MessageShareCommitment[0].K = 16
 
 	// pfd that signs over all squares but the first one
-	invalidShareCommitments := validWirePayForData(t)
-	invalidShareCommitments.MessageShareCommitment = invalidShareCommitments.MessageShareCommitment[1:]
+	missingCommitmentForOneSquareSize := validWirePayForData(t)
+	missingCommitmentForOneSquareSize.MessageShareCommitment = missingCommitmentForOneSquareSize.MessageShareCommitment[1:]
 
 	tests := []test{
 		{
@@ -100,8 +100,8 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 			wantErr: ErrTailPaddingNamespace,
 		},
 		{
-			name:    "invalid share commitments",
-			msg:     invalidShareCommitments,
+			name:    "missing commitment for one square size",
+			msg:     missingCommitmentForOneSquareSize,
 			wantErr: ErrInvalidShareCommitments,
 		},
 	}
