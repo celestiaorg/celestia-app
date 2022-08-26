@@ -1,11 +1,9 @@
 package types
 
 import (
-	"bytes"
 	"fmt"
 	"math/bits"
 
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/rsmt2d"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -15,6 +13,8 @@ import (
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 	coretypes "github.com/tendermint/tendermint/types"
+
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 )
 
 const (
@@ -45,16 +45,6 @@ func (msg *MsgPayForData) ValidateBasic() error {
 	_, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		return err
-	}
-
-	// ensure that ParitySharesNamespaceID is not used
-	if bytes.Equal(msg.GetMessageNamespaceId(), consts.ParitySharesNamespaceID) {
-		return ErrParitySharesNamespace
-	}
-
-	// ensure that TailPaddingNamespaceID is not used
-	if bytes.Equal(msg.GetMessageNamespaceId(), consts.TailPaddingNamespaceID) {
-		return ErrTailPaddingNamespace
 	}
 
 	return nil
