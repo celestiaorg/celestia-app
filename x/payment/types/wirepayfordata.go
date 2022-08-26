@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	fmt "fmt"
-	"reflect"
 	"sort"
 
 	"github.com/celestiaorg/nmt/namespace"
@@ -145,10 +144,23 @@ func (msg *MsgWirePayForData) ValidateAllSquareSizesCommitedTo() error {
 	committedSquareSizes := msg.committedSquareSizes()
 	sort.Slice(committedSquareSizes, func(i, j int) bool { return committedSquareSizes[i] < committedSquareSizes[j] })
 
-	if !reflect.DeepEqual(allSquareSizes, committedSquareSizes) {
+	if !isEqual(allSquareSizes, committedSquareSizes) {
 		return ErrInvalidShareCommitments.Wrapf("all square sizes: %v, committed square sizes: %v", allSquareSizes, committedSquareSizes)
 	}
 	return nil
+}
+
+// isEqual returns true if the given uint64 slices are equal
+func isEqual(a, b []uint64) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // commitedSquareSizes returns a list of square sizes that are present in a
