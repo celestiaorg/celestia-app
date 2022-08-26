@@ -139,9 +139,13 @@ func (msg *MsgWirePayForData) ValidateMessageShareCommitments() error {
 // committed to don't match all squares sizes expected for this message size.
 func (msg *MsgWirePayForData) ValidateAllSquareSizesCommitedTo() error {
 	allSquareSizes := AllSquareSizes(int(msg.MessageSize))
-	sort.Slice(allSquareSizes, func(i, j int) bool { return allSquareSizes[i] < allSquareSizes[j] })
-
 	committedSquareSizes := msg.committedSquareSizes()
+
+	if len(allSquareSizes) != len(committedSquareSizes) {
+		return ErrInvalidShareCommitments.Wrapf("length of all square sizes: %v must equal length of committed square sizes: %v", len(allSquareSizes), len(committedSquareSizes))
+	}
+
+	sort.Slice(allSquareSizes, func(i, j int) bool { return allSquareSizes[i] < allSquareSizes[j] })
 	sort.Slice(committedSquareSizes, func(i, j int) bool { return committedSquareSizes[i] < committedSquareSizes[j] })
 
 	if !isEqual(allSquareSizes, committedSquareSizes) {
