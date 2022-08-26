@@ -9,15 +9,15 @@
 
 ## Context
 
-**nid**: namespace id
-**reserved**: is the location of the first transaction, ISR, or evidence in this share if there is one and `0` if there isn't one
-**message length**: is the length of the entire message in bytes
+- **nid** (8 bytes): namespace id
+- **reserved** (1 byte): is the location of the first transaction, ISR, or evidence in this share if there is one and `0` if there isn't one
+- **message length** (varint 1 to 10 bytes): is the length of the entire message in bytes
 
 The current reserved namespace (transaction, ISRs, evidence) share format is:<br>`nid (8 bytes) | reserved (1 byte) | share data`
 
 The current unreserved namespace (message) share format is:
 
-- First share of message:<br>`nid (8 bytes) | message length (varint) | share data`
+- First share of message:<br>`nid (8 bytes) | message length (varint 1 to 10 bytes) | share data`
 - Contiguous share in message:<br>`nid (8 bytes) | share data`
 
 The current share format poses multiple challenges:
@@ -30,27 +30,41 @@ The current share format poses multiple challenges:
 
 Introduce a universal share encoding that applies to both reserved and unreserved share formats:
 
-- First share of namespace (for reserved namespaces) or message (for unreserved namespaces):<br>`nid (8 bytes) | info (1 byte) | message length (varint) | data`
+- First share of namespace (for reserved namespaces) or message (for unreserved namespaces):<br>`nid (8 bytes) | info (1 byte) | message length (varint 1 to 10 bytes) | data`
 - Contiguous shares in namespace:<br>`nid (8 bytes) | info (1 byte) | data`
 
-The reserved share format has the added constraint: the first byte of `data` is a reserved byte so the format is:<br>`nid (8 bytes) | info (1 byte) | message length (varint) | reserved (1 byte) | data`
+The reserved share format has the added constraint: the first byte of `data` is a reserved byte so the format is:<br>`nid (8 bytes) | info (1 byte) | message length (varint 1 to 10 bytes) | reserved (1 byte) | data`
 
-Where info byte is a byte with the following structure:
+Where **info** (1 byte) is a byte with the following structure:
 
-- the first 7 bits are reserved for the version information in big endian form (initially, this will just be `0000000` until further notice);
+- the first 7 bits are reserved for the version information in big endian form (initially, this will be `0000000` for version 0);
 - the last bit is a *message start indicator*, that is `1` if the share is at the start of a namespace or `0` if it is a contiguous share within a namespace.
 
 Rationale:
 
 1. The first 9 bytes of a share are formatted in a consistent way regardless of the type of share (reserved or unreserved namespace). Clients can therefore parse shares into data via one mechanism rather than two.
-1. The message start indicator allows clients to parse a whole message in the middle of a namespace, without needing to read the whole namespace.
+1. The message start indicator allows clients to parse a whole share in the middle of a namespace, without needing to read the whole namespace.
 1. The version bits allow us to upgrade the share format in the future, if we need to do so in a way that different share formats can be mixed within a block.
 
 ## Questions
 
 1. Does the info byte introduce any new attack vectors?
-1. What happens if a block producer publishes a message with a version that isn't in the list of supported versions (initially only `0000000`)?
-    1. It seems like this could be a `ProcessProposal` validity check. Validators already compute the shares in `ProcessProposal` [here](https://github.com/rootulp/celestia-app/blob/ad050e28678119adae02536db3ef5ce083ea1436/app/process_proposal.go#L104-L110) so we can add a check to verify that every share has a valid version.
+1. Should one bit in the info byte be used to signify that a continuation share is expected after this share?
+    - This **continuation share indicator** is inspired by [protocol buffer varints](https://developers.google.com/protocol-buffers/docs/encoding#varints) and [UTF-8](https://en.wikipedia.org/wiki/UTF-8).
+    - The **continuation share indicator** is distinct from the **message start indicator**. Consider a message with 3 contiguous shares:
+
+        indicator          | share 1 | share 2 | share 3
+        ---                | ---     | ---     | ---
+        message start      | `1`     | `0`     | `0`
+        continuation share | `1`     | `1`     | `0` <- client stops requesting contiguous shares when they encounter `0`
+
+    - This would enable clients to begin parsing a message by sampling a share in the middle of a namespace and proceed to parsing contiguous shares until the end without ever encountering the first share of the message which contains the message length. However, this use case seems contrived because a subset of the message shares may not be meaningful to the client.
+    - Without the continuation share indicator, the client would have to request the first share of the next message to learn that they had completed requesting the previous message.
+
+1. What happens if a block producer publishes a message with a version that isn't in the list of supported versions?
+    - It seems like this could be a `ProcessProposal` validity check. Validators already compute the shares in `ProcessProposal` [here](https://github.com/rootulp/celestia-app/blob/ad050e28678119adae02536db3ef5ce083ea1436/app/process_proposal.go#L104-L110) so we can add a check to verify that every share has a valid version.
+1. What happens if a block producer publishes a message where the message start indicator isn't set correctly?
+    - Add a check similar to the one above.
 
 ## Alternative Approaches
 
