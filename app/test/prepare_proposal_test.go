@@ -111,6 +111,7 @@ func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	allSquareSizes := []uint64{2, 4, 8, 16, 32, 64, 128}
 
 	type test struct {
 		name             string
@@ -128,7 +129,7 @@ func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, []byte{1}, signer, 2, 4, 8, 16)
+		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, []byte{1}, signer, allSquareSizes...)
 		input := abci.RequestPrepareProposal{
 			BlockData: &core.Data{
 				Txs: [][]byte{tx},
