@@ -43,7 +43,7 @@ Where **info** (1 byte) is a byte with the following structure:
 Rationale:
 
 1. The first 9 bytes of a share are formatted in a consistent way regardless of the type of share (reserved or unreserved namespace). Clients can therefore parse shares into data via one mechanism rather than two.
-1. The message start indicator allows clients to parse a whole share in the middle of a namespace, without needing to read the whole namespace.
+1. The message start indicator allows clients to parse a whole message in the middle of a namespace, without needing to read the whole namespace.
 1. The version bits allow us to upgrade the share format in the future, if we need to do so in a way that different share formats can be mixed within a block.
 
 ## Questions
