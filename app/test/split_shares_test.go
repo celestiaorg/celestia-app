@@ -72,8 +72,7 @@ func TestSplitShares(t *testing.T) {
 		},
 		{
 			// calculate the square using the same txs but using a square size
-			// of 16, this should remove all of the txs as they weren't signed
-			// over for that square size
+			// of 16
 			squareSize: 16,
 			data: &core.Data{
 				Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
