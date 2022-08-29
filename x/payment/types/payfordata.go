@@ -47,6 +47,10 @@ func (msg *MsgPayForData) ValidateBasic() error {
 		return err
 	}
 
+	if len(msg.MessageShareCommitment) == 0 {
+		return ErrNoMessageShareCommitments
+	}
+
 	return nil
 }
 

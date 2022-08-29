@@ -129,9 +129,14 @@ func (msg *MsgWirePayForData) ValidateMessageShareCommitments() error {
 		}
 	}
 
+	if len(msg.MessageShareCommitment) == 0 {
+		return ErrNoMessageShareCommitments
+	}
+
 	if err := msg.ValidateAllSquareSizesCommitedTo(); err != nil {
 		return err
 	}
+
 	return nil
 }
 

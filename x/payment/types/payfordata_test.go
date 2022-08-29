@@ -357,6 +357,10 @@ func TestValidateBasic(t *testing.T) {
 	maxReservedNamespaceMsg := validMsgPayForData(t)
 	maxReservedNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
 
+	// MsgPayForData that has no message share commitments
+	noMessageShareCommitments := validMsgPayForData(t)
+	noMessageShareCommitments.MessageShareCommitment = []byte{}
+
 	tests := []test{
 		{
 			name:    "valid msg",
@@ -392,6 +396,11 @@ func TestValidateBasic(t *testing.T) {
 			name:    "max reserved namespace id",
 			msg:     maxReservedNamespaceMsg,
 			wantErr: ErrReservedNamespace,
+		},
+		{
+			name:    "no message share commitments",
+			msg:     noMessageShareCommitments,
+			wantErr: ErrNoMessageShareCommitments,
 		},
 	}
 
