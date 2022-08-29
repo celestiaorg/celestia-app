@@ -124,7 +124,10 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 
 	// split into shares that are length delimited and include the namespace in
 	// each share
-	shares := shares.SplitMessagesIntoShares(msg).RawShares()
+	shares, err := shares.SplitMessages(nil, msg.MessagesList)
+	if err != nil {
+		return nil, err
+	}
 	// if the number of shares is larger than that in the square, throw an error
 	// note, we use k*k-1 here because at least a single share will be reserved
 	// for the transaction paying for the message, therefore the max number of

@@ -36,7 +36,7 @@ func TestBuildWirePayForData(t *testing.T) {
 	rawTx, err := makePaymentEncodingConfig().TxConfig.TxEncoder()(signedTx)
 	require.NoError(t, err)
 
-	_, _, isMalleated := coretypes.UnwrapMalleatedTx(rawTx)
+	_, isMalleated := coretypes.UnwrapMalleatedTx(rawTx)
 	require.False(t, isMalleated)
 
 	sigs, err := signedTx.GetSignaturesV2()

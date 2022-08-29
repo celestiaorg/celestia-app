@@ -137,7 +137,10 @@ func newShareSplitter(txConf client.TxConfig, squareSize uint64, data *core.Data
 	if err != nil {
 		panic(err)
 	}
-	sqwr.evdShares = shares.SplitEvidenceIntoShares(evdData).RawShares()
+	sqwr.evdShares, err = shares.SplitEvidence(evdData.Evidence)
+	if err != nil {
+		panic(err)
+	}
 
 	sqwr.txWriter = coretypes.NewContiguousShareWriter(consts.TxNamespaceID)
 	sqwr.msgWriter = coretypes.NewMessageShareWriter()
@@ -188,7 +191,9 @@ func (sqwr *shareSplitter) writeMalleatedTx(
 		return false, nil, nil, err
 	}
 
-	wrappedTx, err := coretypes.WrapMalleatedTx(parentHash[:], rawProcessedTx)
+	// we use a share index of 0 here because this implementation doesn't
+	// support non-interactive defaults or the usuage of wrapped txs
+	wrappedTx, err := coretypes.WrapMalleatedTx(parentHash[:], 0, rawProcessedTx)
 	if err != nil {
 		return false, nil, nil, err
 	}
