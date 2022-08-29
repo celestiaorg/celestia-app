@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/testutil"
 )
 
 func TestSplitShares(t *testing.T) {
@@ -26,18 +27,20 @@ func TestSplitShares(t *testing.T) {
 	}
 
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	allSquareSizes := []uint64{2, 4, 8, 16, 32, 64, 128}
+	invalidSquareSizes := []uint64{2, 8, 16, 32, 64, 128} // missing square size: 4
 
 	firstNS := []byte{2, 2, 2, 2, 2, 2, 2, 2}
 	firstMessage := bytes.Repeat([]byte{4}, 512)
-	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNS, firstMessage, signer, 2, 4, 8)
+	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNS, firstMessage, signer, allSquareSizes...)
 
 	secondNS := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	secondMessage := []byte{2}
-	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNS, secondMessage, signer, 2, 4, 8)
+	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNS, secondMessage, signer, allSquareSizes...)
 
 	thirdNS := []byte{3, 3, 3, 3, 3, 3, 3, 3}
 	thirdMessage := []byte{1}
-	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNS, thirdMessage, signer, 2, 8)
+	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNS, thirdMessage, signer, invalidSquareSizes...)
 
 	tests := []test{
 		{
@@ -65,7 +68,7 @@ func TestSplitShares(t *testing.T) {
 			data: &core.Data{
 				Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
 			},
-			expectedTxCount: 3,
+			expectedTxCount: 2,
 		},
 		{
 			// calculate the square using the same txs but using a square size
@@ -75,7 +78,7 @@ func TestSplitShares(t *testing.T) {
 			data: &core.Data{
 				Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
 			},
-			expectedTxCount: 0,
+			expectedTxCount: 2,
 		},
 	}
 
