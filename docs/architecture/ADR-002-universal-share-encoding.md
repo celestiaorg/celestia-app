@@ -31,7 +31,7 @@ The current share format poses multiple challenges:
 Introduce a universal share encoding that applies to both reserved and unreserved share formats:
 
 - First share of namespace (for reserved namespaces) or message (for unreserved namespaces):<br>`nid (8 bytes) | info (1 byte) | message length (varint 1 to 10 bytes) | data`
-- Contiguous shares in namespace:<br>`nid (8 bytes) | info (1 byte) | data`
+- Contiguous shares in namespace (for reserved namespaces) or message (for unreserved namespaces):<br>`nid (8 bytes) | info (1 byte) | data`
 
 The reserved share format has the added constraint: the first byte of `data` is a reserved byte so the format is:<br>`nid (8 bytes) | info (1 byte) | message length (varint 1 to 10 bytes) | reserved (1 byte) | data`
 
