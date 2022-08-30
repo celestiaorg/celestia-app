@@ -101,7 +101,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	nsshares, _, err := shares.ComputeShares(&data, req.BlockData.OriginalSquareSize)
+	rawShares, err := shares.Split(data)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute shares from block data:", err)
 		return abci.ResponseProcessProposal{
@@ -109,7 +109,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	eds, err := da.ExtendShares(req.BlockData.OriginalSquareSize, nsshares.RawShares())
+	eds, err := da.ExtendShares(req.BlockData.OriginalSquareSize, rawShares)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to erasure the data square", err)
 		return abci.ResponseProcessProposal{

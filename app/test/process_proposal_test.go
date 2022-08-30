@@ -151,10 +151,10 @@ func TestMessageInclusionCheck(t *testing.T) {
 		data, err := coretypes.DataFromProto(tt.input.BlockData)
 		require.NoError(t, err)
 
-		shares, _, err := shares.ComputeShares(&data, tt.input.BlockData.OriginalSquareSize)
+		shares, err := shares.Split(data)
 		require.NoError(t, err)
 
-		rawShares := shares.RawShares()
+		rawShares := shares
 
 		require.NoError(t, err)
 		eds, err := da.ExtendShares(tt.input.BlockData.OriginalSquareSize, rawShares)
@@ -207,13 +207,11 @@ func TestProcessMessagesWithReservedNamespaces(t *testing.T) {
 		data, err := coretypes.DataFromProto(input.BlockData)
 		require.NoError(t, err)
 
-		shares, _, err := shares.ComputeShares(&data, input.BlockData.OriginalSquareSize)
+		shares, err := shares.Split(data)
 		require.NoError(t, err)
 
-		rawShares := shares.RawShares()
-
 		require.NoError(t, err)
-		eds, err := da.ExtendShares(input.BlockData.OriginalSquareSize, rawShares)
+		eds, err := da.ExtendShares(input.BlockData.OriginalSquareSize, shares)
 		require.NoError(t, err)
 		dah := da.NewDataAvailabilityHeader(eds)
 		input.Header.DataHash = dah.Hash()
@@ -234,6 +232,9 @@ func TestProcessMessageWithUnsortedMessages(t *testing.T) {
 	pfdOne, msgOne := genRandMsgPayForDataForNamespace(t, signer, 8, namespaceOne)
 	pfdTwo, msgTwo := genRandMsgPayForDataForNamespace(t, signer, 8, namespaceTwo)
 
+	cMsgOne := &core.Message{NamespaceId: pfdOne.GetMessageNamespaceId(), Data: msgOne}
+	cMsgTwo := &core.Message{NamespaceId: pfdTwo.GetMessageNamespaceId(), Data: msgTwo}
+
 	input := abci.RequestProcessProposal{
 		BlockData: &core.Data{
 			Txs: [][]byte{
@@ -242,14 +243,8 @@ func TestProcessMessageWithUnsortedMessages(t *testing.T) {
 			},
 			Messages: core.Messages{
 				MessagesList: []*core.Message{
-					{
-						NamespaceId: pfdTwo.GetMessageNamespaceId(),
-						Data:        msgTwo,
-					},
-					{
-						NamespaceId: pfdOne.GetMessageNamespaceId(),
-						Data:        msgOne,
-					},
+					cMsgOne,
+					cMsgTwo,
 				},
 			},
 			OriginalSquareSize: 8,
@@ -258,16 +253,19 @@ func TestProcessMessageWithUnsortedMessages(t *testing.T) {
 	data, err := coretypes.DataFromProto(input.BlockData)
 	require.NoError(t, err)
 
-	shares, _, err := shares.ComputeShares(&data, input.BlockData.OriginalSquareSize)
+	shares, err := shares.Split(data)
 	require.NoError(t, err)
 
-	rawShares := shares.RawShares()
-
 	require.NoError(t, err)
-	eds, err := da.ExtendShares(input.BlockData.OriginalSquareSize, rawShares)
+	eds, err := da.ExtendShares(input.BlockData.OriginalSquareSize, shares)
+
 	require.NoError(t, err)
 	dah := da.NewDataAvailabilityHeader(eds)
 	input.Header.DataHash = dah.Hash()
+
+	// swap the messages
+	input.BlockData.Messages.MessagesList[0] = cMsgTwo
+	input.BlockData.Messages.MessagesList[1] = cMsgOne
 
 	got := testApp.ProcessProposal(input)
 
