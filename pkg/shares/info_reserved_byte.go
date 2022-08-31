@@ -1,6 +1,10 @@
 package shares
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+)
 
 // InfoReservedByte is a byte with the following structure: the first 7 bits are
 // reserved for version information in big endian form (initially `0000000`).
@@ -9,8 +13,8 @@ import "fmt"
 type InfoReservedByte byte
 
 func NewInfoReservedByte(version uint8, isMessageStart bool) (InfoReservedByte, error) {
-	if version > 127 {
-		return 0, fmt.Errorf("version %d must be less than or equal to 127", version)
+	if version > appconsts.MaxShareVersion {
+		return 0, fmt.Errorf("version %d must be less than or equal to %d", version, appconsts.MaxShareVersion)
 	}
 
 	prefix := version << 1
@@ -20,8 +24,8 @@ func NewInfoReservedByte(version uint8, isMessageStart bool) (InfoReservedByte, 
 	return InfoReservedByte(prefix), nil
 }
 
-// Version returns the version encoded in this InfoReservedByte.
-// Version is expected to be between 0 and 127 (inclusive).
+// Version returns the version encoded in this InfoReservedByte. Version is
+// expected to be between 0 and appconsts.MaxShareVersion (inclusive).
 func (i InfoReservedByte) Version() uint8 {
 	version := uint8(i) >> 1
 	return version
