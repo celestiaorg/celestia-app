@@ -17,14 +17,21 @@ type ContiguousShareSplitter struct {
 	shares       []NamespacedShare
 	pendingShare NamespacedShare
 	namespace    namespace.ID
+	version      uint8
 }
 
 // NewContiguousShareSplitter returns a ContiguousShareSplitter using the provided
 // namespace.
-func NewContiguousShareSplitter(ns namespace.ID) *ContiguousShareSplitter {
+func NewContiguousShareSplitter(ns namespace.ID, version uint8) *ContiguousShareSplitter {
 	pendingShare := NamespacedShare{ID: ns, Share: make([]byte, 0, consts.ShareSize)}
 	pendingShare.Share = append(pendingShare.Share, ns...)
-	return &ContiguousShareSplitter{pendingShare: pendingShare, namespace: ns}
+	infoByte, err := NewInfoReservedByte(version, true)
+	if err != nil {
+		panic(err)
+	}
+	pendingShare.Share = append(pendingShare.Share, ns...)
+	pendingShare.Share = append(pendingShare.Share, byte(infoByte))
+	return &ContiguousShareSplitter{pendingShare: pendingShare, namespace: ns, version: version}
 }
 
 func (csw *ContiguousShareSplitter) WriteTx(tx coretypes.Tx) {
@@ -52,7 +59,7 @@ func (csw *ContiguousShareSplitter) WriteEvidence(evd coretypes.Evidence) error 
 func (csw *ContiguousShareSplitter) WriteBytes(rawData []byte) {
 	// if this is the first time writing to a pending share, we must add the
 	// reserved bytes
-	if len(csw.pendingShare.Share) == consts.NamespaceSize {
+	if len(csw.pendingShare.Share) == consts.NamespaceSize+consts.ShareInfoBytes {
 		csw.pendingShare.Share = append(csw.pendingShare.Share, 0)
 	}
 
@@ -79,7 +86,7 @@ func (csw *ContiguousShareSplitter) WriteBytes(rawData []byte) {
 		txCursor = len(rawData)
 
 		// add the share reserved bytes to the new pending share
-		pendingCursor := len(rawData) + consts.NamespaceSize + consts.ShareReservedBytes
+		pendingCursor := len(rawData) + consts.NamespaceSize + consts.ShareInfoBytes + consts.ShareReservedBytes
 		var reservedByte byte
 		if pendingCursor >= consts.ShareSize {
 			// the share reserve byte is zero when some contiguously written
@@ -106,6 +113,11 @@ func (csw *ContiguousShareSplitter) stackPending() {
 	csw.shares = append(csw.shares, csw.pendingShare)
 	newPendingShare := make([]byte, 0, consts.ShareSize)
 	newPendingShare = append(newPendingShare, csw.namespace...)
+	infoByte, err := NewInfoReservedByte(csw.version, false)
+	if err != nil {
+		panic(err)
+	}
+	newPendingShare = append(newPendingShare, byte(infoByte))
 	csw.pendingShare = NamespacedShare{
 		Share: newPendingShare,
 		ID:    csw.namespace,
@@ -144,17 +156,21 @@ func (csw *ContiguousShareSplitter) Export() NamespacedShares {
 
 // Count returns the current number of shares that will be made if exporting.
 func (csw *ContiguousShareSplitter) Count() (count, availableBytes int) {
-	if len(csw.pendingShare.Share) > consts.NamespaceSize {
+	if len(csw.pendingShare.Share) > consts.NamespaceSize+consts.ShareInfoBytes {
 		return len(csw.shares), 0
 	}
-	availableBytes = consts.TxShareSize - (len(csw.pendingShare.Share) - consts.NamespaceSize)
+	// TODO this doesn't account for the size of the reserved byte
+	availableBytes = consts.TxShareSize - (len(csw.pendingShare.Share) - consts.NamespaceSize - consts.ShareInfoBytes)
 	return len(csw.shares), availableBytes
 }
 
+var tailPaddingInfo, _ = NewInfoReservedByte(consts.ShareVersion, false)
+
 // tail is filler for all tail padded shares
 // it is allocated once and used everywhere
-var tailPaddingShare = append(
+var tailPaddingShare = append(append(
 	append(make([]byte, 0, consts.ShareSize), consts.TailPaddingNamespaceID...),
+	byte(tailPaddingInfo)),
 	bytes.Repeat([]byte{0}, consts.ShareSize-consts.NamespaceSize)...,
 )
 

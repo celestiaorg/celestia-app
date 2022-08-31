@@ -72,8 +72,9 @@ func parseMsgShares(shares [][]byte) ([]coretypes.Message, error) {
 	return msgs, nil
 }
 
-// ParseDelimiter finds and returns the length delimiter of the message provided
-// while also removing the delimiter bytes from the input
+// ParseDelimiter finds and returns the length delimiter of the share provided
+// while also removing the delimiter bytes from the input. ParseDelimiter
+// applies to both compact and sparse shares.
 func ParseDelimiter(input []byte) ([]byte, uint64, error) {
 	if len(input) == 0 {
 		return input, 0, nil

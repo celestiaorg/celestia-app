@@ -15,7 +15,7 @@ import (
 func TestContigShareWriter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
 	// tests occur in TestMerge and Test_processContiguousShares
-	w := NewContiguousShareSplitter(consts.TxNamespaceID)
+	w := NewContiguousShareSplitter(consts.TxNamespaceID, consts.ShareVersion)
 	txs := generateRandomContiguousShares(33, 200)
 	for _, tx := range txs {
 		rawTx, _ := tx.MarshalDelimited()

@@ -39,12 +39,7 @@ func (ss *shareStack) resolve() ([][]byte, error) {
 	if len(ss.shares) == 0 {
 		return nil, nil
 	}
-	messageLength, err := parseMessageLength(ss.shares[0])
-	if err != nil {
-		return nil, err
-	}
-
-	err = ss.peel(ss.shares[0][consts.NamespaceSize+consts.ShareInfoBytes+consts.ShareReservedBytes+messageLength:], true)
+	err := ss.peel(ss.shares[0][consts.NamespaceSize+consts.ShareInfoBytes+consts.ShareReservedBytes:], true)
 	return ss.data, err
 }
 
@@ -90,18 +85,10 @@ func (ss *shareStack) peel(share []byte, delimited bool) (err error) {
 }
 
 // parseMessageLength finds and returns the message length for the share
-// provided. Returns an error if the share provided isn't the start of a
-// message.
+// provided.
 func parseMessageLength(share []byte) (uint64, error) {
 	if len(share) == 0 {
 		return 0, fmt.Errorf("empty share")
-	}
-	infoReservedByte, err := ParseInfoReservedByte(share[consts.NamespaceSize : consts.NamespaceSize+consts.ShareInfoBytes][0])
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse info reserved byte: %v", err)
-	}
-	if !infoReservedByte.IsMessageStart() {
-		return 0, fmt.Errorf("share is not the start of a message")
 	}
 
 	prefixLength := consts.NamespaceSize + consts.ShareInfoBytes
