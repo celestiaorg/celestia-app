@@ -3,14 +3,15 @@ package app
 import (
 	"bytes"
 
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/pkg/da"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
+
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 )
 
 const (

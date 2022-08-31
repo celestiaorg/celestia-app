@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
 
 // parseMsgShares iterates through raw shares and separates the contiguous chunks

@@ -425,10 +425,11 @@ func totalMsgSize(size int) int {
 }
 
 func validWirePayForData(t *testing.T) *MsgWirePayForData {
+	message := bytes.Repeat([]byte{1}, 2000)
 	msg, err := NewWirePayForData(
 		[]byte{1, 2, 3, 4, 5, 6, 7, 8},
-		bytes.Repeat([]byte{1}, 2000),
-		16, 32, 64,
+		message,
+		AllSquareSizes(len(message))...,
 	)
 	if err != nil {
 		panic(err)

@@ -4,15 +4,17 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/testutil"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 )
 
 func TestSplitShares(t *testing.T) {
@@ -28,15 +30,16 @@ func TestSplitShares(t *testing.T) {
 
 	firstNS := []byte{2, 2, 2, 2, 2, 2, 2, 2}
 	firstMessage := bytes.Repeat([]byte{4}, 512)
-	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNS, firstMessage, signer, 2, 4, 8)
+	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNS, firstMessage, signer, types.AllSquareSizes(len(firstMessage))...)
 
 	secondNS := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	secondMessage := []byte{2}
-	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNS, secondMessage, signer, 2, 4, 8)
+	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNS, secondMessage, signer, types.AllSquareSizes(len(secondMessage))...)
 
 	thirdNS := []byte{3, 3, 3, 3, 3, 3, 3, 3}
 	thirdMessage := []byte{1}
-	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNS, thirdMessage, signer, 2, 8)
+	invalidSquareSizes := []uint64{2, 8, 16, 32, 64, 128} // missing square size: 4
+	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNS, thirdMessage, signer, invalidSquareSizes...)
 
 	tests := []test{
 		{
@@ -64,17 +67,16 @@ func TestSplitShares(t *testing.T) {
 			data: &core.Data{
 				Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
 			},
-			expectedTxCount: 3,
+			expectedTxCount: 2,
 		},
 		{
 			// calculate the square using the same txs but using a square size
-			// of 16, this should remove all of the txs as they weren't signed
-			// over for that square size
+			// of 16
 			squareSize: 16,
 			data: &core.Data{
 				Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
 			},
-			expectedTxCount: 0,
+			expectedTxCount: 2,
 		},
 	}
 
