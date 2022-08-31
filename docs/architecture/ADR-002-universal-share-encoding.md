@@ -18,16 +18,16 @@
 
 ## Context
 
-The current compact share format is:<br>`nid (8 bytes) | reserved (1 byte) | share data`
+The current compact share format is:<br>`nid (8 bytes) | reserved (1 byte) | data`
 
-The current spare share format is:
+The current sparse share format is:
 
-- First share of message:<br>`nid (8 bytes) | message length (varint 1 to 10 bytes) | share data`
-- Contiguous share in message:<br>`nid (8 bytes) | share data`
+- First share of message:<br>`nid (8 bytes) | message length (varint 1 to 10 bytes) | data`
+- Contiguous share in message:<br>`nid (8 bytes) | data`
 
 The current share format poses multiple challenges:
 
-1. Clients must have two share parsing implementations (one for compact shares and one for spares shares).
+1. Clients must have two share parsing implementations (one for compact shares and one for sparse shares).
 1. It is difficult to make changes to the share format in a backwards compatible way because clients can't determine which version of the share format an individual share conforms to.
 1. It is not possible for a client that samples a random share to determine if the share is the first share of that namespace or a contiguous share in the message.
 
@@ -35,10 +35,10 @@ The current share format poses multiple challenges:
 
 Introduce a universal share encoding that applies to both compact and sparse shares:
 
-- First share of namespace for compact shares or message for sprase shares:<br>`nid (8 bytes) | info (1 byte) | message length (varint 1 to 10 bytes) | data`
+- First share of namespace for compact shares or message for sprase shares:<br>`nid (8 bytes) | info (1 byte) | data length (varint 1 to 10 bytes) | data`
 - Contiguous share in namespace for compact shares or message for sparse shares:<br>`nid (8 bytes) | info (1 byte) | data`
 
-Shares in the reserved namespace have the added constraint: the first byte of `data` is a reserved byte so the format is:<br>`nid (8 bytes) | info (1 byte) | message length (varint 1 to 10 bytes) | reserved (1 byte) | data`
+Shares in the reserved namespace have the added constraint: the first byte of `data` is a reserved byte so the format is:<br>`nid (8 bytes) | info (1 byte) | data length (varint 1 to 10 bytes) | reserved (1 byte) | data`
 
 Where **info** (1 byte) is a byte with the following structure:
 
