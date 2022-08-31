@@ -26,7 +26,6 @@ func TestPrepareProposal(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
-	allSquareSizes := []uint64{2, 4, 8, 16, 32, 64, 128}
 
 	type test struct {
 		input            abci.RequestPrepareProposal
@@ -36,15 +35,15 @@ func TestPrepareProposal(t *testing.T) {
 
 	firstNS := []byte{2, 2, 2, 2, 2, 2, 2, 2}
 	firstMessage := bytes.Repeat([]byte{4}, 512)
-	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNS, firstMessage, signer, allSquareSizes...)
+	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNS, firstMessage, signer, types.AllSquareSizes(len(firstMessage))...)
 
 	secondNS := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	secondMessage := []byte{2}
-	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNS, secondMessage, signer, allSquareSizes...)
+	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNS, secondMessage, signer, types.AllSquareSizes(len(secondMessage))...)
 
 	thirdNS := []byte{3, 3, 3, 3, 3, 3, 3, 3}
 	thirdMessage := []byte{1}
-	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNS, thirdMessage, signer, allSquareSizes...)
+	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNS, thirdMessage, signer, types.AllSquareSizes(len(thirdMessage))...)
 
 	tests := []test{
 		{
@@ -111,7 +110,6 @@ func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
-	allSquareSizes := []uint64{2, 4, 8, 16, 32, 64, 128}
 
 	type test struct {
 		name             string
@@ -129,7 +127,8 @@ func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, []byte{1}, signer, allSquareSizes...)
+		message := []byte{1}
+		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, message, signer, types.AllSquareSizes(len(message))...)
 		input := abci.RequestPrepareProposal{
 			BlockData: &core.Data{
 				Txs: [][]byte{tx},

@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 )
 
 func TestSplitShares(t *testing.T) {
@@ -27,19 +28,18 @@ func TestSplitShares(t *testing.T) {
 	}
 
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
-	allSquareSizes := []uint64{2, 4, 8, 16, 32, 64, 128}
-	invalidSquareSizes := []uint64{2, 8, 16, 32, 64, 128} // missing square size: 4
 
 	firstNS := []byte{2, 2, 2, 2, 2, 2, 2, 2}
 	firstMessage := bytes.Repeat([]byte{4}, 512)
-	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNS, firstMessage, signer, allSquareSizes...)
+	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNS, firstMessage, signer, types.AllSquareSizes(len(firstMessage))...)
 
 	secondNS := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	secondMessage := []byte{2}
-	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNS, secondMessage, signer, allSquareSizes...)
+	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNS, secondMessage, signer, types.AllSquareSizes(len(secondMessage))...)
 
 	thirdNS := []byte{3, 3, 3, 3, 3, 3, 3, 3}
 	thirdMessage := []byte{1}
+	invalidSquareSizes := []uint64{2, 8, 16, 32, 64, 128} // missing square size: 4
 	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNS, thirdMessage, signer, invalidSquareSizes...)
 
 	tests := []test{
