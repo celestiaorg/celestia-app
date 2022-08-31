@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -10,6 +11,7 @@ import (
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/tendermint/tendermint/libs/bytes"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/rpc/client/http"
@@ -160,6 +162,15 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 				return nil, err
 			}
 
+			// used to be tested against when checking if all confirms have the correct commitment.
+			// this can be extended to slashing the validators who submitted commitments that
+			// have wrong commitments or signatures.
+			// https://github.com/celestiaorg/celestia-app/pull/613/files#r947992851
+			commitment, err := q.QueryCommitment(ctx, dc.BeginBlock, dc.EndBlock)
+			if err != nil {
+				return nil, err
+			}
+
 			correctConfirms := make([]types.MsgDataCommitmentConfirm, 0)
 			for _, dataCommitmentConfirm := range confirms {
 				val, has := vals[dataCommitmentConfirm.EthAddress]
@@ -171,11 +182,28 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 					))
 					continue
 				}
+				if err := validateDCConfirm(commitment.String(), dataCommitmentConfirm); err != nil {
+					q.logger.Error("found an invalid data commitment confirm",
+						"nonce",
+						dataCommitmentConfirm.Nonce,
+						"signer_eth_address",
+						dataCommitmentConfirm.EthAddress,
+						"err",
+						err.Error(),
+					)
+					continue
+				}
 				currThreshold += val.Power
 				correctConfirms = append(correctConfirms, dataCommitmentConfirm)
 			}
 
 			if currThreshold >= majThreshHold {
+				q.logger.Debug("found enough data commitment confirms to be relayed",
+					"majThreshHold",
+					majThreshHold,
+					"currThreshold",
+					currThreshold,
+				)
 				return correctConfirms, nil
 			}
 			q.logger.Debug(
@@ -195,6 +223,22 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 		// TODO: make the timeout configurable
 		time.Sleep(10 * time.Second)
 	}
+}
+
+// validateDCConfirm runs validation on the data commitment confirm to make sure it was well created.
+// it tests if the commitment it carries is the correct commitment. Then, checks whether the signature
+// is valid.
+func validateDCConfirm(commitment string, confirm types.MsgDataCommitmentConfirm) error {
+	if confirm.Commitment != commitment {
+		return ErrInvalidCommitmentInConfirm
+	}
+	bCommitment := common.Hex2Bytes(commitment)
+	dataRootHash := types.DataCommitmentTupleRootSignBytes(types.BridgeID, big.NewInt(int64(confirm.Nonce)), bCommitment)
+	err := types.ValidateEthereumSignature(dataRootHash.Bytes(), common.Hex2Bytes(confirm.Signature), common.HexToAddress(confirm.EthAddress))
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (q querier) QueryTwoThirdsValsetConfirms(
@@ -256,11 +300,28 @@ func (q querier) QueryTwoThirdsValsetConfirms(
 						))
 					continue
 				}
+				if err := validateValsetConfirm(valset, valsetConfirm); err != nil {
+					q.logger.Error("found an invalid valset confirm",
+						"nonce",
+						valsetConfirm.Nonce,
+						"signer_eth_address",
+						valsetConfirm.EthAddress,
+						"err",
+						err.Error(),
+					)
+					continue
+				}
 				currThreshold += val.Power
 				confirms = append(confirms, valsetConfirm)
 			}
 
 			if currThreshold >= majThreshHold {
+				q.logger.Debug("found enough valset confirms to be relayed",
+					"majThreshHold",
+					majThreshHold,
+					"currThreshold",
+					currThreshold,
+				)
 				return confirms, nil
 			}
 			q.logger.Debug(
@@ -278,6 +339,20 @@ func (q querier) QueryTwoThirdsValsetConfirms(
 		// TODO: make the timeout configurable
 		time.Sleep(10 * time.Second)
 	}
+}
+
+// validateValsetConfirm runs validation on the valset confirm to make sure it was well created.
+// For now, it only checks if the signature is correct. Can be improved afterwards.
+func validateValsetConfirm(vs types.Valset, confirm types.MsgValsetConfirm) error {
+	signBytes, err := vs.SignBytes(types.BridgeID)
+	if err != nil {
+		return err
+	}
+	err = types.ValidateEthereumSignature(signBytes.Bytes(), common.Hex2Bytes(confirm.Signature), common.HexToAddress(confirm.EthAddress))
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // QueryLastValsetBeforeNonce returns the last valset before nonce.
