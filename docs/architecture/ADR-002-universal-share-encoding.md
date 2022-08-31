@@ -4,45 +4,50 @@
 
 ## Changelog
 
-- 2022/9/22: inital draft of InfoReservedByte
-- 2022/9/24: update draft to Universal Share Encoding
+- 2022/8/22: inital draft of InfoReservedByte
+- 2022/8/24: update draft to Universal Share Encoding
+- 2022/8/31: switch from "reserved vs unreserved" to "compact vs sparse" when describing share format
 
-## Context
+## Terminology
 
 - **nid** (8 bytes): namespace id
 - **reserved** (1 byte): is the location of the first transaction, ISR, or evidence in this share if there is one and `0` if there isn't one
 - **message length** (varint 1 to 10 bytes): is the length of the entire message in bytes
+- **compact share**: a type of share that can accomodate multiple units. Currently, compact shares are used for transactions, ISRs, and evidence to efficiently pack this information into as few shares as possible.
+- **sparse share**: a type of share that can accomodate zero or one unit. Currently, sparse shares are used for messages.
 
-The current reserved namespace (transaction, ISRs, evidence) share format is:<br>`nid (8 bytes) | reserved (1 byte) | share data`
+## Context
 
-The current unreserved namespace (message) share format is:
+The current compact share format is:<br>`nid (8 bytes) | reserved (1 byte) | share data`
+
+The current spare share format is:
 
 - First share of message:<br>`nid (8 bytes) | message length (varint 1 to 10 bytes) | share data`
 - Contiguous share in message:<br>`nid (8 bytes) | share data`
 
 The current share format poses multiple challenges:
 
-1. Clients must have two share parsing implementations (one for reserved namespace shares and one for unreserved namespace shares).
+1. Clients must have two share parsing implementations (one for compact shares and one for spares shares).
 1. It is difficult to make changes to the share format in a backwards compatible way because clients can't determine which version of the share format an individual share conforms to.
-1. It is not possible for a client that samples a random share to determine if the share is the first share of that namespace or a contiguous share.
+1. It is not possible for a client that samples a random share to determine if the share is the first share of that namespace or a contiguous share in the message.
 
 ## Proposal
 
-Introduce a universal share encoding that applies to both reserved and unreserved share formats:
+Introduce a universal share encoding that applies to both compact and sparse shares:
 
-- First share of namespace (for reserved namespaces) or message (for unreserved namespaces):<br>`nid (8 bytes) | info (1 byte) | message length (varint 1 to 10 bytes) | data`
-- Contiguous shares in namespace (for reserved namespaces) or message (for unreserved namespaces):<br>`nid (8 bytes) | info (1 byte) | data`
+- First share of namespace for compact shares or message for sprase shares:<br>`nid (8 bytes) | info (1 byte) | message length (varint 1 to 10 bytes) | data`
+- Contiguous share in namespace for compact shares or message for sparse shares:<br>`nid (8 bytes) | info (1 byte) | data`
 
-The reserved share format has the added constraint: the first byte of `data` is a reserved byte so the format is:<br>`nid (8 bytes) | info (1 byte) | message length (varint 1 to 10 bytes) | reserved (1 byte) | data`
+Shares in the reserved namespace have the added constraint: the first byte of `data` is a reserved byte so the format is:<br>`nid (8 bytes) | info (1 byte) | message length (varint 1 to 10 bytes) | reserved (1 byte) | data`
 
 Where **info** (1 byte) is a byte with the following structure:
 
 - the first 7 bits are reserved for the version information in big endian form (initially, this will be `0000000` for version 0);
-- the last bit is a *message start indicator*, that is `1` if the share is at the start of a namespace or `0` if it is a contiguous share within a namespace.
+- the last bit is a **message start indicator**, that is `1` if the share is at the start of a message or `0` if it is a contiguous share within a message.
 
 Rationale:
 
-1. The first 9 bytes of a share are formatted in a consistent way regardless of the type of share (reserved or unreserved namespace). Clients can therefore parse shares into data via one mechanism rather than two.
+1. The first 9 bytes of a share are formatted in a consistent way regardless of the type of share (compact or sparse). Clients can therefore parse shares into data via one mechanism rather than two.
 1. The message start indicator allows clients to parse a whole message in the middle of a namespace, without needing to read the whole namespace.
 1. The version bits allow us to upgrade the share format in the future, if we need to do so in a way that different share formats can be mixed within a block.
 
@@ -58,17 +63,17 @@ Rationale:
         message start      | `1`     | `0`     | `0`
         continuation share | `1`     | `1`     | `0` <- client stops requesting contiguous shares when they encounter `0`
 
-    - This would enable clients to begin parsing a message by sampling a share in the middle of a namespace and proceed to parsing contiguous shares until the end without ever encountering the first share of the message which contains the message length. However, this use case seems contrived because a subset of the message shares may not be meaningful to the client.
-    - Without the continuation share indicator, the client would have to request the first share of the next message to learn that they had completed requesting the previous message.
+    - This would enable clients to begin parsing a message by sampling a share in the middle of a message and proceed to parsing contiguous shares until the end without ever encountering the first share of the message which contains the message length. However, this use case seems contrived because a subset of the message shares may not be meaningful to the client.
+    - Without the continuation share indicator, the client would have to request the first share of the message to parse the message length. If they don't request the first share, they can request contiguous shares until they reach the first share after their message ends to learn that they completed requesting the previous message.
 
 1. What happens if a block producer publishes a message with a version that isn't in the list of supported versions?
-    - It seems like this could be a `ProcessProposal` validity check. Validators already compute the shares in `ProcessProposal` [here](https://github.com/rootulp/celestia-app/blob/ad050e28678119adae02536db3ef5ce083ea1436/app/process_proposal.go#L104-L110) so we can add a check to verify that every share has a valid version.
+    - This can be considered invalid via a `ProcessProposal` validity check. Validators already compute the shares in `ProcessProposal` [here](https://github.com/rootulp/celestia-app/blob/ad050e28678119adae02536db3ef5ce083ea1436/app/process_proposal.go#L104-L110) so we can add a check to verify that every share has a known valid version.
 1. What happens if a block producer publishes a message where the message start indicator isn't set correctly?
     - Add a check similar to the one above.
 
 ## Alternative Approaches
 
-We briefly considered adding the info byte to only unreserved namespace shares, see <https://github.com/celestiaorg/celestia-app/pull/651>. This approach was a miscommunication or earlier proposal and was deprecated in favor of this ADR.
+We briefly considered adding the info byte to only sparse shares, see <https://github.com/celestiaorg/celestia-app/pull/651>. This approach was a miscommunication for an earlier proposal and was deprecated in favor of this ADR.
 
 ## Decision
 
@@ -90,38 +95,6 @@ A share version is not set by a user who submits a `PayForData`. Instead, it is 
 
 1. Introduce a new type `InfoReservedByte` to encapsulate the logic around getting the `Version()` or `IsMessageStart()` from a share.
 
-```golang
-// InfoReservedByte is a byte with the following structure: the first 7 bits are
-// reserved for version information in big endian form (initially `0000000`).
-// The last bit is a "message start indicator", that is `1` if the share is at
-// the start of a message and `0` otherwise.
-type InfoReservedByte byte
-
-func NewInfoReservedByte(version uint8, isMessageStart bool) (InfoReservedByte, error) {
-	if version > 127 {
-		return 0, fmt.Errorf("version %d must be less than or equal to 127", version)
-	}
-
-	prefix := version << 1
-	if isMessageStart {
-		return InfoReservedByte(prefix + 1), nil
-	}
-	return InfoReservedByte(prefix), nil
-}
-
-// Version returns the version encoded in this InfoReservedByte.
-// Version is expected to be between 0 and 127 (inclusive).
-func (i InfoReservedByte) Version() uint8 {
-	version := uint8(i) >> 1
-	return version
-}
-
-// IsMessageStart returns whether this share is the start of a message.
-func (i InfoReservedByte) IsMessageStart() bool {
-	return uint(i)%2 == 1
-}
-```
-
 ### Logic
 
 #### celestia-core
@@ -131,7 +104,7 @@ func (i InfoReservedByte) IsMessageStart() bool {
 
 #### celestia-app
 
-1. Account for the new `InfoReservedByte` in all share splitting and merging code. There is an in-progress refactor of the relevant files. See <https://github.com/celestiaorg/celestia-app/pull/637>
+1. Account for the new `InfoReservedByte` in all share splitting and merging code.
 
 ## Status
 
