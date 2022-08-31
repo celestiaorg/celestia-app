@@ -174,7 +174,8 @@ func isEqual(a, b []uint64) bool {
 
 // commitedSquareSizes returns a list of square sizes that are present in a
 // message's share commitment.
-func (msg *MsgWirePayForData) committedSquareSizes() (squareSizes []uint64) {
+func (msg *MsgWirePayForData) committedSquareSizes() []uint64 {
+	squareSizes := make([]uint64, 0, len(msg.MessageShareCommitment))
 	for _, commit := range msg.MessageShareCommitment {
 		squareSizes = append(squareSizes, commit.K)
 	}
