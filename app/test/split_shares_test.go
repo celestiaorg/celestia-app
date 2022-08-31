@@ -9,7 +9,6 @@ import (
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -103,14 +102,14 @@ func TestSplitShares(t *testing.T) {
 		dah := da.NewDataAvailabilityHeader(eds)
 		data.Hash = dah.Hash()
 
-		parsedData, err := coretypes.DataFromSquare(eds)
+		parsedData, err := shares.Merge(eds)
 		require.NoError(t, err)
 
 		assert.Equal(t, data.Txs, parsedData.Txs.ToSliceOfBytes())
 
-		parsedShares, _, err := shares.ComputeShares(&parsedData, tt.squareSize)
+		parsedShares, err := shares.Split(parsedData)
 		require.NoError(t, err)
 
-		require.Equal(t, square, parsedShares.RawShares())
+		require.Equal(t, square, parsedShares)
 	}
 }

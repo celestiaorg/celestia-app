@@ -3,14 +3,15 @@ package app
 import (
 	"bytes"
 
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/pkg/da"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
+
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 )
 
 const (
@@ -101,7 +102,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	nsshares, _, err := shares.ComputeShares(&data, req.BlockData.OriginalSquareSize)
+	rawShares, err := shares.Split(data)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute shares from block data:", err)
 		return abci.ResponseProcessProposal{
@@ -109,7 +110,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	eds, err := da.ExtendShares(req.BlockData.OriginalSquareSize, nsshares.RawShares())
+	eds, err := da.ExtendShares(req.BlockData.OriginalSquareSize, rawShares)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to erasure the data square", err)
 		return abci.ResponseProcessProposal{

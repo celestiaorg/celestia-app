@@ -5,13 +5,14 @@ import (
 	"crypto/sha256"
 	"sort"
 
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
+
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 )
 
 // SplitShares uses the provided block data to create a flattened data square.
@@ -137,7 +138,10 @@ func newShareSplitter(txConf client.TxConfig, squareSize uint64, data *core.Data
 	if err != nil {
 		panic(err)
 	}
-	sqwr.evdShares = shares.SplitEvidenceIntoShares(evdData).RawShares()
+	sqwr.evdShares, err = shares.SplitEvidence(evdData.Evidence)
+	if err != nil {
+		panic(err)
+	}
 
 	sqwr.txWriter = coretypes.NewContiguousShareWriter(consts.TxNamespaceID)
 	sqwr.msgWriter = coretypes.NewMessageShareWriter()
@@ -188,7 +192,9 @@ func (sqwr *shareSplitter) writeMalleatedTx(
 		return false, nil, nil, err
 	}
 
-	wrappedTx, err := coretypes.WrapMalleatedTx(parentHash[:], rawProcessedTx)
+	// we use a share index of 0 here because this implementation doesn't
+	// support non-interactive defaults or the usuage of wrapped txs
+	wrappedTx, err := coretypes.WrapMalleatedTx(parentHash[:], 0, rawProcessedTx)
 	if err != nil {
 		return false, nil, nil, err
 	}

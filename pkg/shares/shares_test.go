@@ -1,47 +1,44 @@
-package types
+package shares
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"math"
 	"math/rand"
 	"reflect"
-	"sort"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-type Splitter interface {
-	SplitIntoShares() NamespacedShares
-}
+// var defaultVoteTime = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 
+// TODO: refactor into different tests
 // func TestMakeShares(t *testing.T) {
 // 	reservedTxNamespaceID := append(bytes.Repeat([]byte{0}, 7), 1)
 // 	reservedEvidenceNamespaceID := append(bytes.Repeat([]byte{0}, 7), 3)
-// 	val := NewMockPV()
+// 	val := coretypes.NewMockPV()
 // 	blockID := makeBlockID([]byte("blockhash"), 1000, []byte("partshash"))
 // 	blockID2 := makeBlockID([]byte("blockhash2"), 1000, []byte("partshash"))
 // 	vote1 := makeVote(t, val, "chainID", 0, 10, 2, 1, blockID, defaultVoteTime)
 // 	vote2 := makeVote(t, val, "chainID", 0, 10, 2, 1, blockID2, defaultVoteTime)
-// 	testEvidence := &DuplicateVoteEvidence{
+// 	testEvidence := &coretypes.DuplicateVoteEvidence{
 // 		VoteA: vote1,
 // 		VoteB: vote2,
 // 	}
-// 	protoTestEvidence, err := EvidenceToProto(testEvidence)
+// 	protoTestEvidence, err := coretypes.EvidenceToProto(testEvidence)
 // 	if err != nil {
 // 		t.Error(err)
 // 	}
 // 	testEvidenceBytes, err := protoio.MarshalDelimited(protoTestEvidence)
-// 	largeTx := Tx(bytes.Repeat([]byte("large Tx"), 50))
+// 	largeTx := coretypes.Tx(bytes.Repeat([]byte("large Tx"), 50))
 // 	largeTxLenDelimited, _ := largeTx.MarshalDelimited()
-// 	smolTx := Tx("small Tx")
+// 	smolTx := coretypes.Tx("small Tx")
 // 	smolTxLenDelimited, _ := smolTx.MarshalDelimited()
 // 	msg1 := coretypes.Message{
 // 		NamespaceID: namespace.ID("8bytesss"),
@@ -64,7 +61,7 @@ type Splitter interface {
 // 			name: "evidence",
 // 			args: args{
 // 				data: &coretypes.EvidenceData{
-// 					Evidence: []Evidence{testEvidence},
+// 					Evidence: []coretypes.Evidence{testEvidence},
 // 				},
 // 			},
 // 			want: NamespacedShares{
@@ -86,7 +83,7 @@ type Splitter interface {
 // 		},
 // 		{"small LL Tx",
 // 			args{
-// 				data: Txs{smolTx},
+// 				data: coretypes.Txs{smolTx},
 // 			},
 // 			NamespacedShares{
 // 				NamespacedShare{
@@ -100,7 +97,7 @@ type Splitter interface {
 // 		},
 // 		{"one large LL Tx",
 // 			args{
-// 				data: Txs{largeTx},
+// 				data: coretypes.Txs{largeTx},
 // 			},
 // 			NamespacedShares{
 // 				NamespacedShare{
@@ -121,7 +118,7 @@ type Splitter interface {
 // 		},
 // 		{"large then small LL Tx",
 // 			args{
-// 				data: Txs{largeTx, smolTx},
+// 				data: coretypes.Txs{largeTx, smolTx},
 // 			},
 // 			NamespacedShares{
 // 				NamespacedShare{
@@ -148,7 +145,7 @@ type Splitter interface {
 // 		},
 // 		{"ll-app message",
 // 			args{
-// 				data: Messages{[]coretypes.coretypes.Message{msg1}},
+// 				data: coretypes.Messages{[]coretypes.Message{msg1}},
 // 			},
 // 			NamespacedShares{
 // 				NamespacedShare{
@@ -197,24 +194,7 @@ func Test_zeroPadIfNecessary(t *testing.T) {
 	}
 }
 
-func Test_appendToSharesOverwrite(t *testing.T) {
-	var shares NamespacedShares
-
-	// generate some arbitrary namespaced shares first share that must be split
-	newShare := generateRandomNamespacedShares(1, consts.MsgShareSize+1)[0]
-
-	// make a copy of the portion of the share to check if it's overwritten later
-	extraCopy := make([]byte, consts.MsgShareSize)
-	copy(extraCopy, newShare.Share[:consts.MsgShareSize])
-
-	// use appendToShares to add our new share
-	AppendToShares(shares, newShare.ID, newShare.Share)
-
-	// check if the original share data has been overwritten.
-	assert.Equal(t, extraCopy, []byte(newShare.Share[:consts.MsgShareSize]))
-}
-
-func TestDataFromSquare(t *testing.T) {
+func TestMerge(t *testing.T) {
 	type test struct {
 		name     string
 		txCount  int
@@ -245,7 +225,7 @@ func TestDataFromSquare(t *testing.T) {
 				tc.maxSize,
 			)
 
-			shares, _, err := ComputeShares(&data, 0)
+			shares, _, err := data.ComputeShares(0)
 			require.NoError(t, err)
 			rawShares := shares.RawShares()
 
@@ -254,7 +234,7 @@ func TestDataFromSquare(t *testing.T) {
 				t.Error(err)
 			}
 
-			res, err := DataFromSquare(eds)
+			res, err := Merge(eds)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -279,7 +259,7 @@ func TestDataFromSquare(t *testing.T) {
 	}
 }
 
-func TestFuzz_DataFromSquare(t *testing.T) {
+func TestFuzz_Merge(t *testing.T) {
 	t.Skip()
 	// run random shares through processContiguousShares for a minute
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -289,185 +269,8 @@ func TestFuzz_DataFromSquare(t *testing.T) {
 		case <-ctx.Done():
 			return
 		default:
-			TestDataFromSquare(t)
+			TestMerge(t)
 		}
-	}
-}
-
-func Test_processContiguousShares(t *testing.T) {
-	// exactTxShareSize is the length of tx that will fit exactly into a single
-	// share, accounting for namespace id and the length delimiter prepended to
-	// each tx
-	const exactTxShareSize = consts.TxShareSize - 1
-
-	type test struct {
-		name    string
-		txSize  int
-		txCount int
-	}
-
-	// each test is ran twice, once using txSize as an exact size, and again
-	// using it as a cap for randomly sized txs
-	tests := []test{
-		{"single small tx", 10, 1},
-		{"many small txs", 10, 10},
-		{"single big tx", 1000, 1},
-		{"many big txs", 1000, 10},
-		{"single exact size tx", exactTxShareSize, 1},
-		{"many exact size txs", exactTxShareSize, 10},
-	}
-
-	for _, tc := range tests {
-		tc := tc
-
-		// run the tests with identically sized txs
-		t.Run(fmt.Sprintf("%s idendically sized ", tc.name), func(t *testing.T) {
-			txs := generateRandomContiguousShares(tc.txCount, tc.txSize)
-
-			shares := txs.SplitIntoShares()
-
-			parsedTxs, err := processContiguousShares(shares.RawShares())
-			if err != nil {
-				t.Error(err)
-			}
-
-			// check that the data parsed is identical
-			for i := 0; i < len(txs); i++ {
-				assert.Equal(t, []byte(txs[i]), parsedTxs[i])
-			}
-		})
-
-		// run the same tests using randomly sized txs with caps of tc.txSize
-		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
-			txs := generateRandomlySizedContiguousShares(tc.txCount, tc.txSize)
-
-			shares := txs.SplitIntoShares()
-
-			parsedTxs, err := processContiguousShares(shares.RawShares())
-			if err != nil {
-				t.Error(err)
-			}
-
-			// check that the data parsed is identical to the original
-			for i := 0; i < len(txs); i++ {
-				assert.Equal(t, []byte(txs[i]), parsedTxs[i])
-			}
-		})
-	}
-}
-
-func TestFuzz_processContiguousShares(t *testing.T) {
-	t.Skip()
-	// run random shares through processContiguousShares for a minute
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			Test_processContiguousShares(t)
-		}
-	}
-}
-
-func Test_parseMsgShares(t *testing.T) {
-	// exactMsgShareSize is the length of message that will fit exactly into a single
-	// share, accounting for namespace id and the length delimiter prepended to
-	// each message
-	const exactMsgShareSize = consts.MsgShareSize - 2
-
-	type test struct {
-		name     string
-		msgSize  int
-		msgCount int
-	}
-
-	// each test is ran twice, once using msgSize as an exact size, and again
-	// using it as a cap for randomly sized leaves
-	tests := []test{
-		{"single small msg", 1, 1},
-		{"many small msgs", 4, 10},
-		{"single big msg", 1000, 1},
-		{"many big msgs", 1000, 10},
-		{"single exact size msg", exactMsgShareSize, 1},
-		{"many exact size msgs", exactMsgShareSize, 10},
-	}
-
-	for _, tc := range tests {
-		tc := tc
-
-		// run the tests with identically sized messagses
-		t.Run(fmt.Sprintf("%s idendically sized ", tc.name), func(t *testing.T) {
-			rawmsgs := make([]coretypes.Message, tc.msgCount)
-			for i := 0; i < tc.msgCount; i++ {
-				rawmsgs[i] = generateRandomMessage(tc.msgSize)
-			}
-			msgs := coretypes.Messages{MessagesList: rawmsgs}
-
-			shares := msgs.SplitIntoShares()
-
-			parsedMsgs, err := parseMsgShares(shares.RawShares())
-			if err != nil {
-				t.Error(err)
-			}
-
-			// check that the namesapces and data are the same
-			for i := 0; i < len(msgs.MessagesList); i++ {
-				assert.Equal(t, msgs.MessagesList[i].NamespaceID, parsedMsgs[i].NamespaceID)
-				assert.Equal(t, msgs.MessagesList[i].Data, parsedMsgs[i].Data)
-			}
-		})
-
-		// run the same tests using randomly sized messages with caps of tc.msgSize
-		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
-			msgs := generateRandomlySizedMessages(tc.msgCount, tc.msgSize)
-			shares := msgs.SplitIntoShares()
-
-			parsedMsgs, err := parseMsgShares(shares.RawShares())
-			if err != nil {
-				t.Error(err)
-			}
-
-			// check that the namesapces and data are the same
-			for i := 0; i < len(msgs.MessagesList); i++ {
-				assert.Equal(t, msgs.MessagesList[i].NamespaceID, parsedMsgs[i].NamespaceID)
-				assert.Equal(t, msgs.MessagesList[i].Data, parsedMsgs[i].Data)
-			}
-		})
-	}
-}
-
-func TestContigShareWriter(t *testing.T) {
-	// note that this test is mainly for debugging purposes, the main round trip
-	// tests occur in TestDataFromSquare and Test_processContiguousShares
-	w := NewContiguousShareWriter(consts.TxNamespaceID)
-	txs := generateRandomContiguousShares(33, 200)
-	for _, tx := range txs {
-		rawTx, _ := tx.MarshalDelimited()
-		w.Write(rawTx)
-	}
-	resShares := w.Export()
-	rawResTxs, err := processContiguousShares(resShares.RawShares())
-	resTxs := coretypes.ToTxs(rawResTxs)
-	require.NoError(t, err)
-
-	assert.Equal(t, txs, resTxs)
-}
-
-func Test_parseDelimiter(t *testing.T) {
-	for i := uint64(0); i < 100; i++ {
-		tx := generateRandomContiguousShares(1, int(i))[0]
-		input, err := tx.MarshalDelimited()
-		if err != nil {
-			panic(err)
-		}
-		res, txLen, err := ParseDelimiter(input)
-		if err != nil {
-			panic(err)
-		}
-		assert.Equal(t, i, txLen)
-		assert.Equal(t, []byte(tx), res)
 	}
 }
 
@@ -518,6 +321,9 @@ func generateRandomlySizedMessages(count, maxMsgSize int) coretypes.Messages {
 	msgs := make([]coretypes.Message, count)
 	for i := 0; i < count; i++ {
 		msgs[i] = generateRandomMessage(rand.Intn(maxMsgSize))
+		if len(msgs[i].Data) == 0 {
+			i--
+		}
 	}
 
 	// this is just to let us use assert.Equal
@@ -531,43 +337,9 @@ func generateRandomlySizedMessages(count, maxMsgSize int) coretypes.Messages {
 }
 
 func generateRandomMessage(size int) coretypes.Message {
-	share := generateRandomNamespacedShares(1, size)[0]
 	msg := coretypes.Message{
-		NamespaceID: share.NamespaceID(),
-		Data:        share.Data(),
+		NamespaceID: tmrand.Bytes(consts.NamespaceSize),
+		Data:        tmrand.Bytes(size),
 	}
 	return msg
-}
-
-func generateRandomNamespacedShares(count, msgSize int) NamespacedShares {
-	shares := generateRandNamespacedRawData(uint32(count), consts.NamespaceSize, uint32(msgSize))
-	msgs := make([]coretypes.Message, count)
-	for i, s := range shares {
-		msgs[i] = coretypes.Message{
-			Data:        s[consts.NamespaceSize:],
-			NamespaceID: s[:consts.NamespaceSize],
-		}
-	}
-	return SplitMessagesIntoShares(coretypes.Messages{MessagesList: msgs})
-}
-
-func generateRandNamespacedRawData(total, nidSize, leafSize uint32) [][]byte {
-	data := make([][]byte, total)
-	for i := uint32(0); i < total; i++ {
-		nid := make([]byte, nidSize)
-		rand.Read(nid)
-		data[i] = nid
-	}
-	sortByteArrays(data)
-	for i := uint32(0); i < total; i++ {
-		d := make([]byte, leafSize)
-		rand.Read(d)
-		data[i] = append(data[i], d...)
-	}
-
-	return data
-}
-
-func sortByteArrays(src [][]byte) {
-	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
 }
