@@ -101,6 +101,9 @@ func ParseDelimiter(input []byte) ([]byte, uint64, error) {
 	return input[n:], msgLen, nil
 }
 
+// zeroPadIfNecessary pads the share with trailing zero bytes if the provided
+// share has fewer bytes than width. Returns the share unmodified if the
+// len(share) is greater than or equal to width.
 func zeroPadIfNecessary(share []byte, width int) []byte {
 	oldLen := len(share)
 	if oldLen >= width {

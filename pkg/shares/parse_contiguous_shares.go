@@ -1,15 +1,17 @@
 package shares
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 
 	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 // processContiguousShares takes raw shares and extracts out transactions,
 // intermediate state roots, or evidence. The returned [][]byte do not have
-// namespaces or length delimiters and are ready to be unmarshalled
+// namespaces, info bytes, or length delimiters and are ready to be unmarshalled
 func processContiguousShares(shares [][]byte) (txs [][]byte, err error) {
 	if len(shares) == 0 {
 		return nil, nil
@@ -37,7 +39,12 @@ func (ss *shareStack) resolve() ([][]byte, error) {
 	if len(ss.shares) == 0 {
 		return nil, nil
 	}
-	err := ss.peel(ss.shares[0][consts.NamespaceSize+consts.ShareReservedBytes:], true)
+	messageLength, err := parseMessageLength(ss.shares[0])
+	if err != nil {
+		return nil, err
+	}
+
+	err = ss.peel(ss.shares[0][consts.NamespaceSize+consts.ShareInfoBytes+consts.ShareReservedBytes+messageLength:], true)
 	return ss.data, err
 }
 
@@ -70,7 +77,7 @@ func (ss *shareStack) peel(share []byte, delimited bool) (err error) {
 	// add the next share to the current share to continue merging if possible
 	if len(ss.shares) > ss.cursor+1 {
 		ss.cursor++
-		share := append(share, ss.shares[ss.cursor][consts.NamespaceSize+consts.ShareReservedBytes:]...)
+		share := append(share, ss.shares[ss.cursor][consts.NamespaceSize+consts.ShareInfoBytes+consts.ShareReservedBytes:]...)
 		return ss.peel(share, false)
 	}
 	// collect any remaining data
@@ -80,4 +87,35 @@ func (ss *shareStack) peel(share []byte, delimited bool) (err error) {
 		return ss.peel(share, true)
 	}
 	return errors.New("failure to parse block data: transaction length exceeded data length")
+}
+
+// parseMessageLength finds and returns the message length for the share
+// provided. Returns an error if the share provided isn't the start of a
+// message.
+func parseMessageLength(share []byte) (uint64, error) {
+	if len(share) == 0 {
+		return 0, fmt.Errorf("empty share")
+	}
+	infoReservedByte, err := ParseInfoReservedByte(share[consts.NamespaceSize : consts.NamespaceSize+consts.ShareInfoBytes][0])
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse info reserved byte: %v", err)
+	}
+	if !infoReservedByte.IsMessageStart() {
+		return 0, fmt.Errorf("share is not the start of a message")
+	}
+
+	prefixLength := consts.NamespaceSize + consts.ShareInfoBytes
+	trimmedShare := share[prefixLength:]
+
+	if len(trimmedShare) < binary.MaxVarintLen64 {
+		return 0, fmt.Errorf("share too short to contain message length")
+	}
+
+	buffer := bytes.NewBuffer(trimmedShare)
+	msgLen, err := binary.ReadUvarint(buffer)
+	if err != nil {
+		return 0, err
+	}
+
+	return msgLen, nil
 }
