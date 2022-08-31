@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	fmt "fmt"
-	"sort"
 
 	"github.com/celestiaorg/nmt/namespace"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
@@ -149,9 +148,6 @@ func (msg *MsgWirePayForData) ValidateAllSquareSizesCommitedTo() error {
 	if len(allSquareSizes) != len(committedSquareSizes) {
 		return ErrInvalidShareCommitments.Wrapf("length of all square sizes: %v must equal length of committed square sizes: %v", len(allSquareSizes), len(committedSquareSizes))
 	}
-
-	sort.Slice(allSquareSizes, func(i, j int) bool { return allSquareSizes[i] < allSquareSizes[j] })
-	sort.Slice(committedSquareSizes, func(i, j int) bool { return committedSquareSizes[i] < committedSquareSizes[j] })
 
 	if !isEqual(allSquareSizes, committedSquareSizes) {
 		return ErrInvalidShareCommitments.Wrapf("all square sizes: %v, committed square sizes: %v", allSquareSizes, committedSquareSizes)
