@@ -45,7 +45,7 @@ Not only does doing this allow for easy trust minimized message inclusion checks
 
 TBD
 
-While there certainly can be some decisions here, whether or not we begin following the non-interactive defaults isn't really the goal of this ADR. Please the note at the top of this document.
+While there certainly can be some decisions here, whether or not we begin following the non-interactive defaults isn't really the goal of this ADR. Please see the note at the top of this document.
 
 ## Alternative Designs
 
