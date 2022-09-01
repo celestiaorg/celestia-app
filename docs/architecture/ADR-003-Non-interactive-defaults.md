@@ -2,7 +2,7 @@
 
 NOTE: Unlike normal tendermint/cosmos ADRs, this ADR isn't for deciding on whether or not we will implement non-interactive defaults. The goal of this document is to help reviewers and future readers understand what non-interactive defaults are, the considerations that went into the initial implementation, and how it differs from the original specs.
 
-The exact approach taken by the initial implementation, however, are certainly up for scrutiny. In this specific case, if there are significant changes proposed, then we might want to implement those improvements in other ADRs/PRs considering that we want to switch to a functioning version of non-interactive defaults as soon as possible.
+The exact approach taken by the initial implementation, however, is certainly up for scrutiny.
 
 ## Intro
 
@@ -14,11 +14,13 @@ While this functions as a message inclusion check, the light client has to assum
 
 > **All share commitments included in `MsgPayForData` must consist only of subtree roots of the data square.**
 
-The main issue with that requirement is that it requires the users to know the relevant subtree roots before they sign, which is problematic considering that is the block is not organized perfectly, the subtree roots will include data unknown to the user at the time of signing.
+The main issue with that requirement is that users must know the relevant subtree roots before they sign, which is problematic considering that is the block is not organized perfectly, the subtree roots will include data unknown to the user at the time of signing.
 
-To fix this, the spec outlines the “non-interactive default rules”. These involve a few additional message layout rules that allow for commitments to messages to consist entirely of sub tree roots of the data root, and for those sub tree roots to be generated only from the message itself (so that the user can sign something “non-interactively”). NOTE: MODIFIED FROM THE SPEC
+To fix this, the spec outlines the “non-interactive default rules”. These involve a few additional **default but optional** message layout rules that enables the user to follow the above block validity rule, while also not interacting with a block producer. Commitments to messages can consist entirely of sub tree roots of the data hash, and for those sub tree roots to be generated only from the message itself (so that the user can sign something “non-interactively”). NOTE: THE STATEMENT BELOW IS MODIFIED FROM THE SPEC
 
 > **Messages must begin at a location aligned with the largest power of 2 that is not larger than the message length or k.**
+
+Below illustrates how we can break a message up into two different subtree roots, root `A` for first four shares, and root `B` consisting of the last two shares. We can then create a commitment out of any number of subtree roots by creating a merkle root of those commitments.
 
 ![Subtree root commitment](./assets/subtree-root.png "Subtree Root based commitments")
 
@@ -26,7 +28,7 @@ To fix this, the spec outlines the “non-interactive default rules”. These in
 
 ![Multi row share commitment](./assets/multirow.png "Subtree Root based commitments")
 
-If we can follow these rules, we can always create a commitment to the data that is a subtree root of the data root while only knowing the data in that message. Below illustrates how we can break a message up into two different subtree roots, the first for first four shares, the second consisting of the last two shares.
+If we can follow these rules, we can always create a commitment to the data that is a subtree root of the data root while only knowing the data in that message.
 
 In practice this usually means that we end up adding padding between messages (zig-zag hatched share) to ensure that each message is starting at an "aligned power of two". Padding consists of the namespace of the message before it, with all zeros for data.
 
@@ -37,7 +39,7 @@ Below is an example block that has been filled using the non-interactive default
 
 ![example](./assets/example-full-block.png "example")
 
-Not only does doing this allow for easy trust minimized message inclusion checks for specific messages by light clients, but also allows for the creation of message inclusion fraud proofs for all messages in the block.
+Not only does doing this allow for easy trust minimized message inclusion checks for specific messages by light clients, but also allows for the creation of message inclusion fraud proofs for all messages in the block. This is important to reduce the trust assumptions made by light clients.
 
 ## Decision
 
@@ -47,11 +49,9 @@ While there certainly can be some decisions here, whether or not we begin follow
 
 ## Alternative Designs
 
-As the first note of this document describes, the purpose of this document is not really to decide wether or not we're implementing non-interactive defaults, that has already been decided. While the exact details of the implementation are certainly up for scrutiny, those should be discussed in a different ADR
+While all commitments signed over must only consist of subtree roots, its worth noting that non-interactive defaults are just that, defaults! It's entirely possible that block producers use some mechanism to notify the signer of the commitments that they must sign over, or even that the block producers are signing the transactions paying for the inclusion of the message on behalf of the users. This would render the non-interactive defaults, and the padding accompanied by them, to not be necessary. Other solutions are not mutually exclusive to non-interactive defaults, and do not even have to be built by the core team, so covering those solutions in a more in depth way is outside the scope of this ADR.
 
-While all commitments signed over must only consist of subtree roots, its worth noting that non-interactive defaults are just that, defaults! It's entirely possible that block producers use some mechanism to notify the signer of the commitments that they must sign over, or even that the block producers are signing paying for the inclusion of the message on behalf of the users. This would render the non-interactive defaults, and the padding accompanied by them, to not be necessary. Other solutions are not mutually exclusive to non-interactive defaults, and do not even have to be built by the core team, so covering those solutions in a more in depth way is outside the scope of this ADR.
-
-However, the default implementation of non-interative defaults is within the scope of this ADR. Whatever design we use ultimately needs to support not using the non-interactive defaults. Meaning we should be able to encode block data into a square even if the messages are not arranged according to the non-interactive defaults, and we still need to be able to check for message inclusion using subtree roots.
+However, the default implementation of non-interative defaults is within the scope of this ADR. Whatever design we use ultimately needs to support not using the non-interactive defaults. Meaning we should be able to encode block data into a square even if the messages are not arranged according to the non-interactive defaults. Again, this not change the requirement that all share commitments signed over in PFDs consist only of subtree roots.
 
 ## Detailed Design
 
@@ -60,13 +60,13 @@ To recap the default constraints of arranging a square:
 - All messages must be ordered lexicographically by namespace.
 - The commitments signed over in each `MsgPayForData` must consist only of subtree roots of the data square.
 - If a `MsgPayForData` is added to the square, then its corresponding message must also be included.
-- There must not be a message with a `MsgPayForData` (does this need to be a rule? cc @adlerjohn).
+- There must not be a message without a `MsgPayForData` (does this need to be a rule? cc @adlerjohn).
 - Transactions with higher fees should be prioritized by default.
 - Ideally, the square should be filled as optimally as possible.
 
 For squares that are smaller than the max squaresize, the exact approach is much less important. This is because if we can't fit all of the transactions in a square, then by default we shouldn't be using that square size in the first place.
 
-Arranging the messages in the block to maximize for fees and optimize square space is an NP-hard problem. While the actual computation of the number of shares could be cached to an extent, each change to the square potentially affects the rest of the messages in the square. The only way to know for certain is to calculate the number of shares used. Calculating the exact number of bytes used is further complicated by the order of the steps due to our rampant use of varints, both in our encoding scheme and protobuf's. The example below shows how removing a single share (from the transactions in this case) could change the rest of the square and allow for a message that otherwise would not fit.
+Arranging the messages in the block to maximize for fees and optimize square space is an NP-hard problem. While the actual computation of the number of shares could be cached to an extent, each change to the square potentially affects the rest of the messages in the square. The only way to know for certain is to calculate the number of shares used. Calculating the exact number of bytes used is further complicated by the order of the steps due and our rampant use of varints, both in our encoding scheme and protobuf's. The example below shows how removing a single share (from the transactions in this case) could change the rest of the square and allow for a message that otherwise would not fit.
 
 ![extra message that can't fit](./assets/extra-message-that-doesnt-fit.png "extra message")
 ![fit the extra message by removing a tx](./assets/fit-extra-msg-byremoving-tx.png "extra message")
@@ -82,7 +82,7 @@ To meet the above constraints, there are multiple refactors required.
 
 ### Add metadata to wrapped transactions [#819](https://github.com/celestiaorg/celestia-core/pull/819)
 
-In order to check for message inclusion, create message inclusion fraud proofs, split the block data into squares, and not force non-interactive defaults for every square, we have to connect a `MsgPayForData` transaction to its corresponding message. Since users cannot know this ahead of time, block producers have to add this information as metadata before the transaction gets included in the block.
+In order to check for message inclusion, create message inclusion fraud proofs, split the block data into squares, and not force non-interactive defaults for every square, we have to connect a `MsgPayForData` transaction to its corresponding message by adding the index of the share that the message starts on as metadata. Since users cannot know this ahead of time, block producers have to add this metadata before the transaction gets included in the block.
 
 We are already wrapping/unwrapping malleated transactions, so including the `share_index` as metadata using the current code is essentially as simple as adding the `share_index` to the struct. Transactions are unwrapped selectively by using a [`MalleatedTxDecoder`](https://github.com/celestiaorg/celestia-app/blob/5ac236fb1dab6628e98a505269f295c18e150b27/app/encoding/malleated_tx_decoder.go#L8-L15) or by using the [`UnwrapMalleatedTx`](https://github.com/celestiaorg/celestia-core/blob/212901fcfc0f5a095683b1836ea9e890cc952dc7/types/tx.go#L214-L237) function.
 
@@ -98,9 +98,9 @@ uint32 share_index     = 3;
 
 Our encoding scheme now has to actually use the metadata added to wrapped transactions.
 
-Note: In order to properly test the new encoding scheme, we have to perform identical if not very similar application logic to that in `PrepareProposal` for this reason, we initially wanted to move the share encoding/decoding logic to the app instead of core. There were some other quality of life improvements that were also added during this refactor that are technically unrelated to these changes.
+Note: In order to properly test the new encoding scheme, we have to perform identical if not very similar application logic to that in `PrepareProposal`, for this reason, we initially wanted to move the share encoding/decoding logic to the app instead of core. There were some other quality of life improvements that were also added during this refactor that are technically unrelated to these changes.
 
-We currently utilize a struct to store the state needed for lazily writing message shares (todo: possibly change this name). Here we add a method to it that allows for us to write namespaced padded shares.
+We currently utilize a struct to store the state needed for lazily writing message shares. Here we add a method to it that allows for us to write namespaced padded shares.
 
 ```go
 // MessageShareSplitter lazily splits messages into shares that will eventually be
@@ -150,7 +150,7 @@ When parsing the message shares, we can simply ignore these added namespaced pad
 
 ### Implement the non-interactive default logic
 
-recall our non-interactive default rule:
+recall our non-interactive default message layout rule:
 
 > **Messages must begin at a location aligned with the largest power of 2 that is not larger than the message length or k.**
 
@@ -205,11 +205,11 @@ We can now use this function in many places, such as when we estimate the square
 
 ### Refactor `PrepareProposal`
 
-From a very high level perspective `PrepareProposal` stays mostly the same. We need to estimate the square size accurately enough to pick a square size so that we can malleate the transactions that are given to us by tendermint, then arrange messages in a square. However, recall the constraints and issues described at the top of this section. Technically, the addition or removal of a single byte can change the entire arrangement of the square. Knowing, or at least being able to estimate how many shares/bytes are used is critical to finding an optimal solution to arranging the square yet the constraints themselves along with our frequent use of variable length encoding techniques make estimating much more complicated.
+From a very high level perspective `PrepareProposal` stays mostly the same. We need to estimate the square size accurately enough to pick a square size so that we can malleate the transactions that are given to us by tendermint and arrange those messages in a square. However, recall the constraints and issues described at the top of this section. Technically, the addition or removal of a single byte can change the entire arrangement of the square. Knowing, or at least being able to estimate, how many shares/bytes are used is critical to finding an optimal solution to arranging the square. Yet the constraints themselves along with our frequent use of variable length encoding techniques make estimating much more complicated.
 
-While messages must be ordered lexicographically, we also have to order transactions by their fees and ensure that each message is added atomically with its corresponding `MsgPayForData` transaction. Also, malleated transactions exist alongside normal transactions, the former of which we have to add **variable sized** metadata to only _after_ we know the starting location of each message. All while following the non-interactive defaults, both of which make it difficult to accurately estimate the number of shares or bytes used.
+While messages must be ordered lexicographically, we also have to order transactions by their fees and ensure that each message is added atomically with its corresponding `MsgPayForData` transaction. Also, malleated transactions exist alongside normal transactions, the former of which we have to add **variable sized** metadata to only _after_ we know the starting location of each message. All while following the non-interactive defaults.
 
-Below is the lightly summarized code for `PrepareProposal` that we can use a high level map of what we're doing to arrange the block data into a square.
+Below is the lightly summarized code for `PrepareProposal` that we can use as a high level map of how we're going to arrange the block data into a square.
 
 ```go
 // PrepareProposal fulfills the celestia-core version of the ABCI interface by
@@ -304,7 +304,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 #### Square Estimation
 
-Using some of the non-interactive defaults code above, we can quickly calculate the size of each reserved namespace shares using the parsed transactions. As discussed in the docs of this function, the goal here is not necessarily to get a perfect count of the shares that are being used, but we do need to know roughly what square size is needed. When estimating, we should round up in square size.
+Using some of the non-interactive defaults code above, we can quickly calculate the number of shares required by each type of block data. As discussed in the docs of this function, the goal here is not necessarily to get a perfect count of the shares that are being used, but we do need to know roughly what square size is needed. When estimating, we should round up in square size.
 
 ```go
 // FitsInSquare uses the non interactive default rules to see if messages of
@@ -363,7 +363,7 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 
 If there are too many transactions and messages in the square to fit in the max square size, then we have to remove them from the block. This can be complicated, as by default we want to prioritzie transactions that have higher fees, but removing a low fee transaction doesn't always result in using less shares.
 
-The simplest approach, and the one taken in the initial implementation, works by prematurely pruning the txs if we estimate that too many shares are being used. While this does work, and fulfills the constraints discussed earlier to create valid blocks, it is suboptimal. Ideally we would be able to identify the most optimal message and transactions to remove and simply remove only those. As mentioned earlier, technically, a single byte difference could change the entire arrangement of the square. Which makes arranging the square with complete confidence difficult not only because we have to follow all of the constraints, but also because of our frequent reliance on variable length length delimiters, and protofuf changing the amount of bytes used depending on the size of ints/uints.
+The simplest approach, and the one taken in the initial implementation, works by prematurely pruning the txs if we estimate that too many shares are being used. While this does work, and fulfills the constraints discussed earlier to create valid blocks, it is suboptimal. Ideally we would be able to identify the most optimal message and transactions to remove and then simply remove only those. As mentioned earlier, technically, a single byte difference could change the entire arrangement of the square. This makes arranging the square with complete confidence difficult not only because we have to follow all of the constraints, but also because of our frequent reliance on variable length length delimiters, and protofuf changing the amount of bytes used depending on the size of ints/uints.
 
 ```go
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
@@ -379,7 +379,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 #### Malleation
 
-Due to the use of the `parsedTxs` data structure, we can now abstract the malleation process entirely. Whereas before it was hard coded into the share proprietary proposal share splitting logic.
+Due to the use of the `parsedTxs` data structure, we can now abstract the malleation process entirely, whereas before it was hard coded into the share proprietary proposal share splitting logic.
 
 ```go
 func (p *parsedTx) malleate(txConf client.TxConfig, squareSize uint64) error {
@@ -456,7 +456,7 @@ Fortunately, most of the work necessary for non-interactive defaults is encapsul
 - All messages must be ordered lexicographically by namespace.
 - The commitments signed over in each `MsgPayForData` must consist only of subtree roots of the data square.
 - If a `MsgPayForData` is added to the square, then its corresponding message must also be included.
-- There must not be a message with a `MsgPayForData` (does this need to be a rule? cc @adlerjohn).
+- There must not be a message without a `MsgPayForData` (does this need to be a rule? cc @adlerjohn).
 
 We are already checking the first constraint simply be calculating the data root. The only changes we need to make here are to cache the nmt trees generated when comparing the data root, and then use those cached trees to find the subtree roots necessary to create the data commitments.
 
@@ -637,7 +637,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 Lastly, we also need to check that each valid `MsgPayForData` has a corresponding message, and that there are no unexpected messages.
 
 - If a `MsgPayForData` is added to the square, then its corresponding message must also be included.
-- There must not be a message with a `MsgPayForData` (does this need to be a rule? cc @adlerjohn).
+- There must not be a message without a `MsgPayForData` (does this need to be a rule? cc @adlerjohn).
 
 ```go
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
