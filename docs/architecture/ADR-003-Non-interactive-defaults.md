@@ -365,7 +365,6 @@ If there are too many transactions and messages in the square to fit in the max 
 
 The simplest approach, and the one taken in the initial implementation, works by prematurely pruning the txs if we estimate that too many shares are being used. While this does work, and fulfills the constraints discussed earlier to create valid blocks, it is suboptimal. Ideally we would be able to identify the most optimal message and transactions to remove and simply remove only those. As mentioned earlier, technically, a single byte difference could change the entire arrangement of the square. Which makes arranging the square with complete confidence difficult not only because we have to follow all of the constraints, but also because of our frequent reliance on variable length length delimiters, and protofuf changing the amount of bytes used depending on the size of ints/uints.
 
-
 ```go
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
    ...
@@ -460,8 +459,6 @@ Fortunately, most of the work necessary for non-interactive defaults is encapsul
 - There must not be a message with a `MsgPayForData` (does this need to be a rule? cc @adlerjohn).
 
 We are already checking the first constraint simply be calculating the data root. The only changes we need to make here are to cache the nmt trees generated when comparing the data root, and then use those cached trees to find the subtree roots necessary to create the data commitments.
-
-
 
 #### Implement the ability to traverse an nmt tree to find subtree roots
 
@@ -587,7 +584,6 @@ func GetCommit(cacher *EDSSubTreeRootCacher, dah da.DataAvailabilityHeader, star
 Now we can fulfill the second constraint:
 
 - The commitments signed over in each `MsgPayForData` must consist only of subtree roots of the data square.
-
 
 ```go
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
