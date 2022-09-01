@@ -10,7 +10,7 @@ pls see the [original specs](https://github.com/celestiaorg/celestia-specs/blob/
 
 Currently, when checking for message inclusion, validators recreate the share commitment from the messages in the block and compare those with what are signed over in the `MsgPayForData` transactions also in that block. If any commitment is not found in one of the PFD transactions, or if there is a commitment that doesn't have a corresponding message, then they reject that block.
 
-While this functions as a message inclusion check, the light client has to assume that 2/3's of the voting power is honest in order to be assured that both the messages they are interested in and the rest of the messages paid for in that block are actually included. In order to have this property, we need a block (or tx? pls halp reviewers) validity rule where:
+While this functions as a message inclusion check, the light client has to assume that 2/3's of the voting power is honest in order to be assured that both the messages they are interested in and the rest of the messages paid for in that block are actually included. In order to have this property, we need a block validity rule where:
 
 > **All share commitments included in `MsgPayForData` must consist only of subtree roots of the data square.**
 
