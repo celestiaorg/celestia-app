@@ -6,12 +6,14 @@ package inclusion
 //nolint:unused,deadcode
 func genSubTreeRootPath(depth int, pos uint) []bool {
 	path := make([]bool, depth)
-	for i := depth; i >= 0; i-- {
+	counter := 0
+	for i := depth - 1; i >= 0; i-- {
 		if (pos & (1 << i)) == 0 {
-			path = append(path, false)
+			path[counter] = false
 		} else {
-			path = append(path, true)
+			path[counter] = true
 		}
+		counter++
 	}
 	return path
 }

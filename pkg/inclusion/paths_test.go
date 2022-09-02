@@ -227,3 +227,23 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		assert.Equal(t, tt.expected, res, tt.name)
 	}
 }
+
+func Test_genSubTreeRootPath(t *testing.T) {
+	type test struct {
+		depth    int
+		pos      uint
+		expected []bool
+	}
+	tests := []test{
+		{2, 0, []bool{false, false}},
+		{0, 0, []bool{}},
+		{3, 0, []bool{false, false, false}},
+		{3, 1, []bool{false, false, true}},
+		{3, 2, []bool{false, true, false}},
+		{5, 16, []bool{true, false, false, false, false}},
+	}
+	for _, tt := range tests {
+		path := genSubTreeRootPath(tt.depth, tt.pos)
+		assert.Equal(t, tt.expected, path)
+	}
+}
