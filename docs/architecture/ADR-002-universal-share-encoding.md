@@ -2,12 +2,6 @@
 <!-- disable markdownlint MD010 because Go code snippet uses tabs -->
 <!-- markdownlint-disable MD010 -->
 
-## Changelog
-
-- 2022/8/22: inital draft of InfoReservedByte
-- 2022/8/24: update draft to Universal Share Encoding
-- 2022/8/31: switch from "reserved vs unreserved" to "compact vs sparse" when describing share format
-
 ## Terminology
 
 - **nid** (8 bytes): namespace id
@@ -29,7 +23,7 @@ The current share format poses multiple challenges:
 
 1. Clients must have two share parsing implementations (one for compact shares and one for sparse shares).
 1. It is difficult to make changes to the share format in a backwards compatible way because clients can't determine which version of the share format an individual share conforms to.
-1. It is not possible for a client that samples a random share to determine if the share is the first share of that namespace or a contiguous share in the message.
+1. It is not possible for a client that samples a random share to determine if the share is the first share of a message or a contiguous share in the message.
 
 ## Proposal
 
@@ -51,6 +45,19 @@ Rationale:
 1. The message start indicator allows clients to parse a whole message in the middle of a namespace, without needing to read the whole namespace.
 1. The version bits allow us to upgrade the share format in the future, if we need to do so in a way that different share formats can be mixed within a block.
 
+## Example
+
+| share number            | 10                               | 11                               | 12                               | 13                               |
+| ----------------------- | -------------------------------- | -------------------------------- | -------------------------------- | -------------------------------- |
+| namespace               | `[]byte{1, 1, 1, 1, 1, 1, 1, 1}` | `[]byte{1, 1, 1, 1, 1, 1, 1, 1}` | `[]byte{1, 1, 1, 1, 1, 1, 1, 1}` | `[]byte{2, 2, 2, 2, 2, 2, 2, 2}` |
+| version                 | `0000000`                        | `0000000`                        | `0000000`                        | `0000000`                        |
+| message start indicator | `1`                              | `1`                              | `0`                              | `1`                              |
+| data                    | foo                              | bar                              | bar (continued)                  | buzz                             |
+
+Without the universal share format: if a client is provided share 11, they have no way of knowing that a message length delimiter is encoded in this share. In order to parse the bar message, they must request and download all shares in this namespace (shares 10 and 12) and parse them in-order to determine the length of the bar message.
+
+With the universal share format: if a client is provided share 11, they know from the prefix that share 11 is the start of a message and can therefore parse the message length delimiter in share 11. With the parsed message length, the client knows that the bar message will complete after reading N bytes (where N includes shares 11 and 12) and can therefore avoid requesting and downloading share 10.
+
 ## Questions
 
 1. Does the info byte introduce any new attack vectors?
@@ -58,12 +65,12 @@ Rationale:
     - This **continuation share indicator** is inspired by [protocol buffer varints](https://developers.google.com/protocol-buffers/docs/encoding#varints) and [UTF-8](https://en.wikipedia.org/wiki/UTF-8).
     - The **continuation share indicator** is distinct from the **message start indicator**. Consider a message with 3 contiguous shares:
 
-        indicator          | share 1 | share 2 | share 3
-        ---                | ---     | ---     | ---
-        message start      | `1`     | `0`     | `0`
-        continuation share | `1`     | `1`     | `0` <- client stops requesting contiguous shares when they encounter `0`
+        | share number                 | 1   | 2   | 3                                                                        |
+        | ---------------------------- | --- | --- | ------------------------------------------------------------------------ |
+        | message start indicator      | `1` | `0` | `0`                                                                      |
+        | continuation share indicator | `1` | `1` | `0` <- client stops requesting contiguous shares when they encounter `0` |
 
-    - This would enable clients to begin parsing a message by sampling a share in the middle of a message and proceed to parsing contiguous shares until the end without ever encountering the first share of the message which contains the message length. However, this use case seems contrived because a subset of the message shares may not be meaningful to the client.
+    - This would enable clients to begin parsing a message by sampling a share in the middle of a message and proceed to parsing contiguous shares until the end without ever encountering the first share of the message which contains the message length. However, this use case seems contrived because a subset of the message shares may not be meaningful to the client. This depends on how roll-ups encode the data in a `PayForData` transaction.
     - Without the continuation share indicator, the client would have to request the first share of the message to parse the message length. If they don't request the first share, they can request contiguous shares until they reach the first share after their message ends to learn that they completed requesting the previous message.
 
 1. What happens if a block producer publishes a message with a version that isn't in the list of supported versions?
