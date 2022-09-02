@@ -127,7 +127,7 @@ func TestEDSSubRootCacher(t *testing.T) {
 		require.NotNil(t, expectedSubTreeRoots)
 		// note: the depth is one greater than expected because we're dividing
 		// the row in half when we calculate the expected roots.
-		result, err := stc.GetSubTreeRoot(dah, i, []WalkInstruction{false, false, false})
+		result, err := stc.getSubTreeRoot(dah, i, []WalkInstruction{false, false, false})
 		require.NoError(t, err)
 		assert.Equal(t, expectedSubTreeRoots[0], result)
 	}
