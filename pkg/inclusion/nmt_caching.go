@@ -9,6 +9,15 @@ import (
 	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
+// WalkInstruction wraps the bool type to indicate the direction that should be
+// used while traversing a binary tree
+type WalkInstruction bool
+
+const (
+	WalkLeft  = false
+	WalkRight = true
+)
+
 // subTreeRootCacher keep track of all the inner nodes of an nmt using a simple
 // map. Note: this cacher does not cache individual leaves or their hashes, only
 // inner nodes.
@@ -39,7 +48,7 @@ func (strc *subTreeRootCacher) Visit(hash []byte, children ...[]byte) {
 // indicating that the first child node (left most node) should be used to find
 // the next path, and the true indicating that the second (right) should be used.
 // walk throws an error if the sub tree cannot be found.
-func (strc subTreeRootCacher) walk(root []byte, path []bool) ([]byte, error) {
+func (strc subTreeRootCacher) walk(root []byte, path []WalkInstruction) ([]byte, error) {
 	// return if we've reached the end of the path
 	if len(path) == 0 {
 		return root, nil
@@ -53,11 +62,9 @@ func (strc subTreeRootCacher) walk(root []byte, path []bool) ([]byte, error) {
 
 	// continue to traverse the tree by recursively calling this function on the next root
 	switch path[0] {
-	// walk left
-	case false:
+	case WalkLeft:
 		return strc.walk([]byte(children[0]), path[1:])
-	// walk right
-	case true:
+	case WalkRight:
 		return strc.walk([]byte(children[1]), path[1:])
 	default:
 		// this is unreachable code, but the compiler doesn't recognize this somehow
@@ -110,7 +117,7 @@ func (stc *EDSSubTreeRootCacher) Constructor() rsmt2d.Tree {
 
 // GetSubTreeRoot traverses the nmt of the selected row and returns the
 // subtree root. An error is thrown if the subtree cannot be found.
-func (stc *EDSSubTreeRootCacher) GetSubTreeRoot(dah da.DataAvailabilityHeader, row int, path []bool) ([]byte, error) {
+func (stc *EDSSubTreeRootCacher) GetSubTreeRoot(dah da.DataAvailabilityHeader, row int, path []WalkInstruction) ([]byte, error) {
 	if len(stc.caches) != len(dah.RowsRoots) {
 		return nil, fmt.Errorf("data availability header has unexpected number of row roots: expected %d got %d", len(stc.caches), len(dah.RowsRoots))
 	}

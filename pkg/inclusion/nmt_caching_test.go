@@ -48,56 +48,62 @@ func TestWalkCachedSubTreeRoot(t *testing.T) {
 	tallSTR := tallSubTree.Root()
 
 	type test struct {
-		name        string
-		path        []bool
-		subTreeRoot []byte
-		error       string
+		name          string
+		path          []WalkInstruction
+		subTreeRoot   []byte
+		expectedError string
 	}
 
 	tests := []test{
 		{
 			"left most short sub tree",
-			[]bool{false, false},
+			[]WalkInstruction{WalkLeft, WalkLeft},
 			shortSTR,
 			"",
 		},
 		{
 			"left middle short sub tree",
-			[]bool{false, true},
+			[]WalkInstruction{WalkLeft, WalkRight},
 			shortSTR,
 			"",
 		},
 		{
 			"right middle short sub tree",
-			[]bool{true, false},
+			[]WalkInstruction{WalkRight, WalkLeft},
 			shortSTR,
 			"",
 		},
 		{
 			"right most short sub tree",
-			[]bool{true, true},
+			[]WalkInstruction{WalkRight, WalkRight},
 			shortSTR,
 			"",
 		},
 		{
 			"left most tall sub tree",
-			[]bool{false},
+			[]WalkInstruction{WalkLeft},
 			tallSTR,
 			"",
 		},
 		{
 			"right most tall sub tree",
-			[]bool{true},
+			[]WalkInstruction{WalkRight},
 			tallSTR,
 			"",
+		},
+		{
+			"right most tall sub tree",
+			[]WalkInstruction{WalkRight, WalkRight, WalkRight, WalkRight},
+			tallSTR,
+			"did not find sub tree root",
 		},
 	}
 
 	for _, tt := range tests {
 		foundSubRoot, err := strc.walk(highestRoot, tt.path)
-		if tt.error != "" {
+		if tt.expectedError != "" {
 			require.Error(t, err, tt.name)
-			assert.Contains(t, err.Error(), tt.error, tt.name)
+			assert.Contains(t, err.Error(), tt.expectedError, tt.name)
 			continue
 		}
 
@@ -121,7 +127,7 @@ func TestEDSSubRootCacher(t *testing.T) {
 		require.NotNil(t, expectedSubTreeRoots)
 		// note: the depth is one greater than expected because we're dividing
 		// the row in half when we calculate the expected roots.
-		result, err := stc.GetSubTreeRoot(dah, i, []bool{false, false, false})
+		result, err := stc.GetSubTreeRoot(dah, i, []WalkInstruction{false, false, false})
 		require.NoError(t, err)
 		assert.Equal(t, expectedSubTreeRoots[0], result)
 	}
