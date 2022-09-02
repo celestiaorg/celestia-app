@@ -130,14 +130,14 @@ func (msw *MessageShareSplitter) WriteNamespacedPaddedShares(count int) {
 Now we simply combine this new functionality with the `share_index`s described above, and we can properly split and pad messages when needed. Note, the below implementation allows for `nil` to be passed as indexes. This is important, as it allows the same implementation to be used in the cases where we don't want to split messages using wrapped transactions, such as supporting older networks or when users create commitments to sign over for `MsgWirePayForData`
 
 ```go
-func SplitMessages(cursor int, indexes []uint32, msgs []coretypes.Message) ([][]byte, error) {
-  if indexes != nil && len(indexes) != len(msgs) {
+func SplitMessages(cursor int, indexes []uint32, msgs []coretypes.Message, useShareIndexes bool) ([][]byte, error) {
+  if len(indexes) != len(msgs) {
       return nil, ErrIncorrectNumberOfIndexes
   }
   writer := NewMessageShareSplitter()
   for i, msg := range msgs {
       writer.Write(msg)
-      if indexes != nil && len(indexes) > i+1 {
+      if useShareIndexes && len(indexes) > i+1 {
           paddedShareCount := int(indexes[i+1]) - (writer.Count() + cursor)
           writer.WriteNamespacedPaddedShares(paddedShareCount)
       }
