@@ -1,4 +1,4 @@
-# ADR 5: Reduce QGB state
+# ADR 5: Reduce QGB state usage
 
 ## Changelog
 
