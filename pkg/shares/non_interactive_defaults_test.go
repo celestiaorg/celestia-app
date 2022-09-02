@@ -194,7 +194,6 @@ func TestNextAlignedPowerOfTwo(t *testing.T) {
 			assert.Equal(t, tt.expectedIndex, res)
 		})
 	}
-
 }
 
 func Test_roundUpBy(t *testing.T) {
