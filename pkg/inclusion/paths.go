@@ -47,9 +47,9 @@ func (c coord) climb() coord {
 
 // canClimbRight uses the current position to calculate the direction of the next
 // climb. Returns true if the next climb is right (if the position (index) is
-// even).
+// even). please see depth and position example map in docs for coord.
 func (c coord) canClimbRight() bool {
-	return c.position%2 == 0
+	return c.position%2 == 0 && c.depth > 0
 }
 
 // calculateSubTreeRootCoordinates generates the sub tree root coordinates of a
