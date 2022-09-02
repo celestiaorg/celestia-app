@@ -102,6 +102,16 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 		)
 	}
 
+	if err := msg.ValidateMessageShareCommitments(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ValidateMessageShareCommitments returns an error if the message share
+// commitments are invalid.
+func (msg *MsgWirePayForData) ValidateMessageShareCommitments() error {
 	for idx, commit := range msg.MessageShareCommitment {
 		// check that each commit is valid
 		if !powerOf2(commit.K) {
@@ -122,7 +132,50 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 		return ErrNoMessageShareCommitments
 	}
 
+	if err := msg.ValidateAllSquareSizesCommitedTo(); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// ValidateAllSquareSizesCommitedTo returns an error if the list of square sizes
+// committed to don't match all square sizes expected for this message size.
+func (msg *MsgWirePayForData) ValidateAllSquareSizesCommitedTo() error {
+	allSquareSizes := AllSquareSizes(int(msg.MessageSize))
+	committedSquareSizes := msg.committedSquareSizes()
+
+	if len(allSquareSizes) != len(committedSquareSizes) {
+		return ErrInvalidShareCommitments.Wrapf("length of all square sizes: %v must equal length of committed square sizes: %v", len(allSquareSizes), len(committedSquareSizes))
+	}
+
+	if !isEqual(allSquareSizes, committedSquareSizes) {
+		return ErrInvalidShareCommitments.Wrapf("all square sizes: %v, committed square sizes: %v", allSquareSizes, committedSquareSizes)
+	}
+	return nil
+}
+
+// isEqual returns true if the given uint64 slices are equal
+func isEqual(a, b []uint64) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// commitedSquareSizes returns a list of square sizes that are present in a
+// message's share commitment.
+func (msg *MsgWirePayForData) committedSquareSizes() []uint64 {
+	squareSizes := make([]uint64, 0, len(msg.MessageShareCommitment))
+	for _, commit := range msg.MessageShareCommitment {
+		squareSizes = append(squareSizes, commit.K)
+	}
+	return squareSizes
 }
 
 // ValidateMessageNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.

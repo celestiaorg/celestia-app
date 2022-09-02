@@ -5,13 +5,14 @@ import (
 	"crypto/sha256"
 	"sort"
 
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
+
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 )
 
 // SplitShares uses the provided block data to create a flattened data square.

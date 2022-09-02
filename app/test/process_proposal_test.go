@@ -5,11 +5,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/testutil"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -21,6 +16,12 @@ import (
 	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/testutil"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 )
 
 func TestMessageInclusionCheck(t *testing.T) {
