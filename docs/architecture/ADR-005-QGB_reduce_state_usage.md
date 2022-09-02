@@ -1,6 +1,5 @@
 # ADR 5: Reduce QGB state usage
 
-
 ## Context
 
 The first design for the QGB was to use the state extensively to store all the QGB related data: Attestations, `Valset Confirms` and `DataCommitment Confirms`.
