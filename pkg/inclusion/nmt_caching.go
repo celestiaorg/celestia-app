@@ -9,8 +9,6 @@ import (
 	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
-// TODO optimize https://github.com/celestiaorg/nmt/blob/e679661c6776d8a694f4f7c423c2e2eccb6c5aaa/subrootpaths.go#L15-L28
-
 // subTreeRootCacher keep track of all the inner nodes of an nmt using a simple
 // map. Note: this cacher does not cache individual leaves or their hashes, only
 // inner nodes.
