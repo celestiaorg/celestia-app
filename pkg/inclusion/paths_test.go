@@ -293,6 +293,5 @@ func Test_calculateCommitPaths(t *testing.T) {
 				assert.Equal(t, tt.expected, calculateCommitPaths(tt.size, tt.start, tt.msgLen))
 			},
 		)
-
 	}
 }
