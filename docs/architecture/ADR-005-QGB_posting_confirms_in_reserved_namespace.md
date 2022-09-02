@@ -72,16 +72,16 @@ https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1a
 ```go
 // ValsetConfirm handles MsgValsetConfirm.
 func (k msgServer) ValsetConfirm(
-	c context.Context,
-	msg *types.MsgValsetConfirm,
+    c context.Context,
+    msg *types.MsgValsetConfirm,
 ) (*types.MsgValsetConfirmResponse, error) {
-	// <delete_all_this>
+    // <delete_all_this>
 }
 
 // DataCommitmentConfirm handles MsgDataCommitmentConfirm.
 func (k msgServer) DataCommitmentConfirm(
-	c context.Context,
-	msg *types.MsgDataCommitmentConfirm,
+    c context.Context,
+    msg *types.MsgDataCommitmentConfirm,
 ) (*types.MsgDataCommitmentConfirmResponse, error) {
     // <delete_all_this>
 }
@@ -89,11 +89,11 @@ func (k msgServer) DataCommitmentConfirm(
 
 This would reduce significantly the QGB module state usage, reduce the complexity of the state machine and give us the same benefits of the current design.
 
-As a direct consequence to this, the relayer will need to adapt to this change and start getting the transactions straight from the blocks, parse them and sanitize the commits. Thus, making the relayer implementation more complex. 
+As a direct consequence to this, the relayer will need to adapt to this change and start getting the transactions straight from the blocks, parse them and sanitize the commits. Thus, making the relayer implementation more complex.
 
 However, we can assume that the relayer will have enough computing power to do the latter. Also, only one relayer is necessary to have a working QGB contract. So, the relayer cost is justified.
 
-For the orchestrators, they will also need to parse the history to keep track of any missed signatures. But, same as with the relayers, the cost is justified. 
+For the orchestrators, they will also need to parse the history to keep track of any missed signatures. But, same as with the relayers, the cost is justified.
 
 For posting transactions, we will rely on gas fees as a mechanism to limit malicious parties to flood the network with invalid transactions. Then, eventually slash malicious behavious. However, since posting confirms will be possible for any user of the network. It won't be possible to slash ordinary users, who are not running validators, if they post invalid confirms.
 
