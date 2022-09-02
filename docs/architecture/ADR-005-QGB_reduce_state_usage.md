@@ -1,8 +1,5 @@
 # ADR 5: Reduce QGB state usage
 
-## Changelog
-
-- {date}: {changelog}
 
 ## Context
 
