@@ -38,7 +38,7 @@ This way, we will always have a fixed sized state, issue defining this: [Prune t
 
 This would mean gossiping the confirms and attestations in a separate P2P network.
 The pros of this approach are that it will be cheaper and wouldn't involve any state changes.
-However, slashing will not be possible.
+However, slashing will be very difficult especially for liveness, i.e. an orchestrator not signing an attestation then slash them after a certain period.
 
 ### Dump the QGB state in a namespace
 
