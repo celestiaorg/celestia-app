@@ -1,6 +1,10 @@
 package inclusion
 
-import "math"
+import (
+	"math"
+
+	"github.com/celestiaorg/celestia-app/pkg/shares"
+)
 
 type path struct {
 	instructions []WalkInstruction
