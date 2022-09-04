@@ -595,7 +595,7 @@ Now we can fulfill the second constraint:
 ```go
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
    ...
-   // iterate over all of the MsgPayForData transactions and ensure that they
+   // iterate over all of the MsgPayForData transactions and ensure that their
    // commitments are subtree roots of the data root.
    for _, rawTx := range req.BlockData.Txs {
        // iterate through the transactions and check if they are malleated
