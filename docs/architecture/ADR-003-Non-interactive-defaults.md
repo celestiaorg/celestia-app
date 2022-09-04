@@ -91,7 +91,7 @@ To meet the above constraints, there are multiple refactors required.
 
 In order to check for message inclusion, create message inclusion fraud proofs, split the block data into squares, and not force non-interactive defaults for every square, we have to connect a `MsgPayForData` transaction to its corresponding message by adding the index of the share that the message starts on as metadata. Since users cannot know this ahead of time, block producers have to add this metadata before the transaction gets included in the block.
 
-We are already wrapping/unwrapping malleated transactions, so including the `share_index` as metadata using the current code is essentially as simple as adding the `share_index` to the struct. Transactions are unwrapped selectively by using a [`MalleatedTxDecoder`](https://github.com/celestiaorg/celestia-app/blob/5ac236fb1dab6628e98a505269f295c18e150b27/app/encoding/malleated_tx_decoder.go#L8-L15) or by using the [`UnwrapMalleatedTx`](https://github.com/celestiaorg/celestia-core/blob/212901fcfc0f5a095683b1836ea9e890cc952dc7/types/tx.go#L214-L237) function.
+We are already wrapping/unwrapping malleated transactions, so including the `share_index` as metadata using the current code is essentially as simple as adding the `share_index` to the struct. Transactions are unwrapped selectively by using a [`MalleatedTxDecoder(...)`](https://github.com/celestiaorg/celestia-app/blob/5ac236fb1dab6628e98a505269f295c18e150b27/app/encoding/malleated_tx_decoder.go#L8-L15) or by using the [`UnwrapMalleatedTx(...)`](https://github.com/celestiaorg/celestia-core/blob/212901fcfc0f5a095683b1836ea9e890cc952dc7/types/tx.go#L214-L237) function.
 
 ```proto
 message MalleatedTx {
@@ -540,7 +540,7 @@ func (strc *subTreeRootCacher) Visit(hash []byte, children ...[]byte) {
 type EDSSubTreeRootCacher struct {
    caches     []*subTreeRootCacher
    squareSize uint64
-   // counter is used to ignore columns NOTE: this is a leaky abstraction that
+   // counter is used to ignore columns. NOTE: this is a leaky abstraction that
    // we make because rsmt2d is used to generate the roots for us, so we have
    // to assume that it will generate a row root every other tree constructed.
    // This is also one of the reasons this implementation is not thread safe.
@@ -679,7 +679,7 @@ The current implementation performs many different estimation and calculation st
 
 ## Status
 
-{Deprecated|Proposed|Accepted|Declined}
+Accepted
 
 ## Consequences
 
