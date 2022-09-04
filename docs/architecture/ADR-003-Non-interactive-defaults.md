@@ -22,7 +22,7 @@ NOTE: THE STATEMENT BELOW IS MODIFIED FROM THE SPEC
 
 > **Messages must begin at a location aligned with the largest power of 2 that is not larger than the message length or k.**
 
-Below illustrates how we can break a message up into two different subtree roots, root `A` for first four shares, and root `B` consisting of the last two shares. We can then create a commitment out of any number of subtree roots by creating a merkle root of those commitments.
+Below illustrates how we can break a message up into two different subtree roots, following a [Merkle Mountain Range](https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/) structure, i.e. root `A` for first four shares, and root `B` consisting of the last two shares. We can then create a commitment out of any number of subtree roots by creating a merkle root of those commitments.
 
 ![Subtree root commitment](./assets/subtree-root.png "Subtree Root based commitments")
 
