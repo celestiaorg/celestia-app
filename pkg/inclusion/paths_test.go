@@ -17,7 +17,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "first four shares of an 8 leaf tree",
 			start:    0,
-			end:      3,
+			end:      4,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -29,7 +29,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "second set of four shares of an 8 leaf tree",
 			start:    4,
-			end:      7,
+			end:      8,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -41,7 +41,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "middle 2 shares of an 8 leaf tree",
 			start:    3,
-			end:      4,
+			end:      5,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -57,7 +57,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "third lone share of an 8 leaf tree",
 			start:    3,
-			end:      3,
+			end:      4,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -69,7 +69,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "middle 3 shares of an 8 leaf tree",
 			start:    3,
-			end:      5,
+			end:      6,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -85,7 +85,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "middle 6 shares of an 8 leaf tree",
 			start:    1,
-			end:      6,
+			end:      7,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -109,7 +109,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "first 5 shares of an 8 leaf tree",
 			start:    0,
-			end:      4,
+			end:      5,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -125,7 +125,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "first 7 shares of an 8 leaf tree",
 			start:    0,
-			end:      6,
+			end:      7,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -145,7 +145,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "all shares of an 8 leaf tree",
 			start:    0,
-			end:      7,
+			end:      8,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -157,7 +157,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "first 32 shares of a 128 leaf tree",
 			start:    0,
-			end:      31,
+			end:      32,
 			maxDepth: 7,
 			expected: []coord{
 				{
@@ -169,7 +169,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "first 33 shares of a 128 leaf tree",
 			start:    0,
-			end:      32,
+			end:      33,
 			maxDepth: 7,
 			expected: []coord{
 				{
@@ -185,7 +185,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "first 31 shares of a 128 leaf tree",
 			start:    0,
-			end:      30,
+			end:      31,
 			maxDepth: 7,
 			expected: []coord{
 				{
@@ -213,11 +213,23 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "first 64 shares of a 128 leaf tree",
 			start:    0,
-			end:      63,
+			end:      64,
 			maxDepth: 7,
 			expected: []coord{
 				{
 					depth:    1,
+					position: 0,
+				},
+			},
+		},
+		{
+			name:     "single leaf square size 4",
+			start:    0,
+			end:      1,
+			maxDepth: 2,
+			expected: []coord{
+				{
+					depth:    2,
 					position: 0,
 				},
 			},

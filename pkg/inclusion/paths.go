@@ -140,12 +140,12 @@ func calculateSubTreeRootCoordinates(maxDepth, start, end int) []coord {
 	for {
 		switch {
 		// check if we're finished, if so add the last coord and return
-		case leafCursor == end:
+		case leafCursor+1 == end:
 			cds = append(cds, nodeCursor)
 			return cds
 		// check if we've climbed too high in the tree. if so, add the last
 		// highest node and proceed.
-		case leafCursor > end:
+		case leafCursor+1 > end:
 			cds = append(cds, lastNodeCursor)
 			leafCursor = lastLeafCursor + 1
 			reset()
