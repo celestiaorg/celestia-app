@@ -106,17 +106,17 @@ func TestFitsInSquare(t *testing.T) {
 
 func TestNextAlignedPowerOfTwo(t *testing.T) {
 	type test struct {
-		name              string
-		cursor, msgLen, k int
-		expectedIndex     int
-		fits              bool
+		name                       string
+		cursor, msgLen, squareSize int
+		expectedIndex              int
+		fits                       bool
 	}
 	tests := []test{
 		{
 			name:          "whole row msgLen 4",
 			cursor:        0,
 			msgLen:        4,
-			k:             4,
+			squareSize:    4,
 			fits:          true,
 			expectedIndex: 0,
 		},
@@ -124,7 +124,7 @@ func TestNextAlignedPowerOfTwo(t *testing.T) {
 			name:          "half row msgLen 2 cursor 1",
 			cursor:        1,
 			msgLen:        2,
-			k:             4,
+			squareSize:    4,
 			fits:          true,
 			expectedIndex: 2,
 		},
@@ -132,7 +132,7 @@ func TestNextAlignedPowerOfTwo(t *testing.T) {
 			name:          "half row msgLen 2 cursor 2",
 			cursor:        2,
 			msgLen:        2,
-			k:             4,
+			squareSize:    4,
 			fits:          true,
 			expectedIndex: 2,
 		},
@@ -140,7 +140,7 @@ func TestNextAlignedPowerOfTwo(t *testing.T) {
 			name:          "half row msgLen 4 cursor 3",
 			cursor:        3,
 			msgLen:        4,
-			k:             8,
+			squareSize:    8,
 			fits:          true,
 			expectedIndex: 4,
 		},
@@ -148,7 +148,7 @@ func TestNextAlignedPowerOfTwo(t *testing.T) {
 			name:          "msgLen 5 cursor 3 size 8",
 			cursor:        3,
 			msgLen:        5,
-			k:             8,
+			squareSize:    8,
 			fits:          false,
 			expectedIndex: 4,
 		},
@@ -156,7 +156,7 @@ func TestNextAlignedPowerOfTwo(t *testing.T) {
 			name:          "msgLen 2 cursor 3 square size 8",
 			cursor:        3,
 			msgLen:        2,
-			k:             8,
+			squareSize:    8,
 			fits:          true,
 			expectedIndex: 4,
 		},
@@ -164,7 +164,7 @@ func TestNextAlignedPowerOfTwo(t *testing.T) {
 			name:          "cursor 3 msgLen 5 size 8",
 			cursor:        3,
 			msgLen:        5,
-			k:             8,
+			squareSize:    8,
 			fits:          false,
 			expectedIndex: 4,
 		},
@@ -172,7 +172,7 @@ func TestNextAlignedPowerOfTwo(t *testing.T) {
 			name:          "msglen 12 cursor 1 size 16",
 			cursor:        1,
 			msgLen:        12,
-			k:             16,
+			squareSize:    16,
 			fits:          false,
 			expectedIndex: 8,
 		},
@@ -180,14 +180,22 @@ func TestNextAlignedPowerOfTwo(t *testing.T) {
 			name:          "edge case where there are many messages with a single size",
 			cursor:        10291,
 			msgLen:        1,
-			k:             128,
+			squareSize:    128,
 			fits:          true,
 			expectedIndex: 10291,
+		},
+		{
+			name:          "second row msgLen 2 cursor 11 square size 8",
+			cursor:        11,
+			msgLen:        2,
+			squareSize:    8,
+			fits:          true,
+			expectedIndex: 12,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, fits := NextAlignedPowerOfTwo(tt.cursor, tt.msgLen, tt.k)
+			res, fits := NextAlignedPowerOfTwo(tt.cursor, tt.msgLen, tt.squareSize)
 			assert.Equal(t, tt.fits, fits)
 			assert.Equal(t, tt.expectedIndex, res)
 		})
