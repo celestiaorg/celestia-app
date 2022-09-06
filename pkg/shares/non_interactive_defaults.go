@@ -38,18 +38,18 @@ func MsgSharesUsedNIDefaults(cursor, origSquareSize int, msgShareLens ...int) (i
 // power of two and returns false if the entire the msg cannot fit on the given
 // row at the next aligned power of two. An aligned power of two means that the
 // largest power of two that fits entirely in the msg or the square size. pls
-// see specs for further details. Assumes that cursor < k, all args are non
-// negative, and that k is a power of two.
+// see specs for further details. Assumes that cursor < squareSize, all args are
+// non negative, and that squareSize is a power of two.
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
-func NextAlignedPowerOfTwo(cursor, msgLen, k int) (int, bool) {
+func NextAlignedPowerOfTwo(cursor, msgLen, squareSize int) (int, bool) {
 	// if we're starting at the beginning of the row, then return as there are
 	// no cases where we don't start at 0.
-	if cursor == 0 || cursor%k == 0 {
+	if cursor == 0 || cursor%squareSize == 0 {
 		return cursor, true
 	}
 
 	nextLowest := nextLowestPowerOfTwo(msgLen)
-	endOfCurrentRow := ((cursor / k) + 1) * k
+	endOfCurrentRow := ((cursor / squareSize) + 1) * squareSize
 	cursor = roundUpBy(cursor, nextLowest)
 	switch {
 	// the entire message fits in this row
