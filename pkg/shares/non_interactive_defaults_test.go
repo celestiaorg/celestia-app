@@ -40,9 +40,7 @@ func TestMsgSharesUsedNIDefaults(t *testing.T) {
 		res, indexes := MsgSharesUsedNIDefaults(tt.cursor, tt.squareSize, tt.msgLens...)
 		test := fmt.Sprintf("test %d: cursor %d, squareSize %d", i, tt.cursor, tt.squareSize)
 		assert.Equal(t, tt.expected, res, test)
-		if tt.indexes != nil {
-			assert.Equal(t, tt.indexes, indexes, test)
-		}
+		assert.Equal(t, tt.indexes, indexes, test)
 	}
 }
 
