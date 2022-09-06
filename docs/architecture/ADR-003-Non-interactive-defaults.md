@@ -16,11 +16,13 @@ While this functions as a message inclusion check, the light client has to assum
 
 The main issue with that requirement is that users must know the relevant subtree roots before they sign, which is problematic considering that if the block is not organized perfectly, the subtree roots will include data unknown to the user at the time of signing.
 
-To fix this, the spec outlines the “non-interactive default rules”. These involve a few additional **default but optional** message layout rules that enables the user to follow the above block validity rule, while also not interacting with a block producer. Commitments to messages can consist entirely of sub tree roots of the data hash, and for those sub tree roots to be generated only from the message itself (so that the user can sign something “non-interactively”). NOTE: THE STATEMENT BELOW IS MODIFIED FROM THE SPEC
+To fix this, the spec outlines the “non-interactive default rules”. These involve a few additional **default but optional** message layout rules that enables the user to follow the above block validity rule, while also not interacting with a block producer. Commitments to messages can consist entirely of sub tree roots of the data hash, and for those sub tree roots to be generated only from the message itself (so that the user can sign something “non-interactively”).
+
+NOTE: THE STATEMENT BELOW IS MODIFIED FROM THE SPEC
 
 > **Messages must begin at a location aligned with the largest power of 2 that is not larger than the message length or k.**
 
-Below illustrates how we can break a message up into two different subtree roots, root `A` for first four shares, and root `B` consisting of the last two shares. We can then create a commitment out of any number of subtree roots by creating a merkle root of those commitments.
+Below illustrates how we can break a message up into two different subtree roots, following a [Merkle Mountain Range](https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/) structure, i.e. root `A` for first four shares, and root `B` consisting of the last two shares. We can then create a commitment out of any number of subtree roots by creating a merkle root of those commitments.
 
 ![Subtree root commitment](./assets/subtree-root.png "Subtree Root based commitments")
 
@@ -39,6 +41,11 @@ Below is an example block that has been filled using the non-interactive default
 
 ![example](./assets/example-full-block.png "example")
 
+- `ns = 1`: The first namespace is put in the beginning of the messages space.
+- `ns = 2`: Starting at the largest power of 2 that is not  (strictly) larger than the message length or `k`.
+- `ns = 3`: Message spanning multiple rows. So, it will be at the beginning of a new row.
+- `ns  = 4`: Starting at the largest power of 2 that is not  (strictly) larger than the message length or `k`.
+
 Not only does doing this allow for easy trust minimized message inclusion checks for specific messages by light clients, but also allows for the creation of message inclusion fraud proofs for all messages in the block. This is important to reduce the trust assumptions made by light clients.
 
 ## Decision
@@ -51,7 +58,7 @@ While there certainly can be some decisions here, whether or not we begin follow
 
 While all commitments signed over must only consist of subtree roots, its worth noting that non-interactive defaults are just that, defaults! It's entirely possible that block producers use some mechanism to notify the signer of the commitments that they must sign over, or even that the block producers are signing the transactions paying for the inclusion of the message on behalf of the users. This would render the non-interactive defaults, and the padding accompanied by them, to not be necessary. Other solutions are not mutually exclusive to non-interactive defaults, and do not even have to be built by the core team, so covering those solutions in a more in depth way is outside the scope of this ADR.
 
-However, the default implementation of non-interative defaults is within the scope of this ADR. Whatever design we use ultimately needs to support not using the non-interactive defaults. Meaning we should be able to encode block data into a square even if the messages are not arranged according to the non-interactive defaults. Again, this not change the requirement that all share commitments signed over in PFDs consist only of subtree roots.
+However, the default implementation of non-interative defaults is within the scope of this ADR. Whatever design we use ultimately needs to support not using the non-interactive defaults. Meaning we should be able to encode block data into a square even if the messages are not arranged according to the non-interactive defaults. Again, this does not change the requirement that all share commitments signed over in PFDs consist only of subtree roots.
 
 ## Detailed Design
 
@@ -84,7 +91,7 @@ To meet the above constraints, there are multiple refactors required.
 
 In order to check for message inclusion, create message inclusion fraud proofs, split the block data into squares, and not force non-interactive defaults for every square, we have to connect a `MsgPayForData` transaction to its corresponding message by adding the index of the share that the message starts on as metadata. Since users cannot know this ahead of time, block producers have to add this metadata before the transaction gets included in the block.
 
-We are already wrapping/unwrapping malleated transactions, so including the `share_index` as metadata using the current code is essentially as simple as adding the `share_index` to the struct. Transactions are unwrapped selectively by using a [`MalleatedTxDecoder`](https://github.com/celestiaorg/celestia-app/blob/5ac236fb1dab6628e98a505269f295c18e150b27/app/encoding/malleated_tx_decoder.go#L8-L15) or by using the [`UnwrapMalleatedTx`](https://github.com/celestiaorg/celestia-core/blob/212901fcfc0f5a095683b1836ea9e890cc952dc7/types/tx.go#L214-L237) function.
+We are already wrapping/unwrapping malleated transactions, so including the `share_index` as metadata using the current code is essentially as simple as adding the `share_index` to the struct. Transactions are unwrapped selectively by using a [`MalleatedTxDecoder(...)`](https://github.com/celestiaorg/celestia-app/blob/5ac236fb1dab6628e98a505269f295c18e150b27/app/encoding/malleated_tx_decoder.go#L8-L15) or by using the [`UnwrapMalleatedTx(...)`](https://github.com/celestiaorg/celestia-core/blob/212901fcfc0f5a095683b1836ea9e890cc952dc7/types/tx.go#L214-L237) function.
 
 ```proto
 message MalleatedTx {
@@ -114,24 +121,24 @@ type MessageShareSplitter struct {
 // WriteNamespacedPaddedShares adds empty shares using the namespace of the last written share.
 // This is useful to follow the message layout rules. It assumes that at least
 // one share has already been written, if not it panics.
-func (msw *MessageShareSplitter) WriteNamespacedPaddedShares(count int) {
-  if len(msw.shares) == 0 {
+func (mss *MessageShareSplitter) WriteNamespacedPaddedShares(count int) {
+  if len(mss.shares) == 0 {
       panic("Cannot write empty namespaced shares on an empty MessageShareSplitter")
   }
   if count == 0 {
       return
   }
-  lastMessage := msw.shares[len(msw.shares)-1]
-  msw.shares = append(msw.shares, namespacedPaddedShares(lastMessage[0].ID, count))
-  msw.count += count
+  lastMessage := mss.shares[len(mss.shares)-1]
+  mss.shares = append(mss.shares, namespacedPaddedShares(lastMessage[0].ID, count))
+  mss.count += count
 }
 ```
 
-Now we simply combine this new functionality with the `share_index`s described above, and we can properly split and pad messages when needed. Note, the below implementation allows for `nil` to be passed as indexes. This is important, as it allows the same implementation to be used in the cases where we don't want to split messages using wrapped transactions, such as supporting older networks or when users create commitments to sign over for `MsgWirePayForData`
+Now we simply combine this new functionality with the `share_index`s described above, and we can properly split and pad messages when needed. Note, the below implementation allows indexes to not be used. This is important, as it allows the same implementation to be used in the cases where we don't want to split messages using wrapped transactions, such as supporting older networks or when users create commitments to sign over for `MsgWirePayForData`
 
 ```go
 func SplitMessages(cursor int, indexes []uint32, msgs []coretypes.Message, useShareIndexes bool) ([][]byte, error) {
-  if len(indexes) != len(msgs) {
+  if useShareIndexes && len(indexes) != len(msgs) {
       return nil, ErrIncorrectNumberOfIndexes
   }
   writer := NewMessageShareSplitter()
@@ -533,7 +540,7 @@ func (strc *subTreeRootCacher) Visit(hash []byte, children ...[]byte) {
 type EDSSubTreeRootCacher struct {
    caches     []*subTreeRootCacher
    squareSize uint64
-   // counter is used to ignore columns NOTE: this is a leaky abstraction that
+   // counter is used to ignore columns. NOTE: this is a leaky abstraction that
    // we make because rsmt2d is used to generate the roots for us, so we have
    // to assume that it will generate a row root every other tree constructed.
    // This is also one of the reasons this implementation is not thread safe.
@@ -588,7 +595,7 @@ Now we can fulfill the second constraint:
 ```go
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
    ...
-   // iterate over all of the MsgPayForData transactions and ensure that they
+   // iterate over all of the MsgPayForData transactions and ensure that their
    // commitments are subtree roots of the data root.
    for _, rawTx := range req.BlockData.Txs {
        // iterate through the transactions and check if they are malleated
@@ -672,7 +679,7 @@ The current implementation performs many different estimation and calculation st
 
 ## Status
 
-{Deprecated|Proposed|Accepted|Declined}
+Accepted
 
 ## Consequences
 
