@@ -121,16 +121,16 @@ type MessageShareSplitter struct {
 // WriteNamespacedPaddedShares adds empty shares using the namespace of the last written share.
 // This is useful to follow the message layout rules. It assumes that at least
 // one share has already been written, if not it panics.
-func (mss *MessageShareSplitter) WriteNamespacedPaddedShares(count int) {
+func (mss *MessageShareSplitter) WriteNamespacedPaddedShares(paddedShares int) {
   if len(mss.shares) == 0 {
       panic("Cannot write empty namespaced shares on an empty MessageShareSplitter")
   }
-  if count == 0 {
+  if paddedShares == 0 {
       return
   }
   lastMessage := mss.shares[len(mss.shares)-1]
-  mss.shares = append(mss.shares, namespacedPaddedShares(lastMessage[0].ID, count))
-  mss.count += count
+  mss.shares = append(mss.shares, namespacedPaddedShares(lastMessage[0].ID, paddedShares))
+  mss.count += paddedShares
 }
 ```
 
