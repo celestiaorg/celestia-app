@@ -64,7 +64,7 @@ func NextAlignedPowerOfTwo(cursor, msgLen, squareSize int) (int, bool) {
 	}
 }
 
-// roundUpBy rounds cursor up to the next interval of v. If cursor is divisible
+// roundUpBy rounds cursor up to the next multiple of v. If cursor is divisible
 // by v, then it returns cursor
 func roundUpBy(cursor, v int) int {
 	switch {
