@@ -35,3 +35,9 @@ func (i InfoReservedByte) Version() uint8 {
 func (i InfoReservedByte) IsMessageStart() bool {
 	return uint(i)%2 == 1
 }
+
+func ParseInfoReservedByte(i byte) (InfoReservedByte, error) {
+	isMessageStart := i%2 == 1
+	version := uint8(i) >> 1
+	return NewInfoReservedByte(version, isMessageStart)
+}
