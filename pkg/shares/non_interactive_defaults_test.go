@@ -82,7 +82,7 @@ func TestFitsInSquare(t *testing.T) {
 			fits:  false,
 		},
 		{
-			name:  "8 msgs of various sizes, 7 compact shares (63 msg shares, 1 compact, size 8)",
+			name:  "8 msgs of various sizes (63 msg shares, 1 compact share, size 8)",
 			msgs:  []int{3, 9, 3, 7, 8, 3, 7, 8},
 			start: 1,
 			size:  8,
