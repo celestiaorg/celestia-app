@@ -92,17 +92,17 @@ func parseDataLength(share []byte) (uint64, error) {
 	}
 
 	prefixLength := consts.NamespaceSize + consts.ShareInfoBytes
-	trimmedShare := share[prefixLength:]
+	shareContents := share[prefixLength:]
 
-	if len(trimmedShare) < binary.MaxVarintLen64 {
-		return 0, fmt.Errorf("share too short to contain message length")
+	if len(shareContents) < binary.MaxVarintLen64 {
+		return 0, fmt.Errorf("share too short to contain data length varint")
 	}
 
-	buffer := bytes.NewBuffer(trimmedShare)
-	msgLen, err := binary.ReadUvarint(buffer)
+	buffer := bytes.NewBuffer(shareContents)
+	dataLength, err := binary.ReadUvarint(buffer)
 	if err != nil {
 		return 0, err
 	}
 
-	return msgLen, nil
+	return dataLength, nil
 }
