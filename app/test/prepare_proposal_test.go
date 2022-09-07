@@ -80,7 +80,7 @@ func TestPrepareProposal(t *testing.T) {
 		if err != nil {
 			require.NoError(t, err)
 		}
-		dec := app.MalleatedTxDecoder(encCfg.TxConfig.TxDecoder())
+		dec := encoding.MalleatedTxDecoder(encCfg.TxConfig.TxDecoder())
 		for _, tx := range res.BlockData.Txs {
 			sTx, err := dec(tx)
 			require.NoError(t, err)
