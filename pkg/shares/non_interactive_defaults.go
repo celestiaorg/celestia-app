@@ -22,7 +22,7 @@ func FitsInSquare(cursor, origSquareSize int, msgShareLens ...int) (bool, int) {
 
 // MsgSharesUsedNIDefaults calculates the number of shares used by a given set
 // of messages share lengths. It follows the non-interactive default rules and
-// assumes that each msg length in msgShareLens
+// returns the share indexes for each message.
 func MsgSharesUsedNIDefaults(cursor, origSquareSize int, msgShareLens ...int) (int, []uint32) {
 	start := cursor
 	indexes := make([]uint32, len(msgShareLens))
