@@ -71,3 +71,33 @@ func FuzzNewInfoReservedByte(f *testing.F) {
 		}
 	})
 }
+
+func TestParseInfoReservedByte(t *testing.T) {
+	type testCase struct {
+		b                  byte
+		wantVersion        uint8
+		wantIsMessageStart bool
+	}
+
+	tests := []testCase{
+		{0b00000000, 0, false},
+		{0b00000001, 0, true},
+		{0b00000010, 1, false},
+		{0b00000011, 1, true},
+		{0b00000101, 2, true},
+		{0b11111111, 127, true},
+	}
+
+	for _, test := range tests {
+		got, err := ParseInfoReservedByte(test.b)
+		if err != nil {
+			t.Errorf("got %v want no error", err)
+		}
+		if got.Version() != test.wantVersion {
+			t.Errorf("got version %v want %v", got.Version(), test.wantVersion)
+		}
+		if got.IsMessageStart() != test.wantIsMessageStart {
+			t.Errorf("got isMessageStart %v want %v", got.IsMessageStart(), test.wantIsMessageStart)
+		}
+	}
+}
