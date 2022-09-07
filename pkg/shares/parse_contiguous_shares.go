@@ -84,9 +84,9 @@ func (ss *shareStack) peel(share []byte, delimited bool) (err error) {
 	return errors.New("failure to parse block data: transaction length exceeded data length")
 }
 
-// parseMessageLength finds and returns the message length for the share
+// parseDataLength finds and returns the data length for the share
 // provided.
-func parseMessageLength(share []byte) (uint64, error) {
+func parseDataLength(share []byte) (uint64, error) {
 	if len(share) == 0 {
 		return 0, fmt.Errorf("empty share")
 	}

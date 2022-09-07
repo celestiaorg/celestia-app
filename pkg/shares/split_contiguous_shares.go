@@ -24,7 +24,6 @@ type ContiguousShareSplitter struct {
 // namespace.
 func NewContiguousShareSplitter(ns namespace.ID, version uint8) *ContiguousShareSplitter {
 	pendingShare := NamespacedShare{ID: ns, Share: make([]byte, 0, consts.ShareSize)}
-	pendingShare.Share = append(pendingShare.Share, ns...)
 	infoByte, err := NewInfoReservedByte(version, true)
 	if err != nil {
 		panic(err)
@@ -159,7 +158,7 @@ func (csw *ContiguousShareSplitter) Count() (count, availableBytes int) {
 	if len(csw.pendingShare.Share) > consts.NamespaceSize+consts.ShareInfoBytes {
 		return len(csw.shares), 0
 	}
-	// TODO this doesn't account for the size of the reserved byte
+	//  this doesn't account for the size of the reserved byte
 	availableBytes = consts.TxShareSize - (len(csw.pendingShare.Share) - consts.NamespaceSize - consts.ShareInfoBytes)
 	return len(csw.shares), availableBytes
 }
