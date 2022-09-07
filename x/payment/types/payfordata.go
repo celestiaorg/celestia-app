@@ -124,7 +124,7 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 
 	// split into shares that are length delimited and include the namespace in
 	// each share
-	shares, err := shares.SplitMessages(nil, msg.MessagesList)
+	shares, err := shares.SplitMessages(0, nil, msg.MessagesList, false)
 	if err != nil {
 		return nil, err
 	}

@@ -169,7 +169,7 @@ func TailPaddingShares(n int) NamespacedShares {
 	return shares
 }
 
-func namespacedPaddedShares(ns []byte, count int) []NamespacedShare {
+func namespacedPaddedShares(ns []byte, count int) NamespacedShares {
 	shares := make([]NamespacedShare, count)
 	for i := 0; i < count; i++ {
 		shares[i] = NamespacedShare{
