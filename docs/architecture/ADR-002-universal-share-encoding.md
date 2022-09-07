@@ -12,7 +12,10 @@
 
 ## Context
 
-The current compact share format is:<br>`nid (8 bytes) | reserved (1 byte) | data`
+The current compact share format is:
+
+- First share of reserved namespace: <br>`nid (8 bytes) | reserved (1 byte) | data length (varint 1 to 10 bytes) | data`
+- Contiguous share in reserved namespace:<br>`nid (8 bytes) | reserved (1 byte) | data`
 
 The current sparse share format is:
 
