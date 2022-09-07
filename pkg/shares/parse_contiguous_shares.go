@@ -1,10 +1,8 @@
 package shares
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 
 	"github.com/tendermint/tendermint/pkg/consts"
 )
@@ -82,27 +80,4 @@ func (ss *shareStack) peel(share []byte, delimited bool) (err error) {
 		return ss.peel(share, true)
 	}
 	return errors.New("failure to parse block data: transaction length exceeded data length")
-}
-
-// parseDataLength finds and returns the data length for the share
-// provided.
-func parseDataLength(share []byte) (uint64, error) {
-	if len(share) == 0 {
-		return 0, fmt.Errorf("empty share")
-	}
-
-	prefixLength := consts.NamespaceSize + consts.ShareInfoBytes
-	shareContents := share[prefixLength:]
-
-	if len(shareContents) < binary.MaxVarintLen64 {
-		return 0, fmt.Errorf("share too short to contain data length varint")
-	}
-
-	buffer := bytes.NewBuffer(shareContents)
-	dataLength, err := binary.ReadUvarint(buffer)
-	if err != nil {
-		return 0, err
-	}
-
-	return dataLength, nil
 }
