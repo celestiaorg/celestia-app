@@ -131,7 +131,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			}
 
 			// wait a few blocks to clear the txs
-			for i := 0; i < 20; i++ {
+			for i := 0; i < 16; i++ {
 				require.NoError(s.network.WaitForNextBlock())
 			}
 
@@ -195,7 +195,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 		{
 			"large random typical",
 			[]byte{2, 3, 4, 5, 6, 7, 8, 9},
-			tmrand.Bytes(900000),
+			tmrand.Bytes(700000),
 			[]types.TxBuilderOption{
 				types.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
 			},
@@ -223,7 +223,11 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 			res, err := payment.SubmitPayForData(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.message, 10000000, tc.opts...)
 			assert.NoError(err)
 			assert.Equal(abci.CodeTypeOK, res.Code)
-			require.NoError(s.network.WaitForNextBlock())
+			// occasionally this test will error that the mempool is full (code
+			// 20) so we wait a few blocks for the txs to clear
+			for i := 0; i < 3; i++ {
+				require.NoError(s.network.WaitForNextBlock())
+			}
 		})
 	}
 }
