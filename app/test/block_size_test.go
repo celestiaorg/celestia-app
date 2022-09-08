@@ -121,7 +121,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			}
 
 			// wait a few blocks to clear the txs
-			for i := 0; i < 8; i++ {
+			for i := 0; i < 16; i++ {
 				require.NoError(s.network.WaitForNextBlock())
 			}
 

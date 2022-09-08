@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -21,149 +20,77 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil"
+	paytestutil "github.com/celestiaorg/celestia-app/testutil/payment"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 )
 
 func TestMessageInclusionCheck(t *testing.T) {
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
-
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
-
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	firstValidPFD, msg1 := genRandMsgPayForDataForNamespace(t, signer, 8, namespace.ID{1, 1, 1, 1, 1, 1, 1, 1})
-	secondValidPFD, msg2 := genRandMsgPayForDataForNamespace(t, signer, 8, namespace.ID{2, 2, 2, 2, 2, 2, 2, 2})
-
-	invalidCommitmentPFD, msg3 := genRandMsgPayForDataForNamespace(t, signer, 4, namespace.ID{3, 3, 3, 3, 3, 3, 3, 3})
-	invalidCommitmentPFD.MessageShareCommitment = tmrand.Bytes(32)
-
 	// block with all messages included
-	validData := core.Data{
-		Txs: [][]byte{
-			buildTx(t, signer, encConf.TxConfig, firstValidPFD),
-			buildTx(t, signer, encConf.TxConfig, secondValidPFD),
-		},
-		Messages: core.Messages{
-			MessagesList: []*core.Message{
-				{
-					NamespaceId: firstValidPFD.MessageNamespaceId,
-					Data:        msg1,
-				},
-				{
-					NamespaceId: secondValidPFD.MessageNamespaceId,
-					Data:        msg2,
-				},
-			},
-		},
-		OriginalSquareSize: 4,
-	}
-
-	// block with a missing message
-	missingMessageData := core.Data{
-		Txs: [][]byte{
-			buildTx(t, signer, encConf.TxConfig, firstValidPFD),
-			buildTx(t, signer, encConf.TxConfig, secondValidPFD),
-		},
-		Messages: core.Messages{
-			MessagesList: []*core.Message{
-				{
-					NamespaceId: firstValidPFD.MessageNamespaceId,
-					Data:        msg1,
-				},
-			},
-		},
-		OriginalSquareSize: 4,
-	}
-
-	// block with all messages included, but the commitment is changed
-	invalidData := core.Data{
-		Txs: [][]byte{
-			buildTx(t, signer, encConf.TxConfig, firstValidPFD),
-			buildTx(t, signer, encConf.TxConfig, secondValidPFD),
-		},
-		Messages: core.Messages{
-			MessagesList: []*core.Message{
-				{
-					NamespaceId: firstValidPFD.MessageNamespaceId,
-					Data:        msg1,
-				},
-				{
-					NamespaceId: invalidCommitmentPFD.MessageNamespaceId,
-					Data:        msg3,
-				},
-			},
-		},
-		OriginalSquareSize: 4,
-	}
-
-	// block with extra message included
-	extraMessageData := core.Data{
-		Txs: [][]byte{
-			buildTx(t, signer, encConf.TxConfig, firstValidPFD),
-		},
-		Messages: core.Messages{
-			MessagesList: []*core.Message{
-				{
-					NamespaceId: firstValidPFD.MessageNamespaceId,
-					Data:        msg1,
-				},
-				{
-					NamespaceId: secondValidPFD.MessageNamespaceId,
-					Data:        msg2,
-				},
-			},
-		},
-		OriginalSquareSize: 4,
+	validData := func() *core.Data {
+		return &core.Data{
+			Txs: paytestutil.GenerateManyRawWirePFD(t, encConf.TxConfig, signer, 4, 1000),
+		}
 	}
 
 	type test struct {
-		input          abci.RequestProcessProposal
+		name           string
+		input          *core.Data
+		mutator        func(*core.Data)
 		expectedResult abci.ResponseProcessProposal_Result
 	}
 
 	tests := []test{
 		{
-			input: abci.RequestProcessProposal{
-				BlockData: &validData,
-			},
+			name:           "valid untouched data",
+			input:          validData(),
+			mutator:        func(d *core.Data) {},
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 		},
 		{
-			input: abci.RequestProcessProposal{
-				BlockData: &missingMessageData,
+			name:  "removed first message",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				d.Messages.MessagesList = d.Messages.MessagesList[1:]
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			input: abci.RequestProcessProposal{
-				BlockData: &invalidData,
+			name:  "added an extra message",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				d.Messages.MessagesList = append(
+					d.Messages.MessagesList,
+					&core.Message{NamespaceId: []byte{1, 2, 3, 4, 5, 6, 7, 8}, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}},
+				)
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			input: abci.RequestProcessProposal{
-				BlockData: &extraMessageData,
+			name:  "modified a message",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				d.Messages.MessagesList[0] = &core.Message{NamespaceId: []byte{1, 2, 3, 4, 5, 6, 7, 8}, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 	}
 
 	for _, tt := range tests {
-		data, err := coretypes.DataFromProto(tt.input.BlockData)
-		require.NoError(t, err)
-
-		shares, err := shares.Split(data)
-		require.NoError(t, err)
-
-		rawShares := shares
-
-		require.NoError(t, err)
-		eds, err := da.ExtendShares(tt.input.BlockData.OriginalSquareSize, rawShares)
-		require.NoError(t, err)
-		dah := da.NewDataAvailabilityHeader(eds)
-		tt.input.Header.DataHash = dah.Hash()
-		res := testApp.ProcessProposal(tt.input)
-		assert.Equal(t, tt.expectedResult, res.Result)
+		resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
+			BlockData: tt.input,
+		})
+		tt.mutator(resp.BlockData)
+		res := testApp.ProcessProposal(abci.RequestProcessProposal{
+			BlockData: resp.BlockData,
+			Header: core.Header{
+				DataHash: resp.BlockData.Hash,
+			},
+		})
+		assert.Equal(t, tt.expectedResult, res.Result, tt.name)
 	}
 }
 

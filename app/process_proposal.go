@@ -127,7 +127,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
 	}
-
 	return abci.ResponseProcessProposal{
 		Result: abci.ResponseProcessProposal_ACCEPT,
 	}
