@@ -15,9 +15,10 @@ import (
 
 // prune removes txs until the set of txs will fit in the square of size
 // squareSize. It assumes that the currentShareCount is accurate. This function
-// is not perfectly accurate becuse accurately knowing how many shares any give
-// malleated tx and its message takes up in a data square that is following the
-// non-interactive default rules requires recalculating the square.
+// is far from optimal becuse accurately knowing how many shares any given
+// set of transactions and its message takes up in a data square that is following the
+// non-interactive default rules requires recalculating the entire square.
+// TODO: include the padding used by each msg when counting removed shares
 func prune(txConf client.TxConfig, txs []*parsedTx, currentShareCount, squareSize int) parsedTxs {
 	maxShares := squareSize * squareSize
 	if maxShares >= currentShareCount {
@@ -41,6 +42,12 @@ func prune(txConf client.TxConfig, txs []*parsedTx, currentShareCount, squareSiz
 	}
 
 	for i := len(txs) - 1; (removedContiguousShares + removedMessageShares) < goal; i-- {
+		// this normally doesn't happen, but since we don't calculate the number
+		// of padded shares also being removed, its possible to reach this value
+		// should there be many small messages, and we don't want to panic.
+		if i < 0 {
+			break
+		}
 		removedTxs++
 		if txs[i].msg == nil {
 			adjustContigCursor(len(txs[i].rawTx))
@@ -55,7 +62,7 @@ func prune(txConf client.TxConfig, txs []*parsedTx, currentShareCount, squareSiz
 		adjustContigCursor(len(txs[i].malleatedTx) + appconsts.MalleatedTxBytes)
 	}
 
-	return txs[:len(txs)-(removedTxs)-1]
+	return txs[:len(txs)-(removedTxs)]
 }
 
 // calculateCompactShareCount calculates the exact number of compact shares used.
