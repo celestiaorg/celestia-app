@@ -19,7 +19,15 @@ import (
 	"github.com/tendermint/tendermint/pkg/consts"
 )
 
+// GenerateManyRawWirePFD creates many raw WirePayForData transactions. Using
+// negative numbers for count and size will randomize those values. count is
+// capped at 5000 and size is capped at 3MB. Going over these caps will result
+// in randomized values.
 func GenerateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count, size int) [][]byte {
+	// hardcode a maximum of 10000 transactions so that we can use this for fuzzing
+	if count > 5000 || count < 0 {
+		count = tmrand.Intn(5000)
+	}
 	txs := make([][]byte, count)
 
 	coin := sdk.Coin{
@@ -33,6 +41,9 @@ func GenerateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *type
 	}
 
 	for i := 0; i < count; i++ {
+		if size < 0 || size > 3000000 {
+			size = tmrand.Intn(1000000)
+		}
 		wpfdTx := generateRawWirePFDTx(
 			t,
 			txConfig,
@@ -46,7 +57,7 @@ func GenerateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *type
 	return txs
 }
 
-func generateManyRawSendTxs(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count int) [][]byte {
+func GenerateManyRawSendTxs(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count int) [][]byte {
 	txs := make([][]byte, count)
 	for i := 0; i < count; i++ {
 		txs[i] = generateRawSendTx(t, txConfig, signer, 100)
