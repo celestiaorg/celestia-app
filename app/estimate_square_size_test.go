@@ -72,7 +72,7 @@ func Test_estimateSquareSize(t *testing.T) {
 	}
 }
 
-func TestPruning(t *testing.T) {
+func Test_pruning(t *testing.T) {
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
 	signer := generateKeyringSigner(t, "estimate-key")
 	txs := generateManyRawSendTxs(t, encConf.TxConfig, signer, 10)
@@ -82,6 +82,69 @@ func TestPruning(t *testing.T) {
 	nextLowestSS := ss / 2
 	prunedTxs := prune(encConf.TxConfig, parsedTxs, total, int(nextLowestSS))
 	require.Less(t, len(prunedTxs), len(parsedTxs))
+}
+
+func Test_overEstimateMalleatedTxSize(t *testing.T) {
+	coin := sdk.Coin{
+		Denom:  BondDenom,
+		Amount: sdk.NewInt(10),
+	}
+
+	type test struct {
+		name string
+		size int
+		opts []types.TxBuilderOption
+	}
+	tests := []test{
+		{
+			"basic with small message", 100,
+			[]types.TxBuilderOption{
+				types.SetFeeAmount(sdk.NewCoins(coin)),
+				types.SetGasLimit(10000000),
+			},
+		},
+		{
+			"basic with large message", 10000,
+			[]types.TxBuilderOption{
+				types.SetFeeAmount(sdk.NewCoins(coin)),
+				types.SetGasLimit(10000000),
+			},
+		},
+		{
+			"memo with medium message", 1000,
+			[]types.TxBuilderOption{
+				types.SetFeeAmount(sdk.NewCoins(coin)),
+				types.SetGasLimit(10000000),
+				types.SetMemo("Thou damned and luxurious mountain goat."),
+			},
+		},
+		{
+			"memo with large message", 100000,
+			[]types.TxBuilderOption{
+				types.SetFeeAmount(sdk.NewCoins(coin)),
+				types.SetGasLimit(10000000),
+				types.SetMemo("Thou damned and luxurious mountain goat."),
+			},
+		},
+	}
+
+	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
+	signer := generateKeyringSigner(t, "estimate-key")
+	for _, tt := range tests {
+		wpfdTx := generateRawWirePFDTx(
+			t,
+			encConf.TxConfig,
+			randomValidNamespace(),
+			tmrand.Bytes(tt.size),
+			signer,
+			tt.opts...,
+		)
+		parsedTxs := parseTxs(encConf.TxConfig, [][]byte{wpfdTx})
+		res := overEstimateMalleatedTxSize(len(parsedTxs[0].rawTx), tt.size, len(types.AllSquareSizes(tt.size)))
+		malleatedTx, _, err := malleateTxs(encConf.TxConfig, 32, parsedTxs, core.EvidenceList{})
+		require.NoError(t, err)
+		assert.Less(t, len(malleatedTx[0]), res)
+	}
 }
 
 func Test_compactShareCount(t *testing.T) {
@@ -128,6 +191,17 @@ func Test_compactShareCount(t *testing.T) {
 
 func generateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count, size int) [][]byte {
 	txs := make([][]byte, count)
+
+	coin := sdk.Coin{
+		Denom:  BondDenom,
+		Amount: sdk.NewInt(10),
+	}
+
+	opts := []types.TxBuilderOption{
+		types.SetFeeAmount(sdk.NewCoins(coin)),
+		types.SetGasLimit(10000000),
+	}
+
 	for i := 0; i < count; i++ {
 		wpfdTx := generateRawWirePFDTx(
 			t,
@@ -135,7 +209,7 @@ func generateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *type
 			randomValidNamespace(),
 			tmrand.Bytes(size),
 			signer,
-			types.AllSquareSizes(size)...,
+			opts...,
 		)
 		txs[i] = wpfdTx
 	}
@@ -187,22 +261,11 @@ func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.Key
 }
 
 // generateRawWirePFD creates a tx with a single MsgWirePayForData message using the provided namespace and message
-func generateRawWirePFDTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, ks ...uint64) (rawTx []byte) {
-	coin := sdk.Coin{
-		Denom:  BondDenom,
-		Amount: sdk.NewInt(10),
-	}
-
-	opts := []types.TxBuilderOption{
-		types.SetFeeAmount(sdk.NewCoins(coin)),
-		types.SetGasLimit(10000000),
-	}
-
+func generateRawWirePFDTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
 	// create a msg
-	msg := generateSignedWirePayForData(t, ns, message, signer, opts, ks...)
+	msg := generateSignedWirePayForData(t, ns, message, signer, opts, types.AllSquareSizes(len(message))...)
 
 	builder := signer.NewTxBuilder(opts...)
-
 	tx, err := signer.BuildSignedTx(builder, msg)
 	require.NoError(t, err)
 
