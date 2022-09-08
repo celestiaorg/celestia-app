@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"testing"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -25,6 +26,15 @@ import (
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
+
+func TestIntegrationTestSuite(t *testing.T) {
+	cfg := network.DefaultConfig()
+	cfg.EnableTMLogging = false
+	cfg.MinGasPrices = "0utia"
+	cfg.NumValidators = 1
+	cfg.TimeoutCommit = time.Millisecond * 200
+	suite.Run(t, NewIntegrationTestSuite(cfg))
+}
 
 type IntegrationTestSuite struct {
 	suite.Suite
@@ -121,7 +131,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			}
 
 			// wait a few blocks to clear the txs
-			for i := 0; i < 16; i++ {
+			for i := 0; i < 20; i++ {
 				require.NoError(s.network.WaitForNextBlock())
 			}
 
@@ -216,14 +226,6 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 			require.NoError(s.network.WaitForNextBlock())
 		})
 	}
-}
-
-func TestIntegrationTestSuite(t *testing.T) {
-	cfg := network.DefaultConfig()
-	cfg.EnableTMLogging = false
-	cfg.MinGasPrices = "0utia"
-	cfg.NumValidators = 1
-	suite.Run(t, NewIntegrationTestSuite(cfg))
 }
 
 func generateSignedWirePayForDataTxs(clientCtx client.Context, txConfig client.TxConfig, kr keyring.Keyring, msgSize int, accounts ...string) ([]coretypes.Tx, error) {
