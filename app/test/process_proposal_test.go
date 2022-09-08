@@ -5,23 +5,20 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/cosmos/cosmos-sdk/client"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/pkg/consts"
-	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil"
 	paytestutil "github.com/celestiaorg/celestia-app/testutil/payment"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/nmt/namespace"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func TestMessageInclusionCheck(t *testing.T) {
@@ -77,6 +74,33 @@ func TestMessageInclusionCheck(t *testing.T) {
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
+		{
+			name:  "invalid namespace TailPadding",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				d.Messages.MessagesList[0] = &core.Message{NamespaceId: consts.TailPaddingNamespaceID, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "invalid namespace TxNamespace",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				d.Messages.MessagesList[0] = &core.Message{NamespaceId: consts.TxNamespaceID, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "unsorted messages",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				msg1, msg2, msg3 := d.Messages.MessagesList[0], d.Messages.MessagesList[1], d.Messages.MessagesList[2]
+				d.Messages.MessagesList[0] = msg3
+				d.Messages.MessagesList[1] = msg1
+				d.Messages.MessagesList[2] = msg2
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
 	}
 
 	for _, tt := range tests {
@@ -94,111 +118,61 @@ func TestMessageInclusionCheck(t *testing.T) {
 	}
 }
 
-func TestProcessMessagesWithReservedNamespaces(t *testing.T) {
-	testApp := testutil.SetupTestAppWithGenesisValSet(t)
-	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+// TODO: redo this tests, which is more difficult to do now that it requires the
+// data to be processed by PrepareProposal func
+// TestProcessMessagesWithReservedNamespaces(t *testing.T) {
+//  testApp := testutil.SetupTestAppWithGenesisValSet(t)
+//  encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+// 	signer := testutil.GenerateKeyringSigner(t, testAccName)
 
-	type test struct {
-		name           string
-		namespace      namespace.ID
-		expectedResult abci.ResponseProcessProposal_Result
-	}
+// 	type test struct {
+// 		name           string
+// 		namespace      namespace.ID
+// 		expectedResult abci.ResponseProcessProposal_Result
+// 	}
 
-	tests := []test{
-		{"transaction namespace id for message", consts.TxNamespaceID, abci.ResponseProcessProposal_REJECT},
-		{"evidence namespace id for message", consts.EvidenceNamespaceID, abci.ResponseProcessProposal_REJECT},
-		{"tail padding namespace id for message", consts.TailPaddingNamespaceID, abci.ResponseProcessProposal_REJECT},
-		{"namespace id 200 for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, abci.ResponseProcessProposal_REJECT},
-		{"correct namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, abci.ResponseProcessProposal_ACCEPT},
-	}
+// 	tests := []test{
+// 		{"transaction namespace id for message", consts.TxNamespaceID, abci.ResponseProcessProposal_REJECT},
+// 		{"evidence namespace id for message", consts.EvidenceNamespaceID, abci.ResponseProcessProposal_REJECT},
+// 		{"tail padding namespace id for message", consts.TailPaddingNamespaceID, abci.ResponseProcessProposal_REJECT},
+// 		{"namespace id 200 for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, abci.ResponseProcessProposal_REJECT},
+// 		{"correct namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, abci.ResponseProcessProposal_ACCEPT},
+// 	}
 
-	for _, tt := range tests {
-		pfd, msg := genRandMsgPayForDataForNamespace(t, signer, 8, tt.namespace)
-		input := abci.RequestProcessProposal{
-			BlockData: &core.Data{
-				Txs: [][]byte{
-					buildTx(t, signer, encConf.TxConfig, pfd),
-				},
-				Messages: core.Messages{
-					MessagesList: []*core.Message{
-						{
-							NamespaceId: pfd.GetMessageNamespaceId(),
-							Data:        msg,
-						},
-					},
-				},
-				OriginalSquareSize: 8,
-			},
-		}
-		data, err := coretypes.DataFromProto(input.BlockData)
-		require.NoError(t, err)
+// 	for _, tt := range tests {
+// 		pfd, msg := genRandMsgPayForDataForNamespace(t, signer, 8, tt.namespace)
+// 		input := abci.RequestProcessProposal{
+// 			BlockData: &core.Data{
+// 				Txs: [][]byte{
+// 					buildTx(t, signer, encConf.TxConfig, pfd),
+// 				},
+// 				Messages: core.Messages{
+// 					MessagesList: []*core.Message{
+// 						{
+// 							NamespaceId: pfd.GetMessageNamespaceId(),
+// 							Data:        msg,
+// 						},
+// 					},
+// 				},
+// 				OriginalSquareSize: 8,
+// 			},
+// 		}
+// 		data, err := coretypes.DataFromProto(input.BlockData)
+// 		require.NoError(t, err)
 
-		shares, err := shares.Split(data)
-		require.NoError(t, err)
+// 		shares, err := shares.Split(data)
+// 		require.NoError(t, err)
 
-		require.NoError(t, err)
-		eds, err := da.ExtendShares(input.BlockData.OriginalSquareSize, shares)
-		require.NoError(t, err)
-		dah := da.NewDataAvailabilityHeader(eds)
-		input.Header.DataHash = dah.Hash()
-		res := testApp.ProcessProposal(input)
-		assert.Equal(t, tt.expectedResult, res.Result)
-	}
-}
-
-func TestProcessMessageWithUnsortedMessages(t *testing.T) {
-	testApp := testutil.SetupTestAppWithGenesisValSet(t)
-	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
-
-	namespaceOne := namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}
-	namespaceTwo := namespace.ID{2, 2, 2, 2, 2, 2, 2, 2}
-
-	pfdOne, msgOne := genRandMsgPayForDataForNamespace(t, signer, 8, namespaceOne)
-	pfdTwo, msgTwo := genRandMsgPayForDataForNamespace(t, signer, 8, namespaceTwo)
-
-	cMsgOne := &core.Message{NamespaceId: pfdOne.GetMessageNamespaceId(), Data: msgOne}
-	cMsgTwo := &core.Message{NamespaceId: pfdTwo.GetMessageNamespaceId(), Data: msgTwo}
-
-	input := abci.RequestProcessProposal{
-		BlockData: &core.Data{
-			Txs: [][]byte{
-				buildTx(t, signer, encConf.TxConfig, pfdOne),
-				buildTx(t, signer, encConf.TxConfig, pfdTwo),
-			},
-			Messages: core.Messages{
-				MessagesList: []*core.Message{
-					cMsgOne,
-					cMsgTwo,
-				},
-			},
-			OriginalSquareSize: 8,
-		},
-	}
-	data, err := coretypes.DataFromProto(input.BlockData)
-	require.NoError(t, err)
-
-	shares, err := shares.Split(data)
-	require.NoError(t, err)
-
-	require.NoError(t, err)
-	eds, err := da.ExtendShares(input.BlockData.OriginalSquareSize, shares)
-
-	require.NoError(t, err)
-	dah := da.NewDataAvailabilityHeader(eds)
-	input.Header.DataHash = dah.Hash()
-
-	// swap the messages
-	input.BlockData.Messages.MessagesList[0] = cMsgTwo
-	input.BlockData.Messages.MessagesList[1] = cMsgOne
-
-	got := testApp.ProcessProposal(input)
-
-	assert.Equal(t, got.Result, abci.ResponseProcessProposal_REJECT)
-}
+// 		require.NoError(t, err)
+// 		eds, err := da.ExtendShares(input.BlockData.OriginalSquareSize, shares)
+// 		require.NoError(t, err)
+// 		dah := da.NewDataAvailabilityHeader(eds)
+// 		input.Header.DataHash = dah.Hash()
+// 		res := testApp.ProcessProposal(input)
+// 		assert.Equal(t, tt.expectedResult, res.Result)
+// 	}
+// }
 
 func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
