@@ -50,5 +50,4 @@ func TestFuzzPrepareProcessProposal(t *testing.T) {
 			})
 		}
 	}
-
 }
