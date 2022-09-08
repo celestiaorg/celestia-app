@@ -48,16 +48,6 @@ func (p *parsedTx) message() *core.Message {
 
 type parsedTxs []*parsedTx
 
-func (p parsedTxs) countMalleated() int {
-	count := 0
-	for _, pTx := range p {
-		if pTx.malleatedTx != nil {
-			count++
-		}
-	}
-	return count
-}
-
 func (p parsedTxs) remove(i int) parsedTxs {
 	if i >= len(p) {
 		return p

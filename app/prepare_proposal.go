@@ -33,7 +33,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	}
 
 	// in this step we are processing any MsgWirePayForData transactions into
-	// MsgPayForData and their repsective messages. The malleatedTxs contain the
+	// MsgPayForData and their respective messages. The malleatedTxs contain the
 	// the new sdk.Msg with the original tx's metadata (sequence number, gas
 	// price etc).
 	processedTxs, messages, err := malleateTxs(app.txConfig, squareSize, parsedTxs, req.BlockData.Evidence)

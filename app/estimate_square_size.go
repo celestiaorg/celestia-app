@@ -83,7 +83,10 @@ func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSi
 		if err != nil {
 			panic(err)
 		}
-		evdSplitter.WriteEvidence(evidence)
+		err = evdSplitter.WriteEvidence(evidence)
+		if err != nil {
+			panic(err)
+		}
 	}
 	txCount, available := txSplitter.Count()
 	if consts.TxShareSize-available > 0 {
@@ -106,7 +109,7 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 		msgShares += msgLen
 	}
 
-	// calculate the smallest possible square size that could contian all the
+	// calculate the smallest possible square size that could contain all the
 	// messages
 	squareSize := nextPowerOfTwo(int(math.Ceil(math.Sqrt(float64(txShares + evdShares + msgShares)))))
 
