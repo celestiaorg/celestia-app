@@ -29,7 +29,7 @@ func TestFuzzPrepareProcessProposal(t *testing.T) {
 	for {
 		select {
 		case <-timer:
-			break
+			return
 		default:
 			t.Run("randomized inputs to Prepare and Process Proposal", func(t *testing.T) {
 				pfdTxs := paytestutil.GenerateManyRawWirePFD(t, encConf.TxConfig, signer, tmrand.Intn(100), -1)
