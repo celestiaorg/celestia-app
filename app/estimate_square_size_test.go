@@ -27,7 +27,7 @@ func Test_estimateSquareSize(t *testing.T) {
 		{"full block with only txs", 10000, 0, 0, consts.MaxSquareSize},
 		{"random small block square size 4", 0, 1, 400, 4},
 		{"random small block square size 4", 0, 1, 2000, 4},
-		{"random small block w/ 10 nomaml txs square size 4", 10, 1, 2000, 8},
+		{"random small block w/ 10 normal txs square size 4", 10, 1, 2000, 8},
 		{"random small block square size 16", 0, 4, 2000, 16},
 		{"random medium block square size 32", 0, 50, 2000, 32},
 		{"full block max square size", 0, 8000, 100, consts.MaxSquareSize},
