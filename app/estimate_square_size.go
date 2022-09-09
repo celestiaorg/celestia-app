@@ -15,7 +15,7 @@ import (
 
 // prune removes txs until the set of txs will fit in the square of size
 // squareSize. It assumes that the currentShareCount is accurate. This function
-// is far from optimal becuse accurately knowing how many shares any given
+// is far from optimal because accurately knowing how many shares any given
 // set of transactions and its message takes up in a data square that is following the
 // non-interactive default rules requires recalculating the entire square.
 // TODO: include the padding used by each msg when counting removed shares
