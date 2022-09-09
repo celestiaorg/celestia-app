@@ -107,7 +107,8 @@ func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSi
 }
 
 // estimateSquareSize uses the provided block data to estimate the square size
-// assuming that all malleated txs follow the non interactive default rules.
+// assuming that all malleated txs follow the non interactive default rules. The
+// estimated squareSize followed the number of shares used are returned.
 func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 	// get the raw count of shares taken by each type of block data
 	txShares, evdShares, msgLens := rawShareCount(txs, evd)
@@ -122,7 +123,7 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 
 	// the starting square size should be the minimum
 	if squareSize < consts.MinSquareSize {
-		squareSize = int(consts.MinSquareSize)
+		squareSize = consts.MinSquareSize
 	}
 
 	var fits bool
@@ -143,7 +144,7 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 		// try the next largest square size if we can't fit all the txs
 		case !fits:
 			// increment the square size
-			squareSize = int(nextPowerOfTwo(squareSize + 1))
+			squareSize = nextPowerOfTwo(squareSize + 1)
 		}
 	}
 }
