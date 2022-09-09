@@ -54,42 +54,42 @@ func TestFitsInSquare(t *testing.T) {
 	}
 	tests := []test{
 		{
-			name:  "1 msgs size 2 shares (2 msg shares, 2 contiguous, size 4)",
+			name:  "1 msgs size 2 shares (2 msg shares, 2 compact, size 4)",
 			msgs:  []int{2},
 			start: 2,
 			size:  4,
 			fits:  true,
 		},
 		{
-			name:  "10 msgs size 10 shares (100 msg shares, 0 contiguous, size 4)",
+			name:  "10 msgs size 10 shares (100 msg shares, 0 compact, size 4)",
 			msgs:  []int{10, 10, 10, 10, 10, 10, 10, 10, 10, 10},
 			start: 0,
 			size:  4,
 			fits:  false,
 		},
 		{
-			name:  "15 msgs size 1 share (15 msg shares, 0 contiguous, size 4)",
+			name:  "15 msgs size 1 share (15 msg shares, 0 compact, size 4)",
 			msgs:  []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 			start: 0,
 			size:  4,
 			fits:  true,
 		},
 		{
-			name:  "15 msgs size 1 share starting at share 2 (15 msg shares, 2 contiguous, size 4)",
+			name:  "15 msgs size 1 share starting at share 2 (15 msg shares, 2 compact, size 4)",
 			msgs:  []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 			start: 2,
 			size:  4,
 			fits:  false,
 		},
 		{
-			name:  "8 msgs of various sizes, 7 starting shares (63 msg shares, 1 contigous, size 8)",
+			name:  "8 msgs of various sizes (63 msg shares, 1 compact share, size 8)",
 			msgs:  []int{3, 9, 3, 7, 8, 3, 7, 8},
 			start: 1,
 			size:  8,
 			fits:  true,
 		},
 		{
-			name:  "8 msgs of various sizes, 7 starting shares (63 msg shares, 7 contigous, size 8)",
+			name:  "8 msgs of various sizes (63 msg shares, 6 compact, size 8)",
 			msgs:  []int{3, 9, 3, 7, 8, 3, 7, 8},
 			start: 6,
 			size:  8,
