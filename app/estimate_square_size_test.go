@@ -151,7 +151,7 @@ func Test_calculateCompactShareCount(t *testing.T) {
 		{"full block with only txs", 10000, 0, 0},
 		{"random small block square size 4", 0, 1, 400},
 		{"random small block square size 8", 0, 1, 2000},
-		{"random small block w/ 10 nomaml txs square size 4", 10, 1, 2000},
+		{"random small block w/ 10 normal txs square size 4", 10, 1, 2000},
 		{"random small block square size 16", 0, 4, 2000},
 		{"random medium block square size 32", 0, 50, 2000},
 		{"full block max square size", 0, 8000, 100},

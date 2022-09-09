@@ -54,9 +54,9 @@ func malleateTxs(
 		parsedTxReverseIndexes[i] = tMsg.parsedIndex
 	}
 
-	// the malleated transdactions still need to be wrapped with the starting
+	// the malleated transactions still need to be wrapped with the starting
 	// share index of the message, which we still need to calculate. Here we
-	// calculate the exact share counts used by the different tyeps of block
+	// calculate the exact share counts used by the different types of block
 	// data in order to get an accurate index.
 	compactShareCount := calculateCompactShareCount(txs, evd, int(squareSize))
 	msgShareCounts := shares.MessageShareCountsFromMessages(msgs)
