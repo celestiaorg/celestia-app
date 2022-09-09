@@ -219,7 +219,7 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 	for i, summary := range msgSummaries {
 		msgShares[i] = summary.size
 	}
-	return txShares + 2, evdShares, msgShares
+	return txShares, evdShares, msgShares
 }
 
 // overEstimateMalleatedTxSize estimates the size of a malleated tx. The formula it uses will always over estimate.

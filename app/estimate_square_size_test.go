@@ -23,10 +23,10 @@ func Test_estimateSquareSize(t *testing.T) {
 		expectedSize          uint64
 	}
 	tests := []test{
-		{"empty block minimum square size", 0, 0, 0, 2},
+		{"empty block minimum square size", 0, 0, 0, consts.MinSquareSize},
 		{"full block with only txs", 10000, 0, 0, consts.MaxSquareSize},
 		{"random small block square size 4", 0, 1, 400, 4},
-		{"random small block square size 8", 0, 1, 2000, 8},
+		{"random small block square size 4", 0, 1, 2000, 4},
 		{"random small block w/ 10 nomaml txs square size 4", 10, 1, 2000, 8},
 		{"random small block square size 16", 0, 4, 2000, 16},
 		{"random medium block square size 32", 0, 50, 2000, 32},
