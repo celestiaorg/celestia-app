@@ -150,7 +150,9 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 }
 
 // rawShareCount calculates the number of shares taken by all of the included
-// txs, evidence, and each msg.
+// txs, evidence, and each msg. msgLens is a slice of the number of shares used
+// by each message without accounting for the non-interactive message layout
+// rules.
 func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares int, msgLens []int) {
 	// msgSummary is used to keep track of the size and the namespace so that we
 	// can sort the namespaces before returning.
