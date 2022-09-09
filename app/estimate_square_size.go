@@ -188,7 +188,7 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 		txShares++ // add one to round up
 	}
 	// todo: stop rounding up. Here we're rounding up because the calculation for
-	// tx bytes isn't perfect. This catches those edge cases where we're we
+	// tx bytes isn't perfect. This catches those edge cases where we
 	// estimate the exact number of shares in the square, when in reality we're
 	// one byte over the number of shares in the square size. This will also cause
 	// blocks that are one square size too big instead of being perfectly snug.
