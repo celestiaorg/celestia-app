@@ -20,7 +20,7 @@ import (
 // capped at 5000 and size is capped at 3MB. Going over these caps will result
 // in randomized values.
 func GenerateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count, size int) [][]byte {
-	// hardcode a maximum of 10000 transactions so that we can use this for fuzzing
+	// hardcode a maximum of 5000 transactions so that we can use this for fuzzing
 	if count > 5000 || count < 0 {
 		count = tmrand.Intn(5000)
 	}
