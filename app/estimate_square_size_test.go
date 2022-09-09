@@ -140,7 +140,7 @@ func Test_overEstimateMalleatedTxSize(t *testing.T) {
 	}
 }
 
-func Test_compactShareCount(t *testing.T) {
+func Test_calculateCompactShareCount(t *testing.T) {
 	type test struct {
 		name                  string
 		normalTxs             int
