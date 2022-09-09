@@ -1,6 +1,7 @@
 package inclusion
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,14 +10,14 @@ import (
 func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 	type test struct {
 		name                 string
-		start, end, maxDepth uint64
+		start, end, maxDepth int
 		expected             []coord
 	}
 	tests := []test{
 		{
 			name:     "first four shares of an 8 leaf tree",
 			start:    0,
-			end:      3,
+			end:      4,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -28,7 +29,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "second set of four shares of an 8 leaf tree",
 			start:    4,
-			end:      7,
+			end:      8,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -40,7 +41,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "middle 2 shares of an 8 leaf tree",
 			start:    3,
-			end:      4,
+			end:      5,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -56,7 +57,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "third lone share of an 8 leaf tree",
 			start:    3,
-			end:      3,
+			end:      4,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -68,7 +69,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "middle 3 shares of an 8 leaf tree",
 			start:    3,
-			end:      5,
+			end:      6,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -84,7 +85,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "middle 6 shares of an 8 leaf tree",
 			start:    1,
-			end:      6,
+			end:      7,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -108,7 +109,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "first 5 shares of an 8 leaf tree",
 			start:    0,
-			end:      4,
+			end:      5,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -124,7 +125,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "first 7 shares of an 8 leaf tree",
 			start:    0,
-			end:      6,
+			end:      7,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -144,7 +145,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "all shares of an 8 leaf tree",
 			start:    0,
-			end:      7,
+			end:      8,
 			maxDepth: 3,
 			expected: []coord{
 				{
@@ -156,7 +157,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "first 32 shares of a 128 leaf tree",
 			start:    0,
-			end:      31,
+			end:      32,
 			maxDepth: 7,
 			expected: []coord{
 				{
@@ -168,7 +169,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "first 33 shares of a 128 leaf tree",
 			start:    0,
-			end:      32,
+			end:      33,
 			maxDepth: 7,
 			expected: []coord{
 				{
@@ -184,7 +185,7 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "first 31 shares of a 128 leaf tree",
 			start:    0,
-			end:      30,
+			end:      31,
 			maxDepth: 7,
 			expected: []coord{
 				{
@@ -212,11 +213,23 @@ func Test_calculateSubTreeRootCoordinates(t *testing.T) {
 		{
 			name:     "first 64 shares of a 128 leaf tree",
 			start:    0,
-			end:      63,
+			end:      64,
 			maxDepth: 7,
 			expected: []coord{
 				{
 					depth:    1,
+					position: 0,
+				},
+			},
+		},
+		{
+			name:     "single leaf square size 4",
+			start:    0,
+			end:      1,
+			maxDepth: 2,
+			expected: []coord{
+				{
+					depth:    2,
 					position: 0,
 				},
 			},
@@ -232,18 +245,65 @@ func Test_genSubTreeRootPath(t *testing.T) {
 	type test struct {
 		depth    int
 		pos      uint
-		expected []bool
+		expected []WalkInstruction
 	}
 	tests := []test{
-		{2, 0, []bool{false, false}},
-		{0, 0, []bool{}},
-		{3, 0, []bool{false, false, false}},
-		{3, 1, []bool{false, false, true}},
-		{3, 2, []bool{false, true, false}},
-		{5, 16, []bool{true, false, false, false, false}},
+		{2, 0, []WalkInstruction{WalkLeft, WalkLeft}},
+		{0, 0, []WalkInstruction{}},
+		{3, 0, []WalkInstruction{WalkLeft, WalkLeft, WalkLeft}},
+		{3, 1, []WalkInstruction{WalkLeft, WalkLeft, WalkRight}},
+		{3, 2, []WalkInstruction{WalkLeft, WalkRight, WalkLeft}},
+		{5, 16, []WalkInstruction{WalkRight, WalkLeft, WalkLeft, WalkLeft, WalkLeft}},
 	}
 	for _, tt := range tests {
 		path := genSubTreeRootPath(tt.depth, tt.pos)
 		assert.Equal(t, tt.expected, path)
+	}
+}
+
+func Test_calculateCommitPaths(t *testing.T) {
+	type test struct {
+		size, start, msgLen int
+		expected            []path
+	}
+	tests := []test{
+		{2, 0, 1, []path{{instructions: []WalkInstruction{WalkLeft}, row: 0}}},
+		{2, 2, 2, []path{{instructions: []WalkInstruction{}, row: 1}}},
+		{2, 1, 2, []path{{instructions: []WalkInstruction{}, row: 1}}},
+		{4, 2, 2, []path{{instructions: []WalkInstruction{WalkRight}, row: 0}}},
+		{4, 2, 4, []path{{instructions: []WalkInstruction{}, row: 1}}},
+		{4, 3, 4, []path{{instructions: []WalkInstruction{}, row: 1}}},
+		{4, 2, 9, []path{
+			{instructions: []WalkInstruction{}, row: 1},
+			{instructions: []WalkInstruction{}, row: 2},
+			{instructions: []WalkInstruction{WalkLeft, WalkLeft}, row: 3},
+		}},
+		{8, 3, 16, []path{
+			{instructions: []WalkInstruction{}, row: 1},
+			{instructions: []WalkInstruction{}, row: 2},
+		}},
+		{64, 144, 32, []path{
+			{instructions: []WalkInstruction{WalkRight}, row: 2},
+		}},
+		{64, 4032, 33, []path{
+			{instructions: []WalkInstruction{WalkLeft}, row: 63},
+			{instructions: []WalkInstruction{WalkRight, WalkLeft, WalkLeft, WalkLeft, WalkLeft, WalkLeft}, row: 63},
+		}},
+		{64, 4032, 63, []path{
+			{instructions: []WalkInstruction{WalkLeft}, row: 63},
+			{instructions: []WalkInstruction{WalkRight, WalkLeft}, row: 63},
+			{instructions: []WalkInstruction{WalkRight, WalkRight, WalkLeft}, row: 63},
+			{instructions: []WalkInstruction{WalkRight, WalkRight, WalkRight, WalkLeft}, row: 63},
+			{instructions: []WalkInstruction{WalkRight, WalkRight, WalkRight, WalkRight, WalkLeft}, row: 63},
+			{instructions: []WalkInstruction{WalkRight, WalkRight, WalkRight, WalkRight, WalkRight, WalkLeft}, row: 63},
+		}},
+	}
+	for i, tt := range tests {
+		t.Run(
+			fmt.Sprintf("test %d: square size %d start %d msgLen %d", i, tt.size, tt.start, tt.msgLen),
+			func(t *testing.T) {
+				assert.Equal(t, tt.expected, calculateCommitPaths(tt.size, tt.start, tt.msgLen))
+			},
+		)
 	}
 }

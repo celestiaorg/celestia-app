@@ -1,17 +1,61 @@
 package inclusion
 
+import (
+	"math"
+
+	"github.com/celestiaorg/celestia-app/pkg/shares"
+)
+
+type path struct {
+	instructions []WalkInstruction
+	row          int
+}
+
+// calculateCommitPaths calculates all of the paths to subtree roots needed to
+// create the commitment for a given message.
+func calculateCommitPaths(origSquareSize, start, msgShareLen int) []path {
+	// todo: make the non-interactive defaults optional. by calculating the
+	// NextAlignedPowerOfTwo, we are forcing use of the non-interactive
+	// defaults. If we want to make this optional in the future, we have to move
+	// this next line out of this function.
+	start, _ = shares.NextAlignedPowerOfTwo(start, msgShareLen, origSquareSize)
+	startRow, endRow := start/origSquareSize, (start+msgShareLen-1)/origSquareSize
+	normalizedStartIndex := start % origSquareSize
+	normalizedEndIndex := (start + msgShareLen) - endRow*origSquareSize
+	paths := []path{}
+	maxDepth := int(math.Log2(float64(origSquareSize)))
+	for i := startRow; i <= endRow; i++ {
+		start, end := 0, origSquareSize
+		if i == startRow {
+			start = normalizedStartIndex
+		}
+		if i == endRow {
+			end = normalizedEndIndex
+		}
+		coord := calculateSubTreeRootCoordinates(maxDepth, start, end)
+		for _, c := range coord {
+			paths = append(paths, path{
+				instructions: genSubTreeRootPath(c.depth, uint(c.position)),
+				row:          i,
+			})
+		}
+	}
+
+	return paths
+}
+
 // genSubTreeRootPath calculates the path to a given subtree root of a node, given the
 // depth and position of the node. note: the root of the tree is depth 0.
 // The following nolint can be removed after this function is used.
 //nolint:unused,deadcode
-func genSubTreeRootPath(depth int, pos uint) []bool {
-	path := make([]bool, depth)
+func genSubTreeRootPath(depth int, pos uint) []WalkInstruction {
+	path := make([]WalkInstruction, depth)
 	counter := 0
 	for i := depth - 1; i >= 0; i-- {
 		if (pos & (1 << i)) == 0 {
-			path[counter] = false
+			path[counter] = WalkLeft
 		} else {
-			path[counter] = true
+			path[counter] = WalkRight
 		}
 		counter++
 	}
@@ -30,10 +74,10 @@ func genSubTreeRootPath(depth int, pos uint) []bool {
 // 3       0 1 2 3 4 5 6 7
 type coord struct {
 	// depth is the typical depth of a tree, 0 being the root
-	depth uint64
+	depth int
 	// position is the index of a node of a given depth, 0 being the left most
 	// node
-	position uint64
+	position int
 }
 
 // climb is a state transition function to simulate climbing a balanced binary
@@ -57,7 +101,7 @@ func (c coord) canClimbRight() bool {
 // end does not exceed the range of a tree of the provided depth, and that end
 // >= start. This function works by starting at the first index of the msg and
 // working our way right.
-func calculateSubTreeRootCoordinates(maxDepth, start, end uint64) []coord {
+func calculateSubTreeRootCoordinates(maxDepth, start, end int) []coord {
 	cds := []coord{}
 	// leafCursor keeps track of the current leaf that we are starting with when
 	// finding the subtree root for some set. When leafCursor == end, we are
@@ -76,7 +120,7 @@ func calculateSubTreeRootCoordinates(maxDepth, start, end uint64) []coord {
 	// nodeRangeCursor keeps track of the number of leaves that are under the
 	// current tree node. We could calculate this each time, but this acts as a
 	// cache
-	nodeRangeCursor := uint64(1)
+	nodeRangeCursor := 1
 	// reset is used to reset the above state after finding a subtree root. We
 	// reset by setting the node cursors to the values equal to the next leaf
 	// node.
@@ -87,7 +131,7 @@ func calculateSubTreeRootCoordinates(maxDepth, start, end uint64) []coord {
 			depth:    maxDepth,
 			position: leafCursor,
 		}
-		nodeRangeCursor = uint64(1)
+		nodeRangeCursor = 1
 	}
 	// recursively climb the tree starting at the left most leaf node (the
 	// starting leaf), and save each subtree root as we find it. After finding a
@@ -96,12 +140,12 @@ func calculateSubTreeRootCoordinates(maxDepth, start, end uint64) []coord {
 	for {
 		switch {
 		// check if we're finished, if so add the last coord and return
-		case leafCursor == end:
+		case leafCursor+1 == end:
 			cds = append(cds, nodeCursor)
 			return cds
 		// check if we've climbed too high in the tree. if so, add the last
 		// highest node and proceed.
-		case leafCursor > end:
+		case leafCursor+1 > end:
 			cds = append(cds, lastNodeCursor)
 			leafCursor = lastLeafCursor + 1
 			reset()
