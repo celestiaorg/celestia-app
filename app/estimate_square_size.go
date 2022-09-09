@@ -78,7 +78,7 @@ func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSi
 			// catch the error here on purpose as we want to ignore txs that are
 			// invalid (cannot be wrapped)
 			if err != nil {
-				continue
+				panic(err)
 			}
 			used, _ := shares.MsgSharesUsedNIDefaults(msgSharesCursor, squareSize, tx.msg.Size())
 			msgSharesCursor += used
