@@ -41,7 +41,7 @@ func malleateTxs(
 
 	// sort the messages so that we can create a data square whose messages are
 	// ordered by namespace. This is a block validity rule, and will cause nmt
-	// to panic.
+	// to panic if unsorted.
 	sort.SliceStable(trackedMsgs, func(i, j int) bool {
 		return bytes.Compare(trackedMsgs[i].message.NamespaceId, trackedMsgs[j].message.NamespaceId) < 0
 	})
