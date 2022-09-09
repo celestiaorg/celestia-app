@@ -12,7 +12,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// parsedTx is an interanl struct that keeps track of potentially valid txs and
+// parsedTx is an internal struct that keeps track of potentially valid txs and
 // their wire messages if they have any.
 type parsedTx struct {
 	// the original raw bytes of the tx
