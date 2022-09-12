@@ -61,7 +61,7 @@ func malleateTxs(
 	compactShareCount := calculateCompactShareCount(txs, evd, int(squareSize))
 	msgShareCounts := shares.MessageShareCountsFromMessages(msgs)
 	// calculate the indexes that will be used for each message
-	_, indexes := shares.MsgSharesUsedNIDefaults(compactShareCount, int(squareSize), msgShareCounts...)
+	_, indexes := shares.MsgSharesUsedNonInteractiveDefaults(compactShareCount, int(squareSize), msgShareCounts...)
 	for i, reverseIndex := range parsedTxReverseIndexes {
 		wrappedMalleatedTx, err := txs[reverseIndex].wrap(indexes[i])
 		if err != nil {

@@ -77,7 +77,7 @@ func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSi
 			if err != nil {
 				panic(err)
 			}
-			used, _ := shares.MsgSharesUsedNIDefaults(msgSharesCursor, squareSize, tx.msg.Size())
+			used, _ := shares.MsgSharesUsedNonInteractiveDefaults(msgSharesCursor, squareSize, tx.msg.Size())
 			msgSharesCursor += used
 		}
 		txSplitter.WriteTx(rawTx)
@@ -154,7 +154,7 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 	// msgSummary is used to keep track of the size and the namespace so that we
 	// can sort the messages by namespace before returning.
 	type msgSummary struct {
-                // size is the number of shares used by this message
+		// size is the number of shares used by this message
 		size      int
 		namespace []byte
 	}
