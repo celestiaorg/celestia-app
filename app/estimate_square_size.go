@@ -74,9 +74,6 @@ func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSi
 		rawTx := tx.rawTx
 		if tx.malleatedTx != nil {
 			rawTx, err = coretypes.WrapMalleatedTx(tx.originalHash(), uint32(msgSharesCursor), tx.malleatedTx)
-			// we should never get to this point, but just in case we do, we
-			// catch the error here on purpose as we want to ignore txs that are
-			// invalid (cannot be wrapped)
 			if err != nil {
 				panic(err)
 			}
@@ -121,7 +118,7 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 	// messages
 	squareSize := nextPowerOfTwo(int(math.Ceil(math.Sqrt(float64(txShares + evdShares + msgShares)))))
 
-	// the starting square size should be the minimum
+	// the starting square size should at least be the minimum
 	if squareSize < consts.MinSquareSize {
 		squareSize = consts.MinSquareSize
 	}
@@ -130,7 +127,7 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 	for {
 		// assume that all the msgs in the square use the non-interactive
 		// default rules and see if we can fit them in the smallest starting
-		// square size. We start the cusor (share index) at the begginning of
+		// square size. We start the cursor (share index) at the beginning of
 		// the message shares (txShares+evdShares), because shares that do not
 		// follow the non-interactive defaults are simple to estimate.
 		fits, msgShares = shares.FitsInSquare(txShares+evdShares, squareSize, msgLens...)
@@ -143,7 +140,7 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 			return uint64(squareSize), txShares + evdShares + msgShares
 		// try the next largest square size if we can't fit all the txs
 		case !fits:
-			// increment the square size
+			// double the square size
 			squareSize = nextPowerOfTwo(squareSize + 1)
 		}
 	}
@@ -155,8 +152,9 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 // rules.
 func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares int, msgLens []int) {
 	// msgSummary is used to keep track of the size and the namespace so that we
-	// can sort the namespaces before returning.
+	// can sort the messages by namespace before returning.
 	type msgSummary struct {
+                // size is the number of shares used by this message
 		size      int
 		namespace []byte
 	}
@@ -175,8 +173,8 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 			continue
 		}
 
-		// if the there is a malleated tx, then we want to also account for the
-		// txs that gets included onchain. The formula used here over
+		// if there is a malleated tx, then we want to also account for the
+		// txs that get included on-chain. The formula used here over
 		// compensates for the actual size of the message, and in some cases can
 		// result in some wasted square space or picking a square size that is
 		// too large. TODO: improve by making a more accurate estimation formula
@@ -209,7 +207,7 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 		evdShares++ // add one to round up
 	}
 
-	// sort the msgSummaries in order to order properly. This is okay to do here
+	// sort the msgSummaries by namespace to order them properly. This is okay to do here
 	// as we aren't sorting the actual txs, just their summaries for more
 	// accurate estimations
 	sort.Slice(msgSummaries, func(i, j int) bool {
