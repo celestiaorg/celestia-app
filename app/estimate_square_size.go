@@ -228,11 +228,11 @@ func overEstimateMalleatedTxSize(txLen, msgLen, sharesCommitments int) int {
 	// the original tx, but removes the message and extra share commitments that
 	// are in the wire message by subtracting msgLen and all extra share
 	// commitments.
-	malleatedTxLen := txLen - msgLen - ((sharesCommitments - 1) * 128) - 8
+	malleatedTxLen := txLen - msgLen - ((sharesCommitments - 1) * appconsts.ShareCommitmentBytes)
 	// we need to ensure that the returned number is at least larger than or
 	// equal to the actual number, which is difficult to calculate without
 	// actually malleating the tx
-	return appconsts.MalleatedTxBytes + 100 + malleatedTxLen
+	return appconsts.MalleatedTxBytes + appconsts.MalleatedTxEstimateBuffer + malleatedTxLen
 }
 
 func nextPowerOfTwo(v int) int {
