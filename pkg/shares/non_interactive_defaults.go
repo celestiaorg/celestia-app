@@ -16,14 +16,14 @@ func FitsInSquare(cursor, origSquareSize int, msgShareLens ...int) (bool, int) {
 	}
 	// here we account for padding between the contiguous and message shares
 	cursor, _ = NextAlignedPowerOfTwo(cursor, firstMsgLen, origSquareSize)
-	sharesUsed, _ := MsgSharesUsedNIDefaults(cursor, origSquareSize, msgShareLens...)
+	sharesUsed, _ := MsgSharesUsedNonInteractiveDefaults(cursor, origSquareSize, msgShareLens...)
 	return cursor+sharesUsed <= origSquareSize*origSquareSize, sharesUsed
 }
 
-// MsgSharesUsedNIDefaults calculates the number of shares used by a given set
+// MsgSharesUsedNonInteractiveDefaults calculates the number of shares used by a given set
 // of messages share lengths. It follows the non-interactive default rules and
 // returns the share indexes for each message.
-func MsgSharesUsedNIDefaults(cursor, origSquareSize int, msgShareLens ...int) (int, []uint32) {
+func MsgSharesUsedNonInteractiveDefaults(cursor, origSquareSize int, msgShareLens ...int) (int, []uint32) {
 	start := cursor
 	indexes := make([]uint32, len(msgShareLens))
 	for i, msgLen := range msgShareLens {
