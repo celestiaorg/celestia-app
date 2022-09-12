@@ -73,14 +73,7 @@ lint:
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 .PHONY: lint
 
-###############################################################################
-###                           Tests & Simulation                            ###
-###############################################################################
-# The below include contains the tools target.
-include contrib/devtools/Makefile
-include contrib/devtools/sims.mk
-
-test-all: check test-race test-cover
+test-all: test-race test-cover
 
 test-race:
 	@VERSION=$(VERSION) go test -mod=readonly -race -test.short ./...
