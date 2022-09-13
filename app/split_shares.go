@@ -113,8 +113,8 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
 // that message and their corresponding txs get written to the square
 // atomically.
 type shareSplitter struct {
-	txWriter  *coretypes.CompactShareWriter
-	msgWriter *coretypes.SparseShareWriter
+	txWriter  *coretypes.ContiguousShareWriter
+	msgWriter *coretypes.MessageShareWriter
 
 	// Since evidence will always be included in a block, we do not need to
 	// generate these share lazily. Therefore instead of a CompactShareWriter
@@ -143,7 +143,9 @@ func newShareSplitter(txConf client.TxConfig, squareSize uint64, data *core.Data
 		panic(err)
 	}
 
-	sqwr.txWriter = coretypes.NewCompactShareWriter(consts.TxNamespaceID)
+	// TODO: we should be able to use the CompactShareWriter and
+	// SparseShareWriter defined in pkg/shares here
+	sqwr.txWriter = coretypes.NewContiguousShareWriter(consts.TxNamespaceID)
 	sqwr.msgWriter = coretypes.NewMessageShareWriter()
 
 	return &sqwr
