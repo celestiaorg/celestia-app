@@ -214,10 +214,10 @@ func (msg *MsgWirePayForData) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{address}
 }
 
-// createPayForDataSignature generates the signature for a PayForData for a single square
-// size using the info from a MsgWirePayForData.
-func (msg *MsgWirePayForData) createPayForDataSignature(signer *KeyringSigner, builder sdkclient.TxBuilder, k uint64) ([]byte, error) {
-	pfd, err := msg.unsignedPayForData(k)
+// createPayForDataSignature generates the signature for a PayForData for a
+// single squareSize using the info from a MsgWirePayForData.
+func (msg *MsgWirePayForData) createPayForDataSignature(signer *KeyringSigner, builder sdkclient.TxBuilder, squareSize uint64) ([]byte, error) {
+	pfd, err := msg.unsignedPayForData(squareSize)
 	if err != nil {
 		return nil, err
 	}
@@ -241,9 +241,9 @@ func (msg *MsgWirePayForData) createPayForDataSignature(signer *KeyringSigner, b
 
 // unsignedPayForData use the data in the MsgWirePayForData
 // to create a new MsgPayForData.
-func (msg *MsgWirePayForData) unsignedPayForData(k uint64) (*MsgPayForData, error) {
+func (msg *MsgWirePayForData) unsignedPayForData(squareSize uint64) (*MsgPayForData, error) {
 	// create the commitment using the padded message
-	commit, err := CreateCommitment(k, msg.MessageNameSpaceId, msg.Message)
+	commit, err := CreateCommitment(squareSize, msg.MessageNameSpaceId, msg.Message)
 	if err != nil {
 		return nil, err
 	}

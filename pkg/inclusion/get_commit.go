@@ -8,11 +8,11 @@ import (
 )
 
 func GetCommit(cacher *EDSSubTreeRootCacher, dah da.DataAvailabilityHeader, start, msgShareLen int) ([]byte, error) {
-	originalSquareSize := len(dah.RowsRoots) / 2
-	if start+msgShareLen > originalSquareSize*originalSquareSize {
+	squareSize := len(dah.RowsRoots) / 2
+	if start+msgShareLen > squareSize*squareSize {
 		return nil, errors.New("cannot get commit for message that doesn't fit in square")
 	}
-	paths := calculateCommitPaths(originalSquareSize, start, msgShareLen)
+	paths := calculateCommitPaths(squareSize, start, msgShareLen)
 	commits := make([][]byte, len(paths))
 	for i, path := range paths {
 		// here we prepend false (walk left down the tree) because we only need

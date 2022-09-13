@@ -1,13 +1,13 @@
 package shares
 
 // FitsInSquare uses the non interactive default rules to see if messages of
-// some lengths will fit in a square of size origSquareSize starting at share
-// index cursor. See non-interactive default rules
+// some lengths will fit in a square of squareSize starting at share index
+// cursor. See non-interactive default rules
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
-func FitsInSquare(cursor, origSquareSize int, msgShareLens ...int) (bool, int) {
+func FitsInSquare(cursor, squareSize int, msgShareLens ...int) (bool, int) {
 	// if there are 0 messages and the cursor already fits inside the square,
 	// then we already know that everything fits in the square.
-	if len(msgShareLens) == 0 && cursor/origSquareSize <= origSquareSize {
+	if len(msgShareLens) == 0 && cursor/squareSize <= squareSize {
 		return true, 0
 	}
 	firstMsgLen := 1
@@ -15,19 +15,19 @@ func FitsInSquare(cursor, origSquareSize int, msgShareLens ...int) (bool, int) {
 		firstMsgLen = msgShareLens[0]
 	}
 	// here we account for padding between the contiguous and message shares
-	cursor, _ = NextAlignedPowerOfTwo(cursor, firstMsgLen, origSquareSize)
-	sharesUsed, _ := MsgSharesUsedNIDefaults(cursor, origSquareSize, msgShareLens...)
-	return cursor+sharesUsed <= origSquareSize*origSquareSize, sharesUsed
+	cursor, _ = NextAlignedPowerOfTwo(cursor, firstMsgLen, squareSize)
+	sharesUsed, _ := MsgSharesUsedNIDefaults(cursor, squareSize, msgShareLens...)
+	return cursor+sharesUsed <= squareSize*squareSize, sharesUsed
 }
 
 // MsgSharesUsedNIDefaults calculates the number of shares used by a given set
 // of messages share lengths. It follows the non-interactive default rules and
 // returns the share indexes for each message.
-func MsgSharesUsedNIDefaults(cursor, origSquareSize int, msgShareLens ...int) (int, []uint32) {
+func MsgSharesUsedNIDefaults(cursor, squareSize int, msgShareLens ...int) (int, []uint32) {
 	start := cursor
 	indexes := make([]uint32, len(msgShareLens))
 	for i, msgLen := range msgShareLens {
-		cursor, _ = NextAlignedPowerOfTwo(cursor, msgLen, origSquareSize)
+		cursor, _ = NextAlignedPowerOfTwo(cursor, msgLen, squareSize)
 		indexes[i] = uint32(cursor)
 		cursor += msgLen
 	}

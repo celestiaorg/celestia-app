@@ -183,11 +183,11 @@ func genOrigRowShares(data types.Data, startRow, endRow uint64) [][]byte {
 }
 
 // splitIntoRows splits shares into rows of a particular square size
-func splitIntoRows(origSquareSize uint64, shares [][]byte) [][][]byte {
-	rowCount := uint64(len(shares)) / origSquareSize
+func splitIntoRows(squareSize uint64, shares [][]byte) [][][]byte {
+	rowCount := uint64(len(shares)) / squareSize
 	rows := make([][][]byte, rowCount)
 	for i := uint64(0); i < rowCount; i++ {
-		rows[i] = shares[i*origSquareSize : (i+1)*origSquareSize]
+		rows[i] = shares[i*squareSize : (i+1)*squareSize]
 	}
 	return rows
 }
