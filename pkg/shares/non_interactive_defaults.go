@@ -14,7 +14,7 @@ func FitsInSquare(cursor, origSquareSize int, msgShareLens ...int) (bool, int) {
 	if len(msgShareLens) > 0 {
 		firstMsgLen = msgShareLens[0]
 	}
-	// here we account for padding between the contiguous and message shares
+	// here we account for padding between the compact and sparse shares
 	cursor, _ = NextAlignedPowerOfTwo(cursor, firstMsgLen, origSquareSize)
 	sharesUsed, _ := MsgSharesUsedNIDefaults(cursor, origSquareSize, msgShareLens...)
 	return cursor+sharesUsed <= origSquareSize*origSquareSize, sharesUsed

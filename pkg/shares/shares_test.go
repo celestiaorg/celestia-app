@@ -261,7 +261,7 @@ func TestMerge(t *testing.T) {
 
 func TestFuzz_Merge(t *testing.T) {
 	t.Skip()
-	// run random shares through processContiguousShares for a minute
+	// run random shares through processCompactShares for a minute
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	for {
@@ -277,25 +277,25 @@ func TestFuzz_Merge(t *testing.T) {
 // generateRandomBlockData returns randomly generated block data for testing purposes
 func generateRandomBlockData(txCount, evdCount, msgCount, maxSize int) coretypes.Data {
 	var out coretypes.Data
-	out.Txs = generateRandomlySizedContiguousShares(txCount, maxSize)
+	out.Txs = generateRandomlySizedCompactShares(txCount, maxSize)
 	out.Evidence = generateIdenticalEvidence(evdCount)
 	out.Messages = generateRandomlySizedMessages(msgCount, maxSize)
 	return out
 }
 
-func generateRandomlySizedContiguousShares(count, max int) coretypes.Txs {
+func generateRandomlySizedCompactShares(count, max int) coretypes.Txs {
 	txs := make(coretypes.Txs, count)
 	for i := 0; i < count; i++ {
 		size := rand.Intn(max)
 		if size == 0 {
 			size = 1
 		}
-		txs[i] = generateRandomContiguousShares(1, size)[0]
+		txs[i] = generateRandomCompactShares(1, size)[0]
 	}
 	return txs
 }
 
-func generateRandomContiguousShares(count, size int) coretypes.Txs {
+func generateRandomCompactShares(count, size int) coretypes.Txs {
 	txs := make(coretypes.Txs, count)
 	for i := 0; i < count; i++ {
 		tx := make([]byte, size)

@@ -10,24 +10,24 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// ContiguousShareSplitter will write raw data contiguously across a progressively
-// increasing set of shares. It is used to lazily split block data such as transactions
-// into shares.
-type ContiguousShareSplitter struct {
+// CompactShareSplitter will write raw data compactly across a progressively
+// increasing set of shares. It is used to lazily split block data such as
+// transactions, intermediate state roots, and evidence into shares.
+type CompactShareSplitter struct {
 	shares       []NamespacedShare
 	pendingShare NamespacedShare
 	namespace    namespace.ID
 }
 
-// NewContiguousShareSplitter returns a ContiguousShareSplitter using the provided
+// NewCompactShareSplitter returns a CompactShareSplitter using the provided
 // namespace.
-func NewContiguousShareSplitter(ns namespace.ID) *ContiguousShareSplitter {
+func NewCompactShareSplitter(ns namespace.ID) *CompactShareSplitter {
 	pendingShare := NamespacedShare{ID: ns, Share: make([]byte, 0, consts.ShareSize)}
 	pendingShare.Share = append(pendingShare.Share, ns...)
-	return &ContiguousShareSplitter{pendingShare: pendingShare, namespace: ns}
+	return &CompactShareSplitter{pendingShare: pendingShare, namespace: ns}
 }
 
-func (csw *ContiguousShareSplitter) WriteTx(tx coretypes.Tx) {
+func (csw *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
 	rawData, err := tx.MarshalDelimited()
 	if err != nil {
 		panic(fmt.Sprintf("included Tx in mem-pool that can not be encoded %v", tx))
@@ -35,7 +35,7 @@ func (csw *ContiguousShareSplitter) WriteTx(tx coretypes.Tx) {
 	csw.WriteBytes(rawData)
 }
 
-func (csw *ContiguousShareSplitter) WriteEvidence(evd coretypes.Evidence) error {
+func (csw *CompactShareSplitter) WriteEvidence(evd coretypes.Evidence) error {
 	pev, err := coretypes.EvidenceToProto(evd)
 	if err != nil {
 		return err
@@ -48,8 +48,8 @@ func (csw *ContiguousShareSplitter) WriteEvidence(evd coretypes.Evidence) error 
 	return nil
 }
 
-// WriteBytes adds the delimited data to the underlying contiguous shares.
-func (csw *ContiguousShareSplitter) WriteBytes(rawData []byte) {
+// WriteBytes adds the delimited data to the underlying compact shares.
+func (csw *CompactShareSplitter) WriteBytes(rawData []byte) {
 	// if this is the first time writing to a pending share, we must add the
 	// reserved bytes
 	if len(csw.pendingShare.Share) == consts.NamespaceSize {
@@ -82,7 +82,7 @@ func (csw *ContiguousShareSplitter) WriteBytes(rawData []byte) {
 		pendingCursor := len(rawData) + consts.NamespaceSize + consts.ShareReservedBytes
 		var reservedByte byte
 		if pendingCursor >= consts.ShareSize {
-			// the share reserve byte is zero when some contiguously written
+			// the share reserve byte is zero when some compactly written
 			// data takes up the entire share
 			reservedByte = byte(0)
 		} else {
@@ -99,7 +99,7 @@ func (csw *ContiguousShareSplitter) WriteBytes(rawData []byte) {
 }
 
 // stackPending will add the pending share to accumlated shares provided that it is long enough
-func (csw *ContiguousShareSplitter) stackPending() {
+func (csw *CompactShareSplitter) stackPending() {
 	if len(csw.pendingShare.Share) < consts.ShareSize {
 		return
 	}
@@ -112,8 +112,8 @@ func (csw *ContiguousShareSplitter) stackPending() {
 	}
 }
 
-// Export finalizes and returns the underlying contiguous shares.
-func (csw *ContiguousShareSplitter) Export() NamespacedShares {
+// Export finalizes and returns the underlying compact shares.
+func (csw *CompactShareSplitter) Export() NamespacedShares {
 	// add the pending share to the current shares before returning
 	if len(csw.pendingShare.Share) > consts.NamespaceSize {
 		csw.pendingShare.Share = zeroPadIfNecessary(csw.pendingShare.Share, consts.ShareSize)
@@ -143,7 +143,7 @@ func (csw *ContiguousShareSplitter) Export() NamespacedShares {
 }
 
 // Count returns the current number of shares that will be made if exporting.
-func (csw *ContiguousShareSplitter) Count() (count, availableBytes int) {
+func (csw *CompactShareSplitter) Count() (count, availableBytes int) {
 	if len(csw.pendingShare.Share) > consts.NamespaceSize {
 		return len(csw.shares), 0
 	}
