@@ -27,15 +27,15 @@ func NewCompactShareSplitter(ns namespace.ID) *CompactShareSplitter {
 	return &CompactShareSplitter{pendingShare: pendingShare, namespace: ns}
 }
 
-func (csw *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
+func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
 	rawData, err := tx.MarshalDelimited()
 	if err != nil {
 		panic(fmt.Sprintf("included Tx in mem-pool that can not be encoded %v", tx))
 	}
-	csw.WriteBytes(rawData)
+	css.WriteBytes(rawData)
 }
 
-func (csw *CompactShareSplitter) WriteEvidence(evd coretypes.Evidence) error {
+func (css *CompactShareSplitter) WriteEvidence(evd coretypes.Evidence) error {
 	pev, err := coretypes.EvidenceToProto(evd)
 	if err != nil {
 		return err
@@ -44,35 +44,35 @@ func (csw *CompactShareSplitter) WriteEvidence(evd coretypes.Evidence) error {
 	if err != nil {
 		return err
 	}
-	csw.WriteBytes(rawData)
+	css.WriteBytes(rawData)
 	return nil
 }
 
 // WriteBytes adds the delimited data to the underlying compact shares.
-func (csw *CompactShareSplitter) WriteBytes(rawData []byte) {
+func (css *CompactShareSplitter) WriteBytes(rawData []byte) {
 	// if this is the first time writing to a pending share, we must add the
 	// reserved bytes
-	if len(csw.pendingShare.Share) == consts.NamespaceSize {
-		csw.pendingShare.Share = append(csw.pendingShare.Share, 0)
+	if len(css.pendingShare.Share) == consts.NamespaceSize {
+		css.pendingShare.Share = append(css.pendingShare.Share, 0)
 	}
 
 	txCursor := len(rawData)
 	for txCursor != 0 {
 		// find the len left in the pending share
-		pendingLeft := consts.ShareSize - len(csw.pendingShare.Share)
+		pendingLeft := consts.ShareSize - len(css.pendingShare.Share)
 
 		// if we can simply add the tx to the share without creating a new
 		// pending share, do so and return
 		if len(rawData) <= pendingLeft {
-			csw.pendingShare.Share = append(csw.pendingShare.Share, rawData...)
+			css.pendingShare.Share = append(css.pendingShare.Share, rawData...)
 			break
 		}
 
 		// if we can only add a portion of the transaction to the pending share,
 		// then we add it and add the pending share to the finalized shares.
 		chunk := rawData[:pendingLeft]
-		csw.pendingShare.Share = append(csw.pendingShare.Share, chunk...)
-		csw.stackPending()
+		css.pendingShare.Share = append(css.pendingShare.Share, chunk...)
+		css.stackPending()
 
 		// update the cursor
 		rawData = rawData[pendingLeft:]
@@ -89,41 +89,41 @@ func (csw *CompactShareSplitter) WriteBytes(rawData []byte) {
 			reservedByte = byte(pendingCursor)
 		}
 
-		csw.pendingShare.Share = append(csw.pendingShare.Share, reservedByte)
+		css.pendingShare.Share = append(css.pendingShare.Share, reservedByte)
 	}
 
 	// if the share is exactly the correct size, then append to shares
-	if len(csw.pendingShare.Share) == consts.ShareSize {
-		csw.stackPending()
+	if len(css.pendingShare.Share) == consts.ShareSize {
+		css.stackPending()
 	}
 }
 
 // stackPending will add the pending share to accumlated shares provided that it is long enough
-func (csw *CompactShareSplitter) stackPending() {
-	if len(csw.pendingShare.Share) < consts.ShareSize {
+func (css *CompactShareSplitter) stackPending() {
+	if len(css.pendingShare.Share) < consts.ShareSize {
 		return
 	}
-	csw.shares = append(csw.shares, csw.pendingShare)
+	css.shares = append(css.shares, css.pendingShare)
 	newPendingShare := make([]byte, 0, consts.ShareSize)
-	newPendingShare = append(newPendingShare, csw.namespace...)
-	csw.pendingShare = NamespacedShare{
+	newPendingShare = append(newPendingShare, css.namespace...)
+	css.pendingShare = NamespacedShare{
 		Share: newPendingShare,
-		ID:    csw.namespace,
+		ID:    css.namespace,
 	}
 }
 
 // Export finalizes and returns the underlying compact shares.
-func (csw *CompactShareSplitter) Export() NamespacedShares {
+func (css *CompactShareSplitter) Export() NamespacedShares {
 	// add the pending share to the current shares before returning
-	if len(csw.pendingShare.Share) > consts.NamespaceSize {
-		csw.pendingShare.Share = zeroPadIfNecessary(csw.pendingShare.Share, consts.ShareSize)
-		csw.shares = append(csw.shares, csw.pendingShare)
+	if len(css.pendingShare.Share) > consts.NamespaceSize {
+		css.pendingShare.Share = zeroPadIfNecessary(css.pendingShare.Share, consts.ShareSize)
+		css.shares = append(css.shares, css.pendingShare)
 	}
 	// force the last share to have a reserve byte of zero
-	if len(csw.shares) == 0 {
-		return csw.shares
+	if len(css.shares) == 0 {
+		return css.shares
 	}
-	lastShare := csw.shares[len(csw.shares)-1]
+	lastShare := css.shares[len(css.shares)-1]
 	rawLastShare := lastShare.Data()
 
 	for i := 0; i < consts.ShareReservedBytes; i++ {
@@ -138,17 +138,17 @@ func (csw *CompactShareSplitter) Export() NamespacedShares {
 		Share: rawLastShare,
 		ID:    lastShare.NamespaceID(),
 	}
-	csw.shares[len(csw.shares)-1] = newLastShare
-	return csw.shares
+	css.shares[len(css.shares)-1] = newLastShare
+	return css.shares
 }
 
 // Count returns the current number of shares that will be made if exporting.
-func (csw *CompactShareSplitter) Count() (count, availableBytes int) {
-	if len(csw.pendingShare.Share) > consts.NamespaceSize {
-		return len(csw.shares), 0
+func (css *CompactShareSplitter) Count() (count, availableBytes int) {
+	if len(css.pendingShare.Share) > consts.NamespaceSize {
+		return len(css.shares), 0
 	}
-	availableBytes = consts.TxShareSize - (len(csw.pendingShare.Share) - consts.NamespaceSize)
-	return len(csw.shares), availableBytes
+	availableBytes = consts.TxShareSize - (len(css.pendingShare.Share) - consts.NamespaceSize)
+	return len(css.shares), availableBytes
 }
 
 // tail is filler for all tail padded shares
