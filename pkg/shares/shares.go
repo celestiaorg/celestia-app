@@ -7,7 +7,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// Share contains the raw share data without the corresponding namespace.
+// Share contains the raw share data (including namespace ID).
 type Share []byte
 
 // NamespacedShare extends a Share with the corresponding namespace.

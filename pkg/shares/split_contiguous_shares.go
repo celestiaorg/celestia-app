@@ -10,9 +10,9 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// ContiguousShareSplitter will write raw data contiguously across a progressively
-// increasing set of shares. It is used to lazily split block data such as transactions
-// into shares.
+// ContiguousShareSplitter will write raw data contiguously across a
+// progressively increasing set of shares. It is used to lazily split block data
+// such as transactions, ISRs, and evidence into shares.
 type ContiguousShareSplitter struct {
 	shares       []NamespacedShare
 	pendingShare NamespacedShare
