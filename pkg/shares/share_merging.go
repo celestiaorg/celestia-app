@@ -3,6 +3,7 @@ package shares
 import (
 	"bytes"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/gogo/protobuf/proto"
 	"github.com/tendermint/tendermint/pkg/consts"
@@ -28,7 +29,7 @@ func Merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 
 		for _, share := range row[:squareSize] {
 			// sort the data of that share types via namespace
-			nid := share[:consts.NamespaceSize]
+			nid := share[:appconsts.NamespaceSize]
 			switch {
 			case bytes.Equal(consts.TxNamespaceID, nid):
 				sortedTxShares = append(sortedTxShares, share)

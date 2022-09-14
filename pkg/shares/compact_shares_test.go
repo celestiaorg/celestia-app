@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/consts"
@@ -64,7 +65,7 @@ func Test_processCompactShares(t *testing.T) {
 	// exactTxShareSize is the length of tx that will fit exactly into a single
 	// share, accounting for namespace id and the length delimiter prepended to
 	// each tx
-	const exactTxShareSize = consts.TxShareSize - 1
+	const exactTxShareSize = appconsts.TxShareSize - 1
 
 	type test struct {
 		name    string

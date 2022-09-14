@@ -7,6 +7,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
@@ -39,7 +40,7 @@ func TestRootErasuredNamespacedMerkleTree(t *testing.T) {
 	// the case, because the ErasuredNamespacedMerkleTree should add namespaces
 	// to the second half of the tree
 	size := 8
-	data := generateRandNamespacedRawData(size, consts.NamespaceSize, consts.MsgShareSize)
+	data := generateRandNamespacedRawData(size, appconsts.NamespaceSize, appconsts.MsgShareSize)
 	n := NewErasuredNamespacedMerkleTree(uint64(size))
 	tree := n.Constructor()
 	nmtTree := nmt.New(sha256.New())
@@ -98,8 +99,8 @@ func TestExtendedDataSquare(t *testing.T) {
 	// data for a 4X4 square
 	raw := generateRandNamespacedRawData(
 		squareSize*squareSize,
-		consts.NamespaceSize,
-		consts.MsgShareSize,
+		appconsts.NamespaceSize,
+		appconsts.MsgShareSize,
 	)
 
 	tree := NewErasuredNamespacedMerkleTree(uint64(squareSize))
@@ -111,7 +112,7 @@ func TestExtendedDataSquare(t *testing.T) {
 func TestErasuredNamespacedMerkleTree(t *testing.T) {
 	// check that the Tree() returns exact underlying nmt tree
 	size := 8
-	data := generateRandNamespacedRawData(size, consts.NamespaceSize, consts.MsgShareSize)
+	data := generateRandNamespacedRawData(size, appconsts.NamespaceSize, appconsts.MsgShareSize)
 	n := NewErasuredNamespacedMerkleTree(uint64(size))
 	tree := n.Constructor()
 
@@ -128,8 +129,8 @@ func TestErasuredNamespacedMerkleTree(t *testing.T) {
 func generateErasuredData(t *testing.T, numLeaves int, codec rsmt2d.Codec) [][]byte {
 	raw := generateRandNamespacedRawData(
 		numLeaves,
-		consts.NamespaceSize,
-		consts.MsgShareSize,
+		appconsts.NamespaceSize,
+		appconsts.MsgShareSize,
 	)
 	erasuredData, err := codec.Encode(raw)
 	if err != nil {

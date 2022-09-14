@@ -3,6 +3,7 @@ package inclusion
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/testutil/coretestutil"
@@ -114,7 +115,7 @@ func TestWalkCachedSubTreeRoot(t *testing.T) {
 
 func TestEDSSubRootCacher(t *testing.T) {
 	oss := uint64(8)
-	d := coretestutil.GenerateRandNamespacedRawData(uint32(oss*oss), consts.NamespaceSize, consts.ShareSize-consts.NamespaceSize)
+	d := coretestutil.GenerateRandNamespacedRawData(uint32(oss*oss), appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)
 	stc := NewCachedSubtreeCacher(oss)
 
 	eds, err := rsmt2d.ComputeExtendedDataSquare(d, consts.DefaultCodec(), stc.Constructor)

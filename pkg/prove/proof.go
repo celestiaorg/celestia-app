@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
-	"github.com/tendermint/tendermint/pkg/consts"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
 )
@@ -105,8 +105,8 @@ func txSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos 
 
 	txLen := len(txs[txIndex])
 
-	startSharePos = uint64((totalLen) / consts.TxShareSize)
-	endSharePos = uint64((totalLen + txLen + delimLen(txLen)) / consts.TxShareSize)
+	startSharePos = uint64((totalLen) / appconsts.TxShareSize)
+	endSharePos = uint64((totalLen + txLen + delimLen(txLen)) / appconsts.TxShareSize)
 
 	return startSharePos, endSharePos, nil
 }

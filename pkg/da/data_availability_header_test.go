@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 func TestNilDataAvailabilityHeaderHashDoesntCrash(t *testing.T) {
@@ -59,8 +59,8 @@ func TestNewDataAvailabilityHeader(t *testing.T) {
 				0xe2, 0x87, 0x23, 0xd0, 0x2d, 0x54, 0x25, 0x5f, 0x79, 0x43, 0x8e, 0xfb, 0xb7, 0xe8, 0xfa, 0xf5,
 				0xbf, 0x93, 0x50, 0xb3, 0x64, 0xd0, 0x4f, 0xa7, 0x7b, 0xb1, 0x83, 0x3b, 0x8, 0xba, 0xd3, 0xa4,
 			},
-			squareSize: consts.MaxSquareSize,
-			shares:     generateShares(consts.MaxSquareSize*consts.MaxSquareSize, 99),
+			squareSize: appconsts.MaxSquareSize,
+			shares:     generateShares(appconsts.MaxSquareSize*appconsts.MaxSquareSize, 99),
 		},
 	}
 
@@ -87,8 +87,8 @@ func TestExtendShares(t *testing.T) {
 		{
 			name:        "too large square size",
 			expectedErr: true,
-			squareSize:  consts.MaxSquareSize + 1,
-			shares:      generateShares((consts.MaxSquareSize+1)*(consts.MaxSquareSize+1), 1),
+			squareSize:  appconsts.MaxSquareSize + 1,
+			shares:      generateShares((appconsts.MaxSquareSize+1)*(appconsts.MaxSquareSize+1), 1),
 		},
 		{
 			name:        "invalid number of shares",
@@ -116,8 +116,8 @@ func TestDataAvailabilityHeaderProtoConversion(t *testing.T) {
 		dah  DataAvailabilityHeader
 	}
 
-	shares := generateShares(consts.MaxSquareSize*consts.MaxSquareSize, 1)
-	eds, err := ExtendShares(consts.MaxSquareSize, shares)
+	shares := generateShares(appconsts.MaxSquareSize*appconsts.MaxSquareSize, 1)
+	eds, err := ExtendShares(appconsts.MaxSquareSize, shares)
 	require.NoError(t, err)
 	bigdah := NewDataAvailabilityHeader(eds)
 
@@ -151,15 +151,15 @@ func Test_DAHValidateBasic(t *testing.T) {
 		errStr    string
 	}
 
-	shares := generateShares(consts.MaxSquareSize*consts.MaxSquareSize, 1)
-	eds, err := ExtendShares(consts.MaxSquareSize, shares)
+	shares := generateShares(appconsts.MaxSquareSize*appconsts.MaxSquareSize, 1)
+	eds, err := ExtendShares(appconsts.MaxSquareSize, shares)
 	require.NoError(t, err)
 	bigdah := NewDataAvailabilityHeader(eds)
 
 	// make a mutant dah that has too many roots
 	var tooBigDah DataAvailabilityHeader
-	tooBigDah.ColumnRoots = make([][]byte, consts.MaxSquareSize*consts.MaxSquareSize)
-	tooBigDah.RowsRoots = make([][]byte, consts.MaxSquareSize*consts.MaxSquareSize)
+	tooBigDah.ColumnRoots = make([][]byte, appconsts.MaxSquareSize*appconsts.MaxSquareSize)
+	tooBigDah.RowsRoots = make([][]byte, appconsts.MaxSquareSize*appconsts.MaxSquareSize)
 	copy(tooBigDah.ColumnRoots, bigdah.ColumnRoots)
 	copy(tooBigDah.RowsRoots, bigdah.RowsRoots)
 	tooBigDah.ColumnRoots = append(tooBigDah.ColumnRoots, bytes.Repeat([]byte{1}, 32))
@@ -225,7 +225,7 @@ func Test_DAHValidateBasic(t *testing.T) {
 func generateShares(count int, repeatByte byte) [][]byte {
 	shares := make([][]byte, count)
 	for i := 0; i < count; i++ {
-		shares[i] = bytes.Repeat([]byte{repeatByte}, consts.ShareSize)
+		shares[i] = bytes.Repeat([]byte{repeatByte}, appconsts.ShareSize)
 	}
 	return shares
 }

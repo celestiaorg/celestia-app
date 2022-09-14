@@ -15,6 +15,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	"github.com/celestiaorg/celestia-app/x/payment"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
@@ -149,13 +150,13 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				size := blockRes.Block.Data.OriginalSquareSize
 
 				// perform basic checks on the size of the square
-				assert.LessOrEqual(size, uint64(consts.MaxSquareSize))
-				assert.GreaterOrEqual(size, uint64(consts.MinSquareSize))
+				assert.LessOrEqual(size, uint64(appconsts.MaxSquareSize))
+				assert.GreaterOrEqual(size, uint64(appconsts.MinSquareSize))
 				sizes = append(sizes, size)
 			}
 
 			// ensure that at least one of the blocks used the max square size
-			assert.Contains(sizes, uint64(consts.MaxSquareSize))
+			assert.Contains(sizes, uint64(appconsts.MaxSquareSize))
 		})
 		require.NoError(s.network.WaitForNextBlock())
 	}

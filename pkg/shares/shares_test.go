@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,14 +69,14 @@ import (
 // 				NamespacedShare{
 // 					Share: append(
 // 						append(reservedEvidenceNamespaceID, byte(0)),
-// 						testEvidenceBytes[:consts.TxShareSize]...,
+// 						testEvidenceBytes[:appconsts.TxShareSize]...,
 // 					),
 // 					ID: reservedEvidenceNamespaceID,
 // 				},
 // 				NamespacedShare{
 // 					Share: append(
 // 						append(reservedEvidenceNamespaceID, byte(0)),
-// 						zeroPadIfNecessary(testEvidenceBytes[consts.TxShareSize:], consts.TxShareSize)...,
+// 						zeroPadIfNecessary(testEvidenceBytes[appconsts.TxShareSize:], appconsts.TxShareSize)...,
 // 					),
 // 					ID: reservedEvidenceNamespaceID,
 // 				},
@@ -89,7 +90,7 @@ import (
 // 				NamespacedShare{
 // 					Share: append(
 // 						append(reservedTxNamespaceID, byte(0)),
-// 						zeroPadIfNecessary(smolTxLenDelimited, consts.TxShareSize)...,
+// 						zeroPadIfNecessary(smolTxLenDelimited, appconsts.TxShareSize)...,
 // 					),
 // 					ID: reservedTxNamespaceID,
 // 				},
@@ -103,14 +104,14 @@ import (
 // 				NamespacedShare{
 // 					Share: append(
 // 						append(reservedTxNamespaceID, byte(0)),
-// 						largeTxLenDelimited[:consts.TxShareSize]...,
+// 						largeTxLenDelimited[:appconsts.TxShareSize]...,
 // 					),
 // 					ID: reservedTxNamespaceID,
 // 				},
 // 				NamespacedShare{
 // 					Share: append(
 // 						append(reservedTxNamespaceID, byte(0)),
-// 						zeroPadIfNecessary(largeTxLenDelimited[consts.TxShareSize:], consts.TxShareSize)...,
+// 						zeroPadIfNecessary(largeTxLenDelimited[appconsts.TxShareSize:], appconsts.TxShareSize)...,
 // 					),
 // 					ID: reservedTxNamespaceID,
 // 				},
@@ -124,7 +125,7 @@ import (
 // 				NamespacedShare{
 // 					Share: append(
 // 						append(reservedTxNamespaceID, byte(0)),
-// 						largeTxLenDelimited[:consts.TxShareSize]...,
+// 						largeTxLenDelimited[:appconsts.TxShareSize]...,
 // 					),
 // 					ID: reservedTxNamespaceID,
 // 				},
@@ -135,8 +136,8 @@ import (
 // 							byte(0),
 // 						),
 // 						zeroPadIfNecessary(
-// 							append(largeTxLenDelimited[consts.TxShareSize:], smolTxLenDelimited...),
-// 							consts.TxShareSize,
+// 							append(largeTxLenDelimited[appconsts.TxShareSize:], smolTxLenDelimited...),
+// 							appconsts.TxShareSize,
 // 						)...,
 // 					),
 // 					ID: reservedTxNamespaceID,
@@ -151,7 +152,7 @@ import (
 // 				NamespacedShare{
 // 					Share: append(
 // 						[]byte(msg1.NamespaceID),
-// 						zeroPadIfNecessary(msg1Marshaled, consts.MsgShareSize)...,
+// 						zeroPadIfNecessary(msg1Marshaled, appconsts.MsgShareSize)...,
 // 					),
 // 					ID: msg1.NamespaceID,
 // 				},
@@ -338,7 +339,7 @@ func generateRandomlySizedMessages(count, maxMsgSize int) coretypes.Messages {
 
 func generateRandomMessage(size int) coretypes.Message {
 	msg := coretypes.Message{
-		NamespaceID: tmrand.Bytes(consts.NamespaceSize),
+		NamespaceID: tmrand.Bytes(appconsts.NamespaceSize),
 		Data:        tmrand.Bytes(size),
 	}
 	return msg
