@@ -13,19 +13,19 @@ type path struct {
 
 // calculateCommitPaths calculates all of the paths to subtree roots needed to
 // create the commitment for a given message.
-func calculateCommitPaths(origSquareSize, start, msgShareLen int) []path {
+func calculateCommitPaths(squareSize, start, msgShareLen int) []path {
 	// todo: make the non-interactive defaults optional. by calculating the
 	// NextAlignedPowerOfTwo, we are forcing use of the non-interactive
 	// defaults. If we want to make this optional in the future, we have to move
 	// this next line out of this function.
-	start, _ = shares.NextAlignedPowerOfTwo(start, msgShareLen, origSquareSize)
-	startRow, endRow := start/origSquareSize, (start+msgShareLen-1)/origSquareSize
-	normalizedStartIndex := start % origSquareSize
-	normalizedEndIndex := (start + msgShareLen) - endRow*origSquareSize
+	start, _ = shares.NextAlignedPowerOfTwo(start, msgShareLen, squareSize)
+	startRow, endRow := start/squareSize, (start+msgShareLen-1)/squareSize
+	normalizedStartIndex := start % squareSize
+	normalizedEndIndex := (start + msgShareLen) - endRow*squareSize
 	paths := []path{}
-	maxDepth := int(math.Log2(float64(origSquareSize)))
+	maxDepth := int(math.Log2(float64(squareSize)))
 	for i := startRow; i <= endRow; i++ {
-		start, end := 0, origSquareSize
+		start, end := 0, squareSize
 		if i == startRow {
 			start = normalizedStartIndex
 		}

@@ -12,7 +12,7 @@ import (
 
 // Merge extracts block data from an extended data square.
 func Merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
-	originalWidth := eds.Width() / 2
+	squareSize := eds.Width() / 2
 
 	// sort block data shares by namespace
 	var (
@@ -22,11 +22,11 @@ func Merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 	)
 
 	// iterate over each row index
-	for x := uint(0); x < originalWidth; x++ {
+	for x := uint(0); x < squareSize; x++ {
 		// iterate over each share in the original data square
 		row := eds.Row(x)
 
-		for _, share := range row[:originalWidth] {
+		for _, share := range row[:squareSize] {
 			// sort the data of that share types via namespace
 			nid := share[:consts.NamespaceSize]
 			switch {
@@ -70,7 +70,7 @@ func Merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 		Txs:                txs,
 		Evidence:           evd,
 		Messages:           msgs,
-		OriginalSquareSize: uint64(originalWidth),
+		OriginalSquareSize: uint64(squareSize),
 	}, nil
 }
 

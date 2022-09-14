@@ -14,28 +14,28 @@ import (
 
 func TestMountainRange(t *testing.T) {
 	type test struct {
-		l, k     uint64
-		expected []uint64
+		l, squareSize uint64
+		expected      []uint64
 	}
 	tests := []test{
 		{
-			l:        11,
-			k:        4,
-			expected: []uint64{4, 4, 2, 1},
+			l:          11,
+			squareSize: 4,
+			expected:   []uint64{4, 4, 2, 1},
 		},
 		{
-			l:        2,
-			k:        64,
-			expected: []uint64{2},
+			l:          2,
+			squareSize: 64,
+			expected:   []uint64{2},
 		},
 		{ // should this test throw an error? we
-			l:        64,
-			k:        8,
-			expected: []uint64{8, 8, 8, 8, 8, 8, 8, 8},
+			l:          64,
+			squareSize: 8,
+			expected:   []uint64{8, 8, 8, 8, 8, 8, 8, 8},
 		},
 	}
 	for _, tt := range tests {
-		res := powerOf2MountainRange(tt.l, tt.k)
+		res := powerOf2MountainRange(tt.l, tt.squareSize)
 		assert.Equal(t, tt.expected, res)
 	}
 }
@@ -155,28 +155,28 @@ func TestPowerOf2(t *testing.T) {
 // the commit is being created correctly todo(evan): fix me.
 func TestCreateCommitment(t *testing.T) {
 	type test struct {
-		k         uint64
-		namespace []byte
-		message   []byte
-		expected  []byte
-		expectErr bool
+		squareSize uint64
+		namespace  []byte
+		message    []byte
+		expected   []byte
+		expectErr  bool
 	}
 	tests := []test{
 		{
-			k:         4,
-			namespace: bytes.Repeat([]byte{0xFF}, 8),
-			message:   bytes.Repeat([]byte{0xFF}, 11*ShareSize),
-			expected:  []byte{0xe3, 0xaa, 0xdb, 0x1c, 0x2e, 0xc3, 0x77, 0x4a, 0x46, 0xb6, 0xb2, 0xf0, 0x4f, 0x6b, 0x3d, 0x4f, 0x17, 0x99, 0x82, 0x6b, 0xd6, 0xd4, 0x40, 0x5e, 0xbe, 0x1b, 0x1f, 0x29, 0x5a, 0x53, 0x3f, 0xbb},
+			squareSize: 4,
+			namespace:  bytes.Repeat([]byte{0xFF}, 8),
+			message:    bytes.Repeat([]byte{0xFF}, 11*ShareSize),
+			expected:   []byte{0xe3, 0xaa, 0xdb, 0x1c, 0x2e, 0xc3, 0x77, 0x4a, 0x46, 0xb6, 0xb2, 0xf0, 0x4f, 0x6b, 0x3d, 0x4f, 0x17, 0x99, 0x82, 0x6b, 0xd6, 0xd4, 0x40, 0x5e, 0xbe, 0x1b, 0x1f, 0x29, 0x5a, 0x53, 0x3f, 0xbb},
 		},
 		{
-			k:         2,
-			namespace: bytes.Repeat([]byte{0xFF}, 8),
-			message:   bytes.Repeat([]byte{0xFF}, 100*ShareSize),
-			expectErr: true,
+			squareSize: 2,
+			namespace:  bytes.Repeat([]byte{0xFF}, 8),
+			message:    bytes.Repeat([]byte{0xFF}, 100*ShareSize),
+			expectErr:  true,
 		},
 	}
 	for _, tt := range tests {
-		res, err := CreateCommitment(tt.k, tt.namespace, tt.message)
+		res, err := CreateCommitment(tt.squareSize, tt.namespace, tt.message)
 		if tt.expectErr {
 			assert.Error(t, err)
 			continue
