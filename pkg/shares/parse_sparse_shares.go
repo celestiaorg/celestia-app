@@ -31,7 +31,7 @@ func parseSparseShares(shares [][]byte) ([]coretypes.Message, error) {
 	}
 	// iterate through all the shares and parse out each msg
 	for i := 0; i < len(shares); i++ {
-		dataLen = len(currentMsg.Data) + appconsts.MsgShareSize
+		dataLen = len(currentMsg.Data) + appconsts.SparseShareContentSize
 		switch {
 		case isNewMessage:
 			nextMsgChunk, nextMsgLen, err := ParseDelimiter(shares[i][appconsts.NamespaceSize:])

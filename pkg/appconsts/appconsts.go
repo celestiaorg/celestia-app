@@ -4,23 +4,32 @@ import (
 	"bytes"
 )
 
-// These constants are sourced from:
+// These constants were originally sourced from:
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/consensus.md#constants
 const (
-	// ShareSize is the size of a share (in bytes).
-	// See: https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/consensus.md#constants
+	// ShareSize is the size of a share in bytes.
 	ShareSize = 256
 
 	// NamespaceSize is the namespace size in bytes.
 	NamespaceSize = 8
 
-	// ShareReservedBytes is the reserved bytes for contiguous appends.
-	ShareReservedBytes = 1
+	// ShareInfoBytes is the number of bytes reserved for information. The info
+	// byte contains the share version and a start idicator.
+	ShareInfoBytes = 1
 
-	// TxShareSize is the number of bytes usable for tx/evidence/ISR shares.
-	TxShareSize = ShareSize - NamespaceSize - ShareReservedBytes
-	// MsgShareSize is the number of bytes usable for message shares.
-	MsgShareSize = ShareSize - NamespaceSize
+	// ShareVersion is the current version of the share format
+	ShareVersion = uint8(0)
+
+	// CompactShareReservedBytes is the number of bytes reserved for the location of
+	// the first unit (transaction, ISR, evidence) in a compact share.
+	CompactShareReservedBytes = 1
+
+	// CompactShareContentSize is the number of bytes usable for data in a compact
+	// (i.e. transactions, ISRs, evidence) share.
+	CompactShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareReservedBytes
+	// SparseShareContentSize is the number of bytes usable for data in a sparse (i.e.
+	// message) share.
+	SparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes
 
 	// MaxSquareSize is the maximum number of
 	// rows/columns of the original data shares in square layout.
@@ -43,4 +52,4 @@ const (
 // MaxShareVersion is the maximum value a share version can be.
 const MaxShareVersion = 127
 
-var NameSpacedPaddedShareBytes = bytes.Repeat([]byte{0}, MsgShareSize)
+var NameSpacedPaddedShareBytes = bytes.Repeat([]byte{0}, SparseShareContentSize)

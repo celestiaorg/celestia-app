@@ -105,8 +105,8 @@ func txSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos 
 
 	txLen := len(txs[txIndex])
 
-	startSharePos = uint64((totalLen) / appconsts.TxShareSize)
-	endSharePos = uint64((totalLen + txLen + delimLen(txLen)) / appconsts.TxShareSize)
+	startSharePos = uint64((totalLen) / appconsts.CompactShareContentSize)
+	endSharePos = uint64((totalLen + txLen + delimLen(txLen)) / appconsts.CompactShareContentSize)
 
 	return startSharePos, endSharePos, nil
 }

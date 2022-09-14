@@ -14,7 +14,7 @@ func Test_parseSparseShares(t *testing.T) {
 	// exactMsgShareSize is the length of message that will fit exactly into a single
 	// share, accounting for namespace id and the length delimiter prepended to
 	// each message
-	const exactMsgShareSize = appconsts.MsgShareSize - 2
+	const exactMsgShareSize = appconsts.SparseShareContentSize - 2
 
 	type test struct {
 		name     string
@@ -30,7 +30,7 @@ func Test_parseSparseShares(t *testing.T) {
 		{"single big msg", 1000, 1},
 		{"many big msgs", 1000, 10},
 		{"single exact size msg", exactMsgShareSize, 1},
-		{"many exact size msgs", appconsts.MsgShareSize, 10},
+		{"many exact size msgs", appconsts.SparseShareContentSize, 10},
 	}
 
 	for _, tc := range tests {
