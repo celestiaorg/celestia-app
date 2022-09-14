@@ -61,7 +61,7 @@ func (sss *SparseShareSplitter) RemoveMessage(i int) (int, error) {
 // one share has already been written, if not it panics.
 func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) {
 	if len(sss.shares) == 0 {
-		panic("cannot write empty namespaced shares on an empty MessageShareSplitter")
+		panic("cannot write empty namespaced shares on an empty SparseShareSplitter")
 	}
 	if count == 0 {
 		return
@@ -75,8 +75,8 @@ func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) {
 func (sss *SparseShareSplitter) Export() NamespacedShares {
 	shares := make([]NamespacedShare, sss.count)
 	cursor := 0
-	for _, messageShares := range sss.shares {
-		for _, share := range messageShares {
+	for _, namespacedShares := range sss.shares {
+		for _, share := range namespacedShares {
 			shares[cursor] = share
 			cursor++
 		}

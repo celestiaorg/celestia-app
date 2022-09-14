@@ -18,12 +18,12 @@ import (
 
 func TestTxInclusion(t *testing.T) {
 	typicalBlockData := types.Data{
-		Txs:                generateRandomlySizedContiguousShares(100, 500),
+		Txs:                generateRandomlySizedTxs(100, 500),
 		Messages:           generateRandomlySizedMessages(40, 16000),
 		OriginalSquareSize: 64,
 	}
 	lotsOfTxsNoMessages := types.Data{
-		Txs:                generateRandomlySizedContiguousShares(1000, 500),
+		Txs:                generateRandomlySizedTxs(1000, 500),
 		OriginalSquareSize: 64,
 	}
 	overlappingSquareSize := 16
@@ -83,23 +83,23 @@ func TestTxSharePosition(t *testing.T) {
 	tests := []test{
 		{
 			name: "typical",
-			txs:  generateRandomlySizedContiguousShares(44, 200),
+			txs:  generateRandomlySizedTxs(44, 200),
 		},
 		{
 			name: "many small tx",
-			txs:  generateRandomlySizedContiguousShares(444, 100),
+			txs:  generateRandomlySizedTxs(444, 100),
 		},
 		{
 			name: "one small tx",
-			txs:  generateRandomlySizedContiguousShares(1, 200),
+			txs:  generateRandomlySizedTxs(1, 200),
 		},
 		{
 			name: "one large tx",
-			txs:  generateRandomlySizedContiguousShares(1, 2000),
+			txs:  generateRandomlySizedTxs(1, 2000),
 		},
 		{
 			name: "many large txs",
-			txs:  generateRandomlySizedContiguousShares(100, 2000),
+			txs:  generateRandomlySizedTxs(100, 2000),
 		},
 	}
 
@@ -137,7 +137,7 @@ func TestTxSharePosition(t *testing.T) {
 func Test_genRowShares(t *testing.T) {
 	squareSize := uint64(16)
 	typicalBlockData := types.Data{
-		Txs:                generateRandomlySizedContiguousShares(10, 200),
+		Txs:                generateRandomlySizedTxs(10, 200),
 		Messages:           generateRandomlySizedMessages(20, 1000),
 		OriginalSquareSize: squareSize,
 	}
@@ -173,7 +173,7 @@ func Test_genOrigRowShares(t *testing.T) {
 	txCount := 100
 	squareSize := uint64(16)
 	typicalBlockData := types.Data{
-		Txs:                generateRandomlySizedContiguousShares(txCount, 200),
+		Txs:                generateRandomlySizedTxs(txCount, 200),
 		Messages:           generateRandomlySizedMessages(10, 1500),
 		OriginalSquareSize: squareSize,
 	}
@@ -197,19 +197,19 @@ func joinByteSlices(s ...[]byte) string {
 	return strings.Join(out, "")
 }
 
-func generateRandomlySizedContiguousShares(count, max int) types.Txs {
+func generateRandomlySizedTxs(count, max int) types.Txs {
 	txs := make(types.Txs, count)
 	for i := 0; i < count; i++ {
 		size := rand.Intn(max)
 		if size == 0 {
 			size = 1
 		}
-		txs[i] = generateRandomContiguousShares(1, size)[0]
+		txs[i] = generateRandomTxs(1, size)[0]
 	}
 	return txs
 }
 
-func generateRandomContiguousShares(count, size int) types.Txs {
+func generateRandomTxs(count, size int) types.Txs {
 	txs := make(types.Txs, count)
 	for i := 0; i < count; i++ {
 		tx := make([]byte, size)

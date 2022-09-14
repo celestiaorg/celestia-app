@@ -27,15 +27,16 @@ func AllSquareSizes(msgSize int) []uint64 {
 	allSizes := allSquareSizes
 	fitSizes := []uint64{}
 	shareCount := MsgSharesUsed(msgSize)
-	for _, size := range allSizes {
-		// if the number of shares is larger than that in the square, throw an error
-		// note, we use k*k-1 here because at least a single share will be reserved
-		// for the transaction paying for the message, therefore the max number of
-		// shares a message can be is number of shares in square -1.
-		if shareCount > (size*size)-1 {
+	for _, squareSize := range allSizes {
+		// if the number of shares is larger than that in the square, throw an
+		// error note, we use (squareSize*squareSize)-1 here because at least a
+		// single share will be reserved for the transaction paying for the
+		// message, therefore the max number of shares a message can be is
+		// number of shares in square - 1.
+		if shareCount > (squareSize*squareSize)-1 {
 			continue
 		}
-		fitSizes = append(fitSizes, uint64(size))
+		fitSizes = append(fitSizes, uint64(squareSize))
 	}
 	return fitSizes
 }
