@@ -3,8 +3,8 @@ package inclusion
 import (
 	"errors"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/tendermint/tendermint/crypto/merkle"
-	"github.com/tendermint/tendermint/pkg/da"
 )
 
 func GetCommit(cacher *EDSSubTreeRootCacher, dah da.DataAvailabilityHeader, start, msgShareLen int) ([]byte, error) {
