@@ -3,10 +3,9 @@ package wrapper
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
-
-	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 // Fulfills the rsmt2d.Tree interface and rsmt2d.TreeConstructorFn function
@@ -31,7 +30,7 @@ func NewErasuredNamespacedMerkleTree(origSquareSize uint64, setters ...nmt.Optio
 	if origSquareSize == 0 {
 		panic("cannot create a ErasuredNamespacedMerkleTree of squareSize == 0")
 	}
-	tree := nmt.New(consts.NewBaseHashFunc(), setters...)
+	tree := nmt.New(appconsts.NewBaseHashFunc(), setters...)
 	return ErasuredNamespacedMerkleTree{squareSize: origSquareSize, options: setters, tree: tree}
 }
 
@@ -51,13 +50,13 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte, idx rsmt2d.SquareIndex)
 	if idx.Axis+1 > 2*uint(w.squareSize) || idx.Cell+1 > 2*uint(w.squareSize) {
 		panic(fmt.Sprintf("pushed past predetermined square size: boundary at %d index at %+v", 2*w.squareSize, idx))
 	}
-	nidAndData := make([]byte, consts.NamespaceSize+len(data))
-	copy(nidAndData[consts.NamespaceSize:], data)
+	nidAndData := make([]byte, appconsts.NamespaceSize+len(data))
+	copy(nidAndData[appconsts.NamespaceSize:], data)
 	// use the parity namespace if the cell is not in Q0 of the extended data square
 	if idx.Axis+1 > uint(w.squareSize) || idx.Cell+1 > uint(w.squareSize) {
-		copy(nidAndData[:consts.NamespaceSize], consts.ParitySharesNamespaceID)
+		copy(nidAndData[:appconsts.NamespaceSize], appconsts.ParitySharesNamespaceID)
 	} else {
-		copy(nidAndData[:consts.NamespaceSize], data[:consts.NamespaceSize])
+		copy(nidAndData[:appconsts.NamespaceSize], data[:appconsts.NamespaceSize])
 	}
 	// push to the underlying tree
 	err := w.tree.Push(nidAndData)

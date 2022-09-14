@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -88,7 +88,7 @@ func TestSplitShares(t *testing.T) {
 
 		// all shares must be the exect same size
 		for _, share := range square {
-			assert.Equal(t, consts.ShareSize, len(share))
+			assert.Equal(t, appconsts.ShareSize, len(share))
 		}
 
 		// there must be the expected number of shares

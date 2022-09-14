@@ -3,8 +3,8 @@ package shares
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
-	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -38,7 +38,7 @@ func (sss *SparseShareSplitter) RemoveMessage(i int) (int, error) {
 	j := 1
 	initialCount := sss.count
 	if len(sss.shares) > i+1 {
-		_, msgLen, err := ParseDelimiter(sss.shares[i+1][0].Share[consts.NamespaceSize:])
+		_, msgLen, err := ParseDelimiter(sss.shares[i+1][0].Share[appconsts.NamespaceSize:])
 		if err != nil {
 			return 0, err
 		}
@@ -92,13 +92,13 @@ func (sss *SparseShareSplitter) Count() int {
 // AppendToShares appends raw data as shares.
 // Used for messages.
 func AppendToShares(shares []NamespacedShare, nid namespace.ID, rawData []byte) []NamespacedShare {
-	if len(rawData) <= consts.MsgShareSize {
+	if len(rawData) <= appconsts.MsgShareSize {
 		rawShare := append(append(
 			make([]byte, 0, len(nid)+len(rawData)),
 			nid...),
 			rawData...,
 		)
-		paddedShare := zeroPadIfNecessary(rawShare, consts.ShareSize)
+		paddedShare := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
 		share := NamespacedShare{paddedShare, nid}
 		shares = append(shares, share)
 	} else { // len(rawData) > MsgShareSize
@@ -112,20 +112,20 @@ func AppendToShares(shares []NamespacedShare, nid namespace.ID, rawData []byte) 
 func splitMessage(rawData []byte, nid namespace.ID) NamespacedShares {
 	shares := make([]NamespacedShare, 0)
 	firstRawShare := append(append(
-		make([]byte, 0, consts.ShareSize),
+		make([]byte, 0, appconsts.ShareSize),
 		nid...),
-		rawData[:consts.MsgShareSize]...,
+		rawData[:appconsts.MsgShareSize]...,
 	)
 	shares = append(shares, NamespacedShare{firstRawShare, nid})
-	rawData = rawData[consts.MsgShareSize:]
+	rawData = rawData[appconsts.MsgShareSize:]
 	for len(rawData) > 0 {
-		shareSizeOrLen := min(consts.MsgShareSize, len(rawData))
+		shareSizeOrLen := min(appconsts.MsgShareSize, len(rawData))
 		rawShare := append(append(
-			make([]byte, 0, consts.ShareSize),
+			make([]byte, 0, appconsts.ShareSize),
 			nid...),
 			rawData[:shareSizeOrLen]...,
 		)
-		paddedShare := zeroPadIfNecessary(rawShare, consts.ShareSize)
+		paddedShare := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
 		share := NamespacedShare{paddedShare, nid}
 		shares = append(shares, share)
 		rawData = rawData[shareSizeOrLen:]

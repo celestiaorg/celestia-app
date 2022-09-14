@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -14,7 +14,7 @@ func Test_parseSparseShares(t *testing.T) {
 	// exactMsgShareSize is the length of message that will fit exactly into a single
 	// share, accounting for namespace id and the length delimiter prepended to
 	// each message
-	const exactMsgShareSize = consts.MsgShareSize - 2
+	const exactMsgShareSize = appconsts.MsgShareSize - 2
 
 	type test struct {
 		name     string
@@ -30,7 +30,7 @@ func Test_parseSparseShares(t *testing.T) {
 		{"single big msg", 1000, 1},
 		{"many big msgs", 1000, 10},
 		{"single exact size msg", exactMsgShareSize, 1},
-		{"many exact size msgs", consts.MsgShareSize, 10},
+		{"many exact size msgs", appconsts.MsgShareSize, 10},
 	}
 
 	for _, tc := range tests {
