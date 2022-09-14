@@ -135,6 +135,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				if resp.TxResult.Code == abci.CodeTypeOK {
 					heights[resp.Height]++
 				}
+				require.True(resp.Proof.VerifyProof())
 			}
 
 			require.Greater(len(heights), 0)
