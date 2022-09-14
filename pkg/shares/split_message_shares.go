@@ -22,7 +22,7 @@ func NewMessageShareSplitter() *MessageShareSplitter {
 
 // Write adds the delimited data to the underlying messages shares.
 func (msw *MessageShareSplitter) Write(msg coretypes.Message) {
-	rawMsg, err := msg.MarshalDelimited()
+	rawMsg, err := MarshalDelimitedMessage(msg)
 	if err != nil {
 		panic(fmt.Sprintf("app accepted a Message that can not be encoded %#v", msg))
 	}

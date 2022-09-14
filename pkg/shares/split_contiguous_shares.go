@@ -28,7 +28,7 @@ func NewContiguousShareSplitter(ns namespace.ID) *ContiguousShareSplitter {
 }
 
 func (csw *ContiguousShareSplitter) WriteTx(tx coretypes.Tx) {
-	rawData, err := tx.MarshalDelimited()
+	rawData, err := MarshalDelimitedTx(tx)
 	if err != nil {
 		panic(fmt.Sprintf("included Tx in mem-pool that can not be encoded %v", tx))
 	}
