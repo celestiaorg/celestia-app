@@ -19,7 +19,7 @@ const TxInclusionQueryPath = "txInclusionProof"
 // proof (tmproto.TxProof) are returned.
 //
 // example path for proving the third transaction in that block:
-// custom/tx-inclusion-proof/3
+// custom/txInclusionProof/3
 func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
 	// parse the index from the path
 	if len(path) != 1 {
