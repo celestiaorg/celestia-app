@@ -78,6 +78,7 @@ import (
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/prove"
 	paymentmodule "github.com/celestiaorg/celestia-app/x/payment"
 	paymentmodulekeeper "github.com/celestiaorg/celestia-app/x/payment/keeper"
 	paymentmoduletypes "github.com/celestiaorg/celestia-app/x/payment/types"
@@ -476,6 +477,9 @@ func New(
 		paramstypes.ModuleName,
 		upgradetypes.ModuleName,
 	)
+
+	// add a custom quer
+	app.QueryRouter().AddRoute(prove.QueryPath, prove.Querier)
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
 	app.mm.RegisterRoutes(app.Router(), app.QueryRouter(), encodingConfig.Amino)
