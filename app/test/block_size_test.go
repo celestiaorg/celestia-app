@@ -129,7 +129,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			for _, hash := range hashes {
 				// TODO: once we are able to query txs that span more than two
 				// shares, we should switch to proving txs existence in the block
-				resp, err := queryWithOutProof(val.ClientCtx, hash)
+				resp, err := queryTx(val.ClientCtx, hash, true)
 				assert.NoError(err)
 				assert.Equal(abci.CodeTypeOK, resp.TxResult.Code)
 				if resp.TxResult.Code == abci.CodeTypeOK {
@@ -298,7 +298,7 @@ func randomValidNamespace() namespace.ID {
 	}
 }
 
-func queryWithOutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.ResultTx, error) {
+func queryTx(clientCtx client.Context, hashHexStr string, prove bool) (*rpctypes.ResultTx, error) {
 	hash, err := hex.DecodeString(hashHexStr)
 	if err != nil {
 		return nil, err
@@ -309,5 +309,5 @@ func queryWithOutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.R
 		return nil, err
 	}
 
-	return node.Tx(context.Background(), hash, false)
+	return node.Tx(context.Background(), hash, prove)
 }

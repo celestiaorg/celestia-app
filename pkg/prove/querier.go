@@ -11,7 +11,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-const TxInclusionQueryPath = "tx-inclusion-proof"
+const TxInclusionQueryPath = "txInclusionProof"
 
 // Querier defines the logic performed when the ABCI client using the Query
 // method with the custom prove.QueryPath. The index of the transaction being
