@@ -11,7 +11,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-const QueryPath = "tx-inclusion-proof"
+const TxInclusionQueryPath = "tx-inclusion-proof"
 
 // Querier defines the logic performed when the ABCI client using the Query
 // method with the custom prove.QueryPath. The index of the transaction being
@@ -20,7 +20,7 @@ const QueryPath = "tx-inclusion-proof"
 //
 // example path for proving the third transaction in that block:
 // custom/tx-inclusion-proof/3
-func Querier(_ sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
+func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
 	// parse the index from the path
 	if len(path) != 1 {
 		return nil, fmt.Errorf("unexpected query path length %d", len(path))

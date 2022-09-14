@@ -478,8 +478,7 @@ func New(
 		upgradetypes.ModuleName,
 	)
 
-	// add a custom quer
-	app.QueryRouter().AddRoute(prove.QueryPath, prove.Querier)
+	app.QueryRouter().AddRoute(prove.TxInclusionQueryPath, prove.QueryTxInclusionProof)
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
 	app.mm.RegisterRoutes(app.Router(), app.QueryRouter(), encodingConfig.Amino)
