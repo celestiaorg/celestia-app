@@ -6,8 +6,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
-
-	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 // Fulfills the rsmt2d.Tree interface and rsmt2d.TreeConstructorFn function
@@ -32,7 +30,7 @@ func NewErasuredNamespacedMerkleTree(origSquareSize uint64, setters ...nmt.Optio
 	if origSquareSize == 0 {
 		panic("cannot create a ErasuredNamespacedMerkleTree of squareSize == 0")
 	}
-	tree := nmt.New(consts.NewBaseHashFunc(), setters...)
+	tree := nmt.New(appconsts.NewBaseHashFunc(), setters...)
 	return ErasuredNamespacedMerkleTree{squareSize: origSquareSize, options: setters, tree: tree}
 }
 

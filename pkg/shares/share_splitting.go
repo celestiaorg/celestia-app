@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -87,7 +86,7 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 }
 
 func SplitTxs(txs coretypes.Txs) [][]byte {
-	writer := NewCompactShareSplitter(consts.TxNamespaceID)
+	writer := NewCompactShareSplitter(appconsts.TxNamespaceID)
 	for _, tx := range txs {
 		writer.WriteTx(tx)
 	}

@@ -7,7 +7,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
-	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
@@ -146,7 +145,7 @@ func newShareSplitter(txConf client.TxConfig, squareSize uint64, data *core.Data
 
 	// TODO: we should be able to use the CompactShareWriter and
 	// SparseShareWriter defined in pkg/shares here
-	sqwr.txWriter = coretypes.NewContiguousShareWriter(consts.TxNamespaceID)
+	sqwr.txWriter = coretypes.NewContiguousShareWriter(appconsts.TxNamespaceID)
 	sqwr.msgWriter = coretypes.NewMessageShareWriter()
 
 	return &sqwr

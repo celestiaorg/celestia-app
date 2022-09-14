@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
@@ -181,7 +180,7 @@ func TestProcessMessagesWithReservedNamespaces(t *testing.T) {
 	}
 
 	tests := []test{
-		{"transaction namespace id for message", consts.TxNamespaceID, abci.ResponseProcessProposal_REJECT},
+		{"transaction namespace id for message", appconsts.TxNamespaceID, abci.ResponseProcessProposal_REJECT},
 		{"evidence namespace id for message", appconsts.EvidenceNamespaceID, abci.ResponseProcessProposal_REJECT},
 		{"tail padding namespace id for message", appconsts.TailPaddingNamespaceID, abci.ResponseProcessProposal_REJECT},
 		{"namespace id 200 for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, abci.ResponseProcessProposal_REJECT},

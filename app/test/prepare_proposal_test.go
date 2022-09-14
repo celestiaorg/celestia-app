@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -119,7 +118,7 @@ func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
 	}
 
 	tests := []test{
-		{"transaction namespace id for message", consts.TxNamespaceID, 0},
+		{"transaction namespace id for message", appconsts.TxNamespaceID, 0},
 		{"evidence namespace id for message", appconsts.EvidenceNamespaceID, 0},
 		{"tail padding namespace id for message", appconsts.TailPaddingNamespaceID, 0},
 		{"parity shares namespace id for message", appconsts.ParitySharesNamespaceID, 0},

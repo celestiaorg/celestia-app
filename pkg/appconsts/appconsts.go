@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 // These constants are sourced from:
@@ -47,6 +48,9 @@ const (
 )
 
 var (
+	// TxNamespaceID is the namespace reserved for transaction data
+	TxNamespaceID = consts.TxNamespaceID
+
 	// IntermediateStateRootsNamespaceID is the namespace reserved for
 	// intermediate state root data
 	// TODO(liamsi): code commented out but kept intentionally.
@@ -65,10 +69,16 @@ var (
 	// ParitySharesNamespaceID indicates that share contains erasure data
 	ParitySharesNamespaceID = namespace.ID{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 
+	// NewBaseHashFunc change accordingly if another hash.Hash should be used as a base hasher in the NMT:
+	NewBaseHashFunc = consts.NewBaseHashFunc
+
 	// DefaultCodec is the default codec creator used for data erasure
 	// TODO(ismail): for better efficiency and a larger number shares
 	// we should switch to the rsmt2d.LeopardFF16 codec:
 	DefaultCodec = rsmt2d.NewRSGF8Codec
+
+	// DataCommitmentBlocksLimit is the limit to the number of blocks we can generate a data commitment for.
+	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
 
 	NameSpacedPaddedShareBytes = bytes.Repeat([]byte{0}, MsgShareSize)
 )
