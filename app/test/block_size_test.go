@@ -127,8 +127,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 
 			heights := make(map[int64]int)
 			for _, hash := range hashes {
-				// TODO: once we are able to query txs that span more than two
-				// shares, we should switch to proving txs existence in the block
 				resp, err := queryTx(val.ClientCtx, hash, true)
 				assert.NoError(err)
 				assert.Equal(abci.CodeTypeOK, resp.TxResult.Code)
