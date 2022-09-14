@@ -12,17 +12,17 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func TestContigShareWriter(t *testing.T) {
+func TestCompactShareWriter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
-	// tests occur in TestMerge and Test_processContiguousShares
-	w := NewContiguousShareSplitter(consts.TxNamespaceID)
-	txs := generateRandomContiguousShares(33, 200)
+	// tests occur in TestMerge and Test_processCompactShares
+	w := NewCompactShareSplitter(consts.TxNamespaceID)
+	txs := generateRandomCompactShares(33, 200)
 	for _, tx := range txs {
 		rawTx, _ := tx.MarshalDelimited()
 		w.WriteBytes(rawTx)
 	}
 	resShares := w.Export()
-	rawResTxs, err := processContiguousShares(resShares.RawShares())
+	rawResTxs, err := parseCompactShares(resShares.RawShares())
 	resTxs := coretypes.ToTxs(rawResTxs)
 	require.NoError(t, err)
 
@@ -31,7 +31,7 @@ func TestContigShareWriter(t *testing.T) {
 
 func Test_parseDelimiter(t *testing.T) {
 	for i := uint64(0); i < 100; i++ {
-		tx := generateRandomContiguousShares(1, int(i))[0]
+		tx := generateRandomCompactShares(1, int(i))[0]
 		input, err := tx.MarshalDelimited()
 		if err != nil {
 			panic(err)
@@ -45,9 +45,9 @@ func Test_parseDelimiter(t *testing.T) {
 	}
 }
 
-func TestFuzz_processContiguousShares(t *testing.T) {
+func TestFuzz_processCompactShares(t *testing.T) {
 	t.Skip()
-	// run random shares through processContiguousShares for a minute
+	// run random shares through processCompactShares for a minute
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	for {
@@ -55,12 +55,12 @@ func TestFuzz_processContiguousShares(t *testing.T) {
 		case <-ctx.Done():
 			return
 		default:
-			Test_processContiguousShares(t)
+			Test_processCompactShares(t)
 		}
 	}
 }
 
-func Test_processContiguousShares(t *testing.T) {
+func Test_processCompactShares(t *testing.T) {
 	// exactTxShareSize is the length of tx that will fit exactly into a single
 	// share, accounting for namespace id and the length delimiter prepended to
 	// each tx
@@ -88,11 +88,11 @@ func Test_processContiguousShares(t *testing.T) {
 
 		// run the tests with identically sized txs
 		t.Run(fmt.Sprintf("%s idendically sized ", tc.name), func(t *testing.T) {
-			txs := generateRandomContiguousShares(tc.txCount, tc.txSize)
+			txs := generateRandomCompactShares(tc.txCount, tc.txSize)
 
 			shares := SplitTxs(txs)
 
-			parsedTxs, err := processContiguousShares(shares)
+			parsedTxs, err := parseCompactShares(shares)
 			if err != nil {
 				t.Error(err)
 			}
@@ -105,11 +105,11 @@ func Test_processContiguousShares(t *testing.T) {
 
 		// run the same tests using randomly sized txs with caps of tc.txSize
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
-			txs := generateRandomlySizedContiguousShares(tc.txCount, tc.txSize)
+			txs := generateRandomlySizedCompactShares(tc.txCount, tc.txSize)
 
 			shares := SplitTxs(txs)
 
-			parsedTxs, err := processContiguousShares(shares)
+			parsedTxs, err := parseCompactShares(shares)
 			if err != nil {
 				t.Error(err)
 			}

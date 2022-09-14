@@ -40,7 +40,7 @@ Proposed and initial implementation is complete.
 
 ### [#631](https://github.com/celestiaorg/celestia-core/pull/631) Simplified version of ABCI++ (`celestia-core`)
 
-Here we are adding only the two new methods that are necessary for the features that we need.  
+Here we are adding only the two new methods that are necessary for the features that we need.
 
 ```go
 // Application is an interface that enables any finite, deterministic state machine
@@ -185,11 +185,11 @@ We estimate the square size by assuming that all the malleable transactions in t
 In order to efficiently fill the data square and ensure that each message included in the block is paid for, we progressively generate the data square using a few new types. More details can be found in [#637](https://github.com/celestiaorg/celestia-core/pull/637)
 
 ```go
-// ContiguousShareWriter lazily merges transaction or other contiguous types in
+// CompactShareWriter lazily merges transaction or other compact types in
 // the block data into shares that will eventually be included in a data square.
 // It also has methods to help progressively count how many shares the transactions
 // written take up.
-type ContiguousShareWriter struct {
+type CompactShareWriter struct {
    shares       []NamespacedShare
    pendingShare NamespacedShare
    namespace    namespace.ID
@@ -211,7 +211,7 @@ These types are combined in a new celestia-app type, `shareSplitter`, which is r
 // that message and their corresponding txs get written to the square
 // atomically.
 type shareSplitter struct {
-   txWriter  *coretypes.ContiguousShareWriter
+   txWriter  *coretypes.CompactShareWriter
    msgWriter *coretypes.MessageShareWriter
    ...
 }

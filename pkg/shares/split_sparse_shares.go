@@ -8,37 +8,37 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// MessageShareSplitter lazily splits messages into shares that will eventually be
+// SparseShareSplitter lazily splits messages into shares that will eventually be
 // included in a data square. It also has methods to help progressively count
 // how many shares the messages written take up.
-type MessageShareSplitter struct {
+type SparseShareSplitter struct {
 	shares [][]NamespacedShare
 	count  int
 }
 
-func NewMessageShareSplitter() *MessageShareSplitter {
-	return &MessageShareSplitter{}
+func NewSparseShareSplitter() *SparseShareSplitter {
+	return &SparseShareSplitter{}
 }
 
 // Write adds the delimited data to the underlying messages shares.
-func (msw *MessageShareSplitter) Write(msg coretypes.Message) {
+func (sss *SparseShareSplitter) Write(msg coretypes.Message) {
 	rawMsg, err := msg.MarshalDelimited()
 	if err != nil {
 		panic(fmt.Sprintf("app accepted a Message that can not be encoded %#v", msg))
 	}
 	newShares := make([]NamespacedShare, 0)
 	newShares = AppendToShares(newShares, msg.NamespaceID, rawMsg)
-	msw.shares = append(msw.shares, newShares)
-	msw.count += len(newShares)
+	sss.shares = append(sss.shares, newShares)
+	sss.count += len(newShares)
 }
 
 // RemoveMessage will remove a message from the underlying message state. If
 // there is namespaced padding after the message, then that is also removed.
-func (msw *MessageShareSplitter) RemoveMessage(i int) (int, error) {
+func (sss *SparseShareSplitter) RemoveMessage(i int) (int, error) {
 	j := 1
-	initialCount := msw.count
-	if len(msw.shares) > i+1 {
-		_, msgLen, err := ParseDelimiter(msw.shares[i+1][0].Share[consts.NamespaceSize:])
+	initialCount := sss.count
+	if len(sss.shares) > i+1 {
+		_, msgLen, err := ParseDelimiter(sss.shares[i+1][0].Share[consts.NamespaceSize:])
 		if err != nil {
 			return 0, err
 		}
@@ -47,36 +47,36 @@ func (msw *MessageShareSplitter) RemoveMessage(i int) (int, error) {
 		// with the message
 		if msgLen == 0 {
 			j++
-			msw.count -= len(msw.shares[j])
+			sss.count -= len(sss.shares[j])
 		}
 	}
-	msw.count -= len(msw.shares[i])
-	copy(msw.shares[i:], msw.shares[i+j:])
-	msw.shares = msw.shares[:len(msw.shares)-j]
-	return initialCount - msw.count, nil
+	sss.count -= len(sss.shares[i])
+	copy(sss.shares[i:], sss.shares[i+j:])
+	sss.shares = sss.shares[:len(sss.shares)-j]
+	return initialCount - sss.count, nil
 }
 
 // WriteNamespacedPaddedShares adds empty shares using the namespace of the last written share.
 // This is useful to follow the message layout rules. It assumes that at least
 // one share has already been written, if not it panics.
-func (msw *MessageShareSplitter) WriteNamespacedPaddedShares(count int) {
-	if len(msw.shares) == 0 {
-		panic("cannot write empty namespaced shares on an empty MessageShareSplitter")
+func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) {
+	if len(sss.shares) == 0 {
+		panic("cannot write empty namespaced shares on an empty SparseShareSplitter")
 	}
 	if count == 0 {
 		return
 	}
-	lastMessage := msw.shares[len(msw.shares)-1]
-	msw.shares = append(msw.shares, namespacedPaddedShares(lastMessage[0].ID, count))
-	msw.count += count
+	lastMessage := sss.shares[len(sss.shares)-1]
+	sss.shares = append(sss.shares, namespacedPaddedShares(lastMessage[0].ID, count))
+	sss.count += count
 }
 
-// Export finalizes and returns the underlying contiguous shares.
-func (msw *MessageShareSplitter) Export() NamespacedShares {
-	shares := make([]NamespacedShare, msw.count)
+// Export finalizes and returns the underlying shares.
+func (sss *SparseShareSplitter) Export() NamespacedShares {
+	shares := make([]NamespacedShare, sss.count)
 	cursor := 0
-	for _, messageShares := range msw.shares {
-		for _, share := range messageShares {
+	for _, namespacedShares := range sss.shares {
+		for _, share := range namespacedShares {
 			shares[cursor] = share
 			cursor++
 		}
@@ -85,8 +85,8 @@ func (msw *MessageShareSplitter) Export() NamespacedShares {
 }
 
 // Count returns the current number of shares that will be made if exporting.
-func (msw *MessageShareSplitter) Count() int {
-	return msw.count
+func (sss *SparseShareSplitter) Count() int {
+	return sss.count
 }
 
 // AppendToShares appends raw data as shares.

@@ -117,7 +117,7 @@ type shareSplitter struct {
 	msgWriter *coretypes.MessageShareWriter
 
 	// Since evidence will always be included in a block, we do not need to
-	// generate these share lazily. Therefore instead of a ContiguousShareWriter
+	// generate these share lazily. Therefore instead of a CompactShareWriter
 	// we use the normal eager mechanism
 	evdShares [][]byte
 
@@ -143,6 +143,8 @@ func newShareSplitter(txConf client.TxConfig, squareSize uint64, data *core.Data
 		panic(err)
 	}
 
+	// TODO: we should be able to use the CompactShareWriter and
+	// SparseShareWriter defined in pkg/shares here
 	sqwr.txWriter = coretypes.NewContiguousShareWriter(consts.TxNamespaceID)
 	sqwr.msgWriter = coretypes.NewMessageShareWriter()
 

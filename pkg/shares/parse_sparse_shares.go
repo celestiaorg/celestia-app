@@ -10,9 +10,8 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
 
-// parseMsgShares iterates through raw shares and separates the contiguous chunks
-// of data. It is only used for Messages, i.e. shares with a non-reserved namespace.
-func parseMsgShares(shares [][]byte) ([]coretypes.Message, error) {
+// parseSparseShares iterates through raw shares and parses out individual messages.
+func parseSparseShares(shares [][]byte) ([]coretypes.Message, error) {
 	if len(shares) == 0 {
 		return nil, nil
 	}

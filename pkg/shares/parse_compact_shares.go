@@ -7,10 +7,10 @@ import (
 	"github.com/tendermint/tendermint/pkg/consts"
 )
 
-// processContiguousShares takes raw shares and extracts out transactions,
+// parseCompactShares takes raw shares and extracts out transactions,
 // intermediate state roots, or evidence. The returned [][]byte do not have
 // namespaces or length delimiters and are ready to be unmarshalled
-func processContiguousShares(shares [][]byte) (txs [][]byte, err error) {
+func parseCompactShares(shares [][]byte) (txs [][]byte, err error) {
 	if len(shares) == 0 {
 		return nil, nil
 	}
