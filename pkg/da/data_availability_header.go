@@ -93,15 +93,10 @@ func (dah *DataAvailabilityHeader) Hash() []byte {
 		return dah.hash
 	}
 
-	colsCount := len(dah.ColumnRoots)
 	rowsCount := len(dah.RowsRoots)
-	slices := make([][]byte, colsCount+rowsCount)
-	for i, rowRoot := range dah.RowsRoots {
-		slices[i] = rowRoot
-	}
-	for i, colRoot := range dah.ColumnRoots {
-		slices[i+colsCount] = colRoot
-	}
+	slices := make([][]byte, rowsCount+rowsCount)
+	copy(slices[0:rowsCount], dah.RowsRoots)
+	copy(slices[rowsCount:], dah.ColumnRoots)
 	// The single data root is computed using a simple binary merkle tree.
 	// Effectively being root(rowRoots || columnRoots):
 	dah.hash = merkle.HashFromByteSlices(slices)
