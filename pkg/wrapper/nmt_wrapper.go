@@ -56,7 +56,7 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte, idx rsmt2d.SquareIndex)
 	copy(nidAndData[appconsts.NamespaceSize:], data)
 	// use the parity namespace if the cell is not in Q0 of the extended data square
 	if idx.Axis+1 > uint(w.squareSize) || idx.Cell+1 > uint(w.squareSize) {
-		copy(nidAndData[:appconsts.NamespaceSize], consts.ParitySharesNamespaceID)
+		copy(nidAndData[:appconsts.NamespaceSize], appconsts.ParitySharesNamespaceID)
 	} else {
 		copy(nidAndData[:appconsts.NamespaceSize], data[:appconsts.NamespaceSize])
 	}

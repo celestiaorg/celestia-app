@@ -7,7 +7,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/tendermint/tendermint/libs/protoio"
-	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -155,7 +154,7 @@ func (css *CompactShareSplitter) Count() (count, availableBytes int) {
 // tail is filler for all tail padded shares
 // it is allocated once and used everywhere
 var tailPaddingShare = append(
-	append(make([]byte, 0, appconsts.ShareSize), consts.TailPaddingNamespaceID...),
+	append(make([]byte, 0, appconsts.ShareSize), appconsts.TailPaddingNamespaceID...),
 	bytes.Repeat([]byte{0}, appconsts.ShareSize-appconsts.NamespaceSize)...,
 )
 
@@ -164,7 +163,7 @@ func TailPaddingShares(n int) NamespacedShares {
 	for i := 0; i < n; i++ {
 		shares[i] = NamespacedShare{
 			Share: tailPaddingShare,
-			ID:    consts.TailPaddingNamespaceID,
+			ID:    appconsts.TailPaddingNamespaceID,
 		}
 	}
 	return shares

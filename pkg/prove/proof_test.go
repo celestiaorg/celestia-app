@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/types"
 )
@@ -68,7 +67,7 @@ func TestTxInclusion(t *testing.T) {
 
 	for _, tt := range tests {
 		for i := 0; i < len(tt.data.Txs); i++ {
-			txProof, err := TxInclusion(consts.DefaultCodec(), tt.data, uint64(i))
+			txProof, err := TxInclusion(appconsts.DefaultCodec(), tt.data, uint64(i))
 			require.NoError(t, err)
 			assert.True(t, txProof.VerifyProof())
 		}
@@ -147,7 +146,7 @@ func Test_genRowShares(t *testing.T) {
 	// this quickly tests this by computing the row shares before
 	// computing the shares in the normal way.
 	rowShares, err := genRowShares(
-		consts.DefaultCodec(),
+		appconsts.DefaultCodec(),
 		typicalBlockData,
 		0,
 		squareSize,
@@ -164,7 +163,7 @@ func Test_genRowShares(t *testing.T) {
 		row := eds.Row(uint(i))
 		assert.Equal(t, row, rowShares[i], fmt.Sprintf("row %d", i))
 		// also test fetching individual rows
-		secondSet, err := genRowShares(consts.DefaultCodec(), typicalBlockData, i, i)
+		secondSet, err := genRowShares(appconsts.DefaultCodec(), typicalBlockData, i, i)
 		require.NoError(t, err)
 		assert.Equal(t, row, secondSet[0], fmt.Sprintf("row %d", i))
 	}

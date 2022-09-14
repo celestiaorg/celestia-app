@@ -11,7 +11,6 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
-	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
@@ -28,7 +27,7 @@ func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
 		tree := n.Constructor()
 
 		// push test data to the tree
-		for i, d := range generateErasuredData(t, tc.squareSize, consts.DefaultCodec()) {
+		for i, d := range generateErasuredData(t, tc.squareSize, appconsts.DefaultCodec()) {
 			// push will panic if there's an error
 			tree.Push(d, rsmt2d.SquareIndex{Axis: uint(0), Cell: uint(i)})
 		}
@@ -65,7 +64,7 @@ func TestErasureNamespacedMerkleTreePanics(t *testing.T) {
 			"push over square size",
 			assert.PanicTestFunc(
 				func() {
-					data := generateErasuredData(t, 16, consts.DefaultCodec())
+					data := generateErasuredData(t, 16, appconsts.DefaultCodec())
 					n := NewErasuredNamespacedMerkleTree(uint64(15))
 					tree := n.Constructor()
 					for i, d := range data {
@@ -77,7 +76,7 @@ func TestErasureNamespacedMerkleTreePanics(t *testing.T) {
 			"push in incorrect lexigraphic order",
 			assert.PanicTestFunc(
 				func() {
-					data := generateErasuredData(t, 16, consts.DefaultCodec())
+					data := generateErasuredData(t, 16, appconsts.DefaultCodec())
 					n := NewErasuredNamespacedMerkleTree(uint64(16))
 					tree := n.Constructor()
 					for i := len(data) - 1; i > 0; i-- {
@@ -105,7 +104,7 @@ func TestExtendedDataSquare(t *testing.T) {
 
 	tree := NewErasuredNamespacedMerkleTree(uint64(squareSize))
 
-	_, err := rsmt2d.ComputeExtendedDataSquare(raw, consts.DefaultCodec(), tree.Constructor)
+	_, err := rsmt2d.ComputeExtendedDataSquare(raw, appconsts.DefaultCodec(), tree.Constructor)
 	assert.NoError(t, err)
 }
 

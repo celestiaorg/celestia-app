@@ -34,14 +34,14 @@ func Merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 			case bytes.Equal(consts.TxNamespaceID, nid):
 				sortedTxShares = append(sortedTxShares, share)
 
-			case bytes.Equal(consts.EvidenceNamespaceID, nid):
+			case bytes.Equal(appconsts.EvidenceNamespaceID, nid):
 				sortedEvdShares = append(sortedEvdShares, share)
 
-			case bytes.Equal(consts.TailPaddingNamespaceID, nid):
+			case bytes.Equal(appconsts.TailPaddingNamespaceID, nid):
 				continue
 
 			// ignore unused but reserved namespaces
-			case bytes.Compare(nid, consts.MaxReservedNamespace) < 1:
+			case bytes.Compare(nid, appconsts.MaxReservedNamespace) < 1:
 				continue
 
 			// every other namespaceID should be a message
