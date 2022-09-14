@@ -7,7 +7,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
-	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
@@ -144,7 +143,7 @@ func newShareSplitter(txConf client.TxConfig, squareSize uint64, data *core.Data
 		panic(err)
 	}
 
-	sqwr.txWriter = shares.NewCompactShareSplitter(consts.TxNamespaceID)
+	sqwr.txWriter = shares.NewCompactShareSplitter(appconsts.TxNamespaceID)
 	sqwr.msgWriter = shares.NewSparseShareSplitter()
 
 	return &sqwr

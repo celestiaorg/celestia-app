@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/pkg/consts"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
 )
@@ -42,7 +42,7 @@ func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) 
 	}
 
 	// create and marshal the tx inclusion proof, which we return in the form of []byte
-	txProof, err := TxInclusion(consts.DefaultCodec(), data, uint64(index))
+	txProof, err := TxInclusion(appconsts.DefaultCodec(), data, uint64(index))
 	if err != nil {
 		return nil, err
 	}

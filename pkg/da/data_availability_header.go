@@ -6,11 +6,11 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	daproto "github.com/celestiaorg/celestia-app/proto/da"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/crypto/tmhash"
-	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
 const (
