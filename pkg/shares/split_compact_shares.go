@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/tendermint/tendermint/libs/protoio"
-	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -22,7 +22,7 @@ type CompactShareSplitter struct {
 // NewCompactShareSplitter returns a CompactShareSplitter using the provided
 // namespace.
 func NewCompactShareSplitter(ns namespace.ID) *CompactShareSplitter {
-	pendingShare := NamespacedShare{ID: ns, Share: make([]byte, 0, consts.ShareSize)}
+	pendingShare := NamespacedShare{ID: ns, Share: make([]byte, 0, appconsts.ShareSize)}
 	pendingShare.Share = append(pendingShare.Share, ns...)
 	return &CompactShareSplitter{pendingShare: pendingShare, namespace: ns}
 }
@@ -52,14 +52,14 @@ func (css *CompactShareSplitter) WriteEvidence(evd coretypes.Evidence) error {
 func (css *CompactShareSplitter) WriteBytes(rawData []byte) {
 	// if this is the first time writing to a pending share, we must add the
 	// reserved bytes
-	if len(css.pendingShare.Share) == consts.NamespaceSize {
+	if len(css.pendingShare.Share) == appconsts.NamespaceSize {
 		css.pendingShare.Share = append(css.pendingShare.Share, 0)
 	}
 
 	txCursor := len(rawData)
 	for txCursor != 0 {
 		// find the len left in the pending share
-		pendingLeft := consts.ShareSize - len(css.pendingShare.Share)
+		pendingLeft := appconsts.ShareSize - len(css.pendingShare.Share)
 
 		// if we can simply add the tx to the share without creating a new
 		// pending share, do so and return
@@ -79,9 +79,9 @@ func (css *CompactShareSplitter) WriteBytes(rawData []byte) {
 		txCursor = len(rawData)
 
 		// add the share reserved bytes to the new pending share
-		pendingCursor := len(rawData) + consts.NamespaceSize + consts.ShareReservedBytes
+		pendingCursor := len(rawData) + appconsts.NamespaceSize + appconsts.ShareReservedBytes
 		var reservedByte byte
-		if pendingCursor >= consts.ShareSize {
+		if pendingCursor >= appconsts.ShareSize {
 			// the share reserve byte is zero when some compactly written
 			// data takes up the entire share
 			reservedByte = byte(0)
@@ -93,18 +93,18 @@ func (css *CompactShareSplitter) WriteBytes(rawData []byte) {
 	}
 
 	// if the share is exactly the correct size, then append to shares
-	if len(css.pendingShare.Share) == consts.ShareSize {
+	if len(css.pendingShare.Share) == appconsts.ShareSize {
 		css.stackPending()
 	}
 }
 
 // stackPending will add the pending share to accumlated shares provided that it is long enough
 func (css *CompactShareSplitter) stackPending() {
-	if len(css.pendingShare.Share) < consts.ShareSize {
+	if len(css.pendingShare.Share) < appconsts.ShareSize {
 		return
 	}
 	css.shares = append(css.shares, css.pendingShare)
-	newPendingShare := make([]byte, 0, consts.ShareSize)
+	newPendingShare := make([]byte, 0, appconsts.ShareSize)
 	newPendingShare = append(newPendingShare, css.namespace...)
 	css.pendingShare = NamespacedShare{
 		Share: newPendingShare,
@@ -115,8 +115,8 @@ func (css *CompactShareSplitter) stackPending() {
 // Export finalizes and returns the underlying compact shares.
 func (css *CompactShareSplitter) Export() NamespacedShares {
 	// add the pending share to the current shares before returning
-	if len(css.pendingShare.Share) > consts.NamespaceSize {
-		css.pendingShare.Share = zeroPadIfNecessary(css.pendingShare.Share, consts.ShareSize)
+	if len(css.pendingShare.Share) > appconsts.NamespaceSize {
+		css.pendingShare.Share = zeroPadIfNecessary(css.pendingShare.Share, appconsts.ShareSize)
 		css.shares = append(css.shares, css.pendingShare)
 	}
 	// force the last share to have a reserve byte of zero
@@ -126,12 +126,12 @@ func (css *CompactShareSplitter) Export() NamespacedShares {
 	lastShare := css.shares[len(css.shares)-1]
 	rawLastShare := lastShare.Data()
 
-	for i := 0; i < consts.ShareReservedBytes; i++ {
+	for i := 0; i < appconsts.ShareReservedBytes; i++ {
 		// here we force the last share reserved byte to be zero to avoid any
 		// confusion for light clients parsing these shares, as the rest of the
 		// data after transaction is padding. See
 		// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#share
-		rawLastShare[consts.NamespaceSize+i] = byte(0)
+		rawLastShare[appconsts.NamespaceSize+i] = byte(0)
 	}
 
 	newLastShare := NamespacedShare{
@@ -144,18 +144,18 @@ func (css *CompactShareSplitter) Export() NamespacedShares {
 
 // Count returns the current number of shares that will be made if exporting.
 func (css *CompactShareSplitter) Count() (count, availableBytes int) {
-	if len(css.pendingShare.Share) > consts.NamespaceSize {
+	if len(css.pendingShare.Share) > appconsts.NamespaceSize {
 		return len(css.shares), 0
 	}
-	availableBytes = consts.TxShareSize - (len(css.pendingShare.Share) - consts.NamespaceSize)
+	availableBytes = appconsts.TxShareSize - (len(css.pendingShare.Share) - appconsts.NamespaceSize)
 	return len(css.shares), availableBytes
 }
 
 // tail is filler for all tail padded shares
 // it is allocated once and used everywhere
 var tailPaddingShare = append(
-	append(make([]byte, 0, consts.ShareSize), consts.TailPaddingNamespaceID...),
-	bytes.Repeat([]byte{0}, consts.ShareSize-consts.NamespaceSize)...,
+	append(make([]byte, 0, appconsts.ShareSize), appconsts.TailPaddingNamespaceID...),
+	bytes.Repeat([]byte{0}, appconsts.ShareSize-appconsts.NamespaceSize)...,
 )
 
 func TailPaddingShares(n int) NamespacedShares {
@@ -163,7 +163,7 @@ func TailPaddingShares(n int) NamespacedShares {
 	for i := 0; i < n; i++ {
 		shares[i] = NamespacedShare{
 			Share: tailPaddingShare,
-			ID:    consts.TailPaddingNamespaceID,
+			ID:    appconsts.TailPaddingNamespaceID,
 		}
 	}
 	return shares
@@ -174,8 +174,8 @@ func namespacedPaddedShares(ns []byte, count int) []NamespacedShare {
 	for i := 0; i < count; i++ {
 		shares[i] = NamespacedShare{
 			Share: append(append(
-				make([]byte, 0, consts.ShareSize), ns...),
-				make([]byte, consts.MsgShareSize)...),
+				make([]byte, 0, appconsts.ShareSize), ns...),
+				make([]byte, appconsts.MsgShareSize)...),
 			ID: ns,
 		}
 	}

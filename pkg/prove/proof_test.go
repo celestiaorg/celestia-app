@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/types"
 )
@@ -30,7 +30,7 @@ func TestTxInclusion(t *testing.T) {
 	overlappingRowsBlockData := types.Data{
 		Txs: types.ToTxs(
 			[][]byte{
-				tmrand.Bytes(consts.TxShareSize*overlappingSquareSize + 1),
+				tmrand.Bytes(appconsts.TxShareSize*overlappingSquareSize + 1),
 				tmrand.Bytes(10000),
 			},
 		),
@@ -39,7 +39,7 @@ func TestTxInclusion(t *testing.T) {
 	overlappingRowsBlockDataWithMessages := types.Data{
 		Txs: types.ToTxs(
 			[][]byte{
-				tmrand.Bytes(consts.TxShareSize*overlappingSquareSize + 1),
+				tmrand.Bytes(appconsts.TxShareSize*overlappingSquareSize + 1),
 				tmrand.Bytes(10000),
 			},
 		),
@@ -67,7 +67,7 @@ func TestTxInclusion(t *testing.T) {
 
 	for _, tt := range tests {
 		for i := 0; i < len(tt.data.Txs); i++ {
-			txProof, err := TxInclusion(consts.DefaultCodec(), tt.data, uint64(i))
+			txProof, err := TxInclusion(appconsts.DefaultCodec(), tt.data, uint64(i))
 			require.NoError(t, err)
 			assert.True(t, txProof.VerifyProof())
 		}
@@ -146,7 +146,7 @@ func Test_genRowShares(t *testing.T) {
 	// this quickly tests this by computing the row shares before
 	// computing the shares in the normal way.
 	rowShares, err := genRowShares(
-		consts.DefaultCodec(),
+		appconsts.DefaultCodec(),
 		typicalBlockData,
 		0,
 		squareSize,
@@ -163,7 +163,7 @@ func Test_genRowShares(t *testing.T) {
 		row := eds.Row(uint(i))
 		assert.Equal(t, row, rowShares[i], fmt.Sprintf("row %d", i))
 		// also test fetching individual rows
-		secondSet, err := genRowShares(consts.DefaultCodec(), typicalBlockData, i, i)
+		secondSet, err := genRowShares(appconsts.DefaultCodec(), typicalBlockData, i, i)
 		require.NoError(t, err)
 		assert.Equal(t, row, secondSet[0], fmt.Sprintf("row %d", i))
 	}
@@ -192,7 +192,7 @@ func joinByteSlices(s ...[]byte) string {
 	out := make([]string, len(s))
 	for i, sl := range s {
 		sl, _, _ := types.ParseDelimiter(sl)
-		out[i] = string(sl[consts.NamespaceSize:])
+		out[i] = string(sl[appconsts.NamespaceSize:])
 	}
 	return strings.Join(out, "")
 }
@@ -248,12 +248,12 @@ func generateRandomMessage(size int) types.Message {
 }
 
 func generateRandomNamespacedShares(count, msgSize int) types.NamespacedShares {
-	shares := generateRandNamespacedRawData(uint32(count), consts.NamespaceSize, uint32(msgSize))
+	shares := generateRandNamespacedRawData(uint32(count), appconsts.NamespaceSize, uint32(msgSize))
 	msgs := make([]types.Message, count)
 	for i, s := range shares {
 		msgs[i] = types.Message{
-			Data:        s[consts.NamespaceSize:],
-			NamespaceID: s[:consts.NamespaceSize],
+			Data:        s[appconsts.NamespaceSize:],
+			NamespaceID: s[:appconsts.NamespaceSize],
 		}
 	}
 	return types.Messages{MessagesList: msgs}.SplitIntoShares()

@@ -6,16 +6,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func TestCompactShareWriter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
 	// tests occur in TestMerge and Test_processCompactShares
-	w := NewCompactShareSplitter(consts.TxNamespaceID)
+	w := NewCompactShareSplitter(appconsts.TxNamespaceID)
 	txs := generateRandomCompactShares(33, 200)
 	for _, tx := range txs {
 		rawTx, _ := tx.MarshalDelimited()
@@ -64,7 +64,7 @@ func Test_processCompactShares(t *testing.T) {
 	// exactTxShareSize is the length of tx that will fit exactly into a single
 	// share, accounting for namespace id and the length delimiter prepended to
 	// each tx
-	const exactTxShareSize = consts.TxShareSize - 1
+	const exactTxShareSize = appconsts.TxShareSize - 1
 
 	type test struct {
 		name    string

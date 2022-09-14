@@ -5,17 +5,17 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	daproto "github.com/celestiaorg/celestia-app/proto/da"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/crypto/tmhash"
-	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
 const (
-	maxExtendedSquareWidth = consts.MaxSquareSize * 2
-	minExtendedSquareWidth = consts.MinSquareSize * 2
+	maxExtendedSquareWidth = appconsts.MaxSquareSize * 2
+	minExtendedSquareWidth = appconsts.MinSquareSize * 2
 )
 
 // DataAvailabilityHeader (DAHeader) contains the row and column roots of the erasure
@@ -51,11 +51,11 @@ func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) DataAvailabilityH
 
 func ExtendShares(squareSize uint64, shares [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	// Check that square size is with range
-	if squareSize < consts.MinSquareSize || squareSize > consts.MaxSquareSize {
+	if squareSize < appconsts.MinSquareSize || squareSize > appconsts.MaxSquareSize {
 		return nil, fmt.Errorf(
 			"invalid square size: min %d max %d provided %d",
-			consts.MinSquareSize,
-			consts.MaxSquareSize,
+			appconsts.MinSquareSize,
+			appconsts.MaxSquareSize,
 			squareSize,
 		)
 	}
@@ -68,7 +68,7 @@ func ExtendShares(squareSize uint64, shares [][]byte) (*rsmt2d.ExtendedDataSquar
 		)
 	}
 	tree := wrapper.NewErasuredNamespacedMerkleTree(squareSize)
-	return rsmt2d.ComputeExtendedDataSquare(shares, consts.DefaultCodec(), tree.Constructor)
+	return rsmt2d.ComputeExtendedDataSquare(shares, appconsts.DefaultCodec(), tree.Constructor)
 }
 
 // String returns hex representation of merkle hash of the DAHeader.
@@ -167,15 +167,15 @@ func (dah *DataAvailabilityHeader) IsZero() bool {
 // tail is filler for all tail padded shares
 // it is allocated once and used everywhere
 var tailPaddingShare = append(
-	append(make([]byte, 0, consts.ShareSize), consts.TailPaddingNamespaceID...),
-	bytes.Repeat([]byte{0}, consts.ShareSize-consts.NamespaceSize)...,
+	append(make([]byte, 0, appconsts.ShareSize), appconsts.TailPaddingNamespaceID...),
+	bytes.Repeat([]byte{0}, appconsts.ShareSize-appconsts.NamespaceSize)...,
 )
 
 // MinDataAvailabilityHeader returns the minimum valid data availability header.
 // It is equal to the data availability header for an empty block
 func MinDataAvailabilityHeader() DataAvailabilityHeader {
-	shares := GenerateEmptyShares(consts.MinSharecount)
-	eds, err := ExtendShares(consts.MinSquareSize, shares)
+	shares := GenerateEmptyShares(appconsts.MinShareCount)
+	eds, err := ExtendShares(appconsts.MinSquareSize, shares)
 	if err != nil {
 		panic(err)
 	}

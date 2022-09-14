@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/bits"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
@@ -11,7 +12,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/tendermint/tendermint/crypto/merkle"
-	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/types"
 
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
@@ -20,9 +20,9 @@ import (
 const (
 	URLMsgWirePayForData = "/payment.MsgWirePayForData"
 	URLMsgPayForData     = "/payment.MsgPayForData"
-	ShareSize            = consts.ShareSize
-	SquareSize           = consts.MaxSquareSize
-	NamespaceIDSize      = consts.NamespaceSize
+	ShareSize            = appconsts.ShareSize
+	SquareSize           = appconsts.MaxSquareSize
+	NamespaceIDSize      = appconsts.NamespaceSize
 )
 
 var _ sdk.Msg = &MsgPayForData{}
@@ -150,7 +150,7 @@ func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, err
 	// create the commits by pushing each leaf set onto an nmt
 	subTreeRoots := make([][]byte, len(leafSets))
 	for i, set := range leafSets {
-		tree := wrapper.NewErasuredNamespacedMerkleTree(consts.MaxSquareSize)
+		tree := wrapper.NewErasuredNamespacedMerkleTree(appconsts.MaxSquareSize)
 		for _, leaf := range set {
 			nsLeaf := append(make([]byte, 0), append(namespace, leaf...)...)
 			// here we hardcode pushing as axis 0 cell 0 because we never want
