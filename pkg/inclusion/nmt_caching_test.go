@@ -3,6 +3,7 @@ package inclusion
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/testutil/coretestutil"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -10,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/da"
-	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
 func TestWalkCachedSubTreeRoot(t *testing.T) {

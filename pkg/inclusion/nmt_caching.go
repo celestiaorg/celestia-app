@@ -3,10 +3,10 @@ package inclusion
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/pkg/da"
-	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
 // WalkInstruction wraps the bool type to indicate the direction that should be
