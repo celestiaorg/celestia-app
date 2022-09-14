@@ -10,7 +10,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func Test_parseMsgShares(t *testing.T) {
+func Test_parseSparseShares(t *testing.T) {
 	// exactMsgShareSize is the length of message that will fit exactly into a single
 	// share, accounting for namespace id and the length delimiter prepended to
 	// each message
@@ -47,7 +47,7 @@ func Test_parseMsgShares(t *testing.T) {
 
 			shares, _ := SplitMessages(nil, msgs.MessagesList)
 
-			parsedMsgs, err := parseMsgShares(shares)
+			parsedMsgs, err := parseSparseShares(shares)
 			if err != nil {
 				t.Error(err)
 			}
@@ -64,7 +64,7 @@ func Test_parseMsgShares(t *testing.T) {
 			msgs := generateRandomlySizedMessages(tc.msgCount, tc.msgSize)
 			shares, _ := SplitMessages(nil, msgs.MessagesList)
 
-			parsedMsgs, err := parseMsgShares(shares)
+			parsedMsgs, err := parseSparseShares(shares)
 			if err != nil {
 				t.Error(err)
 			}
@@ -79,7 +79,7 @@ func Test_parseMsgShares(t *testing.T) {
 }
 
 func TestParsePaddedMsg(t *testing.T) {
-	msgWr := NewMessageShareSplitter()
+	msgWr := NewSparseShareSplitter()
 	randomSmallMsg := generateRandomMessage(100)
 	randomLargeMsg := generateRandomMessage(10000)
 	msgs := coretypes.Messages{
@@ -93,7 +93,7 @@ func TestParsePaddedMsg(t *testing.T) {
 	msgWr.WriteNamespacedPaddedShares(4)
 	msgWr.Write(msgs.MessagesList[1])
 	msgWr.WriteNamespacedPaddedShares(10)
-	pmsgs, err := parseMsgShares(msgWr.Export().RawShares())
+	pmsgs, err := parseSparseShares(msgWr.Export().RawShares())
 	require.NoError(t, err)
 	require.Equal(t, msgs.MessagesList, pmsgs)
 }

@@ -77,7 +77,7 @@ func Merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 // ParseTxs collects all of the transactions from the shares provided
 func ParseTxs(shares [][]byte) (coretypes.Txs, error) {
 	// parse the sharse
-	rawTxs, err := processContiguousShares(shares)
+	rawTxs, err := parseCompactShares(shares)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func ParseTxs(shares [][]byte) (coretypes.Txs, error) {
 func ParseEvd(shares [][]byte) (coretypes.EvidenceData, error) {
 	// the raw data returned does not have length delimiters or namespaces and
 	// is ready to be unmarshaled
-	rawEvd, err := processContiguousShares(shares)
+	rawEvd, err := parseCompactShares(shares)
 	if err != nil {
 		return coretypes.EvidenceData{}, err
 	}
@@ -123,7 +123,7 @@ func ParseEvd(shares [][]byte) (coretypes.EvidenceData, error) {
 
 // ParseMsgs collects all messages from the shares provided
 func ParseMsgs(shares [][]byte) (coretypes.Messages, error) {
-	msgList, err := parseMsgShares(shares)
+	msgList, err := parseSparseShares(shares)
 	if err != nil {
 		return coretypes.Messages{}, err
 	}
