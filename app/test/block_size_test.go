@@ -22,7 +22,6 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/pkg/consts"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -293,7 +292,7 @@ func generateSignedWirePayForDataTxs(clientCtx client.Context, txConfig client.T
 func randomValidNamespace() namespace.ID {
 	for {
 		s := tmrand.Bytes(8)
-		if bytes.Compare(s, consts.MaxReservedNamespace) > 0 {
+		if bytes.Compare(s, appconsts.MaxReservedNamespace) > 0 {
 			return s
 		}
 	}

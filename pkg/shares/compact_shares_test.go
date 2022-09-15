@@ -9,14 +9,13 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func TestCompactShareWriter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
 	// tests occur in TestMerge and Test_processCompactShares
-	w := NewCompactShareSplitter(consts.TxNamespaceID)
+	w := NewCompactShareSplitter(appconsts.TxNamespaceID)
 	txs := generateRandomCompactShares(33, 200)
 	for _, tx := range txs {
 		rawTx, _ := tx.MarshalDelimited()

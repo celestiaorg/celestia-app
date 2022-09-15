@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 )
@@ -118,10 +118,10 @@ func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
 	}
 
 	tests := []test{
-		{"transaction namespace id for message", consts.TxNamespaceID, 0},
-		{"evidence namespace id for message", consts.EvidenceNamespaceID, 0},
-		{"tail padding namespace id for message", consts.TailPaddingNamespaceID, 0},
-		{"parity shares namespace id for message", consts.ParitySharesNamespaceID, 0},
+		{"transaction namespace id for message", appconsts.TxNamespaceID, 0},
+		{"evidence namespace id for message", appconsts.EvidenceNamespaceID, 0},
+		{"tail padding namespace id for message", appconsts.TailPaddingNamespaceID, 0},
+		{"parity shares namespace id for message", appconsts.ParitySharesNamespaceID, 0},
 		{"reserved namespace id for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, 0},
 		{"valid namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, 1},
 	}

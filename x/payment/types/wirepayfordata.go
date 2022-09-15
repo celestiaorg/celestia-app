@@ -5,12 +5,12 @@ import (
 	"errors"
 	fmt "fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	"github.com/tendermint/tendermint/pkg/consts"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -188,17 +188,17 @@ func ValidateMessageNamespaceID(ns namespace.ID) error {
 		)
 	}
 	// ensure that a reserved namespace is not used
-	if bytes.Compare(ns, consts.MaxReservedNamespace) < 1 {
-		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", ns, consts.MaxReservedNamespace)
+	if bytes.Compare(ns, appconsts.MaxReservedNamespace) < 1 {
+		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", ns, appconsts.MaxReservedNamespace)
 	}
 
 	// ensure that ParitySharesNamespaceID is not used
-	if bytes.Equal(ns, consts.ParitySharesNamespaceID) {
+	if bytes.Equal(ns, appconsts.ParitySharesNamespaceID) {
 		return ErrParitySharesNamespace
 	}
 
 	// ensure that TailPaddingNamespaceID is not used
-	if bytes.Equal(ns, consts.TailPaddingNamespaceID) {
+	if bytes.Equal(ns, appconsts.TailPaddingNamespaceID) {
 		return ErrTailPaddingNamespace
 	}
 

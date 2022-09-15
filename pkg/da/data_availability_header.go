@@ -10,7 +10,6 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/crypto/tmhash"
-	"github.com/tendermint/tendermint/pkg/consts"
 	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
@@ -69,7 +68,7 @@ func ExtendShares(squareSize uint64, shares [][]byte) (*rsmt2d.ExtendedDataSquar
 		)
 	}
 	tree := wrapper.NewErasuredNamespacedMerkleTree(squareSize)
-	return rsmt2d.ComputeExtendedDataSquare(shares, consts.DefaultCodec(), tree.Constructor)
+	return rsmt2d.ComputeExtendedDataSquare(shares, appconsts.DefaultCodec(), tree.Constructor)
 }
 
 // String returns hex representation of merkle hash of the DAHeader.
@@ -168,7 +167,7 @@ func (dah *DataAvailabilityHeader) IsZero() bool {
 // tail is filler for all tail padded shares
 // it is allocated once and used everywhere
 var tailPaddingShare = append(
-	append(make([]byte, 0, appconsts.ShareSize), consts.TailPaddingNamespaceID...),
+	append(make([]byte, 0, appconsts.ShareSize), appconsts.TailPaddingNamespaceID...),
 	bytes.Repeat([]byte{0}, appconsts.ShareSize-appconsts.NamespaceSize)...,
 )
 

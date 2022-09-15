@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -230,7 +229,7 @@ func TestMerge(t *testing.T) {
 			require.NoError(t, err)
 			rawShares := shares.RawShares()
 
-			eds, err := rsmt2d.ComputeExtendedDataSquare(rawShares, consts.DefaultCodec(), rsmt2d.NewDefaultTree)
+			eds, err := rsmt2d.ComputeExtendedDataSquare(rawShares, appconsts.DefaultCodec(), rsmt2d.NewDefaultTree)
 			if err != nil {
 				t.Error(err)
 			}

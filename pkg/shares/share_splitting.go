@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/tendermint/tendermint/pkg/consts"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -86,7 +86,7 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 }
 
 func SplitTxs(txs coretypes.Txs) [][]byte {
-	writer := NewCompactShareSplitter(consts.TxNamespaceID)
+	writer := NewCompactShareSplitter(appconsts.TxNamespaceID)
 	for _, tx := range txs {
 		writer.WriteTx(tx)
 	}
@@ -94,7 +94,7 @@ func SplitTxs(txs coretypes.Txs) [][]byte {
 }
 
 func SplitEvidence(evd coretypes.EvidenceList) ([][]byte, error) {
-	writer := NewCompactShareSplitter(consts.EvidenceNamespaceID)
+	writer := NewCompactShareSplitter(appconsts.EvidenceNamespaceID)
 	var err error
 	for _, ev := range evd {
 		err = writer.WriteEvidence(ev)

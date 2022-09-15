@@ -11,7 +11,6 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 func TestWalkCachedSubTreeRoot(t *testing.T) {
@@ -118,7 +117,7 @@ func TestEDSSubRootCacher(t *testing.T) {
 	d := coretestutil.GenerateRandNamespacedRawData(uint32(oss*oss), appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)
 	stc := NewCachedSubtreeCacher(oss)
 
-	eds, err := rsmt2d.ComputeExtendedDataSquare(d, consts.DefaultCodec(), stc.Constructor)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(d, appconsts.DefaultCodec(), stc.Constructor)
 	require.NoError(t, err)
 
 	dah := da.NewDataAvailabilityHeader(eds)
