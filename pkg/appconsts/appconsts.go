@@ -17,6 +17,9 @@ const (
 	// NamespaceSize is the namespace size in bytes.
 	NamespaceSize = 8
 
+	// See https://github.com/celestiaorg/celestia-app/pull/660#discussion_r958603307
+	// for the motivation behind `CompactShare` and `SparseShare` terminology.
+
 	// CompactShareReservedBytes is the number of bytes reserved for the location of
 	// the first unit (transaction, ISR, evidence) in a compact share.
 	CompactShareReservedBytes = 1
