@@ -154,8 +154,8 @@ func Test_genRowShares(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	allShares, _, _ := typicalBlockData.ComputeShares(squareSize)
-	rawShares := allShares.RawShares()
+	rawShares, err := shares.Split(typicalBlockData)
+	require.NoError(t, err)
 
 	eds, err := da.ExtendShares(squareSize, rawShares)
 	require.NoError(t, err)
