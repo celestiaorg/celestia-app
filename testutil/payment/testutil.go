@@ -97,7 +97,7 @@ func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.Key
 	return rawTx
 }
 
-// generateRawWirePFD creates a tx with a single MsgWirePayForData message using the provided namespace and message
+// generateRawWirePFDTx creates a tx with a single MsgWirePayForData message using the provided namespace and message
 func generateRawWirePFDTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
 	// create a msg
 	msg := generateSignedWirePayForData(t, ns, message, signer, opts, types.AllSquareSizes(len(message))...)
