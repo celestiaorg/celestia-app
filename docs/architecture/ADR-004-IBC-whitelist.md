@@ -10,7 +10,7 @@ All terminology is defined in [ICS 024](https://github.com/cosmos/ibc/tree/main/
 
 ## Context
 
-While enabling IBC, we want to connect, and allow messages from selected chains. However, we dont want the ability for an arbitrary entity to create an IBC connection with a zone. This is so that we can keep the state machine as minimal and focused as possible.
+While enabling IBC, we want to connect, and allow messages from selected chains. However, we don't want the ability for an arbitrary entity to create an IBC connection with a zone. This is so that we can keep the state machine as minimal and focused as possible.
 
 ICS specification indicates that is possible by providing a custom `validateClientIdentifier`, but no such functionality exists currently.
 
