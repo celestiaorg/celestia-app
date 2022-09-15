@@ -17,6 +17,7 @@ const (
 	// NamespaceSize is the namespace size in bytes.
 	NamespaceSize = 8
 
+<<<<<<< HEAD
 	// ShareInfoBytes is the number of bytes reserved for information. The info
 	// byte contains the share version and a start idicator.
 	ShareInfoBytes = 1
@@ -24,17 +25,29 @@ const (
 	// ShareVersion is the current version of the share format
 	ShareVersion = uint8(0)
 
+=======
+	// See https://github.com/celestiaorg/celestia-app/pull/660#discussion_r958603307
+	// for the motivation behind `CompactShare` and `SparseShare` terminology.
+
+>>>>>>> 70ef349 (Rename appconsts to use `Compact` and `Sparse` terminology (#710))
 	// CompactShareReservedBytes is the number of bytes reserved for the location of
 	// the first unit (transaction, ISR, evidence) in a compact share.
 	CompactShareReservedBytes = 1
 
 	// CompactShareContentSize is the number of bytes usable for data in a compact
 	// (i.e. transactions, ISRs, evidence) share.
+<<<<<<< HEAD
 	CompactShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareReservedBytes
 
 	// SparseShareContentSize is the number of bytes usable for data in a sparse (i.e.
 	// message) share.
 	SparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes
+=======
+	CompactShareContentSize = ShareSize - NamespaceSize - CompactShareReservedBytes
+	// SparseShareContentSize is the number of bytes usable for data in a sparse (i.e.
+	// message) share.
+	SparseShareContentSize = ShareSize - NamespaceSize
+>>>>>>> 70ef349 (Rename appconsts to use `Compact` and `Sparse` terminology (#710))
 
 	// MaxSquareSize is the maximum number of
 	// rows/columns of the original data shares in square layout.

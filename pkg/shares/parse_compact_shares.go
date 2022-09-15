@@ -37,7 +37,11 @@ func (ss *shareStack) resolve() ([][]byte, error) {
 	if len(ss.shares) == 0 {
 		return nil, nil
 	}
+<<<<<<< HEAD
 	err := ss.peel(ss.shares[0][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:], true)
+=======
+	err := ss.peel(ss.shares[0][appconsts.NamespaceSize+appconsts.CompactShareReservedBytes:], true)
+>>>>>>> 70ef349 (Rename appconsts to use `Compact` and `Sparse` terminology (#710))
 	return ss.data, err
 }
 
@@ -70,7 +74,11 @@ func (ss *shareStack) peel(share []byte, delimited bool) (err error) {
 	// add the next share to the current share to continue merging if possible
 	if len(ss.shares) > ss.cursor+1 {
 		ss.cursor++
+<<<<<<< HEAD
 		share := append(share, ss.shares[ss.cursor][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:]...)
+=======
+		share := append(share, ss.shares[ss.cursor][appconsts.NamespaceSize+appconsts.CompactShareReservedBytes:]...)
+>>>>>>> 70ef349 (Rename appconsts to use `Compact` and `Sparse` terminology (#710))
 		return ss.peel(share, false)
 	}
 	// collect any remaining data
