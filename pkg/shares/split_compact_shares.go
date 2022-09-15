@@ -85,11 +85,7 @@ func (css *CompactShareSplitter) WriteBytes(rawData []byte) {
 		txCursor = len(rawData)
 
 		// add the share reserved bytes to the new pending share
-<<<<<<< HEAD
 		pendingCursor := len(rawData) + appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.CompactShareReservedBytes
-=======
-		pendingCursor := len(rawData) + appconsts.NamespaceSize + appconsts.CompactShareReservedBytes
->>>>>>> 70ef349 (Rename appconsts to use `Compact` and `Sparse` terminology (#710))
 		var reservedByte byte
 		if pendingCursor >= appconsts.ShareSize {
 			// the share reserve byte is zero when some compactly written
@@ -162,12 +158,8 @@ func (css *CompactShareSplitter) Count() (count, availableBytes int) {
 	if len(css.pendingShare.Share) > appconsts.NamespaceSize+appconsts.ShareInfoBytes {
 		return len(css.shares), 0
 	}
-<<<<<<< HEAD
 	//  this doesn't account for the size of the reserved byte
 	availableBytes = appconsts.SparseShareContentSize - (len(css.pendingShare.Share) - appconsts.NamespaceSize - appconsts.ShareInfoBytes)
-=======
-	availableBytes = appconsts.CompactShareContentSize - (len(css.pendingShare.Share) - appconsts.NamespaceSize)
->>>>>>> 70ef349 (Rename appconsts to use `Compact` and `Sparse` terminology (#710))
 	return len(css.shares), availableBytes
 }
 
