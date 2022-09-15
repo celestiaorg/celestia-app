@@ -23,7 +23,7 @@ const TxInclusionQueryPath = "txInclusionProof"
 func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
 	// parse the index from the path
 	if len(path) != 1 {
-		return nil, fmt.Errorf("unexpected query path length %d", len(path))
+		return nil, fmt.Errorf("expected query path length: 1 actual: %d ", len(path))
 	}
 	index, err := strconv.ParseInt(path[0], 10, 64)
 	if err != nil {
