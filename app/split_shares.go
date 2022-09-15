@@ -7,10 +7,10 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
-	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 )
@@ -117,7 +117,7 @@ type shareSplitter struct {
 	msgWriter *coretypes.MessageShareWriter
 
 	// Since evidence will always be included in a block, we do not need to
-	// generate these share lazily. Therefore instead of a ContiguousShareWriter
+	// generate these share lazily. Therefore instead of a CompactShareWriter
 	// we use the normal eager mechanism
 	evdShares [][]byte
 
@@ -143,7 +143,9 @@ func newShareSplitter(txConf client.TxConfig, squareSize uint64, data *core.Data
 		panic(err)
 	}
 
-	sqwr.txWriter = coretypes.NewContiguousShareWriter(consts.TxNamespaceID)
+	// TODO: we should be able to use the CompactShareWriter and
+	// SparseShareWriter defined in pkg/shares here
+	sqwr.txWriter = coretypes.NewContiguousShareWriter(appconsts.TxNamespaceID)
 	sqwr.msgWriter = coretypes.NewMessageShareWriter()
 
 	return &sqwr
@@ -224,7 +226,7 @@ func (sqwr *shareSplitter) hasRoomForBoth(tx, msg []byte) bool {
 
 	txBytesTaken := types.DelimLen(uint64(len(tx))) + len(tx)
 
-	maxTxSharesTaken := ((txBytesTaken - availableBytes) / consts.TxShareSize) + 1 // plus one because we have to add at least one share
+	maxTxSharesTaken := ((txBytesTaken - availableBytes) / appconsts.CompactShareContentSize) + 1 // plus one because we have to add at least one share
 
 	maxMsgSharesTaken := types.MsgSharesUsed(len(msg))
 
@@ -239,7 +241,7 @@ func (sqwr *shareSplitter) hasRoomForTx(tx []byte) bool {
 		return true
 	}
 
-	maxSharesTaken := ((bytesTaken - availableBytes) / consts.TxShareSize) + 1 // plus one because we have to add at least one share
+	maxSharesTaken := ((bytesTaken - availableBytes) / appconsts.CompactShareContentSize) + 1 // plus one because we have to add at least one share
 
 	return currentShareCount+maxSharesTaken <= sqwr.maxShareCount
 }
@@ -253,7 +255,7 @@ func (sqwr *shareSplitter) shareCount() (count, availableTxBytes int) {
 func (sqwr *shareSplitter) export() [][]byte {
 	count, availableBytes := sqwr.shareCount()
 	// increment the count if there are any pending tx bytes
-	if availableBytes < consts.TxShareSize {
+	if availableBytes < appconsts.CompactShareContentSize {
 		count++
 	}
 	shares := make([][]byte, sqwr.maxShareCount)
@@ -281,7 +283,7 @@ func (sqwr *shareSplitter) export() [][]byte {
 	}
 
 	if len(shares[0]) == 0 {
-		shares = coretypes.TailPaddingShares(consts.MinSharecount).RawShares()
+		shares = coretypes.TailPaddingShares(appconsts.MinShareCount).RawShares()
 	}
 
 	return shares

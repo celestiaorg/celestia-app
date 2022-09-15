@@ -3,10 +3,10 @@ package inclusion
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/tendermint/tendermint/pkg/da"
-	"github.com/tendermint/tendermint/pkg/wrapper"
 )
 
 // WalkInstruction wraps the bool type to indicate the direction that should be
@@ -115,9 +115,9 @@ func (stc *EDSSubTreeRootCacher) Constructor() rsmt2d.Tree {
 	return &newTree
 }
 
-// GetSubTreeRoot traverses the nmt of the selected row and returns the
+// getSubTreeRoot traverses the nmt of the selected row and returns the
 // subtree root. An error is thrown if the subtree cannot be found.
-func (stc *EDSSubTreeRootCacher) GetSubTreeRoot(dah da.DataAvailabilityHeader, row int, path []WalkInstruction) ([]byte, error) {
+func (stc *EDSSubTreeRootCacher) getSubTreeRoot(dah da.DataAvailabilityHeader, row int, path []WalkInstruction) ([]byte, error) {
 	if len(stc.caches) != len(dah.RowsRoots) {
 		return nil, fmt.Errorf("data availability header has unexpected number of row roots: expected %d got %d", len(stc.caches), len(dah.RowsRoots))
 	}

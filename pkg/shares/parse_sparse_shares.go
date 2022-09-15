@@ -4,15 +4,13 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
 
-// parseMsgShares iterates through raw shares and separates the contiguous chunks
-// of data. It is only used for Messages, i.e. shares with a non-reserved namespace.
-func parseMsgShares(shares [][]byte) ([]coretypes.Message, error) {
+// parseSparseShares iterates through raw shares and parses out individual messages.
+func parseSparseShares(shares [][]byte) ([]coretypes.Message, error) {
 	if len(shares) == 0 {
 		return nil, nil
 	}
@@ -23,7 +21,7 @@ func parseMsgShares(shares [][]byte) ([]coretypes.Message, error) {
 	// whether the current share contains the start of a new message
 	isNewMessage := true
 	// the len in bytes of the current chunk of data that will eventually become
-	// a message. This is identical to len(currentMsg.Data) + consts.MsgShareSize
+	// a message. This is identical to len(currentMsg.Data) + appconsts.MsgShareSize
 	// but we cache it here for readability
 	dataLen := 0
 	saveMessage := func() {
@@ -33,19 +31,19 @@ func parseMsgShares(shares [][]byte) ([]coretypes.Message, error) {
 	}
 	// iterate through all the shares and parse out each msg
 	for i := 0; i < len(shares); i++ {
-		dataLen = len(currentMsg.Data) + consts.MsgShareSize
+		dataLen = len(currentMsg.Data) + appconsts.SparseShareContentSize
 		switch {
 		case isNewMessage:
-			nextMsgChunk, nextMsgLen, err := ParseDelimiter(shares[i][consts.NamespaceSize:])
+			nextMsgChunk, nextMsgLen, err := ParseDelimiter(shares[i][appconsts.NamespaceSize:])
 			if err != nil {
 				return nil, err
 			}
 			// the current share is namespaced padding so we ignore it
-			if bytes.Equal(shares[i][consts.NamespaceSize:], appconsts.NameSpacedPaddedShareBytes) {
+			if bytes.Equal(shares[i][appconsts.NamespaceSize:], appconsts.NameSpacedPaddedShareBytes) {
 				continue
 			}
 			currentMsgLen = int(nextMsgLen)
-			nid := shares[i][:consts.NamespaceSize]
+			nid := shares[i][:appconsts.NamespaceSize]
 			currentMsg = coretypes.Message{
 				NamespaceID: nid,
 				Data:        nextMsgChunk,
@@ -60,12 +58,12 @@ func parseMsgShares(shares [][]byte) ([]coretypes.Message, error) {
 			isNewMessage = false
 		// this entire share contains a chunk of message that we need to save
 		case currentMsgLen > dataLen:
-			currentMsg.Data = append(currentMsg.Data, shares[i][consts.NamespaceSize:]...)
+			currentMsg.Data = append(currentMsg.Data, shares[i][appconsts.NamespaceSize:]...)
 		// this share contains the last chunk of data needed to complete the
 		// message
 		case currentMsgLen <= dataLen:
-			remaining := currentMsgLen - len(currentMsg.Data) + consts.NamespaceSize
-			currentMsg.Data = append(currentMsg.Data, shares[i][consts.NamespaceSize:remaining]...)
+			remaining := currentMsgLen - len(currentMsg.Data) + appconsts.NamespaceSize
+			currentMsg.Data = append(currentMsg.Data, shares[i][appconsts.NamespaceSize:remaining]...)
 			saveMessage()
 		}
 	}

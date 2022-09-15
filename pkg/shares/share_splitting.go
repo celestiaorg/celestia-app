@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/tendermint/tendermint/pkg/consts"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -86,7 +86,7 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 }
 
 func SplitTxs(txs coretypes.Txs) [][]byte {
-	writer := NewContiguousShareSplitter(consts.TxNamespaceID, consts.ShareVersion)
+	writer := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
 	for _, tx := range txs {
 		writer.WriteTx(tx)
 	}
@@ -94,7 +94,7 @@ func SplitTxs(txs coretypes.Txs) [][]byte {
 }
 
 func SplitEvidence(evd coretypes.EvidenceList) ([][]byte, error) {
-	writer := NewContiguousShareSplitter(consts.EvidenceNamespaceID, consts.ShareVersion)
+	writer := NewCompactShareSplitter(appconsts.EvidenceNamespaceID, appconsts.ShareVersion)
 	var err error
 	for _, ev := range evd {
 		err = writer.WriteEvidence(ev)
@@ -109,7 +109,7 @@ func SplitMessages(indexes []uint32, msgs []coretypes.Message) ([][]byte, error)
 	if indexes != nil && len(indexes) != len(msgs) {
 		return nil, ErrIncorrectNumberOfIndexes
 	}
-	writer := NewMessageShareSplitter()
+	writer := NewSparseShareSplitter()
 	for i, msg := range msgs {
 		writer.Write(msg)
 		if indexes != nil && len(indexes) > i+1 {

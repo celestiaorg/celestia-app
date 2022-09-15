@@ -3,13 +3,14 @@ package app
 import (
 	"bytes"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/pkg/da"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 )
@@ -30,7 +31,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	// also see https://github.com/celestiaorg/celestia-app/issues/226
 	commitmentCounter := 0
 	for _, rawTx := range req.BlockData.Txs {
-		tx, err := MalleatedTxDecoder(app.txConfig.TxDecoder())(rawTx)
+		tx, err := encoding.MalleatedTxDecoder(app.txConfig.TxDecoder())(rawTx)
 		if err != nil {
 			continue
 		}

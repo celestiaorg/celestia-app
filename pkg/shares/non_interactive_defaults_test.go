@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
-	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 func TestMsgSharesUsedNIDefaults(t *testing.T) {
@@ -31,10 +31,10 @@ func TestMsgSharesUsedNIDefaults(t *testing.T) {
 		{2, 8, 32, []int{10, 10}, []uint32{8, 24}},
 		{0, 8, 55, []int{21, 31}, []uint32{0, 24}},
 		{0, 8, 128, []int{64, 64}, []uint32{0, 64}},
-		{0, consts.MaxSquareSize, 1000, []int{1000}, []uint32{0}},
-		{0, consts.MaxSquareSize, consts.MaxSquareSize + 1, []int{consts.MaxSquareSize + 1}, []uint32{0}},
-		{1, consts.MaxSquareSize, (consts.MaxSquareSize * 4) - 1, []int{consts.MaxSquareSize, consts.MaxSquareSize, consts.MaxSquareSize}, []uint32{128, 256, 384}},
-		{1024, consts.MaxSquareSize, 32, []int{32}, []uint32{1024}},
+		{0, appconsts.MaxSquareSize, 1000, []int{1000}, []uint32{0}},
+		{0, appconsts.MaxSquareSize, appconsts.MaxSquareSize + 1, []int{appconsts.MaxSquareSize + 1}, []uint32{0}},
+		{1, appconsts.MaxSquareSize, (appconsts.MaxSquareSize * 4) - 1, []int{appconsts.MaxSquareSize, appconsts.MaxSquareSize, appconsts.MaxSquareSize}, []uint32{128, 256, 384}},
+		{1024, appconsts.MaxSquareSize, 32, []int{32}, []uint32{1024}},
 	}
 	for i, tt := range tests {
 		res, indexes := MsgSharesUsedNIDefaults(tt.cursor, tt.squareSize, tt.msgLens...)
@@ -54,42 +54,42 @@ func TestFitsInSquare(t *testing.T) {
 	}
 	tests := []test{
 		{
-			name:  "1 msgs size 2 shares (2 msg shares, 2 contiguous, size 4)",
+			name:  "1 msgs size 2 shares (2 msg shares, 2 compact, size 4)",
 			msgs:  []int{2},
 			start: 2,
 			size:  4,
 			fits:  true,
 		},
 		{
-			name:  "10 msgs size 10 shares (100 msg shares, 0 contiguous, size 4)",
+			name:  "10 msgs size 10 shares (100 msg shares, 0 compact, size 4)",
 			msgs:  []int{10, 10, 10, 10, 10, 10, 10, 10, 10, 10},
 			start: 0,
 			size:  4,
 			fits:  false,
 		},
 		{
-			name:  "15 msgs size 1 share (15 msg shares, 0 contiguous, size 4)",
+			name:  "15 msgs size 1 share (15 msg shares, 0 compact, size 4)",
 			msgs:  []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 			start: 0,
 			size:  4,
 			fits:  true,
 		},
 		{
-			name:  "15 msgs size 1 share starting at share 2 (15 msg shares, 2 contiguous, size 4)",
+			name:  "15 msgs size 1 share starting at share 2 (15 msg shares, 2 compact, size 4)",
 			msgs:  []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 			start: 2,
 			size:  4,
 			fits:  false,
 		},
 		{
-			name:  "8 msgs of various sizes, 7 starting shares (63 msg shares, 1 contigous, size 8)",
+			name:  "8 msgs of various sizes (63 msg shares, 1 compact share, size 8)",
 			msgs:  []int{3, 9, 3, 7, 8, 3, 7, 8},
 			start: 1,
 			size:  8,
 			fits:  true,
 		},
 		{
-			name:  "8 msgs of various sizes, 7 starting shares (63 msg shares, 7 contigous, size 8)",
+			name:  "8 msgs of various sizes (63 msg shares, 6 compact, size 8)",
 			msgs:  []int{3, 9, 3, 7, 8, 3, 7, 8},
 			start: 6,
 			size:  8,
