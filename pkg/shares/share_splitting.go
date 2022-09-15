@@ -95,9 +95,8 @@ func SplitTxs(txs coretypes.Txs) [][]byte {
 
 func SplitEvidence(evd coretypes.EvidenceList) ([][]byte, error) {
 	writer := NewCompactShareSplitter(appconsts.EvidenceNamespaceID, appconsts.ShareVersion)
-	var err error
 	for _, ev := range evd {
-		err = writer.WriteEvidence(ev)
+		err := writer.WriteEvidence(ev)
 		if err != nil {
 			return nil, err
 		}
