@@ -113,8 +113,8 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
 // that message and their corresponding txs get written to the square
 // atomically.
 type shareSplitter struct {
-	txWriter  *coretypes.ContiguousShareWriter
-	msgWriter *coretypes.MessageShareWriter
+	txWriter  *shares.CompactShareSplitter
+	msgWriter *shares.SparseShareSplitter
 
 	// Since evidence will always be included in a block, we do not need to
 	// generate these share lazily. Therefore instead of a CompactShareWriter
@@ -143,10 +143,8 @@ func newShareSplitter(txConf client.TxConfig, squareSize uint64, data *core.Data
 		panic(err)
 	}
 
-	// TODO: we should be able to use the CompactShareWriter and
-	// SparseShareWriter defined in pkg/shares here
-	sqwr.txWriter = coretypes.NewContiguousShareWriter(appconsts.TxNamespaceID)
-	sqwr.msgWriter = coretypes.NewMessageShareWriter()
+	sqwr.txWriter = shares.NewCompactShareSplitter(appconsts.TxNamespaceID)
+	sqwr.msgWriter = shares.NewSparseShareSplitter()
 
 	return &sqwr
 }
@@ -154,7 +152,7 @@ func newShareSplitter(txConf client.TxConfig, squareSize uint64, data *core.Data
 // writeTx marshals the tx and lazily writes it to the square. Returns true if
 // the write was successful, false if there was not enough room in the square.
 func (sqwr *shareSplitter) writeTx(tx []byte) (ok bool, err error) {
-	delimTx, err := coretypes.Tx(tx).MarshalDelimited()
+	delimTx, err := shares.MarshalDelimitedTx(tx)
 	if err != nil {
 		return false, err
 	}
@@ -163,7 +161,7 @@ func (sqwr *shareSplitter) writeTx(tx []byte) (ok bool, err error) {
 		return false, nil
 	}
 
-	sqwr.txWriter.Write(delimTx)
+	sqwr.txWriter.WriteBytes(delimTx)
 	return true, nil
 }
 
@@ -207,12 +205,12 @@ func (sqwr *shareSplitter) writeMalleatedTx(
 		return false, nil, nil, nil
 	}
 
-	delimTx, err := wrappedTx.MarshalDelimited()
+	delimTx, err := shares.MarshalDelimitedTx(wrappedTx)
 	if err != nil {
 		return false, nil, nil, err
 	}
 
-	sqwr.txWriter.Write(delimTx)
+	sqwr.txWriter.WriteBytes(delimTx)
 	sqwr.msgWriter.Write(coretypes.Message{
 		NamespaceID: coreMsg.NamespaceId,
 		Data:        coreMsg.Data,
@@ -258,33 +256,36 @@ func (sqwr *shareSplitter) export() [][]byte {
 	if availableBytes < appconsts.CompactShareContentSize {
 		count++
 	}
-	shares := make([][]byte, sqwr.maxShareCount)
+	rawShares := make([][]byte, sqwr.maxShareCount)
 
 	txShares := sqwr.txWriter.Export().RawShares()
 	txShareCount := len(txShares)
-	copy(shares, txShares)
+	copy(rawShares, txShares)
 
 	evdShareCount := len(sqwr.evdShares)
 	for i, evdShare := range sqwr.evdShares {
-		shares[i+txShareCount] = evdShare
+		rawShares[i+txShareCount] = evdShare
 	}
 
 	msgShares := sqwr.msgWriter.Export()
+	sort.SliceStable(msgShares, func(i, j int) bool {
+		return msgShares[i].ID.Less(msgShares[j].ID)
+	})
 	msgShareCount := len(msgShares)
 	for i, msgShare := range msgShares {
-		shares[i+txShareCount+evdShareCount] = msgShare.Share
+		rawShares[i+txShareCount+evdShareCount] = msgShare.Share
 	}
 
-	tailShares := coretypes.TailPaddingShares(sqwr.maxShareCount - count).RawShares()
+	tailShares := shares.TailPaddingShares(sqwr.maxShareCount - count).RawShares()
 
 	for i, tShare := range tailShares {
 		d := i + txShareCount + evdShareCount + msgShareCount
-		shares[d] = tShare
+		rawShares[d] = tShare
 	}
 
-	if len(shares[0]) == 0 {
-		shares = coretypes.TailPaddingShares(appconsts.MinShareCount).RawShares()
+	if len(rawShares[0]) == 0 {
+		rawShares = shares.TailPaddingShares(appconsts.MinShareCount).RawShares()
 	}
 
-	return shares
+	return rawShares
 }

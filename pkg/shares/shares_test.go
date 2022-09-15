@@ -224,10 +224,10 @@ func TestMerge(t *testing.T) {
 				tc.msgCount,
 				tc.maxSize,
 			)
+			data.OriginalSquareSize = appconsts.MaxSquareSize
 
-			shares, _, err := data.ComputeShares(0)
+			rawShares, err := Split(data)
 			require.NoError(t, err)
-			rawShares := shares.RawShares()
 
 			eds, err := rsmt2d.ComputeExtendedDataSquare(rawShares, appconsts.DefaultCodec(), rsmt2d.NewDefaultTree)
 			if err != nil {

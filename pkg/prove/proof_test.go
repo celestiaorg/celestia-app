@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
-	"sort"
 	"strings"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/pkg/da"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -115,7 +116,7 @@ func TestTxSharePosition(t *testing.T) {
 			positions[i] = startEndPoints{start: start, end: end}
 		}
 
-		shares := tt.txs.SplitIntoShares().RawShares()
+		shares := shares.SplitTxs(tt.txs)
 
 		for i, pos := range positions {
 			if pos.start == pos.end {
@@ -153,8 +154,8 @@ func Test_genRowShares(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	allShares, _, _ := typicalBlockData.ComputeShares(squareSize)
-	rawShares := allShares.RawShares()
+	rawShares, err := shares.Split(typicalBlockData)
+	require.NoError(t, err)
 
 	eds, err := da.ExtendShares(squareSize, rawShares)
 	require.NoError(t, err)
@@ -178,20 +179,19 @@ func Test_genOrigRowShares(t *testing.T) {
 		OriginalSquareSize: squareSize,
 	}
 
-	allShares, _, err := typicalBlockData.ComputeShares(squareSize)
+	rawShares, err := shares.Split(typicalBlockData)
 	require.NoError(t, err)
-	rawShares := allShares.RawShares()
 
 	genShares := genOrigRowShares(typicalBlockData, 0, 15)
 
-	require.Equal(t, len(allShares), len(genShares))
+	require.Equal(t, len(rawShares), len(genShares))
 	assert.Equal(t, rawShares, genShares)
 }
 
 func joinByteSlices(s ...[]byte) string {
 	out := make([]string, len(s))
 	for i, sl := range s {
-		sl, _, _ := types.ParseDelimiter(sl)
+		sl, _, _ := shares.ParseDelimiter(sl)
 		out[i] = string(sl[appconsts.NamespaceSize:])
 	}
 	return strings.Join(out, "")
@@ -239,43 +239,18 @@ func generateRandomlySizedMessages(count, maxMsgSize int) types.Messages {
 }
 
 func generateRandomMessage(size int) types.Message {
-	share := generateRandomNamespacedShares(1, size)[0]
 	msg := types.Message{
-		NamespaceID: share.NamespaceID(),
-		Data:        share.Data(),
+		NamespaceID: randomValidNamespace(),
+		Data:        tmrand.Bytes(size),
 	}
 	return msg
 }
 
-func generateRandomNamespacedShares(count, msgSize int) types.NamespacedShares {
-	shares := generateRandNamespacedRawData(uint32(count), appconsts.NamespaceSize, uint32(msgSize))
-	msgs := make([]types.Message, count)
-	for i, s := range shares {
-		msgs[i] = types.Message{
-			Data:        s[appconsts.NamespaceSize:],
-			NamespaceID: s[:appconsts.NamespaceSize],
+func randomValidNamespace() namespace.ID {
+	for {
+		s := tmrand.Bytes(8)
+		if bytes.Compare(s, appconsts.MaxReservedNamespace) > 0 {
+			return s
 		}
 	}
-	return types.Messages{MessagesList: msgs}.SplitIntoShares()
-}
-
-func generateRandNamespacedRawData(total, nidSize, leafSize uint32) [][]byte {
-	data := make([][]byte, total)
-	for i := uint32(0); i < total; i++ {
-		nid := make([]byte, nidSize)
-		rand.Read(nid)
-		data[i] = nid
-	}
-	sortByteArrays(data)
-	for i := uint32(0); i < total; i++ {
-		d := make([]byte, leafSize)
-		rand.Read(d)
-		data[i] = append(data[i], d...)
-	}
-
-	return data
-}
-
-func sortByteArrays(src [][]byte) {
-	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
 }

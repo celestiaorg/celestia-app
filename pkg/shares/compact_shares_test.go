@@ -18,7 +18,7 @@ func TestCompactShareWriter(t *testing.T) {
 	w := NewCompactShareSplitter(appconsts.TxNamespaceID)
 	txs := generateRandomCompactShares(33, 200)
 	for _, tx := range txs {
-		rawTx, _ := tx.MarshalDelimited()
+		rawTx, _ := MarshalDelimitedTx(tx)
 		w.WriteBytes(rawTx)
 	}
 	resShares := w.Export()
@@ -32,7 +32,7 @@ func TestCompactShareWriter(t *testing.T) {
 func Test_parseDelimiter(t *testing.T) {
 	for i := uint64(0); i < 100; i++ {
 		tx := generateRandomCompactShares(1, int(i))[0]
-		input, err := tx.MarshalDelimited()
+		input, err := MarshalDelimitedTx(tx)
 		if err != nil {
 			panic(err)
 		}

@@ -28,7 +28,7 @@ func NewCompactShareSplitter(ns namespace.ID) *CompactShareSplitter {
 }
 
 func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
-	rawData, err := tx.MarshalDelimited()
+	rawData, err := MarshalDelimitedTx(tx)
 	if err != nil {
 		panic(fmt.Sprintf("included Tx in mem-pool that can not be encoded %v", tx))
 	}

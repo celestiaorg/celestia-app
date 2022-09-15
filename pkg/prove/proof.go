@@ -3,9 +3,9 @@ package prove
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/rsmt2d"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
@@ -16,7 +16,7 @@ import (
 // TxInclusion uses the provided block data to progressively generate rows
 // of a data square, and then using those shares to creates nmt inclusion proofs
 // It is possible that a transaction spans more than one row. In that case, we
-// have to return two proofs.
+// have to return more than one proofs.
 func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxProof, error) {
 	// calculate the index of the shares that contain the tx
 	startPos, endPos, err := txSharePosition(data.Txs, txIndex)
@@ -150,36 +150,40 @@ func genOrigRowShares(data types.Data, startRow, endRow uint64) [][]byte {
 	wantLen := (endRow + 1) * data.OriginalSquareSize
 	startPos := startRow * data.OriginalSquareSize
 
-	shares := data.Txs.SplitIntoShares()
+	rawShares := shares.SplitTxs(data.Txs)
 	// return if we have enough shares
-	if uint64(len(shares)) >= wantLen {
-		return shares[startPos:wantLen].RawShares()
+	if uint64(len(rawShares)) >= wantLen {
+		return rawShares[startPos:wantLen]
 	}
 
-	evdShares := data.Evidence.SplitIntoShares()
+	evdShares, err := shares.SplitEvidence(data.Evidence.Evidence)
+	if err != nil {
+		panic(err)
+	}
 
-	shares = append(shares, evdShares...)
-	if uint64(len(shares)) >= wantLen {
-		return shares[startPos:wantLen].RawShares()
+	rawShares = append(rawShares, evdShares...)
+	if uint64(len(rawShares)) >= wantLen {
+		return rawShares[startPos:wantLen]
 	}
 
 	for _, m := range data.Messages.MessagesList {
-		rawData, err := m.MarshalDelimited()
+		msgShares, err := shares.SplitMessages(nil, []types.Message{m})
 		if err != nil {
-			panic(fmt.Sprintf("app accepted a Message that can not be encoded %#v", m))
+			panic(err)
 		}
-		shares = types.AppendToShares(shares, m.NamespaceID, rawData)
+
+		rawShares = append(rawShares, msgShares...)
 
 		// return if we have enough shares
-		if uint64(len(shares)) >= wantLen {
-			return shares[startPos:wantLen].RawShares()
+		if uint64(len(rawShares)) >= wantLen {
+			return rawShares[startPos:wantLen]
 		}
 	}
 
-	tailShares := types.TailPaddingShares(int(wantLen) - len(shares))
-	shares = append(shares, tailShares...)
+	tailShares := shares.TailPaddingShares(int(wantLen) - len(rawShares))
+	rawShares = append(rawShares, tailShares.RawShares()...)
 
-	return shares[startPos:wantLen].RawShares()
+	return rawShares[startPos:wantLen]
 }
 
 // splitIntoRows splits shares into rows of a particular square size
