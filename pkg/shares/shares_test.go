@@ -224,6 +224,7 @@ func TestMerge(t *testing.T) {
 				tc.msgCount,
 				tc.maxSize,
 			)
+			data.OriginalSquareSize = appconsts.MaxSquareSize
 
 			rawShares, err := Split(data)
 			require.NoError(t, err)
