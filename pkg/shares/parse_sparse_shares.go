@@ -34,12 +34,12 @@ func parseSparseShares(shares [][]byte) ([]coretypes.Message, error) {
 		dataLen = len(currentMsg.Data) + appconsts.SparseShareContentSize
 		switch {
 		case isNewMessage:
-			nextMsgChunk, nextMsgLen, err := ParseDelimiter(shares[i][appconsts.NamespaceSize:])
+			nextMsgChunk, nextMsgLen, err := ParseDelimiter(shares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:])
 			if err != nil {
 				return nil, err
 			}
 			// the current share is namespaced padding so we ignore it
-			if bytes.Equal(shares[i][appconsts.NamespaceSize:], appconsts.NameSpacedPaddedShareBytes) {
+			if bytes.Equal(shares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:], appconsts.NameSpacedPaddedShareBytes) {
 				continue
 			}
 			currentMsgLen = int(nextMsgLen)
@@ -58,12 +58,12 @@ func parseSparseShares(shares [][]byte) ([]coretypes.Message, error) {
 			isNewMessage = false
 		// this entire share contains a chunk of message that we need to save
 		case currentMsgLen > dataLen:
-			currentMsg.Data = append(currentMsg.Data, shares[i][appconsts.NamespaceSize:]...)
+			currentMsg.Data = append(currentMsg.Data, shares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:]...)
 		// this share contains the last chunk of data needed to complete the
 		// message
 		case currentMsgLen <= dataLen:
-			remaining := currentMsgLen - len(currentMsg.Data) + appconsts.NamespaceSize
-			currentMsg.Data = append(currentMsg.Data, shares[i][appconsts.NamespaceSize:remaining]...)
+			remaining := currentMsgLen - len(currentMsg.Data) + appconsts.NamespaceSize + appconsts.ShareInfoBytes
+			currentMsg.Data = append(currentMsg.Data, shares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:remaining]...)
 			saveMessage()
 		}
 	}
@@ -72,8 +72,9 @@ func parseSparseShares(shares [][]byte) ([]coretypes.Message, error) {
 
 // ParseDelimiter finds and returns the length delimiter of the share provided
 // while also removing the delimiter bytes from the input. ParseDelimiter
-// applies to both compact and sparse shares.
-func ParseDelimiter(input []byte) ([]byte, uint64, error) {
+// applies to both compact and sparse shares. Input should not contain the
+// namespace ID or info byte of a share.
+func ParseDelimiter(input []byte) (inputWithoutLengthDelimiter []byte, dataLength uint64, err error) {
 	if len(input) == 0 {
 		return input, 0, nil
 	}
@@ -87,17 +88,17 @@ func ParseDelimiter(input []byte) ([]byte, uint64, error) {
 
 	// read the length of the message
 	r := bytes.NewBuffer(delimiter)
-	msgLen, err := binary.ReadUvarint(r)
+	dataLength, err = binary.ReadUvarint(r)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	// calculate the number of bytes used by the delimiter
 	lenBuf := make([]byte, binary.MaxVarintLen64)
-	n := binary.PutUvarint(lenBuf, msgLen)
+	n := binary.PutUvarint(lenBuf, dataLength)
 
 	// return the input without the length delimiter
-	return input[n:], msgLen, nil
+	return input[n:], dataLength, nil
 }
 
 // zeroPadIfNecessary pads the share with trailing zero bytes if the provided
