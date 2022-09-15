@@ -17,23 +17,16 @@ const (
 	// NamespaceSize is the namespace size in bytes.
 	NamespaceSize = 8
 
-	// ShareInfoBytes is the number of bytes reserved for information. The info
-	// byte contains the share version and a start idicator.
-	ShareInfoBytes = 1
-
-	// ShareVersion is the current version of the share format
-	ShareVersion = uint8(0)
-
 	// CompactShareReservedBytes is the number of bytes reserved for the location of
 	// the first unit (transaction, ISR, evidence) in a compact share.
 	CompactShareReservedBytes = 1
 
 	// CompactShareContentSize is the number of bytes usable for data in a compact
 	// (i.e. transactions, ISRs, evidence) share.
-	CompactShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareReservedBytes
+	CompactShareContentSize = ShareSize - NamespaceSize - CompactShareReservedBytes
 	// SparseShareContentSize is the number of bytes usable for data in a sparse (i.e.
 	// message) share.
-	SparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes
+	SparseShareContentSize = ShareSize - NamespaceSize
 
 	// MaxSquareSize is the maximum number of
 	// rows/columns of the original data shares in square layout.
@@ -51,6 +44,7 @@ const (
 	MinSquareSize = 1
 	// MinshareCount is the minimum shares required in an original data square.
 	MinShareCount = MinSquareSize * MinSquareSize
+
 	// MaxShareVersion is the maximum value a share version can be.
 	MaxShareVersion = 127
 )
@@ -88,7 +82,7 @@ var (
 	// DataCommitmentBlocksLimit is the limit to the number of blocks we can generate a data commitment for.
 	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
 
-	// NameSpacedPaddedShareBytes is the raw bytes that are used in the contents
+	// NameSpacedPaddedShareBytes are the raw bytes that are used in the contents
 	// of a NameSpacedPaddedShare. A NameSpacedPaddedShare follows a message so
 	// that the next message starts at an index that conforms to non-interactive
 	// defaults.
