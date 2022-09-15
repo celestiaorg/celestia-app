@@ -185,11 +185,16 @@ func TailPaddingShares(n int) NamespacedShares {
 }
 
 func namespacedPaddedShares(ns []byte, count int) []NamespacedShare {
+	infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, true)
+	if err != nil {
+		panic(err)
+	}
 	shares := make([]NamespacedShare, count)
 	for i := 0; i < count; i++ {
 		shares[i] = NamespacedShare{
-			Share: append(append(
+			Share: append(append(append(
 				make([]byte, 0, appconsts.ShareSize), ns...),
+				byte(infoByte)),
 				make([]byte, appconsts.SparseShareContentSize)...),
 			ID: ns,
 		}
