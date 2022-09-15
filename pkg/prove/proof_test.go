@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -115,7 +116,8 @@ func TestTxSharePosition(t *testing.T) {
 			positions[i] = startEndPoints{start: start, end: end}
 		}
 
-		shares := tt.txs.SplitIntoShares().RawShares()
+		shares := shares.SplitTxs(tt.txs)
+		// shares := tt.txs.SplitIntoShares().RawShares()
 
 		for i, pos := range positions {
 			if pos.start == pos.end {
@@ -197,10 +199,10 @@ func joinByteSlices(s ...[]byte) string {
 	return strings.Join(out, "")
 }
 
-func generateRandomlySizedTxs(count, max int) types.Txs {
+func generateRandomlySizedTxs(count, maxSize int) types.Txs {
 	txs := make(types.Txs, count)
 	for i := 0; i < count; i++ {
-		size := rand.Intn(max)
+		size := rand.Intn(maxSize)
 		if size == 0 {
 			size = 1
 		}
