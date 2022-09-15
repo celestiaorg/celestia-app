@@ -184,13 +184,14 @@ func Test_genOrigRowShares(t *testing.T) {
 
 	genShares := genOrigRowShares(typicalBlockData, 0, 15)
 
+	require.Equal(t, len(rawShares), len(genShares))
 	assert.Equal(t, rawShares, genShares)
 }
 
 func joinByteSlices(s ...[]byte) string {
 	out := make([]string, len(s))
 	for i, sl := range s {
-		sl, _, _ := types.ParseDelimiter(sl)
+		sl, _, _ := shares.ParseDelimiter(sl)
 		out[i] = string(sl[appconsts.NamespaceSize+appconsts.ShareInfoBytes:])
 	}
 	return strings.Join(out, "")
