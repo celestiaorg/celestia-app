@@ -170,9 +170,10 @@ var tailPaddingInfo, _ = NewInfoReservedByte(appconsts.ShareVersion, false)
 var tailPaddingShare = append(append(
 	append(make([]byte, 0, appconsts.ShareSize), appconsts.TailPaddingNamespaceID...),
 	byte(tailPaddingInfo)),
-	bytes.Repeat([]byte{0}, appconsts.ShareSize-appconsts.NamespaceSize)...,
+	bytes.Repeat([]byte{0}, appconsts.ShareSize-appconsts.NamespaceSize-appconsts.ShareInfoBytes)...,
 )
 
+// TailPaddingShares creates n tail padding shares.
 func TailPaddingShares(n int) NamespacedShares {
 	shares := make([]NamespacedShare, n)
 	for i := 0; i < n; i++ {

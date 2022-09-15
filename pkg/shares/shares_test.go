@@ -206,11 +206,11 @@ func TestMerge(t *testing.T) {
 	tests := []test{
 		{"one of each random small size", 1, 1, 1, 40},
 		{"one of each random large size", 1, 1, 1, 400},
-		// {"many of each random large size", 10, 10, 10, 40},
-		// {"many of each random large size", 10, 10, 10, 400},
-		// {"only transactions", 10, 0, 0, 400},
-		// {"only evidence", 0, 10, 0, 400},
-		// {"only messages", 0, 0, 10, 400},
+		{"many of each random large size", 10, 10, 10, 40},
+		{"many of each random large size", 10, 10, 10, 400},
+		{"only transactions", 10, 0, 0, 400},
+		{"only evidence", 0, 10, 0, 400},
+		{"only messages", 0, 0, 10, 400},
 	}
 
 	for _, tc := range tests {
@@ -225,16 +225,8 @@ func TestMerge(t *testing.T) {
 				tc.maxSize,
 			)
 
-			txShares := SplitTxs(data.Txs)
-			evdShares, err := SplitEvidence(data.Evidence.Evidence)
+			rawShares, err := Split(data)
 			require.NoError(t, err)
-			msgShares, err := SplitMessages(nil, data.Messages.MessagesList)
-			require.NoError(t, err)
-
-			rawShares := [][]byte{}
-			rawShares = append(rawShares, txShares...)
-			rawShares = append(rawShares, evdShares...)
-			rawShares = append(rawShares, msgShares...)
 
 			eds, err := rsmt2d.ComputeExtendedDataSquare(rawShares, appconsts.DefaultCodec(), rsmt2d.NewDefaultTree)
 			if err != nil {
@@ -282,12 +274,12 @@ func TestFuzz_Merge(t *testing.T) {
 }
 
 // generateRandomBlockData returns randomly generated block data for testing purposes
-func generateRandomBlockData(txCount, evdCount, msgCount, maxSize int) coretypes.Data {
-	var out coretypes.Data
-	out.Txs = generateRandomlySizedCompactShares(txCount, maxSize)
-	out.Evidence = generateIdenticalEvidence(evdCount)
-	out.Messages = generateRandomlySizedMessages(msgCount, maxSize)
-	return out
+func generateRandomBlockData(txCount, evdCount, msgCount, maxSize int) (data coretypes.Data) {
+	data.Txs = generateRandomlySizedCompactShares(txCount, maxSize)
+	data.Evidence = generateIdenticalEvidence(evdCount)
+	data.Messages = generateRandomlySizedMessages(msgCount, maxSize)
+	data.OriginalSquareSize = 16
+	return data
 }
 
 func generateRandomlySizedCompactShares(count, max int) coretypes.Txs {
