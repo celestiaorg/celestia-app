@@ -1,6 +1,4 @@
 # ADR 004: IBC Whitelist/Allowlist
-<!-- disable markdownlint MD010 because Go code snippet uses tabs -->
-<!-- markdownlint-disable MD010 -->
 
 ## Terminology
 
