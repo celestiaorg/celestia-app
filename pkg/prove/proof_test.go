@@ -179,13 +179,11 @@ func Test_genOrigRowShares(t *testing.T) {
 		OriginalSquareSize: squareSize,
 	}
 
-	allShares, _, err := typicalBlockData.ComputeShares(squareSize)
+	rawShares, err := shares.Split(typicalBlockData)
 	require.NoError(t, err)
-	rawShares := allShares.RawShares()
 
 	genShares := genOrigRowShares(typicalBlockData, 0, 15)
 
-	require.Equal(t, len(allShares), len(genShares))
 	assert.Equal(t, rawShares, genShares)
 }
 
