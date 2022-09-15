@@ -15,7 +15,7 @@ const TxInclusionQueryPath = "txInclusionProof"
 
 // Querier defines the logic performed when the ABCI client using the Query
 // method with the custom prove.QueryPath. The index of the transaction being
-// proved must be appended to the path. The marshalled bytes of the transction
+// proved must be appended to the path. The marshalled bytes of the transaction
 // proof (tmproto.TxProof) are returned.
 //
 // example path for proving the third transaction in that block:
