@@ -2,7 +2,7 @@
 
 ## Terminology
 
-All terminolofy is defined in [ICS 024](https://github.com/cosmos/ibc/tree/main/spec/core/ics-024-host-requirements) and some references are from correspodnign implementation of [ICS 002](https://github.com/cosmos/ibc/tree/main/spec/core/ics-002-client-semantics) in [ibc-go](https://github.com/cosmos/ibc-go/blob/da1b7e0aaf4b7d466b1a7d1ed4f5d81149ff1d5b/modules/core/02-client)
+All terminology is defined in [ICS 024](https://github.com/cosmos/ibc/tree/main/spec/core/ics-024-host-requirements) and some references are from corresponding implementation of [ICS 002](https://github.com/cosmos/ibc/tree/main/spec/core/ics-002-client-semantics) in [ibc-go](https://github.com/cosmos/ibc-go/blob/da1b7e0aaf4b7d466b1a7d1ed4f5d81149ff1d5b/modules/core/02-client)
 
 ## Changelog
 
