@@ -64,7 +64,7 @@ func Test_processCompactShares(t *testing.T) {
 	// exactTxShareSize is the length of tx that will fit exactly into a single
 	// share, accounting for namespace id and the length delimiter prepended to
 	// each tx
-	const exactTxShareSize = appconsts.TxShareSize - 1
+	const exactTxShareSize = appconsts.CompactShareContentSize - 1
 
 	type test struct {
 		name    string

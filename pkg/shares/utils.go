@@ -18,9 +18,9 @@ func DelimLen(x uint64) int {
 func MsgSharesUsed(msgSize int) int {
 	// add the delimiter to the message size
 	msgSize = DelimLen(uint64(msgSize)) + msgSize
-	shareCount := msgSize / appconsts.MsgShareSize
+	shareCount := msgSize / appconsts.SparseShareContentSize
 	// increment the share count if the message overflows the last counted share
-	if msgSize%appconsts.MsgShareSize != 0 {
+	if msgSize%appconsts.SparseShareContentSize != 0 {
 		shareCount++
 	}
 	return shareCount

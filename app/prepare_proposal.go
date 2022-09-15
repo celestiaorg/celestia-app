@@ -51,7 +51,7 @@ func (app *App) estimateSquareSize(data *core.Data) uint64 {
 	for _, tx := range data.Txs {
 		txBytes += len(tx) + types.DelimLen(uint64(len(tx)))
 	}
-	txShareEstimate := txBytes / appconsts.TxShareSize
+	txShareEstimate := txBytes / appconsts.CompactShareContentSize
 	if txBytes > 0 {
 		txShareEstimate++ // add one to round up
 	}
@@ -60,7 +60,7 @@ func (app *App) estimateSquareSize(data *core.Data) uint64 {
 	for _, evd := range data.Evidence.Evidence {
 		evdBytes += evd.Size() + types.DelimLen(uint64(evd.Size()))
 	}
-	evdShareEstimate := evdBytes / appconsts.TxShareSize
+	evdShareEstimate := evdBytes / appconsts.CompactShareContentSize
 	if evdBytes > 0 {
 		evdShareEstimate++ // add one to round up
 	}

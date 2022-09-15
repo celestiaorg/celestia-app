@@ -226,7 +226,7 @@ func (sqwr *shareSplitter) hasRoomForBoth(tx, msg []byte) bool {
 
 	txBytesTaken := types.DelimLen(uint64(len(tx))) + len(tx)
 
-	maxTxSharesTaken := ((txBytesTaken - availableBytes) / appconsts.TxShareSize) + 1 // plus one because we have to add at least one share
+	maxTxSharesTaken := ((txBytesTaken - availableBytes) / appconsts.CompactShareContentSize) + 1 // plus one because we have to add at least one share
 
 	maxMsgSharesTaken := types.MsgSharesUsed(len(msg))
 
@@ -241,7 +241,7 @@ func (sqwr *shareSplitter) hasRoomForTx(tx []byte) bool {
 		return true
 	}
 
-	maxSharesTaken := ((bytesTaken - availableBytes) / appconsts.TxShareSize) + 1 // plus one because we have to add at least one share
+	maxSharesTaken := ((bytesTaken - availableBytes) / appconsts.CompactShareContentSize) + 1 // plus one because we have to add at least one share
 
 	return currentShareCount+maxSharesTaken <= sqwr.maxShareCount
 }
@@ -255,7 +255,7 @@ func (sqwr *shareSplitter) shareCount() (count, availableTxBytes int) {
 func (sqwr *shareSplitter) export() [][]byte {
 	count, availableBytes := sqwr.shareCount()
 	// increment the count if there are any pending tx bytes
-	if availableBytes < appconsts.TxShareSize {
+	if availableBytes < appconsts.CompactShareContentSize {
 		count++
 	}
 	shares := make([][]byte, sqwr.maxShareCount)

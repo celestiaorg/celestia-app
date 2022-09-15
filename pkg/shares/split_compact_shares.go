@@ -79,7 +79,7 @@ func (css *CompactShareSplitter) WriteBytes(rawData []byte) {
 		txCursor = len(rawData)
 
 		// add the share reserved bytes to the new pending share
-		pendingCursor := len(rawData) + appconsts.NamespaceSize + appconsts.ShareReservedBytes
+		pendingCursor := len(rawData) + appconsts.NamespaceSize + appconsts.CompactShareReservedBytes
 		var reservedByte byte
 		if pendingCursor >= appconsts.ShareSize {
 			// the share reserve byte is zero when some compactly written
@@ -126,7 +126,7 @@ func (css *CompactShareSplitter) Export() NamespacedShares {
 	lastShare := css.shares[len(css.shares)-1]
 	rawLastShare := lastShare.Data()
 
-	for i := 0; i < appconsts.ShareReservedBytes; i++ {
+	for i := 0; i < appconsts.CompactShareReservedBytes; i++ {
 		// here we force the last share reserved byte to be zero to avoid any
 		// confusion for light clients parsing these shares, as the rest of the
 		// data after transaction is padding. See
@@ -147,7 +147,7 @@ func (css *CompactShareSplitter) Count() (count, availableBytes int) {
 	if len(css.pendingShare.Share) > appconsts.NamespaceSize {
 		return len(css.shares), 0
 	}
-	availableBytes = appconsts.TxShareSize - (len(css.pendingShare.Share) - appconsts.NamespaceSize)
+	availableBytes = appconsts.CompactShareContentSize - (len(css.pendingShare.Share) - appconsts.NamespaceSize)
 	return len(css.shares), availableBytes
 }
 
@@ -175,7 +175,7 @@ func namespacedPaddedShares(ns []byte, count int) []NamespacedShare {
 		shares[i] = NamespacedShare{
 			Share: append(append(
 				make([]byte, 0, appconsts.ShareSize), ns...),
-				make([]byte, appconsts.MsgShareSize)...),
+				make([]byte, appconsts.SparseShareContentSize)...),
 			ID: ns,
 		}
 	}

@@ -8,23 +8,28 @@ import (
 	"github.com/tendermint/tendermint/pkg/consts"
 )
 
-// These constants are sourced from:
+// These constants were originally sourced from:
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/consensus.md#constants
 const (
-	// ShareSize is the size of a share (in bytes).
-	// See: https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/consensus.md#constants
+	// ShareSize is the size of a share in bytes.
 	ShareSize = 256
 
 	// NamespaceSize is the namespace size in bytes.
 	NamespaceSize = 8
 
-	// ShareReservedBytes is the reserved bytes for contiguous appends.
-	ShareReservedBytes = 1
+	// See https://github.com/celestiaorg/celestia-app/pull/660#discussion_r958603307
+	// for the motivation behind `CompactShare` and `SparseShare` terminology.
 
-	// TxShareSize is the number of bytes usable for tx/evidence/ISR shares.
-	TxShareSize = ShareSize - NamespaceSize - ShareReservedBytes
-	// MsgShareSize is the number of bytes usable for message shares.
-	MsgShareSize = ShareSize - NamespaceSize
+	// CompactShareReservedBytes is the number of bytes reserved for the location of
+	// the first unit (transaction, ISR, evidence) in a compact share.
+	CompactShareReservedBytes = 1
+
+	// CompactShareContentSize is the number of bytes usable for data in a compact
+	// (i.e. transactions, ISRs, evidence) share.
+	CompactShareContentSize = ShareSize - NamespaceSize - CompactShareReservedBytes
+	// SparseShareContentSize is the number of bytes usable for data in a sparse (i.e.
+	// message) share.
+	SparseShareContentSize = ShareSize - NamespaceSize
 
 	// MaxSquareSize is the maximum number of
 	// rows/columns of the original data shares in square layout.
@@ -80,5 +85,9 @@ var (
 	// DataCommitmentBlocksLimit is the limit to the number of blocks we can generate a data commitment for.
 	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
 
-	NameSpacedPaddedShareBytes = bytes.Repeat([]byte{0}, MsgShareSize)
+	// NameSpacedPaddedShareBytes are the raw bytes that are used in the contents
+	// of a NameSpacedPaddedShare. A NameSpacedPaddedShare follows a message so
+	// that the next message starts at an index that conforms to non-interactive
+	// defaults.
+	NameSpacedPaddedShareBytes = bytes.Repeat([]byte{0}, SparseShareContentSize)
 )

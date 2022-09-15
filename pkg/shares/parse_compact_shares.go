@@ -37,7 +37,7 @@ func (ss *shareStack) resolve() ([][]byte, error) {
 	if len(ss.shares) == 0 {
 		return nil, nil
 	}
-	err := ss.peel(ss.shares[0][appconsts.NamespaceSize+appconsts.ShareReservedBytes:], true)
+	err := ss.peel(ss.shares[0][appconsts.NamespaceSize+appconsts.CompactShareReservedBytes:], true)
 	return ss.data, err
 }
 
@@ -70,7 +70,7 @@ func (ss *shareStack) peel(share []byte, delimited bool) (err error) {
 	// add the next share to the current share to continue merging if possible
 	if len(ss.shares) > ss.cursor+1 {
 		ss.cursor++
-		share := append(share, ss.shares[ss.cursor][appconsts.NamespaceSize+appconsts.ShareReservedBytes:]...)
+		share := append(share, ss.shares[ss.cursor][appconsts.NamespaceSize+appconsts.CompactShareReservedBytes:]...)
 		return ss.peel(share, false)
 	}
 	// collect any remaining data

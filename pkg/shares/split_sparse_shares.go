@@ -92,7 +92,7 @@ func (sss *SparseShareSplitter) Count() int {
 // AppendToShares appends raw data as shares.
 // Used for messages.
 func AppendToShares(shares []NamespacedShare, nid namespace.ID, rawData []byte) []NamespacedShare {
-	if len(rawData) <= appconsts.MsgShareSize {
+	if len(rawData) <= appconsts.SparseShareContentSize {
 		rawShare := append(append(
 			make([]byte, 0, len(nid)+len(rawData)),
 			nid...),
@@ -114,12 +114,12 @@ func splitMessage(rawData []byte, nid namespace.ID) NamespacedShares {
 	firstRawShare := append(append(
 		make([]byte, 0, appconsts.ShareSize),
 		nid...),
-		rawData[:appconsts.MsgShareSize]...,
+		rawData[:appconsts.SparseShareContentSize]...,
 	)
 	shares = append(shares, NamespacedShare{firstRawShare, nid})
-	rawData = rawData[appconsts.MsgShareSize:]
+	rawData = rawData[appconsts.SparseShareContentSize:]
 	for len(rawData) > 0 {
-		shareSizeOrLen := min(appconsts.MsgShareSize, len(rawData))
+		shareSizeOrLen := min(appconsts.SparseShareContentSize, len(rawData))
 		rawShare := append(append(
 			make([]byte, 0, appconsts.ShareSize),
 			nid...),

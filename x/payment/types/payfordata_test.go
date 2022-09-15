@@ -205,14 +205,14 @@ func TestSignMalleatedTxs(t *testing.T) {
 		{
 			name:    "single share",
 			ns:      []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			msg:     bytes.Repeat([]byte{1}, appconsts.MsgShareSize),
+			msg:     bytes.Repeat([]byte{1}, appconsts.SparseShareContentSize),
 			ss:      []uint64{2, 4, 8, 16},
 			options: []TxBuilderOption{SetGasLimit(2000000)},
 		},
 		{
 			name: "12 shares",
 			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:  bytes.Repeat([]byte{2}, (appconsts.MsgShareSize*12)-4), // subtract a few bytes for the delimiter
+			msg:  bytes.Repeat([]byte{2}, (appconsts.SparseShareContentSize*12)-4), // subtract a few bytes for the delimiter
 			ss:   []uint64{4, 8, 16, 64},
 			options: []TxBuilderOption{
 				SetGasLimit(123456789),
@@ -276,21 +276,21 @@ func TestProcessMessage(t *testing.T) {
 		{
 			name:   "single share square size 2",
 			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			msg:    bytes.Repeat([]byte{1}, totalMsgSize(appconsts.MsgShareSize)),
+			msg:    bytes.Repeat([]byte{1}, totalMsgSize(appconsts.SparseShareContentSize)),
 			ss:     2,
 			modify: dontModify,
 		},
 		{
 			name:   "15 shares square size 4",
 			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:    bytes.Repeat([]byte{2}, totalMsgSize(appconsts.MsgShareSize*15)),
+			msg:    bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15)),
 			ss:     4,
 			modify: dontModify,
 		},
 		{
 			name: "incorrect square size",
 			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:  bytes.Repeat([]byte{2}, totalMsgSize(appconsts.MsgShareSize*15)),
+			msg:  bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15)),
 			ss:   4,
 			modify: func(wpfd *MsgWirePayForData) *MsgWirePayForData {
 				wpfd.MessageShareCommitment[0].K = 99999
@@ -448,7 +448,7 @@ func validMsgPayForData(t *testing.T) *MsgPayForData {
 	kb := generateKeyring(t, "test")
 	signer := NewKeyringSigner(kb, "test", "chain-id")
 	ns := []byte{1, 1, 1, 1, 1, 1, 1, 2}
-	msg := bytes.Repeat([]byte{2}, totalMsgSize(appconsts.MsgShareSize*15))
+	msg := bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15))
 	ss := uint64(4)
 
 	wpfd, err := NewWirePayForData(ns, msg, ss)

@@ -30,7 +30,7 @@ func TestTxInclusion(t *testing.T) {
 	overlappingRowsBlockData := types.Data{
 		Txs: types.ToTxs(
 			[][]byte{
-				tmrand.Bytes(appconsts.TxShareSize*overlappingSquareSize + 1),
+				tmrand.Bytes(appconsts.CompactShareContentSize*overlappingSquareSize + 1),
 				tmrand.Bytes(10000),
 			},
 		),
@@ -39,7 +39,7 @@ func TestTxInclusion(t *testing.T) {
 	overlappingRowsBlockDataWithMessages := types.Data{
 		Txs: types.ToTxs(
 			[][]byte{
-				tmrand.Bytes(appconsts.TxShareSize*overlappingSquareSize + 1),
+				tmrand.Bytes(appconsts.CompactShareContentSize*overlappingSquareSize + 1),
 				tmrand.Bytes(10000),
 			},
 		),
