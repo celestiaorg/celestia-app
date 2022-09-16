@@ -3,6 +3,7 @@ package shares
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 
 	coretypes "github.com/tendermint/tendermint/types"
 
@@ -44,6 +45,13 @@ func parseSparseShares(shares [][]byte) ([]coretypes.Message, error) {
 			}
 			currentMsgLen = int(nextMsgLen)
 			nid := shares[i][:appconsts.NamespaceSize]
+			infoByte, err := ParseInfoReservedByte(shares[i][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0])
+			if err != nil {
+				panic(err)
+			}
+			if infoByte.IsMessageStart() != isNewMessage {
+				return nil, fmt.Errorf("expected message start indicator to be %t but got %t", isNewMessage, infoByte.IsMessageStart())
+			}
 			currentMsg = coretypes.Message{
 				NamespaceID: nid,
 				Data:        nextMsgChunk,
