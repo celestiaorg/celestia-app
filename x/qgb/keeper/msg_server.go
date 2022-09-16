@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 )
 
