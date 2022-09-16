@@ -162,3 +162,10 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, byte(want), infoByte)
 }
+
+func Test_parseCompactSharesReturnsErrForShareWithStartIndicatorFalse(t *testing.T) {
+	txs := generateRandomCompactShares(2, 1000)
+	shares := SplitTxs(txs)
+	_, err := parseCompactShares(shares[1:]) // the second share has the message start indicator set to false
+	assert.Error(t, err)
+}

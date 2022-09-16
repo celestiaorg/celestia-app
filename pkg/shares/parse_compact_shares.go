@@ -37,7 +37,14 @@ func (ss *shareStack) resolve() ([][]byte, error) {
 	if len(ss.shares) == 0 {
 		return nil, nil
 	}
-	err := ss.peel(ss.shares[0][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:], true)
+	infoByte, err := ParseInfoReservedByte(ss.shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0])
+	if err != nil {
+		panic(err)
+	}
+	if !infoByte.IsMessageStart() {
+		return nil, errors.New("first share is not a message start")
+	}
+	err = ss.peel(ss.shares[0][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:], true)
 	return ss.data, err
 }
 
