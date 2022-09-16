@@ -126,7 +126,7 @@ func (css *CompactShareSplitter) stackPending() {
 // Export finalizes and returns the underlying compact shares.
 func (css *CompactShareSplitter) Export() NamespacedShares {
 	// add the pending share to the current shares before returning
-	if len(css.pendingShare.Share) > appconsts.NamespaceSize {
+	if len(css.pendingShare.Share) > appconsts.NamespaceSize+appconsts.ShareInfoBytes {
 		css.pendingShare.Share = zeroPadIfNecessary(css.pendingShare.Share, appconsts.ShareSize)
 		css.shares = append(css.shares, css.pendingShare)
 	}
@@ -153,13 +153,14 @@ func (css *CompactShareSplitter) Export() NamespacedShares {
 	return css.shares
 }
 
-// Count returns the current number of shares that will be made if exporting.
+// Count returns the current number of shares that will be made if exporting and
+// the number of availableBytes in the last pending share.
 func (css *CompactShareSplitter) Count() (count, availableBytes int) {
 	if len(css.pendingShare.Share) > appconsts.NamespaceSize+appconsts.ShareInfoBytes {
 		return len(css.shares), 0
 	}
 	//  this doesn't account for the size of the reserved byte
-	availableBytes = appconsts.SparseShareContentSize - (len(css.pendingShare.Share) - appconsts.NamespaceSize - appconsts.ShareInfoBytes)
+	availableBytes = appconsts.CompactShareContentSize - (len(css.pendingShare.Share) - appconsts.NamespaceSize - appconsts.ShareInfoBytes)
 	return len(css.shares), availableBytes
 }
 
