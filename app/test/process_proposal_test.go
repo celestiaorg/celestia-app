@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
 	paytestutil "github.com/celestiaorg/celestia-app/testutil/payment"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
@@ -78,7 +78,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 			name:  "invalid namespace TailPadding",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Messages.MessagesList[0] = &core.Message{NamespaceId: consts.TailPaddingNamespaceID, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
+				d.Messages.MessagesList[0] = &core.Message{NamespaceId: appconsts.TailPaddingNamespaceID, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -86,7 +86,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 			name:  "invalid namespace TxNamespace",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Messages.MessagesList[0] = &core.Message{NamespaceId: consts.TxNamespaceID, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
+				d.Messages.MessagesList[0] = &core.Message{NamespaceId: appconsts.TxNamespaceID, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -133,9 +133,9 @@ func TestMessageInclusionCheck(t *testing.T) {
 // 	}
 
 // 	tests := []test{
-// 		{"transaction namespace id for message", consts.TxNamespaceID, abci.ResponseProcessProposal_REJECT},
-// 		{"evidence namespace id for message", consts.EvidenceNamespaceID, abci.ResponseProcessProposal_REJECT},
-// 		{"tail padding namespace id for message", consts.TailPaddingNamespaceID, abci.ResponseProcessProposal_REJECT},
+// 		{"transaction namespace id for message", appconsts.TxNamespaceID, abci.ResponseProcessProposal_REJECT},
+// 		{"evidence namespace id for message", appconsts.EvidenceNamespaceID, abci.ResponseProcessProposal_REJECT},
+// 		{"tail padding namespace id for message", appconsts.TailPaddingNamespaceID, abci.ResponseProcessProposal_REJECT},
 // 		{"namespace id 200 for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, abci.ResponseProcessProposal_REJECT},
 // 		{"correct namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, abci.ResponseProcessProposal_ACCEPT},
 // 	}
@@ -180,7 +180,7 @@ func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
 
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
 
-	pfd, msg := genRandMsgPayForDataForNamespace(t, signer, 8, consts.ParitySharesNamespaceID)
+	pfd, msg := genRandMsgPayForDataForNamespace(t, signer, 8, appconsts.ParitySharesNamespaceID)
 	input := abci.RequestProcessProposal{
 		BlockData: &core.Data{
 			Txs: [][]byte{

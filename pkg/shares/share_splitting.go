@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/tendermint/tendermint/pkg/consts"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -47,9 +47,9 @@ func Split(data coretypes.Data) ([][]byte, error) {
 			MsgSharesUsed(len(data.Messages.MessagesList[0].Data)),
 			int(data.OriginalSquareSize),
 		)
-		ns := consts.TxNamespaceID
+		ns := appconsts.TxNamespaceID
 		if len(evdShares) > 0 {
-			ns = consts.EvidenceNamespaceID
+			ns = appconsts.EvidenceNamespaceID
 		}
 		padding = namespacedPaddedShares(ns, msgShareStart-currentShareCount).RawShares()
 	}
@@ -103,7 +103,7 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 }
 
 func SplitTxs(txs coretypes.Txs) [][]byte {
-	writer := NewContiguousShareSplitter(consts.TxNamespaceID)
+	writer := NewCompactShareSplitter(appconsts.TxNamespaceID)
 	for _, tx := range txs {
 		writer.WriteTx(tx)
 	}
@@ -111,7 +111,7 @@ func SplitTxs(txs coretypes.Txs) [][]byte {
 }
 
 func SplitEvidence(evd coretypes.EvidenceList) ([][]byte, error) {
-	writer := NewContiguousShareSplitter(consts.EvidenceNamespaceID)
+	writer := NewCompactShareSplitter(appconsts.EvidenceNamespaceID)
 	var err error
 	for _, ev := range evd {
 		err = writer.WriteEvidence(ev)
@@ -126,7 +126,7 @@ func SplitMessages(cursor int, indexes []uint32, msgs []coretypes.Message, useSh
 	if useShareIndexes && len(indexes) != len(msgs) {
 		return nil, ErrIncorrectNumberOfIndexes
 	}
-	writer := NewMessageShareSplitter()
+	writer := NewSparseShareSplitter()
 	for i, msg := range msgs {
 		writer.Write(msg)
 		if useShareIndexes && len(indexes) > i+1 {

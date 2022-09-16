@@ -24,6 +24,7 @@ The malleated transaction that is created from metadata contained in the origina
 The malleation process occurs during the PrepareProposal step.
 
 <!-- markdownlint-disable MD010 -->
+
 ```go
 // ProcessWirePayForData will perform the processing required by PrepareProposal.
 // It parses the MsgWirePayForData to produce the components needed to create a
@@ -90,12 +91,13 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	}
 }
 ```
+
 <!-- markdownlint-enable MD010 -->
 
 ## Events
 
 - [`NewPayForDataEvent`](https://github.com/celestiaorg/celestia-app/pull/213/files#diff-1ce55bda42cf160deca2e5ea1f4382b65f3b689c7e00c88085d7ce219e77303dR17-R21)
-Emit an event that has the signer's address and size of the message that is paid for.
+  Emit an event that has the signer's address and size of the message that is paid for.
 
 ## Parameters
 
@@ -114,6 +116,7 @@ There are no parameters yet, but we might add
 There are tools to programmatically create, sign, and broadcast `MsgWirePayForDatas`
 
 <!-- markdownlint-disable MD010 -->
+
 ```go
 // create the raw WirePayForData transaction
 wpfdMsg, err := apptypes.NewWirePayForData(block.Header.NamespaceId, message, 16, 32, 64, 128)
@@ -154,17 +157,18 @@ if err != nil {
     return err
 }
 ```
+
 <!-- markdownlint-enable MD010 -->
 
 ### How the commitments are generated
 
 1. create the final version of the message by adding the length delimiter, the namespace, and then the message together into a single string of bytes
 
-    ```python
-    finalMessage = [length delimiter] + [namespace] + [message]
-    ```
+   ```python
+   finalMessage = [length delimiter] + [namespace] + [message]
+   ```
 
-2. chunk the finalMessage into shares of size `consts.ShareSize`
+2. chunk the finalMessage into shares of size `appconsts.ShareSize`
 3. pad until number of shares is a power of two
 4. create the commitment by aranging the shares into a merkle mountain range
 5. create a merkle root of the subtree roots

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -15,7 +16,6 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -178,7 +178,7 @@ func generateKeyring(t *testing.T, cdc codec.Codec, accts ...string) keyring.Key
 func randomValidNamespace() namespace.ID {
 	for {
 		s := tmrand.Bytes(8)
-		if bytes.Compare(s, consts.MaxReservedNamespace) > 0 {
+		if bytes.Compare(s, appconsts.MaxReservedNamespace) > 0 {
 			return s
 		}
 	}

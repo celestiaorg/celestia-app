@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func Test_parseMsgShares(t *testing.T) {
+func Test_parseSparseShares(t *testing.T) {
 	// exactMsgShareSize is the length of message that will fit exactly into a single
 	// share, accounting for namespace id and the length delimiter prepended to
 	// each message
-	const exactMsgShareSize = consts.MsgShareSize - 2
+	const exactMsgShareSize = appconsts.SparseShareContentSize - 2
 
 	type test struct {
 		name     string
@@ -30,7 +30,7 @@ func Test_parseMsgShares(t *testing.T) {
 		{"single big msg", 1000, 1},
 		{"many big msgs", 1000, 10},
 		{"single exact size msg", exactMsgShareSize, 1},
-		{"many exact size msgs", consts.MsgShareSize, 10},
+		{"many exact size msgs", appconsts.SparseShareContentSize, 10},
 	}
 
 	for _, tc := range tests {
@@ -47,7 +47,7 @@ func Test_parseMsgShares(t *testing.T) {
 
 			shares, _ := SplitMessages(0, nil, msgs.MessagesList, false)
 
-			parsedMsgs, err := parseMsgShares(shares)
+			parsedMsgs, err := parseSparseShares(shares)
 			if err != nil {
 				t.Error(err)
 			}
@@ -64,7 +64,7 @@ func Test_parseMsgShares(t *testing.T) {
 			msgs := generateRandomlySizedMessages(tc.msgCount, tc.msgSize)
 			shares, _ := SplitMessages(0, nil, msgs.MessagesList, false)
 
-			parsedMsgs, err := parseMsgShares(shares)
+			parsedMsgs, err := parseSparseShares(shares)
 			if err != nil {
 				t.Error(err)
 			}
@@ -79,7 +79,7 @@ func Test_parseMsgShares(t *testing.T) {
 }
 
 func TestParsePaddedMsg(t *testing.T) {
-	msgWr := NewMessageShareSplitter()
+	msgWr := NewSparseShareSplitter()
 	randomSmallMsg := generateRandomMessage(100)
 	randomLargeMsg := generateRandomMessage(10000)
 	msgs := coretypes.Messages{
@@ -93,7 +93,7 @@ func TestParsePaddedMsg(t *testing.T) {
 	msgWr.WriteNamespacedPaddedShares(4)
 	msgWr.Write(msgs.MessagesList[1])
 	msgWr.WriteNamespacedPaddedShares(10)
-	pmsgs, err := parseMsgShares(msgWr.Export().RawShares())
+	pmsgs, err := parseSparseShares(msgWr.Export().RawShares())
 	require.NoError(t, err)
 	require.Equal(t, msgs.MessagesList, pmsgs)
 }

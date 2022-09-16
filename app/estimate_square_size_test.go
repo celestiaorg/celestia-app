@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -23,15 +23,15 @@ func Test_estimateSquareSize(t *testing.T) {
 		expectedSize          uint64
 	}
 	tests := []test{
-		{"empty block minimum square size", 0, 0, 0, consts.MinSquareSize},
-		{"full block with only txs", 10000, 0, 0, consts.MaxSquareSize},
+		{"empty block minimum square size", 0, 0, 0, appconsts.MinSquareSize},
+		{"full block with only txs", 10000, 0, 0, appconsts.MaxSquareSize},
 		{"random small block square size 4", 0, 1, 400, 4},
 		{"random small block square size 4", 0, 1, 2000, 4},
 		{"random small block w/ 10 normal txs square size 4", 10, 1, 2000, 8},
 		{"random small block square size 16", 0, 4, 2000, 16},
 		{"random medium block square size 32", 0, 50, 2000, 32},
-		{"full block max square size", 0, 8000, 100, consts.MaxSquareSize},
-		{"overly full block", 0, 80, 100000, consts.MaxSquareSize},
+		{"full block max square size", 0, 8000, 100, appconsts.MaxSquareSize},
+		{"overly full block", 0, 80, 100000, appconsts.MaxSquareSize},
 		{"one over the perfect estimation edge case", 10, 1, 300, 8},
 	}
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)

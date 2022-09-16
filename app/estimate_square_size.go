@@ -35,9 +35,9 @@ func prune(txConf client.TxConfig, txs []*parsedTx, currentShareCount, squareSiz
 	// inorder to tally total contiguous shares removed
 	adjustContigCursor := func(l int) {
 		contigBytesCursor += l + shares.DelimLen(uint64(l))
-		if contigBytesCursor >= consts.TxShareSize {
-			removedContiguousShares += (contigBytesCursor / consts.TxShareSize)
-			contigBytesCursor = contigBytesCursor % consts.TxShareSize
+		if contigBytesCursor >= appconsts.CompactShareContentSize {
+			removedContiguousShares += (contigBytesCursor / appconsts.CompactShareContentSize)
+			contigBytesCursor = contigBytesCursor % appconsts.CompactShareContentSize
 		}
 	}
 
@@ -67,7 +67,7 @@ func prune(txConf client.TxConfig, txs []*parsedTx, currentShareCount, squareSiz
 
 // calculateCompactShareCount calculates the exact number of compact shares used.
 func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSize int) int {
-	txSplitter, evdSplitter := shares.NewContiguousShareSplitter(consts.TxNamespaceID), shares.NewContiguousShareSplitter(consts.EvidenceNamespaceID)
+	txSplitter, evdSplitter := shares.NewCompactShareSplitter(consts.TxNamespaceID), shares.NewCompactShareSplitter(appconsts.EvidenceNamespaceID)
 	var err error
 	msgSharesCursor := len(txs)
 	for _, tx := range txs {
@@ -93,11 +93,11 @@ func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSi
 		}
 	}
 	txCount, available := txSplitter.Count()
-	if consts.TxShareSize-available > 0 {
+	if appconsts.CompactShareContentSize-available > 0 {
 		txCount++
 	}
 	evdCount, available := evdSplitter.Count()
-	if consts.TxShareSize-available > 0 {
+	if appconsts.CompactShareContentSize-available > 0 {
 		evdCount++
 	}
 	return txCount + evdCount
@@ -119,8 +119,8 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 	squareSize := nextPowerOfTwo(int(math.Ceil(math.Sqrt(float64(txShares + evdShares + msgShares)))))
 
 	// the starting square size should at least be the minimum
-	if squareSize < consts.MinSquareSize {
-		squareSize = consts.MinSquareSize
+	if squareSize < appconsts.MinSquareSize {
+		squareSize = appconsts.MinSquareSize
 	}
 
 	var fits bool
@@ -133,8 +133,8 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 		fits, msgShares = shares.FitsInSquare(txShares+evdShares, squareSize, msgLens...)
 		switch {
 		// stop estimating if we know we can reach the max square size
-		case squareSize >= consts.MaxSquareSize:
-			return consts.MaxSquareSize, txShares + evdShares + msgShares
+		case squareSize >= appconsts.MaxSquareSize:
+			return appconsts.MaxSquareSize, txShares + evdShares + msgShares
 		// return if we've found a square size that fits all of the txs
 		case fits:
 			return uint64(squareSize), txShares + evdShares + msgShares
@@ -183,7 +183,7 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 		msgSummaries = append(msgSummaries, msgSummary{shares.MsgSharesUsed(int(pTx.msg.MessageSize)), pTx.msg.MessageNameSpaceId})
 	}
 
-	txShares = txBytes / consts.TxShareSize
+	txShares = txBytes / appconsts.CompactShareContentSize
 	if txBytes > 0 {
 		txShares++ // add one to round up
 	}
@@ -202,7 +202,7 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 		evdBytes += e.Size() + shares.DelimLen(uint64(e.Size()))
 	}
 
-	evdShares = evdBytes / consts.TxShareSize
+	evdShares = evdBytes / appconsts.CompactShareContentSize
 	if evdBytes > 0 {
 		evdShares++ // add one to round up
 	}
