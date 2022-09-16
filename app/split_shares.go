@@ -143,7 +143,7 @@ func newShareSplitter(txConf client.TxConfig, squareSize uint64, data *core.Data
 		panic(err)
 	}
 
-	sqwr.txWriter = shares.NewCompactShareSplitter(appconsts.TxNamespaceID)
+	sqwr.txWriter = shares.NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
 	sqwr.msgWriter = shares.NewSparseShareSplitter()
 
 	return &sqwr

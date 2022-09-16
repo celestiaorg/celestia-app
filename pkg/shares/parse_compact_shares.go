@@ -9,7 +9,7 @@ import (
 
 // parseCompactShares takes raw shares and extracts out transactions,
 // intermediate state roots, or evidence. The returned [][]byte do not have
-// namespaces or length delimiters and are ready to be unmarshalled
+// namespaces, info bytes, or length delimiters and are ready to be unmarshalled
 func parseCompactShares(shares [][]byte) (data [][]byte, err error) {
 	if len(shares) == 0 {
 		return nil, nil
@@ -37,7 +37,14 @@ func (ss *shareStack) resolve() ([][]byte, error) {
 	if len(ss.shares) == 0 {
 		return nil, nil
 	}
-	err := ss.peel(ss.shares[0][appconsts.NamespaceSize+appconsts.CompactShareReservedBytes:], true)
+	infoByte, err := ParseInfoReservedByte(ss.shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0])
+	if err != nil {
+		panic(err)
+	}
+	if !infoByte.IsMessageStart() {
+		return nil, errors.New("first share is not a message start")
+	}
+	err = ss.peel(ss.shares[0][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:], true)
 	return ss.data, err
 }
 
@@ -70,7 +77,7 @@ func (ss *shareStack) peel(share []byte, delimited bool) (err error) {
 	// add the next share to the current share to continue merging if possible
 	if len(ss.shares) > ss.cursor+1 {
 		ss.cursor++
-		share := append(share, ss.shares[ss.cursor][appconsts.NamespaceSize+appconsts.CompactShareReservedBytes:]...)
+		share := append(share, ss.shares[ss.cursor][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:]...)
 		return ss.peel(share, false)
 	}
 	// collect any remaining data

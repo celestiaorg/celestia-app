@@ -15,7 +15,7 @@ import (
 func TestCompactShareWriter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
 	// tests occur in TestMerge and Test_processCompactShares
-	w := NewCompactShareSplitter(appconsts.TxNamespaceID)
+	w := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
 	txs := generateRandomCompactShares(33, 200)
 	for _, tx := range txs {
 		rawTx, _ := MarshalDelimitedTx(tx)
@@ -121,4 +121,51 @@ func Test_processCompactShares(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCompactShareContainsInfoByte(t *testing.T) {
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
+	txs := generateRandomCompactShares(1, 100)
+
+	for _, tx := range txs {
+		css.WriteTx(tx)
+	}
+
+	shares := css.Export().RawShares()
+	assert.Condition(t, func() bool { return len(shares) == 1 })
+
+	infoByte := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
+
+	isMessageStart := true
+	want, err := NewInfoReservedByte(appconsts.ShareVersion, isMessageStart)
+
+	require.NoError(t, err)
+	assert.Equal(t, byte(want), infoByte)
+}
+
+func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
+	txs := generateRandomCompactShares(1, 1000)
+
+	for _, tx := range txs {
+		css.WriteTx(tx)
+	}
+
+	shares := css.Export().RawShares()
+	assert.Condition(t, func() bool { return len(shares) > 1 })
+
+	infoByte := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
+
+	isMessageStart := false
+	want, err := NewInfoReservedByte(appconsts.ShareVersion, isMessageStart)
+
+	require.NoError(t, err)
+	assert.Equal(t, byte(want), infoByte)
+}
+
+func Test_parseCompactSharesReturnsErrForShareWithStartIndicatorFalse(t *testing.T) {
+	txs := generateRandomCompactShares(2, 1000)
+	shares := SplitTxs(txs)
+	_, err := parseCompactShares(shares[1:]) // the second share has the message start indicator set to false
+	assert.Error(t, err)
 }

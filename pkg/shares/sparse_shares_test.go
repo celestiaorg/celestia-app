@@ -98,3 +98,37 @@ func TestParsePaddedMsg(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, msgs.MessagesList, pmsgs)
 }
+
+func TestMsgShareContainsInfoByte(t *testing.T) {
+	sss := NewSparseShareSplitter()
+	smallMsg := generateRandomMessage(100)
+	sss.Write(smallMsg)
+
+	shares := sss.Export().RawShares()
+
+	got := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
+
+	isMessageStart := true
+	want, err := NewInfoReservedByte(appconsts.ShareVersion, isMessageStart)
+
+	require.NoError(t, err)
+	assert.Equal(t, byte(want), got)
+}
+
+func TestContiguousMsgShareContainsInfoByte(t *testing.T) {
+	sss := NewSparseShareSplitter()
+	longMsg := generateRandomMessage(1000)
+	sss.Write(longMsg)
+
+	shares := sss.Export().RawShares()
+
+	// we expect longMsg to occupy more than one share
+	assert.Condition(t, func() bool { return len(shares) > 1 })
+	got := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
+
+	isMessageStart := false
+	want, err := NewInfoReservedByte(appconsts.ShareVersion, isMessageStart)
+
+	require.NoError(t, err)
+	assert.Equal(t, byte(want), got)
+}

@@ -192,7 +192,7 @@ func joinByteSlices(s ...[]byte) string {
 	out := make([]string, len(s))
 	for i, sl := range s {
 		sl, _, _ := shares.ParseDelimiter(sl)
-		out[i] = string(sl[appconsts.NamespaceSize:])
+		out[i] = string(sl[appconsts.NamespaceSize+appconsts.ShareInfoBytes:])
 	}
 	return strings.Join(out, "")
 }

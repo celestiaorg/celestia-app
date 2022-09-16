@@ -86,7 +86,7 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 }
 
 func SplitTxs(txs coretypes.Txs) [][]byte {
-	writer := NewCompactShareSplitter(appconsts.TxNamespaceID)
+	writer := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
 	for _, tx := range txs {
 		writer.WriteTx(tx)
 	}
@@ -94,10 +94,9 @@ func SplitTxs(txs coretypes.Txs) [][]byte {
 }
 
 func SplitEvidence(evd coretypes.EvidenceList) ([][]byte, error) {
-	writer := NewCompactShareSplitter(appconsts.EvidenceNamespaceID)
-	var err error
+	writer := NewCompactShareSplitter(appconsts.EvidenceNamespaceID, appconsts.ShareVersion)
 	for _, ev := range evd {
-		err = writer.WriteEvidence(ev)
+		err := writer.WriteEvidence(ev)
 		if err != nil {
 			return nil, err
 		}
