@@ -37,10 +37,12 @@ The current share format poses multiple challenges:
 
 Introduce a universal share encoding that applies to both compact and sparse shares:
 
-- First share of namespace for compact shares or message for sprase shares:<br>`namespace_id (8 bytes) | info (1 byte) | data length (varint 1 to 10 bytes) | data`
-- Contiguous share in namespace for compact shares or message for sparse shares:<br>`namespace_id (8 bytes) | info (1 byte) | data`
+- First share of message:<br>`namespace_id (8 bytes) | info (1 byte) | data length (varint 1 to 10 bytes) | data`
+- Contiguous share of message:<br>`namespace_id (8 bytes) | info (1 byte) | data`
 
-Compact shares have the added constraint: the first byte of `data` is a reserved byte so the format is:<br>`namespace_id (8 bytes) | info (1 byte) | data length (varint 1 to 10 bytes) | reserved (1 byte) | data`
+Note: conceptually we think of all the data in a reserved namespace as a single message
+
+Compact shares have the added constraint: the first byte of `data` is a reserved byte so the format is:<br>`namespace_id (8 bytes) | info (1 byte) | data length (varint 1 to 10 bytes) | reserved (1 byte) | data` and every unit in the compact share `data` is prefixed with a `unit length (varint 1 to 10 bytes)`.
 
 Where `info (1 byte)` is a byte with the following structure:
 
