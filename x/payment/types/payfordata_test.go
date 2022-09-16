@@ -151,7 +151,7 @@ func TestPowerOf2(t *testing.T) {
 	}
 }
 
-// TestCreateCommit only shows if something changed, it doesn't actually show
+// TestCreateCommitment only shows if something changed, it doesn't actually show
 // the commit is being created correctly todo(evan): fix me.
 func TestCreateCommitment(t *testing.T) {
 	type test struct {
