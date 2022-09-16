@@ -153,8 +153,7 @@ func (css *CompactShareSplitter) Export() NamespacedShares {
 	return css.shares
 }
 
-// Count returns the current number of shares that will be made if exporting and
-// the number of availableBytes in the last pending share.
+// Count returns the current number of shares that will be made if exporting.
 func (css *CompactShareSplitter) Count() (count, availableBytes int) {
 	if len(css.pendingShare.Share) > appconsts.NamespaceSize+appconsts.ShareInfoBytes {
 		return len(css.shares), 0
@@ -174,7 +173,6 @@ var tailPaddingShare = append(append(
 	bytes.Repeat([]byte{0}, appconsts.ShareSize-appconsts.NamespaceSize-appconsts.ShareInfoBytes)...,
 )
 
-// TailPaddingShares creates n tail padding shares.
 func TailPaddingShares(n int) NamespacedShares {
 	shares := make([]NamespacedShare, n)
 	for i := 0; i < n; i++ {

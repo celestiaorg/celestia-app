@@ -7,7 +7,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// Share contains the raw share data (including namespace ID).
+// Share contains the raw share data without the corresponding namespace.
 type Share []byte
 
 // NamespacedShare extends a Share with the corresponding namespace.
@@ -25,7 +25,7 @@ func (n NamespacedShare) Data() []byte {
 }
 
 // NamespacedShares is just a list of NamespacedShare elements.
-// It can be used to extract the raw shares.
+// It can be used to extract the raw raw shares.
 type NamespacedShares []NamespacedShare
 
 // RawShares returns the raw shares that can be fed into the erasure coding
@@ -38,8 +38,6 @@ func (ns NamespacedShares) RawShares() [][]byte {
 	return res
 }
 
-// MarshalDelimitedTx prefixes a transaction with the length of the transaction
-// encoded as a varint.
 func MarshalDelimitedTx(tx coretypes.Tx) ([]byte, error) {
 	lenBuf := make([]byte, binary.MaxVarintLen64)
 	length := uint64(len(tx))
@@ -47,9 +45,8 @@ func MarshalDelimitedTx(tx coretypes.Tx) ([]byte, error) {
 	return append(lenBuf[:n], tx...), nil
 }
 
-// MarshalDelimitedMessage marshals the raw share data (excluding the namespace)
-// of this message and prefixes it with the length of the message encoded as a
-// varint.
+// MarshalDelimited marshals the raw data (excluding the namespace) of this
+// message and prefixes it with the length of that encoding.
 func MarshalDelimitedMessage(msg coretypes.Message) ([]byte, error) {
 	lenBuf := make([]byte, binary.MaxVarintLen64)
 	length := uint64(len(msg.Data))

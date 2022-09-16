@@ -197,10 +197,10 @@ func joinByteSlices(s ...[]byte) string {
 	return strings.Join(out, "")
 }
 
-func generateRandomlySizedTxs(count, maxSize int) types.Txs {
+func generateRandomlySizedTxs(count, max int) types.Txs {
 	txs := make(types.Txs, count)
 	for i := 0; i < count; i++ {
-		size := rand.Intn(maxSize)
+		size := rand.Intn(max)
 		if size == 0 {
 			size = 1
 		}
