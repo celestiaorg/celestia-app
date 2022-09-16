@@ -4,22 +4,28 @@
 
 ## Terminology
 
-- **reserved** (1 byte): is the location of the first transaction, ISR, or evidence in the share if there is one and `0` if there isn't one
-- **message length** (varint 1 to 10 bytes): is the length of the entire message in bytes
 - **compact share**: a type of share that can accomodate multiple units. Currently, compact shares are used for transactions, ISRs, and evidence to efficiently pack this information into as few shares as possible.
 - **sparse share**: a type of share that can accomodate zero or one unit. Currently, sparse shares are used for messages.
 
 ## Context
 
-The current compact share format is:
+### Compact Share Schema
 
-- First share of reserved namespace: <br>`namespace_id (8 bytes) | reserved (1 byte) | data length (varint 1 to 10 bytes) | data`
-- Contiguous share in reserved namespace:<br>`namespace_id (8 bytes) | reserved (1 byte) | data`
+`namespace_id (8 bytes) | reserved (1 byte) | data`
 
-The current sparse share format is:
+Where:
+
+- `reserved (1 byte)`: is the location of the first transaction, ISR, or evidence in the share if there is one and `0` if there isn't one.
+- `data`: contains the raw bytes where each unit is prefixed with a varint 1 to 10 bytes that indicates how long the unit is in bytes.
+
+### Sparse Share Schema
 
 - First share of message:<br>`namespace_id (8 bytes) | message length (varint 1 to 10 bytes) | data`
 - Contiguous share in message:<br>`namespace_id (8 bytes) | data`
+
+Where:
+
+- `message length** (varint 1 to 10 bytes)`: is the length of the entire message in bytes
 
 The current share format poses multiple challenges:
 
@@ -34,9 +40,9 @@ Introduce a universal share encoding that applies to both compact and sparse sha
 - First share of namespace for compact shares or message for sprase shares:<br>`namespace_id (8 bytes) | info (1 byte) | data length (varint 1 to 10 bytes) | data`
 - Contiguous share in namespace for compact shares or message for sparse shares:<br>`namespace_id (8 bytes) | info (1 byte) | data`
 
-Shares in the reserved namespace have the added constraint: the first byte of `data` is a reserved byte so the format is:<br>`namespace_id (8 bytes) | info (1 byte) | data length (varint 1 to 10 bytes) | reserved (1 byte) | data`
+Compact shares have the added constraint: the first byte of `data` is a reserved byte so the format is:<br>`namespace_id (8 bytes) | info (1 byte) | data length (varint 1 to 10 bytes) | reserved (1 byte) | data`
 
-Where **info** (1 byte) is a byte with the following structure:
+Where `info (1 byte)` is a byte with the following structure:
 
 - the first 7 bits are reserved for the version information in big endian form (initially, this will be `0000000` for version 0);
 - the last bit is a **message start indicator**, that is `1` if the share is at the start of a message or `0` if it is a contiguous share within a message.
