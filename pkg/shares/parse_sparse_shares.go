@@ -70,9 +70,11 @@ func parseSparseShares(shares [][]byte) ([]coretypes.Message, error) {
 	return msgs, nil
 }
 
-// ParseDelimiter finds and returns the length delimiter of the message provided
-// while also removing the delimiter bytes from the input
-func ParseDelimiter(input []byte) ([]byte, uint64, error) {
+// ParseDelimiter finds and returns the length delimiter of the share provided
+// while also removing the delimiter bytes from the input. ParseDelimiter
+// applies to both compact and sparse shares. Input should not contain the
+// namespace ID or info byte of a share.
+func ParseDelimiter(input []byte) (inputWithoutLengthDelimiter []byte, dataLength uint64, err error) {
 	if len(input) == 0 {
 		return input, 0, nil
 	}
@@ -84,21 +86,24 @@ func ParseDelimiter(input []byte) ([]byte, uint64, error) {
 
 	delimiter := zeroPadIfNecessary(input[:l], binary.MaxVarintLen64)
 
-	// read the length of the message
+	// read the length of the data
 	r := bytes.NewBuffer(delimiter)
-	msgLen, err := binary.ReadUvarint(r)
+	dataLen, err := binary.ReadUvarint(r)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	// calculate the number of bytes used by the delimiter
 	lenBuf := make([]byte, binary.MaxVarintLen64)
-	n := binary.PutUvarint(lenBuf, msgLen)
+	n := binary.PutUvarint(lenBuf, dataLen)
 
 	// return the input without the length delimiter
-	return input[n:], msgLen, nil
+	return input[n:], dataLen, nil
 }
 
+// zeroPadIfNecessary pads the share with trailing zero bytes if the provided
+// share has fewer bytes than width. Returns the share unmodified if the
+// len(share) is greater than or equal to width.
 func zeroPadIfNecessary(share []byte, width int) []byte {
 	oldLen := len(share)
 	if oldLen >= width {
