@@ -4,7 +4,7 @@
 
 ## Terminology
 
-- **reserved** (1 byte): is the location of the first transaction, ISR, or evidence in this share if there is one and `0` if there isn't one
+- **reserved** (1 byte): is the location of the first transaction, ISR, or evidence in the share if there is one and `0` if there isn't one
 - **message length** (varint 1 to 10 bytes): is the length of the entire message in bytes
 - **compact share**: a type of share that can accomodate multiple units. Currently, compact shares are used for transactions, ISRs, and evidence to efficiently pack this information into as few shares as possible.
 - **sparse share**: a type of share that can accomodate zero or one unit. Currently, sparse shares are used for messages.
@@ -95,10 +95,8 @@ A share version is not set by a user who submits a `PayForData`. Instead, it is 
 ### Constants
 
 1. Define a new constant for `InfoReservedBytes = 1`.
-1. Update [`MsgShareSize`](https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/pkg/consts/consts.go#L26) to account for one less byte available
-1. Update [`TxShareSize`](https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/pkg/consts/consts.go#L24) to account for one less byte available
-
-**NOTE**: Currently constants are defined in celestia-core's [consts.go](https://github.com/celestiaorg/celestia-core/blob/master/pkg/consts/consts.go) but some will be moved to celestia-app's [appconsts.go](https://github.com/celestiaorg/celestia-app/tree/evan/non-interactive-defaults-feature/pkg/appconsts). See [celestia-core#841](https://github.com/celestiaorg/celestia-core/issues/841).
+1. Update [`CompactShareContentSize`](https://github.com/celestiaorg/celestia-app/blob/566b3d41d2bf097ac49f1a925cb56a3abeabadc8/pkg/appconsts/appconsts.go#L29) to account for one less byte available
+1. Update [`SparseShareContentSize`](https://github.com/celestiaorg/celestia-app/blob/566b3d41d2bf097ac49f1a925cb56a3abeabadc8/pkg/appconsts/appconsts.go#L32) to account for one less byte available
 
 ### Types
 
@@ -106,14 +104,8 @@ A share version is not set by a user who submits a `PayForData`. Instead, it is 
 
 ### Logic
 
-#### celestia-core
-
-1. Account for the new `InfoReservedByte` in `./types/share_splitting.go` and `./types/share_merging.go`.
-    - **NOTE**: These files are subject to be deleted soon. See <https://github.com/celestiaorg/celestia-core/issues/842>
-
-#### celestia-app
-
 1. Account for the new `InfoReservedByte` in all share splitting and merging code.
+1. Introduce a new `ParseShares` API that can accept any type of share (compact or sparse).
 
 ## Status
 
