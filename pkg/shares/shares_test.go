@@ -224,7 +224,6 @@ func TestMerge(t *testing.T) {
 				tc.msgCount,
 				tc.maxSize,
 			)
-			data.OriginalSquareSize = appconsts.MaxSquareSize
 
 			rawShares, err := Split(data)
 			require.NoError(t, err)
@@ -279,7 +278,7 @@ func generateRandomBlockData(txCount, evdCount, msgCount, maxSize int) (data cor
 	data.Txs = generateRandomlySizedCompactShares(txCount, maxSize)
 	data.Evidence = generateIdenticalEvidence(evdCount)
 	data.Messages = generateRandomlySizedMessages(msgCount, maxSize)
-	data.OriginalSquareSize = 16
+	data.OriginalSquareSize = appconsts.MaxSquareSize
 	return data
 }
 
