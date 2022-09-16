@@ -63,7 +63,8 @@ func TestFuzz_processCompactShares(t *testing.T) {
 func Test_processCompactShares(t *testing.T) {
 	// exactTxShareSize is the length of tx that will fit exactly into a single
 	// share, accounting for namespace id and the length delimiter prepended to
-	// each tx
+	// each tx. Note that the length delimiter can be 1 to 10 bytes (varint) but
+	// this test assumes it is 1 byte.
 	const exactTxShareSize = appconsts.CompactShareContentSize - 1
 
 	type test struct {
@@ -87,7 +88,7 @@ func Test_processCompactShares(t *testing.T) {
 		tc := tc
 
 		// run the tests with identically sized txs
-		t.Run(fmt.Sprintf("%s idendically sized ", tc.name), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s idendically sized", tc.name), func(t *testing.T) {
 			txs := generateRandomCompactShares(tc.txCount, tc.txSize)
 
 			shares := SplitTxs(txs)
