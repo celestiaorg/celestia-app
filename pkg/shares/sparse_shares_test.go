@@ -97,3 +97,17 @@ func TestParsePaddedMsg(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, msgs.MessagesList, pmsgs)
 }
+
+func TestMsgShareContainsInfoByte(t *testing.T) {
+	sss := NewSparseShareSplitter()
+	smallMsg := generateRandomMessage(100)
+	sss.Write(smallMsg)
+
+	shares := sss.Export().RawShares()
+
+	got := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes]
+	want, err := NewInfoReservedByte(appconsts.ShareVersion, true)
+	require.NoError(t, err)
+
+	assert.Equal(t, got, []byte{byte(want)})
+}
