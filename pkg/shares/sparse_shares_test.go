@@ -105,13 +105,13 @@ func TestMsgShareContainsInfoByte(t *testing.T) {
 
 	shares := sss.Export().RawShares()
 
-	got := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes]
+	got := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
 	isMessageStart := true
 	want, err := NewInfoReservedByte(appconsts.ShareVersion, isMessageStart)
 
 	require.NoError(t, err)
-	assert.Equal(t, got, []byte{byte(want)})
+	assert.Equal(t, byte(want), got)
 }
 
 func TestContiguousMsgShareContainsInfoByte(t *testing.T) {
@@ -123,11 +123,11 @@ func TestContiguousMsgShareContainsInfoByte(t *testing.T) {
 
 	// we expect longMsg to occupy more than one share
 	assert.Condition(t, func() bool { return len(shares) > 1 })
-	got := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes]
+	got := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
 	isMessageStart := false
 	want, err := NewInfoReservedByte(appconsts.ShareVersion, isMessageStart)
 
 	require.NoError(t, err)
-	assert.Equal(t, got, []byte{byte(want)})
+	assert.Equal(t, byte(want), got)
 }

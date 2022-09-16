@@ -142,7 +142,7 @@ func (css *CompactShareSplitter) Export() NamespacedShares {
 		// confusion for light clients parsing these shares, as the rest of the
 		// data after transaction is padding. See
 		// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#share
-		rawLastShare[appconsts.NamespaceSize+i] = byte(0)
+		rawLastShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+i] = byte(0)
 	}
 
 	newLastShare := NamespacedShare{

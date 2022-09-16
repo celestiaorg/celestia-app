@@ -121,3 +121,43 @@ func Test_processCompactShares(t *testing.T) {
 		})
 	}
 }
+
+func TestCompactShareContainsInfoByte(t *testing.T) {
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
+	txs := generateRandomCompactShares(1, 100)
+
+	for _, tx := range txs {
+		css.WriteTx(tx)
+	}
+
+	shares := css.Export().RawShares()
+	assert.Condition(t, func() bool { return len(shares) == 1 })
+
+	infoByte := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
+
+	isMessageStart := true
+	want, err := NewInfoReservedByte(appconsts.ShareVersion, isMessageStart)
+
+	require.NoError(t, err)
+	assert.Equal(t, byte(want), infoByte)
+}
+
+func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
+	txs := generateRandomCompactShares(1, 1000)
+
+	for _, tx := range txs {
+		css.WriteTx(tx)
+	}
+
+	shares := css.Export().RawShares()
+	assert.Condition(t, func() bool { return len(shares) > 1 })
+
+	infoByte := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
+
+	isMessageStart := false
+	want, err := NewInfoReservedByte(appconsts.ShareVersion, isMessageStart)
+
+	require.NoError(t, err)
+	assert.Equal(t, byte(want), infoByte)
+}
