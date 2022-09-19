@@ -9,6 +9,7 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
+// Can be deleted after implementing the Orchestrator and Relayer as per QGB ADR-005.
 // NewHandler uses the provided qgb keeper to create an sdk.Handler.
 func NewHandler(k keeper.Keeper) sdk.Handler {
 	msgServer := keeper.NewMsgServerImpl(k)
