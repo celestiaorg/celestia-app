@@ -21,6 +21,7 @@ func (k msgServer) ValsetConfirm(
 	_ context.Context,
 	_ *types.MsgValsetConfirm,
 ) (*types.MsgValsetConfirmResponse, error) {
+	// empty as per QGB ADR-005
 	return &types.MsgValsetConfirmResponse{}, nil
 }
 
@@ -29,5 +30,6 @@ func (k msgServer) DataCommitmentConfirm(
 	_ context.Context,
 	_ *types.MsgDataCommitmentConfirm,
 ) (*types.MsgDataCommitmentConfirmResponse, error) {
+	// empty as per QGB ADR-005
 	return &types.MsgDataCommitmentConfirmResponse{}, nil
 }
