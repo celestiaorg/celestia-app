@@ -11,9 +11,10 @@ import (
 )
 
 func Test_parseSparseShares(t *testing.T) {
-	// exactMsgShareSize is the length of message that will fit exactly into a single
-	// share, accounting for namespace id and the length delimiter prepended to
-	// each message
+	// exactMsgShareSize is the length of message that will fit exactly into a
+	// single share, accounting for namespace id and the length delimiter
+	// prepended to each message. Note that the length delimiter can be 1 to 10
+	// bytes (varint) but this test assumes it is 2 bytes.
 	const exactMsgShareSize = appconsts.SparseShareContentSize - 2
 
 	type test struct {
@@ -96,4 +97,38 @@ func TestParsePaddedMsg(t *testing.T) {
 	pmsgs, err := parseSparseShares(msgWr.Export().RawShares())
 	require.NoError(t, err)
 	require.Equal(t, msgs.MessagesList, pmsgs)
+}
+
+func TestMsgShareContainsInfoByte(t *testing.T) {
+	sss := NewSparseShareSplitter()
+	smallMsg := generateRandomMessage(100)
+	sss.Write(smallMsg)
+
+	shares := sss.Export().RawShares()
+
+	got := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
+
+	isMessageStart := true
+	want, err := NewInfoReservedByte(appconsts.ShareVersion, isMessageStart)
+
+	require.NoError(t, err)
+	assert.Equal(t, byte(want), got)
+}
+
+func TestContiguousMsgShareContainsInfoByte(t *testing.T) {
+	sss := NewSparseShareSplitter()
+	longMsg := generateRandomMessage(1000)
+	sss.Write(longMsg)
+
+	shares := sss.Export().RawShares()
+
+	// we expect longMsg to occupy more than one share
+	assert.Condition(t, func() bool { return len(shares) > 1 })
+	got := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
+
+	isMessageStart := false
+	want, err := NewInfoReservedByte(appconsts.ShareVersion, isMessageStart)
+
+	require.NoError(t, err)
+	assert.Equal(t, byte(want), got)
 }

@@ -15,7 +15,7 @@ import (
 func TestCompactShareWriter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
 	// tests occur in TestMerge and Test_processCompactShares
-	w := NewCompactShareSplitter(appconsts.TxNamespaceID)
+	w := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
 	txs := generateRandomCompactShares(33, 200)
 	for _, tx := range txs {
 		rawTx, _ := MarshalDelimitedTx(tx)
@@ -63,7 +63,8 @@ func TestFuzz_processCompactShares(t *testing.T) {
 func Test_processCompactShares(t *testing.T) {
 	// exactTxShareSize is the length of tx that will fit exactly into a single
 	// share, accounting for namespace id and the length delimiter prepended to
-	// each tx
+	// each tx. Note that the length delimiter can be 1 to 10 bytes (varint) but
+	// this test assumes it is 1 byte.
 	const exactTxShareSize = appconsts.CompactShareContentSize - 1
 
 	type test struct {
@@ -87,7 +88,7 @@ func Test_processCompactShares(t *testing.T) {
 		tc := tc
 
 		// run the tests with identically sized txs
-		t.Run(fmt.Sprintf("%s idendically sized ", tc.name), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s idendically sized", tc.name), func(t *testing.T) {
 			txs := generateRandomCompactShares(tc.txCount, tc.txSize)
 
 			shares := SplitTxs(txs)
@@ -120,4 +121,51 @@ func Test_processCompactShares(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCompactShareContainsInfoByte(t *testing.T) {
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
+	txs := generateRandomCompactShares(1, 100)
+
+	for _, tx := range txs {
+		css.WriteTx(tx)
+	}
+
+	shares := css.Export().RawShares()
+	assert.Condition(t, func() bool { return len(shares) == 1 })
+
+	infoByte := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
+
+	isMessageStart := true
+	want, err := NewInfoReservedByte(appconsts.ShareVersion, isMessageStart)
+
+	require.NoError(t, err)
+	assert.Equal(t, byte(want), infoByte)
+}
+
+func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
+	txs := generateRandomCompactShares(1, 1000)
+
+	for _, tx := range txs {
+		css.WriteTx(tx)
+	}
+
+	shares := css.Export().RawShares()
+	assert.Condition(t, func() bool { return len(shares) > 1 })
+
+	infoByte := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
+
+	isMessageStart := false
+	want, err := NewInfoReservedByte(appconsts.ShareVersion, isMessageStart)
+
+	require.NoError(t, err)
+	assert.Equal(t, byte(want), infoByte)
+}
+
+func Test_parseCompactSharesReturnsErrForShareWithStartIndicatorFalse(t *testing.T) {
+	txs := generateRandomCompactShares(2, 1000)
+	shares := SplitTxs(txs)
+	_, err := parseCompactShares(shares[1:]) // the second share has the message start indicator set to false
+	assert.Error(t, err)
 }

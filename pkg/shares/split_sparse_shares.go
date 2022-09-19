@@ -93,9 +93,14 @@ func (sss *SparseShareSplitter) Count() int {
 // Used for messages.
 func AppendToShares(shares []NamespacedShare, nid namespace.ID, rawData []byte) []NamespacedShare {
 	if len(rawData) <= appconsts.SparseShareContentSize {
-		rawShare := append(append(
-			make([]byte, 0, len(nid)+len(rawData)),
+		infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, true)
+		if err != nil {
+			panic(err)
+		}
+		rawShare := append(append(append(
+			make([]byte, 0, appconsts.ShareSize),
 			nid...),
+			byte(infoByte)),
 			rawData...,
 		)
 		paddedShare := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
@@ -111,18 +116,28 @@ func AppendToShares(shares []NamespacedShare, nid namespace.ID, rawData []byte) 
 // namespaced shares
 func splitMessage(rawData []byte, nid namespace.ID) NamespacedShares {
 	shares := make([]NamespacedShare, 0)
-	firstRawShare := append(append(
+	infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, true)
+	if err != nil {
+		panic(err)
+	}
+	firstRawShare := append(append(append(
 		make([]byte, 0, appconsts.ShareSize),
 		nid...),
+		byte(infoByte)),
 		rawData[:appconsts.SparseShareContentSize]...,
 	)
 	shares = append(shares, NamespacedShare{firstRawShare, nid})
 	rawData = rawData[appconsts.SparseShareContentSize:]
 	for len(rawData) > 0 {
 		shareSizeOrLen := min(appconsts.SparseShareContentSize, len(rawData))
-		rawShare := append(append(
+		infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, false)
+		if err != nil {
+			panic(err)
+		}
+		rawShare := append(append(append(
 			make([]byte, 0, appconsts.ShareSize),
 			nid...),
+			byte(infoByte)),
 			rawData[:shareSizeOrLen]...,
 		)
 		paddedShare := zeroPadIfNecessary(rawShare, appconsts.ShareSize)

@@ -90,8 +90,9 @@ func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxP
 	}, nil
 }
 
-// txSharePosition returns the share that a given transaction is included in.
-// returns an error if index is greater than that of the provided txs.
+// txSharePosition returns the start and end positions for the shares that
+// include a given txIndex. Returns an error if index is greater than the length
+// of txs.
 func txSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos uint64, err error) {
 	if txIndex >= uint64(len(txs)) {
 		return startSharePos, endSharePos, errors.New("transaction index is greater than the number of txs")
