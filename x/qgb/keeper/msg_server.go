@@ -2,15 +2,8 @@ package keeper
 
 import (
 	"context"
-	"encoding/hex"
-	"fmt"
-	"math/big"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 type msgServer struct {
@@ -25,186 +18,18 @@ func NewMsgServerImpl(keeper Keeper) types.MsgServer {
 
 // ValsetConfirm handles MsgValsetConfirm.
 func (k msgServer) ValsetConfirm(
-	c context.Context,
-	msg *types.MsgValsetConfirm,
+	_ context.Context,
+	_ *types.MsgValsetConfirm,
 ) (*types.MsgValsetConfirmResponse, error) {
-	ctx := sdk.UnwrapSDKContext(c)
-
-	// Get valset by nonce
-	valset, found, err := k.GetValsetByNonce(ctx, msg.Nonce)
-	if err != nil {
-		return nil, err
-	}
-	if !found {
-		return nil, sdkerrors.Wrap(types.ErrAttestationNotFound, "valset attestation for nonce not found")
-	}
-
-	// Get orchestrator account from message
-	orchaddr, err := sdk.AccAddressFromBech32(msg.Orchestrator)
-	if err != nil {
-		return nil, sdkerrors.Wrap(types.ErrInvalid, "acc address invalid")
-	}
-
-	// Verify ethereum address match
-	if !common.IsHexAddress(msg.EthAddress) {
-		return nil, sdkerrors.Wrap(stakingtypes.ErrEthAddressNotHex, "ethereum address")
-	}
-	submittedEthAddress := common.HexToAddress(msg.EthAddress)
-
-	// Verify if signature is correct
-	bytesSignature, err := hex.DecodeString(msg.Signature)
-	if err != nil {
-		return nil, sdkerrors.Wrap(types.ErrInvalid, "signature decoding")
-	}
-	signBytes, err := valset.SignBytes(types.BridgeID)
-	if err != nil {
-		return nil, err
-	}
-	err = types.ValidateEthereumSignature(signBytes.Bytes(), bytesSignature, submittedEthAddress)
-	if err != nil {
-		return nil, sdkerrors.Wrap(
-			types.ErrInvalid,
-			fmt.Sprintf(
-				"signature verification failed expected sig by %s for valset nonce %d found %s",
-				submittedEthAddress.Hex(),
-				msg.Nonce,
-				msg.Signature,
-			),
-		)
-	}
-
-	// Check if the signature was already posted
-	_, found, err = k.GetValsetConfirm(ctx, msg.Nonce, orchaddr)
-	if err != nil {
-		return nil, sdkerrors.Wrap(err, "couldn't check for existing valset confirm")
-	}
-	if found {
-		return nil, sdkerrors.Wrap(types.ErrDuplicate, "signature duplicate")
-	}
-
-	// Persist signature
-	key, err := k.SetValsetConfirm(ctx, *msg)
-	if err != nil {
-		// Should we include more details in the error?
-		return nil, sdkerrors.Wrap(err, "couldn't set valset confirm")
-	}
-
-	ctx.EventManager().EmitEvent(
-		sdk.NewEvent(
-			sdk.EventTypeMessage,
-			sdk.NewAttribute(sdk.AttributeKeyModule, msg.Type()),
-			sdk.NewAttribute(types.AttributeKeyValsetConfirmKey, string(key)),
-		),
-	)
-
+	// empty as per QGB ADR-005
 	return &types.MsgValsetConfirmResponse{}, nil
 }
 
 // DataCommitmentConfirm handles MsgDataCommitmentConfirm.
 func (k msgServer) DataCommitmentConfirm(
-	c context.Context,
-	msg *types.MsgDataCommitmentConfirm,
+	_ context.Context,
+	_ *types.MsgDataCommitmentConfirm,
 ) (*types.MsgDataCommitmentConfirmResponse, error) {
-	ctx := sdk.UnwrapSDKContext(c)
-
-	// Verify the attestation is a data commitment
-	at, found, err := k.GetAttestationByNonce(ctx, msg.Nonce)
-	if err != nil {
-		return nil, sdkerrors.Wrap(err, "couldn't get attestation for nonce")
-	}
-	if !found {
-		return nil, sdkerrors.Wrap(
-			types.ErrNilAttestation,
-			"confirm sent to a non existent attestation",
-		)
-	}
-	if at.Type() != types.DataCommitmentRequestType {
-		return nil, sdkerrors.Wrap(
-			types.ErrAttestationNotDataCommitmentRequest,
-			"confirm sent to an attestation that is not a data commitment request",
-		)
-	}
-
-	// Verify the range is correct
-	dcAt, ok := at.(*types.DataCommitment)
-	if !ok {
-		return nil, types.ErrAttestationNotCastToDataCommitment
-	}
-	if dcAt == nil {
-		return nil, types.ErrNilDataCommitmentRequest
-	}
-	if dcAt.BeginBlock != msg.BeginBlock || dcAt.EndBlock != msg.EndBlock {
-		return nil, types.ErrDataCommitmentConfirmWrongRange
-	}
-
-	// Decode the signature
-	sigBytes, err := hex.DecodeString(msg.Signature)
-	if err != nil {
-		return nil, sdkerrors.Wrap(types.ErrInvalid, "signature decoding")
-	}
-
-	// Verify validator address
-	validatorAddress, err := sdk.AccAddressFromBech32(msg.ValidatorAddress)
-	if err != nil {
-		return nil, sdkerrors.Wrap(types.ErrInvalid, "validator address invalid")
-	}
-
-	// Verify ethereum address
-	if !common.IsHexAddress(msg.EthAddress) {
-		return nil, sdkerrors.Wrap(stakingtypes.ErrEthAddressNotHex, "ethereum address")
-	}
-	ethAddress := common.HexToAddress(msg.EthAddress)
-
-	// Verify signature
-	commitment, err := hex.DecodeString(msg.Commitment)
-	if err != nil {
-		return nil, err
-	}
-	hash := types.DataCommitmentTupleRootSignBytes(types.BridgeID, big.NewInt(int64(msg.Nonce)), commitment)
-	err = types.ValidateEthereumSignature(hash.Bytes(), sigBytes, ethAddress)
-	if err != nil {
-		return nil, sdkerrors.Wrap(
-			types.ErrInvalid,
-			fmt.Sprintf(
-				"signature verification failed expected sig by %s with checkpoint %s found %s",
-				ethAddress.Hex(),
-				msg.Commitment,
-				msg.Signature,
-			),
-		)
-	}
-
-	// Check if the signature was already posted
-	_, found, err = k.GetDataCommitmentConfirm(ctx, msg.EndBlock, msg.BeginBlock, validatorAddress)
-	if err != nil {
-		return nil, sdkerrors.Wrap(err, "couldn't check for existing data commitment confirm")
-	}
-	if found {
-		return nil, sdkerrors.Wrap(types.ErrDuplicate, "signature duplicate")
-	}
-
-	// Persist signature
-	_, err = k.SetDataCommitmentConfirm(ctx, *msg)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx.EventManager().EmitEvent(
-		sdk.NewEvent(
-			sdk.EventTypeMessage,
-			sdk.NewAttribute(sdk.AttributeKeyModule, msg.Type()),
-			sdk.NewAttribute(types.AttributeKeyDataCommitmentConfirmKey, msg.String()),
-		),
-	)
-
+	// empty as per QGB ADR-005
 	return &types.MsgDataCommitmentConfirmResponse{}, nil
-}
-
-func ValidatorPartOfValset(members []types.BridgeValidator, ethAddr string) bool {
-	for _, val := range members {
-		if val.EthereumAddress == ethAddr {
-			return true
-		}
-	}
-	return false
 }

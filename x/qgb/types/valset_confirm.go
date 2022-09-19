@@ -9,21 +9,6 @@ import (
 
 var _ sdk.Msg = &MsgValsetConfirm{}
 
-// NewMsgValsetConfirm returns a new msgValSetConfirm.
-func NewMsgValsetConfirm(
-	nonce uint64,
-	ethAddress common.Address,
-	validator sdk.AccAddress,
-	signature string,
-) *MsgValsetConfirm {
-	return &MsgValsetConfirm{
-		Nonce:        nonce,
-		Orchestrator: validator.String(),
-		EthAddress:   ethAddress.Hex(),
-		Signature:    signature,
-	}
-}
-
 // GetSigners defines whose signature is required.
 func (msg *MsgValsetConfirm) GetSigners() []sdk.AccAddress {
 	// TODO: figure out how to convert between AccAddress and ValAddress properly

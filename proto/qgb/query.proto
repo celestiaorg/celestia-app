@@ -33,52 +33,6 @@ service Query {
     option (google.api.http).get = "/qgb/attestations/nonce/latest";
   }
 
-  // Data commitment confirm queries
-
-  // DataCommitmentConfirm Queries the data commitment confirm by the commitment
-  // and the validator address
-  // Returns nil if not found.
-  rpc DataCommitmentConfirm(QueryDataCommitmentConfirmRequest)
-      returns (QueryDataCommitmentConfirmResponse) {
-    option (google.api.http).get =
-        "/qgb/data_commitment/confirm/begin/"
-        "{begin_block}/end/{end_block}/address/{address}";
-  }
-  // DataCommitmentConfirmsByExactRange Queries data commitment confirms by an
-  // exact block range.
-  // Returns empty array if no element is found.
-  rpc DataCommitmentConfirmsByExactRange(
-      QueryDataCommitmentConfirmsByExactRangeRequest)
-      returns (QueryDataCommitmentConfirmsByExactRangeResponse) {
-    option (google.api.http).get =
-        "/qgb/data_commitment/confirms/exact/begin_block/"
-        "{begin_block}/end_block/{end_block}";
-  }
-
-  // valset confirm queries
-
-  // ValsetConfirm Queries ValSetConfirm
-  // Returns nil if not found.
-  rpc ValsetConfirm(QueryValsetConfirmRequest)
-      returns (QueryValsetConfirmResponse) {
-    option (google.api.http).get = "/qgb/valset/confirm";
-  }
-  // LastValsetRequestBeforeNonce Queries last Valset request before nonce.
-  // And, even if the current nonce is a valset, if will return the previous
-  // one.
-  // If the provided nonce is 1. It will return an error. Because, there is
-  // no valset before nonce 1.
-  rpc LastValsetRequestBeforeNonce(QueryLastValsetRequestBeforeNonceRequest)
-      returns (QueryLastValsetRequestBeforeNonceResponse) {
-    option (google.api.http).get = "/qgb/valset/request/before/{nonce}";
-  }
-  // ValsetConfirmsByNonce
-  // Returns empty array if no element is found.
-  rpc ValsetConfirmsByNonce(QueryValsetConfirmsByNonceRequest)
-      returns (QueryValsetConfirmsByNonceResponse) {
-    option (google.api.http).get = "/qgb/confirms/{nonce}";
-  }
-
   // misc
 
   // LastUnbondingHeight
@@ -112,23 +66,6 @@ message QueryLatestAttestationNonceRequest {}
 // QueryLatestAttestationNonceResponse Latest attestation nonce response
 message QueryLatestAttestationNonceResponse { uint64 nonce = 1; }
 
-// QueryValsetConfirmsByNonceRequest
-message QueryValsetConfirmsByNonceRequest { uint64 nonce = 1; }
-
-// QueryValsetConfirmsByNonceResponse
-message QueryValsetConfirmsByNonceResponse {
-  repeated MsgValsetConfirm confirms = 1 [ (gogoproto.nullable) = false ];
-}
-
-// QueryValsetConfirmRequest ValSet confirm query request
-message QueryValsetConfirmRequest {
-  uint64 nonce = 1;
-  string address = 2;
-}
-
-// QueryValsetConfirmResponse ValSet confirm query response
-message QueryValsetConfirmResponse { MsgValsetConfirm confirm = 1; }
-
 // QueryLastValsetRequestBeforeNonceRequest last Valset request before universal
 // nonce request
 message QueryLastValsetRequestBeforeNonceRequest { uint64 nonce = 1; }
@@ -136,34 +73,6 @@ message QueryLastValsetRequestBeforeNonceRequest { uint64 nonce = 1; }
 // QueryLastValsetRequestBeforeNonceResponse last Valset request before height
 // response
 message QueryLastValsetRequestBeforeNonceResponse { Valset valset = 1; }
-
-// QueryDataCommitmentConfirmsRequest Data commitment confirm by commitment and
-// validator address request
-message QueryDataCommitmentConfirmRequest {
-  uint64 begin_block = 1;
-  uint64 end_block = 2;
-  string address = 3;
-}
-
-// QueryDataCommitmentConfirmsResponse Data commitment confirm by commitment and
-// validator address response
-message QueryDataCommitmentConfirmResponse {
-  MsgDataCommitmentConfirm confirm = 1;
-}
-
-// QueryDataCommitmentConfirmsByExactRangeRequest Data commitment confirms by
-// exact range request
-message QueryDataCommitmentConfirmsByExactRangeRequest {
-  uint64 begin_block = 1;
-  uint64 end_block = 2;
-}
-
-// QueryDataCommitmentConfirmsByExactRangeResponse Data commitment confirms by
-// exact range response
-message QueryDataCommitmentConfirmsByExactRangeResponse {
-  repeated MsgDataCommitmentConfirm confirms = 1
-      [ (gogoproto.nullable) = false ];
-}
 
 // QueryLastUnbondingHeightRequest
 message QueryLastUnbondingHeightRequest {}
