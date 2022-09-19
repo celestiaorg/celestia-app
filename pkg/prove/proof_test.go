@@ -170,23 +170,23 @@ func TestTxSharePosition(t *testing.T) {
 // 	}
 // }
 
-func Test_genOrigRowShares(t *testing.T) {
-	txCount := 100
-	squareSize := uint64(16)
-	typicalBlockData := types.Data{
-		Txs:                generateRandomlySizedTxs(txCount, 200),
-		Messages:           generateRandomlySizedMessages(10, 1500),
-		OriginalSquareSize: squareSize,
-	}
+// func Test_genOrigRowShares(t *testing.T) {
+// 	txCount := 100
+// 	squareSize := uint64(16)
+// 	typicalBlockData := types.Data{
+// 		Txs:                generateRandomlySizedTxs(txCount, 200),
+// 		Messages:           generateRandomlySizedMessages(10, 1500),
+// 		OriginalSquareSize: squareSize,
+// 	}
 
-	rawShares, err := shares.Split(typicalBlockData, false)
-	require.NoError(t, err)
+// 	rawShares, err := shares.Split(typicalBlockData, false)
+// 	require.NoError(t, err)
 
-	genShares := genOrigRowShares(typicalBlockData, 0, 15)
+// 	genShares := genOrigRowShares(typicalBlockData, 0, 15)
 
-	require.Equal(t, len(rawShares), len(genShares))
-	assert.Equal(t, rawShares, genShares)
-}
+// 	require.Equal(t, len(rawShares), len(genShares))
+// 	assert.Equal(t, rawShares, genShares)
+// }
 
 func joinByteSlices(s ...[]byte) string {
 	out := make([]string, len(s))
