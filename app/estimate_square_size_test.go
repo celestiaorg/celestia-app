@@ -58,7 +58,7 @@ func Test_estimateSquareSize(t *testing.T) {
 				OriginalSquareSize: squareSize,
 			}
 
-			rawShares, err := shares.Split(blockData)
+			rawShares, err := shares.Split(blockData, true)
 			require.NoError(t, err)
 			require.Equal(t, int(squareSize*squareSize), len(rawShares))
 		})

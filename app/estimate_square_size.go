@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -67,7 +66,8 @@ func prune(txConf client.TxConfig, txs []*parsedTx, currentShareCount, squareSiz
 
 // calculateCompactShareCount calculates the exact number of compact shares used.
 func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSize int) int {
-	txSplitter, evdSplitter := shares.NewCompactShareSplitter(consts.TxNamespaceID), shares.NewCompactShareSplitter(appconsts.EvidenceNamespaceID)
+	txSplitter := shares.NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
+	evdSplitter := shares.NewCompactShareSplitter(appconsts.EvidenceNamespaceID, appconsts.ShareVersion)
 	var err error
 	msgSharesCursor := len(txs)
 	for _, tx := range txs {

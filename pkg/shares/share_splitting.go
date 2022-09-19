@@ -18,7 +18,10 @@ var (
 	)
 )
 
-func Split(data coretypes.Data) ([][]byte, error) {
+// Split converts block data into encoded shares, optionally using share indexes
+// that are encoded as wrapped transactions. Most use cases out of this package
+// should use these share indexes and therefore set useShareIndexes to true.
+func Split(data coretypes.Data, useShareIndexes bool) ([][]byte, error) {
 	if data.OriginalSquareSize == 0 || !isPowerOf2(data.OriginalSquareSize) {
 		return nil, fmt.Errorf("square size is not a power of two: %d", data.OriginalSquareSize)
 	}
@@ -60,7 +63,7 @@ func Split(data coretypes.Data) ([][]byte, error) {
 		return nil, ErrUnexpectedFirstMessageShareIndex
 	}
 
-	msgShares, err = SplitMessages(currentShareCount, msgIndexes, data.Messages.MessagesList, true)
+	msgShares, err = SplitMessages(currentShareCount, msgIndexes, data.Messages.MessagesList, useShareIndexes)
 	if err != nil {
 		return nil, err
 	}
