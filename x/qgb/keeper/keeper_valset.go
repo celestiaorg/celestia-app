@@ -50,8 +50,9 @@ func (k Keeper) SetLastUnBondingBlockHeight(ctx sdk.Context, unbondingBlockHeigh
 	store.Set([]byte(types.LastUnBondingBlockHeight), types.UInt64Bytes(unbondingBlockHeight))
 }
 
-// GetLastUnBondingBlockHeight returns the last unbonding block height, returns zero if not set, this is not
-// saved or loaded in genesis and is reset to zero on chain upgrade.
+// GetLastUnBondingBlockHeight returns the last unbonding block height or zero
+// if not set. This value is not saved or loaded at genesis. This value is reset
+// to zero on chain upgrade.
 func (k Keeper) GetLastUnBondingBlockHeight(ctx sdk.Context) uint64 {
 	store := ctx.KVStore(k.storeKey)
 	bytes := store.Get([]byte(types.LastUnBondingBlockHeight))
