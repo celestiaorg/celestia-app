@@ -3,11 +3,16 @@ package app
 import (
 	"bytes"
 
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/pkg/da"
+	"github.com/tendermint/tendermint/libs/log"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/app/encoding"
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 )
 
 const (
@@ -26,7 +31,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	// also see https://github.com/celestiaorg/celestia-app/issues/226
 	commitmentCounter := 0
 	for _, rawTx := range req.BlockData.Txs {
-		tx, err := MalleatedTxDecoder(app.txConfig.TxDecoder())(rawTx)
+		tx, err := encoding.MalleatedTxDecoder(app.txConfig.TxDecoder())(rawTx)
 		if err != nil {
 			continue
 		}
@@ -50,11 +55,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	// quickly compare the number of PFDs and messages, if they aren't
 	// identical, then  we already know this block is invalid
 	if commitmentCounter != len(req.BlockData.Messages.MessagesList) {
-		app.Logger().Error(
-			rejectedPropBlockLog,
-			"reason",
-			"varying number of messages and payForData txs in the same block",
-		)
+		logInvalidPropBlock(app.Logger(), req.Header, "varying number of messages and payForData txs in the same block")
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
@@ -64,13 +65,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	// commitment exists
 	for _, msg := range req.BlockData.Messages.MessagesList {
 		if err := types.ValidateMessageNamespaceID(msg.NamespaceId); err != nil {
-			app.Logger().Error(
-				rejectedPropBlockLog,
-				"reason",
-				"found a message that uses an invalid namespace id",
-				"error",
-				err.Error(),
-			)
+			logInvalidPropBlockError(app.Logger(), req.Header, "found a message that uses an invalid namespace id", err)
 			return abci.ResponseProcessProposal{
 				Result: abci.ResponseProcessProposal_REJECT,
 			}
@@ -78,13 +73,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 		commit, err := types.CreateCommitment(req.BlockData.OriginalSquareSize, msg.NamespaceId, msg.Data)
 		if err != nil {
-			app.Logger().Error(
-				rejectedPropBlockLog,
-				"reason",
-				"failure to create commitment for included message",
-				"error",
-				err.Error(),
-			)
+			logInvalidPropBlockError(app.Logger(), req.Header, "failure to create commitment for included message", err)
 			return abci.ResponseProcessProposal{
 				Result: abci.ResponseProcessProposal_REJECT,
 			}
@@ -92,7 +81,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 		// TODO: refactor to actually check for subtree roots instead of simply inclusion see issues #382 and #383
 		if _, has := commitments[string(commit)]; !has {
-			app.Logger().Info(rejectedPropBlockLog, "reason", "missing MsgPayForData for included message")
+			logInvalidPropBlock(app.Logger(), req.Header, "missing MsgPayForData for included message")
 			return abci.ResponseProcessProposal{
 				Result: abci.ResponseProcessProposal_REJECT,
 			}
@@ -101,29 +90,30 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 	data, err := coretypes.DataFromProto(req.BlockData)
 	if err != nil {
-		app.Logger().Error(rejectedPropBlockLog, "reason", "failure to unmarshal block data:", "error", err)
+		logInvalidPropBlockError(app.Logger(), req.Header, "failure to unmarshal block data:", err)
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
 	}
 
-	shares, _, err := data.ComputeShares(req.BlockData.OriginalSquareSize)
-	if err != nil {
-		app.Logger().Error(rejectedPropBlockLog, "reason", "failure to compute shares from block data:", "error", err)
+	if !data.Messages.IsSorted() {
+		logInvalidPropBlock(app.Logger(), req.Header, "messages are unsorted")
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
 	}
 
-	eds, err := da.ExtendShares(req.BlockData.OriginalSquareSize, shares.RawShares())
+	rawShares, err := shares.Split(data)
 	if err != nil {
-		app.Logger().Error(
-			rejectedPropBlockLog,
-			"reason",
-			"failure to erasure the data square",
-			"error",
-			err,
-		)
+		logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute shares from block data:", err)
+		return abci.ResponseProcessProposal{
+			Result: abci.ResponseProcessProposal_REJECT,
+		}
+	}
+
+	eds, err := da.ExtendShares(req.BlockData.OriginalSquareSize, rawShares)
+	if err != nil {
+		logInvalidPropBlockError(app.Logger(), req.Header, "failure to erasure the data square", err)
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
@@ -132,11 +122,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	dah := da.NewDataAvailabilityHeader(eds)
 
 	if !bytes.Equal(dah.Hash(), req.Header.DataHash) {
-		app.Logger().Error(
-			rejectedPropBlockLog,
-			"reason",
-			"proposed data root differs from calculated data root",
-		)
+		logInvalidPropBlockError(app.Logger(), req.Header, "proposed data root differs from calculated data root", err)
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
@@ -145,4 +131,26 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	return abci.ResponseProcessProposal{
 		Result: abci.ResponseProcessProposal_ACCEPT,
 	}
+}
+
+func logInvalidPropBlock(l log.Logger, h tmproto.Header, reason string) {
+	l.Error(
+		rejectedPropBlockLog,
+		"reason",
+		reason,
+		"proposer",
+		h.ProposerAddress,
+	)
+}
+
+func logInvalidPropBlockError(l log.Logger, h tmproto.Header, reason string, err error) {
+	l.Error(
+		rejectedPropBlockLog,
+		"reason",
+		reason,
+		"proposer",
+		h.ProposerAddress,
+		"err",
+		err.Error(),
+	)
 }

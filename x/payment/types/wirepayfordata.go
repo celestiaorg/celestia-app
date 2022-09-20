@@ -5,12 +5,12 @@ import (
 	"errors"
 	fmt "fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	"github.com/tendermint/tendermint/pkg/consts"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -102,6 +102,16 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 		)
 	}
 
+	if err := msg.ValidateMessageShareCommitments(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ValidateMessageShareCommitments returns an error if the message share
+// commitments are invalid.
+func (msg *MsgWirePayForData) ValidateMessageShareCommitments() error {
 	for idx, commit := range msg.MessageShareCommitment {
 		// check that each commit is valid
 		if !powerOf2(commit.K) {
@@ -118,7 +128,54 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 		}
 	}
 
+	if len(msg.MessageShareCommitment) == 0 {
+		return ErrNoMessageShareCommitments
+	}
+
+	if err := msg.ValidateAllSquareSizesCommitedTo(); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// ValidateAllSquareSizesCommitedTo returns an error if the list of square sizes
+// committed to don't match all square sizes expected for this message size.
+func (msg *MsgWirePayForData) ValidateAllSquareSizesCommitedTo() error {
+	allSquareSizes := AllSquareSizes(int(msg.MessageSize))
+	committedSquareSizes := msg.committedSquareSizes()
+
+	if len(allSquareSizes) != len(committedSquareSizes) {
+		return ErrInvalidShareCommitments.Wrapf("length of all square sizes: %v must equal length of committed square sizes: %v", len(allSquareSizes), len(committedSquareSizes))
+	}
+
+	if !isEqual(allSquareSizes, committedSquareSizes) {
+		return ErrInvalidShareCommitments.Wrapf("all square sizes: %v, committed square sizes: %v", allSquareSizes, committedSquareSizes)
+	}
+	return nil
+}
+
+// isEqual returns true if the given uint64 slices are equal
+func isEqual(a, b []uint64) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// commitedSquareSizes returns a list of square sizes that are present in a
+// message's share commitment.
+func (msg *MsgWirePayForData) committedSquareSizes() []uint64 {
+	squareSizes := make([]uint64, 0, len(msg.MessageShareCommitment))
+	for _, commit := range msg.MessageShareCommitment {
+		squareSizes = append(squareSizes, commit.K)
+	}
+	return squareSizes
 }
 
 // ValidateMessageNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.
@@ -131,17 +188,17 @@ func ValidateMessageNamespaceID(ns namespace.ID) error {
 		)
 	}
 	// ensure that a reserved namespace is not used
-	if bytes.Compare(ns, consts.MaxReservedNamespace) < 1 {
-		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", ns, consts.MaxReservedNamespace)
+	if bytes.Compare(ns, appconsts.MaxReservedNamespace) < 1 {
+		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", ns, appconsts.MaxReservedNamespace)
 	}
 
 	// ensure that ParitySharesNamespaceID is not used
-	if bytes.Equal(ns, consts.ParitySharesNamespaceID) {
+	if bytes.Equal(ns, appconsts.ParitySharesNamespaceID) {
 		return ErrParitySharesNamespace
 	}
 
 	// ensure that TailPaddingNamespaceID is not used
-	if bytes.Equal(ns, consts.TailPaddingNamespaceID) {
+	if bytes.Equal(ns, appconsts.TailPaddingNamespaceID) {
 		return ErrTailPaddingNamespace
 	}
 
@@ -157,10 +214,10 @@ func (msg *MsgWirePayForData) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{address}
 }
 
-// createPayForDataSignature generates the signature for a PayForData for a single square
-// size using the info from a MsgWirePayForData.
-func (msg *MsgWirePayForData) createPayForDataSignature(signer *KeyringSigner, builder sdkclient.TxBuilder, k uint64) ([]byte, error) {
-	pfd, err := msg.unsignedPayForData(k)
+// createPayForDataSignature generates the signature for a PayForData for a
+// single squareSize using the info from a MsgWirePayForData.
+func (msg *MsgWirePayForData) createPayForDataSignature(signer *KeyringSigner, builder sdkclient.TxBuilder, squareSize uint64) ([]byte, error) {
+	pfd, err := msg.unsignedPayForData(squareSize)
 	if err != nil {
 		return nil, err
 	}
@@ -184,9 +241,9 @@ func (msg *MsgWirePayForData) createPayForDataSignature(signer *KeyringSigner, b
 
 // unsignedPayForData use the data in the MsgWirePayForData
 // to create a new MsgPayForData.
-func (msg *MsgWirePayForData) unsignedPayForData(k uint64) (*MsgPayForData, error) {
+func (msg *MsgWirePayForData) unsignedPayForData(squareSize uint64) (*MsgPayForData, error) {
 	// create the commitment using the padded message
-	commit, err := CreateCommitment(k, msg.MessageNameSpaceId, msg.Message)
+	commit, err := CreateCommitment(squareSize, msg.MessageNameSpaceId, msg.Message)
 	if err != nil {
 		return nil, err
 	}

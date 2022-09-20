@@ -18,4 +18,6 @@ var (
 	ErrTailPaddingNamespace           = sdkerrors.Register(ModuleName, 11118, "cannot use tail padding namespace ID")
 	ErrTxNamespace                    = sdkerrors.Register(ModuleName, 11119, "cannot use transaction namespace ID")
 	ErrEvidenceNamespace              = sdkerrors.Register(ModuleName, 11120, "cannot use evidence namespace ID")
+	ErrNoMessageShareCommitments      = sdkerrors.Register(ModuleName, 11121, "no message share commitments")
+	ErrInvalidShareCommitments        = sdkerrors.Register(ModuleName, 11122, "invalid share commitments: all relevant square sizes must be committed to")
 )

@@ -46,9 +46,10 @@ go.sum: mod
 
 test:
 	@go test -mod=readonly $(PACKAGES)
+.PHONY: test
 
 proto-gen:
-	$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace tendermintdev/sdk-proto-gen:v0.2 sh ./scripts/protocgen.sh
+	$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace tendermintdev/sdk-proto-gen:latest sh ./scripts/protocgen.sh
 
 proto-lint:
 	@$(DOCKER_BUF) lint --error-format=json
@@ -61,27 +62,25 @@ proto-format:
 build-docker:
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
 
+fmt:
+	@golangci-lint run --fix
+	@markdownlint --fix --quiet --config .markdownlint.yaml .
+.PHONY: fmt
 
-###############################################################################
-###                           Tests & Simulation                            ###
-###############################################################################
-# The below include contains the tools target.
-include contrib/devtools/Makefile
-include contrib/devtools/sims.mk
+lint:
+	@echo "--> Running linter"
+	@golangci-lint run
+	@markdownlint --config .markdownlint.yaml '**/*.md'
+.PHONY: lint
 
-test: test-unit test-build
-
-test-all: check test-race test-cover
-
-test-unit:
-	@VERSION=$(VERSION) go test -mod=readonly -tags='ledger test_ledger_mock' ./...
+test-all: test-race test-cover
 
 test-race:
-	@VERSION=$(VERSION) go test -mod=readonly -race -test.short -tags='ledger test_ledger_mock' ./...
+	@VERSION=$(VERSION) go test -mod=readonly -race -test.short ./...
 
 benchmark:
 	@go test -mod=readonly -bench=. ./...
 
 test-cover:
-	@export VERSION=$(VERSION); bash -x contrib/test_cover.sh
+	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-cover
