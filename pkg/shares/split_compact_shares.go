@@ -186,7 +186,7 @@ func TailPaddingShares(n int) NamespacedShares {
 	return shares
 }
 
-func namespacedPaddedShares(ns []byte, count int) []NamespacedShare {
+func namespacedPaddedShares(ns []byte, count int) NamespacedShares {
 	infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, true)
 	if err != nil {
 		panic(err)

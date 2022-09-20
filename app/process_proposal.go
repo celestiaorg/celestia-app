@@ -103,7 +103,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	rawShares, err := shares.Split(data)
+	rawShares, err := shares.Split(data, true)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute shares from block data:", err)
 		return abci.ResponseProcessProposal{
@@ -127,7 +127,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
 	}
-
 	return abci.ResponseProcessProposal{
 		Result: abci.ResponseProcessProposal_ACCEPT,
 	}

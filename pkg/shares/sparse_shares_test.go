@@ -36,7 +36,7 @@ func Test_parseSparseShares(t *testing.T) {
 
 	for _, tc := range tests {
 		tc := tc
-		// run the tests with identically sized messages
+		// run the tests with identically sized messagses
 		t.Run(fmt.Sprintf("%s identically sized ", tc.name), func(t *testing.T) {
 			rawmsgs := make([]coretypes.Message, tc.msgCount)
 			for i := 0; i < tc.msgCount; i++ {
@@ -46,7 +46,7 @@ func Test_parseSparseShares(t *testing.T) {
 			msgs := coretypes.Messages{MessagesList: rawmsgs}
 			msgs.SortMessages()
 
-			shares, _ := SplitMessages(nil, msgs.MessagesList)
+			shares, _ := SplitMessages(0, nil, msgs.MessagesList, false)
 
 			parsedMsgs, err := parseSparseShares(shares)
 			if err != nil {
@@ -63,14 +63,14 @@ func Test_parseSparseShares(t *testing.T) {
 		// run the same tests using randomly sized messages with caps of tc.msgSize
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
 			msgs := generateRandomlySizedMessages(tc.msgCount, tc.msgSize)
-			shares, _ := SplitMessages(nil, msgs.MessagesList)
+			shares, _ := SplitMessages(0, nil, msgs.MessagesList, false)
 
 			parsedMsgs, err := parseSparseShares(shares)
 			if err != nil {
 				t.Error(err)
 			}
 
-			// check that the namesapces and data are the same
+			// check that the namespaces and data are the same
 			for i := 0; i < len(msgs.MessagesList); i++ {
 				assert.Equal(t, msgs.MessagesList[i].NamespaceID, parsedMsgs[i].NamespaceID)
 				assert.Equal(t, msgs.MessagesList[i].Data, parsedMsgs[i].Data)

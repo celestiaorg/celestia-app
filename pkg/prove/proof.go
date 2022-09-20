@@ -16,7 +16,7 @@ import (
 // TxInclusion uses the provided block data to progressively generate rows
 // of a data square, and then using those shares to creates nmt inclusion proofs
 // It is possible that a transaction spans more than one row. In that case, we
-// have to return more than one proofs.
+// have to return more than one proof.
 func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxProof, error) {
 	// calculate the index of the shares that contain the tx
 	startPos, endPos, err := txSharePosition(data.Txs, txIndex)
@@ -168,7 +168,7 @@ func genOrigRowShares(data types.Data, startRow, endRow uint64) [][]byte {
 	}
 
 	for _, m := range data.Messages.MessagesList {
-		msgShares, err := shares.SplitMessages(nil, []types.Message{m})
+		msgShares, err := shares.SplitMessages(0, nil, []types.Message{m}, false)
 		if err != nil {
 			panic(err)
 		}
