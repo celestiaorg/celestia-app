@@ -35,7 +35,7 @@ service Query {
 
   // misc
 
-  // LastUnbondingHeight
+  // LastUnbondingHeight returns the last unbonding height
   rpc LastUnbondingHeight(QueryLastUnbondingHeightRequest)
       returns (QueryLastUnbondingHeightResponse) {
     option (google.api.http).get = "/qgb/unbonding";
