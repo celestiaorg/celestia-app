@@ -75,7 +75,7 @@ func (k Keeper) GetLatestAttestationNonce(ctx sdk.Context) uint64 {
 }
 
 // GetAttestationByNonce returns an attestation request by nonce.
-// Returns (nil, false, nil) if the attestation is not found .
+// Returns (nil, false, nil) if the attestation is not found.
 func (k Keeper) GetAttestationByNonce(ctx sdk.Context, nonce uint64) (types.AttestationRequestI, bool, error) {
 	store := ctx.KVStore(k.storeKey)
 	bz := store.Get([]byte(types.GetAttestationKey(nonce)))
