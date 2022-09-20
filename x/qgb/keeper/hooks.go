@@ -4,7 +4,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// Wrapper struct
+// Hooks is a wrapper struct around Keeper.
 type Hooks struct {
 	k Keeper
 }
