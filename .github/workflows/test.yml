@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - master
-      - qgb-integration # TODO remove when merging to master
 jobs:
   cleanup-runs:
     runs-on: ubuntu-latest
