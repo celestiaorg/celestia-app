@@ -1,9 +1,5 @@
 # ADR 002: QGB Valsets
 
-## Changelog
-
-- {date}: {changelog}
-
 ## Context
 
 To accommodate the requirements of the [Quantum Gravity Bridge](https://github.com/celestiaorg/quantum-gravity-bridge/blob/master/ethereum/solidity/src/QuantumGravityBridge.sol), We will need to add support for `ValSet`s, i.e. Validator Sets, which reflect the current state of the bridge validators.
