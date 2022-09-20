@@ -7,7 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// SetAttestationRequest Sets a new attestation request to the store to be signed
+// SetAttestationRequest sets a new attestation request to the store to be signed
 // by orchestrators afterwards.
 func (k Keeper) SetAttestationRequest(ctx sdk.Context, at types.AttestationRequestI) error {
 	k.StoreAttestation(ctx, at)
@@ -23,7 +23,7 @@ func (k Keeper) SetAttestationRequest(ctx sdk.Context, at types.AttestationReque
 	return nil
 }
 
-// StoreAttestation Saves the attestation in store.
+// StoreAttestation saves the attestation in store.
 // Should panic if overwriting existing one.
 func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) {
 	nonce := at.GetNonce()
