@@ -69,7 +69,7 @@ func (k Keeper) GetLatestAttestationNonce(ctx sdk.Context) uint64 {
 	store := ctx.KVStore(k.storeKey)
 	bytes := store.Get([]byte(types.LatestAttestationtNonce))
 	if bytes == nil {
-		panic("Nil LatestAttestationNonce")
+		panic("nil LatestAttestationNonce")
 	}
 	return UInt64FromBytes(bytes)
 }
