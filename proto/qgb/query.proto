@@ -42,17 +42,14 @@ service Query {
   }
 }
 
-// QueryParamsRequest
 message QueryParamsRequest {}
-// QueryParamsResponse
+
 message QueryParamsResponse {
   Params params = 1 [ (gogoproto.nullable) = false ];
 }
 
-// QueryAttestationRequestByNonceRequest
 message QueryAttestationRequestByNonceRequest { uint64 nonce = 1; }
 
-// QueryAttestationRequestByNonceResponse
 message QueryAttestationRequestByNonceResponse {
   // AttestationRequestI is either a Data Commitment or a Valset.
   // This was decided as part of the universal nonce approach under:
@@ -74,8 +71,6 @@ message QueryLastValsetRequestBeforeNonceRequest { uint64 nonce = 1; }
 // response
 message QueryLastValsetRequestBeforeNonceResponse { Valset valset = 1; }
 
-// QueryLastUnbondingHeightRequest
 message QueryLastUnbondingHeightRequest {}
 
-// QueryLastUnbondingHeightResponse
 message QueryLastUnbondingHeightResponse { uint64 height = 1; }
