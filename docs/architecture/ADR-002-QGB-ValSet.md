@@ -1,4 +1,4 @@
-# ADR 002: QGB Valsets
+# ADR 002: QGB ValSet
 
 ## Context
 
