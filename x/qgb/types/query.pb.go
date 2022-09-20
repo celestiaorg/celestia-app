@@ -205,6 +205,7 @@ func (m *QueryAttestationRequestByNonceResponse) GetAttestation() *types.Any {
 	return nil
 }
 
+// QueryLatestAttestationNonceRequest latest attestation nonce request
 type QueryLatestAttestationNonceRequest struct {
 }
 
@@ -241,6 +242,7 @@ func (m *QueryLatestAttestationNonceRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_QueryLatestAttestationNonceRequest proto.InternalMessageInfo
 
+// QueryLatestAttestationNonceResponse latest attestation nonce response
 type QueryLatestAttestationNonceResponse struct {
 	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
 }
