@@ -58,9 +58,8 @@ message QueryAttestationRequestByNonceResponse {
       [ (cosmos_proto.accepts_interface) = "AttestationRequestI" ];
 }
 
-// QueryLatestAttestationNonceRequest latest attestation nonce request
 message QueryLatestAttestationNonceRequest {}
-// QueryLatestAttestationNonceResponse latest attestation nonce response
+
 message QueryLatestAttestationNonceResponse { uint64 nonce = 1; }
 
 // QueryLastValsetRequestBeforeNonceRequest last Valset request before universal
