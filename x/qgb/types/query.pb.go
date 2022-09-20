@@ -32,6 +32,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// QueryParamsRequest
 type QueryParamsRequest struct {
 }
 
@@ -68,6 +69,7 @@ func (m *QueryParamsRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_QueryParamsRequest proto.InternalMessageInfo
 
+// QueryParamsResponse
 type QueryParamsResponse struct {
 	Params Params `protobuf:"bytes,1,opt,name=params,proto3" json:"params"`
 }
@@ -112,6 +114,7 @@ func (m *QueryParamsResponse) GetParams() Params {
 	return Params{}
 }
 
+// QueryAttestationRequestByNonceRequest
 type QueryAttestationRequestByNonceRequest struct {
 	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
 }
@@ -156,6 +159,7 @@ func (m *QueryAttestationRequestByNonceRequest) GetNonce() uint64 {
 	return 0
 }
 
+// QueryAttestationRequestByNonceResponse
 type QueryAttestationRequestByNonceResponse struct {
 	// AttestationRequestI is either a Data Commitment or a Valset.
 	// This was decided as part of the universal nonce approach under:
@@ -385,6 +389,7 @@ func (m *QueryLastValsetRequestBeforeNonceResponse) GetValset() *Valset {
 	return nil
 }
 
+// QueryLastUnbondingHeightRequest
 type QueryLastUnbondingHeightRequest struct {
 }
 
@@ -421,6 +426,7 @@ func (m *QueryLastUnbondingHeightRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_QueryLastUnbondingHeightRequest proto.InternalMessageInfo
 
+// QueryLastUnbondingHeightResponse
 type QueryLastUnbondingHeightResponse struct {
 	Height uint64 `protobuf:"varint,1,opt,name=height,proto3" json:"height,omitempty"`
 }
