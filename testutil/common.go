@@ -111,7 +111,7 @@ var (
 		sdk.ValAddress(AccPubKeys[4].Address()),
 	}
 
-	// OrchPubKeys AccPubKeys holds the pub keys for the account keys
+	// OrchPubKeys holds the pub keys for the orchestrator
 	OrchPubKeys = []ccrypto.PubKey{
 		OrchPrivKeys[0].PubKey(),
 		OrchPrivKeys[1].PubKey(),
@@ -394,7 +394,7 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 
 		// Set the balance for the account
 		require.NoError(t, input.BankKeeper.MintCoins(input.Context, types.ModuleName, InitCoins))
-		// nolint
+
 		input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, types.ModuleName, acc.GetAddress(), InitCoins)
 
 		// Set the account in state
@@ -485,7 +485,7 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 		staking.EndBlocker(input.Context, input.StakingKeeper)
 	}
 
-	// some inputs can cause the validator creation ot not work, this checks that
+	// some inputs can cause the validator creation not to work, this checks that
 	// everything was successful
 	validators := input.StakingKeeper.GetBondedValidatorsByPower(input.Context)
 	require.Equal(t, len(weights), len(validators))
