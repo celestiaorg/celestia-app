@@ -9,7 +9,7 @@ import (
 
 // TODO add unit tests for all of these requests
 
-// LastValsetBeforeHeight queries the last valset request before height
+// LastValsetRequestBeforeNonce queries the last valset request before nonce
 func (k Keeper) LastValsetRequestBeforeNonce(
 	c context.Context,
 	req *types.QueryLastValsetRequestBeforeNonceRequest,
