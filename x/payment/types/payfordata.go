@@ -1,27 +1,28 @@
 package types
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"math/bits"
 
-	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/rsmt2d"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/tendermint/tendermint/crypto/merkle"
-	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/types"
+
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 )
 
 const (
 	URLMsgWirePayForData = "/payment.MsgWirePayForData"
 	URLMsgPayForData     = "/payment.MsgPayForData"
-	ShareSize            = consts.ShareSize
-	SquareSize           = consts.MaxSquareSize
-	NamespaceIDSize      = consts.NamespaceSize
+	ShareSize            = appconsts.ShareSize
+	SquareSize           = appconsts.MaxSquareSize
+	NamespaceIDSize      = appconsts.NamespaceSize
 )
 
 var _ sdk.Msg = &MsgPayForData{}
@@ -37,13 +38,8 @@ func (msg *MsgPayForData) Type() string {
 // ValidateBasic fullfills the sdk.Msg interface by performing stateless
 // validity checks on the msg that also don't require having the actual message
 func (msg *MsgPayForData) ValidateBasic() error {
-	// ensure that the namespace id is of length == NamespaceIDSize
-	if nsLen := len(msg.GetMessageNamespaceId()); nsLen != NamespaceIDSize {
-		return fmt.Errorf(
-			"invalid namespace length: got %d wanted %d",
-			nsLen,
-			NamespaceIDSize,
-		)
+	if err := ValidateMessageNamespaceID(msg.GetMessageNamespaceId()); err != nil {
+		return err
 	}
 
 	_, err := sdk.AccAddressFromBech32(msg.Signer)
@@ -51,14 +47,8 @@ func (msg *MsgPayForData) ValidateBasic() error {
 		return err
 	}
 
-	// ensure that ParitySharesNamespaceID is not used
-	if bytes.Equal(msg.GetMessageNamespaceId(), consts.ParitySharesNamespaceID) {
-		return ErrParitySharesNamespace
-	}
-
-	// ensure that TailPaddingNamespaceID is not used
-	if bytes.Equal(msg.GetMessageNamespaceId(), consts.TailPaddingNamespaceID) {
-		return ErrTailPaddingNamespace
+	if len(msg.MessageShareCommitment) == 0 {
+		return ErrNoMessageShareCommitments
 	}
 
 	return nil
@@ -119,10 +109,11 @@ func BuildPayForDataTxFromWireTx(
 	return builder.GetTx(), nil
 }
 
-// CreateCommitment generates the commit bytes for a given message, namespace, and
-// squaresize using a namespace merkle tree and the rules described at
+// CreateCommitment generates the commit bytes for a given squareSize,
+// namespace, and message using a namespace merkle tree and the rules described
+// at
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#message-layout-rationale
-func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
+func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, error) {
 	msg := coretypes.Messages{
 		MessagesList: []coretypes.Message{
 			{
@@ -134,17 +125,21 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 
 	// split into shares that are length delimited and include the namespace in
 	// each share
-	shares := msg.SplitIntoShares().RawShares()
+	shares, err := shares.SplitMessages(nil, msg.MessagesList)
+	if err != nil {
+		return nil, err
+	}
 	// if the number of shares is larger than that in the square, throw an error
-	// note, we use k*k-1 here because at least a single share will be reserved
-	// for the transaction paying for the message, therefore the max number of
-	// shares a message can be is number of shares in square -1.
-	if uint64(len(shares)) > (k*k)-1 {
-		return nil, fmt.Errorf("message size exceeds max shares for square size %d: max %d taken %d", k, (k*k)-1, len(shares))
+	// note, we use (squareSize*squareSize)-1 here because at least a single
+	// share will be reserved for the transaction paying for the message,
+	// therefore the max number of shares a message can be is number of shares
+	// in square - 1.
+	if uint64(len(shares)) > (squareSize*squareSize)-1 {
+		return nil, fmt.Errorf("message size exceeds max shares for square size %d: max %d taken %d", squareSize, (squareSize*squareSize)-1, len(shares))
 	}
 
 	// organize shares for merkle mountain range
-	heights := powerOf2MountainRange(uint64(len(shares)), k)
+	heights := powerOf2MountainRange(uint64(len(shares)), squareSize)
 	leafSets := make([][][]byte, len(heights))
 	cursor := uint64(0)
 	for i, height := range heights {
@@ -155,16 +150,13 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 	// create the commits by pushing each leaf set onto an nmt
 	subTreeRoots := make([][]byte, len(leafSets))
 	for i, set := range leafSets {
-		// create the nmt todo(evan) use nmt wrapper
-		tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(NamespaceIDSize))
+		tree := wrapper.NewErasuredNamespacedMerkleTree(appconsts.MaxSquareSize)
 		for _, leaf := range set {
 			nsLeaf := append(make([]byte, 0), append(namespace, leaf...)...)
-			err := tree.Push(nsLeaf)
-			if err != nil {
-				return nil, err
-			}
+			// here we hardcode pushing as axis 0 cell 0 because we never want
+			// to add the parity namespace to our shares when we create roots.
+			tree.Push(nsLeaf, rsmt2d.SquareIndex{Axis: 0, Cell: 0})
 		}
-		// add the root
 		subTreeRoots[i] = tree.Root()
 	}
 	return merkle.HashFromByteSlices(subTreeRoots), nil
@@ -172,16 +164,16 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 
 // powerOf2MountainRange returns the heights of the subtrees for binary merkle
 // mountain range
-func powerOf2MountainRange(l, k uint64) []uint64 {
+func powerOf2MountainRange(l, squareSize uint64) []uint64 {
 	var output []uint64
 
 	for l != 0 {
 		switch {
-		case l >= k:
-			output = append(output, k)
-			l = l - k
-		case l < k:
-			p := nextLowestPowerOf2(l)
+		case l >= squareSize:
+			output = append(output, squareSize)
+			l = l - squareSize
+		case l < squareSize:
+			p := nextLowerPowerOf2(l)
 			output = append(output, p)
 			l = l - p
 		}
@@ -190,9 +182,12 @@ func powerOf2MountainRange(l, k uint64) []uint64 {
 	return output
 }
 
-// NextHighestPowerOf2 returns the next lowest power of 2 unless the input is a power
-// of two, in which case it returns the input
-func NextHighestPowerOf2(v uint64) uint64 {
+// NextHigherPowerOf2 returns the next power of 2 that is higher than v.
+// Examples:
+// NextHigherPowerOf2(1) = 2
+// NextHigherPowerOf2(2) = 4
+// NextHigherPowerOf2(5) = 8
+func NextHigherPowerOf2(v uint64) uint64 {
 	// keep track of the value to check if its the same later
 	i := v
 
@@ -214,8 +209,13 @@ func NextHighestPowerOf2(v uint64) uint64 {
 	return v
 }
 
-func nextLowestPowerOf2(v uint64) uint64 {
-	c := NextHighestPowerOf2(v)
+// nextLowerPowerOf2 returns the next power of 2 that is lower than v unless v
+// is a power of 2 in which case it returns v. Examples:
+// nextLowerPowerOf2(1) = 1
+// nextLowerPowerOf2(2) = 2
+// nextLowerPowerOf2(5) = 4
+func nextLowerPowerOf2(v uint64) uint64 {
+	c := NextHigherPowerOf2(v)
 	if c == v {
 		return c
 	}

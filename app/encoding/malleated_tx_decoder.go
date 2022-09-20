@@ -1,4 +1,4 @@
-package app
+package encoding
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -7,8 +7,8 @@ import (
 
 func MalleatedTxDecoder(dec sdk.TxDecoder) sdk.TxDecoder {
 	return func(txBytes []byte) (sdk.Tx, error) {
-		if _, childTx, has := coretypes.UnwrapMalleatedTx(txBytes); has {
-			return dec(childTx)
+		if malleatedTx, has := coretypes.UnwrapMalleatedTx(txBytes); has {
+			return dec(malleatedTx.Tx)
 		}
 		return dec(txBytes)
 	}

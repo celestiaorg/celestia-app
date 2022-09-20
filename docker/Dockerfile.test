@@ -15,7 +15,7 @@ COPY . .
 
 # Install minimum necessary dependencies, build Cosmos SDK, remove packages
 RUN apk add --no-cache $PACKAGES && \
-  make install
+    make install
 
 # Final image
 FROM alpine:edge
@@ -27,7 +27,7 @@ WORKDIR /root
 # Copy over binaries from the build-env
 COPY --from=build-env /go/bin/celestia-appd /usr/bin/celestia-appd
 
-COPY ./contrib/single-node.sh .
+COPY ./scripts/single-node.sh .
 
 EXPOSE 26657
 

@@ -3,12 +3,12 @@ package app
 import (
 	"math"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/pkg/consts"
-	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -51,7 +51,7 @@ func (app *App) estimateSquareSize(data *core.Data) uint64 {
 	for _, tx := range data.Txs {
 		txBytes += len(tx) + types.DelimLen(uint64(len(tx)))
 	}
-	txShareEstimate := txBytes / consts.TxShareSize
+	txShareEstimate := txBytes / appconsts.CompactShareContentSize
 	if txBytes > 0 {
 		txShareEstimate++ // add one to round up
 	}
@@ -60,7 +60,7 @@ func (app *App) estimateSquareSize(data *core.Data) uint64 {
 	for _, evd := range data.Evidence.Evidence {
 		evdBytes += evd.Size() + types.DelimLen(uint64(evd.Size()))
 	}
-	evdShareEstimate := evdBytes / consts.TxShareSize
+	evdShareEstimate := evdBytes / appconsts.CompactShareContentSize
 	if evdBytes > 0 {
 		evdShareEstimate++ // add one to round up
 	}
@@ -69,12 +69,12 @@ func (app *App) estimateSquareSize(data *core.Data) uint64 {
 
 	totalShareEstimate := txShareEstimate + evdShareEstimate + msgShareEstimate
 	sr := math.Sqrt(float64(totalShareEstimate))
-	estimatedSize := types.NextHighestPowerOf2(uint64(sr))
+	estimatedSize := types.NextHigherPowerOf2(uint64(sr))
 	switch {
-	case estimatedSize > consts.MaxSquareSize:
-		return consts.MaxSquareSize
-	case estimatedSize < consts.MinSquareSize:
-		return consts.MinSquareSize
+	case estimatedSize > appconsts.MaxSquareSize:
+		return appconsts.MaxSquareSize
+	case estimatedSize < appconsts.MinSquareSize:
+		return appconsts.MinSquareSize
 	default:
 		return estimatedSize
 	}

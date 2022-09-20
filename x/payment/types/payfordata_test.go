@@ -5,36 +5,37 @@ import (
 	"testing"
 
 	sdkerrors "cosmossdk.io/errors"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/nmt/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/pkg/consts"
 )
 
 func TestMountainRange(t *testing.T) {
 	type test struct {
-		l, k     uint64
-		expected []uint64
+		l, squareSize uint64
+		expected      []uint64
 	}
 	tests := []test{
 		{
-			l:        11,
-			k:        4,
-			expected: []uint64{4, 4, 2, 1},
+			l:          11,
+			squareSize: 4,
+			expected:   []uint64{4, 4, 2, 1},
 		},
 		{
-			l:        2,
-			k:        64,
-			expected: []uint64{2},
+			l:          2,
+			squareSize: 64,
+			expected:   []uint64{2},
 		},
 		{ // should this test throw an error? we
-			l:        64,
-			k:        8,
-			expected: []uint64{8, 8, 8, 8, 8, 8, 8, 8},
+			l:          64,
+			squareSize: 8,
+			expected:   []uint64{8, 8, 8, 8, 8, 8, 8, 8},
 		},
 	}
 	for _, tt := range tests {
-		res := powerOf2MountainRange(tt.l, tt.k)
+		res := powerOf2MountainRange(tt.l, tt.squareSize)
 		assert.Equal(t, tt.expected, res)
 	}
 }
@@ -46,8 +47,20 @@ func TestNextLowestPowerOf2(t *testing.T) {
 	}
 	tests := []test{
 		{
+			input:    0,
+			expected: 0,
+		},
+		{
+			input:    1,
+			expected: 1,
+		},
+		{
 			input:    2,
 			expected: 2,
+		},
+		{
+			input:    5,
+			expected: 4,
 		},
 		{
 			input:    11,
@@ -57,17 +70,9 @@ func TestNextLowestPowerOf2(t *testing.T) {
 			input:    511,
 			expected: 256,
 		},
-		{
-			input:    1,
-			expected: 1,
-		},
-		{
-			input:    0,
-			expected: 0,
-		},
 	}
 	for _, tt := range tests {
-		res := nextLowestPowerOf2(tt.input)
+		res := nextLowerPowerOf2(tt.input)
 		assert.Equal(t, tt.expected, res)
 	}
 }
@@ -79,8 +84,20 @@ func TestNextHighestPowerOf2(t *testing.T) {
 	}
 	tests := []test{
 		{
+			input:    0,
+			expected: 0,
+		},
+		{
+			input:    1,
+			expected: 2,
+		},
+		{
 			input:    2,
 			expected: 4,
+		},
+		{
+			input:    5,
+			expected: 8,
 		},
 		{
 			input:    11,
@@ -90,17 +107,9 @@ func TestNextHighestPowerOf2(t *testing.T) {
 			input:    511,
 			expected: 512,
 		},
-		{
-			input:    1,
-			expected: 2,
-		},
-		{
-			input:    0,
-			expected: 0,
-		},
 	}
 	for _, tt := range tests {
-		res := NextHighestPowerOf2(tt.input)
+		res := NextHigherPowerOf2(tt.input)
 		assert.Equal(t, tt.expected, res)
 	}
 }
@@ -142,32 +151,32 @@ func TestPowerOf2(t *testing.T) {
 	}
 }
 
-// TestCreateCommit only shows if something changed, it doesn't actually show
-// the commit is being created correctly todo(evan): fix me.
+// TestCreateCommitment only shows if something changed, it doesn't actually
+// show that the commit is being created correctly todo(evan): fix me.
 func TestCreateCommitment(t *testing.T) {
 	type test struct {
-		k         uint64
-		namespace []byte
-		message   []byte
-		expected  []byte
-		expectErr bool
+		squareSize uint64
+		namespace  []byte
+		message    []byte
+		expected   []byte
+		expectErr  bool
 	}
 	tests := []test{
 		{
-			k:         4,
-			namespace: bytes.Repeat([]byte{0xFF}, 8),
-			message:   bytes.Repeat([]byte{0xFF}, 11*ShareSize),
-			expected:  []byte{0xf2, 0xd4, 0xfc, 0x39, 0x4e, 0xf3, 0x97, 0x9d, 0xf4, 0x4c, 0x99, 0x87, 0x36, 0x7d, 0x7d, 0x4, 0xf2, 0xa7, 0x89, 0x26, 0x6d, 0xf5, 0x78, 0xe1, 0xff, 0x72, 0xb4, 0x75, 0x12, 0x1e, 0x71, 0xc3},
+			squareSize: 4,
+			namespace:  bytes.Repeat([]byte{0xFF}, 8),
+			message:    bytes.Repeat([]byte{0xFF}, 11*ShareSize),
+			expected:   []byte{0x44, 0x7e, 0xa2, 0xf4, 0xee, 0xb, 0xad, 0x9d, 0x7f, 0xfb, 0x5e, 0x9e, 0xc6, 0xd4, 0xf6, 0x70, 0x4f, 0x36, 0x83, 0x1a, 0x58, 0xe, 0x13, 0xd8, 0x5a, 0x9d, 0x43, 0x11, 0x6a, 0x5f, 0xdd, 0xe1},
 		},
 		{
-			k:         2,
-			namespace: bytes.Repeat([]byte{0xFF}, 8),
-			message:   bytes.Repeat([]byte{0xFF}, 100*ShareSize),
-			expectErr: true,
+			squareSize: 2,
+			namespace:  bytes.Repeat([]byte{0xFF}, 8),
+			message:    bytes.Repeat([]byte{0xFF}, 100*ShareSize),
+			expectErr:  true,
 		},
 	}
 	for _, tt := range tests {
-		res, err := CreateCommitment(tt.k, tt.namespace, tt.message)
+		res, err := CreateCommitment(tt.squareSize, tt.namespace, tt.message)
 		if tt.expectErr {
 			assert.Error(t, err)
 			continue
@@ -196,14 +205,14 @@ func TestSignMalleatedTxs(t *testing.T) {
 		{
 			name:    "single share",
 			ns:      []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			msg:     bytes.Repeat([]byte{1}, consts.MsgShareSize),
+			msg:     bytes.Repeat([]byte{1}, appconsts.SparseShareContentSize),
 			ss:      []uint64{2, 4, 8, 16},
 			options: []TxBuilderOption{SetGasLimit(2000000)},
 		},
 		{
 			name: "12 shares",
 			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:  bytes.Repeat([]byte{2}, (consts.MsgShareSize*12)-4), // subtract a few bytes for the delimiter
+			msg:  bytes.Repeat([]byte{2}, (appconsts.SparseShareContentSize*12)-4), // subtract a few bytes for the delimiter
 			ss:   []uint64{4, 8, 16, 64},
 			options: []TxBuilderOption{
 				SetGasLimit(123456789),
@@ -267,21 +276,21 @@ func TestProcessMessage(t *testing.T) {
 		{
 			name:   "single share square size 2",
 			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			msg:    bytes.Repeat([]byte{1}, totalMsgSize(consts.MsgShareSize)),
+			msg:    bytes.Repeat([]byte{1}, totalMsgSize(appconsts.SparseShareContentSize)),
 			ss:     2,
 			modify: dontModify,
 		},
 		{
 			name:   "15 shares square size 4",
 			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:    bytes.Repeat([]byte{2}, totalMsgSize(consts.MsgShareSize*15)),
+			msg:    bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15)),
 			ss:     4,
 			modify: dontModify,
 		},
 		{
 			name: "incorrect square size",
 			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:  bytes.Repeat([]byte{2}, totalMsgSize(consts.MsgShareSize*15)),
+			msg:  bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15)),
 			ss:   4,
 			modify: func(wpfd *MsgWirePayForData) *MsgWirePayForData {
 				wpfd.MessageShareCommitment[0].K = 99999
@@ -332,6 +341,26 @@ func TestValidateBasic(t *testing.T) {
 	tailPaddingMsg := validMsgPayForData(t)
 	tailPaddingMsg.MessageNamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
 
+	// MsgPayForData that uses transaction namespace id
+	txNamespaceMsg := validMsgPayForData(t)
+	txNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 1}
+
+	// MsgPayForData that uses intermediateStateRoots namespace id
+	intermediateStateRootsNamespaceMsg := validMsgPayForData(t)
+	intermediateStateRootsNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 2}
+
+	// MsgPayForData that uses evidence namespace id
+	evidenceNamespaceMsg := validMsgPayForData(t)
+	evidenceNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
+
+	// MsgPayForData that uses the max reserved namespace id
+	maxReservedNamespaceMsg := validMsgPayForData(t)
+	maxReservedNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
+
+	// MsgPayForData that has no message share commitments
+	noMessageShareCommitments := validMsgPayForData(t)
+	noMessageShareCommitments.MessageShareCommitment = []byte{}
+
 	tests := []test{
 		{
 			name:    "valid msg",
@@ -347,6 +376,31 @@ func TestValidateBasic(t *testing.T) {
 			name:    "tail padding namespace id",
 			msg:     tailPaddingMsg,
 			wantErr: ErrTailPaddingNamespace,
+		},
+		{
+			name:    "transaction namspace namespace id",
+			msg:     txNamespaceMsg,
+			wantErr: ErrReservedNamespace,
+		},
+		{
+			name:    "intermediate state root namespace id",
+			msg:     intermediateStateRootsNamespaceMsg,
+			wantErr: ErrReservedNamespace,
+		},
+		{
+			name:    "evidence namspace namespace id",
+			msg:     evidenceNamespaceMsg,
+			wantErr: ErrReservedNamespace,
+		},
+		{
+			name:    "max reserved namespace id",
+			msg:     maxReservedNamespaceMsg,
+			wantErr: ErrReservedNamespace,
+		},
+		{
+			name:    "no message share commitments",
+			msg:     noMessageShareCommitments,
+			wantErr: ErrNoMessageShareCommitments,
 		},
 	}
 
@@ -371,10 +425,11 @@ func totalMsgSize(size int) int {
 }
 
 func validWirePayForData(t *testing.T) *MsgWirePayForData {
+	message := bytes.Repeat([]byte{1}, 2000)
 	msg, err := NewWirePayForData(
 		[]byte{1, 2, 3, 4, 5, 6, 7, 8},
-		bytes.Repeat([]byte{1}, 2000),
-		16, 32, 64,
+		message,
+		AllSquareSizes(len(message))...,
 	)
 	if err != nil {
 		panic(err)
@@ -393,7 +448,7 @@ func validMsgPayForData(t *testing.T) *MsgPayForData {
 	kb := generateKeyring(t, "test")
 	signer := NewKeyringSigner(kb, "test", "chain-id")
 	ns := []byte{1, 1, 1, 1, 1, 1, 1, 2}
-	msg := bytes.Repeat([]byte{2}, totalMsgSize(consts.MsgShareSize*15))
+	msg := bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15))
 	ss := uint64(4)
 
 	wpfd, err := NewWirePayForData(ns, msg, ss)

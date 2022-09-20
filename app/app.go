@@ -78,6 +78,7 @@ import (
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/prove"
 	paymentmodule "github.com/celestiaorg/celestia-app/x/payment"
 	paymentmodulekeeper "github.com/celestiaorg/celestia-app/x/payment/keeper"
 	paymentmoduletypes "github.com/celestiaorg/celestia-app/x/payment/types"
@@ -240,7 +241,7 @@ func New(
 	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 
-	bApp := baseapp.NewBaseApp(Name, logger, db, MalleatedTxDecoder(encodingConfig.TxConfig.TxDecoder()), baseAppOptions...)
+	bApp := baseapp.NewBaseApp(Name, logger, db, encoding.MalleatedTxDecoder(encodingConfig.TxConfig.TxDecoder()), baseAppOptions...)
 	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
@@ -480,6 +481,8 @@ func New(
 		paramstypes.ModuleName,
 		upgradetypes.ModuleName,
 	)
+
+	app.QueryRouter().AddRoute(prove.TxInclusionQueryPath, prove.QueryTxInclusionProof)
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
 	app.mm.RegisterRoutes(app.Router(), app.QueryRouter(), encodingConfig.Amino)

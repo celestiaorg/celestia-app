@@ -5,12 +5,14 @@ import (
 	"crypto/sha256"
 	"sort"
 
-	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
-	"github.com/tendermint/tendermint/pkg/consts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/x/payment/types"
 )
 
 // SplitShares uses the provided block data to create a flattened data square.
@@ -111,11 +113,11 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
 // that message and their corresponding txs get written to the square
 // atomically.
 type shareSplitter struct {
-	txWriter  *coretypes.ContiguousShareWriter
-	msgWriter *coretypes.MessageShareWriter
+	txWriter  *shares.CompactShareSplitter
+	msgWriter *shares.SparseShareSplitter
 
 	// Since evidence will always be included in a block, we do not need to
-	// generate these share lazily. Therefore instead of a ContiguousShareWriter
+	// generate these share lazily. Therefore instead of a CompactShareWriter
 	// we use the normal eager mechanism
 	evdShares [][]byte
 
@@ -136,10 +138,13 @@ func newShareSplitter(txConf client.TxConfig, squareSize uint64, data *core.Data
 	if err != nil {
 		panic(err)
 	}
-	sqwr.evdShares = evdData.SplitIntoShares().RawShares()
+	sqwr.evdShares, err = shares.SplitEvidence(evdData.Evidence)
+	if err != nil {
+		panic(err)
+	}
 
-	sqwr.txWriter = coretypes.NewContiguousShareWriter(consts.TxNamespaceID)
-	sqwr.msgWriter = coretypes.NewMessageShareWriter()
+	sqwr.txWriter = shares.NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
+	sqwr.msgWriter = shares.NewSparseShareSplitter()
 
 	return &sqwr
 }
@@ -147,7 +152,7 @@ func newShareSplitter(txConf client.TxConfig, squareSize uint64, data *core.Data
 // writeTx marshals the tx and lazily writes it to the square. Returns true if
 // the write was successful, false if there was not enough room in the square.
 func (sqwr *shareSplitter) writeTx(tx []byte) (ok bool, err error) {
-	delimTx, err := coretypes.Tx(tx).MarshalDelimited()
+	delimTx, err := shares.MarshalDelimitedTx(tx)
 	if err != nil {
 		return false, err
 	}
@@ -156,7 +161,7 @@ func (sqwr *shareSplitter) writeTx(tx []byte) (ok bool, err error) {
 		return false, nil
 	}
 
-	sqwr.txWriter.Write(delimTx)
+	sqwr.txWriter.WriteBytes(delimTx)
 	return true, nil
 }
 
@@ -187,7 +192,9 @@ func (sqwr *shareSplitter) writeMalleatedTx(
 		return false, nil, nil, err
 	}
 
-	wrappedTx, err := coretypes.WrapMalleatedTx(parentHash[:], rawProcessedTx)
+	// we use a share index of 0 here because this implementation doesn't
+	// support non-interactive defaults or the usuage of wrapped txs
+	wrappedTx, err := coretypes.WrapMalleatedTx(parentHash[:], 0, rawProcessedTx)
 	if err != nil {
 		return false, nil, nil, err
 	}
@@ -198,12 +205,12 @@ func (sqwr *shareSplitter) writeMalleatedTx(
 		return false, nil, nil, nil
 	}
 
-	delimTx, err := wrappedTx.MarshalDelimited()
+	delimTx, err := shares.MarshalDelimitedTx(wrappedTx)
 	if err != nil {
 		return false, nil, nil, err
 	}
 
-	sqwr.txWriter.Write(delimTx)
+	sqwr.txWriter.WriteBytes(delimTx)
 	sqwr.msgWriter.Write(coretypes.Message{
 		NamespaceID: coreMsg.NamespaceId,
 		Data:        coreMsg.Data,
@@ -217,7 +224,7 @@ func (sqwr *shareSplitter) hasRoomForBoth(tx, msg []byte) bool {
 
 	txBytesTaken := types.DelimLen(uint64(len(tx))) + len(tx)
 
-	maxTxSharesTaken := ((txBytesTaken - availableBytes) / consts.TxShareSize) + 1 // plus one because we have to add at least one share
+	maxTxSharesTaken := ((txBytesTaken - availableBytes) / appconsts.CompactShareContentSize) + 1 // plus one because we have to add at least one share
 
 	maxMsgSharesTaken := types.MsgSharesUsed(len(msg))
 
@@ -232,7 +239,7 @@ func (sqwr *shareSplitter) hasRoomForTx(tx []byte) bool {
 		return true
 	}
 
-	maxSharesTaken := ((bytesTaken - availableBytes) / consts.TxShareSize) + 1 // plus one because we have to add at least one share
+	maxSharesTaken := ((bytesTaken - availableBytes) / appconsts.CompactShareContentSize) + 1 // plus one because we have to add at least one share
 
 	return currentShareCount+maxSharesTaken <= sqwr.maxShareCount
 }
@@ -246,36 +253,39 @@ func (sqwr *shareSplitter) shareCount() (count, availableTxBytes int) {
 func (sqwr *shareSplitter) export() [][]byte {
 	count, availableBytes := sqwr.shareCount()
 	// increment the count if there are any pending tx bytes
-	if availableBytes < consts.TxShareSize {
+	if availableBytes < appconsts.CompactShareContentSize {
 		count++
 	}
-	shares := make([][]byte, sqwr.maxShareCount)
+	rawShares := make([][]byte, sqwr.maxShareCount)
 
 	txShares := sqwr.txWriter.Export().RawShares()
 	txShareCount := len(txShares)
-	copy(shares, txShares)
+	copy(rawShares, txShares)
 
 	evdShareCount := len(sqwr.evdShares)
 	for i, evdShare := range sqwr.evdShares {
-		shares[i+txShareCount] = evdShare
+		rawShares[i+txShareCount] = evdShare
 	}
 
 	msgShares := sqwr.msgWriter.Export()
+	sort.SliceStable(msgShares, func(i, j int) bool {
+		return msgShares[i].ID.Less(msgShares[j].ID)
+	})
 	msgShareCount := len(msgShares)
 	for i, msgShare := range msgShares {
-		shares[i+txShareCount+evdShareCount] = msgShare.Share
+		rawShares[i+txShareCount+evdShareCount] = msgShare.Share
 	}
 
-	tailShares := coretypes.TailPaddingShares(sqwr.maxShareCount - count).RawShares()
+	tailShares := shares.TailPaddingShares(sqwr.maxShareCount - count).RawShares()
 
 	for i, tShare := range tailShares {
 		d := i + txShareCount + evdShareCount + msgShareCount
-		shares[d] = tShare
+		rawShares[d] = tShare
 	}
 
-	if len(shares[0]) == 0 {
-		shares = coretypes.TailPaddingShares(consts.MinSharecount).RawShares()
+	if len(rawShares[0]) == 0 {
+		rawShares = shares.TailPaddingShares(appconsts.MinShareCount).RawShares()
 	}
 
-	return shares
+	return rawShares
 }
