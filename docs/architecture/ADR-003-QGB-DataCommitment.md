@@ -1,4 +1,4 @@
-# ADR 002: Overview
+# ADR 003: QGB Data Commitments
 
 ## Changelog
 

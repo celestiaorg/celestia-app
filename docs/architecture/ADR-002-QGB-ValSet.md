@@ -1,4 +1,4 @@
-# ADR 002: Overview
+# ADR 002: QGB Valsets
 
 ## Changelog
 
