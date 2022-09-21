@@ -46,7 +46,6 @@ func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) 
 func (k Keeper) SetLatestAttestationNonce(ctx sdk.Context, nonce uint64) {
 	if !k.CheckLatestAttestationNonce(ctx) {
 		panic("store does not contain latest attestation nonce")
-
 	}
 	currentNonce := k.GetLatestAttestationNonce(ctx)
 	if currentNonce+1 != nonce {
