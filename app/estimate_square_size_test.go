@@ -25,14 +25,14 @@ func Test_estimateSquareSize(t *testing.T) {
 	tests := []test{
 		{"empty block minimum square size", 0, 0, 0, appconsts.MinSquareSize},
 		{"full block with only txs", 10000, 0, 0, appconsts.MaxSquareSize},
-		{"random small block square size 4", 0, 1, 400, 4},
-		{"random small block square size 4", 0, 1, 2000, 4},
-		{"random small block w/ 10 normal txs square size 4", 10, 1, 2000, 8},
-		{"random small block square size 16", 0, 4, 2000, 16},
-		{"random medium block square size 32", 0, 50, 2000, 32},
-		{"full block max square size", 0, 8000, 100, appconsts.MaxSquareSize},
-		{"overly full block", 0, 80, 100000, appconsts.MaxSquareSize},
-		{"one over the perfect estimation edge case", 10, 1, 300, 8},
+		{"random small block square size 4", 0, 1, appconsts.SparseShareContentSize, 4},
+		{"random small block square size 4", 0, 1, appconsts.SparseShareContentSize * 10, 4},
+		{"random small block w/ 10 normal txs square size 4", 10, 1, appconsts.SparseShareContentSize, 8},
+		{"random small block square size 16", 0, 4, appconsts.SparseShareContentSize * 8, 16},
+		{"random medium block square size 32", 0, 50, appconsts.SparseShareContentSize * 4, 32},
+		{"full block max square size", 0, 8000, appconsts.SparseShareContentSize, appconsts.MaxSquareSize},
+		{"overly full block", 0, 80, appconsts.SparseShareContentSize * 100, appconsts.MaxSquareSize},
+		{"one over the perfect estimation edge case", 10, 1, appconsts.SparseShareContentSize * 10, 8},
 	}
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
 	signer := generateKeyringSigner(t, "estimate-key")
@@ -149,14 +149,14 @@ func Test_calculateCompactShareCount(t *testing.T) {
 	tests := []test{
 		{"empty block minimum square size", 0, 0, 0},
 		{"full block with only txs", 10000, 0, 0},
-		{"random small block square size 4", 0, 1, 400},
-		{"random small block square size 8", 0, 1, 2000},
-		{"random small block w/ 10 normal txs square size 4", 10, 1, 2000},
-		{"random small block square size 16", 0, 4, 2000},
-		{"random medium block square size 32", 0, 50, 2000},
-		{"full block max square size", 0, 8000, 100},
-		{"overly full block", 0, 80, 100000},
-		{"one over the perfect estimation edge case", 10, 1, 300},
+		{"random small block square size 4", 0, 1, appconsts.SparseShareContentSize * 2},
+		{"random small block square size 8", 0, 1, appconsts.SparseShareContentSize * 4},
+		{"random small block w/ 10 normal txs square size 4", 10, 1, appconsts.SparseShareContentSize * 8},
+		{"random small block square size 16", 0, 4, appconsts.SparseShareContentSize * 8},
+		{"random medium block square size 32", 0, 50, appconsts.SparseShareContentSize * 8},
+		{"full block max square size", 0, 8000, appconsts.SparseShareContentSize / 2},
+		{"overly full block", 0, 80, appconsts.SparseShareContentSize * 100},
+		{"one over the perfect estimation edge case", 10, 1, appconsts.SparseShareContentSize + 1},
 	}
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
 	signer := generateKeyringSigner(t, "estimate-key")

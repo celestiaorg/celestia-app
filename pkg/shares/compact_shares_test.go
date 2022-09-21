@@ -16,7 +16,7 @@ func TestCompactShareWriter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
 	// tests occur in TestMerge and Test_processCompactShares
 	w := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
-	txs := generateRandomCompactShares(33, 200)
+	txs := generateRandomTransaction(33, 200)
 	for _, tx := range txs {
 		rawTx, _ := MarshalDelimitedTx(tx)
 		w.WriteBytes(rawTx)
@@ -31,7 +31,7 @@ func TestCompactShareWriter(t *testing.T) {
 
 func Test_parseDelimiter(t *testing.T) {
 	for i := uint64(0); i < 100; i++ {
-		tx := generateRandomCompactShares(1, int(i))[0]
+		tx := generateRandomTransaction(1, int(i))[0]
 		input, err := MarshalDelimitedTx(tx)
 		if err != nil {
 			panic(err)
@@ -76,10 +76,10 @@ func Test_processCompactShares(t *testing.T) {
 	// each test is ran twice, once using txSize as an exact size, and again
 	// using it as a cap for randomly sized txs
 	tests := []test{
-		{"single small tx", 10, 1},
-		{"many small txs", 10, 10},
-		{"single big tx", 1000, 1},
-		{"many big txs", 1000, 10},
+		{"single small tx", appconsts.CompactShareContentSize / 8, 1},
+		{"many small txs", appconsts.CompactShareContentSize / 8, 10},
+		{"single big tx", appconsts.CompactShareContentSize * 4, 1},
+		{"many big txs", appconsts.CompactShareContentSize * 4, 10},
 		{"single exact size tx", exactTxShareSize, 1},
 		{"many exact size txs", exactTxShareSize, 10},
 	}
@@ -89,7 +89,7 @@ func Test_processCompactShares(t *testing.T) {
 
 		// run the tests with identically sized txs
 		t.Run(fmt.Sprintf("%s idendically sized", tc.name), func(t *testing.T) {
-			txs := generateRandomCompactShares(tc.txCount, tc.txSize)
+			txs := generateRandomTransaction(tc.txCount, tc.txSize)
 
 			shares := SplitTxs(txs)
 
@@ -106,7 +106,7 @@ func Test_processCompactShares(t *testing.T) {
 
 		// run the same tests using randomly sized txs with caps of tc.txSize
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
-			txs := generateRandomlySizedCompactShares(tc.txCount, tc.txSize)
+			txs := generateRandomlySizedTransactions(tc.txCount, tc.txSize)
 
 			shares := SplitTxs(txs)
 
@@ -125,7 +125,7 @@ func Test_processCompactShares(t *testing.T) {
 
 func TestCompactShareContainsInfoByte(t *testing.T) {
 	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
-	txs := generateRandomCompactShares(1, 100)
+	txs := generateRandomTransaction(1, appconsts.CompactShareContentSize/4)
 
 	for _, tx := range txs {
 		css.WriteTx(tx)
@@ -145,7 +145,7 @@ func TestCompactShareContainsInfoByte(t *testing.T) {
 
 func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
-	txs := generateRandomCompactShares(1, 1000)
+	txs := generateRandomTransaction(1, appconsts.CompactShareContentSize*4)
 
 	for _, tx := range txs {
 		css.WriteTx(tx)
@@ -164,7 +164,7 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 }
 
 func Test_parseCompactSharesReturnsErrForShareWithStartIndicatorFalse(t *testing.T) {
-	txs := generateRandomCompactShares(2, 1000)
+	txs := generateRandomTransaction(2, appconsts.CompactShareContentSize*4)
 	shares := SplitTxs(txs)
 	_, err := parseCompactShares(shares[1:]) // the second share has the message start indicator set to false
 	assert.Error(t, err)

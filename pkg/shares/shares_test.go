@@ -275,26 +275,26 @@ func TestFuzz_Merge(t *testing.T) {
 
 // generateRandomBlockData returns randomly generated block data for testing purposes
 func generateRandomBlockData(txCount, evdCount, msgCount, maxSize int) (data coretypes.Data) {
-	data.Txs = generateRandomlySizedCompactShares(txCount, maxSize)
+	data.Txs = generateRandomlySizedTransactions(txCount, maxSize)
 	data.Evidence = generateIdenticalEvidence(evdCount)
 	data.Messages = generateRandomlySizedMessages(msgCount, maxSize)
 	data.OriginalSquareSize = appconsts.MaxSquareSize
 	return data
 }
 
-func generateRandomlySizedCompactShares(count, max int) coretypes.Txs {
+func generateRandomlySizedTransactions(count, maxSize int) coretypes.Txs {
 	txs := make(coretypes.Txs, count)
 	for i := 0; i < count; i++ {
-		size := rand.Intn(max)
+		size := rand.Intn(maxSize)
 		if size == 0 {
 			size = 1
 		}
-		txs[i] = generateRandomCompactShares(1, size)[0]
+		txs[i] = generateRandomTransaction(1, size)[0]
 	}
 	return txs
 }
 
-func generateRandomCompactShares(count, size int) coretypes.Txs {
+func generateRandomTransaction(count, size int) coretypes.Txs {
 	txs := make(coretypes.Txs, count)
 	for i := 0; i < count; i++ {
 		tx := make([]byte, size)
