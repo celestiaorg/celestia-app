@@ -22,7 +22,7 @@ const (
 )
 
 const (
-	// ValsetRequestKey indexes valset requests by nonce
+	// AttestationRequestKey indexes attestation requests by nonce
 	AttestationRequestKey = "AttestationRequestKey"
 
 	// LastUnBondingBlockHeight indexes the last validator unbonding block height
