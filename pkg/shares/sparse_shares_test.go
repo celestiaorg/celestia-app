@@ -26,10 +26,10 @@ func Test_parseSparseShares(t *testing.T) {
 	// each test is ran twice, once using msgSize as an exact size, and again
 	// using it as a cap for randomly sized leaves
 	tests := []test{
-		{"single small msg", 100, 1},
-		{"many small msgs", 100, 10},
-		{"single big msg", 1000, 1},
-		{"many big msgs", 1000, 10},
+		{"single small msg", appconsts.SparseShareContentSize / 2, 1},
+		{"many small msgs", appconsts.SparseShareContentSize / 2, 10},
+		{"single big msg", appconsts.SparseShareContentSize * 4, 1},
+		{"many big msgs", appconsts.SparseShareContentSize * 4, 10},
 		{"single exact size msg", exactMsgShareSize, 1},
 		{"many exact size msgs", appconsts.SparseShareContentSize, 10},
 	}
@@ -81,8 +81,8 @@ func Test_parseSparseShares(t *testing.T) {
 
 func TestParsePaddedMsg(t *testing.T) {
 	msgWr := NewSparseShareSplitter()
-	randomSmallMsg := generateRandomMessage(100)
-	randomLargeMsg := generateRandomMessage(10000)
+	randomSmallMsg := generateRandomMessage(appconsts.SparseShareContentSize / 2)
+	randomLargeMsg := generateRandomMessage(appconsts.SparseShareContentSize * 4)
 	msgs := coretypes.Messages{
 		MessagesList: []coretypes.Message{
 			randomSmallMsg,
@@ -101,7 +101,7 @@ func TestParsePaddedMsg(t *testing.T) {
 
 func TestMsgShareContainsInfoByte(t *testing.T) {
 	sss := NewSparseShareSplitter()
-	smallMsg := generateRandomMessage(100)
+	smallMsg := generateRandomMessage(appconsts.SparseShareContentSize / 2)
 	sss.Write(smallMsg)
 
 	shares := sss.Export().RawShares()
@@ -117,7 +117,7 @@ func TestMsgShareContainsInfoByte(t *testing.T) {
 
 func TestContiguousMsgShareContainsInfoByte(t *testing.T) {
 	sss := NewSparseShareSplitter()
-	longMsg := generateRandomMessage(1000)
+	longMsg := generateRandomMessage(appconsts.SparseShareContentSize * 4)
 	sss.Write(longMsg)
 
 	shares := sss.Export().RawShares()
