@@ -1,9 +1,5 @@
 # ADR 003: QGB Data Commitments
 
-## Changelog
-
-- {date}: {changelog}
-
 ## Context
 
 To accommodate the requirements of the [Quantum Gravity Bridge](https://github.com/celestiaorg/quantum-gravity-bridge/blob/master/ethereum/solidity/src/QuantumGravityBridge.sol), We will need to add support for `DataCommitment`s messages, i.e. commitments generated over a set of blocks to attest their existence.
@@ -11,6 +7,8 @@ To accommodate the requirements of the [Quantum Gravity Bridge](https://github.c
 ## Decision
 
 Add the `DataCommitmentConfirm` type of messages in order to attest that a set of blocks has been finalized.
+
+PS: The `ValsetConfirm` have been updated in `ADR-005-QGB_reduce_state_usage`. Please take a look on it to know how we will be handling the confirms.
 
 ## Detailed Design
 

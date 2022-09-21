@@ -1,8 +1,4 @@
-# ADR 002: QGB Valsets
-
-## Changelog
-
-- {date}: {changelog}
+# ADR 002: QGB ValSet
 
 ## Context
 
@@ -11,6 +7,8 @@ To accommodate the requirements of the [Quantum Gravity Bridge](https://github.c
 ## Decision
 
 Add the `ValSet` and `ValSetConfirm` type of messages in order to track the state of the validator set.
+
+PS: The `ValsetConfirm` have been updated in `ADR-005-QGB_reduce_state_usage`. Please take a look on it to know how we will be handling the confirms.
 
 ## Detailed Design
 

@@ -4,7 +4,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// Wrapper struct
+// Hooks is a wrapper struct around Keeper.
 type Hooks struct {
 	k Keeper
 }
@@ -15,7 +15,7 @@ func (k Keeper) Hooks() Hooks {
 	// the chain when called. Keep this check to make such a mistake
 	// obvious
 	if k.storeKey == nil {
-		panic("Hooks initialized before GravityKeeper!")
+		panic("hooks initialized before GravityKeeper")
 	}
 	return Hooks{k}
 }

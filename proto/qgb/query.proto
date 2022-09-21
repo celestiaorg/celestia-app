@@ -14,20 +14,20 @@ option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
 // Query defines the gRPC querier service.
 service Query {
-  // Params Queries the current parameters for the qgb module
+  // Params queries the current parameters for the qgb module
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
     option (google.api.http).get = "/qgb/params";
   }
 
   // attestations' requests queries
 
-  // AttestationRequestByNonce Queries attestation request by nonce.
+  // AttestationRequestByNonce queries attestation request by nonce.
   // Returns nil if not found.
   rpc AttestationRequestByNonce(QueryAttestationRequestByNonceRequest)
       returns (QueryAttestationRequestByNonceResponse) {
     option (google.api.http).get = "/qgb/attestations/requests/{nonce}";
   }
-  // LatestAttestationNonce Queries latest attestation nonce.
+  // LatestAttestationNonce queries latest attestation nonce.
   rpc LatestAttestationNonce(QueryLatestAttestationNonceRequest)
       returns (QueryLatestAttestationNonceResponse) {
     option (google.api.http).get = "/qgb/attestations/nonce/latest";
@@ -35,7 +35,7 @@ service Query {
 
   // misc
 
-  // LastUnbondingHeight
+  // LastUnbondingHeight returns the last unbonding height
   rpc LastUnbondingHeight(QueryLastUnbondingHeightRequest)
       returns (QueryLastUnbondingHeightResponse) {
     option (google.api.http).get = "/qgb/unbonding";
@@ -61,9 +61,9 @@ message QueryAttestationRequestByNonceResponse {
       [ (cosmos_proto.accepts_interface) = "AttestationRequestI" ];
 }
 
-// QueryLatestAttestationNonceRequest Latest attestation nonce request
+// QueryLatestAttestationNonceRequest latest attestation nonce request
 message QueryLatestAttestationNonceRequest {}
-// QueryLatestAttestationNonceResponse Latest attestation nonce response
+// QueryLatestAttestationNonceResponse latest attestation nonce response
 message QueryLatestAttestationNonceResponse { uint64 nonce = 1; }
 
 // QueryLastValsetRequestBeforeNonceRequest last Valset request before universal
