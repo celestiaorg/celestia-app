@@ -273,7 +273,7 @@ Then, defining eventual getters that will be used to serve orchestrator/relayer 
 
 In order for the attestations requests to be stored correctly, we will need to enforce some rules that will define how these former will be handled. Thus, we will use `EndBlock` to check the state machine and see whether we need to create new attestations or not.
 
-To do so, will define a custom `EndBlocker` that will be executed at the end of every block:
+To do so, we will define a custom `EndBlocker` that will be executed at the end of every block:
 
 ```go
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
