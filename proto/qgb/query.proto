@@ -19,7 +19,7 @@ service Query {
     option (google.api.http).get = "/qgb/params";
   }
 
-  // attestations' requests queries
+  // queries for attestations requests waiting to be signed by an orchestrator
 
   // AttestationRequestByNonce queries attestation request by nonce.
   // Returns nil if not found.

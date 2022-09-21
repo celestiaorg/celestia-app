@@ -132,7 +132,14 @@ significantPowerDiff := false
 If the previous valset is not null, then we had a previous set of validators defining a certain power.
 We check if the current valset power is significantly different from the previous one. If so, we set the `significantPowerDiff` to true.
 
-The significance of power difference is calculated using a pre-defined constant. Currently, it is `0.05`.
+The significance of power difference is calculated using a pre-defined constant. Currently, it is defined as:
+
+```go
+// SignificantPowerDifferenceThreshold the threshold of change in the validator set power
+// that would need the creation of a new valset request.
+const SignificantPowerDifferenceThreshold = 0.05 
+```
+
 For more information on the normalization of power, check [here](https://github.com/celestiaorg/celestia-app/blob/df46d122da5f1fab1bd99bfb2bfcf9002f5bc154/x/qgb/types/validator.go#L101
 ).
 

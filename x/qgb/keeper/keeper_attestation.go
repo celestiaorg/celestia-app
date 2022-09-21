@@ -44,6 +44,9 @@ func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) 
 // SetLatestAttestationNonce sets the latest attestation request nonce, since it's
 // expected that this value will only increase by one and it panics otherwise.
 func (k Keeper) SetLatestAttestationNonce(ctx sdk.Context, nonce uint64) {
+	// in case the latest attestation nonce doesn't exist,
+	// we proceed to initialize it in the store.
+	// however, if it already exists, we check if the nonce is correctly incremented.
 	if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx)+1 != nonce {
 		panic("not incrementing latest attestation nonce correctly")
 	}
