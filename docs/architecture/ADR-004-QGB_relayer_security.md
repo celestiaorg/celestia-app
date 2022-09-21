@@ -304,7 +304,7 @@ func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
     if ctx.BlockHeight() != 0 && ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx)) == 0 {
         dataCommitment, err := k.GetCurrentDataCommitment(ctx)
         if err != nil {
-            panic(sdkerrors.Wrap(err, "coudln't get current data commitment"))
+            panic(sdkerrors.Wrap(err, "couldn't get current data commitment"))
         }
         err = k.SetAttestationRequest(ctx, &dataCommitment)
         if err != nil {
