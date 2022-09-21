@@ -85,11 +85,317 @@ A proposition to remediate the issues described above is to make the signatures 
 
 ## Decision
 
-the **Synchronous QGB : Universal nonce approach** will be implemented as it will allow us to ship a working QGB 1.0 version faster while preserving the same security assumptions at the expense of parallelization, and custumization, as discussed under the _request oriented design_ above.
+The **Synchronous QGB : Universal nonce approach** will be implemented as it will allow us to ship a working QGB 1.0 version faster while preserving the same security assumptions at the expense of parallelization, and custumization, as discussed under the _request oriented design_ above.
 
 ## Detailed Design
 
-TODO [#471](https://github.com/celestiaorg/celestia-app/issues/471)
+### AttestationRequestI
+
+The **Synchronous QGB : Universal nonce approach** means that the data commitment requests and valset requests will be ordered following the same nonce.
+
+In order to achieve this, we will need to either:
+
+- Have a separate nonce for each and define ordering conditions when updating them to guarantee the universal order.
+- Define an abstraction of  the data commitment requests and valsets that guarantees the order. Then, link it to the concrete types.
+
+In our implementation, we will go for the second approach.
+
+#### Interface implementation
+
+To do so, we will first need to define the interface `AttestationRequestI`:
+
+```go
+type AttestationRequestI interface {
+    proto.Message
+    codec.ProtoMarshaler
+    Type() AttestationType
+    GetNonce() uint64
+}
+```
+
+This interface implements the `proto.Message` so that it can be handled by protobuf messages. Also, it implements the `codec.ProtoMarshaler` to be marshalled/unmarshaled by protobuf.
+
+Then, it contains a method `Type() AttestationType` which returns the attestation type which can be one of the following:
+
+- `DataCommitmentRequestType`: for data commitment requests
+- `ValsetRequestType`: for valset requests
+
+```go
+type AttestationType int64
+
+const (
+    DataCommitmentRequestType AttestationType = iota
+    ValsetRequestType
+)
+```
+
+Finally, a method `GetNonce() uint64` which keeps track of the nonce and returns it.
+
+#### Protobuf implementation
+
+On the proto files, we will use the following notation to refer to the `AttestationRequestI` defined above:
+
+```protobuf
+google.protobuf.Any attestation = 1
+     [ (cosmos_proto.accepts_interface) = "AttestationRequestI" ];
+```
+
+This allows us to query for the attestations using nonces without worrying about the underlying implementation.
+
+For example:
+
+```protobuf
+message QueryAttestationRequestByNonceRequest { uint64 nonce = 1; }
+
+message QueryAttestationRequestByNonceResponse {
+  google.protobuf.Any attestation = 1
+      [ (cosmos_proto.accepts_interface) = "AttestationRequestI" ];
+}
+```
+
+And, implement the query as follows:
+
+```go
+func (k Keeper) AttestationRequestByNonce(
+    ctx context.Context,
+    request *types.QueryAttestationRequestByNonceRequest,
+) (*types.QueryAttestationRequestByNonceResponse, error) {
+    attestation, found, err := k.GetAttestationByNonce(
+        sdk.UnwrapSDKContext(ctx),
+        request.Nonce,
+    )
+    if err != nil {
+        return nil, err
+    }
+    if !found {
+        return &types.QueryAttestationRequestByNonceResponse{}, types.ErrAttestationNotFound
+    }
+    val, err := codectypes.NewAnyWithValue(attestation)
+    if err != nil {
+        return nil, err
+    }
+    return &types.QueryAttestationRequestByNonceResponse{
+        Attestation: val,
+    }, nil
+}
+```
+
+#### State machine
+
+On the state machine, we will need to store the attestations when needed. To do so, we will define the following:
+
+##### Store latest nonce
+
+We will need to keep track of the latest nonce to enforce the nonces order and avoid overwriting existing attestations. This will be done using the following:
+
+```go
+func (k Keeper) SetLatestAttestationNonce(ctx sdk.Context, nonce uint64) {
+    if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx)+1 != nonce {
+        panic("not incrementing latest attestation nonce correctly!")
+    }
+
+    store := ctx.KVStore(k.storeKey)
+    store.Set([]byte(types.LatestAttestationtNonce), types.UInt64Bytes(nonce))
+}
+```
+
+This will **panic** in the following cases:
+
+- The nonce we are incrementing does not exist. The following method checks its existence:
+
+```go
+func (k Keeper) CheckLatestAttestationNonce(ctx sdk.Context) bool {
+    store := ctx.KVStore(k.storeKey)
+    has := store.Has([]byte(types.LatestAttestationtNonce))
+    return has
+}
+```
+
+- The provided nonce is different than `Latest nonce + 1`.
+
+##### Store attestation
+
+The following will store the attestation given that the nonce has never been used before. If not, the state machine will **panic**:
+
+```go
+func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) {
+    nonce := at.GetNonce()
+    key := []byte(types.GetAttestationKey(nonce))
+    store := ctx.KVStore(k.storeKey)
+
+    if store.Has(key) {
+        panic("trying to overwrite existing attestation request")
+    }
+
+    b, err := k.cdc.MarshalInterface(at)
+    if err != nil {
+        panic(err)
+    }
+    store.Set((key), b)
+}
+```
+
+The `GetAttestationKey(nonce)` will return the key used to store the attestation, which is defined as follows:
+
+```go
+// AttestationRequestKey indexes valset requests by nonce
+AttestationRequestKey = "AttestationRequestKey"
+
+// GetAttestationKey returns the following key format
+// prefix    nonce
+// [0x0][0 0 0 0 0 0 0 1]
+func GetAttestationKey(nonce uint64) string {
+    return AttestationRequestKey + string(UInt64Bytes(nonce))
+}
+```
+
+Also, we will define a `SetAttestationRequest` method that will take an attestation and store it while also updating the `LatestAttestationNonce` and emitting an event. This will allow us to always update the nonce and not forget about it:
+
+```go
+func (k Keeper) SetAttestationRequest(ctx sdk.Context, at types.AttestationRequestI) error {
+    k.StoreAttestation(ctx, at)
+    k.SetLatestAttestationNonce(ctx, at.GetNonce())
+
+    ctx.EventManager().EmitEvent(
+        sdk.NewEvent(
+            types.EventTypeAttestationRequest,
+            sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
+            sdk.NewAttribute(types.AttributeKeyNonce, fmt.Sprint(at.GetNonce())),
+        ),
+    )
+    return nil
+}
+```
+
+Then, defining eventual getters that will be used to serve orchestrator/relayer queries.
+
+### ABCI
+
+In order for the attestations requests to be stored correctly, we will need to enforce some rules that will define how these former will be handled. Thus, we will use `EndBlock` to check the state machine and see whether we need to create new attestations or not.
+
+To do so, we will define a custom `EndBlocker` that will be executed at the end of every block:
+
+```go
+func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
+    handleDataCommitmentRequest(ctx, k)
+    handleValsetRequest(ctx, k)
+}
+```
+
+#### handleDataCommitmentRequest
+
+Handling the data commitment requests is fairly easy. We just check whether we reached a new data commitment window and we need to create a new data commitment request.
+
+The data commitment window is defined as a parameter:
+
+```protobuf
+message Params {
+  ...
+  uint64 data_commitment_window = 1;
+}
+```
+
+And set during genesis.
+
+So, we will have the following:
+
+```go
+func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
+    if ctx.BlockHeight() != 0 && ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx)) == 0 {
+        dataCommitment, err := k.GetCurrentDataCommitment(ctx)
+        if err != nil {
+            panic(sdkerrors.Wrap(err, "couldn't get current data commitment"))
+        }
+        err = k.SetAttestationRequest(ctx, &dataCommitment)
+        if err != nil {
+            panic(err)
+        }
+    }
+}
+```
+
+Which will get the current data commitment  as follows:
+
+```go
+func (k Keeper) GetCurrentDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
+    beginBlock := uint64(ctx.BlockHeight()) - k.GetDataCommitmentWindowParam(ctx)
+    endBlock := uint64(ctx.BlockHeight())
+    nonce := k.GetLatestAttestationNonce(ctx) + 1
+
+    dataCommitment := types.NewDataCommitment(nonce, beginBlock, endBlock)
+    return *dataCommitment, nil
+}
+```
+
+And store it.
+
+#### handleValsetRequest
+
+The `handleValsetRequest` is more involved as it has more criteria to create new valsets:
+
+```go
+func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
+    // get the last valsets to compare against
+    var latestValset *types.Valset
+    if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx) != 0 {
+        var err error
+        latestValset, err = k.GetLatestValset(ctx)
+        if err != nil {
+            panic(err)
+        }
+    }
+
+    lastUnbondingHeight := k.GetLastUnBondingBlockHeight(ctx)
+
+    significantPowerDiff := false
+    if latestValset != nil {
+        vs, err := k.GetCurrentValset(ctx)
+        if err != nil {
+            // this condition should only occur in the simulator
+            // ref : https://github.com/Gravity-Bridge/Gravity-Bridge/issues/35
+            if errors.Is(err, types.ErrNoValidators) {
+                ctx.Logger().Error("no bonded validators",
+                    "cause", err.Error(),
+                )
+                return
+            }
+            panic(err)
+        }
+        intCurrMembers, err := types.BridgeValidators(vs.Members).ToInternal()
+        if err != nil {
+            panic(sdkerrors.Wrap(err, "invalid current valset members"))
+        }
+        intLatestMembers, err := types.BridgeValidators(latestValset.Members).ToInternal()
+        if err != nil {
+            panic(sdkerrors.Wrap(err, "invalid latest valset members"))
+        }
+
+        significantPowerDiff = intCurrMembers.PowerDiff(*intLatestMembers) > 0.05
+    }
+
+    if (latestValset == nil) || (lastUnbondingHeight == uint64(ctx.BlockHeight())) || significantPowerDiff {
+        // if the conditions are true, put in a new validator set request to be signed and submitted to Ethereum
+        valset, err := k.GetCurrentValset(ctx)
+        if err != nil {
+            panic(err)
+        }
+        err = k.SetAttestationRequest(ctx, &valset)
+        if err != nil {
+            panic(err)
+        }
+    }
+}
+```
+
+In a nutshell, a new valset will be emitted if any of the following is true:
+
+- The block is the genesis block and no previous valsets were defined. Then, a new valset will be stored referencing the validator set defined in genesis.
+- We're at an unbonding height and we need to update the valset not to end up with a valset containing validators that will cease to exist.
+- A significant power difference occured, i.e. the validator set changed significantly. This is defined using the following:
+
+```go
+significantPowerDiff = intCurrMembers.PowerDiff(*intLatestMembers) > 0.05
+```
 
 ## Status
 
