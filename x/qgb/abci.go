@@ -9,6 +9,10 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
+// SignificantPowerDifferenceThreshold the threshold of change in the validator set power
+// that would need the creation of a new valset request.
+const SignificantPowerDifferenceThreshold = 0.05
+
 // EndBlocker is called at the end of every block.
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
 	handleDataCommitmentRequest(ctx, k)
@@ -64,7 +68,7 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 			panic(sdkerrors.Wrap(err, "invalid latest valset members"))
 		}
 
-		significantPowerDiff = intCurrMembers.PowerDiff(*intLatestMembers) > 0.05
+		significantPowerDiff = intCurrMembers.PowerDiff(*intLatestMembers) > SignificantPowerDifferenceThreshold
 	}
 
 	if (latestValset == nil) || (lastUnbondingHeight == uint64(ctx.BlockHeight())) || significantPowerDiff {
