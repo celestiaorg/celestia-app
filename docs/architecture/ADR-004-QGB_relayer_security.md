@@ -224,7 +224,7 @@ func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) 
     store := ctx.KVStore(k.storeKey)
 
     if store.Has(key) {
-        panic("Trying to overwrite existing attestation request!")
+        panic("trying to overwrite existing attestation request")
     }
 
     b, err := k.cdc.MarshalInterface(at)
