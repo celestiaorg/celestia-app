@@ -12,6 +12,8 @@ To accommodate the requirements of the [Quantum Gravity Bridge](https://github.c
 
 Add the `DataCommitmentConfirm` type of messages in order to attest that a set of blocks has been finalized.
 
+PS: The `ValsetConfirm` have been updated in `ADR-005-QGB_reduce_state_usage`. Please take a look on it to know how we will be handling the confirms.
+
 ## Detailed Design
 
 To accommodate the QGB, validators need a way to submit signatures for a data commitments so that relayers can easily find them and submit them to the bridged chain. To do this, we will introduce `MsgDataCommitmentConfirm` messages. This latter will be persisted for the sole reason of slashing. If not for that, a P2P network would do the job.

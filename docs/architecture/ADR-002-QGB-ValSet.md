@@ -12,6 +12,8 @@ To accommodate the requirements of the [Quantum Gravity Bridge](https://github.c
 
 Add the `ValSet` and `ValSetConfirm` type of messages in order to track the state of the validator set.
 
+PS: The `ValsetConfirm` have been updated in `ADR-005-QGB_reduce_state_usage`. Please take a look on it to know how we will be handling the confirms.
+
 ## Detailed Design
 
 Since the QGB is only a one way bridge and is not transferring assets, it doesn't require the portions of the gravity module that recreate state from the bridged chain. We only need to keep things relating to signing over the validator set (such as`MsgSetOrchestratorAddress` and `MsgValsetConfirm`) and relayer queries (such as `ValsetConfirm` and `GetDelegateKeyByOrchestrator`).
