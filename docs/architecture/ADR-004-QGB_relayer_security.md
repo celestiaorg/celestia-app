@@ -238,7 +238,7 @@ func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) 
 The `GetAttestationKey(nonce)` will return the key used to store the attestation, which is defined as follows:
 
 ```go
-// ValsetRequestKey indexes valset requests by nonce
+// AttestationRequestKey indexes valset requests by nonce
 AttestationRequestKey = "AttestationRequestKey"
 
 // GetAttestationKey returns the following key format
