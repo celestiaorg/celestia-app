@@ -331,7 +331,7 @@ And store it.
 
 #### handleValsetRequest
 
-The `handleValsetRequest` is more involving as it has more criteria to create new valsets:
+The `handleValsetRequest` is more involved as it has more criteria to create new valsets:
 
 ```go
 func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
