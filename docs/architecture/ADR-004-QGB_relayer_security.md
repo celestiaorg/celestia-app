@@ -286,7 +286,7 @@ func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
 
 Handling the data commitment requests is fairly easy. We just check whether we reached a new data commitment window and we need to create a new data commitment request.
 
-The data commitment window is a parameter defined as a parameter:
+The data commitment window is defined as a parameter:
 
 ```protobuf
 message Params {
