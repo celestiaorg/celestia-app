@@ -44,10 +44,14 @@ func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) 
 // SetLatestAttestationNonce sets the latest attestation request nonce, since it's
 // expected that this value will only increase by one and it panics otherwise.
 func (k Keeper) SetLatestAttestationNonce(ctx sdk.Context, nonce uint64) {
-	if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx)+1 != nonce {
-		panic("not incrementing latest attestation nonce correctly!")
-	}
+	if k.CheckLatestAttestationNonce(ctx) {
+		panic("store does not contain latest attestation nonce")
 
+	}
+	currentNonce := k.GetLatestAttestationNonce(ctx)
+	if currentNonce+1 != nonce {
+		panic(fmt.Sprintf("nonce was not incremented by 1, current nonce: %d, new nonce: %d", currentNonce, nonce))
+	}
 	store := ctx.KVStore(k.storeKey)
 	store.Set([]byte(types.LatestAttestationtNonce), types.UInt64Bytes(nonce))
 }
