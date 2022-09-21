@@ -67,7 +67,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	// iterate over all of the MsgPayForData transactions and ensure that they
+	// iterate over all of the MsgPayForData transactions and ensure that their
 	// commitments are subtree roots of the data root.
 	commitmentCounter := 0
 	for _, rawTx := range req.BlockData.Txs {
