@@ -98,7 +98,7 @@ In order to achieve this, we will need to either:
 - Have a separate nonce for each and define ordering conditions when updating them to guarantee the universal order.
 - Define an abstraction of  the data commitment requests and valsets that guarantees the order. Then, link it to the concrete types.
 
-In our implementation, we will go for the second approach. 
+In our implementation, we will go for the second approach.
 
 #### Interface implementation
 
@@ -106,10 +106,10 @@ To do so, we will first need to define the interface `AttestationRequestI`:
 
 ```go
 type AttestationRequestI interface {
-	proto.Message
-	codec.ProtoMarshaler
-	Type() AttestationType
-	GetNonce() uint64
+    proto.Message
+    codec.ProtoMarshaler
+    Type() AttestationType
+    GetNonce() uint64
 }
 ```
 
@@ -124,8 +124,8 @@ Then, it contains a method `Type() AttestationType` which returns the attestatio
 type AttestationType int64
 
 const (
-	DataCommitmentRequestType AttestationType = iota
-	ValsetRequestType
+    DataCommitmentRequestType AttestationType = iota
+    ValsetRequestType
 )
 ```
 
@@ -157,26 +157,26 @@ And, implement the query as follows:
 
 ```go
 func (k Keeper) AttestationRequestByNonce(
-	ctx context.Context,
-	request *types.QueryAttestationRequestByNonceRequest,
+    ctx context.Context,
+    request *types.QueryAttestationRequestByNonceRequest,
 ) (*types.QueryAttestationRequestByNonceResponse, error) {
-	attestation, found, err := k.GetAttestationByNonce(
-		sdk.UnwrapSDKContext(ctx),
-		request.Nonce,
-	)
-	if err != nil {
-		return nil, err
-	}
-	if !found {
-		return &types.QueryAttestationRequestByNonceResponse{}, types.ErrAttestationNotFound
-	}
-	val, err := codectypes.NewAnyWithValue(attestation)
-	if err != nil {
-		return nil, err
-	}
-	return &types.QueryAttestationRequestByNonceResponse{
-		Attestation: val,
-	}, nil
+    attestation, found, err := k.GetAttestationByNonce(
+        sdk.UnwrapSDKContext(ctx),
+        request.Nonce,
+    )
+    if err != nil {
+        return nil, err
+    }
+    if !found {
+        return &types.QueryAttestationRequestByNonceResponse{}, types.ErrAttestationNotFound
+    }
+    val, err := codectypes.NewAnyWithValue(attestation)
+    if err != nil {
+        return nil, err
+    }
+    return &types.QueryAttestationRequestByNonceResponse{
+        Attestation: val,
+    }, nil
 }
 ```
 
@@ -190,12 +190,12 @@ We will need to keep track of the latest nonce to enforce the nonces order and a
 
 ```go
 func (k Keeper) SetLatestAttestationNonce(ctx sdk.Context, nonce uint64) {
-	if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx)+1 != nonce {
-		panic("not incrementing latest attestation nonce correctly!")
-	}
+    if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx)+1 != nonce {
+        panic("not incrementing latest attestation nonce correctly!")
+    }
 
-	store := ctx.KVStore(k.storeKey)
-	store.Set([]byte(types.LatestAttestationtNonce), types.UInt64Bytes(nonce))
+    store := ctx.KVStore(k.storeKey)
+    store.Set([]byte(types.LatestAttestationtNonce), types.UInt64Bytes(nonce))
 }
 ```
 
@@ -205,9 +205,9 @@ This will **panic** in the following cases:
 
 ```go
 func (k Keeper) CheckLatestAttestationNonce(ctx sdk.Context) bool {
-	store := ctx.KVStore(k.storeKey)
-	has := store.Has([]byte(types.LatestAttestationtNonce))
-	return has
+    store := ctx.KVStore(k.storeKey)
+    has := store.Has([]byte(types.LatestAttestationtNonce))
+    return has
 }
 ```
 
@@ -219,19 +219,19 @@ The following will store the attestation given that the nonce has never been use
 
 ```go
 func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) {
-	nonce := at.GetNonce()
-	key := []byte(types.GetAttestationKey(nonce))
-	store := ctx.KVStore(k.storeKey)
+    nonce := at.GetNonce()
+    key := []byte(types.GetAttestationKey(nonce))
+    store := ctx.KVStore(k.storeKey)
 
-	if store.Has(key) {
-		panic("Trying to overwrite existing attestation request!")
-	}
+    if store.Has(key) {
+        panic("Trying to overwrite existing attestation request!")
+    }
 
-	b, err := k.cdc.MarshalInterface(at)
-	if err != nil {
-		panic(err)
-	}
-	store.Set((key), b)
+    b, err := k.cdc.MarshalInterface(at)
+    if err != nil {
+        panic(err)
+    }
+    store.Set((key), b)
 }
 ```
 
@@ -245,7 +245,7 @@ AttestationRequestKey = "AttestationRequestKey"
 // prefix    nonce
 // [0x0][0 0 0 0 0 0 0 1]
 func GetAttestationKey(nonce uint64) string {
-	return AttestationRequestKey + string(UInt64Bytes(nonce))
+    return AttestationRequestKey + string(UInt64Bytes(nonce))
 }
 ```
 
@@ -253,23 +253,23 @@ Also, we will define a `SetAttestationRequest` method that will take an attestat
 
 ```go
 func (k Keeper) SetAttestationRequest(ctx sdk.Context, at types.AttestationRequestI) error {
-	k.StoreAttestation(ctx, at)
-	k.SetLatestAttestationNonce(ctx, at.GetNonce())
+    k.StoreAttestation(ctx, at)
+    k.SetLatestAttestationNonce(ctx, at.GetNonce())
 
-	ctx.EventManager().EmitEvent(
-		sdk.NewEvent(
-			types.EventTypeAttestationRequest,
-			sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
-			sdk.NewAttribute(types.AttributeKeyNonce, fmt.Sprint(at.GetNonce())),
-		),
-	)
-	return nil
+    ctx.EventManager().EmitEvent(
+        sdk.NewEvent(
+            types.EventTypeAttestationRequest,
+            sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
+            sdk.NewAttribute(types.AttributeKeyNonce, fmt.Sprint(at.GetNonce())),
+        ),
+    )
+    return nil
 }
 ```
 
 Then, defining eventual getters that will be used to serve orchestrator/relayer queries.
 
-### ABCI 
+### ABCI
 
 In order for the attestations requests to be stored correctly, we will need to enforce some rules that will define how these former will be handled. Thus, we will use `EndBlock` to check the state machine and see whether we need to create new attestations or not.
 
@@ -277,8 +277,8 @@ To do so, will define a custom `EndBlocker` that will be executed at the end of 
 
 ```go
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
-	handleDataCommitmentRequest(ctx, k)
-	handleValsetRequest(ctx, k)
+    handleDataCommitmentRequest(ctx, k)
+    handleValsetRequest(ctx, k)
 }
 ```
 
@@ -301,16 +301,16 @@ So, we will have the following:
 
 ```go
 func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
-	if ctx.BlockHeight() != 0 && ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx)) == 0 {
-		dataCommitment, err := k.GetCurrentDataCommitment(ctx)
-		if err != nil {
-			panic(sdkerrors.Wrap(err, "coudln't get current data commitment"))
-		}
-		err = k.SetAttestationRequest(ctx, &dataCommitment)
-		if err != nil {
-			panic(err)
-		}
-	}
+    if ctx.BlockHeight() != 0 && ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx)) == 0 {
+        dataCommitment, err := k.GetCurrentDataCommitment(ctx)
+        if err != nil {
+            panic(sdkerrors.Wrap(err, "coudln't get current data commitment"))
+        }
+        err = k.SetAttestationRequest(ctx, &dataCommitment)
+        if err != nil {
+            panic(err)
+        }
+    }
 }
 ```
 
@@ -318,12 +318,12 @@ Which will get the current data commitment  as follows:
 
 ```go
 func (k Keeper) GetCurrentDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
-	beginBlock := uint64(ctx.BlockHeight()) - k.GetDataCommitmentWindowParam(ctx)
-	endBlock := uint64(ctx.BlockHeight())
-	nonce := k.GetLatestAttestationNonce(ctx) + 1
+    beginBlock := uint64(ctx.BlockHeight()) - k.GetDataCommitmentWindowParam(ctx)
+    endBlock := uint64(ctx.BlockHeight())
+    nonce := k.GetLatestAttestationNonce(ctx) + 1
 
-	dataCommitment := types.NewDataCommitment(nonce, beginBlock, endBlock)
-	return *dataCommitment, nil
+    dataCommitment := types.NewDataCommitment(nonce, beginBlock, endBlock)
+    return *dataCommitment, nil
 }
 ```
 
@@ -335,52 +335,52 @@ The `handleValsetRequest` is more involving as it has more criteria to create ne
 
 ```go
 func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
-	// get the last valsets to compare against
-	var latestValset *types.Valset
-	if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx) != 0 {
-		var err error
-		latestValset, err = k.GetLatestValset(ctx)
-		if err != nil {
-			panic(err)
-		}
-	}
+    // get the last valsets to compare against
+    var latestValset *types.Valset
+    if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx) != 0 {
+        var err error
+        latestValset, err = k.GetLatestValset(ctx)
+        if err != nil {
+            panic(err)
+        }
+    }
 
-	lastUnbondingHeight := k.GetLastUnBondingBlockHeight(ctx)
+    lastUnbondingHeight := k.GetLastUnBondingBlockHeight(ctx)
 
-	significantPowerDiff := false
-	if latestValset != nil {
-		vs, err := k.GetCurrentValset(ctx)
-		if err != nil {
-			// this condition should only occur in the simulator
-			// ref : https://github.com/Gravity-Bridge/Gravity-Bridge/issues/35
-			if errors.Is(err, types.ErrNoValidators) {
-				ctx.Logger().Error("no bonded validators",
-					"cause", err.Error(),
-				)
-				return
-			}
-			panic(err)
-		}
-		intCurrMembers, err := types.BridgeValidators(vs.Members).ToInternal()
-		if err != nil {
-			panic(sdkerrors.Wrap(err, "invalid current valset members"))
-		}
-		intLatestMembers, err := types.BridgeValidators(latestValset.Members).ToInternal()
-		if err != nil {
-			panic(sdkerrors.Wrap(err, "invalid latest valset members"))
-		}
+    significantPowerDiff := false
+    if latestValset != nil {
+        vs, err := k.GetCurrentValset(ctx)
+        if err != nil {
+            // this condition should only occur in the simulator
+            // ref : https://github.com/Gravity-Bridge/Gravity-Bridge/issues/35
+            if errors.Is(err, types.ErrNoValidators) {
+                ctx.Logger().Error("no bonded validators",
+                    "cause", err.Error(),
+                )
+                return
+            }
+            panic(err)
+        }
+        intCurrMembers, err := types.BridgeValidators(vs.Members).ToInternal()
+        if err != nil {
+            panic(sdkerrors.Wrap(err, "invalid current valset members"))
+        }
+        intLatestMembers, err := types.BridgeValidators(latestValset.Members).ToInternal()
+        if err != nil {
+            panic(sdkerrors.Wrap(err, "invalid latest valset members"))
+        }
 
-		significantPowerDiff = intCurrMembers.PowerDiff(*intLatestMembers) > 0.05
-	}
+        significantPowerDiff = intCurrMembers.PowerDiff(*intLatestMembers) > 0.05
+    }
 
-	if (latestValset == nil) || (lastUnbondingHeight == uint64(ctx.BlockHeight())) || significantPowerDiff {
-		// if the conditions are true, put in a new validator set request to be signed and submitted to Ethereum
-		valset, err := k.GetCurrentValset(ctx)
-		if err != nil {
-			panic(err)
-		}
-		err = k.SetAttestationRequest(ctx, &valset)
-		if err != nil {
+    if (latestValset == nil) || (lastUnbondingHeight == uint64(ctx.BlockHeight())) || significantPowerDiff {
+        // if the conditions are true, put in a new validator set request to be signed and submitted to Ethereum
+        valset, err := k.GetCurrentValset(ctx)
+        if err != nil {
+            panic(err)
+        }
+        err = k.SetAttestationRequest(ctx, &valset)
+        if err != nil {
             panic(err)
         }
     }
