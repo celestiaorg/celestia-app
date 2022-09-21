@@ -40,7 +40,6 @@ func TestValsetCreationUponUnbonding(t *testing.T) {
 	// begin unbonding
 	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
 	undelegateMsg := testutil.NewTestMsgUnDelegateValidator(testutil.ValAddrs[0], testutil.StakingAmount)
-	// nolint
 	_, err = msgServer.Undelegate(input.Context, undelegateMsg)
 	require.NoError(t, err)
 

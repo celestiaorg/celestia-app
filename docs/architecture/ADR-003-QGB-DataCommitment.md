@@ -1,9 +1,5 @@
 # ADR 003: QGB Data Commitments
 
-## Changelog
-
-- {date}: {changelog}
-
 ## Context
 
 To accommodate the requirements of the [Quantum Gravity Bridge](https://github.com/celestiaorg/quantum-gravity-bridge/blob/master/ethereum/solidity/src/QuantumGravityBridge.sol), We will need to add support for `DataCommitment`s messages, i.e. commitments generated over a set of blocks to attest their existence.

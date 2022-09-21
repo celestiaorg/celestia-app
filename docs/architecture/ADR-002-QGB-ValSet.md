@@ -1,8 +1,4 @@
-# ADR 002: QGB Valsets
-
-## Changelog
-
-- {date}: {changelog}
+# ADR 002: QGB ValSet
 
 ## Context
 

@@ -42,15 +42,17 @@ func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
 	panic(sdkerrors.Wrap(sdkerrors.ErrNotFound, "couldn't find latest valset"))
 }
 
-// SetLastUnBondingBlockHeight sets the last unbonding block height. Note this value is not saved and loaded in genesis
-// and is reset to zero on chain upgrade.
+// SetLastUnBondingBlockHeight sets the last unbonding block height. Note this
+// value is not saved to state or loaded at genesis. This value is reset to zero
+// on chain upgrade.
 func (k Keeper) SetLastUnBondingBlockHeight(ctx sdk.Context, unbondingBlockHeight uint64) {
 	store := ctx.KVStore(k.storeKey)
 	store.Set([]byte(types.LastUnBondingBlockHeight), types.UInt64Bytes(unbondingBlockHeight))
 }
 
-// GetLastUnBondingBlockHeight returns the last unbonding block height, returns zero if not set, this is not
-// saved or loaded in genesis and is reset to zero on chain upgrade.
+// GetLastUnBondingBlockHeight returns the last unbonding block height or zero
+// if not set. This value is not saved or loaded at genesis. This value is reset
+// to zero on chain upgrade.
 func (k Keeper) GetLastUnBondingBlockHeight(ctx sdk.Context) uint64 {
 	store := ctx.KVStore(k.storeKey)
 	bytes := store.Get([]byte(types.LastUnBondingBlockHeight))
@@ -108,9 +110,12 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 // normalizeValidatorPower scales rawPower with respect to totalValidatorPower to take a value between 0 and 2^32
 // Uses BigInt operations to avoid overflow errors
 // Example: rawPower = max (2^63 - 1), totalValidatorPower = 1 validator: (2^63 - 1)
-//   result: (2^63 - 1) * 2^32 / (2^63 - 1) = 2^32 = 4294967296 [this is the multiplier value below, our max output]
+//
+//	result: (2^63 - 1) * 2^32 / (2^63 - 1) = 2^32 = 4294967296 [this is the multiplier value below, our max output]
+//
 // Example: rawPower = max (2^63 - 1), totalValidatorPower = 1000 validators with the same power: 1000*(2^63 - 1)
-//   result: (2^63 - 1) * 2^32 / (1000(2^63 - 1)) = 2^32 / 1000 = 4294967
+//
+//	result: (2^63 - 1) * 2^32 / (1000(2^63 - 1)) = 2^32 / 1000 = 4294967
 func normalizeValidatorPower(rawPower uint64, totalValidatorPower cosmosmath.Int) uint64 {
 	// Compute rawPower * multiplier / quotient
 	// Set the upper limit to 2^32, which would happen if there is a single validator with all the power

@@ -7,7 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// SetAttestationRequest Sets a new attestation request to the store to be signed
+// SetAttestationRequest sets a new attestation request to the store to be signed
 // by orchestrators afterwards.
 func (k Keeper) SetAttestationRequest(ctx sdk.Context, at types.AttestationRequestI) error {
 	k.StoreAttestation(ctx, at)
@@ -23,7 +23,7 @@ func (k Keeper) SetAttestationRequest(ctx sdk.Context, at types.AttestationReque
 	return nil
 }
 
-// StoreAttestation Saves the attestation in store.
+// StoreAttestation saves the attestation in store.
 // Should panic if overwriting existing one.
 func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) {
 	nonce := at.GetNonce()
@@ -31,7 +31,7 @@ func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) 
 	store := ctx.KVStore(k.storeKey)
 
 	if store.Has(key) {
-		panic("Trying to overwrite existing attestation request!")
+		panic("trying to overwrite existing attestation request")
 	}
 
 	b, err := k.cdc.MarshalInterface(at)
@@ -45,7 +45,7 @@ func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) 
 // expected that this value will only increase by one and it panics otherwise.
 func (k Keeper) SetLatestAttestationNonce(ctx sdk.Context, nonce uint64) {
 	if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx)+1 != nonce {
-		panic("not incrementing latest attestation nonce correctly!")
+		panic("not incrementing latest attestation nonce correctly")
 	}
 
 	store := ctx.KVStore(k.storeKey)
@@ -69,13 +69,13 @@ func (k Keeper) GetLatestAttestationNonce(ctx sdk.Context) uint64 {
 	store := ctx.KVStore(k.storeKey)
 	bytes := store.Get([]byte(types.LatestAttestationtNonce))
 	if bytes == nil {
-		panic("Nil LatestAttestationNonce")
+		panic("nil LatestAttestationNonce")
 	}
 	return UInt64FromBytes(bytes)
 }
 
 // GetAttestationByNonce returns an attestation request by nonce.
-// Returns (nil, false, nil) if the attestation is not found .
+// Returns (nil, false, nil) if the attestation is not found.
 func (k Keeper) GetAttestationByNonce(ctx sdk.Context, nonce uint64) (types.AttestationRequestI, bool, error) {
 	store := ctx.KVStore(k.storeKey)
 	bz := store.Get([]byte(types.GetAttestationKey(nonce)))
