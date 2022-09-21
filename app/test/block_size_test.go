@@ -221,7 +221,8 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 		s.Run(tc.name, func() {
 			signer := types.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
 			res, err := payment.SubmitPayForData(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.message, 10000000, tc.opts...)
-			assert.NoError(err)
+			require.NoError(err)
+			require.NotNil(res)
 			assert.Equal(abci.CodeTypeOK, res.Code)
 			// occasionally this test will error that the mempool is full (code
 			// 20) so we wait a few blocks for the txs to clear
