@@ -15,7 +15,7 @@ func (k Keeper) Hooks() Hooks {
 	// the chain when called. Keep this check to make such a mistake
 	// obvious
 	if k.storeKey == nil {
-		panic("hooks initialized before GravityKeeper!")
+		panic("hooks initialized before GravityKeeper")
 	}
 	return Hooks{k}
 }
