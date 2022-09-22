@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/celestiaorg/nmt v0.10.0
 	github.com/celestiaorg/quantum-gravity-bridge v1.2.0
-	github.com/cosmos/cosmos-sdk v0.46.0-beta2.0.20220418184507-c53157dd63f6
+	github.com/cosmos/cosmos-sdk v0.46.0
 	github.com/ethereum/go-ethereum v1.10.17
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.2
@@ -180,4 +180,3 @@ replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.5.0-tm-v0.34.20
 )
-
