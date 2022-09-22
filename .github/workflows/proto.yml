@@ -23,6 +23,8 @@ jobs:
 
           make proto-gen
 
+          git  diff | cat
+          
           if ! git diff --stat --exit-code ; then
             echo ">> ERROR:"
             echo ">>"
