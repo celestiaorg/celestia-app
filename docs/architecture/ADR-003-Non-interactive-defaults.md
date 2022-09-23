@@ -384,7 +384,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 #### Malleation
 
-Due to the use of the `parsedTxs` data structure, we can now abstract the malleation process entirely, whereas before it was hard coded into the share proprietary proposal share splitting logic.
+Due to the use of the `parsedTxs` data structure, we can now abstract the malleation process entirely, whereas before it was hard coded into the block proposal logic.
 
 ```go
 func (p *parsedTx) malleate(txConf client.TxConfig, squareSize uint64) error {
