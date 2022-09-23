@@ -2,6 +2,7 @@ package appconsts
 
 import (
 	"bytes"
+	"encoding/binary"
 
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
@@ -113,4 +114,18 @@ var (
 	// that the next message starts at an index that conforms to non-interactive
 	// defaults.
 	NameSpacedPaddedShareBytes = bytes.Repeat([]byte{0}, SparseShareContentSize)
+
+	// CompactShareDataLengthBytes is the number of bytes reserved for the total
+	// data length that is stored in the first compact share of a reserved
+	// namespace. This value is the maximum number of bytes required to store
+	// the data length of a block that only contains compact shares of one type.
+	// For example, if a block contains only evidence then it could contain:
+	// MaxSquareSize * MaxSquareSize * ShareSize bytes of evidence.
+	//
+	// Assuming MaxSquareSize is 128 and ShareSize is 256, this is 4194304 bytes
+	// of evidence. It takes 4 bytes to store a varint of 4194304.
+	//
+	// https://go.dev/play/p/MynwcDHQ_me
+	buf                         = make([]byte, binary.MaxVarintLen64)
+	CompactShareDataLengthBytes = binary.PutUvarint(buf, MaxSquareSize*MaxSquareSize*ShareSize)
 )
