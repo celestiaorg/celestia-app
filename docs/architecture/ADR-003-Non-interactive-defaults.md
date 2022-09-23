@@ -1,12 +1,13 @@
 # ADR 003: Non-interactive Defaults, Wrapped Transactions, and Subtree Root Message Inclusion Checks
 
-NOTE: Unlike normal tendermint/cosmos ADRs, this ADR isn't for deciding on whether or not we will implement non-interactive defaults. The goal of this document is to help reviewers and future readers understand what non-interactive defaults are, the considerations that went into the initial implementation, and how it differs from the original specs.
+>Note
+>Unlike normal tendermint/cosmos ADRs, this ADR isn't for deciding on whether or not we will implement non-interactive defaults. The goal of this document is to help reviewers and future readers understand what non-interactive defaults are, the considerations that went into the initial implementation, and how it differs from the original specs.
 
 The exact approach taken by the initial implementation, however, is certainly up for scrutiny.
 
 ## Intro
 
-pls see the [original specs](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md), from which this ADR paraphrases heavily.
+please see the [original specs](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md), from which this ADR paraphrases heavily.
 
 Currently, when checking for message inclusion, validators recreate the share commitment from the messages in the block and compare those with what are signed over in the `MsgPayForData` transactions also in that block. If any commitment is not found in one of the PFD transactions, or if there is a commitment that doesn't have a corresponding message, then they reject that block.
 
@@ -167,7 +168,7 @@ The key to arranging the square into non-interactive defaults is calculating the
 // NextAlignedPowerOfTwo calculates the next index in a row that is an aligned
 // power of two and returns false if the entire the msg cannot fit on the given
 // row at the next aligned power of two. An aligned power of two means that the
-// largest power of two that fits entirely in the msg or the square size. pls
+// largest power of two that fits entirely in the msg or the square size. please
 // see specs for further details. Assumes that cursor < k, all args are non
 // negative, and that k is a power of two.
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
