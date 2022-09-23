@@ -293,7 +293,7 @@ func TestProcessMessage(t *testing.T) {
 			msg:  bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15)),
 			ss:   4,
 			modify: func(wpfd *MsgWirePayForData) *MsgWirePayForData {
-				wpfd.MessageShareCommitment[0].K = 99999
+				wpfd.MessageShareCommitment[0].SquareSize = 99999
 				return wpfd
 			},
 			expectErr: true,

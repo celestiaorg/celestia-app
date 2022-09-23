@@ -43,11 +43,11 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 
 	// pfd that has invalid square size (not power of 2)
 	invalidSquareSizeMsg := validWirePayForData(t)
-	invalidSquareSizeMsg.MessageShareCommitment[0].K = 15
+	invalidSquareSizeMsg.MessageShareCommitment[0].SquareSize = 15
 
 	// pfd that has a different power of 2 square size
 	badSquareSizeMsg := validWirePayForData(t)
-	badSquareSizeMsg.MessageShareCommitment[0].K = 16
+	badSquareSizeMsg.MessageShareCommitment[0].SquareSize = 16
 
 	// pfd that signs over all squares but the first one
 	missingCommitmentForOneSquareSize := validWirePayForData(t)

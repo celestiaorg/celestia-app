@@ -92,15 +92,7 @@ func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSi
 			panic(err)
 		}
 	}
-	txCount, available := txSplitter.Count()
-	if appconsts.CompactShareContentSize-available > 0 {
-		txCount++
-	}
-	evdCount, available := evdSplitter.Count()
-	if appconsts.CompactShareContentSize-available > 0 {
-		evdCount++
-	}
-	return txCount + evdCount
+	return txSplitter.Count() + evdSplitter.Count()
 }
 
 // estimateSquareSize uses the provided block data to estimate the square size

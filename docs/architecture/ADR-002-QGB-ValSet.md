@@ -8,7 +8,7 @@ To accommodate the requirements of the [Quantum Gravity Bridge](https://github.c
 
 Add the `ValSet` and `ValSetConfirm` type of messages in order to track the state of the validator set.
 
-PS: The `ValsetConfirm` have been updated in `ADR-005-QGB_reduce_state_usage`. Please take a look on it to know how we will be handling the confirms.
+PS: The `ValsetConfirm` have been updated in `ADR-005-QGB-reduce-state-usage`. Please take a look on it to know how we will be handling the confirms.
 
 ## Detailed Design
 
@@ -137,7 +137,7 @@ The significance of power difference is calculated using a pre-defined constant.
 ```go
 // SignificantPowerDifferenceThreshold the threshold of change in the validator set power
 // that would need the creation of a new valset request.
-const SignificantPowerDifferenceThreshold = 0.05 
+const SignificantPowerDifferenceThreshold = 0.05
 ```
 
 For more information on the normalization of power, check [here](https://github.com/celestiaorg/celestia-app/blob/df46d122da5f1fab1bd99bfb2bfcf9002f5bc154/x/qgb/types/validator.go#L101

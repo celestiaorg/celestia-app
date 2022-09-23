@@ -1,6 +1,7 @@
 package shares
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -110,6 +111,16 @@ func AppendToShares(shares []NamespacedShare, nid namespace.ID, rawData []byte) 
 		shares = append(shares, splitMessage(rawData, nid)...)
 	}
 	return shares
+}
+
+// MarshalDelimitedMessage marshals the raw share data (excluding the namespace)
+// of this message and prefixes it with the length of the message encoded as a
+// varint.
+func MarshalDelimitedMessage(msg coretypes.Message) ([]byte, error) {
+	lenBuf := make([]byte, binary.MaxVarintLen64)
+	length := uint64(len(msg.Data))
+	n := binary.PutUvarint(lenBuf, length)
+	return append(lenBuf[:n], msg.Data...), nil
 }
 
 // splitMessage breaks the data in a message into the minimum number of
