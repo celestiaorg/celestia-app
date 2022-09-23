@@ -31,7 +31,7 @@ message MsgWirePayForDataResponse {}
 
 // ShareCommitAndSignature defines the
 message ShareCommitAndSignature {
-  uint64 k = 1;
+  uint64 square_size = 1;
   bytes share_commitment = 2;
   bytes signature = 3; // signature on one SignedTransactionPayForData
 }
