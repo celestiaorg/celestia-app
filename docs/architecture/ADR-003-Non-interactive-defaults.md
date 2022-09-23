@@ -32,7 +32,7 @@ Below illustrates how we can break a message up into two different subtree roots
 
 If we can follow these rules, we can always create a commitment to the data that is a subtree root of the data root while only knowing the data in that message.
 
-In practice this usually means that we end up adding padding between messages (zig-zag hatched share) to ensure that each message is starting at an "aligned power of two". Padding consists of shares with the namespace of the message before it, with all zeros for data.
+In practice this usually means that we end up adding padding between messages (zig-zag hatched shares in the figure below) to ensure that each message is starting at an "aligned power of two". Padding consists of shares with the namespace of the message before it, with all zeros for data.
 
 ![Before using the non-interactive defaults](./assets/before.png "Before requiring that all commits consist of subtree roots")
 ![after](./assets/after.png "After requiring that all commits consist of subtree roots")
