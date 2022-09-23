@@ -2,6 +2,7 @@ package shares
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -182,6 +183,15 @@ func TailPaddingShares(n int) NamespacedShares {
 		}
 	}
 	return shares
+}
+
+// MarshalDelimitedTx prefixes a transaction with the length of the transaction
+// encoded as a varint.
+func MarshalDelimitedTx(tx coretypes.Tx) ([]byte, error) {
+	lenBuf := make([]byte, binary.MaxVarintLen64)
+	length := uint64(len(tx))
+	n := binary.PutUvarint(lenBuf, length)
+	return append(lenBuf[:n], tx...), nil
 }
 
 func namespacedPaddedShares(ns []byte, count int) NamespacedShares {
