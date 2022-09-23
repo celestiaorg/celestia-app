@@ -70,7 +70,7 @@ To recap the default constraints of arranging a square:
 - If a `MsgPayForData` is added to the square, then its corresponding message must also be included.
 - There must not be a message without a `MsgPayForData` (does this need to be a rule? cc @adlerjohn).
 - Transactions with higher fees should be prioritized by default.
-- Ideally, the square should be filled as optimally as possible.
+- The square should be filled as optimally as possible.
 
 For squares that are smaller than the max square size, the exact approach is much less important. This is because if we can't fit all of the transactions in a square, then by default we shouldn't be using that square size in the first place.
 
