@@ -7,7 +7,7 @@ The exact approach taken by the initial implementation, however, is certainly up
 
 ## Intro
 
-please see the [original specs](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md), from which this ADR paraphrases heavily.
+please see the [original specs](https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md), from which this ADR paraphrases heavily.
 
 Currently, when checking for message inclusion, validators recreate the share commitment from the messages in the block and compare those with what are signed over in the `MsgPayForData` transactions also in that block. If any commitment is not found in one of the PFD transactions, or if there is a commitment that doesn't have a corresponding message, then they reject that block.
 
@@ -169,7 +169,7 @@ The key to arranging the square into non-interactive defaults is calculating the
 // largest power of two that fits entirely in the msg or the square size. please
 // see specs for further details. Assumes that cursor < k, all args are non
 // negative, and that k is a power of two.
-// https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
+// https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md#non-interactive-default-rules
 func NextAlignedPowerOfTwo(cursor, msgLen, squareSize int) (int, bool) {
   // if we're starting at the beginning of the row, then return as there are
   // no cases where we don't start at 0.
@@ -315,8 +315,7 @@ Using some of the non-interactive defaults code above, we can quickly calculate 
 ```go
 // FitsInSquare uses the non interactive default rules to see if messages of
 // some lengths will fit in a square of size origSquareSize starting at share
-// index cursor. See non-interactive default rules
-// https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
+// index cursor.
 func FitsInSquare(cursor, origSquareSize int, msgShareLens ...int) (bool, int) {
    // if there are 0 messages and the cursor already fits inside the square,
    // then we already know that everything fits in the square.
