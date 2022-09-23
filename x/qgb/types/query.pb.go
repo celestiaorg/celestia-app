@@ -6,12 +6,19 @@ package types
 import (
 	context "context"
 	fmt "fmt"
+	types "github.com/cosmos/cosmos-sdk/codec/types"
 	_ "github.com/cosmos/cosmos-sdk/types/query"
+	_ "github.com/gogo/protobuf/gogoproto"
 	grpc1 "github.com/gogo/protobuf/grpc"
 	proto "github.com/gogo/protobuf/proto"
+	_ "github.com/regen-network/cosmos-proto"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
+	io "io"
 	math "math"
+	math_bits "math/bits"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -25,22 +32,500 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// QueryParamsRequest
+type QueryParamsRequest struct {
+}
+
+func (m *QueryParamsRequest) Reset()         { *m = QueryParamsRequest{} }
+func (m *QueryParamsRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryParamsRequest) ProtoMessage()    {}
+func (*QueryParamsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{0}
+}
+func (m *QueryParamsRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryParamsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryParamsRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryParamsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryParamsRequest.Merge(m, src)
+}
+func (m *QueryParamsRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryParamsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryParamsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryParamsRequest proto.InternalMessageInfo
+
+// QueryParamsResponse
+type QueryParamsResponse struct {
+	Params Params `protobuf:"bytes,1,opt,name=params,proto3" json:"params"`
+}
+
+func (m *QueryParamsResponse) Reset()         { *m = QueryParamsResponse{} }
+func (m *QueryParamsResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryParamsResponse) ProtoMessage()    {}
+func (*QueryParamsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{1}
+}
+func (m *QueryParamsResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryParamsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryParamsResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryParamsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryParamsResponse.Merge(m, src)
+}
+func (m *QueryParamsResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryParamsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryParamsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryParamsResponse proto.InternalMessageInfo
+
+func (m *QueryParamsResponse) GetParams() Params {
+	if m != nil {
+		return m.Params
+	}
+	return Params{}
+}
+
+// QueryAttestationRequestByNonceRequest
+type QueryAttestationRequestByNonceRequest struct {
+	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+}
+
+func (m *QueryAttestationRequestByNonceRequest) Reset()         { *m = QueryAttestationRequestByNonceRequest{} }
+func (m *QueryAttestationRequestByNonceRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryAttestationRequestByNonceRequest) ProtoMessage()    {}
+func (*QueryAttestationRequestByNonceRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{2}
+}
+func (m *QueryAttestationRequestByNonceRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryAttestationRequestByNonceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryAttestationRequestByNonceRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryAttestationRequestByNonceRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryAttestationRequestByNonceRequest.Merge(m, src)
+}
+func (m *QueryAttestationRequestByNonceRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryAttestationRequestByNonceRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryAttestationRequestByNonceRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryAttestationRequestByNonceRequest proto.InternalMessageInfo
+
+func (m *QueryAttestationRequestByNonceRequest) GetNonce() uint64 {
+	if m != nil {
+		return m.Nonce
+	}
+	return 0
+}
+
+// QueryAttestationRequestByNonceResponse
+type QueryAttestationRequestByNonceResponse struct {
+	// AttestationRequestI is either a Data Commitment or a Valset.
+	// This was decided as part of the universal nonce approach under:
+	// https://github.com/celestiaorg/celestia-app/issues/468#issuecomment-1156887715
+	Attestation *types.Any `protobuf:"bytes,1,opt,name=attestation,proto3" json:"attestation,omitempty"`
+}
+
+func (m *QueryAttestationRequestByNonceResponse) Reset() {
+	*m = QueryAttestationRequestByNonceResponse{}
+}
+func (m *QueryAttestationRequestByNonceResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryAttestationRequestByNonceResponse) ProtoMessage()    {}
+func (*QueryAttestationRequestByNonceResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{3}
+}
+func (m *QueryAttestationRequestByNonceResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryAttestationRequestByNonceResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryAttestationRequestByNonceResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryAttestationRequestByNonceResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryAttestationRequestByNonceResponse.Merge(m, src)
+}
+func (m *QueryAttestationRequestByNonceResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryAttestationRequestByNonceResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryAttestationRequestByNonceResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryAttestationRequestByNonceResponse proto.InternalMessageInfo
+
+func (m *QueryAttestationRequestByNonceResponse) GetAttestation() *types.Any {
+	if m != nil {
+		return m.Attestation
+	}
+	return nil
+}
+
+// QueryLatestAttestationNonceRequest latest attestation nonce request
+type QueryLatestAttestationNonceRequest struct {
+}
+
+func (m *QueryLatestAttestationNonceRequest) Reset()         { *m = QueryLatestAttestationNonceRequest{} }
+func (m *QueryLatestAttestationNonceRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryLatestAttestationNonceRequest) ProtoMessage()    {}
+func (*QueryLatestAttestationNonceRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{4}
+}
+func (m *QueryLatestAttestationNonceRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryLatestAttestationNonceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryLatestAttestationNonceRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryLatestAttestationNonceRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryLatestAttestationNonceRequest.Merge(m, src)
+}
+func (m *QueryLatestAttestationNonceRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryLatestAttestationNonceRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryLatestAttestationNonceRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryLatestAttestationNonceRequest proto.InternalMessageInfo
+
+// QueryLatestAttestationNonceResponse latest attestation nonce response
+type QueryLatestAttestationNonceResponse struct {
+	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+}
+
+func (m *QueryLatestAttestationNonceResponse) Reset()         { *m = QueryLatestAttestationNonceResponse{} }
+func (m *QueryLatestAttestationNonceResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryLatestAttestationNonceResponse) ProtoMessage()    {}
+func (*QueryLatestAttestationNonceResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{5}
+}
+func (m *QueryLatestAttestationNonceResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryLatestAttestationNonceResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryLatestAttestationNonceResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryLatestAttestationNonceResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryLatestAttestationNonceResponse.Merge(m, src)
+}
+func (m *QueryLatestAttestationNonceResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryLatestAttestationNonceResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryLatestAttestationNonceResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryLatestAttestationNonceResponse proto.InternalMessageInfo
+
+func (m *QueryLatestAttestationNonceResponse) GetNonce() uint64 {
+	if m != nil {
+		return m.Nonce
+	}
+	return 0
+}
+
+// QueryLastValsetRequestBeforeNonceRequest last Valset request before universal
+// nonce request
+type QueryLastValsetRequestBeforeNonceRequest struct {
+	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+}
+
+func (m *QueryLastValsetRequestBeforeNonceRequest) Reset() {
+	*m = QueryLastValsetRequestBeforeNonceRequest{}
+}
+func (m *QueryLastValsetRequestBeforeNonceRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryLastValsetRequestBeforeNonceRequest) ProtoMessage()    {}
+func (*QueryLastValsetRequestBeforeNonceRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{6}
+}
+func (m *QueryLastValsetRequestBeforeNonceRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryLastValsetRequestBeforeNonceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryLastValsetRequestBeforeNonceRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryLastValsetRequestBeforeNonceRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryLastValsetRequestBeforeNonceRequest.Merge(m, src)
+}
+func (m *QueryLastValsetRequestBeforeNonceRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryLastValsetRequestBeforeNonceRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryLastValsetRequestBeforeNonceRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryLastValsetRequestBeforeNonceRequest proto.InternalMessageInfo
+
+func (m *QueryLastValsetRequestBeforeNonceRequest) GetNonce() uint64 {
+	if m != nil {
+		return m.Nonce
+	}
+	return 0
+}
+
+// QueryLastValsetRequestBeforeNonceResponse last Valset request before height
+// response
+type QueryLastValsetRequestBeforeNonceResponse struct {
+	Valset *Valset `protobuf:"bytes,1,opt,name=valset,proto3" json:"valset,omitempty"`
+}
+
+func (m *QueryLastValsetRequestBeforeNonceResponse) Reset() {
+	*m = QueryLastValsetRequestBeforeNonceResponse{}
+}
+func (m *QueryLastValsetRequestBeforeNonceResponse) String() string {
+	return proto.CompactTextString(m)
+}
+func (*QueryLastValsetRequestBeforeNonceResponse) ProtoMessage() {}
+func (*QueryLastValsetRequestBeforeNonceResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{7}
+}
+func (m *QueryLastValsetRequestBeforeNonceResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryLastValsetRequestBeforeNonceResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryLastValsetRequestBeforeNonceResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryLastValsetRequestBeforeNonceResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryLastValsetRequestBeforeNonceResponse.Merge(m, src)
+}
+func (m *QueryLastValsetRequestBeforeNonceResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryLastValsetRequestBeforeNonceResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryLastValsetRequestBeforeNonceResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryLastValsetRequestBeforeNonceResponse proto.InternalMessageInfo
+
+func (m *QueryLastValsetRequestBeforeNonceResponse) GetValset() *Valset {
+	if m != nil {
+		return m.Valset
+	}
+	return nil
+}
+
+// QueryLastUnbondingHeightRequest
+type QueryLastUnbondingHeightRequest struct {
+}
+
+func (m *QueryLastUnbondingHeightRequest) Reset()         { *m = QueryLastUnbondingHeightRequest{} }
+func (m *QueryLastUnbondingHeightRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryLastUnbondingHeightRequest) ProtoMessage()    {}
+func (*QueryLastUnbondingHeightRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{8}
+}
+func (m *QueryLastUnbondingHeightRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryLastUnbondingHeightRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryLastUnbondingHeightRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryLastUnbondingHeightRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryLastUnbondingHeightRequest.Merge(m, src)
+}
+func (m *QueryLastUnbondingHeightRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryLastUnbondingHeightRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryLastUnbondingHeightRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryLastUnbondingHeightRequest proto.InternalMessageInfo
+
+// QueryLastUnbondingHeightResponse
+type QueryLastUnbondingHeightResponse struct {
+	Height uint64 `protobuf:"varint,1,opt,name=height,proto3" json:"height,omitempty"`
+}
+
+func (m *QueryLastUnbondingHeightResponse) Reset()         { *m = QueryLastUnbondingHeightResponse{} }
+func (m *QueryLastUnbondingHeightResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryLastUnbondingHeightResponse) ProtoMessage()    {}
+func (*QueryLastUnbondingHeightResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f3c1fd86445aad81, []int{9}
+}
+func (m *QueryLastUnbondingHeightResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryLastUnbondingHeightResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryLastUnbondingHeightResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryLastUnbondingHeightResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryLastUnbondingHeightResponse.Merge(m, src)
+}
+func (m *QueryLastUnbondingHeightResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryLastUnbondingHeightResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryLastUnbondingHeightResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryLastUnbondingHeightResponse proto.InternalMessageInfo
+
+func (m *QueryLastUnbondingHeightResponse) GetHeight() uint64 {
+	if m != nil {
+		return m.Height
+	}
+	return 0
+}
+
+func init() {
+	proto.RegisterType((*QueryParamsRequest)(nil), "qgb.QueryParamsRequest")
+	proto.RegisterType((*QueryParamsResponse)(nil), "qgb.QueryParamsResponse")
+	proto.RegisterType((*QueryAttestationRequestByNonceRequest)(nil), "qgb.QueryAttestationRequestByNonceRequest")
+	proto.RegisterType((*QueryAttestationRequestByNonceResponse)(nil), "qgb.QueryAttestationRequestByNonceResponse")
+	proto.RegisterType((*QueryLatestAttestationNonceRequest)(nil), "qgb.QueryLatestAttestationNonceRequest")
+	proto.RegisterType((*QueryLatestAttestationNonceResponse)(nil), "qgb.QueryLatestAttestationNonceResponse")
+	proto.RegisterType((*QueryLastValsetRequestBeforeNonceRequest)(nil), "qgb.QueryLastValsetRequestBeforeNonceRequest")
+	proto.RegisterType((*QueryLastValsetRequestBeforeNonceResponse)(nil), "qgb.QueryLastValsetRequestBeforeNonceResponse")
+	proto.RegisterType((*QueryLastUnbondingHeightRequest)(nil), "qgb.QueryLastUnbondingHeightRequest")
+	proto.RegisterType((*QueryLastUnbondingHeightResponse)(nil), "qgb.QueryLastUnbondingHeightResponse")
+}
+
 func init() { proto.RegisterFile("qgb/query.proto", fileDescriptor_f3c1fd86445aad81) }
 
 var fileDescriptor_f3c1fd86445aad81 = []byte{
-	// 185 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x3c, 0xce, 0x31, 0xaa, 0xc2, 0x40,
-	0x10, 0x06, 0xe0, 0x84, 0xc7, 0x7b, 0x0f, 0xd2, 0x08, 0x96, 0x41, 0xf6, 0x00, 0x82, 0x19, 0xa2,
-	0x37, 0xb0, 0xb3, 0xb4, 0xb5, 0x9b, 0x0d, 0xcb, 0xb8, 0x90, 0xec, 0x6c, 0xb2, 0x13, 0x31, 0xb7,
-	0xf0, 0x58, 0x96, 0x29, 0x2d, 0x25, 0xb9, 0x88, 0x24, 0x01, 0xbb, 0xbf, 0xf8, 0xfe, 0x9f, 0x3f,
-	0x59, 0xd5, 0xa4, 0xa1, 0x6e, 0x4d, 0xd3, 0x65, 0xbe, 0x61, 0xe1, 0xf5, 0x4f, 0x4d, 0x3a, 0xdd,
-	0x10, 0x33, 0x95, 0x06, 0xd0, 0x5b, 0x40, 0xe7, 0x58, 0x50, 0x2c, 0xbb, 0xb0, 0x90, 0x74, 0x5b,
-	0x70, 0xa8, 0x38, 0x80, 0xc6, 0x60, 0x96, 0x2e, 0xdc, 0x72, 0x6d, 0x04, 0x73, 0xf0, 0x48, 0xd6,
-	0xcd, 0x78, 0xb1, 0xfb, 0xff, 0xe4, 0xf7, 0x3c, 0x89, 0xe3, 0xe9, 0x39, 0xa8, 0xb8, 0x1f, 0x54,
-	0xfc, 0x1e, 0x54, 0xfc, 0x18, 0x55, 0xd4, 0x8f, 0x2a, 0x7a, 0x8d, 0x2a, 0xba, 0x00, 0x59, 0xb9,
-	0xb6, 0x3a, 0x2b, 0xb8, 0x82, 0xc2, 0x94, 0x26, 0x88, 0x45, 0x6e, 0xe8, 0x9b, 0x77, 0xe8, 0x3d,
-	0xdc, 0x61, 0x3a, 0x2a, 0x9d, 0x37, 0x41, 0xff, 0xcd, 0xd3, 0x87, 0x4f, 0x00, 0x00, 0x00, 0xff,
-	0xff, 0x2e, 0xe6, 0x68, 0x3e, 0xbc, 0x00, 0x00, 0x00,
+	// 603 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x94, 0x41, 0x6f, 0x12, 0x41,
+	0x14, 0xc7, 0x59, 0x6d, 0x39, 0x0c, 0xb1, 0xea, 0x40, 0x68, 0xbb, 0x31, 0x5b, 0x9c, 0xd2, 0x4a,
+	0x31, 0xdd, 0x49, 0xeb, 0x4d, 0x63, 0xd2, 0x72, 0xb2, 0x89, 0x51, 0x24, 0xd1, 0x83, 0x17, 0x33,
+	0x8b, 0xd3, 0x61, 0x13, 0x98, 0x59, 0x76, 0x86, 0x46, 0x34, 0x5e, 0xfc, 0x00, 0xc6, 0xa4, 0x5f,
+	0xc0, 0x0f, 0xe1, 0x87, 0x68, 0x3c, 0x35, 0xf1, 0xe2, 0xc9, 0x18, 0xf0, 0x83, 0x98, 0x9d, 0x99,
+	0x05, 0x1a, 0xa0, 0x70, 0x9b, 0xf7, 0xe6, 0xff, 0xfe, 0xef, 0xf7, 0x98, 0xb7, 0x80, 0xdb, 0x5d,
+	0x16, 0xe0, 0x6e, 0x8f, 0xc6, 0x7d, 0x3f, 0x8a, 0x85, 0x12, 0xf0, 0x66, 0x97, 0x05, 0xee, 0xdd,
+	0x24, 0xcb, 0x28, 0xa7, 0x32, 0x94, 0x26, 0xef, 0x6a, 0xa1, 0xea, 0x47, 0x34, 0x4d, 0xdc, 0x63,
+	0x42, 0xb0, 0x36, 0xc5, 0x24, 0x0a, 0x31, 0xe1, 0x5c, 0x28, 0xa2, 0x42, 0xc1, 0xd3, 0xdb, 0x6a,
+	0x53, 0xc8, 0x8e, 0x90, 0x38, 0x20, 0x92, 0x1a, 0x7f, 0x7c, 0x76, 0x10, 0x50, 0x45, 0x0e, 0x70,
+	0x44, 0x58, 0xc8, 0xb5, 0xd8, 0x6a, 0xd7, 0x12, 0xeb, 0x8e, 0x64, 0x69, 0x6d, 0x81, 0x09, 0x26,
+	0xf4, 0x11, 0x27, 0x27, 0x9b, 0xdd, 0x34, 0x8e, 0xef, 0xcc, 0x85, 0x09, 0xd2, 0x2b, 0x8b, 0xa2,
+	0xa3, 0xa0, 0x77, 0x8a, 0x09, 0xb7, 0xe3, 0xa0, 0x02, 0x80, 0xaf, 0x92, 0xee, 0x75, 0x12, 0x93,
+	0x8e, 0x6c, 0xd0, 0x6e, 0x8f, 0x4a, 0x85, 0x8e, 0x40, 0xfe, 0x4a, 0x56, 0x46, 0x82, 0x4b, 0x0a,
+	0xf7, 0x40, 0x36, 0xd2, 0x99, 0x0d, 0xa7, 0xe4, 0x54, 0x72, 0x87, 0x39, 0xbf, 0xcb, 0x02, 0xdf,
+	0x88, 0x6a, 0x2b, 0x17, 0x7f, 0xb6, 0x32, 0x0d, 0x2b, 0x40, 0x4f, 0xc1, 0x8e, 0x76, 0x38, 0x56,
+	0x8a, 0x4a, 0x33, 0xba, 0x35, 0xaf, 0xf5, 0x5f, 0x08, 0xde, 0xa4, 0x36, 0x82, 0x05, 0xb0, 0xca,
+	0x93, 0x58, 0x5b, 0xae, 0x34, 0x4c, 0x80, 0xfa, 0x60, 0x77, 0x51, 0xb9, 0x65, 0x7a, 0x09, 0x72,
+	0x64, 0x2c, 0xb2, 0x60, 0x05, 0xdf, 0x4c, 0xec, 0xa7, 0x13, 0xfb, 0xc7, 0xbc, 0x5f, 0x5b, 0xff,
+	0xf9, 0x63, 0x3f, 0x3f, 0xed, 0x78, 0xd2, 0x98, 0x74, 0x40, 0x65, 0x80, 0x74, 0xeb, 0xe7, 0x24,
+	0xc9, 0x4d, 0xc8, 0x27, 0xb1, 0xd1, 0x13, 0xb0, 0x7d, 0xad, 0xca, 0xd2, 0xcd, 0x9e, 0xee, 0x08,
+	0x54, 0x6c, 0xb1, 0x54, 0x6f, 0x48, 0x5b, 0x52, 0x95, 0x0e, 0x47, 0x4f, 0x45, 0x4c, 0x97, 0xf8,
+	0x7d, 0xea, 0x60, 0x6f, 0x09, 0x07, 0x0b, 0xb1, 0x0d, 0xb2, 0x67, 0x5a, 0x73, 0xe5, 0xd9, 0x6c,
+	0x99, 0xbd, 0x42, 0xf7, 0xc1, 0xd6, 0xc8, 0xf1, 0x35, 0x0f, 0x04, 0x7f, 0x1f, 0x72, 0xf6, 0x8c,
+	0x86, 0xac, 0x95, 0x5a, 0xa3, 0xc7, 0xa0, 0x34, 0x5f, 0x62, 0x7b, 0x15, 0x41, 0xb6, 0xa5, 0x33,
+	0x96, 0xd7, 0x46, 0x87, 0x5f, 0x57, 0xc0, 0xaa, 0x2e, 0x86, 0x75, 0x90, 0x35, 0x1b, 0x03, 0xd7,
+	0x35, 0xc7, 0xf4, 0xfa, 0xb9, 0x1b, 0xd3, 0x17, 0xc6, 0x1e, 0xe5, 0xbf, 0xfc, 0xfa, 0x77, 0x7e,
+	0xe3, 0x16, 0xcc, 0xe1, 0xe4, 0x9b, 0x30, 0xbb, 0x06, 0xbf, 0x3b, 0x60, 0x73, 0xee, 0xa2, 0xc0,
+	0xea, 0xd8, 0x6c, 0xd1, 0x32, 0xba, 0x0f, 0x97, 0xd2, 0x5a, 0x96, 0xaa, 0x66, 0x29, 0x43, 0xa4,
+	0x59, 0x26, 0x56, 0x48, 0xe2, 0xd8, 0x54, 0x48, 0xfc, 0x49, 0x3f, 0xd7, 0x67, 0x78, 0xee, 0x80,
+	0xe2, 0xec, 0x55, 0x81, 0x0f, 0xc6, 0x3d, 0xaf, 0x5d, 0x39, 0xb7, 0xb2, 0x58, 0x68, 0xc9, 0x76,
+	0x35, 0x59, 0x09, 0x7a, 0xd3, 0x64, 0x9a, 0x07, 0xb7, 0x75, 0x3d, 0xfc, 0x08, 0xf2, 0x33, 0xde,
+	0x12, 0x96, 0x27, 0x1b, 0xcd, 0xdb, 0x06, 0x77, 0x67, 0x81, 0xca, 0xb2, 0x14, 0x35, 0xcb, 0x1d,
+	0xb8, 0xa6, 0x59, 0x7a, 0xa9, 0xaa, 0x76, 0x72, 0x31, 0xf0, 0x9c, 0xcb, 0x81, 0xe7, 0xfc, 0x1d,
+	0x78, 0xce, 0xb7, 0xa1, 0x97, 0xb9, 0x1c, 0x7a, 0x99, 0xdf, 0x43, 0x2f, 0xf3, 0x16, 0xb3, 0x50,
+	0xb5, 0x7a, 0x81, 0xdf, 0x14, 0x1d, 0xdc, 0xa4, 0x6d, 0x2a, 0x55, 0x48, 0x44, 0xcc, 0x46, 0xe7,
+	0x7d, 0x12, 0x45, 0xf8, 0x03, 0x1e, 0xfd, 0xdf, 0x06, 0x59, 0xfd, 0x95, 0x3f, 0xfa, 0x1f, 0x00,
+	0x00, 0xff, 0xff, 0x2a, 0x88, 0x0b, 0x96, 0xac, 0x05, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -55,6 +540,15 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type QueryClient interface {
+	// Params queries the current parameters for the qgb module
+	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
+	// AttestationRequestByNonce queries attestation request by nonce.
+	// Returns nil if not found.
+	AttestationRequestByNonce(ctx context.Context, in *QueryAttestationRequestByNonceRequest, opts ...grpc.CallOption) (*QueryAttestationRequestByNonceResponse, error)
+	// LatestAttestationNonce queries latest attestation nonce.
+	LatestAttestationNonce(ctx context.Context, in *QueryLatestAttestationNonceRequest, opts ...grpc.CallOption) (*QueryLatestAttestationNonceResponse, error)
+	// LastUnbondingHeight returns the last unbonding height
+	LastUnbondingHeight(ctx context.Context, in *QueryLastUnbondingHeightRequest, opts ...grpc.CallOption) (*QueryLastUnbondingHeightResponse, error)
 }
 
 type queryClient struct {
@@ -65,22 +559,1348 @@ func NewQueryClient(cc grpc1.ClientConn) QueryClient {
 	return &queryClient{cc}
 }
 
+func (c *queryClient) Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error) {
+	out := new(QueryParamsResponse)
+	err := c.cc.Invoke(ctx, "/qgb.Query/Params", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) AttestationRequestByNonce(ctx context.Context, in *QueryAttestationRequestByNonceRequest, opts ...grpc.CallOption) (*QueryAttestationRequestByNonceResponse, error) {
+	out := new(QueryAttestationRequestByNonceResponse)
+	err := c.cc.Invoke(ctx, "/qgb.Query/AttestationRequestByNonce", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) LatestAttestationNonce(ctx context.Context, in *QueryLatestAttestationNonceRequest, opts ...grpc.CallOption) (*QueryLatestAttestationNonceResponse, error) {
+	out := new(QueryLatestAttestationNonceResponse)
+	err := c.cc.Invoke(ctx, "/qgb.Query/LatestAttestationNonce", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) LastUnbondingHeight(ctx context.Context, in *QueryLastUnbondingHeightRequest, opts ...grpc.CallOption) (*QueryLastUnbondingHeightResponse, error) {
+	out := new(QueryLastUnbondingHeightResponse)
+	err := c.cc.Invoke(ctx, "/qgb.Query/LastUnbondingHeight", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // QueryServer is the server API for Query service.
 type QueryServer interface {
+	// Params queries the current parameters for the qgb module
+	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)
+	// AttestationRequestByNonce queries attestation request by nonce.
+	// Returns nil if not found.
+	AttestationRequestByNonce(context.Context, *QueryAttestationRequestByNonceRequest) (*QueryAttestationRequestByNonceResponse, error)
+	// LatestAttestationNonce queries latest attestation nonce.
+	LatestAttestationNonce(context.Context, *QueryLatestAttestationNonceRequest) (*QueryLatestAttestationNonceResponse, error)
+	// LastUnbondingHeight returns the last unbonding height
+	LastUnbondingHeight(context.Context, *QueryLastUnbondingHeightRequest) (*QueryLastUnbondingHeightResponse, error)
 }
 
 // UnimplementedQueryServer can be embedded to have forward compatible implementations.
 type UnimplementedQueryServer struct {
 }
 
+func (*UnimplementedQueryServer) Params(ctx context.Context, req *QueryParamsRequest) (*QueryParamsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Params not implemented")
+}
+func (*UnimplementedQueryServer) AttestationRequestByNonce(ctx context.Context, req *QueryAttestationRequestByNonceRequest) (*QueryAttestationRequestByNonceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AttestationRequestByNonce not implemented")
+}
+func (*UnimplementedQueryServer) LatestAttestationNonce(ctx context.Context, req *QueryLatestAttestationNonceRequest) (*QueryLatestAttestationNonceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LatestAttestationNonce not implemented")
+}
+func (*UnimplementedQueryServer) LastUnbondingHeight(ctx context.Context, req *QueryLastUnbondingHeightRequest) (*QueryLastUnbondingHeightResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LastUnbondingHeight not implemented")
+}
+
 func RegisterQueryServer(s grpc1.Server, srv QueryServer) {
 	s.RegisterService(&_Query_serviceDesc, srv)
+}
+
+func _Query_Params_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryParamsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).Params(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qgb.Query/Params",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).Params(ctx, req.(*QueryParamsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_AttestationRequestByNonce_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryAttestationRequestByNonceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).AttestationRequestByNonce(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qgb.Query/AttestationRequestByNonce",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).AttestationRequestByNonce(ctx, req.(*QueryAttestationRequestByNonceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_LatestAttestationNonce_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryLatestAttestationNonceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).LatestAttestationNonce(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qgb.Query/LatestAttestationNonce",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).LatestAttestationNonce(ctx, req.(*QueryLatestAttestationNonceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_LastUnbondingHeight_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryLastUnbondingHeightRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).LastUnbondingHeight(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qgb.Query/LastUnbondingHeight",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).LastUnbondingHeight(ctx, req.(*QueryLastUnbondingHeightRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 var _Query_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "qgb.Query",
 	HandlerType: (*QueryServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams:     []grpc.StreamDesc{},
-	Metadata:    "qgb/query.proto",
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Params",
+			Handler:    _Query_Params_Handler,
+		},
+		{
+			MethodName: "AttestationRequestByNonce",
+			Handler:    _Query_AttestationRequestByNonce_Handler,
+		},
+		{
+			MethodName: "LatestAttestationNonce",
+			Handler:    _Query_LatestAttestationNonce_Handler,
+		},
+		{
+			MethodName: "LastUnbondingHeight",
+			Handler:    _Query_LastUnbondingHeight_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "qgb/query.proto",
 }
+
+func (m *QueryParamsRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryParamsRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryParamsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryParamsResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryParamsResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryParamsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	{
+		size, err := m.Params.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintQuery(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryAttestationRequestByNonceRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryAttestationRequestByNonceRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryAttestationRequestByNonceRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Nonce != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.Nonce))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryAttestationRequestByNonceResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryAttestationRequestByNonceResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryAttestationRequestByNonceResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Attestation != nil {
+		{
+			size, err := m.Attestation.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintQuery(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryLatestAttestationNonceRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryLatestAttestationNonceRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryLatestAttestationNonceRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryLatestAttestationNonceResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryLatestAttestationNonceResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryLatestAttestationNonceResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Nonce != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.Nonce))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryLastValsetRequestBeforeNonceRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryLastValsetRequestBeforeNonceRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryLastValsetRequestBeforeNonceRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Nonce != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.Nonce))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryLastValsetRequestBeforeNonceResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryLastValsetRequestBeforeNonceResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryLastValsetRequestBeforeNonceResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Valset != nil {
+		{
+			size, err := m.Valset.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintQuery(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryLastUnbondingHeightRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryLastUnbondingHeightRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryLastUnbondingHeightRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryLastUnbondingHeightResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryLastUnbondingHeightResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryLastUnbondingHeightResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Height != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.Height))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
+	offset -= sovQuery(v)
+	base := offset
+	for v >= 1<<7 {
+		dAtA[offset] = uint8(v&0x7f | 0x80)
+		v >>= 7
+		offset++
+	}
+	dAtA[offset] = uint8(v)
+	return base
+}
+func (m *QueryParamsRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *QueryParamsResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = m.Params.Size()
+	n += 1 + l + sovQuery(uint64(l))
+	return n
+}
+
+func (m *QueryAttestationRequestByNonceRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Nonce != 0 {
+		n += 1 + sovQuery(uint64(m.Nonce))
+	}
+	return n
+}
+
+func (m *QueryAttestationRequestByNonceResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Attestation != nil {
+		l = m.Attestation.Size()
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryLatestAttestationNonceRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *QueryLatestAttestationNonceResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Nonce != 0 {
+		n += 1 + sovQuery(uint64(m.Nonce))
+	}
+	return n
+}
+
+func (m *QueryLastValsetRequestBeforeNonceRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Nonce != 0 {
+		n += 1 + sovQuery(uint64(m.Nonce))
+	}
+	return n
+}
+
+func (m *QueryLastValsetRequestBeforeNonceResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Valset != nil {
+		l = m.Valset.Size()
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryLastUnbondingHeightRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *QueryLastUnbondingHeightResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Height != 0 {
+		n += 1 + sovQuery(uint64(m.Height))
+	}
+	return n
+}
+
+func sovQuery(x uint64) (n int) {
+	return (math_bits.Len64(x|1) + 6) / 7
+}
+func sozQuery(x uint64) (n int) {
+	return sovQuery(uint64((x << 1) ^ uint64((int64(x) >> 63))))
+}
+func (m *QueryParamsRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryParamsRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryParamsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryParamsResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryParamsResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryParamsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Params", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Params.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryAttestationRequestByNonceRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryAttestationRequestByNonceRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryAttestationRequestByNonceRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Nonce", wireType)
+			}
+			m.Nonce = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Nonce |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryAttestationRequestByNonceResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryAttestationRequestByNonceResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryAttestationRequestByNonceResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Attestation", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Attestation == nil {
+				m.Attestation = &types.Any{}
+			}
+			if err := m.Attestation.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryLatestAttestationNonceRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryLatestAttestationNonceRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryLatestAttestationNonceRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryLatestAttestationNonceResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryLatestAttestationNonceResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryLatestAttestationNonceResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Nonce", wireType)
+			}
+			m.Nonce = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Nonce |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryLastValsetRequestBeforeNonceRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryLastValsetRequestBeforeNonceRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryLastValsetRequestBeforeNonceRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Nonce", wireType)
+			}
+			m.Nonce = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Nonce |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryLastValsetRequestBeforeNonceResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryLastValsetRequestBeforeNonceResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryLastValsetRequestBeforeNonceResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Valset", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Valset == nil {
+				m.Valset = &Valset{}
+			}
+			if err := m.Valset.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryLastUnbondingHeightRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryLastUnbondingHeightRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryLastUnbondingHeightRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryLastUnbondingHeightResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryLastUnbondingHeightResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryLastUnbondingHeightResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Height", wireType)
+			}
+			m.Height = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Height |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func skipQuery(dAtA []byte) (n int, err error) {
+	l := len(dAtA)
+	iNdEx := 0
+	depth := 0
+	for iNdEx < l {
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return 0, ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return 0, io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		wireType := int(wire & 0x7)
+		switch wireType {
+		case 0:
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return 0, ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return 0, io.ErrUnexpectedEOF
+				}
+				iNdEx++
+				if dAtA[iNdEx-1] < 0x80 {
+					break
+				}
+			}
+		case 1:
+			iNdEx += 8
+		case 2:
+			var length int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return 0, ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return 0, io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				length |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if length < 0 {
+				return 0, ErrInvalidLengthQuery
+			}
+			iNdEx += length
+		case 3:
+			depth++
+		case 4:
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupQuery
+			}
+			depth--
+		case 5:
+			iNdEx += 4
+		default:
+			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
+		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthQuery
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
+	}
+	return 0, io.ErrUnexpectedEOF
+}
+
+var (
+	ErrInvalidLengthQuery        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowQuery          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupQuery = fmt.Errorf("proto: unexpected end of group")
+)

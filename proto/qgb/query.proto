@@ -1,12 +1,81 @@
 syntax = "proto3";
 package qgb;
 
+import "qgb/genesis.proto";
+import "qgb/types.proto";
 import "google/api/annotations.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
+import "qgb/msgs.proto";
+import "gogoproto/gogo.proto";
+import "cosmos_proto/cosmos.proto";
+import "google/protobuf/any.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
 // Query defines the gRPC querier service.
 service Query {
+  // Params queries the current parameters for the qgb module
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/qgb/params";
+  }
+
+  // queries for attestations requests waiting to be signed by an orchestrator
+
+  // AttestationRequestByNonce queries attestation request by nonce.
+  // Returns nil if not found.
+  rpc AttestationRequestByNonce(QueryAttestationRequestByNonceRequest)
+      returns (QueryAttestationRequestByNonceResponse) {
+    option (google.api.http).get = "/qgb/attestations/requests/{nonce}";
+  }
+  // LatestAttestationNonce queries latest attestation nonce.
+  rpc LatestAttestationNonce(QueryLatestAttestationNonceRequest)
+      returns (QueryLatestAttestationNonceResponse) {
+    option (google.api.http).get = "/qgb/attestations/nonce/latest";
+  }
+
+  // misc
+
+  // LastUnbondingHeight returns the last unbonding height
+  rpc LastUnbondingHeight(QueryLastUnbondingHeightRequest)
+      returns (QueryLastUnbondingHeightResponse) {
+    option (google.api.http).get = "/qgb/unbonding";
+  }
 }
 
+// QueryParamsRequest
+message QueryParamsRequest {}
+// QueryParamsResponse
+message QueryParamsResponse {
+  Params params = 1 [ (gogoproto.nullable) = false ];
+}
+
+// QueryAttestationRequestByNonceRequest
+message QueryAttestationRequestByNonceRequest { uint64 nonce = 1; }
+
+// QueryAttestationRequestByNonceResponse
+message QueryAttestationRequestByNonceResponse {
+  // AttestationRequestI is either a Data Commitment or a Valset.
+  // This was decided as part of the universal nonce approach under:
+  // https://github.com/celestiaorg/celestia-app/issues/468#issuecomment-1156887715
+  google.protobuf.Any attestation = 1
+      [ (cosmos_proto.accepts_interface) = "AttestationRequestI" ];
+}
+
+// QueryLatestAttestationNonceRequest latest attestation nonce request
+message QueryLatestAttestationNonceRequest {}
+// QueryLatestAttestationNonceResponse latest attestation nonce response
+message QueryLatestAttestationNonceResponse { uint64 nonce = 1; }
+
+// QueryLastValsetRequestBeforeNonceRequest last Valset request before universal
+// nonce request
+message QueryLastValsetRequestBeforeNonceRequest { uint64 nonce = 1; }
+
+// QueryLastValsetRequestBeforeNonceResponse last Valset request before height
+// response
+message QueryLastValsetRequestBeforeNonceResponse { Valset valset = 1; }
+
+// QueryLastUnbondingHeightRequest
+message QueryLastUnbondingHeightRequest {}
+
+// QueryLastUnbondingHeightResponse
+message QueryLastUnbondingHeightResponse { uint64 height = 1; }

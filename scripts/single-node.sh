@@ -10,7 +10,13 @@ celestia-appd init $CHAINID --chain-id $CHAINID
 celestia-appd keys add validator --keyring-backend="test"
 # this won't work because the some proto types are decalared twice and the logs output to stdout (dependency hell involving iavl)
 celestia-appd add-genesis-account $(celestia-appd keys show validator -a --keyring-backend="test") $coins
-celestia-appd gentx validator 5000000000utia --keyring-backend="test" --chain-id $CHAINID
+celestia-appd gentx validator 5000000000utia \
+  --keyring-backend="test" \
+  --chain-id $CHAINID \
+  --orchestrator-address $(celestia-appd keys show validator -a --keyring-backend="test") \
+  #da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
+  --ethereum-address 0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488
+
 celestia-appd collect-gentxs
 
 # Set proper defaults and change ports

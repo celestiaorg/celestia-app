@@ -41,7 +41,7 @@ func NewKeyringSigner(ring keyring.Keyring, name string, chainID string) *Keyrin
 // QueryAccountNumber queries the application to find the latest account number and
 // sequence, updating the respective internal fields. The internal account number must
 // be set by this method or by manually calling k.SetAccountNumber in order for any built
-// transactions to be valide
+// transactions to be valid
 func (k *KeyringSigner) QueryAccountNumber(ctx context.Context, conn *grpc.ClientConn) error {
 	info, err := k.Key(k.keyringAccName)
 	if err != nil {
