@@ -318,7 +318,7 @@ func TestProcessMessage(t *testing.T) {
 		assert.Equal(t, tt.msg, message.Data, tt.name)
 		assert.Equal(t, tt.ns, message.NamespaceId, tt.name)
 		assert.Equal(t, wpfd.Signer, spfd.Signer, tt.name)
-		assert.Equal(t, wpfd.MessageNameSpaceId, spfd.MessageNamespaceId, tt.name)
+		assert.Equal(t, wpfd.MessageNamespaceId, spfd.MessageNamespaceId, tt.name)
 		assert.Equal(t, wpfd.MessageShareCommitment[0].ShareCommitment, spfd.MessageShareCommitment, tt.name)
 		assert.Equal(t, wpfd.MessageShareCommitment[0].Signature, sig, tt.name)
 	}
