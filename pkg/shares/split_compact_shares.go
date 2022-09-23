@@ -153,15 +153,13 @@ func (css *CompactShareSplitter) Export() NamespacedShares {
 	return css.shares
 }
 
-// Count returns the current number of shares that will be made if exporting and
-// the number of availableBytes in the last pending share.
-func (css *CompactShareSplitter) Count() (count, availableBytes int) {
+// Count returns the current number of shares that will be made if exporting.
+func (css *CompactShareSplitter) Count() (shareCount int) {
 	if len(css.pendingShare.Share) > appconsts.NamespaceSize+appconsts.ShareInfoBytes {
-		return len(css.shares), 0
+		// pending share is non-empty, so we must add one to the count
+		return len(css.shares) + 1
 	}
-	//  this doesn't account for the size of the reserved byte
-	availableBytes = appconsts.CompactShareContentSize - (len(css.pendingShare.Share) - appconsts.NamespaceSize - appconsts.ShareInfoBytes)
-	return len(css.shares), availableBytes
+	return len(css.shares)
 }
 
 var tailPaddingInfo, _ = NewInfoReservedByte(appconsts.ShareVersion, false)
