@@ -19,8 +19,6 @@ The main issue with that requirement is that users must know the relevant subtre
 
 To fix this, the spec outlines the “non-interactive default rules”. These involve a few additional **default but optional** message layout rules that enables the user to follow the above block validity rule, while also not interacting with a block producer. Commitments to messages can consist entirely of sub tree roots of the data hash, and for those sub tree roots to be generated only from the message itself (so that the user can sign something “non-interactively”).
 
-NOTE: THE STATEMENT BELOW IS MODIFIED FROM THE SPEC
-
 > **Messages must begin at a location aligned with the largest power of 2 that is not larger than the message length or k.**
 
 Below illustrates how we can break a message up into two different subtree roots, following a [Merkle Mountain Range](https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/) structure, i.e. root `A` for first four shares, and root `B` consisting of the last two shares. We can then create a commitment out of any number of subtree roots by creating a merkle root of those commitments.
