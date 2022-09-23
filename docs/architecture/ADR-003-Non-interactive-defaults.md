@@ -71,7 +71,7 @@ To recap the default constraints of arranging a square:
 - Transactions with higher fees should be prioritized by default.
 - Ideally, the square should be filled as optimally as possible.
 
-For squares that are smaller than the max squaresize, the exact approach is much less important. This is because if we can't fit all of the transactions in a square, then by default we shouldn't be using that square size in the first place.
+For squares that are smaller than the max square size, the exact approach is much less important. This is because if we can't fit all of the transactions in a square, then by default we shouldn't be using that square size in the first place.
 
 Arranging the messages in the block to maximize for fees and optimize square space is an NP-hard problem. While the actual computation of the number of shares could be cached to an extent, each change to the square potentially affects the rest of the messages in the square. The only way to know for certain is to calculate the number of shares used. Calculating the exact number of bytes used is further complicated by the order of the steps due and our rampant use of varints, both in our encoding scheme and protobuf's. The example below shows how removing a single share (from the transactions in this case) could change the rest of the square and allow for a message that otherwise would not fit.
 
