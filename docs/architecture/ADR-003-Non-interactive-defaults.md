@@ -1,7 +1,7 @@
 # ADR 003: Non-interactive Defaults, Wrapped Transactions, and Subtree Root Message Inclusion Checks
 
->Note
->Unlike normal tendermint/cosmos ADRs, this ADR isn't for deciding on whether or not we will implement non-interactive defaults. The goal of this document is to help reviewers and future readers understand what non-interactive defaults are, the considerations that went into the initial implementation, and how it differs from the original specs.
+> **Note**
+> Unlike normal tendermint/cosmos ADRs, this ADR isn't for deciding on whether or not we will implement non-interactive defaults. The goal of this document is to help reviewers and future readers understand what non-interactive defaults are, the considerations that went into the initial implementation, and how it differs from the original specs.
 
 The exact approach taken by the initial implementation, however, is certainly up for scrutiny.
 
@@ -31,7 +31,7 @@ Below illustrates how we can break a message up into two different subtree roots
 
 ![Multi row share commitment](./assets/multirow.png "Subtree Root based commitments")
 
-If we can follow these rules, we can always create a commitment to the data that is a subtree root of the data root while only knowing the data in that message.
+If we follow this rule, we can always create a commitment to subtree roots of the data root, that commit to the data.
 
 In practice this usually means that we end up adding padding between messages (zig-zag hatched share) to ensure that each message is starting at an "aligned power of two". Padding consists of shares with the namespace of the message before it, with all zeros for data.
 
