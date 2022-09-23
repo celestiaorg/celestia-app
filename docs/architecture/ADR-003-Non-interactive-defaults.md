@@ -43,9 +43,9 @@ Below is an example block that has been filled using the non-interactive default
 ![example](./assets/example-full-block.png "example")
 
 - `ns = 1`: The first namespace is put in the beginning of the messages space.
-- `ns = 2`: Starting at the largest power of 2 that is not  (strictly) larger than the message length or `k`.
+- `ns = 2`: Starting at the largest power of 2 that is not larger than the message length or `k`.
 - `ns = 3`: Message spanning multiple rows. So, it will be at the beginning of a new row.
-- `ns  = 4`: Starting at the largest power of 2 that is not  (strictly) larger than the message length or `k`.
+- `ns  = 4`: Starting at the largest power of 2 that is not larger than the message length or `k`.
 
 Not only does doing this allow for easy trust minimized message inclusion checks for specific messages by light clients, but also allows for the creation of message inclusion fraud proofs for all messages in the block. This is important to reduce the trust assumptions made by light clients.
 
@@ -72,7 +72,7 @@ To recap the default constraints of arranging a square:
 - Transactions with higher fees should be prioritized by default.
 - Ideally, the square should be filled as optimally as possible.
 
-For squares that are smaller than the max squaresize, the exact approach is much less important. This is because if we can't fit all of the transactions in a square, then by default we shouldn't be using that square size in the first place.
+For squares that are smaller than the max square size, the exact approach is much less important. This is because if we can't fit all of the transactions in a square, then by default we shouldn't be using that square size in the first place.
 
 Arranging the messages in the block to maximize for fees and optimize square space is an NP-hard problem. While the actual computation of the number of shares could be cached to an extent, each change to the square potentially affects the rest of the messages in the square. The only way to know for certain is to calculate the number of shares used. Calculating the exact number of bytes used is further complicated by the order of the steps due and our rampant use of varints, both in our encoding scheme and protobuf's. The example below shows how removing a single share (from the transactions in this case) could change the rest of the square and allow for a message that otherwise would not fit.
 
