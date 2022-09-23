@@ -1,4 +1,4 @@
-# ADR 5: Reduce QGB state usage
+# ADR 005: QGB Reduce State Usage
 
 ## Context
 
