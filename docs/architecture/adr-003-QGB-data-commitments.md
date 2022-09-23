@@ -8,7 +8,7 @@ To accommodate the requirements of the [Quantum Gravity Bridge](https://github.c
 
 Add the `DataCommitmentConfirm` type of messages in order to attest that a set of blocks has been finalized.
 
-PS: The `ValsetConfirm` have been updated in `ADR-005-QGB_reduce_state_usage`. Please take a look on it to know how we will be handling the confirms.
+PS: The `ValsetConfirm` have been updated in `ADR-005-QGB-reduce-state-usage`. Please take a look on it to know how we will be handling the confirms.
 
 ## Detailed Design
 
@@ -123,10 +123,10 @@ Then, we continue to broadcast an event containing the message:
 ```go
 ctx.EventManager().EmitEvent(
     sdk.NewEvent(
-        sdk.EventTypeMessage, 
+        sdk.EventTypeMessage,
         sdk.NewAttribute(sdk.AttributeKeyModule, msg.Type()),
-        sdk.NewAttribute(types.AttributeKeyDataCommitmentConfirmKey, msg.String()), 
-    ), 
+        sdk.NewAttribute(types.AttributeKeyDataCommitmentConfirmKey, msg.String()),
+    ),
 )
 ```
 

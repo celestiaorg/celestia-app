@@ -1,4 +1,4 @@
-# ADR 4: QGB Relayer security design
+# ADR 004: QGB Relayer Security
 
 ## Changelog
 
@@ -7,21 +7,21 @@
 ## Context
 
 The current QGB design requires relayers to relay everything in a perfect synchronous order, but the contracts do not.
-In fact, the QGB smart contract is designed to update the data commitments as follows:  
+In fact, the QGB smart contract is designed to update the data commitments as follows:
 
-- Receive a data commitment  
-- Check that the block height (nonce) is higher than the previously committed root  
-- Check if the data commitment is signed using the current valset _(this is the problematic check)_  
+- Receive a data commitment
+- Check that the block height (nonce) is higher than the previously committed root
+- Check if the data commitment is signed using the current valset _(this is the problematic check)_
 - Then, other checks + commit
 
 So, if a relayer is up to date, it will submit data commitment and will pass the above checks.
 
-Now, if the relayer is missing some data commitments or valset updates, then it will start catching up the following way:  
+Now, if the relayer is missing some data commitments or valset updates, then it will start catching up the following way:
 
-- Relay valset  
-- Keep relaying all data commitments that were signed using that valset  
-- If a new valset is found, check that: up to the block where the valset was changed, all the data commitments that happened during that period are relayed  
-- Relay the next valset  
+- Relay valset
+- Keep relaying all data commitments that were signed using that valset
+- If a new valset is found, check that: up to the block where the valset was changed, all the data commitments that happened during that period are relayed
+- Relay the next valset
 - And, so on.
 
 The problem with this approach is that there is constant risk for any relayer to mess the ordering of the attestations submission, ie relaying the next valset before relaying all the data commitments that were signed using the previous valset, and end up with signatures holes.
@@ -63,10 +63,10 @@ This approach consists of switching to a synchronous QGB design utilizing univer
 Update the QGB contract to store the valset hashes + their nonces:
 
 - Cons:
-  - Would make the contract more complex  
+  - Would make the contract more complex
 - Pros:
-  - Would make the relayer parallelizable (can submit data commitments and valsets in any order as long as the valset is committed)  
-  - would allow the QGB to catchup correctly even in the existence of a malicious relayer  
+  - Would make the relayer parallelizable (can submit data commitments and valsets in any order as long as the valset is committed)
+  - would allow the QGB to catchup correctly even in the existence of a malicious relayer
 
 ### A request oriented design
 
