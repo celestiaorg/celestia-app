@@ -30,7 +30,7 @@ func NewWirePayForData(namespace, message []byte, sizes ...uint64) (*MsgWirePayF
 	}
 
 	out := &MsgWirePayForData{
-		MessageNameSpaceId:     namespace,
+		MessageNamespaceId:     namespace,
 		MessageSize:            uint64(len(message)),
 		Message:                message,
 		MessageShareCommitment: make([]ShareCommitAndSignature, len(sizes)),
@@ -85,7 +85,7 @@ func (msg *MsgWirePayForData) Route() string { return RouterKey }
 // commitments, signatures for those share commitments, and fulfills the sdk.Msg
 // interface.
 func (msg *MsgWirePayForData) ValidateBasic() error {
-	if err := ValidateMessageNamespaceID(msg.GetMessageNameSpaceId()); err != nil {
+	if err := ValidateMessageNamespaceID(msg.GetMessageNamespaceId()); err != nil {
 		return err
 	}
 
@@ -118,7 +118,7 @@ func (msg *MsgWirePayForData) ValidateMessageShareCommitments() error {
 			return ErrCommittedSquareSizeNotPowOf2.Wrapf("committed to square size: %d", commit.SquareSize)
 		}
 
-		calculatedCommit, err := CreateCommitment(commit.SquareSize, msg.GetMessageNameSpaceId(), msg.Message)
+		calculatedCommit, err := CreateCommitment(commit.SquareSize, msg.GetMessageNamespaceId(), msg.Message)
 		if err != nil {
 			return ErrCalculateCommit.Wrap(err.Error())
 		}
@@ -243,13 +243,13 @@ func (msg *MsgWirePayForData) createPayForDataSignature(signer *KeyringSigner, b
 // to create a new MsgPayForData.
 func (msg *MsgWirePayForData) unsignedPayForData(squareSize uint64) (*MsgPayForData, error) {
 	// create the commitment using the padded message
-	commit, err := CreateCommitment(squareSize, msg.MessageNameSpaceId, msg.Message)
+	commit, err := CreateCommitment(squareSize, msg.MessageNamespaceId, msg.Message)
 	if err != nil {
 		return nil, err
 	}
 
 	sPFD := MsgPayForData{
-		MessageNamespaceId:     msg.MessageNameSpaceId,
+		MessageNamespaceId:     msg.MessageNamespaceId,
 		MessageSize:            msg.MessageSize,
 		MessageShareCommitment: commit,
 		Signer:                 msg.Signer,
@@ -279,7 +279,7 @@ func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.
 
 	// add the message to the list of core message to be returned to ll-core
 	coreMsg := tmproto.Message{
-		NamespaceId: msg.GetMessageNameSpaceId(),
+		NamespaceId: msg.GetMessageNamespaceId(),
 		Data:        msg.GetMessage(),
 	}
 
