@@ -1,4 +1,4 @@
-# ADR 004: IBC Whitelist/Allowlist
+# ADR 004: IBC Allowlist
 
 ## Terminology
 
