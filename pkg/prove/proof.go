@@ -115,16 +115,16 @@ func txSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos 
 // txShareIndex returns the index of the compact share that would contain
 // transactions with totalTxLen
 func txShareIndex(totalTxLen int) (index uint64) {
-	if totalTxLen <= appconsts.CompactStartShareContentSize {
+	if totalTxLen <= appconsts.FirstCompactShareContentSize {
 		return 0
 	}
 
 	index++
-	totalTxLen -= appconsts.CompactStartShareContentSize
+	totalTxLen -= appconsts.FirstCompactShareContentSize
 
-	for totalTxLen > appconsts.CompactContinuationShareContentSize {
+	for totalTxLen > appconsts.ContinuationCompactShareContentSize {
 		index++
-		totalTxLen -= appconsts.CompactContinuationShareContentSize
+		totalTxLen -= appconsts.ContinuationCompactShareContentSize
 	}
 	return index
 }

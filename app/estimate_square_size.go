@@ -34,9 +34,9 @@ func prune(txConf client.TxConfig, txs []*parsedTx, currentShareCount, squareSiz
 	// inorder to tally total contiguous shares removed
 	adjustContigCursor := func(l int) {
 		contigBytesCursor += l + shares.DelimLen(uint64(l))
-		if contigBytesCursor >= appconsts.CompactContinuationShareContentSize {
-			removedContiguousShares += (contigBytesCursor / appconsts.CompactContinuationShareContentSize)
-			contigBytesCursor = contigBytesCursor % appconsts.CompactContinuationShareContentSize
+		if contigBytesCursor >= appconsts.ContinuationCompactShareContentSize {
+			removedContiguousShares += (contigBytesCursor / appconsts.ContinuationCompactShareContentSize)
+			contigBytesCursor = contigBytesCursor % appconsts.ContinuationCompactShareContentSize
 		}
 	}
 
@@ -175,7 +175,7 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 		msgSummaries = append(msgSummaries, msgSummary{shares.MsgSharesUsed(int(pTx.msg.MessageSize)), pTx.msg.MessageNamespaceId})
 	}
 
-	txShares = txBytes / appconsts.CompactContinuationShareContentSize
+	txShares = txBytes / appconsts.ContinuationCompactShareContentSize
 	if txBytes > 0 {
 		txShares++ // add one to round up
 	}
@@ -194,7 +194,7 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 		evdBytes += e.Size() + shares.DelimLen(uint64(e.Size()))
 	}
 
-	evdShares = evdBytes / appconsts.CompactContinuationShareContentSize
+	evdShares = evdBytes / appconsts.ContinuationCompactShareContentSize
 	if evdBytes > 0 {
 		evdShares++ // add one to round up
 	}

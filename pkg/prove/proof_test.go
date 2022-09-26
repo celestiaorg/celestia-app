@@ -28,7 +28,7 @@ func TestTxInclusion(t *testing.T) {
 	overlappingRowsBlockData := types.Data{
 		Txs: types.ToTxs(
 			[][]byte{
-				tmrand.Bytes(appconsts.CompactContinuationShareContentSize*overlappingSquareSize + 1),
+				tmrand.Bytes(appconsts.ContinuationCompactShareContentSize*overlappingSquareSize + 1),
 				tmrand.Bytes(10000),
 			},
 		),
@@ -37,7 +37,7 @@ func TestTxInclusion(t *testing.T) {
 	overlappingRowsBlockDataWithMessages := types.Data{
 		Txs: types.ToTxs(
 			[][]byte{
-				tmrand.Bytes(appconsts.CompactContinuationShareContentSize*overlappingSquareSize + 1),
+				tmrand.Bytes(appconsts.ContinuationCompactShareContentSize*overlappingSquareSize + 1),
 				tmrand.Bytes(10000),
 			},
 		),
@@ -140,12 +140,12 @@ func TestTxShareIndex(t *testing.T) {
 		{0, 0},
 		{10, 0},
 		{100, 0},
-		{appconsts.CompactStartShareContentSize, 0},
-		{appconsts.CompactStartShareContentSize + 1, 1},
-		{appconsts.CompactStartShareContentSize + appconsts.CompactContinuationShareContentSize, 1},
-		{appconsts.CompactStartShareContentSize + appconsts.CompactContinuationShareContentSize + 1, 2},
-		{appconsts.CompactStartShareContentSize + (appconsts.CompactContinuationShareContentSize * 2), 2},
-		{appconsts.CompactStartShareContentSize + (appconsts.CompactContinuationShareContentSize * 2) + 1, 3},
+		{appconsts.FirstCompactShareContentSize, 0},
+		{appconsts.FirstCompactShareContentSize + 1, 1},
+		{appconsts.FirstCompactShareContentSize + appconsts.ContinuationCompactShareContentSize, 1},
+		{appconsts.FirstCompactShareContentSize + appconsts.ContinuationCompactShareContentSize + 1, 2},
+		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 2), 2},
+		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 2) + 1, 3},
 	}
 
 	for _, tt := range tests {
@@ -218,7 +218,7 @@ func stripCompactShares(compactShares [][]byte, start uint64, end uint64) (resul
 	for i := start; i <= end; i++ {
 		if i == 0 {
 			// the first transaction share includes a total data length varint
-			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareDataLengthBytes+appconsts.CompactShareReservedBytes:]...)
+			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareDataLengthBytes+appconsts.CompactShareReservedBytes:]...)
 		} else {
 			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:]...)
 		}

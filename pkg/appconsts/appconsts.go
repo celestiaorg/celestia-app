@@ -32,9 +32,11 @@ const (
 	// the first unit (transaction, ISR, evidence) in a compact share.
 	CompactShareReservedBytes = 1
 
-	// CompactContinuationShareContentSize is the number of bytes usable for data in a continuation compact
-	// (i.e. transactions, ISRs, evidence) share.
-	CompactContinuationShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareReservedBytes
+	// ContinuationCompactShareContentSize is the number of bytes usable for
+	// data in a continuation compact share. A continuation share is any
+	// share in a reserved namespace that isn't the first share in that
+	// namespace.
+	ContinuationCompactShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareReservedBytes
 
 	// SparseShareContentSize is the number of bytes usable for data in a sparse (i.e.
 	// message) share.
@@ -115,7 +117,7 @@ var (
 	// defaults.
 	NameSpacedPaddedShareBytes = bytes.Repeat([]byte{0}, SparseShareContentSize)
 
-	// CompactShareDataLengthBytes is the number of bytes reserved for the total
+	// FirstCompactShareDataLengthBytes is the number of bytes reserved for the total
 	// data length that is stored in the first compact share of a reserved
 	// namespace. This value is the maximum number of bytes required to store
 	// the data length of a block that only contains compact shares of one type.
@@ -126,11 +128,13 @@ var (
 	// of evidence. It takes 4 bytes to store a varint of 4194304.
 	//
 	// https://go.dev/play/p/MynwcDHQ_me
-	CompactShareDataLengthBytes = NumberOfBytesVarint(MaxSquareSize * MaxSquareSize * ShareSize)
+	FirstCompactShareDataLengthBytes = NumberOfBytesVarint(MaxSquareSize * MaxSquareSize * ShareSize)
 
-	// CompactStartShareContentSize is the number of bytes usable for data in a
-	// compact message start (i.e. transactions, ISRs, evidence) share.
-	CompactStartShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareDataLengthBytes - CompactShareReservedBytes
+	// FirstCompactShareContentSize is the number of bytes usable for data in
+	// the first compact share of a reserved namespace. This type of share
+	// contains less space for data than a ContinuationCompactShare because the
+	// first compact share includes a total data length varint.
+	FirstCompactShareContentSize = ContinuationCompactShareContentSize - FirstCompactShareDataLengthBytes
 )
 
 // NumberOfBytesVarint calculates the number of bytes needed to write a varint of n
