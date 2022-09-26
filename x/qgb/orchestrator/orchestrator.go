@@ -10,7 +10,6 @@ import (
 	"time"
 
 	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktypestx "github.com/cosmos/cosmos-sdk/types/tx"
@@ -243,28 +242,28 @@ func (orch Orchestrator) Process(ctx context.Context, nonce uint64) error {
 		return types.ErrAttestationNotFound
 	}
 	// check if the validator is part of the needed valset
-	var previousValset *types.Valset
-	if att.GetNonce() == 1 {
-		// if nonce == 1, then, the current valset should sign the confirm.
-		// In fact, the first nonce should never be signed. Because, the first attestation, in the case
-		// where the `earliest` flag is specified when deploying the contract, will be relayed as part of
-		// the deployment of the QGB contract.
-		// It will be signed temporarily for now.
-		previousValset, err = orch.Querier.QueryValsetByNonce(ctx, att.GetNonce())
-		if err != nil {
-			return err
-		}
-	} else {
-		previousValset, err = orch.Querier.QueryLastValsetBeforeNonce(ctx, att.GetNonce())
-		if err != nil {
-			return err
-		}
-	}
-	if !keeper.ValidatorPartOfValset(previousValset.Members, orch.OrchEthAddress.Hex()) {
-		// no need to sign if the orchestrator is not part of the validator set that needs to sign the attestation
-		orch.Logger.Debug("validator not part of valset. won't sign", "nonce", nonce)
-		return nil
-	}
+	//var previousValset *types.Valset
+	//if att.GetNonce() == 1 {
+	//	// if nonce == 1, then, the current valset should sign the confirm.
+	//	// In fact, the first nonce should never be signed. Because, the first attestation, in the case
+	//	// where the `earliest` flag is specified when deploying the contract, will be relayed as part of
+	//	// the deployment of the QGB contract.
+	//	// It will be signed temporarily for now.
+	//	previousValset, err = orch.Querier.QueryValsetByNonce(ctx, att.GetNonce())
+	//	if err != nil {
+	//		return err
+	//	}
+	//} else {
+	//	previousValset, err = orch.Querier.QueryLastValsetBeforeNonce(ctx, att.GetNonce())
+	//	if err != nil {
+	//		return err
+	//	}
+	//}
+	//if !keeper.ValidatorPartOfValset(previousValset.Members, orch.OrchEthAddress.Hex()) {
+	//	// no need to sign if the orchestrator is not part of the validator set that needs to sign the attestation
+	//	orch.Logger.Debug("validator not part of valset. won't sign", "nonce", nonce)
+	//	return nil
+	//}
 	switch att.Type() {
 	case types.ValsetRequestType:
 		vs, ok := att.(*types.Valset)
@@ -319,13 +318,13 @@ func (orch Orchestrator) ProcessValsetEvent(ctx context.Context, valset types.Va
 	if err != nil {
 		return err
 	}
-	signature, err := types.NewEthereumSignature(signBytes.Bytes(), &orch.EvmPrivateKey)
+	signature, err := NewEthereumSignature(signBytes.Bytes(), &orch.EvmPrivateKey)
 	if err != nil {
 		return err
 	}
 
 	// create and send the valset hash
-	msg := types.NewMsgValsetConfirm(
+	msg := NewMsgValsetConfirm(
 		valset.Nonce,
 		orch.OrchEthAddress,
 		orch.OrchAccAddress,
@@ -351,13 +350,13 @@ func (orch Orchestrator) ProcessDataCommitmentEvent(
 	if err != nil {
 		return err
 	}
-	dataRootHash := types.DataCommitmentTupleRootSignBytes(types.BridgeID, big.NewInt(int64(dc.Nonce)), commitment)
-	dcSig, err := types.NewEthereumSignature(dataRootHash.Bytes(), &orch.EvmPrivateKey)
+	dataRootHash := DataCommitmentTupleRootSignBytes(types.BridgeID, big.NewInt(int64(dc.Nonce)), commitment)
+	dcSig, err := NewEthereumSignature(dataRootHash.Bytes(), &orch.EvmPrivateKey)
 	if err != nil {
 		return err
 	}
 
-	msg := types.NewMsgDataCommitmentConfirm(
+	msg := NewMsgDataCommitmentConfirm(
 		commitment.String(),
 		ethcmn.Bytes2Hex(dcSig),
 		orch.OrchAccAddress,

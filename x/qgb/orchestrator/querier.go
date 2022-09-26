@@ -233,8 +233,8 @@ func validateDCConfirm(commitment string, confirm types.MsgDataCommitmentConfirm
 		return ErrInvalidCommitmentInConfirm
 	}
 	bCommitment := common.Hex2Bytes(commitment)
-	dataRootHash := types.DataCommitmentTupleRootSignBytes(types.BridgeID, big.NewInt(int64(confirm.Nonce)), bCommitment)
-	err := types.ValidateEthereumSignature(dataRootHash.Bytes(), common.Hex2Bytes(confirm.Signature), common.HexToAddress(confirm.EthAddress))
+	dataRootHash := DataCommitmentTupleRootSignBytes(types.BridgeID, big.NewInt(int64(confirm.Nonce)), bCommitment)
+	err := ValidateEthereumSignature(dataRootHash.Bytes(), common.Hex2Bytes(confirm.Signature), common.HexToAddress(confirm.EthAddress))
 	if err != nil {
 		return err
 	}
@@ -246,99 +246,100 @@ func (q querier) QueryTwoThirdsValsetConfirms(
 	timeout time.Duration,
 	valset types.Valset,
 ) ([]types.MsgValsetConfirm, error) {
-	var currentValset types.Valset
-	if valset.Nonce == 1 {
-		// In fact, the first nonce should never be signed. Because, the first attestation, in the case
-		// where the `earliest` flag is specified when deploying the contract, will be relayed as part of
-		// the deployment of the QGB contract.
-		// It will be signed temporarily for now.
-		currentValset = valset
-	} else {
-		vs, err := q.QueryLastValsetBeforeNonce(ctx, valset.Nonce)
-		if err != nil {
-			return nil, err
-		}
-		currentValset = *vs
-	}
-	// create a map to easily search for power
-	vals := make(map[string]types.BridgeValidator)
-	for _, val := range currentValset.Members {
-		vals[val.GetEthereumAddress()] = val
-	}
-
-	majThreshHold := valset.TwoThirdsThreshold()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, nil //nolint:nilnil
-		// TODO: remove this extra case, and we can instead rely on the caller to pass a context with a timeout
-		case <-time.After(timeout):
-			return nil, errors.Wrap(
-				ErrNotEnoughValsetConfirms,
-				fmt.Sprintf("failure to query for majority validator set confirms: timout %s", timeout),
-			)
-		default:
-			currThreshold := uint64(0)
-			queryClient := types.NewQueryClient(q.qgbRPC)
-			confirmsResp, err := queryClient.ValsetConfirmsByNonce(ctx, &types.QueryValsetConfirmsByNonceRequest{
-				Nonce: valset.Nonce,
-			})
-			if err != nil {
-				return nil, err
-			}
-
-			confirms := make([]types.MsgValsetConfirm, 0)
-			for _, valsetConfirm := range confirmsResp.Confirms {
-				val, has := vals[valsetConfirm.EthAddress]
-				if !has {
-					q.logger.Debug(
-						fmt.Sprintf(
-							"valSetConfirm signer not found in stored validator set: address %s nonce %d",
-							val.EthereumAddress,
-							valset.Nonce,
-						))
-					continue
-				}
-				if err := validateValsetConfirm(valset, valsetConfirm); err != nil {
-					q.logger.Error("found an invalid valset confirm",
-						"nonce",
-						valsetConfirm.Nonce,
-						"signer_eth_address",
-						valsetConfirm.EthAddress,
-						"err",
-						err.Error(),
-					)
-					continue
-				}
-				currThreshold += val.Power
-				confirms = append(confirms, valsetConfirm)
-			}
-
-			if currThreshold >= majThreshHold {
-				q.logger.Debug("found enough valset confirms to be relayed",
-					"majThreshHold",
-					majThreshHold,
-					"currThreshold",
-					currThreshold,
-				)
-				return confirms, nil
-			}
-			q.logger.Debug(
-				"found ValsetConfirms",
-				"nonce",
-				valset.Nonce,
-				"total_power",
-				currThreshold,
-				"number_of_confirms",
-				len(confirmsResp.Confirms),
-				"missing_confirms",
-				len(currentValset.Members)-len(confirmsResp.Confirms),
-			)
-		}
-		// TODO: make the timeout configurable
-		time.Sleep(10 * time.Second)
-	}
+	//var currentValset types.Valset
+	//if valset.Nonce == 1 {
+	//	// In fact, the first nonce should never be signed. Because, the first attestation, in the case
+	//	// where the `earliest` flag is specified when deploying the contract, will be relayed as part of
+	//	// the deployment of the QGB contract.
+	//	// It will be signed temporarily for now.
+	//	currentValset = valset
+	//} else {
+	//	vs, err := q.QueryLastValsetBeforeNonce(ctx, valset.Nonce)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	currentValset = *vs
+	//}
+	//// create a map to easily search for power
+	//vals := make(map[string]types.BridgeValidator)
+	//for _, val := range currentValset.Members {
+	//	vals[val.GetEthereumAddress()] = val
+	//}
+	//
+	//majThreshHold := valset.TwoThirdsThreshold()
+	//
+	//for {
+	//	select {
+	//	case <-ctx.Done():
+	//		return nil, nil //nolint:nilnil
+	//	// TODO: remove this extra case, and we can instead rely on the caller to pass a context with a timeout
+	//	case <-time.After(timeout):
+	//		return nil, errors.Wrap(
+	//			ErrNotEnoughValsetConfirms,
+	//			fmt.Sprintf("failure to query for majority validator set confirms: timout %s", timeout),
+	//		)
+	//	default:
+	//		currThreshold := uint64(0)
+	//		queryClient := types.NewQueryClient(q.qgbRPC)
+	//		confirmsResp, err := queryClient.ValsetConfirmsByNonce(ctx, &types.QueryValsetConfirmsByNonceRequest{
+	//			Nonce: valset.Nonce,
+	//		})
+	//		if err != nil {
+	//			return nil, err
+	//		}
+	//
+	//		confirms := make([]types.MsgValsetConfirm, 0)
+	//		for _, valsetConfirm := range confirmsResp.Confirms {
+	//			val, has := vals[valsetConfirm.EthAddress]
+	//			if !has {
+	//				q.logger.Debug(
+	//					fmt.Sprintf(
+	//						"valSetConfirm signer not found in stored validator set: address %s nonce %d",
+	//						val.EthereumAddress,
+	//						valset.Nonce,
+	//					))
+	//				continue
+	//			}
+	//			if err := validateValsetConfirm(valset, valsetConfirm); err != nil {
+	//				q.logger.Error("found an invalid valset confirm",
+	//					"nonce",
+	//					valsetConfirm.Nonce,
+	//					"signer_eth_address",
+	//					valsetConfirm.EthAddress,
+	//					"err",
+	//					err.Error(),
+	//				)
+	//				continue
+	//			}
+	//			currThreshold += val.Power
+	//			confirms = append(confirms, valsetConfirm)
+	//		}
+	//
+	//		if currThreshold >= majThreshHold {
+	//			q.logger.Debug("found enough valset confirms to be relayed",
+	//				"majThreshHold",
+	//				majThreshHold,
+	//				"currThreshold",
+	//				currThreshold,
+	//			)
+	//			return confirms, nil
+	//		}
+	//		q.logger.Debug(
+	//			"found ValsetConfirms",
+	//			"nonce",
+	//			valset.Nonce,
+	//			"total_power",
+	//			currThreshold,
+	//			"number_of_confirms",
+	//			len(confirmsResp.Confirms),
+	//			"missing_confirms",
+	//			len(currentValset.Members)-len(confirmsResp.Confirms),
+	//		)
+	//	}
+	//	// TODO: make the timeout configurable
+	//	time.Sleep(10 * time.Second)
+	//}
+	return nil, nil
 }
 
 // validateValsetConfirm runs validation on the valset confirm to make sure it was well created.
@@ -348,7 +349,7 @@ func validateValsetConfirm(vs types.Valset, confirm types.MsgValsetConfirm) erro
 	if err != nil {
 		return err
 	}
-	err = types.ValidateEthereumSignature(signBytes.Bytes(), common.Hex2Bytes(confirm.Signature), common.HexToAddress(confirm.EthAddress))
+	err = ValidateEthereumSignature(signBytes.Bytes(), common.Hex2Bytes(confirm.Signature), common.HexToAddress(confirm.EthAddress))
 	if err != nil {
 		return err
 	}
@@ -359,16 +360,17 @@ func validateValsetConfirm(vs types.Valset, confirm types.MsgValsetConfirm) erro
 // the provided `nonce` can be a valset, but this will return the valset before it.
 // If nonce is 1, it will return an error. Because, there is no valset before nonce 1.
 func (q querier) QueryLastValsetBeforeNonce(ctx context.Context, nonce uint64) (*types.Valset, error) {
-	queryClient := types.NewQueryClient(q.qgbRPC)
-	resp, err := queryClient.LastValsetRequestBeforeNonce(
-		ctx,
-		&types.QueryLastValsetRequestBeforeNonceRequest{Nonce: nonce},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp.Valset, nil
+	//queryClient := types.NewQueryClient(q.qgbRPC)
+	//resp, err := queryClient.LastValsetRequestBeforeNonce(
+	//	ctx,
+	//	&types.QueryLastValsetRequestBeforeNonceRequest{Nonce: nonce},
+	//)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//return resp.Valset, nil
+	return nil, nil
 }
 
 func (q querier) QueryValsetConfirm(
@@ -376,15 +378,16 @@ func (q querier) QueryValsetConfirm(
 	nonce uint64,
 	address string,
 ) (*types.MsgValsetConfirm, error) {
-	queryClient := types.NewQueryClient(q.qgbRPC)
-	// FIXME this is not always a valset confirm (the nonce can be of a data commitment)
-	// and might return an empty list. Should we worry?
-	resp, err := queryClient.ValsetConfirm(ctx, &types.QueryValsetConfirmRequest{Nonce: nonce, Address: address})
-	if err != nil {
-		return nil, err
-	}
-
-	return resp.Confirm, nil
+	//queryClient := types.NewQueryClient(q.qgbRPC)
+	//// FIXME this is not always a valset confirm (the nonce can be of a data commitment)
+	//// and might return an empty list. Should we worry?
+	//resp, err := queryClient.ValsetConfirm(ctx, &types.QueryValsetConfirmRequest{Nonce: nonce, Address: address})
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//return resp.Confirm, nil
+	return nil, nil
 }
 
 func (q querier) QueryHeight(ctx context.Context) (uint64, error) {
@@ -412,21 +415,22 @@ func (q querier) QueryDataCommitmentConfirm(
 	beginBlock uint64,
 	address string,
 ) (*types.MsgDataCommitmentConfirm, error) {
-	queryClient := types.NewQueryClient(q.qgbRPC)
-
-	confirmsResp, err := queryClient.DataCommitmentConfirm(
-		ctx,
-		&types.QueryDataCommitmentConfirmRequest{
-			EndBlock:   endBlock,
-			BeginBlock: beginBlock,
-			Address:    address,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return confirmsResp.Confirm, nil
+	//queryClient := types.NewQueryClient(q.qgbRPC)
+	//
+	//confirmsResp, err := queryClient.DataCommitmentConfirm(
+	//	ctx,
+	//	&types.QueryDataCommitmentConfirmRequest{
+	//		EndBlock:   endBlock,
+	//		BeginBlock: beginBlock,
+	//		Address:    address,
+	//	},
+	//)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//return confirmsResp.Confirm, nil
+	return nil, nil
 }
 
 func (q querier) QueryDataCommitmentConfirmsByExactRange(
@@ -434,18 +438,19 @@ func (q querier) QueryDataCommitmentConfirmsByExactRange(
 	start uint64,
 	end uint64,
 ) ([]types.MsgDataCommitmentConfirm, error) {
-	queryClient := types.NewQueryClient(q.qgbRPC)
-	confirmsResp, err := queryClient.DataCommitmentConfirmsByExactRange(
-		ctx,
-		&types.QueryDataCommitmentConfirmsByExactRangeRequest{
-			BeginBlock: start,
-			EndBlock:   end,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-	return confirmsResp.Confirms, nil
+	//queryClient := types.NewQueryClient(q.qgbRPC)
+	//confirmsResp, err := queryClient.DataCommitmentConfirmsByExactRange(
+	//	ctx,
+	//	&types.QueryDataCommitmentConfirmsByExactRangeRequest{
+	//		BeginBlock: start,
+	//		EndBlock:   end,
+	//	},
+	//)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//return confirmsResp.Confirms, nil
+	return nil, nil
 }
 
 func (q querier) QueryDataCommitmentByNonce(ctx context.Context, nonce uint64) (*types.DataCommitment, error) {

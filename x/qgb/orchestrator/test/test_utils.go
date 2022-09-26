@@ -3,6 +3,7 @@ package test
 import (
 	"errors"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"math/big"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -21,7 +22,7 @@ func verifyOrchestratorValsetSignature(broadcasted sdk.Msg, valset *types.Valset
 		return err
 	}
 	ethAddress := common.HexToAddress(msg.EthAddress)
-	err = types.ValidateEthereumSignature(
+	err = orchestrator.ValidateEthereumSignature(
 		hash.Bytes(),
 		common.Hex2Bytes(msg.Signature),
 		ethAddress,
@@ -73,13 +74,13 @@ func verifyOrchestratorDcSignature(broadcasted sdk.Msg, dc types.DataCommitment)
 		return errors.New("couldn't cast sdk.Msg to *types.MsgDataCommitmentConfirm")
 	}
 
-	dataRootHash := types.DataCommitmentTupleRootSignBytes(
+	dataRootHash := orchestrator.DataCommitmentTupleRootSignBytes(
 		types.BridgeID,
 		big.NewInt(int64(dc.Nonce)),
 		commitmentFromRange(dc.BeginBlock, dc.EndBlock),
 	)
 	ethAddress := common.HexToAddress(msg.EthAddress)
-	err := types.ValidateEthereumSignature(
+	err := orchestrator.ValidateEthereumSignature(
 		dataRootHash.Bytes(),
 		common.Hex2Bytes(msg.Signature),
 		ethAddress,

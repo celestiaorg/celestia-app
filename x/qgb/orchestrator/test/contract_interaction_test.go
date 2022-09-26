@@ -91,13 +91,13 @@ func (s *QGBTestSuite) SetupTest() {
 func (s *QGBTestSuite) TestSubmitDataCommitment() {
 	// we just need something to sign over, it doesn't matter what
 	commitment := ethcmn.HexToHash(types.ValidatorSetDomainSeparator)
-	signBytes := types.DataCommitmentTupleRootSignBytes(
+	signBytes := orchestrator.DataCommitmentTupleRootSignBytes(
 		bID,
 		big.NewInt(1),
 		commitment[:],
 	)
 
-	signature, err := types.NewEthereumSignature(signBytes.Bytes(), s.key)
+	signature, err := orchestrator.NewEthereumSignature(signBytes.Bytes(), s.key)
 	s.NoError(err)
 
 	ethVals := make([]wrapper.Validator, len(initialValSet.Members))
@@ -156,7 +156,7 @@ func (s *QGBTestSuite) TestUpdateValset() {
 	s.NoError(err)
 	signBytes, err := updatedValset.SignBytes(bID)
 	s.NoError(err)
-	signature, err := types.NewEthereumSignature(signBytes.Bytes(), s.key)
+	signature, err := orchestrator.NewEthereumSignature(signBytes.Bytes(), s.key)
 	s.NoError(err)
 
 	hexSig := ethcmn.Bytes2Hex(signature)
