@@ -14,14 +14,13 @@ celestia-appd gentx validator 5000000000utia \
   --keyring-backend="test" \
   --chain-id $CHAINID \
   --orchestrator-address $(celestia-appd keys show validator -a --keyring-backend="test") \
-  #da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
-  --ethereum-address 0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488
+  --ethereum-address 0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488 # private key: da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
 
 celestia-appd collect-gentxs
 
 # Set proper defaults and change ports
 sed -i 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' ~/.celestia-app/config/config.toml
-sed -i 's/timeout_commit = "5s"/timeout_commit = "1s"/g' ~/.celestia-app/config/config.toml
+sed -i 's/timeout_commit = "25s"/timeout_commit = "1s"/g' ~/.celestia-app/config/config.toml
 sed -i 's/timeout_propose = "3s"/timeout_propose = "1s"/g' ~/.celestia-app/config/config.toml
 sed -i 's/index_all_keys = false/index_all_keys = true/g' ~/.celestia-app/config/config.toml
 sed -i 's/mode = "full"/mode = "validator"/g' ~/.celestia-app/config/config.toml
