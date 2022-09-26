@@ -3,7 +3,6 @@ package prove
 import (
 	"bytes"
 	"math/rand"
-	"strings"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -117,18 +116,16 @@ func TestTxSharePosition(t *testing.T) {
 		shares := shares.SplitTxs(tt.txs)
 
 		for i, pos := range positions {
-			if pos.start == pos.end {
-				assert.Contains(t, string(shares[pos.start]), string(tt.txs[i]), tt.name, i, pos)
-			} else {
-				assert.Contains(
-					t,
-					joinByteSlices(shares[pos.start:pos.end+1]...),
-					string(tt.txs[i]),
-					tt.name,
-					pos,
-					len(tt.txs[i]),
-				)
-			}
+			rawTx := []byte(tt.txs[i])
+			rawTxDataForRange := stripCompactShares(shares, pos.start, pos.end)
+			assert.Contains(
+				t,
+				string(rawTxDataForRange),
+				string(rawTx),
+				tt.name,
+				pos,
+				len(tt.txs[i]),
+			)
 		}
 	}
 }
@@ -188,13 +185,14 @@ func TestTxSharePosition(t *testing.T) {
 // 	assert.Equal(t, rawShares, genShares)
 // }
 
-func joinByteSlices(s ...[]byte) string {
-	out := make([]string, len(s))
-	for i, sl := range s {
-		sl, _, _ := shares.ParseDelimiter(sl)
-		out[i] = string(sl[appconsts.NamespaceSize+appconsts.ShareInfoBytes:])
+// stripCompactShares strips the universal prefix (namespace, info byte) and
+// reserved byte from a list of compact shares and joins them into a single byte
+// slice.
+func stripCompactShares(compactShares [][]byte, start uint64, end uint64) (result []byte) {
+	for i := start; i <= end; i++ {
+		result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:]...)
 	}
-	return strings.Join(out, "")
+	return result
 }
 
 func generateRandomlySizedTxs(count, max int) types.Txs {
