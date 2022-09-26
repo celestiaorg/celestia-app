@@ -41,7 +41,7 @@ func (p *parsedTx) wrap(shareIndex uint32) (coretypes.Tx, error) {
 
 func (p *parsedTx) message() *core.Message {
 	return &core.Message{
-		NamespaceId: p.msg.MessageNameSpaceId,
+		NamespaceId: p.msg.MessageNamespaceId,
 		Data:        p.msg.Message,
 	}
 }

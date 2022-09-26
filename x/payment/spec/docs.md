@@ -47,7 +47,7 @@ func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.
 
 	// add the message to the list of core message to be returned to ll-core
 	coreMsg := tmproto.Message{
-		NamespaceId: msg.GetMessageNameSpaceId(),
+		NamespaceId: msg.GetMessageNamespaceId(),
 		Data:        msg.GetMessage(),
 	}
 
