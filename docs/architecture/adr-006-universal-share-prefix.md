@@ -1,6 +1,4 @@
-# ADR 009: Universal Share Encoding
-<!-- disable markdownlint MD010 because Go code snippet uses tabs -->
-<!-- markdownlint-disable MD010 -->
+# ADR 006: Universal Share Prefix
 
 ## Terminology
 
