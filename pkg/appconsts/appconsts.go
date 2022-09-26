@@ -32,9 +32,9 @@ const (
 	// the first unit (transaction, ISR, evidence) in a compact share.
 	CompactShareReservedBytes = 1
 
-	// CompactShareContentSize is the number of bytes usable for data in a compact
+	// CompactContinuationShareContentSize is the number of bytes usable for data in a continuation compact
 	// (i.e. transactions, ISRs, evidence) share.
-	CompactShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareReservedBytes
+	CompactContinuationShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareReservedBytes
 
 	// SparseShareContentSize is the number of bytes usable for data in a sparse (i.e.
 	// message) share.
@@ -127,6 +127,10 @@ var (
 	//
 	// https://go.dev/play/p/MynwcDHQ_me
 	CompactShareDataLengthBytes = NumberOfBytesVarint(MaxSquareSize * MaxSquareSize * ShareSize)
+
+	// CompactStartShareContentSize is the number of bytes usable for data in a
+	// compact message start (i.e. transactions, ISRs, evidence) share.
+	CompactStartShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareDataLengthBytes - CompactShareReservedBytes
 )
 
 // NumberOfBytesVarint calculates the number of bytes needed to write a varint of n

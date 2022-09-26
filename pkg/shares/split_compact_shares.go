@@ -213,7 +213,7 @@ func (css *CompactShareSplitter) writeDataLengthVarintToFirstShare(dataLengthVar
 // the share info byte in each share. dataLength does include the reserved
 // byte in each share and the unit length delimiter prefixed to each unit.
 func (css *CompactShareSplitter) dataLength() uint64 {
-	length := uint64(len(css.shares)) * appconsts.CompactShareContentSize
+	length := uint64(len(css.shares)) * appconsts.CompactContinuationShareContentSize
 	length += uint64(len(css.shares)) * appconsts.CompactShareReservedBytes
 	if !css.isEmptyPendingShare() {
 		length += css.pendingShareDataLength()
