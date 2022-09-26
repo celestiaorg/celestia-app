@@ -1,13 +1,10 @@
 package shares
 
 import (
-	"encoding/binary"
-
 	"github.com/celestiaorg/nmt/namespace"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// Share contains the raw share data without the corresponding namespace.
+// Share contains the raw share data (including namespace ID).
 type Share []byte
 
 // NamespacedShare extends a Share with the corresponding namespace.
@@ -25,7 +22,7 @@ func (n NamespacedShare) Data() []byte {
 }
 
 // NamespacedShares is just a list of NamespacedShare elements.
-// It can be used to extract the raw raw shares.
+// It can be used to extract the raw shares.
 type NamespacedShares []NamespacedShare
 
 // RawShares returns the raw shares that can be fed into the erasure coding
@@ -36,20 +33,4 @@ func (ns NamespacedShares) RawShares() [][]byte {
 		res[i] = nsh.Share
 	}
 	return res
-}
-
-func MarshalDelimitedTx(tx coretypes.Tx) ([]byte, error) {
-	lenBuf := make([]byte, binary.MaxVarintLen64)
-	length := uint64(len(tx))
-	n := binary.PutUvarint(lenBuf, length)
-	return append(lenBuf[:n], tx...), nil
-}
-
-// MarshalDelimited marshals the raw data (excluding the namespace) of this
-// message and prefixes it with the length of that encoding.
-func MarshalDelimitedMessage(msg coretypes.Message) ([]byte, error) {
-	lenBuf := make([]byte, binary.MaxVarintLen64)
-	length := uint64(len(msg.Data))
-	n := binary.PutUvarint(lenBuf, length)
-	return append(lenBuf[:n], msg.Data...), nil
 }

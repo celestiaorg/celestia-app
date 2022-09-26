@@ -1,17 +1,17 @@
 package types
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"math/bits"
 
-	"github.com/celestiaorg/rsmt2d"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/nmt"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/tendermint/tendermint/crypto/merkle"
-	"github.com/tendermint/tendermint/pkg/consts"
-	"github.com/tendermint/tendermint/pkg/wrapper"
 	coretypes "github.com/tendermint/tendermint/types"
 
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
@@ -20,9 +20,9 @@ import (
 const (
 	URLMsgWirePayForData = "/payment.MsgWirePayForData"
 	URLMsgPayForData     = "/payment.MsgPayForData"
-	ShareSize            = consts.ShareSize
-	SquareSize           = consts.MaxSquareSize
-	NamespaceIDSize      = consts.NamespaceSize
+	ShareSize            = appconsts.ShareSize
+	SquareSize           = appconsts.MaxSquareSize
+	NamespaceIDSize      = appconsts.NamespaceSize
 )
 
 var _ sdk.Msg = &MsgPayForData{}
@@ -109,10 +109,11 @@ func BuildPayForDataTxFromWireTx(
 	return builder.GetTx(), nil
 }
 
-// CreateCommitment generates the commit bytes for a given message, namespace, and
-// squaresize using a namespace merkle tree and the rules described at
+// CreateCommitment generates the commit bytes for a given squareSize,
+// namespace, and message using a namespace merkle tree and the rules described
+// at
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#message-layout-rationale
-func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
+func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, error) {
 	msg := coretypes.Messages{
 		MessagesList: []coretypes.Message{
 			{
@@ -124,20 +125,21 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 
 	// split into shares that are length delimited and include the namespace in
 	// each share
-	shares, err := shares.SplitMessages(nil, msg.MessagesList)
+	shares, err := shares.SplitMessages(0, nil, msg.MessagesList, false)
 	if err != nil {
 		return nil, err
 	}
 	// if the number of shares is larger than that in the square, throw an error
-	// note, we use k*k-1 here because at least a single share will be reserved
-	// for the transaction paying for the message, therefore the max number of
-	// shares a message can be is number of shares in square -1.
-	if uint64(len(shares)) > (k*k)-1 {
-		return nil, fmt.Errorf("message size exceeds max shares for square size %d: max %d taken %d", k, (k*k)-1, len(shares))
+	// note, we use (squareSize*squareSize)-1 here because at least a single
+	// share will be reserved for the transaction paying for the message,
+	// therefore the max number of shares a message can be is number of shares
+	// in square - 1.
+	if uint64(len(shares)) > (squareSize*squareSize)-1 {
+		return nil, fmt.Errorf("message size exceeds max shares for square size %d: max %d taken %d", squareSize, (squareSize*squareSize)-1, len(shares))
 	}
 
 	// organize shares for merkle mountain range
-	heights := powerOf2MountainRange(uint64(len(shares)), k)
+	heights := powerOf2MountainRange(uint64(len(shares)), squareSize)
 	leafSets := make([][][]byte, len(heights))
 	cursor := uint64(0)
 	for i, height := range heights {
@@ -148,13 +150,16 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 	// create the commits by pushing each leaf set onto an nmt
 	subTreeRoots := make([][]byte, len(leafSets))
 	for i, set := range leafSets {
-		tree := wrapper.NewErasuredNamespacedMerkleTree(consts.MaxSquareSize)
+		// create the nmt todo(evan) use nmt wrapper
+		tree := nmt.New(sha256.New())
 		for _, leaf := range set {
 			nsLeaf := append(make([]byte, 0), append(namespace, leaf...)...)
-			// here we hardcode pushing as axis 0 cell 0 because we never want
-			// to add the parity namespace to our shares when we create roots.
-			tree.Push(nsLeaf, rsmt2d.SquareIndex{Axis: 0, Cell: 0})
+			err := tree.Push(nsLeaf)
+			if err != nil {
+				return nil, err
+			}
 		}
+		// add the root
 		subTreeRoots[i] = tree.Root()
 	}
 	return merkle.HashFromByteSlices(subTreeRoots), nil
@@ -162,15 +167,15 @@ func CreateCommitment(k uint64, namespace, message []byte) ([]byte, error) {
 
 // powerOf2MountainRange returns the heights of the subtrees for binary merkle
 // mountain range
-func powerOf2MountainRange(l, k uint64) []uint64 {
+func powerOf2MountainRange(l, squareSize uint64) []uint64 {
 	var output []uint64
 
 	for l != 0 {
 		switch {
-		case l >= k:
-			output = append(output, k)
-			l = l - k
-		case l < k:
+		case l >= squareSize:
+			output = append(output, squareSize)
+			l = l - squareSize
+		case l < squareSize:
 			p := nextLowerPowerOf2(l)
 			output = append(output, p)
 			l = l - p

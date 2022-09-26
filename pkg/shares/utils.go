@@ -1,16 +1,17 @@
 package shares
 
 import (
-	"math/bits"
+	"encoding/binary"
 
-	"github.com/tendermint/tendermint/pkg/consts"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // DelimLen calculates the length of the delimiter for a given message size
-func DelimLen(x uint64) int {
-	return 8 - bits.LeadingZeros64(x)%8
+func DelimLen(size uint64) int {
+	lenBuf := make([]byte, binary.MaxVarintLen64)
+	return binary.PutUvarint(lenBuf, size)
 }
 
 // MsgSharesUsed calculates the minimum number of shares a message will take up.
@@ -18,9 +19,9 @@ func DelimLen(x uint64) int {
 func MsgSharesUsed(msgSize int) int {
 	// add the delimiter to the message size
 	msgSize = DelimLen(uint64(msgSize)) + msgSize
-	shareCount := msgSize / consts.MsgShareSize
+	shareCount := msgSize / appconsts.SparseShareContentSize
 	// increment the share count if the message overflows the last counted share
-	if msgSize%consts.MsgShareSize != 0 {
+	if msgSize%appconsts.SparseShareContentSize != 0 {
 		shareCount++
 	}
 	return shareCount

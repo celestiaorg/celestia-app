@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"testing"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -15,16 +16,25 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	"github.com/celestiaorg/celestia-app/x/payment"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/nmt/namespace"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/pkg/consts"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
+
+func TestIntegrationTestSuite(t *testing.T) {
+	cfg := network.DefaultConfig()
+	cfg.EnableTMLogging = false
+	cfg.MinGasPrices = "0utia"
+	cfg.NumValidators = 1
+	cfg.TimeoutCommit = time.Millisecond * 200
+	suite.Run(t, NewIntegrationTestSuite(cfg))
+}
 
 type IntegrationTestSuite struct {
 	suite.Suite
@@ -121,20 +131,20 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			}
 
 			// wait a few blocks to clear the txs
-			for i := 0; i < 8; i++ {
+			for i := 0; i < 16; i++ {
 				require.NoError(s.network.WaitForNextBlock())
 			}
 
 			heights := make(map[int64]int)
 			for _, hash := range hashes {
-				// TODO: once we are able to query txs that span more than two
-				// shares, we should switch to proving txs existence in the block
-				resp, err := queryWithOutProof(val.ClientCtx, hash)
+				// TODO: reenable fetching and verifying proofs
+				resp, err := queryTx(val.ClientCtx, hash, false)
 				assert.NoError(err)
 				assert.Equal(abci.CodeTypeOK, resp.TxResult.Code)
 				if resp.TxResult.Code == abci.CodeTypeOK {
 					heights[resp.Height]++
 				}
+				// require.True(resp.Proof.VerifyProof())
 			}
 
 			require.Greater(len(heights), 0)
@@ -149,13 +159,13 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				size := blockRes.Block.Data.OriginalSquareSize
 
 				// perform basic checks on the size of the square
-				assert.LessOrEqual(size, uint64(consts.MaxSquareSize))
-				assert.GreaterOrEqual(size, uint64(consts.MinSquareSize))
+				assert.LessOrEqual(size, uint64(appconsts.MaxSquareSize))
+				assert.GreaterOrEqual(size, uint64(appconsts.MinSquareSize))
 				sizes = append(sizes, size)
 			}
 
 			// ensure that at least one of the blocks used the max square size
-			assert.Contains(sizes, uint64(consts.MaxSquareSize))
+			assert.Contains(sizes, uint64(appconsts.MaxSquareSize))
 		})
 		require.NoError(s.network.WaitForNextBlock())
 	}
@@ -185,7 +195,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 		{
 			"large random typical",
 			[]byte{2, 3, 4, 5, 6, 7, 8, 9},
-			tmrand.Bytes(900000),
+			tmrand.Bytes(700000),
 			[]types.TxBuilderOption{
 				types.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
 			},
@@ -211,19 +221,16 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 		s.Run(tc.name, func() {
 			signer := types.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
 			res, err := payment.SubmitPayForData(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.message, 10000000, tc.opts...)
-			assert.NoError(err)
+			require.NoError(err)
+			require.NotNil(res)
 			assert.Equal(abci.CodeTypeOK, res.Code)
-			require.NoError(s.network.WaitForNextBlock())
+			// occasionally this test will error that the mempool is full (code
+			// 20) so we wait a few blocks for the txs to clear
+			for i := 0; i < 3; i++ {
+				require.NoError(s.network.WaitForNextBlock())
+			}
 		})
 	}
-}
-
-func TestIntegrationTestSuite(t *testing.T) {
-	cfg := network.DefaultConfig()
-	cfg.EnableTMLogging = false
-	cfg.MinGasPrices = "0utia"
-	cfg.NumValidators = 1
-	suite.Run(t, NewIntegrationTestSuite(cfg))
 }
 
 func generateSignedWirePayForDataTxs(clientCtx client.Context, txConfig client.TxConfig, kr keyring.Keyring, msgSize int, accounts ...string) ([]coretypes.Tx, error) {
@@ -292,13 +299,13 @@ func generateSignedWirePayForDataTxs(clientCtx client.Context, txConfig client.T
 func randomValidNamespace() namespace.ID {
 	for {
 		s := tmrand.Bytes(8)
-		if bytes.Compare(s, consts.MaxReservedNamespace) > 0 {
+		if bytes.Compare(s, appconsts.MaxReservedNamespace) > 0 {
 			return s
 		}
 	}
 }
 
-func queryWithOutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.ResultTx, error) {
+func queryTx(clientCtx client.Context, hashHexStr string, prove bool) (*rpctypes.ResultTx, error) {
 	hash, err := hex.DecodeString(hashHexStr)
 	if err != nil {
 		return nil, err
@@ -309,5 +316,5 @@ func queryWithOutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.R
 		return nil, err
 	}
 
-	return node.Tx(context.Background(), hash, false)
+	return node.Tx(context.Background(), hash, prove)
 }
