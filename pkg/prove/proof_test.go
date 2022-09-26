@@ -95,10 +95,10 @@ func TestTxSharePosition(t *testing.T) {
 			name: "one large tx",
 			txs:  generateRandomlySizedTxs(1, 2000),
 		},
-		// {
-		// 	name: "many large txs",
-		// 	txs:  generateRandomlySizedTxs(100, 2000),
-		// },
+		{
+			name: "many large txs",
+			txs:  generateRandomlySizedTxs(100, 2000),
+		},
 	}
 
 	type startEndPoints struct {
@@ -216,7 +216,12 @@ func TestTxShareIndex(t *testing.T) {
 // slice.
 func stripCompactShares(compactShares [][]byte, start uint64, end uint64) (result []byte) {
 	for i := start; i <= end; i++ {
-		result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:]...)
+		if i == 0 {
+			// the first transaction share includes a total data length varint
+			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareDataLengthBytes+appconsts.CompactShareReservedBytes:]...)
+		} else {
+			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:]...)
+		}
 	}
 	return result
 }
