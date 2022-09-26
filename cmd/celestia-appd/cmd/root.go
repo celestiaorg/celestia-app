@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/cosmos/cosmos-sdk/simapp/simd/cmd"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 
@@ -144,6 +145,13 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		queryCommand(),
 		txCommand(),
 		keys.Commands(app.DefaultNodeHome),
+	)
+
+	// add qgb related commands
+	rootCmd.AddCommand(
+		orchestrator.DeployCmd(),
+		orchestrator.OrchCmd(),
+		orchestrator.RelayerCmd(),
 	)
 }
 
