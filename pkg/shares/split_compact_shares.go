@@ -219,7 +219,7 @@ func (css *CompactShareSplitter) dataLength() uint64 {
 
 // isEmptyPendingShare returns true if the pending share is empty, false otherwise.
 func (css *CompactShareSplitter) isEmptyPendingShare() bool {
-	return len(css.pendingShare.Share) == appconsts.NamespaceSize+appconsts.ShareInfoBytes
+	return len(css.pendingShare.Share) == appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareDataLengthBytes
 }
 
 // pendingShareDataLength returns the length of the data in the pending share.
