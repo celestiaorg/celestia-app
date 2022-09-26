@@ -129,6 +129,10 @@ func (css *CompactShareSplitter) stackPending() {
 
 // Export finalizes and returns the underlying compact shares.
 func (css *CompactShareSplitter) Export() NamespacedShares {
+	if len(css.shares) == 0 && css.isEmptyPendingShare() {
+		return []NamespacedShare{}
+	}
+
 	dataLengthVarint := css.dataLengthVarint()
 
 	// add the pending share to the current shares before returning
@@ -229,6 +233,10 @@ func (css *CompactShareSplitter) pendingShareDataLength() uint64 {
 
 // Count returns the current number of shares that will be made if exporting.
 func (css *CompactShareSplitter) Count() (shareCount int) {
+	if len(css.shares) == 0 && css.isEmptyPendingShare() {
+		return 0
+	}
+
 	if len(css.pendingShare.Share) > appconsts.NamespaceSize+appconsts.ShareInfoBytes {
 		// pending share is non-empty, so we must add one to the count
 		return len(css.shares) + 1
