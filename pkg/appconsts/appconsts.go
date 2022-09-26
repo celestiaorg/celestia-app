@@ -126,6 +126,11 @@ var (
 	// of evidence. It takes 4 bytes to store a varint of 4194304.
 	//
 	// https://go.dev/play/p/MynwcDHQ_me
-	buf                         = make([]byte, binary.MaxVarintLen64)
-	CompactShareDataLengthBytes = binary.PutUvarint(buf, MaxSquareSize*MaxSquareSize*ShareSize)
+	CompactShareDataLengthBytes = NumberOfBytesVarint(MaxSquareSize * MaxSquareSize * ShareSize)
 )
+
+// NumberOfBytesVarint calculates the number of bytes needed to write a varint of n
+func NumberOfBytesVarint(n uint64) (numberOfBytes int) {
+	buf := make([]byte, binary.MaxVarintLen64)
+	return binary.PutUvarint(buf, n)
+}
