@@ -31,9 +31,11 @@ const (
 	// the first unit (transaction, ISR, evidence) in a compact share.
 	CompactShareReservedBytes = 1
 
-	// CompactShareContentSize is the number of bytes usable for data in a compact
-	// (i.e. transactions, ISRs, evidence) share.
-	CompactShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareReservedBytes
+	// ContinuationCompactShareContentSize is the number of bytes usable for
+	// data in a continuation compact share. A continuation share is any
+	// share in a reserved namespace that isn't the first share in that
+	// namespace.
+	ContinuationCompactShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareReservedBytes
 
 	// SparseShareContentSize is the number of bytes usable for data in a sparse (i.e.
 	// message) share.

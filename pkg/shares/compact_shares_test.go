@@ -65,7 +65,7 @@ func Test_processCompactShares(t *testing.T) {
 	// share, accounting for namespace id and the length delimiter prepended to
 	// each tx. Note that the length delimiter can be 1 to 10 bytes (varint) but
 	// this test assumes it is 1 byte.
-	const exactTxShareSize = appconsts.CompactShareContentSize - 1
+	const exactTxShareSize = appconsts.ContinuationCompactShareContentSize - 1
 
 	type test struct {
 		name    string
@@ -76,10 +76,10 @@ func Test_processCompactShares(t *testing.T) {
 	// each test is ran twice, once using txSize as an exact size, and again
 	// using it as a cap for randomly sized txs
 	tests := []test{
-		{"single small tx", appconsts.CompactShareContentSize / 8, 1},
-		{"many small txs", appconsts.CompactShareContentSize / 8, 10},
-		{"single big tx", appconsts.CompactShareContentSize * 4, 1},
-		{"many big txs", appconsts.CompactShareContentSize * 4, 10},
+		{"single small tx", appconsts.ContinuationCompactShareContentSize / 8, 1},
+		{"many small txs", appconsts.ContinuationCompactShareContentSize / 8, 10},
+		{"single big tx", appconsts.ContinuationCompactShareContentSize * 4, 1},
+		{"many big txs", appconsts.ContinuationCompactShareContentSize * 4, 10},
 		{"single exact size tx", exactTxShareSize, 1},
 		{"many exact size txs", exactTxShareSize, 10},
 	}
@@ -125,7 +125,7 @@ func Test_processCompactShares(t *testing.T) {
 
 func TestCompactShareContainsInfoByte(t *testing.T) {
 	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
-	txs := generateRandomTransaction(1, appconsts.CompactShareContentSize/4)
+	txs := generateRandomTransaction(1, appconsts.ContinuationCompactShareContentSize/4)
 
 	for _, tx := range txs {
 		css.WriteTx(tx)
@@ -145,7 +145,7 @@ func TestCompactShareContainsInfoByte(t *testing.T) {
 
 func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
-	txs := generateRandomTransaction(1, appconsts.CompactShareContentSize*4)
+	txs := generateRandomTransaction(1, appconsts.ContinuationCompactShareContentSize*4)
 
 	for _, tx := range txs {
 		css.WriteTx(tx)
@@ -164,7 +164,7 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 }
 
 func Test_parseCompactSharesReturnsErrForShareWithStartIndicatorFalse(t *testing.T) {
-	txs := generateRandomTransaction(2, appconsts.CompactShareContentSize*4)
+	txs := generateRandomTransaction(2, appconsts.ContinuationCompactShareContentSize*4)
 	shares := SplitTxs(txs)
 	_, err := parseCompactShares(shares[1:]) // the second share has the message start indicator set to false
 	assert.Error(t, err)
