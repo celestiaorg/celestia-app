@@ -78,8 +78,8 @@ If a malicious block producer incorrectly computes the 2D Reed-Solomon code for 
 
 ### ShareProof
 
-| name       | type                                                                                        | description                                                                                      |
-|------------|---------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------|
+| name       | type                                                                                        | description                                                                                       |
+|------------|---------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
 | `share`    | [Share](./data_structures.md#share)                                                         | The share.                                                                                        |
 | `proof`    | [NamespaceMerkleTreeInclusionProof](./data_structures.md#namespacemerkletreeinclusionproof) | The Merkle proof of the share in the offending row or column root.                                |
 | `isCol`    | `bool`                                                                                      | A Boolean indicating if the proof is from a row root or column root; `false` if it is a row root. |
@@ -93,12 +93,12 @@ Defined as `BadEncodingFraudProof`:
 {{#include ./proto/types.proto:BadEncodingFraudProof}}
 ```
 
-| name          | type                                                                                  | description                                                                                           |
-|---------------|---------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
-| `height`      | [Height](./data_structures.md#type-aliases)                                           | Height of the block with the offending row or column.                                                 |
-| `shareProofs` | [ShareProof](#shareproof)`[]`                                                         | The available shares in the offending row or column.                                                 |
-| `isCol`       | `bool`                                                                                | A Boolean indicating if it is an offending row or column; `false` if it is a row.                     |
-| `position`    | `uint64`                                                                              | The index of the offending row or column in the square.                                               |
+| name          | type                                        | description                                                                       |
+|---------------|---------------------------------------------|-----------------------------------------------------------------------------------|
+| `height`      | [Height](./data_structures.md#type-aliases) | Height of the block with the offending row or column.                             |
+| `shareProofs` | [ShareProof](#shareproof)`[]`               | The available shares in the offending row or column.                              |
+| `isCol`       | `bool`                                      | A Boolean indicating if it is an offending row or column; `false` if it is a row. |
+| `position`    | `uint64`                                    | The index of the offending row or column in the square.                           |
 
 ## Invalid State Update
 
@@ -112,11 +112,11 @@ Defined as `StateFraudProof`:
 {{#include ./proto/types.proto:StateFraudProof}}
 ```
 
-| name                       | type                                                                                     | description                                                                                                                                                                                            |
-|----------------------------|------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `height`                   | [Height](./data_structures.md#type-aliases)                                              | Height of the block with the intermediate state roots. Subtracting one from `height` gives the height of the block with the transactions.                                                             |
-| `transactionShareProofs`   | [ShareProof](#shareproof)`[]`                                                            | `isCol` of type `bool` must be `false`.                                                                                                                                                                |
-| `isrShareProofs`           | [ShareProof](#shareproof)`[]`                                                            | `isCol` of type `bool` must be `false`.                                                                                                                                                                |
-| `index`                    | `uint64`                                                                                 | Index for connecting the [WrappedIntermediateStateRoot](./data_structures.md#wrappedintermediatestateroot) and [WrappedTransaction](./data_structures.md#wrappedtransaction) after shares are parsed. |
-| `intermediateStateElements`| [StateElement](./data_structures.md#stateelement)`[]`                                    | State elements that were changed by the transactions.                                                                                                                                                  |
-| `stateInclusionProofs`     | [SparseMerkleTreeInclusionProof](./data_structures.md#sparsemerkletreeinclusionproof)`[]`| SparseMerkleTree inclusion proofs for the state elements.                                                                                                                                      |
+| name                        | type                                                                                      | description                                                                                                                                                                                           |
+|-----------------------------|-------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `height`                    | [Height](./data_structures.md#type-aliases)                                               | Height of the block with the intermediate state roots. Subtracting one from `height` gives the height of the block with the transactions.                                                             |
+| `transactionShareProofs`    | [ShareProof](#shareproof)`[]`                                                             | `isCol` of type `bool` must be `false`.                                                                                                                                                               |
+| `isrShareProofs`            | [ShareProof](#shareproof)`[]`                                                             | `isCol` of type `bool` must be `false`.                                                                                                                                                               |
+| `index`                     | `uint64`                                                                                  | Index for connecting the [WrappedIntermediateStateRoot](./data_structures.md#wrappedintermediatestateroot) and [WrappedTransaction](./data_structures.md#wrappedtransaction) after shares are parsed. |
+| `intermediateStateElements` | [StateElement](./data_structures.md#stateelement)`[]`                                     | State elements that were changed by the transactions.                                                                                                                                                 |
+| `stateInclusionProofs`      | [SparseMerkleTreeInclusionProof](./data_structures.md#sparsemerkletreeinclusionproof)`[]` | SparseMerkleTree inclusion proofs for the state elements.                                                                                                                                             |
