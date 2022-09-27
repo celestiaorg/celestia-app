@@ -1,0 +1,25 @@
+digraph G {
+    node [shape = record, penwidth = 0];
+
+    share [label=<
+    <table border="0" cellborder="1" cellspacing="0">
+        <tr>
+            <td width="8" align="left" border="0" cellpadding="0">0</td>
+            <td width="1" align="left" border="0" cellpadding="0">8</td>
+            <td width="79" align="left" border="0" cellpadding="0">9</td>
+            <td width="40" align="left" border="0" cellpadding="0">80</td>
+            <td width="80" align="left" border="0" cellpadding="0"></td>
+            <td width="56" align="left" border="0" cellpadding="0">200</td>
+            <td align="left" border="0" cellpadding="0">256</td>
+        </tr>
+        <tr>
+            <td width="8" cellpadding="4">NID</td>
+            <td width="1" cellpadding="4">*</td>
+            <td width="79" cellpadding="4">end of tx2</td>
+            <td width="40" cellpadding="4">len(tx3)</td>
+            <td width="80" cellpadding="4">tx3</td>
+            <td width="56" cellpadding="4">zero-padding</td>
+        </tr>
+    </table>
+    >];
+}
