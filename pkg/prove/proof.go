@@ -2,6 +2,7 @@ package prove
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -104,11 +105,12 @@ func txSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos 
 	}
 
 	currentTxLen := len(txs[txIndex])
-	currentTxTotalLen := currentTxLen + shares.DelimLen(uint64(currentTxLen))
+	currentTxTotalLen := shares.DelimLen(uint64(currentTxLen)) + currentTxLen
+	endOfCurrentTxLen := prevTxTotalLen + currentTxTotalLen
 
 	startSharePos = txShareIndex(prevTxTotalLen)
-	endSharePos = txShareIndex(prevTxTotalLen + currentTxTotalLen)
-
+	endSharePos = txShareIndex(endOfCurrentTxLen)
+	fmt.Printf("prevTxTotalLen: %d, endOfCurrentTxLen: %d, startSharePos: %d, endSharePos %d, currentTxTotalLen %d\n", prevTxTotalLen, endOfCurrentTxLen, startSharePos, endSharePos, currentTxTotalLen)
 	return startSharePos, endSharePos, nil
 }
 

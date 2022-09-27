@@ -82,6 +82,7 @@ func Test_processCompactShares(t *testing.T) {
 		{"many big txs", appconsts.ContinuationCompactShareContentSize * 4, 10},
 		{"single exact size tx", exactTxShareSize, 1},
 		{"many exact size txs", exactTxShareSize, 10},
+		{"many exact size txs", exactTxShareSize, 100},
 	}
 
 	for _, tc := range tests {
