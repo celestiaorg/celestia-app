@@ -19,19 +19,19 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 
 	// pfd with bad ns id
 	badIDMsg := validWirePayForData(t)
-	badIDMsg.MessageNameSpaceId = []byte{1, 2, 3, 4, 5, 6, 7}
+	badIDMsg.MessageNamespaceId = []byte{1, 2, 3, 4, 5, 6, 7}
 
 	// pfd that uses reserved ns id
 	reservedMsg := validWirePayForData(t)
-	reservedMsg.MessageNameSpaceId = []byte{0, 0, 0, 0, 0, 0, 0, 100}
+	reservedMsg.MessageNamespaceId = []byte{0, 0, 0, 0, 0, 0, 0, 100}
 
 	// pfd that uses parity shares namespace id
 	paritySharesMsg := validWirePayForData(t)
-	paritySharesMsg.MessageNameSpaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+	paritySharesMsg.MessageNamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 
 	// pfd that uses parity shares namespace id
 	tailPaddingMsg := validWirePayForData(t)
-	tailPaddingMsg.MessageNameSpaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
+	tailPaddingMsg.MessageNamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
 
 	// pfd that has a wrong msg size
 	invalidDeclaredMsgSizeMsg := validWirePayForData(t)
@@ -43,11 +43,15 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 
 	// pfd that has invalid square size (not power of 2)
 	invalidSquareSizeMsg := validWirePayForData(t)
-	invalidSquareSizeMsg.MessageShareCommitment[0].K = 15
+	invalidSquareSizeMsg.MessageShareCommitment[0].SquareSize = 15
 
 	// pfd that has a different power of 2 square size
 	badSquareSizeMsg := validWirePayForData(t)
-	badSquareSizeMsg.MessageShareCommitment[0].K = 4
+	badSquareSizeMsg.MessageShareCommitment[0].SquareSize = 16
+
+	// pfd that signs over all squares but the first one
+	missingCommitmentForOneSquareSize := validWirePayForData(t)
+	missingCommitmentForOneSquareSize.MessageShareCommitment = missingCommitmentForOneSquareSize.MessageShareCommitment[1:]
 
 	// pfd that signed over no squares
 	noMessageShareCommitments := validWirePayForData(t)
@@ -103,6 +107,11 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 			name:    "no message share commitments",
 			msg:     noMessageShareCommitments,
 			wantErr: ErrNoMessageShareCommitments,
+		},
+		{
+			name:    "missing commitment for one square size",
+			msg:     missingCommitmentForOneSquareSize,
+			wantErr: ErrInvalidShareCommitments,
 		},
 	}
 

@@ -18,7 +18,7 @@ service Msg {
 // for each PayForData
 message MsgWirePayForData {
   string signer = 1;
-  bytes message_name_space_id = 2; // assume this is 8 bytes!
+  bytes message_namespace_id = 2; // assume this is 8 bytes!
   uint64 message_size = 3;
   bytes message = 4;
   repeated ShareCommitAndSignature message_share_commitment = 6
@@ -31,7 +31,7 @@ message MsgWirePayForDataResponse {}
 
 // ShareCommitAndSignature defines the
 message ShareCommitAndSignature {
-  uint64 k = 1;
+  uint64 square_size = 1;
   bytes share_commitment = 2;
   bytes signature = 3; // signature on one SignedTransactionPayForData
 }

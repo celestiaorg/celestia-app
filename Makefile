@@ -49,7 +49,7 @@ test:
 .PHONY: test
 
 proto-gen:
-	$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace tendermintdev/sdk-proto-gen:latest sh ./scripts/protocgen.sh
+	$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace tendermintdev/sdk-proto-gen:v0.7 sh ./scripts/protocgen.sh
 
 proto-lint:
 	@$(DOCKER_BUF) lint --error-format=json
@@ -73,14 +73,7 @@ lint:
 	@markdownlint --config .markdownlint.yaml '**/*.md'
 .PHONY: lint
 
-###############################################################################
-###                           Tests & Simulation                            ###
-###############################################################################
-# The below include contains the tools target.
-include contrib/devtools/Makefile
-include contrib/devtools/sims.mk
-
-test-all: check test-race test-cover
+test-all: test-race test-cover
 
 test-race:
 	@VERSION=$(VERSION) go test -mod=readonly -race -test.short ./...

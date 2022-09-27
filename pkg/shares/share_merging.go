@@ -3,16 +3,16 @@ package shares
 import (
 	"bytes"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/gogo/protobuf/proto"
-	"github.com/tendermint/tendermint/pkg/consts"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // Merge extracts block data from an extended data square.
 func Merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
-	originalWidth := eds.Width() / 2
+	squareSize := eds.Width() / 2
 
 	// sort block data shares by namespace
 	var (
@@ -22,25 +22,25 @@ func Merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 	)
 
 	// iterate over each row index
-	for x := uint(0); x < originalWidth; x++ {
+	for x := uint(0); x < squareSize; x++ {
 		// iterate over each share in the original data square
 		row := eds.Row(x)
 
-		for _, share := range row[:originalWidth] {
+		for _, share := range row[:squareSize] {
 			// sort the data of that share types via namespace
-			nid := share[:consts.NamespaceSize]
+			nid := share[:appconsts.NamespaceSize]
 			switch {
-			case bytes.Equal(consts.TxNamespaceID, nid):
+			case bytes.Equal(appconsts.TxNamespaceID, nid):
 				sortedTxShares = append(sortedTxShares, share)
 
-			case bytes.Equal(consts.EvidenceNamespaceID, nid):
+			case bytes.Equal(appconsts.EvidenceNamespaceID, nid):
 				sortedEvdShares = append(sortedEvdShares, share)
 
-			case bytes.Equal(consts.TailPaddingNamespaceID, nid):
+			case bytes.Equal(appconsts.TailPaddingNamespaceID, nid):
 				continue
 
 			// ignore unused but reserved namespaces
-			case bytes.Compare(nid, consts.MaxReservedNamespace) < 1:
+			case bytes.Compare(nid, appconsts.MaxReservedNamespace) < 1:
 				continue
 
 			// every other namespaceID should be a message
@@ -70,14 +70,14 @@ func Merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 		Txs:                txs,
 		Evidence:           evd,
 		Messages:           msgs,
-		OriginalSquareSize: uint64(originalWidth),
+		OriginalSquareSize: uint64(squareSize),
 	}, nil
 }
 
 // ParseTxs collects all of the transactions from the shares provided
 func ParseTxs(shares [][]byte) (coretypes.Txs, error) {
 	// parse the sharse
-	rawTxs, err := processContiguousShares(shares)
+	rawTxs, err := parseCompactShares(shares)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func ParseTxs(shares [][]byte) (coretypes.Txs, error) {
 func ParseEvd(shares [][]byte) (coretypes.EvidenceData, error) {
 	// the raw data returned does not have length delimiters or namespaces and
 	// is ready to be unmarshaled
-	rawEvd, err := processContiguousShares(shares)
+	rawEvd, err := parseCompactShares(shares)
 	if err != nil {
 		return coretypes.EvidenceData{}, err
 	}
@@ -123,7 +123,7 @@ func ParseEvd(shares [][]byte) (coretypes.EvidenceData, error) {
 
 // ParseMsgs collects all messages from the shares provided
 func ParseMsgs(shares [][]byte) (coretypes.Messages, error) {
-	msgList, err := parseMsgShares(shares)
+	msgList, err := parseSparseShares(shares)
 	if err != nil {
 		return coretypes.Messages{}, err
 	}

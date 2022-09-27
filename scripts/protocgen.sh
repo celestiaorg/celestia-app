@@ -7,8 +7,6 @@ protoc_gen_gocosmos() {
     echo -e "\tPlease run this command from somewhere inside the cosmos-sdk folder."
     return 1
   fi
-
-  go get github.com/regen-network/cosmos-proto/protoc-gen-gocosmos@latest 2>/dev/null
 }
 
 protoc_gen_gocosmos
@@ -24,6 +22,11 @@ for dir in $proto_dirs; do
 done
 
 cd ..
+
+# temporary import hack to use cosmos-sdk implementation of Any type.
+# check https://github.com/celestiaorg/celestia-app/issues/507 for more information.
+sed -i 's/types "github.com\/celestiaorg\/celestia-app\/codec\/types"/types "github.com\/cosmos\/cosmos-sdk\/codec\/types"/g' \
+ github.com/celestiaorg/celestia-app/x/qgb/types/query.pb.go
 
 # move proto files to the right places
 cp -r github.com/celestiaorg/celestia-app/* ./

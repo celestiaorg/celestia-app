@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/tendermint/tendermint/pkg/consts"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
 
 // https://github.com/celestiaorg/celestia-app/issues/236
@@ -13,8 +13,8 @@ var allSquareSizes = generateAllSquareSizes()
 // using the maximum and minimum square sizes
 func generateAllSquareSizes() []int {
 	sizes := []int{}
-	cursor := int(consts.MinSquareSize)
-	for cursor <= consts.MaxSquareSize {
+	cursor := int(appconsts.MinSquareSize)
+	for cursor <= appconsts.MaxSquareSize {
 		sizes = append(sizes, cursor)
 		cursor *= 2
 	}
@@ -27,15 +27,16 @@ func AllSquareSizes(msgSize int) []uint64 {
 	allSizes := allSquareSizes
 	fitSizes := []uint64{}
 	shareCount := MsgSharesUsed(msgSize)
-	for _, size := range allSizes {
-		// if the number of shares is larger than that in the square, throw an error
-		// note, we use k*k-1 here because at least a single share will be reserved
-		// for the transaction paying for the message, therefore the max number of
-		// shares a message can be is number of shares in square -1.
-		if shareCount > (size*size)-1 {
+	for _, squareSize := range allSizes {
+		// if the number of shares is larger than that in the square, throw an
+		// error note, we use (squareSize*squareSize)-1 here because at least a
+		// single share will be reserved for the transaction paying for the
+		// message, therefore the max number of shares a message can be is
+		// number of shares in square - 1.
+		if shareCount > (squareSize*squareSize)-1 {
 			continue
 		}
-		fitSizes = append(fitSizes, uint64(size))
+		fitSizes = append(fitSizes, uint64(squareSize))
 	}
 	return fitSizes
 }
@@ -45,9 +46,9 @@ func AllSquareSizes(msgSize int) []uint64 {
 func MsgSharesUsed(msgSize int) int {
 	// add the delimiter to the message size
 	msgSize = DelimLen(uint64(msgSize)) + msgSize
-	shareCount := msgSize / consts.MsgShareSize
+	shareCount := msgSize / appconsts.SparseShareContentSize
 	// increment the share count if the message overflows the last counted share
-	if msgSize%consts.MsgShareSize != 0 {
+	if msgSize%appconsts.SparseShareContentSize != 0 {
 		shareCount++
 	}
 	return shareCount
