@@ -60,7 +60,8 @@ func (css *CompactShareSplitter) WriteBytes(rawData []byte) {
 	// if this is the first time writing to a pending share, we must add the
 	// reserved bytes
 	if len(css.pendingShare.Share) == appconsts.NamespaceSize+appconsts.ShareInfoBytes {
-		css.pendingShare.Share = append(css.pendingShare.Share, 0)
+		reservedBytes := make([]byte, appconsts.CompactShareReservedBytes)
+		css.pendingShare.Share = append(css.pendingShare.Share, reservedBytes...)
 	}
 
 	txCursor := len(rawData)
@@ -87,16 +88,19 @@ func (css *CompactShareSplitter) WriteBytes(rawData []byte) {
 
 		// add the share reserved bytes to the new pending share
 		pendingCursor := len(rawData) + appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.CompactShareReservedBytes
-		var reservedByte byte
+		reservedBytes := make([]byte, appconsts.CompactShareReservedBytes)
 		if pendingCursor >= appconsts.ShareSize {
 			// the share reserve byte is zero when some compactly written
 			// data takes up the entire share
-			reservedByte = byte(0)
+			for i := range reservedBytes {
+				reservedBytes[i] = byte(0)
+			}
 		} else {
-			reservedByte = byte(pendingCursor)
+			// TODO this must be changed when share size is increased to 512
+			reservedBytes[0] = byte(pendingCursor)
 		}
 
-		css.pendingShare.Share = append(css.pendingShare.Share, reservedByte)
+		css.pendingShare.Share = append(css.pendingShare.Share, reservedBytes...)
 	}
 
 	// if the share is exactly the correct size, then append to shares
