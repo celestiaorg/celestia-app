@@ -1,4 +1,4 @@
-# ADR 003: Non-interactive Defaults, Wrapped Transactions, and Subtree Root Message Inclusion Checks
+# ADR 006: Non-interactive Defaults, Wrapped Transactions, and Subtree Root Message Inclusion Checks
 
 > **Note**
 > Unlike normal tendermint/cosmos ADRs, this ADR isn't for deciding on whether or not we will implement non-interactive defaults. The goal of this document is to help reviewers and future readers understand what non-interactive defaults are, the considerations that went into the initial implementation, and how it differs from the original specs.
