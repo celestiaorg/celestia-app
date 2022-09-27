@@ -19,3 +19,11 @@ jobs:
 
       - name: Build book
         run: mdbook build specs
+
+      - name: Deploy main
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./specs/book
+          destination_dir: main
