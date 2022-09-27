@@ -161,7 +161,7 @@ func (css *CompactShareSplitter) forceLastShareReserveByteToZero() {
 		// data after transaction is padding. See
 		// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#share
 		if len(css.shares) == 1 {
-			rawLastShare[appconsts.NamespaceSize+appconsts.FirstCompactShareDataLengthBytes+appconsts.ShareInfoBytes+i] = byte(0)
+			rawLastShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareDataLengthBytes+i] = byte(0)
 		} else {
 			rawLastShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+i] = byte(0)
 		}
