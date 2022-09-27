@@ -45,10 +45,15 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 // chain store and submit them to Ethereum to update the validator set
 // -------------
 type MsgValsetConfirm struct {
-	Nonce        uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	// Universal nonce referencing the `ValSet`.
+	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	// Orchestrator `celes1` account address.
 	Orchestrator string `protobuf:"bytes,2,opt,name=orchestrator,proto3" json:"orchestrator,omitempty"`
-	EthAddress   string `protobuf:"bytes,3,opt,name=eth_address,json=ethAddress,proto3" json:"eth_address,omitempty"`
-	Signature    string `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
+	// Ethereum address, associated to the orchestrator, used to sign the `ValSet`
+	// message.
+	EthAddress string `protobuf:"bytes,3,opt,name=eth_address,json=ethAddress,proto3" json:"eth_address,omitempty"`
+	// The `ValSet` message signature.
+	Signature string `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
 }
 
 func (m *MsgValsetConfirm) Reset()         { *m = MsgValsetConfirm{} }
@@ -152,6 +157,25 @@ var xxx_messageInfo_MsgValsetConfirmResponse proto.InternalMessageInfo
 
 // MsgDataCommitmentConfirm describes a data commitment for a set of blocks.
 type MsgDataCommitmentConfirm struct {
+	// Universal nonce referencing the Data Commitment.
+	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	// Signature over the commitment, the range of blocks, the validator address
+	// and the Ethereum address.
+	Signature string `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	// Orchestrator account address who will be signing the message.
+	ValidatorAddress string `protobuf:"bytes,3,opt,name=validator_address,json=validatorAddress,proto3" json:"validator_address,omitempty"`
+	// Hex `0x` encoded Ethereum public key that will be used by this validator on
+	// Ethereum.
+	EthAddress string `protobuf:"bytes,4,opt,name=eth_address,json=ethAddress,proto3" json:"eth_address,omitempty"`
+	// Merkle root over a merkle tree containing the data roots of a set of
+	// blocks.
+	Commitment string `protobuf:"bytes,5,opt,name=commitment,proto3" json:"commitment,omitempty"`
+	// First block defining the ordered set of blocks used to create the
+	// commitment.
+	BeginBlock uint64 `protobuf:"varint,6,opt,name=begin_block,json=beginBlock,proto3" json:"begin_block,omitempty"`
+	// Last block defining the ordered set of blocks used to create the
+	// commitment.
+	EndBlock uint64 `protobuf:"varint,7,opt,name=end_block,json=endBlock,proto3" json:"end_block,omitempty"`
 }
 
 func (m *MsgDataCommitmentConfirm) Reset()         { *m = MsgDataCommitmentConfirm{} }
@@ -186,6 +210,55 @@ func (m *MsgDataCommitmentConfirm) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_MsgDataCommitmentConfirm proto.InternalMessageInfo
+
+func (m *MsgDataCommitmentConfirm) GetNonce() uint64 {
+	if m != nil {
+		return m.Nonce
+	}
+	return 0
+}
+
+func (m *MsgDataCommitmentConfirm) GetSignature() string {
+	if m != nil {
+		return m.Signature
+	}
+	return ""
+}
+
+func (m *MsgDataCommitmentConfirm) GetValidatorAddress() string {
+	if m != nil {
+		return m.ValidatorAddress
+	}
+	return ""
+}
+
+func (m *MsgDataCommitmentConfirm) GetEthAddress() string {
+	if m != nil {
+		return m.EthAddress
+	}
+	return ""
+}
+
+func (m *MsgDataCommitmentConfirm) GetCommitment() string {
+	if m != nil {
+		return m.Commitment
+	}
+	return ""
+}
+
+func (m *MsgDataCommitmentConfirm) GetBeginBlock() uint64 {
+	if m != nil {
+		return m.BeginBlock
+	}
+	return 0
+}
+
+func (m *MsgDataCommitmentConfirm) GetEndBlock() uint64 {
+	if m != nil {
+		return m.EndBlock
+	}
+	return 0
+}
 
 // MsgValsetConfirmResponse describes the response returned after the submission
 // of a MsgDataCommitmentConfirm.
@@ -235,31 +308,36 @@ func init() {
 func init() { proto.RegisterFile("qgb/msgs.proto", fileDescriptor_c696c358dc748aba) }
 
 var fileDescriptor_c696c358dc748aba = []byte{
-	// 374 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x52, 0x3d, 0x4f, 0xe3, 0x40,
-	0x14, 0xcc, 0x26, 0xb9, 0x93, 0xb2, 0xf7, 0xa1, 0x93, 0x2f, 0x91, 0x2c, 0x5f, 0xce, 0x17, 0x59,
-	0x77, 0x52, 0x9a, 0xf3, 0x4a, 0xf0, 0x0b, 0x20, 0x34, 0x14, 0x69, 0x52, 0x50, 0xd0, 0x44, 0x6b,
-	0x67, 0x59, 0x5b, 0x8a, 0xf7, 0x39, 0xbb, 0x2f, 0x08, 0x5a, 0x28, 0x69, 0x90, 0xf8, 0x53, 0x94,
-	0x91, 0x68, 0x28, 0x51, 0x42, 0xcf, 0x5f, 0x40, 0xd9, 0xc4, 0x46, 0x89, 0x02, 0xdd, 0x7b, 0x33,
-	0xf3, 0x66, 0xc6, 0xf2, 0xd2, 0xef, 0x13, 0x19, 0xb1, 0xcc, 0x48, 0x13, 0xe6, 0x1a, 0x10, 0x9c,
-	0xda, 0x44, 0x46, 0x5e, 0x53, 0x82, 0x04, 0xbb, 0xb3, 0xe5, 0xb4, 0xa2, 0xbc, 0xb6, 0x04, 0x90,
-	0x63, 0xc1, 0x78, 0x9e, 0x32, 0xae, 0x14, 0x20, 0xc7, 0x14, 0xd4, 0xfa, 0x30, 0xb8, 0x21, 0xf4,
-	0x47, 0xdf, 0xc8, 0x13, 0x3e, 0x36, 0x02, 0x7b, 0xa0, 0xce, 0x52, 0x9d, 0x39, 0x4d, 0xfa, 0x49,
-	0x81, 0x8a, 0x85, 0x4b, 0x3a, 0xa4, 0x5b, 0x1f, 0xac, 0x16, 0x27, 0xa0, 0x5f, 0x41, 0xc7, 0x89,
-	0x30, 0xa8, 0x39, 0x82, 0x76, 0xab, 0x1d, 0xd2, 0x6d, 0x0c, 0x36, 0x30, 0xe7, 0x0f, 0xfd, 0x22,
-	0x30, 0x19, 0xf2, 0xd1, 0x48, 0x0b, 0x63, 0xdc, 0x9a, 0x95, 0x50, 0x81, 0xc9, 0xc1, 0x0a, 0x71,
-	0xda, 0xb4, 0x61, 0x52, 0xa9, 0x38, 0x4e, 0xb5, 0x70, 0xeb, 0x96, 0x7e, 0x03, 0x02, 0x8f, 0xba,
-	0xdb, 0x65, 0x06, 0xc2, 0xe4, 0xa0, 0x4c, 0xc1, 0x1d, 0x71, 0xe4, 0x3d, 0xc8, 0xb2, 0x14, 0x33,
-	0xa1, 0x0a, 0x4d, 0x10, 0xd0, 0xce, 0x7b, 0x5c, 0x71, 0xbf, 0xf7, 0x42, 0x68, 0xad, 0x6f, 0xa4,
-	0x13, 0xd1, 0x6f, 0x9b, 0x5f, 0xdb, 0x0a, 0x27, 0x32, 0x0a, 0xb7, 0x73, 0xbd, 0xdf, 0x3b, 0xe1,
-	0xb2, 0xce, 0xaf, 0xab, 0x87, 0xe7, 0xbb, 0x6a, 0x2b, 0xf8, 0xc9, 0x96, 0xbf, 0xe2, 0xdc, 0x6a,
-	0x86, 0xf1, 0xda, 0xf2, 0x9a, 0xd0, 0xd6, 0xce, 0x36, 0x4e, 0xe9, 0xba, 0x93, 0xf6, 0xfe, 0x7d,
-	0x48, 0x97, 0xe1, 0x7f, 0x6d, 0xb8, 0x1f, 0xb4, 0x6d, 0xf8, 0x88, 0x23, 0x1f, 0xc6, 0xa5, 0xb8,
-	0x68, 0x71, 0x78, 0x7c, 0x3f, 0xf7, 0xc9, 0x6c, 0xee, 0x93, 0xa7, 0xb9, 0x4f, 0x6e, 0x17, 0x7e,
-	0x65, 0xb6, 0xf0, 0x2b, 0x8f, 0x0b, 0xbf, 0x72, 0xca, 0x64, 0x8a, 0xc9, 0x34, 0x0a, 0x63, 0xc8,
-	0x58, 0x2c, 0xc6, 0xc2, 0x60, 0xca, 0x41, 0xcb, 0x72, 0xfe, 0xcf, 0xf3, 0x9c, 0x5d, 0x58, 0x73,
-	0xbc, 0xcc, 0x85, 0x89, 0x3e, 0xdb, 0xd7, 0xb2, 0xff, 0x1a, 0x00, 0x00, 0xff, 0xff, 0x07, 0xdd,
-	0x60, 0xa7, 0x78, 0x02, 0x00, 0x00,
+	// 450 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x93, 0xbf, 0x8f, 0xd3, 0x30,
+	0x14, 0xc7, 0xeb, 0xb6, 0x77, 0xd0, 0xc7, 0x0f, 0x1d, 0xe1, 0x2a, 0x45, 0xb9, 0x12, 0xaa, 0x08,
+	0xa4, 0x93, 0x10, 0x8d, 0x04, 0x7f, 0x01, 0x77, 0x2c, 0x0c, 0xb7, 0x74, 0x60, 0x60, 0xa9, 0x9c,
+	0xe4, 0xe1, 0x5a, 0x24, 0x7e, 0xa9, 0xed, 0x3b, 0xc1, 0x0a, 0x23, 0x0b, 0x12, 0xff, 0x14, 0x63,
+	0x25, 0x16, 0x46, 0xd4, 0xb2, 0xb3, 0x33, 0xa1, 0xb8, 0x6d, 0xaa, 0x86, 0x02, 0x9b, 0xfd, 0xfd,
+	0x38, 0xef, 0xfb, 0x7d, 0xcf, 0x31, 0xdc, 0x9e, 0x89, 0x24, 0x2e, 0x8c, 0x30, 0xa3, 0x52, 0x93,
+	0x25, 0xaf, 0x33, 0x13, 0x49, 0x70, 0x2c, 0x48, 0x90, 0xdb, 0xc7, 0xd5, 0x6a, 0x85, 0x82, 0x81,
+	0x20, 0x12, 0x39, 0xc6, 0xbc, 0x94, 0x31, 0x57, 0x8a, 0x2c, 0xb7, 0x92, 0xd4, 0xfa, 0xc3, 0xe8,
+	0x23, 0x83, 0xa3, 0x0b, 0x23, 0x5e, 0xf2, 0xdc, 0xa0, 0x3d, 0x27, 0xf5, 0x5a, 0xea, 0xc2, 0x3b,
+	0x86, 0x03, 0x45, 0x2a, 0x45, 0x9f, 0x0d, 0xd9, 0x69, 0x77, 0xbc, 0xda, 0x78, 0x11, 0xdc, 0x24,
+	0x9d, 0x4e, 0xd1, 0x58, 0xcd, 0x2d, 0x69, 0xbf, 0x3d, 0x64, 0xa7, 0xbd, 0xf1, 0x8e, 0xe6, 0xdd,
+	0x87, 0x1b, 0x68, 0xa7, 0x13, 0x9e, 0x65, 0x1a, 0x8d, 0xf1, 0x3b, 0xee, 0x08, 0xa0, 0x9d, 0x3e,
+	0x5b, 0x29, 0xde, 0x00, 0x7a, 0x46, 0x0a, 0xc5, 0xed, 0xa5, 0x46, 0xbf, 0xeb, 0xf0, 0x56, 0x88,
+	0x02, 0xf0, 0x9b, 0x61, 0xc6, 0x68, 0x4a, 0x52, 0x06, 0xa3, 0x5f, 0xcc, 0xc1, 0xe7, 0xdc, 0xf2,
+	0x73, 0x2a, 0x0a, 0x69, 0x0b, 0x54, 0xff, 0x49, 0xbc, 0x63, 0xd6, 0x6e, 0x98, 0x79, 0x8f, 0xe0,
+	0xce, 0x15, 0xcf, 0x65, 0x56, 0x05, 0x6f, 0x24, 0x3e, 0xaa, 0xc1, 0x26, 0x77, 0xa3, 0xb1, 0xee,
+	0x1f, 0x8d, 0x85, 0x00, 0x69, 0x1d, 0xcb, 0x3f, 0x58, 0xf1, 0xad, 0x52, 0x15, 0x48, 0x50, 0x48,
+	0x35, 0x49, 0x72, 0x4a, 0xdf, 0xf8, 0x87, 0x2e, 0x27, 0x38, 0xe9, 0xac, 0x52, 0xbc, 0x13, 0xe8,
+	0xa1, 0xca, 0xd6, 0xf8, 0x9a, 0xc3, 0xd7, 0x51, 0x65, 0x0e, 0x46, 0x11, 0x0c, 0xff, 0xd6, 0xfb,
+	0x66, 0x40, 0x4f, 0x7e, 0x32, 0xe8, 0x5c, 0x18, 0xe1, 0x25, 0x70, 0x6b, 0xf7, 0x3a, 0xfb, 0xa3,
+	0x99, 0x48, 0x46, 0xcd, 0xc1, 0x06, 0xf7, 0xf6, 0xca, 0xf5, 0xbc, 0x4f, 0xde, 0x7f, 0xfd, 0xf1,
+	0xb9, 0xdd, 0x8f, 0xee, 0xc6, 0xd5, 0xbf, 0x76, 0xe5, 0xce, 0x4c, 0xd2, 0x75, 0xc9, 0x0f, 0x0c,
+	0xfa, 0xfb, 0x6f, 0xa2, 0xae, 0xba, 0x17, 0x07, 0x0f, 0xff, 0x89, 0x6b, 0xf3, 0x07, 0xce, 0x3c,
+	0x8c, 0x06, 0xce, 0x3c, 0xe3, 0x96, 0x4f, 0xb6, 0xb3, 0xdc, 0xa4, 0x38, 0x7b, 0xf1, 0x65, 0x11,
+	0xb2, 0xf9, 0x22, 0x64, 0xdf, 0x17, 0x21, 0xfb, 0xb4, 0x0c, 0x5b, 0xf3, 0x65, 0xd8, 0xfa, 0xb6,
+	0x0c, 0x5b, 0xaf, 0x62, 0x21, 0xed, 0xf4, 0x32, 0x19, 0xa5, 0x54, 0xc4, 0x29, 0xe6, 0x68, 0xac,
+	0xe4, 0xa4, 0x45, 0xbd, 0x7e, 0xcc, 0xcb, 0x32, 0x7e, 0xeb, 0x8a, 0xdb, 0x77, 0x25, 0x9a, 0xe4,
+	0xd0, 0x3d, 0x87, 0xa7, 0xbf, 0x03, 0x00, 0x00, 0xff, 0xff, 0xe6, 0xb0, 0xbd, 0xe7, 0x59, 0x03,
+	0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -274,9 +352,11 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	// ValsetConfirm allows the validators to submit their signatures over the validator set.
+	// ValsetConfirm allows the validators to submit their signatures over the
+	// validator set.
 	ValsetConfirm(ctx context.Context, in *MsgValsetConfirm, opts ...grpc.CallOption) (*MsgValsetConfirmResponse, error)
-	// DataCommitmentConfirm allows the validators to submit a confirmation for a data commitment.
+	// DataCommitmentConfirm allows the validators to submit a confirmation for a
+	// data commitment.
 	DataCommitmentConfirm(ctx context.Context, in *MsgDataCommitmentConfirm, opts ...grpc.CallOption) (*MsgDataCommitmentConfirmResponse, error)
 }
 
@@ -308,9 +388,11 @@ func (c *msgClient) DataCommitmentConfirm(ctx context.Context, in *MsgDataCommit
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	// ValsetConfirm allows the validators to submit their signatures over the validator set.
+	// ValsetConfirm allows the validators to submit their signatures over the
+	// validator set.
 	ValsetConfirm(context.Context, *MsgValsetConfirm) (*MsgValsetConfirmResponse, error)
-	// DataCommitmentConfirm allows the validators to submit a confirmation for a data commitment.
+	// DataCommitmentConfirm allows the validators to submit a confirmation for a
+	// data commitment.
 	DataCommitmentConfirm(context.Context, *MsgDataCommitmentConfirm) (*MsgDataCommitmentConfirmResponse, error)
 }
 
@@ -474,6 +556,49 @@ func (m *MsgDataCommitmentConfirm) MarshalToSizedBuffer(dAtA []byte) (int, error
 	_ = i
 	var l int
 	_ = l
+	if m.EndBlock != 0 {
+		i = encodeVarintMsgs(dAtA, i, uint64(m.EndBlock))
+		i--
+		dAtA[i] = 0x38
+	}
+	if m.BeginBlock != 0 {
+		i = encodeVarintMsgs(dAtA, i, uint64(m.BeginBlock))
+		i--
+		dAtA[i] = 0x30
+	}
+	if len(m.Commitment) > 0 {
+		i -= len(m.Commitment)
+		copy(dAtA[i:], m.Commitment)
+		i = encodeVarintMsgs(dAtA, i, uint64(len(m.Commitment)))
+		i--
+		dAtA[i] = 0x2a
+	}
+	if len(m.EthAddress) > 0 {
+		i -= len(m.EthAddress)
+		copy(dAtA[i:], m.EthAddress)
+		i = encodeVarintMsgs(dAtA, i, uint64(len(m.EthAddress)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.ValidatorAddress) > 0 {
+		i -= len(m.ValidatorAddress)
+		copy(dAtA[i:], m.ValidatorAddress)
+		i = encodeVarintMsgs(dAtA, i, uint64(len(m.ValidatorAddress)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Signature) > 0 {
+		i -= len(m.Signature)
+		copy(dAtA[i:], m.Signature)
+		i = encodeVarintMsgs(dAtA, i, uint64(len(m.Signature)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if m.Nonce != 0 {
+		i = encodeVarintMsgs(dAtA, i, uint64(m.Nonce))
+		i--
+		dAtA[i] = 0x8
+	}
 	return len(dAtA) - i, nil
 }
 
@@ -550,6 +675,31 @@ func (m *MsgDataCommitmentConfirm) Size() (n int) {
 	}
 	var l int
 	_ = l
+	if m.Nonce != 0 {
+		n += 1 + sovMsgs(uint64(m.Nonce))
+	}
+	l = len(m.Signature)
+	if l > 0 {
+		n += 1 + l + sovMsgs(uint64(l))
+	}
+	l = len(m.ValidatorAddress)
+	if l > 0 {
+		n += 1 + l + sovMsgs(uint64(l))
+	}
+	l = len(m.EthAddress)
+	if l > 0 {
+		n += 1 + l + sovMsgs(uint64(l))
+	}
+	l = len(m.Commitment)
+	if l > 0 {
+		n += 1 + l + sovMsgs(uint64(l))
+	}
+	if m.BeginBlock != 0 {
+		n += 1 + sovMsgs(uint64(m.BeginBlock))
+	}
+	if m.EndBlock != 0 {
+		n += 1 + sovMsgs(uint64(m.EndBlock))
+	}
 	return n
 }
 
@@ -812,6 +962,191 @@ func (m *MsgDataCommitmentConfirm) Unmarshal(dAtA []byte) error {
 			return fmt.Errorf("proto: MsgDataCommitmentConfirm: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Nonce", wireType)
+			}
+			m.Nonce = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgs
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Nonce |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Signature", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgs
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMsgs
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgs
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Signature = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgs
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMsgs
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgs
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidatorAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EthAddress", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgs
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMsgs
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgs
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.EthAddress = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Commitment", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgs
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMsgs
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthMsgs
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Commitment = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BeginBlock", wireType)
+			}
+			m.BeginBlock = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgs
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.BeginBlock |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EndBlock", wireType)
+			}
+			m.EndBlock = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMsgs
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.EndBlock |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipMsgs(dAtA[iNdEx:])

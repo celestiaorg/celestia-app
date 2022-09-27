@@ -1,7 +1,6 @@
 package prove
 
 import (
-	"encoding/binary"
 	"errors"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -101,20 +100,15 @@ func txSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos 
 	totalLen := 0
 	for i := uint64(0); i < txIndex; i++ {
 		txLen := len(txs[i])
-		totalLen += (delimLen(txLen) + txLen)
+		totalLen += (shares.DelimLen(uint64(txLen)) + txLen)
 	}
 
 	txLen := len(txs[txIndex])
 
 	startSharePos = uint64((totalLen) / appconsts.CompactShareContentSize)
-	endSharePos = uint64((totalLen + txLen + delimLen(txLen)) / appconsts.CompactShareContentSize)
+	endSharePos = uint64((totalLen + txLen + shares.DelimLen(uint64(txLen))) / appconsts.CompactShareContentSize)
 
 	return startSharePos, endSharePos, nil
-}
-
-func delimLen(txLen int) int {
-	lenBuf := make([]byte, binary.MaxVarintLen64)
-	return binary.PutUvarint(lenBuf, uint64(txLen))
 }
 
 // genRowShares progessively generates data square rows from block data

@@ -92,15 +92,7 @@ func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSi
 			panic(err)
 		}
 	}
-	txCount, available := txSplitter.Count()
-	if appconsts.CompactShareContentSize-available > 0 {
-		txCount++
-	}
-	evdCount, available := evdSplitter.Count()
-	if appconsts.CompactShareContentSize-available > 0 {
-		evdCount++
-	}
-	return txCount + evdCount
+	return txSplitter.Count() + evdSplitter.Count()
 }
 
 // estimateSquareSize uses the provided block data to estimate the square size
@@ -180,7 +172,7 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 		// too large. TODO: improve by making a more accurate estimation formula
 		txBytes += overEstimateMalleatedTxSize(len(pTx.rawTx), len(pTx.msg.Message), len(pTx.msg.MessageShareCommitment))
 
-		msgSummaries = append(msgSummaries, msgSummary{shares.MsgSharesUsed(int(pTx.msg.MessageSize)), pTx.msg.MessageNameSpaceId})
+		msgSummaries = append(msgSummaries, msgSummary{shares.MsgSharesUsed(int(pTx.msg.MessageSize)), pTx.msg.MessageNamespaceId})
 	}
 
 	txShares = txBytes / appconsts.CompactShareContentSize

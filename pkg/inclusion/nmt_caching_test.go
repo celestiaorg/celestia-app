@@ -115,7 +115,7 @@ func TestWalkCachedSubTreeRoot(t *testing.T) {
 func TestEDSSubRootCacher(t *testing.T) {
 	oss := uint64(8)
 	d := coretestutil.GenerateRandNamespacedRawData(uint32(oss*oss), appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)
-	stc := NewCachedSubtreeCacher(oss)
+	stc := NewSubtreeCacher(oss)
 
 	eds, err := rsmt2d.ComputeExtendedDataSquare(d, appconsts.DefaultCodec(), stc.Constructor)
 	require.NoError(t, err)

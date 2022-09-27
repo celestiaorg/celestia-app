@@ -166,7 +166,7 @@ func TestCreateCommitment(t *testing.T) {
 			squareSize: 4,
 			namespace:  bytes.Repeat([]byte{0xFF}, 8),
 			message:    bytes.Repeat([]byte{0xFF}, 11*ShareSize),
-			expected:   []byte{0x44, 0x7e, 0xa2, 0xf4, 0xee, 0xb, 0xad, 0x9d, 0x7f, 0xfb, 0x5e, 0x9e, 0xc6, 0xd4, 0xf6, 0x70, 0x4f, 0x36, 0x83, 0x1a, 0x58, 0xe, 0x13, 0xd8, 0x5a, 0x9d, 0x43, 0x11, 0x6a, 0x5f, 0xdd, 0xe1},
+			expected:   []byte{0x6a, 0x29, 0xa3, 0xfa, 0x6a, 0xe3, 0x68, 0x9b, 0xce, 0xc8, 0x30, 0x1d, 0x32, 0xe5, 0x25, 0x1c, 0xad, 0x38, 0xa1, 0xde, 0x6b, 0xf5, 0xb9, 0xca, 0xec, 0x4c, 0x17, 0xe3, 0xbf, 0x77, 0x3, 0x2f},
 		},
 		{
 			squareSize: 2,
@@ -293,7 +293,7 @@ func TestProcessMessage(t *testing.T) {
 			msg:  bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15)),
 			ss:   4,
 			modify: func(wpfd *MsgWirePayForData) *MsgWirePayForData {
-				wpfd.MessageShareCommitment[0].K = 99999
+				wpfd.MessageShareCommitment[0].SquareSize = 99999
 				return wpfd
 			},
 			expectErr: true,
@@ -318,7 +318,7 @@ func TestProcessMessage(t *testing.T) {
 		assert.Equal(t, tt.msg, message.Data, tt.name)
 		assert.Equal(t, tt.ns, message.NamespaceId, tt.name)
 		assert.Equal(t, wpfd.Signer, spfd.Signer, tt.name)
-		assert.Equal(t, wpfd.MessageNameSpaceId, spfd.MessageNamespaceId, tt.name)
+		assert.Equal(t, wpfd.MessageNamespaceId, spfd.MessageNamespaceId, tt.name)
 		assert.Equal(t, wpfd.MessageShareCommitment[0].ShareCommitment, spfd.MessageShareCommitment, tt.name)
 		assert.Equal(t, wpfd.MessageShareCommitment[0].Signature, sig, tt.name)
 	}
