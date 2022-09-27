@@ -2,6 +2,8 @@
 
 ## Building From Source
 
+Prerequisite: [install mdBook](https://rust-lang.github.io/mdBook/guide/installation.html).
+
 To build book:
 
 ```sh
