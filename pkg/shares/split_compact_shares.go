@@ -57,10 +57,11 @@ func (css *CompactShareSplitter) WriteEvidence(evd coretypes.Evidence) error {
 
 // WriteBytes adds the delimited data to the underlying compact shares.
 func (css *CompactShareSplitter) WriteBytes(rawData []byte) {
-	// if this is the first time writing to a pending share, we must add the
-	// reserved bytes
+	// if this is the first time writing to a pending share, we must add a
+	// placeholder for the reserved bytes
 	if len(css.pendingShare.Share) == appconsts.NamespaceSize+appconsts.ShareInfoBytes {
-		css.pendingShare.Share = append(css.pendingShare.Share, 0)
+		reservedBytesPlaceholder := make([]byte, appconsts.CompactShareReservedBytes)
+		css.pendingShare.Share = append(css.pendingShare.Share, reservedBytesPlaceholder...)
 	}
 
 	txCursor := len(rawData)
