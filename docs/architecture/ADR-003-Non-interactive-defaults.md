@@ -461,7 +461,7 @@ Fortunately, most of the work necessary for non-interactive defaults is encapsul
 - All messages must be ordered lexicographically by namespace.
 - The commitments signed over in each `MsgPayForData` must consist only of subtree roots of the data square.
 - If a `MsgPayForData` is added to the square, then its corresponding message must also be included.
-- There must not be a message without a `MsgPayForData` (does this need to be a rule? cc @adlerjohn).
+- There must not be a message without a `MsgPayForData`.
 
 We are already checking the first constraint simply be calculating the data root. The only changes we need to make here are to cache the nmt trees generated when comparing the data root, and then use those cached trees to find the subtree roots necessary to create the data commitments.
 
@@ -642,7 +642,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 Lastly, we also need to check that each valid `MsgPayForData` has a corresponding message, and that there are no unexpected messages.
 
 - If a `MsgPayForData` is added to the square, then its corresponding message must also be included.
-- There must not be a message without a `MsgPayForData` (does this need to be a rule? cc @adlerjohn).
+- There must not be a message without a `MsgPayForData`.
 
 ```go
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
