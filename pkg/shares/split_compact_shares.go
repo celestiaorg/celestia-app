@@ -136,9 +136,10 @@ func (css *CompactShareSplitter) Export() NamespacedShares {
 	dataLengthVarint := css.dataLengthVarint()
 
 	// add the pending share to the current shares before returning
-	if len(css.pendingShare.Share) > appconsts.NamespaceSize+appconsts.ShareInfoBytes {
+	if !css.isEmptyPendingShare() {
 		css.pendingShare.Share = zeroPadIfNecessary(css.pendingShare.Share, appconsts.ShareSize)
 		css.shares = append(css.shares, css.pendingShare)
+		css.pendingShare = NamespacedShare{}
 	}
 
 	css.writeDataLengthVarintToFirstShare(dataLengthVarint)
@@ -213,6 +214,8 @@ func (css *CompactShareSplitter) writeDataLengthVarintToFirstShare(dataLengthVar
 // the share info byte in each share. dataLength does include the reserved
 // byte in each share and the unit length delimiter prefixed to each unit.
 func (css *CompactShareSplitter) dataLength() uint64 {
+	// HACKHACK this dataLength calculation is wrong.
+	// It doesn't account for the fact that the first compact share has fewer bytes available for data than continuation compact shares.
 	length := uint64(len(css.shares)) * appconsts.ContinuationCompactShareContentSize
 	length += uint64(len(css.shares)) * appconsts.CompactShareReservedBytes
 	if !css.isEmptyPendingShare() {
@@ -228,7 +231,9 @@ func (css *CompactShareSplitter) isEmptyPendingShare() bool {
 
 // pendingShareDataLength returns the length of the data in the pending share.
 func (css *CompactShareSplitter) pendingShareDataLength() uint64 {
-	return uint64(len(css.pendingShare.Share) - appconsts.NamespaceSize - appconsts.ShareInfoBytes)
+	// HACKHACK this pendingShareDataLength calculation is wrong if the pending share is the first share.
+	foo := uint64(len(css.pendingShare.Share) - appconsts.NamespaceSize - appconsts.ShareInfoBytes)
+	return foo
 }
 
 // Count returns the current number of shares that will be made if exporting.
