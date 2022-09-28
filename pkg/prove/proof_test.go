@@ -2,9 +2,7 @@ package prove
 
 import (
 	"bytes"
-	"fmt"
 	"math/rand"
-	"strings"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -124,13 +122,6 @@ func TestTxSharePosition(t *testing.T) {
 		for i, pos := range positions {
 			rawTx := []byte(tt.txs[i])
 			rawTxDataForRange := stripCompactShares(shares, pos.start, pos.end)
-			if !strings.Contains(string(rawTxDataForRange), string(rawTx)) {
-				fmt.Printf("txs: %#v\n", tt.txs)
-				fmt.Printf("shares: %#v\n", shares)
-				fmt.Printf("rawTx: %#v\n", rawTx)
-				fmt.Printf("rawTxDataForRange: %#v\n", rawTxDataForRange)
-				t.Fatalf("rawTxDataForRange does not contain rawTx")
-			}
 			assert.Contains(
 				t,
 				string(rawTxDataForRange),
@@ -167,8 +158,6 @@ func TestTxShareIndex(t *testing.T) {
 		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 247, 82},
 		// 82 compact shares + two bytes in last share
 		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 248, 82},
-		{20079, 81},
-		{20168, 81},
 	}
 
 	for _, tt := range tests {
@@ -234,13 +223,13 @@ func TestTxShareIndex(t *testing.T) {
 // 	assert.Equal(t, rawShares, genShares)
 // }
 
-// stripCompactShares strips the universal prefix (namespace, info byte) and
+// stripCompactShares strips the universal prefix (namespace, info byte, data length) and
 // reserved byte from a list of compact shares and joins them into a single byte
 // slice.
 func stripCompactShares(compactShares [][]byte, start uint64, end uint64) (result []byte) {
 	for i := start; i <= end; i++ {
 		if i == 0 {
-			// the first transaction share includes a total data length varint
+			// the first compact share includes a total data length varint
 			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareDataLengthBytes+appconsts.CompactShareReservedBytes:]...)
 		} else {
 			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:]...)
