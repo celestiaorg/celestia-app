@@ -3,7 +3,6 @@ package types
 import (
 	"crypto/sha256"
 	"fmt"
-	"math/bits"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt"
@@ -231,9 +230,4 @@ func powerOf2(v uint64) bool {
 		return true
 	}
 	return false
-}
-
-// DelimLen calculates the length of the delimiter for a given message size
-func DelimLen(x uint64) int {
-	return 8 - bits.LeadingZeros64(x)%8
 }
