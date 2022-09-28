@@ -240,15 +240,15 @@ func (css *CompactShareSplitter) isEmptyPendingShare() bool {
 	return len(css.pendingShare.Share) == appconsts.NamespaceSize+appconsts.ShareInfoBytes
 }
 
+// isPendingShareTheFirstShare returns true if the pending share is the first
+// share of this compact share splitter and false otherwise.
 func (css *CompactShareSplitter) isPendingShareTheFirstShare() bool {
 	return len(css.shares) == 0
 }
 
-// pendingShareDataLength returns the length of the data in the pending share.
-func (css *CompactShareSplitter) pendingShareDataLength() uint64 {
-	// HACKHACK this pendingShareDataLength calculation is wrong if the pending share is the first share.
-	foo := uint64(len(css.pendingShare.Share) - appconsts.NamespaceSize - appconsts.ShareInfoBytes)
-	return foo
+// isEmpty returns whether this compact share splitter is empty.
+func (css *CompactShareSplitter) isEmpty() bool {
+	return len(css.shares) == 0 && css.isEmptyPendingShare()
 }
 
 // Count returns the current number of shares that will be made if exporting.
