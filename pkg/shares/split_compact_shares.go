@@ -25,7 +25,7 @@ type CompactShareSplitter struct {
 // namespace.
 func NewCompactShareSplitter(ns namespace.ID, version uint8) *CompactShareSplitter {
 	pendingShare := NamespacedShare{ID: ns, Share: make([]byte, 0, appconsts.ShareSize)}
-	infoByte, err := NewInfoReservedByte(version, true)
+	infoByte, err := NewInfoByte(version, true)
 	if err != nil {
 		panic(err)
 	}
@@ -117,7 +117,7 @@ func (css *CompactShareSplitter) stackPending() {
 	css.shares = append(css.shares, css.pendingShare)
 	newPendingShare := make([]byte, 0, appconsts.ShareSize)
 	newPendingShare = append(newPendingShare, css.namespace...)
-	infoByte, err := NewInfoReservedByte(css.version, false)
+	infoByte, err := NewInfoByte(css.version, false)
 	if err != nil {
 		panic(err)
 	}
@@ -167,7 +167,7 @@ func (css *CompactShareSplitter) Count() (shareCount int) {
 	return len(css.shares)
 }
 
-var tailPaddingInfo, _ = NewInfoReservedByte(appconsts.ShareVersion, false)
+var tailPaddingInfo, _ = NewInfoByte(appconsts.ShareVersion, false)
 
 // tail is filler for all tail padded shares
 // it is allocated once and used everywhere
@@ -199,7 +199,7 @@ func MarshalDelimitedTx(tx coretypes.Tx) ([]byte, error) {
 }
 
 func namespacedPaddedShares(ns []byte, count int) NamespacedShares {
-	infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, true)
+	infoByte, err := NewInfoByte(appconsts.ShareVersion, true)
 	if err != nil {
 		panic(err)
 	}

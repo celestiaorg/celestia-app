@@ -94,7 +94,7 @@ func (sss *SparseShareSplitter) Count() int {
 // Used for messages.
 func AppendToShares(shares []NamespacedShare, nid namespace.ID, rawData []byte) []NamespacedShare {
 	if len(rawData) <= appconsts.SparseShareContentSize {
-		infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, true)
+		infoByte, err := NewInfoByte(appconsts.ShareVersion, true)
 		if err != nil {
 			panic(err)
 		}
@@ -127,7 +127,7 @@ func MarshalDelimitedMessage(msg coretypes.Message) ([]byte, error) {
 // namespaced shares
 func splitMessage(rawData []byte, nid namespace.ID) NamespacedShares {
 	shares := make([]NamespacedShare, 0)
-	infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, true)
+	infoByte, err := NewInfoByte(appconsts.ShareVersion, true)
 	if err != nil {
 		panic(err)
 	}
@@ -141,7 +141,7 @@ func splitMessage(rawData []byte, nid namespace.ID) NamespacedShares {
 	rawData = rawData[appconsts.SparseShareContentSize:]
 	for len(rawData) > 0 {
 		shareSizeOrLen := min(appconsts.SparseShareContentSize, len(rawData))
-		infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, false)
+		infoByte, err := NewInfoByte(appconsts.ShareVersion, false)
 		if err != nil {
 			panic(err)
 		}
