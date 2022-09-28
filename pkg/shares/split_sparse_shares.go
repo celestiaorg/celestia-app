@@ -104,7 +104,7 @@ func AppendToShares(shares []NamespacedShare, nid namespace.ID, rawData []byte) 
 			byte(infoByte)),
 			rawData...,
 		)
-		paddedShare := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
+		paddedShare, _ := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
 		share := NamespacedShare{paddedShare, nid}
 		shares = append(shares, share)
 	} else { // len(rawData) > MsgShareSize
@@ -151,7 +151,7 @@ func splitMessage(rawData []byte, nid namespace.ID) NamespacedShares {
 			byte(infoByte)),
 			rawData[:shareSizeOrLen]...,
 		)
-		paddedShare := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
+		paddedShare, _ := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
 		share := NamespacedShare{paddedShare, nid}
 		shares = append(shares, share)
 		rawData = rawData[shareSizeOrLen:]
