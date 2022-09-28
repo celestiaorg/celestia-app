@@ -132,7 +132,7 @@ func (css *CompactShareSplitter) stackPending() {
 
 // Export finalizes and returns the underlying compact shares.
 func (css *CompactShareSplitter) Export() NamespacedShares {
-	if len(css.shares) == 0 && css.isEmptyPendingShare() {
+	if css.isEmpty() {
 		return []NamespacedShare{}
 	}
 
@@ -182,7 +182,7 @@ func (css *CompactShareSplitter) forceLastShareReserveByteToZero() {
 // dataLengthVarint returns a varint of the data length written to this compact
 // share splitter.
 func (css *CompactShareSplitter) dataLengthVarint(bytesOfPadding int) []byte {
-	if len(css.shares) == 0 && css.isEmptyPendingShare() {
+	if css.isEmpty() {
 		return []byte{}
 	}
 
@@ -195,7 +195,7 @@ func (css *CompactShareSplitter) dataLengthVarint(bytesOfPadding int) []byte {
 }
 
 func (css *CompactShareSplitter) writeDataLengthVarintToFirstShare(dataLengthVarint []byte) {
-	if len(css.shares) == 0 && css.isEmptyPendingShare() {
+	if css.isEmpty() {
 		return
 	}
 
@@ -251,12 +251,9 @@ func (css *CompactShareSplitter) isEmpty() bool {
 	return len(css.shares) == 0 && css.isEmptyPendingShare()
 }
 
-// Count returns the current number of shares that will be made if exporting.
+// Count returns the number of shares that would be made if `Export` was invoked
+// on this compact share splitter.
 func (css *CompactShareSplitter) Count() (shareCount int) {
-	if len(css.shares) == 0 && css.isEmptyPendingShare() {
-		return 0
-	}
-
 	if !css.isEmptyPendingShare() {
 		// pending share is non-empty, so it will be zero padded and added to shares during export
 		return len(css.shares) + 1
