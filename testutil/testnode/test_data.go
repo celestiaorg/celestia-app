@@ -1,4 +1,4 @@
-package coretestutil
+package testnode
 
 var genesis = `
 {
