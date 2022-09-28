@@ -9,16 +9,19 @@ import (
 
 func TestSplitTxs(t *testing.T) {
 	type testCase struct {
+		name string
 		txs  coretypes.Txs
 		want [][]byte
 	}
 	testCases := []testCase{
 		{
+			name: "empty txs",
 			txs:  coretypes.Txs{},
 			want: [][]byte{},
 		},
 		{
-			txs: coretypes.Txs{coretypes.Tx{0xA}},
+			name: "one small tx",
+			txs:  coretypes.Txs{coretypes.Tx{0xA}},
 			want: [][]uint8{{
 				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 				0x1,                // info byte
@@ -30,7 +33,8 @@ func TestSplitTxs(t *testing.T) {
 			}},
 		},
 		{
-			txs: coretypes.Txs{coretypes.Tx{0xA}, coretypes.Tx{0xB}},
+			name: "two small txs",
+			txs:  coretypes.Txs{coretypes.Tx{0xA}, coretypes.Tx{0xB}},
 			want: [][]uint8{{
 				0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 				0x1,                // info byte
@@ -45,9 +49,11 @@ func TestSplitTxs(t *testing.T) {
 		},
 	}
 	for _, tt := range testCases {
-		got := SplitTxs(tt.txs)
-		if !reflect.DeepEqual(got, tt.want) {
-			t.Errorf("SplitTxs(%#v) got %#v, want %#v", tt.txs, got, tt.want)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			got := SplitTxs(tt.txs)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("SplitTxs(%#v) got %#v, want %#v", tt.txs, got, tt.want)
+			}
+		})
 	}
 }
