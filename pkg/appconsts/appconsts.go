@@ -17,6 +17,13 @@ const (
 	// NamespaceSize is the namespace size in bytes.
 	NamespaceSize = 8
 
+	// ShareInfoBytes is the number of bytes reserved for information. The info
+	// byte contains the share version and a start idicator.
+	ShareInfoBytes = 1
+
+	// ShareVersion is the current version of the share format
+	ShareVersion = uint8(0)
+
 	// See https://github.com/celestiaorg/celestia-app/pull/660#discussion_r958603307
 	// for the motivation behind `CompactShare` and `SparseShare` terminology.
 
@@ -24,12 +31,15 @@ const (
 	// the first unit (transaction, ISR, evidence) in a compact share.
 	CompactShareReservedBytes = 1
 
-	// CompactShareContentSize is the number of bytes usable for data in a compact
-	// (i.e. transactions, ISRs, evidence) share.
-	CompactShareContentSize = ShareSize - NamespaceSize - CompactShareReservedBytes
+	// ContinuationCompactShareContentSize is the number of bytes usable for
+	// data in a continuation compact share. A continuation share is any
+	// share in a reserved namespace that isn't the first share in that
+	// namespace.
+	ContinuationCompactShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareReservedBytes
+
 	// SparseShareContentSize is the number of bytes usable for data in a sparse (i.e.
 	// message) share.
-	SparseShareContentSize = ShareSize - NamespaceSize
+	SparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes
 
 	// MaxSquareSize is the maximum number of
 	// rows/columns of the original data shares in square layout.
@@ -50,6 +60,21 @@ const (
 
 	// MaxShareVersion is the maximum value a share version can be.
 	MaxShareVersion = 127
+
+	// MalleatedTxBytes is the overhead bytes added to a normal transaction after
+	// malleating it. 32 for the original hash, 4 for the uint32 share_index, and 3
+	// for protobuf
+	MalleatedTxBytes = 32 + 4 + 3
+
+	// ShareCommitmentBytes is the number of bytes used by a protobuf encoded
+	// share commitment. 64 bytes for the signature, 32 bytes for the
+	// commitment, 8 bytes for the uint64, and 4 bytes for the protobuf overhead
+	ShareCommitmentBytes = 64 + 32 + 8 + 4
+
+	// MalleatedTxEstimateBuffer is the "magic" number used to ensure that the
+	// estimate of a malleated transaction is at least as big if not larger than
+	// the actual value. TODO: use a more accurate number
+	MalleatedTxEstimateBuffer = 100
 )
 
 var (

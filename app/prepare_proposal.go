@@ -1,15 +1,11 @@
 package app
 
 import (
-	"math"
-
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/x/auth/signing"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // PrepareProposal fullfills the celestia-core version of the ABCI interface by
@@ -17,13 +13,52 @@ import (
 // estimating it via the size of the passed block data. Then the included
 // MsgWirePayForData messages are malleated into MsgPayForData messages by
 // separating the message and transaction that pays for that message. Lastly,
-// this method generates the data root for the proposal block and passes it the
-// blockdata.
+// this method generates the data root for the proposal block and passes it back
+// to tendermint via the blockdata.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-	squareSize := app.estimateSquareSize(req.BlockData)
+	// parse the txs, extracting any MsgWirePayForData and performing basic
+	// validation for each transaction. Invalid txs are ignored. Original order
+	// of the txs is maintained.
+	parsedTxs := parseTxs(app.txConfig, req.BlockData.Txs)
 
-	dataSquare, data := SplitShares(app.txConfig, squareSize, req.BlockData)
+	// estimate the square size. This estimation errors on the side of larger
+	// squares but can only return values within the min and max square size.
+	squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, req.BlockData.Evidence)
 
+	// the totalSharesUsed can be larger that the max number of shares if we
+	// reach the max square size. In this case, we must prune the deprioritized
+	// txs (and their messages if they're pfd txs).
+	if totalSharesUsed > int(squareSize*squareSize) {
+		parsedTxs = prune(app.txConfig, parsedTxs, totalSharesUsed, int(squareSize))
+	}
+
+	// in this step we are processing any MsgWirePayForData transactions into
+	// MsgPayForData and their respective messages. The malleatedTxs contain the
+	// the new sdk.Msg with the original tx's metadata (sequence number, gas
+	// price etc).
+	processedTxs, messages, err := malleateTxs(app.txConfig, squareSize, parsedTxs, req.BlockData.Evidence)
+	if err != nil {
+		panic(err)
+	}
+
+	blockData := core.Data{
+		Txs:                processedTxs,
+		Evidence:           req.BlockData.Evidence,
+		Messages:           core.Messages{MessagesList: messages},
+		OriginalSquareSize: squareSize,
+	}
+
+	coreData, err := coretypes.DataFromProto(&blockData)
+	if err != nil {
+		panic(err)
+	}
+
+	dataSquare, err := shares.Split(coreData, true)
+	if err != nil {
+		panic(err)
+	}
+
+	// erasure the data square which we use to create the data root.
 	eds, err := da.ExtendShares(squareSize, dataSquare)
 	if err != nil {
 		app.Logger().Error(
@@ -34,77 +69,18 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		panic(err)
 	}
 
+	// create the new data root by creating the data availability header (merkle
+	// roots of each row and col of the erasure data).
 	dah := da.NewDataAvailabilityHeader(eds)
-	data.Hash = dah.Hash()
-	data.OriginalSquareSize = squareSize
 
+	// We use the block data struct to pass the square size and calculated data
+	// root to tendermint.
+	blockData.Hash = dah.Hash()
+	blockData.OriginalSquareSize = squareSize
+
+	// tendermint doesn't need to use any of the erasure data, as only the
+	// protobuf encoded version of the block data is gossiped.
 	return abci.ResponsePrepareProposal{
-		BlockData: data,
+		BlockData: &blockData,
 	}
-}
-
-// estimateSquareSize returns an estimate of the needed square size to fit the
-// provided block data. It assumes that every malleatable tx has a viable commit
-// for whatever square size that we end up picking.
-func (app *App) estimateSquareSize(data *core.Data) uint64 {
-	txBytes := 0
-	for _, tx := range data.Txs {
-		txBytes += len(tx) + types.DelimLen(uint64(len(tx)))
-	}
-	txShareEstimate := txBytes / appconsts.CompactShareContentSize
-	if txBytes > 0 {
-		txShareEstimate++ // add one to round up
-	}
-
-	evdBytes := 0
-	for _, evd := range data.Evidence.Evidence {
-		evdBytes += evd.Size() + types.DelimLen(uint64(evd.Size()))
-	}
-	evdShareEstimate := evdBytes / appconsts.CompactShareContentSize
-	if evdBytes > 0 {
-		evdShareEstimate++ // add one to round up
-	}
-
-	msgShareEstimate := estimateMsgShares(app.txConfig, data.Txs)
-
-	totalShareEstimate := txShareEstimate + evdShareEstimate + msgShareEstimate
-	sr := math.Sqrt(float64(totalShareEstimate))
-	estimatedSize := types.NextHigherPowerOf2(uint64(sr))
-	switch {
-	case estimatedSize > appconsts.MaxSquareSize:
-		return appconsts.MaxSquareSize
-	case estimatedSize < appconsts.MinSquareSize:
-		return appconsts.MinSquareSize
-	default:
-		return estimatedSize
-	}
-}
-
-func estimateMsgShares(txConf client.TxConfig, txs [][]byte) int {
-	msgShares := uint64(0)
-	for _, rawTx := range txs {
-		// decode the Tx
-		tx, err := txConf.TxDecoder()(rawTx)
-		if err != nil {
-			continue
-		}
-
-		authTx, ok := tx.(signing.Tx)
-		if !ok {
-			continue
-		}
-
-		wireMsg, err := types.ExtractMsgWirePayForData(authTx)
-		if err != nil {
-			// we catch this error because it means that there are no
-			// potentially valid MsgWirePayForData messages in this tx. If the
-			// tx doesn't have a wirePFD, then it won't contribute any message
-			// shares to the block, and since we're only estimating here, we can
-			// move on without handling or bubbling the error.
-			continue
-		}
-
-		msgShares += uint64(types.MsgSharesUsed(int(wireMsg.MessageSize)))
-	}
-	return int(msgShares)
 }

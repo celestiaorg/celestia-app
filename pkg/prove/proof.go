@@ -1,7 +1,6 @@
 package prove
 
 import (
-	"encoding/binary"
 	"errors"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -16,7 +15,7 @@ import (
 // TxInclusion uses the provided block data to progressively generate rows
 // of a data square, and then using those shares to creates nmt inclusion proofs
 // It is possible that a transaction spans more than one row. In that case, we
-// have to return more than one proofs.
+// have to return more than one proof.
 func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxProof, error) {
 	// calculate the index of the shares that contain the tx
 	startPos, endPos, err := txSharePosition(data.Txs, txIndex)
@@ -90,8 +89,9 @@ func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxP
 	}, nil
 }
 
-// txSharePosition returns the share that a given transaction is included in.
-// returns an error if index is greater than that of the provided txs.
+// txSharePosition returns the start and end positions for the shares that
+// include a given txIndex. Returns an error if index is greater than the length
+// of txs.
 func txSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos uint64, err error) {
 	if txIndex >= uint64(len(txs)) {
 		return startSharePos, endSharePos, errors.New("transaction index is greater than the number of txs")
@@ -100,20 +100,15 @@ func txSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos 
 	totalLen := 0
 	for i := uint64(0); i < txIndex; i++ {
 		txLen := len(txs[i])
-		totalLen += (delimLen(txLen) + txLen)
+		totalLen += (shares.DelimLen(uint64(txLen)) + txLen)
 	}
 
 	txLen := len(txs[txIndex])
 
-	startSharePos = uint64((totalLen) / appconsts.CompactShareContentSize)
-	endSharePos = uint64((totalLen + txLen + delimLen(txLen)) / appconsts.CompactShareContentSize)
+	startSharePos = uint64((totalLen) / appconsts.ContinuationCompactShareContentSize)
+	endSharePos = uint64((totalLen + txLen + shares.DelimLen(uint64(txLen))) / appconsts.ContinuationCompactShareContentSize)
 
 	return startSharePos, endSharePos, nil
-}
-
-func delimLen(txLen int) int {
-	lenBuf := make([]byte, binary.MaxVarintLen64)
-	return binary.PutUvarint(lenBuf, uint64(txLen))
 }
 
 // genRowShares progessively generates data square rows from block data
@@ -167,7 +162,7 @@ func genOrigRowShares(data types.Data, startRow, endRow uint64) [][]byte {
 	}
 
 	for _, m := range data.Messages.MessagesList {
-		msgShares, err := shares.SplitMessages(nil, []types.Message{m})
+		msgShares, err := shares.SplitMessages(0, nil, []types.Message{m}, false)
 		if err != nil {
 			panic(err)
 		}

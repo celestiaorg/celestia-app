@@ -49,7 +49,7 @@ test:
 .PHONY: test
 
 proto-gen:
-	$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace tendermintdev/sdk-proto-gen:latest sh ./scripts/protocgen.sh
+	$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace tendermintdev/sdk-proto-gen:v0.7 sh ./scripts/protocgen.sh
 
 proto-lint:
 	@$(DOCKER_BUF) lint --error-format=json

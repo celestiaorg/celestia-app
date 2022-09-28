@@ -3,6 +3,7 @@ package shares
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 
 	coretypes "github.com/tendermint/tendermint/types"
 
@@ -34,16 +35,23 @@ func parseSparseShares(shares [][]byte) ([]coretypes.Message, error) {
 		dataLen = len(currentMsg.Data) + appconsts.SparseShareContentSize
 		switch {
 		case isNewMessage:
-			nextMsgChunk, nextMsgLen, err := ParseDelimiter(shares[i][appconsts.NamespaceSize:])
+			nextMsgChunk, nextMsgLen, err := ParseDelimiter(shares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:])
 			if err != nil {
 				return nil, err
 			}
 			// the current share is namespaced padding so we ignore it
-			if bytes.Equal(shares[i][appconsts.NamespaceSize:], appconsts.NameSpacedPaddedShareBytes) {
+			if bytes.Equal(shares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:], appconsts.NameSpacedPaddedShareBytes) {
 				continue
 			}
 			currentMsgLen = int(nextMsgLen)
 			nid := shares[i][:appconsts.NamespaceSize]
+			infoByte, err := ParseInfoReservedByte(shares[i][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0])
+			if err != nil {
+				panic(err)
+			}
+			if infoByte.IsMessageStart() != isNewMessage {
+				return nil, fmt.Errorf("expected message start indicator to be %t but got %t", isNewMessage, infoByte.IsMessageStart())
+			}
 			currentMsg = coretypes.Message{
 				NamespaceID: nid,
 				Data:        nextMsgChunk,
@@ -58,21 +66,23 @@ func parseSparseShares(shares [][]byte) ([]coretypes.Message, error) {
 			isNewMessage = false
 		// this entire share contains a chunk of message that we need to save
 		case currentMsgLen > dataLen:
-			currentMsg.Data = append(currentMsg.Data, shares[i][appconsts.NamespaceSize:]...)
+			currentMsg.Data = append(currentMsg.Data, shares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:]...)
 		// this share contains the last chunk of data needed to complete the
 		// message
 		case currentMsgLen <= dataLen:
-			remaining := currentMsgLen - len(currentMsg.Data) + appconsts.NamespaceSize
-			currentMsg.Data = append(currentMsg.Data, shares[i][appconsts.NamespaceSize:remaining]...)
+			remaining := currentMsgLen - len(currentMsg.Data) + appconsts.NamespaceSize + appconsts.ShareInfoBytes
+			currentMsg.Data = append(currentMsg.Data, shares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:remaining]...)
 			saveMessage()
 		}
 	}
 	return msgs, nil
 }
 
-// ParseDelimiter finds and returns the length delimiter of the message provided
-// while also removing the delimiter bytes from the input
-func ParseDelimiter(input []byte) ([]byte, uint64, error) {
+// ParseDelimiter finds and returns the length delimiter of the share provided
+// while also removing the delimiter bytes from the input. ParseDelimiter
+// applies to both compact and sparse shares. Input should not contain the
+// namespace ID or info byte of a share.
+func ParseDelimiter(input []byte) (inputWithoutLengthDelimiter []byte, dataLength uint64, err error) {
 	if len(input) == 0 {
 		return input, 0, nil
 	}
@@ -84,21 +94,24 @@ func ParseDelimiter(input []byte) ([]byte, uint64, error) {
 
 	delimiter := zeroPadIfNecessary(input[:l], binary.MaxVarintLen64)
 
-	// read the length of the message
+	// read the length of the data
 	r := bytes.NewBuffer(delimiter)
-	msgLen, err := binary.ReadUvarint(r)
+	dataLen, err := binary.ReadUvarint(r)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	// calculate the number of bytes used by the delimiter
 	lenBuf := make([]byte, binary.MaxVarintLen64)
-	n := binary.PutUvarint(lenBuf, msgLen)
+	n := binary.PutUvarint(lenBuf, dataLen)
 
 	// return the input without the length delimiter
-	return input[n:], msgLen, nil
+	return input[n:], dataLen, nil
 }
 
+// zeroPadIfNecessary pads the share with trailing zero bytes if the provided
+// share has fewer bytes than width. Returns the share unmodified if the
+// len(share) is greater than or equal to width.
 func zeroPadIfNecessary(share []byte, width int) []byte {
 	oldLen := len(share)
 	if oldLen >= width {

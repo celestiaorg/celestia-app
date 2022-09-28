@@ -1,6 +1,7 @@
 package shares
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -93,9 +94,14 @@ func (sss *SparseShareSplitter) Count() int {
 // Used for messages.
 func AppendToShares(shares []NamespacedShare, nid namespace.ID, rawData []byte) []NamespacedShare {
 	if len(rawData) <= appconsts.SparseShareContentSize {
-		rawShare := append(append(
-			make([]byte, 0, len(nid)+len(rawData)),
+		infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, true)
+		if err != nil {
+			panic(err)
+		}
+		rawShare := append(append(append(
+			make([]byte, 0, appconsts.ShareSize),
 			nid...),
+			byte(infoByte)),
 			rawData...,
 		)
 		paddedShare := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
@@ -107,22 +113,42 @@ func AppendToShares(shares []NamespacedShare, nid namespace.ID, rawData []byte) 
 	return shares
 }
 
+// MarshalDelimitedMessage marshals the raw share data (excluding the namespace)
+// of this message and prefixes it with the length of the message encoded as a
+// varint.
+func MarshalDelimitedMessage(msg coretypes.Message) ([]byte, error) {
+	lenBuf := make([]byte, binary.MaxVarintLen64)
+	length := uint64(len(msg.Data))
+	n := binary.PutUvarint(lenBuf, length)
+	return append(lenBuf[:n], msg.Data...), nil
+}
+
 // splitMessage breaks the data in a message into the minimum number of
 // namespaced shares
 func splitMessage(rawData []byte, nid namespace.ID) NamespacedShares {
 	shares := make([]NamespacedShare, 0)
-	firstRawShare := append(append(
+	infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, true)
+	if err != nil {
+		panic(err)
+	}
+	firstRawShare := append(append(append(
 		make([]byte, 0, appconsts.ShareSize),
 		nid...),
+		byte(infoByte)),
 		rawData[:appconsts.SparseShareContentSize]...,
 	)
 	shares = append(shares, NamespacedShare{firstRawShare, nid})
 	rawData = rawData[appconsts.SparseShareContentSize:]
 	for len(rawData) > 0 {
 		shareSizeOrLen := min(appconsts.SparseShareContentSize, len(rawData))
-		rawShare := append(append(
+		infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, false)
+		if err != nil {
+			panic(err)
+		}
+		rawShare := append(append(append(
 			make([]byte, 0, appconsts.ShareSize),
 			nid...),
+			byte(infoByte)),
 			rawData[:shareSizeOrLen]...,
 		)
 		paddedShare := zeroPadIfNecessary(rawShare, appconsts.ShareSize)

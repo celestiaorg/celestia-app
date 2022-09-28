@@ -16,14 +16,20 @@ func NewMsgServerImpl(keeper Keeper) types.MsgServer {
 	return &msgServer{Keeper: keeper}
 }
 
-// ValsetConfirm handles MsgValsetConfirm
-func (k msgServer) ValsetConfirm(c context.Context, msg *types.MsgValsetConfirm) (*types.MsgValsetConfirmResponse, error) {
-	// TODO
+// ValsetConfirm handles MsgValsetConfirm.
+func (k msgServer) ValsetConfirm(
+	_ context.Context,
+	_ *types.MsgValsetConfirm,
+) (*types.MsgValsetConfirmResponse, error) {
+	// empty as per QGB ADR-005
 	return &types.MsgValsetConfirmResponse{}, nil
 }
 
-// DataCommitmentConfirm handles MsgDataCommitmentConfirm
-func (k msgServer) DataCommitmentConfirm(context.Context, *types.MsgDataCommitmentConfirm) (*types.MsgDataCommitmentConfirmResponse, error) {
-	// TODO
+// DataCommitmentConfirm handles MsgDataCommitmentConfirm.
+func (k msgServer) DataCommitmentConfirm(
+	_ context.Context,
+	_ *types.MsgDataCommitmentConfirm,
+) (*types.MsgDataCommitmentConfirmResponse, error) {
+	// empty as per QGB ADR-005
 	return &types.MsgDataCommitmentConfirmResponse{}, nil
 }

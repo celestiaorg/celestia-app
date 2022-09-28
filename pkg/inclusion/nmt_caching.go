@@ -88,7 +88,7 @@ type EDSSubTreeRootCacher struct {
 	counter int
 }
 
-func NewCachedSubtreeCacher(squareSize uint64) *EDSSubTreeRootCacher {
+func NewSubtreeCacher(squareSize uint64) *EDSSubTreeRootCacher {
 	return &EDSSubTreeRootCacher{
 		caches:     []*subTreeRootCacher{},
 		squareSize: squareSize,

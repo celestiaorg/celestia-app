@@ -77,6 +77,9 @@ make test
 
 # Format code with linters (this assumes golangci-lint and markdownlint are installed)
 make fmt
+
+# Regenerate Protobuf files (this assumes Docker is running)
+make proto-gen
 ```
 
 ## Careers
