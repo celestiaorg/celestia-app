@@ -33,7 +33,7 @@ func prune(txConf client.TxConfig, txs []*parsedTx, currentShareCount, squareSiz
 	// adjustContigCursor checks if enough contiguous bytes have been removed
 	// inorder to tally total contiguous shares removed
 	adjustContigCursor := func(l int) {
-		contigBytesCursor += l + shares.DelimLen(uint64(l))
+		contigBytesCursor += l + appconsts.NumberOfBytesVarint(uint64(l))
 		if contigBytesCursor >= appconsts.ContinuationCompactShareContentSize {
 			removedContiguousShares += (contigBytesCursor / appconsts.ContinuationCompactShareContentSize)
 			contigBytesCursor = contigBytesCursor % appconsts.ContinuationCompactShareContentSize
@@ -191,7 +191,7 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 	}
 
 	for _, e := range evd.Evidence {
-		evdBytes += e.Size() + shares.DelimLen(uint64(e.Size()))
+		evdBytes += e.Size() + appconsts.NumberOfBytesVarint(uint64(e.Size()))
 	}
 
 	evdShares = evdBytes / appconsts.ContinuationCompactShareContentSize
