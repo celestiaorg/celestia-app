@@ -92,7 +92,7 @@ func ParseDelimiter(input []byte) (inputWithoutLengthDelimiter []byte, dataLengt
 		l = len(input)
 	}
 
-	delimiter := zeroPadIfNecessary(input[:l], binary.MaxVarintLen64)
+	delimiter, _ := zeroPadIfNecessary(input[:l], binary.MaxVarintLen64)
 
 	// read the length of the data
 	r := bytes.NewBuffer(delimiter)
@@ -112,15 +112,15 @@ func ParseDelimiter(input []byte) (inputWithoutLengthDelimiter []byte, dataLengt
 // zeroPadIfNecessary pads the share with trailing zero bytes if the provided
 // share has fewer bytes than width. Returns the share unmodified if the
 // len(share) is greater than or equal to width.
-func zeroPadIfNecessary(share []byte, width int) []byte {
+func zeroPadIfNecessary(share []byte, width int) (padded []byte, bytesOfPadding int) {
 	oldLen := len(share)
 	if oldLen >= width {
-		return share
+		return share, 0
 	}
 
 	missingBytes := width - oldLen
 	padByte := []byte{0}
 	padding := bytes.Repeat(padByte, missingBytes)
 	share = append(share, padding...)
-	return share
+	return share, missingBytes
 }
