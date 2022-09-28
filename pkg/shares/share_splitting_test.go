@@ -28,7 +28,7 @@ func TestSplitTxs(t *testing.T) {
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,                // info byte
 					0x2, 0x0, 0x0, 0x0, // 1 byte (unit)  + 1 byte (unit length) = 2 bytes message length
-					0x0, // reserved byte
+					0x0, // BUG: reserved byte should be non-zero
 					0x1, // unit length of first transaction
 					0xa, // data of first transaction
 				}, bytes.Repeat([]byte{0}, 240)...), // padding
@@ -42,7 +42,7 @@ func TestSplitTxs(t *testing.T) {
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,                // info byte
 					0x4, 0x0, 0x0, 0x0, // 2 bytes (first transaction) + 2 bytes (second transaction) = 4 bytes message length
-					0x0, // reserved byte
+					0x0, // BUG: reserved byte should be non-zero
 					0x1, // unit length of first transaction
 					0xa, // data of first transaction
 					0x1, // unit length of second transaction
@@ -58,7 +58,7 @@ func TestSplitTxs(t *testing.T) {
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,          // info byte
 					243, 1, 0, 0, // 241 (unit) + 2 (unit length) = 243 message length
-					0x0,    // reserved byte
+					0x0,    // BUG: reserved byte should be non-zero
 					241, 1, // unit length of first transaction is 241
 				}, bytes.Repeat([]byte{0xc}, 240)...), // data of first transaction
 				append([]uint8{
