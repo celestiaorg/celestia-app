@@ -51,7 +51,7 @@ func TestSplitTxs(t *testing.T) {
 			},
 		},
 		{
-			name: "one large tx",
+			name: "one large tx that spans two shares",
 			txs:  coretypes.Txs{bytes.Repeat([]byte{0xC}, 241)},
 			want: [][]uint8{
 				append([]uint8{
