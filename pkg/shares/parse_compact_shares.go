@@ -49,22 +49,19 @@ func (ss *shareStack) resolve() ([][]byte, error) {
 	return ss.data, err
 }
 
-// peel recursively parses each unit of data (either a transaction, intermediate
-// state root, or evidence) and adds it to the underlying slice of data.
-// delimited should be `true` if this is the start of the next unit of data (in
-// other words the data contains a unitLen delimiter prefixed to the unit).
-// delimited should be `false` if calling peel on an in-progress unit.
+// peel recursively parses each chunk of data (either a transaction,
+// intermediate state root, or evidence) and adds it to the underlying slice of data.
 func (ss *shareStack) peel(share []byte, delimited bool) (err error) {
 	if delimited {
-		var unitLen uint64
-		share, unitLen, err = ParseDelimiter(share)
+		var txLen uint64
+		share, txLen, err = ParseDelimiter(share)
 		if err != nil {
 			return err
 		}
-		if unitLen == 0 {
+		if txLen == 0 {
 			return nil
 		}
-		ss.dataLen = unitLen
+		ss.dataLen = txLen
 	}
 	// safeLen describes the point in the share where it can be safely split. If
 	// split beyond this point, it is possible to break apart a length
