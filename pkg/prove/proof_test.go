@@ -16,63 +16,63 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-// func TestTxInclusion(t *testing.T) {
-// 	typicalBlockData := types.Data{
-// 		Txs:                generateRandomlySizedTxs(100, 500),
-// 		Messages:           generateRandomlySizedMessages(40, 16000),
-// 		OriginalSquareSize: 64,
-// 	}
-// 	lotsOfTxsNoMessages := types.Data{
-// 		Txs:                generateRandomlySizedTxs(1000, 500),
-// 		OriginalSquareSize: 64,
-// 	}
-// 	overlappingSquareSize := 16
-// 	overlappingRowsBlockData := types.Data{
-// 		Txs: types.ToTxs(
-// 			[][]byte{
-// 				tmrand.Bytes(appconsts.ContinuationCompactShareContentSize*overlappingSquareSize + 1),
-// 				tmrand.Bytes(10000),
-// 			},
-// 		),
-// 		OriginalSquareSize: uint64(overlappingSquareSize),
-// 	}
-// 	overlappingRowsBlockDataWithMessages := types.Data{
-// 		Txs: types.ToTxs(
-// 			[][]byte{
-// 				tmrand.Bytes(appconsts.ContinuationCompactShareContentSize*overlappingSquareSize + 1),
-// 				tmrand.Bytes(10000),
-// 			},
-// 		),
-// 		Messages:           generateRandomlySizedMessages(8, 400),
-// 		OriginalSquareSize: uint64(overlappingSquareSize),
-// 	}
+func TestTxInclusion(t *testing.T) {
+	typicalBlockData := types.Data{
+		Txs:                generateRandomlySizedTxs(100, 500),
+		Messages:           generateRandomlySizedMessages(40, 16000),
+		OriginalSquareSize: 64,
+	}
+	lotsOfTxsNoMessages := types.Data{
+		Txs:                generateRandomlySizedTxs(1000, 500),
+		OriginalSquareSize: 64,
+	}
+	overlappingSquareSize := 16
+	overlappingRowsBlockData := types.Data{
+		Txs: types.ToTxs(
+			[][]byte{
+				tmrand.Bytes(appconsts.ContinuationCompactShareContentSize*overlappingSquareSize + 1),
+				tmrand.Bytes(10000),
+			},
+		),
+		OriginalSquareSize: uint64(overlappingSquareSize),
+	}
+	overlappingRowsBlockDataWithMessages := types.Data{
+		Txs: types.ToTxs(
+			[][]byte{
+				tmrand.Bytes(appconsts.ContinuationCompactShareContentSize*overlappingSquareSize + 1),
+				tmrand.Bytes(10000),
+			},
+		),
+		Messages:           generateRandomlySizedMessages(8, 400),
+		OriginalSquareSize: uint64(overlappingSquareSize),
+	}
 
-// 	type test struct {
-// 		data types.Data
-// 	}
-// 	tests := []test{
-// 		{
-// 			typicalBlockData,
-// 		},
-// 		{
-// 			lotsOfTxsNoMessages,
-// 		},
-// 		{
-// 			overlappingRowsBlockData,
-// 		},
-// 		{
-// 			overlappingRowsBlockDataWithMessages,
-// 		},
-// 	}
+	type test struct {
+		data types.Data
+	}
+	tests := []test{
+		{
+			typicalBlockData,
+		},
+		{
+			lotsOfTxsNoMessages,
+		},
+		{
+			overlappingRowsBlockData,
+		},
+		{
+			overlappingRowsBlockDataWithMessages,
+		},
+	}
 
-// 	for _, tt := range tests {
-// 		for i := 0; i < len(tt.data.Txs); i++ {
-// 			txProof, err := TxInclusion(appconsts.DefaultCodec(), tt.data, uint64(i))
-// 			require.NoError(t, err)
-// 			assert.True(t, txProof.VerifyProof())
-// 		}
-// 	}
-// }
+	for _, tt := range tests {
+		for i := 0; i < len(tt.data.Txs); i++ {
+			txProof, err := TxInclusion(appconsts.DefaultCodec(), tt.data, uint64(i))
+			require.NoError(t, err)
+			assert.True(t, txProof.VerifyProof())
+		}
+	}
+}
 
 func TestTxSharePosition(t *testing.T) {
 	type test struct {

@@ -128,7 +128,7 @@ var (
 	// of evidence. It takes 4 bytes to store a varint of 4194304.
 	//
 	// https://go.dev/play/p/MynwcDHQ_me
-	FirstCompactShareDataLengthBytes = NumberOfBytesVarint(MaxSquareSize * MaxSquareSize * ShareSize)
+	FirstCompactShareDataLengthBytes = numberOfBytesVarint(MaxSquareSize * MaxSquareSize * ShareSize)
 
 	// FirstCompactShareContentSize is the number of bytes usable for data in
 	// the first compact share of a reserved namespace. This type of share
@@ -137,8 +137,8 @@ var (
 	FirstCompactShareContentSize = ContinuationCompactShareContentSize - FirstCompactShareDataLengthBytes
 )
 
-// NumberOfBytesVarint calculates the number of bytes needed to write a varint of n
-func NumberOfBytesVarint(n uint64) (numberOfBytes int) {
+// numberOfBytesVarint calculates the number of bytes needed to write a varint of n
+func numberOfBytesVarint(n uint64) (numberOfBytes int) {
 	buf := make([]byte, binary.MaxVarintLen64)
 	return binary.PutUvarint(buf, n)
 }
