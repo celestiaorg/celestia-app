@@ -292,7 +292,7 @@ func MarshalDelimitedTx(tx coretypes.Tx) ([]byte, error) {
 	return append(lenBuf[:n], tx...), nil
 }
 
-func namespacedPaddedShares(namespace []byte, count int) NamespacedShares {
+func namespacedPaddedShares(ns []byte, count int) NamespacedShares {
 	infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, true)
 	if err != nil {
 		panic(err)
@@ -301,10 +301,10 @@ func namespacedPaddedShares(namespace []byte, count int) NamespacedShares {
 	for i := 0; i < count; i++ {
 		shares[i] = NamespacedShare{
 			Share: append(append(append(
-				make([]byte, 0, appconsts.ShareSize), namespace...),
+				make([]byte, 0, appconsts.ShareSize), ns...),
 				byte(infoByte)),
 				make([]byte, appconsts.SparseShareContentSize)...),
-			ID: namespace,
+			ID: ns,
 		}
 	}
 	return shares
