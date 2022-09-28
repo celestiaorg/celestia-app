@@ -27,7 +27,7 @@ func TestSplitTxs(t *testing.T) {
 				append([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1, // info byte
-					0x0, // BUG: reserved byte should be non-zero
+					0x0, // reserved byte
 					0x1, // unit length of first transaction
 					0xa, // data of first transaction
 				}, bytes.Repeat([]byte{0}, 244)...), // padding
@@ -40,7 +40,7 @@ func TestSplitTxs(t *testing.T) {
 				append([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1, // info byte
-					0x0, // BUG: reserved byte should be non-zero
+					0x0, // reserved byte
 					0x1, // unit length of first transaction
 					0xa, // data of first transaction
 					0x1, // unit length of second transaction
@@ -55,7 +55,7 @@ func TestSplitTxs(t *testing.T) {
 				append([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,    // info byte
-					0x0,    // BUG: reserved byte should be non-zero
+					0x0,    // BUG reserved byte should be non-zero see https://github.com/celestiaorg/celestia-app/issues/802
 					245, 1, // unit length of first transaction is 245
 				}, bytes.Repeat([]byte{0xc}, 244)...), // data of first transaction
 				append([]uint8{
@@ -73,7 +73,7 @@ func TestSplitTxs(t *testing.T) {
 				append([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,    // info byte
-					0x0,    // BUG: reserved byte should be non-zero
+					0x0,    // BUG reserved byte should be non-zero see https://github.com/celestiaorg/celestia-app/issues/802
 					1,      // unit length of first transaction
 					0xd,    // data of first transaction
 					243, 1, // unit length of second transaction is 243
