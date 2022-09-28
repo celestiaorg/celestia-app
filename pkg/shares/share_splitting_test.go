@@ -87,7 +87,7 @@ func TestSplitTxs(t *testing.T) {
 					0x0,           // info byte
 					0x0,           // reserved byte
 					0xe, 0xe, 0xe, // continuation data of second transaction
-				}, bytes.Repeat([]byte{0x0}, 244)...), // padding
+				}, bytes.Repeat([]byte{0x0}, 243)...), // padding
 			},
 		},
 	}
