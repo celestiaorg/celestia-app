@@ -132,7 +132,7 @@ func (css *CompactShareSplitter) stackPending() {
 func (css *CompactShareSplitter) Export() NamespacedShares {
 	// add the pending share to the current shares before returning
 	if len(css.pendingShare.Share) > appconsts.NamespaceSize+appconsts.ShareInfoBytes {
-		css.pendingShare.Share = zeroPadIfNecessary(css.pendingShare.Share, appconsts.ShareSize)
+		css.pendingShare.Share, _ = zeroPadIfNecessary(css.pendingShare.Share, appconsts.ShareSize)
 		css.shares = append(css.shares, css.pendingShare)
 	}
 	// force the last share to have a reserve byte of zero
