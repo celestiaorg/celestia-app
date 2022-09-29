@@ -2,7 +2,7 @@ package shares
 
 import "testing"
 
-func TestInfoReservedByte(t *testing.T) {
+func TestInfoByte(t *testing.T) {
 	messageStart := true
 	notMessageStart := false
 
@@ -23,7 +23,7 @@ func TestInfoReservedByte(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		irb, err := NewInfoReservedByte(test.version, test.isMessageStart)
+		irb, err := NewInfoByte(test.version, test.isMessageStart)
 		if err != nil {
 			t.Errorf("got %v want no error", err)
 		}
@@ -36,7 +36,7 @@ func TestInfoReservedByte(t *testing.T) {
 	}
 }
 
-func TestInfoReservedByteErrors(t *testing.T) {
+func TestInfoByteErrors(t *testing.T) {
 	messageStart := true
 	notMessageStart := false
 
@@ -53,26 +53,26 @@ func TestInfoReservedByteErrors(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		_, err := NewInfoReservedByte(test.version, false)
+		_, err := NewInfoByte(test.version, false)
 		if err == nil {
 			t.Errorf("got nil but want error when version > 127")
 		}
 	}
 }
 
-func FuzzNewInfoReservedByte(f *testing.F) {
+func FuzzNewInfoByte(f *testing.F) {
 	f.Fuzz(func(t *testing.T, version uint8, isMessageStart bool) {
 		if version > 127 {
 			t.Skip()
 		}
-		_, err := NewInfoReservedByte(version, isMessageStart)
+		_, err := NewInfoByte(version, isMessageStart)
 		if err != nil {
 			t.Errorf("got nil but want error when version > 127")
 		}
 	})
 }
 
-func TestParseInfoReservedByte(t *testing.T) {
+func TestParseInfoByte(t *testing.T) {
 	type testCase struct {
 		b                  byte
 		wantVersion        uint8
@@ -89,7 +89,7 @@ func TestParseInfoReservedByte(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got, err := ParseInfoReservedByte(test.b)
+		got, err := ParseInfoByte(test.b)
 		if err != nil {
 			t.Errorf("got %v want no error", err)
 		}
