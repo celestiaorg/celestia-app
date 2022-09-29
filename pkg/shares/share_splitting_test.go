@@ -90,6 +90,27 @@ func TestSplitTxs(t *testing.T) {
 				}, bytes.Repeat([]byte{0x0}, 243)...), // padding
 			},
 		},
+		{
+			name: "one large tx that spans two shares then one small tx",
+			txs:  coretypes.Txs{bytes.Repeat([]byte{0xe}, 241), coretypes.Tx{0xd}},
+			want: [][]uint8{
+				append([]uint8{
+					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
+					0x1,          // info byte
+					245, 1, 0, 0, // 243 bytes (first transaction) + 2 bytes (second transaction) = 245 bytes message length
+					14,     // reserved byte
+					241, 1, // unit length of first transaction is 241
+				}, bytes.Repeat([]byte{0xe}, 240)...), // data of first transaction
+				append([]uint8{
+					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
+					0x0, // info byte
+					11,  // reserved byte
+					0xe, // continuation data of first transaction
+					1,   // unit length of second transaction
+					0xd, // data of second transaction
+				}, bytes.Repeat([]byte{0x0}, 243)...), // padding
+			},
+		},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -99,4 +120,4 @@ func TestSplitTxs(t *testing.T) {
 			}
 		})
 	}
-}
+} //
