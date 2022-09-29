@@ -2,6 +2,7 @@ package prove
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -97,18 +98,37 @@ func txSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos 
 		return startSharePos, endSharePos, errors.New("transaction index is greater than the number of txs")
 	}
 
-	totalLen := 0
+	prevTxTotalLen := 0
 	for i := uint64(0); i < txIndex; i++ {
 		txLen := len(txs[i])
-		totalLen += (shares.DelimLen(uint64(txLen)) + txLen)
+		prevTxTotalLen += (shares.DelimLen(uint64(txLen)) + txLen)
 	}
 
-	txLen := len(txs[txIndex])
+	currentTxLen := len(txs[txIndex])
+	currentTxTotalLen := shares.DelimLen(uint64(currentTxLen)) + currentTxLen
+	endOfCurrentTxLen := prevTxTotalLen + currentTxTotalLen
 
-	startSharePos = uint64((totalLen) / appconsts.ContinuationCompactShareContentSize)
-	endSharePos = uint64((totalLen + txLen + shares.DelimLen(uint64(txLen))) / appconsts.ContinuationCompactShareContentSize)
-
+	startSharePos = txShareIndex(prevTxTotalLen)
+	endSharePos = txShareIndex(endOfCurrentTxLen)
+	fmt.Printf("prevTxTotalLen: %d, endOfCurrentTxLen: %d, startSharePos: %d, endSharePos %d, currentTxTotalLen %d\n", prevTxTotalLen, endOfCurrentTxLen, startSharePos, endSharePos, currentTxTotalLen)
 	return startSharePos, endSharePos, nil
+}
+
+// txShareIndex returns the index of the compact share that would contain
+// transactions with totalTxLen
+func txShareIndex(totalTxLen int) (index uint64) {
+	if totalTxLen <= appconsts.FirstCompactShareContentSize {
+		return 0
+	}
+
+	index++
+	totalTxLen -= appconsts.FirstCompactShareContentSize
+
+	for totalTxLen > appconsts.ContinuationCompactShareContentSize {
+		index++
+		totalTxLen -= appconsts.ContinuationCompactShareContentSize
+	}
+	return index
 }
 
 // genRowShares progessively generates data square rows from block data

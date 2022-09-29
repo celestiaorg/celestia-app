@@ -62,7 +62,7 @@ func TestFuzz_processCompactShares(t *testing.T) {
 
 func Test_processCompactShares(t *testing.T) {
 	// exactTxShareSize is the length of tx that will fit exactly into a single
-	// share, accounting for namespace id and the length delimiter prepended to
+	// share, accounting for the tx length delimiter prepended to
 	// each tx. Note that the length delimiter can be 1 to 10 bytes (varint) but
 	// this test assumes it is 1 byte.
 	const exactTxShareSize = appconsts.ContinuationCompactShareContentSize - 1
@@ -81,7 +81,7 @@ func Test_processCompactShares(t *testing.T) {
 		{"single big tx", appconsts.ContinuationCompactShareContentSize * 4, 1},
 		{"many big txs", appconsts.ContinuationCompactShareContentSize * 4, 10},
 		{"single exact size tx", exactTxShareSize, 1},
-		{"many exact size txs", exactTxShareSize, 10},
+		{"many exact size txs", exactTxShareSize, 100},
 	}
 
 	for _, tc := range tests {

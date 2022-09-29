@@ -9,7 +9,8 @@ import (
 
 // parseCompactShares takes raw shares and extracts out transactions,
 // intermediate state roots, or evidence. The returned [][]byte do not have
-// namespaces, info bytes, or length delimiters and are ready to be unmarshalled
+// namespaces, info bytes, data length delimiter, or unit length
+// delimiters and are ready to be unmarshalled
 func parseCompactShares(shares [][]byte) (data [][]byte, err error) {
 	if len(shares) == 0 {
 		return nil, nil
@@ -44,7 +45,7 @@ func (ss *shareStack) resolve() ([][]byte, error) {
 	if !infoByte.IsMessageStart() {
 		return nil, errors.New("first share is not a message start")
 	}
-	err = ss.peel(ss.shares[0][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:], true)
+	err = ss.peel(ss.shares[0][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareDataLengthBytes+appconsts.CompactShareReservedBytes:], true)
 	return ss.data, err
 }
 
