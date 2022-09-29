@@ -145,38 +145,7 @@ func (css *CompactShareSplitter) Export() NamespacedShares {
 
 	dataLengthVarint := css.dataLengthVarint(bytesOfPadding)
 	css.writeDataLengthVarintToFirstShare(dataLengthVarint)
-	css.forceLastShareReserveByteToZero()
 	return css.shares
-}
-
-// forceLastShareReserveByteToZero overwrites the reserve byte of the last share
-// with zero. See https://github.com/celestiaorg/celestia-app/issues/779
-func (css *CompactShareSplitter) forceLastShareReserveByteToZero() {
-	if len(css.shares) == 0 {
-		return
-	}
-	lastShare := css.shares[len(css.shares)-1]
-	rawLastShare := lastShare.Data()
-
-	for i := 0; i < appconsts.CompactShareReservedBytes; i++ {
-		// here we force the last share reserved byte to be zero to avoid any
-		// confusion for light clients parsing these shares, as the rest of the
-		// data after transaction is padding. See
-		// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#share
-		if len(css.shares) == 1 {
-			// the reserved byte is after the namespace, info byte, and data length varint
-			rawLastShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareDataLengthBytes+i] = byte(0)
-		} else {
-			// the reserved byte is after the namespace, info byte
-			rawLastShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+i] = byte(0)
-		}
-	}
-
-	newLastShare := NamespacedShare{
-		Share: rawLastShare,
-		ID:    lastShare.NamespaceID(),
-	}
-	css.shares[len(css.shares)-1] = newLastShare
 }
 
 // dataLengthVarint returns a varint of the data length written to this compact
