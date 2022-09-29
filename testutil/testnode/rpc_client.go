@@ -14,7 +14,6 @@ import (
 	"github.com/tendermint/tendermint/rpc/client/local"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	// servergrpc "github.com/cosmos/cosmos-sdk/server/grpc"
 )
 
 // StartNode starts the tendermint node along with a local core rpc client. The
