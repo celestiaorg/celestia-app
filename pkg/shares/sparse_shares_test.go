@@ -109,7 +109,7 @@ func TestMsgShareContainsInfoByte(t *testing.T) {
 	got := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
 	isMessageStart := true
-	want, err := NewInfoReservedByte(appconsts.ShareVersion, isMessageStart)
+	want, err := NewInfoByte(appconsts.ShareVersion, isMessageStart)
 
 	require.NoError(t, err)
 	assert.Equal(t, byte(want), got)
@@ -127,7 +127,7 @@ func TestContiguousMsgShareContainsInfoByte(t *testing.T) {
 	got := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
 	isMessageStart := false
-	want, err := NewInfoReservedByte(appconsts.ShareVersion, isMessageStart)
+	want, err := NewInfoByte(appconsts.ShareVersion, isMessageStart)
 
 	require.NoError(t, err)
 	assert.Equal(t, byte(want), got)

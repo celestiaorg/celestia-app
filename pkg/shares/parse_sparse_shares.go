@@ -45,7 +45,7 @@ func parseSparseShares(shares [][]byte) ([]coretypes.Message, error) {
 			}
 			currentMsgLen = int(nextMsgLen)
 			nid := shares[i][:appconsts.NamespaceSize]
-			infoByte, err := ParseInfoReservedByte(shares[i][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0])
+			infoByte, err := ParseInfoByte(shares[i][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0])
 			if err != nil {
 				panic(err)
 			}
