@@ -47,10 +47,7 @@ func Test_parseSparseShares(t *testing.T) {
 			msgs.SortMessages()
 
 			shares, _ := SplitMessages(0, nil, msgs.MessagesList, false)
-			rawShares := make([][]byte, len(shares))
-			for i, share := range shares {
-				rawShares[i] = []byte(share)
-			}
+			rawShares := ToBytes(shares)
 
 			parsedMsgs, err := parseSparseShares(rawShares)
 			if err != nil {
@@ -103,10 +100,7 @@ func TestParsePaddedMsg(t *testing.T) {
 	msgWr.Write(msgs.MessagesList[1])
 	msgWr.WriteNamespacedPaddedShares(10)
 	shares := msgWr.Export()
-	rawShares := make([][]byte, len(shares))
-	for i, share := range shares {
-		rawShares[i] = []byte(share)
-	}
+	rawShares := ToBytes(shares)
 	pmsgs, err := parseSparseShares(rawShares)
 	require.NoError(t, err)
 	require.Equal(t, msgs.MessagesList, pmsgs)

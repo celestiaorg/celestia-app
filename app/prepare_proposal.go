@@ -57,13 +57,9 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	if err != nil {
 		panic(err)
 	}
-	rawShares := make([][]byte, len(dataSquare))
-	for i, share := range dataSquare {
-		rawShares[i] = []byte(share)
-	}
 
 	// erasure the data square which we use to create the data root.
-	eds, err := da.ExtendShares(squareSize, rawShares)
+	eds, err := da.ExtendShares(squareSize, shares.ToBytes(dataSquare))
 	if err != nil {
 		app.Logger().Error(
 			"failure to erasure the data square while creating a proposal block",

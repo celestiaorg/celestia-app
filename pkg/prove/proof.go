@@ -64,10 +64,7 @@ func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxP
 			endLeafPos = data.OriginalSquareSize - 1
 		}
 
-		for _, rawShare := range row[startLeafPos : endLeafPos+1] {
-			rawShares = append(rawShares, rawShare)
-		}
-
+		rawShares = append(rawShares, shares.ToBytes(row[startLeafPos:endLeafPos+1])...)
 		proof, err := tree.Tree().ProveRange(int(startLeafPos), int(endLeafPos+1))
 		if err != nil {
 			return types.TxProof{}, err
@@ -145,24 +142,15 @@ func genRowShares(codec rsmt2d.Codec, data types.Data, startRow, endRow uint64) 
 
 	encodedRowShares := make([][]shares.Share, len(origRowShares))
 	for i, row := range origRowShares {
-		rawRowShares := make([][]byte, len(row))
-		for i, share := range row {
-			rawRowShares[i] = []byte(share)
-		}
-		encRow, err := codec.Encode(rawRowShares)
+		encRow, err := codec.Encode(shares.ToBytes(row))
 		if err != nil {
 			panic(err)
 		}
-		encodedShares := make([]shares.Share, len(encRow))
-		for i, share := range encRow {
-			encodedShares[i] = []byte(share)
-		}
-
 		encodedRowShares[i] = append(
 			append(
 				make([]shares.Share, 0, len(row)+len(encRow)),
 				row...,
-			), encodedShares...,
+			), shares.FromBytes(encRow)...,
 		)
 	}
 

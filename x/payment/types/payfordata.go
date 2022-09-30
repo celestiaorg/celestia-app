@@ -13,7 +13,7 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 	coretypes "github.com/tendermint/tendermint/types"
 
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 )
 
 const (
@@ -124,7 +124,7 @@ func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, err
 
 	// split into shares that are length delimited and include the namespace in
 	// each share
-	shares, err := shares.SplitMessages(0, nil, msg.MessagesList, false)
+	shares, err := appshares.SplitMessages(0, nil, msg.MessagesList, false)
 	if err != nil {
 		return nil, err
 	}
@@ -142,11 +142,7 @@ func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, err
 	leafSets := make([][][]byte, len(heights))
 	cursor := uint64(0)
 	for i, height := range heights {
-		leafSet := make([][]byte, height)
-		for index, s := range shares[cursor : cursor+height] {
-			leafSet[index] = []byte(s)
-		}
-		leafSets[i] = leafSet
+		leafSets[i] = appshares.ToBytes(shares[cursor : cursor+height])
 		cursor = cursor + height
 	}
 

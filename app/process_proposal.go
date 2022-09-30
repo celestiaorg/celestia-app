@@ -48,13 +48,9 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
 	}
-	rawShares := make([][]byte, len(dataSquare))
-	for i, share := range dataSquare {
-		rawShares[i] = []byte(share)
-	}
 
 	cacher := inclusion.NewSubtreeCacher(data.OriginalSquareSize)
-	eds, err := rsmt2d.ComputeExtendedDataSquare(rawShares, appconsts.DefaultCodec(), cacher.Constructor)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(dataSquare), appconsts.DefaultCodec(), cacher.Constructor)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to erasure the data square", err)
 		return abci.ResponseProcessProposal{

@@ -22,10 +22,7 @@ func TestCompactShareWriter(t *testing.T) {
 		w.WriteBytes(rawTx)
 	}
 	shares := w.Export()
-	rawShares := make([][]byte, len(shares))
-	for i, share := range shares {
-		rawShares[i] = []byte(share)
-	}
+	rawShares := ToBytes(shares)
 	rawResTxs, err := parseCompactShares(rawShares)
 	resTxs := coretypes.ToTxs(rawResTxs)
 	require.NoError(t, err)
@@ -96,10 +93,7 @@ func Test_processCompactShares(t *testing.T) {
 			txs := generateRandomTransaction(tc.txCount, tc.txSize)
 
 			shares := SplitTxs(txs)
-			rawShares := make([][]byte, len(shares))
-			for i, share := range shares {
-				rawShares[i] = []byte(share)
-			}
+			rawShares := ToBytes(shares)
 
 			parsedTxs, err := parseCompactShares(rawShares)
 			if err != nil {
@@ -117,10 +111,7 @@ func Test_processCompactShares(t *testing.T) {
 			txs := generateRandomlySizedTransactions(tc.txCount, tc.txSize)
 
 			shares := SplitTxs(txs)
-			rawShares := make([][]byte, len(shares))
-			for i, share := range shares {
-				rawShares[i] = []byte(share)
-			}
+			rawShares := ToBytes(shares)
 
 			parsedTxs, err := parseCompactShares(rawShares)
 			if err != nil {
@@ -178,10 +169,7 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 func Test_parseCompactSharesReturnsErrForShareWithStartIndicatorFalse(t *testing.T) {
 	txs := generateRandomTransaction(2, appconsts.ContinuationCompactShareContentSize*4)
 	shares := SplitTxs(txs)
-	rawShares := make([][]byte, len(shares))
-	for i, share := range shares {
-		rawShares[i] = []byte(share)
-	}
+	rawShares := ToBytes(shares)
 
 	_, err := parseCompactShares(rawShares[1:]) // the second share has the message start indicator set to false
 	assert.Error(t, err)

@@ -47,3 +47,19 @@ func (s Share) MessageLength() (uint64, error) {
 func (s Share) isCompactShare() bool {
 	return s.NamespaceID().Equal(appconsts.TxNamespaceID) || s.NamespaceID().Equal(appconsts.EvidenceNamespaceID)
 }
+
+func ToBytes(shares []Share) (bytes [][]byte) {
+	bytes = make([][]byte, len(shares))
+	for i, share := range shares {
+		bytes[i] = []byte(share)
+	}
+	return bytes
+}
+
+func FromBytes(bytes [][]byte) (shares []Share) {
+	shares = make([]Share, len(bytes))
+	for i, b := range bytes {
+		shares[i] = Share(b)
+	}
+	return shares
+}
