@@ -226,7 +226,7 @@ func TestTxShareIndex(t *testing.T) {
 // stripCompactShares strips the universal prefix (namespace, info byte, data length) and
 // reserved byte from a list of compact shares and joins them into a single byte
 // slice.
-func stripCompactShares(compactShares [][]byte, start uint64, end uint64) (result []byte) {
+func stripCompactShares(compactShares []shares.Share, start uint64, end uint64) (result []byte) {
 	for i := start; i <= end; i++ {
 		if i == 0 {
 			// the first compact share includes a total data length varint

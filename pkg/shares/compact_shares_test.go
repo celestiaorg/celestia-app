@@ -21,8 +21,12 @@ func TestCompactShareWriter(t *testing.T) {
 		rawTx, _ := MarshalDelimitedTx(tx)
 		w.WriteBytes(rawTx)
 	}
-	resShares := w.Export()
-	rawResTxs, err := parseCompactShares(resShares.RawShares())
+	shares := w.Export()
+	rawShares := make([][]byte, len(shares))
+	for i, share := range shares {
+		rawShares[i] = []byte(share)
+	}
+	rawResTxs, err := parseCompactShares(rawShares)
 	resTxs := coretypes.ToTxs(rawResTxs)
 	require.NoError(t, err)
 
@@ -92,8 +96,12 @@ func Test_processCompactShares(t *testing.T) {
 			txs := generateRandomTransaction(tc.txCount, tc.txSize)
 
 			shares := SplitTxs(txs)
+			rawShares := make([][]byte, len(shares))
+			for i, share := range shares {
+				rawShares[i] = []byte(share)
+			}
 
-			parsedTxs, err := parseCompactShares(shares)
+			parsedTxs, err := parseCompactShares(rawShares)
 			if err != nil {
 				t.Error(err)
 			}
@@ -109,8 +117,12 @@ func Test_processCompactShares(t *testing.T) {
 			txs := generateRandomlySizedTransactions(tc.txCount, tc.txSize)
 
 			shares := SplitTxs(txs)
+			rawShares := make([][]byte, len(shares))
+			for i, share := range shares {
+				rawShares[i] = []byte(share)
+			}
 
-			parsedTxs, err := parseCompactShares(shares)
+			parsedTxs, err := parseCompactShares(rawShares)
 			if err != nil {
 				t.Error(err)
 			}
@@ -131,7 +143,7 @@ func TestCompactShareContainsInfoByte(t *testing.T) {
 		css.WriteTx(tx)
 	}
 
-	shares := css.Export().RawShares()
+	shares := css.Export()
 	assert.Condition(t, func() bool { return len(shares) == 1 })
 
 	infoByte := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
@@ -151,7 +163,7 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 		css.WriteTx(tx)
 	}
 
-	shares := css.Export().RawShares()
+	shares := css.Export()
 	assert.Condition(t, func() bool { return len(shares) > 1 })
 
 	infoByte := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
@@ -166,6 +178,11 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 func Test_parseCompactSharesReturnsErrForShareWithStartIndicatorFalse(t *testing.T) {
 	txs := generateRandomTransaction(2, appconsts.ContinuationCompactShareContentSize*4)
 	shares := SplitTxs(txs)
-	_, err := parseCompactShares(shares[1:]) // the second share has the message start indicator set to false
+	rawShares := make([][]byte, len(shares))
+	for i, share := range shares {
+		rawShares[i] = []byte(share)
+	}
+
+	_, err := parseCompactShares(rawShares[1:]) // the second share has the message start indicator set to false
 	assert.Error(t, err)
 }

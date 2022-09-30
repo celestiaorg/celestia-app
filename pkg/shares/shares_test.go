@@ -200,8 +200,12 @@ func TestMerge(t *testing.T) {
 				tc.maxSize,
 			)
 
-			rawShares, err := Split(data, false)
+			shares, err := Split(data, false)
 			require.NoError(t, err)
+			rawShares := make([][]byte, len(shares))
+			for i, share := range shares {
+				rawShares[i] = []byte(share)
+			}
 
 			eds, err := rsmt2d.ComputeExtendedDataSquare(rawShares, appconsts.DefaultCodec(), rsmt2d.NewDefaultTree)
 			if err != nil {

@@ -142,7 +142,11 @@ func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, err
 	leafSets := make([][][]byte, len(heights))
 	cursor := uint64(0)
 	for i, height := range heights {
-		leafSets[i] = shares[cursor : cursor+height]
+		leafSet := make([][]byte, height)
+		for index, s := range shares[cursor : cursor+height] {
+			leafSet[index] = []byte(s)
+		}
+		leafSets[i] = leafSet
 		cursor = cursor + height
 	}
 
