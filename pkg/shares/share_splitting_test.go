@@ -64,7 +64,7 @@ func TestSplitTxs(t *testing.T) {
 				append([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x0, // info byte
-					0x0, // reserved byte
+					0xb, // BUG: reserved byte should be zero
 					0xc, // continuation data of first transaction
 				}, bytes.Repeat([]byte{0x0}, 245)...), // padding
 			},
@@ -85,7 +85,7 @@ func TestSplitTxs(t *testing.T) {
 				append([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x0,           // info byte
-					0x0,           // reserved byte
+					0xd,           // BUG: reserved byte should be zero
 					0xe, 0xe, 0xe, // continuation data of second transaction
 				}, bytes.Repeat([]byte{0x0}, 243)...), // padding
 			},
