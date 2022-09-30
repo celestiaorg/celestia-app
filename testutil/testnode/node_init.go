@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -95,7 +94,6 @@ func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey crypto
 	}
 
 	return genDoc.SaveAs(genFile)
-
 }
 
 func initGenFiles(
@@ -152,7 +150,6 @@ func createValidator(
 	chainID,
 	baseDir string,
 ) error {
-
 	rec, err := kr.Key(valopAcc)
 	if err != nil {
 		return err
@@ -234,7 +231,7 @@ func writeFile(name string, dir string, contents []byte) error {
 		return err
 	}
 
-	err = ioutil.WriteFile(file, contents, 0o644) // nolint: gosec
+	err = os.WriteFile(file, contents, 0o644) // nolint: gosec
 	if err != nil {
 		return err
 	}

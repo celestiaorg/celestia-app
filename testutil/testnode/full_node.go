@@ -70,9 +70,15 @@ func New(t *testing.T, tmCfg *config.Config, supressLog bool, fundedAccounts ...
 		return nil, nil, Context{}, err
 	}
 
-	initGenFiles(genState, encCfg.Codec, authAccs, bankBals, tmCfg.GenesisFile(), chainID)
+	err = initGenFiles(genState, encCfg.Codec, authAccs, bankBals, tmCfg.GenesisFile(), chainID)
+	if err != nil {
+		return nil, nil, Context{}, err
+	}
 
-	collectGenFiles(tmCfg, encCfg, pubKey, nodeID, chainID, baseDir)
+	err = collectGenFiles(tmCfg, encCfg, pubKey, nodeID, chainID, baseDir)
+	if err != nil {
+		return nil, nil, Context{}, err
+	}
 
 	db := dbm.NewMemDB()
 

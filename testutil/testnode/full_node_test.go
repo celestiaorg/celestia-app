@@ -23,7 +23,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.T().Log("setting up integration test suite")
 	require := s.Require()
 
-	// we create an arbitray number of funded accounts
+	// we create an arbitrary number of funded accounts
 	for i := 0; i < 300; i++ {
 		s.accounts = append(s.accounts, tmrand.Str(9))
 	}
@@ -38,6 +38,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.cleanups = append(s.cleanups, stopNode)
 
 	cctx, cleanupGRPC, err := StartGRPCServer(app, DefaultAppConfig(), cctx)
+	require.NoError(err)
 	s.cleanups = append(s.cleanups, cleanupGRPC)
 
 	s.cctx = cctx
