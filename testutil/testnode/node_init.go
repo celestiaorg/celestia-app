@@ -82,12 +82,20 @@ func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey crypto
 		return err
 	}
 
-	// overwrite each validator's genesis file to have a canonical genesis time
-	if err := genutil.ExportGenesisFileWithTime(genFile, chainID, nil, appState, genTime); err != nil {
+	genDoc = &types.GenesisDoc{
+		GenesisTime:     genTime,
+		ChainID:         chainID,
+		Validators:      nil,
+		AppState:        appState,
+		ConsensusParams: genDoc.ConsensusParams,
+	}
+
+	if err := genDoc.ValidateAndComplete(); err != nil {
 		return err
 	}
 
-	return nil
+	return genDoc.SaveAs(genFile)
+
 }
 
 func initGenFiles(

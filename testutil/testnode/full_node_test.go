@@ -1,6 +1,7 @@
 package testnode
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -42,10 +43,15 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 	}
 }
 
-func (s *IntegrationTestSuite) TestNetwork_Liveness() {
+func (s *IntegrationTestSuite) Test_Liveness() {
 	require := s.Require()
-	_, err := WaitForHeight(s.cctx, 20)
+	err := WaitForNextBlock(s.cctx)
 	require.NoError(err)
+	// check that we're actually able to set the consensus params
+	params, err := s.cctx.Client.ConsensusParams(context.TODO(), nil)
+	require.NoError(err)
+	require.Equal(1, params.ConsensusParams.Block.TimeIotaMs)
+	_, err = WaitForHeight(s.cctx, 20)
 }
 
 func TestIntegrationTestSuite(t *testing.T) {
