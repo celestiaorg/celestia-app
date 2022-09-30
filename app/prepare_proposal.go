@@ -59,7 +59,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	}
 
 	// erasure the data square which we use to create the data root.
-	eds, err := da.ExtendShares(squareSize, dataSquare)
+	eds, err := da.ExtendShares(squareSize, shares.ToBytes(dataSquare))
 	if err != nil {
 		app.Logger().Error(
 			"failure to erasure the data square while creating a proposal block",

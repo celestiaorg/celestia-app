@@ -12,18 +12,18 @@ func TestSplitTxs(t *testing.T) {
 	type testCase struct {
 		name string
 		txs  coretypes.Txs
-		want [][]byte
+		want []Share
 	}
 	testCases := []testCase{
 		{
 			name: "empty txs",
 			txs:  coretypes.Txs{},
-			want: [][]byte{},
+			want: []Share{},
 		},
 		{
 			name: "one small tx",
 			txs:  coretypes.Txs{coretypes.Tx{0xa}},
-			want: [][]uint8{
+			want: []Share{
 				append([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,                // info byte
@@ -37,7 +37,7 @@ func TestSplitTxs(t *testing.T) {
 		{
 			name: "two small txs",
 			txs:  coretypes.Txs{coretypes.Tx{0xa}, coretypes.Tx{0xb}},
-			want: [][]uint8{
+			want: []Share{
 				append([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,                // info byte
@@ -53,7 +53,7 @@ func TestSplitTxs(t *testing.T) {
 		{
 			name: "one large tx that spans two shares",
 			txs:  coretypes.Txs{bytes.Repeat([]byte{0xC}, 241)},
-			want: [][]uint8{
+			want: []Share{
 				append([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,          // info byte
@@ -72,7 +72,7 @@ func TestSplitTxs(t *testing.T) {
 		{
 			name: "one small tx then one large tx that spans two shares",
 			txs:  coretypes.Txs{coretypes.Tx{0xd}, bytes.Repeat([]byte{0xe}, 241)},
-			want: [][]uint8{
+			want: []Share{
 				append([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,          // info byte
@@ -93,7 +93,7 @@ func TestSplitTxs(t *testing.T) {
 		{
 			name: "one large tx that spans two shares then one small tx",
 			txs:  coretypes.Txs{bytes.Repeat([]byte{0xe}, 241), coretypes.Tx{0xd}},
-			want: [][]uint8{
+			want: []Share{
 				append([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,          // info byte

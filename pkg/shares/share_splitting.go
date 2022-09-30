@@ -1,6 +1,7 @@
 package shares
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"sort"
@@ -21,7 +22,7 @@ var (
 // Split converts block data into encoded shares, optionally using share indexes
 // that are encoded as wrapped transactions. Most use cases out of this package
 // should use these share indexes and therefore set useShareIndexes to true.
-func Split(data coretypes.Data, useShareIndexes bool) ([][]byte, error) {
+func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 	if data.OriginalSquareSize == 0 || !isPowerOf2(data.OriginalSquareSize) {
 		return nil, fmt.Errorf("square size is not a power of two: %d", data.OriginalSquareSize)
 	}
@@ -43,7 +44,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([][]byte, error) {
 	msgIndexes := ExtractShareIndexes(data.Txs)
 	sort.Slice(msgIndexes, func(i, j int) bool { return msgIndexes[i] < msgIndexes[j] })
 
-	var padding [][]byte
+	var padding []Share
 	if len(data.Messages.MessagesList) > 0 {
 		msgShareStart, _ := NextAlignedPowerOfTwo(
 			currentShareCount,
@@ -54,11 +55,11 @@ func Split(data coretypes.Data, useShareIndexes bool) ([][]byte, error) {
 		if len(evdShares) > 0 {
 			ns = appconsts.EvidenceNamespaceID
 		}
-		padding = namespacedPaddedShares(ns, msgShareStart-currentShareCount).RawShares()
+		padding = namespacedPaddedShares(ns, msgShareStart-currentShareCount)
 	}
 	currentShareCount += len(padding)
 
-	var msgShares [][]byte
+	var msgShares []Share
 	if msgIndexes != nil && int(msgIndexes[0]) < currentShareCount {
 		return nil, ErrUnexpectedFirstMessageShareIndex
 	}
@@ -68,7 +69,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([][]byte, error) {
 		return nil, err
 	}
 	currentShareCount += len(msgShares)
-	tailShares := TailPaddingShares(wantShareCount - currentShareCount).RawShares()
+	tailShares := TailPaddingShares(wantShareCount - currentShareCount)
 
 	// todo: optimize using a predefined slice
 	shares := append(append(append(append(
@@ -105,15 +106,15 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 	return msgIndexes
 }
 
-func SplitTxs(txs coretypes.Txs) [][]byte {
+func SplitTxs(txs coretypes.Txs) []Share {
 	writer := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
 	for _, tx := range txs {
 		writer.WriteTx(tx)
 	}
-	return writer.Export().RawShares()
+	return writer.Export()
 }
 
-func SplitEvidence(evd coretypes.EvidenceList) ([][]byte, error) {
+func SplitEvidence(evd coretypes.EvidenceList) ([]Share, error) {
 	writer := NewCompactShareSplitter(appconsts.EvidenceNamespaceID, appconsts.ShareVersion)
 	for _, ev := range evd {
 		err := writer.WriteEvidence(ev)
@@ -121,10 +122,10 @@ func SplitEvidence(evd coretypes.EvidenceList) ([][]byte, error) {
 			return nil, err
 		}
 	}
-	return writer.Export().RawShares(), nil
+	return writer.Export(), nil
 }
 
-func SplitMessages(cursor int, indexes []uint32, msgs []coretypes.Message, useShareIndexes bool) ([][]byte, error) {
+func SplitMessages(cursor int, indexes []uint32, msgs []coretypes.Message, useShareIndexes bool) ([]Share, error) {
 	if useShareIndexes && len(indexes) != len(msgs) {
 		return nil, ErrIncorrectNumberOfIndexes
 	}
@@ -136,5 +137,24 @@ func SplitMessages(cursor int, indexes []uint32, msgs []coretypes.Message, useSh
 			writer.WriteNamespacedPaddedShares(paddedShareCount)
 		}
 	}
-	return writer.Export().RawShares(), nil
+	return writer.Export(), nil
+}
+
+var tailPaddingInfo, _ = NewInfoByte(appconsts.ShareVersion, false)
+
+// tail is filler for all tail padded shares
+// it is allocated once and used everywhere
+var tailPaddingShare = append(append(
+	append(make([]byte, 0, appconsts.ShareSize), appconsts.TailPaddingNamespaceID...),
+	byte(tailPaddingInfo)),
+	bytes.Repeat([]byte{0}, appconsts.ShareSize-appconsts.NamespaceSize-appconsts.ShareInfoBytes)...,
+)
+
+// TailPaddingShares creates n tail padding shares.
+func TailPaddingShares(n int) []Share {
+	shares := make([]Share, n)
+	for i := 0; i < n; i++ {
+		shares[i] = tailPaddingShare
+	}
+	return shares
 }

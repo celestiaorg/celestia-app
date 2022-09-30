@@ -47,8 +47,9 @@ func Test_parseSparseShares(t *testing.T) {
 			msgs.SortMessages()
 
 			shares, _ := SplitMessages(0, nil, msgs.MessagesList, false)
+			rawShares := ToBytes(shares)
 
-			parsedMsgs, err := parseSparseShares(shares)
+			parsedMsgs, err := parseSparseShares(rawShares)
 			if err != nil {
 				t.Error(err)
 			}
@@ -64,8 +65,12 @@ func Test_parseSparseShares(t *testing.T) {
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
 			msgs := generateRandomlySizedMessages(tc.msgCount, tc.msgSize)
 			shares, _ := SplitMessages(0, nil, msgs.MessagesList, false)
+			rawShares := make([][]byte, len(shares))
+			for i, share := range shares {
+				rawShares[i] = []byte(share)
+			}
 
-			parsedMsgs, err := parseSparseShares(shares)
+			parsedMsgs, err := parseSparseShares(rawShares)
 			if err != nil {
 				t.Error(err)
 			}
@@ -94,7 +99,9 @@ func TestParsePaddedMsg(t *testing.T) {
 	msgWr.WriteNamespacedPaddedShares(4)
 	msgWr.Write(msgs.MessagesList[1])
 	msgWr.WriteNamespacedPaddedShares(10)
-	pmsgs, err := parseSparseShares(msgWr.Export().RawShares())
+	shares := msgWr.Export()
+	rawShares := ToBytes(shares)
+	pmsgs, err := parseSparseShares(rawShares)
 	require.NoError(t, err)
 	require.Equal(t, msgs.MessagesList, pmsgs)
 }
@@ -104,7 +111,7 @@ func TestMsgShareContainsInfoByte(t *testing.T) {
 	smallMsg := generateRandomMessage(appconsts.SparseShareContentSize / 2)
 	sss.Write(smallMsg)
 
-	shares := sss.Export().RawShares()
+	shares := sss.Export()
 
 	got := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
@@ -120,7 +127,7 @@ func TestContiguousMsgShareContainsInfoByte(t *testing.T) {
 	longMsg := generateRandomMessage(appconsts.SparseShareContentSize * 4)
 	sss.Write(longMsg)
 
-	shares := sss.Export().RawShares()
+	shares := sss.Export()
 
 	// we expect longMsg to occupy more than one share
 	assert.Condition(t, func() bool { return len(shares) > 1 })
