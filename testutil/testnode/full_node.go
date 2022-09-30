@@ -7,7 +7,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
-	"github.com/cosmos/cosmos-sdk/client"
 	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -32,7 +31,7 @@ import (
 //
 // note: the passed application config is currently unused atm, but we plan to
 // add support.
-func New(t *testing.T, tmCfg *config.Config, supressLog bool, fundedAccounts ...string) (*node.Node, srvtypes.Application, client.Context, error) {
+func New(t *testing.T, tmCfg *config.Config, supressLog bool, fundedAccounts ...string) (*node.Node, srvtypes.Application, Context, error) {
 	var logger log.Logger
 	if supressLog {
 		logger = log.NewNopLogger()
@@ -43,7 +42,7 @@ func New(t *testing.T, tmCfg *config.Config, supressLog bool, fundedAccounts ...
 
 	baseDir, err := initFileStructure(t, tmCfg)
 	if err != nil {
-		return nil, nil, client.Context{}, err
+		return nil, nil, Context{}, err
 	}
 
 	chainID := tmrand.Str(6)
@@ -58,17 +57,17 @@ func New(t *testing.T, tmCfg *config.Config, supressLog bool, fundedAccounts ...
 
 	nodeKey, err := p2p.LoadOrGenNodeKey(tmCfg.NodeKeyFile())
 	if err != nil {
-		return nil, nil, client.Context{}, err
+		return nil, nil, Context{}, err
 	}
 
 	nodeID, pubKey, err := genutil.InitializeNodeValidatorFiles(tmCfg)
 	if err != nil {
-		return nil, nil, client.Context{}, err
+		return nil, nil, Context{}, err
 	}
 
 	err = createValidator(kr, encCfg, pubKey, "validator", nodeID, chainID, baseDir)
 	if err != nil {
-		return nil, nil, client.Context{}, err
+		return nil, nil, Context{}, err
 	}
 
 	initGenFiles(genState, encCfg.Codec, authAccs, bankBals, tmCfg.GenesisFile(), chainID)
@@ -96,7 +95,7 @@ func New(t *testing.T, tmCfg *config.Config, supressLog bool, fundedAccounts ...
 		logger,
 	)
 
-	cCtx := client.Context{}.
+	cCtx := Context{}.
 		WithKeyring(kr).
 		WithHomeDir(tmCfg.RootDir).
 		WithChainID(chainID).
@@ -106,7 +105,7 @@ func New(t *testing.T, tmCfg *config.Config, supressLog bool, fundedAccounts ...
 		WithTxConfig(encCfg.TxConfig).
 		WithAccountRetriever(authtypes.AccountRetriever{})
 
-	return tmNode, app, cCtx, err
+	return tmNode, app, Context{Context: cCtx}, err
 }
 
 type appOptions struct {

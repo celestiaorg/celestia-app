@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/stretchr/testify/suite"
 	"github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -16,7 +16,7 @@ type IntegrationTestSuite struct {
 
 	cleanups []func()
 	accounts []string
-	cctx     client.Context
+	cctx     Context
 }
 
 func (s *IntegrationTestSuite) SetupSuite() {
@@ -52,13 +52,19 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 
 func (s *IntegrationTestSuite) Test_Liveness() {
 	require := s.Require()
-	err := WaitForNextBlock(s.cctx)
+	err := s.cctx.WaitForNextBlock()
 	require.NoError(err)
 	// check that we're actually able to set the consensus params
 	params, err := s.cctx.Client.ConsensusParams(context.TODO(), nil)
 	require.NoError(err)
 	require.Equal(int64(1), params.ConsensusParams.Block.TimeIotaMs)
-	_, err = WaitForHeight(s.cctx, 20)
+	_, err = s.cctx.WaitForHeight(20)
+	require.NoError(err)
+}
+
+func (s *IntegrationTestSuite) Test_PostData() {
+	require := s.Require()
+	_, err := s.cctx.PostData(s.accounts[0], testutil.RandomValidNamespace(), tmrand.Bytes(100000))
 	require.NoError(err)
 }
 
