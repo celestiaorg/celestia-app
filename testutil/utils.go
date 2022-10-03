@@ -14,10 +14,14 @@ import (
 
 func RandomValidNamespace() namespace.ID {
 	for {
-		s := tmrand.Bytes(8)
-		if bytes.Compare(s, appconsts.MaxReservedNamespace) > 0 {
-			return s
+		ns := tmrand.Bytes(8)
+		isReservedNS := bytes.Compare(ns, appconsts.MaxReservedNamespace) <= 0
+		isParityNS := bytes.Equal(ns, appconsts.ParitySharesNamespaceID)
+		isTailPaddingNS := bytes.Equal(ns, appconsts.TailPaddingNamespaceID)
+		if isReservedNS || isParityNS || isTailPaddingNS {
+			continue
 		}
+		return ns
 	}
 }
 
