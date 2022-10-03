@@ -1,12 +1,14 @@
 package inclusion
 
 import (
+	"bytes"
+	"crypto/rand"
+	"sort"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/testutil/coretestutil"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
@@ -114,7 +116,7 @@ func TestWalkCachedSubTreeRoot(t *testing.T) {
 
 func TestEDSSubRootCacher(t *testing.T) {
 	oss := uint64(8)
-	d := coretestutil.GenerateRandNamespacedRawData(uint32(oss*oss), appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)
+	d := generateRandNamespacedRawData(uint32(oss*oss), appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)
 	stc := NewSubtreeCacher(oss)
 
 	eds, err := rsmt2d.ComputeExtendedDataSquare(d, appconsts.DefaultCodec(), stc.Constructor)
@@ -181,4 +183,25 @@ func chunkSlice(slice [][]byte, chunkSize int) [][][]byte {
 	}
 
 	return chunks
+}
+
+func generateRandNamespacedRawData(total, nidSize, leafSize uint32) [][]byte {
+	data := make([][]byte, total)
+	for i := uint32(0); i < total; i++ {
+		nid := make([]byte, nidSize)
+		_, _ = rand.Read(nid)
+		data[i] = nid
+	}
+	sortByteArrays(data)
+	for i := uint32(0); i < total; i++ {
+		d := make([]byte, leafSize)
+		_, _ = rand.Read(d)
+		data[i] = append(data[i], d...)
+	}
+
+	return data
+}
+
+func sortByteArrays(src [][]byte) {
+	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
 }
