@@ -12,6 +12,13 @@ import (
 // Share contains the raw share data (including namespace ID).
 type Share []byte
 
+func NewShare(data []byte) (Share, error) {
+	if len(data) != appconsts.ShareSize {
+		return nil, fmt.Errorf("share data must be %d bytes, got %d", appconsts.ShareSize, len(data))
+	}
+	return Share(data), nil
+}
+
 func (s Share) NamespaceID() namespace.ID {
 	if len(s) < appconsts.NamespaceSize {
 		panic(fmt.Sprintf("share %s is too short to contain a namespace ID", s))
