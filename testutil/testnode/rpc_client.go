@@ -62,7 +62,7 @@ func StartGRPCServer(app srvtypes.Application, appCfg *srvconfig.Config, cctx Co
 	return cctx, grpcSrv.Stop, nil
 }
 
-// DefaultAppConfig wraps the default config described in the ser
+// DefaultAppConfig wraps the default config described in the server
 func DefaultAppConfig() *srvconfig.Config {
 	return srvconfig.DefaultConfig()
 }
