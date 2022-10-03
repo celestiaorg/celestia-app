@@ -110,7 +110,7 @@ func (c *Context) PostData(account string, ns, msg []byte) (*sdk.TxResponse, err
 
 	// create a random msg per row
 	pfd, err := payment.BuildPayForData(
-		context.TODO(),
+		c.rootCtx,
 		signer,
 		c.GRPCClient,
 		ns,
