@@ -3,12 +3,11 @@ package testnode
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/stretchr/testify/suite"
-	"github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
 type IntegrationTestSuite struct {
@@ -28,9 +27,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		s.accounts = append(s.accounts, tmrand.Str(9))
 	}
 
-	tmCfg := config.DefaultConfig()
-	tmCfg.Consensus.TimeoutCommit = time.Millisecond * 100
-	tmNode, app, cctx, err := New(s.T(), tmCfg, false, s.accounts...)
+	tmNode, app, cctx, err := New(s.T(), DefaultParams(), DefaultTendermintConfig(), false, s.accounts...)
 	require.NoError(err)
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
@@ -56,8 +53,17 @@ func (s *IntegrationTestSuite) Test_Liveness() {
 	err := s.cctx.WaitForNextBlock()
 	require.NoError(err)
 	// check that we're actually able to set the consensus params
-	params, err := s.cctx.Client.ConsensusParams(context.TODO(), nil)
-	require.NoError(err)
+	var params *coretypes.ResultConsensusParams
+	// this query can be flaky with fast block times, so we repeat it multiple
+	// times in attempt to increase the probability of it working
+	for i := 0; i < 5; i++ {
+		params, err = s.cctx.Client.ConsensusParams(context.TODO(), nil)
+		if err != nil {
+			continue
+		}
+		break
+	}
+	require.NotNil(params)
 	require.Equal(int64(1), params.ConsensusParams.Block.TimeIotaMs)
 	_, err = s.cctx.WaitForHeight(20)
 	require.NoError(err)

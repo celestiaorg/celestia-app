@@ -3,6 +3,7 @@ package testnode
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -18,7 +19,9 @@ import (
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proxy"
+	"github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 )
 
@@ -28,7 +31,7 @@ import (
 // genesis file. These keys are stored in the keyring that is returned in the
 // client.Context. NOTE: the forced delay between blocks, TimeIotaMs in the
 // consensus parameters, is set to the lowest possible value (1ms).
-func New(t *testing.T, tmCfg *config.Config, supressLog bool, fundedAccounts ...string) (*node.Node, srvtypes.Application, Context, error) {
+func New(t *testing.T, cparams *tmproto.ConsensusParams, tmCfg *config.Config, supressLog bool, fundedAccounts ...string) (*node.Node, srvtypes.Application, Context, error) {
 	var logger log.Logger
 	if supressLog {
 		logger = log.NewNopLogger()
@@ -67,7 +70,7 @@ func New(t *testing.T, tmCfg *config.Config, supressLog bool, fundedAccounts ...
 		return nil, nil, Context{}, err
 	}
 
-	err = initGenFiles(genState, encCfg.Codec, authAccs, bankBals, tmCfg.GenesisFile(), chainID)
+	err = initGenFiles(cparams, genState, encCfg.Codec, authAccs, bankBals, tmCfg.GenesisFile(), chainID)
 	if err != nil {
 		return nil, nil, Context{}, err
 	}
@@ -118,4 +121,16 @@ type appOptions struct {
 // Get implements AppOptions
 func (ao appOptions) Get(o string) interface{} {
 	return ao.options[o]
+}
+
+func DefaultParams() *tmproto.ConsensusParams {
+	cparams := types.DefaultConsensusParams()
+	cparams.Block.TimeIotaMs = 1
+	return cparams
+}
+
+func DefaultTendermintConfig() *config.Config {
+	tmCfg := config.DefaultConfig()
+	tmCfg.Consensus.TimeoutCommit = time.Millisecond * 70
+	return tmCfg
 }

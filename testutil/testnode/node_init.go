@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/tendermint/tendermint/config"
 	tmos "github.com/tendermint/tendermint/libs/os"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
 )
@@ -97,6 +98,7 @@ func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey crypto
 }
 
 func initGenFiles(
+	cparams *tmproto.ConsensusParams,
 	state map[string]json.RawMessage,
 	codec codec.Codec,
 	genAccounts []authtypes.GenesisAccount,
@@ -127,9 +129,6 @@ func initGenFiles(
 	if err != nil {
 		return err
 	}
-
-	cparams := types.DefaultConsensusParams()
-	cparams.Block.TimeIotaMs = 1
 
 	genDoc := types.GenesisDoc{
 		ChainID:         chainID,
