@@ -28,9 +28,6 @@ import (
 // genesis file. These keys are stored in the keyring that is returned in the
 // client.Context. NOTE: the forced delay between blocks, TimeIotaMs in the
 // consensus parameters, is set to the lowest possible value (1ms).
-//
-// note: the passed application config is currently unused atm, but we plan to
-// add support.
 func New(t *testing.T, tmCfg *config.Config, supressLog bool, fundedAccounts ...string) (*node.Node, srvtypes.Application, Context, error) {
 	var logger log.Logger
 	if supressLog {
