@@ -39,13 +39,13 @@ func (c *Context) WaitForHeightWithTimeout(h int64, t time.Duration) (int64, err
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
-	timeout := time.NewTimer(t)
-	defer timeout.Stop()
+	ctx, cancel := context.WithTimeout(c.rootCtx, t)
+	defer cancel()
 
 	var latestHeight int64
 	for {
 		select {
-		case <-timeout.C:
+		case <-ctx.Done():
 			return latestHeight, errors.New("timeout exceeded waiting for block")
 		case <-ticker.C:
 			latestHeight, err := c.LatestHeight()
