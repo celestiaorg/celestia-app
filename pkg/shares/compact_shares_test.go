@@ -166,11 +166,36 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 	assert.Equal(t, byte(want), infoByte)
 }
 
-func Test_parseCompactSharesReturnsErrForShareWithStartIndicatorFalse(t *testing.T) {
+func Test_parseCompactSharesErrors(t *testing.T) {
+	type testCase struct {
+		name      string
+		rawShares [][]byte
+	}
+
 	txs := generateRandomTransaction(2, appconsts.ContinuationCompactShareContentSize*4)
 	shares := SplitTxs(txs)
 	rawShares := ToBytes(shares)
 
-	_, err := parseCompactShares(rawShares[1:]) // the second share has the message start indicator set to false
-	assert.Error(t, err)
+	unsupportedShareVersion := 5
+	infoByte, _ := NewInfoByte(uint8(unsupportedShareVersion), true)
+	shareWithUnsupportedShareVersion := rawShares[0]
+	shareWithUnsupportedShareVersion[appconsts.NamespaceSize] = byte(infoByte)
+
+	testCases := []testCase{
+		{
+			"share with start indicator false",
+			rawShares[1:], // set the first share to the second share which has the start indicator set to false
+		},
+		{
+			"share with unsupported share version",
+			[][]byte{shareWithUnsupportedShareVersion},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parseCompactShares(tt.rawShares)
+			assert.Error(t, err)
+		})
+	}
 }

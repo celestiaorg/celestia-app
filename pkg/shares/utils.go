@@ -93,3 +93,13 @@ func zeroPadIfNecessary(share []byte, width int) (padded []byte, bytesOfPadding 
 	share = append(share, padding...)
 	return share, missingBytes
 }
+
+// contains returns true if slice contains element.
+func contains(slice []byte, element byte) bool {
+	for _, v := range slice {
+		if v == element {
+			return true
+		}
+	}
+	return false
+}
