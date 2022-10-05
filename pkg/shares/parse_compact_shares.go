@@ -1,6 +1,7 @@
 package shares
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -22,7 +23,7 @@ func parseCompactShares(rawShares [][]byte) (data [][]byte, err error) {
 		if err != nil {
 			return nil, err
 		}
-		if !contains(appconsts.SupportedShareVersions, infoByte.Version()) {
+		if !bytes.Contains(appconsts.SupportedShareVersions, []byte{infoByte.Version()}) {
 			return nil, fmt.Errorf("unsupported share version %v is not present in the list of supported share versions %v", infoByte.Version(), appconsts.SupportedShareVersions)
 		}
 	}
