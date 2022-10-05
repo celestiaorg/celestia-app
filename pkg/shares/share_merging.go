@@ -2,8 +2,10 @@ package shares
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/gogo/protobuf/proto"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -131,4 +133,43 @@ func ParseMsgs(shares [][]byte) (coretypes.Messages, error) {
 	return coretypes.Messages{
 		MessagesList: msgList,
 	}, nil
+}
+
+// ShareSequence represents a contiguous sequence of shares that are part of the
+// same namespace and message. For compact shares, one share sequence exists per
+// reserved namespace. For sparse shares, one share sequence exists per message.
+type ShareSequence struct {
+	NamespaceID namespace.ID
+	Shares      []Share
+}
+
+func ParseShares(rawShares [][]byte) (result []ShareSequence, err error) {
+	currentSequence := ShareSequence{}
+
+	for _, rawShare := range rawShares {
+		share, err := NewShare(rawShare)
+		if err != nil {
+			return result, err
+		}
+		infoByte, err := share.InfoByte()
+		if err != nil {
+			return result, err
+		}
+		if infoByte.IsMessageStart() {
+			if len(currentSequence.Shares) > 0 {
+				result = append(result, currentSequence)
+			}
+			currentSequence = ShareSequence{
+				Shares:      []Share{share},
+				NamespaceID: share.NamespaceID(),
+			}
+		} else {
+			if !bytes.Equal(currentSequence.NamespaceID, share.NamespaceID()) {
+				return result, fmt.Errorf("share sequence %v has inconsistent namespace IDs with share %v", currentSequence, share)
+			}
+			currentSequence.Shares = append(currentSequence.Shares, share)
+		}
+	}
+
+	return result, nil
 }
