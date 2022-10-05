@@ -163,8 +163,7 @@ func ParseShares(rawShares [][]byte) (result []ShareSequence, err error) {
 				Shares:      []Share{share},
 				NamespaceID: share.NamespaceID(),
 			}
-		}
-		if !infoByte.IsMessageStart() {
+		} else {
 			if !bytes.Equal(currentSequence.NamespaceID, share.NamespaceID()) {
 				return result, fmt.Errorf("share sequence %v has inconsistent namespace IDs with share %v", currentSequence, share)
 			}
