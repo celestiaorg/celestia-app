@@ -73,7 +73,6 @@ type Querier interface {
 
 	// misc queries
 
-	QueryHeight(ctx context.Context) (uint64, error)
 	QueryLastUnbondingHeight(ctx context.Context) (uint64, error)
 
 	// tendermint
@@ -388,15 +387,6 @@ func (q querier) QueryValsetConfirm(
 	//
 	//return resp.Confirm, nil
 	return nil, nil
-}
-
-func (q querier) QueryHeight(ctx context.Context) (uint64, error) {
-	resp, err := q.tendermintRPC.Status(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	return uint64(resp.SyncInfo.LatestBlockHeight), nil
 }
 
 func (q querier) QueryLastUnbondingHeight(ctx context.Context) (uint64, error) {
