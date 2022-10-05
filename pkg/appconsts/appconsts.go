@@ -135,6 +135,9 @@ var (
 	// contains less space for data than a ContinuationCompactShare because the
 	// first compact share includes a total data length varint.
 	FirstCompactShareContentSize = ContinuationCompactShareContentSize - FirstCompactShareDataLengthBytes
+
+	// SupportedShareVersions is a list of supported share versions.
+	SupportedShareVersions = []uint8{ShareVersion}
 )
 
 // numberOfBytesVarint calculates the number of bytes needed to write a varint of n

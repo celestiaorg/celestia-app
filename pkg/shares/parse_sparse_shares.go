@@ -10,11 +10,24 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
 
-// parseSparseShares iterates through raw shares and parses out individual messages.
-func parseSparseShares(shares [][]byte) ([]coretypes.Message, error) {
-	if len(shares) == 0 {
+// parseSparseShares iterates through rawShares and parses out individual
+// messages. It returns an error if a rawShare contains a share version that
+// isn't present in supportedShareVersions.
+func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) ([]coretypes.Message, error) {
+	if len(rawShares) == 0 {
 		return nil, nil
 	}
+	shares := FromBytes(rawShares)
+	for _, share := range shares {
+		infoByte, err := share.InfoByte()
+		if err != nil {
+			return nil, err
+		}
+		if !bytes.Contains(supportedShareVersions, []byte{infoByte.Version()}) {
+			return nil, fmt.Errorf("unsupported share version %v is not present in the list of supported share versions %v", infoByte.Version(), supportedShareVersions)
+		}
+	}
+
 	// msgs returned
 	msgs := []coretypes.Message{}
 	currentMsgLen := 0
@@ -31,21 +44,21 @@ func parseSparseShares(shares [][]byte) ([]coretypes.Message, error) {
 		isNewMessage = true
 	}
 	// iterate through all the shares and parse out each msg
-	for i := 0; i < len(shares); i++ {
+	for i := 0; i < len(rawShares); i++ {
 		dataLen = len(currentMsg.Data) + appconsts.SparseShareContentSize
 		switch {
 		case isNewMessage:
-			nextMsgChunk, nextMsgLen, err := ParseDelimiter(shares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:])
+			nextMsgChunk, nextMsgLen, err := ParseDelimiter(rawShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:])
 			if err != nil {
 				return nil, err
 			}
 			// the current share is namespaced padding so we ignore it
-			if bytes.Equal(shares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:], appconsts.NameSpacedPaddedShareBytes) {
+			if bytes.Equal(rawShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:], appconsts.NameSpacedPaddedShareBytes) {
 				continue
 			}
 			currentMsgLen = int(nextMsgLen)
-			nid := shares[i][:appconsts.NamespaceSize]
-			infoByte, err := ParseInfoByte(shares[i][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0])
+			nid := rawShares[i][:appconsts.NamespaceSize]
+			infoByte, err := ParseInfoByte(rawShares[i][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0])
 			if err != nil {
 				panic(err)
 			}
@@ -66,12 +79,12 @@ func parseSparseShares(shares [][]byte) ([]coretypes.Message, error) {
 			isNewMessage = false
 		// this entire share contains a chunk of message that we need to save
 		case currentMsgLen > dataLen:
-			currentMsg.Data = append(currentMsg.Data, shares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:]...)
+			currentMsg.Data = append(currentMsg.Data, rawShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:]...)
 		// this share contains the last chunk of data needed to complete the
 		// message
 		case currentMsgLen <= dataLen:
 			remaining := currentMsgLen - len(currentMsg.Data) + appconsts.NamespaceSize + appconsts.ShareInfoBytes
-			currentMsg.Data = append(currentMsg.Data, shares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:remaining]...)
+			currentMsg.Data = append(currentMsg.Data, rawShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:remaining]...)
 			saveMessage()
 		}
 	}

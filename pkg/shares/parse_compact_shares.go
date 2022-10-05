@@ -1,22 +1,36 @@
 package shares
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
 
-// parseCompactShares takes raw shares and extracts out transactions,
-// intermediate state roots, or evidence. The returned [][]byte do not have
-// namespaces, info bytes, data length delimiter, or unit length
-// delimiters and are ready to be unmarshalled
-func parseCompactShares(shares [][]byte) (data [][]byte, err error) {
-	if len(shares) == 0 {
+// parseCompactShares returns data (transactions, intermediate state roots, or
+// evidence) based on the contents of rawShares and supportedShareVersions. If
+// rawShares contains a share with a version that isn't present in
+// supportedShareVersions, an error is returned. The returned data [][]byte does
+// not have namespaces, info bytes, data length delimiter, or unit length
+// delimiters and are ready to be unmarshalled.
+func parseCompactShares(rawShares [][]byte, supportedShareVersions []uint8) (data [][]byte, err error) {
+	if len(rawShares) == 0 {
 		return nil, nil
 	}
+	shares := FromBytes(rawShares)
+	for _, share := range shares {
+		infoByte, err := share.InfoByte()
+		if err != nil {
+			return nil, err
+		}
+		if !bytes.Contains(supportedShareVersions, []byte{infoByte.Version()}) {
+			return nil, fmt.Errorf("unsupported share version %v is not present in the list of supported share versions %v", infoByte.Version(), supportedShareVersions)
+		}
+	}
 
-	ss := newShareStack(shares)
+	ss := newShareStack(rawShares)
 	return ss.resolve()
 }
 

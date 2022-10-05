@@ -1,10 +1,12 @@
 package shares
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -49,7 +51,7 @@ func Test_parseSparseShares(t *testing.T) {
 			shares, _ := SplitMessages(0, nil, msgs.MessagesList, false)
 			rawShares := ToBytes(shares)
 
-			parsedMsgs, err := parseSparseShares(rawShares)
+			parsedMsgs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
 			}
@@ -70,7 +72,7 @@ func Test_parseSparseShares(t *testing.T) {
 				rawShares[i] = []byte(share)
 			}
 
-			parsedMsgs, err := parseSparseShares(rawShares)
+			parsedMsgs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
 			}
@@ -80,6 +82,35 @@ func Test_parseSparseShares(t *testing.T) {
 				assert.Equal(t, msgs.MessagesList[i].NamespaceID, parsedMsgs[i].NamespaceID)
 				assert.Equal(t, msgs.MessagesList[i].Data, parsedMsgs[i].Data)
 			}
+		})
+	}
+}
+
+func Test_parseSparseSharesErrors(t *testing.T) {
+	type testCase struct {
+		name      string
+		rawShares [][]byte
+	}
+
+	unsupportedShareVersion := 5
+	infoByte, _ := NewInfoByte(uint8(unsupportedShareVersion), true)
+
+	rawShare := []byte{}
+	rawShare = append(rawShare, namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}...)
+	rawShare = append(rawShare, byte(infoByte))
+	rawShare = append(rawShare, bytes.Repeat([]byte{0}, appconsts.ShareSize-len(rawShare))...)
+
+	tests := []testCase{
+		{
+			"share with unsupported share version",
+			[][]byte{rawShare},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(*testing.T) {
+			_, err := parseSparseShares(tt.rawShares, appconsts.SupportedShareVersions)
+			assert.Error(t, err)
 		})
 	}
 }
@@ -101,7 +132,7 @@ func TestParsePaddedMsg(t *testing.T) {
 	msgWr.WriteNamespacedPaddedShares(10)
 	shares := msgWr.Export()
 	rawShares := ToBytes(shares)
-	pmsgs, err := parseSparseShares(rawShares)
+	pmsgs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
 	require.NoError(t, err)
 	require.Equal(t, msgs.MessagesList, pmsgs)
 }
