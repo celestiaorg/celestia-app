@@ -136,7 +136,7 @@ var (
 	// first compact share includes a total data length varint.
 	FirstCompactShareContentSize = ContinuationCompactShareContentSize - FirstCompactShareDataLengthBytes
 
-	// SupportedShareVersions is a list of supported share versions
+	// SupportedShareVersions is a list of supported share versions.
 	SupportedShareVersions = []uint8{ShareVersion}
 )
 
