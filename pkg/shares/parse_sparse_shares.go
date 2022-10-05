@@ -10,8 +10,10 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
 
-// parseSparseShares iterates through rawShares and parses out individual messages.
-func parseSparseShares(rawShares [][]byte) ([]coretypes.Message, error) {
+// parseSparseShares iterates through rawShares and parses out individual
+// messages. It returns an error if a rawShare contains a share version that
+// isn't present in supportedShareVersions.
+func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) ([]coretypes.Message, error) {
 	if len(rawShares) == 0 {
 		return nil, nil
 	}
@@ -21,8 +23,8 @@ func parseSparseShares(rawShares [][]byte) ([]coretypes.Message, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !bytes.Contains(appconsts.SupportedShareVersions, []byte{infoByte.Version()}) {
-			return nil, fmt.Errorf("unsupported share version %v is not present in the list of supported share versions %v", infoByte.Version(), appconsts.SupportedShareVersions)
+		if !bytes.Contains(supportedShareVersions, []byte{infoByte.Version()}) {
+			return nil, fmt.Errorf("unsupported share version %v is not present in the list of supported share versions %v", infoByte.Version(), supportedShareVersions)
 		}
 	}
 

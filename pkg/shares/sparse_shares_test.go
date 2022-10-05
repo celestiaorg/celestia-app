@@ -51,7 +51,7 @@ func Test_parseSparseShares(t *testing.T) {
 			shares, _ := SplitMessages(0, nil, msgs.MessagesList, false)
 			rawShares := ToBytes(shares)
 
-			parsedMsgs, err := parseSparseShares(rawShares)
+			parsedMsgs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
 			}
@@ -72,7 +72,7 @@ func Test_parseSparseShares(t *testing.T) {
 				rawShares[i] = []byte(share)
 			}
 
-			parsedMsgs, err := parseSparseShares(rawShares)
+			parsedMsgs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
 			}
@@ -109,7 +109,7 @@ func Test_parseSparseSharesErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(*testing.T) {
-			_, err := parseSparseShares(tt.rawShares)
+			_, err := parseSparseShares(tt.rawShares, appconsts.SupportedShareVersions)
 			assert.Error(t, err)
 		})
 	}
@@ -132,7 +132,7 @@ func TestParsePaddedMsg(t *testing.T) {
 	msgWr.WriteNamespacedPaddedShares(10)
 	shares := msgWr.Export()
 	rawShares := ToBytes(shares)
-	pmsgs, err := parseSparseShares(rawShares)
+	pmsgs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
 	require.NoError(t, err)
 	require.Equal(t, msgs.MessagesList, pmsgs)
 }

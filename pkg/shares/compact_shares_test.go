@@ -23,7 +23,7 @@ func TestCompactShareWriter(t *testing.T) {
 	}
 	shares := w.Export()
 	rawShares := ToBytes(shares)
-	rawResTxs, err := parseCompactShares(rawShares)
+	rawResTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
 	resTxs := coretypes.ToTxs(rawResTxs)
 	require.NoError(t, err)
 
@@ -95,7 +95,7 @@ func Test_processCompactShares(t *testing.T) {
 			shares := SplitTxs(txs)
 			rawShares := ToBytes(shares)
 
-			parsedTxs, err := parseCompactShares(rawShares)
+			parsedTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
 			}
@@ -113,7 +113,7 @@ func Test_processCompactShares(t *testing.T) {
 			shares := SplitTxs(txs)
 			rawShares := ToBytes(shares)
 
-			parsedTxs, err := parseCompactShares(rawShares)
+			parsedTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
 			}
@@ -194,7 +194,7 @@ func Test_parseCompactSharesErrors(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := parseCompactShares(tt.rawShares)
+			_, err := parseCompactShares(tt.rawShares, appconsts.SupportedShareVersions)
 			assert.Error(t, err)
 		})
 	}
