@@ -1,7 +1,7 @@
 package shares
 
 import (
-	"bytes"
+	"math/rand"
 	"reflect"
 	"testing"
 
@@ -138,9 +138,12 @@ func TestParseShares(t *testing.T) {
 
 func generateRawShare(namespace namespace.ID, isMessageStart bool) (rawShare []byte) {
 	infoByte, _ := NewInfoByte(appconsts.ShareVersion, isMessageStart)
+	rawData := make([]byte, appconsts.ShareSize-len(rawShare))
+	rand.Read(rawData)
 
 	rawShare = append(rawShare, namespace...)
 	rawShare = append(rawShare, byte(infoByte))
-	rawShare = append(rawShare, bytes.Repeat([]byte{0}, appconsts.ShareSize-len(rawShare))...)
+	rawShare = append(rawShare, rawData...)
+
 	return rawShare
 }
