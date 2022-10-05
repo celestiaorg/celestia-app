@@ -1,4 +1,4 @@
-package utils
+package nsgenerator
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
-func RandomValidNamespace() namespace.ID {
+func RandomMessageNamespace() namespace.ID {
 	for {
 		ns := tmrand.Bytes(8)
 		isReservedNS := bytes.Compare(ns, appconsts.MaxReservedNamespace) <= 0

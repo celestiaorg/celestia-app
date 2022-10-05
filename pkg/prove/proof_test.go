@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/nsgenerator"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -280,7 +280,7 @@ func generateRandomlySizedMessages(count, maxMsgSize int) types.Messages {
 
 func generateRandomMessage(size int) types.Message {
 	msg := types.Message{
-		NamespaceID: utils.RandomValidNamespace(),
+		NamespaceID: nsgenerator.RandomMessageNamespace(),
 		Data:        tmrand.Bytes(size),
 	}
 	return msg
