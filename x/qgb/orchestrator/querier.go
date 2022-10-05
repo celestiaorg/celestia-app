@@ -554,7 +554,7 @@ func (q querier) SubscribeEvents(ctx context.Context, subscriptionName string, e
 	// This doesn't seem to complain when the node is down
 	results, err := q.tendermintRPC.Subscribe(
 		ctx,
-		"attestation-changes",
+		subscriptionName,
 		fmt.Sprintf("%s.%s='%s'", types.EventTypeAttestationRequest, sdk.AttributeKeyModule, types.ModuleName),
 	)
 	if err != nil {
