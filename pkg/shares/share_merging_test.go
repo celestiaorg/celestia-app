@@ -7,6 +7,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+	"github.com/tendermint/tendermint/types"
 )
 
 func TestParseShares(t *testing.T) {
@@ -18,21 +20,26 @@ func TestParseShares(t *testing.T) {
 	}
 
 	start := true
-	continuation := false
 	messageOneNamespace := namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}
 	messageTwoNamespace := namespace.ID{2, 2, 2, 2, 2, 2, 2, 2}
 
-	transactionShareStart := generateRawShare(appconsts.TxNamespaceID, start)
-	transactionShareContinuation := generateRawShare(appconsts.TxNamespaceID, continuation)
+	transactionShares := SplitTxs(generateRandomTxs(2, 1000))
+	transactionShareStart := transactionShares[0]
+	transactionShareContinuation := transactionShares[1]
 
-	evidenceShareStart := generateRawShare(appconsts.EvidenceNamespaceID, start)
-	evidenceShareContinuation := generateRawShare(appconsts.EvidenceNamespaceID, continuation)
+	messageOneShares, err := SplitMessages(0, []uint32{}, []types.Message{generateRandomMessageWithNamespace(messageOneNamespace, 1000)}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	messageOneStart := messageOneShares[0]
+	messageOneContinuation := messageOneShares[1]
 
-	messageOneStart := generateRawShare(messageOneNamespace, start)
-	messageOneContinuation := generateRawShare(messageOneNamespace, continuation)
-
-	messageTwoStart := generateRawShare(messageTwoNamespace, start)
-	messageTwoContinuation := generateRawShare(messageTwoNamespace, continuation)
+	messageTwoShares, err := SplitMessages(0, []uint32{}, []types.Message{generateRandomMessageWithNamespace(messageTwoNamespace, 1000)}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	messageTwoStart := messageTwoShares[0]
+	messageTwoContinuation := messageTwoShares[1]
 
 	invalidShare := generateRawShare(messageOneNamespace, start)
 	invalidShare = append(invalidShare, []byte{0}...)
@@ -57,18 +64,6 @@ func TestParseShares(t *testing.T) {
 			false,
 		},
 		{
-			"one evidence share",
-			[][]byte{evidenceShareStart},
-			[]ShareSequence{{NamespaceID: appconsts.EvidenceNamespaceID, Shares: []Share{evidenceShareStart}}},
-			false,
-		},
-		{
-			"two evidence shares",
-			[][]byte{evidenceShareStart, evidenceShareContinuation},
-			[]ShareSequence{{NamespaceID: appconsts.EvidenceNamespaceID, Shares: []Share{evidenceShareStart, evidenceShareContinuation}}},
-			false,
-		},
-		{
 			"one message share",
 			[][]byte{messageOneStart},
 			[]ShareSequence{{NamespaceID: messageOneNamespace, Shares: []Share{messageOneStart}}},
@@ -90,23 +85,21 @@ func TestParseShares(t *testing.T) {
 			false,
 		},
 		{
-			"one transaction, one evidence, one message",
-			[][]byte{transactionShareStart, evidenceShareStart, messageOneStart},
+			"one transaction, one message",
+			[][]byte{transactionShareStart, messageOneStart},
 			[]ShareSequence{
 				{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{transactionShareStart}},
-				{NamespaceID: appconsts.EvidenceNamespaceID, Shares: []Share{evidenceShareStart}},
 				{NamespaceID: messageOneNamespace, Shares: []Share{messageOneStart}},
 			},
 			false,
 		},
 		{
-			"one transaction, one evidence, two messages",
-			[][]byte{transactionShareStart, evidenceShareStart, messageOneStart, messageTwoStart},
+			"one transaction, two messages",
+			[][]byte{transactionShareStart, messageOneStart, messageTwoStart},
 			[]ShareSequence{
 				{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{transactionShareStart}},
-				{NamespaceID: appconsts.EvidenceNamespaceID, Shares: []Share{evidenceShareStart}},
 				{NamespaceID: messageOneNamespace, Shares: []Share{messageOneStart}},
-				{NamespaceID: messageTwoStart, Shares: []Share{messageTwoStart}},
+				{NamespaceID: messageTwoNamespace, Shares: []Share{messageTwoStart}},
 			},
 			false,
 		},
@@ -146,4 +139,25 @@ func generateRawShare(namespace namespace.ID, isMessageStart bool) (rawShare []b
 	rawShare = append(rawShare, rawData...)
 
 	return rawShare
+}
+
+func generateRandomTxs(count, size int) types.Txs {
+	txs := make(types.Txs, count)
+	for i := 0; i < count; i++ {
+		tx := make([]byte, size)
+		_, err := rand.Read(tx)
+		if err != nil {
+			panic(err)
+		}
+		txs[i] = tx
+	}
+	return txs
+}
+
+func generateRandomMessageWithNamespace(namespace namespace.ID, size int) types.Message {
+	msg := types.Message{
+		NamespaceID: namespace,
+		Data:        tmrand.Bytes(size),
+	}
+	return msg
 }
