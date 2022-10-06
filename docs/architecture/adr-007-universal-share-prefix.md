@@ -17,7 +17,7 @@ Where:
 - `reserved (1 byte)`: is the location of the first transaction or evidence in the share if there is one and `0` if there isn't one.
 - `data`: contains the raw bytes where each unit is prefixed with a varint 1 to 10 bytes that indicates how long the unit is in bytes.
 
-### Sparse Share Schema
+### Current Sparse Share Schema
 
 - First share of message:<br>`namespace_id (8 bytes) | message length (varint 1 to 10 bytes) | data`
 - Contiguous share in message:<br>`namespace_id (8 bytes) | data`
