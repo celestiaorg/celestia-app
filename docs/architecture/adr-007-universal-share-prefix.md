@@ -3,7 +3,7 @@
 ## Terminology
 
 - **compact share**: a type of share that can accomodate multiple units. Currently, compact shares are used for transactions, ISRs, and evidence to efficiently pack this information into as few shares as possible.
-- **sparse share**: a type of share that can accomodate zero or one unit. Currently, sparse shares are used for messages.
+- **sparse share**: a type of share that can accommodate zero or one unit. Currently, sparse shares are used for messages.
 - **share sequence**: an ordered list of shares
 
 ## Context
