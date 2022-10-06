@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 )
@@ -48,5 +49,21 @@ func Test_zeroPadIfNecessary(t *testing.T) {
 				t.Errorf("zeroPadIfNecessary gotBytesOfPadding %v, wantBytesOfPadding %v", gotBytesOfPadding, tt.wantBytesOfPadding)
 			}
 		})
+	}
+}
+
+func TestParseDelimiter(t *testing.T) {
+	for i := uint64(0); i < 100; i++ {
+		tx := generateRandomTransaction(1, int(i))[0]
+		input, err := MarshalDelimitedTx(tx)
+		if err != nil {
+			panic(err)
+		}
+		res, txLen, err := ParseDelimiter(input)
+		if err != nil {
+			panic(err)
+		}
+		assert.Equal(t, i, txLen)
+		assert.Equal(t, []byte(tx), res)
 	}
 }
