@@ -14,7 +14,7 @@
 
 Where:
 
-- `reserved (1 byte)`: is the location of the first transaction, ISR, or evidence in the share if there is one and `0` if there isn't one.
+- `reserved (1 byte)`: is the location of the first transaction or evidence in the share if there is one and `0` if there isn't one.
 - `data`: contains the raw bytes where each unit is prefixed with a varint 1 to 10 bytes that indicates how long the unit is in bytes.
 
 ### Sparse Share Schema
