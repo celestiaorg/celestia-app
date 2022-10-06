@@ -5,7 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/nsgenerator"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -128,7 +128,7 @@ func Test_overEstimateMalleatedTxSize(t *testing.T) {
 		wpfdTx := generateRawWirePFDTx(
 			t,
 			encConf.TxConfig,
-			nsgenerator.RandomMessageNamespace(),
+			namespace.RandomMessageNamespace(),
 			tmrand.Bytes(tt.size),
 			signer,
 			tt.opts...,

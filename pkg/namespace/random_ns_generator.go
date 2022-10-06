@@ -1,14 +1,14 @@
-package nsgenerator
+package namespace
 
 import (
 	"bytes"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/nmt/namespace"
+	nmtnamespace "github.com/celestiaorg/nmt/namespace"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
-func RandomMessageNamespace() namespace.ID {
+func RandomMessageNamespace() nmtnamespace.ID {
 	for {
 		ns := tmrand.Bytes(8)
 		isReservedNS := bytes.Compare(ns, appconsts.MaxReservedNamespace) <= 0

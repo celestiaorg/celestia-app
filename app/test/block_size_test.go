@@ -16,7 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/nsgenerator"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	"github.com/celestiaorg/celestia-app/x/payment"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
@@ -264,7 +264,7 @@ func generateSignedWirePayForDataTxs(clientCtx client.Context, txConfig client.T
 
 		// create a msg
 		msg, err := types.NewWirePayForData(
-			nsgenerator.RandomMessageNamespace(),
+			namespace.RandomMessageNamespace(),
 			tmrand.Bytes(thisMessageSize),
 			types.AllSquareSizes(thisMessageSize)...,
 		)

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/nsgenerator"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -66,7 +66,7 @@ func generateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *type
 		wpfdTx := generateRawWirePFDTx(
 			t,
 			txConfig,
-			nsgenerator.RandomMessageNamespace(),
+			namespace.RandomMessageNamespace(),
 			tmrand.Bytes(size),
 			signer,
 			opts...,
