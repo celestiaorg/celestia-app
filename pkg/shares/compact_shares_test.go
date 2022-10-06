@@ -30,22 +30,6 @@ func TestCompactShareWriter(t *testing.T) {
 	assert.Equal(t, txs, resTxs)
 }
 
-func Test_parseDelimiter(t *testing.T) {
-	for i := uint64(0); i < 100; i++ {
-		tx := generateRandomTransaction(1, int(i))[0]
-		input, err := MarshalDelimitedTx(tx)
-		if err != nil {
-			panic(err)
-		}
-		res, txLen, err := ParseDelimiter(input)
-		if err != nil {
-			panic(err)
-		}
-		assert.Equal(t, i, txLen)
-		assert.Equal(t, []byte(tx), res)
-	}
-}
-
 func TestFuzz_processCompactShares(t *testing.T) {
 	t.Skip()
 	// run random shares through processCompactShares for a minute
