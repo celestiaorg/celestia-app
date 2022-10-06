@@ -8,7 +8,7 @@
 
 ## Context
 
-### Compact Share Schema
+### Current Compact Share Schema
 
 `namespace_id (8 bytes) | reserved (1 byte) | data`
 
