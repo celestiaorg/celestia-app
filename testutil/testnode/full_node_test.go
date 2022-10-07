@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/testutil"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/stretchr/testify/suite"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -75,7 +75,7 @@ func (s *IntegrationTestSuite) Test_Liveness() {
 
 func (s *IntegrationTestSuite) Test_PostData() {
 	require := s.Require()
-	_, err := s.cctx.PostData(s.accounts[0], testutil.RandomValidNamespace(), tmrand.Bytes(100000))
+	_, err := s.cctx.PostData(s.accounts[0], namespace.RandomMessageNamespace(), tmrand.Bytes(100000))
 	require.NoError(err)
 }
 

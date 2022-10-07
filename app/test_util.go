@@ -1,13 +1,11 @@
 package app
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -68,7 +66,7 @@ func generateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *type
 		wpfdTx := generateRawWirePFDTx(
 			t,
 			txConfig,
-			randomValidNamespace(),
+			namespace.RandomMessageNamespace(),
 			tmrand.Bytes(size),
 			signer,
 			opts...,
@@ -173,15 +171,6 @@ func generateKeyring(t *testing.T, cdc codec.Codec, accts ...string) keyring.Key
 	}
 
 	return kb
-}
-
-func randomValidNamespace() namespace.ID {
-	for {
-		s := tmrand.Bytes(8)
-		if bytes.Compare(s, appconsts.MaxReservedNamespace) > 0 {
-			return s
-		}
-	}
 }
 
 // generateKeyringSigner creates a types.KeyringSigner with keys generated for

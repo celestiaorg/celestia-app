@@ -1,13 +1,12 @@
 package prove
 
 import (
-	"bytes"
 	"math/rand"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -281,17 +280,8 @@ func generateRandomlySizedMessages(count, maxMsgSize int) types.Messages {
 
 func generateRandomMessage(size int) types.Message {
 	msg := types.Message{
-		NamespaceID: randomValidNamespace(),
+		NamespaceID: namespace.RandomMessageNamespace(),
 		Data:        tmrand.Bytes(size),
 	}
 	return msg
-}
-
-func randomValidNamespace() namespace.ID {
-	for {
-		s := tmrand.Bytes(8)
-		if bytes.Compare(s, appconsts.MaxReservedNamespace) > 0 {
-			return s
-		}
-	}
 }

@@ -1,13 +1,11 @@
 package paytestutil
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -43,7 +41,7 @@ func GenerateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *type
 		wpfdTx := generateRawWirePFDTx(
 			t,
 			txConfig,
-			randomValidNamespace(),
+			namespace.RandomMessageNamespace(),
 			tmrand.Bytes(size),
 			signer,
 			opts...,
@@ -130,12 +128,3 @@ func generateSignedWirePayForData(t *testing.T, ns, message []byte, signer *type
 const (
 	TestAccountName = "test-account"
 )
-
-func randomValidNamespace() namespace.ID {
-	for {
-		s := tmrand.Bytes(8)
-		if bytes.Compare(s, appconsts.MaxReservedNamespace) > 0 {
-			return s
-		}
-	}
-}
