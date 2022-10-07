@@ -2,11 +2,12 @@ package orchestrator
 
 import (
 	"fmt"
+	"math/big"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"math/big"
 )
 
 // NewMsgValsetConfirm returns a new msgValSetConfirm.
