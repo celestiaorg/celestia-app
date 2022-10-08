@@ -50,7 +50,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	}
 
 	cacher := inclusion.NewSubtreeCacher(data.OriginalSquareSize)
-	eds, err := rsmt2d.ComputeExtendedDataSquare(dataSquare, appconsts.DefaultCodec(), cacher.Constructor)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(dataSquare), appconsts.DefaultCodec(), cacher.Constructor)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to erasure the data square", err)
 		return abci.ResponseProcessProposal{

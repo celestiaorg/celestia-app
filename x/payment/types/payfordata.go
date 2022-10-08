@@ -3,7 +3,6 @@ package types
 import (
 	"crypto/sha256"
 	"fmt"
-	"math/bits"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt"
@@ -14,7 +13,7 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 	coretypes "github.com/tendermint/tendermint/types"
 
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 )
 
 const (
@@ -125,7 +124,7 @@ func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, err
 
 	// split into shares that are length delimited and include the namespace in
 	// each share
-	shares, err := shares.SplitMessages(0, nil, msg.MessagesList, false)
+	shares, err := appshares.SplitMessages(0, nil, msg.MessagesList, false)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +142,7 @@ func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, err
 	leafSets := make([][][]byte, len(heights))
 	cursor := uint64(0)
 	for i, height := range heights {
-		leafSets[i] = shares[cursor : cursor+height]
+		leafSets[i] = appshares.ToBytes(shares[cursor : cursor+height])
 		cursor = cursor + height
 	}
 
@@ -231,9 +230,4 @@ func powerOf2(v uint64) bool {
 		return true
 	}
 	return false
-}
-
-// DelimLen calculates the length of the delimiter for a given message size
-func DelimLen(x uint64) int {
-	return 8 - bits.LeadingZeros64(x)%8
 }

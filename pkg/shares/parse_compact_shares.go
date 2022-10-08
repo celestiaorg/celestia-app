@@ -9,7 +9,8 @@ import (
 
 // parseCompactShares takes raw shares and extracts out transactions,
 // intermediate state roots, or evidence. The returned [][]byte do not have
-// namespaces, info bytes, or length delimiters and are ready to be unmarshalled
+// namespaces, info bytes, data length delimiter, or unit length
+// delimiters and are ready to be unmarshalled
 func parseCompactShares(shares [][]byte) (data [][]byte, err error) {
 	if len(shares) == 0 {
 		return nil, nil
@@ -37,30 +38,33 @@ func (ss *shareStack) resolve() ([][]byte, error) {
 	if len(ss.shares) == 0 {
 		return nil, nil
 	}
-	infoByte, err := ParseInfoReservedByte(ss.shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0])
+	infoByte, err := ParseInfoByte(ss.shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0])
 	if err != nil {
 		panic(err)
 	}
 	if !infoByte.IsMessageStart() {
 		return nil, errors.New("first share is not a message start")
 	}
-	err = ss.peel(ss.shares[0][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:], true)
+	err = ss.peel(ss.shares[0][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareDataLengthBytes+appconsts.CompactShareReservedBytes:], true)
 	return ss.data, err
 }
 
-// peel recursively parses each chunk of data (either a transaction,
-// intermediate state root, or evidence) and adds it to the underlying slice of data.
+// peel recursively parses each unit of data (either a transaction, intermediate
+// state root, or evidence) and adds it to the underlying slice of data.
+// delimited should be `true` if this is the start of the next unit of data (in
+// other words the data contains a unitLen delimiter prefixed to the unit).
+// delimited should be `false` if calling peel on an in-progress unit.
 func (ss *shareStack) peel(share []byte, delimited bool) (err error) {
 	if delimited {
-		var txLen uint64
-		share, txLen, err = ParseDelimiter(share)
+		var unitLen uint64
+		share, unitLen, err = ParseDelimiter(share)
 		if err != nil {
 			return err
 		}
-		if txLen == 0 {
+		if unitLen == 0 {
 			return nil
 		}
-		ss.dataLen = txLen
+		ss.dataLen = unitLen
 	}
 	// safeLen describes the point in the share where it can be safely split. If
 	// split beyond this point, it is possible to break apart a length

@@ -28,7 +28,7 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 	return ctx.Logger().With("module", fmt.Sprintf("x/%s", types.ModuleName))
 }
 
-//  MsgPayForData moves a user's coins to the module address and burns them.
+// MsgPayForData moves a user's coins to the module address and burns them.
 func (k Keeper) PayForData(goCtx context.Context, msg *types.MsgPayForData) (*types.MsgPayForDataResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 

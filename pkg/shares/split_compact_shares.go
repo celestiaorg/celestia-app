@@ -1,7 +1,6 @@
 package shares
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 
@@ -15,8 +14,8 @@ import (
 // increasing set of shares. It is used to lazily split block data such as
 // transactions, intermediate state roots, and evidence into shares.
 type CompactShareSplitter struct {
-	shares       []NamespacedShare
-	pendingShare NamespacedShare
+	shares       []Share
+	pendingShare Share
 	namespace    namespace.ID
 	version      uint8
 }
@@ -24,13 +23,18 @@ type CompactShareSplitter struct {
 // NewCompactShareSplitter returns a CompactShareSplitter using the provided
 // namespace.
 func NewCompactShareSplitter(ns namespace.ID, version uint8) *CompactShareSplitter {
-	pendingShare := NamespacedShare{ID: ns, Share: make([]byte, 0, appconsts.ShareSize)}
-	infoByte, err := NewInfoReservedByte(version, true)
+	pendingShare := make([]byte, 0, appconsts.ShareSize)
+	infoByte, err := NewInfoByte(version, true)
 	if err != nil {
 		panic(err)
 	}
-	pendingShare.Share = append(pendingShare.Share, ns...)
-	pendingShare.Share = append(pendingShare.Share, byte(infoByte))
+	placeholderDataLength := make([]byte, appconsts.FirstCompactShareDataLengthBytes)
+	placeholderReservedBytes := make([]byte, appconsts.CompactShareReservedBytes)
+
+	pendingShare = append(pendingShare, ns...)
+	pendingShare = append(pendingShare, byte(infoByte))
+	pendingShare = append(pendingShare, placeholderDataLength...)
+	pendingShare = append(pendingShare, placeholderReservedBytes...)
 	return &CompactShareSplitter{pendingShare: pendingShare, namespace: ns}
 }
 
@@ -57,132 +61,182 @@ func (css *CompactShareSplitter) WriteEvidence(evd coretypes.Evidence) error {
 
 // WriteBytes adds the delimited data to the underlying compact shares.
 func (css *CompactShareSplitter) WriteBytes(rawData []byte) {
-	// if this is the first time writing to a pending share, we must add the
-	// reserved bytes
-	if len(css.pendingShare.Share) == appconsts.NamespaceSize+appconsts.ShareInfoBytes {
-		css.pendingShare.Share = append(css.pendingShare.Share, 0)
-	}
+	css.maybeWriteReservedByteToPendingShare()
 
 	txCursor := len(rawData)
 	for txCursor != 0 {
 		// find the len left in the pending share
-		pendingLeft := appconsts.ShareSize - len(css.pendingShare.Share)
+		pendingLeft := appconsts.ShareSize - len(css.pendingShare)
 
 		// if we can simply add the tx to the share without creating a new
 		// pending share, do so and return
 		if len(rawData) <= pendingLeft {
-			css.pendingShare.Share = append(css.pendingShare.Share, rawData...)
+			css.pendingShare = append(css.pendingShare, rawData...)
 			break
 		}
 
 		// if we can only add a portion of the transaction to the pending share,
 		// then we add it and add the pending share to the finalized shares.
 		chunk := rawData[:pendingLeft]
-		css.pendingShare.Share = append(css.pendingShare.Share, chunk...)
+		css.pendingShare = append(css.pendingShare, chunk...)
 		css.stackPending()
 
 		// update the cursor
 		rawData = rawData[pendingLeft:]
 		txCursor = len(rawData)
-
-		// add the share reserved bytes to the new pending share
-		pendingCursor := len(rawData) + appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.CompactShareReservedBytes
-		var reservedByte byte
-		if pendingCursor >= appconsts.ShareSize {
-			// the share reserve byte is zero when some compactly written
-			// data takes up the entire share
-			reservedByte = byte(0)
-		} else {
-			reservedByte = byte(pendingCursor)
-		}
-
-		css.pendingShare.Share = append(css.pendingShare.Share, reservedByte)
 	}
 
 	// if the share is exactly the correct size, then append to shares
-	if len(css.pendingShare.Share) == appconsts.ShareSize {
+	if len(css.pendingShare) == appconsts.ShareSize {
 		css.stackPending()
 	}
 }
 
 // stackPending will add the pending share to accumlated shares provided that it is long enough
 func (css *CompactShareSplitter) stackPending() {
-	if len(css.pendingShare.Share) < appconsts.ShareSize {
+	if len(css.pendingShare) < appconsts.ShareSize {
 		return
 	}
 	css.shares = append(css.shares, css.pendingShare)
 	newPendingShare := make([]byte, 0, appconsts.ShareSize)
 	newPendingShare = append(newPendingShare, css.namespace...)
-	infoByte, err := NewInfoReservedByte(css.version, false)
+	infoByte, err := NewInfoByte(css.version, false)
 	if err != nil {
 		panic(err)
 	}
+	placeholderReservedBytes := make([]byte, appconsts.CompactShareReservedBytes)
 	newPendingShare = append(newPendingShare, byte(infoByte))
-	css.pendingShare = NamespacedShare{
-		Share: newPendingShare,
-		ID:    css.namespace,
-	}
+	newPendingShare = append(newPendingShare, placeholderReservedBytes...)
+	css.pendingShare = newPendingShare
 }
 
 // Export finalizes and returns the underlying compact shares.
-func (css *CompactShareSplitter) Export() NamespacedShares {
+func (css *CompactShareSplitter) Export() []Share {
+	if css.isEmpty() {
+		return []Share{}
+	}
+
+	var bytesOfPadding int
 	// add the pending share to the current shares before returning
-	if len(css.pendingShare.Share) > appconsts.NamespaceSize+appconsts.ShareInfoBytes {
-		css.pendingShare.Share = zeroPadIfNecessary(css.pendingShare.Share, appconsts.ShareSize)
+	if !css.isEmptyPendingShare() {
+		css.pendingShare, bytesOfPadding = zeroPadIfNecessary(css.pendingShare, appconsts.ShareSize)
 		css.shares = append(css.shares, css.pendingShare)
 	}
-	// force the last share to have a reserve byte of zero
-	if len(css.shares) == 0 {
-		return css.shares
-	}
-	lastShare := css.shares[len(css.shares)-1]
-	rawLastShare := lastShare.Data()
 
-	for i := 0; i < appconsts.CompactShareReservedBytes; i++ {
-		// here we force the last share reserved byte to be zero to avoid any
-		// confusion for light clients parsing these shares, as the rest of the
-		// data after transaction is padding. See
-		// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#share
-		rawLastShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+i] = byte(0)
-	}
-
-	newLastShare := NamespacedShare{
-		Share: rawLastShare,
-		ID:    lastShare.NamespaceID(),
-	}
-	css.shares[len(css.shares)-1] = newLastShare
+	dataLengthVarint := css.dataLengthVarint(bytesOfPadding)
+	css.writeDataLengthVarintToFirstShare(dataLengthVarint)
 	return css.shares
 }
 
-// Count returns the current number of shares that will be made if exporting.
+// dataLengthVarint returns a varint of the data length written to this compact
+// share splitter.
+func (css *CompactShareSplitter) dataLengthVarint(bytesOfPadding int) []byte {
+	if css.isEmpty() {
+		return []byte{}
+	}
+
+	// declare and initialize the data length
+	dataLengthVarint := make([]byte, appconsts.FirstCompactShareDataLengthBytes)
+	binary.PutUvarint(dataLengthVarint, css.dataLength(bytesOfPadding))
+	zeroPadIfNecessary(dataLengthVarint, appconsts.FirstCompactShareDataLengthBytes)
+
+	return dataLengthVarint
+}
+
+func (css *CompactShareSplitter) writeDataLengthVarintToFirstShare(dataLengthVarint []byte) {
+	if css.isEmpty() {
+		return
+	}
+
+	// write the data length varint to the first share
+	firstShare := css.shares[0]
+	for i := 0; i < appconsts.FirstCompactShareDataLengthBytes; i++ {
+		firstShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+i] = dataLengthVarint[i]
+	}
+
+	// replace existing first share with new first share
+	css.shares[0] = firstShare
+}
+
+// maybeWriteReservedByteToPendingShare will be a no-op if the reserved byte has
+// already been populated. If the reserved byte is empty, it will write the
+// location of the next unit of data to the reserved byte.
+func (css *CompactShareSplitter) maybeWriteReservedByteToPendingShare() {
+	if !css.isEmptyReservedByte() {
+		return
+	}
+
+	locationOfNextUnit := len(css.pendingShare)
+	if locationOfNextUnit >= appconsts.ShareSize {
+		panic(fmt.Sprintf("location of next unit %v is greater than or equal to the share size %v", locationOfNextUnit, appconsts.ShareSize))
+	}
+
+	// write the location of next unit to the reserved byte of the pending share
+	if css.isPendingShareTheFirstShare() {
+		css.pendingShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareDataLengthBytes : appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareContentSize+appconsts.CompactShareReservedBytes][0] = byte(locationOfNextUnit)
+	} else {
+		css.pendingShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes : appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes][0] = byte(locationOfNextUnit)
+	}
+}
+
+// isEmptyReservedByte returns true if the reserved byte is empty.
+func (css *CompactShareSplitter) isEmptyReservedByte() bool {
+	var reservedByte byte
+
+	if css.isPendingShareTheFirstShare() {
+		reservedByte = css.pendingShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareDataLengthBytes : appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareContentSize+appconsts.CompactShareReservedBytes][0]
+	} else {
+		reservedByte = css.pendingShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes : appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes][0]
+	}
+
+	return reservedByte == 0
+}
+
+// dataLength returns the total length in bytes of all units (transactions,
+// intermediate state roots, or evidence) written to this splitter.
+// dataLength does not include the # of bytes occupied by the namespace ID or
+// the share info byte in each share. dataLength does include the reserved
+// byte in each share and the unit length delimiter prefixed to each unit.
+func (css *CompactShareSplitter) dataLength(bytesOfPadding int) uint64 {
+	if len(css.shares) == 0 {
+		return 0
+	}
+	if len(css.shares) == 1 {
+		return uint64(appconsts.FirstCompactShareContentSize) - uint64(bytesOfPadding)
+	}
+
+	continuationSharesCount := len(css.shares) - 1
+	continuationSharesDataLength := uint64(continuationSharesCount) * appconsts.ContinuationCompactShareContentSize
+	return uint64(appconsts.FirstCompactShareContentSize) + continuationSharesDataLength - uint64(bytesOfPadding)
+}
+
+// isEmptyPendingShare returns true if the pending share is empty, false otherwise.
+func (css *CompactShareSplitter) isEmptyPendingShare() bool {
+	if css.isPendingShareTheFirstShare() {
+		return len(css.pendingShare) == appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareDataLengthBytes+appconsts.CompactShareReservedBytes
+	}
+	return len(css.pendingShare) == appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes
+}
+
+// isPendingShareTheFirstShare returns true if the pending share is the first
+// share of this compact share splitter and false otherwise.
+func (css *CompactShareSplitter) isPendingShareTheFirstShare() bool {
+	return len(css.shares) == 0
+}
+
+// isEmpty returns whether this compact share splitter is empty.
+func (css *CompactShareSplitter) isEmpty() bool {
+	return len(css.shares) == 0 && css.isEmptyPendingShare()
+}
+
+// Count returns the number of shares that would be made if `Export` was invoked
+// on this compact share splitter.
 func (css *CompactShareSplitter) Count() (shareCount int) {
-	if len(css.pendingShare.Share) > appconsts.NamespaceSize+appconsts.ShareInfoBytes {
-		// pending share is non-empty, so we must add one to the count
+	if !css.isEmptyPendingShare() {
+		// pending share is non-empty, so it will be zero padded and added to shares during export
 		return len(css.shares) + 1
 	}
 	return len(css.shares)
-}
-
-var tailPaddingInfo, _ = NewInfoReservedByte(appconsts.ShareVersion, false)
-
-// tail is filler for all tail padded shares
-// it is allocated once and used everywhere
-var tailPaddingShare = append(append(
-	append(make([]byte, 0, appconsts.ShareSize), appconsts.TailPaddingNamespaceID...),
-	byte(tailPaddingInfo)),
-	bytes.Repeat([]byte{0}, appconsts.ShareSize-appconsts.NamespaceSize-appconsts.ShareInfoBytes)...,
-)
-
-// TailPaddingShares creates n tail padding shares.
-func TailPaddingShares(n int) NamespacedShares {
-	shares := make([]NamespacedShare, n)
-	for i := 0; i < n; i++ {
-		shares[i] = NamespacedShare{
-			Share: tailPaddingShare,
-			ID:    appconsts.TailPaddingNamespaceID,
-		}
-	}
-	return shares
 }
 
 // MarshalDelimitedTx prefixes a transaction with the length of the transaction
@@ -192,24 +246,6 @@ func MarshalDelimitedTx(tx coretypes.Tx) ([]byte, error) {
 	length := uint64(len(tx))
 	n := binary.PutUvarint(lenBuf, length)
 	return append(lenBuf[:n], tx...), nil
-}
-
-func namespacedPaddedShares(ns []byte, count int) NamespacedShares {
-	infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, true)
-	if err != nil {
-		panic(err)
-	}
-	shares := make([]NamespacedShare, count)
-	for i := 0; i < count; i++ {
-		shares[i] = NamespacedShare{
-			Share: append(append(append(
-				make([]byte, 0, appconsts.ShareSize), ns...),
-				byte(infoByte)),
-				make([]byte, appconsts.SparseShareContentSize)...),
-			ID: ns,
-		}
-	}
-	return shares
 }
 
 func min(a, b int) int {

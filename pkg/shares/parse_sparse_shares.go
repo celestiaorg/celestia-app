@@ -45,7 +45,7 @@ func parseSparseShares(shares [][]byte) ([]coretypes.Message, error) {
 			}
 			currentMsgLen = int(nextMsgLen)
 			nid := shares[i][:appconsts.NamespaceSize]
-			infoByte, err := ParseInfoReservedByte(shares[i][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0])
+			infoByte, err := ParseInfoByte(shares[i][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0])
 			if err != nil {
 				panic(err)
 			}
@@ -92,7 +92,7 @@ func ParseDelimiter(input []byte) (inputWithoutLengthDelimiter []byte, dataLengt
 		l = len(input)
 	}
 
-	delimiter := zeroPadIfNecessary(input[:l], binary.MaxVarintLen64)
+	delimiter, _ := zeroPadIfNecessary(input[:l], binary.MaxVarintLen64)
 
 	// read the length of the data
 	r := bytes.NewBuffer(delimiter)
@@ -107,20 +107,4 @@ func ParseDelimiter(input []byte) (inputWithoutLengthDelimiter []byte, dataLengt
 
 	// return the input without the length delimiter
 	return input[n:], dataLen, nil
-}
-
-// zeroPadIfNecessary pads the share with trailing zero bytes if the provided
-// share has fewer bytes than width. Returns the share unmodified if the
-// len(share) is greater than or equal to width.
-func zeroPadIfNecessary(share []byte, width int) []byte {
-	oldLen := len(share)
-	if oldLen >= width {
-		return share
-	}
-
-	missingBytes := width - oldLen
-	padByte := []byte{0}
-	padding := bytes.Repeat(padByte, missingBytes)
-	share = append(share, padding...)
-	return share
 }

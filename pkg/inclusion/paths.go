@@ -47,6 +47,7 @@ func calculateCommitPaths(squareSize, start, msgShareLen int) []path {
 // genSubTreeRootPath calculates the path to a given subtree root of a node, given the
 // depth and position of the node. note: the root of the tree is depth 0.
 // The following nolint can be removed after this function is used.
+//
 //nolint:unused,deadcode
 func genSubTreeRootPath(depth int, pos uint) []WalkInstruction {
 	path := make([]WalkInstruction, depth)
@@ -63,15 +64,16 @@ func genSubTreeRootPath(depth int, pos uint) []WalkInstruction {
 }
 
 // coord identifies a tree node using the depth and position
-// Depth       Position
-// 0              0
-//               / \
-//              /   \
-// 1           0     1
-//            /\     /\
-// 2         0  1   2  3
-//          /\  /\ /\  /\
-// 3       0 1 2 3 4 5 6 7
+//
+//	Depth       Position
+//	0              0
+//	              / \
+//	             /   \
+//	1           0     1
+//	           /\     /\
+//	2         0  1   2  3
+//	         /\  /\ /\  /\
+//	3       0 1 2 3 4 5 6 7
 type coord struct {
 	// depth is the typical depth of a tree, 0 being the root
 	depth int

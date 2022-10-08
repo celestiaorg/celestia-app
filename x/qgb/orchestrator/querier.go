@@ -343,6 +343,8 @@ func (q querier) QueryTwoThirdsValsetConfirms(
 
 // validateValsetConfirm runs validation on the valset confirm to make sure it was well created.
 // For now, it only checks if the signature is correct. Can be improved afterwards.
+//
+//nolint:unused,deadcode
 func validateValsetConfirm(vs types.Valset, confirm types.MsgValsetConfirm) error {
 	signBytes, err := vs.SignBytes(types.BridgeID)
 	if err != nil {

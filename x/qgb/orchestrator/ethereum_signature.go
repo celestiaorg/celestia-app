@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"crypto/ecdsa"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"

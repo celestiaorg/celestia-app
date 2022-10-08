@@ -2,6 +2,7 @@ package prove
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -36,7 +37,7 @@ func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxP
 	}
 
 	var proofs []*tmproto.NMTProof  //nolint:prealloc // rarely will this contain more than a single proof
-	var shares [][]byte             //nolint:prealloc // rarely will this contain more than a single share
+	var rawShares [][]byte          //nolint:prealloc // rarely will this contain more than a single share
 	var rowRoots []tmbytes.HexBytes //nolint:prealloc // rarely will this contain more than a single root
 	for i, row := range rowShares {
 		// create an nmt to use to generate a proof
@@ -63,8 +64,7 @@ func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxP
 			endLeafPos = data.OriginalSquareSize - 1
 		}
 
-		shares = append(shares, row[startLeafPos:endLeafPos+1]...)
-
+		rawShares = append(rawShares, shares.ToBytes(row[startLeafPos:endLeafPos+1])...)
 		proof, err := tree.Tree().ProveRange(int(startLeafPos), int(endLeafPos+1))
 		if err != nil {
 			return types.TxProof{}, err
@@ -84,7 +84,7 @@ func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxP
 
 	return types.TxProof{
 		RowRoots: rowRoots,
-		Data:     shares,
+		Data:     rawShares,
 		Proofs:   proofs,
 	}, nil
 }
@@ -97,22 +97,41 @@ func txSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos 
 		return startSharePos, endSharePos, errors.New("transaction index is greater than the number of txs")
 	}
 
-	totalLen := 0
+	prevTxTotalLen := 0
 	for i := uint64(0); i < txIndex; i++ {
 		txLen := len(txs[i])
-		totalLen += (shares.DelimLen(uint64(txLen)) + txLen)
+		prevTxTotalLen += (shares.DelimLen(uint64(txLen)) + txLen)
 	}
 
-	txLen := len(txs[txIndex])
+	currentTxLen := len(txs[txIndex])
+	currentTxTotalLen := shares.DelimLen(uint64(currentTxLen)) + currentTxLen
+	endOfCurrentTxLen := prevTxTotalLen + currentTxTotalLen
 
-	startSharePos = uint64((totalLen) / appconsts.CompactShareContentSize)
-	endSharePos = uint64((totalLen + txLen + shares.DelimLen(uint64(txLen))) / appconsts.CompactShareContentSize)
-
+	startSharePos = txShareIndex(prevTxTotalLen)
+	endSharePos = txShareIndex(endOfCurrentTxLen)
+	fmt.Printf("prevTxTotalLen: %d, endOfCurrentTxLen: %d, startSharePos: %d, endSharePos %d, currentTxTotalLen %d\n", prevTxTotalLen, endOfCurrentTxLen, startSharePos, endSharePos, currentTxTotalLen)
 	return startSharePos, endSharePos, nil
 }
 
+// txShareIndex returns the index of the compact share that would contain
+// transactions with totalTxLen
+func txShareIndex(totalTxLen int) (index uint64) {
+	if totalTxLen <= appconsts.FirstCompactShareContentSize {
+		return 0
+	}
+
+	index++
+	totalTxLen -= appconsts.FirstCompactShareContentSize
+
+	for totalTxLen > appconsts.ContinuationCompactShareContentSize {
+		index++
+		totalTxLen -= appconsts.ContinuationCompactShareContentSize
+	}
+	return index
+}
+
 // genRowShares progessively generates data square rows from block data
-func genRowShares(codec rsmt2d.Codec, data types.Data, startRow, endRow uint64) ([][][]byte, error) {
+func genRowShares(codec rsmt2d.Codec, data types.Data, startRow, endRow uint64) ([][]shares.Share, error) {
 	if endRow > data.OriginalSquareSize {
 		return nil, errors.New("cannot generate row shares past the original square size")
 	}
@@ -121,17 +140,17 @@ func genRowShares(codec rsmt2d.Codec, data types.Data, startRow, endRow uint64) 
 		genOrigRowShares(data, startRow, endRow),
 	)
 
-	encodedRowShares := make([][][]byte, len(origRowShares))
+	encodedRowShares := make([][]shares.Share, len(origRowShares))
 	for i, row := range origRowShares {
-		encRow, err := codec.Encode(row)
+		encRow, err := codec.Encode(shares.ToBytes(row))
 		if err != nil {
 			panic(err)
 		}
 		encodedRowShares[i] = append(
 			append(
-				make([][]byte, 0, len(row)+len(encRow)),
+				make([]shares.Share, 0, len(row)+len(encRow)),
 				row...,
-			), encRow...,
+			), shares.FromBytes(encRow)...,
 		)
 	}
 
@@ -141,7 +160,7 @@ func genRowShares(codec rsmt2d.Codec, data types.Data, startRow, endRow uint64) 
 // genOrigRowShares progressively generates data square rows for the original
 // data square, meaning the rows only half the full square length, as there is
 // not erasure data
-func genOrigRowShares(data types.Data, startRow, endRow uint64) [][]byte {
+func genOrigRowShares(data types.Data, startRow, endRow uint64) []shares.Share {
 	wantLen := (endRow + 1) * data.OriginalSquareSize
 	startPos := startRow * data.OriginalSquareSize
 
@@ -176,17 +195,17 @@ func genOrigRowShares(data types.Data, startRow, endRow uint64) [][]byte {
 	}
 
 	tailShares := shares.TailPaddingShares(int(wantLen) - len(rawShares))
-	rawShares = append(rawShares, tailShares.RawShares()...)
+	rawShares = append(rawShares, tailShares...)
 
 	return rawShares[startPos:wantLen]
 }
 
 // splitIntoRows splits shares into rows of a particular square size
-func splitIntoRows(squareSize uint64, shares [][]byte) [][][]byte {
-	rowCount := uint64(len(shares)) / squareSize
-	rows := make([][][]byte, rowCount)
+func splitIntoRows(squareSize uint64, s []shares.Share) [][]shares.Share {
+	rowCount := uint64(len(s)) / squareSize
+	rows := make([][]shares.Share, rowCount)
 	for i := uint64(0); i < rowCount; i++ {
-		rows[i] = shares[i*squareSize : (i+1)*squareSize]
+		rows[i] = s[i*squareSize : (i+1)*squareSize]
 	}
 	return rows
 }

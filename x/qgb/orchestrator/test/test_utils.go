@@ -3,8 +3,9 @@ package test
 import (
 	"errors"
 	"fmt"
-	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"math/big"
+
+	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
