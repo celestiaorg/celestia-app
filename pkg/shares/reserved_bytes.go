@@ -17,10 +17,7 @@ func NewReservedBytes(byteIndex uint64) (reservedBytes []byte, err error) {
 		return []byte{}, fmt.Errorf("byte index %d must be less than share size %d", byteIndex, appconsts.ShareSize)
 	}
 	reservedBytes = make([]byte, appconsts.CompactShareReservedBytes)
-	bytesWritten := binary.PutUvarint(reservedBytes, byteIndex)
-	if bytesWritten > appconsts.CompactShareReservedBytes {
-		return []byte{}, fmt.Errorf("byte index %d must occupy less than %d bytes when written as varint", byteIndex, appconsts.CompactShareReservedBytes)
-	}
+	binary.PutUvarint(reservedBytes, byteIndex)
 	return reservedBytes, nil
 }
 

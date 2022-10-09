@@ -36,7 +36,7 @@ func TestSplitTxs(t *testing.T) {
 					15, 0, // reserved bytes
 					0x1, // unit length of first transaction
 					0xa, // data of first transaction
-				}, 0), // padding
+				}),
 			},
 		},
 		{
@@ -52,14 +52,14 @@ func TestSplitTxs(t *testing.T) {
 					0xa, // data of first transaction
 					0x1, // unit length of second transaction
 					0xb, // data of second transaction
-				}, 0), // padding
+				}),
 			},
 		},
 		{
 			name: "one large tx that spans two shares",
 			txs:  coretypes.Txs{largeTransaction},
 			want: []Share{
-				padShare([]uint8{
+				fillShare([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,          // info byte
 					130, 4, 0, 0, // 512 (unit) + 2 (unit length) = 514 sequence length
@@ -71,14 +71,14 @@ func TestSplitTxs(t *testing.T) {
 					0x0,  // info byte
 					0, 0, // reserved bytes
 				}, bytes.Repeat([]byte{0xc}, 17)..., // continuation data of transaction
-				), 0), // padding
+				)),
 			},
 		},
 		{
 			name: "one small tx then one large tx that spans two shares",
 			txs:  coretypes.Txs{smallTransactionA, largeTransaction},
 			want: []Share{
-				padShare([]uint8{
+				fillShare([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,          // info byte
 					132, 4, 0, 0, // 2 bytes (first transaction) + 514 bytes (second transaction) = 516 bytes sequence length
@@ -93,7 +93,6 @@ func TestSplitTxs(t *testing.T) {
 						0x0,  // info byte
 						0, 0, // reserved bytes
 					}, bytes.Repeat([]byte{0xc}, 19)...), // continuation data of second transaction
-					0, // padding
 				),
 			},
 		},
@@ -101,7 +100,7 @@ func TestSplitTxs(t *testing.T) {
 			name: "one large tx that spans two shares then one small tx",
 			txs:  coretypes.Txs{largeTransaction, smallTransactionA},
 			want: []Share{
-				padShare([]uint8{
+				fillShare([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,          // info byte
 					132, 4, 0, 0, // 514 bytes (first transaction) + 2 bytes (second transaction) = 516 bytes sequence length
@@ -115,7 +114,7 @@ func TestSplitTxs(t *testing.T) {
 					0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, // continuation data of first transaction
 					1,   // unit length of second transaction
 					0xa, // data of second transaction
-				}, 0), // padding
+				}),
 			},
 		},
 	}
@@ -129,8 +128,13 @@ func TestSplitTxs(t *testing.T) {
 	}
 }
 
-// padShare returns a share padded with trailing padding so that the share length
+// padShare returns a share padded with trailing zeros.
+func padShare(share []byte) (paddedShare []byte) {
+	return fillShare(share, 0)
+}
+
+// fillShare returns a share filled with filler so that the share length
 // is equal to appconsts.ShareSize.
-func padShare(share []byte, padding byte) (paddedShare []byte) {
-	return append(share, bytes.Repeat([]byte{padding}, appconsts.ShareSize-len(share))...)
+func fillShare(share []byte, filler byte) (paddedShare []byte) {
+	return append(share, bytes.Repeat([]byte{filler}, appconsts.ShareSize-len(share))...)
 }
