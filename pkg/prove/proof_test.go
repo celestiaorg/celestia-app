@@ -87,6 +87,9 @@ func TestTxSharePosition(t *testing.T) {
 			txs:  generateRandomlySizedTxs(444, 100),
 		},
 		{
+			// this is a concrete output from generateRandomlySizedTxs(444, 100)
+			// that surfaced a bug in txSharePositions so it is included here to
+			// prevent regressions
 			name: "many small tx (without randomness)",
 			txs:  manySmallTxsWithoutRandomness,
 		},
