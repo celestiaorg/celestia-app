@@ -145,10 +145,6 @@ func (msg *MsgWirePayForData) ValidateAllSquareSizesCommitedTo() error {
 	allSquareSizes := AllSquareSizes(int(msg.MessageSize))
 	committedSquareSizes := msg.committedSquareSizes()
 
-	if len(allSquareSizes) != len(committedSquareSizes) {
-		return ErrInvalidShareCommitments.Wrapf("length of all square sizes: %v must equal length of committed square sizes: %v", len(allSquareSizes), len(committedSquareSizes))
-	}
-
 	if !isEqual(allSquareSizes, committedSquareSizes) {
 		return ErrInvalidShareCommitments.Wrapf("all square sizes: %v, committed square sizes: %v", allSquareSizes, committedSquareSizes)
 	}
