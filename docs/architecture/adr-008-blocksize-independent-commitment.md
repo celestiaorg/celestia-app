@@ -24,7 +24,7 @@ You can see in the diagramm below that no matter how the message is split up int
 
 ![Row Size Comparison](./assets/row-size-comparison.png)
 
-This scheme works for interactive commitments as well as long as the index of when a message starts is the same in every block size.
+This scheme works for interactive commitments as well as long as the index of when a message starts is the same in every block size. In other words, the leaf nodes and leaf node pairs are independent of the block size.
 For example, in the following diagram, you see the message starting at the second share and still having the same commitment. I marked the skipped blocks pink to show that both messages have the same starting index.
 
 ![Interactive Commitment](./assets/interactive-commitment.png)
@@ -49,10 +49,10 @@ In Detail, [`powerOf2MountainRange`](https://github.com/celestiaorg/celestia-app
 Following the non-interactive default rules, `minimalBlocksize` can be calculated like this:
 
 ```go
-func minimalBlocksize(mLength uint64) uint64 {
-    blocksize := NextHigherPowerOf2(mLength)
-    //Check if message fits with non-interactive-deafult rules
-    if mLength <= (blocksize * (blocksize -1)) {
+func minimalBlocksize(messageLength uint64) uint64 {
+    blocksize := NextHigherPowerOf2(messageLength)
+    //Check if message fits with non-interactive default rules
+    if messageLength <= (blocksize * (blocksize -1)) {
         return blocksize
     } else {
         return blocksize << 1
@@ -70,10 +70,10 @@ Proposed
 
 1. The amount of subtree roots per commitment is O(sqrt(n)), while n is the number of message shares. The worst case for the number of subtree roots is depicted in the diagram below - an entire block missing one share.  
   ![Interactive Commitment 2](./assets/complexity.png)  
-The worst case for the current implementation depends on the block size. If it is the worst block size as in `minimalBlocksize`, it is O(sqrt(n)) as well. On the other hand, if the message is only in one row, then it is O(log(n)).
+The worst case for the current implementation depends on the block size. If it is the worst block size, as in `minimalBlocksize`, it is O(sqrt(n)) as well. On the other hand, if the message is only in one row, then it is O(log(n)).
 Therefore the height of the tree over the subtree roots is in this implementation O(log(sqrt(n))), while n is the number of message shares. In the current implementation, it varies from O(log(sqrt(n))) to O(log(log(n))) depending on the block size.
 
-2. With more subtree roots, the amount of merkle proofs will increase. With deeper subtree roots, the size of the merkle proofs will increase. So instead of having a merkle proof from the `DataRoot` to the `originalSubRoot` you will need the merkle proof from `DataRoot` to `2^k` amount of `miniSubRoots` with `k` being the height difference of `originalSubRoot` and `miniSubRoots`. You can optimize this by having only **one** merkle proof from `DataRoot` to `originalSubRoot` and then calculate the `originalSubRoot` from the `k` `miniSubRoots`. Because the merkle proof is created after the block is published, we know the block size and, therefore, if this `originalSubRoot` exists or not.
+2. With more subtree roots, the number of merkle proofs will increase. With deeper subtree roots, the size of the merkle proofs will increase. So instead of having a merkle proof from the `DataRoot` to the `originalSubRoot` you will need the merkle proof from `DataRoot` to `2^k` amount of `miniSubRoots` with `k` being the height difference of `originalSubRoot` and `miniSubRoots`. You can optimize this by having only **one** merkle proof from `DataRoot` to `originalSubRoot` and then calculate the `originalSubRoot` from the `k` `miniSubRoots`. Because the merkle proof is created after the block is published, we know the block size and, therefore, if this `originalSubRoot` exists or not.
 
 ### Positive
 
@@ -88,7 +88,7 @@ Therefore the height of the tree over the subtree roots is in this implementatio
   The Commitment of BH1+B2 is saved into BH2.  
   Message 3: (BH2+B3)  
   The Commitment of (BH2+B3) is saved into BH3, and so on.  
-4. Verifying a message inclusion proof could be done with merkle proofs of the subtree roots to the `DataRoot`, recalculating the commitment, and comparing to what's in the rollup block header. If you trust the validator set of Celestia/Rollup (aka Rollmint Light Client) it could be as simple as submitting a proof over the PFD transaction that included the message and then check if the commitment is the same as in the PFD transaction.
+4. Verifying a message inclusion proof could be done with merkle proofs of the subtree roots to the `DataRoot`, recalculating the commitment, and comparing to what's in the rollup block header. If you trust the validator set of Celestia/Rollup (aka Rollmint Light Client) it could be as simple as submitting a proof over the PFD transaction that included the message and then checking if the commitment is the same as in the PFD transaction.
 5. So far, a full node in Rollmint downloads new blocks from the DA Layer after each Celestia block, coupled tightly for syncing. With this approach, we can send blocks over the p2p Layer giving a soft-commit to full nodes. Then, they would receive the hard-commit after verifying a message inclusion proof without the need to download the blocks anymore. **P2P Blocksync**
     1. P2P Blocksync allows a Rollmint full node to run a Celestia light node and not a Celestia full node.
     2. It allows the Rollup node to continue running after Celestia halts, relying on soft commits with no data availability.
