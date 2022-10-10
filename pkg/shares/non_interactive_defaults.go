@@ -2,13 +2,15 @@ package shares
 
 // FitsInSquare uses the non interactive default rules to see if messages of
 // some lengths will fit in a square of squareSize starting at share index
-// cursor. See non-interactive default rules
+// cursor. Returns whether the messages fit in the square and the number of
+// shares used by messages. See non-interactive default rules
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
 func FitsInSquare(cursor, squareSize int, msgShareLens ...int) (bool, int) {
-	// if there are 0 messages and the cursor already fits inside the square,
-	// then we already know that everything fits in the square.
-	if len(msgShareLens) == 0 && cursor/squareSize <= squareSize {
-		return true, 0
+	if len(msgShareLens) == 0 {
+		if cursor <= squareSize*squareSize {
+			return true, 0
+		}
+		return false, 0
 	}
 	firstMsgLen := 1
 	if len(msgShareLens) > 0 {
