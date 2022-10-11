@@ -2,8 +2,9 @@ package orchestrator
 
 import (
 	"fmt"
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"sync"
+
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 )
 
 // ConfirmStoreI is a store interface for data commitment confirms and valset confirms.

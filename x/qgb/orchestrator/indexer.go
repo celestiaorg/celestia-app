@@ -9,7 +9,7 @@ type IndexerI interface {
 	Stop() error
 	AddDataCommitmentConfirm(confirm types.MsgDataCommitmentConfirm) error
 	AddValsetConfirm(confirm types.MsgValsetConfirm) error
-	//Remove() error ?
+	// Remove() error ?
 }
 
 var _ IndexerI = &InMemoryIndexer{}
