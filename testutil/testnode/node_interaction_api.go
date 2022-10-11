@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/x/payment"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 type Context struct {
@@ -140,4 +143,76 @@ func (c *Context) PostData(account string, ns, msg []byte) (*sdk.TxResponse, err
 	}
 
 	return res, nil
+}
+
+// FillBlock will create and submit enough PFD txs to fill a block to a specific
+// square size. It uses a crude mechanism to estimate the number of txs needed
+// by creating message that each take up a single row, and creating squareSize
+// -2 of those PFDs.
+func FillBlock(cctx client.Context, squareSize int, accounts []string) ([]*sdk.TxResponse, error) {
+	// todo: fix or debug this after cherry-picking this commit to a branch w/ non-interactive defaults
+	msgCount := (squareSize / 4)
+	if len(accounts) < msgCount {
+		return nil, fmt.Errorf("more funded accounts are needed: want >=%d have %d", msgCount, len(accounts))
+	}
+
+	// todo: fix or debug this after cherry-picking this commit to a branch w/ non-interactive defaults
+	msgSize := ((squareSize / 2) * appconsts.SparseShareContentSize) - 300
+
+	opts := []types.TxBuilderOption{
+		types.SetGasLimit(100000000000000),
+	}
+
+	results := make([]*sdk.TxResponse, msgCount)
+	for i := 0; i < msgCount; i++ {
+		// use the key for accounts[i] to create a singer used for a single PFD
+		signer := types.NewKeyringSigner(cctx.Keyring, accounts[i], cctx.ChainID)
+
+		rec := signer.GetSignerInfo()
+		addr, err := rec.GetAddress()
+		if err != nil {
+			return nil, err
+		}
+
+		acc, seq, err := cctx.AccountRetriever.GetAccountNumberSequence(cctx, addr)
+		if err != nil {
+			return nil, err
+		}
+
+		signer.SetAccountNumber(acc)
+		signer.SetSequence(seq)
+
+		// create a random msg per row
+		pfd, err := payment.BuildPayForData(
+			context.TODO(),
+			signer,
+			cctx.GRPCClient,
+			namespace.RandomMessageNamespace(),
+			tmrand.Bytes(msgSize),
+			opts...,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		signed, err := payment.SignPayForData(signer, pfd, opts...)
+		if err != nil {
+			return nil, err
+		}
+
+		rawTx, err := signer.EncodeTx(signed)
+		if err != nil {
+			return nil, err
+		}
+
+		res, err := cctx.BroadcastTxCommit(rawTx)
+		if err != nil {
+			return nil, err
+		}
+		if res.Code != abci.CodeTypeOK {
+			return nil, fmt.Errorf("failure to broadcast tx sync: %s %d", res.RawLog, i)
+		}
+		results[i] = res
+	}
+	return nil, nil
 }
