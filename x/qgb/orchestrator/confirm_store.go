@@ -19,7 +19,7 @@ type ConfirmStoreI interface {
 	GetValsetConfirmByEthereumAddress(nonce uint64, ethAddr string) (types.MsgValsetConfirm, error)
 }
 
-// ConfirmStore is simple in memory store for data commitment confirms and valset confirms.
+// ConfirmStore is a simple in memory store for data commitment confirms and valset confirms.
 // To be used with the InMemoryIndexer.
 type ConfirmStore struct {
 	mutex                  *sync.Mutex
