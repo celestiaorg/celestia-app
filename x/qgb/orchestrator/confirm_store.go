@@ -48,7 +48,7 @@ func (store ConfirmStore) GetDataCommitmentConfirms(nonce uint64) ([]types.MsgDa
 	defer store.mutex.Unlock()
 	confirms, ok := store.DataCommitmentConfirms[nonce]
 	if !ok {
-		return nil, fmt.Errorf("not existant")
+		return nil, fmt.Errorf("not existent")
 	}
 	return confirms, nil
 }
@@ -95,7 +95,7 @@ func (store ConfirmStore) GetValsetConfirms(nonce uint64) ([]types.MsgValsetConf
 	defer store.mutex.Unlock()
 	confirms, ok := store.ValsetConfirms[nonce]
 	if !ok {
-		return nil, fmt.Errorf("not existant")
+		return nil, fmt.Errorf("not existent")
 	}
 	return confirms, nil
 }
