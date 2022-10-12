@@ -4,8 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/stretchr/testify/suite"
+	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
@@ -77,6 +80,38 @@ func (s *IntegrationTestSuite) Test_PostData() {
 	require := s.Require()
 	_, err := s.cctx.PostData(s.accounts[0], namespace.RandomMessageNamespace(), tmrand.Bytes(100000))
 	require.NoError(err)
+}
+
+func (s *IntegrationTestSuite) TestFillBlock() {
+	require := s.Require()
+
+	for squareSize := 16; squareSize < appconsts.MaxSquareSize; squareSize *= 2 {
+		// todo: FillBlock is creating PFDs that span multiple blocks
+		txResponses, err := FillBlock(s.cctx.Context, squareSize, s.accounts)
+		require.NoError(err)
+
+		err = s.cctx.WaitForNextBlock()
+		require.NoError(err)
+		err = s.cctx.WaitForNextBlock()
+		require.NoError(err)
+
+		var inclusionHeight int64
+		for _, txResponse := range txResponses {
+			result, err := testutil.QueryWithOutProof(s.cctx.Context, txResponse.TxHash)
+			require.NoError(err)
+			require.Equal(abci.CodeTypeOK, result.TxResult.Code, "the response code should be OK")
+			if inclusionHeight == 0 {
+				inclusionHeight = result.Height
+				continue
+			}
+			// check that all of the txs are included in the same block
+			require.Equal(inclusionHeight, result.Height, "the response height should be the inclusionHeight")
+		}
+
+		b, err := s.cctx.Client.Block(context.TODO(), &inclusionHeight)
+		require.NoError(err)
+		require.Equal(uint64(squareSize), b.Block.OriginalSquareSize, "the square size should be the block's original square size")
+	}
 }
 
 func TestIntegrationTestSuite(t *testing.T) {

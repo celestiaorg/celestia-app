@@ -145,19 +145,17 @@ func (c *Context) PostData(account string, ns, msg []byte) (*sdk.TxResponse, err
 	return res, nil
 }
 
-// FillBlock will create and submit enough PFD txs to fill a block to a specific
-// square size. It uses a crude mechanism to estimate the number of txs needed
-// by creating message that each take up a single row, and creating squareSize
-// -2 of those PFDs.
+// FillBlock will create and submit enough PayForData txs to fill a block to a
+// specified square size. It uses a crude mechanism to estimate the number of
+// PayForData txs to submit by creating creating squareSize - 1 messages that
+// each take up a single row.
 func FillBlock(cctx client.Context, squareSize int, accounts []string) ([]*sdk.TxResponse, error) {
-	// todo: fix or debug this after cherry-picking this commit to a branch w/ non-interactive defaults
-	msgCount := (squareSize / 4)
+	msgCount := squareSize - 1
+	msgSize := squareSize*appconsts.SparseShareContentSize - 100
+
 	if len(accounts) < msgCount {
 		return nil, fmt.Errorf("more funded accounts are needed: want >=%d have %d", msgCount, len(accounts))
 	}
-
-	// todo: fix or debug this after cherry-picking this commit to a branch w/ non-interactive defaults
-	msgSize := ((squareSize / 2) * appconsts.SparseShareContentSize) - 300
 
 	opts := []types.TxBuilderOption{
 		types.SetGasLimit(100000000000000),
@@ -205,7 +203,7 @@ func FillBlock(cctx client.Context, squareSize int, accounts []string) ([]*sdk.T
 			return nil, err
 		}
 
-		res, err := cctx.BroadcastTxCommit(rawTx)
+		res, err := cctx.BroadcastTxAsync(rawTx)
 		if err != nil {
 			return nil, err
 		}
@@ -214,5 +212,5 @@ func FillBlock(cctx client.Context, squareSize int, accounts []string) ([]*sdk.T
 		}
 		results[i] = res
 	}
-	return nil, nil
+	return results, nil
 }
