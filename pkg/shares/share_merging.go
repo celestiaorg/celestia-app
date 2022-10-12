@@ -143,21 +143,21 @@ type ShareSequence struct {
 	Shares      []Share
 }
 
-func ParseShares(rawShares [][]byte) (result []ShareSequence, err error) {
+func ParseShares(rawShares [][]byte) (sequences []ShareSequence, err error) {
 	currentSequence := ShareSequence{}
 
 	for _, rawShare := range rawShares {
 		share, err := NewShare(rawShare)
 		if err != nil {
-			return result, err
+			return sequences, err
 		}
 		infoByte, err := share.InfoByte()
 		if err != nil {
-			return result, err
+			return sequences, err
 		}
-		if infoByte.IsMessageStart() {
+		if infoByte.IsSequenceStart() {
 			if len(currentSequence.Shares) > 0 {
-				result = append(result, currentSequence)
+				sequences = append(sequences, currentSequence)
 			}
 			currentSequence = ShareSequence{
 				Shares:      []Share{share},
@@ -165,11 +165,64 @@ func ParseShares(rawShares [][]byte) (result []ShareSequence, err error) {
 			}
 		} else {
 			if !bytes.Equal(currentSequence.NamespaceID, share.NamespaceID()) {
-				return result, fmt.Errorf("share sequence %v has inconsistent namespace IDs with share %v", currentSequence, share)
+				return sequences, fmt.Errorf("share sequence %v has inconsistent namespace IDs with share %v", currentSequence, share)
 			}
 			currentSequence.Shares = append(currentSequence.Shares, share)
 		}
 	}
 
-	return result, nil
+	for _, sequence := range sequences {
+		if err := sequence.validSequenceLength(); err != nil {
+			return sequences, err
+		}
+	}
+
+	return sequences, nil
+}
+
+// validSequenceLength extracts the sequenceLength written to the first share
+// and returns an error if the number of shares needed to store a sequence of
+// length sequenceLength doesn't match the number of shares in this share
+// sequence. Returns nil if there is no error.
+func (s ShareSequence) validSequenceLength() error {
+	if len(s.Shares) == 0 {
+		return nil
+	}
+	firstShare := s.Shares[0]
+	sequenceLength, err := firstShare.SequenceLength()
+	if err != nil {
+		return err
+	}
+
+	var numberOfSharesUsed int
+	if firstShare.isCompactShare() {
+		numberOfSharesUsed = CompactSharesUsed(int(sequenceLength))
+	} else {
+		numberOfSharesUsed = MsgSharesUsed(int(sequenceLength))
+	}
+
+	if len(s.Shares) != numberOfSharesUsed {
+		return fmt.Errorf("share sequence has %d shares but expected %d shares", len(s.Shares), numberOfSharesUsed)
+	}
+	return nil
+}
+
+// CompactSharesUsed returns the number of compact shares used to store a
+// sequence of length sequenceLength.
+func CompactSharesUsed(sequenceLength int) (sharesUsed int) {
+	if sequenceLength == 0 {
+		return 0
+	}
+
+	if sequenceLength < appconsts.FirstCompactShareContentSize {
+		return 1
+	}
+	sequenceLength -= appconsts.FirstCompactShareContentSize
+	sharesUsed++
+
+	for sequenceLength > 0 {
+		sequenceLength -= appconsts.ContinuationCompactShareContentSize
+		sharesUsed++
+	}
+	return sharesUsed
 }

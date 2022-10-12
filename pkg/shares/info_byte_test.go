@@ -30,8 +30,8 @@ func TestInfoByte(t *testing.T) {
 		if got := irb.Version(); got != test.version {
 			t.Errorf("got version %v want %v", got, test.version)
 		}
-		if got := irb.IsMessageStart(); got != test.isMessageStart {
-			t.Errorf("got isMessageStart %v want %v", got, test.isMessageStart)
+		if got := irb.IsSequenceStart(); got != test.isMessageStart {
+			t.Errorf("got IsSequenceStart %v want %v", got, test.isMessageStart)
 		}
 	}
 }
@@ -96,8 +96,8 @@ func TestParseInfoByte(t *testing.T) {
 		if got.Version() != test.wantVersion {
 			t.Errorf("got version %v want %v", got.Version(), test.wantVersion)
 		}
-		if got.IsMessageStart() != test.wantIsMessageStart {
-			t.Errorf("got isMessageStart %v want %v", got.IsMessageStart(), test.wantIsMessageStart)
+		if got.IsSequenceStart() != test.wantIsMessageStart {
+			t.Errorf("got IsSequenceStart %v want %v", got.IsSequenceStart(), test.wantIsMessageStart)
 		}
 	}
 }

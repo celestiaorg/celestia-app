@@ -115,6 +115,7 @@ func TestParseShares(t *testing.T) {
 			[]ShareSequence{},
 			true,
 		},
+		// TODO add test cases for sequences with incorrect sequenceLength written to the first share
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -129,8 +130,8 @@ func TestParseShares(t *testing.T) {
 	}
 }
 
-func generateRawShare(namespace namespace.ID, isMessageStart bool) (rawShare []byte) {
-	infoByte, _ := NewInfoByte(appconsts.ShareVersion, isMessageStart)
+func generateRawShare(namespace namespace.ID, isSequenceStart bool) (rawShare []byte) {
+	infoByte, _ := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
 	rawData := make([]byte, appconsts.ShareSize-len(rawShare))
 	rand.Read(rawData)
 
