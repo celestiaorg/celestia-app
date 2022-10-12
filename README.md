@@ -82,6 +82,10 @@ make fmt
 make proto-gen
 ```
 
+### Package-specific documentation
+
+- [Shares](https://pkg.go.dev/github.com/celestiaorg/celestia-app/pkg/shares)
+
 ## Careers
 
 We are hiring Go engineers! Join us in building the future of blockchain scaling and interoperability. [Apply here](https://jobs.lever.co/celestia).
