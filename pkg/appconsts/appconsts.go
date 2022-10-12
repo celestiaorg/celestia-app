@@ -114,24 +114,24 @@ var (
 	// defaults.
 	NameSpacedPaddedShareBytes = bytes.Repeat([]byte{0}, SparseShareContentSize)
 
-	// FirstCompactShareDataLengthBytes is the number of bytes reserved for the total
-	// data length that is stored in the first compact share of a reserved
-	// namespace. This value is the maximum number of bytes required to store
-	// the data length of a block that only contains compact shares of one type.
-	// For example, if a block contains only evidence then it could contain:
-	// MaxSquareSize * MaxSquareSize * ShareSize bytes of evidence.
+	// FirstCompactShareSequenceLengthBytes is the number of bytes reserved for the total
+	// sequence length that is stored in the first compact share of a sequence. This
+	// value is the maximum number of bytes required to store the sequence
+	// length of a block that only contains shares of one type. For example, if
+	// a block contains only evidence then it could contain: MaxSquareSize *
+	// MaxSquareSize * ShareSize bytes of evidence.
 	//
 	// Assuming MaxSquareSize is 128 and ShareSize is 256, this is 4194304 bytes
 	// of evidence. It takes 4 bytes to store a varint of 4194304.
 	//
 	// https://go.dev/play/p/MynwcDHQ_me
-	FirstCompactShareDataLengthBytes = numberOfBytesVarint(MaxSquareSize * MaxSquareSize * ShareSize)
+	FirstCompactShareSequenceLengthBytes = numberOfBytesVarint(MaxSquareSize * MaxSquareSize * ShareSize)
 
 	// FirstCompactShareContentSize is the number of bytes usable for data in
 	// the first compact share of a reserved namespace. This type of share
 	// contains less space for data than a ContinuationCompactShare because the
-	// first compact share includes a total data length varint.
-	FirstCompactShareContentSize = ContinuationCompactShareContentSize - FirstCompactShareDataLengthBytes
+	// first compact share includes a total sequence length varint.
+	FirstCompactShareContentSize = ContinuationCompactShareContentSize - FirstCompactShareSequenceLengthBytes
 
 	// SupportedShareVersions is a list of supported share versions.
 	SupportedShareVersions = []uint8{ShareVersion}

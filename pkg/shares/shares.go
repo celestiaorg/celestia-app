@@ -43,7 +43,7 @@ func (s Share) MessageLength() (uint64, error) {
 	if !infoByte.IsMessageStart() {
 		return 0, nil
 	}
-	if s.isCompactShare() || len(s) < appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareDataLengthBytes {
+	if s.isCompactShare() || len(s) < appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareSequenceLengthBytes {
 		panic(fmt.Sprintf("compact share %s is too short to contain message length", s))
 	}
 	reader := bytes.NewReader(s[appconsts.NamespaceSize+appconsts.ShareInfoBytes:])
