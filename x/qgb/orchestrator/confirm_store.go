@@ -62,6 +62,8 @@ func (store ConfirmStore) GetDataCommitmentConfirmByOrchestratorAddress(nonce ui
 		return types.MsgDataCommitmentConfirm{}, fmt.Errorf("not existent")
 	}
 	for _, confirm := range confirms {
+                // TODO investigate the case where a malicious orchestrator signs two attestations with the same nonce
+                // when we have slashing and how we want to handle that on the DB side.
 		if confirm.ValidatorAddress == orch {
 			return confirm, nil
 		}
