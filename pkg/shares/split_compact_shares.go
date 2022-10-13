@@ -28,7 +28,7 @@ func NewCompactShareSplitter(ns namespace.ID, version uint8) *CompactShareSplitt
 	if err != nil {
 		panic(err)
 	}
-	placeholderDataLength := make([]byte, appconsts.FirstCompactShareDataLengthBytes)
+	placeholderDataLength := make([]byte, appconsts.FirstCompactShareSequenceLengthBytes)
 	placeholderReservedBytes := make([]byte, appconsts.CompactShareReservedBytes)
 
 	pendingShare = append(pendingShare, ns...)
@@ -136,9 +136,9 @@ func (css *CompactShareSplitter) dataLengthVarint(bytesOfPadding int) []byte {
 	}
 
 	// declare and initialize the data length
-	dataLengthVarint := make([]byte, appconsts.FirstCompactShareDataLengthBytes)
+	dataLengthVarint := make([]byte, appconsts.FirstCompactShareSequenceLengthBytes)
 	binary.PutUvarint(dataLengthVarint, css.dataLength(bytesOfPadding))
-	zeroPadIfNecessary(dataLengthVarint, appconsts.FirstCompactShareDataLengthBytes)
+	zeroPadIfNecessary(dataLengthVarint, appconsts.FirstCompactShareSequenceLengthBytes)
 
 	return dataLengthVarint
 }
@@ -150,7 +150,7 @@ func (css *CompactShareSplitter) writeDataLengthVarintToFirstShare(dataLengthVar
 
 	// write the data length varint to the first share
 	firstShare := css.shares[0]
-	for i := 0; i < appconsts.FirstCompactShareDataLengthBytes; i++ {
+	for i := 0; i < appconsts.FirstCompactShareSequenceLengthBytes; i++ {
 		firstShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+i] = dataLengthVarint[i]
 	}
 
@@ -173,7 +173,7 @@ func (css *CompactShareSplitter) maybeWriteReservedByteToPendingShare() {
 
 	// write the location of next unit to the reserved byte of the pending share
 	if css.isPendingShareTheFirstShare() {
-		css.pendingShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareDataLengthBytes : appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareContentSize+appconsts.CompactShareReservedBytes][0] = byte(locationOfNextUnit)
+		css.pendingShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareSequenceLengthBytes : appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareContentSize+appconsts.CompactShareReservedBytes][0] = byte(locationOfNextUnit)
 	} else {
 		css.pendingShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes : appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes][0] = byte(locationOfNextUnit)
 	}
@@ -184,7 +184,7 @@ func (css *CompactShareSplitter) isEmptyReservedByte() bool {
 	var reservedByte byte
 
 	if css.isPendingShareTheFirstShare() {
-		reservedByte = css.pendingShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareDataLengthBytes : appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareContentSize+appconsts.CompactShareReservedBytes][0]
+		reservedByte = css.pendingShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareSequenceLengthBytes : appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareContentSize+appconsts.CompactShareReservedBytes][0]
 	} else {
 		reservedByte = css.pendingShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes : appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes][0]
 	}
@@ -213,7 +213,7 @@ func (css *CompactShareSplitter) dataLength(bytesOfPadding int) uint64 {
 // isEmptyPendingShare returns true if the pending share is empty, false otherwise.
 func (css *CompactShareSplitter) isEmptyPendingShare() bool {
 	if css.isPendingShareTheFirstShare() {
-		return len(css.pendingShare) == appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareDataLengthBytes+appconsts.CompactShareReservedBytes
+		return len(css.pendingShare) == appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareSequenceLengthBytes+appconsts.CompactShareReservedBytes
 	}
 	return len(css.pendingShare) == appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes
 }

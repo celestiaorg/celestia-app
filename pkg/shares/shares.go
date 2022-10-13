@@ -43,7 +43,7 @@ func (s Share) SequenceLength() (uint64, error) {
 	if !infoByte.IsSequenceStart() {
 		return 0, fmt.Errorf("share %s is not a sequence start", s)
 	}
-	if s.isCompactShare() && len(s) < appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareDataLengthBytes {
+	if s.isCompactShare() && len(s) < appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareSequenceLengthBytes {
 		return 0, fmt.Errorf("compact share %s is too short to contain sequence length", s)
 	}
 	reader := bytes.NewReader(s[appconsts.NamespaceSize+appconsts.ShareInfoBytes:])
