@@ -143,7 +143,7 @@ func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.
 	case flags.BroadcastBlock:
 		res, err = c.BroadcastTxCommit(rawTx)
 	default:
-		return nil, fmt.Errorf("unsupported return type %s; supported types: sync, async, block", c.BroadcastMode)
+		return nil, fmt.Errorf("unsupported broadcast mode %s; supported modes: sync, async, block", c.BroadcastMode)
 	}
 	if err != nil {
 		return nil, err
