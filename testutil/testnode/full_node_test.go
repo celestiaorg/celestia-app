@@ -106,5 +106,4 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 		require.NoError(err)
 		require.Equal(uint64(squareSize), b.Block.OriginalSquareSize)
 	}
-
 }
