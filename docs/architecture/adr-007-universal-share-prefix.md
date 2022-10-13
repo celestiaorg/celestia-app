@@ -114,7 +114,7 @@ Types
 Logic
 
 1. Account for the new `InfoByte` in all share splitting and merging code.
-1. Encode a total data length varint into the first compact share of a sequence.
+1. Encode a total sequence length varint into the first compact share of a sequence.
 1. Introduce a new `ParseShares` API that can accept any type of share (compact or sparse).
 1. Introduce new block validity rules:
     1. All shares contain a share version that belongs to a list of supported versions (initially this list contains version `0`)

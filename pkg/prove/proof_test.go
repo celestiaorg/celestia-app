@@ -231,8 +231,8 @@ func TestTxShareIndex(t *testing.T) {
 func stripCompactShares(compactShares []shares.Share, start uint64, end uint64) (result []byte) {
 	for i := start; i <= end; i++ {
 		if i == 0 {
-			// the first compact share includes a total data length varint
-			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareDataLengthBytes+appconsts.CompactShareReservedBytes:]...)
+			// the first compact share includes a total sequence length varint
+			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareSequenceLengthBytes+appconsts.CompactShareReservedBytes:]...)
 		} else {
 			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:]...)
 		}
