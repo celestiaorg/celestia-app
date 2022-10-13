@@ -90,7 +90,7 @@ func TestIntegrationTestSuite(t *testing.T) {
 func (s *IntegrationTestSuite) Test_FillBlock() {
 	require := s.Require()
 
-	for squareSize := 16; squareSize < appconsts.MaxSquareSize; squareSize *= 2 {
+	for squareSize := 4; squareSize < appconsts.MaxSquareSize; squareSize *= 2 {
 		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastAsync)
 		require.NoError(err)
 
@@ -100,7 +100,6 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 		res, err := testutil.QueryWithOutProof(s.cctx.Context, resp.TxHash)
 		require.NoError(err)
 		require.Equal(abci.CodeTypeOK, res.TxResult.Code)
-		// check that all of the txs are included in the same block
 
 		b, err := s.cctx.Client.Block(context.TODO(), &res.Height)
 		require.NoError(err)
