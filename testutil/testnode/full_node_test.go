@@ -4,8 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/suite"
+	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
@@ -75,10 +79,30 @@ func (s *IntegrationTestSuite) Test_Liveness() {
 
 func (s *IntegrationTestSuite) Test_PostData() {
 	require := s.Require()
-	_, err := s.cctx.PostData(s.accounts[0], namespace.RandomMessageNamespace(), tmrand.Bytes(100000))
+	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, namespace.RandomMessageNamespace(), tmrand.Bytes(100000))
 	require.NoError(err)
 }
 
 func TestIntegrationTestSuite(t *testing.T) {
 	suite.Run(t, new(IntegrationTestSuite))
+}
+
+func (s *IntegrationTestSuite) Test_FillBlock() {
+	require := s.Require()
+
+	for squareSize := 2; squareSize < appconsts.MaxSquareSize; squareSize *= 2 {
+		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastAsync)
+		require.NoError(err)
+
+		err = s.cctx.WaitForNextBlock()
+		require.NoError(err)
+
+		res, err := testutil.QueryWithOutProof(s.cctx.Context, resp.TxHash)
+		require.NoError(err)
+		require.Equal(abci.CodeTypeOK, res.TxResult.Code)
+
+		b, err := s.cctx.Client.Block(context.TODO(), &res.Height)
+		require.NoError(err)
+		require.Equal(uint64(squareSize), b.Block.OriginalSquareSize)
+	}
 }
