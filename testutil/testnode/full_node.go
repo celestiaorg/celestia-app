@@ -131,6 +131,7 @@ func DefaultParams() *tmproto.ConsensusParams {
 
 func DefaultTendermintConfig() *config.Config {
 	tmCfg := config.DefaultConfig()
-	tmCfg.Consensus.TimeoutCommit = time.Millisecond * 70
+	tmCfg.Consensus.TimeoutCommit = time.Millisecond * 100
+	tmCfg.Mempool.MaxTxBytes = 22020096 // 21MB
 	return tmCfg
 }
