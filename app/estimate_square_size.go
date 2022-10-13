@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/pkg/utils"
 	"github.com/cosmos/cosmos-sdk/client"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -108,7 +109,7 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 
 	// calculate the smallest possible square size that could contain all the
 	// messages
-	squareSize := nextPowerOfTwo(int(math.Ceil(math.Sqrt(float64(txShares + evdShares + msgShares)))))
+	squareSize := utils.RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(txShares + evdShares + msgShares)))))
 
 	// the starting square size should at least be the minimum
 	if squareSize < appconsts.MinSquareSize {
@@ -133,7 +134,7 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 		// try the next largest square size if we can't fit all the txs
 		case !fits:
 			// double the square size
-			squareSize = nextPowerOfTwo(squareSize + 1)
+			squareSize = utils.RoundUpPowerOfTwo(squareSize + 1)
 		}
 	}
 }
@@ -225,12 +226,4 @@ func overEstimateMalleatedTxSize(txLen, msgLen, sharesCommitments int) int {
 	// equal to the actual number, which is difficult to calculate without
 	// actually malleating the tx
 	return appconsts.MalleatedTxBytes + appconsts.MalleatedTxEstimateBuffer + malleatedTxLen
-}
-
-func nextPowerOfTwo(v int) int {
-	k := 1
-	for k < v {
-		k = k << 1
-	}
-	return k
 }
