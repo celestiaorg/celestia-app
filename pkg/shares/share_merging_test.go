@@ -122,7 +122,7 @@ func TestParseShares(t *testing.T) {
 			if tt.expectErr && err == nil {
 				t.Errorf("ParseShares() error %v, expectErr %v", err, tt.expectErr)
 			}
-			if reflect.DeepEqual(got, tt.want) {
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ParseShares() got %v, want %v", got, tt.want)
 			}
 		})

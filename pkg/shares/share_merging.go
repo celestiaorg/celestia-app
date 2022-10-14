@@ -143,21 +143,22 @@ type ShareSequence struct {
 	Shares      []Share
 }
 
-func ParseShares(rawShares [][]byte) (result []ShareSequence, err error) {
+func ParseShares(rawShares [][]byte) ([]ShareSequence, error) {
+	sequences := []ShareSequence{}
 	currentSequence := ShareSequence{}
 
 	for _, rawShare := range rawShares {
 		share, err := NewShare(rawShare)
 		if err != nil {
-			return result, err
+			return sequences, err
 		}
 		infoByte, err := share.InfoByte()
 		if err != nil {
-			return result, err
+			return sequences, err
 		}
 		if infoByte.IsMessageStart() {
 			if len(currentSequence.Shares) > 0 {
-				result = append(result, currentSequence)
+				sequences = append(sequences, currentSequence)
 			}
 			currentSequence = ShareSequence{
 				Shares:      []Share{share},
@@ -165,11 +166,15 @@ func ParseShares(rawShares [][]byte) (result []ShareSequence, err error) {
 			}
 		} else {
 			if !bytes.Equal(currentSequence.NamespaceID, share.NamespaceID()) {
-				return result, fmt.Errorf("share sequence %v has inconsistent namespace IDs with share %v", currentSequence, share)
+				return sequences, fmt.Errorf("share sequence %v has inconsistent namespace IDs with share %v", currentSequence, share)
 			}
 			currentSequence.Shares = append(currentSequence.Shares, share)
 		}
 	}
 
-	return result, nil
+	if len(currentSequence.Shares) > 0 {
+		sequences = append(sequences, currentSequence)
+	}
+
+	return sequences, nil
 }
