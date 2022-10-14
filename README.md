@@ -48,8 +48,8 @@ celestia-appd --help
 # Create your own single node devnet
 celestia-appd init test --chain-id test
 celestia-appd keys add user1
-celestia-appd add-genesis-account <address from above command> 10000000utia,1000token
-celestia-appd gentx user1 1000000utia --chain-id test
+celestia-appd add-genesis-account <address from above command> 10000000ucls,1000token
+celestia-appd gentx user1 1000000ucls --chain-id test
 celestia-appd collect-gentxs
 celestia-appd start
 
@@ -81,6 +81,10 @@ make fmt
 # Regenerate Protobuf files (this assumes Docker is running)
 make proto-gen
 ```
+
+### Package-specific documentation
+
+- [Shares](https://pkg.go.dev/github.com/celestiaorg/celestia-app/pkg/shares)
 
 ## Careers
 

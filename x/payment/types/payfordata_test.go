@@ -217,7 +217,7 @@ func TestSignMalleatedTxs(t *testing.T) {
 			ss:   []uint64{4, 8, 16, 64},
 			options: []TxBuilderOption{
 				SetGasLimit(123456789),
-				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321)))),
+				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("ucls", sdk.NewInt(987654321)))),
 			},
 		},
 		{
@@ -227,7 +227,7 @@ func TestSignMalleatedTxs(t *testing.T) {
 			ss:   AllSquareSizes(50000),
 			options: []TxBuilderOption{
 				SetGasLimit(123456789),
-				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321)))),
+				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("ucls", sdk.NewInt(987654321)))),
 			},
 		},
 	}

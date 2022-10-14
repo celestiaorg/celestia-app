@@ -143,7 +143,8 @@ type ShareSequence struct {
 	Shares      []Share
 }
 
-func ParseShares(rawShares [][]byte) (sequences []ShareSequence, err error) {
+func ParseShares(rawShares [][]byte) ([]ShareSequence, error) {
+	sequences := []ShareSequence{}
 	currentSequence := ShareSequence{}
 
 	for _, rawShare := range rawShares {
@@ -169,6 +170,10 @@ func ParseShares(rawShares [][]byte) (sequences []ShareSequence, err error) {
 			}
 			currentSequence.Shares = append(currentSequence.Shares, share)
 		}
+	}
+
+	if len(currentSequence.Shares) > 0 {
+		sequences = append(sequences, currentSequence)
 	}
 
 	for _, sequence := range sequences {
