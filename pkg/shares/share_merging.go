@@ -213,7 +213,9 @@ func (s ShareSequence) validSequenceLength() error {
 }
 
 // CompactSharesUsed returns the number of compact shares used to store a
-// sequence of length sequenceLength.
+// sequence of length sequenceLength. The parameter sequenceLength is the number
+// of bytes of transaction, intermediate state root, or evidence data in a
+// sequence.
 func CompactSharesUsed(sequenceLength int) (sharesUsed int) {
 	if sequenceLength == 0 {
 		return 0
