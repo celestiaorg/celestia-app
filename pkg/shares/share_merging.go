@@ -191,7 +191,7 @@ func ParseShares(rawShares [][]byte) ([]ShareSequence, error) {
 // sequence. Returns nil if there is no error.
 func (s ShareSequence) validSequenceLength() error {
 	if len(s.Shares) == 0 {
-		return nil
+		return fmt.Errorf("invalid sequence length because share sequence %v has no shares", s)
 	}
 	firstShare := s.Shares[0]
 	sequenceLength, err := firstShare.SequenceLength()
@@ -203,7 +203,7 @@ func (s ShareSequence) validSequenceLength() error {
 	if firstShare.isCompactShare() {
 		numberOfSharesUsed = CompactSharesUsed(int(sequenceLength))
 	} else {
-		numberOfSharesUsed = MsgSharesUsed(int(sequenceLength))
+		numberOfSharesUsed = SparseSharesUsed(int(sequenceLength))
 	}
 
 	if len(s.Shares) != numberOfSharesUsed {
