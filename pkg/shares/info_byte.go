@@ -37,7 +37,7 @@ func (i InfoByte) IsSequenceStart() bool {
 }
 
 func ParseInfoByte(i byte) (InfoByte, error) {
-	isMessageStart := i%2 == 1
+	isSequenceStart := i%2 == 1
 	version := uint8(i) >> 1
-	return NewInfoByte(version, isMessageStart)
+	return NewInfoByte(version, isSequenceStart)
 }
