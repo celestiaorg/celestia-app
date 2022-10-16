@@ -150,6 +150,26 @@ func TestParseShares(t *testing.T) {
 	}
 }
 
+func Test_compactSharesUsed(t *testing.T) {
+	type testCase struct {
+		sequenceLength int
+		want           int
+	}
+	testCases := []testCase{
+		{0, 0},
+		{1, 1},
+		{2, 1},
+		{appconsts.FirstCompactShareContentSize, 1},
+		{appconsts.FirstCompactShareContentSize + 1, 2},
+		{appconsts.FirstCompactShareContentSize + appconsts.ContinuationCompactShareContentSize, 2},
+		{appconsts.FirstCompactShareContentSize + appconsts.ContinuationCompactShareContentSize*100, 101},
+	}
+	for _, tc := range testCases {
+		got := compactSharesUsed(tc.sequenceLength)
+		assert.Equal(t, tc.want, got)
+	}
+}
+
 func Test_sparseSharesUsed(t *testing.T) {
 	type testCase struct {
 		sequenceLength int
@@ -166,7 +186,7 @@ func Test_sparseSharesUsed(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		got := sparseSharesUsed(tc.sequenceLength)
-		assert.Equal(t, got, tc.want)
+		assert.Equal(t, tc.want, got)
 	}
 }
 
