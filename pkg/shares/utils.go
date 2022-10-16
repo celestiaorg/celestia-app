@@ -28,14 +28,6 @@ func MsgSharesUsed(msgSize int) int {
 	return shareCount
 }
 
-func SparseSharesUsed(sequenceLength int) (sharesUsed int) {
-	sharesUsed = sequenceLength / appconsts.SparseShareContentSize
-	if sequenceLength%appconsts.SparseShareContentSize != 0 {
-		sharesUsed++
-	}
-	return sharesUsed
-}
-
 func MessageShareCountsFromMessages(msgs []*core.Message) []int {
 	e := make([]int, len(msgs))
 	for i, msg := range msgs {

@@ -150,6 +150,26 @@ func TestParseShares(t *testing.T) {
 	}
 }
 
+func Test_sparseSharesUsed(t *testing.T) {
+	type testCase struct {
+		sequenceLength int
+		want           int
+	}
+	testCases := []testCase{
+		{0, 0},
+		{1, 1},
+		{2, 1},
+		{appconsts.SparseShareContentSize, 1},
+		{appconsts.SparseShareContentSize + 1, 2},
+		{appconsts.SparseShareContentSize * 2, 2},
+		{appconsts.SparseShareContentSize*100 + 1, 101},
+	}
+	for _, tc := range testCases {
+		got := sparseSharesUsed(tc.sequenceLength)
+		assert.Equal(t, got, tc.want)
+	}
+}
+
 func generateRawShare(namespace namespace.ID, isSequenceStart bool, sequenceLength uint64) (rawShare []byte) {
 	infoByte, _ := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
 
