@@ -495,8 +495,8 @@ For shares **with a reserved namespace ID through [`NAMESPACE_ID_MAX_RESERVED`](
 
 - If this is the first share of a sequence, the next 1-10 bytes contain a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the uint64 length of the sequence that follows.
 - The next [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes is the starting byte of the length of the [canonically serialized](#serialization) first request that starts in the share, or `0` if there is none, as a one-byte big-endian unsigned integer (i.e. canonical serialization is not used). In the example below, with a share size of `256` the reserved byte would be `80` (or `0x50` in hex).
-- The remaining bytes are request data. Each unit in request data is prefixed with a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the length of that unit.
-- If there is insufficient request data to fill the share, the remaining bytes are filled with `0`.
+- The remaining bytes are transactions, intermediate state roots, or evidence data depending on the namespace of ths share. Each transaction, intermediate state root, or evidence is prefixed with a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the length of that unit.
+- If there is insufficient transaction, intermediate state root, or evidence data to fill the share, the remaining bytes are filled with `0`.
 
 First share in a sequence:
 ![fig: compact start share.](./figures/compact_start_share.svg)
@@ -508,9 +508,9 @@ Continuation share in a sequence:
 
 For shares **with a namespace ID above [`NAMESPACE_ID_MAX_RESERVED`](./consensus.md#constants) but below [`PARITY_SHARE_NAMESPACE_ID`](./consensus.md#constants)**:
 
-- If this is the first share of a sequence, the next 1-10 bytes contain a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the uint64 length of the sequence that follows. If this isn't the first share of a sequence, the next 1-10 bytes are used for request data.
-- The remaining bytes are request data. In other words, the remaining bytes have no special meaning and are simply used to store data.
-- If there is insufficient request data to fill the share, the remaining bytes are filled with `0`.
+- If this is the first share of a sequence, the next 1-10 bytes contain a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the uint64 length of the sequence that follows.
+- The remaining bytes are message data. Message data are opaque bytes of data that are included in the Block but do not impact the state. In other words, the remaining bytes have no special meaning and are simply used to store data.
+- If there is insufficient message data to fill the share, the remaining bytes are filled with `0`.
 
 First share in a sequence:
 ![fig: sparse start share.](./figures/sparse_start_share.svg)
