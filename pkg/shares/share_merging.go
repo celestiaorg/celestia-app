@@ -194,29 +194,37 @@ func (s ShareSequence) validSequenceLength() error {
 		return fmt.Errorf("invalid sequence length because share sequence %v has no shares", s)
 	}
 	firstShare := s.Shares[0]
-	sequenceLength, err := firstShare.SequenceLength()
+	sharesNeeded, err := numberOfSharesNeeded(firstShare)
 	if err != nil {
 		return err
 	}
 
-	var numberOfSharesUsed int
-	if firstShare.isCompactShare() {
-		numberOfSharesUsed = compactSharesUsed(int(sequenceLength))
-	} else {
-		numberOfSharesUsed = sparseSharesUsed(int(sequenceLength))
-	}
-
-	if len(s.Shares) != numberOfSharesUsed {
-		return fmt.Errorf("share sequence has %d shares but expected %d shares", len(s.Shares), numberOfSharesUsed)
+	if len(s.Shares) != sharesNeeded {
+		return fmt.Errorf("share sequence has %d shares but needed %d shares", len(s.Shares), sharesNeeded)
 	}
 	return nil
 }
 
-// compactSharesUsed returns the number of compact shares used to store a
+// numberOfSharesNeeded extracts the sequenceLength written to the share
+// firstShare and returns the number of shares needed to store a sequence of
+// that length.
+func numberOfSharesNeeded(firstShare Share) (sharesUsed int, err error) {
+	sequenceLength, err := firstShare.SequenceLength()
+	if err != nil {
+		return 0, err
+	}
+
+	if firstShare.isCompactShare() {
+		return compactSharesNeeded(int(sequenceLength)), nil
+	}
+	return sparseSharesNeeded(int(sequenceLength)), nil
+}
+
+// compactSharesNeeded returns the number of compact shares needed to store a
 // sequence of length sequenceLength. The parameter sequenceLength is the number
 // of bytes of transaction, intermediate state root, or evidence data in a
 // sequence.
-func compactSharesUsed(sequenceLength int) (sharesUsed int) {
+func compactSharesNeeded(sequenceLength int) (sharesNeeded int) {
 	if sequenceLength == 0 {
 		return 0
 	}
@@ -225,21 +233,21 @@ func compactSharesUsed(sequenceLength int) (sharesUsed int) {
 		return 1
 	}
 	sequenceLength -= appconsts.FirstCompactShareContentSize
-	sharesUsed++
+	sharesNeeded++
 
 	for sequenceLength > 0 {
 		sequenceLength -= appconsts.ContinuationCompactShareContentSize
-		sharesUsed++
+		sharesNeeded++
 	}
-	return sharesUsed
+	return sharesNeeded
 }
 
-// sparseSharesUsed returns the number of shares used to store a sequence of
+// sparseSharesNeeded returns the number of shares needed to store a sequence of
 // length sequenceLength.
-func sparseSharesUsed(sequenceLength int) (sharesUsed int) {
-	sharesUsed = sequenceLength / appconsts.SparseShareContentSize
+func sparseSharesNeeded(sequenceLength int) (sharesNeeded int) {
+	sharesNeeded = sequenceLength / appconsts.SparseShareContentSize
 	if sequenceLength%appconsts.SparseShareContentSize != 0 {
-		sharesUsed++
+		sharesNeeded++
 	}
-	return sharesUsed
+	return sharesNeeded
 }
