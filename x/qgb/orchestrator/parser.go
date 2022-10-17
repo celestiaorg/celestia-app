@@ -54,7 +54,8 @@ func (parser QGBParser) IsDataCommitmentConfirm(msg sdktypes.Msg) (bool, error) 
 func (parser QGBParser) ParseValsetConfirm(msg sdktypes.Msg) (qgbtypes.MsgValsetConfirm, error) {
 	vs, ok := msg.(*qgbtypes.MsgValsetConfirm)
 	if !ok {
-		return qgbtypes.MsgValsetConfirm{}, fmt.Errorf("not good")
+		return qgbtypes.MsgValsetConfirm{},
+			fmt.Errorf("unable to cast sdk message to msg valset confirm")
 	}
 	return *vs, nil
 }
@@ -62,7 +63,8 @@ func (parser QGBParser) ParseValsetConfirm(msg sdktypes.Msg) (qgbtypes.MsgValset
 func (parser QGBParser) ParseDataCommitmentConfirm(msg sdktypes.Msg) (qgbtypes.MsgDataCommitmentConfirm, error) {
 	dcc, ok := msg.(*qgbtypes.MsgDataCommitmentConfirm)
 	if !ok {
-		return qgbtypes.MsgDataCommitmentConfirm{}, fmt.Errorf("not good")
+		return qgbtypes.MsgDataCommitmentConfirm{},
+			fmt.Errorf("unable to cast sdk message to msg data commitment confirm")
 	}
 	return *dcc, nil
 }
