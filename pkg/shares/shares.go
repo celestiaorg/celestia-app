@@ -35,16 +35,16 @@ func (s Share) InfoByte() (InfoByte, error) {
 	return ParseInfoByte(unparsed)
 }
 
-func (s Share) MessageLength() (uint64, error) {
+func (s Share) SequenceLength() (uint64, error) {
 	infoByte, err := s.InfoByte()
 	if err != nil {
 		return 0, err
 	}
-	if !infoByte.IsMessageStart() {
-		return 0, nil
+	if !infoByte.IsSequenceStart() {
+		return 0, fmt.Errorf("share %s is not a sequence start", s)
 	}
-	if s.isCompactShare() || len(s) < appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareSequenceLengthBytes {
-		panic(fmt.Sprintf("compact share %s is too short to contain message length", s))
+	if s.isCompactShare() && len(s) < appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareSequenceLengthBytes {
+		return 0, fmt.Errorf("compact share %s is too short to contain sequence length", s)
 	}
 	reader := bytes.NewReader(s[appconsts.NamespaceSize+appconsts.ShareInfoBytes:])
 	return binary.ReadUvarint(reader)

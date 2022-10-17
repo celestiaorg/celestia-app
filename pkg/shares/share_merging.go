@@ -156,7 +156,7 @@ func ParseShares(rawShares [][]byte) ([]ShareSequence, error) {
 		if err != nil {
 			return sequences, err
 		}
-		if infoByte.IsMessageStart() {
+		if infoByte.IsSequenceStart() {
 			if len(currentSequence.Shares) > 0 {
 				sequences = append(sequences, currentSequence)
 			}
@@ -176,5 +176,78 @@ func ParseShares(rawShares [][]byte) ([]ShareSequence, error) {
 		sequences = append(sequences, currentSequence)
 	}
 
+	for _, sequence := range sequences {
+		if err := sequence.validSequenceLength(); err != nil {
+			return sequences, err
+		}
+	}
+
 	return sequences, nil
+}
+
+// validSequenceLength extracts the sequenceLength written to the first share
+// and returns an error if the number of shares needed to store a sequence of
+// length sequenceLength doesn't match the number of shares in this share
+// sequence. Returns nil if there is no error.
+func (s ShareSequence) validSequenceLength() error {
+	if len(s.Shares) == 0 {
+		return fmt.Errorf("invalid sequence length because share sequence %v has no shares", s)
+	}
+	firstShare := s.Shares[0]
+	sharesNeeded, err := numberOfSharesNeeded(firstShare)
+	if err != nil {
+		return err
+	}
+
+	if len(s.Shares) != sharesNeeded {
+		return fmt.Errorf("share sequence has %d shares but needed %d shares", len(s.Shares), sharesNeeded)
+	}
+	return nil
+}
+
+// numberOfSharesNeeded extracts the sequenceLength written to the share
+// firstShare and returns the number of shares needed to store a sequence of
+// that length.
+func numberOfSharesNeeded(firstShare Share) (sharesUsed int, err error) {
+	sequenceLength, err := firstShare.SequenceLength()
+	if err != nil {
+		return 0, err
+	}
+
+	if firstShare.isCompactShare() {
+		return compactSharesNeeded(int(sequenceLength)), nil
+	}
+	return sparseSharesNeeded(int(sequenceLength)), nil
+}
+
+// compactSharesNeeded returns the number of compact shares needed to store a
+// sequence of length sequenceLength. The parameter sequenceLength is the number
+// of bytes of transaction, intermediate state root, or evidence data in a
+// sequence.
+func compactSharesNeeded(sequenceLength int) (sharesNeeded int) {
+	if sequenceLength == 0 {
+		return 0
+	}
+
+	if sequenceLength < appconsts.FirstCompactShareContentSize {
+		return 1
+	}
+	sequenceLength -= appconsts.FirstCompactShareContentSize
+	sharesNeeded++
+
+	for sequenceLength > 0 {
+		sequenceLength -= appconsts.ContinuationCompactShareContentSize
+		sharesNeeded++
+	}
+	return sharesNeeded
+}
+
+// sparseSharesNeeded returns the number of shares needed to store a sequence of
+// length sequenceLength.
+func sparseSharesNeeded(sequenceLength int) (sharesNeeded int) {
+	sharesNeeded = sequenceLength / appconsts.SparseShareContentSize
+	if sequenceLength%appconsts.SparseShareContentSize != 0 {
+		sharesNeeded++
+	}
+	return sharesNeeded
 }

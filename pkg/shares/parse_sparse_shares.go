@@ -61,8 +61,8 @@ func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) ([]co
 			if err != nil {
 				panic(err)
 			}
-			if infoByte.IsMessageStart() != isNewMessage {
-				return nil, fmt.Errorf("expected message start indicator to be %t but got %t", isNewMessage, infoByte.IsMessageStart())
+			if infoByte.IsSequenceStart() != isNewMessage {
+				return nil, fmt.Errorf("expected sequence start indicator to be %t but got %t", isNewMessage, infoByte.IsSequenceStart())
 			}
 			currentMsg = coretypes.Message{
 				NamespaceID: nid,
