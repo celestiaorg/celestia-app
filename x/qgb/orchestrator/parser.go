@@ -17,9 +17,7 @@ import (
 var _ QGBParserI = QGBParser{}
 
 type QGBParserI interface {
-	IsDataCommitmentConfirm(msg sdktypes.Msg) (bool, error)
 	ParseDataCommitmentConfirm(msg sdktypes.Msg) (qgbtypes.MsgDataCommitmentConfirm, error)
-	IsValsetConfirm(msg sdktypes.Msg) (bool, error)
 	ParseValsetConfirm(msg sdktypes.Msg) (qgbtypes.MsgValsetConfirm, error)
 	ParseCoreTx(tx coretypes.Tx) (sdktx.Tx, error)
 	ParseSdkTx(any *sdkcodectypes.Any) (sdktypes.Msg, error)
@@ -31,24 +29,6 @@ type QGBParser struct {
 
 func NewQGBParser(codec sdkcodec.Codec) *QGBParser {
 	return &QGBParser{codec: codec}
-}
-
-func (parser QGBParser) IsValsetConfirm(msg sdktypes.Msg) (bool, error) {
-	switch msg.(type) {
-	case *qgbtypes.MsgValsetConfirm:
-		return true, nil
-	default:
-		return false, nil
-	}
-}
-
-func (parser QGBParser) IsDataCommitmentConfirm(msg sdktypes.Msg) (bool, error) {
-	switch msg.(type) {
-	case *qgbtypes.MsgDataCommitmentConfirm:
-		return true, nil
-	default:
-		return false, nil
-	}
 }
 
 func (parser QGBParser) ParseValsetConfirm(msg sdktypes.Msg) (qgbtypes.MsgValsetConfirm, error) {
