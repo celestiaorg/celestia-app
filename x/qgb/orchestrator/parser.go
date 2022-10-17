@@ -20,7 +20,7 @@ type QGBParserI interface {
 	ParseDataCommitmentConfirm(msg sdktypes.Msg) (qgbtypes.MsgDataCommitmentConfirm, error)
 	ParseValsetConfirm(msg sdktypes.Msg) (qgbtypes.MsgValsetConfirm, error)
 	ParseCoreTx(tx coretypes.Tx) (sdktx.Tx, error)
-	ParseSdkTx(any *sdkcodectypes.Any) (sdktypes.Msg, error)
+	ParseSdkMsg(any *sdkcodectypes.Any) (sdktypes.Msg, error)
 }
 
 type QGBParser struct {
@@ -58,7 +58,7 @@ func (parser QGBParser) ParseCoreTx(tx coretypes.Tx) (sdktx.Tx, error) {
 	return sdkTx, nil
 }
 
-func (parser QGBParser) ParseSdkTx(any *sdkcodectypes.Any) (sdktypes.Msg, error) {
+func (parser QGBParser) ParseSdkMsg(any *sdkcodectypes.Any) (sdktypes.Msg, error) {
 	var stdMsg sdktypes.Msg
 	err := parser.codec.UnpackAny(any, &stdMsg)
 	if err != nil {
