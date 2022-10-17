@@ -123,8 +123,8 @@ func TestCompactShareContainsInfoByte(t *testing.T) {
 
 	infoByte := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
-	isMessageStart := true
-	want, err := NewInfoByte(appconsts.ShareVersion, isMessageStart)
+	isSequenceStart := true
+	want, err := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
 
 	require.NoError(t, err)
 	assert.Equal(t, byte(want), infoByte)
@@ -143,8 +143,8 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 
 	infoByte := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
-	isMessageStart := false
-	want, err := NewInfoByte(appconsts.ShareVersion, isMessageStart)
+	isSequenceStart := false
+	want, err := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
 
 	require.NoError(t, err)
 	assert.Equal(t, byte(want), infoByte)

@@ -95,6 +95,20 @@ func TestFitsInSquare(t *testing.T) {
 			size:  8,
 			fits:  false,
 		},
+		{
+			name:  "0 msgs (0 msg shares, 5 compact, size 2)",
+			msgs:  []int{},
+			start: 5,
+			size:  2,
+			fits:  false,
+		},
+		{
+			name:  "0 msgs (0 msg shares, 4 compact, size 2)",
+			msgs:  []int{},
+			start: 4,
+			size:  2,
+			fits:  true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

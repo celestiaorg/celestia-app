@@ -6,11 +6,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/x/payment"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 type Context struct {
@@ -86,7 +90,7 @@ func (c *Context) WaitForNextBlock() error {
 // namespace. This function blocks until the PFD has been included in a block
 // and returns an error if the transaction is invalid or is rejected by the
 // mempool.
-func (c *Context) PostData(account string, ns, msg []byte) (*sdk.TxResponse, error) {
+func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.TxResponse, error) {
 	opts := []types.TxBuilderOption{
 		types.SetGasLimit(100000000000000),
 	}
@@ -130,14 +134,45 @@ func (c *Context) PostData(account string, ns, msg []byte) (*sdk.TxResponse, err
 	if err != nil {
 		return nil, err
 	}
-
-	res, err := c.BroadcastTxCommit(rawTx)
+	var res *sdk.TxResponse
+	switch broadcastMode {
+	case flags.BroadcastSync:
+		res, err = c.BroadcastTxSync(rawTx)
+	case flags.BroadcastAsync:
+		res, err = c.BroadcastTxAsync(rawTx)
+	case flags.BroadcastBlock:
+		res, err = c.BroadcastTxCommit(rawTx)
+	default:
+		return nil, fmt.Errorf("unsupported broadcast mode %s; supported modes: sync, async, block", c.BroadcastMode)
+	}
 	if err != nil {
 		return nil, err
 	}
 	if res.Code != abci.CodeTypeOK {
-		return nil, fmt.Errorf("failure to broadcast tx sync: %s", res.RawLog)
+		return res, fmt.Errorf("failure to broadcast tx sync: %s", res.RawLog)
 	}
 
 	return res, nil
+}
+
+// FillBlock creates and submits a single transaction that is large enough to
+// create a square of the desired size. broadcast mode indicates if the tx
+// should be submitted async, sync, or block. (see flags.BroadcastModeSync). If
+// broadcast mode is the string zero value, then it will be set to block. This
+// function does not perform checks on the passed squaresize arg, and only works
+// with squaresize >= 2. TODO: perform checks (is a power of 2 and is > 2) on
+// the passed squaresize arg
+func (c *Context) FillBlock(squareSize int, accounts []string, broadcastMode string) (*sdk.TxResponse, error) {
+	if broadcastMode == "" {
+		broadcastMode = flags.BroadcastBlock
+	}
+	maxShareCount := squareSize * squareSize
+	// we use a formula to guarantee that the tx is the exact size needed to force a specific square size.
+	msgSize := (maxShareCount - (2 * squareSize)) * appconsts.SparseShareContentSize
+	// this last patch allows for the formula above to work on a square size of
+	// 2.
+	if msgSize < 1 {
+		msgSize = 1
+	}
+	return c.PostData(accounts[0], broadcastMode, namespace.RandomMessageNamespace(), tmrand.Bytes(msgSize))
 }

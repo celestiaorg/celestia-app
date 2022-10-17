@@ -7,8 +7,8 @@ func TestInfoByte(t *testing.T) {
 	notMessageStart := false
 
 	type testCase struct {
-		version        uint8
-		isMessageStart bool
+		version         uint8
+		isSequenceStart bool
 	}
 	tests := []testCase{
 		{0, messageStart},
@@ -23,15 +23,15 @@ func TestInfoByte(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		irb, err := NewInfoByte(test.version, test.isMessageStart)
+		irb, err := NewInfoByte(test.version, test.isSequenceStart)
 		if err != nil {
 			t.Errorf("got %v want no error", err)
 		}
 		if got := irb.Version(); got != test.version {
 			t.Errorf("got version %v want %v", got, test.version)
 		}
-		if got := irb.IsMessageStart(); got != test.isMessageStart {
-			t.Errorf("got isMessageStart %v want %v", got, test.isMessageStart)
+		if got := irb.IsSequenceStart(); got != test.isSequenceStart {
+			t.Errorf("got IsSequenceStart %v want %v", got, test.isSequenceStart)
 		}
 	}
 }
@@ -41,8 +41,8 @@ func TestInfoByteErrors(t *testing.T) {
 	notMessageStart := false
 
 	type testCase struct {
-		version        uint8
-		isMessageStart bool
+		version         uint8
+		isSequenceStart bool
 	}
 
 	tests := []testCase{
@@ -61,11 +61,11 @@ func TestInfoByteErrors(t *testing.T) {
 }
 
 func FuzzNewInfoByte(f *testing.F) {
-	f.Fuzz(func(t *testing.T, version uint8, isMessageStart bool) {
+	f.Fuzz(func(t *testing.T, version uint8, isSequenceStart bool) {
 		if version > 127 {
 			t.Skip()
 		}
-		_, err := NewInfoByte(version, isMessageStart)
+		_, err := NewInfoByte(version, isSequenceStart)
 		if err != nil {
 			t.Errorf("got nil but want error when version > 127")
 		}
@@ -74,9 +74,9 @@ func FuzzNewInfoByte(f *testing.F) {
 
 func TestParseInfoByte(t *testing.T) {
 	type testCase struct {
-		b                  byte
-		wantVersion        uint8
-		wantIsMessageStart bool
+		b                   byte
+		wantVersion         uint8
+		wantisSequenceStart bool
 	}
 
 	tests := []testCase{
@@ -96,8 +96,8 @@ func TestParseInfoByte(t *testing.T) {
 		if got.Version() != test.wantVersion {
 			t.Errorf("got version %v want %v", got.Version(), test.wantVersion)
 		}
-		if got.IsMessageStart() != test.wantIsMessageStart {
-			t.Errorf("got isMessageStart %v want %v", got.IsMessageStart(), test.wantIsMessageStart)
+		if got.IsSequenceStart() != test.wantisSequenceStart {
+			t.Errorf("got IsSequenceStart %v want %v", got.IsSequenceStart(), test.wantisSequenceStart)
 		}
 	}
 }

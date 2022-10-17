@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"testing"
@@ -17,10 +16,10 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	"github.com/celestiaorg/celestia-app/x/payment"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
-	"github.com/celestiaorg/nmt/namespace"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -30,7 +29,7 @@ import (
 func TestIntegrationTestSuite(t *testing.T) {
 	cfg := network.DefaultConfig()
 	cfg.EnableTMLogging = false
-	cfg.MinGasPrices = "0utia"
+	cfg.MinGasPrices = "0ucls"
 	cfg.NumValidators = 1
 	cfg.TimeoutCommit = time.Millisecond * 200
 	suite.Run(t, NewIntegrationTestSuite(cfg))
@@ -265,7 +264,7 @@ func generateSignedWirePayForDataTxs(clientCtx client.Context, txConfig client.T
 
 		// create a msg
 		msg, err := types.NewWirePayForData(
-			randomValidNamespace(),
+			namespace.RandomMessageNamespace(),
 			tmrand.Bytes(thisMessageSize),
 			types.AllSquareSizes(thisMessageSize)...,
 		)
@@ -294,15 +293,6 @@ func generateSignedWirePayForDataTxs(clientCtx client.Context, txConfig client.T
 	}
 
 	return txs, nil
-}
-
-func randomValidNamespace() namespace.ID {
-	for {
-		s := tmrand.Bytes(8)
-		if bytes.Compare(s, appconsts.MaxReservedNamespace) > 0 {
-			return s
-		}
-	}
 }
 
 func queryTx(clientCtx client.Context, hashHexStr string, prove bool) (*rpctypes.ResultTx, error) {

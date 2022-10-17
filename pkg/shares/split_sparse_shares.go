@@ -39,7 +39,7 @@ func (sss *SparseShareSplitter) RemoveMessage(i int) (int, error) {
 	j := 1
 	initialCount := sss.count
 	if len(sss.shares) > i+1 {
-		msgLen, err := sss.shares[i+1].MessageLength()
+		msgLen, err := sss.shares[i+1].SequenceLength()
 		if err != nil {
 			return 0, err
 		}
