@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"fmt"
+
 	"github.com/celestiaorg/celestia-app/app"
 	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdkcodec "github.com/cosmos/cosmos-sdk/codec"
