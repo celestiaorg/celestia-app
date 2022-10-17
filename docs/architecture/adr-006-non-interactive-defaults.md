@@ -108,8 +108,6 @@ Note: In order to properly test the new encoding scheme, we have to perform iden
 
 We currently utilize a struct to store the state needed for lazily writing message shares. Here we add a method to it that allows for us to write namespaced padded shares.
 
-<!-- markdownlint-disable MD010 -->
-
 ```go
 // SparseShareSplitter lazily splits messages into shares that will eventually be
 // included in a data square. It also has methods to help progressively count
