@@ -109,46 +109,46 @@ Note: In order to properly test the new encoding scheme, we have to perform iden
 We currently utilize a struct to store the state needed for lazily writing message shares. Here we add a method to it that allows for us to write namespaced padded shares.
 
 ```go
-// MessageShareSplitter lazily splits messages into shares that will eventually be
+// SparseShareSplitter lazily splits messages into shares that will eventually be
 // included in a data square. It also has methods to help progressively count
 // how many shares the messages written take up.
-type MessageShareSplitter struct {
-  shares [][]NamespacedShare
-  count  int
+type SparseShareSplitter struct {
+	shares []Share
+	count  int
 }
 ...
 // WriteNamespacedPaddedShares adds empty shares using the namespace of the last written share.
 // This is useful to follow the message layout rules. It assumes that at least
 // one share has already been written, if not it panics.
-func (mss *MessageShareSplitter) WriteNamespacedPaddedShares(paddedShares int) {
-  if len(mss.shares) == 0 {
-      panic("Cannot write empty namespaced shares on an empty MessageShareSplitter")
-  }
-  if paddedShares == 0 {
-      return
-  }
-  lastMessage := mss.shares[len(mss.shares)-1]
-  mss.shares = append(mss.shares, namespacedPaddedShares(lastMessage[0].ID, paddedShares))
-  mss.count += paddedShares
+func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) {
+	if len(sss.shares) == 0 {
+		panic("cannot write empty namespaced shares on an empty SparseShareSplitter")
+	}
+	if count == 0 {
+		return
+	}
+	lastMessage := sss.shares[len(sss.shares)-1]
+	sss.shares = append(sss.shares, namespacedPaddedShares(lastMessage.NamespaceID(), count)...)
+	sss.count += count
 }
 ```
 
 Now we simply combine this new functionality with the `share_index`s described above, and we can properly split and pad messages when needed. Note, the below implementation allows indexes to not be used. This is important, as it allows the same implementation to be used in the cases where we don't want to split messages using wrapped transactions, such as supporting older networks or when users create commitments to sign over for `MsgWirePayForData`
 
 ```go
-func SplitMessages(cursor int, indexes []uint32, msgs []coretypes.Message, useShareIndexes bool) ([][]byte, error) {
-  if useShareIndexes && len(indexes) != len(msgs) {
-      return nil, ErrIncorrectNumberOfIndexes
-  }
-  writer := NewMessageShareSplitter()
-  for i, msg := range msgs {
-      writer.Write(msg)
-      if useShareIndexes && len(indexes) > i+1 {
-          paddedShareCount := int(indexes[i+1]) - (writer.Count() + cursor)
-          writer.WriteNamespacedPaddedShares(paddedShareCount)
-      }
-  }
-  return writer.Export().RawShares(), nil
+func SplitMessages(cursor int, indexes []uint32, msgs []coretypes.Message, useShareIndexes bool) ([]Share, error) {
+	if useShareIndexes && len(indexes) != len(msgs) {
+		return nil, ErrIncorrectNumberOfIndexes
+	}
+	writer := NewSparseShareSplitter()
+	for i, msg := range msgs {
+		writer.Write(msg)
+		if useShareIndexes && len(indexes) > i+1 {
+			paddedShareCount := int(indexes[i+1]) - (writer.Count() + cursor)
+			writer.WriteNamespacedPaddedShares(paddedShareCount)
+		}
+	}
+	return writer.Export(), nil
 }
 ```
 

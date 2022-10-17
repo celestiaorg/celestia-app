@@ -23,8 +23,6 @@ The malleated transaction that is created from metadata contained in the origina
 
 The malleation process occurs during the PrepareProposal step.
 
-<!-- markdownlint-disable MD010 -->
-
 ```go
 // ProcessWirePayForData will perform the processing required by PrepareProposal.
 // It parses the MsgWirePayForData to produce the components needed to create a
@@ -114,8 +112,6 @@ There are no parameters yet, but we might add
 ### Programmatic Usage
 
 There are tools to programmatically create, sign, and broadcast `MsgWirePayForDatas`
-
-<!-- markdownlint-disable MD010 -->
 
 ```go
 // create the raw WirePayForData transaction
