@@ -2,9 +2,6 @@ name: "docker-build"
 
 on:
   push:
-    branches:
-      - "main"
-      - "release/v0.[0-9]+.[0-9]+*"
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+"
@@ -48,29 +45,13 @@ jobs:
         with:
           prefix: 'v'
 
-      - name: tag version extract
-        run: |
-          process.env.VERSION = ${{ steps.version.outputs.full }}
-        if: steps.tag_version.outputs.is_valid == 'true'
-
-      - name: branch version
-        uses: actions/github-script@v4
-        with:
-          result-encoding: string
-          script: |
-            const branch_name = process.env.GITHUB_REF
-            const release_version = branch_name.substring(branch_name.lastIndexOf('/') +1 ,branch_name.length  )
-            process.env.VERSION = release_version
-            return release_version
-        if: steps.tag_version.outputs.is_valid == 'false'
-
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ process.env.VERSION }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.full }}
           file: Dockerfile
 
   docker-build-ephemeral:
