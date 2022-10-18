@@ -1,6 +1,8 @@
 name: Tests / Code Coverage
-#  Tests / Code Coverage workflow runs unit tests and uploads a code coverage report
-#  This workflow is run on pushes to main & every Pull Requests where a .go, .mod, .sum have been changed
+#  Tests / Code Coverage workflow runs unit tests and uploads a code coverage
+#  report
+#  This workflow is run on pushes to main & every Pull Requests where a .go,
+#  .mod, .sum have been changed
 on:
   workflow_call:
 
@@ -11,7 +13,7 @@ jobs:
       - uses: rokroskar/workflow-run-cleanup-action@master
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-    if: "!startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/heads/master'"
+    if: "!startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/heads/master'" # yamllint disable-line rule:line-length
 
   install-tparse:
     runs-on: ubuntu-latest
@@ -22,8 +24,7 @@ jobs:
       - name: Display go version
         run: go version
       - name: install tparse
-        run: |
-          export GO111MODULE="on" && go install github.com/mfridman/tparse@v0.8.3
+        run: export GO111MODULE="on" && go install github.com/mfridman/tparse@v0.8.3 # yamllint disable-line rule:line-length
       - uses: actions/cache@v3.0.11
         with:
           path: ~/go/bin
@@ -101,8 +102,7 @@ jobs:
           name: "${{ github.sha }}-${{ matrix.part }}"
         if: env.GIT_DIFF
       - name: test & coverage report creation
-        run: |
-          cat pkgs.txt.part.${{ matrix.part }} | xargs go test -mod=readonly -timeout 30m -coverprofile=${{ matrix.part }}profile.out -covermode=atomic -tags='norace ledger test_ledger_mock'
+        run: cat pkgs.txt.part.${{ matrix.part }} | xargs go test -mod=readonly -timeout 30m -coverprofile=${{ matrix.part }}profile.out -covermode=atomic -tags='norace ledger test_ledger_mock' # yamllint disable-line rule:line-length
         if: env.GIT_DIFF
       - uses: actions/upload-artifact@v3
         with:
@@ -179,8 +179,7 @@ jobs:
           name: "${{ github.sha }}-${{ matrix.part }}"
         if: env.GIT_DIFF
       - name: test & coverage report creation
-        run: |
-          cat pkgs.txt.part.${{ matrix.part }} | xargs go test -mod=readonly -json -timeout 30m -race -test.short -tags='cgo' > ${{ matrix.part }}-race-output.txt
+        run: cat pkgs.txt.part.${{ matrix.part }} | xargs go test -mod=readonly -json -timeout 30m -race -test.short -tags='cgo' > ${{ matrix.part }}-race-output.txt # yamllint disable-line rule:line-length
         if: env.GIT_DIFF
       - uses: actions/upload-artifact@v3
         with:

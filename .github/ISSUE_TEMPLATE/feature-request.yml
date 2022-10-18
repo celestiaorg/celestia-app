@@ -9,7 +9,8 @@ body:
       value: |
         ✰ Thanks for opening an issue! ✰
         Before smashing the submit button please fill in the template.
-        Word of caution: poorly thought-out proposals may be rejected without deliberation.
+        Word of caution: poorly thought-out proposals may be rejected without
+        deliberation.
 
   - type: textarea
     id: summary
