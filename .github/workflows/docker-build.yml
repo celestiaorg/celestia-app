@@ -41,8 +41,19 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Release name
-        id: release_name
+
+      - name: tag version
+        uses: nowsprinting/check-version-format-action@v3
+        id: tag_version
+        with:
+          prefix: 'v'
+
+      - name: tag version extract
+        run: |
+          process.env.VERSION = ${{ steps.version.outputs.full }}
+        if: steps.tag_version.outputs.is_valid == 'true'
+
+      - name: branch version
         uses: actions/github-script@v4
         with:
           result-encoding: string
@@ -51,13 +62,15 @@ jobs:
             const release_version = branch_name.substring(branch_name.lastIndexOf('/') +1 ,branch_name.length  )
             process.env.VERSION = release_version
             return release_version
+        if: steps.tag_version.outputs.is_valid == 'false'
+
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ steps.release_name.outputs.result }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ process.env.VERSION }}
           file: Dockerfile
 
   docker-build-ephemeral:
