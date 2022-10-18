@@ -30,8 +30,6 @@ jobs:
   # Dockerfile Linting
   hadolint:
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@main # yamllint disable-line rule:line-length
-    with:
-      dockerfile: docker/Dockerfile
 
   yamllint:
     runs-on: ubuntu-latest
@@ -73,5 +71,7 @@ jobs:
   #
   # docker-build:
   #   needs: [hadolint, yamllint, markdown-lint, lint, test, go-ci]
+  # yamllint disable
   #   if: ${{ github.event_name == 'workflow_dispatch' || startsWith('refs/tags/v', github.ref) }} yamllint disable-line rule:line-length
+  # yamllint enable
   #   uses: ....
