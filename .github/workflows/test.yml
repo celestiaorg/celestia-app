@@ -139,7 +139,7 @@ jobs:
       - run: |
           cat ./*profile.out | grep -v "mode: atomic" >> coverage.txt
         if: env.GIT_DIFF
-      - name: filter out DONTCOVE
+      - name: filter out DONTCOVER
         # yamllint disable
         run: |
           excludelist="$(find ./ -type f -name '*.go' | xargs grep -l 'DONTCOVER')"
