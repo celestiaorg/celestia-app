@@ -45,10 +45,6 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 	invalidSquareSizeMsg := validWirePayForData(t)
 	invalidSquareSizeMsg.MessageShareCommitment[0].SquareSize = 15
 
-	// pfd that has a different power of 2 square size
-	badSquareSizeMsg := validWirePayForData(t)
-	badSquareSizeMsg.MessageShareCommitment[0].SquareSize = 16
-
 	// pfd that signs over all squares but the first one
 	missingCommitmentForOneSquareSize := validWirePayForData(t)
 	missingCommitmentForOneSquareSize.MessageShareCommitment = missingCommitmentForOneSquareSize.MessageShareCommitment[1:]
@@ -87,11 +83,6 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 			name:    "invalid square size",
 			msg:     invalidSquareSizeMsg,
 			wantErr: ErrCommittedSquareSizeNotPowOf2,
-		},
-		{
-			name:    "wrong but valid square size",
-			msg:     badSquareSizeMsg,
-			wantErr: ErrInvalidShareCommit,
 		},
 		{
 			name:    "parity shares namespace id",

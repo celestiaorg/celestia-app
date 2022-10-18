@@ -8,17 +8,17 @@ import (
 
 // InfoByte is a byte with the following structure: the first 7 bits are
 // reserved for version information in big endian form (initially `0000000`).
-// The last bit is a "message start indicator", that is `1` if the share is at
-// the start of a message and `0` otherwise.
+// The last bit is a "sequence start indicator", that is `1` if this is the
+// first share of a sequence and `0` if this is a continuation share.
 type InfoByte byte
 
-func NewInfoByte(version uint8, isMessageStart bool) (InfoByte, error) {
+func NewInfoByte(version uint8, isSequenceStart bool) (InfoByte, error) {
 	if version > appconsts.MaxShareVersion {
 		return 0, fmt.Errorf("version %d must be less than or equal to %d", version, appconsts.MaxShareVersion)
 	}
 
 	prefix := version << 1
-	if isMessageStart {
+	if isSequenceStart {
 		return InfoByte(prefix + 1), nil
 	}
 	return InfoByte(prefix), nil
@@ -31,13 +31,13 @@ func (i InfoByte) Version() uint8 {
 	return version
 }
 
-// IsMessageStart returns whether this share is the start of a message.
-func (i InfoByte) IsMessageStart() bool {
+// IsSequenceStart returns whether this share is the start of a message.
+func (i InfoByte) IsSequenceStart() bool {
 	return uint(i)%2 == 1
 }
 
 func ParseInfoByte(i byte) (InfoByte, error) {
-	isMessageStart := i%2 == 1
+	isSequenceStart := i%2 == 1
 	version := uint8(i) >> 1
-	return NewInfoByte(version, isMessageStart)
+	return NewInfoByte(version, isSequenceStart)
 }

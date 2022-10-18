@@ -29,9 +29,9 @@ import (
 func TestIntegrationTestSuite(t *testing.T) {
 	cfg := network.DefaultConfig()
 	cfg.EnableTMLogging = false
-	cfg.MinGasPrices = "0utia"
+	cfg.MinGasPrices = "0ucls"
 	cfg.NumValidators = 1
-	cfg.TimeoutCommit = time.Millisecond * 200
+	cfg.TimeoutCommit = time.Millisecond * 400
 	suite.Run(t, NewIntegrationTestSuite(cfg))
 }
 
