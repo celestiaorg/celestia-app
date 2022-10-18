@@ -3,11 +3,9 @@ package orchestrator
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/app"
 	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdkcodec "github.com/cosmos/cosmos-sdk/codec"
 	sdkcodectypes "github.com/cosmos/cosmos-sdk/codec/types"
-	"github.com/cosmos/cosmos-sdk/std"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/gogo/protobuf/proto"
@@ -66,12 +64,4 @@ func (parser QGBParser) ParseSdkMsg(any *sdkcodectypes.Any) (sdktypes.Msg, error
 		return nil, fmt.Errorf("error while unpacking message: %s", err)
 	}
 	return stdMsg, nil
-}
-
-func MakeDefaultAppCodec() sdkcodec.Codec {
-	interfaceRegistry := sdkcodectypes.NewInterfaceRegistry()
-	std.RegisterInterfaces(interfaceRegistry)
-	app.ModuleBasics.RegisterInterfaces(interfaceRegistry)
-	qgbtypes.RegisterInterfaces(interfaceRegistry)
-	return sdkcodec.NewProtoCodec(interfaceRegistry)
 }
