@@ -4,7 +4,17 @@ on:
   push:
     branches:
       - "main"
+      - "release/v0.[0-9]+.[0-9]+*"
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+"
   workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   docker-build:
@@ -31,11 +41,36 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: tag version
+        uses: nowsprinting/check-version-format-action@v3
+        id: tag_version
+        with:
+          prefix: 'v'
+
+      - name: tag version extract
+        run: |
+          process.env.VERSION = ${{ steps.version.outputs.full }}
+        if: steps.tag_version.outputs.is_valid == 'true'
+
+      - name: branch version
+        uses: actions/github-script@v4
+        with:
+          result-encoding: string
+          script: |
+            const branch_name = process.env.GITHUB_REF
+            const release_version = branch_name.substring(branch_name.lastIndexOf('/') +1 ,branch_name.length  )
+            process.env.VERSION = release_version
+            return release_version
+        if: steps.tag_version.outputs.is_valid == 'false'
+
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
           push: true
-          tags: ghcr.io/celestiaorg/celestia-app:latest
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ process.env.VERSION }}
           file: Dockerfile
 
   docker-build-ephemeral:
