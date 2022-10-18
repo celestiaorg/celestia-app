@@ -19,7 +19,7 @@ require (
 	github.com/tendermint/tm-db v0.6.7
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
 	golang.org/x/net v0.0.0-20220617184016-355a448f1bc9 // indirect
-	golang.org/x/sys v0.0.0-20220702020025-31831981b65f // indirect
+	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 	golang.org/x/term v0.0.0-20220526004731-065cf7ba2467 // indirect
 	google.golang.org/genproto v0.0.0-20220617124728-180714bec0ad
 	google.golang.org/grpc v1.49.0
@@ -31,6 +31,7 @@ require (
 	github.com/celestiaorg/rsmt2d v0.6.0
 	github.com/regen-network/cosmos-proto v0.3.1
 	github.com/tendermint/tendermint v0.34.20
+	golang.org/x/exp v0.0.0-20221012211006-4de253d81b95
 )
 
 require (

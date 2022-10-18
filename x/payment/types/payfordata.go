@@ -175,7 +175,7 @@ func powerOf2MountainRange(l, squareSize uint64) []uint64 {
 			output = append(output, squareSize)
 			l = l - squareSize
 		case l < squareSize:
-			p := appshares.RoundDownPowerOfTwoU(l)
+			p := appshares.RoundDownPowerOfTwo(l)
 			output = append(output, p)
 			l = l - p
 		}

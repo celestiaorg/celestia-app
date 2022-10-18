@@ -12,9 +12,15 @@ func TestRoundUpPowerOfTwo(t *testing.T) {
 		want  int
 	}
 	testCases := []testCase{
+		{input: -1, want: 1},
+		{input: 0, want: 1},
 		{input: 1, want: 1},
 		{input: 2, want: 2},
+		{input: 4, want: 4},
 		{input: 5, want: 8},
+		{input: 8, want: 8},
+		{input: 11, want: 16},
+		{input: 511, want: 512},
 	}
 	for _, tc := range testCases {
 		got := RoundUpPowerOfTwo(tc.input)
@@ -28,10 +34,11 @@ func TestRoundDownPowerOfTwo(t *testing.T) {
 		want  int
 	}
 	testCases := []testCase{
-		{input: 0, want: 0},
 		{input: 1, want: 1},
 		{input: 2, want: 2},
+		{input: 4, want: 4},
 		{input: 5, want: 4},
+		{input: 8, want: 8},
 		{input: 11, want: 8},
 		{input: 511, want: 256},
 	}
@@ -41,37 +48,24 @@ func TestRoundDownPowerOfTwo(t *testing.T) {
 	}
 }
 
-func TestRoundUpPowerOfTwoU(t *testing.T) {
+func TestRoundUpPowerOfTwoStrict(t *testing.T) {
 	type testCase struct {
-		input uint64
-		want  uint64
+		input int
+		want  int
 	}
 	testCases := []testCase{
-		{input: 0, want: 0},
+		{input: -1, want: 1},
+		{input: 0, want: 1},
 		{input: 1, want: 2},
 		{input: 2, want: 4},
+		{input: 4, want: 8},
 		{input: 5, want: 8},
+		{input: 8, want: 16},
 		{input: 11, want: 16},
 		{input: 511, want: 512},
 	}
 	for _, tc := range testCases {
-		got := RoundUpPowerOfTwoU(tc.input)
-		assert.Equal(t, tc.want, got)
-	}
-}
-
-func TestRoundDownPowerOfTwoU(t *testing.T) {
-	type testCase struct {
-		input uint64
-		want  uint64
-	}
-	testCases := []testCase{
-		{input: 1, want: 1},
-		{input: 2, want: 2},
-		{input: 5, want: 4},
-	}
-	for _, tc := range testCases {
-		got := RoundDownPowerOfTwoU(tc.input)
+		got := RoundUpPowerOfTwoStrict(tc.input)
 		assert.Equal(t, tc.want, got)
 	}
 }
@@ -82,15 +76,24 @@ func TestIsPowerOfTwoU(t *testing.T) {
 		want  bool
 	}
 	tests := []test{
+		// powers of two
 		{input: 1, want: true},
 		{input: 2, want: true},
+		{input: 4, want: true},
+		{input: 8, want: true},
+		{input: 16, want: true},
+		{input: 32, want: true},
+		{input: 64, want: true},
+		{input: 128, want: true},
 		{input: 256, want: true},
-		{input: 3, want: false},
-		{input: 79, want: false},
+		// not powers of two
 		{input: 0, want: false},
+		{input: 3, want: false},
+		{input: 12, want: false},
+		{input: 79, want: false},
 	}
 	for _, tt := range tests {
-		got := IsPowerOfTwoU(tt.input)
+		got := IsPowerOfTwo(tt.input)
 		assert.Equal(t, tt.want, got)
 	}
 }
