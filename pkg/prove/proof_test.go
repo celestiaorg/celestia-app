@@ -152,14 +152,14 @@ func TestTxShareIndex(t *testing.T) {
 		{appconsts.FirstCompactShareContentSize + appconsts.ContinuationCompactShareContentSize + 1, 2},
 		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 2), 2},
 		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 2) + 1, 3},
-		// 81 compact shares + partially filled out last share
+		// 81 full compact shares then a partially filled out 82nd share (which is index 81 because 0-indexed)
 		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 160, 81},
-		// 81 compact shares + full last share
-		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 246, 81},
-		// 82 compact shares + one byte in last share
-		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 247, 82},
-		// 82 compact shares + two bytes in last share
-		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 248, 82},
+		// 81 full compact shares then a full 82nd share
+		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 501, 81},
+		// 82 full compact shares then one byte in 83rd share
+		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 502, 82},
+		// 82 compact shares then two bytes in 83rd share
+		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 503, 82},
 	}
 
 	for _, tt := range tests {

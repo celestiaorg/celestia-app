@@ -5,10 +5,15 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func TestSplitTxs(t *testing.T) {
+	smallTransactionA := coretypes.Tx{0xa}
+	smallTransactionB := coretypes.Tx{0xb}
+	largeTransaction := bytes.Repeat([]byte{0xc}, 512)
+
 	type testCase struct {
 		name string
 		txs  coretypes.Txs
@@ -22,93 +27,94 @@ func TestSplitTxs(t *testing.T) {
 		},
 		{
 			name: "one small tx",
-			txs:  coretypes.Txs{coretypes.Tx{0xa}},
+			txs:  coretypes.Txs{smallTransactionA},
 			want: []Share{
-				append([]uint8{
+				padShare([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,                // info byte
-					0x2, 0x0, 0x0, 0x0, // 1 byte (unit)  + 1 byte (unit length) = 2 bytes message length
-					14,  // reserved byte
+					0x2, 0x0, 0x0, 0x0, // 1 byte (unit) + 1 byte (unit length) = 2 bytes sequence length
+					15, 0, // reserved bytes
 					0x1, // unit length of first transaction
 					0xa, // data of first transaction
-				}, bytes.Repeat([]byte{0}, 240)...), // padding
+				}),
 			},
 		},
 		{
 			name: "two small txs",
-			txs:  coretypes.Txs{coretypes.Tx{0xa}, coretypes.Tx{0xb}},
+			txs:  coretypes.Txs{smallTransactionA, smallTransactionB},
 			want: []Share{
-				append([]uint8{
+				padShare([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,                // info byte
-					0x4, 0x0, 0x0, 0x0, // 2 bytes (first transaction) + 2 bytes (second transaction) = 4 bytes message length
-					14,  // reserved byte
+					0x4, 0x0, 0x0, 0x0, // 2 bytes (first transaction) + 2 bytes (second transaction) = 4 bytes sequence length
+					15, 0, // reserved bytes
 					0x1, // unit length of first transaction
 					0xa, // data of first transaction
 					0x1, // unit length of second transaction
 					0xb, // data of second transaction
-				}, bytes.Repeat([]byte{0}, 238)...), // padding
+				}),
 			},
 		},
 		{
 			name: "one large tx that spans two shares",
-			txs:  coretypes.Txs{bytes.Repeat([]byte{0xC}, 241)},
+			txs:  coretypes.Txs{largeTransaction},
 			want: []Share{
-				append([]uint8{
+				fillShare([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,          // info byte
-					243, 1, 0, 0, // 241 (unit) + 2 (unit length) = 243 message length
-					14,     // reserved byte
-					241, 1, // unit length of first transaction is 241
-				}, bytes.Repeat([]byte{0xc}, 240)...), // data of first transaction
-				append([]uint8{
+					130, 4, 0, 0, // 512 (unit) + 2 (unit length) = 514 sequence length
+					15, 0, // reserved bytes
+					128, 4, // unit length of transaction is 512
+				}, 0xc), // data of transaction
+				padShare(append([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
-					0x0, // info byte
-					0x0, // reserved byte
-					0xc, // continuation data of first transaction
-				}, bytes.Repeat([]byte{0x0}, 245)...), // padding
+					0x0,  // info byte
+					0, 0, // reserved bytes
+				}, bytes.Repeat([]byte{0xc}, 17)..., // continuation data of transaction
+				)),
 			},
 		},
 		{
 			name: "one small tx then one large tx that spans two shares",
-			txs:  coretypes.Txs{coretypes.Tx{0xd}, bytes.Repeat([]byte{0xe}, 241)},
+			txs:  coretypes.Txs{smallTransactionA, largeTransaction},
 			want: []Share{
-				append([]uint8{
+				fillShare([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,          // info byte
-					245, 1, 0, 0, // 2 bytes (first transaction) + 243 bytes (second transaction) = 245 bytes message length
-					14,     // reserved byte
+					132, 4, 0, 0, // 2 bytes (first transaction) + 514 bytes (second transaction) = 516 bytes sequence length
+					15, 0, // reserved bytes
 					1,      // unit length of first transaction
-					0xd,    // data of first transaction
-					241, 1, // unit length of second transaction is 241
-				}, bytes.Repeat([]byte{0xe}, 238)...), // data of first transaction
-				append([]uint8{
-					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
-					0x0,           // info byte
-					0x0,           // reserved byte
-					0xe, 0xe, 0xe, // continuation data of second transaction
-				}, bytes.Repeat([]byte{0x0}, 243)...), // padding
+					0xa,    // data of first transaction
+					128, 4, // unit length of second transaction is 512
+				}, 0xc), // data of second transaction
+				padShare(
+					append([]uint8{
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
+						0x0,  // info byte
+						0, 0, // reserved bytes
+					}, bytes.Repeat([]byte{0xc}, 19)...), // continuation data of second transaction
+				),
 			},
 		},
 		{
 			name: "one large tx that spans two shares then one small tx",
-			txs:  coretypes.Txs{bytes.Repeat([]byte{0xe}, 241), coretypes.Tx{0xd}},
+			txs:  coretypes.Txs{largeTransaction, smallTransactionA},
 			want: []Share{
-				append([]uint8{
+				fillShare([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,          // info byte
-					245, 1, 0, 0, // 243 bytes (first transaction) + 2 bytes (second transaction) = 245 bytes message length
-					14,     // reserved byte
-					241, 1, // unit length of first transaction is 241
-				}, bytes.Repeat([]byte{0xe}, 240)...), // data of first transaction
-				append([]uint8{
+					132, 4, 0, 0, // 514 bytes (first transaction) + 2 bytes (second transaction) = 516 bytes sequence length
+					15, 0, // reserved bytes
+					128, 4, // unit length of first transaction is 512
+				}, 0xc), // data of first transaction
+				padShare([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
-					0x0, // info byte
-					11,  // reserved byte
-					0xe, // continuation data of first transaction
+					0x0,   // info byte
+					28, 0, // reserved bytes
+					0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, // continuation data of first transaction
 					1,   // unit length of second transaction
-					0xd, // data of second transaction
-				}, bytes.Repeat([]byte{0x0}, 243)...), // padding
+					0xa, // data of second transaction
+				}),
 			},
 		},
 	}
@@ -120,4 +126,15 @@ func TestSplitTxs(t *testing.T) {
 			}
 		})
 	}
-} //
+}
+
+// padShare returns a share padded with trailing zeros.
+func padShare(share []byte) (paddedShare []byte) {
+	return fillShare(share, 0)
+}
+
+// fillShare returns a share filled with filler so that the share length
+// is equal to appconsts.ShareSize.
+func fillShare(share []byte, filler byte) (paddedShare []byte) {
+	return append(share, bytes.Repeat([]byte{filler}, appconsts.ShareSize-len(share))...)
+}

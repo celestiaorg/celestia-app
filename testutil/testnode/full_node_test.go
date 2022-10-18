@@ -64,9 +64,9 @@ func (s *IntegrationTestSuite) Test_Liveness() {
 	var params *coretypes.ResultConsensusParams
 	// this query can be flaky with fast block times, so we repeat it multiple
 	// times in attempt to increase the probability of it working
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		params, err = s.cctx.Client.ConsensusParams(context.TODO(), nil)
-		if err != nil {
+		if err != nil || params == nil {
 			continue
 		}
 		break

@@ -13,7 +13,7 @@ import (
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/consensus.md#constants
 const (
 	// ShareSize is the size of a share in bytes.
-	ShareSize = 256
+	ShareSize = 512
 
 	// NamespaceSize is the namespace size in bytes.
 	NamespaceSize = 8
@@ -27,7 +27,7 @@ const (
 
 	// CompactShareReservedBytes is the number of bytes reserved for the location of
 	// the first unit (transaction, ISR, evidence) in a compact share.
-	CompactShareReservedBytes = 1
+	CompactShareReservedBytes = 2
 
 	// ContinuationCompactShareContentSize is the number of bytes usable for
 	// data in a continuation compact share. A continuation share is any

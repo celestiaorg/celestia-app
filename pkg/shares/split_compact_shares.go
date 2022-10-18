@@ -61,7 +61,7 @@ func (css *CompactShareSplitter) WriteEvidence(evd coretypes.Evidence) error {
 
 // WriteBytes adds the delimited data to the underlying compact shares.
 func (css *CompactShareSplitter) WriteBytes(rawData []byte) {
-	css.maybeWriteReservedByteToPendingShare()
+	css.maybeWriteReservedBytesToPendingShare()
 
 	txCursor := len(rawData)
 	for txCursor != 0 {
@@ -158,38 +158,45 @@ func (css *CompactShareSplitter) writeDataLengthVarintToFirstShare(dataLengthVar
 	css.shares[0] = firstShare
 }
 
-// maybeWriteReservedByteToPendingShare will be a no-op if the reserved byte has
-// already been populated. If the reserved byte is empty, it will write the
-// location of the next unit of data to the reserved byte.
-func (css *CompactShareSplitter) maybeWriteReservedByteToPendingShare() {
-	if !css.isEmptyReservedByte() {
+// maybeWriteReservedBytesToPendingShare will be a no-op if the reserved bytes
+// have already been populated. If the reserved bytes are empty, it will write
+// the location of the next unit of data to the reserved bytes.
+func (css *CompactShareSplitter) maybeWriteReservedBytesToPendingShare() {
+	if !css.isEmptyReservedBytes() {
 		return
 	}
 
-	locationOfNextUnit := len(css.pendingShare)
-	if locationOfNextUnit >= appconsts.ShareSize {
-		panic(fmt.Sprintf("location of next unit %v is greater than or equal to the share size %v", locationOfNextUnit, appconsts.ShareSize))
+	byteIndexOfNextUnit := len(css.pendingShare)
+	reservedBytes, err := NewReservedBytes(uint64(byteIndexOfNextUnit))
+	if err != nil {
+		panic(err)
 	}
 
-	// write the location of next unit to the reserved byte of the pending share
-	if css.isPendingShareTheFirstShare() {
-		css.pendingShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareSequenceLengthBytes : appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareContentSize+appconsts.CompactShareReservedBytes][0] = byte(locationOfNextUnit)
-	} else {
-		css.pendingShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes : appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes][0] = byte(locationOfNextUnit)
+	indexOfReservedBytes := css.indexOfReservedBytes()
+	// overwrite the reserved bytes of the pending share
+	for i := 0; i < appconsts.CompactShareReservedBytes; i++ {
+		css.pendingShare[indexOfReservedBytes+i] = reservedBytes[i]
 	}
 }
 
-// isEmptyReservedByte returns true if the reserved byte is empty.
-func (css *CompactShareSplitter) isEmptyReservedByte() bool {
-	var reservedByte byte
-
-	if css.isPendingShareTheFirstShare() {
-		reservedByte = css.pendingShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareSequenceLengthBytes : appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareContentSize+appconsts.CompactShareReservedBytes][0]
-	} else {
-		reservedByte = css.pendingShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes : appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes][0]
+// isEmptyReservedBytes returns true if the reserved bytes are empty.
+func (css *CompactShareSplitter) isEmptyReservedBytes() bool {
+	indexOfReservedBytes := css.indexOfReservedBytes()
+	reservedBytes, err := ParseReservedBytes(css.pendingShare[indexOfReservedBytes : indexOfReservedBytes+appconsts.CompactShareReservedBytes])
+	if err != nil {
+		panic(err)
 	}
+	return reservedBytes == 0
+}
 
-	return reservedByte == 0
+// indexOfReservedBytes returns the index of the reserved bytes in the pending share.
+func (css *CompactShareSplitter) indexOfReservedBytes() int {
+	if css.isPendingShareTheFirstShare() {
+		// if the pending share is the first share, the reserved bytes follow the namespace, info byte, and sequence length varint
+		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.FirstCompactShareSequenceLengthBytes
+	}
+	// if the pending share is not the first share, the reserved bytes follow the namespace and info byte
+	return appconsts.NamespaceSize + appconsts.ShareInfoBytes
 }
 
 // dataLength returns the total length in bytes of all units (transactions,
