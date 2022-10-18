@@ -1,3 +1,4 @@
+# TODO: Refactor to common workflow
 name: "Close stale issues & pull requests"
 on:
   schedule:

@@ -1,9 +1,10 @@
+# Pretty sure this isn't needed, see attached screen shot of repo settings
 name: Remove old artifacts
 
 on:
   schedule:
     # Every day at 1am
-    - cron: '0 1 * * *'
+    - cron: "0 1 * * *"
 
 jobs:
   remove-old-artifacts:
@@ -11,7 +12,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    - name: Remove old artifacts
-      uses: c-hive/gha-remove-artifacts@v1.2.0
-      with:
-        age: '7 days'
+      - name: Remove old artifacts
+        uses: c-hive/gha-remove-artifacts@v1.2.0
+        with:
+          age: "7 days"
