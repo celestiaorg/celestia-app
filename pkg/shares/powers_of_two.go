@@ -1,4 +1,4 @@
-package utils
+package shares
 
 // RoundUpPowerOfTwo returns the next power of two greater than or equal to input.
 func RoundUpPowerOfTwo(input int) int {

@@ -1,7 +1,5 @@
 package shares
 
-import "github.com/celestiaorg/celestia-app/pkg/utils"
-
 // FitsInSquare uses the non interactive default rules to see if messages of
 // some lengths will fit in a square of squareSize starting at share index
 // cursor. Returns whether the messages fit in the square and the number of
@@ -52,7 +50,7 @@ func NextAlignedPowerOfTwo(cursor, msgLen, squareSize int) (int, bool) {
 		return cursor, true
 	}
 
-	nextLowest := utils.RoundDownPowerOfTwo(msgLen)
+	nextLowest := RoundDownPowerOfTwo(msgLen)
 	endOfCurrentRow := ((cursor / squareSize) + 1) * squareSize
 	cursor = roundUpBy(cursor, nextLowest)
 	switch {

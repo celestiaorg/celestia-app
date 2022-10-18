@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/utils"
 	"github.com/celestiaorg/nmt"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -176,7 +175,7 @@ func powerOf2MountainRange(l, squareSize uint64) []uint64 {
 			output = append(output, squareSize)
 			l = l - squareSize
 		case l < squareSize:
-			p := utils.RoundDownPowerOfTwoU(l)
+			p := appshares.RoundDownPowerOfTwoU(l)
 			output = append(output, p)
 			l = l - p
 		}

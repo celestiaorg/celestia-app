@@ -6,7 +6,7 @@ import (
 	fmt "fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/utils"
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt/namespace"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -39,7 +39,7 @@ func NewWirePayForData(namespace, message []byte, sizes ...uint64) (*MsgWirePayF
 
 	// generate the share commitments
 	for i, size := range sizes {
-		if !utils.IsPowerOfTwoU(size) {
+		if !shares.IsPowerOfTwoU(size) {
 			return nil, fmt.Errorf("invalid square size, the size must be power of 2: %d", size)
 		}
 		commit, err := CreateCommitment(size, namespace, message)
@@ -115,7 +115,7 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 func (msg *MsgWirePayForData) ValidateMessageShareCommitments() error {
 	for idx, commit := range msg.MessageShareCommitment {
 		// check that each commit is valid
-		if !utils.IsPowerOfTwoU(commit.SquareSize) {
+		if !shares.IsPowerOfTwoU(commit.SquareSize) {
 			return ErrCommittedSquareSizeNotPowOf2.Wrapf("committed to square size: %d", commit.SquareSize)
 		}
 
