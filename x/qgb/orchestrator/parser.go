@@ -16,6 +16,7 @@ import (
 
 var _ QGBParserI = QGBParser{}
 
+// FIXME remove this interface after writing tests and see if it is needed or not
 type QGBParserI interface {
 	ParseDataCommitmentConfirm(msg sdktypes.Msg) (qgbtypes.MsgDataCommitmentConfirm, error)
 	ParseValsetConfirm(msg sdktypes.Msg) (qgbtypes.MsgValsetConfirm, error)
