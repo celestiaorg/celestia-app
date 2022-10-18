@@ -19,7 +19,7 @@ jobs:
       - name: Unshallow
         run: git fetch --prune --unshallow
       - name: Create release
-        uses: goreleaser/goreleaser-action@v3.1.0
+        uses: goreleaser/goreleaser-action@v3.2.0
         with:
           args: release --rm-dist
           workdir: ./cmd/celestia-appd
