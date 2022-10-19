@@ -495,7 +495,8 @@ For shares **with a reserved namespace ID through [`NAMESPACE_ID_MAX_RESERVED`](
 For shares **with a namespace ID above [`NAMESPACE_ID_MAX_RESERVED`](./consensus.md#constants) but below [`PARITY_SHARE_NAMESPACE_ID`](./consensus.md#constants)**:
 
 - The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`.
-- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants) bytes are request data. In other words, the remaining bytes have no special meaning and are simply used to store data.
+- If this is the first share of a message, the next 1-10 bytes contain a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the uint64 length of the message that follows. If this isn't the first share of a message, the next 1-10 bytes are used for request data.
+- The remaining bytes are request data. In other words, the remaining bytes have no special meaning and are simply used to store data.
 
 For shares **with a namespace ID equal to [`PARITY_SHARE_NAMESPACE_ID`](./consensus.md#constants)** (i.e. parity shares):
 
