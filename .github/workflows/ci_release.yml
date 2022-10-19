@@ -72,6 +72,8 @@ jobs:
   # docker-build:
   #   needs: [hadolint, yamllint, markdown-lint, lint, test, go-ci]
   # yamllint disable
-  #   if: ${{ github.event_name == 'workflow_dispatch' || startsWith('refs/tags/v', github.ref) }} yamllint disable-line rule:line-length
+  #   if: |
+  #     ${{ github.event_name == 'workflow_dispatch' ||
+  #     startsWith('refs/tags/v', github.ref) }}
   # yamllint enable
   #   uses: ....
