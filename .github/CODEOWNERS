@@ -1,0 +1,17 @@
+# CODEOWNERS: <https://help.github.com/articles/about-codeowners/>
+
+# Everything goes through the following "global owners" by default. Unless a later
+# match takes precedence, the "global owners" will be requested for review when
+# someone opens a PR. Note that the last matching pattern takes precedence, so
+# global owners are only requested if there isn't a more specific codeowner
+# specified below. For this reason, the global owners are often repeated in
+# directory-level definitions.
+
+# global owners
+* @evan-forbes
+
+# directory owners
+docs @liamsi @adlerjohn @MSevey
+specs @liamsi @adlerjohn @MSevey
+x/qgb @SweeXordious
+pkg/shares @rootulp
