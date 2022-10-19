@@ -175,59 +175,11 @@ func powerOf2MountainRange(l, squareSize uint64) []uint64 {
 			output = append(output, squareSize)
 			l = l - squareSize
 		case l < squareSize:
-			p := nextLowerPowerOf2(l)
+			p := appshares.RoundDownPowerOfTwo(l)
 			output = append(output, p)
 			l = l - p
 		}
 	}
 
 	return output
-}
-
-// NextHigherPowerOf2 returns the next power of 2 that is higher than v.
-// Examples:
-// NextHigherPowerOf2(1) = 2
-// NextHigherPowerOf2(2) = 4
-// NextHigherPowerOf2(5) = 8
-func NextHigherPowerOf2(v uint64) uint64 {
-	// keep track of the value to check if its the same later
-	i := v
-
-	// find the next highest power using bit mashing
-	v--
-	v |= v >> 1
-	v |= v >> 2
-	v |= v >> 4
-	v |= v >> 8
-	v |= v >> 16
-	v |= v >> 32
-	v++
-
-	// force the value to the next highest power of two if its the same
-	if v == i {
-		return 2 * v
-	}
-
-	return v
-}
-
-// nextLowerPowerOf2 returns the next power of 2 that is lower than v unless v
-// is a power of 2 in which case it returns v. Examples:
-// nextLowerPowerOf2(1) = 1
-// nextLowerPowerOf2(2) = 2
-// nextLowerPowerOf2(5) = 4
-func nextLowerPowerOf2(v uint64) uint64 {
-	c := NextHigherPowerOf2(v)
-	if c == v {
-		return c
-	}
-	return c / 2
-}
-
-// Check if number is power of 2
-func powerOf2(v uint64) bool {
-	if v&(v-1) == 0 && v != 0 {
-		return true
-	}
-	return false
 }

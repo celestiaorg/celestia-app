@@ -50,7 +50,7 @@ func NextAlignedPowerOfTwo(cursor, msgLen, squareSize int) (int, bool) {
 		return cursor, true
 	}
 
-	nextLowest := nextLowestPowerOfTwo(msgLen)
+	nextLowest := RoundDownPowerOfTwo(msgLen)
 	endOfCurrentRow := ((cursor / squareSize) + 1) * squareSize
 	cursor = roundUpBy(cursor, nextLowest)
 	switch {
@@ -77,20 +77,4 @@ func roundUpBy(cursor, v int) int {
 	default:
 		return ((cursor / v) + 1) * v
 	}
-}
-
-func nextPowerOfTwo(v int) int {
-	k := 1
-	for k < v {
-		k = k << 1
-	}
-	return k
-}
-
-func nextLowestPowerOfTwo(v int) int {
-	c := nextPowerOfTwo(v)
-	if c == v {
-		return c
-	}
-	return c / 2
 }

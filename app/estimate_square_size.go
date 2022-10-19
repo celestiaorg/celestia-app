@@ -108,7 +108,7 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 
 	// calculate the smallest possible square size that could contain all the
 	// messages
-	squareSize := nextPowerOfTwo(int(math.Ceil(math.Sqrt(float64(txShares + evdShares + msgShares)))))
+	squareSize := shares.RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(txShares + evdShares + msgShares)))))
 
 	// the starting square size should at least be the minimum
 	if squareSize < appconsts.MinSquareSize {
@@ -133,7 +133,7 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 		// try the next largest square size if we can't fit all the txs
 		case !fits:
 			// double the square size
-			squareSize = nextPowerOfTwo(squareSize + 1)
+			squareSize = shares.RoundUpPowerOfTwo(squareSize + 1)
 		}
 	}
 }
@@ -225,12 +225,4 @@ func overEstimateMalleatedTxSize(txLen, msgLen, sharesCommitments int) int {
 	// equal to the actual number, which is difficult to calculate without
 	// actually malleating the tx
 	return appconsts.MalleatedTxBytes + appconsts.MalleatedTxEstimateBuffer + malleatedTxLen
-}
-
-func nextPowerOfTwo(v int) int {
-	k := 1
-	for k < v {
-		k = k << 1
-	}
-	return k
 }
