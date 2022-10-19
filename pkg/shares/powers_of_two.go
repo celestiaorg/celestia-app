@@ -29,16 +29,12 @@ func RoundDownPowerOfTwo[I constraints.Integer](input I) I {
 
 // RoundUpPowerOfTwo returns the next power of two that is strictly greater than input.
 func RoundUpPowerOfTwoStrict[I constraints.Integer](input I) I {
-	var result I = 1
-	for result < input {
-		result = result << 1
-	}
+	result := RoundUpPowerOfTwo(input)
 
-	// force the result to the next highest power of two if its the same as the input
+	// round the result up to the next power of two if is equal to the input
 	if result == input {
-		return 2 * result
+		return result * 2
 	}
-
 	return result
 }
 
