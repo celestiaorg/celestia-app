@@ -26,7 +26,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 // Params defines the parameters for the module.
 type Params struct {
 	MinSquareSize int32 `protobuf:"varint,1,opt,name=minSquareSize,proto3" json:"minSquareSize,omitempty" yaml:"min_square_size"`
-	MaxSqaureSize int32 `protobuf:"varint,2,opt,name=maxSqaureSize,proto3" json:"maxSqaureSize,omitempty" yaml:"max_sqaure_size"`
+	MaxSquareSize int32 `protobuf:"varint,2,opt,name=maxSquareSize,proto3" json:"maxSquareSize,omitempty" yaml:"max_square_size"`
 }
 
 func (m *Params) Reset()      { *m = Params{} }
@@ -68,9 +68,9 @@ func (m *Params) GetMinSquareSize() int32 {
 	return 0
 }
 
-func (m *Params) GetMaxSqaureSize() int32 {
+func (m *Params) GetMaxSquareSize() int32 {
 	if m != nil {
-		return m.MaxSqaureSize
+		return m.MaxSquareSize
 	}
 	return 0
 }
@@ -120,8 +120,8 @@ func (m *Params) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if m.MaxSqaureSize != 0 {
-		i = encodeVarintParams(dAtA, i, uint64(m.MaxSqaureSize))
+	if m.MaxSquareSize != 0 {
+		i = encodeVarintParams(dAtA, i, uint64(m.MaxSquareSize))
 		i--
 		dAtA[i] = 0x10
 	}
@@ -153,8 +153,8 @@ func (m *Params) Size() (n int) {
 	if m.MinSquareSize != 0 {
 		n += 1 + sovParams(uint64(m.MinSquareSize))
 	}
-	if m.MaxSqaureSize != 0 {
-		n += 1 + sovParams(uint64(m.MaxSqaureSize))
+	if m.MaxSquareSize != 0 {
+		n += 1 + sovParams(uint64(m.MaxSquareSize))
 	}
 	return n
 }
@@ -215,9 +215,9 @@ func (m *Params) Unmarshal(dAtA []byte) error {
 			}
 		case 2:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field MaxSqaureSize", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxSquareSize", wireType)
 			}
-			m.MaxSqaureSize = 0
+			m.MaxSquareSize = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowParams
@@ -227,7 +227,7 @@ func (m *Params) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.MaxSqaureSize |= int32(b&0x7F) << shift
+				m.MaxSquareSize |= int32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}

@@ -10,5 +10,5 @@ message Params {
   option (gogoproto.goproto_stringer) = false;
 
   int32 minSquareSize = 1 [(gogoproto.moretags) = "yaml:\"min_square_size\""];
-  int32 maxSqaureSize = 2 [(gogoproto.moretags) = "yaml:\"max_sqaure_size\""];
+  int32 maxSquareSize = 2 [(gogoproto.moretags) = "yaml:\"max_square_size\""];
 }

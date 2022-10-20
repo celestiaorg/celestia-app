@@ -16,9 +16,9 @@ var (
 )
 
 var (
-	KeyMaxSqaureSize = []byte("MaxSqaureSize")
+	KeyMaxSquareSize = []byte("MaxSquareSize")
 	// TODO: Determine the default value
-	DefaultMaxSqaureSize int32 = 0
+	DefaultMaxSquareSize int32 = 0
 )
 
 // ParamKeyTable the param key table for launch module
@@ -29,11 +29,11 @@ func ParamKeyTable() paramtypes.KeyTable {
 // NewParams creates a new Params instance
 func NewParams(
 	minSquareSize int32,
-	maxSqaureSize int32,
+	maxSquareSize int32,
 ) Params {
 	return Params{
 		MinSquareSize: minSquareSize,
-		MaxSqaureSize: maxSqaureSize,
+		MaxSquareSize: maxSquareSize,
 	}
 }
 
@@ -41,7 +41,7 @@ func NewParams(
 func DefaultParams() Params {
 	return NewParams(
 		DefaultMinSquareSize,
-		DefaultMaxSqaureSize,
+		DefaultMaxSquareSize,
 	)
 }
 
@@ -49,7 +49,7 @@ func DefaultParams() Params {
 func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
 		paramtypes.NewParamSetPair(KeyMinSquareSize, &p.MinSquareSize, validateMinSquareSize),
-		paramtypes.NewParamSetPair(KeyMaxSqaureSize, &p.MaxSqaureSize, validateMaxSqaureSize),
+		paramtypes.NewParamSetPair(KeyMaxSquareSize, &p.MaxSquareSize, validateMaxSquareSize),
 	}
 }
 
@@ -59,7 +59,7 @@ func (p Params) Validate() error {
 		return err
 	}
 
-	if err := validateMaxSqaureSize(p.MaxSqaureSize); err != nil {
+	if err := validateMaxSquareSize(p.MaxSquareSize); err != nil {
 		return err
 	}
 
@@ -85,15 +85,15 @@ func validateMinSquareSize(v interface{}) error {
 	return nil
 }
 
-// validateMaxSqaureSize validates the MaxSqaureSize param
-func validateMaxSqaureSize(v interface{}) error {
-	maxSqaureSize, ok := v.(int32)
+// validateMaxSquareSize validates the MaxSquareSize param
+func validateMaxSquareSize(v interface{}) error {
+	maxSquareSize, ok := v.(int32)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
 	}
 
 	// TODO implement validation
-	_ = maxSqaureSize
+	_ = maxSquareSize
 
 	return nil
 }
