@@ -10,15 +10,13 @@ import (
 var _ paramtypes.ParamSet = (*Params)(nil)
 
 var (
-	KeyMinSquareSize = []byte("MinSquareSize")
-	// TODO: Determine the default value
-	DefaultMinSquareSize int32 = 0
+	KeyMinSquareSize            = []byte("MinSquareSize")
+	DefaultMinSquareSize uint32 = 1
 )
 
 var (
-	KeyMaxSquareSize = []byte("MaxSquareSize")
-	// TODO: Determine the default value
-	DefaultMaxSquareSize int32 = 0
+	KeyMaxSquareSize            = []byte("MaxSquareSize")
+	DefaultMaxSquareSize uint32 = 128
 )
 
 // ParamKeyTable the param key table for launch module
@@ -28,8 +26,8 @@ func ParamKeyTable() paramtypes.KeyTable {
 
 // NewParams creates a new Params instance
 func NewParams(
-	minSquareSize int32,
-	maxSquareSize int32,
+	minSquareSize uint32,
+	maxSquareSize uint32,
 ) Params {
 	return Params{
 		MinSquareSize: minSquareSize,
