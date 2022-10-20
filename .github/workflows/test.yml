@@ -14,7 +14,7 @@ jobs:
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
     if: |
-      !startsWith(github.ref, 'refs/tags/') && 
+      !startsWith(github.ref, 'refs/tags/') &&
       github.ref != 'refs/heads/master'
 
   install-tparse:
@@ -27,7 +27,7 @@ jobs:
         run: go version
       - name: install tparse
         run: >
-          export GO111MODULE="on" && 
+          export GO111MODULE="on" &&
           go install github.com/mfridman/tparse@v0.8.3
       - uses: actions/cache@v3.0.11
         with:
@@ -107,9 +107,9 @@ jobs:
         if: env.GIT_DIFF
       - name: test & coverage report creation
         run: >
-          cat pkgs.txt.part.${{ matrix.part }} | 
-          xargs go test -mod=readonly -timeout 30m 
-          -coverprofile=${{ matrix.part }}profile.out 
+          cat pkgs.txt.part.${{ matrix.part }} |
+          xargs go test -mod=readonly -timeout 30m
+          -coverprofile=${{ matrix.part }}profile.out
           -covermode=atomic -tags='norace ledger test_ledger_mock'
         if: env.GIT_DIFF
       - uses: actions/upload-artifact@v3
@@ -190,8 +190,8 @@ jobs:
         if: env.GIT_DIFF
       - name: test & coverage report creation
         run: >
-          cat pkgs.txt.part.${{ matrix.part }} | 
-          xargs go test -mod=readonly -json -timeout 30m 
+          cat pkgs.txt.part.${{ matrix.part }} |
+          xargs go test -mod=readonly -json -timeout 30m
           -race -test.short -tags='cgo' > ${{ matrix.part }}-race-output.txt
         if: env.GIT_DIFF
       - uses: actions/upload-artifact@v3
