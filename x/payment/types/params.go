@@ -72,26 +72,20 @@ func (p Params) String() string {
 
 // validateMinSquareSize validates the MinSquareSize param
 func validateMinSquareSize(v interface{}) error {
-	minSquareSize, ok := v.(int32)
+	_, ok := v.(uint32)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
 	}
-
-	// TODO implement validation
-	_ = minSquareSize
 
 	return nil
 }
 
 // validateMaxSquareSize validates the MaxSquareSize param
 func validateMaxSquareSize(v interface{}) error {
-	maxSquareSize, ok := v.(int32)
+	_, ok := v.(uint32)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
 	}
-
-	// TODO implement validation
-	_ = maxSquareSize
 
 	return nil
 }
