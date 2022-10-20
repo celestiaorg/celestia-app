@@ -37,7 +37,6 @@ func NewKeeper(
 	storeKey,
 	memKey storetypes.StoreKey,
 	ps paramtypes.Subspace,
-
 ) *Keeper {
 	return &Keeper{
 		cdc:        cdc,
