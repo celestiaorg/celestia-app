@@ -43,7 +43,7 @@ func DefaultParams() Params {
 	)
 }
 
-// ParamSetPairs get the params.ParamSet
+// ParamSetPairs gets the list of param key-pair values
 func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
 		paramtypes.NewParamSetPair(KeyMinSquareSize, &p.MinSquareSize, validateMinSquareSize),
