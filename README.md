@@ -44,14 +44,16 @@ node            |  |                               |  |
 ```sh
 # Print help message
 celestia-appd --help
+```
 
-# Create your own single node devnet
-celestia-appd init test --chain-id test
-celestia-appd keys add user1
-celestia-appd add-genesis-account <address from above command> 10000000ucls,1000token
-celestia-appd gentx user1 1000000ucls --chain-id test
-celestia-appd collect-gentxs
-celestia-appd start
+### Create your own single node devnet
+
+```sh
+# WARNING: this deletes config from previous local devnets
+rm -r ~/.celestia-app/config
+
+# Start a single node devnet
+./scripts/single-node.sh
 
 # Post data to the local devnet
 celestia-appd tx payment payForData [hexNamespace] [hexMessage] [flags]
