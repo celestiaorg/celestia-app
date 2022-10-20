@@ -1,12 +1,24 @@
 syntax = "proto3";
 package payment;
 
+import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
+import "payment/params.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/payment/types";
 
 // Query defines the gRPC querier service.
 service Query {
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/payment/params";
+  }
 }
 
+// QueryParamsRequest is request type for the Query/Params RPC method.
+message QueryParamsRequest {}
+
+// QueryParamsResponse is response type for the Query/Params RPC method.
+message QueryParamsResponse {
+  Params params = 1 [(gogoproto.nullable) = false];
+}
