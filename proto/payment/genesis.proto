@@ -1,7 +1,12 @@
 syntax = "proto3";
 package payment;
 
+import "gogoproto/gogo.proto";
+import "payment/params.proto";
+
 option go_package = "github.com/celestiaorg/celestia-app/x/payment/types";
 
 // GenesisState defines the capability module's genesis state.
-message GenesisState {}
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+}
