@@ -10,6 +10,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/payment/types";
 
 // Query defines the gRPC querier service.
 service Query {
+  // Params queries the parameters of the module.
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
     option (google.api.http).get = "/payment/params";
   }
