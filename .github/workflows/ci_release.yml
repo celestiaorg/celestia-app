@@ -30,8 +30,6 @@ jobs:
   # Dockerfile Linting
   hadolint:
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@main # yamllint disable-line rule:line-length
-    with:
-      failure-threshold: error
 
   yamllint:
     runs-on: ubuntu-latest
