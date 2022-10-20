@@ -1,0 +1,14 @@
+syntax = "proto3";
+package payment;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/payment/types";
+
+// Params defines the parameters for the module.
+message Params {
+  option (gogoproto.goproto_stringer) = false;
+
+  int32 minSquareSize = 1 [(gogoproto.moretags) = "yaml:\"min_square_size\""];
+  int32 maxSqaureSize = 2 [(gogoproto.moretags) = "yaml:\"max_sqaure_size\""];
+}
