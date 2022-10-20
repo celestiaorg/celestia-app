@@ -9,7 +9,7 @@ import (
 func (k Keeper) GetParams(ctx sdk.Context) types.Params {
 	return types.NewParams(
 		k.MinSquareSize(ctx),
-		k.MaxSqaureSize(ctx),
+		k.MaxSquareSize(ctx),
 	)
 }
 
@@ -24,8 +24,8 @@ func (k Keeper) MinSquareSize(ctx sdk.Context) (res int32) {
 	return
 }
 
-// MaxSqaureSize returns the MaxSqaureSize param
-func (k Keeper) MaxSqaureSize(ctx sdk.Context) (res int32) {
-	k.paramstore.Get(ctx, types.KeyMaxSqaureSize, &res)
+// MaxSquareSize returns the MaxSquareSize param
+func (k Keeper) MaxSquareSize(ctx sdk.Context) (res int32) {
+	k.paramstore.Get(ctx, types.KeyMaxSquareSize, &res)
 	return
 }
