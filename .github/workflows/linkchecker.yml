@@ -1,6 +1,8 @@
+# TODO (matt): refactor out
+
 name: Check Markdown links
-on: 
-  # schedule: 
+on:
+  # schedule:
   #   - cron: '* */24 * * *'
   workflow_dispatch:
 jobs:
@@ -10,4 +12,4 @@ jobs:
       - uses: actions/checkout@v3
       - uses: gaurav-nelson/github-action-markdown-link-check@1.0.14
         with:
-          folder-path: "docs"
+          folder-path: "docs" # default value .

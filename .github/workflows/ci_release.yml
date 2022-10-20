@@ -1,0 +1,79 @@
+name: CI and Release
+
+# Trigger on push events to main (i.e. merges), pushing new semantic version
+# tags, all PRs, and manual triggers
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+"
+  pull_request:
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      version:
+        # Friendly description to be shown in the UI instead of 'name'
+        description: "Semver type of new version (major / minor / patch)"
+        # Input has to be provided for the workflow to run
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  # Dockerfile Linting
+  hadolint:
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@main # yamllint disable-line rule:line-length
+
+  yamllint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: celestiaorg/.github/.github/actions/yamllint@main
+
+  markdown-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: celestiaorg/.github/.github/actions/markdown-lint@main
+
+  lint:
+    uses: ./.github/workflows/lint.yml
+
+  test:
+    needs: lint
+    uses: ./.github/workflows/test.yml
+
+  # Make a release if this is a manually trigger job, i.e. workflow_dispatch
+  release:
+    needs: [hadolint, yamllint, markdown-lint, lint, test]
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    permissions: "write-all"
+    steps:
+      - uses: actions/checkout@v3
+      - name: Version Release
+        uses: celestiaorg/.github/.github/actions/version-release@main
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          version-bump: ${{inputs.version}}
+
+  # TODO: include docker build, Josh currently working on updates.
+  #
+  # The below if statement is a recommendation of how to only build the docker
+  # image on manual workflow triggers and push events for the tag
+  #
+  # docker-build:
+  #   needs: [hadolint, yamllint, markdown-lint, lint, test, go-ci]
+  # yamllint disable
+  #   if: |
+  #     ${{ github.event_name == 'workflow_dispatch' ||
+  #     startsWith('refs/tags/v', github.ref) }}
+  # yamllint enable
+  #   uses: ....
