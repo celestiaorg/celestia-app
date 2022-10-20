@@ -38,6 +38,10 @@ func NewKeeper(
 	memKey storetypes.StoreKey,
 	ps paramtypes.Subspace,
 ) *Keeper {
+	if !ps.HasKeyTable() {
+		ps = ps.WithKeyTable(types.ParamKeyTable())
+	}
+
 	return &Keeper{
 		cdc:        cdc,
 		storeKey:   storeKey,
