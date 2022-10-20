@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -77,7 +78,13 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
+			// change tendermint config for celestia app
+			// set broadcast timeout to be 50 seconds in order to factor in long block times
+			// set max body bytes for transaction to be 8 Mb
+			// TODO: maybe we should make this timeout configurable?
 			tmCfg := tmcfg.DefaultConfig()
+			tmCfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
+			tmCfg.RPC.MaxBodyBytes = int64(8000000)
 
 			customAppTemplate, customAppConfig := initAppConfig()
 			return server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
