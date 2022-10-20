@@ -367,6 +367,9 @@ func New(
 
 	app.PaymentKeeper = *paymentmodulekeeper.NewKeeper(
 		appCodec,
+		keys[paymentmoduletypes.StoreKey],
+		keys[paymentmoduletypes.MemStoreKey],
+		app.GetSubspace(paymentmoduletypes.ModuleName),
 	)
 	paymentmod := paymentmodule.NewAppModule(appCodec, app.PaymentKeeper)
 
