@@ -59,7 +59,11 @@ rm -r ~/.celestia-app
 celestia-appd tx payment payForData [hexNamespace] [hexMessage] [flags]
 ```
 
+<!-- markdown-link-check-disable -->
+<!-- markdown-link encounters an HTTP 503 on this link even though it works. -->
+<!-- See https://github.com/celestiaorg/celestia-app/actions/runs/3296219513/jobs/5439416229#step:4:185 -->
 See <https://docs.celestia.org/category/celestia-app> for more information
+<!-- markdown-link-check-enable -->
 
 ## Contributing
 

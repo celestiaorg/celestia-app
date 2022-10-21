@@ -2,7 +2,7 @@
 
 ## Context
 
-To accommodate the requirements of the [Quantum Gravity Bridge](https://github.com/celestiaorg/quantum-gravity-bridge/blob/master/ethereum/solidity/src/QuantumGravityBridge.sol), We will need to add support for `ValSet`s, i.e. Validator Sets, which reflect the current state of the bridge validators.
+To accommodate the requirements of the [Quantum Gravity Bridge](https://github.com/celestiaorg/quantum-gravity-bridge/blob/76efeca0be1a17d32ef633c0fdbd3c8f5e4cc53f/src/QuantumGravityBridge.sol), We will need to add support for `ValSet`s, i.e. Validator Sets, which reflect the current state of the bridge validators.
 
 ## Decision
 
