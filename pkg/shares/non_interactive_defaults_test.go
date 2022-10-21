@@ -123,6 +123,13 @@ func TestFitsInSquare(t *testing.T) {
 			size:  4,
 			fits:  false,
 		},
+		{
+			name:  "0 msgs. Cursor higher than max share index (again)",
+			msgs:  []int{},
+			start: 18,
+			size:  4,
+			fits:  false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
