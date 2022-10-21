@@ -49,8 +49,8 @@ celestia-appd --help
 ### Create your own single node devnet
 
 ```sh
-# WARNING: this deletes config from previous local devnets
-rm -r ~/.celestia-app/config
+# WARNING: this deletes config, data, and keyrings from previous local devnets
+rm -r ~/.celestia-app
 
 # Start a single node devnet
 ./scripts/single-node.sh
