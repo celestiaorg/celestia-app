@@ -69,16 +69,18 @@ func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSi
 	txSplitter := shares.NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
 	evdSplitter := shares.NewCompactShareSplitter(appconsts.EvidenceNamespaceID, appconsts.ShareVersion)
 	var err error
-	msgSharesCursor := len(txs)
 	for _, tx := range txs {
 		rawTx := tx.rawTx
 		if tx.malleatedTx != nil {
-			rawTx, err = coretypes.WrapMalleatedTx(tx.originalHash(), uint32(msgSharesCursor), tx.malleatedTx)
+			// HACKHACK: hardcode the shareIndex to 0 because we can't
+			// accurately determine the shareIndex of the message associated
+			// with this transaction without first writing the transaction and
+			// evidence shares.
+			shareIndex := uint32(0)
+			rawTx, err = coretypes.WrapMalleatedTx(tx.originalHash(), shareIndex, tx.malleatedTx)
 			if err != nil {
 				panic(err)
 			}
-			used, _ := shares.MsgSharesUsedNonInteractiveDefaults(msgSharesCursor, squareSize, tx.msg.Size())
-			msgSharesCursor += used
 		}
 		txSplitter.WriteTx(rawTx)
 	}
