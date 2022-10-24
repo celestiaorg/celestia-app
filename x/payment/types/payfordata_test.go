@@ -167,11 +167,12 @@ func TestSignMalleatedTxs(t *testing.T) {
 
 func TestProcessMessage(t *testing.T) {
 	type test struct {
-		name      string
-		ns, msg   []byte
-		ss        uint64
-		expectErr bool
-		modify    func(*MsgWirePayForData) *MsgWirePayForData
+		name       string
+		namespace  []byte
+		msg        []byte
+		squareSize uint64
+		expectErr  bool
+		modify     func(*MsgWirePayForData) *MsgWirePayForData
 	}
 
 	dontModify := func(in *MsgWirePayForData) *MsgWirePayForData {
@@ -184,24 +185,24 @@ func TestProcessMessage(t *testing.T) {
 
 	tests := []test{
 		{
-			name:   "single share square size 2",
-			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			msg:    bytes.Repeat([]byte{1}, totalMsgSize(appconsts.SparseShareContentSize)),
-			ss:     2,
-			modify: dontModify,
+			name:       "single share square size 2",
+			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 1},
+			msg:        bytes.Repeat([]byte{1}, totalMsgSize(appconsts.SparseShareContentSize)),
+			squareSize: 2,
+			modify:     dontModify,
 		},
 		{
-			name:   "15 shares square size 4",
-			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:    bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15)),
-			ss:     4,
-			modify: dontModify,
+			name:       "12 shares square size 4",
+			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:        bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12)),
+			squareSize: 4,
+			modify:     dontModify,
 		},
 		{
-			name: "incorrect square size",
-			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:  bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15)),
-			ss:   4,
+			name:       "incorrect square size",
+			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:        bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12)),
+			squareSize: 4,
 			modify: func(wpfd *MsgWirePayForData) *MsgWirePayForData {
 				wpfd.MessageShareCommitment[0].SquareSize = 99999
 				return wpfd
@@ -211,14 +212,14 @@ func TestProcessMessage(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		wpfd, err := NewWirePayForData(tt.ns, tt.msg, tt.ss)
+		wpfd, err := NewWirePayForData(tt.namespace, tt.msg, tt.squareSize)
 		require.NoError(t, err, tt.name)
 		err = wpfd.SignShareCommitments(signer)
 		assert.NoError(t, err)
 
 		wpfd = tt.modify(wpfd)
 
-		message, spfd, sig, err := ProcessWirePayForData(wpfd, tt.ss)
+		message, spfd, sig, err := ProcessWirePayForData(wpfd, tt.squareSize)
 		if tt.expectErr {
 			assert.Error(t, err, tt.name)
 			continue
@@ -226,7 +227,7 @@ func TestProcessMessage(t *testing.T) {
 
 		// ensure that the shared fields are identical
 		assert.Equal(t, tt.msg, message.Data, tt.name)
-		assert.Equal(t, tt.ns, message.NamespaceId, tt.name)
+		assert.Equal(t, tt.namespace, message.NamespaceId, tt.name)
 		assert.Equal(t, wpfd.Signer, spfd.Signer, tt.name)
 		assert.Equal(t, wpfd.MessageNamespaceId, spfd.MessageNamespaceId, tt.name)
 		assert.Equal(t, wpfd.MessageShareCommitment[0].ShareCommitment, spfd.MessageShareCommitment, tt.name)
@@ -358,16 +359,16 @@ func validMsgPayForData(t *testing.T) *MsgPayForData {
 	kb := generateKeyring(t, "test")
 	signer := NewKeyringSigner(kb, "test", "chain-id")
 	ns := []byte{1, 1, 1, 1, 1, 1, 1, 2}
-	msg := bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15))
-	ss := uint64(4)
+	msg := bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12))
+	squareSize := uint64(4)
 
-	wpfd, err := NewWirePayForData(ns, msg, ss)
+	wpfd, err := NewWirePayForData(ns, msg, squareSize)
 	assert.NoError(t, err)
 
 	err = wpfd.SignShareCommitments(signer)
 	assert.NoError(t, err)
 
-	_, spfd, _, err := ProcessWirePayForData(wpfd, ss)
+	_, spfd, _, err := ProcessWirePayForData(wpfd, squareSize)
 	require.NoError(t, err)
 
 	return spfd
