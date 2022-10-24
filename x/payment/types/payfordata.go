@@ -138,15 +138,15 @@ func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, err
 	}
 
 	// organize shares for merkle mountain range
-	heights := powerOf2MountainRange(uint64(len(shares)), squareSize)
-	leafSets := make([][][]byte, len(heights))
+	treeSizes := merkleMountainRangeSizes(uint64(len(shares)), squareSize)
+	leafSets := make([][][]byte, len(treeSizes))
 	cursor := uint64(0)
-	for i, height := range heights {
-		leafSets[i] = appshares.ToBytes(shares[cursor : cursor+height])
-		cursor = cursor + height
+	for i, treeSize := range treeSizes {
+		leafSets[i] = appshares.ToBytes(shares[cursor : cursor+treeSize])
+		cursor = cursor + treeSize
 	}
 
-	// create the commits by pushing each leaf set onto an nmt
+	// create the commitments by pushing each leaf set onto an nmt
 	subTreeRoots := make([][]byte, len(leafSets))
 	for i, set := range leafSets {
 		// create the nmt todo(evan) use nmt wrapper
@@ -164,22 +164,27 @@ func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, err
 	return merkle.HashFromByteSlices(subTreeRoots), nil
 }
 
-// powerOf2MountainRange returns the heights of the subtrees for binary merkle
-// mountain range
-func powerOf2MountainRange(l, squareSize uint64) []uint64 {
-	var output []uint64
+// merkleMountainRangeSizes returns the sizes (number of leaf nodes) of the
+// trees in a merkle mountain range constructed for a given totalSize and
+// maxTreeSize.
+//
+// https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/
+// https://github.com/opentimestamps/opentimestamps-server/blob/master/doc/merkle-mountain-range.md
+// TODO: potentially rename function because this doesn't return heights
+func merkleMountainRangeSizes(totalSize, maxTreeSize uint64) []uint64 {
+	var treeSizes []uint64
 
-	for l != 0 {
+	for totalSize != 0 {
 		switch {
-		case l >= squareSize:
-			output = append(output, squareSize)
-			l = l - squareSize
-		case l < squareSize:
-			p := appshares.RoundDownPowerOfTwo(l)
-			output = append(output, p)
-			l = l - p
+		case totalSize >= maxTreeSize:
+			treeSizes = append(treeSizes, maxTreeSize)
+			totalSize = totalSize - maxTreeSize
+		case totalSize < maxTreeSize:
+			treeSize := appshares.RoundDownPowerOfTwo(totalSize)
+			treeSizes = append(treeSizes, treeSize)
+			totalSize = totalSize - treeSize
 		}
 	}
 
-	return output
+	return treeSizes
 }

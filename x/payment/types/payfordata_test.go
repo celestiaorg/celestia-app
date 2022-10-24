@@ -13,30 +13,47 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMountainRange(t *testing.T) {
+func Test_merkleMountainRangeHeights(t *testing.T) {
 	type test struct {
-		l, squareSize uint64
-		expected      []uint64
+		totalSize  uint64
+		squareSize uint64
+		expected   []uint64
 	}
 	tests := []test{
 		{
-			l:          11,
+			totalSize:  11,
 			squareSize: 4,
 			expected:   []uint64{4, 4, 2, 1},
 		},
 		{
-			l:          2,
+			totalSize:  2,
 			squareSize: 64,
 			expected:   []uint64{2},
 		},
-		{ // should this test throw an error? we
-			l:          64,
+		{
+			totalSize:  64,
 			squareSize: 8,
 			expected:   []uint64{8, 8, 8, 8, 8, 8, 8, 8},
 		},
+		// Height
+		// 3              x                               x
+		//              /    \                         /    \
+		//             /      \                       /      \
+		//            /        \                     /        \
+		//           /          \                   /          \
+		// 2        x            x                 x            x
+		//        /   \        /   \             /   \        /   \
+		// 1     x     x      x     x           x     x      x     x         x
+		//      / \   / \    / \   / \         / \   / \    / \   / \      /   \
+		// 0   0   1 2   3  4   5 6   7       8   9 10  11 12 13 14  15   16   17    18
+		{
+			totalSize:  19,
+			squareSize: 8,
+			expected:   []uint64{8, 8, 2, 1},
+		},
 	}
 	for _, tt := range tests {
-		res := powerOf2MountainRange(tt.l, tt.squareSize)
+		res := merkleMountainRangeSizes(tt.totalSize, tt.squareSize)
 		assert.Equal(t, tt.expected, res)
 	}
 }
