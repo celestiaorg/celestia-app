@@ -42,9 +42,11 @@ func TestMountainRange(t *testing.T) {
 }
 
 // TestCreateCommitment only shows if something changed, it doesn't actually
-// show that the commit is being created correctly todo(evan): fix me.
+// show that the commitment bytes are being created correctly.
+// TODO: verify the commitment bytes
 func TestCreateCommitment(t *testing.T) {
 	type test struct {
+		name       string
 		squareSize uint64
 		namespace  []byte
 		message    []byte
@@ -53,26 +55,44 @@ func TestCreateCommitment(t *testing.T) {
 	}
 	tests := []test{
 		{
+			name:       "squareSize 4, message of 11 shares succeeds",
 			squareSize: 4,
 			namespace:  bytes.Repeat([]byte{0xFF}, 8),
 			message:    bytes.Repeat([]byte{0xFF}, 11*ShareSize),
 			expected:   []byte{0x1e, 0xdc, 0xc4, 0x69, 0x8f, 0x47, 0xf6, 0x8d, 0xfc, 0x11, 0xec, 0xac, 0xaa, 0x37, 0x4a, 0x3d, 0xbd, 0xfc, 0x1a, 0x9b, 0x6e, 0x87, 0x6f, 0xba, 0xd3, 0x6c, 0x6, 0x6c, 0x9f, 0x5b, 0x65, 0x38},
 		},
 		{
+			name:       "squareSize 2, message of 100 shares returns error",
 			squareSize: 2,
 			namespace:  bytes.Repeat([]byte{0xFF}, 8),
 			message:    bytes.Repeat([]byte{0xFF}, 100*ShareSize),
 			expectErr:  true,
 		},
+		{
+			name:       "squareSize 4, message of 12 shares succeeds",
+			squareSize: 12,
+			namespace:  bytes.Repeat([]byte{0xFF}, 8),
+			message:    bytes.Repeat([]byte{0xFF}, 12*ShareSize),
+			expected:   []byte{0x35, 0xfa, 0x3b, 0x3e, 0x0, 0x52, 0xa1, 0xde, 0x7a, 0xf7, 0x9f, 0xd8, 0xb7, 0xc, 0x19, 0xab, 0x54, 0xb6, 0x68, 0xe8, 0xd0, 0x39, 0x56, 0x12, 0x53, 0xd9, 0xe6, 0x2, 0x22, 0xde, 0xd9, 0x90},
+		},
+		{
+			name:       "squareSize 4, message of 13 shares returns error",
+			squareSize: 4,
+			namespace:  bytes.Repeat([]byte{0xFF}, 8),
+			message:    bytes.Repeat([]byte{0xFF}, 13*ShareSize),
+			expectErr:  true,
+		},
 	}
 	for _, tt := range tests {
-		res, err := CreateCommitment(tt.squareSize, tt.namespace, tt.message)
-		if tt.expectErr {
-			assert.Error(t, err)
-			continue
-		}
-		assert.NoError(t, err)
-		assert.Equal(t, tt.expected, res)
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := CreateCommitment(tt.squareSize, tt.namespace, tt.message)
+			if tt.expectErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, res)
+		})
 	}
 }
 

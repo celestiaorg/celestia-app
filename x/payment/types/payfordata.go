@@ -108,10 +108,12 @@ func BuildPayForDataTxFromWireTx(
 	return builder.GetTx(), nil
 }
 
-// CreateCommitment generates the commit bytes for a given squareSize,
+// CreateCommitment generates the commitment bytes for a given squareSize,
 // namespace, and message using a namespace merkle tree and the rules described
-// at
-// https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#message-layout-rationale
+// at [Message layout rationale] and [Non-interactive default rules].
+//
+// [Message layout rationale]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L12
+// [Non-interactive default rules]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L36
 func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, error) {
 	msg := coretypes.Messages{
 		MessagesList: []coretypes.Message{
@@ -128,13 +130,16 @@ func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, err
 	if err != nil {
 		return nil, err
 	}
-	// if the number of shares is larger than that in the square, throw an error
-	// note, we use (squareSize*squareSize)-1 here because at least a single
-	// share will be reserved for the transaction paying for the message,
-	// therefore the max number of shares a message can be is number of shares
-	// in square - 1.
-	if uint64(len(shares)) > (squareSize*squareSize)-1 {
-		return nil, fmt.Errorf("message size exceeds max shares for square size %d: max %d taken %d", squareSize, (squareSize*squareSize)-1, len(shares))
+
+	// Return an error if the number of shares is larger than the max number of
+	// shares for a message. At least one share will be occupied by the
+	// transaction that pays for this message. According to the non-interactive
+	// default rules, a message that spans multiple rows must start in a new
+	// row. Therefore the message must start at the second row and may occupy
+	// all (squareSize - 1) rows.
+	maxNumSharesForMessage := squareSize * (squareSize - 1)
+	if uint64(len(shares)) > maxNumSharesForMessage {
+		return nil, fmt.Errorf("message size exceeds max shares for square size %d: max %d taken %d", squareSize, maxNumSharesForMessage, len(shares))
 	}
 
 	// organize shares for merkle mountain range
