@@ -116,7 +116,7 @@ func Test_parseSparseSharesErrors(t *testing.T) {
 }
 
 func TestParsePaddedMsg(t *testing.T) {
-	msgWr := NewSparseShareSplitter()
+	sss := NewSparseShareSplitter()
 	randomSmallMsg := generateRandomMessage(appconsts.SparseShareContentSize / 2)
 	randomLargeMsg := generateRandomMessage(appconsts.SparseShareContentSize * 4)
 	msgs := coretypes.Messages{
@@ -126,47 +126,48 @@ func TestParsePaddedMsg(t *testing.T) {
 		},
 	}
 	msgs.SortMessages()
-	msgWr.Write(msgs.MessagesList[0])
-	msgWr.WriteNamespacedPaddedShares(4)
-	msgWr.Write(msgs.MessagesList[1])
-	msgWr.WriteNamespacedPaddedShares(10)
-	shares := msgWr.Export()
+	sss.Write(msgs.MessagesList[0])
+	sss.WriteNamespacedPaddedShares(4)
+	sss.Write(msgs.MessagesList[1])
+	sss.WriteNamespacedPaddedShares(10)
+	shares := sss.Export()
 	rawShares := ToBytes(shares)
 	pmsgs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
 	require.NoError(t, err)
 	require.Equal(t, msgs.MessagesList, pmsgs)
 }
 
-func TestMsgShareContainsInfoByte(t *testing.T) {
+func TestFirstSparseShareContainsInfoByte(t *testing.T) {
 	sss := NewSparseShareSplitter()
 	smallMsg := generateRandomMessage(appconsts.SparseShareContentSize / 2)
 	sss.Write(smallMsg)
 
 	shares := sss.Export()
 
-	got := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
+	got, error := shares[0].InfoByte()
+	require.NoError(t, error)
 
 	isSequenceStart := true
 	want, err := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
-
 	require.NoError(t, err)
-	assert.Equal(t, byte(want), got)
+
+	assert.Equal(t, want, got)
 }
 
-func TestContiguousMsgShareContainsInfoByte(t *testing.T) {
+func TestContinuationSparseShareContainsInfoByte(t *testing.T) {
 	sss := NewSparseShareSplitter()
 	longMsg := generateRandomMessage(appconsts.SparseShareContentSize * 4)
 	sss.Write(longMsg)
-
 	shares := sss.Export()
 
 	// we expect longMsg to occupy more than one share
 	assert.Condition(t, func() bool { return len(shares) > 1 })
-	got := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
+	got, err := shares[1].InfoByte()
+	require.NoError(t, err)
 
 	isSequenceStart := false
 	want, err := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
-
 	require.NoError(t, err)
-	assert.Equal(t, byte(want), got)
+
+	assert.Equal(t, want, got)
 }
