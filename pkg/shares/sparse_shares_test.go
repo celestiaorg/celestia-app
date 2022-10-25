@@ -137,37 +137,41 @@ func TestParsePaddedMsg(t *testing.T) {
 	require.Equal(t, msgs.MessagesList, pmsgs)
 }
 
-func TestFirstSparseShareContainsInfoByte(t *testing.T) {
-	sss := NewSparseShareSplitter()
-	smallMsg := generateRandomMessage(appconsts.SparseShareContentSize / 2)
-	sss.Write(smallMsg)
+func TestSparseShareContainsInfoByte(t *testing.T) {
+	message := generateRandomMessage(appconsts.SparseShareContentSize * 4)
 
-	shares := sss.Export()
-
-	got, error := shares[0].InfoByte()
-	require.NoError(t, error)
-
-	isSequenceStart := true
-	want, err := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
+	sequenceStartInfoByte, err := NewInfoByte(appconsts.ShareVersion, true)
 	require.NoError(t, err)
 
-	assert.Equal(t, want, got)
-}
-
-func TestContinuationSparseShareContainsInfoByte(t *testing.T) {
-	sss := NewSparseShareSplitter()
-	longMsg := generateRandomMessage(appconsts.SparseShareContentSize * 4)
-	sss.Write(longMsg)
-	shares := sss.Export()
-
-	// we expect longMsg to occupy more than one share
-	assert.Condition(t, func() bool { return len(shares) > 1 })
-	got, err := shares[1].InfoByte()
+	sequenceContinuationInfoByte, err := NewInfoByte(appconsts.ShareVersion, false)
 	require.NoError(t, err)
 
-	isSequenceStart := false
-	want, err := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
-	require.NoError(t, err)
+	type testCase struct {
+		name       string
+		shareIndex int
+		expected   InfoByte
+	}
+	testCases := []testCase{
+		{
+			name:       "first share of message",
+			shareIndex: 0,
+			expected:   sequenceStartInfoByte,
+		},
+		{
+			name:       "second share of message",
+			shareIndex: 1,
+			expected:   sequenceContinuationInfoByte,
+		},
+	}
 
-	assert.Equal(t, want, got)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			sss := NewSparseShareSplitter()
+			sss.Write(message)
+			shares := sss.Export()
+			got, err := shares[tc.shareIndex].InfoByte()
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
 }
