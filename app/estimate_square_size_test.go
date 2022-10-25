@@ -148,37 +148,44 @@ func Test_calculateCompactShareCount(t *testing.T) {
 		wPFDCount, messgeSize int
 	}
 	tests := []test{
-		{"empty block minimum square size", 0, 0, 0},
-		{"full block with only txs", 10000, 0, 0},
-		{"random small block square size 4", 0, 1, appconsts.SparseShareContentSize * 2},
-		{"random small block square size 8", 0, 1, appconsts.SparseShareContentSize * 4},
-		{"random small block w/ 10 normal txs square size 4", 10, 1, appconsts.SparseShareContentSize * 8},
-		{"random small block square size 16", 0, 4, appconsts.SparseShareContentSize * 8},
-		{"random medium block square size 32", 0, 50, appconsts.SparseShareContentSize * 8},
-		{"full block max square size", 0, 8000, appconsts.SparseShareContentSize / 2},
-		{"overly full block", 0, 80, appconsts.SparseShareContentSize * 100},
-		{"one over the perfect estimation edge case", 10, 1, appconsts.SparseShareContentSize + 1},
+		{"empty block minimum square size", 0, 0, totalMsgSize(0)},
+		{"full block with only txs", 10000, 0, totalMsgSize(0)},
+		{"random small block square size 4", 0, 1, totalMsgSize(appconsts.SparseShareContentSize * 2)},
+		{"random small block square size 8", 0, 1, (appconsts.SparseShareContentSize * 4)},
+		{"random small block w/ 10 normal txs square size 4", 10, 1, totalMsgSize(appconsts.SparseShareContentSize * 8)},
+		{"random small block square size 16", 0, 4, totalMsgSize(appconsts.SparseShareContentSize * 8)},
+		{"random medium block square size 32", 0, 50, totalMsgSize(appconsts.SparseShareContentSize * 8)},
+		{"full block max square size", 0, 8000, totalMsgSize(appconsts.SparseShareContentSize / 2)},
+		{"overly full block", 0, 80, totalMsgSize(appconsts.SparseShareContentSize * 100)},
+		{"one over the perfect estimation edge case", 10, 1, totalMsgSize(appconsts.SparseShareContentSize + 1)},
 	}
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
 	signer := generateKeyringSigner(t, "estimate-key")
 	for _, tt := range tests {
-		txs := generateManyRawWirePFD(t, encConf.TxConfig, signer, tt.wPFDCount, tt.messgeSize)
-		txs = append(txs, generateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
+		t.Run(tt.name, func(t *testing.T) {
+			txs := generateManyRawWirePFD(t, encConf.TxConfig, signer, tt.wPFDCount, tt.messgeSize)
+			txs = append(txs, generateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
 
-		parsedTxs := parseTxs(encConf.TxConfig, txs)
-		squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, core.EvidenceList{})
+			parsedTxs := parseTxs(encConf.TxConfig, txs)
+			squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, core.EvidenceList{})
 
-		if totalSharesUsed > int(squareSize*squareSize) {
-			parsedTxs = prune(encConf.TxConfig, parsedTxs, totalSharesUsed, int(squareSize))
-		}
+			if totalSharesUsed > int(squareSize*squareSize) {
+				parsedTxs = prune(encConf.TxConfig, parsedTxs, totalSharesUsed, int(squareSize))
+			}
 
-		malleated, _, err := malleateTxs(encConf.TxConfig, squareSize, parsedTxs, core.EvidenceList{})
-		require.NoError(t, err)
+			malleated, _, err := malleateTxs(encConf.TxConfig, squareSize, parsedTxs, core.EvidenceList{})
+			require.NoError(t, err)
 
-		calculatedTxShareCount := calculateCompactShareCount(parsedTxs, core.EvidenceList{}, int(squareSize))
+			calculatedTxShareCount := calculateCompactShareCount(parsedTxs, core.EvidenceList{}, int(squareSize))
 
-		txShares := shares.SplitTxs(shares.TxsFromBytes(malleated))
-		assert.LessOrEqual(t, len(txShares), calculatedTxShareCount, tt.name)
-
+			txShares := shares.SplitTxs(shares.TxsFromBytes(malleated))
+			assert.LessOrEqual(t, len(txShares), calculatedTxShareCount, tt.name)
+		})
 	}
+}
+
+// totalMsgSize subtracts the delimiter size from the desired total size. this
+// is useful for testing for messages that occupy exactly so many shares.
+func totalMsgSize(size int) int {
+	return size - shares.DelimLen(uint64(size))
 }

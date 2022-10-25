@@ -29,12 +29,14 @@ func AllSquareSizes(msgSize int) []uint64 {
 	fitSizes := []uint64{}
 	shareCount := MsgSharesUsed(msgSize)
 	for _, squareSize := range allSizes {
-		// if the number of shares is larger than that in the square, throw an
-		// error note, we use (squareSize*squareSize)-1 here because at least a
-		// single share will be reserved for the transaction paying for the
-		// message, therefore the max number of shares a message can be is
-		// number of shares in square - 1.
-		if shareCount > (squareSize*squareSize)-1 {
+		// continue if the number of shares is larger than the max number of
+		// shares for a message. At least one share will be occupied by the
+		// transaction that pays for this message. According to the non-interactive
+		// default rules, a message that spans multiple rows must start in a new
+		// row. Therefore the message must start at the second row and may occupy
+		// all (squareSize - 1) rows.
+		maxNumSharesForMessage := squareSize * (squareSize - 1)
+		if shareCount > maxNumSharesForMessage {
 			continue
 		}
 		fitSizes = append(fitSizes, uint64(squareSize))

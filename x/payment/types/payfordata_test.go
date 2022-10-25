@@ -59,9 +59,11 @@ func Test_merkleMountainRangeHeights(t *testing.T) {
 }
 
 // TestCreateCommitment only shows if something changed, it doesn't actually
-// show that the commit is being created correctly todo(evan): fix me.
+// show that the commitment bytes are being created correctly.
+// TODO: verify the commitment bytes
 func TestCreateCommitment(t *testing.T) {
 	type test struct {
+		name       string
 		squareSize uint64
 		namespace  []byte
 		message    []byte
@@ -70,26 +72,44 @@ func TestCreateCommitment(t *testing.T) {
 	}
 	tests := []test{
 		{
+			name:       "squareSize 4, message of 11 shares succeeds",
 			squareSize: 4,
 			namespace:  bytes.Repeat([]byte{0xFF}, 8),
 			message:    bytes.Repeat([]byte{0xFF}, 11*ShareSize),
 			expected:   []byte{0x1e, 0xdc, 0xc4, 0x69, 0x8f, 0x47, 0xf6, 0x8d, 0xfc, 0x11, 0xec, 0xac, 0xaa, 0x37, 0x4a, 0x3d, 0xbd, 0xfc, 0x1a, 0x9b, 0x6e, 0x87, 0x6f, 0xba, 0xd3, 0x6c, 0x6, 0x6c, 0x9f, 0x5b, 0x65, 0x38},
 		},
 		{
+			name:       "squareSize 2, message of 100 shares returns error",
 			squareSize: 2,
 			namespace:  bytes.Repeat([]byte{0xFF}, 8),
 			message:    bytes.Repeat([]byte{0xFF}, 100*ShareSize),
 			expectErr:  true,
 		},
+		{
+			name:       "squareSize 4, message of 12 shares succeeds",
+			squareSize: 12,
+			namespace:  bytes.Repeat([]byte{0xFF}, 8),
+			message:    bytes.Repeat([]byte{0xFF}, 12*ShareSize),
+			expected:   []byte{0x35, 0xfa, 0x3b, 0x3e, 0x0, 0x52, 0xa1, 0xde, 0x7a, 0xf7, 0x9f, 0xd8, 0xb7, 0xc, 0x19, 0xab, 0x54, 0xb6, 0x68, 0xe8, 0xd0, 0x39, 0x56, 0x12, 0x53, 0xd9, 0xe6, 0x2, 0x22, 0xde, 0xd9, 0x90},
+		},
+		{
+			name:       "squareSize 4, message of 13 shares returns error",
+			squareSize: 4,
+			namespace:  bytes.Repeat([]byte{0xFF}, 8),
+			message:    bytes.Repeat([]byte{0xFF}, 13*ShareSize),
+			expectErr:  true,
+		},
 	}
 	for _, tt := range tests {
-		res, err := CreateCommitment(tt.squareSize, tt.namespace, tt.message)
-		if tt.expectErr {
-			assert.Error(t, err)
-			continue
-		}
-		assert.NoError(t, err)
-		assert.Equal(t, tt.expected, res)
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := CreateCommitment(tt.squareSize, tt.namespace, tt.message)
+			if tt.expectErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, res)
+		})
 	}
 }
 
@@ -164,11 +184,12 @@ func TestSignMalleatedTxs(t *testing.T) {
 
 func TestProcessMessage(t *testing.T) {
 	type test struct {
-		name      string
-		ns, msg   []byte
-		ss        uint64
-		expectErr bool
-		modify    func(*MsgWirePayForData) *MsgWirePayForData
+		name       string
+		namespace  []byte
+		msg        []byte
+		squareSize uint64
+		expectErr  bool
+		modify     func(*MsgWirePayForData) *MsgWirePayForData
 	}
 
 	dontModify := func(in *MsgWirePayForData) *MsgWirePayForData {
@@ -181,24 +202,24 @@ func TestProcessMessage(t *testing.T) {
 
 	tests := []test{
 		{
-			name:   "single share square size 2",
-			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			msg:    bytes.Repeat([]byte{1}, totalMsgSize(appconsts.SparseShareContentSize)),
-			ss:     2,
-			modify: dontModify,
+			name:       "single share square size 2",
+			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 1},
+			msg:        bytes.Repeat([]byte{1}, totalMsgSize(appconsts.SparseShareContentSize)),
+			squareSize: 2,
+			modify:     dontModify,
 		},
 		{
-			name:   "15 shares square size 4",
-			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:    bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15)),
-			ss:     4,
-			modify: dontModify,
+			name:       "12 shares square size 4",
+			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:        bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12)),
+			squareSize: 4,
+			modify:     dontModify,
 		},
 		{
-			name: "incorrect square size",
-			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:  bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15)),
-			ss:   4,
+			name:       "incorrect square size",
+			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:        bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12)),
+			squareSize: 4,
 			modify: func(wpfd *MsgWirePayForData) *MsgWirePayForData {
 				wpfd.MessageShareCommitment[0].SquareSize = 99999
 				return wpfd
@@ -208,14 +229,14 @@ func TestProcessMessage(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		wpfd, err := NewWirePayForData(tt.ns, tt.msg, tt.ss)
+		wpfd, err := NewWirePayForData(tt.namespace, tt.msg, tt.squareSize)
 		require.NoError(t, err, tt.name)
 		err = wpfd.SignShareCommitments(signer)
 		assert.NoError(t, err)
 
 		wpfd = tt.modify(wpfd)
 
-		message, spfd, sig, err := ProcessWirePayForData(wpfd, tt.ss)
+		message, spfd, sig, err := ProcessWirePayForData(wpfd, tt.squareSize)
 		if tt.expectErr {
 			assert.Error(t, err, tt.name)
 			continue
@@ -223,7 +244,7 @@ func TestProcessMessage(t *testing.T) {
 
 		// ensure that the shared fields are identical
 		assert.Equal(t, tt.msg, message.Data, tt.name)
-		assert.Equal(t, tt.ns, message.NamespaceId, tt.name)
+		assert.Equal(t, tt.namespace, message.NamespaceId, tt.name)
 		assert.Equal(t, wpfd.Signer, spfd.Signer, tt.name)
 		assert.Equal(t, wpfd.MessageNamespaceId, spfd.MessageNamespaceId, tt.name)
 		assert.Equal(t, wpfd.MessageShareCommitment[0].ShareCommitment, spfd.MessageShareCommitment, tt.name)
@@ -355,16 +376,16 @@ func validMsgPayForData(t *testing.T) *MsgPayForData {
 	kb := generateKeyring(t, "test")
 	signer := NewKeyringSigner(kb, "test", "chain-id")
 	ns := []byte{1, 1, 1, 1, 1, 1, 1, 2}
-	msg := bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15))
-	ss := uint64(4)
+	msg := bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12))
+	squareSize := uint64(4)
 
-	wpfd, err := NewWirePayForData(ns, msg, ss)
+	wpfd, err := NewWirePayForData(ns, msg, squareSize)
 	assert.NoError(t, err)
 
 	err = wpfd.SignShareCommitments(signer)
 	assert.NoError(t, err)
 
-	_, spfd, _, err := ProcessWirePayForData(wpfd, ss)
+	_, spfd, _, err := ProcessWirePayForData(wpfd, squareSize)
 	require.NoError(t, err)
 
 	return spfd
