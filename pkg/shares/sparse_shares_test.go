@@ -138,7 +138,7 @@ func TestParsePaddedMsg(t *testing.T) {
 }
 
 func TestSparseShareContainsInfoByte(t *testing.T) {
-	message := generateRandomMessage(appconsts.SparseShareContentSize * 4)
+	message := generateRandomMessageOfShareCount(4)
 
 	sequenceStartInfoByte, err := NewInfoByte(appconsts.ShareVersion, true)
 	require.NoError(t, err)
@@ -171,6 +171,40 @@ func TestSparseShareContainsInfoByte(t *testing.T) {
 			shares := sss.Export()
 			got, err := shares[tc.shareIndex].InfoByte()
 			require.NoError(t, err)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+}
+
+func TestSparseShareSplitterCount(t *testing.T) {
+	type testCase struct {
+		name     string
+		message  coretypes.Message
+		expected int
+	}
+	testCases := []testCase{
+		{
+			name:     "one share",
+			message:  generateRandomMessageOfShareCount(1),
+			expected: 1,
+		},
+		{
+			name:     "two shares",
+			message:  generateRandomMessageOfShareCount(2),
+			expected: 2,
+		},
+		{
+			name:     "ten shares",
+			message:  generateRandomMessageOfShareCount(10),
+			expected: 10,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			sss := NewSparseShareSplitter()
+			sss.Write(tc.message)
+			got := sss.Count()
 			assert.Equal(t, tc.expected, got)
 		})
 	}
