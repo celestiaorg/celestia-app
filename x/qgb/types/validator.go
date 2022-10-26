@@ -83,7 +83,7 @@ func (ibv InternalBridgeValidators) ToExternal() BridgeValidators {
 func (ibv InternalBridgeValidators) Sort() {
 	sort.Slice(ibv, func(i, j int) bool {
 		if ibv[i].Power == ibv[j].Power {
-			// Secondary sort on eth address in case powers are equal
+			// Secondary sort on EVM address in case powers are equal
 			return EVMAddrLessThan(ibv[i].EVMAddress, ibv[j].EVMAddress)
 		}
 		return ibv[i].Power > ibv[j].Power

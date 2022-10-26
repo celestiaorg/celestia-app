@@ -26,7 +26,7 @@ func (msg *MsgValsetConfirm) ValidateBasic() (err error) {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, msg.Orchestrator)
 	}
 	if !common.IsHexAddress(msg.EvmAddress) {
-		return sdkerrors.Wrap(stakingtypes.ErrEVMAddressNotHex, "ethereum address")
+		return sdkerrors.Wrap(stakingtypes.ErrEVMAddressNotHex, "evm address")
 	}
 	return nil
 }
