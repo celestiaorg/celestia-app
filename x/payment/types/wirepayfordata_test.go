@@ -1,10 +1,13 @@
 package types
 
 import (
+	"bytes"
 	"testing"
 
 	sdkerrors "cosmossdk.io/errors"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWirePayForData_ValidateBasic(t *testing.T) {
@@ -117,5 +120,75 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 				t.Log(log)
 			}
 		})
+	}
+}
+
+func TestProcessWirePayForData(t *testing.T) {
+	type test struct {
+		name       string
+		namespace  []byte
+		msg        []byte
+		squareSize uint64
+		expectErr  bool
+		modify     func(*MsgWirePayForData) *MsgWirePayForData
+	}
+
+	dontModify := func(in *MsgWirePayForData) *MsgWirePayForData {
+		return in
+	}
+
+	kb := generateKeyring(t, "test")
+
+	signer := NewKeyringSigner(kb, "test", "chain-id")
+
+	tests := []test{
+		{
+			name:       "single share square size 2",
+			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 1},
+			msg:        bytes.Repeat([]byte{1}, totalMsgSize(appconsts.SparseShareContentSize)),
+			squareSize: 2,
+			modify:     dontModify,
+		},
+		{
+			name:       "12 shares square size 4",
+			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:        bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12)),
+			squareSize: 4,
+			modify:     dontModify,
+		},
+		{
+			name:       "incorrect square size",
+			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:        bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12)),
+			squareSize: 4,
+			modify: func(wpfd *MsgWirePayForData) *MsgWirePayForData {
+				wpfd.MessageShareCommitment[0].SquareSize = 99999
+				return wpfd
+			},
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		wpfd, err := NewWirePayForData(tt.namespace, tt.msg, tt.squareSize)
+		require.NoError(t, err, tt.name)
+		err = wpfd.SignShareCommitments(signer)
+		assert.NoError(t, err)
+
+		wpfd = tt.modify(wpfd)
+
+		message, spfd, sig, err := ProcessWirePayForData(wpfd, tt.squareSize)
+		if tt.expectErr {
+			assert.Error(t, err, tt.name)
+			continue
+		}
+
+		// ensure that the shared fields are identical
+		assert.Equal(t, tt.msg, message.Data, tt.name)
+		assert.Equal(t, tt.namespace, message.NamespaceId, tt.name)
+		assert.Equal(t, wpfd.Signer, spfd.Signer, tt.name)
+		assert.Equal(t, wpfd.MessageNamespaceId, spfd.MessageNamespaceId, tt.name)
+		assert.Equal(t, wpfd.MessageShareCommitment[0].ShareCommitment, spfd.MessageShareCommitment, tt.name)
+		assert.Equal(t, wpfd.MessageShareCommitment[0].Signature, sig, tt.name)
 	}
 }
