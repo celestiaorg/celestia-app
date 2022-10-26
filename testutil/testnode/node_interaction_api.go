@@ -113,7 +113,7 @@ func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.
 	signer.SetSequence(seq)
 
 	// create a random msg per row
-	pfd, err := payment.BuildPayForData(
+	wpfd, err := payment.BuildWirePayForData(
 		c.rootCtx,
 		signer,
 		c.GRPCClient,
@@ -125,7 +125,7 @@ func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.
 		return nil, err
 	}
 
-	signed, err := payment.SignPayForData(signer, pfd, opts...)
+	signed, err := payment.SignWirePayForData(signer, wpfd, opts...)
 	if err != nil {
 		return nil, err
 	}

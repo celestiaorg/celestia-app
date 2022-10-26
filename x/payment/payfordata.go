@@ -13,9 +13,9 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-// SubmitPayForData constructs, signs and synchronously submits a PayForData
+// SubmitWirePayForData constructs, signs, and synchronously submits a WirePayForData
 // transaction, returning a sdk.TxResponse upon submission.
-func SubmitPayForData(
+func SubmitWirePayForData(
 	ctx context.Context,
 	signer *types.KeyringSigner,
 	conn *grpc.ClientConn,
@@ -26,12 +26,12 @@ func SubmitPayForData(
 ) (*sdk.TxResponse, error) {
 	opts = append(opts, types.SetGasLimit(gasLim))
 
-	pfd, err := BuildPayForData(ctx, signer, conn, nID, data, opts...)
+	wpfd, err := BuildWirePayForData(ctx, signer, conn, nID, data, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	signed, err := SignPayForData(signer, pfd, opts...)
+	signed, err := SignWirePayForData(signer, wpfd, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -48,8 +48,8 @@ func SubmitPayForData(
 	return txResp.TxResponse, nil
 }
 
-// BuildPayForData constructs a PayForData transaction.
-func BuildPayForData(
+// BuildWirePayForData returns a MsgWirePayForData
+func BuildWirePayForData(
 	ctx context.Context,
 	signer *types.KeyringSigner,
 	conn *grpc.ClientConn,
@@ -57,7 +57,7 @@ func BuildPayForData(
 	message []byte,
 	opts ...types.TxBuilderOption,
 ) (*types.MsgWirePayForData, error) {
-	// create the raw WirePayForData transaction
+	// create the raw WirePayForData
 	wpfd, err := types.NewWirePayForData(nID, message, types.AllSquareSizes(len(message))...)
 	if err != nil {
 		return nil, err
@@ -69,8 +69,7 @@ func BuildPayForData(
 		return nil, err
 	}
 
-	// generate the signatures for each `MsgPayForData` using the `KeyringSigner`,
-	// then set the gas limit for the tx
+	// sign the message share commitments using the signer
 	err = wpfd.SignShareCommitments(signer, opts...)
 	if err != nil {
 		return nil, err
@@ -79,20 +78,19 @@ func BuildPayForData(
 	return wpfd, nil
 }
 
-// SignPayForData signs a PayForData transaction.
-func SignPayForData(
+// SignWirePayForData signs a WirePayForData transaction.
+func SignWirePayForData(
 	signer *types.KeyringSigner,
-	pfd *types.MsgWirePayForData,
+	wpfd *types.MsgWirePayForData,
 	opts ...types.TxBuilderOption,
 ) (signing.Tx, error) {
-	// Build and sign the final `WirePayForData` tx that now contains the signatures
-	// for potential `MsgPayForData`s
+	// Build and sign the final `WirePayForData` tx
 	builder := signer.NewTxBuilder()
 	for _, opt := range opts {
 		opt(builder)
 	}
 	return signer.BuildSignedTx(
 		builder,
-		pfd,
+		wpfd,
 	)
 }
