@@ -158,13 +158,6 @@ if err != nil {
 
 ### How the commitments are generated
 
-1. create the final version of the message by adding the length delimiter, the namespace, and then the message together into a single string of bytes
-
-   ```python
-   finalMessage = [length delimiter] + [namespace] + [message]
-   ```
-
-2. chunk the finalMessage into shares of size `appconsts.ShareSize`
-3. pad until number of shares is a power of two
-4. create the commitment by aranging the shares into a merkle mountain range
-5. create a merkle root of the subtree roots
+1. Split the message into shares of `appconsts.ShareSize`
+2. Arrange the shares into a Merkle mountain range where each tree in the mountain range has a maximum size of `squareSize`
+3. Take the roots of the trees in the Merkle mountain range and create a new Merkle tree. The message share commitment is the Merkle root of this Merkle tree.
