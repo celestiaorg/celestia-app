@@ -160,4 +160,4 @@ if err != nil {
 
 1. Split the message into shares of `appconsts.ShareSize`
 1. Arrange the shares into a Merkle mountain range where each tree in the mountain range has a maximum size of `squareSize`
-1. Take the roots of the trees in the Merkle mountain range and create a new Merkle tree. The message share commitment is the Markle root of this Merkle tree.
+1. Take the roots of the trees in the Merkle mountain range and create a new Merkle tree. The message share commitment is the Merkle root of this Merkle tree.
