@@ -88,7 +88,7 @@ func BuildPayForDataTxFromWireTx(
 		return nil, err
 	}
 	if len(origSigs) != 1 {
-		return nil, fmt.Errorf("unexpected number of signers: %d", len(origSigs))
+		return nil, fmt.Errorf("unexpected number of signatures: %d", len(origSigs))
 	}
 
 	newSig := signing.SignatureV2{
