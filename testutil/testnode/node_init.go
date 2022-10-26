@@ -174,7 +174,7 @@ func createValidator(
 		return err
 	}
 	orchEthPublicKey := ethPrivateKey.Public().(*ecdsa.PublicKey)
-	ethAddr := crypto.PubkeyToAddress(*orchEthPublicKey)
+	evmAddr := crypto.PubkeyToAddress(*orchEthPublicKey)
 
 	createValMsg, err := stakingtypes.NewMsgCreateValidator(
 		sdk.ValAddress(addr),
@@ -184,7 +184,7 @@ func createValidator(
 		stakingtypes.NewCommissionRates(commission, sdk.OneDec(), sdk.OneDec()),
 		sdk.OneInt(),
 		addr,
-		ethAddr,
+		evmAddr,
 	)
 	if err != nil {
 		return err

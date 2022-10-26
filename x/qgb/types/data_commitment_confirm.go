@@ -25,8 +25,8 @@ func (msg *MsgDataCommitmentConfirm) ValidateBasic() (err error) {
 	if msg.BeginBlock > msg.EndBlock {
 		return sdkerrors.Wrap(ErrInvalid, "begin block should be less than end block")
 	}
-	if !ethcmn.IsHexAddress(msg.EthAddress) {
-		return sdkerrors.Wrap(stakingtypes.ErrEthAddressNotHex, "ethereum address")
+	if !ethcmn.IsHexAddress(msg.EvmAddress) {
+		return sdkerrors.Wrap(stakingtypes.ErrEVMAddressNotHex, "ethereum address")
 	}
 	return nil
 }
