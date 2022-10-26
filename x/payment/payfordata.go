@@ -58,7 +58,7 @@ func BuildPayForData(
 	opts ...types.TxBuilderOption,
 ) (*types.MsgWirePayForData, error) {
 	// create the raw WirePayForData transaction
-	wpfd, err := types.NewWirePayForData(nID, message, types.AllSquareSizes(len(message))...)
+	wpfd, err := types.NewWirePayForData(nID, message)
 	if err != nil {
 		return nil, err
 	}

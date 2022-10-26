@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	sdkerrors "cosmossdk.io/errors"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,19 +40,7 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 
 	// pfd with bad commitment
 	badCommitMsg := validWirePayForData(t)
-	badCommitMsg.MessageShareCommitment[0].ShareCommitment = []byte{1, 2, 3, 4}
-
-	// pfd that has invalid square size (not power of 2)
-	invalidSquareSizeMsg := validWirePayForData(t)
-	invalidSquareSizeMsg.MessageShareCommitment[0].SquareSize = 15
-
-	// pfd that signs over all squares but the first one
-	missingCommitmentForOneSquareSize := validWirePayForData(t)
-	missingCommitmentForOneSquareSize.MessageShareCommitment = missingCommitmentForOneSquareSize.MessageShareCommitment[1:]
-
-	// pfd that signed over no squares
-	noMessageShareCommitments := validWirePayForData(t)
-	noMessageShareCommitments.MessageShareCommitment = []ShareCommitAndSignature{}
+	badCommitMsg.MessageShareCommitment.ShareCommitment = []byte{1, 2, 3, 4}
 
 	tests := []test{
 		{
@@ -80,11 +69,6 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 			wantErr: ErrInvalidShareCommit,
 		},
 		{
-			name:    "invalid square size",
-			msg:     invalidSquareSizeMsg,
-			wantErr: ErrCommittedSquareSizeNotPowOf2,
-		},
-		{
 			name:    "parity shares namespace id",
 			msg:     paritySharesMsg,
 			wantErr: ErrParitySharesNamespace,
@@ -93,16 +77,6 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 			name:    "tail padding namespace id",
 			msg:     tailPaddingMsg,
 			wantErr: ErrTailPaddingNamespace,
-		},
-		{
-			name:    "no message share commitments",
-			msg:     noMessageShareCommitments,
-			wantErr: ErrNoMessageShareCommitments,
-		},
-		{
-			name:    "missing commitment for one square size",
-			msg:     missingCommitmentForOneSquareSize,
-			wantErr: ErrInvalidShareCommitments,
 		},
 	}
 
@@ -116,6 +90,47 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 				assert.Equal(t, tt.wantErr.ABCICode(), code)
 				t.Log(log)
 			}
+		})
+	}
+}
+
+func TestMsgMinSquareSize(t *testing.T) {
+	type testCase struct {
+		name     string
+		msgLen   uint64
+		expected uint64
+	}
+	tests := []testCase{
+		{
+			name:     "1 byte",
+			msgLen:   1,
+			expected: 1,
+		},
+		{
+			name:     "100 bytes",
+			msgLen:   100,
+			expected: 1,
+		},
+		{
+			name:     "2 sparse shares",
+			msgLen:   appconsts.SparseShareContentSize * 2,
+			expected: 2,
+		},
+		{
+			name:     "4 sparse shares",
+			msgLen:   appconsts.SparseShareContentSize * 4,
+			expected: 4,
+		},
+		{
+			name:     "16 sparse shares",
+			msgLen:   appconsts.SparseShareContentSize * 16,
+			expected: 8,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := MsgMinSquareSize(tc.msgLen)
+			assert.Equal(t, tc.expected, got)
 		})
 	}
 }

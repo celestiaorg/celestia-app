@@ -45,22 +45,20 @@ func VerifyPFDSigs(signerData authsigning.SignerData, txConfig client.TxConfig, 
 	}
 
 	// go through the entire malleation process as if this tx was being included in a block.
-	for _, commit := range wirePFDMsg.MessageShareCommitment {
-		_, pfd, sig, err := ProcessWirePayForData(wirePFDMsg, commit.SquareSize)
-		if err != nil {
-			return false, err
-		}
+	_, pfd, sig, err := ProcessWirePayForData(wirePFDMsg)
+	if err != nil {
+		return false, err
+	}
 
-		// create the malleated MsgPayForData tx by using auth data from the original tx
-		pfdTx, err := BuildPayForDataTxFromWireTx(wirePFDTx, txConfig.NewTxBuilder(), sig, pfd)
-		if err != nil {
-			return false, err
-		}
+	// create the malleated MsgPayForData tx by using auth data from the original tx
+	pfdTx, err := BuildPayForDataTxFromWireTx(wirePFDTx, txConfig.NewTxBuilder(), sig, pfd)
+	if err != nil {
+		return false, err
+	}
 
-		valid, err := VerifySig(signerData, txConfig, pfdTx)
-		if err != nil || !valid {
-			return false, err
-		}
+	valid, err := VerifySig(signerData, txConfig, pfdTx)
+	if err != nil || !valid {
+		return false, err
 	}
 
 	return true, nil

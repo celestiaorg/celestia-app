@@ -7,5 +7,6 @@ coverage.txt
 .idea
 .vscode
 tools-stamp
-.vscode
+vscode
+.__debug_bin
 profile.out

@@ -166,7 +166,7 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, s
 }
 
 func generateSignedWirePayForData(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption, ks ...uint64) *types.MsgWirePayForData {
-	msg, err := types.NewWirePayForData(ns, message, ks...)
+	msg, err := types.NewWirePayForData(ns, message)
 	if err != nil {
 		t.Error(err)
 	}

@@ -16,7 +16,8 @@ func DelimLen(size uint64) int {
 }
 
 // MsgSharesUsed calculates the minimum number of shares a message will take up.
-// It accounts for the necessary delimiter and potential padding.
+// It accounts for the necessary delimiter and potential padding. msgSize must
+// be provided in number of bytes.
 func MsgSharesUsed(msgSize int) int {
 	// add the delimiter to the message size
 	msgSize = DelimLen(uint64(msgSize)) + msgSize
