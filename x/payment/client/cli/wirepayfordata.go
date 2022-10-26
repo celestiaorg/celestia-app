@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -45,7 +46,7 @@ func CmdWirePayForData() *cobra.Command {
 				return fmt.Errorf("failure to decode hex message: %w", err)
 			}
 
-			pfdMsg, err := types.NewWirePayForData(namespace, message, types.AllSquareSizes(len(message))...)
+			pfdMsg, err := types.NewWirePayForData(namespace, message, appconsts.MinSquareSize)
 			if err != nil {
 				return err
 			}
@@ -79,7 +80,7 @@ func CmdWirePayForData() *cobra.Command {
 			}
 
 			// sign the  MsgPayForData's ShareCommitments
-			err = pfdMsg.SignShareCommitments(
+			err = pfdMsg.SignMessageShareCommitment(
 				signer,
 				types.SetGasLimit(gasSetting.Gas),
 				types.SetFeeAmount(parsedFees),

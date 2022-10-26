@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -123,7 +124,7 @@ func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.Key
 // generateRawWirePFD creates a tx with a single MsgWirePayForData message using the provided namespace and message
 func generateRawWirePFDTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
 	// create a msg
-	msg := generateSignedWirePayForData(t, ns, message, signer, opts, types.AllSquareSizes(len(message))...)
+	msg := generateSignedWirePayForData(t, ns, message, signer, opts)
 
 	builder := signer.NewTxBuilder(opts...)
 	tx, err := signer.BuildSignedTx(builder, msg)
@@ -136,13 +137,13 @@ func generateRawWirePFDTx(t *testing.T, txConfig client.TxConfig, ns, message []
 	return rawTx
 }
 
-func generateSignedWirePayForData(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption, ks ...uint64) *types.MsgWirePayForData {
-	msg, err := types.NewWirePayForData(ns, message, ks...)
+func generateSignedWirePayForData(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForData {
+	msg, err := types.NewWirePayForData(ns, message, appconsts.MinSquareSize)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = msg.SignShareCommitments(signer, options...)
+	err = msg.SignMessageShareCommitment(signer, options...)
 	if err != nil {
 		t.Error(err)
 	}

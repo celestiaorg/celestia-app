@@ -47,7 +47,7 @@ func (msg *MsgPayForData) ValidateBasic() error {
 	}
 
 	if len(msg.MessageShareCommitment) == 0 {
-		return ErrNoMessageShareCommitments
+		return ErrNoMessageShareCommitment
 	}
 
 	return nil
@@ -70,7 +70,7 @@ func (msg *MsgPayForData) GetSigners() []sdk.AccAddress {
 
 // BuildPayForDataTxFromWireTx creates an authsigning.Tx using data from the original
 // MsgWirePayForData sdk.Tx and the signature provided. This is used while processing
-// the MsgWirePayForDatas into Signed  MsgPayForData
+// a MsgWirePayForData into a signed MsgPayForData.
 func BuildPayForDataTxFromWireTx(
 	origTx authsigning.Tx,
 	builder sdkclient.TxBuilder,
@@ -88,6 +88,7 @@ func BuildPayForDataTxFromWireTx(
 		return nil, err
 	}
 	if len(origSigs) != 1 {
+		// TODO this error message is incorrect. Rename signers => signatures.
 		return nil, fmt.Errorf("unexpected number of signers: %d", len(origSigs))
 	}
 
@@ -108,13 +109,14 @@ func BuildPayForDataTxFromWireTx(
 	return builder.GetTx(), nil
 }
 
-// CreateCommitment generates the commitment bytes for a given squareSize,
-// namespace, and message using a namespace merkle tree and the rules described
-// at [Message layout rationale] and [Non-interactive default rules].
+// CreateCommitment generates the commitment bytes for a given namespace and
+// message using a namespace merkle tree and the rules described at [Message
+// layout rationale] and [Non-interactive default rules]. The commitment uses a
+// merkle mountain range with a maxTreeSize of minSquareSize.
 //
 // [Message layout rationale]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L12
 // [Non-interactive default rules]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L36
-func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, error) {
+func CreateCommitment(minSquareSize int, namespace, message []byte) ([]byte, error) {
 	msg := coretypes.Messages{
 		MessagesList: []coretypes.Message{
 			{
@@ -131,19 +133,11 @@ func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, err
 		return nil, err
 	}
 
-	// Return an error if the number of shares is larger than the max number of
-	// shares for a message. At least one share will be occupied by the
-	// transaction that pays for this message. According to the non-interactive
-	// default rules, a message that spans multiple rows must start in a new
-	// row. Therefore the message must start at the second row and may occupy
-	// all (squareSize - 1) rows.
-	maxNumSharesForMessage := squareSize * (squareSize - 1)
-	if uint64(len(shares)) > maxNumSharesForMessage {
-		return nil, fmt.Errorf("message size exceeds max shares for square size %d: max %d taken %d", squareSize, maxNumSharesForMessage, len(shares))
-	}
+	// HACKHACK remove check for messageSize < squareSize * (squareSize - 1)
+	// because we no longer generate commitments across all square sizes
 
 	// organize shares for merkle mountain range
-	treeSizes := merkleMountainRangeSizes(uint64(len(shares)), squareSize)
+	treeSizes := merkleMountainRangeSizes(uint64(len(shares)), uint64(minSquareSize))
 	leafSets := make([][][]byte, len(treeSizes))
 	cursor := uint64(0)
 	for i, treeSize := range treeSizes {

@@ -35,15 +35,15 @@ func TestPrepareProposal(t *testing.T) {
 
 	firstNS := []byte{2, 2, 2, 2, 2, 2, 2, 2}
 	firstMessage := bytes.Repeat([]byte{4}, 512)
-	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNS, firstMessage, signer, types.AllSquareSizes(len(firstMessage))...)
+	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNS, firstMessage, signer, types.AllSquareSizes()...)
 
 	secondNS := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	secondMessage := []byte{2}
-	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNS, secondMessage, signer, types.AllSquareSizes(len(secondMessage))...)
+	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNS, secondMessage, signer, types.AllSquareSizes()...)
 
 	thirdNS := []byte{3, 3, 3, 3, 3, 3, 3, 3}
 	thirdMessage := []byte{1}
-	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNS, thirdMessage, signer, types.AllSquareSizes(len(thirdMessage))...)
+	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNS, thirdMessage, signer, types.AllSquareSizes()...)
 
 	tests := []test{
 		{
@@ -128,7 +128,7 @@ func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
 
 	for _, tt := range tests {
 		message := []byte{1}
-		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, message, signer, types.AllSquareSizes(len(message))...)
+		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, message, signer, types.AllSquareSizes()...)
 		input := abci.RequestPrepareProposal{
 			BlockData: &core.Data{
 				Txs: [][]byte{tx},
@@ -151,7 +151,7 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, s
 	}
 
 	// create a msg
-	msg := generateSignedWirePayForData(t, ns, message, signer, opts, ks...)
+	msg := generateSignedWirePayForData(t, ns, message, signer, opts)
 
 	builder := signer.NewTxBuilder(opts...)
 
@@ -165,13 +165,13 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, s
 	return rawTx
 }
 
-func generateSignedWirePayForData(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption, ks ...uint64) *types.MsgWirePayForData {
-	msg, err := types.NewWirePayForData(ns, message, ks...)
+func generateSignedWirePayForData(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForData {
+	msg, err := types.NewWirePayForData(ns, message, appconsts.MinSquareSize)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = msg.SignShareCommitments(signer, options...)
+	err = msg.SignMessageShareCommitment(signer, options...)
 	if err != nil {
 		t.Error(err)
 	}

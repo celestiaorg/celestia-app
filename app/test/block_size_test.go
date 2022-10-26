@@ -266,13 +266,13 @@ func generateSignedWirePayForDataTxs(clientCtx client.Context, txConfig client.T
 		msg, err := types.NewWirePayForData(
 			namespace.RandomMessageNamespace(),
 			tmrand.Bytes(thisMessageSize),
-			types.AllSquareSizes(thisMessageSize)...,
+			appconsts.MinSquareSize,
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		err = msg.SignShareCommitments(signer, opts...)
+		err = msg.SignMessageShareCommitment(signer, opts...)
 		if err != nil {
 			return nil, err
 		}

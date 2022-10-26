@@ -9,6 +9,7 @@ import (
 	sdk_tx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/payment/types"
 	"github.com/celestiaorg/nmt/namespace"
 )
@@ -58,7 +59,7 @@ func BuildPayForData(
 	opts ...types.TxBuilderOption,
 ) (*types.MsgWirePayForData, error) {
 	// create the raw WirePayForData transaction
-	wpfd, err := types.NewWirePayForData(nID, message, types.AllSquareSizes(len(message))...)
+	wpfd, err := types.NewWirePayForData(nID, message, appconsts.MinSquareSize)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +72,7 @@ func BuildPayForData(
 
 	// generate the signatures for each `MsgPayForData` using the `KeyringSigner`,
 	// then set the gas limit for the tx
-	err = wpfd.SignShareCommitments(signer, opts...)
+	err = wpfd.SignMessageShareCommitment(signer, opts...)
 	if err != nil {
 		return nil, err
 	}

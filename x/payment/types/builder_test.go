@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -27,7 +28,7 @@ func TestBuildWirePayForData(t *testing.T) {
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	message := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 
-	msg, err := NewWirePayForData(namespace, message, 4, 16, 32)
+	msg, err := NewWirePayForData(namespace, message, appconsts.MinSquareSize)
 	require.NoError(t, err)
 
 	signedTx, err := k.BuildSignedTx(k.NewTxBuilder(), msg)
@@ -85,7 +86,7 @@ func TestBroadcastPayForData(t *testing.T) {
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	message := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 
-	msg, err := NewWirePayForData(namespace, message, 4, 16, 32)
+	msg, err := NewWirePayForData(namespace, message, appconsts.MinSquareSize)
 	require.NoError(t, err)
 
 	signedTx, err := k.BuildSignedTx(builder, msg)

@@ -107,7 +107,7 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 	}
 
 	// calculate the smallest possible square size that could contain all the
-	// messages
+	// shares
 	squareSize := shares.RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(txShares + evdShares + msgShares)))))
 
 	// the starting square size should at least be the minimum
@@ -127,10 +127,10 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 		// stop estimating if we know we can reach the max square size
 		case squareSize >= appconsts.MaxSquareSize:
 			return appconsts.MaxSquareSize, txShares + evdShares + msgShares
-		// return if we've found a square size that fits all of the txs
+		// return if we've found a square size that fits all of the shares
 		case fits:
 			return uint64(squareSize), txShares + evdShares + msgShares
-		// try the next largest square size if we can't fit all the txs
+		// try the next largest square size if we can't fit all the shares
 		case !fits:
 			// double the square size
 			squareSize = shares.RoundUpPowerOfTwo(squareSize + 1)
@@ -157,22 +157,26 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 	// contiguously in the square, unlike msgs where each of which is assigned their
 	// own set of shares
 	txBytes, evdBytes := 0, 0
-	for _, pTx := range txs {
-		// if there is no wire message in this tx, then we can simply add the
-		// bytes and move on.
-		if pTx.msg == nil {
-			txBytes += len(pTx.rawTx)
+	for _, parsedTx := range txs {
+		// if there is no msgWirePayForData in this tx, then we can simply add
+		// the bytes and move on.
+		if parsedTx.msg == nil {
+			txBytes += len(parsedTx.rawTx)
 			continue
 		}
 
-		// if there is a malleated tx, then we want to also account for the
+		// if there is a msgWirePayForData, then we want  also account for the
 		// txs that get included on-chain. The formula used here over
 		// compensates for the actual size of the message, and in some cases can
 		// result in some wasted square space or picking a square size that is
-		// too large. TODO: improve by making a more accurate estimation formula
-		txBytes += overEstimateMalleatedTxSize(len(pTx.rawTx), len(pTx.msg.Message), len(pTx.msg.MessageShareCommitment))
+		// too large.
+		txBytes += overEstimateMalleatedTxSize(len(parsedTx.rawTx), len(parsedTx.msg.Message), 1)
 
-		msgSummaries = append(msgSummaries, msgSummary{shares.MsgSharesUsed(int(pTx.msg.MessageSize)), pTx.msg.MessageNamespaceId})
+		msgSummary := msgSummary{
+			size:      shares.MsgSharesUsed(int(parsedTx.msg.MessageSize)),
+			namespace: parsedTx.msg.MessageNamespaceId,
+		}
+		msgSummaries = append(msgSummaries, msgSummary)
 	}
 
 	txShares = txBytes / appconsts.ContinuationCompactShareContentSize
@@ -216,11 +220,10 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 
 // overEstimateMalleatedTxSize estimates the size of a malleated tx. The formula it uses will always over estimate.
 func overEstimateMalleatedTxSize(txLen, msgLen, sharesCommitments int) int {
-	// the malleated tx uses the original txLen to account for meta data from
-	// the original tx, but removes the message and extra share commitments that
-	// are in the wire message by subtracting msgLen and all extra share
-	// commitments.
-	malleatedTxLen := txLen - msgLen - ((sharesCommitments - 1) * appconsts.ShareCommitmentBytes)
+	// the malleated tx uses the original txLen to account for metadata from the
+	// original tx, but removes the message that is in the wire message by
+	// subtracting msgLen
+	malleatedTxLen := txLen - msgLen
 	// we need to ensure that the returned number is at least larger than or
 	// equal to the actual number, which is difficult to calculate without
 	// actually malleating the tx

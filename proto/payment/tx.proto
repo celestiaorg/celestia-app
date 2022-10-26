@@ -1,7 +1,6 @@
 syntax = "proto3";
 package payment;
 
-import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/payment/types";
@@ -14,33 +13,25 @@ service Msg {
   }
 }
 
-// MsgWirePayForData describes the format of data that is sent over the wire
-// for each PayForData
+// MsgWirePayForData is the format of data that is sent over the wire.
 message MsgWirePayForData {
   string signer = 1;
   bytes message_namespace_id = 2; // assume this is 8 bytes!
   uint64 message_size = 3;
   bytes message = 4;
-  repeated ShareCommitAndSignature message_share_commitment = 6
-      [ (gogoproto.nullable) = false ];
+  ShareCommitAndSignature message_share_commitment = 6;
 }
 
-// MsgWirePayForDataResponse describes the response returned after the
-// submission of a WirePayForData
+// MsgWirePayForDataResponse is the response returned after the submission of a
+// MsgWirePayForData.
 message MsgWirePayForDataResponse {}
 
-// ShareCommitAndSignature defines the
 message ShareCommitAndSignature {
-  uint64 square_size = 1;
   bytes share_commitment = 2;
-  bytes signature = 3; // signature on one SignedTransactionPayForData
+  bytes signature = 3;
 }
 
-// MsgPayForData is what gets signed by users when creating
-// ShareCommitSignatures.
-//  Multiple versions are signed and included, each version creates a commitment
-//  for a
-// specific square size.
+// MsgPayForData is the message that gets included in the block.
 message MsgPayForData {
   string signer = 1;
   bytes message_namespace_id = 2;
@@ -48,6 +39,6 @@ message MsgPayForData {
   bytes message_share_commitment = 4;
 }
 
-// MsgPayForDataResponse describes the response returned after the submission
-// of a PayForData
+// MsgPayForDataResponse is the response returned after the submission of a
+// MsgPayForData.
 message MsgPayForDataResponse {}

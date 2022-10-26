@@ -22,26 +22,14 @@ func generateAllSquareSizes() []int {
 	return sizes
 }
 
-// AllSquareSizes calculates all of the square sizes that message could possibly
-// fit in
-func AllSquareSizes(msgSize int) []uint64 {
-	allSizes := allSquareSizes
-	fitSizes := []uint64{}
-	shareCount := MsgSharesUsed(msgSize)
-	for _, squareSize := range allSizes {
-		// continue if the number of shares is larger than the max number of
-		// shares for a message. At least one share will be occupied by the
-		// transaction that pays for this message. According to the non-interactive
-		// default rules, a message that spans multiple rows must start in a new
-		// row. Therefore the message must start at the second row and may occupy
-		// all (squareSize - 1) rows.
-		maxNumSharesForMessage := squareSize * (squareSize - 1)
-		if shareCount > maxNumSharesForMessage {
-			continue
-		}
-		fitSizes = append(fitSizes, uint64(squareSize))
+// AllSqureSizes returns all of the possible square sizes
+func AllSquareSizes() (result []uint64) {
+	squareSize := uint64(appconsts.MinSquareSize)
+	for squareSize <= appconsts.MaxSquareSize {
+		result = append(result, squareSize)
+		squareSize = squareSize * 2
 	}
-	return fitSizes
+	return result
 }
 
 // MsgSharesUsed calculates the minimum number of shares a message will take up.

@@ -51,9 +51,9 @@ const (
 	// if there are more shares than this, the block producer will panic.
 	MaxShareCount = MaxSquareSize * MaxSquareSize
 
-	// MinSquareSize depicts the smallest original square width. A square size smaller than this will
-	// cause block producer to panic
-	MinSquareSize = 1
+	// MinSquareSize is the smallest original square width. A square size
+	// smaller than this will cause the block producer to panic.
+	MinSquareSize = 8
 	// MinshareCount is the minimum shares required in an original data square.
 	MinShareCount = MinSquareSize * MinSquareSize
 
