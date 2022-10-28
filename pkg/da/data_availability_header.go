@@ -67,7 +67,7 @@ func ExtendShares(squareSize uint64, shares [][]byte) (*rsmt2d.ExtendedDataSquar
 			squareSize*squareSize,
 		)
 	}
-	// here we construct a tre
+	// here we construct a tree
 	return rsmt2d.ComputeExtendedDataSquare(shares, appconsts.DefaultCodec(), wrapper.NewConstructor(squareSize))
 }
 
