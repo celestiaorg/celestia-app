@@ -58,15 +58,15 @@ func (v *Valset) SignBytes(bridgeID ethcmn.Hash) (ethcmn.Hash, error) {
 // Hash mimics the 'computeValsetHash' function used by the qgb contracts by using
 // a Valset to compute the hash of the abi encoded validator set.
 func (v *Valset) Hash() (ethcmn.Hash, error) {
-	ethVals := make([]wrapper.Validator, len(v.Members))
+	evmVals := make([]wrapper.Validator, len(v.Members))
 	for i, val := range v.Members {
-		ethVals[i] = wrapper.Validator{
-			Addr:  ethcmn.HexToAddress(val.EthereumAddress),
+		evmVals[i] = wrapper.Validator{
+			Addr:  ethcmn.HexToAddress(val.EvmAddress),
 			Power: big.NewInt(int64(val.Power)),
 		}
 	}
 
-	encodedVals, err := InternalQGBabi.Pack("computeValidatorSetHash", ethVals)
+	encodedVals, err := InternalQGBabi.Pack("computeValidatorSetHash", evmVals)
 	if err != nil {
 		return ethcmn.Hash{}, err
 	}

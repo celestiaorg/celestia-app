@@ -6,155 +6,64 @@ import (
 
 	sdkerrors "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestMountainRange(t *testing.T) {
+func Test_merkleMountainRangeHeights(t *testing.T) {
 	type test struct {
-		l, squareSize uint64
-		expected      []uint64
+		totalSize  uint64
+		squareSize uint64
+		expected   []uint64
 	}
 	tests := []test{
 		{
-			l:          11,
+			totalSize:  11,
 			squareSize: 4,
 			expected:   []uint64{4, 4, 2, 1},
 		},
 		{
-			l:          2,
+			totalSize:  2,
 			squareSize: 64,
 			expected:   []uint64{2},
 		},
-		{ // should this test throw an error? we
-			l:          64,
+		{
+			totalSize:  64,
 			squareSize: 8,
 			expected:   []uint64{8, 8, 8, 8, 8, 8, 8, 8},
 		},
-	}
-	for _, tt := range tests {
-		res := powerOf2MountainRange(tt.l, tt.squareSize)
-		assert.Equal(t, tt.expected, res)
-	}
-}
-
-func TestNextLowestPowerOf2(t *testing.T) {
-	type test struct {
-		input    uint64
-		expected uint64
-	}
-	tests := []test{
+		// Height
+		// 3              x                               x
+		//              /    \                         /    \
+		//             /      \                       /      \
+		//            /        \                     /        \
+		//           /          \                   /          \
+		// 2        x            x                 x            x
+		//        /   \        /   \             /   \        /   \
+		// 1     x     x      x     x           x     x      x     x         x
+		//      / \   / \    / \   / \         / \   / \    / \   / \      /   \
+		// 0   0   1 2   3  4   5 6   7       8   9 10  11 12 13 14  15   16   17    18
 		{
-			input:    0,
-			expected: 0,
-		},
-		{
-			input:    1,
-			expected: 1,
-		},
-		{
-			input:    2,
-			expected: 2,
-		},
-		{
-			input:    5,
-			expected: 4,
-		},
-		{
-			input:    11,
-			expected: 8,
-		},
-		{
-			input:    511,
-			expected: 256,
+			totalSize:  19,
+			squareSize: 8,
+			expected:   []uint64{8, 8, 2, 1},
 		},
 	}
 	for _, tt := range tests {
-		res := nextLowerPowerOf2(tt.input)
-		assert.Equal(t, tt.expected, res)
-	}
-}
-
-func TestNextHighestPowerOf2(t *testing.T) {
-	type test struct {
-		input    uint64
-		expected uint64
-	}
-	tests := []test{
-		{
-			input:    0,
-			expected: 0,
-		},
-		{
-			input:    1,
-			expected: 2,
-		},
-		{
-			input:    2,
-			expected: 4,
-		},
-		{
-			input:    5,
-			expected: 8,
-		},
-		{
-			input:    11,
-			expected: 16,
-		},
-		{
-			input:    511,
-			expected: 512,
-		},
-	}
-	for _, tt := range tests {
-		res := NextHigherPowerOf2(tt.input)
-		assert.Equal(t, tt.expected, res)
-	}
-}
-
-func TestPowerOf2(t *testing.T) {
-	type test struct {
-		input    uint64
-		expected bool
-	}
-	tests := []test{
-		{
-			input:    1,
-			expected: true,
-		},
-		{
-			input:    2,
-			expected: true,
-		},
-		{
-			input:    256,
-			expected: true,
-		},
-		{
-			input:    3,
-			expected: false,
-		},
-		{
-			input:    79,
-			expected: false,
-		},
-		{
-			input:    0,
-			expected: false,
-		},
-	}
-	for _, tt := range tests {
-		res := powerOf2(tt.input)
+		res := merkleMountainRangeSizes(tt.totalSize, tt.squareSize)
 		assert.Equal(t, tt.expected, res)
 	}
 }
 
 // TestCreateCommitment only shows if something changed, it doesn't actually
-// show that the commit is being created correctly todo(evan): fix me.
+// show that the commitment bytes are being created correctly.
+// TODO: verify the commitment bytes
 func TestCreateCommitment(t *testing.T) {
 	type test struct {
+		name       string
 		squareSize uint64
 		namespace  []byte
 		message    []byte
@@ -163,26 +72,44 @@ func TestCreateCommitment(t *testing.T) {
 	}
 	tests := []test{
 		{
+			name:       "squareSize 4, message of 11 shares succeeds",
 			squareSize: 4,
 			namespace:  bytes.Repeat([]byte{0xFF}, 8),
 			message:    bytes.Repeat([]byte{0xFF}, 11*ShareSize),
-			expected:   []byte{0x44, 0x7e, 0xa2, 0xf4, 0xee, 0xb, 0xad, 0x9d, 0x7f, 0xfb, 0x5e, 0x9e, 0xc6, 0xd4, 0xf6, 0x70, 0x4f, 0x36, 0x83, 0x1a, 0x58, 0xe, 0x13, 0xd8, 0x5a, 0x9d, 0x43, 0x11, 0x6a, 0x5f, 0xdd, 0xe1},
+			expected:   []byte{0x1e, 0xdc, 0xc4, 0x69, 0x8f, 0x47, 0xf6, 0x8d, 0xfc, 0x11, 0xec, 0xac, 0xaa, 0x37, 0x4a, 0x3d, 0xbd, 0xfc, 0x1a, 0x9b, 0x6e, 0x87, 0x6f, 0xba, 0xd3, 0x6c, 0x6, 0x6c, 0x9f, 0x5b, 0x65, 0x38},
 		},
 		{
+			name:       "squareSize 2, message of 100 shares returns error",
 			squareSize: 2,
 			namespace:  bytes.Repeat([]byte{0xFF}, 8),
 			message:    bytes.Repeat([]byte{0xFF}, 100*ShareSize),
 			expectErr:  true,
 		},
+		{
+			name:       "squareSize 4, message of 12 shares succeeds",
+			squareSize: 12,
+			namespace:  bytes.Repeat([]byte{0xFF}, 8),
+			message:    bytes.Repeat([]byte{0xFF}, 12*ShareSize),
+			expected:   []byte{0x35, 0xfa, 0x3b, 0x3e, 0x0, 0x52, 0xa1, 0xde, 0x7a, 0xf7, 0x9f, 0xd8, 0xb7, 0xc, 0x19, 0xab, 0x54, 0xb6, 0x68, 0xe8, 0xd0, 0x39, 0x56, 0x12, 0x53, 0xd9, 0xe6, 0x2, 0x22, 0xde, 0xd9, 0x90},
+		},
+		{
+			name:       "squareSize 4, message of 13 shares returns error",
+			squareSize: 4,
+			namespace:  bytes.Repeat([]byte{0xFF}, 8),
+			message:    bytes.Repeat([]byte{0xFF}, 13*ShareSize),
+			expectErr:  true,
+		},
 	}
 	for _, tt := range tests {
-		res, err := CreateCommitment(tt.squareSize, tt.namespace, tt.message)
-		if tt.expectErr {
-			assert.Error(t, err)
-			continue
-		}
-		assert.NoError(t, err)
-		assert.Equal(t, tt.expected, res)
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := CreateCommitment(tt.squareSize, tt.namespace, tt.message)
+			if tt.expectErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, res)
+		})
 	}
 }
 
@@ -216,7 +143,7 @@ func TestSignMalleatedTxs(t *testing.T) {
 			ss:   []uint64{4, 8, 16, 64},
 			options: []TxBuilderOption{
 				SetGasLimit(123456789),
-				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321)))),
+				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("ucls", sdk.NewInt(987654321)))),
 			},
 		},
 		{
@@ -226,7 +153,7 @@ func TestSignMalleatedTxs(t *testing.T) {
 			ss:   AllSquareSizes(50000),
 			options: []TxBuilderOption{
 				SetGasLimit(123456789),
-				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321)))),
+				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("ucls", sdk.NewInt(987654321)))),
 			},
 		},
 	}
@@ -257,11 +184,12 @@ func TestSignMalleatedTxs(t *testing.T) {
 
 func TestProcessMessage(t *testing.T) {
 	type test struct {
-		name      string
-		ns, msg   []byte
-		ss        uint64
-		expectErr bool
-		modify    func(*MsgWirePayForData) *MsgWirePayForData
+		name       string
+		namespace  []byte
+		msg        []byte
+		squareSize uint64
+		expectErr  bool
+		modify     func(*MsgWirePayForData) *MsgWirePayForData
 	}
 
 	dontModify := func(in *MsgWirePayForData) *MsgWirePayForData {
@@ -274,26 +202,26 @@ func TestProcessMessage(t *testing.T) {
 
 	tests := []test{
 		{
-			name:   "single share square size 2",
-			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			msg:    bytes.Repeat([]byte{1}, totalMsgSize(appconsts.SparseShareContentSize)),
-			ss:     2,
-			modify: dontModify,
+			name:       "single share square size 2",
+			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 1},
+			msg:        bytes.Repeat([]byte{1}, totalMsgSize(appconsts.SparseShareContentSize)),
+			squareSize: 2,
+			modify:     dontModify,
 		},
 		{
-			name:   "15 shares square size 4",
-			ns:     []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:    bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15)),
-			ss:     4,
-			modify: dontModify,
+			name:       "12 shares square size 4",
+			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:        bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12)),
+			squareSize: 4,
+			modify:     dontModify,
 		},
 		{
-			name: "incorrect square size",
-			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:  bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15)),
-			ss:   4,
+			name:       "incorrect square size",
+			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:        bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12)),
+			squareSize: 4,
 			modify: func(wpfd *MsgWirePayForData) *MsgWirePayForData {
-				wpfd.MessageShareCommitment[0].K = 99999
+				wpfd.MessageShareCommitment[0].SquareSize = 99999
 				return wpfd
 			},
 			expectErr: true,
@@ -301,14 +229,14 @@ func TestProcessMessage(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		wpfd, err := NewWirePayForData(tt.ns, tt.msg, tt.ss)
+		wpfd, err := NewWirePayForData(tt.namespace, tt.msg, tt.squareSize)
 		require.NoError(t, err, tt.name)
 		err = wpfd.SignShareCommitments(signer)
 		assert.NoError(t, err)
 
 		wpfd = tt.modify(wpfd)
 
-		message, spfd, sig, err := ProcessWirePayForData(wpfd, tt.ss)
+		message, spfd, sig, err := ProcessWirePayForData(wpfd, tt.squareSize)
 		if tt.expectErr {
 			assert.Error(t, err, tt.name)
 			continue
@@ -316,9 +244,9 @@ func TestProcessMessage(t *testing.T) {
 
 		// ensure that the shared fields are identical
 		assert.Equal(t, tt.msg, message.Data, tt.name)
-		assert.Equal(t, tt.ns, message.NamespaceId, tt.name)
+		assert.Equal(t, tt.namespace, message.NamespaceId, tt.name)
 		assert.Equal(t, wpfd.Signer, spfd.Signer, tt.name)
-		assert.Equal(t, wpfd.MessageNameSpaceId, spfd.MessageNamespaceId, tt.name)
+		assert.Equal(t, wpfd.MessageNamespaceId, spfd.MessageNamespaceId, tt.name)
 		assert.Equal(t, wpfd.MessageShareCommitment[0].ShareCommitment, spfd.MessageShareCommitment, tt.name)
 		assert.Equal(t, wpfd.MessageShareCommitment[0].Signature, sig, tt.name)
 	}
@@ -421,7 +349,7 @@ func TestValidateBasic(t *testing.T) {
 // totalMsgSize subtracts the delimiter size from the desired total size. this
 // is useful for testing for messages that occupy exactly so many shares.
 func totalMsgSize(size int) int {
-	return size - DelimLen(uint64(size))
+	return size - shares.DelimLen(uint64(size))
 }
 
 func validWirePayForData(t *testing.T) *MsgWirePayForData {
@@ -448,16 +376,16 @@ func validMsgPayForData(t *testing.T) *MsgPayForData {
 	kb := generateKeyring(t, "test")
 	signer := NewKeyringSigner(kb, "test", "chain-id")
 	ns := []byte{1, 1, 1, 1, 1, 1, 1, 2}
-	msg := bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*15))
-	ss := uint64(4)
+	msg := bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12))
+	squareSize := uint64(4)
 
-	wpfd, err := NewWirePayForData(ns, msg, ss)
+	wpfd, err := NewWirePayForData(ns, msg, squareSize)
 	assert.NoError(t, err)
 
 	err = wpfd.SignShareCommitments(signer)
 	assert.NoError(t, err)
 
-	_, spfd, _, err := ProcessWirePayForData(wpfd, ss)
+	_, spfd, _, err := ProcessWirePayForData(wpfd, squareSize)
 	require.NoError(t, err)
 
 	return spfd

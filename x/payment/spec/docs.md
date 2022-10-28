@@ -23,8 +23,6 @@ The malleated transaction that is created from metadata contained in the origina
 
 The malleation process occurs during the PrepareProposal step.
 
-<!-- markdownlint-disable MD010 -->
-
 ```go
 // ProcessWirePayForData will perform the processing required by PrepareProposal.
 // It parses the MsgWirePayForData to produce the components needed to create a
@@ -47,7 +45,7 @@ func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.
 
 	// add the message to the list of core message to be returned to ll-core
 	coreMsg := tmproto.Message{
-		NamespaceId: msg.GetMessageNameSpaceId(),
+		NamespaceId: msg.GetMessageNamespaceId(),
 		Data:        msg.GetMessage(),
 	}
 
@@ -115,8 +113,6 @@ There are no parameters yet, but we might add
 
 There are tools to programmatically create, sign, and broadcast `MsgWirePayForDatas`
 
-<!-- markdownlint-disable MD010 -->
-
 ```go
 // create the raw WirePayForData transaction
 wpfdMsg, err := apptypes.NewWirePayForData(block.Header.NamespaceId, message, 16, 32, 64, 128)
@@ -162,13 +158,6 @@ if err != nil {
 
 ### How the commitments are generated
 
-1. create the final version of the message by adding the length delimiter, the namespace, and then the message together into a single string of bytes
-
-   ```python
-   finalMessage = [length delimiter] + [namespace] + [message]
-   ```
-
-2. chunk the finalMessage into shares of size `appconsts.ShareSize`
-3. pad until number of shares is a power of two
-4. create the commitment by aranging the shares into a merkle mountain range
-5. create a merkle root of the subtree roots
+1. Split the message into shares of `appconsts.ShareSize`
+2. Arrange the shares into a Merkle mountain range where each tree in the mountain range has a maximum size of `squareSize`
+3. Take the roots of the trees in the Merkle mountain range and create a new Merkle tree. The message share commitment is the Merkle root of this Merkle tree.

@@ -1,10 +1,12 @@
 package shares
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -26,17 +28,17 @@ func Test_parseSparseShares(t *testing.T) {
 	// each test is ran twice, once using msgSize as an exact size, and again
 	// using it as a cap for randomly sized leaves
 	tests := []test{
-		{"single small msg", 100, 1},
-		{"many small msgs", 100, 10},
-		{"single big msg", 1000, 1},
-		{"many big msgs", 1000, 10},
+		{"single small msg", appconsts.SparseShareContentSize / 2, 1},
+		{"many small msgs", appconsts.SparseShareContentSize / 2, 10},
+		{"single big msg", appconsts.SparseShareContentSize * 4, 1},
+		{"many big msgs", appconsts.SparseShareContentSize * 4, 10},
 		{"single exact size msg", exactMsgShareSize, 1},
 		{"many exact size msgs", appconsts.SparseShareContentSize, 10},
 	}
 
 	for _, tc := range tests {
 		tc := tc
-		// run the tests with identically sized messages
+		// run the tests with identically sized messagses
 		t.Run(fmt.Sprintf("%s identically sized ", tc.name), func(t *testing.T) {
 			rawmsgs := make([]coretypes.Message, tc.msgCount)
 			for i := 0; i < tc.msgCount; i++ {
@@ -46,9 +48,10 @@ func Test_parseSparseShares(t *testing.T) {
 			msgs := coretypes.Messages{MessagesList: rawmsgs}
 			msgs.SortMessages()
 
-			shares, _ := SplitMessages(nil, msgs.MessagesList)
+			shares, _ := SplitMessages(0, nil, msgs.MessagesList, false)
+			rawShares := ToBytes(shares)
 
-			parsedMsgs, err := parseSparseShares(shares)
+			parsedMsgs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
 			}
@@ -63,14 +66,18 @@ func Test_parseSparseShares(t *testing.T) {
 		// run the same tests using randomly sized messages with caps of tc.msgSize
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
 			msgs := generateRandomlySizedMessages(tc.msgCount, tc.msgSize)
-			shares, _ := SplitMessages(nil, msgs.MessagesList)
+			shares, _ := SplitMessages(0, nil, msgs.MessagesList, false)
+			rawShares := make([][]byte, len(shares))
+			for i, share := range shares {
+				rawShares[i] = []byte(share)
+			}
 
-			parsedMsgs, err := parseSparseShares(shares)
+			parsedMsgs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
 			}
 
-			// check that the namesapces and data are the same
+			// check that the namespaces and data are the same
 			for i := 0; i < len(msgs.MessagesList); i++ {
 				assert.Equal(t, msgs.MessagesList[i].NamespaceID, parsedMsgs[i].NamespaceID)
 				assert.Equal(t, msgs.MessagesList[i].Data, parsedMsgs[i].Data)
@@ -79,10 +86,39 @@ func Test_parseSparseShares(t *testing.T) {
 	}
 }
 
+func Test_parseSparseSharesErrors(t *testing.T) {
+	type testCase struct {
+		name      string
+		rawShares [][]byte
+	}
+
+	unsupportedShareVersion := 5
+	infoByte, _ := NewInfoByte(uint8(unsupportedShareVersion), true)
+
+	rawShare := []byte{}
+	rawShare = append(rawShare, namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}...)
+	rawShare = append(rawShare, byte(infoByte))
+	rawShare = append(rawShare, bytes.Repeat([]byte{0}, appconsts.ShareSize-len(rawShare))...)
+
+	tests := []testCase{
+		{
+			"share with unsupported share version",
+			[][]byte{rawShare},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(*testing.T) {
+			_, err := parseSparseShares(tt.rawShares, appconsts.SupportedShareVersions)
+			assert.Error(t, err)
+		})
+	}
+}
+
 func TestParsePaddedMsg(t *testing.T) {
 	msgWr := NewSparseShareSplitter()
-	randomSmallMsg := generateRandomMessage(100)
-	randomLargeMsg := generateRandomMessage(10000)
+	randomSmallMsg := generateRandomMessage(appconsts.SparseShareContentSize / 2)
+	randomLargeMsg := generateRandomMessage(appconsts.SparseShareContentSize * 4)
 	msgs := coretypes.Messages{
 		MessagesList: []coretypes.Message{
 			randomSmallMsg,
@@ -94,22 +130,24 @@ func TestParsePaddedMsg(t *testing.T) {
 	msgWr.WriteNamespacedPaddedShares(4)
 	msgWr.Write(msgs.MessagesList[1])
 	msgWr.WriteNamespacedPaddedShares(10)
-	pmsgs, err := parseSparseShares(msgWr.Export().RawShares())
+	shares := msgWr.Export()
+	rawShares := ToBytes(shares)
+	pmsgs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
 	require.NoError(t, err)
 	require.Equal(t, msgs.MessagesList, pmsgs)
 }
 
 func TestMsgShareContainsInfoByte(t *testing.T) {
 	sss := NewSparseShareSplitter()
-	smallMsg := generateRandomMessage(100)
+	smallMsg := generateRandomMessage(appconsts.SparseShareContentSize / 2)
 	sss.Write(smallMsg)
 
-	shares := sss.Export().RawShares()
+	shares := sss.Export()
 
 	got := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
-	isMessageStart := true
-	want, err := NewInfoReservedByte(appconsts.ShareVersion, isMessageStart)
+	isSequenceStart := true
+	want, err := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
 
 	require.NoError(t, err)
 	assert.Equal(t, byte(want), got)
@@ -117,17 +155,17 @@ func TestMsgShareContainsInfoByte(t *testing.T) {
 
 func TestContiguousMsgShareContainsInfoByte(t *testing.T) {
 	sss := NewSparseShareSplitter()
-	longMsg := generateRandomMessage(1000)
+	longMsg := generateRandomMessage(appconsts.SparseShareContentSize * 4)
 	sss.Write(longMsg)
 
-	shares := sss.Export().RawShares()
+	shares := sss.Export()
 
 	// we expect longMsg to occupy more than one share
 	assert.Condition(t, func() bool { return len(shares) > 1 })
 	got := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
-	isMessageStart := false
-	want, err := NewInfoReservedByte(appconsts.ShareVersion, isMessageStart)
+	isSequenceStart := false
+	want, err := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
 
 	require.NoError(t, err)
 	assert.Equal(t, byte(want), got)

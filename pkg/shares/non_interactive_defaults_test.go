@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMsgSharesUsedNIDefaults(t *testing.T) {
+func TestMsgSharesUsedNonInteractiveDefaults(t *testing.T) {
 	type test struct {
 		cursor, squareSize, expected int
 		msgLens                      []int
@@ -21,7 +21,7 @@ func TestMsgSharesUsedNIDefaults(t *testing.T) {
 		{0, 8, 8, []int{8}, []uint32{0}},
 		{0, 8, 7, []int{7}, []uint32{0}},
 		{0, 8, 7, []int{3, 3}, []uint32{0, 4}},
-		{1, 8, 8, []int{3, 3}, []uint32{2, 6}}, //
+		{1, 8, 8, []int{3, 3}, []uint32{2, 6}},
 		{1, 8, 32, []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, []uint32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}},
 		{3, 8, 16, []int{5, 7}, []uint32{4, 12}},
 		{0, 8, 29, []int{5, 5, 5, 5}, []uint32{0, 8, 16, 24}},
@@ -37,7 +37,7 @@ func TestMsgSharesUsedNIDefaults(t *testing.T) {
 		{1024, appconsts.MaxSquareSize, 32, []int{32}, []uint32{1024}},
 	}
 	for i, tt := range tests {
-		res, indexes := MsgSharesUsedNIDefaults(tt.cursor, tt.squareSize, tt.msgLens...)
+		res, indexes := MsgSharesUsedNonInteractiveDefaults(tt.cursor, tt.squareSize, tt.msgLens...)
 		test := fmt.Sprintf("test %d: cursor %d, squareSize %d", i, tt.cursor, tt.squareSize)
 		assert.Equal(t, tt.expected, res, test)
 		assert.Equal(t, tt.indexes, indexes, test)
@@ -93,6 +93,41 @@ func TestFitsInSquare(t *testing.T) {
 			msgs:  []int{3, 9, 3, 7, 8, 3, 7, 8},
 			start: 6,
 			size:  8,
+			fits:  false,
+		},
+		{
+			name:  "0 msgs (0 msg shares, 5 compact, size 2)",
+			msgs:  []int{},
+			start: 5,
+			size:  2,
+			fits:  false,
+		},
+		{
+			name:  "0 msgs (0 msg shares, 4 compact, size 2)",
+			msgs:  []int{},
+			start: 4,
+			size:  2,
+			fits:  true,
+		},
+		{
+			name:  "0 msgs. Cursor at the the max share index",
+			msgs:  []int{},
+			start: 16,
+			size:  4,
+			fits:  true,
+		},
+		{
+			name:  "0 msgs. Cursor higher than max share index",
+			msgs:  []int{},
+			start: 17,
+			size:  4,
+			fits:  false,
+		},
+		{
+			name:  "0 msgs. Cursor higher than max share index (again)",
+			msgs:  []int{},
+			start: 18,
+			size:  4,
 			fits:  false,
 		},
 	}

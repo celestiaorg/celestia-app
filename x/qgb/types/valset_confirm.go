@@ -9,6 +9,21 @@ import (
 
 var _ sdk.Msg = &MsgValsetConfirm{}
 
+// NewMsgValsetConfirm returns a new msgValSetConfirm.
+func NewMsgValsetConfirm(
+	nonce uint64,
+	evmAddr common.Address,
+	validator sdk.AccAddress,
+	signature string,
+) *MsgValsetConfirm {
+	return &MsgValsetConfirm{
+		Nonce:        nonce,
+		Orchestrator: validator.String(),
+		EvmAddress:   evmAddr.Hex(),
+		Signature:    signature,
+	}
+}
+
 // GetSigners defines whose signature is required.
 func (msg *MsgValsetConfirm) GetSigners() []sdk.AccAddress {
 	// TODO: figure out how to convert between AccAddress and ValAddress properly
@@ -25,8 +40,8 @@ func (msg *MsgValsetConfirm) ValidateBasic() (err error) {
 	if _, err = sdk.AccAddressFromBech32(msg.Orchestrator); err != nil {
 		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, msg.Orchestrator)
 	}
-	if !common.IsHexAddress(msg.EthAddress) {
-		return sdkerrors.Wrap(stakingtypes.ErrEthAddressNotHex, "ethereum address")
+	if !common.IsHexAddress(msg.EvmAddress) {
+		return sdkerrors.Wrap(stakingtypes.ErrEVMAddressNotHex, "evm address")
 	}
 	return nil
 }

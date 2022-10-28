@@ -10,10 +10,6 @@ import (
 )
 
 const (
-	// EthSignPrefix is used to mimic the expected encoding. see
-	// https://github.com/OpenZeppelin/openzeppelin-contracts/blob/c9f328ef66251db7fac7c704dd6c5523fc53b0ab/contracts/cryptography/ECDSA.sol#L69-L82 //nolint:lll
-	EthSignPrefix = "\x19Ethereum Signed Message:\n32"
-
 	// InternalQGBabiJSON is the json encoded abi for private functions in the
 	// qgb contract. This is needed to encode data that is signed over in a way
 	// that the contracts can easily verify.

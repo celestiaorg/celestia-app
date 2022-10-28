@@ -1,58 +1,72 @@
 package shares
 
 import (
+	"bytes"
 	"encoding/binary"
+	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // Share contains the raw share data (including namespace ID).
 type Share []byte
 
-// NamespacedShare extends a Share with the corresponding namespace.
-type NamespacedShare struct {
-	Share
-	ID namespace.ID
-}
-
-func (n NamespacedShare) NamespaceID() namespace.ID {
-	return n.ID
-}
-
-func (n NamespacedShare) Data() []byte {
-	return n.Share
-}
-
-// NamespacedShares is just a list of NamespacedShare elements.
-// It can be used to extract the raw shares.
-type NamespacedShares []NamespacedShare
-
-// RawShares returns the raw shares that can be fed into the erasure coding
-// library (e.g. rsmt2d).
-func (ns NamespacedShares) RawShares() [][]byte {
-	res := make([][]byte, len(ns))
-	for i, nsh := range ns {
-		res[i] = nsh.Share
+func NewShare(data []byte) (Share, error) {
+	if len(data) != appconsts.ShareSize {
+		return nil, fmt.Errorf("share data must be %d bytes, got %d", appconsts.ShareSize, len(data))
 	}
-	return res
+	return Share(data), nil
 }
 
-// MarshalDelimitedTx prefixes a transaction with the length of the transaction
-// encoded as a varint.
-func MarshalDelimitedTx(tx coretypes.Tx) ([]byte, error) {
-	lenBuf := make([]byte, binary.MaxVarintLen64)
-	length := uint64(len(tx))
-	n := binary.PutUvarint(lenBuf, length)
-	return append(lenBuf[:n], tx...), nil
+func (s Share) NamespaceID() namespace.ID {
+	if len(s) < appconsts.NamespaceSize {
+		panic(fmt.Sprintf("share %s is too short to contain a namespace ID", s))
+	}
+	return namespace.ID(s[:appconsts.NamespaceSize])
 }
 
-// MarshalDelimitedMessage marshals the raw share data (excluding the namespace)
-// of this message and prefixes it with the length of the message encoded as a
-// varint.
-func MarshalDelimitedMessage(msg coretypes.Message) ([]byte, error) {
-	lenBuf := make([]byte, binary.MaxVarintLen64)
-	length := uint64(len(msg.Data))
-	n := binary.PutUvarint(lenBuf, length)
-	return append(lenBuf[:n], msg.Data...), nil
+func (s Share) InfoByte() (InfoByte, error) {
+	if len(s) < appconsts.NamespaceSize+appconsts.ShareInfoBytes {
+		panic(fmt.Sprintf("share %s is too short to contain an info byte", s))
+	}
+	// the info byte is the first byte after the namespace ID
+	unparsed := s[appconsts.NamespaceSize]
+	return ParseInfoByte(unparsed)
+}
+
+func (s Share) SequenceLength() (uint64, error) {
+	infoByte, err := s.InfoByte()
+	if err != nil {
+		return 0, err
+	}
+	if !infoByte.IsSequenceStart() {
+		return 0, fmt.Errorf("share %s is not a sequence start", s)
+	}
+	if s.isCompactShare() && len(s) < appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareSequenceLengthBytes {
+		return 0, fmt.Errorf("compact share %s is too short to contain sequence length", s)
+	}
+	reader := bytes.NewReader(s[appconsts.NamespaceSize+appconsts.ShareInfoBytes:])
+	return binary.ReadUvarint(reader)
+}
+
+// isCompactShare returns true if this share is a compact share.
+func (s Share) isCompactShare() bool {
+	return s.NamespaceID().Equal(appconsts.TxNamespaceID) || s.NamespaceID().Equal(appconsts.EvidenceNamespaceID)
+}
+
+func ToBytes(shares []Share) (bytes [][]byte) {
+	bytes = make([][]byte, len(shares))
+	for i, share := range shares {
+		bytes[i] = []byte(share)
+	}
+	return bytes
+}
+
+func FromBytes(bytes [][]byte) (shares []Share) {
+	shares = make([]Share, len(bytes))
+	for i, b := range bytes {
+		shares[i] = Share(b)
+	}
+	return shares
 }

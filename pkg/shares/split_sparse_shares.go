@@ -1,6 +1,7 @@
 package shares
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -12,7 +13,7 @@ import (
 // included in a data square. It also has methods to help progressively count
 // how many shares the messages written take up.
 type SparseShareSplitter struct {
-	shares [][]NamespacedShare
+	shares []Share
 	count  int
 }
 
@@ -26,9 +27,9 @@ func (sss *SparseShareSplitter) Write(msg coretypes.Message) {
 	if err != nil {
 		panic(fmt.Sprintf("app accepted a Message that can not be encoded %#v", msg))
 	}
-	newShares := make([]NamespacedShare, 0)
+	newShares := make([]Share, 0)
 	newShares = AppendToShares(newShares, msg.NamespaceID, rawMsg)
-	sss.shares = append(sss.shares, newShares)
+	sss.shares = append(sss.shares, newShares...)
 	sss.count += len(newShares)
 }
 
@@ -38,7 +39,7 @@ func (sss *SparseShareSplitter) RemoveMessage(i int) (int, error) {
 	j := 1
 	initialCount := sss.count
 	if len(sss.shares) > i+1 {
-		_, msgLen, err := ParseDelimiter(sss.shares[i+1][0].Share[appconsts.NamespaceSize:])
+		msgLen, err := sss.shares[i+1].SequenceLength()
 		if err != nil {
 			return 0, err
 		}
@@ -67,21 +68,13 @@ func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) {
 		return
 	}
 	lastMessage := sss.shares[len(sss.shares)-1]
-	sss.shares = append(sss.shares, namespacedPaddedShares(lastMessage[0].ID, count))
+	sss.shares = append(sss.shares, namespacedPaddedShares(lastMessage.NamespaceID(), count)...)
 	sss.count += count
 }
 
 // Export finalizes and returns the underlying shares.
-func (sss *SparseShareSplitter) Export() NamespacedShares {
-	shares := make([]NamespacedShare, sss.count)
-	cursor := 0
-	for _, namespacedShares := range sss.shares {
-		for _, share := range namespacedShares {
-			shares[cursor] = share
-			cursor++
-		}
-	}
-	return shares
+func (sss *SparseShareSplitter) Export() []Share {
+	return sss.shares
 }
 
 // Count returns the current number of shares that will be made if exporting.
@@ -91,9 +84,9 @@ func (sss *SparseShareSplitter) Count() int {
 
 // AppendToShares appends raw data as shares.
 // Used for messages.
-func AppendToShares(shares []NamespacedShare, nid namespace.ID, rawData []byte) []NamespacedShare {
+func AppendToShares(shares []Share, nid namespace.ID, rawData []byte) []Share {
 	if len(rawData) <= appconsts.SparseShareContentSize {
-		infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, true)
+		infoByte, err := NewInfoByte(appconsts.ShareVersion, true)
 		if err != nil {
 			panic(err)
 		}
@@ -103,20 +96,28 @@ func AppendToShares(shares []NamespacedShare, nid namespace.ID, rawData []byte) 
 			byte(infoByte)),
 			rawData...,
 		)
-		paddedShare := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
-		share := NamespacedShare{paddedShare, nid}
-		shares = append(shares, share)
+		paddedShare, _ := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
+		shares = append(shares, paddedShare)
 	} else { // len(rawData) > MsgShareSize
 		shares = append(shares, splitMessage(rawData, nid)...)
 	}
 	return shares
 }
 
+// MarshalDelimitedMessage marshals the raw share data (excluding the namespace)
+// of this message and prefixes it with the length of the message encoded as a
+// varint.
+func MarshalDelimitedMessage(msg coretypes.Message) ([]byte, error) {
+	lenBuf := make([]byte, binary.MaxVarintLen64)
+	length := uint64(len(msg.Data))
+	n := binary.PutUvarint(lenBuf, length)
+	return append(lenBuf[:n], msg.Data...), nil
+}
+
 // splitMessage breaks the data in a message into the minimum number of
 // namespaced shares
-func splitMessage(rawData []byte, nid namespace.ID) NamespacedShares {
-	shares := make([]NamespacedShare, 0)
-	infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, true)
+func splitMessage(rawData []byte, nid namespace.ID) (shares []Share) {
+	infoByte, err := NewInfoByte(appconsts.ShareVersion, true)
 	if err != nil {
 		panic(err)
 	}
@@ -126,11 +127,11 @@ func splitMessage(rawData []byte, nid namespace.ID) NamespacedShares {
 		byte(infoByte)),
 		rawData[:appconsts.SparseShareContentSize]...,
 	)
-	shares = append(shares, NamespacedShare{firstRawShare, nid})
+	shares = append(shares, firstRawShare)
 	rawData = rawData[appconsts.SparseShareContentSize:]
 	for len(rawData) > 0 {
 		shareSizeOrLen := min(appconsts.SparseShareContentSize, len(rawData))
-		infoByte, err := NewInfoReservedByte(appconsts.ShareVersion, false)
+		infoByte, err := NewInfoByte(appconsts.ShareVersion, false)
 		if err != nil {
 			panic(err)
 		}
@@ -140,10 +141,29 @@ func splitMessage(rawData []byte, nid namespace.ID) NamespacedShares {
 			byte(infoByte)),
 			rawData[:shareSizeOrLen]...,
 		)
-		paddedShare := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
-		share := NamespacedShare{paddedShare, nid}
-		shares = append(shares, share)
+		paddedShare, _ := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
+		shares = append(shares, paddedShare)
 		rawData = rawData[shareSizeOrLen:]
 	}
 	return shares
+}
+
+func namespacedPaddedShares(ns namespace.ID, count int) []Share {
+	shares := make([]Share, count)
+	for i := 0; i < count; i++ {
+		shares[i] = namespacedPaddedShare(ns)
+	}
+	return shares
+}
+
+func namespacedPaddedShare(ns namespace.ID) Share {
+	infoByte, err := NewInfoByte(appconsts.ShareVersion, true)
+	if err != nil {
+		panic(err)
+	}
+	share := make([]byte, 0, appconsts.ShareSize)
+	share = append(share, ns...)
+	share = append(share, byte(infoByte))
+	share = append(share, appconsts.NameSpacedPaddedShareBytes...)
+	return share
 }

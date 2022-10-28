@@ -1,12 +1,11 @@
 name: Lint
 # Lint runs golangci-lint over the entire cosmos-sdk repository
 # This workflow is run on every pull request and push to main
-# The `golangci` will pass without running if no *.{go, mod, sum} files have been changed.
+# The `golangci` will pass without running if no *.{go, mod, sum} files have
+# been changed.
 on:
-  pull_request:
-  push:
-    branches:
-      - main
+  workflow_call:
+
 jobs:
   golangci:
     name: golangci-lint
@@ -17,13 +16,13 @@ jobs:
         with:
           go-version: 1.18
       - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6.1.0
+      - uses: technote-space/get-diff-action@v6.1.1
         with:
           PATTERNS: |
             **/**.go
             go.mod
             go.sum
-      - uses: golangci/golangci-lint-action@v3.2.0
+      - uses: golangci/golangci-lint-action@v3.3.0
         with:
           version: v1.47.2
           args: --timeout 10m

@@ -1,6 +1,5 @@
 #!/usr/bin/make -f
 
-PACKAGES=$(shell go list ./... | grep -v '/simulation')
 VERSION := $(shell echo $(shell git describe --tags) | sed 's/^v//')
 COMMIT := $(shell git log -1 --format='%H')
 DOCKER := $(shell which docker)
@@ -45,7 +44,7 @@ go.sum: mod
 		GO111MODULE=on go mod verify
 
 test:
-	@go test -mod=readonly $(PACKAGES)
+	@go test -mod=readonly ./...
 .PHONY: test
 
 proto-gen:

@@ -44,20 +44,26 @@ node            |  |                               |  |
 ```sh
 # Print help message
 celestia-appd --help
+```
 
-# Create your own single node devnet
-celestia-appd init test --chain-id test
-celestia-appd keys add user1
-celestia-appd add-genesis-account <address from above command> 10000000utia,1000token
-celestia-appd gentx user1 1000000utia --chain-id test
-celestia-appd collect-gentxs
-celestia-appd start
+### Create your own single node devnet
+
+```sh
+# WARNING: this deletes config, data, and keyrings from previous local devnets
+rm -r ~/.celestia-app
+
+# Start a single node devnet
+./scripts/single-node.sh
 
 # Post data to the local devnet
 celestia-appd tx payment payForData [hexNamespace] [hexMessage] [flags]
 ```
 
+<!-- markdown-link-check-disable -->
+<!-- markdown-link encounters an HTTP 503 on this link even though it works. -->
+<!-- See https://github.com/celestiaorg/celestia-app/actions/runs/3296219513/jobs/5439416229#step:4:185 -->
 See <https://docs.celestia.org/category/celestia-app> for more information
+<!-- markdown-link-check-enable -->
 
 ## Contributing
 
@@ -77,7 +83,14 @@ make test
 
 # Format code with linters (this assumes golangci-lint and markdownlint are installed)
 make fmt
+
+# Regenerate Protobuf files (this assumes Docker is running)
+make proto-gen
 ```
+
+### Package-specific documentation
+
+- [Shares](https://pkg.go.dev/github.com/celestiaorg/celestia-app/pkg/shares)
 
 ## Careers
 

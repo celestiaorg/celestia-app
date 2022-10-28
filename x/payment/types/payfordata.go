@@ -1,12 +1,11 @@
 package types
 
 import (
+	"crypto/sha256"
 	"fmt"
-	"math/bits"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/rsmt2d"
+	"github.com/celestiaorg/nmt"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -14,7 +13,7 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 	coretypes "github.com/tendermint/tendermint/types"
 
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 )
 
 const (
@@ -89,7 +88,7 @@ func BuildPayForDataTxFromWireTx(
 		return nil, err
 	}
 	if len(origSigs) != 1 {
-		return nil, fmt.Errorf("unexpected number of signers: %d", len(origSigs))
+		return nil, fmt.Errorf("unexpected number of signatures: %d", len(origSigs))
 	}
 
 	newSig := signing.SignatureV2{
@@ -109,10 +108,12 @@ func BuildPayForDataTxFromWireTx(
 	return builder.GetTx(), nil
 }
 
-// CreateCommitment generates the commit bytes for a given squareSize,
+// CreateCommitment generates the commitment bytes for a given squareSize,
 // namespace, and message using a namespace merkle tree and the rules described
-// at
-// https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#message-layout-rationale
+// at [Message layout rationale] and [Non-interactive default rules].
+//
+// [Message layout rationale]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L12
+// [Non-interactive default rules]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L36
 func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, error) {
 	msg := coretypes.Messages{
 		MessagesList: []coretypes.Message{
@@ -125,112 +126,70 @@ func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, err
 
 	// split into shares that are length delimited and include the namespace in
 	// each share
-	shares, err := shares.SplitMessages(nil, msg.MessagesList)
+	shares, err := appshares.SplitMessages(0, nil, msg.MessagesList, false)
 	if err != nil {
 		return nil, err
 	}
-	// if the number of shares is larger than that in the square, throw an error
-	// note, we use (squareSize*squareSize)-1 here because at least a single
-	// share will be reserved for the transaction paying for the message,
-	// therefore the max number of shares a message can be is number of shares
-	// in square - 1.
-	if uint64(len(shares)) > (squareSize*squareSize)-1 {
-		return nil, fmt.Errorf("message size exceeds max shares for square size %d: max %d taken %d", squareSize, (squareSize*squareSize)-1, len(shares))
+
+	// Return an error if the number of shares is larger than the max number of
+	// shares for a message. At least one share will be occupied by the
+	// transaction that pays for this message. According to the non-interactive
+	// default rules, a message that spans multiple rows must start in a new
+	// row. Therefore the message must start at the second row and may occupy
+	// all (squareSize - 1) rows.
+	maxNumSharesForMessage := squareSize * (squareSize - 1)
+	if uint64(len(shares)) > maxNumSharesForMessage {
+		return nil, fmt.Errorf("message size exceeds max shares for square size %d: max %d taken %d", squareSize, maxNumSharesForMessage, len(shares))
 	}
 
 	// organize shares for merkle mountain range
-	heights := powerOf2MountainRange(uint64(len(shares)), squareSize)
-	leafSets := make([][][]byte, len(heights))
+	treeSizes := merkleMountainRangeSizes(uint64(len(shares)), squareSize)
+	leafSets := make([][][]byte, len(treeSizes))
 	cursor := uint64(0)
-	for i, height := range heights {
-		leafSets[i] = shares[cursor : cursor+height]
-		cursor = cursor + height
+	for i, treeSize := range treeSizes {
+		leafSets[i] = appshares.ToBytes(shares[cursor : cursor+treeSize])
+		cursor = cursor + treeSize
 	}
 
-	// create the commits by pushing each leaf set onto an nmt
+	// create the commitments by pushing each leaf set onto an nmt
 	subTreeRoots := make([][]byte, len(leafSets))
 	for i, set := range leafSets {
-		tree := wrapper.NewErasuredNamespacedMerkleTree(appconsts.MaxSquareSize)
+		// create the nmt todo(evan) use nmt wrapper
+		tree := nmt.New(sha256.New())
 		for _, leaf := range set {
 			nsLeaf := append(make([]byte, 0), append(namespace, leaf...)...)
-			// here we hardcode pushing as axis 0 cell 0 because we never want
-			// to add the parity namespace to our shares when we create roots.
-			tree.Push(nsLeaf, rsmt2d.SquareIndex{Axis: 0, Cell: 0})
+			err := tree.Push(nsLeaf)
+			if err != nil {
+				return nil, err
+			}
 		}
+		// add the root
 		subTreeRoots[i] = tree.Root()
 	}
 	return merkle.HashFromByteSlices(subTreeRoots), nil
 }
 
-// powerOf2MountainRange returns the heights of the subtrees for binary merkle
-// mountain range
-func powerOf2MountainRange(l, squareSize uint64) []uint64 {
-	var output []uint64
+// merkleMountainRangeSizes returns the sizes (number of leaf nodes) of the
+// trees in a merkle mountain range constructed for a given totalSize and
+// maxTreeSize.
+//
+// https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/
+// https://github.com/opentimestamps/opentimestamps-server/blob/master/doc/merkle-mountain-range.md
+// TODO: potentially rename function because this doesn't return heights
+func merkleMountainRangeSizes(totalSize, maxTreeSize uint64) []uint64 {
+	var treeSizes []uint64
 
-	for l != 0 {
+	for totalSize != 0 {
 		switch {
-		case l >= squareSize:
-			output = append(output, squareSize)
-			l = l - squareSize
-		case l < squareSize:
-			p := nextLowerPowerOf2(l)
-			output = append(output, p)
-			l = l - p
+		case totalSize >= maxTreeSize:
+			treeSizes = append(treeSizes, maxTreeSize)
+			totalSize = totalSize - maxTreeSize
+		case totalSize < maxTreeSize:
+			treeSize := appshares.RoundDownPowerOfTwo(totalSize)
+			treeSizes = append(treeSizes, treeSize)
+			totalSize = totalSize - treeSize
 		}
 	}
 
-	return output
-}
-
-// NextHigherPowerOf2 returns the next power of 2 that is higher than v.
-// Examples:
-// NextHigherPowerOf2(1) = 2
-// NextHigherPowerOf2(2) = 4
-// NextHigherPowerOf2(5) = 8
-func NextHigherPowerOf2(v uint64) uint64 {
-	// keep track of the value to check if its the same later
-	i := v
-
-	// find the next highest power using bit mashing
-	v--
-	v |= v >> 1
-	v |= v >> 2
-	v |= v >> 4
-	v |= v >> 8
-	v |= v >> 16
-	v |= v >> 32
-	v++
-
-	// force the value to the next highest power of two if its the same
-	if v == i {
-		return 2 * v
-	}
-
-	return v
-}
-
-// nextLowerPowerOf2 returns the next power of 2 that is lower than v unless v
-// is a power of 2 in which case it returns v. Examples:
-// nextLowerPowerOf2(1) = 1
-// nextLowerPowerOf2(2) = 2
-// nextLowerPowerOf2(5) = 4
-func nextLowerPowerOf2(v uint64) uint64 {
-	c := NextHigherPowerOf2(v)
-	if c == v {
-		return c
-	}
-	return c / 2
-}
-
-// Check if number is power of 2
-func powerOf2(v uint64) bool {
-	if v&(v-1) == 0 && v != 0 {
-		return true
-	}
-	return false
-}
-
-// DelimLen calculates the length of the delimiter for a given message size
-func DelimLen(x uint64) int {
-	return 8 - bits.LeadingZeros64(x)%8
+	return treeSizes
 }

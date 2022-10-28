@@ -26,12 +26,12 @@ type ErasuredNamespacedMerkleTree struct {
 }
 
 // NewErasuredNamespacedMerkleTree issues a new ErasuredNamespacedMerkleTree. squareSize must be greater than zero
-func NewErasuredNamespacedMerkleTree(origSquareSize uint64, setters ...nmt.Option) ErasuredNamespacedMerkleTree {
-	if origSquareSize == 0 {
+func NewErasuredNamespacedMerkleTree(squareSize uint64, setters ...nmt.Option) ErasuredNamespacedMerkleTree {
+	if squareSize == 0 {
 		panic("cannot create a ErasuredNamespacedMerkleTree of squareSize == 0")
 	}
 	tree := nmt.New(appconsts.NewBaseHashFunc(), setters...)
-	return ErasuredNamespacedMerkleTree{squareSize: origSquareSize, options: setters, tree: tree}
+	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: setters, tree: tree}
 }
 
 // Constructor acts as the rsmt2d.TreeConstructorFn for

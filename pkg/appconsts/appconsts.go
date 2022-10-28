@@ -2,7 +2,9 @@ package appconsts
 
 import (
 	"bytes"
+	"encoding/binary"
 
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/pkg/consts"
@@ -12,10 +14,10 @@ import (
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/consensus.md#constants
 const (
 	// ShareSize is the size of a share in bytes.
-	ShareSize = 256
+	ShareSize = 512
 
 	// NamespaceSize is the namespace size in bytes.
-	NamespaceSize = 8
+	NamespaceSize = nmt.DefaultNamespaceIDLen
 
 	// ShareInfoBytes is the number of bytes reserved for information. The info
 	// byte contains the share version and a start idicator.
@@ -24,16 +26,15 @@ const (
 	// ShareVersion is the current version of the share format
 	ShareVersion = uint8(0)
 
-	// See https://github.com/celestiaorg/celestia-app/pull/660#discussion_r958603307
-	// for the motivation behind `CompactShare` and `SparseShare` terminology.
-
 	// CompactShareReservedBytes is the number of bytes reserved for the location of
 	// the first unit (transaction, ISR, evidence) in a compact share.
-	CompactShareReservedBytes = 1
+	CompactShareReservedBytes = 2
 
-	// CompactShareContentSize is the number of bytes usable for data in a compact
-	// (i.e. transactions, ISRs, evidence) share.
-	CompactShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareReservedBytes
+	// ContinuationCompactShareContentSize is the number of bytes usable for
+	// data in a continuation compact share. A continuation share is any
+	// share in a reserved namespace that isn't the first share in that
+	// namespace.
+	ContinuationCompactShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareReservedBytes
 
 	// SparseShareContentSize is the number of bytes usable for data in a sparse (i.e.
 	// message) share.
@@ -58,6 +59,21 @@ const (
 
 	// MaxShareVersion is the maximum value a share version can be.
 	MaxShareVersion = 127
+
+	// MalleatedTxBytes is the overhead bytes added to a normal transaction after
+	// malleating it. 32 for the original hash, 4 for the uint32 share_index, and 3
+	// for protobuf
+	MalleatedTxBytes = 32 + 4 + 3
+
+	// ShareCommitmentBytes is the number of bytes used by a protobuf encoded
+	// share commitment. 64 bytes for the signature, 32 bytes for the
+	// commitment, 8 bytes for the uint64, and 4 bytes for the protobuf overhead
+	ShareCommitmentBytes = 64 + 32 + 8 + 4
+
+	// MalleatedTxEstimateBuffer is the "magic" number used to ensure that the
+	// estimate of a malleated transaction is at least as big if not larger than
+	// the actual value. TODO: use a more accurate number
+	MalleatedTxEstimateBuffer = 100
 )
 
 var (
@@ -98,4 +114,32 @@ var (
 	// that the next message starts at an index that conforms to non-interactive
 	// defaults.
 	NameSpacedPaddedShareBytes = bytes.Repeat([]byte{0}, SparseShareContentSize)
+
+	// FirstCompactShareSequenceLengthBytes is the number of bytes reserved for the total
+	// sequence length that is stored in the first compact share of a sequence. This
+	// value is the maximum number of bytes required to store the sequence
+	// length of a block that only contains shares of one type. For example, if
+	// a block contains only evidence then it could contain: MaxSquareSize *
+	// MaxSquareSize * ShareSize bytes of evidence.
+	//
+	// Assuming MaxSquareSize is 128 and ShareSize is 256, this is 4194304 bytes
+	// of evidence. It takes 4 bytes to store a varint of 4194304.
+	//
+	// https://go.dev/play/p/MynwcDHQ_me
+	FirstCompactShareSequenceLengthBytes = numberOfBytesVarint(MaxSquareSize * MaxSquareSize * ShareSize)
+
+	// FirstCompactShareContentSize is the number of bytes usable for data in
+	// the first compact share of a reserved namespace. This type of share
+	// contains less space for data than a ContinuationCompactShare because the
+	// first compact share includes a total sequence length varint.
+	FirstCompactShareContentSize = ContinuationCompactShareContentSize - FirstCompactShareSequenceLengthBytes
+
+	// SupportedShareVersions is a list of supported share versions.
+	SupportedShareVersions = []uint8{ShareVersion}
 )
+
+// numberOfBytesVarint calculates the number of bytes needed to write a varint of n
+func numberOfBytesVarint(n uint64) (numberOfBytes int) {
+	buf := make([]byte, binary.MaxVarintLen64)
+	return binary.PutUvarint(buf, n)
+}

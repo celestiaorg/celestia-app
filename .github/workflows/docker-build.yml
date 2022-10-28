@@ -2,9 +2,16 @@ name: "docker-build"
 
 on:
   push:
-    branches:
-      - "main"
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+"
   workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   docker-build:
@@ -31,11 +38,22 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: tag version
+        uses: nowsprinting/check-version-format-action@v3
+        id: tag_version
+        with:
+          prefix: "v"
+
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
           push: true
-          tags: ghcr.io/celestiaorg/celestia-app:latest
+          # yamllint disable
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tag_version.outputs.full }}
+          # yamllint enable
           file: Dockerfile
 
   docker-build-ephemeral:
