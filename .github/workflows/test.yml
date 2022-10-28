@@ -277,6 +277,6 @@ jobs:
             go.mod
             go.sum
       - name: Test
-        run: go test -test.timeout 60m -failfast -v github.com/celestiaorg/celestia-app/e2e/qgb
+        run: go test -test.timeout 60m -failfast -v github.com/celestiaorg/celestia-app/e2e/qgb # yamllint disable-line rule:line-length
         env:
           QGB_INTEGRATION_TEST: true
