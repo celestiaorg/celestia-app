@@ -9,8 +9,10 @@ import (
 )
 
 // Fulfills the rsmt2d.Tree interface and rsmt2d.TreeConstructorFn function
-var _ rsmt2d.TreeConstructorFn = ErasuredNamespacedMerkleTree{}.Constructor
-var _ rsmt2d.Tree = &ErasuredNamespacedMerkleTree{}
+var (
+	_ rsmt2d.TreeConstructorFn = ErasuredNamespacedMerkleTree{}.Constructor
+	_ rsmt2d.Tree              = &ErasuredNamespacedMerkleTree{}
+)
 
 // ErasuredNamespacedMerkleTree wraps NamespaceMerkleTree to conform to the
 // rsmt2d.Tree interface while also providing the correct namespaces to the
