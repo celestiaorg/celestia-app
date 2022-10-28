@@ -23,21 +23,22 @@ type ErasuredNamespacedMerkleTree struct {
 	squareSize uint64 // note: this refers to the width of the original square before erasure-coded
 	options    []nmt.Option
 	tree       *nmt.NamespacedMerkleTree
+	idx        rsmt2d.SquareIndex
 }
 
 // NewErasuredNamespacedMerkleTree issues a new ErasuredNamespacedMerkleTree. squareSize must be greater than zero
-func NewErasuredNamespacedMerkleTree(squareSize uint64, setters ...nmt.Option) ErasuredNamespacedMerkleTree {
+func NewErasuredNamespacedMerkleTree(squareSize uint64, axis rsmt2d.Axis, index uint, setters ...nmt.Option) ErasuredNamespacedMerkleTree {
 	if squareSize == 0 {
 		panic("cannot create a ErasuredNamespacedMerkleTree of squareSize == 0")
 	}
 	tree := nmt.New(appconsts.NewBaseHashFunc(), setters...)
-	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: setters, tree: tree}
+	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: setters, tree: tree, idx: rsmt2d.SquareIndex{Axis: uint(axis), Cell: index}}
 }
 
 // Constructor acts as the rsmt2d.TreeConstructorFn for
 // ErasuredNamespacedMerkleTree
-func (w ErasuredNamespacedMerkleTree) Constructor() rsmt2d.Tree {
-	newTree := NewErasuredNamespacedMerkleTree(w.squareSize, w.options...)
+func (w ErasuredNamespacedMerkleTree) Constructor(axis rsmt2d.Axis, index uint) rsmt2d.Tree {
+	newTree := NewErasuredNamespacedMerkleTree(w.squareSize, axis, index, w.options...)
 	return &newTree
 }
 
@@ -46,14 +47,14 @@ func (w ErasuredNamespacedMerkleTree) Constructor() rsmt2d.Tree {
 // namespace unless the data pushed to the second half of the tree. Fulfills the
 // rsmt.Tree interface. NOTE: panics if an error is encountered while pushing or
 // if the tree size is exceeded.
-func (w *ErasuredNamespacedMerkleTree) Push(data []byte, idx rsmt2d.SquareIndex) {
-	if idx.Axis+1 > 2*uint(w.squareSize) || idx.Cell+1 > 2*uint(w.squareSize) {
-		panic(fmt.Sprintf("pushed past predetermined square size: boundary at %d index at %+v", 2*w.squareSize, idx))
+func (w *ErasuredNamespacedMerkleTree) Push(data []byte) {
+	if w.idx.Axis+1 > 2*uint(w.squareSize) || w.idx.Cell+1 > 2*uint(w.squareSize) {
+		panic(fmt.Sprintf("pushed past predetermined square size: boundary at %d index at %+v", 2*w.squareSize, w.idx))
 	}
 	nidAndData := make([]byte, appconsts.NamespaceSize+len(data))
 	copy(nidAndData[appconsts.NamespaceSize:], data)
 	// use the parity namespace if the cell is not in Q0 of the extended data square
-	if idx.Axis+1 > uint(w.squareSize) || idx.Cell+1 > uint(w.squareSize) {
+	if w.idx.Axis+1 > uint(w.squareSize) || w.idx.Cell+1 > uint(w.squareSize) {
 		copy(nidAndData[:appconsts.NamespaceSize], appconsts.ParitySharesNamespaceID)
 	} else {
 		copy(nidAndData[:appconsts.NamespaceSize], data[:appconsts.NamespaceSize])
