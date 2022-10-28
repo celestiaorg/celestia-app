@@ -53,7 +53,7 @@ func validateDataCommitmentWindow(i interface{}) error {
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
 	} else if val < 100 {
-		return fmt.Errorf("invalid average Ethereum block time, too short for latency limitations")
+		return fmt.Errorf("invalid average EVM block time, too short for latency limitations")
 	}
 	return nil
 }

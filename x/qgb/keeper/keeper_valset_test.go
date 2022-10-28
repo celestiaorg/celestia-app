@@ -16,11 +16,11 @@ func TestCurrentValsetNormalization(t *testing.T) {
 	// Setup the overflow test
 	maxPower64 := make([]uint64, 64)             // users with max power (approx 2^63)
 	expPower64 := make([]uint64, 64)             // expected scaled powers
-	ethAddrs64 := make([]gethcommon.Address, 64) // need 64 eth addresses for this test
+	evmAddrs64 := make([]gethcommon.Address, 64) // need 64 eth addresses for this test
 	for i := 0; i < 64; i++ {
 		maxPower64[i] = uint64(9223372036854775807)
 		expPower64[i] = 67108864 // 2^32 split amongst 64 validators
-		ethAddrs64[i] = gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20))
+		evmAddrs64[i] = gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20))
 	}
 
 	// any lower than this and a validator won't be created

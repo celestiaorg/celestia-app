@@ -17,7 +17,7 @@ func (b BridgeValidator) ToInternal() (*InternalBridgeValidator, error) {
 	return NewInternalBridgeValidator(b)
 }
 
-// BridgeValidators is the sorted set of validator data for Ethereum bridge MultiSig set.
+// BridgeValidators is the sorted set of validator data for EVM bridge MultiSig set.
 type BridgeValidators []BridgeValidator
 
 func (b BridgeValidators) ToInternal() (*InternalBridgeValidators, error) {
@@ -32,20 +32,20 @@ func (b BridgeValidators) ToInternal() (*InternalBridgeValidators, error) {
 	return &ret, nil
 }
 
-// Bridge Validator but with validated EthereumAddress.
+// Bridge Validator but with validated EVMAddress.
 type InternalBridgeValidator struct {
-	Power           uint64
-	EthereumAddress common.Address
+	Power      uint64
+	EVMAddress common.Address
 }
 
 func NewInternalBridgeValidator(bridgeValidator BridgeValidator) (*InternalBridgeValidator, error) {
-	if !common.IsHexAddress(bridgeValidator.EthereumAddress) {
-		return nil, stakingtypes.ErrEthAddressNotHex
+	if !common.IsHexAddress(bridgeValidator.EvmAddress) {
+		return nil, stakingtypes.ErrEVMAddressNotHex
 	}
-	validatorEthAddr := common.HexToAddress(bridgeValidator.EthereumAddress)
+	validatorEVMAddr := common.HexToAddress(bridgeValidator.EvmAddress)
 	i := &InternalBridgeValidator{
-		Power:           bridgeValidator.Power,
-		EthereumAddress: validatorEthAddr,
+		Power:      bridgeValidator.Power,
+		EVMAddress: validatorEVMAddr,
 	}
 	if err := i.ValidateBasic(); err != nil {
 		return nil, sdkerrors.Wrap(err, "invalid bridge validator")
@@ -62,12 +62,12 @@ func (i InternalBridgeValidator) ValidateBasic() error {
 
 func (i InternalBridgeValidator) ToExternal() BridgeValidator {
 	return BridgeValidator{
-		Power:           i.Power,
-		EthereumAddress: i.EthereumAddress.Hex(),
+		Power:      i.Power,
+		EvmAddress: i.EVMAddress.Hex(),
 	}
 }
 
-// InternalBridgeValidators is the sorted set of validator data for Ethereum bridge MultiSig set.
+// InternalBridgeValidators is the sorted set of validator data for EVM bridge MultiSig set.
 type InternalBridgeValidators []*InternalBridgeValidator
 
 func (ibv InternalBridgeValidators) ToExternal() BridgeValidators {
@@ -83,15 +83,15 @@ func (ibv InternalBridgeValidators) ToExternal() BridgeValidators {
 func (ibv InternalBridgeValidators) Sort() {
 	sort.Slice(ibv, func(i, j int) bool {
 		if ibv[i].Power == ibv[j].Power {
-			// Secondary sort on eth address in case powers are equal
-			return EthAddrLessThan(ibv[i].EthereumAddress, ibv[j].EthereumAddress)
+			// Secondary sort on EVM address in case powers are equal
+			return EVMAddrLessThan(ibv[i].EVMAddress, ibv[j].EVMAddress)
 		}
 		return ibv[i].Power > ibv[j].Power
 	})
 }
 
-// EthAddrLessThan migrates the Ethereum address less than function.
-func EthAddrLessThan(e common.Address, o common.Address) bool {
+// EVMAddrLessThan migrates the EVM address less than function.
+func EVMAddrLessThan(e common.Address, o common.Address) bool {
 	return bytes.Compare([]byte(e.Hex())[:], []byte(o.Hex())[:]) == -1
 }
 
@@ -113,16 +113,16 @@ func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) float6
 	powers := map[string]int64{}
 	// loop over ibv and initialize the map with their powers
 	for _, bv := range ibv {
-		powers[bv.EthereumAddress.Hex()] = int64(bv.Power)
+		powers[bv.EVMAddress.Hex()] = int64(bv.Power)
 	}
 
 	// subtract c powers from powers in the map, initializing
 	// uninitialized keys with negative numbers
 	for _, bv := range c {
-		if val, ok := powers[bv.EthereumAddress.Hex()]; ok {
-			powers[bv.EthereumAddress.Hex()] = val - int64(bv.Power)
+		if val, ok := powers[bv.EVMAddress.Hex()]; ok {
+			powers[bv.EVMAddress.Hex()] = val - int64(bv.Power)
 		} else {
-			powers[bv.EthereumAddress.Hex()] = -int64(bv.Power)
+			powers[bv.EVMAddress.Hex()] = -int64(bv.Power)
 		}
 	}
 
@@ -149,7 +149,7 @@ func (ibv InternalBridgeValidators) HasDuplicates() bool {
 	// creates a hashmap then ensures that the hashmap and the array
 	// have the same length, this acts as an O(n) duplicates check
 	for i := range ibv {
-		m[ibv[i].EthereumAddress.Hex()] = struct{}{}
+		m[ibv[i].EVMAddress.Hex()] = struct{}{}
 	}
 	return len(m) != len(ibv)
 }
