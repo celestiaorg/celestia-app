@@ -61,7 +61,7 @@ func (v *Valset) Hash() (ethcmn.Hash, error) {
 	ethVals := make([]wrapper.Validator, len(v.Members))
 	for i, val := range v.Members {
 		ethVals[i] = wrapper.Validator{
-			Addr:  ethcmn.HexToAddress(val.EthereumAddress),
+			Addr:  ethcmn.HexToAddress(val.EvmAddress),
 			Power: big.NewInt(int64(val.Power)),
 		}
 	}
