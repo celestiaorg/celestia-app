@@ -14,7 +14,7 @@ celestia-appd gentx validator 5000000000ucls \
   --keyring-backend="test" \
   --chain-id $CHAINID \
   --orchestrator-address $(celestia-appd keys show validator -a --keyring-backend="test") \
-  --ethereum-address 0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488 # private key: da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
+  --evm-address 0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488 # private key: da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
 
 celestia-appd collect-gentxs
 
