@@ -34,14 +34,6 @@ const (
 	ValsetConfirmKey = "ValsetConfirmKey"
 	// DataCommitmentConfirmKey indexes data commitment confirmations by commitment and the validator account address
 	DataCommitmentConfirmKey = "DataCommitmentConfirmKey"
-	// EthAddressByValidatorKey indexes cosmos validator account addresses
-	// i.e. celes1ahx7f8wyertuus9r20284ej0asrs085ceqtfnm
-	EthAddressByValidatorKey = "EthAddressValidatorKey"
-	// KeyOrchestratorAddress indexes the validator keys for an orchestrator
-	KeyOrchestratorAddress = "KeyOrchestratorAddress"
-	// ValidatorByEthAddressKey indexes ethereum addresses
-	// i.e. 0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B
-	ValidatorByEthAddressKey = "ValidatorByEthAddressKey"
 
 	// LastUnBondingBlockHeight indexes the last validator unbonding block height
 	LastUnBondingBlockHeight = "LastUnBondingBlockHeight"
