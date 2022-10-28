@@ -10,7 +10,7 @@ import (
 
 // Fulfills the rsmt2d.Tree interface and rsmt2d.TreeConstructorFn function
 var (
-	_ rsmt2d.TreeConstructorFn = ErasuredNamespacedMerkleTree{}.Constructor
+	_ rsmt2d.TreeConstructorFn = NewConstructor(0)
 	_ rsmt2d.Tree              = &ErasuredNamespacedMerkleTree{}
 )
 
@@ -25,22 +25,38 @@ type ErasuredNamespacedMerkleTree struct {
 	squareSize uint64 // note: this refers to the width of the original square before erasure-coded
 	options    []nmt.Option
 	tree       *nmt.NamespacedMerkleTree
-	idx        rsmt2d.SquareIndex
+	idx        *rsmt2d.SquareIndex
 }
 
 // NewErasuredNamespacedMerkleTree issues a new ErasuredNamespacedMerkleTree. squareSize must be greater than zero
-func NewErasuredNamespacedMerkleTree(squareSize uint64, axis rsmt2d.Axis, index uint, setters ...nmt.Option) ErasuredNamespacedMerkleTree {
+func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, setters ...nmt.Option) ErasuredNamespacedMerkleTree {
 	if squareSize == 0 {
 		panic("cannot create a ErasuredNamespacedMerkleTree of squareSize == 0")
 	}
 	tree := nmt.New(appconsts.NewBaseHashFunc(), setters...)
-	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: setters, tree: tree, idx: rsmt2d.SquareIndex{Axis: uint(axis), Cell: index}}
+	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: setters, tree: tree, idx: &rsmt2d.SquareIndex{Axis: axisIndex, Cell: 0}}
 }
 
-// Constructor acts as the rsmt2d.TreeConstructorFn for
-// ErasuredNamespacedMerkleTree
-func (w ErasuredNamespacedMerkleTree) Constructor(axis rsmt2d.Axis, index uint) rsmt2d.Tree {
-	newTree := NewErasuredNamespacedMerkleTree(w.squareSize, axis, index, w.options...)
+type constructor struct {
+	squareSize uint64
+	opts       []nmt.Option
+}
+
+// NewConstructor creates a tree constructor function as required by rsmt2d to
+// calculate the data root. It creates that tree using the
+// wrapper.ErasuredNamespacedMerkleTree.
+func NewConstructor(squareSize uint64, opts ...nmt.Option) rsmt2d.TreeConstructorFn {
+	return constructor{
+		squareSize: squareSize,
+		opts:       opts,
+	}.NewTree
+}
+
+// NewTree creates a new rsmt2d.Tree using the
+// wrapper.ErasuredNamespacedMerkleTree with predefined square size and
+// nmt.Options
+func (c constructor) NewTree(_ rsmt2d.Axis, index uint) rsmt2d.Tree {
+	newTree := NewErasuredNamespacedMerkleTree(c.squareSize, index, c.opts...)
 	return &newTree
 }
 
@@ -67,6 +83,7 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) {
 	if err != nil {
 		panic(err)
 	}
+	w.idx.Cell++
 }
 
 // Root fulfills the rsmt.Tree interface by generating and returning the
