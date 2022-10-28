@@ -50,8 +50,8 @@ func (s *QGBTestSuite) SetupTest() {
 		Height: 1,
 		Members: []types.BridgeValidator{
 			{
-				Power:           5000,
-				EthereumAddress: testAddr,
+				Power:      5000,
+				EvmAddress: testAddr,
 			},
 		},
 	}
@@ -100,10 +100,10 @@ func (s *QGBTestSuite) TestSubmitDataCommitment() {
 	signature, err := types.NewEthereumSignature(signBytes.Bytes(), s.key)
 	s.NoError(err)
 
-	ethVals := make([]wrapper.Validator, len(initialValSet.Members))
+	evmVals := make([]wrapper.Validator, len(initialValSet.Members))
 	for i, val := range initialValSet.Members {
-		ethVals[i] = wrapper.Validator{
-			Addr:  ethcmn.HexToAddress(val.EthereumAddress),
+		evmVals[i] = wrapper.Validator{
+			Addr:  ethcmn.HexToAddress(val.EvmAddress),
 			Power: big.NewInt(int64(val.Power)),
 		}
 	}
@@ -115,7 +115,7 @@ func (s *QGBTestSuite) TestSubmitDataCommitment() {
 		big.NewInt(1),
 		big.NewInt(0), // TODO get this from the setup
 		commitment,
-		ethVals,
+		evmVals,
 		[]wrapper.Signature{
 			{
 				V: v,
@@ -140,12 +140,12 @@ func (s *QGBTestSuite) TestUpdateValset() {
 	updatedValset := types.Valset{
 		Members: []types.BridgeValidator{
 			{
-				EthereumAddress: testAddr,
-				Power:           5000,
+				EvmAddress: testAddr,
+				Power:      5000,
 			},
 			{
-				EthereumAddress: testAddr2,
-				Power:           5000,
+				EvmAddress: testAddr2,
+				Power:      5000,
 			},
 		},
 		Nonce:  1,
@@ -161,10 +161,10 @@ func (s *QGBTestSuite) TestUpdateValset() {
 
 	hexSig := ethcmn.Bytes2Hex(signature)
 
-	ethVals := make([]wrapper.Validator, len(initialValSet.Members))
+	evmVals := make([]wrapper.Validator, len(initialValSet.Members))
 	for i, val := range initialValSet.Members {
-		ethVals[i] = wrapper.Validator{
-			Addr:  ethcmn.HexToAddress(val.EthereumAddress),
+		evmVals[i] = wrapper.Validator{
+			Addr:  ethcmn.HexToAddress(val.EvmAddress),
 			Power: big.NewInt(int64(val.Power)),
 		}
 	}
@@ -182,7 +182,7 @@ func (s *QGBTestSuite) TestUpdateValset() {
 		big.NewInt(0),
 		big.NewInt(int64(thresh)),
 		newVsHash,
-		ethVals,
+		evmVals,
 		[]wrapper.Signature{
 			{
 				V: v,

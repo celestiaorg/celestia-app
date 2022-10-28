@@ -13,7 +13,7 @@ services:
       "--moniker", "core0",
       "--rpc.laddr", "tcp://0.0.0.0:26657"
     ]
-    # Eth Address: 0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488:da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
+    # EVM Address: 0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488:da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
     volumes:
       - ${PWD}/celestia-app/core0/config/priv_validator_key.json:/opt/config/priv_validator_key.json:ro
       - ${PWD}/celestia-app/core0/config/node_key.json:/opt/config/node_key.json:ro
@@ -29,7 +29,7 @@ services:
       - core0
     environment:
       - MONIKER=core0
-      # eth address: 0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488
+      # evm address: 0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488
       - PRIVATE_KEY=da6ed55cb2894ac2c9c10209c09de8e8b9d109b910338d5bf3d747a7e1fc9eb9
       - TENDERMINT_RPC=tcp://core0:26657
       - CELESTIA_GRPC=core0:9090
@@ -53,7 +53,7 @@ services:
       - MONIKER=core1
       - CELESTIA_HOME=/opt
       # private key: 002ad18ca3def673345897b063bfa98d829a4d812dbd07f1938676828a82c4f9
-      - ETH_ADDRESS=0x91DEd26b5f38B065FC0204c7929Da1b2A21877Ad
+      - EVM_ADDRESS=0x91DEd26b5f38B065FC0204c7929Da1b2A21877Ad
       - AMOUNT=1000000000000000utia
     entrypoint: [
       "/bin/bash"
@@ -77,7 +77,7 @@ services:
       - core1
     environment:
       - MONIKER=core1
-      # eth address: 0x91DEd26b5f38B065FC0204c7929Da1b2A21877Ad
+      # evm address: 0x91DEd26b5f38B065FC0204c7929Da1b2A21877Ad
       - PRIVATE_KEY=002ad18ca3def673345897b063bfa98d829a4d812dbd07f1938676828a82c4f9
       - TENDERMINT_RPC=tcp://core1:26657
       - CELESTIA_GRPC=core1:9090
@@ -101,7 +101,7 @@ services:
       - MONIKER=core2
       - CELESTIA_HOME=/opt
       # private key: 6adac8b5de0ba702ec8feab6d386a0c7334c6720b9174c02333700d431057af8
-      - ETH_ADDRESS=0x3d22f0C38251ebdBE92e14BBF1bd2067F1C3b7D7
+      - EVM_ADDRESS=0x3d22f0C38251ebdBE92e14BBF1bd2067F1C3b7D7
       - AMOUNT=1000000000000000utia
     entrypoint: [
       "/bin/bash"
@@ -125,7 +125,7 @@ services:
       - core2
     environment:
       - MONIKER=core2
-      # eth address: 0x3d22f0C38251ebdBE92e14BBF1bd2067F1C3b7D7
+      # evm address: 0x3d22f0C38251ebdBE92e14BBF1bd2067F1C3b7D7
       - PRIVATE_KEY=6adac8b5de0ba702ec8feab6d386a0c7334c6720b9174c02333700d431057af8
       - TENDERMINT_RPC=tcp://core2:26657
       - CELESTIA_GRPC=core2:9090
@@ -149,7 +149,7 @@ services:
       - MONIKER=core3
       - CELESTIA_HOME=/opt
       # private key: 2f7f6763500dfb48b710a4c5c6c6a487b8aa6c7bc8b8a9b637a23f651f1c9b51
-      - ETH_ADDRESS=0x3EE99606625E740D8b29C8570d855Eb387F3c790
+      - EVM_ADDRESS=0x3EE99606625E740D8b29C8570d855Eb387F3c790
       - AMOUNT=1000000000000000utia
     entrypoint: [
       "/bin/bash"
@@ -173,7 +173,7 @@ services:
       - core3
     environment:
       - MONIKER=core3
-      # eth address: 0x3EE99606625E740D8b29C8570d855Eb387F3c790
+      # evm address: 0x3EE99606625E740D8b29C8570d855Eb387F3c790
       - PRIVATE_KEY=2f7f6763500dfb48b710a4c5c6c6a487b8aa6c7bc8b8a9b637a23f651f1c9b51
       - TENDERMINT_RPC=tcp://core3:26657
       - CELESTIA_GRPC=core3:9090
@@ -212,7 +212,7 @@ services:
 #      By default, we don't want to run the deploy on each run.
       - DEPLOY_NEW_CONTRACT=false
       - EVM_CHAIN_ID=qgb-e2e
-      # Eth Address: 0x95359c3348e189ef7781546e6E13c80230fC9fB5
+      # EVM Address: 0x95359c3348e189ef7781546e6E13c80230fC9fB5
       - PRIVATE_KEY=0e9688e585562e828dcbd4f402d5eddf686f947fb6bf75894a85bf008b017401
       - TENDERMINT_RPC=tcp://core0:26657
       - CELESTIA_GRPC=core0:9090
@@ -237,7 +237,7 @@ services:
       - core0
     environment:
       - EVM_CHAIN_ID=qgb-e2e
-      # Eth Address: 0x95359c3348e189ef7781546e6E13c80230fC9fB5
+      # EVM Address: 0x95359c3348e189ef7781546e6E13c80230fC9fB5
       - PRIVATE_KEY=0e9688e585562e828dcbd4f402d5eddf686f947fb6bf75894a85bf008b017401
       - TENDERMINT_RPC=tcp://core0:26657
       - CELESTIA_GRPC=core0:9090

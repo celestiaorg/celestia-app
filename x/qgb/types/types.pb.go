@@ -24,7 +24,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// BridgeValidator represents a validator's ETH address and its power
+// BridgeValidator represents a validator's EVM address and its power
 type BridgeValidator struct {
 	// Voting power of the validator.
 	Power uint64 `protobuf:"varint,1,opt,name=power,proto3" json:"power,omitempty"`
@@ -80,8 +80,8 @@ func (m *BridgeValidator) GetEvmAddress() string {
 }
 
 // Valset is the EVM Bridge Multsig Set, each qgb validator also
-// maintains an ETH key to sign messages, these are used to check signatures on
-// ETH because of the significant gas savings
+// maintains an EVM key to sign messages, these are used to check signatures on
+// EVM because of the significant gas savings
 type Valset struct {
 	// Universal nonce defined under:
 	// https://github.com/celestiaorg/celestia-app/pull/464

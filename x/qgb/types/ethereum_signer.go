@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	signaturePrefix = "\x19Ethereum Signed Message:\n32"
+	SignaturePrefix = "\x19Ethereum Signed Message:\n32"
 )
 
 // NewEthereumSignature creates a new signature over a given byte array.
@@ -17,7 +17,7 @@ func NewEthereumSignature(hash []byte, privateKey *ecdsa.PrivateKey) ([]byte, er
 	if privateKey == nil {
 		return nil, sdkerrors.Wrap(ErrEmpty, "private key")
 	}
-	protectedHash := crypto.Keccak256Hash([]uint8(signaturePrefix), hash)
+	protectedHash := crypto.Keccak256Hash([]uint8(SignaturePrefix), hash)
 	return crypto.Sign(protectedHash.Bytes(), privateKey)
 }
 
@@ -25,7 +25,7 @@ func EthAddressFromSignature(hash []byte, signature []byte) (common.Address, err
 	if len(signature) < 65 {
 		return common.Address{}, sdkerrors.Wrap(ErrInvalid, "signature too short")
 	}
-	protectedHash := crypto.Keccak256Hash([]uint8(signaturePrefix), hash)
+	protectedHash := crypto.Keccak256Hash([]uint8(SignaturePrefix), hash)
 	sigPublicKey, err := crypto.Ecrecover(protectedHash.Bytes(), signature)
 	if err != nil {
 		return common.Address{}, sdkerrors.Wrap(err, "ec recover failed")

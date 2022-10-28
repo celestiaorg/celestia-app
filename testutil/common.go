@@ -138,7 +138,7 @@ var (
 		sdk.AccAddress(OrchPubKeys[4].Address()),
 	}
 
-	// EVMAddrs holds etheruem addresses
+	// EVMAddrs holds EVM addresses
 	EVMAddrs = initEVMAddrs(1000000) // TODO update 1000000 with a more realistic value
 
 	// InitTokens holds the number of tokens to initialize an account with

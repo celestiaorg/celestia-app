@@ -92,7 +92,7 @@ func TestValsetSort(t *testing.T) {
 				{Power: 1, EvmAddress: gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(3)}, 20)).String()},
 			},
 		},
-		"by eth addr on same power": {
+		"by evm addr on same power": {
 			src: types.BridgeValidators{
 				{Power: 1, EvmAddress: gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(2)}, 20)).String()},
 				{Power: 1, EvmAddress: gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(1)}, 20)).String()},

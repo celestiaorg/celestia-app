@@ -209,7 +209,7 @@ func (m *QueryAttestationRequestByNonceResponse) GetAttestation() *types.Any {
 	return nil
 }
 
-// QueryLatestAttestationNonceRequest Latest attestation nonce request
+// QueryLatestAttestationNonceRequest latest attestation nonce request
 type QueryLatestAttestationNonceRequest struct {
 }
 
@@ -246,7 +246,7 @@ func (m *QueryLatestAttestationNonceRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_QueryLatestAttestationNonceRequest proto.InternalMessageInfo
 
-// QueryLatestAttestationNonceResponse Latest attestation nonce response
+// QueryLatestAttestationNonceResponse latest attestation nonce response
 type QueryLatestAttestationNonceResponse struct {
 	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
 }
@@ -977,12 +977,12 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type QueryClient interface {
-	// Params Queries the current parameters for the qgb module
+	// Params queries the current parameters for the qgb module
 	Params(ctx context.Context, in *QueryParamsRequest, opts ...grpc.CallOption) (*QueryParamsResponse, error)
-	// AttestationRequestByNonce Queries attestation request by nonce.
+	// AttestationRequestByNonce queries attestation request by nonce.
 	// Returns nil if not found.
 	AttestationRequestByNonce(ctx context.Context, in *QueryAttestationRequestByNonceRequest, opts ...grpc.CallOption) (*QueryAttestationRequestByNonceResponse, error)
-	// LatestAttestationNonce Queries latest attestation nonce.
+	// LatestAttestationNonce queries latest attestation nonce.
 	LatestAttestationNonce(ctx context.Context, in *QueryLatestAttestationNonceRequest, opts ...grpc.CallOption) (*QueryLatestAttestationNonceResponse, error)
 	// DataCommitmentConfirm Queries the data commitment confirm by the commitment
 	// and the validator address
@@ -1004,7 +1004,7 @@ type QueryClient interface {
 	// ValsetConfirmsByNonce
 	// Returns empty array if no element is found.
 	ValsetConfirmsByNonce(ctx context.Context, in *QueryValsetConfirmsByNonceRequest, opts ...grpc.CallOption) (*QueryValsetConfirmsByNonceResponse, error)
-	// LastUnbondingHeight
+	// LastUnbondingHeight returns the last unbonding height
 	LastUnbondingHeight(ctx context.Context, in *QueryLastUnbondingHeightRequest, opts ...grpc.CallOption) (*QueryLastUnbondingHeightResponse, error)
 }
 
@@ -1099,12 +1099,12 @@ func (c *queryClient) LastUnbondingHeight(ctx context.Context, in *QueryLastUnbo
 
 // QueryServer is the server API for Query service.
 type QueryServer interface {
-	// Params Queries the current parameters for the qgb module
+	// Params queries the current parameters for the qgb module
 	Params(context.Context, *QueryParamsRequest) (*QueryParamsResponse, error)
-	// AttestationRequestByNonce Queries attestation request by nonce.
+	// AttestationRequestByNonce queries attestation request by nonce.
 	// Returns nil if not found.
 	AttestationRequestByNonce(context.Context, *QueryAttestationRequestByNonceRequest) (*QueryAttestationRequestByNonceResponse, error)
-	// LatestAttestationNonce Queries latest attestation nonce.
+	// LatestAttestationNonce queries latest attestation nonce.
 	LatestAttestationNonce(context.Context, *QueryLatestAttestationNonceRequest) (*QueryLatestAttestationNonceResponse, error)
 	// DataCommitmentConfirm Queries the data commitment confirm by the commitment
 	// and the validator address
@@ -1126,7 +1126,7 @@ type QueryServer interface {
 	// ValsetConfirmsByNonce
 	// Returns empty array if no element is found.
 	ValsetConfirmsByNonce(context.Context, *QueryValsetConfirmsByNonceRequest) (*QueryValsetConfirmsByNonceResponse, error)
-	// LastUnbondingHeight
+	// LastUnbondingHeight returns the last unbonding height
 	LastUnbondingHeight(context.Context, *QueryLastUnbondingHeightRequest) (*QueryLastUnbondingHeightResponse, error)
 }
 

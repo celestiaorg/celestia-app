@@ -17,7 +17,7 @@ func NewMsgDataCommitmentConfirm(
 	commitment string,
 	signature string,
 	validatorAddress sdk.AccAddress,
-	ethAddress ethcmn.Address,
+	evmAddr ethcmn.Address,
 	beginBlock uint64,
 	endBlock uint64,
 	nonce uint64,
@@ -26,7 +26,7 @@ func NewMsgDataCommitmentConfirm(
 		Commitment:       commitment,
 		Signature:        signature,
 		ValidatorAddress: validatorAddress.String(),
-		EthAddress:       ethAddress.Hex(),
+		EvmAddress:       evmAddr.Hex(),
 		BeginBlock:       beginBlock,
 		EndBlock:         endBlock,
 		Nonce:            nonce,
@@ -51,7 +51,7 @@ func (msg *MsgDataCommitmentConfirm) ValidateBasic() (err error) {
 		return sdkerrors.Wrap(ErrInvalid, "begin block should be less than end block")
 	}
 	if !ethcmn.IsHexAddress(msg.EvmAddress) {
-		return sdkerrors.Wrap(stakingtypes.ErrEVMAddressNotHex, "ethereum address")
+		return sdkerrors.Wrap(stakingtypes.ErrEVMAddressNotHex, "evm address")
 	}
 	return nil
 }
@@ -60,8 +60,9 @@ func (msg *MsgDataCommitmentConfirm) ValidateBasic() (err error) {
 func (msg *MsgDataCommitmentConfirm) Type() string { return "data_commitment_confirm" }
 
 // DataCommitmentTupleRootSignBytes EncodeDomainSeparatedDataCommitment takes the required input data and
-// produces the required signature to confirm a validator set update on the QGB Ethereum contract.
-// This value will then be signed before being submitted to Cosmos, verified, and then relayed to Ethereum.
+// produces the required signature to confirm a validator set update on the QGB EVM contract.
+// This value will then be signed before being submitted to Cosmos, verified, and then relayed to the
+// target EVM chain.
 func DataCommitmentTupleRootSignBytes(bridgeID ethcmn.Hash, nonce *big.Int, commitment []byte) ethcmn.Hash {
 	var dataCommitment [32]uint8
 	copy(dataCommitment[:], commitment)

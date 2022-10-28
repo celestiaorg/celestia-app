@@ -88,7 +88,7 @@ func TestSignatureABIEncode(t *testing.T) {
 	)
 	firstExpected := ethcmn.Hex2Bytes(firstExpectedData)
 
-	i := []byte(types.EthSignPrefix)
+	i := []byte(types.SignaturePrefix)
 	i = append(i, types.VsDomainSeparator[:]...)
 
 	assert.Equal(t, firstExpected, i)
@@ -106,12 +106,12 @@ func Test_genValSetSignBytes(t *testing.T) {
 	vs := types.Valset{
 		Members: []types.BridgeValidator{
 			{
-				EthereumAddress: testAddr,
-				Power:           5000,
+				EvmAddress: testAddr,
+				Power:      5000,
 			},
 			{
-				EthereumAddress: testAddr2,
-				Power:           5000,
+				EvmAddress: testAddr2,
+				Power:      5000,
 			},
 		},
 		Nonce: 0,

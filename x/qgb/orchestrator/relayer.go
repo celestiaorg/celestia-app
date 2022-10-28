@@ -115,9 +115,9 @@ func (r *Relayer) updateValidatorSet(
 	}
 
 	sigsMap := make(map[string]string)
-	// to fetch the signatures easilly by eth address
+	// to fetch the signatures easilly by EVM address
 	for _, c := range confirms {
-		sigsMap[c.EthAddress] = c.Signature
+		sigsMap[c.EvmAddress] = c.Signature
 	}
 
 	sigs, err := matchAttestationConfirmSigs(sigsMap, currentValset)
@@ -147,9 +147,9 @@ func (r *Relayer) submitDataRootTupleRoot(
 	confirms []types.MsgDataCommitmentConfirm,
 ) error {
 	sigsMap := make(map[string]string)
-	// to fetch the signatures easilly by eth address
+	// to fetch the signatures easilly by EVM address
 	for _, c := range confirms {
-		sigsMap[c.EthAddress] = c.Signature
+		sigsMap[c.EvmAddress] = c.Signature
 	}
 
 	sigs, err := matchAttestationConfirmSigs(sigsMap, currentValset)
@@ -191,7 +191,7 @@ func matchAttestationConfirmSigs(
 	sigs := make([]wrapper.Signature, len(currentValset.Members))
 	// the QGB contract expects the signatures to be ordered by validators in valset
 	for i, val := range currentValset.Members {
-		sig, has := signatures[val.EthereumAddress]
+		sig, has := signatures[val.EvmAddress]
 		if !has {
 			continue
 		}

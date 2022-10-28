@@ -6,7 +6,7 @@ import "cosmos_proto/cosmos.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
-// BridgeValidator represents a validator's ETH address and its power
+// BridgeValidator represents a validator's EVM address and its power
 message BridgeValidator {
   // Voting power of the validator.
   uint64 power = 1;
@@ -15,8 +15,8 @@ message BridgeValidator {
 }
 
 // Valset is the EVM Bridge Multsig Set, each qgb validator also
-// maintains an ETH key to sign messages, these are used to check signatures on
-// ETH because of the significant gas savings
+// maintains an EVM key to sign messages, these are used to check signatures on
+// EVM because of the significant gas savings
 message Valset {
   option (cosmos_proto.implements_interface) = "AttestationRequestI";
   // Universal nonce defined under:

@@ -48,15 +48,15 @@ func TestOrchestratorWithOneValidator(t *testing.T) {
 	// assert the confirm exist
 	assert.NoError(t, err)
 	require.NotNil(t, vsConfirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE0EVMADDRESS, vsConfirm.EthAddress)
+	// assert that it carries the right evm address
+	assert.Equal(t, CORE0EVMADDRESS, vsConfirm.EvmAddress)
 
 	dcConfirm, err := querier.QueryDataCommitmentConfirm(ctx, network.DataCommitmentWindow, 0, CORE0ACCOUNTADDRESS)
 	// assert the confirm exist
 	require.NoError(t, err)
 	require.NotNil(t, dcConfirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE0EVMADDRESS, dcConfirm.EthAddress)
+	// assert that it carries the right evm address
+	assert.Equal(t, CORE0EVMADDRESS, dcConfirm.EvmAddress)
 }
 
 func TestOrchestratorWithTwoValidators(t *testing.T) {
@@ -109,8 +109,8 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 	// assert the confirm exist
 	assert.NoError(t, err)
 	assert.NotNil(t, core0ValsetConfirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE0EVMADDRESS, core0ValsetConfirm.EthAddress)
+	// assert that it carries the right evm address
+	assert.Equal(t, CORE0EVMADDRESS, core0ValsetConfirm.EvmAddress)
 
 	// check core0 submitted the data commitment confirm
 	core0DataCommitmentConfirm, err := querier.QueryDataCommitmentConfirm(
@@ -122,8 +122,8 @@ func TestOrchestratorWithTwoValidators(t *testing.T) {
 	// assert the confirm exist
 	require.NoError(t, err)
 	require.NotNil(t, core0DataCommitmentConfirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE0EVMADDRESS, core0DataCommitmentConfirm.EthAddress)
+	// assert that it carries the right evm address
+	assert.Equal(t, CORE0EVMADDRESS, core0DataCommitmentConfirm.EvmAddress)
 
 	// get the last valset where all validators were created
 	vs, err := network.GetValsetContainingVals(ctx, 2)
@@ -179,8 +179,8 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	// check the confirm exist
 	require.NoError(t, err)
 	require.NotNil(t, core0ValsetConfirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE0EVMADDRESS, core0ValsetConfirm.EthAddress)
+	// assert that it carries the right evm address
+	assert.Equal(t, CORE0EVMADDRESS, core0ValsetConfirm.EvmAddress)
 
 	// check core0 submitted the data commitment confirm
 	core0DataCommitmentConfirm, err := querier.QueryDataCommitmentConfirm(
@@ -192,8 +192,8 @@ func TestOrchestratorWithMultipleValidators(t *testing.T) {
 	// check the confirm exist
 	require.NoError(t, err)
 	require.NotNil(t, core0DataCommitmentConfirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE0EVMADDRESS, core0DataCommitmentConfirm.EthAddress)
+	// assert that it carries the right evm address
+	assert.Equal(t, CORE0EVMADDRESS, core0DataCommitmentConfirm.EvmAddress)
 
 	// get the last valset where all validators were created
 	vs, err := network.GetValsetContainingVals(ctx, 4)
@@ -270,8 +270,8 @@ func TestOrchestratorReplayOld(t *testing.T) {
 	// assert the confirm exist
 	require.NoError(t, err)
 	require.NotNil(t, vs1Core0Confirm)
-	// assert that it carries the right eth address
-	assert.Equal(t, CORE0EVMADDRESS, vs1Core0Confirm.EthAddress)
+	// assert that it carries the right evm address
+	assert.Equal(t, CORE0EVMADDRESS, vs1Core0Confirm.EvmAddress)
 
 	// get the last valset where all validators were created
 	vs, err := network.GetValsetContainingVals(ctx, 2)

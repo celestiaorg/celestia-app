@@ -12,14 +12,14 @@ var _ sdk.Msg = &MsgValsetConfirm{}
 // NewMsgValsetConfirm returns a new msgValSetConfirm.
 func NewMsgValsetConfirm(
 	nonce uint64,
-	ethAddress common.Address,
+	evmAddr common.Address,
 	validator sdk.AccAddress,
 	signature string,
 ) *MsgValsetConfirm {
 	return &MsgValsetConfirm{
 		Nonce:        nonce,
 		Orchestrator: validator.String(),
-		EthAddress:   ethAddress.Hex(),
+		EvmAddress:   evmAddr.Hex(),
 		Signature:    signature,
 	}
 }

@@ -45,11 +45,11 @@ func (k msgServer) ValsetConfirm(
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "acc address invalid")
 	}
 
-	// Verify ethereum address match
-	if !common.IsHexAddress(msg.EthAddress) {
-		return nil, sdkerrors.Wrap(stakingtypes.ErrEthAddressNotHex, "ethereum address")
+	// Verify EVM address match
+	if !common.IsHexAddress(msg.EvmAddress) {
+		return nil, sdkerrors.Wrap(stakingtypes.ErrEVMAddressNotHex, "evm address")
 	}
-	submittedEthAddress := common.HexToAddress(msg.EthAddress)
+	submittedEVMAddress := common.HexToAddress(msg.EvmAddress)
 
 	// Verify if signature is correct
 	bytesSignature, err := hex.DecodeString(msg.Signature)
@@ -60,13 +60,13 @@ func (k msgServer) ValsetConfirm(
 	if err != nil {
 		return nil, err
 	}
-	err = types.ValidateEthereumSignature(signBytes.Bytes(), bytesSignature, submittedEthAddress)
+	err = types.ValidateEthereumSignature(signBytes.Bytes(), bytesSignature, submittedEVMAddress)
 	if err != nil {
 		return nil, sdkerrors.Wrap(
 			types.ErrInvalid,
 			fmt.Sprintf(
 				"signature verification failed expected sig by %s for valset nonce %d found %s",
-				submittedEthAddress.Hex(),
+				submittedEVMAddress.Hex(),
 				msg.Nonce,
 				msg.Signature,
 			),
@@ -149,11 +149,11 @@ func (k msgServer) DataCommitmentConfirm(
 		return nil, sdkerrors.Wrap(types.ErrInvalid, "validator address invalid")
 	}
 
-	// Verify ethereum address
-	if !common.IsHexAddress(msg.EthAddress) {
-		return nil, sdkerrors.Wrap(stakingtypes.ErrEthAddressNotHex, "ethereum address")
+	// Verify EVM address
+	if !common.IsHexAddress(msg.EvmAddress) {
+		return nil, sdkerrors.Wrap(stakingtypes.ErrEVMAddressNotHex, "evm address")
 	}
-	ethAddress := common.HexToAddress(msg.EthAddress)
+	evmAddress := common.HexToAddress(msg.EvmAddress)
 
 	// Verify signature
 	commitment, err := hex.DecodeString(msg.Commitment)
@@ -161,13 +161,13 @@ func (k msgServer) DataCommitmentConfirm(
 		return nil, err
 	}
 	hash := types.DataCommitmentTupleRootSignBytes(types.BridgeID, big.NewInt(int64(msg.Nonce)), commitment)
-	err = types.ValidateEthereumSignature(hash.Bytes(), sigBytes, ethAddress)
+	err = types.ValidateEthereumSignature(hash.Bytes(), sigBytes, evmAddress)
 	if err != nil {
 		return nil, sdkerrors.Wrap(
 			types.ErrInvalid,
 			fmt.Sprintf(
 				"signature verification failed expected sig by %s with checkpoint %s found %s",
-				ethAddress.Hex(),
+				evmAddress.Hex(),
 				msg.Commitment,
 				msg.Signature,
 			),
@@ -200,9 +200,9 @@ func (k msgServer) DataCommitmentConfirm(
 	return &types.MsgDataCommitmentConfirmResponse{}, nil
 }
 
-func ValidatorPartOfValset(members []types.BridgeValidator, ethAddr string) bool {
+func ValidatorPartOfValset(members []types.BridgeValidator, evmAddr string) bool {
 	for _, val := range members {
-		if val.EthereumAddress == ethAddr {
+		if val.EvmAddress == evmAddr {
 			return true
 		}
 	}

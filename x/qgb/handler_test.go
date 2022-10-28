@@ -36,18 +36,18 @@ var (
 	validator2AccAddress    = sdk.AccAddress(validator2AccPublicKey.Address())
 	validator2ValAddress    = sdk.ValAddress(validator2AccPublicKey.Address())
 
-	orch1EthPrivateKey, _ = crypto.GenerateKey()
-	orch1EthPublicKey     = orch1EthPrivateKey.Public().(*ecdsa.PublicKey)
-	orch1EthAddress       = crypto.PubkeyToAddress(*orch1EthPublicKey)
+	orch1EVMPrivateKey, _ = crypto.GenerateKey()
+	orch1EVMPublicKey     = orch1EVMPrivateKey.Public().(*ecdsa.PublicKey)
+	orch1EVMAddress       = crypto.PubkeyToAddress(*orch1EVMPublicKey)
 
 	orch1PrivateKey = secp256k1.GenPrivKey()
 	orch1PublicKey  = orch1PrivateKey.PubKey()
 	orch1Address    = sdk.AccAddress(orch1PublicKey.Address())
 
-	orch2EthPrivateKey, _ = crypto.GenerateKey()
-	orch2EthPublicKey     = orch2EthPrivateKey.Public().(*ecdsa.PublicKey)
-	orch2EthAddress       = crypto.PubkeyToAddress(*orch2EthPublicKey)
-	orch2HexEthAddress    = orch2EthAddress.Hex()
+	orch2EVMPrivateKey, _ = crypto.GenerateKey()
+	orch2EVMPublicKey     = orch2EVMPrivateKey.Public().(*ecdsa.PublicKey)
+	orch2EVMAddress       = crypto.PubkeyToAddress(*orch2EVMPublicKey)
+	orch2HexEVMAddress    = orch2EVMAddress.Hex()
 
 	orch2PrivateKey = secp256k1.GenPrivKey()
 	orch2PublicKey  = orch2PrivateKey.PubKey()
@@ -74,7 +74,7 @@ func TestMsgValsetConfirm(t *testing.T) {
 		uint64(120),
 		0,
 		orch1Address,
-		orch1EthAddress,
+		orch1EVMAddress,
 		validator1ValAddress,
 		validator1AccPublicKey,
 	)
@@ -91,14 +91,14 @@ func TestMsgValsetConfirm(t *testing.T) {
 
 	signBytes, err := vs.SignBytes(types.BridgeID)
 	require.NoError(t, err)
-	signatureBytes, err := types.NewEthereumSignature(signBytes.Bytes(), orch1EthPrivateKey)
+	signatureBytes, err := types.NewEthereumSignature(signBytes.Bytes(), orch1EVMPrivateKey)
 	signature := hex.EncodeToString(signatureBytes)
 	require.NoError(t, err)
 
-	// try wrong eth address
+	// try wrong EVM address
 	msg := types.NewMsgValsetConfirm(
 		1,
-		testutil.EthAddrs[1], // wrong because validator 0 should have EthAddrs[0]
+		testutil.EVMAddrs[1], // wrong because validator 0 should have EVMAddrs[0]
 		testutil.OrchAddrs[0],
 		signature,
 	)
@@ -109,7 +109,7 @@ func TestMsgValsetConfirm(t *testing.T) {
 	// try a nonexisting valset
 	msg = types.NewMsgValsetConfirm(
 		10,
-		testutil.EthAddrs[0],
+		testutil.EVMAddrs[0],
 		testutil.OrchAddrs[0],
 		signature,
 	)
@@ -119,7 +119,7 @@ func TestMsgValsetConfirm(t *testing.T) {
 
 	msg = types.NewMsgValsetConfirm(
 		1,
-		orch1EthAddress,
+		orch1EVMAddress,
 		orch1Address,
 		signature,
 	)
@@ -141,7 +141,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		uint64(120),
 		0,
 		orch1Address,
-		orch1EthAddress,
+		orch1EVMAddress,
 		validator1ValAddress,
 		validator1AccPublicKey,
 	)
@@ -171,8 +171,8 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 	err = k.SetAttestationRequest(ctx, dataCommitment)
 	require.Nil(t, err)
 
-	// Signs the commitment using the orth eth private key
-	signature, err := types.NewEthereumSignature(dataHash.Bytes(), orch1EthPrivateKey)
+	// Signs the commitment using the orch EVM private key
+	signature, err := types.NewEthereumSignature(dataHash.Bytes(), orch1EVMPrivateKey)
 	require.NoError(t, err)
 
 	// Sending a data commitment confirm with a nonce referring to a valset nonce
@@ -180,7 +180,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		commitment,
 		hex.EncodeToString(signature),
 		orch1Address,
-		orch1EthAddress,
+		orch1EVMAddress,
 		1,
 		100,
 		1,
@@ -193,7 +193,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		commitment,
 		hex.EncodeToString(signature),
 		orch1Address,
-		orch1EthAddress,
+		orch1EVMAddress,
 		2,
 		100,
 		2,
@@ -206,7 +206,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		commitment,
 		hex.EncodeToString(signature),
 		orch1Address,
-		orch1EthAddress,
+		orch1EVMAddress,
 		1,
 		101,
 		2,
@@ -219,7 +219,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		commitment,
 		hex.EncodeToString(signature),
 		orch1Address,
-		orch1EthAddress,
+		orch1EVMAddress,
 		2,
 		101,
 		2,
@@ -232,7 +232,7 @@ func TestMsgDataCommitmentConfirm(t *testing.T) {
 		commitment,
 		hex.EncodeToString(signature),
 		orch1Address,
-		orch1EthAddress,
+		orch1EVMAddress,
 		1,
 		100,
 		2,
@@ -270,7 +270,7 @@ func TestMsgDataCommimtentConfirmWithValidatorNotPartOfValset(t *testing.T) {
 		uint64(120),
 		0,
 		orch1Address,
-		orch1EthAddress,
+		orch1EVMAddress,
 		validator1ValAddress,
 		validator1AccPublicKey,
 	)
@@ -293,7 +293,7 @@ func TestMsgDataCommimtentConfirmWithValidatorNotPartOfValset(t *testing.T) {
 		uint64(121),
 		0,
 		orch2Address,
-		orch2EthAddress,
+		orch2EVMAddress,
 		validator2ValAddress,
 		validator2AccPublicKey,
 	)
@@ -305,8 +305,8 @@ func TestMsgDataCommimtentConfirmWithValidatorNotPartOfValset(t *testing.T) {
 	newVs.Height = uint64(10)
 	newVs.Nonce = uint64(2)
 	bridgeVal := types.BridgeValidator{
-		Power:           uint64(613566756),
-		EthereumAddress: orch2HexEthAddress,
+		Power:      uint64(613566756),
+		EvmAddress: orch2HexEVMAddress,
 	}
 	require.Contains(t, newVs.Members, bridgeVal)
 
@@ -325,7 +325,7 @@ func TestMsgDataCommimtentConfirmWithValidatorNotPartOfValset(t *testing.T) {
 	)
 
 	// Signs the commitment using the second validator
-	signature, err := types.NewEthereumSignature(dataHash.Bytes(), orch2EthPrivateKey)
+	signature, err := types.NewEthereumSignature(dataHash.Bytes(), orch2EVMPrivateKey)
 	require.NoError(t, err)
 
 	// Sending a data commitment confirm
@@ -333,7 +333,7 @@ func TestMsgDataCommimtentConfirmWithValidatorNotPartOfValset(t *testing.T) {
 		commitment,
 		hex.EncodeToString(signature),
 		orch2Address,
-		orch2EthAddress,
+		orch2EVMAddress,
 		0,
 		100,
 		2,
@@ -349,7 +349,7 @@ func createNewValidator(
 	accountNumber uint64,
 	sequence uint64,
 	orchAddr sdk.AccAddress,
-	orchEthAddr common.Address,
+	orchEVMAddr common.Address,
 	valAddress sdk.ValAddress,
 	valAccPublicKey cryptotypes.PubKey,
 ) error {
@@ -381,7 +381,7 @@ func createNewValidator(
 			valAccPublicKey,
 			testutil.StakingAmount,
 			orchAddr,
-			orchEthAddr,
+			orchEVMAddr,
 		),
 	)
 	if err != nil {

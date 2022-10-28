@@ -202,7 +202,7 @@
                   "amount": "1000000000000000"
                 },
                 "orchestrator": "celestia1ly9zghpffkw7gca42qkqm3awmw2zatc62yey3m",
-                "eth_address": "0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488"
+                "evm_address": "0x966e6f22781EF6a6A82BBB4DB3df8E225DfD9488"
               }
             ],
             "memo": "a6b8e77b70336cb015723d2971b9d222c5ad1bd2@10.68.33.210:26656",

@@ -42,7 +42,7 @@ do
   sleep 5s
 done
 
-# wait for the ethereum node to start
+# wait for the evm node to start
 while true
 do
     status_code=$(curl --write-out '%{http_code}' --silent --output /dev/null \

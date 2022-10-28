@@ -41,7 +41,7 @@ type Orchestrator struct {
 
 	EvmPrivateKey  ecdsa.PrivateKey
 	Signer         *paytypes.KeyringSigner
-	OrchEthAddress ethcmn.Address
+	OrchEVMAddress ethcmn.Address
 	OrchAccAddress sdk.AccAddress
 
 	Querier     Querier
@@ -57,7 +57,7 @@ func NewOrchestrator(
 	signer *paytypes.KeyringSigner,
 	evmPrivateKey ecdsa.PrivateKey,
 ) (*Orchestrator, error) {
-	orchEthAddr := crypto.PubkeyToAddress(evmPrivateKey.PublicKey)
+	orchEVMAddr := crypto.PubkeyToAddress(evmPrivateKey.PublicKey)
 
 	orchAccAddr, err := signer.GetSignerInfo().GetAddress()
 	if err != nil {
@@ -68,7 +68,7 @@ func NewOrchestrator(
 		Logger:         logger,
 		Signer:         signer,
 		EvmPrivateKey:  evmPrivateKey,
-		OrchEthAddress: orchEthAddr,
+		OrchEVMAddress: orchEVMAddr,
 		Querier:        querier,
 		Broadcaster:    broadcaster,
 		Retrier:        retrier,
@@ -260,7 +260,7 @@ func (orch Orchestrator) Process(ctx context.Context, nonce uint64) error {
 			return err
 		}
 	}
-	if !keeper.ValidatorPartOfValset(previousValset.Members, orch.OrchEthAddress.Hex()) {
+	if !keeper.ValidatorPartOfValset(previousValset.Members, orch.OrchEVMAddress.Hex()) {
 		// no need to sign if the orchestrator is not part of the validator set that needs to sign the attestation
 		orch.Logger.Debug("validator not part of valset. won't sign", "nonce", nonce)
 		return nil
@@ -327,7 +327,7 @@ func (orch Orchestrator) ProcessValsetEvent(ctx context.Context, valset types.Va
 	// create and send the valset hash
 	msg := types.NewMsgValsetConfirm(
 		valset.Nonce,
-		orch.OrchEthAddress,
+		orch.OrchEVMAddress,
 		orch.OrchAccAddress,
 		ethcmn.Bytes2Hex(signature),
 	)
@@ -361,7 +361,7 @@ func (orch Orchestrator) ProcessDataCommitmentEvent(
 		commitment.String(),
 		ethcmn.Bytes2Hex(dcSig),
 		orch.OrchAccAddress,
-		orch.OrchEthAddress,
+		orch.OrchEVMAddress,
 		dc.BeginBlock,
 		dc.EndBlock,
 		dc.Nonce,

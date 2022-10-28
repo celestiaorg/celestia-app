@@ -18,7 +18,7 @@ func TestQueryValsetConfirm(t *testing.T) {
 		addrStr                     = "cosmos1v4s3yfg8rujaz56yt5a3xznqjqgyeff4552l40"
 		nonce                       = uint64(1)
 		myValidatorCosmosAddr, err1 = sdk.AccAddressFromBech32(addrStr)
-		myValidatorEthereumAddr     = gethcommon.HexToAddress("0x3232323232323232323232323232323232323232")
+		myValidatorEVMAddr          = gethcommon.HexToAddress("0x3232323232323232323232323232323232323232")
 	)
 	require.NoError(t, err1)
 	input := testutil.CreateTestEnv(t)
@@ -27,7 +27,7 @@ func TestQueryValsetConfirm(t *testing.T) {
 	k := input.QgbKeeper
 	_, _ = input.QgbKeeper.SetValsetConfirm(sdkCtx, *types.NewMsgValsetConfirm(
 		nonce,
-		myValidatorEthereumAddr,
+		myValidatorEVMAddr,
 		myValidatorCosmosAddr,
 		"alksdjhflkasjdfoiasjdfiasjdfoiasdj",
 	))
@@ -42,7 +42,7 @@ func TestQueryValsetConfirm(t *testing.T) {
 			expResp: types.QueryValsetConfirmResponse{
 				Confirm: types.NewMsgValsetConfirm(
 					1,
-					myValidatorEthereumAddr,
+					myValidatorEVMAddr,
 					myValidatorCosmosAddr,
 					"alksdjhflkasjdfoiasjdfiasjdfoiasdj",
 				),
@@ -87,9 +87,9 @@ func TestAllValsetConfirmsByNonce(t *testing.T) {
 		myValidatorCosmosAddr1, _ = sdk.AccAddressFromBech32(addrs[0])
 		myValidatorCosmosAddr2, _ = sdk.AccAddressFromBech32(addrs[1])
 		myValidatorCosmosAddr3, _ = sdk.AccAddressFromBech32(addrs[2])
-		myValidatorEthereumAddr1  = gethcommon.HexToAddress("0x0101010101010101010101010101010101010101")
-		myValidatorEthereumAddr2  = gethcommon.HexToAddress("0x0202020202020202020202020202020202020202")
-		myValidatorEthereumAddr3  = gethcommon.HexToAddress("0x0303030303030303030303030303030303030303")
+		myValidatorEVMAddr1       = gethcommon.HexToAddress("0x0101010101010101010101010101010101010101")
+		myValidatorEVMAddr2       = gethcommon.HexToAddress("0x0202020202020202020202020202020202020202")
+		myValidatorEVMAddr3       = gethcommon.HexToAddress("0x0303030303030303030303030303030303030303")
 	)
 
 	input := testutil.CreateTestEnv(t)
@@ -101,7 +101,7 @@ func TestAllValsetConfirmsByNonce(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		addr, _ := sdk.AccAddressFromBech32(addrs[i])
 		msg := types.MsgValsetConfirm{}
-		msg.EthAddress = gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20)).String()
+		msg.EvmAddress = gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20)).String()
 		msg.Nonce = uint64(1)
 		msg.Orchestrator = addr.String()
 		msg.Signature = fmt.Sprintf("signature %d", i+1)
@@ -116,9 +116,9 @@ func TestAllValsetConfirmsByNonce(t *testing.T) {
 		"all good": {
 			src: types.QueryValsetConfirmsByNonceRequest{Nonce: 1},
 			expResp: types.QueryValsetConfirmsByNonceResponse{Confirms: []types.MsgValsetConfirm{
-				*types.NewMsgValsetConfirm(nonce, myValidatorEthereumAddr1, myValidatorCosmosAddr1, "signature 1"),
-				*types.NewMsgValsetConfirm(nonce, myValidatorEthereumAddr2, myValidatorCosmosAddr2, "signature 2"),
-				*types.NewMsgValsetConfirm(nonce, myValidatorEthereumAddr3, myValidatorCosmosAddr3, "signature 3"),
+				*types.NewMsgValsetConfirm(nonce, myValidatorEVMAddr1, myValidatorCosmosAddr1, "signature 1"),
+				*types.NewMsgValsetConfirm(nonce, myValidatorEVMAddr2, myValidatorCosmosAddr2, "signature 2"),
+				*types.NewMsgValsetConfirm(nonce, myValidatorEVMAddr3, myValidatorCosmosAddr3, "signature 3"),
 			}},
 		},
 		"unknown nonce": {
@@ -150,24 +150,24 @@ func TestQueryCurrentValset(t *testing.T) {
 		Height: 1234567,
 		Members: []types.BridgeValidator{
 			{
-				Power:           858993459,
-				EthereumAddress: testutil.EthAddrs[0].Hex(),
+				Power:      858993459,
+				EvmAddress: testutil.EVMAddrs[0].Hex(),
 			},
 			{
-				Power:           858993459,
-				EthereumAddress: testutil.EthAddrs[1].Hex(),
+				Power:      858993459,
+				EvmAddress: testutil.EVMAddrs[1].Hex(),
 			},
 			{
-				Power:           858993459,
-				EthereumAddress: testutil.EthAddrs[2].Hex(),
+				Power:      858993459,
+				EvmAddress: testutil.EVMAddrs[2].Hex(),
 			},
 			{
-				Power:           858993459,
-				EthereumAddress: testutil.EthAddrs[3].Hex(),
+				Power:      858993459,
+				EvmAddress: testutil.EVMAddrs[3].Hex(),
 			},
 			{
-				Power:           858993459,
-				EthereumAddress: testutil.EthAddrs[4].Hex(),
+				Power:      858993459,
+				EvmAddress: testutil.EVMAddrs[4].Hex(),
 			},
 		},
 	}

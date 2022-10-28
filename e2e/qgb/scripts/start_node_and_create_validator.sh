@@ -4,9 +4,9 @@
 # keeps running it validating blocks.
 
 # check if environment variables are set
-if [[ -z "${CELESTIA_HOME}" || -z "${MONIKER}" || -z "${ETH_ADDRESS}" || -z "${AMOUNT}" ]]
+if [[ -z "${CELESTIA_HOME}" || -z "${MONIKER}" || -z "${EVM_ADDRESS}" || -z "${AMOUNT}" ]]
 then
-  echo "Environment not setup correctly. Please set: CELESTIA_HOME, MONIKER, ETH_ADDRESS, AMOUNT variables"
+  echo "Environment not setup correctly. Please set: CELESTIA_HOME, MONIKER, EVM_ADDRESS, AMOUNT variables"
   exit 1
 fi
 
@@ -51,7 +51,7 @@ apk add curl
     --from=${MONIKER} \
     --keyring-backend=test \
     --orchestrator-address="$(celestia-appd keys show ${MONIKER} -a --keyring-backend="test" --home ${CELESTIA_HOME})" \
-    --ethereum-address=${ETH_ADDRESS} \
+    --evm-address=${EVM_ADDRESS} \
     --home=${CELESTIA_HOME} \
     --broadcast-mode=block \
     --yes

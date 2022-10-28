@@ -169,11 +169,11 @@ func createValidator(
 	if err != nil {
 		return err
 	}
-	ethPrivateKey, err := crypto.GenerateKey()
+	evmPrivateKey, err := crypto.GenerateKey()
 	if err != nil {
 		return err
 	}
-	orchEVMPublicKey := ethPrivateKey.Public().(*ecdsa.PublicKey)
+	orchEVMPublicKey := evmPrivateKey.Public().(*ecdsa.PublicKey)
 	evmAddr := crypto.PubkeyToAddress(*orchEVMPublicKey)
 
 	createValMsg, err := stakingtypes.NewMsgCreateValidator(

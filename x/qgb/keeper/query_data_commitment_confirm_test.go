@@ -15,7 +15,7 @@ func TestQueryDataCommitment(t *testing.T) {
 	var (
 		addrStr                     = "cosmos1v4s3yfg8rujaz56yt5a3xznqjqgyeff4552l40"
 		myValidatorCosmosAddr, err1 = sdk.AccAddressFromBech32(addrStr)
-		myValidatorEthereumAddr     = gethcommon.HexToAddress("0x3232323232323232323232323232323232323232")
+		myValidatorEVMAddr          = gethcommon.HexToAddress("0x3232323232323232323232323232323232323232")
 		nonce                       = uint64(20)
 	)
 	require.NoError(t, err1)
@@ -29,7 +29,7 @@ func TestQueryDataCommitment(t *testing.T) {
 			"commitment",
 			"alksdjhflkasjdfoiasjdfiasjdfoiasdj",
 			myValidatorCosmosAddr,
-			myValidatorEthereumAddr,
+			myValidatorEVMAddr,
 			10,
 			200,
 			nonce,
@@ -52,7 +52,7 @@ func TestQueryDataCommitment(t *testing.T) {
 					"commitment",
 					"alksdjhflkasjdfoiasjdfiasjdfoiasdj",
 					myValidatorCosmosAddr,
-					myValidatorEthereumAddr,
+					myValidatorEVMAddr,
 					10,
 					200,
 					nonce,

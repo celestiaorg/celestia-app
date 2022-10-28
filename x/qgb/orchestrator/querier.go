@@ -141,7 +141,7 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 	// create a map to easily search for power
 	vals := make(map[string]types.BridgeValidator)
 	for _, val := range valset.Members {
-		vals[val.GetEthereumAddress()] = val
+		vals[val.GetEvmAddress()] = val
 	}
 
 	majThreshHold := valset.TwoThirdsThreshold()
@@ -173,11 +173,11 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 
 			correctConfirms := make([]types.MsgDataCommitmentConfirm, 0)
 			for _, dataCommitmentConfirm := range confirms {
-				val, has := vals[dataCommitmentConfirm.EthAddress]
+				val, has := vals[dataCommitmentConfirm.EvmAddress]
 				if !has {
 					q.logger.Debug(fmt.Sprintf(
 						"dataCommitmentConfirm signer not found in stored validator set: address %s nonce %d",
-						val.EthereumAddress,
+						val.EvmAddress,
 						valset.Nonce,
 					))
 					continue
@@ -186,8 +186,8 @@ func (q *querier) QueryTwoThirdsDataCommitmentConfirms(
 					q.logger.Error("found an invalid data commitment confirm",
 						"nonce",
 						dataCommitmentConfirm.Nonce,
-						"signer_eth_address",
-						dataCommitmentConfirm.EthAddress,
+						"signer_evm_address",
+						dataCommitmentConfirm.EvmAddress,
 						"err",
 						err.Error(),
 					)
@@ -234,7 +234,7 @@ func validateDCConfirm(commitment string, confirm types.MsgDataCommitmentConfirm
 	}
 	bCommitment := common.Hex2Bytes(commitment)
 	dataRootHash := types.DataCommitmentTupleRootSignBytes(types.BridgeID, big.NewInt(int64(confirm.Nonce)), bCommitment)
-	err := types.ValidateEthereumSignature(dataRootHash.Bytes(), common.Hex2Bytes(confirm.Signature), common.HexToAddress(confirm.EthAddress))
+	err := types.ValidateEthereumSignature(dataRootHash.Bytes(), common.Hex2Bytes(confirm.Signature), common.HexToAddress(confirm.EvmAddress))
 	if err != nil {
 		return err
 	}
@@ -263,7 +263,7 @@ func (q querier) QueryTwoThirdsValsetConfirms(
 	// create a map to easily search for power
 	vals := make(map[string]types.BridgeValidator)
 	for _, val := range currentValset.Members {
-		vals[val.GetEthereumAddress()] = val
+		vals[val.GetEvmAddress()] = val
 	}
 
 	majThreshHold := valset.TwoThirdsThreshold()
@@ -290,12 +290,12 @@ func (q querier) QueryTwoThirdsValsetConfirms(
 
 			confirms := make([]types.MsgValsetConfirm, 0)
 			for _, valsetConfirm := range confirmsResp.Confirms {
-				val, has := vals[valsetConfirm.EthAddress]
+				val, has := vals[valsetConfirm.EvmAddress]
 				if !has {
 					q.logger.Debug(
 						fmt.Sprintf(
 							"valSetConfirm signer not found in stored validator set: address %s nonce %d",
-							val.EthereumAddress,
+							val.EvmAddress,
 							valset.Nonce,
 						))
 					continue
@@ -304,8 +304,8 @@ func (q querier) QueryTwoThirdsValsetConfirms(
 					q.logger.Error("found an invalid valset confirm",
 						"nonce",
 						valsetConfirm.Nonce,
-						"signer_eth_address",
-						valsetConfirm.EthAddress,
+						"signer_evm_address",
+						valsetConfirm.EvmAddress,
 						"err",
 						err.Error(),
 					)
@@ -348,7 +348,7 @@ func validateValsetConfirm(vs types.Valset, confirm types.MsgValsetConfirm) erro
 	if err != nil {
 		return err
 	}
-	err = types.ValidateEthereumSignature(signBytes.Bytes(), common.Hex2Bytes(confirm.Signature), common.HexToAddress(confirm.EthAddress))
+	err = types.ValidateEthereumSignature(signBytes.Bytes(), common.Hex2Bytes(confirm.Signature), common.HexToAddress(confirm.EvmAddress))
 	if err != nil {
 		return err
 	}

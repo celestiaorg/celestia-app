@@ -20,11 +20,11 @@ func verifyOrchestratorValsetSignature(broadcasted sdk.Msg, valset *types.Valset
 	if err != nil {
 		return err
 	}
-	ethAddress := common.HexToAddress(msg.EthAddress)
+	evmAddress := common.HexToAddress(msg.EvmAddress)
 	err = types.ValidateEthereumSignature(
 		hash.Bytes(),
 		common.Hex2Bytes(msg.Signature),
-		ethAddress,
+		evmAddress,
 	)
 	if err != nil {
 		return err
@@ -32,8 +32,8 @@ func verifyOrchestratorValsetSignature(broadcasted sdk.Msg, valset *types.Valset
 	return nil
 }
 
-func generateValset(nonce int, ethAddress string) (*types.Valset, error) {
-	validators, err := populateValidators(ethAddress)
+func generateValset(nonce int, evmAddress string) (*types.Valset, error) {
+	validators, err := populateValidators(evmAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -48,12 +48,12 @@ func generateValset(nonce int, ethAddress string) (*types.Valset, error) {
 	return valset, err
 }
 
-func populateValidators(ethAddress string) (types.InternalBridgeValidators, error) {
+func populateValidators(evmAddress string) (types.InternalBridgeValidators, error) {
 	validators := make(types.InternalBridgeValidators, 1)
 	validator, err := types.NewInternalBridgeValidator(
 		types.BridgeValidator{
-			Power:           80,
-			EthereumAddress: ethAddress,
+			Power:      80,
+			EvmAddress: evmAddress,
 		})
 	if err != nil {
 		return nil, err
@@ -78,11 +78,11 @@ func verifyOrchestratorDcSignature(broadcasted sdk.Msg, dc types.DataCommitment)
 		big.NewInt(int64(dc.Nonce)),
 		commitmentFromRange(dc.BeginBlock, dc.EndBlock),
 	)
-	ethAddress := common.HexToAddress(msg.EthAddress)
+	evmAddress := common.HexToAddress(msg.EvmAddress)
 	err := types.ValidateEthereumSignature(
 		dataRootHash.Bytes(),
 		common.Hex2Bytes(msg.Signature),
-		ethAddress,
+		evmAddress,
 	)
 	if err != nil {
 		return err

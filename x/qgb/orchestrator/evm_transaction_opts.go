@@ -31,19 +31,19 @@ func newTransactOptsBuilder(privKey *ecdsa.PrivateKey) transactOpsBuilder {
 			return nil, err
 		}
 
-		ethChainID, err := client.ChainID(ctx)
+		evmChainID, err := client.ChainID(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get Ethereum chain ID: %w", err)
+			return nil, fmt.Errorf("failed to get EVM chain ID: %w", err)
 		}
 
-		auth, err := bind.NewKeyedTransactorWithChainID(privKey, ethChainID)
+		auth, err := bind.NewKeyedTransactorWithChainID(privKey, evmChainID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create Ethereum transactor: %w", err)
+			return nil, fmt.Errorf("failed to create EVM transactor: %w", err)
 		}
 
 		bigGasPrice, err := client.SuggestGasPrice(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get Ethereum gas estimate: %w", err)
+			return nil, fmt.Errorf("failed to get EVM gas estimate: %w", err)
 		}
 
 		auth.Nonce = new(big.Int).SetUint64(nonce)

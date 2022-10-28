@@ -31,8 +31,8 @@ const (
 	keyringAccountName  = "keyring-account"
 	celestiaChainIDFlag = "celes-chain-id"
 
-	// ethereum signing.
-	privateKeyFlag = "eth-priv-key"
+	// evm signing.
+	privateKeyFlag = "evm-priv-key"
 	evmChainIDFlag = "evm-chain-id"
 
 	// rpc.
@@ -96,9 +96,9 @@ func parseOrchestratorFlags(cmd *cobra.Command) (orchestratorConfig, error) {
 	if rawPrivateKey == "" {
 		return orchestratorConfig{}, errors.New("private key flag required")
 	}
-	ethPrivKey, err := ethcrypto.HexToECDSA(rawPrivateKey)
+	evmPrivKey, err := ethcrypto.HexToECDSA(rawPrivateKey)
 	if err != nil {
-		return orchestratorConfig{}, fmt.Errorf("failed to hex-decode Ethereum ECDSA Private Key: %w", err)
+		return orchestratorConfig{}, fmt.Errorf("failed to hex-decode EVM ECDSA Private Key: %w", err)
 	}
 	chainID, err := cmd.Flags().GetString(celestiaChainIDFlag)
 	if err != nil {
@@ -121,7 +121,7 @@ func parseOrchestratorFlags(cmd *cobra.Command) (orchestratorConfig, error) {
 		keyringBackend:   keyringBackend,
 		keyringPath:      keyringPath,
 		keyringAccount:   keyringAccount,
-		privateKey:       ethPrivKey,
+		privateKey:       evmPrivKey,
 		celestiaChainID:  chainID,
 		celesGRPC:        celesGRPC,
 		tendermintRPC:    tendermintRPC,
@@ -130,13 +130,13 @@ func parseOrchestratorFlags(cmd *cobra.Command) (orchestratorConfig, error) {
 }
 
 func addRelayerFlags(cmd *cobra.Command) *cobra.Command {
-	cmd.Flags().StringP(privateKeyFlag, "d", "", "Provide the private key used to sign relayed evm transactions")
+	cmd.Flags().StringP(privateKeyFlag, "d", "", "Provide the private key used to sign relayed EVM transactions")
 	cmd.Flags().Uint64P(evmChainIDFlag, "z", 5, "Specify the evm chain id")
 	cmd.Flags().StringP(celesGRPCFlag, "c", "localhost:9090", "Specify the grpc address")
 	cmd.Flags().StringP(tendermintRPCFlag, "t", "http://localhost:26657", "Specify the rest rpc address")
-	cmd.Flags().StringP(evmRPCFlag, "e", "http://localhost:8545", "Specify the ethereum rpc address")
+	cmd.Flags().StringP(evmRPCFlag, "e", "http://localhost:8545", "Specify the EVM rpc address")
 	cmd.Flags().StringP(contractAddressFlag, "a", "", "Specify the contract at which the qgb is deployed")
-	cmd.Flags().Uint64P(evmGasLimitFlag, "l", DEFAULTEVMGASLIMIT, "Specify the evm gas limit")
+	cmd.Flags().Uint64P(evmGasLimitFlag, "l", DEFAULTEVMGASLIMIT, "Specify the EVM gas limit")
 
 	return cmd
 }
@@ -157,9 +157,9 @@ func parseRelayerFlags(cmd *cobra.Command) (relayerConfig, error) {
 	if rawPrivateKey == "" {
 		return relayerConfig{}, errors.New("private key flag required")
 	}
-	ethPrivKey, err := ethcrypto.HexToECDSA(rawPrivateKey)
+	evmPrivKey, err := ethcrypto.HexToECDSA(rawPrivateKey)
 	if err != nil {
-		return relayerConfig{}, fmt.Errorf("failed to hex-decode Ethereum ECDSA Private Key: %w", err)
+		return relayerConfig{}, fmt.Errorf("failed to hex-decode EVM ECDSA Private Key: %w", err)
 	}
 	evmChainID, err := cmd.Flags().GetUint64(evmChainIDFlag)
 	if err != nil {
@@ -194,7 +194,7 @@ func parseRelayerFlags(cmd *cobra.Command) (relayerConfig, error) {
 	}
 
 	return relayerConfig{
-		privateKey:    ethPrivKey,
+		privateKey:    evmPrivKey,
 		evmChainID:    evmChainID,
 		celesGRPC:     celesGRPC,
 		tendermintRPC: tendermintRPC,
@@ -210,7 +210,7 @@ func addDeployFlags(cmd *cobra.Command) *cobra.Command {
 	cmd.Flags().Uint64P(evmChainIDFlag, "z", 5, "Specify the evm chain id")
 	cmd.Flags().StringP(celesGRPCFlag, "c", "localhost:9090", "Specify the grpc address")
 	cmd.Flags().StringP(tendermintRPCFlag, "t", "http://localhost:26657", "Specify the rest rpc address")
-	cmd.Flags().StringP(evmRPCFlag, "e", "http://localhost:8545", "Specify the ethereum rpc address")
+	cmd.Flags().StringP(evmRPCFlag, "e", "http://localhost:8545", "Specify the EVM rpc address")
 	cmd.Flags().StringP(
 		startingNonceFlag,
 		"n",
@@ -242,9 +242,9 @@ func parseDeployFlags(cmd *cobra.Command) (deployConfig, error) {
 	if rawPrivateKey == "" {
 		return deployConfig{}, errors.New("private key flag required")
 	}
-	ethPrivKey, err := ethcrypto.HexToECDSA(rawPrivateKey)
+	evmPrivKey, err := ethcrypto.HexToECDSA(rawPrivateKey)
 	if err != nil {
-		return deployConfig{}, fmt.Errorf("failed to hex-decode Ethereum ECDSA Private Key: %w", err)
+		return deployConfig{}, fmt.Errorf("failed to hex-decode EVM ECDSA Private Key: %w", err)
 	}
 	chainID, err := cmd.Flags().GetString(celestiaChainIDFlag)
 	if err != nil {
@@ -276,7 +276,7 @@ func parseDeployFlags(cmd *cobra.Command) (deployConfig, error) {
 	}
 
 	return deployConfig{
-		privateKey:      ethPrivKey,
+		privateKey:      evmPrivKey,
 		celestiaChainID: chainID,
 		evmChainID:      evmChainID,
 		celesGRPC:       celesGRPC,

@@ -147,12 +147,12 @@ func (ec *evmClient) UpdateValidatorSet(
 		return err
 	}
 
-	ethVals, err := ethValset(currentValset)
+	evmVals, err := evmValset(currentValset)
 	if err != nil {
 		return err
 	}
 
-	ethVsHash, err := newValset.Hash()
+	evmVsHash, err := newValset.Hash()
 	if err != nil {
 		return err
 	}
@@ -169,8 +169,8 @@ func (ec *evmClient) UpdateValidatorSet(
 		big.NewInt(int64(newNonce)),
 		big.NewInt(int64(currentNonce)),
 		big.NewInt(int64(newThreshHold)),
-		ethVsHash,
-		ethVals,
+		evmVsHash,
+		evmVals,
 		sigs,
 	)
 	if err != nil {
@@ -204,7 +204,7 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 		return err
 	}
 
-	ethVals, err := ethValset(currentValset)
+	evmVals, err := evmValset(currentValset)
 	if err != nil {
 		return err
 	}
@@ -214,7 +214,7 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 		big.NewInt(int64(newNonce)),
 		big.NewInt(int64(currentValset.Nonce)),
 		tupleRoot,
-		ethVals,
+		evmVals,
 		sigs,
 	)
 	if err != nil {
@@ -271,17 +271,17 @@ func (ec *evmClient) waitForTransaction(
 	return bind.WaitMined(ctx, ethClient, tx)
 }
 
-func ethValset(valset types.Valset) ([]wrapper.Validator, error) {
-	ethVals := make([]wrapper.Validator, len(valset.Members))
+func evmValset(valset types.Valset) ([]wrapper.Validator, error) {
+	evmVals := make([]wrapper.Validator, len(valset.Members))
 	for i, v := range valset.Members {
-		if ok := gethcommon.IsHexAddress(v.EthereumAddress); !ok {
-			return nil, errors.New("invalid ethereum address found in validator set")
+		if ok := gethcommon.IsHexAddress(v.EvmAddress); !ok {
+			return nil, errors.New("invalid EVM address found in validator set")
 		}
-		addr := gethcommon.HexToAddress(v.EthereumAddress)
-		ethVals[i] = wrapper.Validator{
+		addr := gethcommon.HexToAddress(v.EvmAddress)
+		evmVals[i] = wrapper.Validator{
 			Addr:  addr,
 			Power: big.NewInt(int64(v.Power)),
 		}
 	}
-	return ethVals, nil
+	return evmVals, nil
 }
