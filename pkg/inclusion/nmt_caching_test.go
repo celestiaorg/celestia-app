@@ -147,7 +147,6 @@ func calculateSubTreeRoots(row [][]byte, depth int) [][]byte {
 	for i, rowChunk := range chunks {
 		tr := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(row)), 0)
 		for _, r := range rowChunk {
-			// c := (i * subLeafRange) + j
 			tr.Push(r)
 		}
 		subTreeRoots[i] = tr.Root()
