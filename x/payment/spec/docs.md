@@ -143,7 +143,7 @@ if err != nil {
     return err
 }
 
-// Build and sign the final `WirePayForData` tx that now contians the signatures
+// Build and sign the final `WirePayForData` tx that now contains the signatures
 // for potential `MsgPayForData`s
 signedTx, err := keyringSigner.BuildSignedTx(
     gasLimOption(signer.NewTxBuilder()),
