@@ -14,6 +14,6 @@ message Params {
   uint64 data_commitment_window = 1;
 }
 
-// GenesisState struct, containing all persistant data required by the Gravity
+// GenesisState struct, containing all persistent data required by the Gravity
 // module
 message GenesisState { Params params = 1; }

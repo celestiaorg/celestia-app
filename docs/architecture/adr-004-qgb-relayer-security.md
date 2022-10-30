@@ -85,7 +85,7 @@ A proposition to remediate the issues described above is to make the signatures 
 
 ## Decision
 
-The **Synchronous QGB : Universal nonce approach** will be implemented as it will allow us to ship a working QGB 1.0 version faster while preserving the same security assumptions at the expense of parallelization, and custumization, as discussed under the _request oriented design_ above.
+The **Synchronous QGB : Universal nonce approach** will be implemented as it will allow us to ship a working QGB 1.0 version faster while preserving the same security assumptions at the expense of parallelization, and customization, as discussed under the _request oriented design_ above.
 
 ## Detailed Design
 
@@ -391,7 +391,7 @@ In a nutshell, a new valset will be emitted if any of the following is true:
 
 - The block is the genesis block and no previous valsets were defined. Then, a new valset will be stored referencing the validator set defined in genesis.
 - We're at an unbonding height and we need to update the valset not to end up with a valset containing validators that will cease to exist.
-- A significant power difference occured, i.e. the validator set changed significantly. This is defined using the following:
+- A significant power difference occurred, i.e. the validator set changed significantly. This is defined using the following:
 
 ```go
 significantPowerDiff = intCurrMembers.PowerDiff(*intLatestMembers) > 0.05
