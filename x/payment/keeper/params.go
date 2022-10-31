@@ -5,7 +5,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// GetParams get all parameters as types.Params
+// GetParams gets all parameters as types.Params
 func (k Keeper) GetParams(ctx sdk.Context) types.Params {
 	return types.NewParams(
 		k.MinSquareSize(ctx),
@@ -15,17 +15,17 @@ func (k Keeper) GetParams(ctx sdk.Context) types.Params {
 
 // SetParams set the params
 func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
-	k.paramstore.SetParamSet(ctx, &params)
+	k.paramStore.SetParamSet(ctx, &params)
 }
 
 // MinSquareSize returns the MinSquareSize param
 func (k Keeper) MinSquareSize(ctx sdk.Context) (res uint32) {
-	k.paramstore.Get(ctx, types.KeyMinSquareSize, &res)
+	k.paramStore.Get(ctx, types.KeyMinSquareSize, &res)
 	return
 }
 
 // MaxSquareSize returns the MaxSquareSize param
 func (k Keeper) MaxSquareSize(ctx sdk.Context) (res uint32) {
-	k.paramstore.Get(ctx, types.KeyMaxSquareSize, &res)
+	k.paramStore.Get(ctx, types.KeyMaxSquareSize, &res)
 	return
 }

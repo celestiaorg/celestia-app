@@ -19,7 +19,7 @@ var (
 	DefaultMaxSquareSize uint32 = 128
 )
 
-// ParamKeyTable the param key table for the payment module
+// ParamKeyTable returns the param key table for the payment module
 func ParamKeyTable() paramtypes.KeyTable {
 	return paramtypes.NewKeyTable().RegisterParamSet(&Params{})
 }
@@ -43,7 +43,7 @@ func DefaultParams() Params {
 	)
 }
 
-// ParamSetPairs gets the list of param key-pair values
+// ParamSetPairs gets the list of param key-value pairs
 func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
 		paramtypes.NewParamSetPair(KeyMinSquareSize, &p.MinSquareSize, validateMinSquareSize),
