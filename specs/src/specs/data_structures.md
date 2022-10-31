@@ -508,7 +508,7 @@ Continuation share in a sequence:
 
 For shares **with a namespace ID above [`NAMESPACE_ID_MAX_RESERVED`](./consensus.md#constants) but below [`PARITY_SHARE_NAMESPACE_ID`](./consensus.md#constants)**:
 
-- If this is the first share of a sequence, the next 1-10 bytes contain a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the uint64 length of the sequence that follows.
+- If this is the first share of a sequence, the next 1-10 bytes contain a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the `uint64` length of the sequence that follows.
 - The remaining bytes are message data. Message data are opaque bytes of data that are included in the block but do not impact the state. In other words, the remaining bytes have no special meaning and are simply used to store data.
 - If there is insufficient message data to fill the share, the remaining bytes are filled with `0`.
 
