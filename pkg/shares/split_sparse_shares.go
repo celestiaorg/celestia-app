@@ -14,7 +14,6 @@ import (
 // how many shares the messages written take up.
 type SparseShareSplitter struct {
 	shares []Share
-	count  int
 }
 
 func NewSparseShareSplitter() *SparseShareSplitter {
@@ -30,14 +29,13 @@ func (sss *SparseShareSplitter) Write(msg coretypes.Message) {
 	newShares := make([]Share, 0)
 	newShares = AppendToShares(newShares, msg.NamespaceID, rawMsg)
 	sss.shares = append(sss.shares, newShares...)
-	sss.count += len(newShares)
 }
 
 // RemoveMessage will remove a message from the underlying message state. If
 // there is namespaced padding after the message, then that is also removed.
 func (sss *SparseShareSplitter) RemoveMessage(i int) (int, error) {
 	j := 1
-	initialCount := sss.count
+	initialCount := len(sss.shares)
 	if len(sss.shares) > i+1 {
 		msgLen, err := sss.shares[i+1].SequenceLength()
 		if err != nil {
@@ -48,13 +46,12 @@ func (sss *SparseShareSplitter) RemoveMessage(i int) (int, error) {
 		// with the message
 		if msgLen == 0 {
 			j++
-			sss.count -= len(sss.shares[j])
 		}
 	}
-	sss.count -= len(sss.shares[i])
 	copy(sss.shares[i:], sss.shares[i+j:])
 	sss.shares = sss.shares[:len(sss.shares)-j]
-	return initialCount - sss.count, nil
+	newCount := len(sss.shares)
+	return initialCount - newCount, nil
 }
 
 // WriteNamespacedPaddedShares adds empty shares using the namespace of the last written share.
@@ -69,7 +66,6 @@ func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) {
 	}
 	lastMessage := sss.shares[len(sss.shares)-1]
 	sss.shares = append(sss.shares, namespacedPaddedShares(lastMessage.NamespaceID(), count)...)
-	sss.count += count
 }
 
 // Export finalizes and returns the underlying shares.
@@ -79,7 +75,7 @@ func (sss *SparseShareSplitter) Export() []Share {
 
 // Count returns the current number of shares that will be made if exporting.
 func (sss *SparseShareSplitter) Count() int {
-	return sss.count
+	return len(sss.shares)
 }
 
 // AppendToShares appends raw data as shares.
