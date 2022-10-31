@@ -482,27 +482,53 @@ Finally, the `availableDataRoot` of the block [Header](#header) is computed as t
 
 A share is a fixed-size data chunk associated with a namespace ID, whose data will be erasure-coded and committed to in [Namespace Merkle trees](#namespace-merkle-tree).
 
-A share's raw data `rawData` is interpreted differently depending on the namespace ID.
+A sequence is a contiguous set of shares that contain semantically relevant data. A sequence should be parsed together because data may be split across share boundaries. One sequence exists per reserved namespace and per message.
+
+- The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`.
+- The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information with the following structure:
+  - The first 7 bits represent the share version in big endian form (initially, this will be `0000000` for version `0`);
+  - The last bit is a sequence start indicator, that is `1` if the share is at the start of a sequence or `0` if it is a continuation share.
+
+The remainder of a share's raw data `rawData` is interpreted differently depending on the namespace ID.
+
+#### Compact Share
 
 For shares **with a reserved namespace ID through [`NAMESPACE_ID_MAX_RESERVED`](./consensus.md#constants)**:
 
-- The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`.
-- The next [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes (the `*` in the example layout figure below) is the starting byte of the length of the [canonically serialized](#serialization) first request that starts in the share, or `0` if there is none, as a one-byte big-endian unsigned integer (i.e. canonical serialization is not used). In this example, with a share size of `256` the first byte would be `80` (or `0x50` in hex).
-- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are request data.
+> **Note** The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information.
 
-![fig: Reserved share.](./figures/share.svg)
+- If this is the first share of a sequence, the next 1 to 10 bytes contain a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the `uint64` length of the sequence that follows, in bytes.
+- The next [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes is the starting byte of the length of the [canonically serialized](#serialization) first request that starts in the share, or `0` if there is none, as a one-byte big-endian unsigned integer (i.e. canonical serialization is not used). In the example below, with a share size of `256` the reserved byte would be `80` (or `0x50` in hex).
+- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` 1 to 10 bytes (if this is the first share of a sequence) `-` [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are transactions, intermediate state roots, or evidence data depending on the namespace of ths share. Each transaction, intermediate state root, or evidence is prefixed with a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the length of that unit.
+- If there is insufficient transaction, intermediate state root, or evidence data to fill the share, the remaining bytes are filled with `0`.
+
+First share in a sequence:
+![fig: compact start share.](./figures/compact_start_share.svg)
+
+Continuation share in a sequence:
+![fig: compact continuation share.](./figures/compact_continuation_share.svg)
+
+#### Sparse Share
 
 For shares **with a namespace ID above [`NAMESPACE_ID_MAX_RESERVED`](./consensus.md#constants) but below [`PARITY_SHARE_NAMESPACE_ID`](./consensus.md#constants)**:
 
-- The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`.
-- If this is the first share of a message, the next 1-10 bytes contain a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the uint64 length of the message that follows. If this isn't the first share of a message, the next 1-10 bytes are used for request data.
-- The remaining bytes are request data. In other words, the remaining bytes have no special meaning and are simply used to store data.
+> **Note** The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information.
+
+- If this is the first share of a sequence, the next 1 to 10 bytes contain a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the `uint64` length of the sequence that follows.
+- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` 1 to 10 bytes (if this is the first share of a sequence) bytes are message data. Message data are opaque bytes of data that are included in the block but do not impact the state. In other words, the remaining bytes have no special meaning and are simply used to store data.
+- If there is insufficient message data to fill the share, the remaining bytes are filled with `0`.
+
+First share in a sequence:
+![fig: sparse start share.](./figures/sparse_start_share.svg)
+
+Continuation share in a sequence:
+![fig: sparse continuation share.](./figures/sparse_continuation_share.svg)
+
+#### Parity Share
 
 For shares **with a namespace ID equal to [`PARITY_SHARE_NAMESPACE_ID`](./consensus.md#constants)** (i.e. parity shares):
 
 - Bytes carry no special meaning.
-
-For non-parity shares, if there is insufficient request data to fill the share, the remaining bytes are filled with `0`.
 
 ### Arranging Available Data Into Shares
 
