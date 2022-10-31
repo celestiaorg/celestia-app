@@ -311,10 +311,25 @@ func generateRandomlySizedMessages(count, maxMsgSize int) coretypes.Messages {
 	return messages
 }
 
+// generateRandomMessage returns a random message of the given size (in bytes)
 func generateRandomMessage(size int) coretypes.Message {
 	msg := coretypes.Message{
 		NamespaceID: tmrand.Bytes(appconsts.NamespaceSize),
 		Data:        tmrand.Bytes(size),
 	}
 	return msg
+}
+
+// generateRandomMessageOfShareCount returns a message that spans the given
+// number of shares
+func generateRandomMessageOfShareCount(count int) coretypes.Message {
+	size := rawMessageSize(appconsts.SparseShareContentSize * count)
+	return generateRandomMessage(size)
+}
+
+// rawMessageSize returns the raw message size that can be used to construct a
+// message of totalSize bytes. This function is useful in tests to account for
+// the delimiter length that is prefixed to a message's data.
+func rawMessageSize(totalSize int) int {
+	return totalSize - DelimLen(uint64(totalSize))
 }
