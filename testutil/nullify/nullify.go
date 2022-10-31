@@ -1,4 +1,4 @@
-// Package nullify provides methods to init nil values structs for test assertion.
+// Package nullify provides methods to init nil value structs for test assertion.
 package nullify
 
 import (
@@ -13,8 +13,8 @@ var (
 	coinsType = reflect.TypeOf(sdk.Coins{})
 )
 
-// Fill analyze all struct fields and slices with
-// reflection and initialize the nil and empty slices,
+// Fill analyzes all struct fields and slices with
+// reflection and initializes the nil and empty slices,
 // structs, and pointers.
 func Fill(x interface{}) interface{} {
 	v := reflect.Indirect(reflect.ValueOf(x))
