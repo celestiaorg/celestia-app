@@ -1,4 +1,6 @@
-# Abstract
+# `x/payment`
+
+## Abstract
 
 The payment module is responsible for paying for arbitrary data that will be added to the Celestia blockchain. While the data being submitted can be arbitrary, the exact placement of that data is important for the transaction to be valid. This is why the payment module utilizes a malleated transaction scheme. Malleated transactions allow for users to create a single transaction, that can later be malleated by the block producer to create a variety of different valid transactions that are still signed over by the user. To accomplish this, users create a single `MsgWirePayForData` transaction, which is composed of metadata and signatures for multiple variations of the transaction that will be included onchain. After the transaction is submitted to the network, the block producer selects the appropriate signature and creates a valid `MsgPayForData` transaction depending on the square size for that block. This new malleated `MsgPayForData` transaction is what ends up onchain.
 
@@ -6,96 +8,22 @@ Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-
 
 ## State
 
-- The sender’s account balance, via the bank keeper’s [`Burn`](https://github.com/cosmos/cosmos-sdk/blob/531bf5084516425e8e3d24bae637601b4d36a191/x/bank/spec/01_state.md) method.
-- The standard incrememnt of the sender's account number via the [auth module](https://github.com/cosmos/cosmos-sdk/blob/531bf5084516425e8e3d24bae637601b4d36a191/x/auth/spec/02_state.md).
+The payment module doesn't maintain it's own state.
+
+When a PayForData message is processed, it consumes gas based on the message size.
 
 ## Messages
 
-- [`MsgWirePayForData`](https://github.com/celestiaorg/celestia-app/blob/b4c8ebdf35db200a9b99d295a13de01110802af4/x/payment/types/tx.pb.go#L32-L40)
-
-While this transaction is created and signed by the user, it never actually ends up onchain. Instead, it is used to create a new "malleated" transaction that does get included onchain.
-
-- [`MsgPayForData`](https://github.com/celestiaorg/celestia-app/blob/b4c8ebdf35db200a9b99d295a13de01110802af4/x/payment/types/tx.pb.go#L208-L216)
-
-The malleated transaction that is created from metadata contained in the original `MsgWirePayForData`. It also burns some of the sender’s funds.
+- [`MsgWirePayForData`](https://github.com/celestiaorg/celestia-app/blob/29e0a2751182499f7dc03598eabfc8d049ae62cb/x/payment/types/tx.pb.go#L32-L40) is a message that is created and signed by the user but it never ends up on-chain.
+- [`MsgPayForData`](https://github.com/celestiaorg/celestia-app/blob/29e0a2751182499f7dc03598eabfc8d049ae62cb/x/payment/types/tx.pb.go#L209-L219) is a "malleated" transaction that is created from metadata in the original `MsgWirePayForData`. `MsgPayForData` does end up on-chain.
 
 ## PrepareProposal
 
 The malleation process occurs during the PrepareProposal step.
 
-```go
-// ProcessWirePayForData will perform the processing required by PrepareProposal.
-// It parses the MsgWirePayForData to produce the components needed to create a
-// single  MsgPayForData
-func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.Message, *MsgPayForData, []byte, error) {
-	// make sure that a ShareCommitAndSignature of the correct size is
-	// included in the message
-	var shareCommit *ShareCommitAndSignature
-	for _, commit := range msg.MessageShareCommitment {
-		if commit.K == squareSize {
-			shareCommit = &commit
-		}
-	}
-	if shareCommit == nil {
-		return nil,
-			nil,
-			nil,
-			fmt.Errorf("message does not commit to current square size: %d", squareSize)
-	}
-
-	// add the message to the list of core message to be returned to ll-core
-	coreMsg := tmproto.Message{
-		NamespaceId: msg.GetMessageNamespaceId(),
-		Data:        msg.GetMessage(),
-	}
-
-	// wrap the signed transaction data
-	pfd, err := msg.unsignedPayForData(squareSize)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	return &coreMsg, pfd, shareCommit.Signature, nil
-}
-
-// PrepareProposal fullfills the celestia-core version of the ACBI interface by
-// preparing the proposal block data. The square size is determined by first
-// estimating it via the size of the passed block data. Then the included
-// MsgWirePayForData messages are malleated into MsgPayForData messages by
-// separating the message and transaction that pays for that message. Lastly,
-// this method generates the data root for the proposal block and passes it the
-// blockdata.
-func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-	squareSize := app.estimateSquareSize(req.BlockData)
-
-	dataSquare, data := SplitShares(app.txConfig, squareSize, req.BlockData)
-
-	eds, err := da.ExtendShares(squareSize, dataSquare)
-	if err != nil {
-		app.Logger().Error(
-			"failure to erasure the data square while creating a proposal block",
-			"error",
-			err.Error(),
-		)
-		panic(err)
-	}
-
-	dah := da.NewDataAvailabilityHeader(eds)
-	data.Hash = dah.Hash()
-	data.OriginalSquareSize = squareSize
-
-	return abci.ResponsePrepareProposal{
-		BlockData: data,
-	}
-}
-```
-
-<!-- markdownlint-enable MD010 -->
-
 ## Events
 
-- [`NewPayForDataEvent`](https://github.com/celestiaorg/celestia-app/pull/213/files#diff-1ce55bda42cf160deca2e5ea1f4382b65f3b689c7e00c88085d7ce219e77303dR17-R21)
-  Emit an event that has the signer's address and size of the message that is paid for.
+- [`NewPayForDataEvent`](https://github.com/celestiaorg/celestia-app/pull/213/files#diff-1ce55bda42cf160deca2e5ea1f4382b65f3b689c7e00c88085d7ce219e77303dR17-R21) is emitted with the signer's address and size of the message that is paid for.
 
 ## Parameters
 
@@ -103,15 +31,16 @@ There are no parameters yet, but we might add
 
 - BaseFee
 - SquareSize
-- ShareSize
 
 ### Usage
 
-`celestia-app tx payment payForData <hex encoded namespace> <hex encoded data> [flags]`
+```shell
+celestia-app tx payment payForData <hex encoded namespace> <hex encoded data> [flags]
+```
 
 ### Programmatic Usage
 
-There are tools to programmatically create, sign, and broadcast `MsgWirePayForDatas`
+There are tools to programmatically create, sign, and broadcast `MsgWirePayForData`s
 
 ```go
 // create the raw WirePayForData transaction
