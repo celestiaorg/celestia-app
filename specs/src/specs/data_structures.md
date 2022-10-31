@@ -493,7 +493,7 @@ The remainder of a share's raw data `rawData` is interpreted differently dependi
 
 For shares **with a reserved namespace ID through [`NAMESPACE_ID_MAX_RESERVED`](./consensus.md#constants)**:
 
-- If this is the first share of a sequence, the next 1-10 bytes contain a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the uint64 length of the sequence that follows.
+- If this is the first share of a sequence, the next 1-10 bytes contain a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the `uint64` length of the sequence that follows, in bytes.
 - The next [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes is the starting byte of the length of the [canonically serialized](#serialization) first request that starts in the share, or `0` if there is none, as a one-byte big-endian unsigned integer (i.e. canonical serialization is not used). In the example below, with a share size of `256` the reserved byte would be `80` (or `0x50` in hex).
 - The remaining bytes are transactions, intermediate state roots, or evidence data depending on the namespace of ths share. Each transaction, intermediate state root, or evidence is prefixed with a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the length of that unit.
 - If there is insufficient transaction, intermediate state root, or evidence data to fill the share, the remaining bytes are filled with `0`.
