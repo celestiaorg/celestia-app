@@ -482,6 +482,8 @@ Finally, the `availableDataRoot` of the block [Header](#header) is computed as t
 
 A share is a fixed-size data chunk associated with a namespace ID, whose data will be erasure-coded and committed to in [Namespace Merkle trees](#namespace-merkle-tree).
 
+A sequence is a contiguous set of shares that contain semantically relevant data. A sequence should be parsed together because data may be split across share boundaries. One sequence exists per reserved namespace and per message.
+
 - The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`.
 - The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information with the following structure:
   - The first 7 bits represent the share version in big endian form (initially, this will be `0000000` for version `0`);
@@ -492,6 +494,8 @@ The remainder of a share's raw data `rawData` is interpreted differently dependi
 #### Compact Share
 
 For shares **with a reserved namespace ID through [`NAMESPACE_ID_MAX_RESERVED`](./consensus.md#constants)**:
+
+> **Note** The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information.
 
 - If this is the first share of a sequence, the next 1-10 bytes contain a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the `uint64` length of the sequence that follows, in bytes.
 - The next [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes is the starting byte of the length of the [canonically serialized](#serialization) first request that starts in the share, or `0` if there is none, as a one-byte big-endian unsigned integer (i.e. canonical serialization is not used). In the example below, with a share size of `256` the reserved byte would be `80` (or `0x50` in hex).
@@ -507,6 +511,8 @@ Continuation share in a sequence:
 #### Sparse Share
 
 For shares **with a namespace ID above [`NAMESPACE_ID_MAX_RESERVED`](./consensus.md#constants) but below [`PARITY_SHARE_NAMESPACE_ID`](./consensus.md#constants)**:
+
+> **Note** The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information.
 
 - If this is the first share of a sequence, the next 1-10 bytes contain a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the `uint64` length of the sequence that follows.
 - The remaining bytes are message data. Message data are opaque bytes of data that are included in the block but do not impact the state. In other words, the remaining bytes have no special meaning and are simply used to store data.
