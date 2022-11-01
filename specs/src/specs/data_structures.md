@@ -510,7 +510,7 @@ where reserved bytes would be `14` encoded as an unsigned varint (`[0b1110, 0b0]
 Continuation share in a sequence:<br>
 ![fig: compact continuation share.](./figures/compact_continuation_share.svg)
 
-where reserved bytes would be `80` encoded as an unsigned varint (`[0b1010000 0b0]`).
+where reserved bytes would be `80` encoded as an unsigned varint (`[0b1010000, 0b0]`).
 
 #### Sparse Share
 
