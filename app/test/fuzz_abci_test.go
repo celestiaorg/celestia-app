@@ -25,7 +25,7 @@ func TestFuzzPrepareProcessProposal(t *testing.T) {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
-	timer := time.After(time.Second * 10)
+	timer := time.After(time.Second * 30)
 	for {
 		select {
 		case <-timer:
