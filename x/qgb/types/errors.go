@@ -10,7 +10,7 @@ var (
 	ErrResetDelegateKeys                     = sdkerrors.Register(ModuleName, 10, "can not set orchestrator addresses more than once")
 	ErrNoValidators                          = sdkerrors.Register(ModuleName, 12, "no bonded validators in active set")
 	ErrInvalidValAddress                     = sdkerrors.Register(ModuleName, 13, "invalid validator address in current valset %v")
-	ErrInvalidEthAddress                     = sdkerrors.Register(ModuleName, 14, "discovered invalid eth address stored for validator %v")
+	ErrInvalidEVMAddress                     = sdkerrors.Register(ModuleName, 14, "discovered invalid EVM address stored for validator %v")
 	ErrInvalidValset                         = sdkerrors.Register(ModuleName, 15, "generated invalid valset")
 	ErrAttestationNotValsetRequest           = sdkerrors.Register(ModuleName, 16, "attestation is not a valset request")
 	ErrAttestationNotDataCommitmentRequest   = sdkerrors.Register(ModuleName, 17, "attestation is not a data commitment request")

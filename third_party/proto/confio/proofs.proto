@@ -21,15 +21,15 @@ algorithm, the length will be prepended to the key and value bytes.
 */
 enum LengthOp {
     // NO_PREFIX don't include any length info
-    NO_PREFIX = 0; 
+    NO_PREFIX = 0;
     // VAR_PROTO uses protobuf (and go-amino) varint encoding of the length
-    VAR_PROTO = 1; 
+    VAR_PROTO = 1;
     // VAR_RLP uses rlp int encoding of the length
-    VAR_RLP = 2; 
+    VAR_RLP = 2;
     // FIXED32_BIG uses big-endian encoding of the length as a 32 bit integer
-    FIXED32_BIG = 3; 
+    FIXED32_BIG = 3;
     // FIXED32_LITTLE uses little-endian encoding of the length as a 32 bit integer
-    FIXED32_LITTLE = 4; 
+    FIXED32_LITTLE = 4;
     // FIXED64_BIG uses big-endian encoding of the length as a 64 bit integer
     FIXED64_BIG = 5;
     // FIXED64_LITTLE uses little-endian encoding of the length as a 64 bit integer
@@ -45,7 +45,7 @@ ExistenceProof takes a key and a value and a set of steps to perform on it.
 The result of peforming all these steps will provide a "root hash", which can
 be compared to the value in a header.
 
-Since it is computationally infeasible to produce a hash collission for any of the used
+Since it is computationally infeasible to produce a hash collision for any of the used
 cryptographic hash functions, if someone can provide a series of operations to transform
 a given key and value into a root hash that matches some trusted root, these key and values
 must be in the referenced merkle tree.
@@ -65,7 +65,7 @@ message ExistenceProof {
     bytes key = 1;
     bytes value = 2;
     LeafOp leaf = 3;
-    repeated InnerOp path = 4;    
+    repeated InnerOp path = 4;
 }
 
 /*
@@ -155,7 +155,7 @@ tree format server uses. But not in code, rather a configuration object.
 */
 message ProofSpec {
   // any field in the ExistenceProof must be the same as in this spec.
-  // except Prefix, which is just the first bytes of prefix (spec can be longer) 
+  // except Prefix, which is just the first bytes of prefix (spec can be longer)
   LeafOp leaf_spec = 1;
   InnerSpec inner_spec = 2;
   // max_depth (if > 0) is the maximum number of InnerOps allowed (mainly for fixed-depth tries)
@@ -224,7 +224,7 @@ message CompressedExistenceProof {
   bytes value = 2;
   LeafOp leaf = 3;
   // these are indexes into the lookup_inners table in CompressedBatchProof
-  repeated int32 path = 4;    
+  repeated int32 path = 4;
 }
 
 message CompressedNonExistenceProof {

@@ -67,8 +67,8 @@ func ExtendShares(squareSize uint64, shares [][]byte) (*rsmt2d.ExtendedDataSquar
 			squareSize*squareSize,
 		)
 	}
-	tree := wrapper.NewErasuredNamespacedMerkleTree(squareSize)
-	return rsmt2d.ComputeExtendedDataSquare(shares, appconsts.DefaultCodec(), tree.Constructor)
+	// here we construct a tree
+	return rsmt2d.ComputeExtendedDataSquare(shares, appconsts.DefaultCodec(), wrapper.NewConstructor(squareSize))
 }
 
 // String returns hex representation of merkle hash of the DAHeader.

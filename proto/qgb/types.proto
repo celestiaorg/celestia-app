@@ -10,11 +10,11 @@ option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 message BridgeValidator {
   // Voting power of the validator.
   uint64 power = 1;
-  // Ethereum address that will be used by the validator to sign messages.
-  string ethereum_address = 2;
+  // EVM address that will be used by the validator to sign messages.
+  string evm_address = 2;
 }
 
-// Valset is the Ethereum Bridge Multsig Set, each qgb validator also
+// Valset is the EVM Bridge Multsig Set, each qgb validator also
 // maintains an ETH key to sign messages, these are used to check signatures on
 // ETH because of the significant gas savings
 message Valset {
