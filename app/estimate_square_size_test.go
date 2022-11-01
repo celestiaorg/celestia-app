@@ -134,7 +134,7 @@ func Test_overEstimateMalleatedTxSize(t *testing.T) {
 			tt.opts...,
 		)
 		parsedTxs := parseTxs(encConf.TxConfig, [][]byte{wpfdTx})
-		res := overEstimateMalleatedTxSize(len(parsedTxs[0].rawTx), tt.size, len(types.AllSquareSizes(tt.size)))
+		res := overEstimateMalleatedTxSize(len(parsedTxs[0].rawTx), tt.size)
 		malleatedTx, _, err := malleateTxs(encConf.TxConfig, 32, parsedTxs, core.EvidenceList{})
 		require.NoError(t, err)
 		assert.Less(t, len(malleatedTx[0]), res)

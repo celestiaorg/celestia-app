@@ -170,7 +170,7 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 		// compensates for the actual size of the message, and in some cases can
 		// result in some wasted square space or picking a square size that is
 		// too large. TODO: improve by making a more accurate estimation formula
-		txBytes += overEstimateMalleatedTxSize(len(pTx.rawTx), len(pTx.msg.Message), 1)
+		txBytes += overEstimateMalleatedTxSize(len(pTx.rawTx), len(pTx.msg.Message))
 
 		msgSummaries = append(msgSummaries, msgSummary{shares.MsgSharesUsed(int(pTx.msg.MessageSize)), pTx.msg.MessageNamespaceId})
 	}
@@ -215,7 +215,7 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 }
 
 // overEstimateMalleatedTxSize estimates the size of a malleated tx. The formula it uses will always over estimate.
-func overEstimateMalleatedTxSize(txLen, msgLen, sharesCommitments int) int {
+func overEstimateMalleatedTxSize(txLen, msgLen int) int {
 	// the malleated tx uses the original txLen to account for meta data from
 	// the original tx, but removes the message
 	malleatedTxLen := txLen - msgLen
