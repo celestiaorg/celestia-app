@@ -46,17 +46,20 @@ TODO
 To implement this decision, you need to change [`CreateCommit`](https://github.com/celestiaorg/celestia-app/blob/0c81704939cd743937aac2859f3cb5ae6368f174/x/payment/types/payfordata.go#L112-166).
 In Detail, [`powerOf2MountainRange`](https://github.com/celestiaorg/celestia-app/blob/0c81704939cd743937aac2859f3cb5ae6368f174/x/payment/types/payfordata.go#L142) should take `msgMinSquareSize` as an argument instead of `squareSize`.
 
-Following the non-interactive default rules, `msgMinSquareSize` can be calculated like this:
+`msgMinSquareSize` can be calculated like this:
 
 ```go
-func msgMinSquareSize(messageLength uint64) uint64 {
-    squareSize := NextHigherPowerOf2(messageLength)
-    //Check if message fits with non-interactive default rules
-    if messageLength <= (squareSize * (squareSize -1)) {
-        return squareSize
-    } else {
-        return squareSize << 1
-    }
+// MsgMinSquareSize returns the minimum square size that msgSize can be included
+// in. The returned square size does not account for the associated transaction
+// shares or non-interactive defaults so it is a minimum.
+func MsgMinSquareSize(msgSize uint64) uint64 {
+	shareCount := uint64(shares.MsgSharesUsed(int(msgSize)))
+	return MinSquareSize(shareCount)
+}
+// MinSquareSize returns the minimum square size that can contain shareCount
+// number of shares disregarding non-interactive default rules for now
+func MinSquareSize(shareCount uint64) uint64 {
+	return shares.RoundUpPowerOfTwo(uint64(math.Ceil(math.Sqrt(float64(shareCount)))))
 }
 ```
 
@@ -119,5 +122,3 @@ To this:
 As an example, we have this diagram. Message 1 is three shares long and is followed by message 2, which is 11 shares long, so the `msgMinSquareSize` of the second message is equal to four. Therefore we have a padding of 5 shares shown in light blue. Furthermore, with the new non-interactive default rule set, a message of size 11 can start in this block at index zero and index three because they are multiples of four. Therefore, we save four shares of padding while retaining the same commitment.
 
 ![Padding Savings](./assets/padding-savings.png)
-
-### Neutral
