@@ -139,12 +139,11 @@ func TestMsgMinSquareSize(t *testing.T) {
 
 func TestProcessWirePayForData(t *testing.T) {
 	type test struct {
-		name       string
-		namespace  []byte
-		msg        []byte
-		squareSize uint64
-		expectErr  bool
-		modify     func(*MsgWirePayForData) *MsgWirePayForData
+		name      string
+		namespace []byte
+		msg       []byte
+		expectErr bool
+		modify    func(*MsgWirePayForData) *MsgWirePayForData
 	}
 
 	dontModify := func(in *MsgWirePayForData) *MsgWirePayForData {
@@ -157,18 +156,28 @@ func TestProcessWirePayForData(t *testing.T) {
 
 	tests := []test{
 		{
-			name:       "single share square size 2",
-			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			msg:        bytes.Repeat([]byte{1}, totalMsgSize(appconsts.SparseShareContentSize)),
-			squareSize: 2,
-			modify:     dontModify,
+			name:      "single share square size 2",
+			namespace: []byte{1, 1, 1, 1, 1, 1, 1, 1},
+			msg:       bytes.Repeat([]byte{1}, totalMsgSize(appconsts.SparseShareContentSize)),
+			modify:    dontModify,
 		},
 		{
-			name:       "12 shares square size 4",
-			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:        bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12)),
-			squareSize: 4,
-			modify:     dontModify,
+			name:      "12 shares square size 4",
+			namespace: []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:       bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12)),
+			modify:    dontModify,
+		},
+		{
+			name:      "empty message",
+			namespace: []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:       []byte{},
+			modify:    dontModify,
+		},
+		{
+			name:      "empty message",
+			namespace: []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:       []byte{},
+			modify:    dontModify,
 		},
 	}
 

@@ -34,7 +34,7 @@ func calculateCommitPaths(squareSize, start, msgShareLen int) []path {
 			end = normalizedEndIndex
 		}
 
-		subTreeRootMaxHeight := int(math.Log2(float64(types.MinSquareSize(uint64(msgShareLen)))))
+		subTreeRootMaxHeight := int(math.Log2(float64(types.MinSquareSize(msgShareLen))))
 		minDepth := maxDepth - subTreeRootMaxHeight
 		coords := calculateSubTreeRootCoordinates(maxDepth, minDepth, start, end)
 		for _, c := range coords {

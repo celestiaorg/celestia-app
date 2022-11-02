@@ -14,14 +14,14 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"golang.org/x/exp/constraints"
 )
 
 var _ sdk.Msg = &MsgWirePayForData{}
 
-// NewWirePayForData creates a new MsgWirePayForData by using the
-// namespace and message to generate share commitments for the provided square sizes
-// Note that the share commitments generated still need to be signed using the SignShareCommitments
-// method.
+// NewWirePayForData creates a new MsgWirePayForData by using the namespace and
+// message to generate a message share commitment. Note that the generated share
+// commitment still needs to be signed using the SignShareCommitments method.
 func NewWirePayForData(namespace, message []byte) (*MsgWirePayForData, error) {
 	// sanity check namespace ID size
 	if len(namespace) != NamespaceIDSize {
@@ -39,10 +39,6 @@ func NewWirePayForData(namespace, message []byte) (*MsgWirePayForData, error) {
 	}
 
 	// generate the share commitment
-	squareSize := MsgMinSquareSize(uint64(len(message)))
-	if !shares.IsPowerOfTwo(squareSize) {
-		return nil, fmt.Errorf("invalid square size, the size must be power of 2: %d", squareSize)
-	}
 	commit, err := CreateCommitment(namespace, message)
 	if err != nil {
 		return nil, err
@@ -263,13 +259,13 @@ func ExtractMsgWirePayForData(tx sdk.Tx) (*MsgWirePayForData, error) {
 // MsgMinSquareSize returns the minimum square size that msgSize can be included
 // in. The returned square size does not account for the associated transaction
 // shares or non-interactive defaults so it is a minimum.
-func MsgMinSquareSize(msgSize uint64) uint64 {
-	shareCount := uint64(shares.MsgSharesUsed(int(msgSize)))
-	return MinSquareSize(shareCount)
+func MsgMinSquareSize[T constraints.Integer](msgSize T) T {
+	shareCount := shares.MsgSharesUsed(int(msgSize))
+	return T(MinSquareSize(shareCount))
 }
 
 // MinSquareSize returns the minimum square size that can contain shareCount
 // number of shares.
-func MinSquareSize(shareCount uint64) uint64 {
-	return shares.RoundUpPowerOfTwo(uint64(math.Ceil(math.Sqrt(float64(shareCount)))))
+func MinSquareSize[T constraints.Integer](shareCount T) T {
+	return T(shares.RoundUpPowerOfTwo(uint64(math.Ceil(math.Sqrt(float64(shareCount))))))
 }

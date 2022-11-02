@@ -134,8 +134,8 @@ func CreateCommitment(namespace, message []byte) ([]byte, error) {
 	// the commitment is the root of a merkle mountain range with max tree size
 	// equal to the minimum square size the message can be included in. See
 	// https://github.com/celestiaorg/celestia-app/blob/fbfbf111bcaa056e53b0bc54d327587dee11a945/docs/architecture/adr-008-blocksize-independent-commitment.md
-	minSquareSize := MsgMinSquareSize(uint64(len(message)))
-	treeSizes := merkleMountainRangeSizes(uint64(len(shares)), minSquareSize)
+	minSquareSize := MsgMinSquareSize(len(message))
+	treeSizes := merkleMountainRangeSizes(uint64(len(shares)), uint64(minSquareSize))
 	leafSets := make([][][]byte, len(treeSizes))
 	cursor := uint64(0)
 	for i, treeSize := range treeSizes {
