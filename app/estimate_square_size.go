@@ -72,12 +72,12 @@ func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSi
 	for _, tx := range txs {
 		rawTx := tx.rawTx
 		if tx.malleatedTx != nil {
-			// HACKHACK: hardcode the shareIndex to 0 because we can't
-			// accurately determine the shareIndex of the message associated
-			// with this transaction without first writing the transaction and
-			// evidence shares.
-			shareIndex := uint32(0)
-			rawTx, err = coretypes.WrapMalleatedTx(tx.originalHash(), shareIndex, tx.malleatedTx)
+			// HACKHACK: hardcode the shareIndex to the maxShareIndex because we
+			// can't accurately determine the shareIndex of the message
+			// associated with this transaction without first writing the
+			// transaction and evidence shares.
+			maxShareIndex := uint32(appconsts.MaxSquareSize*appconsts.MaxSquareSize - 1)
+			rawTx, err = coretypes.WrapMalleatedTx(tx.originalHash(), maxShareIndex, tx.malleatedTx)
 			if err != nil {
 				panic(err)
 			}
