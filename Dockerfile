@@ -1,7 +1,7 @@
 # stage 1 Generate celestia-appd Binary
 FROM golang:1.18-alpine as builder
 # hadolint ignore=DL3018
-RUN apk update && apk --no-cache add gcc musl-dev
+RUN apk update && apk --no-cache add make gcc musl-dev
 COPY . /celestia-app
 WORKDIR /celestia-app
 RUN make build
