@@ -29,7 +29,7 @@ func TestPayForDataGas(t *testing.T) {
 			wantGasConsumed: uint64(4096),
 		},
 		{
-			name:            "1024 byte message", // occupies 3 shares because share prefix (namespace, info byte, e.g.)
+			name:            "1024 byte message", // occupies 3 shares because share prefix (e.g. namespace, info byte)
 			msg:             types.MsgPayForData{MessageSize: 1024},
 			wantGasConsumed: uint64(12288), // 3 shares * 512 bytes per share * 8 gas per byte = 12288 gas
 		},
