@@ -18,4 +18,5 @@ func TestGenesis(t *testing.T) {
 	payment.InitGenesis(ctx, *k, genesisState)
 	got := payment.ExportGenesis(ctx, *k)
 	require.NotNil(t, got)
+	require.Equal(t, types.DefaultParams(), got.Params)
 }
