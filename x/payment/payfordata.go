@@ -13,8 +13,8 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-// SubmitPayForData constructs, signs and synchronously submits a PayForData
-// transaction, returning a sdk.TxResponse upon submission.
+// SubmitPayForData builds, signs, and synchronously submits a PayForData
+// transaction. It returns a sdk.TxResponse after submission.
 func SubmitPayForData(
 	ctx context.Context,
 	signer *types.KeyringSigner,
@@ -48,7 +48,7 @@ func SubmitPayForData(
 	return txResp.TxResponse, nil
 }
 
-// BuildPayForData constructs a PayForData transaction.
+// BuildPayForData builds a PayForData transaction.
 func BuildPayForData(
 	ctx context.Context,
 	signer *types.KeyringSigner,

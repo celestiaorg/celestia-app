@@ -13,7 +13,7 @@ const (
 	AttributeKeySize   = "size"
 )
 
-// NewPayForDataEvent constructs a new payformessge sdk.Event
+// NewPayForDataEvent constructs a new payfordata sdk.Event
 func NewPayForDataEvent(signer string, size uint64) sdk.Event {
 	return sdk.NewEvent(
 		EventTypePayForData,
