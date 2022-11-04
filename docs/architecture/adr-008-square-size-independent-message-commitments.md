@@ -111,7 +111,7 @@ We should note that Rollups can decide to do this scheme without changing core-a
     - <https://github.com/celestiaorg/celestia-app/issues/236>
     - <https://github.com/celestiaorg/celestia-app/issues/727>
 - Simplifies arranging the square.
-  - Currently, we need to [`estimateSquareSize`](https://github.com/rootulp/celestia-app/blob/6f3b3ae437b2a70d72ff6be2741abb8b5378caa0/app/estimate_square_size.go#L98-L101) in prepare proposal prior to splitting transactions and messages into shares because the square size is needed to malleate transactions and extract the correct message share commitment for the estimate square size. Since malleation no longer requires the square size, it may be possible to remove square size estimation which renders the following issues obsolete:
+  - Currently, prepare proposal performs [`estimateSquareSize`](https://github.com/rootulp/celestia-app/blob/6f3b3ae437b2a70d72ff6be2741abb8b5378caa0/app/estimate_square_size.go#L98-L101) prior to splitting PFDs into shares because the square size is needed to malleate PFDs and extract the appropriate message share commitment for a particular square size. Since malleation no longer requires a square size, it may be possible to remove square size estimation which renders the following issues obsolete:
     - <https://github.com/informalsystems/audit-celestia/issues/12>
     - <https://github.com/informalsystems/audit-celestia/issues/24>
 - Inter-message padding can be reduced because we can change the non-interactive default rules from this:
