@@ -10,7 +10,7 @@ import (
 
 // GetSigners defines whose signature is required.
 func (msg *MsgDataCommitmentConfirm) GetSigners() []sdk.AccAddress {
-	acc, err := sdk.AccAddressFromBech32(msg.ValidatorAddress)
+	acc, err := sdk.AccAddressFromBech32(msg.Orchestrator)
 	if err != nil {
 		panic(err)
 	}
@@ -19,8 +19,8 @@ func (msg *MsgDataCommitmentConfirm) GetSigners() []sdk.AccAddress {
 
 // ValidateBasic performs stateless checks.
 func (msg *MsgDataCommitmentConfirm) ValidateBasic() (err error) {
-	if _, err = sdk.AccAddressFromBech32(msg.ValidatorAddress); err != nil {
-		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, msg.ValidatorAddress)
+	if _, err = sdk.AccAddressFromBech32(msg.Orchestrator); err != nil {
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidAddress, msg.Orchestrator)
 	}
 	if msg.BeginBlock > msg.EndBlock {
 		return sdkerrors.Wrap(ErrInvalid, "begin block should be less than end block")
