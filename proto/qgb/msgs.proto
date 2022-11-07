@@ -57,7 +57,7 @@ message MsgDataCommitmentConfirm {
   // and the EVM address.
   string signature = 2;
   // Orchestrator account address who will be signing the message.
-  string validator_address = 3;
+  string orchestrator = 3;
   // Hex `0x` encoded EVM public key that will be used by this validator on
   // EVM.
   string evm_address = 4;
