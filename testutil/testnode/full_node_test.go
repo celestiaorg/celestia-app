@@ -97,7 +97,7 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 		err = s.cctx.WaitForNextBlock()
 		require.NoError(err)
 
-		res, err := testutil.QueryWithOutProof(s.cctx.Context, resp.TxHash)
+		res, err := testutil.QueryWithoutProof(s.cctx.Context, resp.TxHash)
 		require.NoError(err)
 		require.Equal(abci.CodeTypeOK, res.TxResult.Code)
 
