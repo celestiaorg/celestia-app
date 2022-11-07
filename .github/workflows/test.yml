@@ -64,7 +64,7 @@ jobs:
       - name: Create a file with all the pkgs
         run: go list ./... > pkgs.txt
       - name: Split pkgs into 4 files
-        run: split -d -n l/4 pkgs.txt pkgs.txt.part.
+        run: split -d -n 4 -e pkgs.txt pkgs.txt.part.
       # cache multiple
       - uses: actions/upload-artifact@v3
         with:
@@ -150,10 +150,10 @@ jobs:
       - name: filter out DONTCOVER
         # yamllint disable
         run: |
-          excludelist="$(find ./ -type f -name '*.go' | xargs grep -l 'DONTCOVER')"
-          excludelist+=" $(find ./ -type f -name '*.pb.go')"
-          excludelist+=" $(find ./ -type f -name '*.pb.gw.go')"
-          excludelist+=" $(find ./ -type f -path './tests/mocks/*.go')"
+          excludelist="$(find . -type f -name '*.go' | xargs grep -l 'DONTCOVER')"
+          excludelist+=" $(find . -type f -name '*.pb.go')"
+          excludelist+=" $(find . -type f -name '*.pb.gw.go')"
+          excludelist+=" $(find . -type f -path './tests/mocks/*.go')"
           for filename in ${excludelist}; do
             filename=$(echo $filename | sed 's/^./github.com\/cosmos\/cosmos-sdk/g')
             echo "Excluding ${filename} from coverage report..."
