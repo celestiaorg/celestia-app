@@ -97,7 +97,7 @@ Accepted
 
 ## Implementation Details
 
-A share version is not set by a user who submits a `PayForData`. Instead, it is set by the block producer when data is split into shares.
+A share version must be specified by a user when authoring a [`MsgWirePayForData`](https://github.com/rootulp/celestia-app/blob/6f3b3ae437b2a70d72ff6be2741abb8b5378caa0/x/payment/types/tx.pb.go#L34) because if a user doesn't specify a share version, a block producer may construct message shares associated with their `MsgWirePayForData` using a different share version. Different share versions will lead to different share layouts which will lead to different `MessageShareCommitment`s. As a result, message inclusion proofs would fail. [See celestia-app#936](https://github.com/celestiaorg/celestia-app/issues/936).
 
 Constants
 
