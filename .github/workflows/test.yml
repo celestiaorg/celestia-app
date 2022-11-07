@@ -150,13 +150,14 @@ jobs:
       - name: filter out DONTCOVER
         # yamllint disable
         run: |
-          excludelist="$(find . -type f -name '*.go' | xargs grep -l 'DONTCOVER')"
-          excludelist+="\n$(find . -type f -name '*.pb.go')"
-          excludelist+="\n$(find . -type f -name '*.pb.gw.go')"
-          excludelist+="\n$(find . -type f -path './tests/mocks/*.go')"
+          excludelist="$(find . -type f -name '*.go' | xargs grep -l 'DONTCOVER')\n"
+          excludelist+="$(find . -type f -name '*.pb.go')\n"
+          excludelist+="$(find . -type f -name '*.pb.gw.go')\n"
+          excludelist+="$(find . -type f -path './tests/mocks/*.go')"
           for filename in ${excludelist}; do
             filename=$(echo $filename | sed 's/^./github.com\/celestiaorg\/celestia-app/g')
-            echo "Excluding ${filename} from coverage report..."
+#            echo "Excluding ${filename} from coverage report..."
+            echo $filename
             sed -i.bak "/$(echo $filename | sed 's/\//\\\//g')/d" coverage.txt
           done
         # yamllint enable
