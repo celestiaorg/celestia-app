@@ -19,9 +19,7 @@ type Keeper struct {
 }
 
 func NewKeeper(cdc codec.BinaryCodec) *Keeper {
-	return &Keeper{
-		cdc: cdc,
-	}
+	return &Keeper{cdc: cdc}
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {
