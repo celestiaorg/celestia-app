@@ -35,8 +35,8 @@ func TestPayForDataGas(t *testing.T) {
 		},
 	}
 
+	app := simapp.Setup(t, false)
 	for _, tc := range testCases {
-		app := simapp.Setup(t, false)
 		ctx := app.BaseApp.NewContext(false, tmproto.Header{})
 		k := Keeper{}
 		_, err := k.PayForData(sdk.WrapSDKContext(ctx), &tc.msg)
