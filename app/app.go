@@ -95,7 +95,7 @@ const (
 	BondDenom = "utia"
 	// BondDenomAlias defines an alias for BondDenom.
 	BondDenomAlias = "microtia"
-	// DisplayDenom defines the name, symbol, and display value of the celes token.
+	// DisplayDenom defines the name, symbol, and display value of the Celestia token.
 	DisplayDenom = "TIA"
 )
 
