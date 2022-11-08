@@ -266,7 +266,6 @@ func generateSignedWirePayForDataTxs(clientCtx client.Context, txConfig client.T
 		msg, err := types.NewWirePayForData(
 			namespace.RandomMessageNamespace(),
 			tmrand.Bytes(thisMessageSize),
-			types.AllSquareSizes(thisMessageSize)...,
 		)
 		if err != nil {
 			return nil, err

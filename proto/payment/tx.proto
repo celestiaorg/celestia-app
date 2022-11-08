@@ -21,17 +21,23 @@ message MsgWirePayForData {
   bytes message_namespace_id = 2; // assume this is 8 bytes!
   uint64 message_size = 3;
   bytes message = 4;
-  repeated ShareCommitAndSignature message_share_commitment = 6
-      [ (gogoproto.nullable) = false ];
+  // field number 6 is obsolete and was used for `repeated
+  // message_share_commitment` when a MsgWirePayForData included multiple
+  // message share commitments (one per square size).
+  ShareCommitAndSignature message_share_commitment = 7;
 }
 
 // MsgWirePayForDataResponse describes the response returned after the
 // submission of a WirePayForData
 message MsgWirePayForDataResponse {}
 
-// ShareCommitAndSignature defines the
+// ShareCommitAndSignature is used to verify that a message was included in a
+// block via a message inclusion proof. A user must submit one of these with
+// their MsgWirePayForData.
 message ShareCommitAndSignature {
-  uint64 square_size = 1;
+  // share_commitment is the root of a binary Merkle tree that has leaves which
+  // are subtree roots of the relevant message shares in the original data
+  // square.
   bytes share_commitment = 2;
   bytes signature = 3; // signature on one SignedTransactionPayForData
 }
@@ -45,6 +51,8 @@ message MsgPayForData {
   string signer = 1;
   bytes message_namespace_id = 2;
   uint64 message_size = 3;
+  // message_share_commitment is the share_commitment from
+  // ShareCommitAndSignature that will be included in a block
   bytes message_share_commitment = 4;
 }
 

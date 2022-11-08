@@ -42,19 +42,7 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 
 	// pfd with bad commitment
 	badCommitMsg := validWirePayForData(t)
-	badCommitMsg.MessageShareCommitment[0].ShareCommitment = []byte{1, 2, 3, 4}
-
-	// pfd that has invalid square size (not power of 2)
-	invalidSquareSizeMsg := validWirePayForData(t)
-	invalidSquareSizeMsg.MessageShareCommitment[0].SquareSize = 15
-
-	// pfd that signs over all squares but the first one
-	missingCommitmentForOneSquareSize := validWirePayForData(t)
-	missingCommitmentForOneSquareSize.MessageShareCommitment = missingCommitmentForOneSquareSize.MessageShareCommitment[1:]
-
-	// pfd that signed over no squares
-	noMessageShareCommitments := validWirePayForData(t)
-	noMessageShareCommitments.MessageShareCommitment = []ShareCommitAndSignature{}
+	badCommitMsg.MessageShareCommitment.ShareCommitment = []byte{1, 2, 3, 4}
 
 	tests := []test{
 		{
@@ -83,11 +71,6 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 			wantErr: ErrInvalidShareCommit,
 		},
 		{
-			name:    "invalid square size",
-			msg:     invalidSquareSizeMsg,
-			wantErr: ErrCommittedSquareSizeNotPowOf2,
-		},
-		{
 			name:    "parity shares namespace id",
 			msg:     paritySharesMsg,
 			wantErr: ErrParitySharesNamespace,
@@ -96,16 +79,6 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 			name:    "tail padding namespace id",
 			msg:     tailPaddingMsg,
 			wantErr: ErrTailPaddingNamespace,
-		},
-		{
-			name:    "no message share commitments",
-			msg:     noMessageShareCommitments,
-			wantErr: ErrNoMessageShareCommitments,
-		},
-		{
-			name:    "missing commitment for one square size",
-			msg:     missingCommitmentForOneSquareSize,
-			wantErr: ErrInvalidShareCommitments,
 		},
 	}
 
@@ -123,14 +96,54 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 	}
 }
 
+func TestMsgMinSquareSize(t *testing.T) {
+	type testCase struct {
+		name     string
+		msgLen   uint64
+		expected uint64
+	}
+	tests := []testCase{
+		{
+			name:     "1 byte",
+			msgLen:   1,
+			expected: 1,
+		},
+		{
+			name:     "100 bytes",
+			msgLen:   100,
+			expected: 1,
+		},
+		{
+			name:     "2 sparse shares",
+			msgLen:   appconsts.SparseShareContentSize * 2,
+			expected: 2,
+		},
+		{
+			name:     "4 sparse shares",
+			msgLen:   appconsts.SparseShareContentSize * 4,
+			expected: 4,
+		},
+		{
+			name:     "16 sparse shares",
+			msgLen:   appconsts.SparseShareContentSize * 16,
+			expected: 8,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := MsgMinSquareSize(tc.msgLen)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+}
+
 func TestProcessWirePayForData(t *testing.T) {
 	type test struct {
-		name       string
-		namespace  []byte
-		msg        []byte
-		squareSize uint64
-		expectErr  bool
-		modify     func(*MsgWirePayForData) *MsgWirePayForData
+		name      string
+		namespace []byte
+		msg       []byte
+		expectErr bool
+		modify    func(*MsgWirePayForData) *MsgWirePayForData
 	}
 
 	dontModify := func(in *MsgWirePayForData) *MsgWirePayForData {
@@ -143,41 +156,40 @@ func TestProcessWirePayForData(t *testing.T) {
 
 	tests := []test{
 		{
-			name:       "single share square size 2",
-			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			msg:        bytes.Repeat([]byte{1}, totalMsgSize(appconsts.SparseShareContentSize)),
-			squareSize: 2,
-			modify:     dontModify,
+			name:      "single share square size 2",
+			namespace: []byte{1, 1, 1, 1, 1, 1, 1, 1},
+			msg:       bytes.Repeat([]byte{1}, totalMsgSize(appconsts.SparseShareContentSize)),
+			modify:    dontModify,
 		},
 		{
-			name:       "12 shares square size 4",
-			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:        bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12)),
-			squareSize: 4,
-			modify:     dontModify,
+			name:      "12 shares square size 4",
+			namespace: []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:       bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12)),
+			modify:    dontModify,
 		},
 		{
-			name:       "incorrect square size",
-			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:        bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12)),
-			squareSize: 4,
-			modify: func(wpfd *MsgWirePayForData) *MsgWirePayForData {
-				wpfd.MessageShareCommitment[0].SquareSize = 99999
-				return wpfd
-			},
-			expectErr: true,
+			name:      "empty message",
+			namespace: []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:       []byte{},
+			modify:    dontModify,
+		},
+		{
+			name:      "empty message",
+			namespace: []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:       []byte{},
+			modify:    dontModify,
 		},
 	}
 
 	for _, tt := range tests {
-		wpfd, err := NewWirePayForData(tt.namespace, tt.msg, tt.squareSize)
+		wpfd, err := NewWirePayForData(tt.namespace, tt.msg)
 		require.NoError(t, err, tt.name)
 		err = wpfd.SignShareCommitments(signer)
 		assert.NoError(t, err)
 
 		wpfd = tt.modify(wpfd)
 
-		message, spfd, sig, err := ProcessWirePayForData(wpfd, tt.squareSize)
+		message, spfd, sig, err := ProcessWirePayForData(wpfd)
 		if tt.expectErr {
 			assert.Error(t, err, tt.name)
 			continue
@@ -188,7 +200,7 @@ func TestProcessWirePayForData(t *testing.T) {
 		assert.Equal(t, tt.namespace, message.NamespaceId, tt.name)
 		assert.Equal(t, wpfd.Signer, spfd.Signer, tt.name)
 		assert.Equal(t, wpfd.MessageNamespaceId, spfd.MessageNamespaceId, tt.name)
-		assert.Equal(t, wpfd.MessageShareCommitment[0].ShareCommitment, spfd.MessageShareCommitment, tt.name)
-		assert.Equal(t, wpfd.MessageShareCommitment[0].Signature, sig, tt.name)
+		assert.Equal(t, wpfd.MessageShareCommitment.ShareCommitment, spfd.MessageShareCommitment, tt.name)
+		assert.Equal(t, wpfd.MessageShareCommitment.Signature, sig, tt.name)
 	}
 }

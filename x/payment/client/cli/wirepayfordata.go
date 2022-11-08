@@ -45,7 +45,7 @@ func CmdWirePayForData() *cobra.Command {
 				return fmt.Errorf("failure to decode hex message: %w", err)
 			}
 
-			pfdMsg, err := types.NewWirePayForData(namespace, message, types.AllSquareSizes(len(message))...)
+			pfdMsg, err := types.NewWirePayForData(namespace, message)
 			if err != nil {
 				return err
 			}
