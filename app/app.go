@@ -79,9 +79,9 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/prove"
-	paymentmodule "github.com/celestiaorg/celestia-app/x/payment"
-	paymentmodulekeeper "github.com/celestiaorg/celestia-app/x/payment/keeper"
-	paymentmoduletypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
+	blobmodulekeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
+	blobmoduletypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	qgbmodule "github.com/celestiaorg/celestia-app/x/qgb"
 	qgbmodulekeeper "github.com/celestiaorg/celestia-app/x/qgb/keeper"
@@ -144,7 +144,7 @@ var (
 		evidence.AppModuleBasic{},
 		// transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
-		paymentmodule.AppModuleBasic{},
+		blobmodule.AppModuleBasic{},
 		qgbmodule.AppModuleBasic{},
 	)
 
@@ -217,8 +217,8 @@ type App struct {
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
-	PaymentKeeper paymentmodulekeeper.Keeper
-	QgbKeeper     qgbmodulekeeper.Keeper
+	BlobKeeper blobmodulekeeper.Keeper
+	QgbKeeper  qgbmodulekeeper.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -251,7 +251,7 @@ func New(
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
 		govtypes.StoreKey, paramstypes.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey,
 		evidencetypes.StoreKey, capabilitytypes.StoreKey,
-		paymentmoduletypes.StoreKey,
+		blobmoduletypes.StoreKey,
 		qgbmoduletypes.StoreKey,
 		// ibctransfertypes.StoreKey,
 		// ibchost.StoreKey,
@@ -365,10 +365,10 @@ func New(
 		&stakingKeeper, govRouter, app.msgSvcRouter, govConfig,
 	)
 
-	app.PaymentKeeper = *paymentmodulekeeper.NewKeeper(
+	app.BlobKeeper = *blobmodulekeeper.NewKeeper(
 		appCodec,
 	)
-	paymentmod := paymentmodule.NewAppModule(appCodec, app.PaymentKeeper)
+	blobmod := blobmodule.NewAppModule(appCodec, app.BlobKeeper)
 
 	// // Create static IBC router, add transfer route, then set and seal it
 	// ibcRouter := ibcporttypes.NewRouter()
@@ -405,7 +405,7 @@ func New(
 		// ibc.NewAppModule(app.IBCKeeper),
 		params.NewAppModule(app.ParamsKeeper),
 		// transferModule,
-		paymentmod,
+		blobmod,
 		qgbmod,
 	)
 
@@ -428,7 +428,7 @@ func New(
 		crisistypes.ModuleName,
 		govtypes.ModuleName,
 		genutiltypes.ModuleName,
-		paymentmoduletypes.ModuleName,
+		blobmoduletypes.ModuleName,
 		qgbmoduletypes.ModuleName,
 		paramstypes.ModuleName,
 		vestingtypes.ModuleName,
@@ -449,7 +449,7 @@ func New(
 		authtypes.ModuleName,
 		banktypes.ModuleName,
 		genutiltypes.ModuleName,
-		paymentmoduletypes.ModuleName,
+		blobmoduletypes.ModuleName,
 		qgbmoduletypes.ModuleName,
 		paramstypes.ModuleName,
 		vestingtypes.ModuleName,
@@ -474,7 +474,7 @@ func New(
 		genutiltypes.ModuleName,
 		evidencetypes.ModuleName,
 		// ibctransfertypes.ModuleName,
-		paymentmoduletypes.ModuleName,
+		blobmoduletypes.ModuleName,
 		qgbmoduletypes.ModuleName,
 		vestingtypes.ModuleName,
 		feegrant.ModuleName,
@@ -670,7 +670,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(crisistypes.ModuleName)
 	// paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	// paramsKeeper.Subspace(ibchost.ModuleName)
-	paramsKeeper.Subspace(paymentmoduletypes.ModuleName)
+	paramsKeeper.Subspace(blobmoduletypes.ModuleName)
 	paramsKeeper.Subspace(qgbmoduletypes.ModuleName)
 
 	return paramsKeeper
