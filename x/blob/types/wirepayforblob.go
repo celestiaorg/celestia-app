@@ -15,13 +15,13 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
-var _ sdk.Msg = &MsgWirePayForData{}
+var _ sdk.Msg = &MsgWirePayForBlob{}
 
-// NewWirePayForData creates a new MsgWirePayForData by using the
+// NewWirePayForBlob creates a new MsgWirePayForBlob by using the
 // namespace and message to generate share commitments for the provided square sizes
 // Note that the share commitments generated still need to be signed using the SignShareCommitments
 // method.
-func NewWirePayForData(namespace, message []byte, sizes ...uint64) (*MsgWirePayForData, error) {
+func NewWirePayForBlob(namespace, message []byte, sizes ...uint64) (*MsgWirePayForBlob, error) {
 	// sanity check namespace ID size
 	if len(namespace) != NamespaceIDSize {
 		return nil, ErrInvalidNamespaceLen.Wrapf("got: %d want: %d",
@@ -30,7 +30,7 @@ func NewWirePayForData(namespace, message []byte, sizes ...uint64) (*MsgWirePayF
 		)
 	}
 
-	out := &MsgWirePayForData{
+	out := &MsgWirePayForBlob{
 		MessageNamespaceId:     namespace,
 		MessageSize:            uint64(len(message)),
 		Message:                message,
@@ -51,9 +51,9 @@ func NewWirePayForData(namespace, message []byte, sizes ...uint64) (*MsgWirePayF
 	return out, nil
 }
 
-// SignShareCommitments creates and signs MsgPayForDatas for each square size configured in the MsgWirePayForData
+// SignShareCommitments creates and signs MsgPayForBlobs for each square size configured in the MsgWirePayForBlob
 // to complete each shares commitment.
-func (msg *MsgWirePayForData) SignShareCommitments(signer *KeyringSigner, options ...TxBuilderOption) error {
+func (msg *MsgWirePayForBlob) SignShareCommitments(signer *KeyringSigner, options ...TxBuilderOption) error {
 	addr, err := signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return err
@@ -67,11 +67,11 @@ func (msg *MsgWirePayForData) SignShareCommitments(signer *KeyringSigner, option
 	}
 
 	msg.Signer = addr.String()
-	// create an entire MsgPayForData and signing over it, including the signature in each commitment
+	// create an entire MsgPayForBlob and signing over it, including the signature in each commitment
 	for i, commit := range msg.MessageShareCommitment {
 		builder := signer.NewTxBuilder(options...)
 
-		sig, err := msg.createPayForDataSignature(signer, builder, commit.SquareSize)
+		sig, err := msg.createPayForBlobSignature(signer, builder, commit.SquareSize)
 		if err != nil {
 			return err
 		}
@@ -80,12 +80,12 @@ func (msg *MsgWirePayForData) SignShareCommitments(signer *KeyringSigner, option
 	return nil
 }
 
-func (msg *MsgWirePayForData) Route() string { return RouterKey }
+func (msg *MsgWirePayForBlob) Route() string { return RouterKey }
 
 // ValidateBasic checks for valid namespace length, declared message size, share
 // commitments, signatures for those share commitments, and fulfills the sdk.Msg
 // interface.
-func (msg *MsgWirePayForData) ValidateBasic() error {
+func (msg *MsgWirePayForBlob) ValidateBasic() error {
 	if err := ValidateMessageNamespaceID(msg.GetMessageNamespaceId()); err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func (msg *MsgWirePayForData) ValidateBasic() error {
 
 // ValidateMessageShareCommitments returns an error if the message share
 // commitments are invalid.
-func (msg *MsgWirePayForData) ValidateMessageShareCommitments() error {
+func (msg *MsgWirePayForBlob) ValidateMessageShareCommitments() error {
 	for idx, commit := range msg.MessageShareCommitment {
 		// check that each commit is valid
 		if !shares.IsPowerOfTwo(commit.SquareSize) {
@@ -142,7 +142,7 @@ func (msg *MsgWirePayForData) ValidateMessageShareCommitments() error {
 
 // ValidateAllSquareSizesCommitedTo returns an error if the list of square sizes
 // committed to don't match all square sizes expected for this message size.
-func (msg *MsgWirePayForData) ValidateAllSquareSizesCommitedTo() error {
+func (msg *MsgWirePayForBlob) ValidateAllSquareSizesCommitedTo() error {
 	allSquareSizes := AllSquareSizes(int(msg.MessageSize))
 	committedSquareSizes := msg.committedSquareSizes()
 
@@ -167,7 +167,7 @@ func isEqual(a, b []uint64) bool {
 
 // commitedSquareSizes returns a list of square sizes that are present in a
 // message's share commitment.
-func (msg *MsgWirePayForData) committedSquareSizes() []uint64 {
+func (msg *MsgWirePayForBlob) committedSquareSizes() []uint64 {
 	squareSizes := make([]uint64, 0, len(msg.MessageShareCommitment))
 	for _, commit := range msg.MessageShareCommitment {
 		squareSizes = append(squareSizes, commit.SquareSize)
@@ -203,7 +203,7 @@ func ValidateMessageNamespaceID(ns namespace.ID) error {
 }
 
 // GetSigners returns the addresses of the message signers
-func (msg *MsgWirePayForData) GetSigners() []sdk.AccAddress {
+func (msg *MsgWirePayForBlob) GetSigners() []sdk.AccAddress {
 	address, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		panic(err)
@@ -211,10 +211,10 @@ func (msg *MsgWirePayForData) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{address}
 }
 
-// createPayForDataSignature generates the signature for a PayForData for a
-// single squareSize using the info from a MsgWirePayForData.
-func (msg *MsgWirePayForData) createPayForDataSignature(signer *KeyringSigner, builder sdkclient.TxBuilder, squareSize uint64) ([]byte, error) {
-	pfd, err := msg.unsignedPayForData(squareSize)
+// createPayForBlobSignature generates the signature for a PayForBlob for a
+// single squareSize using the info from a MsgWirePayForBlob.
+func (msg *MsgWirePayForBlob) createPayForBlobSignature(signer *KeyringSigner, builder sdkclient.TxBuilder, squareSize uint64) ([]byte, error) {
+	pfd, err := msg.unsignedPayForBlob(squareSize)
 	if err != nil {
 		return nil, err
 	}
@@ -236,16 +236,16 @@ func (msg *MsgWirePayForData) createPayForDataSignature(signer *KeyringSigner, b
 	return sig.Signature, nil
 }
 
-// unsignedPayForData use the data in the MsgWirePayForData
-// to create a new MsgPayForData.
-func (msg *MsgWirePayForData) unsignedPayForData(squareSize uint64) (*MsgPayForData, error) {
+// unsignedPayForBlob use the data in the MsgWirePayForBlob
+// to create a new MsgPayForBlob.
+func (msg *MsgWirePayForBlob) unsignedPayForBlob(squareSize uint64) (*MsgPayForBlob, error) {
 	// create the commitment using the padded message
 	commit, err := CreateCommitment(squareSize, msg.MessageNamespaceId, msg.Message)
 	if err != nil {
 		return nil, err
 	}
 
-	sPFD := MsgPayForData{
+	sPFD := MsgPayForBlob{
 		MessageNamespaceId:     msg.MessageNamespaceId,
 		MessageSize:            msg.MessageSize,
 		MessageShareCommitment: commit,
@@ -254,10 +254,10 @@ func (msg *MsgWirePayForData) unsignedPayForData(squareSize uint64) (*MsgPayForD
 	return &sPFD, nil
 }
 
-// ProcessWirePayForData performs the malleation process that occurs before
-// creating a block. It parses the MsgWirePayForData to produce the components
-// needed to create a single MsgPayForData.
-func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.Message, *MsgPayForData, []byte, error) {
+// ProcessWirePayForBlob performs the malleation process that occurs before
+// creating a block. It parses the MsgWirePayForBlob to produce the components
+// needed to create a single MsgPayForBlob.
+func ProcessWirePayForBlob(msg *MsgWirePayForBlob, squareSize uint64) (*tmproto.Message, *MsgPayForBlob, []byte, error) {
 	// make sure that a ShareCommitAndSignature of the correct size is
 	// included in the message
 	var shareCommit ShareCommitAndSignature
@@ -281,7 +281,7 @@ func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.
 	}
 
 	// wrap the signed transaction data
-	pfd, err := msg.unsignedPayForData(squareSize)
+	pfd, err := msg.unsignedPayForBlob(squareSize)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -289,36 +289,36 @@ func ProcessWirePayForData(msg *MsgWirePayForData, squareSize uint64) (*tmproto.
 	return &coreMsg, pfd, shareCommit.Signature, nil
 }
 
-// HasWirePayForData performs a quick but not definitive check to see if a tx
-// contains a MsgWirePayForData. The check is quick but not definitive because
+// HasWirePayForBlob performs a quick but not definitive check to see if a tx
+// contains a MsgWirePayForBlob. The check is quick but not definitive because
 // it only uses a proto.Message generated method instead of performing a full
 // type check.
-func HasWirePayForData(tx sdk.Tx) bool {
+func HasWirePayForBlob(tx sdk.Tx) bool {
 	for _, msg := range tx.GetMsgs() {
 		msgName := sdk.MsgTypeURL(msg)
-		if msgName == URLMsgWirePayForData {
+		if msgName == URLMsgWirePayForBlob {
 			return true
 		}
 	}
 	return false
 }
 
-// ExtractMsgWirePayForData attempts to extract a MsgWirePayForData from a
-// provided sdk.Tx. It returns an error if no MsgWirePayForData is found.
-func ExtractMsgWirePayForData(tx sdk.Tx) (*MsgWirePayForData, error) {
-	noWirePFDError := errors.New("sdk.Tx does not contain MsgWirePayForData sdk.Msg")
+// ExtractMsgWirePayForBlob attempts to extract a MsgWirePayForBlob from a
+// provided sdk.Tx. It returns an error if no MsgWirePayForBlob is found.
+func ExtractMsgWirePayForBlob(tx sdk.Tx) (*MsgWirePayForBlob, error) {
+	noWirePFDError := errors.New("sdk.Tx does not contain MsgWirePayForBlob sdk.Msg")
 	// perform a quick check before attempting a type check
-	if !HasWirePayForData(tx) {
+	if !HasWirePayForBlob(tx) {
 		return nil, noWirePFDError
 	}
 
 	// only support malleated transactions that contain a single sdk.Msg
 	if len(tx.GetMsgs()) != 1 {
-		return nil, errors.New("sdk.Txs with a single MsgWirePayForData are currently supported")
+		return nil, errors.New("sdk.Txs with a single MsgWirePayForBlob are currently supported")
 	}
 
 	msg := tx.GetMsgs()[0]
-	wireMsg, ok := msg.(*MsgWirePayForData)
+	wireMsg, ok := msg.(*MsgWirePayForBlob)
 	if !ok {
 		return nil, noWirePFDError
 	}

@@ -36,23 +36,23 @@ func VerifySig(signerData authsigning.SignerData, txConfig client.TxConfig, auth
 }
 
 // VerifyPFDSigs checks that all of the signatures for a transaction that
-// contains a MsgWirePayForData message by going through the entire malleation
+// contains a MsgWirePayForBlob message by going through the entire malleation
 // process.
 func VerifyPFDSigs(signerData authsigning.SignerData, txConfig client.TxConfig, wirePFDTx authsigning.Tx) (bool, error) {
-	wirePFDMsg, err := ExtractMsgWirePayForData(wirePFDTx)
+	wirePFDMsg, err := ExtractMsgWirePayForBlob(wirePFDTx)
 	if err != nil {
 		return false, err
 	}
 
 	// go through the entire malleation process as if this tx was being included in a block.
 	for _, commit := range wirePFDMsg.MessageShareCommitment {
-		_, pfd, sig, err := ProcessWirePayForData(wirePFDMsg, commit.SquareSize)
+		_, pfd, sig, err := ProcessWirePayForBlob(wirePFDMsg, commit.SquareSize)
 		if err != nil {
 			return false, err
 		}
 
-		// create the malleated MsgPayForData tx by using auth data from the original tx
-		pfdTx, err := BuildPayForDataTxFromWireTx(wirePFDTx, txConfig.NewTxBuilder(), sig, pfd)
+		// create the malleated MsgPayForBlob tx by using auth data from the original tx
+		pfdTx, err := BuildPayForBlobTxFromWireTx(wirePFDTx, txConfig.NewTxBuilder(), sig, pfd)
 		if err != nil {
 			return false, err
 		}

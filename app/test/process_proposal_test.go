@@ -141,7 +141,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 // 	}
 
 // 	for _, tt := range tests {
-// 		pfd, msg := genRandMsgPayForDataForNamespace(t, signer, 8, tt.namespace)
+// 		pfd, msg := genRandMsgPayForBlobForNamespace(t, signer, 8, tt.namespace)
 // 		input := abci.RequestProcessProposal{
 // 			BlockData: &core.Data{
 // 				Txs: [][]byte{
@@ -180,7 +180,7 @@ func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
 
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
 
-	pfd, msg := genRandMsgPayForDataForNamespace(t, signer, 8, appconsts.ParitySharesNamespaceID)
+	pfd, msg := genRandMsgPayForBlobForNamespace(t, signer, 8, appconsts.ParitySharesNamespaceID)
 	input := abci.RequestProcessProposal{
 		BlockData: &core.Data{
 			Txs: [][]byte{
@@ -201,7 +201,7 @@ func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
 	assert.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
 }
 
-func genRandMsgPayForDataForNamespace(t *testing.T, signer *types.KeyringSigner, squareSize uint64, ns namespace.ID) (*types.MsgPayForData, []byte) {
+func genRandMsgPayForBlobForNamespace(t *testing.T, signer *types.KeyringSigner, squareSize uint64, ns namespace.ID) (*types.MsgPayForBlob, []byte) {
 	message := make([]byte, randomInt(20))
 	_, err := rand.Read(message)
 	require.NoError(t, err)
@@ -209,7 +209,7 @@ func genRandMsgPayForDataForNamespace(t *testing.T, signer *types.KeyringSigner,
 	commit, err := types.CreateCommitment(squareSize, ns, message)
 	require.NoError(t, err)
 
-	pfd := types.MsgPayForData{
+	pfd := types.MsgPayForBlob{
 		MessageShareCommitment: commit,
 		MessageNamespaceId:     ns,
 	}

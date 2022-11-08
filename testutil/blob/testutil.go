@@ -13,7 +13,7 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
-// GenerateManyRawWirePFD creates many raw WirePayForData transactions. Using
+// GenerateManyRawWirePFD creates many raw WirePayForBlob transactions. Using
 // negative numbers for count and size will randomize those values. count is
 // capped at 5000 and size is capped at 3MB. Going over these caps will result
 // in randomized values.
@@ -95,10 +95,10 @@ func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.Key
 	return rawTx
 }
 
-// generateRawWirePFDTx creates a tx with a single MsgWirePayForData message using the provided namespace and message
+// generateRawWirePFDTx creates a tx with a single MsgWirePayForBlob message using the provided namespace and message
 func generateRawWirePFDTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
 	// create a msg
-	msg := generateSignedWirePayForData(t, ns, message, signer, opts, types.AllSquareSizes(len(message))...)
+	msg := generateSignedWirePayForBlob(t, ns, message, signer, opts, types.AllSquareSizes(len(message))...)
 
 	builder := signer.NewTxBuilder(opts...)
 	tx, err := signer.BuildSignedTx(builder, msg)
@@ -111,8 +111,8 @@ func generateRawWirePFDTx(t *testing.T, txConfig client.TxConfig, ns, message []
 	return rawTx
 }
 
-func generateSignedWirePayForData(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption, ks ...uint64) *types.MsgWirePayForData {
-	msg, err := types.NewWirePayForData(ns, message, ks...)
+func generateSignedWirePayForBlob(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption, ks ...uint64) *types.MsgWirePayForBlob {
+	msg, err := types.NewWirePayForBlob(ns, message, ks...)
 	if err != nil {
 		t.Error(err)
 	}

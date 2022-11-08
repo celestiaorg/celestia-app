@@ -21,7 +21,7 @@ func GetTxCmd() *cobra.Command {
 		RunE:                       client.ValidateCmd,
 	}
 
-	cmd.AddCommand(CmdWirePayForData())
+	cmd.AddCommand(CmdWirePayForBlob())
 
 	return cmd
 }

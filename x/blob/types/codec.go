@@ -12,17 +12,17 @@ import (
 var ModuleCdc = codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
-	cdc.RegisterConcrete(&MsgWirePayForData{}, URLMsgWirePayForData, nil)
-	cdc.RegisterConcrete(&MsgPayForData{}, URLMsgPayForData, nil)
+	cdc.RegisterConcrete(&MsgWirePayForBlob{}, URLMsgWirePayForBlob, nil)
+	cdc.RegisterConcrete(&MsgPayForBlob{}, URLMsgPayForBlob, nil)
 }
 
 func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	registry.RegisterImplementations((*sdk.Msg)(nil),
-		&MsgWirePayForData{},
+		&MsgWirePayForBlob{},
 	)
 
 	registry.RegisterImplementations((*sdk.Msg)(nil),
-		&MsgPayForData{},
+		&MsgPayForBlob{},
 	)
 
 	registry.RegisterInterface(

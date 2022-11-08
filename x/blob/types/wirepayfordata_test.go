@@ -10,50 +10,50 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWirePayForData_ValidateBasic(t *testing.T) {
+func TestWirePayForBlob_ValidateBasic(t *testing.T) {
 	type test struct {
 		name    string
-		msg     *MsgWirePayForData
+		msg     *MsgWirePayForBlob
 		wantErr *sdkerrors.Error
 	}
 
 	// valid pfd
-	validMsg := validWirePayForData(t)
+	validMsg := validWirePayForBlob(t)
 
 	// pfd with bad ns id
-	badIDMsg := validWirePayForData(t)
+	badIDMsg := validWirePayForBlob(t)
 	badIDMsg.MessageNamespaceId = []byte{1, 2, 3, 4, 5, 6, 7}
 
 	// pfd that uses reserved ns id
-	reservedMsg := validWirePayForData(t)
+	reservedMsg := validWirePayForBlob(t)
 	reservedMsg.MessageNamespaceId = []byte{0, 0, 0, 0, 0, 0, 0, 100}
 
 	// pfd that uses parity shares namespace id
-	paritySharesMsg := validWirePayForData(t)
+	paritySharesMsg := validWirePayForBlob(t)
 	paritySharesMsg.MessageNamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 
 	// pfd that uses parity shares namespace id
-	tailPaddingMsg := validWirePayForData(t)
+	tailPaddingMsg := validWirePayForBlob(t)
 	tailPaddingMsg.MessageNamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
 
 	// pfd that has a wrong msg size
-	invalidDeclaredMsgSizeMsg := validWirePayForData(t)
+	invalidDeclaredMsgSizeMsg := validWirePayForBlob(t)
 	invalidDeclaredMsgSizeMsg.MessageSize = 999
 
 	// pfd with bad commitment
-	badCommitMsg := validWirePayForData(t)
+	badCommitMsg := validWirePayForBlob(t)
 	badCommitMsg.MessageShareCommitment[0].ShareCommitment = []byte{1, 2, 3, 4}
 
 	// pfd that has invalid square size (not power of 2)
-	invalidSquareSizeMsg := validWirePayForData(t)
+	invalidSquareSizeMsg := validWirePayForBlob(t)
 	invalidSquareSizeMsg.MessageShareCommitment[0].SquareSize = 15
 
 	// pfd that signs over all squares but the first one
-	missingCommitmentForOneSquareSize := validWirePayForData(t)
+	missingCommitmentForOneSquareSize := validWirePayForBlob(t)
 	missingCommitmentForOneSquareSize.MessageShareCommitment = missingCommitmentForOneSquareSize.MessageShareCommitment[1:]
 
 	// pfd that signed over no squares
-	noMessageShareCommitments := validWirePayForData(t)
+	noMessageShareCommitments := validWirePayForBlob(t)
 	noMessageShareCommitments.MessageShareCommitment = []ShareCommitAndSignature{}
 
 	tests := []test{
@@ -123,17 +123,17 @@ func TestWirePayForData_ValidateBasic(t *testing.T) {
 	}
 }
 
-func TestProcessWirePayForData(t *testing.T) {
+func TestProcessWirePayForBlob(t *testing.T) {
 	type test struct {
 		name       string
 		namespace  []byte
 		msg        []byte
 		squareSize uint64
 		expectErr  bool
-		modify     func(*MsgWirePayForData) *MsgWirePayForData
+		modify     func(*MsgWirePayForBlob) *MsgWirePayForBlob
 	}
 
-	dontModify := func(in *MsgWirePayForData) *MsgWirePayForData {
+	dontModify := func(in *MsgWirePayForBlob) *MsgWirePayForBlob {
 		return in
 	}
 
@@ -161,7 +161,7 @@ func TestProcessWirePayForData(t *testing.T) {
 			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 2},
 			msg:        bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12)),
 			squareSize: 4,
-			modify: func(wpfd *MsgWirePayForData) *MsgWirePayForData {
+			modify: func(wpfd *MsgWirePayForBlob) *MsgWirePayForBlob {
 				wpfd.MessageShareCommitment[0].SquareSize = 99999
 				return wpfd
 			},
@@ -170,14 +170,14 @@ func TestProcessWirePayForData(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		wpfd, err := NewWirePayForData(tt.namespace, tt.msg, tt.squareSize)
+		wpfd, err := NewWirePayForBlob(tt.namespace, tt.msg, tt.squareSize)
 		require.NoError(t, err, tt.name)
 		err = wpfd.SignShareCommitments(signer)
 		assert.NoError(t, err)
 
 		wpfd = tt.modify(wpfd)
 
-		message, spfd, sig, err := ProcessWirePayForData(wpfd, tt.squareSize)
+		message, spfd, sig, err := ProcessWirePayForBlob(wpfd, tt.squareSize)
 		if tt.expectErr {
 			assert.Error(t, err, tt.name)
 			continue

@@ -105,8 +105,8 @@ We should note that Rollups can decide to do this scheme without changing core-a
 ## Positive celestia-app changes
 
 - Simplifies the creation of PFDs because users don't need to create commitments for multiple square sizes.
-  - Reduces the size of [MsgWirePayForData](https://github.com/celestiaorg/celestia-app/blob/6f3b3ae437b2a70d72ff6be2741abb8b5378caa0/x/payment/types/tx.pb.go#L32-L40)s because MessageShareCommitment can be modified from an array of maximum length 8 (for all valid square sizes) to a single MessageShareCommitment.
-  - Simplifies the malleation process because this ADR enables a future refactor to remove WireMsgPayForData entirely ([issue](https://github.com/celestiaorg/celestia-app/issues/951)). Previously multiple signatures were included in a WireMsgPayForData and only one was used to construct the MsgPayForData that ended up on-chain but this ADR results in only one signature needed on the wrapping SDK message and the SDK message that ends up on-chain.
+  - Reduces the size of [MsgWirePayForBlob](https://github.com/celestiaorg/celestia-app/blob/6f3b3ae437b2a70d72ff6be2741abb8b5378caa0/x/payment/types/tx.pb.go#L32-L40)s because MessageShareCommitment can be modified from an array of maximum length 8 (for all valid square sizes) to a single MessageShareCommitment.
+  - Simplifies the malleation process because this ADR enables a future refactor to remove WireMsgPayForBlob entirely ([issue](https://github.com/celestiaorg/celestia-app/issues/951)). Previously multiple signatures were included in a WireMsgPayForBlob and only one was used to construct the MsgPayForBlob that ended up on-chain but this ADR results in only one signature needed on the wrapping SDK message and the SDK message that ends up on-chain.
   - This renders the following issues obsolete:
     - <https://github.com/celestiaorg/celestia-app/issues/236>
     - <https://github.com/celestiaorg/celestia-app/issues/727>

@@ -114,7 +114,7 @@ func TestCreateCommitment(t *testing.T) {
 }
 
 // TestSignMalleatedTxs checks to see that the signatures that are generated for
-// the PayForDatas malleated from the original WirePayForData are actually
+// the PayForBlobs malleated from the original WirePayForBlob are actually
 // valid.
 func TestSignMalleatedTxs(t *testing.T) {
 	type test struct {
@@ -159,7 +159,7 @@ func TestSignMalleatedTxs(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		wpfd, err := NewWirePayForData(tt.ns, tt.msg, tt.ss...)
+		wpfd, err := NewWirePayForBlob(tt.ns, tt.msg, tt.ss...)
 		require.NoError(t, err, tt.name)
 		err = wpfd.SignShareCommitments(signer, tt.options...)
 		// there should be no error
@@ -185,38 +185,38 @@ func TestSignMalleatedTxs(t *testing.T) {
 func TestValidateBasic(t *testing.T) {
 	type test struct {
 		name    string
-		msg     *MsgPayForData
+		msg     *MsgPayForBlob
 		wantErr *sdkerrors.Error
 	}
 
-	validMsg := validMsgPayForData(t)
+	validMsg := validMsgPayForBlob(t)
 
-	// MsgPayForData that uses parity shares namespace id
-	paritySharesMsg := validMsgPayForData(t)
+	// MsgPayForBlob that uses parity shares namespace id
+	paritySharesMsg := validMsgPayForBlob(t)
 	paritySharesMsg.MessageNamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 
-	// MsgPayForData that uses tail padding namespace id
-	tailPaddingMsg := validMsgPayForData(t)
+	// MsgPayForBlob that uses tail padding namespace id
+	tailPaddingMsg := validMsgPayForBlob(t)
 	tailPaddingMsg.MessageNamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
 
-	// MsgPayForData that uses transaction namespace id
-	txNamespaceMsg := validMsgPayForData(t)
+	// MsgPayForBlob that uses transaction namespace id
+	txNamespaceMsg := validMsgPayForBlob(t)
 	txNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 1}
 
-	// MsgPayForData that uses intermediateStateRoots namespace id
-	intermediateStateRootsNamespaceMsg := validMsgPayForData(t)
+	// MsgPayForBlob that uses intermediateStateRoots namespace id
+	intermediateStateRootsNamespaceMsg := validMsgPayForBlob(t)
 	intermediateStateRootsNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 2}
 
-	// MsgPayForData that uses evidence namespace id
-	evidenceNamespaceMsg := validMsgPayForData(t)
+	// MsgPayForBlob that uses evidence namespace id
+	evidenceNamespaceMsg := validMsgPayForBlob(t)
 	evidenceNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
 
-	// MsgPayForData that uses the max reserved namespace id
-	maxReservedNamespaceMsg := validMsgPayForData(t)
+	// MsgPayForBlob that uses the max reserved namespace id
+	maxReservedNamespaceMsg := validMsgPayForBlob(t)
 	maxReservedNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
 
-	// MsgPayForData that has no message share commitments
-	noMessageShareCommitments := validMsgPayForData(t)
+	// MsgPayForBlob that has no message share commitments
+	noMessageShareCommitments := validMsgPayForBlob(t)
 	noMessageShareCommitments.MessageShareCommitment = []byte{}
 
 	tests := []test{
@@ -282,9 +282,9 @@ func totalMsgSize(size int) int {
 	return size - shares.DelimLen(uint64(size))
 }
 
-func validWirePayForData(t *testing.T) *MsgWirePayForData {
+func validWirePayForBlob(t *testing.T) *MsgWirePayForBlob {
 	message := bytes.Repeat([]byte{1}, 2000)
-	msg, err := NewWirePayForData(
+	msg, err := NewWirePayForBlob(
 		[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 		message,
 		AllSquareSizes(len(message))...,
@@ -302,20 +302,20 @@ func validWirePayForData(t *testing.T) *MsgWirePayForData {
 	return msg
 }
 
-func validMsgPayForData(t *testing.T) *MsgPayForData {
+func validMsgPayForBlob(t *testing.T) *MsgPayForBlob {
 	kb := generateKeyring(t, "test")
 	signer := NewKeyringSigner(kb, "test", "chain-id")
 	ns := []byte{1, 1, 1, 1, 1, 1, 1, 2}
 	msg := bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12))
 	squareSize := uint64(4)
 
-	wpfd, err := NewWirePayForData(ns, msg, squareSize)
+	wpfd, err := NewWirePayForBlob(ns, msg, squareSize)
 	assert.NoError(t, err)
 
 	err = wpfd.SignShareCommitments(signer)
 	assert.NoError(t, err)
 
-	_, spfd, _, err := ProcessWirePayForData(wpfd, squareSize)
+	_, spfd, _, err := ProcessWirePayForBlob(wpfd, squareSize)
 	require.NoError(t, err)
 
 	return spfd

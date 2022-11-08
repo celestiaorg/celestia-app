@@ -113,7 +113,7 @@ func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.
 	signer.SetSequence(seq)
 
 	// create a random msg per row
-	pfd, err := blob.BuildPayForData(
+	pfd, err := blob.BuildPayForBlob(
 		c.rootCtx,
 		signer,
 		c.GRPCClient,
@@ -125,7 +125,7 @@ func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.
 		return nil, err
 	}
 
-	signed, err := blob.SignPayForData(signer, pfd, opts...)
+	signed, err := blob.SignPayForBlob(signer, pfd, opts...)
 	if err != nil {
 		return nil, err
 	}
