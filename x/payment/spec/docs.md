@@ -2,9 +2,15 @@
 
 ## Abstract
 
-The payment module is responsible for paying for arbitrary data that will be added to the Celestia blockchain. While the data being submitted can be arbitrary, the exact placement of that data is important for the transaction to be valid. This is why the payment module utilizes a malleated transaction scheme. Malleated transactions allow for users to create a single transaction, that can later be malleated by the block producer to create a variety of different valid transactions that are still signed over by the user. To accomplish this, users create a single `MsgWirePayForData` transaction, which is composed of metadata and signatures for multiple variations of the transaction that will be included onchain. After the transaction is submitted to the network, the block producer selects the appropriate signature and creates a valid `MsgPayForData` transaction depending on the square size for that block. This new malleated `MsgPayForData` transaction is what ends up onchain.
+The payment module enables users to pay for arbitrary data to be published to the Celestia blockchain. Users create a single `MsgWirePayForData` transaction that is composed of:
 
-Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
+1. `Message`: the data they wish to publish
+2. `MessageNameSpaceId`: the namespace they wish to publish to
+3. `MessageShareCommitment`: a signature and a commitment over their data when encoded into shares
+
+After the `MsgWirePayForData` transaction is submitted to the network, a block producer malleates their transaction into a `MsgPayForData` which doesn't include their data (a.k.a message). Both components get included in the data square in different namespaces: the `MsgPayForData` gets included in the transaction namespace and the associated data gets included in the namespace the user specified in the original `MsgWirePayForData`. Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
+
+After a block has been created, the user can verify that their data was included in a block via a message inclusion proof. A message inclusion proof the `MessageShareCommitment` in the original `MsgWirePayForData` and subtree roots of the block's data square to proove to the user that the shares that compose their original data do in fact exist in a particular block.
 
 ## State
 
@@ -14,12 +20,8 @@ When a PayForData message is processed, it consumes gas based on the message siz
 
 ## Messages
 
-- [`MsgWirePayForData`](https://github.com/celestiaorg/celestia-app/blob/29e0a2751182499f7dc03598eabfc8d049ae62cb/x/payment/types/tx.pb.go#L32-L40) is a message that is created and signed by the user but it never ends up on-chain.
-- [`MsgPayForData`](https://github.com/celestiaorg/celestia-app/blob/29e0a2751182499f7dc03598eabfc8d049ae62cb/x/payment/types/tx.pb.go#L209-L219) is a "malleated" transaction that is created from metadata in the original `MsgWirePayForData`. `MsgPayForData` does end up on-chain.
-
-## PrepareProposal
-
-The malleation process occurs during the PrepareProposal step.
+- [`MsgWirePayForData`](https://github.com/celestiaorg/celestia-app/blob/b4c8ebdf35db200a9b99d295a13de01110802af4/x/payment/types/tx.pb.go#L32-L40) is created and signed by the user but it never ends up on-chain. Instead, it is "malleated" into it's component parts: data and a `MsgPayForData` message.
+- [`MsgPayForData`](https://github.com/celestiaorg/celestia-app/blob/b4c8ebdf35db200a9b99d295a13de01110802af4/x/payment/types/tx.pb.go#L208-L216) is one output of the malleation process. It contains metadata from the original `MsgWirePayForData` but not the associated data.
 
 ## Events
 
@@ -85,8 +87,10 @@ if err != nil {
 
 <!-- markdownlint-enable MD010 -->
 
-### How the commitments are generated
+### How is the `MessageShareCommitment` generated?
 
-1. Split the message into shares of `appconsts.ShareSize`
-2. Arrange the shares into a Merkle mountain range where each tree in the mountain range has a maximum size of `squareSize`
-3. Take the roots of the trees in the Merkle mountain range and create a new Merkle tree. The message share commitment is the Merkle root of this Merkle tree.
+1. Split the message into shares of size `appconsts.ShareSize`
+1. Determine the `msgMinSquareSize` (the minimum square size the message can fit into). This is done by taking the number of shares from the previous step and rounding up to the next perfect square that is a power of two.
+1. Arrange the shares into a Merkle mountain range where each tree in the mountain range has a maximum size of the `msgMinSquareSize`.
+1. Take the roots of the trees in the Merkle mountain range and create a new Merkle tree.
+1. The message share commitment is the Merkle root of the Merkle tree from the previous step.
