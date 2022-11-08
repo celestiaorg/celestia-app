@@ -2,6 +2,7 @@ package testnode
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -90,7 +91,7 @@ func TestIntegrationTestSuite(t *testing.T) {
 func (s *IntegrationTestSuite) Test_FillBlock() {
 	require := s.Require()
 
-	for squareSize := 2; squareSize < appconsts.MaxSquareSize; squareSize *= 2 {
+	for squareSize := 4; squareSize < appconsts.MaxSquareSize; squareSize *= 2 {
 		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastAsync)
 		require.NoError(err)
 
@@ -104,5 +105,40 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 		b, err := s.cctx.Client.Block(context.TODO(), &res.Height)
 		require.NoError(err)
 		require.Equal(uint64(squareSize), b.Block.OriginalSquareSize)
+	}
+}
+
+func (s *IntegrationTestSuite) Test_FillBlock_InvalidSquareSizeError() {
+	tests := []struct {
+		name        string
+		squareSize  int
+		expectedErr error
+	}{
+		{
+			name:        "when squareSize less than 2",
+			squareSize:  0,
+			expectedErr: fmt.Errorf("unsupported sqaureSize: 0"),
+		},
+		{
+			name:        "when squareSize equal to 2",
+			squareSize:  2,
+			expectedErr: fmt.Errorf("unsupported sqaureSize: 2"),
+		},
+		{
+			name:        "when squareSize equal is not a power of 2",
+			squareSize:  18,
+			expectedErr: fmt.Errorf("unsupported sqaureSize: 18"),
+		},
+		{
+			name:       "when squareSize is a pow of 2 and greater than 2",
+			squareSize: 16,
+		},
+	}
+
+	for _, tc := range tests {
+		s.Run(tc.name, func() {
+			_, actualErr := s.cctx.FillBlock(tc.squareSize, s.accounts, flags.BroadcastAsync)
+			s.Equal(tc.expectedErr, actualErr)
+		})
 	}
 }
