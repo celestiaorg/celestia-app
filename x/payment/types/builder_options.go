@@ -65,7 +65,7 @@ func InheritTxConfig(builder sdkclient.TxBuilder, tx authsigning.Tx) sdkclient.T
 		builder.SetGasLimit(gas)
 	}
 
-	if feeAmmount := tx.GetFee(); !feeAmmount.AmountOf("ucls").Equal(sdk.NewInt(0)) {
+	if feeAmmount := tx.GetFee(); !feeAmmount.AmountOf("utia").Equal(sdk.NewInt(0)) {
 		builder.SetFeeAmount(tx.GetFee())
 	}
 
