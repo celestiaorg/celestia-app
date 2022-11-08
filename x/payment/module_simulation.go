@@ -22,9 +22,7 @@ var (
 	_ = baseapp.Paramspace
 )
 
-const (
-// this line is used by starport scaffolding # simapp/module/const
-)
+const ()
 
 // GenerateGenesisState creates a randomized GenState of the module
 func (AppModule) GenerateGenesisState(simState *module.SimulationState) {
@@ -34,7 +32,6 @@ func (AppModule) GenerateGenesisState(simState *module.SimulationState) {
 	}
 	loanGenesis := types.GenesisState{
 		Params: types.DefaultParams(),
-		// this line is used by starport scaffolding # simapp/module/genesisState
 	}
 	simState.GenState[types.ModuleName] = simState.Cdc.MustMarshalJSON(&loanGenesis)
 }
