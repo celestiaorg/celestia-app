@@ -26,12 +26,12 @@ func SubmitPayForBlob(
 ) (*sdk.TxResponse, error) {
 	opts = append(opts, types.SetGasLimit(gasLim))
 
-	pfd, err := BuildPayForBlob(ctx, signer, conn, nID, data, opts...)
+	pfb, err := BuildPayForBlob(ctx, signer, conn, nID, data, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	signed, err := SignPayForBlob(signer, pfd, opts...)
+	signed, err := SignPayForBlob(signer, pfb, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func BuildPayForBlob(
 	opts ...types.TxBuilderOption,
 ) (*types.MsgWirePayForBlob, error) {
 	// create the raw WirePayForBlob transaction
-	wpfd, err := types.NewWirePayForBlob(nID, message, types.AllSquareSizes(len(message))...)
+	wpfb, err := types.NewWirePayForBlob(nID, message, types.AllSquareSizes(len(message))...)
 	if err != nil {
 		return nil, err
 	}
@@ -71,18 +71,18 @@ func BuildPayForBlob(
 
 	// generate the signatures for each `MsgPayForBlob` using the `KeyringSigner`,
 	// then set the gas limit for the tx
-	err = wpfd.SignShareCommitments(signer, opts...)
+	err = wpfb.SignShareCommitments(signer, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	return wpfd, nil
+	return wpfb, nil
 }
 
 // SignPayForBlob signs a PayForBlob transaction.
 func SignPayForBlob(
 	signer *types.KeyringSigner,
-	pfd *types.MsgWirePayForBlob,
+	pfb *types.MsgWirePayForBlob,
 	opts ...types.TxBuilderOption,
 ) (signing.Tx, error) {
 	// Build and sign the final `WirePayForBlob` tx that now contains the signatures
@@ -93,6 +93,6 @@ func SignPayForBlob(
 	}
 	return signer.BuildSignedTx(
 		builder,
-		pfd,
+		pfb,
 	)
 }

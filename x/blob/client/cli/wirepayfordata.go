@@ -45,7 +45,7 @@ func CmdWirePayForBlob() *cobra.Command {
 				return fmt.Errorf("failure to decode hex message: %w", err)
 			}
 
-			pfdMsg, err := types.NewWirePayForBlob(namespace, message, types.AllSquareSizes(len(message))...)
+			pfbMsg, err := types.NewWirePayForBlob(namespace, message, types.AllSquareSizes(len(message))...)
 			if err != nil {
 				return err
 			}
@@ -79,7 +79,7 @@ func CmdWirePayForBlob() *cobra.Command {
 			}
 
 			// sign the  MsgPayForBlob's ShareCommitments
-			err = pfdMsg.SignShareCommitments(
+			err = pfbMsg.SignShareCommitments(
 				signer,
 				types.SetGasLimit(gasSetting.Gas),
 				types.SetFeeAmount(parsedFees),
@@ -89,11 +89,11 @@ func CmdWirePayForBlob() *cobra.Command {
 			}
 
 			// run message checks
-			if err = pfdMsg.ValidateBasic(); err != nil {
+			if err = pfbMsg.ValidateBasic(); err != nil {
 				return err
 			}
 
-			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), pfdMsg)
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), pfbMsg)
 		},
 	}
 

@@ -159,24 +159,24 @@ func TestSignMalleatedTxs(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		wpfd, err := NewWirePayForBlob(tt.ns, tt.msg, tt.ss...)
+		wpfb, err := NewWirePayForBlob(tt.ns, tt.msg, tt.ss...)
 		require.NoError(t, err, tt.name)
-		err = wpfd.SignShareCommitments(signer, tt.options...)
+		err = wpfb.SignShareCommitments(signer, tt.options...)
 		// there should be no error
 		assert.NoError(t, err)
 		// the signature should exist
-		assert.Equal(t, len(wpfd.MessageShareCommitment[0].Signature), 64)
+		assert.Equal(t, len(wpfb.MessageShareCommitment[0].Signature), 64)
 
 		sData, err := signer.GetSignerData()
 		require.NoError(t, err)
 
-		wpfdTx, err := signer.BuildSignedTx(signer.NewTxBuilder(tt.options...), wpfd)
+		wpfbTx, err := signer.BuildSignedTx(signer.NewTxBuilder(tt.options...), wpfb)
 		require.NoError(t, err)
 
-		// VerifyPFDSigs goes through the entire malleation process for every
-		// square size, creating PfDs from the wirePfD and check that the
+		// VerifyPFBSigs goes through the entire malleation process for every
+		// square size, creating PfBs from the wirePfB and check that the
 		// signature is valid
-		valid, err := VerifyPFDSigs(sData, signer.encCfg.TxConfig, wpfdTx)
+		valid, err := VerifyPFBSigs(sData, signer.encCfg.TxConfig, wpfbTx)
 		assert.NoError(t, err)
 		assert.True(t, valid, tt.name)
 	}
@@ -309,14 +309,14 @@ func validMsgPayForBlob(t *testing.T) *MsgPayForBlob {
 	msg := bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12))
 	squareSize := uint64(4)
 
-	wpfd, err := NewWirePayForBlob(ns, msg, squareSize)
+	wpfb, err := NewWirePayForBlob(ns, msg, squareSize)
 	assert.NoError(t, err)
 
-	err = wpfd.SignShareCommitments(signer)
+	err = wpfb.SignShareCommitments(signer)
 	assert.NoError(t, err)
 
-	_, spfd, _, err := ProcessWirePayForBlob(wpfd, squareSize)
+	_, spfb, _, err := ProcessWirePayForBlob(wpfb, squareSize)
 	require.NoError(t, err)
 
-	return spfd
+	return spfb
 }

@@ -44,7 +44,7 @@ There are tools to programmatically create, sign, and broadcast `MsgWirePayForBl
 
 ```go
 // create the raw WirePayForBlob transaction
-wpfdMsg, err := apptypes.NewWirePayForBlob(block.Header.NamespaceId, message, 16, 32, 64, 128)
+wpfbMsg, err := apptypes.NewWirePayForBlob(block.Header.NamespaceId, message, 16, 32, 64, 128)
 if err != nil {
     return err
 }
@@ -67,7 +67,7 @@ if err != nil {
 // generate the signatures for each `MsgPayForBlob` using the `KeyringSigner`,
 // then set the gas limit for the tx
 gasLimOption := types.SetGasLimit(200000)
-err = pfdMsg.SignShareCommitments(keyringSigner, gasLimOption)
+err = pfbMsg.SignShareCommitments(keyringSigner, gasLimOption)
 if err != nil {
     return err
 }
@@ -76,7 +76,7 @@ if err != nil {
 // for potential `MsgPayForBlob`s
 signedTx, err := keyringSigner.BuildSignedTx(
     gasLimOption(signer.NewTxBuilder()),
-    wpfdMsg,
+    wpfbMsg,
 )
 if err != nil {
     return err

@@ -9,7 +9,7 @@ The exact approach taken by the initial implementation, however, is certainly up
 
 please see the [original specs](https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md), from which this ADR paraphrases heavily.
 
-Currently, when checking for message inclusion, validators recreate the share commitment from the messages in the block and compare those with what are signed over in the `MsgPayForBlob` transactions also in that block. If any commitment is not found in one of the PFD transactions, or if there is a commitment that doesn't have a corresponding message, then they reject that block.
+Currently, when checking for message inclusion, validators recreate the share commitment from the messages in the block and compare those with what are signed over in the `MsgPayForBlob` transactions also in that block. If any commitment is not found in one of the PFB transactions, or if there is a commitment that doesn't have a corresponding message, then they reject that block.
 
 While this functions as a message inclusion check, the light client has to assume that 2/3's of the voting power is honest in order to be assured that both the messages they are interested in and the rest of the messages paid for in that block are actually included. In order to have this property, we need a block validity rule where:
 
@@ -57,7 +57,7 @@ While there certainly can be some decisions here, whether or not we begin follow
 
 While all commitments signed over must only consist of subtree roots, its worth noting that non-interactive defaults are just that, defaults! It's entirely possible that block producers use some mechanism to notify the signer of the commitments that they must sign over, or even that the block producers are signing the transactions paying for the inclusion of the message on behalf of the users. This would render the non-interactive defaults, and the padding accompanied by them, to not be necessary. Other solutions are not mutually exclusive to non-interactive defaults, and do not even have to be built by the core team, so covering those solutions in a more in depth way is outside the scope of this ADR.
 
-However, the default implementation of non-interative defaults is within the scope of this ADR. Whatever design we use ultimately needs to support not using the non-interactive defaults. Meaning we should be able to encode block data into a square even if the messages are not arranged according to the non-interactive defaults. Again, this does not change the requirement that all share commitments signed over in PFDs consist only of subtree roots.
+However, the default implementation of non-interative defaults is within the scope of this ADR. Whatever design we use ultimately needs to support not using the non-interactive defaults. Meaning we should be able to encode block data into a square even if the messages are not arranged according to the non-interactive defaults. Again, this does not change the requirement that all share commitments signed over in PFBs consist only of subtree roots.
 
 ## Detailed Design
 
@@ -237,7 +237,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
    // the totalSharesUsed can be larger that the max number of shares if we
    // reach the max square size. In this case, we must prune the deprioritized
-   // txs (and their messages if they're pfd txs).
+   // txs (and their messages if they're pfb txs).
    if totalSharesUsed > int(squareSize*squareSize) {
        parsedTxs = prune(app.txConfig, parsedTxs, totalSharesUsed, int(squareSize))
    }
@@ -375,7 +375,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
    ...
    // the totalSharesUsed can be larger that the max number of shares if we
    // reach the max square size. In this case, we must prune the deprioritized
-   // txs (and their messages if they're pfd txs).
+   // txs (and their messages if they're pfb txs).
    if totalSharesUsed > int(squareSize*squareSize) {
        parsedTxs = prune(app.txConfig, parsedTxs, totalSharesUsed, int(squareSize))
    }
@@ -393,14 +393,14 @@ func (p *parsedTx) malleate(txConf client.TxConfig, squareSize uint64) error {
    }
 
    // parse wire message and create a single message
-   _, unsignedPFD, sig, err := types.ProcessWirePayForBlob(p.msg, squareSize)
+   _, unsignedPFB, sig, err := types.ProcessWirePayForBlob(p.msg, squareSize)
    if err != nil {
        return err
    }
 
    // create the signed PayForBlob using the fees, gas limit, and sequence from
    // the original transaction, along with the appropriate signature.
-   signedTx, err := types.BuildPayForBlobTxFromWireTx(p.tx, txConf.NewTxBuilder(), sig, unsignedPFD)
+   signedTx, err := types.BuildPayForBlobTxFromWireTx(p.tx, txConf.NewTxBuilder(), sig, unsignedPFB)
    if err != nil {
        return err
    }
@@ -603,20 +603,20 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
                continue
            }
 
-           pfd, ok := msg.(*types.MsgPayForBlob)
+           pfb, ok := msg.(*types.MsgPayForBlob)
            if !ok {
                app.Logger().Error("Msg type does not match MsgPayForBlob URL")
                continue
            }
 
-           if err = pfd.ValidateBasic(); err != nil {
+           if err = pfb.ValidateBasic(); err != nil {
                ...
                return abci.ResponseProcessProposal{
                    Result: abci.ResponseProcessProposal_REJECT,
                }
            }
 
-           commitment, err := inclusion.GetCommit(cacher, dah, int(malleatedTx.ShareIndex), shares.MsgSharesUsed(int(pfd.MessageSize)))
+           commitment, err := inclusion.GetCommit(cacher, dah, int(malleatedTx.ShareIndex), shares.MsgSharesUsed(int(pfb.MessageSize)))
            if err != nil {
                ...
                return abci.ResponseProcessProposal{
@@ -624,7 +624,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
                }
            }
 
-           if !bytes.Equal(pfd.MessageShareCommitment, commitment) {
+           if !bytes.Equal(pfb.MessageShareCommitment, commitment) {
                ...
                return abci.ResponseProcessProposal{
                    Result: abci.ResponseProcessProposal_REJECT,
@@ -659,7 +659,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
        }
    }
 
-   // compare the number of PFDs and messages, if they aren't
+   // compare the number of PFBs and messages, if they aren't
    // identical, then  we already know this block is invalid
    if commitmentCounter != len(req.BlockData.Messages.MessagesList) {
        ...

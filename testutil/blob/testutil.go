@@ -13,11 +13,11 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
-// GenerateManyRawWirePFD creates many raw WirePayForBlob transactions. Using
+// GenerateManyRawWirePFB creates many raw WirePayForBlob transactions. Using
 // negative numbers for count and size will randomize those values. count is
 // capped at 5000 and size is capped at 3MB. Going over these caps will result
 // in randomized values.
-func GenerateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count, size int) [][]byte {
+func GenerateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count, size int) [][]byte {
 	// hardcode a maximum of 5000 transactions so that we can use this for fuzzing
 	if count > 5000 || count < 0 {
 		count = tmrand.Intn(5000)
@@ -38,7 +38,7 @@ func GenerateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *type
 		if size < 0 || size > 3000000 {
 			size = tmrand.Intn(1000000)
 		}
-		wpfdTx := generateRawWirePFDTx(
+		wpfbTx := generateRawWirePFBTx(
 			t,
 			txConfig,
 			namespace.RandomMessageNamespace(),
@@ -46,7 +46,7 @@ func GenerateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *type
 			signer,
 			opts...,
 		)
-		txs[i] = wpfdTx
+		txs[i] = wpfbTx
 	}
 	return txs
 }
@@ -95,8 +95,8 @@ func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.Key
 	return rawTx
 }
 
-// generateRawWirePFDTx creates a tx with a single MsgWirePayForBlob message using the provided namespace and message
-func generateRawWirePFDTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
+// generateRawWirePFBTx creates a tx with a single MsgWirePayForBlob message using the provided namespace and message
+func generateRawWirePFBTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
 	// create a msg
 	msg := generateSignedWirePayForBlob(t, ns, message, signer, opts, types.AllSquareSizes(len(message))...)
 

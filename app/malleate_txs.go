@@ -17,8 +17,8 @@ func malleateTxs(
 	txs parsedTxs,
 	evd core.EvidenceList,
 ) ([][]byte, []*core.Message, error) {
-	// trackedMessage keeps track of the pfd from which it was malleated from so
-	// that we can wrap that pfd with appropriate share index
+	// trackedMessage keeps track of the pfb from which it was malleated from so
+	// that we can wrap that pfb with appropriate share index
 	type trackedMessage struct {
 		message     *core.Message
 		parsedIndex int
@@ -89,14 +89,14 @@ func (p *parsedTx) malleate(txConf client.TxConfig, squareSize uint64) error {
 	}
 
 	// parse wire message and create a single message
-	_, unsignedPFD, sig, err := types.ProcessWirePayForBlob(p.msg, squareSize)
+	_, unsignedPFB, sig, err := types.ProcessWirePayForBlob(p.msg, squareSize)
 	if err != nil {
 		return err
 	}
 
 	// create the signed PayForBlob using the fees, gas limit, and sequence from
 	// the original transaction, along with the appropriate signature.
-	signedTx, err := types.BuildPayForBlobTxFromWireTx(p.tx, txConf.NewTxBuilder(), sig, unsignedPFD)
+	signedTx, err := types.BuildPayForBlobTxFromWireTx(p.tx, txConf.NewTxBuilder(), sig, unsignedPFB)
 	if err != nil {
 		return err
 	}

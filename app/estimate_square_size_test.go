@@ -20,7 +20,7 @@ func Test_estimateSquareSize(t *testing.T) {
 	type test struct {
 		name                  string
 		normalTxs             int
-		wPFDCount, messgeSize int
+		wPFBCount, messgeSize int
 		expectedSize          uint64
 	}
 	tests := []test{
@@ -39,7 +39,7 @@ func Test_estimateSquareSize(t *testing.T) {
 	signer := generateKeyringSigner(t, "estimate-key")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			txs := generateManyRawWirePFD(t, encConf.TxConfig, signer, tt.wPFDCount, tt.messgeSize)
+			txs := generateManyRawWirePFB(t, encConf.TxConfig, signer, tt.wPFBCount, tt.messgeSize)
 			txs = append(txs, generateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
 			parsedTxs := parseTxs(encConf.TxConfig, txs)
 			squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, core.EvidenceList{})
@@ -70,7 +70,7 @@ func Test_pruning(t *testing.T) {
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
 	signer := generateKeyringSigner(t, "estimate-key")
 	txs := generateManyRawSendTxs(t, encConf.TxConfig, signer, 10)
-	txs = append(txs, generateManyRawWirePFD(t, encConf.TxConfig, signer, 10, 1000)...)
+	txs = append(txs, generateManyRawWirePFB(t, encConf.TxConfig, signer, 10, 1000)...)
 	parsedTxs := parseTxs(encConf.TxConfig, txs)
 	ss, total := estimateSquareSize(parsedTxs, core.EvidenceList{})
 	nextLowestSS := ss / 2
@@ -125,7 +125,7 @@ func Test_overEstimateMalleatedTxSize(t *testing.T) {
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
 	signer := generateKeyringSigner(t, "estimate-key")
 	for _, tt := range tests {
-		wpfdTx := generateRawWirePFDTx(
+		wpfbTx := generateRawWirePFBTx(
 			t,
 			encConf.TxConfig,
 			namespace.RandomMessageNamespace(),
@@ -133,7 +133,7 @@ func Test_overEstimateMalleatedTxSize(t *testing.T) {
 			signer,
 			tt.opts...,
 		)
-		parsedTxs := parseTxs(encConf.TxConfig, [][]byte{wpfdTx})
+		parsedTxs := parseTxs(encConf.TxConfig, [][]byte{wpfbTx})
 		res := overEstimateMalleatedTxSize(len(parsedTxs[0].rawTx), tt.size, len(types.AllSquareSizes(tt.size)))
 		malleatedTx, _, err := malleateTxs(encConf.TxConfig, 32, parsedTxs, core.EvidenceList{})
 		require.NoError(t, err)
@@ -145,7 +145,7 @@ func Test_calculateCompactShareCount(t *testing.T) {
 	type test struct {
 		name                  string
 		normalTxs             int
-		wPFDCount, messgeSize int
+		wPFBCount, messgeSize int
 	}
 	tests := []test{
 		{"empty block minimum square size", 0, 0, totalMsgSize(0)},
@@ -163,7 +163,7 @@ func Test_calculateCompactShareCount(t *testing.T) {
 	signer := generateKeyringSigner(t, "estimate-key")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			txs := generateManyRawWirePFD(t, encConf.TxConfig, signer, tt.wPFDCount, tt.messgeSize)
+			txs := generateManyRawWirePFB(t, encConf.TxConfig, signer, tt.wPFBCount, tt.messgeSize)
 			txs = append(txs, generateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
 
 			parsedTxs := parseTxs(encConf.TxConfig, txs)

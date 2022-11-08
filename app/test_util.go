@@ -22,11 +22,11 @@ func GenerateValidBlockData(
 	t *testing.T,
 	txConfig client.TxConfig,
 	signer *types.KeyringSigner,
-	pfdCount,
+	pfbCount,
 	normalTxCount,
 	size int,
 ) (coretypes.Data, error) {
-	rawTxs := generateManyRawWirePFD(t, txConfig, signer, pfdCount, size)
+	rawTxs := generateManyRawWirePFB(t, txConfig, signer, pfbCount, size)
 	rawTxs = append(rawTxs, generateManyRawSendTxs(t, txConfig, signer, normalTxCount)...)
 	parsedTxs := parseTxs(txConfig, rawTxs)
 
@@ -49,7 +49,7 @@ func GenerateValidBlockData(
 	return coretypes.DataFromProto(&blockData)
 }
 
-func generateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count, size int) [][]byte {
+func generateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count, size int) [][]byte {
 	txs := make([][]byte, count)
 
 	coin := sdk.Coin{
@@ -63,7 +63,7 @@ func generateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *type
 	}
 
 	for i := 0; i < count; i++ {
-		wpfdTx := generateRawWirePFDTx(
+		wpfbTx := generateRawWirePFBTx(
 			t,
 			txConfig,
 			namespace.RandomMessageNamespace(),
@@ -71,7 +71,7 @@ func generateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *type
 			signer,
 			opts...,
 		)
-		txs[i] = wpfdTx
+		txs[i] = wpfbTx
 	}
 	return txs
 }
@@ -120,8 +120,8 @@ func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.Key
 	return rawTx
 }
 
-// generateRawWirePFD creates a tx with a single MsgWirePayForBlob message using the provided namespace and message
-func generateRawWirePFDTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
+// generateRawWirePFB creates a tx with a single MsgWirePayForBlob message using the provided namespace and message
+func generateRawWirePFBTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
 	// create a msg
 	msg := generateSignedWirePayForBlob(t, ns, message, signer, opts, types.AllSquareSizes(len(message))...)
 

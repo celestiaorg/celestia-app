@@ -23,7 +23,7 @@ const (
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
 	// Check for message inclusion:
 	//  - each MsgPayForBlob included in a block should have a corresponding data also in the block body
-	//  - the commitment in each PFD should match that of its corresponding data
+	//  - the commitment in each PFB should match that of its corresponding data
 	//  - there should be no unpaid-for data
 
 	data, err := coretypes.DataFromProto(req.BlockData)
@@ -89,20 +89,20 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 				continue
 			}
 
-			pfd, ok := msg.(*types.MsgPayForBlob)
+			pfb, ok := msg.(*types.MsgPayForBlob)
 			if !ok {
 				app.Logger().Error("Msg type does not match MsgPayForBlob URL")
 				continue
 			}
 
-			if err = pfd.ValidateBasic(); err != nil {
+			if err = pfb.ValidateBasic(); err != nil {
 				logInvalidPropBlockError(app.Logger(), req.Header, "invalid MsgPayForBlob", err)
 				return abci.ResponseProcessProposal{
 					Result: abci.ResponseProcessProposal_REJECT,
 				}
 			}
 
-			commitment, err := inclusion.GetCommit(cacher, dah, int(malleatedTx.ShareIndex), shares.MsgSharesUsed(int(pfd.MessageSize)))
+			commitment, err := inclusion.GetCommit(cacher, dah, int(malleatedTx.ShareIndex), shares.MsgSharesUsed(int(pfb.MessageSize)))
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), req.Header, "commitment not found", err)
 				return abci.ResponseProcessProposal{
@@ -110,7 +110,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 				}
 			}
 
-			if !bytes.Equal(pfd.MessageShareCommitment, commitment) {
+			if !bytes.Equal(pfb.MessageShareCommitment, commitment) {
 				logInvalidPropBlock(app.Logger(), req.Header, "found commitment does not match user's")
 				return abci.ResponseProcessProposal{
 					Result: abci.ResponseProcessProposal_REJECT,
@@ -121,7 +121,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	// compare the number of PFDs and messages, if they aren't
+	// compare the number of PFBs and messages, if they aren't
 	// identical, then  we already know this block is invalid
 	if commitmentCounter != len(req.BlockData.Messages.MessagesList) {
 		logInvalidPropBlock(app.Logger(), req.Header, "varying number of messages and payForBlob txs in the same block")

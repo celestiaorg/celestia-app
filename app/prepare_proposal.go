@@ -27,7 +27,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// the totalSharesUsed can be larger that the max number of shares if we
 	// reach the max square size. In this case, we must prune the deprioritized
-	// txs (and their messages if they're pfd txs).
+	// txs (and their messages if they're pfb txs).
 	if totalSharesUsed > int(squareSize*squareSize) {
 		parsedTxs = prune(app.txConfig, parsedTxs, totalSharesUsed, int(squareSize))
 	}

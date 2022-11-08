@@ -17,42 +17,42 @@ func TestWirePayForBlob_ValidateBasic(t *testing.T) {
 		wantErr *sdkerrors.Error
 	}
 
-	// valid pfd
+	// valid pfb
 	validMsg := validWirePayForBlob(t)
 
-	// pfd with bad ns id
+	// pfb with bad ns id
 	badIDMsg := validWirePayForBlob(t)
 	badIDMsg.MessageNamespaceId = []byte{1, 2, 3, 4, 5, 6, 7}
 
-	// pfd that uses reserved ns id
+	// pfb that uses reserved ns id
 	reservedMsg := validWirePayForBlob(t)
 	reservedMsg.MessageNamespaceId = []byte{0, 0, 0, 0, 0, 0, 0, 100}
 
-	// pfd that uses parity shares namespace id
+	// pfb that uses parity shares namespace id
 	paritySharesMsg := validWirePayForBlob(t)
 	paritySharesMsg.MessageNamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 
-	// pfd that uses parity shares namespace id
+	// pfb that uses parity shares namespace id
 	tailPaddingMsg := validWirePayForBlob(t)
 	tailPaddingMsg.MessageNamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
 
-	// pfd that has a wrong msg size
+	// pfb that has a wrong msg size
 	invalidDeclaredMsgSizeMsg := validWirePayForBlob(t)
 	invalidDeclaredMsgSizeMsg.MessageSize = 999
 
-	// pfd with bad commitment
+	// pfb with bad commitment
 	badCommitMsg := validWirePayForBlob(t)
 	badCommitMsg.MessageShareCommitment[0].ShareCommitment = []byte{1, 2, 3, 4}
 
-	// pfd that has invalid square size (not power of 2)
+	// pfb that has invalid square size (not power of 2)
 	invalidSquareSizeMsg := validWirePayForBlob(t)
 	invalidSquareSizeMsg.MessageShareCommitment[0].SquareSize = 15
 
-	// pfd that signs over all squares but the first one
+	// pfb that signs over all squares but the first one
 	missingCommitmentForOneSquareSize := validWirePayForBlob(t)
 	missingCommitmentForOneSquareSize.MessageShareCommitment = missingCommitmentForOneSquareSize.MessageShareCommitment[1:]
 
-	// pfd that signed over no squares
+	// pfb that signed over no squares
 	noMessageShareCommitments := validWirePayForBlob(t)
 	noMessageShareCommitments.MessageShareCommitment = []ShareCommitAndSignature{}
 
@@ -161,23 +161,23 @@ func TestProcessWirePayForBlob(t *testing.T) {
 			namespace:  []byte{1, 1, 1, 1, 1, 1, 1, 2},
 			msg:        bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12)),
 			squareSize: 4,
-			modify: func(wpfd *MsgWirePayForBlob) *MsgWirePayForBlob {
-				wpfd.MessageShareCommitment[0].SquareSize = 99999
-				return wpfd
+			modify: func(wpfb *MsgWirePayForBlob) *MsgWirePayForBlob {
+				wpfb.MessageShareCommitment[0].SquareSize = 99999
+				return wpfb
 			},
 			expectErr: true,
 		},
 	}
 
 	for _, tt := range tests {
-		wpfd, err := NewWirePayForBlob(tt.namespace, tt.msg, tt.squareSize)
+		wpfb, err := NewWirePayForBlob(tt.namespace, tt.msg, tt.squareSize)
 		require.NoError(t, err, tt.name)
-		err = wpfd.SignShareCommitments(signer)
+		err = wpfb.SignShareCommitments(signer)
 		assert.NoError(t, err)
 
-		wpfd = tt.modify(wpfd)
+		wpfb = tt.modify(wpfb)
 
-		message, spfd, sig, err := ProcessWirePayForBlob(wpfd, tt.squareSize)
+		message, spfb, sig, err := ProcessWirePayForBlob(wpfb, tt.squareSize)
 		if tt.expectErr {
 			assert.Error(t, err, tt.name)
 			continue
@@ -186,9 +186,9 @@ func TestProcessWirePayForBlob(t *testing.T) {
 		// ensure that the shared fields are identical
 		assert.Equal(t, tt.msg, message.Data, tt.name)
 		assert.Equal(t, tt.namespace, message.NamespaceId, tt.name)
-		assert.Equal(t, wpfd.Signer, spfd.Signer, tt.name)
-		assert.Equal(t, wpfd.MessageNamespaceId, spfd.MessageNamespaceId, tt.name)
-		assert.Equal(t, wpfd.MessageShareCommitment[0].ShareCommitment, spfd.MessageShareCommitment, tt.name)
-		assert.Equal(t, wpfd.MessageShareCommitment[0].Signature, sig, tt.name)
+		assert.Equal(t, wpfb.Signer, spfb.Signer, tt.name)
+		assert.Equal(t, wpfb.MessageNamespaceId, spfb.MessageNamespaceId, tt.name)
+		assert.Equal(t, wpfb.MessageShareCommitment[0].ShareCommitment, spfb.MessageShareCommitment, tt.name)
+		assert.Equal(t, wpfb.MessageShareCommitment[0].Signature, sig, tt.name)
 	}
 }

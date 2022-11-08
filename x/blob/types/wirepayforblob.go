@@ -214,11 +214,11 @@ func (msg *MsgWirePayForBlob) GetSigners() []sdk.AccAddress {
 // createPayForBlobSignature generates the signature for a PayForBlob for a
 // single squareSize using the info from a MsgWirePayForBlob.
 func (msg *MsgWirePayForBlob) createPayForBlobSignature(signer *KeyringSigner, builder sdkclient.TxBuilder, squareSize uint64) ([]byte, error) {
-	pfd, err := msg.unsignedPayForBlob(squareSize)
+	pfb, err := msg.unsignedPayForBlob(squareSize)
 	if err != nil {
 		return nil, err
 	}
-	tx, err := signer.BuildSignedTx(builder, pfd)
+	tx, err := signer.BuildSignedTx(builder, pfb)
 	if err != nil {
 		return nil, err
 	}
@@ -245,13 +245,13 @@ func (msg *MsgWirePayForBlob) unsignedPayForBlob(squareSize uint64) (*MsgPayForB
 		return nil, err
 	}
 
-	sPFD := MsgPayForBlob{
+	sPFB := MsgPayForBlob{
 		MessageNamespaceId:     msg.MessageNamespaceId,
 		MessageSize:            msg.MessageSize,
 		MessageShareCommitment: commit,
 		Signer:                 msg.Signer,
 	}
-	return &sPFD, nil
+	return &sPFB, nil
 }
 
 // ProcessWirePayForBlob performs the malleation process that occurs before
@@ -281,12 +281,12 @@ func ProcessWirePayForBlob(msg *MsgWirePayForBlob, squareSize uint64) (*tmproto.
 	}
 
 	// wrap the signed transaction data
-	pfd, err := msg.unsignedPayForBlob(squareSize)
+	pfb, err := msg.unsignedPayForBlob(squareSize)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	return &coreMsg, pfd, shareCommit.Signature, nil
+	return &coreMsg, pfb, shareCommit.Signature, nil
 }
 
 // HasWirePayForBlob performs a quick but not definitive check to see if a tx
@@ -306,10 +306,10 @@ func HasWirePayForBlob(tx sdk.Tx) bool {
 // ExtractMsgWirePayForBlob attempts to extract a MsgWirePayForBlob from a
 // provided sdk.Tx. It returns an error if no MsgWirePayForBlob is found.
 func ExtractMsgWirePayForBlob(tx sdk.Tx) (*MsgWirePayForBlob, error) {
-	noWirePFDError := errors.New("sdk.Tx does not contain MsgWirePayForBlob sdk.Msg")
+	noWirePFBError := errors.New("sdk.Tx does not contain MsgWirePayForBlob sdk.Msg")
 	// perform a quick check before attempting a type check
 	if !HasWirePayForBlob(tx) {
-		return nil, noWirePFDError
+		return nil, noWirePFBError
 	}
 
 	// only support malleated transactions that contain a single sdk.Msg
@@ -320,7 +320,7 @@ func ExtractMsgWirePayForBlob(tx sdk.Tx) (*MsgWirePayForBlob, error) {
 	msg := tx.GetMsgs()[0]
 	wireMsg, ok := msg.(*MsgWirePayForBlob)
 	if !ok {
-		return nil, noWirePFDError
+		return nil, noWirePFBError
 	}
 
 	return wireMsg, nil

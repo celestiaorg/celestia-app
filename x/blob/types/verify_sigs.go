@@ -35,29 +35,29 @@ func VerifySig(signerData authsigning.SignerData, txConfig client.TxConfig, auth
 	return signerData.PubKey.VerifySignature(signBytes, rawSig.Signature), nil
 }
 
-// VerifyPFDSigs checks that all of the signatures for a transaction that
+// VerifyPFBSigs checks that all of the signatures for a transaction that
 // contains a MsgWirePayForBlob message by going through the entire malleation
 // process.
-func VerifyPFDSigs(signerData authsigning.SignerData, txConfig client.TxConfig, wirePFDTx authsigning.Tx) (bool, error) {
-	wirePFDMsg, err := ExtractMsgWirePayForBlob(wirePFDTx)
+func VerifyPFBSigs(signerData authsigning.SignerData, txConfig client.TxConfig, wirePFBTx authsigning.Tx) (bool, error) {
+	wirePFBMsg, err := ExtractMsgWirePayForBlob(wirePFBTx)
 	if err != nil {
 		return false, err
 	}
 
 	// go through the entire malleation process as if this tx was being included in a block.
-	for _, commit := range wirePFDMsg.MessageShareCommitment {
-		_, pfd, sig, err := ProcessWirePayForBlob(wirePFDMsg, commit.SquareSize)
+	for _, commit := range wirePFBMsg.MessageShareCommitment {
+		_, pfb, sig, err := ProcessWirePayForBlob(wirePFBMsg, commit.SquareSize)
 		if err != nil {
 			return false, err
 		}
 
 		// create the malleated MsgPayForBlob tx by using auth data from the original tx
-		pfdTx, err := BuildPayForBlobTxFromWireTx(wirePFDTx, txConfig.NewTxBuilder(), sig, pfd)
+		pfbTx, err := BuildPayForBlobTxFromWireTx(wirePFBTx, txConfig.NewTxBuilder(), sig, pfb)
 		if err != nil {
 			return false, err
 		}
 
-		valid, err := VerifySig(signerData, txConfig, pfdTx)
+		valid, err := VerifySig(signerData, txConfig, pfbTx)
 		if err != nil || !valid {
 			return false, err
 		}
