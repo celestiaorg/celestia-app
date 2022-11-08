@@ -3,7 +3,6 @@ package qgb;
 
 import "gogoproto/gogo.proto";
 import "qgb/types.proto";
-import "qgb/msgs.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
