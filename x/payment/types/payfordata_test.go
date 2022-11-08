@@ -147,7 +147,7 @@ func TestSignMalleatedTxs(t *testing.T) {
 	for _, tt := range tests {
 		wpfd, err := NewWirePayForData(tt.ns, tt.msg)
 		require.NoError(t, err, tt.name)
-		err = wpfd.SignShareCommitments(signer, tt.options...)
+		err = wpfd.SignShareCommitment(signer, tt.options...)
 		// there should be no error
 		assert.NoError(t, err)
 		// the signature should exist
@@ -280,7 +280,7 @@ func validWirePayForData(t *testing.T) *MsgWirePayForData {
 
 	signer := generateKeyringSigner(t)
 
-	err = msg.SignShareCommitments(signer)
+	err = msg.SignShareCommitment(signer)
 	if err != nil {
 		panic(err)
 	}
@@ -296,7 +296,7 @@ func validMsgPayForData(t *testing.T) *MsgPayForData {
 	wpfd, err := NewWirePayForData(ns, msg)
 	assert.NoError(t, err)
 
-	err = wpfd.SignShareCommitments(signer)
+	err = wpfd.SignShareCommitment(signer)
 	assert.NoError(t, err)
 
 	_, spfd, _, err := ProcessWirePayForData(wpfd)

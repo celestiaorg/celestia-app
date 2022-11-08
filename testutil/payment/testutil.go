@@ -117,7 +117,7 @@ func generateSignedWirePayForData(t *testing.T, ns, message []byte, signer *type
 		t.Error(err)
 	}
 
-	err = msg.SignShareCommitments(signer, options...)
+	err = msg.SignShareCommitment(signer, options...)
 	if err != nil {
 		t.Error(err)
 	}

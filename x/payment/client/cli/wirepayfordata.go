@@ -79,7 +79,7 @@ func CmdWirePayForData() *cobra.Command {
 			}
 
 			// sign the  MsgPayForData's ShareCommitments
-			err = pfdMsg.SignShareCommitments(
+			err = pfdMsg.SignShareCommitment(
 				signer,
 				types.SetGasLimit(gasSetting.Gas),
 				types.SetFeeAmount(parsedFees),
