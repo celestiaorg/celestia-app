@@ -92,11 +92,11 @@ const (
 	AccountAddressPrefix = "celestia"
 	Name                 = "celestia-app"
 	// BondDenom defines the native staking token denomination.
-	BondDenom = "ucls"
+	BondDenom = "utia"
 	// BondDenomAlias defines an alias for BondDenom.
-	BondDenomAlias = "microcls"
+	BondDenomAlias = "microtia"
 	// DisplayDenom defines the name, symbol, and display value of the Celestia token.
-	DisplayDenom = "CLS"
+	DisplayDenom = "TIA"
 )
 
 // These constants are derived from the above variables.
