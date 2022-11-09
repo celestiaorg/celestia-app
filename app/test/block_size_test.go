@@ -31,7 +31,7 @@ func TestIntegrationTestSuite(t *testing.T) {
 	cfg.EnableTMLogging = false
 	cfg.MinGasPrices = "0utia"
 	cfg.NumValidators = 1
-	cfg.TimeoutCommit = time.Millisecond * 400
+	cfg.TimeoutCommit = time.Millisecond * 800
 	suite.Run(t, NewIntegrationTestSuite(cfg))
 }
 
@@ -137,7 +137,19 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			heights := make(map[int64]int)
 			for _, hash := range hashes {
 				// TODO: reenable fetching and verifying proofs
-				resp, err := queryTx(val.ClientCtx, hash, false)
+				var (
+					resp *rpctypes.ResultTx
+					err  error
+				)
+				// try to query for the same transaction up to 4 times in an
+				// effort to make the CI less flakey
+				for j := 0; j < 4; j++ {
+					resp, err = queryTx(val.ClientCtx, hash, false)
+					if err == nil {
+						break
+					}
+					time.Sleep(100 * time.Millisecond)
+				}
 				assert.NoError(err)
 				assert.Equal(abci.CodeTypeOK, resp.TxResult.Code)
 				if resp.TxResult.Code == abci.CodeTypeOK {
