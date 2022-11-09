@@ -164,7 +164,7 @@ func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.
 // the passed squaresize arg
 func (c *Context) FillBlock(squareSize int, accounts []string, broadcastMode string) (*sdk.TxResponse, error) {
 	if squareSize <= 2 || (squareSize&(squareSize-1) != 0) {
-		return nil, fmt.Errorf("unsupported sqaureSize: %d", squareSize)
+		return nil, fmt.Errorf("unsupported squareSize: %d", squareSize)
 	}
 
 	if broadcastMode == "" {

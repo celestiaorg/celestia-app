@@ -117,17 +117,17 @@ func (s *IntegrationTestSuite) Test_FillBlock_InvalidSquareSizeError() {
 		{
 			name:        "when squareSize less than 2",
 			squareSize:  0,
-			expectedErr: fmt.Errorf("unsupported sqaureSize: 0"),
+			expectedErr: fmt.Errorf("unsupported squareSize: 0"),
 		},
 		{
 			name:        "when squareSize equal to 2",
 			squareSize:  2,
-			expectedErr: fmt.Errorf("unsupported sqaureSize: 2"),
+			expectedErr: fmt.Errorf("unsupported squareSize: 2"),
 		},
 		{
 			name:        "when squareSize equal is not a power of 2",
 			squareSize:  18,
-			expectedErr: fmt.Errorf("unsupported sqaureSize: 18"),
+			expectedErr: fmt.Errorf("unsupported squareSize: 18"),
 		},
 		{
 			name:       "when squareSize is a pow of 2 and greater than 2",
