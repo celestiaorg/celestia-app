@@ -91,7 +91,7 @@ func TestIntegrationTestSuite(t *testing.T) {
 func (s *IntegrationTestSuite) Test_FillBlock() {
 	require := s.Require()
 
-	for squareSize := 4; squareSize < appconsts.MaxSquareSize; squareSize *= 2 {
+	for squareSize := 2; squareSize < appconsts.MaxSquareSize; squareSize *= 2 {
 		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastAsync)
 		require.NoError(err)
 
@@ -120,17 +120,12 @@ func (s *IntegrationTestSuite) Test_FillBlock_InvalidSquareSizeError() {
 			expectedErr: fmt.Errorf("unsupported squareSize: 0"),
 		},
 		{
-			name:        "when squareSize equal to 2",
-			squareSize:  2,
-			expectedErr: fmt.Errorf("unsupported squareSize: 2"),
-		},
-		{
-			name:        "when squareSize equal is not a power of 2",
+			name:        "when squareSize is greater than 2 but not a power of 2",
 			squareSize:  18,
 			expectedErr: fmt.Errorf("unsupported squareSize: 18"),
 		},
 		{
-			name:       "when squareSize is a pow of 2 and greater than 2",
+			name:       "when squareSize is greater than 2 and a power of 2",
 			squareSize: 16,
 		},
 	}
