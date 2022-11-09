@@ -1,11 +1,9 @@
-name: "arm-docker-build"
+name: "amd64-docker-build"
 
 on:
   push:
     branches:
-      - main
-    tags:
-      - "v*"
+      - "**"
   workflow_dispatch:
 
 env:
@@ -39,7 +37,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
-          platforms: linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           file: Dockerfile
