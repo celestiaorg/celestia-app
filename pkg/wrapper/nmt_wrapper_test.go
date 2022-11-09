@@ -26,7 +26,7 @@ func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
 		tree := NewErasuredNamespacedMerkleTree(uint64(tc.squareSize), 0)
 
 		// push test data to the tree
-		for _, d := range generateErasuredData(t, tc.squareSize, appconsts.DefaultCodec()) {
+		for _, d := range generateErasuredData(t, tc.squareSize, rsmt2d.NewLeoRSCodec()) {
 			// push will panic if there's an error
 			tree.Push(d)
 		}
@@ -95,7 +95,7 @@ func TestExtendedDataSquare(t *testing.T) {
 	raw := generateRandNamespacedRawData(
 		squareSize*squareSize,
 		appconsts.NamespaceSize,
-		appconsts.SparseShareContentSize,
+		appconsts.SparseShareContentSize+1, // we +1 here to account for the version byte
 	)
 
 	_, err := rsmt2d.ComputeExtendedDataSquare(raw, appconsts.DefaultCodec(), NewConstructor(uint64(squareSize)))
@@ -122,7 +122,7 @@ func generateErasuredData(t *testing.T, numLeaves int, codec rsmt2d.Codec) [][]b
 	raw := generateRandNamespacedRawData(
 		numLeaves,
 		appconsts.NamespaceSize,
-		appconsts.SparseShareContentSize,
+		appconsts.SparseShareContentSize+1, // we +1 here to account for the version byte
 	)
 	erasuredData, err := codec.Encode(raw)
 	if err != nil {
