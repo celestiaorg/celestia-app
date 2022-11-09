@@ -8,3 +8,4 @@ linters:
     - gofumpt
     - misspell
     - revive
+    - prealloc
