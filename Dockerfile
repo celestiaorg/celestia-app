@@ -1,5 +1,5 @@
 # stage 1 Generate celestia-appd Binary
-FROM --platform=$BUILDPLATFORM golang:1.18-alpine as builder
+FROM --platform=$BUILDPLATFORM golang:1.18 as builder
 ARG TARGETOS TARGETARCH
 
 # hadolint ignore=DL3018
@@ -9,7 +9,7 @@ WORKDIR /celestia-app
 RUN env GOOS=$TARGETOS GOARCH=$TARGETARCH LEDGER_ENABLED=false make build
 
 # stage 2
-FROM alpine:3.16
+FROM debian
 # hadolint ignore=DL3018
 RUN apk update && apk --no-cache add bash
 
