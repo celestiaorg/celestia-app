@@ -26,7 +26,7 @@ func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
 		tree := NewErasuredNamespacedMerkleTree(uint64(tc.squareSize), 0)
 
 		// push test data to the tree
-		for _, d := range generateErasuredData(t, tc.squareSize, rsmt2d.NewLeoRSCodec()) {
+		for _, d := range generateErasuredData(t, tc.squareSize, appconsts.DefaultCodec()) {
 			// push will panic if there's an error
 			tree.Push(d)
 		}
