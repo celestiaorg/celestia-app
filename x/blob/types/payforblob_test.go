@@ -165,7 +165,7 @@ func TestSignMalleatedTxs(t *testing.T) {
 		// there should be no error
 		assert.NoError(t, err)
 		// the signature should exist
-		assert.Equal(t, len(wpfb.MessageShareCommitment[0].Signature), 64)
+		assert.Equal(t, len(wpfb.ShareCommitment[0].Signature), 64)
 
 		sData, err := signer.GetSignerData()
 		require.NoError(t, err)
@@ -193,31 +193,31 @@ func TestValidateBasic(t *testing.T) {
 
 	// MsgPayForBlob that uses parity shares namespace id
 	paritySharesMsg := validMsgPayForBlob(t)
-	paritySharesMsg.MessageNamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+	paritySharesMsg.NamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 
 	// MsgPayForBlob that uses tail padding namespace id
 	tailPaddingMsg := validMsgPayForBlob(t)
-	tailPaddingMsg.MessageNamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
+	tailPaddingMsg.NamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
 
 	// MsgPayForBlob that uses transaction namespace id
 	txNamespaceMsg := validMsgPayForBlob(t)
-	txNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 1}
+	txNamespaceMsg.NamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 1}
 
 	// MsgPayForBlob that uses intermediateStateRoots namespace id
 	intermediateStateRootsNamespaceMsg := validMsgPayForBlob(t)
-	intermediateStateRootsNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 2}
+	intermediateStateRootsNamespaceMsg.NamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 2}
 
 	// MsgPayForBlob that uses evidence namespace id
 	evidenceNamespaceMsg := validMsgPayForBlob(t)
-	evidenceNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
+	evidenceNamespaceMsg.NamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
 
 	// MsgPayForBlob that uses the max reserved namespace id
 	maxReservedNamespaceMsg := validMsgPayForBlob(t)
-	maxReservedNamespaceMsg.MessageNamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
+	maxReservedNamespaceMsg.NamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
 
 	// MsgPayForBlob that has no message share commitments
 	noMessageShareCommitments := validMsgPayForBlob(t)
-	noMessageShareCommitments.MessageShareCommitment = []byte{}
+	noMessageShareCommitments.ShareCommitment = []byte{}
 
 	tests := []test{
 		{

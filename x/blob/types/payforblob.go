@@ -37,7 +37,7 @@ func (msg *MsgPayForBlob) Type() string {
 // ValidateBasic fullfills the sdk.Msg interface by performing stateless
 // validity checks on the msg that also don't require having the actual message
 func (msg *MsgPayForBlob) ValidateBasic() error {
-	if err := ValidateMessageNamespaceID(msg.GetMessageNamespaceId()); err != nil {
+	if err := ValidateMessageNamespaceID(msg.GetNamespaceId()); err != nil {
 		return err
 	}
 
@@ -46,7 +46,7 @@ func (msg *MsgPayForBlob) ValidateBasic() error {
 		return err
 	}
 
-	if len(msg.MessageShareCommitment) == 0 {
+	if len(msg.ShareCommitment) == 0 {
 		return ErrNoMessageShareCommitments
 	}
 

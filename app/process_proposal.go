@@ -102,7 +102,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 				}
 			}
 
-			commitment, err := inclusion.GetCommit(cacher, dah, int(malleatedTx.ShareIndex), shares.MsgSharesUsed(int(pfb.MessageSize)))
+			commitment, err := inclusion.GetCommit(cacher, dah, int(malleatedTx.ShareIndex), shares.MsgSharesUsed(int(pfb.BlobSize)))
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), req.Header, "commitment not found", err)
 				return abci.ResponseProcessProposal{
@@ -110,7 +110,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 				}
 			}
 
-			if !bytes.Equal(pfb.MessageShareCommitment, commitment) {
+			if !bytes.Equal(pfb.ShareCommitment, commitment) {
 				logInvalidPropBlock(app.Logger(), req.Header, "found commitment does not match user's")
 				return abci.ResponseProcessProposal{
 					Result: abci.ResponseProcessProposal_REJECT,

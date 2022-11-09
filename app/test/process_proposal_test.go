@@ -150,7 +150,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 // 				Messages: core.Messages{
 // 					MessagesList: []*core.Message{
 // 						{
-// 							NamespaceId: pfb.GetMessageNamespaceId(),
+// 							NamespaceId: pfb.GetNamespaceId(),
 // 							Data:        msg,
 // 						},
 // 					},
@@ -189,7 +189,7 @@ func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
 			Messages: core.Messages{
 				MessagesList: []*core.Message{
 					{
-						NamespaceId: pfb.GetMessageNamespaceId(),
+						NamespaceId: pfb.GetNamespaceId(),
 						Data:        msg,
 					},
 				},
@@ -210,8 +210,8 @@ func genRandMsgPayForBlobForNamespace(t *testing.T, signer *types.KeyringSigner,
 	require.NoError(t, err)
 
 	pfb := types.MsgPayForBlob{
-		MessageShareCommitment: commit,
-		MessageNamespaceId:     ns,
+		ShareCommitment: commit,
+		NamespaceId:     ns,
 	}
 
 	return &pfb, message

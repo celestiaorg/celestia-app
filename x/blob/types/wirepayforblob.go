@@ -31,10 +31,10 @@ func NewWirePayForBlob(namespace, message []byte, sizes ...uint64) (*MsgWirePayF
 	}
 
 	out := &MsgWirePayForBlob{
-		MessageNamespaceId:     namespace,
-		MessageSize:            uint64(len(message)),
-		Message:                message,
-		MessageShareCommitment: make([]ShareCommitAndSignature, len(sizes)),
+		NamespaceId:     namespace,
+		BlobSize:        uint64(len(message)),
+		Blob:            message,
+		ShareCommitment: make([]ShareCommitAndSignature, len(sizes)),
 	}
 
 	// generate the share commitments
@@ -46,7 +46,7 @@ func NewWirePayForBlob(namespace, message []byte, sizes ...uint64) (*MsgWirePayF
 		if err != nil {
 			return nil, err
 		}
-		out.MessageShareCommitment[i] = ShareCommitAndSignature{SquareSize: size, ShareCommitment: commit}
+		out.ShareCommitment[i] = ShareCommitAndSignature{SquareSize: size, ShareCommitment: commit}
 	}
 	return out, nil
 }
@@ -68,14 +68,14 @@ func (msg *MsgWirePayForBlob) SignShareCommitments(signer *KeyringSigner, option
 
 	msg.Signer = addr.String()
 	// create an entire MsgPayForBlob and signing over it, including the signature in each commitment
-	for i, commit := range msg.MessageShareCommitment {
+	for i, commit := range msg.ShareCommitment {
 		builder := signer.NewTxBuilder(options...)
 
 		sig, err := msg.createPayForBlobSignature(signer, builder, commit.SquareSize)
 		if err != nil {
 			return err
 		}
-		msg.MessageShareCommitment[i].Signature = sig
+		msg.ShareCommitment[i].Signature = sig
 	}
 	return nil
 }
@@ -86,7 +86,7 @@ func (msg *MsgWirePayForBlob) Route() string { return RouterKey }
 // commitments, signatures for those share commitments, and fulfills the sdk.Msg
 // interface.
 func (msg *MsgWirePayForBlob) ValidateBasic() error {
-	if err := ValidateMessageNamespaceID(msg.GetMessageNamespaceId()); err != nil {
+	if err := ValidateMessageNamespaceID(msg.GetNamespaceId()); err != nil {
 		return err
 	}
 
@@ -95,11 +95,11 @@ func (msg *MsgWirePayForBlob) ValidateBasic() error {
 	}
 
 	// make sure that the message size matches the actual size of the message
-	if msg.MessageSize != uint64(len(msg.Message)) {
+	if msg.BlobSize != uint64(len(msg.Blob)) {
 		return ErrDeclaredActualDataSizeMismatch.Wrapf(
 			"declared: %d vs actual: %d",
-			msg.MessageSize,
-			len(msg.Message),
+			msg.BlobSize,
+			len(msg.Blob),
 		)
 	}
 
@@ -113,13 +113,13 @@ func (msg *MsgWirePayForBlob) ValidateBasic() error {
 // ValidateMessageShareCommitments returns an error if the message share
 // commitments are invalid.
 func (msg *MsgWirePayForBlob) ValidateMessageShareCommitments() error {
-	for idx, commit := range msg.MessageShareCommitment {
+	for idx, commit := range msg.ShareCommitment {
 		// check that each commit is valid
 		if !shares.IsPowerOfTwo(commit.SquareSize) {
 			return ErrCommittedSquareSizeNotPowOf2.Wrapf("committed to square size: %d", commit.SquareSize)
 		}
 
-		calculatedCommit, err := CreateCommitment(commit.SquareSize, msg.GetMessageNamespaceId(), msg.Message)
+		calculatedCommit, err := CreateCommitment(commit.SquareSize, msg.GetNamespaceId(), msg.Blob)
 		if err != nil {
 			return ErrCalculateCommit.Wrap(err.Error())
 		}
@@ -129,7 +129,7 @@ func (msg *MsgWirePayForBlob) ValidateMessageShareCommitments() error {
 		}
 	}
 
-	if len(msg.MessageShareCommitment) == 0 {
+	if len(msg.ShareCommitment) == 0 {
 		return ErrNoMessageShareCommitments
 	}
 
@@ -143,7 +143,7 @@ func (msg *MsgWirePayForBlob) ValidateMessageShareCommitments() error {
 // ValidateAllSquareSizesCommitedTo returns an error if the list of square sizes
 // committed to don't match all square sizes expected for this message size.
 func (msg *MsgWirePayForBlob) ValidateAllSquareSizesCommitedTo() error {
-	allSquareSizes := AllSquareSizes(int(msg.MessageSize))
+	allSquareSizes := AllSquareSizes(int(msg.BlobSize))
 	committedSquareSizes := msg.committedSquareSizes()
 
 	if !isEqual(allSquareSizes, committedSquareSizes) {
@@ -168,8 +168,8 @@ func isEqual(a, b []uint64) bool {
 // commitedSquareSizes returns a list of square sizes that are present in a
 // message's share commitment.
 func (msg *MsgWirePayForBlob) committedSquareSizes() []uint64 {
-	squareSizes := make([]uint64, 0, len(msg.MessageShareCommitment))
-	for _, commit := range msg.MessageShareCommitment {
+	squareSizes := make([]uint64, 0, len(msg.ShareCommitment))
+	for _, commit := range msg.ShareCommitment {
 		squareSizes = append(squareSizes, commit.SquareSize)
 	}
 	return squareSizes
@@ -240,16 +240,16 @@ func (msg *MsgWirePayForBlob) createPayForBlobSignature(signer *KeyringSigner, b
 // to create a new MsgPayForBlob.
 func (msg *MsgWirePayForBlob) unsignedPayForBlob(squareSize uint64) (*MsgPayForBlob, error) {
 	// create the commitment using the padded message
-	commit, err := CreateCommitment(squareSize, msg.MessageNamespaceId, msg.Message)
+	commit, err := CreateCommitment(squareSize, msg.NamespaceId, msg.Blob)
 	if err != nil {
 		return nil, err
 	}
 
 	sPFB := MsgPayForBlob{
-		MessageNamespaceId:     msg.MessageNamespaceId,
-		MessageSize:            msg.MessageSize,
-		MessageShareCommitment: commit,
-		Signer:                 msg.Signer,
+		NamespaceId:     msg.NamespaceId,
+		BlobSize:        msg.BlobSize,
+		ShareCommitment: commit,
+		Signer:          msg.Signer,
 	}
 	return &sPFB, nil
 }
@@ -261,7 +261,7 @@ func ProcessWirePayForBlob(msg *MsgWirePayForBlob, squareSize uint64) (*tmproto.
 	// make sure that a ShareCommitAndSignature of the correct size is
 	// included in the message
 	var shareCommit ShareCommitAndSignature
-	for _, commit := range msg.MessageShareCommitment {
+	for _, commit := range msg.ShareCommitment {
 		if commit.SquareSize == squareSize {
 			shareCommit = commit
 			break
@@ -276,8 +276,8 @@ func ProcessWirePayForBlob(msg *MsgWirePayForBlob, squareSize uint64) (*tmproto.
 
 	// add the message to the list of core message to be returned to ll-core
 	coreMsg := tmproto.Message{
-		NamespaceId: msg.GetMessageNamespaceId(),
-		Data:        msg.GetMessage(),
+		NamespaceId: msg.GetNamespaceId(),
+		Data:        msg.GetBlob(),
 	}
 
 	// wrap the signed transaction data

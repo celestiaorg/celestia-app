@@ -18,10 +18,10 @@ service Msg {
 // for each PayForBlob
 message MsgWirePayForBlob {
   string signer = 1;
-  bytes message_namespace_id = 2; // assume this is 8 bytes!
-  uint64 message_size = 3;
-  bytes message = 4;
-  repeated ShareCommitAndSignature message_share_commitment = 6
+  bytes namespace_id = 2; // assume this is 8 bytes!
+  uint64 blob_size = 3;
+  bytes blob = 4;
+  repeated ShareCommitAndSignature share_commitment = 6
       [ (gogoproto.nullable) = false ];
 }
 
@@ -43,9 +43,9 @@ message ShareCommitAndSignature {
 // specific square size.
 message MsgPayForBlob {
   string signer = 1;
-  bytes message_namespace_id = 2;
-  uint64 message_size = 3;
-  bytes message_share_commitment = 4;
+  bytes namespace_id = 2;
+  uint64 blob_size = 3;
+  bytes share_commitment = 4;
 }
 
 // MsgPayForBlobResponse describes the response returned after the submission

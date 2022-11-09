@@ -348,7 +348,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
    commitments := make(map[string]struct{})
    for _, rawTx := range req.BlockData.Txs {
        ...
-       commitments[string(pfb.MessageShareCommitment)] = struct{}{}
+       commitments[string(pfb.ShareCommitment)] = struct{}{}
        ...
    }
 
