@@ -20,7 +20,7 @@ When a PayForData message is processed, it consumes gas based on the message siz
 
 ## Messages
 
-- [`MsgWirePayForData`](https://github.com/celestiaorg/celestia-app/blob/b4c8ebdf35db200a9b99d295a13de01110802af4/x/payment/types/tx.pb.go#L32-L40) is created and signed by the user but it never ends up on-chain. Instead, it is "malleated" into it's component parts: data and a `MsgPayForData` message.
+- [`MsgWirePayForData`](https://github.com/celestiaorg/celestia-app/blob/b4c8ebdf35db200a9b99d295a13de01110802af4/x/payment/types/tx.pb.go#L32-L40) is created and signed by the user but it never ends up on-chain. Instead, it is "malleated" into its component parts: data and a `MsgPayForData` message.
 - [`MsgPayForData`](https://github.com/celestiaorg/celestia-app/blob/b4c8ebdf35db200a9b99d295a13de01110802af4/x/payment/types/tx.pb.go#L208-L216) is one output of the malleation process. It contains metadata from the original `MsgWirePayForData` but not the associated data.
 
 ## Events
