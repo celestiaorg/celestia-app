@@ -1,17 +1,17 @@
 # stage 1 Generate celestia-appd Binary
-FROM --platform=$BUILDPLATFORM golang:1.18 as builder
+FROM golang:1.18-alpine as builder
 ARG TARGETOS TARGETARCH
 
 # hadolint ignore=DL3018
-RUN apt-get update && apt-get install make gcc
+RUN apk update && apk --no-cache add make gcc musl-dev
 COPY . /celestia-app
 WORKDIR /celestia-app
-RUN env GOOS=$TARGETOS GOARCH=$TARGETARCH LEDGER_ENABLED=false make build
+RUN make build
 
 # stage 2
-FROM debian
+FROM alpine:3.16
 # hadolint ignore=DL3018
-RUN apt-get update && apt-get install bash
+RUN apk update && apk --no-cache add bash
 
 COPY --from=builder /celestia-app/build/celestia-appd /bin/celestia-appd
 COPY  docker/entrypoint.sh /opt/entrypoint.sh
