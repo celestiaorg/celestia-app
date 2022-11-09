@@ -271,7 +271,7 @@ func generateSignedWirePayForDataTxs(clientCtx client.Context, txConfig client.T
 			return nil, err
 		}
 
-		err = msg.SignShareCommitments(signer, opts...)
+		err = msg.SignShareCommitment(signer, opts...)
 		if err != nil {
 			return nil, err
 		}

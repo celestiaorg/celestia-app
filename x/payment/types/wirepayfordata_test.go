@@ -184,7 +184,7 @@ func TestProcessWirePayForData(t *testing.T) {
 	for _, tt := range tests {
 		wpfd, err := NewWirePayForData(tt.namespace, tt.msg)
 		require.NoError(t, err, tt.name)
-		err = wpfd.SignShareCommitments(signer)
+		err = wpfd.SignShareCommitment(signer)
 		assert.NoError(t, err)
 
 		wpfd = tt.modify(wpfd)

@@ -71,7 +71,7 @@ func BuildPayForData(
 
 	// generate the signatures for each `MsgPayForData` using the `KeyringSigner`,
 	// then set the gas limit for the tx
-	err = wpfd.SignShareCommitments(signer, opts...)
+	err = wpfd.SignShareCommitment(signer, opts...)
 	if err != nil {
 		return nil, err
 	}

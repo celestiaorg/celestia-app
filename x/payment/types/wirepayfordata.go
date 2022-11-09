@@ -47,9 +47,9 @@ func NewWirePayForData(namespace, message []byte) (*MsgWirePayForData, error) {
 	return out, nil
 }
 
-// SignShareCommitments creates and signs MsgPayForDatas for each square size configured in the MsgWirePayForData
-// to complete each shares commitment.
-func (msg *MsgWirePayForData) SignShareCommitments(signer *KeyringSigner, options ...TxBuilderOption) error {
+// SignShareCommitment creates and signs the message share commitment associated
+// with a MsgWirePayForData.
+func (msg *MsgWirePayForData) SignShareCommitment(signer *KeyringSigner, options ...TxBuilderOption) error {
 	addr, err := signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return err
