@@ -10,7 +10,7 @@ The payment module enables users to pay for arbitrary data to be published to th
 
 After the `MsgWirePayForData` transaction is submitted to the network, a block producer malleates their transaction into a `MsgPayForData` which doesn't include their data (a.k.a message). Both components get included in the data square in different namespaces: the `MsgPayForData` gets included in the transaction namespace and the associated data gets included in the namespace the user specified in the original `MsgWirePayForData`. Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
 
-After a block has been created, the user can verify that their data was included in a block via a message inclusion proof. A message inclusion proof the `MessageShareCommitment` in the original `MsgWirePayForData` and subtree roots of the block's data square to proove to the user that the shares that compose their original data do in fact exist in a particular block.
+After a block has been created, the user can verify that their data was included in a block via a message inclusion proof. A message inclusion proof uses the `MessageShareCommitment` in the original `MsgWirePayForData` and subtree roots of the block's data square to prove to the user that the shares that compose their original data do in fact exist in a particular block.
 
 ## State
 
