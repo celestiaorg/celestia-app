@@ -5,7 +5,7 @@
 The payment module enables users to pay for arbitrary data to be published to the Celestia blockchain. Users create a single `MsgWirePayForData` transaction that is composed of:
 
 1. `Message`: the data they wish to publish
-2. `MessageNameSpaceId`: the namespace they wish to publish to
+2. `MessageNamespaceId`: the namespace they wish to publish to
 3. `MessageShareCommitment`: a signature and a commitment over their data when encoded into shares
 
 After the `MsgWirePayForData` transaction is submitted to the network, a block producer malleates their transaction into a `MsgPayForData` which doesn't include their data (a.k.a message). Both components get included in the data square in different namespaces: the `MsgPayForData` gets included in the transaction namespace and the associated data gets included in the namespace the user specified in the original `MsgWirePayForData`. Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
