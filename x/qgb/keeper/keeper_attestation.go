@@ -38,7 +38,7 @@ func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) 
 	if err != nil {
 		panic(err)
 	}
-	store.Set((key), b)
+	store.Set(key, b)
 }
 
 // SetLatestAttestationNonce sets the latest attestation request nonce, since it's
