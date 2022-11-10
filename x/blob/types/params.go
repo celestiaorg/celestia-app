@@ -61,6 +61,10 @@ func (p Params) Validate() error {
 		return err
 	}
 
+	if err := validateMinMaxSquareSizeOrder(p.MinSquareSize, p.MaxSquareSize); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -95,5 +99,12 @@ func validateMaxSquareSize(v interface{}) error {
 		return fmt.Errorf("max square size cannot be 0")
 	}
 
+	return nil
+}
+
+func validateMinMaxSquareSizeOrder(minSquareSize, maxSquareSize uint32) error {
+	if minSquareSize >= maxSquareSize {
+		return fmt.Errorf("min square size cannot be less than max square size")
+	}
 	return nil
 }
