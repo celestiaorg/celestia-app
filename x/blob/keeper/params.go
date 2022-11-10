@@ -10,6 +10,7 @@ func (k Keeper) GetParams(ctx sdk.Context) types.Params {
 	return types.NewParams(
 		k.MinSquareSize(ctx),
 		k.MaxSquareSize(ctx),
+		k.GasPerMsgByte(ctx),
 	)
 }
 
@@ -27,5 +28,11 @@ func (k Keeper) MinSquareSize(ctx sdk.Context) (res uint32) {
 // MaxSquareSize returns the MaxSquareSize param
 func (k Keeper) MaxSquareSize(ctx sdk.Context) (res uint32) {
 	k.paramStore.Get(ctx, types.KeyMaxSquareSize, &res)
+	return
+}
+
+// GasPerMsgByte returns the GasPerMsgByte param
+func (k Keeper) GasPerMsgByte(ctx sdk.Context) (res uint32) {
+	k.paramStore.Get(ctx, types.KeyGasPerMsgByte, &res)
 	return
 }
