@@ -40,7 +40,7 @@ func TestWirePayForBlob_ValidateBasic(t *testing.T) {
 	invalidDeclaredMsgSizeMsg := validWirePayForBlob(t)
 	invalidDeclaredMsgSizeMsg.BlobSize = 999
 
-	// pfd with bad commitment
+	// pfb with bad commitment
 	badCommitMsg := validWirePayForBlob(t)
 	badCommitMsg.ShareCommitment.ShareCommitment = []byte{1, 2, 3, 4}
 
@@ -183,7 +183,7 @@ func TestProcessWirePayForBlob(t *testing.T) {
 
 		wpfb = tt.modify(wpfb)
 
-		message, spfd, sig, err := ProcessWirePayForBlob(wpfb)
+		message, spfb, sig, err := ProcessWirePayForBlob(wpfb)
 		if tt.expectErr {
 			assert.Error(t, err, tt.name)
 			continue
@@ -192,9 +192,9 @@ func TestProcessWirePayForBlob(t *testing.T) {
 		// ensure that the shared fields are identical
 		assert.Equal(t, tt.msg, message.Data, tt.name)
 		assert.Equal(t, tt.namespace, message.NamespaceId, tt.name)
-		assert.Equal(t, wpfb.Signer, spfd.Signer, tt.name)
-		assert.Equal(t, wpfb.NamespaceId, spfd.NamespaceId, tt.name)
-		assert.Equal(t, wpfb.ShareCommitment.ShareCommitment, spfd.ShareCommitment, tt.name)
+		assert.Equal(t, wpfb.Signer, spfb.Signer, tt.name)
+		assert.Equal(t, wpfb.NamespaceId, spfb.NamespaceId, tt.name)
+		assert.Equal(t, wpfb.ShareCommitment.ShareCommitment, spfb.ShareCommitment, tt.name)
 		assert.Equal(t, wpfb.ShareCommitment.Signature, sig, tt.name)
 	}
 }

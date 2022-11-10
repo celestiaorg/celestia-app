@@ -77,7 +77,7 @@ func (msg *MsgWirePayForBlob) SignShareCommitment(signer *KeyringSigner, options
 func (msg *MsgWirePayForBlob) Route() string { return RouterKey }
 
 // ValidateBasic checks for valid namespace length, declared blob size, share
-// commitments, signatures for those share commitments, and fulfills the sdk.Msg
+// commitments, signatures for those share commitment, and fulfills the sdk.Msg
 // interface.
 func (msg *MsgWirePayForBlob) ValidateBasic() error {
 	if err := ValidateMessageNamespaceID(msg.GetNamespaceId()); err != nil {
@@ -204,7 +204,7 @@ func (msg *MsgWirePayForBlob) unsignedPayForBlob() (*MsgPayForBlob, error) {
 // creating a block. It parses the MsgWirePayForBlob to produce the components
 // needed to create a single MsgPayForBlob.
 func ProcessWirePayForBlob(msg *MsgWirePayForBlob) (*tmproto.Message, *MsgPayForBlob, []byte, error) {
-	// add the blob to the list of core blobs to be returned to ll-core
+	// add the blob to the list of core blobs to be returned to celestia-core
 	coreMsg := tmproto.Message{
 		NamespaceId: msg.GetNamespaceId(),
 		Data:        msg.GetBlob(),
