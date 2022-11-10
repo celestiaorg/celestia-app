@@ -152,11 +152,13 @@ jobs:
         run: |
           excludelist="$(find . -type f -name '*.go' | xargs grep -l 'DONTCOVER')\n"
           excludelist+="$(find . -type f -name '*.pb.*')\n"
-          excludelist+="$(find . -type f -path './tests/mocks/*.go')"
-          for filename in ${excludelist}; do
-            echo "Excluding ${filename} from coverage report..."
-            sed -i.bak "/$(echo $filename | sed 's/\//\\\//g')/d" coverage.txt
-          done
+          excludelist+="$(find . -type f -path './tests/mocks/*.go')\n"
+          while read -r filename; do
+           # trim filename
+           trimmedname=$(echo $filename | xargs)
+           echo "Excluding ${trimmedname} from coverage report..."
+           sed -i.bak "/$(echo $trimmedname | sed 's/\//\\\//g')/d" coverage.txt
+          done <<< "$excludelist"
         # yamllint enable
         if: env.GIT_DIFF
       - uses: codecov/codecov-action@v3
