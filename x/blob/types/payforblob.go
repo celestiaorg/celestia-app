@@ -47,7 +47,7 @@ func (msg *MsgPayForBlob) ValidateBasic() error {
 	}
 
 	if len(msg.ShareCommitment) == 0 {
-		return ErrNoMessageShareCommitments
+		return ErrEmptyShareCommitment
 	}
 
 	return nil

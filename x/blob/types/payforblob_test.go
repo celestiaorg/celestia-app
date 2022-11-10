@@ -201,9 +201,9 @@ func TestValidateBasic(t *testing.T) {
 	maxReservedNamespaceMsg := validMsgPayForBlob(t)
 	maxReservedNamespaceMsg.NamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
 
-	// MsgPayForBlob that has no message share commitments
-	noMessageShareCommitments := validMsgPayForBlob(t)
-	noMessageShareCommitments.ShareCommitment = []byte{}
+	// MsgPayForBlob that has an empty message share commitment
+	emptyShareCommitment := validMsgPayForBlob(t)
+	emptyShareCommitment.ShareCommitment = []byte{}
 
 	tests := []test{
 		{
@@ -242,9 +242,9 @@ func TestValidateBasic(t *testing.T) {
 			wantErr: ErrReservedNamespace,
 		},
 		{
-			name:    "no message share commitments",
-			msg:     noMessageShareCommitments,
-			wantErr: ErrNoMessageShareCommitments,
+			name:    "empty share commitment",
+			msg:     emptyShareCommitment,
+			wantErr: ErrEmptyShareCommitment,
 		},
 	}
 
