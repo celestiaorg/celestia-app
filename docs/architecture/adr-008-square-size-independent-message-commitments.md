@@ -91,7 +91,7 @@ Therefore the height of the tree over the subtree roots is in this implementatio
   The Commitment of BH1+B2 is saved into BH2.
   Message 3: (BH2+B3)
   The Commitment of (BH2+B3) is saved into BH3, and so on.
-4. Verifying a message inclusion proof could be done with Merkle proofs of the subtree roots to the `DataRoot`, recalculating the commitment, and comparing to what's in the rollup block header. It could also be as simple as submitting a proof over the PFD transaction that included the message and then checking if the commitment is the same as in the PFD transaction. The simple message inclusion proof requires a fraud proof of the PFD transaction not to have included a message.
+4. Verifying a message inclusion proof could be done with Merkle proofs of the subtree roots to the `DataRoot`, recalculating the commitment, and comparing to what's in the rollup block header. It could also be as simple as submitting a proof over the PFB transaction that included the message and then checking if the commitment is the same as in the PFB transaction. The simple message inclusion proof requires a fraud proof of the PFB transaction not to have included a message.
 5. So far, a full node in Rollmint downloads new blocks from the DA Layer after each Celestia block, coupled tightly for syncing. With this approach, we can send blocks over the p2p Layer giving a soft-commit to full nodes. Then, they would receive the hard-commit after verifying a message inclusion proof without the need to download the blocks anymore. **P2P Blocksync** You could also achieve this by saving multiple commits for each possible square size in the block header.
     1. P2P Blocksync allows a Rollmint full node to run a Celestia light node and not a Celestia full node.
     2. It allows the Rollup node to continue running after Celestia halts, relying on soft commits with no data availability.
@@ -104,14 +104,14 @@ We should note that Rollups can decide to do this scheme without changing core-a
 
 ## Positive celestia-app changes
 
-- Simplifies the creation of PFDs because users don't need to create commitments for multiple square sizes.
-  - Reduces the size of [MsgWirePayForData](https://github.com/celestiaorg/celestia-app/blob/6f3b3ae437b2a70d72ff6be2741abb8b5378caa0/x/payment/types/tx.pb.go#L32-L40)s because MessageShareCommitment can be modified from an array of maximum length 8 (for all valid square sizes) to a single MessageShareCommitment.
-  - Simplifies the malleation process because this ADR enables a future refactor to remove WireMsgPayForData entirely ([issue](https://github.com/celestiaorg/celestia-app/issues/951)). Previously multiple signatures were included in a WireMsgPayForData and only one was used to construct the MsgPayForData that ended up on-chain but this ADR results in only one signature needed on the wrapping SDK message and the SDK message that ends up on-chain.
+- Simplifies the creation of PFBs because users don't need to create commitments for multiple square sizes.
+  - Reduces the size of [MsgWirePayForBlob](https://github.com/celestiaorg/celestia-app/blob/6f3b3ae437b2a70d72ff6be2741abb8b5378caa0/x/payment/types/tx.pb.go#L32-L40)s because MessageShareCommitment can be modified from an array of maximum length 8 (for all valid square sizes) to a single MessageShareCommitment.
+  - Simplifies the malleation process because this ADR enables a future refactor to remove WireMsgPayForBlob entirely ([issue](https://github.com/celestiaorg/celestia-app/issues/951)). Previously multiple signatures were included in a WireMsgPayForBlob and only one was used to construct the MsgPayForBlob that ended up on-chain but this ADR results in only one signature needed on the wrapping SDK message and the SDK message that ends up on-chain.
   - This renders the following issues obsolete:
     - <https://github.com/celestiaorg/celestia-app/issues/236>
     - <https://github.com/celestiaorg/celestia-app/issues/727>
 - Simplifies arranging the square.
-  - Currently, prepare proposal performs [`estimateSquareSize`](https://github.com/rootulp/celestia-app/blob/6f3b3ae437b2a70d72ff6be2741abb8b5378caa0/app/estimate_square_size.go#L98-L101) prior to splitting PFDs into shares because the square size is needed to malleate PFDs and extract the appropriate message share commitment for a particular square size. Since malleation no longer requires a square size, it may be possible to remove square size estimation which renders the following issues obsolete:
+  - Currently, prepare proposal performs [`estimateSquareSize`](https://github.com/rootulp/celestia-app/blob/6f3b3ae437b2a70d72ff6be2741abb8b5378caa0/app/estimate_square_size.go#L98-L101) prior to splitting PFBs into shares because the square size is needed to malleate PFBs and extract the appropriate message share commitment for a particular square size. Since malleation no longer requires a square size, it may be possible to remove square size estimation which renders the following issues obsolete:
     - <https://github.com/informalsystems/audit-celestia/issues/12>
     - <https://github.com/informalsystems/audit-celestia/issues/24>
 - Inter-message padding can be reduced because we can change the non-interactive default rules from this:

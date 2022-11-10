@@ -8,46 +8,46 @@ option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 
 // Msg defines the blob Msg service.
 service Msg {
-  // PayForData allows the user to pay for the inclusion of a message
-  rpc PayForData(MsgPayForData) returns (MsgPayForDataResponse) {
-    option (google.api.http).get = "/celestia/blob/payfordata";
+  // PayForBlob allows the user to pay for the inclusion of a message
+  rpc PayForBlob(MsgPayForBlob) returns (MsgPayForBlobResponse) {
+    option (google.api.http).get = "/celestia/blob/payforblob";
   }
 }
 
-// MsgWirePayForData describes the format of data that is sent over the wire
-// for each PayForData
-message MsgWirePayForData {
+// MsgWirePayForBlob describes the format of data that is sent over the wire
+// for each PayForBlob
+message MsgWirePayForBlob {
   string signer = 1;
-  bytes message_namespace_id = 2; // assume this is 8 bytes!
-  uint64 message_size = 3;
-  bytes message = 4;
-  repeated ShareCommitAndSignature message_share_commitment = 6
+  bytes namespace_id = 2; // assume this is 8 bytes!
+  uint64 blob_size = 3;
+  bytes blob = 4;
+  repeated ShareCommitAndSignature share_commitment = 6
       [ (gogoproto.nullable) = false ];
 }
 
-// MsgWirePayForDataResponse describes the response returned after the
-// submission of a WirePayForData
-message MsgWirePayForDataResponse {}
+// MsgWirePayForBlobResponse describes the response returned after the
+// submission of a WirePayForBlob
+message MsgWirePayForBlobResponse {}
 
 // ShareCommitAndSignature defines the
 message ShareCommitAndSignature {
   uint64 square_size = 1;
   bytes share_commitment = 2;
-  bytes signature = 3; // signature on one SignedTransactionPayForData
+  bytes signature = 3; // signature on one SignedTransactionPayForBlob
 }
 
-// MsgPayForData is what gets signed by users when creating
+// MsgPayForBlob is what gets signed by users when creating
 // ShareCommitSignatures.
 //  Multiple versions are signed and included, each version creates a commitment
 //  for a
 // specific square size.
-message MsgPayForData {
+message MsgPayForBlob {
   string signer = 1;
-  bytes message_namespace_id = 2;
-  uint64 message_size = 3;
-  bytes message_share_commitment = 4;
+  bytes namespace_id = 2;
+  uint64 blob_size = 3;
+  bytes share_commitment = 4;
 }
 
-// MsgPayForDataResponse describes the response returned after the submission
-// of a PayForData
-message MsgPayForDataResponse {}
+// MsgPayForBlobResponse describes the response returned after the submission
+// of a PayForBlob
+message MsgPayForBlobResponse {}

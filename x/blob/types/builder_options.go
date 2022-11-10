@@ -82,9 +82,9 @@ func InheritTxConfig(builder sdkclient.TxBuilder, tx authsigning.Tx) sdkclient.T
 	}
 
 	signers := tx.GetSigners()
-	// Note: if there are multiple signers in a PFD, then this could create an
+	// Note: if there are multiple signers in a PFB, then this could create an
 	// invalid signature. This is not an issue at this time because we currently
-	// ignore pfds with multiple signers
+	// ignore pfbs with multiple signers
 	if len(signers) == 1 {
 		if feePayer := tx.FeeGranter(); !feePayer.Equals(signers[0]) {
 			builder.SetFeeGranter(tx.FeeGranter())

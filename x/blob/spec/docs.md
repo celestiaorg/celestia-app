@@ -2,7 +2,7 @@
 
 ## Abstract
 
-The blob module is responsible for paying for arbitrary data that will be added to the Celestia blockchain. While the data being submitted can be arbitrary, the exact placement of that data is important for the transaction to be valid. This is why the blob module utilizes a malleated transaction scheme. Malleated transactions allow for users to create a single transaction, that can later be malleated by the block producer to create a variety of different valid transactions that are still signed over by the user. To accomplish this, users create a single `MsgWirePayForData` transaction, which is composed of metadata and signatures for multiple variations of the transaction that will be included onchain. After the transaction is submitted to the network, the block producer selects the appropriate signature and creates a valid `MsgPayForData` transaction depending on the square size for that block. This new malleated `MsgPayForData` transaction is what ends up onchain.
+The blob module is responsible for paying for arbitrary data that will be added to the Celestia blockchain. While the data being submitted can be arbitrary, the exact placement of that data is important for the transaction to be valid. This is why the blob module utilizes a malleated transaction scheme. Malleated transactions allow for users to create a single transaction, that can later be malleated by the block producer to create a variety of different valid transactions that are still signed over by the user. To accomplish this, users create a single `MsgWirePayForBlob` transaction, which is composed of metadata and signatures for multiple variations of the transaction that will be included onchain. After the transaction is submitted to the network, the block producer selects the appropriate signature and creates a valid `MsgPayForBlob` transaction depending on the square size for that block. This new malleated `MsgPayForBlob` transaction is what ends up onchain.
 
 Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
 
@@ -10,12 +10,12 @@ Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-
 
 The blob module doesn't maintain it's own state.
 
-When a PayForData message is processed, it consumes gas based on the message size.
+When a PayForBlob message is processed, it consumes gas based on the message size.
 
 ## Messages
 
-- [`MsgWirePayForData`](https://github.com/celestiaorg/celestia-app/blob/29e0a2751182499f7dc03598eabfc8d049ae62cb/x/payment/types/tx.pb.go#L32-L40) is a message that is created and signed by the user but it never ends up on-chain.
-- [`MsgPayForData`](https://github.com/celestiaorg/celestia-app/blob/29e0a2751182499f7dc03598eabfc8d049ae62cb/x/payment/types/tx.pb.go#L209-L219) is a "malleated" transaction that is created from metadata in the original `MsgWirePayForData`. `MsgPayForData` does end up on-chain.
+- [`MsgWirePayForBlob`](https://github.com/celestiaorg/celestia-app/blob/29e0a2751182499f7dc03598eabfc8d049ae62cb/x/payment/types/tx.pb.go#L32-L40) is a message that is created and signed by the user but it never ends up on-chain.
+- [`MsgPayForBlob`](https://github.com/celestiaorg/celestia-app/blob/29e0a2751182499f7dc03598eabfc8d049ae62cb/x/payment/types/tx.pb.go#L209-L219) is a "malleated" transaction that is created from metadata in the original `MsgWirePayForBlob`. `MsgPayForBlob` does end up on-chain.
 
 ## PrepareProposal
 
@@ -23,7 +23,7 @@ The malleation process occurs during the PrepareProposal step.
 
 ## Events
 
-- [`NewPayForDataEvent`](https://github.com/celestiaorg/celestia-app/pull/213/files#diff-1ce55bda42cf160deca2e5ea1f4382b65f3b689c7e00c88085d7ce219e77303dR17-R21) is emitted with the signer's address and size of the message that is paid for.
+- [`NewPayForBlobEvent`](https://github.com/celestiaorg/celestia-app/pull/213/files#diff-1ce55bda42cf160deca2e5ea1f4382b65f3b689c7e00c88085d7ce219e77303dR17-R21) is emitted with the signer's address and size of the message that is paid for.
 
 ## Parameters
 
@@ -35,24 +35,24 @@ There are no parameters yet, but we might add
 ### Usage
 
 ```shell
-celestia-app tx blob payForData <hex encoded namespace> <hex encoded data> [flags]
+celestia-app tx blob payForBlob <hex encoded namespace> <hex encoded data> [flags]
 ```
 
 ### Programmatic Usage
 
-There are tools to programmatically create, sign, and broadcast `MsgWirePayForData`s
+There are tools to programmatically create, sign, and broadcast `MsgWirePayForBlob`s
 
 ```go
-// create the raw WirePayForData transaction
-wpfdMsg, err := apptypes.NewWirePayForData(block.Header.NamespaceId, message, 16, 32, 64, 128)
+// create the raw WirePayForBlob transaction
+wpfbMsg, err := apptypes.NewWirePayForBlob(block.Header.NamespaceId, message, 16, 32, 64, 128)
 if err != nil {
     return err
 }
 
-// we need to create a signature for each `MsgPayForData`s that
+// we need to create a signature for each `MsgPayForBlob`s that
 // could be generated by the block producer
 // to do this, we create a custom `KeyringSigner` to sign messages programmatically
-// which uses the standard cosmos-sdk `Keyring` to sign each `MsgPayForData`
+// which uses the standard cosmos-sdk `Keyring` to sign each `MsgPayForBlob`
 keyringSigner, err := NewKeyringSigner(keyring, "keyring account name", "chain-id-1")
 if err != nil {
     return err
@@ -64,19 +64,19 @@ if err != nil {
     return err
 }
 
-// generate the signatures for each `MsgPayForData` using the `KeyringSigner`,
+// generate the signatures for each `MsgPayForBlob` using the `KeyringSigner`,
 // then set the gas limit for the tx
 gasLimOption := types.SetGasLimit(200000)
-err = pfdMsg.SignShareCommitments(keyringSigner, gasLimOption)
+err = pfbMsg.SignShareCommitments(keyringSigner, gasLimOption)
 if err != nil {
     return err
 }
 
-// Build and sign the final `WirePayForData` tx that now contains the signatures
-// for potential `MsgPayForData`s
+// Build and sign the final `WirePayForBlob` tx that now contains the signatures
+// for potential `MsgPayForBlob`s
 signedTx, err := keyringSigner.BuildSignedTx(
     gasLimOption(signer.NewTxBuilder()),
-    wpfdMsg,
+    wpfbMsg,
 )
 if err != nil {
     return err
