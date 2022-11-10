@@ -158,11 +158,12 @@ func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.
 // FillBlock creates and submits a single transaction that is large enough to
 // create a square of the desired size. broadcast mode indicates if the tx
 // should be submitted async, sync, or block. (see flags.BroadcastModeSync). If
-// broadcast mode is the string zero value, then it will be set to block. This
-// function does not perform checks on the passed squaresize arg, and only works
-// with squaresize >= 2. TODO: perform checks (is a power of 2 and is > 2) on
-// the passed squaresize arg
+// broadcast mode is the string zero value, then it will be set to block.
 func (c *Context) FillBlock(squareSize int, accounts []string, broadcastMode string) (*sdk.TxResponse, error) {
+	if squareSize < 2 || (squareSize&(squareSize-1) != 0) {
+		return nil, fmt.Errorf("unsupported squareSize: %d", squareSize)
+	}
+
 	if broadcastMode == "" {
 		broadcastMode = flags.BroadcastBlock
 	}
