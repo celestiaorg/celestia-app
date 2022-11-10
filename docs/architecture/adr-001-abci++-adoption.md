@@ -19,7 +19,7 @@ We need this functionality in order for block producers to:
 
 We also need this functionality for validators to verify that:
 
-- For every `MsgPayForBlob` (previously `MsgPayForData`) included in the block, there is also a corresponding message and vice versa.
+- For every `MsgPayForBlob` (previously `MsgPayForData`) included in the block, there is also a corresponding blob and vice versa.
 - The data hash represents the properly-erasure-coded block data for the selected block size.
 - The included messages are arranged in the expected locations in the square according to the non-interactive default rules (not done here)
 
@@ -220,7 +220,7 @@ type shareSplitter struct {
 ```go
 // SplitShares uses the provided block data to create a flattened data square.
 // Any MsgWirePayForBlobs are malleated, and their corresponding
-// MsgPayForBlob and Message are written atomically. If there are
+// MsgPayForBlob and blob are written atomically. If there are
 // transactions that will not fit in the given square size, then they are
 // discarded. This is reflected in the returned block data. Note: pointers to
 // block data are only used to avoid dereferencing, not because we need the block
@@ -340,8 +340,8 @@ During `ProcessProposal`, we
 ```go
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
    // Check for message inclusion:
-   //  - each MsgPayForBlob included in a block should have a corresponding message also in the block data
-   //  - the commitment in each PFB should match that of its corresponding message
+   //  - each MsgPayForBlob included in a block should have a corresponding blob also in the block data
+   //  - the commitment in each PFB should match that of its corresponding blob
    //  - there should be no unpaid for messages
 
    // extract the commitments from any MsgPayForBlobs in the block
