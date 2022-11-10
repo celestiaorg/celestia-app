@@ -32,7 +32,11 @@ require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/math v1.0.0-beta.2
 	github.com/celestiaorg/rsmt2d v0.7.0
-	golang.org/x/exp v0.0.0-20221026153819-32f3d567a233
+	github.com/cosmos/cosmos-sdk v0.0.0-00010101000000-000000000000
+	github.com/regen-network/cosmos-proto v0.3.1
+	github.com/tendermint/tendermint v0.34.20
+	golang.org/x/exp v0.0.0-20221012211006-4de253d81b95
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -194,7 +198,6 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/ini.v1 v1.66.6 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	nhooyr.io/websocket v1.8.6 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
