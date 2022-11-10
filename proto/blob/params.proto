@@ -3,7 +3,7 @@ package blob;
 
 import "gogoproto/gogo.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/x/payment/types";
+option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 
 // Params defines the parameters for the module.
 message Params {
