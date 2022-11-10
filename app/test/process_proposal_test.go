@@ -15,8 +15,8 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
-	paytestutil "github.com/celestiaorg/celestia-app/testutil/payment"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	paytestutil "github.com/celestiaorg/celestia-app/testutil/blob"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )

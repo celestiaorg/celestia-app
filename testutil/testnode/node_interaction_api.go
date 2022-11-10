@@ -8,8 +8,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
-	"github.com/celestiaorg/celestia-app/x/payment"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	blob "github.com/celestiaorg/celestia-app/x/blob"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -113,7 +113,7 @@ func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.
 	signer.SetSequence(seq)
 
 	// create a random msg per row
-	pfd, err := payment.BuildPayForData(
+	pfd, err := blob.BuildPayForData(
 		c.rootCtx,
 		signer,
 		c.GRPCClient,
@@ -125,7 +125,7 @@ func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.
 		return nil, err
 	}
 
-	signed, err := payment.SignPayForData(signer, pfd, opts...)
+	signed, err := blob.SignPayForData(signer, pfd, opts...)
 	if err != nil {
 		return nil, err
 	}
