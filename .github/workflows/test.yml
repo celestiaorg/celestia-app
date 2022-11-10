@@ -64,7 +64,7 @@ jobs:
       - name: Create a file with all the pkgs
         run: go list ./... > pkgs.txt
       - name: Split pkgs into 4 files
-        run: split -d -n l/4 -e pkgs.txt pkgs.txt.part.
+        run: split -d -n l/4 --elide-empty-files pkgs.txt pkgs.txt.part.
       # cache multiple
       - uses: actions/upload-artifact@v3
         with:
