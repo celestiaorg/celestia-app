@@ -1,59 +1,31 @@
-package app
+package blobtestutil
 
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func GenerateValidBlockData(
-	t *testing.T,
-	txConfig client.TxConfig,
-	signer *types.KeyringSigner,
-	pfdCount,
-	normalTxCount,
-	size int,
-) (coretypes.Data, error) {
-	rawTxs := generateManyRawWirePFD(t, txConfig, signer, pfdCount, size)
-	rawTxs = append(rawTxs, generateManyRawSendTxs(t, txConfig, signer, normalTxCount)...)
-	parsedTxs := parseTxs(txConfig, rawTxs)
-
-	squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, core.EvidenceList{})
-
-	if totalSharesUsed > int(squareSize*squareSize) {
-		parsedTxs = prune(txConfig, parsedTxs, totalSharesUsed, int(squareSize))
+// GenerateManyRawWirePFD creates many raw WirePayForData transactions. Using
+// negative numbers for count and size will randomize those values. count is
+// capped at 5000 and size is capped at 3MB. Going over these caps will result
+// in randomized values.
+func GenerateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count, size int) [][]byte {
+	// hardcode a maximum of 5000 transactions so that we can use this for fuzzing
+	if count > 5000 || count < 0 {
+		count = tmrand.Intn(5000)
 	}
-
-	processedTxs, messages, err := malleateTxs(txConfig, squareSize, parsedTxs, core.EvidenceList{})
-	require.NoError(t, err)
-
-	blockData := core.Data{
-		Txs:                processedTxs,
-		Evidence:           core.EvidenceList{},
-		Messages:           core.Messages{MessagesList: messages},
-		OriginalSquareSize: squareSize,
-	}
-
-	return coretypes.DataFromProto(&blockData)
-}
-
-func generateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count, size int) [][]byte {
 	txs := make([][]byte, count)
 
 	coin := sdk.Coin{
-		Denom:  BondDenom,
+		Denom:  app.BondDenom,
 		Amount: sdk.NewInt(10),
 	}
 
@@ -63,6 +35,9 @@ func generateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *type
 	}
 
 	for i := 0; i < count; i++ {
+		if size < 0 || size > 3000000 {
+			size = tmrand.Intn(1000000)
+		}
 		wpfdTx := generateRawWirePFDTx(
 			t,
 			txConfig,
@@ -76,7 +51,7 @@ func generateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *type
 	return txs
 }
 
-func generateManyRawSendTxs(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count int) [][]byte {
+func GenerateManyRawSendTxs(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count int) [][]byte {
 	txs := make([][]byte, count)
 	for i := 0; i < count; i++ {
 		txs[i] = generateRawSendTx(t, txConfig, signer, 100)
@@ -90,7 +65,7 @@ func generateManyRawSendTxs(t *testing.T, txConfig client.TxConfig, signer *type
 // the same account signing the transaction.
 func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, amount int64) (rawTx []byte) {
 	feeCoin := sdk.Coin{
-		Denom:  BondDenom,
+		Denom:  app.BondDenom,
 		Amount: sdk.NewInt(1),
 	}
 
@@ -100,7 +75,7 @@ func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.Key
 	}
 
 	amountCoin := sdk.Coin{
-		Denom:  BondDenom,
+		Denom:  app.BondDenom,
 		Amount: sdk.NewInt(amount),
 	}
 
@@ -120,7 +95,7 @@ func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.Key
 	return rawTx
 }
 
-// generateRawWirePFD creates a tx with a single MsgWirePayForData message using the provided namespace and message
+// generateRawWirePFDTx creates a tx with a single MsgWirePayForData message using the provided namespace and message
 func generateRawWirePFDTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
 	// create a msg
 	msg := generateSignedWirePayForData(t, ns, message, signer, opts, types.AllSquareSizes(len(message))...)
@@ -152,38 +127,4 @@ func generateSignedWirePayForData(t *testing.T, ns, message []byte, signer *type
 
 const (
 	TestAccountName = "test-account"
-)
-
-func generateKeyring(t *testing.T, cdc codec.Codec, accts ...string) keyring.Keyring {
-	t.Helper()
-	kb := keyring.NewInMemory(cdc)
-
-	for _, acc := range accts {
-		_, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	_, err := kb.NewAccount(testAccName, testMnemo, "1234", "", hd.Secp256k1)
-	if err != nil {
-		panic(err)
-	}
-
-	return kb
-}
-
-// generateKeyringSigner creates a types.KeyringSigner with keys generated for
-// the provided accounts
-func generateKeyringSigner(t *testing.T, acct string) *types.KeyringSigner {
-	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
-	kr := generateKeyring(t, encCfg.Codec, acct)
-	return types.NewKeyringSigner(kr, acct, testChainID)
-}
-
-const (
-	// nolint:lll
-	testMnemo   = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
-	testAccName = "test-account"
-	testChainID = "test-chain-1"
 )

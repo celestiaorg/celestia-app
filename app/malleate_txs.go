@@ -6,7 +6,7 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )

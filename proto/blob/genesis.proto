@@ -1,0 +1,7 @@
+syntax = "proto3";
+package blob;
+
+option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
+
+// GenesisState defines the capability module's genesis state.
+message GenesisState {}

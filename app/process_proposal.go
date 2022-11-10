@@ -7,7 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
