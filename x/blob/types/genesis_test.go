@@ -24,6 +24,7 @@ func TestGenesisState_Validate(t *testing.T) {
 				Params: types.Params{
 					MinSquareSize: 512,
 					MaxSquareSize: 1024,
+					GasPerMsgByte: 20,
 				},
 			},
 			valid: true,
