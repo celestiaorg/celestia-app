@@ -1,11 +1,11 @@
-package payment_test
+package blob_test
 
 import (
 	"testing"
 
 	keepertest "github.com/celestiaorg/celestia-app/testutil/keeper"
-	"github.com/celestiaorg/celestia-app/x/payment"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/x/blob"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,9 +14,9 @@ func TestGenesis(t *testing.T) {
 		Params: types.DefaultParams(),
 	}
 
-	k, ctx := keepertest.PaymentKeeper(t)
-	payment.InitGenesis(ctx, *k, genesisState)
-	got := payment.ExportGenesis(ctx, *k)
+	k, ctx := keepertest.BlobKeeper(t)
+	blob.InitGenesis(ctx, *k, genesisState)
+	got := blob.ExportGenesis(ctx, *k)
 	require.NotNil(t, got)
 	require.Equal(t, types.DefaultParams(), got.Params)
 }

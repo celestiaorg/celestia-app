@@ -19,7 +19,7 @@ var (
 	DefaultMaxSquareSize uint32 = 128
 )
 
-// ParamKeyTable returns the param key table for the payment module
+// ParamKeyTable returns the param key table for the blob module
 func ParamKeyTable() paramtypes.KeyTable {
 	return paramtypes.NewKeyTable().RegisterParamSet(&Params{})
 }

@@ -4,12 +4,12 @@ import (
 	"testing"
 
 	testkeeper "github.com/celestiaorg/celestia-app/testutil/keeper"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGetParams(t *testing.T) {
-	k, ctx := testkeeper.PaymentKeeper(t)
+	k, ctx := testkeeper.BlobKeeper(t)
 	params := types.DefaultParams()
 
 	k.SetParams(ctx, params)

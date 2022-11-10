@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/testutil"
-	"github.com/celestiaorg/celestia-app/x/payment/keeper"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/x/blob/keeper"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/store"
@@ -18,7 +18,7 @@ import (
 	tmdb "github.com/tendermint/tm-db"
 )
 
-func PaymentKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
+func BlobKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
 	storeKey := sdk.NewKVStoreKey(types.StoreKey)
 	memStoreKey := storetypes.NewMemoryStoreKey(types.MemStoreKey)
 
@@ -35,7 +35,7 @@ func PaymentKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
 		testutil.MakeTestCodec(),
 		storeKey,
 		memStoreKey,
-		"Payment",
+		"Blob",
 	)
 	k := keeper.NewKeeper(
 		cdc,

@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	testkeeper "github.com/celestiaorg/celestia-app/testutil/keeper"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )
 
 func TestParamsQuery(t *testing.T) {
-	keeper, ctx := testkeeper.PaymentKeeper(t)
+	keeper, ctx := testkeeper.BlobKeeper(t)
 	wctx := sdk.WrapSDKContext(ctx)
 	params := types.DefaultParams()
 	keeper.SetParams(ctx, params)

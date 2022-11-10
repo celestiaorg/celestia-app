@@ -367,9 +367,9 @@ func New(
 
 	app.BlobKeeper = *blobmodulekeeper.NewKeeper(
 		appCodec,
-		keys[paymentmoduletypes.StoreKey],
-		keys[paymentmoduletypes.MemStoreKey],
-		app.GetSubspace(paymentmoduletypes.ModuleName),
+		keys[blobmoduletypes.StoreKey],
+		keys[blobmoduletypes.MemStoreKey],
+		app.GetSubspace(blobmoduletypes.ModuleName),
 	)
 	blobmod := blobmodule.NewAppModule(appCodec, app.BlobKeeper)
 
