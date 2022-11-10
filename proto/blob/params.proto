@@ -1,0 +1,14 @@
+syntax = "proto3";
+package blob;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
+
+// Params defines the parameters for the module.
+message Params {
+  option (gogoproto.goproto_stringer) = false;
+
+  uint32 min_square_size = 1 [(gogoproto.moretags) = "yaml:\"min_square_size\""];
+  uint32 max_square_size = 2 [(gogoproto.moretags) = "yaml:\"max_square_size\""];
+}

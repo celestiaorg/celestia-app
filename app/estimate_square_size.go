@@ -53,7 +53,7 @@ func prune(txConf client.TxConfig, txs []*parsedTx, currentShareCount, squareSiz
 			continue
 		}
 
-		removedMessageShares += shares.MsgSharesUsed(len(txs[i].msg.GetMessage()))
+		removedMessageShares += shares.MsgSharesUsed(len(txs[i].msg.GetBlob()))
 		// we ignore the error here, as if there is an error malleating the tx,
 		// then we need to remove it anyway and it will not end up contributing
 		// bytes to the square anyway.
@@ -151,7 +151,7 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 		namespace []byte
 	}
 
-	var msgSummaries []msgSummary
+	var msgSummaries []msgSummary //nolint:prealloc
 
 	// we use bytes instead of shares for tx and evd as they are encoded
 	// contiguously in the square, unlike msgs where each of which is assigned their
@@ -170,9 +170,9 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 		// compensates for the actual size of the message, and in some cases can
 		// result in some wasted square space or picking a square size that is
 		// too large. TODO: improve by making a more accurate estimation formula
-		txBytes += overEstimateMalleatedTxSize(len(pTx.rawTx), len(pTx.msg.Message))
+		txBytes += overEstimateMalleatedTxSize(len(pTx.rawTx), len(pTx.msg.Blob))
 
-		msgSummaries = append(msgSummaries, msgSummary{shares.MsgSharesUsed(int(pTx.msg.MessageSize)), pTx.msg.MessageNamespaceId})
+		msgSummaries = append(msgSummaries, msgSummary{shares.MsgSharesUsed(int(pTx.msg.BlobSize)), pTx.msg.NamespaceId})
 	}
 
 	txShares = txBytes / appconsts.ContinuationCompactShareContentSize

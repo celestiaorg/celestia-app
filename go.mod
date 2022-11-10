@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/celestiaorg/nmt v0.11.0
 	github.com/celestiaorg/quantum-gravity-bridge v1.2.0
-	github.com/ethereum/go-ethereum v1.10.17
+	github.com/ethereum/go-ethereum v1.10.26
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.3.0 // indirect
@@ -32,6 +32,7 @@ require (
 	github.com/regen-network/cosmos-proto v0.3.1
 	github.com/tendermint/tendermint v0.34.20
 	golang.org/x/exp v0.0.0-20221012211006-4de253d81b95
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -51,7 +52,7 @@ require (
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.1.0 // indirect
 	github.com/btcsuite/btcd v0.22.1 // indirect
-	github.com/btcsuite/btcd/btcec/v2 v2.1.2 // indirect
+	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -173,7 +174,6 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/ini.v1 v1.66.6 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	nhooyr.io/websocket v1.8.6 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect

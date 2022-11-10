@@ -4,7 +4,7 @@ import (
 	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 )
 
 type path struct {
