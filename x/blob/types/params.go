@@ -118,7 +118,7 @@ func validateMinMaxSquareSizeOrder(minSquareSize, maxSquareSize uint32) error {
 	return nil
 }
 
-// validateGasPerMsgByte validates the MaxSquareSize param
+// validateGasPerMsgByte validates the GasPerMsgByte param
 func validateGasPerMsgByte(v interface{}) error {
 	gasPerMsgByte, ok := v.(uint32)
 	if !ok {
