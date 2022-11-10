@@ -19,9 +19,14 @@ func TestGenesisState_Validate(t *testing.T) {
 			valid:    true,
 		},
 		{
-			desc:     "valid genesis state",
-			genState: &types.GenesisState{},
-			valid:    true,
+			desc: "valid genesis state",
+			genState: &types.GenesisState{
+				Params: types.Params{
+					MinSquareSize: 512,
+					MaxSquareSize: 1024,
+				},
+			},
+			valid: true,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
