@@ -8,7 +8,7 @@ import "blob/params.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 
-// Query defines the gRPC querier service.
+// Query defines the gRPC query service.
 service Query {
   // Params queries the parameters of the module.
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
