@@ -8,7 +8,6 @@ IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 
 # process linker flags
-
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 		  -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd \
 		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
@@ -20,11 +19,20 @@ BUILD_FLAGS := -ldflags '$(ldflags)'
 
 all: install
 
+install: go.sum
+	@echo "--> Installing celestia-appd"
+	@go install -mod=readonly $(BUILD_FLAGS) ./cmd/celestia-appd
+
+go.sum: mod
+	@echo "--> Verifying dependencies have expected content"
+	GO111MODULE=on go mod verify
+
 mod:
+	@echo "--> Updating go.mod"
 	@go mod tidy -compat=1.18
 
 pre-build:
-	@echo "Fetching latest tags"
+	@echo "--> Fetching latest git tags"
 	@git fetch --tags
 
 build: mod
@@ -35,51 +43,58 @@ build: mod
 	@packr2 clean
 	@go mod tidy -compat=1.18
 
-install: go.sum
-		@echo "--> Installing celestia-appd"
-		@go install -mod=readonly $(BUILD_FLAGS) ./cmd/celestia-appd
-
-go.sum: mod
-		@echo "--> Ensure dependencies have not been modified"
-		GO111MODULE=on go mod verify
-
-test:
-	@go test -mod=readonly ./...
-.PHONY: test
-
 proto-gen:
+	@echo "--> Generating Protobuf files"
 	$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace tendermintdev/sdk-proto-gen:v0.7 sh ./scripts/protocgen.sh
+.PHONY: proto-gen
 
 proto-lint:
+	@echo "--> Linting Protobuf files"
 	@$(DOCKER_BUF) lint --error-format=json
+.PHONY: proto-lint
 
 proto-format:
-	@echo "Formatting Protobuf files"
+	@echo "--> Formatting Protobuf files"
 	@$(DOCKER_PROTO_BUILDER) find . -name '*.proto' -path "./proto/*" -exec clang-format -i {} \;
 .PHONY: proto-format
 
 build-docker:
+	@echo "--> Building Docker image"
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
+.PHONY: build-docker
+
+lint:
+	@echo "--> Running golangci-lint"
+	@golangci-lint run
+	@echo "--> Running markdownlint"
+	@markdownlint --config .markdownlint.yaml '**/*.md'
+.PHONY: lint
 
 fmt:
+	@echo "--> Running golangci-lint --fix"
 	@golangci-lint run --fix
+	@echo "--> Running markdownlint --fix"
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
 
-lint:
-	@echo "--> Running linter"
-	@golangci-lint run
-	@markdownlint --config .markdownlint.yaml '**/*.md'
-.PHONY: lint
+test:
+	@echo "--> Running unit tests"
+	@go test -mod=readonly ./...
+.PHONY: test
 
 test-all: test-race test-cover
 
 test-race:
+	@echo "--> Running tests with -race"
 	@VERSION=$(VERSION) go test -mod=readonly -race -test.short ./...
-
-benchmark:
-	@go test -mod=readonly -bench=. ./...
+.PHONY: test-race
 
 test-cover:
+	@echo "--> Generating coverage.txt"
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-cover
+
+benchmark:
+	@echo "--> Running tests with -bench"
+	@go test -mod=readonly -bench=. ./...
+.PHONY: benchmark

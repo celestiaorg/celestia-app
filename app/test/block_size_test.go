@@ -18,8 +18,8 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/network"
-	"github.com/celestiaorg/celestia-app/x/payment"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	blob "github.com/celestiaorg/celestia-app/x/blob"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -29,7 +29,7 @@ import (
 func TestIntegrationTestSuite(t *testing.T) {
 	cfg := network.DefaultConfig()
 	cfg.EnableTMLogging = false
-	cfg.MinGasPrices = "0ucls"
+	cfg.MinGasPrices = "0utia"
 	cfg.NumValidators = 1
 	cfg.TimeoutCommit = time.Millisecond * 400
 	suite.Run(t, NewIntegrationTestSuite(cfg))
@@ -219,7 +219,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 	for _, tc := range tests {
 		s.Run(tc.name, func() {
 			signer := types.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
-			res, err := payment.SubmitPayForData(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.message, 10000000, tc.opts...)
+			res, err := blob.SubmitPayForData(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.message, 10000000, tc.opts...)
 			require.NoError(err)
 			require.NotNil(res)
 			assert.Equal(abci.CodeTypeOK, res.Code)

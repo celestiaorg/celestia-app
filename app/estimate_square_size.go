@@ -151,7 +151,7 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 		namespace []byte
 	}
 
-	var msgSummaries []msgSummary
+	var msgSummaries []msgSummary //nolint:prealloc
 
 	// we use bytes instead of shares for tx and evd as they are encoded
 	// contiguously in the square, unlike msgs where each of which is assigned their

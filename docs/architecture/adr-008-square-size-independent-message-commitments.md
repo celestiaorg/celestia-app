@@ -102,23 +102,25 @@ Therefore the height of the tree over the subtree roots is in this implementatio
 
 We should note that Rollups can decide to do this scheme without changing core-app apart from Number 4.
 
-## Positive Core App changes
+## Positive celestia-app changes
 
-Core app simplifications after refactoring core-app:
+- Simplifies the creation of PFDs because users don't need to create commitments for multiple square sizes.
+  - Reduces the size of [MsgWirePayForData](https://github.com/celestiaorg/celestia-app/blob/6f3b3ae437b2a70d72ff6be2741abb8b5378caa0/x/payment/types/tx.pb.go#L32-L40)s because MessageShareCommitment can be modified from an array of maximum length 8 (for all valid square sizes) to a single MessageShareCommitment.
+  - Simplifies the malleation process because this ADR enables a future refactor to remove WireMsgPayForData entirely ([issue](https://github.com/celestiaorg/celestia-app/issues/951)). Previously multiple signatures were included in a WireMsgPayForData and only one was used to construct the MsgPayForData that ended up on-chain but this ADR results in only one signature needed on the wrapping SDK message and the SDK message that ends up on-chain.
+  - This renders the following issues obsolete:
+    - <https://github.com/celestiaorg/celestia-app/issues/236>
+    - <https://github.com/celestiaorg/celestia-app/issues/727>
+- Simplifies arranging the square.
+  - Currently, prepare proposal performs [`estimateSquareSize`](https://github.com/rootulp/celestia-app/blob/6f3b3ae437b2a70d72ff6be2741abb8b5378caa0/app/estimate_square_size.go#L98-L101) prior to splitting PFDs into shares because the square size is needed to malleate PFDs and extract the appropriate message share commitment for a particular square size. Since malleation no longer requires a square size, it may be possible to remove square size estimation which renders the following issues obsolete:
+    - <https://github.com/informalsystems/audit-celestia/issues/12>
+    - <https://github.com/informalsystems/audit-celestia/issues/24>
+- Inter-message padding can be reduced because we can change the non-interactive default rules from this:
 
-- simplifies malleation process
-- simplifies arranging the square
-- simplifies the creation of PFDs
-- **Padding Savings**
+    > - Messages that span multiple rows must begin at the start of a row (this can occur if a message is longer than k shares or if the block producer decides to start a message partway through a row and it cannot fit).
+    > - Messages begin at a location aligned with the largest power of 2 that is not larger than the message length or k.
 
-We change the non-interactive default rules from this:
+    To this: Messages start at an index that is a multiple of its `msgMinSquareSize`.
 
-> - Messages that span multiple rows must begin at the start of a row (this can occur if a message is longer than k shares or if the block producer decides to start a message partway through a row and it cannot fit).
-> - Messages begin at a location aligned with the largest power of 2 that is not larger than the message length or k.
+    As an example, we have this diagram. Message 1 is three shares long and is followed by message 2, which is 11 shares long, so the `msgMinSquareSize` of the second message is equal to four. Therefore we have a padding of 5 shares shown in light blue. Furthermore, with the new non-interactive default rule set, a message of size 11 can start in this block at index zero and index three because they are multiples of four. Therefore, we save four shares of padding while retaining the same commitment.
 
-To this:
-*Messages start at an index that is a multiple of its `msgMinSquareSize`.*
-
-As an example, we have this diagram. Message 1 is three shares long and is followed by message 2, which is 11 shares long, so the `msgMinSquareSize` of the second message is equal to four. Therefore we have a padding of 5 shares shown in light blue. Furthermore, with the new non-interactive default rule set, a message of size 11 can start in this block at index zero and index three because they are multiples of four. Therefore, we save four shares of padding while retaining the same commitment.
-
-![Padding Savings](./assets/padding-savings.png)
+    ![Padding Savings](./assets/padding-savings.png)

@@ -102,9 +102,7 @@ var (
 	NewBaseHashFunc = consts.NewBaseHashFunc
 
 	// DefaultCodec is the default codec creator used for data erasure
-	// TODO(ismail): for better efficiency and a larger number shares
-	// we should switch to the rsmt2d.LeopardFF16 codec:
-	DefaultCodec = rsmt2d.NewRSGF8Codec
+	DefaultCodec = rsmt2d.NewLeoRSCodec
 
 	// DataCommitmentBlocksLimit is the limit to the number of blocks we can generate a data commitment for.
 	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
