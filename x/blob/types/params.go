@@ -126,7 +126,7 @@ func validateGasPerMsgByte(v interface{}) error {
 	}
 
 	if gasPerMsgByte == 0 {
-		return fmt.Errorf("max square size cannot be 0")
+		return fmt.Errorf("gas per message byte cannot be 0")
 	}
 
 	return nil
