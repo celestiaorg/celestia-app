@@ -79,7 +79,7 @@ With the universal share prefix: if a client is provided share 11, they know fro
         | sequence start indicator     | `1` | `0` | `0`                                                                      |
         | continuation share indicator | `1` | `1` | `0` <- client stops requesting contiguous shares when they encounter `0` |
 
-    - This would enable clients to begin parsing a message by sampling a share in the middle of a message and proceed to parsing contiguous shares until the end without ever encountering the first share of the message which contains the data length. However, this use case seems contrived because a subset of the message shares may not be meaningful to the client. This depends on how roll-ups encode the data in a `PayForData` transaction.
+    - This would enable clients to begin parsing a message by sampling a share in the middle of a message and proceed to parsing contiguous shares until the end without ever encountering the first share of the message which contains the data length. However, this use case seems contrived because a subset of the message shares may not be meaningful to the client. This depends on how roll-ups encode the data in a `PayForBlob` transaction.
     - Without the continuation share indicator, the client would have to request the first share of the message to parse the data length. If they don't request the first share, they can request contiguous shares until they reach the first share after their message ends to learn that they completed requesting the previous message.
 
 1. What happens if a block producer publishes a message with a version that isn't in the list of supported versions?
@@ -97,7 +97,7 @@ Accepted
 
 ## Implementation Details
 
-A share version must be specified by a user when authoring a [`MsgWirePayForData`](https://github.com/rootulp/celestia-app/blob/6f3b3ae437b2a70d72ff6be2741abb8b5378caa0/x/payment/types/tx.pb.go#L34) because if a user doesn't specify a share version, a block producer may construct message shares associated with their `MsgWirePayForData` using a different share version. Different share versions will lead to different share layouts which will lead to different `MessageShareCommitment`s. As a result, message inclusion proofs would fail. [See celestia-app#936](https://github.com/celestiaorg/celestia-app/issues/936).
+A share version must be specified by a user when authoring a [`MsgWirePayForBlob`](https://github.com/rootulp/celestia-app/blob/6f3b3ae437b2a70d72ff6be2741abb8b5378caa0/x/payment/types/tx.pb.go#L34) because if a user doesn't specify a share version, a block producer may construct message shares associated with their `MsgWirePayForBlob` using a different share version. Different share versions will lead to different share layouts which will lead to different `MessageShareCommitment`s. As a result, message inclusion proofs would fail. [See celestia-app#936](https://github.com/celestiaorg/celestia-app/issues/936).
 
 Constants
 

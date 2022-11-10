@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	payForDataGasDescriptor = "pay for data"
+	payForBlobGasDescriptor = "pay for data"
 
 	// GasPerMsgByte is the amount of gas to charge per byte of message data.
 	// TODO: extract GasPerMsgByte as a parameter to this module.
@@ -54,16 +54,16 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 	return ctx.Logger().With("module", fmt.Sprintf("x/%s", types.ModuleName))
 }
 
-// PayForData consumes gas based on the message size.
-func (k Keeper) PayForData(goCtx context.Context, msg *types.MsgPayForData) (*types.MsgPayForDataResponse, error) {
+// PayForBlob consumes gas based on the message size.
+func (k Keeper) PayForBlob(goCtx context.Context, msg *types.MsgPayForBlob) (*types.MsgPayForBlobResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	gasToConsume := uint64(shares.MsgSharesUsed(int(msg.MessageSize)) * GasPerMsgShare)
-	ctx.GasMeter().ConsumeGas(gasToConsume, payForDataGasDescriptor)
+	gasToConsume := uint64(shares.MsgSharesUsed(int(msg.BlobSize)) * GasPerMsgShare)
+	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
 
 	ctx.EventManager().EmitEvent(
-		types.NewPayForDataEvent(sdk.AccAddress(msg.Signer).String(), msg.GetMessageSize()),
+		types.NewPayForBlobEvent(sdk.AccAddress(msg.Signer).String(), msg.GetBlobSize()),
 	)
 
-	return &types.MsgPayForDataResponse{}, nil
+	return &types.MsgPayForBlobResponse{}, nil
 }

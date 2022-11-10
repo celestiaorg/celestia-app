@@ -18,11 +18,11 @@ type parsedTx struct {
 	// the original raw bytes of the tx
 	rawTx []byte
 	// tx is the parsed sdk tx. this is nil for all txs that do not contain a
-	// MsgWirePayForData, as we do not need to parse other types of of transactions
+	// MsgWirePayForBlob, as we do not need to parse other types of of transactions
 	tx signing.Tx
 	// msg is the wire msg if it exists in the tx. This field is nil for all txs
 	// that do not contain one.
-	msg *types.MsgWirePayForData
+	msg *types.MsgWirePayForBlob
 	// malleatedTx is the transaction
 	malleatedTx coretypes.Tx
 }
@@ -41,8 +41,8 @@ func (p *parsedTx) wrap(shareIndex uint32) (coretypes.Tx, error) {
 
 func (p *parsedTx) message() *core.Message {
 	return &core.Message{
-		NamespaceId: p.msg.MessageNamespaceId,
-		Data:        p.msg.Message,
+		NamespaceId: p.msg.NamespaceId,
+		Data:        p.msg.Blob,
 	}
 }
 
@@ -58,7 +58,7 @@ func (p parsedTxs) remove(i int) parsedTxs {
 }
 
 // parseTxs decodes raw tendermint txs along with checking if they contain any
-// MsgWirePayForData txs. If a MsgWirePayForData is found in the tx, then it is
+// MsgWirePayForBlob txs. If a MsgWirePayForBlob is found in the tx, then it is
 // saved in the parsedTx that is returned. It ignores invalid txs completely.
 func parseTxs(conf client.TxConfig, rawTxs [][]byte) parsedTxs {
 	parsedTxs := []*parsedTx{}
@@ -77,10 +77,10 @@ func parseTxs(conf client.TxConfig, rawTxs [][]byte) parsedTxs {
 			rawTx: rawTx,
 		}
 
-		wireMsg, err := types.ExtractMsgWirePayForData(authTx)
+		wireMsg, err := types.ExtractMsgWirePayForBlob(authTx)
 		if err != nil {
 			// we catch this error because it means that there are no
-			// potentially valid MsgWirePayForData messages in this tx. We still
+			// potentially valid MsgWirePayForBlob messages in this tx. We still
 			// want to keep this tx, so we append it to the parsed txs.
 			parsedTxs = append(parsedTxs, &pTx)
 			continue

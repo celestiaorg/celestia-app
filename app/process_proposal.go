@@ -22,8 +22,8 @@ const (
 
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
 	// Check for message inclusion:
-	//  - each MsgPayForData included in a block should have a corresponding data also in the block body
-	//  - the commitment in each PFD should match that of its corresponding data
+	//  - each MsgPayForBlob included in a block should have a corresponding data also in the block body
+	//  - the commitment in each PFB should match that of its corresponding data
 	//  - there should be no unpaid-for data
 
 	data, err := coretypes.DataFromProto(req.BlockData)
@@ -67,7 +67,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	// iterate over all of the MsgPayForData transactions and ensure that their
+	// iterate over all of the MsgPayForBlob transactions and ensure that their
 	// commitments are subtree roots of the data root.
 	commitmentCounter := 0
 	for _, rawTx := range req.BlockData.Txs {
@@ -85,24 +85,24 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 
 		for _, msg := range tx.GetMsgs() {
-			if sdk.MsgTypeURL(msg) != types.URLMsgPayForData {
+			if sdk.MsgTypeURL(msg) != types.URLMsgPayForBlob {
 				continue
 			}
 
-			pfd, ok := msg.(*types.MsgPayForData)
+			pfb, ok := msg.(*types.MsgPayForBlob)
 			if !ok {
-				app.Logger().Error("Msg type does not match MsgPayForData URL")
+				app.Logger().Error("Msg type does not match MsgPayForBlob URL")
 				continue
 			}
 
-			if err = pfd.ValidateBasic(); err != nil {
-				logInvalidPropBlockError(app.Logger(), req.Header, "invalid MsgPayForData", err)
+			if err = pfb.ValidateBasic(); err != nil {
+				logInvalidPropBlockError(app.Logger(), req.Header, "invalid MsgPayForBlob", err)
 				return abci.ResponseProcessProposal{
 					Result: abci.ResponseProcessProposal_REJECT,
 				}
 			}
 
-			commitment, err := inclusion.GetCommit(cacher, dah, int(malleatedTx.ShareIndex), shares.MsgSharesUsed(int(pfd.MessageSize)))
+			commitment, err := inclusion.GetCommit(cacher, dah, int(malleatedTx.ShareIndex), shares.MsgSharesUsed(int(pfb.BlobSize)))
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), req.Header, "commitment not found", err)
 				return abci.ResponseProcessProposal{
@@ -110,7 +110,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 				}
 			}
 
-			if !bytes.Equal(pfd.MessageShareCommitment, commitment) {
+			if !bytes.Equal(pfb.ShareCommitment, commitment) {
 				logInvalidPropBlock(app.Logger(), req.Header, "found commitment does not match user's")
 				return abci.ResponseProcessProposal{
 					Result: abci.ResponseProcessProposal_REJECT,
@@ -121,10 +121,10 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	// compare the number of PFDs and messages, if they aren't
+	// compare the number of PFBs and messages, if they aren't
 	// identical, then  we already know this block is invalid
 	if commitmentCounter != len(req.BlockData.Messages.MessagesList) {
-		logInvalidPropBlock(app.Logger(), req.Header, "varying number of messages and payForData txs in the same block")
+		logInvalidPropBlock(app.Logger(), req.Header, "varying number of messages and payForBlob txs in the same block")
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}

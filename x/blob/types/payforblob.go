@@ -17,27 +17,27 @@ import (
 )
 
 const (
-	URLMsgWirePayForData = "/blob.MsgWirePayForData"
-	URLMsgPayForData     = "/blob.MsgPayForData"
+	URLMsgWirePayForBlob = "/blob.MsgWirePayForBlob"
+	URLMsgPayForBlob     = "/blob.MsgPayForBlob"
 	ShareSize            = appconsts.ShareSize
 	SquareSize           = appconsts.MaxSquareSize
 	NamespaceIDSize      = appconsts.NamespaceSize
 )
 
-var _ sdk.Msg = &MsgPayForData{}
+var _ sdk.Msg = &MsgPayForBlob{}
 
 // Route fullfills the sdk.Msg interface
-func (msg *MsgPayForData) Route() string { return RouterKey }
+func (msg *MsgPayForBlob) Route() string { return RouterKey }
 
 // Type fullfills the sdk.Msg interface
-func (msg *MsgPayForData) Type() string {
-	return URLMsgPayForData
+func (msg *MsgPayForBlob) Type() string {
+	return URLMsgPayForBlob
 }
 
 // ValidateBasic fullfills the sdk.Msg interface by performing stateless
 // validity checks on the msg that also don't require having the actual message
-func (msg *MsgPayForData) ValidateBasic() error {
-	if err := ValidateMessageNamespaceID(msg.GetMessageNamespaceId()); err != nil {
+func (msg *MsgPayForBlob) ValidateBasic() error {
+	if err := ValidateMessageNamespaceID(msg.GetNamespaceId()); err != nil {
 		return err
 	}
 
@@ -46,7 +46,7 @@ func (msg *MsgPayForData) ValidateBasic() error {
 		return err
 	}
 
-	if len(msg.MessageShareCommitment) == 0 {
+	if len(msg.ShareCommitment) == 0 {
 		return ErrNoMessageShareCommitments
 	}
 
@@ -55,12 +55,12 @@ func (msg *MsgPayForData) ValidateBasic() error {
 
 // GetSignBytes fullfills the sdk.Msg interface by reterning a deterministic set
 // of bytes to sign over
-func (msg *MsgPayForData) GetSignBytes() []byte {
+func (msg *MsgPayForBlob) GetSignBytes() []byte {
 	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(msg))
 }
 
 // GetSigners fullfills the sdk.Msg interface by returning the signer's address
-func (msg *MsgPayForData) GetSigners() []sdk.AccAddress {
+func (msg *MsgPayForBlob) GetSigners() []sdk.AccAddress {
 	address, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		panic(err)
@@ -68,14 +68,14 @@ func (msg *MsgPayForData) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{address}
 }
 
-// BuildPayForDataTxFromWireTx creates an authsigning.Tx using data from the original
-// MsgWirePayForData sdk.Tx and the signature provided. This is used while processing
-// the MsgWirePayForDatas into Signed  MsgPayForData
-func BuildPayForDataTxFromWireTx(
+// BuildPayForBlobTxFromWireTx creates an authsigning.Tx using data from the original
+// MsgWirePayForBlob sdk.Tx and the signature provided. This is used while processing
+// the MsgWirePayForBlobs into Signed  MsgPayForBlob
+func BuildPayForBlobTxFromWireTx(
 	origTx authsigning.Tx,
 	builder sdkclient.TxBuilder,
 	signature []byte,
-	msg *MsgPayForData,
+	msg *MsgPayForBlob,
 ) (authsigning.Tx, error) {
 	err := builder.SetMsgs(msg)
 	if err != nil {

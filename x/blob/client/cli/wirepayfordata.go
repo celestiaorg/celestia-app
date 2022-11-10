@@ -16,10 +16,10 @@ import (
 
 const FlagSquareSizes = "square-sizes"
 
-func CmdWirePayForData() *cobra.Command {
+func CmdWirePayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "payForData [hexNamespace] [hexMessage]",
-		Short: "Creates a new MsgWirePayForData",
+		Use:   "payForBlob [hexNamespace] [hexBlob]",
+		Short: "Creates a new MsgWirePayForBlob",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
@@ -45,12 +45,12 @@ func CmdWirePayForData() *cobra.Command {
 				return fmt.Errorf("failure to decode hex message: %w", err)
 			}
 
-			pfdMsg, err := types.NewWirePayForData(namespace, message, types.AllSquareSizes(len(message))...)
+			pfbMsg, err := types.NewWirePayForBlob(namespace, message, types.AllSquareSizes(len(message))...)
 			if err != nil {
 				return err
 			}
 
-			// use the keyring to programmatically sign multiple PayForData txs
+			// use the keyring to programmatically sign multiple PayForBlob txs
 			signer := types.NewKeyringSigner(clientCtx.Keyring, accName, clientCtx.ChainID)
 
 			err = signer.UpdateAccountFromClient(clientCtx)
@@ -78,8 +78,8 @@ func CmdWirePayForData() *cobra.Command {
 				return err
 			}
 
-			// sign the  MsgPayForData's ShareCommitments
-			err = pfdMsg.SignShareCommitments(
+			// sign the  MsgPayForBlob's ShareCommitments
+			err = pfbMsg.SignShareCommitments(
 				signer,
 				types.SetGasLimit(gasSetting.Gas),
 				types.SetFeeAmount(parsedFees),
@@ -89,11 +89,11 @@ func CmdWirePayForData() *cobra.Command {
 			}
 
 			// run message checks
-			if err = pfdMsg.ValidateBasic(); err != nil {
+			if err = pfbMsg.ValidateBasic(); err != nil {
 				return err
 			}
 
-			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), pfdMsg)
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), pfbMsg)
 		},
 	}
 

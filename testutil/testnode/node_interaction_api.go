@@ -86,8 +86,8 @@ func (c *Context) WaitForNextBlock() error {
 	return err
 }
 
-// PostData will create and submit PFD transaction containing the message and
-// namespace. This function blocks until the PFD has been included in a block
+// PostData will create and submit PFB transaction containing the message and
+// namespace. This function blocks until the PFB has been included in a block
 // and returns an error if the transaction is invalid or is rejected by the
 // mempool.
 func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.TxResponse, error) {
@@ -95,7 +95,7 @@ func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.
 		types.SetGasLimit(100000000000000),
 	}
 
-	// use the key for accounts[i] to create a singer used for a single PFD
+	// use the key for accounts[i] to create a singer used for a single PFB
 	signer := types.NewKeyringSigner(c.Keyring, account, c.ChainID)
 
 	rec := signer.GetSignerInfo()
@@ -113,7 +113,7 @@ func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.
 	signer.SetSequence(seq)
 
 	// create a random msg per row
-	pfd, err := blob.BuildPayForData(
+	pfb, err := blob.BuildPayForBlob(
 		c.rootCtx,
 		signer,
 		c.GRPCClient,
@@ -125,7 +125,7 @@ func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.
 		return nil, err
 	}
 
-	signed, err := blob.SignPayForData(signer, pfd, opts...)
+	signed, err := blob.SignPayForBlob(signer, pfb, opts...)
 	if err != nil {
 		return nil, err
 	}

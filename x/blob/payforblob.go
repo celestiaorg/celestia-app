@@ -13,9 +13,9 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 )
 
-// SubmitPayForData builds, signs, and synchronously submits a PayForData
+// SubmitPayForBlob builds, signs, and synchronously submits a PayForBlob
 // transaction. It returns a sdk.TxResponse after submission.
-func SubmitPayForData(
+func SubmitPayForBlob(
 	ctx context.Context,
 	signer *types.KeyringSigner,
 	conn *grpc.ClientConn,
@@ -26,12 +26,12 @@ func SubmitPayForData(
 ) (*sdk.TxResponse, error) {
 	opts = append(opts, types.SetGasLimit(gasLim))
 
-	pfd, err := BuildPayForData(ctx, signer, conn, nID, data, opts...)
+	pfb, err := BuildPayForBlob(ctx, signer, conn, nID, data, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	signed, err := SignPayForData(signer, pfd, opts...)
+	signed, err := SignPayForBlob(signer, pfb, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -48,17 +48,17 @@ func SubmitPayForData(
 	return txResp.TxResponse, nil
 }
 
-// BuildPayForData builds a PayForData transaction.
-func BuildPayForData(
+// BuildPayForBlob builds a PayForBlob transaction.
+func BuildPayForBlob(
 	ctx context.Context,
 	signer *types.KeyringSigner,
 	conn *grpc.ClientConn,
 	nID namespace.ID,
 	message []byte,
 	opts ...types.TxBuilderOption,
-) (*types.MsgWirePayForData, error) {
-	// create the raw WirePayForData transaction
-	wpfd, err := types.NewWirePayForData(nID, message, types.AllSquareSizes(len(message))...)
+) (*types.MsgWirePayForBlob, error) {
+	// create the raw WirePayForBlob transaction
+	wpfb, err := types.NewWirePayForBlob(nID, message, types.AllSquareSizes(len(message))...)
 	if err != nil {
 		return nil, err
 	}
@@ -69,30 +69,30 @@ func BuildPayForData(
 		return nil, err
 	}
 
-	// generate the signatures for each `MsgPayForData` using the `KeyringSigner`,
+	// generate the signatures for each `MsgPayForBlob` using the `KeyringSigner`,
 	// then set the gas limit for the tx
-	err = wpfd.SignShareCommitments(signer, opts...)
+	err = wpfb.SignShareCommitments(signer, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	return wpfd, nil
+	return wpfb, nil
 }
 
-// SignPayForData signs a PayForData transaction.
-func SignPayForData(
+// SignPayForBlob signs a PayForBlob transaction.
+func SignPayForBlob(
 	signer *types.KeyringSigner,
-	pfd *types.MsgWirePayForData,
+	pfb *types.MsgWirePayForBlob,
 	opts ...types.TxBuilderOption,
 ) (signing.Tx, error) {
-	// Build and sign the final `WirePayForData` tx that now contains the signatures
-	// for potential `MsgPayForData`s
+	// Build and sign the final `WirePayForBlob` tx that now contains the signatures
+	// for potential `MsgPayForBlob`s
 	builder := signer.NewTxBuilder()
 	for _, opt := range opts {
 		opt(builder)
 	}
 	return signer.BuildSignedTx(
 		builder,
-		pfd,
+		pfb,
 	)
 }
