@@ -11,4 +11,5 @@ message Params {
 
   uint32 min_square_size = 1 [(gogoproto.moretags) = "yaml:\"min_square_size\""];
   uint32 max_square_size = 2 [(gogoproto.moretags) = "yaml:\"max_square_size\""];
+  uint32 gas_per_blob_byte = 3 [(gogoproto.moretags) = "yaml:\"gas_per_blob_byte\""];
 }
