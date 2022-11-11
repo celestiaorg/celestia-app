@@ -143,6 +143,8 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				if resp.TxResult.Code == abci.CodeTypeOK {
 					heights[resp.Height]++
 				}
+				// ensure that some gas was used
+				assert.GreaterOrEqual(resp.TxResult.GasUsed, int64(10))
 				// require.True(resp.Proof.VerifyProof())
 			}
 
