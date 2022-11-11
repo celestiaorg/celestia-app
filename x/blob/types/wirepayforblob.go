@@ -97,11 +97,7 @@ func (msg *MsgWirePayForBlob) ValidateBasic() error {
 		)
 	}
 
-	if err := msg.ValidateMessageShareCommitment(); err != nil {
-		return err
-	}
-
-	return nil
+	return msg.ValidateMessageShareCommitment()
 }
 
 // ValidateMessageShareCommitment returns an error if the share
