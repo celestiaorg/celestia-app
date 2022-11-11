@@ -266,13 +266,12 @@ func generateSignedWirePayForBlobTxs(clientCtx client.Context, txConfig client.T
 		msg, err := types.NewWirePayForBlob(
 			namespace.RandomMessageNamespace(),
 			tmrand.Bytes(thisMessageSize),
-			types.AllSquareSizes(thisMessageSize)...,
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		err = msg.SignShareCommitments(signer, opts...)
+		err = msg.SignShareCommitment(signer, opts...)
 		if err != nil {
 			return nil, err
 		}

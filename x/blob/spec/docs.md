@@ -2,20 +2,26 @@
 
 ## Abstract
 
-The blob module is responsible for paying for arbitrary data that will be added to the Celestia blockchain. While the data being submitted can be arbitrary, the exact placement of that data is important for the transaction to be valid. This is why the blob module utilizes a malleated transaction scheme. Malleated transactions allow for users to create a single transaction, that can later be malleated by the block producer to create a variety of different valid transactions that are still signed over by the user. To accomplish this, users create a single `MsgWirePayForBlob` transaction, which is composed of metadata and signatures for multiple variations of the transaction that will be included onchain. After the transaction is submitted to the network, the block producer selects the appropriate signature and creates a valid `MsgPayForBlob` transaction depending on the square size for that block. This new malleated `MsgPayForBlob` transaction is what ends up onchain.
+The `x/blob` module enables users to pay for arbitrary data to be published to the Celestia blockchain. Users create a single `MsgWirePayForBlob` transaction that is composed of:
 
-Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
+1. `Blob` (Binary Large OBject): the data they wish to publish
+2. `NamespaceId`: the namespace they wish to publish to
+3. `ShareCommitment`: a signature and a commitment over their data when encoded into shares
+
+After the `MsgWirePayForBlob` transaction is submitted to the network, a block producer malleates their transaction into a `MsgPayForBlob` which doesn't include their data (a.k.a blob). Both components get included in the data square in different namespaces: the `MsgPayForBlob` gets included in the transaction namespace and the associated blob gets included in the namespace the user specified in the original `MsgWirePayForBlob`. Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
+
+After a block has been created, the user can verify that their data was included in a block via a blob inclusion proof. A blob inclusion proof uses the `ShareCommitment` in the original `MsgWirePayForBlob` and subtree roots of the block's data square to prove to the user that the shares that compose their original data do in fact exist in a particular block.
 
 ## State
 
 The blob module doesn't maintain it's own state.
 
-When a PayForBlob message is processed, it consumes gas based on the message size.
+When a `MsgPayForBlob` is processed, it consumes gas based on the blob size.
 
 ## Messages
 
-- [`MsgWirePayForBlob`](https://github.com/celestiaorg/celestia-app/blob/29e0a2751182499f7dc03598eabfc8d049ae62cb/x/payment/types/tx.pb.go#L32-L40) is a message that is created and signed by the user but it never ends up on-chain.
-- [`MsgPayForBlob`](https://github.com/celestiaorg/celestia-app/blob/29e0a2751182499f7dc03598eabfc8d049ae62cb/x/payment/types/tx.pb.go#L209-L219) is a "malleated" transaction that is created from metadata in the original `MsgWirePayForBlob`. `MsgPayForBlob` does end up on-chain.
+- [`MsgWirePayForBlob`](https://github.com/celestiaorg/celestia-app/blob/8b9c4c9d13fe0ccb6ea936cc26dee3f52b6f6129/proto/blob/tx.proto#L17-L19) is a message that is created and signed by the user but it never ends up on-chain.
+- [`MsgPayForBlob`](https://github.com/celestiaorg/celestia-app/blob/8b9c4c9d13fe0ccb6ea936cc26dee3f52b6f6129/proto/blob/tx.proto#L39-L44) is a "malleated" message that is created from metadata in the original `MsgWirePayForBlob`. `MsgPayForBlob` does end up on-chain.
 
 ## PrepareProposal
 
@@ -85,8 +91,10 @@ if err != nil {
 
 <!-- markdownlint-enable MD010 -->
 
-### How the commitments are generated
+### How is the `MessageShareCommitment` generated?
 
-1. Split the message into shares of `appconsts.ShareSize`
-2. Arrange the shares into a Merkle mountain range where each tree in the mountain range has a maximum size of `squareSize`
-3. Take the roots of the trees in the Merkle mountain range and create a new Merkle tree. The message share commitment is the Merkle root of this Merkle tree.
+1. Split the blob into shares of size `appconsts.ShareSize`
+1. Determine the `msgMinSquareSize` (the minimum square size the blob can fit into). This is done by taking the number of shares from the previous step and rounding up to the next perfect square that is a power of two.
+1. Arrange the shares into a Merkle mountain range where each tree in the mountain range has a maximum size of the `msgMinSquareSize`.
+1. Take the roots of the trees in the Merkle mountain range and create a new Merkle tree.
+1. The share commitment is the Merkle root of the Merkle tree from the previous step.

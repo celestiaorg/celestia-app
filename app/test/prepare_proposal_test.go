@@ -166,12 +166,12 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, s
 }
 
 func generateSignedWirePayForBlob(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption, ks ...uint64) *types.MsgWirePayForBlob {
-	msg, err := types.NewWirePayForBlob(ns, message, ks...)
+	msg, err := types.NewWirePayForBlob(ns, message)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = msg.SignShareCommitments(signer, options...)
+	err = msg.SignShareCommitment(signer, options...)
 	if err != nil {
 		t.Error(err)
 	}

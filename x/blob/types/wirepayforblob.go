@@ -3,7 +3,8 @@ package types
 import (
 	"bytes"
 	"errors"
-	fmt "fmt"
+	"fmt"
+	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
@@ -13,15 +14,15 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"golang.org/x/exp/constraints"
 )
 
 var _ sdk.Msg = &MsgWirePayForBlob{}
 
-// NewWirePayForBlob creates a new MsgWirePayForBlob by using the
-// namespace and message to generate share commitments for the provided square sizes
-// Note that the share commitments generated still need to be signed using the SignShareCommitments
-// method.
-func NewWirePayForBlob(namespace, message []byte, sizes ...uint64) (*MsgWirePayForBlob, error) {
+// NewWirePayForBlob creates a new MsgWirePayForBlob by using the namespace and
+// blob to generate a share commitment. Note that the generated share
+// commitment still needs to be signed using the SignShareCommitment method.
+func NewWirePayForBlob(namespace, blob []byte) (*MsgWirePayForBlob, error) {
 	// sanity check namespace ID size
 	if len(namespace) != NamespaceIDSize {
 		return nil, ErrInvalidNamespaceLen.Wrapf("got: %d want: %d",
@@ -32,28 +33,23 @@ func NewWirePayForBlob(namespace, message []byte, sizes ...uint64) (*MsgWirePayF
 
 	out := &MsgWirePayForBlob{
 		NamespaceId:     namespace,
-		BlobSize:        uint64(len(message)),
-		Blob:            message,
-		ShareCommitment: make([]ShareCommitAndSignature, len(sizes)),
+		BlobSize:        uint64(len(blob)),
+		Blob:            blob,
+		ShareCommitment: &ShareCommitAndSignature{},
 	}
 
-	// generate the share commitments
-	for i, size := range sizes {
-		if !shares.IsPowerOfTwo(size) {
-			return nil, fmt.Errorf("invalid square size, the size must be power of 2: %d", size)
-		}
-		commit, err := CreateCommitment(size, namespace, message)
-		if err != nil {
-			return nil, err
-		}
-		out.ShareCommitment[i] = ShareCommitAndSignature{SquareSize: size, ShareCommitment: commit}
+	// generate the share commitment
+	commit, err := CreateCommitment(namespace, blob)
+	if err != nil {
+		return nil, err
 	}
+	out.ShareCommitment = &ShareCommitAndSignature{ShareCommitment: commit}
 	return out, nil
 }
 
-// SignShareCommitments creates and signs MsgPayForBlobs for each square size configured in the MsgWirePayForBlob
-// to complete each shares commitment.
-func (msg *MsgWirePayForBlob) SignShareCommitments(signer *KeyringSigner, options ...TxBuilderOption) error {
+// SignShareCommitment creates and signs the share commitment associated
+// with a MsgWirePayForBlob.
+func (msg *MsgWirePayForBlob) SignShareCommitment(signer *KeyringSigner, options ...TxBuilderOption) error {
 	addr, err := signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return err
@@ -67,23 +63,21 @@ func (msg *MsgWirePayForBlob) SignShareCommitments(signer *KeyringSigner, option
 	}
 
 	msg.Signer = addr.String()
-	// create an entire MsgPayForBlob and signing over it, including the signature in each commitment
-	for i, commit := range msg.ShareCommitment {
-		builder := signer.NewTxBuilder(options...)
+	// create an entire MsgPayForBlob and sign over it (including the signature in the commitment)
+	builder := signer.NewTxBuilder(options...)
 
-		sig, err := msg.createPayForBlobSignature(signer, builder, commit.SquareSize)
-		if err != nil {
-			return err
-		}
-		msg.ShareCommitment[i].Signature = sig
+	sig, err := msg.createPayForBlobSignature(signer, builder)
+	if err != nil {
+		return err
 	}
+	msg.ShareCommitment.Signature = sig
 	return nil
 }
 
 func (msg *MsgWirePayForBlob) Route() string { return RouterKey }
 
-// ValidateBasic checks for valid namespace length, declared message size, share
-// commitments, signatures for those share commitments, and fulfills the sdk.Msg
+// ValidateBasic checks for valid namespace length, declared blob size, share
+// commitments, signatures for those share commitment, and fulfills the sdk.Msg
 // interface.
 func (msg *MsgWirePayForBlob) ValidateBasic() error {
 	if err := ValidateMessageNamespaceID(msg.GetNamespaceId()); err != nil {
@@ -94,7 +88,7 @@ func (msg *MsgWirePayForBlob) ValidateBasic() error {
 		return sdkerrors.ErrInvalidAddress.Wrapf("invalid 'from' address: %s", err)
 	}
 
-	// make sure that the message size matches the actual size of the message
+	// make sure that the blob size matches the actual size of the blob
 	if msg.BlobSize != uint64(len(msg.Blob)) {
 		return ErrDeclaredActualDataSizeMismatch.Wrapf(
 			"declared: %d vs actual: %d",
@@ -103,76 +97,24 @@ func (msg *MsgWirePayForBlob) ValidateBasic() error {
 		)
 	}
 
-	if err := msg.ValidateMessageShareCommitments(); err != nil {
-		return err
+	return msg.ValidateMessageShareCommitment()
+}
+
+// ValidateMessageShareCommitment returns an error if the share
+// commitment is invalid.
+func (msg *MsgWirePayForBlob) ValidateMessageShareCommitment() error {
+	// check that the commit is valid
+	commit := msg.ShareCommitment
+	calculatedCommit, err := CreateCommitment(msg.GetNamespaceId(), msg.Blob)
+	if err != nil {
+		return ErrCalculateCommit.Wrap(err.Error())
+	}
+
+	if !bytes.Equal(calculatedCommit, commit.ShareCommitment) {
+		return ErrInvalidShareCommit
 	}
 
 	return nil
-}
-
-// ValidateMessageShareCommitments returns an error if the message share
-// commitments are invalid.
-func (msg *MsgWirePayForBlob) ValidateMessageShareCommitments() error {
-	for idx, commit := range msg.ShareCommitment {
-		// check that each commit is valid
-		if !shares.IsPowerOfTwo(commit.SquareSize) {
-			return ErrCommittedSquareSizeNotPowOf2.Wrapf("committed to square size: %d", commit.SquareSize)
-		}
-
-		calculatedCommit, err := CreateCommitment(commit.SquareSize, msg.GetNamespaceId(), msg.Blob)
-		if err != nil {
-			return ErrCalculateCommit.Wrap(err.Error())
-		}
-
-		if !bytes.Equal(calculatedCommit, commit.ShareCommitment) {
-			return ErrInvalidShareCommit.Wrapf("for square size %d and commit number %v", commit.SquareSize, idx)
-		}
-	}
-
-	if len(msg.ShareCommitment) == 0 {
-		return ErrNoMessageShareCommitments
-	}
-
-	if err := msg.ValidateAllSquareSizesCommitedTo(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ValidateAllSquareSizesCommitedTo returns an error if the list of square sizes
-// committed to don't match all square sizes expected for this message size.
-func (msg *MsgWirePayForBlob) ValidateAllSquareSizesCommitedTo() error {
-	allSquareSizes := AllSquareSizes(int(msg.BlobSize))
-	committedSquareSizes := msg.committedSquareSizes()
-
-	if !isEqual(allSquareSizes, committedSquareSizes) {
-		return ErrInvalidShareCommitments.Wrapf("all square sizes: %v, committed square sizes: %v", allSquareSizes, committedSquareSizes)
-	}
-	return nil
-}
-
-// isEqual returns true if the given uint64 slices are equal
-func isEqual(a, b []uint64) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, v := range a {
-		if v != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-// commitedSquareSizes returns a list of square sizes that are present in a
-// message's share commitment.
-func (msg *MsgWirePayForBlob) committedSquareSizes() []uint64 {
-	squareSizes := make([]uint64, 0, len(msg.ShareCommitment))
-	for _, commit := range msg.ShareCommitment {
-		squareSizes = append(squareSizes, commit.SquareSize)
-	}
-	return squareSizes
 }
 
 // ValidateMessageNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.
@@ -211,10 +153,10 @@ func (msg *MsgWirePayForBlob) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{address}
 }
 
-// createPayForBlobSignature generates the signature for a PayForBlob for a
+// createPayForBlobSignature generates the signature for a MsgPayForBlob for a
 // single squareSize using the info from a MsgWirePayForBlob.
-func (msg *MsgWirePayForBlob) createPayForBlobSignature(signer *KeyringSigner, builder sdkclient.TxBuilder, squareSize uint64) ([]byte, error) {
-	pfb, err := msg.unsignedPayForBlob(squareSize)
+func (msg *MsgWirePayForBlob) createPayForBlobSignature(signer *KeyringSigner, builder sdkclient.TxBuilder) ([]byte, error) {
+	pfb, err := msg.unsignedPayForBlob()
 	if err != nil {
 		return nil, err
 	}
@@ -236,57 +178,41 @@ func (msg *MsgWirePayForBlob) createPayForBlobSignature(signer *KeyringSigner, b
 	return sig.Signature, nil
 }
 
-// unsignedPayForBlob use the data in the MsgWirePayForBlob
+// unsignedPayForBlob uses the data in the MsgWirePayForBlob
 // to create a new MsgPayForBlob.
-func (msg *MsgWirePayForBlob) unsignedPayForBlob(squareSize uint64) (*MsgPayForBlob, error) {
-	// create the commitment using the padded message
-	commit, err := CreateCommitment(squareSize, msg.NamespaceId, msg.Blob)
+func (msg *MsgWirePayForBlob) unsignedPayForBlob() (*MsgPayForBlob, error) {
+	// create the commitment using the blob
+	commit, err := CreateCommitment(msg.NamespaceId, msg.Blob)
 	if err != nil {
 		return nil, err
 	}
 
-	sPFB := MsgPayForBlob{
+	spfb := MsgPayForBlob{
 		NamespaceId:     msg.NamespaceId,
 		BlobSize:        msg.BlobSize,
 		ShareCommitment: commit,
 		Signer:          msg.Signer,
 	}
-	return &sPFB, nil
+	return &spfb, nil
 }
 
 // ProcessWirePayForBlob performs the malleation process that occurs before
 // creating a block. It parses the MsgWirePayForBlob to produce the components
 // needed to create a single MsgPayForBlob.
-func ProcessWirePayForBlob(msg *MsgWirePayForBlob, squareSize uint64) (*tmproto.Message, *MsgPayForBlob, []byte, error) {
-	// make sure that a ShareCommitAndSignature of the correct size is
-	// included in the message
-	var shareCommit ShareCommitAndSignature
-	for _, commit := range msg.ShareCommitment {
-		if commit.SquareSize == squareSize {
-			shareCommit = commit
-			break
-		}
-	}
-	if shareCommit.Signature == nil {
-		return nil,
-			nil,
-			nil,
-			fmt.Errorf("message does not commit to current square size: %d", squareSize)
-	}
-
-	// add the message to the list of core message to be returned to ll-core
+func ProcessWirePayForBlob(msg *MsgWirePayForBlob) (*tmproto.Message, *MsgPayForBlob, []byte, error) {
+	// add the blob to the list of core blobs to be returned to celestia-core
 	coreMsg := tmproto.Message{
 		NamespaceId: msg.GetNamespaceId(),
 		Data:        msg.GetBlob(),
 	}
 
 	// wrap the signed transaction data
-	pfb, err := msg.unsignedPayForBlob(squareSize)
+	pfb, err := msg.unsignedPayForBlob()
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	return &coreMsg, pfb, shareCommit.Signature, nil
+	return &coreMsg, pfb, msg.ShareCommitment.Signature, nil
 }
 
 // HasWirePayForBlob performs a quick but not definitive check to see if a tx
@@ -324,4 +250,18 @@ func ExtractMsgWirePayForBlob(tx sdk.Tx) (*MsgWirePayForBlob, error) {
 	}
 
 	return wireMsg, nil
+}
+
+// MsgMinSquareSize returns the minimum square size that msgSize can be included
+// in. The returned square size does not account for the associated transaction
+// shares or non-interactive defaults so it is a minimum.
+func MsgMinSquareSize[T constraints.Integer](msgSize T) T {
+	shareCount := shares.MsgSharesUsed(int(msgSize))
+	return T(MinSquareSize(shareCount))
+}
+
+// MinSquareSize returns the minimum square size that can contain shareCount
+// number of shares.
+func MinSquareSize[T constraints.Integer](shareCount T) T {
+	return T(shares.RoundUpPowerOfTwo(uint64(math.Ceil(math.Sqrt(float64(shareCount))))))
 }

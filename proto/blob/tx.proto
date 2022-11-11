@@ -21,8 +21,10 @@ message MsgWirePayForBlob {
   bytes namespace_id = 2; // assume this is 8 bytes!
   uint64 blob_size = 3;
   bytes blob = 4;
-  repeated ShareCommitAndSignature share_commitment = 6
-      [ (gogoproto.nullable) = false ];
+  // field number 6 is obsolete and was used for `repeated
+  // ShareCommitAndSignature` when a MsgWirePayForBlob included multiple
+  // blob share commitments (one per square size).
+  ShareCommitAndSignature share_commitment = 7;
 }
 
 // MsgWirePayForBlobResponse describes the response returned after the
@@ -31,7 +33,9 @@ message MsgWirePayForBlobResponse {}
 
 // ShareCommitAndSignature defines the
 message ShareCommitAndSignature {
-  uint64 square_size = 1;
+  // share_commitment is the root of a binary Merkle tree that has leaves which
+  // are subtree roots of the relevant message shares in the original data
+  // square.
   bytes share_commitment = 2;
   bytes signature = 3; // signature on one SignedTransactionPayForBlob
 }
@@ -45,6 +49,8 @@ message MsgPayForBlob {
   string signer = 1;
   bytes namespace_id = 2;
   uint64 blob_size = 3;
+  // share_commitment is the share_commitment from
+  // ShareCommitAndSignature that will be included in a block
   bytes share_commitment = 4;
 }
 

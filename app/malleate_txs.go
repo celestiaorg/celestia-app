@@ -30,7 +30,7 @@ func malleateTxs(
 	var trackedMsgs []trackedMessage
 	for i, pTx := range txs {
 		if pTx.msg != nil {
-			err = pTx.malleate(txConf, squareSize)
+			err = pTx.malleate(txConf)
 			if err != nil {
 				txs.remove(i)
 				continue
@@ -83,13 +83,13 @@ func malleateTxs(
 	return processedTxs, msgs, err
 }
 
-func (p *parsedTx) malleate(txConf client.TxConfig, squareSize uint64) error {
+func (p *parsedTx) malleate(txConf client.TxConfig) error {
 	if p.msg == nil || p.tx == nil {
 		return errors.New("can only malleate a tx with a MsgWirePayForBlob")
 	}
 
 	// parse wire message and create a single message
-	_, unsignedPFB, sig, err := types.ProcessWirePayForBlob(p.msg, squareSize)
+	_, unsignedPFB, sig, err := types.ProcessWirePayForBlob(p.msg)
 	if err != nil {
 		return err
 	}

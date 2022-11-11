@@ -48,7 +48,7 @@ func SubmitPayForBlob(
 	return txResp.TxResponse, nil
 }
 
-// BuildPayForBlob builds a PayForBlob transaction.
+// BuildPayForBlob builds a PayForBlob message.
 func BuildPayForBlob(
 	ctx context.Context,
 	signer *types.KeyringSigner,
@@ -58,7 +58,7 @@ func BuildPayForBlob(
 	opts ...types.TxBuilderOption,
 ) (*types.MsgWirePayForBlob, error) {
 	// create the raw WirePayForBlob transaction
-	wpfb, err := types.NewWirePayForBlob(nID, message, types.AllSquareSizes(len(message))...)
+	wpfb, err := types.NewWirePayForBlob(nID, message)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func BuildPayForBlob(
 
 	// generate the signatures for each `MsgPayForBlob` using the `KeyringSigner`,
 	// then set the gas limit for the tx
-	err = wpfb.SignShareCommitments(signer, opts...)
+	err = wpfb.SignShareCommitment(signer, opts...)
 	if err != nil {
 		return nil, err
 	}
