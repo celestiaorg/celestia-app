@@ -34,6 +34,9 @@ func calculateCommitPaths(squareSize, start, msgShareLen int) []path {
 			end = normalizedEndIndex
 		}
 
+		// subTreeRootMaxHeight is the maximum height of a subtree root that was
+		// used to generate the commitment. The height is based on the minimum
+		// square size the message can fit into. See ADR-008 for more details.
 		subTreeRootMaxHeight := int(math.Log2(float64(types.MinSquareSize(msgShareLen))))
 		minDepth := maxDepth - subTreeRootMaxHeight
 		coords := calculateSubTreeRootCoordinates(maxDepth, minDepth, start, end)
