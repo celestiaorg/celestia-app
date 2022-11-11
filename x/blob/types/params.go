@@ -20,8 +20,8 @@ var (
 )
 
 var (
-	KeyGasPerMsgByte            = []byte("GasPerMsgByte")
-	DefaultGasPerMsgByte uint32 = 8
+	KeyGasPerBlobByte            = []byte("GasPerBlobByte")
+	DefaultGasPerBlobByte uint32 = 8
 )
 
 // ParamKeyTable returns the param key table for the blob module
@@ -33,12 +33,12 @@ func ParamKeyTable() paramtypes.KeyTable {
 func NewParams(
 	minSquareSize uint32,
 	maxSquareSize uint32,
-	gasPerMsgByte uint32,
+	GasPerBlobByte uint32,
 ) Params {
 	return Params{
-		MinSquareSize: minSquareSize,
-		MaxSquareSize: maxSquareSize,
-		GasPerMsgByte: gasPerMsgByte,
+		MinSquareSize:  minSquareSize,
+		MaxSquareSize:  maxSquareSize,
+		GasPerBlobByte: GasPerBlobByte,
 	}
 }
 
@@ -47,7 +47,7 @@ func DefaultParams() Params {
 	return NewParams(
 		DefaultMinSquareSize,
 		DefaultMaxSquareSize,
-		DefaultGasPerMsgByte,
+		DefaultGasPerBlobByte,
 	)
 }
 
@@ -56,7 +56,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
 		paramtypes.NewParamSetPair(KeyMinSquareSize, &p.MinSquareSize, validateMinSquareSize),
 		paramtypes.NewParamSetPair(KeyMaxSquareSize, &p.MaxSquareSize, validateMaxSquareSize),
-		paramtypes.NewParamSetPair(KeyGasPerMsgByte, &p.GasPerMsgByte, validateGasPerMsgByte),
+		paramtypes.NewParamSetPair(KeyGasPerBlobByte, &p.GasPerBlobByte, validateGasPerBlobByte),
 	}
 }
 
@@ -118,15 +118,15 @@ func validateMinMaxSquareSizeOrder(minSquareSize, maxSquareSize uint32) error {
 	return nil
 }
 
-// validateGasPerMsgByte validates the GasPerMsgByte param
-func validateGasPerMsgByte(v interface{}) error {
-	gasPerMsgByte, ok := v.(uint32)
+// validateGasPerBlobByte validates the GasPerBlobByte param
+func validateGasPerBlobByte(v interface{}) error {
+	GasPerBlobByte, ok := v.(uint32)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
 	}
 
-	if gasPerMsgByte == 0 {
-		return fmt.Errorf("gas per message byte cannot be 0")
+	if GasPerBlobByte == 0 {
+		return fmt.Errorf("gas per blob byte cannot be 0")
 	}
 
 	return nil
