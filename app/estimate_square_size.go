@@ -57,7 +57,7 @@ func prune(txConf client.TxConfig, txs []*parsedTx, currentShareCount, squareSiz
 		// we ignore the error here, as if there is an error malleating the tx,
 		// then we need to remove it anyway and it will not end up contributing
 		// bytes to the square anyway.
-		_ = txs[i].malleate(txConf, uint64(squareSize))
+		_ = txs[i].malleate(txConf)
 		adjustContigCursor(len(txs[i].malleatedTx) + appconsts.MalleatedTxBytes)
 	}
 
@@ -170,7 +170,7 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 		// compensates for the actual size of the message, and in some cases can
 		// result in some wasted square space or picking a square size that is
 		// too large. TODO: improve by making a more accurate estimation formula
-		txBytes += overEstimateMalleatedTxSize(len(pTx.rawTx), len(pTx.msg.Blob), len(pTx.msg.ShareCommitment))
+		txBytes += overEstimateMalleatedTxSize(len(pTx.rawTx), len(pTx.msg.Blob))
 
 		msgSummaries = append(msgSummaries, msgSummary{shares.MsgSharesUsed(int(pTx.msg.BlobSize)), pTx.msg.NamespaceId})
 	}
@@ -215,12 +215,10 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 }
 
 // overEstimateMalleatedTxSize estimates the size of a malleated tx. The formula it uses will always over estimate.
-func overEstimateMalleatedTxSize(txLen, msgLen, sharesCommitments int) int {
+func overEstimateMalleatedTxSize(txLen, msgLen int) int {
 	// the malleated tx uses the original txLen to account for meta data from
-	// the original tx, but removes the message and extra share commitments that
-	// are in the wire message by subtracting msgLen and all extra share
-	// commitments.
-	malleatedTxLen := txLen - msgLen - ((sharesCommitments - 1) * appconsts.ShareCommitmentBytes)
+	// the original tx, but removes the message
+	malleatedTxLen := txLen - msgLen
 	// we need to ensure that the returned number is at least larger than or
 	// equal to the actual number, which is difficult to calculate without
 	// actually malleating the tx

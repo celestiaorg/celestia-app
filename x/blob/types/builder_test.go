@@ -27,7 +27,7 @@ func TestBuildWirePayForBlob(t *testing.T) {
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	message := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 
-	msg, err := NewWirePayForBlob(namespace, message, 4, 16, 32)
+	msg, err := NewWirePayForBlob(namespace, message)
 	require.NoError(t, err)
 
 	signedTx, err := k.BuildSignedTx(k.NewTxBuilder(), msg)
@@ -85,7 +85,7 @@ func TestBroadcastPayForBlob(t *testing.T) {
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	message := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 
-	msg, err := NewWirePayForBlob(namespace, message, 4, 16, 32)
+	msg, err := NewWirePayForBlob(namespace, message)
 	require.NoError(t, err)
 
 	signedTx, err := k.BuildSignedTx(builder, msg)

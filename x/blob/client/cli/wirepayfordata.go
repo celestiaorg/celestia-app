@@ -45,7 +45,7 @@ func CmdWirePayForBlob() *cobra.Command {
 				return fmt.Errorf("failure to decode hex message: %w", err)
 			}
 
-			pfbMsg, err := types.NewWirePayForBlob(namespace, message, types.AllSquareSizes(len(message))...)
+			pfbMsg, err := types.NewWirePayForBlob(namespace, message)
 			if err != nil {
 				return err
 			}
@@ -79,7 +79,7 @@ func CmdWirePayForBlob() *cobra.Command {
 			}
 
 			// sign the  MsgPayForBlob's ShareCommitments
-			err = pfbMsg.SignShareCommitments(
+			err = pfbMsg.SignShareCommitment(
 				signer,
 				types.SetGasLimit(gasSetting.Gas),
 				types.SetFeeAmount(parsedFees),

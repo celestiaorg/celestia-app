@@ -206,7 +206,7 @@ func genRandMsgPayForBlobForNamespace(t *testing.T, signer *types.KeyringSigner,
 	_, err := rand.Read(message)
 	require.NoError(t, err)
 
-	commit, err := types.CreateCommitment(squareSize, ns, message)
+	commit, err := types.CreateCommitment(ns, message)
 	require.NoError(t, err)
 
 	pfb := types.MsgPayForBlob{

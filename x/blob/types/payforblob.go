@@ -47,7 +47,7 @@ func (msg *MsgPayForBlob) ValidateBasic() error {
 	}
 
 	if len(msg.ShareCommitment) == 0 {
-		return ErrNoMessageShareCommitments
+		return ErrEmptyShareCommitment
 	}
 
 	return nil
@@ -108,13 +108,13 @@ func BuildPayForBlobTxFromWireTx(
 	return builder.GetTx(), nil
 }
 
-// CreateCommitment generates the commitment bytes for a given squareSize,
-// namespace, and message using a namespace merkle tree and the rules described
-// at [Message layout rationale] and [Non-interactive default rules].
+// CreateCommitment generates the commitment bytes for a given namespace and
+// message using a namespace merkle tree and the rules described at [Message
+// layout rationale] and [Non-interactive default rules].
 //
 // [Message layout rationale]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L12
 // [Non-interactive default rules]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L36
-func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, error) {
+func CreateCommitment(namespace, message []byte) ([]byte, error) {
 	msg := coretypes.Messages{
 		MessagesList: []coretypes.Message{
 			{
@@ -131,19 +131,11 @@ func CreateCommitment(squareSize uint64, namespace, message []byte) ([]byte, err
 		return nil, err
 	}
 
-	// Return an error if the number of shares is larger than the max number of
-	// shares for a message. At least one share will be occupied by the
-	// transaction that pays for this message. According to the non-interactive
-	// default rules, a message that spans multiple rows must start in a new
-	// row. Therefore the message must start at the second row and may occupy
-	// all (squareSize - 1) rows.
-	maxNumSharesForMessage := squareSize * (squareSize - 1)
-	if uint64(len(shares)) > maxNumSharesForMessage {
-		return nil, fmt.Errorf("message size exceeds max shares for square size %d: max %d taken %d", squareSize, maxNumSharesForMessage, len(shares))
-	}
-
-	// organize shares for merkle mountain range
-	treeSizes := merkleMountainRangeSizes(uint64(len(shares)), squareSize)
+	// the commitment is the root of a merkle mountain range with max tree size
+	// equal to the minimum square size the message can be included in. See
+	// https://github.com/celestiaorg/celestia-app/blob/fbfbf111bcaa056e53b0bc54d327587dee11a945/docs/architecture/adr-008-blocksize-independent-commitment.md
+	minSquareSize := MsgMinSquareSize(len(message))
+	treeSizes := merkleMountainRangeSizes(uint64(len(shares)), uint64(minSquareSize))
 	leafSets := make([][][]byte, len(treeSizes))
 	cursor := uint64(0)
 	for i, treeSize := range treeSizes {

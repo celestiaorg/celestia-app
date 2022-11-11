@@ -98,7 +98,7 @@ func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.Key
 // generateRawWirePFBTx creates a tx with a single MsgWirePayForBlob message using the provided namespace and message
 func generateRawWirePFBTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
 	// create a msg
-	msg := generateSignedWirePayForBlob(t, ns, message, signer, opts, types.AllSquareSizes(len(message))...)
+	msg := generateSignedWirePayForBlob(t, ns, message, signer, opts)
 
 	builder := signer.NewTxBuilder(opts...)
 	tx, err := signer.BuildSignedTx(builder, msg)
@@ -111,13 +111,13 @@ func generateRawWirePFBTx(t *testing.T, txConfig client.TxConfig, ns, message []
 	return rawTx
 }
 
-func generateSignedWirePayForBlob(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption, ks ...uint64) *types.MsgWirePayForBlob {
-	msg, err := types.NewWirePayForBlob(ns, message, ks...)
+func generateSignedWirePayForBlob(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
+	msg, err := types.NewWirePayForBlob(ns, message)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = msg.SignShareCommitments(signer, options...)
+	err = msg.SignShareCommitment(signer, options...)
 	if err != nil {
 		t.Error(err)
 	}

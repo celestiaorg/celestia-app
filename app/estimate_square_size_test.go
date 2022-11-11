@@ -26,7 +26,7 @@ func Test_estimateSquareSize(t *testing.T) {
 	tests := []test{
 		{"empty block minimum square size", 0, 0, 0, appconsts.MinSquareSize},
 		{"full block with only txs", 10000, 0, 0, appconsts.MaxSquareSize},
-		{"random small block square size 2", 0, 1, appconsts.SparseShareContentSize, 2},
+		{"3 tx shares + 2 msg shares = 5 total shares so square size 4", 0, 1, appconsts.SparseShareContentSize, 4},
 		{"random small block square size 4", 0, 1, appconsts.SparseShareContentSize * 10, 4},
 		{"random small block w/ 10 normal txs square size 4", 10, 1, appconsts.SparseShareContentSize, 4},
 		{"random small block square size 16", 0, 4, appconsts.SparseShareContentSize * 8, 16},
@@ -134,7 +134,7 @@ func Test_overEstimateMalleatedTxSize(t *testing.T) {
 			tt.opts...,
 		)
 		parsedTxs := parseTxs(encConf.TxConfig, [][]byte{wpfbTx})
-		res := overEstimateMalleatedTxSize(len(parsedTxs[0].rawTx), tt.size, len(types.AllSquareSizes(tt.size)))
+		res := overEstimateMalleatedTxSize(len(parsedTxs[0].rawTx), tt.size)
 		malleatedTx, _, err := malleateTxs(encConf.TxConfig, 32, parsedTxs, core.EvidenceList{})
 		require.NoError(t, err)
 		assert.Less(t, len(malleatedTx[0]), res)

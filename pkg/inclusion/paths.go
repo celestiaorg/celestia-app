@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 )
 
 type path struct {
@@ -32,8 +33,14 @@ func calculateCommitPaths(squareSize, start, msgShareLen int) []path {
 		if i == endRow {
 			end = normalizedEndIndex
 		}
-		coord := calculateSubTreeRootCoordinates(maxDepth, start, end)
-		for _, c := range coord {
+
+		// subTreeRootMaxHeight is the maximum height of a subtree root that was
+		// used to generate the commitment. The height is based on the minimum
+		// square size the message can fit into. See ADR-008 for more details.
+		subTreeRootMaxHeight := int(math.Log2(float64(types.MinSquareSize(msgShareLen))))
+		minDepth := maxDepth - subTreeRootMaxHeight
+		coords := calculateSubTreeRootCoordinates(maxDepth, minDepth, start, end)
+		for _, c := range coords {
 			paths = append(paths, path{
 				instructions: genSubTreeRootPath(c.depth, uint(c.position)),
 				row:          i,
@@ -94,8 +101,8 @@ func (c coord) climb() coord {
 // canClimbRight uses the current position to calculate the direction of the next
 // climb. Returns true if the next climb is right (if the position (index) is
 // even). please see depth and position example map in docs for coord.
-func (c coord) canClimbRight() bool {
-	return c.position%2 == 0 && c.depth > 0
+func (c coord) canClimbRight(minDepth int) bool {
+	return c.position%2 == 0 && c.depth > minDepth
 }
 
 // calculateSubTreeRootCoordinates generates the sub tree root coordinates of a
@@ -103,8 +110,8 @@ func (c coord) canClimbRight() bool {
 // end does not exceed the range of a tree of the provided depth, and that end
 // >= start. This function works by starting at the first index of the msg and
 // working our way right.
-func calculateSubTreeRootCoordinates(maxDepth, start, end int) []coord {
-	cds := []coord{}
+func calculateSubTreeRootCoordinates(maxDepth, minDepth, start, end int) []coord {
+	coords := []coord{}
 	// leafCursor keeps track of the current leaf that we are starting with when
 	// finding the subtree root for some set. When leafCursor == end, we are
 	// finished calculating sub tree roots
@@ -143,19 +150,19 @@ func calculateSubTreeRootCoordinates(maxDepth, start, end int) []coord {
 		switch {
 		// check if we're finished, if so add the last coord and return
 		case leafCursor+1 == end:
-			cds = append(cds, nodeCursor)
-			return cds
+			coords = append(coords, nodeCursor)
+			return coords
 		// check if we've climbed too high in the tree. if so, add the last
 		// highest node and proceed.
 		case leafCursor+1 > end:
-			cds = append(cds, lastNodeCursor)
+			coords = append(coords, lastNodeCursor)
 			leafCursor = lastLeafCursor + 1
 			reset()
 		// check if can climb right again (only even positions will climb
 		// right). If not, we want to record this coord as it is a subtree
 		// root, then adjust the cursor and proceed.
-		case !nodeCursor.canClimbRight():
-			cds = append(cds, nodeCursor)
+		case !nodeCursor.canClimbRight(minDepth):
+			coords = append(coords, nodeCursor)
 			leafCursor++
 			reset()
 		// proceed to climb higher by incrementing the relevant state and

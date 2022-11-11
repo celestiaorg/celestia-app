@@ -8,7 +8,7 @@
 
 Currently, commitments in Celestia are dependent on the size of the square. The following diagram visualizes how this can happen. The visualizations in this ADR are without parity shares/erasure encoding.
 The yellow block in the diagram is a message of length 11 shares. A square of 4x4 results in the following subtree roots: `A B C D`.
-In [`CreateCommit`](https://github.com/celestiaorg/celestia-app/blob/0c81704939cd743937aac2859f3cb5ae6368f174/x/payment/types/payfordata.go#L112-166), we calculate the commitment of the subtree roots with [`HashFromByteSlices`](https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/crypto/merkle/tree.go#L7-L21). This resulting Merkleroot is `Com`.
+In [`CreateCommitment`](https://github.com/celestiaorg/celestia-app/blob/8b9c4c9d13fe0ccb6ea936cc26dee3f52b6f6129/x/blob/types/payforblob.go#L111-L117), we calculate the commitment of the subtree roots with [`HashFromByteSlices`](https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/crypto/merkle/tree.go#L7-L21). This resulting Merkleroot is `Com`.
 A square of 8x8 results in the following subtree roots: `H1 C D`
 [`HashFromByteSlices`](https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/crypto/merkle/tree.go#L7-L21) results now in the Merkleroot `Com'`, which is not equal to `Com`.
 
@@ -43,8 +43,8 @@ TODO
 
 ## Detailed Design
 
-To implement this decision, you need to change [`CreateCommit`](https://github.com/celestiaorg/celestia-app/blob/0c81704939cd743937aac2859f3cb5ae6368f174/x/payment/types/payfordata.go#L112-166).
-In Detail, [`powerOf2MountainRange`](https://github.com/celestiaorg/celestia-app/blob/0c81704939cd743937aac2859f3cb5ae6368f174/x/payment/types/payfordata.go#L142) should take `msgMinSquareSize` as an argument instead of `squareSize`.
+To implement this decision, you need to change [`CreateCommitment`](https://github.com/celestiaorg/celestia-app/blob/8b9c4c9d13fe0ccb6ea936cc26dee3f52b6f6129/x/blob/types/payforblob.go#L111-L117).
+In detail, [`powerOf2MountainRange`](https://github.com/celestiaorg/celestia-app/blob/0c81704939cd743937aac2859f3cb5ae6368f174/x/payment/types/payfordata.go#L142) should take `msgMinSquareSize` as an argument instead of `squareSize`.
 
 `msgMinSquareSize` can be calculated like this:
 
@@ -65,7 +65,7 @@ func MinSquareSize(shareCount uint64) uint64 {
 
 ## Status
 
-Proposed
+Implemented
 
 ## Consequences
 
@@ -105,7 +105,7 @@ We should note that Rollups can decide to do this scheme without changing core-a
 ## Positive celestia-app changes
 
 - Simplifies the creation of PFBs because users don't need to create commitments for multiple square sizes.
-  - Reduces the size of [MsgWirePayForBlob](https://github.com/celestiaorg/celestia-app/blob/6f3b3ae437b2a70d72ff6be2741abb8b5378caa0/x/payment/types/tx.pb.go#L32-L40)s because MessageShareCommitment can be modified from an array of maximum length 8 (for all valid square sizes) to a single MessageShareCommitment.
+  - Reduces the size of `MsgWirePayForBlob` because ShareCommitment can be modified from an array of maximum length 8 (for all valid square sizes) to a single ShareCommitment.
   - Simplifies the malleation process because this ADR enables a future refactor to remove WireMsgPayForBlob entirely ([issue](https://github.com/celestiaorg/celestia-app/issues/951)). Previously multiple signatures were included in a WireMsgPayForBlob and only one was used to construct the MsgPayForBlob that ended up on-chain but this ADR results in only one signature needed on the wrapping SDK message and the SDK message that ends up on-chain.
   - This renders the following issues obsolete:
     - <https://github.com/celestiaorg/celestia-app/issues/236>
