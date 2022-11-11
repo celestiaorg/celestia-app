@@ -22,8 +22,9 @@ func TestGenesisState_Validate(t *testing.T) {
 			desc: "valid genesis state",
 			genState: &types.GenesisState{
 				Params: types.Params{
-					MinSquareSize: 512,
-					MaxSquareSize: 1024,
+					MinSquareSize:  512,
+					MaxSquareSize:  1024,
+					GasPerBlobByte: 20,
 				},
 			},
 			valid: true,

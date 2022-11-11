@@ -18,10 +18,10 @@ import (
 const (
 	payForBlobGasDescriptor = "pay for data"
 
-	// GasPerMsgByte is the amount of gas to charge per byte of message data.
-	// TODO: extract GasPerMsgByte as a parameter to this module.
-	GasPerMsgByte  = 8
-	GasPerMsgShare = appconsts.ShareSize * GasPerMsgByte
+	// GasPerBlobByte is the amount of gas to charge per byte of message data.
+	// TODO: extract GasPerBlobByte as a parameter to this module.
+	GasPerBlobByte = 8
+	GasPerMsgShare = appconsts.ShareSize * GasPerBlobByte
 )
 
 // Keeper handles all the state changes for the blob module.
