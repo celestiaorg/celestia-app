@@ -150,10 +150,11 @@ jobs:
       - name: filter out DONTCOVER
         # yamllint disable
         run: |
-          excludelist="$(find . -type f -name '*.go' | xargs grep -l 'DONTCOVER')\n"
-          excludelist+="$(find . -type f -name '*.pb.*')\n"
-          excludelist+="$(find . -type f -path './tests/mocks/*.go')\n"
-          while read -r filename; do
+          excludelist=( $(find . -type f -name '*.go' | xargs grep -l 'DONTCOVER') )
+          excludelist+=( $(find . -type f -name '*.pb.*') )
+          excludelist+=( $(find . -type f -path './tests/mocks/*.go') )
+          
+          for filename in $excludelist; do
            # trim filename
            trimmedname=$(echo $filename | xargs)
            echo "Excluding ${trimmedname} from coverage report..."
