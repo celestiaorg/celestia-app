@@ -153,7 +153,6 @@ jobs:
           excludelist=( $(find . -type f -name '*.go' | xargs grep -l 'DONTCOVER') )
           excludelist+=( $(find . -type f -name '*.pb.*') )
           excludelist+=( $(find . -type f -path './tests/mocks/*.go') )
-          
           for filename in $excludelist; do
            # trim filename
            trimmedname=$(echo $filename | xargs)
