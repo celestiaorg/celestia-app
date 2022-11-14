@@ -19,7 +19,7 @@ We need this functionality in order for block producers to:
 
 We also need this functionality for validators to verify that:
 
-- For every `MsgPayForData` (previously `MsgPayForMessage`) included in the block, there is also a corresponding message and vice versa.
+- For every `MsgPayForBlob` (previously `MsgPayForData`) included in the block, there is also a corresponding blob and vice versa.
 - The data hash represents the properly-erasure-coded block data for the selected block size.
 - The included messages are arranged in the expected locations in the square according to the non-interactive default rules (not done here)
 
@@ -219,8 +219,8 @@ type shareSplitter struct {
 
 ```go
 // SplitShares uses the provided block data to create a flattened data square.
-// Any MsgWirePayForDatas are malleated, and their corresponding
-// MsgPayForData and Message are written atomically. If there are
+// Any MsgWirePayForBlobs are malleated, and their corresponding
+// MsgPayForBlob and blob are written atomically. If there are
 // transactions that will not fit in the given square size, then they are
 // discarded. This is reflected in the returned block data. Note: pointers to
 // block data are only used to avoid dereferencing, not because we need the block
@@ -238,7 +238,7 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
        ... // decode the transaction
 
        // write the tx to the square if it normal
-       if !hasWirePayForData(authTx) {
+       if !hasWirePayForBlob(authTx) {
            success, err := sqwr.writeTx(rawTx)
            if err != nil {
                continue
@@ -299,14 +299,14 @@ func (sqwr *shareSplitter) writeTx(tx []byte) (ok bool, err error) {
    return true, nil
 }
 
-// writeMalleatedTx malleates a MsgWirePayForData into a MsgPayForData and
-// its corresponding message provided that it has a MsgPayForData for the
+// writeMalleatedTx malleates a MsgWirePayForBlob into a MsgPayForBlob and
+// its corresponding message provided that it has a MsgPayForBlob for the
 // preselected square size. Returns true if the write was successful, false if
 // there was not enough room in the square.
 func (sqwr *shareSplitter) writeMalleatedTx(
    parentHash []byte,
    tx signing.Tx,
-   wpfd *types.MsgWirePayForData,
+   wpfb *types.MsgWirePayForBlob,
 ) (ok bool, malleatedTx coretypes.Tx, msg *core.Message, err error) {
    ... // process the malleated tx and extract the message.
 
@@ -340,19 +340,19 @@ During `ProcessProposal`, we
 ```go
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
    // Check for message inclusion:
-   //  - each MsgPayForData included in a block should have a corresponding message also in the block data
-   //  - the commitment in each PFD should match that of its corresponding message
+   //  - each MsgPayForBlob included in a block should have a corresponding blob also in the block data
+   //  - the commitment in each PFB should match that of its corresponding blob
    //  - there should be no unpaid for messages
 
-   // extract the commitments from any MsgPayForDatas in the block
+   // extract the commitments from any MsgPayForBlobs in the block
    commitments := make(map[string]struct{})
    for _, rawTx := range req.BlockData.Txs {
        ...
-       commitments[string(pfd.MessageShareCommitment)] = struct{}{}
+       commitments[string(pfb.ShareCommitment)] = struct{}{}
        ...
    }
 
-   // quickly compare the number of PFDs and messages, if they aren't
+   // quickly compare the number of PFBs and messages, if they aren't
    // identical, then  we already know this block is invalid
    if len(commitments) != len(req.BlockData.Messages.MessagesList) {
        ... // logging and rejecting

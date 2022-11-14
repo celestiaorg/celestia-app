@@ -9,11 +9,11 @@ The exact approach taken by the initial implementation, however, is certainly up
 
 please see the [original specs](https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md), from which this ADR paraphrases heavily.
 
-Currently, when checking for message inclusion, validators recreate the share commitment from the messages in the block and compare those with what are signed over in the `MsgPayForData` transactions also in that block. If any commitment is not found in one of the PFD transactions, or if there is a commitment that doesn't have a corresponding message, then they reject that block.
+Currently, when checking for message inclusion, validators recreate the share commitment from the messages in the block and compare those with what are signed over in the `MsgPayForBlob` transactions also in that block. If any commitment is not found in one of the PFB transactions, or if there is a commitment that doesn't have a corresponding message, then they reject that block.
 
 While this functions as a message inclusion check, the light client has to assume that 2/3's of the voting power is honest in order to be assured that both the messages they are interested in and the rest of the messages paid for in that block are actually included. In order to have this property, we need a block validity rule where:
 
-> **All share commitments included in `MsgPayForData` must consist only of subtree roots of the data square.**
+> **All share commitments included in `MsgPayForBlob` must consist only of subtree roots of the data square.**
 
 The main issue with that requirement is that users must know the relevant subtree roots before they sign, which is problematic considering that if the block is not organized perfectly, the subtree roots will include data unknown to the user at the time of signing.
 
@@ -57,16 +57,16 @@ While there certainly can be some decisions here, whether or not we begin follow
 
 While all commitments signed over must only consist of subtree roots, its worth noting that non-interactive defaults are just that, defaults! It's entirely possible that block producers use some mechanism to notify the signer of the commitments that they must sign over, or even that the block producers are signing the transactions paying for the inclusion of the message on behalf of the users. This would render the non-interactive defaults, and the padding accompanied by them, to not be necessary. Other solutions are not mutually exclusive to non-interactive defaults, and do not even have to be built by the core team, so covering those solutions in a more in depth way is outside the scope of this ADR.
 
-However, the default implementation of non-interative defaults is within the scope of this ADR. Whatever design we use ultimately needs to support not using the non-interactive defaults. Meaning we should be able to encode block data into a square even if the messages are not arranged according to the non-interactive defaults. Again, this does not change the requirement that all share commitments signed over in PFDs consist only of subtree roots.
+However, the default implementation of non-interative defaults is within the scope of this ADR. Whatever design we use ultimately needs to support not using the non-interactive defaults. Meaning we should be able to encode block data into a square even if the messages are not arranged according to the non-interactive defaults. Again, this does not change the requirement that all share commitments signed over in PFBs consist only of subtree roots.
 
 ## Detailed Design
 
 To recap the default constraints of arranging a square:
 
 - All messages must be ordered lexicographically by namespace.
-- The commitments signed over in each `MsgPayForData` must consist only of subtree roots of the data square.
-- If a `MsgPayForData` is added to the square, then its corresponding message must also be included.
-- There must not be a message without a `MsgPayForData` (does this need to be a rule? cc @adlerjohn).
+- The commitments signed over in each `MsgPayForBlob` must consist only of subtree roots of the data square.
+- If a `MsgPayForBlob` is added to the square, then its corresponding message must also be included.
+- There must not be a message without a `MsgPayForBlob` (does this need to be a rule? cc @adlerjohn).
 - Transactions with higher fees should be prioritized by default.
 - The square should be filled as optimally as possible.
 
@@ -88,7 +88,7 @@ To meet the above constraints, there are multiple refactors required.
 
 ### Add metadata to wrapped transactions [#819](https://github.com/celestiaorg/celestia-core/pull/819)
 
-In order to check for message inclusion, create message inclusion fraud proofs, split the block data into squares, and not force non-interactive defaults for every square, we have to connect a `MsgPayForData` transaction to its corresponding message by adding the index of the share that the message starts on as metadata. Since users cannot know this ahead of time, block producers have to add this metadata before the transaction gets included in the block.
+In order to check for message inclusion, create message inclusion fraud proofs, split the block data into squares, and not force non-interactive defaults for every square, we have to connect a `MsgPayForBlob` transaction to its corresponding message by adding the index of the share that the message starts on as metadata. Since users cannot know this ahead of time, block producers have to add this metadata before the transaction gets included in the block.
 
 We are already wrapping/unwrapping malleated transactions, so including the `share_index` as metadata using the current code is essentially as simple as adding the `share_index` to the struct. Transactions are unwrapped selectively by using a [`MalleatedTxDecoder(...)`](https://github.com/celestiaorg/celestia-app/blob/5ac236fb1dab6628e98a505269f295c18e150b27/app/encoding/malleated_tx_decoder.go#L8-L15) or by using the [`UnwrapMalleatedTx(...)`](https://github.com/celestiaorg/celestia-core/blob/212901fcfc0f5a095683b1836ea9e890cc952dc7/types/tx.go#L214-L237) function.
 
@@ -133,7 +133,7 @@ func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) {
 }
 ```
 
-Now we simply combine this new functionality with the `share_index`s described above, and we can properly split and pad messages when needed. Note, the below implementation allows indexes to not be used. This is important, as it allows the same implementation to be used in the cases where we don't want to split messages using wrapped transactions, such as supporting older networks or when users create commitments to sign over for `MsgWirePayForData`
+Now we simply combine this new functionality with the `share_index`s described above, and we can properly split and pad messages when needed. Note, the below implementation allows indexes to not be used. This is important, as it allows the same implementation to be used in the cases where we don't want to split messages using wrapped transactions, such as supporting older networks or when users create commitments to sign over for `MsgWirePayForBlob`
 
 ```go
 func SplitMessages(cursor int, indexes []uint32, msgs []coretypes.Message, useShareIndexes bool) ([]Share, error) {
@@ -213,7 +213,7 @@ We can now use this function in many places, such as when we estimate the square
 
 From a very high level perspective `PrepareProposal` stays mostly the same. We need to estimate the square size accurately enough to pick a square size so that we can malleate the transactions that are given to us by tendermint and arrange those messages in a square. However, recall the constraints and issues described at the top of this section. Technically, the addition or removal of a single byte can change the entire arrangement of the square. Knowing, or at least being able to estimate, how many shares/bytes are used is critical to finding an optimal solution to arranging the square. Yet the constraints themselves along with our frequent use of variable length encoding techniques make estimating much more complicated.
 
-While messages must be ordered lexicographically, we also have to order transactions by their fees and ensure that each message is added atomically with its corresponding `MsgPayForData` transaction. Also, malleated transactions exist alongside normal transactions, the former of which we have to add **variable sized** metadata to only _after_ we know the starting location of each message. All while following the non-interactive defaults.
+While messages must be ordered lexicographically, we also have to order transactions by their fees and ensure that each message is added atomically with its corresponding `MsgPayForBlob` transaction. Also, malleated transactions exist alongside normal transactions, the former of which we have to add **variable sized** metadata to only _after_ we know the starting location of each message. All while following the non-interactive defaults.
 
 Below is the lightly summarized code for `PrepareProposal` that we can use as a high level map of how we're going to arrange the block data into a square.
 
@@ -221,12 +221,12 @@ Below is the lightly summarized code for `PrepareProposal` that we can use as a 
 // PrepareProposal fulfills the celestia-core version of the ABCI interface by
 // preparing the proposal block data. The square size is determined by first
 // estimating it via the size of the passed block data. Then the included
-// MsgWirePayForData messages are malleated into MsgPayForData messages by
+// MsgWirePayForBlob messages are malleated into MsgPayForBlob messages by
 // separating the message and transaction that pays for that message. Lastly,
 // this method generates the data root for the proposal block and passes it back
 // to tendermint via the blockdata.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-   // parse the txs, extracting any MsgWirePayForData and performing basic
+   // parse the txs, extracting any MsgWirePayForBlob and performing basic
    // validation for each transaction. Invalid txs are ignored. Original order
    // of the txs is maintained.
    parsedTxs := parseTxs(app.txConfig, req.BlockData.Txs)
@@ -237,13 +237,13 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
    // the totalSharesUsed can be larger that the max number of shares if we
    // reach the max square size. In this case, we must prune the deprioritized
-   // txs (and their messages if they're pfd txs).
+   // txs (and their messages if they're pfb txs).
    if totalSharesUsed > int(squareSize*squareSize) {
        parsedTxs = prune(app.txConfig, parsedTxs, totalSharesUsed, int(squareSize))
    }
 
-   // in this step we are processing any MsgWirePayForData transactions into
-   // MsgPayForData and their respective messages. The malleatedTxs contain the
+   // in this step we are processing any MsgWirePayForBlob transactions into
+   // MsgPayForBlob and their respective messages. The malleatedTxs contain the
    // the new sdk.Msg with the original tx's metadata (sequence number, gas
    // price etc).
    processedTxs, messages, err := malleateTxs(app.txConfig, squareSize, parsedTxs, req.BlockData.Evidence)
@@ -288,11 +288,11 @@ type parsedTx struct {
    // the original raw bytes of the tx
    rawTx []byte
    // tx is the parsed sdk tx. this is nil for all txs that do not contain a
-   // MsgWirePayForData, as we do not need to parse other types of of transactions
+   // MsgWirePayForBlob, as we do not need to parse other types of of transactions
    tx signing.Tx
    // msg is the wire msg if it exists in the tx. This field is nil for all txs
    // that do not contain one.
-   msg *types.MsgWirePayForData
+   msg *types.MsgWirePayForBlob
    // malleatedTx is the transaction after the malleation process is performed. This is nil until that process has been completed for viable transactions.
    malleatedTx coretypes.Tx
 }
@@ -300,7 +300,7 @@ type parsedTx struct {
 
 ```go
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-   // parse the txs, extracting any MsgWirePayForData and performing basic
+   // parse the txs, extracting any MsgWirePayForBlob and performing basic
    // validation for each transaction. Invalid txs are ignored. Original order
    // of the txs is maintained.
    parsedTxs := parseTxs(app.txConfig, req.BlockData.Txs)
@@ -375,7 +375,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
    ...
    // the totalSharesUsed can be larger that the max number of shares if we
    // reach the max square size. In this case, we must prune the deprioritized
-   // txs (and their messages if they're pfd txs).
+   // txs (and their messages if they're pfb txs).
    if totalSharesUsed > int(squareSize*squareSize) {
        parsedTxs = prune(app.txConfig, parsedTxs, totalSharesUsed, int(squareSize))
    }
@@ -389,18 +389,18 @@ Due to the use of the `parsedTxs` data structure, we can now abstract the mallea
 ```go
 func (p *parsedTx) malleate(txConf client.TxConfig, squareSize uint64) error {
    if p.msg == nil || p.tx == nil {
-       return errors.New("can only malleate a tx with a MsgWirePayForData")
+       return errors.New("can only malleate a tx with a MsgWirePayForBlob")
    }
 
    // parse wire message and create a single message
-   _, unsignedPFD, sig, err := types.ProcessWirePayForData(p.msg, squareSize)
+   _, unsignedPFB, sig, err := types.ProcessWirePayForBlob(p.msg, squareSize)
    if err != nil {
        return err
    }
 
-   // create the signed PayForData using the fees, gas limit, and sequence from
+   // create the signed PayForBlob using the fees, gas limit, and sequence from
    // the original transaction, along with the appropriate signature.
-   signedTx, err := types.BuildPayForDataTxFromWireTx(p.tx, txConf.NewTxBuilder(), sig, unsignedPFD)
+   signedTx, err := types.BuildPayForBlobTxFromWireTx(p.tx, txConf.NewTxBuilder(), sig, unsignedPFB)
    if err != nil {
        return err
    }
@@ -421,8 +421,8 @@ When doing this process over all of the transactions, we also need to add the sh
 
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
    ...
-   // in this step we are processing any MsgWirePayForData transactions into
-   // MsgPayForData and their respective messages. The malleatedTxs contain the
+   // in this step we are processing any MsgWirePayForBlob transactions into
+   // MsgPayForBlob and their respective messages. The malleatedTxs contain the
    // the new sdk.Msg with the original tx's metadata (sequence number, gas
    // price etc).
    processedTxs, messages, err := malleateTxs(app.txConfig, squareSize, parsedTxs, req.BlockData.Evidence)
@@ -459,9 +459,9 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 Fortunately, most of the work necessary for non-interactive defaults is encapsulated by `PrepareProposal`. Our goal in `ProcessProposal` is to enforce the constraints that we set during `PrepareProposal`. Note that we cannot actually check the last two constraints, so we don't.
 
 - All messages must be ordered lexicographically by namespace.
-- The commitments signed over in each `MsgPayForData` must consist only of subtree roots of the data square.
-- If a `MsgPayForData` is added to the square, then its corresponding message must also be included.
-- There must not be a message without a `MsgPayForData`.
+- The commitments signed over in each `MsgPayForBlob` must consist only of subtree roots of the data square.
+- If a `MsgPayForBlob` is added to the square, then its corresponding message must also be included.
+- There must not be a message without a `MsgPayForBlob`.
 
 We are already checking the first constraint simply be calculating the data root. The only changes we need to make here are to cache the nmt trees generated when comparing the data root, and then use those cached trees to find the subtree roots necessary to create the data commitments.
 
@@ -588,35 +588,35 @@ func GetCommit(cacher *EDSSubTreeRootCacher, dah da.DataAvailabilityHeader, star
 
 Now we can fulfill the second constraint:
 
-- The commitments signed over in each `MsgPayForData` must consist only of subtree roots of the data square.
+- The commitments signed over in each `MsgPayForBlob` must consist only of subtree roots of the data square.
 
 ```go
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
    ...
-   // iterate over all of the MsgPayForData transactions and ensure that their
+   // iterate over all of the MsgPayForBlob transactions and ensure that their
    // commitments are subtree roots of the data root.
    for _, rawTx := range req.BlockData.Txs {
        // iterate through the transactions and check if they are malleated
        ...
        for _, msg := range tx.GetMsgs() {
-           if sdk.MsgTypeURL(msg) != types.URLMsgPayForData {
+           if sdk.MsgTypeURL(msg) != types.URLMsgPayForBlob {
                continue
            }
 
-           pfd, ok := msg.(*types.MsgPayForData)
+           pfb, ok := msg.(*types.MsgPayForBlob)
            if !ok {
-               app.Logger().Error("Msg type does not match MsgPayForData URL")
+               app.Logger().Error("Msg type does not match MsgPayForBlob URL")
                continue
            }
 
-           if err = pfd.ValidateBasic(); err != nil {
+           if err = pfb.ValidateBasic(); err != nil {
                ...
                return abci.ResponseProcessProposal{
                    Result: abci.ResponseProcessProposal_REJECT,
                }
            }
 
-           commitment, err := inclusion.GetCommit(cacher, dah, int(malleatedTx.ShareIndex), shares.MsgSharesUsed(int(pfd.MessageSize)))
+           commitment, err := inclusion.GetCommit(cacher, dah, int(malleatedTx.ShareIndex), shares.MsgSharesUsed(int(pfb.BlobSize)))
            if err != nil {
                ...
                return abci.ResponseProcessProposal{
@@ -624,7 +624,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
                }
            }
 
-           if !bytes.Equal(pfd.MessageShareCommitment, commitment) {
+           if !bytes.Equal(pfb.ShareCommitment, commitment) {
                ...
                return abci.ResponseProcessProposal{
                    Result: abci.ResponseProcessProposal_REJECT,
@@ -639,15 +639,15 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 }
 ```
 
-Lastly, we also need to check that each valid `MsgPayForData` has a corresponding message, and that there are no unexpected messages.
+Lastly, we also need to check that each valid `MsgPayForBlob` has a corresponding message, and that there are no unexpected messages.
 
-- If a `MsgPayForData` is added to the square, then its corresponding message must also be included.
-- There must not be a message without a `MsgPayForData`.
+- If a `MsgPayForBlob` is added to the square, then its corresponding message must also be included.
+- There must not be a message without a `MsgPayForBlob`.
 
 ```go
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
    ...
-   // iterate over all of the MsgPayForData transactions and ensure that they
+   // iterate over all of the MsgPayForBlob transactions and ensure that they
    // commitments are subtree roots of the data root.
    commitmentCounter := 0
    for _, rawTx := range req.BlockData.Txs {
@@ -659,7 +659,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
        }
    }
 
-   // compare the number of PFDs and messages, if they aren't
+   // compare the number of PFBs and messages, if they aren't
    // identical, then  we already know this block is invalid
    if commitmentCounter != len(req.BlockData.Messages.MessagesList) {
        ...
