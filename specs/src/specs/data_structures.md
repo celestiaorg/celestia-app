@@ -506,13 +506,13 @@ First share in a sequence:
 
 ![fig: compact start share.](./figures/compact_start_share.svg)
 
-where reserved bytes would be `14` encoded as an unsigned varint (`[0b1110, 0b0]`).
+where reserved bytes would be `14` encoded as an unsigned varint (`[0b00001110, 0b00000000]`).
 
 Continuation share in a sequence:
 
 ![fig: compact continuation share.](./figures/compact_continuation_share.svg)
 
-where reserved bytes would be `80` encoded as an unsigned varint (`[0b1010000, 0b0]`).
+where reserved bytes would be `80` encoded as an unsigned varint (`[0b01010000, 0b00000000]`).
 
 #### Sparse Share
 
