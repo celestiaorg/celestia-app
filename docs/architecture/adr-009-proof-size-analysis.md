@@ -6,7 +6,7 @@
 
 ## Context
 
- Is it worth it to change non-interactive default rules as a follup up of ADR 008 [Link??????] to decrease the padding? The downside is that the message inclusion proof size will not be as efficient in big square sizes.
+ Is it worth it to change non-interactive default rules as a follow-up of [ADR 008](./adr-008-square-size-independent-message-commitments.md)  to decrease the padding? The downside is that the message inclusion proof size will not be as efficient in big square sizes.
 
 - Inter-message padding can be reduced if we can change the non-interactive default rules from this:
 
