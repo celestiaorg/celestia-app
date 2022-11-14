@@ -502,12 +502,14 @@ For shares **with a reserved namespace ID through [`NAMESPACE_ID_MAX_RESERVED`](
 - The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` 1 to 10 bytes (if this is the first share of a sequence) `-` [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are transactions, intermediate state roots, or evidence data depending on the namespace of ths share. Each transaction, intermediate state root, or evidence is prefixed with a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the length of that unit.
 - If there is insufficient transaction, intermediate state root, or evidence data to fill the share, the remaining bytes are filled with `0`.
 
-First share in a sequence:<br>
+First share in a sequence:
+
 ![fig: compact start share.](./figures/compact_start_share.svg)
 
 where reserved bytes would be `14` encoded as an unsigned varint (`[0b1110, 0b0]`).
 
-Continuation share in a sequence:<br>
+Continuation share in a sequence:
+
 ![fig: compact continuation share.](./figures/compact_continuation_share.svg)
 
 where reserved bytes would be `80` encoded as an unsigned varint (`[0b1010000, 0b0]`).
@@ -522,10 +524,12 @@ For shares **with a namespace ID above [`NAMESPACE_ID_MAX_RESERVED`](./consensus
 - The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` 1 to 10 bytes (if this is the first share of a sequence) bytes are message data. Message data are opaque bytes of data that are included in the block but do not impact the state. In other words, the remaining bytes have no special meaning and are simply used to store data.
 - If there is insufficient message data to fill the share, the remaining bytes are filled with `0`.
 
-First share in a sequence:<br>
+First share in a sequence:
+
 ![fig: sparse start share.](./figures/sparse_start_share.svg)
 
-Continuation share in a sequence:<br>
+Continuation share in a sequence:
+
 ![fig: sparse continuation share.](./figures/sparse_continuation_share.svg)
 
 #### Parity Share
