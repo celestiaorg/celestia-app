@@ -96,7 +96,6 @@ In the example, H4 is a node over row roots, and H12 is a row root itself. They 
 
 ![Row root might not be subtree root.](./assets/rowroots-might-not-be-subtreeroot.png)
 
-
 ## How big is the proof size for this message?
 
 We differentiate the size of the proof between the Old NI-Rules and the new NI-Rules.
@@ -133,7 +132,6 @@ The worst-case padding decreases from 1.3 GB to 0.8 GB in 2 GB Blocks. In the cu
 
 ![Padding Size Result](./assets/padding-size-result.png)
 
-
 ## Status
 
 Proposed
@@ -147,7 +145,6 @@ The Padding decreases a lot.
 ### Negative
 
 The Proof size increases a bit.
-
 
 ## References
 
