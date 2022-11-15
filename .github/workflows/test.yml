@@ -64,7 +64,7 @@ jobs:
       - name: Create a file with all the pkgs
         run: go list ./... > pkgs.txt
       - name: Split pkgs into 4 files
-        run: split -d -n l/4 pkgs.txt pkgs.txt.part.
+        run: split -d -n l/4 --elide-empty-files pkgs.txt pkgs.txt.part.
       # cache multiple
       - uses: actions/upload-artifact@v3
         with:
@@ -150,15 +150,15 @@ jobs:
       - name: filter out DONTCOVER
         # yamllint disable
         run: |
-          excludelist="$(find ./ -type f -name '*.go' | xargs grep -l 'DONTCOVER')"
-          excludelist+=" $(find ./ -type f -name '*.pb.go')"
-          excludelist+=" $(find ./ -type f -name '*.pb.gw.go')"
-          excludelist+=" $(find ./ -type f -path './tests/mocks/*.go')"
-          for filename in ${excludelist}; do
-            filename=$(echo $filename | sed 's/^./github.com\/cosmos\/cosmos-sdk/g')
-            echo "Excluding ${filename} from coverage report..."
-            sed -i.bak "/$(echo $filename | sed 's/\//\\\//g')/d" coverage.txt
-          done
+          (find . -type f -name '*.go' | xargs grep -l 'DONTCOVER') > excludelist.txt
+          find . -type f -name '*.pb.*' >> excludelist.txt
+          find . -type f -path './tests/mocks/*.go' >> excludelist.txt
+          while IFS= read -r filename; do
+            # trim filename
+            trimmedname=$(echo $filename | xargs)
+            echo "Excluding ${trimmedname} from coverage report..."
+            sed -i.bak "/$(echo $trimmedname | sed 's/\//\\\//g')/d" coverage.txt
+          done < excludelist.txt
         # yamllint enable
         if: env.GIT_DIFF
       - uses: codecov/codecov-action@v3
