@@ -43,7 +43,9 @@ type MsgWirePayForBlob struct {
 }
 
 func (m *MsgWirePayForBlob) Reset()         { *m = MsgWirePayForBlob{} }
-func (m *MsgWirePayForBlob) String() string { return proto.CompactTextString(m) }
+func (m *MsgWirePayForBlob) String() string {
+	return proto.CompactTextString(m)
+}
 func (*MsgWirePayForBlob) ProtoMessage()    {}
 func (*MsgWirePayForBlob) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f945cb94fe124aae, []int{0}
