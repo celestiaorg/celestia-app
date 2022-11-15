@@ -78,6 +78,9 @@ func NewRootCmd() *cobra.Command {
 			}
 
 			tmCfg := tmcfg.DefaultConfig()
+			tmCfg.Mempool.TTLNumBlocks = 10
+			tmCfg.Mempool.MaxTxBytes = 2 * 1024 * 1024 // 2 MiB
+			tmCfg.Mempool.Version = "v1"               // prioritized mempool
 
 			customAppTemplate, customAppConfig := initAppConfig()
 			return server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
