@@ -8,6 +8,8 @@
 
  Is it worth it to change non-interactive default rules as a follow-up of [ADR 008](./adr-008-square-size-independent-message-commitments.md)  to decrease the padding? The downside is that the message inclusion proof size will not be as efficient in big square sizes.
 
+ **Note: This analysis implies the implementation of #1004. If the tree over the subtree roots is not a Namespace Merkle Tree then the analysis of both methods has the same proof size.**
+
 - Inter-message padding can be reduced if we can change the non-interactive default rules from this:
 
     > - Messages that span multiple rows must begin at the start of a row (this can occur if a message is longer than k shares or if the block producer decides to start a message partway through a row and it cannot fit).
@@ -34,7 +36,7 @@
 - What is the worst constructible block with the most amount of padding with old and new non-interactive defaults?
 - Quantify padding and proof size cost.
 
-## Why has a message in a bigger square size even with square size independent commitments O(log(n)) proof size?
+## 1. Why has a message in a bigger square size even with square size independent commitments O(log(n)) proof size?
 
 If you use the old NI-Rules then the message begins at a location aligned with the largest power of 2 that is not larger than the message length or k. Because the subtree roots are aligned you can skip some subtree roots and calculate their parents.
 In the example below instead of proving H1, H2, H3, and H4 to the DataRoot you can prove H10. **H10 is part of the commitment generation and part of the Merkle tree to the DataRoot.** That is why you can use it for more efficient proofs. In smaller square sizes, you cannot do this, because H10 does not exist. The nodes in **red** are the subtree nodes that you need to provide for the message inclusion proof. The nodes in **blue** are the additional nodes for the Merkle proof.
@@ -89,14 +91,16 @@ The worst case constructible message in a square to have the biggest impact from
 
  Reminder: We did this calculation because the rows need to be in O(log(n)) proof size.
 
-## Why can we not use the same trick that we used in Question 1 in a single row for more efficient proofs over the row roots?
+## 3. Why can we not use the same trick that we used in Question 1 in a single row for more efficient proofs over the row roots?
 
-The node needs to be part of the commitment generation **and** part of the Merkle tree to the DataRoot for the trick to work. The diagram shows that the parent nodes connect the same nodes, but because of how Merkle trees are generated they are not the same. Therefore you cannot use those subtree roots as they are not included in the commitment.
-In the example, H4 is a node over row roots, and H12 is a row root itself. They are generated differently. H4 cannot be used in the Merkle inclusion proof, because it is **not** part of the commitment generation. The parent node over the row roots is generated differently than the node of subtree roots.
+The node needs to be part of the commitment generation **and** part of the Merkle tree to the DataRoot for the trick to work. The diagram shows a Celestia square that is erasure coded and those parity shares are marked in green.
+H12 is part of the commitment generation and part of the Merkle tree to the DataRoot.
+It is only generated in the bigger square and not in the smaller square because in the smaller square you have to take into account the nodes over the parity shares.
+As H12 only exists in the bigger square the more efficient proofs only work in those squares.
 
 ![Row root might not be subtree root.](./assets/rowroots-might-not-be-subtreeroot.png)
 
-## How big is the proof size for this message?
+## 4. How big is the proof size for this message?
 
 We differentiate the size of the proof between the Old NI-Rules and the new NI-Rules.
 
@@ -112,7 +116,7 @@ Each row consists of O(sqrt(n)/log(n)) subtree roots. Which makes in total sqrt(
 
 Proofsize = sqrt(n) + log(n) + log(k) + 2*log(k)
 
-## What is the worst constructible block with the most amount of padding with old and new non-interactive default rules?
+## 5. What is the worst constructible block with the most amount of padding with old and new non-interactive default rules?
 
 For the old NI-Rules, when you have a square size of k you can alternate messages of size k/2 +1 and k/4 +1 to have the most amount of padding. This forces you to always use a new row.
 Padding = (k/2 -1) \* (k/2 -1) + (3k/4 -1) \* (k/2 -1)

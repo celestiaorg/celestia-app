@@ -72,7 +72,7 @@ Implemented
 ### Negative
 
 1. The amount of subtree roots per commitment is O(sqrt(n)), while n is the number of message shares. The worst case for the number of subtree roots is depicted in the diagram below - an entire block missing one share.
-  ![Interactive Commitment 2](./assets/complexity.png)
+  ![Interactive Commitment 2](./assets/complexity.png)  
 The worst case for the current implementation depends on the square size. If it is the worst square size, as in `msgMinSquareSize`, it is O(sqrt(n)) as well. On the other hand, if the message is only in one row, then it is O(log(n)).
 Therefore the height of the tree over the subtree roots is in this implementation O(log(sqrt(n))), while n is the number of message shares. In the current implementation, it varies from O(log(sqrt(n))) to O(log(log(n))) depending on the square size.
 
