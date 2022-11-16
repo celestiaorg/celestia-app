@@ -36,14 +36,22 @@ func GenerateValidBlockData(
 		parsedTxs = prune(txConfig, parsedTxs, totalSharesUsed, int(squareSize))
 	}
 
-	processedTxs, messages, err := malleateTxs(txConfig, squareSize, parsedTxs, core.EvidenceList{})
+	processedTxs, blobPointers, err := malleateTxs(txConfig, squareSize, parsedTxs, core.EvidenceList{})
 	require.NoError(t, err)
 
+	blobs := make([]core.Blob, len(blobPointers))
+	for i, blob := range blobPointers {
+		blobs[i] = core.Blob{
+			NamespaceId: blob.GetNamespaceId(),
+			Data:        blob.GetData(),
+		}
+	}
+
 	blockData := core.Data{
-		Txs:                processedTxs,
-		Evidence:           core.EvidenceList{},
-		Messages:           core.Messages{MessagesList: messages},
-		OriginalSquareSize: squareSize,
+		Txs:        processedTxs,
+		Evidence:   core.EvidenceList{},
+		Blobs:      blobs,
+		SquareSize: squareSize,
 	}
 
 	return coretypes.DataFromProto(&blockData)

@@ -3,6 +3,7 @@ package shares
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -20,9 +21,9 @@ func Test_parseSparseShares(t *testing.T) {
 	const exactMsgShareSize = appconsts.SparseShareContentSize - 2
 
 	type test struct {
-		name     string
-		msgSize  int
-		msgCount int
+		name      string
+		blobSize  int
+		blobCount int
 	}
 
 	// each test is ran twice, once using msgSize as an exact size, and again
@@ -38,17 +39,16 @@ func Test_parseSparseShares(t *testing.T) {
 
 	for _, tc := range tests {
 		tc := tc
-		// run the tests with identically sized messagses
+		// run the tests with identically sized blobs
 		t.Run(fmt.Sprintf("%s identically sized ", tc.name), func(t *testing.T) {
-			rawmsgs := make([]coretypes.Message, tc.msgCount)
-			for i := 0; i < tc.msgCount; i++ {
-				rawmsgs[i] = generateRandomMessage(tc.msgSize)
+			blobs := make([]coretypes.Blob, tc.blobCount)
+			for i := 0; i < tc.blobCount; i++ {
+				blobs[i] = generateRandomBlob(tc.blobSize)
 			}
 
-			msgs := coretypes.Messages{MessagesList: rawmsgs}
-			msgs.SortMessages()
+			sort.Sort(coretypes.BlobsByNamespace(blobs))
 
-			shares, _ := SplitMessages(0, nil, msgs.MessagesList, false)
+			shares, _ := SplitMessages(0, nil, blobs, false)
 			rawShares := ToBytes(shares)
 
 			parsedMsgs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
@@ -57,16 +57,16 @@ func Test_parseSparseShares(t *testing.T) {
 			}
 
 			// check that the namespaces and data are the same
-			for i := 0; i < len(msgs.MessagesList); i++ {
-				assert.Equal(t, msgs.MessagesList[i].NamespaceID, parsedMsgs[i].NamespaceID)
-				assert.Equal(t, msgs.MessagesList[i].Data, parsedMsgs[i].Data)
+			for i := 0; i < len(blobs); i++ {
+				assert.Equal(t, blobs[i].NamespaceID, parsedMsgs[i].NamespaceID)
+				assert.Equal(t, blobs[i].Data, parsedMsgs[i].Data)
 			}
 		})
 
 		// run the same tests using randomly sized messages with caps of tc.msgSize
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
-			msgs := generateRandomlySizedMessages(tc.msgCount, tc.msgSize)
-			shares, _ := SplitMessages(0, nil, msgs.MessagesList, false)
+			msgs := generateRandomlySizedBlobs(tc.blobCount, tc.blobSize)
+			shares, _ := SplitMessages(0, nil, msgs, false)
 			rawShares := make([][]byte, len(shares))
 			for i, share := range shares {
 				rawShares[i] = []byte(share)
@@ -78,9 +78,9 @@ func Test_parseSparseShares(t *testing.T) {
 			}
 
 			// check that the namespaces and data are the same
-			for i := 0; i < len(msgs.MessagesList); i++ {
-				assert.Equal(t, msgs.MessagesList[i].NamespaceID, parsedMsgs[i].NamespaceID)
-				assert.Equal(t, msgs.MessagesList[i].Data, parsedMsgs[i].Data)
+			for i := 0; i < len(msgs); i++ {
+				assert.Equal(t, msgs[i].NamespaceID, parsedMsgs[i].NamespaceID)
+				assert.Equal(t, msgs[i].Data, parsedMsgs[i].Data)
 			}
 		})
 	}
@@ -117,24 +117,22 @@ func Test_parseSparseSharesErrors(t *testing.T) {
 
 func TestParsePaddedMsg(t *testing.T) {
 	sss := NewSparseShareSplitter()
-	randomSmallMsg := generateRandomMessage(appconsts.SparseShareContentSize / 2)
-	randomLargeMsg := generateRandomMessage(appconsts.SparseShareContentSize * 4)
-	msgs := coretypes.Messages{
-		MessagesList: []coretypes.Message{
-			randomSmallMsg,
-			randomLargeMsg,
-		},
+	randomSmallBlob := generateRandomBlob(appconsts.SparseShareContentSize / 2)
+	randomLargeBlob := generateRandomBlob(appconsts.SparseShareContentSize * 4)
+	blobs := []coretypes.Blob{
+		randomSmallBlob,
+		randomLargeBlob,
 	}
-	msgs.SortMessages()
-	sss.Write(msgs.MessagesList[0])
+	sort.Sort(coretypes.BlobsByNamespace(blobs))
+	sss.Write(blobs[0])
 	sss.WriteNamespacedPaddedShares(4)
-	sss.Write(msgs.MessagesList[1])
+	sss.Write(blobs[1])
 	sss.WriteNamespacedPaddedShares(10)
 	shares := sss.Export()
 	rawShares := ToBytes(shares)
 	pmsgs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
 	require.NoError(t, err)
-	require.Equal(t, msgs.MessagesList, pmsgs)
+	require.Equal(t, blobs, pmsgs)
 }
 
 func TestSparseShareContainsInfoByte(t *testing.T) {
@@ -179,23 +177,23 @@ func TestSparseShareContainsInfoByte(t *testing.T) {
 func TestSparseShareSplitterCount(t *testing.T) {
 	type testCase struct {
 		name     string
-		message  coretypes.Message
+		blob     coretypes.Blob
 		expected int
 	}
 	testCases := []testCase{
 		{
 			name:     "one share",
-			message:  generateRandomMessageOfShareCount(1),
+			blob:     generateRandomMessageOfShareCount(1),
 			expected: 1,
 		},
 		{
 			name:     "two shares",
-			message:  generateRandomMessageOfShareCount(2),
+			blob:     generateRandomMessageOfShareCount(2),
 			expected: 2,
 		},
 		{
 			name:     "ten shares",
-			message:  generateRandomMessageOfShareCount(10),
+			blob:     generateRandomMessageOfShareCount(10),
 			expected: 10,
 		},
 	}
@@ -203,7 +201,7 @@ func TestSparseShareSplitterCount(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			sss := NewSparseShareSplitter()
-			sss.Write(tc.message)
+			sss.Write(tc.blob)
 			got := sss.Count()
 			assert.Equal(t, tc.expected, got)
 		})

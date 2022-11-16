@@ -29,7 +29,7 @@ func TestPrepareProposal(t *testing.T) {
 
 	type test struct {
 		input            abci.RequestPrepareProposal
-		expectedMessages []*core.Message
+		expectedMessages []*core.Blob
 		expectedTxs      int
 	}
 
@@ -52,7 +52,7 @@ func TestPrepareProposal(t *testing.T) {
 					Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
 				},
 			},
-			expectedMessages: []*core.Message{
+			expectedMessages: []*core.Blob{
 				{
 					NamespaceId: secondNS, // the second message should be first
 					Data:        []byte{2},
@@ -72,7 +72,7 @@ func TestPrepareProposal(t *testing.T) {
 
 	for _, tt := range tests {
 		res := testApp.PrepareProposal(tt.input)
-		assert.Equal(t, tt.expectedMessages, res.BlockData.Messages.MessagesList)
+		assert.Equal(t, tt.expectedMessages, res.BlockData.Blobs)
 		assert.Equal(t, tt.expectedTxs, len(res.BlockData.Txs))
 
 		// verify the signatures of the prepared txs
@@ -135,7 +135,7 @@ func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
 			},
 		}
 		res := testApp.PrepareProposal(input)
-		assert.Equal(t, tt.expectedMessages, len(res.BlockData.Messages.MessagesList))
+		assert.Equal(t, tt.expectedMessages, len(res.BlockData.Blobs))
 	}
 }
 

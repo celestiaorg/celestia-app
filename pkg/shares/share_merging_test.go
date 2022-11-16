@@ -29,14 +29,14 @@ func TestParseShares(t *testing.T) {
 	transactionShareStart := transactionShares[0]
 	transactionShareContinuation := transactionShares[1]
 
-	messageOneShares, err := SplitMessages(0, []uint32{}, []types.Message{generateRandomMessageWithNamespace(messageOneNamespace, 1000)}, false)
+	messageOneShares, err := SplitMessages(0, []uint32{}, []types.Blob{generateRandomMessageWithNamespace(messageOneNamespace, 1000)}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	messageOneStart := messageOneShares[0]
 	messageOneContinuation := messageOneShares[1]
 
-	messageTwoShares, err := SplitMessages(0, []uint32{}, []types.Message{generateRandomMessageWithNamespace(messageTwoNamespace, 1000)}, false)
+	messageTwoShares, err := SplitMessages(0, []uint32{}, []types.Blob{generateRandomMessageWithNamespace(messageTwoNamespace, 1000)}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,8 +223,8 @@ func generateRandomTxs(count, size int) types.Txs {
 	return txs
 }
 
-func generateRandomMessageWithNamespace(namespace namespace.ID, size int) types.Message {
-	msg := types.Message{
+func generateRandomMessageWithNamespace(namespace namespace.ID, size int) types.Blob {
+	msg := types.Blob{
 		NamespaceID: namespace,
 		Data:        tmrand.Bytes(size),
 	}

@@ -21,7 +21,7 @@ func NewSparseShareSplitter() *SparseShareSplitter {
 }
 
 // Write adds the delimited data to the underlying messages shares.
-func (sss *SparseShareSplitter) Write(msg coretypes.Message) {
+func (sss *SparseShareSplitter) Write(msg coretypes.Blob) {
 	rawMsg, err := MarshalDelimitedMessage(msg)
 	if err != nil {
 		panic(fmt.Sprintf("app accepted a Message that can not be encoded %#v", msg))
@@ -103,7 +103,7 @@ func AppendToShares(shares []Share, nid namespace.ID, rawData []byte) []Share {
 // MarshalDelimitedMessage marshals the raw share data (excluding the namespace)
 // of this message and prefixes it with the length of the message encoded as a
 // varint.
-func MarshalDelimitedMessage(msg coretypes.Message) ([]byte, error) {
+func MarshalDelimitedMessage(msg coretypes.Blob) ([]byte, error) {
 	lenBuf := make([]byte, binary.MaxVarintLen64)
 	length := uint64(len(msg.Data))
 	n := binary.PutUvarint(lenBuf, length)

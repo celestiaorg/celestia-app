@@ -199,9 +199,9 @@ func (msg *MsgWirePayForBlob) unsignedPayForBlob() (*MsgPayForBlob, error) {
 // ProcessWirePayForBlob performs the malleation process that occurs before
 // creating a block. It parses the MsgWirePayForBlob to produce the components
 // needed to create a single MsgPayForBlob.
-func ProcessWirePayForBlob(msg *MsgWirePayForBlob) (*tmproto.Message, *MsgPayForBlob, []byte, error) {
+func ProcessWirePayForBlob(msg *MsgWirePayForBlob) (*tmproto.Blob, *MsgPayForBlob, []byte, error) {
 	// add the blob to the list of core blobs to be returned to celestia-core
-	coreMsg := tmproto.Message{
+	coreMsg := tmproto.Blob{
 		NamespaceId: msg.GetNamespaceId(),
 		Data:        msg.GetBlob(),
 	}

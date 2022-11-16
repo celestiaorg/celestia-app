@@ -2,6 +2,7 @@ package prove
 
 import (
 	"math/rand"
+	"sort"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -15,13 +16,13 @@ import (
 
 func TestTxInclusion(t *testing.T) {
 	typicalBlockData := types.Data{
-		Txs:                generateRandomlySizedTxs(100, 500),
-		Messages:           generateRandomlySizedMessages(40, 16000),
-		OriginalSquareSize: 64,
+		Txs:        generateRandomlySizedTxs(100, 500),
+		Blobs:      generateRandomlySizedBlobs(40, 16000),
+		SquareSize: 64,
 	}
 	lotsOfTxsNoMessages := types.Data{
-		Txs:                generateRandomlySizedTxs(1000, 500),
-		OriginalSquareSize: 64,
+		Txs:        generateRandomlySizedTxs(1000, 500),
+		SquareSize: 64,
 	}
 	overlappingSquareSize := 16
 	overlappingRowsBlockData := types.Data{
@@ -31,7 +32,7 @@ func TestTxInclusion(t *testing.T) {
 				tmrand.Bytes(10000),
 			},
 		),
-		OriginalSquareSize: uint64(overlappingSquareSize),
+		SquareSize: uint64(overlappingSquareSize),
 	}
 	overlappingRowsBlockDataWithMessages := types.Data{
 		Txs: types.ToTxs(
@@ -40,8 +41,8 @@ func TestTxInclusion(t *testing.T) {
 				tmrand.Bytes(10000),
 			},
 		),
-		Messages:           generateRandomlySizedMessages(8, 400),
-		OriginalSquareSize: uint64(overlappingSquareSize),
+		Blobs:      generateRandomlySizedBlobs(8, 400),
+		SquareSize: uint64(overlappingSquareSize),
 	}
 
 	type test struct {
@@ -176,8 +177,8 @@ func TestTxShareIndex(t *testing.T) {
 //  squareSize := uint64(16)
 //  typicalBlockData := types.Data{
 //      Txs:                generateRandomlySizedTxs(10, 200),
-//      Messages:           generateRandomlySizedMessages(20, 1000),
-//      OriginalSquareSize: squareSize,
+//      Blobs:           generateRandomlySizedMessages(20, 1000),
+//      SquareSize: squareSize,
 //  }
 
 // 	// note: we should be able to compute row shares from raw data
@@ -212,8 +213,8 @@ func TestTxShareIndex(t *testing.T) {
 // 	squareSize := uint64(16)
 // 	typicalBlockData := types.Data{
 // 		Txs:                generateRandomlySizedTxs(txCount, 200),
-// 		Messages:           generateRandomlySizedMessages(10, 1500),
-// 		OriginalSquareSize: squareSize,
+// 		Blobs:           generateRandomlySizedMessages(10, 1500),
+// 		SquareSize: squareSize,
 // 	}
 
 // 	rawShares, err := shares.Split(typicalBlockData, false)
@@ -265,26 +266,25 @@ func generateRandomTxs(count, size int) types.Txs {
 	return txs
 }
 
-func generateRandomlySizedMessages(count, maxMsgSize int) types.Messages {
-	msgs := make([]types.Message, count)
+func generateRandomlySizedBlobs(count, maxMsgSize int) []types.Blob {
+	blobs := make([]types.Blob, count)
 	for i := 0; i < count; i++ {
-		msgs[i] = generateRandomMessage(rand.Intn(maxMsgSize))
+		blobs[i] = generateRandomBlob(rand.Intn(maxMsgSize))
 	}
 
 	// this is just to let us use assert.Equal
 	if count == 0 {
-		msgs = nil
+		blobs = nil
 	}
 
-	messages := types.Messages{MessagesList: msgs}
-	messages.SortMessages()
-	return messages
+	sort.Sort(types.BlobsByNamespace(blobs))
+	return blobs
 }
 
-func generateRandomMessage(size int) types.Message {
-	msg := types.Message{
+func generateRandomBlob(size int) types.Blob {
+	blob := types.Blob{
 		NamespaceID: namespace.RandomMessageNamespace(),
 		Data:        tmrand.Bytes(size),
 	}
-	return msg
+	return blob
 }
