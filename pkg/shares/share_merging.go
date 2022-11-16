@@ -12,8 +12,8 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// Merge extracts block data from an extended data square.
-func Merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
+// merge extracts block data from an extended data square.
+func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 	squareSize := eds.Width() / 2
 
 	// sort block data shares by namespace

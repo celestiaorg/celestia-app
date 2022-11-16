@@ -138,8 +138,8 @@ var (
 		sdk.AccAddress(OrchPubKeys[4].Address()),
 	}
 
-	// EthAddrs holds etheruem addresses
-	EthAddrs = initEthAddrs(1000000) // TODO update 1000000 with a more realistic value
+	// EVMAddrs holds etheruem addresses
+	EVMAddrs = initEVMAddrs(1000000) // TODO update 1000000 with a more realistic value
 
 	// InitTokens holds the number of tokens to initialize an account with
 	InitTokens = sdk.TokensFromConsensusPower(110, sdk.DefaultPowerReduction)
@@ -151,11 +151,11 @@ var (
 	StakingAmount = sdk.TokensFromConsensusPower(10, sdk.DefaultPowerReduction)
 )
 
-func initEthAddrs(count int) []gethcommon.Address {
+func initEVMAddrs(count int) []gethcommon.Address {
 	addresses := make([]gethcommon.Address, count)
 	for i := 0; i < count; i++ {
-		ethAddr := gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20))
-		addresses[i] = ethAddr
+		evmAddr := gethcommon.BytesToAddress(bytes.Repeat([]byte{byte(i + 1)}, 20))
+		addresses[i] = evmAddr
 	}
 	return addresses
 }
@@ -402,7 +402,7 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 
 		// Create a validator for that account using some tokens in the account
 		// and the staking handler
-		_, err := msgServer.CreateValidator(input.Context, NewTestMsgCreateValidator(ValAddrs[i], ConsPubKeys[i], StakingAmount, OrchAddrs[i], EthAddrs[i]))
+		_, err := msgServer.CreateValidator(input.Context, NewTestMsgCreateValidator(ValAddrs[i], ConsPubKeys[i], StakingAmount, OrchAddrs[i], EVMAddrs[i]))
 
 		// Return error if one exists
 		require.NoError(t, err)
@@ -420,7 +420,7 @@ func NewTestMsgCreateValidator(
 	pubKey ccrypto.PubKey,
 	amt cosmosmath.Int,
 	orchAddr sdk.AccAddress,
-	ethAddr gethcommon.Address,
+	evmAddr gethcommon.Address,
 ) *stakingtypes.MsgCreateValidator {
 	commission := stakingtypes.NewCommissionRates(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec())
 	out, err := stakingtypes.NewMsgCreateValidator(
@@ -432,7 +432,7 @@ func NewTestMsgCreateValidator(
 			SecurityContact: "",
 			Details:         "",
 		}, commission, sdk.OneInt(),
-		orchAddr, ethAddr,
+		orchAddr, evmAddr,
 	)
 	if err != nil {
 		panic(err)
@@ -477,7 +477,7 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 		// and the staking handler
 		_, err := msgServer.CreateValidator(
 			input.Context,
-			NewTestMsgCreateValidator(valAddr, consPubKey, sdk.NewIntFromUint64(weight), accAddr, EthAddrs[i]),
+			NewTestMsgCreateValidator(valAddr, consPubKey, sdk.NewIntFromUint64(weight), accAddr, EVMAddrs[i]),
 		)
 		require.NoError(t, err)
 

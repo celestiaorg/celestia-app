@@ -2,6 +2,7 @@ package inclusion
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
@@ -78,40 +79,36 @@ func (strc subTreeRootCacher) walk(root []byte, path []WalkInstruction) ([]byte,
 // threadsafe, but with a future refactor, we could simply read from rsmt2d and
 // not use the tree constructor which would fix both of these issues.
 type EDSSubTreeRootCacher struct {
-	caches     []*subTreeRootCacher
+	mut        *sync.RWMutex
+	caches     map[uint]*subTreeRootCacher
 	squareSize uint64
-	// counter is used to ignore columns NOTE: this is a leaky abstraction that
-	// we make because rsmt2d is used to generate the roots for us, so we have
-	// to assume that it will generate a row root every other tree contructed.
-	// This is also one of the reasons this implementation is not thread safe.
-	// Please see note above on a better refactor.
-	counter int
 }
 
 func NewSubtreeCacher(squareSize uint64) *EDSSubTreeRootCacher {
 	return &EDSSubTreeRootCacher{
-		caches:     []*subTreeRootCacher{},
+		mut:        &sync.RWMutex{},
+		caches:     make(map[uint]*subTreeRootCacher),
 		squareSize: squareSize,
 	}
 }
 
 // Constructor fullfills the rsmt2d.TreeCreatorFn by keeping a pointer to the
 // cache and embedding it as a nmt.NodeVisitor into a new wrapped nmt.
-func (stc *EDSSubTreeRootCacher) Constructor() rsmt2d.Tree {
+func (stc *EDSSubTreeRootCacher) Constructor(axis rsmt2d.Axis, index uint) rsmt2d.Tree {
 	// see docs of counter field for more
 	// info. if the counter is even or == 0, then we make the assumption that we
 	// are creating a tree for a row
 	var newTree wrapper.ErasuredNamespacedMerkleTree
-	switch stc.counter % 2 {
-	case 0:
+	switch axis {
+	case rsmt2d.Row:
 		strc := newSubTreeRootCacher()
-		stc.caches = append(stc.caches, strc)
-		newTree = wrapper.NewErasuredNamespacedMerkleTree(stc.squareSize, nmt.NodeVisitor(strc.Visit))
+		stc.mut.Lock()
+		stc.caches[index] = strc
+		stc.mut.Unlock()
+		newTree = wrapper.NewErasuredNamespacedMerkleTree(stc.squareSize, index, nmt.NodeVisitor(strc.Visit))
 	default:
-		newTree = wrapper.NewErasuredNamespacedMerkleTree(stc.squareSize)
+		newTree = wrapper.NewErasuredNamespacedMerkleTree(stc.squareSize, index)
 	}
-
-	stc.counter++
 	return &newTree
 }
 
@@ -124,5 +121,8 @@ func (stc *EDSSubTreeRootCacher) getSubTreeRoot(dah da.DataAvailabilityHeader, r
 	if row >= len(stc.caches) {
 		return nil, fmt.Errorf("row exceeds range of cache: max %d got %d", len(stc.caches), row)
 	}
-	return stc.caches[row].walk(dah.RowsRoots[row], path)
+	stc.mut.RLock()
+	sbt, err := stc.caches[uint(row)].walk(dah.RowsRoots[row], path)
+	stc.mut.RUnlock()
+	return sbt, err
 }

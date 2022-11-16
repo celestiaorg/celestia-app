@@ -85,6 +85,9 @@ func NewRootCmd() *cobra.Command {
 			tmCfg := tmcfg.DefaultConfig()
 			tmCfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
 			tmCfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
+			tmCfg.Mempool.TTLNumBlocks = 10
+			tmCfg.Mempool.MaxTxBytes = 2 * 1024 * 1024 // 2 MiB
+			tmCfg.Mempool.Version = "v1"               // prioritized mempool
 
 			customAppTemplate, customAppConfig := initAppConfig()
 			return server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
@@ -115,7 +118,7 @@ func initAppConfig() (string, interface{}) {
 	// snapshots to nodes that state sync
 	srvCfg.StateSync.SnapshotInterval = 1500
 	srvCfg.StateSync.SnapshotKeepRecent = 2
-	srvCfg.MinGasPrices = fmt.Sprintf("0%s", app.BondDenom)
+	srvCfg.MinGasPrices = fmt.Sprintf("0.001%s", app.BondDenom)
 
 	CelestiaAppCfg := CustomAppConfig{Config: *srvCfg}
 

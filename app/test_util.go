@@ -5,7 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -22,11 +22,11 @@ func GenerateValidBlockData(
 	t *testing.T,
 	txConfig client.TxConfig,
 	signer *types.KeyringSigner,
-	pfdCount,
+	pfbCount,
 	normalTxCount,
 	size int,
 ) (coretypes.Data, error) {
-	rawTxs := generateManyRawWirePFD(t, txConfig, signer, pfdCount, size)
+	rawTxs := generateManyRawWirePFB(t, txConfig, signer, pfbCount, size)
 	rawTxs = append(rawTxs, generateManyRawSendTxs(t, txConfig, signer, normalTxCount)...)
 	parsedTxs := parseTxs(txConfig, rawTxs)
 
@@ -49,7 +49,7 @@ func GenerateValidBlockData(
 	return coretypes.DataFromProto(&blockData)
 }
 
-func generateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count, size int) [][]byte {
+func generateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count, size int) [][]byte {
 	txs := make([][]byte, count)
 
 	coin := sdk.Coin{
@@ -63,7 +63,7 @@ func generateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *type
 	}
 
 	for i := 0; i < count; i++ {
-		wpfdTx := generateRawWirePFDTx(
+		wpfbTx := generateRawWirePFBTx(
 			t,
 			txConfig,
 			namespace.RandomMessageNamespace(),
@@ -71,7 +71,7 @@ func generateManyRawWirePFD(t *testing.T, txConfig client.TxConfig, signer *type
 			signer,
 			opts...,
 		)
-		txs[i] = wpfdTx
+		txs[i] = wpfbTx
 	}
 	return txs
 }
@@ -120,10 +120,10 @@ func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.Key
 	return rawTx
 }
 
-// generateRawWirePFD creates a tx with a single MsgWirePayForData message using the provided namespace and message
-func generateRawWirePFDTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
+// generateRawWirePFB creates a tx with a single MsgWirePayForBlob message using the provided namespace and message
+func generateRawWirePFBTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
 	// create a msg
-	msg := generateSignedWirePayForData(t, ns, message, signer, opts, types.AllSquareSizes(len(message))...)
+	msg := generateSignedWirePayForBlob(t, ns, message, signer, opts)
 
 	builder := signer.NewTxBuilder(opts...)
 	tx, err := signer.BuildSignedTx(builder, msg)
@@ -136,13 +136,13 @@ func generateRawWirePFDTx(t *testing.T, txConfig client.TxConfig, ns, message []
 	return rawTx
 }
 
-func generateSignedWirePayForData(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption, ks ...uint64) *types.MsgWirePayForData {
-	msg, err := types.NewWirePayForData(ns, message, ks...)
+func generateSignedWirePayForBlob(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
+	msg, err := types.NewWirePayForBlob(ns, message)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = msg.SignShareCommitments(signer, options...)
+	err = msg.SignShareCommitment(signer, options...)
 	if err != nil {
 		t.Error(err)
 	}

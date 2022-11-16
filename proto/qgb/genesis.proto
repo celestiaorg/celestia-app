@@ -3,7 +3,6 @@ package qgb;
 
 import "gogoproto/gogo.proto";
 import "qgb/types.proto";
-import "qgb/msgs.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 
@@ -14,6 +13,6 @@ message Params {
   uint64 data_commitment_window = 1;
 }
 
-// GenesisState struct, containing all persistant data required by the Gravity
+// GenesisState struct, containing all persistent data required by the Gravity
 // module
 message GenesisState { Params params = 1; }

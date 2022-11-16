@@ -40,14 +40,10 @@ func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxP
 	var rowRoots []tmbytes.HexBytes //nolint:prealloc // rarely will this contain more than a single root
 	for i, row := range rowShares {
 		// create an nmt to use to generate a proof
-		tree := wrapper.NewErasuredNamespacedMerkleTree(data.OriginalSquareSize)
-		for j, share := range row {
+		tree := wrapper.NewErasuredNamespacedMerkleTree(data.OriginalSquareSize, uint(i))
+		for _, share := range row {
 			tree.Push(
 				share,
-				rsmt2d.SquareIndex{
-					Axis: uint(i),
-					Cell: uint(j),
-				},
 			)
 		}
 
