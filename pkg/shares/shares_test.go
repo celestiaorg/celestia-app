@@ -180,12 +180,12 @@ func TestMerge(t *testing.T) {
 
 	tests := []test{
 		{"one of each random small size", 1, 1, 1, 40},
-		// {"one of each random large size", 1, 1, 1, 400},
-		// {"many of each random large size", 10, 10, 10, 40},
-		// {"many of each random large size", 10, 10, 10, 400},
-		// {"only transactions", 10, 0, 0, 400},
-		// {"only evidence", 0, 10, 0, 400},
-		// {"only messages", 0, 0, 10, 400},
+		{"one of each random large size", 1, 1, 1, 400},
+		{"many of each random large size", 10, 10, 10, 40},
+		{"many of each random large size", 10, 10, 10, 400},
+		{"only transactions", 10, 0, 0, 400},
+		{"only evidence", 0, 10, 0, 400},
+		{"only messages", 0, 0, 10, 400},
 	}
 
 	for _, tc := range tests {
