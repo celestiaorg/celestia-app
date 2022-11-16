@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	paytypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/spf13/cobra"
 	tmlog "github.com/tendermint/tendermint/libs/log"

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	paytypes "github.com/celestiaorg/celestia-app/x/payment/types"
+	paytypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"

@@ -65,11 +65,6 @@ const (
 	// for protobuf
 	MalleatedTxBytes = 32 + 4 + 3
 
-	// ShareCommitmentBytes is the number of bytes used by a protobuf encoded
-	// share commitment. 64 bytes for the signature, 32 bytes for the
-	// commitment, 8 bytes for the uint64, and 4 bytes for the protobuf overhead
-	ShareCommitmentBytes = 64 + 32 + 8 + 4
-
 	// MalleatedTxEstimateBuffer is the "magic" number used to ensure that the
 	// estimate of a malleated transaction is at least as big if not larger than
 	// the actual value. TODO: use a more accurate number
@@ -102,9 +97,7 @@ var (
 	NewBaseHashFunc = consts.NewBaseHashFunc
 
 	// DefaultCodec is the default codec creator used for data erasure
-	// TODO(ismail): for better efficiency and a larger number shares
-	// we should switch to the rsmt2d.LeopardFF16 codec:
-	DefaultCodec = rsmt2d.NewRSGF8Codec
+	DefaultCodec = rsmt2d.NewLeoRSCodec
 
 	// DataCommitmentBlocksLimit is the limit to the number of blocks we can generate a data commitment for.
 	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit

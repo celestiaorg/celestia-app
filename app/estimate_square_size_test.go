@@ -7,7 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,13 +20,13 @@ func Test_estimateSquareSize(t *testing.T) {
 	type test struct {
 		name                  string
 		normalTxs             int
-		wPFDCount, messgeSize int
+		wPFBCount, messgeSize int
 		expectedSize          uint64
 	}
 	tests := []test{
 		{"empty block minimum square size", 0, 0, 0, appconsts.MinSquareSize},
 		{"full block with only txs", 10000, 0, 0, appconsts.MaxSquareSize},
-		{"random small block square size 2", 0, 1, appconsts.SparseShareContentSize, 2},
+		{"3 tx shares + 2 msg shares = 5 total shares so square size 4", 0, 1, appconsts.SparseShareContentSize, 4},
 		{"random small block square size 4", 0, 1, appconsts.SparseShareContentSize * 10, 4},
 		{"random small block w/ 10 normal txs square size 4", 10, 1, appconsts.SparseShareContentSize, 4},
 		{"random small block square size 16", 0, 4, appconsts.SparseShareContentSize * 8, 16},
@@ -39,7 +39,7 @@ func Test_estimateSquareSize(t *testing.T) {
 	signer := generateKeyringSigner(t, "estimate-key")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			txs := generateManyRawWirePFD(t, encConf.TxConfig, signer, tt.wPFDCount, tt.messgeSize)
+			txs := generateManyRawWirePFB(t, encConf.TxConfig, signer, tt.wPFBCount, tt.messgeSize)
 			txs = append(txs, generateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
 			parsedTxs := parseTxs(encConf.TxConfig, txs)
 			squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, core.EvidenceList{})
@@ -70,7 +70,7 @@ func Test_pruning(t *testing.T) {
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
 	signer := generateKeyringSigner(t, "estimate-key")
 	txs := generateManyRawSendTxs(t, encConf.TxConfig, signer, 10)
-	txs = append(txs, generateManyRawWirePFD(t, encConf.TxConfig, signer, 10, 1000)...)
+	txs = append(txs, generateManyRawWirePFB(t, encConf.TxConfig, signer, 10, 1000)...)
 	parsedTxs := parseTxs(encConf.TxConfig, txs)
 	ss, total := estimateSquareSize(parsedTxs, core.EvidenceList{})
 	nextLowestSS := ss / 2
@@ -125,7 +125,7 @@ func Test_overEstimateMalleatedTxSize(t *testing.T) {
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
 	signer := generateKeyringSigner(t, "estimate-key")
 	for _, tt := range tests {
-		wpfdTx := generateRawWirePFDTx(
+		wpfbTx := generateRawWirePFBTx(
 			t,
 			encConf.TxConfig,
 			namespace.RandomMessageNamespace(),
@@ -133,8 +133,8 @@ func Test_overEstimateMalleatedTxSize(t *testing.T) {
 			signer,
 			tt.opts...,
 		)
-		parsedTxs := parseTxs(encConf.TxConfig, [][]byte{wpfdTx})
-		res := overEstimateMalleatedTxSize(len(parsedTxs[0].rawTx), tt.size, len(types.AllSquareSizes(tt.size)))
+		parsedTxs := parseTxs(encConf.TxConfig, [][]byte{wpfbTx})
+		res := overEstimateMalleatedTxSize(len(parsedTxs[0].rawTx), tt.size)
 		malleatedTx, _, err := malleateTxs(encConf.TxConfig, 32, parsedTxs, core.EvidenceList{})
 		require.NoError(t, err)
 		assert.Less(t, len(malleatedTx[0]), res)
@@ -145,7 +145,7 @@ func Test_calculateCompactShareCount(t *testing.T) {
 	type test struct {
 		name                  string
 		normalTxs             int
-		wPFDCount, messgeSize int
+		wPFBCount, messgeSize int
 	}
 	tests := []test{
 		{"empty block minimum square size", 0, 0, totalMsgSize(0)},
@@ -163,7 +163,7 @@ func Test_calculateCompactShareCount(t *testing.T) {
 	signer := generateKeyringSigner(t, "estimate-key")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			txs := generateManyRawWirePFD(t, encConf.TxConfig, signer, tt.wPFDCount, tt.messgeSize)
+			txs := generateManyRawWirePFB(t, encConf.TxConfig, signer, tt.wPFBCount, tt.messgeSize)
 			txs = append(txs, generateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
 
 			parsedTxs := parseTxs(encConf.TxConfig, txs)

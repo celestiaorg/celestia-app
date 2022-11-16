@@ -18,8 +18,8 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/network"
-	"github.com/celestiaorg/celestia-app/x/payment"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	blob "github.com/celestiaorg/celestia-app/x/blob"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -29,7 +29,7 @@ import (
 func TestIntegrationTestSuite(t *testing.T) {
 	cfg := network.DefaultConfig()
 	cfg.EnableTMLogging = false
-	cfg.MinGasPrices = "0ucls"
+	cfg.MinGasPrices = "0utia"
 	cfg.NumValidators = 1
 	cfg.TimeoutCommit = time.Millisecond * 400
 	suite.Run(t, NewIntegrationTestSuite(cfg))
@@ -87,7 +87,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 
 	// tendermint's default tx size limit is 1Mb, so we get close to that
 	equallySized1MbTxGen := func(c client.Context) []coretypes.Tx {
-		equallySized1MbTxs, err := generateSignedWirePayForDataTxs(c, s.cfg.TxConfig, s.kr, 970000, s.accounts[:20]...)
+		equallySized1MbTxs, err := generateSignedWirePayForBlobTxs(c, s.cfg.TxConfig, s.kr, 970000, s.accounts[:20]...)
 		require.NoError(err)
 		return equallySized1MbTxs
 	}
@@ -97,7 +97,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	// are also testing to ensure that the sequence number is being utilized
 	// corrected in malleated txs
 	randoTxGen := func(c client.Context) []coretypes.Tx {
-		randomTxs, err := generateSignedWirePayForDataTxs(c, s.cfg.TxConfig, s.kr, -1, s.accounts...)
+		randomTxs, err := generateSignedWirePayForBlobTxs(c, s.cfg.TxConfig, s.kr, -1, s.accounts...)
 		require.NoError(err)
 		return randomTxs
 	}
@@ -143,6 +143,8 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				if resp.TxResult.Code == abci.CodeTypeOK {
 					heights[resp.Height]++
 				}
+				// ensure that some gas was used
+				assert.GreaterOrEqual(resp.TxResult.GasUsed, int64(10))
 				// require.True(resp.Proof.VerifyProof())
 			}
 
@@ -170,7 +172,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	}
 }
 
-func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
+func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 	require := s.Require()
 	assert := s.Assert()
 	val := s.network.Validators[0]
@@ -219,7 +221,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 	for _, tc := range tests {
 		s.Run(tc.name, func() {
 			signer := types.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
-			res, err := payment.SubmitPayForData(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.message, 10000000, tc.opts...)
+			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.message, 10000000, tc.opts...)
 			require.NoError(err)
 			require.NotNil(res)
 			assert.Equal(abci.CodeTypeOK, res.Code)
@@ -232,7 +234,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForData() {
 	}
 }
 
-func generateSignedWirePayForDataTxs(clientCtx client.Context, txConfig client.TxConfig, kr keyring.Keyring, msgSize int, accounts ...string) ([]coretypes.Tx, error) {
+func generateSignedWirePayForBlobTxs(clientCtx client.Context, txConfig client.TxConfig, kr keyring.Keyring, msgSize int, accounts ...string) ([]coretypes.Tx, error) {
 	txs := make([]coretypes.Tx, len(accounts))
 	for i, account := range accounts {
 		signer := types.NewKeyringSigner(kr, account, clientCtx.ChainID)
@@ -263,16 +265,15 @@ func generateSignedWirePayForDataTxs(clientCtx client.Context, txConfig client.T
 		}
 
 		// create a msg
-		msg, err := types.NewWirePayForData(
+		msg, err := types.NewWirePayForBlob(
 			namespace.RandomMessageNamespace(),
 			tmrand.Bytes(thisMessageSize),
-			types.AllSquareSizes(thisMessageSize)...,
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		err = msg.SignShareCommitments(signer, opts...)
+		err = msg.SignShareCommitment(signer, opts...)
 		if err != nil {
 			return nil, err
 		}
