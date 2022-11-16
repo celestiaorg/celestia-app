@@ -209,7 +209,7 @@ func TestMerge(t *testing.T) {
 				t.Error(err)
 			}
 
-			res, err := Merge(eds)
+			res, err := merge(eds)
 			if err != nil {
 				t.Fatal(err)
 			}
