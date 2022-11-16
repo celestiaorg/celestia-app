@@ -84,7 +84,7 @@ func NewRootCmd() *cobra.Command {
 			// TODO: maybe we should make this timeout configurable?
 			tmCfg := tmcfg.DefaultConfig()
 			tmCfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
-			tmCfg.RPC.MaxBodyBytes = int64(8000000)
+			tmCfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
 
 			customAppTemplate, customAppConfig := initAppConfig()
 			return server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
