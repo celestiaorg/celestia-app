@@ -31,3 +31,11 @@ pull_request_rules:
       backport:
         branches:
           - v0.9.x
+  - name: backport commits to qgb-v1 branch
+    conditions:
+      - base=main
+      - label=S:backport-to-qgb-v1
+    actions:
+      backport:
+        branches:
+          - qgb-v1
