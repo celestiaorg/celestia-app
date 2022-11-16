@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -81,6 +82,9 @@ func NewRootCmd() *cobra.Command {
 			tmCfg.Mempool.TTLNumBlocks = 10
 			tmCfg.Mempool.MaxTxBytes = 2 * 1024 * 1024 // 2 MiB
 			tmCfg.Mempool.Version = "v1"               // prioritized mempool
+			tmCfg.Consensus.TimeoutPropose = time.Second * 10
+			tmCfg.Consensus.TimeoutCommit = time.Second * 8
+			tmCfg.Consensus.SkipTimeoutCommit = false
 
 			customAppTemplate, customAppConfig := initAppConfig()
 			return server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
