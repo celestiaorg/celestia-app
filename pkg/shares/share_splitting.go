@@ -107,7 +107,7 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 }
 
 func SplitTxs(txs coretypes.Txs) []Share {
-	writer := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
+	writer := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
 	for _, tx := range txs {
 		writer.WriteTx(tx)
 	}
@@ -115,7 +115,7 @@ func SplitTxs(txs coretypes.Txs) []Share {
 }
 
 func SplitEvidence(evd coretypes.EvidenceList) ([]Share, error) {
-	writer := NewCompactShareSplitter(appconsts.EvidenceNamespaceID, appconsts.ShareVersion)
+	writer := NewCompactShareSplitter(appconsts.EvidenceNamespaceID, appconsts.ShareVersionZero)
 	for _, ev := range evd {
 		err := writer.WriteEvidence(ev)
 		if err != nil {
@@ -140,7 +140,7 @@ func SplitMessages(cursor int, indexes []uint32, blobs []coretypes.Blob, useShar
 	return writer.Export(), nil
 }
 
-var tailPaddingInfo, _ = NewInfoByte(appconsts.ShareVersion, false)
+var tailPaddingInfo, _ = NewInfoByte(appconsts.ShareVersionZero, false)
 
 // tail is filler for all tail padded shares
 // it is allocated once and used everywhere

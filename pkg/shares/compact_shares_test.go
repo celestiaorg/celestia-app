@@ -15,7 +15,7 @@ import (
 func TestCompactShareWriter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
 	// tests occur in TestMerge and Test_processCompactShares
-	w := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
+	w := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
 	txs := generateRandomTransaction(33, 200)
 	for _, tx := range txs {
 		rawTx, _ := MarshalDelimitedTx(tx)
@@ -111,7 +111,7 @@ func Test_processCompactShares(t *testing.T) {
 }
 
 func TestCompactShareContainsInfoByte(t *testing.T) {
-	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
 	txs := generateRandomTransaction(1, appconsts.ContinuationCompactShareContentSize/4)
 
 	for _, tx := range txs {
@@ -124,14 +124,14 @@ func TestCompactShareContainsInfoByte(t *testing.T) {
 	infoByte := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
 	isSequenceStart := true
-	want, err := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
+	want, err := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
 
 	require.NoError(t, err)
 	assert.Equal(t, byte(want), infoByte)
 }
 
 func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
-	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
 	txs := generateRandomTransaction(1, appconsts.ContinuationCompactShareContentSize*4)
 
 	for _, tx := range txs {
@@ -144,7 +144,7 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 	infoByte := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
 	isSequenceStart := false
-	want, err := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
+	want, err := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
 
 	require.NoError(t, err)
 	assert.Equal(t, byte(want), infoByte)

@@ -151,7 +151,7 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, s
 	}
 
 	// create a msg
-	msg := generateSignedWirePayForBlob(t, ns, message, signer, opts, ks...)
+	msg := generateSignedWirePayForBlob(t, ns, message, appconsts.ShareVersionZero, signer, opts)
 
 	builder := signer.NewTxBuilder(opts...)
 
@@ -165,8 +165,8 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, s
 	return rawTx
 }
 
-func generateSignedWirePayForBlob(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption, ks ...uint64) *types.MsgWirePayForBlob {
-	msg, err := types.NewWirePayForBlob(ns, message)
+func generateSignedWirePayForBlob(t *testing.T, ns []byte, message []byte, shareVersion uint8, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
+	msg, err := types.NewWirePayForBlob(ns, message, shareVersion)
 	if err != nil {
 		t.Error(err)
 	}

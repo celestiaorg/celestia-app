@@ -130,6 +130,7 @@ func Test_overEstimateMalleatedTxSize(t *testing.T) {
 			encConf.TxConfig,
 			namespace.RandomMessageNamespace(),
 			tmrand.Bytes(tt.size),
+			appconsts.ShareVersionZero,
 			signer,
 			tt.opts...,
 		)

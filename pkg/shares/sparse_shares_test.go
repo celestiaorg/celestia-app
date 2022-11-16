@@ -138,10 +138,10 @@ func TestParsePaddedMsg(t *testing.T) {
 func TestSparseShareContainsInfoByte(t *testing.T) {
 	message := generateRandomMessageOfShareCount(4)
 
-	sequenceStartInfoByte, err := NewInfoByte(appconsts.ShareVersion, true)
+	sequenceStartInfoByte, err := NewInfoByte(appconsts.ShareVersionZero, true)
 	require.NoError(t, err)
 
-	sequenceContinuationInfoByte, err := NewInfoByte(appconsts.ShareVersion, false)
+	sequenceContinuationInfoByte, err := NewInfoByte(appconsts.ShareVersionZero, false)
 	require.NoError(t, err)
 
 	type testCase struct {

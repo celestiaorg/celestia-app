@@ -22,6 +22,8 @@ func NewSparseShareSplitter() *SparseShareSplitter {
 
 // Write adds the delimited data to the underlying messages shares.
 func (sss *SparseShareSplitter) Write(msg coretypes.Blob) {
+	// TODO coretypes.Message likely needs a ShareVersion field so that this
+	// function can contain a switch statement based on it.
 	rawMsg, err := MarshalDelimitedMessage(msg)
 	if err != nil {
 		panic(fmt.Sprintf("app accepted a Message that can not be encoded %#v", msg))
@@ -82,7 +84,7 @@ func (sss *SparseShareSplitter) Count() int {
 // Used for messages.
 func AppendToShares(shares []Share, nid namespace.ID, rawData []byte) []Share {
 	if len(rawData) <= appconsts.SparseShareContentSize {
-		infoByte, err := NewInfoByte(appconsts.ShareVersion, true)
+		infoByte, err := NewInfoByte(appconsts.ShareVersionZero, true)
 		if err != nil {
 			panic(err)
 		}
@@ -113,7 +115,7 @@ func MarshalDelimitedMessage(msg coretypes.Blob) ([]byte, error) {
 // splitMessage breaks the data in a message into the minimum number of
 // namespaced shares
 func splitMessage(rawData []byte, nid namespace.ID) (shares []Share) {
-	infoByte, err := NewInfoByte(appconsts.ShareVersion, true)
+	infoByte, err := NewInfoByte(appconsts.ShareVersionZero, true)
 	if err != nil {
 		panic(err)
 	}
@@ -127,7 +129,7 @@ func splitMessage(rawData []byte, nid namespace.ID) (shares []Share) {
 	rawData = rawData[appconsts.SparseShareContentSize:]
 	for len(rawData) > 0 {
 		shareSizeOrLen := min(appconsts.SparseShareContentSize, len(rawData))
-		infoByte, err := NewInfoByte(appconsts.ShareVersion, false)
+		infoByte, err := NewInfoByte(appconsts.ShareVersionZero, false)
 		if err != nil {
 			panic(err)
 		}
@@ -153,7 +155,7 @@ func namespacedPaddedShares(ns namespace.ID, count int) []Share {
 }
 
 func namespacedPaddedShare(ns namespace.ID) Share {
-	infoByte, err := NewInfoByte(appconsts.ShareVersion, true)
+	infoByte, err := NewInfoByte(appconsts.ShareVersionZero, true)
 	if err != nil {
 		panic(err)
 	}
