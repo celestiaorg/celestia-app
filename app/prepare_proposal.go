@@ -36,17 +36,9 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// MsgPayForBlob and their respective blobPointers. The malleatedTxs contain the
 	// the new sdk.Msg with the original tx's metadata (sequence number, gas
 	// price etc).
-	processedTxs, blobPointers, err := malleateTxs(app.txConfig, squareSize, parsedTxs, req.BlockData.Evidence)
+	processedTxs, blobs, err := malleateTxs(app.txConfig, squareSize, parsedTxs, req.BlockData.Evidence)
 	if err != nil {
 		panic(err)
-	}
-
-	blobs := make([]core.Blob, len(blobPointers))
-	for i, blob := range blobPointers {
-		blobs[i] = core.Blob{
-			NamespaceId: blob.GetNamespaceId(),
-			Data:        blob.GetData(),
-		}
 	}
 
 	blockData := core.Data{

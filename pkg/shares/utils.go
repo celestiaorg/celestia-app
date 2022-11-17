@@ -29,7 +29,7 @@ func MsgSharesUsed(msgSize int) int {
 	return shareCount
 }
 
-func MessageShareCountsFromMessages(msgs []*core.Blob) []int {
+func MessageShareCountsFromMessages(msgs []core.Blob) []int {
 	e := make([]int, len(msgs))
 	for i, msg := range msgs {
 		e[i] = MsgSharesUsed(len(msg.Data))
@@ -52,7 +52,7 @@ func MessagesToProto(msgs []coretypes.Blob) []*core.Blob {
 	return protoMsgs
 }
 
-func MessagesFromProto(msgs []*core.Blob) []coretypes.Blob {
+func MessagesFromProto(msgs []core.Blob) []coretypes.Blob {
 	protoMsgs := make([]coretypes.Blob, len(msgs))
 	for i, msg := range msgs {
 		protoMsgs[i] = coretypes.Blob{

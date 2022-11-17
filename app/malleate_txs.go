@@ -16,7 +16,7 @@ func malleateTxs(
 	squareSize uint64,
 	txs parsedTxs,
 	evd core.EvidenceList,
-) ([][]byte, []*core.Blob, error) {
+) ([][]byte, []core.Blob, error) {
 	// trackedMessage keeps track of the pfb from which it was malleated from so
 	// that we can wrap that pfb with appropriate share index
 	type trackedMessage struct {
@@ -47,10 +47,10 @@ func malleateTxs(
 	})
 
 	// split the tracked messagse apart now that we know the order of the indexes
-	msgs := make([]*core.Blob, len(trackedMsgs))
+	msgs := make([]core.Blob, len(trackedMsgs))
 	parsedTxReverseIndexes := make([]int, len(trackedMsgs))
 	for i, tMsg := range trackedMsgs {
-		msgs[i] = tMsg.message
+		msgs[i] = *tMsg.message
 		parsedTxReverseIndexes[i] = tMsg.parsedIndex
 	}
 
