@@ -23,10 +23,10 @@ var (
 // that are encoded as wrapped transactions. Most use cases out of this package
 // should use these share indexes and therefore set useShareIndexes to true.
 func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
-	if data.OriginalSquareSize == 0 || !isPowerOf2(data.OriginalSquareSize) {
-		return nil, fmt.Errorf("square size is not a power of two: %d", data.OriginalSquareSize)
+	if data.SquareSize == 0 || !isPowerOf2(data.SquareSize) {
+		return nil, fmt.Errorf("square size is not a power of two: %d", data.SquareSize)
 	}
-	wantShareCount := int(data.OriginalSquareSize * data.OriginalSquareSize)
+	wantShareCount := int(data.SquareSize * data.SquareSize)
 	currentShareCount := 0
 
 	txShares := SplitTxs(data.Txs)
@@ -45,11 +45,11 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 	sort.Slice(msgIndexes, func(i, j int) bool { return msgIndexes[i] < msgIndexes[j] })
 
 	var padding []Share
-	if len(data.Messages.MessagesList) > 0 {
+	if len(data.Blobs) > 0 {
 		msgShareStart, _ := NextAlignedPowerOfTwo(
 			currentShareCount,
-			MsgSharesUsed(len(data.Messages.MessagesList[0].Data)),
-			int(data.OriginalSquareSize),
+			MsgSharesUsed(len(data.Blobs[0].Data)),
+			int(data.SquareSize),
 		)
 		ns := appconsts.TxNamespaceID
 		if len(evdShares) > 0 {
@@ -64,7 +64,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 		return nil, ErrUnexpectedFirstMessageShareIndex
 	}
 
-	msgShares, err = SplitMessages(currentShareCount, msgIndexes, data.Messages.MessagesList, useShareIndexes)
+	msgShares, err = SplitMessages(currentShareCount, msgIndexes, data.Blobs, useShareIndexes)
 	if err != nil {
 		return nil, err
 	}
@@ -125,12 +125,12 @@ func SplitEvidence(evd coretypes.EvidenceList) ([]Share, error) {
 	return writer.Export(), nil
 }
 
-func SplitMessages(cursor int, indexes []uint32, msgs []coretypes.Message, useShareIndexes bool) ([]Share, error) {
-	if useShareIndexes && len(indexes) != len(msgs) {
+func SplitMessages(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIndexes bool) ([]Share, error) {
+	if useShareIndexes && len(indexes) != len(blobs) {
 		return nil, ErrIncorrectNumberOfIndexes
 	}
 	writer := NewSparseShareSplitter()
-	for i, msg := range msgs {
+	for i, msg := range blobs {
 		writer.Write(msg)
 		if useShareIndexes && len(indexes) > i+1 {
 			paddedShareCount := int(indexes[i+1]) - (writer.Count() + cursor)

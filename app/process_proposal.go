@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
@@ -34,7 +35,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	if !data.Messages.IsSorted() {
+	if !sort.IsSorted(coretypes.BlobsByNamespace(data.Blobs)) {
 		logInvalidPropBlock(app.Logger(), req.Header, "messages are unsorted")
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
@@ -49,7 +50,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	cacher := inclusion.NewSubtreeCacher(data.OriginalSquareSize)
+	cacher := inclusion.NewSubtreeCacher(data.SquareSize)
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(dataSquare), appconsts.DefaultCodec(), cacher.Constructor)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to erasure the data square", err)
@@ -123,7 +124,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 	// compare the number of PFBs and messages, if they aren't
 	// identical, then  we already know this block is invalid
-	if commitmentCounter != len(req.BlockData.Messages.MessagesList) {
+	if commitmentCounter != len(req.BlockData.Blobs) {
 		logInvalidPropBlock(app.Logger(), req.Header, "varying number of messages and payForBlob txs in the same block")
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,

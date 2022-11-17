@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"math/rand"
+	"sort"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	"github.com/tendermint/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -39,7 +41,7 @@ import (
 // 	largeTxLenDelimited, _ := largeTx.MarshalDelimited()
 // 	smolTx := coretypes.Tx("small Tx")
 // 	smolTxLenDelimited, _ := smolTx.MarshalDelimited()
-// 	msg1 := coretypes.Message{
+// 	msg1 := coretypes.Blob{
 // 		NamespaceID: namespace.ID("8bytesss"),
 // 		Data:        []byte("some data"),
 // 	}
@@ -144,7 +146,7 @@ import (
 // 		},
 // 		{"ll-app message",
 // 			args{
-// 				data: coretypes.Messages{[]coretypes.Message{msg1}},
+// 				data: coretypes.Blobs{[]coretypes.Blob{msg1}},
 // 			},
 // 			NamespacedShares{
 // 				NamespacedShare{
@@ -227,7 +229,7 @@ func TestMerge(t *testing.T) {
 			data.Evidence = coretypes.EvidenceData{}
 			res.Evidence = coretypes.EvidenceData{}
 
-			res.OriginalSquareSize = data.OriginalSquareSize
+			res.SquareSize = data.SquareSize
 
 			assert.Equal(t, data, res)
 		})
@@ -253,8 +255,8 @@ func TestFuzz_Merge(t *testing.T) {
 func generateRandomBlockData(txCount, evdCount, msgCount, maxSize int) (data coretypes.Data) {
 	data.Txs = generateRandomlySizedTransactions(txCount, maxSize)
 	data.Evidence = generateIdenticalEvidence(evdCount)
-	data.Messages = generateRandomlySizedMessages(msgCount, maxSize)
-	data.OriginalSquareSize = appconsts.MaxSquareSize
+	data.Blobs = generateRandomlySizedBlobs(msgCount, maxSize)
+	data.SquareSize = appconsts.MaxSquareSize
 	return data
 }
 
@@ -292,39 +294,38 @@ func generateIdenticalEvidence(count int) coretypes.EvidenceData {
 	return coretypes.EvidenceData{Evidence: evidence}
 }
 
-func generateRandomlySizedMessages(count, maxMsgSize int) coretypes.Messages {
-	msgs := make([]coretypes.Message, count)
+func generateRandomlySizedBlobs(count, maxBlobSize int) []coretypes.Blob {
+	blobs := make([]coretypes.Blob, count)
 	for i := 0; i < count; i++ {
-		msgs[i] = generateRandomMessage(rand.Intn(maxMsgSize))
-		if len(msgs[i].Data) == 0 {
+		blobs[i] = generateRandomBlob(rand.Intn(maxBlobSize))
+		if len(blobs[i].Data) == 0 {
 			i--
 		}
 	}
 
 	// this is just to let us use assert.Equal
 	if count == 0 {
-		msgs = nil
+		blobs = nil
 	}
 
-	messages := coretypes.Messages{MessagesList: msgs}
-	messages.SortMessages()
-	return messages
+	sort.Sort(types.BlobsByNamespace(blobs))
+	return blobs
 }
 
-// generateRandomMessage returns a random message of the given size (in bytes)
-func generateRandomMessage(size int) coretypes.Message {
-	msg := coretypes.Message{
+// generateRandomBlob returns a random blob of the given size (in bytes)
+func generateRandomBlob(size int) coretypes.Blob {
+	blob := coretypes.Blob{
 		NamespaceID: tmrand.Bytes(appconsts.NamespaceSize),
 		Data:        tmrand.Bytes(size),
 	}
-	return msg
+	return blob
 }
 
 // generateRandomMessageOfShareCount returns a message that spans the given
 // number of shares
-func generateRandomMessageOfShareCount(count int) coretypes.Message {
+func generateRandomMessageOfShareCount(count int) coretypes.Blob {
 	size := rawMessageSize(appconsts.SparseShareContentSize * count)
-	return generateRandomMessage(size)
+	return generateRandomBlob(size)
 }
 
 // rawMessageSize returns the raw message size that can be used to construct a

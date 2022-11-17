@@ -33,19 +33,19 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	}
 
 	// in this step we are processing any MsgWirePayForBlob transactions into
-	// MsgPayForBlob and their respective messages. The malleatedTxs contain the
+	// MsgPayForBlob and their respective blobPointers. The malleatedTxs contain the
 	// the new sdk.Msg with the original tx's metadata (sequence number, gas
 	// price etc).
-	processedTxs, messages, err := malleateTxs(app.txConfig, squareSize, parsedTxs, req.BlockData.Evidence)
+	processedTxs, blobs, err := malleateTxs(app.txConfig, squareSize, parsedTxs, req.BlockData.Evidence)
 	if err != nil {
 		panic(err)
 	}
 
 	blockData := core.Data{
-		Txs:                processedTxs,
-		Evidence:           req.BlockData.Evidence,
-		Messages:           core.Messages{MessagesList: messages},
-		OriginalSquareSize: squareSize,
+		Txs:        processedTxs,
+		Evidence:   req.BlockData.Evidence,
+		Blobs:      blobs,
+		SquareSize: squareSize,
 	}
 
 	coreData, err := coretypes.DataFromProto(&blockData)
@@ -76,7 +76,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// We use the block data struct to pass the square size and calculated data
 	// root to tendermint.
 	blockData.Hash = dah.Hash()
-	blockData.OriginalSquareSize = squareSize
+	blockData.SquareSize = squareSize
 
 	// tendermint doesn't need to use any of the erasure data, as only the
 	// protobuf encoded version of the block data is gossiped.
