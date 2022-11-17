@@ -23,6 +23,8 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// EventPayForBlob defines an event that is emitted with the signer and blob size
+// at the end of a pay for blob txn
 type EventPayForBlob struct {
 	Signer   string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 	BlobSize uint64 `protobuf:"varint,2,opt,name=blob_size,json=blobSize,proto3" json:"blob_size,omitempty"`
