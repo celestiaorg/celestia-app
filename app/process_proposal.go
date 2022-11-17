@@ -35,8 +35,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	sort.Sort(coretypes.BlobsByNamespace(data.Blobs))
-	if sort.IsSorted(coretypes.BlobsByNamespace(data.Blobs)) {
+	if !sort.IsSorted(coretypes.BlobsByNamespace(data.Blobs)) {
 		logInvalidPropBlock(app.Logger(), req.Header, "messages are unsorted")
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
