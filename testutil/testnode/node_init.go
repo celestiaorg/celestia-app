@@ -101,30 +101,9 @@ func initGenFiles(
 	cparams *tmproto.ConsensusParams,
 	state map[string]json.RawMessage,
 	codec codec.Codec,
-	genAccounts []authtypes.GenesisAccount,
-	genBalances []banktypes.Balance,
 	file,
 	chainID string,
 ) error {
-	// set the accounts in the genesis state
-	var authGenState authtypes.GenesisState
-	codec.MustUnmarshalJSON(state[authtypes.ModuleName], &authGenState)
-
-	accounts, err := authtypes.PackAccounts(genAccounts)
-	if err != nil {
-		return err
-	}
-
-	authGenState.Accounts = append(authGenState.Accounts, accounts...)
-	state[authtypes.ModuleName] = codec.MustMarshalJSON(&authGenState)
-
-	// set the balances in the genesis state
-	var bankGenState banktypes.GenesisState
-	codec.MustUnmarshalJSON(state[banktypes.ModuleName], &bankGenState)
-
-	bankGenState.Balances = append(bankGenState.Balances, genBalances...)
-	state[banktypes.ModuleName] = codec.MustMarshalJSON(&bankGenState)
-
 	appGenStateJSON, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return err
