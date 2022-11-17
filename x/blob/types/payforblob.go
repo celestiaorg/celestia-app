@@ -20,7 +20,7 @@ const (
 	URLMsgWirePayForBlob = "/blob.MsgWirePayForBlob"
 	URLMsgPayForBlob     = "/blob.MsgPayForBlob"
 	ShareSize            = appconsts.ShareSize
-	SquareSize           = appconsts.MaxSquareSize
+	SquareSize           = appconsts.DefaultMaxSquareSize
 	NamespaceIDSize      = appconsts.NamespaceSize
 )
 

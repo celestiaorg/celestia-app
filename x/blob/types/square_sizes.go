@@ -14,8 +14,8 @@ var allSquareSizes = generateAllSquareSizes()
 // using the maximum and minimum square sizes
 func generateAllSquareSizes() []int {
 	sizes := []int{}
-	cursor := int(appconsts.MinSquareSize)
-	for cursor <= appconsts.MaxSquareSize {
+	cursor := int(appconsts.DefaultMinSquareSize)
+	for cursor <= appconsts.DefaultMaxSquareSize {
 		sizes = append(sizes, cursor)
 		cursor *= 2
 	}

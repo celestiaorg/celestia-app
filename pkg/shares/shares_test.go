@@ -256,7 +256,7 @@ func generateRandomBlockData(txCount, evdCount, msgCount, maxSize int) (data cor
 	data.Txs = generateRandomlySizedTransactions(txCount, maxSize)
 	data.Evidence = generateIdenticalEvidence(evdCount)
 	data.Blobs = generateRandomlySizedBlobs(msgCount, maxSize)
-	data.SquareSize = appconsts.MaxSquareSize
+	data.SquareSize = appconsts.DefaultMaxSquareSize
 	return data
 }
 
