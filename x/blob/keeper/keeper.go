@@ -65,7 +65,6 @@ func (k Keeper) PayForBlob(goCtx context.Context, msg *types.MsgPayForBlob) (*ty
 		Signer: sdk.AccAddress(msg.Signer).String(),
 		Size_:  msg.GetBlobSize(),
 	})
-
 	if err != nil {
 		return &types.MsgPayForBlobResponse{}, nil
 	}
