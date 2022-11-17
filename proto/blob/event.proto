@@ -5,7 +5,7 @@ import "gogoproto/gogo.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 
-message PayForBlob {
+message EventPayForBlob {
   string signer = 1;
-  uint64 key_size = 2;
+  uint64 blob_size = 2;
 }
