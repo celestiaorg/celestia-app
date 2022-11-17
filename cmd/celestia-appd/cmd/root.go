@@ -78,7 +78,13 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
+			// change tendermint config for celestia app
+			// set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
+			// set max body bytes for transaction to be 8 Mb
+			// TODO: maybe we should make this timeout configurable?
 			tmCfg := tmcfg.DefaultConfig()
+			tmCfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
+			tmCfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
 			tmCfg.Mempool.TTLNumBlocks = 10
 			tmCfg.Mempool.MaxTxBytes = 2 * 1024 * 1024 // 2 MiB
 			tmCfg.Mempool.Version = "v1"               // prioritized mempool
