@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	paytypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/spf13/cobra"
 	tmlog "github.com/tendermint/tendermint/libs/log"
@@ -43,13 +43,13 @@ func OrchCmd() *cobra.Command {
 			if err != nil {
 				panic(err)
 			}
-			signer := paytypes.NewKeyringSigner(
+			signer := blobtypes.NewKeyringSigner(
 				ring,
 				config.keyringAccount,
 				config.celestiaChainID,
 			)
 
-			broadcaster, err := NewBroadcaster(config.celesGRPC, signer, config.celestiaGasLimit)
+			broadcaster, err := NewBroadcaster(config.celesGRPC, signer, config.celestiaGasLimit, config.celestiaTxFee)
 			if err != nil {
 				panic(err)
 			}

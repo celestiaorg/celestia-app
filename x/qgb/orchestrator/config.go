@@ -44,6 +44,7 @@ const (
 	startingNonceFlag    = "starting-nonce"
 	evmGasLimitFlag      = "evm-gas-limit"
 	celestiaGasLimitFlag = "celestia-gas-limit"
+	celestiaTxFeeFlag    = "celestia-tx-fee"
 )
 
 func addOrchestratorFlags(cmd *cobra.Command) *cobra.Command {
@@ -65,6 +66,7 @@ func addOrchestratorFlags(cmd *cobra.Command) *cobra.Command {
 		"Specify the ECDSA private key used to sign orchestrator commitments in hex",
 	)
 	cmd.Flags().Uint64P(celestiaGasLimitFlag, "l", DEFAULTCELESTIAGASLIMIT, "Specify the celestia gas limit")
+	cmd.Flags().Int64P(celestiaTxFeeFlag, "f", DEFAULTCELESTIATXFEE, "Specify the celestia transaction fee")
 
 	return cmd
 }
@@ -74,6 +76,7 @@ type orchestratorConfig struct {
 	celestiaChainID, celesGRPC, tendermintRPC   string
 	privateKey                                  *ecdsa.PrivateKey
 	celestiaGasLimit                            uint64
+	celestiaTxFee                               int64
 }
 
 func parseOrchestratorFlags(cmd *cobra.Command) (orchestratorConfig, error) {
@@ -116,6 +119,10 @@ func parseOrchestratorFlags(cmd *cobra.Command) (orchestratorConfig, error) {
 	if err != nil {
 		return orchestratorConfig{}, err
 	}
+	celestiaTxFee, err := cmd.Flags().GetInt64(celestiaTxFeeFlag)
+	if err != nil {
+		return orchestratorConfig{}, err
+	}
 
 	return orchestratorConfig{
 		keyringBackend:   keyringBackend,
@@ -126,6 +133,7 @@ func parseOrchestratorFlags(cmd *cobra.Command) (orchestratorConfig, error) {
 		celesGRPC:        celesGRPC,
 		tendermintRPC:    tendermintRPC,
 		celestiaGasLimit: celestiaGasLimit,
+		celestiaTxFee:    celestiaTxFee,
 	}, nil
 }
 
