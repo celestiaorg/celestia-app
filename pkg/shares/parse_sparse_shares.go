@@ -10,9 +10,9 @@ import (
 )
 
 // parseSparseShares iterates through rawShares and parses out individual
-// messages. It returns an error if a rawShare contains a share version that
+// blobs. It returns an error if a rawShare contains a share version that
 // isn't present in supportedShareVersions.
-func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) ([]coretypes.Message, error) {
+func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) ([]coretypes.Blob, error) {
 	if len(rawShares) == 0 {
 		return nil, nil
 	}
@@ -28,9 +28,9 @@ func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) ([]co
 	}
 
 	// msgs returned
-	msgs := []coretypes.Message{}
+	msgs := []coretypes.Blob{}
 	currentMsgLen := 0
-	currentMsg := coretypes.Message{}
+	currentMsg := coretypes.Blob{}
 	// whether the current share contains the start of a new message
 	isNewMessage := true
 	// the len in bytes of the current chunk of data that will eventually become
@@ -64,7 +64,7 @@ func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) ([]co
 			if infoByte.IsSequenceStart() != isNewMessage {
 				return nil, fmt.Errorf("expected sequence start indicator to be %t but got %t", isNewMessage, infoByte.IsSequenceStart())
 			}
-			currentMsg = coretypes.Message{
+			currentMsg = coretypes.Blob{
 				NamespaceID: nid,
 				Data:        nextMsgChunk,
 			}

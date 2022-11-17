@@ -28,22 +28,22 @@ func TestPrepareProposal(t *testing.T) {
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 
 	type test struct {
-		input            abci.RequestPrepareProposal
-		expectedMessages []*core.Message
-		expectedTxs      int
+		input         abci.RequestPrepareProposal
+		expectedBlobs []core.Blob
+		expectedTxs   int
 	}
 
-	firstNS := []byte{2, 2, 2, 2, 2, 2, 2, 2}
+	firstNamespace := []byte{2, 2, 2, 2, 2, 2, 2, 2}
 	firstMessage := bytes.Repeat([]byte{4}, 512)
-	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNS, firstMessage, signer, types.AllSquareSizes(len(firstMessage))...)
+	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNamespace, firstMessage, signer, types.AllSquareSizes(len(firstMessage))...)
 
-	secondNS := []byte{1, 1, 1, 1, 1, 1, 1, 1}
+	secondNamespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	secondMessage := []byte{2}
-	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNS, secondMessage, signer, types.AllSquareSizes(len(secondMessage))...)
+	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNamespace, secondMessage, signer, types.AllSquareSizes(len(secondMessage))...)
 
-	thirdNS := []byte{3, 3, 3, 3, 3, 3, 3, 3}
+	thirdNamespace := []byte{3, 3, 3, 3, 3, 3, 3, 3}
 	thirdMessage := []byte{1}
-	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNS, thirdMessage, signer, types.AllSquareSizes(len(thirdMessage))...)
+	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNamespace, thirdMessage, signer, types.AllSquareSizes(len(thirdMessage))...)
 
 	tests := []test{
 		{
@@ -52,17 +52,17 @@ func TestPrepareProposal(t *testing.T) {
 					Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
 				},
 			},
-			expectedMessages: []*core.Message{
+			expectedBlobs: []core.Blob{
 				{
-					NamespaceId: secondNS, // the second message should be first
+					NamespaceId: secondNamespace, // the second blob should be first
 					Data:        []byte{2},
 				},
 				{
-					NamespaceId: firstNS,
+					NamespaceId: firstNamespace,
 					Data:        firstMessage,
 				},
 				{
-					NamespaceId: thirdNS,
+					NamespaceId: thirdNamespace,
 					Data:        []byte{1},
 				},
 			},
@@ -72,7 +72,7 @@ func TestPrepareProposal(t *testing.T) {
 
 	for _, tt := range tests {
 		res := testApp.PrepareProposal(tt.input)
-		assert.Equal(t, tt.expectedMessages, res.BlockData.Messages.MessagesList)
+		assert.Equal(t, tt.expectedBlobs, res.BlockData.Blobs)
 		assert.Equal(t, tt.expectedTxs, len(res.BlockData.Txs))
 
 		// verify the signatures of the prepared txs
@@ -135,7 +135,7 @@ func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
 			},
 		}
 		res := testApp.PrepareProposal(input)
-		assert.Equal(t, tt.expectedMessages, len(res.BlockData.Messages.MessagesList))
+		assert.Equal(t, tt.expectedMessages, len(res.BlockData.Blobs))
 	}
 }
 

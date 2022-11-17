@@ -51,7 +51,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 			name:  "removed first message",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Messages.MessagesList = d.Messages.MessagesList[1:]
+				d.Blobs = d.Blobs[1:]
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -59,9 +59,9 @@ func TestMessageInclusionCheck(t *testing.T) {
 			name:  "added an extra message",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Messages.MessagesList = append(
-					d.Messages.MessagesList,
-					&core.Message{NamespaceId: []byte{1, 2, 3, 4, 5, 6, 7, 8}, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}},
+				d.Blobs = append(
+					d.Blobs,
+					core.Blob{NamespaceId: []byte{1, 2, 3, 4, 5, 6, 7, 8}, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}},
 				)
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -70,7 +70,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 			name:  "modified a message",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Messages.MessagesList[0] = &core.Message{NamespaceId: []byte{1, 2, 3, 4, 5, 6, 7, 8}, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
+				d.Blobs[0] = core.Blob{NamespaceId: []byte{1, 2, 3, 4, 5, 6, 7, 8}, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -78,7 +78,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 			name:  "invalid namespace TailPadding",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Messages.MessagesList[0] = &core.Message{NamespaceId: appconsts.TailPaddingNamespaceID, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
+				d.Blobs[0] = core.Blob{NamespaceId: appconsts.TailPaddingNamespaceID, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -86,7 +86,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 			name:  "invalid namespace TxNamespace",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Messages.MessagesList[0] = &core.Message{NamespaceId: appconsts.TxNamespaceID, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
+				d.Blobs[0] = core.Blob{NamespaceId: appconsts.TxNamespaceID, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -94,10 +94,10 @@ func TestMessageInclusionCheck(t *testing.T) {
 			name:  "unsorted messages",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				msg1, msg2, msg3 := d.Messages.MessagesList[0], d.Messages.MessagesList[1], d.Messages.MessagesList[2]
-				d.Messages.MessagesList[0] = msg3
-				d.Messages.MessagesList[1] = msg1
-				d.Messages.MessagesList[2] = msg2
+				msg1, msg2, msg3 := d.Blobs[0], d.Blobs[1], d.Blobs[2]
+				d.Blobs[0] = msg3
+				d.Blobs[1] = msg1
+				d.Blobs[2] = msg2
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -147,7 +147,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 // 				Txs: [][]byte{
 // 					buildTx(t, signer, encConf.TxConfig, pfb),
 // 				},
-// 				Messages: core.Messages{
+// 				Blobs: core.Blobs{
 // 					MessagesList: []*core.Message{
 // 						{
 // 							NamespaceId: pfb.GetNamespaceId(),
@@ -155,7 +155,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 // 						},
 // 					},
 // 				},
-// 				OriginalSquareSize: 8,
+// 				SquareSize: 8,
 // 			},
 // 		}
 // 		data, err := coretypes.DataFromProto(input.BlockData)
@@ -165,7 +165,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 // 		require.NoError(t, err)
 
 // 		require.NoError(t, err)
-// 		eds, err := da.ExtendShares(input.BlockData.OriginalSquareSize, shares)
+// 		eds, err := da.ExtendShares(input.BlockData.SquareSize, shares)
 // 		require.NoError(t, err)
 // 		dah := da.NewDataAvailabilityHeader(eds)
 // 		input.Header.DataHash = dah.Hash()
@@ -186,15 +186,13 @@ func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
 			Txs: [][]byte{
 				buildTx(t, signer, encConf.TxConfig, pfb),
 			},
-			Messages: core.Messages{
-				MessagesList: []*core.Message{
-					{
-						NamespaceId: pfb.GetNamespaceId(),
-						Data:        msg,
-					},
+			Blobs: []core.Blob{
+				{
+					NamespaceId: pfb.GetNamespaceId(),
+					Data:        msg,
 				},
 			},
-			OriginalSquareSize: 8,
+			SquareSize: 8,
 		},
 	}
 	res := testApp.ProcessProposal(input)

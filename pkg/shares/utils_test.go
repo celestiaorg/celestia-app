@@ -16,8 +16,8 @@ func FuzzMsgSharesUsed(f *testing.F) {
 			t.Skip()
 		}
 		ml := MsgSharesUsed(int(a))
-		msg := generateRandomMessage(int(a))
-		rawShares, err := SplitMessages(0, nil, []types.Message{msg}, false)
+		blob := generateRandomBlob(int(a))
+		rawShares, err := SplitMessages(0, nil, []types.Blob{blob}, false)
 		require.NoError(t, err)
 		require.Equal(t, len(rawShares), ml)
 	})
