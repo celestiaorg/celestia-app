@@ -54,6 +54,7 @@ apk add curl
     --evm-address=${EVM_ADDRESS} \
     --home=${CELESTIA_HOME} \
     --broadcast-mode=block \
+    --fees="300utia" \
     --yes
 } &
 

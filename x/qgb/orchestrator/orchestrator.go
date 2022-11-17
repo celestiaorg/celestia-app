@@ -9,7 +9,9 @@ import (
 	"sync"
 	"time"
 
-	paytypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/app"
+
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -40,7 +42,7 @@ type Orchestrator struct {
 	Logger tmlog.Logger // maybe use a more general interface
 
 	EvmPrivateKey  ecdsa.PrivateKey
-	Signer         *paytypes.KeyringSigner
+	Signer         *blobtypes.KeyringSigner
 	OrchEVMAddress ethcmn.Address
 	OrchAccAddress sdk.AccAddress
 
@@ -54,7 +56,7 @@ func NewOrchestrator(
 	querier Querier,
 	broadcaster BroadcasterI,
 	retrier RetrierI,
-	signer *paytypes.KeyringSigner,
+	signer *blobtypes.KeyringSigner,
 	evmPrivateKey ecdsa.PrivateKey,
 ) (*Orchestrator, error) {
 	orchEVMAddr := crypto.PubkeyToAddress(evmPrivateKey.PublicKey)
@@ -374,7 +376,10 @@ func (orch Orchestrator) ProcessDataCommitmentEvent(
 	return nil
 }
 
-const DEFAULTCELESTIAGASLIMIT = 100000
+const (
+	DEFAULTCELESTIAGASLIMIT = 100000
+	DEFAULTCELESTIATXFEE    = 100
+)
 
 var _ BroadcasterI = &Broadcaster{}
 
@@ -384,12 +389,18 @@ type BroadcasterI interface {
 
 type Broadcaster struct {
 	mutex            *sync.Mutex
-	signer           *paytypes.KeyringSigner
+	signer           *blobtypes.KeyringSigner
 	qgbGrpc          *grpc.ClientConn
 	celestiaGasLimit uint64
+	fee              int64
 }
 
-func NewBroadcaster(qgbGrpcAddr string, signer *paytypes.KeyringSigner, celestiaGasLimit uint64) (*Broadcaster, error) {
+func NewBroadcaster(
+	qgbGrpcAddr string,
+	signer *blobtypes.KeyringSigner,
+	celestiaGasLimit uint64,
+	fee int64,
+) (*Broadcaster, error) {
 	qgbGrpc, err := grpc.Dial(qgbGrpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
@@ -400,6 +411,7 @@ func NewBroadcaster(qgbGrpcAddr string, signer *paytypes.KeyringSigner, celestia
 		signer:           signer,
 		qgbGrpc:          qgbGrpc,
 		celestiaGasLimit: celestiaGasLimit,
+		fee:              fee,
 	}, nil
 }
 
@@ -413,6 +425,8 @@ func (bc *Broadcaster) BroadcastTx(ctx context.Context, msg sdk.Msg) (string, er
 
 	builder := bc.signer.NewTxBuilder()
 	builder.SetGasLimit(bc.celestiaGasLimit)
+	builder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(bc.fee))))
+
 	// TODO: update this api
 	// via https://github.com/celestiaorg/celestia-app/pull/187/commits/37f96d9af30011736a3e6048bbb35bad6f5b795c
 	tx, err := bc.signer.BuildSignedTx(builder, msg)
@@ -433,8 +447,7 @@ func (bc *Broadcaster) BroadcastTx(ctx context.Context, msg sdk.Msg) (string, er
 	// We can also use BroadcastMode_BROADCAST_MODE_SYNC but it will also fail due to a non incremented
 	// sequence number.
 
-	// TODO  check if we can move this outside of the paytypes
-	resp, err := paytypes.BroadcastTx(ctx, bc.qgbGrpc, sdktypestx.BroadcastMode_BROADCAST_MODE_BLOCK, rawTx)
+	resp, err := blobtypes.BroadcastTx(ctx, bc.qgbGrpc, sdktypestx.BroadcastMode_BROADCAST_MODE_BLOCK, rawTx)
 	if err != nil {
 		return "", err
 	}
