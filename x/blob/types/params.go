@@ -2,8 +2,8 @@ package types
 
 import (
 	"fmt"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"gopkg.in/yaml.v2"
 )
