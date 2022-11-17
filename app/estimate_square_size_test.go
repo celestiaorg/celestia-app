@@ -53,10 +53,10 @@ func Test_estimateSquareSize(t *testing.T) {
 			require.NoError(t, err)
 
 			blockData := coretypes.Data{
-				Txs:                shares.TxsFromBytes(processedTxs),
-				Evidence:           coretypes.EvidenceData{},
-				Messages:           coretypes.Messages{MessagesList: shares.MessagesFromProto(messages)},
-				OriginalSquareSize: squareSize,
+				Txs:        shares.TxsFromBytes(processedTxs),
+				Evidence:   coretypes.EvidenceData{},
+				Blobs:      shares.MessagesFromProto(messages),
+				SquareSize: squareSize,
 			}
 
 			rawShares, err := shares.Split(blockData, true)

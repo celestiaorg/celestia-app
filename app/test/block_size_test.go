@@ -157,7 +157,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				require.NoError(err)
 				blockRes, err := node.Block(context.Background(), &height)
 				require.NoError(err)
-				size := blockRes.Block.Data.OriginalSquareSize
+				size := blockRes.Block.Data.SquareSize
 
 				// perform basic checks on the size of the square
 				assert.LessOrEqual(size, uint64(appconsts.MaxSquareSize))

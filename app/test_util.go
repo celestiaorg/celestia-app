@@ -36,14 +36,14 @@ func GenerateValidBlockData(
 		parsedTxs = prune(txConfig, parsedTxs, totalSharesUsed, int(squareSize))
 	}
 
-	processedTxs, messages, err := malleateTxs(txConfig, squareSize, parsedTxs, core.EvidenceList{})
+	processedTxs, blobs, err := malleateTxs(txConfig, squareSize, parsedTxs, core.EvidenceList{})
 	require.NoError(t, err)
 
 	blockData := core.Data{
-		Txs:                processedTxs,
-		Evidence:           core.EvidenceList{},
-		Messages:           core.Messages{MessagesList: messages},
-		OriginalSquareSize: squareSize,
+		Txs:        processedTxs,
+		Evidence:   core.EvidenceList{},
+		Blobs:      blobs,
+		SquareSize: squareSize,
 	}
 
 	return coretypes.DataFromProto(&blockData)

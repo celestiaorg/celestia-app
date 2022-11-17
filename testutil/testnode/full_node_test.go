@@ -104,7 +104,7 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 
 		b, err := s.cctx.Client.Block(context.TODO(), &res.Height)
 		require.NoError(err)
-		require.Equal(uint64(squareSize), b.Block.OriginalSquareSize)
+		require.Equal(uint64(squareSize), b.Block.SquareSize)
 	}
 }
 

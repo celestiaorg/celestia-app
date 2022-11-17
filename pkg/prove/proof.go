@@ -25,10 +25,10 @@ func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxP
 
 	// use the index of the shares and the square size to determine the row that
 	// contains the tx we need to prove
-	startRow := startPos / data.OriginalSquareSize
-	endRow := endPos / data.OriginalSquareSize
-	startLeaf := startPos % data.OriginalSquareSize
-	endLeaf := endPos % data.OriginalSquareSize
+	startRow := startPos / data.SquareSize
+	endRow := endPos / data.SquareSize
+	startLeaf := startPos % data.SquareSize
+	endLeaf := endPos % data.SquareSize
 
 	rowShares, err := genRowShares(codec, data, startRow, endRow)
 	if err != nil {
@@ -40,7 +40,7 @@ func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxP
 	var rowRoots []tmbytes.HexBytes //nolint:prealloc // rarely will this contain more than a single root
 	for i, row := range rowShares {
 		// create an nmt to use to generate a proof
-		tree := wrapper.NewErasuredNamespacedMerkleTree(data.OriginalSquareSize, uint(i))
+		tree := wrapper.NewErasuredNamespacedMerkleTree(data.SquareSize, uint(i))
 		for _, share := range row {
 			tree.Push(
 				share,
@@ -56,7 +56,7 @@ func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxP
 		}
 		// if this is not the last row, then select for the rest of the row
 		if i != (len(rowShares) - 1) {
-			endLeafPos = data.OriginalSquareSize - 1
+			endLeafPos = data.SquareSize - 1
 		}
 
 		rawShares = append(rawShares, shares.ToBytes(row[startLeafPos:endLeafPos+1])...)
@@ -126,11 +126,11 @@ func txShareIndex(totalTxLen int) (index uint64) {
 
 // genRowShares progessively generates data square rows from block data
 func genRowShares(codec rsmt2d.Codec, data types.Data, startRow, endRow uint64) ([][]shares.Share, error) {
-	if endRow > data.OriginalSquareSize {
+	if endRow > data.SquareSize {
 		return nil, errors.New("cannot generate row shares past the original square size")
 	}
 	origRowShares := splitIntoRows(
-		data.OriginalSquareSize,
+		data.SquareSize,
 		genOrigRowShares(data, startRow, endRow),
 	)
 
@@ -155,8 +155,8 @@ func genRowShares(codec rsmt2d.Codec, data types.Data, startRow, endRow uint64) 
 // data square, meaning the rows only half the full square length, as there is
 // not erasure data
 func genOrigRowShares(data types.Data, startRow, endRow uint64) []shares.Share {
-	wantLen := (endRow + 1) * data.OriginalSquareSize
-	startPos := startRow * data.OriginalSquareSize
+	wantLen := (endRow + 1) * data.SquareSize
+	startPos := startRow * data.SquareSize
 
 	rawShares := shares.SplitTxs(data.Txs)
 	// return if we have enough shares
@@ -174,8 +174,8 @@ func genOrigRowShares(data types.Data, startRow, endRow uint64) []shares.Share {
 		return rawShares[startPos:wantLen]
 	}
 
-	for _, m := range data.Messages.MessagesList {
-		msgShares, err := shares.SplitMessages(0, nil, []types.Message{m}, false)
+	for _, blob := range data.Blobs {
+		msgShares, err := shares.SplitMessages(0, nil, []types.Blob{blob}, false)
 		if err != nil {
 			panic(err)
 		}

@@ -69,10 +69,10 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 	}
 
 	return coretypes.Data{
-		Txs:                txs,
-		Evidence:           evd,
-		Messages:           msgs,
-		OriginalSquareSize: uint64(squareSize),
+		Txs:        txs,
+		Evidence:   evd,
+		Blobs:      msgs,
+		SquareSize: uint64(squareSize),
 	}, nil
 }
 
@@ -124,15 +124,13 @@ func ParseEvd(shares [][]byte) (coretypes.EvidenceData, error) {
 }
 
 // ParseMsgs collects all messages from the shares provided
-func ParseMsgs(shares [][]byte) (coretypes.Messages, error) {
+func ParseMsgs(shares [][]byte) ([]coretypes.Blob, error) {
 	msgList, err := parseSparseShares(shares, appconsts.SupportedShareVersions)
 	if err != nil {
-		return coretypes.Messages{}, err
+		return []coretypes.Blob{}, err
 	}
 
-	return coretypes.Messages{
-		MessagesList: msgList,
-	}, nil
+	return msgList, nil
 }
 
 // ShareSequence represents a contiguous sequence of shares that are part of the
