@@ -5,9 +5,12 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/testutil/namespace"
+	nmtnamespace "github.com/celestiaorg/nmt/namespace"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -69,6 +72,153 @@ func TestTxInclusion(t *testing.T) {
 			require.NoError(t, err)
 			assert.True(t, txProof.VerifyProof())
 		}
+	}
+}
+
+func TestShareInclusion(t *testing.T) {
+	blobs := append(
+		generateBlobsWithNamespace(
+			100,
+			500,
+			[]byte{0, 0, 0, 0, 0, 1, 0, 0},
+		),
+		append(
+			generateBlobsWithNamespace(
+				50,
+				500,
+				[]byte{0, 0, 0, 1, 0, 0, 0, 0},
+			),
+			generateBlobsWithNamespace(
+				50,
+				500,
+				[]byte{0, 0, 1, 0, 0, 0, 0, 0},
+			)...,
+		)...,
+	)
+	sort.Sort(blobs)
+	blockData := types.Data{
+		Txs:        generateRandomlySizedTxs(100, 500),
+		Blobs:      blobs,
+		SquareSize: 32,
+	}
+
+	// not using useShareIndexes because the transactions indexes do not refer
+	// to the messages as they were created manually.
+	rawShares, err := shares.Split(blockData, false)
+	if err != nil {
+		panic(err)
+	}
+
+	// erasure the data square which we use to create the data root.
+	eds, err := da.ExtendShares(blockData.SquareSize, shares.ToBytes(rawShares))
+	require.NoError(t, err)
+
+	// create the new data root by creating the data availability header (merkle
+	// roots of each row and col of the erasure data).
+	dah := da.NewDataAvailabilityHeader(eds)
+	dataRoot := dah.Hash()
+
+	type test struct {
+		name          string
+		startingShare int64
+		endingShare   int64
+		namespaceID   nmtnamespace.ID
+		shouldPass    bool
+	}
+	tests := []test{
+		{
+			name:          "negative starting share",
+			startingShare: -1,
+			endingShare:   99,
+			namespaceID:   appconsts.TxNamespaceID,
+			shouldPass:    false,
+		},
+		{
+			name:          "negative ending share",
+			startingShare: 0,
+			endingShare:   -99,
+			namespaceID:   appconsts.TxNamespaceID,
+			shouldPass:    false,
+		},
+		{
+			name:          "ending share bigger than starting share",
+			startingShare: 1,
+			endingShare:   0,
+			namespaceID:   appconsts.TxNamespaceID,
+			shouldPass:    false,
+		},
+		{
+			name:          "ending share bigger than block shares number",
+			startingShare: 0,
+			endingShare:   4097,
+			namespaceID:   appconsts.TxNamespaceID,
+			shouldPass:    false,
+		},
+		{
+			name:          "1 transaction share",
+			startingShare: 0,
+			endingShare:   0,
+			namespaceID:   appconsts.TxNamespaceID,
+			shouldPass:    true,
+		},
+		{
+			name:          "10 transaction shares",
+			startingShare: 0,
+			endingShare:   9,
+			namespaceID:   appconsts.TxNamespaceID,
+			shouldPass:    true,
+		},
+		{
+			name:          "50 transaction shares",
+			startingShare: 0,
+			endingShare:   49,
+			namespaceID:   appconsts.TxNamespaceID,
+			shouldPass:    true,
+		},
+		{
+			name:          "shares from different namespaces",
+			startingShare: 48,
+			endingShare:   54,
+			namespaceID:   appconsts.TxNamespaceID,
+			shouldPass:    false,
+		},
+		{
+			name:          "20 custom namespace shares",
+			startingShare: 106,
+			endingShare:   125,
+			namespaceID:   []byte{0, 0, 0, 0, 0, 1, 0, 0},
+			shouldPass:    true,
+		},
+		{
+			name:          "40 custom namespace shares",
+			startingShare: 200,
+			endingShare:   249,
+			namespaceID:   []byte{0, 0, 1, 0, 0, 0, 0, 0},
+			shouldPass:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualNID, err := ParseNamespaceID(rawShares, tt.startingShare, tt.endingShare)
+			if !tt.shouldPass {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.namespaceID, actualNID)
+			proof, err := SharesInclusion(
+				appconsts.DefaultCodec(),
+				rawShares,
+				blockData.SquareSize,
+				tt.namespaceID,
+				uint64(tt.startingShare),
+				uint64(tt.endingShare),
+			)
+			require.NoError(t, err)
+			assert.NoError(t, proof.Validate())
+			assert.Equal(t, dataRoot, proof.RowsProof.Root)
+		})
 	}
 }
 
@@ -266,10 +416,12 @@ func generateRandomTxs(count, size int) types.Txs {
 	return txs
 }
 
-func generateRandomlySizedBlobs(count, maxMsgSize int) []types.Blob {
+// generateRandomlySizedBlobs generates randomly sized blobs with random
+// namespace ID.
+func generateRandomlySizedBlobs(count, maxBlobSize int) types.BlobsByNamespace {
 	blobs := make([]types.Blob, count)
 	for i := 0; i < count; i++ {
-		blobs[i] = generateRandomBlob(rand.Intn(maxMsgSize))
+		blobs[i] = generateBlob(rand.Intn(maxBlobSize), namespace.RandomMessageNamespace())
 	}
 
 	// this is just to let us use assert.Equal
@@ -281,9 +433,25 @@ func generateRandomlySizedBlobs(count, maxMsgSize int) []types.Blob {
 	return blobs
 }
 
-func generateRandomBlob(size int) types.Blob {
+// generateBlobsWithNamespace generates randomly sized blobs with
+// namespace ID `nID`.
+func generateBlobsWithNamespace(count, msgSize int, nID nmtnamespace.ID) types.BlobsByNamespace {
+	blobs := make([]types.Blob, count)
+	for i := 0; i < count; i++ {
+		blobs[i] = generateBlob(msgSize, nID)
+	}
+
+	// this is just to let us use assert.Equal
+	if count == 0 {
+		blobs = nil
+	}
+
+	return blobs
+}
+
+func generateBlob(size int, nID nmtnamespace.ID) types.Blob {
 	blob := types.Blob{
-		NamespaceID: namespace.RandomMessageNamespace(),
+		NamespaceID: nID,
 		Data:        tmrand.Bytes(size),
 	}
 	return blob

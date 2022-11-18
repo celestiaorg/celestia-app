@@ -1,19 +1,23 @@
 package prove
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
 )
 
 // TxInclusion uses the provided block data to progressively generate rows
-// of a data square, and then using those shares to creates nmt inclusion proofs
+// of a data square, and then using those shares to creates nmt inclusion proofs.
 // It is possible that a transaction spans more than one row. In that case, we
 // have to return more than one proof.
 func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxProof, error) {
@@ -202,4 +206,147 @@ func splitIntoRows(squareSize uint64, s []shares.Share) [][]shares.Share {
 		rows[i] = s[i*squareSize : (i+1)*squareSize]
 	}
 	return rows
+}
+
+// SharesInclusion generates an nmt inclusion proof for a set of shares.
+func SharesInclusion(
+	codec rsmt2d.Codec,
+	allRawShares []shares.Share,
+	squareSize uint64,
+	namespaceID namespace.ID,
+	startPos uint64,
+	endPos uint64,
+) (types.SharesProof, error) {
+	// use the index of the shares and the square size to determine the row that
+	// contains the tx we need to prove
+	startRow := startPos / squareSize
+	endRow := endPos / squareSize
+	startLeaf := startPos % squareSize
+	endLeaf := endPos % squareSize
+
+	if startRow > endRow {
+		return types.SharesProof{}, fmt.Errorf("end row %d cannot be bigger than begin row %d", endRow, startRow)
+	}
+
+	eds, err := rsmt2d.ComputeExtendedDataSquare(
+		shares.ToBytes(allRawShares),
+		appconsts.DefaultCodec(),
+		wrapper.NewConstructor(squareSize),
+	)
+	if err != nil {
+		return types.SharesProof{}, err
+	}
+
+	allRowsRoots := eds.RowRoots()
+
+	if len(eds.RowRoots()) < int(endRow) {
+		return types.SharesProof{}, fmt.Errorf(
+			"end row %d is bigger than number of rows %d",
+			endRow,
+			len(eds.RowRoots()),
+		)
+	}
+	if len(eds.RowRoots()) < int(endRow-startRow+1) {
+		return types.SharesProof{}, fmt.Errorf(
+			"rows range %d-%d is higher than block rows count %d",
+			startRow,
+			endRow,
+			len(eds.RowRoots()),
+		)
+	}
+
+	rootHash, allProofs := merkle.ProofsFromByteSlices(append(eds.RowRoots(), eds.ColRoots()...))
+	rowsProofs := make([]*merkle.Proof, endRow-startRow+1)
+	rowsRoots := make([]tmbytes.HexBytes, endRow-startRow+1)
+	for i := startRow; i <= endRow; i++ {
+		rowsProofs[i-startRow] = allProofs[i]
+		rowsRoots[i-startRow] = allRowsRoots[i]
+		// verifying that the proofs are correct
+		err := rowsProofs[i-startRow].Verify(rootHash, rowsRoots[i-startRow])
+		if err != nil {
+			return types.SharesProof{}, err
+		}
+	}
+
+	//rowShares, err := genRowShares(codec, data, startRow, endRow)
+	//if err != nil {
+	//	return types.SharesProof{}, err
+	//}
+	// from here
+	origAllShares := splitIntoRows(
+		squareSize,
+		allRawShares,
+	)
+
+	rowShares := make([][]shares.Share, endRow-startRow+1)
+	for i := uint64(0); i < endRow-startRow+1; i++ {
+		encRow, err := codec.Encode(shares.ToBytes(origAllShares[startRow+i]))
+		if err != nil {
+			return types.SharesProof{}, err
+		}
+		rowShares[i] = append(
+			append(
+				make([]shares.Share, 0, len(origAllShares[startRow+i])+len(encRow)),
+				origAllShares[startRow+i]...,
+			), shares.FromBytes(encRow)...,
+		)
+	}
+	// to here
+
+	var sharesProofs []*tmproto.NMTProof //nolint:prealloc // rarely will this contain more than a single proof
+	var rawShares [][]byte               //nolint:prealloc // rarely will this contain more than a single share
+	for i, row := range rowShares {
+		// create an nmt to use to generate a proof
+		tree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, uint(i))
+		for _, share := range row {
+			tree.Push(
+				share,
+			)
+		}
+
+		startLeafPos := startLeaf
+		endLeafPos := endLeaf
+
+		// if this is not the first row, then start with the first leaf
+		if i > 0 {
+			startLeafPos = 0
+		}
+		// if this is not the last row, then select for the rest of the row
+		if i != (len(rowShares) - 1) {
+			endLeafPos = squareSize - 1
+		}
+
+		rawShares = append(rawShares, shares.ToBytes(row[startLeafPos:endLeafPos+1])...)
+		proof, err := tree.Tree().ProveRange(int(startLeafPos), int(endLeafPos+1))
+		if err != nil {
+			return types.SharesProof{}, err
+		}
+
+		sharesProofs = append(sharesProofs, &tmproto.NMTProof{
+			Start:    int32(proof.Start()),
+			End:      int32(proof.End()),
+			Nodes:    proof.Nodes(),
+			LeafHash: proof.LeafHash(),
+		})
+
+		treeRoot := tree.Root()
+		rowRoot := rowsRoots[i].Bytes()
+
+		if !bytes.Equal(rowRoot, treeRoot) {
+			return types.SharesProof{}, errors.New("row root is different than tree root")
+		}
+	}
+
+	return types.SharesProof{
+		RowsProof: types.RowsProof{
+			RowsRoots: rowsRoots,
+			Proofs:    rowsProofs,
+			Root:      rootHash,
+			StartRow:  uint32(startRow),
+			EndRow:    uint32(endRow),
+		},
+		Data:         rawShares,
+		SharesProofs: sharesProofs,
+		NamespaceID:  namespaceID,
+	}, nil
 }
