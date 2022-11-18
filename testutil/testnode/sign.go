@@ -1,19 +1,25 @@
 package testnode
 
 import (
+	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
+const (
+	veryLargeGasLim uint64 = appconsts.MaxShareCount * appconsts.ShareSize * 10
 )
 
 // SignAndBroadcastTx signs a transaction using the provided account and keyring
 // inside the client.Context, then broadcasts it synchronously.
 func SignAndBroadcastTx(encCfg encoding.Config, c Context, account string, msg ...sdk.Msg) (res *sdk.TxResponse, err error) {
 	opts := []types.TxBuilderOption{
-		types.SetGasLimit(1000000000000000000),
-		// types.SetFeeAmount(sdk.NewCoins(
-		// 	sdk.NewCoin(app.BondDenom, sdk.NewInt(100)),
-		// )),
+		types.SetGasLimit(veryLargeGasLim),
+		types.SetFeeAmount(sdk.NewCoins(
+			sdk.NewCoin(app.BondDenom, sdk.NewInt(1)),
+		)),
 	}
 
 	// use the key for accounts[i] to create a singer used for a single PFB

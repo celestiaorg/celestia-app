@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/testutil/gasmonitor"
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -29,6 +30,8 @@ type GasConsumptionTestSuite struct {
 	cleanups []func()
 	accounts []string
 	cctx     testnode.Context
+
+	gasMon *gasmonitor.Decorator
 
 	mut            sync.Mutex
 	accountCounter int
@@ -53,12 +56,15 @@ func (s *GasConsumptionTestSuite) SetupSuite() {
 	tmCfg := testnode.DefaultTendermintConfig()
 	tmCfg.Consensus.TimeoutCommit = time.Second
 
+	s.gasMon = gasmonitor.NewDecorator()
+
 	tmNode, app, cctx, err := testnode.New(
 		s.T(),
 		testnode.DefaultParams(),
 		tmCfg,
 		false,
 		genState,
+		s.gasMon,
 		kr,
 	)
 	require.NoError(err)
@@ -79,6 +85,9 @@ func (s *GasConsumptionTestSuite) TearDownSuite() {
 	for _, c := range s.cleanups {
 		c()
 	}
+	// for i, monitor := range s.gasMon.Monitors {
+	// 	fmt.Println("monitor", i, monitor.Height, monitor.Hash, monitor.Readings)
+	// }
 }
 
 func (s *GasConsumptionTestSuite) unusedAccount() string {
@@ -110,6 +119,14 @@ func (s *GasConsumptionTestSuite) TestStandardGasConsumption() {
 				return msgSend, account1
 			},
 		},
+		// {
+		// 	name: "delegate 1 TIA",
+		// 	msgFunc: func() (msg sdk.Msg, signer string) {
+		// 		account1 := s.unusedAccount()
+		// 		msgSend := stakingtypes.NewMsgDel
+		// 		return msgSend, account1
+		// 	},
+		// },
 		{
 			name: "send 1 TIA",
 			msgFunc: func() (msg sdk.Msg, signer string) {
@@ -123,23 +140,33 @@ func (s *GasConsumptionTestSuite) TestStandardGasConsumption() {
 			},
 		},
 	}
+	// sign and submit the transactions
 	for i, tt := range tests {
-		res, err := testnode.SignAndBroadcastTx(encCfg, s.cctx, tt.signingAccount, tt.msg)
+		msg, signer := tt.msgFunc()
+		res, err := testnode.SignAndBroadcastTx(encCfg, s.cctx, signer, msg)
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), res)
 		require.Equal(s.T(), abci.CodeTypeOK, res.Code)
 		tests[i].hash = res.TxHash
 	}
+
+	// wait two blocks for txs to clear
 	err := s.cctx.WaitForNextBlock()
 	require.NoError(s.T(), err)
 	err = s.cctx.WaitForNextBlock()
 	require.NoError(s.T(), err)
-	for _, tt := range tests {
-		res, err := queryTx(s.cctx.Context, tt.hash, false)
-		require.NoError(s.T(), err)
-		require.NotNil(s.T(), res)
-		fmt.Println("sync new", res.TxResult.GasUsed)
+
+	monHashMap := make(map[string]*gasmonitor.MonitoredGasMeter)
+	for _, monitor := range s.gasMon.Monitors {
+		monitor.Summarize()
+		monHashMap[monitor.Hash] = monitor
 	}
+	monNameMap := make(map[string]*gasmonitor.MonitoredGasMeter)
+	for _, tt := range tests {
+		monNameMap[tt.name] = monHashMap[tt.hash]
+	}
+
+	fmt.Println(monNameMap["send 1 TIA"].Summary)
 }
 
 func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
