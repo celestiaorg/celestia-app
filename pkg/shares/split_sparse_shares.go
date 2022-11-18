@@ -21,15 +21,13 @@ func NewSparseShareSplitter() *SparseShareSplitter {
 }
 
 // Write adds the delimited data to the underlying messages shares.
-func (sss *SparseShareSplitter) Write(msg coretypes.Blob) {
-	// TODO coretypes.Message likely needs a ShareVersion field so that this
-	// function can contain a switch statement based on it.
-	rawMsg, err := MarshalDelimitedMessage(msg)
+func (sss *SparseShareSplitter) Write(blob coretypes.Blob) {
+	rawMsg, err := MarshalDelimitedMessage(blob)
 	if err != nil {
-		panic(fmt.Sprintf("app accepted a Message that can not be encoded %#v", msg))
+		panic(fmt.Sprintf("app accepted a Message that can not be encoded %#v", blob))
 	}
 	newShares := make([]Share, 0)
-	newShares = AppendToShares(newShares, msg.NamespaceID, rawMsg)
+	newShares = AppendToShares(newShares, blob.NamespaceID, rawMsg, blob.ShareVersion)
 	sss.shares = append(sss.shares, newShares...)
 }
 
@@ -82,9 +80,9 @@ func (sss *SparseShareSplitter) Count() int {
 
 // AppendToShares appends raw data as shares.
 // Used for messages.
-func AppendToShares(shares []Share, nid namespace.ID, rawData []byte) []Share {
+func AppendToShares(shares []Share, nid namespace.ID, rawData []byte, shareVersion uint8) []Share {
 	if len(rawData) <= appconsts.SparseShareContentSize {
-		infoByte, err := NewInfoByte(appconsts.ShareVersionZero, true)
+		infoByte, err := NewInfoByte(shareVersion, true)
 		if err != nil {
 			panic(err)
 		}
@@ -97,7 +95,7 @@ func AppendToShares(shares []Share, nid namespace.ID, rawData []byte) []Share {
 		paddedShare, _ := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
 		shares = append(shares, paddedShare)
 	} else { // len(rawData) > MsgShareSize
-		shares = append(shares, splitMessage(rawData, nid)...)
+		shares = append(shares, splitMessage(rawData, nid, shareVersion)...)
 	}
 	return shares
 }
@@ -114,8 +112,8 @@ func MarshalDelimitedMessage(msg coretypes.Blob) ([]byte, error) {
 
 // splitMessage breaks the data in a message into the minimum number of
 // namespaced shares
-func splitMessage(rawData []byte, nid namespace.ID) (shares []Share) {
-	infoByte, err := NewInfoByte(appconsts.ShareVersionZero, true)
+func splitMessage(rawData []byte, nid namespace.ID, shareVersion uint8) (shares []Share) {
+	infoByte, err := NewInfoByte(shareVersion, true)
 	if err != nil {
 		panic(err)
 	}
