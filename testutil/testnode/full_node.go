@@ -176,8 +176,9 @@ func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, 
 // funded keys stored in it.
 func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func(), accounts []string, cctx Context) {
 	// we create an arbitrary number of funded accounts
+	accounts = make([]string, 300)
 	for i := 0; i < 300; i++ {
-		accounts = append(accounts, tmrand.Str(9))
+		accounts[i] = tmrand.Str(9)
 	}
 
 	tmCfg := DefaultTendermintConfig()
