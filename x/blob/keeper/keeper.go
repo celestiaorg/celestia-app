@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	payForBlobGasDescriptor = "pay for data"
+	payForBlobGasDescriptor = "PayForBlob"
 
 	// GasPerBlobByte is the amount of gas to charge per byte of message data.
 	// TODO: extract GasPerBlobByte as a parameter to this module.
