@@ -97,6 +97,9 @@ const (
 	BondDenomAlias = "microtia"
 	// DisplayDenom defines the name, symbol, and display value of the Celestia token.
 	DisplayDenom = "TIA"
+	// MonitorGasOptionKey is the key used in the app options that determines if
+	// the gas monitor should be used
+	MonitorGasOptionKey = "MonitorGas"
 )
 
 // These constants are derived from the above variables.
@@ -501,7 +504,7 @@ func New(
 	app.SetInitChainer(app.InitChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetEndBlocker(app.EndBlocker)
-	anteHandler, err := ante.NewAnteHandler(
+	anteDecorators, err := NewAnteDecorators(
 		ante.HandlerOptions{
 			AccountKeeper:   app.AccountKeeper,
 			BankKeeper:      app.BankKeeper,
@@ -513,7 +516,19 @@ func New(
 	if err != nil {
 		panic(err)
 	}
-	app.SetAnteHandler(anteHandler)
+
+	gasMonitor := appOpts.Get(MonitorGasOptionKey)
+	// insert the gas monitor into the earliest position if it is configured
+	if gasMonitor != nil {
+		decorator, ok := gasMonitor.(sdk.AnteDecorator)
+		if !ok {
+			panic("unexpected gas metor decorator")
+		}
+		anteDecorators = append(anteDecorators, nil)
+		copy(anteDecorators[2:], anteDecorators[1:])
+		anteDecorators[1] = decorator
+	}
+	app.SetAnteHandler(sdk.ChainAnteDecorators(anteDecorators...))
 	app.setPostHanders()
 
 	if loadLatest {

@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
+	"github.com/celestiaorg/celestia-app/testutil/gasmonitor"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -41,6 +42,7 @@ func New(
 	tmCfg *config.Config,
 	supressLog bool,
 	genState map[string]json.RawMessage,
+	gasMon *gasmonitor.Decorator,
 	kr keyring.Keyring) (*node.Node, srvtypes.Application, Context, error) {
 	var logger log.Logger
 	if supressLog {
@@ -88,7 +90,8 @@ func New(
 
 	appOpts := appOptions{
 		options: map[string]interface{}{
-			server.FlagPruning: pruningtypes.PruningOptionNothing,
+			server.FlagPruning:      pruningtypes.PruningOptionNothing,
+			app.MonitorGasOptionKey: gasMon,
 		},
 	}
 
@@ -185,7 +188,7 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func(), acco
 	genState, kr, err := DefaultGenesisState(accounts...)
 	require.NoError(t, err)
 
-	tmNode, app, cctx, err := New(t, DefaultParams(), tmCfg, false, genState, kr)
+	tmNode, app, cctx, err := New(t, DefaultParams(), tmCfg, false, genState, nil, kr)
 	require.NoError(t, err)
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
