@@ -61,10 +61,9 @@ func (k Keeper) PayForBlob(goCtx context.Context, msg *types.MsgPayForBlob) (*ty
 	gasToConsume := uint64(shares.BlobSharesUsed(int(msg.BlobSize)) * GasPerBlobShare)
 	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
 
-	err := ctx.EventManager().EmitTypedEvent(&types.EventPayForBlob{
-		Signer:   sdk.AccAddress(msg.Signer).String(),
-		BlobSize: msg.GetBlobSize(),
-	})
+	err := ctx.EventManager().EmitTypedEvent(
+		types.NewPayForBlobEvent(sdk.AccAddress(msg.Signer).String(), msg.GetBlobSize()),
+	)
 	if err != nil {
 		return &types.MsgPayForBlobResponse{}, nil
 	}

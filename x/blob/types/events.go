@@ -1,11 +1,5 @@
 package types
 
-import (
-	"strconv"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
-)
-
 const (
 	EventTypePayForBlob = "payforblob"
 
@@ -14,10 +8,9 @@ const (
 )
 
 // NewPayForBlobEvent constructs a new payforblob sdk.Event
-func NewPayForBlobEvent(signer string, size uint64) sdk.Event {
-	return sdk.NewEvent(
-		EventTypePayForBlob,
-		sdk.NewAttribute(AttributeKeySigner, signer),
-		sdk.NewAttribute(AttributeKeySize, strconv.FormatUint(size, 10)),
-	)
+func NewPayForBlobEvent(signer string, size uint64) *EventPayForBlob {
+	return &EventPayForBlob{
+		Signer:   signer,
+		BlobSize: size,
+	}
 }
