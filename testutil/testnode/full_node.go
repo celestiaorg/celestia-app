@@ -141,7 +141,9 @@ func DefaultTendermintConfig() *config.Config {
 	return tmCfg
 }
 
-// DefaultGenesisState will create
+// DefaultGenesisState returns a default genesis state and a keyring with
+// accounts that have coins. The keyring accounts are based on the
+// fundedAccounts parameter.
 func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, keyring.Keyring, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	state := app.ModuleBasics.DefaultGenesis(encCfg.Codec)
