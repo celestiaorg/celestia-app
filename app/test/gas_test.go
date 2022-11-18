@@ -1,7 +1,7 @@
 package app_test
 
 import (
-	"fmt"
+	"math/big"
 	"sync"
 	"testing"
 	"time"
@@ -10,9 +10,17 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil/gasmonitor"
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
+	"github.com/celestiaorg/celestia-app/x/blob"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -85,9 +93,6 @@ func (s *GasConsumptionTestSuite) TearDownSuite() {
 	for _, c := range s.cleanups {
 		c()
 	}
-	// for i, monitor := range s.gasMon.Monitors {
-	// 	fmt.Println("monitor", i, monitor.Height, monitor.Hash, monitor.Readings)
-	// }
 }
 
 func (s *GasConsumptionTestSuite) unusedAccount() string {
@@ -108,35 +113,115 @@ func (s *GasConsumptionTestSuite) TestStandardGasConsumption() {
 	}
 	tests := []gasTest{
 		{
-			name: "send 1 TIA",
+			name: "send 1 utia",
 			msgFunc: func() (msg sdk.Msg, signer string) {
 				account1, account2 := s.unusedAccount(), s.unusedAccount()
 				msgSend := banktypes.NewMsgSend(
 					getAddress(account1, s.cctx.Keyring),
 					getAddress(account2, s.cctx.Keyring),
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000))),
+					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
 				)
 				return msgSend, account1
 			},
 		},
-		// {
-		// 	name: "delegate 1 TIA",
-		// 	msgFunc: func() (msg sdk.Msg, signer string) {
-		// 		account1 := s.unusedAccount()
-		// 		msgSend := stakingtypes.NewMsgDel
-		// 		return msgSend, account1
-		// 	},
-		// },
 		{
-			name: "send 1 TIA",
+			// demonstrate that a send transactions use different amounts of gas
+			// depending on the number of funds
+			name: "send 1,000,000 TIA",
 			msgFunc: func() (msg sdk.Msg, signer string) {
 				account1, account2 := s.unusedAccount(), s.unusedAccount()
 				msgSend := banktypes.NewMsgSend(
 					getAddress(account1, s.cctx.Keyring),
 					getAddress(account2, s.cctx.Keyring),
-					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000))),
+					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000000))),
 				)
 				return msgSend, account1
+			},
+		},
+		{
+			name: "delegate 1 TIA",
+			msgFunc: func() (msg sdk.Msg, signer string) {
+				valopAddr := sdk.ValAddress(getAddress("validator", s.cctx.Keyring))
+				account1 := s.unusedAccount()
+				account1Addr := getAddress(account1, s.cctx.Keyring)
+				msg = stakingtypes.NewMsgDelegate(account1Addr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
+				return msg, account1
+			},
+		},
+		{
+			// This is running what should be an identical tx from above. Its
+			// purpose is to demonstrate that it takes up roughly ~1000 more gas
+			// than the first transaction
+			name: "delegate 1 TIA 2",
+			msgFunc: func() (msg sdk.Msg, signer string) {
+				valopAddr := sdk.ValAddress(getAddress("validator", s.cctx.Keyring))
+				account1 := s.unusedAccount()
+				account1Addr := getAddress(account1, s.cctx.Keyring)
+				msg = stakingtypes.NewMsgDelegate(account1Addr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
+				return msg, account1
+			},
+		},
+		{
+			// This tx will fail on purpose. In order for it to pass, we have to
+			// create a tx with an account that has already delegated && has no
+			// other txs in this block. Even though this tx fails, it is still
+			// useful to know how much gas was used.
+			name: "failed undelegate 1 TIA",
+			msgFunc: func() (msg sdk.Msg, signer string) {
+				valopAddr := sdk.ValAddress(getAddress("validator", s.cctx.Keyring))
+				account1 := s.unusedAccount()
+				account1Addr := getAddress(account1, s.cctx.Keyring)
+				msg = stakingtypes.NewMsgUndelegate(account1Addr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
+				return msg, account1
+			},
+		},
+		{
+			name: "undelegate 1 TIA",
+			msgFunc: func() (msg sdk.Msg, signer string) {
+				valAccAddr := getAddress("validator", s.cctx.Keyring)
+				valopAddr := sdk.ValAddress(valAccAddr)
+				msg = stakingtypes.NewMsgUndelegate(valAccAddr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
+				return msg, "validator"
+			},
+		},
+		{
+			name: "create validator",
+			msgFunc: func() (msg sdk.Msg, signer string) {
+				pv := mock.NewPV()
+				account := s.unusedAccount()
+				valopAccAddr := getAddress(account, s.cctx.Keyring)
+				valopAddr := sdk.ValAddress(valopAccAddr)
+				evmAddr := common.BigToAddress(big.NewInt(420))
+				msg, err := stakingtypes.NewMsgCreateValidator(
+					valopAddr,
+					pv.PrivKey.PubKey(),
+					sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)),
+					stakingtypes.NewDescription("taco tuesday", "my keybase", "www.celestia.org", "ping @celestiaorg on twitter", "fake validator"),
+					stakingtypes.NewCommissionRates(sdk.NewDecWithPrec(6, 02), sdk.NewDecWithPrec(12, 02), sdk.NewDecWithPrec(1, 02)),
+					sdk.NewInt(1000000),
+					valopAccAddr,
+					evmAddr,
+				)
+				require.NoError(s.T(), err)
+				return msg, account
+			},
+		},
+		{
+			name: "create vesting account",
+			msgFunc: func() (msg sdk.Msg, signer string) {
+				vestAccName := "vesting"
+				_, _, err := s.cctx.Keyring.NewMnemonic(vestAccName, keyring.English, "", "", hd.Secp256k1)
+				require.NoError(s.T(), err)
+				sendAcc := s.unusedAccount()
+				sendingAccAddr := getAddress(sendAcc, s.cctx.Keyring)
+				vestAccAddr := getAddress(vestAccName, s.cctx.Keyring)
+				msg = vestingtypes.NewMsgCreateVestingAccount(
+					sendingAccAddr,
+					vestAccAddr,
+					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000))),
+					10000, true,
+				)
+				return msg, sendAcc
 			},
 		},
 	}
@@ -150,23 +235,76 @@ func (s *GasConsumptionTestSuite) TestStandardGasConsumption() {
 		tests[i].hash = res.TxHash
 	}
 
+	// send a few PFBs of various sizes (todo: switch to a format similar to the above after we
+	// refactor wirePFB and malleation)
+	signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.unusedAccount(), s.cctx.ChainID)
+	res, err := blob.SubmitPayForBlob(
+		s.cctx.GoContext(),
+		signer,
+		s.cctx.GRPCClient,
+		[]byte{1, 2, 3, 4, 5, 6, 7, 8},
+		tmrand.Bytes(1000),
+		1000000000000, // arbitrarily large gas limit
+	)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), abci.CodeTypeOK, res.Code)
+	tests = append(tests, gasTest{hash: res.TxHash, name: "1KB PFB"})
+
+	signer = blobtypes.NewKeyringSigner(s.cctx.Keyring, s.unusedAccount(), s.cctx.ChainID)
+	res, err = blob.SubmitPayForBlob(
+		s.cctx.GoContext(),
+		signer,
+		s.cctx.GRPCClient,
+		[]byte{9, 10, 11, 12, 13, 14, 15, 16},
+		tmrand.Bytes(1000000),
+		1000000000000, // arbitrarily large gas limit
+	)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), abci.CodeTypeOK, res.Code)
+	tests = append(tests, gasTest{hash: res.TxHash, name: "1MB PFB"})
+
 	// wait two blocks for txs to clear
-	err := s.cctx.WaitForNextBlock()
+	err = s.cctx.WaitForNextBlock()
 	require.NoError(s.T(), err)
 	err = s.cctx.WaitForNextBlock()
 	require.NoError(s.T(), err)
 
+	// // todo: remove these checks
+	// for _, tt := range tests {
+	// 	res, err := queryTx(s.cctx.Context, tt.hash, false)
+	// 	require.NoError(s.T(), err)
+	// 	if res.TxResult.Code != abci.CodeTypeOK {
+	// 		fmt.Println("failed tx", tt.name, res.TxResult.Code, res.TxResult.Info, res.TxResult.Log)
+	// 	}
+	// }
+
 	monHashMap := make(map[string]*gasmonitor.MonitoredGasMeter)
 	for _, monitor := range s.gasMon.Monitors {
-		monitor.Summarize()
 		monHashMap[monitor.Hash] = monitor
 	}
 	monNameMap := make(map[string]*gasmonitor.MonitoredGasMeter)
 	for _, tt := range tests {
-		monNameMap[tt.name] = monHashMap[tt.hash]
+		monitor := monHashMap[tt.hash]
+		if monitor == nil {
+			continue
+		}
+		monitor.Summarize()
+		monitor.Name = tt.name
+		monNameMap[tt.name] = monitor
 	}
+	// we have to manually do this for PFBs because the hashes are different.
+	// TODO: fix after we refactor malleation process
+	pfb1KB := s.gasMon.Monitors[len(s.gasMon.Monitors)-2]
+	pfb1MB := s.gasMon.Monitors[len(s.gasMon.Monitors)-1]
+	pfb1KB.Summarize()
+	pfb1KB.Name = "1KB PFB"
+	monNameMap[pfb1KB.Name] = pfb1KB
+	pfb1MB.Summarize()
+	pfb1MB.Name = "1MB PFB"
+	monNameMap[pfb1MB.Name] = pfb1MB
 
-	fmt.Println(monNameMap["send 1 TIA"].Summary)
+	err = gasmonitor.SaveJSON("gas", monNameMap)
+	require.NoError(s.T(), err)
 }
 
 func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
@@ -179,4 +317,16 @@ func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
 		panic(err)
 	}
 	return addr
+}
+
+func getPubKey(account string, kr keyring.Keyring) cryptotypes.PubKey {
+	rec, err := kr.Key(account)
+	if err != nil {
+		panic(err)
+	}
+	pub, err := rec.GetPubKey()
+	if err != nil {
+		panic(err)
+	}
+	return pub
 }

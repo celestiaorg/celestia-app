@@ -1,6 +1,10 @@
 package gasmonitor
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -42,6 +46,7 @@ type MonitoredGasMeter struct {
 	Height   int64             `json:"height"`
 	Readings []Reading         `json:"readings"`
 	Summary  map[string]uint64 `json:"summary"`
+	Total    uint64            `json:"total"`
 }
 
 func (gm *MonitoredGasMeter) Summarize() {
@@ -50,6 +55,16 @@ func (gm *MonitoredGasMeter) Summarize() {
 		summary[r.Description] += r.Amount
 	}
 	gm.Summary = summary
+	gm.Total = gm.GasConsumed()
+}
+
+func SaveJSON(path string, data map[string]*MonitoredGasMeter) error {
+	file, err := os.OpenFile(fmt.Sprintf("%s.json", path), os.O_CREATE|os.O_RDWR, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	return json.NewEncoder(file).Encode(data)
 }
 
 // Reading represents a single instance of gas consumption or refunding
@@ -76,6 +91,9 @@ func (gm *MonitoredGasMeter) RefundGas(amount sdk.Gas, descriptor string) {
 // AnteHandle replaces the gas meter with the provided context with one that
 // monitors the amount of gas consumed it fulfills the ante.Decorator interface.
 func (h *Decorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
+	if ctx.IsCheckTx() || ctx.IsReCheckTx() {
+		return next(ctx, tx, simulate)
+	}
 	meter, ctx := NewMonitoredGasMeter(ctx)
 	h.Monitors = append(h.Monitors, meter)
 	return next(ctx, tx, simulate)
