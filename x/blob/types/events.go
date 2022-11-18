@@ -1,13 +1,12 @@
 package types
 
-const (
-	EventTypePayForBlob = "payforblob"
+import "github.com/cosmos/gogoproto/proto"
 
-	AttributeKeySigner = "signer"
-	AttributeKeySize   = "size"
+var (
+	EventTypePayForBlob = proto.MessageName(&EventPayForBlob{})
 )
 
-// NewPayForBlobEvent constructs a new payforblob sdk.Event
+// NewPayForBlobEvent constructs a new pay for blob sdk.Event
 func NewPayForBlobEvent(signer string, size uint64) *EventPayForBlob {
 	return &EventPayForBlob{
 		Signer:   signer,
