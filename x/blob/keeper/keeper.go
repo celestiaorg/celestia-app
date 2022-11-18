@@ -65,7 +65,7 @@ func (k Keeper) PayForBlob(goCtx context.Context, msg *types.MsgPayForBlob) (*ty
 		types.NewPayForBlobEvent(sdk.AccAddress(msg.Signer).String(), msg.GetBlobSize()),
 	)
 	if err != nil {
-		return &types.MsgPayForBlobResponse{}, nil
+		return &types.MsgPayForBlobResponse{}, err
 	}
 
 	return &types.MsgPayForBlobResponse{}, nil
