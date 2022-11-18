@@ -43,7 +43,8 @@ func New(
 	supressLog bool,
 	genState map[string]json.RawMessage,
 	gasMon *gasmonitor.Decorator,
-	kr keyring.Keyring) (*node.Node, srvtypes.Application, Context, error) {
+	kr keyring.Keyring,
+) (*node.Node, srvtypes.Application, Context, error) {
 	var logger log.Logger
 	if supressLog {
 		logger = log.NewNopLogger()
