@@ -62,7 +62,7 @@ func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) 
 const ShareInclusionQueryPath = "shareInclusionProof"
 
 // QueryShareInclusionProof defines the logic performed when querying for the inclusion
-// of a set of shares to the data root.
+// proofs of a set of shares to the data root.
 // the shares range should be appended to the path.
 // example path for proving the set of shares [3, 5]:
 // custom/shareInclusionProof/3/5
