@@ -97,7 +97,7 @@ func TestShareInclusion(t *testing.T) {
 	)
 	sort.Sort(blobs)
 	blockData := types.Data{
-		Txs:        generateRandomlySizedTxs(100, 500),
+		Txs:        generateRandomTxs(50, 500),
 		Blobs:      blobs,
 		SquareSize: 32,
 	}
@@ -191,8 +191,8 @@ func TestShareInclusion(t *testing.T) {
 		},
 		{
 			name:          "40 custom namespace shares",
-			startingShare: 200,
-			endingShare:   249,
+			startingShare: 201,
+			endingShare:   250,
 			namespaceID:   []byte{0, 0, 1, 0, 0, 0, 0, 0},
 			shouldPass:    true,
 		},
