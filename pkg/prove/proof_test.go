@@ -103,7 +103,7 @@ func TestShareInclusion(t *testing.T) {
 	}
 
 	// not setting useShareIndexes because the transactions indexes do not refer
-	// to the messages as they were created manually.
+	// to the messages because the square and transactions were created manually.
 	rawShares, err := shares.Split(blockData, false)
 	if err != nil {
 		panic(err)
