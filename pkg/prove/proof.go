@@ -3,7 +3,6 @@ package prove
 import (
 	"bytes"
 	"errors"
-	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -208,25 +207,21 @@ func splitIntoRows(squareSize uint64, s []shares.Share) [][]shares.Share {
 	return rows
 }
 
-// SharesInclusion generates an nmt inclusion proof for a set of shares.
+// SharesInclusion generates an nmt inclusion proof for a set of shares to the data root.
+// expects the shares range to be pre-validated.
+// Note: only supports inclusion proofs for shares belonging to the same namespace.
 func SharesInclusion(
 	codec rsmt2d.Codec,
 	allRawShares []shares.Share,
 	squareSize uint64,
 	namespaceID namespace.ID,
-	startPos uint64,
-	endPos uint64,
+	startShare uint64,
+	endShare uint64,
 ) (types.SharesProof, error) {
-	// use the index of the shares and the square size to determine the row that
-	// contains the tx we need to prove
-	startRow := startPos / squareSize
-	endRow := endPos / squareSize
-	startLeaf := startPos % squareSize
-	endLeaf := endPos % squareSize
-
-	if startRow > endRow {
-		return types.SharesProof{}, fmt.Errorf("end row %d cannot be bigger than begin row %d", endRow, startRow)
-	}
+	startRow := startShare / squareSize
+	endRow := endShare / squareSize
+	startLeaf := startShare % squareSize
+	endLeaf := endShare % squareSize
 
 	eds, err := rsmt2d.ComputeExtendedDataSquare(
 		shares.ToBytes(allRawShares),
@@ -237,30 +232,13 @@ func SharesInclusion(
 		return types.SharesProof{}, err
 	}
 
-	allRowsRoots := eds.RowRoots()
-
-	if len(eds.RowRoots()) < int(endRow) {
-		return types.SharesProof{}, fmt.Errorf(
-			"end row %d is bigger than number of rows %d",
-			endRow,
-			len(eds.RowRoots()),
-		)
-	}
-	if len(eds.RowRoots()) < int(endRow-startRow+1) {
-		return types.SharesProof{}, fmt.Errorf(
-			"rows range %d-%d is higher than block rows count %d",
-			startRow,
-			endRow,
-			len(eds.RowRoots()),
-		)
-	}
-
+	// create the binary merkle inclusion proof, for all the square rows, to the data root
 	rootHash, allProofs := merkle.ProofsFromByteSlices(append(eds.RowRoots(), eds.ColRoots()...))
 	rowsProofs := make([]*merkle.Proof, endRow-startRow+1)
 	rowsRoots := make([]tmbytes.HexBytes, endRow-startRow+1)
 	for i := startRow; i <= endRow; i++ {
 		rowsProofs[i-startRow] = allProofs[i]
-		rowsRoots[i-startRow] = allRowsRoots[i]
+		rowsRoots[i-startRow] = eds.RowRoots()[i]
 		// verifying that the proofs are correct
 		err := rowsProofs[i-startRow].Verify(rootHash, rowsRoots[i-startRow])
 		if err != nil {
@@ -268,35 +246,17 @@ func SharesInclusion(
 		}
 	}
 
-	//rowShares, err := genRowShares(codec, data, startRow, endRow)
-	//if err != nil {
-	//	return types.SharesProof{}, err
-	//}
-	// from here
-	origAllShares := splitIntoRows(
-		squareSize,
-		allRawShares,
-	)
-
-	rowShares := make([][]shares.Share, endRow-startRow+1)
-	for i := uint64(0); i < endRow-startRow+1; i++ {
-		encRow, err := codec.Encode(shares.ToBytes(origAllShares[startRow+i]))
-		if err != nil {
-			return types.SharesProof{}, err
-		}
-		rowShares[i] = append(
-			append(
-				make([]shares.Share, 0, len(origAllShares[startRow+i])+len(encRow)),
-				origAllShares[startRow+i]...,
-			), shares.FromBytes(encRow)...,
-		)
+	// get the extended rows containing the shares.
+	rows := make([][]shares.Share, endRow-startRow+1)
+	for i := startRow; i <= endRow; i++ {
+		rows[i-startRow] = shares.FromBytes(eds.Row(uint(i)))
 	}
-	// to here
 
-	var sharesProofs []*tmproto.NMTProof //nolint:prealloc // rarely will this contain more than a single proof
-	var rawShares [][]byte               //nolint:prealloc // rarely will this contain more than a single share
-	for i, row := range rowShares {
-		// create an nmt to use to generate a proof
+	var sharesProofs []*tmproto.NMTProof //nolint:prealloc
+	var rawShares [][]byte
+	for i, row := range rows {
+		// create an nmt to generate a proof.
+		// we have the recreate the tree as the eds one is not accessible.
 		tree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, uint(i))
 		for _, share := range row {
 			tree.Push(
@@ -312,7 +272,7 @@ func SharesInclusion(
 			startLeafPos = 0
 		}
 		// if this is not the last row, then select for the rest of the row
-		if i != (len(rowShares) - 1) {
+		if i != (len(rows) - 1) {
 			endLeafPos = squareSize - 1
 		}
 
@@ -329,11 +289,9 @@ func SharesInclusion(
 			LeafHash: proof.LeafHash(),
 		})
 
-		treeRoot := tree.Root()
-		rowRoot := rowsRoots[i].Bytes()
-
-		if !bytes.Equal(rowRoot, treeRoot) {
-			return types.SharesProof{}, errors.New("row root is different than tree root")
+		// make sure that the generated root is the same as the eds row root.
+		if !bytes.Equal(rowsRoots[i].Bytes(), tree.Root()) {
+			return types.SharesProof{}, errors.New("eds row root is different than tree root")
 		}
 	}
 
