@@ -65,8 +65,9 @@ func TestValsetCreationWhenValsetChanges(t *testing.T) {
 				require.NoError(t, err)
 				staking.EndBlocker(input.Context, input.StakingKeeper)
 				qgb.EndBlocker(input.Context, *pk)
+				input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
 			},
-			expectedNonce: currentAttestationNonce + 1,
+			expectedNonce: currentAttestationNonce + 1, // incrementing because of a validator is unbonding
 		},
 		"edit validator: new orch address": {
 			f: func() {
@@ -83,8 +84,10 @@ func TestValsetCreationWhenValsetChanges(t *testing.T) {
 				require.NoError(t, err)
 				staking.EndBlocker(input.Context, input.StakingKeeper)
 				qgb.EndBlocker(input.Context, *pk)
+				input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
 			},
-			expectedNonce: currentAttestationNonce + 2,
+			expectedNonce: currentAttestationNonce + 1, // not incrementing because a change in orch address shouldn't
+			// cause a change in the validator set, from the QGB perspective.
 		},
 		"edit validator: new evm address": {
 			f: func() {
@@ -102,8 +105,10 @@ func TestValsetCreationWhenValsetChanges(t *testing.T) {
 				require.NoError(t, err)
 				staking.EndBlocker(input.Context, input.StakingKeeper)
 				qgb.EndBlocker(input.Context, *pk)
+				input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
 			},
-			expectedNonce: currentAttestationNonce + 3,
+			expectedNonce: currentAttestationNonce + 2, // incrementing because a change in the EVM address
+			// should trigger a change in the validator set, from the QGB perspective.
 		},
 	}
 
