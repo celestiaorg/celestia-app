@@ -54,6 +54,7 @@ func TestValsetCreationWhenValsetChanges(t *testing.T) {
 	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
 	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
 
+	// we use an expected nonce in here and increment it inside the test cases to avoid tests flakiness.
 	expectedNonce := currentAttestationNonce
 
 	tests := map[string]struct {
