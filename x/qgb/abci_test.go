@@ -58,7 +58,7 @@ func TestValsetCreationWhenValsetChanges(t *testing.T) {
 		f             func()
 		expectedNonce uint64
 	}{
-		"unbond validator": {
+		"unbonding validator": {
 			f: func() {
 				undelegateMsg := testutil.NewTestMsgUnDelegateValidator(testutil.ValAddrs[0], testutil.StakingAmount)
 				_, err := msgServer.Undelegate(input.Context, undelegateMsg)
