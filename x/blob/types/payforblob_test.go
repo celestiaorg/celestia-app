@@ -62,6 +62,8 @@ func Test_merkleMountainRangeHeights(t *testing.T) {
 // show that the commitment bytes are being created correctly.
 // TODO: verify the commitment bytes
 func TestCreateCommitment(t *testing.T) {
+	unsupportedShareVersion := uint8(1)
+
 	type test struct {
 		name         string
 		namespace    []byte
@@ -84,6 +86,13 @@ func TestCreateCommitment(t *testing.T) {
 			message:      bytes.Repeat([]byte{0xFF}, 12*ShareSize),
 			expected:     []byte{0x81, 0x5e, 0xf9, 0x52, 0x2a, 0xfa, 0x40, 0x67, 0x63, 0x64, 0x4a, 0x82, 0x7, 0xcd, 0x1d, 0x7d, 0x1f, 0xae, 0xe5, 0xd3, 0xb1, 0x91, 0x8a, 0xb8, 0x90, 0x51, 0xfc, 0x1, 0xd, 0xa7, 0xf3, 0x1a},
 			shareVersion: appconsts.ShareVersionZero,
+		},
+		{
+			name:         "blob with unsupported share version should return error",
+			namespace:    bytes.Repeat([]byte{0xFF}, 8),
+			message:      bytes.Repeat([]byte{0xFF}, 12*ShareSize),
+			expectErr:    true,
+			shareVersion: unsupportedShareVersion,
 		},
 	}
 	for _, tt := range tests {

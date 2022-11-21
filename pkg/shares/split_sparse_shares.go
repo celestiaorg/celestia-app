@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
 	coretypes "github.com/tendermint/tendermint/types"
+	"golang.org/x/exp/slices"
 )
 
 // SparseShareSplitter lazily splits messages into shares that will eventually be
@@ -20,8 +21,12 @@ func NewSparseShareSplitter() *SparseShareSplitter {
 	return &SparseShareSplitter{}
 }
 
-// Write adds the delimited data to the underlying messages shares.
-func (sss *SparseShareSplitter) Write(blob coretypes.Blob) {
+// Write writes the provided blob to this sparse share splitter. It returns an
+// error or nil if no error is encountered.
+func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
+	if !slices.Contains(appconsts.SupportedShareVersions, blob.ShareVersion) {
+		return fmt.Errorf("unsupported share version: %d", blob.ShareVersion)
+	}
 	rawMsg, err := MarshalDelimitedMessage(blob)
 	if err != nil {
 		panic(fmt.Sprintf("app accepted a Message that can not be encoded %#v", blob))
@@ -29,6 +34,7 @@ func (sss *SparseShareSplitter) Write(blob coretypes.Blob) {
 	newShares := make([]Share, 0)
 	newShares = AppendToShares(newShares, blob.NamespaceID, rawMsg, blob.ShareVersion)
 	sss.shares = append(sss.shares, newShares...)
+	return nil
 }
 
 // RemoveMessage will remove a message from the underlying message state. If

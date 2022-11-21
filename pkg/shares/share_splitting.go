@@ -131,7 +131,9 @@ func SplitMessages(cursor int, indexes []uint32, blobs []coretypes.Blob, useShar
 	}
 	writer := NewSparseShareSplitter()
 	for i, msg := range blobs {
-		writer.Write(msg)
+		if err := writer.Write(msg); err != nil {
+			return nil, err
+		}
 		if useShareIndexes && len(indexes) > i+1 {
 			paddedShareCount := int(indexes[i+1]) - (writer.Count() + cursor)
 			writer.WriteNamespacedPaddedShares(paddedShareCount)
