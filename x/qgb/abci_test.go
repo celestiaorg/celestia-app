@@ -3,6 +3,11 @@ package qgb_test
 import (
 	"testing"
 
+	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/staking/teststaking"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/qgb"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -26,10 +31,11 @@ func TestAttestationCreationWhenStartingTheChain(t *testing.T) {
 	require.Equal(t, uint64(1), attestation.GetNonce())
 }
 
-func TestValsetCreationUponUnbonding(t *testing.T) {
+func TestValsetCreationWhenValsetChanges(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
+	// init attestations
 	currentValsetNonce := pk.GetLatestAttestationNonce(ctx)
 	vs, err := pk.GetCurrentValset(ctx)
 	require.Nil(t, err)
@@ -37,20 +43,70 @@ func TestValsetCreationUponUnbonding(t *testing.T) {
 	require.Nil(t, err)
 
 	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
-	// begin unbonding
 	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
-	undelegateMsg := testutil.NewTestMsgUnDelegateValidator(testutil.ValAddrs[0], testutil.StakingAmount)
-	_, err = msgServer.Undelegate(input.Context, undelegateMsg)
-	require.NoError(t, err)
 
-	// Run the staking endblocker to ensure valset is set in state
-	staking.EndBlocker(input.Context, input.StakingKeeper)
-	qgb.EndBlocker(input.Context, *pk)
+	tests := map[string]struct {
+		f             func()
+		expectedNonce uint64
+	}{
+		"unbond validator": {
+			f: func() {
+				undelegateMsg := testutil.NewTestMsgUnDelegateValidator(testutil.ValAddrs[0], testutil.StakingAmount)
+				_, err = msgServer.Undelegate(input.Context, undelegateMsg)
+				require.NoError(t, err)
+				staking.EndBlocker(input.Context, input.StakingKeeper)
+				qgb.EndBlocker(input.Context, *pk)
+			},
+			expectedNonce: currentValsetNonce + 2,
+		},
+		"edit validator: new orch address": {
+			f: func() {
+				newOrchAddr := sdk.AccAddress(ed25519.GenPrivKey().PubKey().Address())
+				editMsg := stakingtypes.NewMsgEditValidator(
+					testutil.ValAddrs[1],
+					stakingtypes.Description{},
+					nil,
+					nil,
+					&newOrchAddr,
+					nil,
+				)
+				_, err = msgServer.EditValidator(input.Context, editMsg)
+				require.NoError(t, err)
+				staking.EndBlocker(input.Context, input.StakingKeeper)
+				qgb.EndBlocker(input.Context, *pk)
+			},
+			expectedNonce: currentValsetNonce + 3,
+		},
+		"edit validator: new evm address": {
+			f: func() {
+				newEVMAddr, err := teststaking.RandomEVMAddress()
+				require.NoError(t, err)
+				editMsg := stakingtypes.NewMsgEditValidator(
+					testutil.ValAddrs[1],
+					stakingtypes.Description{},
+					nil,
+					nil,
+					nil,
+					newEVMAddr,
+				)
+				_, err = msgServer.EditValidator(input.Context, editMsg)
+				require.NoError(t, err)
+				staking.EndBlocker(input.Context, input.StakingKeeper)
+				qgb.EndBlocker(input.Context, *pk)
+			},
+			expectedNonce: currentValsetNonce + 4,
+		},
+	}
 
-	assert.NotEqual(t, currentValsetNonce, pk.GetLatestAttestationNonce(ctx))
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			tc.f()
+			assert.Equal(t, tc.expectedNonce, pk.GetLatestAttestationNonce(ctx))
+		})
+	}
 }
 
-func TestValsetEmission(t *testing.T) {
+func TestFirstAttestationIsValset(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
