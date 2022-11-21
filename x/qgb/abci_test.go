@@ -35,12 +35,13 @@ func TestValsetCreationWhenValsetChanges(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
-	// init attestations
-	currentValsetNonce := pk.GetLatestAttestationNonce(ctx)
-	vs, err := pk.GetCurrentValset(ctx)
-	require.Nil(t, err)
-	err = pk.SetAttestationRequest(ctx, &vs)
-	require.Nil(t, err)
+	// run abci methods after chain init
+	staking.EndBlocker(input.Context, input.StakingKeeper)
+	qgb.EndBlocker(ctx, *pk)
+
+	// current attestation nonce should be 1 because a valset has been emitted upon chain init.
+	currentAttestationNonce := pk.GetLatestAttestationNonce(ctx)
+	require.Equal(t, uint64(1), currentAttestationNonce)
 
 	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
 	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
@@ -52,12 +53,12 @@ func TestValsetCreationWhenValsetChanges(t *testing.T) {
 		"unbond validator": {
 			f: func() {
 				undelegateMsg := testutil.NewTestMsgUnDelegateValidator(testutil.ValAddrs[0], testutil.StakingAmount)
-				_, err = msgServer.Undelegate(input.Context, undelegateMsg)
+				_, err := msgServer.Undelegate(input.Context, undelegateMsg)
 				require.NoError(t, err)
 				staking.EndBlocker(input.Context, input.StakingKeeper)
 				qgb.EndBlocker(input.Context, *pk)
 			},
-			expectedNonce: currentValsetNonce + 2,
+			expectedNonce: currentAttestationNonce + 1,
 		},
 		"edit validator: new orch address": {
 			f: func() {
@@ -70,12 +71,12 @@ func TestValsetCreationWhenValsetChanges(t *testing.T) {
 					&newOrchAddr,
 					nil,
 				)
-				_, err = msgServer.EditValidator(input.Context, editMsg)
+				_, err := msgServer.EditValidator(input.Context, editMsg)
 				require.NoError(t, err)
 				staking.EndBlocker(input.Context, input.StakingKeeper)
 				qgb.EndBlocker(input.Context, *pk)
 			},
-			expectedNonce: currentValsetNonce + 3,
+			expectedNonce: currentAttestationNonce + 2,
 		},
 		"edit validator: new evm address": {
 			f: func() {
@@ -94,7 +95,7 @@ func TestValsetCreationWhenValsetChanges(t *testing.T) {
 				staking.EndBlocker(input.Context, input.StakingKeeper)
 				qgb.EndBlocker(input.Context, *pk)
 			},
-			expectedNonce: currentValsetNonce + 4,
+			expectedNonce: currentAttestationNonce + 3,
 		},
 	}
 
