@@ -39,7 +39,7 @@ func TestFirstAttestationIsValset(t *testing.T) {
 	require.NotNil(t, vs)
 }
 
-func TestValsetCreationWhenValsetChanges(t *testing.T) {
+func TestValsetCreationWhenValidatorUnbonds(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
@@ -54,74 +54,83 @@ func TestValsetCreationWhenValsetChanges(t *testing.T) {
 	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
 	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
 
-	// we use an expected nonce in here and increment it inside the test cases to avoid tests flakiness.
-	expectedNonce := currentAttestationNonce
+	undelegateMsg := testutil.NewTestMsgUnDelegateValidator(testutil.ValAddrs[0], testutil.StakingAmount)
+	_, err := msgServer.Undelegate(input.Context, undelegateMsg)
+	require.NoError(t, err)
+	staking.EndBlocker(input.Context, input.StakingKeeper)
+	qgb.EndBlocker(input.Context, *pk)
+	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
 
-	tests := map[string]struct {
-		f func()
-	}{
-		"unbonding validator": {
-			func() {
-				undelegateMsg := testutil.NewTestMsgUnDelegateValidator(testutil.ValAddrs[0], testutil.StakingAmount)
-				_, err := msgServer.Undelegate(input.Context, undelegateMsg)
-				require.NoError(t, err)
-				staking.EndBlocker(input.Context, input.StakingKeeper)
-				qgb.EndBlocker(input.Context, *pk)
-				input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
-				// incrementing the expectedNonce because of a validator is unbonding
-				expectedNonce++
-			},
-		},
-		"edit validator: new orch address": {
-			func() {
-				newOrchAddr := sdk.AccAddress(ed25519.GenPrivKey().PubKey().Address())
-				editMsg := stakingtypes.NewMsgEditValidator(
-					testutil.ValAddrs[1],
-					stakingtypes.Description{},
-					nil,
-					nil,
-					&newOrchAddr,
-					nil,
-				)
-				_, err := msgServer.EditValidator(input.Context, editMsg)
-				require.NoError(t, err)
-				staking.EndBlocker(input.Context, input.StakingKeeper)
-				qgb.EndBlocker(input.Context, *pk)
-				input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
-				// not incrementing the expectedNonce because a change in orch address shouldn't
-				// cause a change in the validator set, from the QGB perspective.
-			},
-		},
-		"edit validator: new evm address": {
-			f: func() {
-				newEVMAddr, err := teststaking.RandomEVMAddress()
-				require.NoError(t, err)
-				editMsg := stakingtypes.NewMsgEditValidator(
-					testutil.ValAddrs[1],
-					stakingtypes.Description{},
-					nil,
-					nil,
-					nil,
-					newEVMAddr,
-				)
-				_, err = msgServer.EditValidator(input.Context, editMsg)
-				require.NoError(t, err)
-				staking.EndBlocker(input.Context, input.StakingKeeper)
-				qgb.EndBlocker(input.Context, *pk)
-				input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
-				// incrementing the expected nonce because a change in the EVM address
-				// should trigger a change in the validator set, from the QGB perspective.
-				expectedNonce++
-			},
-		},
-	}
+	assert.Equal(t, currentAttestationNonce+1, pk.GetLatestAttestationNonce(ctx))
+}
 
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			tc.f()
-			assert.Equal(t, expectedNonce, pk.GetLatestAttestationNonce(ctx))
-		})
-	}
+func TestValsetChangeWhenEditingOrchAddr(t *testing.T) {
+	input, ctx := testutil.SetupFiveValChain(t)
+	pk := input.QgbKeeper
+
+	// run abci methods after chain init
+	staking.EndBlocker(input.Context, input.StakingKeeper)
+	qgb.EndBlocker(ctx, *pk)
+
+	// current attestation expectedNonce should be 1 because a valset has been emitted upon chain init.
+	currentAttestationNonce := pk.GetLatestAttestationNonce(ctx)
+	require.Equal(t, uint64(1), currentAttestationNonce)
+
+	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
+	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
+
+	newOrchAddr := sdk.AccAddress(ed25519.GenPrivKey().PubKey().Address())
+	editMsg := stakingtypes.NewMsgEditValidator(
+		testutil.ValAddrs[1],
+		stakingtypes.Description{},
+		nil,
+		nil,
+		&newOrchAddr,
+		nil,
+	)
+	_, err := msgServer.EditValidator(input.Context, editMsg)
+	require.NoError(t, err)
+	staking.EndBlocker(input.Context, input.StakingKeeper)
+	qgb.EndBlocker(input.Context, *pk)
+	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
+
+	// not incrementing the nonce because a change in orch address shouldn't
+	// cause a change in the validator set, from the QGB perspective.
+	assert.Equal(t, currentAttestationNonce, pk.GetLatestAttestationNonce(ctx))
+}
+
+func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
+	input, ctx := testutil.SetupFiveValChain(t)
+	pk := input.QgbKeeper
+
+	// run abci methods after chain init
+	staking.EndBlocker(input.Context, input.StakingKeeper)
+	qgb.EndBlocker(ctx, *pk)
+
+	// current attestation expectedNonce should be 1 because a valset has been emitted upon chain init.
+	currentAttestationNonce := pk.GetLatestAttestationNonce(ctx)
+	require.Equal(t, uint64(1), currentAttestationNonce)
+
+	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
+	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
+
+	newEVMAddr, err := teststaking.RandomEVMAddress()
+	require.NoError(t, err)
+	editMsg := stakingtypes.NewMsgEditValidator(
+		testutil.ValAddrs[1],
+		stakingtypes.Description{},
+		nil,
+		nil,
+		nil,
+		newEVMAddr,
+	)
+	_, err = msgServer.EditValidator(input.Context, editMsg)
+	require.NoError(t, err)
+	staking.EndBlocker(input.Context, input.StakingKeeper)
+	qgb.EndBlocker(input.Context, *pk)
+	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
+
+	assert.Equal(t, currentAttestationNonce+1, pk.GetLatestAttestationNonce(ctx))
 }
 
 func TestSetValset(t *testing.T) {
