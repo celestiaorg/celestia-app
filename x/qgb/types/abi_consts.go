@@ -132,7 +132,6 @@ var (
 
 	VsDomainSeparator ethcmn.Hash
 	DcDomainSeparator ethcmn.Hash
-	BridgeID          = ethcmn.HexToHash("Evm_Celestia_Bridge") //  TODO to be removed afterwards
 )
 
 func init() {
