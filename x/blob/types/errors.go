@@ -20,4 +20,6 @@ var (
 	ErrEvidenceNamespace              = sdkerrors.Register(ModuleName, 11120, "cannot use evidence namespace ID")
 	ErrEmptyShareCommitment           = sdkerrors.Register(ModuleName, 11121, "empty share commitment")
 	ErrInvalidShareCommitments        = sdkerrors.Register(ModuleName, 11122, "invalid share commitments: all relevant square sizes must be committed to")
+	ErrMismatchedNumberOfPFBorBlob    = sdkerrors.Register(ModuleName, 11123, "mismatched number of blobs per MsgPayForBlob")
+	ErrNoPFBInBlobTx                  = sdkerrors.Register(ModuleName, 11124, "BlobTx must contain at least one MsgPayForBlob")
 )

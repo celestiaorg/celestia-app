@@ -18,6 +18,7 @@ import (
 
 const (
 	URLMsgWirePayForBlob = "/blob.MsgWirePayForBlob"
+	URLBLobTx            = "/blob.BlobTx"
 	URLMsgPayForBlob     = "/blob.MsgPayForBlob"
 	ShareSize            = appconsts.ShareSize
 	SquareSize           = appconsts.MaxSquareSize

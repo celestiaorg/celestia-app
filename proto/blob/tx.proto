@@ -27,6 +27,14 @@ message MsgWirePayForBlob {
   ShareCommitAndSignature share_commitment = 7;
 }
 
+// BlobTx wraps an encoded sdk.Tx with a second field to contain a blob of data.
+// The raw bytes of the blob are not signed over, instead we verify the blob
+// using the MsgPayForBlob that is signed over in the encoded sdk.Tx.
+message BlobTx {
+  bytes tx = 34; // we use arbitrarily large field numbers here to reduce the probability of field collisions in protobuf
+  repeated bytes blobs = 57;
+}
+
 // MsgWirePayForBlobResponse describes the response returned after the
 // submission of a WirePayForBlob
 message MsgWirePayForBlobResponse {}

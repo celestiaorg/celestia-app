@@ -25,6 +25,10 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		&MsgPayForBlob{},
 	)
 
+	registry.RegisterImplementations((*sdk.Tx)(nil),
+		&BlobTx{},
+	)
+
 	registry.RegisterInterface(
 		"cosmos.auth.v1beta1.BaseAccount",
 		(*authtypes.AccountI)(nil),
