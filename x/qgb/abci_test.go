@@ -3,6 +3,8 @@ package qgb_test
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
+
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/staking/teststaking"
@@ -10,25 +12,31 @@ import (
 
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/qgb"
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestAttestationCreationWhenStartingTheChain(t *testing.T) {
+func TestFirstAttestationIsValset(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
-	// EndBlocker should set a new validator set if not available
+	// EndBlocker should set a new validator set
 	qgb.EndBlocker(ctx, *pk)
+
 	require.Equal(t, uint64(1), pk.GetLatestAttestationNonce(ctx))
 	attestation, found, err := pk.GetAttestationByNonce(ctx, 1)
-	require.True(t, found)
 	require.Nil(t, err)
+	require.True(t, found)
 	require.NotNil(t, attestation)
 	require.Equal(t, uint64(1), attestation.GetNonce())
+
+	// get the valset
+	require.Equal(t, types.ValsetRequestType, attestation.Type())
+	vs, ok := attestation.(*types.Valset)
+	require.True(t, ok)
+	require.NotNil(t, vs)
 }
 
 func TestValsetCreationWhenValsetChanges(t *testing.T) {
@@ -107,28 +115,7 @@ func TestValsetCreationWhenValsetChanges(t *testing.T) {
 	}
 }
 
-func TestFirstAttestationIsValset(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t)
-	pk := input.QgbKeeper
-
-	// EndBlocker should set a new validator set
-	qgb.EndBlocker(ctx, *pk)
-
-	require.Equal(t, uint64(1), pk.GetLatestAttestationNonce(ctx))
-	attestation, found, err := pk.GetAttestationByNonce(ctx, 1)
-	require.Nil(t, err)
-	require.True(t, found)
-	require.NotNil(t, attestation)
-	require.Equal(t, uint64(1), attestation.GetNonce())
-
-	// get the valsets
-	require.Equal(t, types.ValsetRequestType, attestation.Type())
-	vs, ok := attestation.(*types.Valset)
-	require.True(t, ok)
-	require.NotNil(t, vs)
-}
-
-func TestValsetSetting(t *testing.T) {
+func TestSetValset(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
@@ -140,4 +127,36 @@ func TestValsetSetting(t *testing.T) {
 	require.Equal(t, uint64(1), pk.GetLatestAttestationNonce(ctx))
 }
 
-// Add data commitment window tests
+func TestSetDataCommitment(t *testing.T) {
+	input, ctx := testutil.SetupFiveValChain(t)
+	qk := input.QgbKeeper
+
+	input.Context = ctx.WithBlockHeight(int64(qk.GetDataCommitmentWindowParam(ctx)))
+	vs, err := qk.GetCurrentDataCommitment(ctx)
+	require.Nil(t, err)
+	err = qk.SetAttestationRequest(ctx, &vs)
+	require.Nil(t, err)
+
+	require.Equal(t, uint64(1), qk.GetLatestAttestationNonce(ctx))
+}
+
+func TestDataCommitmentCreation(t *testing.T) {
+	input, ctx := testutil.SetupFiveValChain(t)
+	qk := input.QgbKeeper
+
+	// run abci methods after chain init
+	staking.EndBlocker(input.Context, input.StakingKeeper)
+	qgb.EndBlocker(ctx, *qk)
+
+	// current attestation nonce should be 1 because a valset has been emitted upon chain init.
+	currentAttestationNonce := qk.GetLatestAttestationNonce(ctx)
+	require.Equal(t, uint64(1), currentAttestationNonce)
+
+	// increment height to be the same as the data commitment window
+	newHeight := int64(qk.GetDataCommitmentWindowParam(ctx))
+	input.Context = ctx.WithBlockHeight(newHeight)
+	qgb.EndBlocker(input.Context, *qk)
+
+	require.Less(t, newHeight, ctx.BlockHeight())
+	assert.Equal(t, uint64(2), qk.GetLatestAttestationNonce(ctx))
+}
