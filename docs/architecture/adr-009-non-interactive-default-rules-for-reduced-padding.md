@@ -119,11 +119,11 @@ Each row consists of one subtree root, which means if you have log(n) rows you w
 
 ![Current ni rules proof size](./assets/current-ni-rules-proof-size.png)
 
-NMT-Node size := 32 bytes + 2\*8 bytes = 48 bytes
+NMT-Node size := 32 bytes + 2\*8 bytes = 48 bytes  
 MT-Node size := 32 bytes
 
-Proof size = subtree roots (rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)
-Proof size = (log(n) + log(k) + log(n)) \* NMT-Node size  + 2\*log(k) \* MT-Node size
+Proof size = subtree roots (rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)  
+Proof size = (log(n) + log(k) + log(n)) \* NMT-Node size  + 2\*log(k) \* MT-Node size  
 Proof size = 48 \* (2\*log(n) + log(k)) + 64 \*log(k)
 
 ### Proposed Non-Interactive Default Rules
@@ -132,8 +132,8 @@ Each row consists of sqrt(n)/log(n) subtree roots. Which makes in total sqrt(n) 
 
 ![Proposed ni rules proof size](./assets/proposed-ni-rules-proof-size.png)
 
-Proof size = subtree roots (all rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)
-Proof size = (sqrt(n) + log(k) + log(n)) \* NMT-Node size  + 2\*log(k) \* MT-Node size
+Proof size = subtree roots (all rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)  
+Proof size = (sqrt(n) + log(k) + log(n)) \* NMT-Node size  + 2\*log(k) \* MT-Node size  
 Proof size = 48 \* (sqrt(n) + log(k) + log(n)) + 64 \*log(k)
 
 ## 5. What is the worst constructible block with the most amount of padding with old and new non-interactive default rules?
@@ -150,7 +150,7 @@ Padding = 3 \* (k-1) \* k/8
 
 ## What is the quantified padding and proof size cost?
 
-Proof size increases from 3024 bytes to 10704 bytes in 2 GB blocks. In the current `MaxSquareSize` it's from 2064 to 3312 bytes. For bigger messages, the number of row roots will approach sqrt(n). Before that, we will get to k/4 roots which will make the message act the same before and after the proposed non-interactive default rules.
+Proof size increases from 2928 bytes to 10352 bytes in 2 GB blocks. In the current `MaxSquareSize` it's from 2096 to 3088 bytes. For bigger messages, the number of row roots will approach sqrt(n). Before that, we will get to k/4 roots which will make the message act the same before and after the proposed non-interactive default rules.
 
 ![Proof Size Result](./assets/proof-size-result.png)
 
