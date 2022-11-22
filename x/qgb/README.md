@@ -1,6 +1,7 @@
 # Quantum gravity bridge state machine
 
-This module contains the [Quantum gravity bridge](https://blog.celestia.org/celestiums/) state machine implementation.
+## Abstract
+This module contains the [Quantum Gravity Bridge](https://blog.celestia.org/celestiums/) (QGB) state machine implementation.
 
 ## State machine
 
