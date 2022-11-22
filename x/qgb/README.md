@@ -102,7 +102,7 @@ if err != nil {
 
 #### Attestations panics
 
-When storing a new attestation, which is either a data commitment or a valset, the state machine can panic for in the following cases:
+When storing a new attestation, which is either a data commitment or a valset, the state machine can panic in the following cases:
 
 - The attestation request created from the data commitment is a duplicate of an existing attestation:
 
