@@ -204,6 +204,5 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func() error
 			return err
 		}
 		return cleanupGRPC()
-
 	}, accounts, cctx
 }
