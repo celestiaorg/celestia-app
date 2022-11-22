@@ -3,6 +3,8 @@ package shares
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
+	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -41,26 +43,19 @@ func isPowerOf2(v uint64) bool {
 	return v&(v-1) == 0 && v != 0
 }
 
-func MessagesToProto(msgs []coretypes.Blob) []*core.Blob {
-	protoMsgs := make([]*core.Blob, len(msgs))
-	for i, msg := range msgs {
-		protoMsgs[i] = &core.Blob{
-			NamespaceId: msg.NamespaceID,
-			Data:        msg.Data,
+func BlobsFromProto(blobs []core.Blob) ([]coretypes.Blob, error) {
+	result := make([]coretypes.Blob, len(blobs))
+	for i, blob := range blobs {
+		if blob.ShareVersion > math.MaxUint8 {
+			return nil, fmt.Errorf("share version %d is too large to be a uint8", blob.ShareVersion)
+		}
+		result[i] = coretypes.Blob{
+			NamespaceID:  blob.NamespaceId,
+			Data:         blob.Data,
+			ShareVersion: uint8(blob.ShareVersion),
 		}
 	}
-	return protoMsgs
-}
-
-func MessagesFromProto(msgs []core.Blob) []coretypes.Blob {
-	protoMsgs := make([]coretypes.Blob, len(msgs))
-	for i, msg := range msgs {
-		protoMsgs[i] = coretypes.Blob{
-			NamespaceID: msg.NamespaceId,
-			Data:        msg.Data,
-		}
-	}
-	return protoMsgs
+	return result, nil
 }
 
 func TxsToBytes(txs coretypes.Txs) [][]byte {
