@@ -124,9 +124,11 @@ func TestParsePaddedMsg(t *testing.T) {
 		randomLargeBlob,
 	}
 	sort.Sort(coretypes.BlobsByNamespace(blobs))
-	sss.Write(blobs[0])
+	err := sss.Write(blobs[0])
+	assert.NoError(t, err)
 	sss.WriteNamespacedPaddedShares(4)
-	sss.Write(blobs[1])
+	err = sss.Write(blobs[1])
+	assert.NoError(t, err)
 	sss.WriteNamespacedPaddedShares(10)
 	shares := sss.Export()
 	rawShares := ToBytes(shares)
@@ -165,7 +167,8 @@ func TestSparseShareContainsInfoByte(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			sss := NewSparseShareSplitter()
-			sss.Write(message)
+			err := sss.Write(message)
+			assert.NoError(t, err)
 			shares := sss.Export()
 			got, err := shares[tc.shareIndex].InfoByte()
 			require.NoError(t, err)
@@ -201,7 +204,8 @@ func TestSparseShareSplitterCount(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			sss := NewSparseShareSplitter()
-			sss.Write(tc.blob)
+			err := sss.Write(tc.blob)
+			assert.NoError(t, err)
 			got := sss.Count()
 			assert.Equal(t, tc.expected, got)
 		})
