@@ -98,3 +98,13 @@ func ProcessBlobTx(encfg encoding.Config, bTx *BlobTx) (ProcessedBlobTx, error) 
 		PFBs:  pfbs,
 	}, nil
 }
+
+func DecodeBlobTx(tx []byte) (BlobTx, error) {
+	var bTx BlobTx
+	err := bTx.Unmarshal(tx)
+	return bTx, err
+}
+
+func EncodeBlobTx(bTx BlobTx) ([]byte, error) {
+	return bTx.Marshal()
+}
