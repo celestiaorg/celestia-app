@@ -237,11 +237,6 @@ func SharesInclusion(
 	for i := startRow; i <= endRow; i++ {
 		rowsProofs[i-startRow] = allProofs[i]
 		rowsRoots[i-startRow] = eds.RowRoots()[i]
-		// verifying that the proofs are correct
-		err := rowsProofs[i-startRow].Verify(rootHash, rowsRoots[i-startRow])
-		if err != nil {
-			return types.SharesProof{}, err
-		}
 	}
 
 	// get the extended rows containing the shares.
