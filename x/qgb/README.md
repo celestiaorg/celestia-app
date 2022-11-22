@@ -10,39 +10,11 @@ https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb6
 
 These latter is either data commitments:
 
-```proto
-// DataCommitment is the data commitment request message that will be signed  
-// using orchestrators.  
-// It does not contain a `commitment` field as this message will be created  
-// inside the state machine and it doesn't make sense to ask tendermint for the  
-// commitment there.  
-message DataCommitment {  
-  option (cosmos_proto.implements_interface) = "AttestationRequestI";  
-  // Universal nonce defined under:  
-  // https://github.com/celestiaorg/celestia-app/pull/464  uint64 nonce = 1;  
-  // First block defining the ordered set of blocks used to create the  
-  // commitment.  uint64 begin_block = 2;  
-  // Last block defining the ordered set of blocks used to create the  
-  // commitment.  uint64 end_block = 3;  
-}
-```
+https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/proto/qgb/types.proto#L31-L47
 
 Or, valsets:
 
-```proto
-// Valset is the EVM Bridge Multsig Set, each qgb validator also  
-// maintains an ETH key to sign messages, these are used to check signatures on  
-// ETH because of the significant gas savings  
-message Valset {  
-  option (cosmos_proto.implements_interface) = "AttestationRequestI";  
-  // Universal nonce defined under:  
-  // https://github.com/celestiaorg/celestia-app/pull/464  uint64 nonce = 1;  
-  // List of BridgeValidator containing the current validator set.  
-  repeated BridgeValidator members = 2 [ (gogoproto.nullable) = false ];  
-  // Current chain height  
-  uint64 height = 3;  
-}
-```
+https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/proto/qgb/types.proto#L17-L29
 
 During their creation, the state machine might panic due to an unexpected behavior or event. These panics will be discussed below.
 
@@ -56,7 +28,7 @@ https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb6
 
 - No valset exist in store, so a new valset will be created. This happens mostly after genesis, or after a hard fork.
 - The current block height is the last unbonding height, i.e. when a validator is leaving the validator set. A new valset will need to be created to accommodate that change.
-- A significant power difference happened since the last valset. This could happen if a validator has way more staking power or the opposite. The significant power difference threshold is defined by the constant `SignificantPowerDifferenceThreshold`, and it is set to 5% currently.
+- A significant power difference happened since the last valset. This could happen if a validator has way more staking power or the opposite. The significant power difference threshold is defined by the constant `SignificantPowerDifferenceThreshold`, and is set to 5% currently.
 
 #### New data commitment creation
 
