@@ -64,7 +64,7 @@ func TestValsetCreationWhenValidatorUnbonds(t *testing.T) {
 	assert.Equal(t, currentAttestationNonce+1, pk.GetLatestAttestationNonce(ctx))
 }
 
-func TestEditingOrchAddr(t *testing.T) {
+func TestEndBlockerAfterEditingOrchestratorAddress(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
