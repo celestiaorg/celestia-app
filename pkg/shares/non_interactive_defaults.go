@@ -1,66 +1,66 @@
 package shares
 
-// FitsInSquare uses the non interactive default rules to see if messages of
+// FitsInSquare uses the non interactive default rules to see if blobs of
 // some lengths will fit in a square of squareSize starting at share index
-// cursor. Returns whether the messages fit in the square and the number of
-// shares used by messages. See non-interactive default rules
+// cursor. Returns whether the blobs fit in the square and the number of
+// shares used by blobs. See non-interactive default rules
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
-func FitsInSquare(cursor, squareSize int, msgShareLens ...int) (bool, int) {
-	if len(msgShareLens) == 0 {
+func FitsInSquare(cursor, squareSize int, blobShareLens ...int) (bool, int) {
+	if len(blobShareLens) == 0 {
 		if cursor <= squareSize*squareSize {
 			return true, 0
 		}
 		return false, 0
 	}
-	firstMsgLen := 1
-	if len(msgShareLens) > 0 {
-		firstMsgLen = msgShareLens[0]
+	firstBlobLen := 1
+	if len(blobShareLens) > 0 {
+		firstBlobLen = blobShareLens[0]
 	}
 	// here we account for padding between the compact and sparse shares
-	cursor, _ = NextAlignedPowerOfTwo(cursor, firstMsgLen, squareSize)
-	sharesUsed, _ := MsgSharesUsedNonInteractiveDefaults(cursor, squareSize, msgShareLens...)
+	cursor, _ = NextAlignedPowerOfTwo(cursor, firstBlobLen, squareSize)
+	sharesUsed, _ := BlobSharesUsedNonInteractiveDefaults(cursor, squareSize, blobShareLens...)
 	return cursor+sharesUsed <= squareSize*squareSize, sharesUsed
 }
 
-// MsgSharesUsedNonInteractiveDefaults calculates the number of shares used by a given set
-// of messages share lengths. It follows the non-interactive default rules and
-// returns the share indexes for each message.
-func MsgSharesUsedNonInteractiveDefaults(cursor, squareSize int, msgShareLens ...int) (int, []uint32) {
+// BlobSharesUsedNonInteractiveDefaults calculates the number of shares used by a given set
+// of blobs share lengths. It follows the non-interactive default rules and
+// returns the share indexes for each blob.
+func BlobSharesUsedNonInteractiveDefaults(cursor, squareSize int, blobShareLens ...int) (int, []uint32) {
 	start := cursor
-	indexes := make([]uint32, len(msgShareLens))
-	for i, msgLen := range msgShareLens {
-		cursor, _ = NextAlignedPowerOfTwo(cursor, msgLen, squareSize)
+	indexes := make([]uint32, len(blobShareLens))
+	for i, blobLen := range blobShareLens {
+		cursor, _ = NextAlignedPowerOfTwo(cursor, blobLen, squareSize)
 		indexes[i] = uint32(cursor)
-		cursor += msgLen
+		cursor += blobLen
 	}
 	return cursor - start, indexes
 }
 
 // NextAlignedPowerOfTwo calculates the next index in a row that is an aligned
-// power of two and returns false if the entire the msg cannot fit on the given
+// power of two and returns false if the entire the blob cannot fit on the given
 // row at the next aligned power of two. An aligned power of two means that the
-// largest power of two that fits entirely in the msg or the square size. pls
+// largest power of two that fits entirely in the blob or the square size. pls
 // see specs for further details. Assumes that cursor < squareSize, all args are
 // non negative, and that squareSize is a power of two.
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
-func NextAlignedPowerOfTwo(cursor, msgLen, squareSize int) (int, bool) {
+func NextAlignedPowerOfTwo(cursor, blobLen, squareSize int) (int, bool) {
 	// if we're starting at the beginning of the row, then return as there are
 	// no cases where we don't start at 0.
 	if cursor == 0 || cursor%squareSize == 0 {
 		return cursor, true
 	}
 
-	nextLowest := RoundDownPowerOfTwo(msgLen)
+	nextLowest := RoundDownPowerOfTwo(blobLen)
 	endOfCurrentRow := ((cursor / squareSize) + 1) * squareSize
 	cursor = roundUpBy(cursor, nextLowest)
 	switch {
-	// the entire message fits in this row
-	case cursor+msgLen <= endOfCurrentRow:
+	// the entire blob fits in this row
+	case cursor+blobLen <= endOfCurrentRow:
 		return cursor, true
-	// only a portion of the message fits in this row
+	// only a portion of the blob fits in this row
 	case cursor+nextLowest <= endOfCurrentRow:
 		return cursor, false
-	// none of the message fits on this row, so return the start of the next row
+	// none of the blob fits on this row, so return the start of the next row
 	default:
 		return endOfCurrentRow, false
 	}

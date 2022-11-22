@@ -18,10 +18,10 @@ import (
 const (
 	payForBlobGasDescriptor = "pay for blob"
 
-	// GasPerBlobByte is the amount of gas to charge per byte of message data.
+	// GasPerBlobByte is the amount of gas to charge per byte of blob data.
 	// TODO: extract GasPerBlobByte as a parameter to this module.
-	GasPerBlobByte = 8
-	GasPerMsgShare = appconsts.ShareSize * GasPerBlobByte
+	GasPerBlobByte  = 8
+	GasPerBlobShare = appconsts.ShareSize * GasPerBlobByte
 )
 
 // Keeper handles all the state changes for the blob module.
@@ -54,11 +54,11 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 	return ctx.Logger().With("module", fmt.Sprintf("x/%s", types.ModuleName))
 }
 
-// PayForBlob consumes gas based on the message size.
+// PayForBlob consumes gas based on the blob size.
 func (k Keeper) PayForBlob(goCtx context.Context, msg *types.MsgPayForBlob) (*types.MsgPayForBlobResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	gasToConsume := uint64(shares.MsgSharesUsed(int(msg.BlobSize)) * GasPerMsgShare)
+	gasToConsume := uint64(shares.BlobSharesUsed(int(msg.BlobSize)) * GasPerBlobShare)
 	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
 
 	ctx.EventManager().EmitEvent(

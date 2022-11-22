@@ -14,11 +14,11 @@ import (
 )
 
 func Test_parseSparseShares(t *testing.T) {
-	// exactMsgShareSize is the length of message that will fit exactly into a
+	// exactBlobShareSize is the length of blob that will fit exactly into a
 	// single share, accounting for namespace id and the length delimiter
-	// prepended to each message. Note that the length delimiter can be 1 to 10
+	// prepended to each blob. Note that the length delimiter can be 1 to 10
 	// bytes (varint) but this test assumes it is 2 bytes.
-	const exactMsgShareSize = appconsts.SparseShareContentSize - 2
+	const exactBlobShareSize = appconsts.SparseShareContentSize - 2
 
 	type test struct {
 		name      string
@@ -26,15 +26,15 @@ func Test_parseSparseShares(t *testing.T) {
 		blobCount int
 	}
 
-	// each test is ran twice, once using msgSize as an exact size, and again
+	// each test is ran twice, once using blobSize as an exact size, and again
 	// using it as a cap for randomly sized leaves
 	tests := []test{
-		{"single small msg", appconsts.SparseShareContentSize / 2, 1},
-		{"many small msgs", appconsts.SparseShareContentSize / 2, 10},
-		{"single big msg", appconsts.SparseShareContentSize * 4, 1},
-		{"many big msgs", appconsts.SparseShareContentSize * 4, 10},
-		{"single exact size msg", exactMsgShareSize, 1},
-		{"many exact size msgs", appconsts.SparseShareContentSize, 10},
+		{"single small blob", appconsts.SparseShareContentSize / 2, 1},
+		{"many small blobs", appconsts.SparseShareContentSize / 2, 10},
+		{"single big blob", appconsts.SparseShareContentSize * 4, 1},
+		{"many big blobs", appconsts.SparseShareContentSize * 4, 10},
+		{"single exact size blob", exactBlobShareSize, 1},
+		{"many exact size blobs", appconsts.SparseShareContentSize, 10},
 	}
 
 	for _, tc := range tests {
@@ -48,39 +48,39 @@ func Test_parseSparseShares(t *testing.T) {
 
 			sort.Sort(coretypes.BlobsByNamespace(blobs))
 
-			shares, _ := SplitMessages(0, nil, blobs, false)
+			shares, _ := SplitBlobs(0, nil, blobs, false)
 			rawShares := ToBytes(shares)
 
-			parsedMsgs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
+			parsedBlobs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
 			}
 
 			// check that the namespaces and data are the same
 			for i := 0; i < len(blobs); i++ {
-				assert.Equal(t, blobs[i].NamespaceID, parsedMsgs[i].NamespaceID)
-				assert.Equal(t, blobs[i].Data, parsedMsgs[i].Data)
+				assert.Equal(t, blobs[i].NamespaceID, parsedBlobs[i].NamespaceID)
+				assert.Equal(t, blobs[i].Data, parsedBlobs[i].Data)
 			}
 		})
 
-		// run the same tests using randomly sized messages with caps of tc.msgSize
+		// run the same tests using randomly sized blobs with caps of tc.blobSize
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
-			msgs := generateRandomlySizedBlobs(tc.blobCount, tc.blobSize)
-			shares, _ := SplitMessages(0, nil, msgs, false)
+			blobs := generateRandomlySizedBlobs(tc.blobCount, tc.blobSize)
+			shares, _ := SplitBlobs(0, nil, blobs, false)
 			rawShares := make([][]byte, len(shares))
 			for i, share := range shares {
 				rawShares[i] = []byte(share)
 			}
 
-			parsedMsgs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
+			parsedBlobs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
 			}
 
 			// check that the namespaces and data are the same
-			for i := 0; i < len(msgs); i++ {
-				assert.Equal(t, msgs[i].NamespaceID, parsedMsgs[i].NamespaceID)
-				assert.Equal(t, msgs[i].Data, parsedMsgs[i].Data)
+			for i := 0; i < len(blobs); i++ {
+				assert.Equal(t, blobs[i].NamespaceID, parsedBlobs[i].NamespaceID)
+				assert.Equal(t, blobs[i].Data, parsedBlobs[i].Data)
 			}
 		})
 	}
@@ -115,7 +115,7 @@ func Test_parseSparseSharesErrors(t *testing.T) {
 	}
 }
 
-func TestParsePaddedMsg(t *testing.T) {
+func TestParsePaddedBlob(t *testing.T) {
 	sss := NewSparseShareSplitter()
 	randomSmallBlob := generateRandomBlob(appconsts.SparseShareContentSize / 2)
 	randomLargeBlob := generateRandomBlob(appconsts.SparseShareContentSize * 4)
@@ -132,13 +132,13 @@ func TestParsePaddedMsg(t *testing.T) {
 	sss.WriteNamespacedPaddedShares(10)
 	shares := sss.Export()
 	rawShares := ToBytes(shares)
-	pmsgs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
+	pblobs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
 	require.NoError(t, err)
-	require.Equal(t, blobs, pmsgs)
+	require.Equal(t, blobs, pblobs)
 }
 
 func TestSparseShareContainsInfoByte(t *testing.T) {
-	message := generateRandomMessageOfShareCount(4)
+	blob := generateRandomBlobOfShareCount(4)
 
 	sequenceStartInfoByte, err := NewInfoByte(appconsts.ShareVersionZero, true)
 	require.NoError(t, err)
@@ -153,12 +153,12 @@ func TestSparseShareContainsInfoByte(t *testing.T) {
 	}
 	testCases := []testCase{
 		{
-			name:       "first share of message",
+			name:       "first share of blob",
 			shareIndex: 0,
 			expected:   sequenceStartInfoByte,
 		},
 		{
-			name:       "second share of message",
+			name:       "second share of blob",
 			shareIndex: 1,
 			expected:   sequenceContinuationInfoByte,
 		},
@@ -167,7 +167,7 @@ func TestSparseShareContainsInfoByte(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			sss := NewSparseShareSplitter()
-			err := sss.Write(message)
+			err := sss.Write(blob)
 			assert.NoError(t, err)
 			shares := sss.Export()
 			got, err := shares[tc.shareIndex].InfoByte()
@@ -186,17 +186,17 @@ func TestSparseShareSplitterCount(t *testing.T) {
 	testCases := []testCase{
 		{
 			name:     "one share",
-			blob:     generateRandomMessageOfShareCount(1),
+			blob:     generateRandomBlobOfShareCount(1),
 			expected: 1,
 		},
 		{
 			name:     "two shares",
-			blob:     generateRandomMessageOfShareCount(2),
+			blob:     generateRandomBlobOfShareCount(2),
 			expected: 2,
 		},
 		{
 			name:     "ten shares",
-			blob:     generateRandomMessageOfShareCount(10),
+			blob:     generateRandomBlobOfShareCount(10),
 			expected: 10,
 		},
 	}

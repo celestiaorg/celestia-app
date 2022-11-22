@@ -20,7 +20,7 @@ func TestTxInclusion(t *testing.T) {
 		Blobs:      generateRandomlySizedBlobs(40, 16000),
 		SquareSize: 64,
 	}
-	lotsOfTxsNoMessages := types.Data{
+	lotsOfTxsNoBlobs := types.Data{
 		Txs:        generateRandomlySizedTxs(1000, 500),
 		SquareSize: 64,
 	}
@@ -34,7 +34,7 @@ func TestTxInclusion(t *testing.T) {
 		),
 		SquareSize: uint64(overlappingSquareSize),
 	}
-	overlappingRowsBlockDataWithMessages := types.Data{
+	overlappingRowsBlockDataWithBlobs := types.Data{
 		Txs: types.ToTxs(
 			[][]byte{
 				tmrand.Bytes(appconsts.ContinuationCompactShareContentSize*overlappingSquareSize + 1),
@@ -53,13 +53,13 @@ func TestTxInclusion(t *testing.T) {
 			typicalBlockData,
 		},
 		{
-			lotsOfTxsNoMessages,
+			lotsOfTxsNoBlobs,
 		},
 		{
 			overlappingRowsBlockData,
 		},
 		{
-			overlappingRowsBlockDataWithMessages,
+			overlappingRowsBlockDataWithBlobs,
 		},
 	}
 
@@ -171,7 +171,7 @@ func TestTxShareIndex(t *testing.T) {
 	}
 }
 
-// stripCompactShares strips the universal prefix (namespace, info byte, data length) and
+// stripCompactShares strips the universal prefix (namespace, info byte, sequence length) and
 // reserved byte from a list of compact shares and joins them into a single byte
 // slice.
 func stripCompactShares(compactShares []shares.Share, start uint64, end uint64) (result []byte) {
@@ -211,10 +211,10 @@ func generateRandomTxs(count, size int) types.Txs {
 	return txs
 }
 
-func generateRandomlySizedBlobs(count, maxMsgSize int) []types.Blob {
+func generateRandomlySizedBlobs(count, maxBlobSize int) []types.Blob {
 	blobs := make([]types.Blob, count)
 	for i := 0; i < count; i++ {
-		blobs[i] = generateRandomBlob(rand.Intn(maxMsgSize))
+		blobs[i] = generateRandomBlob(rand.Intn(maxBlobSize))
 	}
 
 	// this is just to let us use assert.Equal
@@ -228,7 +228,7 @@ func generateRandomlySizedBlobs(count, maxMsgSize int) []types.Blob {
 
 func generateRandomBlob(size int) types.Blob {
 	blob := types.Blob{
-		NamespaceID: namespace.RandomMessageNamespace(),
+		NamespaceID: namespace.RandomBlobNamespace(),
 		Data:        tmrand.Bytes(size),
 	}
 	return blob

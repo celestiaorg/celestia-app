@@ -26,9 +26,9 @@ func TestBuildWirePayForBlob(t *testing.T) {
 	require.NoError(t, err)
 
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
-	message := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
+	blob := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 
-	msg, err := NewWirePayForBlob(namespace, message, appconsts.ShareVersionZero)
+	msg, err := NewWirePayForBlob(namespace, blob, appconsts.ShareVersionZero)
 	require.NoError(t, err)
 
 	signedTx, err := k.BuildSignedTx(k.NewTxBuilder(), msg)
@@ -84,9 +84,9 @@ func TestBroadcastPayForBlob(t *testing.T) {
 	builder.SetFeeAmount(sdktypes.NewCoins(coin))
 
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
-	message := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
+	blob := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 
-	msg, err := NewWirePayForBlob(namespace, message, appconsts.ShareVersionZero)
+	msg, err := NewWirePayForBlob(namespace, blob, appconsts.ShareVersionZero)
 	require.NoError(t, err)
 
 	signedTx, err := k.BuildSignedTx(builder, msg)

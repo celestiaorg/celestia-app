@@ -3,23 +3,23 @@ package shares
 import "testing"
 
 func TestInfoByte(t *testing.T) {
-	messageStart := true
-	notMessageStart := false
+	blobStart := true
+	notBlobStart := false
 
 	type testCase struct {
 		version         uint8
 		isSequenceStart bool
 	}
 	tests := []testCase{
-		{0, messageStart},
-		{1, messageStart},
-		{2, messageStart},
-		{127, messageStart},
+		{0, blobStart},
+		{1, blobStart},
+		{2, blobStart},
+		{127, blobStart},
 
-		{0, notMessageStart},
-		{1, notMessageStart},
-		{2, notMessageStart},
-		{127, notMessageStart},
+		{0, notBlobStart},
+		{1, notBlobStart},
+		{2, notBlobStart},
+		{127, notBlobStart},
 	}
 
 	for _, test := range tests {
@@ -37,8 +37,8 @@ func TestInfoByte(t *testing.T) {
 }
 
 func TestInfoByteErrors(t *testing.T) {
-	messageStart := true
-	notMessageStart := false
+	blobStart := true
+	notBlobStart := false
 
 	type testCase struct {
 		version         uint8
@@ -46,10 +46,10 @@ func TestInfoByteErrors(t *testing.T) {
 	}
 
 	tests := []testCase{
-		{128, notMessageStart},
-		{255, notMessageStart},
-		{128, messageStart},
-		{255, messageStart},
+		{128, notBlobStart},
+		{255, notBlobStart},
+		{128, blobStart},
+		{255, blobStart},
 	}
 
 	for _, test := range tests {

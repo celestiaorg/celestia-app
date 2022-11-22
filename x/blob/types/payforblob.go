@@ -35,9 +35,9 @@ func (msg *MsgPayForBlob) Type() string {
 }
 
 // ValidateBasic fullfills the sdk.Msg interface by performing stateless
-// validity checks on the msg that also don't require having the actual message
+// validity checks on the msg that also don't require having the actual blob
 func (msg *MsgPayForBlob) ValidateBasic() error {
-	if err := ValidateMessageNamespaceID(msg.GetNamespaceId()); err != nil {
+	if err := ValidateBlobNamespaceID(msg.GetNamespaceId()); err != nil {
 		return err
 	}
 
@@ -108,30 +108,30 @@ func BuildPayForBlobTxFromWireTx(
 	return builder.GetTx(), nil
 }
 
-// CreateCommitment generates the commitment bytes for a given namespace and
-// message using a namespace merkle tree and the rules described at [Message
-// layout rationale] and [Non-interactive default rules].
+// CreateCommitment generates the commitment bytes for a given namespace,
+// blobData, and shareVersion using a namespace merkle tree and the rules
+// described at [Message layout rationale] and [Non-interactive default rules].
 //
 // [Message layout rationale]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L12
 // [Non-interactive default rules]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L36
-func CreateCommitment(namespace []byte, message []byte, shareVersion uint8) ([]byte, error) {
+func CreateCommitment(namespace []byte, blobData []byte, shareVersion uint8) ([]byte, error) {
 	blob := coretypes.Blob{
 		NamespaceID:  namespace,
-		Data:         message,
+		Data:         blobData,
 		ShareVersion: shareVersion,
 	}
 
 	// split into shares that are length delimited and include the namespace in
 	// each share
-	shares, err := appshares.SplitMessages(0, nil, []coretypes.Blob{blob}, false)
+	shares, err := appshares.SplitBlobs(0, nil, []coretypes.Blob{blob}, false)
 	if err != nil {
 		return nil, err
 	}
 
 	// the commitment is the root of a merkle mountain range with max tree size
-	// equal to the minimum square size the message can be included in. See
+	// equal to the minimum square size the blob can be included in. See
 	// https://github.com/celestiaorg/celestia-app/blob/fbfbf111bcaa056e53b0bc54d327587dee11a945/docs/architecture/adr-008-blocksize-independent-commitment.md
-	minSquareSize := MsgMinSquareSize(len(message))
+	minSquareSize := BlobMinSquareSize(len(blobData))
 	treeSizes := merkleMountainRangeSizes(uint64(len(shares)), uint64(minSquareSize))
 	leafSets := make([][][]byte, len(treeSizes))
 	cursor := uint64(0)

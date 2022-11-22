@@ -10,9 +10,9 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-// SparseShareSplitter lazily splits messages into shares that will eventually be
+// SparseShareSplitter lazily splits blobs into shares that will eventually be
 // included in a data square. It also has methods to help progressively count
-// how many shares the messages written take up.
+// how many shares the blobs written take up.
 type SparseShareSplitter struct {
 	shares []Share
 }
@@ -27,30 +27,30 @@ func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
 	if !slices.Contains(appconsts.SupportedShareVersions, blob.ShareVersion) {
 		return fmt.Errorf("unsupported share version: %d", blob.ShareVersion)
 	}
-	rawMsg, err := MarshalDelimitedMessage(blob)
+	rawBlob, err := MarshalDelimitedBlob(blob)
 	if err != nil {
-		panic(fmt.Sprintf("app accepted a Message that can not be encoded %#v", blob))
+		panic(fmt.Sprintf("app accepted a Blob that can not be encoded %#v", blob))
 	}
 	newShares := make([]Share, 0)
-	newShares = AppendToShares(newShares, blob.NamespaceID, rawMsg, blob.ShareVersion)
+	newShares = AppendToShares(newShares, blob.NamespaceID, rawBlob, blob.ShareVersion)
 	sss.shares = append(sss.shares, newShares...)
 	return nil
 }
 
-// RemoveMessage will remove a message from the underlying message state. If
-// there is namespaced padding after the message, then that is also removed.
-func (sss *SparseShareSplitter) RemoveMessage(i int) (int, error) {
+// RemoveBlob will remove a blob from the underlying blob state. If
+// there is namespaced padding after the blob, then that is also removed.
+func (sss *SparseShareSplitter) RemoveBlob(i int) (int, error) {
 	j := 1
 	initialCount := len(sss.shares)
 	if len(sss.shares) > i+1 {
-		msgLen, err := sss.shares[i+1].SequenceLength()
+		blobLen, err := sss.shares[i+1].SequenceLength()
 		if err != nil {
 			return 0, err
 		}
 		// 0 means that there is padding after the share that we are about to
 		// remove. to remove this padding, we increase j by 1
-		// with the message
-		if msgLen == 0 {
+		// with the blob
+		if blobLen == 0 {
 			j++
 		}
 	}
@@ -70,8 +70,8 @@ func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) {
 	if count == 0 {
 		return
 	}
-	lastMessage := sss.shares[len(sss.shares)-1]
-	sss.shares = append(sss.shares, namespacedPaddedShares(lastMessage.NamespaceID(), count)...)
+	lastBlob := sss.shares[len(sss.shares)-1]
+	sss.shares = append(sss.shares, namespacedPaddedShares(lastBlob.NamespaceID(), count)...)
 }
 
 // Export finalizes and returns the underlying shares.
@@ -85,7 +85,7 @@ func (sss *SparseShareSplitter) Count() int {
 }
 
 // AppendToShares appends raw data as shares.
-// Used for messages.
+// Used for blobs.
 func AppendToShares(shares []Share, nid namespace.ID, rawData []byte, shareVersion uint8) []Share {
 	if len(rawData) <= appconsts.SparseShareContentSize {
 		infoByte, err := NewInfoByte(shareVersion, true)
@@ -100,25 +100,25 @@ func AppendToShares(shares []Share, nid namespace.ID, rawData []byte, shareVersi
 		)
 		paddedShare, _ := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
 		shares = append(shares, paddedShare)
-	} else { // len(rawData) > MsgShareSize
-		shares = append(shares, splitMessage(rawData, nid, shareVersion)...)
+	} else { // len(rawData) > BlobShareSize
+		shares = append(shares, splitBlob(rawData, nid, shareVersion)...)
 	}
 	return shares
 }
 
-// MarshalDelimitedMessage marshals the raw share data (excluding the namespace)
-// of this message and prefixes it with the length of the message encoded as a
+// MarshalDelimitedBlob marshals the raw share data (excluding the namespace)
+// of this blob and prefixes it with the length of the blob encoded as a
 // varint.
-func MarshalDelimitedMessage(msg coretypes.Blob) ([]byte, error) {
+func MarshalDelimitedBlob(blob coretypes.Blob) ([]byte, error) {
 	lenBuf := make([]byte, binary.MaxVarintLen64)
-	length := uint64(len(msg.Data))
+	length := uint64(len(blob.Data))
 	n := binary.PutUvarint(lenBuf, length)
-	return append(lenBuf[:n], msg.Data...), nil
+	return append(lenBuf[:n], blob.Data...), nil
 }
 
-// splitMessage breaks the data in a message into the minimum number of
+// splitBlob breaks the data in a blob into the minimum number of
 // namespaced shares
-func splitMessage(rawData []byte, nid namespace.ID, shareVersion uint8) (shares []Share) {
+func splitBlob(rawData []byte, nid namespace.ID, shareVersion uint8) (shares []Share) {
 	infoByte, err := NewInfoByte(shareVersion, true)
 	if err != nil {
 		panic(err)

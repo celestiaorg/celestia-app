@@ -26,7 +26,7 @@ func Test_estimateSquareSize(t *testing.T) {
 	tests := []test{
 		{"empty block minimum square size", 0, 0, 0, appconsts.MinSquareSize},
 		{"full block with only txs", 10000, 0, 0, appconsts.MaxSquareSize},
-		{"3 tx shares + 2 msg shares = 5 total shares so square size 4", 0, 1, appconsts.SparseShareContentSize, 4},
+		{"3 tx shares + 2 blob shares = 5 total shares so square size 4", 0, 1, appconsts.SparseShareContentSize, 4},
 		{"random small block square size 4", 0, 1, appconsts.SparseShareContentSize * 10, 4},
 		{"random small block w/ 10 normal txs square size 4", 10, 1, appconsts.SparseShareContentSize, 4},
 		{"random small block square size 16", 0, 4, appconsts.SparseShareContentSize * 8, 16},
@@ -93,21 +93,21 @@ func Test_overEstimateMalleatedTxSize(t *testing.T) {
 	}
 	tests := []test{
 		{
-			"basic with small message", 100,
+			"basic with small blob", 100,
 			[]types.TxBuilderOption{
 				types.SetFeeAmount(sdk.NewCoins(coin)),
 				types.SetGasLimit(10000000),
 			},
 		},
 		{
-			"basic with large message", 10000,
+			"basic with large blob", 10000,
 			[]types.TxBuilderOption{
 				types.SetFeeAmount(sdk.NewCoins(coin)),
 				types.SetGasLimit(10000000),
 			},
 		},
 		{
-			"memo with medium message", 1000,
+			"memo with medium blob", 1000,
 			[]types.TxBuilderOption{
 				types.SetFeeAmount(sdk.NewCoins(coin)),
 				types.SetGasLimit(10000000),
@@ -115,7 +115,7 @@ func Test_overEstimateMalleatedTxSize(t *testing.T) {
 			},
 		},
 		{
-			"memo with large message", 100000,
+			"memo with large blob", 100000,
 			[]types.TxBuilderOption{
 				types.SetFeeAmount(sdk.NewCoins(coin)),
 				types.SetGasLimit(10000000),
@@ -130,7 +130,7 @@ func Test_overEstimateMalleatedTxSize(t *testing.T) {
 		wpfbTx := generateRawWirePFBTx(
 			t,
 			encConf.TxConfig,
-			namespace.RandomMessageNamespace(),
+			namespace.RandomBlobNamespace(),
 			tmrand.Bytes(tt.size),
 			appconsts.ShareVersionZero,
 			signer,
@@ -151,16 +151,16 @@ func Test_calculateCompactShareCount(t *testing.T) {
 		wPFBCount, messgeSize int
 	}
 	tests := []test{
-		{"empty block minimum square size", 0, 0, totalMsgSize(0)},
-		{"full block with only txs", 10000, 0, totalMsgSize(0)},
-		{"random small block square size 4", 0, 1, totalMsgSize(appconsts.SparseShareContentSize * 2)},
+		{"empty block minimum square size", 0, 0, totalBlobSize(0)},
+		{"full block with only txs", 10000, 0, totalBlobSize(0)},
+		{"random small block square size 4", 0, 1, totalBlobSize(appconsts.SparseShareContentSize * 2)},
 		{"random small block square size 8", 0, 1, (appconsts.SparseShareContentSize * 4)},
-		{"random small block w/ 10 normal txs square size 4", 10, 1, totalMsgSize(appconsts.SparseShareContentSize * 8)},
-		{"random small block square size 16", 0, 4, totalMsgSize(appconsts.SparseShareContentSize * 8)},
-		{"random medium block square size 32", 0, 50, totalMsgSize(appconsts.SparseShareContentSize * 8)},
-		{"full block max square size", 0, 8000, totalMsgSize(appconsts.SparseShareContentSize / 2)},
-		{"overly full block", 0, 80, totalMsgSize(appconsts.SparseShareContentSize * 100)},
-		{"one over the perfect estimation edge case", 10, 1, totalMsgSize(appconsts.SparseShareContentSize + 1)},
+		{"random small block w/ 10 normal txs square size 4", 10, 1, totalBlobSize(appconsts.SparseShareContentSize * 8)},
+		{"random small block square size 16", 0, 4, totalBlobSize(appconsts.SparseShareContentSize * 8)},
+		{"random medium block square size 32", 0, 50, totalBlobSize(appconsts.SparseShareContentSize * 8)},
+		{"full block max square size", 0, 8000, totalBlobSize(appconsts.SparseShareContentSize / 2)},
+		{"overly full block", 0, 80, totalBlobSize(appconsts.SparseShareContentSize * 100)},
+		{"one over the perfect estimation edge case", 10, 1, totalBlobSize(appconsts.SparseShareContentSize + 1)},
 	}
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
 	signer := generateKeyringSigner(t, "estimate-key")
@@ -187,8 +187,8 @@ func Test_calculateCompactShareCount(t *testing.T) {
 	}
 }
 
-// totalMsgSize subtracts the delimiter size from the desired total size. this
-// is useful for testing for messages that occupy exactly so many shares.
-func totalMsgSize(size int) int {
+// totalBlobSize subtracts the delimiter size from the desired total size. this
+// is useful for testing for blobs that occupy exactly so many shares.
+func totalBlobSize(size int) int {
 	return size - shares.DelimLen(uint64(size))
 }
