@@ -44,6 +44,10 @@ func TestWirePayForBlob_ValidateBasic(t *testing.T) {
 	badCommitMsg := validWirePayForBlob(t)
 	badCommitMsg.ShareCommitment.ShareCommitment = []byte{1, 2, 3, 4}
 
+	// wire PFB with unsupported share version
+	unsupportedShareVersionWirePFB := validWirePayForBlob(t)
+	unsupportedShareVersionWirePFB.ShareVersion = 5 // unsupported
+
 	tests := []test{
 		{
 			name:    "valid msg",
@@ -79,6 +83,11 @@ func TestWirePayForBlob_ValidateBasic(t *testing.T) {
 			name:    "tail padding namespace id",
 			msg:     tailPaddingMsg,
 			wantErr: ErrTailPaddingNamespace,
+		},
+		{
+			name:    "unsupported share version",
+			msg:     unsupportedShareVersionWirePFB,
+			wantErr: ErrUnsupportedShareVersion,
 		},
 	}
 
@@ -139,14 +148,20 @@ func TestMsgMinSquareSize(t *testing.T) {
 
 func TestProcessWirePayForBlob(t *testing.T) {
 	type test struct {
-		name      string
-		namespace []byte
-		msg       []byte
-		expectErr bool
-		modify    func(*MsgWirePayForBlob) *MsgWirePayForBlob
+		name         string
+		namespace    []byte
+		msg          []byte
+		expectErr    bool
+		modify       func(*MsgWirePayForBlob) *MsgWirePayForBlob
+		shareVersion uint8
 	}
 
 	dontModify := func(in *MsgWirePayForBlob) *MsgWirePayForBlob {
+		return in
+	}
+
+	overrideShareVersion := func(in *MsgWirePayForBlob) *MsgWirePayForBlob {
+		in.ShareVersion = 5 // unsupported share version
 		return in
 	}
 
@@ -173,10 +188,25 @@ func TestProcessWirePayForBlob(t *testing.T) {
 			msg:       []byte{},
 			modify:    dontModify,
 		},
+		{
+			name:         "wire pay for blob with share version 0",
+			namespace:    []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:          []byte{},
+			shareVersion: 0,
+			modify:       dontModify,
+		},
+		{
+			name:         "wire pay for blob with unsupported share version",
+			namespace:    []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			msg:          []byte{},
+			shareVersion: 0,
+			expectErr:    true,
+			modify:       overrideShareVersion,
+		},
 	}
 
 	for _, tt := range tests {
-		wpfb, err := NewWirePayForBlob(tt.namespace, tt.msg, appconsts.ShareVersionZero)
+		wpfb, err := NewWirePayForBlob(tt.namespace, tt.msg, tt.shareVersion)
 		require.NoError(t, err, tt.name)
 		err = wpfb.SignShareCommitment(signer)
 		assert.NoError(t, err)
@@ -196,5 +226,6 @@ func TestProcessWirePayForBlob(t *testing.T) {
 		assert.Equal(t, wpfb.NamespaceId, spfb.NamespaceId, tt.name)
 		assert.Equal(t, wpfb.ShareCommitment.ShareCommitment, spfb.ShareCommitment, tt.name)
 		assert.Equal(t, wpfb.ShareCommitment.Signature, sig, tt.name)
+		assert.Equal(t, wpfb.ShareVersion, spfb.ShareVersion, tt.name)
 	}
 }
