@@ -37,6 +37,7 @@ func StartNode(tmNode *node.Node, cctx Context) (Context, func() error, error) {
 		if err != nil {
 			return err
 		}
+		tmNode.Wait()
 		return nil
 	}
 
