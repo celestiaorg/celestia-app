@@ -64,7 +64,7 @@ func TestValsetCreationWhenValidatorUnbonds(t *testing.T) {
 	assert.Equal(t, currentAttestationNonce+1, pk.GetLatestAttestationNonce(ctx))
 }
 
-func TestValsetChangeWhenEditingOrchAddr(t *testing.T) {
+func TestEditingOrchAddr(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
@@ -94,8 +94,9 @@ func TestValsetChangeWhenEditingOrchAddr(t *testing.T) {
 	qgb.EndBlocker(input.Context, *pk)
 	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
 
-	// not incrementing the nonce because a change in orch address shouldn't
+	// the nonce shouldn't increase because a change in the orchestrator address shouldn't
 	// cause a change in the validator set, from the QGB perspective.
+	// check x/qgb/types/validator.go for more details.
 	assert.Equal(t, currentAttestationNonce, pk.GetLatestAttestationNonce(ctx))
 }
 
