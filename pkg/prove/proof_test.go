@@ -171,61 +171,6 @@ func TestTxShareIndex(t *testing.T) {
 	}
 }
 
-// TODO: Uncomment/fix this test after we've adjusted tx inclusion proofs to
-// work using non-interactive defaults
-// func Test_genRowShares(t *testing.T) {
-//  squareSize := uint64(16)
-//  typicalBlockData := types.Data{
-//      Txs:                generateRandomlySizedTxs(10, 200),
-//      Blobs:           generateRandomlySizedMessages(20, 1000),
-//      SquareSize: squareSize,
-//  }
-
-// 	// note: we should be able to compute row shares from raw data
-// 	// this quickly tests this by computing the row shares before
-// 	// computing the shares in the normal way.
-// 	rowShares, err := genRowShares(
-// 		appconsts.DefaultCodec(),
-// 		typicalBlockData,
-// 		0,
-// 		squareSize,
-// 	)
-// 	require.NoError(t, err)
-
-// 	rawShares, err := shares.Split(typicalBlockData, false)
-// 	require.NoError(t, err)
-
-// 	eds, err := da.ExtendShares(squareSize, rawShares)
-// 	require.NoError(t, err)
-
-// 	for i := uint64(0); i < squareSize; i++ {
-// 		row := eds.Row(uint(i))
-// 		assert.Equal(t, row, rowShares[i], fmt.Sprintf("row %d", i))
-// 		// also test fetching individual rows
-// 		secondSet, err := genRowShares(appconsts.DefaultCodec(), typicalBlockData, i, i)
-// 		require.NoError(t, err)
-// 		assert.Equal(t, row, secondSet[0], fmt.Sprintf("row %d", i))
-// 	}
-// }
-
-// func Test_genOrigRowShares(t *testing.T) {
-// 	txCount := 100
-// 	squareSize := uint64(16)
-// 	typicalBlockData := types.Data{
-// 		Txs:                generateRandomlySizedTxs(txCount, 200),
-// 		Blobs:           generateRandomlySizedMessages(10, 1500),
-// 		SquareSize: squareSize,
-// 	}
-
-// 	rawShares, err := shares.Split(typicalBlockData, false)
-// 	require.NoError(t, err)
-
-// 	genShares := genOrigRowShares(typicalBlockData, 0, 15)
-
-// 	require.Equal(t, len(rawShares), len(genShares))
-// 	assert.Equal(t, rawShares, genShares)
-// }
-
 // stripCompactShares strips the universal prefix (namespace, info byte, data length) and
 // reserved byte from a list of compact shares and joins them into a single byte
 // slice.

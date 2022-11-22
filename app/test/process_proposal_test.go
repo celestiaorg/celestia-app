@@ -118,62 +118,6 @@ func TestMessageInclusionCheck(t *testing.T) {
 	}
 }
 
-// TODO: redo this tests, which is more difficult to do now that it requires the
-// data to be processed by PrepareProposal func
-// TestProcessMessagesWithReservedNamespaces(t *testing.T) {
-//  testApp := testutil.SetupTestAppWithGenesisValSet(t)
-//  encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-// 	signer := testutil.GenerateKeyringSigner(t, testAccName)
-
-// 	type test struct {
-// 		name           string
-// 		namespace      namespace.ID
-// 		expectedResult abci.ResponseProcessProposal_Result
-// 	}
-
-// 	tests := []test{
-// 		{"transaction namespace id for message", appconsts.TxNamespaceID, abci.ResponseProcessProposal_REJECT},
-// 		{"evidence namespace id for message", appconsts.EvidenceNamespaceID, abci.ResponseProcessProposal_REJECT},
-// 		{"tail padding namespace id for message", appconsts.TailPaddingNamespaceID, abci.ResponseProcessProposal_REJECT},
-// 		{"namespace id 200 for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, abci.ResponseProcessProposal_REJECT},
-// 		{"correct namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, abci.ResponseProcessProposal_ACCEPT},
-// 	}
-
-// 	for _, tt := range tests {
-// 		pfb, msg := genRandMsgPayForBlobForNamespace(t, signer, 8, tt.namespace)
-// 		input := abci.RequestProcessProposal{
-// 			BlockData: &core.Data{
-// 				Txs: [][]byte{
-// 					buildTx(t, signer, encConf.TxConfig, pfb),
-// 				},
-// 				Blobs: core.Blobs{
-// 					MessagesList: []*core.Message{
-// 						{
-// 							NamespaceId: pfb.GetNamespaceId(),
-// 							Data:        msg,
-// 						},
-// 					},
-// 				},
-// 				SquareSize: 8,
-// 			},
-// 		}
-// 		data, err := coretypes.DataFromProto(input.BlockData)
-// 		require.NoError(t, err)
-
-// 		shares, err := shares.Split(data)
-// 		require.NoError(t, err)
-
-// 		require.NoError(t, err)
-// 		eds, err := da.ExtendShares(input.BlockData.SquareSize, shares)
-// 		require.NoError(t, err)
-// 		dah := da.NewDataAvailabilityHeader(eds)
-// 		input.Header.DataHash = dah.Hash()
-// 		res := testApp.ProcessProposal(input)
-// 		assert.Equal(t, tt.expectedResult, res.Result)
-// 	}
-// }
-
 func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
