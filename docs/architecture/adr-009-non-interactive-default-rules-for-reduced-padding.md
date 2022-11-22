@@ -19,8 +19,8 @@ Proposed
 
 The upside of this proposal is that it reduces the inter-message padding. The downside is that a message inclusion proof will not be as efficient for large square sizes so the proof will be larger.
 
-> **Note**
-> This analysis assumes the implementation of [celestia-app#1004](https://github.com/celestiaorg/celestia-app/issues/1004). If the tree over the subtree roots is not a Namespace Merkle Tree then both methods have the same proof size.
+> **Note**  
+> **This analysis assumes the implementation of [celestia-app#1004](https://github.com/celestiaorg/celestia-app/issues/1004). If the tree over the subtree roots is not a Namespace Merkle Tree then both methods have the same proof size.**
 
 As an example, take the diagram below. Message 1 is 3 shares long and message 2 is 11 shares long.
 
@@ -98,7 +98,7 @@ The worst case constructible message in a square to have the biggest impact from
 | 1024 | 14116 | 14 |
 | 2048 | 30509 | 15 |
 
- Reminder: We did this calculation because the rows need to be in O(log(n)) proof size.
+ Reminder: We did this calculation because we need O(log(n)) rows.
 
 ## 3. Why can we not use the same trick that we used in Question 1 in a single row for more efficient proofs over the row roots?
 
@@ -107,23 +107,34 @@ H12 is part of the commitment generation and part of the Merkle tree to the Data
 It is only generated in the bigger square and not in the smaller square because in the smaller square you have to take into account the nodes over the parity shares.
 As H12 only exists in the bigger square the more efficient proofs only work in those squares.
 
-![Row root might not be subtree root.](./assets/rowroots-might-not-be-subtreeroot.png)
+![Row root might not be subtree root](./assets/rowroots-might-not-be-subtreeroot.png)
 
 ## 4. How big is the proof size for this message?
 
 We differentiate the size of the proof between the current non-interactive default rules and the proposed non-interactive default rules.
 
-### Old Non-Interactive Default Rules
+### Current Non-Interactive Default Rules
 
-Each row consists of one subtree root, which means if you have log(n) rows you will have in total log(n) subtree roots. The last row has log(n) subtree roots. The last row will also need log(k) blue nodes. Blue nodes are additional nodes that you need for the Merkle proof, which have been used in the previous diagrams. After having now r row roots we need to a Merkle proof of them to the `DataRoot`.In the worst case, the message lies in the middle of the block. Therefore we will need 2* log(k) blue nodes for the proof.
+Each row consists of one subtree root, which means if you have log(n) rows you will have in total log(n) subtree roots. The last row has log(k) subtree roots. To get the row roots we will need log(n) blue nodes from the parity shares. Blue nodes are additional nodes that you need for the Merkle proof, which have been used in the previous diagrams. After having now r row roots we need to a Merkle proof of them to the `DataRoot`. In the worst case, the message lies in the middle of the block. Therefore we will need 2* log(k) blue nodes for the proof.
 
-Proof size = log(n) + log(n) + log(k) + 2*log(k)
+![Current ni rules proof size](./assets/current-ni-rules-proof-size.png)
 
-### New Non-Interactive Default Rules
+NMT-Node size := 32 bytes + 2\*8 bytes = 48 bytes
+MT-Node size := 32 bytes
 
-Each row consists of O(sqrt(n)/log(n)) subtree roots. Which makes in total sqrt(n) subtree roots. The rest is here the same as before.
+Proof size = subtree roots (rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)
+Proof size = (log(n) + log(k) + log(n)) \* NMT-Node size  + 2\*log(k) \* MT-Node size
+Proof size = 48 \* (2\*log(n) + log(k)) + 64 \*log(k)
 
-Proof size = sqrt(n) + log(n) + log(k) + 2*log(k)
+### Proposed Non-Interactive Default Rules
+
+Each row consists of sqrt(n)/log(n) subtree roots. Which makes in total sqrt(n) subtree roots. The rest is here the same as before.
+
+![Proposed ni rules proof size](./assets/proposed-ni-rules-proof-size.png)
+
+Proof size = subtree roots (all rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)
+Proof size = (sqrt(n) + log(k) + log(n)) \* NMT-Node size  + 2\*log(k) \* MT-Node size
+Proof size = 48 \* (sqrt(n) + log(k) + log(n)) + 64 \*log(k)
 
 ## 5. What is the worst constructible block with the most amount of padding with old and new non-interactive default rules?
 
