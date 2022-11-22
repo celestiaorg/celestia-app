@@ -39,8 +39,8 @@ func (p *parsedTx) wrap(shareIndex uint32) (coretypes.Tx, error) {
 	return coretypes.WrapMalleatedTx(p.originalHash(), shareIndex, p.malleatedTx)
 }
 
-func (p *parsedTx) message() *core.Message {
-	return &core.Message{
+func (p *parsedTx) message() *core.Blob {
+	return &core.Blob{
 		NamespaceId: p.msg.NamespaceId,
 		Data:        p.msg.Blob,
 	}

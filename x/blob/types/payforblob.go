@@ -115,18 +115,14 @@ func BuildPayForBlobTxFromWireTx(
 // [Message layout rationale]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L12
 // [Non-interactive default rules]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L36
 func CreateCommitment(namespace, message []byte) ([]byte, error) {
-	msg := coretypes.Messages{
-		MessagesList: []coretypes.Message{
-			{
-				NamespaceID: namespace,
-				Data:        message,
-			},
-		},
+	blob := coretypes.Blob{
+		NamespaceID: namespace,
+		Data:        message,
 	}
 
 	// split into shares that are length delimited and include the namespace in
 	// each share
-	shares, err := appshares.SplitMessages(0, nil, msg.MessagesList, false)
+	shares, err := appshares.SplitMessages(0, nil, []coretypes.Blob{blob}, false)
 	if err != nil {
 		return nil, err
 	}

@@ -36,7 +36,10 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		s.accounts = append(s.accounts, tmrand.Str(9))
 	}
 
-	tmNode, app, cctx, err := New(s.T(), DefaultParams(), DefaultTendermintConfig(), false, s.accounts...)
+	genState, kr, err := DefaultGenesisState(s.accounts...)
+	require.NoError(err)
+
+	tmNode, app, cctx, err := New(s.T(), DefaultParams(), DefaultTendermintConfig(), false, genState, kr)
 	require.NoError(err)
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
@@ -104,7 +107,7 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 
 		b, err := s.cctx.Client.Block(context.TODO(), &res.Height)
 		require.NoError(err)
-		require.Equal(uint64(squareSize), b.Block.OriginalSquareSize)
+		require.Equal(uint64(squareSize), b.Block.SquareSize)
 	}
 }
 

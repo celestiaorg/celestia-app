@@ -29,7 +29,7 @@ func MsgSharesUsed(msgSize int) int {
 	return shareCount
 }
 
-func MessageShareCountsFromMessages(msgs []*core.Message) []int {
+func MessageShareCountsFromMessages(msgs []core.Blob) []int {
 	e := make([]int, len(msgs))
 	for i, msg := range msgs {
 		e[i] = MsgSharesUsed(len(msg.Data))
@@ -41,10 +41,10 @@ func isPowerOf2(v uint64) bool {
 	return v&(v-1) == 0 && v != 0
 }
 
-func MessagesToProto(msgs []coretypes.Message) []*core.Message {
-	protoMsgs := make([]*core.Message, len(msgs))
+func MessagesToProto(msgs []coretypes.Blob) []*core.Blob {
+	protoMsgs := make([]*core.Blob, len(msgs))
 	for i, msg := range msgs {
-		protoMsgs[i] = &core.Message{
+		protoMsgs[i] = &core.Blob{
 			NamespaceId: msg.NamespaceID,
 			Data:        msg.Data,
 		}
@@ -52,10 +52,10 @@ func MessagesToProto(msgs []coretypes.Message) []*core.Message {
 	return protoMsgs
 }
 
-func MessagesFromProto(msgs []*core.Message) []coretypes.Message {
-	protoMsgs := make([]coretypes.Message, len(msgs))
+func MessagesFromProto(msgs []core.Blob) []coretypes.Blob {
+	protoMsgs := make([]coretypes.Blob, len(msgs))
 	for i, msg := range msgs {
-		protoMsgs[i] = coretypes.Message{
+		protoMsgs[i] = coretypes.Blob{
 			NamespaceID: msg.NamespaceId,
 			Data:        msg.Data,
 		}
