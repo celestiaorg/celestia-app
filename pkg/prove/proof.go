@@ -3,6 +3,7 @@ package prove
 import (
 	"bytes"
 	"errors"
+
 	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
