@@ -79,7 +79,8 @@ if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx) != 0 {
 vs, err := k.GetCurrentValset(ctx)
 if err != nil {  
    // this condition should only occur in the simulator  
-   // ref : https://github.com/Gravity-Bridge/Gravity-Bridge/issues/35   if errors.Is(err, types.ErrNoValidators) {  
+   // ref : https://github.com/Gravity-Bridge/Gravity-Bridge/issues/35 
+   if errors.Is(err, types.ErrNoValidators) {  
       ctx.Logger().Error("no bonded validators",  
          "cause", err.Error(),  
       )  
