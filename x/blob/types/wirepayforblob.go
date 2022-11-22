@@ -22,7 +22,7 @@ var _ sdk.Msg = &MsgWirePayForBlob{}
 // NewWirePayForBlob creates a new MsgWirePayForBlob by using the namespace and
 // blob to generate a share commitment. Note that the generated share
 // commitment still needs to be signed using the SignShareCommitment method.
-func NewWirePayForBlob(namespace, blob []byte) (*MsgWirePayForBlob, error) {
+func NewWirePayForBlob(namespace []byte, blob []byte, shareVersion uint8) (*MsgWirePayForBlob, error) {
 	// sanity check namespace ID size
 	if len(namespace) != NamespaceIDSize {
 		return nil, ErrInvalidNamespaceLen.Wrapf("got: %d want: %d",
@@ -36,10 +36,11 @@ func NewWirePayForBlob(namespace, blob []byte) (*MsgWirePayForBlob, error) {
 		BlobSize:        uint64(len(blob)),
 		Blob:            blob,
 		ShareCommitment: &ShareCommitAndSignature{},
+		ShareVersion:    uint32(shareVersion),
 	}
 
 	// generate the share commitment
-	commit, err := CreateCommitment(namespace, blob)
+	commit, err := CreateCommitment(namespace, blob, shareVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -103,14 +104,13 @@ func (msg *MsgWirePayForBlob) ValidateBasic() error {
 // ValidateMessageShareCommitment returns an error if the share
 // commitment is invalid.
 func (msg *MsgWirePayForBlob) ValidateMessageShareCommitment() error {
-	// check that the commit is valid
-	commit := msg.ShareCommitment
-	calculatedCommit, err := CreateCommitment(msg.GetNamespaceId(), msg.Blob)
+	// check that the share commitment is valid
+	calculatedCommit, err := CreateCommitment(msg.GetNamespaceId(), msg.Blob, uint8(msg.ShareVersion))
 	if err != nil {
 		return ErrCalculateCommit.Wrap(err.Error())
 	}
 
-	if !bytes.Equal(calculatedCommit, commit.ShareCommitment) {
+	if !bytes.Equal(calculatedCommit, msg.ShareCommitment.ShareCommitment) {
 		return ErrInvalidShareCommit
 	}
 
@@ -181,19 +181,18 @@ func (msg *MsgWirePayForBlob) createPayForBlobSignature(signer *KeyringSigner, b
 // unsignedPayForBlob uses the data in the MsgWirePayForBlob
 // to create a new MsgPayForBlob.
 func (msg *MsgWirePayForBlob) unsignedPayForBlob() (*MsgPayForBlob, error) {
-	// create the commitment using the blob
-	commit, err := CreateCommitment(msg.NamespaceId, msg.Blob)
+	commitment, err := CreateCommitment(msg.NamespaceId, msg.Blob, uint8(msg.ShareVersion))
 	if err != nil {
 		return nil, err
 	}
 
-	spfb := MsgPayForBlob{
+	mpfb := MsgPayForBlob{
 		NamespaceId:     msg.NamespaceId,
 		BlobSize:        msg.BlobSize,
-		ShareCommitment: commit,
+		ShareCommitment: commitment,
 		Signer:          msg.Signer,
 	}
-	return &spfb, nil
+	return &mpfb, nil
 }
 
 // ProcessWirePayForBlob performs the malleation process that occurs before

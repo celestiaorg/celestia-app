@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -27,7 +28,7 @@ func TestBuildWirePayForBlob(t *testing.T) {
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	message := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 
-	msg, err := NewWirePayForBlob(namespace, message)
+	msg, err := NewWirePayForBlob(namespace, message, appconsts.ShareVersionZero)
 	require.NoError(t, err)
 
 	signedTx, err := k.BuildSignedTx(k.NewTxBuilder(), msg)
@@ -85,7 +86,7 @@ func TestBroadcastPayForBlob(t *testing.T) {
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	message := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
 
-	msg, err := NewWirePayForBlob(namespace, message)
+	msg, err := NewWirePayForBlob(namespace, message, appconsts.ShareVersionZero)
 	require.NoError(t, err)
 
 	signedTx, err := k.BuildSignedTx(builder, msg)

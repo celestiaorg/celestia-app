@@ -21,12 +21,13 @@ func SubmitPayForBlob(
 	conn *grpc.ClientConn,
 	nID namespace.ID,
 	data []byte,
+	shareVersion uint8,
 	gasLim uint64,
 	opts ...types.TxBuilderOption,
 ) (*sdk.TxResponse, error) {
 	opts = append(opts, types.SetGasLimit(gasLim))
 
-	pfb, err := BuildPayForBlob(ctx, signer, conn, nID, data, opts...)
+	pfb, err := BuildPayForBlob(ctx, signer, conn, nID, data, shareVersion, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -55,10 +56,11 @@ func BuildPayForBlob(
 	conn *grpc.ClientConn,
 	nID namespace.ID,
 	message []byte,
+	shareVersion uint8,
 	opts ...types.TxBuilderOption,
 ) (*types.MsgWirePayForBlob, error) {
 	// create the raw WirePayForBlob transaction
-	wpfb, err := types.NewWirePayForBlob(nID, message)
+	wpfb, err := types.NewWirePayForBlob(nID, message, shareVersion)
 	if err != nil {
 		return nil, err
 	}

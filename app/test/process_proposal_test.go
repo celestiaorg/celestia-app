@@ -124,7 +124,7 @@ func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
 
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
 
-	pfb, msg := genRandMsgPayForBlobForNamespace(t, signer, 8, appconsts.ParitySharesNamespaceID)
+	pfb, msg := genRandMsgPayForBlobForNamespace(t, signer, appconsts.ParitySharesNamespaceID)
 	input := abci.RequestProcessProposal{
 		BlockData: &core.Data{
 			Txs: [][]byte{
@@ -143,17 +143,19 @@ func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
 	assert.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
 }
 
-func genRandMsgPayForBlobForNamespace(t *testing.T, signer *types.KeyringSigner, squareSize uint64, ns namespace.ID) (*types.MsgPayForBlob, []byte) {
+func genRandMsgPayForBlobForNamespace(t *testing.T, signer *types.KeyringSigner, ns namespace.ID) (*types.MsgPayForBlob, []byte) {
 	message := make([]byte, randomInt(20))
 	_, err := rand.Read(message)
 	require.NoError(t, err)
 
-	commit, err := types.CreateCommitment(ns, message)
+	shareVersion := appconsts.ShareVersionZero
+	commit, err := types.CreateCommitment(ns, message, shareVersion)
 	require.NoError(t, err)
 
 	pfb := types.MsgPayForBlob{
 		ShareCommitment: commit,
 		NamespaceId:     ns,
+		ShareVersion:    uint32(shareVersion),
 	}
 
 	return &pfb, message

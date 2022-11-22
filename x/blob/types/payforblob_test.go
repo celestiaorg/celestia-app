@@ -62,33 +62,42 @@ func Test_merkleMountainRangeHeights(t *testing.T) {
 // show that the commitment bytes are being created correctly.
 // TODO: verify the commitment bytes
 func TestCreateCommitment(t *testing.T) {
+	unsupportedShareVersion := uint8(1)
+
 	type test struct {
-		name       string
-		squareSize uint64
-		namespace  []byte
-		message    []byte
-		expected   []byte
-		expectErr  bool
+		name         string
+		namespace    []byte
+		message      []byte
+		expected     []byte
+		expectErr    bool
+		shareVersion uint8
 	}
 	tests := []test{
 		{
-			name:       "squareSize 4, message of 11 shares succeeds",
-			squareSize: 4,
-			namespace:  bytes.Repeat([]byte{0xFF}, 8),
-			message:    bytes.Repeat([]byte{0xFF}, 11*ShareSize),
-			expected:   []byte{0x1e, 0xdc, 0xc4, 0x69, 0x8f, 0x47, 0xf6, 0x8d, 0xfc, 0x11, 0xec, 0xac, 0xaa, 0x37, 0x4a, 0x3d, 0xbd, 0xfc, 0x1a, 0x9b, 0x6e, 0x87, 0x6f, 0xba, 0xd3, 0x6c, 0x6, 0x6c, 0x9f, 0x5b, 0x65, 0x38},
+			name:         "message of 11 shares succeeds",
+			namespace:    bytes.Repeat([]byte{0xFF}, 8),
+			message:      bytes.Repeat([]byte{0xFF}, 11*ShareSize),
+			expected:     []byte{0x1e, 0xdc, 0xc4, 0x69, 0x8f, 0x47, 0xf6, 0x8d, 0xfc, 0x11, 0xec, 0xac, 0xaa, 0x37, 0x4a, 0x3d, 0xbd, 0xfc, 0x1a, 0x9b, 0x6e, 0x87, 0x6f, 0xba, 0xd3, 0x6c, 0x6, 0x6c, 0x9f, 0x5b, 0x65, 0x38},
+			shareVersion: appconsts.ShareVersionZero,
 		},
 		{
-			name:       "squareSize 4, message of 12 shares succeeds",
-			squareSize: 12,
-			namespace:  bytes.Repeat([]byte{0xFF}, 8),
-			message:    bytes.Repeat([]byte{0xFF}, 12*ShareSize),
-			expected:   []byte{0x81, 0x5e, 0xf9, 0x52, 0x2a, 0xfa, 0x40, 0x67, 0x63, 0x64, 0x4a, 0x82, 0x7, 0xcd, 0x1d, 0x7d, 0x1f, 0xae, 0xe5, 0xd3, 0xb1, 0x91, 0x8a, 0xb8, 0x90, 0x51, 0xfc, 0x1, 0xd, 0xa7, 0xf3, 0x1a},
+			name:         "message of 12 shares succeeds",
+			namespace:    bytes.Repeat([]byte{0xFF}, 8),
+			message:      bytes.Repeat([]byte{0xFF}, 12*ShareSize),
+			expected:     []byte{0x81, 0x5e, 0xf9, 0x52, 0x2a, 0xfa, 0x40, 0x67, 0x63, 0x64, 0x4a, 0x82, 0x7, 0xcd, 0x1d, 0x7d, 0x1f, 0xae, 0xe5, 0xd3, 0xb1, 0x91, 0x8a, 0xb8, 0x90, 0x51, 0xfc, 0x1, 0xd, 0xa7, 0xf3, 0x1a},
+			shareVersion: appconsts.ShareVersionZero,
+		},
+		{
+			name:         "blob with unsupported share version should return error",
+			namespace:    bytes.Repeat([]byte{0xFF}, 8),
+			message:      bytes.Repeat([]byte{0xFF}, 12*ShareSize),
+			expectErr:    true,
+			shareVersion: unsupportedShareVersion,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := CreateCommitment(tt.namespace, tt.message)
+			res, err := CreateCommitment(tt.namespace, tt.message, tt.shareVersion)
 			if tt.expectErr {
 				assert.Error(t, err)
 				return
@@ -145,7 +154,7 @@ func TestSignMalleatedTxs(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		wpfb, err := NewWirePayForBlob(tt.ns, tt.msg)
+		wpfb, err := NewWirePayForBlob(tt.ns, tt.msg, appconsts.ShareVersionZero)
 		require.NoError(t, err, tt.name)
 		err = wpfb.SignShareCommitment(signer, tt.options...)
 		// there should be no error
@@ -273,6 +282,7 @@ func validWirePayForBlob(t *testing.T) *MsgWirePayForBlob {
 	msg, err := NewWirePayForBlob(
 		[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 		message,
+		appconsts.ShareVersionZero,
 	)
 	if err != nil {
 		panic(err)
@@ -293,7 +303,7 @@ func validMsgPayForBlob(t *testing.T) *MsgPayForBlob {
 	ns := []byte{1, 1, 1, 1, 1, 1, 1, 2}
 	msg := bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12))
 
-	wpfb, err := NewWirePayForBlob(ns, msg)
+	wpfb, err := NewWirePayForBlob(ns, msg, appconsts.ShareVersionZero)
 	assert.NoError(t, err)
 
 	err = wpfb.SignShareCommitment(signer)

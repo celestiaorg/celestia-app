@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -68,6 +69,7 @@ func generateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *type
 			txConfig,
 			namespace.RandomMessageNamespace(),
 			tmrand.Bytes(size),
+			appconsts.ShareVersionZero,
 			signer,
 			opts...,
 		)
@@ -120,10 +122,11 @@ func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.Key
 	return rawTx
 }
 
-// generateRawWirePFB creates a tx with a single MsgWirePayForBlob message using the provided namespace and message
-func generateRawWirePFBTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
+// generateRawWirePFB creates a tx with a single MsgWirePayForBlob message using
+// the provided namespace, message, and shareVersion
+func generateRawWirePFBTx(t *testing.T, txConfig client.TxConfig, ns []byte, message []byte, shareVersion uint8, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
 	// create a msg
-	msg := generateSignedWirePayForBlob(t, ns, message, signer, opts)
+	msg := generateSignedWirePayForBlob(t, ns, message, shareVersion, signer, opts)
 
 	builder := signer.NewTxBuilder(opts...)
 	tx, err := signer.BuildSignedTx(builder, msg)
@@ -136,8 +139,8 @@ func generateRawWirePFBTx(t *testing.T, txConfig client.TxConfig, ns, message []
 	return rawTx
 }
 
-func generateSignedWirePayForBlob(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
-	msg, err := types.NewWirePayForBlob(ns, message)
+func generateSignedWirePayForBlob(t *testing.T, ns []byte, message []byte, shareVersion uint8, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
+	msg, err := types.NewWirePayForBlob(ns, message, shareVersion)
 	if err != nil {
 		t.Error(err)
 	}

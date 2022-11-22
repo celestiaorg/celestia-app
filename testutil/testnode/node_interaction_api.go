@@ -119,6 +119,7 @@ func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.
 		c.GRPCClient,
 		ns,
 		msg,
+		appconsts.ShareVersionZero,
 		opts...,
 	)
 	if err != nil {

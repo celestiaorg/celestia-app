@@ -176,7 +176,7 @@ func TestProcessWirePayForBlob(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		wpfb, err := NewWirePayForBlob(tt.namespace, tt.msg)
+		wpfb, err := NewWirePayForBlob(tt.namespace, tt.msg, appconsts.ShareVersionZero)
 		require.NoError(t, err, tt.name)
 		err = wpfb.SignShareCommitment(signer)
 		assert.NoError(t, err)
