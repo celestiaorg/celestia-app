@@ -3,6 +3,7 @@ package prove
 import (
 	"bytes"
 	"errors"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -223,11 +224,7 @@ func SharesInclusion(
 	startLeaf := startShare % squareSize
 	endLeaf := endShare % squareSize
 
-	eds, err := rsmt2d.ComputeExtendedDataSquare(
-		shares.ToBytes(allRawShares),
-		appconsts.DefaultCodec(),
-		wrapper.NewConstructor(squareSize),
-	)
+	eds, err := da.ExtendShares(squareSize, shares.ToBytes(allRawShares))
 	if err != nil {
 		return types.SharesProof{}, err
 	}
