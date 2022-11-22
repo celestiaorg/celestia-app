@@ -1,4 +1,4 @@
-# Quantum gravity bridge state machine 
+# Quantum gravity bridge state machine
 
 This module contains the [Quantum gravity bridge](https://blog.celestia.org/celestiums/) state machine implementation.
 
@@ -129,7 +129,6 @@ if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx)+1 != n
    panic("not incrementing latest attestation nonce correctly")  
 }
 ```
-
 
 ## Useful links
 
