@@ -136,7 +136,7 @@ if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx)+1 != n
 
 The smart contract implementation is in [quantum-gravity-bridge](https://github.com/celestiaorg/quantum-gravity-bridge/).
 
-The orchestrator and relayer implementations are in [orchestrator-relayer](https://github.com/celestiaorg/orchestrator-relayer/).
+For QGB v2, the orchestrator and relayer implementations will be in a separate repository. Links will be added subsequently.
 
 QGB v1 implementation, including the orchestrator and relayer, is in the [qgb-integration](https://github.com/celestiaorg/celestia-app/tree/qgb-integration) branch.
 
