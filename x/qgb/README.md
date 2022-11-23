@@ -1,21 +1,12 @@
 # `x/qgb`
 
 ## Abstract
+
 This module contains the [Quantum Gravity Bridge](https://blog.celestia.org/celestiums/) (QGB) state machine implementation.
 
 ## State machine
 
-The QGB state machine handles the creation of the attestations requests:
-
-https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/x/qgb/types/attestation.go#L15-L23
-
-These latter is either data commitments:
-
-https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/proto/qgb/types.proto#L31-L47
-
-Or, valsets:
-
-https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/proto/qgb/types.proto#L17-L29
+The QGB state machine handles the creation of [`AttestationRequestI`](https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/x/qgb/types/attestation.go#L15-L23) which can be either a [`DataCommitment`](https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/proto/qgb/types.proto#L31-L47) or a [`Valset`](https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/proto/qgb/types.proto#L17-L29).
 
 During their creation, the state machine might panic due to an unexpected behavior or event. These panics will be discussed below.
 
@@ -25,9 +16,13 @@ During their creation, the state machine might panic due to an unexpected behavi
 
 A new valset is created in the following situations:
 
-https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/x/qgb/abci.go#L74
+```golang
+if (latestValset == nil) || (lastUnbondingHeight == uint64(ctx.BlockHeight())) || significantPowerDiff {
+    ...
+}
+```
 
-- No valset exist in store, so a new valset will be created. This happens mostly after genesis, or after a hard fork.
+- No valset exists in store, so a new valset will be created. This happens mostly after genesis, or after a hard fork.
 - The current block height is the last unbonding height, i.e. when a validator is leaving the validator set. A new valset will need to be created to accommodate that change.
 - A significant power difference happened since the last valset. This could happen if a validator has way more staking power or the opposite. The significant power difference threshold is defined by the constant `SignificantPowerDifferenceThreshold`, and is set to 5% currently.
 
@@ -35,7 +30,11 @@ https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb6
 
 A new data commitment is created in the following situation:
 
-https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/x/qgb/abci.go#L23
+```golang
+if ctx.BlockHeight() != 0 && ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx)) == 0 {
+	...
+}
+```
 
 I.e. the current block height is not 0, and we're at a data commitment window height.
 
@@ -52,7 +51,8 @@ During EndBlock, if the block height corresponds to a `DataCommitmentWindow`, it
 - An unexpected behavior happened while getting the current data commitment:
 
 ```golang
-dataCommitment, err := k.GetCurrentDataCommitment(ctx)  
+dataCommitment
+}, err := k.GetCurrentDataCommitment(ctx)  
 if err != nil {  
    panic(sdkerrors.Wrap(err, "coudln't get current data commitment"))  
 }
