@@ -47,7 +47,7 @@ During EndBlock step, the state machine generates new attestations if needed. Du
 
 #### Data commitment panics
 
-During EndBlock, if the block height corresponds to a `DataCommitmentWindow`, it will generate a new data commitment, during which, the state machine can panic in the following case:
+During EndBlock, if the block height corresponds to a `DataCommitmentWindow`, it will generate a new data commitment, during which, the state machine can panic, if it finds invalid state, in the following case:
 
 - An unexpected behavior happened while getting the current data commitment:
 
@@ -60,7 +60,7 @@ if err != nil {
 
 #### Valset panics
 
-Similar to data commitments, when checking if the state machine needs to generate a new valset, it might panic in the following cases:
+Similar to data commitments, when checking if the state machine needs to generate a new valset, it might panic, if it finds invalid state, in the following cases:
 
 - When checking that a previous valset has been emitted, but it is unable to get it:
 
@@ -102,7 +102,7 @@ if err != nil {
 
 #### Attestations panics
 
-When storing a new attestation, which is either a data commitment or a valset, the state machine can panic in the following cases:
+When storing a new attestation, which is either a data commitment or a valset, the state machine can panic, if it finds invalid state, in the following cases:
 
 - The attestation request created from the data commitment is a duplicate of an existing attestation:
 
@@ -139,3 +139,5 @@ The smart contract implementation is in [quantum-gravity-bridge](https://github.
 The orchestrator and relayer implementations are in [orchestrator-relayer](https://github.com/celestiaorg/orchestrator-relayer/).
 
 QGB v1 implementation, including the orchestrator and relayer, is in the [qgb-integration](https://github.com/celestiaorg/celestia-app/tree/qgb-integration) branch.
+
+QGB ADRs are in the [docs](https://github.com/celestiaorg/celestia-app/tree/main/docs/architecture).
