@@ -3,7 +3,6 @@ package types
 import (
 	"bytes"
 
-	"github.com/celestiaorg/celestia-app/app/encoding"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
@@ -15,10 +14,15 @@ type ProcessedBlobTx struct {
 	PFBs  []*MsgPayForBlob
 }
 
-// ProcessBlobTx validates the contents of the BlobTx and performs the
-// malleation process by separating the blobs from the MsgPayForBlob.
-func ProcessBlobTx(encfg encoding.Config, bTx *tmproto.BlobTx) (ProcessedBlobTx, error) {
-	sdkTx, err := encfg.TxConfig.TxDecoder()(bTx.Tx)
+// ProcessBlobTx performs stateless checks on the BlobTx to ensure that the
+// blobs attached to the transaction are valid. During this process, it
+// separates the blobs from the MsgPayForBlob, which are returned in the
+// ProcessedBlobTx.
+//
+// NOTE: ProcessBlobTx does not call the ValidateBasic method on either the
+// transaction or messages in that transaction.
+func ProcessBlobTx(dec sdk.TxDecoder, bTx tmproto.BlobTx) (ProcessedBlobTx, error) {
+	sdkTx, err := dec(bTx.Tx)
 	if err != nil {
 		return ProcessedBlobTx{}, err
 	}
