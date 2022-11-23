@@ -5,28 +5,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/tendermint/tendermint/crypto/tmhash"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
-
-var _ sdk.Tx = &BlobTx{}
-
-func (btx *BlobTx) ValidateBasic() error {
-	// todo: try to remove using the blob local copy of the encoding config
-	// all validation occurs in the ProcessBlobTx function
-	_, err := ProcessBlobTx(makeBlobEncodingConfig(), btx)
-	return err
-}
-
-func (btx *BlobTx) GetMsgs() []sdk.Msg {
-	return nil
-}
-
-// Hash returns the hash of the embedded sdk.Tx that contians at least one
-// MsgWirePFB
-func (btx *BlobTx) Hash() []byte {
-	return tmhash.Sum(btx.Tx)
-}
 
 // ProcessedBlobTx caches the unmarshalled result of the BlobTx
 type ProcessedBlobTx struct {
@@ -37,7 +17,7 @@ type ProcessedBlobTx struct {
 
 // ProcessBlobTx validates the contents of the BlobTx and performs the
 // malleation process by separating the blobs from the MsgPayForBlob.
-func ProcessBlobTx(encfg encoding.Config, bTx *BlobTx) (ProcessedBlobTx, error) {
+func ProcessBlobTx(encfg encoding.Config, bTx *tmproto.BlobTx) (ProcessedBlobTx, error) {
 	sdkTx, err := encfg.TxConfig.TxDecoder()(bTx.Tx)
 	if err != nil {
 		return ProcessedBlobTx{}, err
@@ -69,7 +49,7 @@ func ProcessBlobTx(encfg encoding.Config, bTx *BlobTx) (ProcessedBlobTx, error) 
 			return ProcessedBlobTx{}, err
 		}
 
-		blob := bTx.Blobs[i]
+		blob := bTx.Blobs[i].Data
 
 		// make sure that the blob size matches the actual size of the blob
 		if pfb.BlobSize != uint64(len(blob)) {
@@ -99,12 +79,12 @@ func ProcessBlobTx(encfg encoding.Config, bTx *BlobTx) (ProcessedBlobTx, error) 
 	}, nil
 }
 
-func DecodeBlobTx(tx []byte) (BlobTx, error) {
-	var bTx BlobTx
-	err := bTx.Unmarshal(tx)
-	return bTx, err
+func (btx ProcessedBlobTx) ValidateBasic() error {
+	btx.Tx.ValidateBasic()
+
+	return nil
 }
 
-func EncodeBlobTx(bTx BlobTx) ([]byte, error) {
-	return bTx.Marshal()
+func (btx ProcessedBlobTx) GetMsgs() []sdk.Msg {
+	return btx.Tx.GetMsgs()
 }

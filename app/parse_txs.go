@@ -36,7 +36,7 @@ func (p *parsedTx) wrap(shareIndex uint32) (coretypes.Tx, error) {
 	if p.malleatedTx == nil {
 		return nil, errors.New("cannot wrap parsed tx that is not malleated")
 	}
-	return coretypes.WrapMalleatedTx(p.originalHash(), shareIndex, p.malleatedTx)
+	return coretypes.WrapMalleatedTx(shareIndex, p.malleatedTx)
 }
 
 func (p *parsedTx) message() *core.Blob {

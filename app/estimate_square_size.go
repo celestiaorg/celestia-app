@@ -73,7 +73,7 @@ func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSi
 	for _, tx := range txs {
 		rawTx := tx.rawTx
 		if tx.malleatedTx != nil {
-			rawTx, err = coretypes.WrapMalleatedTx(tx.originalHash(), uint32(msgSharesCursor), tx.malleatedTx)
+			rawTx, err = coretypes.WrapMalleatedTx(uint32(msgSharesCursor), tx.malleatedTx)
 			if err != nil {
 				panic(err)
 			}
