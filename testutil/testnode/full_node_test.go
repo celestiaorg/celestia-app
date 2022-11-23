@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -18,7 +19,7 @@ import (
 type IntegrationTestSuite struct {
 	suite.Suite
 
-	cleanups []func()
+	cleanups []func() error
 	accounts []string
 	cctx     Context
 }
@@ -56,7 +57,8 @@ func (s *IntegrationTestSuite) SetupSuite() {
 func (s *IntegrationTestSuite) TearDownSuite() {
 	s.T().Log("tearing down integration test suite")
 	for _, c := range s.cleanups {
-		c()
+		err := c()
+		require.NoError(s.T(), err)
 	}
 }
 
