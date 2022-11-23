@@ -63,7 +63,7 @@ func (p parsedTxs) remove(i int) parsedTxs {
 func parseTxs(conf client.TxConfig, rawTxs [][]byte) parsedTxs {
 	parsedTxs := []*parsedTx{}
 	for _, rawTx := range rawTxs {
-		tx, err := encoding.MalleatedTxDecoder(conf.TxDecoder())(rawTx)
+		tx, err := encoding.WrappedTxDecoder(conf.TxDecoder())(rawTx)
 		if err != nil {
 			continue
 		}
