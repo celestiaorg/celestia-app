@@ -20,7 +20,7 @@ const FlagSquareSizes = "square-sizes"
 func CmdWirePayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "payForBlob [hexNamespace] [hexBlob]",
-		Short: "Creates a new MsgWirePayForBlob",
+		Short: "Pay for a data blob to be published to the Celestia blockchain",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
