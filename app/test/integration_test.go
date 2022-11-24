@@ -18,7 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/network"
-	blob "github.com/celestiaorg/celestia-app/x/blob"
+	"github.com/celestiaorg/celestia-app/x/blob"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -290,7 +290,7 @@ func generateSignedWirePayForBlobTxs(clientCtx client.Context, txConfig client.T
 			return nil, err
 		}
 
-		txs[i] = coretypes.Tx(rawTx)
+		txs[i] = rawTx
 	}
 
 	return txs, nil
