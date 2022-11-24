@@ -35,15 +35,15 @@ func TestPrepareProposal(t *testing.T) {
 
 	firstNamespace := []byte{2, 2, 2, 2, 2, 2, 2, 2}
 	firstMessage := bytes.Repeat([]byte{4}, 512)
-	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNamespace, firstMessage, signer, types.AllSquareSizes(len(firstMessage))...)
+	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNamespace, firstMessage, signer)
 
 	secondNamespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	secondMessage := []byte{2}
-	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNamespace, secondMessage, signer, types.AllSquareSizes(len(secondMessage))...)
+	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNamespace, secondMessage, signer)
 
 	thirdNamespace := []byte{3, 3, 3, 3, 3, 3, 3, 3}
 	thirdMessage := []byte{1}
-	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNamespace, thirdMessage, signer, types.AllSquareSizes(len(thirdMessage))...)
+	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNamespace, thirdMessage, signer)
 
 	tests := []test{
 		{
