@@ -10,8 +10,7 @@
 
 Current
 
-> - Messages that span multiple rows must begin at the start of a row (this can occur if a message is longer than k shares or if the block producer decides to start a message partway through a row and it cannot fit).
-> - Messages begin at a location aligned with the largest power of 2 that is not larger than the message length or k.
+> - Messages must begin at a location aligned with the largest power of 2 that is not larger than the message length or k. If the messages are larger than k, then they must start on a new row.
 
 Proposed
 
@@ -112,6 +111,7 @@ As H12 only exists in the bigger square the more efficient proofs only work in t
 ## 4. How big is the proof size for this message?
 
 We differentiate the size of the proof between the current non-interactive default rules and the proposed non-interactive default rules.
+For completion, we also included the scenario of k/4 to compare the proof size before and after even though the % gain is not that high.
 
 ### Current Non-Interactive Default Rules
 
@@ -126,6 +126,12 @@ Proof size = subtree roots (rows) + subtree roots (last row) + blue nodes (parit
 Proof size = (log(n) + log(k) + log(n)) \* NMT-Node size  + 2\*log(k) \* MT-Node size  
 Proof size = 48 \* (2\*log(n) + log(k)) + 64 \*log(k)
 
+### Current Non-Interactive Default Rules for k/4
+
+Proof size = subtree roots (rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)  
+Proof size = (k/4 + log(k) + k/4) \* NMT-Node size  + 2\*log(k) \* MT-Node size  
+Proof size = 48 \* (k/2 + log(k)) + 64 \*log(k)
+
 ### Proposed Non-Interactive Default Rules
 
 Each row consists of sqrt(n)/log(n) subtree roots. Which makes in total sqrt(n) subtree roots. The rest is here the same as before.
@@ -136,11 +142,16 @@ Proof size = subtree roots (all rows) + subtree roots (last row) + blue nodes (p
 Proof size = (sqrt(n) + log(k) + log(n)) \* NMT-Node size  + 2\*log(k) \* MT-Node size  
 Proof size = 48 \* (sqrt(n) + log(k) + log(n)) + 64 \*log(k)
 
+### Proposed Non-Interactive Default Rules for k/4
+
+Proof size = subtree roots (rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)  
+Proof size = (**k/2** + log(k) + k/4) \* NMT-Node size  + 2\*log(k) \* MT-Node size  
+Proof size = 48 \* (3k/4 + log(k)) + 64 \*log(k)
+
 ## 5. What is the worst constructible block with the most amount of padding with old and new non-interactive default rules?
 
-For the current non-interactive default rules, when you have a square size of k you can alternate messages of size k/2 +1 and k/4 +1 to have the most amount of padding. This forces you to always use a new row.
-
-Padding = (k/2 -1) \* (k/2 -1) + (3k/4 -1) \* (k/2 -1)
+For the current non-interactive default rules, when you have a square size of k the worst padding is to fill the square with messages of size k+1
+Padding = (k/2) \* (k -1)
 
 To have the most amount of padding for the proposed non-interactive default rules you use repeated messages of size 5 which will result in a padding of 3 in between.
 
@@ -150,11 +161,11 @@ Padding = 3 \* (k-1) \* k/8
 
 ## What is the quantified padding and proof size cost?
 
-Proof size increases from 2928 bytes to 10352 bytes in 2 GB blocks. In the current `MaxSquareSize` it's from 2096 to 3088 bytes. For bigger messages, the number of row roots will approach sqrt(n). Before that, we will get to k/4 roots which will make the message act the same before and after the proposed non-interactive default rules.
+Proof size increases from 2928 bytes to 10352 bytes in 2 GB blocks. In the current `MaxSquareSize` it's from 2096 to 3088 bytes. For bigger messages, the number of row roots will approach sqrt(n). Before that, we will get to k/4+1 roots which will make the message act the same before and after the proposed non-interactive default rules.
 
 ![Proof Size Result](./assets/proof-size-result.png)
 
-The worst-case padding decreases from 1.3 GB to 0.8 GB in 2 GB Blocks. In the current `MaxSquareSize` it's from 5 MB to 3 MB. In general, the worst-case padding size approaches in current non-interactive default rules 66% and the proposed non-interactive default rules 37.5%. That is a reduction of almost 50%.
+The worst-case padding decreases from 1.1 GB to 0.8 GB in 2 GB Blocks. In the current `MaxSquareSize` it's from 4 MB to 3 MB. In general, the worst-case padding size approaches in current non-interactive default rules 50% and the proposed non-interactive default rules 37.5%. That is a maximum reduction of padding to 25%.
 
 ![Padding Size Result](./assets/padding-size-result.png)
 
