@@ -11,7 +11,7 @@
 <text text-anchor="start" x="93" y="-33.9" font-family="Times,serif" font-size="14.00" fill="#000000">8</text>
 <text text-anchor="start" x="153" y="-33.9" font-family="Times,serif" font-size="14.00" fill="#000000">9</text>
 <text text-anchor="start" x="353" y="-33.9" font-family="Times,serif" font-size="14.00" fill="#000000">200</text>
-<text text-anchor="start" x="453" y="-33.9" font-family="Times,serif" font-size="14.00" fill="#000000">256</text>
+<text text-anchor="start" x="453" y="-33.9" font-family="Times,serif" font-size="14.00" fill="#000000">512</text>
 <polygon fill="none" stroke="#000000" points="8,-4.5 8,-30.5 93,-30.5 93,-4.5 8,-4.5"/>
 <text text-anchor="start" x="12.6006" y="-12.9" font-family="Times,serif" font-size="14.00" fill="#000000">namespace id</text>
 <polygon fill="none" stroke="#000000" points="93,-4.5 93,-30.5 153,-30.5 153,-4.5 93,-4.5"/>

@@ -8,7 +8,7 @@ digraph G {
             <td align="left" border="0" cellpadding="0">8</td>
             <td align="left" border="0" cellpadding="0">9</td>
             <td align="left" border="0" cellpadding="0">200</td>
-            <td align="left" border="0" cellpadding="0">256</td>
+            <td align="left" border="0" cellpadding="0">512</td>
         </tr>
         <tr>
             <td width="8" cellpadding="4">namespace id</td>
