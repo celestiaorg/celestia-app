@@ -63,7 +63,7 @@ Proposed
     }
     ```
 
-    Note: at the same time, consider renaming `MalleadTx` to `ShareIndexedTx`.
+    Note: at the same time, consider renaming `MalleatedTx` to `ShareIndexedTx`.
 
 3. Define a new wrapped transaction type in celestia-app called `ProcessedBlobTx`.
 
