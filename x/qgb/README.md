@@ -44,23 +44,9 @@ The data commitment window is defined as a governance parameter that can be chan
 
 During EndBlock step, the state machine generates new attestations if needed. During this generation, the state machine could panic.
 
-#### Data commitment panics
-
-During EndBlock, if the block height corresponds to a `DataCommitmentWindow`, it will generate a new data commitment, during which, the state machine can panic, if it finds invalid state, in the following case:
-
-- An unexpected behavior happened while getting the current data commitment:
-
-```golang
-dataCommitment
-}, err := k.GetCurrentDataCommitment(ctx)  
-if err != nil {  
-   panic(sdkerrors.Wrap(err, "coudln't get current data commitment"))  
-}
-```
-
 #### Valset panics
 
-Similar to data commitments, when checking if the state machine needs to generate a new valset, it might panic, if it finds invalid state, in the following cases:
+When checking if the state machine needs to generate a new valset, the state machine might panic if it finds invalid state. This can happen in the following cases:
 
 - When checking that a previous valset has been emitted, but it is unable to get it:
 
@@ -102,7 +88,7 @@ if err != nil {
 
 #### Attestations panics
 
-When storing a new attestation, which is either a data commitment or a valset, the state machine can panic, if it finds invalid state, in the following cases:
+When storing a new attestation, the state machine can panic if it finds invalid state. This latter can happen in the following cases:
 
 - The attestation request created from the data commitment is a duplicate of an existing attestation:
 
