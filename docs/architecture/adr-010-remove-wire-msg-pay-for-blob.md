@@ -37,6 +37,50 @@ Proposed
 
 ## Detailed Design
 
+### Transaction Flow
+
+This transaction flow only describes the support for one tx with one message with one blob.
+
+Assume a user wants to publish the data "hello world" to the namespace: `11111111`.
+
+1. User creates a `MsgPayForBlob`
+
+    ```golang
+    type MsgPayForBlob struct {
+        Signer string
+        NamespaceID []byte // 11111111
+        BlobSize uint64 // len("hello world")
+        ShareCommitment []byte // e945c0bd85c106990...
+        ShareVersion uint32 // 0
+    }
+    ```
+
+2. The user takes this `MsgPayForBlob` and includes it as the sole message in a transaction (henceforth known as `MsgPayForBlobTx`).
+3. The user signs the `MsgPayForBlobTx`.
+4. The user marshals the `MsgPayForBlobTx` to bytes and includes it as a field in a new transaction. The new transaction is a `BlobTx` which includes an additional field for the data they wish to publish.
+
+    ```golang
+    type BlobTx struct {
+        Tx []byte // marshalled sdk.Tx that includes one MsgPayForBlob
+        Blob []byte // []byte("hello world")
+    }
+    ```
+
+5. The user signs the `BlobTx` and publishes it to a celestia-app consensus full node or validator and eventually lands in the mempool.
+6. The `BlobTx` is checked for validity in the Tendermint mempool via `CheckTx`. `CheckTx` needs the ability to unmarshal `BlobTx` and extract the tx hash associated with the `MsgPayForBlobTx` so that it can use this hash for transaction indexing. Note that the `BlobTx` is still sent from Tendermint to celestia-app in `CheckTx` because celestia-app needs access to the Blobs field in order to validate the associated `MsgPayForBlobTx`.
+7. Assuming that the `BlobTx` is valid, a block proposer will pick it up, unwrap the BlobTx into its component parts, write the blob to blob shares in the block's data square, and wrap the MsgPayForBlobTx into a new `BlockTx` that includes the share index of the first share of the blob.
+
+    ```golang
+    type BlockTx struct {
+        Tx bytes // marshalled sdk.Tx that includes one MsgPayForBlob
+        ShareIndex uint64
+    }
+    ```
+
+8. Assuming the block reaches consensus and gets committed, the Tendermint mempool eventually gets notified of the new block and the transactions included in that block in `TxMempool.Update`. At that time, the mempool must unwrap the `BlockTx` that got included on-chain into its component parts. Then it can use the tx hash associated with the `MsgPayForBlobTx` to remove the `BlobTx` from the mempool.
+
+### Implementation
+
 1. In celestia-core, introduce a new Protobuf definition for `BlobTx`
 
     ```proto
