@@ -8,7 +8,7 @@
 
 The blob inclusion verification game is between the verifier and a prover. The verifier has the blob or its commitment and access to the block header of Celestia. The prover wants to prove the inclusion of the blob in the DA Layer.
 
-Validators check if the PFB commitment matches the commitment that is referenced in [ProcessProposal](https://github.com/celestiaorg/celestia-app/blob/3473000a9ff04fccfbba83929711fe11643b782c/app/process_proposal.go#L113). If validators misbehave and coerce together to break this consensus rule, we need a fraud-proof to enforce this rule. If we assume that we have this fraud-proof then we can use the check in `ProcessProposal` to our advantage for an optimistic blob size independent inclusion proof.
+Validators check if the PFB commitment matches the commitment that is referenced in [ProcessProposal](https://github.com/celestiaorg/celestia-app/blob/3473000a9ff04fccfbba83929711fe11643b782c/app/process_proposal.go#L113). Given that 2/3 of validators can collude and break this consensus rule, we want a fraud-proof to inform light clients of violations of this rule. If we assume that we have this fraud-proof then we can use the check in `ProcessProposal` to our advantage for an optimistic blob size independent inclusion proof.
 
 ## Blob size independent inclusion proof - PFB inclusion proof
 
@@ -16,7 +16,7 @@ Instead of proving the Merkle proof over all subtree roots over the blob we crea
 
 The verifier could do the following steps:
 
-- Verify that the nid is 0. We have to do this so we don't accidentally verify a blob share that looks like a PFB-Transaction
+- Verify that the namespaceID is the transaction namespaceID (i.e. `namespace.ID{0, 0, 0, 0, 0, 0, 0, 1}`). We have to do this so we don't accidentally verify a blob share that looks like a PFB-Transaction
 - Unserialize the PFB-Transaction
 - Verify the signatures
 - Verify the given commitment matches the commitment in the header
