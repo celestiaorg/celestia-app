@@ -213,7 +213,6 @@ func splitIntoRows(squareSize uint64, s []shares.Share) [][]shares.Share {
 // expects the shares range to be pre-validated.
 // Note: only supports inclusion proofs for shares belonging to the same namespace.
 func SharesInclusion(
-	codec rsmt2d.Codec,
 	allRawShares []shares.Share,
 	squareSize uint64,
 	namespaceID namespace.ID,

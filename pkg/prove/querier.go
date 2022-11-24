@@ -102,7 +102,13 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 	}
 
 	// create and marshal the shares inclusion proof, which we return in the form of []byte
-	txProof, err := SharesInclusion(appconsts.DefaultCodec(), rawShares, data.SquareSize, nID, uint64(beginShare), uint64(endShare))
+	txProof, err := SharesInclusion(
+		rawShares,
+		data.SquareSize,
+		nID,
+		uint64(beginShare),
+		uint64(endShare),
+	)
 	if err != nil {
 		return nil, err
 	}
