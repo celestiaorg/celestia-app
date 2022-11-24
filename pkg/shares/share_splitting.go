@@ -93,7 +93,7 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 			// attempting to extract share indexes from txs that do not have any
 			// due to them being old. here we return nil to indicate that we are
 			// attempting to extract indexes from a block that doesn't support
-			// it. It's check for 0 because if there is a message in the block,
+			// it. It checks for 0 because if there is a message in the block,
 			// then there must also be a tx, which will take up at least one
 			// share.
 			if malleatedTx.ShareIndex == 0 {

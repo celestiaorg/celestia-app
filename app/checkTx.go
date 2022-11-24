@@ -23,15 +23,11 @@ func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 
 	// new transactions must be checked in their entirety
 	case req.Type == abci.CheckTxType_New:
-		pBTx, err := types.ProcessBlobTx(app.txConfig.TxDecoder(), btx)
+		pBTx, err := types.ProcessBlobTx(app.txConfig, btx)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
 		}
-		unwrappedRawTx, err := app.txConfig.TxEncoder()(pBTx.Tx)
-		if err != nil {
-			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
-		}
-		tx = unwrappedRawTx
+		tx = pBTx.Tx
 
 	case req.Type == abci.CheckTxType_Recheck:
 		// only replace the current transaction with the unwrapped one, as we

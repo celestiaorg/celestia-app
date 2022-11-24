@@ -3,15 +3,16 @@ package types
 import (
 	"bytes"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 // ProcessedBlobTx caches the unmarshalled result of the BlobTx
 type ProcessedBlobTx struct {
-	Tx    sdk.Tx
 	Blobs []tmproto.Blob
-	PFBs  []*MsgPayForBlob
+	Tx    []byte
 }
 
 // ProcessBlobTx performs stateless checks on the BlobTx to ensure that the
@@ -21,8 +22,8 @@ type ProcessedBlobTx struct {
 //
 // NOTE: ProcessBlobTx does not call the ValidateBasic method on either the
 // transaction or messages in that transaction.
-func ProcessBlobTx(dec sdk.TxDecoder, bTx tmproto.BlobTx) (ProcessedBlobTx, error) {
-	sdkTx, err := dec(bTx.Tx)
+func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (ProcessedBlobTx, error) {
+	sdkTx, err := txcfg.TxDecoder()(bTx.Tx)
 	if err != nil {
 		return ProcessedBlobTx{}, err
 	}
@@ -53,6 +54,7 @@ func ProcessBlobTx(dec sdk.TxDecoder, bTx tmproto.BlobTx) (ProcessedBlobTx, erro
 			return ProcessedBlobTx{}, err
 		}
 
+		// todo: modify this to support multiple messages per PFB
 		blob := bTx.Blobs[i].Data
 
 		// make sure that the blob size matches the actual size of the blob
@@ -73,22 +75,20 @@ func ProcessBlobTx(dec sdk.TxDecoder, bTx tmproto.BlobTx) (ProcessedBlobTx, erro
 			return ProcessedBlobTx{}, ErrInvalidShareCommit
 		}
 
-		protoBlobs[i] = tmproto.Blob{NamespaceId: pfb.NamespaceId, Data: blob}
+		protoBlobs[i] = tmproto.Blob{NamespaceId: pfb.NamespaceId, Data: blob, ShareVersion: uint32(appconsts.ShareVersion)}
 	}
 
 	return ProcessedBlobTx{
-		Tx:    sdkTx,
+		Tx:    bTx.Tx,
 		Blobs: protoBlobs,
-		PFBs:  pfbs,
 	}, nil
 }
 
-func (btx ProcessedBlobTx) ValidateBasic() error {
-	btx.Tx.ValidateBasic()
-
-	return nil
-}
-
-func (btx ProcessedBlobTx) GetMsgs() []sdk.Msg {
-	return btx.Tx.GetMsgs()
+func (pBTx ProcessedBlobTx) DataUsed() int {
+	// TODO: use something similar to the below when we want multiple blobs per tx
+	// used := 0
+	// for _, b := range pBTx.Blobs {
+	// 	used += len(b.Data)
+	// }
+	return len(pBTx.Blobs[0].Data)
 }
