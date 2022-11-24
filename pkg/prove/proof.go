@@ -230,13 +230,15 @@ func SharesInclusion(
 		return types.SharesProof{}, err
 	}
 
+	edsRowRoots := eds.RowRoots()
+
 	// create the binary merkle inclusion proof, for all the square rows, to the data root
-	rootHash, allProofs := merkle.ProofsFromByteSlices(append(eds.RowRoots(), eds.ColRoots()...))
+	rootHash, allProofs := merkle.ProofsFromByteSlices(append(edsRowRoots, eds.ColRoots()...))
 	rowsProofs := make([]*merkle.Proof, endRow-startRow+1)
 	rowsRoots := make([]tmbytes.HexBytes, endRow-startRow+1)
 	for i := startRow; i <= endRow; i++ {
 		rowsProofs[i-startRow] = allProofs[i]
-		rowsRoots[i-startRow] = eds.RowRoots()[i]
+		rowsRoots[i-startRow] = edsRowRoots[i]
 	}
 
 	// get the extended rows containing the shares.
@@ -249,7 +251,7 @@ func SharesInclusion(
 	var rawShares [][]byte
 	for i, row := range rows {
 		// create an nmt to generate a proof.
-		// we have the recreate the tree as the eds one is not accessible.
+		// we have to re-create the tree as the eds one is not accessible.
 		tree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, uint(i))
 		for _, share := range row {
 			tree.Push(
