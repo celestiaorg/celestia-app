@@ -90,7 +90,7 @@ if err != nil {
 
 When storing a new attestation, the state machine can panic if it finds invalid state. This latter can happen in the following cases:
 
-- The attestation request created from the data commitment is a duplicate of an existing attestation:
+- The attestation request created is a duplicate of an existing attestation:
 
 ```golang
 key := []byte(types.GetAttestationKey(nonce))  
