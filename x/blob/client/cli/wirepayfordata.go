@@ -15,8 +15,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-const FlagSquareSizes = "square-sizes"
-
 func CmdWirePayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "payForBlob [hexNamespace] [hexBlob]",
