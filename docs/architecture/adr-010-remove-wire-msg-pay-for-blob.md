@@ -94,6 +94,12 @@ Proposed
 
 ### Neutral
 
+Consider an incremental approach for this and related changes:
+
+1. Support for one tx with one message with one blob
+1. Support for one tx with one message with multiple blobs
+1. Support for one tx with multiple message with multiple blobs
+
 ## References
 
 - [ADR 080: square size independent message commitments](./adr-008-square-size-independent-message-commitments.md)
