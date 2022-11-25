@@ -200,7 +200,7 @@ func TestShareInclusion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualNID, err := parseNamespaceID(rawShares, tt.startingShare, tt.endingShare)
+			actualNID, err := ParseNamespaceID(rawShares, tt.startingShare, tt.endingShare)
 			if !tt.shouldPass {
 				require.Error(t, err)
 				return
