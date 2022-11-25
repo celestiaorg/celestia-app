@@ -1,7 +1,6 @@
 package blob
 
 import (
-	"github.com/cosmos/cosmos-sdk/x/authz/codec"
 	"math/rand"
 
 	"github.com/celestiaorg/celestia-app/testutil/sample"
@@ -12,6 +11,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
+	"github.com/cosmos/cosmos-sdk/x/authz/codec"
 	"github.com/cosmos/cosmos-sdk/x/simulation"
 )
 
