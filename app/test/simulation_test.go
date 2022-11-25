@@ -1,10 +1,6 @@
 package app_test
 
 import (
-	"os"
-	"testing"
-	"time"
-
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -16,8 +12,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/simulation"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmtypes "github.com/tendermint/tendermint/types"
+	"os"
+	"testing"
 )
 
 func init() {
@@ -36,22 +32,22 @@ type SimApp interface {
 	InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain
 }
 
-var defaultConsensusParams = &abci.ConsensusParams{
-	Block: &abci.BlockParams{
-		MaxBytes: 200000,
-		MaxGas:   2000000,
-	},
-	Evidence: &tmproto.EvidenceParams{
-		MaxAgeNumBlocks: 302400,
-		MaxAgeDuration:  504 * time.Hour, // 3 weeks is the max duration
-		MaxBytes:        10000,
-	},
-	Validator: &tmproto.ValidatorParams{
-		PubKeyTypes: []string{
-			tmtypes.ABCIPubKeyTypeEd25519,
-		},
-	},
-}
+//var defaultConsensusParams = &abci.ConsensusParams{
+//	Block: &abci.BlockParams{
+//		MaxBytes: 200000,
+//		MaxGas:   2000000,
+//	},
+//	Evidence: &tmproto.EvidenceParams{
+//		MaxAgeNumBlocks: 302400,
+//		MaxAgeDuration:  504 * time.Hour, // 3 weeks is the max duration
+//		MaxBytes:        10000,
+//	},
+//	Validator: &tmproto.ValidatorParams{
+//		PubKeyTypes: []string{
+//			tmtypes.ABCIPubKeyTypeEd25519,
+//		},
+//	},
+//}
 
 // BenchmarkSimulation run the chain simulation
 // Running using starport command:
