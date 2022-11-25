@@ -96,7 +96,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 		return nil, err
 	}
 
-	nID, err := parseNamespaceID(rawShares, beginShare, endShare)
+	nID, err := ParseNamespaceID(rawShares, beginShare, endShare)
 	if err != nil {
 		return nil, err
 	}
@@ -121,8 +121,8 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 	return rawTxProof, nil
 }
 
-// parseNamespaceID validates the shares range and returns their namespace ID.
-func parseNamespaceID(rawShares []shares.Share, startShare int64, endingShare int64) (namespace.ID, error) {
+// ParseNamespaceID validates the shares range and returns their namespace ID.
+func ParseNamespaceID(rawShares []shares.Share, startShare int64, endingShare int64) (namespace.ID, error) {
 	if startShare < 0 {
 		return nil, fmt.Errorf("start share %d should be positive", startShare)
 	}
