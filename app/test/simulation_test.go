@@ -1,6 +1,9 @@
 package app_test
 
 import (
+	"os"
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -12,8 +15,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/simulation"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"os"
-	"testing"
 )
 
 func init() {
