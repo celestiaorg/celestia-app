@@ -82,8 +82,7 @@ func BenchmarkSimulation(b *testing.B) {
 		simapp.EmptyAppOptions{},
 	)
 
-	var simApp SimApp
-	simApp = app
+	var simApp SimApp = app
 
 	// Run randomized simulations
 	_, simParams, simErr := simulation.SimulateFromSeed(
