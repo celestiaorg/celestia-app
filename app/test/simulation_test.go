@@ -1,12 +1,12 @@
 package app_test
 
 import (
-	"github.com/celestiaorg/celestia-app/app/encoding"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/simapp"

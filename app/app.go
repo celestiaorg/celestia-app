@@ -509,8 +509,8 @@ func New(
 		slashing.NewAppModule(appCodec, app.SlashingKeeper, app.AccountKeeper, app.BankKeeper, app.StakingKeeper),
 		params.NewAppModule(app.ParamsKeeper),
 		evidence.NewAppModule(app.EvidenceKeeper),
-		//ibc.NewAppModule(app.IBCKeeper),
-		//transferModule,
+		// ibc.NewAppModule(app.IBCKeeper),
+		// transferModule,
 		blobmod,
 	)
 	app.sm.RegisterStoreDecoders()
