@@ -23,7 +23,7 @@ import (
 // have to return more than one proof.
 func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxProof, error) {
 	// calculate the index of the shares that contain the tx
-	startPos, endPos, err := txSharePosition(data.Txs, txIndex)
+	startPos, endPos, err := TxSharePosition(data.Txs, txIndex)
 	if err != nil {
 		return types.TxProof{}, err
 	}
@@ -89,10 +89,10 @@ func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxP
 	}, nil
 }
 
-// txSharePosition returns the start and end positions for the shares that
+// TxSharePosition returns the start and end positions for the shares that
 // include a given txIndex. Returns an error if index is greater than the length
 // of txs.
-func txSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos uint64, err error) {
+func TxSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos uint64, err error) {
 	if txIndex >= uint64(len(txs)) {
 		return startSharePos, endSharePos, errors.New("transaction index is greater than the number of txs")
 	}
