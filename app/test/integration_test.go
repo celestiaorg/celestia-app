@@ -178,7 +178,7 @@ func (s *IntegrationTestSuite) TestSharesInclusionProof() {
 	val := s.network.Validators[0]
 
 	// generate 100 randomly sized txs (max size == 100kb)
-	txs, err := generateSignedWirePayForBlobTxs(val.ClientCtx, s.cfg.TxConfig, s.kr, -1, s.accounts...)
+	txs, err := generateSignedWirePayForBlobTxs(val.ClientCtx, s.cfg.TxConfig, s.kr, -1, s.accounts[:20]...)
 	require.NoError(err)
 
 	hashes := make([]string, len(txs))
@@ -191,7 +191,7 @@ func (s *IntegrationTestSuite) TestSharesInclusionProof() {
 	}
 
 	// wait a few blocks to clear the txs
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 20; i++ {
 		require.NoError(s.network.WaitForNextBlock())
 	}
 
