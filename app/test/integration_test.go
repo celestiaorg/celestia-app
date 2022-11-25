@@ -200,7 +200,7 @@ func (s *IntegrationTestSuite) TestSharesInclusionProof() {
 		require.NoError(err)
 		require.Equal(abci.CodeTypeOK, txResp.TxResult.Code)
 
-		// verify that the transaction inclusion txProof is valid
+		// verify that the transaction inclusion proof is valid
 		require.True(txResp.Proof.VerifyProof())
 
 		// get the transaction shares
