@@ -3,12 +3,17 @@ package prove
 import (
 	"bytes"
 	"errors"
+	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/da"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/crypto/merkle"
@@ -110,6 +115,49 @@ func TxSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos 
 	startSharePos = txShareIndex(prevTxTotalLen)
 	endSharePos = txShareIndex(endOfCurrentTxLen)
 	return startSharePos, endSharePos, nil
+}
+
+// MsgSharesPosition returns the start and end positions for the shares that
+// where a given message, referenced by its wrapped pfb transaction, was published at.
+// Note: only supports transactions containing a single message
+func MsgSharesPosition(tx types.Tx) (beginShare uint64, endShare uint64, err error) {
+	unwrappedTx, isMalleated := types.UnwrapMalleatedTx(tx)
+	if !isMalleated {
+		return beginShare, endShare, fmt.Errorf("not a malleated tx")
+	}
+
+	encCfg := encoding.MakeConfig(blobmodule.AppModuleBasic{})
+	decoder := encCfg.TxConfig.TxDecoder()
+
+	decodedTx, err := decoder(unwrappedTx.Tx)
+	if err != nil {
+		return beginShare, endShare, err
+	}
+
+	if len(decodedTx.GetMsgs()) == 0 {
+		return beginShare, endShare, fmt.Errorf("pfb contains no messages")
+	}
+
+	if len(decodedTx.GetMsgs()) > 1 {
+		return beginShare, endShare, fmt.Errorf("pfb containing multiple messages. not currently supported")
+	}
+
+	if sdk.MsgTypeURL(decodedTx.GetMsgs()[0]) != blobtypes.URLMsgPayForBlob {
+		return beginShare, endShare, fmt.Errorf("transaction is not pfb")
+	}
+
+	pfb, ok := decodedTx.GetMsgs()[0].(*blobtypes.MsgPayForBlob)
+	if !ok {
+		return beginShare, endShare, fmt.Errorf("unable to decode pfb")
+	}
+
+	if err = pfb.ValidateBasic(); err != nil {
+		return beginShare, endShare, err
+	}
+
+	beginShare = uint64(unwrappedTx.ShareIndex)
+	sharesUsed := shares.MsgSharesUsed(int(pfb.BlobSize))
+	return beginShare, beginShare + uint64(sharesUsed) - 1, nil
 }
 
 // txShareIndex returns the index of the compact share that would contain
