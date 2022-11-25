@@ -128,7 +128,7 @@ func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
 
 	for _, tt := range tests {
 		message := []byte{1}
-		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, message, signer, types.AllSquareSizes(len(message))...)
+		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, message, signer)
 		input := abci.RequestPrepareProposal{
 			BlockData: &core.Data{
 				Txs: [][]byte{tx},
@@ -139,7 +139,7 @@ func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
 	}
 }
 
-func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, ks ...uint64) (rawTx []byte) {
+func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner) (rawTx []byte) {
 	coin := sdk.Coin{
 		Denom:  app.BondDenom,
 		Amount: sdk.NewInt(10),
