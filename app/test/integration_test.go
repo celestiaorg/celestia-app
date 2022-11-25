@@ -8,14 +8,15 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	cosmosnet "github.com/cosmos/cosmos-sdk/testutil/network"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/suite"
-
-	cosmosnet "github.com/cosmos/cosmos-sdk/testutil/network"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/prove"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	"github.com/celestiaorg/celestia-app/x/blob"
@@ -169,6 +170,80 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			assert.Contains(sizes, uint64(appconsts.MaxSquareSize))
 		})
 		require.NoError(s.network.WaitForNextBlock())
+	}
+}
+
+func (s *IntegrationTestSuite) TestSharesInclusionProof() {
+	require := s.Require()
+	val := s.network.Validators[0]
+
+	// generate 100 randomly sized txs (max size == 100kb)
+	txs, err := generateSignedWirePayForBlobTxs(val.ClientCtx, s.cfg.TxConfig, s.kr, -1, s.accounts...)
+	require.NoError(err)
+
+	hashes := make([]string, len(txs))
+
+	for i, tx := range txs {
+		res, err := val.ClientCtx.BroadcastTxSync(tx)
+		require.NoError(err)
+		require.Equal(abci.CodeTypeOK, res.Code)
+		hashes[i] = res.TxHash
+	}
+
+	// wait a few blocks to clear the txs
+	for i := 0; i < 50; i++ {
+		require.NoError(s.network.WaitForNextBlock())
+	}
+
+	for _, hash := range hashes {
+		txResp, err := queryTx(val.ClientCtx, hash, true)
+		require.NoError(err)
+		require.Equal(abci.CodeTypeOK, txResp.TxResult.Code)
+
+		// verify that the transaction inclusion txProof is valid
+		require.True(txResp.Proof.VerifyProof())
+
+		// get the transaction shares
+		node, err := val.ClientCtx.GetNode()
+		require.NoError(err)
+		blockRes, err := node.Block(context.Background(), &txResp.Height)
+		require.NoError(err)
+		beginTxShare, endTxShare, err := prove.TxSharePosition(blockRes.Block.Txs, uint64(txResp.Index))
+		require.NoError(err)
+
+		// split the block to shares
+		rawShares, err := shares.Split(blockRes.Block.Data, true)
+		require.NoError(err)
+
+		// verify the transaction shares proof
+		txProof, err := prove.SharesInclusion(
+			rawShares,
+			blockRes.Block.SquareSize,
+			appconsts.TxNamespaceID,
+			beginTxShare,
+			endTxShare,
+		)
+		require.NoError(err)
+		require.NoError(txProof.Validate())
+
+		// get the message shares
+		beginMsgShare, endMsgShare, err := prove.MsgSharesPosition(blockRes.Block.Txs[txResp.Index])
+		require.NoError(err)
+
+		// parse the message namespace
+		nID, err := prove.ParseNamespaceID(rawShares, int64(beginMsgShare), int64(endMsgShare))
+		require.NoError(err)
+
+		// verify the message shares proof
+		msgProof, err := prove.SharesInclusion(
+			rawShares,
+			blockRes.Block.SquareSize,
+			nID,
+			beginMsgShare,
+			endMsgShare,
+		)
+		require.NoError(err)
+		require.NoError(msgProof.Validate())
 	}
 }
 
