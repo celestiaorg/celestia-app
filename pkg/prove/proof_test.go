@@ -1,13 +1,12 @@
 package prove
 
 import (
-	"math/rand"
-	"sort"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/testutil/factory"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -16,12 +15,12 @@ import (
 
 func TestTxInclusion(t *testing.T) {
 	typicalBlockData := types.Data{
-		Txs:        generateRandomlySizedTxs(100, 500),
-		Blobs:      generateRandomlySizedBlobs(40, 16000),
+		Txs:        factory.GenerateRandomlySizedTransactions(100, 500),
+		Blobs:      factory.GenerateRandomlySizedBlobs(40, 16000),
 		SquareSize: 64,
 	}
 	lotsOfTxsNoBlobs := types.Data{
-		Txs:        generateRandomlySizedTxs(1000, 500),
+		Txs:        factory.GenerateRandomlySizedTransactions(1000, 500),
 		SquareSize: 64,
 	}
 	overlappingSquareSize := 16
@@ -41,7 +40,7 @@ func TestTxInclusion(t *testing.T) {
 				tmrand.Bytes(10000),
 			},
 		),
-		Blobs:      generateRandomlySizedBlobs(8, 400),
+		Blobs:      factory.GenerateRandomlySizedBlobs(8, 400),
 		SquareSize: uint64(overlappingSquareSize),
 	}
 
@@ -81,14 +80,14 @@ func TestTxSharePosition(t *testing.T) {
 	tests := []test{
 		{
 			name: "typical",
-			txs:  generateRandomlySizedTxs(44, 200),
+			txs:  factory.GenerateRandomlySizedTransactions(44, 200),
 		},
 		{
 			name: "many small tx",
-			txs:  generateRandomlySizedTxs(444, 100),
+			txs:  factory.GenerateRandomlySizedTransactions(444, 100),
 		},
 		{
-			// this is a concrete output from generateRandomlySizedTxs(444, 100)
+			// this is a concrete output from factory.GenerateRandomlySizedTransactions(444, 100)
 			// that surfaced a bug in txSharePositions so it is included here to
 			// prevent regressions
 			name: "many small tx (without randomness)",
@@ -96,15 +95,15 @@ func TestTxSharePosition(t *testing.T) {
 		},
 		{
 			name: "one small tx",
-			txs:  generateRandomlySizedTxs(1, 200),
+			txs:  factory.GenerateRandomlySizedTransactions(1, 200),
 		},
 		{
 			name: "one large tx",
-			txs:  generateRandomlySizedTxs(1, 2000),
+			txs:  factory.GenerateRandomlySizedTransactions(1, 2000),
 		},
 		{
 			name: "many large txs",
-			txs:  generateRandomlySizedTxs(100, 2000),
+			txs:  factory.GenerateRandomlySizedTransactions(100, 2000),
 		},
 	}
 
@@ -184,52 +183,4 @@ func stripCompactShares(compactShares []shares.Share, start uint64, end uint64) 
 		}
 	}
 	return result
-}
-
-func generateRandomlySizedTxs(count, max int) types.Txs {
-	txs := make(types.Txs, count)
-	for i := 0; i < count; i++ {
-		size := rand.Intn(max)
-		if size == 0 {
-			size = 1
-		}
-		txs[i] = generateRandomTxs(1, size)[0]
-	}
-	return txs
-}
-
-func generateRandomTxs(count, size int) types.Txs {
-	txs := make(types.Txs, count)
-	for i := 0; i < count; i++ {
-		tx := make([]byte, size)
-		_, err := rand.Read(tx)
-		if err != nil {
-			panic(err)
-		}
-		txs[i] = tx
-	}
-	return txs
-}
-
-func generateRandomlySizedBlobs(count, maxBlobSize int) []types.Blob {
-	blobs := make([]types.Blob, count)
-	for i := 0; i < count; i++ {
-		blobs[i] = generateRandomBlob(rand.Intn(maxBlobSize))
-	}
-
-	// this is just to let us use assert.Equal
-	if count == 0 {
-		blobs = nil
-	}
-
-	sort.Sort(types.BlobsByNamespace(blobs))
-	return blobs
-}
-
-func generateRandomBlob(size int) types.Blob {
-	blob := types.Blob{
-		NamespaceID: namespace.RandomBlobNamespace(),
-		Data:        tmrand.Bytes(size),
-	}
-	return blob
 }

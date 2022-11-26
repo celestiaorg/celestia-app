@@ -6,6 +6,8 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/testutil/factory"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +45,7 @@ func Test_parseSparseShares(t *testing.T) {
 		t.Run(fmt.Sprintf("%s identically sized ", tc.name), func(t *testing.T) {
 			blobs := make([]coretypes.Blob, tc.blobCount)
 			for i := 0; i < tc.blobCount; i++ {
-				blobs[i] = generateRandomBlob(tc.blobSize)
+				blobs[i] = factory.GenerateRandomBlob(tc.blobSize)
 			}
 
 			sort.Sort(coretypes.BlobsByNamespace(blobs))
@@ -65,7 +67,7 @@ func Test_parseSparseShares(t *testing.T) {
 
 		// run the same tests using randomly sized blobs with caps of tc.blobSize
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
-			blobs := generateRandomlySizedBlobs(tc.blobCount, tc.blobSize)
+			blobs := factory.GenerateRandomlySizedBlobs(tc.blobCount, tc.blobSize)
 			shares, _ := SplitBlobs(0, nil, blobs, false)
 			rawShares := make([][]byte, len(shares))
 			for i, share := range shares {
@@ -117,8 +119,8 @@ func Test_parseSparseSharesErrors(t *testing.T) {
 
 func TestParsePaddedBlob(t *testing.T) {
 	sss := NewSparseShareSplitter()
-	randomSmallBlob := generateRandomBlob(appconsts.SparseShareContentSize / 2)
-	randomLargeBlob := generateRandomBlob(appconsts.SparseShareContentSize * 4)
+	randomSmallBlob := factory.GenerateRandomBlob(appconsts.SparseShareContentSize / 2)
+	randomLargeBlob := factory.GenerateRandomBlob(appconsts.SparseShareContentSize * 4)
 	blobs := []coretypes.Blob{
 		randomSmallBlob,
 		randomLargeBlob,
