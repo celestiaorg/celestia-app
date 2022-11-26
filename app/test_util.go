@@ -85,6 +85,42 @@ func GenerateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *type
 	return txs
 }
 
+func GenerateRawWirePFBTxs(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner) (rawTx []byte) {
+	coin := sdk.Coin{
+		Denom:  BondDenom,
+		Amount: sdk.NewInt(10),
+	}
+
+	opts := []types.TxBuilderOption{
+		types.SetFeeAmount(sdk.NewCoins(coin)),
+		types.SetGasLimit(10000000),
+	}
+
+	return generateRawWirePFBTx(
+		t,
+		txConfig,
+		ns,
+		message,
+		appconsts.ShareVersionZero,
+		signer,
+		opts...,
+	)
+}
+
+func GenerateSignedWirePayForBlob(t *testing.T, ns []byte, message []byte, shareVersion uint8, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
+	msg, err := types.NewWirePayForBlob(ns, message, shareVersion)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = msg.SignShareCommitment(signer, options...)
+	if err != nil {
+		t.Error(err)
+	}
+
+	return msg
+}
+
 func GenerateManyRawSendTxs(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count int) [][]byte {
 	txs := make([][]byte, count)
 	for i := 0; i < count; i++ {
@@ -93,7 +129,7 @@ func GenerateManyRawSendTxs(t *testing.T, txConfig client.TxConfig, signer *type
 	return txs
 }
 
-// this creates send transactions meant to help test encoding/prepare/process
+// generateRawSendTx creates send transactions meant to help test encoding/prepare/process
 // proposal, they are not meant to actually be executed by the state machine. If
 // we want that, we have to update nonce, and send funds to someone other than
 // the same account signing the transaction.
@@ -116,46 +152,26 @@ func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.Key
 	addr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
 
-	builder := signer.NewTxBuilder(opts...)
-
 	msg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(amountCoin))
 
-	tx, err := signer.BuildSignedTx(builder, msg)
-	require.NoError(t, err)
-
-	rawTx, err = txConfig.TxEncoder()(tx)
-	require.NoError(t, err)
-
-	return rawTx
+	return genrateRawTx(t, txConfig, msg, signer, opts...)
 }
 
 // generateRawWirePFBTx creates a tx with a single MsgWirePayForBlob using
 // the provided namespace, blob, and shareVersion
 func generateRawWirePFBTx(t *testing.T, txConfig client.TxConfig, ns []byte, blob []byte, shareVersion uint8, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
-	// create a msg
 	msg := GenerateSignedWirePayForBlob(t, ns, blob, shareVersion, signer, opts)
+	return genrateRawTx(t, txConfig, msg, signer, opts...)
+}
 
+func genrateRawTx(t *testing.T, txConfig client.TxConfig, msg sdk.Msg, signer *types.KeyringSigner, opts ...types.TxBuilderOption) []byte {
 	builder := signer.NewTxBuilder(opts...)
 	tx, err := signer.BuildSignedTx(builder, msg)
 	require.NoError(t, err)
 
 	// encode the tx
-	rawTx, err = txConfig.TxEncoder()(tx)
+	rawTx, err := txConfig.TxEncoder()(tx)
 	require.NoError(t, err)
 
 	return rawTx
-}
-
-func GenerateSignedWirePayForBlob(t *testing.T, ns []byte, blob []byte, shareVersion uint8, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
-	msg, err := types.NewWirePayForBlob(ns, blob, shareVersion)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = msg.SignShareCommitment(signer, options...)
-	if err != nil {
-		t.Error(err)
-	}
-
-	return msg
 }

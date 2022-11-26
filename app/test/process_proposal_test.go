@@ -28,7 +28,7 @@ func TestBlobInclusionCheck(t *testing.T) {
 	// block with all blobs included
 	validData := func() *core.Data {
 		return &core.Data{
-			Txs: app.GenerateManyRawWirePFB(t, encConf.TxConfig, signer, 4, 1000),
+			Txs: app.GenerateManyRawWirePFBTxs(t, encConf.TxConfig, signer, 4, 1000),
 		}
 	}
 
