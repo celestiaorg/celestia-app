@@ -9,12 +9,12 @@ import (
 
 const (
 	// nolint:lll
+	TestAccName = "test-account"
 	testMnemo   = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
-	testAccName = "test-account"
 	testChainID = "test-chain-1"
 )
 
-func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
+func GenerateKeyring(t *testing.T, accts ...string) keyring.Keyring {
 	t.Helper()
 	encCfg := makeBlobEncodingConfig()
 	kb := keyring.NewInMemory(encCfg.Codec)
@@ -26,7 +26,7 @@ func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
 		}
 	}
 
-	_, err := kb.NewAccount(testAccName, testMnemo, "1234", "", hd.Secp256k1)
+	_, err := kb.NewAccount(TestAccName, testMnemo, "1234", "", hd.Secp256k1)
 	if err != nil {
 		panic(err)
 	}
@@ -34,7 +34,7 @@ func generateKeyring(t *testing.T, accts ...string) keyring.Keyring {
 	return kb
 }
 
-func generateKeyringSigner(t *testing.T, accts ...string) *KeyringSigner {
-	kr := generateKeyring(t, accts...)
-	return NewKeyringSigner(kr, testAccName, testChainID)
+func GenerateKeyringSigner(t *testing.T, accts ...string) *KeyringSigner {
+	kr := GenerateKeyring(t, accts...)
+	return NewKeyringSigner(kr, TestAccName, testChainID)
 }

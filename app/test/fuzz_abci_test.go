@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/x/blob/types"
+
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil"
@@ -23,7 +25,7 @@ import (
 // when fuzzing.
 func TestFuzzPrepareProcessProposal(t *testing.T) {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	signer := app.GenerateKeyringSigner(t, testAccName)
+	signer := types.GenerateKeyringSigner(t, types.TestAccName)
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	timer := time.After(time.Second * 30)
 	for {

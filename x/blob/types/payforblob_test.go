@@ -119,7 +119,7 @@ func TestSignMalleatedTxs(t *testing.T) {
 		options  []TxBuilderOption
 	}
 
-	signer := generateKeyringSigner(t, testAccName)
+	signer := GenerateKeyringSigner(t, TestAccName)
 
 	tests := []test{
 		{
@@ -283,7 +283,7 @@ func validWirePayForBlob(t *testing.T) *MsgWirePayForBlob {
 		panic(err)
 	}
 
-	signer := generateKeyringSigner(t)
+	signer := GenerateKeyringSigner(t)
 
 	err = msgWPFB.SignShareCommitment(signer)
 	if err != nil {
@@ -293,7 +293,7 @@ func validWirePayForBlob(t *testing.T) *MsgWirePayForBlob {
 }
 
 func validMsgPayForBlob(t *testing.T) *MsgPayForBlob {
-	signer := generateKeyringSigner(t, testAccName)
+	signer := GenerateKeyringSigner(t, TestAccName)
 	ns := []byte{1, 1, 1, 1, 1, 1, 1, 2}
 	blob := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.SparseShareContentSize*12))
 

@@ -15,12 +15,12 @@ import (
 )
 
 func TestBuildWirePayForBlob(t *testing.T) {
-	testRing := generateKeyring(t)
+	testRing := GenerateKeyring(t)
 
-	info, err := testRing.Key(testAccName)
+	info, err := testRing.Key(TestAccName)
 	require.NoError(t, err)
 
-	k := NewKeyringSigner(testRing, testAccName, testChainID)
+	k := NewKeyringSigner(testRing, TestAccName, testChainID)
 	require.NoError(t, err)
 
 	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
@@ -55,14 +55,14 @@ func TestBuildWirePayForBlob(t *testing.T) {
 }
 
 func TestBroadcastPayForBlob(t *testing.T) {
-	testRing := generateKeyring(t)
-	info, err := testRing.Key(testAccName)
+	testRing := GenerateKeyring(t)
+	info, err := testRing.Key(TestAccName)
 	require.NoError(t, err)
 	addr, err := info.GetAddress()
 	require.NoError(t, err)
 	t.Skipf("no local connection to app and no funds in wallet %s", addr)
 
-	k := NewKeyringSigner(testRing, testAccName, testChainID)
+	k := NewKeyringSigner(testRing, TestAccName, testChainID)
 
 	RPCAddress := "127.0.0.1:9090"
 
@@ -101,7 +101,7 @@ func TestBroadcastPayForBlob(t *testing.T) {
 
 func TestQueryAccountNumber(t *testing.T) {
 	t.Skip("no local connection to app and no funds in wallet")
-	k := generateKeyringSigner(t, testAccName)
+	k := GenerateKeyringSigner(t, TestAccName)
 
 	RPCAddress := "127.0.0.1:9090"
 

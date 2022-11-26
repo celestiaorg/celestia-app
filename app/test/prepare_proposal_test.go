@@ -21,7 +21,7 @@ import (
 )
 
 func TestPrepareProposal(t *testing.T) {
-	signer := app.GenerateKeyringSigner(t, testAccName)
+	signer := types.GenerateKeyringSigner(t, types.TestAccName)
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
@@ -109,7 +109,7 @@ func TestPrepareProposalWithReservedNamespaces(t *testing.T) {
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	signer := app.GenerateKeyringSigner(t, testAccName)
+	signer := types.GenerateKeyringSigner(t, types.TestAccName)
 
 	type test struct {
 		name          string
@@ -177,7 +177,3 @@ func generateSignedWirePayForBlob(t *testing.T, ns []byte, blob []byte, shareVer
 
 	return msg
 }
-
-const (
-	testAccName = "test-account"
-)
