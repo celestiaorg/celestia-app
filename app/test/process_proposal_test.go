@@ -22,7 +22,7 @@ import (
 )
 
 func TestBlobInclusionCheck(t *testing.T) {
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	signer := app.GenerateKeyringSigner(t, testAccName)
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
@@ -122,7 +122,7 @@ func TestProcessProposalWithParityShareNamespace(t *testing.T) {
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	signer := app.GenerateKeyringSigner(t, testAccName)
 
 	pfb, blobData := genRandMsgPayForBlobForNamespace(t, signer, appconsts.ParitySharesNamespaceID)
 	input := abci.RequestProcessProposal{

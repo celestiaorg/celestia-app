@@ -165,10 +165,7 @@ func TestProcessWirePayForBlob(t *testing.T) {
 		return in
 	}
 
-	kb := generateKeyring(t, "test")
-
-	signer := NewKeyringSigner(kb, "test", "chain-id")
-
+	signer := generateKeyringSigner(t, testAccName)
 	tests := []test{
 		{
 			name:      "single share square size 2",

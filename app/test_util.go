@@ -157,7 +157,10 @@ const (
 	TestAccountName = "test-account"
 )
 
-func generateKeyring(t *testing.T, cdc codec.Codec, accts ...string) keyring.Keyring {
+// GenerateKeyring and GenerateKeyringSigner are duplicate of testutil.GenerateKeyring and testutil.GenerateKeyringSigner
+// respectively. These duplicate method are needed to avoid cyclic dependency of app and testutil package. Future enhancement:
+// to figure out a solution to remove these duplicates
+func GenerateKeyring(t *testing.T, cdc codec.Codec, accts ...string) keyring.Keyring {
 	t.Helper()
 	kb := keyring.NewInMemory(cdc)
 
@@ -178,9 +181,9 @@ func generateKeyring(t *testing.T, cdc codec.Codec, accts ...string) keyring.Key
 
 // generateKeyringSigner creates a types.KeyringSigner with keys generated for
 // the provided accounts
-func generateKeyringSigner(t *testing.T, acct string) *types.KeyringSigner {
+func GenerateKeyringSigner(t *testing.T, acct string) *types.KeyringSigner {
 	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
-	kr := generateKeyring(t, encCfg.Codec, acct)
+	kr := GenerateKeyring(t, encCfg.Codec, acct)
 	return types.NewKeyringSigner(kr, acct, testChainID)
 }
 

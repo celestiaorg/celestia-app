@@ -23,7 +23,7 @@ import (
 // when fuzzing.
 func TestFuzzPrepareProcessProposal(t *testing.T) {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	signer := app.GenerateKeyringSigner(t, testAccName)
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	timer := time.After(time.Second * 30)
 	for {

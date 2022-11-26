@@ -21,7 +21,7 @@ import (
 )
 
 func TestPrepareProposal(t *testing.T) {
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	signer := app.GenerateKeyringSigner(t, testAccName)
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
@@ -109,7 +109,7 @@ func TestPrepareProposalWithReservedNamespaces(t *testing.T) {
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	signer := app.GenerateKeyringSigner(t, testAccName)
 
 	type test struct {
 		name          string

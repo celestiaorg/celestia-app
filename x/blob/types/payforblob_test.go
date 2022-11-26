@@ -119,9 +119,7 @@ func TestSignMalleatedTxs(t *testing.T) {
 		options  []TxBuilderOption
 	}
 
-	kb := generateKeyring(t, "test")
-
-	signer := NewKeyringSigner(kb, "test", "test-chain-id")
+	signer := generateKeyringSigner(t, testAccName)
 
 	tests := []test{
 		{
@@ -295,8 +293,7 @@ func validWirePayForBlob(t *testing.T) *MsgWirePayForBlob {
 }
 
 func validMsgPayForBlob(t *testing.T) *MsgPayForBlob {
-	kb := generateKeyring(t, "test")
-	signer := NewKeyringSigner(kb, "test", "chain-id")
+	signer := generateKeyringSigner(t, testAccName)
 	ns := []byte{1, 1, 1, 1, 1, 1, 1, 2}
 	blob := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.SparseShareContentSize*12))
 
