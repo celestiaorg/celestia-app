@@ -23,8 +23,8 @@ func GenerateValidBlockData(
 	normalTxCount,
 	size int,
 ) (coretypes.Data, error) {
-	rawTxs := generateManyRawWirePFB(t, txConfig, signer, pfbCount, size)
-	rawTxs = append(rawTxs, generateManyRawSendTxs(t, txConfig, signer, normalTxCount)...)
+	rawTxs := GenerateManyRawWirePFB(t, txConfig, signer, pfbCount, size)
+	rawTxs = append(rawTxs, GenerateManyRawSendTxs(t, txConfig, signer, normalTxCount)...)
 	parsedTxs := parseTxs(txConfig, rawTxs)
 
 	squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, core.EvidenceList{})
@@ -46,7 +46,15 @@ func GenerateValidBlockData(
 	return coretypes.DataFromProto(&blockData)
 }
 
-func generateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count, size int) [][]byte {
+// GenerateManyRawWirePFB creates many raw WirePayForBlob transactions. Using
+// negative numbers for count and size will randomize those values. count is
+// capped at 5000 and size is capped at 3MB. Going over these caps will result
+// in randomized values.
+func GenerateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count, size int) [][]byte {
+	// hardcode a maximum of 5000 transactions so that we can use this for fuzzing
+	if count > 5000 || count < 0 {
+		count = tmrand.Intn(5000)
+	}
 	txs := make([][]byte, count)
 
 	coin := sdk.Coin{
@@ -60,6 +68,9 @@ func generateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *type
 	}
 
 	for i := 0; i < count; i++ {
+		if size < 0 || size > 3000000 {
+			size = tmrand.Intn(1000000)
+		}
 		wpfbTx := generateRawWirePFBTx(
 			t,
 			txConfig,
@@ -74,7 +85,7 @@ func generateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *type
 	return txs
 }
 
-func generateManyRawSendTxs(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count int) [][]byte {
+func GenerateManyRawSendTxs(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count int) [][]byte {
 	txs := make([][]byte, count)
 	for i := 0; i < count; i++ {
 		txs[i] = generateRawSendTx(t, txConfig, signer, 100)
@@ -122,7 +133,7 @@ func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.Key
 // the provided namespace, blob, and shareVersion
 func generateRawWirePFBTx(t *testing.T, txConfig client.TxConfig, ns []byte, blob []byte, shareVersion uint8, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
 	// create a msg
-	msg := generateSignedWirePayForBlob(t, ns, blob, shareVersion, signer, opts)
+	msg := GenerateSignedWirePayForBlob(t, ns, blob, shareVersion, signer, opts)
 
 	builder := signer.NewTxBuilder(opts...)
 	tx, err := signer.BuildSignedTx(builder, msg)
@@ -135,7 +146,7 @@ func generateRawWirePFBTx(t *testing.T, txConfig client.TxConfig, ns []byte, blo
 	return rawTx
 }
 
-func generateSignedWirePayForBlob(t *testing.T, ns []byte, blob []byte, shareVersion uint8, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
+func GenerateSignedWirePayForBlob(t *testing.T, ns []byte, blob []byte, shareVersion uint8, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
 	msg, err := types.NewWirePayForBlob(ns, blob, shareVersion)
 	if err != nil {
 		t.Error(err)
@@ -148,7 +159,3 @@ func generateSignedWirePayForBlob(t *testing.T, ns []byte, blob []byte, shareVer
 
 	return msg
 }
-
-const (
-	TestAccountName = "test-account"
-)

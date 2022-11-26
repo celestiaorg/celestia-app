@@ -150,7 +150,7 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, blob []byte, sign
 		types.SetGasLimit(10000000),
 	}
 
-	msg := generateSignedWirePayForBlob(t, ns, blob, appconsts.ShareVersionZero, signer, opts)
+	msg := app.GenerateSignedWirePayForBlob(t, ns, blob, appconsts.ShareVersionZero, signer, opts)
 
 	builder := signer.NewTxBuilder(opts...)
 
@@ -162,18 +162,4 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, blob []byte, sign
 	require.NoError(t, err)
 
 	return rawTx
-}
-
-func generateSignedWirePayForBlob(t *testing.T, ns []byte, blob []byte, shareVersion uint8, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
-	msg, err := types.NewWirePayForBlob(ns, blob, shareVersion)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = msg.SignShareCommitment(signer, options...)
-	if err != nil {
-		t.Error(err)
-	}
-
-	return msg
 }
