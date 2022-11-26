@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/testutil/factory"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,7 +18,7 @@ func FuzzBlobSharesUsed(f *testing.F) {
 			t.Skip()
 		}
 		ml := BlobSharesUsed(int(a))
-		blob := factory.GenerateRandomBlob(int(a))
+		blob := testfactory.GenerateRandomBlob(int(a))
 		rawShares, err := SplitBlobs(0, nil, []types.Blob{blob}, false)
 		require.NoError(t, err)
 		require.Equal(t, len(rawShares), ml)
@@ -56,7 +56,7 @@ func Test_zeroPadIfNecessary(t *testing.T) {
 
 func TestParseDelimiter(t *testing.T) {
 	for i := uint64(0); i < 100; i++ {
-		tx := factory.GenerateRandomTransaction(1, int(i))[0]
+		tx := testfactory.GenerateRandomTransaction(1, int(i))[0]
 		input, err := MarshalDelimitedTx(tx)
 		if err != nil {
 			panic(err)

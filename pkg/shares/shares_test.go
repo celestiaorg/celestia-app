@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/testutil/factory"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/rsmt2d"
@@ -97,9 +97,9 @@ func TestFuzz_Merge(t *testing.T) {
 
 // generateRandomBlockData returns randomly generated block data for testing purposes
 func generateRandomBlockData(txCount, evdCount, blobCount, maxSize int) (data coretypes.Data) {
-	data.Txs = factory.GenerateRandomlySizedTransactions(txCount, maxSize)
+	data.Txs = testfactory.GenerateRandomlySizedTransactions(txCount, maxSize)
 	data.Evidence = generateIdenticalEvidence(evdCount)
-	data.Blobs = factory.GenerateRandomlySizedBlobs(blobCount, maxSize)
+	data.Blobs = testfactory.GenerateRandomlySizedBlobs(blobCount, maxSize)
 	data.SquareSize = appconsts.MaxSquareSize
 	return data
 }
@@ -117,7 +117,7 @@ func generateIdenticalEvidence(count int) coretypes.EvidenceData {
 // number of shares
 func generateRandomBlobOfShareCount(count int) coretypes.Blob {
 	size := rawBlobSize(appconsts.SparseShareContentSize * count)
-	return factory.GenerateRandomBlob(size)
+	return testfactory.GenerateRandomBlob(size)
 }
 
 // rawBlobSize returns the raw blob size that can be used to construct a

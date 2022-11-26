@@ -3,7 +3,7 @@ package prove
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/testutil/factory"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -15,12 +15,12 @@ import (
 
 func TestTxInclusion(t *testing.T) {
 	typicalBlockData := types.Data{
-		Txs:        factory.GenerateRandomlySizedTransactions(100, 500),
-		Blobs:      factory.GenerateRandomlySizedBlobs(40, 16000),
+		Txs:        testfactory.GenerateRandomlySizedTransactions(100, 500),
+		Blobs:      testfactory.GenerateRandomlySizedBlobs(40, 16000),
 		SquareSize: 64,
 	}
 	lotsOfTxsNoBlobs := types.Data{
-		Txs:        factory.GenerateRandomlySizedTransactions(1000, 500),
+		Txs:        testfactory.GenerateRandomlySizedTransactions(1000, 500),
 		SquareSize: 64,
 	}
 	overlappingSquareSize := 16
@@ -40,7 +40,7 @@ func TestTxInclusion(t *testing.T) {
 				tmrand.Bytes(10000),
 			},
 		),
-		Blobs:      factory.GenerateRandomlySizedBlobs(8, 400),
+		Blobs:      testfactory.GenerateRandomlySizedBlobs(8, 400),
 		SquareSize: uint64(overlappingSquareSize),
 	}
 
@@ -80,11 +80,11 @@ func TestTxSharePosition(t *testing.T) {
 	tests := []test{
 		{
 			name: "typical",
-			txs:  factory.GenerateRandomlySizedTransactions(44, 200),
+			txs:  testfactory.GenerateRandomlySizedTransactions(44, 200),
 		},
 		{
 			name: "many small tx",
-			txs:  factory.GenerateRandomlySizedTransactions(444, 100),
+			txs:  testfactory.GenerateRandomlySizedTransactions(444, 100),
 		},
 		{
 			// this is a concrete output from factory.GenerateRandomlySizedTransactions(444, 100)
@@ -95,15 +95,15 @@ func TestTxSharePosition(t *testing.T) {
 		},
 		{
 			name: "one small tx",
-			txs:  factory.GenerateRandomlySizedTransactions(1, 200),
+			txs:  testfactory.GenerateRandomlySizedTransactions(1, 200),
 		},
 		{
 			name: "one large tx",
-			txs:  factory.GenerateRandomlySizedTransactions(1, 2000),
+			txs:  testfactory.GenerateRandomlySizedTransactions(1, 2000),
 		},
 		{
 			name: "many large txs",
-			txs:  factory.GenerateRandomlySizedTransactions(100, 2000),
+			txs:  testfactory.GenerateRandomlySizedTransactions(100, 2000),
 		},
 	}
 

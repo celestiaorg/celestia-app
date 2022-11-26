@@ -1,4 +1,4 @@
-package factory
+package testfactory
 
 import (
 	mrand "math/rand"
