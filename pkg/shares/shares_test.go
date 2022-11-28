@@ -161,8 +161,9 @@ func generateRandomlySizedBlobs(count, maxBlobSize int) []coretypes.Blob {
 // generateRandomBlob returns a random blob of the given size (in bytes)
 func generateRandomBlob(size int) coretypes.Blob {
 	blob := coretypes.Blob{
-		NamespaceID: tmrand.Bytes(appconsts.NamespaceSize),
-		Data:        tmrand.Bytes(size),
+		NamespaceID:  tmrand.Bytes(appconsts.NamespaceSize),
+		Data:         tmrand.Bytes(size),
+		ShareVersion: appconsts.ShareVersionZero,
 	}
 	return blob
 }

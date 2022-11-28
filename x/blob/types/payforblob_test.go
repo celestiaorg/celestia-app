@@ -116,7 +116,6 @@ func TestSignMalleatedTxs(t *testing.T) {
 		name     string
 		ns       []byte
 		blobData []byte
-		ss       []uint64
 		options  []TxBuilderOption
 	}
 
@@ -129,14 +128,12 @@ func TestSignMalleatedTxs(t *testing.T) {
 			name:     "single share",
 			ns:       []byte{1, 1, 1, 1, 1, 1, 1, 1},
 			blobData: bytes.Repeat([]byte{1}, appconsts.SparseShareContentSize),
-			ss:       []uint64{2, 4, 8, 16},
 			options:  []TxBuilderOption{SetGasLimit(2000000)},
 		},
 		{
 			name:     "12 shares",
 			ns:       []byte{1, 1, 1, 1, 1, 1, 1, 2},
 			blobData: bytes.Repeat([]byte{2}, (appconsts.SparseShareContentSize*12)-4), // subtract a few bytes for the delimiter
-			ss:       []uint64{4, 8, 16, 64},
 			options: []TxBuilderOption{
 				SetGasLimit(123456789),
 				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321)))),
@@ -146,7 +143,6 @@ func TestSignMalleatedTxs(t *testing.T) {
 			name:     "12 shares",
 			ns:       []byte{1, 1, 1, 1, 1, 1, 1, 2},
 			blobData: bytes.Repeat([]byte{1, 2, 3, 4, 5}, 10000), // subtract a few bytes for the delimiter
-			ss:       AllSquareSizes(50000),
 			options: []TxBuilderOption{
 				SetGasLimit(123456789),
 				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321)))),

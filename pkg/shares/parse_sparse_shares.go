@@ -67,6 +67,8 @@ func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) ([]co
 			currentBlob = coretypes.Blob{
 				NamespaceID: nid,
 				Data:        nextBlobChunk,
+				// TODO: add the share version to the blob
+				// https://github.com/celestiaorg/celestia-app/issues/1053
 			}
 			// the current share contains the entire blob so we save it and
 			// progress
