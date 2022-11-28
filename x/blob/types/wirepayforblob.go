@@ -15,6 +15,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"golang.org/x/exp/constraints"
+	"golang.org/x/exp/slices"
 )
 
 var _ sdk.Msg = &MsgWirePayForBlob{}
@@ -29,6 +30,10 @@ func NewWirePayForBlob(namespace []byte, blob []byte, shareVersion uint8) (*MsgW
 			len(namespace),
 			NamespaceIDSize,
 		)
+	}
+
+	if !slices.Contains(appconsts.SupportedShareVersions, shareVersion) {
+		return nil, ErrUnsupportedShareVersion
 	}
 
 	out := &MsgWirePayForBlob{
@@ -96,6 +101,13 @@ func (msg *MsgWirePayForBlob) ValidateBasic() error {
 			msg.BlobSize,
 			len(msg.Blob),
 		)
+	}
+
+	if msg.ShareVersion > math.MaxUint8 {
+		return ErrUnsupportedShareVersion
+	}
+	if !slices.Contains(appconsts.SupportedShareVersions, uint8(msg.ShareVersion)) {
+		return ErrUnsupportedShareVersion
 	}
 
 	return msg.ValidateMessageShareCommitment()
@@ -191,6 +203,7 @@ func (msg *MsgWirePayForBlob) unsignedPayForBlob() (*MsgPayForBlob, error) {
 		BlobSize:        msg.BlobSize,
 		ShareCommitment: commitment,
 		Signer:          msg.Signer,
+		ShareVersion:    msg.ShareVersion,
 	}
 	return &mpfb, nil
 }
@@ -201,8 +214,9 @@ func (msg *MsgWirePayForBlob) unsignedPayForBlob() (*MsgPayForBlob, error) {
 func ProcessWirePayForBlob(msg *MsgWirePayForBlob) (*tmproto.Blob, *MsgPayForBlob, []byte, error) {
 	// add the blob to the list of core blobs to be returned to celestia-core
 	coreMsg := tmproto.Blob{
-		NamespaceId: msg.GetNamespaceId(),
-		Data:        msg.GetBlob(),
+		NamespaceId:  msg.GetNamespaceId(),
+		Data:         msg.GetBlob(),
+		ShareVersion: msg.GetShareVersion(),
 	}
 
 	// wrap the signed transaction data

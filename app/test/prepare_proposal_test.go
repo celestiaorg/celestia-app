@@ -35,15 +35,15 @@ func TestPrepareProposal(t *testing.T) {
 
 	firstNamespace := []byte{2, 2, 2, 2, 2, 2, 2, 2}
 	firstMessage := bytes.Repeat([]byte{4}, 512)
-	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNamespace, firstMessage, signer, types.AllSquareSizes(len(firstMessage))...)
+	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNamespace, firstMessage, signer)
 
 	secondNamespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	secondMessage := []byte{2}
-	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNamespace, secondMessage, signer, types.AllSquareSizes(len(secondMessage))...)
+	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNamespace, secondMessage, signer)
 
 	thirdNamespace := []byte{3, 3, 3, 3, 3, 3, 3, 3}
 	thirdMessage := []byte{1}
-	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNamespace, thirdMessage, signer, types.AllSquareSizes(len(thirdMessage))...)
+	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNamespace, thirdMessage, signer)
 
 	tests := []test{
 		{
@@ -128,7 +128,7 @@ func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
 
 	for _, tt := range tests {
 		message := []byte{1}
-		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, message, signer, types.AllSquareSizes(len(message))...)
+		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, message, signer)
 		input := abci.RequestPrepareProposal{
 			BlockData: &core.Data{
 				Txs: [][]byte{tx},
@@ -139,7 +139,7 @@ func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
 	}
 }
 
-func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, ks ...uint64) (rawTx []byte) {
+func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner) (rawTx []byte) {
 	coin := sdk.Coin{
 		Denom:  app.BondDenom,
 		Amount: sdk.NewInt(10),
