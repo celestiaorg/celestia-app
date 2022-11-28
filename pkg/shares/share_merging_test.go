@@ -191,7 +191,7 @@ func Test_sparseSharesNeeded(t *testing.T) {
 }
 
 func generateRawShare(namespace namespace.ID, isSequenceStart bool, sequenceLength uint64) (rawShare []byte) {
-	infoByte, _ := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
+	infoByte, _ := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
 
 	sequenceLengthVarint := make([]byte, binary.MaxVarintLen64)
 	numBytesWritten := binary.PutUvarint(sequenceLengthVarint, sequenceLength)

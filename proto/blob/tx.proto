@@ -25,6 +25,11 @@ message MsgWirePayForBlob {
   // ShareCommitAndSignature` when a MsgWirePayForBlob included multiple
   // blob share commitments (one per square size).
   ShareCommitAndSignature share_commitment = 7;
+  // share_version is the version of the share format that the blob in this
+  // message should use when included in a block. The share_version specified
+  // must match the share_version used to generate the share_commitment in this
+  // message.
+  uint32 share_version = 8;
 }
 
 // MsgWirePayForBlobResponse describes the response returned after the
@@ -41,10 +46,7 @@ message ShareCommitAndSignature {
 }
 
 // MsgPayForBlob is what gets signed by users when creating
-// ShareCommitSignatures.
-//  Multiple versions are signed and included, each version creates a commitment
-//  for a
-// specific square size.
+// ShareCommitSignatures. It is a subset of MsgWirePayForBlob that does not contain the blob.
 message MsgPayForBlob {
   string signer = 1;
   bytes namespace_id = 2;
@@ -52,6 +54,11 @@ message MsgPayForBlob {
   // share_commitment is the share_commitment from
   // ShareCommitAndSignature that will be included in a block
   bytes share_commitment = 4;
+  // share_version is the version of the share format that the blob associated
+  // with this message should use when included in a block. The share_version
+  // specified must match the share_version used to generate the
+  // share_commitment in this message.
+  uint32 share_version = 8;
 }
 
 // MsgPayForBlobResponse describes the response returned after the submission

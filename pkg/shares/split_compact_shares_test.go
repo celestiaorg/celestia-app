@@ -21,7 +21,7 @@ func TestCount(t *testing.T) {
 		{transactions: []coretypes.Tx{bytes.Repeat([]byte{0}, appconsts.ContinuationCompactShareContentSize*2+1)}, wantShareCount: 3},
 	}
 	for _, tc := range testCases {
-		css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
+		css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
 		for _, transaction := range tc.transactions {
 			css.WriteTx(transaction)
 		}

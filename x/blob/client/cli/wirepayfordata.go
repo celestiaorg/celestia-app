@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -14,12 +15,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-const FlagSquareSizes = "square-sizes"
-
 func CmdWirePayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "payForBlob [hexNamespace] [hexBlob]",
-		Short: "Creates a new MsgWirePayForBlob",
+		Short: "Pay for a data blob to be published to the Celestia blockchain",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
@@ -45,7 +44,11 @@ func CmdWirePayForBlob() *cobra.Command {
 				return fmt.Errorf("failure to decode hex message: %w", err)
 			}
 
-			pfbMsg, err := types.NewWirePayForBlob(namespace, message)
+			// TODO: allow the user to override the share version via a new flag
+			// See https://github.com/celestiaorg/celestia-app/issues/1041
+			shareVersion := appconsts.ShareVersionZero
+
+			pfbMsg, err := types.NewWirePayForBlob(namespace, message, shareVersion)
 			if err != nil {
 				return err
 			}
@@ -78,7 +81,7 @@ func CmdWirePayForBlob() *cobra.Command {
 				return err
 			}
 
-			// sign the  MsgPayForBlob's ShareCommitments
+			// sign the MsgPayForBlob's ShareCommitment
 			err = pfbMsg.SignShareCommitment(
 				signer,
 				types.SetGasLimit(gasSetting.Gas),

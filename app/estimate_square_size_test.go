@@ -49,13 +49,15 @@ func Test_estimateSquareSize(t *testing.T) {
 				parsedTxs = prune(encConf.TxConfig, parsedTxs, totalSharesUsed, int(squareSize))
 			}
 
-			processedTxs, messages, err := malleateTxs(encConf.TxConfig, squareSize, parsedTxs, core.EvidenceList{})
+			processedTxs, blobs, err := malleateTxs(encConf.TxConfig, squareSize, parsedTxs, core.EvidenceList{})
 			require.NoError(t, err)
 
+			coreBlobs, err := shares.BlobsFromProto(blobs)
+			require.NoError(t, err)
 			blockData := coretypes.Data{
 				Txs:        shares.TxsFromBytes(processedTxs),
 				Evidence:   coretypes.EvidenceData{},
-				Blobs:      shares.MessagesFromProto(messages),
+				Blobs:      coreBlobs,
 				SquareSize: squareSize,
 			}
 
@@ -130,6 +132,7 @@ func Test_overEstimateMalleatedTxSize(t *testing.T) {
 			encConf.TxConfig,
 			namespace.RandomMessageNamespace(),
 			tmrand.Bytes(tt.size),
+			appconsts.ShareVersionZero,
 			signer,
 			tt.opts...,
 		)

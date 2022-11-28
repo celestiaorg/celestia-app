@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
 	coretypes "github.com/tendermint/tendermint/types"
+	"golang.org/x/exp/slices"
 )
 
 // SparseShareSplitter lazily splits messages into shares that will eventually be
@@ -20,15 +21,20 @@ func NewSparseShareSplitter() *SparseShareSplitter {
 	return &SparseShareSplitter{}
 }
 
-// Write adds the delimited data to the underlying messages shares.
-func (sss *SparseShareSplitter) Write(msg coretypes.Blob) {
-	rawMsg, err := MarshalDelimitedMessage(msg)
+// Write writes the provided blob to this sparse share splitter. It returns an
+// error or nil if no error is encountered.
+func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
+	if !slices.Contains(appconsts.SupportedShareVersions, blob.ShareVersion) {
+		return fmt.Errorf("unsupported share version: %d", blob.ShareVersion)
+	}
+	rawMsg, err := MarshalDelimitedMessage(blob)
 	if err != nil {
-		panic(fmt.Sprintf("app accepted a Message that can not be encoded %#v", msg))
+		panic(fmt.Sprintf("app accepted a Message that can not be encoded %#v", blob))
 	}
 	newShares := make([]Share, 0)
-	newShares = AppendToShares(newShares, msg.NamespaceID, rawMsg)
+	newShares = AppendToShares(newShares, blob.NamespaceID, rawMsg, blob.ShareVersion)
 	sss.shares = append(sss.shares, newShares...)
+	return nil
 }
 
 // RemoveMessage will remove a message from the underlying message state. If
@@ -80,9 +86,9 @@ func (sss *SparseShareSplitter) Count() int {
 
 // AppendToShares appends raw data as shares.
 // Used for messages.
-func AppendToShares(shares []Share, nid namespace.ID, rawData []byte) []Share {
+func AppendToShares(shares []Share, nid namespace.ID, rawData []byte, shareVersion uint8) []Share {
 	if len(rawData) <= appconsts.SparseShareContentSize {
-		infoByte, err := NewInfoByte(appconsts.ShareVersion, true)
+		infoByte, err := NewInfoByte(shareVersion, true)
 		if err != nil {
 			panic(err)
 		}
@@ -95,7 +101,7 @@ func AppendToShares(shares []Share, nid namespace.ID, rawData []byte) []Share {
 		paddedShare, _ := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
 		shares = append(shares, paddedShare)
 	} else { // len(rawData) > MsgShareSize
-		shares = append(shares, splitMessage(rawData, nid)...)
+		shares = append(shares, splitMessage(rawData, nid, shareVersion)...)
 	}
 	return shares
 }
@@ -112,8 +118,8 @@ func MarshalDelimitedMessage(msg coretypes.Blob) ([]byte, error) {
 
 // splitMessage breaks the data in a message into the minimum number of
 // namespaced shares
-func splitMessage(rawData []byte, nid namespace.ID) (shares []Share) {
-	infoByte, err := NewInfoByte(appconsts.ShareVersion, true)
+func splitMessage(rawData []byte, nid namespace.ID, shareVersion uint8) (shares []Share) {
+	infoByte, err := NewInfoByte(shareVersion, true)
 	if err != nil {
 		panic(err)
 	}
@@ -127,7 +133,7 @@ func splitMessage(rawData []byte, nid namespace.ID) (shares []Share) {
 	rawData = rawData[appconsts.SparseShareContentSize:]
 	for len(rawData) > 0 {
 		shareSizeOrLen := min(appconsts.SparseShareContentSize, len(rawData))
-		infoByte, err := NewInfoByte(appconsts.ShareVersion, false)
+		infoByte, err := NewInfoByte(appconsts.ShareVersionZero, false)
 		if err != nil {
 			panic(err)
 		}
@@ -153,7 +159,7 @@ func namespacedPaddedShares(ns namespace.ID, count int) []Share {
 }
 
 func namespacedPaddedShare(ns namespace.ID) Share {
-	infoByte, err := NewInfoByte(appconsts.ShareVersion, true)
+	infoByte, err := NewInfoByte(appconsts.ShareVersionZero, true)
 	if err != nil {
 		panic(err)
 	}
