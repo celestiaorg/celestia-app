@@ -49,11 +49,6 @@ const (
 			"inputs": [
 				{
 				"internalType": "bytes32",
-				"name": "_bridge_id",
-				"type": "bytes32"
-				},
-				{
-				"internalType": "bytes32",
 				"name": "_separator",
 				"type": "bytes32"
 				},
@@ -81,11 +76,6 @@ const (
 			},
 			{
 			"inputs": [
-				{
-				"internalType": "bytes32",
-				"name": "_bridge_id",
-				"type": "bytes32"
-				},
 				{
 				"internalType": "bytes32",
 				"name": "_separator",
