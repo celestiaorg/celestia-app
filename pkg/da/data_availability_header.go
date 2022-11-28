@@ -10,7 +10,7 @@ import (
 	daproto "github.com/celestiaorg/celestia-app/proto/da"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/crypto/merkle"
-	"github.com/tendermint/tendermint/crypto/tmhash"
+	"github.com/tendermint/tendermint/types"
 )
 
 const (
@@ -150,7 +150,7 @@ func (dah *DataAvailabilityHeader) ValidateBasic() error {
 			len(dah.ColumnRoots),
 		)
 	}
-	if err := validateHash(dah.Hash()); err != nil {
+	if err := types.ValidateHash(dah.Hash()); err != nil {
 		return fmt.Errorf("wrong hash: %v", err)
 	}
 
@@ -190,16 +190,4 @@ func GenerateEmptyShares(size int) [][]byte {
 		shares[i] = tailPaddingShare
 	}
 	return shares
-}
-
-// validateHash returns an error if the hash is not empty, but its
-// size != tmhash.Size. copy pasted from `types` package as to not import
-func validateHash(h []byte) error {
-	if len(h) > 0 && len(h) != tmhash.Size {
-		return fmt.Errorf("expected size to be %d bytes, got %d bytes",
-			tmhash.Size,
-			len(h),
-		)
-	}
-	return nil
 }
