@@ -55,7 +55,7 @@ func Test_zeroPadIfNecessary(t *testing.T) {
 
 func TestParseDelimiter(t *testing.T) {
 	for i := uint64(0); i < 100; i++ {
-		tx := testfactory.GenerateRandomTransaction(1, int(i))[0]
+		tx := testfactory.GenerateRandomTransactions(1, int(i))[0]
 		input, err := MarshalDelimitedTx(tx)
 		if err != nil {
 			panic(err)

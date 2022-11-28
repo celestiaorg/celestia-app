@@ -17,7 +17,7 @@ func TestCompactShareWriter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
 	// tests occur in TestMerge and Test_processCompactShares
 	w := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
-	txs := testfactory.GenerateRandomTransaction(33, 200)
+	txs := testfactory.GenerateRandomTransactions(33, 200)
 	for _, tx := range txs {
 		rawTx, _ := MarshalDelimitedTx(tx)
 		w.WriteBytes(rawTx)
@@ -75,7 +75,7 @@ func Test_processCompactShares(t *testing.T) {
 
 		// run the tests with identically sized txs
 		t.Run(fmt.Sprintf("%s idendically sized", tc.name), func(t *testing.T) {
-			txs := testfactory.GenerateRandomTransaction(tc.txCount, tc.txSize)
+			txs := testfactory.GenerateRandomTransactions(tc.txCount, tc.txSize)
 
 			shares := SplitTxs(txs)
 			rawShares := ToBytes(shares)
@@ -113,7 +113,7 @@ func Test_processCompactShares(t *testing.T) {
 
 func TestCompactShareContainsInfoByte(t *testing.T) {
 	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
-	txs := testfactory.GenerateRandomTransaction(1, appconsts.ContinuationCompactShareContentSize/4)
+	txs := testfactory.GenerateRandomTransactions(1, appconsts.ContinuationCompactShareContentSize/4)
 
 	for _, tx := range txs {
 		css.WriteTx(tx)
@@ -133,7 +133,7 @@ func TestCompactShareContainsInfoByte(t *testing.T) {
 
 func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
-	txs := testfactory.GenerateRandomTransaction(1, appconsts.ContinuationCompactShareContentSize*4)
+	txs := testfactory.GenerateRandomTransactions(1, appconsts.ContinuationCompactShareContentSize*4)
 
 	for _, tx := range txs {
 		css.WriteTx(tx)
@@ -157,7 +157,7 @@ func Test_parseCompactSharesErrors(t *testing.T) {
 		rawShares [][]byte
 	}
 
-	txs := testfactory.GenerateRandomTransaction(2, appconsts.ContinuationCompactShareContentSize*4)
+	txs := testfactory.GenerateRandomTransactions(2, appconsts.ContinuationCompactShareContentSize*4)
 	shares := SplitTxs(txs)
 	rawShares := ToBytes(shares)
 

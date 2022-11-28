@@ -43,12 +43,12 @@ func GenerateRandomlySizedTransactions(count, maxSize int) types.Txs {
 		if size == 0 {
 			size = 1
 		}
-		txs[i] = GenerateRandomTransaction(1, size)[0]
+		txs[i] = GenerateRandomTransactions(1, size)[0]
 	}
 	return txs
 }
 
-func GenerateRandomTransaction(count, size int) types.Txs {
+func GenerateRandomTransactions(count, size int) types.Txs {
 	txs := make(types.Txs, count)
 	for i := 0; i < count; i++ {
 		tx := make([]byte, size)
