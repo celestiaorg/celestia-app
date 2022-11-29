@@ -2,6 +2,7 @@ package testnode
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -36,7 +37,10 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		s.accounts = append(s.accounts, tmrand.Str(9))
 	}
 
-	tmNode, app, cctx, err := New(s.T(), DefaultParams(), DefaultTendermintConfig(), false, s.accounts...)
+	genState, kr, err := DefaultGenesisState(s.accounts...)
+	require.NoError(err)
+
+	tmNode, app, cctx, err := New(s.T(), DefaultParams(), DefaultTendermintConfig(), false, genState, kr)
 	require.NoError(err)
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
@@ -99,12 +103,42 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 		err = s.cctx.WaitForNextBlock()
 		require.NoError(err)
 
-		res, err := testutil.QueryWithOutProof(s.cctx.Context, resp.TxHash)
+		res, err := testutil.QueryWithoutProof(s.cctx.Context, resp.TxHash)
 		require.NoError(err)
 		require.Equal(abci.CodeTypeOK, res.TxResult.Code)
 
 		b, err := s.cctx.Client.Block(context.TODO(), &res.Height)
 		require.NoError(err)
-		require.Equal(uint64(squareSize), b.Block.OriginalSquareSize)
+		require.Equal(uint64(squareSize), b.Block.Data.OriginalSquareSize)
+	}
+}
+
+func (s *IntegrationTestSuite) Test_FillBlock_InvalidSquareSizeError() {
+	tests := []struct {
+		name        string
+		squareSize  int
+		expectedErr error
+	}{
+		{
+			name:        "when squareSize less than 2",
+			squareSize:  0,
+			expectedErr: fmt.Errorf("unsupported squareSize: 0"),
+		},
+		{
+			name:        "when squareSize is greater than 2 but not a power of 2",
+			squareSize:  18,
+			expectedErr: fmt.Errorf("unsupported squareSize: 18"),
+		},
+		{
+			name:       "when squareSize is greater than 2 and a power of 2",
+			squareSize: 16,
+		},
+	}
+
+	for _, tc := range tests {
+		s.Run(tc.name, func() {
+			_, actualErr := s.cctx.FillBlock(tc.squareSize, s.accounts, flags.BroadcastAsync)
+			s.Equal(tc.expectedErr, actualErr)
+		})
 	}
 }
