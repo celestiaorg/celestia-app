@@ -11,12 +11,12 @@ import (
 var _ paramtypes.ParamSet = (*Params)(nil)
 
 var (
-	KeyMinSquareSize            = []byte("DefaultMinSquareSize")
+	KeyMinSquareSize            = []byte("MinSquareSize")
 	DefaultMinSquareSize uint32 = appconsts.DefaultMinSquareSize
 )
 
 var (
-	KeyMaxSquareSize            = []byte("DefaultMaxSquareSize")
+	KeyMaxSquareSize            = []byte("MaxSquareSize")
 	DefaultMaxSquareSize uint32 = appconsts.DefaultMaxSquareSize
 )
 
