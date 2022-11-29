@@ -14,7 +14,8 @@ import (
 // round up.
 //
 // NOTE: The estimation process does not have to be perfect. We can overestimate
-// because the cost of padding
+// because the cost of padding TODO: cache and return the number of shares a
+// blob uses so we don't recalculate it later.
 func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int) {
 	txSharesUsed := compactSharesUsed(appconsts.MaxSquareSize, txs)
 	msgSharesUsed := 0
@@ -26,7 +27,7 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 		msgSharesUsed += shares.MsgSharesUsed(ptx.blobTx.DataUsed())
 	}
 
-	// assume that we have to add a lot of padding by simply double the number
+	// assume that we have to add a lot of padding by simply doubling the number
 	// of shares used
 	totalSharesUsed := txSharesUsed + msgSharesUsed
 	totalSharesUsed *= 2
@@ -34,6 +35,8 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 	return uint64(math.Sqrt(float64(totalSharesUsed))), txSharesUsed
 }
 
+// compactSharesUsed calculates the amount of shares used by the celestia
+// specific transactions
 func compactSharesUsed(squareSize uint64, ptxs []parsedTx) int {
 	maxWTxOverhead := maxWrappedTxOverhead(squareSize)
 	txbytes := 0
@@ -57,6 +60,8 @@ func compactSharesUsed(squareSize uint64, ptxs []parsedTx) int {
 	return sharesUsed
 }
 
+// maxWrappedTxOverhead calculates the maximum amount of overhead introduced by
+// wrapping a transaction with a shares index
 func maxWrappedTxOverhead(squareSize uint64) int {
 	tx := []byte{1}
 	wtx, err := coretypes.WrapMalleatedTx(uint32(squareSize*squareSize), tx)

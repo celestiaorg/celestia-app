@@ -14,40 +14,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
-
-func GenerateValidBlockData(
-	t *testing.T,
-	txConfig client.TxConfig,
-	signer *types.KeyringSigner,
-	pfbCount,
-	normalTxCount,
-	size int,
-) (coretypes.Data, error) {
-	rawTxs := generateManyRawWirePFB(t, txConfig, signer, pfbCount, size)
-	rawTxs = append(rawTxs, generateManyRawSendTxs(t, txConfig, signer, normalTxCount)...)
-	parsedTxs := parseTxs(txConfig, rawTxs)
-
-	squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, core.EvidenceList{})
-
-	if totalSharesUsed > int(squareSize*squareSize) {
-		parsedTxs = prune(txConfig, parsedTxs, totalSharesUsed, int(squareSize))
-	}
-
-	processedTxs, blobs, err := malleateTxs(txConfig, squareSize, parsedTxs, core.EvidenceList{})
-	require.NoError(t, err)
-
-	blockData := core.Data{
-		Txs:        processedTxs,
-		Evidence:   core.EvidenceList{},
-		Blobs:      blobs,
-		SquareSize: squareSize,
-	}
-
-	return coretypes.DataFromProto(&blockData)
-}
 
 func generateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count, size int) [][]byte {
 	txs := make([][]byte, count)

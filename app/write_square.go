@@ -15,7 +15,7 @@ type trackedBlob struct {
 	sharesUsed  int
 }
 
-func writeParsedTxs(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([][]byte, error) {
+func addShareIndexes(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]parsedTx, error) {
 	maxShareCount := squareSize * squareSize
 	if nonreserveStart > int(maxShareCount) {
 		return nil, errors.New("non reserver start index greater than max share count")
@@ -53,7 +53,12 @@ func writeParsedTxs(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 		ptxs, blobStartIndexes = pruneExcessBlobs(squareSize, nonreserveStart, ptxs, trackedBlobs, blobStartIndexes)
 	}
 
-	return nil, nil
+	// add the share indexes back to the parsed transactions
+	for i, tBlob := range trackedBlobs {
+		ptxs[tBlob.parsedIndex].shareIndex = blobStartIndexes[i]
+	}
+
+	return ptxs, nil
 }
 
 // pruneExcessBlobs will prune excess parsedTxs and their blobs until they fit

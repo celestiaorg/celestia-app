@@ -3,6 +3,7 @@ package app
 import (
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
+	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -41,7 +42,7 @@ func parseTxs(txcfg client.TxConfig, rawTxs [][]byte) []parsedTx {
 	return parsedTxs
 }
 
-func processTxs(logger log.Logger, txcfg client.TxConfig, txs []parsedTx) ([][]byte, []tmproto.Blob) {
+func processTxs(logger log.Logger, txs []parsedTx) ([][]byte, []tmproto.Blob) {
 	processedTxs := make([][]byte, 0)
 	blobs := make([]tmproto.Blob, 0)
 	for _, pTx := range txs {
@@ -56,7 +57,10 @@ func processTxs(logger log.Logger, txcfg client.TxConfig, txs []parsedTx) ([][]b
 		if err != nil {
 			// note: Its not safe to bubble this error up and stop the block
 			// creation process.
-			logger.Error("failure to wrap an otherwise valid BlobTx when creating a block")
+			logger.Error(
+				"failure to wrap an otherwise valid BlobTx when creating a block: %v",
+				tmbytes.HexBytes(coretypes.Tx(pTx.blobTx.Tx).Hash()),
+			)
 			continue
 		}
 

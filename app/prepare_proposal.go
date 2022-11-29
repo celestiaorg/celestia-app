@@ -24,11 +24,13 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// squares but can only return values within the min and max square size.
 	squareSize, nonreservedStart := estimateSquareSize(parsedTxs)
 
+	addShareIndexes(squareSize, nonreservedStart, parsedTxs)
+
 	// in this step we are processing any MsgWirePayForBlob transactions into
 	// MsgPayForBlob and their respective blobPointers. The malleatedTxs contain the
 	// the new sdk.Msg with the original tx's metadata (sequence number, gas
 	// price etc).
-	processedTxs, blobs := processTxs(app.Logger(), app.txConfig, parsedTxs)
+	processedTxs, blobs := processTxs(app.Logger(), parsedTxs)
 
 	blockData := core.Data{
 		Txs:        processedTxs,
