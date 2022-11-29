@@ -11,10 +11,9 @@ import (
 // PrepareProposal fullfills the celestia-core version of the ABCI interface by
 // preparing the proposal block data. The square size is determined by first
 // estimating it via the size of the passed block data. Then the included
-// MsgWirePayForBlob messages are malleated into MsgPayForBlob messages by
-// separating the message and transaction that pays for that message. Lastly,
-// this method generates the data root for the proposal block and passes it back
-// to tendermint via the blockdata.
+// MsgWirePayForBlob is malleated into MsgPayForBlob by separating the blob from
+// the wire message. Lastly, this method generates the data root for the
+// proposal block and passes it back to tendermint via the BlockData.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	// parse the txs, extracting any MsgWirePayForBlob and performing basic
 	// validation for each transaction. Invalid txs are ignored. Original order
@@ -27,7 +26,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// the totalSharesUsed can be larger that the max number of shares if we
 	// reach the max square size. In this case, we must prune the deprioritized
-	// txs (and their messages if they're pfb txs).
+	// txs (and their blobs if they're PFB txs).
 	if totalSharesUsed > int(squareSize*squareSize) {
 		parsedTxs = prune(app.txConfig, parsedTxs, totalSharesUsed, int(squareSize))
 	}

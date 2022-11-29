@@ -36,9 +36,9 @@ func TestWirePayForBlob_ValidateBasic(t *testing.T) {
 	tailPaddingMsg := validWirePayForBlob(t)
 	tailPaddingMsg.NamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
 
-	// pfb that has a wrong msg size
-	invalidDeclaredMsgSizeMsg := validWirePayForBlob(t)
-	invalidDeclaredMsgSizeMsg.BlobSize = 999
+	// pfb that has a wrong blob size
+	invalidDeclaredBlobSizeMsg := validWirePayForBlob(t)
+	invalidDeclaredBlobSizeMsg.BlobSize = 999
 
 	// pfb with bad commitment
 	badCommitMsg := validWirePayForBlob(t)
@@ -65,8 +65,8 @@ func TestWirePayForBlob_ValidateBasic(t *testing.T) {
 			wantErr: ErrReservedNamespace,
 		},
 		{
-			name:    "bad declared message size",
-			msg:     invalidDeclaredMsgSizeMsg,
+			name:    "bad declared blob size",
+			msg:     invalidDeclaredBlobSizeMsg,
 			wantErr: ErrDeclaredActualDataSizeMismatch,
 		},
 		{
@@ -105,42 +105,42 @@ func TestWirePayForBlob_ValidateBasic(t *testing.T) {
 	}
 }
 
-func TestMsgMinSquareSize(t *testing.T) {
+func TestBlobMinSquareSize(t *testing.T) {
 	type testCase struct {
 		name     string
-		msgLen   uint64
+		blobSize uint64
 		expected uint64
 	}
 	tests := []testCase{
 		{
 			name:     "1 byte",
-			msgLen:   1,
+			blobSize: 1,
 			expected: 1,
 		},
 		{
 			name:     "100 bytes",
-			msgLen:   100,
+			blobSize: 100,
 			expected: 1,
 		},
 		{
 			name:     "2 sparse shares",
-			msgLen:   appconsts.SparseShareContentSize * 2,
+			blobSize: appconsts.SparseShareContentSize * 2,
 			expected: 2,
 		},
 		{
 			name:     "4 sparse shares",
-			msgLen:   appconsts.SparseShareContentSize * 4,
+			blobSize: appconsts.SparseShareContentSize * 4,
 			expected: 4,
 		},
 		{
 			name:     "16 sparse shares",
-			msgLen:   appconsts.SparseShareContentSize * 16,
+			blobSize: appconsts.SparseShareContentSize * 16,
 			expected: 8,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := MsgMinSquareSize(tc.msgLen)
+			got := BlobMinSquareSize(tc.blobSize)
 			assert.Equal(t, tc.expected, got)
 		})
 	}
@@ -150,7 +150,7 @@ func TestProcessWirePayForBlob(t *testing.T) {
 	type test struct {
 		name         string
 		namespace    []byte
-		msg          []byte
+		blob         []byte
 		expectErr    bool
 		modify       func(*MsgWirePayForBlob) *MsgWirePayForBlob
 		shareVersion uint8
@@ -173,32 +173,32 @@ func TestProcessWirePayForBlob(t *testing.T) {
 		{
 			name:      "single share square size 2",
 			namespace: []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			msg:       bytes.Repeat([]byte{1}, totalMsgSize(appconsts.SparseShareContentSize)),
+			blob:      bytes.Repeat([]byte{1}, totalBlobSize(appconsts.SparseShareContentSize)),
 			modify:    dontModify,
 		},
 		{
 			name:      "12 shares square size 4",
 			namespace: []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:       bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12)),
+			blob:      bytes.Repeat([]byte{2}, totalBlobSize(appconsts.SparseShareContentSize*12)),
 			modify:    dontModify,
 		},
 		{
-			name:      "empty message",
+			name:      "empty blob",
 			namespace: []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:       []byte{},
+			blob:      []byte{},
 			modify:    dontModify,
 		},
 		{
 			name:         "wire pay for blob with share version 0",
 			namespace:    []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:          []byte{},
+			blob:         []byte{},
 			shareVersion: 0,
 			modify:       dontModify,
 		},
 		{
 			name:         "wire pay for blob with unsupported share version",
 			namespace:    []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:          []byte{},
+			blob:         []byte{},
 			shareVersion: 0,
 			expectErr:    true,
 			modify:       overrideShareVersion,
@@ -206,22 +206,22 @@ func TestProcessWirePayForBlob(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		wpfb, err := NewWirePayForBlob(tt.namespace, tt.msg, tt.shareVersion)
+		wpfb, err := NewWirePayForBlob(tt.namespace, tt.blob, tt.shareVersion)
 		require.NoError(t, err, tt.name)
 		err = wpfb.SignShareCommitment(signer)
 		assert.NoError(t, err)
 
 		wpfb = tt.modify(wpfb)
 
-		message, spfb, sig, err := ProcessWirePayForBlob(wpfb)
+		blob, spfb, sig, err := ProcessWireMsgPayForBlob(wpfb)
 		if tt.expectErr {
 			assert.Error(t, err, tt.name)
 			continue
 		}
 
 		// ensure that the shared fields are identical
-		assert.Equal(t, tt.msg, message.Data, tt.name)
-		assert.Equal(t, tt.namespace, message.NamespaceId, tt.name)
+		assert.Equal(t, tt.blob, blob.Data, tt.name)
+		assert.Equal(t, tt.namespace, blob.NamespaceId, tt.name)
 		assert.Equal(t, wpfb.Signer, spfb.Signer, tt.name)
 		assert.Equal(t, wpfb.NamespaceId, spfb.NamespaceId, tt.name)
 		assert.Equal(t, wpfb.ShareCommitment.ShareCommitment, spfb.ShareCommitment, tt.name)

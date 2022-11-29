@@ -27,27 +27,27 @@ func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) ([]co
 		}
 	}
 
-	// msgs returned
-	msgs := []coretypes.Blob{}
-	currentMsgLen := 0
-	currentMsg := coretypes.Blob{}
-	// whether the current share contains the start of a new message
-	isNewMessage := true
+	// blobs returned
+	blobs := []coretypes.Blob{}
+	currentBlobLen := 0
+	currentBlob := coretypes.Blob{}
+	// whether the current share contains the start of a new blob
+	isNewBlob := true
 	// the len in bytes of the current chunk of data that will eventually become
-	// a message. This is identical to len(currentMsg.Data) + appconsts.MsgShareSize
+	// a blob. This is identical to len(currentBlob.Data) + appconsts.BlobShareSize
 	// but we cache it here for readability
 	dataLen := 0
-	saveMessage := func() {
-		msgs = append(msgs, currentMsg)
+	saveBlob := func() {
+		blobs = append(blobs, currentBlob)
 		dataLen = 0
-		isNewMessage = true
+		isNewBlob = true
 	}
-	// iterate through all the shares and parse out each msg
+	// iterate through all the shares and parse out each blob
 	for i := 0; i < len(rawShares); i++ {
-		dataLen = len(currentMsg.Data) + appconsts.SparseShareContentSize
+		dataLen = len(currentBlob.Data) + appconsts.SparseShareContentSize
 		switch {
-		case isNewMessage:
-			nextMsgChunk, nextMsgLen, err := ParseDelimiter(rawShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:])
+		case isNewBlob:
+			nextBlobChunk, nextBlobLen, err := ParseDelimiter(rawShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:])
 			if err != nil {
 				return nil, err
 			}
@@ -55,39 +55,39 @@ func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) ([]co
 			if bytes.Equal(rawShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:], appconsts.NameSpacedPaddedShareBytes) {
 				continue
 			}
-			currentMsgLen = int(nextMsgLen)
+			currentBlobLen = int(nextBlobLen)
 			nid := rawShares[i][:appconsts.NamespaceSize]
 			infoByte, err := ParseInfoByte(rawShares[i][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0])
 			if err != nil {
 				panic(err)
 			}
-			if infoByte.IsSequenceStart() != isNewMessage {
-				return nil, fmt.Errorf("expected sequence start indicator to be %t but got %t", isNewMessage, infoByte.IsSequenceStart())
+			if infoByte.IsSequenceStart() != isNewBlob {
+				return nil, fmt.Errorf("expected sequence start indicator to be %t but got %t", isNewBlob, infoByte.IsSequenceStart())
 			}
-			currentMsg = coretypes.Blob{
+			currentBlob = coretypes.Blob{
 				NamespaceID: nid,
-				Data:        nextMsgChunk,
+				Data:        nextBlobChunk,
 				// TODO: add the share version to the blob
 				// https://github.com/celestiaorg/celestia-app/issues/1053
 			}
-			// the current share contains the entire msg so we save it and
+			// the current share contains the entire blob so we save it and
 			// progress
-			if currentMsgLen <= len(nextMsgChunk) {
-				currentMsg.Data = currentMsg.Data[:currentMsgLen]
-				saveMessage()
+			if currentBlobLen <= len(nextBlobChunk) {
+				currentBlob.Data = currentBlob.Data[:currentBlobLen]
+				saveBlob()
 				continue
 			}
-			isNewMessage = false
-		// this entire share contains a chunk of message that we need to save
-		case currentMsgLen > dataLen:
-			currentMsg.Data = append(currentMsg.Data, rawShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:]...)
+			isNewBlob = false
+		// this entire share contains a chunk of blob that we need to save
+		case currentBlobLen > dataLen:
+			currentBlob.Data = append(currentBlob.Data, rawShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:]...)
 		// this share contains the last chunk of data needed to complete the
-		// message
-		case currentMsgLen <= dataLen:
-			remaining := currentMsgLen - len(currentMsg.Data) + appconsts.NamespaceSize + appconsts.ShareInfoBytes
-			currentMsg.Data = append(currentMsg.Data, rawShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:remaining]...)
-			saveMessage()
+		// blob
+		case currentBlobLen <= dataLen:
+			remaining := currentBlobLen - len(currentBlob.Data) + appconsts.NamespaceSize + appconsts.ShareInfoBytes
+			currentBlob.Data = append(currentBlob.Data, rawShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:remaining]...)
+			saveBlob()
 		}
 	}
-	return msgs, nil
+	return blobs, nil
 }

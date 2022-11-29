@@ -8,7 +8,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 
 // Msg defines the blob Msg service.
 service Msg {
-  // PayForBlob allows the user to pay for the inclusion of a message
+  // PayForBlob allows the user to pay for the inclusion of a blob
   rpc PayForBlob(MsgPayForBlob) returns (MsgPayForBlobResponse) {
     option (google.api.http).get = "/celestia/blob/payforblob";
   }
@@ -39,7 +39,7 @@ message MsgWirePayForBlobResponse {}
 // ShareCommitAndSignature defines the
 message ShareCommitAndSignature {
   // share_commitment is the root of a binary Merkle tree that has leaves which
-  // are subtree roots of the relevant message shares in the original data
+  // are subtree roots of the relevant blob shares in the original data
   // square.
   bytes share_commitment = 2;
   bytes signature = 3; // signature on one SignedTransactionPayForBlob

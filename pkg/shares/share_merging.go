@@ -18,9 +18,9 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 
 	// sort block data shares by namespace
 	var (
-		sortedTxShares  [][]byte
-		sortedEvdShares [][]byte
-		sortedMsgShares [][]byte
+		sortedTxShares   [][]byte
+		sortedEvdShares  [][]byte
+		sortedBlobShares [][]byte
 	)
 
 	// iterate over each row index
@@ -45,9 +45,9 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 			case bytes.Compare(nid, appconsts.MaxReservedNamespace) < 1:
 				continue
 
-			// every other namespaceID should be a message
+			// every other namespaceID should be a blob
 			default:
-				sortedMsgShares = append(sortedMsgShares, share)
+				sortedBlobShares = append(sortedBlobShares, share)
 			}
 		}
 	}
@@ -63,7 +63,7 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 		return coretypes.Data{}, err
 	}
 
-	msgs, err := ParseMsgs(sortedMsgShares)
+	blobs, err := ParseBlobs(sortedBlobShares)
 	if err != nil {
 		return coretypes.Data{}, err
 	}
@@ -71,7 +71,7 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 	return coretypes.Data{
 		Txs:        txs,
 		Evidence:   evd,
-		Blobs:      msgs,
+		Blobs:      blobs,
 		SquareSize: uint64(squareSize),
 	}, nil
 }
@@ -123,19 +123,19 @@ func ParseEvd(shares [][]byte) (coretypes.EvidenceData, error) {
 	return coretypes.EvidenceData{Evidence: evdList}, nil
 }
 
-// ParseMsgs collects all messages from the shares provided
-func ParseMsgs(shares [][]byte) ([]coretypes.Blob, error) {
-	msgList, err := parseSparseShares(shares, appconsts.SupportedShareVersions)
+// ParseBlobs collects all blobs from the shares provided
+func ParseBlobs(shares [][]byte) ([]coretypes.Blob, error) {
+	blobList, err := parseSparseShares(shares, appconsts.SupportedShareVersions)
 	if err != nil {
 		return []coretypes.Blob{}, err
 	}
 
-	return msgList, nil
+	return blobList, nil
 }
 
 // ShareSequence represents a contiguous sequence of shares that are part of the
-// same namespace and message. For compact shares, one share sequence exists per
-// reserved namespace. For sparse shares, one share sequence exists per message.
+// same namespace and blob. For compact shares, one share sequence exists per
+// reserved namespace. For sparse shares, one share sequence exists per blob.
 type ShareSequence struct {
 	NamespaceID namespace.ID
 	Shares      []Share

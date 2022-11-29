@@ -34,16 +34,16 @@ func TestPrepareProposal(t *testing.T) {
 	}
 
 	firstNamespace := []byte{2, 2, 2, 2, 2, 2, 2, 2}
-	firstMessage := bytes.Repeat([]byte{4}, 512)
-	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNamespace, firstMessage, signer)
+	firstBlob := bytes.Repeat([]byte{4}, 512)
+	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNamespace, firstBlob, signer)
 
 	secondNamespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
-	secondMessage := []byte{2}
-	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNamespace, secondMessage, signer)
+	secondBlob := []byte{2}
+	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNamespace, secondBlob, signer)
 
 	thirdNamespace := []byte{3, 3, 3, 3, 3, 3, 3, 3}
-	thirdMessage := []byte{1}
-	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNamespace, thirdMessage, signer)
+	thirdBlob := []byte{1}
+	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNamespace, thirdBlob, signer)
 
 	tests := []test{
 		{
@@ -59,7 +59,7 @@ func TestPrepareProposal(t *testing.T) {
 				},
 				{
 					NamespaceId: firstNamespace,
-					Data:        firstMessage,
+					Data:        firstBlob,
 				},
 				{
 					NamespaceId: thirdNamespace,
@@ -105,41 +105,41 @@ func TestPrepareProposal(t *testing.T) {
 	}
 }
 
-func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
+func TestPrepareProposalWithReservedNamespaces(t *testing.T) {
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	signer := testutil.GenerateKeyringSigner(t, testAccName)
 
 	type test struct {
-		name             string
-		namespace        namespace.ID
-		expectedMessages int
+		name          string
+		namespace     namespace.ID
+		expectedBlobs int
 	}
 
 	tests := []test{
-		{"transaction namespace id for message", appconsts.TxNamespaceID, 0},
-		{"evidence namespace id for message", appconsts.EvidenceNamespaceID, 0},
-		{"tail padding namespace id for message", appconsts.TailPaddingNamespaceID, 0},
-		{"parity shares namespace id for message", appconsts.ParitySharesNamespaceID, 0},
-		{"reserved namespace id for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, 0},
-		{"valid namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, 1},
+		{"transaction namespace", appconsts.TxNamespaceID, 0},
+		{"evidence namespace", appconsts.EvidenceNamespaceID, 0},
+		{"tail padding namespace", appconsts.TailPaddingNamespaceID, 0},
+		{"parity shares namespace", appconsts.ParitySharesNamespaceID, 0},
+		{"other reserved namespace", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, 0},
+		{"valid namespace", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, 1},
 	}
 
 	for _, tt := range tests {
-		message := []byte{1}
-		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, message, signer)
+		blob := []byte{1}
+		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, blob, signer)
 		input := abci.RequestPrepareProposal{
 			BlockData: &core.Data{
 				Txs: [][]byte{tx},
 			},
 		}
 		res := testApp.PrepareProposal(input)
-		assert.Equal(t, tt.expectedMessages, len(res.BlockData.Blobs))
+		assert.Equal(t, tt.expectedBlobs, len(res.BlockData.Blobs))
 	}
 }
 
-func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner) (rawTx []byte) {
+func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, blob []byte, signer *types.KeyringSigner) (rawTx []byte) {
 	coin := sdk.Coin{
 		Denom:  app.BondDenom,
 		Amount: sdk.NewInt(10),
@@ -150,8 +150,7 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, s
 		types.SetGasLimit(10000000),
 	}
 
-	// create a msg
-	msg := generateSignedWirePayForBlob(t, ns, message, appconsts.ShareVersionZero, signer, opts)
+	msg := generateSignedWirePayForBlob(t, ns, blob, appconsts.ShareVersionZero, signer, opts)
 
 	builder := signer.NewTxBuilder(opts...)
 
@@ -165,8 +164,8 @@ func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, s
 	return rawTx
 }
 
-func generateSignedWirePayForBlob(t *testing.T, ns []byte, message []byte, shareVersion uint8, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
-	msg, err := types.NewWirePayForBlob(ns, message, shareVersion)
+func generateSignedWirePayForBlob(t *testing.T, ns []byte, blob []byte, shareVersion uint8, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
+	msg, err := types.NewWirePayForBlob(ns, blob, shareVersion)
 	if err != nil {
 		t.Error(err)
 	}

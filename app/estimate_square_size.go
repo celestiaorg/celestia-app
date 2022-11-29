@@ -15,9 +15,9 @@ import (
 // prune removes txs until the set of txs will fit in the square of size
 // squareSize. It assumes that the currentShareCount is accurate. This function
 // is far from optimal because accurately knowing how many shares any given
-// set of transactions and its message takes up in a data square that is following the
+// set of transactions and its blob takes up in a data square that is following the
 // non-interactive default rules requires recalculating the entire square.
-// TODO: include the padding used by each msg when counting removed shares
+// TODO: include the padding used by each blob when counting removed shares
 func prune(txConf client.TxConfig, txs []*parsedTx, currentShareCount, squareSize int) parsedTxs {
 	maxShares := squareSize * squareSize
 	if maxShares >= currentShareCount {
@@ -27,7 +27,7 @@ func prune(txConf client.TxConfig, txs []*parsedTx, currentShareCount, squareSiz
 
 	removedContiguousShares := 0
 	contigBytesCursor := 0
-	removedMessageShares := 0
+	removedBlobShares := 0
 	removedTxs := 0
 
 	// adjustContigCursor checks if enough contiguous bytes have been removed
@@ -40,10 +40,10 @@ func prune(txConf client.TxConfig, txs []*parsedTx, currentShareCount, squareSiz
 		}
 	}
 
-	for i := len(txs) - 1; (removedContiguousShares + removedMessageShares) < goal; i-- {
+	for i := len(txs) - 1; (removedContiguousShares + removedBlobShares) < goal; i-- {
 		// this normally doesn't happen, but since we don't calculate the number
 		// of padded shares also being removed, its possible to reach this value
-		// should there be many small messages, and we don't want to panic.
+		// should there be many small blobs, and we don't want to panic.
 		if i < 0 {
 			break
 		}
@@ -53,7 +53,7 @@ func prune(txConf client.TxConfig, txs []*parsedTx, currentShareCount, squareSiz
 			continue
 		}
 
-		removedMessageShares += shares.MsgSharesUsed(len(txs[i].msg.GetBlob()))
+		removedBlobShares += shares.BlobSharesUsed(len(txs[i].msg.GetBlob()))
 		// we ignore the error here, as if there is an error malleating the tx,
 		// then we need to remove it anyway and it will not end up contributing
 		// bytes to the square anyway.
@@ -69,16 +69,16 @@ func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSi
 	txSplitter := shares.NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
 	evdSplitter := shares.NewCompactShareSplitter(appconsts.EvidenceNamespaceID, appconsts.ShareVersionZero)
 	var err error
-	msgSharesCursor := len(txs)
+	blobSharesCursor := len(txs)
 	for _, tx := range txs {
 		rawTx := tx.rawTx
 		if tx.malleatedTx != nil {
-			rawTx, err = coretypes.WrapMalleatedTx(tx.originalHash(), uint32(msgSharesCursor), tx.malleatedTx)
+			rawTx, err = coretypes.WrapMalleatedTx(tx.originalHash(), uint32(blobSharesCursor), tx.malleatedTx)
 			if err != nil {
 				panic(err)
 			}
-			used, _ := shares.MsgSharesUsedNonInteractiveDefaults(msgSharesCursor, squareSize, tx.msg.Size())
-			msgSharesCursor += used
+			used, _ := shares.BlobSharesUsedNonInteractiveDefaults(blobSharesCursor, squareSize, tx.msg.Size())
+			blobSharesCursor += used
 		}
 		txSplitter.WriteTx(rawTx)
 	}
@@ -107,7 +107,7 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 	}
 
 	// calculate the smallest possible square size that could contain all the
-	// messages
+	// shares
 	squareSize := shares.RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(txShares + evdShares + msgShares)))))
 
 	// the starting square size should at least be the minimum
@@ -120,7 +120,7 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 		// assume that all the msgs in the square use the non-interactive
 		// default rules and see if we can fit them in the smallest starting
 		// square size. We start the cursor (share index) at the beginning of
-		// the message shares (txShares+evdShares), because shares that do not
+		// the blob shares (txShares+evdShares), because shares that do not
 		// follow the non-interactive defaults are simple to estimate.
 		fits, msgShares = shares.FitsInSquare(txShares+evdShares, squareSize, msgLens...)
 		switch {
@@ -139,22 +139,21 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 }
 
 // rawShareCount calculates the number of shares taken by all of the included
-// txs, evidence, and each msg. msgLens is a slice of the number of shares used
-// by each message without accounting for the non-interactive message layout
-// rules.
-func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares int, msgLens []int) {
-	// msgSummary is used to keep track of the size and the namespace so that we
-	// can sort the messages by namespace before returning.
-	type msgSummary struct {
-		// size is the number of shares used by this message
+// txs, evidence, and each blob. blobLens is a slice of the number of shares used
+// by each blob without accounting for the non-interactive default rules.
+func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares int, blobLens []int) {
+	// blobSummary is used to keep track of the size and the namespace so that we
+	// can sort the blobs by namespace before returning.
+	type blobSummary struct {
+		// size is the number of shares used by this blob
 		size      int
 		namespace []byte
 	}
 
-	var msgSummaries []msgSummary //nolint:prealloc
+	var blobSummaries []blobSummary //nolint:prealloc
 
 	// we use bytes instead of shares for tx and evd as they are encoded
-	// contiguously in the square, unlike msgs where each of which is assigned their
+	// contiguously in the square, unlike blobs where each of which is assigned their
 	// own set of shares
 	txBytes, evdBytes := 0, 0
 	for _, pTx := range txs {
@@ -167,12 +166,12 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 
 		// if there is a malleated tx, then we want to also account for the
 		// txs that get included on-chain. The formula used here over
-		// compensates for the actual size of the message, and in some cases can
+		// compensates for the actual size of the blob, and in some cases can
 		// result in some wasted square space or picking a square size that is
 		// too large. TODO: improve by making a more accurate estimation formula
 		txBytes += overEstimateMalleatedTxSize(len(pTx.rawTx), len(pTx.msg.Blob))
 
-		msgSummaries = append(msgSummaries, msgSummary{shares.MsgSharesUsed(int(pTx.msg.BlobSize)), pTx.msg.NamespaceId})
+		blobSummaries = append(blobSummaries, blobSummary{shares.BlobSharesUsed(int(pTx.msg.BlobSize)), pTx.msg.NamespaceId})
 	}
 
 	txShares = txBytes / appconsts.ContinuationCompactShareContentSize
@@ -199,26 +198,26 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 		evdShares++ // add one to round up
 	}
 
-	// sort the msgSummaries by namespace to order them properly. This is okay to do here
+	// sort the blobSummaries by namespace to order them properly. This is okay to do here
 	// as we aren't sorting the actual txs, just their summaries for more
 	// accurate estimations
-	sort.Slice(msgSummaries, func(i, j int) bool {
-		return bytes.Compare(msgSummaries[i].namespace, msgSummaries[j].namespace) < 0
+	sort.Slice(blobSummaries, func(i, j int) bool {
+		return bytes.Compare(blobSummaries[i].namespace, blobSummaries[j].namespace) < 0
 	})
 
 	// isolate the sizes as we no longer need the namespaces
-	msgShares := make([]int, len(msgSummaries))
-	for i, summary := range msgSummaries {
-		msgShares[i] = summary.size
+	blobShares := make([]int, len(blobSummaries))
+	for i, summary := range blobSummaries {
+		blobShares[i] = summary.size
 	}
-	return txShares, evdShares, msgShares
+	return txShares, evdShares, blobShares
 }
 
 // overEstimateMalleatedTxSize estimates the size of a malleated tx. The formula it uses will always over estimate.
-func overEstimateMalleatedTxSize(txLen, msgLen int) int {
-	// the malleated tx uses the original txLen to account for meta data from
-	// the original tx, but removes the message
-	malleatedTxLen := txLen - msgLen
+func overEstimateMalleatedTxSize(txLen, blobSize int) int {
+	// the malleated tx uses the original txLen to account for metadata from
+	// the original tx, but removes the blob
+	malleatedTxLen := txLen - blobSize
 	// we need to ensure that the returned number is at least larger than or
 	// equal to the actual number, which is difficult to calculate without
 	// actually malleating the tx

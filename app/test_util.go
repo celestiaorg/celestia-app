@@ -67,7 +67,7 @@ func generateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *type
 		wpfbTx := generateRawWirePFBTx(
 			t,
 			txConfig,
-			namespace.RandomMessageNamespace(),
+			namespace.RandomBlobNamespace(),
 			tmrand.Bytes(size),
 			appconsts.ShareVersionZero,
 			signer,
@@ -122,11 +122,11 @@ func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.Key
 	return rawTx
 }
 
-// generateRawWirePFB creates a tx with a single MsgWirePayForBlob message using
-// the provided namespace, message, and shareVersion
-func generateRawWirePFBTx(t *testing.T, txConfig client.TxConfig, ns []byte, message []byte, shareVersion uint8, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
+// generateRawWirePFBTx creates a tx with a single MsgWirePayForBlob using
+// the provided namespace, blob, and shareVersion
+func generateRawWirePFBTx(t *testing.T, txConfig client.TxConfig, ns []byte, blob []byte, shareVersion uint8, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
 	// create a msg
-	msg := generateSignedWirePayForBlob(t, ns, message, shareVersion, signer, opts)
+	msg := generateSignedWirePayForBlob(t, ns, blob, shareVersion, signer, opts)
 
 	builder := signer.NewTxBuilder(opts...)
 	tx, err := signer.BuildSignedTx(builder, msg)
@@ -139,8 +139,8 @@ func generateRawWirePFBTx(t *testing.T, txConfig client.TxConfig, ns []byte, mes
 	return rawTx
 }
 
-func generateSignedWirePayForBlob(t *testing.T, ns []byte, message []byte, shareVersion uint8, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
-	msg, err := types.NewWirePayForBlob(ns, message, shareVersion)
+func generateSignedWirePayForBlob(t *testing.T, ns []byte, blob []byte, shareVersion uint8, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
+	msg, err := types.NewWirePayForBlob(ns, blob, shareVersion)
 	if err != nil {
 		t.Error(err)
 	}

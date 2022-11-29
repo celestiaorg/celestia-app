@@ -29,7 +29,7 @@ The malleation process occurs during the PrepareProposal step.
 
 ## Events
 
-- [`NewPayForBlobEvent`](https://github.com/celestiaorg/celestia-app/pull/213/files#diff-1ce55bda42cf160deca2e5ea1f4382b65f3b689c7e00c88085d7ce219e77303dR17-R21) is emitted with the signer's address and size of the message that is paid for.
+- [`NewPayForBlobEvent`](https://github.com/celestiaorg/celestia-app/pull/213/files#diff-1ce55bda42cf160deca2e5ea1f4382b65f3b689c7e00c88085d7ce219e77303dR17-R21) is emitted with the signer's address and size of the blob that is paid for.
 
 ## Parameters
 
@@ -50,7 +50,7 @@ There are tools to programmatically create, sign, and broadcast `MsgWirePayForBl
 
 ```go
 // create the raw WirePayForBlob transaction
-wpfbMsg, err := apptypes.NewWirePayForBlob(block.Header.NamespaceId, message, 16, 32, 64, 128)
+wpfbMsg, err := apptypes.NewWirePayForBlob(block.Header.NamespaceId, blob, 16, 32, 64, 128)
 if err != nil {
     return err
 }

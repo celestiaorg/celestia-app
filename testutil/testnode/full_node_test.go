@@ -85,7 +85,7 @@ func (s *IntegrationTestSuite) Test_Liveness() {
 
 func (s *IntegrationTestSuite) Test_PostData() {
 	require := s.Require()
-	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, namespace.RandomMessageNamespace(), tmrand.Bytes(100000))
+	_, err := s.cctx.PostData(s.accounts[0], flags.BroadcastBlock, namespace.RandomBlobNamespace(), tmrand.Bytes(100000))
 	require.NoError(err)
 }
 

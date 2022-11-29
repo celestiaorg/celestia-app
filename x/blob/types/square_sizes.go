@@ -5,14 +5,14 @@ import (
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 )
 
-// MsgSharesUsed calculates the minimum number of shares a message will take up.
+// BlobSharesUsed calculates the minimum number of shares a blob will take up.
 // It accounts for the necessary delimiter and potential padding.
-func MsgSharesUsed(msgSize int) int {
-	// add the delimiter to the message size
-	msgSize = shares.DelimLen(uint64(msgSize)) + msgSize
-	shareCount := msgSize / appconsts.SparseShareContentSize
-	// increment the share count if the message overflows the last counted share
-	if msgSize%appconsts.SparseShareContentSize != 0 {
+func BlobSharesUsed(blobSize int) int {
+	// add the delimiter to the blob size
+	blobSize = shares.DelimLen(uint64(blobSize)) + blobSize
+	shareCount := blobSize / appconsts.SparseShareContentSize
+	// increment the share count if the blob overflows the last counted share
+	if blobSize%appconsts.SparseShareContentSize != 0 {
 		shareCount++
 	}
 	return shareCount

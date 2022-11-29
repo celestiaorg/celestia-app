@@ -59,8 +59,8 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 
 	// some hex namespace
 	hexNS := "0102030405060708"
-	// some hex message
-	hexMsg := "0204033704032c0b162109000908094d425837422c2116"
+	// some hex blob
+	hexBlob := "0204033704032c0b162109000908094d425837422c2116"
 
 	testCases := []struct {
 		name         string
@@ -73,7 +73,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 			"valid transaction",
 			[]string{
 				hexNS,
-				hexMsg,
+				hexBlob,
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
@@ -111,11 +111,11 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 					signer := e.GetAttributes()[0].GetValue()
 					_, err = sdk.AccAddressFromBech32(signer)
 					require.NoError(err)
-					msg, err := hex.DecodeString(tc.args[1])
+					blob, err := hex.DecodeString(tc.args[1])
 					require.NoError(err)
-					msgSize, err := strconv.ParseInt(e.GetAttributes()[1].GetValue(), 10, 64)
+					blobSize, err := strconv.ParseInt(e.GetAttributes()[1].GetValue(), 10, 64)
 					require.NoError(err)
-					require.Equal(len(msg), int(msgSize))
+					require.Equal(len(blob), int(blobSize))
 				}
 			}
 

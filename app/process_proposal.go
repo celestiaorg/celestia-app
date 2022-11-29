@@ -22,9 +22,9 @@ const (
 )
 
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
-	// Check for message inclusion:
-	//  - each MsgPayForBlob included in a block should have a corresponding data also in the block body
-	//  - the commitment in each PFB should match that of its corresponding data
+	// Check for blob inclusion:
+	//  - each MsgPayForBlob included in a block should have a corresponding blob data in the block body
+	//  - the commitment in each PFB should match the commitment for the shares that contain that blob data
 	//  - there should be no unpaid-for data
 
 	data, err := coretypes.DataFromProto(req.BlockData)
@@ -36,7 +36,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	}
 
 	if !sort.IsSorted(coretypes.BlobsByNamespace(data.Blobs)) {
-		logInvalidPropBlock(app.Logger(), req.Header, "messages are unsorted")
+		logInvalidPropBlock(app.Logger(), req.Header, "blobs are unsorted")
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
@@ -103,7 +103,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 				}
 			}
 
-			commitment, err := inclusion.GetCommit(cacher, dah, int(malleatedTx.ShareIndex), shares.MsgSharesUsed(int(pfb.BlobSize)))
+			commitment, err := inclusion.GetCommit(cacher, dah, int(malleatedTx.ShareIndex), shares.BlobSharesUsed(int(pfb.BlobSize)))
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), req.Header, "commitment not found", err)
 				return abci.ResponseProcessProposal{
@@ -122,10 +122,10 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	// compare the number of PFBs and messages, if they aren't
-	// identical, then  we already know this block is invalid
+	// compare the number of MPFBs and blobs, if they aren't
+	// identical, then we already know this block is invalid
 	if commitmentCounter != len(req.BlockData.Blobs) {
-		logInvalidPropBlock(app.Logger(), req.Header, "varying number of messages and payForBlob txs in the same block")
+		logInvalidPropBlock(app.Logger(), req.Header, "varying number of MsgPayForBlob and blobs in the same block")
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}

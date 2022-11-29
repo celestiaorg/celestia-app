@@ -7,12 +7,12 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 )
 
-func GetCommit(cacher *EDSSubTreeRootCacher, dah da.DataAvailabilityHeader, start, msgShareLen int) ([]byte, error) {
+func GetCommit(cacher *EDSSubTreeRootCacher, dah da.DataAvailabilityHeader, start, blobShareLen int) ([]byte, error) {
 	squareSize := len(dah.RowsRoots) / 2
-	if start+msgShareLen > squareSize*squareSize {
-		return nil, errors.New("cannot get commit for message that doesn't fit in square")
+	if start+blobShareLen > squareSize*squareSize {
+		return nil, errors.New("cannot get commit for blob that doesn't fit in square")
 	}
-	paths := calculateCommitPaths(squareSize, start, msgShareLen)
+	paths := calculateCommitPaths(squareSize, start, blobShareLen)
 	commits := make([][]byte, len(paths))
 	for i, path := range paths {
 		// here we prepend false (walk left down the tree) because we only need

@@ -163,7 +163,7 @@ var xxx_messageInfo_MsgWirePayForBlobResponse proto.InternalMessageInfo
 // ShareCommitAndSignature defines the
 type ShareCommitAndSignature struct {
 	// share_commitment is the root of a binary Merkle tree that has leaves which
-	// are subtree roots of the relevant message shares in the original data
+	// are subtree roots of the relevant blob shares in the original data
 	// square.
 	ShareCommitment []byte `protobuf:"bytes,2,opt,name=share_commitment,json=shareCommitment,proto3" json:"share_commitment,omitempty"`
 	Signature       []byte `protobuf:"bytes,3,opt,name=signature,proto3" json:"signature,omitempty"`
@@ -392,7 +392,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	// PayForBlob allows the user to pay for the inclusion of a message
+	// PayForBlob allows the user to pay for the inclusion of a blob
 	PayForBlob(ctx context.Context, in *MsgPayForBlob, opts ...grpc.CallOption) (*MsgPayForBlobResponse, error)
 }
 
@@ -415,7 +415,7 @@ func (c *msgClient) PayForBlob(ctx context.Context, in *MsgPayForBlob, opts ...g
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	// PayForBlob allows the user to pay for the inclusion of a message
+	// PayForBlob allows the user to pay for the inclusion of a blob
 	PayForBlob(context.Context, *MsgPayForBlob) (*MsgPayForBlobResponse, error)
 }
 

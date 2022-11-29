@@ -19,11 +19,11 @@ import (
 
 func TestMerge(t *testing.T) {
 	type test struct {
-		name     string
-		txCount  int
-		evdCount int
-		msgCount int
-		maxSize  int // max size of each tx or msg
+		name      string
+		txCount   int
+		evdCount  int
+		blobCount int
+		maxSize   int // max size of each tx or blob
 	}
 
 	tests := []test{
@@ -33,7 +33,7 @@ func TestMerge(t *testing.T) {
 		{"many of each random large size", 10, 10, 10, 400},
 		{"only transactions", 10, 0, 0, 400},
 		{"only evidence", 0, 10, 0, 400},
-		{"only messages", 0, 0, 10, 400},
+		{"only blobs", 0, 0, 10, 400},
 	}
 
 	for _, tc := range tests {
@@ -44,7 +44,7 @@ func TestMerge(t *testing.T) {
 			data := generateRandomBlockData(
 				tc.txCount,
 				tc.evdCount,
-				tc.msgCount,
+				tc.blobCount,
 				tc.maxSize,
 			)
 
@@ -98,10 +98,10 @@ func TestFuzz_Merge(t *testing.T) {
 }
 
 // generateRandomBlockData returns randomly generated block data for testing purposes
-func generateRandomBlockData(txCount, evdCount, msgCount, maxSize int) (data coretypes.Data) {
+func generateRandomBlockData(txCount, evdCount, blobCount, maxSize int) (data coretypes.Data) {
 	data.Txs = generateRandomlySizedTransactions(txCount, maxSize)
 	data.Evidence = generateIdenticalEvidence(evdCount)
-	data.Blobs = generateRandomlySizedBlobs(msgCount, maxSize)
+	data.Blobs = generateRandomlySizedBlobs(blobCount, maxSize)
 	data.SquareSize = appconsts.MaxSquareSize
 	return data
 }
@@ -168,16 +168,16 @@ func generateRandomBlob(size int) coretypes.Blob {
 	return blob
 }
 
-// generateRandomMessageOfShareCount returns a message that spans the given
+// generateRandomBlobOfShareCount returns a blob that spans the given
 // number of shares
-func generateRandomMessageOfShareCount(count int) coretypes.Blob {
-	size := rawMessageSize(appconsts.SparseShareContentSize * count)
+func generateRandomBlobOfShareCount(count int) coretypes.Blob {
+	size := rawBlobSize(appconsts.SparseShareContentSize * count)
 	return generateRandomBlob(size)
 }
 
-// rawMessageSize returns the raw message size that can be used to construct a
-// message of totalSize bytes. This function is useful in tests to account for
-// the delimiter length that is prefixed to a message's data.
-func rawMessageSize(totalSize int) int {
+// rawBlobSize returns the raw blob size that can be used to construct a
+// blob of totalSize bytes. This function is useful in tests to account for
+// the delimiter length that is prefixed to a blob's data.
+func rawBlobSize(totalSize int) int {
 	return totalSize - DelimLen(uint64(totalSize))
 }

@@ -17,17 +17,17 @@ func malleateTxs(
 	txs parsedTxs,
 	evd core.EvidenceList,
 ) ([][]byte, []core.Blob, error) {
-	// trackedMessage keeps track of the pfb from which it was malleated from so
+	// trackedBlob keeps track of the pfb from which it was malleated from so
 	// that we can wrap that pfb with appropriate share index
-	type trackedMessage struct {
-		message     *core.Blob
+	type trackedBlob struct {
+		blob        *core.Blob
 		parsedIndex int
 	}
 
 	// malleate any malleable txs while also keeping track of the original order
-	// and tagging the resulting messages with a reverse index.
+	// and tagging the resulting trackedBlob with a reverse index.
 	var err error
-	var trackedMsgs []trackedMessage
+	var trackedBlobs []trackedBlob
 	for i, pTx := range txs {
 		if pTx.msg != nil {
 			err = pTx.malleate(txConf)
@@ -35,33 +35,33 @@ func malleateTxs(
 				txs.remove(i)
 				continue
 			}
-			trackedMsgs = append(trackedMsgs, trackedMessage{message: pTx.message(), parsedIndex: i})
+			trackedBlobs = append(trackedBlobs, trackedBlob{blob: pTx.blob(), parsedIndex: i})
 		}
 	}
 
-	// sort the messages so that we can create a data square whose messages are
+	// sort the trackedBlobs so that we can create a data square whose blobs are
 	// ordered by namespace. This is a block validity rule, and will cause nmt
 	// to panic if unsorted.
-	sort.SliceStable(trackedMsgs, func(i, j int) bool {
-		return bytes.Compare(trackedMsgs[i].message.NamespaceId, trackedMsgs[j].message.NamespaceId) < 0
+	sort.SliceStable(trackedBlobs, func(i, j int) bool {
+		return bytes.Compare(trackedBlobs[i].blob.NamespaceId, trackedBlobs[j].blob.NamespaceId) < 0
 	})
 
 	// split the tracked messagse apart now that we know the order of the indexes
-	msgs := make([]core.Blob, len(trackedMsgs))
-	parsedTxReverseIndexes := make([]int, len(trackedMsgs))
-	for i, tMsg := range trackedMsgs {
-		msgs[i] = *tMsg.message
-		parsedTxReverseIndexes[i] = tMsg.parsedIndex
+	blobs := make([]core.Blob, len(trackedBlobs))
+	parsedTxReverseIndexes := make([]int, len(trackedBlobs))
+	for i, trackedBlob := range trackedBlobs {
+		blobs[i] = *trackedBlob.blob
+		parsedTxReverseIndexes[i] = trackedBlob.parsedIndex
 	}
 
 	// the malleated transactions still need to be wrapped with the starting
-	// share index of the message, which we still need to calculate. Here we
+	// share index of the blob, which we still need to calculate. Here we
 	// calculate the exact share counts used by the different types of block
 	// data in order to get an accurate index.
 	compactShareCount := calculateCompactShareCount(txs, evd, int(squareSize))
-	msgShareCounts := shares.MessageShareCountsFromMessages(msgs)
-	// calculate the indexes that will be used for each message
-	_, indexes := shares.MsgSharesUsedNonInteractiveDefaults(compactShareCount, int(squareSize), msgShareCounts...)
+	blobShareCounts := shares.BlobShareCountsFromBlobs(blobs)
+	// calculate the indexes that will be used for each blob
+	_, indexes := shares.BlobSharesUsedNonInteractiveDefaults(compactShareCount, int(squareSize), blobShareCounts...)
 	for i, reverseIndex := range parsedTxReverseIndexes {
 		wrappedMalleatedTx, err := txs[reverseIndex].wrap(indexes[i])
 		if err != nil {
@@ -80,7 +80,7 @@ func malleateTxs(
 		}
 	}
 
-	return processedTxs, msgs, err
+	return processedTxs, blobs, err
 }
 
 func (p *parsedTx) malleate(txConf client.TxConfig) error {
@@ -88,15 +88,14 @@ func (p *parsedTx) malleate(txConf client.TxConfig) error {
 		return errors.New("can only malleate a tx with a MsgWirePayForBlob")
 	}
 
-	// parse wire message and create a single message
-	_, unsignedPFB, sig, err := types.ProcessWirePayForBlob(p.msg)
+	_, unsignedMPFB, sig, err := types.ProcessWireMsgPayForBlob(p.msg)
 	if err != nil {
 		return err
 	}
 
 	// create the signed PayForBlob using the fees, gas limit, and sequence from
 	// the original transaction, along with the appropriate signature.
-	signedTx, err := types.BuildPayForBlobTxFromWireTx(p.tx, txConf.NewTxBuilder(), sig, unsignedPFB)
+	signedTx, err := types.BuildPayForBlobTxFromWireTx(p.tx, txConf.NewTxBuilder(), sig, unsignedMPFB)
 	if err != nil {
 		return err
 	}

@@ -178,10 +178,10 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 	val := s.network.Validators[0]
 
 	type test struct {
-		name    string
-		ns      []byte
-		message []byte
-		opts    []types.TxBuilderOption
+		name string
+		ns   []byte
+		blob []byte
+		opts []types.TxBuilderOption
 	}
 
 	tests := []test{
@@ -221,7 +221,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 	for _, tc := range tests {
 		s.Run(tc.name, func() {
 			signer := types.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
-			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.message, appconsts.ShareVersionZero, 10000000, tc.opts...)
+			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.blob, appconsts.ShareVersionZero, 10000000, tc.opts...)
 			require.NoError(err)
 			require.NotNil(res)
 			assert.Equal(abci.CodeTypeOK, res.Code)
@@ -234,7 +234,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 	}
 }
 
-func generateSignedWirePayForBlobTxs(clientCtx client.Context, txConfig client.TxConfig, kr keyring.Keyring, msgSize int, accounts ...string) ([]coretypes.Tx, error) {
+func generateSignedWirePayForBlobTxs(clientCtx client.Context, txConfig client.TxConfig, kr keyring.Keyring, blobSize int, accounts ...string) ([]coretypes.Tx, error) {
 	txs := make([]coretypes.Tx, len(accounts))
 	for i, account := range accounts {
 		signer := types.NewKeyringSigner(kr, account, clientCtx.ChainID)
@@ -254,11 +254,11 @@ func generateSignedWirePayForBlobTxs(clientCtx client.Context, txConfig client.T
 			types.SetGasLimit(1000000000),
 		}
 
-		thisMessageSize := msgSize
-		if msgSize < 1 {
+		thisBlobSize := blobSize
+		if blobSize < 1 {
 			for {
-				thisMessageSize = tmrand.NewRand().Intn(100000)
-				if thisMessageSize != 0 {
+				thisBlobSize = tmrand.NewRand().Intn(100000)
+				if thisBlobSize != 0 {
 					break
 				}
 			}
@@ -266,8 +266,8 @@ func generateSignedWirePayForBlobTxs(clientCtx client.Context, txConfig client.T
 
 		// create a msg
 		msg, err := types.NewWirePayForBlob(
-			namespace.RandomMessageNamespace(),
-			tmrand.Bytes(thisMessageSize),
+			namespace.RandomBlobNamespace(),
+			tmrand.Bytes(thisBlobSize),
 			appconsts.ShareVersionZero,
 		)
 		if err != nil {

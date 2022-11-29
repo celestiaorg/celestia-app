@@ -37,7 +37,7 @@ const (
 	ContinuationCompactShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareReservedBytes
 
 	// SparseShareContentSize is the number of bytes usable for data in a sparse (i.e.
-	// message) share.
+	// blob) share.
 	SparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes
 
 	// MaxSquareSize is the maximum number of
@@ -103,8 +103,8 @@ var (
 	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
 
 	// NameSpacedPaddedShareBytes are the raw bytes that are used in the contents
-	// of a NameSpacedPaddedShare. A NameSpacedPaddedShare follows a message so
-	// that the next message starts at an index that conforms to non-interactive
+	// of a NameSpacedPaddedShare. A NameSpacedPaddedShare follows a blob so
+	// that the next blob starts at an index that conforms to non-interactive
 	// defaults.
 	NameSpacedPaddedShareBytes = bytes.Repeat([]byte{0}, SparseShareContentSize)
 
