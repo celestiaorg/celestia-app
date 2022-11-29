@@ -16,6 +16,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	disttypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	"github.com/spf13/cobra"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -23,6 +24,23 @@ var encCfg encoding.Config
 
 func init() {
 	encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
+}
+
+func CmdForkMamaki() *cobra.Command {
+	command := &cobra.Command{
+		Use:   "fork-mamaki [pathToMamakiSnapshot] [pathToMochaGenesis]",
+		Short: "fork mamaki",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			srcPath := args[0]
+			dstPath := args[1]
+			_, _, err := Fork(srcPath, dstPath)
+
+			return err
+		},
+	}
+
+	return command
 }
 
 func Fork(src, dst string, newAccounts ...string) (map[string]json.RawMessage, keyring.Keyring, error) {
