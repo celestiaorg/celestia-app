@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/nmt/namespace"
-	"github.com/cosmos/cosmos-sdk/client"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,7 +19,7 @@ import (
 )
 
 func TestPrepareProposal(t *testing.T) {
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	signer := types.GenerateKeyringSigner(t, types.TestAccName)
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
@@ -35,15 +33,15 @@ func TestPrepareProposal(t *testing.T) {
 
 	firstNamespace := []byte{2, 2, 2, 2, 2, 2, 2, 2}
 	firstBlob := bytes.Repeat([]byte{4}, 512)
-	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNamespace, firstBlob, signer)
+	firstRawTx := app.GenerateRawWirePFB(t, encCfg.TxConfig, firstNamespace, firstBlob, signer)
 
 	secondNamespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	secondBlob := []byte{2}
-	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNamespace, secondBlob, signer)
+	secondRawTx := app.GenerateRawWirePFB(t, encCfg.TxConfig, secondNamespace, secondBlob, signer)
 
 	thirdNamespace := []byte{3, 3, 3, 3, 3, 3, 3, 3}
 	thirdBlob := []byte{1}
-	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNamespace, thirdBlob, signer)
+	thirdRawTx := app.GenerateRawWirePFB(t, encCfg.TxConfig, thirdNamespace, thirdBlob, signer)
 
 	tests := []test{
 		{
@@ -109,7 +107,7 @@ func TestPrepareProposalWithReservedNamespaces(t *testing.T) {
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	signer := types.GenerateKeyringSigner(t, types.TestAccName)
 
 	type test struct {
 		name          string
@@ -128,7 +126,7 @@ func TestPrepareProposalWithReservedNamespaces(t *testing.T) {
 
 	for _, tt := range tests {
 		blob := []byte{1}
-		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, blob, signer)
+		tx := app.GenerateRawWirePFB(t, encCfg.TxConfig, tt.namespace, blob, signer)
 		input := abci.RequestPrepareProposal{
 			BlockData: &core.Data{
 				Txs: [][]byte{tx},
@@ -138,46 +136,3 @@ func TestPrepareProposalWithReservedNamespaces(t *testing.T) {
 		assert.Equal(t, tt.expectedBlobs, len(res.BlockData.Blobs))
 	}
 }
-
-func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, blob []byte, signer *types.KeyringSigner) (rawTx []byte) {
-	coin := sdk.Coin{
-		Denom:  app.BondDenom,
-		Amount: sdk.NewInt(10),
-	}
-
-	opts := []types.TxBuilderOption{
-		types.SetFeeAmount(sdk.NewCoins(coin)),
-		types.SetGasLimit(10000000),
-	}
-
-	msg := generateSignedWirePayForBlob(t, ns, blob, appconsts.ShareVersionZero, signer, opts)
-
-	builder := signer.NewTxBuilder(opts...)
-
-	tx, err := signer.BuildSignedTx(builder, msg)
-	require.NoError(t, err)
-
-	// encode the tx
-	rawTx, err = txConfig.TxEncoder()(tx)
-	require.NoError(t, err)
-
-	return rawTx
-}
-
-func generateSignedWirePayForBlob(t *testing.T, ns []byte, blob []byte, shareVersion uint8, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
-	msg, err := types.NewWirePayForBlob(ns, blob, shareVersion)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = msg.SignShareCommitment(signer, options...)
-	if err != nil {
-		t.Error(err)
-	}
-
-	return msg
-}
-
-const (
-	testAccName = "test-account"
-)

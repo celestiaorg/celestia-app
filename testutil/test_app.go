@@ -8,13 +8,10 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/simapp"
@@ -177,26 +174,7 @@ func AddGenesisAccount(addr sdk.AccAddress, appState app.GenesisState, cdc codec
 	return appState, nil
 }
 
-func generateKeyring(t *testing.T, cdc codec.Codec, accts ...string) keyring.Keyring {
-	t.Helper()
-	kb := keyring.NewInMemory(cdc)
-
-	for _, acc := range accts {
-		_, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	_, err := kb.NewAccount(TestAccName, testMnemo, "1234", "", hd.Secp256k1)
-	if err != nil {
-		panic(err)
-	}
-
-	return kb
-}
-
-// SetupWithGenesisValSet initializes GenesisState with a single validator and genesis accounts
+// GenesisStateWithSingleValidator initializes GenesisState with a single validator and genesis accounts
 // that also act as delegators.
 func GenesisStateWithSingleValidator(t *testing.T, testApp *app.App) (app.GenesisState, *tmtypes.ValidatorSet) {
 	t.Helper()
@@ -288,21 +266,6 @@ func genesisStateWithValSet(t *testing.T,
 
 	return genesisState
 }
-
-// GenerateKeyringSigner creates a types.KeyringSigner with keys generated for
-// the provided accounts
-func GenerateKeyringSigner(t *testing.T, acct string) *types.KeyringSigner {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	kr := generateKeyring(t, encCfg.Codec, acct)
-	return types.NewKeyringSigner(kr, acct, testChainID)
-}
-
-const (
-	// nolint:lll
-	testMnemo   = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
-	TestAccName = "test-account"
-	testChainID = "test-chain-1"
-)
 
 // NewDefaultGenesisState generates the default state for the application.
 func NewDefaultGenesisState(cdc codec.JSONCodec) app.GenesisState {

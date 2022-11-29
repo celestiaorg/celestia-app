@@ -15,21 +15,20 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
-	paytestutil "github.com/celestiaorg/celestia-app/testutil/blob"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func TestBlobInclusionCheck(t *testing.T) {
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	signer := types.GenerateKeyringSigner(t, types.TestAccName)
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	// block with all blobs included
 	validData := func() *core.Data {
 		return &core.Data{
-			Txs: paytestutil.GenerateManyRawWirePFB(t, encConf.TxConfig, signer, 4, 1000),
+			Txs: app.GenerateManyRawWirePFB(t, encConf.TxConfig, signer, 4, 1000),
 		}
 	}
 
@@ -122,7 +121,7 @@ func TestProcessProposalWithParityShareNamespace(t *testing.T) {
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	signer := types.GenerateKeyringSigner(t, types.TestAccName)
 
 	pfb, blobData := genRandMsgPayForBlobForNamespace(t, signer, appconsts.ParitySharesNamespaceID)
 	input := abci.RequestProcessProposal{

@@ -3,54 +3,25 @@ package app
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func GenerateValidBlockData(
-	t *testing.T,
-	txConfig client.TxConfig,
-	signer *types.KeyringSigner,
-	pfbCount,
-	normalTxCount,
-	size int,
-) (coretypes.Data, error) {
-	rawTxs := generateManyRawWirePFB(t, txConfig, signer, pfbCount, size)
-	rawTxs = append(rawTxs, generateManyRawSendTxs(t, txConfig, signer, normalTxCount)...)
-	parsedTxs := parseTxs(txConfig, rawTxs)
-
-	squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, core.EvidenceList{})
-
-	if totalSharesUsed > int(squareSize*squareSize) {
-		parsedTxs = prune(txConfig, parsedTxs, totalSharesUsed, int(squareSize))
+// GenerateManyRawWirePFB creates many raw WirePayForBlob transactions. Using
+// negative numbers for count and size will randomize those values. count is
+// capped at 5000 and size is capped at 3MB. Going over these caps will result
+// in randomized values.
+func GenerateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count, size int) [][]byte {
+	// hardcode a maximum of 5000 transactions so that we can use this for fuzzing
+	if count > 5000 || count < 0 {
+		count = tmrand.Intn(5000)
 	}
-
-	processedTxs, blobs, err := malleateTxs(txConfig, squareSize, parsedTxs, core.EvidenceList{})
-	require.NoError(t, err)
-
-	blockData := core.Data{
-		Txs:        processedTxs,
-		Evidence:   core.EvidenceList{},
-		Blobs:      blobs,
-		SquareSize: squareSize,
-	}
-
-	return coretypes.DataFromProto(&blockData)
-}
-
-func generateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count, size int) [][]byte {
 	txs := make([][]byte, count)
 
 	coin := sdk.Coin{
@@ -64,7 +35,10 @@ func generateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *type
 	}
 
 	for i := 0; i < count; i++ {
-		wpfbTx := generateRawWirePFBTx(
+		if size < 0 || size > 3000000 {
+			size = tmrand.Intn(1000000)
+		}
+		wpfbTx := generateRawWirePFB(
 			t,
 			txConfig,
 			namespace.RandomBlobNamespace(),
@@ -78,7 +52,43 @@ func generateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *type
 	return txs
 }
 
-func generateManyRawSendTxs(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count int) [][]byte {
+func GenerateRawWirePFB(t *testing.T, txConfig client.TxConfig, ns, blob []byte, signer *types.KeyringSigner) (rawTx []byte) {
+	coin := sdk.Coin{
+		Denom:  BondDenom,
+		Amount: sdk.NewInt(10),
+	}
+
+	opts := []types.TxBuilderOption{
+		types.SetFeeAmount(sdk.NewCoins(coin)),
+		types.SetGasLimit(10000000),
+	}
+
+	return generateRawWirePFB(
+		t,
+		txConfig,
+		ns,
+		blob,
+		appconsts.ShareVersionZero,
+		signer,
+		opts...,
+	)
+}
+
+func GenerateSignedWirePayForBlob(t *testing.T, ns []byte, blob []byte, shareVersion uint8, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
+	msg, err := types.NewWirePayForBlob(ns, blob, shareVersion)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = msg.SignShareCommitment(signer, options...)
+	if err != nil {
+		t.Error(err)
+	}
+
+	return msg
+}
+
+func GenerateManyRawSendTxs(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, count int) [][]byte {
 	txs := make([][]byte, count)
 	for i := 0; i < count; i++ {
 		txs[i] = generateRawSendTx(t, txConfig, signer, 100)
@@ -86,7 +96,7 @@ func generateManyRawSendTxs(t *testing.T, txConfig client.TxConfig, signer *type
 	return txs
 }
 
-// this creates send transactions meant to help test encoding/prepare/process
+// generateRawSendTx creates send transactions meant to help test encoding/prepare/process
 // proposal, they are not meant to actually be executed by the state machine. If
 // we want that, we have to update nonce, and send funds to someone other than
 // the same account signing the transaction.
@@ -109,84 +119,26 @@ func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.Key
 	addr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
 
-	builder := signer.NewTxBuilder(opts...)
-
 	msg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(amountCoin))
 
-	tx, err := signer.BuildSignedTx(builder, msg)
-	require.NoError(t, err)
-
-	rawTx, err = txConfig.TxEncoder()(tx)
-	require.NoError(t, err)
-
-	return rawTx
+	return genrateRawTx(t, txConfig, msg, signer, opts...)
 }
 
-// generateRawWirePFBTx creates a tx with a single MsgWirePayForBlob using
+// generateRawWirePFB creates a tx with a single MsgWirePayForBlob using
 // the provided namespace, blob, and shareVersion
-func generateRawWirePFBTx(t *testing.T, txConfig client.TxConfig, ns []byte, blob []byte, shareVersion uint8, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
-	// create a msg
-	msg := generateSignedWirePayForBlob(t, ns, blob, shareVersion, signer, opts)
+func generateRawWirePFB(t *testing.T, txConfig client.TxConfig, ns []byte, blob []byte, shareVersion uint8, signer *types.KeyringSigner, opts ...types.TxBuilderOption) (rawTx []byte) {
+	msg := GenerateSignedWirePayForBlob(t, ns, blob, shareVersion, signer, opts)
+	return genrateRawTx(t, txConfig, msg, signer, opts...)
+}
 
+func genrateRawTx(t *testing.T, txConfig client.TxConfig, msg sdk.Msg, signer *types.KeyringSigner, opts ...types.TxBuilderOption) []byte {
 	builder := signer.NewTxBuilder(opts...)
 	tx, err := signer.BuildSignedTx(builder, msg)
 	require.NoError(t, err)
 
 	// encode the tx
-	rawTx, err = txConfig.TxEncoder()(tx)
+	rawTx, err := txConfig.TxEncoder()(tx)
 	require.NoError(t, err)
 
 	return rawTx
 }
-
-func generateSignedWirePayForBlob(t *testing.T, ns []byte, blob []byte, shareVersion uint8, signer *types.KeyringSigner, options []types.TxBuilderOption) *types.MsgWirePayForBlob {
-	msg, err := types.NewWirePayForBlob(ns, blob, shareVersion)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = msg.SignShareCommitment(signer, options...)
-	if err != nil {
-		t.Error(err)
-	}
-
-	return msg
-}
-
-const (
-	TestAccountName = "test-account"
-)
-
-func generateKeyring(t *testing.T, cdc codec.Codec, accts ...string) keyring.Keyring {
-	t.Helper()
-	kb := keyring.NewInMemory(cdc)
-
-	for _, acc := range accts {
-		_, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	_, err := kb.NewAccount(testAccName, testMnemo, "1234", "", hd.Secp256k1)
-	if err != nil {
-		panic(err)
-	}
-
-	return kb
-}
-
-// generateKeyringSigner creates a types.KeyringSigner with keys generated for
-// the provided accounts
-func generateKeyringSigner(t *testing.T, acct string) *types.KeyringSigner {
-	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
-	kr := generateKeyring(t, encCfg.Codec, acct)
-	return types.NewKeyringSigner(kr, acct, testChainID)
-}
-
-const (
-	// nolint:lll
-	testMnemo   = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
-	testAccName = "test-account"
-	testChainID = "test-chain-1"
-)

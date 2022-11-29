@@ -3,17 +3,14 @@ package shares
 import (
 	"context"
 	"math"
-	"math/rand"
-	"sort"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -99,36 +96,11 @@ func TestFuzz_Merge(t *testing.T) {
 
 // generateRandomBlockData returns randomly generated block data for testing purposes
 func generateRandomBlockData(txCount, evdCount, blobCount, maxSize int) (data coretypes.Data) {
-	data.Txs = generateRandomlySizedTransactions(txCount, maxSize)
+	data.Txs = testfactory.GenerateRandomlySizedTxs(txCount, maxSize)
 	data.Evidence = generateIdenticalEvidence(evdCount)
-	data.Blobs = generateRandomlySizedBlobs(blobCount, maxSize)
+	data.Blobs = testfactory.GenerateRandomlySizedBlobs(blobCount, maxSize)
 	data.SquareSize = appconsts.MaxSquareSize
 	return data
-}
-
-func generateRandomlySizedTransactions(count, maxSize int) coretypes.Txs {
-	txs := make(coretypes.Txs, count)
-	for i := 0; i < count; i++ {
-		size := rand.Intn(maxSize)
-		if size == 0 {
-			size = 1
-		}
-		txs[i] = generateRandomTransaction(1, size)[0]
-	}
-	return txs
-}
-
-func generateRandomTransaction(count, size int) coretypes.Txs {
-	txs := make(coretypes.Txs, count)
-	for i := 0; i < count; i++ {
-		tx := make([]byte, size)
-		_, err := rand.Read(tx)
-		if err != nil {
-			panic(err)
-		}
-		txs[i] = tx
-	}
-	return txs
 }
 
 func generateIdenticalEvidence(count int) coretypes.EvidenceData {
@@ -140,39 +112,11 @@ func generateIdenticalEvidence(count int) coretypes.EvidenceData {
 	return coretypes.EvidenceData{Evidence: evidence}
 }
 
-func generateRandomlySizedBlobs(count, maxBlobSize int) []coretypes.Blob {
-	blobs := make([]coretypes.Blob, count)
-	for i := 0; i < count; i++ {
-		blobs[i] = generateRandomBlob(rand.Intn(maxBlobSize))
-		if len(blobs[i].Data) == 0 {
-			i--
-		}
-	}
-
-	// this is just to let us use assert.Equal
-	if count == 0 {
-		blobs = nil
-	}
-
-	sort.Sort(types.BlobsByNamespace(blobs))
-	return blobs
-}
-
-// generateRandomBlob returns a random blob of the given size (in bytes)
-func generateRandomBlob(size int) coretypes.Blob {
-	blob := coretypes.Blob{
-		NamespaceID:  tmrand.Bytes(appconsts.NamespaceSize),
-		Data:         tmrand.Bytes(size),
-		ShareVersion: appconsts.ShareVersionZero,
-	}
-	return blob
-}
-
 // generateRandomBlobOfShareCount returns a blob that spans the given
 // number of shares
 func generateRandomBlobOfShareCount(count int) coretypes.Blob {
 	size := rawBlobSize(appconsts.SparseShareContentSize * count)
-	return generateRandomBlob(size)
+	return testfactory.GenerateRandomBlob(size)
 }
 
 // rawBlobSize returns the raw blob size that can be used to construct a

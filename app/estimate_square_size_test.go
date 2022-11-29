@@ -16,6 +16,10 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
+const (
+	testEstimateKey = "estimate-key"
+)
+
 func Test_estimateSquareSize(t *testing.T) {
 	type test struct {
 		name                  string
@@ -36,11 +40,11 @@ func Test_estimateSquareSize(t *testing.T) {
 		{"one over the perfect estimation edge case", 10, 1, appconsts.SparseShareContentSize * 10, 8},
 	}
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
-	signer := generateKeyringSigner(t, "estimate-key")
+	signer := types.GenerateKeyringSigner(t, testEstimateKey)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			txs := generateManyRawWirePFB(t, encConf.TxConfig, signer, tt.wPFBCount, tt.messgeSize)
-			txs = append(txs, generateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
+			txs := GenerateManyRawWirePFB(t, encConf.TxConfig, signer, tt.wPFBCount, tt.messgeSize)
+			txs = append(txs, GenerateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
 			parsedTxs := parseTxs(encConf.TxConfig, txs)
 			squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, core.EvidenceList{})
 			assert.Equal(t, tt.expectedSize, squareSize)
@@ -70,9 +74,9 @@ func Test_estimateSquareSize(t *testing.T) {
 
 func Test_pruning(t *testing.T) {
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
-	signer := generateKeyringSigner(t, "estimate-key")
-	txs := generateManyRawSendTxs(t, encConf.TxConfig, signer, 10)
-	txs = append(txs, generateManyRawWirePFB(t, encConf.TxConfig, signer, 10, 1000)...)
+	signer := types.GenerateKeyringSigner(t, testEstimateKey)
+	txs := GenerateManyRawSendTxs(t, encConf.TxConfig, signer, 10)
+	txs = append(txs, GenerateManyRawWirePFB(t, encConf.TxConfig, signer, 10, 1000)...)
 	parsedTxs := parseTxs(encConf.TxConfig, txs)
 	ss, total := estimateSquareSize(parsedTxs, core.EvidenceList{})
 	nextLowestSS := ss / 2
@@ -125,9 +129,9 @@ func Test_overEstimateMalleatedTxSize(t *testing.T) {
 	}
 
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
-	signer := generateKeyringSigner(t, "estimate-key")
+	signer := types.GenerateKeyringSigner(t, testEstimateKey)
 	for _, tt := range tests {
-		wpfbTx := generateRawWirePFBTx(
+		wpfbTx := generateRawWirePFB(
 			t,
 			encConf.TxConfig,
 			namespace.RandomBlobNamespace(),
@@ -163,11 +167,11 @@ func Test_calculateCompactShareCount(t *testing.T) {
 		{"one over the perfect estimation edge case", 10, 1, totalBlobSize(appconsts.SparseShareContentSize + 1)},
 	}
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
-	signer := generateKeyringSigner(t, "estimate-key")
+	signer := types.GenerateKeyringSigner(t, testEstimateKey)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			txs := generateManyRawWirePFB(t, encConf.TxConfig, signer, tt.wPFBCount, tt.messgeSize)
-			txs = append(txs, generateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
+			txs := GenerateManyRawWirePFB(t, encConf.TxConfig, signer, tt.wPFBCount, tt.messgeSize)
+			txs = append(txs, GenerateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
 
 			parsedTxs := parseTxs(encConf.TxConfig, txs)
 			squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, core.EvidenceList{})
