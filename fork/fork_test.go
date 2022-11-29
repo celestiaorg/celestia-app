@@ -21,13 +21,11 @@ func init() {
 }
 
 func TestLoadGenState(t *testing.T) {
+	// change these if you would like to test the genesis locally
 	srcPath := "/home/evan/mamaki-326472.json"
 	dstPath := "/home/evan/.testytest/config/genesis.json"
 	newstate, kr, err := Fork(srcPath, dstPath, "validator")
 	require.NoError(t, err)
-
-	// err = genDoc.SaveAs("/home/evan/mocha.json")
-	// require.NoError(t, err)
 
 	// try to run a testnode w/ the modified genesis
 	tmNode, _, cctx, err := testnode.New(
@@ -58,13 +56,3 @@ func TestFork(t *testing.T) {
 	_, _, err := Fork(srcPath, dstPath)
 	require.NoError(t, err)
 }
-
-// func TestExplore(t *testing.T) {
-// 	path := "/home/evan/mamaki-326472.json"
-// 	oldstate, err := loadGenState(path)
-// 	require.NoError(t, err)
-
-// 	newstate := defaultGenState()
-
-// 	// newstate = copyAccounts(oldstate, newstate)
-// }
