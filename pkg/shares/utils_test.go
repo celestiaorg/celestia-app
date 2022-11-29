@@ -11,13 +11,13 @@ import (
 )
 
 func FuzzBlobSharesUsed(f *testing.F) {
-	f.Add(int(1))
+	f.Add(1)
 	f.Fuzz(func(t *testing.T, a int) {
 		if a < 1 {
 			t.Skip()
 		}
-		ml := BlobSharesUsed(int(a))
-		blob := testfactory.GenerateRandomBlob(int(a))
+		ml := BlobSharesUsed(a)
+		blob := testfactory.GenerateRandomBlob(a)
 		rawShares, err := SplitBlobs(0, nil, []types.Blob{blob}, false)
 		require.NoError(t, err)
 		require.Equal(t, len(rawShares), ml)
@@ -55,7 +55,7 @@ func Test_zeroPadIfNecessary(t *testing.T) {
 
 func TestParseDelimiter(t *testing.T) {
 	for i := uint64(0); i < 100; i++ {
-		tx := testfactory.GenerateRandomTransactions(1, int(i))[0]
+		tx := testfactory.GenerateRandomTxs(1, int(i))[0]
 		input, err := MarshalDelimitedTx(tx)
 		if err != nil {
 			panic(err)

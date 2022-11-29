@@ -174,7 +174,7 @@ func AddGenesisAccount(addr sdk.AccAddress, appState app.GenesisState, cdc codec
 	return appState, nil
 }
 
-// SetupWithGenesisValSet initializes GenesisState with a single validator and genesis accounts
+// GenesisStateWithSingleValidator initializes GenesisState with a single validator and genesis accounts
 // that also act as delegators.
 func GenesisStateWithSingleValidator(t *testing.T, testApp *app.App) (app.GenesisState, *tmtypes.ValidatorSet) {
 	t.Helper()

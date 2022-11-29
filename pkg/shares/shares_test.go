@@ -96,7 +96,7 @@ func TestFuzz_Merge(t *testing.T) {
 
 // generateRandomBlockData returns randomly generated block data for testing purposes
 func generateRandomBlockData(txCount, evdCount, blobCount, maxSize int) (data coretypes.Data) {
-	data.Txs = testfactory.GenerateRandomlySizedTransactions(txCount, maxSize)
+	data.Txs = testfactory.GenerateRandomlySizedTxs(txCount, maxSize)
 	data.Evidence = generateIdenticalEvidence(evdCount)
 	data.Blobs = testfactory.GenerateRandomlySizedBlobs(blobCount, maxSize)
 	data.SquareSize = appconsts.MaxSquareSize

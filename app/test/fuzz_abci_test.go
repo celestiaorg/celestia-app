@@ -32,7 +32,7 @@ func TestFuzzPrepareProcessProposal(t *testing.T) {
 			return
 		default:
 			t.Run("randomized inputs to Prepare and Process Proposal", func(t *testing.T) {
-				pfbTxs := app.GenerateManyRawWirePFBTxs(t, encConf.TxConfig, signer, tmrand.Intn(100), -1)
+				pfbTxs := app.GenerateManyRawWirePFB(t, encConf.TxConfig, signer, tmrand.Intn(100), -1)
 				txs := app.GenerateManyRawSendTxs(t, encConf.TxConfig, signer, tmrand.Intn(20))
 				txs = append(txs, pfbTxs...)
 				resp := testApp.PrepareProposal(abci.RequestPrepareProposal{

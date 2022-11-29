@@ -43,7 +43,7 @@ func Test_estimateSquareSize(t *testing.T) {
 	signer := types.GenerateKeyringSigner(t, testEstimateKey)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			txs := GenerateManyRawWirePFBTxs(t, encConf.TxConfig, signer, tt.wPFBCount, tt.messgeSize)
+			txs := GenerateManyRawWirePFB(t, encConf.TxConfig, signer, tt.wPFBCount, tt.messgeSize)
 			txs = append(txs, GenerateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
 			parsedTxs := parseTxs(encConf.TxConfig, txs)
 			squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, core.EvidenceList{})
@@ -76,7 +76,7 @@ func Test_pruning(t *testing.T) {
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
 	signer := types.GenerateKeyringSigner(t, testEstimateKey)
 	txs := GenerateManyRawSendTxs(t, encConf.TxConfig, signer, 10)
-	txs = append(txs, GenerateManyRawWirePFBTxs(t, encConf.TxConfig, signer, 10, 1000)...)
+	txs = append(txs, GenerateManyRawWirePFB(t, encConf.TxConfig, signer, 10, 1000)...)
 	parsedTxs := parseTxs(encConf.TxConfig, txs)
 	ss, total := estimateSquareSize(parsedTxs, core.EvidenceList{})
 	nextLowestSS := ss / 2
@@ -131,7 +131,7 @@ func Test_overEstimateMalleatedTxSize(t *testing.T) {
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
 	signer := types.GenerateKeyringSigner(t, testEstimateKey)
 	for _, tt := range tests {
-		wpfbTx := generateRawWirePFBTx(
+		wpfbTx := generateRawWirePFB(
 			t,
 			encConf.TxConfig,
 			namespace.RandomBlobNamespace(),
@@ -170,7 +170,7 @@ func Test_calculateCompactShareCount(t *testing.T) {
 	signer := types.GenerateKeyringSigner(t, testEstimateKey)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			txs := GenerateManyRawWirePFBTxs(t, encConf.TxConfig, signer, tt.wPFBCount, tt.messgeSize)
+			txs := GenerateManyRawWirePFB(t, encConf.TxConfig, signer, tt.wPFBCount, tt.messgeSize)
 			txs = append(txs, GenerateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
 
 			parsedTxs := parseTxs(encConf.TxConfig, txs)

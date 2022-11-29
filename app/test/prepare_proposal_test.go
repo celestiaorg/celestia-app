@@ -33,15 +33,15 @@ func TestPrepareProposal(t *testing.T) {
 
 	firstNamespace := []byte{2, 2, 2, 2, 2, 2, 2, 2}
 	firstBlob := bytes.Repeat([]byte{4}, 512)
-	firstRawTx := app.GenerateRawWirePFBTxs(t, encCfg.TxConfig, firstNamespace, firstBlob, signer)
+	firstRawTx := app.GenerateRawWirePFB(t, encCfg.TxConfig, firstNamespace, firstBlob, signer)
 
 	secondNamespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	secondBlob := []byte{2}
-	secondRawTx := app.GenerateRawWirePFBTxs(t, encCfg.TxConfig, secondNamespace, secondBlob, signer)
+	secondRawTx := app.GenerateRawWirePFB(t, encCfg.TxConfig, secondNamespace, secondBlob, signer)
 
 	thirdNamespace := []byte{3, 3, 3, 3, 3, 3, 3, 3}
 	thirdBlob := []byte{1}
-	thirdRawTx := app.GenerateRawWirePFBTxs(t, encCfg.TxConfig, thirdNamespace, thirdBlob, signer)
+	thirdRawTx := app.GenerateRawWirePFB(t, encCfg.TxConfig, thirdNamespace, thirdBlob, signer)
 
 	tests := []test{
 		{
@@ -126,7 +126,7 @@ func TestPrepareProposalWithReservedNamespaces(t *testing.T) {
 
 	for _, tt := range tests {
 		blob := []byte{1}
-		tx := app.GenerateRawWirePFBTxs(t, encCfg.TxConfig, tt.namespace, blob, signer)
+		tx := app.GenerateRawWirePFB(t, encCfg.TxConfig, tt.namespace, blob, signer)
 		input := abci.RequestPrepareProposal{
 			BlockData: &core.Data{
 				Txs: [][]byte{tx},

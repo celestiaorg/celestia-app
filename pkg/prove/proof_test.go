@@ -14,12 +14,12 @@ import (
 
 func TestTxInclusion(t *testing.T) {
 	typicalBlockData := types.Data{
-		Txs:        testfactory.GenerateRandomlySizedTransactions(100, 500),
+		Txs:        testfactory.GenerateRandomlySizedTxs(100, 500),
 		Blobs:      testfactory.GenerateRandomlySizedBlobs(40, 16000),
 		SquareSize: 64,
 	}
 	lotsOfTxsNoBlobs := types.Data{
-		Txs:        testfactory.GenerateRandomlySizedTransactions(1000, 500),
+		Txs:        testfactory.GenerateRandomlySizedTxs(1000, 500),
 		SquareSize: 64,
 	}
 	overlappingSquareSize := 16
@@ -79,14 +79,14 @@ func TestTxSharePosition(t *testing.T) {
 	tests := []test{
 		{
 			name: "typical",
-			txs:  testfactory.GenerateRandomlySizedTransactions(44, 200),
+			txs:  testfactory.GenerateRandomlySizedTxs(44, 200),
 		},
 		{
 			name: "many small tx",
-			txs:  testfactory.GenerateRandomlySizedTransactions(444, 100),
+			txs:  testfactory.GenerateRandomlySizedTxs(444, 100),
 		},
 		{
-			// this is a concrete output from factory.GenerateRandomlySizedTransactions(444, 100)
+			// this is a concrete output from testfactory.GenerateRandomlySizedTxs(444, 100)
 			// that surfaced a bug in txSharePositions so it is included here to
 			// prevent regressions
 			name: "many small tx (without randomness)",
@@ -94,15 +94,15 @@ func TestTxSharePosition(t *testing.T) {
 		},
 		{
 			name: "one small tx",
-			txs:  testfactory.GenerateRandomlySizedTransactions(1, 200),
+			txs:  testfactory.GenerateRandomlySizedTxs(1, 200),
 		},
 		{
 			name: "one large tx",
-			txs:  testfactory.GenerateRandomlySizedTransactions(1, 2000),
+			txs:  testfactory.GenerateRandomlySizedTxs(1, 2000),
 		},
 		{
 			name: "many large txs",
-			txs:  testfactory.GenerateRandomlySizedTransactions(100, 2000),
+			txs:  testfactory.GenerateRandomlySizedTxs(100, 2000),
 		},
 	}
 
