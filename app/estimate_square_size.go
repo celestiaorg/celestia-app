@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/cosmos/cosmos-sdk/client"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -65,9 +64,8 @@ func prune(txConf client.TxConfig, txs []*parsedTx, currentShareCount, squareSiz
 }
 
 // calculateCompactShareCount calculates the exact number of compact shares used.
-func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSize int) int {
+func calculateCompactShareCount(txs []*parsedTx, squareSize int) int {
 	txSplitter := shares.NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
-	evdSplitter := shares.NewCompactShareSplitter(appconsts.EvidenceNamespaceID, appconsts.ShareVersionZero)
 	var err error
 	blobSharesCursor := len(txs)
 	for _, tx := range txs {
@@ -82,25 +80,15 @@ func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSi
 		}
 		txSplitter.WriteTx(rawTx)
 	}
-	for _, e := range evd.Evidence {
-		evidence, err := coretypes.EvidenceFromProto(&e)
-		if err != nil {
-			panic(err)
-		}
-		err = evdSplitter.WriteEvidence(evidence)
-		if err != nil {
-			panic(err)
-		}
-	}
-	return txSplitter.Count() + evdSplitter.Count()
+	return txSplitter.Count()
 }
 
 // estimateSquareSize uses the provided block data to estimate the square size
 // assuming that all malleated txs follow the non interactive default rules.
 // Returns the estimated square size and the number of shares used.
-func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
+func estimateSquareSize(txs []*parsedTx) (uint64, int) {
 	// get the raw count of shares taken by each type of block data
-	txShares, evdShares, msgLens := rawShareCount(txs, evd)
+	txShares, msgLens := rawShareCount(txs)
 	msgShares := 0
 	for _, msgLen := range msgLens {
 		msgShares += msgLen
@@ -108,7 +96,7 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 
 	// calculate the smallest possible square size that could contain all the
 	// shares
-	squareSize := shares.RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(txShares + evdShares + msgShares)))))
+	squareSize := shares.RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(txShares + msgShares)))))
 
 	// the starting square size should at least be the minimum
 	if squareSize < appconsts.MinSquareSize {
@@ -120,16 +108,16 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 		// assume that all the msgs in the square use the non-interactive
 		// default rules and see if we can fit them in the smallest starting
 		// square size. We start the cursor (share index) at the beginning of
-		// the blob shares (txShares+evdShares), because shares that do not
+		// the blob shares (txShares), because shares that do not
 		// follow the non-interactive defaults are simple to estimate.
-		fits, msgShares = shares.FitsInSquare(txShares+evdShares, squareSize, msgLens...)
+		fits, msgShares = shares.FitsInSquare(txShares, squareSize, msgLens...)
 		switch {
 		// stop estimating if we know we can reach the max square size
 		case squareSize >= appconsts.MaxSquareSize:
-			return appconsts.MaxSquareSize, txShares + evdShares + msgShares
+			return appconsts.MaxSquareSize, txShares + msgShares
 		// return if we've found a square size that fits all of the txs
 		case fits:
-			return uint64(squareSize), txShares + evdShares + msgShares
+			return uint64(squareSize), txShares + msgShares
 		// try the next largest square size if we can't fit all the txs
 		case !fits:
 			// double the square size
@@ -139,9 +127,9 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 }
 
 // rawShareCount calculates the number of shares taken by all of the included
-// txs, evidence, and each blob. blobLens is a slice of the number of shares used
-// by each blob without accounting for the non-interactive default rules.
-func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares int, blobLens []int) {
+// txs and each blob. blobLens is a slice of the number of shares used by each
+// blob without accounting for the non-interactive default rules.
+func rawShareCount(txs []*parsedTx) (txShares int, blobLens []int) {
 	// blobSummary is used to keep track of the size and the namespace so that we
 	// can sort the blobs by namespace before returning.
 	type blobSummary struct {
@@ -152,10 +140,10 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 
 	var blobSummaries []blobSummary //nolint:prealloc
 
-	// we use bytes instead of shares for tx and evd as they are encoded
-	// contiguously in the square, unlike blobs where each of which is assigned their
-	// own set of shares
-	txBytes, evdBytes := 0, 0
+	// we use bytes instead of shares for tx as they are encoded contiguously in
+	// the square, unlike blobs where each of which is assigned their own set of
+	// shares
+	txBytes := 0
 	for _, pTx := range txs {
 		// if there is no wire message in this tx, then we can simply add the
 		// bytes and move on.
@@ -189,15 +177,6 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 		txShares++
 	}
 
-	for _, e := range evd.Evidence {
-		evdBytes += e.Size() + shares.DelimLen(uint64(e.Size()))
-	}
-
-	evdShares = evdBytes / appconsts.ContinuationCompactShareContentSize
-	if evdBytes > 0 {
-		evdShares++ // add one to round up
-	}
-
 	// sort the blobSummaries by namespace to order them properly. This is okay to do here
 	// as we aren't sorting the actual txs, just their summaries for more
 	// accurate estimations
@@ -210,7 +189,7 @@ func rawShareCount(txs []*parsedTx, evd core.EvidenceList) (txShares, evdShares 
 	for i, summary := range blobSummaries {
 		blobShares[i] = summary.size
 	}
-	return txShares, evdShares, blobShares
+	return txShares, blobShares
 }
 
 // overEstimateMalleatedTxSize estimates the size of a malleated tx. The formula it uses will always over estimate.

@@ -15,7 +15,6 @@ func malleateTxs(
 	txConf client.TxConfig,
 	squareSize uint64,
 	txs parsedTxs,
-	evd core.EvidenceList,
 ) ([][]byte, []core.Blob, error) {
 	// trackedBlob keeps track of the pfb from which it was malleated from so
 	// that we can wrap that pfb with appropriate share index
@@ -58,7 +57,7 @@ func malleateTxs(
 	// share index of the blob, which we still need to calculate. Here we
 	// calculate the exact share counts used by the different types of block
 	// data in order to get an accurate index.
-	compactShareCount := calculateCompactShareCount(txs, evd, int(squareSize))
+	compactShareCount := calculateCompactShareCount(txs, int(squareSize))
 	blobShareCounts := shares.BlobShareCountsFromBlobs(blobs)
 	// calculate the indexes that will be used for each blob
 	_, indexes := shares.BlobSharesUsedNonInteractiveDefaults(compactShareCount, int(squareSize), blobShareCounts...)

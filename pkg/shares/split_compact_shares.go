@@ -6,13 +6,12 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
-	"github.com/tendermint/tendermint/libs/protoio"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // CompactShareSplitter will write raw data compactly across a progressively
 // increasing set of shares. It is used to lazily split block data such as
-// transactions, intermediate state roots, and evidence into shares.
+// transactions or intermediate state roots into shares.
 type CompactShareSplitter struct {
 	shares       []Share
 	pendingShare Share
@@ -44,19 +43,6 @@ func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
 		panic(fmt.Sprintf("included Tx in mem-pool that can not be encoded %v", tx))
 	}
 	css.WriteBytes(rawData)
-}
-
-func (css *CompactShareSplitter) WriteEvidence(evd coretypes.Evidence) error {
-	pev, err := coretypes.EvidenceToProto(evd)
-	if err != nil {
-		return err
-	}
-	rawData, err := protoio.MarshalDelimited(pev)
-	if err != nil {
-		return err
-	}
-	css.WriteBytes(rawData)
-	return nil
 }
 
 // WriteBytes adds the delimited data to the underlying compact shares.
@@ -199,11 +185,11 @@ func (css *CompactShareSplitter) indexOfReservedBytes() int {
 	return appconsts.NamespaceSize + appconsts.ShareInfoBytes
 }
 
-// dataLength returns the total length in bytes of all units (transactions,
-// intermediate state roots, or evidence) written to this splitter.
-// dataLength does not include the # of bytes occupied by the namespace ID or
-// the share info byte in each share. dataLength does include the reserved
-// byte in each share and the unit length delimiter prefixed to each unit.
+// dataLength returns the total length in bytes of all units (transactions or
+// intermediate state roots) written to this splitter. dataLength does not
+// include the # of bytes occupied by the namespace ID or the share info byte in
+// each share. dataLength does include the reserved byte in each share and the
+// unit length delimiter prefixed to each unit.
 func (css *CompactShareSplitter) dataLength(bytesOfPadding int) uint64 {
 	if len(css.shares) == 0 {
 		return 0

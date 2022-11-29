@@ -22,7 +22,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// estimate the square size. This estimation errors on the side of larger
 	// squares but can only return values within the min and max square size.
-	squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, req.BlockData.Evidence)
+	squareSize, totalSharesUsed := estimateSquareSize(parsedTxs)
 
 	// the totalSharesUsed can be larger that the max number of shares if we
 	// reach the max square size. In this case, we must prune the deprioritized
@@ -35,14 +35,13 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// MsgPayForBlob and their respective blobPointers. The malleatedTxs contain the
 	// the new sdk.Msg with the original tx's metadata (sequence number, gas
 	// price etc).
-	processedTxs, blobs, err := malleateTxs(app.txConfig, squareSize, parsedTxs, req.BlockData.Evidence)
+	processedTxs, blobs, err := malleateTxs(app.txConfig, squareSize, parsedTxs)
 	if err != nil {
 		panic(err)
 	}
 
 	blockData := core.Data{
 		Txs:        processedTxs,
-		Evidence:   req.BlockData.Evidence,
 		Blobs:      blobs,
 		SquareSize: squareSize,
 	}
