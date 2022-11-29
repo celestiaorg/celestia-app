@@ -30,7 +30,8 @@ type DataAvailabilityHeader struct {
 	RowsRoots [][]byte `json:"row_roots"`
 	// ColumnRoot_j = root((M_{1,j} || M_{2,j} || ... || M_{2k,j} ))
 	ColumnRoots [][]byte `json:"column_roots"`
-	// hash is a cached copy of the Hash() result.
+	// hash is the Merkle root of the row and column roots. This field is the
+	// memoized result from `Hash()`.
 	hash []byte
 }
 
@@ -83,7 +84,8 @@ func (dah *DataAvailabilityHeader) Equals(to *DataAvailabilityHeader) bool {
 	return bytes.Equal(dah.Hash(), to.Hash())
 }
 
-// Hash computes and caches the merkle root of the row and column roots.
+// Hash computes the Merkle root of the row and column roots. Hash memoizes the
+// result in `DataAvailabilityHeader.hash`.
 func (dah *DataAvailabilityHeader) Hash() []byte {
 	if dah == nil {
 		return merkle.HashFromByteSlices(nil)
