@@ -33,10 +33,10 @@ The malleation process occurs during the PrepareProposal step.
 
 ## Parameters
 
-Key | Type | Example
---- | --- | ---
-MinSquareSize | uint32 | 1
-MaxSquareSize | uint32 | 128
+| Key           | Type   | Example |
+|---------------|--------|---------|
+| MinSquareSize | uint32 | 1       |
+| MaxSquareSize | uint32 | 128     |
 
 ### Usage
 
