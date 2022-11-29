@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/celestiaorg/nmt v0.11.0
-	github.com/celestiaorg/quantum-gravity-bridge v1.2.0
+	github.com/celestiaorg/quantum-gravity-bridge v1.3.0
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.2
