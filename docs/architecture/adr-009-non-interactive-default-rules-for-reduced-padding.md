@@ -159,11 +159,30 @@ Padding = 3 \* (k-1) \* k/8
 
 ![Worst Case Padding](./assets/worst-case-padding.png)
 
-## What is the quantified padding and proof size cost?
+## What are the quantified padding and proof size costs?
+
+### Proof Size for Super-Light-Nodes
 
 Proof size increases from 2928 bytes to 10352 bytes in 2 GB blocks. In the current `MaxSquareSize` it's from 2096 to 3088 bytes. For bigger messages, the number of row roots will approach sqrt(n). Before that, we will get to k/4+1 roots which will make the message act the same before and after the proposed non-interactive default rules.
 
 ![Proof Size Result](./assets/proof-size-result.png)
+
+### Proof Size for Light-Nodes
+
+Light Nodes have additional access to row and collum roots from the Data Availability header. Therefore we can discard any blue nodes to the `DataRoot` from the analysis.
+
+![Proof Size Result 2](./assets/proof-size-result2.png)
+
+### Total Proof Size for Parital Nodes
+
+Partial nodes in this context are light clients that may download all of the data in the reserved namespace. They check that the data behind the PFB was included in the `DataRoot`, via blob inclusion proofs.
+
+For this analysis, we take the result from the light nodes and scale them up to fill the whole square. We ignore for now the reserved namespace and what space it might occupy.
+For the proposed non-interactive default rules we are also creating 1 more message that could practically fit into a square. This is because the current non-interactive default rules fit one more message if we construct it this way and don't adjust the first and last messages.
+
+![Proof Size Result 3](./assets/proof-size-result3.png)
+
+### Padding
 
 The worst-case padding decreases from 1.1 GB to 0.8 GB in 2 GB Blocks. In the current `MaxSquareSize` it's from 4 MB to 3 MB. In general, the worst-case padding size approaches in current non-interactive default rules 50% and the proposed non-interactive default rules 37.5%. That is a maximum reduction of padding to 25%.
 
