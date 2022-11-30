@@ -15,7 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 )
 
@@ -34,15 +34,15 @@ func TestPrepareProposal(t *testing.T) {
 
 	firstNamespace := []byte{2, 2, 2, 2, 2, 2, 2, 2}
 	firstBlob := bytes.Repeat([]byte{4}, 512)
-	firstRawTx := testfactory.GenerateRawWirePFB(t, encCfg.TxConfig, firstNamespace, firstBlob, signer)
+	firstRawTx := blobfactory.GenerateRawWirePFB(t, encCfg.TxConfig, firstNamespace, firstBlob, signer)
 
 	secondNamespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	secondBlob := []byte{2}
-	secondRawTx := testfactory.GenerateRawWirePFB(t, encCfg.TxConfig, secondNamespace, secondBlob, signer)
+	secondRawTx := blobfactory.GenerateRawWirePFB(t, encCfg.TxConfig, secondNamespace, secondBlob, signer)
 
 	thirdNamespace := []byte{3, 3, 3, 3, 3, 3, 3, 3}
 	thirdBlob := []byte{1}
-	thirdRawTx := testfactory.GenerateRawWirePFB(t, encCfg.TxConfig, thirdNamespace, thirdBlob, signer)
+	thirdRawTx := blobfactory.GenerateRawWirePFB(t, encCfg.TxConfig, thirdNamespace, thirdBlob, signer)
 
 	tests := []test{
 		{
@@ -127,7 +127,7 @@ func TestPrepareProposalWithReservedNamespaces(t *testing.T) {
 
 	for _, tt := range tests {
 		blob := []byte{1}
-		tx := testfactory.GenerateRawWirePFB(t, encCfg.TxConfig, tt.namespace, blob, signer)
+		tx := blobfactory.GenerateRawWirePFB(t, encCfg.TxConfig, tt.namespace, blob, signer)
 		input := abci.RequestPrepareProposal{
 			BlockData: &core.Data{
 				Txs: [][]byte{tx},

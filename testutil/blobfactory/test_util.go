@@ -1,9 +1,8 @@
-package testfactory
+package blobfactory
 
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
@@ -12,6 +11,12 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+)
+
+const (
+	// bondDenom should match app.BondDenom. We copy it here so that we don't
+	// have to import the application, causing an import cycle
+	bondDenom = "utia"
 )
 
 // GenerateManyRawWirePFB creates many raw WirePayForBlob transactions. Using
@@ -26,7 +31,7 @@ func GenerateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *type
 	txs := make([][]byte, count)
 
 	coin := sdk.Coin{
-		Denom:  app.BondDenom,
+		Denom:  bondDenom,
 		Amount: sdk.NewInt(10),
 	}
 
@@ -55,7 +60,7 @@ func GenerateManyRawWirePFB(t *testing.T, txConfig client.TxConfig, signer *type
 
 func GenerateRawWirePFB(t *testing.T, txConfig client.TxConfig, ns, blob []byte, signer *types.KeyringSigner) (rawTx []byte) {
 	coin := sdk.Coin{
-		Denom:  app.BondDenom,
+		Denom:  bondDenom,
 		Amount: sdk.NewInt(10),
 	}
 
@@ -103,7 +108,7 @@ func GenerateManyRawSendTxs(t *testing.T, txConfig client.TxConfig, signer *type
 // the same account signing the transaction.
 func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.KeyringSigner, amount int64) (rawTx []byte) {
 	feeCoin := sdk.Coin{
-		Denom:  app.BondDenom,
+		Denom:  bondDenom,
 		Amount: sdk.NewInt(1),
 	}
 
@@ -113,7 +118,7 @@ func generateRawSendTx(t *testing.T, txConfig client.TxConfig, signer *types.Key
 	}
 
 	amountCoin := sdk.Coin{
-		Denom:  app.BondDenom,
+		Denom:  bondDenom,
 		Amount: sdk.NewInt(amount),
 	}
 
