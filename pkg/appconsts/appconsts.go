@@ -80,9 +80,6 @@ var (
 	// TODO(liamsi): code commented out but kept intentionally.
 	// IntermediateStateRootsNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 2}
 
-	// EvidenceNamespaceID is the namespace reserved for evidence
-	EvidenceNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
-
 	// MaxReservedNamespace is the lexicographically largest namespace that is
 	// reserved for protocol use. It is derived from NAMESPACE_ID_MAX_RESERVED
 	// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/consensus.md#constants

@@ -32,12 +32,6 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 	txShares := SplitTxs(data.Txs)
 	currentShareCount += len(txShares)
 
-	evdShares, err := SplitEvidence(data.Evidence.Evidence)
-	if err != nil {
-		return nil, err
-	}
-	currentShareCount += len(evdShares)
-
 	// msgIndexes will be nil if we are working with a list of txs that do not
 	// have a msg index. this preserves backwards compatibility with old blocks
 	// that do not follow the non-interactive defaults
@@ -52,9 +46,6 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 			int(data.SquareSize),
 		)
 		ns := appconsts.TxNamespaceID
-		if len(evdShares) > 0 {
-			ns = appconsts.EvidenceNamespaceID
-		}
 		padding = namespacedPaddedShares(ns, msgShareStart-currentShareCount)
 	}
 	currentShareCount += len(padding)
@@ -64,7 +55,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 		return nil, ErrUnexpectedFirstMessageShareIndex
 	}
 
-	msgShares, err = SplitMessages(currentShareCount, msgIndexes, data.Blobs, useShareIndexes)
+	msgShares, err := SplitMessages(currentShareCount, msgIndexes, data.Blobs, useShareIndexes)
 	if err != nil {
 		return nil, err
 	}
@@ -72,13 +63,11 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 	tailShares := TailPaddingShares(wantShareCount - currentShareCount)
 
 	// todo: optimize using a predefined slice
-	shares := append(append(append(append(
+	shares := append(append(append(
 		txShares,
-		evdShares...),
 		padding...),
 		msgShares...),
 		tailShares...)
-
 	return shares, nil
 }
 
@@ -112,17 +101,6 @@ func SplitTxs(txs coretypes.Txs) []Share {
 		writer.WriteTx(tx)
 	}
 	return writer.Export()
-}
-
-func SplitEvidence(evd coretypes.EvidenceList) ([]Share, error) {
-	writer := NewCompactShareSplitter(appconsts.EvidenceNamespaceID, appconsts.ShareVersionZero)
-	for _, ev := range evd {
-		err := writer.WriteEvidence(ev)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return writer.Export(), nil
 }
 
 func SplitMessages(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIndexes bool) ([]Share, error) {

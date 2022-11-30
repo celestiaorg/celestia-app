@@ -52,7 +52,7 @@ func (s Share) SequenceLength() (uint64, error) {
 
 // isCompactShare returns true if this share is a compact share.
 func (s Share) isCompactShare() bool {
-	return s.NamespaceID().Equal(appconsts.TxNamespaceID) || s.NamespaceID().Equal(appconsts.EvidenceNamespaceID)
+	return s.NamespaceID().Equal(appconsts.TxNamespaceID)
 }
 
 func ToBytes(shares []Share) (bytes [][]byte) {

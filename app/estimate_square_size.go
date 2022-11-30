@@ -67,7 +67,6 @@ func prune(txConf client.TxConfig, txs []*parsedTx, currentShareCount, squareSiz
 // calculateCompactShareCount calculates the exact number of compact shares used.
 func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSize int) int {
 	txSplitter := shares.NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
-	evdSplitter := shares.NewCompactShareSplitter(appconsts.EvidenceNamespaceID, appconsts.ShareVersionZero)
 	var err error
 	msgSharesCursor := len(txs)
 	for _, tx := range txs {
@@ -82,17 +81,7 @@ func calculateCompactShareCount(txs []*parsedTx, evd core.EvidenceList, squareSi
 		}
 		txSplitter.WriteTx(rawTx)
 	}
-	for _, e := range evd.Evidence {
-		evidence, err := coretypes.EvidenceFromProto(&e)
-		if err != nil {
-			panic(err)
-		}
-		err = evdSplitter.WriteEvidence(evidence)
-		if err != nil {
-			panic(err)
-		}
-	}
-	return txSplitter.Count() + evdSplitter.Count()
+	return txSplitter.Count()
 }
 
 // estimateSquareSize uses the provided block data to estimate the square size

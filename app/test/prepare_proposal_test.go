@@ -118,12 +118,11 @@ func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
 	}
 
 	tests := []test{
-		{"transaction namespace id for message", appconsts.TxNamespaceID, 0},
-		{"evidence namespace id for message", appconsts.EvidenceNamespaceID, 0},
-		{"tail padding namespace id for message", appconsts.TailPaddingNamespaceID, 0},
-		{"parity shares namespace id for message", appconsts.ParitySharesNamespaceID, 0},
-		{"reserved namespace id for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, 0},
-		{"valid namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, 1},
+		{"transaction namespace", appconsts.TxNamespaceID, 0},
+		{"tail padding namespace", appconsts.TailPaddingNamespaceID, 0},
+		{"parity shares namespace", appconsts.ParitySharesNamespaceID, 0},
+		{"other reserved namespace", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, 0},
+		{"valid namespace", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, 1},
 	}
 
 	for _, tt := range tests {

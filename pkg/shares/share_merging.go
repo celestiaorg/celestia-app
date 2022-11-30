@@ -19,7 +19,6 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 	// sort block data shares by namespace
 	var (
 		sortedTxShares  [][]byte
-		sortedEvdShares [][]byte
 		sortedMsgShares [][]byte
 	)
 
@@ -34,9 +33,6 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 			switch {
 			case bytes.Equal(appconsts.TxNamespaceID, nid):
 				sortedTxShares = append(sortedTxShares, share)
-
-			case bytes.Equal(appconsts.EvidenceNamespaceID, nid):
-				sortedEvdShares = append(sortedEvdShares, share)
 
 			case bytes.Equal(appconsts.TailPaddingNamespaceID, nid):
 				continue
@@ -58,11 +54,6 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 		return coretypes.Data{}, err
 	}
 
-	evd, err := ParseEvd(sortedEvdShares)
-	if err != nil {
-		return coretypes.Data{}, err
-	}
-
 	msgs, err := ParseMsgs(sortedMsgShares)
 	if err != nil {
 		return coretypes.Data{}, err
@@ -70,7 +61,6 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 
 	return coretypes.Data{
 		Txs:        txs,
-		Evidence:   evd,
 		Blobs:      msgs,
 		SquareSize: uint64(squareSize),
 	}, nil
