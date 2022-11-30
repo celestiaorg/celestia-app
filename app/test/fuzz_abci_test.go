@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -32,8 +33,8 @@ func TestFuzzPrepareProcessProposal(t *testing.T) {
 			return
 		default:
 			t.Run("randomized inputs to Prepare and Process Proposal", func(t *testing.T) {
-				pfbTxs := app.GenerateManyRawWirePFB(t, encConf.TxConfig, signer, tmrand.Intn(100), -1)
-				txs := app.GenerateManyRawSendTxs(t, encConf.TxConfig, signer, tmrand.Intn(20))
+				pfbTxs := testfactory.GenerateManyRawWirePFB(t, encConf.TxConfig, signer, tmrand.Intn(100), -1)
+				txs := testfactory.GenerateManyRawSendTxs(t, encConf.TxConfig, signer, tmrand.Intn(20))
 				txs = append(txs, pfbTxs...)
 				resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
 					BlockData: &core.Data{

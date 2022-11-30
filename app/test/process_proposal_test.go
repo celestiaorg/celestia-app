@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -28,7 +29,7 @@ func TestBlobInclusionCheck(t *testing.T) {
 	// block with all blobs included
 	validData := func() *core.Data {
 		return &core.Data{
-			Txs: app.GenerateManyRawWirePFB(t, encConf.TxConfig, signer, 4, 1000),
+			Txs: testfactory.GenerateManyRawWirePFB(t, encConf.TxConfig, signer, 4, 1000),
 		}
 	}
 
