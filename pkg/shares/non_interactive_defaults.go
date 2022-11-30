@@ -50,19 +50,21 @@ func NextAlignedPowerOfTwo(cursor, blobLen, squareSize int) (int, bool) {
 		return cursor, true
 	}
 
-	nextLowest := RoundDownPowerOfTwo(blobLen)
-	endOfCurrentRow := ((cursor / squareSize) + 1) * squareSize
-	cursor = roundUpBy(cursor, nextLowest)
+	// nextLowestPowerOfTwo is the largest power of two that fits entirely in
+	// the blob
+	nextLowestPowerOfTwo := RoundDownPowerOfTwo(blobLen)
+	startOfNextRow := ((cursor / squareSize) + 1) * squareSize
+	cursor = roundUpBy(cursor, nextLowestPowerOfTwo)
 	switch {
 	// the entire blob fits in this row
-	case cursor+blobLen <= endOfCurrentRow:
+	case cursor+blobLen <= startOfNextRow:
 		return cursor, true
 	// only a portion of the blob fits in this row
-	case cursor+nextLowest <= endOfCurrentRow:
+	case cursor+nextLowestPowerOfTwo <= startOfNextRow:
 		return cursor, false
 	// none of the blob fits on this row, so return the start of the next row
 	default:
-		return endOfCurrentRow, false
+		return startOfNextRow, false
 	}
 }
 
