@@ -340,24 +340,24 @@ func Test_calculateCommitPaths(t *testing.T) {
 	type test struct {
 		squareSize int
 		start      int
-		msgLen     int
+		blobLen    int
 		expected   []path
 	}
 	tests := []test{
 		{2, 0, 1, []path{{instructions: []WalkInstruction{WalkLeft}, row: 0}}},
 		{2, 2, 2, []path{{instructions: []WalkInstruction{}, row: 1}}},
-		// the next test case's message gets pushed to index 2 due to
+		// the next test case's blob gets pushed to index 2 due to
 		// non-interactive defaults so its commit path is the same as the
 		// previous testcase.
 		{2, 1, 2, []path{{instructions: []WalkInstruction{}, row: 1}}},
 		{4, 2, 2, []path{{instructions: []WalkInstruction{WalkRight}, row: 0}}},
-		// the next test case's message gets pushed to index 4 due to
+		// the next test case's blob gets pushed to index 4 due to
 		// non-interactive defaults.
 		{4, 2, 4, []path{
 			{instructions: []WalkInstruction{WalkLeft}, row: 1},
 			{instructions: []WalkInstruction{WalkRight}, row: 1},
 		}},
-		// the next test case's message gets pushed to index 4 due to
+		// the next test case's blob gets pushed to index 4 due to
 		// non-interactive defaults.
 		{4, 3, 4, []path{
 			{instructions: []WalkInstruction{WalkLeft}, row: 1},
@@ -406,9 +406,9 @@ func Test_calculateCommitPaths(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(
-			fmt.Sprintf("test %d: square size %d start %d msgLen %d", i, tt.squareSize, tt.start, tt.msgLen),
+			fmt.Sprintf("test %d: square size %d start %d blobLen %d", i, tt.squareSize, tt.start, tt.blobLen),
 			func(t *testing.T) {
-				assert.Equal(t, tt.expected, calculateCommitPaths(tt.squareSize, tt.start, tt.msgLen))
+				assert.Equal(t, tt.expected, calculateCommitPaths(tt.squareSize, tt.start, tt.blobLen))
 			},
 		)
 	}

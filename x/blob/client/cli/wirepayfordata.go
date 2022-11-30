@@ -15,12 +15,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-const FlagSquareSizes = "square-sizes"
-
 func CmdWirePayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "payForBlob [hexNamespace] [hexBlob]",
-		Short: "Creates a new MsgWirePayForBlob",
+		Short: "Pay for a data blob to be published to the Celestia blockchain",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
@@ -40,17 +38,17 @@ func CmdWirePayForBlob() *cobra.Command {
 				return fmt.Errorf("failure to decode hex namespace: %w", err)
 			}
 
-			// decode the message
-			message, err := hex.DecodeString(args[1])
+			// decode the blob
+			blob, err := hex.DecodeString(args[1])
 			if err != nil {
-				return fmt.Errorf("failure to decode hex message: %w", err)
+				return fmt.Errorf("failure to decode hex blob: %w", err)
 			}
 
 			// TODO: allow the user to override the share version via a new flag
 			// See https://github.com/celestiaorg/celestia-app/issues/1041
 			shareVersion := appconsts.ShareVersionZero
 
-			pfbMsg, err := types.NewWirePayForBlob(namespace, message, shareVersion)
+			pfbMsg, err := types.NewWirePayForBlob(namespace, blob, shareVersion)
 			if err != nil {
 				return err
 			}

@@ -22,35 +22,35 @@ func TestParseShares(t *testing.T) {
 	}
 
 	start := true
-	messageOneNamespace := namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}
-	messageTwoNamespace := namespace.ID{2, 2, 2, 2, 2, 2, 2, 2}
+	blobOneNamespace := namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}
+	blobTwoNamespace := namespace.ID{2, 2, 2, 2, 2, 2, 2, 2}
 
 	transactionShares := SplitTxs(generateRandomTxs(2, 1000))
 	transactionShareStart := transactionShares[0]
 	transactionShareContinuation := transactionShares[1]
 
-	messageOneShares, err := SplitMessages(0, []uint32{}, []types.Blob{generateRandomMessageWithNamespace(messageOneNamespace, 1000)}, false)
+	blobOneShares, err := SplitBlobs(0, []uint32{}, []types.Blob{generateRandomBlobWithNamespace(blobOneNamespace, 1000)}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	messageOneStart := messageOneShares[0]
-	messageOneContinuation := messageOneShares[1]
+	blobOneStart := blobOneShares[0]
+	blobOneContinuation := blobOneShares[1]
 
-	messageTwoShares, err := SplitMessages(0, []uint32{}, []types.Blob{generateRandomMessageWithNamespace(messageTwoNamespace, 1000)}, false)
+	blobTwoShares, err := SplitBlobs(0, []uint32{}, []types.Blob{generateRandomBlobWithNamespace(blobTwoNamespace, 1000)}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	messageTwoStart := messageTwoShares[0]
-	messageTwoContinuation := messageTwoShares[1]
+	blobTwoStart := blobTwoShares[0]
+	blobTwoContinuation := blobTwoShares[1]
 
-	invalidShare := generateRawShare(messageOneNamespace, start, 1)
+	invalidShare := generateRawShare(blobOneNamespace, start, 1)
 	invalidShare = append(invalidShare, []byte{0}...) // invalidShare is now longer than the length of a valid share
 
 	largeSequenceLength := 1000 // it takes more than one share to store a sequence of 1000 bytes
-	oneShareWithTooLargeSequenceLength := generateRawShare(messageOneNamespace, start, uint64(largeSequenceLength))
+	oneShareWithTooLargeSequenceLength := generateRawShare(blobOneNamespace, start, uint64(largeSequenceLength))
 
 	shortSequenceLength := 0
-	oneShareWithTooShortSequenceLength := generateRawShare(messageOneNamespace, start, uint64(shortSequenceLength))
+	oneShareWithTooShortSequenceLength := generateRawShare(blobOneNamespace, start, uint64(shortSequenceLength))
 
 	tests := []testCase{
 		{
@@ -72,42 +72,42 @@ func TestParseShares(t *testing.T) {
 			false,
 		},
 		{
-			"one message share",
-			[][]byte{messageOneStart},
-			[]ShareSequence{{NamespaceID: messageOneNamespace, Shares: []Share{messageOneStart}}},
+			"one blob share",
+			[][]byte{blobOneStart},
+			[]ShareSequence{{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart}}},
 			false,
 		},
 		{
-			"two message shares",
-			[][]byte{messageOneStart, messageOneContinuation},
-			[]ShareSequence{{NamespaceID: messageOneNamespace, Shares: []Share{messageOneStart, messageOneContinuation}}},
+			"two blob shares",
+			[][]byte{blobOneStart, blobOneContinuation},
+			[]ShareSequence{{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart, blobOneContinuation}}},
 			false,
 		},
 		{
-			"two messages with two shares each",
-			[][]byte{messageOneStart, messageOneContinuation, messageTwoStart, messageTwoContinuation},
+			"two blobs with two shares each",
+			[][]byte{blobOneStart, blobOneContinuation, blobTwoStart, blobTwoContinuation},
 			[]ShareSequence{
-				{NamespaceID: messageOneNamespace, Shares: []Share{messageOneStart, messageOneContinuation}},
-				{NamespaceID: messageTwoNamespace, Shares: []Share{messageTwoStart, messageTwoContinuation}},
+				{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart, blobOneContinuation}},
+				{NamespaceID: blobTwoNamespace, Shares: []Share{blobTwoStart, blobTwoContinuation}},
 			},
 			false,
 		},
 		{
-			"one transaction, one message",
-			[][]byte{transactionShareStart, messageOneStart},
+			"one transaction, one blob",
+			[][]byte{transactionShareStart, blobOneStart},
 			[]ShareSequence{
 				{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{transactionShareStart}},
-				{NamespaceID: messageOneNamespace, Shares: []Share{messageOneStart}},
+				{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart}},
 			},
 			false,
 		},
 		{
-			"one transaction, two messages",
-			[][]byte{transactionShareStart, messageOneStart, messageTwoStart},
+			"one transaction, two blobs",
+			[][]byte{transactionShareStart, blobOneStart, blobTwoStart},
 			[]ShareSequence{
 				{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{transactionShareStart}},
-				{NamespaceID: messageOneNamespace, Shares: []Share{messageOneStart}},
-				{NamespaceID: messageTwoNamespace, Shares: []Share{messageTwoStart}},
+				{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart}},
+				{NamespaceID: blobTwoNamespace, Shares: []Share{blobTwoStart}},
 			},
 			false,
 		},
@@ -118,8 +118,8 @@ func TestParseShares(t *testing.T) {
 			true,
 		},
 		{
-			"message one start followed by message two continuation",
-			[][]byte{messageOneStart, messageTwoContinuation},
+			"blob one start followed by blob two continuation",
+			[][]byte{blobOneStart, blobTwoContinuation},
 			[]ShareSequence{},
 			true,
 		},
@@ -223,10 +223,10 @@ func generateRandomTxs(count, size int) types.Txs {
 	return txs
 }
 
-func generateRandomMessageWithNamespace(namespace namespace.ID, size int) types.Blob {
-	msg := types.Blob{
+func generateRandomBlobWithNamespace(namespace namespace.ID, size int) types.Blob {
+	blob := types.Blob{
 		NamespaceID: namespace,
 		Data:        tmrand.Bytes(size),
 	}
-	return msg
+	return blob
 }

@@ -86,11 +86,10 @@ func (c *Context) WaitForNextBlock() error {
 	return err
 }
 
-// PostData will create and submit PFB transaction containing the message and
-// namespace. This function blocks until the PFB has been included in a block
-// and returns an error if the transaction is invalid or is rejected by the
-// mempool.
-func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.TxResponse, error) {
+// PostData will create and submit PFB transaction containing the namespace and
+// blobData. This function blocks until the PFB has been included in a block and
+// returns an error if the transaction is invalid or is rejected by the mempool.
+func (c *Context) PostData(account, broadcastMode string, ns, blobData []byte) (*sdk.TxResponse, error) {
 	opts := []types.TxBuilderOption{
 		types.SetGasLimit(100000000000000),
 	}
@@ -112,13 +111,13 @@ func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.
 	signer.SetAccountNumber(acc)
 	signer.SetSequence(seq)
 
-	// create a random msg per row
+	// create a random blob per row
 	pfb, err := blob.BuildPayForBlob(
 		c.rootCtx,
 		signer,
 		c.GRPCClient,
 		ns,
-		msg,
+		blobData,
 		appconsts.ShareVersionZero,
 		opts...,
 	)
@@ -170,11 +169,11 @@ func (c *Context) FillBlock(squareSize int, accounts []string, broadcastMode str
 	}
 	maxShareCount := squareSize * squareSize
 	// we use a formula to guarantee that the tx is the exact size needed to force a specific square size.
-	msgSize := (maxShareCount - (2 * squareSize)) * appconsts.SparseShareContentSize
+	blobSize := (maxShareCount - (2 * squareSize)) * appconsts.SparseShareContentSize
 	// this last patch allows for the formula above to work on a square size of
 	// 2.
-	if msgSize < 1 {
-		msgSize = 1
+	if blobSize < 1 {
+		blobSize = 1
 	}
-	return c.PostData(accounts[0], broadcastMode, namespace.RandomMessageNamespace(), tmrand.Bytes(msgSize))
+	return c.PostData(accounts[0], broadcastMode, namespace.RandomBlobNamespace(), tmrand.Bytes(blobSize))
 }

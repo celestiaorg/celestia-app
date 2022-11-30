@@ -13,16 +13,16 @@ type path struct {
 }
 
 // calculateCommitPaths calculates all of the paths to subtree roots needed to
-// create the commitment for a given message.
-func calculateCommitPaths(squareSize, start, msgShareLen int) []path {
+// create the commitment for a given blob.
+func calculateCommitPaths(squareSize, start, blobShareLen int) []path {
 	// todo: make the non-interactive defaults optional. by calculating the
 	// NextAlignedPowerOfTwo, we are forcing use of the non-interactive
 	// defaults. If we want to make this optional in the future, we have to move
 	// this next line out of this function.
-	start, _ = shares.NextAlignedPowerOfTwo(start, msgShareLen, squareSize)
-	startRow, endRow := start/squareSize, (start+msgShareLen-1)/squareSize
+	start, _ = shares.NextAlignedPowerOfTwo(start, blobShareLen, squareSize)
+	startRow, endRow := start/squareSize, (start+blobShareLen-1)/squareSize
 	normalizedStartIndex := start % squareSize
-	normalizedEndIndex := (start + msgShareLen) - endRow*squareSize
+	normalizedEndIndex := (start + blobShareLen) - endRow*squareSize
 	paths := []path{}
 	maxDepth := int(math.Log2(float64(squareSize)))
 	for i := startRow; i <= endRow; i++ {
@@ -36,8 +36,8 @@ func calculateCommitPaths(squareSize, start, msgShareLen int) []path {
 
 		// subTreeRootMaxHeight is the maximum height of a subtree root that was
 		// used to generate the commitment. The height is based on the minimum
-		// square size the message can fit into. See ADR-008 for more details.
-		subTreeRootMaxHeight := int(math.Log2(float64(types.MinSquareSize(msgShareLen))))
+		// square size the blob can fit into. See ADR-008 for more details.
+		subTreeRootMaxHeight := int(math.Log2(float64(types.MinSquareSize(blobShareLen))))
 		minDepth := maxDepth - subTreeRootMaxHeight
 		coords := calculateSubTreeRootCoordinates(maxDepth, minDepth, start, end)
 		for _, c := range coords {
@@ -108,7 +108,7 @@ func (c coord) canClimbRight(minDepth int) bool {
 // calculateSubTreeRootCoordinates generates the sub tree root coordinates of a
 // set of shares for a balanced binary tree of a given depth. It assumes that
 // end does not exceed the range of a tree of the provided depth, and that end
-// >= start. This function works by starting at the first index of the msg and
+// >= start. This function works by starting at the first index of the blob and
 // working our way right.
 func calculateSubTreeRootCoordinates(maxDepth, minDepth, start, end int) []coord {
 	coords := []coord{}
@@ -144,7 +144,7 @@ func calculateSubTreeRootCoordinates(maxDepth, minDepth, start, end int) []coord
 	}
 	// recursively climb the tree starting at the left most leaf node (the
 	// starting leaf), and save each subtree root as we find it. After finding a
-	// subtree root, if there's still leaves left in the message, then restart
+	// subtree root, if there's still leaves left in the blob, then restart
 	// the process from that leaf.
 	for {
 		switch {

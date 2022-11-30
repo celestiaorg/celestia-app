@@ -42,7 +42,7 @@ node            |  |                               |  |
 ## Usage
 
 ```sh
-# Print help message
+# Print help
 celestia-appd --help
 ```
 
@@ -56,7 +56,7 @@ rm -r ~/.celestia-app
 ./scripts/single-node.sh
 
 # Post data to the local devnet
-celestia-appd tx blob payForBlob [hexNamespace] [hexMessage] [flags]
+celestia-appd tx blob payForBlob [hexNamespace] [hexBlob] [flags]
 ```
 
 <!-- markdown-link-check-disable -->

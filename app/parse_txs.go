@@ -39,7 +39,7 @@ func (p *parsedTx) wrap(shareIndex uint32) (coretypes.Tx, error) {
 	return coretypes.WrapMalleatedTx(p.originalHash(), shareIndex, p.malleatedTx)
 }
 
-func (p *parsedTx) message() *core.Blob {
+func (p *parsedTx) blob() *core.Blob {
 	return &core.Blob{
 		NamespaceId: p.msg.NamespaceId,
 		Data:        p.msg.Blob,
@@ -80,13 +80,12 @@ func parseTxs(conf client.TxConfig, rawTxs [][]byte) parsedTxs {
 		wireMsg, err := types.ExtractMsgWirePayForBlob(authTx)
 		if err != nil {
 			// we catch this error because it means that there are no
-			// potentially valid MsgWirePayForBlob messages in this tx. We still
+			// potentially valid MsgWirePayForBlob in this tx. We still
 			// want to keep this tx, so we append it to the parsed txs.
 			parsedTxs = append(parsedTxs, &pTx)
 			continue
 		}
 
-		// run basic validation on the message
 		err = wireMsg.ValidateBasic()
 		if err != nil {
 			continue

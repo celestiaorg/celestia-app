@@ -37,7 +37,7 @@ const (
 	ContinuationCompactShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareReservedBytes
 
 	// SparseShareContentSize is the number of bytes usable for data in a sparse (i.e.
-	// message) share.
+	// blob) share.
 	SparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes
 
 	// MaxSquareSize is the maximum number of
@@ -103,20 +103,20 @@ var (
 	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
 
 	// NameSpacedPaddedShareBytes are the raw bytes that are used in the contents
-	// of a NameSpacedPaddedShare. A NameSpacedPaddedShare follows a message so
-	// that the next message starts at an index that conforms to non-interactive
+	// of a NameSpacedPaddedShare. A NameSpacedPaddedShare follows a blob so
+	// that the next blob starts at an index that conforms to non-interactive
 	// defaults.
 	NameSpacedPaddedShareBytes = bytes.Repeat([]byte{0}, SparseShareContentSize)
 
-	// FirstCompactShareSequenceLengthBytes is the number of bytes reserved for the total
-	// sequence length that is stored in the first compact share of a sequence. This
-	// value is the maximum number of bytes required to store the sequence
-	// length of a block that only contains shares of one type. For example, if
-	// a block contains only evidence then it could contain: MaxSquareSize *
-	// MaxSquareSize * ShareSize bytes of evidence.
+	// FirstCompactShareSequenceLengthBytes is the number of bytes reserved for
+	// the total sequence length that is stored in the first compact share of a
+	// sequence. This value is the maximum number of bytes required to store the
+	// sequence length of a block that only contains shares of one type. For
+	// example, if a block contains only transactions then it could contain:
+	// MaxSquareSize * MaxSquareSize * ShareSize bytes of transactions.
 	//
 	// Assuming MaxSquareSize is 128 and ShareSize is 256, this is 4194304 bytes
-	// of evidence. It takes 4 bytes to store a varint of 4194304.
+	// of transactions. It takes 4 bytes to store a varint of 4194304.
 	//
 	// https://go.dev/play/p/MynwcDHQ_me
 	FirstCompactShareSequenceLengthBytes = numberOfBytesVarint(MaxSquareSize * MaxSquareSize * ShareSize)

@@ -15,6 +15,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"golang.org/x/exp/constraints"
+	"golang.org/x/exp/slices"
 )
 
 var _ sdk.Msg = &MsgWirePayForBlob{}
@@ -29,6 +30,10 @@ func NewWirePayForBlob(namespace []byte, blob []byte, shareVersion uint8) (*MsgW
 			len(namespace),
 			NamespaceIDSize,
 		)
+	}
+
+	if !slices.Contains(appconsts.SupportedShareVersions, shareVersion) {
+		return nil, ErrUnsupportedShareVersion
 	}
 
 	out := &MsgWirePayForBlob{
@@ -81,7 +86,7 @@ func (msg *MsgWirePayForBlob) Route() string { return RouterKey }
 // commitments, signatures for those share commitment, and fulfills the sdk.Msg
 // interface.
 func (msg *MsgWirePayForBlob) ValidateBasic() error {
-	if err := ValidateMessageNamespaceID(msg.GetNamespaceId()); err != nil {
+	if err := ValidateBlobNamespaceID(msg.GetNamespaceId()); err != nil {
 		return err
 	}
 
@@ -98,12 +103,19 @@ func (msg *MsgWirePayForBlob) ValidateBasic() error {
 		)
 	}
 
-	return msg.ValidateMessageShareCommitment()
+	if msg.ShareVersion > math.MaxUint8 {
+		return ErrUnsupportedShareVersion
+	}
+	if !slices.Contains(appconsts.SupportedShareVersions, uint8(msg.ShareVersion)) {
+		return ErrUnsupportedShareVersion
+	}
+
+	return msg.ValidateShareCommitment()
 }
 
-// ValidateMessageShareCommitment returns an error if the share
+// ValidateShareCommitment returns an error if the share
 // commitment is invalid.
-func (msg *MsgWirePayForBlob) ValidateMessageShareCommitment() error {
+func (msg *MsgWirePayForBlob) ValidateShareCommitment() error {
 	// check that the share commitment is valid
 	calculatedCommit, err := CreateCommitment(msg.GetNamespaceId(), msg.Blob, uint8(msg.ShareVersion))
 	if err != nil {
@@ -117,8 +129,8 @@ func (msg *MsgWirePayForBlob) ValidateMessageShareCommitment() error {
 	return nil
 }
 
-// ValidateMessageNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.
-func ValidateMessageNamespaceID(ns namespace.ID) error {
+// ValidateBlobNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.
+func ValidateBlobNamespaceID(ns namespace.ID) error {
 	// ensure that the namespace id is of length == NamespaceIDSize
 	if nsLen := len(ns); nsLen != NamespaceIDSize {
 		return ErrInvalidNamespaceLen.Wrapf("got: %d want: %d",
@@ -191,18 +203,20 @@ func (msg *MsgWirePayForBlob) unsignedPayForBlob() (*MsgPayForBlob, error) {
 		BlobSize:        msg.BlobSize,
 		ShareCommitment: commitment,
 		Signer:          msg.Signer,
+		ShareVersion:    msg.ShareVersion,
 	}
 	return &mpfb, nil
 }
 
-// ProcessWirePayForBlob performs the malleation process that occurs before
+// ProcessWireMsgPayForBlob performs the malleation process that occurs before
 // creating a block. It parses the MsgWirePayForBlob to produce the components
 // needed to create a single MsgPayForBlob.
-func ProcessWirePayForBlob(msg *MsgWirePayForBlob) (*tmproto.Blob, *MsgPayForBlob, []byte, error) {
+func ProcessWireMsgPayForBlob(msg *MsgWirePayForBlob) (*tmproto.Blob, *MsgPayForBlob, []byte, error) {
 	// add the blob to the list of core blobs to be returned to celestia-core
-	coreMsg := tmproto.Blob{
-		NamespaceId: msg.GetNamespaceId(),
-		Data:        msg.GetBlob(),
+	coreBlob := tmproto.Blob{
+		NamespaceId:  msg.GetNamespaceId(),
+		Data:         msg.GetBlob(),
+		ShareVersion: msg.GetShareVersion(),
 	}
 
 	// wrap the signed transaction data
@@ -211,7 +225,7 @@ func ProcessWirePayForBlob(msg *MsgWirePayForBlob) (*tmproto.Blob, *MsgPayForBlo
 		return nil, nil, nil, err
 	}
 
-	return &coreMsg, pfb, msg.ShareCommitment.Signature, nil
+	return &coreBlob, pfb, msg.ShareCommitment.Signature, nil
 }
 
 // HasWirePayForBlob performs a quick but not definitive check to see if a tx
@@ -251,11 +265,11 @@ func ExtractMsgWirePayForBlob(tx sdk.Tx) (*MsgWirePayForBlob, error) {
 	return wireMsg, nil
 }
 
-// MsgMinSquareSize returns the minimum square size that msgSize can be included
+// BlobMinSquareSize returns the minimum square size that blobSize can be included
 // in. The returned square size does not account for the associated transaction
 // shares or non-interactive defaults so it is a minimum.
-func MsgMinSquareSize[T constraints.Integer](msgSize T) T {
-	shareCount := shares.MsgSharesUsed(int(msgSize))
+func BlobMinSquareSize[T constraints.Integer](blobSize T) T {
+	shareCount := shares.BlobSharesUsed(int(blobSize))
 	return T(MinSquareSize(shareCount))
 }
 
