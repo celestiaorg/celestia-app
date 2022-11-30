@@ -182,5 +182,5 @@ require (
 replace (
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.4.0-sdk-v0.46.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
-	github.com/tendermint/tendermint v0.34.20 => github.com/celestiaorg/celestia-core v1.9.0-tm-v0.34.20.0.f7cb538bd916b430ffa9dc7fbc95d9a5f1f1801d // v1.8.0-tm-v0.34.20
+	github.com/tendermint/tendermint v0.34.20 => github.com/celestiaorg/celestia-core v1.10.0-tm-v0.34.20.0.20221129235919-f7cb538bd916 // v1.8.0-tm-v0.34.20
 )
