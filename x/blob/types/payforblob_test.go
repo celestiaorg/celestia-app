@@ -236,7 +236,7 @@ func TestValidateBasic(t *testing.T) {
 			wantErr: ErrReservedNamespace,
 		},
 		{
-			name:    "evidence namspace namespace id",
+			name:    "evidence namespace namespace id",
 			msg:     evidenceNamespaceMsg,
 			wantErr: ErrReservedNamespace,
 		},

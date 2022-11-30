@@ -33,7 +33,6 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	blockData := core.Data{
 		Txs:        processedTxs,
-		Evidence:   req.BlockData.Evidence,
 		Blobs:      blobs,
 		SquareSize: squareSize,
 	}

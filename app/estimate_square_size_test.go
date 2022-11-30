@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -46,21 +45,20 @@ func Test_estimateSquareSize(t *testing.T) {
 			txs := GenerateManyRawWirePFB(t, encConf.TxConfig, signer, tt.wPFBCount, tt.messgeSize)
 			txs = append(txs, GenerateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
 			parsedTxs := parseTxs(encConf.TxConfig, txs)
-			squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, core.EvidenceList{})
+			squareSize, totalSharesUsed := estimateSquareSize(parsedTxs)
 			assert.Equal(t, tt.expectedSize, squareSize)
 
 			if totalSharesUsed > int(squareSize*squareSize) {
 				parsedTxs = prune(encConf.TxConfig, parsedTxs, totalSharesUsed, int(squareSize))
 			}
 
-			processedTxs, blobs, err := malleateTxs(encConf.TxConfig, squareSize, parsedTxs, core.EvidenceList{})
+			processedTxs, blobs, err := malleateTxs(encConf.TxConfig, squareSize, parsedTxs)
 			require.NoError(t, err)
 
 			coreBlobs, err := shares.BlobsFromProto(blobs)
 			require.NoError(t, err)
 			blockData := coretypes.Data{
 				Txs:        shares.TxsFromBytes(processedTxs),
-				Evidence:   coretypes.EvidenceData{},
 				Blobs:      coreBlobs,
 				SquareSize: squareSize,
 			}
@@ -78,7 +76,7 @@ func Test_pruning(t *testing.T) {
 	txs := GenerateManyRawSendTxs(t, encConf.TxConfig, signer, 10)
 	txs = append(txs, GenerateManyRawWirePFB(t, encConf.TxConfig, signer, 10, 1000)...)
 	parsedTxs := parseTxs(encConf.TxConfig, txs)
-	ss, total := estimateSquareSize(parsedTxs, core.EvidenceList{})
+	ss, total := estimateSquareSize(parsedTxs)
 	nextLowestSS := ss / 2
 	prunedTxs := prune(encConf.TxConfig, parsedTxs, total, int(nextLowestSS))
 	require.Less(t, len(prunedTxs), len(parsedTxs))
@@ -142,7 +140,7 @@ func Test_overEstimateMalleatedTxSize(t *testing.T) {
 		)
 		parsedTxs := parseTxs(encConf.TxConfig, [][]byte{wpfbTx})
 		res := overEstimateMalleatedTxSize(len(parsedTxs[0].rawTx), tt.size)
-		malleatedTx, _, err := malleateTxs(encConf.TxConfig, 32, parsedTxs, core.EvidenceList{})
+		malleatedTx, _, err := malleateTxs(encConf.TxConfig, 32, parsedTxs)
 		require.NoError(t, err)
 		assert.Less(t, len(malleatedTx[0]), res)
 	}
@@ -174,16 +172,16 @@ func Test_calculateCompactShareCount(t *testing.T) {
 			txs = append(txs, GenerateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
 
 			parsedTxs := parseTxs(encConf.TxConfig, txs)
-			squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, core.EvidenceList{})
+			squareSize, totalSharesUsed := estimateSquareSize(parsedTxs)
 
 			if totalSharesUsed > int(squareSize*squareSize) {
 				parsedTxs = prune(encConf.TxConfig, parsedTxs, totalSharesUsed, int(squareSize))
 			}
 
-			malleated, _, err := malleateTxs(encConf.TxConfig, squareSize, parsedTxs, core.EvidenceList{})
+			malleated, _, err := malleateTxs(encConf.TxConfig, squareSize, parsedTxs)
 			require.NoError(t, err)
 
-			calculatedTxShareCount := calculateCompactShareCount(parsedTxs, core.EvidenceList{}, int(squareSize))
+			calculatedTxShareCount := calculateCompactShareCount(parsedTxs, int(squareSize))
 
 			txShares := shares.SplitTxs(shares.TxsFromBytes(malleated))
 			assert.LessOrEqual(t, len(txShares), calculatedTxShareCount, tt.name)

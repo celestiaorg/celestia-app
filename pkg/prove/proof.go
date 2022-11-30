@@ -164,16 +164,6 @@ func genOrigRowShares(data types.Data, startRow, endRow uint64) []shares.Share {
 		return rawShares[startPos:wantLen]
 	}
 
-	evdShares, err := shares.SplitEvidence(data.Evidence.Evidence)
-	if err != nil {
-		panic(err)
-	}
-
-	rawShares = append(rawShares, evdShares...)
-	if uint64(len(rawShares)) >= wantLen {
-		return rawShares[startPos:wantLen]
-	}
-
 	for _, blob := range data.Blobs {
 		blobShares, err := shares.SplitBlobs(0, nil, []types.Blob{blob}, false)
 		if err != nil {
