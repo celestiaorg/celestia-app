@@ -108,15 +108,15 @@ var (
 	// defaults.
 	NameSpacedPaddedShareBytes = bytes.Repeat([]byte{0}, SparseShareContentSize)
 
-	// FirstCompactShareSequenceLengthBytes is the number of bytes reserved for the total
-	// sequence length that is stored in the first compact share of a sequence. This
-	// value is the maximum number of bytes required to store the sequence
-	// length of a block that only contains shares of one type. For example, if
-	// a block contains only evidence then it could contain: MaxSquareSize *
-	// MaxSquareSize * ShareSize bytes of evidence.
+	// FirstCompactShareSequenceLengthBytes is the number of bytes reserved for
+	// the total sequence length that is stored in the first compact share of a
+	// sequence. This value is the maximum number of bytes required to store the
+	// sequence length of a block that only contains shares of one type. For
+	// example, if a block contains only transactions then it could contain:
+	// MaxSquareSize * MaxSquareSize * ShareSize bytes of transactions.
 	//
 	// Assuming MaxSquareSize is 128 and ShareSize is 256, this is 4194304 bytes
-	// of evidence. It takes 4 bytes to store a varint of 4194304.
+	// of transactions. It takes 4 bytes to store a varint of 4194304.
 	//
 	// https://go.dev/play/p/MynwcDHQ_me
 	FirstCompactShareSequenceLengthBytes = numberOfBytesVarint(MaxSquareSize * MaxSquareSize * ShareSize)

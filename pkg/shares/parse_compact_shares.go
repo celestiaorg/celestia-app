@@ -9,12 +9,12 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
 
-// parseCompactShares returns data (transactions, intermediate state roots, or
-// evidence) based on the contents of rawShares and supportedShareVersions. If
-// rawShares contains a share with a version that isn't present in
-// supportedShareVersions, an error is returned. The returned data [][]byte does
-// not have namespaces, info bytes, data length delimiter, or unit length
-// delimiters and are ready to be unmarshalled.
+// parseCompactShares returns data (transactions or intermediate state roots
+// based on the contents of rawShares and supportedShareVersions. If rawShares
+// contains a share with a version that isn't present in supportedShareVersions,
+// an error is returned. The returned data [][]byte does not have namespaces,
+// info bytes, data length delimiter, or unit length delimiters and are ready to
+// be unmarshalled.
 func parseCompactShares(rawShares [][]byte, supportedShareVersions []uint8) (data [][]byte, err error) {
 	if len(rawShares) == 0 {
 		return nil, nil
@@ -38,7 +38,7 @@ func parseCompactShares(rawShares [][]byte, supportedShareVersions []uint8) (dat
 type shareStack struct {
 	shares  [][]byte
 	dataLen uint64
-	// data may be transactions, intermediate state roots, or evidence depending
+	// data may be transactions or intermediate state roots depending
 	// on the namespace ID for this share
 	data   [][]byte
 	cursor int
@@ -63,8 +63,8 @@ func (ss *shareStack) resolve() ([][]byte, error) {
 	return ss.data, err
 }
 
-// peel recursively parses each unit of data (either a transaction, intermediate
-// state root, or evidence) and adds it to the underlying slice of data.
+// peel recursively parses each unit of data (either a transaction or
+// intermediate state root) and adds it to the underlying slice of data.
 // delimited should be `true` if this is the start of the next unit of data (in
 // other words the data contains a unitLen delimiter prefixed to the unit).
 // delimited should be `false` if calling peel on an in-progress unit.

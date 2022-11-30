@@ -7,8 +7,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/gogo/protobuf/proto"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -19,7 +17,6 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 	// sort block data shares by namespace
 	var (
 		sortedTxShares   [][]byte
-		sortedEvdShares  [][]byte
 		sortedBlobShares [][]byte
 	)
 
@@ -34,9 +31,6 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 			switch {
 			case bytes.Equal(appconsts.TxNamespaceID, nid):
 				sortedTxShares = append(sortedTxShares, share)
-
-			case bytes.Equal(appconsts.EvidenceNamespaceID, nid):
-				sortedEvdShares = append(sortedEvdShares, share)
 
 			case bytes.Equal(appconsts.TailPaddingNamespaceID, nid):
 				continue
@@ -58,11 +52,6 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 		return coretypes.Data{}, err
 	}
 
-	evd, err := ParseEvd(sortedEvdShares)
-	if err != nil {
-		return coretypes.Data{}, err
-	}
-
 	blobs, err := ParseBlobs(sortedBlobShares)
 	if err != nil {
 		return coretypes.Data{}, err
@@ -70,7 +59,6 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 
 	return coretypes.Data{
 		Txs:        txs,
-		Evidence:   evd,
 		Blobs:      blobs,
 		SquareSize: uint64(squareSize),
 	}, nil
@@ -91,36 +79,6 @@ func ParseTxs(shares [][]byte) (coretypes.Txs, error) {
 	}
 
 	return txs, nil
-}
-
-// ParseEvd collects all evidence from the shares provided.
-func ParseEvd(shares [][]byte) (coretypes.EvidenceData, error) {
-	// the raw data returned does not have length delimiters or namespaces and
-	// is ready to be unmarshaled
-	rawEvd, err := parseCompactShares(shares, appconsts.SupportedShareVersions)
-	if err != nil {
-		return coretypes.EvidenceData{}, err
-	}
-
-	evdList := make(coretypes.EvidenceList, len(rawEvd))
-
-	// parse into protobuf bytes
-	for i := 0; i < len(rawEvd); i++ {
-		// unmarshal the evidence
-		var protoEvd tmproto.Evidence
-		err := proto.Unmarshal(rawEvd[i], &protoEvd)
-		if err != nil {
-			return coretypes.EvidenceData{}, err
-		}
-		evd, err := coretypes.EvidenceFromProto(&protoEvd)
-		if err != nil {
-			return coretypes.EvidenceData{}, err
-		}
-
-		evdList[i] = evd
-	}
-
-	return coretypes.EvidenceData{Evidence: evdList}, nil
 }
 
 // ParseBlobs collects all blobs from the shares provided
@@ -220,8 +178,7 @@ func numberOfSharesNeeded(firstShare Share) (sharesUsed int, err error) {
 
 // compactSharesNeeded returns the number of compact shares needed to store a
 // sequence of length sequenceLength. The parameter sequenceLength is the number
-// of bytes of transaction, intermediate state root, or evidence data in a
-// sequence.
+// of bytes of transactions or intermediate state roots in a sequence.
 func compactSharesNeeded(sequenceLength int) (sharesNeeded int) {
 	if sequenceLength == 0 {
 		return 0
