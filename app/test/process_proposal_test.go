@@ -15,21 +15,20 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
-	paytestutil "github.com/celestiaorg/celestia-app/testutil/blob"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-func TestMessageInclusionCheck(t *testing.T) {
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+func TestBlobInclusionCheck(t *testing.T) {
+	signer := types.GenerateKeyringSigner(t, types.TestAccName)
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	// block with all messages included
+	// block with all blobs included
 	validData := func() *core.Data {
 		return &core.Data{
-			Txs: paytestutil.GenerateManyRawWirePFB(t, encConf.TxConfig, signer, 4, 1000),
+			Txs: app.GenerateManyRawWirePFB(t, encConf.TxConfig, signer, 4, 1000),
 		}
 	}
 
@@ -48,7 +47,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 		},
 		{
-			name:  "removed first message",
+			name:  "removed first blob",
 			input: validData(),
 			mutator: func(d *core.Data) {
 				d.Blobs = d.Blobs[1:]
@@ -56,7 +55,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "added an extra message",
+			name:  "added an extra blob",
 			input: validData(),
 			mutator: func(d *core.Data) {
 				d.Blobs = append(
@@ -67,7 +66,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "modified a message",
+			name:  "modified a blob",
 			input: validData(),
 			mutator: func(d *core.Data) {
 				d.Blobs[0] = core.Blob{NamespaceId: []byte{1, 2, 3, 4, 5, 6, 7, 8}, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
@@ -91,13 +90,13 @@ func TestMessageInclusionCheck(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "unsorted messages",
+			name:  "unsorted blobs",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				msg1, msg2, msg3 := d.Blobs[0], d.Blobs[1], d.Blobs[2]
-				d.Blobs[0] = msg3
-				d.Blobs[1] = msg1
-				d.Blobs[2] = msg2
+				blob1, blob2, blob3 := d.Blobs[0], d.Blobs[1], d.Blobs[2]
+				d.Blobs[0] = blob3
+				d.Blobs[1] = blob1
+				d.Blobs[2] = blob2
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -118,69 +117,13 @@ func TestMessageInclusionCheck(t *testing.T) {
 	}
 }
 
-// TODO: redo this tests, which is more difficult to do now that it requires the
-// data to be processed by PrepareProposal func
-// TestProcessMessagesWithReservedNamespaces(t *testing.T) {
-//  testApp := testutil.SetupTestAppWithGenesisValSet(t)
-//  encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-// 	signer := testutil.GenerateKeyringSigner(t, testAccName)
-
-// 	type test struct {
-// 		name           string
-// 		namespace      namespace.ID
-// 		expectedResult abci.ResponseProcessProposal_Result
-// 	}
-
-// 	tests := []test{
-// 		{"transaction namespace id for message", appconsts.TxNamespaceID, abci.ResponseProcessProposal_REJECT},
-// 		{"evidence namespace id for message", appconsts.EvidenceNamespaceID, abci.ResponseProcessProposal_REJECT},
-// 		{"tail padding namespace id for message", appconsts.TailPaddingNamespaceID, abci.ResponseProcessProposal_REJECT},
-// 		{"namespace id 200 for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, abci.ResponseProcessProposal_REJECT},
-// 		{"correct namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, abci.ResponseProcessProposal_ACCEPT},
-// 	}
-
-// 	for _, tt := range tests {
-// 		pfb, msg := genRandMsgPayForBlobForNamespace(t, signer, 8, tt.namespace)
-// 		input := abci.RequestProcessProposal{
-// 			BlockData: &core.Data{
-// 				Txs: [][]byte{
-// 					buildTx(t, signer, encConf.TxConfig, pfb),
-// 				},
-// 				Blobs: core.Blobs{
-// 					MessagesList: []*core.Message{
-// 						{
-// 							NamespaceId: pfb.GetNamespaceId(),
-// 							Data:        msg,
-// 						},
-// 					},
-// 				},
-// 				SquareSize: 8,
-// 			},
-// 		}
-// 		data, err := coretypes.DataFromProto(input.BlockData)
-// 		require.NoError(t, err)
-
-// 		shares, err := shares.Split(data)
-// 		require.NoError(t, err)
-
-// 		require.NoError(t, err)
-// 		eds, err := da.ExtendShares(input.BlockData.SquareSize, shares)
-// 		require.NoError(t, err)
-// 		dah := da.NewDataAvailabilityHeader(eds)
-// 		input.Header.DataHash = dah.Hash()
-// 		res := testApp.ProcessProposal(input)
-// 		assert.Equal(t, tt.expectedResult, res.Result)
-// 	}
-// }
-
-func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
+func TestProcessProposalWithParityShareNamespace(t *testing.T) {
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	signer := types.GenerateKeyringSigner(t, types.TestAccName)
 
-	pfb, msg := genRandMsgPayForBlobForNamespace(t, signer, 8, appconsts.ParitySharesNamespaceID)
+	pfb, blobData := genRandMsgPayForBlobForNamespace(t, signer, appconsts.ParitySharesNamespaceID)
 	input := abci.RequestProcessProposal{
 		BlockData: &core.Data{
 			Txs: [][]byte{
@@ -189,7 +132,7 @@ func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
 			Blobs: []core.Blob{
 				{
 					NamespaceId: pfb.GetNamespaceId(),
-					Data:        msg,
+					Data:        blobData,
 				},
 			},
 			SquareSize: 8,
@@ -199,20 +142,22 @@ func TestProcessMessageWithParityShareNamespaces(t *testing.T) {
 	assert.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
 }
 
-func genRandMsgPayForBlobForNamespace(t *testing.T, signer *types.KeyringSigner, squareSize uint64, ns namespace.ID) (*types.MsgPayForBlob, []byte) {
-	message := make([]byte, randomInt(20))
-	_, err := rand.Read(message)
+func genRandMsgPayForBlobForNamespace(t *testing.T, signer *types.KeyringSigner, ns namespace.ID) (*types.MsgPayForBlob, []byte) {
+	blob := make([]byte, randomInt(20))
+	_, err := rand.Read(blob)
 	require.NoError(t, err)
 
-	commit, err := types.CreateCommitment(ns, message)
+	shareVersion := appconsts.ShareVersionZero
+	commit, err := types.CreateCommitment(ns, blob, shareVersion)
 	require.NoError(t, err)
 
 	pfb := types.MsgPayForBlob{
 		ShareCommitment: commit,
 		NamespaceId:     ns,
+		ShareVersion:    uint32(shareVersion),
 	}
 
-	return &pfb, message
+	return &pfb, blob
 }
 
 func buildTx(t *testing.T, signer *types.KeyringSigner, txCfg client.TxConfig, msg sdk.Msg) []byte {

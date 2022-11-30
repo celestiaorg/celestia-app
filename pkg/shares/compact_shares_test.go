@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -15,8 +16,8 @@ import (
 func TestCompactShareWriter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
 	// tests occur in TestMerge and Test_processCompactShares
-	w := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
-	txs := generateRandomTransaction(33, 200)
+	w := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+	txs := testfactory.GenerateRandomTxs(33, 200)
 	for _, tx := range txs {
 		rawTx, _ := MarshalDelimitedTx(tx)
 		w.WriteBytes(rawTx)
@@ -74,7 +75,7 @@ func Test_processCompactShares(t *testing.T) {
 
 		// run the tests with identically sized txs
 		t.Run(fmt.Sprintf("%s idendically sized", tc.name), func(t *testing.T) {
-			txs := generateRandomTransaction(tc.txCount, tc.txSize)
+			txs := testfactory.GenerateRandomTxs(tc.txCount, tc.txSize)
 
 			shares := SplitTxs(txs)
 			rawShares := ToBytes(shares)
@@ -92,7 +93,7 @@ func Test_processCompactShares(t *testing.T) {
 
 		// run the same tests using randomly sized txs with caps of tc.txSize
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
-			txs := generateRandomlySizedTransactions(tc.txCount, tc.txSize)
+			txs := testfactory.GenerateRandomlySizedTxs(tc.txCount, tc.txSize)
 
 			shares := SplitTxs(txs)
 			rawShares := ToBytes(shares)
@@ -111,8 +112,8 @@ func Test_processCompactShares(t *testing.T) {
 }
 
 func TestCompactShareContainsInfoByte(t *testing.T) {
-	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
-	txs := generateRandomTransaction(1, appconsts.ContinuationCompactShareContentSize/4)
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+	txs := testfactory.GenerateRandomTxs(1, appconsts.ContinuationCompactShareContentSize/4)
 
 	for _, tx := range txs {
 		css.WriteTx(tx)
@@ -124,15 +125,15 @@ func TestCompactShareContainsInfoByte(t *testing.T) {
 	infoByte := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
 	isSequenceStart := true
-	want, err := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
+	want, err := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
 
 	require.NoError(t, err)
 	assert.Equal(t, byte(want), infoByte)
 }
 
 func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
-	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
-	txs := generateRandomTransaction(1, appconsts.ContinuationCompactShareContentSize*4)
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+	txs := testfactory.GenerateRandomTxs(1, appconsts.ContinuationCompactShareContentSize*4)
 
 	for _, tx := range txs {
 		css.WriteTx(tx)
@@ -144,7 +145,7 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 	infoByte := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
 	isSequenceStart := false
-	want, err := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
+	want, err := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
 
 	require.NoError(t, err)
 	assert.Equal(t, byte(want), infoByte)
@@ -156,7 +157,7 @@ func Test_parseCompactSharesErrors(t *testing.T) {
 		rawShares [][]byte
 	}
 
-	txs := generateRandomTransaction(2, appconsts.ContinuationCompactShareContentSize*4)
+	txs := testfactory.GenerateRandomTxs(2, appconsts.ContinuationCompactShareContentSize*4)
 	shares := SplitTxs(txs)
 	rawShares := ToBytes(shares)
 

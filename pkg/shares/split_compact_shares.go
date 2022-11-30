@@ -21,10 +21,10 @@ type CompactShareSplitter struct {
 }
 
 // NewCompactShareSplitter returns a CompactShareSplitter using the provided
-// namespace.
-func NewCompactShareSplitter(ns namespace.ID, version uint8) *CompactShareSplitter {
+// namespace and shareVersion.
+func NewCompactShareSplitter(ns namespace.ID, shareVersion uint8) *CompactShareSplitter {
 	pendingShare := make([]byte, 0, appconsts.ShareSize)
-	infoByte, err := NewInfoByte(version, true)
+	infoByte, err := NewInfoByte(shareVersion, true)
 	if err != nil {
 		panic(err)
 	}

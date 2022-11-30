@@ -23,8 +23,8 @@ const (
 	// byte contains the share version and a start idicator.
 	ShareInfoBytes = 1
 
-	// ShareVersion is the current version of the share format
-	ShareVersion = uint8(0)
+	// ShareVersionZero is the first share version format.
+	ShareVersionZero = uint8(0)
 
 	// CompactShareReservedBytes is the number of bytes reserved for the location of
 	// the first unit (transaction, ISR, evidence) in a compact share.
@@ -37,7 +37,7 @@ const (
 	ContinuationCompactShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareReservedBytes
 
 	// SparseShareContentSize is the number of bytes usable for data in a sparse (i.e.
-	// message) share.
+	// blob) share.
 	SparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes
 
 	// MaxSquareSize is the maximum number of
@@ -103,8 +103,8 @@ var (
 	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
 
 	// NameSpacedPaddedShareBytes are the raw bytes that are used in the contents
-	// of a NameSpacedPaddedShare. A NameSpacedPaddedShare follows a message so
-	// that the next message starts at an index that conforms to non-interactive
+	// of a NameSpacedPaddedShare. A NameSpacedPaddedShare follows a blob so
+	// that the next blob starts at an index that conforms to non-interactive
 	// defaults.
 	NameSpacedPaddedShareBytes = bytes.Repeat([]byte{0}, SparseShareContentSize)
 
@@ -128,7 +128,7 @@ var (
 	FirstCompactShareContentSize = ContinuationCompactShareContentSize - FirstCompactShareSequenceLengthBytes
 
 	// SupportedShareVersions is a list of supported share versions.
-	SupportedShareVersions = []uint8{ShareVersion}
+	SupportedShareVersions = []uint8{ShareVersionZero}
 )
 
 // numberOfBytesVarint calculates the number of bytes needed to write a varint of n

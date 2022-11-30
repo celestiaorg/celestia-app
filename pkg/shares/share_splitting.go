@@ -14,8 +14,8 @@ var (
 	ErrIncorrectNumberOfIndexes = errors.New(
 		"number of malleated transactions is not identical to the number of wrapped transactions",
 	)
-	ErrUnexpectedFirstMessageShareIndex = errors.New(
-		"the first message started at an unexpected index",
+	ErrUnexpectedFirstBlobShareIndex = errors.New(
+		"the first blob started at an unexpected index",
 	)
 )
 
@@ -38,37 +38,37 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 	}
 	currentShareCount += len(evdShares)
 
-	// msgIndexes will be nil if we are working with a list of txs that do not
-	// have a msg index. this preserves backwards compatibility with old blocks
+	// blobIndexes will be nil if we are working with a list of txs that do not
+	// have a blob index. This preserves backwards compatibility with old blocks
 	// that do not follow the non-interactive defaults
-	msgIndexes := ExtractShareIndexes(data.Txs)
-	sort.Slice(msgIndexes, func(i, j int) bool { return msgIndexes[i] < msgIndexes[j] })
+	blobIndexes := ExtractShareIndexes(data.Txs)
+	sort.Slice(blobIndexes, func(i, j int) bool { return blobIndexes[i] < blobIndexes[j] })
 
 	var padding []Share
 	if len(data.Blobs) > 0 {
-		msgShareStart, _ := NextAlignedPowerOfTwo(
+		blobShareStart, _ := NextAlignedPowerOfTwo(
 			currentShareCount,
-			MsgSharesUsed(len(data.Blobs[0].Data)),
+			BlobSharesUsed(len(data.Blobs[0].Data)),
 			int(data.SquareSize),
 		)
 		ns := appconsts.TxNamespaceID
 		if len(evdShares) > 0 {
 			ns = appconsts.EvidenceNamespaceID
 		}
-		padding = namespacedPaddedShares(ns, msgShareStart-currentShareCount)
+		padding = namespacedPaddedShares(ns, blobShareStart-currentShareCount)
 	}
 	currentShareCount += len(padding)
 
-	var msgShares []Share
-	if msgIndexes != nil && int(msgIndexes[0]) < currentShareCount {
-		return nil, ErrUnexpectedFirstMessageShareIndex
+	var blobShares []Share
+	if blobIndexes != nil && int(blobIndexes[0]) < currentShareCount {
+		return nil, ErrUnexpectedFirstBlobShareIndex
 	}
 
-	msgShares, err = SplitMessages(currentShareCount, msgIndexes, data.Blobs, useShareIndexes)
+	blobShares, err = SplitBlobs(currentShareCount, blobIndexes, data.Blobs, useShareIndexes)
 	if err != nil {
 		return nil, err
 	}
-	currentShareCount += len(msgShares)
+	currentShareCount += len(blobShares)
 	tailShares := TailPaddingShares(wantShareCount - currentShareCount)
 
 	// todo: optimize using a predefined slice
@@ -76,7 +76,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 		txShares,
 		evdShares...),
 		padding...),
-		msgShares...),
+		blobShares...),
 		tailShares...)
 
 	return shares, nil
@@ -86,7 +86,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 // indexes from wrapped transactions. It returns nil if the transactions are
 // from an old block that did not have share indexes in the wrapped txs.
 func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
-	var msgIndexes []uint32
+	var shareIndexes []uint32
 	for _, rawTx := range txs {
 		if malleatedTx, isMalleated := coretypes.UnwrapMalleatedTx(rawTx); isMalleated {
 			// Since share index == 0 is invalid, it indicates that we are
@@ -99,15 +99,15 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 			if malleatedTx.ShareIndex == 0 {
 				return nil
 			}
-			msgIndexes = append(msgIndexes, malleatedTx.ShareIndex)
+			shareIndexes = append(shareIndexes, malleatedTx.ShareIndex)
 		}
 	}
 
-	return msgIndexes
+	return shareIndexes
 }
 
 func SplitTxs(txs coretypes.Txs) []Share {
-	writer := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
+	writer := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
 	for _, tx := range txs {
 		writer.WriteTx(tx)
 	}
@@ -115,7 +115,7 @@ func SplitTxs(txs coretypes.Txs) []Share {
 }
 
 func SplitEvidence(evd coretypes.EvidenceList) ([]Share, error) {
-	writer := NewCompactShareSplitter(appconsts.EvidenceNamespaceID, appconsts.ShareVersion)
+	writer := NewCompactShareSplitter(appconsts.EvidenceNamespaceID, appconsts.ShareVersionZero)
 	for _, ev := range evd {
 		err := writer.WriteEvidence(ev)
 		if err != nil {
@@ -125,13 +125,15 @@ func SplitEvidence(evd coretypes.EvidenceList) ([]Share, error) {
 	return writer.Export(), nil
 }
 
-func SplitMessages(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIndexes bool) ([]Share, error) {
+func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIndexes bool) ([]Share, error) {
 	if useShareIndexes && len(indexes) != len(blobs) {
 		return nil, ErrIncorrectNumberOfIndexes
 	}
 	writer := NewSparseShareSplitter()
-	for i, msg := range blobs {
-		writer.Write(msg)
+	for i, blob := range blobs {
+		if err := writer.Write(blob); err != nil {
+			return nil, err
+		}
 		if useShareIndexes && len(indexes) > i+1 {
 			paddedShareCount := int(indexes[i+1]) - (writer.Count() + cursor)
 			writer.WriteNamespacedPaddedShares(paddedShareCount)
@@ -140,7 +142,7 @@ func SplitMessages(cursor int, indexes []uint32, blobs []coretypes.Blob, useShar
 	return writer.Export(), nil
 }
 
-var tailPaddingInfo, _ = NewInfoByte(appconsts.ShareVersion, false)
+var tailPaddingInfo, _ = NewInfoByte(appconsts.ShareVersionZero, false)
 
 // tail is filler for all tail padded shares
 // it is allocated once and used everywhere

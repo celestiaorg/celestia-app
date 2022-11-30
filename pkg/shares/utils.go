@@ -3,36 +3,38 @@ package shares
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
+	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// DelimLen calculates the length of the delimiter for a given message size
+// DelimLen calculates the length of the delimiter for a given blob size
 func DelimLen(size uint64) int {
 	lenBuf := make([]byte, binary.MaxVarintLen64)
 	return binary.PutUvarint(lenBuf, size)
 }
 
-// MsgSharesUsed calculates the minimum number of shares a message will take up.
-// It accounts for the necessary delimiter and potential padding. msgSize must
+// BlobSharesUsed calculates the minimum number of shares a blob will take up.
+// It accounts for the necessary delimiter and potential padding. blobSize must
 // be provided in number of bytes.
-func MsgSharesUsed(msgSize int) int {
-	// add the delimiter to the message size
-	msgSize = DelimLen(uint64(msgSize)) + msgSize
-	shareCount := msgSize / appconsts.SparseShareContentSize
-	// increment the share count if the message overflows the last counted share
-	if msgSize%appconsts.SparseShareContentSize != 0 {
+func BlobSharesUsed(blobSize int) int {
+	// add the delimiter to the blob size
+	blobSize = DelimLen(uint64(blobSize)) + blobSize
+	shareCount := blobSize / appconsts.SparseShareContentSize
+	// increment the share count if the blob overflows the last counted share
+	if blobSize%appconsts.SparseShareContentSize != 0 {
 		shareCount++
 	}
 	return shareCount
 }
 
-func MessageShareCountsFromMessages(msgs []core.Blob) []int {
-	e := make([]int, len(msgs))
-	for i, msg := range msgs {
-		e[i] = MsgSharesUsed(len(msg.Data))
+func BlobShareCountsFromBlobs(blobs []core.Blob) []int {
+	e := make([]int, len(blobs))
+	for i, blob := range blobs {
+		e[i] = BlobSharesUsed(len(blob.Data))
 	}
 	return e
 }
@@ -41,26 +43,19 @@ func isPowerOf2(v uint64) bool {
 	return v&(v-1) == 0 && v != 0
 }
 
-func MessagesToProto(msgs []coretypes.Blob) []*core.Blob {
-	protoMsgs := make([]*core.Blob, len(msgs))
-	for i, msg := range msgs {
-		protoMsgs[i] = &core.Blob{
-			NamespaceId: msg.NamespaceID,
-			Data:        msg.Data,
+func BlobsFromProto(blobs []core.Blob) ([]coretypes.Blob, error) {
+	result := make([]coretypes.Blob, len(blobs))
+	for i, blob := range blobs {
+		if blob.ShareVersion > math.MaxUint8 {
+			return nil, fmt.Errorf("share version %d is too large to be a uint8", blob.ShareVersion)
+		}
+		result[i] = coretypes.Blob{
+			NamespaceID:  blob.NamespaceId,
+			Data:         blob.Data,
+			ShareVersion: uint8(blob.ShareVersion),
 		}
 	}
-	return protoMsgs
-}
-
-func MessagesFromProto(msgs []core.Blob) []coretypes.Blob {
-	protoMsgs := make([]coretypes.Blob, len(msgs))
-	for i, msg := range msgs {
-		protoMsgs[i] = coretypes.Blob{
-			NamespaceID: msg.NamespaceId,
-			Data:        msg.Data,
-		}
-	}
-	return protoMsgs
+	return result, nil
 }
 
 func TxsToBytes(txs coretypes.Txs) [][]byte {

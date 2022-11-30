@@ -57,7 +57,7 @@ func (ss *shareStack) resolve() ([][]byte, error) {
 		panic(err)
 	}
 	if !infoByte.IsSequenceStart() {
-		return nil, errors.New("first share is not a message start")
+		return nil, errors.New("first share is not the start of a sequence")
 	}
 	err = ss.peel(ss.shares[0][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareSequenceLengthBytes+appconsts.CompactShareReservedBytes:], true)
 	return ss.data, err

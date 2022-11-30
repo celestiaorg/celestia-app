@@ -1,13 +1,11 @@
 package prove
 
 import (
-	"math/rand"
-	"sort"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/testutil/namespace"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -16,12 +14,12 @@ import (
 
 func TestTxInclusion(t *testing.T) {
 	typicalBlockData := types.Data{
-		Txs:        generateRandomlySizedTxs(100, 500),
-		Blobs:      generateRandomlySizedBlobs(40, 16000),
+		Txs:        testfactory.GenerateRandomlySizedTxs(100, 500),
+		Blobs:      testfactory.GenerateRandomlySizedBlobs(40, 16000),
 		SquareSize: 64,
 	}
-	lotsOfTxsNoMessages := types.Data{
-		Txs:        generateRandomlySizedTxs(1000, 500),
+	lotsOfTxsNoBlobs := types.Data{
+		Txs:        testfactory.GenerateRandomlySizedTxs(1000, 500),
 		SquareSize: 64,
 	}
 	overlappingSquareSize := 16
@@ -34,14 +32,14 @@ func TestTxInclusion(t *testing.T) {
 		),
 		SquareSize: uint64(overlappingSquareSize),
 	}
-	overlappingRowsBlockDataWithMessages := types.Data{
+	overlappingRowsBlockDataWithBlobs := types.Data{
 		Txs: types.ToTxs(
 			[][]byte{
 				tmrand.Bytes(appconsts.ContinuationCompactShareContentSize*overlappingSquareSize + 1),
 				tmrand.Bytes(10000),
 			},
 		),
-		Blobs:      generateRandomlySizedBlobs(8, 400),
+		Blobs:      testfactory.GenerateRandomlySizedBlobs(8, 400),
 		SquareSize: uint64(overlappingSquareSize),
 	}
 
@@ -53,13 +51,13 @@ func TestTxInclusion(t *testing.T) {
 			typicalBlockData,
 		},
 		{
-			lotsOfTxsNoMessages,
+			lotsOfTxsNoBlobs,
 		},
 		{
 			overlappingRowsBlockData,
 		},
 		{
-			overlappingRowsBlockDataWithMessages,
+			overlappingRowsBlockDataWithBlobs,
 		},
 	}
 
@@ -81,14 +79,14 @@ func TestTxSharePosition(t *testing.T) {
 	tests := []test{
 		{
 			name: "typical",
-			txs:  generateRandomlySizedTxs(44, 200),
+			txs:  testfactory.GenerateRandomlySizedTxs(44, 200),
 		},
 		{
 			name: "many small tx",
-			txs:  generateRandomlySizedTxs(444, 100),
+			txs:  testfactory.GenerateRandomlySizedTxs(444, 100),
 		},
 		{
-			// this is a concrete output from generateRandomlySizedTxs(444, 100)
+			// this is a concrete output from testfactory.GenerateRandomlySizedTxs(444, 100)
 			// that surfaced a bug in txSharePositions so it is included here to
 			// prevent regressions
 			name: "many small tx (without randomness)",
@@ -96,15 +94,15 @@ func TestTxSharePosition(t *testing.T) {
 		},
 		{
 			name: "one small tx",
-			txs:  generateRandomlySizedTxs(1, 200),
+			txs:  testfactory.GenerateRandomlySizedTxs(1, 200),
 		},
 		{
 			name: "one large tx",
-			txs:  generateRandomlySizedTxs(1, 2000),
+			txs:  testfactory.GenerateRandomlySizedTxs(1, 2000),
 		},
 		{
 			name: "many large txs",
-			txs:  generateRandomlySizedTxs(100, 2000),
+			txs:  testfactory.GenerateRandomlySizedTxs(100, 2000),
 		},
 	}
 
@@ -171,62 +169,7 @@ func TestTxShareIndex(t *testing.T) {
 	}
 }
 
-// TODO: Uncomment/fix this test after we've adjusted tx inclusion proofs to
-// work using non-interactive defaults
-// func Test_genRowShares(t *testing.T) {
-//  squareSize := uint64(16)
-//  typicalBlockData := types.Data{
-//      Txs:                generateRandomlySizedTxs(10, 200),
-//      Blobs:           generateRandomlySizedMessages(20, 1000),
-//      SquareSize: squareSize,
-//  }
-
-// 	// note: we should be able to compute row shares from raw data
-// 	// this quickly tests this by computing the row shares before
-// 	// computing the shares in the normal way.
-// 	rowShares, err := genRowShares(
-// 		appconsts.DefaultCodec(),
-// 		typicalBlockData,
-// 		0,
-// 		squareSize,
-// 	)
-// 	require.NoError(t, err)
-
-// 	rawShares, err := shares.Split(typicalBlockData, false)
-// 	require.NoError(t, err)
-
-// 	eds, err := da.ExtendShares(squareSize, rawShares)
-// 	require.NoError(t, err)
-
-// 	for i := uint64(0); i < squareSize; i++ {
-// 		row := eds.Row(uint(i))
-// 		assert.Equal(t, row, rowShares[i], fmt.Sprintf("row %d", i))
-// 		// also test fetching individual rows
-// 		secondSet, err := genRowShares(appconsts.DefaultCodec(), typicalBlockData, i, i)
-// 		require.NoError(t, err)
-// 		assert.Equal(t, row, secondSet[0], fmt.Sprintf("row %d", i))
-// 	}
-// }
-
-// func Test_genOrigRowShares(t *testing.T) {
-// 	txCount := 100
-// 	squareSize := uint64(16)
-// 	typicalBlockData := types.Data{
-// 		Txs:                generateRandomlySizedTxs(txCount, 200),
-// 		Blobs:           generateRandomlySizedMessages(10, 1500),
-// 		SquareSize: squareSize,
-// 	}
-
-// 	rawShares, err := shares.Split(typicalBlockData, false)
-// 	require.NoError(t, err)
-
-// 	genShares := genOrigRowShares(typicalBlockData, 0, 15)
-
-// 	require.Equal(t, len(rawShares), len(genShares))
-// 	assert.Equal(t, rawShares, genShares)
-// }
-
-// stripCompactShares strips the universal prefix (namespace, info byte, data length) and
+// stripCompactShares strips the universal prefix (namespace, info byte, sequence length) and
 // reserved byte from a list of compact shares and joins them into a single byte
 // slice.
 func stripCompactShares(compactShares []shares.Share, start uint64, end uint64) (result []byte) {
@@ -239,52 +182,4 @@ func stripCompactShares(compactShares []shares.Share, start uint64, end uint64) 
 		}
 	}
 	return result
-}
-
-func generateRandomlySizedTxs(count, max int) types.Txs {
-	txs := make(types.Txs, count)
-	for i := 0; i < count; i++ {
-		size := rand.Intn(max)
-		if size == 0 {
-			size = 1
-		}
-		txs[i] = generateRandomTxs(1, size)[0]
-	}
-	return txs
-}
-
-func generateRandomTxs(count, size int) types.Txs {
-	txs := make(types.Txs, count)
-	for i := 0; i < count; i++ {
-		tx := make([]byte, size)
-		_, err := rand.Read(tx)
-		if err != nil {
-			panic(err)
-		}
-		txs[i] = tx
-	}
-	return txs
-}
-
-func generateRandomlySizedBlobs(count, maxMsgSize int) []types.Blob {
-	blobs := make([]types.Blob, count)
-	for i := 0; i < count; i++ {
-		blobs[i] = generateRandomBlob(rand.Intn(maxMsgSize))
-	}
-
-	// this is just to let us use assert.Equal
-	if count == 0 {
-		blobs = nil
-	}
-
-	sort.Sort(types.BlobsByNamespace(blobs))
-	return blobs
-}
-
-func generateRandomBlob(size int) types.Blob {
-	blob := types.Blob{
-		NamespaceID: namespace.RandomMessageNamespace(),
-		Data:        tmrand.Bytes(size),
-	}
-	return blob
 }

@@ -28,7 +28,7 @@ func NewValset(nonce, height uint64, members InternalBridgeValidators) (*Valset,
 
 // SignBytes produces the bytes that celestia validators are required to sign
 // over when the validator set changes.
-func (v *Valset) SignBytes(bridgeID ethcmn.Hash) (ethcmn.Hash, error) {
+func (v *Valset) SignBytes() (ethcmn.Hash, error) {
 	vsHash, err := v.Hash()
 	if err != nil {
 		return ethcmn.Hash{}, err
@@ -39,7 +39,6 @@ func (v *Valset) SignBytes(bridgeID ethcmn.Hash) (ethcmn.Hash, error) {
 	// it gets encoded as a function name which we must then discard.
 	bytes, err := InternalQGBabi.Pack(
 		"domainSeparateValidatorSetHash",
-		bridgeID,
 		VsDomainSeparator,
 		big.NewInt(int64(v.Nonce)),
 		big.NewInt(int64(v.TwoThirdsThreshold())),

@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/nmt/namespace"
-	"github.com/cosmos/cosmos-sdk/client"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,7 +19,7 @@ import (
 )
 
 func TestPrepareProposal(t *testing.T) {
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	signer := types.GenerateKeyringSigner(t, types.TestAccName)
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
@@ -34,16 +32,16 @@ func TestPrepareProposal(t *testing.T) {
 	}
 
 	firstNamespace := []byte{2, 2, 2, 2, 2, 2, 2, 2}
-	firstMessage := bytes.Repeat([]byte{4}, 512)
-	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNamespace, firstMessage, signer, types.AllSquareSizes(len(firstMessage))...)
+	firstBlob := bytes.Repeat([]byte{4}, 512)
+	firstRawTx := app.GenerateRawWirePFB(t, encCfg.TxConfig, firstNamespace, firstBlob, signer)
 
 	secondNamespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
-	secondMessage := []byte{2}
-	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNamespace, secondMessage, signer, types.AllSquareSizes(len(secondMessage))...)
+	secondBlob := []byte{2}
+	secondRawTx := app.GenerateRawWirePFB(t, encCfg.TxConfig, secondNamespace, secondBlob, signer)
 
 	thirdNamespace := []byte{3, 3, 3, 3, 3, 3, 3, 3}
-	thirdMessage := []byte{1}
-	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNamespace, thirdMessage, signer, types.AllSquareSizes(len(thirdMessage))...)
+	thirdBlob := []byte{1}
+	thirdRawTx := app.GenerateRawWirePFB(t, encCfg.TxConfig, thirdNamespace, thirdBlob, signer)
 
 	tests := []test{
 		{
@@ -59,7 +57,7 @@ func TestPrepareProposal(t *testing.T) {
 				},
 				{
 					NamespaceId: firstNamespace,
-					Data:        firstMessage,
+					Data:        firstBlob,
 				},
 				{
 					NamespaceId: thirdNamespace,
@@ -105,80 +103,36 @@ func TestPrepareProposal(t *testing.T) {
 	}
 }
 
-func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
+func TestPrepareProposalWithReservedNamespaces(t *testing.T) {
 	testApp := testutil.SetupTestAppWithGenesisValSet(t)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	signer := types.GenerateKeyringSigner(t, types.TestAccName)
 
 	type test struct {
-		name             string
-		namespace        namespace.ID
-		expectedMessages int
+		name          string
+		namespace     namespace.ID
+		expectedBlobs int
 	}
 
 	tests := []test{
-		{"transaction namespace id for message", appconsts.TxNamespaceID, 0},
-		{"evidence namespace id for message", appconsts.EvidenceNamespaceID, 0},
-		{"tail padding namespace id for message", appconsts.TailPaddingNamespaceID, 0},
-		{"parity shares namespace id for message", appconsts.ParitySharesNamespaceID, 0},
-		{"reserved namespace id for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, 0},
-		{"valid namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, 1},
+		{"transaction namespace", appconsts.TxNamespaceID, 0},
+		{"evidence namespace", appconsts.EvidenceNamespaceID, 0},
+		{"tail padding namespace", appconsts.TailPaddingNamespaceID, 0},
+		{"parity shares namespace", appconsts.ParitySharesNamespaceID, 0},
+		{"other reserved namespace", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, 0},
+		{"valid namespace", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, 1},
 	}
 
 	for _, tt := range tests {
-		message := []byte{1}
-		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, message, signer, types.AllSquareSizes(len(message))...)
+		blob := []byte{1}
+		tx := app.GenerateRawWirePFB(t, encCfg.TxConfig, tt.namespace, blob, signer)
 		input := abci.RequestPrepareProposal{
 			BlockData: &core.Data{
 				Txs: [][]byte{tx},
 			},
 		}
 		res := testApp.PrepareProposal(input)
-		assert.Equal(t, tt.expectedMessages, len(res.BlockData.Blobs))
+		assert.Equal(t, tt.expectedBlobs, len(res.BlockData.Blobs))
 	}
 }
-
-func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, ks ...uint64) (rawTx []byte) {
-	coin := sdk.Coin{
-		Denom:  app.BondDenom,
-		Amount: sdk.NewInt(10),
-	}
-
-	opts := []types.TxBuilderOption{
-		types.SetFeeAmount(sdk.NewCoins(coin)),
-		types.SetGasLimit(10000000),
-	}
-
-	// create a msg
-	msg := generateSignedWirePayForBlob(t, ns, message, signer, opts, ks...)
-
-	builder := signer.NewTxBuilder(opts...)
-
-	tx, err := signer.BuildSignedTx(builder, msg)
-	require.NoError(t, err)
-
-	// encode the tx
-	rawTx, err = txConfig.TxEncoder()(tx)
-	require.NoError(t, err)
-
-	return rawTx
-}
-
-func generateSignedWirePayForBlob(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption, ks ...uint64) *types.MsgWirePayForBlob {
-	msg, err := types.NewWirePayForBlob(ns, message)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = msg.SignShareCommitment(signer, options...)
-	if err != nil {
-		t.Error(err)
-	}
-
-	return msg
-}
-
-const (
-	testAccName = "test-account"
-)

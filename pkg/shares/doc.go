@@ -9,14 +9,14 @@
 //
 // Compact shares can contain data from one or more unit (transactions,
 // intermediate state roots, evidence). Sparse shares can contain data from zero
-// or one message. Compact shares and sparse shares are encoded differently. The
+// or one blob. Compact shares and sparse shares are encoded differently. The
 // motivation behind the distinction is that transactions, intermediate state
 // roots, and evidence are expected to have small lengths so they are encoded in
 // compact shares to minimize the number of shares needed to store them. On the
-// other hand, messages are expected to be larger and have the desideratum that
-// clients should be able to create proofs of message inclusion. This desiradum
-// is infeasible if client A's message is encoded into a share with another
-// client B's message that is unknown to A. It follows that client A's message
+// other hand, blobs are expected to be larger and have the desideratum that
+// clients should be able to create proofs of blob inclusion. This desiradum
+// is infeasible if client A's blob is encoded into a share with another
+// client B's blob that is unknown to A. It follows that client A's blob
 // is encoded into a share such that the contents can be determined by client A
 // without any additional information. See [message layout rational] or
 // [adr-006-non-interactive-defaults] for more details.
@@ -68,7 +68,7 @@
 //
 // # Sparse Share Schema
 //
-// The remaining bytes contain message data.
+// The remaining bytes contain blob data.
 //
 // [message layout rational]: https://celestiaorg.github.io/celestia-specs/latest/rationale/message_block_layout.html#message-layout-rationale
 // [adr-006-non-interactive-defaults]: https://github.com/celestiaorg/celestia-app/pull/673
