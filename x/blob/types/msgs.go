@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	math "math"
+	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
