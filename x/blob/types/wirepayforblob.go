@@ -94,6 +94,10 @@ func (msg *MsgWirePayForBlob) ValidateBasic() error {
 		return sdkerrors.ErrInvalidAddress.Wrapf("invalid 'from' address: %s", err)
 	}
 
+	if msg.BlobSize == 0 {
+		return ErrZeroBlobSize
+	}
+
 	// make sure that the blob size matches the actual size of the blob
 	if msg.BlobSize != uint64(len(msg.Blob)) {
 		return ErrDeclaredActualDataSizeMismatch.Wrapf(

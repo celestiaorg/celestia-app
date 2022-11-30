@@ -48,6 +48,11 @@ func TestWirePayForBlob_ValidateBasic(t *testing.T) {
 	unsupportedShareVersionWirePFB := validWirePayForBlob(t)
 	unsupportedShareVersionWirePFB.ShareVersion = 5 // unsupported
 
+	// wire PFB with zero blob size
+	zeroBlobSize := validWirePayForBlob(t)
+	zeroBlobSize.Blob = []byte{}
+	zeroBlobSize.BlobSize = 0
+
 	tests := []test{
 		{
 			name:    "valid msg",
@@ -88,6 +93,11 @@ func TestWirePayForBlob_ValidateBasic(t *testing.T) {
 			name:    "unsupported share version",
 			msg:     unsupportedShareVersionWirePFB,
 			wantErr: ErrUnsupportedShareVersion,
+		},
+		{
+			name:    "zero blob size",
+			msg:     zeroBlobSize,
+			wantErr: ErrZeroBlobSize,
 		},
 	}
 
