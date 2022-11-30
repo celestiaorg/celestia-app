@@ -1,13 +1,11 @@
 package keeper
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/tendermint/tendermint/libs/log"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
@@ -52,18 +50,4 @@ func NewKeeper(
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 	return ctx.Logger().With("module", fmt.Sprintf("x/%s", types.ModuleName))
-}
-
-// PayForBlob consumes gas based on the blob size.
-func (k Keeper) PayForBlob(goCtx context.Context, msg *types.MsgPayForBlob) (*types.MsgPayForBlobResponse, error) {
-	ctx := sdk.UnwrapSDKContext(goCtx)
-
-	gasToConsume := uint64(shares.BlobSharesUsed(int(msg.BlobSize)) * GasPerBlobShare)
-	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
-
-	ctx.EventManager().EmitEvent(
-		types.NewPayForBlobEvent(sdk.AccAddress(msg.Signer).String(), msg.GetBlobSize()),
-	)
-
-	return &types.MsgPayForBlobResponse{}, nil
 }
