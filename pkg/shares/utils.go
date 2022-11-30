@@ -31,6 +31,13 @@ func BlobSharesUsed(blobSize int) int {
 	return shareCount
 }
 
+func BlobSharesUsedOptimized(blobSize int) int {
+	// add the delimiter to the blob size
+	blobSize = DelimLen(uint64(blobSize)) + blobSize
+	shareCount := 1 + ((blobSize - 1) / appconsts.SparseShareContentSize)
+	return shareCount
+}
+
 func BlobShareCountsFromBlobs(blobs []core.Blob) []int {
 	e := make([]int, len(blobs))
 	for i, blob := range blobs {

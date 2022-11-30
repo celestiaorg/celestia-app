@@ -24,6 +24,44 @@ func FuzzBlobSharesUsed(f *testing.F) {
 	})
 }
 
+func FuzzBlobSharesUsedOptimized(f *testing.F) {
+	f.Add(1)
+	f.Fuzz(func(t *testing.T, a int) {
+		if a < 1 {
+			t.Skip()
+		}
+		ml := BlobSharesUsedOptimized(a)
+		blob := testfactory.GenerateRandomBlob(a)
+		rawShares, err := SplitBlobs(0, nil, []types.Blob{blob}, false)
+		require.NoError(t, err)
+		require.Equal(t, len(rawShares), ml)
+	})
+}
+
+func FuzzBlobSharesEquality(f *testing.F) {
+	f.Add(1)
+	f.Fuzz(func(t *testing.T, a int) {
+		if a < 1 {
+			t.Skip()
+		}
+		original := BlobSharesUsed(a)
+		optimized := BlobSharesUsedOptimized(a)
+		require.Equal(t, original, optimized)
+	})
+}
+
+func BenchmarkBlobSharesUsed(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		BlobSharesUsed(123456789)
+	}
+}
+
+func BenchmarkBlobSharesUsedOptimized(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		BlobSharesUsedOptimized(123456789)
+	}
+}
+
 func Test_zeroPadIfNecessary(t *testing.T) {
 	type args struct {
 		share []byte
