@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -124,6 +125,45 @@ func TestSplitTxs(t *testing.T) {
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SplitTxs()\n got %#v\n want %#v", got, tt.want)
 			}
+		})
+	}
+}
+
+func TestSplit(t *testing.T) {
+	bigTransaction := bytes.Repeat([]byte{0xa}, 1000)
+	type testCase struct {
+		name            string
+		data            coretypes.Data
+		useShareIndexes bool
+		wantErr         bool
+		want            []Share
+	}
+	testCases := []testCase{
+		{
+			name:            "0 square size returns error",
+			data:            coretypes.Data{SquareSize: 0},
+			useShareIndexes: false,
+			wantErr:         true,
+		},
+		{
+			name: "square size that can't contain all transactions should return error",
+			data: coretypes.Data{
+				SquareSize: 1,
+				Txs:        coretypes.Txs{bigTransaction}, // spans more than one share
+			},
+			useShareIndexes: false,
+			wantErr:         true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := Split(tc.data, tc.useShareIndexes)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.Equal(t, tc.want, got)
 		})
 	}
 }

@@ -58,6 +58,9 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 		return nil, err
 	}
 	currentShareCount += len(blobShares)
+	if currentShareCount > wantShareCount {
+		return nil, fmt.Errorf("too many shares: %d > %d", currentShareCount, wantShareCount)
+	}
 	tailShares := TailPaddingShares(wantShareCount - currentShareCount)
 
 	// todo: optimize using a predefined slice
