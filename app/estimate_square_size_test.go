@@ -34,7 +34,7 @@ func Test_estimateSquareSize(t *testing.T) {
 		{"random small block w/ 10 normal txs square size 4", 10, 1, appconsts.SparseShareContentSize, 4},
 		{"random small block square size 16", 0, 4, appconsts.SparseShareContentSize * 8, 16},
 		{"random medium block square size 32", 0, 50, appconsts.SparseShareContentSize * 4, 32},
-		{"full block max square size", 0, 8000, appconsts.SparseShareContentSize, appconsts.MaxSquareSize},
+		{"full block max square size", 0, 5000, appconsts.SparseShareContentSize, appconsts.MaxSquareSize},
 		{"overly full block", 0, 80, appconsts.SparseShareContentSize * 100, appconsts.MaxSquareSize},
 		{"one over the perfect estimation edge case", 10, 1, appconsts.SparseShareContentSize * 10, 8},
 	}
