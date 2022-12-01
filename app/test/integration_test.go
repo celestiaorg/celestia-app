@@ -16,7 +16,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/prove"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	"github.com/celestiaorg/celestia-app/x/blob"
@@ -211,39 +210,28 @@ func (s *IntegrationTestSuite) TestSharesInclusionProof() {
 		beginTxShare, endTxShare, err := prove.TxSharePosition(blockRes.Block.Txs, uint64(txResp.Index))
 		require.NoError(err)
 
-		// split the block to shares
-		rawShares, err := shares.Split(blockRes.Block.Data, true)
-		require.NoError(err)
-
-		// verify the transaction shares proof
-		txProof, err := prove.SharesInclusion(
-			rawShares,
-			blockRes.Block.SquareSize,
-			appconsts.TxNamespaceID,
+		txProof, err := node.ProveShares(
+			context.Background(),
+			uint64(txResp.Height),
 			beginTxShare,
 			endTxShare,
 		)
 		require.NoError(err)
-		require.NoError(txProof.Validate())
+		require.NoError(txProof.Validate(blockRes.Block.DataHash))
 
 		// get the message shares
 		beginMsgShare, endMsgShare, err := prove.MsgSharesPosition(blockRes.Block.Txs[txResp.Index])
 		require.NoError(err)
 
-		// parse the message namespace
-		nID, err := prove.ParseNamespaceID(rawShares, int64(beginMsgShare), int64(endMsgShare))
-		require.NoError(err)
-
 		// verify the message shares proof
-		msgProof, err := prove.SharesInclusion(
-			rawShares,
-			blockRes.Block.SquareSize,
-			nID,
+		msgProof, err := node.ProveShares(
+			context.Background(),
+			uint64(txResp.Height),
 			beginMsgShare,
 			endMsgShare,
 		)
 		require.NoError(err)
-		require.NoError(msgProof.Validate())
+		require.NoError(msgProof.Validate(blockRes.Block.DataHash))
 	}
 }
 
