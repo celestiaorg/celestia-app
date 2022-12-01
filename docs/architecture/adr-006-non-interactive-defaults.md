@@ -166,7 +166,7 @@ The key to arranging the square into non-interactive defaults is calculating the
 // NextAlignedPowerOfTwo calculates the next index in a row that is an aligned
 // power of two and returns false if the entire the blob cannot fit on the given
 // row at the next aligned power of two. An aligned power of two means that the
-// largest power of two that fits entirely in the blob or the square size. pls
+// largest power of two that fits entirely in the blob or the square size.
 // see specs for further details. Assumes that cursor < squareSize, all args are
 // non negative, and that squareSize is a power of two.
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
