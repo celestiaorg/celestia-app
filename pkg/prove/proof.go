@@ -280,7 +280,7 @@ func SharesInclusion(
 	edsRowRoots := eds.RowRoots()
 
 	// create the binary merkle inclusion proof, for all the square rows, to the data root
-	rootHash, allProofs := merkle.ProofsFromByteSlices(append(edsRowRoots, eds.ColRoots()...))
+	_, allProofs := merkle.ProofsFromByteSlices(append(edsRowRoots, eds.ColRoots()...))
 	rowsProofs := make([]*merkle.Proof, endRow-startRow+1)
 	rowsRoots := make([]tmbytes.HexBytes, endRow-startRow+1)
 	for i := startRow; i <= endRow; i++ {
@@ -341,7 +341,6 @@ func SharesInclusion(
 		RowsProof: types.RowsProof{
 			RowsRoots: rowsRoots,
 			Proofs:    rowsProofs,
-			Root:      rootHash,
 			StartRow:  uint32(startRow),
 			EndRow:    uint32(endRow),
 		},
