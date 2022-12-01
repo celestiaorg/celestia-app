@@ -6,6 +6,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -26,6 +27,23 @@ const (
 )
 
 var _ sdk.Msg = &MsgPayForBlob{}
+
+func NewMsgPayForBlob(signer string, nid namespace.ID, blob []byte) (*MsgPayForBlob, error) {
+	commitment, err := CreateCommitment(nid, blob, appconsts.ShareVersionZero)
+	if err != nil {
+		return nil, err
+	}
+	if len(blob) == 0 {
+		return nil, ErrEmptyBlob
+	}
+	msg := &MsgPayForBlob{
+		Signer:          signer,
+		NamespaceId:     nid,
+		ShareCommitment: commitment,
+		BlobSize:        uint64(len(blob)),
+	}
+	return msg, msg.ValidateBasic()
+}
 
 // Route fullfills the sdk.Msg interface
 func (msg *MsgPayForBlob) Route() string { return RouterKey }

@@ -11,6 +11,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func Test_merkleMountainRangeHeights(t *testing.T) {
@@ -307,4 +308,65 @@ func validMsgPayForBlob(t *testing.T) *MsgPayForBlob {
 	require.NoError(t, err)
 
 	return spfb
+}
+
+func TestNewMsgPayForBlob(t *testing.T) {
+	type test struct {
+		signer      string
+		nid         namespace.ID
+		blob        []byte
+		expectedErr bool
+	}
+
+	kr := GenerateKeyring(t, "blob")
+	rec, err := kr.Key("blob")
+	require.NoError(t, err)
+	addr, err := rec.GetAddress()
+	require.NoError(t, err)
+
+	tests := []test{
+		{
+			signer:      addr.String(),
+			nid:         []byte{1, 2, 3, 4, 5, 6, 7, 8},
+			blob:        []byte{1},
+			expectedErr: false,
+		},
+		{
+			signer:      addr.String(),
+			nid:         []byte{1, 2, 3, 4, 5, 6, 7, 8},
+			blob:        tmrand.Bytes(1000000),
+			expectedErr: false,
+		},
+		{
+			signer:      addr.String(),
+			nid:         []byte{1, 2, 3, 4, 5, 6, 7},
+			blob:        tmrand.Bytes(100),
+			expectedErr: true,
+		},
+		{
+			signer:      addr.String(),
+			nid:         appconsts.TxNamespaceID,
+			blob:        tmrand.Bytes(100),
+			expectedErr: true,
+		},
+		{
+			signer:      addr.String()[:10],
+			nid:         appconsts.TxNamespaceID,
+			blob:        tmrand.Bytes(100),
+			expectedErr: true,
+		},
+	}
+	for _, tt := range tests {
+		res, err := NewMsgPayForBlob(tt.signer, tt.nid, tt.blob)
+		if tt.expectedErr {
+			assert.Error(t, err)
+			continue
+		}
+
+		expectedCommitment, err := CreateCommitment(tt.nid, tt.blob, appconsts.ShareVersionZero)
+		require.NoError(t, err)
+		assert.Equal(t, expectedCommitment, res.ShareCommitment)
+
+		assert.Equal(t, uint64(len(tt.blob)), res.BlobSize)
+	}
 }
