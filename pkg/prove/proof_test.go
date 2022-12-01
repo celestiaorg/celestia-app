@@ -215,8 +215,7 @@ func TestShareInclusion(t *testing.T) {
 				uint64(tt.endingShare),
 			)
 			require.NoError(t, err)
-			assert.NoError(t, proof.Validate())
-			assert.Equal(t, dataRoot, proof.RowsProof.Root)
+			assert.NoError(t, proof.Validate(dataRoot))
 		})
 	}
 }
