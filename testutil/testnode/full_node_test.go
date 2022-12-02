@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -103,7 +103,7 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 		err = s.cctx.WaitForNextBlock()
 		require.NoError(err)
 
-		res, err := testutil.QueryWithoutProof(s.cctx.Context, resp.TxHash)
+		res, err := testfactory.QueryWithoutProof(s.cctx.Context, resp.TxHash)
 		require.NoError(err)
 		require.Equal(abci.CodeTypeOK, res.TxResult.Code)
 

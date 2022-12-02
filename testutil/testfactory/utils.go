@@ -1,4 +1,4 @@
-package blobfactory
+package testfactory
 
 import (
 	"context"
