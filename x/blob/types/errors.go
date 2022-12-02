@@ -23,4 +23,5 @@ var (
 	ErrMismatchedNumberOfPFBorBlob    = sdkerrors.Register(ModuleName, 11123, "mismatched number of blobs per MsgPayForBlob")
 	ErrNoPFBInBlobTx                  = sdkerrors.Register(ModuleName, 11124, "BlobTx must contain at least one MsgPayForBlob")
 	ErrUnsupportedShareVersion        = sdkerrors.Register(ModuleName, 11125, "unsupported share version")
+	ErrEmptyBlob                      = sdkerrors.Register(ModuleName, 11126, "empty blob")
 )
