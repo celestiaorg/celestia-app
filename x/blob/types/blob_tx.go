@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -13,6 +14,25 @@ import (
 type ProcessedBlobTx struct {
 	Blobs []tmproto.Blob
 	Tx    []byte
+}
+
+// NewBlob creates a new coretypes.Blob from the provided data after performing
+// basic stateless checks over it.
+func NewBlob(ns namespace.ID, blob []byte) (*tmproto.Blob, error) {
+	err := ValidateBlobNamespaceID(ns)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(blob) == 0 {
+		return nil, ErrEmptyBlob
+	}
+
+	return &tmproto.Blob{
+		NamespaceId:  ns,
+		Data:         blob,
+		ShareVersion: uint32(appconsts.ShareVersionZero),
+	}, nil
 }
 
 // ProcessBlobTx performs stateless checks on the BlobTx to ensure that the
@@ -67,7 +87,7 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 		}
 
 		// verify that the commitment of the blob matches that of the PFB
-		calculatedCommit, err := CreateCommitment(pfb.NamespaceId, blob)
+		calculatedCommit, err := CreateCommitment(pfb.NamespaceId, blob, appconsts.ShareVersionZero)
 		if err != nil {
 			return ProcessedBlobTx{}, err // todo: wrap this error with an sdkerror error
 		}
@@ -75,7 +95,7 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 			return ProcessedBlobTx{}, ErrInvalidShareCommit
 		}
 
-		protoBlobs[i] = tmproto.Blob{NamespaceId: pfb.NamespaceId, Data: blob, ShareVersion: uint32(appconsts.ShareVersion)}
+		protoBlobs[i] = tmproto.Blob{NamespaceId: pfb.NamespaceId, Data: blob, ShareVersion: uint32(appconsts.ShareVersionZero)}
 	}
 
 	return ProcessedBlobTx{
