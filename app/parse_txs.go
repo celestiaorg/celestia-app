@@ -46,7 +46,7 @@ func processTxs(logger log.Logger, txs []parsedTx) ([][]byte, []tmproto.Blob) {
 	processedTxs := make([][]byte, 0)
 	blobs := make([]tmproto.Blob, 0)
 	for _, pTx := range txs {
-		if pTx.normalTx != nil {
+		if len(pTx.normalTx) != 0 {
 			processedTxs = append(processedTxs, pTx.normalTx)
 			continue
 		}

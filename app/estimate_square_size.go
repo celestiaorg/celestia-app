@@ -17,35 +17,50 @@ import (
 // because the cost of padding TODO: cache and return the number of shares a
 // blob uses so we don't recalculate it later.
 func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int) {
-	txSharesUsed := compactSharesUsed(appconsts.MaxSquareSize, txs)
-	msgSharesUsed := 0
+	txSharesUsed := estimateCompactShares(appconsts.MaxSquareSize, txs)
+	blobSharesUsed := 0
 
 	for _, ptx := range txs {
-		if ptx.normalTx != nil {
+		if len(ptx.normalTx) != 0 {
 			continue
 		}
-		msgSharesUsed += shares.MsgSharesUsed(ptx.blobTx.DataUsed())
+		blobSharesUsed += shares.BlobSharesUsed(ptx.blobTx.DataUsed())
 	}
 
 	// assume that we have to add a lot of padding by simply doubling the number
 	// of shares used
-	totalSharesUsed := txSharesUsed + msgSharesUsed
+	//
+	// TODO: use a more precise estimation that doesn't over
+	// estimate as much
+	totalSharesUsed := uint64(txSharesUsed + blobSharesUsed)
 	totalSharesUsed *= 2
+	totalSharesUsed = shares.RoundUpPowerOfTwo(totalSharesUsed)
+	squareSize = uint64(math.Sqrt(float64(totalSharesUsed)))
+	if squareSize >= appconsts.MaxSquareSize {
+		squareSize = appconsts.MaxSquareSize
+	}
+	if squareSize <= appconsts.MinSquareSize {
+		squareSize = appconsts.MinSquareSize
+	}
 
-	return uint64(math.Sqrt(float64(totalSharesUsed))), txSharesUsed
+	return squareSize, txSharesUsed
 }
 
-// compactSharesUsed calculates the amount of shares used by the celestia
+// estimateCompactShares calculates the amount of shares used by the celestia
 // specific transactions
-func compactSharesUsed(squareSize uint64, ptxs []parsedTx) int {
+func estimateCompactShares(squareSize uint64, ptxs []parsedTx) int {
 	maxWTxOverhead := maxWrappedTxOverhead(squareSize)
 	txbytes := 0
 	for _, pTx := range ptxs {
-		if pTx.normalTx == nil {
-			txbytes += len(pTx.normalTx)
+		if len(pTx.normalTx) != 0 {
+			txLen := len(pTx.normalTx)
+			txLen += shares.DelimLen(uint64(txLen))
+			txbytes += txLen
 			continue
 		}
-		txbytes += len(pTx.blobTx.Tx) + maxWTxOverhead
+		txLen := len(pTx.blobTx.Tx) + maxWTxOverhead
+		txLen += shares.DelimLen(uint64(txLen))
+		txbytes += txLen
 	}
 
 	sharesUsed := 1
@@ -62,11 +77,16 @@ func compactSharesUsed(squareSize uint64, ptxs []parsedTx) int {
 
 // maxWrappedTxOverhead calculates the maximum amount of overhead introduced by
 // wrapping a transaction with a shares index
+//
+// TODO: make more efficient by only generating these numbers once or something
+// similar. This function alone can take up to 5ms.
 func maxWrappedTxOverhead(squareSize uint64) int {
-	tx := []byte{1}
-	wtx, err := coretypes.WrapMalleatedTx(uint32(squareSize*squareSize), tx)
+	maxTxLen := squareSize * squareSize * appconsts.ContinuationCompactShareContentSize
+	wtx, err := coretypes.WrapMalleatedTx(
+		uint32(squareSize*squareSize),
+		make([]byte, maxTxLen))
 	if err != nil {
 		panic(err)
 	}
-	return len(wtx) - len(tx)
+	return len(wtx) - int(maxTxLen)
 }

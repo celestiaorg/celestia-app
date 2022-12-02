@@ -24,7 +24,7 @@ func addShareIndexes(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([
 	// need to sort the blobs by namespace, so we separate them and then sort.
 	var trackedBlobs []trackedBlob
 	for i, pTx := range ptxs {
-		if pTx.normalTx != nil {
+		if len(pTx.normalTx) != 0 {
 			continue
 		}
 		trackedBlobs = append(trackedBlobs, trackedBlob{
