@@ -13,6 +13,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // TestFuzzPrepareProcessProposal produces blocks with random data using
@@ -34,11 +35,11 @@ func TestFuzzPrepareProcessProposal(t *testing.T) {
 		default:
 			t.Run("randomized inputs to Prepare and Process Proposal", func(t *testing.T) {
 				pfbTxs := blobfactory.GenerateManyRawWirePFB(t, encConf.TxConfig, signer, tmrand.Intn(100), -1)
-				txs := blobfactory.GenerateManyRawSendTxs(t, encConf.TxConfig, signer, tmrand.Intn(20))
-				txs = append(txs, pfbTxs...)
+				txs := blobfactory.GenerateManyRawSendTxs(encConf.TxConfig, tmrand.Intn(20))
+				txs = append(txs, coretypes.ToTxs(pfbTxs)...)
 				resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
 					BlockData: &core.Data{
-						Txs: txs,
+						Txs: coretypes.Txs(txs).ToSliceOfBytes(),
 					},
 				})
 				res := testApp.ProcessProposal(abci.RequestProcessProposal{
