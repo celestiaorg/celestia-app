@@ -15,10 +15,10 @@ type trackedBlob struct {
 	sharesUsed  int
 }
 
-func addShareIndexes(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]parsedTx, error) {
+func addShareIndexes(squareSize uint64, nonreserveStart int, ptxs []parsedTx) []parsedTx {
 	maxShareCount := squareSize * squareSize
 	if nonreserveStart > int(maxShareCount) {
-		return nil, errors.New("non reserver start index greater than max share count")
+		panic(errors.New("non reserver start index greater than max share count"))
 	}
 	// we want to preserve the order of the txs, add each atomically, but we
 	// need to sort the blobs by namespace, so we separate them and then sort.
@@ -58,7 +58,7 @@ func addShareIndexes(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([
 		ptxs[tBlob.parsedIndex].shareIndex = blobStartIndexes[i]
 	}
 
-	return ptxs, nil
+	return ptxs
 }
 
 // pruneExcessBlobs will prune excess parsedTxs and their blobs until they fit
@@ -73,13 +73,15 @@ func pruneExcessBlobs(
 	shareIndexes []uint32,
 ) ([]parsedTx, []trackedBlob, []uint32) {
 	maxShares := uint32(squareSize * squareSize)
+	removed := 0
 	for i := len(shareIndexes) - 1; i >= 0; i-- {
 		if shareIndexes[i]+uint32(sortedBlobs[i].sharesUsed) <= maxShares {
 			break
 		}
 		ptxs = remove(ptxs, sortedBlobs[i].parsedIndex)
+		removed++
 	}
-	return ptxs, sortedBlobs[:len(ptxs)], shareIndexes[:len(ptxs)]
+	return ptxs, sortedBlobs[:len(sortedBlobs)-removed], shareIndexes[:len(shareIndexes)-removed]
 }
 
 func remove[T any](p []T, i int) []T {

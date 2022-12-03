@@ -1,10 +1,16 @@
 package app
 
 import (
+	"bytes"
+	"sort"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	tmlog "github.com/tendermint/tendermint/libs/log"
+	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func Test_addShareIndexes(t *testing.T) {
@@ -13,7 +19,9 @@ func Test_addShareIndexes(t *testing.T) {
 		shareIndexes []uint32
 	}
 
-	ns := []byte{1, 2, 3, 4, 5, 6, 7, 8}
+	ns1 := []byte{1, 1, 1, 1, 1, 1, 1, 1}
+	ns2 := []byte{2, 2, 2, 2, 2, 2, 2, 2}
+	ns3 := []byte{3, 3, 3, 3, 3, 3, 3, 3}
 
 	type test struct {
 		squareSize      uint64
@@ -26,7 +34,7 @@ func Test_addShareIndexes(t *testing.T) {
 			squareSize:      4,
 			nonreserveStart: 10,
 			ptxs: generateParsedTxsWithNIDs(
-				[][]byte{ns},
+				[][]byte{ns1},
 				[]int{1},
 			),
 			expectedIndexes: []uint32{10},
@@ -35,7 +43,7 @@ func Test_addShareIndexes(t *testing.T) {
 			squareSize:      4,
 			nonreserveStart: 10,
 			ptxs: generateParsedTxsWithNIDs(
-				[][]byte{ns, ns},
+				[][]byte{ns1, ns1},
 				[]int{100, 100},
 			),
 			expectedIndexes: []uint32{10, 11},
@@ -44,25 +52,25 @@ func Test_addShareIndexes(t *testing.T) {
 			squareSize:      4,
 			nonreserveStart: 10,
 			ptxs: generateParsedTxsWithNIDs(
-				[][]byte{ns, ns, ns, ns, ns, ns, ns, ns, ns, ns},
+				[][]byte{ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1},
 				[]int{100, 100, 100, 100, 100, 100, 100, 100, 100, 100},
 			),
 			expectedIndexes: []uint32{10, 11, 12, 13, 14, 15},
 		},
 		{
 			squareSize:      4,
-			nonreserveStart: 2,
+			nonreserveStart: 6,
 			ptxs: generateParsedTxsWithNIDs(
-				[][]byte{ns, ns, ns, ns, ns, ns, ns, ns, ns, ns},
+				[][]byte{ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1},
 				[]int{100, 100, 100, 100, 100, 100, 100, 100, 100, 100},
 			),
-			expectedIndexes: []uint32{2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+			expectedIndexes: []uint32{6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
 		},
 		{
 			squareSize:      4,
 			nonreserveStart: 3,
 			ptxs: generateParsedTxsWithNIDs(
-				[][]byte{ns, ns, ns},
+				[][]byte{ns1, ns1, ns1},
 				[]int{10000, 10000, 1000000},
 			),
 			expectedIndexes: []uint32{},
@@ -71,18 +79,72 @@ func Test_addShareIndexes(t *testing.T) {
 			squareSize:      64,
 			nonreserveStart: 32,
 			ptxs: generateParsedTxsWithNIDs(
-				[][]byte{ns, ns, ns},
+				[][]byte{ns1, ns1, ns1},
 				[]int{1000, 10000, 100000},
 			),
 			expectedIndexes: []uint32{32, 48, 128},
 		},
+		{
+			squareSize:      32,
+			nonreserveStart: 32,
+			ptxs: generateParsedTxsWithNIDs(
+				[][]byte{ns2, ns1, ns1},
+				[]int{100, 100, 100},
+			),
+			expectedIndexes: []uint32{34, 32, 33},
+		},
+		{
+			squareSize:      32,
+			nonreserveStart: 32,
+			ptxs: generateParsedTxsWithNIDs(
+				[][]byte{ns1, ns2, ns1},
+				[]int{100, 1000, 1000},
+			),
+			expectedIndexes: []uint32{32, 36, 34},
+		},
+		{
+			squareSize:      32,
+			nonreserveStart: 32,
+			ptxs: generateParsedTxsWithNIDs(
+				[][]byte{ns1, ns2, ns1},
+				[]int{100, 1000, 1000},
+			),
+			expectedIndexes: []uint32{32, 36, 34},
+		},
+		{
+			squareSize:      4,
+			nonreserveStart: 2,
+			ptxs: generateParsedTxsWithNIDs(
+				[][]byte{ns1, ns3, ns2},
+				[]int{100, 1000, 420},
+			),
+			expectedIndexes: []uint32{2, 4, 3},
+		},
 	}
 	for _, tt := range tests {
-		res, err := addShareIndexes(tt.squareSize, tt.nonreserveStart, tt.ptxs)
-		assert.NoError(t, err)
+		res := addShareIndexes(tt.squareSize, tt.nonreserveStart, tt.ptxs)
 		require.Equal(t, len(tt.expectedIndexes), len(res))
 		for i, ptx := range res {
-			assert.Equal(t, tt.expectedIndexes[i], ptx.shareIndex)
+			assert.Equal(t, tt.expectedIndexes[i], ptx.shareIndex, i)
 		}
+
+		// check that each output can be split into shares
+		processedTxs, blobs := processTxs(tmlog.NewNopLogger(), res)
+
+		sort.SliceStable(blobs, func(i, j int) bool {
+			return bytes.Compare(blobs[i].NamespaceId, blobs[j].NamespaceId) < 0
+		})
+
+		blockData := core.Data{
+			Txs:        processedTxs,
+			Blobs:      blobs,
+			SquareSize: tt.squareSize,
+		}
+
+		coreData, err := coretypes.DataFromProto(&blockData)
+		require.NoError(t, err)
+
+		_, err = shares.Split(coreData, true)
+		require.NoError(t, err)
 	}
 }
