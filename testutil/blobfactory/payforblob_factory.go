@@ -99,6 +99,15 @@ func RandBlobTxsWithNamespaces(enc sdk.TxEncoder, nIds [][]byte, sizes []int) []
 	const acc = "signer"
 	kr := testfactory.GenerateKeyring(acc)
 	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
+	return RandBlobTxsWithNamespacesAndSigner(enc, signer, nIds, sizes)
+}
+
+func RandBlobTxsWithNamespacesAndSigner(
+	enc sdk.TxEncoder,
+	signer *blobtypes.KeyringSigner,
+	nIds [][]byte,
+	sizes []int,
+) []coretypes.Tx {
 	addr, err := signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		panic(err)
