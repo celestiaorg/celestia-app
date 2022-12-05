@@ -8,13 +8,13 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
-	blob "github.com/celestiaorg/celestia-app/x/blob"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 type Context struct {
@@ -111,37 +111,37 @@ func (c *Context) PostData(account, broadcastMode string, ns, blobData []byte) (
 	signer.SetAccountNumber(acc)
 	signer.SetSequence(seq)
 
-	// create a random blob per row
-	pfb, err := blob.BuildPayForBlob(
-		c.rootCtx,
-		signer,
-		c.GRPCClient,
+	msg, err := types.NewMsgPayForBlob(
+		addr.String(),
 		ns,
 		blobData,
-		appconsts.ShareVersionZero,
-		opts...,
 	)
+	builder := signer.NewTxBuilder(opts...)
+	stx, err := signer.BuildSignedTx(builder, msg)
+	if err != nil {
+		return nil, err
+	}
+	wblob, err := types.NewBlob(msg.NamespaceId, blobData)
+	if err != nil {
+		return nil, err
+	}
+	rawTx, err := signer.EncodeTx(stx)
+	if err != nil {
+		return nil, err
+	}
+	blobTx, err := coretypes.WrapBlobTx(rawTx, wblob)
 	if err != nil {
 		return nil, err
 	}
 
-	signed, err := blob.SignPayForBlob(signer, pfb, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	rawTx, err := signer.EncodeTx(signed)
-	if err != nil {
-		return nil, err
-	}
 	var res *sdk.TxResponse
 	switch broadcastMode {
 	case flags.BroadcastSync:
-		res, err = c.BroadcastTxSync(rawTx)
+		res, err = c.BroadcastTxSync(blobTx)
 	case flags.BroadcastAsync:
-		res, err = c.BroadcastTxAsync(rawTx)
+		res, err = c.BroadcastTxAsync(blobTx)
 	case flags.BroadcastBlock:
-		res, err = c.BroadcastTxCommit(rawTx)
+		res, err = c.BroadcastTxCommit(blobTx)
 	default:
 		return nil, fmt.Errorf("unsupported broadcast mode %s; supported modes: sync, async, block", c.BroadcastMode)
 	}
