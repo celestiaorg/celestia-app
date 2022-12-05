@@ -1,9 +1,6 @@
 package app
 
 import (
-	"bytes"
-	"sort"
-
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -26,19 +23,15 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// squares but can only return values within the min and max square size.
 	squareSize, nonreservedStart := estimateSquareSize(parsedTxs)
 
-	parsedTxs = addShareIndexes(squareSize, nonreservedStart, parsedTxs)
+	// finalizeLayout wraps any blob transactions with their final share index.
+	// This requires sorting the blobs by namespace and potentially pruning
+	// MsgPayForBlob transactions and their respective blobs from the block if
+	// they do not fit into the square.
+	parsedTxs, blobs := finalizeLayout(squareSize, nonreservedStart, parsedTxs)
 
-	// in this step we are processing any MsgWirePayForBlob transactions into
-	// MsgPayForBlob and their respective blobPointers. The malleatedTxs contain the
-	// the new sdk.Msg with the original tx's metadata (sequence number, gas
-	// price etc).
-	processedTxs, blobs := processTxs(app.Logger(), parsedTxs)
-
-	// blobs must be sorted by namespace in order to create nmts, and therefore
-	// are required for valid blocks
-	sort.SliceStable(blobs, func(i, j int) bool {
-		return bytes.Compare(blobs[i].NamespaceId, blobs[j].NamespaceId) < 0
-	})
+	// extract all transactions from the intermediate parsedTx struct, and wrap
+	// any blob transactions with their finalized share index.
+	processedTxs := processTxs(app.Logger(), parsedTxs)
 
 	blockData := core.Data{
 		Txs:        processedTxs,

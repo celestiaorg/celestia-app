@@ -22,7 +22,7 @@ func TestPrepareProposal(t *testing.T) {
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	testApp := testutil.SetupTestAppWithGenesisValSet(t)
+	testApp := testutil.SetupTestAppWithGenesisValSet()
 
 	type test struct {
 		input         abci.RequestPrepareProposal
@@ -42,7 +42,7 @@ func TestPrepareProposal(t *testing.T) {
 	)
 	decodedBlobTxs := make([]tmproto.BlobTx, 0, len(blobTxs))
 	for _, rawBtx := range blobTxs {
-		btx, isbtx := coretypes.UnwrapBlobTx(rawBtx)
+		btx, isbtx := coretypes.UnmarshalBlobTx(rawBtx)
 		if !isbtx {
 			panic("unexpected testing error")
 		}

@@ -2,7 +2,7 @@ package app
 
 import (
 	"bytes"
-	"errors"
+	"fmt"
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -15,13 +15,15 @@ type trackedBlob struct {
 	sharesUsed  int
 }
 
-func addShareIndexes(squareSize uint64, nonreserveStart int, ptxs []parsedTx) []parsedTx {
-	maxShareCount := squareSize * squareSize
-	if nonreserveStart > int(maxShareCount) {
-		panic(errors.New("non reserver start index greater than max share count"))
-	}
-	// we want to preserve the order of the txs, add each atomically, but we
-	// need to sort the blobs by namespace, so we separate them and then sort.
+// finalizeLayout returns the transactions and blobs in their completed layout.
+// Valid square layouts only include a MsgPayForBlob transaction if the blob is
+// also included in the square. The blobs are also sorted by namespace.
+func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]parsedTx, []tmproto.Blob) {
+	// we split the transactions from the blobs here, but keep track of which
+	// parsed transaction the blobs originated from. transactions must only be
+	// added to the square if their respective blob is also added to the square.
+	// Also, the blobs must be sorted by namespace before we can split them into
+	// shares and create nmt commitments over each and column.
 	var trackedBlobs []trackedBlob
 	for i, pTx := range ptxs {
 		if len(pTx.normalTx) != 0 {
@@ -34,60 +36,62 @@ func addShareIndexes(squareSize uint64, nonreserveStart int, ptxs []parsedTx) []
 		})
 	}
 
+	// blobs must be sorted by namespace in order for nmt to be able to create a
+	// commitment over each row and column.
 	sort.SliceStable(trackedBlobs, func(i, j int) bool {
 		return bytes.Compare(trackedBlobs[i].blob.NamespaceId, trackedBlobs[j].blob.NamespaceId) < 0
 	})
 
-	blobShareLens := make([]int, len(trackedBlobs))
-	for i, b := range trackedBlobs {
-		blobShareLens[i] = b.sharesUsed
-	}
-
-	sharesUsed, blobStartIndexes := shares.BlobSharesUsedNonInteractiveDefaults(
-		nonreserveStart,
-		int(squareSize),
-		blobShareLens...,
-	)
-
-	if sharesUsed+nonreserveStart >= int(maxShareCount) {
-		ptxs, trackedBlobs, blobStartIndexes = pruneExcessBlobs(squareSize, ptxs, trackedBlobs, blobStartIndexes)
-	}
-
-	// add the share indexes back to the parsed transactions
-	for i, tBlob := range trackedBlobs {
-		ptxs[tBlob.parsedIndex].shareIndex = blobStartIndexes[i]
-	}
-
-	return ptxs
-}
-
-// pruneExcessBlobs will prune excess parsedTxs and their blobs until they fit
-// in the square.
-//
-// TODO: refactor to use a more sophisticated pruning algo so that we don't just
-// prune the largest namespaces
-func pruneExcessBlobs(
-	squareSize uint64,
-	ptxs []parsedTx,
-	sortedBlobs []trackedBlob,
-	shareIndexes []uint32,
-) ([]parsedTx, []trackedBlob, []uint32) {
-	maxShares := uint32(squareSize * squareSize)
-	removed := 0
-	for i := len(shareIndexes) - 1; i >= 0; i-- {
-		if shareIndexes[i]+uint32(sortedBlobs[i].sharesUsed) <= maxShares {
-			break
+	cursor := nonreserveStart
+	iSS := int(squareSize)
+	maxSharesSize := iSS * iSS
+	blobs := make([]tmproto.Blob, 0)
+	removeList := []int{}
+	for _, tBlob := range trackedBlobs {
+		cursor, _ = shares.NextAlignedPowerOfTwo(cursor, tBlob.sharesUsed, iSS)
+		// remove the parsed transaction if it cannot fit into the square
+		if cursor+tBlob.sharesUsed > maxSharesSize {
+			removeList = append(removeList, tBlob.parsedIndex)
+			continue
 		}
-		ptxs = remove(ptxs, sortedBlobs[i].parsedIndex)
-		removed++
+		ptxs[tBlob.parsedIndex].shareIndex = uint32(cursor)
+		blobs = append(blobs, tBlob.blob)
+		cursor += tBlob.sharesUsed
 	}
-	return ptxs, sortedBlobs[:len(sortedBlobs)-removed], shareIndexes[:len(shareIndexes)-removed]
+
+	ptxs = removeMany(ptxs, removeList...)
+
+	blobTxCount := 0
+	for _, ptx := range ptxs {
+		if len(ptx.blobTx.Tx) != 0 {
+			blobTxCount++
+		}
+	}
+
+	if blobTxCount != len(blobs) {
+		panic(fmt.Sprintf("invalid number of blob txs: must be equal to number of blobs: txs %d blobs %d", blobTxCount, len(blobs)))
+	}
+
+	return ptxs, blobs
 }
 
-func remove[T any](p []T, i int) []T {
-	if i >= len(p) {
-		return p
+func removeMany[T any](s []T, indexes ...int) []T {
+	// Create a map to track which indexes to remove
+	remove := make(map[int]bool)
+	for _, i := range indexes {
+		remove[i] = true
 	}
-	copy(p[i:], p[i+1:])
-	return p[:len(p)-1]
+
+	// Create a new slice to store the remaining elements
+	result := make([]T, 0, len(s)-len(indexes))
+
+	// Iterate over the original slice and append elements
+	// to the result slice unless they are marked for removal
+	for i, x := range s {
+		if !remove[i] {
+			result = append(result, x)
+		}
+	}
+
+	return result
 }

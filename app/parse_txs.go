@@ -5,7 +5,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/libs/log"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -26,7 +25,7 @@ type parsedTx struct {
 func parseTxs(txcfg client.TxConfig, rawTxs [][]byte) []parsedTx {
 	parsedTxs := make([]parsedTx, len(rawTxs))
 	for i, rawTx := range rawTxs {
-		bTx, isBlob := coretypes.UnwrapBlobTx(rawTx)
+		bTx, isBlob := coretypes.UnmarshalBlobTx(rawTx)
 		if !isBlob {
 			parsedTxs[i] = parsedTx{normalTx: rawTx}
 			continue
@@ -42,9 +41,9 @@ func parseTxs(txcfg client.TxConfig, rawTxs [][]byte) []parsedTx {
 	return parsedTxs
 }
 
-func processTxs(logger log.Logger, txs []parsedTx) ([][]byte, []tmproto.Blob) {
+// processTxs wraps the parsed transactions with the attached share index
+func processTxs(logger log.Logger, txs []parsedTx) [][]byte {
 	processedTxs := make([][]byte, 0)
-	blobs := make([]tmproto.Blob, 0)
 	for _, pTx := range txs {
 		if len(pTx.normalTx) != 0 {
 			processedTxs = append(processedTxs, pTx.normalTx)
@@ -65,11 +64,6 @@ func processTxs(logger log.Logger, txs []parsedTx) ([][]byte, []tmproto.Blob) {
 		}
 
 		processedTxs = append(processedTxs, wTx)
-		// todo: add support for more than the first blob note: that its safe to
-		// assume that there is at least one blob, as this is checked during
-		// checkTx
-		blobs = append(blobs, pTx.blobTx.Blobs[0])
-
 	}
-	return processedTxs, blobs
+	return processedTxs
 }

@@ -61,7 +61,7 @@ func TestVerifySignature(t *testing.T) {
 	cTx, err := coretypes.WrapBlobTx(rawTx, wblob)
 	require.NoError(t, err)
 
-	uTx, isBlob := coretypes.UnwrapBlobTx(cTx)
+	uTx, isBlob := coretypes.UnmarshalBlobTx(cTx)
 	require.True(t, isBlob)
 
 	wTx, err := coretypes.WrapMalleatedTx(100, uTx.Tx)

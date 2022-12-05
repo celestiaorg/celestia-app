@@ -13,7 +13,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func Test_addShareIndexes(t *testing.T) {
+func Test_finalizeLayout(t *testing.T) {
 	type result struct {
 		ptxs         []parsedTx
 		shareIndexes []uint32
@@ -121,15 +121,15 @@ func Test_addShareIndexes(t *testing.T) {
 			expectedIndexes: []uint32{2, 4, 3},
 		},
 	}
-	for _, tt := range tests {
-		res := addShareIndexes(tt.squareSize, tt.nonreserveStart, tt.ptxs)
-		require.Equal(t, len(tt.expectedIndexes), len(res))
+	for i, tt := range tests {
+		res, blobs := finalizeLayout(tt.squareSize, tt.nonreserveStart, tt.ptxs)
+		require.Equal(t, len(tt.expectedIndexes), len(res), i)
+		require.Equal(t, len(tt.expectedIndexes), len(blobs), i)
 		for i, ptx := range res {
 			assert.Equal(t, tt.expectedIndexes[i], ptx.shareIndex, i)
 		}
 
-		// check that each output can be split into shares
-		processedTxs, blobs := processTxs(tmlog.NewNopLogger(), res)
+		processedTxs := processTxs(tmlog.NewNopLogger(), res)
 
 		sort.SliceStable(blobs, func(i, j int) bool {
 			return bytes.Compare(blobs[i].NamespaceId, blobs[j].NamespaceId) < 0

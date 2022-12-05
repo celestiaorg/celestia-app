@@ -50,6 +50,56 @@ func RandMsgPayForBlob(size int) (*blobtypes.MsgPayForBlob, []byte) {
 	return msg, blob
 }
 
+func RandBlobTxsRandomlySized(enc sdk.TxEncoder, count, maxSize int) []coretypes.Tx {
+	const acc = "signer"
+	kr := testfactory.GenerateKeyring(acc)
+	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
+	addr, err := signer.GetSignerInfo().GetAddress()
+	if err != nil {
+		panic(err)
+	}
+
+	coin := sdk.Coin{
+		Denom:  bondDenom,
+		Amount: sdk.NewInt(10),
+	}
+
+	opts := []blobtypes.TxBuilderOption{
+		blobtypes.SetFeeAmount(sdk.NewCoins(coin)),
+		blobtypes.SetGasLimit(10000000),
+	}
+
+	txs := make([]coretypes.Tx, count)
+	for i := 0; i < count; i++ {
+		// pick a random non-zero size of max maxSize
+		size := tmrand.Intn(maxSize)
+		if size == 0 {
+			size = 1
+		}
+		msg, blob := RandMsgPayForBlobWithSigner(addr.String(), size)
+		builder := signer.NewTxBuilder(opts...)
+		stx, err := signer.BuildSignedTx(builder, msg)
+		if err != nil {
+			panic(err)
+		}
+		rawTx, err := enc(stx)
+		if err != nil {
+			panic(err)
+		}
+		wblob, err := blobtypes.NewBlob(msg.NamespaceId, blob)
+		if err != nil {
+			panic(err)
+		}
+		cTx, err := coretypes.WrapBlobTx(rawTx, wblob)
+		if err != nil {
+			panic(err)
+		}
+		txs[i] = cTx
+	}
+
+	return txs
+}
+
 func RandBlobTxs(enc sdk.TxEncoder, count, size int) []coretypes.Tx {
 	const acc = "signer"
 	kr := testfactory.GenerateKeyring(acc)

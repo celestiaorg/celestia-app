@@ -3,7 +3,6 @@ package testutil
 import (
 	"encoding/json"
 	"fmt"
-	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -20,7 +19,6 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/spf13/cast"
-	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -65,9 +63,7 @@ func (ao emptyAppOptions) Get(o string) interface{} {
 // that also act as delegators. For simplicity, each validator is bonded with a delegation
 // of one consensus engine unit in the default token of the app from first genesis
 // account. A Nop logger is set in app.
-func SetupTestAppWithGenesisValSet(t *testing.T) *app.App {
-	t.Helper()
-
+func SetupTestAppWithGenesisValSet() *app.App {
 	// var cache sdk.MultiStorePersistentCache
 	// EmptyAppOptions is a stub implementing AppOptions
 	emptyOpts := emptyAppOptions{}
@@ -85,10 +81,12 @@ func SetupTestAppWithGenesisValSet(t *testing.T) *app.App {
 		emptyOpts,
 	)
 
-	genesisState, valSet := GenesisStateWithSingleValidator(t, testApp)
+	genesisState, valSet := GenesisStateWithSingleValidator(testApp)
 
 	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
-	require.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
 
 	// init chain will set the validator set and initialize the genesis accounts
 	testApp.InitChain(
@@ -176,12 +174,12 @@ func AddGenesisAccount(addr sdk.AccAddress, appState app.GenesisState, cdc codec
 
 // GenesisStateWithSingleValidator initializes GenesisState with a single validator and genesis accounts
 // that also act as delegators.
-func GenesisStateWithSingleValidator(t *testing.T, testApp *app.App) (app.GenesisState, *tmtypes.ValidatorSet) {
-	t.Helper()
-
+func GenesisStateWithSingleValidator(testApp *app.App) (app.GenesisState, *tmtypes.ValidatorSet) {
 	privVal := mock.NewPV()
 	pubKey, err := privVal.GetPubKey()
-	require.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
 
 	// create validator set with single validator
 	validator := tmtypes.NewValidator(pubKey, 1)
@@ -198,14 +196,16 @@ func GenesisStateWithSingleValidator(t *testing.T, testApp *app.App) (app.Genesi
 	}
 
 	genesisState := NewDefaultGenesisState(testApp.AppCodec())
-	genesisState = genesisStateWithValSet(t, testApp, genesisState, valSet, []authtypes.GenesisAccount{acc}, balances...)
+	genesisState = genesisStateWithValSet(testApp, genesisState, valSet, []authtypes.GenesisAccount{acc}, balances...)
 
 	return genesisState, valSet
 }
 
-func genesisStateWithValSet(t *testing.T,
-	app *app.App, genesisState app.GenesisState,
-	valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount,
+func genesisStateWithValSet(
+	app *app.App,
+	genesisState app.GenesisState,
+	valSet *tmtypes.ValidatorSet,
+	genAccs []authtypes.GenesisAccount,
 	balances ...banktypes.Balance,
 ) app.GenesisState {
 	// set genesis accounts
@@ -219,9 +219,13 @@ func genesisStateWithValSet(t *testing.T,
 
 	for _, val := range valSet.Validators {
 		pk, err := cryptocodec.FromTmPubKeyInterface(val.PubKey)
-		require.NoError(t, err)
+		if err != nil {
+			panic(err)
+		}
 		pkAny, err := codectypes.NewAnyWithValue(pk)
-		require.NoError(t, err)
+		if err != nil {
+			panic(err)
+		}
 		validator := stakingtypes.Validator{
 			OperatorAddress:   sdk.ValAddress(val.Address).String(),
 			ConsensusPubkey:   pkAny,

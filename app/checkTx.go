@@ -15,7 +15,7 @@ import (
 func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	tx := req.Tx
 	// check if the transaction contains blobs
-	btx, isBlob := coretypes.UnwrapBlobTx(tx)
+	btx, isBlob := coretypes.UnmarshalBlobTx(tx)
 
 	switch {
 	// don't do anything special if we have a normal transactions
