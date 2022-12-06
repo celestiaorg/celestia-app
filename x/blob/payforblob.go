@@ -35,6 +35,9 @@ func SubmitPayForBlob(
 		nID,
 		blob,
 	)
+	if err != nil {
+		return nil, err
+	}
 	err = signer.QueryAccountNumber(ctx, conn)
 	if err != nil {
 		return nil, err

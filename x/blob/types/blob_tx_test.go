@@ -51,6 +51,7 @@ func TestVerifySignature(t *testing.T) {
 	)
 	builder := signer.NewTxBuilder(opts...)
 	stx, err := signer.BuildSignedTx(builder, msg)
+	require.NoError(t, err)
 
 	rawTx, err := encCfg.TxConfig.TxEncoder()(stx)
 	require.NoError(t, err)

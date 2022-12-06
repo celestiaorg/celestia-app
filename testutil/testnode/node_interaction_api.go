@@ -116,6 +116,10 @@ func (c *Context) PostData(account, broadcastMode string, ns, blobData []byte) (
 		ns,
 		blobData,
 	)
+	if err != nil {
+		return nil, err
+	}
+
 	builder := signer.NewTxBuilder(opts...)
 	stx, err := signer.BuildSignedTx(builder, msg)
 	if err != nil {

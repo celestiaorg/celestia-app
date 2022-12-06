@@ -17,7 +17,6 @@ const (
 	// nolint:lll
 	TestAccName = "test-account"
 	testMnemo   = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
-	testChainID = "test-chain-1"
 )
 
 func QueryWithoutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.ResultTx, error) {

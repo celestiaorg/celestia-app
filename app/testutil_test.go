@@ -7,12 +7,6 @@ import (
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 )
 
-func generateParsedTxs(count, size int) []parsedTx {
-	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
-	txs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), count, size)
-	return parseTxs(encCfg.TxConfig, coretypes.Txs(txs).ToSliceOfBytes())
-}
-
 func generateMixedParsedTxs(normalTxCount, pfbCount, pfbSize int) []parsedTx {
 	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
 	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), pfbCount, pfbSize)

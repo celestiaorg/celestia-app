@@ -1,11 +1,8 @@
 package app_test
 
 import (
-	"crypto/rand"
-	"math/big"
 	"testing"
 
-	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -18,9 +15,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/celestiaorg/nmt/namespace"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func TestBlobInclusionCheck(t *testing.T) {
@@ -139,37 +133,4 @@ func TestProcessProposalWithParityShareNamespace(t *testing.T) {
 	}
 	res := testApp.ProcessProposal(input)
 	require.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
-}
-
-func genRandMsgPayForBlobForNamespace(t *testing.T, signer *types.KeyringSigner, ns namespace.ID) (*types.MsgPayForBlob, []byte) {
-	blob := make([]byte, randomInt(20))
-	_, err := rand.Read(blob)
-	require.NoError(t, err)
-
-	shareVersion := appconsts.ShareVersionZero
-	commit, err := types.CreateCommitment(ns, blob, shareVersion)
-	require.NoError(t, err)
-
-	pfb := types.MsgPayForBlob{
-		ShareCommitment: commit,
-		NamespaceId:     ns,
-		ShareVersion:    uint32(shareVersion),
-	}
-
-	return &pfb, blob
-}
-
-func buildTx(t *testing.T, signer *types.KeyringSigner, txCfg client.TxConfig, msg sdk.Msg) []byte {
-	tx, err := signer.BuildSignedTx(signer.NewTxBuilder(), msg)
-	require.NoError(t, err)
-
-	rawTx, err := txCfg.TxEncoder()(tx)
-	require.NoError(t, err)
-
-	return rawTx
-}
-
-func randomInt(max int64) int64 {
-	i, _ := rand.Int(rand.Reader, big.NewInt(max))
-	return i.Int64()
 }

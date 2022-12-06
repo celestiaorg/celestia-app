@@ -14,11 +14,6 @@ import (
 )
 
 func Test_finalizeLayout(t *testing.T) {
-	type result struct {
-		ptxs         []parsedTx
-		shareIndexes []uint32
-	}
-
 	ns1 := []byte{1, 1, 1, 1, 1, 1, 1, 1}
 	ns2 := []byte{2, 2, 2, 2, 2, 2, 2, 2}
 	ns3 := []byte{3, 3, 3, 3, 3, 3, 3, 3}

@@ -24,7 +24,7 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 	// added to the square if their respective blob is also added to the square.
 	// Also, the blobs must be sorted by namespace before we can split them into
 	// shares and create nmt commitments over each and column.
-	var trackedBlobs []trackedBlob
+	trackedBlobs := make([]trackedBlob, 0)
 	for i, pTx := range ptxs {
 		if len(pTx.normalTx) != 0 {
 			continue
