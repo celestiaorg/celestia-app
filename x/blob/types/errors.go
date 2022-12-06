@@ -21,4 +21,5 @@ var (
 	ErrEmptyShareCommitment           = sdkerrors.Register(ModuleName, 11121, "empty share commitment")
 	ErrInvalidShareCommitments        = sdkerrors.Register(ModuleName, 11122, "invalid share commitments: all relevant square sizes must be committed to")
 	ErrUnsupportedShareVersion        = sdkerrors.Register(ModuleName, 11123, "unsupported share version")
+	ErrZeroBlobSize                   = sdkerrors.Register(ModuleName, 11124, "cannot use zero blob size")
 )
