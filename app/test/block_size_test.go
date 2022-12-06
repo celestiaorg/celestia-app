@@ -3,7 +3,6 @@ package app_test
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"testing"
 	"time"
 
@@ -29,7 +28,7 @@ import (
 
 func TestIntegrationTestSuite(t *testing.T) {
 	cfg := network.DefaultConfig()
-	cfg.EnableTMLogging = true
+	cfg.EnableTMLogging = false
 	cfg.MinGasPrices = "0utia"
 	cfg.NumValidators = 1
 	cfg.TimeoutCommit = time.Millisecond * 400
@@ -92,7 +91,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			s.cfg.TxConfig.TxEncoder(),
 			s.kr,
 			c.GRPCClient,
-			900000,
+			950000,
 			false,
 			s.cfg.ChainID,
 			s.accounts[:20],
@@ -108,7 +107,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			s.cfg.TxConfig.TxEncoder(),
 			s.kr,
 			c.GRPCClient,
-			100000,
+			500000,
 			true,
 			s.cfg.ChainID,
 			s.accounts[20:],
@@ -140,14 +139,13 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				require.NoError(err)
 				assert.Equal(abci.CodeTypeOK, res.Code)
 				if res.Code != abci.CodeTypeOK {
-					fmt.Println(i, res.Code, res.Info, res.Logs, "logs", res.RawLog)
 					continue
 				}
 				hashes[i] = res.TxHash
 			}
 
 			// wait a few blocks to clear the txs
-			for i := 0; i < 16; i++ {
+			for i := 0; i < 8; i++ {
 				require.NoError(s.network.WaitForNextBlock())
 			}
 
@@ -155,14 +153,10 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			for _, hash := range hashes {
 				// TODO: reenable fetching and verifying proofs
 				resp, err := queryTx(val.ClientCtx, hash, false)
-				assert.NoError(err)
-				if !assert.NotNil(resp) {
-					continue
-				}
+				require.NoError(err)
+				require.NotNil(resp)
 				assert.Equal(abci.CodeTypeOK, resp.TxResult.Code)
-				if resp.TxResult.Code == abci.CodeTypeOK {
-					heights[resp.Height]++
-				}
+				heights[resp.Height]++
 				// ensure that some gas was used
 				assert.GreaterOrEqual(resp.TxResult.GasUsed, int64(10))
 				// require.True(resp.Proof.VerifyProof())
@@ -184,7 +178,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				assert.GreaterOrEqual(size, uint64(appconsts.MinSquareSize))
 				sizes = append(sizes, size)
 			}
-
 			// ensure that at least one of the blocks used the max square size
 			assert.Contains(sizes, uint64(appconsts.MaxSquareSize))
 		})
@@ -246,12 +239,10 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 				require.NoError(s.network.WaitForNextBlock())
 			}
 			signer := types.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
-			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.blob, appconsts.ShareVersionZero, 100000, tc.opts...)
+			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.blob, appconsts.ShareVersionZero, 1000000000, tc.opts...)
 			require.NoError(err)
 			require.NotNil(res)
-			if !assert.Equal(abci.CodeTypeOK, res.Code) {
-				fmt.Println(res.Code)
-			}
+			assert.Equal(abci.CodeTypeOK, res.Code)
 		})
 	}
 }
