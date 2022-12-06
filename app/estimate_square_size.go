@@ -35,7 +35,7 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 	totalSharesUsed := uint64(txSharesUsed + blobSharesUsed)
 	totalSharesUsed *= 2
 	minSize := uint64(math.Sqrt(float64(totalSharesUsed)))
-	totalSharesUsed = shares.RoundUpPowerOfTwo(minSize)
+	squareSize = shares.RoundUpPowerOfTwo(minSize)
 	if squareSize >= appconsts.MaxSquareSize {
 		squareSize = appconsts.MaxSquareSize
 	}
