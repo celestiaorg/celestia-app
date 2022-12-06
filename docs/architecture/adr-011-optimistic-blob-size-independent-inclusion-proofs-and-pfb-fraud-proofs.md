@@ -6,20 +6,20 @@
 
 ## Context
 
-The blob inclusion verification game is between the verifier and a prover. The verifier has the blob or its commitment and access to the block header of Celestia. The prover wants to prove the inclusion of the blob in the DA Layer.
+The blob inclusion verification game is between the verifier and a prover. The verifier has the blob or its commitment and access to the Celestia block header. The prover wants to prove the inclusion of the blob in this block.
 
-Validators check if the PFB commitment matches the commitment that is referenced in [ProcessProposal](https://github.com/celestiaorg/celestia-app/blob/3473000a9ff04fccfbba83929711fe11643b782c/app/process_proposal.go#L113). Given that 2/3 of validators can collude and break this consensus rule, we want a fraud-proof to inform light clients of violations of this rule. If we assume that we have this fraud-proof then we can use the check in `ProcessProposal` to our advantage for an optimistic blob size independent inclusion proof.
+Validators check if the commitment in the PFB transaction matches the commitment that is referenced in [ProcessProposal](https://github.com/celestiaorg/celestia-app/blob/3473000a9ff04fccfbba83929711fe11643b782c/app/process_proposal.go#L113). Given that 2/3 of validators can collude and break this consensus rule, we want a fraud-proof to inform light clients of violations of this rule. If we assume that we have this fraud-proof then we can use the check in `ProcessProposal` to our advantage for an optimistic blob size independent inclusion proof.
 
 ## Blob size independent inclusion proof - PFB inclusion proof
 
-Instead of proving the Merkle proof over all subtree roots over the blob we create a Merkle proof over the PFB transaction as it includes the commitment already. Therefore this proof will include the shares where the PFB transaction lies in the Celestia square plus the inclusion proof of those shares to the `DataRoot`.
+A PFB transaction inclusion proof proves that a PFB transaction was included in a block. A PFB transaction inclusion proof contains the shares that have the PFB transaction and the inclusion proof that proves those shares are present in a Merkle tree with root `DataRoot`. Note that a PFB transaction inclusion proof does not scale with the size of the blob it pays for because the blob was separated from the PFB transaction before being written to the data square. In other words, a PFB transaction inclusion proof is blob size independent.
 
 The verifier could do the following steps:
 
-- Verify that the namespaceID is the transaction namespaceID (i.e. `namespace.ID{0, 0, 0, 0, 0, 0, 0, 1}`). We have to do this so we don't accidentally verify a blob share that looks like a PFB transaction
-- Unserialize the PFB transaction
-- Verify the signatures
-- Verify the given commitment matches the commitment in the header
+1. Verify that the namespaceID is the transaction namespaceID (i.e. `namespace.ID{0, 0, 0, 0, 0, 0, 0, 1}`). A verifier must do this to avoid accidentally interpreting a blob share as a transaction share.
+2. Deserialize all shares that contain the relevant PFB transaction
+3. Verify that the PFB transaction signatures are valid
+4. Verify the commitment in the PFB transaction matches the commitment that the verifier has
 
 Optional if you have the whole blob:
 
@@ -31,7 +31,7 @@ Optional if you have the rollup header:
 
 ## PFB Fraud Proof
 
-First, we need to ask the question of what the PFB Fraud Proof tries to proof. A PFB Fraud Proof tries to prove that a sound PFB in the square exists but the corresponding blob does not exist where it should be.
+First, we need to ask the question of what the PFB Fraud Proof tries to prove. A PFB Fraud Proof tries to prove that a sound PFB in the square exists but the corresponding blob does not exist where it should be.
 
 A PFB Fraud Proof = PFB Inclusion Proof + Blob Inclusion Proof
 
@@ -45,9 +45,9 @@ With the information that you now confirmed you can confirm the blob inclusion p
 
 This means that you will verify the Merkle proof over the subtree roots over the blob that was specified in the PFB transaction. The final step would be to calculate the commitment over the subtree roots for the final commitment.
 
-If the calculated commitment equals the commitment in the PFB transaction then reject the Fraud-Proof and block the full node, otherwise halt the chain as 2/3 of the validators signed an invalid block.
+If the calculated commitment equals the commitment in the PFB transaction then the fraud proof is invalid. One may block the full node that provided this fraud proof to mitigate DoS attacks.
 
-(TODO: We might need to verify the share after the blob to see if the blob ended if we want to prevent nested blob attacks. Forum post coming soon)
+If the calculated commitment doesn't equal the commitment in the PFB transaction, then the fraud proof is valid. Halt the chain as 2/3 of the validators signed an invalid block.
 
 ## Quantitative size comparison
 
@@ -59,7 +59,7 @@ The size of a normal PFB transaction is about 330 bytes. This PFB transaction ca
 
 ![PFB Merkle Proof](./assets/pfd-merkle-proof.png)
 
-Let's assume a square size of k. The amount of blue nodes from the shares to ROW1 is O(log(k). The amount of blue nodes from ROW1 to the `DataRoot` is also O(log(k). You will have to include the shares themselves in the proof.
+Let's assume a square size of k. The amount of blue nodes from the shares to ROW1 is O(log(k)). The amount of blue nodes from ROW1 to the `DataRoot` is also O(log(k). You will have to include the shares themselves in the proof.
 Share size := 512 bytes
 NMT-Node size := 32 bytes + 2\*8 bytes = 48 bytes
 MT-Node size := 32 bytes
@@ -70,7 +70,7 @@ Worst Case Normal PFB proof size in bytes
 = 2 \* 512 + 2 \* log(k) \* 48 + log(k) \* 32  
 = 1024 + 128 \* log(k)  
 
-As the size of a PFB transaction is unbounded you can encompass even more shares. To put a bound on this we assume that most PFB transactions will be able to be captured by 4 Shares.
+As the size of a PFB transaction is unbounded you can encompass even more shares. To put a bound on this we assume that most PFB transactions will be able to be captured by 4 shares.
 
 Huge PFB proof size in bytes  
 = 4 PFB Shares + blue nodes to row roots + blue nodes to (`DataRoot`)  
@@ -143,8 +143,8 @@ The third optimization could be to SNARK the PFB Inclusion Proof to reduce the s
 
 For normal-sized PFBs the Proof size will be worth it from blob size x to y depending on how many shares the PFB occupies.
 If the PFB is guaranteed to be in one share then it is always worth from blob size x.
-For Huge PFBs that span over 4 shares the PFB Proof will be worth it from blob size z.
-Detailed analysis of x,y and z will follow if the general concept makes sense.
+For huge PFBs that span over 4 shares the PFB Proof will be worth it from blob size z.
+Detailed analysis of x, y and z will follow if the general concept makes sense.
 
 ## Alternative Approaches
 
@@ -166,7 +166,7 @@ By creating PFB inclusion proofs you create PFB fraud proofs at the same time.
 
 ### Negative
 
-Optimization 1 might introduce more intra-transaction padding. Optimization 2 will introduce intra-transaction padding so only the PFB transaction occupies the shares.
+Optimization 1 will most likely introduce intra-transaction padding. Optimization 2 will definitely introduce intra-transaction padding so only the PFB transaction occupies the shares.
 
 ### Neutral
 
