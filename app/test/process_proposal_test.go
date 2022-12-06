@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -22,14 +24,13 @@ import (
 )
 
 func TestBlobInclusionCheck(t *testing.T) {
-	signer := types.GenerateKeyringSigner(t, types.TestAccName)
 	testApp := testutil.SetupTestAppWithGenesisValSet()
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	// block with all blobs included
 	validData := func() *core.Data {
 		return &core.Data{
-			Txs: blobfactory.GenerateManyRawWirePFB(t, encConf.TxConfig, signer, 4, 1000),
+			Txs: coretypes.Txs(blobfactory.RandBlobTxs(encConf.TxConfig.TxEncoder(), 4, 1000)).ToSliceOfBytes(),
 		}
 	}
 
@@ -122,25 +123,22 @@ func TestProcessProposalWithParityShareNamespace(t *testing.T) {
 	testApp := testutil.SetupTestAppWithGenesisValSet()
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	signer := types.GenerateKeyringSigner(t, types.TestAccName)
-
-	pfb, blobData := genRandMsgPayForBlobForNamespace(t, signer, appconsts.ParitySharesNamespaceID)
-	input := abci.RequestProcessProposal{
-		BlockData: &core.Data{
-			Txs: [][]byte{
-				buildTx(t, signer, encConf.TxConfig, pfb),
-			},
-			Blobs: []core.Blob{
-				{
-					NamespaceId: pfb.GetNamespaceId(),
-					Data:        blobData,
-				},
-			},
-			SquareSize: 8,
+	txs := coretypes.Txs(blobfactory.RandBlobTxs(encConf.TxConfig.TxEncoder(), 4, 1000)).ToSliceOfBytes()
+	req := abci.RequestPrepareProposal{
+		BlockData: &tmproto.Data{
+			Txs: txs,
 		},
 	}
+
+	resp := testApp.PrepareProposal(req)
+
+	resp.BlockData.Blobs[0].NamespaceId = appconsts.ParitySharesNamespaceID
+
+	input := abci.RequestProcessProposal{
+		BlockData: resp.BlockData,
+	}
 	res := testApp.ProcessProposal(input)
-	assert.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
 }
 
 func genRandMsgPayForBlobForNamespace(t *testing.T, signer *types.KeyringSigner, ns namespace.ID) (*types.MsgPayForBlob, []byte) {
