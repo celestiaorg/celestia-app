@@ -18,20 +18,20 @@ const (
 	minExtendedSquareWidth = appconsts.MinSquareSize * 2
 )
 
-// DataAvailabilityHeader (DAHeader) contains the row and column roots of the erasure
-// coded version of the data in Block.Data.
-// Therefor the original Block.Data is arranged in a
-// k × k matrix, which is then "extended" to a
-// 2k × 2k matrix applying multiple times Reed-Solomon encoding.
-// For details see Section 5.2: https://arxiv.org/abs/1809.09044
-// or the Celestia specification:
+// DataAvailabilityHeader (DAHeader) contains the row and column roots of the
+// erasure coded version of the data in Block.Data. The original Block.Data is
+// split into shares and arranged in a square of width squareSize. Then, this
+// square is "extended" into an extended data square (EDS) of width 2*squareSize
+// by applying Reed-Solomon encoding. For details see Section 5.2 of
+// https://arxiv.org/abs/1809.09044 or the Celestia specification:
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#availabledataheader
 type DataAvailabilityHeader struct {
-	// RowRoot_j 	= root((M_{j,1} || M_{j,2} || ... || M_{j,2k} ))
+	// RowRoot_j = root((M_{j,1} || M_{j,2} || ... || M_{j,2k} ))
 	RowsRoots [][]byte `json:"row_roots"`
 	// ColumnRoot_j = root((M_{1,j} || M_{2,j} || ... || M_{2k,j} ))
 	ColumnRoots [][]byte `json:"column_roots"`
-	// cached result of Hash() not to be recomputed
+	// hash is the Merkle root of the row and column roots. This field is the
+	// memoized result from `Hash()`.
 	hash []byte
 }
 
@@ -84,7 +84,8 @@ func (dah *DataAvailabilityHeader) Equals(to *DataAvailabilityHeader) bool {
 	return bytes.Equal(dah.Hash(), to.Hash())
 }
 
-// Hash computes and caches the merkle root of the row and column roots.
+// Hash computes the Merkle root of the row and column roots. Hash memoizes the
+// result in `DataAvailabilityHeader.hash`.
 func (dah *DataAvailabilityHeader) Hash() []byte {
 	if dah == nil {
 		return merkle.HashFromByteSlices(nil)
