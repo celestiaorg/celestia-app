@@ -54,7 +54,6 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 }
 
 func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
-	s.T().Skip("Skip the cli test until we re-enable it")
 	require := s.Require()
 	val := s.network.Validators[0]
 

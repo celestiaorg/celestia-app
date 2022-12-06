@@ -1,10 +1,13 @@
 package types
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"fmt"
+	math "math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	sdkclient "github.com/cosmos/cosmos-sdk/client"
@@ -13,17 +16,17 @@ import (
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	coretypes "github.com/tendermint/tendermint/types"
+	"golang.org/x/exp/constraints"
 
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 )
 
 const (
-	URLMsgWirePayForBlob = "/blob.MsgWirePayForBlob"
-	URLBLobTx            = "/blob.BlobTx"
-	URLMsgPayForBlob     = "/blob.MsgPayForBlob"
-	ShareSize            = appconsts.ShareSize
-	SquareSize           = appconsts.MaxSquareSize
-	NamespaceIDSize      = appconsts.NamespaceSize
+	URLBLobTx        = "/blob.BlobTx"
+	URLMsgPayForBlob = "/blob.MsgPayForBlob"
+	ShareSize        = appconsts.ShareSize
+	SquareSize       = appconsts.MaxSquareSize
+	NamespaceIDSize  = appconsts.NamespaceSize
 )
 
 var _ sdk.Msg = &MsgPayForBlob{}
@@ -175,6 +178,47 @@ func CreateCommitment(namespace []byte, blobData []byte, shareVersion uint8) ([]
 		subTreeRoots[i] = tree.Root()
 	}
 	return merkle.HashFromByteSlices(subTreeRoots), nil
+}
+
+// ValidateBlobNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.
+func ValidateBlobNamespaceID(ns namespace.ID) error {
+	// ensure that the namespace id is of length == NamespaceIDSize
+	if nsLen := len(ns); nsLen != NamespaceIDSize {
+		return ErrInvalidNamespaceLen.Wrapf("got: %d want: %d",
+			nsLen,
+			NamespaceIDSize,
+		)
+	}
+	// ensure that a reserved namespace is not used
+	if bytes.Compare(ns, appconsts.MaxReservedNamespace) < 1 {
+		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", ns, appconsts.MaxReservedNamespace)
+	}
+
+	// ensure that ParitySharesNamespaceID is not used
+	if bytes.Equal(ns, appconsts.ParitySharesNamespaceID) {
+		return ErrParitySharesNamespace
+	}
+
+	// ensure that TailPaddingNamespaceID is not used
+	if bytes.Equal(ns, appconsts.TailPaddingNamespaceID) {
+		return ErrTailPaddingNamespace
+	}
+
+	return nil
+}
+
+// BlobMinSquareSize returns the minimum square size that blobSize can be included
+// in. The returned square size does not account for the associated transaction
+// shares or non-interactive defaults so it is a minimum.
+func BlobMinSquareSize[T constraints.Integer](blobSize T) T {
+	shareCount := shares.BlobSharesUsed(int(blobSize))
+	return T(MinSquareSize(shareCount))
+}
+
+// MinSquareSize returns the minimum square size that can contain shareCount
+// number of shares.
+func MinSquareSize[T constraints.Integer](shareCount T) T {
+	return T(shares.RoundUpPowerOfTwo(uint64(math.Ceil(math.Sqrt(float64(shareCount))))))
 }
 
 // merkleMountainRangeSizes returns the sizes (number of leaf nodes) of the
