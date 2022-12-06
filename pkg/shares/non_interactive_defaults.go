@@ -39,9 +39,9 @@ func BlobSharesUsedNonInteractiveDefaults(cursor, squareSize int, blobShareLens 
 // NextAlignedPowerOfTwo calculates the next index in a row that is an aligned
 // power of two and returns false if the entire the blob cannot fit on the given
 // row at the next aligned power of two. An aligned power of two means that the
-// largest power of two that fits entirely in the blob or the square size. pls
-// see specs for further details. Assumes that cursor < squareSize, all args are
-// non negative, and that squareSize is a power of two.
+// largest power of two that fits entirely in the blob or the square size. See
+// specs for further details. Assumes that cursor < squareSize, all args are non
+// negative, and that squareSize is a power of two.
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
 func NextAlignedPowerOfTwo(cursor, blobLen, squareSize int) (int, bool) {
 	// if we're starting at the beginning of the row, then return as there are
@@ -50,19 +50,21 @@ func NextAlignedPowerOfTwo(cursor, blobLen, squareSize int) (int, bool) {
 		return cursor, true
 	}
 
-	nextLowest := RoundDownPowerOfTwo(blobLen)
-	endOfCurrentRow := ((cursor / squareSize) + 1) * squareSize
-	cursor = roundUpBy(cursor, nextLowest)
+	// nextLowestPowerOfTwo is the largest power of two that fits entirely in
+	// the blob
+	nextLowestPowerOfTwo := RoundDownPowerOfTwo(blobLen)
+	startOfNextRow := ((cursor / squareSize) + 1) * squareSize
+	cursor = roundUpBy(cursor, nextLowestPowerOfTwo)
 	switch {
 	// the entire blob fits in this row
-	case cursor+blobLen <= endOfCurrentRow:
+	case cursor+blobLen <= startOfNextRow:
 		return cursor, true
 	// only a portion of the blob fits in this row
-	case cursor+nextLowest <= endOfCurrentRow:
+	case cursor+nextLowestPowerOfTwo <= startOfNextRow:
 		return cursor, false
 	// none of the blob fits on this row, so return the start of the next row
 	default:
-		return endOfCurrentRow, false
+		return startOfNextRow, false
 	}
 }
 
