@@ -85,9 +85,7 @@ func (m *ShareCommitAndSignature) GetSignature() []byte {
 	return nil
 }
 
-// MsgPayForBlob is what gets signed by users when creating
-// ShareCommitSignatures. It is a subset of MsgWirePayForBlob that does not
-// contain the blob.
+// MsgPayForBlob pays for the inclusion of a blob in the block.
 type MsgPayForBlob struct {
 	Signer      string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 	NamespaceId []byte `protobuf:"bytes,2,opt,name=namespace_id,json=namespaceId,proto3" json:"namespace_id,omitempty"`

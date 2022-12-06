@@ -23,9 +23,7 @@ message ShareCommitAndSignature {
   bytes signature = 3; // signature on one SignedTransactionPayForBlob
 }
 
-// MsgPayForBlob is what gets signed by users when creating
-// ShareCommitSignatures. It is a subset of MsgWirePayForBlob that does not
-// contain the blob.
+// MsgPayForBlob pays for the inclusion of a blob in the block.
 message MsgPayForBlob {
   string signer = 1;
   bytes namespace_id = 2;

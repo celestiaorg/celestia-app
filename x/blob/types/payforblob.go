@@ -3,17 +3,13 @@ package types
 import (
 	"bytes"
 	"crypto/sha256"
-	"fmt"
 	math "math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
-	sdkclient "github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	coretypes "github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/constraints"
@@ -88,46 +84,6 @@ func (msg *MsgPayForBlob) GetSigners() []sdk.AccAddress {
 		panic(err)
 	}
 	return []sdk.AccAddress{address}
-}
-
-// BuildPayForBlobTxFromWireTx creates an authsigning.Tx using data from the original
-// MsgWirePayForBlob sdk.Tx and the signature provided. This is used while processing
-// the MsgWirePayForBlobs into Signed  MsgPayForBlob
-func BuildPayForBlobTxFromWireTx(
-	origTx authsigning.Tx,
-	builder sdkclient.TxBuilder,
-	signature []byte,
-	msg *MsgPayForBlob,
-) (authsigning.Tx, error) {
-	err := builder.SetMsgs(msg)
-	if err != nil {
-		return nil, err
-	}
-	builder = InheritTxConfig(builder, origTx)
-
-	origSigs, err := origTx.GetSignaturesV2()
-	if err != nil {
-		return nil, err
-	}
-	if len(origSigs) != 1 {
-		return nil, fmt.Errorf("unexpected number of signatures: %d", len(origSigs))
-	}
-
-	newSig := signing.SignatureV2{
-		PubKey: origSigs[0].PubKey,
-		Data: &signing.SingleSignatureData{
-			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-			Signature: signature,
-		},
-		Sequence: origSigs[0].Sequence,
-	}
-
-	err = builder.SetSignatures(newSig)
-	if err != nil {
-		return nil, err
-	}
-
-	return builder.GetTx(), nil
 }
 
 // CreateCommitment generates the commitment bytes for a given namespace,

@@ -10,12 +10,11 @@ import (
 
 // PrepareProposal fullfills the celestia-core version of the ABCI interface by
 // preparing the proposal block data. The square size is determined by first
-// estimating it via the size of the passed block data. Then the included
-// MsgWirePayForBlob is malleated into MsgPayForBlob by separating the blob from
-// the wire message. Lastly, this method generates the data root for the
-// proposal block and passes it back to tendermint via the BlockData.
+// estimating it via the size of the passed block data. Then, this method
+// generates the data root for the proposal block and passes it back to
+// tendermint via the BlockData.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-	// parse the txs, extracting any valid MsgWirePayForBlob. Original order of
+	// parse the txs, extracting any valid BlobTxs. Original order of
 	// the txs is maintained.
 	parsedTxs := parseTxs(app.txConfig, req.BlockData.Txs)
 
