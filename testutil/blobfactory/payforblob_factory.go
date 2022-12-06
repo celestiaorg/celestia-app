@@ -121,7 +121,7 @@ func RandBlobTxsWithAccounts(
 
 	opts := []blobtypes.TxBuilderOption{
 		blobtypes.SetFeeAmount(sdk.NewCoins(coin)),
-		blobtypes.SetGasLimit(10000000),
+		blobtypes.SetGasLimit(100000000000000),
 	}
 
 	txs := make([]coretypes.Tx, len(accounts))
@@ -137,13 +137,14 @@ func RandBlobTxsWithAccounts(
 			panic(err)
 		}
 
+		randomizedSize := size
 		if randSize {
-			size = rand.Intn(size)
-			if size == 0 {
-				size = 1
+			randomizedSize = rand.Intn(size)
+			if randomizedSize == 0 {
+				randomizedSize = 1
 			}
 		}
-		msg, blob := RandMsgPayForBlobWithSigner(addr.String(), size)
+		msg, blob := RandMsgPayForBlobWithSigner(addr.String(), randomizedSize)
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
