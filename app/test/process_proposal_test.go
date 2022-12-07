@@ -18,7 +18,7 @@ import (
 )
 
 func TestBlobInclusionCheck(t *testing.T) {
-	testApp := testutil.SetupTestAppWithGenesisValSet()
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	// block with all blobs included
@@ -114,7 +114,7 @@ func TestBlobInclusionCheck(t *testing.T) {
 }
 
 func TestProcessProposalWithParityShareNamespace(t *testing.T) {
-	testApp := testutil.SetupTestAppWithGenesisValSet()
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	txs := coretypes.Txs(blobfactory.RandBlobTxs(encConf.TxConfig.TxEncoder(), 4, 1000)).ToSliceOfBytes()

@@ -21,7 +21,7 @@ import (
 // transction.
 func TestPrepareProposalConsistency(t *testing.T) {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	testApp := testutil.SetupTestAppWithGenesisValSet()
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
 	for i := 0; i < 200; i++ {
 		ProcessRandomProposal(t, 100, 50000, encConf, testApp)
 	}

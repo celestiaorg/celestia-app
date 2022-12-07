@@ -22,7 +22,7 @@ func TestPrepareProposal(t *testing.T) {
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	testApp := testutil.SetupTestAppWithGenesisValSet()
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
 
 	type test struct {
 		input         abci.RequestPrepareProposal
