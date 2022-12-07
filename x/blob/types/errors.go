@@ -24,4 +24,5 @@ var (
 	ErrZeroBlobSize                   = sdkerrors.Register(ModuleName, 11124, "cannot use zero blob size")
 	ErrMismatchedNumberOfPFBorBlob    = sdkerrors.Register(ModuleName, 11125, "mismatched number of blobs per MsgPayForBlob")
 	ErrNoPFBInBlobTx                  = sdkerrors.Register(ModuleName, 11126, "BlobTx must contain at least one MsgPayForBlob")
+	ErrNamespaceMismatch              = sdkerrors.Register(ModuleName, 11127, "namespace of blob and its respective MsgPayForBlob differ")
 )

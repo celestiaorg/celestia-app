@@ -30,6 +30,10 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
+const (
+	ChainID = "testapp"
+)
+
 // Get flags every time the simulator is run
 func init() {
 	simapp.GetSimulatorFlags()
@@ -96,6 +100,7 @@ func SetupTestAppWithGenesisValSet(genAccounts ...string) (*app.App, keyring.Key
 			Validators:      []abci.ValidatorUpdate{},
 			ConsensusParams: DefaultConsensusParams,
 			AppStateBytes:   stateBytes,
+			ChainId:         ChainID,
 		},
 	)
 

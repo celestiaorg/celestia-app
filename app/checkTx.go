@@ -20,7 +20,6 @@ func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	switch {
 	// don't do anything special if we have a normal transactions
 	case !isBlob:
-
 	// new transactions must be checked in their entirety
 	case req.Type == abci.CheckTxType_New:
 		pBTx, err := types.ProcessBlobTx(app.txConfig, btx)

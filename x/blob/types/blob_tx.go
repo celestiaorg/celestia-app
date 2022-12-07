@@ -95,6 +95,11 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 			return ProcessedBlobTx{}, ErrInvalidShareCommit
 		}
 
+		// check that the meta data matches
+		if !bytes.Equal(bTx.Blobs[i].NamespaceId, pfb.NamespaceId) {
+			return ProcessedBlobTx{}, ErrNamespaceMismatch
+		}
+
 		protoBlobs[i] = tmproto.Blob{NamespaceId: pfb.NamespaceId, Data: blob, ShareVersion: uint32(appconsts.ShareVersionZero)}
 	}
 
