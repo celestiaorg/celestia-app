@@ -2,7 +2,7 @@
 
 ## Terminology
 
-- **compact share**: a type of share that can accommodate multiple units. Currently, compact shares are used for transactions, and evidence to efficiently pack this information into as few shares as possible.
+- **compact share**: a type of share that can accommodate multiple units. Currently, compact shares are used for transactions, and evidence is to efficiently pack this information into as few shares as possible.
 - **sparse share**: a type of share that can accommodate zero or one unit. Currently, sparse shares are used for messages.
 - **share sequence**: an ordered list of shares
 
@@ -29,7 +29,7 @@ Where:
 The current share format poses multiple challenges:
 
 1. Clients must have two share parsing implementations (one for compact shares and one for sparse shares).
-1. It is difficult to make changes to the share format in a backwards compatible way because clients can't determine which version of the share format an individual share conforms to.
+1. It is difficult to make changes to the share format in a backward compatible way because clients can't determine which version of the share format an individual share conforms to.
 1. It is not possible for a client that samples a random share to determine if the share is the first share of a message or a contiguous share in the message.
 
 ## Proposal
@@ -43,7 +43,7 @@ Compact shares have the added constraint: the first byte of `data` in each share
 
 Where `info (1 byte)` is a byte with the following structure:
 
-- the first 7 bits are reserved for the version information in big endian form (initially, this will be `0000000` for version 0);
+- the first 7 bits are reserved for the version information in the big-endian form (initially, this will be `0000000` for version 0);
 - the last bit is a **sequence start indicator**, that is `1` if the share is at the start of a sequence or `0` if it is a continuation share.
 
 Note: all compact shares in a reserved namespace are grouped into one sequence.
@@ -52,7 +52,7 @@ Rationale:
 
 1. The first 9 bytes of a share are formatted in a consistent way regardless of the type of share (compact or sparse). Clients can therefore parse shares into data via one mechanism rather than two.
 1. The sequence start indicator allows clients to parse a whole message in the middle of a namespace, without needing to read the whole namespace.
-1. The version bits allow us to upgrade the share format in the future, if we need to do so in a way that different share formats can be mixed within a block.
+1. The version bits allow us to upgrade the share format in the future if we need to do so in a way that different share formats can be mixed within a block.
 
 ## Example
 
@@ -63,7 +63,7 @@ Rationale:
 | sequence start indicator | `1`                              | `1`                              | `0`                              | `1`                              |
 | data                     | foo                              | bar                              | bar (continued)                  | buzz                             |
 
-Without the universal share prefix: if a client is provided share 11, they have no way of knowing that a message length delimiter is encoded in this share. In order to parse the bar message, they must request and download all shares in this namespace (shares 10 and 12) and parse them in-order to determine the length of the bar message.
+Without the universal share prefix: if a client is provided share 11, they have no way of knowing that a message length delimiter is encoded in this share. In order to parse the bar message, they must request and download all shares in this namespace (shares 10 and 12) and parse them in order to determine the length of the bar message.
 
 With the universal share prefix: if a client is provided share 11, they know from the prefix that share 11 is the start of a sequence and can therefore parse the data length delimiter in share 11. With the parsed data length, the client knows that the bar message will complete after reading N bytes (where N includes shares 11 and 12) and can therefore avoid requesting and downloading share 10.
 
@@ -79,7 +79,7 @@ With the universal share prefix: if a client is provided share 11, they know fro
         | sequence start indicator     | `1` | `0` | `0`                                                                      |
         | continuation share indicator | `1` | `1` | `0` <- client stops requesting contiguous shares when they encounter `0` |
 
-    - This would enable clients to begin parsing a message by sampling a share in the middle of a message and proceed to parsing contiguous shares until the end without ever encountering the first share of the message which contains the data length. However, this use case seems contrived because a subset of the message shares may not be meaningful to the client. This depends on how roll-ups encode the data in a `PayForBlob` transaction.
+    - This would enable clients to begin parsing a message by sampling a share in the middle of a message and proceeding to parse contiguous shares until the end without ever encountering the first share of the message which contains the data length. However, this use case seems contrived because a subset of the message shares may not be meaningful to the client. This depends on how roll-ups encode the data in a `PayForBlob` transaction.
     - Without the continuation share indicator, the client would have to request the first share of the message to parse the data length. If they don't request the first share, they can request contiguous shares until they reach the first share after their message ends to learn that they completed requesting the previous message.
 
 1. What happens if a block producer publishes a message with a version that isn't in the list of supported versions?
@@ -128,7 +128,7 @@ Implemented
 
 ### Positive
 
-This proposal resolves challenges posed above.
+This proposal resolves the challenges posed above.
 
 ### Negative
 
@@ -136,9 +136,9 @@ This proposal reduces the number of bytes a share can use for data by one byte.
 
 ### Neutral
 
-If 127 versions is larger than required, the share format can be updated (in a subsequent version) to reserve fewer bits for the version in order to use some bits for other purposes.
+If 127 versions are larger than required, the share format can be updated (in a subsequent version) to reserve fewer bits for the version in order to use some bits for other purposes.
 
-If 127 versions is smaller than required, the share format can be updated (in a subsequent version) to occupy multiple bytes for the version. For example if the 7 bits are `1111111` then read an additional byte.
+If 127 versions are smaller than required, the share format can be updated (in a subsequent version) to occupy multiple bytes for the version. For example, if the 7 bits are `1111111` then read an additional byte.
 
 ## References
 
