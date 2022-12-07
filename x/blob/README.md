@@ -7,7 +7,7 @@ The `x/blob` module enables users to pay for arbitrary data to be published to t
 1. `Blob` (Binary Large OBject): the data they wish to publish
 2. `NamespaceId`: the namespace they wish to publish to
 3. `ShareCommitment`: a signature and a commitment over their data when encoded into shares
-4. `MsgPayForBlob`: a sdk.Msg that pays for the inclusion of the blob.
+4. `MsgPayForBlobTx`: a sdk.Tx that contains a MsgPayForBlob that pays for the inclusion of the blob.
 
 After the `BlobTx` is submitted to the network, a block producer separates their transaction into a `MsgPayForBlob` which doesn't include their data (a.k.a blob). Both components get included in the data square in different namespaces: the `MsgPayForBlob` gets included in the transaction namespace and the associated blob gets included in the namespace the user specified in the original `BlobTx`. Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
 
