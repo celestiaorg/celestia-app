@@ -27,8 +27,8 @@ Keeping the current design would entail using the state extensively.
 This proves bad when the state grows after a few hundred attestations, and performing checks on the `Valset Confirms` and `DataCommitment Confirms`, which run queries on the state, becomes too expensive.
 An example of such an issue is here: [QGB data commitments/valsets state machine checks #631](https://github.com/celestiaorg/celestia-app/issues/631) and [Investigate the QGB transactions cost #603](https://github.com/celestiaorg/celestia-app/issues/603).
 
-The approach that we were planning to take is to prune the state after the unbinding period.
-This way, we will always have a fixed-sized state, issue defining this: [Prune the QGB state after the unbinding period ends #309](https://github.com/celestiaorg/celestia-app/issues/309).
+The approach that we were planning to take is to prune the state after the unbonding period.
+This way, we will always have a fixed-sized state, issue defining this: [Prune the QGB state after the unbonding period ends #309](https://github.com/celestiaorg/celestia-app/issues/309).
 
 ### Separate P2P network
 
