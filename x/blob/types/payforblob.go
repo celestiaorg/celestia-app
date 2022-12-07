@@ -33,7 +33,7 @@ func NewMsgPayForBlob(signer string, nid namespace.ID, blob []byte) (*MsgPayForB
 		return nil, err
 	}
 	if len(blob) == 0 {
-		return nil, ErrEmptyBlob
+		return nil, ErrZeroBlobSize
 	}
 	msg := &MsgPayForBlob{
 		Signer:          signer,

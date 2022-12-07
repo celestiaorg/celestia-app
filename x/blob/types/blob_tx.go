@@ -25,7 +25,7 @@ func NewBlob(ns namespace.ID, blob []byte) (*tmproto.Blob, error) {
 	}
 
 	if len(blob) == 0 {
-		return nil, ErrEmptyBlob
+		return nil, ErrZeroBlobSize
 	}
 
 	return &tmproto.Blob{
