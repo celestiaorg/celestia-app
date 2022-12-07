@@ -25,18 +25,20 @@ func Test_estimateSquareSize(t *testing.T) {
 		normalTxs             int
 		wPFBCount, messgeSize int
 		expectedSize          uint64
+		expectedErr           bool
 	}
 	tests := []test{
-		{"empty block minimum square size", 0, 0, 0, appconsts.MinSquareSize},
-		{"full block with only txs", 10000, 0, 0, appconsts.MaxSquareSize},
-		{"3 tx shares + 2 blob shares = 5 total shares so square size 4", 0, 1, appconsts.SparseShareContentSize, 4},
-		{"random small block square size 4", 0, 1, appconsts.SparseShareContentSize * 10, 4},
-		{"random small block w/ 10 normal txs square size 4", 10, 1, appconsts.SparseShareContentSize, 4},
-		{"random small block square size 16", 0, 4, appconsts.SparseShareContentSize * 8, 16},
-		{"random medium block square size 32", 0, 50, appconsts.SparseShareContentSize * 4, 32},
-		{"full block max square size", 0, 8000, appconsts.SparseShareContentSize, appconsts.MaxSquareSize},
-		{"overly full block", 0, 80, appconsts.SparseShareContentSize * 100, appconsts.MaxSquareSize},
-		{"one over the perfect estimation edge case", 10, 1, appconsts.SparseShareContentSize * 10, 8},
+		{"empty block minimum square size", 0, 0, 0, appconsts.MinSquareSize, false},
+		{"full block with only txs", 10000, 0, 0, appconsts.MaxSquareSize, false},
+		{"3 tx shares + 2 blob shares = 5 total shares so square size 4", 0, 1, appconsts.SparseShareContentSize, 4, false},
+		{"random small block square size 4", 0, 1, appconsts.SparseShareContentSize * 10, 4, false},
+		{"random small block w/ 10 normal txs square size 4", 10, 1, appconsts.SparseShareContentSize, 4, false},
+		{"random small block square size 16", 0, 4, appconsts.SparseShareContentSize * 8, 16, false},
+		{"random medium block square size 32", 0, 50, appconsts.SparseShareContentSize * 4, 32, false},
+		{"full block max square size", 0, 8000, appconsts.SparseShareContentSize, appconsts.MaxSquareSize, false},
+		{"another full block max square size", 0, 80, appconsts.SparseShareContentSize * 100, appconsts.MaxSquareSize, false},
+		{"one over the perfect estimation edge case", 10, 1, appconsts.SparseShareContentSize * 10, 8, false},
+		{"block that exceeds maximum square size", 0, 5000, appconsts.SparseShareContentSize * 5, 0, true},
 	}
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
 	signer := types.GenerateKeyringSigner(t, testEstimateKey)
@@ -45,7 +47,11 @@ func Test_estimateSquareSize(t *testing.T) {
 			txs := GenerateManyRawWirePFB(t, encConf.TxConfig, signer, tt.wPFBCount, tt.messgeSize)
 			txs = append(txs, GenerateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
 			parsedTxs := parseTxs(encConf.TxConfig, txs)
-			squareSize, totalSharesUsed := estimateSquareSize(parsedTxs)
+			squareSize, totalSharesUsed, err := estimateSquareSize(parsedTxs)
+			if tt.expectedErr {
+				require.Error(t, err)
+				return
+			}
 			assert.Equal(t, tt.expectedSize, squareSize)
 
 			if totalSharesUsed > int(squareSize*squareSize) {
@@ -76,7 +82,8 @@ func Test_pruning(t *testing.T) {
 	txs := GenerateManyRawSendTxs(t, encConf.TxConfig, signer, 10)
 	txs = append(txs, GenerateManyRawWirePFB(t, encConf.TxConfig, signer, 10, 1000)...)
 	parsedTxs := parseTxs(encConf.TxConfig, txs)
-	ss, total := estimateSquareSize(parsedTxs)
+	ss, total, err := estimateSquareSize(parsedTxs)
+	assert.NoError(t, err)
 	nextLowestSS := ss / 2
 	prunedTxs := prune(encConf.TxConfig, parsedTxs, total, int(nextLowestSS))
 	require.Less(t, len(prunedTxs), len(parsedTxs))
@@ -172,7 +179,8 @@ func Test_calculateCompactShareCount(t *testing.T) {
 			txs = append(txs, GenerateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
 
 			parsedTxs := parseTxs(encConf.TxConfig, txs)
-			squareSize, totalSharesUsed := estimateSquareSize(parsedTxs)
+			squareSize, totalSharesUsed, err := estimateSquareSize(parsedTxs)
+			assert.NoError(t, err)
 
 			if totalSharesUsed > int(squareSize*squareSize) {
 				parsedTxs = prune(encConf.TxConfig, parsedTxs, totalSharesUsed, int(squareSize))

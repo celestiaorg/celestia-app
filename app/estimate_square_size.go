@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 	"sort"
 
@@ -86,7 +87,7 @@ func calculateCompactShareCount(txs []*parsedTx, squareSize int) int {
 // estimateSquareSize uses the provided block data to estimate the square size
 // assuming that all malleated txs follow the non interactive default rules.
 // Returns the estimated square size and the number of shares used.
-func estimateSquareSize(txs []*parsedTx) (uint64, int) {
+func estimateSquareSize(txs []*parsedTx) (uint64, int, error) {
 	// get the raw count of shares taken by each type of block data
 	txShares, msgLens := rawShareCount(txs)
 	msgShares := 0
@@ -114,10 +115,14 @@ func estimateSquareSize(txs []*parsedTx) (uint64, int) {
 		switch {
 		// stop estimating if we know we can reach the max square size
 		case squareSize >= appconsts.MaxSquareSize:
-			return appconsts.MaxSquareSize, txShares + msgShares
+			sharesUsed := txShares + msgShares
+			if sharesUsed > appconsts.MaxSquareSize*appconsts.MaxSquareSize {
+				return 0, 0, fmt.Errorf("shares used: %d exceeds number of shares in square size: %d ", sharesUsed, appconsts.MaxSquareSize)
+			}
+			return appconsts.MaxSquareSize, sharesUsed, nil
 		// return if we've found a square size that fits all of the txs
 		case fits:
-			return uint64(squareSize), txShares + msgShares
+			return uint64(squareSize), txShares + msgShares, nil
 		// try the next largest square size if we can't fit all the txs
 		case !fits:
 			// double the square size

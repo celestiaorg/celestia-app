@@ -22,7 +22,15 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// estimate the square size. This estimation errors on the side of larger
 	// squares but can only return values within the min and max square size.
-	squareSize, totalSharesUsed := estimateSquareSize(parsedTxs)
+	squareSize, totalSharesUsed, err := estimateSquareSize(parsedTxs)
+	if err != nil {
+		app.Logger().Error(
+			"failure to estimate square size while creating a proposal block",
+			"error",
+			err.Error(),
+		)
+		panic(err)
+	}
 
 	// the totalSharesUsed can be larger that the max number of shares if we
 	// reach the max square size. In this case, we must prune the deprioritized
