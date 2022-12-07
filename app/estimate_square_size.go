@@ -46,8 +46,7 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 	return squareSize, txSharesUsed
 }
 
-// estimateCompactShares calculates the amount of shares used by the celestia
-// specific transactions
+// estimateCompactShares estimates the number of shares used by compact shares
 func estimateCompactShares(squareSize uint64, ptxs []parsedTx) int {
 	maxWTxOverhead := maxWrappedTxOverhead(squareSize)
 	txbytes := 0
