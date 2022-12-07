@@ -8,15 +8,15 @@ To accommodate the requirements of the [Quantum Gravity Bridge](https://github.c
 
 Add the `DataCommitmentConfirm` type of messages in order to attest that a set of blocks has been finalized.
 
-PS: The `ValsetConfirm` have been updated in `adr-005-qgb-reduce-state-usage`. Please take a look on it to know how we will be handling the confirms.
+PS: The `ValsetConfirm` have been updated in `adr-005-qgb-reduce-state-usage`. Please take a look at it to know how we will be handling the confirms.
 
 ## Detailed Design
 
-To accommodate the QGB, validators need a way to submit signatures for a data commitments so that relayers can easily find them and submit them to the bridged chain. To do this, we will introduce `MsgDataCommitmentConfirm` messages. This latter will be persisted for the sole reason of slashing. If not for that, a P2P network would do the job.
+To accommodate the QGB, validators need a way to submit signatures for data commitments so that relayers can easily find them and submit them to the bridged chain. To do this, we will introduce `MsgDataCommitmentConfirm` messages. This latter will be persisted for the sole reason of slashing. If not for that, a P2P network would do the job.
 
 Data commitment messages attest that a certain set of blocks have been committed to in the Celestia chain. These commitments are used to update the data commitment checkpoint defined in the Ethereum smart contract of the QGB.
 
-Thus, they will contain the commitments along the signatures and will be used to check if an attestation has been signed by 2/3+ of the network validators and can be committed to the bridge contract.
+Thus, they will contain the commitments along with the signatures and will be used to check if an attestation has been signed by 2/3+ of the network validators and can be committed to the bridge contract.
 
 ### MsgDataCommitmentConfirm
 
@@ -59,7 +59,7 @@ if err != nil {
 }
 ```
 
-This is done first as the whole concept revolves around signing commitments. Thus, if a signature is mal-formed, there is no need to continue.
+This is done first as the whole concept revolves around signing commitments. Thus, if a signature is malformed, there is no need to continue.
 
 #### Verify addresses
 
@@ -79,7 +79,7 @@ if err := sdk.VerifyAddressFormat(validator.GetOperator()); err != nil {
 }
 ```
 
-#### Verify Ethereum address and check signature
+#### Verify the Ethereum address and check signature
 
 Next, we verify the Ethereum address and check if it was used to create the signature:
 
@@ -110,7 +110,7 @@ if *ethAddressFromStore != *ethAddress {
 }
 ```
 
-#### Set the data commitment confirm and send event
+#### Set the data commitment to confirm and send the event
 
 After checking that the message is valid, the addresses are correct and the signature is legit, we proceed to persist this data commitment confirm message:
 
