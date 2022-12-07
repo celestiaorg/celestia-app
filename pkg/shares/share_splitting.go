@@ -63,7 +63,6 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 	}
 	currentShareCount += len(blobShares)
 	tailShares := TailPaddingShares(wantShareCount - currentShareCount)
-	// todo: optimize using a predefined slice
 	shares := make([]Share, 0, data.SquareSize*data.SquareSize)
 	shares = append(append(append(append(
 		shares,
