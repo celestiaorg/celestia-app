@@ -210,7 +210,7 @@ func roundUpBy(cursor, v int) int {
 
 ```
 
-We can now use this function in many places, such as when we estimate the square size, calculate the number of messages used, calculate which subtree roots are needed to verify a shared commitment, and calculate when to start the first message after the reserved namespaces are filled.
+We can now use this function in many places, such as when we estimate the square size, calculate the number of messages used, calculate which subtree roots are needed to verify a share commitment, and calculate when to start the first message after the reserved namespaces are filled.
 
 ### Refactor `PrepareProposal`
 
