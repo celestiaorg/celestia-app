@@ -29,7 +29,7 @@ The malleation process occurs during the PrepareProposal step.
 
 ## Events
 
-The bank module emits the following events:
+The blob module emits the following events:
 
 ### Blob Events
 
