@@ -114,7 +114,7 @@ func estimateSquareSize(txs []*parsedTx) (uint64, int) {
 		switch {
 		// stop estimating if we know we can reach the max square size
 		case squareSize >= appconsts.MaxSquareSize:
-			return  appconsts.DefaultMaxSquareSize, txShares + msgShares
+			return appconsts.DefaultMaxSquareSize, txShares + msgShares
 		// return if we've found a square size that fits all of the txs
 		case fits:
 			return uint64(squareSize), txShares + msgShares
