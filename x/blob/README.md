@@ -49,54 +49,52 @@ celestia-app tx blob payForBlob <hex encoded namespace> <hex encoded data> [flag
 There are tools to programmatically create, sign, and broadcast `BlobTx`s
 
 ```go
-blob := []byte{1}
-namespace := []byte{1, 2, 3, 4, 5, 6, 7, 8}
+func submitPFB() error {
+	blob := []byte{1}
+	namespace := []byte{1, 2, 3, 4, 5, 6, 7, 8}
 
-// create the raw PayForBlob transaction
-pfbMsg, err := apptypes.NewPayForBlob(address, namespace, blob)
-if err != nil {
-return err
+	// create the raw PayForBlob transaction
+	pfbMsg, err := apptypes.NewPayForBlob(address, namespace, blob)
+	if err != nil {
+		return err
+	}
+
+	// we create a `KeyringSigner` to sign messages programmatically
+	keyringSigner, err := NewKeyringSigner(keyring, "keyring account name", "chain-id-1")
+	if err != nil {
+		return err
+	}
+
+	// query for account information necessary to sign a valid tx
+	err = keyringSigner.QueryAccount(ctx, grpcClientConn)
+	if err != nil {
+		return err
+	}
+
+	// generate the signatures for each `MsgPayForBlob` using the `KeyringSigner`,
+	// then set the gas limit for the tx
+	gasLimOption := types.SetGasLimit(200000)
+
+	// Build and sign the `MsgPayForBlob` tx
+	signedTx, err := keyringSigner.BuildSignedTx(signer.NewTxBuilder(gasLimOption), pfbMsg)
+	if err != nil {
+		return err
+	}
+
+	rawTx, err := signer.EncodeTx(signedTx)
+	if err != nil {
+		return err
+	}
+
+	blobTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
+	if err != nil {
+		return err
+	}
+
+	txResp, err := types.BroadcastTx(ctx, conn, sdk_tx.BroadcastMode_BROADCAST_MODE_BLOCK, blobTx)
+	return err
 }
 
-// we create a `KeyringSigner` to sign messages programmatically
-keyringSigner, err := NewKeyringSigner(keyring, "keyring account name", "chain-id-1")
-if err != nil {
-return err
-}
-
-// query for account information necessary to sign a valid tx
-err = keyringSigner.QueryAccount(ctx, grpcClientConn)
-if err != nil {
-return err
-}
-
-// generate the signatures for each `MsgPayForBlob` using the `KeyringSigner`,
-// then set the gas limit for the tx
-gasLimOption := types.SetGasLimit(200000)
-
-// Build and sign the `MsgPayForBlob` tx
-signedTx, err := keyringSigner.BuildSignedTx(
-signer.NewTxBuilder(gasLimOption),
-pfbMsg,
-)
-if err != nil {
-return err
-}
-
-rawTx, err := signer.EncodeTx(signedTx)
-if err != nil {
-return nil, err
-}
-
-blobTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
-if err != nil {
-return nil, err
-}
-
-txResp, err := types.BroadcastTx(ctx, conn, sdk_tx.BroadcastMode_BROADCAST_MODE_BLOCK, blobTx)
-if err != nil {
-return nil, err
-}
 ```
 
 <!-- markdownlint-enable MD010 -->
