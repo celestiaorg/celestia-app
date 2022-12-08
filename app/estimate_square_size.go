@@ -14,8 +14,7 @@ import (
 // round up.
 //
 // NOTE: The estimation process does not have to be perfect. We can overestimate
-// because the cost of padding TODO: cache and return the number of shares a
-// blob uses so we don't recalculate it later.
+// because the cost of padding is limited.
 func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int) {
 	txSharesUsed := estimateCompactShares(appconsts.MaxSquareSize, txs)
 	blobSharesUsed := 0
