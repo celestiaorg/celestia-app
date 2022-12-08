@@ -146,6 +146,12 @@ func CreateCommitment(namespace []byte, blobData []byte, shareVersion uint8) ([]
 		// create the nmt todo(evan) use nmt wrapper
 		tree := nmt.New(sha256.New())
 		for _, leaf := range set {
+			// the namespace must be added again here even though it is already
+			// included in the leaf to ensure that the hash will match that of
+			// the nmt wrapper (pkg/wrapper). Each namespace is added to keep
+			// the namespace in the share, and therefore the parity data, while
+			// also allowing for the manual addition of the parity namespace to
+			// the parity data.
 			nsLeaf := append(make([]byte, 0), append(namespace, leaf...)...)
 			err := tree.Push(nsLeaf)
 			if err != nil {
