@@ -95,7 +95,7 @@ func RandBlobTxsRandomlySized(enc sdk.TxEncoder, count, maxSize int) []coretypes
 		if err != nil {
 			panic(err)
 		}
-		cTx, err := coretypes.WrapBlobTx(rawTx, wblob)
+		cTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
 		if err != nil {
 			panic(err)
 		}
@@ -158,7 +158,7 @@ func RandBlobTxsWithAccounts(
 		if err != nil {
 			panic(err)
 		}
-		cTx, err := coretypes.WrapBlobTx(rawTx, wblob)
+		cTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
 		if err != nil {
 			panic(err)
 		}
@@ -203,7 +203,7 @@ func RandBlobTxs(enc sdk.TxEncoder, count, size int) []coretypes.Tx {
 		if err != nil {
 			panic(err)
 		}
-		cTx, err := coretypes.WrapBlobTx(rawTx, wblob)
+		cTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
 		if err != nil {
 			panic(err)
 		}
@@ -257,7 +257,7 @@ func RandBlobTxsWithNamespacesAndSigner(
 		if err != nil {
 			panic(err)
 		}
-		cTx, err := coretypes.WrapBlobTx(rawTx, wblob)
+		cTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
 		if err != nil {
 			panic(err)
 		}

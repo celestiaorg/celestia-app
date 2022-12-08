@@ -79,7 +79,7 @@ func TestCheckTx(t *testing.T) {
 
 				dtx, _ := coretypes.UnmarshalBlobTx(btx)
 				dtx.Blobs[0].NamespaceId = appconsts.TxNamespaceID
-				bbtx, err := coretypes.WrapBlobTx(dtx.Tx, dtx.Blobs[0])
+				bbtx, err := coretypes.MarshalBlobTx(dtx.Tx, dtx.Blobs[0])
 				require.NoError(t, err)
 				return bbtx
 			},

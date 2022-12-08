@@ -52,7 +52,7 @@ func processTxs(logger log.Logger, txs []parsedTx) [][]byte {
 
 		// if this is a blob transaction, then we need to encode and wrap the
 		// underlying MsgPFB containing transaction
-		wTx, err := coretypes.WrapMalleatedTx(pTx.shareIndex, pTx.blobTx.Tx)
+		wTx, err := coretypes.MarshalMalleatedTx(pTx.shareIndex, pTx.blobTx.Tx)
 		if err != nil {
 			// note: Its not safe to bubble this error up and stop the block
 			// creation process.

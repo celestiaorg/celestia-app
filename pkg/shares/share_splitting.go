@@ -79,7 +79,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 	var shareIndexes []uint32
 	for _, rawTx := range txs {
-		if malleatedTx, isMalleated := coretypes.UnwrapMalleatedTx(rawTx); isMalleated {
+		if malleatedTx, isMalleated := coretypes.UnmarshalMalleatedTx(rawTx); isMalleated {
 			// Since share index == 0 is invalid, it indicates that we are
 			// attempting to extract share indexes from txs that do not have any
 			// due to them being old. here we return nil to indicate that we are

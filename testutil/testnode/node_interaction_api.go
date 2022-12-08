@@ -133,7 +133,7 @@ func (c *Context) PostData(account, broadcastMode string, ns, blobData []byte) (
 	if err != nil {
 		return nil, err
 	}
-	blobTx, err := coretypes.WrapBlobTx(rawTx, wblob)
+	blobTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
 	if err != nil {
 		return nil, err
 	}
