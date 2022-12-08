@@ -59,16 +59,16 @@ func TestVerifySignature(t *testing.T) {
 	wblob, err := NewBlob(msg.NamespaceId, blob)
 	require.NoError(t, err)
 
-	cTx, err := coretypes.WrapBlobTx(rawTx, wblob)
+	cTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
 	require.NoError(t, err)
 
 	uTx, isBlob := coretypes.UnmarshalBlobTx(cTx)
 	require.True(t, isBlob)
 
-	wTx, err := coretypes.WrapMalleatedTx(100, uTx.Tx)
+	wTx, err := coretypes.MarshalMalleatedTx(100, uTx.Tx)
 	require.NoError(t, err)
 
-	uwTx, isMal := coretypes.UnwrapMalleatedTx(wTx)
+	uwTx, isMal := coretypes.UnmarshalMalleatedTx(wTx)
 	require.True(t, isMal)
 
 	sTx, err := encCfg.TxConfig.TxDecoder()(uwTx.Tx)

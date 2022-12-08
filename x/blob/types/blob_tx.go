@@ -77,7 +77,11 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 		// todo: modify this to support multiple messages per PFB
 		blob := bTx.Blobs[i].Data
 
-		// make sure that the blob size matches the actual size of the blob
+		// check that the meta data matches
+		if !bytes.Equal(bTx.Blobs[i].NamespaceId, pfb.NamespaceId) {
+			return ProcessedBlobTx{}, ErrNamespaceMismatch
+		}
+
 		if pfb.BlobSize != uint64(len(blob)) {
 			return ProcessedBlobTx{}, ErrDeclaredActualDataSizeMismatch.Wrapf(
 				"declared: %d vs actual: %d",
@@ -93,11 +97,6 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 		}
 		if !bytes.Equal(calculatedCommit, pfb.ShareCommitment) {
 			return ProcessedBlobTx{}, ErrInvalidShareCommit
-		}
-
-		// check that the meta data matches
-		if !bytes.Equal(bTx.Blobs[i].NamespaceId, pfb.NamespaceId) {
-			return ProcessedBlobTx{}, ErrNamespaceMismatch
 		}
 
 		protoBlobs[i] = tmproto.Blob{NamespaceId: pfb.NamespaceId, Data: blob, ShareVersion: uint32(appconsts.ShareVersionZero)}
