@@ -6,7 +6,7 @@
 
 ## Context
 
-The current QGB design requires relayers to relay everything in a perfect synchronous order, but the contracts do not.
+The current QGB design requires relayers to relay everything in perfect synchronous order, but the contracts do not.
 In fact, the QGB smart contract is designed to update the data commitments as follows:
 
 - Receive a data commitment
@@ -24,7 +24,7 @@ Now, if the relayer is missing some data commitments or valset updates, then it 
 - Relay the next valset
 - And, so on.
 
-The problem with this approach is that there is constant risk for any relayer to mess the ordering of the attestations submission, ie relaying the next valset before relaying all the data commitments that were signed using the previous valset, and end up with signatures holes.
+The problem with this approach is that there is a constant risk for any relayer to mess up the ordering of the attestations submission, ie relaying the next valset before relaying all the data commitments that were signed using the previous valset, and ending up with signatures holes.
 
 Also, a malicious relayer, can target any honest QGB relayer in normal mode, or while catching up, and mess its attestations submission order, as follows:
 
@@ -36,9 +36,9 @@ Then, this would create holes in the signatures as the honest relayer will no lo
 
 ## Alternative Approaches
 
-### More  synchrony : Deploy the QGB contract with a data commitment window
+### More synchrony: Deploy the QGB contract with a data commitment window
 
-When deploying the QGB  contract,  also  set the data commitment window,  ie, the number of blocks between the `beginBlock` and `endBlock` of each data  commitment confirm.
+When deploying the QGB  contract,  also set the data commitment window,  ie, the number of blocks between the `beginBlock` and `endBlock` of each data commitment confirms.
 
 Then, update the QGB contract to check when receiving a new valset if the latest relayed data commitment height is >= new valset height - data commitment window.
 
@@ -49,16 +49,16 @@ This also would mean adding, for example, a `DataCommitmentWindowConfirm` repres
 - Pros:
   - Fix the race condition issue
 
-### Synchronous QGB : Universal nonce approach
+### Synchronous QGB: Universal nonce approach
 
-This approach consists of switching to a synchronous QGB design utilizing universal nonces. This means, the `ValsetConfirm`s and `DataCommitmentConfirm`s  will have the same nonce being incremented on each attestations. Then, the QGB contract will check against this universal nonce and only accept an attestations if its nonce is incremented by 1.
+This approach consists of switching to a synchronous QGB design utilizing universal nonces. This means the `ValsetConfirm`s and `DataCommitmentConfirm`s will have the same nonce being incremented on each attestation. Then, the QGB contract will check against this universal nonce and only accept an attestation if its nonce is incremented by 1.
 
 - Cons:
-  - Unifiying the `ValsetConfirm`s and `DataCommitmentConfirm`s under the same nonce even if they represent separate concepts.
+  - Unifying the `ValsetConfirm`s and `DataCommitmentConfirm`s under the same nonce even if they represent separate concepts.
 - Pros:
   - Simpler QGB smart contract
 
-### Add more state to the contract : Store valsets and their nonce
+### Add more state to the contract: Store valsets and their nonce
 
 Update the QGB contract to store the valset hashes + their nonces:
 
@@ -68,35 +68,35 @@ Update the QGB contract to store the valset hashes + their nonces:
   - Would make the relayer parallelizable (can submit data commitments and valsets in any order as long as the valset is committed)
   - would allow the QGB to catchup correctly even in the existence of a malicious relayer
 
-### A request oriented design
+### A request-oriented design
 
-Currently, the attestations that need to be signed are defined by the state machine based on `abci.endBlock()` and a `DataCommitmentWindow`. This simplifies the state machine and doesn't require  implementing new transaction types to ask for orchestrators signatures.
+Currently, the attestations that need to be signed are defined by the state machine based on `abci.endBlock()` and a `DataCommitmentWindow`. This simplifies the state machine and doesn't require implementing new transaction types to ask for orchestrators' signatures.
 
-The request oriented design means providing users (relayers mainly) with the ability to post data commitment requests and ask orchestrators to sign them.
+The request-oriented design means providing users (relayers mainly) with the ability to post data commitment requests and ask orchestrators to sign them.
 
-The main issue with this approach is spamming and state bloat. In fact, allowing attestations signatures' requests would allow anyone to spam the network with unnecessary signatures and make orchestrators do unnecessary work. This gets worse if signatures are part of the state, since this latter is costly.
+The main issue with this approach is spamming and state bloat. In fact, allowing attestation signatures requests would allow anyone to spam the network with unnecessary signatures and make orchestrators do unnecessary work. This gets worse if signatures are part of the state since this latter is costly.
 
 A proposition to remediate the issues described above is to make the signatures part of the block data in specific namespaces. Then, we can charge per request and even make asking for attestations signatures a bit costly.
 
 - Pros
   - Would allow anyone to ask for signatures over commitments, ie, the QGB can then be used by any team without changing anything.
 - Cons
-  - Makes slashing more complicated. In fact, to slash for liveness, providing the whole history of blocks, proving that a certain orchestrator didn't sign an attestation in the given period, will be hard to implement and the proofs will be big. Compared to the attestations being part of the state, which can be queried easilly.
+  - Makes slashing more complicated. In fact, to slash for liveness, providing the whole history of blocks, proving that a certain orchestrator didn't sign an attestation in the given period, will be hard to implement and the proofs will be big. Compared to the attestations being part of the state, which can be queried easily.
 
 ## Decision
 
-The **Synchronous QGB : Universal nonce approach** will be implemented as it will allow us to ship a working QGB 1.0 version faster while preserving the same security assumptions at the expense of parallelization, and customization, as discussed under the _request oriented design_ above.
+The **Synchronous QGB: Universal nonce approach** will be implemented as it will allow us to ship a working QGB 1.0 version faster while preserving the same security assumptions at the expense of parallelization, and customization, as discussed under the _request-oriented design_ above.
 
 ## Detailed Design
 
 ### AttestationRequestI
 
-The **Synchronous QGB : Universal nonce approach** means that the data commitment requests and valset requests will be ordered following the same nonce.
+The **Synchronous QGB: Universal nonce approach** means that the data commitment requests and valset requests will be ordered following the same nonce.
 
 In order to achieve this, we will need to either:
 
 - Have a separate nonce for each and define ordering conditions when updating them to guarantee the universal order.
-- Define an abstraction of  the data commitment requests and valsets that guarantees the order. Then, link it to the concrete types.
+- Define an abstraction of the data commitment requests and valsets that guarantees the order. Then, link it to the concrete types.
 
 In our implementation, we will go for the second approach.
 
@@ -129,7 +129,7 @@ const (
 )
 ```
 
-Finally, a method `GetNonce() uint64` which keeps track of the nonce and returns it.
+Finally, a method `GetNonce() uint64` keeps track of the nonce and returns it.
 
 #### Protobuf implementation
 
@@ -184,7 +184,7 @@ func (k Keeper) AttestationRequestByNonce(
 
 On the state machine, we will need to store the attestations when needed. To do so, we will define the following:
 
-##### Store latest nonce
+##### Store the latest nonce
 
 We will need to keep track of the latest nonce to enforce the nonces order and avoid overwriting existing attestations. This will be done using the following:
 
@@ -238,7 +238,7 @@ func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) 
 The `GetAttestationKey(nonce)` will return the key used to store the attestation, which is defined as follows:
 
 ```go
-// AttestationRequestKey indexes valset requests by nonce
+// AttestationRequestKey indexes valset requests by a nonce
 AttestationRequestKey = "AttestationRequestKey"
 
 // GetAttestationKey returns the following key format
@@ -267,7 +267,7 @@ func (k Keeper) SetAttestationRequest(ctx sdk.Context, at types.AttestationReque
 }
 ```
 
-Then, defining eventual getters that will be used to serve orchestrator/relayer queries.
+Then, define eventual getters that will be used to serve orchestrator/relayer queries.
 
 ### ABCI
 

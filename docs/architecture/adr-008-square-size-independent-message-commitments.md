@@ -80,7 +80,7 @@ Therefore the height of the tree over the subtree roots is in this implementatio
 
 ### Positive Rollmint changes
 
-1. A Rollup can include the commitment in the block header *before* posting to Celestia because it is size-independent and does not have to wait for Celestia to confirm the square size. In general, the rollup needs access to this commitment in some form to verify a message inclusion proof guaranteeing data availability, which Rollmint currently does not have access to.
+1. A Rollup can include the commitment in the block header *before* posting to Celestia because it is size-independent and does not have to wait for Celestia to confirm the square size. In general, the roll-up needs access to this commitment in some form to verify a message inclusion proof guaranteeing data availability, which Rollmint currently does not have access to.
 2. In turn, this would serve as an alternative to [rollmint/adr-007](https://github.com/celestiaorg/optimint/blob/main/docs/lazy-adr/adr-007-header-commit-to-shares.md)
 3. Here is one scheme on how a Rollup might use this new commitment in the block header. Let's assume a Rollup that looks like this:
   BH1 <-- BH2 <-- BH3 <-- BH4
@@ -91,16 +91,16 @@ Therefore the height of the tree over the subtree roots is in this implementatio
   The Commitment of BH1+B2 is saved into BH2.
   Message 3: (BH2+B3)
   The Commitment of (BH2+B3) is saved into BH3, and so on.
-4. Verifying a message inclusion proof could be done with Merkle proofs of the subtree roots to the `DataRoot`, recalculating the commitment, and comparing to what's in the rollup block header. It could also be as simple as submitting a proof over the PFB transaction that included the message and then checking if the commitment is the same as in the PFB transaction. The simple message inclusion proof requires a fraud proof of the PFB transaction not to have included a message.
-5. So far, a full node in Rollmint downloads new blocks from the DA Layer after each Celestia block, coupled tightly for syncing. With this approach, we can send blocks over the p2p Layer giving a soft-commit to full nodes. Then, they would receive the hard-commit after verifying a message inclusion proof without the need to download the blocks anymore. **P2P Blocksync** You could also achieve this by saving multiple commits for each possible square size in the block header.
+4. Verifying a message inclusion proof could be done with Merkle proofs of the subtree roots to the `DataRoot`, recalculating the commitment, and comparing to what's in the rollup block header. It could also be as simple as submitting proof over the PFB transaction that included the message and then checking if the commitment is the same as in the PFB transaction. The simple message inclusion proof requires a fraud-proof of the PFB transaction not to have included a message.
+5. So far, a full node in Rollmint downloads new blocks from the DA Layer after each Celestia block, coupled tightly for syncing. With this approach, we can send blocks over the p2p Layer giving a soft commit to full nodes. Then, they would receive the hard commit after verifying a message inclusion proof without the need to download the blocks anymore. **P2P Blocksync** You could also achieve this by saving multiple commits for each possible square size in the block header.
     1. P2P Blocksync allows a Rollmint full node to run a Celestia light node and not a Celestia full node.
     2. It allows the Rollup node to continue running after Celestia halts, relying on soft commits with no data availability.
     3. It gives the Rollup the option to run asynchronously to Celestia because you don't have to wait for new Celestia blocks/commitments of the messages.
-6. Combining P2P Blocksync and the scheme in 3, we could have multiple rollup blocks in one Celestia block. It could look like this:
+6. Combining P2P Blocksync and the scheme in 3, we could have multiple roll-up blocks in one Celestia block. It could look like this:
   ![multiple-blocks](./assets/multiple-blocks.png)
 7. When submitting a message to Celestia, you only sign the message over one commitment and not all square sizes.
 
-We should note that Rollups can decide to do this scheme without changing core-app apart from Number 4.
+We should note that Rollups can decide to do this scheme without changing the core-app apart from Number 4.
 
 ## Positive celestia-app changes
 
