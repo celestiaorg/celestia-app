@@ -95,6 +95,7 @@ func TestProcessBlobTx(t *testing.T) {
 					namespace.RandomBlobNamespace(),
 					rawblob,
 				)
+				require.NoError(t, err)
 
 				badCommit, err := types.CreateCommitment(
 					namespace.RandomBlobNamespace(),

@@ -77,6 +77,9 @@ func FundKeyringAccounts(cdc codec.Codec, accounts ...string) (keyring.Keyring, 
 
 	for i, acc := range accounts {
 		rec, err := kr.Key(acc)
+		if err != nil {
+			panic(err)
+		}
 
 		addr, err := rec.GetAddress()
 		if err != nil {
