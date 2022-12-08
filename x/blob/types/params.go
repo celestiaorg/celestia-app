@@ -112,7 +112,7 @@ func validateMaxSquareSize(v interface{}) error {
 	return nil
 }
 
-// validateMinMaxSquareSizeOrder validates that minSquareSize if less than or equal to maxSquareSize
+// validateMinMaxSquareSizeOrder validates that minSquareSize is less than or equal to maxSquareSize
 func validateMinMaxSquareSizeOrder(minSquareSize, maxSquareSize uint32) error {
 	if minSquareSize > maxSquareSize {
 		return fmt.Errorf("max square size cannot be less than min square size")
