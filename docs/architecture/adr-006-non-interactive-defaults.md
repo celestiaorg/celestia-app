@@ -164,47 +164,50 @@ The key to arranging the square into non-interactive defaults is calculating the
 
 ```go
 // NextAlignedPowerOfTwo calculates the next index in a row that is an aligned
-// power of two and returns false if the entire the msg cannot fit on the given
+// power of two and returns false if the entire the blob cannot fit on the given
 // row at the next aligned power of two. An aligned power of two means that the
-// largest power of two that fits entirely in the msg or the square size. please
-// see specs for further details. Assumes that cursor < k, all args are non
-// negative, and that k is a power of two.
-// https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md#non-interactive-default-rules
-func NextAlignedPowerOfTwo(cursor, msgLen, squareSize int) (int, bool) {
-  // if we're starting at the beginning of the row, then return as there are
-  // no cases where we don't start at 0.
-  if cursor == 0 || cursor%squareSize == 0 {
-      return cursor, true
-  }
+// largest power of two that fits entirely in the blob or the square size. See
+// specs for further details. Assumes that cursor < squareSize, all args are non
+// negative, and that squareSize is a power of two.
+// https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
+func NextAlignedPowerOfTwo(cursor, blobLen, squareSize int) (int, bool) {
+	// if we're starting at the beginning of the row, then return as there are
+	// no cases where we don't start at 0.
+	if cursor == 0 || cursor%squareSize == 0 {
+		return cursor, true
+	}
 
-  nextLowest := nextLowestPowerOfTwo(msgLen)
-  endOfCurrentRow := ((cursor / squareSize) + 1) * squareSize
-  cursor = roundUpBy(cursor, nextLowest)
-  switch {
-  // the entire message fits in this row
-  case cursor+msgLen <= endOfCurrentRow:
-      return cursor, true
-  // only a portion of the message fits in this row
-  case cursor+nextLowest <= endOfCurrentRow:
-      return cursor, false
-  // none of the message fits on this row, so return the start of the next row
-  default:
-      return endOfCurrentRow, false
-  }
+	// nextLowestPowerOfTwo is the largest power of two that fits entirely in
+	// the blob
+	nextLowestPowerOfTwo := RoundDownPowerOfTwo(blobLen)
+	startOfNextRow := ((cursor / squareSize) + 1) * squareSize
+	cursor = roundUpBy(cursor, nextLowestPowerOfTwo)
+	switch {
+	// the entire blob fits in this row
+	case cursor+blobLen <= startOfNextRow:
+		return cursor, true
+	// only a portion of the blob fits in this row
+	case cursor+nextLowestPowerOfTwo <= startOfNextRow:
+		return cursor, false
+	// none of the blob fits on this row, so return the start of the next row
+	default:
+		return startOfNextRow, false
+	}
 }
 
-// roundUpBy rounds cursor up to the next interval of v. If cursor is divisible
+// roundUpBy rounds cursor up to the next multiple of v. If cursor is divisible
 // by v, then it returns cursor
 func roundUpBy(cursor, v int) int {
-  switch {
-  case cursor == 0:
-      return cursor
-  case cursor%v == 0:
-      return cursor
-  default:
-      return ((cursor / v) + 1) * v
-  }
+	switch {
+	case cursor == 0:
+		return cursor
+	case cursor%v == 0:
+		return cursor
+	default:
+		return ((cursor / v) + 1) * v
+	}
 }
+
 ```
 
 We can now use this function in many places, such as when we estimate the square size, calculate the number of messages used, calculate which subtree roots are needed to verify a share commitment, and calculate when to start the first message after the reserved namespaces are filled.

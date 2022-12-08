@@ -62,33 +62,42 @@ func Test_merkleMountainRangeHeights(t *testing.T) {
 // show that the commitment bytes are being created correctly.
 // TODO: verify the commitment bytes
 func TestCreateCommitment(t *testing.T) {
+	unsupportedShareVersion := uint8(1)
+
 	type test struct {
-		name       string
-		squareSize uint64
-		namespace  []byte
-		message    []byte
-		expected   []byte
-		expectErr  bool
+		name         string
+		namespace    []byte
+		blob         []byte
+		expected     []byte
+		expectErr    bool
+		shareVersion uint8
 	}
 	tests := []test{
 		{
-			name:       "squareSize 4, message of 11 shares succeeds",
-			squareSize: 4,
-			namespace:  bytes.Repeat([]byte{0xFF}, 8),
-			message:    bytes.Repeat([]byte{0xFF}, 11*ShareSize),
-			expected:   []byte{0x1e, 0xdc, 0xc4, 0x69, 0x8f, 0x47, 0xf6, 0x8d, 0xfc, 0x11, 0xec, 0xac, 0xaa, 0x37, 0x4a, 0x3d, 0xbd, 0xfc, 0x1a, 0x9b, 0x6e, 0x87, 0x6f, 0xba, 0xd3, 0x6c, 0x6, 0x6c, 0x9f, 0x5b, 0x65, 0x38},
+			name:         "blob of 11 shares succeeds",
+			namespace:    bytes.Repeat([]byte{0xFF}, 8),
+			blob:         bytes.Repeat([]byte{0xFF}, 11*ShareSize),
+			expected:     []byte{0x1e, 0xdc, 0xc4, 0x69, 0x8f, 0x47, 0xf6, 0x8d, 0xfc, 0x11, 0xec, 0xac, 0xaa, 0x37, 0x4a, 0x3d, 0xbd, 0xfc, 0x1a, 0x9b, 0x6e, 0x87, 0x6f, 0xba, 0xd3, 0x6c, 0x6, 0x6c, 0x9f, 0x5b, 0x65, 0x38},
+			shareVersion: appconsts.ShareVersionZero,
 		},
 		{
-			name:       "squareSize 4, message of 12 shares succeeds",
-			squareSize: 12,
-			namespace:  bytes.Repeat([]byte{0xFF}, 8),
-			message:    bytes.Repeat([]byte{0xFF}, 12*ShareSize),
-			expected:   []byte{0x81, 0x5e, 0xf9, 0x52, 0x2a, 0xfa, 0x40, 0x67, 0x63, 0x64, 0x4a, 0x82, 0x7, 0xcd, 0x1d, 0x7d, 0x1f, 0xae, 0xe5, 0xd3, 0xb1, 0x91, 0x8a, 0xb8, 0x90, 0x51, 0xfc, 0x1, 0xd, 0xa7, 0xf3, 0x1a},
+			name:         "blob of 12 shares succeeds",
+			namespace:    bytes.Repeat([]byte{0xFF}, 8),
+			blob:         bytes.Repeat([]byte{0xFF}, 12*ShareSize),
+			expected:     []byte{0x81, 0x5e, 0xf9, 0x52, 0x2a, 0xfa, 0x40, 0x67, 0x63, 0x64, 0x4a, 0x82, 0x7, 0xcd, 0x1d, 0x7d, 0x1f, 0xae, 0xe5, 0xd3, 0xb1, 0x91, 0x8a, 0xb8, 0x90, 0x51, 0xfc, 0x1, 0xd, 0xa7, 0xf3, 0x1a},
+			shareVersion: appconsts.ShareVersionZero,
+		},
+		{
+			name:         "blob with unsupported share version should return error",
+			namespace:    bytes.Repeat([]byte{0xFF}, 8),
+			blob:         bytes.Repeat([]byte{0xFF}, 12*ShareSize),
+			expectErr:    true,
+			shareVersion: unsupportedShareVersion,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := CreateCommitment(tt.namespace, tt.message)
+			res, err := CreateCommitment(tt.namespace, tt.blob, tt.shareVersion)
 			if tt.expectErr {
 				assert.Error(t, err)
 				return
@@ -104,39 +113,34 @@ func TestCreateCommitment(t *testing.T) {
 // valid.
 func TestSignMalleatedTxs(t *testing.T) {
 	type test struct {
-		name    string
-		ns, msg []byte
-		ss      []uint64
-		options []TxBuilderOption
+		name     string
+		ns       []byte
+		blobData []byte
+		options  []TxBuilderOption
 	}
 
-	kb := generateKeyring(t, "test")
-
-	signer := NewKeyringSigner(kb, "test", "test-chain-id")
+	signer := GenerateKeyringSigner(t, TestAccName)
 
 	tests := []test{
 		{
-			name:    "single share",
-			ns:      []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			msg:     bytes.Repeat([]byte{1}, appconsts.SparseShareContentSize),
-			ss:      []uint64{2, 4, 8, 16},
-			options: []TxBuilderOption{SetGasLimit(2000000)},
+			name:     "single share",
+			ns:       []byte{1, 1, 1, 1, 1, 1, 1, 1},
+			blobData: bytes.Repeat([]byte{1}, appconsts.SparseShareContentSize),
+			options:  []TxBuilderOption{SetGasLimit(2000000)},
 		},
 		{
-			name: "12 shares",
-			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:  bytes.Repeat([]byte{2}, (appconsts.SparseShareContentSize*12)-4), // subtract a few bytes for the delimiter
-			ss:   []uint64{4, 8, 16, 64},
+			name:     "12 shares",
+			ns:       []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			blobData: bytes.Repeat([]byte{2}, (appconsts.SparseShareContentSize*12)-4), // subtract a few bytes for the delimiter
 			options: []TxBuilderOption{
 				SetGasLimit(123456789),
 				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321)))),
 			},
 		},
 		{
-			name: "12 shares",
-			ns:   []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			msg:  bytes.Repeat([]byte{1, 2, 3, 4, 5}, 10000), // subtract a few bytes for the delimiter
-			ss:   AllSquareSizes(50000),
+			name:     "12 shares",
+			ns:       []byte{1, 1, 1, 1, 1, 1, 1, 2},
+			blobData: bytes.Repeat([]byte{1, 2, 3, 4, 5}, 10000), // subtract a few bytes for the delimiter
 			options: []TxBuilderOption{
 				SetGasLimit(123456789),
 				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321)))),
@@ -145,7 +149,7 @@ func TestSignMalleatedTxs(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		wpfb, err := NewWirePayForBlob(tt.ns, tt.msg)
+		wpfb, err := NewWirePayForBlob(tt.ns, tt.blobData, appconsts.ShareVersionZero)
 		require.NoError(t, err, tt.name)
 		err = wpfb.SignShareCommitment(signer, tt.options...)
 		// there should be no error
@@ -201,7 +205,7 @@ func TestValidateBasic(t *testing.T) {
 	maxReservedNamespaceMsg := validMsgPayForBlob(t)
 	maxReservedNamespaceMsg.NamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
 
-	// MsgPayForBlob that has an empty message share commitment
+	// MsgPayForBlob that has an empty share commitment
 	emptyShareCommitment := validMsgPayForBlob(t)
 	emptyShareCommitment.ShareCommitment = []byte{}
 
@@ -232,7 +236,7 @@ func TestValidateBasic(t *testing.T) {
 			wantErr: ErrReservedNamespace,
 		},
 		{
-			name:    "evidence namspace namespace id",
+			name:    "evidence namespace namespace id",
 			msg:     evidenceNamespaceMsg,
 			wantErr: ErrReservedNamespace,
 		},
@@ -262,44 +266,44 @@ func TestValidateBasic(t *testing.T) {
 	}
 }
 
-// totalMsgSize subtracts the delimiter size from the desired total size. this
-// is useful for testing for messages that occupy exactly so many shares.
-func totalMsgSize(size int) int {
+// totalBlobSize subtracts the delimiter size from the desired total size. this
+// is useful for testing for blobs that occupy exactly so many shares.
+func totalBlobSize(size int) int {
 	return size - shares.DelimLen(uint64(size))
 }
 
 func validWirePayForBlob(t *testing.T) *MsgWirePayForBlob {
-	message := bytes.Repeat([]byte{1}, 2000)
-	msg, err := NewWirePayForBlob(
+	blob := bytes.Repeat([]byte{1}, 2000)
+	msgWPFB, err := NewWirePayForBlob(
 		[]byte{1, 2, 3, 4, 5, 6, 7, 8},
-		message,
+		blob,
+		appconsts.ShareVersionZero,
 	)
 	if err != nil {
 		panic(err)
 	}
 
-	signer := generateKeyringSigner(t)
+	signer := GenerateKeyringSigner(t)
 
-	err = msg.SignShareCommitment(signer)
+	err = msgWPFB.SignShareCommitment(signer)
 	if err != nil {
 		panic(err)
 	}
-	return msg
+	return msgWPFB
 }
 
 func validMsgPayForBlob(t *testing.T) *MsgPayForBlob {
-	kb := generateKeyring(t, "test")
-	signer := NewKeyringSigner(kb, "test", "chain-id")
+	signer := GenerateKeyringSigner(t, TestAccName)
 	ns := []byte{1, 1, 1, 1, 1, 1, 1, 2}
-	msg := bytes.Repeat([]byte{2}, totalMsgSize(appconsts.SparseShareContentSize*12))
+	blob := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.SparseShareContentSize*12))
 
-	wpfb, err := NewWirePayForBlob(ns, msg)
+	wpfb, err := NewWirePayForBlob(ns, blob, appconsts.ShareVersionZero)
 	assert.NoError(t, err)
 
 	err = wpfb.SignShareCommitment(signer)
 	assert.NoError(t, err)
 
-	_, spfb, _, err := ProcessWirePayForBlob(wpfb)
+	_, spfb, _, err := ProcessWireMsgPayForBlob(wpfb)
 	require.NoError(t, err)
 
 	return spfb
