@@ -305,7 +305,7 @@ for i := range delegateKeys {
 
 #### Persist the Orchestrator and Ethereum address and emit an event
 
-Lastly, we persist in the orchestrator validator address:
+Lastly, we persist the orchestrator validator address:
 
 ```go
 k.SetOrchestratorValidator(ctx, val, orch)
