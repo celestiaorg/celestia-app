@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	maxExtendedSquareWidth = appconsts.MaxSquareSize * 2
-	minExtendedSquareWidth = appconsts.MinSquareSize * 2
+	maxExtendedSquareWidth = appconsts.DefaultMaxSquareSize * 2
+	minExtendedSquareWidth = appconsts.DefaultMinSquareSize * 2
 )
 
 // DataAvailabilityHeader (DAHeader) contains the row and column roots of the
@@ -51,11 +51,11 @@ func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) DataAvailabilityH
 
 func ExtendShares(squareSize uint64, shares [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	// Check that square size is with range
-	if squareSize < appconsts.MinSquareSize || squareSize > appconsts.MaxSquareSize {
+	if squareSize < appconsts.DefaultMinSquareSize || squareSize > appconsts.DefaultMaxSquareSize {
 		return nil, fmt.Errorf(
 			"invalid square size: min %d max %d provided %d",
-			appconsts.MinSquareSize,
-			appconsts.MaxSquareSize,
+			appconsts.DefaultMinSquareSize,
+			appconsts.DefaultMaxSquareSize,
 			squareSize,
 		)
 	}
@@ -176,7 +176,7 @@ var tailPaddingShare = append(
 // It is equal to the data availability header for an empty block
 func MinDataAvailabilityHeader() DataAvailabilityHeader {
 	shares := GenerateEmptyShares(appconsts.MinShareCount)
-	eds, err := ExtendShares(appconsts.MinSquareSize, shares)
+	eds, err := ExtendShares(appconsts.DefaultMinSquareSize, shares)
 	if err != nil {
 		panic(err)
 	}

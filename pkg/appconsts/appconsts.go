@@ -40,22 +40,22 @@ const (
 	// blob) share.
 	SparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes
 
-	// MaxSquareSize is the maximum number of
+	// DefaultMaxSquareSize is the maximum number of
 	// rows/columns of the original data shares in square layout.
 	// Corresponds to AVAILABLE_DATA_ORIGINAL_SQUARE_MAX in the spec.
 	// 128*128*256 = 4 Megabytes
 	// TODO(ismail): settle on a proper max square
 	// if the square size is larger than this, the block producer will panic
-	MaxSquareSize = 128
+	DefaultMaxSquareSize = 128
 	// MaxShareCount is the maximum number of shares allowed in the original data square.
 	// if there are more shares than this, the block producer will panic.
-	MaxShareCount = MaxSquareSize * MaxSquareSize
+	MaxShareCount = DefaultMaxSquareSize * DefaultMaxSquareSize
 
-	// MinSquareSize depicts the smallest original square width. A square size smaller than this will
+	// DefaultMinSquareSize depicts the smallest original square width. A square size smaller than this will
 	// cause block producer to panic
-	MinSquareSize = 1
+	DefaultMinSquareSize = 1
 	// MinshareCount is the minimum shares required in an original data square.
-	MinShareCount = MinSquareSize * MinSquareSize
+	MinShareCount = DefaultMinSquareSize * DefaultMinSquareSize
 
 	// MaxShareVersion is the maximum value a share version can be.
 	MaxShareVersion = 127
@@ -69,6 +69,10 @@ const (
 	// estimate of a malleated transaction is at least as big if not larger than
 	// the actual value. TODO: use a more accurate number
 	MalleatedTxEstimateBuffer = 100
+
+	// DefaultGasPerBlobByte is the default gas cost deducted per byte of blob
+	// included in a PayForBlob txn
+	DefaultGasPerBlobByte = 8
 )
 
 var (
@@ -113,13 +117,13 @@ var (
 	// sequence. This value is the maximum number of bytes required to store the
 	// sequence length of a block that only contains shares of one type. For
 	// example, if a block contains only transactions then it could contain:
-	// MaxSquareSize * MaxSquareSize * ShareSize bytes of transactions.
+	// DefaultMaxSquareSize * DefaultMaxSquareSize * ShareSize bytes of transactions.
 	//
-	// Assuming MaxSquareSize is 128 and ShareSize is 256, this is 4194304 bytes
+	// Assuming DefaultMaxSquareSize is 128 and ShareSize is 256, this is 4194304 bytes
 	// of transactions. It takes 4 bytes to store a varint of 4194304.
 	//
 	// https://go.dev/play/p/MynwcDHQ_me
-	FirstCompactShareSequenceLengthBytes = numberOfBytesVarint(MaxSquareSize * MaxSquareSize * ShareSize)
+	FirstCompactShareSequenceLengthBytes = numberOfBytesVarint(DefaultMaxSquareSize * DefaultMaxSquareSize * ShareSize)
 
 	// FirstCompactShareContentSize is the number of bytes usable for data in
 	// the first compact share of a reserved namespace. This type of share

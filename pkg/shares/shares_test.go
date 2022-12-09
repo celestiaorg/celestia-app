@@ -81,7 +81,7 @@ func TestFuzz_Merge(t *testing.T) {
 func generateRandomBlockData(txCount, blobCount, maxSize int) (data coretypes.Data) {
 	data.Txs = testfactory.GenerateRandomlySizedTxs(txCount, maxSize)
 	data.Blobs = testfactory.GenerateRandomlySizedBlobs(blobCount, maxSize)
-	data.SquareSize = appconsts.MaxSquareSize
+	data.SquareSize = appconsts.DefaultMaxSquareSize
 	return data
 }
 

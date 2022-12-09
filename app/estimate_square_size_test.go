@@ -27,15 +27,15 @@ func Test_estimateSquareSize(t *testing.T) {
 		expectedSize          uint64
 	}
 	tests := []test{
-		{"empty block minimum square size", 0, 0, 0, appconsts.MinSquareSize},
-		{"full block with only txs", 10000, 0, 0, appconsts.MaxSquareSize},
+		{"empty block minimum square size", 0, 0, 0, appconsts.DefaultMinSquareSize},
+		{"full block with only txs", 10000, 0, 0, appconsts.DefaultMaxSquareSize},
 		{"3 tx shares + 2 blob shares = 5 total shares so square size 4", 0, 1, appconsts.SparseShareContentSize, 4},
 		{"random small block square size 4", 0, 1, appconsts.SparseShareContentSize * 10, 4},
 		{"random small block w/ 10 normal txs square size 4", 10, 1, appconsts.SparseShareContentSize, 4},
 		{"random small block square size 16", 0, 4, appconsts.SparseShareContentSize * 8, 16},
 		{"random medium block square size 32", 0, 50, appconsts.SparseShareContentSize * 4, 32},
-		{"full block max square size", 0, 5000, appconsts.SparseShareContentSize, appconsts.MaxSquareSize},
-		{"overly full block", 0, 80, appconsts.SparseShareContentSize * 100, appconsts.MaxSquareSize},
+		{"full block max square size", 0, 5000, appconsts.SparseShareContentSize, appconsts.DefaultMaxSquareSize},
+		{"overly full block", 0, 80, appconsts.SparseShareContentSize * 100, appconsts.DefaultMaxSquareSize},
 		{"one over the perfect estimation edge case", 10, 1, appconsts.SparseShareContentSize * 10, 8},
 	}
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)

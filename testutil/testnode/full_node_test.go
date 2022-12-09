@@ -96,7 +96,7 @@ func TestIntegrationTestSuite(t *testing.T) {
 func (s *IntegrationTestSuite) Test_FillBlock() {
 	require := s.Require()
 
-	for squareSize := 2; squareSize < appconsts.MaxSquareSize; squareSize *= 2 {
+	for squareSize := 2; squareSize < appconsts.DefaultMaxSquareSize; squareSize *= 2 {
 		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastAsync)
 		require.NoError(err)
 

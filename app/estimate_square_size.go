@@ -99,8 +99,8 @@ func estimateSquareSize(txs []*parsedTx) (uint64, int) {
 	squareSize := shares.RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(txShares + msgShares)))))
 
 	// the starting square size should at least be the minimum
-	if squareSize < appconsts.MinSquareSize {
-		squareSize = appconsts.MinSquareSize
+	if squareSize < appconsts.DefaultMinSquareSize {
+		squareSize = appconsts.DefaultMinSquareSize
 	}
 
 	var fits bool
@@ -113,8 +113,8 @@ func estimateSquareSize(txs []*parsedTx) (uint64, int) {
 		fits, msgShares = shares.FitsInSquare(txShares, squareSize, msgLens...)
 		switch {
 		// stop estimating if we know we can reach the max square size
-		case squareSize >= appconsts.MaxSquareSize:
-			return appconsts.MaxSquareSize, txShares + msgShares
+		case squareSize >= appconsts.DefaultMaxSquareSize:
+			return appconsts.DefaultMaxSquareSize, txShares + msgShares
 		// return if we've found a square size that fits all of the txs
 		case fits:
 			return uint64(squareSize), txShares + msgShares

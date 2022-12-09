@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"gopkg.in/yaml.v2"
 )
@@ -11,17 +12,17 @@ var _ paramtypes.ParamSet = (*Params)(nil)
 
 var (
 	KeyMinSquareSize            = []byte("MinSquareSize")
-	DefaultMinSquareSize uint32 = 1
+	DefaultMinSquareSize uint32 = appconsts.DefaultMinSquareSize
 )
 
 var (
 	KeyMaxSquareSize            = []byte("MaxSquareSize")
-	DefaultMaxSquareSize uint32 = 128
+	DefaultMaxSquareSize uint32 = appconsts.DefaultMaxSquareSize
 )
 
 var (
 	KeyGasPerBlobByte            = []byte("GasPerBlobByte")
-	DefaultGasPerBlobByte uint32 = 8
+	DefaultGasPerBlobByte uint32 = appconsts.DefaultGasPerBlobByte
 )
 
 // ParamKeyTable returns the param key table for the blob module
@@ -111,9 +112,10 @@ func validateMaxSquareSize(v interface{}) error {
 	return nil
 }
 
+// validateMinMaxSquareSizeOrder validates that minSquareSize is less than or equal to maxSquareSize
 func validateMinMaxSquareSizeOrder(minSquareSize, maxSquareSize uint32) error {
 	if minSquareSize > maxSquareSize {
-		return fmt.Errorf("max square size cannot be less than min square size")
+		return fmt.Errorf("min square size cannot be greater than max square size")
 	}
 	return nil
 }
