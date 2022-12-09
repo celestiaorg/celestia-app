@@ -17,27 +17,27 @@ func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	// check if the transaction contains blobs
 	btx, isBlob := coretypes.UnmarshalBlobTx(tx)
 
-	switch {
 	// don't do anything special if we have a normal transactions
-	case !isBlob:
+	if !isBlob {
+		return app.BaseApp.CheckTx(req)
+	}
+
+	switch req.Type {
 	// new transactions must be checked in their entirety
-	case req.Type == abci.CheckTxType_New:
+	case abci.CheckTxType_New:
 		pBTx, err := types.ProcessBlobTx(app.txConfig, btx)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
 		}
 		tx = pBTx.Tx
-
-	case req.Type == abci.CheckTxType_Recheck:
+	case abci.CheckTxType_Recheck:
 		// only replace the current transaction with the unwrapped one, as we
 		// have already performed the necessary check for new transactions
 		tx = btx.Tx
-
 	default:
 		panic(fmt.Sprintf("unknown RequestCheckTx type: %s", req.Type))
 	}
 
 	req.Tx = tx
-
 	return app.BaseApp.CheckTx(req)
 }
