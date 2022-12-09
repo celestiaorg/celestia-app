@@ -54,7 +54,7 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 		if sdk.MsgTypeURL(msg) == URLMsgPayForBlob {
 			pfb, ok := msg.(*MsgPayForBlob)
 			if !ok {
-				continue
+				return ProcessedBlobTx{}, ErrProtoParsing
 			}
 			pfbs = append(pfbs, pfb)
 		}
