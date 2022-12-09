@@ -52,7 +52,7 @@ func TestProcessBlobTx(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
-			name: "ivalid transaction, mismatched namespace",
+			name: "invalid transaction, mismatched namespace",
 			getTx: func() tmproto.BlobTx {
 				rawBtx := validRawBtx()
 				btx, _ := coretypes.UnmarshalBlobTx(rawBtx)
@@ -62,7 +62,7 @@ func TestProcessBlobTx(t *testing.T) {
 			expectedErr: types.ErrNamespaceMismatch,
 		},
 		{
-			name: "ivalid transaction, no pfb",
+			name: "invalid transaction, no pfb",
 			getTx: func() tmproto.BlobTx {
 				sendTx := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, 1)
 				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100))

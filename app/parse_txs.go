@@ -8,8 +8,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// parsedTx is an internal struct that keeps track of potentially valid txs and
-// their wire messages if they have any.
+// parsedTx is an internal struct that keeps track of all transactions.
 type parsedTx struct {
 	// normalTx is the raw unmodified transaction only filled if the transaction does not have any blobs
 	// attached

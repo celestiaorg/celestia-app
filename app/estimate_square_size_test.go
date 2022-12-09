@@ -31,7 +31,6 @@ func Test_estimateSquareSize(t *testing.T) {
 		{"mixed transactions large block 2", 1000, 1000, 10000, appconsts.MaxSquareSize},
 		{"mostly transactions large block", 10000, 1000, 100, appconsts.MaxSquareSize},
 		{"only small pfb large block", 0, 10000, 1, appconsts.MaxSquareSize},
-		{"only small pfb medium block", 0, 10000, 1, appconsts.MaxSquareSize},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

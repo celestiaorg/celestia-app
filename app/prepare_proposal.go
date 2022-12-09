@@ -18,7 +18,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// the txs is maintained.
 	parsedTxs := parseTxs(app.txConfig, req.BlockData.Txs)
 
-	// estimate the square size. This estimation errors on the side of larger
+	// estimate the square size. This estimation errs on the side of larger
 	// squares but can only return values within the min and max square size.
 	squareSize, nonreservedStart := estimateSquareSize(parsedTxs)
 
