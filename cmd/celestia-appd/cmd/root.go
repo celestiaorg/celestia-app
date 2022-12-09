@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -77,7 +78,19 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
+			// Override the default tendermint config for celestia-app
 			tmCfg := tmcfg.DefaultConfig()
+
+			// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
+			// TODO: make TimeoutBroadcastTx configurable per https://github.com/celestiaorg/celestia-app/issues/1034
+			tmCfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
+			tmCfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
+			tmCfg.Mempool.TTLNumBlocks = 10
+			tmCfg.Mempool.MaxTxBytes = 2 * 1024 * 1024 // 2 MiB
+			tmCfg.Mempool.Version = "v1"               // prioritized mempool
+			tmCfg.Consensus.TimeoutPropose = time.Second * 10
+			tmCfg.Consensus.TimeoutCommit = time.Second * 8
+			tmCfg.Consensus.SkipTimeoutCommit = false
 
 			customAppTemplate, customAppConfig := initAppConfig()
 			return server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
@@ -108,7 +121,7 @@ func initAppConfig() (string, interface{}) {
 	// snapshots to nodes that state sync
 	srvCfg.StateSync.SnapshotInterval = 1500
 	srvCfg.StateSync.SnapshotKeepRecent = 2
-	srvCfg.MinGasPrices = fmt.Sprintf("0%s", app.BondDenom)
+	srvCfg.MinGasPrices = fmt.Sprintf("0.001%s", app.BondDenom)
 
 	CelestiaAppCfg := CustomAppConfig{Config: *srvCfg}
 
