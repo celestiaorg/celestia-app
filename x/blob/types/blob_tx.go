@@ -93,7 +93,7 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 		// verify that the commitment of the blob matches that of the PFB
 		calculatedCommit, err := CreateCommitment(pfb.NamespaceId, blob, appconsts.ShareVersionZero)
 		if err != nil {
-			return ProcessedBlobTx{}, err // todo: wrap this error with an sdkerror error
+			return ProcessedBlobTx{}, ErrCalculateCommit
 		}
 		if !bytes.Equal(calculatedCommit, pfb.ShareCommitment) {
 			return ProcessedBlobTx{}, ErrInvalidShareCommit
