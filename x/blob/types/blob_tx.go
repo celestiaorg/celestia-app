@@ -60,11 +60,11 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 		}
 	}
 
-	if len(pfbs) == 0 {
-		return ProcessedBlobTx{}, ErrNoPFBInBlobTx
-	}
 	if len(pfbs) != len(bTx.Blobs) {
 		return ProcessedBlobTx{}, ErrMismatchedNumberOfPFBorBlob
+	}
+	if len(pfbs) != 1 {
+		return ProcessedBlobTx{}, ErrInvalidNumberOfPFBInBlobTx
 	}
 
 	protoBlobs := make([]tmproto.Blob, len(pfbs))
