@@ -16,7 +16,7 @@ import (
 // NOTE: The estimation process does not have to be perfect. We can overestimate
 // because the cost of padding is limited.
 func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int) {
-	txSharesUsed := estimateCompactShares(appconsts.MaxSquareSize, txs)
+	txSharesUsed := estimateCompactShares(appconsts.DefaultMaxSquareSize, txs)
 	blobSharesUsed := 0
 
 	for _, ptx := range txs {
@@ -35,11 +35,11 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 	totalSharesUsed *= 2
 	minSize := uint64(math.Sqrt(float64(totalSharesUsed)))
 	squareSize = shares.RoundUpPowerOfTwo(minSize)
-	if squareSize >= appconsts.MaxSquareSize {
-		squareSize = appconsts.MaxSquareSize
+	if squareSize >= appconsts.DefaultMaxSquareSize {
+		squareSize = appconsts.DefaultMaxSquareSize
 	}
-	if squareSize <= appconsts.MinSquareSize {
-		squareSize = appconsts.MinSquareSize
+	if squareSize <= appconsts.DefaultMinSquareSize {
+		squareSize = appconsts.DefaultMinSquareSize
 	}
 
 	return squareSize, txSharesUsed

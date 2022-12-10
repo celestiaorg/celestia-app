@@ -1,7 +1,7 @@
 # ADR 006: Non-interactive Defaults, Wrapped Transactions, and Subtree Root Message Inclusion Checks
 
 > **Note**
-> Unlike normal tendermint/cosmos ADRs, this ADR isn't for deciding on whether or not we will implement non-interactive defaults. The goal of this document is to help reviewers and future readers understand what non-interactive defaults are, the considerations that went into the initial implementation, and how it differs from the original specs.
+> Unlike normal tendermint/cosmos ADRs, this ADR isn't for deciding whether or not we will implement non-interactive defaults. The goal of this document is to help reviewers and future readers understand what non-interactive defaults are, the considerations that went into the initial implementation, and how it differs from the original specs.
 
 The exact approach taken by the initial implementation, however, is certainly up for scrutiny.
 
@@ -17,7 +17,7 @@ While this functions as a message inclusion check, the light client has to assum
 
 The main issue with that requirement is that users must know the relevant subtree roots before they sign, which is problematic considering that if the block is not organized perfectly, the subtree roots will include data unknown to the user at the time of signing.
 
-To fix this, the spec outlines the “non-interactive default rules”. These involve a few additional **default but optional** message layout rules that enables the user to follow the above block validity rule, while also not interacting with a block producer. Commitments to messages can consist entirely of sub tree roots of the data hash, and for those sub tree roots to be generated only from the message itself (so that the user can sign something “non-interactively”).
+To fix this, the spec outlines the “non-interactive default rules”. These involve a few additional **default but optional** message layout rules that enables the user to follow the above block validity rule, while also not interacting with a block producer. Commitments to messages can consist entirely of sub-tree roots of the data hash, and those sub-tree roots are to be generated only from the message itself (so that the user can sign something “non-interactively”).
 
 > **Messages must begin at a location aligned with the largest power of 2 that is not larger than the message length or k.**
 
@@ -31,7 +31,7 @@ Below illustrates how we can break a message up into two different subtree roots
 
 If we follow this rule, we can always create a commitment to subtree roots of the data root, that commit to the data.
 
-In practice this usually means that we end up adding padding between messages (zig-zag hatched shares in the figure below) to ensure that each message is starting at an "aligned power of two". Padding consists of shares with the namespace of the message before it, with all zeros for data.
+In practice, this usually means that we end up adding padding between messages (zig-zag hatched shares in the figure below) to ensure that each message is starting at an "aligned power of two". Padding consists of shares with the namespace of the message before it, with all zeros for data.
 
 ![Before using the non-interactive defaults](./assets/before.png "Before requiring that all commits consist of subtree roots")
 ![after](./assets/after.png "After requiring that all commits consist of subtree roots")
@@ -40,7 +40,7 @@ Below is an example block that has been filled using the non-interactive default
 
 ![example](./assets/example-full-block.png "example")
 
-- `ns = 1`: The first namespace is put in the beginning of the messages space.
+- `ns = 1`: The first namespace is put at the beginning of the messages space.
 - `ns = 2`: Starting at the largest power of 2 that is not larger than the message length or `k`.
 - `ns = 3`: Message spanning multiple rows. So, it will be at the beginning of a new row.
 - `ns  = 4`: Starting at the largest power of 2 that is not larger than the message length or `k`.
@@ -55,9 +55,9 @@ While there certainly can be some decisions here, whether or not we begin follow
 
 ## Alternative Designs
 
-While all commitments signed over must only consist of subtree roots, its worth noting that non-interactive defaults are just that, defaults! It's entirely possible that block producers use some mechanism to notify the signer of the commitments that they must sign over, or even that the block producers are signing the transactions paying for the inclusion of the message on behalf of the users. This would render the non-interactive defaults, and the padding accompanied by them, to not be necessary. Other solutions are not mutually exclusive to non-interactive defaults, and do not even have to be built by the core team, so covering those solutions in a more in depth way is outside the scope of this ADR.
+While all commitments signed over must only consist of subtree roots, it's worth noting that non-interactive defaults are just that, defaults! It's entirely possible that block producers use some mechanism to notify the signer of the commitments that they must sign over, or even that the block producers are signing the transactions paying for the inclusion of the message on behalf of the users. This would render the non-interactive defaults, and the padding accompanied by them, to not be necessary. Other solutions are not mutually exclusive to non-interactive defaults and do not even have to be built by the core team, so covering those solutions in a more in-depth way is outside the scope of this ADR.
 
-However, the default implementation of non-interative defaults is within the scope of this ADR. Whatever design we use ultimately needs to support not using the non-interactive defaults. Meaning we should be able to encode block data into a square even if the messages are not arranged according to the non-interactive defaults. Again, this does not change the requirement that all share commitments signed over in PFBs consist only of subtree roots.
+However, the default implementation of non-interactive defaults is within the scope of this ADR. Whatever design we use ultimately needs to support not using the non-interactive defaults. Meaning we should be able to encode block data into a square even if the messages are not arranged according to the non-interactive defaults. Again, this does not change the requirement that all share commitments signed over in PFBs consist only of subtree roots.
 
 ## Detailed Design
 
@@ -72,7 +72,7 @@ To recap the default constraints of arranging a square:
 
 For squares that are smaller than the max square size, the exact approach is much less important. This is because if we can't fit all of the transactions in a square, then by default we shouldn't be using that square size in the first place.
 
-Arranging the messages in the block to maximize for fees and optimize square space is a difficult problem that is similar to the ["Bin packing problem"](https://en.wikipedia.org/wiki/Bin_packing_problem). While the actual computation of the number of shares could be cached to an extent, each change to the square potentially affects the rest of the messages in the square. The only way to know for certain is to calculate the number of shares used. Calculating the exact number of bytes used is further complicated by the order of the steps due and our rampant use of varints, both in our encoding scheme and protobuf's. The example below shows how removing a single share (from the transactions in this case) could change the rest of the square and allow for a message that otherwise would not fit.
+Arranging the messages in the block to maximize fees and optimize square space is a difficult problem that is similar to the ["Bin packing problem"](https://en.wikipedia.org/wiki/Bin_packing_problem). While the actual computation of the number of shares could be cached to an extent, each change to the square potentially affects the rest of the messages in the square. The only way to know for certain is to calculate the number of shares used. Calculating the exact number of bytes used is further complicated by the order of the steps due and our rampant use of varints, both in our encoding scheme and protobuf's. The example below shows how removing a single share (from the transactions in this case) could change the rest of the square and allow for a message that otherwise would not fit.
 
 ![extra message that can't fit](./assets/extra-message-that-doesnt-fit.png "extra message")
 ![fit the extra message by removing a tx](./assets/fit-extra-msg-byremoving-tx.png "extra message")
@@ -160,11 +160,11 @@ recall our non-interactive default message layout rule:
 
 > **Messages must begin at a location aligned with the largest power of 2 that is not larger than the message length or k.**
 
-The key to arranging the square into non-interactive defaults is calculating then next "aligned power of 2". We do that here statelessly with two simple functions.
+The key to arranging the square into non-interactive defaults is calculating the next "aligned power of 2". We do that here statelessly with two simple functions.
 
 ```go
 // NextAlignedPowerOfTwo calculates the next index in a row that is an aligned
-// power of two and returns false if the entire the blob cannot fit on the given
+// power of two and returns false if the entire blob cannot fit on the given
 // row at the next aligned power of two. An aligned power of two means that the
 // largest power of two that fits entirely in the blob or the square size. See
 // specs for further details. Assumes that cursor < squareSize, all args are non
@@ -195,7 +195,7 @@ func NextAlignedPowerOfTwo(cursor, blobLen, squareSize int) (int, bool) {
 	}
 }
 
-// roundUpBy rounds cursor up to the next multiple of v. If cursor is divisible
+// roundUpBy rounds cursor up to the next multiple of v. If the cursor is divisible
 // by v, then it returns cursor
 func roundUpBy(cursor, v int) int {
 	switch {
@@ -214,11 +214,11 @@ We can now use this function in many places, such as when we estimate the square
 
 ### Refactor `PrepareProposal`
 
-From a very high level perspective `PrepareProposal` stays mostly the same. We need to estimate the square size accurately enough to pick a square size so that we can malleate the transactions that are given to us by tendermint and arrange those messages in a square. However, recall the constraints and issues described at the top of this section. Technically, the addition or removal of a single byte can change the entire arrangement of the square. Knowing, or at least being able to estimate, how many shares/bytes are used is critical to finding an optimal solution to arranging the square. Yet the constraints themselves along with our frequent use of variable length encoding techniques make estimating much more complicated.
+From a very high-level perspective `PrepareProposal` stays mostly the same. We need to estimate the square size accurately enough to pick a square size so that we can malleate the transactions that are given to us by tendermint and arrange those messages in a square. However, recall the constraints and issues described at the top of this section. Technically, the addition or removal of a single byte can change the entire arrangement of the square. Knowing, or at least being able to estimate, how many shares/bytes are used is critical to finding an optimal solution to arranging the square. Yet the constraints themselves along with our frequent use of variable length encoding techniques make estimating much more complicated.
 
 While messages must be ordered lexicographically, we also have to order transactions by their fees and ensure that each message is added atomically with its corresponding `MsgPayForBlob` transaction. Also, malleated transactions exist alongside normal transactions, the former of which we have to add **variable sized** metadata to only _after_ we know the starting location of each message. All while following the non-interactive defaults.
 
-Below is the lightly summarized code for `PrepareProposal` that we can use as a high level map of how we're going to arrange the block data into a square.
+Below is the lightly summarized code for `PrepareProposal` that we can use as a high-level map of how we're going to arrange the block data into a square.
 
 ```go
 // PrepareProposal fulfills the celestia-core version of the ABCI interface by
@@ -273,7 +273,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
    blockData.OriginalSquareSize = squareSize
 
    // tendermint doesn't need to use any of the erasure data, as only the
-   // protobuf encoded version of the block data is gossiped.
+   // protobuf encoded version of the block data has gossiped.
    return abci.ResponsePrepareProposal{
        BlockData: &blockData,
    }
@@ -369,9 +369,9 @@ func estimateSquareSize(txs []*parsedTx, evd core.EvidenceList) (uint64, int) {
 
 #### Pruning excess transactions
 
-If there are too many transactions and messages in the square to fit in the max square size, then we have to remove them from the block. This can be complicated, as by default we want to prioritzie transactions that have higher fees, but removing a low fee transaction doesn't always result in using less shares.
+If there are too many transactions and messages in the square to fit in the max square size, then we have to remove them from the block. This can be complicated, as by default we want to prioritize transactions that have higher fees, but removing a low-fee transaction doesn't always result in using fewer shares.
 
-The simplest approach, and the one taken in the initial implementation, works by prematurely pruning the txs if we estimate that too many shares are being used. While this does work, and fulfills the constraints discussed earlier to create valid blocks, it is suboptimal. Ideally we would be able to identify the most optimal message and transactions to remove and then simply remove only those. As mentioned earlier, technically, a single byte difference could change the entire arrangement of the square. This makes arranging the square with complete confidence difficult not only because we have to follow all of the constraints, but also because of our frequent reliance on variable length length delimiters, and protobuf changing the amount of bytes used depending on the size of ints/uints.
+The simplest approach, and the one taken in the initial implementation, works by prematurely pruning the txs if we estimate that too many shares are being used. While this does work and fulfills the constraints discussed earlier to create valid blocks, it is suboptimal. Ideally, we would be able to identify the most optimal message and transactions to remove and then simply remove only those. As mentioned earlier, technically, a single-byte difference could change the entire arrangement of the square. This makes arranging the square with complete confidence difficult not only because we have to follow all of the constraints, but also because of our frequent reliance on variable length length delimiters, and protobuf changing the amount of bytes used depending on the size of ints/uints.
 
 ```go
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
@@ -535,17 +535,17 @@ func (strc *subTreeRootCacher) Visit(hash []byte, children ...[]byte) {
 
 // EDSSubTreeRootCacher caches the inner nodes for each row so that we can
 // traverse it later to check for message inclusion. NOTE: Currently this has to
-// use a leaky abstraction (see docs on counter field below), and is not
+// use a leaky abstraction (see docs on the counter field below), and is not
 // threadsafe, but with a future refactor, we could simply read from rsmt2d and
 // not use the tree constructor which would fix both of these issues.
 type EDSSubTreeRootCacher struct {
    caches     []*subTreeRootCacher
    squareSize uint64
-   // counter is used to ignore columns. NOTE: this is a leaky abstraction that
-   // we make because rsmt2d is used to generate the roots for us, so we have
-   // to assume that it will generate a row root every other tree constructed.
-   // This is also one of the reasons this implementation is not thread safe.
-   // Please see note above on a better refactor.
+   // counter is used to ignore columns. NOTE: This is a leaky abstraction that
+   // we make it because rsmt2d is used to generate the roots for us, so we have
+   // to assume that it will generate a row root for every other tree constructed.
+   // This is also one of the reasons this implementation is not thread-safe.
+   // Please see the note above on a better refactor.
    counter int
 }
 
@@ -557,7 +557,7 @@ func NewCachedSubtreeCacher(squareSize uint64) *EDSSubTreeRootCacher {
 }
 
 // Constructor fulfills the rsmt2d.TreeCreatorFn by keeping a pointer to the
-// cache and embedding it as a nmt.NodeVisitor into a new wrapped nmt.
+// cache and embed it as a nmt.NodeVisitor into a newly wrapped nmt.
 func (stc *EDSSubTreeRootCacher) Constructor() rsmt2d.Tree {
 
 }

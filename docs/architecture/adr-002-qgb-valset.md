@@ -6,13 +6,13 @@ To accommodate the requirements of the [Quantum Gravity Bridge](https://github.c
 
 ## Decision
 
-Add the `ValSet` and `ValSetConfirm` type of messages in order to track the state of the validator set.
+Add the `ValSet` and `ValSetConfirm` types of messages in order to track the state of the validator set.
 
-PS: The `ValsetConfirm` have been updated in `adr-005-qgb-reduce-state-usage`. Please take a look on it to know how we will be handling the confirms.
+PS: The `ValsetConfirm` have been updated in `adr-005-qgb-reduce-state-usage`. Please take a look at it to know how we will be handling the confirms.
 
 ## Detailed Design
 
-Since the QGB is only a one way bridge and is not transferring assets, it doesn't require the portions of the gravity module that recreate state from the bridged chain. We only need to keep things relating to signing over the validator set (such as`MsgSetOrchestratorAddress` and `MsgValsetConfirm`) and relayer queries (such as `ValsetConfirm` and `GetDelegateKeyByOrchestrator`).
+Since the QGB is only a one-way bridge and is not transferring assets, it doesn't require the portions of the gravity module that recreate the state from the bridged chain. We only need to keep things relating to signing over the validator set (such as`MsgSetOrchestratorAddress` and `MsgValsetConfirm`) and relayer queries (such as `ValsetConfirm` and `GetDelegateKeyByOrchestrator`).
 
 It works by relying on a set of signers to attest to some event on Celestia: the Celestia validator set.
 
@@ -26,10 +26,10 @@ Finally, if there are no validator set updates for the unbonding window, the bri
 ### When are validator sets created
 
 1. If there are no valSet requests, create a new one
-2. If there is at least one validator who started unbonding in current block. (we persist last unbonded block height in `hooks.go`)
+2. If there is at least one validator who started unbonding in the current block. (we persist the last unbonded block height in `hooks.go`)
    This will make sure the unbonding validator has to provide an attestation to a new ValSet
    that excludes him before he completely unbonds. Otherwise, he will be slashed.
-3. If power change between validators of CurrentValSet and latest valSet request is > 5%
+3. If the power change between validators of CurrentValSet and the latest valSet request is > 5%
 
 ### Message types
 
@@ -75,7 +75,7 @@ message MsgSetOrchestratorAddress {
    // The orchestrator field is a celes1... string  (i.e. sdk.AccAddress) that
    // references the key that is being delegated to
    string orchestrator = 2;
-   // This is a hex encoded 0x Ethereum public key that will be used by this
+   // This is a hex-encoded 0x Ethereum public key that will be used by this
    // validator on Ethereum
    string eth_address = 3;
 }
@@ -117,9 +117,9 @@ func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
 }
 ```
 
-#### Get latest valset and unbonding height
+#### Get the latest valset and unbonding height
 
-We start by getting the latest valset, unbonding height and also initializing the power difference between valsets.
+We start by getting the latest valset, unbonding height, and also initializing the power difference between valsets.
 
 ```go
 latestValset := k.GetLatestValset(ctx)
@@ -132,7 +132,7 @@ significantPowerDiff := false
 If the previous valset is not null, then we had a previous set of validators defining a certain power.
 We check if the current valset power is significantly different from the previous one. If so, we set the `significantPowerDiff` to true.
 
-The significance of power difference is calculated using a pre-defined constant. Currently, it is defined as:
+The significance of the power difference is calculated using a pre-defined constant. Currently, it is defined as:
 
 ```go
 // SignificantPowerDifferenceThreshold the threshold of change in the validator set power
@@ -145,9 +145,9 @@ For more information on the normalization of power, check [here](https://github.
 
 #### Create a ValSet
 
-Finally, if one of the following conditions hold:
+Finally, if one of the following conditions holds:
 
-- There was no valsets already committed to.
+- There were no valsets already committed to.
 - The power difference between the previous valsets and the current one is significant.
 - A validator started unbonding in the current block height.
 

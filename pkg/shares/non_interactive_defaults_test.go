@@ -31,10 +31,10 @@ func TestBlobSharesUsedNonInteractiveDefaults(t *testing.T) {
 		{2, 8, 32, []int{10, 10}, []uint32{8, 24}},
 		{0, 8, 55, []int{21, 31}, []uint32{0, 24}},
 		{0, 8, 128, []int{64, 64}, []uint32{0, 64}},
-		{0, appconsts.MaxSquareSize, 1000, []int{1000}, []uint32{0}},
-		{0, appconsts.MaxSquareSize, appconsts.MaxSquareSize + 1, []int{appconsts.MaxSquareSize + 1}, []uint32{0}},
-		{1, appconsts.MaxSquareSize, (appconsts.MaxSquareSize * 4) - 1, []int{appconsts.MaxSquareSize, appconsts.MaxSquareSize, appconsts.MaxSquareSize}, []uint32{128, 256, 384}},
-		{1024, appconsts.MaxSquareSize, 32, []int{32}, []uint32{1024}},
+		{0, appconsts.DefaultMaxSquareSize, 1000, []int{1000}, []uint32{0}},
+		{0, appconsts.DefaultMaxSquareSize, appconsts.DefaultMaxSquareSize + 1, []int{appconsts.DefaultMaxSquareSize + 1}, []uint32{0}},
+		{1, appconsts.DefaultMaxSquareSize, (appconsts.DefaultMaxSquareSize * 4) - 1, []int{appconsts.DefaultMaxSquareSize, appconsts.DefaultMaxSquareSize, appconsts.DefaultMaxSquareSize}, []uint32{128, 256, 384}},
+		{1024, appconsts.DefaultMaxSquareSize, 32, []int{32}, []uint32{1024}},
 	}
 	for i, tt := range tests {
 		res, indexes := BlobSharesUsedNonInteractiveDefaults(tt.cursor, tt.squareSize, tt.blobLens...)
