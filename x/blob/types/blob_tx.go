@@ -48,7 +48,12 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 		return ProcessedBlobTx{}, err
 	}
 
+	// TODO: remove this check once support for multiple sdk.Msgs in a BlobTx is
+	// supported.
 	msgs := sdkTx.GetMsgs()
+	if len(msgs) != 1 {
+		return ProcessedBlobTx{}, ErrMultipleMsgsInBlobTx
+	}
 	pfbs := make([]*MsgPayForBlob, 0)
 	for _, msg := range msgs {
 		if sdk.MsgTypeURL(msg) == URLMsgPayForBlob {

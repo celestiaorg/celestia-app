@@ -9,6 +9,8 @@ import (
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
@@ -121,6 +123,37 @@ func TestProcessBlobTx(t *testing.T) {
 				return btx
 			},
 			expectedErr: types.ErrInvalidShareCommit,
+		},
+		{
+			name: "complex transaction with one send and one pfb",
+			getTx: func() tmproto.BlobTx {
+				signerAddr, err := signer.GetSignerInfo().GetAddress()
+				require.NoError(t, err)
+
+				sendMsg := banktypes.NewMsgSend(signerAddr, signerAddr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10))))
+				tx := blobfactory.ComplexBlobTxWithOtherMsgs(
+					t,
+					signer.Keyring,
+					encCfg.TxConfig.TxEncoder(),
+					"test",
+					acc,
+					sendMsg,
+				)
+				btx, isBlob := coretypes.UnmarshalBlobTx(tx)
+				require.True(t, isBlob)
+				return btx
+			},
+			expectedErr: types.ErrMultipleMsgsInBlobTx,
+		},
+		{
+			name: "only send tx",
+			getTx: func() tmproto.BlobTx {
+				sendtx := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, 1)[0]
+				return tmproto.BlobTx{
+					Tx: sendtx,
+				}
+			},
+			expectedErr: types.ErrInvalidNumberOfPFBInBlobTx,
 		},
 	}
 
