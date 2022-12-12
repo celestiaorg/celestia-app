@@ -28,7 +28,7 @@ func (s Share) NamespaceID() namespace.ID {
 
 func (s Share) InfoByte() (InfoByte, error) {
 	if len(s) < appconsts.NamespaceSize+appconsts.ShareInfoBytes {
-		panic(fmt.Sprintf("share %s is too short to contain an info byte", s))
+		return 0, fmt.Errorf("share %s is too short to contain an info byte", s)
 	}
 	// the info byte is the first byte after the namespace ID
 	unparsed := s[appconsts.NamespaceSize]
