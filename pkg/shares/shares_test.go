@@ -111,6 +111,7 @@ func TestSequenceLen(t *testing.T) {
 		1, 1, 1, 1, 1, 1, 1, 1, // namespace
 		1,           // info byte
 		10, 0, 0, 0, // sequence len
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 	}
 	firstShareWithLongSequence := []byte{
 		1, 1, 1, 1, 1, 1, 1, 1, // namespace
@@ -189,6 +190,89 @@ func TestSequenceLen(t *testing.T) {
 			}
 			assert.Equal(t, tc.wantLen, len)
 			assert.Equal(t, tc.wantNumBytes, numBytes)
+		})
+	}
+}
+
+func TestRawData(t *testing.T) {
+	type testCase struct {
+		name    string
+		share   Share
+		want    []byte
+		wantErr bool
+	}
+	firstSparseShare := []byte{
+		1, 1, 1, 1, 1, 1, 1, 1, // namespace
+		1,                             // info byte
+		10,                            // sequence len
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
+	}
+	continuationSparseShare := []byte{
+		1, 1, 1, 1, 1, 1, 1, 1, // namespace
+		0,                             // info byte
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
+	}
+	firstCompactShare := []byte{
+		0, 0, 0, 0, 0, 0, 0, 1, // namespace
+		1,           // info byte
+		10, 0, 0, 0, // sequence len
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
+	}
+	continuationCompactShare := []byte{
+		0, 0, 0, 0, 0, 0, 0, 1, // namespace
+		0,                             // info byte
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
+	}
+	noSequenceLen := []byte{
+		0, 0, 0, 0, 0, 0, 0, 1, // namespace
+		1, // info byte
+	}
+	notEnoughSequenceLenBytes := []byte{
+		0, 0, 0, 0, 0, 0, 0, 1, // namespace
+		1,        // info byte
+		10, 0, 0, // sequence len
+	}
+	testCases := []testCase{
+		{
+			name:  "first sparse hare",
+			share: firstSparseShare,
+			want:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+		},
+		{
+			name:  "continuation sparse hare",
+			share: continuationSparseShare,
+			want:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+		},
+		{
+			name:  "first compact share",
+			share: firstCompactShare,
+			want:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+		},
+		{
+			name:  "continuation compact share",
+			share: continuationCompactShare,
+			want:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+		},
+		{
+			name:    "no sequence len returns error",
+			share:   noSequenceLen,
+			wantErr: true,
+		},
+		{
+			name:    "not enough sequence len bytes returns error",
+			share:   notEnoughSequenceLenBytes,
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rawData, err := tc.share.RawData()
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.Equal(t, tc.want, rawData)
 		})
 	}
 }
