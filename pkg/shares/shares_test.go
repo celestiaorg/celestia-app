@@ -216,11 +216,13 @@ func TestRawData(t *testing.T) {
 		0, 0, 0, 0, 0, 0, 0, 1, // namespace
 		1,           // info byte
 		10, 0, 0, 0, // sequence len
+		15, 0, // reserved bytes
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 	}
 	continuationCompactShare := []byte{
 		0, 0, 0, 0, 0, 0, 0, 1, // namespace
-		0,                             // info byte
+		0,    // info byte
+		0, 0, // reserved bytes
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 	}
 	noSequenceLen := []byte{
@@ -246,12 +248,12 @@ func TestRawData(t *testing.T) {
 		{
 			name:  "first compact share",
 			share: firstCompactShare,
-			want:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+			want:  []byte{15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 		},
 		{
 			name:  "continuation compact share",
 			share: continuationCompactShare,
-			want:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+			want:  []byte{0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 		},
 		{
 			name:    "no sequence len returns error",

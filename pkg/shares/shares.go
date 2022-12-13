@@ -61,7 +61,8 @@ func (s Share) SequenceLen() (len uint64, numBytes int, err error) {
 }
 
 // RawData returns the raw share data. The raw share data does not contain the
-// namespace ID, info byte, or sequence length.
+// namespace ID, info byte, or sequence length. It does contain the reserved
+// bytes for compact shares.
 func (s Share) RawData() (rawData []byte, err error) {
 	_, numSequenceLengthBytes, err := s.SequenceLen()
 	if err != nil {
