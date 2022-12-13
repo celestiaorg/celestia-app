@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -136,7 +137,7 @@ func DefaultParams() *tmproto.ConsensusParams {
 
 func DefaultTendermintConfig() *config.Config {
 	tmCfg := config.DefaultConfig()
-	tmCfg.Consensus.TimeoutCommit = time.Millisecond * 200
+	tmCfg.Consensus.TimeoutCommit = time.Millisecond * 300
 	tmCfg.Mempool.MaxTxBytes = 22020096 // 21MB
 	return tmCfg
 }
@@ -148,7 +149,7 @@ func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	state := app.ModuleBasics.DefaultGenesis(encCfg.Codec)
 	fundedAccounts = append(fundedAccounts, "validator")
-	kr, bankBals, authAccs := fundKeyringAccounts(encCfg.Codec, fundedAccounts...)
+	kr, bankBals, authAccs := testfactory.FundKeyringAccounts(encCfg.Codec, fundedAccounts...)
 
 	// set the accounts in the genesis state
 	var authGenState authtypes.GenesisState

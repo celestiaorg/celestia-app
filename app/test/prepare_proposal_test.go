@@ -1,20 +1,19 @@
 package app_test
 
 import (
-	"bytes"
 	"testing"
 
-	"github.com/celestiaorg/nmt/namespace"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
+	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 )
 
@@ -23,45 +22,52 @@ func TestPrepareProposal(t *testing.T) {
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	testApp := testutil.SetupTestAppWithGenesisValSet(t)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
 
 	type test struct {
 		input         abci.RequestPrepareProposal
-		expectedBlobs []core.Blob
+		expectedBlobs []tmproto.Blob
 		expectedTxs   int
 	}
 
-	firstNamespace := []byte{2, 2, 2, 2, 2, 2, 2, 2}
-	firstBlob := bytes.Repeat([]byte{4}, 512)
-	firstRawTx := app.GenerateRawWirePFB(t, encCfg.TxConfig, firstNamespace, firstBlob, signer)
-
-	secondNamespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
-	secondBlob := []byte{2}
-	secondRawTx := app.GenerateRawWirePFB(t, encCfg.TxConfig, secondNamespace, secondBlob, signer)
-
-	thirdNamespace := []byte{3, 3, 3, 3, 3, 3, 3, 3}
-	thirdBlob := []byte{1}
-	thirdRawTx := app.GenerateRawWirePFB(t, encCfg.TxConfig, thirdNamespace, thirdBlob, signer)
+	blobTxs := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+		encCfg.TxConfig.TxEncoder(),
+		signer,
+		[][]byte{
+			{1, 1, 1, 1, 1, 1, 1, 1},
+			{3, 3, 3, 3, 3, 3, 3, 3},
+			{2, 2, 2, 2, 2, 2, 2, 2},
+		},
+		[]int{100, 1000, 420},
+	)
+	decodedBlobTxs := make([]tmproto.BlobTx, 0, len(blobTxs))
+	for _, rawBtx := range blobTxs {
+		btx, isbtx := coretypes.UnmarshalBlobTx(rawBtx)
+		if !isbtx {
+			panic("unexpected testing error")
+		}
+		decodedBlobTxs = append(decodedBlobTxs, btx)
+	}
 
 	tests := []test{
 		{
 			input: abci.RequestPrepareProposal{
-				BlockData: &core.Data{
-					Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
+				BlockData: &tmproto.Data{
+					Txs: coretypes.Txs(blobTxs).ToSliceOfBytes(),
 				},
 			},
-			expectedBlobs: []core.Blob{
+			expectedBlobs: []tmproto.Blob{
 				{
-					NamespaceId: secondNamespace, // the second blob should be first
-					Data:        []byte{2},
+					NamespaceId: decodedBlobTxs[0].Blobs[0].NamespaceId,
+					Data:        decodedBlobTxs[0].Blobs[0].Data,
 				},
 				{
-					NamespaceId: firstNamespace,
-					Data:        firstBlob,
+					NamespaceId: decodedBlobTxs[2].Blobs[0].NamespaceId,
+					Data:        decodedBlobTxs[2].Blobs[0].Data,
 				},
 				{
-					NamespaceId: thirdNamespace,
-					Data:        []byte{1},
+					NamespaceId: decodedBlobTxs[1].Blobs[0].NamespaceId,
+					Data:        decodedBlobTxs[1].Blobs[0].Data,
 				},
 			},
 			expectedTxs: 3,
@@ -75,10 +81,9 @@ func TestPrepareProposal(t *testing.T) {
 
 		// verify the signatures of the prepared txs
 		sdata, err := signer.GetSignerData()
-		if err != nil {
-			require.NoError(t, err)
-		}
-		dec := encoding.MalleatedTxDecoder(encCfg.TxConfig.TxDecoder())
+		require.NoError(t, err)
+
+		dec := encoding.WrappedTxDecoder(encCfg.TxConfig.TxDecoder())
 		for _, tx := range res.BlockData.Txs {
 			sTx, err := dec(tx)
 			require.NoError(t, err)
@@ -100,39 +105,5 @@ func TestPrepareProposal(t *testing.T) {
 			)
 			assert.NoError(t, err)
 		}
-	}
-}
-
-func TestPrepareProposalWithReservedNamespaces(t *testing.T) {
-	testApp := testutil.SetupTestAppWithGenesisValSet(t)
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	signer := types.GenerateKeyringSigner(t, types.TestAccName)
-
-	type test struct {
-		name          string
-		namespace     namespace.ID
-		expectedBlobs int
-	}
-
-	tests := []test{
-		{"transaction namespace", appconsts.TxNamespaceID, 0},
-		{"evidence namespace", appconsts.EvidenceNamespaceID, 0},
-		{"tail padding namespace", appconsts.TailPaddingNamespaceID, 0},
-		{"parity shares namespace", appconsts.ParitySharesNamespaceID, 0},
-		{"other reserved namespace", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, 0},
-		{"valid namespace", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, 1},
-	}
-
-	for _, tt := range tests {
-		blob := []byte{1}
-		tx := app.GenerateRawWirePFB(t, encCfg.TxConfig, tt.namespace, blob, signer)
-		input := abci.RequestPrepareProposal{
-			BlockData: &core.Data{
-				Txs: [][]byte{tx},
-			},
-		}
-		res := testApp.PrepareProposal(input)
-		assert.Equal(t, tt.expectedBlobs, len(res.BlockData.Blobs))
 	}
 }

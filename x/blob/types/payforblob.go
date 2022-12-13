@@ -1,30 +1,48 @@
 package types
 
 import (
+	"bytes"
 	"crypto/sha256"
-	"fmt"
+	math "math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt"
-	sdkclient "github.com/cosmos/cosmos-sdk/client"
+	"github.com/celestiaorg/nmt/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	coretypes "github.com/tendermint/tendermint/types"
+	"golang.org/x/exp/constraints"
 
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 )
 
 const (
-	URLMsgWirePayForBlob = "/blob.MsgWirePayForBlob"
-	URLMsgPayForBlob     = "/blob.MsgPayForBlob"
-	ShareSize            = appconsts.ShareSize
-	SquareSize           = appconsts.DefaultMaxSquareSize
-	NamespaceIDSize      = appconsts.NamespaceSize
+	URLBLobTx        = "/blob.BlobTx"
+	URLMsgPayForBlob = "/blob.MsgPayForBlob"
+	ShareSize        = appconsts.ShareSize
+	SquareSize       = appconsts.DefaultMaxSquareSize
+	NamespaceIDSize  = appconsts.NamespaceSize
 )
 
 var _ sdk.Msg = &MsgPayForBlob{}
+
+func NewMsgPayForBlob(signer string, nid namespace.ID, blob []byte) (*MsgPayForBlob, error) {
+	commitment, err := CreateCommitment(nid, blob, appconsts.ShareVersionZero)
+	if err != nil {
+		return nil, err
+	}
+	if len(blob) == 0 {
+		return nil, ErrZeroBlobSize
+	}
+	msg := &MsgPayForBlob{
+		Signer:          signer,
+		NamespaceId:     nid,
+		ShareCommitment: commitment,
+		BlobSize:        uint64(len(blob)),
+	}
+	return msg, msg.ValidateBasic()
+}
 
 // Route fullfills the sdk.Msg interface
 func (msg *MsgPayForBlob) Route() string { return RouterKey }
@@ -66,46 +84,6 @@ func (msg *MsgPayForBlob) GetSigners() []sdk.AccAddress {
 		panic(err)
 	}
 	return []sdk.AccAddress{address}
-}
-
-// BuildPayForBlobTxFromWireTx creates an authsigning.Tx using data from the original
-// MsgWirePayForBlob sdk.Tx and the signature provided. This is used while processing
-// the MsgWirePayForBlobs into Signed  MsgPayForBlob
-func BuildPayForBlobTxFromWireTx(
-	origTx authsigning.Tx,
-	builder sdkclient.TxBuilder,
-	signature []byte,
-	msg *MsgPayForBlob,
-) (authsigning.Tx, error) {
-	err := builder.SetMsgs(msg)
-	if err != nil {
-		return nil, err
-	}
-	builder = InheritTxConfig(builder, origTx)
-
-	origSigs, err := origTx.GetSignaturesV2()
-	if err != nil {
-		return nil, err
-	}
-	if len(origSigs) != 1 {
-		return nil, fmt.Errorf("unexpected number of signatures: %d", len(origSigs))
-	}
-
-	newSig := signing.SignatureV2{
-		PubKey: origSigs[0].PubKey,
-		Data: &signing.SingleSignatureData{
-			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-			Signature: signature,
-		},
-		Sequence: origSigs[0].Sequence,
-	}
-
-	err = builder.SetSignatures(newSig)
-	if err != nil {
-		return nil, err
-	}
-
-	return builder.GetTx(), nil
 }
 
 // CreateCommitment generates the commitment bytes for a given namespace,
@@ -162,6 +140,47 @@ func CreateCommitment(namespace []byte, blobData []byte, shareVersion uint8) ([]
 		subTreeRoots[i] = tree.Root()
 	}
 	return merkle.HashFromByteSlices(subTreeRoots), nil
+}
+
+// ValidateBlobNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.
+func ValidateBlobNamespaceID(ns namespace.ID) error {
+	// ensure that the namespace id is of length == NamespaceIDSize
+	if nsLen := len(ns); nsLen != NamespaceIDSize {
+		return ErrInvalidNamespaceLen.Wrapf("got: %d want: %d",
+			nsLen,
+			NamespaceIDSize,
+		)
+	}
+	// ensure that a reserved namespace is not used
+	if bytes.Compare(ns, appconsts.MaxReservedNamespace) < 1 {
+		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", ns, appconsts.MaxReservedNamespace)
+	}
+
+	// ensure that ParitySharesNamespaceID is not used
+	if bytes.Equal(ns, appconsts.ParitySharesNamespaceID) {
+		return ErrParitySharesNamespace
+	}
+
+	// ensure that TailPaddingNamespaceID is not used
+	if bytes.Equal(ns, appconsts.TailPaddingNamespaceID) {
+		return ErrTailPaddingNamespace
+	}
+
+	return nil
+}
+
+// BlobMinSquareSize returns the minimum square size that blobSize can be included
+// in. The returned square size does not account for the associated transaction
+// shares or non-interactive defaults so it is a minimum.
+func BlobMinSquareSize[T constraints.Integer](blobSize T) T {
+	shareCount := shares.BlobSharesUsed(int(blobSize))
+	return T(MinSquareSize(shareCount))
+}
+
+// MinSquareSize returns the minimum square size that can contain shareCount
+// number of shares.
+func MinSquareSize[T constraints.Integer](shareCount T) T {
+	return T(shares.RoundUpPowerOfTwo(uint64(math.Ceil(math.Sqrt(float64(shareCount))))))
 }
 
 // merkleMountainRangeSizes returns the sizes (number of leaf nodes) of the

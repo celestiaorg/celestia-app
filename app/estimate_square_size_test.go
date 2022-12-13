@@ -3,194 +3,87 @@ package app
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/testutil/namespace"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/types"
-)
-
-const (
-	testEstimateKey = "estimate-key"
 )
 
 func Test_estimateSquareSize(t *testing.T) {
 	type test struct {
-		name                  string
-		normalTxs             int
-		wPFBCount, messgeSize int
-		expectedSize          uint64
+		name               string
+		normalTxs          int
+		pfbCount, pfbSize  int
+		expectedSquareSize uint64
 	}
 	tests := []test{
-		{"empty block minimum square size", 0, 0, 0, appconsts.DefaultMinSquareSize},
-		{"full block with only txs", 10000, 0, 0, appconsts.DefaultMaxSquareSize},
-		{"3 tx shares + 2 blob shares = 5 total shares so square size 4", 0, 1, appconsts.SparseShareContentSize, 4},
-		{"random small block square size 4", 0, 1, appconsts.SparseShareContentSize * 10, 4},
-		{"random small block w/ 10 normal txs square size 4", 10, 1, appconsts.SparseShareContentSize, 4},
-		{"random small block square size 16", 0, 4, appconsts.SparseShareContentSize * 8, 16},
-		{"random medium block square size 32", 0, 50, appconsts.SparseShareContentSize * 4, 32},
-		{"full block max square size", 0, 5000, appconsts.SparseShareContentSize, appconsts.DefaultMaxSquareSize},
-		{"overly full block", 0, 80, appconsts.SparseShareContentSize * 100, appconsts.DefaultMaxSquareSize},
-		{"one over the perfect estimation edge case", 10, 1, appconsts.SparseShareContentSize * 10, 8},
+		{"empty block", 0, 0, 0, appconsts.DefaultMinSquareSize},
+		{"one normal tx", 1, 0, 0, appconsts.DefaultMinSquareSize},
+		{"one small pfb small block", 0, 1, 100, 2},
+		{"mixed small block", 10, 12, 500, 8},
+		{"small block 2", 0, 12, 1000, 8},
+		{"mixed medium block 2", 10, 20, 10000, 32},
+		{"one large pfb large block", 0, 1, 1000000, 64},
+		{"one hundred large pfb large block", 0, 100, 100000, appconsts.DefaultMaxSquareSize},
+		{"one hundred large pfb medium block", 100, 100, 100000, appconsts.DefaultMaxSquareSize},
+		{"mixed transactions large block", 100, 100, 100000, appconsts.DefaultMaxSquareSize},
+		{"mixed transactions large block 2", 1000, 1000, 10000, appconsts.DefaultMaxSquareSize},
+		{"mostly transactions large block", 10000, 1000, 100, appconsts.DefaultMaxSquareSize},
+		{"only small pfb large block", 0, 10000, 1, appconsts.DefaultMaxSquareSize},
 	}
-	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
-	signer := types.GenerateKeyringSigner(t, testEstimateKey)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			txs := GenerateManyRawWirePFB(t, encConf.TxConfig, signer, tt.wPFBCount, tt.messgeSize)
-			txs = append(txs, GenerateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
-			parsedTxs := parseTxs(encConf.TxConfig, txs)
-			squareSize, totalSharesUsed := estimateSquareSize(parsedTxs)
-			assert.Equal(t, tt.expectedSize, squareSize)
-
-			if totalSharesUsed > int(squareSize*squareSize) {
-				parsedTxs = prune(encConf.TxConfig, parsedTxs, totalSharesUsed, int(squareSize))
-			}
-
-			processedTxs, blobs, err := malleateTxs(encConf.TxConfig, squareSize, parsedTxs)
-			require.NoError(t, err)
-
-			coreBlobs, err := shares.BlobsFromProto(blobs)
-			require.NoError(t, err)
-			blockData := coretypes.Data{
-				Txs:        shares.TxsFromBytes(processedTxs),
-				Blobs:      coreBlobs,
-				SquareSize: squareSize,
-			}
-
-			rawShares, err := shares.Split(blockData, true)
-			require.NoError(t, err)
-			require.Equal(t, int(squareSize*squareSize), len(rawShares))
+			ptxs := generateMixedParsedTxs(tt.normalTxs, tt.pfbCount, tt.pfbSize)
+			res, _ := estimateSquareSize(ptxs)
+			assert.Equal(t, tt.expectedSquareSize, res)
 		})
 	}
 }
 
-func Test_pruning(t *testing.T) {
-	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
-	signer := types.GenerateKeyringSigner(t, testEstimateKey)
-	txs := GenerateManyRawSendTxs(t, encConf.TxConfig, signer, 10)
-	txs = append(txs, GenerateManyRawWirePFB(t, encConf.TxConfig, signer, 10, 1000)...)
-	parsedTxs := parseTxs(encConf.TxConfig, txs)
-	ss, total := estimateSquareSize(parsedTxs)
-	nextLowestSS := ss / 2
-	prunedTxs := prune(encConf.TxConfig, parsedTxs, total, int(nextLowestSS))
-	require.Less(t, len(prunedTxs), len(parsedTxs))
-}
-
-func Test_overEstimateMalleatedTxSize(t *testing.T) {
-	coin := sdk.Coin{
-		Denom:  BondDenom,
-		Amount: sdk.NewInt(10),
-	}
-
+func Test_estimateCompactShares(t *testing.T) {
 	type test struct {
-		name string
-		size int
-		opts []types.TxBuilderOption
+		name              string
+		squareSize        uint64
+		normalTxs         int
+		pfbCount, pfbSize int
 	}
 	tests := []test{
-		{
-			"basic with small blob", 100,
-			[]types.TxBuilderOption{
-				types.SetFeeAmount(sdk.NewCoins(coin)),
-				types.SetGasLimit(10000000),
-			},
-		},
-		{
-			"basic with large blob", 10000,
-			[]types.TxBuilderOption{
-				types.SetFeeAmount(sdk.NewCoins(coin)),
-				types.SetGasLimit(10000000),
-			},
-		},
-		{
-			"memo with medium blob", 1000,
-			[]types.TxBuilderOption{
-				types.SetFeeAmount(sdk.NewCoins(coin)),
-				types.SetGasLimit(10000000),
-				types.SetMemo("Thou damned and luxurious mountain goat."),
-			},
-		},
-		{
-			"memo with large blob", 100000,
-			[]types.TxBuilderOption{
-				types.SetFeeAmount(sdk.NewCoins(coin)),
-				types.SetGasLimit(10000000),
-				types.SetMemo("Thou damned and luxurious mountain goat."),
-			},
-		},
+		{"empty block", appconsts.DefaultMinSquareSize, 0, 0, 0},
+		{"one normal tx", appconsts.DefaultMinSquareSize, 1, 0, 0},
+		{"one small pfb small block", 4, 0, 1, 100},
+		{"one large pfb large block", appconsts.DefaultMaxSquareSize, 0, 1, 1000000},
+		{"one hundred large pfb large block", appconsts.DefaultMaxSquareSize, 0, 100, 100000},
+		{"one hundred large pfb medium block", appconsts.DefaultMaxSquareSize / 2, 100, 100, 100000},
+		{"mixed transactions large block", appconsts.DefaultMaxSquareSize, 100, 100, 100000},
+		{"mixed transactions large block 2", appconsts.DefaultMaxSquareSize, 1000, 1000, 10000},
+		{"mostly transactions large block", appconsts.DefaultMaxSquareSize, 10000, 1000, 100},
+		{"only small pfb large block", appconsts.DefaultMaxSquareSize, 0, 10000, 1},
+		{"only small pfb medium block", appconsts.DefaultMaxSquareSize / 2, 0, 10000, 1},
 	}
 
-	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
-	signer := types.GenerateKeyringSigner(t, testEstimateKey)
-	for _, tt := range tests {
-		wpfbTx := generateRawWirePFB(
-			t,
-			encConf.TxConfig,
-			namespace.RandomBlobNamespace(),
-			tmrand.Bytes(tt.size),
-			appconsts.ShareVersionZero,
-			signer,
-			tt.opts...,
-		)
-		parsedTxs := parseTxs(encConf.TxConfig, [][]byte{wpfbTx})
-		res := overEstimateMalleatedTxSize(len(parsedTxs[0].rawTx), tt.size)
-		malleatedTx, _, err := malleateTxs(encConf.TxConfig, 32, parsedTxs)
-		require.NoError(t, err)
-		assert.Less(t, len(malleatedTx[0]), res)
-	}
-}
-
-func Test_calculateCompactShareCount(t *testing.T) {
-	type test struct {
-		name                  string
-		normalTxs             int
-		wPFBCount, messgeSize int
-	}
-	tests := []test{
-		{"empty block minimum square size", 0, 0, totalBlobSize(0)},
-		{"full block with only txs", 10000, 0, totalBlobSize(0)},
-		{"random small block square size 4", 0, 1, totalBlobSize(appconsts.SparseShareContentSize * 2)},
-		{"random small block square size 8", 0, 1, (appconsts.SparseShareContentSize * 4)},
-		{"random small block w/ 10 normal txs square size 4", 10, 1, totalBlobSize(appconsts.SparseShareContentSize * 8)},
-		{"random small block square size 16", 0, 4, totalBlobSize(appconsts.SparseShareContentSize * 8)},
-		{"random medium block square size 32", 0, 50, totalBlobSize(appconsts.SparseShareContentSize * 8)},
-		{"full block max square size", 0, 8000, totalBlobSize(appconsts.SparseShareContentSize / 2)},
-		{"overly full block", 0, 80, totalBlobSize(appconsts.SparseShareContentSize * 100)},
-		{"one over the perfect estimation edge case", 10, 1, totalBlobSize(appconsts.SparseShareContentSize + 1)},
-	}
-	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
-	signer := types.GenerateKeyringSigner(t, testEstimateKey)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			txs := GenerateManyRawWirePFB(t, encConf.TxConfig, signer, tt.wPFBCount, tt.messgeSize)
-			txs = append(txs, GenerateManyRawSendTxs(t, encConf.TxConfig, signer, tt.normalTxs)...)
+			ptxs := generateMixedParsedTxs(tt.normalTxs, tt.pfbCount, tt.pfbSize)
+			res := estimateCompactShares(tt.squareSize, ptxs)
 
-			parsedTxs := parseTxs(encConf.TxConfig, txs)
-			squareSize, totalSharesUsed := estimateSquareSize(parsedTxs)
-
-			if totalSharesUsed > int(squareSize*squareSize) {
-				parsedTxs = prune(encConf.TxConfig, parsedTxs, totalSharesUsed, int(squareSize))
+			// check that our estimate is always larger or equal to the number
+			// of compact shares actually used
+			txs := make([]coretypes.Tx, len(ptxs))
+			for i, ptx := range ptxs {
+				if len(ptx.normalTx) != 0 {
+					txs[i] = ptx.normalTx
+					continue
+				}
+				wPFBTx, err := coretypes.MarshalIndexWrapper(
+					uint32(tt.squareSize*tt.squareSize),
+					ptx.blobTx.Tx,
+				)
+				require.NoError(t, err)
+				txs[i] = wPFBTx
 			}
-
-			malleated, _, err := malleateTxs(encConf.TxConfig, squareSize, parsedTxs)
-			require.NoError(t, err)
-
-			calculatedTxShareCount := calculateCompactShareCount(parsedTxs, int(squareSize))
-
-			txShares := shares.SplitTxs(shares.TxsFromBytes(malleated))
-			assert.LessOrEqual(t, len(txShares), calculatedTxShareCount, tt.name)
+			shares := shares.SplitTxs(txs)
+			assert.LessOrEqual(t, len(shares), res)
 		})
 	}
-}
-
-// totalBlobSize subtracts the delimiter size from the desired total size. this
-// is useful for testing for blobs that occupy exactly so many shares.
-func totalBlobSize(size int) int {
-	return size - shares.DelimLen(uint64(size))
 }

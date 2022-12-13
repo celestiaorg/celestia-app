@@ -72,7 +72,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	// commitments are subtree roots of the data root.
 	commitmentCounter := 0
 	for _, rawTx := range req.BlockData.Txs {
-		malleatedTx, isMalleated := coretypes.UnwrapMalleatedTx(rawTx)
+		malleatedTx, isMalleated := coretypes.UnmarshalIndexWrapper(rawTx)
 		if !isMalleated {
 			continue
 		}

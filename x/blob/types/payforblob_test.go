@@ -8,9 +8,9 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt/namespace"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func Test_merkleMountainRangeHeights(t *testing.T) {
@@ -105,70 +105,6 @@ func TestCreateCommitment(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expected, res)
 		})
-	}
-}
-
-// TestSignMalleatedTxs checks to see that the signatures that are generated for
-// the PayForBlobs malleated from the original WirePayForBlob are actually
-// valid.
-func TestSignMalleatedTxs(t *testing.T) {
-	type test struct {
-		name     string
-		ns       []byte
-		blobData []byte
-		options  []TxBuilderOption
-	}
-
-	signer := GenerateKeyringSigner(t, TestAccName)
-
-	tests := []test{
-		{
-			name:     "single share",
-			ns:       []byte{1, 1, 1, 1, 1, 1, 1, 1},
-			blobData: bytes.Repeat([]byte{1}, appconsts.SparseShareContentSize),
-			options:  []TxBuilderOption{SetGasLimit(2000000)},
-		},
-		{
-			name:     "12 shares",
-			ns:       []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			blobData: bytes.Repeat([]byte{2}, (appconsts.SparseShareContentSize*12)-4), // subtract a few bytes for the delimiter
-			options: []TxBuilderOption{
-				SetGasLimit(123456789),
-				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321)))),
-			},
-		},
-		{
-			name:     "12 shares",
-			ns:       []byte{1, 1, 1, 1, 1, 1, 1, 2},
-			blobData: bytes.Repeat([]byte{1, 2, 3, 4, 5}, 10000), // subtract a few bytes for the delimiter
-			options: []TxBuilderOption{
-				SetGasLimit(123456789),
-				SetFeeAmount(sdk.NewCoins(sdk.NewCoin("utia", sdk.NewInt(987654321)))),
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		wpfb, err := NewWirePayForBlob(tt.ns, tt.blobData, appconsts.ShareVersionZero)
-		require.NoError(t, err, tt.name)
-		err = wpfb.SignShareCommitment(signer, tt.options...)
-		// there should be no error
-		assert.NoError(t, err)
-		// the signature should exist
-		assert.Equal(t, len(wpfb.ShareCommitment.Signature), 64)
-
-		sData, err := signer.GetSignerData()
-		require.NoError(t, err)
-
-		wpfbTx, err := signer.BuildSignedTx(signer.NewTxBuilder(tt.options...), wpfb)
-		require.NoError(t, err)
-
-		// VerifyPFBSigs goes through the entire malleation process for every
-		// square size, creating PfBs from the wirePfB and check that the
-		// signature is valid
-		valid, err := VerifyPFBSigs(sData, signer.encCfg.TxConfig, wpfbTx)
-		assert.NoError(t, err)
-		assert.True(t, valid, tt.name)
 	}
 }
 
@@ -272,39 +208,118 @@ func totalBlobSize(size int) int {
 	return size - shares.DelimLen(uint64(size))
 }
 
-func validWirePayForBlob(t *testing.T) *MsgWirePayForBlob {
-	blob := bytes.Repeat([]byte{1}, 2000)
-	msgWPFB, err := NewWirePayForBlob(
-		[]byte{1, 2, 3, 4, 5, 6, 7, 8},
-		blob,
-		appconsts.ShareVersionZero,
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	signer := GenerateKeyringSigner(t)
-
-	err = msgWPFB.SignShareCommitment(signer)
-	if err != nil {
-		panic(err)
-	}
-	return msgWPFB
-}
-
 func validMsgPayForBlob(t *testing.T) *MsgPayForBlob {
 	signer := GenerateKeyringSigner(t, TestAccName)
 	ns := []byte{1, 1, 1, 1, 1, 1, 1, 2}
 	blob := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.SparseShareContentSize*12))
 
-	wpfb, err := NewWirePayForBlob(ns, blob, appconsts.ShareVersionZero)
-	assert.NoError(t, err)
-
-	err = wpfb.SignShareCommitment(signer)
-	assert.NoError(t, err)
-
-	_, spfb, _, err := ProcessWireMsgPayForBlob(wpfb)
+	addr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
 
-	return spfb
+	pfb, err := NewMsgPayForBlob(addr.String(), ns, blob)
+	assert.NoError(t, err)
+
+	return pfb
+}
+
+func TestNewMsgPayForBlob(t *testing.T) {
+	type test struct {
+		signer      string
+		nid         namespace.ID
+		blob        []byte
+		expectedErr bool
+	}
+
+	kr := GenerateKeyring(t, "blob")
+	rec, err := kr.Key("blob")
+	require.NoError(t, err)
+	addr, err := rec.GetAddress()
+	require.NoError(t, err)
+
+	tests := []test{
+		{
+			signer:      addr.String(),
+			nid:         []byte{1, 2, 3, 4, 5, 6, 7, 8},
+			blob:        []byte{1},
+			expectedErr: false,
+		},
+		{
+			signer:      addr.String(),
+			nid:         []byte{1, 2, 3, 4, 5, 6, 7, 8},
+			blob:        tmrand.Bytes(1000000),
+			expectedErr: false,
+		},
+		{
+			signer:      addr.String(),
+			nid:         []byte{1, 2, 3, 4, 5, 6, 7},
+			blob:        tmrand.Bytes(100),
+			expectedErr: true,
+		},
+		{
+			signer:      addr.String(),
+			nid:         appconsts.TxNamespaceID,
+			blob:        tmrand.Bytes(100),
+			expectedErr: true,
+		},
+		{
+			signer:      addr.String()[:10],
+			nid:         appconsts.TxNamespaceID,
+			blob:        tmrand.Bytes(100),
+			expectedErr: true,
+		},
+	}
+	for _, tt := range tests {
+		res, err := NewMsgPayForBlob(tt.signer, tt.nid, tt.blob)
+		if tt.expectedErr {
+			assert.Error(t, err)
+			continue
+		}
+
+		expectedCommitment, err := CreateCommitment(tt.nid, tt.blob, appconsts.ShareVersionZero)
+		require.NoError(t, err)
+		assert.Equal(t, expectedCommitment, res.ShareCommitment)
+
+		assert.Equal(t, uint64(len(tt.blob)), res.BlobSize)
+	}
+}
+
+func TestBlobMinSquareSize(t *testing.T) {
+	type testCase struct {
+		name     string
+		blobSize uint64
+		expected uint64
+	}
+	tests := []testCase{
+		{
+			name:     "1 byte",
+			blobSize: 1,
+			expected: 1,
+		},
+		{
+			name:     "100 bytes",
+			blobSize: 100,
+			expected: 1,
+		},
+		{
+			name:     "2 sparse shares",
+			blobSize: appconsts.SparseShareContentSize * 2,
+			expected: 2,
+		},
+		{
+			name:     "4 sparse shares",
+			blobSize: appconsts.SparseShareContentSize * 4,
+			expected: 4,
+		},
+		{
+			name:     "16 sparse shares",
+			blobSize: appconsts.SparseShareContentSize * 16,
+			expected: 8,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := BlobMinSquareSize(tc.blobSize)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
 }

@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -70,7 +70,7 @@ func (s *IntegrationTestSuite) Test_Liveness() {
 	var params *coretypes.ResultConsensusParams
 	// this query can be flaky with fast block times, so we repeat it multiple
 	// times in attempt to increase the probability of it working
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		params, err = s.cctx.Client.ConsensusParams(context.TODO(), nil)
 		if err != nil || params == nil {
 			continue
@@ -79,7 +79,7 @@ func (s *IntegrationTestSuite) Test_Liveness() {
 	}
 	require.NotNil(params)
 	require.Equal(int64(1), params.ConsensusParams.Block.TimeIotaMs)
-	_, err = s.cctx.WaitForHeight(20)
+	_, err = s.cctx.WaitForHeight(40)
 	require.NoError(err)
 }
 
@@ -103,7 +103,7 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 		err = s.cctx.WaitForNextBlock()
 		require.NoError(err)
 
-		res, err := testutil.QueryWithoutProof(s.cctx.Context, resp.TxHash)
+		res, err := testfactory.QueryWithoutProof(s.cctx.Context, resp.TxHash)
 		require.NoError(err)
 		require.Equal(abci.CodeTypeOK, res.TxResult.Code)
 

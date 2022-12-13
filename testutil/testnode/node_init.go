@@ -13,12 +13,10 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
@@ -30,32 +28,6 @@ import (
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
 )
-
-func fundKeyringAccounts(cdc codec.Codec, accounts ...string) (keyring.Keyring, []banktypes.Balance, []authtypes.GenesisAccount) {
-	kb := keyring.NewInMemory(cdc)
-	genAccounts := make([]authtypes.GenesisAccount, len(accounts))
-	genBalances := make([]banktypes.Balance, len(accounts))
-
-	for i, acc := range accounts {
-		rec, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
-		if err != nil {
-			panic(err)
-		}
-
-		addr, err := rec.GetAddress()
-		if err != nil {
-			panic(err)
-		}
-
-		balances := sdk.NewCoins(
-			sdk.NewCoin(app.BondDenom, sdk.NewInt(99999999999999999)),
-		)
-
-		genBalances[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}
-		genAccounts[i] = authtypes.NewBaseAccount(addr, nil, 0, 0)
-	}
-	return kb, genBalances, genAccounts
-}
 
 func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey cryptotypes.PubKey, nodeID, chainID, rootDir string) error {
 	genTime := tmtime.Now()

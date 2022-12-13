@@ -14,28 +14,6 @@ service Msg {
   }
 }
 
-// MsgWirePayForBlob describes the format of data that is sent over the wire
-// for each PayForBlob
-message MsgWirePayForBlob {
-  string signer = 1;
-  bytes namespace_id = 2; // assume this is 8 bytes!
-  uint64 blob_size = 3;
-  bytes blob = 4;
-  // field number 6 is obsolete and was used for `repeated
-  // ShareCommitAndSignature` when a MsgWirePayForBlob included multiple
-  // blob share commitments (one per square size).
-  ShareCommitAndSignature share_commitment = 7;
-  // share_version is the version of the share format that the blob in this
-  // message should use when included in a block. The share_version specified
-  // must match the share_version used to generate the share_commitment in this
-  // message.
-  uint32 share_version = 8;
-}
-
-// MsgWirePayForBlobResponse describes the response returned after the
-// submission of a WirePayForBlob
-message MsgWirePayForBlobResponse {}
-
 // ShareCommitAndSignature defines the
 message ShareCommitAndSignature {
   // share_commitment is the root of a binary Merkle tree that has leaves which
@@ -45,8 +23,7 @@ message ShareCommitAndSignature {
   bytes signature = 3; // signature on one SignedTransactionPayForBlob
 }
 
-// MsgPayForBlob is what gets signed by users when creating
-// ShareCommitSignatures. It is a subset of MsgWirePayForBlob that does not contain the blob.
+// MsgPayForBlob pays for the inclusion of a blob in the block.
 message MsgPayForBlob {
   string signer = 1;
   bytes namespace_id = 2;

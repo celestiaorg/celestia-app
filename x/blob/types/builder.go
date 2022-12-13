@@ -96,13 +96,13 @@ func (k *KeyringSigner) NewTxBuilder(opts ...TxBuilderOption) sdkclient.TxBuilde
 // BuildSignedTx creates and signs a sdk.Tx that contains the provided message. The interal
 // account number must be set by calling k.QueryAccountNumber or by manually setting it via
 // k.SetAccountNumber for the built transactions to be valid.
-func (k *KeyringSigner) BuildSignedTx(builder sdkclient.TxBuilder, msg sdktypes.Msg) (authsigning.Tx, error) {
+func (k *KeyringSigner) BuildSignedTx(builder sdkclient.TxBuilder, msg ...sdktypes.Msg) (authsigning.Tx, error) {
 	k.RLock()
 	sequence := k.sequence
 	k.RUnlock()
 
 	// set the msg
-	err := builder.SetMsgs(msg)
+	err := builder.SetMsgs(msg...)
 	if err != nil {
 		return nil, err
 	}

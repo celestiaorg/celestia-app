@@ -1,34 +1,30 @@
 package app_test
 
 import (
-	"crypto/rand"
-	"math/big"
 	"testing"
 
-	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/celestiaorg/nmt/namespace"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 )
 
 func TestBlobInclusionCheck(t *testing.T) {
-	signer := types.GenerateKeyringSigner(t, types.TestAccName)
-	testApp := testutil.SetupTestAppWithGenesisValSet(t)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	// block with all blobs included
 	validData := func() *core.Data {
 		return &core.Data{
-			Txs: app.GenerateManyRawWirePFB(t, encConf.TxConfig, signer, 4, 1000),
+			Txs: coretypes.Txs(blobfactory.RandBlobTxs(encConf.TxConfig.TxEncoder(), 4, 1000)).ToSliceOfBytes(),
 		}
 	}
 
@@ -118,59 +114,23 @@ func TestBlobInclusionCheck(t *testing.T) {
 }
 
 func TestProcessProposalWithParityShareNamespace(t *testing.T) {
-	testApp := testutil.SetupTestAppWithGenesisValSet(t)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	signer := types.GenerateKeyringSigner(t, types.TestAccName)
-
-	pfb, blobData := genRandMsgPayForBlobForNamespace(t, signer, appconsts.ParitySharesNamespaceID)
-	input := abci.RequestProcessProposal{
-		BlockData: &core.Data{
-			Txs: [][]byte{
-				buildTx(t, signer, encConf.TxConfig, pfb),
-			},
-			Blobs: []core.Blob{
-				{
-					NamespaceId: pfb.GetNamespaceId(),
-					Data:        blobData,
-				},
-			},
-			SquareSize: 8,
+	txs := coretypes.Txs(blobfactory.RandBlobTxs(encConf.TxConfig.TxEncoder(), 4, 1000)).ToSliceOfBytes()
+	req := abci.RequestPrepareProposal{
+		BlockData: &tmproto.Data{
+			Txs: txs,
 		},
 	}
-	res := testApp.ProcessProposal(input)
-	assert.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
-}
 
-func genRandMsgPayForBlobForNamespace(t *testing.T, signer *types.KeyringSigner, ns namespace.ID) (*types.MsgPayForBlob, []byte) {
-	blob := make([]byte, randomInt(20))
-	_, err := rand.Read(blob)
-	require.NoError(t, err)
+	resp := testApp.PrepareProposal(req)
 
-	shareVersion := appconsts.ShareVersionZero
-	commit, err := types.CreateCommitment(ns, blob, shareVersion)
-	require.NoError(t, err)
+	resp.BlockData.Blobs[0].NamespaceId = appconsts.ParitySharesNamespaceID
 
-	pfb := types.MsgPayForBlob{
-		ShareCommitment: commit,
-		NamespaceId:     ns,
-		ShareVersion:    uint32(shareVersion),
+	input := abci.RequestProcessProposal{
+		BlockData: resp.BlockData,
 	}
-
-	return &pfb, blob
-}
-
-func buildTx(t *testing.T, signer *types.KeyringSigner, txCfg client.TxConfig, msg sdk.Msg) []byte {
-	tx, err := signer.BuildSignedTx(signer.NewTxBuilder(), msg)
-	require.NoError(t, err)
-
-	rawTx, err := txCfg.TxEncoder()(tx)
-	require.NoError(t, err)
-
-	return rawTx
-}
-
-func randomInt(max int64) int64 {
-	i, _ := rand.Int(rand.Reader, big.NewInt(max))
-	return i.Int64()
+	res := testApp.ProcessProposal(input)
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
 }
