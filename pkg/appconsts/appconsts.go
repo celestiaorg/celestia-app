@@ -119,10 +119,10 @@ var (
 	// example, if a block contains only transactions then it could contain:
 	// DefaultMaxSquareSize * DefaultMaxSquareSize * ShareSize bytes of transactions.
 	//
-	// Assuming DefaultMaxSquareSize is 128 and ShareSize is 256, this is 4194304 bytes
-	// of transactions. It takes 4 bytes to store a varint of 4194304.
+	// Assuming DefaultMaxSquareSize is 128 and ShareSize is 512, this is 8388608 bytes
+	// of transactions. It takes 4 bytes to store a varint of 8388608.
 	//
-	// https://go.dev/play/p/MynwcDHQ_me
+	// https://go.dev/play/p/ADIcIxmyZbu
 	FirstCompactShareSequenceLengthBytes = numberOfBytesVarint(DefaultMaxSquareSize * DefaultMaxSquareSize * ShareSize)
 
 	// FirstCompactShareContentSize is the number of bytes usable for data in
