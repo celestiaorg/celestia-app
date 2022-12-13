@@ -239,7 +239,7 @@ func TestRawData(t *testing.T) {
 			want:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 		},
 		{
-			name:  "continuation sparse hare",
+			name:  "continuation sparse share",
 			share: continuationSparseShare,
 			want:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 		},
