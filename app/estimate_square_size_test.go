@@ -75,7 +75,7 @@ func Test_estimateCompactShares(t *testing.T) {
 					txs[i] = ptx.normalTx
 					continue
 				}
-				wPFBTx, err := coretypes.MarshalMalleatedTx(
+				wPFBTx, err := coretypes.MarshalIndexWrapper(
 					uint32(tt.squareSize*tt.squareSize),
 					ptx.blobTx.Tx,
 				)
