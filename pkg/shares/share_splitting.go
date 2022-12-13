@@ -45,7 +45,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 			BlobSharesUsed(len(data.Blobs[0].Data)),
 			int(data.SquareSize),
 		)
-		// force msgIndexes to be the first share index
+		// force blobSharesStart to be the first share index
 		if len(blobIndexes) != 0 && useShareIndexes {
 			blobShareStart = int(blobIndexes[0])
 		}
