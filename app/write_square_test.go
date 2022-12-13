@@ -54,12 +54,12 @@ func Test_finalizeLayout(t *testing.T) {
 		},
 		{
 			squareSize:      4,
-			nonreserveStart: 6,
+			nonreserveStart: 7,
 			ptxs: generateParsedTxsWithNIDs(
-				[][]byte{ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1},
-				[]int{100, 100, 100, 100, 100, 100, 100, 100, 100, 100},
+				[][]byte{ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1},
+				[]int{100, 100, 100, 100, 100, 100, 100, 100, 100},
 			),
-			expectedIndexes: []uint32{6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+			expectedIndexes: []uint32{7, 8, 9, 10, 11, 12, 13, 14, 15},
 		},
 		{
 			squareSize:      4,

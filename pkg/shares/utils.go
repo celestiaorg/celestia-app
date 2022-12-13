@@ -23,9 +23,9 @@ func DelimLen(size uint64) int {
 func BlobSharesUsed(blobSize int) int {
 	// add the delimiter to the blob size
 	blobSize = DelimLen(uint64(blobSize)) + blobSize
-	shareCount := blobSize / appconsts.SparseShareContentSize
+	shareCount := blobSize / appconsts.ContinuationSparseShareContentSize
 	// increment the share count if the blob overflows the last counted share
-	if blobSize%appconsts.SparseShareContentSize != 0 {
+	if blobSize%appconsts.ContinuationSparseShareContentSize != 0 {
 		shareCount++
 	}
 	return shareCount

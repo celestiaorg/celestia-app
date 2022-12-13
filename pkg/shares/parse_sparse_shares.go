@@ -5,89 +5,78 @@ import (
 	"fmt"
 
 	coretypes "github.com/tendermint/tendermint/types"
-
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
+
+type BlobWithLen struct {
+	blob        coretypes.Blob
+	sequenceLen uint32
+}
 
 // parseSparseShares iterates through rawShares and parses out individual
 // blobs. It returns an error if a rawShare contains a share version that
 // isn't present in supportedShareVersions.
-func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) ([]coretypes.Blob, error) {
+func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) (blobs []coretypes.Blob, err error) {
 	if len(rawShares) == 0 {
 		return nil, nil
 	}
+	blobsWithLen := make([]BlobWithLen, 0)
+
 	shares := FromBytes(rawShares)
 	for _, share := range shares {
-		infoByte, err := share.InfoByte()
+		version, err := share.Version()
 		if err != nil {
 			return nil, err
 		}
-		if !bytes.Contains(supportedShareVersions, []byte{infoByte.Version()}) {
-			return nil, fmt.Errorf("unsupported share version %v is not present in the list of supported share versions %v", infoByte.Version(), supportedShareVersions)
+		if !bytes.Contains(supportedShareVersions, []byte{version}) {
+			return nil, fmt.Errorf("unsupported share version %v is not present in supported share versions %v", version, supportedShareVersions)
 		}
-	}
 
-	// blobs returned
-	blobs := []coretypes.Blob{}
-	currentBlobLen := 0
-	currentBlob := coretypes.Blob{}
-	// whether the current share contains the start of a new blob
-	isNewBlob := true
-	// the len in bytes of the current chunk of data that will eventually become
-	// a blob. This is identical to len(currentBlob.Data) + appconsts.BlobShareSize
-	// but we cache it here for readability
-	dataLen := 0
-	saveBlob := func() {
-		blobs = append(blobs, currentBlob)
-		dataLen = 0
-		isNewBlob = true
-	}
-	// iterate through all the shares and parse out each blob
-	for i := 0; i < len(rawShares); i++ {
-		dataLen = len(currentBlob.Data) + appconsts.SparseShareContentSize
-		switch {
-		case isNewBlob:
-			nextBlobChunk, nextBlobLen, err := ParseDelimiter(rawShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:])
+		isStart, err := share.IsSequenceStart()
+		if err != nil {
+			return nil, err
+		}
+
+		if isStart {
+			sequenceLen, err := share.SequenceLen()
 			if err != nil {
 				return nil, err
 			}
-			// the current share is namespaced padding so we ignore it
-			if bytes.Equal(rawShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:], appconsts.NameSpacedPaddedShareBytes) {
-				continue
-			}
-			currentBlobLen = int(nextBlobLen)
-			nid := rawShares[i][:appconsts.NamespaceSize]
-			infoByte, err := ParseInfoByte(rawShares[i][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0])
+			data, err := share.RawData()
 			if err != nil {
-				panic(err)
+				return nil, err
 			}
-			if infoByte.IsSequenceStart() != isNewBlob {
-				return nil, fmt.Errorf("expected sequence start indicator to be %t but got %t", isNewBlob, infoByte.IsSequenceStart())
+			blob := coretypes.Blob{
+				NamespaceID:  share.NamespaceID(),
+				Data:         data,
+				ShareVersion: version,
 			}
-			currentBlob = coretypes.Blob{
-				NamespaceID: nid,
-				Data:        nextBlobChunk,
-				// TODO: add the share version to the blob
-				// https://github.com/celestiaorg/celestia-app/issues/1053
+			blobsWithLen = append(blobsWithLen, BlobWithLen{
+				blob:        blob,
+				sequenceLen: sequenceLen,
+			})
+		} else { // continuation share
+			if len(blobsWithLen) == 0 {
+				return nil, fmt.Errorf("continuation share %v without a sequence start share", share)
 			}
-			// the current share contains the entire blob so we save it and
-			// progress
-			if currentBlobLen <= len(nextBlobChunk) {
-				currentBlob.Data = currentBlob.Data[:currentBlobLen]
-				saveBlob()
-				continue
+			lastBlob := &blobsWithLen[len(blobsWithLen)-1]
+			data, err := share.RawData()
+			if err != nil {
+				return nil, err
 			}
-			isNewBlob = false
-		// this entire share contains a chunk of blob that we need to save
-		case currentBlobLen > dataLen:
-			currentBlob.Data = append(currentBlob.Data, rawShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:]...)
-		// this share contains the last chunk of data needed to complete the
-		// blob
-		case currentBlobLen <= dataLen:
-			remaining := currentBlobLen - len(currentBlob.Data) + appconsts.NamespaceSize + appconsts.ShareInfoBytes
-			currentBlob.Data = append(currentBlob.Data, rawShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes:remaining]...)
-			saveBlob()
+			lastBlob.blob.Data = append(lastBlob.blob.Data, data...)
 		}
 	}
+	for _, blobWithLen := range blobsWithLen {
+		// trim any padding
+		blobWithLen.blob.Data = blobWithLen.blob.Data[:blobWithLen.sequenceLen]
+		if !isNamespacedPadding(blobWithLen) {
+			blobs = append(blobs, blobWithLen.blob)
+		}
+	}
+
 	return blobs, nil
+}
+
+func isNamespacedPadding(blobWithLen BlobWithLen) bool {
+	return blobWithLen.sequenceLen == 0
 }
