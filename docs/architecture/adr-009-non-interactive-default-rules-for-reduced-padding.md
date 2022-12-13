@@ -188,9 +188,13 @@ The worst-case padding decreases from 1.1 GB to 0.8 GB in 2 GB Blocks. In the cu
 
 ![Padding Size Result](./assets/padding-size-result.png)
 
+## Additional Optimizations
+
+You can further optimize the proof size by using the fact the Namespace is known and the same for all the subtree roots. You can do the same trick for parity shares as the namespace is fixed for them too. Both of these optimizations are not included in the analysis and would save the bytes that are used to store the namespace.
+
 ## Status
 
-Proposed
+Accepted
 
 ## Consequences
 
