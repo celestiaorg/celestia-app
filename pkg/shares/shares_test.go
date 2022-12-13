@@ -234,7 +234,7 @@ func TestRawData(t *testing.T) {
 	}
 	testCases := []testCase{
 		{
-			name:  "first sparse hare",
+			name:  "first sparse share",
 			share: firstSparseShare,
 			want:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 		},
