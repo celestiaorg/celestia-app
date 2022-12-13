@@ -98,7 +98,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		)
 	}
 
-	// generate 100 randomly sized txs (max size == 100kb) by generating these
+	// generate 80 randomly sized txs (max size == 100kb) by generating these
 	// transaction using some of the same accounts as the previous genertor, we
 	// are also testing to ensure that the sequence number is being utilized
 	// corrected in malleated txs
