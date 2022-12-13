@@ -51,6 +51,12 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 			MsgSharesUsed(len(data.Messages.MessagesList[0].Data)),
 			int(data.OriginalSquareSize),
 		)
+
+		// force msgIndexes to be the first share index
+		if len(msgIndexes) != 0 && useShareIndexes {
+			msgShareStart = int(msgIndexes[0])
+		}
+
 		ns := appconsts.TxNamespaceID
 		if len(evdShares) > 0 {
 			ns = appconsts.EvidenceNamespaceID
