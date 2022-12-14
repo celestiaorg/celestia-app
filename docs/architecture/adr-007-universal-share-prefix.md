@@ -36,10 +36,10 @@ The current share format poses multiple challenges:
 
 Introduce a universal share encoding that applies to both compact and sparse shares:
 
-- First share of sequence:<br>`namespace_id (8 bytes) | info (1 byte) | data length (varint 1 to 10 bytes) | data`
+- First share of sequence:<br>`namespace_id (8 bytes) | info (1 byte) | sequence length (varint 1 to 10 bytes) | data`
 - Contiguous share of sequence:<br>`namespace_id (8 bytes) | info (1 byte) | data`
 
-Compact shares have the added constraint: the first byte of `data` in each share is a reserved byte so the format is:<br>`namespace_id (8 bytes) | info (1 byte) | data length (varint 1 to 10 bytes) | reserved (1 byte) | data` and every unit in the compact share `data` is prefixed with a `unit length (varint 1 to 10 bytes)`.
+Compact shares have the added constraint: the first byte of `data` in each share is a reserved byte so the format is:<br>`namespace_id (8 bytes) | info (1 byte) | sequence length (varint 1 to 10 bytes) | reserved (1 byte) | data` and every unit in the compact share `data` is prefixed with a `unit length (varint 1 to 10 bytes)`.
 
 Where `info (1 byte)` is a byte with the following structure:
 
