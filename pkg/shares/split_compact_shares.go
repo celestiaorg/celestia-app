@@ -27,12 +27,12 @@ func NewCompactShareSplitter(ns namespace.ID, shareVersion uint8) *CompactShareS
 	if err != nil {
 		panic(err)
 	}
-	placeholderDataLength := make([]byte, appconsts.FirstCompactShareSequenceLengthBytes)
+	placeholderSequenceLen := make([]byte, appconsts.FirstCompactShareSequenceLengthBytes)
 	placeholderReservedBytes := make([]byte, appconsts.CompactShareReservedBytes)
 
 	pendingShare = append(pendingShare, ns...)
 	pendingShare = append(pendingShare, byte(infoByte))
-	pendingShare = append(pendingShare, placeholderDataLength...)
+	pendingShare = append(pendingShare, placeholderSequenceLen...)
 	pendingShare = append(pendingShare, placeholderReservedBytes...)
 	return &CompactShareSplitter{pendingShare: pendingShare, namespace: ns}
 }
@@ -109,35 +109,35 @@ func (css *CompactShareSplitter) Export() []Share {
 		css.shares = append(css.shares, css.pendingShare)
 	}
 
-	dataLengthVarint := css.dataLengthVarint(bytesOfPadding)
-	css.writeDataLengthVarintToFirstShare(dataLengthVarint)
+	sequenceLenVarint := css.sequenceLenVarint(bytesOfPadding)
+	css.writeSequenceLenVarintToFirstShare(sequenceLenVarint)
 	return css.shares
 }
 
-// dataLengthVarint returns a varint of the data length written to this compact
+// sequenceLenVarint returns a varint of the sequence length written to this compact
 // share splitter.
-func (css *CompactShareSplitter) dataLengthVarint(bytesOfPadding int) []byte {
+func (css *CompactShareSplitter) sequenceLenVarint(bytesOfPadding int) []byte {
 	if css.isEmpty() {
 		return []byte{}
 	}
 
-	// declare and initialize the data length
-	dataLengthVarint := make([]byte, appconsts.FirstCompactShareSequenceLengthBytes)
-	binary.PutUvarint(dataLengthVarint, css.dataLength(bytesOfPadding))
-	zeroPadIfNecessary(dataLengthVarint, appconsts.FirstCompactShareSequenceLengthBytes)
+	// declare and initialize the sequence length
+	sequenceLenVarint := make([]byte, appconsts.FirstCompactShareSequenceLengthBytes)
+	binary.PutUvarint(sequenceLenVarint, css.sequenceLen(bytesOfPadding))
+	zeroPadIfNecessary(sequenceLenVarint, appconsts.FirstCompactShareSequenceLengthBytes)
 
-	return dataLengthVarint
+	return sequenceLenVarint
 }
 
-func (css *CompactShareSplitter) writeDataLengthVarintToFirstShare(dataLengthVarint []byte) {
+func (css *CompactShareSplitter) writeSequenceLenVarintToFirstShare(sequenceLen []byte) {
 	if css.isEmpty() {
 		return
 	}
 
-	// write the data length varint to the first share
+	// write the sequence length varint to the first share
 	firstShare := css.shares[0]
 	for i := 0; i < appconsts.FirstCompactShareSequenceLengthBytes; i++ {
-		firstShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+i] = dataLengthVarint[i]
+		firstShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+i] = sequenceLen[i]
 	}
 
 	// replace existing first share with new first share
@@ -185,12 +185,12 @@ func (css *CompactShareSplitter) indexOfReservedBytes() int {
 	return appconsts.NamespaceSize + appconsts.ShareInfoBytes
 }
 
-// dataLength returns the total length in bytes of all units (transactions or
-// intermediate state roots) written to this splitter. dataLength does not
+// sequenceLen returns the total length in bytes of all units (transactions or
+// intermediate state roots) written to this splitter. sequenceLen does not
 // include the # of bytes occupied by the namespace ID or the share info byte in
-// each share. dataLength does include the reserved byte in each share and the
+// each share. sequenceLen does include the reserved byte in each share and the
 // unit length delimiter prefixed to each unit.
-func (css *CompactShareSplitter) dataLength(bytesOfPadding int) uint64 {
+func (css *CompactShareSplitter) sequenceLen(bytesOfPadding int) uint64 {
 	if len(css.shares) == 0 {
 		return 0
 	}
@@ -199,8 +199,8 @@ func (css *CompactShareSplitter) dataLength(bytesOfPadding int) uint64 {
 	}
 
 	continuationSharesCount := len(css.shares) - 1
-	continuationSharesDataLength := uint64(continuationSharesCount) * appconsts.ContinuationCompactShareContentSize
-	return uint64(appconsts.FirstCompactShareContentSize) + continuationSharesDataLength - uint64(bytesOfPadding)
+	continuationSharesSequenceLen := uint64(continuationSharesCount) * appconsts.ContinuationCompactShareContentSize
+	return uint64(appconsts.FirstCompactShareContentSize) + continuationSharesSequenceLen - uint64(bytesOfPadding)
 }
 
 // isEmptyPendingShare returns true if the pending share is empty, false otherwise.
