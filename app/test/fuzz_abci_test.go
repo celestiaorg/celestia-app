@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -23,14 +22,13 @@ import (
 // transction.
 func TestPrepareProposalConsistency(t *testing.T) {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	signer := types.GenerateKeyringSigner(t, types.TestAccName)
-	testApp := testutil.SetupTestAppWithGenesisValSet()
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
 	timer := time.After(time.Minute * 1)
 
 	type test struct {
 		count, size int
 	}
-	tests := []test{{10000, 400}, {100, -1}}
+	tests := []test{{10000, 400}, {100, 400000}}
 
 	for _, tt := range tests {
 		for {
@@ -39,21 +37,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 				return
 			default:
 				t.Run("randomized inputs to Prepare and Process Proposal", func(t *testing.T) {
-					pfdTxs := app.GenerateManyRawWirePFB(t, encConf.TxConfig, signer, tmrand.Intn(tt.count), tt.size)
-					txs := app.GenerateManyRawSendTxs(t, encConf.TxConfig, signer, tmrand.Intn(20))
-					txs = append(txs, pfdTxs...)
-					resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-						BlockData: &core.Data{
-							Txs: txs,
-						},
-					})
-					res := testApp.ProcessProposal(abci.RequestProcessProposal{
-						BlockData: resp.BlockData,
-						Header: core.Header{
-							DataHash: resp.BlockData.Hash,
-						},
-					})
-					require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Result)
+					ProcessRandomProposal(t, tt.count, tt.size, encConf, testApp)
 				})
 			}
 		}
