@@ -16,7 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/testutil/namespace"
+	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	blob "github.com/celestiaorg/celestia-app/x/blob"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
@@ -87,19 +87,31 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 
 	// tendermint's default tx size limit is 1Mb, so we get close to that
 	equallySized1MbTxGen := func(c client.Context) []coretypes.Tx {
-		equallySized1MbTxs, err := generateSignedWirePayForBlobTxs(c, s.cfg.TxConfig, s.kr, 970000, s.accounts[:20]...)
-		require.NoError(err)
-		return equallySized1MbTxs
+		return blobfactory.RandBlobTxsWithAccounts(
+			s.cfg.TxConfig.TxEncoder(),
+			s.kr,
+			c.GRPCClient,
+			950000,
+			false,
+			s.cfg.ChainID,
+			s.accounts[:20],
+		)
 	}
 
-	// generate 100 randomly sized txs (max size == 100kb) by generating these
+	// generate 80 randomly sized txs (max size == 100kb) by generating these
 	// transaction using some of the same accounts as the previous genertor, we
 	// are also testing to ensure that the sequence number is being utilized
 	// corrected in malleated txs
 	randoTxGen := func(c client.Context) []coretypes.Tx {
-		randomTxs, err := generateSignedWirePayForBlobTxs(c, s.cfg.TxConfig, s.kr, -1, s.accounts...)
-		require.NoError(err)
-		return randomTxs
+		return blobfactory.RandBlobTxsWithAccounts(
+			s.cfg.TxConfig.TxEncoder(),
+			s.kr,
+			c.GRPCClient,
+			500000,
+			true,
+			s.cfg.ChainID,
+			s.accounts[20:],
+		)
 	}
 
 	type test struct {
@@ -113,7 +125,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			equallySized1MbTxGen,
 		},
 		{
-			"100 random txs",
+			"80 random txs",
 			randoTxGen,
 		},
 	}
@@ -125,12 +137,15 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			for i, tx := range txs {
 				res, err := val.ClientCtx.BroadcastTxSync(tx)
 				require.NoError(err)
-				require.Equal(abci.CodeTypeOK, res.Code)
+				assert.Equal(abci.CodeTypeOK, res.Code)
+				if res.Code != abci.CodeTypeOK {
+					continue
+				}
 				hashes[i] = res.TxHash
 			}
 
 			// wait a few blocks to clear the txs
-			for i := 0; i < 16; i++ {
+			for i := 0; i < 8; i++ {
 				require.NoError(s.network.WaitForNextBlock())
 			}
 
@@ -138,11 +153,10 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			for _, hash := range hashes {
 				// TODO: reenable fetching and verifying proofs
 				resp, err := queryTx(val.ClientCtx, hash, false)
-				assert.NoError(err)
+				require.NoError(err)
+				require.NotNil(resp)
 				assert.Equal(abci.CodeTypeOK, resp.TxResult.Code)
-				if resp.TxResult.Code == abci.CodeTypeOK {
-					heights[resp.Height]++
-				}
+				heights[resp.Height]++
 				// ensure that some gas was used
 				assert.GreaterOrEqual(resp.TxResult.GasUsed, int64(10))
 				// require.True(resp.Proof.VerifyProof())
@@ -164,7 +178,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				assert.GreaterOrEqual(size, uint64(appconsts.DefaultMinSquareSize))
 				sizes = append(sizes, size)
 			}
-
 			// ensure that at least one of the blocks used the max square size
 			assert.Contains(sizes, uint64(appconsts.DefaultMaxSquareSize))
 		})
@@ -220,81 +233,18 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 	}
 	for _, tc := range tests {
 		s.Run(tc.name, func() {
-			signer := types.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
-			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.blob, appconsts.ShareVersionZero, 10000000, tc.opts...)
-			require.NoError(err)
-			require.NotNil(res)
-			assert.Equal(abci.CodeTypeOK, res.Code)
 			// occasionally this test will error that the mempool is full (code
 			// 20) so we wait a few blocks for the txs to clear
 			for i := 0; i < 3; i++ {
 				require.NoError(s.network.WaitForNextBlock())
 			}
+			signer := types.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
+			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.blob, appconsts.ShareVersionZero, 1000000000, tc.opts...)
+			require.NoError(err)
+			require.NotNil(res)
+			assert.Equal(abci.CodeTypeOK, res.Code)
 		})
 	}
-}
-
-func generateSignedWirePayForBlobTxs(clientCtx client.Context, txConfig client.TxConfig, kr keyring.Keyring, blobSize int, accounts ...string) ([]coretypes.Tx, error) {
-	txs := make([]coretypes.Tx, len(accounts))
-	for i, account := range accounts {
-		signer := types.NewKeyringSigner(kr, account, clientCtx.ChainID)
-
-		err := signer.UpdateAccountFromClient(clientCtx)
-		if err != nil {
-			return nil, err
-		}
-
-		coin := sdk.Coin{
-			Denom:  app.BondDenom,
-			Amount: sdk.NewInt(1000000),
-		}
-
-		opts := []types.TxBuilderOption{
-			types.SetFeeAmount(sdk.NewCoins(coin)),
-			types.SetGasLimit(1000000000),
-		}
-
-		thisBlobSize := blobSize
-		if blobSize < 1 {
-			for {
-				thisBlobSize = tmrand.NewRand().Intn(100000)
-				if thisBlobSize != 0 {
-					break
-				}
-			}
-		}
-
-		// create a msg
-		msg, err := types.NewWirePayForBlob(
-			namespace.RandomBlobNamespace(),
-			tmrand.Bytes(thisBlobSize),
-			appconsts.ShareVersionZero,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		err = msg.SignShareCommitment(signer, opts...)
-		if err != nil {
-			return nil, err
-		}
-
-		builder := signer.NewTxBuilder(opts...)
-
-		tx, err := signer.BuildSignedTx(builder, msg)
-		if err != nil {
-			return nil, err
-		}
-
-		rawTx, err := txConfig.TxEncoder()(tx)
-		if err != nil {
-			return nil, err
-		}
-
-		txs[i] = coretypes.Tx(rawTx)
-	}
-
-	return txs, nil
 }
 
 func queryTx(clientCtx client.Context, hashHexStr string, prove bool) (*rpctypes.ResultTx, error) {

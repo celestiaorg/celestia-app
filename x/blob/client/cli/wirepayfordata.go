@@ -7,12 +7,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func CmdWirePayForBlob() *cobra.Command {
@@ -46,47 +44,7 @@ func CmdWirePayForBlob() *cobra.Command {
 
 			// TODO: allow the user to override the share version via a new flag
 			// See https://github.com/celestiaorg/celestia-app/issues/1041
-			shareVersion := appconsts.ShareVersionZero
-
-			pfbMsg, err := types.NewWirePayForBlob(namespace, blob, shareVersion)
-			if err != nil {
-				return err
-			}
-
-			// use the keyring to programmatically sign multiple PayForBlob txs
-			signer := types.NewKeyringSigner(clientCtx.Keyring, accName, clientCtx.ChainID)
-
-			err = signer.UpdateAccountFromClient(clientCtx)
-			if err != nil {
-				return err
-			}
-
-			// get and parse the gas limit for this tx
-			rawGasLimit, err := cmd.Flags().GetString(flags.FlagGas)
-			if err != nil {
-				return err
-			}
-			gasSetting, err := flags.ParseGasSetting(rawGasLimit)
-			if err != nil {
-				return err
-			}
-
-			// get and parse the fees for this tx
-			fees, err := cmd.Flags().GetString(flags.FlagFees)
-			if err != nil {
-				return err
-			}
-			parsedFees, err := sdk.ParseCoinsNormalized(fees)
-			if err != nil {
-				return err
-			}
-
-			// sign the MsgPayForBlob's ShareCommitment
-			err = pfbMsg.SignShareCommitment(
-				signer,
-				types.SetGasLimit(gasSetting.Gas),
-				types.SetFeeAmount(parsedFees),
-			)
+			pfbMsg, err := types.NewMsgPayForBlob(clientCtx.FromAddress.String(), namespace, blob)
 			if err != nil {
 				return err
 			}

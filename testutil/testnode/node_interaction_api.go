@@ -8,13 +8,13 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
-	blob "github.com/celestiaorg/celestia-app/x/blob"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 type Context struct {
@@ -111,37 +111,41 @@ func (c *Context) PostData(account, broadcastMode string, ns, blobData []byte) (
 	signer.SetAccountNumber(acc)
 	signer.SetSequence(seq)
 
-	// create a random blob per row
-	pfb, err := blob.BuildPayForBlob(
-		c.rootCtx,
-		signer,
-		c.GRPCClient,
+	msg, err := types.NewMsgPayForBlob(
+		addr.String(),
 		ns,
 		blobData,
-		appconsts.ShareVersionZero,
-		opts...,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	signed, err := blob.SignPayForBlob(signer, pfb, opts...)
+	builder := signer.NewTxBuilder(opts...)
+	stx, err := signer.BuildSignedTx(builder, msg)
+	if err != nil {
+		return nil, err
+	}
+	wblob, err := types.NewBlob(msg.NamespaceId, blobData)
+	if err != nil {
+		return nil, err
+	}
+	rawTx, err := signer.EncodeTx(stx)
+	if err != nil {
+		return nil, err
+	}
+	blobTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
 	if err != nil {
 		return nil, err
 	}
 
-	rawTx, err := signer.EncodeTx(signed)
-	if err != nil {
-		return nil, err
-	}
 	var res *sdk.TxResponse
 	switch broadcastMode {
 	case flags.BroadcastSync:
-		res, err = c.BroadcastTxSync(rawTx)
+		res, err = c.BroadcastTxSync(blobTx)
 	case flags.BroadcastAsync:
-		res, err = c.BroadcastTxAsync(rawTx)
+		res, err = c.BroadcastTxAsync(blobTx)
 	case flags.BroadcastBlock:
-		res, err = c.BroadcastTxCommit(rawTx)
+		res, err = c.BroadcastTxCommit(blobTx)
 	default:
 		return nil, fmt.Errorf("unsupported broadcast mode %s; supported modes: sync, async, block", c.BroadcastMode)
 	}
@@ -167,9 +171,12 @@ func (c *Context) FillBlock(squareSize int, accounts []string, broadcastMode str
 	if broadcastMode == "" {
 		broadcastMode = flags.BroadcastBlock
 	}
-	maxShareCount := squareSize * squareSize
+	// in order to get the square size that we want, we need to fill half the
+	// square minus a few for the tx (see the square estimation logic in
+	// app/estimate_square_size.go)
+	shareCount := (squareSize * squareSize / 2) - 1
 	// we use a formula to guarantee that the tx is the exact size needed to force a specific square size.
-	blobSize := (maxShareCount - (2 * squareSize)) * appconsts.SparseShareContentSize
+	blobSize := shareCount * appconsts.SparseShareContentSize
 	// this last patch allows for the formula above to work on a square size of
 	// 2.
 	if blobSize < 1 {

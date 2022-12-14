@@ -31,7 +31,6 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 
 	txShares := SplitTxs(data.Txs)
 	currentShareCount += len(txShares)
-
 	// blobIndexes will be nil if we are working with a list of txs that do not
 	// have a blob index. This preserves backwards compatibility with old blocks
 	// that do not follow the non-interactive defaults
@@ -64,14 +63,13 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 	}
 	currentShareCount += len(blobShares)
 	tailShares := TailPaddingShares(wantShareCount - currentShareCount)
-
-	// todo: optimize using a predefined slice
-	shares := append(append(append(
-		txShares,
+	shares := make([]Share, 0, data.SquareSize*data.SquareSize)
+	shares = append(append(append(append(
+		shares,
+		txShares...),
 		padding...),
 		blobShares...),
 		tailShares...)
-
 	return shares, nil
 }
 
@@ -81,12 +79,12 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 	var shareIndexes []uint32
 	for _, rawTx := range txs {
-		if malleatedTx, isMalleated := coretypes.UnwrapMalleatedTx(rawTx); isMalleated {
+		if malleatedTx, isMalleated := coretypes.UnmarshalIndexWrapper(rawTx); isMalleated {
 			// Since share index == 0 is invalid, it indicates that we are
 			// attempting to extract share indexes from txs that do not have any
 			// due to them being old. here we return nil to indicate that we are
 			// attempting to extract indexes from a block that doesn't support
-			// it. It's check for 0 because if there is a blob in the block,
+			// it. It checks for 0 because if there is a message in the block,
 			// then there must also be a tx, which will take up at least one
 			// share.
 			if malleatedTx.ShareIndex == 0 {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -14,7 +13,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func TestBuildWirePayForBlob(t *testing.T) {
+func TestBuildPayForBlob(t *testing.T) {
 	testRing := GenerateKeyring(t)
 
 	info, err := testRing.Key(TestAccName)
@@ -23,11 +22,7 @@ func TestBuildWirePayForBlob(t *testing.T) {
 	k := NewKeyringSigner(testRing, TestAccName, testChainID)
 	require.NoError(t, err)
 
-	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
-	blob := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
-
-	msg, err := NewWirePayForBlob(namespace, blob, appconsts.ShareVersionZero)
-	require.NoError(t, err)
+	msg := validMsgPayForBlob(t)
 
 	signedTx, err := k.BuildSignedTx(k.NewTxBuilder(), msg)
 	require.NoError(t, err)
@@ -35,7 +30,7 @@ func TestBuildWirePayForBlob(t *testing.T) {
 	rawTx, err := makeBlobEncodingConfig().TxConfig.TxEncoder()(signedTx)
 	require.NoError(t, err)
 
-	_, isMalleated := coretypes.UnwrapMalleatedTx(rawTx)
+	_, isMalleated := coretypes.UnmarshalIndexWrapper(rawTx)
 	require.False(t, isMalleated)
 
 	sigs, err := signedTx.GetSignaturesV2()
@@ -81,11 +76,7 @@ func TestBroadcastPayForBlob(t *testing.T) {
 	}
 	builder.SetFeeAmount(sdktypes.NewCoins(coin))
 
-	namespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
-	blob := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}
-
-	msg, err := NewWirePayForBlob(namespace, blob, appconsts.ShareVersionZero)
-	require.NoError(t, err)
+	msg := validMsgPayForBlob(t)
 
 	signedTx, err := k.BuildSignedTx(builder, msg)
 	require.NoError(t, err)

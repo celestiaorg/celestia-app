@@ -5,9 +5,9 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func MalleatedTxDecoder(dec sdk.TxDecoder) sdk.TxDecoder {
+func WrappedTxDecoder(dec sdk.TxDecoder) sdk.TxDecoder {
 	return func(txBytes []byte) (sdk.Tx, error) {
-		if malleatedTx, has := coretypes.UnwrapMalleatedTx(txBytes); has {
+		if malleatedTx, has := coretypes.UnmarshalIndexWrapper(txBytes); has {
 			return dec(malleatedTx.Tx)
 		}
 		return dec(txBytes)
