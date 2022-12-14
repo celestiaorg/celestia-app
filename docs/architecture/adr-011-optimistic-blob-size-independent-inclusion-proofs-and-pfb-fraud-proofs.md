@@ -156,13 +156,15 @@ TODO
 
 ## Status
 
-Proposed
+Accepted -> Does not affect the Celestia Core Specification
+
+Optimization 1 & 2 **Declined** as it is currently not worth it to introduce extra complexity for reducing the PFB proof size by 512-1024 bytes.
 
 ## Consequences
 
 ### Positive
 
-By creating PFB inclusion proofs you create PFB fraud proofs at the same time.
+By implementing PFB inclusion proofs you create PFB fraud proofs at the same time.
 
 ### Negative
 
