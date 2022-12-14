@@ -39,14 +39,14 @@ func (sss *SparseShareSplitter) RemoveMessage(i int) (int, error) {
 	j := 1
 	initialCount := sss.count
 	if len(sss.shares) > i+1 {
-		msgLen, err := sss.shares[i+1].SequenceLength()
+		sequenceLen, _, err := sss.shares[i+1].SequenceLen()
 		if err != nil {
 			return 0, err
 		}
 		// 0 means that there is padding after the share that we are about to
 		// remove. to remove this padding, we increase j by 1
-		// with the message
-		if msgLen == 0 {
+		// with the blob
+		if sequenceLen == 0 {
 			j++
 			sss.count -= len(sss.shares[j])
 		}
