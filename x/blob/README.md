@@ -29,14 +29,23 @@ The malleation process occurs during the PrepareProposal step.
 
 ## Events
 
-- [`NewPayForBlobEvent`](https://github.com/celestiaorg/celestia-app/pull/213/files#diff-1ce55bda42cf160deca2e5ea1f4382b65f3b689c7e00c88085d7ce219e77303dR17-R21) is emitted with the signer's address and size of the blob that is paid for.
+The blob module emits the following events:
+
+### Blob Events
+
+#### EventPayForBlob
+
+| Attribute Key | Attribute Value                 |
+|---------------|---------------------------------|
+| signer        | {bech32 encoded signer address} |
+| blob_size     | {size in bytes}                 |
 
 ## Parameters
 
-Key | Type | Example
---- | --- | ---
-MinSquareSize | uint32 | 1
-MaxSquareSize | uint32 | 128
+| Key           | Type   | Example |
+|---------------|--------|---------|
+| MinSquareSize | uint32 | 1       |
+| MaxSquareSize | uint32 | 128     |
 
 ### Usage
 
