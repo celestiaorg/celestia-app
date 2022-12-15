@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	URLBLobTx        = "/blob.BlobTx"
+	URLBlobTx        = "/blob.BlobTx"
 	URLMsgPayForBlob = "/blob.MsgPayForBlob"
 	ShareSize        = appconsts.ShareSize
 	SquareSize       = appconsts.DefaultMaxSquareSize
