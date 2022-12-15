@@ -1,6 +1,7 @@
 package shares
 
 import (
+	"bytes"
 	"context"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -60,6 +62,32 @@ func TestMerge(t *testing.T) {
 			assert.Equal(t, data, res)
 		})
 	}
+}
+
+// TestPadFirstIndexedBlob ensures that we are adding padding to the first share
+// instead of calculating the value.
+func TestPadFirstIndexedBlob(t *testing.T) {
+	tx := tmrand.Bytes(300)
+	blob := tmrand.Bytes(300)
+	index := 100
+	indexedTx, err := coretypes.MarshalIndexWrapper(100, tx)
+	require.NoError(t, err)
+
+	bd := coretypes.Data{
+		Txs: []coretypes.Tx{indexedTx},
+		Blobs: []coretypes.Blob{
+			{NamespaceID: []byte{1, 2, 3, 4, 5, 6, 7, 8}, Data: blob, ShareVersion: appconsts.ShareVersionZero},
+		},
+		SquareSize: 64,
+	}
+
+	shares, err := Split(bd, true)
+	require.NoError(t, err)
+
+	resShare, err := shares[index].RawData()
+	require.NoError(t, err)
+
+	require.True(t, bytes.Contains(resShare, blob))
 }
 
 func TestFuzz_Merge(t *testing.T) {
