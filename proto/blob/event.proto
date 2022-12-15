@@ -1,0 +1,13 @@
+syntax = "proto3";
+package blob;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
+
+// EventPayForBlob defines an event that is emitted with the signer and blob size
+// at the end of a pay for blob txn
+message EventPayForBlob {
+  string signer = 1;
+  uint64 blob_size = 2;
+}
