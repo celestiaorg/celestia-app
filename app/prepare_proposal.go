@@ -22,7 +22,10 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// estimate the square size. This estimation errors on the side of larger
 	// squares but can only return values within the min and max square size.
-	squareSize, totalSharesUsed := estimateSquareSize(parsedTxs)
+	ctx := app.NewContext(true, core.Header{Height: app.LastBlockHeight()})
+	minSquareSize := app.BlobKeeper.MinSquareSize(ctx)
+	maxSquareSize := app.BlobKeeper.MaxSquareSize(ctx)
+	squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, int(minSquareSize), int(maxSquareSize))
 
 	// the totalSharesUsed can be larger that the max number of shares if we
 	// reach the max square size. In this case, we must prune the deprioritized
@@ -57,7 +60,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	}
 
 	// erasure the data square which we use to create the data root.
-	eds, err := da.ExtendShares(squareSize, shares.ToBytes(dataSquare))
+	eds, err := da.ExtendShares(squareSize, shares.ToBytes(dataSquare), uint64(minSquareSize), uint64(maxSquareSize))
 	if err != nil {
 		app.Logger().Error(
 			"failure to erasure the data square while creating a proposal block",
