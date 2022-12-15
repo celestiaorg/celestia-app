@@ -79,10 +79,16 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 		tx, err := app.txConfig.TxDecoder()(malleatedTx.Tx)
 		if err != nil {
-			// we don't reject the block here because it is not a block validity
-			// rule that all transactions included in the block data are
-			// decodable
-			continue
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
+			}
+		}
+
+		err = tx.ValidateBasic()
+		if err != nil {
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
+			}
 		}
 
 		for _, msg := range tx.GetMsgs() {
@@ -98,6 +104,27 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 			if err = pfb.ValidateBasic(); err != nil {
 				logInvalidPropBlockError(app.Logger(), req.Header, "invalid MsgPayForBlob", err)
+				return abci.ResponseProcessProposal{
+					Result: abci.ResponseProcessProposal_REJECT,
+				}
+			}
+
+			signers := msg.GetSigners()
+			if len(signers) != 1 {
+				logInvalidPropBlockError(app.Logger(), req.Header, "cannot have multiple signers for MsgPayForBlob", err)
+				return abci.ResponseProcessProposal{
+					Result: abci.ResponseProcessProposal_REJECT,
+				}
+			}
+
+			signer, err := sdk.AccAddressFromBech32(pfb.Signer)
+			if err != nil {
+				// this panic should be unreachable
+				panic("signer address validation should not fail after basic validation has already been done")
+			}
+
+			if !bytes.Equal(signer, signers[0]) {
+				logInvalidPropBlockError(app.Logger(), req.Header, "invalid signer for MsgPayForBlob", err)
 				return abci.ResponseProcessProposal{
 					Result: abci.ResponseProcessProposal_REJECT,
 				}
