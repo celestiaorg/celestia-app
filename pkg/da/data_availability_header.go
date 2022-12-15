@@ -13,11 +13,6 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-const (
-	maxExtendedSquareWidth = appconsts.DefaultMaxSquareSize * 2
-	minExtendedSquareWidth = appconsts.DefaultMinSquareSize * 2
-)
-
 // DataAvailabilityHeader (DAHeader) contains the row and column roots of the
 // erasure coded version of the data in Block.Data. The original Block.Data is
 // split into shares and arranged in a square of width squareSize. Then, this
@@ -49,13 +44,13 @@ func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) DataAvailabilityH
 	return dah
 }
 
-func ExtendShares(squareSize uint64, shares [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
+func ExtendShares(squareSize uint64, shares [][]byte, minSquareSize, maxSquareSize uint64) (*rsmt2d.ExtendedDataSquare, error) {
 	// Check that square size is with range
-	if squareSize < appconsts.DefaultMinSquareSize || squareSize > appconsts.DefaultMaxSquareSize {
+	if squareSize < minSquareSize || squareSize > maxSquareSize {
 		return nil, fmt.Errorf(
 			"invalid square size: min %d max %d provided %d",
-			appconsts.DefaultMinSquareSize,
-			appconsts.DefaultMaxSquareSize,
+			minSquareSize,
+			maxSquareSize,
 			squareSize,
 		)
 	}
@@ -115,7 +110,7 @@ func (dah *DataAvailabilityHeader) ToProto() (*daproto.DataAvailabilityHeader, e
 	return dahp, nil
 }
 
-func DataAvailabilityHeaderFromProto(dahp *daproto.DataAvailabilityHeader) (dah *DataAvailabilityHeader, err error) {
+func DataAvailabilityHeaderFromProto(dahp *daproto.DataAvailabilityHeader, minSquareSize, maxSquareSize int) (dah *DataAvailabilityHeader, err error) {
 	if dahp == nil {
 		return nil, errors.New("nil DataAvailabilityHeader")
 	}
@@ -124,11 +119,13 @@ func DataAvailabilityHeaderFromProto(dahp *daproto.DataAvailabilityHeader) (dah 
 	dah.RowsRoots = dahp.RowRoots
 	dah.ColumnRoots = dahp.ColumnRoots
 
-	return dah, dah.ValidateBasic()
+	return dah, dah.ValidateBasic(minSquareSize, maxSquareSize)
 }
 
 // ValidateBasic runs stateless checks on the DataAvailabilityHeader.
-func (dah *DataAvailabilityHeader) ValidateBasic() error {
+func (dah *DataAvailabilityHeader) ValidateBasic(minSquareSize, maxSquareSize int) error {
+	maxExtendedSquareWidth := minSquareSize * 2
+	minExtendedSquareWidth := maxSquareSize * 2
 	if dah == nil {
 		return errors.New("nil data availability header is not valid")
 	}
@@ -174,9 +171,9 @@ var tailPaddingShare = append(
 
 // MinDataAvailabilityHeader returns the minimum valid data availability header.
 // It is equal to the data availability header for an empty block
-func MinDataAvailabilityHeader() DataAvailabilityHeader {
+func MinDataAvailabilityHeader(minSqaureSize, maxSqaureSize int) DataAvailabilityHeader {
 	shares := GenerateEmptyShares(appconsts.MinShareCount)
-	eds, err := ExtendShares(appconsts.DefaultMinSquareSize, shares)
+	eds, err := ExtendShares(uint64(minSqaureSize), shares, uint64(minSqaureSize), uint64(maxSqaureSize))
 	if err != nil {
 		panic(err)
 	}
