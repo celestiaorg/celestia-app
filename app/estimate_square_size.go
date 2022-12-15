@@ -86,7 +86,7 @@ func calculateCompactShareCount(txs []*parsedTx, squareSize int) int {
 // estimateSquareSize uses the provided block data to estimate the square size
 // assuming that all malleated txs follow the non interactive default rules.
 // Returns the estimated square size and the number of shares used.
-func estimateSquareSize(txs []*parsedTx) (uint64, int) {
+func estimateSquareSize(txs []*parsedTx, minSquareSize, maxSquareSize int) (uint64, int) {
 	// get the raw count of shares taken by each type of block data
 	txShares, msgLens := rawShareCount(txs)
 	msgShares := 0
@@ -99,8 +99,8 @@ func estimateSquareSize(txs []*parsedTx) (uint64, int) {
 	squareSize := shares.RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(txShares + msgShares)))))
 
 	// the starting square size should at least be the minimum
-	if squareSize < appconsts.DefaultMinSquareSize {
-		squareSize = appconsts.DefaultMinSquareSize
+	if squareSize < minSquareSize {
+		squareSize = minSquareSize
 	}
 
 	var fits bool
@@ -113,8 +113,8 @@ func estimateSquareSize(txs []*parsedTx) (uint64, int) {
 		fits, msgShares = shares.FitsInSquare(txShares, squareSize, msgLens...)
 		switch {
 		// stop estimating if we know we can reach the max square size
-		case squareSize >= appconsts.DefaultMaxSquareSize:
-			return appconsts.DefaultMaxSquareSize, txShares + msgShares
+		case squareSize >= maxSquareSize:
+			return uint64(maxSquareSize), txShares + msgShares
 		// return if we've found a square size that fits all of the txs
 		case fits:
 			return uint64(squareSize), txShares + msgShares
