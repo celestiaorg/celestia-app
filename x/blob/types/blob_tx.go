@@ -11,7 +11,7 @@ import (
 
 // ProcessedBlobTx caches the unmarshalled result of the BlobTx
 type ProcessedBlobTx struct {
-	Blobs []tmproto.Blob
+	Blobs []*tmproto.Blob
 	Tx    []byte
 }
 
@@ -53,39 +53,36 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 	msg := msgs[0]
 	pfb, ok := msg.(*MsgPayForBlob)
 	if !ok {
-		return ProcessedBlobTx{}, ErrNoPFB
+		return ProcessedBlobTx{}, ErrInvalidNumberOfPFBInBlobTx
 	}
-	// temporary check that we will remove when we support multiple blobs per PFB
-	if 1 != len(bTx.Blobs) {
-		return ProcessedBlobTx{}, ErrMismatchedNumberOfPFBorBlob
-	}
-	// todo: modify this to support multiple messages per PFB
-	blob := bTx.Blobs[0]
-
 	err = pfb.ValidateBasic()
 	if err != nil {
 		return ProcessedBlobTx{}, err
 	}
 
-	// check that the metadata matches
-	if !bytes.Equal(blob.NamespaceId, pfb.NamespaceId) {
+	blobs, nsIDs, sizes, versions := extractBlobComponents(bTx.Blobs)
+	err = ValidatePFBComponents(nsIDs, blobs, versions)
+	if err != nil {
+		return ProcessedBlobTx{}, err
+	}
+
+	protoBlobs := make([]tmproto.Blob, len(pfbs))
+
+	// check that the meta data matches
+	if !bytes.Equal(bTx.Blobs[i].NamespaceId, pfb.NamespaceId) {
 		return ProcessedBlobTx{}, ErrNamespaceMismatch
 	}
 
-	if pfb.BlobSize != uint32(len(blob.Data)) {
+	if pfb.BlobSize != uint64(len(blob)) {
 		return ProcessedBlobTx{}, ErrDeclaredActualDataSizeMismatch.Wrapf(
 			"declared: %d vs actual: %d",
 			pfb.BlobSize,
-			len(blob.Data),
+			len(blob),
 		)
 	}
 
 	// verify that the commitment of the blob matches that of the PFB
-	calculatedCommit, err := CreateMultiShareCommitment(
-		[][]byte{pfb.NamespaceId},
-		[][]byte{blob.Data},
-		[]uint32{uint32(appconsts.ShareVersionZero)},
-	)
+	calculatedCommit, err := CreateMultiShareCommitment(pfb.NamespaceIds, blobs, versions)
 	if err != nil {
 		return ProcessedBlobTx{}, ErrCalculateCommit
 	}
@@ -97,7 +94,7 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 
 	return ProcessedBlobTx{
 		Tx:    bTx.Tx,
-		Blobs: protoBlobs,
+		Blobs: bTx.Blobs,
 	}, nil
 }
 

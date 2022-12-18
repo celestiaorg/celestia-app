@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/tendermint/crypto/merkle"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/constraints"
 )
@@ -25,25 +26,21 @@ const (
 
 var _ sdk.Msg = &MsgPayForBlob{}
 
-func NewMsgPayForBlob(signer string, nids [][]byte, blobs [][]byte, shareVersions []uint8) (*MsgPayForBlob, error) {
-	err := ValidatePFBComponents(nids, blobs, shareVersions)
+func NewMsgPayForBlob(signer string, blobs ...*tmproto.Blob) (*MsgPayForBlob, error) {
+	rawBlobs, nsIDs, sizes, versions := extractBlobComponents(blobs)
+	err := ValidatePFBComponents(nsIDs, rawBlobs, versions)
 	if err != nil {
 		return nil, err
 	}
 
-	commitment, err := CreateMultiShareCommitment(nids, blobs, shareVersions)
+	commitment, err := CreateMultiShareCommitment(nsIDs, rawBlobs, versions)
 	if err != nil {
 		return nil, err
-	}
-
-	sizes := make([]uint64, len(blobs))
-	for i, blob := range blobs {
-		sizes[i] = uint64(len(blob))
 	}
 
 	msg := &MsgPayForBlob{
 		Signer:          signer,
-		NamespaceIds:    nids,
+		NamespaceIds:    nsIDs,
 		ShareCommitment: commitment,
 		BlobSizes:       sizes,
 	}
@@ -178,6 +175,7 @@ func CreateMultiShareCommitment(nsids [][]byte, blobs [][]byte, shareVersions []
 	return merkle.HashFromByteSlices(commitments), nil
 }
 
+// ValidatePFBComponents performs basic checks over the components of one or more PFBs.
 func ValidatePFBComponents(nsIDs [][]byte, blobs [][]byte, shareVersions []uint8) error {
 	if len(nsIDs) != len(blobs) || len(nsIDs) != len(shareVersions) {
 		return ErrMismatchedNumberOfPFBComponent
@@ -234,6 +232,25 @@ func ValidateBlobNamespaceID(ns namespace.ID) error {
 	}
 
 	return nil
+}
+
+// extractBlobComponents separates and returns the components of a slice of
+// blobs in order of blobs of data, their namespaces, their sizes, and their share
+// versions.
+func extractBlobComponents(pblobs []*tmproto.Blob) (rawBlobs [][]byte, nsIDs [][]byte, sizes []uint64, versions []uint8) {
+	rawBlobs = make([][]byte, len(pblobs))
+	nsIDs = make([][]byte, len(pblobs))
+	sizes = make([]uint64, len(pblobs))
+	versions = make([]uint8, len(pblobs))
+
+	for i, pblob := range pblobs {
+		rawBlobs[i] = pblob.Data
+		sizes[i] = uint64(len(pblob.Data))
+		nsIDs[i] = pblob.NamespaceId
+		versions[i] = uint8(pblob.ShareVersion)
+	}
+
+	return rawBlobs, nsIDs, sizes, versions
 }
 
 // BlobMinSquareSize returns the minimum square size that blobSize can be included
