@@ -25,20 +25,29 @@ const (
 
 var _ sdk.Msg = &MsgPayForBlob{}
 
-func NewMsgPayForBlob(signer string, nid namespace.ID, blob []byte) (*MsgPayForBlob, error) {
-	commitment, err := CreateMultiShareCommitment([][]byte{nid}, [][]byte{blob}, []uint32{uint32(appconsts.ShareVersionZero)})
+func NewMsgPayForBlob(signer string, nids [][]byte, blobs [][]byte, shareVersions []uint8) (*MsgPayForBlob, error) {
+	err := ValidatePFBComponents(nids, blobs, shareVersions)
 	if err != nil {
 		return nil, err
 	}
-	if len(blob) == 0 {
-		return nil, ErrZeroBlobSize
+
+	commitment, err := CreateMultiShareCommitment(nids, blobs, shareVersions)
+	if err != nil {
+		return nil, err
 	}
+
+	sizes := make([]uint64, len(blobs))
+	for i, blob := range blobs {
+		sizes[i] = uint64(len(blob))
+	}
+
 	msg := &MsgPayForBlob{
 		Signer:          signer,
-		NamespaceId:     nid,
+		NamespaceIds:    nids,
 		ShareCommitment: commitment,
-		BlobSize:        uint32(len(blob)),
+		BlobSizes:       sizes,
 	}
+
 	return msg, msg.ValidateBasic()
 }
 
@@ -53,8 +62,21 @@ func (msg *MsgPayForBlob) Type() string {
 // ValidateBasic fulfills the sdk.Msg interface by performing stateless
 // validity checks on the msg that also don't require having the actual blob
 func (msg *MsgPayForBlob) ValidateBasic() error {
-	if err := ValidateBlobNamespaceID(msg.GetNamespaceId()); err != nil {
-		return err
+	if len(msg.NamespaceIds) != len(msg.ShareVersions) || len(msg.NamespaceIds) != len(msg.BlobSizes) {
+		return ErrMismatchedNumberOfPFBComponent
+	}
+
+	for _, ns := range msg.NamespaceIds {
+		err := ValidateBlobNamespaceID(ns)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, v := range msg.ShareVersions {
+		if v != uint32(appconsts.ShareVersionZero) {
+			return ErrUnsupportedShareVersion
+		}
 	}
 
 	_, err := sdk.AccAddressFromBech32(msg.Signer)
@@ -154,6 +176,37 @@ func CreateMultiShareCommitment(nsids [][]byte, blobs [][]byte, shareVersions []
 	}
 
 	return merkle.HashFromByteSlices(commitments), nil
+}
+
+func ValidatePFBComponents(nsIDs [][]byte, blobs [][]byte, shareVersions []uint8) error {
+	if len(nsIDs) != len(blobs) || len(nsIDs) != len(shareVersions) {
+		return ErrMismatchedNumberOfPFBComponent
+	}
+
+	if len(blobs) == 0 {
+		return ErrNoBlobs
+	}
+
+	for _, ns := range nsIDs {
+		err := ValidateBlobNamespaceID(ns)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, blob := range blobs {
+		if len(blob) == 0 {
+			return ErrZeroBlobSize
+		}
+	}
+
+	for _, v := range shareVersions {
+		if v != appconsts.ShareVersionZero {
+			return ErrUnsupportedShareVersion
+		}
+	}
+
+	return nil
 }
 
 // ValidateBlobNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.

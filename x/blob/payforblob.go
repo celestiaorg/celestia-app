@@ -8,6 +8,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdk_tx "github.com/cosmos/cosmos-sdk/types/tx"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -32,8 +33,9 @@ func SubmitPayForBlob(
 	}
 	msg, err := types.NewMsgPayForBlob(
 		addr.String(),
-		nID,
-		blob,
+		[][]byte{nID},
+		[][]byte{blob},
+		[]uint8{appconsts.ShareVersionZero},
 	)
 	if err != nil {
 		return nil, err
@@ -47,7 +49,7 @@ func SubmitPayForBlob(
 	if err != nil {
 		return nil, err
 	}
-	wblob, err := types.NewBlob(msg.NamespaceId, blob)
+	wblob, err := types.NewBlob(nID, blob)
 	if err != nil {
 		return nil, err
 	}

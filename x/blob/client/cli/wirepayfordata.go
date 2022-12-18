@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -48,7 +49,7 @@ func CmdWirePayForBlob() *cobra.Command {
 
 			// TODO: allow the user to override the share version via a new flag
 			// See https://github.com/celestiaorg/celestia-app/issues/1041
-			pfbMsg, err := types.NewMsgPayForBlob(clientCtx.FromAddress.String(), namespace, blob.Data)
+			pfbMsg, err := types.NewMsgPayForBlob(clientCtx.FromAddress.String(), [][]byte{namespace}, [][]byte{blob}, []uint8{appconsts.ShareVersionZero})
 			if err != nil {
 				return err
 			}

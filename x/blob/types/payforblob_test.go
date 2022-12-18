@@ -119,27 +119,27 @@ func TestValidateBasic(t *testing.T) {
 
 	// MsgPayForBlob that uses parity shares namespace id
 	paritySharesMsg := validMsgPayForBlob(t)
-	paritySharesMsg.NamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+	paritySharesMsg.NamespaceIds[0] = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 
 	// MsgPayForBlob that uses tail padding namespace id
 	tailPaddingMsg := validMsgPayForBlob(t)
-	tailPaddingMsg.NamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
+	tailPaddingMsg.NamespaceIds[0] = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
 
 	// MsgPayForBlob that uses transaction namespace id
 	txNamespaceMsg := validMsgPayForBlob(t)
-	txNamespaceMsg.NamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 1}
+	txNamespaceMsg.NamespaceIds[0] = namespace.ID{0, 0, 0, 0, 0, 0, 0, 1}
 
 	// MsgPayForBlob that uses intermediateStateRoots namespace id
 	intermediateStateRootsNamespaceMsg := validMsgPayForBlob(t)
-	intermediateStateRootsNamespaceMsg.NamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 2}
+	intermediateStateRootsNamespaceMsg.NamespaceIds[0] = namespace.ID{0, 0, 0, 0, 0, 0, 0, 2}
 
 	// MsgPayForBlob that uses evidence namespace id
 	evidenceNamespaceMsg := validMsgPayForBlob(t)
-	evidenceNamespaceMsg.NamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
+	evidenceNamespaceMsg.NamespaceIds[0] = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
 
 	// MsgPayForBlob that uses the max reserved namespace id
 	maxReservedNamespaceMsg := validMsgPayForBlob(t)
-	maxReservedNamespaceMsg.NamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
+	maxReservedNamespaceMsg.NamespaceIds[0] = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
 
 	// MsgPayForBlob that has an empty share commitment
 	emptyShareCommitment := validMsgPayForBlob(t)
@@ -216,7 +216,7 @@ func validMsgPayForBlob(t *testing.T) *MsgPayForBlob {
 	addr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
 
-	pfb, err := NewMsgPayForBlob(addr.String(), ns, blob)
+	pfb, err := NewMsgPayForBlob(addr.String(), [][]byte{ns}, [][]byte{blob}, []uint8{0})
 	assert.NoError(t, err)
 
 	return pfb
@@ -275,17 +275,15 @@ func TestNewMsgPayForBlob(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		res, err := NewMsgPayForBlob(tt.signer, tt.nids[0], tt.blobs[0])
+		res, err := NewMsgPayForBlob(tt.signer, tt.nids, tt.blobs, tt.versions)
 		if tt.expectedErr {
 			assert.Error(t, err)
 			continue
 		}
 
-		expectedCommitment, err := CreateMultiShareCommitment(tt.nids, tt.blobs, make([]uint32, len(tt.blobs)))
+		expectedCommitment, err := CreateMultiShareCommitment(tt.nids, tt.blobs, make([]uint8, len(tt.blobs)))
 		require.NoError(t, err)
 		assert.Equal(t, expectedCommitment, res.ShareCommitment)
-
-		assert.Equal(t, uint32(len(tt.blobs[0])), res.BlobSize)
 	}
 }
 
