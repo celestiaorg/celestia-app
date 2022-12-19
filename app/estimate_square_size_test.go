@@ -35,7 +35,7 @@ func Test_estimateSquareSize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ptxs := generateMixedParsedTxs(tt.normalTxs, tt.pfbCount, tt.pfbSize)
-			res, _ := estimateSquareSize(ptxs)
+			res, _ := estimateSquareSize(ptxs, appconsts.DefaultMinSquareSize, appconsts.DefaultMaxSquareSize)
 			assert.Equal(t, tt.expectedSquareSize, res)
 		})
 	}
