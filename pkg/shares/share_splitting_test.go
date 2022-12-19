@@ -103,7 +103,7 @@ func TestSplitTxs(t *testing.T) {
 				fillShare([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,                // info byte
-					0x0, 0x0, 0x2, 0x4, // 2 bytes (first transaction) + 514 bytes (second transaction) = 516 bytes sequence length
+					0x0, 0x0, 0x2, 0x4, // 514 bytes (first transaction) + 2 bytes (second transaction) = 516 bytes sequence length
 					0x0, 0x0, 0x0, 17, // reserved bytes
 					128, 4, // unit length of first transaction is 512
 				}, 0xc), // data of first transaction
