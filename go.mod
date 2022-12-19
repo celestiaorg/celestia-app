@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app
 go 1.18
 
 require (
-	github.com/celestiaorg/nmt v0.11.0
+	github.com/celestiaorg/nmt v0.12.0
 	github.com/celestiaorg/quantum-gravity-bridge v1.3.0
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/gogo/protobuf v1.3.3
@@ -29,6 +29,7 @@ require (
 	cosmossdk.io/math v1.0.0-beta.2
 	github.com/celestiaorg/rsmt2d v0.7.0
 	github.com/cosmos/cosmos-sdk v0.0.0-00010101000000-000000000000
+	github.com/cosmos/gogoproto v1.4.2
 	github.com/regen-network/cosmos-proto v0.3.1
 	github.com/tendermint/tendermint v0.34.20
 	golang.org/x/exp v0.0.0-20221012211006-4de253d81b95
@@ -64,7 +65,6 @@ require (
 	github.com/cosmos/btcutil v1.0.4 // indirect
 	github.com/cosmos/cosmos-proto v1.0.0-alpha7 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
-	github.com/cosmos/gogoproto v1.4.2 // indirect
 	github.com/cosmos/gorocksdb v1.2.0 // indirect
 	github.com/cosmos/iavl v0.19.0 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.11.1 // indirect
