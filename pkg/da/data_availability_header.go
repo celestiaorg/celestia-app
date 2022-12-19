@@ -44,16 +44,8 @@ func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) DataAvailabilityH
 	return dah
 }
 
-func ExtendShares(squareSize uint64, shares [][]byte, minSquareSize, maxSquareSize uint64) (*rsmt2d.ExtendedDataSquare, error) {
-	// Check that square size is with range
-	if squareSize < minSquareSize || squareSize > maxSquareSize {
-		return nil, fmt.Errorf(
-			"invalid square size: min %d max %d provided %d",
-			minSquareSize,
-			maxSquareSize,
-			squareSize,
-		)
-	}
+// ExtendShares generates an extended data square from given square size and shares
+func ExtendShares(squareSize uint64, shares [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	// check that valid number of shares have been provided
 	if squareSize*squareSize != uint64(len(shares)) {
 		return nil, fmt.Errorf(
@@ -171,9 +163,9 @@ var tailPaddingShare = append(
 
 // MinDataAvailabilityHeader returns the minimum valid data availability header.
 // It is equal to the data availability header for an empty block
-func MinDataAvailabilityHeader(minSqaureSize, maxSqaureSize int) DataAvailabilityHeader {
+func MinDataAvailabilityHeader(minSquareSize int) DataAvailabilityHeader {
 	shares := GenerateEmptyShares(appconsts.MinShareCount)
-	eds, err := ExtendShares(uint64(minSqaureSize), shares, uint64(minSqaureSize), uint64(maxSqaureSize))
+	eds, err := ExtendShares(uint64(minSquareSize), shares)
 	if err != nil {
 		panic(err)
 	}
