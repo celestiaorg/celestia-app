@@ -205,5 +205,5 @@ func overEstimateMalleatedTxSize(txLen, blobSize int) int {
 
 func isValidSquareSize(squareSize, minSquareSize, maxSquareSize int) bool {
 	// Check that square size is with range
-	return squareSize < minSquareSize || squareSize > maxSquareSize
+	return squareSize >= minSquareSize && squareSize <= maxSquareSize
 }
