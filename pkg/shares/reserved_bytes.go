@@ -8,9 +8,8 @@ import (
 )
 
 // NewReservedBytes returns a byte slice of length
-// appconsts.CompactShareReservedBytes that contains a varint of the byteIndex
-// of the first unit that starts in a compact share. If no unit starts in the
-// compact share, ReservedBytes is [0, 0].
+// appconsts.CompactShareReservedBytes that contains the byteIndex of the first
+// unit that starts in a compact share.
 func NewReservedBytes(byteIndex uint32) ([]byte, error) {
 	if byteIndex >= appconsts.ShareSize {
 		return []byte{}, fmt.Errorf("byte index %d must be less than share size %d", byteIndex, appconsts.ShareSize)
