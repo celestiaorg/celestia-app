@@ -202,3 +202,8 @@ func overEstimateMalleatedTxSize(txLen, blobSize int) int {
 	// actually malleating the tx
 	return appconsts.MalleatedTxBytes + appconsts.MalleatedTxEstimateBuffer + malleatedTxLen
 }
+
+func isValidSquareSize(squareSize, minSquareSize, maxSquareSize int) bool {
+	// Check that square size is with range
+	return squareSize < minSquareSize || squareSize > maxSquareSize
+}
