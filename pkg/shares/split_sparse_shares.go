@@ -43,14 +43,14 @@ func (sss *SparseShareSplitter) RemoveBlob(i int) (int, error) {
 	j := 1
 	initialCount := len(sss.shares)
 	if len(sss.shares) > i+1 {
-		blobLen, err := sss.shares[i+1].SequenceLength()
+		sequenceLen, _, err := sss.shares[i+1].SequenceLen()
 		if err != nil {
 			return 0, err
 		}
 		// 0 means that there is padding after the share that we are about to
 		// remove. to remove this padding, we increase j by 1
 		// with the blob
-		if blobLen == 0 {
+		if sequenceLen == 0 {
 			j++
 		}
 	}

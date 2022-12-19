@@ -7,47 +7,63 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// TestFuzzPrepareProcessProposal produces blocks with random data using
+// TestPrepareProposalConsistency produces blocks with random data using
 // PrepareProposal and then tests those blocks by calling ProcessProposal. All
 // blocks produced by PrepareProposal should be accepted by ProcessProposal. It
 // doesn't use the standard go tools for fuzzing as those tools only support
-// fuzzing limited types, which forces us to create random block data ourselves
-// anyway. We also want to run this test alongside the other tests and not just
-// when fuzzing.
-func TestFuzzPrepareProcessProposal(t *testing.T) {
+// fuzzing limited types, instead we create blocks our selves using random
+// transction.
+func TestPrepareProposalConsistency(t *testing.T) {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	signer := types.GenerateKeyringSigner(t, types.TestAccName)
-	testApp := testutil.SetupTestAppWithGenesisValSet(t)
-	timer := time.After(time.Second * 30)
-	for {
-		select {
-		case <-timer:
-			return
-		default:
-			t.Run("randomized inputs to Prepare and Process Proposal", func(t *testing.T) {
-				pfbTxs := app.GenerateManyRawWirePFB(t, encConf.TxConfig, signer, tmrand.Intn(100), -1)
-				txs := app.GenerateManyRawSendTxs(t, encConf.TxConfig, signer, tmrand.Intn(20))
-				txs = append(txs, pfbTxs...)
-				resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-					BlockData: &core.Data{
-						Txs: txs,
-					},
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
+	timer := time.After(time.Minute * 1)
+
+	type test struct {
+		count, size int
+	}
+	tests := []test{{10000, 400}, {100, 400000}}
+
+	for _, tt := range tests {
+		for {
+			select {
+			case <-timer:
+				return
+			default:
+				t.Run("randomized inputs to Prepare and Process Proposal", func(t *testing.T) {
+					ProcessRandomProposal(t, tt.count, tt.size, encConf, testApp)
 				})
-				res := testApp.ProcessProposal(abci.RequestProcessProposal{
-					BlockData: resp.BlockData,
-					Header: core.Header{
-						DataHash: resp.BlockData.Hash,
-					},
-				})
-				require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Result)
-			})
+			}
 		}
 	}
+}
+
+func ProcessRandomProposal(
+	t *testing.T,
+	count,
+	maxSize int,
+	cfg encoding.Config,
+	capp *app.App,
+) {
+	txs := blobfactory.RandBlobTxsRandomlySized(cfg.TxConfig.TxEncoder(), count, maxSize)
+	sendTxs := blobfactory.GenerateManyRawSendTxs(cfg.TxConfig, count)
+	txs = append(txs, sendTxs...)
+	resp := capp.PrepareProposal(abci.RequestPrepareProposal{
+		BlockData: &core.Data{
+			Txs: coretypes.Txs(txs).ToSliceOfBytes(),
+		},
+	})
+	res := capp.ProcessProposal(abci.RequestProcessProposal{
+		BlockData: resp.BlockData,
+		Header: core.Header{
+			DataHash: resp.BlockData.Hash,
+		},
+	})
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Result)
 }

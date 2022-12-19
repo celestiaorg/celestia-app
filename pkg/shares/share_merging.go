@@ -165,7 +165,7 @@ func (s ShareSequence) validSequenceLength() error {
 // firstShare and returns the number of shares needed to store a sequence of
 // that length.
 func numberOfSharesNeeded(firstShare Share) (sharesUsed int, err error) {
-	sequenceLength, err := firstShare.SequenceLength()
+	sequenceLength, _, err := firstShare.SequenceLen()
 	if err != nil {
 		return 0, err
 	}

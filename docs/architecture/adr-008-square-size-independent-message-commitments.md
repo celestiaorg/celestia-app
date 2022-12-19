@@ -72,7 +72,7 @@ Implemented
 ### Negative
 
 1. The amount of subtree roots per commitment is O(sqrt(n)), while n is the number of message shares. The worst case for the number of subtree roots is depicted in the diagram below - an entire block missing one share.
-  ![Interactive Commitment 2](./assets/complexity.png)
+  ![Interactive Commitment 2](./assets/complexity.png)  
 The worst case for the current implementation depends on the square size. If it is the worst square size, as in `msgMinSquareSize`, it is O(sqrt(n)) as well. On the other hand, if the message is only in one row, then it is O(log(n)).
 Therefore the height of the tree over the subtree roots is in this implementation O(log(sqrt(n))), while n is the number of message shares. In the current implementation, it varies from O(log(sqrt(n))) to O(log(log(n))) depending on the square size.
 
@@ -114,13 +114,4 @@ We should note that Rollups can decide to do this scheme without changing the co
   - Currently, prepare proposal performs [`estimateSquareSize`](https://github.com/rootulp/celestia-app/blob/6f3b3ae437b2a70d72ff6be2741abb8b5378caa0/app/estimate_square_size.go#L98-L101) prior to splitting PFBs into shares because the square size is needed to malleate PFBs and extract the appropriate message share commitment for a particular square size. Since malleation no longer requires a square size, it may be possible to remove square size estimation which renders the following issues obsolete:
     - <https://github.com/informalsystems/audit-celestia/issues/12>
     - <https://github.com/informalsystems/audit-celestia/issues/24>
-- Inter-message padding can be reduced because we can change the non-interactive default rules from this:
-
-    > - Messages that span multiple rows must begin at the start of a row (this can occur if a message is longer than k shares or if the block producer decides to start a message partway through a row and it cannot fit).
-    > - Messages begin at a location aligned with the largest power of 2 that is not larger than the message length or k.
-
-    To this: Messages start at an index that is a multiple of its `msgMinSquareSize`.
-
-    As an example, we have this diagram. Message 1 is three shares long and is followed by message 2, which is 11 shares long, so the `msgMinSquareSize` of the second message is equal to four. Therefore we have a padding of 5 shares shown in light blue. Furthermore, with the new non-interactive default rule set, a message of size 11 can start in this block at index zero and index three because they are multiples of four. Therefore, we save four shares of padding while retaining the same commitment.
-
-    ![Padding Savings](./assets/padding-savings.png)
+- Inter-message padding can be reduced in the worst case by 50% if we can change the non-interactive default rules. An in-depth analysis is performed at [ADR 009: New Non-Interactive Default Rules for Reduced Padding](./adr-009-non-interactive-default-rules-for-reduced-padding.md).
