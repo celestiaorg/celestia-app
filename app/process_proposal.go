@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"fmt"
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -27,9 +28,28 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	//  - the commitment in each PFB should match the commitment for the shares that contain that blob data
 	//  - there should be no unpaid-for data
 
+	ctx := app.NewContext(true, tmproto.Header{Height: app.LastBlockHeight()})
+	minSquareSize := app.BlobKeeper.MinSquareSize(ctx)
+	maxSquareSize := app.BlobKeeper.MaxSquareSize(ctx)
+
 	data, err := coretypes.DataFromProto(req.BlockData)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to unmarshal block data:", err)
+		return abci.ResponseProcessProposal{
+			Result: abci.ResponseProcessProposal_REJECT,
+		}
+	}
+
+	squareSize := data.SquareSize
+
+	// validate proposed square size
+	if !isValidSquareSize(int(squareSize), int(minSquareSize), int(maxSquareSize)) {
+		logInvalidPropBlockError(app.Logger(), req.Header, "invalid square size:", fmt.Errorf(
+			"min %d max %d provided %d",
+			minSquareSize,
+			maxSquareSize,
+			squareSize,
+		))
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
@@ -50,7 +70,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	cacher := inclusion.NewSubtreeCacher(data.SquareSize)
+	cacher := inclusion.NewSubtreeCacher(squareSize)
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(dataSquare), appconsts.DefaultCodec(), cacher.Constructor)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to erasure the data square", err)
