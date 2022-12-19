@@ -100,6 +100,14 @@ func TestBlobInclusionCheck(t *testing.T) {
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
+		{
+			name:  "square size greater than max square size",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				d.SquareSize = appconsts.DefaultMaxSquareSize * 2
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
 	}
 
 	for _, tt := range tests {
