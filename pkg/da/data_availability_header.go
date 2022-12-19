@@ -124,8 +124,8 @@ func DataAvailabilityHeaderFromProto(dahp *daproto.DataAvailabilityHeader, minSq
 
 // ValidateBasic runs stateless checks on the DataAvailabilityHeader.
 func (dah *DataAvailabilityHeader) ValidateBasic(minSquareSize, maxSquareSize int) error {
-	maxExtendedSquareWidth := minSquareSize * 2
-	minExtendedSquareWidth := maxSquareSize * 2
+	minExtendedSquareWidth := minSquareSize * 2
+	maxExtendedSquareWidth := maxSquareSize * 2
 	if dah == nil {
 		return errors.New("nil data availability header is not valid")
 	}
