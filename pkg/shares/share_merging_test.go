@@ -46,11 +46,11 @@ func TestParseShares(t *testing.T) {
 	invalidShare := generateRawShare(blobOneNamespace, start, 1)
 	invalidShare = append(invalidShare, []byte{0}...) // invalidShare is now longer than the length of a valid share
 
-	largeSequenceLength := 1000 // it takes more than one share to store a sequence of 1000 bytes
-	oneShareWithTooLargeSequenceLength := generateRawShare(blobOneNamespace, start, uint64(largeSequenceLength))
+	largeSequenceLen := 1000 // it takes more than one share to store a sequence of 1000 bytes
+	oneShareWithTooLargeSequenceLen := generateRawShare(blobOneNamespace, start, uint32(largeSequenceLen))
 
-	shortSequenceLength := 0
-	oneShareWithTooShortSequenceLength := generateRawShare(blobOneNamespace, start, uint64(shortSequenceLength))
+	shortSequenceLen := 0
+	oneShareWithTooShortSequenceLen := generateRawShare(blobOneNamespace, start, uint32(shortSequenceLen))
 
 	tests := []testCase{
 		{
@@ -125,13 +125,13 @@ func TestParseShares(t *testing.T) {
 		},
 		{
 			"one share with too large sequence length",
-			[][]byte{oneShareWithTooLargeSequenceLength},
+			[][]byte{oneShareWithTooLargeSequenceLen},
 			[]ShareSequence{},
 			true,
 		},
 		{
 			"one share with too short sequence length",
-			[][]byte{oneShareWithTooShortSequenceLength},
+			[][]byte{oneShareWithTooShortSequenceLen},
 			[]ShareSequence{},
 			true,
 		},
@@ -152,8 +152,8 @@ func TestParseShares(t *testing.T) {
 
 func Test_compactSharesNeeded(t *testing.T) {
 	type testCase struct {
-		sequenceLength uint32
-		want           int
+		sequenceLen uint32
+		want        int
 	}
 	testCases := []testCase{
 		{0, 0},
@@ -165,7 +165,7 @@ func Test_compactSharesNeeded(t *testing.T) {
 		{appconsts.FirstCompactShareContentSize + appconsts.ContinuationCompactShareContentSize*100, 101},
 	}
 	for _, tc := range testCases {
-		got := compactSharesNeeded(tc.sequenceLength)
+		got := compactSharesNeeded(tc.sequenceLen)
 		assert.Equal(t, tc.want, got)
 	}
 }
@@ -191,15 +191,15 @@ func Test_sparseSharesNeeded(t *testing.T) {
 	}
 }
 
-func generateRawShare(namespace namespace.ID, isSequenceStart bool, sequenceLength uint64) (rawShare []byte) {
+func generateRawShare(namespace namespace.ID, isSequenceStart bool, sequenceLen uint32) (rawShare []byte) {
 	infoByte, _ := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
 
-	sequenceLengthVarint := make([]byte, binary.MaxVarintLen64)
-	numBytesWritten := binary.PutUvarint(sequenceLengthVarint, sequenceLength)
+	sequenceLenBuf := make([]byte, appconsts.SequenceLenBytes)
+	binary.BigEndian.PutUint32(sequenceLenBuf, sequenceLen)
 
 	rawShare = append(rawShare, namespace...)
 	rawShare = append(rawShare, byte(infoByte))
-	rawShare = append(rawShare, sequenceLengthVarint[:numBytesWritten]...)
+	rawShare = append(rawShare, sequenceLenBuf...)
 
 	return padWithRandomBytes(rawShare)
 }
