@@ -3,22 +3,20 @@ package types
 import (
 	"bytes"
 	"crypto/sha256"
-	math "math"
+	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	shares "github.com/celestiaorg/celestia-app/pkg/shares"
+	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	coretypes "github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/constraints"
-
-	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 )
 
 const (
-	URLBLobTx        = "/blob.BlobTx"
+	URLBlobTx        = "/blob.BlobTx"
 	URLMsgPayForBlob = "/blob.MsgPayForBlob"
 	ShareSize        = appconsts.ShareSize
 	SquareSize       = appconsts.DefaultMaxSquareSize
@@ -44,15 +42,15 @@ func NewMsgPayForBlob(signer string, nid namespace.ID, blob []byte) (*MsgPayForB
 	return msg, msg.ValidateBasic()
 }
 
-// Route fullfills the sdk.Msg interface
+// Route fulfills the sdk.Msg interface
 func (msg *MsgPayForBlob) Route() string { return RouterKey }
 
-// Type fullfills the sdk.Msg interface
+// Type fulfills the sdk.Msg interface
 func (msg *MsgPayForBlob) Type() string {
 	return URLMsgPayForBlob
 }
 
-// ValidateBasic fullfills the sdk.Msg interface by performing stateless
+// ValidateBasic fulfills the sdk.Msg interface by performing stateless
 // validity checks on the msg that also don't require having the actual blob
 func (msg *MsgPayForBlob) ValidateBasic() error {
 	if err := ValidateBlobNamespaceID(msg.GetNamespaceId()); err != nil {
@@ -71,13 +69,13 @@ func (msg *MsgPayForBlob) ValidateBasic() error {
 	return nil
 }
 
-// GetSignBytes fullfills the sdk.Msg interface by reterning a deterministic set
+// GetSignBytes fulfills the sdk.Msg interface by returning a deterministic set
 // of bytes to sign over
 func (msg *MsgPayForBlob) GetSignBytes() []byte {
 	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(msg))
 }
 
-// GetSigners fullfills the sdk.Msg interface by returning the signer's address
+// GetSigners fulfills the sdk.Msg interface by returning the signer's address
 func (msg *MsgPayForBlob) GetSigners() []sdk.AccAddress {
 	address, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
@@ -171,16 +169,16 @@ func ValidateBlobNamespaceID(ns namespace.ID) error {
 
 // BlobMinSquareSize returns the minimum square size that blobSize can be included
 // in. The returned square size does not account for the associated transaction
-// shares or non-interactive defaults so it is a minimum.
+// shares or non-interactive defaults, so it is a minimum.
 func BlobMinSquareSize[T constraints.Integer](blobSize T) T {
-	shareCount := shares.BlobSharesUsed(int(blobSize))
+	shareCount := appshares.BlobSharesUsed(int(blobSize))
 	return T(MinSquareSize(shareCount))
 }
 
 // MinSquareSize returns the minimum square size that can contain shareCount
 // number of shares.
 func MinSquareSize[T constraints.Integer](shareCount T) T {
-	return T(shares.RoundUpPowerOfTwo(uint64(math.Ceil(math.Sqrt(float64(shareCount))))))
+	return T(appshares.RoundUpPowerOfTwo(uint64(math.Ceil(math.Sqrt(float64(shareCount))))))
 }
 
 // merkleMountainRangeSizes returns the sizes (number of leaf nodes) of the
