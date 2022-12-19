@@ -86,12 +86,6 @@ func TestExtendShares(t *testing.T) {
 
 	tests := []test{
 		{
-			name:        "too large square size",
-			expectedErr: true,
-			squareSize:  appconsts.DefaultMaxSquareSize + 1,
-			shares:      generateShares((appconsts.DefaultMaxSquareSize+1)*(appconsts.DefaultMaxSquareSize+1), 1),
-		},
-		{
 			name:        "invalid number of shares",
 			expectedErr: true,
 			squareSize:  2,
