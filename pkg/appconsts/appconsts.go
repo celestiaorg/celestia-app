@@ -2,7 +2,6 @@ package appconsts
 
 import (
 	"bytes"
-	"encoding/binary"
 
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
@@ -125,9 +124,3 @@ var (
 	// SupportedShareVersions is a list of supported share versions.
 	SupportedShareVersions = []uint8{ShareVersionZero}
 )
-
-// numberOfBytesVarint calculates the number of bytes needed to write a varint of n
-func numberOfBytesVarint(n uint64) (numberOfBytes int) {
-	buf := make([]byte, binary.MaxVarintLen64)
-	return binary.PutUvarint(buf, n)
-}
