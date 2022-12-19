@@ -23,7 +23,7 @@ func TestNilDataAvailabilityHeaderHashDoesntCrash(t *testing.T) {
 }
 
 func TestMinDataAvailabilityHeader(t *testing.T) {
-	dah := MinDataAvailabilityHeader(appconsts.DefaultMinSquareSize, appconsts.DefaultMaxSquareSize)
+	dah := MinDataAvailabilityHeader(appconsts.DefaultMinSquareSize)
 	expectedHash := []byte{
 		0x6f, 0x52, 0xda, 0xc1, 0x65, 0x45, 0xe4, 0x57, 0x25, 0xbe, 0x6e, 0xa3, 0x2a, 0xed, 0x55, 0x26,
 		0x6e, 0x45, 0x3, 0x48, 0x0, 0xee, 0xe1, 0xd8, 0x7c, 0x94, 0x28, 0xf4, 0x84, 0x4e, 0xa4, 0x7a,
@@ -66,7 +66,7 @@ func TestNewDataAvailabilityHeader(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eds, err := ExtendShares(tt.squareSize, tt.shares, appconsts.DefaultMinSquareSize, appconsts.DefaultMaxSquareSize)
+			eds, err := ExtendShares(tt.squareSize, tt.shares)
 			require.NoError(t, err)
 			resdah := NewDataAvailabilityHeader(eds)
 			require.Equal(t, tt.squareSize*2, uint64(len(resdah.ColumnRoots)), tt.name)
@@ -101,7 +101,7 @@ func TestExtendShares(t *testing.T) {
 
 	for _, tt := range tests {
 		tt := tt
-		eds, err := ExtendShares(tt.squareSize, tt.shares, appconsts.DefaultMinSquareSize, appconsts.DefaultMaxSquareSize)
+		eds, err := ExtendShares(tt.squareSize, tt.shares)
 		if tt.expectedErr {
 			require.NotNil(t, err)
 			continue
@@ -118,14 +118,14 @@ func TestDataAvailabilityHeaderProtoConversion(t *testing.T) {
 	}
 
 	shares := generateShares(appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize, 1)
-	eds, err := ExtendShares(appconsts.DefaultMaxSquareSize, shares, appconsts.DefaultMinSquareSize, appconsts.DefaultMaxSquareSize)
+	eds, err := ExtendShares(appconsts.DefaultMaxSquareSize, shares)
 	require.NoError(t, err)
 	bigdah := NewDataAvailabilityHeader(eds)
 
 	tests := []test{
 		{
 			name: "min",
-			dah:  MinDataAvailabilityHeader(appconsts.DefaultMinSquareSize, appconsts.DefaultMaxSquareSize),
+			dah:  MinDataAvailabilityHeader(appconsts.DefaultMinSquareSize),
 		},
 		{
 			name: "max",
@@ -153,7 +153,7 @@ func Test_DAHValidateBasic(t *testing.T) {
 	}
 
 	shares := generateShares(appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize, 1)
-	eds, err := ExtendShares(appconsts.DefaultMaxSquareSize, shares, appconsts.DefaultMinSquareSize, appconsts.DefaultMaxSquareSize)
+	eds, err := ExtendShares(appconsts.DefaultMaxSquareSize, shares)
 	require.NoError(t, err)
 	bigdah := NewDataAvailabilityHeader(eds)
 
@@ -170,16 +170,16 @@ func Test_DAHValidateBasic(t *testing.T) {
 	tooSmallDah.ColumnRoots = [][]byte{bytes.Repeat([]byte{2}, 32)}
 	tooSmallDah.RowsRoots = [][]byte{bytes.Repeat([]byte{2}, 32)}
 	// use a bad hash
-	badHashDah := MinDataAvailabilityHeader(appconsts.DefaultMinSquareSize, appconsts.DefaultMaxSquareSize)
+	badHashDah := MinDataAvailabilityHeader(appconsts.DefaultMinSquareSize)
 	badHashDah.hash = []byte{1, 2, 3, 4}
 	// dah with not equal number of roots
-	mismatchDah := MinDataAvailabilityHeader(appconsts.DefaultMinSquareSize, appconsts.DefaultMaxSquareSize)
+	mismatchDah := MinDataAvailabilityHeader(appconsts.DefaultMinSquareSize)
 	mismatchDah.ColumnRoots = append(mismatchDah.ColumnRoots, bytes.Repeat([]byte{2}, 32))
 
 	tests := []test{
 		{
 			name: "min",
-			dah:  MinDataAvailabilityHeader(appconsts.DefaultMinSquareSize, appconsts.DefaultMaxSquareSize),
+			dah:  MinDataAvailabilityHeader(appconsts.DefaultMinSquareSize),
 		},
 		{
 			name: "max",
