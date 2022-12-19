@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -22,8 +23,24 @@ import (
 func TestPrepareProposalConsistency(t *testing.T) {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
-	for i := 0; i < 200; i++ {
-		ProcessRandomProposal(t, 100, 50000, encConf, testApp)
+	timer := time.After(time.Minute * 1)
+
+	type test struct {
+		count, size int
+	}
+	tests := []test{{10000, 400}, {100, 400000}}
+
+	for _, tt := range tests {
+		for {
+			select {
+			case <-timer:
+				return
+			default:
+				t.Run("randomized inputs to Prepare and Process Proposal", func(t *testing.T) {
+					ProcessRandomProposal(t, tt.count, tt.size, encConf, testApp)
+				})
+			}
+		}
 	}
 }
 

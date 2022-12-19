@@ -39,16 +39,16 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 
 	var padding []Share
 	if len(data.Blobs) > 0 {
-		blobShareStart := 0
-		if useShareIndexes && len(blobIndexes) != 0 {
+		blobShareStart, _ := NextAlignedPowerOfTwo(
+			currentShareCount,
+			BlobSharesUsed(len(data.Blobs[0].Data)),
+			int(data.SquareSize),
+		)
+		// force blobSharesStart to be the first share index
+		if len(blobIndexes) != 0 && useShareIndexes {
 			blobShareStart = int(blobIndexes[0])
-		} else {
-			blobShareStart, _ = NextAlignedPowerOfTwo(
-				currentShareCount,
-				BlobSharesUsed(len(data.Blobs[0].Data)),
-				int(data.SquareSize),
-			)
 		}
+
 		padding = namespacedPaddedShares(appconsts.TxNamespaceID, blobShareStart-currentShareCount)
 	}
 	currentShareCount += len(padding)
