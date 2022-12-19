@@ -23,7 +23,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	ctx := app.NewContext(true, core.Header{Height: app.LastBlockHeight()})
 	minSquareSize := app.BlobKeeper.MinSquareSize(ctx)
 	maxSquareSize := app.BlobKeeper.MaxSquareSize(ctx)
-	squareSize, nonreservedStart := estimateSquareSize(parsedTxs, minSquareSize, maxSquareSize)
+	squareSize, nonreservedStart := estimateSquareSize(parsedTxs, uint64(minSquareSize), uint64(maxSquareSize))
 
 	// finalizeLayout wraps any blob transactions with their final share index.
 	// This requires sorting the blobs by namespace and potentially pruning
