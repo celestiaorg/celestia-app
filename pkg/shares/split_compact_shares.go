@@ -120,12 +120,12 @@ func (css *CompactShareSplitter) writeSequenceLen(sequenceLen uint32) {
 		return
 	}
 
-	staging := make([]byte, appconsts.SequenceLenBytes)
-	binary.BigEndian.PutUint32(staging, sequenceLen)
-	// write the sequence length varint to the first share
+	sequenceLenBuf := make([]byte, appconsts.SequenceLenBytes)
+	binary.BigEndian.PutUint32(sequenceLenBuf, sequenceLen)
 	firstShare := css.shares[0]
+
 	for i := 0; i < appconsts.SequenceLenBytes; i++ {
-		firstShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+i] = staging[i]
+		firstShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+i] = sequenceLenBuf[i]
 	}
 
 	// replace existing first share with new first share
