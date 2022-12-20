@@ -104,6 +104,14 @@ func TestBlobInclusionCheck(t *testing.T) {
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
+		{
+			name:  "square size of zero",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				d.SquareSize = 0
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
 	}
 
 	for _, tt := range tests {
