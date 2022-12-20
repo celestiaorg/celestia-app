@@ -116,7 +116,7 @@ func generateRandomBlockData(txCount, blobCount, maxSize int) (data coretypes.Da
 // generateRandomBlobOfShareCount returns a blob that spans the given
 // number of shares
 func generateRandomBlobOfShareCount(count int) coretypes.Blob {
-	size := rawBlobSize(appconsts.SparseShareContentSize * count)
+	size := rawBlobSize(appconsts.FirstSparseShareContentSize * count)
 	return testfactory.GenerateRandomBlob(size)
 }
 
@@ -129,32 +129,30 @@ func rawBlobSize(totalSize int) int {
 
 func TestSequenceLen(t *testing.T) {
 	type testCase struct {
-		name         string
-		share        Share
-		wantLen      uint64
-		wantNumBytes int
-		wantErr      bool
+		name    string
+		share   Share
+		wantLen uint32
+		wantErr bool
 	}
 	firstShare := []byte{
 		1, 1, 1, 1, 1, 1, 1, 1, // namespace
 		1,           // info byte
-		10, 0, 0, 0, // sequence len
+		0, 0, 0, 10, // sequence len
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 	}
 	firstShareWithLongSequence := []byte{
 		1, 1, 1, 1, 1, 1, 1, 1, // namespace
-		1,            // info byte
-		195, 2, 0, 0, // sequence len
+		1,           // info byte
+		0, 0, 1, 67, // sequence len
 	}
 	continuationShare := []byte{
 		1, 1, 1, 1, 1, 1, 1, 1, // namespace
-		0,  // info byte
-		10, // sequence len
+		0, // info byte
 	}
 	compactShare := []byte{
 		0, 0, 0, 0, 0, 0, 0, 1, // namespace
 		1,           // info byte
-		10, 0, 0, 0, // sequence len
+		0, 0, 0, 10, // sequence len
 	}
 	noInfoByte := []byte{
 		0, 0, 0, 0, 0, 0, 0, 1, // namespace
@@ -165,59 +163,54 @@ func TestSequenceLen(t *testing.T) {
 	}
 	testCases := []testCase{
 		{
-			name:         "first share",
-			share:        firstShare,
-			wantLen:      10,
-			wantNumBytes: 1,
-			wantErr:      false,
+			name:    "first share",
+			share:   firstShare,
+			wantLen: 10,
+			wantErr: false,
 		},
 		{
-			name:         "first share with long sequence",
-			share:        firstShareWithLongSequence,
-			wantLen:      323,
-			wantNumBytes: 2,
-			wantErr:      false,
+			name:    "first share with long sequence",
+			share:   firstShareWithLongSequence,
+			wantLen: 323,
+			wantErr: false,
 		},
 		{
-			name:         "continuation share",
-			share:        continuationShare,
-			wantLen:      0,
-			wantNumBytes: 0,
-			wantErr:      false,
+			name:    "continuation share",
+			share:   continuationShare,
+			wantLen: 0,
+			wantErr: false,
 		},
 		{
-			name:         "compact share",
-			share:        compactShare,
-			wantLen:      10,
-			wantNumBytes: 4,
-			wantErr:      false,
+			name:    "compact share",
+			share:   compactShare,
+			wantLen: 10,
+			wantErr: false,
 		},
 		{
-			name:         "no info byte returns error",
-			share:        noInfoByte,
-			wantLen:      0,
-			wantNumBytes: 0,
-			wantErr:      true,
+			name:    "no info byte returns error",
+			share:   noInfoByte,
+			wantLen: 0,
+			wantErr: true,
 		},
 		{
-			name:         "no sequence len returns error",
-			share:        noSequenceLen,
-			wantLen:      0,
-			wantNumBytes: 0,
-			wantErr:      true,
+			name:    "no sequence len returns error",
+			share:   noSequenceLen,
+			wantLen: 0,
+			wantErr: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			len, numBytes, err := tc.share.SequenceLen()
+			len, err := tc.share.SequenceLen()
 
 			if tc.wantErr {
 				assert.Error(t, err)
 				return
 			}
-			assert.Equal(t, tc.wantLen, len)
-			assert.Equal(t, tc.wantNumBytes, numBytes)
+			if tc.wantLen != len {
+				t.Errorf("want %d, got %d", tc.wantLen, len)
+			}
 		})
 	}
 }
@@ -231,8 +224,8 @@ func TestRawData(t *testing.T) {
 	}
 	firstSparseShare := []byte{
 		1, 1, 1, 1, 1, 1, 1, 1, // namespace
-		1,                             // info byte
-		10,                            // sequence len
+		1,           // info byte
+		0, 0, 0, 10, // sequence len
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 	}
 	continuationSparseShare := []byte{
@@ -243,14 +236,14 @@ func TestRawData(t *testing.T) {
 	firstCompactShare := []byte{
 		0, 0, 0, 0, 0, 0, 0, 1, // namespace
 		1,           // info byte
-		10, 0, 0, 0, // sequence len
-		15, 0, // reserved bytes
+		0, 0, 0, 10, // sequence len
+		0, 0, 0, 15, // reserved bytes
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 	}
 	continuationCompactShare := []byte{
 		0, 0, 0, 0, 0, 0, 0, 1, // namespace
-		0,    // info byte
-		0, 0, // reserved bytes
+		0,          // info byte
+		0, 0, 0, 0, // reserved bytes
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 	}
 	noSequenceLen := []byte{
@@ -260,7 +253,7 @@ func TestRawData(t *testing.T) {
 	notEnoughSequenceLenBytes := []byte{
 		0, 0, 0, 0, 0, 0, 0, 1, // namespace
 		1,        // info byte
-		10, 0, 0, // sequence len
+		0, 0, 10, // sequence len
 	}
 	testCases := []testCase{
 		{
@@ -276,12 +269,12 @@ func TestRawData(t *testing.T) {
 		{
 			name:  "first compact share",
 			share: firstCompactShare,
-			want:  []byte{15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+			want:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 		},
 		{
 			name:  "continuation compact share",
 			share: continuationCompactShare,
-			want:  []byte{0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+			want:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 		},
 		{
 			name:    "no sequence len returns error",

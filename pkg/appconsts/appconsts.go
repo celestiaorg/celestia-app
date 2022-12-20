@@ -2,7 +2,6 @@ package appconsts
 
 import (
 	"bytes"
-	"encoding/binary"
 
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
@@ -20,25 +19,35 @@ const (
 	NamespaceSize = nmt.DefaultNamespaceIDLen
 
 	// ShareInfoBytes is the number of bytes reserved for information. The info
-	// byte contains the share version and a start idicator.
+	// byte contains the share version and a sequence start idicator.
 	ShareInfoBytes = 1
+
+	// SequenceLenBytes is the number of bytes reserved for the sequence length
+	// that is present in the first share of a sequence.
+	SequenceLenBytes = 4
 
 	// ShareVersionZero is the first share version format.
 	ShareVersionZero = uint8(0)
 
 	// CompactShareReservedBytes is the number of bytes reserved for the location of
-	// the first unit (transaction, ISR, evidence) in a compact share.
-	CompactShareReservedBytes = 2
+	// the first unit (transaction, ISR) in a compact share.
+	CompactShareReservedBytes = 4
+
+	// FirstCompactShareContentSize is the number of bytes usable for data in
+	// the first compact share of a sequence.
+	FirstCompactShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - SequenceLenBytes - CompactShareReservedBytes
 
 	// ContinuationCompactShareContentSize is the number of bytes usable for
-	// data in a continuation compact share. A continuation share is any
-	// share in a reserved namespace that isn't the first share in that
-	// namespace.
+	// data in a continuation compact share of a sequence.
 	ContinuationCompactShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - CompactShareReservedBytes
 
-	// SparseShareContentSize is the number of bytes usable for data in a sparse (i.e.
-	// blob) share.
-	SparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes
+	// FirstSparseShareContentSize is the number of bytes usable for data in the
+	// first sparse share of a sequence.
+	FirstSparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes - SequenceLenBytes
+
+	// ContinuationSparseShareContentSize is the number of bytes usable for data
+	// in a continuation sparse share of a sequence.
+	ContinuationSparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes
 
 	// DefaultMaxSquareSize is the maximum number of
 	// rows/columns of the original data shares in square layout.
@@ -110,33 +119,8 @@ var (
 	// of a NameSpacedPaddedShare. A NameSpacedPaddedShare follows a blob so
 	// that the next blob starts at an index that conforms to non-interactive
 	// defaults.
-	NameSpacedPaddedShareBytes = bytes.Repeat([]byte{0}, SparseShareContentSize)
-
-	// FirstCompactShareSequenceLengthBytes is the number of bytes reserved for
-	// the total sequence length that is stored in the first compact share of a
-	// sequence. This value is the maximum number of bytes required to store the
-	// sequence length of a block that only contains shares of one type. For
-	// example, if a block contains only transactions then it could contain:
-	// DefaultMaxSquareSize * DefaultMaxSquareSize * ShareSize bytes of transactions.
-	//
-	// Assuming DefaultMaxSquareSize is 128 and ShareSize is 512, this is 8388608 bytes
-	// of transactions. It takes 4 bytes to store a varint of 8388608.
-	//
-	// https://go.dev/play/p/ADIcIxmyZbu
-	FirstCompactShareSequenceLengthBytes = numberOfBytesVarint(DefaultMaxSquareSize * DefaultMaxSquareSize * ShareSize)
-
-	// FirstCompactShareContentSize is the number of bytes usable for data in
-	// the first compact share of a reserved namespace. This type of share
-	// contains less space for data than a ContinuationCompactShare because the
-	// first compact share includes a total sequence length varint.
-	FirstCompactShareContentSize = ContinuationCompactShareContentSize - FirstCompactShareSequenceLengthBytes
+	NameSpacedPaddedShareBytes = bytes.Repeat([]byte{0}, FirstSparseShareContentSize)
 
 	// SupportedShareVersions is a list of supported share versions.
 	SupportedShareVersions = []uint8{ShareVersionZero}
 )
-
-// numberOfBytesVarint calculates the number of bytes needed to write a varint of n
-func numberOfBytesVarint(n uint64) (numberOfBytes int) {
-	buf := make([]byte, binary.MaxVarintLen64)
-	return binary.PutUvarint(buf, n)
-}

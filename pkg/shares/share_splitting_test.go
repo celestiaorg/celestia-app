@@ -32,8 +32,8 @@ func TestSplitTxs(t *testing.T) {
 				padShare([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,                // info byte
-					0x2, 0x0, 0x0, 0x0, // 1 byte (unit) + 1 byte (unit length) = 2 bytes sequence length
-					15, 0, // reserved bytes
+					0x0, 0x0, 0x0, 0x2, // 1 byte (unit) + 1 byte (unit length) = 2 bytes sequence length
+					0x0, 0x0, 0x0, 17, // reserved bytes
 					0x1, // unit length of first transaction
 					0xa, // data of first transaction
 				}),
@@ -46,8 +46,8 @@ func TestSplitTxs(t *testing.T) {
 				padShare([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 					0x1,                // info byte
-					0x4, 0x0, 0x0, 0x0, // 2 bytes (first transaction) + 2 bytes (second transaction) = 4 bytes sequence length
-					15, 0, // reserved bytes
+					0x0, 0x0, 0x0, 0x4, // 2 bytes (first transaction) + 2 bytes (second transaction) = 4 bytes sequence length
+					0x0, 0x0, 0x0, 17, // reserved bytes
 					0x1, // unit length of first transaction
 					0xa, // data of first transaction
 					0x1, // unit length of second transaction
@@ -61,16 +61,16 @@ func TestSplitTxs(t *testing.T) {
 			want: []Share{
 				fillShare([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
-					0x1,          // info byte
-					130, 4, 0, 0, // 512 (unit) + 2 (unit length) = 514 sequence length
-					15, 0, // reserved bytes
+					0x1,                // info byte
+					0x0, 0x0, 0x2, 0x2, // 512 (unit) + 2 (unit length) = 514 sequence length
+					0x0, 0x0, 0x0, 17, // reserved bytes
 					128, 4, // unit length of transaction is 512
 				}, 0xc), // data of transaction
 				padShare(append([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
-					0x0,  // info byte
-					0, 0, // reserved bytes
-				}, bytes.Repeat([]byte{0xc}, 17)..., // continuation data of transaction
+					0x0,                // info byte
+					0x0, 0x0, 0x0, 0x0, // reserved bytes
+				}, bytes.Repeat([]byte{0xc}, 19)..., // continuation data of transaction
 				)),
 			},
 		},
@@ -80,9 +80,9 @@ func TestSplitTxs(t *testing.T) {
 			want: []Share{
 				fillShare([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
-					0x1,          // info byte
-					132, 4, 0, 0, // 2 bytes (first transaction) + 514 bytes (second transaction) = 516 bytes sequence length
-					15, 0, // reserved bytes
+					0x1,                // info byte
+					0x0, 0x0, 0x2, 0x4, // 2 bytes (first transaction) + 514 bytes (second transaction) = 516 bytes sequence length
+					0x0, 0x0, 0x0, 17, // reserved bytes
 					1,      // unit length of first transaction
 					0xa,    // data of first transaction
 					128, 4, // unit length of second transaction is 512
@@ -90,9 +90,9 @@ func TestSplitTxs(t *testing.T) {
 				padShare(
 					append([]uint8{
 						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
-						0x0,  // info byte
-						0, 0, // reserved bytes
-					}, bytes.Repeat([]byte{0xc}, 19)...), // continuation data of second transaction
+						0x0,                // info byte
+						0x0, 0x0, 0x0, 0x0, // reserved bytes
+					}, bytes.Repeat([]byte{0xc}, 21)...), // continuation data of second transaction
 				),
 			},
 		},
@@ -102,16 +102,16 @@ func TestSplitTxs(t *testing.T) {
 			want: []Share{
 				fillShare([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
-					0x1,          // info byte
-					132, 4, 0, 0, // 514 bytes (first transaction) + 2 bytes (second transaction) = 516 bytes sequence length
-					15, 0, // reserved bytes
+					0x1,                // info byte
+					0x0, 0x0, 0x2, 0x4, // 514 bytes (first transaction) + 2 bytes (second transaction) = 516 bytes sequence length
+					0x0, 0x0, 0x0, 17, // reserved bytes
 					128, 4, // unit length of first transaction is 512
 				}, 0xc), // data of first transaction
 				padShare([]uint8{
 					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
-					0x0,   // info byte
-					28, 0, // reserved bytes
-					0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, // continuation data of first transaction
+					0x0,               // info byte
+					0x0, 0x0, 0x0, 32, // reserved bytes
+					0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, 0xc, // continuation data of first transaction
 					1,   // unit length of second transaction
 					0xa, // data of second transaction
 				}),
