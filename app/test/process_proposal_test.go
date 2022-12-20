@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,6 +14,8 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 )
@@ -96,6 +99,21 @@ func TestBlobInclusionCheck(t *testing.T) {
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
+		{
+			name:  "modified hash based on sequence start indicator tampering",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				coreData, _ := coretypes.DataFromProto(d)
+				dataSquare, _ := shares.Split(coreData, true)
+				fmt.Printf("dataSquare[1] before: %v", dataSquare[1])
+				dataSquare[1] = tamper(dataSquare[1])
+				fmt.Printf("dataSquare[1] after: %v", dataSquare[1])
+				eds, _ := da.ExtendShares(d.SquareSize, shares.ToBytes(dataSquare))
+				dah := da.NewDataAvailabilityHeader(eds)
+				d.Hash = dah.Hash()
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
 	}
 
 	for _, tt := range tests {
@@ -133,4 +151,35 @@ func TestProcessProposalWithParityShareNamespace(t *testing.T) {
 	}
 	res := testApp.ProcessProposal(input)
 	require.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
+}
+
+// func TestProcessProposalWithSequenceStartModification(t *testing.T) {
+// 	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
+// 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+// 	txs := coretypes.Txs(blobfactory.GenerateManyRawSendTxs(encConf.TxConfig, 10)).ToSliceOfBytes()
+// 	req := abci.RequestPrepareProposal{
+// 		BlockData: &tmproto.Data{
+// 			Txs: txs,
+// 		},
+// 	}
+
+// 	resp := testApp.PrepareProposal(req)
+// 	input := abci.RequestProcessProposal{
+// 		BlockData: resp.BlockData,
+// 	}
+// 	res := testApp.ProcessProposal(input)
+
+// 	require.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
+// }
+
+// tamper flips the sequence start indicator of the share provided
+func tamper(share shares.Share) shares.Share {
+	// the info byte is immediately after the namespace
+	infoByteIndex := appconsts.NamespaceSize
+	// the sequence start indicator is the last bit of the info byte so flip the
+	// last bit
+	share[infoByteIndex] = share[infoByteIndex] ^ 0x01
+
+	return share
 }
