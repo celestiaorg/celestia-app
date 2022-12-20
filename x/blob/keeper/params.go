@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -21,12 +22,18 @@ func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
 
 // MinSquareSize returns the MinSquareSize param
 func (k Keeper) MinSquareSize(ctx sdk.Context) (res uint32) {
+	if ctx.BlockHeader().Height < 1 {
+		return appconsts.DefaultMinSquareSize
+	}
 	k.paramStore.Get(ctx, types.KeyMinSquareSize, &res)
 	return
 }
 
 // MaxSquareSize returns the MaxSquareSize param
 func (k Keeper) MaxSquareSize(ctx sdk.Context) (res uint32) {
+	if ctx.BlockHeader().Height < 1 {
+		return appconsts.DefaultMaxSquareSize
+	}
 	k.paramStore.Get(ctx, types.KeyMaxSquareSize, &res)
 	return
 }
