@@ -86,10 +86,10 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 			// it. It checks for 0 because if there is a message in the block,
 			// then there must also be a tx, which will take up at least one
 			// share.
-			if malleatedTx.ShareIndex == 0 {
+			if len(malleatedTx.ShareIndexes) == 0 {
 				return nil
 			}
-			shareIndexes = append(shareIndexes, malleatedTx.ShareIndex)
+			shareIndexes = append(shareIndexes, malleatedTx.ShareIndexes...)
 		}
 	}
 

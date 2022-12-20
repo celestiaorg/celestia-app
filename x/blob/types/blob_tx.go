@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/cosmos/cosmos-sdk/client"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -66,19 +67,16 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 		return ProcessedBlobTx{}, err
 	}
 
-	protoBlobs := make([]tmproto.Blob, len(pfbs))
-
-	// check that the meta data matches
-	if !bytes.Equal(bTx.Blobs[i].NamespaceId, pfb.NamespaceId) {
-		return ProcessedBlobTx{}, ErrNamespaceMismatch
+	// check that the info in the pfb matches that in the blobs
+	if !equalUint64Slices(sizes, pfb.BlobSizes) {
+		return ProcessedBlobTx{}, ErrBlobSizeMismatch.Wrapf("actual %v declared %v", sizes, pfb.BlobSizes)
 	}
 
-	if pfb.BlobSize != uint64(len(blob)) {
-		return ProcessedBlobTx{}, ErrDeclaredActualDataSizeMismatch.Wrapf(
-			"declared: %d vs actual: %d",
-			pfb.BlobSize,
-			len(blob),
-		)
+	for i := range pfb.NamespaceIds {
+		// check that the meta data matches
+		if !bytes.Equal(bTx.Blobs[i].NamespaceId, pfb.NamespaceIds[i]) {
+			return ProcessedBlobTx{}, ErrNamespaceMismatch.Wrapf("%v %v", bTx.Blobs[i].NamespaceId, pfb.NamespaceIds[i])
+		}
 	}
 
 	// verify that the commitment of the blob matches that of the PFB
@@ -105,4 +103,24 @@ func (pBTx ProcessedBlobTx) DataUsed() int {
 	// 	used += len(b.Data)
 	// }
 	return len(pBTx.Blobs[0].Data)
+}
+
+func (pBTx ProcessedBlobTx) SharesUsed() int {
+	sharesUsed := 0
+	for _, blob := range pBTx.Blobs {
+		sharesUsed += shares.BlobSharesUsed(len(blob.Data))
+	}
+	return sharesUsed
+}
+
+func equalUint64Slices(a, b []uint64) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

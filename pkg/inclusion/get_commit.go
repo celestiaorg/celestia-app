@@ -11,7 +11,7 @@ import (
 func GetMultiCommit(cacher *EDSSubTreeRootCacher, dah da.DataAvailabilityHeader, startIndexes, lengths []uint32) ([]byte, error) {
 	shareCounts := make([]int, len(lengths))
 	for i := range lengths {
-		shareCounts[i] = shares.SparseSharesNeeded(uint32(lengths[i]))
+		shareCounts[i] = shares.BlobSharesUsed(uint32(lengths[i]))
 	}
 	commitments := make([][]byte, len(startIndexes))
 	for i := range startIndexes {

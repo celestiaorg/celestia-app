@@ -10,7 +10,7 @@ import (
 )
 
 type trackedBlob struct {
-	blob        tmproto.Blob
+	blob        *tmproto.Blob
 	parsedIndex int
 	sharesUsed  int
 }
@@ -29,11 +29,13 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 		if len(pTx.normalTx) != 0 {
 			continue
 		}
-		trackedBlobs = append(trackedBlobs, trackedBlob{
-			blob:        pTx.blobTx.Blobs[0],
-			parsedIndex: i,
-			sharesUsed:  shares.SparseSharesNeeded(uint32(pTx.blobTx.DataUsed())),
-		})
+		for _, blob := range pTx.blobTx.Blobs {
+			trackedBlobs = append(trackedBlobs, trackedBlob{
+				blob:        blob,
+				parsedIndex: i,
+				sharesUsed:  shares.BlobSharesUsed(pTx.blobTx.DataUsed()),
+			})
+		}
 	}
 
 	// blobs must be sorted by namespace in order for nmt to be able to create a
@@ -45,7 +47,7 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 	cursor := nonreserveStart
 	iSS := int(squareSize)
 	maxSharesSize := iSS * iSS
-	blobs := make([]tmproto.Blob, 0)
+	blobs := make([]*tmproto.Blob, 0)
 	removeList := []int{}
 	for _, tBlob := range trackedBlobs {
 		cursor, _ = shares.NextMultipleOfBlobMinSquareSize(cursor, tBlob.sharesUsed, iSS)
@@ -72,7 +74,12 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 		panic(fmt.Sprintf("invalid number of blob txs: must be equal to number of blobs: txs %d blobs %d", blobTxCount, len(blobs)))
 	}
 
-	return ptxs, blobs
+	derefBlobs := make([]tmproto.Blob, len(blobs))
+	for i := range blobs {
+		derefBlobs[i] = *blobs[i]
+	}
+
+	return ptxs, derefBlobs
 }
 
 func removeMany[T any](s []T, indexes ...int) []T {

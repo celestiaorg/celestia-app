@@ -91,11 +91,11 @@ func TestProcessBlobTx(t *testing.T) {
 		{
 			name: "invalid share commitment",
 			getTx: func() tmproto.BlobTx {
-				rawblob := rand.Bytes(100)
+				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100))
+				require.NoError(t, err)
 				msg, err := types.NewMsgPayForBlob(
 					signerAddr.String(),
-					namespace.RandomBlobNamespace(),
-					rawblob,
+					blob,
 				)
 				require.NoError(t, err)
 
@@ -114,11 +114,9 @@ func TestProcessBlobTx(t *testing.T) {
 				rawTx, err := encCfg.TxConfig.TxEncoder()(stx)
 				require.NoError(t, err)
 
-				wblob, err := types.NewBlob(msg.NamespaceId, rawblob)
-				require.NoError(t, err)
 				btx := tmproto.BlobTx{
 					Tx:    rawTx,
-					Blobs: []*tmproto.Blob{wblob},
+					Blobs: []*tmproto.Blob{blob},
 				}
 				return btx
 			},

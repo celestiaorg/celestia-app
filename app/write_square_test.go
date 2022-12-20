@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmlog "github.com/tendermint/tendermint/libs/log"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -143,7 +143,7 @@ func Test_finalizeLayout(t *testing.T) {
 			return bytes.Compare(blobs[i].NamespaceId, blobs[j].NamespaceId) < 0
 		})
 
-		blockData := core.Data{
+		blockData := tmproto.Data{
 			Txs:        processedTxs,
 			Blobs:      blobs,
 			SquareSize: tt.squareSize,

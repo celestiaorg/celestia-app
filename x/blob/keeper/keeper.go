@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -52,13 +51,16 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 func (k Keeper) PayForBlob(goCtx context.Context, msg *types.MsgPayForBlob) (*types.MsgPayForBlobResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	// calculate gas per blob share by fetching the constant share size and the gas cost per byte from the KV store
-	gasPerBlobShare := appconsts.ShareSize * k.GasPerBlobByte(ctx)
-	gasToConsume := uint64(shares.SparseSharesNeeded(uint32(msg.BlobSize)) * int(gasPerBlobShare))
+	totalSharesUsed := 0
+	for _, size := range msg.BlobSizes {
+		totalSharesUsed += shares.BlobSharesUsed(int(size))
+	}
+
+	gasToConsume := uint64(totalSharesUsed) * GasPerBlobByte
 	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
 
 	err := ctx.EventManager().EmitTypedEvent(
-		types.NewPayForBlobEvent(sdk.AccAddress(msg.Signer).String(), msg.GetBlobSize(), msg.NamespaceId),
+		types.NewPayForBlobEvent(sdk.AccAddress(msg.Signer).String(), uint64(totalSharesUsed), msg.NamespaceIds),
 	)
 	if err != nil {
 		return &types.MsgPayForBlobResponse{}, err

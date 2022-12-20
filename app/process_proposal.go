@@ -11,7 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -71,7 +70,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 	// iterate over all of the MsgPayForBlob transactions and ensure that their
 	// commitments are subtree roots of the data root.
-	commitmentCounter := 0
 	for _, rawTx := range req.BlockData.Txs {
 		tx := rawTx
 		wrappedTx, isWrapped := coretypes.UnmarshalIndexWrapper(rawTx)
@@ -136,14 +134,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		commitmentCounter++
 	}
 
-	// compare the number of MPFBs and blobs, if they aren't
-	// identical, then we already know this block is invalid
-	if commitmentCounter != len(req.BlockData.Blobs) {
-		logInvalidPropBlock(app.Logger(), req.Header, "varying number of MsgPayForBlob and blobs in the same block")
-		return abci.ResponseProcessProposal{
-			Result: abci.ResponseProcessProposal_REJECT,
-		}
-	}
 	return abci.ResponseProcessProposal{
 		Result: abci.ResponseProcessProposal_ACCEPT,
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -45,6 +46,7 @@ func TestVerifySignature(t *testing.T) {
 	}
 
 	msg, blob := randMsgPayForBlobWithNamespaceAndSigner(
+		t,
 		addr.String(),
 		namespace.RandomBlobNamespace(),
 		100,
@@ -56,16 +58,13 @@ func TestVerifySignature(t *testing.T) {
 	rawTx, err := encCfg.TxConfig.TxEncoder()(stx)
 	require.NoError(t, err)
 
-	wblob, err := NewBlob(msg.NamespaceId, blob)
-	require.NoError(t, err)
-
-	cTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
+	cTx, err := coretypes.MarshalBlobTx(rawTx, blob)
 	require.NoError(t, err)
 
 	uTx, isBlob := coretypes.UnmarshalBlobTx(cTx)
 	require.True(t, isBlob)
 
-	wTx, err := coretypes.MarshalIndexWrapper(100, uTx.Tx)
+	wTx, err := coretypes.MarshalIndexWrapper(uTx.Tx, 100)
 	require.NoError(t, err)
 
 	uwTx, isMal := coretypes.UnmarshalIndexWrapper(wTx)
@@ -105,11 +104,11 @@ func setupSigTest(t *testing.T) (string, sdk.Address, *KeyringSigner, encoding.C
 	return acc, addr, signer, encCfg
 }
 
-func randMsgPayForBlobWithNamespaceAndSigner(signer string, nid []byte, size int) (*MsgPayForBlob, []byte) {
-	blob := tmrand.Bytes(size)
+func randMsgPayForBlobWithNamespaceAndSigner(t *testing.T, signer string, nid []byte, size int) (*MsgPayForBlob, *tmproto.Blob) {
+	blob, err := NewBlob(nid, tmrand.Bytes(size))
+	require.NoError(t, err)
 	msg, err := NewMsgPayForBlob(
 		signer,
-		nid,
 		blob,
 	)
 	if err != nil {

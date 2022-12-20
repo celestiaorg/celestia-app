@@ -111,10 +111,14 @@ func (c *Context) PostData(account, broadcastMode string, ns, blobData []byte) (
 	signer.SetAccountNumber(acc)
 	signer.SetSequence(seq)
 
+	blob, err := types.NewBlob(ns, blobData)
+	if err != nil {
+		return nil, err
+	}
+
 	msg, err := types.NewMsgPayForBlob(
 		addr.String(),
-		ns,
-		blobData,
+		blob,
 	)
 	if err != nil {
 		return nil, err
@@ -125,15 +129,13 @@ func (c *Context) PostData(account, broadcastMode string, ns, blobData []byte) (
 	if err != nil {
 		return nil, err
 	}
-	wblob, err := types.NewBlob(msg.NamespaceId, blobData)
-	if err != nil {
-		return nil, err
-	}
+
 	rawTx, err := signer.EncodeTx(stx)
 	if err != nil {
 		return nil, err
 	}
-	blobTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
+
+	blobTx, err := coretypes.MarshalBlobTx(rawTx, blob)
 	if err != nil {
 		return nil, err
 	}

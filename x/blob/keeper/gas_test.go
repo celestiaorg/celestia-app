@@ -3,6 +3,7 @@ package keeper
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -54,21 +55,33 @@ func TestPayForBlobGas(t *testing.T) {
 		wantGasConsumed uint64
 	}
 
+	paramLookUpCost := 1060
+
 	testCases := []testCase{
 		{
 			name:            "1 byte blob", // occupies 1 share
-			msg:             types.MsgPayForBlob{BlobSize: 1},
-			wantGasConsumed: uint64(5156), // 1 share * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 5156 gas
+			msg:             types.MsgPayForBlob{BlobSizes: []uint64{1}},
+			wantGasConsumed: uint64(1*appconsts.ShareSize*types.DefaultGasPerBlobByte + paramLookUpCost), // 1 share * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 5156 gas
 		},
 		{
 			name:            "100 byte blob", // occupies 1 share
-			msg:             types.MsgPayForBlob{BlobSize: 100},
-			wantGasConsumed: uint64(5156),
+			msg:             types.MsgPayForBlob{BlobSizes: []uint64{100}},
+			wantGasConsumed: uint64(1*appconsts.ShareSize*types.DefaultGasPerBlobByte + paramLookUpCost),
 		},
 		{
 			name:            "1024 byte blob", // occupies 3 shares because share prefix (e.g. namespace, info byte)
-			msg:             types.MsgPayForBlob{BlobSize: 1024},
-			wantGasConsumed: uint64(13348), // 3 shares * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 13348 gas
+			msg:             types.MsgPayForBlob{BlobSizes: []uint64{1024}},
+			wantGasConsumed: uint64(3*appconsts.ShareSize*types.DefaultGasPerBlobByte + paramLookUpCost), // 3 shares * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 13348 gas
+		},
+		{
+			name:            "3 blobs, 1 share each",
+			msg:             types.MsgPayForBlob{BlobSizes: []uint64{1, 1, 1}},
+			wantGasConsumed: uint64(3*appconsts.ShareSize*types.DefaultGasPerBlobByte + paramLookUpCost), // 3 shares * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 13348 gas
+		},
+		{
+			name:            "3 blobs, 6 shares total",
+			msg:             types.MsgPayForBlob{BlobSizes: []uint64{1024, 1000, 100}},
+			wantGasConsumed: uint64(3*appconsts.ShareSize*types.DefaultGasPerBlobByte + paramLookUpCost), // 3 shares * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 13348 gas
 		},
 	}
 

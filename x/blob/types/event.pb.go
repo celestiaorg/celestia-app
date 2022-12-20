@@ -73,7 +73,7 @@ func (m *EventPayForBlob) GetSigner() string {
 
 func (m *EventPayForBlob) GetBlobSize() uint32 {
 	if m != nil {
-		return m.BlobSize
+		return m.TotalSharesUsed
 	}
 	return 0
 }
@@ -172,8 +172,8 @@ func (m *EventPayForBlob) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovEvent(uint64(l))
 	}
-	if m.BlobSize != 0 {
-		n += 1 + sovEvent(uint64(m.BlobSize))
+	if m.TotalSharesUsed != 0 {
+		n += 1 + sovEvent(uint64(m.TotalSharesUsed))
 	}
 	l = len(m.NamespaceId)
 	if l > 0 {
@@ -251,9 +251,9 @@ func (m *EventPayForBlob) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field BlobSize", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field TotalSharesUsed", wireType)
 			}
-			m.BlobSize = 0
+			m.TotalSharesUsed = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowEvent

@@ -6,23 +6,27 @@ import (
 
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
 )
 
 var defaultSigner = testfactory.RandomAddress().String()
 
-func RandMsgPayForBlobWithSigner(singer string, size int) (*blobtypes.MsgPayForBlob, []byte) {
-	blob := tmrand.Bytes(size)
+func RandMsgPayForBlobWithSigner(singer string, size int) (*blobtypes.MsgPayForBlob, *tmproto.Blob) {
+	blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(size))
+	if err != nil {
+		panic(err)
+	}
 	msg, err := blobtypes.NewMsgPayForBlob(
 		singer,
-		namespace.RandomBlobNamespace(),
 		blob,
 	)
 	if err != nil {
@@ -31,11 +35,13 @@ func RandMsgPayForBlobWithSigner(singer string, size int) (*blobtypes.MsgPayForB
 	return msg, blob
 }
 
-func RandMsgPayForBlobWithNamespaceAndSigner(signer string, nid []byte, size int) (*blobtypes.MsgPayForBlob, []byte) {
-	blob := tmrand.Bytes(size)
+func RandMsgPayForBlobWithNamespaceAndSigner(signer string, nid []byte, size int) (*blobtypes.MsgPayForBlob, *tmproto.Blob) {
+	blob, err := types.NewBlob(nid, tmrand.Bytes(size))
+	if err != nil {
+		panic(err)
+	}
 	msg, err := blobtypes.NewMsgPayForBlob(
 		signer,
-		nid,
 		blob,
 	)
 	if err != nil {
@@ -44,11 +50,13 @@ func RandMsgPayForBlobWithNamespaceAndSigner(signer string, nid []byte, size int
 	return msg, blob
 }
 
-func RandMsgPayForBlob(size int) (*blobtypes.MsgPayForBlob, []byte) {
-	blob := tmrand.Bytes(size)
+func RandMsgPayForBlob(size int) (*blobtypes.MsgPayForBlob, *tmproto.Blob) {
+	blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(size))
+	if err != nil {
+		panic(err)
+	}
 	msg, err := blobtypes.NewMsgPayForBlob(
 		defaultSigner,
-		namespace.RandomBlobNamespace(),
 		blob,
 	)
 	if err != nil {
@@ -93,11 +101,7 @@ func RandBlobTxsRandomlySized(enc sdk.TxEncoder, count, maxSize int) []coretypes
 		if err != nil {
 			panic(err)
 		}
-		wblob, err := blobtypes.NewBlob(msg.NamespaceId, blob)
-		if err != nil {
-			panic(err)
-		}
-		cTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
+		cTx, err := coretypes.MarshalBlobTx(rawTx, blob)
 		if err != nil {
 			panic(err)
 		}
@@ -156,11 +160,7 @@ func RandBlobTxsWithAccounts(
 		if err != nil {
 			panic(err)
 		}
-		wblob, err := blobtypes.NewBlob(msg.NamespaceId, blob)
-		if err != nil {
-			panic(err)
-		}
-		cTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
+		cTx, err := coretypes.MarshalBlobTx(rawTx, blob)
 		if err != nil {
 			panic(err)
 		}
@@ -201,11 +201,7 @@ func RandBlobTxs(enc sdk.TxEncoder, count, size int) []coretypes.Tx {
 		if err != nil {
 			panic(err)
 		}
-		wblob, err := blobtypes.NewBlob(msg.NamespaceId, blob)
-		if err != nil {
-			panic(err)
-		}
-		cTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
+		cTx, err := coretypes.MarshalBlobTx(rawTx, blob)
 		if err != nil {
 			panic(err)
 		}
@@ -255,11 +251,7 @@ func RandBlobTxsWithNamespacesAndSigner(
 		if err != nil {
 			panic(err)
 		}
-		wblob, err := blobtypes.NewBlob(msg.NamespaceId, blob)
-		if err != nil {
-			panic(err)
-		}
-		cTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
+		cTx, err := coretypes.MarshalBlobTx(rawTx, blob)
 		if err != nil {
 			panic(err)
 		}
@@ -274,7 +266,7 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, kr keyring.Keyring, enc sdk.TxEnco
 	signerAddr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
 
-	pfb, rawBlob := RandMsgPayForBlobWithSigner(signerAddr.String(), 100)
+	pfb, blob := RandMsgPayForBlobWithSigner(signerAddr.String(), 100)
 
 	opts := []blobtypes.TxBuilderOption{
 		blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(bondDenom, sdk.NewInt(10)))),
@@ -286,9 +278,6 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, kr keyring.Keyring, enc sdk.TxEnco
 	sdkTx, err := signer.BuildSignedTx(signer.NewTxBuilder(opts...), msgs...)
 	require.NoError(t, err)
 	rawTx, err := enc(sdkTx)
-	require.NoError(t, err)
-
-	blob, err := blobtypes.NewBlob(pfb.NamespaceId, rawBlob)
 	require.NoError(t, err)
 
 	btx, err := coretypes.MarshalBlobTx(rawTx, blob)
