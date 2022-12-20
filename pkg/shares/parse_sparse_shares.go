@@ -7,9 +7,15 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-type BlobWithLen struct {
+type sequence struct {
 	blob        coretypes.Blob
 	sequenceLen uint32
+}
+
+// TODO: namespaced padding shares aren't formally specified so this is subject
+// to change. See https://github.com/celestiaorg/celestia-app/issues/1136
+func (s sequence) isNamespacedPadding() bool {
+	return s.sequenceLen == 0
 }
 
 // parseSparseShares iterates through rawShares and parses out individual
@@ -19,7 +25,7 @@ func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) (blob
 	if len(rawShares) == 0 {
 		return nil, nil
 	}
-	blobsWithLen := make([]BlobWithLen, 0)
+	sequences := make([]sequence, 0)
 
 	shares := FromBytes(rawShares)
 	for _, share := range shares {
@@ -50,33 +56,33 @@ func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) (blob
 				Data:         data,
 				ShareVersion: version,
 			}
-			blobsWithLen = append(blobsWithLen, BlobWithLen{
+			sequences = append(sequences, sequence{
 				blob:        blob,
 				sequenceLen: sequenceLen,
 			})
 		} else { // continuation share
-			if len(blobsWithLen) == 0 {
+			if len(sequences) == 0 {
 				return nil, fmt.Errorf("continuation share %v without a sequence start share", share)
 			}
-			lastBlob := &blobsWithLen[len(blobsWithLen)-1]
+			prev := &sequences[len(sequences)-1]
 			data, err := share.RawData()
 			if err != nil {
 				return nil, err
 			}
-			lastBlob.blob.Data = append(lastBlob.blob.Data, data...)
+			prev.blob.Data = append(prev.blob.Data, data...)
 		}
 	}
-	for _, blobWithLen := range blobsWithLen {
-		// trim any padding
-		blobWithLen.blob.Data = blobWithLen.blob.Data[:blobWithLen.sequenceLen]
-		if !isNamespacedPadding(blobWithLen) {
-			blobs = append(blobs, blobWithLen.blob)
+	for _, sequence := range sequences {
+		// trim any padding from the end of the sequence
+		sequence.blob.Data = sequence.blob.Data[:sequence.sequenceLen]
+
+		// filter out any namespaced padding shares
+		if sequence.isNamespacedPadding() {
+			continue
 		}
+
+		blobs = append(blobs, sequence.blob)
 	}
 
 	return blobs, nil
-}
-
-func isNamespacedPadding(blobWithLen BlobWithLen) bool {
-	return blobWithLen.sequenceLen == 0
 }
