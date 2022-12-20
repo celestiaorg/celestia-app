@@ -13,6 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 )
@@ -133,4 +135,45 @@ func TestProcessProposalWithParityShareNamespace(t *testing.T) {
 	}
 	res := testApp.ProcessProposal(input)
 	require.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
+}
+
+func TestProcessProposalWithTamperedSequenceStart(t *testing.T) {
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
+	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	txs := coretypes.Txs(blobfactory.GenerateManyRawSendTxs(encConf.TxConfig, 10)).ToSliceOfBytes()
+	req := abci.RequestPrepareProposal{
+		BlockData: &tmproto.Data{
+			Txs: txs,
+		},
+	}
+	resp := testApp.PrepareProposal(req)
+
+	coreData, err := coretypes.DataFromProto(resp.BlockData)
+	assert.NoError(t, err)
+	dataSquare, err := shares.Split(coreData, true)
+	assert.NoError(t, err)
+	dataSquare[1] = flipSequenceStart(dataSquare[1])
+	eds, err := da.ExtendShares(resp.BlockData.SquareSize, shares.ToBytes(dataSquare))
+	assert.NoError(t, err)
+	dah := da.NewDataAvailabilityHeader(eds)
+	// replace the hash of the prepare proposal response with the hash of a data
+	// square with a tampered sequence start indicator
+	resp.BlockData.Hash = dah.Hash()
+	input := abci.RequestProcessProposal{
+		BlockData: resp.BlockData,
+	}
+
+	res := testApp.ProcessProposal(input)
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
+}
+
+// flipSequenceStart flips the sequence start indicator of the share provided
+func flipSequenceStart(share shares.Share) shares.Share {
+	// the info byte is immediately after the namespace
+	infoByteIndex := appconsts.NamespaceSize
+	// the sequence start indicator is the last bit of the info byte so flip the
+	// last bit
+	share[infoByteIndex] = share[infoByteIndex] ^ 0x01
+	return share
 }
