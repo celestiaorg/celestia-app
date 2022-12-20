@@ -288,7 +288,7 @@ func TestNewMsgPayForBlob(t *testing.T) {
 			continue
 		}
 
-		expectedCommitment, err := CreateMultiShareCommitment(tt.nids, tt.blobs, make([]uint8, len(tt.blobs)))
+		expectedCommitment, err := CreateMultiShareCommitment(tt.nids, tt.blobs, make([]uint32, len(tt.blobs)))
 		require.NoError(t, err)
 		assert.Equal(t, expectedCommitment, res.ShareCommitment)
 	}

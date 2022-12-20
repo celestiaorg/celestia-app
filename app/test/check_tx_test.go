@@ -5,9 +5,9 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -78,7 +78,7 @@ func TestCheckTx(t *testing.T) {
 				)[0]
 
 				dtx, _ := coretypes.UnmarshalBlobTx(btx)
-				dtx.Blobs[0].NamespaceId = appconsts.TxNamespaceID
+				dtx.Blobs[0].NamespaceId = namespace.RandomBlobNamespace()
 				bbtx, err := coretypes.MarshalBlobTx(dtx.Tx, dtx.Blobs[0])
 				require.NoError(t, err)
 				return bbtx
@@ -100,7 +100,7 @@ func TestCheckTx(t *testing.T) {
 				dtx, _ := coretypes.UnmarshalBlobTx(btx)
 				return dtx.Tx
 			},
-			expectedABCICode: blobtypes.ErrBloblessPFB.ABCICode(),
+			expectedABCICode: blobtypes.ErrNoBlobs.ABCICode(),
 		},
 	}
 

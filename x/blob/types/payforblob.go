@@ -43,6 +43,7 @@ func NewMsgPayForBlob(signer string, blobs ...*tmproto.Blob) (*MsgPayForBlob, er
 		NamespaceIds:    nsIDs,
 		ShareCommitment: commitment,
 		BlobSizes:       sizes,
+		ShareVersions:   versions,
 	}
 
 	return msg, msg.ValidateBasic()
@@ -60,7 +61,10 @@ func (msg *MsgPayForBlob) Type() string {
 // validity checks on the msg that also don't require having the actual blob
 func (msg *MsgPayForBlob) ValidateBasic() error {
 	if len(msg.NamespaceIds) != len(msg.ShareVersions) || len(msg.NamespaceIds) != len(msg.BlobSizes) {
-		return ErrMismatchedNumberOfPFBComponent
+		return ErrMismatchedNumberOfPFBComponent.Wrapf(
+			"namespaces %d blob sizes %d versions %d",
+			len(msg.NamespaceIds), len(msg.BlobSizes), len(msg.ShareVersions),
+		)
 	}
 
 	for _, ns := range msg.NamespaceIds {
@@ -176,9 +180,12 @@ func CreateMultiShareCommitment(nsids [][]byte, blobs [][]byte, shareVersions []
 }
 
 // ValidatePFBComponents performs basic checks over the components of one or more PFBs.
-func ValidatePFBComponents(nsIDs [][]byte, blobs [][]byte, shareVersions []uint8) error {
+func ValidatePFBComponents(nsIDs [][]byte, blobs [][]byte, shareVersions []uint32) error {
 	if len(nsIDs) != len(blobs) || len(nsIDs) != len(shareVersions) {
-		return ErrMismatchedNumberOfPFBComponent
+		return ErrMismatchedNumberOfPFBComponent.Wrapf(
+			"namespaces %d blobs %d versions %d",
+			len(nsIDs), len(blobs), len(shareVersions),
+		)
 	}
 
 	if len(blobs) == 0 {
@@ -199,7 +206,7 @@ func ValidatePFBComponents(nsIDs [][]byte, blobs [][]byte, shareVersions []uint8
 	}
 
 	for _, v := range shareVersions {
-		if v != appconsts.ShareVersionZero {
+		if uint8(v) != appconsts.ShareVersionZero {
 			return ErrUnsupportedShareVersion
 		}
 	}
@@ -237,17 +244,17 @@ func ValidateBlobNamespaceID(ns namespace.ID) error {
 // extractBlobComponents separates and returns the components of a slice of
 // blobs in order of blobs of data, their namespaces, their sizes, and their share
 // versions.
-func extractBlobComponents(pblobs []*tmproto.Blob) (rawBlobs [][]byte, nsIDs [][]byte, sizes []uint64, versions []uint8) {
+func extractBlobComponents(pblobs []*tmproto.Blob) (rawBlobs [][]byte, nsIDs [][]byte, sizes []uint64, versions []uint32) {
 	rawBlobs = make([][]byte, len(pblobs))
 	nsIDs = make([][]byte, len(pblobs))
 	sizes = make([]uint64, len(pblobs))
-	versions = make([]uint8, len(pblobs))
+	versions = make([]uint32, len(pblobs))
 
 	for i, pblob := range pblobs {
 		rawBlobs[i] = pblob.Data
 		sizes[i] = uint64(len(pblob.Data))
 		nsIDs[i] = pblob.NamespaceId
-		versions[i] = uint8(pblob.ShareVersion)
+		versions[i] = pblob.ShareVersion
 	}
 
 	return rawBlobs, nsIDs, sizes, versions

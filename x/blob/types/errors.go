@@ -27,6 +27,6 @@ var (
 	ErrNamespaceMismatch              = sdkerrors.Register(ModuleName, 11127, "namespace of blob and its respective MsgPayForBlob differ")
 	ErrProtoParsing                   = sdkerrors.Register(ModuleName, 11128, "failure to parse a transaction from its protobuf representation")
 	ErrMultipleMsgsInBlobTx           = sdkerrors.Register(ModuleName, 11129, "not yet supported: multiple sdk.Msgs found in BlobTx")
-	ErrMismatchedNumberOfPFBComponent = sdkerrors.Register(ModuleName, 11130, "number of blobs, namespaces, and share versions in MsgPayForBlob must be identical")
+	ErrMismatchedNumberOfPFBComponent = sdkerrors.Register(ModuleName, 11130, "number of each component in a MsgPayForBlob must be identical")
 	ErrNoBlobs                        = sdkerrors.Register(ModuleName, 11131, "no blobs provided")
 )
