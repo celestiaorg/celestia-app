@@ -22,6 +22,8 @@ func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
 
 // MinSquareSize returns the MinSquareSize param
 func (k Keeper) MinSquareSize(ctx sdk.Context) (res uint32) {
+	// use the default size for the first block so that we return a value on the
+	// first block in PrepareProposal
 	if ctx.BlockHeader().Height < 1 {
 		return appconsts.DefaultMinSquareSize
 	}
@@ -31,6 +33,8 @@ func (k Keeper) MinSquareSize(ctx sdk.Context) (res uint32) {
 
 // MaxSquareSize returns the MaxSquareSize param
 func (k Keeper) MaxSquareSize(ctx sdk.Context) (res uint32) {
+	// use the default size for the first block so that we return a value on the
+	// first block in PrepareProposal
 	if ctx.BlockHeader().Height < 1 {
 		return appconsts.DefaultMaxSquareSize
 	}
