@@ -4,10 +4,16 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/simapp"
+	"github.com/cosmos/cosmos-sdk/store"
+	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	typesparams "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmdb "github.com/tendermint/tm-db"
 )
 
 func TestPayForBlobGas(t *testing.T) {
@@ -48,26 +54,51 @@ func TestPayForBlobGas(t *testing.T) {
 }
 
 func TestChangingGasParam(t *testing.T) {
-	app := simapp.Setup(t, false)
-	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
-	k := Keeper{}
-
 	msg := types.MsgPayForBlob{BlobSize: 1024}
-	_, err := k.PayForBlob(sdk.WrapSDKContext(ctx), &msg)
+
+	storeKey := sdk.NewKVStoreKey(types.StoreKey)
+	memStoreKey := storetypes.NewMemoryStoreKey(types.MemStoreKey)
+
+	db := tmdb.NewMemDB()
+	stateStore := store.NewCommitMultiStore(db)
+	stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
+	stateStore.MountStoreWithDB(memStoreKey, storetypes.StoreTypeMemory, nil)
+	require.NoError(t, stateStore.LoadLatestVersion())
+
+	registry := codectypes.NewInterfaceRegistry()
+	cdc := codec.NewProtoCodec(registry)
+	tempCtx := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
+
+	aminoCdc := codec.NewLegacyAmino()
+	paramsSubspace := typesparams.NewSubspace(cdc,
+		aminoCdc,
+		storeKey,
+		memStoreKey,
+		"Blob",
+	)
+	k := NewKeeper(
+		cdc,
+		storeKey,
+		memStoreKey,
+		paramsSubspace,
+	)
+	k.SetParams(tempCtx, types.DefaultParams())
+
+	ctx1 := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
+	_, err := k.PayForBlob(sdk.WrapSDKContext(ctx1), &msg)
 	require.NoError(t, err)
 
-	tempCtx := app.BaseApp.NewContext(false, tmproto.Header{})
 	params := k.GetParams(tempCtx)
 	params.GasPerBlobByte++
-	k.SetParams(ctx, params)
+	k.SetParams(tempCtx, params)
 
-	ctx2 := app.BaseApp.NewContext(false, tmproto.Header{})
+	ctx2 := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
 	_, err = k.PayForBlob(sdk.WrapSDKContext(ctx2), &msg)
 	require.NoError(t, err)
 
-	if ctx.GasMeter().GasConsumed() >= ctx2.GasMeter().GasConsumedToLimit() {
+	if ctx1.GasMeter().GasConsumed() >= ctx2.GasMeter().GasConsumedToLimit() {
 		t.Errorf("Gas consumed was not increased upon incrementing param, before: %d, after: %d",
-			ctx.GasMeter().GasConsumed(), ctx2.GasMeter().GasConsumedToLimit(),
+			ctx1.GasMeter().GasConsumed(), ctx2.GasMeter().GasConsumedToLimit(),
 		)
 	}
 }
