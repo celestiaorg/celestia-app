@@ -56,7 +56,7 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 			removeList = append(removeList, tBlob.parsedIndex)
 			continue
 		}
-		ptxs[tBlob.parsedIndex].shareIndex = uint32(cursor)
+		ptxs[tBlob.parsedIndex].shareIndexes = append(ptxs[tBlob.parsedIndex].shareIndexes, uint32(cursor))
 		blobs = append(blobs, tBlob.blob)
 		cursor += tBlob.sharesUsed
 	}

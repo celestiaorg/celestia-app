@@ -87,3 +87,44 @@ func Test_estimateCompactShares(t *testing.T) {
 		})
 	}
 }
+
+// The point of this test is to fail if anything to do with the serialization
+// of index wrappers change, as changes could lead to tricky bugs.
+func Test_expected_maxIndexWrapperOverhead(t *testing.T) {
+	require.Equal(t, 2, maxIndexOverhead(4))
+	require.Equal(t, 5, maxIndexOverhead(128))
+	require.Equal(t, 6, maxIndexOverhead(512))
+	require.Equal(t, 9, maxIndexWrapperOverhead(4))
+	require.Equal(t, 11, maxIndexWrapperOverhead(128))
+	require.Equal(t, 11, maxIndexWrapperOverhead(512))
+}
+
+func Test_maxIndexWrapperOverhead(t *testing.T) {
+	type test struct {
+		squareSize int
+		blobs      int
+	}
+	tests := []test{
+		{4, 2},
+		{32, 2},
+		{128, 1},
+		{128, 10},
+		{128, 1000},
+		{512, 4},
+	}
+	for i, tt := range tests {
+		maxTxLen := tt.squareSize * tt.squareSize * appconsts.ContinuationCompactShareContentSize
+		blobLens := make([]uint32, tt.blobs)
+		for i := 0; i < tt.blobs; i++ {
+			blobLens[i] = uint32(tt.squareSize * tt.squareSize)
+		}
+		tx := make([]byte, maxTxLen)
+		wtx, err := coretypes.MarshalIndexWrapper(tx, blobLens...)
+		require.NoError(t, err)
+
+		wrapperOverhead := maxIndexWrapperOverhead(uint64(tt.squareSize))
+		indexOverhead := maxIndexOverhead(uint64(tt.squareSize)) * tt.blobs
+
+		assert.LessOrEqual(t, len(wtx)-len(tx), wrapperOverhead+indexOverhead, i)
+	}
+}
