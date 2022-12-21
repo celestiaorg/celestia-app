@@ -46,3 +46,28 @@ func TestPayForBlobGas(t *testing.T) {
 		}
 	}
 }
+
+func TestChangingGasParam(t *testing.T) {
+	app := simapp.Setup(t, false)
+	ctx := app.BaseApp.NewContext(false, tmproto.Header{})
+	k := Keeper{}
+
+	msg := types.MsgPayForBlob{BlobSize: 1024}
+	_, err := k.PayForBlob(sdk.WrapSDKContext(ctx), &msg)
+	require.NoError(t, err)
+
+	tempCtx := app.BaseApp.NewContext(false, tmproto.Header{})
+	params := k.GetParams(tempCtx)
+	params.GasPerBlobByte += 1
+	k.SetParams(ctx, params)
+
+	ctx2 := app.BaseApp.NewContext(false, tmproto.Header{})
+	_, err = k.PayForBlob(sdk.WrapSDKContext(ctx2), &msg)
+	require.NoError(t, err)
+
+	if ctx.GasMeter().GasConsumed() >= ctx2.GasMeter().GasConsumedToLimit() {
+		t.Errorf("Gas consumed was not increased upon incrementing param, before: %d, after: %d",
+			ctx.GasMeter().GasConsumed(), ctx2.GasMeter().GasConsumedToLimit(),
+		)
+	}
+}
