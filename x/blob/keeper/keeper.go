@@ -3,6 +3,7 @@ package keeper
 import (
 	"context"
 	"fmt"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 
 	"github.com/tendermint/tendermint/libs/log"
