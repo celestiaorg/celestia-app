@@ -54,7 +54,7 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 	msg := msgs[0]
 	pfb, ok := msg.(*MsgPayForBlob)
 	if !ok {
-		return ProcessedBlobTx{}, ErrInvalidNumberOfPFBInBlobTx
+		return ProcessedBlobTx{}, ErrNoPFB
 	}
 	err = pfb.ValidateBasic()
 	if err != nil {

@@ -58,7 +58,7 @@ func TestProcessBlobTx(t *testing.T) {
 			getTx: func() tmproto.BlobTx {
 				rawBtx := validRawBtx()
 				btx, _ := coretypes.UnmarshalBlobTx(rawBtx)
-				btx.Blobs[0].NamespaceId = appconsts.TxNamespaceID
+				btx.Blobs[0].NamespaceId = namespace.RandomBlobNamespace()
 				return btx
 			},
 			expectedErr: types.ErrNamespaceMismatch,
@@ -86,7 +86,7 @@ func TestProcessBlobTx(t *testing.T) {
 				btx.Blobs = append(btx.Blobs, blob)
 				return btx
 			},
-			expectedErr: types.ErrMismatchedNumberOfPFBorBlob,
+			expectedErr: types.ErrBlobSizeMismatch,
 		},
 		{
 			name: "invalid share commitment",
@@ -153,12 +153,92 @@ func TestProcessBlobTx(t *testing.T) {
 			},
 			expectedErr: types.ErrNoPFB,
 		},
+		{
+			name: "normal transaction with two blobs w/ different namespaces",
+			getTx: func() tmproto.BlobTx {
+				rawBtx := blobfactory.MultiBlobBlobTx(
+					t,
+					encCfg.TxConfig.TxEncoder(),
+					signer,
+					blobfactory.RandBlobsWithNamespace(
+						[][]byte{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
+						[]int{100, 100})...,
+				)
+				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
+				require.True(t, isBlobTx)
+				return btx
+			},
+			expectedErr: nil,
+		},
+		{
+			name: "normal transaction with two large blobs w/ different namespaces",
+			getTx: func() tmproto.BlobTx {
+				rawBtx := blobfactory.MultiBlobBlobTx(
+					t,
+					encCfg.TxConfig.TxEncoder(),
+					signer,
+					blobfactory.RandBlobsWithNamespace(
+						[][]byte{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
+						[]int{100000, 1000000})...,
+				)
+				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
+				require.True(t, isBlobTx)
+				return btx
+			},
+			expectedErr: nil,
+		},
+		{
+			name: "normal transaction with two blobs w/ same namespace",
+			getTx: func() tmproto.BlobTx {
+				ns := namespace.RandomBlobNamespace()
+				rawBtx := blobfactory.MultiBlobBlobTx(
+					t,
+					encCfg.TxConfig.TxEncoder(),
+					signer,
+					blobfactory.RandBlobsWithNamespace(
+						[][]byte{ns, ns},
+						[]int{100, 100})...,
+				)
+				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
+				require.True(t, isBlobTx)
+				return btx
+			},
+			expectedErr: nil,
+		},
+		{
+			name: "normal transaction with one hundred blobs of the same namespace",
+			getTx: func() tmproto.BlobTx {
+				count := 100
+				ns := namespace.RandomBlobNamespace()
+				sizes := make([]int, count)
+				namespaces := make([][]byte, count)
+				for i := 0; i < count; i++ {
+					sizes[i] = 100
+					namespaces[i] = ns
+				}
+				rawBtx := blobfactory.MultiBlobBlobTx(
+					t,
+					encCfg.TxConfig.TxEncoder(),
+					signer,
+					blobfactory.RandBlobsWithNamespace(
+						namespaces,
+						sizes,
+					)...)
+				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
+				require.True(t, isBlobTx)
+				return btx
+			},
+			expectedErr: nil,
+		},
 	}
 
 	for _, tt := range tests {
-		_, err := types.ProcessBlobTx(encCfg.TxConfig, tt.getTx())
-		if tt.expectedErr != nil {
-			assert.ErrorIs(t, err, tt.expectedErr, tt.name)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := types.ProcessBlobTx(encCfg.TxConfig, tt.getTx())
+			if tt.expectedErr != nil {
+				assert.ErrorIs(t, err, tt.expectedErr, tt.name)
+			}
+		})
+
 	}
 }
