@@ -58,7 +58,7 @@ func TestChangingGasParam(t *testing.T) {
 
 	tempCtx := app.BaseApp.NewContext(false, tmproto.Header{})
 	params := k.GetParams(tempCtx)
-	params.GasPerBlobByte += 1
+	params.GasPerBlobByte++
 	k.SetParams(ctx, params)
 
 	ctx2 := app.BaseApp.NewContext(false, tmproto.Header{})
