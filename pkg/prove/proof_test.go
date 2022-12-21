@@ -153,12 +153,12 @@ func TestTxShareIndex(t *testing.T) {
 		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 2) + 1, 3},
 		// 81 full compact shares then a partially filled out 82nd share (which is index 81 because 0-indexed)
 		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 160, 81},
-		// 81 full compact shares then a full 82nd share
-		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 501, 81},
+		// 82 full compact shares
+		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 81), 81},
 		// 82 full compact shares then one byte in 83rd share
-		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 502, 82},
+		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 81) + 1, 82},
 		// 82 compact shares then two bytes in 83rd share
-		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 503, 82},
+		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 81) + 2, 82},
 	}
 
 	for _, tt := range tests {
@@ -175,8 +175,8 @@ func TestTxShareIndex(t *testing.T) {
 func stripCompactShares(compactShares []shares.Share, start uint64, end uint64) (result []byte) {
 	for i := start; i <= end; i++ {
 		if i == 0 {
-			// the first compact share includes a total sequence length varint
-			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareSequenceLengthBytes+appconsts.CompactShareReservedBytes:]...)
+			// the first compact share includes the sequence length
+			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.SequenceLenBytes+appconsts.CompactShareReservedBytes:]...)
 		} else {
 			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:]...)
 		}
