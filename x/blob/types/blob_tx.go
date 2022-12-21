@@ -96,15 +96,6 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 	}, nil
 }
 
-func (pBTx ProcessedBlobTx) DataUsed() int {
-	// TODO: use something similar to the below when we want multiple blobs per tx
-	// used := 0
-	// for _, b := range pBTx.Blobs {
-	// 	used += len(b.Data)
-	// }
-	return len(pBTx.Blobs[0].Data)
-}
-
 func (pBTx ProcessedBlobTx) SharesUsed() int {
 	sharesUsed := 0
 	for _, blob := range pBTx.Blobs {
