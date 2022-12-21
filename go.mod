@@ -29,7 +29,7 @@ require (
 	cosmossdk.io/math v1.0.0-beta.3
 	github.com/celestiaorg/rsmt2d v0.7.0
 	github.com/cosmos/cosmos-sdk v0.46.6
-	github.com/cosmos/gogoproto v1.4.2
+	github.com/cosmos/gogoproto v1.4.3
 	github.com/regen-network/cosmos-proto v0.3.1
 	github.com/tendermint/tendermint v0.34.23
 	golang.org/x/exp v0.0.0-20221012211006-4de253d81b95
