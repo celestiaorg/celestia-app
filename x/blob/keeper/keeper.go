@@ -3,10 +3,10 @@ package keeper
 import (
 	"context"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 
 	"github.com/tendermint/tendermint/libs/log"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -17,11 +17,6 @@ import (
 
 const (
 	payForBlobGasDescriptor = "pay for blob"
-
-	// GasPerBlobByte is the amount of gas to charge per byte of blob data.
-	// TODO: extract GasPerBlobByte as a parameter to this module.
-	GasPerBlobByte  = 8
-	GasPerBlobShare = appconsts.ShareSize * GasPerBlobByte
 )
 
 // Keeper handles all the state changes for the blob module.
@@ -58,7 +53,9 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 func (k Keeper) PayForBlob(goCtx context.Context, msg *types.MsgPayForBlob) (*types.MsgPayForBlobResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	gasToConsume := uint64(shares.BlobSharesUsed(int(msg.BlobSize)) * GasPerBlobShare)
+	// calculate gas per message share by fetching the constant share size and the gas cost per byte from the KV store
+	gasPerMsgShare := appconsts.ShareSize * k.GasPerBlobByte(ctx)
+	gasToConsume := uint64(shares.BlobSharesUsed(int(msg.BlobSize)) * int(gasPerMsgShare))
 	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
 
 	err := ctx.EventManager().EmitTypedEvent(
