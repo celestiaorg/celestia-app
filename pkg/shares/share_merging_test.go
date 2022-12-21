@@ -1,12 +1,14 @@
 package shares
 
 import (
+	"bytes"
 	"encoding/binary"
 	"math/rand"
 	"reflect"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	testns "github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/stretchr/testify/assert"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -150,6 +152,73 @@ func TestParseShares(t *testing.T) {
 	}
 }
 
+func TestShareSequenceRawData(t *testing.T) {
+	type testCase struct {
+		name          string
+		shareSequence ShareSequence
+		want          []byte
+		wantErr       bool
+	}
+	blobNamespace := testns.RandomBlobNamespace()
+
+	testCases := []testCase{
+		{
+			name: "empty share sequence",
+			shareSequence: ShareSequence{
+				NamespaceID: appconsts.TxNamespaceID,
+				Shares:      []Share{},
+			},
+			want:    []byte{},
+			wantErr: false,
+		},
+		{
+			name: "one empty share",
+			shareSequence: ShareSequence{
+				NamespaceID: appconsts.TxNamespaceID,
+				Shares: []Share{
+					shareWithData(blobNamespace, true, 0, []byte{}),
+				},
+			},
+			want:    []byte{},
+			wantErr: false,
+		},
+		{
+			name: "one share with one byte",
+			shareSequence: ShareSequence{
+				NamespaceID: appconsts.TxNamespaceID,
+				Shares: []Share{
+					shareWithData(blobNamespace, true, 1, []byte{0x0f}),
+				},
+			},
+			want:    []byte{0xf},
+			wantErr: false,
+		},
+		{
+			name: "removes padding from last share",
+			shareSequence: ShareSequence{
+				NamespaceID: appconsts.TxNamespaceID,
+				Shares: []Share{
+					shareWithData(blobNamespace, true, appconsts.FirstSparseShareContentSize+1, bytes.Repeat([]byte{0xf}, appconsts.FirstSparseShareContentSize)),
+					shareWithData(blobNamespace, false, 0, []byte{0x0f}),
+				},
+			},
+			want:    bytes.Repeat([]byte{0xf}, appconsts.FirstSparseShareContentSize+1),
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.shareSequence.RawData()
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 func Test_compactSharesNeeded(t *testing.T) {
 	type testCase struct {
 		sequenceLen uint32
@@ -202,6 +271,20 @@ func generateRawShare(namespace namespace.ID, isSequenceStart bool, sequenceLen 
 	rawShare = append(rawShare, sequenceLenBuf...)
 
 	return padWithRandomBytes(rawShare)
+}
+
+func shareWithData(namespace namespace.ID, isSequenceStart bool, sequenceLen uint32, data []byte) (rawShare []byte) {
+	infoByte, _ := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
+	rawShare = append(rawShare, namespace...)
+	rawShare = append(rawShare, byte(infoByte))
+	if isSequenceStart {
+		sequenceLenBuf := make([]byte, appconsts.SequenceLenBytes)
+		binary.BigEndian.PutUint32(sequenceLenBuf, sequenceLen)
+		rawShare = append(rawShare, sequenceLenBuf...)
+	}
+	rawShare = append(rawShare, data...)
+
+	return padShare(rawShare)
 }
 
 func padWithRandomBytes(partialShare Share) (paddedShare Share) {
