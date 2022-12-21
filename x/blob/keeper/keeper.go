@@ -52,9 +52,9 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 func (k Keeper) PayForBlob(goCtx context.Context, msg *types.MsgPayForBlob) (*types.MsgPayForBlobResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	// calculate gas per message share by fetching the constant share size and the gas cost per byte from the KV store
-	gasPerMsgShare := appconsts.ShareSize * k.GasPerBlobByte(ctx)
-	gasToConsume := uint64(shares.BlobSharesUsed(int(msg.BlobSize)) * int(gasPerMsgShare))
+	// calculate gas per blob share by fetching the constant share size and the gas cost per byte from the KV store
+	gasPerBlobShare := appconsts.ShareSize * k.GasPerBlobByte(ctx)
+	gasToConsume := uint64(shares.BlobSharesUsed(int(msg.BlobSize)) * int(gasPerBlobShare))
 	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
 
 	err := ctx.EventManager().EmitTypedEvent(

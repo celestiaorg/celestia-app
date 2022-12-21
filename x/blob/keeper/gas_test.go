@@ -68,7 +68,7 @@ func TestPayForBlobGas(t *testing.T) {
 		{
 			name:            "1024 byte blob", // occupies 3 shares because share prefix (e.g. namespace, info byte)
 			msg:             types.MsgPayForBlob{BlobSize: 1024},
-			wantGasConsumed: uint64(13348), // 3 shares * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 12288 gas
+			wantGasConsumed: uint64(13348), // 3 shares * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 13348 gas
 		},
 	}
 
