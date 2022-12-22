@@ -54,7 +54,7 @@ func (k Keeper) PayForBlob(goCtx context.Context, msg *types.MsgPayForBlob) (*ty
 
 	// calculate gas per blob share by fetching the constant share size and the gas cost per byte from the KV store
 	gasPerBlobShare := appconsts.ShareSize * k.GasPerBlobByte(ctx)
-	gasToConsume := uint64(shares.BlobSharesUsed(int(msg.BlobSize)) * int(gasPerBlobShare))
+	gasToConsume := uint64(shares.SparseSharesNeeded(uint32(msg.BlobSize)) * int(gasPerBlobShare))
 	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
 
 	err := ctx.EventManager().EmitTypedEvent(

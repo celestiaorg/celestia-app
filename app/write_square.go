@@ -32,7 +32,7 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 		trackedBlobs = append(trackedBlobs, trackedBlob{
 			blob:        pTx.blobTx.Blobs[0],
 			parsedIndex: i,
-			sharesUsed:  shares.BlobSharesUsed(pTx.blobTx.DataUsed()),
+			sharesUsed:  shares.SparseSharesNeeded(uint32(pTx.blobTx.DataUsed())),
 		})
 	}
 
