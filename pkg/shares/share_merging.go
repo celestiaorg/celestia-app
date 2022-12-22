@@ -94,6 +94,7 @@ func ParseBlobs(shares [][]byte) ([]coretypes.Blob, error) {
 // ShareSequence represents a contiguous sequence of shares that are part of the
 // same namespace and blob. For compact shares, one share sequence exists per
 // reserved namespace. For sparse shares, one share sequence exists per blob.
+// TODO consider extracting the ShareSequence struct to a new file.
 type ShareSequence struct {
 	NamespaceID namespace.ID
 	Shares      []Share
@@ -108,11 +109,11 @@ func ParseShares(rawShares [][]byte) ([]ShareSequence, error) {
 		if err != nil {
 			return sequences, err
 		}
-		infoByte, err := share.InfoByte()
+		isStart, err := share.IsSequenceStart()
 		if err != nil {
 			return sequences, err
 		}
-		if infoByte.IsSequenceStart() {
+		if isStart {
 			if len(currentSequence.Shares) > 0 {
 				sequences = append(sequences, currentSequence)
 			}
@@ -141,6 +142,25 @@ func ParseShares(rawShares [][]byte) ([]ShareSequence, error) {
 	return sequences, nil
 }
 
+// RawData returns the raw share data of this share sequence. The raw data does
+// not contain the namespace ID, info byte, sequence length, or reserved bytes.
+func (s ShareSequence) RawData() (data []byte, err error) {
+	for _, share := range s.Shares {
+		raw, err := share.RawData()
+		if err != nil {
+			return []byte{}, err
+		}
+		data = append(data, raw...)
+	}
+
+	sequenceLen, err := s.SequenceLen()
+	if err != nil {
+		return []byte{}, err
+	}
+	// trim any padding that may have been added to the last share
+	return data[:sequenceLen], nil
+}
+
 // validSequenceLen extracts the sequenceLen written to the first share
 // and returns an error if the number of shares needed to store a sequence of
 // length sequenceLen doesn't match the number of shares in this share
@@ -159,6 +179,14 @@ func (s ShareSequence) validSequenceLen() error {
 		return fmt.Errorf("share sequence has %d shares but needed %d shares", len(s.Shares), sharesNeeded)
 	}
 	return nil
+}
+
+func (s ShareSequence) SequenceLen() (uint32, error) {
+	if len(s.Shares) == 0 {
+		return 0, fmt.Errorf("invalid sequence length because share sequence %v has no shares", s)
+	}
+	firstShare := s.Shares[0]
+	return firstShare.SequenceLen()
 }
 
 // numberOfSharesNeeded extracts the sequenceLen written to the share
