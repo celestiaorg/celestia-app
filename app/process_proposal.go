@@ -99,6 +99,18 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 						Result: abci.ResponseProcessProposal_REJECT,
 					}
 				}
+
+				response := app.BaseApp.CheckTx(abci.RequestCheckTx{
+					Tx:   rawTx,
+					Type: abci.CheckTxType_New,
+				})
+
+				if response.GasUsed > response.GasWanted {
+					return abci.ResponseProcessProposal{
+						Result: abci.ResponseProcessProposal_REJECT,
+					}
+				}
+
 				checkedTx = true
 			}
 
@@ -106,13 +118,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			if !ok {
 				app.Logger().Error("Msg type does not match MsgPayForBlob URL")
 				continue
-			}
-
-			if err = pfb.ValidateBasic(); err != nil {
-				logInvalidPropBlockError(app.Logger(), req.Header, "invalid MsgPayForBlob", err)
-				return abci.ResponseProcessProposal{
-					Result: abci.ResponseProcessProposal_REJECT,
-				}
 			}
 
 			signers := msg.GetSigners()
