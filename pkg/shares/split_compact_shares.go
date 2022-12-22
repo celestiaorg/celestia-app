@@ -166,7 +166,7 @@ func (css *CompactShareSplitter) isEmptyReservedBytes() bool {
 // indexOfReservedBytes returns the index of the reserved bytes in the pending share.
 func (css *CompactShareSplitter) indexOfReservedBytes() int {
 	if css.isPendingShareTheFirstShare() {
-		// if the pending share is the first share, the reserved bytes follow the namespace, info byte, and sequence length varint
+		// if the pending share is the first share, the reserved bytes follow the namespace, info byte, and sequence length
 		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.SequenceLenBytes
 	}
 	// if the pending share is not the first share, the reserved bytes follow the namespace and info byte
