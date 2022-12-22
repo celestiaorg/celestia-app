@@ -84,16 +84,22 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			}
 		}
 
-		err = tx.ValidateBasic()
-		if err != nil {
-			return abci.ResponseProcessProposal{
-				Result: abci.ResponseProcessProposal_REJECT,
-			}
-		}
+		var checkedTx bool
 
 		for _, msg := range tx.GetMsgs() {
 			if sdk.MsgTypeURL(msg) != types.URLMsgPayForBlob {
 				continue
+			}
+
+			if !checkedTx {
+				err = tx.ValidateBasic()
+				if err != nil {
+					app.Logger().Error("Tx including MsgPayForBlob is invalid")
+					return abci.ResponseProcessProposal{
+						Result: abci.ResponseProcessProposal_REJECT,
+					}
+				}
+				checkedTx = true
 			}
 
 			pfb, ok := msg.(*types.MsgPayForBlob)
