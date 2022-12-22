@@ -48,7 +48,7 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 	blobs := make([]tmproto.Blob, 0)
 	removeList := []int{}
 	for _, tBlob := range trackedBlobs {
-		cursor, _ = shares.NextAlignedPowerOfTwo(cursor, tBlob.sharesUsed, iSS)
+		cursor, _ = shares.NextMultipleOfBlobMinSquareSize(cursor, tBlob.sharesUsed, iSS)
 		// remove the parsed transaction if it cannot fit into the square
 		if cursor+tBlob.sharesUsed > maxSharesSize {
 			removeList = append(removeList, tBlob.parsedIndex)

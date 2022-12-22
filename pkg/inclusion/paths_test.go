@@ -351,11 +351,15 @@ func Test_calculateCommitPaths(t *testing.T) {
 		// previous testcase.
 		{2, 1, 2, []path{{instructions: []WalkInstruction{}, row: 1}}},
 		{4, 2, 2, []path{{instructions: []WalkInstruction{WalkRight}, row: 0}}},
-		// the next test case's blob gets pushed to index 4 due to
-		// non-interactive defaults.
+		// C = compact share
+		//
+		// |C|C|4|4|
+		// |4|4| | |
+		// | | | | |
+		// | | | | |
 		{4, 2, 4, []path{
+			{instructions: []WalkInstruction{WalkRight}, row: 0},
 			{instructions: []WalkInstruction{WalkLeft}, row: 1},
-			{instructions: []WalkInstruction{WalkRight}, row: 1},
 		}},
 		// the next test case's blob gets pushed to index 4 due to
 		// non-interactive defaults.
@@ -368,19 +372,34 @@ func Test_calculateCommitPaths(t *testing.T) {
 			{instructions: []WalkInstruction{}, row: 2},
 			{instructions: []WalkInstruction{WalkLeft, WalkLeft}, row: 3},
 		}},
+		// C = compact share
+		// B = blob share
+		//
+		// |C|C|C| |B|B|B|B|
+		// |B|B|B|B|B|B|B|B|
+		// |B|B|B|B| | | | |
+		// | | | | | | | | |
+		// | | | | | | | | |
+		// | | | | | | | | |
+		// | | | | | | | | |
+		// | | | | | | | | |
 		{8, 3, 16, []path{
+			{instructions: []WalkInstruction{WalkRight}, row: 0},
 			{instructions: []WalkInstruction{WalkLeft}, row: 1},
 			{instructions: []WalkInstruction{WalkRight}, row: 1},
 			{instructions: []WalkInstruction{WalkLeft}, row: 2},
-			{instructions: []WalkInstruction{WalkRight}, row: 2},
 		}},
-		// middle 32 shares of second row gets pushed to last 32 shares of
-		// second row due to non-interactive defaults.
+		// BlobMinSquareSize(32) = 8 so the blob starts at index 144 which is a
+		// multiple of 8. The blob occupies 32 shares so the middle 32 shares of
+		// the third row.
+		//
+		// |       | blob  | blob  |       |
+		// 128 ... 144 ... 160 ... 176 ... 192
 		{64, 144, 32, []path{
+			{instructions: []WalkInstruction{WalkLeft, WalkRight, WalkLeft}, row: 2},
+			{instructions: []WalkInstruction{WalkLeft, WalkRight, WalkRight}, row: 2},
 			{instructions: []WalkInstruction{WalkRight, WalkLeft, WalkLeft}, row: 2},
 			{instructions: []WalkInstruction{WalkRight, WalkLeft, WalkRight}, row: 2},
-			{instructions: []WalkInstruction{WalkRight, WalkRight, WalkLeft}, row: 2},
-			{instructions: []WalkInstruction{WalkRight, WalkRight, WalkRight}, row: 2},
 		}},
 		// first 33 shares in the last row of a 64 x 64 square.
 		{64, 4032, 33, []path{
