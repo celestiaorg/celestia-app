@@ -14,13 +14,8 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
+// TODO: move this test to a file named parse_sparse_shares_test.go
 func Test_parseSparseShares(t *testing.T) {
-	// exactBlobShareSize is the length of blob that will fit exactly into a
-	// single share, accounting for namespace id and the length delimiter
-	// prepended to each blob. Note that the length delimiter can be 1 to 10
-	// bytes (varint) but this test assumes it is 2 bytes.
-	const exactBlobShareSize = appconsts.SparseShareContentSize - 2
-
 	type test struct {
 		name      string
 		blobSize  int
@@ -30,16 +25,34 @@ func Test_parseSparseShares(t *testing.T) {
 	// each test is ran twice, once using blobSize as an exact size, and again
 	// using it as a cap for randomly sized leaves
 	tests := []test{
-		{"single small blob", appconsts.SparseShareContentSize / 2, 1},
-		{"many small blobs", appconsts.SparseShareContentSize / 2, 10},
-		{"single big blob", appconsts.SparseShareContentSize * 4, 1},
-		{"many big blobs", appconsts.SparseShareContentSize * 4, 10},
-		{"single exact size blob", exactBlobShareSize, 1},
-		{"many exact size blobs", appconsts.SparseShareContentSize, 10},
+		{
+			name:      "single small blob",
+			blobSize:  10,
+			blobCount: 1,
+		},
+		{
+			name:      "ten small blobs",
+			blobSize:  10,
+			blobCount: 10,
+		},
+		{
+			name:      "single big blob",
+			blobSize:  appconsts.ContinuationSparseShareContentSize * 4,
+			blobCount: 1,
+		},
+		{
+			name:      "many big blobs",
+			blobSize:  appconsts.ContinuationSparseShareContentSize * 4,
+			blobCount: 10,
+		},
+		{
+			name:      "single exact size blob",
+			blobSize:  appconsts.FirstSparseShareContentSize,
+			blobCount: 1,
+		},
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		// run the tests with identically sized blobs
 		t.Run(fmt.Sprintf("%s identically sized ", tc.name), func(t *testing.T) {
 			blobs := make([]coretypes.Blob, tc.blobCount)
@@ -59,8 +72,8 @@ func Test_parseSparseShares(t *testing.T) {
 
 			// check that the namespaces and data are the same
 			for i := 0; i < len(blobs); i++ {
-				assert.Equal(t, blobs[i].NamespaceID, parsedBlobs[i].NamespaceID)
-				assert.Equal(t, blobs[i].Data, parsedBlobs[i].Data)
+				assert.Equal(t, blobs[i].NamespaceID, parsedBlobs[i].NamespaceID, "parsed blob namespace does not match")
+				assert.Equal(t, blobs[i].Data, parsedBlobs[i].Data, "parsed blob data does not match")
 			}
 		})
 
@@ -118,8 +131,8 @@ func Test_parseSparseSharesErrors(t *testing.T) {
 
 func TestParsePaddedBlob(t *testing.T) {
 	sss := NewSparseShareSplitter()
-	randomSmallBlob := testfactory.GenerateRandomBlob(appconsts.SparseShareContentSize / 2)
-	randomLargeBlob := testfactory.GenerateRandomBlob(appconsts.SparseShareContentSize * 4)
+	randomSmallBlob := testfactory.GenerateRandomBlob(appconsts.ContinuationSparseShareContentSize / 2)
+	randomLargeBlob := testfactory.GenerateRandomBlob(appconsts.ContinuationSparseShareContentSize * 4)
 	blobs := []coretypes.Blob{
 		randomSmallBlob,
 		randomLargeBlob,
