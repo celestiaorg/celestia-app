@@ -201,7 +201,7 @@ func numberOfSharesNeeded(firstShare Share) (sharesUsed int, err error) {
 	if firstShare.IsCompactShare() {
 		return compactSharesNeeded(sequenceLen), nil
 	}
-	return sparseSharesNeeded(sequenceLen), nil
+	return SparseSharesNeeded(sequenceLen), nil
 }
 
 // compactSharesNeeded returns the number of compact shares needed to store a
@@ -225,9 +225,9 @@ func compactSharesNeeded(sequenceLen uint32) (sharesNeeded int) {
 	return sharesNeeded
 }
 
-// sparseSharesNeeded returns the number of shares needed to store a sequence of
+// SparseSharesNeeded returns the number of shares needed to store a sequence of
 // length sequenceLen.
-func sparseSharesNeeded(sequenceLen uint32) (sharesNeeded int) {
+func SparseSharesNeeded(sequenceLen uint32) (sharesNeeded int) {
 	if sequenceLen == 0 {
 		return 0
 	}

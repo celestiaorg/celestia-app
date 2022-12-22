@@ -11,13 +11,13 @@ import (
 )
 
 func FuzzBlobSharesUsed(f *testing.F) {
-	f.Add(1)
-	f.Fuzz(func(t *testing.T, a int) {
+	f.Add(uint32(1))
+	f.Fuzz(func(t *testing.T, a uint32) {
 		if a < 1 {
 			t.Skip()
 		}
-		ml := BlobSharesUsed(a)
-		blob := testfactory.GenerateRandomBlob(a)
+		ml := SparseSharesNeeded(a)
+		blob := testfactory.GenerateRandomBlob(int(a))
 		rawShares, err := SplitBlobs(0, nil, []types.Blob{blob}, false)
 		require.NoError(t, err)
 		require.Equal(t, len(rawShares), ml)

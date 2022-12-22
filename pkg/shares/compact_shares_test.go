@@ -51,7 +51,7 @@ func Test_processCompactShares(t *testing.T) {
 	// share, accounting for the tx length delimiter prepended to
 	// each tx. Note that the length delimiter can be 1 to 10 bytes (varint) but
 	// this test assumes it is 1 byte.
-	const exactTxShareSize = appconsts.ContinuationCompactShareContentSize - 1
+	const exactTxShareSize = appconsts.FirstCompactShareContentSize - 1
 
 	type test struct {
 		name    string

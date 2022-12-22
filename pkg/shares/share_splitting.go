@@ -41,7 +41,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 	if len(data.Blobs) > 0 {
 		blobShareStart, _ := NextAlignedPowerOfTwo(
 			currentShareCount,
-			BlobSharesUsed(len(data.Blobs[0].Data)),
+			SparseSharesNeeded(uint32(len(data.Blobs[0].Data))),
 			int(data.SquareSize),
 		)
 		// force blobSharesStart to be the first share index

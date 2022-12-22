@@ -171,7 +171,7 @@ func ValidateBlobNamespaceID(ns namespace.ID) error {
 // in. The returned square size does not account for the associated transaction
 // shares or non-interactive defaults, so it is a minimum.
 func BlobMinSquareSize[T constraints.Integer](blobSize T) T {
-	shareCount := appshares.BlobSharesUsed(int(blobSize))
+	shareCount := appshares.SparseSharesNeeded(uint32(blobSize))
 	return T(MinSquareSize(shareCount))
 }
 

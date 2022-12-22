@@ -26,14 +26,14 @@
 // Both types of shares have a universal prefix. The first 8 bytes of a share
 // contain the [namespace.ID]. The next byte is an [InfoByte] that contains the
 // share version and a sequence start indicator. If the sequence start indicator
-// is `1` (i.e. this is the first share of a sequence) then the next 1-10 bytes
-// contain a varint of the uint64 sequence length.
+// is `1` (i.e. this is the first share of a sequence) then the next 4 bytes
+// contain a big endian uint32 of the sequence length.
 //
 // For the first share of a sequence:
 //
 //	| universal prefix                           | data                      |
 //	| namespace_id | info_byte | sequence_length | sequence_data             |
-//	| 8 bytes      | 1 byte    | 1-10 bytes      | remaining bytes of share  |
+//	| 8 bytes      | 1 byte    | 4 bytes         | remaining bytes of share  |
 //
 // For continuation share of a sequence:
 //
@@ -45,26 +45,25 @@
 //
 // # Compact Share Schema
 //
-// The first byte after the universal prefix is a reserved byte that indicates
+// The four bytes after the universal prefix are reserved for
 // the location in the share of the first unit of data that starts in this
 // share.
 //
-// For the first compact share in a reserved namespace:
+// For the first compact share:
 //
-//	| universal prefix                           | reserved byte          | data                                                |
+//	| universal prefix                           | reserved bytes         | data                                                |
 //	| namespace_id | info_byte | sequence_length | location_of_first_unit | transactions or intermediate state roots            |
-//	| 8 bytes      | 1 byte    | 1-10 bytes      | 1 byte                 | remaining bytes of share                            |
+//	| 8 bytes      | 1 byte    | 4 bytes         | 4 bytes                | remaining bytes of share                            |
 //
-// For continuation compact share in a reserved namespace:
+// For continuation compact share:
 //
-//	| universal prefix         | reserved byte          | data                                                |
+//	| universal prefix         | reserved bytes         | data                                                |
 //	| namespace_id | info_byte | location_of_first_unit | transactions or intermediate state roots            |
-//	| 8 bytes      | 1 byte    | 1 byte                 | remaining bytes of share                            |
+//	| 8 bytes      | 1 byte    | 4 bytes                | remaining bytes of share                            |
 //
 // Notes
 //   - All shares in a reserved namespace belong to one sequence.
 //   - Each unit (transaction or intermediate state root) in data is prefixed with a varint of the length of the unit.
-//   - Although the sequence_length varint can technically be 1-10 bytes to store the maximum possible uint64, in-practice it is hard-coded to 4 bytes to contain the maximum possible sequence_length (based on share size and maximum square size).
 //
 // # Sparse Share Schema
 //

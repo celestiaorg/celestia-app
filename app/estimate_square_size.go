@@ -23,7 +23,7 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 		if len(ptx.normalTx) != 0 {
 			continue
 		}
-		blobSharesUsed += shares.BlobSharesUsed(ptx.blobTx.DataUsed())
+		blobSharesUsed += shares.SparseSharesNeeded(uint32(ptx.blobTx.DataUsed()))
 	}
 
 	// assume that we have to add a lot of padding by simply doubling the number

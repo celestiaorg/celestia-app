@@ -170,7 +170,7 @@ func TestTxShareIndex(t *testing.T) {
 }
 
 // stripCompactShares strips the universal prefix (namespace, info byte, sequence length) and
-// reserved byte from a list of compact shares and joins them into a single byte
+// reserved bytes from a list of compact shares and joins them into a single byte
 // slice.
 func stripCompactShares(compactShares []shares.Share, start uint64, end uint64) (result []byte) {
 	for i := start; i <= end; i++ {

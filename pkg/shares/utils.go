@@ -6,37 +6,14 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// DelimLen calculates the length of the delimiter for a given blob size
+// DelimLen calculates the length of the delimiter for a given unit size
 func DelimLen(size uint64) int {
 	lenBuf := make([]byte, binary.MaxVarintLen64)
 	return binary.PutUvarint(lenBuf, size)
-}
-
-// BlobSharesUsed calculates the minimum number of shares a blob will take up.
-// It accounts for the necessary delimiter and potential padding. blobSize must
-// be provided in number of bytes.
-func BlobSharesUsed(blobSize int) int {
-	// add the delimiter to the blob size
-	blobSize = DelimLen(uint64(blobSize)) + blobSize
-	shareCount := blobSize / appconsts.ContinuationSparseShareContentSize
-	// increment the share count if the blob overflows the last counted share
-	if blobSize%appconsts.ContinuationSparseShareContentSize != 0 {
-		shareCount++
-	}
-	return shareCount
-}
-
-func BlobShareCountsFromBlobs(blobs []core.Blob) []int {
-	e := make([]int, len(blobs))
-	for i, blob := range blobs {
-		e[i] = BlobSharesUsed(len(blob.Data))
-	}
-	return e
 }
 
 func isPowerOf2(v uint64) bool {
@@ -90,11 +67,13 @@ func zeroPadIfNecessary(share []byte, width int) (padded []byte, bytesOfPadding 
 	return share, missingBytes
 }
 
-// ParseDelimiter finds and returns the length delimiter of the share provided
-// while also removing the delimiter bytes from the input. ParseDelimiter
-// applies to both compact and sparse shares. Input should not contain the
-// namespace ID or info byte of a share.
-func ParseDelimiter(input []byte) (inputWithoutLengthDelimiter []byte, dataLength uint64, err error) {
+// ParseDelimiter attempts to parse a varint length delimiter from the input
+// provided. It returns the input without the len delimiter bytes, the length
+// parsed from the varint optionally an error. Unit length delimiters are used
+// in compact shares where units (i.e. a transaction) are prefixed with a length
+// delimiter that is encoded as a varint. Input should not contain the namespace
+// ID or info byte of a share.
+func ParseDelimiter(input []byte) (inputWithoutLenDelimiter []byte, unitLen uint64, err error) {
 	if len(input) == 0 {
 		return input, 0, nil
 	}
