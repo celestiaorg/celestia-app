@@ -132,11 +132,16 @@ func RandBlobTxsRandomlySized(enc sdk.TxEncoder, count, maxSize, maxBlobs int) [
 	return txs
 }
 
+// RandBlobTxsWithAccounts will create random blob transactions using the
+// provided configuration. If no grpc connection is provided, then it will not
+// update the account info. One blob transaction is generated per account
+// provided.
 func RandBlobTxsWithAccounts(
 	enc sdk.TxEncoder,
 	kr keyring.Keyring,
 	conn *grpc.ClientConn,
 	size int,
+	blobCount int,
 	randSize bool,
 	chainid string,
 	accounts []string,
@@ -154,9 +159,11 @@ func RandBlobTxsWithAccounts(
 	txs := make([]coretypes.Tx, len(accounts))
 	for i := 0; i < len(accounts); i++ {
 		signer := blobtypes.NewKeyringSigner(kr, accounts[i], chainid)
-		err := signer.QueryAccountNumber(context.Background(), conn)
-		if err != nil {
-			panic(err)
+		if conn != nil {
+			err := signer.QueryAccountNumber(context.Background(), conn)
+			if err != nil {
+				panic(err)
+			}
 		}
 
 		addr, err := signer.GetSignerInfo().GetAddress()
@@ -171,7 +178,14 @@ func RandBlobTxsWithAccounts(
 				randomizedSize = 1
 			}
 		}
-		msg, blobs := RandMsgPayForBlobWithSigner(addr.String(), randomizedSize, 1)
+		randomizedBlobCount := blobCount
+		if randSize {
+			randomizedBlobCount = rand.Intn(blobCount)
+			if randomizedBlobCount == 0 {
+				randomizedBlobCount = 1
+			}
+		}
+		msg, blobs := RandMsgPayForBlobWithSigner(addr.String(), randomizedSize, randomizedBlobCount)
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {

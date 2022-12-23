@@ -20,7 +20,7 @@ import (
 func TestCheckTx(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	accs := []string{"a", "b", "c", "d"}
+	accs := []string{"a", "b", "c", "d", "e", "f"}
 
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accs...)
 
@@ -101,6 +101,15 @@ func TestCheckTx(t *testing.T) {
 				return dtx.Tx
 			},
 			expectedABCICode: blobtypes.ErrNoBlobs.ABCICode(),
+		},
+		{
+			name:      "normal blobTx w/ multiple blobs, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), kr, nil, 10000, 10, true, testutil.ChainID, accs[3:4])[0]
+				return tx
+			},
+			expectedABCICode: abci.CodeTypeOK,
 		},
 	}
 

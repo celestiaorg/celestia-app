@@ -95,6 +95,21 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			s.kr,
 			c.GRPCClient,
 			950000,
+			1,
+			false,
+			s.cfg.ChainID,
+			s.accounts[:20],
+		)
+	}
+
+	// tendermint's default tx size limit is 1Mb, so we get close to that
+	randMultiBlob1MbTxGen := func(c client.Context) []coretypes.Tx {
+		return blobfactory.RandBlobTxsWithAccounts(
+			s.cfg.TxConfig.TxEncoder(),
+			s.kr,
+			c.GRPCClient,
+			200000,
+			3,
 			false,
 			s.cfg.ChainID,
 			s.accounts[:20],
@@ -110,10 +125,11 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			s.cfg.TxConfig.TxEncoder(),
 			s.kr,
 			c.GRPCClient,
-			500000,
+			50000,
+			8,
 			true,
 			s.cfg.ChainID,
-			s.accounts[20:],
+			s.accounts[:80],
 		)
 	}
 
@@ -126,6 +142,10 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		{
 			"20 ~1Mb txs",
 			equallySized1MbTxGen,
+		},
+		{
+			"20 ~1Mb multiblob txs",
+			randMultiBlob1MbTxGen,
 		},
 		{
 			"80 random txs",
@@ -156,8 +176,11 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			for _, hash := range hashes {
 				// TODO: reenable fetching and verifying proofs
 				resp, err := queryTx(val.ClientCtx, hash, false)
-				require.NoError(err)
-				require.NotNil(resp)
+				assert.NoError(err)
+				assert.NotNil(resp)
+				if resp == nil {
+					continue
+				}
 				assert.Equal(abci.CodeTypeOK, resp.TxResult.Code)
 				heights[resp.Height]++
 				// ensure that some gas was used
@@ -212,9 +235,9 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		{
 			"large random typical",
 			[]byte{2, 3, 4, 5, 6, 7, 8, 9},
-			tmrand.Bytes(700000),
-			[]blobtypes.TxBuilderOption{
-				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
+			tmrand.Bytes(350000),
+			[]types.TxBuilderOption{
+				types.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
 			},
 		},
 		{
@@ -234,17 +257,17 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			},
 		},
 	}
-	for _, tc := range tests {
+	for i, tc := range tests {
 		s.Run(tc.name, func() {
 			// occasionally this test will error that the mempool is full (code
 			// 20) so we wait a few blocks for the txs to clear
 			for i := 0; i < 3; i++ {
 				require.NoError(s.network.WaitForNextBlock())
 			}
-			signer := types.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
+			signer := types.NewKeyringSigner(s.kr, s.accounts[i], val.ClientCtx.ChainID)
 			pblob, err := types.NewBlob(tc.ns, tc.blob)
 			require.NoError(err)
-			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, []*tmproto.Blob{pblob}, 1000000000, tc.opts...)
+			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, []*tmproto.Blob{pblob, pblob}, 1000000000, tc.opts...)
 			require.NoError(err)
 			require.NotNil(res)
 			assert.Equal(abci.CodeTypeOK, res.Code)
