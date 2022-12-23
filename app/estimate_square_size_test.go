@@ -87,7 +87,8 @@ func Test_estimateSquareSize_MultiBlob(t *testing.T) {
 			"single hundred blob transaction", func() [][]int {
 				return [][]int{blobfactory.Repeat(int(100), 100)}
 			},
-			16, 4},
+			16, 5,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

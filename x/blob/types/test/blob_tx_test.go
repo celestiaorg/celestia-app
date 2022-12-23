@@ -239,6 +239,5 @@ func TestProcessBlobTx(t *testing.T) {
 				assert.ErrorIs(t, err, tt.expectedErr, tt.name)
 			}
 		})
-
 	}
 }

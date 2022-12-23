@@ -19,7 +19,7 @@ import (
 // blocks produced by PrepareProposal should be accepted by ProcessProposal. It
 // doesn't use the standard go tools for fuzzing as those tools only support
 // fuzzing limited types, instead we create blocks our selves using random
-// transctions.
+// transactions.
 func TestPrepareProposalConsistency(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestPrepareProposalConsistency in short mode.")

@@ -22,18 +22,6 @@ func generateMixedParsedTxs(normalTxCount, pfbCount, pfbSize int) []parsedTx {
 	return parseTxs(encCfg.TxConfig, coretypes.Txs(txs).ToSliceOfBytes())
 }
 
-func generateMultiBlobParsedTxs(normalTxCount, pfbCount, blobSize, blobCount int) []parsedTx {
-	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
-	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), pfbCount, blobSize)
-	normieTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, normalTxCount)
-	txs := append(append(
-		make([]coretypes.Tx, 0, len(pfbTxs)+len(normieTxs)),
-		normieTxs...),
-		pfbTxs...,
-	)
-	return parseTxs(encCfg.TxConfig, coretypes.Txs(txs).ToSliceOfBytes())
-}
-
 // generateParsedTxsWithNIDs will generate len(nids) parsed BlobTxs with
 // len(blobSizes[i]) number of blobs per BlobTx.
 func generateParsedTxsWithNIDs(t *testing.T, nids [][]byte, blobSizes [][]int) []parsedTx {
