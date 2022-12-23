@@ -2,7 +2,6 @@ package app
 
 import (
 	"bytes"
-	"fmt"
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -10,9 +9,13 @@ import (
 )
 
 type trackedBlob struct {
-	blob        *tmproto.Blob
+	blob *tmproto.Blob
+	// parsedIndex keeps track of which parsed transaction a blob relates to
 	parsedIndex int
-	sharesUsed  int
+	// blobIndex keeps track of which blob in a parsed transaction
+	// this blob relates to
+	blobIndex  int
+	sharesUsed int
 }
 
 // finalizeLayout returns the transactions and blobs in their completed layout.
@@ -29,11 +32,13 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 		if len(pTx.normalTx) != 0 {
 			continue
 		}
-		for _, blob := range pTx.blobTx.Blobs {
+		ptxs[i].shareIndexes = make([]uint32, len(pTx.blobTx.Blobs))
+		for j, blob := range pTx.blobTx.Blobs {
 			trackedBlobs = append(trackedBlobs, trackedBlob{
 				blob:        blob,
 				parsedIndex: i,
-				sharesUsed:  pTx.blobTx.SharesUsed(),
+				blobIndex:   j,
+				sharesUsed:  shares.BlobSharesUsed(len(blob.Data)),
 			})
 		}
 	}
@@ -56,7 +61,8 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 			removeList = append(removeList, tBlob.parsedIndex)
 			continue
 		}
-		ptxs[tBlob.parsedIndex].shareIndexes = append(ptxs[tBlob.parsedIndex].shareIndexes, uint32(cursor))
+		// set the share index in the same order as the blob that its for
+		ptxs[tBlob.parsedIndex].shareIndexes[tBlob.blobIndex] = uint32(cursor)
 		blobs = append(blobs, tBlob.blob)
 		cursor += tBlob.sharesUsed
 	}
@@ -68,10 +74,6 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 		if len(ptx.blobTx.Tx) != 0 {
 			blobTxCount++
 		}
-	}
-
-	if blobTxCount != len(blobs) {
-		panic(fmt.Sprintf("invalid number of blob txs: must be equal to number of blobs: txs %d blobs %d", blobTxCount, len(blobs)))
 	}
 
 	derefBlobs := make([]tmproto.Blob, len(blobs))

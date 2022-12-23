@@ -3,8 +3,12 @@ package app
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -37,6 +41,66 @@ func Test_estimateSquareSize(t *testing.T) {
 			ptxs := generateMixedParsedTxs(tt.normalTxs, tt.pfbCount, tt.pfbSize)
 			res, _ := estimateSquareSize(ptxs)
 			assert.Equal(t, tt.expectedSquareSize, res)
+		})
+	}
+}
+
+func Test_estimateSquareSize_MultiBlob(t *testing.T) {
+	enc := encoding.MakeConfig(ModuleEncodingRegisters...)
+	acc := "account"
+	kr := testfactory.GenerateKeyring(acc)
+	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
+	type test struct {
+		name                       string
+		getBlobSizes               func() [][]int
+		expectedSquareSize         uint64
+		expectedStartingShareIndex int
+	}
+	tests := []test{
+		{
+			"single multiblob transaction",
+			func() [][]int { return [][]int{{4}} },
+			2, 1,
+		},
+		{
+			"10 multiblob single share transactions",
+			func() [][]int {
+				return blobfactory.Repeat([]int{100}, 10)
+			},
+			8, 7,
+		},
+		{
+			"10 multiblob 2 share transactions",
+			func() [][]int {
+				return blobfactory.Repeat([]int{1000}, 10)
+			},
+			8, 7,
+		},
+		{
+			"10 multiblob 4 share transactions",
+			func() [][]int {
+				return blobfactory.Repeat([]int{2000}, 10)
+			},
+			16, 7,
+		},
+		{
+			"single hundred blob transaction", func() [][]int {
+				return [][]int{blobfactory.Repeat(int(100), 100)}
+			},
+			16, 4},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			txs := blobfactory.ManyMultiBlobTxSameSigner(
+				t,
+				enc.TxConfig.TxEncoder(),
+				signer,
+				tt.getBlobSizes(),
+			)
+			ptxs := parseTxs(enc.TxConfig, shares.TxsToBytes(txs))
+			resSquareSize, resStart := estimateSquareSize(ptxs)
+			require.Equal(t, tt.expectedSquareSize, resSquareSize)
+			require.Equal(t, tt.expectedStartingShareIndex, resStart)
 		})
 	}
 }

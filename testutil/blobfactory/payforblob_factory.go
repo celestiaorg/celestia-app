@@ -230,7 +230,82 @@ func RandBlobTxsWithNamespaces(enc sdk.TxEncoder, nIds [][]byte, sizes []int) []
 	return RandBlobTxsWithNamespacesAndSigner(enc, signer, nIds, sizes)
 }
 
-func MultiBlobBlobTx(
+// ManyMultiBlobBlobTxSameSigner generates and returns many blob transactions with the
+// possibility to add more than one blob.
+func ManyMultiBlobTxSameSigner(
+	t *testing.T,
+	enc sdk.TxEncoder,
+	signer *blobtypes.KeyringSigner,
+	blobSizes [][]int,
+) []coretypes.Tx {
+	txs := make([]coretypes.Tx, len(blobSizes))
+	for i := 0; i < len(blobSizes); i++ {
+		txs[i] = MultiBlobTx(t, enc, signer, ManyRandBlobs(t, blobSizes[i]...)...)
+	}
+	return txs
+}
+
+func ManyRandBlobsIdenticallySized(t *testing.T, count, size int) []*tmproto.Blob {
+	sizes := make([]int, count)
+	for i := 0; i < count; i++ {
+		sizes[i] = size
+	}
+	return ManyRandBlobs(t, sizes...)
+}
+
+func ManyRandBlobs(t *testing.T, sizes ...int) []*tmproto.Blob {
+	return ManyBlobs(t, namespace.RandomBlobNamespaces(len(sizes)), sizes)
+}
+
+func Repeat[T any](s T, count int) []T {
+	ss := make([]T, count)
+	for i := 0; i < count; i++ {
+		ss[i] = s
+	}
+	return ss
+}
+
+func ManyBlobs(t *testing.T, namespaces [][]byte, sizes []int) []*tmproto.Blob {
+	blobs := make([]*tmproto.Blob, len(namespaces))
+	for i, ns := range namespaces {
+		blob, err := blobtypes.NewBlob(ns, tmrand.Bytes(sizes[i]))
+		require.NoError(t, err)
+		blobs[i] = blob
+	}
+	return blobs
+}
+
+func NestedBlobs(t *testing.T, nids [][]byte, sizes [][]int) [][]*tmproto.Blob {
+	blobs := make([][]*tmproto.Blob, len(sizes))
+	counter := 0
+	for i, set := range sizes {
+		for _, size := range set {
+			blob, err := blobtypes.NewBlob(nids[counter], tmrand.Bytes(size))
+			require.NoError(t, err)
+			blobs[i] = append(blobs[i], blob)
+			counter++
+		}
+	}
+	return blobs
+}
+
+func ManyMultiBlobTx(
+	t *testing.T,
+	enc sdk.TxEncoder,
+	kr keyring.Keyring,
+	chainid string,
+	accounts []string,
+	blobs [][]*tmproto.Blob,
+) [][]byte {
+	txs := make([][]byte, len(accounts))
+	for i, acc := range accounts {
+		signer := blobtypes.NewKeyringSigner(kr, acc, chainid)
+		txs[i] = MultiBlobTx(t, enc, signer, blobs[i]...)
+	}
+	return txs
+}
+
+func MultiBlobTx(
 	t *testing.T,
 	enc sdk.TxEncoder,
 	signer *blobtypes.KeyringSigner,
