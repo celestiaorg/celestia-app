@@ -20,19 +20,24 @@ import (
 
 var defaultSigner = testfactory.RandomAddress().String()
 
-func RandMsgPayForBlobWithSigner(singer string, size int) (*blobtypes.MsgPayForBlob, *tmproto.Blob) {
-	blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(size))
-	if err != nil {
-		panic(err)
+func RandMsgPayForBlobWithSigner(singer string, size, blobCount int) (*blobtypes.MsgPayForBlob, []*tmproto.Blob) {
+	blobs := make([]*tmproto.Blob, blobCount)
+	for i := 0; i < blobCount; i++ {
+		blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(size))
+		if err != nil {
+			panic(err)
+		}
+		blobs[i] = blob
 	}
+
 	msg, err := blobtypes.NewMsgPayForBlob(
 		singer,
-		blob,
+		blobs...,
 	)
 	if err != nil {
 		panic(err)
 	}
-	return msg, blob
+	return msg, blobs
 }
 
 func RandBlobsWithNamespace(namespaces [][]byte, sizes []int) []*tmproto.Blob {
@@ -77,7 +82,7 @@ func RandMsgPayForBlob(size int) (*blobtypes.MsgPayForBlob, *tmproto.Blob) {
 	return msg, blob
 }
 
-func RandBlobTxsRandomlySized(enc sdk.TxEncoder, count, maxSize int) []coretypes.Tx {
+func RandBlobTxsRandomlySized(enc sdk.TxEncoder, count, maxSize, maxBlobs int) []coretypes.Tx {
 	const acc = "signer"
 	kr := testfactory.GenerateKeyring(acc)
 	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
@@ -93,7 +98,7 @@ func RandBlobTxsRandomlySized(enc sdk.TxEncoder, count, maxSize int) []coretypes
 
 	opts := []blobtypes.TxBuilderOption{
 		blobtypes.SetFeeAmount(sdk.NewCoins(coin)),
-		blobtypes.SetGasLimit(10000000),
+		blobtypes.SetGasLimit(100000000),
 	}
 
 	txs := make([]coretypes.Tx, count)
@@ -103,7 +108,11 @@ func RandBlobTxsRandomlySized(enc sdk.TxEncoder, count, maxSize int) []coretypes
 		if size == 0 {
 			size = 1
 		}
-		msg, blob := RandMsgPayForBlobWithSigner(addr.String(), size)
+		blobCount := tmrand.Intn(maxBlobs)
+		if blobCount == 0 {
+			blobCount = 1
+		}
+		msg, blobs := RandMsgPayForBlobWithSigner(addr.String(), size, blobCount)
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
@@ -113,7 +122,7 @@ func RandBlobTxsRandomlySized(enc sdk.TxEncoder, count, maxSize int) []coretypes
 		if err != nil {
 			panic(err)
 		}
-		cTx, err := coretypes.MarshalBlobTx(rawTx, blob)
+		cTx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
 		if err != nil {
 			panic(err)
 		}
@@ -162,7 +171,7 @@ func RandBlobTxsWithAccounts(
 				randomizedSize = 1
 			}
 		}
-		msg, blob := RandMsgPayForBlobWithSigner(addr.String(), randomizedSize)
+		msg, blobs := RandMsgPayForBlobWithSigner(addr.String(), randomizedSize, 1)
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
@@ -172,7 +181,7 @@ func RandBlobTxsWithAccounts(
 		if err != nil {
 			panic(err)
 		}
-		cTx, err := coretypes.MarshalBlobTx(rawTx, blob)
+		cTx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
 		if err != nil {
 			panic(err)
 		}
@@ -203,7 +212,7 @@ func RandBlobTxs(enc sdk.TxEncoder, count, size int) []coretypes.Tx {
 
 	txs := make([]coretypes.Tx, count)
 	for i := 0; i < count; i++ {
-		msg, blob := RandMsgPayForBlobWithSigner(addr.String(), size)
+		msg, blobs := RandMsgPayForBlobWithSigner(addr.String(), size, 1)
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
@@ -213,7 +222,7 @@ func RandBlobTxs(enc sdk.TxEncoder, count, size int) []coretypes.Tx {
 		if err != nil {
 			panic(err)
 		}
-		cTx, err := coretypes.MarshalBlobTx(rawTx, blob)
+		cTx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
 		if err != nil {
 			panic(err)
 		}
@@ -386,7 +395,7 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, kr keyring.Keyring, enc sdk.TxEnco
 	signerAddr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
 
-	pfb, blob := RandMsgPayForBlobWithSigner(signerAddr.String(), 100)
+	pfb, blobs := RandMsgPayForBlobWithSigner(signerAddr.String(), 100, 1)
 
 	opts := []blobtypes.TxBuilderOption{
 		blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(bondDenom, sdk.NewInt(10)))),
@@ -400,7 +409,7 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, kr keyring.Keyring, enc sdk.TxEnco
 	rawTx, err := enc(sdkTx)
 	require.NoError(t, err)
 
-	btx, err := coretypes.MarshalBlobTx(rawTx, blob)
+	btx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
 	require.NoError(t, err)
 	return btx
 }

@@ -52,22 +52,24 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 	cursor := nonreserveStart
 	iSS := int(squareSize)
 	maxSharesSize := iSS * iSS
-	blobs := make([]*tmproto.Blob, 0)
-	removeList := []int{}
+	removeIndexes := make(map[int]bool)
 	for _, tBlob := range trackedBlobs {
-		cursor, _ = shares.NextMultipleOfBlobMinSquareSize(cursor, tBlob.sharesUsed, iSS)
+		// skip this blob, as it will already be removed
+		if removeIndexes[tBlob.parsedIndex] {
+			continue
+		}
+		cursor, _ = shares.NextAlignedPowerOfTwo(cursor, tBlob.sharesUsed, iSS)
 		// remove the parsed transaction if it cannot fit into the square
 		if cursor+tBlob.sharesUsed > maxSharesSize {
-			removeList = append(removeList, tBlob.parsedIndex)
+			removeIndexes[tBlob.parsedIndex] = true
 			continue
 		}
 		// set the share index in the same order as the blob that its for
 		ptxs[tBlob.parsedIndex].shareIndexes[tBlob.blobIndex] = uint32(cursor)
-		blobs = append(blobs, tBlob.blob)
 		cursor += tBlob.sharesUsed
 	}
 
-	ptxs = removeMany(ptxs, removeList...)
+	ptxs = removeMany(ptxs, removeIndexes)
 
 	blobTxCount := 0
 	for _, ptx := range ptxs {
@@ -76,28 +78,32 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 		}
 	}
 
-	derefBlobs := make([]tmproto.Blob, len(blobs))
-	for i := range blobs {
-		derefBlobs[i] = *blobs[i]
+	derefBlobs := make([]tmproto.Blob, 0)
+	for _, ptx := range ptxs {
+		if len(ptx.normalTx) != 0 {
+			continue
+		}
+		for _, blob := range ptx.blobTx.Blobs {
+			derefBlobs = append(derefBlobs, *blob)
+		}
 	}
+
+	// todo: don't sort twice
+	sort.SliceStable(derefBlobs, func(i, j int) bool {
+		return bytes.Compare(derefBlobs[i].NamespaceId, derefBlobs[j].NamespaceId) < 0
+	})
 
 	return ptxs, derefBlobs
 }
 
-func removeMany[T any](s []T, indexes ...int) []T {
-	// Create a map to track which indexes to remove
-	remove := make(map[int]bool)
-	for _, i := range indexes {
-		remove[i] = true
-	}
-
+func removeMany[T any](s []T, removeIndexes map[int]bool) []T {
 	// Create a new slice to store the remaining elements
-	result := make([]T, 0, len(s)-len(indexes))
+	result := make([]T, 0, len(s)-len(removeIndexes))
 
 	// Iterate over the original slice and append elements
 	// to the result slice unless they are marked for removal
 	for i, x := range s {
-		if !remove[i] {
+		if !removeIndexes[i] {
 			result = append(result, x)
 		}
 	}
