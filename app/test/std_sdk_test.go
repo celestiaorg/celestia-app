@@ -11,7 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-app/testutil/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
@@ -132,7 +131,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 					pv.PrivKey.PubKey(),
 					sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)),
 					stakingtypes.NewDescription("taco tuesday", "my keybase", "www.celestia.org", "ping @celestiaorg on twitter", "fake validator"),
-					stakingtypes.NewCommissionRates(sdk.NewDecWithPrec(6, 02), sdk.NewDecWithPrec(12, 02), sdk.NewDecWithPrec(1, 02)),
+					stakingtypes.NewCommissionRates(sdk.NewDecWithPrec(6, 0o2), sdk.NewDecWithPrec(12, 0o2), sdk.NewDecWithPrec(1, 0o2)),
 					sdk.NewInt(1000000),
 					valopAccAddr,
 					evmAddr,
@@ -195,7 +194,6 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 		require.NoError(t, err)
 		assert.Equal(t, abci.CodeTypeOK, res.TxResult.Code, tt.name)
 	}
-
 }
 
 func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
@@ -208,16 +206,4 @@ func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
 		panic(err)
 	}
 	return addr
-}
-
-func getPubKey(account string, kr keyring.Keyring) cryptotypes.PubKey {
-	rec, err := kr.Key(account)
-	if err != nil {
-		panic(err)
-	}
-	pub, err := rec.GetPubKey()
-	if err != nil {
-		panic(err)
-	}
-	return pub
 }
