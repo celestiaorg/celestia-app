@@ -202,6 +202,12 @@ func (k *KeyringSigner) SetKeyringAccName(name string) {
 	k.keyringAccName = name
 }
 
+// SetEncodingConfig manually overides the encoding config of the underlying
+// signer
+func (k *KeyringSigner) SetEncodingConfig(encCfg encoding.Config) {
+	k.encCfg = encCfg
+}
+
 // GetSignerInfo returns the signer info for the KeyringSigner's account. panics
 // if the account in KeyringSigner does not exist.
 func (k *KeyringSigner) GetSignerInfo() *keyring.Record {
