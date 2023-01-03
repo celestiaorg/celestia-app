@@ -15,11 +15,11 @@ type path struct {
 // calculateCommitPaths calculates all of the paths to subtree roots needed to
 // create the commitment for a given blob.
 func calculateCommitPaths(squareSize, start, blobShareLen int) []path {
-	// todo: make the non-interactive defaults optional. by calculating the
-	// NextAlignedPowerOfTwo, we are forcing use of the non-interactive
-	// defaults. If we want to make this optional in the future, we have to move
-	// this next line out of this function.
-	start, _ = shares.NextAlignedPowerOfTwo(start, blobShareLen, squareSize)
+	// TODO: make the non-interactive defaults optional. by calculating the
+	// NextMultipleOfBlobMinSquareSize, we are forcing use of the
+	// non-interactive defaults. If we want to make this optional in the future,
+	// we have to move this next line out of this function.
+	start, _ = shares.NextMultipleOfBlobMinSquareSize(start, blobShareLen, squareSize)
 	startRow, endRow := start/squareSize, (start+blobShareLen-1)/squareSize
 	normalizedStartIndex := start % squareSize
 	normalizedEndIndex := (start + blobShareLen) - endRow*squareSize
