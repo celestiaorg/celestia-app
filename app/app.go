@@ -187,7 +187,6 @@ type App struct {
 	appCodec          codec.Codec
 	interfaceRegistry types.InterfaceRegistry
 	txConfig          client.TxConfig
-	msgSvcRouter      *baseapp.MsgServiceRouter
 
 	invCheckPeriod uint
 
@@ -268,7 +267,6 @@ func New(
 		keys:              keys,
 		tkeys:             tkeys,
 		memKeys:           memKeys,
-		msgSvcRouter:      bApp.MsgServiceRouter(),
 	}
 
 	app.ParamsKeeper = initParamsKeeper(appCodec, cdc, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
@@ -363,7 +361,7 @@ func New(
 
 	app.GovKeeper = govkeeper.NewKeeper(
 		appCodec, keys[govtypes.StoreKey], app.GetSubspace(govtypes.ModuleName), app.AccountKeeper, app.BankKeeper,
-		&stakingKeeper, govRouter, app.msgSvcRouter, govConfig,
+		&stakingKeeper, govRouter, bApp.MsgServiceRouter(), govConfig,
 	)
 
 	app.BlobKeeper = *blobmodulekeeper.NewKeeper(
