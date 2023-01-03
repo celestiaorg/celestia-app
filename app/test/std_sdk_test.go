@@ -26,6 +26,9 @@ import (
 )
 
 func TestStandardSDKIntegrationTestSuite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in unit-tests or race-detector mode.")
+	}
 	suite.Run(t, new(StandardSDKIntegrationTestSuite))
 }
 
@@ -43,12 +46,7 @@ type StandardSDKIntegrationTestSuite struct {
 
 func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 	t := s.T()
-	if testing.Short() {
-		t.Skip("skipping test in unit-tests or race-detector mode.")
-	}
-
 	t.Log("setting up integration test suite")
-
 	cleanup, accounts, cctx := testnode.DefaultNetwork(t, time.Millisecond*400)
 	s.cleanup = cleanup
 	s.accounts = accounts
@@ -91,8 +89,6 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			},
 		},
 		{
-			// demonstrate that a send transactions use different amounts of gas
-			// depending on the number of funds
 			name: "send 1,000,000 TIA",
 			msgFunc: func() (msg sdk.Msg, signer string) {
 				account1, account2 := s.unusedAccount(), s.unusedAccount()
