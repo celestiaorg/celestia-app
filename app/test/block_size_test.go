@@ -83,110 +83,110 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 	s.network.Cleanup()
 }
 
-// func (s *IntegrationTestSuite) TestMaxBlockSize() {
-// 	require := s.Require()
-// 	assert := s.Assert()
-// 	val := s.network.Validators[0]
+func (s *IntegrationTestSuite) TestMaxBlockSize() {
+	require := s.Require()
+	assert := s.Assert()
+	val := s.network.Validators[0]
 
-// 	// tendermint's default tx size limit is 1Mb, so we get close to that
-// 	equallySized1MbTxGen := func(c client.Context) []coretypes.Tx {
-// 		return blobfactory.RandBlobTxsWithAccounts(
-// 			s.cfg.TxConfig.TxEncoder(),
-// 			s.kr,
-// 			c.GRPCClient,
-// 			950000,
-// 			false,
-// 			s.cfg.ChainID,
-// 			s.accounts[:20],
-// 		)
-// 	}
+	// tendermint's default tx size limit is 1Mb, so we get close to that
+	equallySized1MbTxGen := func(c client.Context) []coretypes.Tx {
+		return blobfactory.RandBlobTxsWithAccounts(
+			s.cfg.TxConfig.TxEncoder(),
+			s.kr,
+			c.GRPCClient,
+			950000,
+			false,
+			s.cfg.ChainID,
+			s.accounts[:20],
+		)
+	}
 
-// 	// generate 80 randomly sized txs (max size == 100kb) by generating these
-// 	// transaction using some of the same accounts as the previous genertor, we
-// 	// are also testing to ensure that the sequence number is being utilized
-// 	// corrected in malleated txs
-// 	randoTxGen := func(c client.Context) []coretypes.Tx {
-// 		return blobfactory.RandBlobTxsWithAccounts(
-// 			s.cfg.TxConfig.TxEncoder(),
-// 			s.kr,
-// 			c.GRPCClient,
-// 			500000,
-// 			true,
-// 			s.cfg.ChainID,
-// 			s.accounts[20:],
-// 		)
-// 	}
+	// generate 80 randomly sized txs (max size == 100kb) by generating these
+	// transaction using some of the same accounts as the previous genertor, we
+	// are also testing to ensure that the sequence number is being utilized
+	// corrected in malleated txs
+	randoTxGen := func(c client.Context) []coretypes.Tx {
+		return blobfactory.RandBlobTxsWithAccounts(
+			s.cfg.TxConfig.TxEncoder(),
+			s.kr,
+			c.GRPCClient,
+			500000,
+			true,
+			s.cfg.ChainID,
+			s.accounts[20:],
+		)
+	}
 
-// 	type test struct {
-// 		name        string
-// 		txGenerator func(clientCtx client.Context) []coretypes.Tx
-// 	}
+	type test struct {
+		name        string
+		txGenerator func(clientCtx client.Context) []coretypes.Tx
+	}
 
-// 	tests := []test{
-// 		{
-// 			"20 ~1Mb txs",
-// 			equallySized1MbTxGen,
-// 		},
-// 		{
-// 			"80 random txs",
-// 			randoTxGen,
-// 		},
-// 	}
-// 	for _, tc := range tests {
-// 		s.Run(tc.name, func() {
-// 			txs := tc.txGenerator(val.ClientCtx)
-// 			hashes := make([]string, len(txs))
+	tests := []test{
+		{
+			"20 ~1Mb txs",
+			equallySized1MbTxGen,
+		},
+		{
+			"80 random txs",
+			randoTxGen,
+		},
+	}
+	for _, tc := range tests {
+		s.Run(tc.name, func() {
+			txs := tc.txGenerator(val.ClientCtx)
+			hashes := make([]string, len(txs))
 
-// 			for i, tx := range txs {
-// 				res, err := val.ClientCtx.BroadcastTxSync(tx)
-// 				require.NoError(err)
-// 				assert.Equal(abci.CodeTypeOK, res.Code)
-// 				if res.Code != abci.CodeTypeOK {
-// 					continue
-// 				}
-// 				hashes[i] = res.TxHash
-// 			}
+			for i, tx := range txs {
+				res, err := val.ClientCtx.BroadcastTxSync(tx)
+				require.NoError(err)
+				assert.Equal(abci.CodeTypeOK, res.Code)
+				if res.Code != abci.CodeTypeOK {
+					continue
+				}
+				hashes[i] = res.TxHash
+			}
 
-// 			// wait a few blocks to clear the txs
-// 			for i := 0; i < 8; i++ {
-// 				require.NoError(s.network.WaitForNextBlock())
-// 			}
+			// wait a few blocks to clear the txs
+			for i := 0; i < 8; i++ {
+				require.NoError(s.network.WaitForNextBlock())
+			}
 
-// 			heights := make(map[int64]int)
-// 			for _, hash := range hashes {
-// 				// TODO: reenable fetching and verifying proofs
-// 				resp, err := queryTx(val.ClientCtx, hash, false)
-// 				require.NoError(err)
-// 				require.NotNil(resp)
-// 				assert.Equal(abci.CodeTypeOK, resp.TxResult.Code)
-// 				heights[resp.Height]++
-// 				// ensure that some gas was used
-// 				assert.GreaterOrEqual(resp.TxResult.GasUsed, int64(10))
-// 				// require.True(resp.Proof.VerifyProof())
-// 			}
+			heights := make(map[int64]int)
+			for _, hash := range hashes {
+				// TODO: reenable fetching and verifying proofs
+				resp, err := queryTx(val.ClientCtx, hash, false)
+				require.NoError(err)
+				require.NotNil(resp)
+				assert.Equal(abci.CodeTypeOK, resp.TxResult.Code)
+				heights[resp.Height]++
+				// ensure that some gas was used
+				assert.GreaterOrEqual(resp.TxResult.GasUsed, int64(10))
+				// require.True(resp.Proof.VerifyProof())
+			}
 
-// 			require.Greater(len(heights), 0)
+			require.Greater(len(heights), 0)
 
-// 			sizes := []uint64{}
-// 			// check the square size
-// 			for height := range heights {
-// 				node, err := val.ClientCtx.GetNode()
-// 				require.NoError(err)
-// 				blockRes, err := node.Block(context.Background(), &height)
-// 				require.NoError(err)
-// 				size := blockRes.Block.Data.SquareSize
+			sizes := []uint64{}
+			// check the square size
+			for height := range heights {
+				node, err := val.ClientCtx.GetNode()
+				require.NoError(err)
+				blockRes, err := node.Block(context.Background(), &height)
+				require.NoError(err)
+				size := blockRes.Block.Data.SquareSize
 
-// 				// perform basic checks on the size of the square
-// 				assert.LessOrEqual(size, uint64(appconsts.DefaultMaxSquareSize))
-// 				assert.GreaterOrEqual(size, uint64(appconsts.DefaultMinSquareSize))
-// 				sizes = append(sizes, size)
-// 			}
-// 			// ensure that at least one of the blocks used the max square size
-// 			assert.Contains(sizes, uint64(appconsts.DefaultMaxSquareSize))
-// 		})
-// 		require.NoError(s.network.WaitForNextBlock())
-// 	}
-// }
+				// perform basic checks on the size of the square
+				assert.LessOrEqual(size, uint64(appconsts.DefaultMaxSquareSize))
+				assert.GreaterOrEqual(size, uint64(appconsts.DefaultMinSquareSize))
+				sizes = append(sizes, size)
+			}
+			// ensure that at least one of the blocks used the max square size
+			assert.Contains(sizes, uint64(appconsts.DefaultMaxSquareSize))
+		})
+		require.NoError(s.network.WaitForNextBlock())
+	}
+}
 
 func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	require := s.Require()
