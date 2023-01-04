@@ -10,7 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -72,12 +71,13 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	// commitments are subtree roots of the data root.
 	commitmentCounter := 0
 	for _, rawTx := range req.BlockData.Txs {
-		malleatedTx, isMalleated := coretypes.UnmarshalIndexWrapper(rawTx)
-		if !isMalleated {
-			continue
+		tx := rawTx
+		wrappedTx, isWrapped := coretypes.UnmarshalIndexWrapper(rawTx)
+		if isWrapped {
+			tx = wrappedTx.Tx
 		}
 
-		tx, err := app.txConfig.TxDecoder()(malleatedTx.Tx)
+		sdkTx, err := app.txConfig.TxDecoder()(tx)
 		if err != nil {
 			// we don't reject the block here because it is not a block validity
 			// rule that all transactions included in the block data are
@@ -85,15 +85,19 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			continue
 		}
 
-		for _, msg := range tx.GetMsgs() {
-			if sdk.MsgTypeURL(msg) != types.URLMsgPayForBlob {
+		for _, msg := range sdkTx.GetMsgs() {
+			pfb, ok := msg.(*types.MsgPayForBlob)
+			if !ok {
 				continue
 			}
 
-			pfb, ok := msg.(*types.MsgPayForBlob)
-			if !ok {
-				app.Logger().Error("Msg type does not match MsgPayForBlob URL")
-				continue
+			// all PFBs must have a share index, so that we can find their
+			// respective blob.
+			if !isWrapped {
+				logInvalidPropBlock(app.Logger(), req.Header, "Found a MsgPayForBlob without a share index")
+				return abci.ResponseProcessProposal{
+					Result: abci.ResponseProcessProposal_REJECT,
+				}
 			}
 
 			if err = pfb.ValidateBasic(); err != nil {
@@ -103,7 +107,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 				}
 			}
 
-			commitment, err := inclusion.GetCommit(cacher, dah, int(malleatedTx.ShareIndex), shares.SparseSharesNeeded(uint32(pfb.BlobSize)))
+			commitment, err := inclusion.GetCommit(cacher, dah, int(wrappedTx.ShareIndex), shares.SparseSharesNeeded(uint32(pfb.BlobSize)))
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), req.Header, "commitment not found", err)
 				return abci.ResponseProcessProposal{
