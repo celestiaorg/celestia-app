@@ -18,8 +18,9 @@ import (
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-app/testutil/network"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	paycli "github.com/celestiaorg/celestia-app/x/blob/client/cli"
-	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 // username is used to create a funded genesis account under this name
@@ -123,12 +124,9 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 			s.Require().NoError(s.network.WaitForNextBlock())
 
 			// attempt to query for the malleated transaction using the original tx's hash
-			qTxCmd := authcmd.QueryTxCmd()
-			out, err = clitestutil.ExecTestCLICmd(clientCtx, qTxCmd, []string{txResp.TxHash, "--output=json"})
+			res, err := testfactory.QueryWithoutProof(clientCtx, txResp.TxHash)
 			require.NoError(err)
-
-			var result sdk.TxResponse
-			s.Require().NoError(val.ClientCtx.Codec.UnmarshalJSON(out.Bytes(), &result))
+			require.Equal(abci.CodeTypeOK, res.TxResult.Code)
 		})
 	}
 }
