@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 
@@ -28,12 +27,6 @@ func CmdWirePayForBlob() *cobra.Command {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
-			}
-
-			// get the account name
-			accName := clientCtx.GetFromName()
-			if accName == "" {
-				return errors.New("no account name provided, please use the --from flag")
 			}
 
 			// decode the namespace
@@ -66,6 +59,9 @@ func CmdWirePayForBlob() *cobra.Command {
 			}
 
 			txBytes, err := writeTx(clientCtx, sdktx.NewFactoryCLI(clientCtx, cmd.Flags()), pfbMsg)
+			if err != nil {
+				return err
+			}
 
 			blobTx, err := coretypes.MarshalBlobTx(txBytes, blob)
 			if err != nil {
