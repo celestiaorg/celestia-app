@@ -31,9 +31,9 @@ message MsgPayForBlob {
   // share_commitment is the share_commitment from
   // ShareCommitAndSignature that will be included in a block
   bytes share_commitment = 4;
-  // share_versions are the version of the share format that the blob associated
-  // with this message should use when included in a block. The share_version
-  // specified must match the share_version used to generate the
+  // share_versions are the versions of the share format that the blobs associated
+  // with this message should use when included in a block. The share_versions
+  // specified must match the share_versions used to generate the
   // share_commitment in this message.
   repeated uint32 share_versions = 8;
 }

@@ -84,7 +84,7 @@ func Test_estimateSquareSize_MultiBlob(t *testing.T) {
 			16, 7,
 		},
 		{
-			"single hundred blob transaction", func() [][]int {
+			"100 multiblob single share transaction", func() [][]int {
 				return [][]int{blobfactory.Repeat(int(100), 100)}
 			},
 			16, 5,

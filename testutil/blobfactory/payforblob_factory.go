@@ -253,7 +253,7 @@ func RandBlobTxsWithNamespaces(enc sdk.TxEncoder, nIds [][]byte, sizes []int) []
 	return RandBlobTxsWithNamespacesAndSigner(enc, signer, nIds, sizes)
 }
 
-// ManyMultiBlobBlobTxSameSigner generates and returns many blob transactions with the
+// ManyMultiBlobTxSameSigner generates and returns many blob transactions with the
 // possibility to add more than one blob.
 func ManyMultiBlobTxSameSigner(
 	t *testing.T,

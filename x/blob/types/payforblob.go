@@ -206,7 +206,7 @@ func ValidatePFBComponents(nsIDs [][]byte, blobs [][]byte, shareVersions []uint3
 	}
 
 	for _, v := range shareVersions {
-		if uint8(v) != appconsts.ShareVersionZero {
+		if v != uint32(appconsts.ShareVersionZero) {
 			return ErrUnsupportedShareVersion
 		}
 	}
