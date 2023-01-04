@@ -8,7 +8,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	cosmosnet "github.com/cosmos/cosmos-sdk/testutil/network"
@@ -18,8 +18,10 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	"github.com/celestiaorg/celestia-app/testutil/network"
-	blob "github.com/celestiaorg/celestia-app/x/blob"
+	"github.com/celestiaorg/celestia-app/x/blob"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -245,6 +247,28 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 			assert.Equal(abci.CodeTypeOK, res.Code)
 		})
 	}
+}
+
+func (s *IntegrationTestSuite) TestUnmalleatedPFBRejection() {
+	t := s.T()
+	val := s.network.Validators[0]
+
+	blobTx := blobfactory.RandBlobTxsWithAccounts(
+		s.cfg.TxConfig.TxEncoder(),
+		s.kr,
+		val.ClientCtx.GRPCClient,
+		100000,
+		false,
+		s.cfg.ChainID,
+		s.accounts[:1],
+	)
+
+	btx, isBlob := coretypes.UnmarshalBlobTx(blobTx[0])
+	require.True(t, isBlob)
+
+	res, err := val.ClientCtx.BroadcastTxSync(btx.Tx)
+	require.NoError(t, err)
+	require.Equal(t, blobtypes.ErrBloblessPFB.ABCICode(), res.Code)
 }
 
 func queryTx(clientCtx client.Context, hashHexStr string, prove bool) (*rpctypes.ResultTx, error) {
