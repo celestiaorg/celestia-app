@@ -86,7 +86,7 @@ func TestCheckTx(t *testing.T) {
 			expectedABCICode: blobtypes.ErrNamespaceMismatch.ABCICode(),
 		},
 		{
-			name:      "normal transaction, CheckTxType_New",
+			name:      "PFB with no blob, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
