@@ -1,8 +1,6 @@
 package appconsts
 
 import (
-	"bytes"
-
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
@@ -104,12 +102,6 @@ var (
 
 	// DataCommitmentBlocksLimit is the limit to the number of blocks we can generate a data commitment for.
 	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
-
-	// NameSpacedPaddedShareBytes are the raw bytes that are used in the contents
-	// of a NameSpacedPaddedShare. A NameSpacedPaddedShare follows a blob so
-	// that the next blob starts at an index that conforms to non-interactive
-	// defaults.
-	NameSpacedPaddedShareBytes = bytes.Repeat([]byte{0}, FirstSparseShareContentSize)
 
 	// SupportedShareVersions is a list of supported share versions.
 	SupportedShareVersions = []uint8{ShareVersionZero}
