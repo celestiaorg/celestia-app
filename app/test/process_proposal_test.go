@@ -30,6 +30,12 @@ func TestBlobInclusionCheck(t *testing.T) {
 		}
 	}
 
+	// create block data with a PFB that is not indexed and has no blob
+	unindexedData := validData()
+	blobtx := blobfactory.RandBlobTxs(encConf.TxConfig.TxEncoder(), 1, 1000)[0]
+	btx, _ := coretypes.UnmarshalBlobTx(blobtx)
+	unindexedData.Txs = append(unindexedData.Txs, btx.Tx)
+
 	type test struct {
 		name           string
 		input          *core.Data
@@ -96,6 +102,12 @@ func TestBlobInclusionCheck(t *testing.T) {
 				d.Blobs[1] = blob1
 				d.Blobs[2] = blob2
 			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:           "un-indexed PFB",
+			input:          unindexedData,
+			mutator:        func(d *core.Data) {},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 	}
