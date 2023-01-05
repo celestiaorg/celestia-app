@@ -49,25 +49,21 @@ const (
 	// in a continuation sparse share of a sequence.
 	ContinuationSparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes
 
-	// DefaultMaxSquareSize is the maximum original square width. A square size
-	// larger than this will cause the block producer to panic.
+	// DefaultMaxSquareSize is the maximum original square width.
 	//
 	// Note: 128 shares in a row * 128 shares in a column * 512 bytes in a share
 	// = 8 MiB
 	DefaultMaxSquareSize = 128
 
 	// MaxShareCount is the maximum number of shares allowed in the original
-	// data square. If there are more shares than this, the block producer will
-	// panic.
+	// data square.
 	MaxShareCount = DefaultMaxSquareSize * DefaultMaxSquareSize
 
-	// DefaultMinSquareSize is the smallest original square width. A square size
-	// smaller than this will cause the block producer to panic.
+	// DefaultMinSquareSize is the smallest original square width.
 	DefaultMinSquareSize = 1
 
 	// MinshareCount is the minimum number of shares allowed in the original
-	// data square. If there are fewer shares than this, the block producer will
-	// panic.
+	// data square.
 	MinShareCount = DefaultMinSquareSize * DefaultMinSquareSize
 
 	// MaxShareVersion is the maximum value a share version can be.
