@@ -27,4 +27,5 @@ var (
 	ErrNamespaceMismatch              = sdkerrors.Register(ModuleName, 11127, "namespace of blob and its respective MsgPayForBlob differ")
 	ErrProtoParsing                   = sdkerrors.Register(ModuleName, 11128, "failure to parse a transaction from its protobuf representation")
 	ErrMultipleMsgsInBlobTx           = sdkerrors.Register(ModuleName, 11129, "not yet supported: multiple sdk.Msgs found in BlobTx")
+	ErrBloblessPFB                    = sdkerrors.Register(ModuleName, 11130, "transaction that contains a MsgPayForBlob must also contain a blob")
 )

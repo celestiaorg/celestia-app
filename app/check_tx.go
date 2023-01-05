@@ -3,7 +3,7 @@ package app
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	abci "github.com/tendermint/tendermint/abci/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -17,15 +17,26 @@ func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	// check if the transaction contains blobs
 	btx, isBlob := coretypes.UnmarshalBlobTx(tx)
 
-	// don't do anything special if we have a normal transactions
 	if !isBlob {
+		sdkTx, err := app.txConfig.TxDecoder()(tx)
+		if err != nil {
+			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
+		}
+		// reject transactions that have PFBs, but no blobs attached
+		for _, msg := range sdkTx.GetMsgs() {
+			if _, ok := msg.(*blobtypes.MsgPayForBlob); !ok {
+				continue
+			}
+			return sdkerrors.ResponseCheckTxWithEvents(blobtypes.ErrBloblessPFB, 0, 0, []abci.Event{}, false)
+		}
+		// don't do anything special if we have a normal transaction
 		return app.BaseApp.CheckTx(req)
 	}
 
 	switch req.Type {
 	// new transactions must be checked in their entirety
 	case abci.CheckTxType_New:
-		pBTx, err := types.ProcessBlobTx(app.txConfig, btx)
+		pBTx, err := blobtypes.ProcessBlobTx(app.txConfig, btx)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
 		}
