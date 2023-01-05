@@ -1,0 +1,18 @@
+name: Housekeeping
+
+on:
+  pull_request:
+
+jobs:
+  pr-assignment:
+    name: PR Auto Assignment
+    uses: celestiaorg/.github/.github/workflows/reusable_housekeeping.yml@main # yamllint disable-line rule:line-length
+    secrets: inherit
+    # write access for issues and pull requests is needed because the called
+    # workflow requires write access to issues and pull requests and the
+    # permissions must match
+    permissions:
+      issues: write
+      pull-requests: write
+    with:
+      run-auto-request-review: true

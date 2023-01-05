@@ -11,6 +11,8 @@
 * @evan-forbes
 
 # directory owners
-docs @liamsi @adlerjohn @MSevey
-x/qgb @SweeXordious
-pkg/shares @rootulp
+# NOTE: the directory owners should include the global owners unless the global
+# owner is fully deferring ownership to the directory owner
+docs @liamsi @adlerjohn @MSevey @evan-forbes
+x/qgb @SweeXordious @evan-forbes
+pkg/shares @rootulp @evan-forbes
