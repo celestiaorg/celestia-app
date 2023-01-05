@@ -75,9 +75,22 @@ func Test_finalizeLayout(t *testing.T) {
 			nonreserveStart: 32,
 			ptxs: generateParsedTxsWithNIDs(
 				[][]byte{ns1, ns1, ns1},
-				[]int{1000, 10000, 100000},
+				[]int{1000, 10000, 100000}, // blob share lengths of 2, 20, 199 respectively
 			),
-			expectedIndexes: []uint32{32, 48, 128},
+			expectedIndexes: []uint32{
+				// BlobMinSquareSize(2) = 2 so the first blob has to start at the
+				// next multiple of 2 > 32 which is 32. This blob occupies
+				// shares 32 to 34.
+				32,
+				// BlobMinSquareSize(20) = 8 so the second blob has to start at
+				// the next multiple of 8 > 34 which is 40. This blob occupies
+				// shares 40 to 48.
+				40,
+				// BlobMinSquareSize(199) = 16 so the third blob has to start at
+				// the next multiple of 16 > 48 which is 64. This blob occupies
+				// shares 64 to 263.
+				64,
+			},
 		},
 		{
 			squareSize:      32,

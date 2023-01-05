@@ -1,6 +1,7 @@
 package shares
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 
@@ -157,6 +158,12 @@ func namespacedPaddedShares(ns namespace.ID, count int) []Share {
 	return shares
 }
 
+// namespacedPaddedShareBytes are the raw bytes that are used in the contents
+// of a namespacedPaddedShare. A namespacedPaddedShare follows a blob so
+// that the next blob starts at an index that conforms to non-interactive
+// defaults.
+var namespacedPaddedShareBytes = bytes.Repeat([]byte{0}, appconsts.FirstSparseShareContentSize)
+
 func namespacedPaddedShare(ns namespace.ID) Share {
 	infoByte, err := NewInfoByte(appconsts.ShareVersionZero, true)
 	if err != nil {
@@ -170,6 +177,6 @@ func namespacedPaddedShare(ns namespace.ID) Share {
 	share = append(share, ns...)
 	share = append(share, byte(infoByte))
 	share = append(share, sequenceLen...)
-	share = append(share, appconsts.NameSpacedPaddedShareBytes...)
+	share = append(share, namespacedPaddedShareBytes...)
 	return share
 }
