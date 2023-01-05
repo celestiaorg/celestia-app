@@ -669,7 +669,7 @@ Transfers `amount` coins to `to`.
 | `fee`                    | [TransactionFee](#transactionfee) |                                                              |
 | `nonce`                  | [Nonce](#type-aliases)            |                                                              |
 | `messageNamespaceID`     | [`NamespaceID`](#type-aliases)    | Namespace ID of message this transaction pays a fee for.     |
-| `messageSize`            | `uint64`                          | Size of message this transaction pays a fee for, in `byte`s. |
+| `messageSize`            | `uint32`                          | Size of message this transaction pays a fee for, in `byte`s. |
 | `messageShareCommitment` | [HashDigest](#hashdigest)         | Commitment to message shares (details below).                |
 
 Pays for the inclusion of a [message](#message) in the same block.
