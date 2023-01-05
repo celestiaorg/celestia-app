@@ -26,7 +26,7 @@ import (
 
 func TestStandardSDKIntegrationTestSuite(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping test in unit-tests or race-detector mode.")
+		t.Skip("skipping SDK integration test in short mode.")
 	}
 	suite.Run(t, new(StandardSDKIntegrationTestSuite))
 }
