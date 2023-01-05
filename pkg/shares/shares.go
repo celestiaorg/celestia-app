@@ -76,6 +76,10 @@ func (s Share) SequenceLen() (sequenceLen uint32, err error) {
 	return binary.BigEndian.Uint32(s[start:end]), nil
 }
 
+func (s Share) ToBytes() []byte {
+	return []byte(s)
+}
+
 func ToBytes(shares []Share) (bytes [][]byte) {
 	bytes = make([][]byte, len(shares))
 	for i, share := range shares {
