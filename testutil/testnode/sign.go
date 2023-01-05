@@ -23,7 +23,7 @@ func SignAndBroadcastTx(encCfg encoding.Config, c client.Context, account string
 		)),
 	}
 
-	// use the key for accounts[i] to create a singer used for a single PFB
+	// use the key for accounts[i] to create a signer used for a single PFB
 	signer := types.NewKeyringSigner(c.Keyring, account, c.ChainID)
 
 	signer.SetEncodingConfig(encCfg)
