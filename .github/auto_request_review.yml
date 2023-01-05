@@ -1,0 +1,18 @@
+# More info at https://github.com/necojackarc/auto-request-review
+reviewers:
+  # The default reviewers
+  defaults:
+    # Example of Github Team. Github team must have write access to repo.
+    # NOTE: This assigned the team itself, not members of the team. The Github
+    # team auto PR assignment will then turn this into individuals
+    - team:celestia-core # This is the Github Team
+
+options:
+  ignore_draft: true
+  ignored_keywords:
+    - DO NOT REVIEW
+  enable_group_assignment: false
+
+  # Randomly pick reviewers up to this number.
+  # Do not set this option if you'd like to assign all matching reviewers.
+  number_of_reviewers: 2
