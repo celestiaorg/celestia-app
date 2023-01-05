@@ -6,7 +6,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -271,15 +270,15 @@ func RandBlobTxsWithNamespacesAndSigner(
 }
 
 func ComplexBlobTxWithOtherMsgs(t *testing.T, kr keyring.Keyring, enc sdk.TxEncoder, chainid, account string, msgs ...sdk.Msg) coretypes.Tx {
-	signer := types.NewKeyringSigner(kr, account, chainid)
+	signer := blobtypes.NewKeyringSigner(kr, account, chainid)
 	signerAddr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
 
 	pfb, rawBlob := RandMsgPayForBlobWithSigner(signerAddr.String(), 100)
 
-	opts := []types.TxBuilderOption{
-		types.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(bondDenom, sdk.NewInt(10)))),
-		types.SetGasLimit(100000000000000),
+	opts := []blobtypes.TxBuilderOption{
+		blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(bondDenom, sdk.NewInt(10)))),
+		blobtypes.SetGasLimit(100000000000000),
 	}
 
 	msgs = append(msgs, pfb)
@@ -289,7 +288,7 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, kr keyring.Keyring, enc sdk.TxEnco
 	rawTx, err := enc(sdkTx)
 	require.NoError(t, err)
 
-	blob, err := types.NewBlob(pfb.NamespaceId, rawBlob)
+	blob, err := blobtypes.NewBlob(pfb.NamespaceId, rawBlob)
 	require.NoError(t, err)
 
 	btx, err := coretypes.MarshalBlobTx(rawTx, blob)

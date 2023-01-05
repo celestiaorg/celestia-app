@@ -2,7 +2,6 @@ package blobfactory
 
 import (
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -31,15 +30,15 @@ func GenerateManyRawSendTxs(txConfig client.TxConfig, count int) []coretypes.Tx 
 // proposal, they are not meant to actually be executed by the state machine. If
 // we want that, we have to update nonce, and send funds to someone other than
 // the same account signing the transaction.
-func generateRawSendTx(txConfig client.TxConfig, signer *types.KeyringSigner, amount int64) (rawTx []byte) {
+func generateRawSendTx(txConfig client.TxConfig, signer *blobtypes.KeyringSigner, amount int64) (rawTx []byte) {
 	feeCoin := sdk.Coin{
 		Denom:  bondDenom,
 		Amount: sdk.NewInt(1),
 	}
 
-	opts := []types.TxBuilderOption{
-		types.SetFeeAmount(sdk.NewCoins(feeCoin)),
-		types.SetGasLimit(1000000000),
+	opts := []blobtypes.TxBuilderOption{
+		blobtypes.SetFeeAmount(sdk.NewCoins(feeCoin)),
+		blobtypes.SetGasLimit(1000000000),
 	}
 
 	amountCoin := sdk.Coin{
@@ -57,7 +56,7 @@ func generateRawSendTx(txConfig client.TxConfig, signer *types.KeyringSigner, am
 	return genrateRawTx(txConfig, msg, signer, opts...)
 }
 
-func genrateRawTx(txConfig client.TxConfig, msg sdk.Msg, signer *types.KeyringSigner, opts ...types.TxBuilderOption) []byte {
+func genrateRawTx(txConfig client.TxConfig, msg sdk.Msg, signer *blobtypes.KeyringSigner, opts ...blobtypes.TxBuilderOption) []byte {
 	builder := signer.NewTxBuilder(opts...)
 	tx, err := signer.BuildSignedTx(builder, msg)
 	if err != nil {

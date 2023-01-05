@@ -19,7 +19,6 @@ import (
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	"github.com/celestiaorg/celestia-app/x/blob"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -197,7 +196,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		name string
 		ns   []byte
 		blob []byte
-		opts []types.TxBuilderOption
+		opts []blobtypes.TxBuilderOption
 	}
 
 	tests := []test{
@@ -205,32 +204,32 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			"small random typical",
 			[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 			tmrand.Bytes(3000),
-			[]types.TxBuilderOption{
-				types.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
+			[]blobtypes.TxBuilderOption{
+				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
 			},
 		},
 		{
 			"large random typical",
 			[]byte{2, 3, 4, 5, 6, 7, 8, 9},
 			tmrand.Bytes(700000),
-			[]types.TxBuilderOption{
-				types.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
+			[]blobtypes.TxBuilderOption{
+				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
 			},
 		},
 		{
 			"medium random with memo",
 			[]byte{2, 3, 4, 5, 6, 7, 8, 9},
 			tmrand.Bytes(100000),
-			[]types.TxBuilderOption{
-				types.SetMemo("lol I could stick the rollup block here if I wanted to"),
+			[]blobtypes.TxBuilderOption{
+				blobtypes.SetMemo("lol I could stick the rollup block here if I wanted to"),
 			},
 		},
 		{
 			"medium random with timeout height",
 			[]byte{2, 3, 4, 5, 6, 7, 8, 9},
 			tmrand.Bytes(100000),
-			[]types.TxBuilderOption{
-				types.SetTimeoutHeight(1000),
+			[]blobtypes.TxBuilderOption{
+				blobtypes.SetTimeoutHeight(1000),
 			},
 		},
 	}
@@ -241,7 +240,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			for i := 0; i < 3; i++ {
 				require.NoError(s.network.WaitForNextBlock())
 			}
-			signer := types.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
+			signer := blobtypes.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
 			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.ns, tc.blob, appconsts.ShareVersionZero, 1000000000, tc.opts...)
 			require.NoError(err)
 			require.NotNil(res)
