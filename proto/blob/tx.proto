@@ -27,7 +27,7 @@ message ShareCommitAndSignature {
 message MsgPayForBlob {
   string signer = 1;
   bytes namespace_id = 2;
-  uint64 blob_size = 3;
+  uint32 blob_size = 3;
   // share_commitment is the share_commitment from
   // ShareCommitAndSignature that will be included in a block
   bytes share_commitment = 4;
