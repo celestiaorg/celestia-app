@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	daproto "github.com/celestiaorg/celestia-app/proto/da"
 	"github.com/celestiaorg/rsmt2d"
@@ -165,13 +166,6 @@ func (dah *DataAvailabilityHeader) IsZero() bool {
 	return len(dah.ColumnRoots) == 0 || len(dah.RowsRoots) == 0
 }
 
-// tail is filler for all tail padded shares
-// it is allocated once and used everywhere
-var tailPaddingShare = append(
-	append(make([]byte, 0, appconsts.ShareSize), appconsts.TailPaddingNamespaceID...),
-	bytes.Repeat([]byte{0}, appconsts.ShareSize-appconsts.NamespaceSize)...,
-)
-
 // MinDataAvailabilityHeader returns the minimum valid data availability header.
 // It is equal to the data availability header for an empty block
 func MinDataAvailabilityHeader() DataAvailabilityHeader {
@@ -186,9 +180,9 @@ func MinDataAvailabilityHeader() DataAvailabilityHeader {
 
 // GenerateEmptyShares generate an array of empty shares
 func GenerateEmptyShares(size int) [][]byte {
-	shares := make([][]byte, size)
+	result := make([][]byte, size)
 	for i := 0; i < size; i++ {
-		shares[i] = tailPaddingShare
+		result[i] = shares.TailPaddingShare()
 	}
-	return shares
+	return result
 }
