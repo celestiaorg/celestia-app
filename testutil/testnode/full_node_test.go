@@ -26,7 +26,7 @@ type IntegrationTestSuite struct {
 
 func (s *IntegrationTestSuite) SetupSuite() {
 	if testing.Short() {
-		s.T().Skip("skipping test in unit-tests or race-detector mode.")
+		s.T().Skip("skipping full node integration test in short mode.")
 	}
 
 	s.T().Log("setting up integration test suite")

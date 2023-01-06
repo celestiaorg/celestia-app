@@ -52,11 +52,10 @@ func NewIntegrationTestSuite(cfg cosmosnet.Config) *IntegrationTestSuite {
 }
 
 func (s *IntegrationTestSuite) SetupSuite() {
-	s.T().Log("setting up integration test suite")
-
 	if testing.Short() {
-		s.T().Skip("skipping test in unit-tests mode.")
+		s.T().Skip("skipping block size integration test in short mode.")
 	}
+	s.T().Log("setting up integration test suite")
 
 	numAccounts := 100
 	s.accounts = make([]string, numAccounts)

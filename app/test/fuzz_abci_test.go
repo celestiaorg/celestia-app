@@ -21,6 +21,9 @@ import (
 // fuzzing limited types, instead we create blocks our selves using random
 // transction.
 func TestPrepareProposalConsistency(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping TestPrepareProposalConsistency in short mode.")
+	}
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
 	timer := time.After(time.Minute * 1)
