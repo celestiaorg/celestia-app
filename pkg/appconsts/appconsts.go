@@ -47,21 +47,21 @@ const (
 	// in a continuation sparse share of a sequence.
 	ContinuationSparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes
 
-	// DefaultMaxSquareSize is the maximum number of
-	// rows/columns of the original data shares in square layout.
-	// Corresponds to AVAILABLE_DATA_ORIGINAL_SQUARE_MAX in the spec.
-	// 128*128*256 = 4 Megabytes
-	// TODO(ismail): settle on a proper max square
-	// if the square size is larger than this, the block producer will panic
+	// DefaultMaxSquareSize is the maximum original square width.
+	//
+	// Note: 128 shares in a row * 128 shares in a column * 512 bytes in a share
+	// = 8 MiB
 	DefaultMaxSquareSize = 128
-	// MaxShareCount is the maximum number of shares allowed in the original data square.
-	// if there are more shares than this, the block producer will panic.
+
+	// MaxShareCount is the maximum number of shares allowed in the original
+	// data square.
 	MaxShareCount = DefaultMaxSquareSize * DefaultMaxSquareSize
 
-	// DefaultMinSquareSize depicts the smallest original square width. A square size smaller than this will
-	// cause block producer to panic
+	// DefaultMinSquareSize is the smallest original square width.
 	DefaultMinSquareSize = 1
-	// MinshareCount is the minimum shares required in an original data square.
+
+	// MinshareCount is the minimum number of shares allowed in the original
+	// data square.
 	MinShareCount = DefaultMinSquareSize * DefaultMinSquareSize
 
 	// MaxShareVersion is the maximum value a share version can be.
@@ -73,34 +73,36 @@ const (
 )
 
 var (
-	// TxNamespaceID is the namespace reserved for transaction data
+	// TxNamespaceID is the namespace reserved for transaction data.
 	TxNamespaceID = consts.TxNamespaceID
 
 	// IntermediateStateRootsNamespaceID is the namespace reserved for
-	// intermediate state root data
-	// TODO(liamsi): code commented out but kept intentionally.
+	// intermediate state root data.
 	// IntermediateStateRootsNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 2}
 
-	// EvidenceNamespaceID is the namespace reserved for evidence
+	// EvidenceNamespaceID is the namespace reserved for evidence.
 	EvidenceNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
 
 	// MaxReservedNamespace is the lexicographically largest namespace that is
-	// reserved for protocol use. It is derived from NAMESPACE_ID_MAX_RESERVED
-	// https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/consensus.md#constants
+	// reserved for protocol use.
 	MaxReservedNamespace = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
-	// TailPaddingNamespaceID is the namespace ID for tail padding. All data
-	// with this namespace will be ignored
+
+	// TailPaddingNamespaceID is the namespace reserved for tail padding. All data
+	// with this namespace will be ignored.
 	TailPaddingNamespaceID = namespace.ID{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
-	// ParitySharesNamespaceID indicates that share contains erasure data
+
+	// ParitySharesNamespaceID is the namespace reserved for erasure coded data.
 	ParitySharesNamespaceID = namespace.ID{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 
-	// NewBaseHashFunc change accordingly if another hash.Hash should be used as a base hasher in the NMT:
+	// NewBaseHashFunc is the base hash function used by NMT. Change accordingly
+	// if another hash.Hash should be used as a base hasher in the NMT.
 	NewBaseHashFunc = consts.NewBaseHashFunc
 
-	// DefaultCodec is the default codec creator used for data erasure
+	// DefaultCodec is the default codec creator used for data erasure.
 	DefaultCodec = rsmt2d.NewLeoRSCodec
 
-	// DataCommitmentBlocksLimit is the limit to the number of blocks we can generate a data commitment for.
+	// DataCommitmentBlocksLimit is the limit to the number of blocks we can
+	// generate a data commitment for.
 	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
 
 	// SupportedShareVersions is a list of supported share versions.
