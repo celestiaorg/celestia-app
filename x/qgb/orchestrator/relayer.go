@@ -3,12 +3,12 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"time"
 
 	tmlog "github.com/tendermint/tendermint/libs/log"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 )

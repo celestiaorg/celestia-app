@@ -165,6 +165,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		orchestrator.DeployCmd(),
 		orchestrator.OrchCmd(),
 		orchestrator.RelayerCmd(),
+		orchestrator.VerifyCmd(),
 	)
 }
 

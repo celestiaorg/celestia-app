@@ -1,13 +1,13 @@
 package orchestrator
 
 import (
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/spf13/cobra"
 	tmlog "github.com/tendermint/tendermint/libs/log"

@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	"math/big"
 
 	gethcommon "github.com/ethereum/go-ethereum/common"
@@ -12,7 +14,6 @@ import (
 	tmlog "github.com/tendermint/tendermint/libs/log"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
 
@@ -45,6 +46,13 @@ type EVMClient interface {
 		waitToBeMined bool,
 	) error
 	StateLastEventNonce(opts *bind.CallOpts) (uint64, error)
+	VerifyDataRootInclusion(
+		ctx context.Context,
+		nonce uint64,
+		height uint64,
+		dataRoot []byte,
+		proof merkle.Proof,
+	) (bool, error)
 }
 
 type evmClient struct {
@@ -233,6 +241,40 @@ func (ec *evmClient) SubmitDataRootTupleRoot(
 	}
 	ec.logger.Error("failed to relay data commitment", "nonce", newNonce, "hash", tx.Hash().String())
 	return err
+}
+
+func (ec *evmClient) VerifyDataRootInclusion(
+	ctx context.Context,
+	nonce uint64,
+	height uint64,
+	dataRoot []byte,
+	proof merkle.Proof,
+) (bool, error) {
+	tuple := wrapper.DataRootTuple{
+		Height:   big.NewInt(int64(height)),
+		DataRoot: *(*[32]byte)(dataRoot),
+	}
+
+	sideNodes := make([][32]byte, len(proof.Aunts))
+	for i, aunt := range proof.Aunts {
+		sideNodes[i] = *(*[32]byte)(aunt)
+	}
+	wrappedProof := wrapper.BinaryMerkleProof{
+		SideNodes: sideNodes,
+		Key:       big.NewInt(proof.Index),
+		NumLeaves: big.NewInt(proof.Total),
+	}
+
+	valid, err := ec.wrapper.VerifyAttestation(
+		&bind.CallOpts{},
+		big.NewInt(int64(nonce)),
+		tuple,
+		wrappedProof,
+	)
+	if err != nil {
+		return false, err
+	}
+	return valid, nil
 }
 
 func (ec *evmClient) NewTransactOpts(ctx context.Context, gasLim uint64) (*bind.TransactOpts, error) {

@@ -294,3 +294,64 @@ func parseDeployFlags(cmd *cobra.Command) (deployConfig, error) {
 		evmGasLimit:     evmGasLimit,
 	}, nil
 }
+
+func addVerifyFlags(cmd *cobra.Command) *cobra.Command {
+	cmd.Flags().StringP(celestiaChainIDFlag, "x", "user", "Specify the celestia chain id")
+	cmd.Flags().Uint64P(evmChainIDFlag, "z", 5, "Specify the evm chain id")
+	cmd.Flags().StringP(tendermintRPCFlag, "t", "http://localhost:26657", "Specify the rest rpc address")
+	cmd.Flags().StringP(evmRPCFlag, "e", "http://localhost:8545", "Specify the EVM rpc address")
+	cmd.Flags().StringP(contractAddressFlag, "a", "", "Specify the contract address at which the qgb is deployed")
+	cmd.Flags().StringP(celesGRPCFlag, "c", "localhost:9090", "Specify the grpc address")
+
+	return cmd
+}
+
+type verifyConfig struct {
+	celestiaChainID                  string
+	evmRPC, celesGRPC, tendermintRPC string
+	evmChainID                       uint64
+	contractAddr                     ethcmn.Address
+}
+
+func parseVerifyFlags(cmd *cobra.Command) (verifyConfig, error) {
+	chainID, err := cmd.Flags().GetString(celestiaChainIDFlag)
+	if err != nil {
+		return verifyConfig{}, err
+	}
+	evmChainID, err := cmd.Flags().GetUint64(evmChainIDFlag)
+	if err != nil {
+		return verifyConfig{}, err
+	}
+	tendermintRPC, err := cmd.Flags().GetString(tendermintRPCFlag)
+	if err != nil {
+		return verifyConfig{}, err
+	}
+	celesGRPC, err := cmd.Flags().GetString(celesGRPCFlag)
+	if err != nil {
+		return verifyConfig{}, err
+	}
+	evmRPC, err := cmd.Flags().GetString(evmRPCFlag)
+	if err != nil {
+		return verifyConfig{}, err
+	}
+	contractAddr, err := cmd.Flags().GetString(contractAddressFlag)
+	if err != nil {
+		return verifyConfig{}, err
+	}
+	if contractAddr == "" {
+		return verifyConfig{}, fmt.Errorf("contract address flag is required: %s", contractAddressFlag)
+	}
+	if !ethcmn.IsHexAddress(contractAddr) {
+		return verifyConfig{}, fmt.Errorf("valid contract address flag is required: %s", contractAddressFlag)
+	}
+	address := ethcmn.HexToAddress(contractAddr)
+
+	return verifyConfig{
+		celestiaChainID: chainID,
+		evmChainID:      evmChainID,
+		celesGRPC:       celesGRPC,
+		tendermintRPC:   tendermintRPC,
+		evmRPC:          evmRPC,
+		contractAddr:    address,
+	}, nil
+}
