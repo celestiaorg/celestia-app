@@ -3,8 +3,9 @@ package orchestrator
 import (
 	"context"
 	"fmt"
-	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"time"
+
+	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 
 	tmlog "github.com/tendermint/tendermint/libs/log"
 

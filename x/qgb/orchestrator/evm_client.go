@@ -4,9 +4,10 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
+	"math/big"
+
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/tendermint/tendermint/crypto/merkle"
-	"math/big"
 
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	coregethtypes "github.com/ethereum/go-ethereum/core/types"

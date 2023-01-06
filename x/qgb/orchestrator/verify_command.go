@@ -3,6 +3,9 @@ package orchestrator
 import (
 	"context"
 	"encoding/hex"
+	"os"
+	"strconv"
+
 	"github.com/celestiaorg/celestia-app/pkg/prove"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
@@ -12,8 +15,6 @@ import (
 	"github.com/tendermint/tendermint/rpc/client/http"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"os"
-	"strconv"
 )
 
 func VerifyCmd() *cobra.Command {
