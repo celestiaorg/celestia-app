@@ -117,7 +117,7 @@ func TxSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos 
 	return startSharePos, endSharePos, nil
 }
 
-// MsgSharesPosition returns the start and end positions for the shares that
+// MsgSharesPosition returns the start and end positions for the shares
 // where a given message, referenced by its wrapped pfb transaction, was published at.
 // Note: only supports transactions containing a single message
 func MsgSharesPosition(tx types.Tx) (beginShare uint64, endShare uint64, err error) {
