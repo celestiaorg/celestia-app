@@ -79,16 +79,16 @@ func Test_finalizeLayout(t *testing.T) {
 			),
 			expectedIndexes: []uint32{
 				// BlobMinSquareSize(2) = 2 so the first blob has to start at the
-				// next multiple of 2 > 32 which is 32. This blob occupies
-				// shares 32 to 34.
+				// next multiple of 2 >= 32 which is 32. This blob occupies
+				// shares 32 to 33.
 				32,
 				// BlobMinSquareSize(20) = 8 so the second blob has to start at
-				// the next multiple of 8 > 34 which is 40. This blob occupies
-				// shares 40 to 48.
+				// the next multiple of 8 >= 34 which is 40. This blob occupies
+				// shares 40 to 59.
 				40,
 				// BlobMinSquareSize(199) = 16 so the third blob has to start at
-				// the next multiple of 16 > 48 which is 64. This blob occupies
-				// shares 64 to 263.
+				// the next multiple of 16 >= 60 which is 64. This blob occupies
+				// shares 64 to 262.
 				64,
 			},
 		},
