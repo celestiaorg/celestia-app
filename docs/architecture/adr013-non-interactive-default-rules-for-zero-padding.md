@@ -12,9 +12,9 @@ Looking at different ranges of blob sizes we can see that the ratio of blob size
 
 ![Worst Case Padding In Blob Size Range](./assets/worst-case-padding-in-blob-size-range.png)
 
-This means that you get more padding for fever data in small blobs. This is not ideal as we want to have as little padding as possible. As padding is not being paid for there is no incentive to use larger blobs.
+This means small blobs generate more possible padding in comparison to the data they provide. This is not ideal as we want to have as little padding as possible. As padding is not being paid for there is no incentive to use larger blobs.
 
-In the naive approach if you align the blob at an index of one you get zero padding as each blob can follow the next. This would make the hash of each share a subtree root. In a square with n shares, you would always get n subtree roots. But having a blob inclusion proof of size n for large blobs is too much and unfeasible.
+In the naive approach if you align the blob at an index of one you get zero padding as each blob can follow the next. This would make the hash of each share a subtree root. In a square with N shares, you would always get N subtree roots. But having a blob inclusion proof of size N for large blobs is too much and unfeasible.
 
 Small blob sizes have the lowest ratio but also small inclusion proofs. Therefore increasing the proof size is not a problem until some threshold. It would increase the ratio of blob size to padding for small blobs which have the worst ratio.
 
@@ -29,7 +29,7 @@ Blobs start at an index that is equal to the blob length/`MaxSquareSize` rounded
 If the blob length is smaller than `MaxSquareSize` then the blob starts at index 1.
 `MaxSquareSize` can be changed to another threshold. The smaller the threshold the more padding we will have.
 
-The Picture below shows the difference between the old and new non-interactive default rules in a square of size 8 and a thereshold of 8.
+The picture below shows the difference between the old and new non-interactive default rules in a square of size 8 and a threshold of 8.
 
 ![Blob Alignment Comparison](./assets/blob-alignment-comparison.png)
 
@@ -39,7 +39,7 @@ The Picture below shows the difference between the old and new non-interactive d
 
 The Proof size is bounded by the number of subtree roots in the blob inclusion proof. If the new bound is the `MaxSquareSize` then the worst case for the number of subtree roots in a blob inclusion proof will be `MaxSquareSize`.
 
-If Light-Nodes can process this proof size without a problem then we can use this bound. If not we can use a smaller bound. The smaller the bound the more padding we will have.
+If Light-Nodes can process this proof size without a problem then we can use this bound. If not, we can use a smaller bound. The smaller the bound the more padding we will have.
 
 In addition, we could use PFB inclusion proofs (ADR 11) to reduce the proof size of the blob inclusion proof for Light-Nodes. This would make this change not noticeable to them as they are blob size independent until we need a fraud-proof for a malicious PFB inclusion.
 
