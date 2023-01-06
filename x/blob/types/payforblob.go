@@ -37,7 +37,7 @@ func NewMsgPayForBlob(signer string, nid namespace.ID, blob []byte) (*MsgPayForB
 		Signer:          signer,
 		NamespaceId:     nid,
 		ShareCommitment: commitment,
-		BlobSize:        uint64(len(blob)),
+		BlobSize:        uint32(len(blob)),
 	}
 	return msg, msg.ValidateBasic()
 }

@@ -279,7 +279,7 @@ func TestNewMsgPayForBlob(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, expectedCommitment, res.ShareCommitment)
 
-		assert.Equal(t, uint64(len(tt.blob)), res.BlobSize)
+		assert.Equal(t, uint32(len(tt.blob)), res.BlobSize)
 	}
 }
 

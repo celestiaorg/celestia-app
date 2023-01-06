@@ -107,7 +107,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 				}
 			}
 
-			commitment, err := inclusion.GetCommit(cacher, dah, int(wrappedTx.ShareIndex), shares.SparseSharesNeeded(uint32(pfb.BlobSize)))
+			commitment, err := inclusion.GetCommit(cacher, dah, int(wrappedTx.ShareIndex), shares.SparseSharesNeeded(pfb.BlobSize))
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), req.Header, "commitment not found", err)
 				return abci.ResponseProcessProposal{

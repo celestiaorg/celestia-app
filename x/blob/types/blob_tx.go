@@ -87,7 +87,7 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 			return ProcessedBlobTx{}, ErrNamespaceMismatch
 		}
 
-		if pfb.BlobSize != uint64(len(blob)) {
+		if pfb.BlobSize != uint32(len(blob)) {
 			return ProcessedBlobTx{}, ErrDeclaredActualDataSizeMismatch.Wrapf(
 				"declared: %d vs actual: %d",
 				pfb.BlobSize,
