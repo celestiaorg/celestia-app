@@ -9,5 +9,5 @@ option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 // at the end of a pay for blob txn
 message EventPayForBlob {
   string signer = 1;
-  uint64 blob_size = 2;
+  uint32 blob_size = 2;
 }

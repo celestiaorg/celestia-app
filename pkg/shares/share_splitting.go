@@ -1,7 +1,6 @@
 package shares
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"sort"
@@ -120,23 +119,4 @@ func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIn
 		}
 	}
 	return writer.Export(), nil
-}
-
-var tailPaddingInfo, _ = NewInfoByte(appconsts.ShareVersionZero, false)
-
-// tail is filler for all tail padded shares
-// it is allocated once and used everywhere
-var tailPaddingShare = append(append(
-	append(make([]byte, 0, appconsts.ShareSize), appconsts.TailPaddingNamespaceID...),
-	byte(tailPaddingInfo)),
-	bytes.Repeat([]byte{0}, appconsts.ShareSize-appconsts.NamespaceSize-appconsts.ShareInfoBytes)...,
-)
-
-// TailPaddingShares creates n tail padding shares.
-func TailPaddingShares(n int) []Share {
-	shares := make([]Share, n)
-	for i := 0; i < n; i++ {
-		shares[i] = tailPaddingShare
-	}
-	return shares
 }

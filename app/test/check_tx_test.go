@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -38,7 +38,7 @@ func TestCheckTx(t *testing.T) {
 			getTx: func() []byte {
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					encCfg.TxConfig.TxEncoder(),
-					types.NewKeyringSigner(kr, accs[0], testutil.ChainID),
+					blobtypes.NewKeyringSigner(kr, accs[0], testutil.ChainID),
 					[][]byte{
 						{1, 1, 1, 1, 1, 1, 1, 1},
 					},
@@ -54,7 +54,7 @@ func TestCheckTx(t *testing.T) {
 			getTx: func() []byte {
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					encCfg.TxConfig.TxEncoder(),
-					types.NewKeyringSigner(kr, accs[1], testutil.ChainID),
+					blobtypes.NewKeyringSigner(kr, accs[1], testutil.ChainID),
 					[][]byte{
 						{1, 1, 1, 1, 1, 1, 1, 1},
 					},
@@ -70,7 +70,7 @@ func TestCheckTx(t *testing.T) {
 			getTx: func() []byte {
 				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 					encCfg.TxConfig.TxEncoder(),
-					types.NewKeyringSigner(kr, accs[2], testutil.ChainID),
+					blobtypes.NewKeyringSigner(kr, accs[2], testutil.ChainID),
 					[][]byte{
 						{1, 1, 1, 1, 1, 1, 1, 1},
 					},
@@ -83,7 +83,24 @@ func TestCheckTx(t *testing.T) {
 				require.NoError(t, err)
 				return bbtx
 			},
-			expectedABCICode: types.ErrNamespaceMismatch.ABCICode(),
+			expectedABCICode: blobtypes.ErrNamespaceMismatch.ABCICode(),
+		},
+		{
+			name:      "PFB with no blob, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+					encCfg.TxConfig.TxEncoder(),
+					blobtypes.NewKeyringSigner(kr, accs[3], testutil.ChainID),
+					[][]byte{
+						{1, 1, 1, 1, 1, 1, 1, 1},
+					},
+					[]int{100},
+				)[0]
+				dtx, _ := coretypes.UnmarshalBlobTx(btx)
+				return dtx.Tx
+			},
+			expectedABCICode: blobtypes.ErrBloblessPFB.ABCICode(),
 		},
 	}
 
