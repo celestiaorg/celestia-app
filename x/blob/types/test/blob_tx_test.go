@@ -94,8 +94,7 @@ func TestProcessBlobTx(t *testing.T) {
 				rawblob := rand.Bytes(100)
 				msg, err := types.NewMsgPayForBlob(
 					signerAddr.String(),
-					namespace.RandomBlobNamespace(),
-					rawblob,
+					&tmproto.Blob{NamespaceId: namespace.RandomBlobNamespace(), Data: rawblob, ShareVersion: 0},
 				)
 				require.NoError(t, err)
 

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 func Test_merkleMountainRangeHeights(t *testing.T) {
@@ -216,7 +217,14 @@ func validMsgPayForBlob(t *testing.T) *MsgPayForBlob {
 	addr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
 
-	pfb, err := NewMsgPayForBlob(addr.String(), ns, blob)
+	pfb, err := NewMsgPayForBlob(
+		addr.String(),
+		&tmproto.Blob{
+			NamespaceId:  ns,
+			Data:         blob,
+			ShareVersion: uint32(appconsts.ShareVersionZero),
+		},
+	)
 	assert.NoError(t, err)
 
 	return pfb
@@ -269,7 +277,14 @@ func TestNewMsgPayForBlob(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		res, err := NewMsgPayForBlob(tt.signer, tt.nid, tt.blob)
+		res, err := NewMsgPayForBlob(
+			tt.signer,
+			&tmproto.Blob{
+				NamespaceId:  tt.nid,
+				Data:         tt.blob,
+				ShareVersion: uint32(appconsts.ShareVersionZero),
+			},
+		)
 		if tt.expectedErr {
 			assert.Error(t, err)
 			continue
