@@ -96,7 +96,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 		// ensure there is only a single sdk.Msg included in the transaction
 		if len(sdkTx.GetMsgs()) > 1 {
-			logInvalidPropBlock(app.Logger(), req.Header, "invalid PFB found: combined with other sdk.Tx")
+			logInvalidPropBlock(app.Logger(), req.Header, "invalid PFB found: combined with one or more other sdk.Msg")
 			return abci.ResponseProcessProposal{
 				Result: abci.ResponseProcessProposal_REJECT,
 			}
