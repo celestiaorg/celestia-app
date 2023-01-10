@@ -26,7 +26,7 @@ const (
 var _ sdk.Msg = &MsgPayForBlob{}
 
 func NewMsgPayForBlob(signer string, blob *Blob) (*MsgPayForBlob, error) {
-	commitment, err := CreateCommitment(blob.NamespaceId, blob.Data, appconsts.ShareVersionZero)
+	commitment, err := CreateMultiShareCommitment([][]byte{blob.NamespaceId}, [][]byte{blob.Data}, []uint32{blob.ShareVersion})
 	if err != nil {
 		return nil, err
 	}
@@ -138,6 +138,22 @@ func CreateCommitment(namespace []byte, blobData []byte, shareVersion uint8) ([]
 		subTreeRoots[i] = tree.Root()
 	}
 	return merkle.HashFromByteSlices(subTreeRoots), nil
+}
+
+// CreateMultiShareCommitment generates a commitment over multiple blobs at
+// arbitrary points in the square. It uses the normal commitment creation
+// function per blob, and then creates a merkle root of those commitments.
+func CreateMultiShareCommitment(nsids [][]byte, blobs [][]byte, shareVersions []uint32) ([]byte, error) {
+	commitments := make([][]byte, len(nsids))
+	for i := range nsids {
+		c, err := CreateCommitment(nsids[i], blobs[i], uint8(shareVersions[i]))
+		if err != nil {
+			return nil, err
+		}
+		commitments[i] = c
+	}
+
+	return merkle.HashFromByteSlices(commitments), nil
 }
 
 // ValidateBlobNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.
