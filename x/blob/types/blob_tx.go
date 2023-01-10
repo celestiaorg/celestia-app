@@ -67,7 +67,7 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 		return ProcessedBlobTx{}, err
 	}
 
-	// check that the meta data matches
+	// check that the metadata matches
 	if !bytes.Equal(blob.NamespaceId, pfb.NamespaceId) {
 		return ProcessedBlobTx{}, ErrNamespaceMismatch
 	}
