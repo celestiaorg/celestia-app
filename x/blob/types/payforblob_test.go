@@ -225,8 +225,9 @@ func validMsgPayForBlob(t *testing.T) *MsgPayForBlob {
 func TestNewMsgPayForBlob(t *testing.T) {
 	type test struct {
 		signer      string
-		nid         namespace.ID
-		blob        []byte
+		nids        [][]byte
+		blobs       [][]byte
+		versions    []uint8
 		expectedErr bool
 	}
 
@@ -239,47 +240,52 @@ func TestNewMsgPayForBlob(t *testing.T) {
 	tests := []test{
 		{
 			signer:      addr.String(),
-			nid:         []byte{1, 2, 3, 4, 5, 6, 7, 8},
-			blob:        []byte{1},
+			nids:        [][]byte{{1, 2, 3, 4, 5, 6, 7, 8}},
+			blobs:       [][]byte{{1}},
+			versions:    make([]uint8, 1),
 			expectedErr: false,
 		},
 		{
 			signer:      addr.String(),
-			nid:         []byte{1, 2, 3, 4, 5, 6, 7, 8},
-			blob:        tmrand.Bytes(1000000),
+			nids:        [][]byte{{1, 2, 3, 4, 5, 6, 7, 8}},
+			blobs:       [][]byte{tmrand.Bytes(1000000)},
+			versions:    make([]uint8, 1),
 			expectedErr: false,
 		},
 		{
 			signer:      addr.String(),
-			nid:         []byte{1, 2, 3, 4, 5, 6, 7},
-			blob:        tmrand.Bytes(100),
+			nids:        [][]byte{{1, 2, 3, 4, 5, 6, 7}},
+			blobs:       [][]byte{tmrand.Bytes(100)},
+			versions:    make([]uint8, 1),
 			expectedErr: true,
 		},
 		{
 			signer:      addr.String(),
-			nid:         appconsts.TxNamespaceID,
-			blob:        tmrand.Bytes(100),
+			nids:        [][]byte{appconsts.TxNamespaceID},
+			blobs:       [][]byte{tmrand.Bytes(100)},
+			versions:    make([]uint8, 1),
 			expectedErr: true,
 		},
 		{
 			signer:      addr.String()[:10],
-			nid:         appconsts.TxNamespaceID,
-			blob:        tmrand.Bytes(100),
+			nids:        [][]byte{{1, 2, 3, 4, 5, 6, 7, 8}},
+			blobs:       [][]byte{tmrand.Bytes(100)},
+			versions:    make([]uint8, 1),
 			expectedErr: true,
 		},
 	}
 	for _, tt := range tests {
-		res, err := NewMsgPayForBlob(tt.signer, tt.nid, tt.blob)
+		res, err := NewMsgPayForBlob(tt.signer, tt.nids[0], tt.blobs[0])
 		if tt.expectedErr {
 			assert.Error(t, err)
 			continue
 		}
 
-		expectedCommitment, err := CreateCommitment(tt.nid, tt.blob, appconsts.ShareVersionZero)
+		expectedCommitment, err := CreateMultiShareCommitment(tt.nids, tt.blobs, make([]uint32, len(tt.blobs)))
 		require.NoError(t, err)
 		assert.Equal(t, expectedCommitment, res.ShareCommitment)
 
-		assert.Equal(t, uint32(len(tt.blob)), res.BlobSize)
+		assert.Equal(t, uint32(len(tt.blobs[0])), res.BlobSize)
 	}
 }
 
