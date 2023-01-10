@@ -12,13 +12,16 @@ import (
 
 // ProcessedBlobTx caches the unmarshalled result of the BlobTx
 type ProcessedBlobTx struct {
-	Blobs []tmproto.Blob
+	Blobs []Blob
 	Tx    []byte
 }
 
+// Blob wraps the tendermint type so that users can simply import this one.
+type Blob = tmproto.Blob
+
 // NewBlob creates a new coretypes.Blob from the provided data after performing
 // basic stateless checks over it.
-func NewBlob(ns namespace.ID, blob []byte) (*tmproto.Blob, error) {
+func NewBlob(ns namespace.ID, blob []byte) (*Blob, error) {
 	err := ValidateBlobNamespaceID(ns)
 	if err != nil {
 		return nil, err
@@ -31,7 +34,7 @@ func NewBlob(ns namespace.ID, blob []byte) (*tmproto.Blob, error) {
 	return &tmproto.Blob{
 		NamespaceId:  ns,
 		Data:         blob,
-		ShareVersion: uint32(appconsts.ShareVersionZero),
+		ShareVersion: uint32(appconsts.DefaultShareVersion),
 	}, nil
 }
 

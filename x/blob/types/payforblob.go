@@ -11,7 +11,6 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/tendermint/crypto/merkle"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/constraints"
 )
@@ -26,7 +25,7 @@ const (
 
 var _ sdk.Msg = &MsgPayForBlob{}
 
-func NewMsgPayForBlob(signer string, blob *tmproto.Blob) (*MsgPayForBlob, error) {
+func NewMsgPayForBlob(signer string, blob *Blob) (*MsgPayForBlob, error) {
 	commitment, err := CreateCommitment(blob.NamespaceId, blob.Data, appconsts.ShareVersionZero)
 	if err != nil {
 		return nil, err

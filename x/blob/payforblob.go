@@ -8,10 +8,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdk_tx "github.com/cosmos/cosmos-sdk/types/tx"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/celestiaorg/nmt/namespace"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -21,9 +18,7 @@ func SubmitPayForBlob(
 	ctx context.Context,
 	signer *types.KeyringSigner,
 	conn *grpc.ClientConn,
-	nID namespace.ID,
-	blob []byte,
-	shareVersion uint8,
+	blob *types.Blob,
 	gasLim uint64,
 	opts ...types.TxBuilderOption,
 ) (*sdk.TxResponse, error) {
@@ -34,11 +29,7 @@ func SubmitPayForBlob(
 	}
 	msg, err := types.NewMsgPayForBlob(
 		addr.String(),
-		&tmproto.Blob{
-			NamespaceId:  nID,
-			Data:         blob,
-			ShareVersion: uint32(appconsts.ShareVersionZero),
-		},
+		blob,
 	)
 	if err != nil {
 		return nil, err
@@ -52,15 +43,11 @@ func SubmitPayForBlob(
 	if err != nil {
 		return nil, err
 	}
-	wblob, err := types.NewBlob(msg.NamespaceId, blob)
-	if err != nil {
-		return nil, err
-	}
 	rawTx, err := signer.EncodeTx(stx)
 	if err != nil {
 		return nil, err
 	}
-	blobTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
+	blobTx, err := coretypes.MarshalBlobTx(rawTx, blob)
 	if err != nil {
 		return nil, err
 	}
