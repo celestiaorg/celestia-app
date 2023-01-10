@@ -506,7 +506,7 @@ First share in a sequence:
 
 ![fig: compact start share.](./figures/compact_start_share.svg)
 
-where reserved bytes would be `17` binary big endian `uint32` (`[0 0 0 17]`).
+where reserved bytes would be `17` as a binary big endian `uint32` (`[0b00000000, 0b00000000, 0b00000000, 0b00010001]`).
 
 Continuation share in a sequence:
 
