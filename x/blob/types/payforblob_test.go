@@ -283,9 +283,7 @@ func TestNewMsgPayForBlob(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		b, err := NewBlob(tt.nids[0], tt.blobs[0])
-		require.NoError(t, err)
-		res, err := NewMsgPayForBlob(tt.signer, b)
+		res, err := NewMsgPayForBlob(tt.signer, &Blob{NamespaceId: tt.nids[0], Data: tt.blobs[0], ShareVersion: uint32(appconsts.DefaultShareVersion)})
 		if tt.expectedErr {
 			assert.Error(t, err)
 			continue
