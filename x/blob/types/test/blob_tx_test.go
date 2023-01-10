@@ -74,7 +74,7 @@ func TestProcessBlobTx(t *testing.T) {
 					Blobs: []*tmproto.Blob{blob},
 				}
 			},
-			expectedErr: types.ErrMismatchedNumberOfPFBorBlob,
+			expectedErr: types.ErrNoPFB,
 		},
 		{
 			name: "mismatched number of pfbs and blobs",
@@ -153,7 +153,7 @@ func TestProcessBlobTx(t *testing.T) {
 					Tx: sendtx,
 				}
 			},
-			expectedErr: types.ErrInvalidNumberOfPFBInBlobTx,
+			expectedErr: types.ErrNoPFB,
 		},
 	}
 

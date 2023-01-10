@@ -9,7 +9,9 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -85,45 +87,53 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			continue
 		}
 
-		for _, msg := range sdkTx.GetMsgs() {
-			pfb, ok := msg.(*types.MsgPayForBlob)
-			if !ok {
-				continue
-			}
-
-			// all PFBs must have a share index, so that we can find their
-			// respective blob.
-			if !isWrapped {
-				logInvalidPropBlock(app.Logger(), req.Header, "Found a MsgPayForBlob without a share index")
-				return abci.ResponseProcessProposal{
-					Result: abci.ResponseProcessProposal_REJECT,
-				}
-			}
-
-			if err = pfb.ValidateBasic(); err != nil {
-				logInvalidPropBlockError(app.Logger(), req.Header, "invalid MsgPayForBlob", err)
-				return abci.ResponseProcessProposal{
-					Result: abci.ResponseProcessProposal_REJECT,
-				}
-			}
-
-			commitment, err := inclusion.GetMultiCommit(cacher, dah, []uint32{wrappedTx.ShareIndex}, []uint32{pfb.BlobSize})
-			if err != nil {
-				logInvalidPropBlockError(app.Logger(), req.Header, "commitment not found", err)
-				return abci.ResponseProcessProposal{
-					Result: abci.ResponseProcessProposal_REJECT,
-				}
-			}
-
-			if !bytes.Equal(pfb.ShareCommitment, commitment) {
-				logInvalidPropBlock(app.Logger(), req.Header, "found commitment does not match user's")
-				return abci.ResponseProcessProposal{
-					Result: abci.ResponseProcessProposal_REJECT,
-				}
-			}
-
-			commitmentCounter++
+		pfb, has := hasPFB(sdkTx.GetMsgs())
+		if !has {
+			// we do not need to perform further checks on this transaction,
+			// since it has no PFB
+			continue
 		}
+
+		// ensure there is only a single sdk.Msg included in the transaction
+		if len(sdkTx.GetMsgs()) > 1 {
+			logInvalidPropBlock(app.Logger(), req.Header, "invalid PFB found: combined with one or more other sdk.Msg")
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
+			}
+		}
+
+		// all PFBs must have a share index, so that we can find their
+		// respective blob.
+		if !isWrapped {
+			logInvalidPropBlock(app.Logger(), req.Header, "Found a MsgPayForBlob without a share index")
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
+			}
+		}
+
+		if err = pfb.ValidateBasic(); err != nil {
+			logInvalidPropBlockError(app.Logger(), req.Header, "invalid MsgPayForBlob", err)
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
+			}
+		}
+
+		commitment, err := inclusion.GetMultiCommit(cacher, dah, []uint32{wrappedTx.ShareIndex}, []uint32{pfb.BlobSize})
+		if err != nil {
+			logInvalidPropBlockError(app.Logger(), req.Header, "commitment not found", err)
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
+			}
+		}
+
+		if !bytes.Equal(pfb.ShareCommitment, commitment) {
+			logInvalidPropBlock(app.Logger(), req.Header, "found commitment does not match user's")
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
+			}
+		}
+
+		commitmentCounter++
 	}
 
 	// compare the number of MPFBs and blobs, if they aren't
@@ -137,6 +147,15 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	return abci.ResponseProcessProposal{
 		Result: abci.ResponseProcessProposal_ACCEPT,
 	}
+}
+
+func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlob, bool) {
+	for _, msg := range msgs {
+		if pfb, ok := msg.(*types.MsgPayForBlob); ok {
+			return pfb, true
+		}
+	}
+	return nil, false
 }
 
 func logInvalidPropBlock(l log.Logger, h tmproto.Header, reason string) {
