@@ -512,7 +512,7 @@ Continuation share in a sequence:
 
 ![fig: compact continuation share.](./figures/compact_continuation_share.svg)
 
-where reserved bytes would be `80` binary big endian `uint32` (`[0 0 0 80]`).
+where reserved bytes would be `80` as a binary big endian `uint32` (`[0b00000000, 0b00000000, 0b00000000, 0b01010000]`).
 
 #### Sparse Share
 
