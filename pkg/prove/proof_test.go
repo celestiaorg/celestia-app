@@ -118,11 +118,11 @@ func TestTxSharePosition(t *testing.T) {
 			positions[i] = startEndPoints{start: start, end: end}
 		}
 
-		shares := shares.SplitTxs(tt.txs)
+		txShares, _ := shares.SplitTxs(tt.txs)
 
 		for i, pos := range positions {
 			rawTx := []byte(tt.txs[i])
-			rawTxDataForRange := stripCompactShares(shares, pos.start, pos.end)
+			rawTxDataForRange := stripCompactShares(txShares, pos.start, pos.end)
 			assert.Contains(
 				t,
 				string(rawTxDataForRange),

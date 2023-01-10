@@ -88,6 +88,9 @@ func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxP
 // include a given txIndex. Returns an error if index is greater than the length
 // of txs.
 func txSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos uint64, err error) {
+	// TODO (@rootulp): txIndex should no longer work as expected since we now
+	// write two different share sequences. Why didn't unit tests for this
+	// function fail?
 	if txIndex >= uint64(len(txs)) {
 		return startSharePos, endSharePos, errors.New("transaction index is greater than the number of txs")
 	}
@@ -158,7 +161,8 @@ func genOrigRowShares(data types.Data, startRow, endRow uint64) []shares.Share {
 	wantLen := (endRow + 1) * data.SquareSize
 	startPos := startRow * data.SquareSize
 
-	rawShares := shares.SplitTxs(data.Txs)
+	rawTxShares, pfbTxShares := shares.SplitTxs(data.Txs)
+	rawShares := append(rawTxShares, pfbTxShares...)
 	// return if we have enough shares
 	if uint64(len(rawShares)) >= wantLen {
 		return rawShares[startPos:wantLen]
@@ -170,6 +174,9 @@ func genOrigRowShares(data types.Data, startRow, endRow uint64) []shares.Share {
 			panic(err)
 		}
 
+		// TODO: does this need to account for padding between compact shares
+		// and the first blob?
+		// https://github.com/celestiaorg/celestia-app/issues/1226
 		rawShares = append(rawShares, blobShares...)
 
 		// return if we have enough shares

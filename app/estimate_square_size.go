@@ -16,7 +16,8 @@ import (
 // NOTE: The estimation process does not have to be perfect. We can overestimate
 // because the cost of padding is limited.
 func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int) {
-	txSharesUsed := estimateCompactShares(appconsts.DefaultMaxSquareSize, txs)
+	txSharesUsed := estimateTxSharesUsed(txs)
+	pfbTxSharesUsed := estimatePFBTxSharesUsed(appconsts.DefaultMaxSquareSize, txs)
 	blobSharesUsed := 0
 
 	for _, ptx := range txs {
@@ -31,7 +32,7 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 	//
 	// TODO: use a more precise estimation that doesn't over
 	// estimate as much
-	totalSharesUsed := uint64(txSharesUsed + blobSharesUsed)
+	totalSharesUsed := uint64(txSharesUsed + pfbTxSharesUsed + blobSharesUsed)
 	totalSharesUsed *= 2
 	minSize := uint64(math.Sqrt(float64(totalSharesUsed)))
 	squareSize = shares.RoundUpPowerOfTwo(minSize)
@@ -42,33 +43,55 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 		squareSize = appconsts.DefaultMinSquareSize
 	}
 
-	return squareSize, txSharesUsed
+	return squareSize, txSharesUsed + pfbTxSharesUsed
+}
+
+// estimateTxSharesUsed estimates the number of shares used by ordinary
+// transactions (i.e. all transactions that aren't PFBs).
+func estimateTxSharesUsed(ptxs []parsedTx) int {
+	txBytes := 0
+	for _, pTx := range ptxs {
+		if pTx.isNormalTx() {
+			txLen := len(pTx.normalTx)
+			txLen += shares.DelimLen(uint64(txLen))
+			txBytes += txLen
+		}
+	}
+	return estimateCompactShares(txBytes)
+}
+
+// estimatePFBTxSharesUsed estimates the number of shares used by PFB
+// transactions.
+func estimatePFBTxSharesUsed(squareSize uint64, ptxs []parsedTx) int {
+	maxWTxOverhead := maxWrappedTxOverhead(squareSize)
+	txBytes := 0
+	for _, pTx := range ptxs {
+		if pTx.isBlobTx() {
+			txLen := len(pTx.blobTx.Tx) + maxWTxOverhead
+			txLen += shares.DelimLen(uint64(txLen))
+			txBytes += txLen
+		}
+	}
+	return estimateCompactShares(txBytes)
 }
 
 // estimateCompactShares estimates the number of shares used by compact shares
-func estimateCompactShares(squareSize uint64, ptxs []parsedTx) int {
-	maxWTxOverhead := maxWrappedTxOverhead(squareSize)
-	txbytes := 0
-	for _, pTx := range ptxs {
-		if len(pTx.normalTx) != 0 {
-			txLen := len(pTx.normalTx)
-			txLen += shares.DelimLen(uint64(txLen))
-			txbytes += txLen
-			continue
-		}
-		txLen := len(pTx.blobTx.Tx) + maxWTxOverhead
-		txLen += shares.DelimLen(uint64(txLen))
-		txbytes += txLen
+func estimateCompactShares(totalBytes int) int {
+	if totalBytes == 0 {
+		return 0
 	}
-
-	sharesUsed := 1
-	if txbytes <= appconsts.FirstCompactShareContentSize {
-		return sharesUsed
+	if totalBytes <= appconsts.FirstCompactShareContentSize {
+		return 1
 	}
-
 	// account for the first share
-	txbytes -= appconsts.FirstCompactShareContentSize
-	sharesUsed += (txbytes / appconsts.ContinuationCompactShareContentSize) + 1 // add 1 to round up and another to account for the first share
+	sharesUsed := 1
+	totalBytes -= appconsts.FirstCompactShareContentSize
+
+	// account for continuation shares
+	sharesUsed += (totalBytes / appconsts.ContinuationCompactShareContentSize)
+	if totalBytes%appconsts.ContinuationCompactShareContentSize != 0 {
+		sharesUsed++
+	}
 
 	return sharesUsed
 }

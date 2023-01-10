@@ -41,31 +41,26 @@ func Test_estimateSquareSize(t *testing.T) {
 	}
 }
 
-func Test_estimateCompactShares(t *testing.T) {
+func Test_estimatePFBTxSharesUsed(t *testing.T) {
 	type test struct {
 		name              string
 		squareSize        uint64
-		normalTxs         int
 		pfbCount, pfbSize int
 	}
 	tests := []test{
-		{"empty block", appconsts.DefaultMinSquareSize, 0, 0, 0},
-		{"one normal tx", appconsts.DefaultMinSquareSize, 1, 0, 0},
-		{"one small pfb small block", 4, 0, 1, 100},
-		{"one large pfb large block", appconsts.DefaultMaxSquareSize, 0, 1, 1000000},
-		{"one hundred large pfb large block", appconsts.DefaultMaxSquareSize, 0, 100, 100000},
-		{"one hundred large pfb medium block", appconsts.DefaultMaxSquareSize / 2, 100, 100, 100000},
-		{"mixed transactions large block", appconsts.DefaultMaxSquareSize, 100, 100, 100000},
-		{"mixed transactions large block 2", appconsts.DefaultMaxSquareSize, 1000, 1000, 10000},
-		{"mostly transactions large block", appconsts.DefaultMaxSquareSize, 10000, 1000, 100},
-		{"only small pfb large block", appconsts.DefaultMaxSquareSize, 0, 10000, 1},
-		{"only small pfb medium block", appconsts.DefaultMaxSquareSize / 2, 0, 10000, 1},
+		{"empty block", appconsts.DefaultMinSquareSize, 0, 0},
+		{"one small pfb small block", 4, 1, 100},
+		{"one large pfb large block", appconsts.DefaultMaxSquareSize, 1, 1_000_000},
+		{"one hundred large pfb large block", appconsts.DefaultMaxSquareSize, 100, 100_000},
+		{"one hundred large pfb medium block", appconsts.DefaultMaxSquareSize / 2, 100, 100_000},
+		{"ten thousand small pfb large block", appconsts.DefaultMaxSquareSize, 10_000, 1},
+		{"ten thousand small pfb medium block", appconsts.DefaultMaxSquareSize / 2, 10_000, 1},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ptxs := generateMixedParsedTxs(tt.normalTxs, tt.pfbCount, tt.pfbSize)
-			res := estimateCompactShares(tt.squareSize, ptxs)
+			ptxs := generateMixedParsedTxs(0, tt.pfbCount, tt.pfbSize)
+			res := estimatePFBTxSharesUsed(tt.squareSize, ptxs)
 
 			// check that our estimate is always larger or equal to the number
 			// of compact shares actually used
@@ -82,8 +77,52 @@ func Test_estimateCompactShares(t *testing.T) {
 				require.NoError(t, err)
 				txs[i] = wPFBTx
 			}
-			shares := shares.SplitTxs(txs)
-			assert.LessOrEqual(t, len(shares), res)
+			_, pfbTxShares := shares.SplitTxs(txs)
+			assert.LessOrEqual(t, len(pfbTxShares), res)
+		})
+	}
+}
+
+func Test_estimateTxSharesUsed(t *testing.T) {
+	type testCase struct {
+		name string
+		ptxs []parsedTx
+		want int
+	}
+	testCases := []testCase{
+		{"empty", []parsedTx{}, 0},
+		{"one tx", generatedNormalParsedTxs(1), 1},
+	}
+	for _, tc := range testCases {
+		got := estimateTxSharesUsed(tc.ptxs)
+		assert.Equal(t, tc.want, got)
+	}
+}
+
+func Test_estimateCompactShares(t *testing.T) {
+	type testCase struct {
+		name       string
+		totalBytes int
+		want       int
+	}
+	testCases := []testCase{
+		{"empty", 0, 0},
+		{"one byte", 1, 1},
+		{"ten bytes", 10, 1},
+		{"one hundred bytes", 100, 1},
+		{"exactly one compact share", 495, 1},
+		{"just over one compact share", 496, 2},
+		{"exactly two compact shares", 994, 2},
+		{"just over two compact shares", 995, 3},
+		{"exactly three compact shares", 1493, 3},
+		{"just over three compact shares", 1494, 4},
+		{"one hundred compact shares", 1 + (appconsts.ContinuationCompactShareContentSize * 99), 100},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := estimateCompactShares(tc.totalBytes)
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }

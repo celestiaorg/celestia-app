@@ -87,6 +87,9 @@ var (
 	// EvidenceNamespaceID is the namespace reserved for evidence.
 	EvidenceNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
 
+	// PayForBlobNamespaceID is the namespace reserved for PayForBlob transactions.
+	PayForBlobNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 4}
+
 	// TailTransactionPaddingNamespaceId is the namespace used for padding after
 	// all transactions (ordinary and PFBs) but before blobs.
 	TailTransactionPaddingNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}

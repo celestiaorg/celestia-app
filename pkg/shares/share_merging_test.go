@@ -27,7 +27,7 @@ func TestParseShares(t *testing.T) {
 	blobOneNamespace := namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}
 	blobTwoNamespace := namespace.ID{2, 2, 2, 2, 2, 2, 2, 2}
 
-	transactionShares := SplitTxs(generateRandomTxs(2, 1000))
+	transactionShares, _ := SplitTxs(generateRandomTxs(2, 1000))
 	transactionShareStart := transactionShares[0]
 	transactionShareContinuation := transactionShares[1]
 
