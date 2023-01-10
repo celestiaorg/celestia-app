@@ -81,7 +81,11 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 	}
 
 	// verify that the commitment of the blob matches that of the PFB
-	calculatedCommit, err := CreateCommitment(pfb.NamespaceId, blob.Data, appconsts.ShareVersionZero)
+	calculatedCommit, err := CreateMultiShareCommitment(
+		[][]byte{pfb.NamespaceId},
+		[][]byte{blob.Data},
+		[]uint32{uint32(appconsts.ShareVersionZero)},
+	)
 	if err != nil {
 		return ProcessedBlobTx{}, ErrCalculateCommit
 	}
