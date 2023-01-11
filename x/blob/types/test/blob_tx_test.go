@@ -100,10 +100,11 @@ func TestProcessBlobTx(t *testing.T) {
 				require.NoError(t, err)
 
 				badCommit, err := types.CreateCommitment(
-					namespace.RandomBlobNamespace(),
-					rand.Bytes(99),
-					appconsts.ShareVersionZero,
-				)
+					&types.Blob{
+						NamespaceId:  namespace.RandomBlobNamespace(),
+						Data:         rand.Bytes(99),
+						ShareVersion: uint32(appconsts.ShareVersionZero),
+					})
 				require.NoError(t, err)
 
 				msg.ShareCommitment = badCommit

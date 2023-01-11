@@ -25,7 +25,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -218,18 +217,22 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	assert := s.Assert()
 	val := s.network.Validators[0]
 
+	mustNewBlob := func(ns, data []byte) *blobtypes.Blob {
+		b, err := blobtypes.NewBlob(ns, data)
+		require.NoError(err)
+		return b
+	}
+
 	type test struct {
 		name string
-		ns   []byte
-		blob []byte
+		blob *blobtypes.Blob
 		opts []blobtypes.TxBuilderOption
 	}
 
 	tests := []test{
 		{
 			"small random typical",
-			[]byte{1, 2, 3, 4, 5, 6, 7, 8},
-			tmrand.Bytes(3000),
+			mustNewBlob([]byte{1, 2, 3, 4, 5, 6, 7, 8}, tmrand.Bytes(3000)),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
 			},
@@ -239,21 +242,19 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			[]byte{2, 3, 4, 5, 6, 7, 8, 9},
 			tmrand.Bytes(350000),
 			[]types.TxBuilderOption{
-				types.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
+				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
 			},
 		},
 		{
 			"medium random with memo",
-			[]byte{2, 3, 4, 5, 6, 7, 8, 9},
-			tmrand.Bytes(100000),
+			mustNewBlob([]byte{2, 3, 4, 5, 6, 7, 8, 9}, tmrand.Bytes(100000)),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetMemo("lol I could stick the rollup block here if I wanted to"),
 			},
 		},
 		{
 			"medium random with timeout height",
-			[]byte{2, 3, 4, 5, 6, 7, 8, 9},
-			tmrand.Bytes(100000),
+			mustNewBlob([]byte{2, 3, 4, 5, 6, 7, 8, 9}, tmrand.Bytes(100000)),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetTimeoutHeight(1000),
 			},
@@ -266,10 +267,8 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			for i := 0; i < 3; i++ {
 				require.NoError(s.network.WaitForNextBlock())
 			}
-			signer := types.NewKeyringSigner(s.kr, s.accounts[i], val.ClientCtx.ChainID)
-			pblob, err := types.NewBlob(tc.ns, tc.blob)
-			require.NoError(err)
-			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, []*tmproto.Blob{pblob, pblob}, 1000000000, tc.opts...)
+			signer := blobtypes.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
+			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, []*blobtypes.Blob{tc.blob, tc.blob}, 1000000000, tc.opts...)
 			require.NoError(err)
 			require.NotNil(res)
 			assert.Equal(abci.CodeTypeOK, res.Code)
