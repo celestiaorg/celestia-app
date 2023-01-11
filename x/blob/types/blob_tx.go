@@ -11,13 +11,16 @@ import (
 
 // ProcessedBlobTx caches the unmarshalled result of the BlobTx
 type ProcessedBlobTx struct {
-	Blobs []tmproto.Blob
+	Blobs []Blob
 	Tx    []byte
 }
 
+// Blob wraps the tendermint type so that users can simply import this one.
+type Blob = tmproto.Blob
+
 // NewBlob creates a new coretypes.Blob from the provided data after performing
 // basic stateless checks over it.
-func NewBlob(ns namespace.ID, blob []byte) (*tmproto.Blob, error) {
+func NewBlob(ns namespace.ID, blob []byte) (*Blob, error) {
 	err := ValidateBlobNamespaceID(ns)
 	if err != nil {
 		return nil, err
@@ -30,7 +33,7 @@ func NewBlob(ns namespace.ID, blob []byte) (*tmproto.Blob, error) {
 	return &tmproto.Blob{
 		NamespaceId:  ns,
 		Data:         blob,
-		ShareVersion: uint32(appconsts.ShareVersionZero),
+		ShareVersion: uint32(appconsts.DefaultShareVersion),
 	}, nil
 }
 
@@ -81,11 +84,7 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 	}
 
 	// verify that the commitment of the blob matches that of the PFB
-	calculatedCommit, err := CreateMultiShareCommitment(
-		[][]byte{pfb.NamespaceId},
-		[][]byte{blob.Data},
-		[]uint32{uint32(appconsts.ShareVersionZero)},
-	)
+	calculatedCommit, err := CreateMultiShareCommitment(blob)
 	if err != nil {
 		return ProcessedBlobTx{}, ErrCalculateCommit
 	}

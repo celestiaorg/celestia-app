@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -109,8 +110,11 @@ func randMsgPayForBlobWithNamespaceAndSigner(signer string, nid []byte, size int
 	blob := tmrand.Bytes(size)
 	msg, err := NewMsgPayForBlob(
 		signer,
-		nid,
-		blob,
+		&tmproto.Blob{
+			NamespaceId:  nid,
+			Data:         blob,
+			ShareVersion: uint32(appconsts.ShareVersionZero),
+		},
 	)
 	if err != nil {
 		panic(err)
