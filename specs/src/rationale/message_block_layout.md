@@ -37,7 +37,7 @@ This, however, requires the block producer to interact with the transaction send
 
 As a non-consensus-critical default, we can impose one additional rule on message placement to make the possible starting locations of messages sufficiently predictable and constrained such that users can deterministically compute subtree roots without interaction:
 
-> Messages start at an index that is a multiple of the message minimum square size. The message minimum square size is the smallest square that can contain the message.
+> Messages start at an index that is a multiple of the message minimum square size. The message minimum square size is the smallest square that can contain the message in isolation (i.e. a square with only this message and no other transactions or messages).
 
 With the above constraint, we can compute subtree roots deterministically. In order to compute the subtree roots, split the message into chunks that are of maximum size: message minimum square size. As an example, a message of length `11` has a minimum square size of `4` because `11` is not greater than `4 * 4 = 16` total shares. Split the message into chunks of length `4, 4, 2, 1`. The resulting slices are the leaves of subtrees whose roots can be computed. These subtree roots will be present as internal nodes in the NMT of _some_ row(s).
 
