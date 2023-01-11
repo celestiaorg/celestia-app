@@ -70,6 +70,13 @@ const (
 	// DefaultGasPerBlobByte is the default gas cost deducted per byte of blob
 	// included in a PayForBlob txn
 	DefaultGasPerBlobByte = 8
+
+	// TransactionsPerBlockLimit is the maximum number of transactions allowed
+	// in a block.
+	//
+	// NOTE: Currently this value is set at roughly the number of PFBs that
+	// would fill half of the max square size.
+	TransactionsPerBlockLimit = 10180
 )
 
 var (
