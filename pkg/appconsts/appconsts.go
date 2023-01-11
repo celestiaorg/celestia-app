@@ -27,6 +27,10 @@ const (
 	// ShareVersionZero is the first share version format.
 	ShareVersionZero = uint8(0)
 
+	// DefaultShareVersion is the defacto share version. Use this if you are
+	// unsure of which version to use.
+	DefaultShareVersion = ShareVersionZero
+
 	// CompactShareReservedBytes is the number of bytes reserved for the location of
 	// the first unit (transaction, ISR) in a compact share.
 	CompactShareReservedBytes = 4
