@@ -71,8 +71,8 @@ const (
 	// included in a PayForBlob txn
 	DefaultGasPerBlobByte = 8
 
-	// TransactionsPerBlockLimit is the maximum number of transactions allowed
-	// in a block.
+	// TransactionsPerBlockLimit is the maximum number of transactions a block
+	// producer will include in a block.
 	//
 	// NOTE: Currently this value is set at roughly the number of PFBs that
 	// would fill one quarter of the max square size.
