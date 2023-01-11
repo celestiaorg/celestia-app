@@ -27,7 +27,7 @@ require (
 require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/math v1.0.0-beta.3
-	github.com/celestiaorg/rsmt2d v0.7.0
+	github.com/celestiaorg/rsmt2d v0.8.0
 	github.com/cosmos/cosmos-sdk v0.46.6
 	github.com/cosmos/gogoproto v1.4.2
 	github.com/regen-network/cosmos-proto v0.3.1
