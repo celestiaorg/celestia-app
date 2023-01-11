@@ -7,11 +7,11 @@ import (
 
 // TODO add unit tests for all the keepers
 
-// GetCurrentDataCommitment creates latest data commitment at current height according to
+// GetCurrentDataCommitment creates the latest data commitment at current height according to
 // the data commitment window specified
 func (k Keeper) GetCurrentDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
 	beginBlock := uint64(ctx.BlockHeight()) - k.GetDataCommitmentWindowParam(ctx)
-	endBlock := uint64(ctx.BlockHeight())
+	endBlock := uint64(ctx.BlockHeight()) - 1
 	nonce := k.GetLatestAttestationNonce(ctx) + 1
 
 	dataCommitment := types.NewDataCommitment(nonce, beginBlock, endBlock)
