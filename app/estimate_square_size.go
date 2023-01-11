@@ -26,14 +26,13 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 		blobSharesUsed += shares.SparseSharesNeeded(uint32(ptx.blobTx.DataUsed()))
 	}
 
-	// assume that we have to add a lot of padding by simply doubling the number
-	// of shares used
-	//
-	// TODO: use a more precise estimation that doesn't over
-	// estimate as much
-	totalSharesUsed := uint64(txSharesUsed + blobSharesUsed)
-	totalSharesUsed *= 2
-	minSize := uint64(math.Sqrt(float64(totalSharesUsed)))
+	totalSharesUsed := float64(txSharesUsed + blobSharesUsed)
+	if totalSharesUsed <= 1 {
+		return appconsts.DefaultMinSquareSize, txSharesUsed
+	}
+	// increase the total shares used by the worse case padding ratio
+	totalSharesUsed *= 1.35
+	minSize := uint64(math.Ceil(math.Sqrt(totalSharesUsed)))
 	squareSize = shares.RoundUpPowerOfTwo(minSize)
 	if squareSize >= appconsts.DefaultMaxSquareSize {
 		squareSize = appconsts.DefaultMaxSquareSize
