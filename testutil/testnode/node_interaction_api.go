@@ -14,6 +14,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -113,8 +114,11 @@ func (c *Context) PostData(account, broadcastMode string, ns, blobData []byte) (
 
 	msg, err := types.NewMsgPayForBlob(
 		addr.String(),
-		ns,
-		blobData,
+		&tmproto.Blob{
+			NamespaceId:  ns,
+			Data:         blobData,
+			ShareVersion: uint32(appconsts.ShareVersionZero),
+		},
 	)
 	if err != nil {
 		return nil, err
