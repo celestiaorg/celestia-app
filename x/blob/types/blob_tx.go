@@ -68,7 +68,7 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 	}
 
 	// check that the info in the pfb matches that in the blobs
-	if !equalUint64Slices(sizes, pfb.BlobSizes) {
+	if !equalSlices(sizes, pfb.BlobSizes) {
 		return ProcessedBlobTx{}, ErrBlobSizeMismatch.Wrapf("actual %v declared %v", sizes, pfb.BlobSizes)
 	}
 
@@ -88,8 +88,6 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 		return ProcessedBlobTx{}, ErrInvalidShareCommit
 	}
 
-	protoBlobs := []tmproto.Blob{{NamespaceId: pfb.NamespaceId, Data: blob.Data, ShareVersion: uint32(appconsts.ShareVersionZero)}}
-
 	return ProcessedBlobTx{
 		Tx:    bTx.Tx,
 		Blobs: bTx.Blobs,
@@ -99,12 +97,12 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 func (pBTx ProcessedBlobTx) SharesUsed() int {
 	sharesUsed := 0
 	for _, blob := range pBTx.Blobs {
-		sharesUsed += shares.BlobSharesUsed(len(blob.Data))
+		sharesUsed += shares.SparseSharesNeeded(uint32(len(blob.Data)))
 	}
 	return sharesUsed
 }
 
-func equalUint64Slices(a, b []uint64) bool {
+func equalSlices[T comparable](a, b []T) bool {
 	if len(a) != len(b) {
 		return false
 	}

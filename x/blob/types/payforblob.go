@@ -244,15 +244,15 @@ func ValidateBlobNamespaceID(ns namespace.ID) error {
 // extractBlobComponents separates and returns the components of a slice of
 // blobs in order of blobs of data, their namespaces, their sizes, and their share
 // versions.
-func extractBlobComponents(pblobs []*tmproto.Blob) (rawBlobs [][]byte, nsIDs [][]byte, sizes []uint64, versions []uint32) {
+func extractBlobComponents(pblobs []*tmproto.Blob) (rawBlobs [][]byte, nsIDs [][]byte, sizes []uint32, versions []uint32) {
 	rawBlobs = make([][]byte, len(pblobs))
 	nsIDs = make([][]byte, len(pblobs))
-	sizes = make([]uint64, len(pblobs))
+	sizes = make([]uint32, len(pblobs))
 	versions = make([]uint32, len(pblobs))
 
 	for i, pblob := range pblobs {
 		rawBlobs[i] = pblob.Data
-		sizes[i] = uint64(len(pblob.Data))
+		sizes[i] = uint32(len(pblob.Data))
 		nsIDs[i] = pblob.NamespaceId
 		versions[i] = pblob.ShareVersion
 	}

@@ -8,9 +8,9 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -130,8 +130,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 				Result: abci.ResponseProcessProposal_REJECT,
 			}
 		}
-
-		commitmentCounter++
 	}
 
 	return abci.ResponseProcessProposal{
@@ -141,7 +139,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlob, bool) {
 	for _, msg := range msgs {
-		if pfb, ok := msg.(*types.MsgPayForBlob); ok {
+		if pfb, ok := msg.(*blobtypes.MsgPayForBlob); ok {
 			return pfb, true
 		}
 	}

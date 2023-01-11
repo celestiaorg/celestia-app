@@ -55,33 +55,33 @@ func TestPayForBlobGas(t *testing.T) {
 		wantGasConsumed uint64
 	}
 
-	paramLookUpCost := 1060
+	paramLookUpCost := uint32(1060)
 
 	testCases := []testCase{
 		{
 			name:            "1 byte blob", // occupies 1 share
-			msg:             types.MsgPayForBlob{BlobSizes: []uint64{1}},
+			msg:             types.MsgPayForBlob{BlobSizes: []uint32{1}},
 			wantGasConsumed: uint64(1*appconsts.ShareSize*types.DefaultGasPerBlobByte + paramLookUpCost), // 1 share * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 5156 gas
 		},
 		{
 			name:            "100 byte blob", // occupies 1 share
-			msg:             types.MsgPayForBlob{BlobSizes: []uint64{100}},
+			msg:             types.MsgPayForBlob{BlobSizes: []uint32{100}},
 			wantGasConsumed: uint64(1*appconsts.ShareSize*types.DefaultGasPerBlobByte + paramLookUpCost),
 		},
 		{
 			name:            "1024 byte blob", // occupies 3 shares because share prefix (e.g. namespace, info byte)
-			msg:             types.MsgPayForBlob{BlobSizes: []uint64{1024}},
+			msg:             types.MsgPayForBlob{BlobSizes: []uint32{1024}},
 			wantGasConsumed: uint64(3*appconsts.ShareSize*types.DefaultGasPerBlobByte + paramLookUpCost), // 3 shares * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 13348 gas
 		},
 		{
 			name:            "3 blobs, 1 share each",
-			msg:             types.MsgPayForBlob{BlobSizes: []uint64{1, 1, 1}},
+			msg:             types.MsgPayForBlob{BlobSizes: []uint32{1, 1, 1}},
 			wantGasConsumed: uint64(3*appconsts.ShareSize*types.DefaultGasPerBlobByte + paramLookUpCost), // 3 shares * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 13348 gas
 		},
 		{
 			name:            "3 blobs, 6 shares total",
-			msg:             types.MsgPayForBlob{BlobSizes: []uint64{1024, 1000, 100}},
-			wantGasConsumed: uint64(3*appconsts.ShareSize*types.DefaultGasPerBlobByte + paramLookUpCost), // 3 shares * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 13348 gas
+			msg:             types.MsgPayForBlob{BlobSizes: []uint32{1024, 1000, 100}},
+			wantGasConsumed: uint64(6*appconsts.ShareSize*types.DefaultGasPerBlobByte + paramLookUpCost), // 6 shares * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 25636 gas
 		},
 	}
 
@@ -97,7 +97,7 @@ func TestPayForBlobGas(t *testing.T) {
 }
 
 func TestChangingGasParam(t *testing.T) {
-	msg := types.MsgPayForBlob{BlobSize: 1024}
+	msg := types.MsgPayForBlob{BlobSizes: []uint32{1024}}
 	k, stateStore := keeper(t)
 	tempCtx := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
 

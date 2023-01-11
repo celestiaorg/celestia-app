@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -53,14 +54,14 @@ func (k Keeper) PayForBlob(goCtx context.Context, msg *types.MsgPayForBlob) (*ty
 
 	totalSharesUsed := 0
 	for _, size := range msg.BlobSizes {
-		totalSharesUsed += shares.BlobSharesUsed(int(size))
+		totalSharesUsed += shares.SparseSharesNeeded(size)
 	}
 
-	gasToConsume := uint64(totalSharesUsed) * GasPerBlobByte
-	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
+	gasToConsume := uint32(totalSharesUsed*appconsts.ShareSize) * k.GasPerBlobByte(ctx)
+	ctx.GasMeter().ConsumeGas(uint64(gasToConsume), payForBlobGasDescriptor)
 
 	err := ctx.EventManager().EmitTypedEvent(
-		types.NewPayForBlobEvent(sdk.AccAddress(msg.Signer).String(), uint64(totalSharesUsed), msg.NamespaceIds),
+		types.NewPayForBlobEvent(sdk.AccAddress(msg.Signer).String(), uint32(totalSharesUsed), msg.NamespaceIds),
 	)
 	if err != nil {
 		return &types.MsgPayForBlobResponse{}, err

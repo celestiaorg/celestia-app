@@ -285,7 +285,8 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 		s.cfg.TxConfig.TxEncoder(),
 		s.kr,
 		val.ClientCtx.GRPCClient,
-		100000,
+		int(100000),
+		1,
 		false,
 		s.cfg.ChainID,
 		s.accounts[:1],
@@ -296,7 +297,7 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 
 	res, err := val.ClientCtx.BroadcastTxSync(btx.Tx)
 	require.NoError(t, err)
-	require.Equal(t, blobtypes.ErrBloblessPFB.ABCICode(), res.Code)
+	require.Equal(t, blobtypes.ErrNoBlobs.ABCICode(), res.Code)
 }
 
 func queryTx(clientCtx client.Context, hashHexStr string, prove bool) (*rpctypes.ResultTx, error) {

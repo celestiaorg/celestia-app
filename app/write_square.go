@@ -38,7 +38,7 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 				blob:        blob,
 				parsedIndex: i,
 				blobIndex:   j,
-				sharesUsed:  shares.BlobSharesUsed(len(blob.Data)),
+				sharesUsed:  shares.SparseSharesNeeded(uint32(len(blob.Data))),
 			})
 		}
 	}
@@ -58,7 +58,7 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 		if removeIndexes[tBlob.parsedIndex] {
 			continue
 		}
-		cursor, _ = shares.NextAlignedPowerOfTwo(cursor, tBlob.sharesUsed, iSS)
+		cursor, _ = shares.NextMultipleOfBlobMinSquareSize(cursor, tBlob.sharesUsed, iSS)
 		// remove the parsed transaction if it cannot fit into the square
 		if cursor+tBlob.sharesUsed > maxSharesSize {
 			removeIndexes[tBlob.parsedIndex] = true
