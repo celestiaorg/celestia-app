@@ -497,22 +497,22 @@ For shares **with a reserved namespace ID through [`NAMESPACE_ID_MAX_RESERVED`](
 
 > **Note** The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information.
 
-- If this is the first share of a sequence, the next 1 to 10 bytes contain a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the `uint64` length of the sequence that follows, in bytes.
+- If this is the first share of a sequence, the next [`SEQUENCE_BYTES`](./consensus.md#constants) contain a big endian `uint32` that represents the length of the sequence that follows in bytes.
 - The next [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are the starting byte of the length of the [canonically serialized](#serialization) first request that starts in the share, or `0` if there is none, as an unsigned [varint](https://developers.google.com/protocol-buffers/docs/encoding).
-- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` 1 to 10 bytes (if this is the first share of a sequence) `-` [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are transactions, intermediate state roots, or evidence data depending on the namespace of ths share. Each transaction, intermediate state root, or evidence is prefixed with a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the length of that unit.
+- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](.consensus.md#constants) bytes (only if this is the first share of a sequence) `-` [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are transactions, intermediate state roots, or evidence data depending on the namespace of ths share. Each transaction, intermediate state root, or evidence is prefixed with a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the length of that unit.
 - If there is insufficient transaction, intermediate state root, or evidence data to fill the share, the remaining bytes are filled with `0`.
 
 First share in a sequence:
 
 ![fig: compact start share.](./figures/compact_start_share.svg)
 
-where reserved bytes would be `14` encoded as an unsigned varint (`[0b00001110, 0b00000000]`).
+where reserved bytes would be `17` as a binary big endian `uint32` (`[0b00000000, 0b00000000, 0b00000000, 0b00010001]`).
 
 Continuation share in a sequence:
 
 ![fig: compact continuation share.](./figures/compact_continuation_share.svg)
 
-where reserved bytes would be `80` encoded as an unsigned varint (`[0b01010000, 0b00000000]`).
+where reserved bytes would be `80` as a binary big endian `uint32` (`[0b00000000, 0b00000000, 0b00000000, 0b01010000]`).
 
 #### Sparse Share
 
@@ -520,8 +520,8 @@ For shares **with a namespace ID above [`NAMESPACE_ID_MAX_RESERVED`](./consensus
 
 > **Note** The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information.
 
-- If this is the first share of a sequence, the next 1 to 10 bytes contain a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the `uint64` length of the sequence that follows.
-- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` 1 to 10 bytes (if this is the first share of a sequence) bytes are message data. Message data are opaque bytes of data that are included in the block but do not impact the state. In other words, the remaining bytes have no special meaning and are simply used to store data.
+- If this is the first share of a sequence, the next [`SEQUENCE_BYTES`](./consensus.md#constants) contain a big endian `uint32` that represents the length of the sequence that follows in bytes.
+- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](.consensus.md#constants) bytes (only if this is the first share of a sequence) bytes are message data. Message data are opaque bytes of data that are included in the block but do not impact the state. In other words, the remaining bytes have no special meaning and are simply used to store data.
 - If there is insufficient message data to fill the share, the remaining bytes are filled with `0`.
 
 First share in a sequence:
