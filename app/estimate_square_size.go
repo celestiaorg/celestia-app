@@ -30,7 +30,7 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 	if totalSharesUsed <= 1 {
 		return appconsts.DefaultMinSquareSize, txSharesUsed
 	}
-	// increase the total shares used by the worse case padding ratio
+	// increase the total shares used by the worst case padding ratio
 	totalSharesUsed *= 1.35
 	minSize := uint64(math.Ceil(math.Sqrt(totalSharesUsed)))
 	squareSize = shares.RoundUpPowerOfTwo(minSize)
