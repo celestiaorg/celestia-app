@@ -378,7 +378,7 @@ func New(
 	)
 	blobmod := blobmodule.NewAppModule(appCodec, app.BlobKeeper)
 
-	// // Create static IBC router, add transfer route, then set and seal it
+	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := ibcporttypes.NewRouter()
 	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferIBCModule)
 	app.IBCKeeper.SetRouter(ibcRouter)
@@ -430,6 +430,7 @@ func New(
 		evidencetypes.ModuleName,
 		stakingtypes.ModuleName,
 		ibchost.ModuleName,
+		ibctransfertypes.ModuleName,
 		feegrant.ModuleName,
 		authtypes.ModuleName,
 		banktypes.ModuleName,
@@ -453,6 +454,7 @@ func New(
 		slashingtypes.ModuleName,
 		evidencetypes.ModuleName,
 		ibchost.ModuleName,
+		ibctransfertypes.ModuleName,
 		feegrant.ModuleName,
 		authtypes.ModuleName,
 		banktypes.ModuleName,
