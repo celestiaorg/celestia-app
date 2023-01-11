@@ -239,8 +239,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"large random typical",
-			[]byte{2, 3, 4, 5, 6, 7, 8, 9},
-			tmrand.Bytes(350000),
+			mustNewBlob([]byte{2, 3, 4, 5, 6, 7, 8, 9}, tmrand.Bytes(350000)),
 			[]types.TxBuilderOption{
 				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
 			},
@@ -260,7 +259,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			},
 		},
 	}
-	for i, tc := range tests {
+	for _, tc := range tests {
 		s.Run(tc.name, func() {
 			// occasionally this test will error that the mempool is full (code
 			// 20) so we wait a few blocks for the txs to clear

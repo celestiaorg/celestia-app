@@ -12,7 +12,7 @@ import (
 
 // ProcessedBlobTx caches the unmarshalled result of the BlobTx
 type ProcessedBlobTx struct {
-	Blobs []Blob
+	Blobs []*Blob
 	Tx    []byte
 }
 
@@ -83,7 +83,7 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 	}
 
 	// verify that the commitment of the blob matches that of the PFB
-	calculatedCommit, err := CreateMultiShareCommitment(bTx.Blobs)
+	calculatedCommit, err := CreateMultiShareCommitment(bTx.Blobs...)
 	if err != nil {
 		return ProcessedBlobTx{}, ErrCalculateCommit
 	}

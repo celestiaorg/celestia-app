@@ -33,7 +33,7 @@ func NewMsgPayForBlob(signer string, blobs ...*Blob) (*MsgPayForBlob, error) {
 		return nil, err
 	}
 
-	commitment, err := CreateMultiShareCommitment(nsIDs, rawBlobs, versions)
+	commitment, err := CreateMultiShareCommitment(blobs...)
 	if err != nil {
 		return nil, err
 	}
