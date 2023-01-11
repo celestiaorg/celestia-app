@@ -75,8 +75,8 @@ const (
 	// in a block.
 	//
 	// NOTE: Currently this value is set at roughly the number of PFBs that
-	// would fill half of the max square size.
-	TransactionsPerBlockLimit = 10180
+	// would fill one quarter of the max square size.
+	TransactionsPerBlockLimit = 5090
 )
 
 var (
