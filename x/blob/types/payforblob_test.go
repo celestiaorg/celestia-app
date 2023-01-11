@@ -296,18 +296,6 @@ func TestNewMsgPayForBlob(t *testing.T) {
 	}
 }
 
-func componentsToBlob(blobs [][]byte, nss [][]byte, vs []uint8) []*tmproto.Blob {
-	pblobs := make([]*tmproto.Blob, len(blobs))
-	for i := range blobs {
-		pblobs[i] = &tmproto.Blob{
-			Data:         blobs[i],
-			NamespaceId:  nss[i],
-			ShareVersion: uint32(vs[i]),
-		}
-	}
-	return pblobs
-}
-
 func TestBlobMinSquareSize(t *testing.T) {
 	type testCase struct {
 		name     string

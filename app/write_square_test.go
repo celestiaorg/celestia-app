@@ -2,7 +2,6 @@ package app
 
 import (
 	"bytes"
-	"fmt"
 	"sort"
 	"testing"
 
@@ -174,12 +173,8 @@ func Test_finalizeLayout(t *testing.T) {
 	for i, tt := range tests {
 		res, blobs := finalizeLayout(tt.squareSize, tt.nonreserveStart, tt.ptxs)
 		require.Equal(t, len(tt.expectedIndexes), len(res), i)
-		fmt.Println("test", i)
 		for j, ptx := range res {
-			fmt.Println("res", j)
-			if !assert.Equal(t, tt.expectedIndexes[j], ptx.shareIndexes, i) {
-				fmt.Println("fail", i, j, tt.expectedIndexes[j], ptx.shareIndexes)
-			}
+			assert.Equal(t, tt.expectedIndexes[j], ptx.shareIndexes, i)
 		}
 
 		processedTxs := processTxs(tmlog.NewNopLogger(), res)
