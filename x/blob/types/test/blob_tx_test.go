@@ -74,7 +74,7 @@ func TestProcessBlobTx(t *testing.T) {
 					Blobs: []*tmproto.Blob{blob},
 				}
 			},
-			expectedErr: types.ErrMismatchedNumberOfPFBorBlob,
+			expectedErr: types.ErrNoPFB,
 		},
 		{
 			name: "mismatched number of pfbs and blobs",
@@ -94,16 +94,16 @@ func TestProcessBlobTx(t *testing.T) {
 				rawblob := rand.Bytes(100)
 				msg, err := types.NewMsgPayForBlob(
 					signerAddr.String(),
-					namespace.RandomBlobNamespace(),
-					rawblob,
+					&tmproto.Blob{NamespaceId: namespace.RandomBlobNamespace(), Data: rawblob, ShareVersion: 0},
 				)
 				require.NoError(t, err)
 
 				badCommit, err := types.CreateCommitment(
-					namespace.RandomBlobNamespace(),
-					rand.Bytes(99),
-					appconsts.ShareVersionZero,
-				)
+					&types.Blob{
+						NamespaceId:  namespace.RandomBlobNamespace(),
+						Data:         rand.Bytes(99),
+						ShareVersion: uint32(appconsts.ShareVersionZero),
+					})
 				require.NoError(t, err)
 
 				msg.ShareCommitment = badCommit
@@ -153,7 +153,7 @@ func TestProcessBlobTx(t *testing.T) {
 					Tx: sendtx,
 				}
 			},
-			expectedErr: types.ErrInvalidNumberOfPFBInBlobTx,
+			expectedErr: types.ErrNoPFB,
 		},
 	}
 

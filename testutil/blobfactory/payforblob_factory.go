@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 	"google.golang.org/grpc"
 )
@@ -22,8 +24,11 @@ func RandMsgPayForBlobWithSigner(singer string, size int) (*blobtypes.MsgPayForB
 	blob := tmrand.Bytes(size)
 	msg, err := blobtypes.NewMsgPayForBlob(
 		singer,
-		namespace.RandomBlobNamespace(),
-		blob,
+		&tmproto.Blob{
+			NamespaceId:  namespace.RandomBlobNamespace(),
+			Data:         blob,
+			ShareVersion: uint32(appconsts.ShareVersionZero),
+		},
 	)
 	if err != nil {
 		panic(err)
@@ -35,8 +40,11 @@ func RandMsgPayForBlobWithNamespaceAndSigner(signer string, nid []byte, size int
 	blob := tmrand.Bytes(size)
 	msg, err := blobtypes.NewMsgPayForBlob(
 		signer,
-		nid,
-		blob,
+		&tmproto.Blob{
+			NamespaceId:  nid,
+			Data:         blob,
+			ShareVersion: uint32(appconsts.ShareVersionZero),
+		},
 	)
 	if err != nil {
 		panic(err)
@@ -48,8 +56,11 @@ func RandMsgPayForBlob(size int) (*blobtypes.MsgPayForBlob, []byte) {
 	blob := tmrand.Bytes(size)
 	msg, err := blobtypes.NewMsgPayForBlob(
 		defaultSigner,
-		namespace.RandomBlobNamespace(),
-		blob,
+		&tmproto.Blob{
+			NamespaceId:  namespace.RandomBlobNamespace(),
+			Data:         blob,
+			ShareVersion: uint32(appconsts.ShareVersionZero),
+		},
 	)
 	if err != nil {
 		panic(err)

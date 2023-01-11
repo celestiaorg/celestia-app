@@ -25,19 +25,19 @@ const (
 
 var _ sdk.Msg = &MsgPayForBlob{}
 
-func NewMsgPayForBlob(signer string, nid namespace.ID, blob []byte) (*MsgPayForBlob, error) {
-	commitment, err := CreateCommitment(nid, blob, appconsts.ShareVersionZero)
+func NewMsgPayForBlob(signer string, blob *Blob) (*MsgPayForBlob, error) {
+	commitment, err := CreateMultiShareCommitment(blob)
 	if err != nil {
 		return nil, err
 	}
-	if len(blob) == 0 {
+	if len(blob.Data) == 0 {
 		return nil, ErrZeroBlobSize
 	}
 	msg := &MsgPayForBlob{
 		Signer:          signer,
-		NamespaceId:     nid,
+		NamespaceId:     blob.NamespaceId,
 		ShareCommitment: commitment,
-		BlobSize:        uint32(len(blob)),
+		BlobSize:        uint32(len(blob.Data)),
 	}
 	return msg, msg.ValidateBasic()
 }
@@ -90,16 +90,16 @@ func (msg *MsgPayForBlob) GetSigners() []sdk.AccAddress {
 //
 // [Message layout rationale]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L12
 // [Non-interactive default rules]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L36
-func CreateCommitment(namespace []byte, blobData []byte, shareVersion uint8) ([]byte, error) {
-	blob := coretypes.Blob{
-		NamespaceID:  namespace,
-		Data:         blobData,
-		ShareVersion: shareVersion,
+func CreateCommitment(blob *Blob) ([]byte, error) {
+	coreblob := coretypes.Blob{
+		NamespaceID:  blob.NamespaceId,
+		Data:         blob.Data,
+		ShareVersion: uint8(blob.ShareVersion),
 	}
 
 	// split into shares that are length delimited and include the namespace in
 	// each share
-	shares, err := appshares.SplitBlobs(0, nil, []coretypes.Blob{blob}, false)
+	shares, err := appshares.SplitBlobs(0, nil, []coretypes.Blob{coreblob}, false)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func CreateCommitment(namespace []byte, blobData []byte, shareVersion uint8) ([]
 	// the commitment is the root of a merkle mountain range with max tree size
 	// equal to the minimum square size the blob can be included in. See
 	// https://github.com/celestiaorg/celestia-app/blob/fbfbf111bcaa056e53b0bc54d327587dee11a945/docs/architecture/adr-008-blocksize-independent-commitment.md
-	minSquareSize := BlobMinSquareSize(len(blobData))
+	minSquareSize := BlobMinSquareSize(len(blob.Data))
 	treeSizes := merkleMountainRangeSizes(uint64(len(shares)), uint64(minSquareSize))
 	leafSets := make([][][]byte, len(treeSizes))
 	cursor := uint64(0)
@@ -128,7 +128,7 @@ func CreateCommitment(namespace []byte, blobData []byte, shareVersion uint8) ([]
 			// the namespace in the share, and therefore the parity data, while
 			// also allowing for the manual addition of the parity namespace to
 			// the parity data.
-			nsLeaf := append(make([]byte, 0), append(namespace, leaf...)...)
+			nsLeaf := append(make([]byte, 0), append(blob.NamespaceId, leaf...)...)
 			err := tree.Push(nsLeaf)
 			if err != nil {
 				return nil, err
@@ -138,6 +138,22 @@ func CreateCommitment(namespace []byte, blobData []byte, shareVersion uint8) ([]
 		subTreeRoots[i] = tree.Root()
 	}
 	return merkle.HashFromByteSlices(subTreeRoots), nil
+}
+
+// CreateMultiShareCommitment generates a commitment over multiple blobs at
+// arbitrary points in the square. It uses the normal commitment creation
+// function per blob, and then creates a merkle root of those commitments.
+func CreateMultiShareCommitment(blobs ...*Blob) ([]byte, error) {
+	commitments := make([][]byte, len(blobs))
+	for i, blob := range blobs {
+		c, err := CreateCommitment(blob)
+		if err != nil {
+			return nil, err
+		}
+		commitments[i] = c
+	}
+
+	return merkle.HashFromByteSlices(commitments), nil
 }
 
 // ValidateBlobNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.

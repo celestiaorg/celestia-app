@@ -23,7 +23,7 @@ var (
 	ErrUnsupportedShareVersion        = sdkerrors.Register(ModuleName, 11123, "unsupported share version")
 	ErrZeroBlobSize                   = sdkerrors.Register(ModuleName, 11124, "cannot use zero blob size")
 	ErrMismatchedNumberOfPFBorBlob    = sdkerrors.Register(ModuleName, 11125, "mismatched number of blobs per MsgPayForBlob")
-	ErrInvalidNumberOfPFBInBlobTx     = sdkerrors.Register(ModuleName, 11126, "BlobTx must contain only one MsgPayForBlob")
+	ErrNoPFB                          = sdkerrors.Register(ModuleName, 11126, "no MsgPayForBlob found in blob transaction")
 	ErrNamespaceMismatch              = sdkerrors.Register(ModuleName, 11127, "namespace of blob and its respective MsgPayForBlob differ")
 	ErrProtoParsing                   = sdkerrors.Register(ModuleName, 11128, "failure to parse a transaction from its protobuf representation")
 	ErrMultipleMsgsInBlobTx           = sdkerrors.Register(ModuleName, 11129, "not yet supported: multiple sdk.Msgs found in BlobTx")

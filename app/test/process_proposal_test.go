@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -19,7 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 )
 
-func TestBlobInclusionCheck(t *testing.T) {
+func TestProcessProposal(t *testing.T) {
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
@@ -35,6 +36,11 @@ func TestBlobInclusionCheck(t *testing.T) {
 	blobtx := blobfactory.RandBlobTxs(encConf.TxConfig.TxEncoder(), 1, 1000)[0]
 	btx, _ := coretypes.UnmarshalBlobTx(blobtx)
 	unindexedData.Txs = append(unindexedData.Txs, btx.Tx)
+
+	// create block data with a tx that is random data, and therefore cannot be
+	// decoded into an sdk.Tx
+	undecodableData := validData()
+	undecodableData.Txs = append(unindexedData.Txs, tmrand.Bytes(300))
 
 	type test struct {
 		name           string
@@ -107,6 +113,12 @@ func TestBlobInclusionCheck(t *testing.T) {
 		{
 			name:           "un-indexed PFB",
 			input:          unindexedData,
+			mutator:        func(d *core.Data) {},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:           "undecodable tx",
+			input:          undecodableData,
 			mutator:        func(d *core.Data) {},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},

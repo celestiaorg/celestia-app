@@ -71,56 +71,56 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 	t := s.T()
 	type test struct {
 		name    string
-		msgFunc func() (msg sdk.Msg, signer string)
+		msgFunc func() (msgs []sdk.Msg, signer string)
 		hash    string
 	}
 	tests := []test{
 		{
 			name: "send 1 utia",
-			msgFunc: func() (msg sdk.Msg, signer string) {
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account1, account2 := s.unusedAccount(), s.unusedAccount()
 				msgSend := banktypes.NewMsgSend(
 					getAddress(account1, s.cctx.Keyring),
 					getAddress(account2, s.cctx.Keyring),
 					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
 				)
-				return msgSend, account1
+				return []sdk.Msg{msgSend}, account1
 			},
 		},
 		{
 			name: "send 1,000,000 TIA",
-			msgFunc: func() (msg sdk.Msg, signer string) {
+			msgFunc: func() (msg []sdk.Msg, signer string) {
 				account1, account2 := s.unusedAccount(), s.unusedAccount()
 				msgSend := banktypes.NewMsgSend(
 					getAddress(account1, s.cctx.Keyring),
 					getAddress(account2, s.cctx.Keyring),
 					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000000))),
 				)
-				return msgSend, account1
+				return []sdk.Msg{msgSend}, account1
 			},
 		},
 		{
 			name: "delegate 1 TIA",
-			msgFunc: func() (msg sdk.Msg, signer string) {
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				valopAddr := sdk.ValAddress(getAddress("validator", s.cctx.Keyring))
 				account1 := s.unusedAccount()
 				account1Addr := getAddress(account1, s.cctx.Keyring)
-				msg = stakingtypes.NewMsgDelegate(account1Addr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
-				return msg, account1
+				msg := stakingtypes.NewMsgDelegate(account1Addr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
+				return []sdk.Msg{msg}, account1
 			},
 		},
 		{
 			name: "undelegate 1 TIA",
-			msgFunc: func() (msg sdk.Msg, signer string) {
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				valAccAddr := getAddress("validator", s.cctx.Keyring)
 				valopAddr := sdk.ValAddress(valAccAddr)
-				msg = stakingtypes.NewMsgUndelegate(valAccAddr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
-				return msg, "validator"
+				msg := stakingtypes.NewMsgUndelegate(valAccAddr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
+				return []sdk.Msg{msg}, "validator"
 			},
 		},
 		{
 			name: "create validator",
-			msgFunc: func() (msg sdk.Msg, signer string) {
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				pv := mock.NewPV()
 				account := s.unusedAccount()
 				valopAccAddr := getAddress(account, s.cctx.Keyring)
@@ -137,30 +137,30 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 					evmAddr,
 				)
 				require.NoError(t, err)
-				return msg, account
+				return []sdk.Msg{msg}, account
 			},
 		},
 		{
 			name: "create vesting account",
-			msgFunc: func() (msg sdk.Msg, signer string) {
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				vestAccName := "vesting"
 				_, _, err := s.cctx.Keyring.NewMnemonic(vestAccName, keyring.English, "", "", hd.Secp256k1)
 				require.NoError(t, err)
 				sendAcc := s.unusedAccount()
 				sendingAccAddr := getAddress(sendAcc, s.cctx.Keyring)
 				vestAccAddr := getAddress(vestAccName, s.cctx.Keyring)
-				msg = vestingtypes.NewMsgCreateVestingAccount(
+				msg := vestingtypes.NewMsgCreateVestingAccount(
 					sendingAccAddr,
 					vestAccAddr,
 					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000))),
 					10000, true,
 				)
-				return msg, sendAcc
+				return []sdk.Msg{msg}, sendAcc
 			},
 		},
 		{
 			name: "create legacy governance proposal",
-			msgFunc: func() (msg sdk.Msg, signer string) {
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
 				content, ok := oldgov.ContentFromProposalType("title", "description", "text")
 				require.True(t, ok)
@@ -172,18 +172,36 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 					addr,
 				)
 				require.NoError(t, err)
-				return msg, account
+				return []sdk.Msg{msg}, account
+			},
+		},
+		{
+			name: "multiple send sdk.Msgs in one sdk.Tx",
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
+				account1, account2 := s.unusedAccount(), s.unusedAccount()
+				msgSend1 := banktypes.NewMsgSend(
+					getAddress(account1, s.cctx.Keyring),
+					getAddress(account2, s.cctx.Keyring),
+					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
+				)
+				account3 := s.unusedAccount()
+				msgSend2 := banktypes.NewMsgSend(
+					getAddress(account1, s.cctx.Keyring),
+					getAddress(account3, s.cctx.Keyring),
+					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
+				)
+				return []sdk.Msg{msgSend1, msgSend2}, account1
 			},
 		},
 	}
 
 	// sign and submit the transactions
 	for i, tt := range tests {
-		msg, signer := tt.msgFunc()
-		res, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, signer, msg)
+		msgs, signer := tt.msgFunc()
+		res, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, signer, msgs...)
 		require.NoError(t, err)
 		require.NotNil(t, res)
-		require.Equal(t, abci.CodeTypeOK, res.Code)
+		require.Equal(t, abci.CodeTypeOK, res.Code, tt.name)
 		tests[i].hash = res.TxHash
 	}
 
