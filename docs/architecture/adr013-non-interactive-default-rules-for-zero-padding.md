@@ -24,7 +24,7 @@ Let's assume a good threshold assumption is that the number of subtree roots in 
 
 The new non-interactive default rules would be:
 
-Blobs start at an index that is equal to the blob length/`MaxSquareSize` rounded up.
+Blobs start at an index that is equal to a multiple of the blob length divided by `MaxSquareSize` rounded up.
 
 If the blob length is smaller than `MaxSquareSize` then the blob starts at index 1.
 `MaxSquareSize` can be changed to another threshold. The smaller the threshold the more padding we will have.
@@ -65,7 +65,7 @@ Here is a diagram of the worst-case padding for a threshold of 16 for the square
 
 If the threshold is bigger than `MinSquareSize` for a particular blob then the blob will be aligned to the index of the `MinSquareSize` of the blob. This would prevent some blob size ranges to have higher padding than they had before this change. So the real new non-interactive default rules would be:
 
-Blobs start at an index that is equal to the blob length divided by `MaxSquareSize` rounded up. If this index is larger than the `MinSquareSize` of the blob then the blob starts at the index of the `MinSquareSize`.
+Blobs start at an index that is equal to a multiple of the blob length divided by `MaxSquareSize` rounded up. If this index is larger than the `MinSquareSize` of the blob then the blob starts at the index of the `MinSquareSize`.
 
 ## Status
 
