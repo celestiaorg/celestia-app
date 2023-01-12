@@ -41,7 +41,7 @@ func Test_estimateSquareSize(t *testing.T) {
 	}
 }
 
-func Test_estimateCompactShares(t *testing.T) {
+func Test_estimateTxShares(t *testing.T) {
 	type test struct {
 		name              string
 		squareSize        uint64
@@ -65,7 +65,7 @@ func Test_estimateCompactShares(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ptxs := generateMixedParsedTxs(tt.normalTxs, tt.pfbCount, tt.pfbSize)
-			res := estimateCompactShares(tt.squareSize, ptxs)
+			res := estimateTxShares(tt.squareSize, ptxs)
 
 			// check that our estimate is always larger or equal to the number
 			// of compact shares actually used
@@ -84,6 +84,34 @@ func Test_estimateCompactShares(t *testing.T) {
 			}
 			shares := shares.SplitTxs(txs)
 			assert.LessOrEqual(t, len(shares), res)
+		})
+	}
+}
+
+func Test_compactSharesUsed(t *testing.T) {
+	type testCase struct {
+		name     string
+		numBytes int
+		want     int
+	}
+	testCases := []testCase{
+		{"empty", 0, 0},
+		{"one byte", 1, 1},
+		{"ten bytes", 10, 1},
+		{"one hundred bytes", 100, 1},
+		{"exactly one compact share", 495, 1},
+		{"just over one compact share", 496, 2},
+		{"exactly two compact shares", 994, 2},
+		{"just over two compact shares", 995, 3},
+		{"exactly three compact shares", 1493, 3},
+		{"just over three compact shares", 1494, 4},
+		{"one hundred compact shares", 1 + (appconsts.ContinuationCompactShareContentSize * 99), 100},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := compactSharesUsed(tc.numBytes)
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }
