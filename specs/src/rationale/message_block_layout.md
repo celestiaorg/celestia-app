@@ -35,14 +35,13 @@ This, however, requires the block producer to interact with the transaction send
 
 ### Non-Interactive Default Rules
 
-As a non-consensus-critical default, we can impose some additional rules on message placement to make the possible starting locations of messages sufficiently predictable and constrained such that users can deterministically compute subtree roots without interaction:
+As a non-consensus-critical default, we can impose one additional rule on message placement to make the possible starting locations of messages sufficiently predictable and constrained such that users can deterministically compute subtree roots without interaction:
 
-1. Messages that span multiple rows must begin at the start of a row (this can occur if a message is longer than `k` shares _or_ if the block producer decides to start a message partway through a row and it cannot fit).
-1. Messages begin at a location aligned with the largest power of 2 that is not larger than the message length or `k`.
+> Messages start at an index that is a multiple of the message minimum square size. The message minimum square size is the smallest square that can contain the message in isolation (i.e. a square with only this message and no other transactions or messages).
 
-With the above constraints, we can compute subtree roots deterministically easily: simply slice off either the largest power of 2 that isn't larger than the remaining message length, or `k`, whichever is smaller. This is done recursively. As an example, with `k = 4` and message length of `11`, the message would be sliced with lengths `4, 4, 2, 1`. The resulting slices are the leaves of subtrees whose roots can be computed. Due to the rules above, the subtrees are guaranteed to be aligned to powers of 2, and thus the subtree roots will be present as internal nodes in the NMT of _some_ row(s).
+With the above constraint, we can compute subtree roots deterministically. In order to compute the subtree roots, split the message into chunks that are of maximum size: message minimum square size. As an example, a message of length `11` has a minimum square size of `4` because `11` is not greater than `4 * 4 = 16` total shares. Split the message into chunks of length `4, 4, 2, 1`. The resulting slices are the leaves of subtrees whose roots can be computed. These subtree roots will be present as internal nodes in the NMT of _some_ row(s).
 
-This is similar to [Merkle Mountain Ranges](https://www.usenix.org/legacy/event/sec09/tech/full_papers/crosby.pdf), though with the largest subtree bounded by `k` rather than being unbounded.
+This is similar to [Merkle Mountain Ranges](https://www.usenix.org/legacy/event/sec09/tech/full_papers/crosby.pdf), though with the largest subtree bounded by the message minimum square size rather than being unbounded.
 
 The last piece of the puzzle is determining _which_ row the message is placed at (or, more specifically, the starting location). This is needed to keep the block producer accountable. To this end, the block producer simply augments each fee-paying transaction with some metadata: the starting location of the message the transaction pays for.
 
