@@ -3,13 +3,11 @@ package tokenfilter
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
+	transfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
 	channeltypes "github.com/cosmos/ibc-go/v6/modules/core/04-channel/types"
 	porttypes "github.com/cosmos/ibc-go/v6/modules/core/05-port/types"
 	"github.com/cosmos/ibc-go/v6/modules/core/exported"
 )
-
-var _ porttypes.Middleware = &tokenFilterMiddleware{}
 
 const ModuleName = "tokenfilter"
 
@@ -21,15 +19,13 @@ const ModuleName = "tokenfilter"
 // be allowed to unwrap.
 type tokenFilterMiddleware struct {
 	porttypes.IBCModule
-	porttypes.ICS4Wrapper
 }
 
 // NewIBCMiddleware creates a new instance of the token filter middleware for
 // the transfer module.
-func NewIBCMiddleware(ibcModule porttypes.IBCModule, wrapper porttypes.ICS4Wrapper) porttypes.Middleware {
+func NewIBCMiddleware(ibcModule porttypes.IBCModule) porttypes.IBCModule {
 	return &tokenFilterMiddleware{
-		IBCModule:   ibcModule,
-		ICS4Wrapper: wrapper,
+		IBCModule: ibcModule,
 	}
 }
 
@@ -43,8 +39,8 @@ func (m *tokenFilterMiddleware) OnRecvPacket(
 	packet channeltypes.Packet,
 	relayer sdk.AccAddress,
 ) exported.Acknowledgement {
-	var data types.FungibleTokenPacketData
-	if err := types.ModuleCdc.UnmarshalJSON(packet.GetData(), &data); err != nil {
+	var data transfertypes.FungibleTokenPacketData
+	if err := transfertypes.ModuleCdc.UnmarshalJSON(packet.GetData(), &data); err != nil {
 		// If this happens either a) a user has crafted an invalid packet, b) a
 		// software developer has connected the middleware to a stack that does
 		// not have a transfer module, or c) the transfer module has been modified
@@ -57,7 +53,7 @@ func (m *tokenFilterMiddleware) OnRecvPacket(
 	// our channel and port it means that the token was originally sent from this
 	// chain. Note that this firewall prevents routing of other transactions through
 	// the chain so from this logic, the denom has to be a native denom.
-	if types.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
+	if transfertypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
 		return m.IBCModule.OnRecvPacket(ctx, packet, relayer)
 	}
 
@@ -65,15 +61,15 @@ func (m *tokenFilterMiddleware) OnRecvPacket(
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
-			types.EventTypePacket,
+			transfertypes.EventTypePacket,
 			sdk.NewAttribute(sdk.AttributeKeyModule, ModuleName),
 			sdk.NewAttribute(sdk.AttributeKeySender, data.Sender),
-			sdk.NewAttribute(types.AttributeKeyReceiver, data.Receiver),
-			sdk.NewAttribute(types.AttributeKeyDenom, data.Denom),
-			sdk.NewAttribute(types.AttributeKeyAmount, data.Amount),
-			sdk.NewAttribute(types.AttributeKeyMemo, data.Memo),
-			sdk.NewAttribute(types.AttributeKeyAckSuccess, "false"),
-			sdk.NewAttribute(types.AttributeKeyAckError, ackErr.Error()),
+			sdk.NewAttribute(transfertypes.AttributeKeyReceiver, data.Receiver),
+			sdk.NewAttribute(transfertypes.AttributeKeyDenom, data.Denom),
+			sdk.NewAttribute(transfertypes.AttributeKeyAmount, data.Amount),
+			sdk.NewAttribute(transfertypes.AttributeKeyMemo, data.Memo),
+			sdk.NewAttribute(transfertypes.AttributeKeyAckSuccess, "false"),
+			sdk.NewAttribute(transfertypes.AttributeKeyAckError, ackErr.Error()),
 		),
 	)
 

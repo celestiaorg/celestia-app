@@ -45,8 +45,7 @@ func TestOnRecvPacket(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			module := &MockIBCModule{t: t, called: false}
-			wrapper := &MockICS4Wrapper{t: t}
-			middleware := tokenfilter.NewIBCMiddleware(module, wrapper)
+			middleware := tokenfilter.NewIBCMiddleware(module)
 
 			ctx := sdk.Context{}
 			ctx = ctx.WithEventManager(sdk.NewEventManager())
@@ -168,41 +167,4 @@ func (m *MockIBCModule) OnTimeoutPacket(
 ) error {
 	m.t.Fatalf("unexpected call to OnTimeoutPacket")
 	return nil
-}
-
-// ICS4Wrapper implements the ICS4 interfaces that IBC applications use to send packets and acknowledgements.
-type MockICS4Wrapper struct {
-	t *testing.T
-}
-
-func (m *MockICS4Wrapper) SendPacket(
-	ctx sdk.Context,
-	chanCap *capabilitytypes.Capability,
-	sourcePort string,
-	sourceChannel string,
-	timeoutHeight clienttypes.Height,
-	timeoutTimestamp uint64,
-	data []byte,
-) (sequence uint64, err error) {
-	m.t.Fatalf("unexpected call to SendPacket")
-	return 0, nil
-}
-
-func (m *MockICS4Wrapper) WriteAcknowledgement(
-	ctx sdk.Context,
-	chanCap *capabilitytypes.Capability,
-	packet exported.PacketI,
-	ack exported.Acknowledgement,
-) error {
-	m.t.Fatalf("unexpected call to WriteAcknowledgement")
-	return nil
-}
-
-func (m *MockICS4Wrapper) GetAppVersion(
-	ctx sdk.Context,
-	portID,
-	channelID string,
-) (string, bool) {
-	m.t.Fatalf("unexpected call to GetAppVersion")
-	return "", false
 }
