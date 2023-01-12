@@ -91,6 +91,7 @@ func NewRootCmd() *cobra.Command {
 			tmCfg.Consensus.TimeoutPropose = time.Second * 10
 			tmCfg.Consensus.TimeoutCommit = time.Second * 8
 			tmCfg.Consensus.SkipTimeoutCommit = false
+			tmCfg.TxIndex.Indexer = "null"
 
 			customAppTemplate, customAppConfig := initAppConfig()
 			return server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
