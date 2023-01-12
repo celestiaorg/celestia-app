@@ -1,10 +1,14 @@
 package test
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"math/big"
 	"testing"
+
+	"github.com/tendermint/tendermint/crypto/merkle"
+	rpccore "github.com/tendermint/tendermint/rpc/core"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/orchestrator"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
@@ -202,6 +206,108 @@ func (s *QGBTestSuite) TestUpdateValset() {
 	s.NoError(err)
 	// check that the validator set was changed.
 	s.Equal(0, valSetThresh.Cmp(big.NewInt(6668)))
+}
+
+func (s *QGBTestSuite) TestVerifyAttestation() {
+	roots, heights, encodedTuples, err := generateRandomDataRootTuples(4)
+	s.Require().NoError(err)
+	commitment, proofs := merkle.ProofsFromByteSlices(encodedTuples)
+	nonce := 1
+
+	signBytes := types.DataCommitmentTupleRootSignBytes(
+		bID,
+		big.NewInt(int64(nonce)),
+		commitment[:],
+	)
+
+	signature, err := types.NewEthereumSignature(signBytes.Bytes(), s.key)
+	s.NoError(err)
+
+	evmVals := make([]wrapper.Validator, len(initialValSet.Members))
+	for i, val := range initialValSet.Members {
+		evmVals[i] = wrapper.Validator{
+			Addr:  ethcmn.HexToAddress(val.EvmAddress),
+			Power: big.NewInt(int64(val.Power)),
+		}
+	}
+
+	hexSig := ethcmn.Bytes2Hex(signature)
+	v, r, ss := orchestrator.SigToVRS(hexSig)
+	tx, err := s.wrapper.SubmitDataRootTupleRoot(
+		s.auth,
+		big.NewInt(1),
+		big.NewInt(0),
+		*(*[32]byte)(commitment),
+		evmVals,
+		[]wrapper.Signature{
+			{
+				V: v,
+				R: r,
+				S: ss,
+			},
+		},
+	)
+	s.NoError(err)
+	s.sim.Commit()
+
+	recp, err := s.sim.TransactionReceipt(context.TODO(), tx.Hash())
+	s.NoError(err)
+	s.Assert().Equal(uint64(1), recp.Status)
+
+	dcNonce, err := s.wrapper.StateEventNonce(nil)
+	s.NoError(err)
+	s.Assert().Equal(0, dcNonce.Cmp(big.NewInt(int64(nonce))))
+
+	err = proofs[1].Verify(commitment, encodedTuples[1])
+	s.NoError(err)
+
+	dataRootTuple := wrapper.DataRootTuple{
+		Height:   big.NewInt(int64(heights[1])),
+		DataRoot: *(*[32]byte)(roots[1]),
+	}
+
+	sideNodes := make([][32]byte, len(proofs[1].Aunts))
+	for i, p := range proofs[1].Aunts {
+		sideNodes[i] = *(*[32]byte)(p)
+	}
+	wrappedProof := wrapper.BinaryMerkleProof{
+		SideNodes: sideNodes,
+		Key:       big.NewInt(proofs[1].Index),
+		NumLeaves: big.NewInt(proofs[1].Total),
+	}
+
+	committedTo, err := s.wrapper.VerifyAttestation(
+		&bind.CallOpts{Context: context.TODO()},
+		big.NewInt(int64(nonce)),
+		dataRootTuple,
+		wrappedProof,
+	)
+	s.NoError(err)
+	s.Assert().True(committedTo)
+}
+
+// generateRandomDataRootTuples returns a slice of data roots, their corresponding heights
+// and the encoded data root tuple.
+func generateRandomDataRootTuples(count int) ([][]byte, []uint64, [][]byte, error) {
+	heights := make([]uint64, count)
+	roots := make([][]byte, count)
+	encodedTuples := make([][]byte, count)
+	for i := 0; i < count; i++ {
+		heights[i] = uint64(i)
+		root := bytes.Repeat([]byte{byte(i)}, 32)
+		roots[i] = root
+
+		tuple := wrapper.DataRootTuple{
+			Height:   big.NewInt(int64(i)),
+			DataRoot: *(*[32]byte)(root),
+		}
+		encodedTuple, err := rpccore.EncodeDataRootTuple(uint64(i), tuple.DataRoot)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		encodedTuples[i] = encodedTuple
+	}
+	return roots, heights, encodedTuples, nil
 }
 
 func (s *QGBTestSuite) updateNonce() error {
