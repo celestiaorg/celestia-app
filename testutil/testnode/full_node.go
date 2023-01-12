@@ -186,7 +186,6 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func() error
 
 	tmCfg := DefaultTendermintConfig()
 	tmCfg.Consensus.TimeoutCommit = blockTime
-	tmCfg.TxIndex.Indexer = "null"
 
 	genState, kr, err := DefaultGenesisState(accounts...)
 	require.NoError(t, err)
