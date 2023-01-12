@@ -58,7 +58,7 @@ func Test_estimateSquareSize_MultiBlob(t *testing.T) {
 	}
 	tests := []test{
 		{
-			"single multiblob transaction",
+			"single share multiblob transaction",
 			func() [][]int { return [][]int{{4}} },
 			2, 1,
 		},
