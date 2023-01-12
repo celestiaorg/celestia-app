@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 func Test_merkleMountainRangeHeights(t *testing.T) {
@@ -97,7 +98,8 @@ func TestCreateCommitment(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := CreateCommitment(tt.namespace, tt.blob, tt.shareVersion)
+			blob := &Blob{NamespaceId: tt.namespace, Data: tt.blob, ShareVersion: uint32(tt.shareVersion)}
+			res, err := CreateCommitment(blob)
 			if tt.expectErr {
 				assert.Error(t, err)
 				return
@@ -216,7 +218,14 @@ func validMsgPayForBlob(t *testing.T) *MsgPayForBlob {
 	addr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
 
-	pfb, err := NewMsgPayForBlob(addr.String(), ns, blob)
+	pfb, err := NewMsgPayForBlob(
+		addr.String(),
+		&tmproto.Blob{
+			NamespaceId:  ns,
+			Data:         blob,
+			ShareVersion: uint32(appconsts.ShareVersionZero),
+		},
+	)
 	assert.NoError(t, err)
 
 	return pfb
@@ -275,13 +284,14 @@ func TestNewMsgPayForBlob(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		res, err := NewMsgPayForBlob(tt.signer, tt.nids[0], tt.blobs[0])
+		blob := &Blob{NamespaceId: tt.nids[0], Data: tt.blobs[0], ShareVersion: uint32(appconsts.DefaultShareVersion)}
+		res, err := NewMsgPayForBlob(tt.signer, blob)
 		if tt.expectedErr {
 			assert.Error(t, err)
 			continue
 		}
 
-		expectedCommitment, err := CreateMultiShareCommitment(tt.nids, tt.blobs, make([]uint32, len(tt.blobs)))
+		expectedCommitment, err := CreateMultiShareCommitment(blob)
 		require.NoError(t, err)
 		assert.Equal(t, expectedCommitment, res.ShareCommitment)
 

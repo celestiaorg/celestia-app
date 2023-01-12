@@ -48,7 +48,7 @@ func CmdWirePayForBlob() *cobra.Command {
 
 			// TODO: allow the user to override the share version via a new flag
 			// See https://github.com/celestiaorg/celestia-app/issues/1041
-			pfbMsg, err := types.NewMsgPayForBlob(clientCtx.FromAddress.String(), namespace, blob.Data)
+			pfbMsg, err := types.NewMsgPayForBlob(clientCtx.FromAddress.String(), blob)
 			if err != nil {
 				return err
 			}
