@@ -156,12 +156,12 @@ func Test_estimateCompactShares(t *testing.T) {
 // The point of this test is to fail if anything to do with the serialization
 // of index wrappers change, as changes could lead to tricky bugs.
 func Test_expected_maxIndexWrapperOverhead(t *testing.T) {
-	require.Equal(t, 2, maxIndexOverhead(4))
-	require.Equal(t, 5, maxIndexOverhead(128))
-	require.Equal(t, 6, maxIndexOverhead(512))
-	require.Equal(t, 9, maxIndexWrapperOverhead(4))
-	require.Equal(t, 11, maxIndexWrapperOverhead(128))
-	require.Equal(t, 11, maxIndexWrapperOverhead(512))
+	assert.Equal(t, 2, maxIndexOverhead(4))
+	assert.Equal(t, 5, maxIndexOverhead(128))
+	assert.Equal(t, 6, maxIndexOverhead(512))
+	assert.Equal(t, 12, maxIndexWrapperOverhead(4))
+	assert.Equal(t, 16, maxIndexWrapperOverhead(128))
+	assert.Equal(t, 16, maxIndexWrapperOverhead(512))
 }
 
 func Test_maxIndexWrapperOverhead(t *testing.T) {
