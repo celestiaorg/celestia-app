@@ -294,7 +294,7 @@ func (s *IntegrationTestSuite) TestSharesInclusionProof() {
 		s.cfg.TxConfig.TxEncoder(),
 		s.kr,
 		val.ClientCtx.GRPCClient,
-		-1,
+		100000,
 		true,
 		s.cfg.ChainID,
 		s.accounts[:20],
