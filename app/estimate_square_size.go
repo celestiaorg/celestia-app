@@ -81,8 +81,9 @@ func estimateCompactShares(squareSize uint64, ptxs []parsedTx) int {
 func maxWrappedTxOverhead(squareSize uint64) int {
 	maxTxLen := squareSize * squareSize * appconsts.ContinuationCompactShareContentSize
 	wtx, err := coretypes.MarshalIndexWrapper(
+		make([]byte, maxTxLen),
 		uint32(squareSize*squareSize),
-		make([]byte, maxTxLen))
+	)
 	if err != nil {
 		panic(err)
 	}

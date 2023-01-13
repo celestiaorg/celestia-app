@@ -76,8 +76,8 @@ func Test_estimateCompactShares(t *testing.T) {
 					continue
 				}
 				wPFBTx, err := coretypes.MarshalIndexWrapper(
-					uint32(tt.squareSize*tt.squareSize),
 					ptx.blobTx.Tx,
+					uint32(tt.squareSize*tt.squareSize),
 				)
 				require.NoError(t, err)
 				txs[i] = wPFBTx

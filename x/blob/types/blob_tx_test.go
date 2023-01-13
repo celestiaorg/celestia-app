@@ -66,7 +66,7 @@ func TestVerifySignature(t *testing.T) {
 	uTx, isBlob := coretypes.UnmarshalBlobTx(cTx)
 	require.True(t, isBlob)
 
-	wTx, err := coretypes.MarshalIndexWrapper(100, uTx.Tx)
+	wTx, err := coretypes.MarshalIndexWrapper(uTx.Tx, 100)
 	require.NoError(t, err)
 
 	uwTx, isMal := coretypes.UnmarshalIndexWrapper(wTx)

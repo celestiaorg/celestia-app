@@ -70,7 +70,7 @@ func TestPadFirstIndexedBlob(t *testing.T) {
 	tx := tmrand.Bytes(300)
 	blob := tmrand.Bytes(300)
 	index := 100
-	indexedTx, err := coretypes.MarshalIndexWrapper(100, tx)
+	indexedTx, err := coretypes.MarshalIndexWrapper(tx, 100)
 	require.NoError(t, err)
 
 	bd := coretypes.Data{
