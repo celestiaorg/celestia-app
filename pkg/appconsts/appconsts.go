@@ -87,6 +87,10 @@ var (
 	// EvidenceNamespaceID is the namespace reserved for evidence.
 	EvidenceNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
 
+	// TailTransactionPaddingNamespaceId is the namespace used for padding after
+	// all transactions (ordinary and PFBs) but before blobs.
+	TailTransactionPaddingNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
+
 	// MaxReservedNamespace is the lexicographically largest namespace that is
 	// reserved for protocol use.
 	MaxReservedNamespace = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
