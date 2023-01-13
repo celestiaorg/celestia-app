@@ -121,7 +121,7 @@ func TxSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos 
 // where a given message, referenced by its wrapped pfb transaction, was published at.
 // Note: only supports transactions containing a single message
 func MsgSharesPosition(tx types.Tx) (beginShare uint64, endShare uint64, err error) {
-	unwrappedTx, isMalleated := types.UnwrapMalleatedTx(tx)
+	unwrappedTx, isMalleated := types.UnmarshalIndexWrapper(tx)
 	if !isMalleated {
 		return beginShare, endShare, fmt.Errorf("not a malleated tx")
 	}
