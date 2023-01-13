@@ -2,11 +2,12 @@ package cmd
 
 import (
 	"fmt"
-	qgbcmd "github.com/celestiaorg/celestia-app/x/qgb/cmd"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
+
+	qgbcmd "github.com/celestiaorg/celestia-app/x/qgb/cmd"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
