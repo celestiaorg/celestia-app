@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	qgbcmd "github.com/celestiaorg/celestia-app/x/qgb/cmd"
 	"io"
 	"os"
 	"path/filepath"
@@ -165,6 +166,7 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		queryCommand(),
 		txCommand(),
 		keybase,
+		qgbcmd.VerifyCmd(),
 	)
 }
 
