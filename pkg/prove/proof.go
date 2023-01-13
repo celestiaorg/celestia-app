@@ -155,8 +155,8 @@ func MsgSharesPosition(tx types.Tx) (beginShare uint64, endShare uint64, err err
 		return beginShare, endShare, err
 	}
 
-	beginShare = uint64(unwrappedTx.ShareIndex)
-	sharesUsed := shares.MsgSharesUsed(int(pfb.BlobSize))
+	beginShare = uint64(unwrappedTx.ShareIndexes[0])
+	sharesUsed := shares.SparseSharesNeeded(pfb.BlobSize)
 	return beginShare, beginShare + uint64(sharesUsed) - 1, nil
 }
 

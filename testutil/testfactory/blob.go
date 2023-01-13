@@ -3,6 +3,8 @@ package testfactory
 import (
 	"sort"
 
+	nmtnamespace "github.com/celestiaorg/nmt/namespace"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
@@ -23,6 +25,25 @@ func GenerateRandomlySizedBlobs(count, maxBlobSize int) []types.Blob {
 	}
 
 	sort.Sort(types.BlobsByNamespace(blobs))
+	return blobs
+}
+
+// generateBlobsWithNamespace generates randomly sized blobs with
+// namespace ID `nID`.
+func GenerateBlobsWithNamespace(count, msgSize int, nID nmtnamespace.ID) types.BlobsByNamespace {
+	blobs := make([]types.Blob, count)
+	for i := 0; i < count; i++ {
+		blobs[i] = types.Blob{
+			NamespaceID: nID,
+			Data:        tmrand.Bytes(msgSize),
+		}
+	}
+
+	// this is just to let us use assert.Equal
+	if count == 0 {
+		blobs = nil
+	}
+
 	return blobs
 }
 

@@ -3,11 +3,12 @@ package app_test
 import (
 	"context"
 	"encoding/hex"
+	"testing"
+	"time"
+
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -289,8 +290,15 @@ func (s *IntegrationTestSuite) TestSharesInclusionProof() {
 	val := s.network.Validators[0]
 
 	// generate 100 randomly sized txs (max size == 100kb)
-	txs, err := generateSignedWirePayForBlobTxs(val.ClientCtx, s.cfg.TxConfig, s.kr, -1, s.accounts[:20]...)
-	require.NoError(err)
+	txs := blobfactory.RandBlobTxsWithAccounts(
+		s.cfg.TxConfig.TxEncoder(),
+		s.kr,
+		val.ClientCtx.GRPCClient,
+		-1,
+		true,
+		s.cfg.ChainID,
+		s.accounts[:20],
+	)
 
 	hashes := make([]string, len(txs))
 

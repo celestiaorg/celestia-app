@@ -1,9 +1,10 @@
 package prove
 
 import (
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"sort"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	nmtnamespace "github.com/celestiaorg/nmt/namespace"
@@ -76,18 +77,18 @@ func TestTxInclusion(t *testing.T) {
 
 func TestShareInclusion(t *testing.T) {
 	blobs := append(
-		generateBlobsWithNamespace(
+		testfactory.GenerateBlobsWithNamespace(
 			100,
 			500,
 			[]byte{0, 0, 0, 0, 0, 1, 0, 0},
 		),
 		append(
-			generateBlobsWithNamespace(
+			testfactory.GenerateBlobsWithNamespace(
 				50,
 				500,
 				[]byte{0, 0, 0, 1, 0, 0, 0, 0},
 			),
-			generateBlobsWithNamespace(
+			testfactory.GenerateBlobsWithNamespace(
 				50,
 				500,
 				[]byte{0, 0, 1, 0, 0, 0, 0, 0},
@@ -96,7 +97,7 @@ func TestShareInclusion(t *testing.T) {
 	)
 	sort.Sort(blobs)
 	blockData := types.Data{
-		Txs:        generateRandomTxs(50, 500),
+		Txs:        testfactory.GenerateRandomTxs(50, 500),
 		Blobs:      blobs,
 		SquareSize: 32,
 	}
@@ -190,8 +191,8 @@ func TestShareInclusion(t *testing.T) {
 		},
 		{
 			name:          "40 custom namespace shares",
-			startingShare: 201,
-			endingShare:   250,
+			startingShare: 355,
+			endingShare:   394,
 			namespaceID:   []byte{0, 0, 1, 0, 0, 0, 0, 0},
 			shouldPass:    true,
 		},
@@ -262,16 +263,16 @@ func TestTxSharePosition(t *testing.T) {
 	for _, tt := range tests {
 		positions := make([]startEndPoints, len(tt.txs))
 		for i := 0; i < len(tt.txs); i++ {
-			start, end, err := txSharePosition(tt.txs, uint64(i))
+			start, end, err := TxSharePosition(tt.txs, uint64(i))
 			require.NoError(t, err)
 			positions[i] = startEndPoints{start: start, end: end}
 		}
 
-		shares := shares.SplitTxs(tt.txs)
+		splitShares := shares.SplitTxs(tt.txs)
 
 		for i, pos := range positions {
 			rawTx := []byte(tt.txs[i])
-			rawTxDataForRange, err := stripCompactShares(shares[pos.start : pos.end+1])
+			rawTxDataForRange, err := stripCompactShares(splitShares[pos.start : pos.end+1])
 			assert.NoError(t, err)
 			assert.Contains(
 				t,
