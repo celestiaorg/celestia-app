@@ -61,28 +61,7 @@ func estimateTxShares(squareSize uint64, ptxs []parsedTx) int {
 		txbytes += txLen
 	}
 
-	return compactSharesUsed(txbytes)
-}
-
-// compactSharesUsed returns the number of compact shares used to store
-// numBytes.
-func compactSharesUsed(numBytes int) int {
-	if numBytes == 0 {
-		return 0
-	}
-	if numBytes <= appconsts.FirstCompactShareContentSize {
-		return 1
-	}
-	sharesUsed := 1
-	numBytes -= appconsts.FirstCompactShareContentSize
-
-	// account for continuation shares
-	sharesUsed += (numBytes / appconsts.ContinuationCompactShareContentSize)
-	if numBytes%appconsts.ContinuationCompactShareContentSize != 0 {
-		sharesUsed++
-	}
-
-	return sharesUsed
+	return shares.CompactSharesNeeded(txbytes)
 }
 
 // maxWrappedTxOverhead calculates the maximum amount of overhead introduced by
