@@ -3,25 +3,24 @@ package app_test
 import (
 	"context"
 	"encoding/hex"
+	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
-
 	cosmosnet "github.com/cosmos/cosmos-sdk/testutil/network"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	"github.com/celestiaorg/celestia-app/pkg/prove"
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	"github.com/celestiaorg/celestia-app/x/blob"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -283,4 +282,67 @@ func queryTx(clientCtx client.Context, hashHexStr string, prove bool) (*rpctypes
 	}
 
 	return node.Tx(context.Background(), hash, prove)
+}
+
+func (s *IntegrationTestSuite) TestSharesInclusionProof() {
+	require := s.Require()
+	val := s.network.Validators[0]
+
+	// generate 100 randomly sized txs (max size == 100kb)
+	txs, err := generateSignedWirePayForBlobTxs(val.ClientCtx, s.cfg.TxConfig, s.kr, -1, s.accounts[:20]...)
+	require.NoError(err)
+
+	hashes := make([]string, len(txs))
+
+	for i, tx := range txs {
+		res, err := val.ClientCtx.BroadcastTxSync(tx)
+		require.NoError(err)
+		require.Equal(abci.CodeTypeOK, res.Code)
+		hashes[i] = res.TxHash
+	}
+
+	// wait a few blocks to clear the txs
+	for i := 0; i < 20; i++ {
+		require.NoError(s.network.WaitForNextBlock())
+	}
+
+	for _, hash := range hashes {
+		txResp, err := queryTx(val.ClientCtx, hash, true)
+		require.NoError(err)
+		require.Equal(abci.CodeTypeOK, txResp.TxResult.Code)
+
+		// verify that the transaction inclusion proof is valid
+		require.True(txResp.Proof.VerifyProof())
+
+		// get the transaction shares
+		node, err := val.ClientCtx.GetNode()
+		require.NoError(err)
+		blockRes, err := node.Block(context.Background(), &txResp.Height)
+		require.NoError(err)
+		beginTxShare, endTxShare, err := prove.TxSharePosition(blockRes.Block.Txs, uint64(txResp.Index))
+		require.NoError(err)
+
+		txProof, err := node.ProveShares(
+			context.Background(),
+			uint64(txResp.Height),
+			beginTxShare,
+			endTxShare,
+		)
+		require.NoError(err)
+		require.NoError(txProof.Validate(blockRes.Block.DataHash))
+
+		// get the message shares
+		beginMsgShare, endMsgShare, err := prove.MsgSharesPosition(blockRes.Block.Txs[txResp.Index])
+		require.NoError(err)
+
+		// verify the message shares proof
+		msgProof, err := node.ProveShares(
+			context.Background(),
+			uint64(txResp.Height),
+			beginMsgShare,
+			endMsgShare,
+		)
+		require.NoError(err)
+		require.NoError(msgProof.Validate(blockRes.Block.DataHash))
+	}
 }
