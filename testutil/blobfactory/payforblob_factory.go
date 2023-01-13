@@ -122,7 +122,7 @@ func RandBlobTxsWithAccounts(
 	enc sdk.TxEncoder,
 	kr keyring.Keyring,
 	conn *grpc.ClientConn,
-	size int,
+	size uint,
 	randSize bool,
 	chainid string,
 	accounts []string,
@@ -150,9 +150,9 @@ func RandBlobTxsWithAccounts(
 			panic(err)
 		}
 
-		randomizedSize := size
+		randomizedSize := int(size)
 		if randSize {
-			randomizedSize = rand.Intn(size)
+			randomizedSize = rand.Intn(int(size))
 			if randomizedSize == 0 {
 				randomizedSize = 1
 			}
