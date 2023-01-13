@@ -82,7 +82,10 @@ func estimateCompactShares(squareSize uint64, ptxs []parsedTx) int {
 // similar. This function alone can take up to 5ms.
 func maxIndexWrapperOverhead(squareSize uint64) int {
 	maxTxLen := squareSize * squareSize * appconsts.ContinuationCompactShareContentSize
-	wtx, err := coretypes.MarshalIndexWrapper(make([]byte, maxTxLen))
+	wtx, err := coretypes.MarshalIndexWrapper(
+		make([]byte, maxTxLen),
+		uint32(squareSize*squareSize),
+	)
 	if err != nil {
 		panic(err)
 	}
