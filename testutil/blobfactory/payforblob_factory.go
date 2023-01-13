@@ -150,6 +150,9 @@ func RandBlobTxsWithAccounts(
 			panic(err)
 		}
 
+		if size <= 0 {
+			panic("size should be positive")
+		}
 		randomizedSize := size
 		if randSize {
 			randomizedSize = rand.Intn(size)
