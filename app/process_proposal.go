@@ -118,7 +118,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			}
 		}
 
-		commitment, err := inclusion.GetMultiCommit(cacher, dah, []uint32{wrappedTx.ShareIndex}, []uint32{pfb.BlobSize})
+		commitment, err := inclusion.GetMultiCommit(cacher, dah, wrappedTx.ShareIndexes, []uint32{pfb.BlobSize})
 		if err != nil {
 			logInvalidPropBlockError(app.Logger(), req.Header, "commitment not found", err)
 			return abci.ResponseProcessProposal{
