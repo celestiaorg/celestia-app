@@ -14,6 +14,7 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/constraints"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -209,7 +210,7 @@ func ValidatePFBComponents(nsIDs [][]byte, blobs [][]byte, shareVersions []uint3
 		if !slices.Contains(appconsts.SupportedShareVersions, uint8(shareVersion)) {
 			return ErrUnsupportedShareVersion
 		}
-	}```
+	}
 
 	return nil
 }
