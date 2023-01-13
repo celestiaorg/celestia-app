@@ -64,8 +64,12 @@ func ProcessBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) (Processed
 		return ProcessedBlobTx{}, err
 	}
 
-	blobs, nsIDs, sizes, versions := extractBlobComponents(bTx.Blobs)
-	err = ValidatePFBComponents(nsIDs, blobs, versions)
+	// perform basic checks on the blobs
+	sizes := make([]uint32, len(bTx.Blobs))
+	for i, pblob := range bTx.Blobs {
+		sizes[i] = uint32(len(pblob.Data))
+	}
+	err = ValidateBlobs(bTx.Blobs...)
 	if err != nil {
 		return ProcessedBlobTx{}, err
 	}

@@ -28,8 +28,8 @@ const (
 var _ sdk.Msg = &MsgPayForBlob{}
 
 func NewMsgPayForBlob(signer string, blobs ...*Blob) (*MsgPayForBlob, error) {
-	rawBlobs, nsIDs, sizes, versions := extractBlobComponents(blobs)
-	err := ValidatePFBComponents(nsIDs, rawBlobs, versions)
+	nsIDs, sizes, versions := extractBlobComponents(blobs)
+	err := ValidateBlobs(blobs...)
 	if err != nil {
 		return nil, err
 	}
@@ -181,33 +181,22 @@ func CreateMultiShareCommitment(blobs ...*Blob) ([]byte, error) {
 }
 
 // ValidatePFBComponents performs basic checks over the components of one or more PFBs.
-func ValidatePFBComponents(nsIDs [][]byte, blobs [][]byte, shareVersions []uint32) error {
-	if len(nsIDs) != len(blobs) || len(nsIDs) != len(shareVersions) {
-		return ErrMismatchedNumberOfPFBComponent.Wrapf(
-			"namespaces %d blobs %d versions %d",
-			len(nsIDs), len(blobs), len(shareVersions),
-		)
-	}
-
+func ValidateBlobs(blobs ...*Blob) error {
 	if len(blobs) == 0 {
 		return ErrNoBlobs
 	}
 
-	for _, ns := range nsIDs {
-		err := ValidateBlobNamespaceID(ns)
+	for _, blob := range blobs {
+		err := ValidateBlobNamespaceID(blob.NamespaceId)
 		if err != nil {
 			return err
 		}
-	}
 
-	for _, blob := range blobs {
-		if len(blob) == 0 {
+		if len(blob.Data) == 0 {
 			return ErrZeroBlobSize
 		}
-	}
 
-	for _, shareVersion := range shareVersions {
-		if !slices.Contains(appconsts.SupportedShareVersions, uint8(shareVersion)) {
+		if !slices.Contains(appconsts.SupportedShareVersions, uint8(blob.ShareVersion)) {
 			return ErrUnsupportedShareVersion
 		}
 	}
@@ -245,20 +234,18 @@ func ValidateBlobNamespaceID(ns namespace.ID) error {
 // extractBlobComponents separates and returns the components of a slice of
 // blobs in order of blobs of data, their namespaces, their sizes, and their share
 // versions.
-func extractBlobComponents(pblobs []*tmproto.Blob) (rawBlobs [][]byte, nsIDs [][]byte, sizes []uint32, versions []uint32) {
-	rawBlobs = make([][]byte, len(pblobs))
+func extractBlobComponents(pblobs []*tmproto.Blob) (nsIDs [][]byte, sizes []uint32, versions []uint32) {
 	nsIDs = make([][]byte, len(pblobs))
 	sizes = make([]uint32, len(pblobs))
 	versions = make([]uint32, len(pblobs))
 
 	for i, pblob := range pblobs {
-		rawBlobs[i] = pblob.Data
 		sizes[i] = uint32(len(pblob.Data))
 		nsIDs[i] = pblob.NamespaceId
 		versions[i] = pblob.ShareVersion
 	}
 
-	return rawBlobs, nsIDs, sizes, versions
+	return nsIDs, sizes, versions
 }
 
 // BlobMinSquareSize returns the minimum square size that blobSize can be included
