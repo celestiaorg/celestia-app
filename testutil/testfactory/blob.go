@@ -30,12 +30,12 @@ func GenerateRandomlySizedBlobs(count, maxBlobSize int) []types.Blob {
 
 // generateBlobsWithNamespace generates randomly sized blobs with
 // namespace ID `nID`.
-func GenerateBlobsWithNamespace(count, msgSize int, nID nmtnamespace.ID) types.BlobsByNamespace {
+func GenerateBlobsWithNamespace(count, blobSize int, nID nmtnamespace.ID) types.BlobsByNamespace {
 	blobs := make([]types.Blob, count)
 	for i := 0; i < count; i++ {
 		blobs[i] = types.Blob{
 			NamespaceID: nID,
-			Data:        tmrand.Bytes(msgSize),
+			Data:        tmrand.Bytes(blobSize),
 		}
 	}
 

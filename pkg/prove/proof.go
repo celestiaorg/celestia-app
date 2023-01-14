@@ -117,45 +117,45 @@ func TxSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos 
 	return startSharePos, endSharePos, nil
 }
 
-// MsgSharesPosition returns the start and end positions for the shares
+// BlobShareRange returns the start and end positions for the shares
 // where a given message, referenced by its wrapped pfb transaction, was published at.
 // Note: only supports transactions containing a single message
-func MsgSharesPosition(tx types.Tx) (beginShare uint64, endShare uint64, err error) {
-	unwrappedTx, isMalleated := types.UnmarshalIndexWrapper(tx)
-	if !isMalleated {
-		return beginShare, endShare, fmt.Errorf("not a malleated tx")
+func BlobShareRange(tx types.Tx) (beginShare uint64, endShare uint64, err error) {
+	indexWrappedTx, isIndexWrapped := types.UnmarshalIndexWrapper(tx)
+	if !isIndexWrapped {
+		return beginShare, endShare, fmt.Errorf("not an index wrapped tx")
 	}
 
 	encCfg := encoding.MakeConfig(blobmodule.AppModuleBasic{})
 	decoder := encCfg.TxConfig.TxDecoder()
 
-	decodedTx, err := decoder(unwrappedTx.Tx)
+	decodedTx, err := decoder(indexWrappedTx.Tx)
 	if err != nil {
 		return beginShare, endShare, err
 	}
 
 	if len(decodedTx.GetMsgs()) == 0 {
-		return beginShare, endShare, fmt.Errorf("pfb contains no messages")
+		return beginShare, endShare, fmt.Errorf("PayForBlob contains no messages")
 	}
 
 	if len(decodedTx.GetMsgs()) > 1 {
-		return beginShare, endShare, fmt.Errorf("pfb containing multiple messages. not currently supported")
+		return beginShare, endShare, fmt.Errorf("PayForBlob contains multiple messages and this is not currently supported")
 	}
 
 	if sdk.MsgTypeURL(decodedTx.GetMsgs()[0]) != blobtypes.URLMsgPayForBlob {
-		return beginShare, endShare, fmt.Errorf("transaction is not pfb")
+		return beginShare, endShare, fmt.Errorf("msg is not a MsgPayForBlob")
 	}
 
 	pfb, ok := decodedTx.GetMsgs()[0].(*blobtypes.MsgPayForBlob)
 	if !ok {
-		return beginShare, endShare, fmt.Errorf("unable to decode pfb")
+		return beginShare, endShare, fmt.Errorf("unable to decode PayForBlob")
 	}
 
 	if err = pfb.ValidateBasic(); err != nil {
 		return beginShare, endShare, err
 	}
 
-	beginShare = uint64(unwrappedTx.ShareIndexes[0])
+	beginShare = uint64(indexWrappedTx.ShareIndexes[0])
 	sharesUsed := shares.SparseSharesNeeded(pfb.BlobSize)
 	return beginShare, beginShare + uint64(sharesUsed) - 1, nil
 }
@@ -248,7 +248,7 @@ func splitIntoRows(squareSize uint64, s []shares.Share) [][]shares.Share {
 }
 
 // SharesInclusion generates an nmt inclusion proof for a set of shares to the data root.
-// expects the shares range to be pre-validated.
+// Expects the share range to be pre-validated.
 // Note: only supports inclusion proofs for shares belonging to the same namespace.
 func SharesInclusion(
 	allRawShares []shares.Share,
@@ -269,7 +269,7 @@ func SharesInclusion(
 
 	edsRowRoots := eds.RowRoots()
 
-	// create the binary merkle inclusion proof, for all the square rows, to the data root
+	// create the binary merkle inclusion proof for all the square rows to the data root
 	_, allProofs := merkle.ProofsFromByteSlices(append(edsRowRoots, eds.ColRoots()...))
 	rowsProofs := make([]*merkle.Proof, endRow-startRow+1)
 	rowsRoots := make([]tmbytes.HexBytes, endRow-startRow+1)

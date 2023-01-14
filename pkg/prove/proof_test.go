@@ -123,7 +123,7 @@ func TestShareInclusion(t *testing.T) {
 		startingShare int64
 		endingShare   int64
 		namespaceID   nmtnamespace.ID
-		shouldPass    bool
+		expectErr     bool
 	}
 	tests := []test{
 		{
@@ -131,77 +131,77 @@ func TestShareInclusion(t *testing.T) {
 			startingShare: -1,
 			endingShare:   99,
 			namespaceID:   appconsts.TxNamespaceID,
-			shouldPass:    false,
+			expectErr:     true,
 		},
 		{
 			name:          "negative ending share",
 			startingShare: 0,
 			endingShare:   -99,
 			namespaceID:   appconsts.TxNamespaceID,
-			shouldPass:    false,
+			expectErr:     true,
 		},
 		{
-			name:          "ending share bigger than starting share",
+			name:          "ending share lower than starting share",
 			startingShare: 1,
 			endingShare:   0,
 			namespaceID:   appconsts.TxNamespaceID,
-			shouldPass:    false,
+			expectErr:     true,
 		},
 		{
-			name:          "ending share bigger than block shares number",
+			name:          "ending share higher than number of shares available in square size of 32",
 			startingShare: 0,
 			endingShare:   4097,
 			namespaceID:   appconsts.TxNamespaceID,
-			shouldPass:    false,
+			expectErr:     true,
 		},
 		{
 			name:          "1 transaction share",
 			startingShare: 0,
 			endingShare:   0,
 			namespaceID:   appconsts.TxNamespaceID,
-			shouldPass:    true,
+			expectErr:     false,
 		},
 		{
 			name:          "10 transaction shares",
 			startingShare: 0,
 			endingShare:   9,
 			namespaceID:   appconsts.TxNamespaceID,
-			shouldPass:    true,
+			expectErr:     false,
 		},
 		{
 			name:          "50 transaction shares",
 			startingShare: 0,
 			endingShare:   49,
 			namespaceID:   appconsts.TxNamespaceID,
-			shouldPass:    true,
+			expectErr:     false,
 		},
 		{
 			name:          "shares from different namespaces",
 			startingShare: 48,
 			endingShare:   54,
 			namespaceID:   appconsts.TxNamespaceID,
-			shouldPass:    false,
+			expectErr:     true,
 		},
 		{
 			name:          "20 custom namespace shares",
 			startingShare: 106,
 			endingShare:   125,
 			namespaceID:   []byte{0, 0, 0, 0, 0, 1, 0, 0},
-			shouldPass:    true,
+			expectErr:     false,
 		},
 		{
 			name:          "40 custom namespace shares",
 			startingShare: 355,
 			endingShare:   394,
 			namespaceID:   []byte{0, 0, 1, 0, 0, 0, 0, 0},
-			shouldPass:    true,
+			expectErr:     false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			actualNID, err := ParseNamespaceID(rawShares, tt.startingShare, tt.endingShare)
-			if !tt.shouldPass {
+			if tt.expectErr {
 				require.Error(t, err)
 				return
 			}

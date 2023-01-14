@@ -61,13 +61,12 @@ func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) 
 
 const ShareInclusionQueryPath = "shareInclusionProof"
 
-// QueryShareInclusionProof defines the logic performed when querying for the inclusion
-// proofs of a set of shares to the data root.
-// the shares range should be appended to the path.
-// example path for proving the set of shares [3, 5]:
+// QueryShareInclusionProof defines the logic performed when querying for the
+// inclusion proofs of a set of shares to the data root. The share range should
+// be appended to the path. Example path for proving the set of shares [3, 5]:
 // custom/shareInclusionProof/3/5
 func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
-	// parse the shares range from the path
+	// parse the share range from the path
 	if len(path) != 2 {
 		return nil, fmt.Errorf("expected query path length: 2 actual: %d ", len(path))
 	}
@@ -132,7 +131,7 @@ func ParseNamespaceID(rawShares []shares.Share, startShare int64, endingShare in
 	}
 
 	if endingShare < startShare {
-		return nil, fmt.Errorf("ending share %d should be higher than starting share %d", endingShare, startShare)
+		return nil, fmt.Errorf("ending share %d cannot be lower than starting share %d", endingShare, startShare)
 	}
 
 	if endingShare >= int64(len(rawShares)) {
@@ -143,7 +142,7 @@ func ParseNamespaceID(rawShares []shares.Share, startShare int64, endingShare in
 
 	for i, n := range rawShares[startShare:endingShare] {
 		if !bytes.Equal(nID, n.NamespaceID()) {
-			return nil, fmt.Errorf("shares range contain different namespaces: %d, %d %d", nID, n.NamespaceID(), i)
+			return nil, fmt.Errorf("shares range contain different namespaces: %d and %d at index %d", nID, n.NamespaceID(), i)
 		}
 	}
 	return nID, nil

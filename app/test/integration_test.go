@@ -53,7 +53,7 @@ func NewIntegrationTestSuite(cfg cosmosnet.Config) *IntegrationTestSuite {
 
 func (s *IntegrationTestSuite) SetupSuite() {
 	if testing.Short() {
-		s.T().Skip("skipping block size integration test in short mode.")
+		s.T().Skip("skipping app/test/integration_test in short mode.")
 	}
 	s.T().Log("setting up integration test suite")
 
@@ -339,11 +339,11 @@ func (s *IntegrationTestSuite) TestSharesInclusionProof() {
 		require.NoError(err)
 		require.NoError(txProof.Validate(blockRes.Block.DataHash))
 
-		// get the message shares
-		beginMsgShare, endMsgShare, err := prove.MsgSharesPosition(blockRes.Block.Txs[txResp.Index])
+		// get the blob shares
+		beginMsgShare, endMsgShare, err := prove.BlobShareRange(blockRes.Block.Txs[txResp.Index])
 		require.NoError(err)
 
-		// verify the message shares proof
+		// verify the blob shares proof
 		msgProof, err := node.ProveShares(
 			context.Background(),
 			uint64(txResp.Height),
