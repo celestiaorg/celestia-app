@@ -91,7 +91,10 @@ func Test_estimateTxSharesUsed(t *testing.T) {
 	}
 	testCases := []testCase{
 		{"empty", []parsedTx{}, 0},
-		{"one tx", generatedNormalParsedTxs(1), 1},
+		{"one tx", generatedNormalParsedTxs(1), 1},             // 1 tx is approximately 312 bytes which fits in 1 share
+		{"two txs", generatedNormalParsedTxs(2), 2},            // 2 txs is approximately 624 bytes which fits in 2 shares
+		{"ten txs", generatedNormalParsedTxs(10), 7},           // 10 txs is approximately 3120 bytes which fits in 7 shares
+		{"one hundred txs", generatedNormalParsedTxs(100), 63}, // 100 txs is approximately 31200 bytes which fits in 63 share
 	}
 	for _, tc := range testCases {
 		got := estimateTxSharesUsed(tc.ptxs)
