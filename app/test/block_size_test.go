@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	"github.com/celestiaorg/celestia-app/x/blob"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -93,6 +94,23 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			s.kr,
 			c.GRPCClient,
 			950000,
+			1,
+			false,
+			s.cfg.ChainID,
+			s.accounts[:20],
+		)
+	}
+
+	// Tendermint's default tx size limit is 1 MiB, so we get close to that by
+	// generating transactions of size 600 KiB because 3 blobs per transaction *
+	// 200,000 bytes each = 600,000 total bytes = 600 KiB per transaction.
+	randMultiBlob1MbTxGen := func(c client.Context) []coretypes.Tx {
+		return blobfactory.RandBlobTxsWithAccounts(
+			s.cfg.TxConfig.TxEncoder(),
+			s.kr,
+			c.GRPCClient,
+			200000, // 200 KiB
+			3,
 			false,
 			s.cfg.ChainID,
 			s.accounts[:20],
@@ -108,10 +126,11 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			s.cfg.TxConfig.TxEncoder(),
 			s.kr,
 			c.GRPCClient,
-			500000,
+			50000,
+			8,
 			true,
 			s.cfg.ChainID,
-			s.accounts[20:],
+			s.accounts[:80],
 		)
 	}
 
@@ -124,6 +143,10 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		{
 			"20 ~1Mb txs",
 			equallySized1MbTxGen,
+		},
+		{
+			"20 ~1Mb multiblob txs",
+			randMultiBlob1MbTxGen,
 		},
 		{
 			"80 random txs",
@@ -154,8 +177,11 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			for _, hash := range hashes {
 				// TODO: reenable fetching and verifying proofs
 				resp, err := queryTx(val.ClientCtx, hash, false)
-				require.NoError(err)
-				require.NotNil(resp)
+				assert.NoError(err)
+				assert.NotNil(resp)
+				if resp == nil {
+					continue
+				}
 				assert.Equal(abci.CodeTypeOK, resp.TxResult.Code)
 				heights[resp.Height]++
 				// ensure that some gas was used
@@ -213,8 +239,8 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"large random typical",
-			mustNewBlob([]byte{2, 3, 4, 5, 6, 7, 8, 9}, tmrand.Bytes(700000)),
-			[]blobtypes.TxBuilderOption{
+			mustNewBlob([]byte{2, 3, 4, 5, 6, 7, 8, 9}, tmrand.Bytes(350000)),
+			[]types.TxBuilderOption{
 				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
 			},
 		},
@@ -241,7 +267,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 				require.NoError(s.network.WaitForNextBlock())
 			}
 			signer := blobtypes.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
-			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, tc.blob, 1000000000, tc.opts...)
+			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, []*blobtypes.Blob{tc.blob, tc.blob}, 1000000000, tc.opts...)
 			require.NoError(err)
 			require.NotNil(res)
 			assert.Equal(abci.CodeTypeOK, res.Code)
@@ -257,7 +283,8 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 		s.cfg.TxConfig.TxEncoder(),
 		s.kr,
 		val.ClientCtx.GRPCClient,
-		100000,
+		int(100000),
+		1,
 		false,
 		s.cfg.ChainID,
 		s.accounts[:1],
@@ -268,7 +295,7 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 
 	res, err := val.ClientCtx.BroadcastTxSync(btx.Tx)
 	require.NoError(t, err)
-	require.Equal(t, blobtypes.ErrBloblessPFB.ABCICode(), res.Code)
+	require.Equal(t, blobtypes.ErrNoBlobs.ABCICode(), res.Code)
 }
 
 func queryTx(clientCtx client.Context, hashHexStr string, prove bool) (*rpctypes.ResultTx, error) {
