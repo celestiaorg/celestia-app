@@ -29,6 +29,10 @@
   - [Reed-Solomon Erasure Coding](#reed-solomon-erasure-coding)
   - [2D Reed-Solomon Encoding Scheme](#2d-reed-solomon-encoding-scheme)
   - [Share](#share)
+    - [Compact Share](#compact-share)
+    - [Sparse Share](#sparse-share)
+    - [Parity Share](#parity-share)
+    - [Tail Padding Share](#tail-padding-share)
   - [Arranging Available Data Into Shares](#arranging-available-data-into-shares)
 - [Available Data](#available-data)
   - [TransactionData](#transactiondata)
@@ -537,6 +541,12 @@ Continuation share in a sequence:
 For shares **with a namespace ID equal to [`PARITY_SHARE_NAMESPACE_ID`](./consensus.md#constants)** (i.e. parity shares):
 
 - Bytes carry no special meaning.
+
+#### Tail Padding Share
+
+For shares **with a namespace ID equal to [`TAIL_PADDING_NAMESPACE_ID`](./consensus.md#constants)** (i.e. tail padding shares):
+
+The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information. The sequence start indicator is always `0`. The version bits are filled with the the share version. The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are filled with `0`.
 
 ### Arranging Available Data Into Shares
 
