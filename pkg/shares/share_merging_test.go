@@ -221,7 +221,7 @@ func TestShareSequenceRawData(t *testing.T) {
 
 func Test_compactSharesNeeded(t *testing.T) {
 	type testCase struct {
-		sequenceLen uint32
+		sequenceLen int
 		want        int
 	}
 	testCases := []testCase{
@@ -234,7 +234,7 @@ func Test_compactSharesNeeded(t *testing.T) {
 		{appconsts.FirstCompactShareContentSize + appconsts.ContinuationCompactShareContentSize*100, 101},
 	}
 	for _, tc := range testCases {
-		got := compactSharesNeeded(tc.sequenceLen)
+		got := CompactSharesNeeded(tc.sequenceLen)
 		assert.Equal(t, tc.want, got)
 	}
 }

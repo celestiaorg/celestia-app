@@ -12,12 +12,14 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 )
 
-func TestPrepareProposal(t *testing.T) {
+func TestPrepareProposalBlobSorting(t *testing.T) {
 	signer := types.GenerateKeyringSigner(t, types.TestAccName)
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -105,5 +107,61 @@ func TestPrepareProposal(t *testing.T) {
 			)
 			assert.NoError(t, err)
 		}
+	}
+}
+
+func TestPrepareProposalOverflow(t *testing.T) {
+	signer := types.GenerateKeyringSigner(t, types.TestAccName)
+
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
+
+	type test struct {
+		name               string
+		singleSharePFBs    int
+		expectedTxsInBlock int
+		expectedSquareSize uint64
+	}
+
+	limit := appconsts.TransactionsPerBlockLimit
+
+	tests := []test{
+		{
+			name:               "one below the limit",
+			singleSharePFBs:    limit - 1,
+			expectedTxsInBlock: limit - 1,
+			expectedSquareSize: appconsts.DefaultMaxSquareSize,
+		},
+		{
+			name:               "exactly the limit",
+			singleSharePFBs:    limit,
+			expectedTxsInBlock: limit,
+			expectedSquareSize: appconsts.DefaultMaxSquareSize,
+		},
+		{
+			name:               "well above the limit",
+			singleSharePFBs:    limit + 5000,
+			expectedTxsInBlock: limit,
+			expectedSquareSize: appconsts.DefaultMaxSquareSize,
+		},
+	}
+
+	for _, tt := range tests {
+		blobTxs := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+			encCfg.TxConfig.TxEncoder(),
+			signer,
+			testfactory.Repeat([]byte{1, 2, 3, 4, 5, 6, 7, 8}, tt.singleSharePFBs),
+			testfactory.Repeat(1, tt.singleSharePFBs),
+		)
+		req := abci.RequestPrepareProposal{
+			BlockData: &tmproto.Data{
+				Txs: coretypes.Txs(blobTxs).ToSliceOfBytes(),
+			},
+		}
+		res := testApp.PrepareProposal(req)
+		assert.Equal(t, tt.expectedSquareSize, res.BlockData.SquareSize, tt.name)
+		assert.Equal(t, tt.expectedTxsInBlock, len(res.BlockData.Blobs), tt.name)
+		assert.Equal(t, tt.expectedTxsInBlock, len(res.BlockData.Txs), tt.name)
 	}
 }

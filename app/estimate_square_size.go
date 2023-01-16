@@ -6,6 +6,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -17,14 +18,14 @@ import (
 // NOTE: The estimation process does not have to be perfect. We can overestimate
 // because the cost of padding is limited.
 func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int) {
-	txSharesUsed := estimateCompactShares(appconsts.DefaultMaxSquareSize, txs)
+	txSharesUsed := estimateTxShares(appconsts.DefaultMaxSquareSize, txs)
 	blobSharesUsed := 0
 
 	for _, ptx := range txs {
 		if len(ptx.normalTx) != 0 {
 			continue
 		}
-		blobSharesUsed += ptx.blobTx.SharesUsed()
+		blobSharesUsed += blobtypes.BlobTxSharesUsed(ptx.blobTx)
 	}
 
 	// assume that we have to add a lot of padding by simply doubling the number
@@ -47,7 +48,7 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 }
 
 // estimateCompactShares estimates the number of shares used by compact shares
-func estimateCompactShares(squareSize uint64, ptxs []parsedTx) int {
+func estimateTxShares(squareSize uint64, ptxs []parsedTx) int {
 	maxWTxOverhead := maxIndexWrapperOverhead(squareSize)
 	maxIndexOverhead := maxIndexOverhead(squareSize)
 	txbytes := 0
@@ -63,16 +64,7 @@ func estimateCompactShares(squareSize uint64, ptxs []parsedTx) int {
 		txbytes += txLen
 	}
 
-	sharesUsed := 1
-	if txbytes <= appconsts.FirstCompactShareContentSize {
-		return sharesUsed
-	}
-
-	// account for the first share
-	txbytes -= appconsts.FirstCompactShareContentSize
-	sharesUsed += (txbytes / appconsts.ContinuationCompactShareContentSize) + 1 // add 1 to round up and another to account for the first share
-
-	return sharesUsed
+	return shares.CompactSharesNeeded(txbytes)
 }
 
 // maxWrappedTxOverhead calculates the maximum amount of overhead introduced by
