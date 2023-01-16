@@ -1,7 +1,6 @@
 package shares
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 
@@ -72,7 +71,7 @@ func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) {
 		return
 	}
 	lastBlob := sss.shares[len(sss.shares)-1]
-	sss.shares = append(sss.shares, namespacedPaddedShares(lastBlob.NamespaceID(), count)...)
+	sss.shares = append(sss.shares, NamespacedPaddedShares(lastBlob.NamespaceID(), count)...)
 }
 
 // Export finalizes and returns the underlying shares.
@@ -148,35 +147,4 @@ func splitBlob(rawData []byte, nid namespace.ID, shareVersion uint8) (shares []S
 		rawData = rawData[shareSizeOrLen:]
 	}
 	return shares
-}
-
-func namespacedPaddedShares(ns namespace.ID, count int) []Share {
-	shares := make([]Share, count)
-	for i := 0; i < count; i++ {
-		shares[i] = namespacedPaddedShare(ns)
-	}
-	return shares
-}
-
-// namespacedPaddedShareBytes are the raw bytes that are used in the contents
-// of a namespacedPaddedShare. A namespacedPaddedShare follows a blob so
-// that the next blob starts at an index that conforms to non-interactive
-// defaults.
-var namespacedPaddedShareBytes = bytes.Repeat([]byte{0}, appconsts.FirstSparseShareContentSize)
-
-func namespacedPaddedShare(ns namespace.ID) Share {
-	infoByte, err := NewInfoByte(appconsts.ShareVersionZero, true)
-	if err != nil {
-		panic(err)
-	}
-
-	sequenceLen := make([]byte, appconsts.SequenceLenBytes)
-	binary.BigEndian.PutUint32(sequenceLen, uint32(0))
-
-	share := make([]byte, 0, appconsts.ShareSize)
-	share = append(share, ns...)
-	share = append(share, byte(infoByte))
-	share = append(share, sequenceLen...)
-	share = append(share, namespacedPaddedShareBytes...)
-	return share
 }
