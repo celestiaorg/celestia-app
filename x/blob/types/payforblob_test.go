@@ -348,7 +348,7 @@ func TestValidateBlobs(t *testing.T) {
 		{name: "valid blob", blob: &Blob{Data: []byte{1}, NamespaceId: []byte{1, 2, 3, 4, 5, 6, 7, 8}, ShareVersion: uint32(appconsts.DefaultShareVersion)}, expectError: false},
 		{name: "invalid share version", blob: &Blob{Data: []byte{1}, NamespaceId: []byte{1, 2, 3, 4, 5, 6, 7, 8}, ShareVersion: uint32(10000)}, expectError: true},
 		{name: "empty blob", blob: &Blob{Data: []byte{}, NamespaceId: []byte{1, 2, 3, 4, 5, 6, 7, 8}, ShareVersion: uint32(appconsts.DefaultShareVersion)}, expectError: true},
-		{name: "valid blob", blob: &Blob{Data: []byte{1}, NamespaceId: appconsts.TxNamespaceID, ShareVersion: uint32(appconsts.DefaultShareVersion)}, expectError: true},
+		{name: "invalid namespace", blob: &Blob{Data: []byte{1}, NamespaceId: appconsts.TxNamespaceID, ShareVersion: uint32(appconsts.DefaultShareVersion)}, expectError: true},
 	}
 
 	for _, tt := range tests {
