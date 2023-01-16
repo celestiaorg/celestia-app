@@ -32,9 +32,7 @@ func NewBlob(ns namespace.ID, blob []byte) (*Blob, error) {
 }
 
 // ValidateBlobTx performs stateless checks on the BlobTx to ensure that the
-// blobs attached to the transaction are valid. During this process, it
-// separates the blobs from the MsgPayForBlob, which are returned in the
-// ProcessedBlobTx.
+// blobs attached to the transaction are valid.
 func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) error {
 	sdkTx, err := txcfg.TxDecoder()(bTx.Tx)
 	if err != nil {
