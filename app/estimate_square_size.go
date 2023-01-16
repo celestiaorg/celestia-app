@@ -47,7 +47,7 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 	return squareSize, txSharesUsed
 }
 
-// estimateCompactShares estimates the number of shares used by compact shares
+// estimateTxShares estimates the number of shares used by transactions.
 func estimateTxShares(squareSize uint64, ptxs []parsedTx) int {
 	maxWTxOverhead := maxIndexWrapperOverhead(squareSize)
 	maxIndexOverhead := maxIndexOverhead(squareSize)
