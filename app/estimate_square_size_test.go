@@ -41,7 +41,7 @@ func Test_estimateSquareSize(t *testing.T) {
 	}
 }
 
-func Test_estimateCompactShares(t *testing.T) {
+func Test_estimateTxShares(t *testing.T) {
 	type test struct {
 		name              string
 		squareSize        uint64
@@ -65,7 +65,7 @@ func Test_estimateCompactShares(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ptxs := generateMixedParsedTxs(tt.normalTxs, tt.pfbCount, tt.pfbSize)
-			res := estimateCompactShares(tt.squareSize, ptxs)
+			res := estimateTxShares(tt.squareSize, ptxs)
 
 			// check that our estimate is always larger or equal to the number
 			// of compact shares actually used

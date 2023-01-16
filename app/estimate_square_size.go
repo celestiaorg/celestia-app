@@ -16,7 +16,7 @@ import (
 // NOTE: The estimation process does not have to be perfect. We can overestimate
 // because the cost of padding is limited.
 func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int) {
-	txSharesUsed := estimateCompactShares(appconsts.DefaultMaxSquareSize, txs)
+	txSharesUsed := estimateTxShares(appconsts.DefaultMaxSquareSize, txs)
 	blobSharesUsed := 0
 
 	for _, ptx := range txs {
@@ -45,8 +45,8 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 	return squareSize, txSharesUsed
 }
 
-// estimateCompactShares estimates the number of shares used by compact shares
-func estimateCompactShares(squareSize uint64, ptxs []parsedTx) int {
+// estimateTxShares estimates the number of shares used by transactions.
+func estimateTxShares(squareSize uint64, ptxs []parsedTx) int {
 	maxWTxOverhead := maxWrappedTxOverhead(squareSize)
 	txbytes := 0
 	for _, pTx := range ptxs {
@@ -61,16 +61,7 @@ func estimateCompactShares(squareSize uint64, ptxs []parsedTx) int {
 		txbytes += txLen
 	}
 
-	sharesUsed := 1
-	if txbytes <= appconsts.FirstCompactShareContentSize {
-		return sharesUsed
-	}
-
-	// account for the first share
-	txbytes -= appconsts.FirstCompactShareContentSize
-	sharesUsed += (txbytes / appconsts.ContinuationCompactShareContentSize) + 1 // add 1 to round up and another to account for the first share
-
-	return sharesUsed
+	return shares.CompactSharesNeeded(txbytes)
 }
 
 // maxWrappedTxOverhead calculates the maximum amount of overhead introduced by
