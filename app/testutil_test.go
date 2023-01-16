@@ -25,7 +25,7 @@ func generateParsedTxsWithNIDs(nids [][]byte, sizes []int) []parsedTx {
 	return parseTxs(encCfg.TxConfig, coretypes.Txs(txs).ToSliceOfBytes())
 }
 
-func generatedNormalParsedTxs(count int) []parsedTx {
+func generateNormalParsedTxs(count int) []parsedTx {
 	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
 	normieTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, count)
 	return parseTxs(encCfg.TxConfig, coretypes.Txs(normieTxs).ToSliceOfBytes())
