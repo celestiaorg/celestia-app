@@ -88,9 +88,6 @@ func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxP
 // include a given txIndex. Returns an error if index is greater than the length
 // of txs.
 func txSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos uint64, err error) {
-	// TODO (@rootulp): txIndex should no longer work as expected since we now
-	// write two different share sequences. Why didn't unit tests for this
-	// function fail?
 	if txIndex >= uint64(len(txs)) {
 		return startSharePos, endSharePos, errors.New("transaction index is greater than the number of txs")
 	}
