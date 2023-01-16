@@ -57,43 +57,22 @@ func estimateTxSharesUsed(ptxs []parsedTx) int {
 			txBytes += txLen
 		}
 	}
-	return estimateCompactShares(txBytes)
+	return shares.CompactSharesNeeded(txBytes)
 }
 
 // estimatePFBTxSharesUsed estimates the number of shares used by PFB
 // transactions.
 func estimatePFBTxSharesUsed(squareSize uint64, ptxs []parsedTx) int {
 	maxWTxOverhead := maxWrappedTxOverhead(squareSize)
-	txBytes := 0
+	numBytes := 0
 	for _, pTx := range ptxs {
 		if pTx.isBlobTx() {
 			txLen := len(pTx.blobTx.Tx) + maxWTxOverhead
 			txLen += shares.DelimLen(uint64(txLen))
-			txBytes += txLen
+			numBytes += txLen
 		}
 	}
-	return estimateCompactShares(txBytes)
-}
-
-// estimateCompactShares estimates the number of shares used by compact shares
-func estimateCompactShares(totalBytes int) int {
-	if totalBytes == 0 {
-		return 0
-	}
-	if totalBytes <= appconsts.FirstCompactShareContentSize {
-		return 1
-	}
-	// account for the first share
-	sharesUsed := 1
-	totalBytes -= appconsts.FirstCompactShareContentSize
-
-	// account for continuation shares
-	sharesUsed += (totalBytes / appconsts.ContinuationCompactShareContentSize)
-	if totalBytes%appconsts.ContinuationCompactShareContentSize != 0 {
-		sharesUsed++
-	}
-
-	return sharesUsed
+	return shares.CompactSharesNeeded(numBytes)
 }
 
 // maxWrappedTxOverhead calculates the maximum amount of overhead introduced by
@@ -104,8 +83,9 @@ func estimateCompactShares(totalBytes int) int {
 func maxWrappedTxOverhead(squareSize uint64) int {
 	maxTxLen := squareSize * squareSize * appconsts.ContinuationCompactShareContentSize
 	wtx, err := coretypes.MarshalIndexWrapper(
+		make([]byte, maxTxLen),
 		uint32(squareSize*squareSize),
-		make([]byte, maxTxLen))
+	)
 	if err != nil {
 		panic(err)
 	}

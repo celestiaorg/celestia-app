@@ -71,8 +71,8 @@ func Test_estimatePFBTxSharesUsed(t *testing.T) {
 					continue
 				}
 				wPFBTx, err := coretypes.MarshalIndexWrapper(
-					uint32(tt.squareSize*tt.squareSize),
 					ptx.blobTx.Tx,
+					uint32(tt.squareSize*tt.squareSize),
 				)
 				require.NoError(t, err)
 				txs[i] = wPFBTx
@@ -96,33 +96,5 @@ func Test_estimateTxSharesUsed(t *testing.T) {
 	for _, tc := range testCases {
 		got := estimateTxSharesUsed(tc.ptxs)
 		assert.Equal(t, tc.want, got)
-	}
-}
-
-func Test_estimateCompactShares(t *testing.T) {
-	type testCase struct {
-		name       string
-		totalBytes int
-		want       int
-	}
-	testCases := []testCase{
-		{"empty", 0, 0},
-		{"one byte", 1, 1},
-		{"ten bytes", 10, 1},
-		{"one hundred bytes", 100, 1},
-		{"exactly one compact share", 495, 1},
-		{"just over one compact share", 496, 2},
-		{"exactly two compact shares", 994, 2},
-		{"just over two compact shares", 995, 3},
-		{"exactly three compact shares", 1493, 3},
-		{"just over three compact shares", 1494, 4},
-		{"one hundred compact shares", 1 + (appconsts.ContinuationCompactShareContentSize * 99), 100},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := estimateCompactShares(tc.totalBytes)
-			assert.Equal(t, tc.want, got)
-		})
 	}
 }
