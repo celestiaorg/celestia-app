@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
-        "path/filepath"
-	
-	
+
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/cosmos/cosmos-sdk/simapp/simd/cmd"
@@ -25,6 +24,7 @@ import (
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/snapshots"
+	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
@@ -238,17 +238,18 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts se
 	if err != nil {
 		panic(err)
 	}
-	
+
 	// Add snapshots
 	snapshotDir := filepath.Join(cast.ToString(appOpts.Get(flags.FlagHome)), "data", "snapshots")
-        snapshotDB, err := sdk.NewLevelDB("metadata", snapshotDir)
-        if err != nil {
-                panic(err)
-        }
-        snapshotStore, err := snapshots.NewStore(snapshotDB, snapshotDir)
-        if err != nil {
-                panic(err)
-        }
+	//nolint: staticcheck
+	snapshotDB, err := sdk.NewLevelDB("metadata", snapshotDir)
+	if err != nil {
+		panic(err)
+	}
+	snapshotStore, err := snapshots.NewStore(snapshotDB, snapshotDir)
+	if err != nil {
+		panic(err)
+	}
 
 	return app.New(
 		logger, db, traceStore, true, skipUpgradeHeights,
@@ -265,7 +266,7 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts se
 		baseapp.SetInterBlockCache(cache),
 		baseapp.SetTrace(cast.ToBool(appOpts.Get(server.FlagTrace))),
 		baseapp.SetIndexEvents(cast.ToStringSlice(appOpts.Get(server.FlagIndexEvents))),
-		baseapp.SetSnapshot(snapshotStore, snapshottypes.NewSnapshotOptions(cast.ToUint64(appOpts.Get(server.FlagStateSyncSnapshotInterval)), cast.ToUint32(appOpts.Get(server.FlagStateSyncSnapshotKeepRecent)))
+		baseapp.SetSnapshot(snapshotStore, snapshottypes.NewSnapshotOptions(cast.ToUint64(appOpts.Get(server.FlagStateSyncSnapshotInterval)), cast.ToUint32(appOpts.Get(server.FlagStateSyncSnapshotKeepRecent)))),
 	)
 }
 
