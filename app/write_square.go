@@ -2,7 +2,6 @@ package app
 
 import (
 	"bytes"
-	"fmt"
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -10,9 +9,13 @@ import (
 )
 
 type trackedBlob struct {
-	blob        tmproto.Blob
+	blob *tmproto.Blob
+	// parsedIndex keeps track of which parsed transaction a blob relates to
 	parsedIndex int
-	sharesUsed  int
+	// blobIndex keeps track of which blob in a parsed transaction
+	// this blob relates to
+	blobIndex  int
+	sharesUsed int
 }
 
 // finalizeLayout returns the transactions and blobs in their completed layout.
@@ -29,12 +32,15 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 		if len(pTx.normalTx) != 0 {
 			continue
 		}
-		dataUsed := len(pTx.blobTx.Blobs[0].Data)
-		trackedBlobs = append(trackedBlobs, trackedBlob{
-			blob:        *pTx.blobTx.Blobs[0],
-			parsedIndex: i,
-			sharesUsed:  shares.SparseSharesNeeded(uint32(dataUsed)),
-		})
+		ptxs[i].shareIndexes = make([]uint32, len(pTx.blobTx.Blobs))
+		for j, blob := range pTx.blobTx.Blobs {
+			trackedBlobs = append(trackedBlobs, trackedBlob{
+				blob:        blob,
+				parsedIndex: i,
+				blobIndex:   j,
+				sharesUsed:  shares.SparseSharesNeeded(uint32(len(blob.Data))),
+			})
+		}
 	}
 
 	// blobs must be sorted by namespace in order for nmt to be able to create a
@@ -46,21 +52,24 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 	cursor := nonreserveStart
 	iSS := int(squareSize)
 	maxSharesSize := iSS * iSS
-	blobs := make([]tmproto.Blob, 0)
-	removeList := []int{}
+	removeIndexes := make(map[int]bool)
 	for _, tBlob := range trackedBlobs {
+		// skip this blob, as it will already be removed
+		if removeIndexes[tBlob.parsedIndex] {
+			continue
+		}
 		cursor, _ = shares.NextMultipleOfBlobMinSquareSize(cursor, tBlob.sharesUsed, iSS)
 		// remove the parsed transaction if it cannot fit into the square
 		if cursor+tBlob.sharesUsed > maxSharesSize {
-			removeList = append(removeList, tBlob.parsedIndex)
+			removeIndexes[tBlob.parsedIndex] = true
 			continue
 		}
-		ptxs[tBlob.parsedIndex].shareIndex = uint32(cursor)
-		blobs = append(blobs, tBlob.blob)
+		// set the share index in the same order as the blob that its for
+		ptxs[tBlob.parsedIndex].shareIndexes[tBlob.blobIndex] = uint32(cursor)
 		cursor += tBlob.sharesUsed
 	}
 
-	ptxs = removeMany(ptxs, removeList...)
+	ptxs = removeMany(ptxs, removeIndexes)
 
 	blobTxCount := 0
 	for _, ptx := range ptxs {
@@ -69,27 +78,32 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]
 		}
 	}
 
-	if blobTxCount != len(blobs) {
-		panic(fmt.Sprintf("invalid number of blob txs: must be equal to number of blobs: txs %d blobs %d", blobTxCount, len(blobs)))
+	derefBlobs := make([]tmproto.Blob, 0)
+	for _, ptx := range ptxs {
+		if len(ptx.normalTx) != 0 {
+			continue
+		}
+		for _, blob := range ptx.blobTx.Blobs {
+			derefBlobs = append(derefBlobs, *blob)
+		}
 	}
 
-	return ptxs, blobs
+	// todo: don't sort twice
+	sort.SliceStable(derefBlobs, func(i, j int) bool {
+		return bytes.Compare(derefBlobs[i].NamespaceId, derefBlobs[j].NamespaceId) < 0
+	})
+
+	return ptxs, derefBlobs
 }
 
-func removeMany[T any](s []T, indexes ...int) []T {
-	// Create a map to track which indexes to remove
-	remove := make(map[int]bool)
-	for _, i := range indexes {
-		remove[i] = true
-	}
-
+func removeMany[T any](s []T, removeIndexes map[int]bool) []T {
 	// Create a new slice to store the remaining elements
-	result := make([]T, 0, len(s)-len(indexes))
+	result := make([]T, 0, len(s)-len(removeIndexes))
 
 	// Iterate over the original slice and append elements
 	// to the result slice unless they are marked for removal
 	for i, x := range s {
-		if !remove[i] {
+		if !removeIndexes[i] {
 			result = append(result, x)
 		}
 	}

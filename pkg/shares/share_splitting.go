@@ -11,7 +11,7 @@ import (
 
 var (
 	ErrIncorrectNumberOfIndexes = errors.New(
-		"number of malleated transactions is not identical to the number of wrapped transactions",
+		"number of indexes is not identical to the number of blobs",
 	)
 	ErrUnexpectedFirstBlobShareIndex = errors.New(
 		"the first blob started at an unexpected index",
@@ -78,7 +78,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 	var shareIndexes []uint32
 	for _, rawTx := range txs {
-		if malleatedTx, isMalleated := coretypes.UnmarshalIndexWrapper(rawTx); isMalleated {
+		if indexWrappedTxs, isIndexWrapped := coretypes.UnmarshalIndexWrapper(rawTx); isIndexWrapped {
 			// Since share index == 0 is invalid, it indicates that we are
 			// attempting to extract share indexes from txs that do not have any
 			// due to them being old. here we return nil to indicate that we are
@@ -86,10 +86,10 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 			// it. It checks for 0 because if there is a message in the block,
 			// then there must also be a tx, which will take up at least one
 			// share.
-			if len(malleatedTx.ShareIndexes) == 0 {
+			if len(indexWrappedTxs.ShareIndexes) == 0 {
 				return nil
 			}
-			shareIndexes = append(shareIndexes, malleatedTx.ShareIndexes...)
+			shareIndexes = append(shareIndexes, indexWrappedTxs.ShareIndexes...)
 		}
 	}
 

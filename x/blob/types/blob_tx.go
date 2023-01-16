@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/cosmos/cosmos-sdk/client"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -50,33 +51,35 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) error {
 	if !ok {
 		return ErrNoPFB
 	}
-	// temporary check that we will remove when we support multiple blobs per PFB
-	if 1 != len(bTx.Blobs) {
-		return ErrMismatchedNumberOfPFBorBlob
-	}
-	// todo: modify this to support multiple messages per PFB
-	blob := bTx.Blobs[0]
-
 	err = pfb.ValidateBasic()
 	if err != nil {
 		return err
 	}
 
-	// check that the metadata matches
-	if !bytes.Equal(blob.NamespaceId, pfb.NamespaceId) {
-		return ErrNamespaceMismatch
+	// perform basic checks on the blobs
+	sizes := make([]uint32, len(bTx.Blobs))
+	for i, pblob := range bTx.Blobs {
+		sizes[i] = uint32(len(pblob.Data))
+	}
+	err = ValidateBlobs(bTx.Blobs...)
+	if err != nil {
+		return err
 	}
 
-	if pfb.BlobSize != uint32(len(blob.Data)) {
-		return ErrDeclaredActualDataSizeMismatch.Wrapf(
-			"declared: %d vs actual: %d",
-			pfb.BlobSize,
-			len(blob.Data),
-		)
+	// check that the info in the pfb matches that in the blobs
+	if !equalSlices(sizes, pfb.BlobSizes) {
+		return ErrBlobSizeMismatch.Wrapf("actual %v declared %v", sizes, pfb.BlobSizes)
+	}
+
+	for i := range pfb.NamespaceIds {
+		// check that the metadata matches
+		if !bytes.Equal(bTx.Blobs[i].NamespaceId, pfb.NamespaceIds[i]) {
+			return ErrNamespaceMismatch.Wrapf("%v %v", bTx.Blobs[i].NamespaceId, pfb.NamespaceIds[i])
+		}
 	}
 
 	// verify that the commitment of the blob matches that of the PFB
-	calculatedCommit, err := CreateMultiShareCommitment(blob)
+	calculatedCommit, err := CreateMultiShareCommitment(bTx.Blobs...)
 	if err != nil {
 		return ErrCalculateCommit
 	}
@@ -85,4 +88,24 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) error {
 	}
 
 	return nil
+}
+
+func BlobTxSharesUsed(btx tmproto.BlobTx) int {
+	sharesUsed := 0
+	for _, blob := range btx.Blobs {
+		sharesUsed += shares.SparseSharesNeeded(uint32(len(blob.Data)))
+	}
+	return sharesUsed
+}
+
+func equalSlices[T comparable](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

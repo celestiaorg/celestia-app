@@ -16,8 +16,8 @@ type parsedTx struct {
 	normalTx []byte
 	// blobTx is the processed blob transaction. this field is only filled if
 	// the transaction has blobs attached
-	blobTx     core.BlobTx
-	shareIndex uint32
+	blobTx       core.BlobTx
+	shareIndexes []uint32
 }
 
 // parseTxs decodes raw tendermint txs along with checking for and processing
@@ -52,7 +52,7 @@ func processTxs(logger log.Logger, txs []parsedTx) [][]byte {
 
 		// if this is a blob transaction, then we need to encode and wrap the
 		// underlying MsgPFB containing transaction
-		wTx, err := coretypes.MarshalIndexWrapper(pTx.blobTx.Tx, pTx.shareIndex)
+		wTx, err := coretypes.MarshalIndexWrapper(pTx.blobTx.Tx, pTx.shareIndexes...)
 		if err != nil {
 			// note: Its not safe to bubble this error up and stop the block
 			// creation process.
