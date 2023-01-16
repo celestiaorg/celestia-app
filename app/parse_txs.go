@@ -5,6 +5,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/libs/log"
+	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -15,7 +16,7 @@ type parsedTx struct {
 	normalTx []byte
 	// blobTx is the processed blob transaction. this field is only filled if
 	// the transaction has blobs attached
-	blobTx     blobtypes.ProcessedBlobTx
+	blobTx     core.BlobTx
 	shareIndex uint32
 }
 
@@ -29,13 +30,13 @@ func parseTxs(txcfg client.TxConfig, rawTxs [][]byte) []parsedTx {
 			parsedTxs[i] = parsedTx{normalTx: rawTx}
 			continue
 		}
-		pBTx, err := blobtypes.ProcessBlobTx(txcfg, bTx)
+		err := blobtypes.ValidateBlobTx(txcfg, bTx)
 		if err != nil {
 			// this should never occur, as we should be performing this exact
 			// same check during CheckTx
 			continue
 		}
-		parsedTxs[i] = parsedTx{blobTx: pBTx}
+		parsedTxs[i] = parsedTx{blobTx: bTx}
 	}
 	return parsedTxs
 }

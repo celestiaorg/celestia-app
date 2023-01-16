@@ -36,19 +36,15 @@ func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	switch req.Type {
 	// new transactions must be checked in their entirety
 	case abci.CheckTxType_New:
-		pBTx, err := blobtypes.ProcessBlobTx(app.txConfig, btx)
+		err := blobtypes.ValidateBlobTx(app.txConfig, btx)
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
 		}
-		tx = pBTx.Tx
 	case abci.CheckTxType_Recheck:
-		// only replace the current transaction with the unwrapped one, as we
-		// have already performed the necessary check for new transactions
-		tx = btx.Tx
 	default:
 		panic(fmt.Sprintf("unknown RequestCheckTx type: %s", req.Type))
 	}
 
-	req.Tx = tx
+	req.Tx = btx.Tx
 	return app.BaseApp.CheckTx(req)
 }

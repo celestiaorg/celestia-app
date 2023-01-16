@@ -18,7 +18,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func TestProcessBlobTx(t *testing.T) {
+func TestValidateBlobTx(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := "test"
 	signer := types.GenerateKeyringSigner(t, acc)
@@ -158,7 +158,7 @@ func TestProcessBlobTx(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		_, err := types.ProcessBlobTx(encCfg.TxConfig, tt.getTx())
+		err := types.ValidateBlobTx(encCfg.TxConfig, tt.getTx())
 		if tt.expectedErr != nil {
 			assert.ErrorIs(t, err, tt.expectedErr, tt.name)
 		}
