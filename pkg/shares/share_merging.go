@@ -199,15 +199,15 @@ func numberOfSharesNeeded(firstShare Share) (sharesUsed int, err error) {
 	}
 
 	if firstShare.IsCompactShare() {
-		return compactSharesNeeded(sequenceLen), nil
+		return CompactSharesNeeded(int(sequenceLen)), nil
 	}
 	return SparseSharesNeeded(sequenceLen), nil
 }
 
-// compactSharesNeeded returns the number of compact shares needed to store a
+// CompactSharesNeeded returns the number of compact shares needed to store a
 // sequence of length sequenceLen. The parameter sequenceLen is the number
 // of bytes of transactions or intermediate state roots in a sequence.
-func compactSharesNeeded(sequenceLen uint32) (sharesNeeded int) {
+func CompactSharesNeeded(sequenceLen int) (sharesNeeded int) {
 	if sequenceLen == 0 {
 		return 0
 	}
@@ -218,7 +218,7 @@ func compactSharesNeeded(sequenceLen uint32) (sharesNeeded int) {
 
 	bytesAvailable := appconsts.FirstCompactShareContentSize
 	sharesNeeded++
-	for uint32(bytesAvailable) < sequenceLen {
+	for bytesAvailable < sequenceLen {
 		bytesAvailable += appconsts.ContinuationCompactShareContentSize
 		sharesNeeded++
 	}
