@@ -285,7 +285,7 @@ func queryTx(clientCtx client.Context, hashHexStr string, prove bool) (*rpctypes
 	return node.Tx(context.Background(), hash, prove)
 }
 
-func (s *IntegrationTestSuite) TestSharesInclusionProof() {
+func (s *IntegrationTestSuite) TestShareInclusionProof() {
 	require := s.Require()
 	val := s.network.Validators[0]
 
@@ -340,17 +340,17 @@ func (s *IntegrationTestSuite) TestSharesInclusionProof() {
 		require.NoError(txProof.Validate(blockRes.Block.DataHash))
 
 		// get the blob shares
-		beginMsgShare, endMsgShare, err := prove.BlobShareRange(blockRes.Block.Txs[txResp.Index])
+		beginBlobShare, endBlobShare, err := prove.BlobShareRange(blockRes.Block.Txs[txResp.Index])
 		require.NoError(err)
 
 		// verify the blob shares proof
-		msgProof, err := node.ProveShares(
+		blobProof, err := node.ProveShares(
 			context.Background(),
 			uint64(txResp.Height),
-			beginMsgShare,
-			endMsgShare,
+			beginBlobShare,
+			endBlobShare,
 		)
 		require.NoError(err)
-		require.NoError(msgProof.Validate(blockRes.Block.DataHash))
+		require.NoError(blobProof.Validate(blockRes.Block.DataHash))
 	}
 }

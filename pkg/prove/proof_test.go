@@ -207,7 +207,7 @@ func TestShareInclusion(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tt.namespaceID, actualNID)
-			proof, err := SharesInclusion(
+			proof, err := GenerateSharesInclusionProof(
 				rawShares,
 				blockData.SquareSize,
 				tt.namespaceID,

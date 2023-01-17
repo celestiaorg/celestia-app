@@ -101,7 +101,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 	}
 
 	// create and marshal the shares inclusion proof, which we return in the form of []byte
-	txProof, err := SharesInclusion(
+	txProof, err := GenerateSharesInclusionProof(
 		rawShares,
 		data.SquareSize,
 		nID,
@@ -120,27 +120,28 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 	return rawTxProof, nil
 }
 
-// ParseNamespaceID validates the shares range and returns their namespace ID.
-func ParseNamespaceID(rawShares []shares.Share, startShare int64, endingShare int64) (namespace.ID, error) {
+// ParseNamespaceID validates the share range, checks if it only contains one namespace and returns
+// that namespace ID.
+func ParseNamespaceID(rawShares []shares.Share, startShare int64, endShare int64) (namespace.ID, error) {
 	if startShare < 0 {
 		return nil, fmt.Errorf("start share %d should be positive", startShare)
 	}
 
-	if endingShare < 0 {
-		return nil, fmt.Errorf("ending share %d should be positive", endingShare)
+	if endShare < 0 {
+		return nil, fmt.Errorf("end share %d should be positive", endShare)
 	}
 
-	if endingShare < startShare {
-		return nil, fmt.Errorf("ending share %d cannot be lower than starting share %d", endingShare, startShare)
+	if endShare < startShare {
+		return nil, fmt.Errorf("end share %d cannot be lower than starting share %d", endShare, startShare)
 	}
 
-	if endingShare >= int64(len(rawShares)) {
-		return nil, fmt.Errorf("ending share %d is higher than block shares %d", endingShare, len(rawShares))
+	if endShare >= int64(len(rawShares)) {
+		return nil, fmt.Errorf("end share %d is higher than block shares %d", endShare, len(rawShares))
 	}
 
 	nID := rawShares[startShare].NamespaceID()
 
-	for i, n := range rawShares[startShare:endingShare] {
+	for i, n := range rawShares[startShare:endShare] {
 		if !bytes.Equal(nID, n.NamespaceID()) {
 			return nil, fmt.Errorf("shares range contain different namespaces: %d and %d at index %d", nID, n.NamespaceID(), i)
 		}

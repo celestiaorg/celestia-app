@@ -118,8 +118,8 @@ func TxSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos 
 }
 
 // BlobShareRange returns the start and end positions for the shares
-// where a given message, referenced by its wrapped pfb transaction, was published at.
-// Note: only supports transactions containing a single message
+// where a given blob, referenced by its wrapped PFB transaction, was published at.
+// Note: only supports transactions containing a single blob.
 func BlobShareRange(tx types.Tx) (beginShare uint64, endShare uint64, err error) {
 	indexWrappedTx, isIndexWrapped := types.UnmarshalIndexWrapper(tx)
 	if !isIndexWrapped {
@@ -247,10 +247,10 @@ func splitIntoRows(squareSize uint64, s []shares.Share) [][]shares.Share {
 	return rows
 }
 
-// SharesInclusion generates an nmt inclusion proof for a set of shares to the data root.
+// GenerateSharesInclusionProof generates an nmt inclusion proof for a set of shares to the data root.
 // Expects the share range to be pre-validated.
 // Note: only supports inclusion proofs for shares belonging to the same namespace.
-func SharesInclusion(
+func GenerateSharesInclusionProof(
 	allRawShares []shares.Share,
 	squareSize uint64,
 	namespaceID namespace.ID,
