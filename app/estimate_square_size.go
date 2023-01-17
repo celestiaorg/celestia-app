@@ -10,6 +10,15 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
+// worstCasePaddingCoefficient is the maximum amount of padding to filled shares
+// in the square layout. The worst case is 37.5% +3 padding, therefore, we use
+// 1.625 to increase the the number of shares used. A more detailed discusion
+// can be found at https://github.com/celestiaorg/celestia-app/issues/1200
+const worstCasePaddingCoefficient = 1.625
+
+// worstCasePaddingBase
+const worstCasePaddingBase = 3
+
 // estimateSquareSize uses the provided block data to over estimate the square
 // size and the starting share index of non-reserved namespaces. The estimates
 // returned are liberal in the sense that we assume close to worst case and
@@ -33,7 +42,8 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 		return appconsts.DefaultMinSquareSize, txSharesUsed
 	}
 	// increase the total shares used by the worst case padding ratio
-	totalSharesUsed *= 1.35
+	totalSharesUsed *= worstCasePaddingCoefficient
+	totalSharesUsed += worstCasePaddingBase
 	minSize := uint64(math.Ceil(math.Sqrt(totalSharesUsed)))
 	squareSize = shares.RoundUpPowerOfTwo(minSize)
 	if squareSize >= appconsts.DefaultMaxSquareSize {
