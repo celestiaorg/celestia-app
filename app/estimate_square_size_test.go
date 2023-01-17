@@ -60,7 +60,7 @@ func Test_estimateSquareSize_MultiBlob(t *testing.T) {
 		{
 			"single share multiblob transaction",
 			func() [][]int { return [][]int{{4}} },
-			2, 1,
+			4, 1, // this results in a square size of four due to the worst case padding base added to each estimation
 		},
 		{
 			"10 multiblob single share transactions",
