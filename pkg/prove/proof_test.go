@@ -122,7 +122,8 @@ func TestTxSharePosition(t *testing.T) {
 
 		for i, pos := range positions {
 			rawTx := []byte(tt.txs[i])
-			rawTxDataForRange := stripCompactShares(shares, pos.start, pos.end)
+			rawTxDataForRange, err := stripCompactShares(shares[pos.start : pos.end+1])
+			assert.NoError(t, err)
 			assert.Contains(
 				t,
 				string(rawTxDataForRange),
@@ -172,14 +173,13 @@ func TestTxShareIndex(t *testing.T) {
 // stripCompactShares strips the universal prefix (namespace, info byte, sequence length) and
 // reserved bytes from a list of compact shares and joins them into a single byte
 // slice.
-func stripCompactShares(compactShares []shares.Share, start uint64, end uint64) (result []byte) {
-	for i := start; i <= end; i++ {
-		if i == 0 {
-			// the first compact share includes the sequence length
-			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.SequenceLenBytes+appconsts.CompactShareReservedBytes:]...)
-		} else {
-			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:]...)
+func stripCompactShares(compactShares []shares.Share) (result []byte, err error) {
+	for _, compactShare := range compactShares {
+		rawData, err := compactShare.RawData()
+		if err != nil {
+			return []byte{}, err
 		}
+		result = append(result, rawData...)
 	}
-	return result
+	return result, nil
 }

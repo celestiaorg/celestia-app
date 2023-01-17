@@ -41,6 +41,7 @@ func CmdWirePayForBlob() *cobra.Command {
 				return fmt.Errorf("failure to decode hex blob: %w", err)
 			}
 
+			// TODO: allow for more than one blob to be sumbmitted via the cli
 			blob, err := types.NewBlob(namespace, rawblob)
 			if err != nil {
 				return err
@@ -48,7 +49,7 @@ func CmdWirePayForBlob() *cobra.Command {
 
 			// TODO: allow the user to override the share version via a new flag
 			// See https://github.com/celestiaorg/celestia-app/issues/1041
-			pfbMsg, err := types.NewMsgPayForBlob(clientCtx.FromAddress.String(), namespace, blob.Data)
+			pfbMsg, err := types.NewMsgPayForBlob(clientCtx.FromAddress.String(), blob)
 			if err != nil {
 				return err
 			}

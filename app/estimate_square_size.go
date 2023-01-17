@@ -1,10 +1,12 @@
 package app
 
 import (
+	"encoding/binary"
 	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -16,14 +18,14 @@ import (
 // NOTE: The estimation process does not have to be perfect. We can overestimate
 // because the cost of padding is limited.
 func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int) {
-	txSharesUsed := estimateCompactShares(appconsts.DefaultMaxSquareSize, txs)
+	txSharesUsed := estimateTxShares(appconsts.DefaultMaxSquareSize, txs)
 	blobSharesUsed := 0
 
 	for _, ptx := range txs {
 		if len(ptx.normalTx) != 0 {
 			continue
 		}
-		blobSharesUsed += shares.SparseSharesNeeded(uint32(ptx.blobTx.DataUsed()))
+		blobSharesUsed += blobtypes.BlobTxSharesUsed(ptx.blobTx)
 	}
 
 	totalSharesUsed := float64(txSharesUsed + blobSharesUsed)
@@ -44,9 +46,10 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 	return squareSize, txSharesUsed
 }
 
-// estimateCompactShares estimates the number of shares used by compact shares
-func estimateCompactShares(squareSize uint64, ptxs []parsedTx) int {
-	maxWTxOverhead := maxWrappedTxOverhead(squareSize)
+// estimateTxShares estimates the number of shares used by transactions.
+func estimateTxShares(squareSize uint64, ptxs []parsedTx) int {
+	maxWTxOverhead := maxIndexWrapperOverhead(squareSize)
+	maxIndexOverhead := maxIndexOverhead(squareSize)
 	txbytes := 0
 	for _, pTx := range ptxs {
 		if len(pTx.normalTx) != 0 {
@@ -55,21 +58,12 @@ func estimateCompactShares(squareSize uint64, ptxs []parsedTx) int {
 			txbytes += txLen
 			continue
 		}
-		txLen := len(pTx.blobTx.Tx) + maxWTxOverhead
+		txLen := len(pTx.blobTx.Tx) + maxWTxOverhead + (maxIndexOverhead * len(pTx.blobTx.Blobs))
 		txLen += shares.DelimLen(uint64(txLen))
 		txbytes += txLen
 	}
 
-	sharesUsed := 1
-	if txbytes <= appconsts.FirstCompactShareContentSize {
-		return sharesUsed
-	}
-
-	// account for the first share
-	txbytes -= appconsts.FirstCompactShareContentSize
-	sharesUsed += (txbytes / appconsts.ContinuationCompactShareContentSize) + 1 // add 1 to round up and another to account for the first share
-
-	return sharesUsed
+	return shares.CompactSharesNeeded(txbytes)
 }
 
 // maxWrappedTxOverhead calculates the maximum amount of overhead introduced by
@@ -77,13 +71,30 @@ func estimateCompactShares(squareSize uint64, ptxs []parsedTx) int {
 //
 // TODO: make more efficient by only generating these numbers once or something
 // similar. This function alone can take up to 5ms.
-func maxWrappedTxOverhead(squareSize uint64) int {
+func maxIndexWrapperOverhead(squareSize uint64) int {
 	maxTxLen := squareSize * squareSize * appconsts.ContinuationCompactShareContentSize
 	wtx, err := coretypes.MarshalIndexWrapper(
+		make([]byte, maxTxLen),
 		uint32(squareSize*squareSize),
-		make([]byte, maxTxLen))
+	)
 	if err != nil {
 		panic(err)
 	}
 	return len(wtx) - int(maxTxLen)
+}
+
+// maxIndexOverhead calculates the maximum amount of overhead in bytes that
+// could occur by adding an index to an IndexWrapper.
+func maxIndexOverhead(squareSize uint64) int {
+	maxShareIndex := squareSize * squareSize
+	maxIndexLen := binary.PutUvarint(make([]byte, binary.MaxVarintLen32), maxShareIndex)
+	wtx, err := coretypes.MarshalIndexWrapper(make([]byte, 1), uint32(maxShareIndex))
+	if err != nil {
+		panic(err)
+	}
+	wtx2, err := coretypes.MarshalIndexWrapper(make([]byte, 1), uint32(maxShareIndex), uint32(maxShareIndex-1))
+	if err != nil {
+		panic(err)
+	}
+	return len(wtx2) - len(wtx) + maxIndexLen
 }

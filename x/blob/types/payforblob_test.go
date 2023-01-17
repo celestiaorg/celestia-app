@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 func Test_merkleMountainRangeHeights(t *testing.T) {
@@ -97,7 +98,8 @@ func TestCreateCommitment(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := CreateCommitment(tt.namespace, tt.blob, tt.shareVersion)
+			blob := &Blob{NamespaceId: tt.namespace, Data: tt.blob, ShareVersion: uint32(tt.shareVersion)}
+			res, err := CreateCommitment(blob)
 			if tt.expectErr {
 				assert.Error(t, err)
 				return
@@ -119,27 +121,27 @@ func TestValidateBasic(t *testing.T) {
 
 	// MsgPayForBlob that uses parity shares namespace id
 	paritySharesMsg := validMsgPayForBlob(t)
-	paritySharesMsg.NamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+	paritySharesMsg.NamespaceIds[0] = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 
 	// MsgPayForBlob that uses tail padding namespace id
 	tailPaddingMsg := validMsgPayForBlob(t)
-	tailPaddingMsg.NamespaceId = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
+	tailPaddingMsg.NamespaceIds[0] = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
 
 	// MsgPayForBlob that uses transaction namespace id
 	txNamespaceMsg := validMsgPayForBlob(t)
-	txNamespaceMsg.NamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 1}
+	txNamespaceMsg.NamespaceIds[0] = namespace.ID{0, 0, 0, 0, 0, 0, 0, 1}
 
 	// MsgPayForBlob that uses intermediateStateRoots namespace id
 	intermediateStateRootsNamespaceMsg := validMsgPayForBlob(t)
-	intermediateStateRootsNamespaceMsg.NamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 2}
+	intermediateStateRootsNamespaceMsg.NamespaceIds[0] = namespace.ID{0, 0, 0, 0, 0, 0, 0, 2}
 
 	// MsgPayForBlob that uses evidence namespace id
 	evidenceNamespaceMsg := validMsgPayForBlob(t)
-	evidenceNamespaceMsg.NamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
+	evidenceNamespaceMsg.NamespaceIds[0] = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
 
 	// MsgPayForBlob that uses the max reserved namespace id
 	maxReservedNamespaceMsg := validMsgPayForBlob(t)
-	maxReservedNamespaceMsg.NamespaceId = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
+	maxReservedNamespaceMsg.NamespaceIds[0] = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
 
 	// MsgPayForBlob that has an empty share commitment
 	emptyShareCommitment := validMsgPayForBlob(t)
@@ -216,7 +218,13 @@ func validMsgPayForBlob(t *testing.T) *MsgPayForBlob {
 	addr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
 
-	pfb, err := NewMsgPayForBlob(addr.String(), ns, blob)
+	pblob := &tmproto.Blob{
+		Data:         blob,
+		NamespaceId:  ns,
+		ShareVersion: uint32(appconsts.ShareVersionZero),
+	}
+
+	pfb, err := NewMsgPayForBlob(addr.String(), pblob)
 	assert.NoError(t, err)
 
 	return pfb
@@ -275,17 +283,16 @@ func TestNewMsgPayForBlob(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		res, err := NewMsgPayForBlob(tt.signer, tt.nids[0], tt.blobs[0])
+		blob := &Blob{NamespaceId: tt.nids[0], Data: tt.blobs[0], ShareVersion: uint32(appconsts.DefaultShareVersion)}
+		res, err := NewMsgPayForBlob(tt.signer, blob)
 		if tt.expectedErr {
 			assert.Error(t, err)
 			continue
 		}
 
-		expectedCommitment, err := CreateMultiShareCommitment(tt.nids, tt.blobs, make([]uint32, len(tt.blobs)))
+		expectedCommitment, err := CreateMultiShareCommitment(blob)
 		require.NoError(t, err)
 		assert.Equal(t, expectedCommitment, res.ShareCommitment)
-
-		assert.Equal(t, uint32(len(tt.blobs[0])), res.BlobSize)
 	}
 }
 
@@ -327,5 +334,29 @@ func TestBlobMinSquareSize(t *testing.T) {
 			got := BlobMinSquareSize(tc.blobSize)
 			assert.Equal(t, tc.expected, got)
 		})
+	}
+}
+
+func TestValidateBlobs(t *testing.T) {
+	type test struct {
+		name        string
+		blob        *Blob
+		expectError bool
+	}
+
+	tests := []test{
+		{name: "valid blob", blob: &Blob{Data: []byte{1}, NamespaceId: []byte{1, 2, 3, 4, 5, 6, 7, 8}, ShareVersion: uint32(appconsts.DefaultShareVersion)}, expectError: false},
+		{name: "invalid share version", blob: &Blob{Data: []byte{1}, NamespaceId: []byte{1, 2, 3, 4, 5, 6, 7, 8}, ShareVersion: uint32(10000)}, expectError: true},
+		{name: "empty blob", blob: &Blob{Data: []byte{}, NamespaceId: []byte{1, 2, 3, 4, 5, 6, 7, 8}, ShareVersion: uint32(appconsts.DefaultShareVersion)}, expectError: true},
+		{name: "invalid namespace", blob: &Blob{Data: []byte{1}, NamespaceId: appconsts.TxNamespaceID, ShareVersion: uint32(appconsts.DefaultShareVersion)}, expectError: true},
+	}
+
+	for _, tt := range tests {
+		err := ValidateBlobs(tt.blob)
+		if tt.expectError {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+		}
 	}
 }

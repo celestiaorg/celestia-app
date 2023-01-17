@@ -27,6 +27,10 @@ const (
 	// ShareVersionZero is the first share version format.
 	ShareVersionZero = uint8(0)
 
+	// DefaultShareVersion is the defacto share version. Use this if you are
+	// unsure of which version to use.
+	DefaultShareVersion = ShareVersionZero
+
 	// CompactShareReservedBytes is the number of bytes reserved for the location of
 	// the first unit (transaction, ISR) in a compact share.
 	CompactShareReservedBytes = 4
@@ -70,6 +74,13 @@ const (
 	// DefaultGasPerBlobByte is the default gas cost deducted per byte of blob
 	// included in a PayForBlob txn
 	DefaultGasPerBlobByte = 8
+
+	// TransactionsPerBlockLimit is the maximum number of transactions a block
+	// producer will include in a block.
+	//
+	// NOTE: Currently this value is set at roughly the number of PFBs that
+	// would fill one quarter of the max square size.
+	TransactionsPerBlockLimit = 5090
 )
 
 var (
@@ -82,6 +93,10 @@ var (
 
 	// EvidenceNamespaceID is the namespace reserved for evidence.
 	EvidenceNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
+
+	// TailTransactionPaddingNamespaceId is the namespace used for padding after
+	// all transactions (ordinary and PFBs) but before blobs.
+	TailTransactionPaddingNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
 
 	// MaxReservedNamespace is the lexicographically largest namespace that is
 	// reserved for protocol use.

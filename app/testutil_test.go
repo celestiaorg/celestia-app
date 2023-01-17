@@ -1,10 +1,13 @@
 package app
 
 import (
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 )
 
 func generateMixedParsedTxs(normalTxCount, pfbCount, pfbSize int) []parsedTx {
@@ -19,8 +22,19 @@ func generateMixedParsedTxs(normalTxCount, pfbCount, pfbSize int) []parsedTx {
 	return parseTxs(encCfg.TxConfig, coretypes.Txs(txs).ToSliceOfBytes())
 }
 
-func generateParsedTxsWithNIDs(nids [][]byte, sizes []int) []parsedTx {
+// generateParsedTxsWithNIDs will generate len(nids) parsed BlobTxs with
+// len(blobSizes[i]) number of blobs per BlobTx.
+func generateParsedTxsWithNIDs(t *testing.T, nids [][]byte, blobSizes [][]int) []parsedTx {
 	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
-	txs := blobfactory.RandBlobTxsWithNamespaces(encCfg.TxConfig.TxEncoder(), nids, sizes)
-	return parseTxs(encCfg.TxConfig, coretypes.Txs(txs).ToSliceOfBytes())
+	const acc = "signer"
+	kr := testfactory.GenerateKeyring(acc)
+	txs := blobfactory.ManyMultiBlobTx(
+		t,
+		encCfg.TxConfig.TxEncoder(),
+		kr,
+		"chainid",
+		blobfactory.Repeat(acc, len(blobSizes)),
+		blobfactory.NestedBlobs(t, nids, blobSizes),
+	)
+	return parseTxs(encCfg.TxConfig, txs)
 }

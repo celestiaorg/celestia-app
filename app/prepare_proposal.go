@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -8,7 +9,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// PrepareProposal fullfills the celestia-core version of the ABCI interface by
+// PrepareProposal fulfills the celestia-core version of the ABCI interface by
 // preparing the proposal block data. The square size is determined by first
 // estimating it via the size of the passed block data. Then, this method
 // generates the data root for the proposal block and passes it back to
@@ -17,6 +18,11 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// parse the txs, extracting any valid BlobTxs. Original order of
 	// the txs is maintained.
 	parsedTxs := parseTxs(app.txConfig, req.BlockData.Txs)
+
+	// remove transactions that go over the limit
+	if len(parsedTxs) > appconsts.TransactionsPerBlockLimit {
+		parsedTxs = parsedTxs[:appconsts.TransactionsPerBlockLimit]
+	}
 
 	// estimate the square size. This estimation errs on the side of larger
 	// squares but can only return values within the min and max square size.
