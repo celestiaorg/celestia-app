@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/transaction"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +22,7 @@ func Test_finalizeLayout(t *testing.T) {
 	type test struct {
 		squareSize      uint64
 		nonreserveStart int
-		ptxs            []transaction.ParsedTx
+		ptxs            []parsedTx
 		expectedIndexes [][]uint32
 	}
 	tests := []test{
@@ -175,10 +174,10 @@ func Test_finalizeLayout(t *testing.T) {
 		res, blobs := finalizeLayout(tt.squareSize, tt.nonreserveStart, tt.ptxs)
 		require.Equal(t, len(tt.expectedIndexes), len(res), i)
 		for j, ptx := range res {
-			assert.Equal(t, tt.expectedIndexes[j], ptx.ShareIndexes, i)
+			assert.Equal(t, tt.expectedIndexes[j], ptx.shareIndexes, i)
 		}
 
-		processedTxs := transaction.ProcessTxs(tmlog.NewNopLogger(), res)
+		processedTxs := processTxs(tmlog.NewNopLogger(), res)
 
 		sort.SliceStable(blobs, func(i, j int) bool {
 			return bytes.Compare(blobs[i].NamespaceId, blobs[j].NamespaceId) < 0

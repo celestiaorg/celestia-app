@@ -17,14 +17,14 @@ import (
 
 const TxInclusionQueryPath = "txInclusionProof"
 
-// QueryTxInclusionProof defines the logic performed when the ABCI client uses
-// the Query method with the custom prove.TxInclusionQueryPath. The index of the
-// transaction being proved must be appended to the path. The marshalled bytes
-// of the transaction proof (tmproto.TxProof) are returned.
+// Querier defines the logic performed when the ABCI client using the Query
+// method with the custom prove.QueryPath. The index of the transaction being
+// proved must be appended to the path. The marshalled bytes of the transaction
+// proof (tmproto.TxProof) are returned.
 //
-// Example path for proving the third transaction in that block:
+// example path for proving the third transaction in that block:
 // custom/txInclusionProof/3
-func QueryTxInclusionProof(con sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
+func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
 	// parse the index from the path
 	if len(path) != 1 {
 		return nil, fmt.Errorf("expected query path length: 1 actual: %d ", len(path))
@@ -46,9 +46,7 @@ func QueryTxInclusionProof(con sdk.Context, path []string, req abci.RequestQuery
 	}
 
 	// create and marshal the tx inclusion proof, which we return in the form of []byte
-	// TODO: how to get txConfig here?
-	// txConfig := client.TxConfig{}
-	txProof, err := TxInclusion(txConfig, appconsts.DefaultCodec(), data, uint64(index))
+	txProof, err := TxInclusion(appconsts.DefaultCodec(), data, uint64(index))
 	if err != nil {
 		return nil, err
 	}
@@ -65,9 +63,7 @@ const ShareInclusionQueryPath = "shareInclusionProof"
 
 // QueryShareInclusionProof defines the logic performed when querying for the
 // inclusion proofs of a set of shares to the data root. The share range should
-// be appended to the path.
-//
-// Example path for proving the set of shares [3, 5]:
+// be appended to the path. Example path for proving the set of shares [3, 5]:
 // custom/shareInclusionProof/3/5
 func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
 	// parse the share range from the path

@@ -1,4 +1,4 @@
-package transaction
+package app
 
 import (
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -9,33 +9,33 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// ParsedTx is an internal struct that keeps track of all transactions.
-type ParsedTx struct {
+// parsedTx is an internal struct that keeps track of all transactions.
+type parsedTx struct {
 	// normalTx is the raw unmodified transaction only filled if the transaction does not have any blobs
 	// attached
-	NormalTx []byte
+	normalTx []byte
 	// blobTx is the processed blob transaction. this field is only filled if
 	// the transaction has blobs attached
-	BlobTx       core.BlobTx
-	ShareIndexes []uint32
+	blobTx       core.BlobTx
+	shareIndexes []uint32
 }
 
-func (p ParsedTx) IsNormalTx() bool {
-	return len(p.NormalTx) != 0
+func (p parsedTx) isNormalTx() bool {
+	return len(p.normalTx) != 0
 }
 
-func (p ParsedTx) IsBlobTx() bool {
-	return !p.IsNormalTx()
+func (p parsedTx) isBlobTx() bool {
+	return !p.isNormalTx()
 }
 
-// ParseTxs decodes raw tendermint txs along with checking for and processing
+// parseTxs decodes raw tendermint txs along with checking for and processing
 // blob transactions.
-func ParseTxs(txcfg client.TxConfig, rawTxs [][]byte) []ParsedTx {
-	parsedTxs := make([]ParsedTx, len(rawTxs))
+func parseTxs(txcfg client.TxConfig, rawTxs [][]byte) []parsedTx {
+	parsedTxs := make([]parsedTx, len(rawTxs))
 	for i, rawTx := range rawTxs {
 		bTx, isBlob := coretypes.UnmarshalBlobTx(rawTx)
 		if !isBlob {
-			parsedTxs[i] = ParsedTx{NormalTx: rawTx}
+			parsedTxs[i] = parsedTx{normalTx: rawTx}
 			continue
 		}
 		err := blobtypes.ValidateBlobTx(txcfg, bTx)
@@ -44,29 +44,29 @@ func ParseTxs(txcfg client.TxConfig, rawTxs [][]byte) []ParsedTx {
 			// same check during CheckTx
 			continue
 		}
-		parsedTxs[i] = ParsedTx{BlobTx: bTx}
+		parsedTxs[i] = parsedTx{blobTx: bTx}
 	}
 	return parsedTxs
 }
 
-// ProcessTxs wraps the parsed transactions with the attached share index
-func ProcessTxs(logger log.Logger, txs []ParsedTx) [][]byte {
+// processTxs wraps the parsed transactions with the attached share index
+func processTxs(logger log.Logger, txs []parsedTx) [][]byte {
 	processedTxs := make([][]byte, 0)
 	for _, pTx := range txs {
-		if len(pTx.NormalTx) != 0 {
-			processedTxs = append(processedTxs, pTx.NormalTx)
+		if len(pTx.normalTx) != 0 {
+			processedTxs = append(processedTxs, pTx.normalTx)
 			continue
 		}
 
 		// if this is a blob transaction, then we need to encode and wrap the
 		// underlying MsgPFB containing transaction
-		wTx, err := coretypes.MarshalIndexWrapper(pTx.BlobTx.Tx, pTx.ShareIndexes...)
+		wTx, err := coretypes.MarshalIndexWrapper(pTx.blobTx.Tx, pTx.shareIndexes...)
 		if err != nil {
 			// note: Its not safe to bubble this error up and stop the block
 			// creation process.
 			logger.Error(
 				"failure to wrap an otherwise valid BlobTx when creating a block: %v",
-				tmbytes.HexBytes(coretypes.Tx(pTx.BlobTx.Tx).Hash()),
+				tmbytes.HexBytes(coretypes.Tx(pTx.blobTx.Tx).Hash()),
 			)
 			continue
 		}

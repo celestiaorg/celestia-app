@@ -357,7 +357,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		require.NoError(err)
 		blockRes, err := node.Block(context.Background(), &txResp.Height)
 		require.NoError(err)
-		beginTxShare, endTxShare, err := prove.TxSharePosition(s.cfg.TxConfig, blockRes.Block.Txs, uint64(txResp.Index))
+		beginTxShare, endTxShare, err := prove.TxSharePosition(blockRes.Block.Txs, uint64(txResp.Index))
 		require.NoError(err)
 
 		txProof, err := node.ProveShares(

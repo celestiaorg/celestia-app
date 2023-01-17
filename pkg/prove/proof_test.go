@@ -68,7 +68,7 @@ func TestTxInclusion(t *testing.T) {
 
 	for _, tt := range tests {
 		for i := 0; i < len(tt.data.Txs); i++ {
-			txProof, err := TxInclusion(txConfig, appconsts.DefaultCodec(), tt.data, uint64(i))
+			txProof, err := TxInclusion(appconsts.DefaultCodec(), tt.data, uint64(i))
 			require.NoError(t, err)
 			assert.True(t, txProof.VerifyProof())
 		}

@@ -6,7 +6,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/transaction"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -18,16 +17,16 @@ import (
 //
 // NOTE: The estimation process does not have to be perfect. We can overestimate
 // because the cost of padding is limited.
-func estimateSquareSize(txs []transaction.ParsedTx) (squareSize uint64, nonreserveStart int) {
+func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int) {
 	txSharesUsed := estimateTxSharesUsed(txs)
 	pfbTxSharesUsed := estimatePFBTxSharesUsed(appconsts.DefaultMaxSquareSize, txs)
 	blobSharesUsed := 0
 
 	for _, ptx := range txs {
-		if len(ptx.NormalTx) != 0 {
+		if len(ptx.normalTx) != 0 {
 			continue
 		}
-		blobSharesUsed += blobtypes.BlobTxSharesUsed(ptx.BlobTx)
+		blobSharesUsed += blobtypes.BlobTxSharesUsed(ptx.blobTx)
 	}
 
 	// assume that we have to add a lot of padding by simply doubling the number
@@ -51,11 +50,11 @@ func estimateSquareSize(txs []transaction.ParsedTx) (squareSize uint64, nonreser
 
 // estimateTxSharesUsed estimates the number of shares used by ordinary
 // transactions (i.e. all transactions that aren't PFBs).
-func estimateTxSharesUsed(ptxs []transaction.ParsedTx) int {
+func estimateTxSharesUsed(ptxs []parsedTx) int {
 	txBytes := 0
 	for _, pTx := range ptxs {
-		if pTx.IsNormalTx() {
-			txLen := len(pTx.NormalTx)
+		if pTx.isNormalTx() {
+			txLen := len(pTx.normalTx)
 			txLen += shares.DelimLen(uint64(txLen))
 			txBytes += txLen
 		}
@@ -65,13 +64,13 @@ func estimateTxSharesUsed(ptxs []transaction.ParsedTx) int {
 
 // estimatePFBTxSharesUsed estimates the number of shares used by PFB
 // transactions.
-func estimatePFBTxSharesUsed(squareSize uint64, ptxs []transaction.ParsedTx) int {
+func estimatePFBTxSharesUsed(squareSize uint64, ptxs []parsedTx) int {
 	maxWTxOverhead := maxIndexWrapperOverhead(squareSize)
 	maxIndexOverhead := maxIndexOverhead(squareSize)
 	numBytes := 0
 	for _, pTx := range ptxs {
-		if pTx.IsBlobTx() {
-			txLen := len(pTx.BlobTx.Tx) + maxWTxOverhead + (maxIndexOverhead * len(pTx.BlobTx.Blobs))
+		if pTx.isBlobTx() {
+			txLen := len(pTx.blobTx.Tx) + maxWTxOverhead + (maxIndexOverhead * len(pTx.blobTx.Blobs))
 			txLen += shares.DelimLen(uint64(txLen))
 			numBytes += txLen
 		}

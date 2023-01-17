@@ -6,7 +6,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/transaction"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
@@ -100,7 +99,7 @@ func Test_estimateSquareSize_MultiBlob(t *testing.T) {
 				signer,
 				tt.getBlobSizes(),
 			)
-			ptxs := transaction.ParseTxs(enc.TxConfig, shares.TxsToBytes(txs))
+			ptxs := parseTxs(enc.TxConfig, shares.TxsToBytes(txs))
 			resSquareSize, resStart := estimateSquareSize(ptxs)
 			require.Equal(t, tt.expectedSquareSize, resSquareSize)
 			require.Equal(t, tt.expectedStartingShareIndex, resStart)
@@ -133,12 +132,12 @@ func Test_estimatePFBTxSharesUsed(t *testing.T) {
 			// of pfbTxShares actually used
 			txs := make([]coretypes.Tx, len(ptxs))
 			for i, ptx := range ptxs {
-				if len(ptx.NormalTx) != 0 {
-					txs[i] = ptx.NormalTx
+				if len(ptx.normalTx) != 0 {
+					txs[i] = ptx.normalTx
 					continue
 				}
 				wPFBTx, err := coretypes.MarshalIndexWrapper(
-					ptx.BlobTx.Tx,
+					ptx.blobTx.Tx,
 					uint32(tt.squareSize*tt.squareSize),
 				)
 				require.NoError(t, err)
@@ -153,11 +152,11 @@ func Test_estimatePFBTxSharesUsed(t *testing.T) {
 func Test_estimateTxSharesUsed(t *testing.T) {
 	type testCase struct {
 		name string
-		ptxs []transaction.ParsedTx
+		ptxs []parsedTx
 		want int
 	}
 	testCases := []testCase{
-		{"empty", []transaction.ParsedTx{}, 0},
+		{"empty", []parsedTx{}, 0},
 		{"one tx", generateNormalParsedTxs(1), 1},             // 1 tx is approximately 312 bytes which fits in 1 share
 		{"two txs", generateNormalParsedTxs(2), 2},            // 2 txs is approximately 624 bytes which fits in 2 shares
 		{"ten txs", generateNormalParsedTxs(10), 7},           // 10 txs is approximately 3120 bytes which fits in 7 shares

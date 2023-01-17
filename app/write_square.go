@@ -5,7 +5,6 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/transaction"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -22,7 +21,7 @@ type trackedBlob struct {
 // finalizeLayout returns the transactions and blobs in their completed layout.
 // Valid square layouts only include a MsgPayForBlob transaction if the blob is
 // also included in the square. The blobs are also sorted by namespace.
-func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []transaction.ParsedTx) ([]transaction.ParsedTx, []tmproto.Blob) {
+func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []parsedTx) ([]parsedTx, []tmproto.Blob) {
 	// we split the transactions from the blobs here, but keep track of which
 	// parsed transaction the blobs originated from. transactions must only be
 	// added to the square if their respective blob is also added to the square.
@@ -30,11 +29,11 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []transaction.P
 	// shares and create nmt commitments over each row and column.
 	trackedBlobs := make([]trackedBlob, 0)
 	for i, pTx := range ptxs {
-		if len(pTx.NormalTx) != 0 {
+		if len(pTx.normalTx) != 0 {
 			continue
 		}
-		ptxs[i].ShareIndexes = make([]uint32, len(pTx.BlobTx.Blobs))
-		for j, blob := range pTx.BlobTx.Blobs {
+		ptxs[i].shareIndexes = make([]uint32, len(pTx.blobTx.Blobs))
+		for j, blob := range pTx.blobTx.Blobs {
 			trackedBlobs = append(trackedBlobs, trackedBlob{
 				blob:        blob,
 				parsedIndex: i,
@@ -66,7 +65,7 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []transaction.P
 			continue
 		}
 		// set the share index in the same order as the blob that its for
-		ptxs[tBlob.parsedIndex].ShareIndexes[tBlob.blobIndex] = uint32(cursor)
+		ptxs[tBlob.parsedIndex].shareIndexes[tBlob.blobIndex] = uint32(cursor)
 		cursor += tBlob.sharesUsed
 	}
 
@@ -74,17 +73,17 @@ func finalizeLayout(squareSize uint64, nonreserveStart int, ptxs []transaction.P
 
 	blobTxCount := 0
 	for _, ptx := range ptxs {
-		if len(ptx.BlobTx.Tx) != 0 {
+		if len(ptx.blobTx.Tx) != 0 {
 			blobTxCount++
 		}
 	}
 
 	derefBlobs := make([]tmproto.Blob, 0)
 	for _, ptx := range ptxs {
-		if len(ptx.NormalTx) != 0 {
+		if len(ptx.normalTx) != 0 {
 			continue
 		}
-		for _, blob := range ptx.BlobTx.Blobs {
+		for _, blob := range ptx.blobTx.Blobs {
 			derefBlobs = append(derefBlobs, *blob)
 		}
 	}
