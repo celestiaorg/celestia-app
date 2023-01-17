@@ -136,7 +136,7 @@ func msgCmd() *cobra.Command {
 				return err
 			}
 
-			beginMsgShare, endMsgShare, err := prove.MsgSharesPosition(blockRes.Block.Txs[tx.Index])
+			beginMsgShare, endMsgShare, err := prove.BlobShareRange(blockRes.Block.Txs[tx.Index])
 			if err != nil {
 				return err
 			}
