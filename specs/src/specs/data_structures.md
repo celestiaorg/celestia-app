@@ -544,11 +544,11 @@ For shares **with a namespace ID equal to [`PARITY_SHARE_NAMESPACE_ID`](./consen
 
 #### Tail Padding Share
 
+Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients can safely ignore the contents of these shares because they don't contain any significant data.
+
 For shares **with a namespace ID equal to [`TAIL_PADDING_NAMESPACE_ID`](./consensus.md#constants)** (i.e. tail padding shares):
 
 The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information. The sequence start indicator is always `0`. The version bits are filled with the share version. The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are filled with `0`.
-
-Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients can safely ignore the contents of these shares because they don't contain any significant data.
 
 ### Arranging Available Data Into Shares
 
