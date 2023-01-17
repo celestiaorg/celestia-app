@@ -9,7 +9,8 @@ import (
 
 // NamespacedPaddedShare returns a share that acts as padding. Namespaced
 // padding shares follow a blob so that the next blob may start at an index that
-// conforms to non-interactive default rules.
+// conforms to non-interactive default rules. The ns parameter provided should
+// be the namespace of the blob that precedes this padding in the data square.
 func NamespacedPaddedShare(ns namespace.ID) Share {
 	infoByte, err := NewInfoByte(appconsts.ShareVersionZero, false)
 	if err != nil {
