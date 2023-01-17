@@ -127,9 +127,7 @@ func BlobShareRange(tx types.Tx) (beginShare uint64, endShare uint64, err error)
 	}
 
 	encCfg := encoding.MakeConfig(blobmodule.AppModuleBasic{})
-	decoder := encCfg.TxConfig.TxDecoder()
-
-	decodedTx, err := decoder(indexWrappedTx.Tx)
+	decodedTx, err := encCfg.TxConfig.TxDecoder()(indexWrappedTx.Tx)
 	if err != nil {
 		return beginShare, endShare, err
 	}
