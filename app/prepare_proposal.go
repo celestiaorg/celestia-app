@@ -4,6 +4,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/pkg/transaction"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -17,7 +18,7 @@ import (
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	// parse the txs, extracting any valid BlobTxs. Original order of
 	// the txs is maintained.
-	parsedTxs := parseTxs(app.txConfig, req.BlockData.Txs)
+	parsedTxs := transaction.ParseTxs(app.txConfig, req.BlockData.Txs)
 
 	// remove transactions that go over the limit
 	if len(parsedTxs) > appconsts.TransactionsPerBlockLimit {
@@ -36,7 +37,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// extract all transactions from the intermediate parsedTx struct, and wrap
 	// any blob transactions with their finalized share index.
-	processedTxs := processTxs(app.Logger(), parsedTxs)
+	processedTxs := transaction.ProcessTxs(app.Logger(), parsedTxs)
 
 	blockData := core.Data{
 		Txs:        processedTxs,
