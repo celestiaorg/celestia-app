@@ -16,7 +16,10 @@ import (
 // can be found at https://github.com/celestiaorg/celestia-app/issues/1200
 const worstCasePaddingCoefficient = 1.625
 
-// worstCasePaddingBase
+// worstCasePaddingBase is the base padding that we add for the worst case
+// padding for square sizes greater than 2. A more detailed discussion and
+// analysis can be read at
+// https://github.com/celestiaorg/celestia-app/issues/1200
 const worstCasePaddingBase = 3
 
 // estimateSquareSize uses the provided block data to over estimate the square
