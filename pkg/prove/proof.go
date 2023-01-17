@@ -154,7 +154,7 @@ func BlobShareRange(tx types.Tx) (beginShare uint64, endShare uint64, err error)
 	}
 
 	beginShare = uint64(indexWrappedTx.ShareIndexes[0])
-	sharesUsed := shares.SparseSharesNeeded(pfb.BlobSize)
+	sharesUsed := shares.SparseSharesNeeded(pfb.BlobSizes[0])
 	return beginShare, beginShare + uint64(sharesUsed) - 1, nil
 }
 

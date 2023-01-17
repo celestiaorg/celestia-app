@@ -7,13 +7,12 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	cosmosnet "github.com/cosmos/cosmos-sdk/testutil/network"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	"github.com/stretchr/testify/suite"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -325,6 +324,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		s.kr,
 		val.ClientCtx.GRPCClient,
 		100000,
+		1,
 		true,
 		s.cfg.ChainID,
 		s.accounts[:20],
