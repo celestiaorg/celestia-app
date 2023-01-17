@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/assert"
@@ -106,7 +107,7 @@ func Test_estimateSquareSize_MultiBlob(t *testing.T) {
 	}
 }
 
-func Test_estimateTxShares(t *testing.T) {
+func Test_estimatePFBTxSharesUsed(t *testing.T) {
 	type test struct {
 		name              string
 		squareSize        uint64
@@ -115,7 +116,7 @@ func Test_estimateTxShares(t *testing.T) {
 	tests := []test{
 		{"empty block", appconsts.DefaultMinSquareSize, 0, 0},
 		{"one small pfb small block", 4, 1, 100},
-		{"one large pfb large block", appconsts.DefaultMaxSquareSize, 1, 1_000_000},
+		{"one large pfb large block", appconsts.DefaultMaxSquareSize, 1, 100_000},
 		{"one hundred large pfb large block", appconsts.DefaultMaxSquareSize, 100, 100_000},
 		{"one hundred large pfb medium block", appconsts.DefaultMaxSquareSize / 2, 100, 100_000},
 		{"ten thousand small pfb large block", appconsts.DefaultMaxSquareSize, 10_000, 1},
@@ -124,11 +125,11 @@ func Test_estimateTxShares(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ptxs := generateMixedParsedTxs(0, tt.pfbCount, tt.pfbSize)
-			res := estimatePFBTxSharesUsed(tt.squareSize, ptxs)
+			ptxs := generateParsedTxsWithNIDs(t, namespace.RandomBlobNamespaces(tt.pfbCount), blobfactory.Repeat([]int{tt.pfbSize}, tt.pfbCount))
+			got := estimatePFBTxSharesUsed(tt.squareSize, ptxs)
 
 			// check that our estimate is always larger or equal to the number
-			// of compact shares actually used
+			// of pfbTxShares actually used
 			txs := make([]coretypes.Tx, len(ptxs))
 			for i, ptx := range ptxs {
 				if len(ptx.normalTx) != 0 {
@@ -143,7 +144,7 @@ func Test_estimateTxShares(t *testing.T) {
 				txs[i] = wPFBTx
 			}
 			_, pfbTxShares := shares.SplitTxs(txs)
-			assert.LessOrEqual(t, len(pfbTxShares), res)
+			assert.LessOrEqual(t, len(pfbTxShares), got)
 		})
 	}
 }
