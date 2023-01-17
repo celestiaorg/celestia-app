@@ -181,6 +181,9 @@ func RandBlobTxsWithAccounts(
 				randomizedSize = 1
 			}
 		}
+		if blobCount <= 0 {
+			panic("blobCount should be strictly positive")
+		}
 		randomizedBlobCount := blobCount
 		if randSize {
 			randomizedBlobCount = rand.Intn(blobCount)
