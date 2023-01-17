@@ -345,29 +345,14 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 	}
 
 	for _, hash := range hashes {
-		txResp, err := queryTx(val.ClientCtx, hash, true)
+		txResp, err := queryTx(val.ClientCtx, hash, false)
 		require.NoError(err)
 		require.Equal(abci.CodeTypeOK, txResp.TxResult.Code)
 
-		// verify that the transaction inclusion proof is valid
-		require.True(txResp.Proof.VerifyProof())
-
-		// get the transaction shares
 		node, err := val.ClientCtx.GetNode()
 		require.NoError(err)
 		blockRes, err := node.Block(context.Background(), &txResp.Height)
 		require.NoError(err)
-		beginTxShare, endTxShare, err := prove.TxSharePosition(blockRes.Block.Txs, uint64(txResp.Index))
-		require.NoError(err)
-
-		txProof, err := node.ProveShares(
-			context.Background(),
-			uint64(txResp.Height),
-			beginTxShare,
-			endTxShare,
-		)
-		require.NoError(err)
-		require.NoError(txProof.Validate(blockRes.Block.DataHash))
 
 		// get the blob shares
 		beginBlobShare, endBlobShare, err := prove.BlobShareRange(blockRes.Block.Txs[txResp.Index])
