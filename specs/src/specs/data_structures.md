@@ -34,7 +34,7 @@
     - [Parity Share](#parity-share)
     - [Namespaced Padding Share](#namespaced-padding-share)
     - [Tail Padding Share](#tail-padding-share)
-- [Arranging Available Data Into Shares](#arranging-available-data-into-shares)
+  - [Arranging Available Data Into Shares](#arranging-available-data-into-shares)
 - [Available Data](#available-data)
   - [TransactionData](#transactiondata)
     - [WrappedTransaction](#wrappedtransaction)
