@@ -548,6 +548,8 @@ For shares **with a namespace ID equal to [`TAIL_PADDING_NAMESPACE_ID`](./consen
 
 The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information. The sequence start indicator is always `0`. The version bits are filled with the share version. The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are filled with `0`.
 
+Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients can safely ignore the contents of these shares because they don't contain any significant data.
+
 ### Arranging Available Data Into Shares
 
 The previous sections described how some original data, arranged into a `k * k` matrix, can be extended into a `2k * 2k` matrix and committed to with NMT roots. This section specifies how [available data](#available-data) (which includes [transactions](#transactiondata), [intermediate state roots](#intermediatestaterootdata), [evidence](#evidencedata), and [messages](#messagedata)) is arranged into the matrix in the first place.
