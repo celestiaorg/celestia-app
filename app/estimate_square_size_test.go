@@ -24,8 +24,8 @@ func Test_estimateSquareSize(t *testing.T) {
 	tests := []test{
 		{"empty block", 0, 0, 0, appconsts.DefaultMinSquareSize},
 		{"one normal tx", 1, 0, 0, appconsts.DefaultMinSquareSize},
-		{"one small pfb small block", 0, 1, 100, 2},
-		{"mixed small block", 10, 12, 500, 8},
+		{"one small pfb small block", 0, 1, 100, 4},
+		{"mixed small block", 10, 10, 500, 8},
 		{"small block 2", 0, 12, 1000, 8},
 		{"mixed medium block 2", 10, 20, 10000, 32},
 		{"one large pfb large block", 0, 1, 1000000, 64},
