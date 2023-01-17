@@ -501,6 +501,7 @@ func New(
 	)
 
 	app.QueryRouter().AddRoute(prove.TxInclusionQueryPath, prove.QueryTxInclusionProof)
+	app.QueryRouter().AddRoute(prove.ShareInclusionQueryPath, prove.QueryShareInclusionProof)
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
 	app.mm.RegisterRoutes(app.Router(), app.QueryRouter(), encodingConfig.Amino)
