@@ -20,3 +20,11 @@ func RandomBlobNamespace() nmtnamespace.ID {
 		return ns
 	}
 }
+
+func RandomBlobNamespaces(count int) [][]byte {
+	namespaces := make([][]byte, count)
+	for i := 0; i < count; i++ {
+		namespaces[i] = RandomBlobNamespace()
+	}
+	return namespaces
+}

@@ -9,7 +9,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// PrepareProposal fullfills the celestia-core version of the ABCI interface by
+// PrepareProposal fulfills the celestia-core version of the ABCI interface by
 // preparing the proposal block data. The square size is determined by first
 // estimating it via the size of the passed block data. Then, this method
 // generates the data root for the proposal block and passes it back to

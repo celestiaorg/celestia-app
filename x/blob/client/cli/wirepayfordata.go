@@ -41,6 +41,7 @@ func CmdWirePayForBlob() *cobra.Command {
 				return fmt.Errorf("failure to decode hex blob: %w", err)
 			}
 
+			// TODO: allow for more than one blob to be sumbmitted via the cli
 			blob, err := types.NewBlob(namespace, rawblob)
 			if err != nil {
 				return err

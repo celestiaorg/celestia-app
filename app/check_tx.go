@@ -27,7 +27,7 @@ func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 			if _, ok := msg.(*blobtypes.MsgPayForBlob); !ok {
 				continue
 			}
-			return sdkerrors.ResponseCheckTxWithEvents(blobtypes.ErrBloblessPFB, 0, 0, []abci.Event{}, false)
+			return sdkerrors.ResponseCheckTxWithEvents(blobtypes.ErrNoBlobs, 0, 0, []abci.Event{}, false)
 		}
 		// don't do anything special if we have a normal transaction
 		return app.BaseApp.CheckTx(req)
