@@ -92,6 +92,7 @@ import (
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
 	blobmodulekeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
 	blobmoduletypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/x/tokenfilter"
 
 	qgbmodule "github.com/celestiaorg/celestia-app/x/qgb"
 	qgbmodulekeeper "github.com/celestiaorg/celestia-app/x/qgb/keeper"
@@ -348,13 +349,20 @@ func New(
 		AddRoute(ibcclienttypes.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
 
 	// Create Transfer Keepers
+	tokenFilterKeeper := tokenfilter.NewKeeper(app.IBCKeeper.ChannelKeeper)
 	app.TransferKeeper = ibctransferkeeper.NewKeeper(
 		appCodec, keys[ibctransfertypes.StoreKey], app.GetSubspace(ibctransfertypes.ModuleName),
-		app.IBCKeeper.ChannelKeeper, app.IBCKeeper.ChannelKeeper, &app.IBCKeeper.PortKeeper,
+		tokenFilterKeeper, app.IBCKeeper.ChannelKeeper, &app.IBCKeeper.PortKeeper,
 		app.AccountKeeper, app.BankKeeper, scopedTransferKeeper,
 	)
 	transferModule := transfer.NewAppModule(app.TransferKeeper)
-	transferIBCModule := transfer.NewIBCModule(app.TransferKeeper)
+
+	// transfer stack contains (from top to bottom):
+	// - Token Filter
+	// - Transfer
+	var transferStack ibcporttypes.IBCModule
+	transferStack = transfer.NewIBCModule(app.TransferKeeper)
+	transferStack = tokenfilter.NewIBCMiddleware(transferStack)
 
 	// Create evidence Keeper for to register the IBC light client misbehaviour evidence route
 	evidenceKeeper := evidencekeeper.NewKeeper(
@@ -380,7 +388,7 @@ func New(
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := ibcporttypes.NewRouter()
-	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferIBCModule)
+	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)
 	app.IBCKeeper.SetRouter(ibcRouter)
 
 	/****  Module Options ****/

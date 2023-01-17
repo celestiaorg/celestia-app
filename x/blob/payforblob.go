@@ -18,7 +18,7 @@ func SubmitPayForBlob(
 	ctx context.Context,
 	signer *types.KeyringSigner,
 	conn *grpc.ClientConn,
-	blob *types.Blob,
+	blobs []*types.Blob,
 	gasLim uint64,
 	opts ...types.TxBuilderOption,
 ) (*sdk.TxResponse, error) {
@@ -27,10 +27,7 @@ func SubmitPayForBlob(
 	if err != nil {
 		return nil, err
 	}
-	msg, err := types.NewMsgPayForBlob(
-		addr.String(),
-		blob,
-	)
+	msg, err := types.NewMsgPayForBlob(addr.String(), blobs...)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +44,7 @@ func SubmitPayForBlob(
 	if err != nil {
 		return nil, err
 	}
-	blobTx, err := coretypes.MarshalBlobTx(rawTx, blob)
+	blobTx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
 	if err != nil {
 		return nil, err
 	}

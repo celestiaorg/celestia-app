@@ -11,8 +11,10 @@ import (
 	"github.com/celestiaorg/nmt/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/tendermint/crypto/merkle"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/constraints"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -25,20 +27,26 @@ const (
 
 var _ sdk.Msg = &MsgPayForBlob{}
 
-func NewMsgPayForBlob(signer string, blob *Blob) (*MsgPayForBlob, error) {
-	commitment, err := CreateMultiShareCommitment(blob)
+func NewMsgPayForBlob(signer string, blobs ...*Blob) (*MsgPayForBlob, error) {
+	nsIDs, sizes, versions := extractBlobComponents(blobs)
+	err := ValidateBlobs(blobs...)
 	if err != nil {
 		return nil, err
 	}
-	if len(blob.Data) == 0 {
-		return nil, ErrZeroBlobSize
+
+	commitment, err := CreateMultiShareCommitment(blobs...)
+	if err != nil {
+		return nil, err
 	}
+
 	msg := &MsgPayForBlob{
 		Signer:          signer,
-		NamespaceId:     blob.NamespaceId,
+		NamespaceIds:    nsIDs,
 		ShareCommitment: commitment,
-		BlobSize:        uint32(len(blob.Data)),
+		BlobSizes:       sizes,
+		ShareVersions:   versions,
 	}
+
 	return msg, msg.ValidateBasic()
 }
 
@@ -53,8 +61,24 @@ func (msg *MsgPayForBlob) Type() string {
 // ValidateBasic fulfills the sdk.Msg interface by performing stateless
 // validity checks on the msg that also don't require having the actual blob
 func (msg *MsgPayForBlob) ValidateBasic() error {
-	if err := ValidateBlobNamespaceID(msg.GetNamespaceId()); err != nil {
-		return err
+	if len(msg.NamespaceIds) != len(msg.ShareVersions) || len(msg.NamespaceIds) != len(msg.BlobSizes) {
+		return ErrMismatchedNumberOfPFBComponent.Wrapf(
+			"namespaces %d blob sizes %d versions %d",
+			len(msg.NamespaceIds), len(msg.BlobSizes), len(msg.ShareVersions),
+		)
+	}
+
+	for _, ns := range msg.NamespaceIds {
+		err := ValidateBlobNamespaceID(ns)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, v := range msg.ShareVersions {
+		if v != uint32(appconsts.ShareVersionZero) {
+			return ErrUnsupportedShareVersion
+		}
 	}
 
 	_, err := sdk.AccAddressFromBech32(msg.Signer)
@@ -156,6 +180,30 @@ func CreateMultiShareCommitment(blobs ...*Blob) ([]byte, error) {
 	return merkle.HashFromByteSlices(commitments), nil
 }
 
+// ValidatePFBComponents performs basic checks over the components of one or more PFBs.
+func ValidateBlobs(blobs ...*Blob) error {
+	if len(blobs) == 0 {
+		return ErrNoBlobs
+	}
+
+	for _, blob := range blobs {
+		err := ValidateBlobNamespaceID(blob.NamespaceId)
+		if err != nil {
+			return err
+		}
+
+		if len(blob.Data) == 0 {
+			return ErrZeroBlobSize
+		}
+
+		if !slices.Contains(appconsts.SupportedShareVersions, uint8(blob.ShareVersion)) {
+			return ErrUnsupportedShareVersion
+		}
+	}
+
+	return nil
+}
+
 // ValidateBlobNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.
 func ValidateBlobNamespaceID(ns namespace.ID) error {
 	// ensure that the namespace id is of length == NamespaceIDSize
@@ -181,6 +229,23 @@ func ValidateBlobNamespaceID(ns namespace.ID) error {
 	}
 
 	return nil
+}
+
+// extractBlobComponents separates and returns the components of a slice of
+// blobs in order of blobs of data, their namespaces, their sizes, and their share
+// versions.
+func extractBlobComponents(pblobs []*tmproto.Blob) (nsIDs [][]byte, sizes []uint32, versions []uint32) {
+	nsIDs = make([][]byte, len(pblobs))
+	sizes = make([]uint32, len(pblobs))
+	versions = make([]uint32, len(pblobs))
+
+	for i, pblob := range pblobs {
+		sizes[i] = uint32(len(pblob.Data))
+		nsIDs[i] = pblob.NamespaceId
+		versions[i] = pblob.ShareVersion
+	}
+
+	return nsIDs, sizes, versions
 }
 
 // BlobMinSquareSize returns the minimum square size that blobSize can be included

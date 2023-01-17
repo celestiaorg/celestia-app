@@ -5,6 +5,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	"github.com/tendermint/tendermint/libs/log"
+	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -15,8 +16,8 @@ type parsedTx struct {
 	normalTx []byte
 	// blobTx is the processed blob transaction. this field is only filled if
 	// the transaction has blobs attached
-	blobTx     blobtypes.ProcessedBlobTx
-	shareIndex uint32
+	blobTx       core.BlobTx
+	shareIndexes []uint32
 }
 
 // parseTxs decodes raw tendermint txs along with checking for and processing
@@ -29,13 +30,13 @@ func parseTxs(txcfg client.TxConfig, rawTxs [][]byte) []parsedTx {
 			parsedTxs[i] = parsedTx{normalTx: rawTx}
 			continue
 		}
-		pBTx, err := blobtypes.ProcessBlobTx(txcfg, bTx)
+		err := blobtypes.ValidateBlobTx(txcfg, bTx)
 		if err != nil {
 			// this should never occur, as we should be performing this exact
 			// same check during CheckTx
 			continue
 		}
-		parsedTxs[i] = parsedTx{blobTx: pBTx}
+		parsedTxs[i] = parsedTx{blobTx: bTx}
 	}
 	return parsedTxs
 }
@@ -51,7 +52,7 @@ func processTxs(logger log.Logger, txs []parsedTx) [][]byte {
 
 		// if this is a blob transaction, then we need to encode and wrap the
 		// underlying MsgPFB containing transaction
-		wTx, err := coretypes.MarshalIndexWrapper(pTx.blobTx.Tx, pTx.shareIndex)
+		wTx, err := coretypes.MarshalIndexWrapper(pTx.blobTx.Tx, pTx.shareIndexes...)
 		if err != nil {
 			// note: Its not safe to bubble this error up and stop the block
 			// creation process.

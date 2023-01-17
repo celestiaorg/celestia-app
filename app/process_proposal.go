@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -71,7 +70,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 	// iterate over all of the MsgPayForBlob transactions and ensure that their
 	// commitments are subtree roots of the data root.
-	commitmentCounter := 0
 	for _, rawTx := range req.BlockData.Txs {
 		tx := rawTx
 		wrappedTx, isWrapped := coretypes.UnmarshalIndexWrapper(rawTx)
@@ -118,7 +116,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			}
 		}
 
-		commitment, err := inclusion.GetMultiCommit(cacher, dah, wrappedTx.ShareIndexes, []uint32{pfb.BlobSize})
+		commitment, err := inclusion.GetMultiCommit(cacher, dah, wrappedTx.ShareIndexes, pfb.BlobSizes)
 		if err != nil {
 			logInvalidPropBlockError(app.Logger(), req.Header, "commitment not found", err)
 			return abci.ResponseProcessProposal{
@@ -132,18 +130,8 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 				Result: abci.ResponseProcessProposal_REJECT,
 			}
 		}
-
-		commitmentCounter++
 	}
 
-	// compare the number of MPFBs and blobs, if they aren't
-	// identical, then we already know this block is invalid
-	if commitmentCounter != len(req.BlockData.Blobs) {
-		logInvalidPropBlock(app.Logger(), req.Header, "varying number of MsgPayForBlob and blobs in the same block")
-		return abci.ResponseProcessProposal{
-			Result: abci.ResponseProcessProposal_REJECT,
-		}
-	}
 	return abci.ResponseProcessProposal{
 		Result: abci.ResponseProcessProposal_ACCEPT,
 	}
@@ -151,7 +139,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlob, bool) {
 	for _, msg := range msgs {
-		if pfb, ok := msg.(*types.MsgPayForBlob); ok {
+		if pfb, ok := msg.(*blobtypes.MsgPayForBlob); ok {
 			return pfb, true
 		}
 	}
