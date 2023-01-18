@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	qgbcmd "github.com/celestiaorg/celestia-app/x/qgb/cmd"
+	qgbcmd "github.com/celestiaorg/celestia-app/x/qgb/client"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
