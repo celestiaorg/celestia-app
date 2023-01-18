@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/assert"
@@ -106,34 +107,29 @@ func Test_estimateSquareSize_MultiBlob(t *testing.T) {
 	}
 }
 
-func Test_estimateTxShares(t *testing.T) {
+func Test_estimatePFBTxSharesUsed(t *testing.T) {
 	type test struct {
 		name              string
 		squareSize        uint64
-		normalTxs         int
 		pfbCount, pfbSize int
 	}
 	tests := []test{
-		{"empty block", appconsts.DefaultMinSquareSize, 0, 0, 0},
-		{"one normal tx", appconsts.DefaultMinSquareSize, 1, 0, 0},
-		{"one small pfb small block", 4, 0, 1, 100},
-		{"one large pfb large block", appconsts.DefaultMaxSquareSize, 0, 1, 1000000},
-		{"one hundred large pfb large block", appconsts.DefaultMaxSquareSize, 0, 100, 100000},
-		{"one hundred large pfb medium block", appconsts.DefaultMaxSquareSize / 2, 100, 100, 100000},
-		{"mixed transactions large block", appconsts.DefaultMaxSquareSize, 100, 100, 100000},
-		{"mixed transactions large block 2", appconsts.DefaultMaxSquareSize, 1000, 1000, 10000},
-		{"mostly transactions large block", appconsts.DefaultMaxSquareSize, 10000, 1000, 100},
-		{"only small pfb large block", appconsts.DefaultMaxSquareSize, 0, 10000, 1},
-		{"only small pfb medium block", appconsts.DefaultMaxSquareSize / 2, 0, 10000, 1},
+		{"empty block", appconsts.DefaultMinSquareSize, 0, 0},
+		{"one small pfb small block", 4, 1, 100},
+		{"one large pfb large block", appconsts.DefaultMaxSquareSize, 1, 100_000},
+		{"one hundred large pfb large block", appconsts.DefaultMaxSquareSize, 100, 100_000},
+		{"one hundred large pfb medium block", appconsts.DefaultMaxSquareSize / 2, 100, 100_000},
+		{"ten thousand small pfb large block", appconsts.DefaultMaxSquareSize, 10_000, 1},
+		{"ten thousand small pfb medium block", appconsts.DefaultMaxSquareSize / 2, 10_000, 1},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ptxs := generateMixedParsedTxs(tt.normalTxs, tt.pfbCount, tt.pfbSize)
-			res := estimateTxShares(tt.squareSize, ptxs)
+			ptxs := generateParsedTxsWithNIDs(t, namespace.RandomBlobNamespaces(tt.pfbCount), blobfactory.Repeat([]int{tt.pfbSize}, tt.pfbCount))
+			got := estimatePFBTxSharesUsed(tt.squareSize, ptxs)
 
 			// check that our estimate is always larger or equal to the number
-			// of compact shares actually used
+			// of pfbTxShares actually used
 			txs := make([]coretypes.Tx, len(ptxs))
 			for i, ptx := range ptxs {
 				if len(ptx.normalTx) != 0 {
@@ -147,9 +143,28 @@ func Test_estimateTxShares(t *testing.T) {
 				require.NoError(t, err)
 				txs[i] = wPFBTx
 			}
-			shares := shares.SplitTxs(txs)
-			assert.LessOrEqual(t, len(shares), res)
+			_, pfbTxShares := shares.SplitTxs(txs)
+			assert.LessOrEqual(t, len(pfbTxShares), got)
 		})
+	}
+}
+
+func Test_estimateTxSharesUsed(t *testing.T) {
+	type testCase struct {
+		name string
+		ptxs []parsedTx
+		want int
+	}
+	testCases := []testCase{
+		{"empty", []parsedTx{}, 0},
+		{"one tx", generateNormalParsedTxs(1), 1},             // 1 tx is approximately 312 bytes which fits in 1 share
+		{"two txs", generateNormalParsedTxs(2), 2},            // 2 txs is approximately 624 bytes which fits in 2 shares
+		{"ten txs", generateNormalParsedTxs(10), 7},           // 10 txs is approximately 3120 bytes which fits in 7 shares
+		{"one hundred txs", generateNormalParsedTxs(100), 63}, // 100 txs is approximately 31200 bytes which fits in 63 share
+	}
+	for _, tc := range testCases {
+		got := estimateTxSharesUsed(tc.ptxs)
+		assert.Equal(t, tc.want, got)
 	}
 }
 

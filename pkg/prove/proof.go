@@ -209,7 +209,8 @@ func genOrigRowShares(data types.Data, startRow, endRow uint64) []shares.Share {
 	wantLen := (endRow + 1) * data.SquareSize
 	startPos := startRow * data.SquareSize
 
-	rawShares := shares.SplitTxs(data.Txs)
+	rawTxShares, pfbTxShares := shares.SplitTxs(data.Txs)
+	rawShares := append(rawTxShares, pfbTxShares...)
 	// return if we have enough shares
 	if uint64(len(rawShares)) >= wantLen {
 		return rawShares[startPos:wantLen]
@@ -221,6 +222,9 @@ func genOrigRowShares(data types.Data, startRow, endRow uint64) []shares.Share {
 			panic(err)
 		}
 
+		// TODO: does this need to account for padding between compact shares
+		// and the first blob?
+		// https://github.com/celestiaorg/celestia-app/issues/1226
 		rawShares = append(rawShares, blobShares...)
 
 		// return if we have enough shares

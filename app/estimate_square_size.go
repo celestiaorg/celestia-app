@@ -18,7 +18,8 @@ import (
 // NOTE: The estimation process does not have to be perfect. We can overestimate
 // because the cost of padding is limited.
 func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int) {
-	txSharesUsed := estimateTxShares(appconsts.DefaultMaxSquareSize, txs)
+	txSharesUsed := estimateTxSharesUsed(txs)
+	pfbTxSharesUsed := estimatePFBTxSharesUsed(appconsts.DefaultMaxSquareSize, txs)
 	blobSharesUsed := 0
 
 	for _, ptx := range txs {
@@ -33,7 +34,7 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 	//
 	// TODO: use a more precise estimation that doesn't over
 	// estimate as much
-	totalSharesUsed := uint64(txSharesUsed + blobSharesUsed)
+	totalSharesUsed := uint64(txSharesUsed + pfbTxSharesUsed + blobSharesUsed)
 	totalSharesUsed *= 2
 	minSize := uint64(math.Sqrt(float64(totalSharesUsed)))
 	squareSize = shares.RoundUpPowerOfTwo(minSize)
@@ -44,27 +45,37 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 		squareSize = appconsts.DefaultMinSquareSize
 	}
 
-	return squareSize, txSharesUsed
+	return squareSize, txSharesUsed + pfbTxSharesUsed
 }
 
-// estimateTxShares estimates the number of shares used by transactions.
-func estimateTxShares(squareSize uint64, ptxs []parsedTx) int {
-	maxWTxOverhead := maxIndexWrapperOverhead(squareSize)
-	maxIndexOverhead := maxIndexOverhead(squareSize)
-	txbytes := 0
+// estimateTxSharesUsed estimates the number of shares used by ordinary
+// transactions (i.e. all transactions that aren't PFBs).
+func estimateTxSharesUsed(ptxs []parsedTx) int {
+	txBytes := 0
 	for _, pTx := range ptxs {
-		if len(pTx.normalTx) != 0 {
+		if pTx.isNormalTx() {
 			txLen := len(pTx.normalTx)
 			txLen += shares.DelimLen(uint64(txLen))
-			txbytes += txLen
-			continue
+			txBytes += txLen
 		}
-		txLen := len(pTx.blobTx.Tx) + maxWTxOverhead + (maxIndexOverhead * len(pTx.blobTx.Blobs))
-		txLen += shares.DelimLen(uint64(txLen))
-		txbytes += txLen
 	}
+	return shares.CompactSharesNeeded(txBytes)
+}
 
-	return shares.CompactSharesNeeded(txbytes)
+// estimatePFBTxSharesUsed estimates the number of shares used by PFB
+// transactions.
+func estimatePFBTxSharesUsed(squareSize uint64, ptxs []parsedTx) int {
+	maxWTxOverhead := maxIndexWrapperOverhead(squareSize)
+	maxIndexOverhead := maxIndexOverhead(squareSize)
+	numBytes := 0
+	for _, pTx := range ptxs {
+		if pTx.isBlobTx() {
+			txLen := len(pTx.blobTx.Tx) + maxWTxOverhead + (maxIndexOverhead * len(pTx.blobTx.Blobs))
+			txLen += shares.DelimLen(uint64(txLen))
+			numBytes += txLen
+		}
+	}
+	return shares.CompactSharesNeeded(numBytes)
 }
 
 // maxWrappedTxOverhead calculates the maximum amount of overhead introduced by
