@@ -119,10 +119,10 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		)
 	}
 
-	// generate 80 randomly sized txs (max size == 100kb) by generating these
-	// transaction using some of the same accounts as the previous genertor, we
-	// are also testing to ensure that the sequence number is being utilized
-	// corrected in malleated txs
+	// Generate 80 randomly sized txs (max size == 100kb). Generate these
+	// transactions using some of the same accounts as the previous generator to
+	// ensure that the sequence number is being utilized correctly in blob
+	// txs
 	randoTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.cfg.TxConfig.TxEncoder(),

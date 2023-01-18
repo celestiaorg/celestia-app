@@ -23,10 +23,6 @@ When a `MsgPayForBlob` is processed, it consumes gas based on the blob size.
 
 - [`MsgPayForBlob`](https://github.com/celestiaorg/celestia-app/blob/8b9c4c9d13fe0ccb6ea936cc26dee3f52b6f6129/proto/blob/tx.proto#L39-L44) pays for the blob to be included in the block.
 
-## PrepareProposal
-
-The malleation process occurs during the PrepareProposal step.
-
 ## Events
 
 The blob module emits the following events:
