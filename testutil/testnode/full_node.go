@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -91,6 +92,7 @@ func New(
 	appOpts := appOptions{
 		options: map[string]interface{}{
 			server.FlagPruning: pruningtypes.PruningOptionNothing,
+			flags.FlagHome:     baseDir,
 		},
 	}
 
