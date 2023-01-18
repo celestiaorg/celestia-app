@@ -12,12 +12,6 @@ type sequence struct {
 	sequenceLen uint32
 }
 
-// TODO: namespaced padding shares aren't formally specified so this is subject
-// to change. See https://github.com/celestiaorg/celestia-app/issues/1136
-func (s sequence) isNamespacedPadding() bool {
-	return s.sequenceLen == 0
-}
-
 // parseSparseShares iterates through rawShares and parses out individual
 // blobs. It returns an error if a rawShare contains a share version that
 // isn't present in supportedShareVersions.
@@ -75,12 +69,6 @@ func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) (blob
 	for _, sequence := range sequences {
 		// trim any padding from the end of the sequence
 		sequence.blob.Data = sequence.blob.Data[:sequence.sequenceLen]
-
-		// filter out any namespaced padding shares
-		if sequence.isNamespacedPadding() {
-			continue
-		}
-
 		blobs = append(blobs, sequence.blob)
 	}
 
