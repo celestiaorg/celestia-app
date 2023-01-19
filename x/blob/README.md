@@ -4,14 +4,18 @@
 
 The `x/blob` module enables users to pay for arbitrary data to be published to the Celestia blockchain. Users create a single `BlobTx` that is composed of:
 
-1. `Blob` (Binary Large OBject): the data they wish to publish
-2. `NamespaceId`: the namespace they wish to publish to
-3. `ShareCommitment`: a signature and a commitment over their data when encoded into shares
-4. `MsgPayForBlobTx`: a sdk.Tx that contains a MsgPayForBlob that pays for the inclusion of the blob.
+1. Multiple `Blob`s (Binary Large OBjects): the data they wish to publish. A single `Blob` is composed of:
+    1. `NamespaceId  []byte`: the namespace this blob should be published to.
+    1. `Data         []byte`: the data to be published.
+    1. `ShareVersion uint32`: the version of the share format used to encode this blob into a share.
+1. A single `sdk.Tx` which is composed of:
+    1. `Signer string`: the transaction signer
+    1. `NamespaceIds []byte`: the namespaces they wish to publish each blob to. The namespaces here must match the namespaces in the `Blob`s.
+    1. `ShareCommitment []byte`: a share commitment that is the root of a Merkle tree where the leaves are share commitments to each blob associated with this BlobTx.
 
-After the `BlobTx` is submitted to the network, a block producer separates their transaction into a `MsgPayForBlob` which doesn't include their data (a.k.a blob). Both components get included in the data square in different namespaces: the `MsgPayForBlob` gets included in the transaction namespace and the associated blob gets included in the namespace the user specified in the original `BlobTx`. Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
+After the `BlobTx` is submitted to the network, a block producer separates the transaction from the blob. Both components get included in the data square in different namespaces: the BlobTx gets included in the PayForBlobNamespace and the associated blob gets included in the namespace the user specified in the original `BlobTx`. Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
 
-After a block has been created, the user can verify that their data was included in a block via a blob inclusion proof. A blob inclusion proof uses the `ShareCommitment` in the original `MsgPayForBlob` and subtree roots of the block's data square to prove to the user that the shares that compose their original data do in fact exist in a particular block.
+After a block has been created, the user can verify that their data was included in a block via a blob inclusion proof. A blob inclusion proof uses the `ShareCommitment` in the original transaction and subtree roots of the block's data square to prove to the user that the shares that compose their original data do in fact exist in a particular block.
 
 ## State
 
@@ -23,6 +27,12 @@ When a `MsgPayForBlob` is processed, it consumes gas based on the blob size.
 
 - [`MsgPayForBlob`](https://github.com/celestiaorg/celestia-app/blob/8b9c4c9d13fe0ccb6ea936cc26dee3f52b6f6129/proto/blob/tx.proto#L39-L44) pays for the blob to be included in the block.
 
+## PrepareProposal
+
+When a block producer is preparing a block, they must perform an extra step for `BlobTx`s so that end-users can find the blob shares relevant to their submitted `BlobTx`. In particular, block proposers wrap the `BlobTx` in the PayForBlob namespace with the index of the first share of the blob in the data square. See [Non-interactive Default Rules](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules) for more details.
+
+Since `BlobTx`s can contain multiple blobs, the `BlobTx` is wrapped with one share index per blob in the transaction. The index wrapped transaction is called an [IndexWrapper](https://github.com/celestiaorg/celestia-core/blob/2d2a65f59eabf1993804168414b86d758f30c383/proto/tendermint/types/types.proto#L192-L198) and this is the type that gets marshalled and written to the PayForBlobNamespace.
+
 ## Events
 
 The blob module emits the following events:
@@ -31,10 +41,11 @@ The blob module emits the following events:
 
 #### EventPayForBlob
 
-| Attribute Key | Attribute Value                 |
-|---------------|---------------------------------|
-| signer        | {bech32 encoded signer address} |
-| blob_size     | {size in bytes}                 |
+| Attribute Key | Attribute Value                               |
+|---------------|-----------------------------------------------|
+| signer        | {bech32 encoded signer address}               |
+| blob_size     | {size in bytes}                               |
+| namespace_ids | {namespaces the blobs should be published to} |
 
 ## Parameters
 
@@ -55,10 +66,12 @@ While not directly supported, the steps in the [`SubmitPayForBlob`](https://gith
 
 <!-- markdownlint-enable MD010 -->
 
-### How is the `MessageShareCommitment` generated?
+### How is the `ShareCommitment` generated?
 
-1. Split the blob into shares of size `appconsts.ShareSize`
-1. Determine the `msgMinSquareSize` (the minimum square size the blob can fit into). This is done by taking the number of shares from the previous step and rounding up to the next perfect square that is a power of two.
-1. Arrange the shares into a Merkle mountain range where each tree in the mountain range has a maximum size of the `msgMinSquareSize`.
-1. Take the roots of the trees in the Merkle mountain range and create a new Merkle tree.
-1. The share commitment is the Merkle root of the Merkle tree from the previous step.
+1. For each blob in the `BlobTx`:
+    1. Split the blob into shares of size `appconsts.ShareSize`
+    1. Determine the `BlobMinSquareSize` (the minimum square size the blob can fit into). This is done by taking the number of shares from the previous step and rounding up to the next perfect square that is a power of two.
+    1. Arrange the shares into a Merkle mountain range where each tree in the mountain range has a maximum size of the `BlobMinSquareSize`.
+    1. Take the roots of the trees in the Merkle mountain range and create a new Merkle tree.
+    1. The share commitment of this blob is the Merkle root of the Merkle tree from the previous step.
+1. Compose a Merkle tree where the leaves are all the share commitments from the previous step. The share commitment of the `BlobTx` is the Merkle root of this tree.
