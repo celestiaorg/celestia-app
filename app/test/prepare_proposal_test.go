@@ -1,69 +1,75 @@
 package app_test
 
 import (
-	"bytes"
 	"testing"
 
-	"github.com/celestiaorg/nmt/namespace"
-	"github.com/cosmos/cosmos-sdk/client"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
+	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 )
 
-func TestPrepareProposal(t *testing.T) {
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+func TestPrepareProposalBlobSorting(t *testing.T) {
+	signer := types.GenerateKeyringSigner(t, types.TestAccName)
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	testApp := testutil.SetupTestAppWithGenesisValSet(t)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
 
 	type test struct {
 		input         abci.RequestPrepareProposal
-		expectedBlobs []core.Blob
+		expectedBlobs []tmproto.Blob
 		expectedTxs   int
 	}
 
-	firstNamespace := []byte{2, 2, 2, 2, 2, 2, 2, 2}
-	firstMessage := bytes.Repeat([]byte{4}, 512)
-	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNamespace, firstMessage, signer, types.AllSquareSizes(len(firstMessage))...)
-
-	secondNamespace := []byte{1, 1, 1, 1, 1, 1, 1, 1}
-	secondMessage := []byte{2}
-	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNamespace, secondMessage, signer, types.AllSquareSizes(len(secondMessage))...)
-
-	thirdNamespace := []byte{3, 3, 3, 3, 3, 3, 3, 3}
-	thirdMessage := []byte{1}
-	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNamespace, thirdMessage, signer, types.AllSquareSizes(len(thirdMessage))...)
+	blobTxs := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+		encCfg.TxConfig.TxEncoder(),
+		signer,
+		[][]byte{
+			{1, 1, 1, 1, 1, 1, 1, 1},
+			{3, 3, 3, 3, 3, 3, 3, 3},
+			{2, 2, 2, 2, 2, 2, 2, 2},
+		},
+		[]int{100, 1000, 420},
+	)
+	decodedBlobTxs := make([]tmproto.BlobTx, 0, len(blobTxs))
+	for _, rawBtx := range blobTxs {
+		btx, isbtx := coretypes.UnmarshalBlobTx(rawBtx)
+		if !isbtx {
+			panic("unexpected testing error")
+		}
+		decodedBlobTxs = append(decodedBlobTxs, btx)
+	}
 
 	tests := []test{
 		{
 			input: abci.RequestPrepareProposal{
-				BlockData: &core.Data{
-					Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
+				BlockData: &tmproto.Data{
+					Txs: coretypes.Txs(blobTxs).ToSliceOfBytes(),
 				},
 			},
-			expectedBlobs: []core.Blob{
+			expectedBlobs: []tmproto.Blob{
 				{
-					NamespaceId: secondNamespace, // the second blob should be first
-					Data:        []byte{2},
+					NamespaceId: decodedBlobTxs[0].Blobs[0].NamespaceId,
+					Data:        decodedBlobTxs[0].Blobs[0].Data,
 				},
 				{
-					NamespaceId: firstNamespace,
-					Data:        firstMessage,
+					NamespaceId: decodedBlobTxs[2].Blobs[0].NamespaceId,
+					Data:        decodedBlobTxs[2].Blobs[0].Data,
 				},
 				{
-					NamespaceId: thirdNamespace,
-					Data:        []byte{1},
+					NamespaceId: decodedBlobTxs[1].Blobs[0].NamespaceId,
+					Data:        decodedBlobTxs[1].Blobs[0].Data,
 				},
 			},
 			expectedTxs: 3,
@@ -77,10 +83,9 @@ func TestPrepareProposal(t *testing.T) {
 
 		// verify the signatures of the prepared txs
 		sdata, err := signer.GetSignerData()
-		if err != nil {
-			require.NoError(t, err)
-		}
-		dec := encoding.MalleatedTxDecoder(encCfg.TxConfig.TxDecoder())
+		require.NoError(t, err)
+
+		dec := encoding.WrappedTxDecoder(encCfg.TxConfig.TxDecoder())
 		for _, tx := range res.BlockData.Txs {
 			sTx, err := dec(tx)
 			require.NoError(t, err)
@@ -105,80 +110,58 @@ func TestPrepareProposal(t *testing.T) {
 	}
 }
 
-func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
-	testApp := testutil.SetupTestAppWithGenesisValSet(t)
+func TestPrepareProposalOverflow(t *testing.T) {
+	signer := types.GenerateKeyringSigner(t, types.TestAccName)
+
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
 
 	type test struct {
-		name             string
-		namespace        namespace.ID
-		expectedMessages int
+		name               string
+		singleSharePFBs    int
+		expectedTxsInBlock int
+		expectedSquareSize uint64
 	}
 
+	limit := appconsts.TransactionsPerBlockLimit
+
 	tests := []test{
-		{"transaction namespace id for message", appconsts.TxNamespaceID, 0},
-		{"evidence namespace id for message", appconsts.EvidenceNamespaceID, 0},
-		{"tail padding namespace id for message", appconsts.TailPaddingNamespaceID, 0},
-		{"parity shares namespace id for message", appconsts.ParitySharesNamespaceID, 0},
-		{"reserved namespace id for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, 0},
-		{"valid namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, 1},
+		{
+			name:               "one below the limit",
+			singleSharePFBs:    limit - 1,
+			expectedTxsInBlock: limit - 1,
+			expectedSquareSize: appconsts.DefaultMaxSquareSize,
+		},
+		{
+			name:               "exactly the limit",
+			singleSharePFBs:    limit,
+			expectedTxsInBlock: limit,
+			expectedSquareSize: appconsts.DefaultMaxSquareSize,
+		},
+		{
+			name:               "well above the limit",
+			singleSharePFBs:    limit + 5000,
+			expectedTxsInBlock: limit,
+			expectedSquareSize: appconsts.DefaultMaxSquareSize,
+		},
 	}
 
 	for _, tt := range tests {
-		message := []byte{1}
-		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, message, signer, types.AllSquareSizes(len(message))...)
-		input := abci.RequestPrepareProposal{
-			BlockData: &core.Data{
-				Txs: [][]byte{tx},
+		blobTxs := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+			encCfg.TxConfig.TxEncoder(),
+			signer,
+			testfactory.Repeat([]byte{1, 2, 3, 4, 5, 6, 7, 8}, tt.singleSharePFBs),
+			testfactory.Repeat(1, tt.singleSharePFBs),
+		)
+		req := abci.RequestPrepareProposal{
+			BlockData: &tmproto.Data{
+				Txs: coretypes.Txs(blobTxs).ToSliceOfBytes(),
 			},
 		}
-		res := testApp.PrepareProposal(input)
-		assert.Equal(t, tt.expectedMessages, len(res.BlockData.Blobs))
+		res := testApp.PrepareProposal(req)
+		assert.Equal(t, tt.expectedSquareSize, res.BlockData.SquareSize, tt.name)
+		assert.Equal(t, tt.expectedTxsInBlock, len(res.BlockData.Blobs), tt.name)
+		assert.Equal(t, tt.expectedTxsInBlock, len(res.BlockData.Txs), tt.name)
 	}
 }
-
-func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, ks ...uint64) (rawTx []byte) {
-	coin := sdk.Coin{
-		Denom:  app.BondDenom,
-		Amount: sdk.NewInt(10),
-	}
-
-	opts := []types.TxBuilderOption{
-		types.SetFeeAmount(sdk.NewCoins(coin)),
-		types.SetGasLimit(10000000),
-	}
-
-	// create a msg
-	msg := generateSignedWirePayForBlob(t, ns, message, signer, opts, ks...)
-
-	builder := signer.NewTxBuilder(opts...)
-
-	tx, err := signer.BuildSignedTx(builder, msg)
-	require.NoError(t, err)
-
-	// encode the tx
-	rawTx, err = txConfig.TxEncoder()(tx)
-	require.NoError(t, err)
-
-	return rawTx
-}
-
-func generateSignedWirePayForBlob(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption, ks ...uint64) *types.MsgWirePayForBlob {
-	msg, err := types.NewWirePayForBlob(ns, message)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = msg.SignShareCommitment(signer, options...)
-	if err != nil {
-		t.Error(err)
-	}
-
-	return msg
-}
-
-const (
-	testAccName = "test-account"
-)

@@ -29,129 +29,10 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// MsgWirePayForBlob describes the format of data that is sent over the wire
-// for each PayForBlob
-type MsgWirePayForBlob struct {
-	Signer      string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
-	NamespaceId []byte `protobuf:"bytes,2,opt,name=namespace_id,json=namespaceId,proto3" json:"namespace_id,omitempty"`
-	BlobSize    uint64 `protobuf:"varint,3,opt,name=blob_size,json=blobSize,proto3" json:"blob_size,omitempty"`
-	Blob        []byte `protobuf:"bytes,4,opt,name=blob,proto3" json:"blob,omitempty"`
-	// field number 6 is obsolete and was used for `repeated
-	// ShareCommitAndSignature` when a MsgWirePayForBlob included multiple
-	// blob share commitments (one per square size).
-	ShareCommitment *ShareCommitAndSignature `protobuf:"bytes,7,opt,name=share_commitment,json=shareCommitment,proto3" json:"share_commitment,omitempty"`
-}
-
-func (m *MsgWirePayForBlob) Reset()         { *m = MsgWirePayForBlob{} }
-func (m *MsgWirePayForBlob) String() string { return proto.CompactTextString(m) }
-func (*MsgWirePayForBlob) ProtoMessage()    {}
-func (*MsgWirePayForBlob) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f945cb94fe124aae, []int{0}
-}
-func (m *MsgWirePayForBlob) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *MsgWirePayForBlob) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_MsgWirePayForBlob.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *MsgWirePayForBlob) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgWirePayForBlob.Merge(m, src)
-}
-func (m *MsgWirePayForBlob) XXX_Size() int {
-	return m.Size()
-}
-func (m *MsgWirePayForBlob) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgWirePayForBlob.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_MsgWirePayForBlob proto.InternalMessageInfo
-
-func (m *MsgWirePayForBlob) GetSigner() string {
-	if m != nil {
-		return m.Signer
-	}
-	return ""
-}
-
-func (m *MsgWirePayForBlob) GetNamespaceId() []byte {
-	if m != nil {
-		return m.NamespaceId
-	}
-	return nil
-}
-
-func (m *MsgWirePayForBlob) GetBlobSize() uint64 {
-	if m != nil {
-		return m.BlobSize
-	}
-	return 0
-}
-
-func (m *MsgWirePayForBlob) GetBlob() []byte {
-	if m != nil {
-		return m.Blob
-	}
-	return nil
-}
-
-func (m *MsgWirePayForBlob) GetShareCommitment() *ShareCommitAndSignature {
-	if m != nil {
-		return m.ShareCommitment
-	}
-	return nil
-}
-
-// MsgWirePayForBlobResponse describes the response returned after the
-// submission of a WirePayForBlob
-type MsgWirePayForBlobResponse struct {
-}
-
-func (m *MsgWirePayForBlobResponse) Reset()         { *m = MsgWirePayForBlobResponse{} }
-func (m *MsgWirePayForBlobResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgWirePayForBlobResponse) ProtoMessage()    {}
-func (*MsgWirePayForBlobResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f945cb94fe124aae, []int{1}
-}
-func (m *MsgWirePayForBlobResponse) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *MsgWirePayForBlobResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_MsgWirePayForBlobResponse.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *MsgWirePayForBlobResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgWirePayForBlobResponse.Merge(m, src)
-}
-func (m *MsgWirePayForBlobResponse) XXX_Size() int {
-	return m.Size()
-}
-func (m *MsgWirePayForBlobResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgWirePayForBlobResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_MsgWirePayForBlobResponse proto.InternalMessageInfo
-
 // ShareCommitAndSignature defines the
 type ShareCommitAndSignature struct {
 	// share_commitment is the root of a binary Merkle tree that has leaves which
-	// are subtree roots of the relevant message shares in the original data
+	// are subtree roots of the relevant blob shares in the original data
 	// square.
 	ShareCommitment []byte `protobuf:"bytes,2,opt,name=share_commitment,json=shareCommitment,proto3" json:"share_commitment,omitempty"`
 	Signature       []byte `protobuf:"bytes,3,opt,name=signature,proto3" json:"signature,omitempty"`
@@ -161,7 +42,7 @@ func (m *ShareCommitAndSignature) Reset()         { *m = ShareCommitAndSignature
 func (m *ShareCommitAndSignature) String() string { return proto.CompactTextString(m) }
 func (*ShareCommitAndSignature) ProtoMessage()    {}
 func (*ShareCommitAndSignature) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f945cb94fe124aae, []int{2}
+	return fileDescriptor_f945cb94fe124aae, []int{0}
 }
 func (m *ShareCommitAndSignature) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -204,25 +85,26 @@ func (m *ShareCommitAndSignature) GetSignature() []byte {
 	return nil
 }
 
-// MsgPayForBlob is what gets signed by users when creating
-// ShareCommitSignatures.
-//  Multiple versions are signed and included, each version creates a commitment
-//  for a
-// specific square size.
+// MsgPayForBlob pays for the inclusion of a blob in the block.
 type MsgPayForBlob struct {
-	Signer      string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
-	NamespaceId []byte `protobuf:"bytes,2,opt,name=namespace_id,json=namespaceId,proto3" json:"namespace_id,omitempty"`
-	BlobSize    uint64 `protobuf:"varint,3,opt,name=blob_size,json=blobSize,proto3" json:"blob_size,omitempty"`
+	Signer       string   `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
+	NamespaceIds [][]byte `protobuf:"bytes,2,rep,name=namespace_ids,json=namespaceIds,proto3" json:"namespace_ids,omitempty"`
+	BlobSizes    []uint32 `protobuf:"varint,3,rep,packed,name=blob_sizes,json=blobSizes,proto3" json:"blob_sizes,omitempty"`
 	// share_commitment is the share_commitment from
 	// ShareCommitAndSignature that will be included in a block
 	ShareCommitment []byte `protobuf:"bytes,4,opt,name=share_commitment,json=shareCommitment,proto3" json:"share_commitment,omitempty"`
+	// share_versions are the versions of the share format that the blobs
+	// associated with this message should use when included in a block. The
+	// share_versions specified must match the share_versions used to generate the
+	// share_commitment in this message.
+	ShareVersions []uint32 `protobuf:"varint,8,rep,packed,name=share_versions,json=shareVersions,proto3" json:"share_versions,omitempty"`
 }
 
 func (m *MsgPayForBlob) Reset()         { *m = MsgPayForBlob{} }
 func (m *MsgPayForBlob) String() string { return proto.CompactTextString(m) }
 func (*MsgPayForBlob) ProtoMessage()    {}
 func (*MsgPayForBlob) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f945cb94fe124aae, []int{3}
+	return fileDescriptor_f945cb94fe124aae, []int{1}
 }
 func (m *MsgPayForBlob) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -258,23 +140,30 @@ func (m *MsgPayForBlob) GetSigner() string {
 	return ""
 }
 
-func (m *MsgPayForBlob) GetNamespaceId() []byte {
+func (m *MsgPayForBlob) GetNamespaceIds() [][]byte {
 	if m != nil {
-		return m.NamespaceId
+		return m.NamespaceIds
 	}
 	return nil
 }
 
-func (m *MsgPayForBlob) GetBlobSize() uint64 {
+func (m *MsgPayForBlob) GetBlobSizes() []uint32 {
 	if m != nil {
-		return m.BlobSize
+		return m.BlobSizes
 	}
-	return 0
+	return nil
 }
 
 func (m *MsgPayForBlob) GetShareCommitment() []byte {
 	if m != nil {
 		return m.ShareCommitment
+	}
+	return nil
+}
+
+func (m *MsgPayForBlob) GetShareVersions() []uint32 {
+	if m != nil {
+		return m.ShareVersions
 	}
 	return nil
 }
@@ -288,7 +177,7 @@ func (m *MsgPayForBlobResponse) Reset()         { *m = MsgPayForBlobResponse{} }
 func (m *MsgPayForBlobResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgPayForBlobResponse) ProtoMessage()    {}
 func (*MsgPayForBlobResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f945cb94fe124aae, []int{4}
+	return fileDescriptor_f945cb94fe124aae, []int{2}
 }
 func (m *MsgPayForBlobResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -318,8 +207,6 @@ func (m *MsgPayForBlobResponse) XXX_DiscardUnknown() {
 var xxx_messageInfo_MsgPayForBlobResponse proto.InternalMessageInfo
 
 func init() {
-	proto.RegisterType((*MsgWirePayForBlob)(nil), "blob.MsgWirePayForBlob")
-	proto.RegisterType((*MsgWirePayForBlobResponse)(nil), "blob.MsgWirePayForBlobResponse")
 	proto.RegisterType((*ShareCommitAndSignature)(nil), "blob.ShareCommitAndSignature")
 	proto.RegisterType((*MsgPayForBlob)(nil), "blob.MsgPayForBlob")
 	proto.RegisterType((*MsgPayForBlobResponse)(nil), "blob.MsgPayForBlobResponse")
@@ -328,34 +215,32 @@ func init() {
 func init() { proto.RegisterFile("blob/tx.proto", fileDescriptor_f945cb94fe124aae) }
 
 var fileDescriptor_f945cb94fe124aae = []byte{
-	// 417 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x52, 0x4f, 0x6f, 0xd3, 0x30,
-	0x1c, 0xad, 0xb7, 0x6a, 0x50, 0xaf, 0x13, 0x60, 0xfe, 0x2c, 0x6b, 0x47, 0x94, 0xe5, 0x14, 0x0e,
-	0x24, 0x68, 0x7c, 0x02, 0x86, 0x84, 0x00, 0xa9, 0x12, 0x4a, 0x0f, 0x48, 0x5c, 0x2a, 0x27, 0x35,
-	0xae, 0xa5, 0xc4, 0x3f, 0xcb, 0xf6, 0xa4, 0x75, 0x47, 0x3e, 0x01, 0x82, 0x2f, 0x05, 0xb7, 0x49,
-	0x5c, 0x38, 0xa2, 0x96, 0x0f, 0x82, 0xec, 0xb0, 0x8c, 0x42, 0xb8, 0xee, 0xf6, 0xfc, 0x5e, 0xde,
-	0x2f, 0xef, 0xf7, 0xf4, 0xc3, 0x7b, 0x45, 0x05, 0x45, 0x66, 0xcf, 0x52, 0xa5, 0xc1, 0x02, 0xe9,
-	0xbb, 0xe7, 0xe8, 0x1e, 0x07, 0x0e, 0x9e, 0xc8, 0x1c, 0x6a, 0xb4, 0xd1, 0x21, 0x07, 0xe0, 0x15,
-	0xcb, 0xa8, 0x12, 0x19, 0x95, 0x12, 0x2c, 0xb5, 0x02, 0xa4, 0x69, 0xd4, 0xf8, 0x2b, 0xc2, 0x77,
-	0x26, 0x86, 0xbf, 0x15, 0x9a, 0xbd, 0xa1, 0xcb, 0x17, 0xa0, 0x4f, 0x2a, 0x28, 0xc8, 0x03, 0xbc,
-	0x63, 0x04, 0x97, 0x4c, 0x07, 0x28, 0x42, 0xc9, 0x20, 0xff, 0xfd, 0x22, 0x47, 0x78, 0x28, 0x69,
-	0xcd, 0x8c, 0xa2, 0x25, 0x9b, 0x89, 0x79, 0xb0, 0x15, 0xa1, 0x64, 0x98, 0xef, 0xb6, 0xdc, 0xab,
-	0x39, 0x19, 0xe3, 0x81, 0x0b, 0x33, 0x33, 0xe2, 0x9c, 0x05, 0xdb, 0x11, 0x4a, 0xfa, 0xf9, 0x4d,
-	0x47, 0x4c, 0xc5, 0x39, 0x23, 0x04, 0xfb, 0xa4, 0x41, 0xdf, 0xfb, 0x3c, 0x26, 0x2f, 0xf1, 0x6d,
-	0xb3, 0xa0, 0x9a, 0xcd, 0x4a, 0xa8, 0x6b, 0x61, 0x6b, 0x26, 0x6d, 0x70, 0x23, 0x42, 0xc9, 0xee,
-	0xf1, 0xc3, 0xd4, 0x7d, 0x90, 0x4e, 0x9d, 0xfa, 0xdc, 0x8b, 0xcf, 0xe4, 0x7c, 0x2a, 0xb8, 0xa4,
-	0xf6, 0x54, 0xb3, 0xfc, 0x96, 0xb9, 0x12, 0x9c, 0x2b, 0x1e, 0xe3, 0x83, 0x7f, 0x56, 0xc9, 0x99,
-	0x51, 0x20, 0x0d, 0x8b, 0x0b, 0xbc, 0xff, 0x9f, 0x41, 0xe4, 0x51, 0x47, 0x82, 0x66, 0xb3, 0xbf,
-	0x7f, 0x41, 0x0e, 0xf1, 0xc0, 0x5c, 0xfa, 0xfc, 0x76, 0xc3, 0xfc, 0x8a, 0x88, 0x3f, 0x21, 0xbc,
-	0x37, 0x31, 0xfc, 0x1a, 0x8a, 0xec, 0x8a, 0xdc, 0xef, 0x8c, 0x1c, 0xef, 0xe3, 0xfb, 0x1b, 0x99,
-	0x2e, 0x1b, 0x39, 0x5e, 0xe0, 0xed, 0x89, 0xe1, 0x84, 0x62, 0xfc, 0x47, 0xe0, 0xbb, 0x4d, 0xe7,
-	0x1b, 0x8e, 0xd1, 0xb8, 0x83, 0x6c, 0x8b, 0x3d, 0xfa, 0xf0, 0xed, 0xe7, 0xe7, 0xad, 0x31, 0x39,
-	0xc8, 0x4a, 0x56, 0x31, 0x63, 0x05, 0xcd, 0xfc, 0x71, 0x2a, 0xba, 0x7c, 0x0f, 0xda, 0xc1, 0x93,
-	0xd7, 0x5f, 0x56, 0x21, 0xba, 0x58, 0x85, 0xe8, 0xc7, 0x2a, 0x44, 0x1f, 0xd7, 0x61, 0xef, 0x62,
-	0x1d, 0xf6, 0xbe, 0xaf, 0xc3, 0xde, 0xbb, 0x27, 0x5c, 0xd8, 0xc5, 0x69, 0x91, 0x96, 0x50, 0xb7,
-	0x76, 0xd0, 0xbc, 0xc5, 0x8f, 0xa9, 0x52, 0xd9, 0x59, 0x33, 0xd0, 0x2e, 0x15, 0x33, 0xc5, 0x8e,
-	0xbf, 0xdb, 0xa7, 0xbf, 0x02, 0x00, 0x00, 0xff, 0xff, 0x6c, 0x1f, 0x11, 0x16, 0x02, 0x03, 0x00,
-	0x00,
+	// 389 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x91, 0xcf, 0xaa, 0xd3, 0x40,
+	0x14, 0xc6, 0x9b, 0xe6, 0x72, 0xb1, 0x43, 0xa3, 0x32, 0xfe, 0xb9, 0xb1, 0xf7, 0x1a, 0x62, 0x44,
+	0x88, 0x0b, 0x13, 0xd1, 0x27, 0xf0, 0x0a, 0x82, 0xc2, 0x05, 0x49, 0xc1, 0x85, 0x9b, 0x32, 0x49,
+	0xc7, 0xe9, 0x40, 0x32, 0x67, 0x98, 0x33, 0x57, 0x5a, 0x97, 0x3e, 0x81, 0xe0, 0xf3, 0xb8, 0x77,
+	0x59, 0x70, 0xe3, 0x52, 0x5a, 0x1f, 0x44, 0x26, 0xe9, 0x1f, 0x0b, 0xdd, 0x9d, 0xf9, 0x7d, 0xe7,
+	0x3b, 0x7c, 0x67, 0x0e, 0x09, 0xca, 0x1a, 0xca, 0xdc, 0xce, 0x33, 0x6d, 0xc0, 0x02, 0x3d, 0x71,
+	0xcf, 0xd1, 0x5d, 0x01, 0x02, 0x5a, 0x90, 0xbb, 0xaa, 0xd3, 0x46, 0x17, 0x02, 0x40, 0xd4, 0x3c,
+	0x67, 0x5a, 0xe6, 0x4c, 0x29, 0xb0, 0xcc, 0x4a, 0x50, 0xd8, 0xa9, 0x49, 0x49, 0xce, 0xc6, 0x33,
+	0x66, 0xf8, 0x6b, 0x68, 0x1a, 0x69, 0x5f, 0xa9, 0xe9, 0x58, 0x0a, 0xc5, 0xec, 0xb5, 0xe1, 0xf4,
+	0x29, 0xb9, 0x8d, 0x4e, 0x9a, 0x54, 0xad, 0xd6, 0x70, 0x65, 0xc3, 0x7e, 0xec, 0xa5, 0xc3, 0xe2,
+	0x16, 0xee, 0x2d, 0x0e, 0xd3, 0x0b, 0x32, 0xc0, 0xad, 0x2f, 0xf4, 0xdb, 0x9e, 0x3d, 0x48, 0x7e,
+	0x78, 0x24, 0xb8, 0x42, 0xf1, 0x9e, 0x2d, 0xde, 0x80, 0xb9, 0xac, 0xa1, 0xa4, 0xf7, 0xc9, 0xa9,
+	0x93, 0xb9, 0x09, 0xbd, 0xd8, 0x4b, 0x07, 0xc5, 0xe6, 0x45, 0x1f, 0x93, 0x40, 0xb1, 0x86, 0xa3,
+	0x66, 0x15, 0x9f, 0xc8, 0x29, 0x86, 0xfd, 0xd8, 0x4f, 0x87, 0xc5, 0x70, 0x07, 0xdf, 0x4e, 0x91,
+	0x3e, 0x24, 0xc4, 0xad, 0x3b, 0x41, 0xf9, 0x85, 0x63, 0xe8, 0xc7, 0x7e, 0x1a, 0x14, 0x03, 0x47,
+	0xc6, 0x0e, 0x1c, 0x8d, 0x7d, 0x72, 0x3c, 0xf6, 0x13, 0x72, 0xb3, 0x6b, 0xfd, 0xcc, 0x0d, 0xba,
+	0x4f, 0x09, 0x6f, 0xb4, 0xd3, 0x82, 0x96, 0x7e, 0xd8, 0xc0, 0xe4, 0x8c, 0xdc, 0x3b, 0x88, 0x5f,
+	0x70, 0xd4, 0xa0, 0x90, 0xbf, 0x98, 0x11, 0xff, 0x0a, 0x05, 0x65, 0x84, 0xfc, 0xb7, 0xdb, 0x9d,
+	0xcc, 0x65, 0xc9, 0x0e, 0x1c, 0xa3, 0xf3, 0x23, 0x70, 0x3b, 0x26, 0x79, 0xf4, 0xf5, 0xd7, 0xdf,
+	0xef, 0xfd, 0x73, 0xfa, 0x20, 0xaf, 0x78, 0xcd, 0xd1, 0x4a, 0x96, 0xb7, 0xe7, 0xd5, 0x6c, 0xf1,
+	0x09, 0x8c, 0x2b, 0x2f, 0xdf, 0xfd, 0x5c, 0x45, 0xde, 0x72, 0x15, 0x79, 0x7f, 0x56, 0x91, 0xf7,
+	0x6d, 0x1d, 0xf5, 0x96, 0xeb, 0xa8, 0xf7, 0x7b, 0x1d, 0xf5, 0x3e, 0x3e, 0x17, 0xd2, 0xce, 0xae,
+	0xcb, 0xac, 0x82, 0x66, 0x67, 0x07, 0x23, 0x76, 0xf5, 0x33, 0xa6, 0x75, 0x3e, 0xef, 0x06, 0xda,
+	0x85, 0xe6, 0x58, 0x9e, 0xb6, 0x97, 0x7f, 0xf9, 0x2f, 0x00, 0x00, 0xff, 0xff, 0xbf, 0x03, 0xf2,
+	0x1c, 0x44, 0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -370,7 +255,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	// PayForBlob allows the user to pay for the inclusion of a message
+	// PayForBlob allows the user to pay for the inclusion of a blob
 	PayForBlob(ctx context.Context, in *MsgPayForBlob, opts ...grpc.CallOption) (*MsgPayForBlobResponse, error)
 }
 
@@ -393,7 +278,7 @@ func (c *msgClient) PayForBlob(ctx context.Context, in *MsgPayForBlob, opts ...g
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	// PayForBlob allows the user to pay for the inclusion of a message
+	// PayForBlob allows the user to pay for the inclusion of a blob
 	PayForBlob(context.Context, *MsgPayForBlob) (*MsgPayForBlobResponse, error)
 }
 
@@ -438,90 +323,6 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "blob/tx.proto",
-}
-
-func (m *MsgWirePayForBlob) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *MsgWirePayForBlob) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *MsgWirePayForBlob) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.ShareCommitment != nil {
-		{
-			size, err := m.ShareCommitment.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintTx(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0x3a
-	}
-	if len(m.Blob) > 0 {
-		i -= len(m.Blob)
-		copy(dAtA[i:], m.Blob)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.Blob)))
-		i--
-		dAtA[i] = 0x22
-	}
-	if m.BlobSize != 0 {
-		i = encodeVarintTx(dAtA, i, uint64(m.BlobSize))
-		i--
-		dAtA[i] = 0x18
-	}
-	if len(m.NamespaceId) > 0 {
-		i -= len(m.NamespaceId)
-		copy(dAtA[i:], m.NamespaceId)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.NamespaceId)))
-		i--
-		dAtA[i] = 0x12
-	}
-	if len(m.Signer) > 0 {
-		i -= len(m.Signer)
-		copy(dAtA[i:], m.Signer)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.Signer)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *MsgWirePayForBlobResponse) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *MsgWirePayForBlobResponse) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *MsgWirePayForBlobResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	return len(dAtA) - i, nil
 }
 
 func (m *ShareCommitAndSignature) Marshal() (dAtA []byte, err error) {
@@ -581,6 +382,24 @@ func (m *MsgPayForBlob) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.ShareVersions) > 0 {
+		dAtA2 := make([]byte, len(m.ShareVersions)*10)
+		var j1 int
+		for _, num := range m.ShareVersions {
+			for num >= 1<<7 {
+				dAtA2[j1] = uint8(uint64(num)&0x7f | 0x80)
+				num >>= 7
+				j1++
+			}
+			dAtA2[j1] = uint8(num)
+			j1++
+		}
+		i -= j1
+		copy(dAtA[i:], dAtA2[:j1])
+		i = encodeVarintTx(dAtA, i, uint64(j1))
+		i--
+		dAtA[i] = 0x42
+	}
 	if len(m.ShareCommitment) > 0 {
 		i -= len(m.ShareCommitment)
 		copy(dAtA[i:], m.ShareCommitment)
@@ -588,17 +407,32 @@ func (m *MsgPayForBlob) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x22
 	}
-	if m.BlobSize != 0 {
-		i = encodeVarintTx(dAtA, i, uint64(m.BlobSize))
+	if len(m.BlobSizes) > 0 {
+		dAtA4 := make([]byte, len(m.BlobSizes)*10)
+		var j3 int
+		for _, num := range m.BlobSizes {
+			for num >= 1<<7 {
+				dAtA4[j3] = uint8(uint64(num)&0x7f | 0x80)
+				num >>= 7
+				j3++
+			}
+			dAtA4[j3] = uint8(num)
+			j3++
+		}
+		i -= j3
+		copy(dAtA[i:], dAtA4[:j3])
+		i = encodeVarintTx(dAtA, i, uint64(j3))
 		i--
-		dAtA[i] = 0x18
+		dAtA[i] = 0x1a
 	}
-	if len(m.NamespaceId) > 0 {
-		i -= len(m.NamespaceId)
-		copy(dAtA[i:], m.NamespaceId)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.NamespaceId)))
-		i--
-		dAtA[i] = 0x12
+	if len(m.NamespaceIds) > 0 {
+		for iNdEx := len(m.NamespaceIds) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.NamespaceIds[iNdEx])
+			copy(dAtA[i:], m.NamespaceIds[iNdEx])
+			i = encodeVarintTx(dAtA, i, uint64(len(m.NamespaceIds[iNdEx])))
+			i--
+			dAtA[i] = 0x12
+		}
 	}
 	if len(m.Signer) > 0 {
 		i -= len(m.Signer)
@@ -644,43 +478,6 @@ func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *MsgWirePayForBlob) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.Signer)
-	if l > 0 {
-		n += 1 + l + sovTx(uint64(l))
-	}
-	l = len(m.NamespaceId)
-	if l > 0 {
-		n += 1 + l + sovTx(uint64(l))
-	}
-	if m.BlobSize != 0 {
-		n += 1 + sovTx(uint64(m.BlobSize))
-	}
-	l = len(m.Blob)
-	if l > 0 {
-		n += 1 + l + sovTx(uint64(l))
-	}
-	if m.ShareCommitment != nil {
-		l = m.ShareCommitment.Size()
-		n += 1 + l + sovTx(uint64(l))
-	}
-	return n
-}
-
-func (m *MsgWirePayForBlobResponse) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	return n
-}
-
 func (m *ShareCommitAndSignature) Size() (n int) {
 	if m == nil {
 		return 0
@@ -708,16 +505,29 @@ func (m *MsgPayForBlob) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
-	l = len(m.NamespaceId)
-	if l > 0 {
-		n += 1 + l + sovTx(uint64(l))
+	if len(m.NamespaceIds) > 0 {
+		for _, b := range m.NamespaceIds {
+			l = len(b)
+			n += 1 + l + sovTx(uint64(l))
+		}
 	}
-	if m.BlobSize != 0 {
-		n += 1 + sovTx(uint64(m.BlobSize))
+	if len(m.BlobSizes) > 0 {
+		l = 0
+		for _, e := range m.BlobSizes {
+			l += sovTx(uint64(e))
+		}
+		n += 1 + sovTx(uint64(l)) + l
 	}
 	l = len(m.ShareCommitment)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
+	}
+	if len(m.ShareVersions) > 0 {
+		l = 0
+		for _, e := range m.ShareVersions {
+			l += sovTx(uint64(e))
+		}
+		n += 1 + sovTx(uint64(l)) + l
 	}
 	return n
 }
@@ -736,261 +546,6 @@ func sovTx(x uint64) (n int) {
 }
 func sozTx(x uint64) (n int) {
 	return sovTx(uint64((x << 1) ^ uint64((int64(x) >> 63))))
-}
-func (m *MsgWirePayForBlob) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowTx
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: MsgWirePayForBlob: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgWirePayForBlob: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Signer", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthTx
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTx
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Signer = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field NamespaceId", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthTx
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTx
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.NamespaceId = append(m.NamespaceId[:0], dAtA[iNdEx:postIndex]...)
-			if m.NamespaceId == nil {
-				m.NamespaceId = []byte{}
-			}
-			iNdEx = postIndex
-		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field BlobSize", wireType)
-			}
-			m.BlobSize = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.BlobSize |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 4:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Blob", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthTx
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTx
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Blob = append(m.Blob[:0], dAtA[iNdEx:postIndex]...)
-			if m.Blob == nil {
-				m.Blob = []byte{}
-			}
-			iNdEx = postIndex
-		case 7:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ShareCommitment", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthTx
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthTx
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.ShareCommitment == nil {
-				m.ShareCommitment = &ShareCommitAndSignature{}
-			}
-			if err := m.ShareCommitment.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipTx(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthTx
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *MsgWirePayForBlobResponse) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowTx
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: MsgWirePayForBlobResponse: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgWirePayForBlobResponse: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		default:
-			iNdEx = preIndex
-			skippy, err := skipTx(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthTx
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
 }
 func (m *ShareCommitAndSignature) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
@@ -1173,7 +728,7 @@ func (m *MsgPayForBlob) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field NamespaceId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field NamespaceIds", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -1200,29 +755,84 @@ func (m *MsgPayForBlob) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.NamespaceId = append(m.NamespaceId[:0], dAtA[iNdEx:postIndex]...)
-			if m.NamespaceId == nil {
-				m.NamespaceId = []byte{}
-			}
+			m.NamespaceIds = append(m.NamespaceIds, make([]byte, postIndex-iNdEx))
+			copy(m.NamespaceIds[len(m.NamespaceIds)-1], dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field BlobSize", wireType)
-			}
-			m.BlobSize = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
+			if wireType == 0 {
+				var v uint32
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowTx
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					v |= uint32(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
 				}
-				if iNdEx >= l {
+				m.BlobSizes = append(m.BlobSizes, v)
+			} else if wireType == 2 {
+				var packedLen int
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowTx
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					packedLen |= int(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				if packedLen < 0 {
+					return ErrInvalidLengthTx
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return ErrInvalidLengthTx
+				}
+				if postIndex > l {
 					return io.ErrUnexpectedEOF
 				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.BlobSize |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
+				var elementCount int
+				var count int
+				for _, integer := range dAtA[iNdEx:postIndex] {
+					if integer < 128 {
+						count++
+					}
 				}
+				elementCount = count
+				if elementCount != 0 && len(m.BlobSizes) == 0 {
+					m.BlobSizes = make([]uint32, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v uint32
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowTx
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						v |= uint32(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					m.BlobSizes = append(m.BlobSizes, v)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field BlobSizes", wireType)
 			}
 		case 4:
 			if wireType != 2 {
@@ -1258,6 +868,82 @@ func (m *MsgPayForBlob) Unmarshal(dAtA []byte) error {
 				m.ShareCommitment = []byte{}
 			}
 			iNdEx = postIndex
+		case 8:
+			if wireType == 0 {
+				var v uint32
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowTx
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					v |= uint32(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				m.ShareVersions = append(m.ShareVersions, v)
+			} else if wireType == 2 {
+				var packedLen int
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowTx
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					packedLen |= int(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				if packedLen < 0 {
+					return ErrInvalidLengthTx
+				}
+				postIndex := iNdEx + packedLen
+				if postIndex < 0 {
+					return ErrInvalidLengthTx
+				}
+				if postIndex > l {
+					return io.ErrUnexpectedEOF
+				}
+				var elementCount int
+				var count int
+				for _, integer := range dAtA[iNdEx:postIndex] {
+					if integer < 128 {
+						count++
+					}
+				}
+				elementCount = count
+				if elementCount != 0 && len(m.ShareVersions) == 0 {
+					m.ShareVersions = make([]uint32, 0, elementCount)
+				}
+				for iNdEx < postIndex {
+					var v uint32
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowTx
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						v |= uint32(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					m.ShareVersions = append(m.ShareVersions, v)
+				}
+			} else {
+				return fmt.Errorf("proto: wrong wireType = %d for field ShareVersions", wireType)
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTx(dAtA[iNdEx:])

@@ -1,12 +1,14 @@
 package shares
 
 import (
+	"bytes"
 	"encoding/binary"
 	"math/rand"
 	"reflect"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	testns "github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/stretchr/testify/assert"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -22,35 +24,35 @@ func TestParseShares(t *testing.T) {
 	}
 
 	start := true
-	messageOneNamespace := namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}
-	messageTwoNamespace := namespace.ID{2, 2, 2, 2, 2, 2, 2, 2}
+	blobOneNamespace := namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}
+	blobTwoNamespace := namespace.ID{2, 2, 2, 2, 2, 2, 2, 2}
 
-	transactionShares := SplitTxs(generateRandomTxs(2, 1000))
+	transactionShares, _ := SplitTxs(generateRandomTxs(2, 1000))
 	transactionShareStart := transactionShares[0]
 	transactionShareContinuation := transactionShares[1]
 
-	messageOneShares, err := SplitMessages(0, []uint32{}, []types.Blob{generateRandomMessageWithNamespace(messageOneNamespace, 1000)}, false)
+	blobOneShares, err := SplitBlobs(0, []uint32{}, []types.Blob{generateRandomBlobWithNamespace(blobOneNamespace, 1000)}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	messageOneStart := messageOneShares[0]
-	messageOneContinuation := messageOneShares[1]
+	blobOneStart := blobOneShares[0]
+	blobOneContinuation := blobOneShares[1]
 
-	messageTwoShares, err := SplitMessages(0, []uint32{}, []types.Blob{generateRandomMessageWithNamespace(messageTwoNamespace, 1000)}, false)
+	blobTwoShares, err := SplitBlobs(0, []uint32{}, []types.Blob{generateRandomBlobWithNamespace(blobTwoNamespace, 1000)}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	messageTwoStart := messageTwoShares[0]
-	messageTwoContinuation := messageTwoShares[1]
+	blobTwoStart := blobTwoShares[0]
+	blobTwoContinuation := blobTwoShares[1]
 
-	invalidShare := generateRawShare(messageOneNamespace, start, 1)
+	invalidShare := generateRawShare(blobOneNamespace, start, 1)
 	invalidShare = append(invalidShare, []byte{0}...) // invalidShare is now longer than the length of a valid share
 
-	largeSequenceLength := 1000 // it takes more than one share to store a sequence of 1000 bytes
-	oneShareWithTooLargeSequenceLength := generateRawShare(messageOneNamespace, start, uint64(largeSequenceLength))
+	largeSequenceLen := 1000 // it takes more than one share to store a sequence of 1000 bytes
+	oneShareWithTooLargeSequenceLen := generateRawShare(blobOneNamespace, start, uint32(largeSequenceLen))
 
-	shortSequenceLength := 0
-	oneShareWithTooShortSequenceLength := generateRawShare(messageOneNamespace, start, uint64(shortSequenceLength))
+	shortSequenceLen := 0
+	oneShareWithTooShortSequenceLen := generateRawShare(blobOneNamespace, start, uint32(shortSequenceLen))
 
 	tests := []testCase{
 		{
@@ -72,42 +74,42 @@ func TestParseShares(t *testing.T) {
 			false,
 		},
 		{
-			"one message share",
-			[][]byte{messageOneStart},
-			[]ShareSequence{{NamespaceID: messageOneNamespace, Shares: []Share{messageOneStart}}},
+			"one blob share",
+			[][]byte{blobOneStart},
+			[]ShareSequence{{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart}}},
 			false,
 		},
 		{
-			"two message shares",
-			[][]byte{messageOneStart, messageOneContinuation},
-			[]ShareSequence{{NamespaceID: messageOneNamespace, Shares: []Share{messageOneStart, messageOneContinuation}}},
+			"two blob shares",
+			[][]byte{blobOneStart, blobOneContinuation},
+			[]ShareSequence{{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart, blobOneContinuation}}},
 			false,
 		},
 		{
-			"two messages with two shares each",
-			[][]byte{messageOneStart, messageOneContinuation, messageTwoStart, messageTwoContinuation},
+			"two blobs with two shares each",
+			[][]byte{blobOneStart, blobOneContinuation, blobTwoStart, blobTwoContinuation},
 			[]ShareSequence{
-				{NamespaceID: messageOneNamespace, Shares: []Share{messageOneStart, messageOneContinuation}},
-				{NamespaceID: messageTwoNamespace, Shares: []Share{messageTwoStart, messageTwoContinuation}},
+				{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart, blobOneContinuation}},
+				{NamespaceID: blobTwoNamespace, Shares: []Share{blobTwoStart, blobTwoContinuation}},
 			},
 			false,
 		},
 		{
-			"one transaction, one message",
-			[][]byte{transactionShareStart, messageOneStart},
+			"one transaction, one blob",
+			[][]byte{transactionShareStart, blobOneStart},
 			[]ShareSequence{
 				{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{transactionShareStart}},
-				{NamespaceID: messageOneNamespace, Shares: []Share{messageOneStart}},
+				{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart}},
 			},
 			false,
 		},
 		{
-			"one transaction, two messages",
-			[][]byte{transactionShareStart, messageOneStart, messageTwoStart},
+			"one transaction, two blobs",
+			[][]byte{transactionShareStart, blobOneStart, blobTwoStart},
 			[]ShareSequence{
 				{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{transactionShareStart}},
-				{NamespaceID: messageOneNamespace, Shares: []Share{messageOneStart}},
-				{NamespaceID: messageTwoNamespace, Shares: []Share{messageTwoStart}},
+				{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart}},
+				{NamespaceID: blobTwoNamespace, Shares: []Share{blobTwoStart}},
 			},
 			false,
 		},
@@ -118,20 +120,20 @@ func TestParseShares(t *testing.T) {
 			true,
 		},
 		{
-			"message one start followed by message two continuation",
-			[][]byte{messageOneStart, messageTwoContinuation},
+			"blob one start followed by blob two continuation",
+			[][]byte{blobOneStart, blobTwoContinuation},
 			[]ShareSequence{},
 			true,
 		},
 		{
 			"one share with too large sequence length",
-			[][]byte{oneShareWithTooLargeSequenceLength},
+			[][]byte{oneShareWithTooLargeSequenceLen},
 			[]ShareSequence{},
 			true,
 		},
 		{
 			"one share with too short sequence length",
-			[][]byte{oneShareWithTooShortSequenceLength},
+			[][]byte{oneShareWithTooShortSequenceLen},
 			[]ShareSequence{},
 			true,
 		},
@@ -150,10 +152,77 @@ func TestParseShares(t *testing.T) {
 	}
 }
 
+func TestShareSequenceRawData(t *testing.T) {
+	type testCase struct {
+		name          string
+		shareSequence ShareSequence
+		want          []byte
+		wantErr       bool
+	}
+	blobNamespace := testns.RandomBlobNamespace()
+
+	testCases := []testCase{
+		{
+			name: "empty share sequence",
+			shareSequence: ShareSequence{
+				NamespaceID: appconsts.TxNamespaceID,
+				Shares:      []Share{},
+			},
+			want:    []byte{},
+			wantErr: false,
+		},
+		{
+			name: "one empty share",
+			shareSequence: ShareSequence{
+				NamespaceID: appconsts.TxNamespaceID,
+				Shares: []Share{
+					shareWithData(blobNamespace, true, 0, []byte{}),
+				},
+			},
+			want:    []byte{},
+			wantErr: false,
+		},
+		{
+			name: "one share with one byte",
+			shareSequence: ShareSequence{
+				NamespaceID: appconsts.TxNamespaceID,
+				Shares: []Share{
+					shareWithData(blobNamespace, true, 1, []byte{0x0f}),
+				},
+			},
+			want:    []byte{0xf},
+			wantErr: false,
+		},
+		{
+			name: "removes padding from last share",
+			shareSequence: ShareSequence{
+				NamespaceID: appconsts.TxNamespaceID,
+				Shares: []Share{
+					shareWithData(blobNamespace, true, appconsts.FirstSparseShareContentSize+1, bytes.Repeat([]byte{0xf}, appconsts.FirstSparseShareContentSize)),
+					shareWithData(blobNamespace, false, 0, []byte{0x0f}),
+				},
+			},
+			want:    bytes.Repeat([]byte{0xf}, appconsts.FirstSparseShareContentSize+1),
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.shareSequence.RawData()
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 func Test_compactSharesNeeded(t *testing.T) {
 	type testCase struct {
-		sequenceLength int
-		want           int
+		sequenceLen int
+		want        int
 	}
 	testCases := []testCase{
 		{0, 0},
@@ -165,42 +234,60 @@ func Test_compactSharesNeeded(t *testing.T) {
 		{appconsts.FirstCompactShareContentSize + appconsts.ContinuationCompactShareContentSize*100, 101},
 	}
 	for _, tc := range testCases {
-		got := compactSharesNeeded(tc.sequenceLength)
+		got := CompactSharesNeeded(tc.sequenceLen)
 		assert.Equal(t, tc.want, got)
 	}
 }
 
 func Test_sparseSharesNeeded(t *testing.T) {
 	type testCase struct {
-		sequenceLength int
-		want           int
+		sequenceLen uint32
+		want        int
 	}
 	testCases := []testCase{
 		{0, 0},
 		{1, 1},
 		{2, 1},
-		{appconsts.SparseShareContentSize, 1},
-		{appconsts.SparseShareContentSize + 1, 2},
-		{appconsts.SparseShareContentSize * 2, 2},
-		{appconsts.SparseShareContentSize*100 + 1, 101},
+		{appconsts.FirstSparseShareContentSize, 1},
+		{appconsts.FirstSparseShareContentSize + 1, 2},
+		{appconsts.FirstSparseShareContentSize + appconsts.ContinuationSparseShareContentSize, 2},
+		{appconsts.FirstSparseShareContentSize + appconsts.ContinuationCompactShareContentSize*2, 3},
+		{appconsts.FirstSparseShareContentSize + appconsts.ContinuationCompactShareContentSize*99, 100},
+		{1000, 2},
+		{10000, 20},
+		{100000, 199},
 	}
 	for _, tc := range testCases {
-		got := sparseSharesNeeded(tc.sequenceLength)
+		got := SparseSharesNeeded(tc.sequenceLen)
 		assert.Equal(t, tc.want, got)
 	}
 }
 
-func generateRawShare(namespace namespace.ID, isSequenceStart bool, sequenceLength uint64) (rawShare []byte) {
-	infoByte, _ := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
+func generateRawShare(namespace namespace.ID, isSequenceStart bool, sequenceLen uint32) (rawShare []byte) {
+	infoByte, _ := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
 
-	sequenceLengthVarint := make([]byte, binary.MaxVarintLen64)
-	numBytesWritten := binary.PutUvarint(sequenceLengthVarint, sequenceLength)
+	sequenceLenBuf := make([]byte, appconsts.SequenceLenBytes)
+	binary.BigEndian.PutUint32(sequenceLenBuf, sequenceLen)
 
 	rawShare = append(rawShare, namespace...)
 	rawShare = append(rawShare, byte(infoByte))
-	rawShare = append(rawShare, sequenceLengthVarint[:numBytesWritten]...)
+	rawShare = append(rawShare, sequenceLenBuf...)
 
 	return padWithRandomBytes(rawShare)
+}
+
+func shareWithData(namespace namespace.ID, isSequenceStart bool, sequenceLen uint32, data []byte) (rawShare []byte) {
+	infoByte, _ := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
+	rawShare = append(rawShare, namespace...)
+	rawShare = append(rawShare, byte(infoByte))
+	if isSequenceStart {
+		sequenceLenBuf := make([]byte, appconsts.SequenceLenBytes)
+		binary.BigEndian.PutUint32(sequenceLenBuf, sequenceLen)
+		rawShare = append(rawShare, sequenceLenBuf...)
+	}
+	rawShare = append(rawShare, data...)
+
+	return padShare(rawShare)
 }
 
 func padWithRandomBytes(partialShare Share) (paddedShare Share) {
@@ -223,10 +310,10 @@ func generateRandomTxs(count, size int) types.Txs {
 	return txs
 }
 
-func generateRandomMessageWithNamespace(namespace namespace.ID, size int) types.Blob {
-	msg := types.Blob{
+func generateRandomBlobWithNamespace(namespace namespace.ID, size int) types.Blob {
+	blob := types.Blob{
 		NamespaceID: namespace,
 		Data:        tmrand.Bytes(size),
 	}
-	return msg
+	return blob
 }

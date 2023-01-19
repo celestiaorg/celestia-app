@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/tendermint/tendermint/libs/log"
-
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
@@ -13,15 +11,11 @@ import (
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
+	"github.com/tendermint/tendermint/libs/log"
 )
 
 const (
 	payForBlobGasDescriptor = "pay for blob"
-
-	// GasPerBlobByte is the amount of gas to charge per byte of message data.
-	// TODO: extract GasPerBlobByte as a parameter to this module.
-	GasPerBlobByte = 8
-	GasPerMsgShare = appconsts.ShareSize * GasPerBlobByte
 )
 
 // Keeper handles all the state changes for the blob module.
@@ -54,16 +48,24 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 	return ctx.Logger().With("module", fmt.Sprintf("x/%s", types.ModuleName))
 }
 
-// PayForBlob consumes gas based on the message size.
+// PayForBlob consumes gas based on the blob size.
 func (k Keeper) PayForBlob(goCtx context.Context, msg *types.MsgPayForBlob) (*types.MsgPayForBlobResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	gasToConsume := uint64(shares.MsgSharesUsed(int(msg.BlobSize)) * GasPerMsgShare)
-	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
+	totalSharesUsed := 0
+	for _, size := range msg.BlobSizes {
+		totalSharesUsed += shares.SparseSharesNeeded(size)
+	}
 
-	ctx.EventManager().EmitEvent(
-		types.NewPayForBlobEvent(sdk.AccAddress(msg.Signer).String(), msg.GetBlobSize()),
+	gasToConsume := uint32(totalSharesUsed*appconsts.ShareSize) * k.GasPerBlobByte(ctx)
+	ctx.GasMeter().ConsumeGas(uint64(gasToConsume), payForBlobGasDescriptor)
+
+	err := ctx.EventManager().EmitTypedEvent(
+		types.NewPayForBlobEvent(sdk.AccAddress(msg.Signer).String(), uint32(totalSharesUsed), msg.NamespaceIds),
 	)
+	if err != nil {
+		return &types.MsgPayForBlobResponse{}, err
+	}
 
 	return &types.MsgPayForBlobResponse{}, nil
 }

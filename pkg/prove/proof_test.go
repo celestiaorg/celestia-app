@@ -1,13 +1,16 @@
 package prove
 
 import (
-	"math/rand"
 	"sort"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	nmtnamespace "github.com/celestiaorg/nmt/namespace"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -16,12 +19,12 @@ import (
 
 func TestTxInclusion(t *testing.T) {
 	typicalBlockData := types.Data{
-		Txs:        generateRandomlySizedTxs(100, 500),
-		Blobs:      generateRandomlySizedBlobs(40, 16000),
+		Txs:        testfactory.GenerateRandomlySizedTxs(100, 500),
+		Blobs:      testfactory.GenerateRandomlySizedBlobs(40, 16000),
 		SquareSize: 64,
 	}
-	lotsOfTxsNoMessages := types.Data{
-		Txs:        generateRandomlySizedTxs(1000, 500),
+	lotsOfTxsNoBlobs := types.Data{
+		Txs:        testfactory.GenerateRandomlySizedTxs(1000, 500),
 		SquareSize: 64,
 	}
 	overlappingSquareSize := 16
@@ -34,14 +37,14 @@ func TestTxInclusion(t *testing.T) {
 		),
 		SquareSize: uint64(overlappingSquareSize),
 	}
-	overlappingRowsBlockDataWithMessages := types.Data{
+	overlappingRowsBlockDataWithBlobs := types.Data{
 		Txs: types.ToTxs(
 			[][]byte{
 				tmrand.Bytes(appconsts.ContinuationCompactShareContentSize*overlappingSquareSize + 1),
 				tmrand.Bytes(10000),
 			},
 		),
-		Blobs:      generateRandomlySizedBlobs(8, 400),
+		Blobs:      testfactory.GenerateRandomlySizedBlobs(8, 400),
 		SquareSize: uint64(overlappingSquareSize),
 	}
 
@@ -53,13 +56,13 @@ func TestTxInclusion(t *testing.T) {
 			typicalBlockData,
 		},
 		{
-			lotsOfTxsNoMessages,
+			lotsOfTxsNoBlobs,
 		},
 		{
 			overlappingRowsBlockData,
 		},
 		{
-			overlappingRowsBlockDataWithMessages,
+			overlappingRowsBlockDataWithBlobs,
 		},
 	}
 
@@ -72,6 +75,151 @@ func TestTxInclusion(t *testing.T) {
 	}
 }
 
+func TestShareInclusion(t *testing.T) {
+	blobs := append(
+		testfactory.GenerateBlobsWithNamespace(
+			100,
+			500,
+			[]byte{0, 0, 0, 0, 0, 1, 0, 0},
+		),
+		append(
+			testfactory.GenerateBlobsWithNamespace(
+				50,
+				500,
+				[]byte{0, 0, 0, 1, 0, 0, 0, 0},
+			),
+			testfactory.GenerateBlobsWithNamespace(
+				50,
+				500,
+				[]byte{0, 0, 1, 0, 0, 0, 0, 0},
+			)...,
+		)...,
+	)
+	sort.Sort(blobs)
+	blockData := types.Data{
+		Txs:        testfactory.GenerateRandomTxs(50, 500),
+		Blobs:      blobs,
+		SquareSize: 32,
+	}
+
+	// not setting useShareIndexes because the transactions indexes do not refer
+	// to the messages because the square and transactions were created manually.
+	rawShares, err := shares.Split(blockData, false)
+	if err != nil {
+		panic(err)
+	}
+
+	// erasure the data square which we use to create the data root.
+	eds, err := da.ExtendShares(blockData.SquareSize, shares.ToBytes(rawShares))
+	require.NoError(t, err)
+
+	// create the new data root by creating the data availability header (merkle
+	// roots of each row and col of the erasure data).
+	dah := da.NewDataAvailabilityHeader(eds)
+	dataRoot := dah.Hash()
+
+	type test struct {
+		name          string
+		startingShare int64
+		endingShare   int64
+		namespaceID   nmtnamespace.ID
+		expectErr     bool
+	}
+	tests := []test{
+		{
+			name:          "negative starting share",
+			startingShare: -1,
+			endingShare:   99,
+			namespaceID:   appconsts.TxNamespaceID,
+			expectErr:     true,
+		},
+		{
+			name:          "negative ending share",
+			startingShare: 0,
+			endingShare:   -99,
+			namespaceID:   appconsts.TxNamespaceID,
+			expectErr:     true,
+		},
+		{
+			name:          "ending share lower than starting share",
+			startingShare: 1,
+			endingShare:   0,
+			namespaceID:   appconsts.TxNamespaceID,
+			expectErr:     true,
+		},
+		{
+			name:          "ending share higher than number of shares available in square size of 32",
+			startingShare: 0,
+			endingShare:   4097,
+			namespaceID:   appconsts.TxNamespaceID,
+			expectErr:     true,
+		},
+		{
+			name:          "1 transaction share",
+			startingShare: 0,
+			endingShare:   0,
+			namespaceID:   appconsts.TxNamespaceID,
+			expectErr:     false,
+		},
+		{
+			name:          "10 transaction shares",
+			startingShare: 0,
+			endingShare:   9,
+			namespaceID:   appconsts.TxNamespaceID,
+			expectErr:     false,
+		},
+		{
+			name:          "50 transaction shares",
+			startingShare: 0,
+			endingShare:   49,
+			namespaceID:   appconsts.TxNamespaceID,
+			expectErr:     false,
+		},
+		{
+			name:          "shares from different namespaces",
+			startingShare: 48,
+			endingShare:   54,
+			namespaceID:   appconsts.TxNamespaceID,
+			expectErr:     true,
+		},
+		{
+			name:          "20 custom namespace shares",
+			startingShare: 106,
+			endingShare:   125,
+			namespaceID:   []byte{0, 0, 0, 0, 0, 1, 0, 0},
+			expectErr:     false,
+		},
+		{
+			name:          "40 custom namespace shares",
+			startingShare: 355,
+			endingShare:   394,
+			namespaceID:   []byte{0, 0, 1, 0, 0, 0, 0, 0},
+			expectErr:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualNID, err := ParseNamespaceID(rawShares, tt.startingShare, tt.endingShare)
+			if tt.expectErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.namespaceID, actualNID)
+			proof, err := GenerateSharesInclusionProof(
+				rawShares,
+				blockData.SquareSize,
+				tt.namespaceID,
+				uint64(tt.startingShare),
+				uint64(tt.endingShare),
+			)
+			require.NoError(t, err)
+			assert.NoError(t, proof.Validate(dataRoot))
+		})
+	}
+}
+
 func TestTxSharePosition(t *testing.T) {
 	type test struct {
 		name string
@@ -81,14 +229,14 @@ func TestTxSharePosition(t *testing.T) {
 	tests := []test{
 		{
 			name: "typical",
-			txs:  generateRandomlySizedTxs(44, 200),
+			txs:  testfactory.GenerateRandomlySizedTxs(44, 200),
 		},
 		{
 			name: "many small tx",
-			txs:  generateRandomlySizedTxs(444, 100),
+			txs:  testfactory.GenerateRandomlySizedTxs(444, 100),
 		},
 		{
-			// this is a concrete output from generateRandomlySizedTxs(444, 100)
+			// this is a concrete output from testfactory.GenerateRandomlySizedTxs(444, 100)
 			// that surfaced a bug in txSharePositions so it is included here to
 			// prevent regressions
 			name: "many small tx (without randomness)",
@@ -96,15 +244,15 @@ func TestTxSharePosition(t *testing.T) {
 		},
 		{
 			name: "one small tx",
-			txs:  generateRandomlySizedTxs(1, 200),
+			txs:  testfactory.GenerateRandomlySizedTxs(1, 200),
 		},
 		{
 			name: "one large tx",
-			txs:  generateRandomlySizedTxs(1, 2000),
+			txs:  testfactory.GenerateRandomlySizedTxs(1, 2000),
 		},
 		{
 			name: "many large txs",
-			txs:  generateRandomlySizedTxs(100, 2000),
+			txs:  testfactory.GenerateRandomlySizedTxs(100, 2000),
 		},
 	}
 
@@ -115,16 +263,17 @@ func TestTxSharePosition(t *testing.T) {
 	for _, tt := range tests {
 		positions := make([]startEndPoints, len(tt.txs))
 		for i := 0; i < len(tt.txs); i++ {
-			start, end, err := txSharePosition(tt.txs, uint64(i))
+			start, end, err := TxSharePosition(tt.txs, uint64(i))
 			require.NoError(t, err)
 			positions[i] = startEndPoints{start: start, end: end}
 		}
 
-		shares := shares.SplitTxs(tt.txs)
+		txShares, _ := shares.SplitTxs(tt.txs)
 
 		for i, pos := range positions {
 			rawTx := []byte(tt.txs[i])
-			rawTxDataForRange := stripCompactShares(shares, pos.start, pos.end)
+			rawTxDataForRange, err := stripCompactShares(txShares[pos.start : pos.end+1])
+			assert.NoError(t, err)
 			assert.Contains(
 				t,
 				string(rawTxDataForRange),
@@ -155,12 +304,12 @@ func TestTxShareIndex(t *testing.T) {
 		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 2) + 1, 3},
 		// 81 full compact shares then a partially filled out 82nd share (which is index 81 because 0-indexed)
 		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 160, 81},
-		// 81 full compact shares then a full 82nd share
-		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 501, 81},
+		// 82 full compact shares
+		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 81), 81},
 		// 82 full compact shares then one byte in 83rd share
-		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 502, 82},
+		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 81) + 1, 82},
 		// 82 compact shares then two bytes in 83rd share
-		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 503, 82},
+		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 81) + 2, 82},
 	}
 
 	for _, tt := range tests {
@@ -171,120 +320,16 @@ func TestTxShareIndex(t *testing.T) {
 	}
 }
 
-// TODO: Uncomment/fix this test after we've adjusted tx inclusion proofs to
-// work using non-interactive defaults
-// func Test_genRowShares(t *testing.T) {
-//  squareSize := uint64(16)
-//  typicalBlockData := types.Data{
-//      Txs:                generateRandomlySizedTxs(10, 200),
-//      Blobs:           generateRandomlySizedMessages(20, 1000),
-//      SquareSize: squareSize,
-//  }
-
-// 	// note: we should be able to compute row shares from raw data
-// 	// this quickly tests this by computing the row shares before
-// 	// computing the shares in the normal way.
-// 	rowShares, err := genRowShares(
-// 		appconsts.DefaultCodec(),
-// 		typicalBlockData,
-// 		0,
-// 		squareSize,
-// 	)
-// 	require.NoError(t, err)
-
-// 	rawShares, err := shares.Split(typicalBlockData, false)
-// 	require.NoError(t, err)
-
-// 	eds, err := da.ExtendShares(squareSize, rawShares)
-// 	require.NoError(t, err)
-
-// 	for i := uint64(0); i < squareSize; i++ {
-// 		row := eds.Row(uint(i))
-// 		assert.Equal(t, row, rowShares[i], fmt.Sprintf("row %d", i))
-// 		// also test fetching individual rows
-// 		secondSet, err := genRowShares(appconsts.DefaultCodec(), typicalBlockData, i, i)
-// 		require.NoError(t, err)
-// 		assert.Equal(t, row, secondSet[0], fmt.Sprintf("row %d", i))
-// 	}
-// }
-
-// func Test_genOrigRowShares(t *testing.T) {
-// 	txCount := 100
-// 	squareSize := uint64(16)
-// 	typicalBlockData := types.Data{
-// 		Txs:                generateRandomlySizedTxs(txCount, 200),
-// 		Blobs:           generateRandomlySizedMessages(10, 1500),
-// 		SquareSize: squareSize,
-// 	}
-
-// 	rawShares, err := shares.Split(typicalBlockData, false)
-// 	require.NoError(t, err)
-
-// 	genShares := genOrigRowShares(typicalBlockData, 0, 15)
-
-// 	require.Equal(t, len(rawShares), len(genShares))
-// 	assert.Equal(t, rawShares, genShares)
-// }
-
-// stripCompactShares strips the universal prefix (namespace, info byte, data length) and
-// reserved byte from a list of compact shares and joins them into a single byte
+// stripCompactShares strips the universal prefix (namespace, info byte, sequence length) and
+// reserved bytes from a list of compact shares and joins them into a single byte
 // slice.
-func stripCompactShares(compactShares []shares.Share, start uint64, end uint64) (result []byte) {
-	for i := start; i <= end; i++ {
-		if i == 0 {
-			// the first compact share includes a total sequence length varint
-			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareSequenceLengthBytes+appconsts.CompactShareReservedBytes:]...)
-		} else {
-			result = append(result, compactShares[i][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:]...)
-		}
-	}
-	return result
-}
-
-func generateRandomlySizedTxs(count, max int) types.Txs {
-	txs := make(types.Txs, count)
-	for i := 0; i < count; i++ {
-		size := rand.Intn(max)
-		if size == 0 {
-			size = 1
-		}
-		txs[i] = generateRandomTxs(1, size)[0]
-	}
-	return txs
-}
-
-func generateRandomTxs(count, size int) types.Txs {
-	txs := make(types.Txs, count)
-	for i := 0; i < count; i++ {
-		tx := make([]byte, size)
-		_, err := rand.Read(tx)
+func stripCompactShares(compactShares []shares.Share) (result []byte, err error) {
+	for _, compactShare := range compactShares {
+		rawData, err := compactShare.RawData()
 		if err != nil {
-			panic(err)
+			return []byte{}, err
 		}
-		txs[i] = tx
+		result = append(result, rawData...)
 	}
-	return txs
-}
-
-func generateRandomlySizedBlobs(count, maxMsgSize int) []types.Blob {
-	blobs := make([]types.Blob, count)
-	for i := 0; i < count; i++ {
-		blobs[i] = generateRandomBlob(rand.Intn(maxMsgSize))
-	}
-
-	// this is just to let us use assert.Equal
-	if count == 0 {
-		blobs = nil
-	}
-
-	sort.Sort(types.BlobsByNamespace(blobs))
-	return blobs
-}
-
-func generateRandomBlob(size int) types.Blob {
-	blob := types.Blob{
-		NamespaceID: namespace.RandomMessageNamespace(),
-		Data:        tmrand.Bytes(size),
-	}
-	return blob
+	return result, nil
 }

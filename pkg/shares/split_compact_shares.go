@@ -6,13 +6,12 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
-	"github.com/tendermint/tendermint/libs/protoio"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // CompactShareSplitter will write raw data compactly across a progressively
 // increasing set of shares. It is used to lazily split block data such as
-// transactions, intermediate state roots, and evidence into shares.
+// transactions or intermediate state roots into shares.
 type CompactShareSplitter struct {
 	shares       []Share
 	pendingShare Share
@@ -21,19 +20,19 @@ type CompactShareSplitter struct {
 }
 
 // NewCompactShareSplitter returns a CompactShareSplitter using the provided
-// namespace.
-func NewCompactShareSplitter(ns namespace.ID, version uint8) *CompactShareSplitter {
+// namespace and shareVersion.
+func NewCompactShareSplitter(ns namespace.ID, shareVersion uint8) *CompactShareSplitter {
 	pendingShare := make([]byte, 0, appconsts.ShareSize)
-	infoByte, err := NewInfoByte(version, true)
+	infoByte, err := NewInfoByte(shareVersion, true)
 	if err != nil {
 		panic(err)
 	}
-	placeholderDataLength := make([]byte, appconsts.FirstCompactShareSequenceLengthBytes)
+	placeholderSequenceLen := make([]byte, appconsts.SequenceLenBytes)
 	placeholderReservedBytes := make([]byte, appconsts.CompactShareReservedBytes)
 
 	pendingShare = append(pendingShare, ns...)
 	pendingShare = append(pendingShare, byte(infoByte))
-	pendingShare = append(pendingShare, placeholderDataLength...)
+	pendingShare = append(pendingShare, placeholderSequenceLen...)
 	pendingShare = append(pendingShare, placeholderReservedBytes...)
 	return &CompactShareSplitter{pendingShare: pendingShare, namespace: ns}
 }
@@ -44,19 +43,6 @@ func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
 		panic(fmt.Sprintf("included Tx in mem-pool that can not be encoded %v", tx))
 	}
 	css.WriteBytes(rawData)
-}
-
-func (css *CompactShareSplitter) WriteEvidence(evd coretypes.Evidence) error {
-	pev, err := coretypes.EvidenceToProto(evd)
-	if err != nil {
-		return err
-	}
-	rawData, err := protoio.MarshalDelimited(pev)
-	if err != nil {
-		return err
-	}
-	css.WriteBytes(rawData)
-	return nil
 }
 
 // WriteBytes adds the delimited data to the underlying compact shares.
@@ -123,35 +109,23 @@ func (css *CompactShareSplitter) Export() []Share {
 		css.shares = append(css.shares, css.pendingShare)
 	}
 
-	dataLengthVarint := css.dataLengthVarint(bytesOfPadding)
-	css.writeDataLengthVarintToFirstShare(dataLengthVarint)
+	sequenceLen := css.sequenceLen(bytesOfPadding)
+	css.writeSequenceLen(sequenceLen)
 	return css.shares
 }
 
-// dataLengthVarint returns a varint of the data length written to this compact
-// share splitter.
-func (css *CompactShareSplitter) dataLengthVarint(bytesOfPadding int) []byte {
-	if css.isEmpty() {
-		return []byte{}
-	}
-
-	// declare and initialize the data length
-	dataLengthVarint := make([]byte, appconsts.FirstCompactShareSequenceLengthBytes)
-	binary.PutUvarint(dataLengthVarint, css.dataLength(bytesOfPadding))
-	zeroPadIfNecessary(dataLengthVarint, appconsts.FirstCompactShareSequenceLengthBytes)
-
-	return dataLengthVarint
-}
-
-func (css *CompactShareSplitter) writeDataLengthVarintToFirstShare(dataLengthVarint []byte) {
+// writeSequenceLen writes the sequence length to the first share.
+func (css *CompactShareSplitter) writeSequenceLen(sequenceLen uint32) {
 	if css.isEmpty() {
 		return
 	}
 
-	// write the data length varint to the first share
+	sequenceLenBuf := make([]byte, appconsts.SequenceLenBytes)
+	binary.BigEndian.PutUint32(sequenceLenBuf, sequenceLen)
 	firstShare := css.shares[0]
-	for i := 0; i < appconsts.FirstCompactShareSequenceLengthBytes; i++ {
-		firstShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+i] = dataLengthVarint[i]
+
+	for i := 0; i < appconsts.SequenceLenBytes; i++ {
+		firstShare[appconsts.NamespaceSize+appconsts.ShareInfoBytes+i] = sequenceLenBuf[i]
 	}
 
 	// replace existing first share with new first share
@@ -167,7 +141,7 @@ func (css *CompactShareSplitter) maybeWriteReservedBytesToPendingShare() {
 	}
 
 	byteIndexOfNextUnit := len(css.pendingShare)
-	reservedBytes, err := NewReservedBytes(uint64(byteIndexOfNextUnit))
+	reservedBytes, err := NewReservedBytes(uint32(byteIndexOfNextUnit))
 	if err != nil {
 		panic(err)
 	}
@@ -192,35 +166,35 @@ func (css *CompactShareSplitter) isEmptyReservedBytes() bool {
 // indexOfReservedBytes returns the index of the reserved bytes in the pending share.
 func (css *CompactShareSplitter) indexOfReservedBytes() int {
 	if css.isPendingShareTheFirstShare() {
-		// if the pending share is the first share, the reserved bytes follow the namespace, info byte, and sequence length varint
-		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.FirstCompactShareSequenceLengthBytes
+		// if the pending share is the first share, the reserved bytes follow the namespace, info byte, and sequence length
+		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.SequenceLenBytes
 	}
 	// if the pending share is not the first share, the reserved bytes follow the namespace and info byte
 	return appconsts.NamespaceSize + appconsts.ShareInfoBytes
 }
 
-// dataLength returns the total length in bytes of all units (transactions,
-// intermediate state roots, or evidence) written to this splitter.
-// dataLength does not include the # of bytes occupied by the namespace ID or
-// the share info byte in each share. dataLength does include the reserved
-// byte in each share and the unit length delimiter prefixed to each unit.
-func (css *CompactShareSplitter) dataLength(bytesOfPadding int) uint64 {
+// sequenceLen returns the total length in bytes of all units (transactions or
+// intermediate state roots) written to this splitter. sequenceLen does not
+// include the number of bytes occupied by the namespace ID, the share info
+// byte, or the reserved bytes. sequenceLen does include the unit length
+// delimiter prefixed to each unit.
+func (css *CompactShareSplitter) sequenceLen(bytesOfPadding int) uint32 {
 	if len(css.shares) == 0 {
 		return 0
 	}
 	if len(css.shares) == 1 {
-		return uint64(appconsts.FirstCompactShareContentSize) - uint64(bytesOfPadding)
+		return uint32(appconsts.FirstCompactShareContentSize) - uint32(bytesOfPadding)
 	}
 
 	continuationSharesCount := len(css.shares) - 1
-	continuationSharesDataLength := uint64(continuationSharesCount) * appconsts.ContinuationCompactShareContentSize
-	return uint64(appconsts.FirstCompactShareContentSize) + continuationSharesDataLength - uint64(bytesOfPadding)
+	continuationSharesSequenceLen := continuationSharesCount * appconsts.ContinuationCompactShareContentSize
+	return uint32(appconsts.FirstCompactShareContentSize + continuationSharesSequenceLen - bytesOfPadding)
 }
 
 // isEmptyPendingShare returns true if the pending share is empty, false otherwise.
 func (css *CompactShareSplitter) isEmptyPendingShare() bool {
 	if css.isPendingShareTheFirstShare() {
-		return len(css.pendingShare) == appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareSequenceLengthBytes+appconsts.CompactShareReservedBytes
+		return len(css.pendingShare) == appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.SequenceLenBytes+appconsts.CompactShareReservedBytes
 	}
 	return len(css.pendingShare) == appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes
 }

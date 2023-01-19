@@ -17,9 +17,9 @@ import (
 // rpc is returned via the client.Context. The function returned should be
 // called during cleanup to teardown the node, core client, along with canceling
 // the internal context.Context in the returned Context.
-func StartNode(tmNode *node.Node, cctx Context) (Context, func(), error) {
+func StartNode(tmNode *node.Node, cctx Context) (Context, func() error, error) {
 	if err := tmNode.Start(); err != nil {
-		return cctx, func() {}, err
+		return cctx, func() error { return nil }, err
 	}
 
 	coreClient := local.New(tmNode)
@@ -27,10 +27,14 @@ func StartNode(tmNode *node.Node, cctx Context) (Context, func(), error) {
 	cctx.Context = cctx.WithClient(coreClient)
 	goCtx, cancel := context.WithCancel(context.Background())
 	cctx.rootCtx = goCtx
-	cleanup := func() {
-		_ = tmNode.Stop()
-		_ = coreClient.Stop()
+	cleanup := func() error {
 		cancel()
+		err := tmNode.Stop()
+		if err != nil {
+			return err
+		}
+		tmNode.Wait()
+		return nil
 	}
 
 	return cctx, cleanup, nil
@@ -39,7 +43,8 @@ func StartNode(tmNode *node.Node, cctx Context) (Context, func(), error) {
 // StartGRPCServer starts the grpc server using the provided application and
 // config. A grpc client connection to that server is also added to the client
 // context. The returned function should be used to shutdown the server.
-func StartGRPCServer(app srvtypes.Application, appCfg *srvconfig.Config, cctx Context) (Context, func(), error) {
+func StartGRPCServer(app srvtypes.Application, appCfg *srvconfig.Config, cctx Context) (Context, func() error, error) {
+	emptycleanup := func() error { return nil }
 	// Add the tx service in the gRPC router.
 	app.RegisterTxService(cctx.Context)
 
@@ -48,18 +53,21 @@ func StartGRPCServer(app srvtypes.Application, appCfg *srvconfig.Config, cctx Co
 
 	grpcSrv, err := srvgrpc.StartGRPCServer(cctx.Context, app, appCfg.GRPC)
 	if err != nil {
-		return Context{}, func() {}, err
+		return Context{}, emptycleanup, err
 	}
 
 	nodeGRPCAddr := strings.Replace(appCfg.GRPC.Address, "0.0.0.0", "localhost", 1)
 	conn, err := grpc.Dial(nodeGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		return Context{}, func() {}, err
+		return Context{}, emptycleanup, err
 	}
 
 	cctx.Context = cctx.WithGRPCClient(conn)
 
-	return cctx, grpcSrv.Stop, nil
+	return cctx, func() error {
+		grpcSrv.Stop()
+		return nil
+	}, nil
 }
 
 // DefaultAppConfig wraps the default config described in the server

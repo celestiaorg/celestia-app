@@ -185,10 +185,10 @@ We estimate the square size by assuming that all the malleable transactions in t
 In order to efficiently fill the data square and ensure that each message included in the block is paid for, we progressively generate the data square using a few new types. More details can be found in [#637](https://github.com/celestiaorg/celestia-core/pull/637)
 
 ```go
-// CompactShareWriter lazily merges transaction or other compact types in
+// CompactShareWriter lazily merges transactions or other compact types in
 // the block data into shares that will eventually be included in a data square.
 // It also has methods to help progressively count how many shares the transactions
-// written take up.
+// written take-up.
 type CompactShareWriter struct {
    shares       []NamespacedShare
    pendingShare NamespacedShare
@@ -310,7 +310,7 @@ func (sqwr *shareSplitter) writeMalleatedTx(
 ) (ok bool, malleatedTx coretypes.Tx, msg *core.Message, err error) {
    ... // process the malleated tx and extract the message.
 
-   // check if we have room for both the tx and message it is crucial that we
+   // check if we have room for both the tx and the message it is crucial that we
    // add both atomically, otherwise the block is invalid
    if !sqwr.hasRoomForBoth(wrappedTx, coreMsg.Data) {
        return false, nil, nil, nil
@@ -328,7 +328,7 @@ func (sqwr *shareSplitter) writeMalleatedTx(
 }
 ```
 
-Lastly, the data availability header is used to create the `DataHash` in the `Header` in the application instead of in tendermint. This is done by modifying the protobuf version of the block data to retain the cached hash and setting it during `ProcessProposal`. Later, in `ProcessProposal` other fullnodes check that the `DataHash` matches the block data by recomputing it. Previously, this extra check was performed inside the `ValidateBasic` method of `types.Data`, where is was computed each time it was decoded. Not only is this more efficient as it saves significant computational resources and keeps `ValidateBasic` light, it is also much more explicit. This approach does not however dramatically change any existing code in tendermint, as the code to compute the hash of the block data remains there. Ideally, we would move all of the code that computes erasure encoding to the app. This approach allows us to keep the intuitiveness of the `Hash` method for `types.Data`, along with not forcing us to change many tests in tendermint, which rely on this functionality.
+Lastly, the data availability header is used to create the `DataHash` in the `Header` in the application instead of in tendermint. This is done by modifying the protobuf version of the block data to retain the cached hash and setting it during `ProcessProposal`. Later, in `ProcessProposal` other full nodes check that the `DataHash` matches the block data by recomputing it. Previously, this extra check was performed inside the `ValidateBasic` method of `types.Data`, where is was computed each time it was decoded. Not only is this more efficient as it saves significant computational resources and keeps `ValidateBasic` light, it is also much more explicit. This approach does not however dramatically change any existing code in tendermint, as the code to compute the hash of the block data remains there. Ideally, we would move all of the code that computes erasure encoding to the app. This approach allows us to keep the intuitiveness of the `Hash` method for `types.Data`, along with not forcing us to change many tests in tendermint, which rely on this functionality.
 
 ### ProcessProposal [#214](https://github.com/celestiaorg/celestia-app/pull/214), [#216](https://github.com/celestiaorg/celestia-app/pull/216), and [#224](https://github.com/celestiaorg/celestia-app/pull/224)
 
@@ -342,7 +342,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
    // Check for message inclusion:
    //  - each MsgPayForBlob included in a block should have a corresponding blob also in the block data
    //  - the commitment in each PFB should match that of its corresponding blob
-   //  - there should be no unpaid for messages
+   //  - there should be no unpaid messages
 
    // extract the commitments from any MsgPayForBlobs in the block
    commitments := make(map[string]struct{})
@@ -372,7 +372,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 ## Status
 
-Proposed and initial implementation is complete.
+The proposed and initial implementation is complete.
 
 ## Consequences
 
@@ -409,7 +409,7 @@ Proposed and initial implementation is complete.
 [#637](https://github.com/celestiaorg/celestia-core/pull/637)
 [#224](https://github.com/celestiaorg/celestia-app/pull/224)
 
-### Other related by unmerged ADRs that we can close after merging this ADR
+### Other related unmerged ADRs that we can close after merging this ADR
 
 [#559](https://github.com/celestiaorg/celestia-core/pull/559)
 [#157](https://github.com/celestiaorg/celestia-app/pull/157)

@@ -2,7 +2,7 @@
 
 set -o errexit -o nounset
 
-CHAINID="test"
+CHAINID="private"
 
 # Build genesis file incl account for passed address
 coins="1000000000000000utia"

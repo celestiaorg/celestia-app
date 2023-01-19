@@ -1,36 +1,32 @@
 package cli
 
 import (
+	"bufio"
 	"encoding/hex"
-	"errors"
+	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/cosmos/cosmos-sdk/client/tx"
+	"github.com/cosmos/cosmos-sdk/client/input"
+	sdktx "github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	coretypes "github.com/tendermint/tendermint/types"
 )
-
-const FlagSquareSizes = "square-sizes"
 
 func CmdWirePayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "payForBlob [hexNamespace] [hexBlob]",
-		Short: "Creates a new MsgWirePayForBlob",
+		Short: "Pay for a data blob to be published to the Celestia blockchain",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
-			}
-
-			// get the account name
-			accName := clientCtx.GetFromName()
-			if accName == "" {
-				return errors.New("no account name provided, please use the --from flag")
 			}
 
 			// decode the namespace
@@ -39,51 +35,21 @@ func CmdWirePayForBlob() *cobra.Command {
 				return fmt.Errorf("failure to decode hex namespace: %w", err)
 			}
 
-			// decode the message
-			message, err := hex.DecodeString(args[1])
+			// decode the blob
+			rawblob, err := hex.DecodeString(args[1])
 			if err != nil {
-				return fmt.Errorf("failure to decode hex message: %w", err)
+				return fmt.Errorf("failure to decode hex blob: %w", err)
 			}
 
-			pfbMsg, err := types.NewWirePayForBlob(namespace, message)
+			// TODO: allow for more than one blob to be sumbmitted via the cli
+			blob, err := types.NewBlob(namespace, rawblob)
 			if err != nil {
 				return err
 			}
 
-			// use the keyring to programmatically sign multiple PayForBlob txs
-			signer := types.NewKeyringSigner(clientCtx.Keyring, accName, clientCtx.ChainID)
-
-			err = signer.UpdateAccountFromClient(clientCtx)
-			if err != nil {
-				return err
-			}
-
-			// get and parse the gas limit for this tx
-			rawGasLimit, err := cmd.Flags().GetString(flags.FlagGas)
-			if err != nil {
-				return err
-			}
-			gasSetting, err := flags.ParseGasSetting(rawGasLimit)
-			if err != nil {
-				return err
-			}
-
-			// get and parse the fees for this tx
-			fees, err := cmd.Flags().GetString(flags.FlagFees)
-			if err != nil {
-				return err
-			}
-			parsedFees, err := sdk.ParseCoinsNormalized(fees)
-			if err != nil {
-				return err
-			}
-
-			// sign the  MsgPayForBlob's ShareCommitments
-			err = pfbMsg.SignShareCommitment(
-				signer,
-				types.SetGasLimit(gasSetting.Gas),
-				types.SetFeeAmount(parsedFees),
-			)
+			// TODO: allow the user to override the share version via a new flag
+			// See https://github.com/celestiaorg/celestia-app/issues/1041
+			pfbMsg, err := types.NewMsgPayForBlob(clientCtx.FromAddress.String(), blob)
 			if err != nil {
 				return err
 			}
@@ -93,11 +59,89 @@ func CmdWirePayForBlob() *cobra.Command {
 				return err
 			}
 
-			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), pfbMsg)
+			txBytes, err := writeTx(clientCtx, sdktx.NewFactoryCLI(clientCtx, cmd.Flags()), pfbMsg)
+			if err != nil {
+				return err
+			}
+
+			blobTx, err := coretypes.MarshalBlobTx(txBytes, blob)
+			if err != nil {
+				return err
+			}
+
+			// broadcast to a Tendermint node
+			res, err := clientCtx.BroadcastTx(blobTx)
+			if err != nil {
+				return err
+			}
+
+			return clientCtx.PrintProto(res)
 		},
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
 
 	return cmd
+}
+
+// writeTx attempts to generate and sign a transaction using the normal
+// cosmos-sdk cli argument parsing code with the given set of messages. It will also simulate gas
+// requirements if necessary. It will return an error upon failure.
+//
+// NOTE: Copy paste forked from the cosmos-sdk so that we can wrap the PFB with
+// a blob while still using all of the normal cli parsing code
+func writeTx(clientCtx client.Context, txf sdktx.Factory, msgs ...sdk.Msg) ([]byte, error) {
+	if clientCtx.GenerateOnly {
+		return nil, txf.PrintUnsignedTx(clientCtx, msgs...)
+	}
+
+	txf, err := txf.Prepare(clientCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	if txf.SimulateAndExecute() || clientCtx.Simulate {
+		_, adjusted, err := sdktx.CalculateGas(clientCtx, txf, msgs...)
+		if err != nil {
+			return nil, err
+		}
+
+		txf = txf.WithGas(adjusted)
+		_, _ = fmt.Fprintf(os.Stderr, "%s\n", sdktx.GasEstimateResponse{GasEstimate: txf.Gas()})
+	}
+
+	if clientCtx.Simulate {
+		return nil, nil
+	}
+
+	tx, err := txf.BuildUnsignedTx(msgs...)
+	if err != nil {
+		return nil, err
+	}
+
+	if !clientCtx.SkipConfirm {
+		txBytes, err := clientCtx.TxConfig.TxJSONEncoder()(tx.GetTx())
+		if err != nil {
+			return nil, err
+		}
+
+		if err := clientCtx.PrintRaw(json.RawMessage(txBytes)); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "%s\n", txBytes)
+		}
+
+		buf := bufio.NewReader(os.Stdin)
+		ok, err := input.GetConfirmation("confirm transaction before signing and broadcasting", buf, os.Stderr)
+
+		if err != nil || !ok {
+			_, _ = fmt.Fprintf(os.Stderr, "%s\n", "cancelled transaction")
+			return nil, err
+		}
+	}
+
+	err = sdktx.Sign(txf, clientCtx.GetFromName(), tx, true)
+	if err != nil {
+		return nil, err
+	}
+
+	return clientCtx.TxConfig.TxEncoder()(tx.GetTx())
 }

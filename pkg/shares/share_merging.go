@@ -7,8 +7,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/gogo/protobuf/proto"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -18,9 +16,8 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 
 	// sort block data shares by namespace
 	var (
-		sortedTxShares  [][]byte
-		sortedEvdShares [][]byte
-		sortedMsgShares [][]byte
+		sortedTxShares   [][]byte
+		sortedBlobShares [][]byte
 	)
 
 	// iterate over each row index
@@ -35,9 +32,6 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 			case bytes.Equal(appconsts.TxNamespaceID, nid):
 				sortedTxShares = append(sortedTxShares, share)
 
-			case bytes.Equal(appconsts.EvidenceNamespaceID, nid):
-				sortedEvdShares = append(sortedEvdShares, share)
-
 			case bytes.Equal(appconsts.TailPaddingNamespaceID, nid):
 				continue
 
@@ -45,9 +39,9 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 			case bytes.Compare(nid, appconsts.MaxReservedNamespace) < 1:
 				continue
 
-			// every other namespaceID should be a message
+			// every other namespaceID should be a blob
 			default:
-				sortedMsgShares = append(sortedMsgShares, share)
+				sortedBlobShares = append(sortedBlobShares, share)
 			}
 		}
 	}
@@ -58,20 +52,14 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 		return coretypes.Data{}, err
 	}
 
-	evd, err := ParseEvd(sortedEvdShares)
-	if err != nil {
-		return coretypes.Data{}, err
-	}
-
-	msgs, err := ParseMsgs(sortedMsgShares)
+	blobs, err := ParseBlobs(sortedBlobShares)
 	if err != nil {
 		return coretypes.Data{}, err
 	}
 
 	return coretypes.Data{
 		Txs:        txs,
-		Evidence:   evd,
-		Blobs:      msgs,
+		Blobs:      blobs,
 		SquareSize: uint64(squareSize),
 	}, nil
 }
@@ -93,49 +81,20 @@ func ParseTxs(shares [][]byte) (coretypes.Txs, error) {
 	return txs, nil
 }
 
-// ParseEvd collects all evidence from the shares provided.
-func ParseEvd(shares [][]byte) (coretypes.EvidenceData, error) {
-	// the raw data returned does not have length delimiters or namespaces and
-	// is ready to be unmarshaled
-	rawEvd, err := parseCompactShares(shares, appconsts.SupportedShareVersions)
-	if err != nil {
-		return coretypes.EvidenceData{}, err
-	}
-
-	evdList := make(coretypes.EvidenceList, len(rawEvd))
-
-	// parse into protobuf bytes
-	for i := 0; i < len(rawEvd); i++ {
-		// unmarshal the evidence
-		var protoEvd tmproto.Evidence
-		err := proto.Unmarshal(rawEvd[i], &protoEvd)
-		if err != nil {
-			return coretypes.EvidenceData{}, err
-		}
-		evd, err := coretypes.EvidenceFromProto(&protoEvd)
-		if err != nil {
-			return coretypes.EvidenceData{}, err
-		}
-
-		evdList[i] = evd
-	}
-
-	return coretypes.EvidenceData{Evidence: evdList}, nil
-}
-
-// ParseMsgs collects all messages from the shares provided
-func ParseMsgs(shares [][]byte) ([]coretypes.Blob, error) {
-	msgList, err := parseSparseShares(shares, appconsts.SupportedShareVersions)
+// ParseBlobs collects all blobs from the shares provided
+func ParseBlobs(shares [][]byte) ([]coretypes.Blob, error) {
+	blobList, err := parseSparseShares(shares, appconsts.SupportedShareVersions)
 	if err != nil {
 		return []coretypes.Blob{}, err
 	}
 
-	return msgList, nil
+	return blobList, nil
 }
 
 // ShareSequence represents a contiguous sequence of shares that are part of the
-// same namespace and message. For compact shares, one share sequence exists per
-// reserved namespace. For sparse shares, one share sequence exists per message.
+// same namespace and blob. For compact shares, one share sequence exists per
+// reserved namespace. For sparse shares, one share sequence exists per blob.
+// TODO consider extracting the ShareSequence struct to a new file.
 type ShareSequence struct {
 	NamespaceID namespace.ID
 	Shares      []Share
@@ -150,11 +109,11 @@ func ParseShares(rawShares [][]byte) ([]ShareSequence, error) {
 		if err != nil {
 			return sequences, err
 		}
-		infoByte, err := share.InfoByte()
+		isStart, err := share.IsSequenceStart()
 		if err != nil {
 			return sequences, err
 		}
-		if infoByte.IsSequenceStart() {
+		if isStart {
 			if len(currentSequence.Shares) > 0 {
 				sequences = append(sequences, currentSequence)
 			}
@@ -175,7 +134,7 @@ func ParseShares(rawShares [][]byte) ([]ShareSequence, error) {
 	}
 
 	for _, sequence := range sequences {
-		if err := sequence.validSequenceLength(); err != nil {
+		if err := sequence.validSequenceLen(); err != nil {
 			return sequences, err
 		}
 	}
@@ -183,11 +142,30 @@ func ParseShares(rawShares [][]byte) ([]ShareSequence, error) {
 	return sequences, nil
 }
 
-// validSequenceLength extracts the sequenceLength written to the first share
+// RawData returns the raw share data of this share sequence. The raw data does
+// not contain the namespace ID, info byte, sequence length, or reserved bytes.
+func (s ShareSequence) RawData() (data []byte, err error) {
+	for _, share := range s.Shares {
+		raw, err := share.RawData()
+		if err != nil {
+			return []byte{}, err
+		}
+		data = append(data, raw...)
+	}
+
+	sequenceLen, err := s.SequenceLen()
+	if err != nil {
+		return []byte{}, err
+	}
+	// trim any padding that may have been added to the last share
+	return data[:sequenceLen], nil
+}
+
+// validSequenceLen extracts the sequenceLen written to the first share
 // and returns an error if the number of shares needed to store a sequence of
-// length sequenceLength doesn't match the number of shares in this share
+// length sequenceLen doesn't match the number of shares in this share
 // sequence. Returns nil if there is no error.
-func (s ShareSequence) validSequenceLength() error {
+func (s ShareSequence) validSequenceLen() error {
 	if len(s.Shares) == 0 {
 		return fmt.Errorf("invalid sequence length because share sequence %v has no shares", s)
 	}
@@ -203,48 +181,65 @@ func (s ShareSequence) validSequenceLength() error {
 	return nil
 }
 
-// numberOfSharesNeeded extracts the sequenceLength written to the share
+func (s ShareSequence) SequenceLen() (uint32, error) {
+	if len(s.Shares) == 0 {
+		return 0, fmt.Errorf("invalid sequence length because share sequence %v has no shares", s)
+	}
+	firstShare := s.Shares[0]
+	return firstShare.SequenceLen()
+}
+
+// numberOfSharesNeeded extracts the sequenceLen written to the share
 // firstShare and returns the number of shares needed to store a sequence of
 // that length.
 func numberOfSharesNeeded(firstShare Share) (sharesUsed int, err error) {
-	sequenceLength, err := firstShare.SequenceLength()
+	sequenceLen, err := firstShare.SequenceLen()
 	if err != nil {
 		return 0, err
 	}
 
-	if firstShare.isCompactShare() {
-		return compactSharesNeeded(int(sequenceLength)), nil
+	if firstShare.IsCompactShare() {
+		return CompactSharesNeeded(int(sequenceLen)), nil
 	}
-	return sparseSharesNeeded(int(sequenceLength)), nil
+	return SparseSharesNeeded(sequenceLen), nil
 }
 
-// compactSharesNeeded returns the number of compact shares needed to store a
-// sequence of length sequenceLength. The parameter sequenceLength is the number
-// of bytes of transaction, intermediate state root, or evidence data in a
-// sequence.
-func compactSharesNeeded(sequenceLength int) (sharesNeeded int) {
-	if sequenceLength == 0 {
+// CompactSharesNeeded returns the number of compact shares needed to store a
+// sequence of length sequenceLen. The parameter sequenceLen is the number
+// of bytes of transactions or intermediate state roots in a sequence.
+func CompactSharesNeeded(sequenceLen int) (sharesNeeded int) {
+	if sequenceLen == 0 {
 		return 0
 	}
 
-	if sequenceLength < appconsts.FirstCompactShareContentSize {
+	if sequenceLen < appconsts.FirstCompactShareContentSize {
 		return 1
 	}
-	sequenceLength -= appconsts.FirstCompactShareContentSize
-	sharesNeeded++
 
-	for sequenceLength > 0 {
-		sequenceLength -= appconsts.ContinuationCompactShareContentSize
+	bytesAvailable := appconsts.FirstCompactShareContentSize
+	sharesNeeded++
+	for bytesAvailable < sequenceLen {
+		bytesAvailable += appconsts.ContinuationCompactShareContentSize
 		sharesNeeded++
 	}
 	return sharesNeeded
 }
 
-// sparseSharesNeeded returns the number of shares needed to store a sequence of
-// length sequenceLength.
-func sparseSharesNeeded(sequenceLength int) (sharesNeeded int) {
-	sharesNeeded = sequenceLength / appconsts.SparseShareContentSize
-	if sequenceLength%appconsts.SparseShareContentSize != 0 {
+// SparseSharesNeeded returns the number of shares needed to store a sequence of
+// length sequenceLen.
+func SparseSharesNeeded(sequenceLen uint32) (sharesNeeded int) {
+	if sequenceLen == 0 {
+		return 0
+	}
+
+	if sequenceLen < appconsts.FirstSparseShareContentSize {
+		return 1
+	}
+
+	bytesAvailable := appconsts.FirstSparseShareContentSize
+	sharesNeeded++
+	for uint32(bytesAvailable) < sequenceLen {
+		bytesAvailable += appconsts.ContinuationSparseShareContentSize
 		sharesNeeded++
 	}
 	return sharesNeeded

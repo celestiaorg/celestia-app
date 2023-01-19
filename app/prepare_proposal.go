@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -8,42 +9,37 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// PrepareProposal fullfills the celestia-core version of the ABCI interface by
+// PrepareProposal fulfills the celestia-core version of the ABCI interface by
 // preparing the proposal block data. The square size is determined by first
-// estimating it via the size of the passed block data. Then the included
-// MsgWirePayForBlob messages are malleated into MsgPayForBlob messages by
-// separating the message and transaction that pays for that message. Lastly,
-// this method generates the data root for the proposal block and passes it back
-// to tendermint via the blockdata.
+// estimating it via the size of the passed block data. Then, this method
+// generates the data root for the proposal block and passes it back to
+// tendermint via the BlockData.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-	// parse the txs, extracting any MsgWirePayForBlob and performing basic
-	// validation for each transaction. Invalid txs are ignored. Original order
-	// of the txs is maintained.
+	// parse the txs, extracting any valid BlobTxs. Original order of
+	// the txs is maintained.
 	parsedTxs := parseTxs(app.txConfig, req.BlockData.Txs)
 
-	// estimate the square size. This estimation errors on the side of larger
+	// remove transactions that go over the limit
+	if len(parsedTxs) > appconsts.TransactionsPerBlockLimit {
+		parsedTxs = parsedTxs[:appconsts.TransactionsPerBlockLimit]
+	}
+
+	// estimate the square size. This estimation errs on the side of larger
 	// squares but can only return values within the min and max square size.
-	squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, req.BlockData.Evidence)
+	squareSize, nonreservedStart := estimateSquareSize(parsedTxs)
 
-	// the totalSharesUsed can be larger that the max number of shares if we
-	// reach the max square size. In this case, we must prune the deprioritized
-	// txs (and their messages if they're pfb txs).
-	if totalSharesUsed > int(squareSize*squareSize) {
-		parsedTxs = prune(app.txConfig, parsedTxs, totalSharesUsed, int(squareSize))
-	}
+	// finalizeLayout wraps any blob transactions with their final share index.
+	// This requires sorting the blobs by namespace and potentially pruning
+	// MsgPayForBlob transactions and their respective blobs from the block if
+	// they do not fit into the square.
+	parsedTxs, blobs := finalizeLayout(squareSize, nonreservedStart, parsedTxs)
 
-	// in this step we are processing any MsgWirePayForBlob transactions into
-	// MsgPayForBlob and their respective blobPointers. The malleatedTxs contain the
-	// the new sdk.Msg with the original tx's metadata (sequence number, gas
-	// price etc).
-	processedTxs, blobs, err := malleateTxs(app.txConfig, squareSize, parsedTxs, req.BlockData.Evidence)
-	if err != nil {
-		panic(err)
-	}
+	// extract all transactions from the intermediate parsedTx struct, and wrap
+	// any blob transactions with their finalized share index.
+	processedTxs := processTxs(app.Logger(), parsedTxs)
 
 	blockData := core.Data{
 		Txs:        processedTxs,
-		Evidence:   req.BlockData.Evidence,
 		Blobs:      blobs,
 		SquareSize: squareSize,
 	}

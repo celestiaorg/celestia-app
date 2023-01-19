@@ -1,7 +1,6 @@
 package shares
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 
@@ -28,31 +27,57 @@ func (s Share) NamespaceID() namespace.ID {
 
 func (s Share) InfoByte() (InfoByte, error) {
 	if len(s) < appconsts.NamespaceSize+appconsts.ShareInfoBytes {
-		panic(fmt.Sprintf("share %s is too short to contain an info byte", s))
+		return 0, fmt.Errorf("share %s is too short to contain an info byte", s)
 	}
 	// the info byte is the first byte after the namespace ID
 	unparsed := s[appconsts.NamespaceSize]
 	return ParseInfoByte(unparsed)
 }
 
-func (s Share) SequenceLength() (uint64, error) {
+func (s Share) Version() (uint8, error) {
 	infoByte, err := s.InfoByte()
 	if err != nil {
 		return 0, err
 	}
-	if !infoByte.IsSequenceStart() {
-		return 0, fmt.Errorf("share %s is not a sequence start", s)
-	}
-	if s.isCompactShare() && len(s) < appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.FirstCompactShareSequenceLengthBytes {
-		return 0, fmt.Errorf("compact share %s is too short to contain sequence length", s)
-	}
-	reader := bytes.NewReader(s[appconsts.NamespaceSize+appconsts.ShareInfoBytes:])
-	return binary.ReadUvarint(reader)
+	return infoByte.Version(), nil
 }
 
-// isCompactShare returns true if this share is a compact share.
-func (s Share) isCompactShare() bool {
-	return s.NamespaceID().Equal(appconsts.TxNamespaceID) || s.NamespaceID().Equal(appconsts.EvidenceNamespaceID)
+// IsSequenceStart returns true if this is the first share in a sequence.
+func (s Share) IsSequenceStart() (bool, error) {
+	infoByte, err := s.InfoByte()
+	if err != nil {
+		return false, err
+	}
+	return infoByte.IsSequenceStart(), nil
+}
+
+// IsCompactShare returns true if this is a compact share.
+func (s Share) IsCompactShare() bool {
+	return s.NamespaceID().Equal(appconsts.TxNamespaceID)
+}
+
+// SequenceLen returns the sequence length of this share and optionally an
+// error. It returns 0, nil if this is a continuation share (i.e. doesn't
+// contain a sequence length).
+func (s Share) SequenceLen() (sequenceLen uint32, err error) {
+	isSequenceStart, err := s.IsSequenceStart()
+	if err != nil {
+		return 0, err
+	}
+	if !isSequenceStart {
+		return 0, nil
+	}
+
+	start := appconsts.NamespaceSize + appconsts.ShareInfoBytes
+	end := start + appconsts.SequenceLenBytes
+	if len(s) < end {
+		return 0, fmt.Errorf("share %s is too short to contain a sequence length", s)
+	}
+	return binary.BigEndian.Uint32(s[start:end]), nil
+}
+
+func (s Share) ToBytes() []byte {
+	return []byte(s)
 }
 
 func ToBytes(shares []Share) (bytes [][]byte) {
@@ -69,4 +94,32 @@ func FromBytes(bytes [][]byte) (shares []Share) {
 		shares[i] = Share(b)
 	}
 	return shares
+}
+
+// RawData returns the raw share data. The raw share data does not contain the
+// namespace ID, info byte, sequence length, or reserved bytes.
+func (s Share) RawData() (rawData []byte, err error) {
+	if len(s) < s.rawDataStartIndex() {
+		return rawData, fmt.Errorf("share %s is too short to contain raw data", s)
+	}
+
+	return s[s.rawDataStartIndex():], nil
+}
+
+func (s Share) rawDataStartIndex() int {
+	isStart, err := s.IsSequenceStart()
+	if err != nil {
+		panic(err)
+	}
+	if isStart && s.IsCompactShare() {
+		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.SequenceLenBytes + appconsts.CompactShareReservedBytes
+	} else if isStart && !s.IsCompactShare() {
+		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.SequenceLenBytes
+	} else if !isStart && s.IsCompactShare() {
+		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.CompactShareReservedBytes
+	} else if !isStart && !s.IsCompactShare() {
+		return appconsts.NamespaceSize + appconsts.ShareInfoBytes
+	} else {
+		panic(fmt.Sprintf("unable to determine the rawDataStartIndex for share %s", s))
+	}
 }

@@ -6,32 +6,33 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	nmtwrapper "github.com/celestiaorg/celestia-app/pkg/wrapper"
 	daproto "github.com/celestiaorg/celestia-app/proto/da"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/crypto/merkle"
-	"github.com/tendermint/tendermint/crypto/tmhash"
+	"github.com/tendermint/tendermint/types"
 )
 
 const (
-	maxExtendedSquareWidth = appconsts.MaxSquareSize * 2
-	minExtendedSquareWidth = appconsts.MinSquareSize * 2
+	maxExtendedSquareWidth = appconsts.DefaultMaxSquareSize * 2
+	minExtendedSquareWidth = appconsts.DefaultMinSquareSize * 2
 )
 
-// DataAvailabilityHeader (DAHeader) contains the row and column roots of the erasure
-// coded version of the data in Block.Data.
-// Therefor the original Block.Data is arranged in a
-// k × k matrix, which is then "extended" to a
-// 2k × 2k matrix applying multiple times Reed-Solomon encoding.
-// For details see Section 5.2: https://arxiv.org/abs/1809.09044
-// or the Celestia specification:
+// DataAvailabilityHeader (DAHeader) contains the row and column roots of the
+// erasure coded version of the data in Block.Data. The original Block.Data is
+// split into shares and arranged in a square of width squareSize. Then, this
+// square is "extended" into an extended data square (EDS) of width 2*squareSize
+// by applying Reed-Solomon encoding. For details see Section 5.2 of
+// https://arxiv.org/abs/1809.09044 or the Celestia specification:
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#availabledataheader
 type DataAvailabilityHeader struct {
-	// RowRoot_j 	= root((M_{j,1} || M_{j,2} || ... || M_{j,2k} ))
+	// RowRoot_j = root((M_{j,1} || M_{j,2} || ... || M_{j,2k} ))
 	RowsRoots [][]byte `json:"row_roots"`
 	// ColumnRoot_j = root((M_{1,j} || M_{2,j} || ... || M_{2k,j} ))
 	ColumnRoots [][]byte `json:"column_roots"`
-	// cached result of Hash() not to be recomputed
+	// hash is the Merkle root of the row and column roots. This field is the
+	// memoized result from `Hash()`.
 	hash []byte
 }
 
@@ -51,11 +52,11 @@ func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) DataAvailabilityH
 
 func ExtendShares(squareSize uint64, shares [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	// Check that square size is with range
-	if squareSize < appconsts.MinSquareSize || squareSize > appconsts.MaxSquareSize {
+	if squareSize < appconsts.DefaultMinSquareSize || squareSize > appconsts.DefaultMaxSquareSize {
 		return nil, fmt.Errorf(
 			"invalid square size: min %d max %d provided %d",
-			appconsts.MinSquareSize,
-			appconsts.MaxSquareSize,
+			appconsts.DefaultMinSquareSize,
+			appconsts.DefaultMaxSquareSize,
 			squareSize,
 		)
 	}
@@ -85,7 +86,8 @@ func (dah *DataAvailabilityHeader) Equals(to *DataAvailabilityHeader) bool {
 	return bytes.Equal(dah.Hash(), to.Hash())
 }
 
-// Hash computes and caches the merkle root of the row and column roots.
+// Hash computes the Merkle root of the row and column roots. Hash memoizes the
+// result in `DataAvailabilityHeader.hash`.
 func (dah *DataAvailabilityHeader) Hash() []byte {
 	if dah == nil {
 		return merkle.HashFromByteSlices(nil)
@@ -151,7 +153,7 @@ func (dah *DataAvailabilityHeader) ValidateBasic() error {
 			len(dah.ColumnRoots),
 		)
 	}
-	if err := validateHash(dah.Hash()); err != nil {
+	if err := types.ValidateHash(dah.Hash()); err != nil {
 		return fmt.Errorf("wrong hash: %v", err)
 	}
 
@@ -165,18 +167,11 @@ func (dah *DataAvailabilityHeader) IsZero() bool {
 	return len(dah.ColumnRoots) == 0 || len(dah.RowsRoots) == 0
 }
 
-// tail is filler for all tail padded shares
-// it is allocated once and used everywhere
-var tailPaddingShare = append(
-	append(make([]byte, 0, appconsts.ShareSize), appconsts.TailPaddingNamespaceID...),
-	bytes.Repeat([]byte{0}, appconsts.ShareSize-appconsts.NamespaceSize)...,
-)
-
 // MinDataAvailabilityHeader returns the minimum valid data availability header.
 // It is equal to the data availability header for an empty block
 func MinDataAvailabilityHeader() DataAvailabilityHeader {
 	shares := GenerateEmptyShares(appconsts.MinShareCount)
-	eds, err := ExtendShares(appconsts.MinSquareSize, shares)
+	eds, err := ExtendShares(appconsts.DefaultMinSquareSize, shares)
 	if err != nil {
 		panic(err)
 	}
@@ -186,21 +181,9 @@ func MinDataAvailabilityHeader() DataAvailabilityHeader {
 
 // GenerateEmptyShares generate an array of empty shares
 func GenerateEmptyShares(size int) [][]byte {
-	shares := make([][]byte, size)
+	result := make([][]byte, size)
 	for i := 0; i < size; i++ {
-		shares[i] = tailPaddingShare
+		result[i] = shares.TailPaddingShare()
 	}
-	return shares
-}
-
-// validateHash returns an error if the hash is not empty, but its
-// size != tmhash.Size. copy pasted from `types` package as to not import
-func validateHash(h []byte) error {
-	if len(h) > 0 && len(h) != tmhash.Size {
-		return fmt.Errorf("expected size to be %d bytes, got %d bytes",
-			tmhash.Size,
-			len(h),
-		)
-	}
-	return nil
+	return result
 }

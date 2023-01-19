@@ -29,7 +29,7 @@ jobs:
         run: >
           export GO111MODULE="on" &&
           go install github.com/mfridman/tparse@v0.8.3
-      - uses: actions/cache@v3.0.11
+      - uses: actions/cache@v3.2.3
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-tparse-binary
@@ -44,7 +44,7 @@ jobs:
   #         go-version: 1.18
   #     - name: Display go version
   #       run: go version
-  #     - uses: technote-space/get-diff-action@v6.1.1
+  #     - uses: technote-space/get-diff-action@v6.1.2
   #       id: git_diff
   #       with:
   #         PREFIX_FILTER: |
@@ -95,7 +95,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: 1.18
-      - uses: technote-space/get-diff-action@v6.1.1
+      - uses: technote-space/get-diff-action@v6.1.2
         with:
           PATTERNS: |
             **/**.go
@@ -122,7 +122,7 @@ jobs:
     needs: tests
     steps:
       - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6.1.1
+      - uses: technote-space/get-diff-action@v6.1.2
         with:
           PATTERNS: |
             **/**.go
@@ -178,7 +178,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: 1.18
-      - uses: technote-space/get-diff-action@v6.1.1
+      - uses: technote-space/get-diff-action@v6.1.2
         with:
           PATTERNS: |
             **/**.go
@@ -205,7 +205,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6.1.1
+      - uses: technote-space/get-diff-action@v6.1.2
         id: git_diff
         with:
           PATTERNS: |
@@ -228,7 +228,7 @@ jobs:
         with:
           name: "${{ github.sha }}-03-race-output"
         if: env.GIT_DIFF
-      - uses: actions/cache@v3.0.11
+      - uses: actions/cache@v3.2.3
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-tparse-binary
@@ -246,7 +246,7 @@ jobs:
   #     - uses: actions/setup-go@v3
   #       with:
   #         go-version: 1.18
-  #     - uses: technote-space/get-diff-action@v6.1.1
+  #     - uses: technote-space/get-diff-action@v6.1.2
   #       id: git_diff
   #       with:
   #         PATTERNS: |
