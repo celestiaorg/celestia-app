@@ -30,8 +30,8 @@ func TestBuildPayForBlob(t *testing.T) {
 	rawTx, err := makeBlobEncodingConfig().TxConfig.TxEncoder()(signedTx)
 	require.NoError(t, err)
 
-	_, isMalleated := coretypes.UnmarshalIndexWrapper(rawTx)
-	require.False(t, isMalleated)
+	_, isIndexWrapper := coretypes.UnmarshalIndexWrapper(rawTx)
+	require.False(t, isIndexWrapper)
 
 	sigs, err := signedTx.GetSignaturesV2()
 	require.NoError(t, err)

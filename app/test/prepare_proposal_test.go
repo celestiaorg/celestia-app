@@ -85,7 +85,7 @@ func TestPrepareProposalBlobSorting(t *testing.T) {
 		sdata, err := signer.GetSignerData()
 		require.NoError(t, err)
 
-		dec := encoding.WrappedTxDecoder(encCfg.TxConfig.TxDecoder())
+		dec := encoding.IndexWrapperDecoder(encCfg.TxConfig.TxDecoder())
 		for _, tx := range res.BlockData.Txs {
 			sTx, err := dec(tx)
 			require.NoError(t, err)
