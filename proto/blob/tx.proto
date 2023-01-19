@@ -14,22 +14,13 @@ service Msg {
   }
 }
 
-// ShareCommitAndSignature defines the
-message ShareCommitAndSignature {
-  // share_commitment is the root of a binary Merkle tree that has leaves which
-  // are subtree roots of the relevant blob shares in the original data
-  // square.
-  bytes share_commitment = 2;
-  bytes signature = 3; // signature on one SignedTransactionPayForBlob
-}
-
 // MsgPayForBlob pays for the inclusion of a blob in the block.
 message MsgPayForBlob {
   string signer = 1;
   repeated bytes namespace_ids = 2;
   repeated uint32 blob_sizes = 3;
-  // share_commitment is the share_commitment from
-  // ShareCommitAndSignature that will be included in a block
+  // share_commitment is a commitment to the blob shares associated with this
+  // MsgPayForBlob.
   bytes share_commitment = 4;
   // share_versions are the versions of the share format that the blobs
   // associated with this message should use when included in a block. The
