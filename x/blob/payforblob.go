@@ -19,10 +19,8 @@ func SubmitPayForBlob(
 	signer *types.KeyringSigner,
 	conn *grpc.ClientConn,
 	blobs []*types.Blob,
-	gasLim uint64,
 	opts ...types.TxBuilderOption,
 ) (*sdk.TxResponse, error) {
-	opts = append(opts, types.SetGasLimit(gasLim))
 	addr, err := signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
