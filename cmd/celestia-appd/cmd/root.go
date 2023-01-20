@@ -153,16 +153,12 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 
 	server.AddCommands(rootCmd, app.DefaultNodeHome, NewAppServer, createAppAndExport, addModuleInitFlags)
 
-	// set the default keyring backend to `file`
-	keybase := keys.Commands(app.DefaultNodeHome)
-	keybase.Flag(flags.FlagKeyringBackend).DefValue = "file"
-
-	// add keybase, auxiliary RPC, query, and tx child commands
+	// add status, query, tx, and keys subcommands
 	rootCmd.AddCommand(
 		rpc.StatusCommand(),
 		queryCommand(),
 		txCommand(),
-		keybase,
+		keys.Commands(app.DefaultNodeHome),
 	)
 }
 
