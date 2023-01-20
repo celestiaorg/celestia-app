@@ -160,17 +160,3 @@ func TestNewShareInclusionProof(t *testing.T) {
 		})
 	}
 }
-
-// stripPrefix strips the universal prefix (namespace, info byte, sequence length) and
-// reserved bytes from a list of compact shares and joins them into a single byte
-// slice.
-func stripPrefix(compactShares []shares.Share) (result []byte, err error) {
-	for _, compactShare := range compactShares {
-		rawData, err := compactShare.RawData()
-		if err != nil {
-			return []byte{}, err
-		}
-		result = append(result, rawData...)
-	}
-	return result, nil
-}
