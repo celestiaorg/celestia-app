@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -17,16 +18,13 @@ import (
 //
 // NOTE: The estimation process does not have to be perfect. We can overestimate
 // because the cost of padding is limited.
-func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int) {
-	txSharesUsed := estimateTxSharesUsed(txs)
-	pfbTxSharesUsed := estimatePFBTxSharesUsed(appconsts.DefaultMaxSquareSize, txs)
+func estimateSquareSize(normalTxs [][]byte, blobTxs []core.BlobTx) (squareSize uint64, nonreserveStart int) {
+	txSharesUsed := estimateTxSharesUsed(normalTxs)
+	pfbTxSharesUsed := estimatePFBTxSharesUsed(appconsts.DefaultMaxSquareSize, blobTxs)
 	blobSharesUsed := 0
 
-	for _, ptx := range txs {
-		if len(ptx.normalTx) != 0 {
-			continue
-		}
-		blobSharesUsed += blobtypes.BlobTxSharesUsed(ptx.blobTx)
+	for _, blobTx := range blobTxs {
+		blobSharesUsed += blobtypes.BlobTxSharesUsed(blobTx)
 	}
 
 	// assume that we have to add a lot of padding by simply doubling the number
@@ -50,30 +48,25 @@ func estimateSquareSize(txs []parsedTx) (squareSize uint64, nonreserveStart int)
 
 // estimateTxSharesUsed estimates the number of shares used by ordinary
 // transactions (i.e. all transactions that aren't PFBs).
-func estimateTxSharesUsed(ptxs []parsedTx) int {
+func estimateTxSharesUsed(normalTxs [][]byte) int {
 	txBytes := 0
-	for _, pTx := range ptxs {
-		if pTx.isNormalTx() {
-			txLen := len(pTx.normalTx)
-			txLen += shares.DelimLen(uint64(txLen))
-			txBytes += txLen
-		}
+	for _, tx := range normalTxs {
+		txBytes += len(tx)
+		txBytes += shares.DelimLen(uint64(len(tx)))
 	}
 	return shares.CompactSharesNeeded(txBytes)
 }
 
 // estimatePFBTxSharesUsed estimates the number of shares used by PFB
 // transactions.
-func estimatePFBTxSharesUsed(squareSize uint64, ptxs []parsedTx) int {
+func estimatePFBTxSharesUsed(squareSize uint64, blobTxs []core.BlobTx) int {
 	maxWTxOverhead := maxIndexWrapperOverhead(squareSize)
 	maxIndexOverhead := maxIndexOverhead(squareSize)
 	numBytes := 0
-	for _, pTx := range ptxs {
-		if pTx.isBlobTx() {
-			txLen := len(pTx.blobTx.Tx) + maxWTxOverhead + (maxIndexOverhead * len(pTx.blobTx.Blobs))
-			txLen += shares.DelimLen(uint64(txLen))
-			numBytes += txLen
-		}
+	for _, blobTx := range blobTxs {
+		txLen := len(blobTx.Tx) + maxWTxOverhead + (maxIndexOverhead * len(blobTx.Blobs))
+		txLen += shares.DelimLen(uint64(txLen))
+		numBytes += txLen
 	}
 	return shares.CompactSharesNeeded(numBytes)
 }

@@ -81,11 +81,18 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 	// iterate over all of the MsgPayForBlob transactions and ensure that their
 	// commitments are subtree roots of the data root.
+	seenFirstPFB := false
 	for _, rawTx := range req.BlockData.Txs {
 		tx := rawTx
 		wrappedTx, isWrapped := coretypes.UnmarshalIndexWrapper(rawTx)
 		if isWrapped {
+			seenFirstPFB = true
 			tx = wrappedTx.Tx
+		} else if seenFirstPFB {
+			logInvalidPropBlock(app.Logger(), req.Header, "Wrapped PFBs must come at the end of the block")
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
+			}
 		}
 
 		sdkTx, err := app.txConfig.TxDecoder()(tx)

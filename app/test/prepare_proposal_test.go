@@ -165,3 +165,27 @@ func TestPrepareProposalOverflow(t *testing.T) {
 		assert.Equal(t, tt.expectedTxsInBlock, len(res.BlockData.Txs), tt.name)
 	}
 }
+
+func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
+	numBlobTxs, numNormalTxs := 3, 3
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	blobTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), numBlobTxs, 100)
+	normalTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, numNormalTxs)
+	txs := append(blobTxs, normalTxs...)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
+
+	resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
+		BlockData: &tmproto.Data{
+			Txs: coretypes.Txs(txs).ToSliceOfBytes(),
+		},
+	})
+	require.Len(t, resp.BlockData.Txs, numBlobTxs+numNormalTxs)
+	for idx, txBytes := range resp.BlockData.Txs {
+		_, isWrapper := coretypes.UnmarshalIndexWrapper(coretypes.Tx(txBytes))
+		if idx < numNormalTxs {
+			require.False(t, isWrapper)
+		} else {
+			require.True(t, isWrapper)
+		}
+	}
+}

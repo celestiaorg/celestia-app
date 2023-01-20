@@ -15,31 +15,28 @@ import (
 // generates the data root for the proposal block and passes it back to
 // tendermint via the BlockData.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+	// cap the amount of transactions in the block. See https://github.com/celestiaorg/celestia-app/issues/1209
+	// TODO: find a better long term solution
+	if len(req.BlockData.Txs) > appconsts.TransactionsPerBlockLimit {
+		req.BlockData.Txs = req.BlockData.Txs[:appconsts.TransactionsPerBlockLimit]
+	}
+
 	// parse the txs, extracting any valid BlobTxs. Original order of
 	// the txs is maintained.
-	parsedTxs := parseTxs(app.txConfig, req.BlockData.Txs)
-
-	// remove transactions that go over the limit
-	if len(parsedTxs) > appconsts.TransactionsPerBlockLimit {
-		parsedTxs = parsedTxs[:appconsts.TransactionsPerBlockLimit]
-	}
+	normalTxs, blobTxs := separateTxs(app.txConfig, req.BlockData.Txs)
 
 	// estimate the square size. This estimation errs on the side of larger
 	// squares but can only return values within the min and max square size.
-	squareSize, nonreservedStart := estimateSquareSize(parsedTxs)
+	squareSize, nonreservedStart := estimateSquareSize(normalTxs, blobTxs)
 
 	// finalizeLayout wraps any blob transactions with their final share index.
 	// This requires sorting the blobs by namespace and potentially pruning
 	// MsgPayForBlob transactions and their respective blobs from the block if
 	// they do not fit into the square.
-	parsedTxs, blobs := finalizeLayout(squareSize, nonreservedStart, parsedTxs)
-
-	// extract all transactions from the intermediate parsedTx struct, and wrap
-	// any blob transactions with their finalized share index.
-	processedTxs := processTxs(app.Logger(), parsedTxs)
+	wrappedPFBTxs, blobs := finalizeBlobLayout(squareSize, nonreservedStart, blobTxs)
 
 	blockData := core.Data{
-		Txs:        processedTxs,
+		Txs:        append(normalTxs, wrappedPFBTxs...),
 		Blobs:      blobs,
 		SquareSize: squareSize,
 	}
