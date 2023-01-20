@@ -79,12 +79,14 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) error {
 	}
 
 	// verify that the commitment of the blob matches that of the PFB
-	calculatedCommit, err := CreateMultiShareCommitment(bTx.Blobs...)
-	if err != nil {
-		return ErrCalculateCommit
-	}
-	if !bytes.Equal(calculatedCommit, pfb.ShareCommitment) {
-		return ErrInvalidShareCommit
+	for i, commitment := range pfb.ShareCommitments {
+		calculatedCommit, err := CreateCommitment(bTx.Blobs[i])
+		if err != nil {
+			return ErrCalculateCommit
+		}
+		if !bytes.Equal(calculatedCommit, commitment) {
+			return ErrInvalidShareCommit
+		}
 	}
 
 	return nil

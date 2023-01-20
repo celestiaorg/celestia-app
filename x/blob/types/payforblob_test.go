@@ -145,7 +145,7 @@ func TestValidateBasic(t *testing.T) {
 
 	// MsgPayForBlob that has an empty share commitment
 	emptyShareCommitment := validMsgPayForBlob(t)
-	emptyShareCommitment.ShareCommitment = []byte{}
+	emptyShareCommitment.ShareCommitments[0] = []byte{}
 
 	tests := []test{
 		{
@@ -284,15 +284,16 @@ func TestNewMsgPayForBlob(t *testing.T) {
 	}
 	for _, tt := range tests {
 		blob := &Blob{NamespaceId: tt.nids[0], Data: tt.blobs[0], ShareVersion: uint32(appconsts.DefaultShareVersion)}
-		res, err := NewMsgPayForBlob(tt.signer, blob)
+		mpfb, err := NewMsgPayForBlob(tt.signer, blob)
 		if tt.expectedErr {
 			assert.Error(t, err)
 			continue
 		}
 
-		expectedCommitment, err := CreateMultiShareCommitment(blob)
+		expectedCommitment, err := CreateCommitment(blob)
 		require.NoError(t, err)
-		assert.Equal(t, expectedCommitment, res.ShareCommitment)
+		assert.Equal(t, expectedCommitment, mpfb.ShareCommitments[0])
+		assert.Equal(t, uint32(len(tt.blobs[0])), mpfb.BlobSizes[0])
 	}
 }
 
