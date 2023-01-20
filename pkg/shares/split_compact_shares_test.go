@@ -96,3 +96,64 @@ func TestExport(t *testing.T) {
 		})
 	}
 }
+
+func TestWriteTx(t *testing.T) {
+	type testCase struct {
+		name           string
+		precedingTxs   []coretypes.Tx
+		tx             coretypes.Tx
+		wantStartShare int
+		wantEndShare   int
+	}
+
+	emptyTx := coretypes.Tx{}
+	tinyTx := coretypes.Tx{0, 1, 2, 3}
+	oneShareTx := coretypes.Tx(bytes.Repeat([]byte{0xf}, appconsts.FirstCompactShareContentSize))
+	twoShareTx := coretypes.Tx(bytes.Repeat([]byte{0xf}, appconsts.FirstCompactShareContentSize+appconsts.ContinuationCompactShareContentSize))
+
+	testCases := []testCase{
+		{
+			name:           "empty tx",
+			tx:             emptyTx,
+			wantStartShare: 0,
+			wantEndShare:   0,
+		},
+		{
+			name:           "tiny tx spans shares 0 to 0",
+			tx:             tinyTx,
+			wantStartShare: 0,
+			wantEndShare:   0,
+		},
+		{
+			name:           "one share tx spans shares 0 to 0",
+			tx:             oneShareTx,
+			wantStartShare: 0,
+			wantEndShare:   0,
+		},
+		{
+			name:           "twoShareTx spans shares 0 to 1",
+			tx:             twoShareTx,
+			wantStartShare: 0,
+			wantEndShare:   1,
+		},
+		{
+			name:           "empty tx after a one share tx spans shares 1 to 1",
+			precedingTxs:   []coretypes.Tx{oneShareTx},
+			tx:             emptyTx,
+			wantStartShare: 1,
+			wantEndShare:   1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+			for _, tx := range tc.precedingTxs {
+				css.WriteTx(tx)
+			}
+			gotStartShare, gotEndShare := css.WriteTx(tc.tx)
+			assert.Equal(t, tc.wantStartShare, gotStartShare)
+			assert.Equal(t, tc.wantEndShare, gotEndShare)
+		})
+	}
+}

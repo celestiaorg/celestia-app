@@ -50,9 +50,10 @@ func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) (startShare int, endSh
 		panic(fmt.Sprintf("included Tx in mem-pool that can not be encoded %v", tx))
 	}
 
-	startShare = css.Count()
+	startShare = len(css.shares)
 	css.WriteBytes(rawData)
-	endShare = css.Count()
+	// TODO @rootulp: this doesn't behave as expected because the call to stackPending().
+	endShare = len(css.shares)
 
 	return startShare, endShare
 }
