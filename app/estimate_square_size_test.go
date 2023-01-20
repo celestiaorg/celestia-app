@@ -145,7 +145,6 @@ func Test_estimatePFBTxSharesUsed(t *testing.T) {
 }
 
 func Test_estimateTxSharesUsed(t *testing.T) {
-
 	require.Equal(t, 312, len(generateNormalTxs(3)[2]))
 	type testCase struct {
 		name string
