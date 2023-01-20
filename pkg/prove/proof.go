@@ -8,7 +8,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
@@ -102,18 +101,7 @@ func TxSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos 
 		return startSharePos, endSharePos, errors.New("transaction index is greater than the number of txs")
 	}
 
-	prevTxTotalLen := 0
-	for i := uint64(0); i < txIndex; i++ {
-		txLen := len(txs[i])
-		prevTxTotalLen += (shares.DelimLen(uint64(txLen)) + txLen)
-	}
-
-	currentTxLen := len(txs[txIndex])
-	currentTxTotalLen := shares.DelimLen(uint64(currentTxLen)) + currentTxLen
-	endOfCurrentTxLen := prevTxTotalLen + currentTxTotalLen
-
-	startSharePos = txShareIndex(prevTxTotalLen)
-	endSharePos = txShareIndex(endOfCurrentTxLen)
+	// TODO determine the start and end shares for the tx
 	return startSharePos, endSharePos, nil
 }
 
@@ -156,23 +144,6 @@ func BlobShareRange(tx types.Tx) (beginShare uint64, endShare uint64, err error)
 	beginShare = uint64(indexWrappedTx.ShareIndexes[0])
 	sharesUsed := shares.SparseSharesNeeded(pfb.BlobSizes[0])
 	return beginShare, beginShare + uint64(sharesUsed) - 1, nil
-}
-
-// txShareIndex returns the index of the compact share that would contain
-// transactions with totalTxLen
-func txShareIndex(totalTxLen int) (index uint64) {
-	if totalTxLen <= appconsts.FirstCompactShareContentSize {
-		return 0
-	}
-
-	index++
-	totalTxLen -= appconsts.FirstCompactShareContentSize
-
-	for totalTxLen > appconsts.ContinuationCompactShareContentSize {
-		index++
-		totalTxLen -= appconsts.ContinuationCompactShareContentSize
-	}
-	return index
 }
 
 // genRowShares progessively generates data square rows from block data

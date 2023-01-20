@@ -286,40 +286,6 @@ func TestTxSharePosition(t *testing.T) {
 	}
 }
 
-func TestTxShareIndex(t *testing.T) {
-	type testCase struct {
-		totalTxLen int
-		wantIndex  uint64
-	}
-
-	tests := []testCase{
-		{0, 0},
-		{10, 0},
-		{100, 0},
-		{appconsts.FirstCompactShareContentSize, 0},
-		{appconsts.FirstCompactShareContentSize + 1, 1},
-		{appconsts.FirstCompactShareContentSize + appconsts.ContinuationCompactShareContentSize, 1},
-		{appconsts.FirstCompactShareContentSize + appconsts.ContinuationCompactShareContentSize + 1, 2},
-		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 2), 2},
-		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 2) + 1, 3},
-		// 81 full compact shares then a partially filled out 82nd share (which is index 81 because 0-indexed)
-		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 80) + 160, 81},
-		// 82 full compact shares
-		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 81), 81},
-		// 82 full compact shares then one byte in 83rd share
-		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 81) + 1, 82},
-		// 82 compact shares then two bytes in 83rd share
-		{appconsts.FirstCompactShareContentSize + (appconsts.ContinuationCompactShareContentSize * 81) + 2, 82},
-	}
-
-	for _, tt := range tests {
-		got := txShareIndex(tt.totalTxLen)
-		if got != tt.wantIndex {
-			t.Errorf("txShareIndex(%d) got %d, want %d", tt.totalTxLen, got, tt.wantIndex)
-		}
-	}
-}
-
 // stripCompactShares strips the universal prefix (namespace, info byte, sequence length) and
 // reserved bytes from a list of compact shares and joins them into a single byte
 // slice.
