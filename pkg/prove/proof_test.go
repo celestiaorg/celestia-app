@@ -75,7 +75,7 @@ func TestTxInclusion(t *testing.T) {
 	}
 }
 
-func TestShareInclusion(t *testing.T) {
+func TestNewShareInclusionProof(t *testing.T) {
 	blobs := append(
 		testfactory.GenerateBlobsWithNamespace(
 			100,
@@ -207,7 +207,7 @@ func TestShareInclusion(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tt.namespaceID, actualNID)
-			proof, err := GenerateSharesInclusionProof(
+			proof, err := NewShareInclusionProof(
 				rawShares,
 				blockData.SquareSize,
 				tt.namespaceID,

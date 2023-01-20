@@ -220,10 +220,10 @@ func splitIntoRows(squareSize uint64, s []shares.Share) [][]shares.Share {
 	return rows
 }
 
-// GenerateSharesInclusionProof generates an nmt inclusion proof for a set of shares to the data root.
+// NewShareInclusionProof returns a an NMT inclusion proof for a set of shares to the data root.
 // Expects the share range to be pre-validated.
 // Note: only supports inclusion proofs for shares belonging to the same namespace.
-func GenerateSharesInclusionProof(
+func NewShareInclusionProof(
 	allRawShares []shares.Share,
 	squareSize uint64,
 	namespaceID namespace.ID,

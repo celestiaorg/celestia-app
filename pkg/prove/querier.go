@@ -101,7 +101,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 	}
 
 	// create and marshal the shares inclusion proof, which we return in the form of []byte
-	txProof, err := GenerateSharesInclusionProof(
+	txProof, err := NewShareInclusionProof(
 		rawShares,
 		data.SquareSize,
 		nID,
