@@ -28,7 +28,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 	wantShareCount := int(data.SquareSize * data.SquareSize)
 	currentShareCount := 0
 
-	txShares, pfbTxShares := SplitTxs(data.Txs)
+	txShares, pfbTxShares, _ := SplitTxs(data.Txs)
 	currentShareCount += len(txShares) + len(pfbTxShares)
 	// blobIndexes will be nil if we are working with a list of txs that do not
 	// have a blob index. This preserves backwards compatibility with old blocks
@@ -97,17 +97,45 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 	return shareIndexes
 }
 
-func SplitTxs(txs coretypes.Txs) ([]Share, []Share) {
+type ShareRange struct {
+	StartShare int
+	EndShare   int
+}
+
+func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, txKeyToShareIndex map[coretypes.TxKey]ShareRange) {
 	txWriter := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
 	pfbTxWriter := NewCompactShareSplitter(appconsts.PayForBlobNamespaceID, appconsts.ShareVersionZero)
+	txKeyToShareIndex = make(map[coretypes.TxKey]ShareRange)
+
 	for _, tx := range txs {
 		if _, isIndexWrapper := coretypes.UnmarshalIndexWrapper(tx); isIndexWrapper {
-			pfbTxWriter.WriteTx(tx)
+			startShare, endShare := pfbTxWriter.WriteTx(tx)
+			txKeyToShareIndex[tx.Key()] = ShareRange{
+				StartShare: startShare,
+				EndShare:   endShare,
+			}
 		} else {
-			txWriter.WriteTx(tx)
+			startShare, endShare := txWriter.WriteTx(tx)
+			txKeyToShareIndex[tx.Key()] = ShareRange{
+				StartShare: startShare,
+				EndShare:   endShare,
+			}
 		}
 	}
-	return txWriter.Export(), pfbTxWriter.Export()
+
+	for _, tx := range txs {
+		if _, isIndexWrapper := coretypes.UnmarshalIndexWrapper(tx); isIndexWrapper {
+			shareRange := txKeyToShareIndex[tx.Key()]
+			// HACKHACK this assumes that there are no other shares between the
+			// ordinary tx shares and the pfb tx shares. This assumption will be
+			// invalidated if we introduce intermediate state roots or padding
+			// between these namespaces.
+			shareRange.StartShare += txWriter.Count()
+			shareRange.EndShare += txWriter.Count()
+		}
+	}
+
+	return txWriter.Export(), pfbTxWriter.Export(), txKeyToShareIndex
 }
 
 func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIndexes bool) ([]Share, error) {

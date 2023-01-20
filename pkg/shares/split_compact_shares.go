@@ -16,7 +16,7 @@ type CompactShareSplitter struct {
 	shares       []Share
 	pendingShare Share
 	namespace    namespace.ID
-	version      uint8
+	shareVersion uint8
 }
 
 // NewCompactShareSplitter returns a CompactShareSplitter using the provided
@@ -34,18 +34,31 @@ func NewCompactShareSplitter(ns namespace.ID, shareVersion uint8) *CompactShareS
 	pendingShare = append(pendingShare, byte(infoByte))
 	pendingShare = append(pendingShare, placeholderSequenceLen...)
 	pendingShare = append(pendingShare, placeholderReservedBytes...)
-	return &CompactShareSplitter{pendingShare: pendingShare, namespace: ns}
+	return &CompactShareSplitter{
+		shares:       []Share{},
+		pendingShare: pendingShare,
+		namespace:    ns,
+		shareVersion: shareVersion,
+	}
 }
 
-func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
+// WriteTx adds the delimited data for the provided tx to the underlying compact
+// share splitter. It returns the start and end shares for the raw data written.
+func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) (startShare int, endShare int) {
 	rawData, err := MarshalDelimitedTx(tx)
 	if err != nil {
 		panic(fmt.Sprintf("included Tx in mem-pool that can not be encoded %v", tx))
 	}
+
+	startShare = css.Count()
 	css.WriteBytes(rawData)
+	endShare = css.Count()
+
+	return startShare, endShare
 }
 
-// WriteBytes adds the delimited data to the underlying compact shares.
+// WriteBytes adds the delimited data to the underlying compact shares. It
+// returns the start and end shares for the raw data written.
 func (css *CompactShareSplitter) WriteBytes(rawData []byte) {
 	css.maybeWriteReservedBytesToPendingShare()
 
@@ -86,7 +99,7 @@ func (css *CompactShareSplitter) stackPending() {
 	css.shares = append(css.shares, css.pendingShare)
 	newPendingShare := make([]byte, 0, appconsts.ShareSize)
 	newPendingShare = append(newPendingShare, css.namespace...)
-	infoByte, err := NewInfoByte(css.version, false)
+	infoByte, err := NewInfoByte(css.shareVersion, false)
 	if err != nil {
 		panic(err)
 	}

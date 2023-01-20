@@ -77,7 +77,7 @@ func Test_processCompactShares(t *testing.T) {
 		t.Run(fmt.Sprintf("%s idendically sized", tc.name), func(t *testing.T) {
 			txs := testfactory.GenerateRandomTxs(tc.txCount, tc.txSize)
 
-			shares, _ := SplitTxs(txs)
+			shares, _, _ := SplitTxs(txs)
 			rawShares := ToBytes(shares)
 
 			parsedTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
@@ -95,8 +95,8 @@ func Test_processCompactShares(t *testing.T) {
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
 			txs := testfactory.GenerateRandomlySizedTxs(tc.txCount, tc.txSize)
 
-			shares, _ := SplitTxs(txs)
-			rawShares := ToBytes(shares)
+			txShares, _, _ := SplitTxs(txs)
+			rawShares := ToBytes(txShares)
 
 			parsedTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
 			if err != nil {
@@ -158,8 +158,8 @@ func Test_parseCompactSharesErrors(t *testing.T) {
 	}
 
 	txs := testfactory.GenerateRandomTxs(2, appconsts.ContinuationCompactShareContentSize*4)
-	shares, _ := SplitTxs(txs)
-	rawShares := ToBytes(shares)
+	txShares, _, _ := SplitTxs(txs)
+	rawShares := ToBytes(txShares)
 
 	unsupportedShareVersion := 5
 	infoByte, _ := NewInfoByte(uint8(unsupportedShareVersion), true)

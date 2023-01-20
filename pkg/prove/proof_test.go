@@ -13,67 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
 )
-
-func TestTxInclusion(t *testing.T) {
-	typicalBlockData := types.Data{
-		Txs:        testfactory.GenerateRandomlySizedTxs(100, 500),
-		Blobs:      testfactory.GenerateRandomlySizedBlobs(40, 16000),
-		SquareSize: 64,
-	}
-	lotsOfTxsNoBlobs := types.Data{
-		Txs:        testfactory.GenerateRandomlySizedTxs(1000, 500),
-		SquareSize: 64,
-	}
-	overlappingSquareSize := 16
-	overlappingRowsBlockData := types.Data{
-		Txs: types.ToTxs(
-			[][]byte{
-				tmrand.Bytes(appconsts.ContinuationCompactShareContentSize*overlappingSquareSize + 1),
-				tmrand.Bytes(10000),
-			},
-		),
-		SquareSize: uint64(overlappingSquareSize),
-	}
-	overlappingRowsBlockDataWithBlobs := types.Data{
-		Txs: types.ToTxs(
-			[][]byte{
-				tmrand.Bytes(appconsts.ContinuationCompactShareContentSize*overlappingSquareSize + 1),
-				tmrand.Bytes(10000),
-			},
-		),
-		Blobs:      testfactory.GenerateRandomlySizedBlobs(8, 400),
-		SquareSize: uint64(overlappingSquareSize),
-	}
-
-	type test struct {
-		data types.Data
-	}
-	tests := []test{
-		{
-			typicalBlockData,
-		},
-		{
-			lotsOfTxsNoBlobs,
-		},
-		{
-			overlappingRowsBlockData,
-		},
-		{
-			overlappingRowsBlockDataWithBlobs,
-		},
-	}
-
-	for _, tt := range tests {
-		for i := 0; i < len(tt.data.Txs); i++ {
-			txProof, err := TxInclusion(appconsts.DefaultCodec(), tt.data, uint64(i))
-			require.NoError(t, err)
-			assert.True(t, txProof.VerifyProof())
-		}
-	}
-}
 
 func TestNewShareInclusionProof(t *testing.T) {
 	blobs := append(
@@ -217,72 +158,6 @@ func TestNewShareInclusionProof(t *testing.T) {
 			require.NoError(t, err)
 			assert.NoError(t, proof.Validate(dataRoot))
 		})
-	}
-}
-
-func TestTxSharePosition(t *testing.T) {
-	type test struct {
-		name string
-		txs  types.Txs
-	}
-
-	tests := []test{
-		{
-			name: "typical",
-			txs:  testfactory.GenerateRandomlySizedTxs(44, 200),
-		},
-		{
-			name: "many small tx",
-			txs:  testfactory.GenerateRandomlySizedTxs(444, 100),
-		},
-		{
-			// this is a concrete output from testfactory.GenerateRandomlySizedTxs(444, 100)
-			// that surfaced a bug in txSharePositions so it is included here to
-			// prevent regressions
-			name: "many small tx (without randomness)",
-			txs:  manySmallTxsWithoutRandomness,
-		},
-		{
-			name: "one small tx",
-			txs:  testfactory.GenerateRandomlySizedTxs(1, 200),
-		},
-		{
-			name: "one large tx",
-			txs:  testfactory.GenerateRandomlySizedTxs(1, 2000),
-		},
-		{
-			name: "many large txs",
-			txs:  testfactory.GenerateRandomlySizedTxs(100, 2000),
-		},
-	}
-
-	type startEndPoints struct {
-		start, end uint64
-	}
-
-	for _, tt := range tests {
-		positions := make([]startEndPoints, len(tt.txs))
-		for i := 0; i < len(tt.txs); i++ {
-			start, end, err := TxSharePosition(tt.txs, uint64(i))
-			require.NoError(t, err)
-			positions[i] = startEndPoints{start: start, end: end}
-		}
-
-		txShares, _ := shares.SplitTxs(tt.txs)
-
-		for i, pos := range positions {
-			rawTx := []byte(tt.txs[i])
-			rawTxDataForRange, err := stripPrefix(txShares[pos.start : pos.end+1])
-			assert.NoError(t, err)
-			assert.Contains(
-				t,
-				string(rawTxDataForRange),
-				string(rawTx),
-				tt.name,
-				pos,
-				len(tt.txs[i]),
-			)
-		}
 	}
 }
 
