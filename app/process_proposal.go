@@ -12,7 +12,10 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/auth/ante"
+	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -79,6 +82,8 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
+	sigVerifyAnteHander := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
+
 	// iterate over all of the MsgPayForBlob transactions and ensure that their
 	// commitments are subtree roots of the data root.
 	for _, rawTx := range req.BlockData.Txs {
@@ -141,6 +146,16 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 				Result: abci.ResponseProcessProposal_REJECT,
 			}
 		}
+
+		sdkCtx := app.NewProcessProposalContext(req.Header)
+
+		_, err = sigVerifyAnteHander(sdkCtx, sdkTx, false)
+		if err != nil {
+			logInvalidPropBlockError(app.Logger(), req.Header, "invalid PFB signature", err)
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
+			}
+		}
 	}
 
 	return abci.ResponseProcessProposal{
@@ -184,4 +199,11 @@ func logInvalidPropBlockError(l log.Logger, h tmproto.Header, reason string, err
 		"err",
 		err.Error(),
 	)
+}
+
+func sigVerifyAnteHandler(accKeeper *authkeeper.AccountKeeper, txConfig client.TxConfig) sdk.AnteHandler {
+	setupd := ante.NewSetUpContextDecorator()
+	setPubKd := ante.NewSetPubKeyDecorator(accKeeper)
+	svd := ante.NewSigVerificationDecorator(accKeeper, txConfig.SignModeHandler())
+	return sdk.ChainAnteDecorators(setupd, setPubKd, svd)
 }
