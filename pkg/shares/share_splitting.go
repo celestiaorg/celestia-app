@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	coretypes "github.com/tendermint/tendermint/types"
+	"golang.org/x/exp/maps"
 )
 
 var (
@@ -124,11 +125,8 @@ func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, txKeyToSh
 	txKeyToShareIndex = make(map[coretypes.TxKey]ShareRange)
 	txShares, txMap := txWriter.Export()
 	pfbShares, pfbMap := pfbTxWriter.Export()
-	for k, v := range pfbMap {
-		txMap[k] = v
-	}
 
-	return txShares, pfbShares, txMap
+	return txShares, pfbShares, mergeMaps(txMap, pfbMap)
 }
 
 func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIndexes bool) ([]Share, error) {
@@ -146,4 +144,11 @@ func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIn
 		}
 	}
 	return writer.Export(), nil
+}
+
+func mergeMaps(mapOne, mapTwo map[coretypes.TxKey]ShareRange) map[coretypes.TxKey]ShareRange {
+	merged := make(map[coretypes.TxKey]ShareRange)
+	maps.Copy(merged, mapOne)
+	maps.Copy(merged, mapTwo)
+	return merged
 }
