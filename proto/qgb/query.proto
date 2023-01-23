@@ -39,6 +39,13 @@ service Query {
       returns (QueryLastUnbondingHeightResponse) {
     option (google.api.http).get = "/qgb/unbonding";
   }
+
+  // DataCommitmentRangeForHeight returns the data commitment window
+  // that includes the provided height
+  rpc DataCommitmentRangeForHeight(QueryDataCommitmentRangeForHeightRequest)
+      returns (QueryDataCommitmentRangeForHeightResponse) {
+    option (google.api.http).get = "/qgb/data_commitment/range/height";
+  }
 }
 
 // QueryParamsRequest
@@ -78,3 +85,12 @@ message QueryLastUnbondingHeightRequest {}
 
 // QueryLastUnbondingHeightResponse
 message QueryLastUnbondingHeightResponse { uint64 height = 1; }
+
+// QueryDataCommitmentRangeForHeightRequest
+message QueryDataCommitmentRangeForHeightRequest { uint64 height = 1; }
+// QueryDataCommitmentRangeForHeightResponse
+message QueryDataCommitmentRangeForHeightResponse {
+  uint64 begin_block = 1;
+  uint64 end_block = 2;
+  uint64 nonce = 3;
+}
