@@ -29,4 +29,8 @@ var (
 	ErrMultipleMsgsInBlobTx           = sdkerrors.Register(ModuleName, 11129, "not yet supported: multiple sdk.Msgs found in BlobTx")
 	ErrMismatchedNumberOfPFBComponent = sdkerrors.Register(ModuleName, 11130, "number of each component in a MsgPayForBlob must be identical")
 	ErrNoBlobs                        = sdkerrors.Register(ModuleName, 11131, "no blobs provided")
+	ErrNoNamespaceIds                 = sdkerrors.Register(ModuleName, 11132, "no namespace IDs provided")
+	ErrNoShareVersions                = sdkerrors.Register(ModuleName, 11133, "no share versions provided")
+	ErrNoBlobSizes                    = sdkerrors.Register(ModuleName, 11134, "no blob sizes provided")
+	ErrNoShareCommitments             = sdkerrors.Register(ModuleName, 11135, "no share commitments provided")
 )

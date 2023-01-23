@@ -147,6 +147,22 @@ func TestValidateBasic(t *testing.T) {
 	emptyShareCommitment := validMsgPayForBlob(t)
 	emptyShareCommitment.ShareCommitments[0] = []byte{}
 
+	// MsgPayForBlob that has no namespace ids
+	noNamespaceIds := validMsgPayForBlob(t)
+	noNamespaceIds.NamespaceIds = [][]byte{}
+
+	// MsgPayForBlob that has no share versions
+	noShareVersions := validMsgPayForBlob(t)
+	noShareVersions.ShareVersions = []uint32{}
+
+	// MsgPayForBlob that has no blob sizes
+	noBlobSizes := validMsgPayForBlob(t)
+	noBlobSizes.BlobSizes = []uint32{}
+
+	// MsgPayForBlob that has no share commitments
+	noShareCommitments := validMsgPayForBlob(t)
+	noShareCommitments.ShareCommitments = [][]byte{}
+
 	tests := []test{
 		{
 			name:    "valid msg",
@@ -187,6 +203,26 @@ func TestValidateBasic(t *testing.T) {
 			name:    "empty share commitment",
 			msg:     emptyShareCommitment,
 			wantErr: ErrEmptyShareCommitment,
+		},
+		{
+			name:    "no namespace ids",
+			msg:     noNamespaceIds,
+			wantErr: ErrNoNamespaceIds,
+		},
+		{
+			name:    "no share versions",
+			msg:     noShareVersions,
+			wantErr: ErrNoShareVersions,
+		},
+		{
+			name:    "no blob sizes",
+			msg:     noBlobSizes,
+			wantErr: ErrNoBlobSizes,
+		},
+		{
+			name:    "no share commitments",
+			msg:     noShareCommitments,
+			wantErr: ErrNoShareCommitments,
 		},
 	}
 
