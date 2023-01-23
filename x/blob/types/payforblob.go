@@ -61,6 +61,22 @@ func (msg *MsgPayForBlob) Type() string {
 // ValidateBasic fulfills the sdk.Msg interface by performing stateless
 // validity checks on the msg that also don't require having the actual blob
 func (msg *MsgPayForBlob) ValidateBasic() error {
+	if len(msg.NamespaceIds) == 0 {
+		return ErrNoNamespaceIds
+	}
+
+	if len(msg.ShareVersions) == 0 {
+		return ErrNoShareVersions
+	}
+
+	if len(msg.BlobSizes) == 0 {
+		return ErrNoBlobSizes
+	}
+
+	if len(msg.ShareCommitments) == 0 {
+		return ErrNoShareCommitments
+	}
+
 	if len(msg.NamespaceIds) != len(msg.ShareVersions) || len(msg.NamespaceIds) != len(msg.BlobSizes) || len(msg.NamespaceIds) != len(msg.ShareCommitments) {
 		return ErrMismatchedNumberOfPFBComponent.Wrapf(
 			"namespaces %d blob sizes %d versions %d share commitments %d",
