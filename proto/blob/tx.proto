@@ -19,9 +19,8 @@ message MsgPayForBlob {
   string signer = 1;
   repeated bytes namespace_ids = 2;
   repeated uint32 blob_sizes = 3;
-  // share_commitment is a commitment to the blob shares associated with this
-  // MsgPayForBlob.
-  bytes share_commitment = 4;
+  // share_commitments is a list of share commitments (one per blob).
+  repeated bytes share_commitments = 4;
   // share_versions are the versions of the share format that the blobs
   // associated with this message should use when included in a block. The
   // share_versions specified must match the share_versions used to generate the
