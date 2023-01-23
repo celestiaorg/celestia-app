@@ -122,7 +122,6 @@ func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, txKeyToSh
 		}
 	}
 
-	txKeyToShareIndex = make(map[coretypes.TxKey]ShareRange)
 	txShares, txMap := txWriter.Export()
 	pfbShares, pfbMap := pfbTxWriter.Export()
 
