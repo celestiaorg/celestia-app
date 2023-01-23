@@ -17,6 +17,73 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
+func TestNewTxInclusionProof(t *testing.T) {
+	blockData := types.Data{
+		Txs:        testfactory.GenerateRandomTxs(50, 500),
+		Blobs:      []types.Blob{},
+		SquareSize: appconsts.DefaultMaxSquareSize,
+	}
+
+	rawShares, err := shares.Split(blockData, true)
+	assert.NoError(t, err)
+	eds, err := da.ExtendShares(blockData.SquareSize, shares.ToBytes(rawShares))
+	assert.NoError(t, err)
+
+	// create the new data root by creating the data availability header (merkle
+	// roots of each row and col of the erasure data).
+	dah := da.NewDataAvailabilityHeader(eds)
+	dataRoot := dah.Hash()
+
+	type test struct {
+		name      string
+		data      types.Data
+		txIndex   uint64
+		expectErr bool
+	}
+	tests := []test{
+		{
+			name:      "empty data returns error",
+			data:      types.Data{},
+			txIndex:   0,
+			expectErr: true,
+		},
+		{
+			name:      "txIndex 0 of block data",
+			data:      blockData,
+			txIndex:   0,
+			expectErr: false,
+		},
+		{
+			name:      "txIndex 49 of block data",
+			data:      blockData,
+			txIndex:   49,
+			expectErr: false,
+		},
+		{
+			name:      "txIndex 50 of block data returns error because only 50 txs",
+			data:      blockData,
+			txIndex:   50,
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			proof, err := NewTxInclusionProof(
+				appconsts.DefaultCodec(),
+				tt.data,
+				tt.txIndex,
+			)
+			if tt.expectErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.NoError(t, proof.Validate(dataRoot))
+		})
+	}
+}
+
 func TestNewShareInclusionProof(t *testing.T) {
 	blobs := append(
 		testfactory.GenerateBlobsWithNamespace(
