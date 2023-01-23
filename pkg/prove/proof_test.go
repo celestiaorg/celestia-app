@@ -1,6 +1,7 @@
 package prove
 
 import (
+	"bytes"
 	"sort"
 	"testing"
 
@@ -159,4 +160,98 @@ func TestNewShareInclusionProof(t *testing.T) {
 			assert.NoError(t, proof.Validate(dataRoot))
 		})
 	}
+}
+
+func TestTxSharePosition(t *testing.T) {
+	type test struct {
+		name      string
+		data      types.Data
+		txIndex   uint64
+		wantStart uint64
+		wantEnd   uint64
+		wantErr   bool
+	}
+
+	txOne := types.Tx{0x1}
+	txTwo := types.Tx(bytes.Repeat([]byte{2}, 600))
+	txThree := types.Tx(bytes.Repeat([]byte{3}, 1000))
+
+	testCases := []test{
+		{
+			name: "expect err when txIndex is greater than the number of txs",
+			data: types.Data{
+				Txs:        []types.Tx{txOne},
+				Blobs:      []types.Blob{},
+				SquareSize: appconsts.DefaultMinSquareSize,
+			},
+			txIndex:   2,
+			wantStart: 0,
+			wantEnd:   0,
+		},
+		{
+			name: "txOne occupies shares 0 to 0",
+			data: types.Data{
+				Txs:        []types.Tx{txOne},
+				Blobs:      []types.Blob{},
+				SquareSize: appconsts.DefaultMinSquareSize,
+			},
+			txIndex:   0,
+			wantStart: 0,
+			wantEnd:   0,
+		},
+		{
+			name: "txTwo occupies shares 0 to 1",
+			data: types.Data{
+				Txs:        []types.Tx{txTwo},
+				Blobs:      []types.Blob{},
+				SquareSize: appconsts.DefaultMaxSquareSize,
+			},
+			txIndex:   0,
+			wantStart: 0,
+			wantEnd:   1,
+		},
+		{
+			name: "txThree occupies shares 0 to 2",
+			data: types.Data{
+				Txs:        []types.Tx{txThree},
+				Blobs:      []types.Blob{},
+				SquareSize: appconsts.DefaultMaxSquareSize,
+			},
+			txIndex:   0,
+			wantStart: 0,
+			wantEnd:   2,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			start, end, err := TxSharePosition(tc.data, tc.txIndex)
+			if tc.wantErr {
+				assert.Error(t, err)
+			}
+			assert.Equal(t, tc.wantStart, start)
+			assert.Equal(t, tc.wantEnd, end)
+		})
+	}
+}
+
+// stripCompactShares strips the universal prefix (namespace, info byte, sequence length) and
+// reserved bytes from a list of compact shares and joins them into a single byte
+// slice.
+func stripCompactShares(compactShares []shares.Share) (result []byte, err error) {
+	for _, compactShare := range compactShares {
+		rawData, err := compactShare.RawData()
+		if err != nil {
+			return []byte{}, err
+		}
+		result = append(result, rawData...)
+	}
+	return result, nil
+}
+
+// subtractDelimLen subtracts the delimiter size from numBytesDelimited. This is
+// useful for determining the size of a tx prior to it being prepended with a
+// delimiter.
+func subtractDelimLen(numBytesDelimited int) (numBytesUndelimited int) {
+	return numBytesDelimited - shares.DelimLen(uint64(numBytesDelimited))
 }
