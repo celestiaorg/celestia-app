@@ -97,29 +97,15 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 	return shareIndexes
 }
 
-type ShareRange struct {
-	StartShare int
-	EndShare   int
-}
-
 func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, txKeyToShareIndex map[coretypes.TxKey]ShareRange) {
 	txWriter := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
 	pfbTxWriter := NewCompactShareSplitter(appconsts.PayForBlobNamespaceID, appconsts.ShareVersionZero)
-	txKeyToShareIndex = make(map[coretypes.TxKey]ShareRange)
 
 	for _, tx := range txs {
 		if _, isIndexWrapper := coretypes.UnmarshalIndexWrapper(tx); isIndexWrapper {
-			startShare, endShare := pfbTxWriter.WriteTx(tx)
-			txKeyToShareIndex[tx.Key()] = ShareRange{
-				StartShare: startShare,
-				EndShare:   endShare,
-			}
+			pfbTxWriter.WriteTx(tx)
 		} else {
-			startShare, endShare := txWriter.WriteTx(tx)
-			txKeyToShareIndex[tx.Key()] = ShareRange{
-				StartShare: startShare,
-				EndShare:   endShare,
-			}
+			txWriter.WriteTx(tx)
 		}
 	}
 
@@ -135,7 +121,14 @@ func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, txKeyToSh
 		}
 	}
 
-	return txWriter.Export(), pfbTxWriter.Export(), txKeyToShareIndex
+	txKeyToShareIndex = make(map[coretypes.TxKey]ShareRange)
+	txShares, txMap := txWriter.Export()
+	pfbShares, pfbMap := pfbTxWriter.Export()
+	for k, v := range pfbMap {
+		txMap[k] = v
+	}
+
+	return txShares, pfbShares, txMap
 }
 
 func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIndexes bool) ([]Share, error) {

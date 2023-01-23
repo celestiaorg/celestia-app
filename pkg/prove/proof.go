@@ -53,7 +53,7 @@ func getTxNamespace(tx types.Tx) (ns namespace.ID, err error) {
 // include a given txIndex. Returns an error if index is greater than the length
 // of txs.
 func TxSharePosition(data types.Data, txIndex uint64) (startShare uint64, endShare uint64, err error) {
-	if txIndex >= uint64(len(data.Txs)) {
+	if int(txIndex) >= len(data.Txs) {
 		return 0, 0, errors.New("transaction index is greater than the number of txs")
 	}
 

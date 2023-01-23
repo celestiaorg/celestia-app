@@ -9,14 +9,20 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
+type ShareRange struct {
+	StartShare int
+	EndShare   int
+}
+
 // CompactShareSplitter will write raw data compactly across a progressively
 // increasing set of shares. It is used to lazily split block data such as
 // transactions or intermediate state roots into shares.
 type CompactShareSplitter struct {
-	shares       []Share
-	pendingShare Share
-	namespace    namespace.ID
-	shareVersion uint8
+	shares            []Share
+	pendingShare      Share
+	namespace         namespace.ID
+	shareVersion      uint8
+	txKeyToShareIndex map[coretypes.TxKey]ShareRange
 }
 
 // NewCompactShareSplitter returns a CompactShareSplitter using the provided
@@ -35,32 +41,32 @@ func NewCompactShareSplitter(ns namespace.ID, shareVersion uint8) *CompactShareS
 	pendingShare = append(pendingShare, placeholderSequenceLen...)
 	pendingShare = append(pendingShare, placeholderReservedBytes...)
 	return &CompactShareSplitter{
-		shares:       []Share{},
-		pendingShare: pendingShare,
-		namespace:    ns,
-		shareVersion: shareVersion,
+		shares:            []Share{},
+		pendingShare:      pendingShare,
+		namespace:         ns,
+		shareVersion:      shareVersion,
+		txKeyToShareIndex: map[coretypes.TxKey]ShareRange{},
 	}
 }
 
 // WriteTx adds the delimited data for the provided tx to the underlying compact
 // share splitter. It returns the start and end shares for the raw data written.
-func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) (startShare int, endShare int) {
+func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
 	rawData, err := MarshalDelimitedTx(tx)
 	if err != nil {
 		panic(fmt.Sprintf("included Tx in mem-pool that can not be encoded %v", tx))
 	}
 
-	startShare = len(css.shares)
-	css.WriteBytes(rawData)
-	// TODO @rootulp: this doesn't behave as expected because the call to stackPending().
-	endShare = len(css.shares)
-
-	return startShare, endShare
+	startShare, endShare := css.write(rawData)
+	css.txKeyToShareIndex[tx.Key()] = ShareRange{
+		StartShare: startShare,
+		EndShare:   endShare,
+	}
 }
 
-// WriteBytes adds the delimited data to the underlying compact shares. It
+// write adds the delimited data to the underlying compact shares. It
 // returns the start and end shares for the raw data written.
-func (css *CompactShareSplitter) WriteBytes(rawData []byte) {
+func (css *CompactShareSplitter) write(rawData []byte) (startShare int, endShare int) {
 	css.maybeWriteReservedBytesToPendingShare()
 
 	txCursor := len(rawData)
@@ -90,6 +96,8 @@ func (css *CompactShareSplitter) WriteBytes(rawData []byte) {
 	if len(css.pendingShare) == appconsts.ShareSize {
 		css.stackPending()
 	}
+	// TODO refactor compact share splitter to make this easier
+	return 0, 0
 }
 
 // stackPending will add the pending share to accumlated shares provided that it is long enough
@@ -111,9 +119,9 @@ func (css *CompactShareSplitter) stackPending() {
 }
 
 // Export finalizes and returns the underlying compact shares.
-func (css *CompactShareSplitter) Export() []Share {
+func (css *CompactShareSplitter) Export() (shares []Share, txKeyToShareIndex map[coretypes.TxKey]ShareRange) {
 	if css.isEmpty() {
-		return []Share{}
+		return []Share{}, css.txKeyToShareIndex
 	}
 
 	var bytesOfPadding int
@@ -125,7 +133,7 @@ func (css *CompactShareSplitter) Export() []Share {
 
 	sequenceLen := css.sequenceLen(bytesOfPadding)
 	css.writeSequenceLen(sequenceLen)
-	return css.shares
+	return css.shares, css.txKeyToShareIndex
 }
 
 // writeSequenceLen writes the sequence length to the first share.

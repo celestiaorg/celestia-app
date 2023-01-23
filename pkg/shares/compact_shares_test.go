@@ -20,9 +20,9 @@ func TestCompactShareWriter(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(33, 200)
 	for _, tx := range txs {
 		rawTx, _ := MarshalDelimitedTx(tx)
-		w.WriteBytes(rawTx)
+		w.write(rawTx)
 	}
-	shares := w.Export()
+	shares, _ := w.Export()
 	rawShares := ToBytes(shares)
 	rawResTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
 	resTxs := coretypes.ToTxs(rawResTxs)
@@ -119,7 +119,7 @@ func TestCompactShareContainsInfoByte(t *testing.T) {
 		css.WriteTx(tx)
 	}
 
-	shares := css.Export()
+	shares, _ := css.Export()
 	assert.Condition(t, func() bool { return len(shares) == 1 })
 
 	infoByte := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
@@ -139,7 +139,7 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 		css.WriteTx(tx)
 	}
 
-	shares := css.Export()
+	shares, _ := css.Export()
 	assert.Condition(t, func() bool { return len(shares) > 1 })
 
 	infoByte := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
