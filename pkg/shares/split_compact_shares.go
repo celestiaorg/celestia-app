@@ -57,7 +57,16 @@ func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
 		panic(fmt.Sprintf("included Tx in mem-pool that can not be encoded %v", tx))
 	}
 
-	startShare, endShare := css.write(rawData)
+	startShare := len(css.shares)
+	css.write(rawData)
+
+	var endShare int
+	if css.isEmptyPendingShare() {
+		endShare = len(css.shares) - 1
+	} else {
+		endShare = len(css.shares)
+	}
+
 	css.txKeyToShareIndex[tx.Key()] = ShareRange{
 		StartShare: startShare,
 		EndShare:   endShare,
@@ -66,7 +75,7 @@ func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
 
 // write adds the delimited data to the underlying compact shares. It
 // returns the start and end shares for the raw data written.
-func (css *CompactShareSplitter) write(rawData []byte) (startShare int, endShare int) {
+func (css *CompactShareSplitter) write(rawData []byte) {
 	css.maybeWriteReservedBytesToPendingShare()
 
 	txCursor := len(rawData)
@@ -96,8 +105,6 @@ func (css *CompactShareSplitter) write(rawData []byte) (startShare int, endShare
 	if len(css.pendingShare) == appconsts.ShareSize {
 		css.stackPending()
 	}
-	// TODO refactor compact share splitter to make this easier
-	return 0, 0
 }
 
 // stackPending will add the pending share to accumlated shares provided that it is long enough
