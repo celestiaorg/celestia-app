@@ -50,7 +50,7 @@ func NewCompactShareSplitter(ns namespace.ID, shareVersion uint8) *CompactShareS
 }
 
 // WriteTx adds the delimited data for the provided tx to the underlying compact
-// share splitter. It returns the start and end shares for the raw data written.
+// share splitter.
 func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
 	rawData, err := MarshalDelimitedTx(tx)
 	if err != nil {
@@ -73,8 +73,7 @@ func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
 	}
 }
 
-// write adds the delimited data to the underlying compact shares. It
-// returns the start and end shares for the raw data written.
+// write adds the delimited data to the underlying compact shares.
 func (css *CompactShareSplitter) write(rawData []byte) {
 	css.maybeWriteReservedBytesToPendingShare()
 
