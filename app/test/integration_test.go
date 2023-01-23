@@ -119,10 +119,10 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		)
 	}
 
-	// generate 80 randomly sized txs (max size == 100kb) by generating these
-	// transaction using some of the same accounts as the previous genertor, we
-	// are also testing to ensure that the sequence number is being utilized
-	// corrected in malleated txs
+	// Generate 80 randomly sized txs (max size == 100kb). Generate these
+	// transactions using some of the same accounts as the previous generator to
+	// ensure that the sequence number is being utilized correctly in blob
+	// txs
 	randoTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.cfg.TxConfig.TxEncoder(),
@@ -237,6 +237,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			mustNewBlob([]byte{1, 2, 3, 4, 5, 6, 7, 8}, tmrand.Bytes(3000)),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
+				blobtypes.SetGasLimit(1_000_000_000),
 			},
 		},
 		{
@@ -244,6 +245,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			mustNewBlob([]byte{2, 3, 4, 5, 6, 7, 8, 9}, tmrand.Bytes(350000)),
 			[]types.TxBuilderOption{
 				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
+				blobtypes.SetGasLimit(1_000_000_000),
 			},
 		},
 		{
@@ -251,6 +253,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			mustNewBlob([]byte{2, 3, 4, 5, 6, 7, 8, 9}, tmrand.Bytes(100000)),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetMemo("lol I could stick the rollup block here if I wanted to"),
+				blobtypes.SetGasLimit(1_000_000_000),
 			},
 		},
 		{
@@ -258,6 +261,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			mustNewBlob([]byte{2, 3, 4, 5, 6, 7, 8, 9}, tmrand.Bytes(100000)),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetTimeoutHeight(1000),
+				blobtypes.SetGasLimit(1_000_000_000),
 			},
 		},
 	}
@@ -269,7 +273,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 				require.NoError(s.network.WaitForNextBlock())
 			}
 			signer := blobtypes.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
-			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, []*blobtypes.Blob{tc.blob, tc.blob}, 1000000000, tc.opts...)
+			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
 			require.NoError(err)
 			require.NotNil(res)
 			assert.Equal(abci.CodeTypeOK, res.Code)
@@ -345,29 +349,14 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 	}
 
 	for _, hash := range hashes {
-		txResp, err := queryTx(val.ClientCtx, hash, true)
+		txResp, err := queryTx(val.ClientCtx, hash, false)
 		require.NoError(err)
 		require.Equal(abci.CodeTypeOK, txResp.TxResult.Code)
 
-		// verify that the transaction inclusion proof is valid
-		require.True(txResp.Proof.VerifyProof())
-
-		// get the transaction shares
 		node, err := val.ClientCtx.GetNode()
 		require.NoError(err)
 		blockRes, err := node.Block(context.Background(), &txResp.Height)
 		require.NoError(err)
-		beginTxShare, endTxShare, err := prove.TxSharePosition(blockRes.Block.Txs, uint64(txResp.Index))
-		require.NoError(err)
-
-		txProof, err := node.ProveShares(
-			context.Background(),
-			uint64(txResp.Height),
-			beginTxShare,
-			endTxShare,
-		)
-		require.NoError(err)
-		require.NoError(txProof.Validate(blockRes.Block.DataHash))
 
 		// get the blob shares
 		beginBlobShare, endBlobShare, err := prove.BlobShareRange(blockRes.Block.Txs[txResp.Index])

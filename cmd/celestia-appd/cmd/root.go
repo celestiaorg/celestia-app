@@ -33,7 +33,6 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
-	tmcmds "github.com/tendermint/tendermint/cmd/tendermint/commands"
 	tmcfg "github.com/tendermint/tendermint/config"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/libs/log"
@@ -148,23 +147,18 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		genutilcli.GenTxCmd(app.ModuleBasics, encodingConfig.TxConfig, banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
 		genutilcli.ValidateGenesisCmd(app.ModuleBasics),
 		tmcli.NewCompletionCmd(rootCmd, true),
-		tmcmds.RollbackStateCmd,
 		debugCmd,
 		config.Cmd(),
 	)
 
 	server.AddCommands(rootCmd, app.DefaultNodeHome, NewAppServer, createAppAndExport, addModuleInitFlags)
 
-	// set the default keyring backend to `file`
-	keybase := keys.Commands(app.DefaultNodeHome)
-	keybase.Flag(flags.FlagKeyringBackend).DefValue = "file"
-
-	// add keybase, auxiliary RPC, query, and tx child commands
+	// add status, query, tx, and keys subcommands
 	rootCmd.AddCommand(
 		rpc.StatusCommand(),
 		queryCommand(),
 		txCommand(),
-		keybase,
+		keys.Commands(app.DefaultNodeHome),
 	)
 }
 
