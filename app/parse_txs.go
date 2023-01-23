@@ -20,6 +20,14 @@ type parsedTx struct {
 	shareIndexes []uint32
 }
 
+func (p parsedTx) isNormalTx() bool {
+	return len(p.normalTx) != 0
+}
+
+func (p parsedTx) isBlobTx() bool {
+	return !p.isNormalTx()
+}
+
 // parseTxs decodes raw tendermint txs along with checking for and processing
 // blob transactions.
 func parseTxs(txcfg client.TxConfig, rawTxs [][]byte) []parsedTx {

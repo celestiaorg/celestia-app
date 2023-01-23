@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"fmt"
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -9,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -39,6 +41,15 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		logInvalidPropBlock(app.Logger(), req.Header, "blobs are unsorted")
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
+		}
+	}
+
+	for _, blob := range data.Blobs {
+		if !isValidBlobNamespace(blob.NamespaceID) {
+			logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("invalid blob namespace %v", blob.NamespaceID))
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
+			}
 		}
 	}
 
@@ -144,6 +155,13 @@ func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlob, bool) {
 		}
 	}
 	return nil, false
+}
+
+func isValidBlobNamespace(namespace namespace.ID) bool {
+	isReserved := bytes.Compare(namespace, appconsts.MaxReservedNamespace) <= 0
+	isParity := bytes.Equal(namespace, appconsts.ParitySharesNamespaceID)
+	isTailPadding := bytes.Equal(namespace, appconsts.TailPaddingNamespaceID)
+	return !isReserved && !isParity && !isTailPadding
 }
 
 func logInvalidPropBlock(l log.Logger, h tmproto.Header, reason string) {

@@ -247,7 +247,7 @@ func New(
 	cdc := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 
-	bApp := baseapp.NewBaseApp(Name, logger, db, encoding.WrappedTxDecoder(encodingConfig.TxConfig.TxDecoder()), baseAppOptions...)
+	bApp := baseapp.NewBaseApp(Name, logger, db, encoding.IndexWrapperDecoder(encodingConfig.TxConfig.TxDecoder()), baseAppOptions...)
 	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)

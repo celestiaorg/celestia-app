@@ -126,7 +126,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 			// wait for the tx to be indexed
 			s.Require().NoError(s.network.WaitForNextBlock())
 
-			// attempt to query for the malleated transaction using the original tx's hash
+			// attempt to query for the transaction using the tx's hash
 			res, err := testfactory.QueryWithoutProof(clientCtx, txResp.TxHash)
 			require.NoError(err)
 			require.Equal(abci.CodeTypeOK, res.TxResult.Code)
