@@ -107,7 +107,7 @@ func TestValidateBlobTx(t *testing.T) {
 					})
 				require.NoError(t, err)
 
-				msg.ShareCommitment = badCommit
+				msg.ShareCommitments[0] = badCommit
 
 				builder := signer.NewTxBuilder()
 				stx, err := signer.BuildSignedTx(builder, msg)

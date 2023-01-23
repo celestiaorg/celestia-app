@@ -34,17 +34,17 @@ func NewMsgPayForBlob(signer string, blobs ...*Blob) (*MsgPayForBlob, error) {
 		return nil, err
 	}
 
-	commitment, err := CreateMultiShareCommitment(blobs...)
+	commitments, err := CreateCommitments(blobs)
 	if err != nil {
 		return nil, err
 	}
 
 	msg := &MsgPayForBlob{
-		Signer:          signer,
-		NamespaceIds:    nsIDs,
-		ShareCommitment: commitment,
-		BlobSizes:       sizes,
-		ShareVersions:   versions,
+		Signer:           signer,
+		NamespaceIds:     nsIDs,
+		ShareCommitments: commitments,
+		BlobSizes:        sizes,
+		ShareVersions:    versions,
 	}
 
 	return msg, msg.ValidateBasic()
@@ -61,10 +61,10 @@ func (msg *MsgPayForBlob) Type() string {
 // ValidateBasic fulfills the sdk.Msg interface by performing stateless
 // validity checks on the msg that also don't require having the actual blob
 func (msg *MsgPayForBlob) ValidateBasic() error {
-	if len(msg.NamespaceIds) != len(msg.ShareVersions) || len(msg.NamespaceIds) != len(msg.BlobSizes) {
+	if len(msg.NamespaceIds) != len(msg.ShareVersions) || len(msg.NamespaceIds) != len(msg.BlobSizes) || len(msg.NamespaceIds) != len(msg.ShareCommitments) {
 		return ErrMismatchedNumberOfPFBComponent.Wrapf(
-			"namespaces %d blob sizes %d versions %d",
-			len(msg.NamespaceIds), len(msg.BlobSizes), len(msg.ShareVersions),
+			"namespaces %d blob sizes %d versions %d share commitments %d",
+			len(msg.NamespaceIds), len(msg.BlobSizes), len(msg.ShareVersions), len(msg.ShareCommitments),
 		)
 	}
 
@@ -86,8 +86,10 @@ func (msg *MsgPayForBlob) ValidateBasic() error {
 		return err
 	}
 
-	if len(msg.ShareCommitment) == 0 {
-		return ErrEmptyShareCommitment
+	for _, commitment := range msg.ShareCommitments {
+		if len(commitment) == 0 {
+			return ErrEmptyShareCommitment
+		}
 	}
 
 	return nil
@@ -164,20 +166,16 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 	return merkle.HashFromByteSlices(subTreeRoots), nil
 }
 
-// CreateMultiShareCommitment generates a commitment over multiple blobs at
-// arbitrary points in the square. It uses the normal commitment creation
-// function per blob, and then creates a merkle root of those commitments.
-func CreateMultiShareCommitment(blobs ...*Blob) ([]byte, error) {
+func CreateCommitments(blobs []*Blob) ([][]byte, error) {
 	commitments := make([][]byte, len(blobs))
 	for i, blob := range blobs {
-		c, err := CreateCommitment(blob)
+		commitment, err := CreateCommitment(blob)
 		if err != nil {
 			return nil, err
 		}
-		commitments[i] = c
+		commitments[i] = commitment
 	}
-
-	return merkle.HashFromByteSlices(commitments), nil
+	return commitments, nil
 }
 
 // ValidatePFBComponents performs basic checks over the components of one or more PFBs.
