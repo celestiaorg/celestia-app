@@ -3,26 +3,26 @@ package client
 import (
 	"fmt"
 
+	"github.com/cosmos/cosmos-sdk/client/flags"
+
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"
 )
 
 const (
-	celestiaChainIDFlag = "celes-chain-id"
 	evmChainIDFlag      = "evm-chain-id"
 	celesGRPCFlag       = "celes-grpc"
-	tendermintRPCFlag   = "celes-http-rpc"
 	evmRPCFlag          = "evm-rpc"
 	contractAddressFlag = "contract-address"
 )
 
 func addVerifyFlags(cmd *cobra.Command) *cobra.Command {
-	cmd.Flags().StringP(celestiaChainIDFlag, "x", "user", "Specify the celestia chain id")
-	cmd.Flags().Uint64P(evmChainIDFlag, "z", 5, "Specify the evm chain id")
-	cmd.Flags().StringP(tendermintRPCFlag, "t", "http://localhost:26657", "Specify the rest rpc address")
-	cmd.Flags().StringP(evmRPCFlag, "e", "http://localhost:8545", "Specify the EVM rpc address")
-	cmd.Flags().StringP(contractAddressFlag, "a", "", "Specify the contract address at which the qgb is deployed")
-	cmd.Flags().StringP(celesGRPCFlag, "c", "localhost:9090", "Specify the grpc address")
+	cmd.Flags().StringP(flags.FlagChainID, "x", "mocha", "The network chain ID")
+	cmd.Flags().Uint64P(evmChainIDFlag, "z", 5, "The EVM chain ID")
+	cmd.Flags().StringP(flags.FlagNode, "t", "http://localhost:26657", "<host>:<port> to Tendermint RPC interface for this chain")
+	cmd.Flags().StringP(evmRPCFlag, "e", "http://localhost:8545", "The EVM RPC address")
+	cmd.Flags().StringP(contractAddressFlag, "a", "", "The contract address at which the QGB is deployed")
+	cmd.Flags().StringP(celesGRPCFlag, "c", "localhost:9090", "<host>:<port> To Celestia GRPC address")
 
 	return cmd
 }
@@ -35,7 +35,7 @@ type VerifyConfig struct {
 }
 
 func parseVerifyFlags(cmd *cobra.Command) (VerifyConfig, error) {
-	chainID, err := cmd.Flags().GetString(celestiaChainIDFlag)
+	chainID, err := cmd.Flags().GetString(flags.FlagChainID)
 	if err != nil {
 		return VerifyConfig{}, err
 	}
@@ -43,7 +43,7 @@ func parseVerifyFlags(cmd *cobra.Command) (VerifyConfig, error) {
 	if err != nil {
 		return VerifyConfig{}, err
 	}
-	tendermintRPC, err := cmd.Flags().GetString(tendermintRPCFlag)
+	tendermintRPC, err := cmd.Flags().GetString(flags.FlagNode)
 	if err != nil {
 		return VerifyConfig{}, err
 	}
