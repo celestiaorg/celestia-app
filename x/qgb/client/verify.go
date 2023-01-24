@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/tendermint/tendermint/crypto/merkle"
 
-	"github.com/celestiaorg/celestia-app/pkg/prove"
+	"github.com/celestiaorg/celestia-app/pkg/proof"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -79,7 +79,7 @@ func txCmd() *cobra.Command {
 				return err
 			}
 
-			beginTxShare, endTxShare, err := prove.TxSharePosition(blockRes.Block.Txs, uint64(tx.Index))
+			beginTxShare, endTxShare, err := proof.TxSharePosition(blockRes.Block.Txs, uint64(tx.Index))
 			if err != nil {
 				return err
 			}
@@ -136,7 +136,7 @@ func blobCmd() *cobra.Command {
 				return err
 			}
 
-			beginBlobShare, endBlobShare, err := prove.BlobShareRange(blockRes.Block.Txs[tx.Index])
+			beginBlobShare, endBlobShare, err := proof.BlobShareRange(blockRes.Block.Txs[tx.Index])
 			if err != nil {
 				return err
 			}
