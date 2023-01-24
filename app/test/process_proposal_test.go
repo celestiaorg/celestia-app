@@ -42,6 +42,10 @@ func TestProcessProposal(t *testing.T) {
 	undecodableData := validData()
 	undecodableData.Txs = append(unindexedData.Txs, tmrand.Bytes(300))
 
+	mixedData := validData()
+	normalTxs := blobfactory.GenerateManyRawSendTxs(encConf.TxConfig, 4)
+	mixedData.Txs = append(mixedData.Txs, coretypes.Txs(normalTxs).ToSliceOfBytes()...)
+
 	type test struct {
 		name           string
 		input          *core.Data
@@ -122,20 +126,31 @@ func TestProcessProposal(t *testing.T) {
 			mutator:        func(d *core.Data) {},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
+		{
+			name:  "incorrectly sorted wrapped pfb's",
+			input: mixedData,
+			mutator: func(d *core.Data) {
+				// swap txs at index 3 and 4 (essentially swapping a PFB with a normal tx)
+				d.Txs[4], d.Txs[3] = d.Txs[3], d.Txs[4]
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
 	}
 
 	for _, tt := range tests {
-		resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-			BlockData: tt.input,
+		t.Run(tt.name, func(t *testing.T) {
+			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
+				BlockData: tt.input,
+			})
+			tt.mutator(resp.BlockData)
+			res := testApp.ProcessProposal(abci.RequestProcessProposal{
+				BlockData: resp.BlockData,
+				Header: core.Header{
+					DataHash: resp.BlockData.Hash,
+				},
+			})
+			assert.Equal(t, tt.expectedResult, res.Result, tt.name)
 		})
-		tt.mutator(resp.BlockData)
-		res := testApp.ProcessProposal(abci.RequestProcessProposal{
-			BlockData: resp.BlockData,
-			Header: core.Header{
-				DataHash: resp.BlockData.Hash,
-			},
-		})
-		assert.Equal(t, tt.expectedResult, res.Result, tt.name)
 	}
 }
 

@@ -53,6 +53,13 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
+	if !arePFBsOrderedAfterTxs(req.BlockData.Txs) {
+		logInvalidPropBlock(app.Logger(), req.Header, "PFBs are not all ordered at the end of the list of transactions")
+		return abci.ResponseProcessProposal{
+			Result: abci.ResponseProcessProposal_REJECT,
+		}
+	}
+
 	dataSquare, err := shares.Split(data, true)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute shares from block data:", err)
@@ -156,6 +163,19 @@ func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlob, bool) {
 		}
 	}
 	return nil, false
+}
+
+func arePFBsOrderedAfterTxs(txs [][]byte) bool {
+	seenFirstPFB := false
+	for _, tx := range txs {
+		_, isWrapped := coretypes.UnmarshalIndexWrapper(tx)
+		if isWrapped {
+			seenFirstPFB = true
+		} else if seenFirstPFB {
+			return false
+		}
+	}
+	return true
 }
 
 func isValidBlobNamespace(namespace namespace.ID) bool {

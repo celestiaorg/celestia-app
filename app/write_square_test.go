@@ -1,15 +1,12 @@
 package app
 
 import (
-	"bytes"
-	"sort"
+	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmlog "github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -22,14 +19,14 @@ func Test_finalizeLayout(t *testing.T) {
 	type test struct {
 		squareSize      uint64
 		nonreserveStart int
-		ptxs            []parsedTx
+		blobTxs         []tmproto.BlobTx
 		expectedIndexes [][]uint32
 	}
 	tests := []test{
 		{
 			squareSize:      4,
 			nonreserveStart: 10,
-			ptxs: generateParsedTxsWithNIDs(
+			blobTxs: generateBlobTxsWithNIDs(
 				t,
 				[][]byte{ns1},
 				[][]int{{1}},
@@ -39,7 +36,7 @@ func Test_finalizeLayout(t *testing.T) {
 		{
 			squareSize:      4,
 			nonreserveStart: 10,
-			ptxs: generateParsedTxsWithNIDs(
+			blobTxs: generateBlobTxsWithNIDs(
 				t,
 				[][]byte{ns1, ns1},
 				blobfactory.Repeat([]int{100}, 2),
@@ -49,7 +46,7 @@ func Test_finalizeLayout(t *testing.T) {
 		{
 			squareSize:      4,
 			nonreserveStart: 10,
-			ptxs: generateParsedTxsWithNIDs(
+			blobTxs: generateBlobTxsWithNIDs(
 				t,
 				[][]byte{ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1},
 				blobfactory.Repeat([]int{100}, 10),
@@ -59,7 +56,7 @@ func Test_finalizeLayout(t *testing.T) {
 		{
 			squareSize:      4,
 			nonreserveStart: 7,
-			ptxs: generateParsedTxsWithNIDs(
+			blobTxs: generateBlobTxsWithNIDs(
 				t,
 				[][]byte{ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1},
 				blobfactory.Repeat([]int{100}, 9),
@@ -69,7 +66,7 @@ func Test_finalizeLayout(t *testing.T) {
 		{
 			squareSize:      4,
 			nonreserveStart: 3,
-			ptxs: generateParsedTxsWithNIDs(
+			blobTxs: generateBlobTxsWithNIDs(
 				t,
 				[][]byte{ns1, ns1, ns1},
 				[][]int{{10000}, {10000}, {1000000}},
@@ -79,7 +76,7 @@ func Test_finalizeLayout(t *testing.T) {
 		{
 			squareSize:      64,
 			nonreserveStart: 32,
-			ptxs: generateParsedTxsWithNIDs(
+			blobTxs: generateBlobTxsWithNIDs(
 				t,
 				[][]byte{ns1, ns1, ns1},
 				[][]int{{1000}, {10000}, {100000}},
@@ -102,7 +99,7 @@ func Test_finalizeLayout(t *testing.T) {
 		{
 			squareSize:      32,
 			nonreserveStart: 32,
-			ptxs: generateParsedTxsWithNIDs(
+			blobTxs: generateBlobTxsWithNIDs(
 				t,
 				[][]byte{ns2, ns1, ns1},
 				[][]int{{100}, {100}, {100}},
@@ -112,7 +109,7 @@ func Test_finalizeLayout(t *testing.T) {
 		{
 			squareSize:      32,
 			nonreserveStart: 32,
-			ptxs: generateParsedTxsWithNIDs(
+			blobTxs: generateBlobTxsWithNIDs(
 				t,
 				[][]byte{ns1, ns2, ns1},
 				[][]int{{100}, {1000}, {1000}},
@@ -122,7 +119,7 @@ func Test_finalizeLayout(t *testing.T) {
 		{
 			squareSize:      32,
 			nonreserveStart: 32,
-			ptxs: generateParsedTxsWithNIDs(
+			blobTxs: generateBlobTxsWithNIDs(
 				t,
 				[][]byte{ns1, ns2, ns1},
 				[][]int{{100}, {1000}, {1000}},
@@ -132,7 +129,7 @@ func Test_finalizeLayout(t *testing.T) {
 		{
 			squareSize:      4,
 			nonreserveStart: 2,
-			ptxs: generateParsedTxsWithNIDs(
+			blobTxs: generateBlobTxsWithNIDs(
 				t,
 				[][]byte{ns1, ns3, ns2},
 				[][]int{{100}, {1000}, {420}},
@@ -142,7 +139,7 @@ func Test_finalizeLayout(t *testing.T) {
 		{
 			squareSize:      4,
 			nonreserveStart: 4,
-			ptxs: generateParsedTxsWithNIDs(
+			blobTxs: generateBlobTxsWithNIDs(
 				t,
 				[][]byte{ns1, ns3, ns3, ns2},
 				[][]int{{100}, {1000, 1000}, {420}},
@@ -152,7 +149,7 @@ func Test_finalizeLayout(t *testing.T) {
 		{
 			squareSize:      4,
 			nonreserveStart: 4,
-			ptxs: generateParsedTxsWithNIDs(
+			blobTxs: generateBlobTxsWithNIDs(
 				t,
 				[][]byte{ns1, ns3, ns3, ns1, ns2, ns2},
 				[][]int{{100}, {1400, 1000, 200, 200}, {420}},
@@ -162,7 +159,7 @@ func Test_finalizeLayout(t *testing.T) {
 		{
 			squareSize:      4,
 			nonreserveStart: 4,
-			ptxs: generateParsedTxsWithNIDs(
+			blobTxs: generateBlobTxsWithNIDs(
 				t,
 				[][]byte{ns1, ns3, ns3, ns1, ns2, ns2},
 				[][]int{{100}, {1000, 1400, 200, 200}, {420}},
@@ -171,28 +168,25 @@ func Test_finalizeLayout(t *testing.T) {
 		},
 	}
 	for i, tt := range tests {
-		res, blobs := finalizeLayout(tt.squareSize, tt.nonreserveStart, tt.ptxs)
-		require.Equal(t, len(tt.expectedIndexes), len(res), i)
-		for j, ptx := range res {
-			assert.Equal(t, tt.expectedIndexes[j], ptx.shareIndexes, i)
-		}
+		t.Run(fmt.Sprintf("case%d", i), func(t *testing.T) {
+			wrappedPFBs, blobs := finalizeBlobLayout(tt.squareSize, tt.nonreserveStart, tt.blobTxs)
+			for j, pfbBytes := range wrappedPFBs {
+				wrappedPFB, isWrappedPFB := coretypes.UnmarshalIndexWrapper(pfbBytes)
+				require.True(t, isWrappedPFB)
+				require.Equal(t, tt.expectedIndexes[j], wrappedPFB.ShareIndexes, j)
+			}
 
-		processedTxs := processTxs(tmlog.NewNopLogger(), res)
+			blockData := tmproto.Data{
+				Txs:        wrappedPFBs,
+				Blobs:      blobs,
+				SquareSize: tt.squareSize,
+			}
 
-		sort.SliceStable(blobs, func(i, j int) bool {
-			return bytes.Compare(blobs[i].NamespaceId, blobs[j].NamespaceId) < 0
+			coreData, err := coretypes.DataFromProto(&blockData)
+			require.NoError(t, err)
+
+			_, err = shares.Split(coreData, true)
+			require.NoError(t, err)
 		})
-
-		blockData := tmproto.Data{
-			Txs:        processedTxs,
-			Blobs:      blobs,
-			SquareSize: tt.squareSize,
-		}
-
-		coreData, err := coretypes.DataFromProto(&blockData)
-		require.NoError(t, err)
-
-		_, err = shares.Split(coreData, true)
-		require.NoError(t, err)
 	}
 }
