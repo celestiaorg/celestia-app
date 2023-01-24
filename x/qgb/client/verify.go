@@ -24,12 +24,12 @@ import (
 func VerifyCmd() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "verify",
-		Short: "Verifies that a transaction hash, a range of shares, or a message referenced by its transaction hash were committed to by the QGB contract",
+		Short: "Verifies that a transaction hash, a range of shares, or a blob referenced by its transaction hash were committed to by the QGB contract",
 	}
 	command.AddCommand(
 		txCmd(),
 		sharesCmd(),
-		msgCmd(),
+		blobCmd(),
 	)
 	return command
 }
@@ -91,11 +91,11 @@ func txCmd() *cobra.Command {
 	return addVerifyFlags(command)
 }
 
-func msgCmd() *cobra.Command {
+func blobCmd() *cobra.Command {
 	command := &cobra.Command{
-		Use:   "msg <tx_hash>",
+		Use:   "blob <tx_hash>",
 		Args:  cobra.ExactArgs(1),
-		Short: "Verifies that a message, referenced by its transaction hash, in hex format, has been committed to by the QGB contract. Only supports one message for now",
+		Short: "Verifies that a blob, referenced by its transaction hash, in hex format, has been committed to by the QGB contract. Only supports one blob for now",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			txHash, err := hex.DecodeString(args[0])
 			if err != nil {
@@ -129,19 +129,19 @@ func msgCmd() *cobra.Command {
 				return err
 			}
 
-			logger.Info("verifying that the message was committed to by the QGB", "tx_hash", args[0], "height", tx.Height)
+			logger.Info("verifying that the blob was committed to by the QGB", "tx_hash", args[0], "height", tx.Height)
 
 			blockRes, err := trpc.Block(cmd.Context(), &tx.Height)
 			if err != nil {
 				return err
 			}
 
-			beginMsgShare, endMsgShare, err := prove.BlobShareRange(blockRes.Block.Txs[tx.Index])
+			beginBlobShare, endBlobShare, err := prove.BlobShareRange(blockRes.Block.Txs[tx.Index])
 			if err != nil {
 				return err
 			}
 
-			_, err = VerifyShares(cmd.Context(), logger, config, uint64(tx.Height), beginMsgShare, endMsgShare)
+			_, err = VerifyShares(cmd.Context(), logger, config, uint64(tx.Height), beginBlobShare, endBlobShare)
 			return err
 		},
 	}
