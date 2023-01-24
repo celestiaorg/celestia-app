@@ -39,9 +39,8 @@ func Test_estimateSquareSize(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ptxs := generateMixedParsedTxs(tt.normalTxs, tt.pfbCount, tt.pfbSize)
-			res, _ := estimateSquareSize(ptxs)
-			assert.Equal(t, tt.expectedSquareSize, res)
+			squareSize, _ := estimateSquareSize(generateMixedTxs(tt.normalTxs, tt.pfbCount, tt.pfbSize))
+			assert.EqualValues(t, tt.expectedSquareSize, squareSize)
 		})
 	}
 }
@@ -99,8 +98,8 @@ func Test_estimateSquareSize_MultiBlob(t *testing.T) {
 				signer,
 				tt.getBlobSizes(),
 			)
-			ptxs := parseTxs(enc.TxConfig, shares.TxsToBytes(txs))
-			resSquareSize, resStart := estimateSquareSize(ptxs)
+			normalTxs, blobTxs := separateTxs(enc.TxConfig, shares.TxsToBytes(txs))
+			resSquareSize, resStart := estimateSquareSize(normalTxs, blobTxs)
 			require.Equal(t, tt.expectedSquareSize, resSquareSize)
 			require.Equal(t, tt.expectedStartingShareIndex, resStart)
 		})
@@ -125,19 +124,15 @@ func Test_estimatePFBTxSharesUsed(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ptxs := generateParsedTxsWithNIDs(t, namespace.RandomBlobNamespaces(tt.pfbCount), blobfactory.Repeat([]int{tt.pfbSize}, tt.pfbCount))
-			got := estimatePFBTxSharesUsed(tt.squareSize, ptxs)
+			blobTxs := generateBlobTxsWithNIDs(t, namespace.RandomBlobNamespaces(tt.pfbCount), blobfactory.Repeat([]int{tt.pfbSize}, tt.pfbCount))
+			got := estimatePFBTxSharesUsed(tt.squareSize, blobTxs)
 
 			// check that our estimate is always larger or equal to the number
 			// of pfbTxShares actually used
-			txs := make([]coretypes.Tx, len(ptxs))
-			for i, ptx := range ptxs {
-				if len(ptx.normalTx) != 0 {
-					txs[i] = ptx.normalTx
-					continue
-				}
+			txs := make([]coretypes.Tx, len(blobTxs))
+			for i, blobTx := range blobTxs {
 				wPFBTx, err := coretypes.MarshalIndexWrapper(
-					ptx.blobTx.Tx,
+					blobTx.Tx,
 					uint32(tt.squareSize*tt.squareSize),
 				)
 				require.NoError(t, err)
@@ -150,20 +145,21 @@ func Test_estimatePFBTxSharesUsed(t *testing.T) {
 }
 
 func Test_estimateTxSharesUsed(t *testing.T) {
+	require.Equal(t, 312, len(generateNormalTxs(3)[2]))
 	type testCase struct {
 		name string
-		ptxs []parsedTx
+		txs  [][]byte
 		want int
 	}
 	testCases := []testCase{
-		{"empty", []parsedTx{}, 0},
-		{"one tx", generateNormalParsedTxs(1), 1},             // 1 tx is approximately 312 bytes which fits in 1 share
-		{"two txs", generateNormalParsedTxs(2), 2},            // 2 txs is approximately 624 bytes which fits in 2 shares
-		{"ten txs", generateNormalParsedTxs(10), 7},           // 10 txs is approximately 3120 bytes which fits in 7 shares
-		{"one hundred txs", generateNormalParsedTxs(100), 63}, // 100 txs is approximately 31200 bytes which fits in 63 share
+		{"empty", [][]byte{}, 0},
+		{"one tx", generateNormalTxs(1), 1},             // 1 tx is approximately 312 bytes which fits in 1 share
+		{"two txs", generateNormalTxs(2), 2},            // 2 txs is approximately 624 bytes which fits in 2 shares
+		{"ten txs", generateNormalTxs(10), 7},           // 10 txs is approximately 3120 bytes which fits in 7 shares
+		{"one hundred txs", generateNormalTxs(100), 63}, // 100 txs is approximately 31200 bytes which fits in 63 share
 	}
 	for _, tc := range testCases {
-		got := estimateTxSharesUsed(tc.ptxs)
+		got := estimateTxSharesUsed(tc.txs)
 		assert.Equal(t, tc.want, got)
 	}
 }
