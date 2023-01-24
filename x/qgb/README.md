@@ -125,13 +125,13 @@ The QGB verification command is part of the `celestia-appd` binary. It allows th
 ```shell
 $ celestia-appd verify --help          
                               
-Verifies that a transaction hash, a range of shares, or a message referenced by its transaction hash were committed to by the QGB contract
+Verifies that a transaction hash, a range of shares, or a blob referenced by its transaction hash were committed to by the QGB contract
 
 Usage:
   celestia-appd verify [command]
 
 Available Commands:
-  msg         Verifies that a message, referenced by its transaction hash, in hex format, has been committed to by the QGB contract. Only supports one message for now
+  blob        Verifies that a blob, referenced by its transaction hash, in hex format, has been committed to by the QGB contract. Only supports one blob for now
   shares      Verifies that a range of shares has been committed to by the QGB contract
   tx          Verifies that a transaction hash, in hex format, has been committed to by the QGB contract
 
@@ -150,7 +150,7 @@ Use "celestia-appd verify [command] --help" for more information about a command
 
 It currently supports three sub-commands:
 
-- `msg`: Takes a transaction hash, in hex format, and verifies that the message that has been posted using it has been committed to, by the QGB contract. It only supports one message for now.
+- `blob`: Takes a transaction hash, in hex format, and verifies that the blob that has been posted using it has been committed to, by the QGB contract. It only supports one message for now.
 - `shares`: Takes a shares range and a height, and verifies that these former have been committed to by the QGB contract.
 - `tx`: Takes a transaction hash, in hex format, and verifies that it has been committed to by the QGB contract.
 
