@@ -53,6 +53,13 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
+	if !arePFBsOrderedAfterTxs(data.Txs) {
+		logInvalidPropBlock(app.Logger(), req.Header, "PFBs are not all ordered at the end of the list of transactions")
+		return abci.ResponseProcessProposal{
+			Result: abci.ResponseProcessProposal_REJECT,
+		}
+	}
+
 	dataSquare, err := shares.Split(data, true)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute shares from block data:", err)
@@ -81,18 +88,11 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 	// iterate over all of the MsgPayForBlob transactions and ensure that their
 	// commitments are subtree roots of the data root.
-	seenFirstPFB := false
 	for _, rawTx := range req.BlockData.Txs {
 		tx := rawTx
 		wrappedTx, isWrapped := coretypes.UnmarshalIndexWrapper(rawTx)
 		if isWrapped {
-			seenFirstPFB = true
 			tx = wrappedTx.Tx
-		} else if seenFirstPFB {
-			logInvalidPropBlock(app.Logger(), req.Header, "Wrapped PFBs must come at the end of the block")
-			return abci.ResponseProcessProposal{
-				Result: abci.ResponseProcessProposal_REJECT,
-			}
 		}
 
 		sdkTx, err := app.txConfig.TxDecoder()(tx)
@@ -162,6 +162,19 @@ func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlob, bool) {
 		}
 	}
 	return nil, false
+}
+
+func arePFBsOrderedAfterTxs(txs [][]byte) bool {
+	seenFirstPFB := false
+	for _, tx := range txs {
+		_, isWrapped := coretypes.UnmarshalIndexWrapper(tx)
+		if isWrapped {
+			seenFirstPFB = true
+		} else if seenFirstPFB {
+			return false
+		}
+	}
+	return true
 }
 
 func isValidBlobNamespace(namespace namespace.ID) bool {
