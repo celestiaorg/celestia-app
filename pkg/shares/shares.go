@@ -53,7 +53,7 @@ func (s Share) IsSequenceStart() (bool, error) {
 
 // IsCompactShare returns true if this is a compact share.
 func (s Share) IsCompactShare() bool {
-	return s.NamespaceID().Equal(appconsts.TxNamespaceID)
+	return s.NamespaceID().Equal(appconsts.TxNamespaceID) || s.NamespaceID().Equal(appconsts.PayForBlobNamespaceID)
 }
 
 // SequenceLen returns the sequence length of this share and optionally an
