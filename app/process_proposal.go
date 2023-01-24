@@ -53,7 +53,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	if !arePFBsOrderedAfterTxs(data.Txs) {
+	if !arePFBsOrderedAfterTxs(req.BlockData.Txs) {
 		logInvalidPropBlock(app.Logger(), req.Header, "PFBs are not all ordered at the end of the list of transactions")
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
