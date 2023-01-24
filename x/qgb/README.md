@@ -150,7 +150,7 @@ Use "celestia-appd verify [command] --help" for more information about a command
 
 It currently supports three sub-commands:
 
-- `blob`: Takes a transaction hash, in hex format, and verifies that the blob that has been posted using it has been committed to, by the QGB contract. It only supports one message for now.
+- `blob`: Takes a transaction hash, in hex format, and verifies that the blob that has been posted using it has been committed to, by the QGB contract. It only supports one blob for now.
 - `shares`: Takes a shares range and a height, and verifies that these former have been committed to by the QGB contract.
 - `tx`: Takes a transaction hash, in hex format, and verifies that it has been committed to by the QGB contract.
 
