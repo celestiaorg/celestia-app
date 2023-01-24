@@ -80,6 +80,13 @@ func TestNewTxInclusionProof(t *testing.T) {
 			}
 			assert.NoError(t, err)
 			assert.NoError(t, proof.Validate(dataRoot))
+
+			// sanity check that the tx is actually in the raw shares.
+			assert.Equal(t, 1, len(proof.SharesProofs)) // there should only be one shares proof
+			start, end := proof.SharesProofs[0].Start, proof.SharesProofs[0].End
+			stripped, err := stripCompactShares(rawShares[start:end])
+			assert.NoError(t, err)
+			assert.Contains(t, string(stripped), string(blockData.Txs[tt.txIndex])) // HACKHACK assert.Contains doesn't work for byte slices so we have to convert to string.
 		})
 	}
 }
