@@ -322,10 +322,3 @@ func stripCompactShares(compactShares []shares.Share) (result []byte, err error)
 	}
 	return result, nil
 }
-
-// subtractDelimLen subtracts the delimiter size from numBytesDelimited. This is
-// useful for determining the size of a tx prior to it being prepended with a
-// delimiter.
-func subtractDelimLen(numBytesDelimited int) (numBytesUndelimited int) {
-	return numBytesDelimited - shares.DelimLen(uint64(numBytesDelimited))
-}
