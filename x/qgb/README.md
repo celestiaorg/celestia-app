@@ -118,6 +118,42 @@ if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx)+1 != n
 }
 ```
 
+## Verification command
+
+The QGB verification command is part of the `Celestia-appd` binary. It allows to verify that a set of shares has been posted to a specific QGB contract.
+
+```shell
+$ celestia-appd verify --help          
+                              
+Verifies that a transaction hash, a range of shares, or a message referenced by its transaction hash were committed to by the QGB contract
+
+Usage:
+  celestia-appd verify [command]
+
+Available Commands:
+  msg         Verifies that a message, referenced by its transaction hash, in hex format, has been committed to by the QGB contract. Only supports one message for now
+  shares      Verifies that a shares range has been committed to by the QGB contract
+  tx          Verifies that a transaction hash, in hex format, has been committed to by the QGB contract
+
+Flags:
+  -h, --help   help for verify
+
+Global Flags:
+      --home string         directory for config and data (default "/home/midnight/.celestia-app")
+      --log_format string   The logging format (json|plain) (default "plain")
+      --log_level string    The logging level (trace|debug|info|warn|error|fatal|panic) (default "info")
+      --trace               print out full stack trace on errors
+
+Use "celestia-appd verify [command] --help" for more information about a command.
+
+```
+
+It currently supports three sub-commands:
+
+- `msg`: Takes a transaction hash, in hex format, and verifies that the message that has been posted using it has been committed to, by the QGB contract. It only supports one message for now.
+- `shares`: Takes a shares range and a height, and verifies that these former have been committed to by the QGB contract.
+- `tx`: Takes a transaction hash, in hex format, and verifies that it has been committed to by the QGB contract.
+
 ## Useful links
 
 The smart contract implementation is in [quantum-gravity-bridge](https://github.com/celestiaorg/quantum-gravity-bridge/).
