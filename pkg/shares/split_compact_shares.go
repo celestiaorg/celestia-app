@@ -10,19 +10,25 @@ import (
 )
 
 type ShareRange struct {
-	StartShare int
-	EndShare   int
+	// Start is the index of the first share occupied by this range.
+	Start int
+	// End is the index of the last share occupied by this range.
+	End int
 }
 
 // CompactShareSplitter will write raw data compactly across a progressively
 // increasing set of shares. It is used to lazily split block data such as
 // transactions or intermediate state roots into shares.
 type CompactShareSplitter struct {
-	shares            []Share
-	pendingShare      Share
-	namespace         namespace.ID
-	shareVersion      uint8
-	txKeyToShareIndex map[coretypes.TxKey]ShareRange
+	shares       []Share
+	pendingShare Share
+	namespace    namespace.ID
+	shareVersion uint8
+	// shareRanges is a map from a transaction key to the range of shares it
+	// occupies. The range assumpes this compact share splitter is the only
+	// thing in the data square (e.g. the range for the first tx starts at index
+	// 0).
+	shareRanges map[coretypes.TxKey]ShareRange
 }
 
 // NewCompactShareSplitter returns a CompactShareSplitter using the provided
@@ -41,11 +47,11 @@ func NewCompactShareSplitter(ns namespace.ID, shareVersion uint8) *CompactShareS
 	pendingShare = append(pendingShare, placeholderSequenceLen...)
 	pendingShare = append(pendingShare, placeholderReservedBytes...)
 	return &CompactShareSplitter{
-		shares:            []Share{},
-		pendingShare:      pendingShare,
-		namespace:         ns,
-		shareVersion:      shareVersion,
-		txKeyToShareIndex: map[coretypes.TxKey]ShareRange{},
+		shares:       []Share{},
+		pendingShare: pendingShare,
+		namespace:    ns,
+		shareVersion: shareVersion,
+		shareRanges:  map[coretypes.TxKey]ShareRange{},
 	}
 }
 
@@ -61,9 +67,9 @@ func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
 	css.write(rawData)
 	endShare := css.Count() - 1
 
-	css.txKeyToShareIndex[tx.Key()] = ShareRange{
-		StartShare: startShare,
-		EndShare:   endShare,
+	css.shareRanges[tx.Key()] = ShareRange{
+		Start: startShare,
+		End:   endShare,
 	}
 }
 
@@ -119,9 +125,9 @@ func (css *CompactShareSplitter) stackPending() {
 }
 
 // Export finalizes and returns the underlying compact shares.
-func (css *CompactShareSplitter) Export() (shares []Share, txKeyToShareIndex map[coretypes.TxKey]ShareRange) {
+func (css *CompactShareSplitter) Export() (shares []Share, shareRanges map[coretypes.TxKey]ShareRange) {
 	if css.isEmpty() {
-		return []Share{}, css.txKeyToShareIndex
+		return []Share{}, css.shareRanges
 	}
 
 	var bytesOfPadding int
@@ -133,7 +139,7 @@ func (css *CompactShareSplitter) Export() (shares []Share, txKeyToShareIndex map
 
 	sequenceLen := css.sequenceLen(bytesOfPadding)
 	css.writeSequenceLen(sequenceLen)
-	return css.shares, css.txKeyToShareIndex
+	return css.shares, css.shareRanges
 }
 
 // writeSequenceLen writes the sequence length to the first share.

@@ -98,7 +98,7 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 	return shareIndexes
 }
 
-func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, txKeyToShareIndex map[coretypes.TxKey]ShareRange) {
+func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRanges map[coretypes.TxKey]ShareRange) {
 	txWriter := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
 	pfbTxWriter := NewCompactShareSplitter(appconsts.PayForBlobNamespaceID, appconsts.ShareVersionZero)
 
@@ -119,8 +119,8 @@ func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, txKeyToSh
 			// ordinary tx shares and the pfb tx shares. This assumption will be
 			// invalidated if we introduce intermediate state roots or padding
 			// between these namespaces.
-			StartShare: v.StartShare + len(txShares),
-			EndShare:   v.EndShare + len(txShares),
+			Start: v.Start + len(txShares),
+			End:   v.End + len(txShares),
 		}
 	}
 

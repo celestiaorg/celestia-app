@@ -33,7 +33,7 @@ func TestCount(t *testing.T) {
 	}
 }
 
-func TestExport(t *testing.T) {
+func TestExport_write(t *testing.T) {
 	type testCase struct {
 		name       string
 		want       []Share
@@ -97,7 +97,7 @@ func TestExport(t *testing.T) {
 	}
 }
 
-func TestExport_txKeyToShareIndex(t *testing.T) {
+func TestExport(t *testing.T) {
 	type testCase struct {
 		name string
 		txs  []coretypes.Tx

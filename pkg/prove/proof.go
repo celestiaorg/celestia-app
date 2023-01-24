@@ -59,10 +59,10 @@ func TxSharePosition(data types.Data, txIndex uint64) (startShare uint64, endSha
 		return 0, 0, errors.New("transaction index is greater than the number of txs")
 	}
 
-	_, _, txKeyToShareIndex := shares.SplitTxs(data.Txs)
-	shareRange := txKeyToShareIndex[data.Txs[txIndex].Key()]
+	_, _, shareRanges := shares.SplitTxs(data.Txs)
+	shareRange := shareRanges[data.Txs[txIndex].Key()]
 
-	return uint64(shareRange.StartShare), uint64(shareRange.EndShare), nil
+	return uint64(shareRange.Start), uint64(shareRange.End), nil
 }
 
 // BlobShareRange returns the start and end positions for the shares
