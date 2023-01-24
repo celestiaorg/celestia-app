@@ -299,3 +299,46 @@ func TestRawData(t *testing.T) {
 		})
 	}
 }
+
+func TestIsCompactShare(t *testing.T) {
+	type testCase struct {
+		name  string
+		share Share
+		want  bool
+	}
+
+	txShare, _ := zeroPadIfNecessary([]byte{
+		0, 0, 0, 0, 0, 0, 0, 1, // tx namespace ID
+	}, appconsts.ShareSize)
+
+	pfbTxShare, _ := zeroPadIfNecessary([]byte{
+		0, 0, 0, 0, 0, 0, 0, 4, // pfb tx namespace ID
+	}, appconsts.ShareSize)
+
+	blobShare, _ := zeroPadIfNecessary([]byte{
+		1, 2, 3, 4, 5, 6, 7, 8, // blob namespace ID
+	}, appconsts.ShareSize)
+
+	testCases := []testCase{
+		{
+			name:  "tx share",
+			share: txShare,
+			want:  true,
+		},
+		{
+			name:  "pfb tx share",
+			share: pfbTxShare,
+			want:  true,
+		},
+		{
+			name:  "blob share",
+			share: blobShare,
+			want:  false,
+		},
+	}
+
+	for _, tc := range testCases {
+		got := tc.share.IsCompactShare()
+		assert.Equal(t, tc.want, got)
+	}
+}
