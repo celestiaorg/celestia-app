@@ -22,25 +22,34 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-// NewTxInclusionProof returns a new share inclusion proof for the given
+// NewTxInclusionProof returns a new Tx inclusion proof for the given
 // transaction index.
-func NewTxInclusionProof(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.SharesProof, error) {
+func NewTxInclusionProof(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxProof, error) {
 	rawShares, err := shares.Split(data, true)
 	if err != nil {
-		return types.SharesProof{}, err
+		return types.TxProof{}, err
 	}
 
 	startShare, endShare, err := TxSharePosition(data, txIndex)
 	if err != nil {
-		return types.SharesProof{}, err
+		return types.TxProof{}, err
 	}
 
 	namespace, err := getTxNamespace(data.Txs[txIndex])
 	if err != nil {
-		return types.SharesProof{}, err
+		return types.TxProof{}, err
 	}
 
-	return NewShareInclusionProof(rawShares, data.SquareSize, namespace, startShare, endShare)
+	proof, err := NewShareInclusionProof(rawShares, data.SquareSize, namespace, startShare, endShare)
+	if err != nil {
+		return types.TxProof{}, err
+	}
+
+	return types.TxProof{
+		RowRoots: proof.RowsProof.RowsRoots,
+		Data:     proof.Data,
+		Proofs:   proof.SharesProofs,
+	}, nil
 }
 
 func getTxNamespace(tx types.Tx) (ns namespace.ID, err error) {

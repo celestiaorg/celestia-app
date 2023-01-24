@@ -24,16 +24,6 @@ func TestNewTxInclusionProof(t *testing.T) {
 		SquareSize: appconsts.DefaultMaxSquareSize,
 	}
 
-	rawShares, err := shares.Split(blockData, true)
-	assert.NoError(t, err)
-	eds, err := da.ExtendShares(blockData.SquareSize, shares.ToBytes(rawShares))
-	assert.NoError(t, err)
-
-	// create the new data root by creating the data availability header (merkle
-	// roots of each row and col of the erasure data).
-	dah := da.NewDataAvailabilityHeader(eds)
-	dataRoot := dah.Hash()
-
 	type test struct {
 		name      string
 		data      types.Data
@@ -79,14 +69,7 @@ func TestNewTxInclusionProof(t *testing.T) {
 				return
 			}
 			assert.NoError(t, err)
-			assert.NoError(t, proof.Validate(dataRoot))
-
-			// sanity check that the tx is actually in the raw shares.
-			assert.Equal(t, 1, len(proof.SharesProofs)) // there should only be one shares proof
-			start, end := proof.SharesProofs[0].Start, proof.SharesProofs[0].End
-			stripped, err := stripCompactShares(rawShares[start:end])
-			assert.NoError(t, err)
-			assert.Contains(t, string(stripped), string(blockData.Txs[tt.txIndex])) // HACKHACK assert.Contains doesn't work for byte slices so we have to convert to string.
+			assert.True(t, proof.VerifyProof())
 		})
 	}
 }
