@@ -59,13 +59,7 @@ func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
 
 	startShare := len(css.shares)
 	css.write(rawData)
-
-	var endShare int
-	if css.isEmptyPendingShare() {
-		endShare = len(css.shares) - 1
-	} else {
-		endShare = len(css.shares)
-	}
+	endShare := css.Count() - 1
 
 	css.txKeyToShareIndex[tx.Key()] = ShareRange{
 		StartShare: startShare,

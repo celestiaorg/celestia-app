@@ -144,7 +144,7 @@ func TestExport_txKeyToShareIndex(t *testing.T) {
 			},
 		},
 		{
-			name: "txOne, txTwo, txThree",
+			name: "txOne occupies shares 0 to 0, txTwo occupies shares 0 to 1, txThree occupies shares 1 to 3",
 			txs: []coretypes.Tx{
 				txOne,
 				txTwo,

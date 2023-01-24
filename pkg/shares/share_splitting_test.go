@@ -229,8 +229,6 @@ func TestSplitTxs(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// fmt.Printf("first txKey: %v", tc.txs[0].Key())
-			// fmt.Printf("second txKey: %v", tc.txs[1].Key())
 			txShares, pfbTxShares, gotMap := SplitTxs(tc.txs)
 			assert.Equal(t, tc.wantTxShares, txShares)
 			assert.Equal(t, tc.wantPfbShares, pfbTxShares)
