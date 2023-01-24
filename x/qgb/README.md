@@ -132,7 +132,7 @@ Usage:
 
 Available Commands:
   msg         Verifies that a message, referenced by its transaction hash, in hex format, has been committed to by the QGB contract. Only supports one message for now
-  shares      Verifies that a shares range has been committed to by the QGB contract
+  shares      Verifies that a range of shares has been committed to by the QGB contract
   tx          Verifies that a transaction hash, in hex format, has been committed to by the QGB contract
 
 Flags:
