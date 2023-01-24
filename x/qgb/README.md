@@ -120,7 +120,7 @@ if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx)+1 != n
 
 ## Verification command
 
-The QGB verification command is part of the `Celestia-appd` binary. It allows to verify that a set of shares has been posted to a specific QGB contract.
+The QGB verification command is part of the `celestia-appd` binary. It allows the user to verify that a set of shares has been posted to a specific QGB contract.
 
 ```shell
 $ celestia-appd verify --help          
