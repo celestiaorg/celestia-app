@@ -215,17 +215,16 @@ func TestSplitTxs(t *testing.T) {
 				pfbTx.Key(): {0, 0},
 			},
 		},
-		// TODO this test doesn't behave as expected
-		// {
-		// 	name:          "largeTx then pfbTx",
-		// 	txs:           coretypes.Txs{largeTx, pfbTx},
-		// 	wantTxShares:  largeTxShares,
-		// 	wantPfbShares: pfbTxShares,
-		// 	wantMap: map[coretypes.TxKey]ShareRange{
-		// 		largeTx.Key(): {0, 1},
-		// 		pfbTx.Key():   {2, 2},
-		// 	},
-		// },
+		{
+			name:          "largeTx then pfbTx",
+			txs:           coretypes.Txs{largeTx, pfbTx},
+			wantTxShares:  largeTxShares,
+			wantPfbShares: pfbTxShares,
+			wantMap: map[coretypes.TxKey]ShareRange{
+				largeTx.Key(): {0, 1},
+				pfbTx.Key():   {2, 2},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

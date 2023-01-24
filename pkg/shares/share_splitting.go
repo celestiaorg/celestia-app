@@ -110,20 +110,19 @@ func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, txKeyToSh
 		}
 	}
 
-	for _, tx := range txs {
-		if _, isIndexWrapper := coretypes.UnmarshalIndexWrapper(tx); isIndexWrapper {
-			shareRange := txKeyToShareIndex[tx.Key()]
+	txShares, txMap := txWriter.Export()
+	pfbShares, pfbMap := pfbTxWriter.Export()
+
+	for k, v := range pfbMap {
+		pfbMap[k] = ShareRange{
 			// HACKHACK this assumes that there are no other shares between the
 			// ordinary tx shares and the pfb tx shares. This assumption will be
 			// invalidated if we introduce intermediate state roots or padding
 			// between these namespaces.
-			shareRange.StartShare += txWriter.Count()
-			shareRange.EndShare += txWriter.Count()
+			StartShare: v.StartShare + len(txShares),
+			EndShare:   v.EndShare + len(txShares),
 		}
 	}
-
-	txShares, txMap := txWriter.Export()
-	pfbShares, pfbMap := pfbTxWriter.Export()
 
 	return txShares, pfbShares, mergeMaps(txMap, pfbMap)
 }
