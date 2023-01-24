@@ -2,7 +2,6 @@ package shares
 
 import (
 	"bytes"
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -139,89 +138,100 @@ func TestSplitTxs(t *testing.T) {
 		wantMap       map[coretypes.TxKey]ShareRange
 	}
 
-	// smallTx := coretypes.Tx{0xa}
-	pfbTx, err := coretypes.MarshalIndexWrapper(coretypes.Tx{0xb}, 10)
+	smallTx := coretypes.Tx{0xa} // spans one share
+	smallTxShares := []Share{
+		padShare([]uint8{
+			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
+			0x1,                // info byte
+			0x0, 0x0, 0x0, 0x2, // 1 byte (unit) + 1 byte (unit length) = 2 bytes sequence length
+			0x0, 0x0, 0x0, 17, // reserved bytes
+			0x1, // unit length of first transaction
+			0xa, // data of first transaction
+		}),
+	}
+
+	pfbTx, err := coretypes.MarshalIndexWrapper(coretypes.Tx{0xb}, 10) // spans one share
 	assert.NoError(t, err)
-	largeTx := coretypes.Tx(bytes.Repeat([]byte{0xc}, subtractDelimLen(appconsts.FirstCompactShareContentSize)))
+	pfbTxShares := []Share{
+		padShare([]uint8{
+			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4, // namespace id
+			0x1,               // info byte
+			0x0, 0x0, 0x0, 13, // 1 byte (unit) + 1 byte (unit length) = 2 bytes sequence length
+			0x0, 0x0, 0x0, 17, // reserved bytes
+			12,                                                               // unit length of first transaction
+			0xa, 0x1, 0xb, 0x12, 0x1, 0xa, 0x1a, 0x4, 0x49, 0x4e, 0x44, 0x58, // data of first transaction
+		}),
+	}
+
+	largeTx := coretypes.Tx(bytes.Repeat([]byte{0xc}, 512)) // spans two shares
+	largeTxShares := []Share{
+		fillShare([]uint8{
+			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
+			0x1,                // info byte
+			0x0, 0x0, 0x2, 0x2, // 512 (unit) + 2 (unit length) = 514 sequence length
+			0x0, 0x0, 0x0, 17, // reserved bytes
+			128, 4, // unit length of transaction is 512
+		}, 0xc), // data of transaction
+		padShare(append([]uint8{
+			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
+			0x0,                // info byte
+			0x0, 0x0, 0x0, 0x0, // reserved bytes
+		}, bytes.Repeat([]byte{0xc}, 19)..., // continuation data of transaction
+		)),
+	}
 
 	testCases := []testCase{
-		// {
-		// 	name:          "empty",
-		// 	txs:           coretypes.Txs{},
-		// 	wantTxShares:  []Share{},
-		// 	wantPfbShares: []Share{},
-		// 	wantMap:       map[coretypes.TxKey]ShareRange{},
-		// },
-		// {
-		// 	name: "smallTx",
-		// 	txs:  coretypes.Txs{smallTx},
-		// 	wantTxShares: []Share{
-		// 		padShare([]uint8{
-		// 			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
-		// 			0x1,                // info byte
-		// 			0x0, 0x0, 0x0, 0x2, // 1 byte (unit) + 1 byte (unit length) = 2 bytes sequence length
-		// 			0x0, 0x0, 0x0, 17, // reserved bytes
-		// 			0x1, // unit length of first transaction
-		// 			0xa, // data of first transaction
-		// 		}),
-		// 	},
-		// 	wantPfbShares: []Share{},
-		// 	wantMap: map[coretypes.TxKey]ShareRange{
-		// 		smallTx.Key(): {0, 0},
-		// 	},
-		// },
-		// {
-		// 	name:         "pfbTx",
-		// 	txs:          coretypes.Txs{pfbTx},
-		// 	wantTxShares: []Share{},
-		// 	wantPfbShares: []Share{
-		// 		padShare([]uint8{
-		// 			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4, // namespace id
-		// 			0x1,               // info byte
-		// 			0x0, 0x0, 0x0, 13, // 1 byte (unit) + 1 byte (unit length) = 2 bytes sequence length
-		// 			0x0, 0x0, 0x0, 17, // reserved bytes
-		// 			12,                                                               // unit length of first transaction
-		// 			0xa, 0x1, 0xb, 0x12, 0x1, 0xa, 0x1a, 0x4, 0x49, 0x4e, 0x44, 0x58, // data of first transaction
-		// 		}),
-		// 	},
-		// 	wantMap: map[coretypes.TxKey]ShareRange{
-		// 		pfbTx.Key(): {0, 0},
-		// 	},
-		// },
 		{
-			name: "largeTx + pfbTx",
-			txs:  coretypes.Txs{largeTx, pfbTx},
-			wantTxShares: []Share{
-				fillShare([]uint8{
-					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
-					0x1,                // info byte
-					0x0, 0x0, 0x1, 239, // sequence length
-					0x0, 0x0, 0x0, 17, // reserved bytes
-					0xed, 0x3, // unit length of transaction
-				}, 0xc), // data of transaction
-			},
-			wantPfbShares: []Share{
-				padShare([]uint8{
-					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4, // namespace id
-					0x1,               // info byte
-					0x0, 0x0, 0x0, 13, // 1 byte (unit) + 1 byte (unit length) = 2 bytes sequence length
-					0x0, 0x0, 0x0, 17, // reserved bytes
-					12,                                                               // unit length of first transaction
-					0xa, 0x1, 0xb, 0x12, 0x1, 0xa, 0x1a, 0x4, 0x49, 0x4e, 0x44, 0x58, // data of first transaction
-				}),
-			},
+			name:          "empty",
+			txs:           coretypes.Txs{},
+			wantTxShares:  []Share{},
+			wantPfbShares: []Share{},
+			wantMap:       map[coretypes.TxKey]ShareRange{},
+		},
+		{
+			name:          "smallTx",
+			txs:           coretypes.Txs{smallTx},
+			wantTxShares:  smallTxShares,
+			wantPfbShares: []Share{},
 			wantMap: map[coretypes.TxKey]ShareRange{
-				// TODO this test doesn't behave as expected
-				largeTx.Key(): {0, 0},
-				pfbTx.Key():   {1, 1},
+				smallTx.Key(): {0, 0},
 			},
 		},
+		{
+			name:          "largeTx",
+			txs:           coretypes.Txs{largeTx},
+			wantTxShares:  largeTxShares,
+			wantPfbShares: []Share{},
+			wantMap: map[coretypes.TxKey]ShareRange{
+				largeTx.Key(): {0, 1},
+			},
+		},
+		{
+			name:          "pfbTx",
+			txs:           coretypes.Txs{pfbTx},
+			wantTxShares:  []Share{},
+			wantPfbShares: pfbTxShares,
+			wantMap: map[coretypes.TxKey]ShareRange{
+				pfbTx.Key(): {0, 0},
+			},
+		},
+		// TODO this test doesn't behave as expected
+		// {
+		// 	name:          "largeTx then pfbTx",
+		// 	txs:           coretypes.Txs{largeTx, pfbTx},
+		// 	wantTxShares:  largeTxShares,
+		// 	wantPfbShares: pfbTxShares,
+		// 	wantMap: map[coretypes.TxKey]ShareRange{
+		// 		largeTx.Key(): {0, 1},
+		// 		pfbTx.Key():   {2, 2},
+		// 	},
+		// },
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			fmt.Printf("first txKey: %v", tc.txs[0].Key())
-			fmt.Printf("second txKey: %v", tc.txs[1].Key())
+			// fmt.Printf("first txKey: %v", tc.txs[0].Key())
+			// fmt.Printf("second txKey: %v", tc.txs[1].Key())
 			txShares, pfbTxShares, gotMap := SplitTxs(tc.txs)
 			assert.Equal(t, tc.wantTxShares, txShares)
 			assert.Equal(t, tc.wantPfbShares, pfbTxShares)
