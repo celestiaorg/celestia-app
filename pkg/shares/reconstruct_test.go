@@ -13,7 +13,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func TestFuzz_Merge(t *testing.T) {
+func TestFuzz_reconstruct(t *testing.T) {
 	t.Skip()
 	// run random shares through processCompactShares for a minute
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -23,12 +23,12 @@ func TestFuzz_Merge(t *testing.T) {
 		case <-ctx.Done():
 			return
 		default:
-			Test_merge(t)
+			Test_reconstruct(t)
 		}
 	}
 }
 
-func Test_merge(t *testing.T) {
+func Test_reconstruct(t *testing.T) {
 	type test struct {
 		name      string
 		txCount   int
@@ -46,8 +46,6 @@ func Test_merge(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
 			// generate random data
 			data := generateRandomBlockData(
@@ -58,21 +56,15 @@ func Test_merge(t *testing.T) {
 
 			shares, err := Split(data, false)
 			require.NoError(t, err)
-			rawShares := ToBytes(shares)
 
-			eds, err := rsmt2d.ComputeExtendedDataSquare(rawShares, appconsts.DefaultCodec(), rsmt2d.NewDefaultTree)
-			if err != nil {
-				t.Error(err)
-			}
+			eds, err := rsmt2d.ComputeExtendedDataSquare(ToBytes(shares), appconsts.DefaultCodec(), rsmt2d.NewDefaultTree)
+			assert.NoError(t, err)
 
-			res, err := reconstruct(eds)
-			if err != nil {
-				t.Fatal(err)
-			}
+			got, err := reconstruct(eds)
+			assert.NoError(t, err)
 
-			res.SquareSize = data.SquareSize
-
-			assert.Equal(t, data, res)
+			got.SquareSize = data.SquareSize
+			assert.Equal(t, data, got)
 		})
 	}
 }
