@@ -21,7 +21,7 @@ func TestCompactShareSplitter(t *testing.T) {
 	for _, tx := range txs {
 		css.WriteTx(tx)
 	}
-	shares, _ := css.Export()
+	shares, _ := css.Export(0)
 	rawShares := ToBytes(shares)
 	rawResTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
 	resTxs := coretypes.ToTxs(rawResTxs)
@@ -118,7 +118,7 @@ func TestCompactShareContainsInfoByte(t *testing.T) {
 		css.WriteTx(tx)
 	}
 
-	shares, _ := css.Export()
+	shares, _ := css.Export(0)
 	assert.Condition(t, func() bool { return len(shares) == 1 })
 
 	infoByte := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
@@ -138,7 +138,7 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 		css.WriteTx(tx)
 	}
 
-	shares, _ := css.Export()
+	shares, _ := css.Export(0)
 	assert.Condition(t, func() bool { return len(shares) > 1 })
 
 	infoByte := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]

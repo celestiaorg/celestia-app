@@ -91,7 +91,7 @@ func TestExport_write(t *testing.T) {
 			for _, bytes := range tc.writeBytes {
 				css.write(bytes)
 			}
-			got, _ := css.Export()
+			got, _ := css.Export(0)
 			assert.Equal(t, tc.want, got)
 		})
 	}
@@ -99,9 +99,10 @@ func TestExport_write(t *testing.T) {
 
 func TestExport(t *testing.T) {
 	type testCase struct {
-		name string
-		txs  []coretypes.Tx
-		want map[coretypes.TxKey]ShareRange
+		name             string
+		txs              []coretypes.Tx
+		want             map[coretypes.TxKey]ShareRange
+		shareRangeOffset int
 	}
 
 	txOne := coretypes.Tx{0x1}
@@ -197,6 +198,18 @@ func TestExport(t *testing.T) {
 				exactlyTwoShares.Key(): {1, 2},
 			},
 		},
+		{
+			name: "one share followed by two shares offset by 10",
+			txs: []coretypes.Tx{
+				exactlyOneShare,
+				exactlyTwoShares,
+			},
+			want: map[coretypes.TxKey]ShareRange{
+				exactlyOneShare.Key():  {10, 10},
+				exactlyTwoShares.Key(): {11, 12},
+			},
+			shareRangeOffset: 10,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -206,7 +219,7 @@ func TestExport(t *testing.T) {
 				css.WriteTx(tx)
 			}
 
-			_, got := css.Export()
+			_, got := css.Export(tc.shareRangeOffset)
 			assert.Equal(t, tc.want, got)
 		})
 	}

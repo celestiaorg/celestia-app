@@ -110,19 +110,8 @@ func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRang
 		}
 	}
 
-	txShares, txMap := txWriter.Export()
-	pfbShares, pfbMap := pfbTxWriter.Export()
-
-	for k, v := range pfbMap {
-		pfbMap[k] = ShareRange{
-			// HACKHACK this assumes that there are no other shares between the
-			// ordinary tx shares and the pfb tx shares. This assumption will be
-			// invalidated if we introduce intermediate state roots or padding
-			// between these namespaces.
-			Start: v.Start + len(txShares),
-			End:   v.End + len(txShares),
-		}
-	}
+	txShares, txMap := txWriter.Export(0)
+	pfbShares, pfbMap := pfbTxWriter.Export(len(txShares))
 
 	return txShares, pfbShares, mergeMaps(txMap, pfbMap)
 }

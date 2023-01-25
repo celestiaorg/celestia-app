@@ -124,8 +124,21 @@ func (css *CompactShareSplitter) stackPending() {
 	css.pendingShare = newPendingShare
 }
 
-// Export finalizes and returns the underlying compact shares and a map of shareRanges.
-func (css *CompactShareSplitter) Export() ([]Share, map[coretypes.TxKey]ShareRange) {
+// Export finalizes and returns the underlying compact shares and a map of
+// shareRanges. All share ranges in the map of shareRanges will be offset (i.e.
+// incremented) by the shareRangeOffset provided. shareRangeOffset should be 0
+// for the first compact share sequence in the data square (transactions) but
+// should be some non-zero number for subsequent compact share sequences (e.g.
+// pfb txs).
+func (css *CompactShareSplitter) Export(shareRangeOffset int) ([]Share, map[coretypes.TxKey]ShareRange) {
+	// apply the shareRangeOffset to all share ranges
+	for k, v := range css.shareRanges {
+		css.shareRanges[k] = ShareRange{
+			Start: v.Start + shareRangeOffset,
+			End:   v.End + shareRangeOffset,
+		}
+	}
+
 	if css.isEmpty() {
 		return []Share{}, css.shareRanges
 	}
