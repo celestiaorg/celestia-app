@@ -21,20 +21,47 @@ import (
 )
 
 func TestProcessProposal(t *testing.T) {
-	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
+	accounts := make([]string, 100)
+	for i := range accounts {
+		accounts[i] = tmrand.Str(20)
+	}
+
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accounts...)
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	testTxs := testutil.RandBlobTxsWithAccounts(
+		t,
+		testApp,
+		encConf.TxConfig.TxEncoder(),
+		kr,
+		1000,
+		4,
+		false,
+		"",
+		accounts,
+	)
 
 	// block with all blobs included
 	validData := func() *core.Data {
 		return &core.Data{
-			Txs: coretypes.Txs(blobfactory.RandBlobTxs(encConf.TxConfig.TxEncoder(), 4, 1000)).ToSliceOfBytes(),
+			Txs: coretypes.Txs(testTxs).ToSliceOfBytes(),
 		}
 	}
 
 	// create block data with a PFB that is not indexed and has no blob
 	unindexedData := validData()
-	blobtx := blobfactory.RandBlobTxs(encConf.TxConfig.TxEncoder(), 1, 1000)[0]
-	btx, _ := coretypes.UnmarshalBlobTx(blobtx)
+	blobtx := testutil.RandBlobTxsWithAccounts(
+		t,
+		testApp,
+		encConf.TxConfig.TxEncoder(),
+		kr,
+		1000,
+		2,
+		false,
+		"",
+		accounts[:1],
+	)
+	btx, _ := coretypes.UnmarshalBlobTx(blobtx[0])
 	unindexedData.Txs = append(unindexedData.Txs, btx.Tx)
 
 	// create block data with a tx that is random data, and therefore cannot be
@@ -125,17 +152,19 @@ func TestProcessProposal(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-			BlockData: tt.input,
+		t.Run(tt.name, func(t *testing.T) {
+			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
+				BlockData: tt.input,
+			})
+			tt.mutator(resp.BlockData)
+			res := testApp.ProcessProposal(abci.RequestProcessProposal{
+				BlockData: resp.BlockData,
+				Header: core.Header{
+					DataHash: resp.BlockData.Hash,
+				},
+			})
+			assert.Equal(t, tt.expectedResult, res.Result, tt.name)
 		})
-		tt.mutator(resp.BlockData)
-		res := testApp.ProcessProposal(abci.RequestProcessProposal{
-			BlockData: resp.BlockData,
-			Header: core.Header{
-				DataHash: resp.BlockData.Hash,
-			},
-		})
-		assert.Equal(t, tt.expectedResult, res.Result, tt.name)
 	}
 }
 
