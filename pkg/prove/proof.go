@@ -35,11 +35,7 @@ func NewTxInclusionProof(codec rsmt2d.Codec, data types.Data, txIndex uint64) (t
 		return types.TxProof{}, err
 	}
 
-	namespace, err := getTxNamespace(data.Txs[txIndex])
-	if err != nil {
-		return types.TxProof{}, err
-	}
-
+	namespace := getTxNamespace(data.Txs[txIndex])
 	proof, err := NewShareInclusionProof(rawShares, data.SquareSize, namespace, startShare, endShare)
 	if err != nil {
 		return types.TxProof{}, err
@@ -52,12 +48,12 @@ func NewTxInclusionProof(codec rsmt2d.Codec, data types.Data, txIndex uint64) (t
 	}, nil
 }
 
-func getTxNamespace(tx types.Tx) (ns namespace.ID, err error) {
+func getTxNamespace(tx types.Tx) (ns namespace.ID) {
 	_, isIndexWrapper := types.UnmarshalIndexWrapper(tx)
 	if isIndexWrapper {
-		return appconsts.PayForBlobNamespaceID, nil
+		return appconsts.PayForBlobNamespaceID
 	}
-	return appconsts.TxNamespaceID, nil
+	return appconsts.TxNamespaceID
 }
 
 // TxSharePosition returns the start and end positions for the shares that
