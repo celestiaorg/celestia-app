@@ -13,16 +13,15 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func TestCompactShareWriter(t *testing.T) {
+func TestCompactShareSplitter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
 	// tests occur in TestMerge and Test_processCompactShares
-	w := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
 	txs := testfactory.GenerateRandomTxs(33, 200)
 	for _, tx := range txs {
-		rawTx, _ := MarshalDelimitedTx(tx)
-		w.write(rawTx)
+		css.WriteTx(tx)
 	}
-	shares, _ := w.Export()
+	shares, _ := css.Export()
 	rawShares := ToBytes(shares)
 	rawResTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
 	resTxs := coretypes.ToTxs(rawResTxs)
