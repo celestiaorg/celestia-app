@@ -88,7 +88,7 @@ import (
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/prove"
+	"github.com/celestiaorg/celestia-app/pkg/proof"
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
 	blobmodulekeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
 	blobmoduletypes "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -500,8 +500,8 @@ func New(
 		upgradetypes.ModuleName,
 	)
 
-	app.QueryRouter().AddRoute(prove.TxInclusionQueryPath, prove.QueryTxInclusionProof)
-	app.QueryRouter().AddRoute(prove.ShareInclusionQueryPath, prove.QueryShareInclusionProof)
+	app.QueryRouter().AddRoute(proof.TxInclusionQueryPath, proof.QueryTxInclusionProof)
+	app.QueryRouter().AddRoute(proof.ShareInclusionQueryPath, proof.QueryShareInclusionProof)
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
 	app.mm.RegisterRoutes(app.Router(), app.QueryRouter(), encodingConfig.Amino)
