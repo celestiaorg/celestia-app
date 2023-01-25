@@ -25,7 +25,7 @@ type CompactShareSplitter struct {
 	namespace    namespace.ID
 	shareVersion uint8
 	// shareRanges is a map from a transaction key to the range of shares it
-	// occupies. The range assumpes this compact share splitter is the only
+	// occupies. The range assumes this compact share splitter is the only
 	// thing in the data square (e.g. the range for the first tx starts at index
 	// 0).
 	shareRanges map[coretypes.TxKey]ShareRange
