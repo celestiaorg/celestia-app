@@ -115,7 +115,7 @@ func BlobShareRange(tx types.Tx) (beginShare uint64, endShare uint64, err error)
 	return beginShare, beginShare + uint64(sharesUsed) - 1, nil
 }
 
-// NewShareInclusionProof returns a an NMT inclusion proof for a set of shares to the data root.
+// NewShareInclusionProof returns an NMT inclusion proof for a set of shares to the data root.
 // Expects the share range to be pre-validated.
 // Note: only supports inclusion proofs for shares belonging to the same namespace.
 func NewShareInclusionProof(
