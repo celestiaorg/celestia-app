@@ -18,6 +18,7 @@ func TestCount(t *testing.T) {
 		{transactions: []coretypes.Tx{}, wantShareCount: 0},
 		{transactions: []coretypes.Tx{[]byte{0}}, wantShareCount: 1},
 		{transactions: []coretypes.Tx{bytes.Repeat([]byte{0}, 100)}, wantShareCount: 1},
+		// NOTE: Each tx will require two extra bytes for the length prefix hence why we use -2 and -1
 		{transactions: []coretypes.Tx{bytes.Repeat([]byte{0}, appconsts.FirstCompactShareContentSize-2)}, wantShareCount: 1},
 		{transactions: []coretypes.Tx{bytes.Repeat([]byte{0}, appconsts.FirstCompactShareContentSize-1)}, wantShareCount: 2},
 		{transactions: []coretypes.Tx{bytes.Repeat([]byte{0}, appconsts.FirstCompactShareContentSize+appconsts.ContinuationCompactShareContentSize-2)}, wantShareCount: 2},
