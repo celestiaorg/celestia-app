@@ -124,8 +124,8 @@ func (css *CompactShareSplitter) stackPending() {
 	css.pendingShare = newPendingShare
 }
 
-// Export finalizes and returns the underlying compact shares.
-func (css *CompactShareSplitter) Export() (shares []Share, shareRanges map[coretypes.TxKey]ShareRange) {
+// Export finalizes and returns the underlying compact shares and a map of shareRanges.
+func (css *CompactShareSplitter) Export() ([]Share, map[coretypes.TxKey]ShareRange) {
 	if css.isEmpty() {
 		return []Share{}, css.shareRanges
 	}
