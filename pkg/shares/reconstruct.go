@@ -15,8 +15,9 @@ func reconstruct(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 
 	// sort block data shares by namespace
 	var (
-		sortedTxShares   [][]byte
-		sortedBlobShares [][]byte
+		sortedTxShares    [][]byte
+		sortedPfbTxShares [][]byte
+		sortedBlobShares  [][]byte
 	)
 
 	// iterate over each row index
@@ -30,7 +31,8 @@ func reconstruct(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 			switch {
 			case bytes.Equal(appconsts.TxNamespaceID, nid):
 				sortedTxShares = append(sortedTxShares, share)
-
+			case bytes.Equal(appconsts.PayForBlobNamespaceID, nid):
+				sortedPfbTxShares = append(sortedTxShares, share)
 			case bytes.Equal(appconsts.TailPaddingNamespaceID, nid):
 				continue
 
@@ -46,10 +48,15 @@ func reconstruct(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 	}
 
 	// pass the raw share data to their respective parsers
-	txs, err := ParseTxs(sortedTxShares)
+	ordinaryTxs, err := ParseTxs(sortedTxShares)
 	if err != nil {
 		return coretypes.Data{}, err
 	}
+	pfbTxs, err := ParseTxs(sortedPfbTxShares)
+	if err != nil {
+		return coretypes.Data{}, err
+	}
+	txs := append(ordinaryTxs, pfbTxs...)
 
 	blobs, err := ParseBlobs(sortedBlobShares)
 	if err != nil {
