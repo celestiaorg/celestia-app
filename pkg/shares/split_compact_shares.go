@@ -17,6 +17,7 @@ type CompactShareSplitter struct {
 	pendingShare Share
 	namespace    namespace.ID
 	version      uint8
+	done         bool
 }
 
 // NewCompactShareSplitter returns a CompactShareSplitter using the provided
@@ -47,6 +48,14 @@ func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
 
 // WriteBytes adds the delimited data to the underlying compact shares.
 func (css *CompactShareSplitter) WriteBytes(rawData []byte) {
+	if css.done {
+		// remove the last element
+		if !css.isEmptyPendingShare() {
+			css.shares = css.shares[:len(css.shares)-1]
+		}
+		css.done = false
+	}
+
 	css.maybeWriteReservedBytesToPendingShare()
 
 	txCursor := len(rawData)
@@ -101,16 +110,22 @@ func (css *CompactShareSplitter) Export() []Share {
 	if css.isEmpty() {
 		return []Share{}
 	}
+	// in case Export is called multiple times
+	if css.done {
+		return css.shares
+	}
 
 	var bytesOfPadding int
 	// add the pending share to the current shares before returning
 	if !css.isEmptyPendingShare() {
-		css.pendingShare, bytesOfPadding = zeroPadIfNecessary(css.pendingShare, appconsts.ShareSize)
-		css.shares = append(css.shares, css.pendingShare)
+		var pendingShare []byte
+		pendingShare, bytesOfPadding = zeroPadIfNecessary(css.pendingShare, appconsts.ShareSize)
+		css.shares = append(css.shares, pendingShare)
 	}
 
 	sequenceLen := css.sequenceLen(bytesOfPadding)
 	css.writeSequenceLen(sequenceLen)
+	css.done = true
 	return css.shares
 }
 
@@ -213,7 +228,7 @@ func (css *CompactShareSplitter) isEmpty() bool {
 // Count returns the number of shares that would be made if `Export` was invoked
 // on this compact share splitter.
 func (css *CompactShareSplitter) Count() (shareCount int) {
-	if !css.isEmptyPendingShare() {
+	if !css.isEmptyPendingShare() && !css.done {
 		// pending share is non-empty, so it will be zero padded and added to shares during export
 		return len(css.shares) + 1
 	}

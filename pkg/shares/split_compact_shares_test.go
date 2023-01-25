@@ -93,6 +93,8 @@ func TestExport(t *testing.T) {
 			}
 			got := css.Export()
 			assert.Equal(t, tc.want, got)
+			assert.Equal(t, got, css.Export())
+			assert.Len(t, got, css.Count())
 		})
 	}
 }
