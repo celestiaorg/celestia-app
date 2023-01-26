@@ -69,6 +69,23 @@ func TestProcessProposal(t *testing.T) {
 	undecodableData := validData()
 	undecodableData.Txs = append(unindexedData.Txs, tmrand.Bytes(300))
 
+	// create an invalid block by adding an other wise valid PFB, but an invalid
+	// signature since there's no account
+	badSigPFBData := validData()
+	badSigBlobTx := testutil.RandBlobTxsWithManualSequence(
+		t,
+		testApp,
+		encConf.TxConfig.TxEncoder(),
+		kr,
+		1000,
+		1,
+		false,
+		"",
+		accounts[:1],
+		420, 42,
+	)[0]
+	badSigPFBData.Txs = append(badSigPFBData.Txs, badSigBlobTx)
+
 	type test struct {
 		name           string
 		input          *core.Data
@@ -146,6 +163,12 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:           "undecodable tx",
 			input:          undecodableData,
+			mutator:        func(d *core.Data) {},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:           "pfb with bad signature",
+			input:          badSigPFBData,
 			mutator:        func(d *core.Data) {},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
