@@ -17,12 +17,12 @@ func TestCount(t *testing.T) {
 	testCases := []testCase{
 		{transactions: []coretypes.Tx{}, wantShareCount: 0},
 		{transactions: []coretypes.Tx{[]byte{0}}, wantShareCount: 1},
-		{transactions: []coretypes.Tx{bytes.Repeat([]byte{0}, 100)}, wantShareCount: 1},
-		// NOTE: Each tx will require two extra bytes for the length prefix hence why we use -2 and -1
-		{transactions: []coretypes.Tx{bytes.Repeat([]byte{0}, appconsts.FirstCompactShareContentSize-2)}, wantShareCount: 1},
-		{transactions: []coretypes.Tx{bytes.Repeat([]byte{0}, appconsts.FirstCompactShareContentSize-1)}, wantShareCount: 2},
-		{transactions: []coretypes.Tx{bytes.Repeat([]byte{0}, appconsts.FirstCompactShareContentSize+appconsts.ContinuationCompactShareContentSize-2)}, wantShareCount: 2},
-		{transactions: []coretypes.Tx{bytes.Repeat([]byte{0}, appconsts.FirstCompactShareContentSize+3*appconsts.ContinuationCompactShareContentSize-1)}, wantShareCount: 5},
+		{transactions: []coretypes.Tx{bytes.Repeat([]byte{1}, 100)}, wantShareCount: 1},
+		// Test with 1 byte over 1 share
+		{transactions: []coretypes.Tx{bytes.Repeat([]byte{1}, rawTxSize(appconsts.FirstCompactShareContentSize+1))}, wantShareCount: 2},
+		{transactions: []coretypes.Tx{generateTx(1)}, wantShareCount: 1},
+		{transactions: []coretypes.Tx{generateTx(2)}, wantShareCount: 2},
+		{transactions: []coretypes.Tx{generateTx(20)}, wantShareCount: 20},
 	}
 	for _, tc := range testCases {
 		css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
@@ -34,6 +34,25 @@ func TestCount(t *testing.T) {
 			t.Errorf("count got %d want %d", got, tc.wantShareCount)
 		}
 	}
+}
+
+// generateTx generates a transaction that occupies exactly numShares number of
+// shares.
+func generateTx(numShares int) coretypes.Tx {
+	if numShares == 0 {
+		return coretypes.Tx{}
+	}
+	if numShares == 1 {
+		return bytes.Repeat([]byte{1}, rawTxSize(appconsts.FirstCompactShareContentSize))
+	}
+	return bytes.Repeat([]byte{1}, rawTxSize(appconsts.FirstCompactShareContentSize+(numShares-1)*appconsts.ContinuationCompactShareContentSize))
+}
+
+// rawTxSize returns the raw tx size that can be used to construct a
+// tx of desiredSize bytes. This function is useful in tests to account for
+// the length delimiter that is prefixed to a tx.
+func rawTxSize(desiredSize int) int {
+	return desiredSize - DelimLen(uint64(desiredSize))
 }
 
 func TestExport(t *testing.T) {
