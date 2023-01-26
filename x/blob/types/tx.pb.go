@@ -29,70 +29,13 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// ShareCommitAndSignature defines the
-type ShareCommitAndSignature struct {
-	// share_commitment is the root of a binary Merkle tree that has leaves which
-	// are subtree roots of the relevant blob shares in the original data
-	// square.
-	ShareCommitment []byte `protobuf:"bytes,2,opt,name=share_commitment,json=shareCommitment,proto3" json:"share_commitment,omitempty"`
-	Signature       []byte `protobuf:"bytes,3,opt,name=signature,proto3" json:"signature,omitempty"`
-}
-
-func (m *ShareCommitAndSignature) Reset()         { *m = ShareCommitAndSignature{} }
-func (m *ShareCommitAndSignature) String() string { return proto.CompactTextString(m) }
-func (*ShareCommitAndSignature) ProtoMessage()    {}
-func (*ShareCommitAndSignature) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f945cb94fe124aae, []int{0}
-}
-func (m *ShareCommitAndSignature) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ShareCommitAndSignature) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_ShareCommitAndSignature.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *ShareCommitAndSignature) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ShareCommitAndSignature.Merge(m, src)
-}
-func (m *ShareCommitAndSignature) XXX_Size() int {
-	return m.Size()
-}
-func (m *ShareCommitAndSignature) XXX_DiscardUnknown() {
-	xxx_messageInfo_ShareCommitAndSignature.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ShareCommitAndSignature proto.InternalMessageInfo
-
-func (m *ShareCommitAndSignature) GetShareCommitment() []byte {
-	if m != nil {
-		return m.ShareCommitment
-	}
-	return nil
-}
-
-func (m *ShareCommitAndSignature) GetSignature() []byte {
-	if m != nil {
-		return m.Signature
-	}
-	return nil
-}
-
 // MsgPayForBlob pays for the inclusion of a blob in the block.
 type MsgPayForBlob struct {
 	Signer       string   `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 	NamespaceIds [][]byte `protobuf:"bytes,2,rep,name=namespace_ids,json=namespaceIds,proto3" json:"namespace_ids,omitempty"`
 	BlobSizes    []uint32 `protobuf:"varint,3,rep,packed,name=blob_sizes,json=blobSizes,proto3" json:"blob_sizes,omitempty"`
-	// share_commitment is the share_commitment from
-	// ShareCommitAndSignature that will be included in a block
-	ShareCommitment []byte `protobuf:"bytes,4,opt,name=share_commitment,json=shareCommitment,proto3" json:"share_commitment,omitempty"`
+	// share_commitments is a list of share commitments (one per blob).
+	ShareCommitments [][]byte `protobuf:"bytes,4,rep,name=share_commitments,json=shareCommitments,proto3" json:"share_commitments,omitempty"`
 	// share_versions are the versions of the share format that the blobs
 	// associated with this message should use when included in a block. The
 	// share_versions specified must match the share_versions used to generate the
@@ -104,7 +47,7 @@ func (m *MsgPayForBlob) Reset()         { *m = MsgPayForBlob{} }
 func (m *MsgPayForBlob) String() string { return proto.CompactTextString(m) }
 func (*MsgPayForBlob) ProtoMessage()    {}
 func (*MsgPayForBlob) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f945cb94fe124aae, []int{1}
+	return fileDescriptor_f945cb94fe124aae, []int{0}
 }
 func (m *MsgPayForBlob) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -154,9 +97,9 @@ func (m *MsgPayForBlob) GetBlobSizes() []uint32 {
 	return nil
 }
 
-func (m *MsgPayForBlob) GetShareCommitment() []byte {
+func (m *MsgPayForBlob) GetShareCommitments() [][]byte {
 	if m != nil {
-		return m.ShareCommitment
+		return m.ShareCommitments
 	}
 	return nil
 }
@@ -177,7 +120,7 @@ func (m *MsgPayForBlobResponse) Reset()         { *m = MsgPayForBlobResponse{} }
 func (m *MsgPayForBlobResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgPayForBlobResponse) ProtoMessage()    {}
 func (*MsgPayForBlobResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f945cb94fe124aae, []int{2}
+	return fileDescriptor_f945cb94fe124aae, []int{1}
 }
 func (m *MsgPayForBlobResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -207,7 +150,6 @@ func (m *MsgPayForBlobResponse) XXX_DiscardUnknown() {
 var xxx_messageInfo_MsgPayForBlobResponse proto.InternalMessageInfo
 
 func init() {
-	proto.RegisterType((*ShareCommitAndSignature)(nil), "blob.ShareCommitAndSignature")
 	proto.RegisterType((*MsgPayForBlob)(nil), "blob.MsgPayForBlob")
 	proto.RegisterType((*MsgPayForBlobResponse)(nil), "blob.MsgPayForBlobResponse")
 }
@@ -215,32 +157,30 @@ func init() {
 func init() { proto.RegisterFile("blob/tx.proto", fileDescriptor_f945cb94fe124aae) }
 
 var fileDescriptor_f945cb94fe124aae = []byte{
-	// 389 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x91, 0xcf, 0xaa, 0xd3, 0x40,
-	0x14, 0xc6, 0x9b, 0xe6, 0x72, 0xb1, 0x43, 0xa3, 0x32, 0xfe, 0xb9, 0xb1, 0xf7, 0x1a, 0x62, 0x44,
-	0x88, 0x0b, 0x13, 0xd1, 0x27, 0xf0, 0x0a, 0x82, 0xc2, 0x05, 0x49, 0xc1, 0x85, 0x9b, 0x32, 0x49,
-	0xc7, 0xe9, 0x40, 0x32, 0x67, 0x98, 0x33, 0x57, 0x5a, 0x97, 0x3e, 0x81, 0xe0, 0xf3, 0xb8, 0x77,
-	0x59, 0x70, 0xe3, 0x52, 0x5a, 0x1f, 0x44, 0x26, 0xe9, 0x1f, 0x0b, 0xdd, 0x9d, 0xf9, 0x7d, 0xe7,
-	0x3b, 0x7c, 0x67, 0x0e, 0x09, 0xca, 0x1a, 0xca, 0xdc, 0xce, 0x33, 0x6d, 0xc0, 0x02, 0x3d, 0x71,
-	0xcf, 0xd1, 0x5d, 0x01, 0x02, 0x5a, 0x90, 0xbb, 0xaa, 0xd3, 0x46, 0x17, 0x02, 0x40, 0xd4, 0x3c,
-	0x67, 0x5a, 0xe6, 0x4c, 0x29, 0xb0, 0xcc, 0x4a, 0x50, 0xd8, 0xa9, 0x49, 0x49, 0xce, 0xc6, 0x33,
-	0x66, 0xf8, 0x6b, 0x68, 0x1a, 0x69, 0x5f, 0xa9, 0xe9, 0x58, 0x0a, 0xc5, 0xec, 0xb5, 0xe1, 0xf4,
-	0x29, 0xb9, 0x8d, 0x4e, 0x9a, 0x54, 0xad, 0xd6, 0x70, 0x65, 0xc3, 0x7e, 0xec, 0xa5, 0xc3, 0xe2,
-	0x16, 0xee, 0x2d, 0x0e, 0xd3, 0x0b, 0x32, 0xc0, 0xad, 0x2f, 0xf4, 0xdb, 0x9e, 0x3d, 0x48, 0x7e,
-	0x78, 0x24, 0xb8, 0x42, 0xf1, 0x9e, 0x2d, 0xde, 0x80, 0xb9, 0xac, 0xa1, 0xa4, 0xf7, 0xc9, 0xa9,
-	0x93, 0xb9, 0x09, 0xbd, 0xd8, 0x4b, 0x07, 0xc5, 0xe6, 0x45, 0x1f, 0x93, 0x40, 0xb1, 0x86, 0xa3,
-	0x66, 0x15, 0x9f, 0xc8, 0x29, 0x86, 0xfd, 0xd8, 0x4f, 0x87, 0xc5, 0x70, 0x07, 0xdf, 0x4e, 0x91,
-	0x3e, 0x24, 0xc4, 0xad, 0x3b, 0x41, 0xf9, 0x85, 0x63, 0xe8, 0xc7, 0x7e, 0x1a, 0x14, 0x03, 0x47,
-	0xc6, 0x0e, 0x1c, 0x8d, 0x7d, 0x72, 0x3c, 0xf6, 0x13, 0x72, 0xb3, 0x6b, 0xfd, 0xcc, 0x0d, 0xba,
-	0x4f, 0x09, 0x6f, 0xb4, 0xd3, 0x82, 0x96, 0x7e, 0xd8, 0xc0, 0xe4, 0x8c, 0xdc, 0x3b, 0x88, 0x5f,
-	0x70, 0xd4, 0xa0, 0x90, 0xbf, 0x98, 0x11, 0xff, 0x0a, 0x05, 0x65, 0x84, 0xfc, 0xb7, 0xdb, 0x9d,
-	0xcc, 0x65, 0xc9, 0x0e, 0x1c, 0xa3, 0xf3, 0x23, 0x70, 0x3b, 0x26, 0x79, 0xf4, 0xf5, 0xd7, 0xdf,
-	0xef, 0xfd, 0x73, 0xfa, 0x20, 0xaf, 0x78, 0xcd, 0xd1, 0x4a, 0x96, 0xb7, 0xe7, 0xd5, 0x6c, 0xf1,
-	0x09, 0x8c, 0x2b, 0x2f, 0xdf, 0xfd, 0x5c, 0x45, 0xde, 0x72, 0x15, 0x79, 0x7f, 0x56, 0x91, 0xf7,
-	0x6d, 0x1d, 0xf5, 0x96, 0xeb, 0xa8, 0xf7, 0x7b, 0x1d, 0xf5, 0x3e, 0x3e, 0x17, 0xd2, 0xce, 0xae,
-	0xcb, 0xac, 0x82, 0x66, 0x67, 0x07, 0x23, 0x76, 0xf5, 0x33, 0xa6, 0x75, 0x3e, 0xef, 0x06, 0xda,
-	0x85, 0xe6, 0x58, 0x9e, 0xb6, 0x97, 0x7f, 0xf9, 0x2f, 0x00, 0x00, 0xff, 0xff, 0xbf, 0x03, 0xf2,
-	0x1c, 0x44, 0x02, 0x00, 0x00,
+	// 355 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x91, 0xcf, 0x4a, 0xeb, 0x40,
+	0x14, 0xc6, 0x9b, 0xa6, 0x94, 0xdb, 0xa1, 0xb9, 0xdc, 0x3b, 0xf7, 0x5f, 0x6e, 0x7b, 0x6f, 0xa8,
+	0x15, 0xa1, 0x20, 0x26, 0xa2, 0x6f, 0x50, 0x41, 0x50, 0x28, 0x48, 0x04, 0x17, 0x6e, 0xca, 0x24,
+	0x1d, 0xa7, 0x03, 0x49, 0xce, 0x90, 0x33, 0x4a, 0xeb, 0xd2, 0x27, 0x10, 0x7c, 0x20, 0xb7, 0x2e,
+	0x0b, 0x6e, 0x5c, 0x4a, 0xeb, 0x83, 0xc8, 0x24, 0xb5, 0x5a, 0x70, 0xf7, 0x9d, 0xdf, 0x97, 0xf3,
+	0xf1, 0x9d, 0x0c, 0x71, 0xa2, 0x04, 0xa2, 0x40, 0x4f, 0x7c, 0x95, 0x83, 0x06, 0x5a, 0x33, 0x63,
+	0xeb, 0xa7, 0x00, 0x01, 0x05, 0x08, 0x8c, 0x2a, 0xbd, 0xd6, 0x3f, 0x01, 0x20, 0x12, 0x1e, 0x30,
+	0x25, 0x03, 0x96, 0x65, 0xa0, 0x99, 0x96, 0x90, 0x61, 0xe9, 0x76, 0xef, 0x2d, 0xe2, 0x0c, 0x50,
+	0x9c, 0xb0, 0xe9, 0x21, 0xe4, 0xfd, 0x04, 0x22, 0xfa, 0x9b, 0xd4, 0x51, 0x8a, 0x8c, 0xe7, 0xae,
+	0xd5, 0xb1, 0x7a, 0x8d, 0x70, 0x39, 0xd1, 0x4d, 0xe2, 0x64, 0x2c, 0xe5, 0xa8, 0x58, 0xcc, 0x87,
+	0x72, 0x84, 0x6e, 0xb5, 0x63, 0xf7, 0x9a, 0x61, 0x73, 0x05, 0x8f, 0x46, 0x48, 0xff, 0x13, 0x62,
+	0xaa, 0x0c, 0x51, 0x5e, 0x73, 0x74, 0xed, 0x8e, 0xdd, 0x73, 0xc2, 0x86, 0x21, 0xa7, 0x06, 0xd0,
+	0x6d, 0xf2, 0x1d, 0xc7, 0x2c, 0xe7, 0xc3, 0x18, 0xd2, 0x54, 0xea, 0x94, 0x67, 0x1a, 0xdd, 0x5a,
+	0x91, 0xf3, 0xad, 0x30, 0x0e, 0xde, 0x39, 0xdd, 0x22, 0x5f, 0xcb, 0x8f, 0xaf, 0x78, 0x8e, 0xa6,
+	0xb2, 0xfb, 0xa5, 0xc8, 0x73, 0x0a, 0x7a, 0xb6, 0x84, 0xdd, 0x3f, 0xe4, 0xd7, 0xda, 0x01, 0x21,
+	0x47, 0x05, 0x19, 0xf2, 0xbd, 0x31, 0xb1, 0x07, 0x28, 0x28, 0x23, 0xe4, 0xc3, 0x75, 0x3f, 0x7c,
+	0xd3, 0xc6, 0x5f, 0xdb, 0x68, 0xb5, 0x3f, 0x81, 0x6f, 0x31, 0xdd, 0x8d, 0x9b, 0xc7, 0x97, 0xbb,
+	0x6a, 0x9b, 0xfe, 0x0d, 0x62, 0x9e, 0x70, 0xd4, 0x92, 0x05, 0xc5, 0xcf, 0x57, 0x6c, 0x7a, 0x01,
+	0xb9, 0x91, 0xfd, 0xe3, 0x87, 0xb9, 0x67, 0xcd, 0xe6, 0x9e, 0xf5, 0x3c, 0xf7, 0xac, 0xdb, 0x85,
+	0x57, 0x99, 0x2d, 0xbc, 0xca, 0xd3, 0xc2, 0xab, 0x9c, 0xef, 0x0a, 0xa9, 0xc7, 0x97, 0x91, 0x1f,
+	0x43, 0xba, 0x5a, 0x87, 0x5c, 0xac, 0xf4, 0x0e, 0x53, 0x2a, 0x98, 0x94, 0x81, 0x7a, 0xaa, 0x38,
+	0x46, 0xf5, 0xe2, 0x5d, 0xf6, 0x5f, 0x03, 0x00, 0x00, 0xff, 0xff, 0x27, 0xe2, 0x1e, 0x3b, 0xe2,
+	0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -325,43 +265,6 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 	Metadata: "blob/tx.proto",
 }
 
-func (m *ShareCommitAndSignature) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *ShareCommitAndSignature) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *ShareCommitAndSignature) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.Signature) > 0 {
-		i -= len(m.Signature)
-		copy(dAtA[i:], m.Signature)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.Signature)))
-		i--
-		dAtA[i] = 0x1a
-	}
-	if len(m.ShareCommitment) > 0 {
-		i -= len(m.ShareCommitment)
-		copy(dAtA[i:], m.ShareCommitment)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.ShareCommitment)))
-		i--
-		dAtA[i] = 0x12
-	}
-	return len(dAtA) - i, nil
-}
-
 func (m *MsgPayForBlob) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -400,12 +303,14 @@ func (m *MsgPayForBlob) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x42
 	}
-	if len(m.ShareCommitment) > 0 {
-		i -= len(m.ShareCommitment)
-		copy(dAtA[i:], m.ShareCommitment)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.ShareCommitment)))
-		i--
-		dAtA[i] = 0x22
+	if len(m.ShareCommitments) > 0 {
+		for iNdEx := len(m.ShareCommitments) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.ShareCommitments[iNdEx])
+			copy(dAtA[i:], m.ShareCommitments[iNdEx])
+			i = encodeVarintTx(dAtA, i, uint64(len(m.ShareCommitments[iNdEx])))
+			i--
+			dAtA[i] = 0x22
+		}
 	}
 	if len(m.BlobSizes) > 0 {
 		dAtA4 := make([]byte, len(m.BlobSizes)*10)
@@ -478,23 +383,6 @@ func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *ShareCommitAndSignature) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.ShareCommitment)
-	if l > 0 {
-		n += 1 + l + sovTx(uint64(l))
-	}
-	l = len(m.Signature)
-	if l > 0 {
-		n += 1 + l + sovTx(uint64(l))
-	}
-	return n
-}
-
 func (m *MsgPayForBlob) Size() (n int) {
 	if m == nil {
 		return 0
@@ -518,9 +406,11 @@ func (m *MsgPayForBlob) Size() (n int) {
 		}
 		n += 1 + sovTx(uint64(l)) + l
 	}
-	l = len(m.ShareCommitment)
-	if l > 0 {
-		n += 1 + l + sovTx(uint64(l))
+	if len(m.ShareCommitments) > 0 {
+		for _, b := range m.ShareCommitments {
+			l = len(b)
+			n += 1 + l + sovTx(uint64(l))
+		}
 	}
 	if len(m.ShareVersions) > 0 {
 		l = 0
@@ -546,124 +436,6 @@ func sovTx(x uint64) (n int) {
 }
 func sozTx(x uint64) (n int) {
 	return sovTx(uint64((x << 1) ^ uint64((int64(x) >> 63))))
-}
-func (m *ShareCommitAndSignature) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowTx
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: ShareCommitAndSignature: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ShareCommitAndSignature: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ShareCommitment", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthTx
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTx
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.ShareCommitment = append(m.ShareCommitment[:0], dAtA[iNdEx:postIndex]...)
-			if m.ShareCommitment == nil {
-				m.ShareCommitment = []byte{}
-			}
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Signature", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthTx
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTx
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Signature = append(m.Signature[:0], dAtA[iNdEx:postIndex]...)
-			if m.Signature == nil {
-				m.Signature = []byte{}
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipTx(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthTx
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
 }
 func (m *MsgPayForBlob) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
@@ -836,7 +608,7 @@ func (m *MsgPayForBlob) Unmarshal(dAtA []byte) error {
 			}
 		case 4:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ShareCommitment", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ShareCommitments", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -863,10 +635,8 @@ func (m *MsgPayForBlob) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.ShareCommitment = append(m.ShareCommitment[:0], dAtA[iNdEx:postIndex]...)
-			if m.ShareCommitment == nil {
-				m.ShareCommitment = []byte{}
-			}
+			m.ShareCommitments = append(m.ShareCommitments, make([]byte, postIndex-iNdEx))
+			copy(m.ShareCommitments[len(m.ShareCommitments)-1], dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 8:
 			if wireType == 0 {

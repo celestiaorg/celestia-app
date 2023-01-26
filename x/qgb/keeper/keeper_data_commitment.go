@@ -1,6 +1,8 @@
 package keeper
 
 import (
+	"fmt"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -26,4 +28,27 @@ func (k Keeper) GetDataCommitmentWindowParam(ctx sdk.Context) uint64 {
 		panic(err)
 	}
 	return resp.Params.DataCommitmentWindow
+}
+
+// GetDataCommitmentForHeight returns the attestation containing the provided height.
+func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (types.DataCommitment, error) {
+	latestNonce := k.GetLatestAttestationNonce(ctx)
+	for i := uint64(0); i < latestNonce; i++ {
+		// TODO better search
+		att, found, err := k.GetAttestationByNonce(ctx, latestNonce-i)
+		if err != nil {
+			return types.DataCommitment{}, err
+		}
+		if !found {
+			return types.DataCommitment{}, fmt.Errorf("couldn't find attestation with nonce %d", latestNonce-i)
+		}
+		dcc, ok := att.(*types.DataCommitment)
+		if !ok {
+			continue
+		}
+		if dcc.BeginBlock <= height && dcc.EndBlock >= height {
+			return *dcc, nil
+		}
+	}
+	return types.DataCommitment{}, fmt.Errorf("data commitment for height not found")
 }
