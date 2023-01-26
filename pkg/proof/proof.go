@@ -24,28 +24,19 @@ import (
 
 // NewTxInclusionProof returns a new Tx inclusion proof for the given
 // transaction index.
-func NewTxInclusionProof(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxProof, error) {
+func NewTxInclusionProof(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.ShareProof, error) {
 	rawShares, err := shares.Split(data, true)
 	if err != nil {
-		return types.TxProof{}, err
+		return types.ShareProof{}, err
 	}
 
 	startShare, endShare, err := TxSharePosition(data, txIndex)
 	if err != nil {
-		return types.TxProof{}, err
+		return types.ShareProof{}, err
 	}
 
 	namespace := getTxNamespace(data.Txs[txIndex])
-	proof, err := NewShareInclusionProof(rawShares, data.SquareSize, namespace, startShare, endShare)
-	if err != nil {
-		return types.TxProof{}, err
-	}
-
-	return types.TxProof{
-		RowRoots: proof.RowsProof.RowsRoots,
-		Data:     proof.Data,
-		Proofs:   proof.SharesProofs,
-	}, nil
+	return NewShareInclusionProof(rawShares, data.SquareSize, namespace, startShare, endShare)
 }
 
 func getTxNamespace(tx types.Tx) (ns namespace.ID) {
@@ -120,7 +111,7 @@ func NewShareInclusionProof(
 	namespaceID namespace.ID,
 	startShare uint64,
 	endShare uint64,
-) (types.SharesProof, error) {
+) (types.ShareProof, error) {
 	startRow := startShare / squareSize
 	endRow := endShare / squareSize
 	startLeaf := startShare % squareSize
@@ -128,7 +119,7 @@ func NewShareInclusionProof(
 
 	eds, err := da.ExtendShares(squareSize, shares.ToBytes(allRawShares))
 	if err != nil {
-		return types.SharesProof{}, err
+		return types.ShareProof{}, err
 	}
 
 	edsRowRoots := eds.RowRoots()
@@ -175,7 +166,7 @@ func NewShareInclusionProof(
 		rawShares = append(rawShares, shares.ToBytes(row[startLeafPos:endLeafPos+1])...)
 		proof, err := tree.Tree().ProveRange(int(startLeafPos), int(endLeafPos+1))
 		if err != nil {
-			return types.SharesProof{}, err
+			return types.ShareProof{}, err
 		}
 
 		sharesProofs = append(sharesProofs, &tmproto.NMTProof{
@@ -187,19 +178,19 @@ func NewShareInclusionProof(
 
 		// make sure that the generated root is the same as the eds row root.
 		if !bytes.Equal(rowsRoots[i].Bytes(), tree.Root()) {
-			return types.SharesProof{}, errors.New("eds row root is different than tree root")
+			return types.ShareProof{}, errors.New("eds row root is different than tree root")
 		}
 	}
 
-	return types.SharesProof{
-		RowsProof: types.RowsProof{
-			RowsRoots: rowsRoots,
-			Proofs:    rowsProofs,
-			StartRow:  uint32(startRow),
-			EndRow:    uint32(endRow),
+	return types.ShareProof{
+		RowProof: types.RowProof{
+			RowRoots: rowsRoots,
+			Proofs:   rowsProofs,
+			StartRow: uint32(startRow),
+			EndRow:   uint32(endRow),
 		},
-		Data:         rawShares,
-		SharesProofs: sharesProofs,
-		NamespaceID:  namespaceID,
+		Data:        rawShares,
+		ShareProofs: sharesProofs,
+		NamespaceID: namespaceID,
 	}, nil
 }
