@@ -25,7 +25,7 @@ func SubmitPayForBlob(
 	if err != nil {
 		return nil, err
 	}
-	msg, err := types.NewMsgPayForBlob(addr.String(), blobs...)
+	msg, err := types.NewMsgPayForBlobs(addr.String(), blobs...)
 	if err != nil {
 		return nil, err
 	}

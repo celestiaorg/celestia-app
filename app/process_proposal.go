@@ -25,7 +25,7 @@ const (
 
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
 	// Check for blob inclusion:
-	//  - each MsgPayForBlob included in a block should have a corresponding blob data in the block body
+	//  - each MsgPayForBlobs included in a block should have a corresponding blob data in the block body
 	//  - the commitment in each PFB should match the commitment for the shares that contain that blob data
 	//  - there should be no unpaid-for data
 
@@ -86,7 +86,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	// iterate over all of the MsgPayForBlob transactions and ensure that their
+	// iterate over all of the MsgPayForBlobs transactions and ensure that their
 	// commitments are subtree roots of the data root.
 	for _, rawTx := range req.BlockData.Txs {
 		tx := rawTx
@@ -121,14 +121,14 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		// all PFBs must have a share index, so that we can find their
 		// respective blob.
 		if !isWrapped {
-			logInvalidPropBlock(app.Logger(), req.Header, "Found a MsgPayForBlob without a share index")
+			logInvalidPropBlock(app.Logger(), req.Header, "Found a MsgPayForBlobs without a share index")
 			return abci.ResponseProcessProposal{
 				Result: abci.ResponseProcessProposal_REJECT,
 			}
 		}
 
 		if err = pfb.ValidateBasic(); err != nil {
-			logInvalidPropBlockError(app.Logger(), req.Header, "invalid MsgPayForBlob", err)
+			logInvalidPropBlockError(app.Logger(), req.Header, "invalid MsgPayForBlobs", err)
 			return abci.ResponseProcessProposal{
 				Result: abci.ResponseProcessProposal_REJECT,
 			}
@@ -156,9 +156,9 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	}
 }
 
-func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlob, bool) {
+func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {
 	for _, msg := range msgs {
-		if pfb, ok := msg.(*blobtypes.MsgPayForBlob); ok {
+		if pfb, ok := msg.(*blobtypes.MsgPayForBlobs); ok {
 			return pfb, true
 		}
 	}
