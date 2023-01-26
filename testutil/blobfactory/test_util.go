@@ -4,7 +4,6 @@ import (
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -22,17 +21,6 @@ func GenerateManyRawSendTxs(txConfig client.TxConfig, count int) []coretypes.Tx 
 	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
 	txs := make([]coretypes.Tx, count)
 	for i := 0; i < count; i++ {
-		txs[i] = generateRawSendTx(txConfig, signer, 100)
-	}
-	return txs
-}
-
-// GenerateManyRawSendTxsWithAccounts will create one bank.MsgSend transaction
-// for each provided account.
-func GenerateManyRawSendTxsWithAccounts(txConfig client.TxConfig, kr keyring.Keyring, accounts []string, chainid string) []coretypes.Tx {
-	txs := make([]coretypes.Tx, len(accounts))
-	for i := 0; i < len(accounts); i++ {
-		signer := blobtypes.NewKeyringSigner(kr, accounts[i], chainid)
 		txs[i] = generateRawSendTx(txConfig, signer, 100)
 	}
 	return txs

@@ -81,12 +81,7 @@ func ProcessRandomProposal(
 		chainid,
 		accounts[:count],
 	)
-	sendTxs := blobfactory.GenerateManyRawSendTxsWithAccounts(
-		cfg.TxConfig,
-		kr,
-		accounts[:count],
-		chainid,
-	)
+	sendTxs := blobfactory.GenerateManyRawSendTxs(cfg.TxConfig, count)
 	txs = append(txs, sendTxs...)
 	resp := capp.PrepareProposal(abci.RequestPrepareProposal{
 		BlockData: &core.Data{
