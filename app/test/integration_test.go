@@ -18,7 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/prove"
+	"github.com/celestiaorg/celestia-app/pkg/proof"
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	"github.com/celestiaorg/celestia-app/x/blob"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
@@ -359,7 +359,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		require.NoError(err)
 
 		// get the blob shares
-		beginBlobShare, endBlobShare, err := prove.BlobShareRange(blockRes.Block.Txs[txResp.Index])
+		beginBlobShare, endBlobShare, err := proof.BlobShareRange(blockRes.Block.Txs[txResp.Index])
 		require.NoError(err)
 
 		// verify the blob shares proof

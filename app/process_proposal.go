@@ -56,6 +56,13 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
+	if !arePFBsOrderedAfterTxs(req.BlockData.Txs) {
+		logInvalidPropBlock(app.Logger(), req.Header, "PFBs are not all ordered at the end of the list of transactions")
+		return abci.ResponseProcessProposal{
+			Result: abci.ResponseProcessProposal_REJECT,
+		}
+	}
+
 	dataSquare, err := shares.Split(data, true)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute shares from block data:", err)
@@ -140,18 +147,19 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			}
 		}
 
-		commitment, err := inclusion.GetMultiCommit(cacher, dah, wrappedTx.ShareIndexes, pfb.BlobSizes)
-		if err != nil {
-			logInvalidPropBlockError(app.Logger(), req.Header, "commitment not found", err)
-			return abci.ResponseProcessProposal{
-				Result: abci.ResponseProcessProposal_REJECT,
+		for i, shareIndex := range wrappedTx.ShareIndexes {
+			commitment, err := inclusion.GetCommit(cacher, dah, int(shareIndex), shares.SparseSharesNeeded(pfb.BlobSizes[i]))
+			if err != nil {
+				logInvalidPropBlockError(app.Logger(), req.Header, "commitment not found", err)
+				return abci.ResponseProcessProposal{
+					Result: abci.ResponseProcessProposal_REJECT,
+				}
 			}
-		}
-
-		if !bytes.Equal(pfb.ShareCommitment, commitment) {
-			logInvalidPropBlock(app.Logger(), req.Header, "found commitment does not match user's")
-			return abci.ResponseProcessProposal{
-				Result: abci.ResponseProcessProposal_REJECT,
+			if !bytes.Equal(pfb.ShareCommitments[i], commitment) {
+				logInvalidPropBlock(app.Logger(), req.Header, "found commitment does not match user's")
+				return abci.ResponseProcessProposal{
+					Result: abci.ResponseProcessProposal_REJECT,
+				}
 			}
 		}
 
@@ -176,6 +184,19 @@ func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlob, bool) {
 		}
 	}
 	return nil, false
+}
+
+func arePFBsOrderedAfterTxs(txs [][]byte) bool {
+	seenFirstPFB := false
+	for _, tx := range txs {
+		_, isWrapped := coretypes.UnmarshalIndexWrapper(tx)
+		if isWrapped {
+			seenFirstPFB = true
+		} else if seenFirstPFB {
+			return false
+		}
+	}
+	return true
 }
 
 func isValidBlobNamespace(namespace namespace.ID) bool {

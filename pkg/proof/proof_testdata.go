@@ -1,4 +1,4 @@
-package prove
+package proof
 
 import "github.com/tendermint/tendermint/types"
 

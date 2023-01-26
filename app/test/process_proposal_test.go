@@ -69,7 +69,11 @@ func TestProcessProposal(t *testing.T) {
 	undecodableData := validData()
 	undecodableData.Txs = append(unindexedData.Txs, tmrand.Bytes(300))
 
-	// create an invalid block by adding an other wise valid PFB, but an invalid
+	mixedData := validData()
+	normalTxs := blobfactory.GenerateManyRawSendTxs(encConf.TxConfig, 4)
+	mixedData.Txs = append(mixedData.Txs, coretypes.Txs(normalTxs).ToSliceOfBytes()...)
+
+	// create an invalid block by adding an otherwise valid PFB, but an invalid
 	// signature since there's no account
 	badSigPFBData := validData()
 	badSigBlobTx := testutil.RandBlobTxsWithManualSequence(
@@ -164,6 +168,15 @@ func TestProcessProposal(t *testing.T) {
 			name:           "undecodable tx",
 			input:          undecodableData,
 			mutator:        func(d *core.Data) {},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "incorrectly sorted wrapped pfb's",
+			input: mixedData,
+			mutator: func(d *core.Data) {
+				// swap txs at index 3 and 4 (essentially swapping a PFB with a normal tx)
+				d.Txs[4], d.Txs[3] = d.Txs[3], d.Txs[4]
+			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{

@@ -4,13 +4,14 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 )
 
-func generateMixedParsedTxs(normalTxCount, pfbCount, pfbSize int) []parsedTx {
+func generateMixedTxs(normalTxCount, pfbCount, pfbSize int) ([][]byte, []tmproto.BlobTx) {
 	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
 	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), pfbCount, pfbSize)
 	normieTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, normalTxCount)
@@ -19,12 +20,12 @@ func generateMixedParsedTxs(normalTxCount, pfbCount, pfbSize int) []parsedTx {
 		normieTxs...),
 		pfbTxs...,
 	)
-	return parseTxs(encCfg.TxConfig, coretypes.Txs(txs).ToSliceOfBytes())
+	return separateTxs(encCfg.TxConfig, coretypes.Txs(txs).ToSliceOfBytes())
 }
 
-// generateParsedTxsWithNIDs will generate len(nids) parsed BlobTxs with
+// generateBlobTxsWithNIDs will generate len(nids) BlobTxs with
 // len(blobSizes[i]) number of blobs per BlobTx.
-func generateParsedTxsWithNIDs(t *testing.T, nids [][]byte, blobSizes [][]int) []parsedTx {
+func generateBlobTxsWithNIDs(t *testing.T, nids [][]byte, blobSizes [][]int) []tmproto.BlobTx {
 	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
 	const acc = "signer"
 	kr := testfactory.GenerateKeyring(acc)
@@ -36,11 +37,12 @@ func generateParsedTxsWithNIDs(t *testing.T, nids [][]byte, blobSizes [][]int) [
 		blobfactory.Repeat(acc, len(blobSizes)),
 		blobfactory.NestedBlobs(t, nids, blobSizes),
 	)
-	return parseTxs(encCfg.TxConfig, txs)
+	_, blobTxs := separateTxs(encCfg.TxConfig, txs)
+	return blobTxs
 }
 
-func generateNormalParsedTxs(count int) []parsedTx {
+func generateNormalTxs(count int) [][]byte {
 	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
 	normieTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, count)
-	return parseTxs(encCfg.TxConfig, coretypes.Txs(normieTxs).ToSliceOfBytes())
+	return coretypes.Txs(normieTxs).ToSliceOfBytes()
 }
