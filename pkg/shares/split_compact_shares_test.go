@@ -31,6 +31,9 @@ func TestCount(t *testing.T) {
 			t.Errorf("count got %d want %d", got, tc.wantShareCount)
 		}
 	}
+
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+	assert.Equal(t, 0, css.Count())
 }
 
 func TestExport(t *testing.T) {

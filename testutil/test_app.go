@@ -80,7 +80,7 @@ func SetupTestAppWithGenesisValSet(genAccounts ...string) (*app.App, keyring.Key
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	testApp := app.New(
-		log.NewNopLogger(), db, nil, true, skipUpgradeHeights,
+		log.TestingLogger(), db, nil, true, skipUpgradeHeights,
 		cast.ToString(emptyOpts.Get(flags.FlagHome)),
 		cast.ToUint(emptyOpts.Get(server.FlagInvCheckPeriod)),
 		encCfg,

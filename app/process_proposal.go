@@ -2,13 +2,12 @@ package app
 
 import (
 	"bytes"
-	"fmt"
-	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/pkg/square"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
@@ -29,40 +28,16 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	//  - the commitment in each PFB should match the commitment for the shares that contain that blob data
 	//  - there should be no unpaid-for data
 
-	data, err := coretypes.DataFromProto(req.BlockData)
+	square, err := square.Reconstruct(req.BlockData.Txs, appconsts.DefaultMaxSquareSize)
 	if err != nil {
-		logInvalidPropBlockError(app.Logger(), req.Header, "failure to unmarshal block data:", err)
+		logInvalidPropBlockError(app.Logger(), req.Header, "failure to reconstruct the data square", err)
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
 	}
 
-	if !sort.IsSorted(coretypes.BlobsByNamespace(data.Blobs)) {
-		logInvalidPropBlock(app.Logger(), req.Header, "blobs are unsorted")
-		return abci.ResponseProcessProposal{
-			Result: abci.ResponseProcessProposal_REJECT,
-		}
-	}
-
-	for _, blob := range data.Blobs {
-		if !isValidBlobNamespace(blob.NamespaceID) {
-			logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("invalid blob namespace %v", blob.NamespaceID))
-			return abci.ResponseProcessProposal{
-				Result: abci.ResponseProcessProposal_REJECT,
-			}
-		}
-	}
-
-	dataSquare, err := shares.Split(data, true)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute shares from block data:", err)
-		return abci.ResponseProcessProposal{
-			Result: abci.ResponseProcessProposal_REJECT,
-		}
-	}
-
-	cacher := inclusion.NewSubtreeCacher(data.SquareSize)
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(dataSquare), appconsts.DefaultCodec(), cacher.Constructor)
+	cacher := inclusion.NewSubtreeCacher(square.Size())
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(square), appconsts.DefaultCodec(), cacher.Constructor)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to erasure the data square", err)
 		return abci.ResponseProcessProposal{
