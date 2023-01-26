@@ -22,7 +22,7 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-// NewTxInclusionProof returns a new Tx inclusion proof for the given
+// NewTxInclusionProof returns a new share inclusion proof for the given
 // transaction index.
 func NewTxInclusionProof(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.ShareProof, error) {
 	rawShares, err := shares.Split(data, true)
