@@ -84,6 +84,14 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 	sigVerifyAnteHander := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
 
+	sdkCtx, err := app.NewProcessProposalQueryContext()
+	if err != nil {
+		logInvalidPropBlockError(app.Logger(), req.Header, "failure to load query context", err)
+		return abci.ResponseProcessProposal{
+			Result: abci.ResponseProcessProposal_REJECT,
+		}
+	}
+
 	// iterate over all of the MsgPayForBlob transactions and ensure that their
 	// commitments are subtree roots of the data root.
 	for _, rawTx := range req.BlockData.Txs {
@@ -147,9 +155,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			}
 		}
 
-		sdkCtx := app.NewProcessProposalContext(req.Header)
-
-		_, err = sigVerifyAnteHander(sdkCtx, sdkTx, false)
+		_, err = sigVerifyAnteHander(sdkCtx, sdkTx, true)
 		if err != nil {
 			logInvalidPropBlockError(app.Logger(), req.Header, "invalid PFB signature", err)
 			return abci.ResponseProcessProposal{

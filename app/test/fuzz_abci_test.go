@@ -8,8 +8,10 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -25,7 +27,12 @@ func TestPrepareProposalConsistency(t *testing.T) {
 		t.Skip("skipping TestPrepareProposalConsistency in short mode.")
 	}
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
+	accounts := make([]string, 10000)
+	for i := range accounts {
+		accounts[i] = tmrand.Str(20)
+	}
+
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accounts...)
 
 	type test struct {
 		name                   string
@@ -45,7 +52,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 				case <-timer:
 					return
 				default:
-					ProcessRandomProposal(t, tt.count, tt.size, tt.blobCount, encConf, testApp)
+					ProcessRandomProposal(t, tt.count, tt.size, tt.blobCount, encConf, testApp, accounts, kr, "")
 				}
 			}
 		})
@@ -59,9 +66,27 @@ func ProcessRandomProposal(
 	maxBlobCount int,
 	cfg encoding.Config,
 	capp *app.App,
+	accounts []string,
+	kr keyring.Keyring,
+	chainid string,
 ) {
-	txs := blobfactory.RandBlobTxsRandomlySized(cfg.TxConfig.TxEncoder(), count, maxSize, maxBlobCount)
-	sendTxs := blobfactory.GenerateManyRawSendTxs(cfg.TxConfig, count)
+	txs := testutil.RandBlobTxsWithAccounts(
+		t,
+		capp,
+		cfg.TxConfig.TxEncoder(),
+		kr,
+		maxSize,
+		maxBlobCount,
+		true,
+		chainid,
+		accounts[:count],
+	)
+	sendTxs := blobfactory.GenerateManyRawSendTxsWithAccounts(
+		cfg.TxConfig,
+		kr,
+		accounts[:count],
+		chainid,
+	)
 	txs = append(txs, sendTxs...)
 	resp := capp.PrepareProposal(abci.RequestPrepareProposal{
 		BlockData: &core.Data{

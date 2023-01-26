@@ -60,8 +60,8 @@ func TestProcessProposal(t *testing.T) {
 		false,
 		"",
 		accounts[:1],
-	)
-	btx, _ := coretypes.UnmarshalBlobTx(blobtx[0])
+	)[0]
+	btx, _ := coretypes.UnmarshalBlobTx(blobtx)
 	unindexedData.Txs = append(unindexedData.Txs, btx.Tx)
 
 	// create block data with a tx that is random data, and therefore cannot be
