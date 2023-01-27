@@ -20,7 +20,7 @@ import (
 
 func CmdWirePayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "payForBlob [hexNamespace] [hexBlob]",
+		Use:   "PayForBlobs [hexNamespace] [hexBlob]",
 		Short: "Pay for a data blob to be published to the Celestia blockchain",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

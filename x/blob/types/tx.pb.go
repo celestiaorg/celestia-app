@@ -29,7 +29,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// MsgPayForBlob pays for the inclusion of a blob in the block.
+// MsgPayForBlobs pays for the inclusion of a blob in the block.
 type MsgPayForBlobs struct {
 	Signer       string   `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 	NamespaceIds [][]byte `protobuf:"bytes,2,rep,name=namespace_ids,json=namespaceIds,proto3" json:"namespace_ids,omitempty"`
@@ -111,8 +111,8 @@ func (m *MsgPayForBlobs) GetShareVersions() []uint32 {
 	return nil
 }
 
-// MsgPayForBlobResponse describes the response returned after the submission
-// of a PayForBlob
+// MsgPayForBlobsResponse describes the response returned after the submission
+// of a PayForBlobs
 type MsgPayForBlobsResponse struct {
 }
 
@@ -195,7 +195,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	// PayForBlob allows the user to pay for the inclusion of a blob
+	// PayForBlobs allows the user to pay for the inclusion of a blob
 	PayForBlobs(ctx context.Context, in *MsgPayForBlobs, opts ...grpc.CallOption) (*MsgPayForBlobsResponse, error)
 }
 
@@ -218,7 +218,7 @@ func (c *msgClient) PayForBlobs(ctx context.Context, in *MsgPayForBlobs, opts ..
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	// PayForBlob allows the user to pay for the inclusion of a blob
+	// PayForBlobs allows the user to pay for the inclusion of a blob
 	PayForBlobs(context.Context, *MsgPayForBlobs) (*MsgPayForBlobsResponse, error)
 }
 

@@ -12,7 +12,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// SubmitPayForBlob builds, signs, and synchronously submits a PayForBlob
+// SubmitPayForBlobs builds, signs, and synchronously submits a PayForBlob
 // transaction. It returns a sdk.TxResponse after submission.
 func SubmitPayForBlob(
 	ctx context.Context,

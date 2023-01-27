@@ -57,7 +57,7 @@ rm -r ~/.celestia-app
 ./scripts/single-node.sh
 
 # Post data to the local devnet
-celestia-appd tx blob payForBlob [hexNamespace] [hexBlob] [flags]
+celestia-appd tx blob PayForBlobs [hexNamespace] [hexBlob] [flags]
 ```
 
 <!-- markdown-link-check-disable -->

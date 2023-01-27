@@ -29,7 +29,7 @@ When a `MsgPayForBlob` is processed, it consumes gas based on the blob size.
 
 ## PrepareProposal
 
-When a block producer is preparing a block, they must perform an extra step for `BlobTx`s so that end-users can find the blob shares relevant to their submitted `BlobTx`. In particular, block proposers wrap the `BlobTx` in the PayForBlob namespace with the index of the first share of the blob in the data square. See [Non-interactive Default Rules](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules) for more details.
+When a block producer is preparing a block, they must perform an extra step for `BlobTx`s so that end-users can find the blob shares relevant to their submitted `BlobTx`. In particular, block proposers wrap the `BlobTx` in the PayForBlobs namespace with the index of the first share of the blob in the data square. See [Non-interactive Default Rules](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules) for more details.
 
 Since `BlobTx`s can contain multiple blobs, the `BlobTx` is wrapped with one share index per blob in the transaction. The index wrapped transaction is called an [IndexWrapper](https://github.com/celestiaorg/celestia-core/blob/2d2a65f59eabf1993804168414b86d758f30c383/proto/tendermint/types/types.proto#L192-L198) and this is the type that gets marshalled and written to the PayForBlobNamespace.
 
@@ -57,7 +57,7 @@ The blob module emits the following events:
 ### Usage
 
 ```shell
-celestia-app tx blob payForBlob <hex encoded namespace> <hex encoded data> [flags]
+celestia-app tx blob PayForBlobs <hex encoded namespace> <hex encoded data> [flags]
 ```
 
 For submitting PFB transaction via a light client's rpc, see [celestia-node's documention](https://docs.celestia.org/developers/node-api/#post-submit_pfd).

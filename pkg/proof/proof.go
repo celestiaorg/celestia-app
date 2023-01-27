@@ -133,11 +133,11 @@ func BlobShareRange(tx types.Tx) (beginShare uint64, endShare uint64, err error)
 	}
 
 	if len(decodedTx.GetMsgs()) == 0 {
-		return beginShare, endShare, fmt.Errorf("PayForBlob contains no messages")
+		return beginShare, endShare, fmt.Errorf("PayForBlobs contains no messages")
 	}
 
 	if len(decodedTx.GetMsgs()) > 1 {
-		return beginShare, endShare, fmt.Errorf("PayForBlob contains multiple messages and this is not currently supported")
+		return beginShare, endShare, fmt.Errorf("PayForBlobs contains multiple messages and this is not currently supported")
 	}
 
 	if sdk.MsgTypeURL(decodedTx.GetMsgs()[0]) != blobtypes.URLMsgPayForBlobs {
