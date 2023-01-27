@@ -1,8 +1,8 @@
 syntax = "proto3";
-package qgb;
+package celestia.qgb.v1;
 
 import "gogoproto/gogo.proto";
-import "qgb/types.proto";
+import "celestia/qgb/v1/types.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 

@@ -1,8 +1,8 @@
 syntax = "proto3";
-package qgb;
+package celestia.qgb.v1;
 
-import "qgb/genesis.proto";
-import "qgb/types.proto";
+import "celestia/qgb/v1/genesis.proto";
+import "celestia/qgb/v1/types.proto";
 import "google/api/annotations.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
 import "gogoproto/gogo.proto";
@@ -15,7 +15,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
 service Query {
   // Params queries the current parameters for the qgb module
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
-    option (google.api.http).get = "/qgb/params";
+    option (google.api.http).get = "/qgb/v1/params";
   }
 
   // queries for attestations requests waiting to be signed by an orchestrator
@@ -24,12 +24,12 @@ service Query {
   // Returns nil if not found.
   rpc AttestationRequestByNonce(QueryAttestationRequestByNonceRequest)
       returns (QueryAttestationRequestByNonceResponse) {
-    option (google.api.http).get = "/qgb/attestations/requests/{nonce}";
+    option (google.api.http).get = "/qgb/v1/attestations/requests/{nonce}";
   }
   // LatestAttestationNonce queries latest attestation nonce.
   rpc LatestAttestationNonce(QueryLatestAttestationNonceRequest)
       returns (QueryLatestAttestationNonceResponse) {
-    option (google.api.http).get = "/qgb/attestations/nonce/latest";
+    option (google.api.http).get = "/qgb/v1/attestations/nonce/latest";
   }
 
   // misc
@@ -37,14 +37,14 @@ service Query {
   // LastUnbondingHeight returns the last unbonding height
   rpc LastUnbondingHeight(QueryLastUnbondingHeightRequest)
       returns (QueryLastUnbondingHeightResponse) {
-    option (google.api.http).get = "/qgb/unbonding";
+    option (google.api.http).get = "/qgb/v1/unbonding";
   }
 
   // DataCommitmentRangeForHeight returns the data commitment window
   // that includes the provided height
   rpc DataCommitmentRangeForHeight(QueryDataCommitmentRangeForHeightRequest)
       returns (QueryDataCommitmentRangeForHeightResponse) {
-    option (google.api.http).get = "/qgb/data_commitment/range/height";
+    option (google.api.http).get = "/qgb/v1/data_commitment/range/height";
   }
 }
 
