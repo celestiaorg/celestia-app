@@ -8,7 +8,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 
 // Msg defines the blob Msg service.
 service Msg {
-  // PayForBlobs allows the user to pay for the inclusion of a blob
+  // PayForBlobs allows the user to pay for the inclusion of one or more blobs
   rpc PayForBlobs(MsgPayForBlobs) returns (MsgPayForBlobsResponse) {
     option (google.api.http).get = "/celestia/blob/payforblobs";
   }
