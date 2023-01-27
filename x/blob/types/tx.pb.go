@@ -195,7 +195,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	// PayForBlobs allows the user to pay for the inclusion of a blob
+	// PayForBlobs allows the user to pay for the inclusion of one or more blobs
 	PayForBlobs(ctx context.Context, in *MsgPayForBlobs, opts ...grpc.CallOption) (*MsgPayForBlobsResponse, error)
 }
 
@@ -218,7 +218,7 @@ func (c *msgClient) PayForBlobs(ctx context.Context, in *MsgPayForBlobs, opts ..
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	// PayForBlobs allows the user to pay for the inclusion of a blob
+	// PayForBlobs allows the user to pay for the inclusion of one or more blobs
 	PayForBlobs(context.Context, *MsgPayForBlobs) (*MsgPayForBlobsResponse, error)
 }
 
