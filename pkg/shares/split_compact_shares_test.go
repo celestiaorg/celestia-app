@@ -2,6 +2,8 @@ package shares
 
 import (
 	"bytes"
+	"fmt"
+	// "fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -45,7 +47,7 @@ func generateTx(numShares int) coretypes.Tx {
 	if numShares == 1 {
 		return bytes.Repeat([]byte{1}, rawTxSize(appconsts.FirstCompactShareContentSize))
 	}
-	return bytes.Repeat([]byte{1}, rawTxSize(appconsts.FirstCompactShareContentSize+(numShares-1)*appconsts.ContinuationCompactShareContentSize))
+	return bytes.Repeat([]byte{2}, rawTxSize(appconsts.FirstCompactShareContentSize+(numShares-1)*appconsts.ContinuationCompactShareContentSize))
 }
 
 // rawTxSize returns the raw tx size that can be used to construct a
@@ -119,4 +121,49 @@ func TestExport(t *testing.T) {
 			assert.Len(t, got, css.Count())
 		})
 	}
+}
+
+func TestWriteAfterExport(t *testing.T) {
+	partialShare := coretypes.Tx(bytes.Repeat([]byte{123}, 1))
+	exactlyOneShare := generateTx(1)
+	exactlyTwoShares := generateTx(2)
+
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+
+	css.WriteTx(exactlyOneShare)
+	shares := css.Export()
+	assert.Len(t, shares, 1)
+	fmt.Printf("%v\n", shares)
+
+	css.WriteTx(exactlyTwoShares)
+	shares = css.Export()
+	assert.Len(t, shares, 3)
+	fmt.Printf("%v\n", shares)
+
+	css.WriteTx(exactlyOneShare)
+	shares = css.Export()
+	assert.Len(t, shares, 4)
+	fmt.Printf("%v\n", shares)
+
+	css.WriteTx(partialShare)
+	assert.False(t, css.isEmptyPendingShare())
+	shares = css.Export()
+	assert.Len(t, shares, 5) // fails
+	fmt.Printf("%v\n", shares)
+}
+
+func TestWriteAfterExportV2(t *testing.T) {
+	partialShare := coretypes.Tx(bytes.Repeat([]byte{123}, 1))
+	exactlyOneShare := generateTx(1)
+	exactlyTwoShares := generateTx(2)
+
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+
+	css.WriteTx(exactlyOneShare)
+	css.WriteTx(exactlyTwoShares)
+	css.WriteTx(exactlyOneShare)
+	css.WriteTx(partialShare)
+	shares := css.Export()
+	assert.Len(t, shares, 5) // fails
+	fmt.Printf("%v\n", shares)
 }
