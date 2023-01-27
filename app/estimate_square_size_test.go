@@ -97,6 +97,7 @@ func Test_estimateSquareSize_MultiBlob(t *testing.T) {
 				enc.TxConfig.TxEncoder(),
 				signer,
 				tt.getBlobSizes(),
+				0, 0,
 			)
 			normalTxs, blobTxs := separateTxs(enc.TxConfig, shares.TxsToBytes(txs))
 			resSquareSize, resStart := estimateSquareSize(normalTxs, blobTxs)

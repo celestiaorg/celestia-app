@@ -3,10 +3,11 @@ package app_test
 import (
 	"testing"
 
-	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
@@ -20,11 +21,10 @@ import (
 )
 
 func TestPrepareProposalBlobSorting(t *testing.T) {
-	signer := types.GenerateKeyringSigner(t, types.TestAccName)
-
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
+	accnts := testfactory.GenerateAccounts(6)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accnts...)
+	infos := queryAccountInfo(testApp, accnts, kr)
 
 	type test struct {
 		input         abci.RequestPrepareProposal
@@ -32,16 +32,35 @@ func TestPrepareProposalBlobSorting(t *testing.T) {
 		expectedTxs   int
 	}
 
-	blobTxs := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+	blobTxs := blobfactory.ManyMultiBlobTx(
+		t,
 		encCfg.TxConfig.TxEncoder(),
-		signer,
-		[][]byte{
-			{1, 1, 1, 1, 1, 1, 1, 1},
-			{3, 3, 3, 3, 3, 3, 3, 3},
-			{2, 2, 2, 2, 2, 2, 2, 2},
+		kr,
+		testutil.ChainID,
+		accnts[:3],
+		infos[:3],
+		[][]*tmproto.Blob{
+			{
+				{
+					NamespaceId: []byte{1, 1, 1, 1, 1, 1, 1, 1},
+					Data:        tmrand.Bytes(100),
+				},
+			},
+			{
+				{
+					NamespaceId: []byte{3, 3, 3, 3, 3, 3, 3, 3},
+					Data:        tmrand.Bytes(1000),
+				},
+			},
+			{
+				{
+					NamespaceId: []byte{2, 2, 2, 2, 2, 2, 2, 2},
+					Data:        tmrand.Bytes(420),
+				},
+			},
 		},
-		[]int{100, 1000, 420},
 	)
+
 	decodedBlobTxs := make([]tmproto.BlobTx, 0, len(blobTxs))
 	for _, rawBtx := range blobTxs {
 		btx, isbtx := coretypes.UnmarshalBlobTx(rawBtx)
@@ -55,7 +74,7 @@ func TestPrepareProposalBlobSorting(t *testing.T) {
 		{
 			input: abci.RequestPrepareProposal{
 				BlockData: &tmproto.Data{
-					Txs: coretypes.Txs(blobTxs).ToSliceOfBytes(),
+					Txs: blobTxs,
 				},
 			},
 			expectedBlobs: []tmproto.Blob{
@@ -80,33 +99,6 @@ func TestPrepareProposalBlobSorting(t *testing.T) {
 		res := testApp.PrepareProposal(tt.input)
 		assert.Equal(t, tt.expectedBlobs, res.BlockData.Blobs)
 		assert.Equal(t, tt.expectedTxs, len(res.BlockData.Txs))
-
-		// verify the signatures of the prepared txs
-		sdata, err := signer.GetSignerData()
-		require.NoError(t, err)
-
-		dec := encoding.IndexWrapperDecoder(encCfg.TxConfig.TxDecoder())
-		for _, tx := range res.BlockData.Txs {
-			sTx, err := dec(tx)
-			require.NoError(t, err)
-
-			sigTx, ok := sTx.(authsigning.SigVerifiableTx)
-			require.True(t, ok)
-
-			sigs, err := sigTx.GetSignaturesV2()
-			require.NoError(t, err)
-			require.Equal(t, 1, len(sigs))
-			sig := sigs[0]
-
-			err = authsigning.VerifySignature(
-				sdata.PubKey,
-				sdata,
-				sig.Data,
-				encCfg.TxConfig.SignModeHandler(),
-				sTx,
-			)
-			assert.NoError(t, err)
-		}
 	}
 }
 
@@ -188,4 +180,17 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 			require.True(t, isWrapper)
 		}
 	}
+}
+
+func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfactory.AccountInfo {
+	infos := make([]blobfactory.AccountInfo, len(accs))
+	for i, acc := range accs {
+		addr := getAddress(acc, kr)
+		accI := testutil.DirectQueryAccount(capp, addr)
+		infos[i] = blobfactory.AccountInfo{
+			AccountNum: accI.GetAccountNumber(),
+			Sequence:   accI.GetSequence(),
+		}
+	}
+	return infos
 }

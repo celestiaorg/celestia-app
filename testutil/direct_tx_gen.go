@@ -52,7 +52,7 @@ func RandBlobTxsWithAccounts(
 		}
 
 		// update the account info in the signer so the signature is valid
-		acc := directQueryAccount(capp, addr)
+		acc := DirectQueryAccount(capp, addr)
 		signer.SetAccountNumber(0)
 		signer.SetSequence(acc.GetSequence())
 
@@ -99,7 +99,7 @@ func RandBlobTxsWithAccounts(
 	return txs
 }
 
-func directQueryAccount(app *app.App, addr sdk.AccAddress) authtypes.AccountI {
+func DirectQueryAccount(app *app.App, addr sdk.AccAddress) authtypes.AccountI {
 	ctx := app.NewContext(true, tmproto.Header{})
 	return app.AccountKeeper.GetAccount(ctx, addr)
 }
@@ -210,7 +210,7 @@ func SendTxsWithAccounts(
 		signingAddr := getAddress(accounts[i], kr)
 
 		// update the account info in the signer so the signature is valid
-		acc := directQueryAccount(capp, signingAddr)
+		acc := DirectQueryAccount(capp, signingAddr)
 
 		txs[i] = SendTxWithManualSequence(
 			t,
