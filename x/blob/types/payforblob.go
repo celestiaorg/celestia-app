@@ -59,7 +59,7 @@ func (msg *MsgPayForBlobs) Type() string {
 }
 
 // ValidateBasic fulfills the sdk.Msg interface by performing stateless
-// validity checks on the msg that also don't require having the actual blob
+// validity checks on the msg that also don't require having the actual blob(s)
 func (msg *MsgPayForBlobs) ValidateBasic() error {
 	if len(msg.NamespaceIds) == 0 {
 		return ErrNoNamespaceIds

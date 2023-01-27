@@ -8,7 +8,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 
 // Msg defines the blob Msg service.
 service Msg {
-  // PayForBlob allows the user to pay for the inclusion of a blob
+  // PayForBlobs allows the user to pay for the inclusion of one or more blobs
   rpc PayForBlobs(MsgPayForBlobs) returns (MsgPayForBlobsResponse) {
     option (google.api.http).get = "/celestia/blob/payforblobs";
   }
@@ -28,6 +28,6 @@ message MsgPayForBlobs {
   repeated uint32 share_versions = 8;
 }
 
-// MsgPayForBlobResponse describes the response returned after the submission
-// of a PayForBlob
+// MsgPayForBlobsResponse describes the response returned after the submission
+// of a PayForBlobs
 message MsgPayForBlobsResponse {}
