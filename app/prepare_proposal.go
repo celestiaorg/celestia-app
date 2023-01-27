@@ -31,7 +31,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// finalizeLayout wraps any blob transactions with their final share index.
 	// This requires sorting the blobs by namespace and potentially pruning
-	// MsgPayForBlob transactions and their respective blobs from the block if
+	// MsgPayForBlobs transactions and their respective blobs from the block if
 	// they do not fit into the square.
 	wrappedPFBTxs, blobs := finalizeBlobLayout(squareSize, nonreservedStart, blobTxs)
 

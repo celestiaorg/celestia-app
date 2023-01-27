@@ -2,11 +2,11 @@ package types
 
 import "github.com/cosmos/gogoproto/proto"
 
-var EventTypePayForBlob = proto.MessageName(&EventPayForBlob{})
+var EventTypePayForBlob = proto.MessageName(&EventPayForBlobs{})
 
 // NewPayForBlobEvent returns a new EventPayForBlob
-func NewPayForBlobEvent(signer string, blobSize uint32, namespaceIDs [][]byte) *EventPayForBlob {
-	return &EventPayForBlob{
+func NewPayForBlobsEvent(signer string, blobSize uint32, namespaceIDs [][]byte) *EventPayForBlobs {
+	return &EventPayForBlobs{
 		Signer:       signer,
 		BlobSize:     blobSize,
 		NamespaceIds: namespaceIDs,

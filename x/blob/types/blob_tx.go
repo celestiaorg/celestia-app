@@ -47,7 +47,7 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) error {
 		return ErrMultipleMsgsInBlobTx
 	}
 	msg := msgs[0]
-	pfb, ok := msg.(*MsgPayForBlob)
+	pfb, ok := msg.(*MsgPayForBlobs)
 	if !ok {
 		return ErrNoPFB
 	}

@@ -20,7 +20,7 @@ import (
 
 var defaultSigner = testfactory.RandomAddress().String()
 
-func RandMsgPayForBlobWithSigner(singer string, size, blobCount int) (*blobtypes.MsgPayForBlob, []*tmproto.Blob) {
+func RandMsgPayForBlobsWithSigner(singer string, size, blobCount int) (*blobtypes.MsgPayForBlobs, []*tmproto.Blob) {
 	blobs := make([]*tmproto.Blob, blobCount)
 	for i := 0; i < blobCount; i++ {
 		blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(size))
@@ -30,7 +30,7 @@ func RandMsgPayForBlobWithSigner(singer string, size, blobCount int) (*blobtypes
 		blobs[i] = blob
 	}
 
-	msg, err := blobtypes.NewMsgPayForBlob(
+	msg, err := blobtypes.NewMsgPayForBlobs(
 		singer,
 		blobs...,
 	)
@@ -52,12 +52,12 @@ func RandBlobsWithNamespace(namespaces [][]byte, sizes []int) []*tmproto.Blob {
 	return blobs
 }
 
-func RandMsgPayForBlobWithNamespaceAndSigner(signer string, nid []byte, size int) (*blobtypes.MsgPayForBlob, *tmproto.Blob) {
+func RandMsgPayForBlobsWithNamespaceAndSigner(signer string, nid []byte, size int) (*blobtypes.MsgPayForBlobs, *tmproto.Blob) {
 	blob, err := types.NewBlob(nid, tmrand.Bytes(size))
 	if err != nil {
 		panic(err)
 	}
-	msg, err := blobtypes.NewMsgPayForBlob(
+	msg, err := blobtypes.NewMsgPayForBlobs(
 		signer,
 		blob,
 	)
@@ -67,12 +67,12 @@ func RandMsgPayForBlobWithNamespaceAndSigner(signer string, nid []byte, size int
 	return msg, blob
 }
 
-func RandMsgPayForBlob(size int) (*blobtypes.MsgPayForBlob, *tmproto.Blob) {
+func RandMsgPayForBlobs(size int) (*blobtypes.MsgPayForBlobs, *tmproto.Blob) {
 	blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(size))
 	if err != nil {
 		panic(err)
 	}
-	msg, err := blobtypes.NewMsgPayForBlob(
+	msg, err := blobtypes.NewMsgPayForBlobs(
 		defaultSigner,
 		blob,
 	)
@@ -112,7 +112,7 @@ func RandBlobTxsRandomlySized(enc sdk.TxEncoder, count, maxSize, maxBlobs int) [
 		if blobCount == 0 {
 			blobCount = 1
 		}
-		msg, blobs := RandMsgPayForBlobWithSigner(addr.String(), size, blobCount)
+		msg, blobs := RandMsgPayForBlobsWithSigner(addr.String(), size, blobCount)
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
@@ -191,7 +191,7 @@ func RandBlobTxsWithAccounts(
 				randomizedBlobCount = 1
 			}
 		}
-		msg, blobs := RandMsgPayForBlobWithSigner(addr.String(), randomizedSize, randomizedBlobCount)
+		msg, blobs := RandMsgPayForBlobsWithSigner(addr.String(), randomizedSize, randomizedBlobCount)
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
@@ -232,7 +232,7 @@ func RandBlobTxs(enc sdk.TxEncoder, count, size int) []coretypes.Tx {
 
 	txs := make([]coretypes.Tx, count)
 	for i := 0; i < count; i++ {
-		msg, blobs := RandMsgPayForBlobWithSigner(addr.String(), size, 1)
+		msg, blobs := RandMsgPayForBlobsWithSigner(addr.String(), size, 1)
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
@@ -351,7 +351,7 @@ func MultiBlobTx(
 		blobtypes.SetFeeAmount(sdk.NewCoins(coin)),
 		blobtypes.SetGasLimit(10000000),
 	}
-	msg, err := blobtypes.NewMsgPayForBlob(addr.String(), blobs...)
+	msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), blobs...)
 	require.NoError(t, err)
 
 	builder := signer.NewTxBuilder(opts...)
@@ -390,7 +390,7 @@ func RandBlobTxsWithNamespacesAndSigner(
 
 	txs := make([]coretypes.Tx, len(nIds))
 	for i := 0; i < len(nIds); i++ {
-		msg, blob := RandMsgPayForBlobWithNamespaceAndSigner(addr.String(), nIds[i], sizes[i])
+		msg, blob := RandMsgPayForBlobsWithNamespaceAndSigner(addr.String(), nIds[i], sizes[i])
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
@@ -415,7 +415,7 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, kr keyring.Keyring, enc sdk.TxEnco
 	signerAddr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
 
-	pfb, blobs := RandMsgPayForBlobWithSigner(signerAddr.String(), 100, 1)
+	pfb, blobs := RandMsgPayForBlobsWithSigner(signerAddr.String(), 100, 1)
 
 	opts := []blobtypes.TxBuilderOption{
 		blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(bondDenom, sdk.NewInt(10)))),
