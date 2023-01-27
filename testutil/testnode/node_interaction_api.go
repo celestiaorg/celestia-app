@@ -116,7 +116,7 @@ func (c *Context) PostData(account, broadcastMode string, ns, blobData []byte) (
 		return nil, err
 	}
 
-	msg, err := types.NewMsgPayForBlob(
+	msg, err := types.NewMsgPayForBlobs(
 		addr.String(),
 		blob,
 	)
