@@ -16,8 +16,9 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 )
 
 func TestPrepareProposalBlobSorting(t *testing.T) {
@@ -103,11 +104,10 @@ func TestPrepareProposalBlobSorting(t *testing.T) {
 }
 
 func TestPrepareProposalOverflow(t *testing.T) {
-	signer := types.GenerateKeyringSigner(t, types.TestAccName)
-
+	acc := "test"
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(acc)
+	signer := blobtypes.NewKeyringSigner(kr, acc, testutil.ChainID)
 
 	type test struct {
 		name               string
@@ -140,15 +140,17 @@ func TestPrepareProposalOverflow(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		blobTxs := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+		btxs := blobfactory.ManyMultiBlobTxSameSigner(
+			t,
 			encCfg.TxConfig.TxEncoder(),
 			signer,
-			testfactory.Repeat([]byte{1, 2, 3, 4, 5, 6, 7, 8}, tt.singleSharePFBs),
-			testfactory.Repeat(1, tt.singleSharePFBs),
+			testfactory.Repeat([]int{1}, tt.singleSharePFBs),
+			0,
+			1, // use the account number 1 since the first account is taken by the validator
 		)
 		req := abci.RequestPrepareProposal{
 			BlockData: &tmproto.Data{
-				Txs: coretypes.Txs(blobTxs).ToSliceOfBytes(),
+				Txs: coretypes.Txs(btxs).ToSliceOfBytes(),
 			},
 		}
 		res := testApp.PrepareProposal(req)
@@ -160,15 +162,40 @@ func TestPrepareProposalOverflow(t *testing.T) {
 
 func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	numBlobTxs, numNormalTxs := 3, 3
+	accnts := testfactory.GenerateAccounts(numBlobTxs + numNormalTxs)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accnts...)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	blobTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), numBlobTxs, 100)
-	normalTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, numNormalTxs)
-	txs := append(blobTxs, normalTxs...)
-	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
+	infos := queryAccountInfo(testApp, accnts, kr)
+
+	blobTxs := blobfactory.ManyMultiBlobTx(
+		t,
+		encCfg.TxConfig.TxEncoder(),
+		kr,
+		testutil.ChainID,
+		accnts[:numBlobTxs],
+		infos[:numBlobTxs],
+		testfactory.Repeat([]*tmproto.Blob{{
+			NamespaceId:  namespace.RandomBlobNamespace(),
+			Data:         []byte{1},
+			ShareVersion: uint32(appconsts.DefaultShareVersion)},
+		}, numBlobTxs),
+	)
+
+	normalTxs := testutil.SendTxsWithAccounts(
+		t,
+		testApp,
+		encCfg.TxConfig.TxEncoder(),
+		kr,
+		1000,
+		accnts[0],
+		accnts[numBlobTxs:],
+		"",
+	)
+	txs := append(blobTxs, coretypes.Txs(normalTxs).ToSliceOfBytes()...)
 
 	resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
 		BlockData: &tmproto.Data{
-			Txs: coretypes.Txs(txs).ToSliceOfBytes(),
+			Txs: txs,
 		},
 	})
 	require.Len(t, resp.BlockData.Txs, numBlobTxs+numNormalTxs)
