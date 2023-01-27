@@ -25,6 +25,20 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// the txs is maintained.
 	normalTxs, blobTxs := separateTxs(app.txConfig, req.BlockData.Txs)
 
+	sdkCtx, err := app.NewProcessProposalQueryContext()
+	if err != nil {
+		panic(err)
+	}
+
+	// increment the nonces of the standard cosmos-sdk transactions.
+	isHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
+	normalTxs, sdkCtx = filterStdTxsWithAnteHandler(app.txConfig.TxDecoder(), sdkCtx, isHandler, normalTxs)
+
+	// check the signatures of the blob transations, and filter out any that
+	// fail.
+	svHandler := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
+	blobTxs, _ = filterBlobTxsWithAnteHandler(app.txConfig.TxDecoder(), sdkCtx, svHandler, blobTxs)
+
 	// estimate the square size. This estimation errs on the side of larger
 	// squares but can only return values within the min and max square size.
 	squareSize, nonreservedStart := estimateSquareSize(normalTxs, blobTxs)

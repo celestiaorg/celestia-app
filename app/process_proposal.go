@@ -12,10 +12,7 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
-	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/auth/ante"
-	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -90,6 +87,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	}
 
 	sigVerifyAnteHander := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
+	incrementSequenceAnteHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
 
 	sdkCtx, err := app.NewProcessProposalQueryContext()
 	if err != nil {
@@ -118,6 +116,17 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 		pfb, has := hasPFB(sdkTx.GetMsgs())
 		if !has {
+			// we need to increment the sequence for every transaction so that
+			// the signature check below is accurate. this error should never
+			// get hit.
+			sdkCtx, err = incrementSequenceAnteHandler(sdkCtx, sdkTx, false)
+			if err != nil {
+				logInvalidPropBlockError(app.Logger(), req.Header, "failure to incrememnt sequence", err)
+				return abci.ResponseProcessProposal{
+					Result: abci.ResponseProcessProposal_REJECT,
+				}
+			}
+
 			// we do not need to perform further checks on this transaction,
 			// since it has no PFB
 			continue
@@ -163,7 +172,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			}
 		}
 
-		_, err = sigVerifyAnteHander(sdkCtx, sdkTx, true)
+		sdkCtx, err = sigVerifyAnteHander(sdkCtx, sdkTx, true)
 		if err != nil {
 			logInvalidPropBlockError(app.Logger(), req.Header, "invalid PFB signature", err)
 			return abci.ResponseProcessProposal{
@@ -226,11 +235,4 @@ func logInvalidPropBlockError(l log.Logger, h tmproto.Header, reason string, err
 		"err",
 		err.Error(),
 	)
-}
-
-func sigVerifyAnteHandler(accKeeper *authkeeper.AccountKeeper, txConfig client.TxConfig) sdk.AnteHandler {
-	setupd := ante.NewSetUpContextDecorator()
-	setPubKd := ante.NewSetPubKeyDecorator(accKeeper)
-	svd := ante.NewSigVerificationDecorator(accKeeper, txConfig.SignModeHandler())
-	return sdk.ChainAnteDecorators(setupd, setPubKd, svd)
 }

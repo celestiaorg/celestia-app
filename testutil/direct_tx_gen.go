@@ -10,6 +10,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -74,12 +76,14 @@ func RandBlobTxsWithAccounts(
 				randomizedBlobCount = 1
 			}
 		}
+
 		msg, blobs := blobfactory.RandMsgPayForBlobWithSigner(addr.String(), randomizedSize, randomizedBlobCount)
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
 			panic(err)
 		}
+
 		rawTx, err := signer.EncodeTx(stx)
 		if err != nil {
 			panic(err)
@@ -88,6 +92,7 @@ func RandBlobTxsWithAccounts(
 		if err != nil {
 			panic(err)
 		}
+
 		txs[i] = cTx
 	}
 
@@ -104,7 +109,6 @@ func directQueryAccount(app *app.App, addr sdk.AccAddress) authtypes.AccountI {
 // provided. The sequence and account numbers are set manually using the provided values.
 func RandBlobTxsWithManualSequence(
 	t *testing.T,
-	capp *app.App,
 	enc sdk.TxEncoder,
 	kr keyring.Keyring,
 	size int,
@@ -174,4 +178,95 @@ func RandBlobTxsWithManualSequence(
 	}
 
 	return txs
+}
+
+// SendTxsWithAccounts will create a send transaction per account provided, and
+// send all funds to the "toAccount". The account info is queried directly from
+// the application.
+func SendTxsWithAccounts(
+	t *testing.T,
+	capp *app.App,
+	enc sdk.TxEncoder,
+	kr keyring.Keyring,
+	amount uint64,
+	toAccount string,
+	accounts []string,
+	chainid string,
+	extraOpts ...blobtypes.TxBuilderOption,
+) []coretypes.Tx {
+	coin := sdk.Coin{
+		Denom:  app.BondDenom,
+		Amount: sdk.NewInt(10),
+	}
+
+	opts := []blobtypes.TxBuilderOption{
+		blobtypes.SetFeeAmount(sdk.NewCoins(coin)),
+		blobtypes.SetGasLimit(1000000),
+	}
+	opts = append(opts, extraOpts...)
+
+	txs := make([]coretypes.Tx, len(accounts))
+	for i := 0; i < len(accounts); i++ {
+		signingAddr := getAddress(accounts[i], kr)
+
+		// update the account info in the signer so the signature is valid
+		acc := directQueryAccount(capp, signingAddr)
+
+		txs[i] = SendTxWithManualSequence(
+			t,
+			enc,
+			kr,
+			accounts[i],
+			toAccount,
+			amount,
+			chainid,
+			acc.GetSequence(),
+			acc.GetAccountNumber(),
+			opts...,
+		)
+	}
+
+	return txs
+}
+
+// SendTxsWithAccounts will create a send transaction per account provided. The
+// account info must be provided.
+func SendTxWithManualSequence(
+	t *testing.T,
+	enc sdk.TxEncoder,
+	kr keyring.Keyring,
+	fromAcc, toAcc string,
+	amount uint64,
+	chainid string,
+	sequence, accountNum uint64,
+	opts ...blobtypes.TxBuilderOption,
+) coretypes.Tx {
+	signer := blobtypes.NewKeyringSigner(kr, fromAcc, chainid)
+
+	signer.SetAccountNumber(accountNum)
+	signer.SetSequence(sequence)
+
+	fromAddr, toAddr := getAddress(fromAcc, kr), getAddress(toAcc, kr)
+
+	msg := banktypes.NewMsgSend(fromAddr, toAddr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewIntFromUint64(amount))))
+
+	stx, err := signer.BuildSignedTx(signer.NewTxBuilder(opts...), msg)
+	require.NoError(t, err)
+
+	rawTx, err := signer.EncodeTx(stx)
+	require.NoError(t, err)
+
+	return rawTx
+}
+
+func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
+	rec, err := kr.Key(account)
+	if err != nil {
+		panic(err)
+	}
+	addr, err := rec.GetAddress()
+	if err != nil {
+		panic(err)
+	}
+	return addr
 }

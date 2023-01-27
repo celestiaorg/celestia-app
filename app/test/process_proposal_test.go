@@ -42,8 +42,8 @@ func TestProcessProposal(t *testing.T) {
 	)
 
 	// block with all blobs included
-	validData := func() *core.Data {
-		return &core.Data{
+	validData := func() *tmproto.Data {
+		return &tmproto.Data{
 			Txs: coretypes.Txs(testTxs).ToSliceOfBytes(),
 		}
 	}
@@ -78,7 +78,6 @@ func TestProcessProposal(t *testing.T) {
 	badSigPFBData := validData()
 	badSigBlobTx := testutil.RandBlobTxsWithManualSequence(
 		t,
-		testApp,
 		encConf.TxConfig.TxEncoder(),
 		kr,
 		1000,

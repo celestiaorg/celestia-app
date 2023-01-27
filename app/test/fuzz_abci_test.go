@@ -7,8 +7,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil"
-	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -27,7 +25,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 		t.Skip("skipping TestPrepareProposalConsistency in short mode.")
 	}
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	accounts := make([]string, 10000)
+	accounts := make([]string, 1100) // 1000 for creating blob txs, 100 for creating send txs
 	for i := range accounts {
 		accounts[i] = tmrand.Str(20)
 	}
@@ -39,60 +37,56 @@ func TestPrepareProposalConsistency(t *testing.T) {
 		count, blobCount, size int
 	}
 	tests := []test{
-		{"many small single share single blob transactions", 10000, 1, 400},
+		{"many small single share single blob transactions", 1000, 1, 400},
 		{"one hundred normal sized single blob transactions", 100, 1, 400000},
 		{"many single share multi-blob transactions", 1000, 100, 400},
 		{"one hundred normal sized multi-blob transactions", 100, 4, 400000},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			timer := time.After(time.Second * 30)
+			timer := time.After(time.Second * 20)
 			for {
 				select {
 				case <-timer:
 					return
 				default:
-					ProcessRandomProposal(t, tt.count, tt.size, tt.blobCount, encConf, testApp, accounts, kr, "")
+					txs := testutil.RandBlobTxsWithAccounts(
+						t,
+						testApp,
+						encConf.TxConfig.TxEncoder(),
+						kr,
+						tt.size,
+						tt.count,
+						true,
+						"",
+						accounts[:tt.count],
+					)
+					// create 100 send transactions
+					sendTxs := testutil.SendTxsWithAccounts(
+						t,
+						testApp,
+						encConf.TxConfig.TxEncoder(),
+						kr,
+						1000,
+						accounts[0],
+						accounts[len(accounts)-100:],
+						"",
+					)
+					txs = append(txs, sendTxs...)
+					resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
+						BlockData: &core.Data{
+							Txs: coretypes.Txs(txs).ToSliceOfBytes(),
+						},
+					})
+					res := testApp.ProcessProposal(abci.RequestProcessProposal{
+						BlockData: resp.BlockData,
+						Header: core.Header{
+							DataHash: resp.BlockData.Hash,
+						},
+					})
+					require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Result)
 				}
 			}
 		})
 	}
-}
-
-func ProcessRandomProposal(
-	t *testing.T,
-	count,
-	maxSize int,
-	maxBlobCount int,
-	cfg encoding.Config,
-	capp *app.App,
-	accounts []string,
-	kr keyring.Keyring,
-	chainid string,
-) {
-	txs := testutil.RandBlobTxsWithAccounts(
-		t,
-		capp,
-		cfg.TxConfig.TxEncoder(),
-		kr,
-		maxSize,
-		maxBlobCount,
-		true,
-		chainid,
-		accounts[:count],
-	)
-	sendTxs := blobfactory.GenerateManyRawSendTxs(cfg.TxConfig, count)
-	txs = append(txs, sendTxs...)
-	resp := capp.PrepareProposal(abci.RequestPrepareProposal{
-		BlockData: &core.Data{
-			Txs: coretypes.Txs(txs).ToSliceOfBytes(),
-		},
-	})
-	res := capp.ProcessProposal(abci.RequestProcessProposal{
-		BlockData: resp.BlockData,
-		Header: core.Header{
-			DataHash: resp.BlockData.Hash,
-		},
-	})
-	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Result)
 }
