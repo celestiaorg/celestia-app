@@ -30,14 +30,16 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		panic(err)
 	}
 
-	// increment the nonces of the standard cosmos-sdk transactions.
+	// increment the sequences of the standard cosmos-sdk transactions. Panics
+	// from the anteHandler are caught and logged.
 	isHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
-	normalTxs, sdkCtx = filterStdTxsWithAnteHandler(app.txConfig.TxDecoder(), sdkCtx, isHandler, normalTxs)
+	normalTxs, sdkCtx = filterStdTxs(app.Logger(), app.txConfig.TxDecoder(), sdkCtx, isHandler, normalTxs)
 
-	// check the signatures of the blob transations, and filter out any that
-	// fail.
+	// check the signatures and increment the sequences of the blob transations,
+	// and filter out any that fail. Panics from the anteHandler are caught and
+	// logged.
 	svHandler := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
-	blobTxs, _ = filterBlobTxsWithAnteHandler(app.txConfig.TxDecoder(), sdkCtx, svHandler, blobTxs)
+	blobTxs, _ = filterBlobTxs(app.Logger(), app.txConfig.TxDecoder(), sdkCtx, svHandler, blobTxs)
 
 	// estimate the square size. This estimation errs on the side of larger
 	// squares but can only return values within the min and max square size.

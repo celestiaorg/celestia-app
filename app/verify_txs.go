@@ -1,8 +1,12 @@
 package app
 
 import (
+	"fmt"
+	"runtime/debug"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 )
@@ -24,4 +28,14 @@ func incrementSequenceAnteHandler(accKeeper *authkeeper.AccountKeeper) sdk.AnteH
 	setupd := ante.NewSetUpContextDecorator()
 	isd := ante.NewIncrementSequenceDecorator(accKeeper)
 	return sdk.ChainAnteDecorators(setupd, isd)
+}
+
+// recoverHandler will simply wrap the caught panic in an error containing the
+// stack trace.
+func recoverHandler(recoveryObj interface{}) error {
+	return sdkerrors.Wrap(
+		sdkerrors.ErrPanic, fmt.Sprintf(
+			"recovered: %v\nstack:\n%v", recoveryObj, string(debug.Stack()),
+		),
+	)
 }

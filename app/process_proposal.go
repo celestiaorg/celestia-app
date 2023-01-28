@@ -86,6 +86,10 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
+	// create the anteHanders that are used to check the validity of
+	// transactions. We verify the signatures of PFB containing txs using the
+	// sigVerifyAnterHandler, and simply increase the nonce of all other
+	// transactions.
 	sigVerifyAnteHander := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
 	incrementSequenceAnteHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
 
@@ -117,8 +121,8 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		pfb, has := hasPFB(sdkTx.GetMsgs())
 		if !has {
 			// we need to increment the sequence for every transaction so that
-			// the signature check below is accurate. this error should never
-			// get hit.
+			// the signature check below is accurate. this error only gets hit
+			// if the account in question doens't exist.
 			sdkCtx, err = incrementSequenceAnteHandler(sdkCtx, sdkTx, false)
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), req.Header, "failure to incrememnt sequence", err)

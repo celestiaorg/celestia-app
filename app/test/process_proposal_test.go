@@ -1,6 +1,8 @@
 package app_test
 
 import (
+	"bytes"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,33 +20,48 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 )
 
 func TestProcessProposal(t *testing.T) {
-	accounts := make([]string, 100)
-	for i := range accounts {
-		accounts[i] = tmrand.Str(20)
-	}
-
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accounts...)
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(6)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
 
-	testTxs := testutil.RandBlobTxsWithAccounts(
+	testTxs := blobfactory.ManyMultiBlobTx(
 		t,
-		testApp,
 		encConf.TxConfig.TxEncoder(),
 		kr,
-		1000,
-		4,
-		false,
-		"",
-		accounts,
+		testutil.ChainID,
+		accounts[:3],
+		infos[:3],
+		[][]*tmproto.Blob{
+			{
+				{
+					NamespaceId: []byte{1, 1, 1, 1, 1, 1, 1, 1},
+					Data:        tmrand.Bytes(100),
+				},
+			},
+			{
+				{
+					NamespaceId: []byte{3, 3, 3, 3, 3, 3, 3, 3},
+					Data:        tmrand.Bytes(1000),
+				},
+			},
+			{
+				{
+					NamespaceId: []byte{2, 2, 2, 2, 2, 2, 2, 2},
+					Data:        tmrand.Bytes(420),
+				},
+			},
+		},
 	)
 
 	// block with all blobs included
 	validData := func() *tmproto.Data {
 		return &tmproto.Data{
-			Txs: coretypes.Txs(testTxs).ToSliceOfBytes(),
+			Txs: testTxs,
 		}
 	}
 
@@ -179,9 +196,31 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:           "pfb with bad signature",
+			// the bad signature should get filtered out in the PrepareProposal
+			// step
+			name:           "filter pfb with bad signature",
 			input:          badSigPFBData,
 			mutator:        func(d *core.Data) {},
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+		},
+		{
+			// while this test passes and the block gets rejected, it is getting
+			// rejected becuase the data root is different. We need to refactor
+			// prepare proposal to abstract functionality into a different
+			// function or be able to skip the filtering checks. TODO: perform
+			// the mentioned refactor and make it easier to create invalid
+			// blocks for testing.
+			name:  "included pfb with bad signature",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				btx, _ := coretypes.UnmarshalBlobTx(badSigBlobTx)
+				d.Txs = append(d.Txs, btx.Tx)
+				d.Blobs = append(d.Blobs, badSigPFBData.Blobs...)
+				sort.SliceStable(d.Blobs, func(i, j int) bool {
+					return bytes.Compare(d.Blobs[i].NamespaceId, d.Blobs[j].NamespaceId) < 0
+				})
+				// todo: replace the data root with an updated hash
+			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 	}
