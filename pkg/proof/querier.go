@@ -100,8 +100,8 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 		return nil, err
 	}
 
-	// create and marshal the shares inclusion proof, which we return in the form of []byte
-	txProof, err := NewShareInclusionProof(
+	// create and marshal the share inclusion proof, which we return in the form of []byte
+	shareProof, err := NewShareInclusionProof(
 		rawShares,
 		data.SquareSize,
 		nID,
@@ -111,13 +111,13 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 	if err != nil {
 		return nil, err
 	}
-	pTxProof := txProof.ToProto()
-	rawTxProof, err := pTxProof.Marshal()
+	pShareProof := shareProof.ToProto()
+	rawShareProof, err := pShareProof.Marshal()
 	if err != nil {
 		return nil, err
 	}
 
-	return rawTxProof, nil
+	return rawShareProof, nil
 }
 
 // ParseNamespaceID validates the share range, checks if it only contains one namespace and returns
