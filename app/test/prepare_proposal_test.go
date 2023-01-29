@@ -209,6 +209,119 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	}
 }
 
+func TestPrepareProposalFiltering(t *testing.T) {
+	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(6)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	// create 3 single blob blobTxs that are signed with valid account numbers
+	// and sequences
+	blobTxs := blobfactory.ManyMultiBlobTx(
+		t,
+		encConf.TxConfig.TxEncoder(),
+		kr,
+		testutil.ChainID,
+		accounts[:3],
+		infos[:3],
+		blobfactory.NestedBlobs(
+			t,
+			[][]byte{
+				namespace.RandomBlobNamespace(),
+				namespace.RandomBlobNamespace(),
+				namespace.RandomBlobNamespace(),
+			},
+			[][]int{{100}, {1000}, {420}},
+		),
+	)
+
+	// create 3 MsgSend transactions that are signed with valid account numbers
+	// and sequences
+	sendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
+		t,
+		testApp,
+		encConf.TxConfig.TxEncoder(),
+		kr,
+		1000,
+		accounts[0],
+		accounts[len(accounts)-3:],
+		"",
+	)).ToSliceOfBytes()
+
+	validTxs := func() [][]byte {
+		txs := make([][]byte, 0, len(sendTxs)+len(blobTxs))
+		txs = append(txs, blobTxs...)
+		txs = append(txs, sendTxs...)
+		return txs
+	}
+
+	// create 3 MsgSend transactions that are using the same sequence as the
+	// first three blob transactions above
+	invalidSendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
+		t,
+		testApp,
+		encConf.TxConfig.TxEncoder(),
+		kr,
+		1000,
+		accounts[0],
+		accounts[:3],
+		"",
+	)).ToSliceOfBytes()
+
+	type test struct {
+		name      string
+		txs       func() [][]byte
+		prunedTxs [][]byte
+	}
+
+	tests := []test{
+		{
+			name:      "all valid txs, none are pruned",
+			txs:       func() [][]byte { return validTxs() },
+			prunedTxs: [][]byte{},
+		},
+		{
+			// even though these txs are getting appendeded the end of the
+			// block, and we do not check the signatures of the standard txs,
+			// the blob txs still get pruned because we are separating the
+			// normal and blob txs, and checking/executing the normal txs first.
+			name: "duplicate sequence appended to the end of the block",
+			txs: func() [][]byte {
+				return append(validTxs(), invalidSendTxs...)
+			},
+			prunedTxs: blobTxs,
+		},
+		{
+			name: "duplicate sequence txs",
+			txs: func() [][]byte {
+				txs := make([][]byte, 0, len(sendTxs)+len(blobTxs)+len(invalidSendTxs))
+				// these should increment the nonce of the accounts that are
+				// signing the blobtxs, which should make those signatures
+				// invalid.
+				txs = append(txs, invalidSendTxs...)
+				txs = append(txs, blobTxs...)
+				txs = append(txs, sendTxs...)
+				return txs
+			},
+			prunedTxs: blobTxs,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
+				BlockData: &tmproto.Data{Txs: tt.txs()},
+			})
+			// check that we have the expected number of transactions
+			require.Equal(t, len(tt.txs())-len(tt.prunedTxs), len(resp.BlockData.Txs))
+			// check the the expected txs were removed
+			for _, ptx := range tt.prunedTxs {
+				assert.NotContains(t, resp.BlockData.Txs, ptx)
+			}
+		})
+	}
+}
+
 func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfactory.AccountInfo {
 	infos := make([]blobfactory.AccountInfo, len(accs))
 	for i, acc := range accs {
