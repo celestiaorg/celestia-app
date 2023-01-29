@@ -133,6 +133,8 @@ func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIn
 	return writer.Export(), nil
 }
 
+// mergeMaps merges two maps into a new map. If there are any duplicate keys,
+// the value in the second map takes precedence.
 func mergeMaps(mapOne, mapTwo map[coretypes.TxKey]ShareRange) map[coretypes.TxKey]ShareRange {
 	merged := make(map[coretypes.TxKey]ShareRange, len(mapOne)+len(mapTwo))
 	maps.Copy(merged, mapOne)
