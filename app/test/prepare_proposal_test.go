@@ -3,6 +3,7 @@ package app_test
 import (
 	"testing"
 
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -270,6 +271,12 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		"",
 	)).ToSliceOfBytes()
 
+	// create a transaction with an account that doesn't exist. This will cause the increment nonce
+	nilAccount := "carmon san diego"
+	_, _, err := kr.NewMnemonic(nilAccount, keyring.English, "", "", hd.Secp256k1)
+	require.NoError(t, err)
+	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig.TxEncoder(), kr, nilAccount, accounts[0], 1000, "", 0, 6))
+
 	type test struct {
 		name      string
 		txs       func() [][]byte
@@ -306,6 +313,13 @@ func TestPrepareProposalFiltering(t *testing.T) {
 				return txs
 			},
 			prunedTxs: blobTxs,
+		},
+		{
+			name: "nil account panic catch",
+			txs: func() [][]byte {
+				return [][]byte{noAccountTx}
+			},
+			prunedTxs: [][]byte{noAccountTx},
 		},
 	}
 
