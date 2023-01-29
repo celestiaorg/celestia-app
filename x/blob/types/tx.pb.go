@@ -29,8 +29,8 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// MsgPayForBlob pays for the inclusion of a blob in the block.
-type MsgPayForBlob struct {
+// MsgPayForBlobs pays for the inclusion of a blob in the block.
+type MsgPayForBlobs struct {
 	Signer       string   `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 	NamespaceIds [][]byte `protobuf:"bytes,2,rep,name=namespace_ids,json=namespaceIds,proto3" json:"namespace_ids,omitempty"`
 	BlobSizes    []uint32 `protobuf:"varint,3,rep,packed,name=blob_sizes,json=blobSizes,proto3" json:"blob_sizes,omitempty"`
@@ -43,18 +43,18 @@ type MsgPayForBlob struct {
 	ShareVersions []uint32 `protobuf:"varint,8,rep,packed,name=share_versions,json=shareVersions,proto3" json:"share_versions,omitempty"`
 }
 
-func (m *MsgPayForBlob) Reset()         { *m = MsgPayForBlob{} }
-func (m *MsgPayForBlob) String() string { return proto.CompactTextString(m) }
-func (*MsgPayForBlob) ProtoMessage()    {}
-func (*MsgPayForBlob) Descriptor() ([]byte, []int) {
+func (m *MsgPayForBlobs) Reset()         { *m = MsgPayForBlobs{} }
+func (m *MsgPayForBlobs) String() string { return proto.CompactTextString(m) }
+func (*MsgPayForBlobs) ProtoMessage()    {}
+func (*MsgPayForBlobs) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f945cb94fe124aae, []int{0}
 }
-func (m *MsgPayForBlob) XXX_Unmarshal(b []byte) error {
+func (m *MsgPayForBlobs) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgPayForBlob) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgPayForBlobs) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgPayForBlob.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgPayForBlobs.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -64,70 +64,70 @@ func (m *MsgPayForBlob) XXX_Marshal(b []byte, deterministic bool) ([]byte, error
 		return b[:n], nil
 	}
 }
-func (m *MsgPayForBlob) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgPayForBlob.Merge(m, src)
+func (m *MsgPayForBlobs) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgPayForBlobs.Merge(m, src)
 }
-func (m *MsgPayForBlob) XXX_Size() int {
+func (m *MsgPayForBlobs) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgPayForBlob) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgPayForBlob.DiscardUnknown(m)
+func (m *MsgPayForBlobs) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgPayForBlobs.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgPayForBlob proto.InternalMessageInfo
+var xxx_messageInfo_MsgPayForBlobs proto.InternalMessageInfo
 
-func (m *MsgPayForBlob) GetSigner() string {
+func (m *MsgPayForBlobs) GetSigner() string {
 	if m != nil {
 		return m.Signer
 	}
 	return ""
 }
 
-func (m *MsgPayForBlob) GetNamespaceIds() [][]byte {
+func (m *MsgPayForBlobs) GetNamespaceIds() [][]byte {
 	if m != nil {
 		return m.NamespaceIds
 	}
 	return nil
 }
 
-func (m *MsgPayForBlob) GetBlobSizes() []uint32 {
+func (m *MsgPayForBlobs) GetBlobSizes() []uint32 {
 	if m != nil {
 		return m.BlobSizes
 	}
 	return nil
 }
 
-func (m *MsgPayForBlob) GetShareCommitments() [][]byte {
+func (m *MsgPayForBlobs) GetShareCommitments() [][]byte {
 	if m != nil {
 		return m.ShareCommitments
 	}
 	return nil
 }
 
-func (m *MsgPayForBlob) GetShareVersions() []uint32 {
+func (m *MsgPayForBlobs) GetShareVersions() []uint32 {
 	if m != nil {
 		return m.ShareVersions
 	}
 	return nil
 }
 
-// MsgPayForBlobResponse describes the response returned after the submission
-// of a PayForBlob
-type MsgPayForBlobResponse struct {
+// MsgPayForBlobsResponse describes the response returned after the submission
+// of a PayForBlobs
+type MsgPayForBlobsResponse struct {
 }
 
-func (m *MsgPayForBlobResponse) Reset()         { *m = MsgPayForBlobResponse{} }
-func (m *MsgPayForBlobResponse) String() string { return proto.CompactTextString(m) }
-func (*MsgPayForBlobResponse) ProtoMessage()    {}
-func (*MsgPayForBlobResponse) Descriptor() ([]byte, []int) {
+func (m *MsgPayForBlobsResponse) Reset()         { *m = MsgPayForBlobsResponse{} }
+func (m *MsgPayForBlobsResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgPayForBlobsResponse) ProtoMessage()    {}
+func (*MsgPayForBlobsResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_f945cb94fe124aae, []int{1}
 }
-func (m *MsgPayForBlobResponse) XXX_Unmarshal(b []byte) error {
+func (m *MsgPayForBlobsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MsgPayForBlobResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *MsgPayForBlobsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MsgPayForBlobResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_MsgPayForBlobsResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -137,50 +137,50 @@ func (m *MsgPayForBlobResponse) XXX_Marshal(b []byte, deterministic bool) ([]byt
 		return b[:n], nil
 	}
 }
-func (m *MsgPayForBlobResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MsgPayForBlobResponse.Merge(m, src)
+func (m *MsgPayForBlobsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgPayForBlobsResponse.Merge(m, src)
 }
-func (m *MsgPayForBlobResponse) XXX_Size() int {
+func (m *MsgPayForBlobsResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *MsgPayForBlobResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_MsgPayForBlobResponse.DiscardUnknown(m)
+func (m *MsgPayForBlobsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgPayForBlobsResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MsgPayForBlobResponse proto.InternalMessageInfo
+var xxx_messageInfo_MsgPayForBlobsResponse proto.InternalMessageInfo
 
 func init() {
-	proto.RegisterType((*MsgPayForBlob)(nil), "blob.MsgPayForBlob")
-	proto.RegisterType((*MsgPayForBlobResponse)(nil), "blob.MsgPayForBlobResponse")
+	proto.RegisterType((*MsgPayForBlobs)(nil), "blob.MsgPayForBlobs")
+	proto.RegisterType((*MsgPayForBlobsResponse)(nil), "blob.MsgPayForBlobsResponse")
 }
 
 func init() { proto.RegisterFile("blob/tx.proto", fileDescriptor_f945cb94fe124aae) }
 
 var fileDescriptor_f945cb94fe124aae = []byte{
-	// 355 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x91, 0xcf, 0x4a, 0xeb, 0x40,
-	0x14, 0xc6, 0x9b, 0xa6, 0x94, 0xdb, 0xa1, 0xb9, 0xdc, 0x3b, 0xf7, 0x5f, 0x6e, 0x7b, 0x6f, 0xa8,
-	0x15, 0xa1, 0x20, 0x26, 0xa2, 0x6f, 0x50, 0x41, 0x50, 0x28, 0x48, 0x04, 0x17, 0x6e, 0xca, 0x24,
-	0x1d, 0xa7, 0x03, 0x49, 0xce, 0x90, 0x33, 0x4a, 0xeb, 0xd2, 0x27, 0x10, 0x7c, 0x20, 0xb7, 0x2e,
-	0x0b, 0x6e, 0x5c, 0x4a, 0xeb, 0x83, 0xc8, 0x24, 0xb5, 0x5a, 0x70, 0xf7, 0x9d, 0xdf, 0x97, 0xf3,
-	0xf1, 0x9d, 0x0c, 0x71, 0xa2, 0x04, 0xa2, 0x40, 0x4f, 0x7c, 0x95, 0x83, 0x06, 0x5a, 0x33, 0x63,
-	0xeb, 0xa7, 0x00, 0x01, 0x05, 0x08, 0x8c, 0x2a, 0xbd, 0xd6, 0x3f, 0x01, 0x20, 0x12, 0x1e, 0x30,
-	0x25, 0x03, 0x96, 0x65, 0xa0, 0x99, 0x96, 0x90, 0x61, 0xe9, 0x76, 0xef, 0x2d, 0xe2, 0x0c, 0x50,
-	0x9c, 0xb0, 0xe9, 0x21, 0xe4, 0xfd, 0x04, 0x22, 0xfa, 0x9b, 0xd4, 0x51, 0x8a, 0x8c, 0xe7, 0xae,
-	0xd5, 0xb1, 0x7a, 0x8d, 0x70, 0x39, 0xd1, 0x4d, 0xe2, 0x64, 0x2c, 0xe5, 0xa8, 0x58, 0xcc, 0x87,
-	0x72, 0x84, 0x6e, 0xb5, 0x63, 0xf7, 0x9a, 0x61, 0x73, 0x05, 0x8f, 0x46, 0x48, 0xff, 0x13, 0x62,
-	0xaa, 0x0c, 0x51, 0x5e, 0x73, 0x74, 0xed, 0x8e, 0xdd, 0x73, 0xc2, 0x86, 0x21, 0xa7, 0x06, 0xd0,
-	0x6d, 0xf2, 0x1d, 0xc7, 0x2c, 0xe7, 0xc3, 0x18, 0xd2, 0x54, 0xea, 0x94, 0x67, 0x1a, 0xdd, 0x5a,
-	0x91, 0xf3, 0xad, 0x30, 0x0e, 0xde, 0x39, 0xdd, 0x22, 0x5f, 0xcb, 0x8f, 0xaf, 0x78, 0x8e, 0xa6,
-	0xb2, 0xfb, 0xa5, 0xc8, 0x73, 0x0a, 0x7a, 0xb6, 0x84, 0xdd, 0x3f, 0xe4, 0xd7, 0xda, 0x01, 0x21,
-	0x47, 0x05, 0x19, 0xf2, 0xbd, 0x31, 0xb1, 0x07, 0x28, 0x28, 0x23, 0xe4, 0xc3, 0x75, 0x3f, 0x7c,
-	0xd3, 0xc6, 0x5f, 0xdb, 0x68, 0xb5, 0x3f, 0x81, 0x6f, 0x31, 0xdd, 0x8d, 0x9b, 0xc7, 0x97, 0xbb,
-	0x6a, 0x9b, 0xfe, 0x0d, 0x62, 0x9e, 0x70, 0xd4, 0x92, 0x05, 0xc5, 0xcf, 0x57, 0x6c, 0x7a, 0x01,
-	0xb9, 0x91, 0xfd, 0xe3, 0x87, 0xb9, 0x67, 0xcd, 0xe6, 0x9e, 0xf5, 0x3c, 0xf7, 0xac, 0xdb, 0x85,
-	0x57, 0x99, 0x2d, 0xbc, 0xca, 0xd3, 0xc2, 0xab, 0x9c, 0xef, 0x0a, 0xa9, 0xc7, 0x97, 0x91, 0x1f,
-	0x43, 0xba, 0x5a, 0x87, 0x5c, 0xac, 0xf4, 0x0e, 0x53, 0x2a, 0x98, 0x94, 0x81, 0x7a, 0xaa, 0x38,
-	0x46, 0xf5, 0xe2, 0x5d, 0xf6, 0x5f, 0x03, 0x00, 0x00, 0xff, 0xff, 0x27, 0xe2, 0x1e, 0x3b, 0xe2,
-	0x01, 0x00, 0x00,
+	// 356 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x91, 0xc1, 0x6a, 0xdb, 0x40,
+	0x10, 0x86, 0x2d, 0xcb, 0x98, 0x7a, 0x6b, 0x99, 0x76, 0x31, 0x46, 0x08, 0x57, 0x18, 0x95, 0x82,
+	0xa1, 0x54, 0x2a, 0xed, 0x1b, 0xb8, 0x50, 0x68, 0xc1, 0x10, 0x14, 0xc8, 0x21, 0x17, 0xb3, 0x92,
+	0x37, 0xeb, 0x05, 0x49, 0xb3, 0x68, 0x36, 0xc1, 0xce, 0x31, 0x4f, 0x10, 0xc8, 0x0b, 0xe5, 0x98,
+	0xa3, 0x21, 0x97, 0x1c, 0x83, 0x9d, 0x07, 0x09, 0x2b, 0x39, 0x4e, 0x0c, 0xb9, 0xfd, 0xfb, 0xfd,
+	0x3b, 0x3f, 0xff, 0x30, 0xc4, 0x49, 0x32, 0x48, 0x22, 0xbd, 0x0c, 0x55, 0x09, 0x1a, 0x68, 0xcb,
+	0x3c, 0xbd, 0xbe, 0x00, 0x01, 0x15, 0x88, 0x8c, 0xaa, 0x3d, 0x6f, 0x28, 0x00, 0x44, 0xc6, 0x23,
+	0xa6, 0x64, 0xc4, 0x8a, 0x02, 0x34, 0xd3, 0x12, 0x0a, 0xac, 0xdd, 0xe0, 0xd6, 0x22, 0xbd, 0x29,
+	0x8a, 0x23, 0xb6, 0xfa, 0x0b, 0xe5, 0x24, 0x83, 0x04, 0xe9, 0x80, 0xb4, 0x51, 0x8a, 0x82, 0x97,
+	0xae, 0x35, 0xb2, 0xc6, 0x9d, 0x78, 0xf7, 0xa2, 0x5f, 0x89, 0x53, 0xb0, 0x9c, 0xa3, 0x62, 0x29,
+	0x9f, 0xc9, 0x39, 0xba, 0xcd, 0x91, 0x3d, 0xee, 0xc6, 0xdd, 0x3d, 0xfc, 0x37, 0x47, 0xfa, 0x85,
+	0x10, 0xd3, 0x65, 0x86, 0xf2, 0x92, 0xa3, 0x6b, 0x8f, 0xec, 0xb1, 0x13, 0x77, 0x0c, 0x39, 0x36,
+	0x80, 0x7e, 0x27, 0x9f, 0x71, 0xc1, 0x4a, 0x3e, 0x4b, 0x21, 0xcf, 0xa5, 0xce, 0x79, 0xa1, 0xd1,
+	0x6d, 0x55, 0x39, 0x9f, 0x2a, 0xe3, 0xcf, 0x2b, 0xa7, 0xdf, 0x48, 0xaf, 0xfe, 0x7c, 0xc1, 0x4b,
+	0x34, 0x9d, 0xdd, 0x0f, 0x55, 0x9e, 0x53, 0xd1, 0x93, 0x1d, 0x0c, 0x5c, 0x32, 0x38, 0xdc, 0x20,
+	0xe6, 0xa8, 0xa0, 0x40, 0xfe, 0x2b, 0x23, 0xf6, 0x14, 0x05, 0xe5, 0xe4, 0xe3, 0xdb, 0xfd, 0xfa,
+	0xa1, 0xe9, 0x13, 0x1e, 0xce, 0x78, 0xc3, 0xf7, 0xe8, 0x4b, 0x52, 0x10, 0x5c, 0xdd, 0x3f, 0xdd,
+	0x34, 0x87, 0xd4, 0x8b, 0x52, 0x9e, 0x71, 0xd4, 0x92, 0x45, 0xd5, 0x05, 0x14, 0x5b, 0x9d, 0x41,
+	0x69, 0x24, 0x4e, 0xfe, 0xdf, 0x6d, 0x7c, 0x6b, 0xbd, 0xf1, 0xad, 0xc7, 0x8d, 0x6f, 0x5d, 0x6f,
+	0xfd, 0xc6, 0x7a, 0xeb, 0x37, 0x1e, 0xb6, 0x7e, 0xe3, 0xf4, 0xa7, 0x90, 0x7a, 0x71, 0x9e, 0x84,
+	0x29, 0xe4, 0xfb, 0x79, 0x28, 0xc5, 0x5e, 0xff, 0x60, 0x4a, 0x45, 0xcb, 0x3a, 0x51, 0xaf, 0x14,
+	0xc7, 0xa4, 0x5d, 0x5d, 0xe7, 0xf7, 0x73, 0x00, 0x00, 0x00, 0xff, 0xff, 0x6c, 0x3f, 0xb4, 0x67,
+	0xe8, 0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -195,8 +195,8 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	// PayForBlob allows the user to pay for the inclusion of a blob
-	PayForBlob(ctx context.Context, in *MsgPayForBlob, opts ...grpc.CallOption) (*MsgPayForBlobResponse, error)
+	// PayForBlobs allows the user to pay for the inclusion of one or more blobs
+	PayForBlobs(ctx context.Context, in *MsgPayForBlobs, opts ...grpc.CallOption) (*MsgPayForBlobsResponse, error)
 }
 
 type msgClient struct {
@@ -207,9 +207,9 @@ func NewMsgClient(cc grpc1.ClientConn) MsgClient {
 	return &msgClient{cc}
 }
 
-func (c *msgClient) PayForBlob(ctx context.Context, in *MsgPayForBlob, opts ...grpc.CallOption) (*MsgPayForBlobResponse, error) {
-	out := new(MsgPayForBlobResponse)
-	err := c.cc.Invoke(ctx, "/blob.Msg/PayForBlob", in, out, opts...)
+func (c *msgClient) PayForBlobs(ctx context.Context, in *MsgPayForBlobs, opts ...grpc.CallOption) (*MsgPayForBlobsResponse, error) {
+	out := new(MsgPayForBlobsResponse)
+	err := c.cc.Invoke(ctx, "/blob.Msg/PayForBlobs", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -218,36 +218,36 @@ func (c *msgClient) PayForBlob(ctx context.Context, in *MsgPayForBlob, opts ...g
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	// PayForBlob allows the user to pay for the inclusion of a blob
-	PayForBlob(context.Context, *MsgPayForBlob) (*MsgPayForBlobResponse, error)
+	// PayForBlobs allows the user to pay for the inclusion of one or more blobs
+	PayForBlobs(context.Context, *MsgPayForBlobs) (*MsgPayForBlobsResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.
 type UnimplementedMsgServer struct {
 }
 
-func (*UnimplementedMsgServer) PayForBlob(ctx context.Context, req *MsgPayForBlob) (*MsgPayForBlobResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PayForBlob not implemented")
+func (*UnimplementedMsgServer) PayForBlobs(ctx context.Context, req *MsgPayForBlobs) (*MsgPayForBlobsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PayForBlobs not implemented")
 }
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
 	s.RegisterService(&_Msg_serviceDesc, srv)
 }
 
-func _Msg_PayForBlob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MsgPayForBlob)
+func _Msg_PayForBlobs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgPayForBlobs)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).PayForBlob(ctx, in)
+		return srv.(MsgServer).PayForBlobs(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/blob.Msg/PayForBlob",
+		FullMethod: "/blob.Msg/PayForBlobs",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).PayForBlob(ctx, req.(*MsgPayForBlob))
+		return srv.(MsgServer).PayForBlobs(ctx, req.(*MsgPayForBlobs))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -257,15 +257,15 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*MsgServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "PayForBlob",
-			Handler:    _Msg_PayForBlob_Handler,
+			MethodName: "PayForBlobs",
+			Handler:    _Msg_PayForBlobs_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "blob/tx.proto",
 }
 
-func (m *MsgPayForBlob) Marshal() (dAtA []byte, err error) {
+func (m *MsgPayForBlobs) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -275,12 +275,12 @@ func (m *MsgPayForBlob) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgPayForBlob) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgPayForBlobs) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgPayForBlob) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgPayForBlobs) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -349,7 +349,7 @@ func (m *MsgPayForBlob) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *MsgPayForBlobResponse) Marshal() (dAtA []byte, err error) {
+func (m *MsgPayForBlobsResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -359,12 +359,12 @@ func (m *MsgPayForBlobResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MsgPayForBlobResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *MsgPayForBlobsResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MsgPayForBlobResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MsgPayForBlobsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -383,7 +383,7 @@ func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *MsgPayForBlob) Size() (n int) {
+func (m *MsgPayForBlobs) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -422,7 +422,7 @@ func (m *MsgPayForBlob) Size() (n int) {
 	return n
 }
 
-func (m *MsgPayForBlobResponse) Size() (n int) {
+func (m *MsgPayForBlobsResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -437,7 +437,7 @@ func sovTx(x uint64) (n int) {
 func sozTx(x uint64) (n int) {
 	return sovTx(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *MsgPayForBlob) Unmarshal(dAtA []byte) error {
+func (m *MsgPayForBlobs) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -460,10 +460,10 @@ func (m *MsgPayForBlob) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgPayForBlob: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgPayForBlobs: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgPayForBlob: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgPayForBlobs: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -735,7 +735,7 @@ func (m *MsgPayForBlob) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MsgPayForBlobResponse) Unmarshal(dAtA []byte) error {
+func (m *MsgPayForBlobsResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -758,10 +758,10 @@ func (m *MsgPayForBlobResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MsgPayForBlobResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: MsgPayForBlobsResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MsgPayForBlobResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: MsgPayForBlobsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:

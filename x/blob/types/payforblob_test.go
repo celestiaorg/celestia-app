@@ -113,54 +113,54 @@ func TestCreateCommitment(t *testing.T) {
 func TestValidateBasic(t *testing.T) {
 	type test struct {
 		name    string
-		msg     *MsgPayForBlob
+		msg     *MsgPayForBlobs
 		wantErr *sdkerrors.Error
 	}
 
-	validMsg := validMsgPayForBlob(t)
+	validMsg := validMsgPayForBlobs(t)
 
-	// MsgPayForBlob that uses parity shares namespace id
-	paritySharesMsg := validMsgPayForBlob(t)
+	// MsgPayForBlobs that uses parity shares namespace id
+	paritySharesMsg := validMsgPayForBlobs(t)
 	paritySharesMsg.NamespaceIds[0] = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 
-	// MsgPayForBlob that uses tail padding namespace id
-	tailPaddingMsg := validMsgPayForBlob(t)
+	// MsgPayForBlobs that uses tail padding namespace id
+	tailPaddingMsg := validMsgPayForBlobs(t)
 	tailPaddingMsg.NamespaceIds[0] = []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
 
-	// MsgPayForBlob that uses transaction namespace id
-	txNamespaceMsg := validMsgPayForBlob(t)
+	// MsgPayForBlobs that uses transaction namespace id
+	txNamespaceMsg := validMsgPayForBlobs(t)
 	txNamespaceMsg.NamespaceIds[0] = namespace.ID{0, 0, 0, 0, 0, 0, 0, 1}
 
-	// MsgPayForBlob that uses intermediateStateRoots namespace id
-	intermediateStateRootsNamespaceMsg := validMsgPayForBlob(t)
+	// MsgPayForBlobs that uses intermediateStateRoots namespace id
+	intermediateStateRootsNamespaceMsg := validMsgPayForBlobs(t)
 	intermediateStateRootsNamespaceMsg.NamespaceIds[0] = namespace.ID{0, 0, 0, 0, 0, 0, 0, 2}
 
-	// MsgPayForBlob that uses evidence namespace id
-	evidenceNamespaceMsg := validMsgPayForBlob(t)
+	// MsgPayForBlobs that uses evidence namespace id
+	evidenceNamespaceMsg := validMsgPayForBlobs(t)
 	evidenceNamespaceMsg.NamespaceIds[0] = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
 
-	// MsgPayForBlob that uses the max reserved namespace id
-	maxReservedNamespaceMsg := validMsgPayForBlob(t)
+	// MsgPayForBlobs that uses the max reserved namespace id
+	maxReservedNamespaceMsg := validMsgPayForBlobs(t)
 	maxReservedNamespaceMsg.NamespaceIds[0] = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
 
-	// MsgPayForBlob that has an empty share commitment
-	emptyShareCommitment := validMsgPayForBlob(t)
+	// MsgPayForBlobs that has an empty share commitment
+	emptyShareCommitment := validMsgPayForBlobs(t)
 	emptyShareCommitment.ShareCommitments[0] = []byte{}
 
-	// MsgPayForBlob that has no namespace ids
-	noNamespaceIds := validMsgPayForBlob(t)
+	// MsgPayForBlobs that has no namespace ids
+	noNamespaceIds := validMsgPayForBlobs(t)
 	noNamespaceIds.NamespaceIds = [][]byte{}
 
-	// MsgPayForBlob that has no share versions
-	noShareVersions := validMsgPayForBlob(t)
+	// MsgPayForBlobs that has no share versions
+	noShareVersions := validMsgPayForBlobs(t)
 	noShareVersions.ShareVersions = []uint32{}
 
-	// MsgPayForBlob that has no blob sizes
-	noBlobSizes := validMsgPayForBlob(t)
+	// MsgPayForBlobs that has no blob sizes
+	noBlobSizes := validMsgPayForBlobs(t)
 	noBlobSizes.BlobSizes = []uint32{}
 
-	// MsgPayForBlob that has no share commitments
-	noShareCommitments := validMsgPayForBlob(t)
+	// MsgPayForBlobs that has no share commitments
+	noShareCommitments := validMsgPayForBlobs(t)
 	noShareCommitments.ShareCommitments = [][]byte{}
 
 	tests := []test{
@@ -246,7 +246,7 @@ func totalBlobSize(size int) int {
 	return size - shares.DelimLen(uint64(size))
 }
 
-func validMsgPayForBlob(t *testing.T) *MsgPayForBlob {
+func validMsgPayForBlobs(t *testing.T) *MsgPayForBlobs {
 	signer := GenerateKeyringSigner(t, TestAccName)
 	ns := []byte{1, 1, 1, 1, 1, 1, 1, 2}
 	blob := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.ContinuationSparseShareContentSize*12))
@@ -260,13 +260,13 @@ func validMsgPayForBlob(t *testing.T) *MsgPayForBlob {
 		ShareVersion: uint32(appconsts.ShareVersionZero),
 	}
 
-	pfb, err := NewMsgPayForBlob(addr.String(), pblob)
+	pfb, err := NewMsgPayForBlobs(addr.String(), pblob)
 	assert.NoError(t, err)
 
 	return pfb
 }
 
-func TestNewMsgPayForBlob(t *testing.T) {
+func TestNewMsgPayForBlobs(t *testing.T) {
 	type test struct {
 		signer      string
 		nids        [][]byte
@@ -320,7 +320,7 @@ func TestNewMsgPayForBlob(t *testing.T) {
 	}
 	for _, tt := range tests {
 		blob := &Blob{NamespaceId: tt.nids[0], Data: tt.blobs[0], ShareVersion: uint32(appconsts.DefaultShareVersion)}
-		mpfb, err := NewMsgPayForBlob(tt.signer, blob)
+		mpfb, err := NewMsgPayForBlobs(tt.signer, blob)
 		if tt.expectedErr {
 			assert.Error(t, err)
 			continue

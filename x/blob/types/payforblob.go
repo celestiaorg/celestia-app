@@ -18,16 +18,16 @@ import (
 )
 
 const (
-	URLBlobTx        = "/blob.BlobTx"
-	URLMsgPayForBlob = "/blob.MsgPayForBlob"
-	ShareSize        = appconsts.ShareSize
-	SquareSize       = appconsts.DefaultMaxSquareSize
-	NamespaceIDSize  = appconsts.NamespaceSize
+	URLBlobTx         = "/blob.BlobTx"
+	URLMsgPayForBlobs = "/blob.MsgPayForBlobs"
+	ShareSize         = appconsts.ShareSize
+	SquareSize        = appconsts.DefaultMaxSquareSize
+	NamespaceIDSize   = appconsts.NamespaceSize
 )
 
-var _ sdk.Msg = &MsgPayForBlob{}
+var _ sdk.Msg = &MsgPayForBlobs{}
 
-func NewMsgPayForBlob(signer string, blobs ...*Blob) (*MsgPayForBlob, error) {
+func NewMsgPayForBlobs(signer string, blobs ...*Blob) (*MsgPayForBlobs, error) {
 	nsIDs, sizes, versions := extractBlobComponents(blobs)
 	err := ValidateBlobs(blobs...)
 	if err != nil {
@@ -39,7 +39,7 @@ func NewMsgPayForBlob(signer string, blobs ...*Blob) (*MsgPayForBlob, error) {
 		return nil, err
 	}
 
-	msg := &MsgPayForBlob{
+	msg := &MsgPayForBlobs{
 		Signer:           signer,
 		NamespaceIds:     nsIDs,
 		ShareCommitments: commitments,
@@ -51,16 +51,16 @@ func NewMsgPayForBlob(signer string, blobs ...*Blob) (*MsgPayForBlob, error) {
 }
 
 // Route fulfills the sdk.Msg interface
-func (msg *MsgPayForBlob) Route() string { return RouterKey }
+func (msg *MsgPayForBlobs) Route() string { return RouterKey }
 
 // Type fulfills the sdk.Msg interface
-func (msg *MsgPayForBlob) Type() string {
-	return URLMsgPayForBlob
+func (msg *MsgPayForBlobs) Type() string {
+	return URLMsgPayForBlobs
 }
 
 // ValidateBasic fulfills the sdk.Msg interface by performing stateless
-// validity checks on the msg that also don't require having the actual blob
-func (msg *MsgPayForBlob) ValidateBasic() error {
+// validity checks on the msg that also don't require having the actual blob(s)
+func (msg *MsgPayForBlobs) ValidateBasic() error {
 	if len(msg.NamespaceIds) == 0 {
 		return ErrNoNamespaceIds
 	}
@@ -113,12 +113,12 @@ func (msg *MsgPayForBlob) ValidateBasic() error {
 
 // GetSignBytes fulfills the sdk.Msg interface by returning a deterministic set
 // of bytes to sign over
-func (msg *MsgPayForBlob) GetSignBytes() []byte {
+func (msg *MsgPayForBlobs) GetSignBytes() []byte {
 	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(msg))
 }
 
 // GetSigners fulfills the sdk.Msg interface by returning the signer's address
-func (msg *MsgPayForBlob) GetSigners() []sdk.AccAddress {
+func (msg *MsgPayForBlobs) GetSigners() []sdk.AccAddress {
 	address, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		panic(err)
