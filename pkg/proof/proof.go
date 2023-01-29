@@ -126,11 +126,11 @@ func NewShareInclusionProof(
 
 	// create the binary merkle inclusion proof for all the square rows to the data root
 	_, allProofs := merkle.ProofsFromByteSlices(append(edsRowRoots, eds.ColRoots()...))
-	rowsProofs := make([]*merkle.Proof, endRow-startRow+1)
-	rowsRoots := make([]tmbytes.HexBytes, endRow-startRow+1)
+	rowProofs := make([]*merkle.Proof, endRow-startRow+1)
+	rowRoots := make([]tmbytes.HexBytes, endRow-startRow+1)
 	for i := startRow; i <= endRow; i++ {
-		rowsProofs[i-startRow] = allProofs[i]
-		rowsRoots[i-startRow] = edsRowRoots[i]
+		rowProofs[i-startRow] = allProofs[i]
+		rowRoots[i-startRow] = edsRowRoots[i]
 	}
 
 	// get the extended rows containing the shares.
@@ -139,7 +139,7 @@ func NewShareInclusionProof(
 		rows[i-startRow] = shares.FromBytes(eds.Row(uint(i)))
 	}
 
-	var sharesProofs []*tmproto.NMTProof //nolint:prealloc
+	var shareProofs []*tmproto.NMTProof //nolint:prealloc
 	var rawShares [][]byte
 	for i, row := range rows {
 		// create an nmt to generate a proof.
@@ -169,7 +169,7 @@ func NewShareInclusionProof(
 			return types.ShareProof{}, err
 		}
 
-		sharesProofs = append(sharesProofs, &tmproto.NMTProof{
+		shareProofs = append(shareProofs, &tmproto.NMTProof{
 			Start:    int32(proof.Start()),
 			End:      int32(proof.End()),
 			Nodes:    proof.Nodes(),
@@ -177,20 +177,20 @@ func NewShareInclusionProof(
 		})
 
 		// make sure that the generated root is the same as the eds row root.
-		if !bytes.Equal(rowsRoots[i].Bytes(), tree.Root()) {
+		if !bytes.Equal(rowRoots[i].Bytes(), tree.Root()) {
 			return types.ShareProof{}, errors.New("eds row root is different than tree root")
 		}
 	}
 
 	return types.ShareProof{
 		RowProof: types.RowProof{
-			RowRoots: rowsRoots,
-			Proofs:   rowsProofs,
+			RowRoots: rowRoots,
+			Proofs:   rowProofs,
 			StartRow: uint32(startRow),
 			EndRow:   uint32(endRow),
 		},
 		Data:        rawShares,
-		ShareProofs: sharesProofs,
+		ShareProofs: shareProofs,
 		NamespaceID: namespaceID,
 	}, nil
 }
