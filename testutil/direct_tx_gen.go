@@ -77,7 +77,7 @@ func RandBlobTxsWithAccounts(
 			}
 		}
 
-		msg, blobs := blobfactory.RandMsgPayForBlobWithSigner(addr.String(), randomizedSize, randomizedBlobCount)
+		msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(addr.String(), randomizedSize, randomizedBlobCount)
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
@@ -160,7 +160,7 @@ func RandBlobTxsWithManualSequence(
 				randomizedBlobCount = 1
 			}
 		}
-		msg, blobs := blobfactory.RandMsgPayForBlobWithSigner(addr.String(), randomizedSize, randomizedBlobCount)
+		msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(addr.String(), randomizedSize, randomizedBlobCount)
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
