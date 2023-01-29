@@ -134,7 +134,7 @@ func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIn
 }
 
 func mergeMaps(mapOne, mapTwo map[coretypes.TxKey]ShareRange) map[coretypes.TxKey]ShareRange {
-	merged := make(map[coretypes.TxKey]ShareRange)
+	merged := make(map[coretypes.TxKey]ShareRange, len(mapOne)+len(mapTwo))
 	maps.Copy(merged, mapOne)
 	maps.Copy(merged, mapTwo)
 	return merged
