@@ -93,7 +93,7 @@ func TestValidateBlobTx(t *testing.T) {
 			getTx: func() tmproto.BlobTx {
 				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100))
 				require.NoError(t, err)
-				msg, err := types.NewMsgPayForBlob(
+				msg, err := types.NewMsgPayForBlobs(
 					signerAddr.String(),
 					blob,
 				)

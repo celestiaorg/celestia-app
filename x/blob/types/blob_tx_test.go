@@ -45,7 +45,7 @@ func TestVerifySignature(t *testing.T) {
 		SetGasLimit(10000000),
 	}
 
-	msg, blob := randMsgPayForBlobWithNamespaceAndSigner(
+	msg, blob := randMsgPayForBlobsWithNamespaceAndSigner(
 		t,
 		addr.String(),
 		namespace.RandomBlobNamespace(),
@@ -104,10 +104,10 @@ func setupSigTest(t *testing.T) (string, sdk.Address, *KeyringSigner, encoding.C
 	return acc, addr, signer, encCfg
 }
 
-func randMsgPayForBlobWithNamespaceAndSigner(t *testing.T, signer string, nid []byte, size int) (*MsgPayForBlob, *tmproto.Blob) {
+func randMsgPayForBlobsWithNamespaceAndSigner(t *testing.T, signer string, nid []byte, size int) (*MsgPayForBlobs, *tmproto.Blob) {
 	blob, err := NewBlob(nid, tmrand.Bytes(size))
 	require.NoError(t, err)
-	msg, err := NewMsgPayForBlob(
+	msg, err := NewMsgPayForBlobs(
 		signer,
 		blob,
 	)

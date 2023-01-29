@@ -22,7 +22,7 @@ func TestBuildPayForBlob(t *testing.T) {
 	k := NewKeyringSigner(testRing, TestAccName, testChainID)
 	require.NoError(t, err)
 
-	msg := validMsgPayForBlob(t)
+	msg := validMsgPayForBlobs(t)
 
 	signedTx, err := k.BuildSignedTx(k.NewTxBuilder(), msg)
 	require.NoError(t, err)
@@ -76,7 +76,7 @@ func TestBroadcastPayForBlob(t *testing.T) {
 	}
 	builder.SetFeeAmount(sdktypes.NewCoins(coin))
 
-	msg := validMsgPayForBlob(t)
+	msg := validMsgPayForBlobs(t)
 
 	signedTx, err := k.BuildSignedTx(builder, msg)
 	require.NoError(t, err)

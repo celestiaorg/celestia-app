@@ -20,12 +20,12 @@ type trackedBlob struct {
 }
 
 // finalizeLayout returns the PFB transactions and their respective blobs in their completed layout.
-// Valid square layouts only include a MsgPayForBlob transaction if the blob is
+// Valid square layouts only include a MsgPayForBlobs transaction if the blob is
 // also included in the square. The blobs are sorted by namespace.
 func finalizeBlobLayout(squareSize uint64, nonreserveStart int, blobTxs []tmproto.BlobTx) ([][]byte, []tmproto.Blob) {
 	// we split the transactions from the blobs here, but keep track of which
 	// parsed transaction the blobs originated from. transactions must only be
-	// added to the square if their respective blob is also added to the square.
+	// added to the square if their respective blob(s) are also added to the square.
 	// Also, the blobs must be sorted by namespace before we can split them into
 	// shares and create nmt commitments over each row and column.
 	trackedBlobs := make([]*trackedBlob, 0)
