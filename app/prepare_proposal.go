@@ -35,7 +35,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	isHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
 	normalTxs, sdkCtx = filterStdTxs(app.Logger(), app.txConfig.TxDecoder(), sdkCtx, isHandler, normalTxs)
 
-	// check the signatures and increment the sequences of the blob transations,
+	// check the signatures and increment the sequences of the blob txs,
 	// and filter out any that fail. Panics from the anteHandler are caught and
 	// logged.
 	svHandler := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)

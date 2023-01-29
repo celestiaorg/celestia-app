@@ -174,10 +174,12 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		testutil.ChainID,
 		accnts[:numBlobTxs],
 		infos[:numBlobTxs],
-		testfactory.Repeat([]*tmproto.Blob{{
-			NamespaceId:  namespace.RandomBlobNamespace(),
-			Data:         []byte{1},
-			ShareVersion: uint32(appconsts.DefaultShareVersion)},
+		testfactory.Repeat([]*tmproto.Blob{
+			{
+				NamespaceId:  namespace.RandomBlobNamespace(),
+				Data:         []byte{1},
+				ShareVersion: uint32(appconsts.DefaultShareVersion),
+			},
 		}, numBlobTxs),
 	)
 
