@@ -2,10 +2,11 @@ package cli
 
 import (
 	"fmt"
+	"strconv"
+
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
-	"strconv"
 
 	"github.com/spf13/cobra"
 
