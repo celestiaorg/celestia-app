@@ -1,17 +1,14 @@
 package cli
 
 import (
-	"bytes"
 	"fmt"
+	"github.com/celestiaorg/celestia-app/testutil/namespace"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"strconv"
-
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/nmt/namespace"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/spf13/cobra"
 
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 )
 
@@ -25,20 +22,17 @@ func CmdTestRandBlob() *cobra.Command {
 		Short: "Generates a random blob for a random namespace to be published to the Celestia blockchain",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			namespace := getRandomNamespace()
-
 			// decode the message size
 			size, err := strconv.Atoi(args[0])
 			if err != nil {
 				return fmt.Errorf("failure to decode message size: %w", err)
 			}
 
-			rawblob := getRandomBlobBySize(size)
-
-			// TODO: allow for more than one blob to be sumbmitted via the cli
-			blob, err := types.NewBlob(namespace, rawblob)
+			nid := namespace.RandomBlobNamespace()
+			coreBlob := testfactory.GenerateBlobsWithNamespace(1, size, nid)
+			blob, err := types.NewBlob(coreBlob[0].NamespaceID, coreBlob[0].Data)
 			if err != nil {
-				return err
+				return fmt.Errorf("failure on generating random blob: %w", err)
 			}
 
 			return broadcastPFB(cmd, blob)
@@ -48,17 +42,4 @@ func CmdTestRandBlob() *cobra.Command {
 	flags.AddTxFlagsToCmd(cmd)
 
 	return cmd
-}
-
-func getRandomNamespace() namespace.ID {
-	for {
-		s := tmrand.Bytes(8)
-		if bytes.Compare(s, appconsts.MaxReservedNamespace) > 0 {
-			return s
-		}
-	}
-}
-
-func getRandomBlobBySize(size int) []byte {
-	return tmrand.Bytes(size)
 }
