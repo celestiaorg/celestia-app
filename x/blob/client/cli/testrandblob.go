@@ -3,10 +3,11 @@ package cli
 import (
 	"bytes"
 	"fmt"
+	"strconv"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"strconv"
 
 	"github.com/spf13/cobra"
 
