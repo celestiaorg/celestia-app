@@ -72,7 +72,7 @@ const (
 	MaxShareVersion = 127
 
 	// DefaultGasPerBlobByte is the default gas cost deducted per byte of blob
-	// included in a PayForBlob txn
+	// included in a PayForBlobs txn
 	DefaultGasPerBlobByte = 8
 
 	// TransactionsPerBlockLimit is the maximum number of transactions a block
@@ -94,7 +94,7 @@ var (
 	// EvidenceNamespaceID is the namespace reserved for evidence.
 	EvidenceNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
 
-	// PayForBlobNamespaceID is the namespace reserved for PayForBlob transactions.
+	// PayForBlobNamespaceID is the namespace reserved for PayForBlobs transactions.
 	PayForBlobNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 4}
 
 	// ReservedNamespacePadding is the namespace used for padding after all
