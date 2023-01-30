@@ -80,44 +80,6 @@ func (s Share) ToBytes() []byte {
 	return []byte(s)
 }
 
-func (s Share) String() string {
-	compact := s.IsCompactShare()
-	len, err := s.SequenceLen()
-	if err != nil {
-		return fmt.Sprintf("invalid{%s}", err.Error())
-	}
-	ver, err := s.Version()
-	if err != nil {
-		return fmt.Sprintf("invalid{%s}", err.Error())
-	}
-	rawData, err := s.RawData()
-	if err != nil {
-		return fmt.Sprintf("invalid{%s}", err.Error())
-	}
-	var reservedBytes []byte
-	if compact {
-		start := appconsts.NamespaceSize + appconsts.ShareInfoBytes
-		if len != 0 {
-			start += appconsts.SequenceLenBytes
-		}
-		end := start + appconsts.CompactShareReservedBytes
-		reservedBytes = s[start:end]
-	}
-	switch {
-		case compact && len != 0:
-			return fmt.Sprintf("FCS{v%d:n%X:len%d:r%X:d%X}", ver, s.NamespaceID(), len, reservedBytes, rawData)
-
-		case !compact && len != 0:
-			return fmt.Sprintf("FSS{v%d:n%X:len%d:d%X}", ver, s.NamespaceID(), len, rawData)
-
-		case compact && len == 0:
-			return fmt.Sprintf("CCS{v%d:n%X:r%X:d%X}", ver, s.NamespaceID(), reservedBytes, rawData)
-
-		default:
-			return fmt.Sprintf("CSS{v%d:n%X:d%X}", ver, s.NamespaceID(), rawData)
-	}
-}
-
 func ToBytes(shares []Share) (bytes [][]byte) {
 	bytes = make([][]byte, len(shares))
 	for i, share := range shares {
