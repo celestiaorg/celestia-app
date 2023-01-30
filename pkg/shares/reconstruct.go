@@ -31,8 +31,8 @@ func reconstruct(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 			switch {
 			case bytes.Equal(appconsts.TxNamespaceID, nid):
 				sortedTxShares = append(sortedTxShares, share)
-			case bytes.Equal(appconsts.PayForBlobNamespaceID, nid):
-				sortedPfbTxShares = append(sortedPfbTxShares, share)
+			// case bytes.Equal(appconsts.PayForBlobNamespaceID, nid):
+			// 	sortedPfbTxShares = append(sortedPfbTxShares, share)
 			case bytes.Equal(appconsts.TailPaddingNamespaceID, nid):
 				continue
 
