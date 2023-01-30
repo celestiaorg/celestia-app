@@ -13,16 +13,15 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func TestCompactShareWriter(t *testing.T) {
+func TestCompactShareSplitter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
 	// tests occur in TestMerge and Test_processCompactShares
-	w := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
 	txs := testfactory.GenerateRandomTxs(33, 200)
 	for _, tx := range txs {
-		rawTx, _ := MarshalDelimitedTx(tx)
-		w.WriteBytes(rawTx)
+		css.WriteTx(tx)
 	}
-	shares := w.Export()
+	shares, _ := css.Export(0)
 	rawShares := ToBytes(shares)
 	rawResTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
 	resTxs := coretypes.ToTxs(rawResTxs)
@@ -77,7 +76,7 @@ func Test_processCompactShares(t *testing.T) {
 		t.Run(fmt.Sprintf("%s idendically sized", tc.name), func(t *testing.T) {
 			txs := testfactory.GenerateRandomTxs(tc.txCount, tc.txSize)
 
-			shares, _ := SplitTxs(txs)
+			shares, _, _ := SplitTxs(txs)
 			rawShares := ToBytes(shares)
 
 			parsedTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
@@ -95,8 +94,8 @@ func Test_processCompactShares(t *testing.T) {
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
 			txs := testfactory.GenerateRandomlySizedTxs(tc.txCount, tc.txSize)
 
-			shares, _ := SplitTxs(txs)
-			rawShares := ToBytes(shares)
+			txShares, _, _ := SplitTxs(txs)
+			rawShares := ToBytes(txShares)
 
 			parsedTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
 			if err != nil {
@@ -119,7 +118,7 @@ func TestCompactShareContainsInfoByte(t *testing.T) {
 		css.WriteTx(tx)
 	}
 
-	shares := css.Export()
+	shares, _ := css.Export(0)
 	assert.Condition(t, func() bool { return len(shares) == 1 })
 
 	infoByte := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
@@ -139,7 +138,7 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 		css.WriteTx(tx)
 	}
 
-	shares := css.Export()
+	shares, _ := css.Export(0)
 	assert.Condition(t, func() bool { return len(shares) > 1 })
 
 	infoByte := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
@@ -158,8 +157,8 @@ func Test_parseCompactSharesErrors(t *testing.T) {
 	}
 
 	txs := testfactory.GenerateRandomTxs(2, appconsts.ContinuationCompactShareContentSize*4)
-	shares, _ := SplitTxs(txs)
-	rawShares := ToBytes(shares)
+	txShares, _, _ := SplitTxs(txs)
+	rawShares := ToBytes(txShares)
 
 	unsupportedShareVersion := 5
 	infoByte, _ := NewInfoByte(uint8(unsupportedShareVersion), true)

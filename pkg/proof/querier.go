@@ -20,7 +20,7 @@ const TxInclusionQueryPath = "txInclusionProof"
 // Querier defines the logic performed when the ABCI client using the Query
 // method with the custom prove.QueryPath. The index of the transaction being
 // proved must be appended to the path. The marshalled bytes of the transaction
-// proof (tmproto.TxProof) are returned.
+// proof (tmproto.ShareProof) are returned.
 //
 // example path for proving the third transaction in that block:
 // custom/txInclusionProof/3
@@ -46,17 +46,17 @@ func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) 
 	}
 
 	// create and marshal the tx inclusion proof, which we return in the form of []byte
-	txProof, err := TxInclusion(appconsts.DefaultCodec(), data, uint64(index))
+	shareProof, err := NewTxInclusionProof(appconsts.DefaultCodec(), data, uint64(index))
 	if err != nil {
 		return nil, err
 	}
-	pTxProof := txProof.ToProto()
-	rawTxProof, err := pTxProof.Marshal()
+	pShareProof := shareProof.ToProto()
+	rawShareProof, err := pShareProof.Marshal()
 	if err != nil {
 		return nil, err
 	}
 
-	return rawTxProof, nil
+	return rawShareProof, nil
 }
 
 const ShareInclusionQueryPath = "shareInclusionProof"
@@ -100,8 +100,8 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 		return nil, err
 	}
 
-	// create and marshal the shares inclusion proof, which we return in the form of []byte
-	txProof, err := GenerateSharesInclusionProof(
+	// create and marshal the share inclusion proof, which we return in the form of []byte
+	shareProof, err := NewShareInclusionProof(
 		rawShares,
 		data.SquareSize,
 		nID,
@@ -111,13 +111,13 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 	if err != nil {
 		return nil, err
 	}
-	pTxProof := txProof.ToProto()
-	rawTxProof, err := pTxProof.Marshal()
+	pShareProof := shareProof.ToProto()
+	rawShareProof, err := pShareProof.Marshal()
 	if err != nil {
 		return nil, err
 	}
 
-	return rawTxProof, nil
+	return rawShareProof, nil
 }
 
 // ParseNamespaceID validates the share range, checks if it only contains one namespace and returns

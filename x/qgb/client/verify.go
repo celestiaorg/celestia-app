@@ -79,7 +79,7 @@ func txCmd() *cobra.Command {
 				return err
 			}
 
-			beginTxShare, endTxShare, err := proof.TxSharePosition(blockRes.Block.Txs, uint64(tx.Index))
+			beginTxShare, endTxShare, err := proof.TxSharePosition(blockRes.Block.Data, uint64(tx.Index))
 			if err != nil {
 				return err
 			}

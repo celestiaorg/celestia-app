@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	coretypes "github.com/tendermint/tendermint/types"
+	"golang.org/x/exp/maps"
 )
 
 var (
@@ -28,7 +29,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 	wantShareCount := int(data.SquareSize * data.SquareSize)
 	currentShareCount := 0
 
-	txShares, pfbTxShares := SplitTxs(data.Txs)
+	txShares, pfbTxShares, _ := SplitTxs(data.Txs)
 	currentShareCount += len(txShares) + len(pfbTxShares)
 	// blobIndexes will be nil if we are working with a list of txs that do not
 	// have a blob index. This preserves backwards compatibility with old blocks
@@ -97,9 +98,10 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 	return shareIndexes
 }
 
-func SplitTxs(txs coretypes.Txs) ([]Share, []Share) {
+func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRanges map[coretypes.TxKey]ShareRange) {
 	txWriter := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
 	pfbTxWriter := NewCompactShareSplitter(appconsts.PayForBlobNamespaceID, appconsts.ShareVersionZero)
+
 	for _, tx := range txs {
 		if _, isIndexWrapper := coretypes.UnmarshalIndexWrapper(tx); isIndexWrapper {
 			pfbTxWriter.WriteTx(tx)
@@ -107,7 +109,11 @@ func SplitTxs(txs coretypes.Txs) ([]Share, []Share) {
 			txWriter.WriteTx(tx)
 		}
 	}
-	return txWriter.Export(), pfbTxWriter.Export()
+
+	txShares, txMap := txWriter.Export(0)
+	pfbShares, pfbMap := pfbTxWriter.Export(len(txShares))
+
+	return txShares, pfbShares, mergeMaps(txMap, pfbMap)
 }
 
 func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIndexes bool) ([]Share, error) {
@@ -125,4 +131,13 @@ func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIn
 		}
 	}
 	return writer.Export(), nil
+}
+
+// mergeMaps merges two maps into a new map. If there are any duplicate keys,
+// the value in the second map takes precedence.
+func mergeMaps(mapOne, mapTwo map[coretypes.TxKey]ShareRange) map[coretypes.TxKey]ShareRange {
+	merged := make(map[coretypes.TxKey]ShareRange, len(mapOne)+len(mapTwo))
+	maps.Copy(merged, mapOne)
+	maps.Copy(merged, mapTwo)
+	return merged
 }
