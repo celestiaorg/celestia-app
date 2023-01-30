@@ -290,7 +290,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			prunedTxs: [][]byte{},
 		},
 		{
-			// even though these txs are getting appendeded the end of the
+			// even though invalidSendTxs are getting appended to the end of the
 			// block, and we do not check the signatures of the standard txs,
 			// the blob txs still get pruned because we are separating the
 			// normal and blob txs, and checking/executing the normal txs first.
