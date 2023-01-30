@@ -46,7 +46,7 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 	return txs[:n], ctx
 }
 
-// filterStdTxsWith applies the provided antehandler to each transaction
+// filterBlobTxs applies the provided antehandler to each transaction
 // and removes transactions that return an error. Panics are caught by the checkTxValidity
 // function used to apply the ante handler.
 func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []tmproto.BlobTx) ([]tmproto.BlobTx, sdk.Context) {
