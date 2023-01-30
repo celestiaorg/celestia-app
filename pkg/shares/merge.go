@@ -8,9 +8,9 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// reconstruct reconstructs block data from an extended data square.
+// merge extracts block data from an extended data square.
 // TODO: export this function
-func reconstruct(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
+func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 	squareSize := eds.Width() / 2
 
 	// sort block data shares by namespace

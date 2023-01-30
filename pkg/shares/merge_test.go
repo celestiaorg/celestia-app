@@ -16,9 +16,8 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func TestFuzz_reconstruct(t *testing.T) {
+func TestFuzz_merge(t *testing.T) {
 	t.Skip()
-	// run random shares through processCompactShares for a minute
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	for {
@@ -26,12 +25,12 @@ func TestFuzz_reconstruct(t *testing.T) {
 		case <-ctx.Done():
 			return
 		default:
-			Test_reconstruct_randomData(t)
+			Test_merge_randomData(t)
 		}
 	}
 }
 
-func Test_reconstruct_randomData(t *testing.T) {
+func Test_merge_randomData(t *testing.T) {
 	type test struct {
 		name      string
 		txCount   int
@@ -62,14 +61,14 @@ func Test_reconstruct_randomData(t *testing.T) {
 			eds, err := rsmt2d.ComputeExtendedDataSquare(ToBytes(shares), appconsts.DefaultCodec(), rsmt2d.NewDefaultTree)
 			assert.NoError(t, err)
 
-			got, err := reconstruct(eds)
+			got, err := merge(eds)
 			assert.NoError(t, err)
 			assert.Equal(t, data, got)
 		})
 	}
 }
 
-func Test_reconstruct_sampleBlock(t *testing.T) {
+func Test_merge_sampleBlock(t *testing.T) {
 	var pb tmproto.Block
 	err := json.Unmarshal([]byte(sampleBlock), &pb)
 	require.NoError(t, err)
@@ -83,18 +82,18 @@ func Test_reconstruct_sampleBlock(t *testing.T) {
 	eds, err := rsmt2d.ComputeExtendedDataSquare(ToBytes(shares), appconsts.DefaultCodec(), rsmt2d.NewDefaultTree)
 	assert.NoError(t, err)
 
-	got, err := reconstruct(eds)
+	got, err := merge(eds)
 	assert.NoError(t, err)
 
-	// TODO: the assertions below are a hack because the data returned by reconstruct does
+	// TODO: the assertions below are a hack because the data returned by merge does
 	// contain the same hash as the original block. Ideally this test would verify:
 	//
-	//     assert.Equal(t, got, b.Data)
+	//     assert.Equal(t, b.Data, got)
 	//
 	// Instead this test verifies all public fields of Data are identical.
-	assert.Equal(t, got.Txs, b.Data.Txs)
-	assert.Equal(t, got.Blobs, b.Data.Blobs)
-	assert.Equal(t, got.SquareSize, b.Data.SquareSize)
+	assert.Equal(t, b.Data.Txs, got.Txs)
+	assert.Equal(t, b.Data.Blobs, got.Blobs)
+	assert.Equal(t, b.Data.SquareSize, got.SquareSize)
 }
 
 // generateRandomBlockData returns randomly generated block data for testing purposes
