@@ -260,7 +260,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 
 	// create 3 MsgSend transactions that are using the same sequence as the
 	// first three blob transactions above
-	invalidSendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
+	duplicateSeqSendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
 		t,
 		testApp,
 		encConf.TxConfig.TxEncoder(),
@@ -290,24 +290,24 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			prunedTxs: [][]byte{},
 		},
 		{
-			// even though invalidSendTxs are getting appended to the end of the
+			// even though duplicateSeqSendTxs are getting appended to the end of the
 			// block, and we do not check the signatures of the standard txs,
 			// the blob txs still get pruned because we are separating the
 			// normal and blob txs, and checking/executing the normal txs first.
 			name: "duplicate sequence appended to the end of the block",
 			txs: func() [][]byte {
-				return append(validTxs(), invalidSendTxs...)
+				return append(validTxs(), duplicateSeqSendTxs...)
 			},
 			prunedTxs: blobTxs,
 		},
 		{
 			name: "duplicate sequence txs",
 			txs: func() [][]byte {
-				txs := make([][]byte, 0, len(sendTxs)+len(blobTxs)+len(invalidSendTxs))
+				txs := make([][]byte, 0, len(sendTxs)+len(blobTxs)+len(duplicateSeqSendTxs))
 				// these should increment the nonce of the accounts that are
 				// signing the blobtxs, which should make those signatures
 				// invalid.
-				txs = append(txs, invalidSendTxs...)
+				txs = append(txs, duplicateSeqSendTxs...)
 				txs = append(txs, blobTxs...)
 				txs = append(txs, sendTxs...)
 				return txs

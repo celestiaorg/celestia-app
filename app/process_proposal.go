@@ -90,8 +90,8 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	// transactions. We verify the signatures of PFB containing txs using the
 	// sigVerifyAnterHandler, and simply increase the nonce of all other
 	// transactions.
-	sigVerifyAnteHander := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
-	incrementSequenceAnteHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
+	svHander := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
+	seqHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
 
 	sdkCtx, err := app.NewProcessProposalQueryContext()
 	if err != nil {
@@ -123,7 +123,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			// we need to increment the sequence for every transaction so that
 			// the signature check below is accurate. this error only gets hit
 			// if the account in question doens't exist.
-			sdkCtx, err = incrementSequenceAnteHandler(sdkCtx, sdkTx, false)
+			sdkCtx, err = seqHandler(sdkCtx, sdkTx, false)
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), req.Header, "failure to incrememnt sequence", err)
 				return abci.ResponseProcessProposal{
@@ -176,7 +176,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			}
 		}
 
-		sdkCtx, err = sigVerifyAnteHander(sdkCtx, sdkTx, true)
+		sdkCtx, err = svHander(sdkCtx, sdkTx, true)
 		if err != nil {
 			logInvalidPropBlockError(app.Logger(), req.Header, "invalid PFB signature", err)
 			return abci.ResponseProcessProposal{
