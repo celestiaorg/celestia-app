@@ -138,7 +138,7 @@ func Test_estimatePFBTxSharesUsed(t *testing.T) {
 				require.NoError(t, err)
 				txs[i] = wPFBTx
 			}
-			_, pfbTxShares := shares.SplitTxs(txs)
+			_, pfbTxShares, _ := shares.SplitTxs(txs)
 			assert.LessOrEqual(t, len(pfbTxShares), got)
 		})
 	}
