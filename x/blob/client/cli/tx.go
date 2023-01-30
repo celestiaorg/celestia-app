@@ -23,5 +23,6 @@ func GetTxCmd() *cobra.Command {
 
 	cmd.AddCommand(CmdPayForBlob())
 	cmd.AddCommand(CmdTestRandBlob())
+	
 	return cmd
 }
