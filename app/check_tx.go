@@ -24,7 +24,7 @@ func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 		}
 		// reject transactions that have PFBs, but no blobs attached
 		for _, msg := range sdkTx.GetMsgs() {
-			if _, ok := msg.(*blobtypes.MsgPayForBlob); !ok {
+			if _, ok := msg.(*blobtypes.MsgPayForBlobs); !ok {
 				continue
 			}
 			return sdkerrors.ResponseCheckTxWithEvents(blobtypes.ErrNoBlobs, 0, 0, []abci.Event{}, false)
