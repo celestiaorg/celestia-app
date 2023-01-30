@@ -18,17 +18,12 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func CmdWirePayForBlob() *cobra.Command {
+func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "PayForBlobs [hexNamespace] [hexBlob]",
 		Short: "Pay for a data blob to be published to the Celestia blockchain",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx, err := client.GetClientTxContext(cmd)
-			if err != nil {
-				return err
-			}
-
 			// decode the namespace
 			namespace, err := hex.DecodeString(args[0])
 			if err != nil {
@@ -47,41 +42,52 @@ func CmdWirePayForBlob() *cobra.Command {
 				return err
 			}
 
-			// TODO: allow the user to override the share version via a new flag
-			// See https://github.com/celestiaorg/celestia-app/issues/1041
-			pfbMsg, err := types.NewMsgPayForBlobs(clientCtx.FromAddress.String(), blob)
-			if err != nil {
-				return err
-			}
-
-			// run message checks
-			if err = pfbMsg.ValidateBasic(); err != nil {
-				return err
-			}
-
-			txBytes, err := writeTx(clientCtx, sdktx.NewFactoryCLI(clientCtx, cmd.Flags()), pfbMsg)
-			if err != nil {
-				return err
-			}
-
-			blobTx, err := coretypes.MarshalBlobTx(txBytes, blob)
-			if err != nil {
-				return err
-			}
-
-			// broadcast to a Tendermint node
-			res, err := clientCtx.BroadcastTx(blobTx)
-			if err != nil {
-				return err
-			}
-
-			return clientCtx.PrintProto(res)
+			return broadcastPFB(cmd, blob)
 		},
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
 
 	return cmd
+}
+
+// broadcastPFB creates the new PFB message type that will later be broadcast to tendermint nodes
+// this private func is used in CmdPayForBlob and CmdTestRandBlob
+func broadcastPFB(cmd *cobra.Command, blob *types.Blob) error {
+	clientCtx, err := client.GetClientTxContext(cmd)
+	if err != nil {
+		return err
+	}
+
+	// TODO: allow the user to override the share version via a new flag
+	// See https://github.com/celestiaorg/celestia-app/issues/1041
+	pfbMsg, err := types.NewMsgPayForBlobs(clientCtx.FromAddress.String(), blob)
+	if err != nil {
+		return err
+	}
+
+	// run message checks
+	if err = pfbMsg.ValidateBasic(); err != nil {
+		return err
+	}
+
+	txBytes, err := writeTx(clientCtx, sdktx.NewFactoryCLI(clientCtx, cmd.Flags()), pfbMsg)
+	if err != nil {
+		return err
+	}
+
+	blobTx, err := coretypes.MarshalBlobTx(txBytes, blob)
+	if err != nil {
+		return err
+	}
+
+	// broadcast to a Tendermint node
+	res, err := clientCtx.BroadcastTx(blobTx)
+	if err != nil {
+		return err
+	}
+
+	return clientCtx.PrintProto(res)
 }
 
 // writeTx attempts to generate and sign a transaction using the normal
