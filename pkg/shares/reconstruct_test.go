@@ -2,6 +2,9 @@ package shares
 
 import (
 	"context"
+	_ "embed"
+	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -10,6 +13,7 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -23,12 +27,12 @@ func TestFuzz_reconstruct(t *testing.T) {
 		case <-ctx.Done():
 			return
 		default:
-			Test_reconstruct(t)
+			Test_reconstruct_randomData(t)
 		}
 	}
 }
 
-func Test_reconstruct(t *testing.T) {
+func Test_reconstruct_randomData(t *testing.T) {
 	type test struct {
 		name      string
 		txCount   int
@@ -47,7 +51,6 @@ func Test_reconstruct(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// generate random data
 			data := generateRandomBlockData(
 				tc.txCount,
 				tc.blobCount,
@@ -62,11 +65,36 @@ func Test_reconstruct(t *testing.T) {
 
 			got, err := reconstruct(eds)
 			assert.NoError(t, err)
-
-			got.SquareSize = data.SquareSize
 			assert.Equal(t, data, got)
 		})
 	}
+}
+
+func Test_reconstruct_sampleBlock(t *testing.T) {
+	var pb tmproto.Block
+	err := json.Unmarshal([]byte(sampleBlock), &pb)
+	require.NoError(t, err)
+
+	b, err := coretypes.BlockFromProto(&pb)
+	require.NoError(t, err)
+
+	shares, err := Split(b.Data, false)
+	require.NoError(t, err)
+
+	eds, err := rsmt2d.ComputeExtendedDataSquare(ToBytes(shares), appconsts.DefaultCodec(), rsmt2d.NewDefaultTree)
+	assert.NoError(t, err)
+
+	got, err := reconstruct(eds)
+	got.Hash()
+
+	// TODO although the Txs are identical, the hashes don't match
+	fmt.Printf("data.Txs: %x\n", b.Data.Txs)
+	fmt.Printf("data.Hash(): %x\n", b.Data.Hash())
+	fmt.Printf("got: %x\n", got.Txs)
+	fmt.Printf("got.Hash(): %x\n", got.Hash())
+
+	assert.NoError(t, err)
+	assert.Equal(t, got, b.Data)
 }
 
 // generateRandomBlockData returns randomly generated block data for testing purposes
@@ -76,3 +104,8 @@ func generateRandomBlockData(txCount, blobCount, maxSize int) (data coretypes.Da
 	data.SquareSize = appconsts.DefaultMaxSquareSize
 	return data
 }
+
+// this is a sample block
+//
+//go:embed "testdata/sample-block.json"
+var sampleBlock string
