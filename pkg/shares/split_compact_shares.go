@@ -9,6 +9,13 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
+type ShareRange struct {
+	// Start is the index of the first share occupied by this range.
+	Start int
+	// End is the index of the last share occupied by this range.
+	End int
+}
+
 // CompactShareSplitter will write raw data compactly across a progressively
 // increasing set of shares. It is used to lazily split block data such as
 // transactions or intermediate state roots into shares.
@@ -16,7 +23,12 @@ type CompactShareSplitter struct {
 	shares       []Share
 	pendingShare Share
 	namespace    namespace.ID
-	version      uint8
+	shareVersion uint8
+	// shareRanges is a map from a transaction key to the range of shares it
+	// occupies. The range assumes this compact share splitter is the only
+	// thing in the data square (e.g. the range for the first tx starts at index
+	// 0).
+	shareRanges map[coretypes.TxKey]ShareRange
 }
 
 // NewCompactShareSplitter returns a CompactShareSplitter using the provided
@@ -34,19 +46,35 @@ func NewCompactShareSplitter(ns namespace.ID, shareVersion uint8) *CompactShareS
 	pendingShare = append(pendingShare, byte(infoByte))
 	pendingShare = append(pendingShare, placeholderSequenceLen...)
 	pendingShare = append(pendingShare, placeholderReservedBytes...)
-	return &CompactShareSplitter{pendingShare: pendingShare, namespace: ns}
+	return &CompactShareSplitter{
+		shares:       []Share{},
+		pendingShare: pendingShare,
+		namespace:    ns,
+		shareVersion: shareVersion,
+		shareRanges:  map[coretypes.TxKey]ShareRange{},
+	}
 }
 
+// WriteTx adds the delimited data for the provided tx to the underlying compact
+// share splitter.
 func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
 	rawData, err := MarshalDelimitedTx(tx)
 	if err != nil {
 		panic(fmt.Sprintf("included Tx in mem-pool that can not be encoded %v", tx))
 	}
-	css.WriteBytes(rawData)
+
+	startShare := len(css.shares)
+	css.write(rawData)
+	endShare := css.Count() - 1
+
+	css.shareRanges[tx.Key()] = ShareRange{
+		Start: startShare,
+		End:   endShare,
+	}
 }
 
-// WriteBytes adds the delimited data to the underlying compact shares.
-func (css *CompactShareSplitter) WriteBytes(rawData []byte) {
+// write adds the delimited data to the underlying compact shares.
+func (css *CompactShareSplitter) write(rawData []byte) {
 	css.maybeWriteReservedBytesToPendingShare()
 
 	txCursor := len(rawData)
@@ -86,7 +114,7 @@ func (css *CompactShareSplitter) stackPending() {
 	css.shares = append(css.shares, css.pendingShare)
 	newPendingShare := make([]byte, 0, appconsts.ShareSize)
 	newPendingShare = append(newPendingShare, css.namespace...)
-	infoByte, err := NewInfoByte(css.version, false)
+	infoByte, err := NewInfoByte(css.shareVersion, false)
 	if err != nil {
 		panic(err)
 	}
@@ -96,10 +124,23 @@ func (css *CompactShareSplitter) stackPending() {
 	css.pendingShare = newPendingShare
 }
 
-// Export finalizes and returns the underlying compact shares.
-func (css *CompactShareSplitter) Export() []Share {
+// Export finalizes and returns the underlying compact shares and a map of
+// shareRanges. All share ranges in the map of shareRanges will be offset (i.e.
+// incremented) by the shareRangeOffset provided. shareRangeOffset should be 0
+// for the first compact share sequence in the data square (transactions) but
+// should be some non-zero number for subsequent compact share sequences (e.g.
+// pfb txs).
+func (css *CompactShareSplitter) Export(shareRangeOffset int) ([]Share, map[coretypes.TxKey]ShareRange) {
+	// apply the shareRangeOffset to all share ranges
+	for k, v := range css.shareRanges {
+		css.shareRanges[k] = ShareRange{
+			Start: v.Start + shareRangeOffset,
+			End:   v.End + shareRangeOffset,
+		}
+	}
+
 	if css.isEmpty() {
-		return []Share{}
+		return []Share{}, css.shareRanges
 	}
 
 	var bytesOfPadding int
@@ -111,7 +152,7 @@ func (css *CompactShareSplitter) Export() []Share {
 
 	sequenceLen := css.sequenceLen(bytesOfPadding)
 	css.writeSequenceLen(sequenceLen)
-	return css.shares
+	return css.shares, css.shareRanges
 }
 
 // writeSequenceLen writes the sequence length to the first share.
