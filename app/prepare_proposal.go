@@ -32,8 +32,8 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// increment the sequences of the standard cosmos-sdk transactions. Panics
 	// from the anteHandler are caught and logged.
-	isHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
-	normalTxs, sdkCtx = filterStdTxs(app.Logger(), app.txConfig.TxDecoder(), sdkCtx, isHandler, normalTxs)
+	seqHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
+	normalTxs, sdkCtx = filterStdTxs(app.Logger(), app.txConfig.TxDecoder(), sdkCtx, seqHandler, normalTxs)
 
 	// check the signatures and increment the sequences of the blob txs,
 	// and filter out any that fail. Panics from the anteHandler are caught and
