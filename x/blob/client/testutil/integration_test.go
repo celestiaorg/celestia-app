@@ -91,7 +91,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 		tc := tc
 		s.Require().NoError(s.network.WaitForNextBlock())
 		s.Run(tc.name, func() {
-			cmd := paycli.CmdWirePayForBlob()
+			cmd := paycli.CmdPayForBlob()
 			clientCtx := val.ClientCtx
 
 			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
