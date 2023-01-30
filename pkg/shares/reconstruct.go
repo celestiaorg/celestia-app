@@ -63,6 +63,7 @@ func reconstruct(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 		return coretypes.Data{}, err
 	}
 
+	// TODO the Data returned below does not have the correct data.hash populated.
 	return coretypes.Data{
 		Txs:        txs,
 		Blobs:      blobs,
