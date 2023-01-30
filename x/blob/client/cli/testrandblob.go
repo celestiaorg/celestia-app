@@ -23,10 +23,10 @@ func CmdTestRandBlob() *cobra.Command {
 		Short: "Generates a random blob for a random namespace to be published to the Celestia blockchain",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// decode the message size
+			// decode the blob size
 			size, err := strconv.Atoi(args[0])
 			if err != nil {
-				return fmt.Errorf("failure to decode message size: %w", err)
+				return fmt.Errorf("failure to decode blob size: %w", err)
 			}
 
 			nid := namespace.RandomBlobNamespace()
