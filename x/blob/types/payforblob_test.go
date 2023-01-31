@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func Test_merkleMountainRangeHeights(t *testing.T) {
@@ -108,6 +109,10 @@ func TestCreateCommitment(t *testing.T) {
 			assert.Equal(t, tt.expected, res)
 		})
 	}
+}
+
+func TestMsgTypeURLParity(t *testing.T) {
+	require.Equal(t, sdk.MsgTypeURL(&MsgPayForBlobs{}), URLMsgPayForBlobs)
 }
 
 func TestValidateBasic(t *testing.T) {
