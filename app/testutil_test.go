@@ -24,7 +24,9 @@ func generateMixedTxs(normalTxCount, pfbCount, pfbSize int) ([][]byte, []tmproto
 }
 
 // generateBlobTxsWithNIDs will generate len(nids) BlobTxs with
-// len(blobSizes[i]) number of blobs per BlobTx.
+// len(blobSizes[i]) number of blobs per BlobTx. Note: not suitable for using in
+// prepare or process proposal, as the signatures will be invalid since this
+// does not query for relevant account numbers or sequences.
 func generateBlobTxsWithNIDs(t *testing.T, nids [][]byte, blobSizes [][]int) []tmproto.BlobTx {
 	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
 	const acc = "signer"
@@ -35,6 +37,7 @@ func generateBlobTxsWithNIDs(t *testing.T, nids [][]byte, blobSizes [][]int) []t
 		kr,
 		"chainid",
 		blobfactory.Repeat(acc, len(blobSizes)),
+		blobfactory.Repeat(blobfactory.AccountInfo{}, len(blobSizes)),
 		blobfactory.NestedBlobs(t, nids, blobSizes),
 	)
 	_, blobTxs := separateTxs(encCfg.TxConfig, txs)

@@ -86,7 +86,22 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	// iterate over all of the MsgPayForBlobs transactions and ensure that their
+	// create the anteHanders that are used to check the validity of
+	// transactions. We verify the signatures of PFB containing txs using the
+	// sigVerifyAnterHandler, and simply increase the nonce of all other
+	// transactions.
+	svHander := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
+	seqHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
+
+	sdkCtx, err := app.NewProcessProposalQueryContext()
+	if err != nil {
+		logInvalidPropBlockError(app.Logger(), req.Header, "failure to load query context", err)
+		return abci.ResponseProcessProposal{
+			Result: abci.ResponseProcessProposal_REJECT,
+		}
+	}
+
+	// iterate over all of the MsgPayForBlob transactions and ensure that their
 	// commitments are subtree roots of the data root.
 	for _, rawTx := range req.BlockData.Txs {
 		tx := rawTx
@@ -105,6 +120,17 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 		pfb, has := hasPFB(sdkTx.GetMsgs())
 		if !has {
+			// we need to increment the sequence for every transaction so that
+			// the signature check below is accurate. this error only gets hit
+			// if the account in question doens't exist.
+			sdkCtx, err = seqHandler(sdkCtx, sdkTx, false)
+			if err != nil {
+				logInvalidPropBlockError(app.Logger(), req.Header, "failure to incrememnt sequence", err)
+				return abci.ResponseProcessProposal{
+					Result: abci.ResponseProcessProposal_REJECT,
+				}
+			}
+
 			// we do not need to perform further checks on this transaction,
 			// since it has no PFB
 			continue
@@ -147,6 +173,14 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 				return abci.ResponseProcessProposal{
 					Result: abci.ResponseProcessProposal_REJECT,
 				}
+			}
+		}
+
+		sdkCtx, err = svHander(sdkCtx, sdkTx, true)
+		if err != nil {
+			logInvalidPropBlockError(app.Logger(), req.Header, "invalid PFB signature", err)
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
 			}
 		}
 	}
