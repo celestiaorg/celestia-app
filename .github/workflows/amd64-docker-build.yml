@@ -3,7 +3,8 @@ name: Docker Build & Publish
 on:
   push:
     branches:
-      - main
+      - "**"
+        #- main
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+"
