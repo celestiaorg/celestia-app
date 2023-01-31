@@ -60,7 +60,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	}
 	s.T().Log("setting up integration test suite")
 
-	numAccounts := 100
+	numAccounts := 120
 	s.accounts = make([]string, numAccounts)
 	for i := 0; i < numAccounts; i++ {
 		s.accounts[i] = tmrand.Str(20)
@@ -115,7 +115,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			3,
 			false,
 			s.cfg.ChainID,
-			s.accounts[:20],
+			s.accounts[20:40],
 		)
 	}
 
@@ -132,7 +132,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			8,
 			true,
 			s.cfg.ChainID,
-			s.accounts[:80],
+			s.accounts[40:120],
 		)
 	}
 
