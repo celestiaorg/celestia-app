@@ -23,6 +23,7 @@ type CompactShareSplitter struct {
 	shares       []Share
 	pendingShare Share
 	namespace    namespace.ID
+	done         bool
 	shareVersion uint8
 	// shareRanges is a map from a transaction key to the range of shares it
 	// occupies. The range assumes this compact share splitter is the only
@@ -75,6 +76,14 @@ func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
 
 // write adds the delimited data to the underlying compact shares.
 func (css *CompactShareSplitter) write(rawData []byte) {
+	if css.done {
+		// remove the last element
+		if !css.isEmptyPendingShare() {
+			css.shares = css.shares[:len(css.shares)-1]
+		}
+		css.done = false
+	}
+
 	css.maybeWriteReservedBytesToPendingShare()
 
 	txCursor := len(rawData)
@@ -132,27 +141,36 @@ func (css *CompactShareSplitter) stackPending() {
 // pfb txs).
 func (css *CompactShareSplitter) Export(shareRangeOffset int) ([]Share, map[coretypes.TxKey]ShareRange) {
 	// apply the shareRangeOffset to all share ranges
+	shareRanges := make(map[coretypes.TxKey]ShareRange, len(css.shareRanges))
+
+	if css.isEmpty() {
+		return []Share{}, shareRanges
+	}
+
 	for k, v := range css.shareRanges {
-		css.shareRanges[k] = ShareRange{
+		shareRanges[k] = ShareRange{
 			Start: v.Start + shareRangeOffset,
 			End:   v.End + shareRangeOffset,
 		}
 	}
 
-	if css.isEmpty() {
-		return []Share{}, css.shareRanges
+	// in case Export is called multiple times
+	if css.done {
+		return css.shares, shareRanges
 	}
 
 	var bytesOfPadding int
 	// add the pending share to the current shares before returning
 	if !css.isEmptyPendingShare() {
-		css.pendingShare, bytesOfPadding = zeroPadIfNecessary(css.pendingShare, appconsts.ShareSize)
-		css.shares = append(css.shares, css.pendingShare)
+		var pendingShare []byte
+		pendingShare, bytesOfPadding = zeroPadIfNecessary(css.pendingShare, appconsts.ShareSize)
+		css.shares = append(css.shares, pendingShare)
 	}
 
 	sequenceLen := css.sequenceLen(bytesOfPadding)
 	css.writeSequenceLen(sequenceLen)
-	return css.shares, css.shareRanges
+	css.done = true
+	return css.shares, shareRanges
 }
 
 // writeSequenceLen writes the sequence length to the first share.
@@ -254,7 +272,7 @@ func (css *CompactShareSplitter) isEmpty() bool {
 // Count returns the number of shares that would be made if `Export` was invoked
 // on this compact share splitter.
 func (css *CompactShareSplitter) Count() (shareCount int) {
-	if !css.isEmptyPendingShare() {
+	if !css.isEmptyPendingShare() && !css.done {
 		// pending share is non-empty, so it will be zero padded and added to shares during export
 		return len(css.shares) + 1
 	}
