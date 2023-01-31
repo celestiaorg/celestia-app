@@ -141,7 +141,12 @@ func (css *CompactShareSplitter) stackPending() {
 // pfb txs).
 func (css *CompactShareSplitter) Export(shareRangeOffset int) ([]Share, map[coretypes.TxKey]ShareRange) {
 	// apply the shareRangeOffset to all share ranges
-  shareRanges := make(map[coretypes.TxKey]ShareRange, len(css.shareRanges))
+	shareRanges := make(map[coretypes.TxKey]ShareRange, len(css.shareRanges))
+
+	if css.isEmpty() {
+		return []Share{}, shareRanges
+	}
+
 	for k, v := range css.shareRanges {
 		shareRanges[k] = ShareRange{
 			Start: v.Start + shareRangeOffset,
@@ -149,12 +154,9 @@ func (css *CompactShareSplitter) Export(shareRangeOffset int) ([]Share, map[core
 		}
 	}
 
-	if css.isEmpty() {
-		return []Share{}, shareRanges
-	}
 	// in case Export is called multiple times
 	if css.done {
-		return css.shares
+		return css.shares, shareRanges
 	}
 
 	var bytesOfPadding int

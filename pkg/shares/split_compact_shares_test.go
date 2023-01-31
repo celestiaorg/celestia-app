@@ -108,7 +108,8 @@ func TestExport_write(t *testing.T) {
 			}
 			got, _ := css.Export(0)
 			assert.Equal(t, tc.want, got)
-			assert.Equal(t, got, css.Export())
+			shares, _ := css.Export(0)
+			assert.Equal(t, got, shares)
 			assert.Len(t, got, css.Count())
 		})
 	}
@@ -167,15 +168,16 @@ func TestWriteAndExportIdempotence(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
-      
-      for _, tx := range tc.txs {
+
+			for _, tx := range tc.txs {
 				css.WriteTx(tx)
 			}
-      
-      assert.Equal(t, tc.wantLen, css.Count())
-			assert.Equal(t, tc.wantLen, len(css.Export()))
-    })
-  }
+
+			assert.Equal(t, tc.wantLen, css.Count())
+			shares, _ := css.Export(0)
+			assert.Equal(t, tc.wantLen, len(shares))
+		})
+	}
 }
 
 func TestExport(t *testing.T) {
@@ -296,7 +298,7 @@ func TestExport(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
-      
+
 			for _, tx := range tc.txs {
 				css.WriteTx(tx)
 			}
@@ -314,20 +316,26 @@ func TestWriteAfterExport(t *testing.T) {
 	d := []byte{0xf}
 
 	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
-	assert.Equal(t, 0, len(css.Export()))
+	shares, _ := css.Export(0)
+	assert.Equal(t, 0, len(shares))
 
 	css.WriteTx(a)
-	assert.Equal(t, 1, len(css.Export()))
+	shares, _ = css.Export(0)
+	assert.Equal(t, 1, len(shares))
 
 	css.WriteTx(b)
-	assert.Equal(t, 3, len(css.Export()))
+	shares, _ = css.Export(0)
+	assert.Equal(t, 3, len(shares))
 
 	css.WriteTx(c)
-	assert.Equal(t, 4, len(css.Export()))
+	shares, _ = css.Export(0)
+	assert.Equal(t, 4, len(shares))
 
 	css.WriteTx(d)
-	assert.Equal(t, 5, len(css.Export()))
-	assert.Equal(t, 5, len(css.Export()))
+	shares, _ = css.Export(0)
+	assert.Equal(t, 5, len(shares))
+	shares, _ = css.Export(0)
+	assert.Equal(t, 5, len(shares))
 }
 
 // rawTxSize returns the raw tx size that can be used to construct a
