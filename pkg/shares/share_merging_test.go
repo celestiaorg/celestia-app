@@ -27,9 +27,9 @@ func TestParseShares(t *testing.T) {
 	blobOneNamespace := namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}
 	blobTwoNamespace := namespace.ID{2, 2, 2, 2, 2, 2, 2, 2}
 
-	transactionShares, _ := SplitTxs(generateRandomTxs(2, 1000))
-	transactionShareStart := transactionShares[0]
-	transactionShareContinuation := transactionShares[1]
+	txShares, _, _ := SplitTxs(generateRandomTxs(2, 1000))
+	txShareStart := txShares[0]
+	txShareContinuation := txShares[1]
 
 	blobOneShares, err := SplitBlobs(0, []uint32{}, []types.Blob{generateRandomBlobWithNamespace(blobOneNamespace, 1000)}, false)
 	if err != nil {
@@ -63,14 +63,14 @@ func TestParseShares(t *testing.T) {
 		},
 		{
 			"one transaction share",
-			[][]byte{transactionShareStart},
-			[]ShareSequence{{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{transactionShareStart}}},
+			[][]byte{txShareStart},
+			[]ShareSequence{{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{txShareStart}}},
 			false,
 		},
 		{
 			"two transaction shares",
-			[][]byte{transactionShareStart, transactionShareContinuation},
-			[]ShareSequence{{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{transactionShareStart, transactionShareContinuation}}},
+			[][]byte{txShareStart, txShareContinuation},
+			[]ShareSequence{{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{txShareStart, txShareContinuation}}},
 			false,
 		},
 		{
@@ -96,18 +96,18 @@ func TestParseShares(t *testing.T) {
 		},
 		{
 			"one transaction, one blob",
-			[][]byte{transactionShareStart, blobOneStart},
+			[][]byte{txShareStart, blobOneStart},
 			[]ShareSequence{
-				{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{transactionShareStart}},
+				{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{txShareStart}},
 				{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart}},
 			},
 			false,
 		},
 		{
 			"one transaction, two blobs",
-			[][]byte{transactionShareStart, blobOneStart, blobTwoStart},
+			[][]byte{txShareStart, blobOneStart, blobTwoStart},
 			[]ShareSequence{
-				{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{transactionShareStart}},
+				{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{txShareStart}},
 				{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart}},
 				{NamespaceID: blobTwoNamespace, Shares: []Share{blobTwoStart}},
 			},

@@ -22,99 +22,43 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-// TxInclusion uses the provided block data to progressively generate rows
-// of a data square, and then using those shares to creates nmt inclusion proofs.
-// It is possible that a transaction spans more than one row. In that case, we
-// have to return more than one proof.
-func TxInclusion(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.TxProof, error) {
-	// calculate the index of the shares that contain the tx
-	startPos, endPos, err := TxSharePosition(data.Txs, txIndex)
+// NewTxInclusionProof returns a new share inclusion proof for the given
+// transaction index.
+func NewTxInclusionProof(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.ShareProof, error) {
+	rawShares, err := shares.Split(data, true)
 	if err != nil {
-		return types.TxProof{}, err
+		return types.ShareProof{}, err
 	}
 
-	// use the index of the shares and the square size to determine the row that
-	// contains the tx we need to prove
-	startRow := startPos / data.SquareSize
-	endRow := endPos / data.SquareSize
-	startLeaf := startPos % data.SquareSize
-	endLeaf := endPos % data.SquareSize
-
-	rowShares, err := genRowShares(codec, data, startRow, endRow)
+	startShare, endShare, err := TxSharePosition(data, txIndex)
 	if err != nil {
-		return types.TxProof{}, err
+		return types.ShareProof{}, err
 	}
 
-	var proofs []*tmproto.NMTProof  //nolint:prealloc // rarely will this contain more than a single proof
-	var rawShares [][]byte          //nolint:prealloc // rarely will this contain more than a single share
-	var rowRoots []tmbytes.HexBytes //nolint:prealloc // rarely will this contain more than a single root
-	for i, row := range rowShares {
-		// create an nmt to use to generate a proof
-		tree := wrapper.NewErasuredNamespacedMerkleTree(data.SquareSize, uint(i))
-		for _, share := range row {
-			tree.Push(
-				share,
-			)
-		}
+	namespace := getTxNamespace(data.Txs[txIndex])
+	return NewShareInclusionProof(rawShares, data.SquareSize, namespace, startShare, endShare)
+}
 
-		startLeafPos := startLeaf
-		endLeafPos := endLeaf
-
-		// if this is not the first row, then start with the first leaf
-		if i > 0 {
-			startLeafPos = 0
-		}
-		// if this is not the last row, then select for the rest of the row
-		if i != (len(rowShares) - 1) {
-			endLeafPos = data.SquareSize - 1
-		}
-
-		rawShares = append(rawShares, shares.ToBytes(row[startLeafPos:endLeafPos+1])...)
-		proof, err := tree.Tree().ProveRange(int(startLeafPos), int(endLeafPos+1))
-		if err != nil {
-			return types.TxProof{}, err
-		}
-
-		proofs = append(proofs, &tmproto.NMTProof{
-			Start:    int32(proof.Start()),
-			End:      int32(proof.End()),
-			Nodes:    proof.Nodes(),
-			LeafHash: proof.LeafHash(),
-		})
-
-		// we don't store the data availability header anywhere, so we
-		// regenerate the roots to each row
-		rowRoots = append(rowRoots, tree.Root())
+func getTxNamespace(tx types.Tx) (ns namespace.ID) {
+	_, isIndexWrapper := types.UnmarshalIndexWrapper(tx)
+	if isIndexWrapper {
+		return appconsts.PayForBlobNamespaceID
 	}
-
-	return types.TxProof{
-		RowRoots: rowRoots,
-		Data:     rawShares,
-		Proofs:   proofs,
-	}, nil
+	return appconsts.TxNamespaceID
 }
 
 // TxSharePosition returns the start and end positions for the shares that
 // include a given txIndex. Returns an error if index is greater than the length
 // of txs.
-func TxSharePosition(txs types.Txs, txIndex uint64) (startSharePos, endSharePos uint64, err error) {
-	if txIndex >= uint64(len(txs)) {
-		return startSharePos, endSharePos, errors.New("transaction index is greater than the number of txs")
+func TxSharePosition(data types.Data, txIndex uint64) (startShare uint64, endShare uint64, err error) {
+	if int(txIndex) >= len(data.Txs) {
+		return 0, 0, errors.New("transaction index is greater than the number of txs")
 	}
 
-	prevTxTotalLen := 0
-	for i := uint64(0); i < txIndex; i++ {
-		txLen := len(txs[i])
-		prevTxTotalLen += (shares.DelimLen(uint64(txLen)) + txLen)
-	}
+	_, _, shareRanges := shares.SplitTxs(data.Txs)
+	shareRange := shareRanges[data.Txs[txIndex].Key()]
 
-	currentTxLen := len(txs[txIndex])
-	currentTxTotalLen := shares.DelimLen(uint64(currentTxLen)) + currentTxLen
-	endOfCurrentTxLen := prevTxTotalLen + currentTxTotalLen
-
-	startSharePos = txShareIndex(prevTxTotalLen)
-	endSharePos = txShareIndex(endOfCurrentTxLen)
-	return startSharePos, endSharePos, nil
+	return uint64(shareRange.Start), uint64(shareRange.End), nil
 }
 
 // BlobShareRange returns the start and end positions for the shares
@@ -158,107 +102,16 @@ func BlobShareRange(tx types.Tx) (beginShare uint64, endShare uint64, err error)
 	return beginShare, beginShare + uint64(sharesUsed) - 1, nil
 }
 
-// txShareIndex returns the index of the compact share that would contain
-// transactions with totalTxLen
-func txShareIndex(totalTxLen int) (index uint64) {
-	if totalTxLen <= appconsts.FirstCompactShareContentSize {
-		return 0
-	}
-
-	index++
-	totalTxLen -= appconsts.FirstCompactShareContentSize
-
-	for totalTxLen > appconsts.ContinuationCompactShareContentSize {
-		index++
-		totalTxLen -= appconsts.ContinuationCompactShareContentSize
-	}
-	return index
-}
-
-// genRowShares progessively generates data square rows from block data
-func genRowShares(codec rsmt2d.Codec, data types.Data, startRow, endRow uint64) ([][]shares.Share, error) {
-	if endRow > data.SquareSize {
-		return nil, errors.New("cannot generate row shares past the original square size")
-	}
-	origRowShares := splitIntoRows(
-		data.SquareSize,
-		genOrigRowShares(data, startRow, endRow),
-	)
-
-	encodedRowShares := make([][]shares.Share, len(origRowShares))
-	for i, row := range origRowShares {
-		encRow, err := codec.Encode(shares.ToBytes(row))
-		if err != nil {
-			panic(err)
-		}
-		encodedRowShares[i] = append(
-			append(
-				make([]shares.Share, 0, len(row)+len(encRow)),
-				row...,
-			), shares.FromBytes(encRow)...,
-		)
-	}
-
-	return encodedRowShares, nil
-}
-
-// genOrigRowShares progressively generates data square rows for the original
-// data square, meaning the rows only half the full square length, as there is
-// not erasure data
-func genOrigRowShares(data types.Data, startRow, endRow uint64) []shares.Share {
-	wantLen := (endRow + 1) * data.SquareSize
-	startPos := startRow * data.SquareSize
-
-	rawTxShares, pfbTxShares := shares.SplitTxs(data.Txs)
-	rawShares := append(rawTxShares, pfbTxShares...)
-	// return if we have enough shares
-	if uint64(len(rawShares)) >= wantLen {
-		return rawShares[startPos:wantLen]
-	}
-
-	for _, blob := range data.Blobs {
-		blobShares, err := shares.SplitBlobs(0, nil, []types.Blob{blob}, false)
-		if err != nil {
-			panic(err)
-		}
-
-		// TODO: does this need to account for padding between compact shares
-		// and the first blob?
-		// https://github.com/celestiaorg/celestia-app/issues/1226
-		rawShares = append(rawShares, blobShares...)
-
-		// return if we have enough shares
-		if uint64(len(rawShares)) >= wantLen {
-			return rawShares[startPos:wantLen]
-		}
-	}
-
-	tailShares := shares.TailPaddingShares(int(wantLen) - len(rawShares))
-	rawShares = append(rawShares, tailShares...)
-
-	return rawShares[startPos:wantLen]
-}
-
-// splitIntoRows splits shares into rows of a particular square size
-func splitIntoRows(squareSize uint64, s []shares.Share) [][]shares.Share {
-	rowCount := uint64(len(s)) / squareSize
-	rows := make([][]shares.Share, rowCount)
-	for i := uint64(0); i < rowCount; i++ {
-		rows[i] = s[i*squareSize : (i+1)*squareSize]
-	}
-	return rows
-}
-
-// GenerateSharesInclusionProof generates an nmt inclusion proof for a set of shares to the data root.
+// NewShareInclusionProof returns an NMT inclusion proof for a set of shares to the data root.
 // Expects the share range to be pre-validated.
 // Note: only supports inclusion proofs for shares belonging to the same namespace.
-func GenerateSharesInclusionProof(
+func NewShareInclusionProof(
 	allRawShares []shares.Share,
 	squareSize uint64,
 	namespaceID namespace.ID,
 	startShare uint64,
 	endShare uint64,
-) (types.SharesProof, error) {
+) (types.ShareProof, error) {
 	startRow := startShare / squareSize
 	endRow := endShare / squareSize
 	startLeaf := startShare % squareSize
@@ -266,18 +119,18 @@ func GenerateSharesInclusionProof(
 
 	eds, err := da.ExtendShares(squareSize, shares.ToBytes(allRawShares))
 	if err != nil {
-		return types.SharesProof{}, err
+		return types.ShareProof{}, err
 	}
 
 	edsRowRoots := eds.RowRoots()
 
 	// create the binary merkle inclusion proof for all the square rows to the data root
 	_, allProofs := merkle.ProofsFromByteSlices(append(edsRowRoots, eds.ColRoots()...))
-	rowsProofs := make([]*merkle.Proof, endRow-startRow+1)
-	rowsRoots := make([]tmbytes.HexBytes, endRow-startRow+1)
+	rowProofs := make([]*merkle.Proof, endRow-startRow+1)
+	rowRoots := make([]tmbytes.HexBytes, endRow-startRow+1)
 	for i := startRow; i <= endRow; i++ {
-		rowsProofs[i-startRow] = allProofs[i]
-		rowsRoots[i-startRow] = edsRowRoots[i]
+		rowProofs[i-startRow] = allProofs[i]
+		rowRoots[i-startRow] = edsRowRoots[i]
 	}
 
 	// get the extended rows containing the shares.
@@ -286,7 +139,7 @@ func GenerateSharesInclusionProof(
 		rows[i-startRow] = shares.FromBytes(eds.Row(uint(i)))
 	}
 
-	var sharesProofs []*tmproto.NMTProof //nolint:prealloc
+	var shareProofs []*tmproto.NMTProof //nolint:prealloc
 	var rawShares [][]byte
 	for i, row := range rows {
 		// create an nmt to generate a proof.
@@ -313,10 +166,10 @@ func GenerateSharesInclusionProof(
 		rawShares = append(rawShares, shares.ToBytes(row[startLeafPos:endLeafPos+1])...)
 		proof, err := tree.Tree().ProveRange(int(startLeafPos), int(endLeafPos+1))
 		if err != nil {
-			return types.SharesProof{}, err
+			return types.ShareProof{}, err
 		}
 
-		sharesProofs = append(sharesProofs, &tmproto.NMTProof{
+		shareProofs = append(shareProofs, &tmproto.NMTProof{
 			Start:    int32(proof.Start()),
 			End:      int32(proof.End()),
 			Nodes:    proof.Nodes(),
@@ -324,20 +177,20 @@ func GenerateSharesInclusionProof(
 		})
 
 		// make sure that the generated root is the same as the eds row root.
-		if !bytes.Equal(rowsRoots[i].Bytes(), tree.Root()) {
-			return types.SharesProof{}, errors.New("eds row root is different than tree root")
+		if !bytes.Equal(rowRoots[i].Bytes(), tree.Root()) {
+			return types.ShareProof{}, errors.New("eds row root is different than tree root")
 		}
 	}
 
-	return types.SharesProof{
-		RowsProof: types.RowsProof{
-			RowsRoots: rowsRoots,
-			Proofs:    rowsProofs,
-			StartRow:  uint32(startRow),
-			EndRow:    uint32(endRow),
+	return types.ShareProof{
+		RowProof: types.RowProof{
+			RowRoots: rowRoots,
+			Proofs:   rowProofs,
+			StartRow: uint32(startRow),
+			EndRow:   uint32(endRow),
 		},
-		Data:         rawShares,
-		SharesProofs: sharesProofs,
-		NamespaceID:  namespaceID,
+		Data:        rawShares,
+		ShareProofs: shareProofs,
+		NamespaceID: namespaceID,
 	}, nil
 }
