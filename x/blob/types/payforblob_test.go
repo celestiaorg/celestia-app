@@ -8,11 +8,11 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt/namespace"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func Test_merkleMountainRangeHeights(t *testing.T) {
