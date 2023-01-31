@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt/namespace"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -108,6 +109,10 @@ func TestCreateCommitment(t *testing.T) {
 			assert.Equal(t, tt.expected, res)
 		})
 	}
+}
+
+func TestMsgTypeURLParity(t *testing.T) {
+	require.Equal(t, sdk.MsgTypeURL(&MsgPayForBlobs{}), URLMsgPayForBlobs)
 }
 
 func TestValidateBasic(t *testing.T) {

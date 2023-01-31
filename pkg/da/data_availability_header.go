@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	daproto "github.com/celestiaorg/celestia-app/proto/da"
+	daproto "github.com/celestiaorg/celestia-app/proto/celestia/da"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/types"
