@@ -1,5 +1,5 @@
 syntax = "proto3";
-package blob;
+package celestia.blob.v1;
 
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
@@ -10,7 +10,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 service Msg {
   // PayForBlobs allows the user to pay for the inclusion of one or more blobs
   rpc PayForBlobs(MsgPayForBlobs) returns (MsgPayForBlobsResponse) {
-    option (google.api.http).get = "/celestia/blob/payforblobs";
+    option (google.api.http).get = "/blob/v1/payforblobs";
   }
 }
 

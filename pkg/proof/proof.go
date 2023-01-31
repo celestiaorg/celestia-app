@@ -85,7 +85,7 @@ func BlobShareRange(tx types.Tx) (beginShare uint64, endShare uint64, err error)
 	}
 
 	if sdk.MsgTypeURL(decodedTx.GetMsgs()[0]) != blobtypes.URLMsgPayForBlobs {
-		return beginShare, endShare, fmt.Errorf("msg is not a MsgPayForBlobs")
+		return beginShare, endShare, fmt.Errorf("expected msg type %s, but got %s instead", blobtypes.URLMsgPayForBlobs, sdk.MsgTypeURL(decodedTx.GetMsgs()[0]))
 	}
 
 	pfb, ok := decodedTx.GetMsgs()[0].(*blobtypes.MsgPayForBlobs)
