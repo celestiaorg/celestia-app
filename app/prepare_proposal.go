@@ -68,6 +68,8 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	}
 
 	// erasure the data square which we use to create the data root.
+	// Note: uses the nmt wrapper to construct the tree.
+	// checkout pkg/wrapper/nmt_wrapper.go for more information.
 	eds, err := da.ExtendShares(squareSize, shares.ToBytes(dataSquare))
 	if err != nil {
 		app.Logger().Error(
