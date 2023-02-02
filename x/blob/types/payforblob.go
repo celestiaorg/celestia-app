@@ -18,8 +18,7 @@ import (
 )
 
 const (
-	URLBlobTx         = "/blob.BlobTx"
-	URLMsgPayForBlobs = "/blob.MsgPayForBlobs"
+	URLMsgPayForBlobs = "/celestia.blob.v1.MsgPayForBlobs"
 	ShareSize         = appconsts.ShareSize
 	SquareSize        = appconsts.DefaultMaxSquareSize
 	NamespaceIDSize   = appconsts.NamespaceSize

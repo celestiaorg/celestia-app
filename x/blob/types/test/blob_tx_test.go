@@ -161,6 +161,7 @@ func TestValidateBlobTx(t *testing.T) {
 					t,
 					encCfg.TxConfig.TxEncoder(),
 					signer,
+					0, 0,
 					blobfactory.RandBlobsWithNamespace(
 						[][]byte{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
 						[]int{100, 100})...,
@@ -178,6 +179,7 @@ func TestValidateBlobTx(t *testing.T) {
 					t,
 					encCfg.TxConfig.TxEncoder(),
 					signer,
+					0, 0,
 					blobfactory.RandBlobsWithNamespace(
 						[][]byte{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
 						[]int{100000, 1000000})...,
@@ -196,6 +198,7 @@ func TestValidateBlobTx(t *testing.T) {
 					t,
 					encCfg.TxConfig.TxEncoder(),
 					signer,
+					0, 0,
 					blobfactory.RandBlobsWithNamespace(
 						[][]byte{ns, ns},
 						[]int{100, 100})...,
@@ -221,6 +224,7 @@ func TestValidateBlobTx(t *testing.T) {
 					t,
 					encCfg.TxConfig.TxEncoder(),
 					signer,
+					0, 0,
 					blobfactory.RandBlobsWithNamespace(
 						namespaces,
 						sizes,

@@ -11,7 +11,7 @@ import (
 
 var ModuleCdc = codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
 
-func RegisterCodec(cdc *codec.LegacyAmino) {
+func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgPayForBlobs{}, URLMsgPayForBlobs, nil)
 }
 
@@ -36,7 +36,7 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 type localEncoder struct{}
 
 func (localEncoder) RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
-	RegisterCodec(cdc)
+	RegisterLegacyAminoCodec(cdc)
 }
 
 func (localEncoder) RegisterInterfaces(r codectypes.InterfaceRegistry) {

@@ -259,17 +259,19 @@ func RandBlobTxsWithNamespaces(enc sdk.TxEncoder, nIds [][]byte, sizes []int) []
 	return RandBlobTxsWithNamespacesAndSigner(enc, signer, nIds, sizes)
 }
 
-// ManyMultiBlobTxSameSigner generates and returns many blob transactions with the
-// possibility to add more than one blob.
+// ManyMultiBlobTxSameSigner generates and returns many blob transactions with
+// the possibility to add more than one blob. The sequence and account number
+// are manually set, and the sequence is manually incremented when doing so.
 func ManyMultiBlobTxSameSigner(
 	t *testing.T,
 	enc sdk.TxEncoder,
 	signer *blobtypes.KeyringSigner,
 	blobSizes [][]int,
+	sequence, accountNum uint64,
 ) []coretypes.Tx {
 	txs := make([]coretypes.Tx, len(blobSizes))
 	for i := 0; i < len(blobSizes); i++ {
-		txs[i] = MultiBlobTx(t, enc, signer, ManyRandBlobs(t, blobSizes[i]...)...)
+		txs[i] = MultiBlobTx(t, enc, signer, sequence+uint64(i), accountNum, ManyRandBlobs(t, blobSizes[i]...)...)
 	}
 	return txs
 }
@@ -324,12 +326,13 @@ func ManyMultiBlobTx(
 	kr keyring.Keyring,
 	chainid string,
 	accounts []string,
+	accInfos []AccountInfo,
 	blobs [][]*tmproto.Blob,
 ) [][]byte {
 	txs := make([][]byte, len(accounts))
 	for i, acc := range accounts {
 		signer := blobtypes.NewKeyringSigner(kr, acc, chainid)
-		txs[i] = MultiBlobTx(t, enc, signer, blobs[i]...)
+		txs[i] = MultiBlobTx(t, enc, signer, accInfos[i].Sequence, accInfos[i].AccountNum, blobs[i]...)
 	}
 	return txs
 }
@@ -338,6 +341,7 @@ func MultiBlobTx(
 	t *testing.T,
 	enc sdk.TxEncoder,
 	signer *blobtypes.KeyringSigner,
+	sequence, accountNum uint64,
 	blobs ...*tmproto.Blob,
 ) coretypes.Tx {
 	addr, err := signer.GetSignerInfo().GetAddress()
@@ -353,6 +357,9 @@ func MultiBlobTx(
 	}
 	msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), blobs...)
 	require.NoError(t, err)
+
+	signer.SetAccountNumber(accountNum)
+	signer.SetSequence(sequence)
 
 	builder := signer.NewTxBuilder(opts...)
 	stx, err := signer.BuildSignedTx(builder, msg)

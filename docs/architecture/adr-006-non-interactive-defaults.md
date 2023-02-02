@@ -602,7 +602,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
        // iterate through the transactions and check if they are malleated
        ...
        for _, msg := range tx.GetMsgs() {
-           if sdk.MsgTypeURL(msg) != types.URLMsgPayForBlob {
+           if sdk.MsgTypeURL(msg) != types.URLMsgPayForBlobs {
                continue
            }
 

@@ -25,6 +25,22 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// the txs is maintained.
 	normalTxs, blobTxs := separateTxs(app.txConfig, req.BlockData.Txs)
 
+	sdkCtx, err := app.NewProcessProposalQueryContext()
+	if err != nil {
+		panic(err)
+	}
+
+	// increment the sequences of the standard cosmos-sdk transactions. Panics
+	// from the anteHandler are caught and logged.
+	seqHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
+	normalTxs, sdkCtx = filterStdTxs(app.Logger(), app.txConfig.TxDecoder(), sdkCtx, seqHandler, normalTxs)
+
+	// check the signatures and increment the sequences of the blob txs,
+	// and filter out any that fail. Panics from the anteHandler are caught and
+	// logged.
+	svHandler := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
+	blobTxs, _ = filterBlobTxs(app.Logger(), app.txConfig.TxDecoder(), sdkCtx, svHandler, blobTxs)
+
 	// estimate the square size. This estimation errs on the side of larger
 	// squares but can only return values within the min and max square size.
 	squareSize, nonreservedStart := estimateSquareSize(normalTxs, blobTxs)
@@ -52,6 +68,8 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	}
 
 	// erasure the data square which we use to create the data root.
+	// Note: uses the nmt wrapper to construct the tree.
+	// checkout pkg/wrapper/nmt_wrapper.go for more information.
 	eds, err := da.ExtendShares(squareSize, shares.ToBytes(dataSquare))
 	if err != nil {
 		app.Logger().Error(
