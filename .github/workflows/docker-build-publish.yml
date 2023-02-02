@@ -10,6 +10,19 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+"
   pull_request:
+  # workflow_dispatch:
+  #   # Inputs the workflow accepts.
+  #   inputs:
+  #     version:
+  #       # Friendly description to be shown in the UI instead of 'name'
+  #       description: "Semver type of new version (major / minor / patch)"
+  #       # Input has to be provided for the workflow to run
+  #       required: true
+  #       type: choice
+  #       options:
+  #         - patch
+  #         - minor
+  #         - major
 
 env:
   REGISTRY: ghcr.io
@@ -42,7 +55,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
-          platforms: linux/amd64
+          platforms: linux/arm64, linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           file: Dockerfile
