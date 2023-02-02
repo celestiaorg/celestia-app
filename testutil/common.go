@@ -111,33 +111,6 @@ var (
 		sdk.ValAddress(AccPubKeys[4].Address()),
 	}
 
-	// OrchPubKeys holds the pub keys for the orchestrator
-	OrchPubKeys = []ccrypto.PubKey{
-		OrchPrivKeys[0].PubKey(),
-		OrchPrivKeys[1].PubKey(),
-		OrchPrivKeys[2].PubKey(),
-		OrchPrivKeys[3].PubKey(),
-		OrchPrivKeys[4].PubKey(),
-	}
-
-	// OrchPrivKeys Orchestrator private keys
-	OrchPrivKeys = []ccrypto.PrivKey{
-		secp256k1.GenPrivKey(),
-		secp256k1.GenPrivKey(),
-		secp256k1.GenPrivKey(),
-		secp256k1.GenPrivKey(),
-		secp256k1.GenPrivKey(),
-	}
-
-	// OrchAddrs AccAddrs holds the sdk.AccAddresses
-	OrchAddrs = []sdk.AccAddress{
-		sdk.AccAddress(OrchPubKeys[0].Address()),
-		sdk.AccAddress(OrchPubKeys[1].Address()),
-		sdk.AccAddress(OrchPubKeys[2].Address()),
-		sdk.AccAddress(OrchPubKeys[3].Address()),
-		sdk.AccAddress(OrchPubKeys[4].Address()),
-	}
-
 	// EVMAddrs holds etheruem addresses
 	EVMAddrs = initEVMAddrs(1000000) // TODO update 1000000 with a more realistic value
 
@@ -402,7 +375,7 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 
 		// Create a validator for that account using some tokens in the account
 		// and the staking handler
-		_, err := msgServer.CreateValidator(input.Context, NewTestMsgCreateValidator(ValAddrs[i], ConsPubKeys[i], StakingAmount, OrchAddrs[i], EVMAddrs[i]))
+		_, err := msgServer.CreateValidator(input.Context, NewTestMsgCreateValidator(ValAddrs[i], ConsPubKeys[i], StakingAmount, EVMAddrs[i]))
 
 		// Return error if one exists
 		require.NoError(t, err)
@@ -419,7 +392,6 @@ func NewTestMsgCreateValidator(
 	address sdk.ValAddress,
 	pubKey ccrypto.PubKey,
 	amt cosmosmath.Int,
-	orchAddr sdk.AccAddress,
 	evmAddr gethcommon.Address,
 ) *stakingtypes.MsgCreateValidator {
 	commission := stakingtypes.NewCommissionRates(sdk.ZeroDec(), sdk.ZeroDec(), sdk.ZeroDec())
@@ -432,7 +404,7 @@ func NewTestMsgCreateValidator(
 			SecurityContact: "",
 			Details:         "",
 		}, commission, sdk.OneInt(),
-		orchAddr, evmAddr,
+		evmAddr,
 	)
 	if err != nil {
 		panic(err)
@@ -477,7 +449,7 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 		// and the staking handler
 		_, err := msgServer.CreateValidator(
 			input.Context,
-			NewTestMsgCreateValidator(valAddr, consPubKey, sdk.NewIntFromUint64(weight), accAddr, EVMAddrs[i]),
+			NewTestMsgCreateValidator(valAddr, consPubKey, sdk.NewIntFromUint64(weight), EVMAddrs[i]),
 		)
 		require.NoError(t, err)
 
