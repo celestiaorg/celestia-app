@@ -32,9 +32,9 @@ service Query {
     option (google.api.http).get = "/qgb/v1/attestations/nonce/latest";
   }
   // LastValsetRequestBeforeNonce Queries last Valset request before nonce.
-  // And, even if the current nonce is a valset, if will return the previous
+  // And, even if the current nonce is a valset, it will return the previous
   // one.
-  // If the provided nonce is 1. It will return an error. Because, there is
+  // If the provided nonce is 1, it will return an error, because, there is
   // no valset before nonce 1.
   rpc LastValsetRequestBeforeNonce(QueryLastValsetRequestBeforeNonceRequest)
       returns (QueryLastValsetRequestBeforeNonceResponse) {

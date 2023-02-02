@@ -672,9 +672,9 @@ type QueryClient interface {
 	// LatestAttestationNonce queries latest attestation nonce.
 	LatestAttestationNonce(ctx context.Context, in *QueryLatestAttestationNonceRequest, opts ...grpc.CallOption) (*QueryLatestAttestationNonceResponse, error)
 	// LastValsetRequestBeforeNonce Queries last Valset request before nonce.
-	// And, even if the current nonce is a valset, if will return the previous
+	// And, even if the current nonce is a valset, it will return the previous
 	// one.
-	// If the provided nonce is 1. It will return an error. Because, there is
+	// If the provided nonce is 1, it will return an error, because, there is
 	// no valset before nonce 1.
 	LastValsetRequestBeforeNonce(ctx context.Context, in *QueryLastValsetRequestBeforeNonceRequest, opts ...grpc.CallOption) (*QueryLastValsetRequestBeforeNonceResponse, error)
 	// LastUnbondingHeight returns the last unbonding height
@@ -756,9 +756,9 @@ type QueryServer interface {
 	// LatestAttestationNonce queries latest attestation nonce.
 	LatestAttestationNonce(context.Context, *QueryLatestAttestationNonceRequest) (*QueryLatestAttestationNonceResponse, error)
 	// LastValsetRequestBeforeNonce Queries last Valset request before nonce.
-	// And, even if the current nonce is a valset, if will return the previous
+	// And, even if the current nonce is a valset, it will return the previous
 	// one.
-	// If the provided nonce is 1. It will return an error. Because, there is
+	// If the provided nonce is 1, it will return an error, because, there is
 	// no valset before nonce 1.
 	LastValsetRequestBeforeNonce(context.Context, *QueryLastValsetRequestBeforeNonceRequest) (*QueryLastValsetRequestBeforeNonceResponse, error)
 	// LastUnbondingHeight returns the last unbonding height
