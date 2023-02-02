@@ -1,4 +1,4 @@
-name: Docker Build & Publish
+name: "amd64-docker-build"
 
 on:
   push:
