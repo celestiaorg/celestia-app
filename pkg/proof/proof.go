@@ -15,7 +15,6 @@ import (
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
-	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -24,7 +23,7 @@ import (
 
 // NewTxInclusionProof returns a new share inclusion proof for the given
 // transaction index.
-func NewTxInclusionProof(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.ShareProof, error) {
+func NewTxInclusionProof(data types.Data, txIndex uint64) (types.ShareProof, error) {
 	rawShares, err := shares.Split(data, true)
 	if err != nil {
 		return types.ShareProof{}, err
