@@ -134,7 +134,6 @@ func createValidator(
 		stakingtypes.NewDescription("test", "", "", "", ""),
 		stakingtypes.NewCommissionRates(commission, sdk.OneDec(), sdk.OneDec()),
 		sdk.OneInt(),
-		addr,
 		evmAddr,
 	)
 	if err != nil {
