@@ -83,11 +83,13 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # yamllint disable
           labels: |
             maintainer=${{ env.MAINTAINER }}
             commitUrl=https://github.com/${{ github.repository }}/commit/${{ github.sha }}
             dockerPull=docker pull ${{ env.REGISTRY }}/${{ github.repository }}:${{ env.SHORT_SHA }}
             org.opencontainers.image.description=${{ env.DESCRIPTION }}
+          # yamllint enable
           tags: |
             # Update the latest image when branch is main or with tags
             latest
