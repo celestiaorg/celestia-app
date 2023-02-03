@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -82,4 +83,18 @@ func TestSparseShareSplitterCount(t *testing.T) {
 			assert.Equal(t, tc.expected, got)
 		})
 	}
+}
+
+// generateRandomBlobOfShareCount returns a blob that spans the given
+// number of shares
+func generateRandomBlobOfShareCount(count int) coretypes.Blob {
+	size := rawBlobSize(appconsts.FirstSparseShareContentSize * count)
+	return testfactory.GenerateRandomBlob(size)
+}
+
+// rawBlobSize returns the raw blob size that can be used to construct a
+// blob of totalSize bytes. This function is useful in tests to account for
+// the delimiter length that is prefixed to a blob's data.
+func rawBlobSize(totalSize int) int {
+	return totalSize - DelimLen(uint64(totalSize))
 }
