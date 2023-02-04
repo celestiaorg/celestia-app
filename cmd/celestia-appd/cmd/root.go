@@ -100,7 +100,10 @@ func NewRootCmd() *cobra.Command {
 
 			customAppTemplate, customAppConfig := initAppConfig()
 
-			server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
+			err = server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
+			if err != nil {
+				return err
+			}
 
 			return overrideServerConfig(cmd)
 		},

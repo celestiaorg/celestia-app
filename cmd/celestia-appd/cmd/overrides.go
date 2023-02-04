@@ -6,6 +6,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// overrideServerConfig applies overrides to the embedded server context's
+// configurations.
 func overrideServerConfig(command *cobra.Command) error {
 	ctx := server.GetServerContextFromCmd(command)
 	ctx.Config.Consensus.TimeoutPropose = appconsts.TimeoutPropose
