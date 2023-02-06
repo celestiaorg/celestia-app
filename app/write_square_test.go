@@ -147,6 +147,50 @@ func Test_finalizeLayout(t *testing.T) {
 			expectedIndexes: [][]uint32{{4}, {6, 8}, {5}},
 		},
 		{
+			// no blob txs should make it in the square
+			squareSize:      2,
+			nonreserveStart: 4,
+			blobTxs: generateBlobTxsWithNIDs(
+				t,
+				[][]byte{ns1, ns2, ns3},
+				[][]int{{1000}, {1000}, {1000}},
+			),
+			expectedIndexes: [][]uint32{},
+		},
+		{
+			// only two blob txs should make it in the square
+			squareSize:      4,
+			nonreserveStart: 4,
+			blobTxs: generateBlobTxsWithNIDs(
+				t,
+				[][]byte{ns1, ns2, ns3},
+				[][]int{{2000}, {2000}, {6000}},
+			),
+			expectedIndexes: [][]uint32{{4}, {8}},
+		},
+		{
+			// only one blob tx should make it in the square (after reordering)
+			squareSize:      4,
+			nonreserveStart: 4,
+			blobTxs: generateBlobTxsWithNIDs(
+				t,
+				[][]byte{ns3, ns2, ns1},
+				[][]int{{2000}, {2000}, {6000}},
+			),
+			expectedIndexes: [][]uint32{{4}},
+		},
+		{
+			squareSize:      4,
+			nonreserveStart: 4,
+			blobTxs: generateBlobTxsWithNIDs(
+				t,
+				[][]byte{ns3, ns3, ns2, ns1},
+				[][]int{{2000, 1000}, {6000}, {2000}},
+			),
+			// should be ns1 and {ns3, ns3} as ns2 is too large
+			expectedIndexes: [][]uint32{{8, 12}, {4}},
+		},
+		{
 			squareSize:      4,
 			nonreserveStart: 4,
 			blobTxs: generateBlobTxsWithNIDs(
@@ -170,6 +214,7 @@ func Test_finalizeLayout(t *testing.T) {
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("case%d", i), func(t *testing.T) {
 			wrappedPFBs, blobs := finalizeBlobLayout(tt.squareSize, tt.nonreserveStart, tt.blobTxs)
+			require.Equal(t, len(wrappedPFBs), len(tt.expectedIndexes))
 			for j, pfbBytes := range wrappedPFBs {
 				wrappedPFB, isWrappedPFB := coretypes.UnmarshalIndexWrapper(pfbBytes)
 				require.True(t, isWrappedPFB)
