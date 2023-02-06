@@ -19,7 +19,7 @@ func NamespacedPaddedShare(ns namespace.ID) Share {
 	}
 
 	sequenceLen := make([]byte, appconsts.SequenceLenBytes)
-	binary.LittleEndian.AppendUint32(sequenceLen, uint32(0))
+	binary.BigEndian.PutUint32(sequenceLen, uint32(0))
 
 	padding := bytes.Repeat([]byte{0}, appconsts.ShareSize-appconsts.NamespaceSize-appconsts.ShareInfoBytes-appconsts.SequenceLenBytes)
 
