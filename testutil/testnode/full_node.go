@@ -3,6 +3,7 @@ package testnode
 import (
 	"encoding/json"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,6 +31,10 @@ import (
 	"github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 )
+
+// mut used to lock the testnode after running a node.
+// This is because some tests are flaky as they try to start a node while another is running.
+var mut sync.Mutex
 
 // New creates a ready to use tendermint node that operates a single validator
 // celestia-app network using the provided genesis state. The provided keyring
@@ -195,6 +200,8 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func() error
 	tmNode, app, cctx, err := New(t, DefaultParams(), tmCfg, false, genState, kr)
 	require.NoError(t, err)
 
+	// locking the mutex not to be able to spin up multiple nodes at the same time.
+	mut.Lock()
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)
 
@@ -202,6 +209,8 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func() error
 	require.NoError(t, err)
 
 	return func() error {
+		// unlocking the mutex after cleanup finishes.
+		defer mut.Unlock()
 		err := stopNode()
 		if err != nil {
 			return err
