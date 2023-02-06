@@ -13,7 +13,8 @@ func TestNamespacedPaddedShare(t *testing.T) {
 
 	want, _ := zeroPadIfNecessary([]byte{
 		1, 1, 1, 1, 1, 1, 1, 1, // namespace ID
-		0x00, // info byte
+		1,          // info byte
+		0, 0, 0, 0, // sequence len
 	}, appconsts.ShareSize)
 
 	got := NamespacedPaddedShare(namespaceOne).ToBytes()
@@ -25,7 +26,8 @@ func TestNamespacedPaddedShares(t *testing.T) {
 
 	want, _ := zeroPadIfNecessary([]byte{
 		1, 1, 1, 1, 1, 1, 1, 1, // namespace ID
-		0x00, // info byte
+		1,          // info byte
+		0, 0, 0, 0, // sequence len
 	}, appconsts.ShareSize)
 
 	shares := NamespacedPaddedShares(namespaceOne, 2)
