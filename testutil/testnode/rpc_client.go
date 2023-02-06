@@ -3,6 +3,7 @@ package testnode
 import (
 	"context"
 	"strings"
+	"sync"
 
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvgrpc "github.com/cosmos/cosmos-sdk/server/grpc"
@@ -13,12 +14,20 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// mut used to lock the testnode after running a node.
+// This is because some tests are flaky as they try to start a node while another is running.
+var mut sync.Mutex
+
 // StartNode starts the tendermint node along with a local core rpc client. The
 // rpc is returned via the client.Context. The function returned should be
 // called during cleanup to teardown the node, core client, along with canceling
 // the internal context.Context in the returned Context.
 func StartNode(tmNode *node.Node, cctx Context) (Context, func() error, error) {
+	// locking the mutex not to be able to spin up multiple nodes at the same time.
+	mut.Lock()
 	if err := tmNode.Start(); err != nil {
+		// unlocking the mutex after cleanup finishes.
+		mut.Unlock()
 		return cctx, func() error { return nil }, err
 	}
 
@@ -28,6 +37,8 @@ func StartNode(tmNode *node.Node, cctx Context) (Context, func() error, error) {
 	goCtx, cancel := context.WithCancel(context.Background())
 	cctx.rootCtx = goCtx
 	cleanup := func() error {
+		// unlocking the mutex after cleanup finishes.
+		defer mut.Unlock()
 		cancel()
 		err := tmNode.Stop()
 		if err != nil {
