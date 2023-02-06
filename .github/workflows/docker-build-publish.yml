@@ -83,13 +83,11 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          # yamllint disable
           labels: |
             maintainer=${{ env.MAINTAINER }}
             commitUrl=https://github.com/${{ github.repository }}/commit/${{ github.sha }}
             dockerPull=docker pull ${{ env.REGISTRY }}/${{ github.repository }}:${{ env.SHORT_SHA }}
             org.opencontainers.image.description=${{ env.DESCRIPTION }}
-          # yamllint enable
           tags: |
             # Update the latest image when branch is main or with tags
             latest
@@ -103,8 +101,19 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Build and push
+      - name: Build Docker Image
         uses: docker/build-push-action@v3
+        with:
+          platforms: linux/amd64
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Push Docker Image
+        uses: docker/build-push-action@v3
+        if: |
+          github.ref == 'refs/heads/main' ||
+          startsWith(github.ref, 'refs/tags/v')
         with:
           platforms: linux/amd64
           push: true
