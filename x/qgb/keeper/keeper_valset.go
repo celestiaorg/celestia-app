@@ -130,7 +130,7 @@ func normalizeValidatorPower(rawPower uint64, totalValidatorPower cosmosmath.Int
 
 // GetLastValsetBeforeNonce returns the previous valset before the provided `nonce`.
 // the `nonce` can be a valset, but this method will return the valset before it.
-// If the provided nonce is 1. It will return an error. Because, there is no valset before nonce 1.
+// If the provided nonce is 1, it will return an error, because, there is no valset before nonce 1.
 func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.Valset, error) {
 	if nonce == 1 {
 		return nil, types.ErrNoValsetBeforeNonceOne
