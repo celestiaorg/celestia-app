@@ -4,11 +4,11 @@ import "github.com/cosmos/gogoproto/proto"
 
 var EventTypePayForBlob = proto.MessageName(&EventPayForBlobs{})
 
-// NewPayForBlobEvent returns a new EventPayForBlob
-func NewPayForBlobsEvent(signer string, blobSize uint32, namespaceIDs [][]byte) *EventPayForBlobs {
+// NewPayForBlobsEvent returns a new EventPayForBlobs
+func NewPayForBlobsEvent(signer string, blobSizes []uint32, namespaceIDs [][]byte) *EventPayForBlobs {
 	return &EventPayForBlobs{
 		Signer:       signer,
-		BlobSize:     blobSize,
+		BlobSizes:    blobSizes,
 		NamespaceIds: namespaceIDs,
 	}
 }
