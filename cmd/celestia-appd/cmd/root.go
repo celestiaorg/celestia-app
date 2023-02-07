@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	qgbcmd "github.com/celestiaorg/celestia-app/x/qgb/client"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -92,13 +93,19 @@ func NewRootCmd() *cobra.Command {
 			tmCfg.Mempool.TTLNumBlocks = 10
 			tmCfg.Mempool.MaxTxBytes = 2 * 1024 * 1024 // 2 MiB
 			tmCfg.Mempool.Version = "v1"               // prioritized mempool
-			tmCfg.Consensus.TimeoutPropose = time.Second * 10
-			tmCfg.Consensus.TimeoutCommit = time.Second * 8
+			tmCfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
+			tmCfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
 			tmCfg.Consensus.SkipTimeoutCommit = false
 			tmCfg.TxIndex.Indexer = "null"
 
 			customAppTemplate, customAppConfig := initAppConfig()
-			return server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
+
+			err = server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
+			if err != nil {
+				return err
+			}
+
+			return overrideServerConfig(cmd)
 		},
 		SilenceUsage: true,
 	}
