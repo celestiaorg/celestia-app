@@ -2,6 +2,7 @@ package shares
 
 import (
 	"bytes"
+	"encoding/binary"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
@@ -12,15 +13,20 @@ import (
 // conforms to non-interactive default rules. The ns parameter provided should
 // be the namespace of the blob that precedes this padding in the data square.
 func NamespacedPaddedShare(ns namespace.ID) Share {
-	infoByte, err := NewInfoByte(appconsts.ShareVersionZero, false)
+	infoByte, err := NewInfoByte(appconsts.ShareVersionZero, true)
 	if err != nil {
 		panic(err)
 	}
-	padding := bytes.Repeat([]byte{0}, appconsts.ShareSize-appconsts.NamespaceSize-appconsts.ShareInfoBytes)
+
+	sequenceLen := make([]byte, appconsts.SequenceLenBytes)
+	binary.BigEndian.PutUint32(sequenceLen, uint32(0))
+
+	padding := bytes.Repeat([]byte{0}, appconsts.FirstSparseShareContentSize)
 
 	share := make([]byte, 0, appconsts.ShareSize)
 	share = append(share, ns...)
 	share = append(share, byte(infoByte))
+	share = append(share, sequenceLen...)
 	share = append(share, padding...)
 	return share
 }
@@ -32,4 +38,17 @@ func NamespacedPaddedShares(ns namespace.ID, n int) []Share {
 		shares[i] = NamespacedPaddedShare(ns)
 	}
 	return shares
+}
+
+func IsNamespacedPadded(s Share) (bool, error) {
+	isSequenceStart, err := s.IsSequenceStart()
+	if err != nil {
+		return false, err
+	}
+	sequenceLen, err := s.SequenceLen()
+	if err != nil {
+		return false, err
+	}
+
+	return isSequenceStart && sequenceLen == 0, nil
 }
