@@ -37,7 +37,7 @@ func StartNode(tmNode *node.Node, cctx Context) (Context, func() error, error) {
 	goCtx, cancel := context.WithCancel(context.Background())
 	cctx.rootCtx = goCtx
 	cleanup := func() error {
-		// unlocking the mutex after cleanup finishes.
+		// unlock the mutex after cleanup finishes.
 		defer mut.Unlock()
 		cancel()
 		err := tmNode.Stop()
