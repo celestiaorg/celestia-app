@@ -3,6 +3,10 @@ package app
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	coretypes "github.com/tendermint/tendermint/types"
+
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -10,9 +14,6 @@ import (
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	coretypes "github.com/tendermint/tendermint/types"
 )
 
 func Test_estimateSquareSize(t *testing.T) {
@@ -146,7 +147,7 @@ func Test_estimatePFBTxSharesUsed(t *testing.T) {
 }
 
 func Test_estimateTxSharesUsed(t *testing.T) {
-	require.Equal(t, 312, len(generateNormalTxs(3)[2]))
+	require.Equal(t, 316, len(generateNormalTxs(3)[2]))
 	type testCase struct {
 		name string
 		txs  [][]byte
@@ -154,10 +155,10 @@ func Test_estimateTxSharesUsed(t *testing.T) {
 	}
 	testCases := []testCase{
 		{"empty", [][]byte{}, 0},
-		{"one tx", generateNormalTxs(1), 1},             // 1 tx is approximately 312 bytes which fits in 1 share
-		{"two txs", generateNormalTxs(2), 2},            // 2 txs is approximately 624 bytes which fits in 2 shares
-		{"ten txs", generateNormalTxs(10), 7},           // 10 txs is approximately 3120 bytes which fits in 7 shares
-		{"one hundred txs", generateNormalTxs(100), 63}, // 100 txs is approximately 31200 bytes which fits in 63 share
+		{"one tx", generateNormalTxs(1), 1},             // 1 tx is approximately 316 bytes which fits in 1 share
+		{"two txs", generateNormalTxs(2), 2},            // 2 txs is approximately 632 bytes which fits in 2 shares
+		{"ten txs", generateNormalTxs(10), 7},           // 10 txs is approximately 3160 bytes which fits in 7 shares
+		{"one hundred txs", generateNormalTxs(100), 64}, // 100 txs is approximately 31600 bytes which fits in 64 share
 	}
 	for _, tc := range testCases {
 		got := estimateTxSharesUsed(tc.txs)
