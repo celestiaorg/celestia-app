@@ -23,7 +23,7 @@ var mut sync.Mutex
 // called during cleanup to teardown the node, core client, along with canceling
 // the internal context.Context in the returned Context.
 func StartNode(tmNode *node.Node, cctx Context) (Context, func() error, error) {
-	// locking the mutex not to be able to spin up multiple nodes at the same time.
+	// lock the mutex so only one node is running at a time.
 	mut.Lock()
 	if err := tmNode.Start(); err != nil {
 		// unlocking the mutex after cleanup finishes.
