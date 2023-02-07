@@ -14,8 +14,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// mut used to lock the testnode after running a node.
-// This is because some tests are flaky as they try to start a node while another is running.
+// mut is used to ensure that only one testnode is running at a time.
+// mut was added to prevent simultaneous test executions from impacting each other and causing flaky failures.
 var mut sync.Mutex
 
 // StartNode starts the tendermint node along with a local core rpc client. The
