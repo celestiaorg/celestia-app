@@ -26,7 +26,7 @@ func StartNode(tmNode *node.Node, cctx Context) (Context, func() error, error) {
 	// lock the mutex so only one node is running at a time.
 	mut.Lock()
 	if err := tmNode.Start(); err != nil {
-		// unlocking the mutex after cleanup finishes.
+		// unlock the mutex after cleanup finishes.
 		mut.Unlock()
 		return cctx, func() error { return nil }, err
 	}
