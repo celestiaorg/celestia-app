@@ -29,6 +29,10 @@ import (
 	tmtime "github.com/tendermint/tendermint/types/time"
 )
 
+// NodeEVMPrivateKey the key used to initialize the test node validator.
+// Its corresponding address is: "0x9c2B12b5a07FC6D719Ed7646e5041A7E85758329".
+var NodeEVMPrivateKey, _ = crypto.HexToECDSA("64a1d6f0e760a8d62b4afdde4096f16f51b401eaaecc915740f71770ea76a8ad")
+
 func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey cryptotypes.PubKey, nodeID, chainID, rootDir string) error {
 	genTime := tmtime.Now()
 
@@ -120,11 +124,7 @@ func createValidator(
 	if err != nil {
 		return err
 	}
-	ethPrivateKey, err := crypto.GenerateKey()
-	if err != nil {
-		return err
-	}
-	orchEVMPublicKey := ethPrivateKey.Public().(*ecdsa.PublicKey)
+	orchEVMPublicKey := NodeEVMPrivateKey.Public().(*ecdsa.PublicKey)
 	evmAddr := crypto.PubkeyToAddress(*orchEVMPublicKey)
 
 	createValMsg, err := stakingtypes.NewMsgCreateValidator(
