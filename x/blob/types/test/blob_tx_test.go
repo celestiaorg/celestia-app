@@ -121,7 +121,7 @@ func TestValidateBlobTx(t *testing.T) {
 				}
 				return btx
 			},
-			expectedErr: types.ErrInvalidShareCommit,
+			expectedErr: types.ErrInvalidShareCommitment,
 		},
 		{
 			name: "complex transaction with one send and one pfb",

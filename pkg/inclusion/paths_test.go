@@ -347,7 +347,7 @@ func Test_calculateCommitPaths(t *testing.T) {
 		{2, 0, 1, []path{{instructions: []WalkInstruction{WalkLeft}, row: 0}}},
 		{2, 2, 2, []path{{instructions: []WalkInstruction{}, row: 1}}},
 		// the next test case's blob gets pushed to index 2 due to
-		// non-interactive defaults so its commit path is the same as the
+		// non-interactive defaults so its path is the same as the
 		// previous testcase.
 		{2, 1, 2, []path{{instructions: []WalkInstruction{}, row: 1}}},
 		{4, 2, 2, []path{{instructions: []WalkInstruction{WalkRight}, row: 0}}},
@@ -427,7 +427,7 @@ func Test_calculateCommitPaths(t *testing.T) {
 		t.Run(
 			fmt.Sprintf("test %d: square size %d start %d blobLen %d", i, tt.squareSize, tt.start, tt.blobLen),
 			func(t *testing.T) {
-				assert.Equal(t, tt.expected, calculateCommitPaths(tt.squareSize, tt.start, tt.blobLen))
+				assert.Equal(t, tt.expected, calculateCommitmentPaths(tt.squareSize, tt.start, tt.blobLen))
 			},
 		)
 	}
