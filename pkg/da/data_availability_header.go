@@ -168,22 +168,14 @@ func (dah *DataAvailabilityHeader) IsZero() bool {
 }
 
 // MinDataAvailabilityHeader returns the minimum valid data availability header.
-// It is equal to the data availability header for an empty block
+// It is equal to the data availability header for a block with one tail padding
+// share.
 func MinDataAvailabilityHeader() DataAvailabilityHeader {
-	shares := GenerateEmptyShares(appconsts.MinShareCount)
-	eds, err := ExtendShares(appconsts.DefaultMinSquareSize, shares)
+	s := shares.ToBytes(shares.TailPaddingShares(appconsts.MinShareCount))
+	eds, err := ExtendShares(appconsts.DefaultMinSquareSize, s)
 	if err != nil {
 		panic(err)
 	}
 	dah := NewDataAvailabilityHeader(eds)
 	return dah
-}
-
-// GenerateEmptyShares generate an array of empty shares
-func GenerateEmptyShares(size int) [][]byte {
-	result := make([][]byte, size)
-	for i := 0; i < size; i++ {
-		result[i] = shares.TailPaddingShare()
-	}
-	return result
 }

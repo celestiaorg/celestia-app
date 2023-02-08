@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -250,5 +251,61 @@ func TestIsCompactShare(t *testing.T) {
 	for _, tc := range testCases {
 		got := tc.share.IsCompactShare()
 		assert.Equal(t, tc.want, got)
+	}
+}
+
+func TestIsPadding(t *testing.T) {
+	type testCase struct {
+		name    string
+		share   Share
+		want    bool
+		wantErr bool
+	}
+	emptyShare := Share{}
+	blobShare, _ := zeroPadIfNecessary([]byte{
+		1, 1, 1, 1, 1, 1, 1, 1, // namespace ID
+		1,          // info byte
+		0, 0, 0, 1, // sequence len
+		0xff, // data
+	}, appconsts.ShareSize)
+
+	testCases := []testCase{
+		{
+			name:    "empty share",
+			share:   emptyShare,
+			wantErr: true,
+		},
+		{
+			name:  "blob share",
+			share: blobShare,
+			want:  false,
+		},
+		{
+			name:  "namespace padding",
+			share: NamespacePaddingShare(namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}),
+			want:  true,
+		},
+		{
+			name:  "tail padding",
+			share: TailPaddingShare(),
+			want:  true,
+		},
+		{
+			name:  "reserved padding",
+			share: ReservedPaddingShare(),
+			want:  true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.share.IsPadding()
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
 	}
 }

@@ -76,24 +76,38 @@ func (s Share) SequenceLen() (sequenceLen uint32, err error) {
 	return binary.BigEndian.Uint32(s[start:end]), nil
 }
 
+// IsPadding returns whether this share is padding or not.
+func (s Share) IsPadding() (bool, error) {
+	isNamespacePadding, err := s.isNamespacePadding()
+	if err != nil {
+		return false, err
+	}
+	return isNamespacePadding || s.isTailPadding() || s.isReservedPadding(), nil
+}
+
+func (s Share) isNamespacePadding() (bool, error) {
+	isSequenceStart, err := s.IsSequenceStart()
+	if err != nil {
+		return false, err
+	}
+	sequenceLen, err := s.SequenceLen()
+	if err != nil {
+		return false, err
+	}
+
+	return isSequenceStart && sequenceLen == 0, nil
+}
+
+func (s Share) isTailPadding() bool {
+	return s.NamespaceID().Equal(appconsts.TailPaddingNamespaceID)
+}
+
+func (s Share) isReservedPadding() bool {
+	return s.NamespaceID().Equal(appconsts.ReservedPaddingNamespaceID)
+}
+
 func (s Share) ToBytes() []byte {
 	return []byte(s)
-}
-
-func ToBytes(shares []Share) (bytes [][]byte) {
-	bytes = make([][]byte, len(shares))
-	for i, share := range shares {
-		bytes[i] = []byte(share)
-	}
-	return bytes
-}
-
-func FromBytes(bytes [][]byte) (shares []Share) {
-	shares = make([]Share, len(bytes))
-	for i, b := range bytes {
-		shares[i] = Share(b)
-	}
-	return shares
 }
 
 // RawData returns the raw share data. The raw share data does not contain the
@@ -122,4 +136,20 @@ func (s Share) rawDataStartIndex() int {
 	} else {
 		panic(fmt.Sprintf("unable to determine the rawDataStartIndex for share %s", s))
 	}
+}
+
+func ToBytes(shares []Share) (bytes [][]byte) {
+	bytes = make([][]byte, len(shares))
+	for i, share := range shares {
+		bytes[i] = []byte(share)
+	}
+	return bytes
+}
+
+func FromBytes(bytes [][]byte) (shares []Share) {
+	shares = make([]Share, len(bytes))
+	for i, b := range bytes {
+		shares[i] = Share(b)
+	}
+	return shares
 }
