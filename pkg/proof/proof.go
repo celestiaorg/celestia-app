@@ -29,7 +29,7 @@ func NewTxInclusionProof(data types.Data, txIndex uint64) (types.ShareProof, err
 		return types.ShareProof{}, err
 	}
 
-	startShare, endShare, err := TxSharePosition(data, txIndex)
+	startShare, endShare, err := TxShareRange(data, txIndex)
 	if err != nil {
 		return types.ShareProof{}, err
 	}
@@ -46,10 +46,9 @@ func getTxNamespace(tx types.Tx) (ns namespace.ID) {
 	return appconsts.TxNamespaceID
 }
 
-// TxSharePosition returns the start and end positions for the shares that
-// include a given txIndex. Returns an error if index is greater than the length
-// of txs.
-func TxSharePosition(data types.Data, txIndex uint64) (startShare uint64, endShare uint64, err error) {
+// TxShareRange returns the range of shares that include a given txIndex.
+// Returns an error if index is greater than the length of txs.
+func TxShareRange(data types.Data, txIndex uint64) (startShare uint64, endShare uint64, err error) {
 	if int(txIndex) >= len(data.Txs) {
 		return 0, 0, errors.New("transaction index is greater than the number of txs")
 	}
