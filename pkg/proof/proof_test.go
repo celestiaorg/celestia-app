@@ -218,7 +218,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 	}
 }
 
-func TestTxSharePosition(t *testing.T) {
+func TestTxShareRange(t *testing.T) {
 	type test struct {
 		name      string
 		data      types.Data
@@ -281,7 +281,7 @@ func TestTxSharePosition(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			start, end, err := TxSharePosition(tc.data, tc.txIndex)
+			start, end, err := TxShareRange(tc.data, tc.txIndex)
 			if tc.wantErr {
 				assert.Error(t, err)
 			}
