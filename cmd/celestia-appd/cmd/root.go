@@ -49,12 +49,6 @@ const EnvPrefix = "CELESTIA"
 func NewRootCmd() *cobra.Command {
 	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	cfg := sdk.GetConfig()
-	cfg.SetBech32PrefixForAccount(app.Bech32PrefixAccAddr, app.Bech32PrefixAccPub)
-	cfg.SetBech32PrefixForValidator(app.Bech32PrefixValAddr, app.Bech32PrefixValPub)
-	cfg.SetBech32PrefixForConsensusNode(app.Bech32PrefixConsAddr, app.Bech32PrefixConsPub)
-	cfg.Seal()
-
 	initClientCtx := client.Context{}.
 		WithCodec(encodingConfig.Codec).
 		WithInterfaceRegistry(encodingConfig.InterfaceRegistry).
