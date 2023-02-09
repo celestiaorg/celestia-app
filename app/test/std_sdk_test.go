@@ -133,7 +133,6 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 					stakingtypes.NewDescription("taco tuesday", "my keybase", "www.celestia.org", "ping @celestiaorg on twitter", "fake validator"),
 					stakingtypes.NewCommissionRates(sdk.NewDecWithPrec(6, 0o2), sdk.NewDecWithPrec(12, 0o2), sdk.NewDecWithPrec(1, 0o2)),
 					sdk.NewInt(1000000),
-					valopAccAddr,
 					evmAddr,
 				)
 				require.NoError(t, err)

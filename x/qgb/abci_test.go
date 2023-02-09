@@ -5,8 +5,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 
-	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/staking/teststaking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
@@ -64,42 +62,6 @@ func TestValsetCreationWhenValidatorUnbonds(t *testing.T) {
 	assert.Equal(t, currentAttestationNonce+1, pk.GetLatestAttestationNonce(ctx))
 }
 
-func TestEndBlockerAfterEditingOrchestratorAddress(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t)
-	pk := input.QgbKeeper
-
-	// run abci methods after chain init
-	staking.EndBlocker(input.Context, input.StakingKeeper)
-	qgb.EndBlocker(ctx, *pk)
-
-	// current attestation expectedNonce should be 1 because a valset has been emitted upon chain init.
-	currentAttestationNonce := pk.GetLatestAttestationNonce(ctx)
-	require.Equal(t, uint64(1), currentAttestationNonce)
-
-	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
-	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
-
-	newOrchAddr := sdk.AccAddress(ed25519.GenPrivKey().PubKey().Address())
-	editMsg := stakingtypes.NewMsgEditValidator(
-		testutil.ValAddrs[1],
-		stakingtypes.Description{},
-		nil,
-		nil,
-		&newOrchAddr,
-		nil,
-	)
-	_, err := msgServer.EditValidator(input.Context, editMsg)
-	require.NoError(t, err)
-	staking.EndBlocker(input.Context, input.StakingKeeper)
-	qgb.EndBlocker(input.Context, *pk)
-	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
-
-	// the nonce shouldn't increase because a change in the orchestrator address shouldn't
-	// cause a change in the validator set, from the QGB perspective.
-	// check x/qgb/types/validator.go for more details.
-	assert.Equal(t, currentAttestationNonce, pk.GetLatestAttestationNonce(ctx))
-}
-
 func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
@@ -120,7 +82,6 @@ func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
 	editMsg := stakingtypes.NewMsgEditValidator(
 		testutil.ValAddrs[1],
 		stakingtypes.Description{},
-		nil,
 		nil,
 		nil,
 		newEVMAddr,

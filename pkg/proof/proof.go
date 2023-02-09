@@ -15,7 +15,6 @@ import (
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/nmt/namespace"
-	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -24,13 +23,13 @@ import (
 
 // NewTxInclusionProof returns a new share inclusion proof for the given
 // transaction index.
-func NewTxInclusionProof(codec rsmt2d.Codec, data types.Data, txIndex uint64) (types.ShareProof, error) {
+func NewTxInclusionProof(data types.Data, txIndex uint64) (types.ShareProof, error) {
 	rawShares, err := shares.Split(data, true)
 	if err != nil {
 		return types.ShareProof{}, err
 	}
 
-	startShare, endShare, err := TxSharePosition(data, txIndex)
+	startShare, endShare, err := TxShareRange(data, txIndex)
 	if err != nil {
 		return types.ShareProof{}, err
 	}
@@ -47,10 +46,9 @@ func getTxNamespace(tx types.Tx) (ns namespace.ID) {
 	return appconsts.TxNamespaceID
 }
 
-// TxSharePosition returns the start and end positions for the shares that
-// include a given txIndex. Returns an error if index is greater than the length
-// of txs.
-func TxSharePosition(data types.Data, txIndex uint64) (startShare uint64, endShare uint64, err error) {
+// TxShareRange returns the range of shares that include a given txIndex.
+// Returns an error if index is greater than the length of txs.
+func TxShareRange(data types.Data, txIndex uint64) (startShare uint64, endShare uint64, err error) {
 	if int(txIndex) >= len(data.Txs) {
 		return 0, 0, errors.New("transaction index is greater than the number of txs")
 	}

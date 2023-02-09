@@ -97,10 +97,10 @@ var (
 	// PayForBlobNamespaceID is the namespace reserved for PayForBlobs transactions.
 	PayForBlobNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 4}
 
-	// ReservedNamespacePadding is the namespace used for padding after all
+	// ReservedPaddingNamespaceID is the namespace used for padding after all
 	// reserved namespaces. In practice this padding is after transactions
 	// (ordinary and PFBs) but before blobs.
-	ReservedNamespacePadding = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
+	ReservedPaddingNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
 
 	// MaxReservedNamespace is the lexicographically largest namespace that is
 	// reserved for protocol use.

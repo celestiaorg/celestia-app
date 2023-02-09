@@ -31,6 +31,14 @@ func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) (blob
 			return nil, fmt.Errorf("unsupported share version %v is not present in supported share versions %v", version, supportedShareVersions)
 		}
 
+		isPadding, err := share.IsPadding()
+		if err != nil {
+			return nil, err
+		}
+		if isPadding {
+			continue
+		}
+
 		isStart, err := share.IsSequenceStart()
 		if err != nil {
 			return nil, err
