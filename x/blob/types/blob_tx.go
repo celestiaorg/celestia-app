@@ -82,10 +82,10 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) error {
 	for i, commitment := range pfb.ShareCommitments {
 		calculatedCommit, err := CreateCommitment(bTx.Blobs[i])
 		if err != nil {
-			return ErrCalculateCommit
+			return ErrCalculateCommitment
 		}
 		if !bytes.Equal(calculatedCommit, commitment) {
-			return ErrInvalidShareCommit
+			return ErrInvalidShareCommitment
 		}
 	}
 
