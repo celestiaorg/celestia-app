@@ -82,7 +82,7 @@ jobs:
           tags: |
             # output minimal (short sha)
             type=raw,value={{sha}}
-            # output 0.2.1
+            # output v0.2.1
             type=semver,pattern=v{{version}}
             # pull request event
             type=ref,enable=true,prefix=pr-,suffix=,event=pr
