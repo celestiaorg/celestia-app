@@ -3,7 +3,6 @@ package types
 import (
 	"bytes"
 	"crypto/sha256"
-	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
@@ -266,13 +265,7 @@ func extractBlobComponents(pblobs []*tmproto.Blob) (nsIDs [][]byte, sizes []uint
 // shares or non-interactive defaults, so it is a minimum.
 func BlobMinSquareSize[T constraints.Integer](blobSize T) T {
 	shareCount := appshares.SparseSharesNeeded(uint32(blobSize))
-	return T(MinSquareSize(shareCount))
-}
-
-// MinSquareSize returns the minimum square size that can contain shareCount
-// number of shares.
-func MinSquareSize[T constraints.Integer](shareCount T) T {
-	return T(appshares.RoundUpPowerOfTwo(uint64(math.Ceil(math.Sqrt(float64(shareCount))))))
+	return T(appshares.MinSquareSize(shareCount))
 }
 
 // merkleMountainRangeSizes returns the sizes (number of leaf nodes) of the
