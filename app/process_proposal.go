@@ -161,7 +161,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 
 		for i, shareIndex := range wrappedTx.ShareIndexes {
-			commitment, err := inclusion.GetCommit(cacher, dah, int(shareIndex), shares.SparseSharesNeeded(pfb.BlobSizes[i]))
+			commitment, err := inclusion.GetCommitment(cacher, dah, int(shareIndex), shares.SparseSharesNeeded(pfb.BlobSizes[i]))
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), req.Header, "commitment not found", err)
 				return abci.ResponseProcessProposal{

@@ -12,9 +12,9 @@ type path struct {
 	row          int
 }
 
-// calculateCommitPaths calculates all of the paths to subtree roots needed to
+// calculateCommitmentPaths calculates all of the paths to subtree roots needed to
 // create the commitment for a given blob.
-func calculateCommitPaths(squareSize, start, blobShareLen int) []path {
+func calculateCommitmentPaths(squareSize, start, blobShareLen int) []path {
 	// TODO: make the non-interactive defaults optional. by calculating the
 	// NextMultipleOfBlobMinSquareSize, we are forcing use of the
 	// non-interactive defaults. If we want to make this optional in the future,
