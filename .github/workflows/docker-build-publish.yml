@@ -73,7 +73,6 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          # yamllint disable
           labels: |
             maintainer=${{ env.MAINTAINER }}
             commitUrl=https://github.com/${{ github.repository }}/commit/${{ github.sha }}
@@ -82,11 +81,10 @@ jobs:
           tags: |
             # output minimal (short sha)
             type=raw,value={{sha}}
-            # output v0.2.1
-            type=semver,pattern=v{{version}}
+            # output v0.2.1/v*-*
+            type=semver,pattern={{raw}}
             # pull request event
             type=ref,enable=true,prefix=pr-,suffix=,event=pr
-          # yamllint enable
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -97,11 +95,9 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           platforms: linux/amd64,linux/arm64
-          # yamllint disable
           # The following line, is execute as an if statement, only push when
           # the branch is main or starts with v*
           push: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
-          # yamllint enable
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           file: Dockerfile
