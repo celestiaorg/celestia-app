@@ -41,9 +41,9 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	require.NoError(err)
 
 	tmCfg := DefaultTendermintConfig()
-	tmCfg.RPC.ListenAddress = "tcp://localhost:0"
-	tmCfg.P2P.ListenAddress = "tcp://localhost:0"
-	tmCfg.RPC.GRPCListenAddress = "tcp://localhost:0"
+	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
+	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
+	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
 
 	tmNode, app, cctx, err := New(s.T(), DefaultParams(), tmCfg, false, genState, kr)
 	require.NoError(err)
@@ -53,8 +53,8 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.cleanups = append(s.cleanups, stopNode)
 
 	appConf := DefaultAppConfig()
-	appConf.GRPC.Address = "localhost:0"
-	appConf.API.Address = "tcp://localhost:0"
+	appConf.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", getFreePort())
+	appConf.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
 
 	cctx, cleanupGRPC, err := StartGRPCServer(app, appConf, cctx)
 	require.NoError(err)
