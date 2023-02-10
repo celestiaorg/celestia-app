@@ -188,6 +188,9 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func() error
 
 	tmCfg := DefaultTendermintConfig()
 	tmCfg.Consensus.TimeoutCommit = blockTime
+	tmCfg.RPC.ListenAddress = "tcp://localhost:0"
+	tmCfg.P2P.ListenAddress = "tcp://localhost:0"
+	tmCfg.RPC.GRPCListenAddress = "tcp://localhost:0"
 
 	genState, kr, err := DefaultGenesisState(accounts...)
 	require.NoError(t, err)
