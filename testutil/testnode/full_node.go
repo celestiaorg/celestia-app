@@ -198,7 +198,11 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func() error
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)
 
-	cctx, cleanupGRPC, err := StartGRPCServer(app, DefaultAppConfig(), cctx)
+	appConf := DefaultAppConfig()
+	appConf.GRPC.Address = "localhost:0"
+	appConf.API.Address = "tcp://localhost:0"
+
+	cctx, cleanupGRPC, err := StartGRPCServer(app, appConf, cctx)
 	require.NoError(t, err)
 
 	return func() error {
