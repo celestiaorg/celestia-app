@@ -181,7 +181,7 @@ func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, 
 // using test friendly defaults. These defaults include fast block times and
 // funded accounts. The returned client.Context has a keyring with all of the
 // funded keys stored in it.
-func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func() error, accounts []string, cctx Context) {
+func DefaultNetwork(t *testing.T, blockTime time.Duration) (accounts []string, cctx Context) {
 	// we create an arbitrary number of funded accounts
 	accounts = make([]string, 300)
 	for i := 0; i < 300; i++ {
@@ -210,13 +210,13 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func() error
 	cctx, cleanupGRPC, err := StartGRPCServer(app, appConf, cctx)
 	require.NoError(t, err)
 
-	return func() error {
-		err := stopNode()
-		if err != nil {
-			return err
-		}
-		return cleanupGRPC()
-	}, accounts, cctx
+	t.Cleanup(func() {
+		t.Log("tearing down testnode")
+		require.NoError(t, stopNode())
+		require.NoError(t, cleanupGRPC())
+	})
+
+	return accounts, cctx
 }
 
 func getFreePort() int {
