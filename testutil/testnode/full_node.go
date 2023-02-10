@@ -2,6 +2,8 @@ package testnode
 
 import (
 	"encoding/json"
+	"fmt"
+	"net"
 	"os"
 	"testing"
 	"time"
@@ -188,6 +190,9 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func() error
 
 	tmCfg := DefaultTendermintConfig()
 	tmCfg.Consensus.TimeoutCommit = blockTime
+	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
+	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
+	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
 
 	genState, kr, err := DefaultGenesisState(accounts...)
 	require.NoError(t, err)
@@ -198,7 +203,11 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func() error
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)
 
-	cctx, cleanupGRPC, err := StartGRPCServer(app, DefaultAppConfig(), cctx)
+	appConf := DefaultAppConfig()
+	appConf.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", getFreePort())
+	appConf.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
+
+	cctx, cleanupGRPC, err := StartGRPCServer(app, appConf, cctx)
 	require.NoError(t, err)
 
 	return func() error {
@@ -208,4 +217,16 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func() error
 		}
 		return cleanupGRPC()
 	}, accounts, cctx
+}
+
+func getFreePort() int {
+	a, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err == nil {
+		var l *net.TCPListener
+		if l, err = net.ListenTCP("tcp", a); err == nil {
+			defer l.Close()
+			return l.Addr().(*net.TCPAddr).Port
+		}
+	}
+	panic("while getting free port: " + err.Error())
 }
