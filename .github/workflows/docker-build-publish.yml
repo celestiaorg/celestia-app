@@ -1,6 +1,7 @@
 name: Docker Build & Publish
 
-# Trigger on push events to main (i.e. merges), pushing new semantic version tags and all PRs # yamllint disable-line rule:line-length
+# Trigger on push events to main (i.e. merges), pushing new semantic version 
+# tags and all PRs # yamllint disable-line rule:line-length
 on:
   push:
     branches:
