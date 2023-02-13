@@ -48,7 +48,7 @@ func TestQGBRPCQueries(t *testing.T) {
 			},
 		},
 		{
-			name: "attestation request by nonce",
+			name: "data commitment range for height",
 			req: func() error {
 				_, err := queryClient.DataCommitmentRangeForHeight(
 					context.Background(),
