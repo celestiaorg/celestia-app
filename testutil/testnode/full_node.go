@@ -2,6 +2,8 @@ package testnode
 
 import (
 	"encoding/json"
+	"fmt"
+	"net"
 	"os"
 	"testing"
 	"time"
@@ -179,7 +181,7 @@ func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, 
 // using test friendly defaults. These defaults include fast block times and
 // funded accounts. The returned client.Context has a keyring with all of the
 // funded keys stored in it.
-func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func() error, accounts []string, cctx Context) {
+func DefaultNetwork(t *testing.T, blockTime time.Duration) (accounts []string, cctx Context) {
 	// we create an arbitrary number of funded accounts
 	accounts = make([]string, 300)
 	for i := 0; i < 300; i++ {
@@ -188,6 +190,9 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func() error
 
 	tmCfg := DefaultTendermintConfig()
 	tmCfg.Consensus.TimeoutCommit = blockTime
+	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
+	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
+	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
 
 	genState, kr, err := DefaultGenesisState(accounts...)
 	require.NoError(t, err)
@@ -198,14 +203,30 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func() error
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)
 
-	cctx, cleanupGRPC, err := StartGRPCServer(app, DefaultAppConfig(), cctx)
+	appConf := DefaultAppConfig()
+	appConf.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", getFreePort())
+	appConf.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
+
+	cctx, cleanupGRPC, err := StartGRPCServer(app, appConf, cctx)
 	require.NoError(t, err)
 
-	return func() error {
-		err := stopNode()
-		if err != nil {
-			return err
+	t.Cleanup(func() {
+		t.Log("tearing down testnode")
+		require.NoError(t, stopNode())
+		require.NoError(t, cleanupGRPC())
+	})
+
+	return accounts, cctx
+}
+
+func getFreePort() int {
+	a, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err == nil {
+		var l *net.TCPListener
+		if l, err = net.ListenTCP("tcp", a); err == nil {
+			defer l.Close()
+			return l.Addr().(*net.TCPAddr).Port
 		}
-		return cleanupGRPC()
-	}, accounts, cctx
+	}
+	panic("while getting free port: " + err.Error())
 }
