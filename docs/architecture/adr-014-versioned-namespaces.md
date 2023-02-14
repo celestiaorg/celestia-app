@@ -171,8 +171,8 @@ When a user creates a PFB, concatenate the namespace version with the namespace 
     1. Option 1: when there are changes to the universal share prefix
     2. Option 2: when there are changes to any part of the remaining data in a share
 3. When do we expect to increment the namespace version?
-    1. During a backwards incompatable mon-interactive default rule change
-    2. Change the format of a padding share (e.g. a namespace padding share) instead of `0` bytes, pad with something else like. We need to preserve backwards compatibility for padding shares that use old namespaces. Note this scenario likely implies a namespace version and share version increase.
+    1. During a backwards incompatable non-interactive default rule change
+    2. If we change the format of a padding share (e.g. a namespace padding share) instead of `0` bytes, pad with something else like. We may need to preserve backwards compatibility for padding shares that use old namespaces. Note this scenario likely implies a namespace version and share version increase.
     3. Change the format of PFB tx serialization. This scenario likely implies duplicating the PFB txs in a data square, one with the old namespace version and one with the new namespace version.
 4. Inspired by [type-length-value](https://en.wikipedia.org/wiki/Type%E2%80%93length%E2%80%93value), should we consider prefixing optional fields (sequence length and reserved bytes) with a type and a length? This would enable us to modify those fields without introducing new share versions.
 5. [Requires investigation] what changes need to be made to NMT in order to support namespaces of a different length (e.g. 16 bytes)?
