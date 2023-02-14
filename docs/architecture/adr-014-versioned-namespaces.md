@@ -20,11 +20,11 @@ msg1 | 499 | blob1's raw data
 The current schema poses a challenge for the following scenarios:
 
 1. Consider increasing the namespace id size [celestia-app#1308](https://github.com/celestiaorg/celestia-app/issues/1308)
-    - Wince there is no prefix to the namespace ID, it isn't possible to distinguish between a share with an 8 byte namespace ID and a share with a 16 byte namespace ID.
-1. Determinstic namespace ID based on blob content [celestia-app#1377](https://github.com/celestiaorg/celestia-app/issues/1377)
-    - Assuming the determinstic namespace ID has a length of 32 bytes, it isn't possible to easily increase the length of the namespace ID from 8 to 32 bytes.
-1. Changes to the non-interactive default rules that don't break backwards compatability with existing namespaces [celestia-app#1282](https://github.com/celestiaorg/celestia-app/issues/1282), [celestia-app#1161](https://github.com/celestiaorg/celestia-app/pull/1161)
-    - After mainnet launch, if we want to change the non-interactive default rules but retain the previous non-interactive default rules for backwards compatability, it isn't possible to differentiate the namespaces that want to use the new rules vs the namespaces that want to use the old rules. Question:
+    - Since there is no prefix to the namespace ID, it isn't possible to distinguish between a share with an 8 byte namespace ID and a share with a 16 byte namespace ID.
+1. Deterministic namespace ID based on blob content [celestia-app#1377](https://github.com/celestiaorg/celestia-app/issues/1377)
+    - Assuming the deterministic namespace ID has a length of 32 bytes, it isn't possible to easily increase the length of the namespace ID from 8 to 32 bytes.
+1. Changes to the non-interactive default rules that don't break backwards compatibility with existing namespaces [celestia-app#1282](https://github.com/celestiaorg/celestia-app/issues/1282), [celestia-app#1161](https://github.com/celestiaorg/celestia-app/pull/1161)
+    - After mainnet launch, if we want to change the non-interactive default rules but retain the previous non-interactive default rules for backwards compatibility, it isn't possible to differentiate the namespaces that want to use the new rules vs the namespaces that want to use the old rules. Question:
 
 ## Proposal
 
