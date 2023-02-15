@@ -28,11 +28,14 @@ type ErasuredNamespacedMerkleTree struct {
 	idx        *rsmt2d.SquareIndex
 }
 
-// NewErasuredNamespacedMerkleTree issues a new ErasuredNamespacedMerkleTree. squareSize must be greater than zero
+// NewErasuredNamespacedMerkleTree creates a new ErasuredNamespacedMerkleTree
+// with an underlying NMT of namespace size `appconsts.NamespaceSize`.
+// squareSize must be greater than zero
 func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, setters ...nmt.Option) ErasuredNamespacedMerkleTree {
 	if squareSize == 0 {
 		panic("cannot create a ErasuredNamespacedMerkleTree of squareSize == 0")
 	}
+	setters = append(setters, nmt.NamespaceIDSize(appconsts.NamespaceSize))
 	tree := nmt.New(appconsts.NewBaseHashFunc(), setters...)
 	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: setters, tree: tree, idx: &rsmt2d.SquareIndex{Axis: axisIndex, Cell: 0}}
 }
