@@ -21,8 +21,6 @@ celestia-appd collect-gentxs
 # If you encounter: `sed: -I or -i may not be used with stdin` on MacOS you can mitigate by installing gnu-sed
 # https://gist.github.com/andre3k1/e3a1a7133fded5de5a9ee99c87c6fa0d?permalink_comment_id=3082272#gistcomment-3082272
 sed -i'.bak' 's#"tcp://localhost:26657"#"tcp://0.0.0.0:26657"#g' ~/.celestia-app/config/client.toml
-sed -i'.bak' 's/timeout_commit = "10s"/timeout_commit = "1s"/g' ~/.celestia-app/config/config.toml
-sed -i'.bak' 's/timeout_propose = "10s"/timeout_propose = "1s"/g' ~/.celestia-app/config/config.toml
 
 # Start the celestia-app
 celestia-appd start
