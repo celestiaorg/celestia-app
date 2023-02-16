@@ -43,10 +43,10 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 			height,
 		)
 	}
-	latestNonce := k.GetLatestAttestationNonce(ctx)
+	latestNonce := int(k.GetLatestAttestationNonce(ctx))
 	for i := latestNonce; i >= 0; i-- {
 		// TODO better search
-		att, found, err := k.GetAttestationByNonce(ctx, i)
+		att, found, err := k.GetAttestationByNonce(ctx, uint64(i))
 		if err != nil {
 			return types.DataCommitment{}, err
 		}
