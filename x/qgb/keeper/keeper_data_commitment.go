@@ -38,7 +38,7 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 	}
 	if lastDC.EndBlock < height {
 		return types.DataCommitment{}, fmt.Errorf(
-			"no data commitment have been generated for the provided height. Last height %d < %d",
+			"no data commitment has been generated for the provided height. Last height %d < %d",
 			lastDC.EndBlock,
 			height,
 		)
