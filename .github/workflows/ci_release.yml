@@ -47,17 +47,3 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           version-bump: ${{inputs.version}}
-
-  # TODO: include docker build, Josh currently working on updates.
-  #
-  # The below if statement is a recommendation of how to only build the docker
-  # image on manual workflow triggers and push events for the tag
-  #
-  # docker-build:
-  #   needs: [hadolint, yamllint, markdown-lint, lint, test, go-ci]
-  # yamllint disable
-  #   if: |
-  #     ${{ github.event_name == 'workflow_dispatch' ||
-  #     startsWith('refs/tags/v', github.ref) }}
-  # yamllint enable
-  #   uses: ....
