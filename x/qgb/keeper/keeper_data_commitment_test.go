@@ -86,11 +86,11 @@ func TestGetDataCommitmentForHeight(t *testing.T) {
 			expectedError: "",
 		},
 		{
-			name:          "height not found",
+			name:          "height still not committed to",
 			height:        window * 100,
 			expectedDCC:   types.DataCommitment{},
 			expectError:   true,
-			expectedError: "data commitment for height not found",
+			expectedError: "no data commitment has been generated for the provided height. Last height 3999 < 40000",
 		},
 	}
 	for _, tt := range tests {
@@ -105,4 +105,42 @@ func TestGetDataCommitmentForHeight(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLastDataCommitment(t *testing.T) {
+	input, sdkCtx := testutil.SetupFiveValChain(t)
+	k := input.QgbKeeper
+
+	initialValset, err := k.GetCurrentValset(sdkCtx)
+	require.NoError(t, err)
+
+	// setting initial valset
+	err = k.SetAttestationRequest(sdkCtx, &initialValset)
+	require.NoError(t, err)
+
+	// trying to get the last data commitment
+	dcc, err := k.GetLastDataCommitment(sdkCtx)
+	assert.Error(t, err)
+	assert.Equal(t, dcc, types.DataCommitment{})
+
+	// getting the data commitment window
+	window := k.GetDataCommitmentWindowParam(sdkCtx)
+
+	dcs := make([]types.DataCommitment, 4)
+
+	// setting some data commitments to be tested against
+	for i := uint64(0); i < uint64(len(dcs)); i++ {
+		dcs[i] = types.DataCommitment{
+			Nonce:      i + 2, // because nonces start at 1, and we already set that one for the initial valset
+			BeginBlock: window * i,
+			EndBlock:   window*(i+1) - 1,
+		}
+		err = k.SetAttestationRequest(sdkCtx, &dcs[i])
+		require.NoError(t, err)
+	}
+
+	// getting the last data commitment
+	dcc, err = k.GetLastDataCommitment(sdkCtx)
+	assert.NoError(t, err)
+	assert.Equal(t, dcs[3], dcc)
 }

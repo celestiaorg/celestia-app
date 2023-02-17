@@ -32,9 +32,42 @@ func (k Keeper) GetDataCommitmentWindowParam(ctx sdk.Context) uint64 {
 
 // GetDataCommitmentForHeight returns the attestation containing the provided height.
 func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (types.DataCommitment, error) {
+	lastDC, err := k.GetLastDataCommitment(ctx)
+	if err != nil {
+		return types.DataCommitment{}, err
+	}
+	if lastDC.EndBlock < height {
+		return types.DataCommitment{}, fmt.Errorf(
+			"no data commitment has been generated for the provided height. Last height %d < %d",
+			lastDC.EndBlock,
+			height,
+		)
+	}
+	latestNonce := k.GetLatestAttestationNonce(ctx)
+	for i := latestNonce; i > 0; i-- {
+		// TODO better search
+		att, found, err := k.GetAttestationByNonce(ctx, i)
+		if err != nil {
+			return types.DataCommitment{}, err
+		}
+		if !found {
+			return types.DataCommitment{}, fmt.Errorf("couldn't find attestation with nonce %d", i)
+		}
+		dcc, ok := att.(*types.DataCommitment)
+		if !ok {
+			continue
+		}
+		if dcc.BeginBlock <= height && dcc.EndBlock >= height {
+			return *dcc, nil
+		}
+	}
+	return types.DataCommitment{}, fmt.Errorf("data commitment for height not found")
+}
+
+// GetLastDataCommitment returns the last data commitment.
+func (k Keeper) GetLastDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
 	latestNonce := k.GetLatestAttestationNonce(ctx)
 	for i := uint64(0); i < latestNonce; i++ {
-		// TODO better search
 		att, found, err := k.GetAttestationByNonce(ctx, latestNonce-i)
 		if err != nil {
 			return types.DataCommitment{}, err
@@ -46,9 +79,7 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 		if !ok {
 			continue
 		}
-		if dcc.BeginBlock <= height && dcc.EndBlock >= height {
-			return *dcc, nil
-		}
+		return *dcc, nil
 	}
-	return types.DataCommitment{}, fmt.Errorf("data commitment for height not found")
+	return types.DataCommitment{}, fmt.Errorf("last data commitment not found")
 }

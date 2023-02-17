@@ -27,32 +27,16 @@ on:
           - major
 
 jobs:
-  # Dockerfile Linting
-  hadolint:
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@main # yamllint disable-line rule:line-length
-
-  yamllint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: celestiaorg/.github/.github/actions/yamllint@main
-
-  markdown-lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: celestiaorg/.github/.github/actions/markdown-lint@main
 
   lint:
     uses: ./.github/workflows/lint.yml
 
   test:
-    needs: lint
     uses: ./.github/workflows/test.yml
 
   # Make a release if this is a manually trigger job, i.e. workflow_dispatch
   release:
-    needs: [hadolint, yamllint, markdown-lint, lint, test]
+    needs: [lint, test]
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' }}
     permissions: "write-all"
