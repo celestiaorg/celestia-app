@@ -110,7 +110,7 @@ jobs:
           cat pkgs.txt.part.${{ matrix.part }} |
           xargs go test -mod=readonly -timeout 30m
           -coverprofile=${{ matrix.part }}profile.out
-          -covermode=atomic -tags='norace ledger test_ledger_mock'
+          -covermode=atomic
         if: env.GIT_DIFF
       - uses: actions/upload-artifact@v3
         with:
@@ -192,7 +192,7 @@ jobs:
         run: >
           cat pkgs.txt.part.${{ matrix.part }} |
           xargs go test -mod=readonly -json -timeout 30m
-          -race -test.short -tags='cgo' > ${{ matrix.part }}-race-output.txt
+          -race -test.short > ${{ matrix.part }}-race-output.txt
         if: env.GIT_DIFF
       - uses: actions/upload-artifact@v3
         with:
