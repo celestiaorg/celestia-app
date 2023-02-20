@@ -159,6 +159,22 @@ When a user creates a PFB, concatenate the namespace version with the namespace 
 4. Inspired by [type-length-value](https://en.wikipedia.org/wiki/Type%E2%80%93length%E2%80%93value), should we consider prefixing optional fields (sequence length and reserved bytes) with a type and a length? This would enable us to modify those fields without introducing new share versions.
 5. [Requires investigation] what changes need to be made to NMT in order to support namespaces of a different length (e.g. 16 bytes)?
 6. [Requires investigation] what changes need to be made to support variable length namespace IDs? In other words, roll-ups may use a namespace ID of 8 - 32 bytes. Are variable length namespace IDs something we are considering supporting?
+7. What namespace ID version should we use for tail padding shares and parity shares?
+    1. Option 7.1: `0`
+      - Pros: Enables us to revise and modify the list of reserved namespaces IDs every time a new namespace ID version is introduced.
+      - Cons: Leads to multiple namespace version + namespace IDs that have the same semantic meaning. In other words, the following two shares would likely both represent the same thing (a tail padding share):
+
+          ```go
+          namespaceVersion := 0
+          namespaceID := namespace.ID{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
+
+          namespaceVersion := 1
+          namespaceID := namespace.ID{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
+          ```
+
+        but they differ in the location where they would be placed in the NMT.
+    1. Option 7.2: `255`
+      - Pros: The format of a tail padding share or parity share doesn't need to change when a future namespace version bump occurs.
 
 ## Decision
 
