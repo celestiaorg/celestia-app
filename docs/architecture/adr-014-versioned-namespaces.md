@@ -1,5 +1,9 @@
 # ADR 14: Versioned Namespaces
 
+## Status
+
+Accepted
+
 ## Changelog
 
 - 2023/2/14: initial draft
