@@ -29,12 +29,10 @@ currentBlobShare := []byte{
 
 The current schema poses a challenge for the following scenarios:
 
-1. Consider increasing the namespace id size [celestia-app#1308](https://github.com/celestiaorg/celestia-app/issues/1308)
-    - Since there is no prefix to the namespace ID, it isn't possible to distinguish between a share with an 8 byte namespace ID and a larger namespace ID (say 16 bytes).
-2. Deterministic namespace ID based on blob content [celestia-app#1377](https://github.com/celestiaorg/celestia-app/issues/1377)
-    - Assuming we use SHA-256 and the deterministic namespace ID has a length of 32 bytes, it isn't possible to distinguish between an 8 byte namespace ID and a 32 byte namespace ID.
-3. Changes to the non-interactive default rules that don't break backwards compatibility with existing namespaces [celestia-app#1282](https://github.com/celestiaorg/celestia-app/issues/1282), [celestia-app#1161](https://github.com/celestiaorg/celestia-app/pull/1161)
+1. Changes to the non-interactive default rules that don't break backwards compatibility with existing namespaces [celestia-app#1282](https://github.com/celestiaorg/celestia-app/issues/1282), [celestia-app#1161](https://github.com/celestiaorg/celesctia-app/pull/1161)
     - After mainnet launch, if we want to change the non-interactive default rules but retain the previous non-interactive default rules for backwards compatibility, it isn't possible to differentiate the namespaces that want to use the old rules vs the new rules.
+1. Changes to the format of a padding share.
+1. Changes to the format of PFB transaction serialization.
 
 ## Proposal
 
@@ -47,24 +45,15 @@ An approach that addresses these issues is to prefix the namespace ID with versi
 | Namespace Version | 1 | the version of the namespace ID |
 | Namespace ID | 8 if Namespace Version=0, 32 if Namespace Version=1 | namespace ID of the share |
 
-For example, consider the scenario where at mainnet launch namespace IDs have a length of 8 bytes. In this scenario, the only supported namespace ID is `0`. At some point in the future,  we want to increase the length of namespace IDs from 8 bytes to 32 bytes. We can expand the range of available namespaces to include namespaces that start with a leading `0` or `1` byte.
+For example, consider the scenario where at mainnet launch blobs are layed out according to the existing non-interactive default rules. In this scenario, blobs always start at an index aligned with the `BlobMinSquareSize`. The only supported namespace ID is `0`. At some point in the future, if we introduce new non-interactive default rules (e.g. [celestia-app#1161](https://github.com/celestiaorg/celestia-app/pull/1161)), we may also expand the range of available namespaces to include namespaces that start with a leading `0` or `1` byte. Users may opt in to using the new non-interactive default rules by submitting PFB transactions with a namespace ID version of `1`.
 
-- When the namespace starts with `0`, the namespace occupies 8 bytes.
-- When a namespace starts with `1`, the namespace occupies 32 bytes.
+- When the namespace starts with `0`, all blobs in the namespace conform to the previous set of non-interactive default rules.
+- When a namespace starts with `1`, all blobs in the namespace conform to the new set of non-interactive default rules.
 
 ```go
-optionA0 := []byte{
+optionA := []byte{
   0,                      // namespace version
   1, 2, 3, 4, 5, 6, 7, 8, // namespace ID
-  1,          // info byte (sequence start indicator = true)
-  0, 0, 0, 3, // sequence length
-  1, 2, 3, // blob data
-  // 0 padding until share is full
- }
-
- optionA1 := []byte{
-  1,                                                                                                                     // namespace version
-  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, // namespace ID
   1,          // info byte (sequence start indicator = true)
   0, 0, 0, 3, // sequence length
   1, 2, 3, // blob data
@@ -74,28 +63,21 @@ optionA0 := []byte{
 
 Pros
 
-- This proposal preserves backwards compatibility with roll-ups that want to continue reading/writing to their 8 byte namespace ID.
-- Unlike Option C, roll-ups don’t need to migrate to a new namespace ID in order to adopt new share version formats.
+- This proposal preserves backwards compatibility with roll-ups that want to continue using the previous set of non-interactive default rules.
 
 Cons
 
 - Old nodes won’t be able to parse the namespaces with a leading `1` byte so this is a breaking change that forces a hard-fork at an upgrade height.
 
-Notes
-
-- Additional changes are necessary to support shares with different namespace ID lengths in the same data square. In particular, it may be necessary to restrict a row in the NMT to contain only namespaces of the same length.
-
 ### Option B: `Namespace Version | Namespace Length | Namespace ID`
 
-Another approach is to prefix a namespace ID with the version and length of the namespace ID. This schema has the benefit that parsers can support the use case in the previous scenario (changing from a namespace length of 8 bytes to 32 bytes) without a version bump (and corresponding implementation change).
+Another approach is to prefix a namespace ID with the version and length of the namespace ID. This schema has the benefit that parsers can support the use case of changing from a namespace length of 8 bytes to 32 bytes without a version bump (and corresponding implementation change).
 
 | Field | Number of bytes | Description |
 | --- | --- | --- |
 | Namespace Version | 1 | the version of the namespace ID |
 | Namespace Length | 1 | the number of bytes that the namespace occupies encoded as a big-endian uint8 |
 | Namespace ID | * (based on the previous field) | namespace ID of the share |
-
-In this scenario namespace version may be incremented to signal a breaking change (e.g. a change to the non-interactive default rules where we preserve old rules for version `0` namespaces)
 
 ```go
 optionB := []byte{
@@ -119,8 +101,8 @@ Cons
 
 Notes
 
-- Same as Option A: “Additional changes are necessary…”
 - Option B is implementable at a later time if we adopt Option A.
+- It isn't immediately clear how NMT can support variable length namespaces.
 
 ### Option C: `Share Version | Namespace ID`
 
@@ -180,11 +162,11 @@ When a user creates a PFB, concatenate the namespace version with the namespace 
 
 ## Decision
 
-Option A with the assumption that we're doing <https://github.com/celestiaorg/celestia-app/issues/1308>
+Option A with a prerequisite of [celestia-app#1308](https://github.com/celestiaorg/celestia-app/issues/1308)
 
 ## References
 
-- [https://github.com/celestiaorg/celestia-app/issues/1282](https://github.com/celestiaorg/celestia-app/issues/1282)
+- [celestia-app#1282](https://github.com/celestiaorg/celestia-app/issues/1282)
 - IPFS CIDs
   - [https://docs.ipfs.tech/concepts/content-addressing/#what-is-a-cid](https://docs.ipfs.tech/concepts/content-addressing/#what-is-a-cid)
   - [https://proto.school/anatomy-of-a-cid](https://proto.school/anatomy-of-a-cid)
