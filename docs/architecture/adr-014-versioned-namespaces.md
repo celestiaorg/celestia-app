@@ -29,7 +29,7 @@ currentBlobShare := []byte{
 
 The current schema poses a challenge for the following scenarios:
 
-1. Changes to the non-interactive default rules that don't break backwards compatibility with existing namespaces [celestia-app#1282](https://github.com/celestiaorg/celestia-app/issues/1282), [celestia-app#1161](https://github.com/celestiaorg/celesctia-app/pull/1161)
+1. Changes to the non-interactive default rules that don't break backwards compatibility with existing namespaces [celestia-app#1282](https://github.com/celestiaorg/celestia-app/issues/1282), [celestia-app#1161](https://github.com/celestiaorg/celestia-app/pull/1161)
     - After mainnet launch, if we want to change the non-interactive default rules but retain the previous non-interactive default rules for backwards compatibility, it isn't possible to differentiate the namespaces that want to use the old rules vs the new rules.
 1. Changes to the format of a padding share.
 1. Changes to the format of PFB transaction serialization.
