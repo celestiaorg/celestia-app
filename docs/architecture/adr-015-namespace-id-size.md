@@ -1,5 +1,9 @@
 # ADR 15: Namespace ID Size
 
+## Status
+
+Proposed
+
 ## Changelog
 
 - 2023/2/17: initial draft
@@ -48,9 +52,12 @@ Q: How can we increase the namespace ID post mainnet?
 
 A1: Construct two data squares and two NMTs. Data square 1 uses NMT 1 with namespace ID size of 8 bytes. Data square 2 uses NMT 2 with a namespace ID size of 32 bytes. Would celestia-nodes sample two separate data squares or is there a clever way to combine both data squares?
 
-## Status
+## Detailed Design
 
-Proposed
+1. What changes need to be made to celestia-app in order to support namespaces of a different length (e.g. 16 bytes)?
+    1. [done] Stop using the namespace ID defined by NMT
+    1. Increase `appconsts.NamespaceSize` to 16
+1. What changes need to be made to NMT in order to support namespaces of a different length (e.g. 16 bytes)?
 
 ## References
 
