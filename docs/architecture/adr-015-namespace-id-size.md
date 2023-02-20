@@ -1,4 +1,4 @@
-# ADR 14: Namespace ID Size
+# ADR 15: Namespace ID Size
 
 ## Changelog
 
