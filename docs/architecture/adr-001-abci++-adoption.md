@@ -1,5 +1,9 @@
 # ADR 001: ABCI++ Adoption
 
+## Status
+
+The proposed and initial implementation is complete.
+
 ## Changelog
 
 - 2022-03-03: Initial Commit
@@ -369,10 +373,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
    }
 }
 ```
-
-## Status
-
-The proposed and initial implementation is complete.
 
 ## Consequences
 
