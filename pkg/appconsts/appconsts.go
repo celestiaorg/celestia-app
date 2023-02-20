@@ -1,7 +1,6 @@
 package appconsts
 
 import (
-	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/pkg/consts"
@@ -14,7 +13,7 @@ const (
 	ShareSize = 512
 
 	// NamespaceSize is the namespace size in bytes.
-	NamespaceSize = nmt.DefaultNamespaceIDLen
+	NamespaceSize = 8
 
 	// ShareInfoBytes is the number of bytes reserved for information. The info
 	// byte contains the share version and a sequence start idicator.
