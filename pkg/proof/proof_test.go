@@ -74,22 +74,26 @@ func TestNewTxInclusionProof(t *testing.T) {
 }
 
 func TestNewShareInclusionProof(t *testing.T) {
+	namespaceOne := bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
+	namespaceTwo := bytes.Repeat([]byte{2}, appconsts.NamespaceSize)
+	namespaceThree := bytes.Repeat([]byte{3}, appconsts.NamespaceSize)
+
 	blobs := append(
 		testfactory.GenerateBlobsWithNamespace(
 			100,
 			500,
-			[]byte{0, 0, 0, 0, 0, 1, 0, 0},
+			namespaceOne,
 		),
 		append(
 			testfactory.GenerateBlobsWithNamespace(
 				50,
 				500,
-				[]byte{0, 0, 0, 1, 0, 0, 0, 0},
+				namespaceTwo,
 			),
 			testfactory.GenerateBlobsWithNamespace(
 				50,
 				500,
-				[]byte{0, 0, 1, 0, 0, 0, 0, 0},
+				namespaceThree,
 			)...,
 		)...,
 	)
@@ -184,14 +188,14 @@ func TestNewShareInclusionProof(t *testing.T) {
 			name:          "20 custom namespace shares",
 			startingShare: 106,
 			endingShare:   125,
-			namespaceID:   []byte{0, 0, 0, 0, 0, 1, 0, 0},
+			namespaceID:   namespaceOne,
 			expectErr:     false,
 		},
 		{
 			name:          "40 custom namespace shares",
 			startingShare: 355,
 			endingShare:   394,
-			namespaceID:   []byte{0, 0, 1, 0, 0, 0, 0, 0},
+			namespaceID:   namespaceThree,
 			expectErr:     false,
 		},
 	}

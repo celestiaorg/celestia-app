@@ -1,6 +1,7 @@
 package types_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -23,6 +24,7 @@ func TestValidateBlobTx(t *testing.T) {
 	acc := "test"
 	signer := types.GenerateKeyringSigner(t, acc)
 	signerAddr, err := signer.GetSignerInfo().GetAddress()
+	namespaceOne := bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
 	require.NoError(t, err)
 
 	type test struct {
@@ -36,7 +38,7 @@ func TestValidateBlobTx(t *testing.T) {
 			encCfg.TxConfig.TxEncoder(),
 			signer,
 			[][]byte{
-				{1, 1, 1, 1, 1, 1, 1, 1},
+				namespaceOne,
 			},
 			[]int{10},
 		)[0]

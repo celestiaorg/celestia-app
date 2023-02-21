@@ -85,8 +85,9 @@ func Test_merge_sampleBlock(t *testing.T) {
 	got, err := merge(eds)
 	assert.NoError(t, err)
 
-	// TODO: the assertions below are a hack because the data returned by merge does
-	// contain the same hash as the original block. Ideally this test would verify:
+	// TODO: the assertions below are a hack because the data returned by merge
+	// does not contain the same hash as the original block. Ideally this test
+	// would verify:
 	//
 	//     assert.Equal(t, b.Data, got)
 	//

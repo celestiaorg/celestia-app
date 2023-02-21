@@ -13,7 +13,7 @@ const (
 	ShareSize = 512
 
 	// NamespaceSize is the namespace size in bytes.
-	NamespaceSize = 8
+	NamespaceSize = 16
 
 	// ShareInfoBytes is the number of bytes reserved for information. The info
 	// byte contains the share version and a sequence start idicator.
@@ -88,29 +88,29 @@ var (
 
 	// IntermediateStateRootsNamespaceID is the namespace reserved for
 	// intermediate state root data.
-	// IntermediateStateRootsNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 2}
+	// IntermediateStateRootsNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}
 
 	// EvidenceNamespaceID is the namespace reserved for evidence.
-	EvidenceNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
+	EvidenceNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3}
 
 	// PayForBlobNamespaceID is the namespace reserved for PayForBlobs transactions.
-	PayForBlobNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 4}
+	PayForBlobNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
 
 	// ReservedPaddingNamespaceID is the namespace used for padding after all
 	// reserved namespaces. In practice this padding is after transactions
 	// (ordinary and PFBs) but before blobs.
-	ReservedPaddingNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
+	ReservedPaddingNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255}
 
 	// MaxReservedNamespace is the lexicographically largest namespace that is
 	// reserved for protocol use.
-	MaxReservedNamespace = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
+	MaxReservedNamespace = namespace.ID{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255}
 
 	// TailPaddingNamespaceID is the namespace reserved for tail padding. All data
 	// with this namespace will be ignored.
-	TailPaddingNamespaceID = namespace.ID{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
+	TailPaddingNamespaceID = namespace.ID{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
 
 	// ParitySharesNamespaceID is the namespace reserved for erasure coded data.
-	ParitySharesNamespaceID = namespace.ID{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+	ParitySharesNamespaceID = namespace.ID{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 
 	// NewBaseHashFunc is the base hash function used by NMT. Change accordingly
 	// if another hash.Hash should be used as a base hasher in the NMT.

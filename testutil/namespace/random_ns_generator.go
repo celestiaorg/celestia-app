@@ -10,7 +10,7 @@ import (
 
 func RandomBlobNamespace() nmtnamespace.ID {
 	for {
-		ns := tmrand.Bytes(8)
+		ns := tmrand.Bytes(appconsts.NamespaceSize)
 		isReservedNS := bytes.Compare(ns, appconsts.MaxReservedNamespace) <= 0
 		isParityNS := bytes.Equal(ns, appconsts.ParitySharesNamespaceID)
 		isTailPaddingNS := bytes.Equal(ns, appconsts.TailPaddingNamespaceID)

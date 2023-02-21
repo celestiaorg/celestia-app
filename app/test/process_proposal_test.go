@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"bytes"
+	"fmt"
 	"sort"
 	"testing"
 
@@ -116,6 +117,7 @@ func TestProcessProposal(t *testing.T) {
 		mutator        func(*core.Data)
 		expectedResult abci.ResponseProcessProposal_Result
 	}
+	namespaceOne := bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
 
 	tests := []test{
 		{
@@ -138,7 +140,7 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *core.Data) {
 				d.Blobs = append(
 					d.Blobs,
-					core.Blob{NamespaceId: []byte{1, 2, 3, 4, 5, 6, 7, 8}, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}},
+					core.Blob{NamespaceId: namespaceOne, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}},
 				)
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -147,7 +149,7 @@ func TestProcessProposal(t *testing.T) {
 			name:  "modified a blob",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Blobs[0] = core.Blob{NamespaceId: []byte{1, 2, 3, 4, 5, 6, 7, 8}, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
+				d.Blobs[0] = core.Blob{NamespaceId: namespaceOne, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -265,7 +267,7 @@ func TestProcessProposal(t *testing.T) {
 					DataHash: resp.BlockData.Hash,
 				},
 			})
-			assert.Equal(t, tt.expectedResult, res.Result, tt.name)
+			assert.Equal(t, tt.expectedResult, res.Result, fmt.Sprintf("expected %v, got %v", tt.expectedResult, res.Result))
 		})
 	}
 }

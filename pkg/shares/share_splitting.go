@@ -48,6 +48,9 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 		if len(blobIndexes) != 0 && useShareIndexes {
 			blobShareStart = int(blobIndexes[0])
 		}
+		if blobShareStart < currentShareCount {
+			panic(fmt.Sprintf("blobShareStart %v < currentShareCount %v", blobShareStart, currentShareCount))
+		}
 
 		padding = NamespacePaddingShares(appconsts.ReservedPaddingNamespaceID, blobShareStart-currentShareCount)
 	}

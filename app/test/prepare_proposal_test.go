@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -27,6 +28,9 @@ func TestPrepareProposalBlobSorting(t *testing.T) {
 	accnts := testfactory.GenerateAccounts(6)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accnts...)
 	infos := queryAccountInfo(testApp, accnts, kr)
+	namespaceOne := bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
+	namespaceTwo := bytes.Repeat([]byte{2}, appconsts.NamespaceSize)
+	namespaceThree := bytes.Repeat([]byte{3}, appconsts.NamespaceSize)
 
 	type test struct {
 		input         abci.RequestPrepareProposal
@@ -44,19 +48,19 @@ func TestPrepareProposalBlobSorting(t *testing.T) {
 		[][]*tmproto.Blob{
 			{
 				{
-					NamespaceId: []byte{1, 1, 1, 1, 1, 1, 1, 1},
+					NamespaceId: namespaceOne,
 					Data:        tmrand.Bytes(100),
 				},
 			},
 			{
 				{
-					NamespaceId: []byte{3, 3, 3, 3, 3, 3, 3, 3},
+					NamespaceId: namespaceThree,
 					Data:        tmrand.Bytes(1000),
 				},
 			},
 			{
 				{
-					NamespaceId: []byte{2, 2, 2, 2, 2, 2, 2, 2},
+					NamespaceId: namespaceTwo,
 					Data:        tmrand.Bytes(420),
 				},
 			},
