@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Deprecated in favor of [orchestrator-relayer#65](https://github.com/celestiaorg/orchestrator-relayer/pull/66)
 
 ## Context
 
