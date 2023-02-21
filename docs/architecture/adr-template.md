@@ -2,9 +2,12 @@
 
 ## Status
 
-> A decision may be "proposed" if it hasn't been agreed upon yet, or "accepted" once it is agreed upon. Once the ADR has been implemented mark the ADR as "implemented". If a later ADR changes or reverses a decision, it may be marked as "deprecated" or "superseded" with a reference to its replacement.
+> - When an ADR hasn't reached agreement, it should be marked as "Proposed".
+> - When an ADR has reached agreement, it should be marked as "Accepted" or "Declined".
+> - When an ADR is reflected in the code, it should be marked as "Implemented".
+> - When an ADR is no longer relevant, it should be marked as "Deprecated".
 
-{Deprecated|Proposed|Accepted|Declined|Implemented}
+{Proposed|Accepted|Declined|Implemented|Deprecated}
 
 ## Changelog
 
