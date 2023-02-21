@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Implemented
 
 > **Note**
 > Unlike normal tendermint/cosmos ADRs, this ADR isn't for deciding whether or not we will implement non-interactive defaults. The goal of this document is to help reviewers and future readers understand what non-interactive defaults are, the considerations that went into the initial implementation, and how it differs from the original specs.
