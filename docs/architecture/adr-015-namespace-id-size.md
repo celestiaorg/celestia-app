@@ -51,9 +51,7 @@ Q: What is the probability of duplicates if there exist N randomly generated nam
 
 A:
 
-> As a rule of thumb, a hash function with range of size N can hash on the order of √N values before running into collisions.
-
-Columns in the table below represent the approximate probability that a collision would occur if N (e.g. 1 billion) random namespaces are generated. See [probability of secure hash collisions](https://www.johndcook.com/blog/2017/01/10/probability-of-secure-hash-collisions/) and [collision calculator](https://kevingal.com/apps/collision.html).
+Columns in the table below represent the approximate probability that a collision would occur if N (e.g. 1 billion) random namespaces are generated. Ref [probability of secure hash collisions](https://www.johndcook.com/blog/2017/01/10/probability-of-secure-hash-collisions/) and [collision calculator](https://kevingal.com/apps/collision.html).
 
 Namespace ID size   | 1 billion (10^9) | 1 trillion (10^12) | 1 quadrillion (10^15) | 1 quintillion (10^18)
 --------------------|------------------|--------------------|-----------------------|----------------------
@@ -61,6 +59,17 @@ Namespace ID size   | 1 billion (10^9) | 1 trillion (10^12) | 1 quadrillion (10^
 16 bytes (128 bits) | 0                | ~1.4432e-15        | ~1.4693e-9            | ~0.00147
 20 bytes (160 bits) | 0                | 0                  | 0                     | ~3.4205e-13
 32 bytes (256 bits) | 0                | 0                  | 0                     | 0
+
+> As a rule of thumb, a hash function with range of size N can hash on the order of sqrt(N) values before running into collisions.
+
+In other words
+
+Namespace ID size   | hash funciton range | can hash this many items before running into collision
+--------------------|---------------------|----------------------------------------------------------
+8 bytes (64 bits)   | 2^64                | 2^32 = ~4 billion items
+16 bytes (128 bits) | 2^128               | 2^64 = ~1 quintillion items
+20 bytes (160 bits) | 2^160               | 2^80 = ~1 septillion items
+32 bytes (256 bits) | 2^256               | 2^128 = ~3.4 quintillion items
 
 ## Detailed Design
 
