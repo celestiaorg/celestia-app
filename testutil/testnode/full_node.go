@@ -221,7 +221,7 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (accounts []string, c
 	return accounts, cctx
 }
 
-// removeDir removes the files in the specified directory.
+// removeDir removes the directory `rootDir`.
 // The main reason for using it is to know if some file is used by some leaking process during
 // cleanup and be able to identify where the leak is occurring.
 // TODO: remove after fixing the CI flakiness
