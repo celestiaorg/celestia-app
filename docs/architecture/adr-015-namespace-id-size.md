@@ -15,6 +15,7 @@ Namespace ID is currently an 8 byte slice. 8 bytes provides a maximum of 2^64 po
 Desirable criteria:
 
 1. Ability to randomly generate a namespace that hasn't been used before
+1. Potentially large enough for all rollups that will (ever) exist
 
 ## Notes
 
@@ -33,6 +34,29 @@ Desirable criteria:
 | 16                        | 3.1%                                    | ✅                                                                     |
 | 20                        | 3.9%                                    | ✅                                                                     |
 | 32                        | 6.2%                                    | ✅                                                                     |
+
+Probabilities in the tables below should be interpreted as approximates. See [probability of secure hash collisions](https://www.johndcook.com/blog/2017/01/10/probability-of-secure-hash-collisions/) and [collision calculator](https://kevingal.com/apps/collision.html)
+
+| Namespace ID size (bytes) | Namespace ID size (bits) | Items         | Probability of collision |
+|---------------------------|--------------------------|---------------|--------------------------|
+| 8                         | 64                       | 1,000,000,000 | ~0.02674                 |
+| 16                        | 128                      | 1,000,000,000 | 0                        |
+| 20                        | 160                      | 1,000,000,000 | 0                        |
+| 32                        | 256                      | 1,000,000,000 | 0                        |
+
+| Namespace ID size (bytes) | Namespace ID size (bits) | Items             | Probability of collision |
+|---------------------------|--------------------------|-------------------|--------------------------|
+| 8                         | 64                       | 1,000,000,000,000 | 1                        |
+| 16                        | 128                      | 1,000,000,000,000 | ~1.4432e-15              |
+| 20                        | 160                      | 1,000,000,000,000 | 0                        |
+| 32                        | 256                      | 1,000,000,000,000 | 0                        |
+
+| Namespace ID size (bytes) | Namespace ID size (bits) | Items                 | Probability of collision |
+|---------------------------|--------------------------|-----------------------|--------------------------|
+| 8                         | 64                       | 1,000,000,000,000,000 | 1                        |
+| 16                        | 128                      | 1,000,000,000,000,000 | ~1.4693e-9              |
+| 20                        | 160                      | 1,000,000,000,000,000 | 0                        |
+| 32                        | 256                      | 1,000,000,000,000,000 | 0                        |
 
 ## Decision
 
