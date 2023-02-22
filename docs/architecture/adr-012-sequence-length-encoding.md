@@ -1,5 +1,9 @@
 # ADR 12: Sequence Length Encoding
 
+## Status
+
+Implemented
+
 ## Changelog
 
 - 2022/12/14: initial draft
@@ -82,10 +86,6 @@ Big endian uint32 seems equivalant to protobuf fixed32 but there is no fixed16. 
 ## Decision
 
 Option D
-
-## Status
-
-Accepted
 
 ## Consequences
 

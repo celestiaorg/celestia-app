@@ -1,5 +1,9 @@
 # ADR 006: Non-interactive Defaults, Wrapped Transactions, and Subtree Root Message Inclusion Checks
 
+## Status
+
+Implemented
+
 > **Note**
 > Unlike normal tendermint/cosmos ADRs, this ADR isn't for deciding whether or not we will implement non-interactive defaults. The goal of this document is to help reviewers and future readers understand what non-interactive defaults are, the considerations that went into the initial implementation, and how it differs from the original specs.
 
@@ -677,10 +681,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 ## Future Improvements
 
 The current implementation performs many different estimation and calculation steps. It might be possible to amortize these calculations to each transaction, which would make it a lot easier to confidently arrange an optimal block.
-
-## Status
-
-Accepted
 
 ## Consequences
 

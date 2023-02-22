@@ -1,5 +1,9 @@
 # ADR 007: Universal Share Prefix
 
+## Status
+
+Implemented
+
 ## Terminology
 
 - **compact share**: a type of share that can accommodate multiple units. Currently, compact shares are used for transactions, and evidence is to efficiently pack this information into as few shares as possible.
@@ -119,10 +123,6 @@ Logic
 1. Introduce new block validity rules:
     1. All shares contain a share version that belongs to a list of supported versions (initially this list contains version `0`)
     1. All shares in a reserved namespace belong to one share sequence
-
-## Status
-
-Implemented
 
 ## Consequences
 
