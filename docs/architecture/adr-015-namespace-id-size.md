@@ -7,6 +7,7 @@ Proposed
 ## Changelog
 
 - 2023/2/17: initial draft
+- 2023/2/22: discussion notes
 
 ## Context
 
@@ -24,7 +25,7 @@ Desirable criteria:
 - [IPv6](https://en.wikipedia.org/wiki/IPv6) has an address space of 16 bytes and "the address space is deemed large enough for the foreseeable future" ([Wikipedia](https://en.wikipedia.org/wiki/IPv6#Addressing)).
 - [UUIDs](https://en.wikipedia.org/wiki/Universally_unique_identifier) have slightly less than 16 bytes of randomness  and are considered "unique enough for practical purposes" ([Towards Data Science](https://towardsdatascience.com/are-uuids-really-unique-57eb80fc2a87)).
 - The size of the Ethereum and Bitcoin address space is 2^160 (20 bytes) ([Mastering Ethereum](https://github.com/ethereumbook/ethereumbook/blob/05f0dfe6c41635ac85527a60c06ac5389d8006e7/04keys-addresses.asciidoc) and [Coinhouse](https://www.coinhouse.com/insights/news/what-if-my-wallet-generated-an-existing-bitcoin-address/)).
-- The size of Fuel's contract ID is 32 bytes ([Fuel specs](https://fuellabs.github.io/fuel-specs/master/protocol/id/contract.html)). The size of Fuel's address space is either 20 bytes ([Fuel docs](https://docs.fuel.sh/v1.1.0/Concepts/Data%20Structures/Addresses.html#addresses)) or 32 bytes ([fuel-docs#75](https://github.com/FuelLabs/fuel-docs/issues/75)).
+- The size of Fuel's contract ID is 32 bytes ([Fuel specs](https://fuellabs.github.io/fuel-specs/master/protocol/id/contract.html)). The size of Fuel's address space is 32 bytes ([fuel-docs#75](https://github.com/FuelLabs/fuel-docs/issues/75)).
 
 ## Options
 
@@ -77,6 +78,32 @@ Namespace ID size   | hash funciton range | can hash this many items before runn
     1. [done] Stop using the namespace ID defined by NMT
     1. Increase `appconsts.NamespaceSize` to 16
 1. What changes need to be made to NMT in order to support namespaces of a different length (e.g. 16 bytes)?
+
+## Discussion Notes
+
+- Do we care about collisions created by an adversary?
+  - If so, an adversary can look at previously used namespace IDs and perform a woods attack on an existing namespace ID so increasing the namespace ID size doesn't resolve this threat.
+  - We should be careful in our documentation to not encourage users to assume that a randomly generated namespace ID is completely unique because:
+    - They could have generated a namespace ID without sufficient entropy
+    - An adversary can front-run a user's transaction and preemptively post to that namespace ID
+- For the non-adversarial use-case, we want to avoid users having to check if a random namespace has already been used.
+- Use case for larger namespace ID size: rollups may have multiple namespaces (e.g. Twitter) where a roll-up may give each user a namespace within a namespace range.
+- Is it possible to make the namespace ID a parameter, so that the namespace ID is a parameter to proof verification for roll-ups?
+  - Assumes that a block height may have a different namespace ID
+- There are talks in the Ethereum community about a potential address range increase.
+- 20 bytes gives us Ethereum address compatability so Ethereum addresses could be mapped to a Celestia namespace ID.
+- Currently namespace ID size = 8 bytes. Each intermediate node in the NMT is 8 (namespace ID) + 8 (namespace ID) + 32 (SHA256)= 48 bytes
+- If namespace ID size = 16 bytes. Each intermediate nodes in the NMT become: 16 (namespace ID) + 16 (namespace ID) + 32 (SHA256) = 64 bytes
+- Other option: increase size to 32 bytes with an optimization that reserves the first N bytes. The first N bytes wouldn't be sent over the wire.
+- Solution to woods attack
+  - Rollups can't assume that all blobs in a namespace are honest
+  - Rollups shouldn't scan a namespace directly. Instead they should gossip block headers and light clients should only request blobs of interest.
+
+## FLUPs
+
+- [ ] @rootulp analyze the NMT proof size given the candidate sizes
+- [ ] @rootulp add to table the size of NMT nodes given the candidate sizes
+- [ ] @rootulp explore the possibility of using 32 bytes with an optimization to not send all 32 bytes over the wire.
 
 ## References
 
