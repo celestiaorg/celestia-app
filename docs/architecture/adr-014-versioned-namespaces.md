@@ -178,6 +178,8 @@ When a user creates a PFB, concatenate the namespace version with the namespace 
         but they differ in the location where they would be placed in the NMT.
     1. Option 6.2: `255`
       - Pros: The format of a tail padding share or parity share doesn't need to change when a future namespace version bump occurs.
+7: How can we increase the namespace ID post mainnet?
+    - Increment the namespace version. Construct two data squares and two NMTs. Data square 1 uses NMT 1 with namespace version 0 (namespace ID size 8 bytes). Data square 2 uses NMT 2 with namespace version 1 (namespace ID size of 32 bytes). Would celestia-nodes sample two separate data squares or is there a clever way to combine both data squares?
 
 ## Decision
 
