@@ -3,7 +3,6 @@ package testnode
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path"
@@ -216,7 +215,7 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (accounts []string, c
 		t.Log("tearing down testnode")
 		require.NoError(t, stopNode())
 		require.NoError(t, cleanupGRPC())
-		dir, err := ioutil.ReadDir(path.Join([]string{tmCfg.RootDir, "config"}...))
+		dir, err := os.ReadDir(path.Join([]string{tmCfg.RootDir, "config"}...))
 		require.NoError(t, err)
 		for _, d := range dir {
 			err := os.RemoveAll(path.Join([]string{tmCfg.RootDir, "config", d.Name()}...))
