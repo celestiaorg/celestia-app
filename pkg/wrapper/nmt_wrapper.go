@@ -81,7 +81,7 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) {
 	nidAndData := make([]byte, appconsts.NamespaceSize+len(data))
 	copy(nidAndData[appconsts.NamespaceSize:], data)
 	// use the parity namespace if the cell is not in Q0 of the extended data square
-	if w.isQuadrant0() {
+	if w.isQuadrantZero() {
 		copy(nidAndData[:appconsts.NamespaceSize], data[:appconsts.NamespaceSize])
 	} else {
 		copy(nidAndData[:appconsts.NamespaceSize], appconsts.ParitySharesNamespaceID)
@@ -115,8 +115,8 @@ func (w *ErasuredNamespacedMerkleTree) incrementShareIndex() {
 	w.shareIndex++
 }
 
-// isQuadrant0 returns true if the current share index and axis index are both
+// isQuadrantZero returns true if the current share index and axis index are both
 // in the original data square.
-func (w *ErasuredNamespacedMerkleTree) isQuadrant0() bool {
-	return !(uint64(w.shareIndex)+1 > w.squareSize || uint64(w.axisIndex)+1 > w.squareSize)
+func (w *ErasuredNamespacedMerkleTree) isQuadrantZero() bool {
+	return w.shareIndex < w.squareSize && w.axisIndex < w.squareSize
 }
