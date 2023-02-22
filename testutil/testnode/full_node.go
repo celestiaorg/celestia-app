@@ -214,6 +214,7 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (accounts []string, c
 		t.Log("tearing down testnode")
 		require.NoError(t, stopNode())
 		require.NoError(t, cleanupGRPC())
+		require.NoError(t, os.RemoveAll(tmCfg.RootDir))
 	})
 
 	return accounts, cctx
