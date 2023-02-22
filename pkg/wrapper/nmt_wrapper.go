@@ -110,12 +110,12 @@ func (w *ErasuredNamespacedMerkleTree) Tree() *nmt.NamespacedMerkleTree {
 	return w.tree
 }
 
-// IncrementShareIndex increments the share index by one.
+// incrementShareIndex increments the share index by one.
 func (w *ErasuredNamespacedMerkleTree) incrementShareIndex() {
 	w.shareIndex++
 }
 
-// IsQuadrant0 returns true if the current share index and axis index are both
+// isQuadrant0 returns true if the current share index and axis index are both
 // in the original data square.
 func (w *ErasuredNamespacedMerkleTree) isQuadrant0() bool {
 	return !(uint64(w.shareIndex)+1 > w.squareSize || uint64(w.axisIndex)+1 > w.squareSize)
