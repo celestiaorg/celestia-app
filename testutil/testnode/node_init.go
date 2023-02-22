@@ -196,8 +196,5 @@ func initFileStructure(t *testing.T, tmCfg *config.Config) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err != nil {
-		return "", err
-	}
 	return basePath, nil
 }
