@@ -35,29 +35,6 @@ Desirable criteria:
 | 20                        | 3.9%                                    | ✅                                                                     |
 | 32                        | 6.2%                                    | ✅                                                                     |
 
-Probabilities in the tables below should be interpreted as approximates. See [probability of secure hash collisions](https://www.johndcook.com/blog/2017/01/10/probability-of-secure-hash-collisions/) and [collision calculator](https://kevingal.com/apps/collision.html)
-
-| Namespace ID size (bytes) | Namespace ID size (bits) | Items         | Probability of collision |
-|---------------------------|--------------------------|---------------|--------------------------|
-| 8                         | 64                       | 1,000,000,000 | ~0.02674                 |
-| 16                        | 128                      | 1,000,000,000 | 0                        |
-| 20                        | 160                      | 1,000,000,000 | 0                        |
-| 32                        | 256                      | 1,000,000,000 | 0                        |
-
-| Namespace ID size (bytes) | Namespace ID size (bits) | Items             | Probability of collision |
-|---------------------------|--------------------------|-------------------|--------------------------|
-| 8                         | 64                       | 1,000,000,000,000 | 1                        |
-| 16                        | 128                      | 1,000,000,000,000 | ~1.4432e-15              |
-| 20                        | 160                      | 1,000,000,000,000 | 0                        |
-| 32                        | 256                      | 1,000,000,000,000 | 0                        |
-
-| Namespace ID size (bytes) | Namespace ID size (bits) | Items                 | Probability of collision |
-|---------------------------|--------------------------|-----------------------|--------------------------|
-| 8                         | 64                       | 1,000,000,000,000,000 | 1                        |
-| 16                        | 128                      | 1,000,000,000,000,000 | ~1.4693e-9              |
-| 20                        | 160                      | 1,000,000,000,000,000 | 0                        |
-| 32                        | 256                      | 1,000,000,000,000,000 | 0                        |
-
 ## Decision
 
 ## Questions
@@ -69,6 +46,21 @@ A1: The namespace ID is prefixed to each NMT leaf. Two namespace IDs are prefixe
 A2: The namespace ID is prefixed to each share. Since a share is a fixed 512 bytes, a share's capacity for blob data decreases as the namespace ID increases.
 
 Q: What are the performance implications on celestia-node for a larger namespace ID size?
+
+Q: What is the probability of duplicates if there exist N randomly generated namespaces?
+
+A:
+
+> As a rule of thumb, a hash function with range of size N can hash on the order of √N values before running into collisions.
+
+Columns in the table below represent the approximate probability that a collision would occur if N (e.g. 1 billion) random namespaces are generated. See [probability of secure hash collisions](https://www.johndcook.com/blog/2017/01/10/probability-of-secure-hash-collisions/) and [collision calculator](https://kevingal.com/apps/collision.html).
+
+Namespace ID size   | 1 billion (10^9) | 1 trillion (10^12) | 1 quadrillion (10^15) | 1 quintillion (10^18)
+--------------------|------------------|--------------------|-----------------------|----------------------
+8 bytes (64 bits)   | ~0.02674         | 1                  | 1                     | 1
+16 bytes (128 bits) | 0                | ~1.4432e-15        | ~1.4693e-9            | ~0.00147
+20 bytes (160 bits) | 0                | 0                  | 0                     | ~3.4205e-13
+32 bytes (256 bits) | 0                | 0                  | 0                     | 0
 
 ## Detailed Design
 
