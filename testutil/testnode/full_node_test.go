@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -19,7 +19,6 @@ import (
 type IntegrationTestSuite struct {
 	suite.Suite
 
-	cleanups []func() error
 	accounts []string
 	cctx     Context
 }
@@ -30,45 +29,8 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	}
 
 	s.T().Log("setting up integration test suite")
-	require := s.Require()
 
-	// we create an arbitrary number of funded accounts
-	for i := 0; i < 300; i++ {
-		s.accounts = append(s.accounts, tmrand.Str(9))
-	}
-
-	genState, kr, err := DefaultGenesisState(s.accounts...)
-	require.NoError(err)
-
-	tmCfg := DefaultTendermintConfig()
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
-	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
-
-	tmNode, app, cctx, err := New(s.T(), DefaultParams(), tmCfg, false, genState, kr)
-	require.NoError(err)
-
-	cctx, stopNode, err := StartNode(tmNode, cctx)
-	require.NoError(err)
-	s.cleanups = append(s.cleanups, stopNode)
-
-	appConf := DefaultAppConfig()
-	appConf.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", getFreePort())
-	appConf.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
-
-	cctx, cleanupGRPC, err := StartGRPCServer(app, appConf, cctx)
-	require.NoError(err)
-	s.cleanups = append(s.cleanups, cleanupGRPC)
-
-	s.cctx = cctx
-}
-
-func (s *IntegrationTestSuite) TearDownSuite() {
-	s.T().Log("tearing down integration test suite")
-	for _, c := range s.cleanups {
-		err := c()
-		require.NoError(s.T(), err)
-	}
+	s.accounts, s.cctx = DefaultNetwork(s.T(), 400*time.Millisecond)
 }
 
 func (s *IntegrationTestSuite) Test_Liveness() {
