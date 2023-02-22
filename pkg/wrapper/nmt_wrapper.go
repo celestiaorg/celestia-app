@@ -26,7 +26,7 @@ type ErasuredNamespacedMerkleTree struct {
 	options    []nmt.Option
 	tree       *nmt.NamespacedMerkleTree
 	// axisIndex is the index of the axis that this tree is on. This is passed
-	// by rsm2d and used to help determine which quadrant each leaf belongs to.
+	// by rsmt2d and used to help determine which quadrant each leaf belongs to.
 	axisIndex uint64
 	// shareIndex is the index of the share that is being pushed to the tree. It
 	// is used to help determine which quadrant each leaf belongs to.
