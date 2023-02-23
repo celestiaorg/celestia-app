@@ -31,7 +31,8 @@ type ErasuredNamespacedMerkleTree struct {
 	// shareIndex is the index of the share in a row or column that is being
 	// pushed to the tree. It is expected to be in the range: 0 <= shareIndex <
 	// 2*squareSize. shareIndex is used to help determine which quadrant each
-	// leaf belongs to.
+	// leaf belongs to, along with keeping track of how many leaves have been
+	// addeded to the tree so far.
 	shareIndex uint64
 }
 
