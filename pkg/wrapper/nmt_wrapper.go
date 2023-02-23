@@ -25,7 +25,7 @@ type ErasuredNamespacedMerkleTree struct {
 	squareSize uint64 // note: this refers to the width of the original square before erasure-coded
 	options    []nmt.Option
 	tree       *nmt.NamespacedMerkleTree
-	// axisIndex is the index of the axis that this tree is on. This is passed
+	// axisIndex is the index of the axis (row or column) that this tree is on. This is passed
 	// by rsmt2d and used to help determine which quadrant each leaf belongs to.
 	axisIndex uint64
 	// shareIndex is the index of the share in a row or column that is being
