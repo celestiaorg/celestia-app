@@ -66,11 +66,20 @@ Namespace ID size   | 1 billion (10^9) | 1 trillion (10^12) | 1 quadrillion (10^
 In other words
 
 Namespace ID size   | hash funciton range | can hash this many items before running into collision
---------------------|---------------------|----------------------------------------------------------
+--------------------|---------------------|-------------------------------------------------------
 8 bytes (64 bits)   | 2^64                | 2^32 = ~4 billion items
 16 bytes (128 bits) | 2^128               | 2^64 = ~1 quintillion items
 20 bytes (160 bits) | 2^160               | 2^80 = ~1 septillion items
 32 bytes (256 bits) | 2^256               | 2^128 = ~3.4 quintillion items
+
+Q: What is the impact on NMT node sizes?
+
+Namespace ID size (bytes) | NMT leaf size (bytes) | NMT non-leaf size (bytes)
+--------------------------|-----------------------|--------------------------
+8                         | 8 + 32 = 40           | 2 * 8 + 32 = 48
+16                        | 16 + 32 = 48          | 2 * 16 + 32 = 64
+20                        | 20 + 32 = 52          | 2 * 20 + 32 = 72
+32                        | 32 + 32 = 64          | 2 * 32 + 32 = 96
 
 ## Detailed Design
 
@@ -102,7 +111,6 @@ Namespace ID size   | hash funciton range | can hash this many items before runn
 ## FLUPs
 
 - [ ] @rootulp analyze the NMT proof size given the candidate sizes
-- [ ] @rootulp add to table the size of NMT nodes given the candidate sizes
 - [ ] @rootulp explore the possibility of using 32 bytes with an optimization to not send all 32 bytes over the wire.
 
 ## References
