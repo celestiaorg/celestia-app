@@ -46,7 +46,7 @@ func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
 // to the second half of the tree.
 func TestRootErasuredNamespacedMerkleTree(t *testing.T) {
 	size := 8
-	data := generateRandNamespacedRawData(size, appconsts.NamespaceSize, appconsts.ShareSize)
+	data := generateRandNamespacedRawData(size, appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)
 	tree := NewErasuredNamespacedMerkleTree(uint64(size), 0)
 	nmtTree := nmt.New(sha256.New())
 
@@ -103,7 +103,7 @@ func TestComputeExtendedDataSquare(t *testing.T) {
 	data := generateRandNamespacedRawData(
 		squareSize*squareSize,
 		appconsts.NamespaceSize,
-		appconsts.ShareSize,
+		appconsts.ShareSize-appconsts.NamespaceSize,
 	)
 
 	_, err := rsmt2d.ComputeExtendedDataSquare(data, appconsts.DefaultCodec(), NewConstructor(uint64(squareSize)))
@@ -114,7 +114,7 @@ func TestComputeExtendedDataSquare(t *testing.T) {
 // NMT tree.
 func TestErasuredNamespacedMerkleTree(t *testing.T) {
 	squareSize := 8
-	data := generateRandNamespacedRawData(squareSize, appconsts.NamespaceSize, appconsts.ShareSize)
+	data := generateRandNamespacedRawData(squareSize, appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)
 	tree := NewErasuredNamespacedMerkleTree(uint64(squareSize), 0)
 
 	for _, d := range data {
@@ -133,7 +133,7 @@ func generateErasuredData(t *testing.T, numLeaves int, codec rsmt2d.Codec) [][]b
 	raw := generateRandNamespacedRawData(
 		numLeaves,
 		appconsts.NamespaceSize,
-		appconsts.ShareSize,
+		appconsts.ShareSize-appconsts.NamespaceSize,
 	)
 	erasuredData, err := codec.Encode(raw)
 	if err != nil {
