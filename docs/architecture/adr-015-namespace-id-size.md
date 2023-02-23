@@ -74,21 +74,25 @@ Namespace ID size   | hash funciton range | can hash this many items before runn
 
 Q: What is the impact on NMT node sizes?
 
-Namespace ID size (bytes) | NMT leaf size (bytes) | NMT non-leaf size (bytes)
---------------------------|-----------------------|--------------------------
-8                         | 8 + 32 = 40           | 2 * 8 + 32 = 48
-16                        | 16 + 32 = 48          | 2 * 16 + 32 = 64
-20                        | 20 + 32 = 52          | 2 * 20 + 32 = 72
-32                        | 32 + 32 = 64          | 2 * 32 + 32 = 96
+Assuming shares are 512 bytes.
+
+Namespace ID size (bytes) | NMT data leaf size (bytes) | NMT inner node size (bytes)
+--------------------------|----------------------------|----------------------------
+8                         | 8 + 512 = 520              | 2*8 + 32 = 48
+16                        | 16 + 512 = 528             | 2*16 + 32 = 64
+20                        | 20 + 512 = 532             | 2*20 + 32 = 72
+32                        | 32 + 512 = 544             | 2*32 + 32 = 96
 
 Q: What is the impact on NMT proof sizes?
 
+Assuming shares are 512 bytes, square size is 128, and the NMT proof is for a single leaf.
+
 Namespace ID size (bytes) | NMT proof size
---------------------------|-----------------------
-8                         |
-16                        |
-20                        |
-32                        |
+--------------------------|---------------
+8                         | ~336 bytes
+16                        | ~448 bytes
+20                        | ~504 bytes
+32                        | ~672 bytes
 
 ## Detailed Design
 
@@ -119,7 +123,6 @@ Namespace ID size (bytes) | NMT proof size
 
 ## FLUPs
 
-- [ ] @rootulp analyze the NMT proof size given the candidate sizes
 - [ ] @rootulp explore the possibility of using 32 bytes with an optimization to not send all 32 bytes over the wire.
 
 ## References
