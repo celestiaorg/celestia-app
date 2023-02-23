@@ -81,6 +81,15 @@ Namespace ID size (bytes) | NMT leaf size (bytes) | NMT non-leaf size (bytes)
 20                        | 20 + 32 = 52          | 2 * 20 + 32 = 72
 32                        | 32 + 32 = 64          | 2 * 32 + 32 = 96
 
+Q: What is the impact on NMT proof sizes?
+
+Namespace ID size (bytes) | NMT proof size
+--------------------------|-----------------------
+8                         |
+16                        |
+20                        |
+32                        |
+
 ## Detailed Design
 
 1. What changes need to be made to celestia-app in order to support namespaces of a different length (e.g. 16 bytes)?
