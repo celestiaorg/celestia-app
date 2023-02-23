@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
-	"fmt"
 	"sort"
 	"testing"
 
@@ -160,26 +159,4 @@ func generateRandNamespacedRawData(total int, nidSize int, leafSize int) [][]byt
 
 func sortByteArrays(src [][]byte) {
 	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
-}
-
-func TestErasuredNamespacedMerkleTree_Prove(t *testing.T) {
-	nidSizes := []int{8, 16, 20, 32}
-	for _, nidSize := range nidSizes {
-		data := generateRandNamespacedRawData(appconsts.DefaultMaxSquareSize, nidSize, appconsts.ShareSize-nidSize)
-		tree := NewErasuredNamespacedMerkleTree(appconsts.DefaultMaxSquareSize, 0, nmt.NamespaceIDSize(nidSize))
-		for _, d := range data {
-			tree.Push(d)
-		}
-		proof, err := tree.Prove(0)
-		assert.NoError(t, err)
-		fmt.Printf("nidSize=%v proofSize=%v\n", nidSize, proofSize(proof))
-	}
-}
-
-func proofSize(proof nmt.Proof) int {
-	size := 0
-	for _, node := range proof.Nodes() {
-		size += len(node)
-	}
-	return size
 }

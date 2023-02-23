@@ -35,7 +35,7 @@ func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, setters 
 	if squareSize == 0 {
 		panic("cannot create a ErasuredNamespacedMerkleTree of squareSize == 0")
 	}
-	// setters = append(setters, nmt.NamespaceIDSize(appconsts.NamespaceSize))
+	setters = append(setters, nmt.NamespaceIDSize(appconsts.NamespaceSize))
 	tree := nmt.New(appconsts.NewBaseHashFunc(), setters...)
 	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: setters, tree: tree, idx: &rsmt2d.SquareIndex{Axis: axisIndex, Cell: 0}}
 }
