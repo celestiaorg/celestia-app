@@ -125,7 +125,8 @@ What changes need to be made to in order to support namespaces of a different le
 - Use case for larger namespace ID size: rollups may have multiple namespaces (e.g. Twitter) where a roll-up may give each user a namespace within a namespace range.
 - Is it possible to make the namespace ID a parameter, so that the namespace ID is a parameter to proof verification for roll-ups?
   - Assumes that a block height may have a different namespace ID
-- There are talks in the Ethereum community about a potential address range increase.[^14]
+- There are talks in the Ethereum community about a potential address range increase.
+  - Address space extension is on the Ethereum roadmap under "The Purge" phase.[^14] There doesn't appear to be alignment on how to implement such an address space extension but the discussion is leaning towards increasing from 20 bytes to 32 bytes.[^15]
 - 20 bytes gives us Ethereum address compatability so Ethereum addresses could be mapped to a Celestia namespace ID.
 - Other option: increase size to 32 bytes with an optimization that reserves the first N bytes. The first N bytes wouldn't be sent over the wire.
 - Solution to woods attack
@@ -151,4 +152,5 @@ What changes need to be made to in order to support namespaces of a different le
 [^11]: https://github.com/ethereumbook/ethereumbook/blob/05f0dfe6c41635ac85527a60c06ac5389d8006e7/04keys-addresses.asciidoc
 [^12]: https://www.coinhouse.com/insights/news/what-if-my-wallet-generated-an-existing-bitcoin-address
 [^13]: https://github.com/FuelLabs/fuel-docs/issues/75
-[^14]: https://ethereum-magicians.org/t/increasing-address-size-from-20-to-32-bytes/5485
+[^14]: https://twitter.com/VitalikButerin/status/1588669782471368704/photo/1
+[^15]: https://ethereum-magicians.org/t/increasing-address-size-from-20-to-32-bytes/5485
