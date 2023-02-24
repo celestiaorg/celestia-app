@@ -19,11 +19,9 @@ Namespace ID is currently an 8 byte slice. 8 bytes provides a maximum of 2^64 po
 1. A user should be able to randomly generate a namespace that hasn't been used before[^1]
 1. There should exist a large enough namespace ID space for all rollups that may exist in the forseeable future (e.g. 100 years)
 
-[^1]: This assumes a user uses sufficient entropy to generate the namespace ID and isn't front-run by an adversary prior to actually using the namespace.
-
 ### Criteria 1
 
-The namespace ID must provide at least 72 bits of randomness ([Eager](https://eager.io/blog/how-long-does-an-id-need-to-be/)) to satisfy criteria 1. Since an 8 byte namespace ID can only provide 64 bits of randomness, it fail to meet this criteria.
+The namespace ID must provide at least 72 bits of randomness [^2] to satisfy criteria 1. Since an 8 byte namespace ID can only provide 64 bits of randomness, it fail to meet this criteria.
 
 | Namespace ID size (bytes) | Criteria 1 |
 |---------------------------|------------|
@@ -32,7 +30,7 @@ The namespace ID must provide at least 72 bits of randomness ([Eager](https://ea
 | 20                        | ✅          |
 | 32                        | ✅          |
 
-Another way to analyze this criteria is to determine the probability of duplicates if there exist N randomly generated namespaces. Columns in the table below represent the approximate probability that a collision would occur if N (e.g. 1 billion) random namespaces are generated. Ref [probability of secure hash collisions](https://www.johndcook.com/blog/2017/01/10/probability-of-secure-hash-collisions/) and [collision calculator](https://kevingal.com/apps/collision.html).
+Another way to analyze this criteria is to determine the probability of duplicates if there exist N randomly generated namespaces. Columns in the table below represent the approximate probability that a collision would occur if N (e.g. 1 billion) random namespaces are generated.[^3]
 
 Namespace ID size (bytes) | 1 billion (10^9) | 1 trillion (10^12) | 1 quadrillion (10^15) | 1 quintillion (10^18)
 --------------------------|------------------|--------------------|-----------------------|----------------------
@@ -41,9 +39,9 @@ Namespace ID size (bytes) | 1 billion (10^9) | 1 trillion (10^12) | 1 quadrillio
 20                        | 0                | 0                  | 0                     | ~3.4205e-13
 32                        | 0                | 0                  | 0                     | 0
 
-> As a rule of thumb, a hash function with range of size N can hash on the order of sqrt(N) values before running into collisions.
+> As a rule of thumb, a hash function with range of size N can hash on the order of sqrt(N) values before running into collisions.[^4]
 
-Namespace ID size (bytes) | hash funciton range | can hash this many items before running into collision
+Namespace ID size (bytes) | Hash funciton range | Can hash this many items before running into collision
 --------------------------|---------------------|-------------------------------------------------------
 8                         | 2^64                | 2^32 = ~4 billion items
 16                        | 2^128               | 2^64 = ~1 quintillion items
@@ -52,15 +50,15 @@ Namespace ID size (bytes) | hash funciton range | can hash this many items befor
 
 ### Criteria 2
 
-We must make some assumptions for the number of rollups that will exist. Ethereum has 223 million unique addresses ([ycharts](https://ycharts.com/indicators/ethereum_cumulative_unique_addresses)) with a yearly growth rate of 18%. If the growth rate remains constant for the next 100 years, Ethereum would have ~4 quadrillion unique addresses ([Google sheet](https://docs.google.com/spreadsheets/d/1vrRM4gAsmC142KrdUI1aCBS5IVFdJeU0q6gwwnM3Ekc/edit?usp=sharing)) which is inconceivably small relative to the total address space 2^160 ([Wolfram Alpha](https://www.wolframalpha.com/input?i=4.05871E%2B15+%2F+2%5E160)). ~4 quadrillion unique addresses is 0.0002% of the 8 byte namespace id space ([Wolfram Alpha](https://www.wolframalpha.com/input?i=4.05871E%2B15+%2F+2%5E160)) so one can assume that any namespace ID size >= 8 bytes will be large enough for all rollups that may exist in the next 100 years.
+We must make some assumptions for the number of rollups that will exist. Ethereum has 223 million unique addresses with a yearly growth rate of 18%.[^5] If the growth rate remains constant for the next 100 years, Ethereum would have ~4 quadrillion unique addresses[^6] which is inconceivably small relative to the total address space 2^160.[^7] ~4 quadrillion unique addresses is 0.0002%[^8] of the 8 byte namespace id space so one can assume that any namespace ID size >= 8 bytes will be large enough for all rollups that may exist in the next 100 years.
 
 ## Notes
 
 - [SHA256](https://en.wikipedia.org/wiki/SHA-2) has a digest size of 32 bytes so using a namespace ID size of 32 bytes would enable users to generate stable namespace IDs (e.g. `sha256('sov-labs')`) or unique namespace IDs (e.g. `sha256(blob)`) assuming the blob is unique.
-- [IPv6](https://en.wikipedia.org/wiki/IPv6) has an address space of 16 bytes and "the address space is deemed large enough for the foreseeable future" ([Wikipedia](https://en.wikipedia.org/wiki/IPv6#Addressing)).
-- [UUIDs](https://en.wikipedia.org/wiki/Universally_unique_identifier) have slightly less than 16 bytes of randomness  and are considered "unique enough for practical purposes" ([Towards Data Science](https://towardsdatascience.com/are-uuids-really-unique-57eb80fc2a87)).
-- The size of the Ethereum and Bitcoin address space is 2^160 (20 bytes) ([Mastering Ethereum](https://github.com/ethereumbook/ethereumbook/blob/05f0dfe6c41635ac85527a60c06ac5389d8006e7/04keys-addresses.asciidoc) and [Coinhouse](https://www.coinhouse.com/insights/news/what-if-my-wallet-generated-an-existing-bitcoin-address/)).
-- The size of Fuel's address space is 32 bytes ([fuel-docs#75](https://github.com/FuelLabs/fuel-docs/issues/75)).
+- [IPv6](https://en.wikipedia.org/wiki/IPv6) has an address space of 16 bytes and "the address space is deemed large enough for the foreseeable future".[^9]
+- [UUIDs](https://en.wikipedia.org/wiki/Universally_unique_identifier) have slightly less than 16 bytes of randomness  and are considered "unique enough for practical purposes".[^10]
+- The size of the Ethereum[^11] and Bitcoin[^12] address space is 2^160 (20 bytes).
+- The size of Fuel's address space is 32 bytes.[^13]
 
 ## Tradeoffs
 
@@ -94,7 +92,7 @@ Another tradeoff to consider is the size of the namespace ID in the share. Since
 ## Open Questions
 
 1. What are the performance implications on celestia-node for a larger namespace ID size?
-1. Is it possible to adopt a large namespace ID size and mitigate the tradeoffs?
+1. Is it possible to mitigate some tradeoffs when adopting a large namespace ID size?
     1. It may be possible to avoid writing the namespace ID to continuation blob shares (proposed by @nashqueue)
     1. It may be possible to decrease the bandwidth requirements for NMT proofs by using lossless compression (proposed by @evan-forbes)
 
@@ -121,10 +119,8 @@ What changes need to be made to in order to support namespaces of a different le
 - Use case for larger namespace ID size: rollups may have multiple namespaces (e.g. Twitter) where a roll-up may give each user a namespace within a namespace range.
 - Is it possible to make the namespace ID a parameter, so that the namespace ID is a parameter to proof verification for roll-ups?
   - Assumes that a block height may have a different namespace ID
-- There are talks in the Ethereum community about a potential address range increase.
+- There are talks in the Ethereum community about a potential address range increase.[^14]
 - 20 bytes gives us Ethereum address compatability so Ethereum addresses could be mapped to a Celestia namespace ID.
-- Currently namespace ID size = 8 bytes. Each intermediate node in the NMT is 8 (namespace ID) + 8 (namespace ID) + 32 (SHA256)= 48 bytes
-- If namespace ID size = 16 bytes. Each intermediate nodes in the NMT become: 16 (namespace ID) + 16 (namespace ID) + 32 (SHA256) = 64 bytes
 - Other option: increase size to 32 bytes with an optimization that reserves the first N bytes. The first N bytes wouldn't be sent over the wire.
 - Solution to woods attack
   - Rollups can't assume that all blobs in a namespace are honest
@@ -139,3 +135,18 @@ What changes need to be made to in order to support namespaces of a different le
 ## References
 
 - <https://github.com/celestiaorg/celestia-app/issues/1308>
+
+[^1]: This assumes a user uses sufficient entropy to generate the namespace ID and isn't front-run by an adversary prior to actually using the namespace.
+[^2]: https://eager.io/blog/how-long-does-an-id-need-to-be/
+[^3]: https://kevingal.com/apps/collision.html
+[^4]: https://www.johndcook.com/blog/2017/01/10/probability-of-secure-hash-collisions/
+[^5]: https://ycharts.com/indicators/ethereum_cumulative_unique_addresses
+[^6]: https://docs.google.com/spreadsheets/d/1vrRM4gAsmC142KrdUI1aCBS5IVFdJeU0q6gwwnM3Ekc/edit?usp=sharing
+[^7]: https://www.wolframalpha.com/input?i=4.05871E%2B15+%2F+2%5E160
+[^8]: https://www.wolframalpha.com/input?i=4.05871E%2B15+%2F+2%5E64
+[^9]: https://en.wikipedia.org/wiki/IPv6#Addressing
+[^10]: https://towardsdatascience.com/are-uuids-really-unique-57eb80fc2a87
+[^11]: https://github.com/ethereumbook/ethereumbook/blob/05f0dfe6c41635ac85527a60c06ac5389d8006e7/04keys-addresses.asciidoc
+[^12]: https://www.coinhouse.com/insights/news/what-if-my-wallet-generated-an-existing-bitcoin-address
+[^13]: https://github.com/FuelLabs/fuel-docs/issues/75
+[^14]: https://ethereum-magicians.org/t/increasing-address-size-from-20-to-32-bytes/5485
