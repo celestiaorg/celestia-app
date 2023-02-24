@@ -50,14 +50,21 @@ Namespace ID size (bytes) | Hash funciton range | Can hash this many items befor
 
 ### Criteria 2
 
-We must make some assumptions for the number of rollups that will exist. Ethereum has 223 million unique addresses with a yearly growth rate of 18%.[^5] If the growth rate remains constant for the next 100 years, Ethereum would have ~4 quadrillion unique addresses[^6] which is inconceivably small relative to the total address space 2^160.[^7] ~4 quadrillion unique addresses is 0.0002%[^8] of the 8 byte namespace id space so one can assume that any namespace ID size >= 8 bytes will be large enough for all rollups that may exist in the next 100 years.
+We must make some assumptions for the number of rollups that will exist. Ethereum has 223 million unique addresses with a yearly growth rate of 18%.[^5] If the growth rate remains constant for the next 100 years, Ethereum would have ~4 quadrillion unique addresses[^6] which is inconceivably small relative to the 20 byte address space.[^7] ~4 quadrillion unique addresses is 0.0002%[^8] of the 8 byte namespace id space so one can assume that any namespace ID size >= 8 bytes will be large enough for all rollups that may exist in the next 100 years.
+
+| Namespace ID size (bytes) | Criteria 2 |
+|---------------------------|------------|
+| 8                         | ✅          |
+| 16                        | ✅          |
+| 20                        | ✅          |
+| 32                        | ✅          |
 
 ## Notes
 
 - [SHA256](https://en.wikipedia.org/wiki/SHA-2) has a digest size of 32 bytes so using a namespace ID size of 32 bytes would enable users to generate stable namespace IDs (e.g. `sha256('sov-labs')`) or unique namespace IDs (e.g. `sha256(blob)`) assuming the blob is unique.
 - [IPv6](https://en.wikipedia.org/wiki/IPv6) has an address space of 16 bytes and "the address space is deemed large enough for the foreseeable future".[^9]
 - [UUIDs](https://en.wikipedia.org/wiki/Universally_unique_identifier) have slightly less than 16 bytes of randomness  and are considered "unique enough for practical purposes".[^10]
-- The size of the Ethereum[^11] and Bitcoin[^12] address space is 2^160 (20 bytes).
+- The size of the Ethereum[^11] and Bitcoin[^12] address space is 20 bytes (2^160).
 - The size of Fuel's address space is 32 bytes.[^13]
 
 ## Tradeoffs
@@ -113,6 +120,8 @@ What changes need to be made to in order to support namespaces of a different le
   - [ ] Modify `TxNamespaceID`
 - nmt
   - N/A
+- celestia-node
+  - TBD
 
 ## Discussion Notes
 
