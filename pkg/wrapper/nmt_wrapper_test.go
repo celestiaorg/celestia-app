@@ -18,27 +18,35 @@ func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
 		name       string
 		squareSize int
 	}{
-		{"extendedSquareSize = 16", 8},
-		{"extendedSquareSize = 256", 128},
+		{
+			name:       "squareSize = 8, extendedSquareSize = 16",
+			squareSize: 8,
+		},
+		{
+			name:       "squareSize = 128, extendedSquareSize = 256",
+			squareSize: 128,
+		},
 	}
 	for _, tc := range testCases {
-		tc := tc
-		tree := NewErasuredNamespacedMerkleTree(uint64(tc.squareSize), 0)
+		t.Run(tc.name, func(t *testing.T) {
+			tree := NewErasuredNamespacedMerkleTree(uint64(tc.squareSize), 0)
 
-		// push test data to the tree
-		for _, d := range generateErasuredData(t, tc.squareSize, appconsts.DefaultCodec()) {
-			// push will panic if there's an error
-			tree.Push(d)
-		}
+			for _, d := range generateErasuredData(t, tc.squareSize, appconsts.DefaultCodec()) {
+				// push test data to the tree. push will panic if there's an
+				// error.
+				tree.Push(d)
+			}
+		})
 	}
 }
 
+// TestRootErasuredNamespacedMerkleTree checks that the root of an erasured NMT
+// is different from the root of a standard NMT. The roots should be different
+// because the erasured NMT should use the parity namespace ID for leaves pushed
+// to the second half of the tree.
 func TestRootErasuredNamespacedMerkleTree(t *testing.T) {
-	// check that the root is different from a standard nmt tree this should be
-	// the case, because the ErasuredNamespacedMerkleTree should add namespaces
-	// to the second half of the tree
 	size := 8
-	data := generateRandNamespacedRawData(size, appconsts.NamespaceSize, appconsts.ContinuationSparseShareContentSize)
+	data := generateRandNamespacedRawData(size, appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)
 	tree := NewErasuredNamespacedMerkleTree(uint64(size), 0)
 	nmtTree := nmt.New(sha256.New())
 
@@ -83,29 +91,30 @@ func TestErasureNamespacedMerkleTreePanics(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
-		assert.Panics(t, tc.pFunc, tc.name)
-
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Panics(t, tc.pFunc, tc.name)
+		})
 	}
 }
 
-func TestExtendedDataSquare(t *testing.T) {
+func TestComputeExtendedDataSquare(t *testing.T) {
 	squareSize := 4
 	// data for a 4X4 square
-	raw := generateRandNamespacedRawData(
+	data := generateRandNamespacedRawData(
 		squareSize*squareSize,
 		appconsts.NamespaceSize,
-		appconsts.ContinuationSparseShareContentSize+1, // we +1 here to keep the generated data to be 512 bytes in len
+		appconsts.ShareSize-appconsts.NamespaceSize,
 	)
 
-	_, err := rsmt2d.ComputeExtendedDataSquare(raw, appconsts.DefaultCodec(), NewConstructor(uint64(squareSize)))
+	_, err := rsmt2d.ComputeExtendedDataSquare(data, appconsts.DefaultCodec(), NewConstructor(uint64(squareSize)))
 	assert.NoError(t, err)
 }
 
+// TestErasuredNamespacedMerkleTree verifies that Tree() returns the underlying
+// NMT tree.
 func TestErasuredNamespacedMerkleTree(t *testing.T) {
-	// check that the Tree() returns exact underlying nmt tree
 	squareSize := 8
-	data := generateRandNamespacedRawData(squareSize, appconsts.NamespaceSize, appconsts.ContinuationSparseShareContentSize)
+	data := generateRandNamespacedRawData(squareSize, appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)
 	tree := NewErasuredNamespacedMerkleTree(uint64(squareSize), 0)
 
 	for _, d := range data {
@@ -117,13 +126,14 @@ func TestErasuredNamespacedMerkleTree(t *testing.T) {
 	assert.Equal(t, appconsts.NamespaceSize, int(tree.Tree().NamespaceSize()))
 }
 
-// generateErasuredData produces a slice that is twice as long as it erasures
-// the data
+// generateErasuredData generates random data and then erasure codes it. It
+// returns a slice that is twice as long as numLeaves because it returns the
+// original data + erasured data.
 func generateErasuredData(t *testing.T, numLeaves int, codec rsmt2d.Codec) [][]byte {
 	raw := generateRandNamespacedRawData(
 		numLeaves,
 		appconsts.NamespaceSize,
-		appconsts.ContinuationSparseShareContentSize+1, // we +1 here to keep the generated data to be 512 bytes in len
+		appconsts.ShareSize-appconsts.NamespaceSize,
 	)
 	erasuredData, err := codec.Encode(raw)
 	if err != nil {
@@ -132,7 +142,8 @@ func generateErasuredData(t *testing.T, numLeaves int, codec rsmt2d.Codec) [][]b
 	return append(raw, erasuredData...)
 }
 
-// this code is copy pasted from the plugin, and should likely be exported in the plugin instead
+// generateRandNamespacedRawData returns random data of length total. Each chunk
+// of random data is of size nidSize + leafSize.
 func generateRandNamespacedRawData(total int, nidSize int, leafSize int) [][]byte {
 	data := make([][]byte, total)
 	for i := 0; i < total; i++ {
