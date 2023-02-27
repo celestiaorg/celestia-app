@@ -32,7 +32,7 @@ type ErasuredNamespacedMerkleTree struct {
 	// pushed to the tree. It is expected to be in the range: 0 <= shareIndex <
 	// 2*squareSize. shareIndex is used to help determine which quadrant each
 	// leaf belongs to, along with keeping track of how many leaves have been
-	// addeded to the tree so far.
+	// added to the tree so far.
 	shareIndex uint64
 }
 
@@ -50,7 +50,7 @@ func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, setters 
 }
 
 type constructor struct {
-	squareSize uint64
+	squareSize uint64 // TODO [Me] can be defined as a type
 	opts       []nmt.Option
 }
 
