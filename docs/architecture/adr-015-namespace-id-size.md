@@ -87,6 +87,8 @@ Namespace ID size (bytes) | Unencoded NMT proof size (bytes) | Protobuf encoded 
 20                        | 504                              | 522                                     | 466
 32                        | 672                              | 690                                     | 630
 
+Blob inclusion proofs haven't yet been implemented so this proposal can't precisely determine the impact on blob inclusion proofs. A naive implementation of blob inclusion proofs may return one NMT proof per row that a blob spans. Assuming shares are 512 bytes, square size is 128, and a blob is less than 128 shares, a blob would occupy a maximum of 2 rows. Therefore, the namespace ID size's impact on blob inclusion proofs would be approximately 2 * the impact on NMT proofs.
+
 Another tradeoff to consider is the size of the namespace ID in the share. Since a share is a fixed 512 bytes, a share's capacity for blob data decreases as the namespace ID increases.
 
 | Namespace ID size (bytes) | Namespace ID size (bytes) / 512 (bytes) |
