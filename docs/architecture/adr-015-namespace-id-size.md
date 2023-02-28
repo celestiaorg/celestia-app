@@ -80,12 +80,12 @@ Namespace ID size (bytes) | NMT data leaf size (bytes) | NMT inner node size (by
 
 Increasing the size of NMT nodes will increase the size of the NMT proof. Assuming shares are 512 bytes, square size is 128, and the NMT proof is for a single leaf:
 
-Namespace ID size (bytes) | NMT proof size
---------------------------|---------------
-8                         | ~336 bytes
-16                        | ~448 bytes
-20                        | ~504 bytes
-32                        | ~672 bytes
+Namespace ID size (bytes) | Unencoded NMT proof size (bytes) | Protobuf encoded NMT proof size (bytes) | Protobuf encoded NMT proof with [gzip](https://pkg.go.dev/compress/gzip) (bytes)
+--------------------------|----------------------------------|-----------------------------------------|---------------------------------------------------------------------------------
+8                         | 336                              | 354                                     | 382
+16                        | 448                              | 466                                     | 408
+20                        | 504                              | 522                                     | 466
+32                        | 672                              | 690                                     | 630
 
 Another tradeoff to consider is the size of the namespace ID in the share. Since a share is a fixed 512 bytes, a share's capacity for blob data decreases as the namespace ID increases.
 
