@@ -1,23 +1,16 @@
 package wrapper
 
 import (
-	"bufio"
 	"bytes"
-	"compress/gzip"
 	"crypto/rand"
 	"crypto/sha256"
-	"fmt"
-	"io/ioutil"
-	"os"
 	"sort"
-	"strings"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
@@ -167,68 +160,3 @@ func generateRandNamespacedRawData(total int, nidSize int, leafSize int) [][]byt
 func sortByteArrays(src [][]byte) {
 	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
 }
-
-func TestErasuredNamespacedMerkleTree_Prove(t *testing.T) {
-	nidSizes := []int{8, 16, 20, 32}
-	for _, nidSize := range nidSizes {
-		data := generateRandNamespacedRawData(appconsts.DefaultMaxSquareSize, nidSize, appconsts.ShareSize-nidSize)
-		tree := NewErasuredNamespacedMerkleTree(appconsts.DefaultMaxSquareSize, 0, nmt.NamespaceIDSize(nidSize))
-		for _, d := range data {
-			tree.Push(d)
-		}
-		proof, err := tree.Prove(0)
-		assert.NoError(t, err)
-		fmt.Printf("nidSize=%v\n", nidSize)
-		fmt.Printf("unencoded proof is %v bytes\n", proofSize(proof))
-
-		publicProof := PublicProof{
-			Start:                    int64(proof.Start()),
-			End:                      int64(proof.End()),
-			Nodes:                    proof.Nodes(),
-			LeafHash:                 proof.LeafHash(),
-			IsMaxNamespace_IDIgnored: proof.IsMaxNamespaceIDIgnored(),
-		}
-		b, err := proto.Marshal(&publicProof)
-		assert.NoError(t, err)
-
-		filename := fmt.Sprintf("/tmp/proof_%v.bin", nidSize)
-		err = os.WriteFile(filename, b, 0644)
-
-		f, err := os.Open(filename)
-		assert.NoError(t, err)
-		read := bufio.NewReader(f)
-		d, err := ioutil.ReadAll(read)
-		assert.NoError(t, err)
-		compressedFilename := strings.Replace(filename, ".bin", ".gz", -1)
-		f, err = os.Create(compressedFilename)
-		assert.NoError(t, err)
-		w := gzip.NewWriter(f)
-		w.Write(d)
-		w.Close()
-
-		uncompressedFile, err := os.Stat(filename)
-		assert.NoError(t, err)
-		compressedFile, err := os.Stat(compressedFilename)
-		assert.NoError(t, err)
-		fmt.Printf("%v is %v bytes\n", filename, uncompressedFile.Size())
-		fmt.Printf("%v is %v bytes\n", compressedFilename, compressedFile.Size())
-
-		fmt.Println()
-	}
-}
-
-func proofSize(proof nmt.Proof) int {
-	size := 0
-	for _, node := range proof.Nodes() {
-		size += len(node)
-	}
-	return size
-}
-
-// type PublicProof struct {
-// 	Start                   int
-// 	End                     int
-// 	Nodes                   [][]byte
-// 	LeafHash                []byte
-// 	IsMaxNamespaceIDIgnored bool
-// }
