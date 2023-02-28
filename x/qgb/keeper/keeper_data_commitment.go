@@ -41,7 +41,7 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 		return types.DataCommitment{}, sdkerrors.Wrap(
 			types.ErrDataCommitmentNotGenerated,
 			fmt.Sprintf(
-				"no data commitment has been generated for the provided height. Last height %d < %d",
+				"Last height %d < %d",
 				lastDC.EndBlock,
 				height,
 			),
@@ -55,7 +55,7 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 			return types.DataCommitment{}, err
 		}
 		if !found {
-			return types.DataCommitment{}, sdkerrors.Wrap(types.ErrAttestationNotFound, fmt.Sprintf("couldn't find attestation with nonce %d", i))
+			return types.DataCommitment{}, sdkerrors.Wrap(types.ErrAttestationNotFound, fmt.Sprintf("nonce %d", i))
 		}
 		dcc, ok := att.(*types.DataCommitment)
 		if !ok {
@@ -77,7 +77,7 @@ func (k Keeper) GetLastDataCommitment(ctx sdk.Context) (types.DataCommitment, er
 			return types.DataCommitment{}, err
 		}
 		if !found {
-			return types.DataCommitment{}, sdkerrors.Wrapf(types.ErrAttestationNotFound, fmt.Sprintf("couldn't find attestation with nonce %d", latestNonce-i))
+			return types.DataCommitment{}, sdkerrors.Wrapf(types.ErrAttestationNotFound, fmt.Sprintf("nonce %d", latestNonce-i))
 		}
 		dcc, ok := att.(*types.DataCommitment)
 		if !ok {
@@ -85,5 +85,5 @@ func (k Keeper) GetLastDataCommitment(ctx sdk.Context) (types.DataCommitment, er
 		}
 		return *dcc, nil
 	}
-	return types.DataCommitment{}, sdkerrors.Wrap(types.ErrDataCommitmentNotFound, "last data commitment not found")
+	return types.DataCommitment{}, types.ErrDataCommitmentNotFound
 }
