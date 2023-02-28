@@ -1,0 +1,10 @@
+syntax = "proto3";
+option go_package = "github.com/celestiaorg/celestia-app/pkg/wrapper";
+
+message PublicProof {
+    int64 start = 1;
+    int64 end = 2;
+	repeated bytes nodes = 3;
+	bytes leaf_hash = 4;
+	bool is_max_namespace_ID_ignored = 5;
+}

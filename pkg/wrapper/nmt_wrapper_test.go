@@ -6,7 +6,6 @@ import (
 	"compress/gzip"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -18,6 +17,7 @@ import (
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
@@ -182,16 +182,16 @@ func TestErasuredNamespacedMerkleTree_Prove(t *testing.T) {
 		fmt.Printf("unencoded proof is %v bytes\n", proofSize(proof))
 
 		publicProof := PublicProof{
-			Start:                   proof.Start(),
-			End:                     proof.End(),
-			Nodes:                   proof.Nodes(),
-			LeafHash:                proof.LeafHash(),
-			IsMaxNamespaceIDIgnored: proof.IsMaxNamespaceIDIgnored(),
+			Start:                    int64(proof.Start()),
+			End:                      int64(proof.End()),
+			Nodes:                    proof.Nodes(),
+			LeafHash:                 proof.LeafHash(),
+			IsMaxNamespace_IDIgnored: proof.IsMaxNamespaceIDIgnored(),
 		}
-		b, err := json.Marshal(publicProof)
+		b, err := proto.Marshal(&publicProof)
 		assert.NoError(t, err)
 
-		filename := fmt.Sprintf("/tmp/proof_%v.json", nidSize)
+		filename := fmt.Sprintf("/tmp/proof_%v.bin", nidSize)
 		err = os.WriteFile(filename, b, 0644)
 
 		f, err := os.Open(filename)
@@ -199,7 +199,7 @@ func TestErasuredNamespacedMerkleTree_Prove(t *testing.T) {
 		read := bufio.NewReader(f)
 		d, err := ioutil.ReadAll(read)
 		assert.NoError(t, err)
-		compressedFilename := strings.Replace(filename, ".json", ".gz", -1)
+		compressedFilename := strings.Replace(filename, ".bin", ".gz", -1)
 		f, err = os.Create(compressedFilename)
 		assert.NoError(t, err)
 		w := gzip.NewWriter(f)
@@ -225,10 +225,10 @@ func proofSize(proof nmt.Proof) int {
 	return size
 }
 
-type PublicProof struct {
-	Start                   int
-	End                     int
-	Nodes                   [][]byte
-	LeafHash                []byte
-	IsMaxNamespaceIDIgnored bool
-}
+// type PublicProof struct {
+// 	Start                   int
+// 	End                     int
+// 	Nodes                   [][]byte
+// 	LeafHash                []byte
+// 	IsMaxNamespaceIDIgnored bool
+// }
