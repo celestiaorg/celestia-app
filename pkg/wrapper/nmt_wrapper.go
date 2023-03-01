@@ -101,7 +101,7 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) {
 // Root fulfills the rsmt.Tree interface by generating and returning the
 // underlying NamespaceMerkleTree Root.
 func (w *ErasuredNamespacedMerkleTree) Root() []byte {
-	return w.tree.Root()
+	return w.tree.Root() // TODO [Me] we shall recompute the root in the underlying tree and not accessing an stale root
 }
 
 func (w *ErasuredNamespacedMerkleTree) Prove(ind int) (nmt.Proof, error) {
