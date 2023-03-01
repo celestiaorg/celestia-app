@@ -9,6 +9,8 @@ Proposed
 - 2023/2/17: initial draft
 - 2023/2/22: discussion notes
 - 2023/2/23: reorder content
+- 2023/2/28: NMT proof size
+- 2023/3/1: blob inclusion proof size
 
 ## Context
 
@@ -69,7 +71,11 @@ We must make some assumptions for the number of rollups that will exist. Ethereu
 
 ## Tradeoffs
 
-There are some tradeoffs to consider when choosing a namespace ID size. The namespace ID is prefixed to each NMT data leaf. Two namespace IDs are prefixed to each NMT non-leaf hash. Therefore, the nodes of an NMT will be larger based on the namespace ID size. Assuming shares are 512 bytes:
+There are some tradeoffs to consider when choosing a namespace ID size.
+
+### NMT Node Size
+
+The namespace ID is prefixed to each NMT data leaf. Two namespace IDs are prefixed to each NMT non-leaf hash. Therefore, the nodes of an NMT will be larger based on the namespace ID size. Assuming shares are 512 bytes:
 
 Namespace ID size (bytes) | NMT data leaf size (bytes) | NMT inner node size (bytes)
 --------------------------|----------------------------|----------------------------
@@ -77,6 +83,8 @@ Namespace ID size (bytes) | NMT data leaf size (bytes) | NMT inner node size (by
 16                        | 16 + 512 = 528             | 2*16 + 32 = 64
 20                        | 20 + 512 = 532             | 2*20 + 32 = 72
 32                        | 32 + 512 = 544             | 2*32 + 32 = 96
+
+### NMT Proof Size
 
 Increasing the size of NMT nodes will increase the size of the NMT proof. Assuming shares are 512 bytes, square size is 128, and the NMT proof is for a single leaf:
 
@@ -87,7 +95,11 @@ Namespace ID size (bytes) | Unencoded NMT proof size (bytes) | Protobuf encoded 
 20                        | 504                              | 522                                     | 466
 32                        | 672                              | 690                                     | 630
 
-Blob inclusion proofs haven't yet been implemented so this proposal can't precisely determine the impact on blob inclusion proofs. A naive implementation of blob inclusion proofs may return one NMT proof per row that a blob spans. Assuming shares are 512 bytes, square size is 128, and a blob is less than 128 shares, a blob would occupy a maximum of 2 rows. Therefore, the namespace ID size's impact on blob inclusion proofs would be approximately 2 * the impact on NMT proofs.
+### Blob Inclusion Proof Size
+
+Blob inclusion proofs haven't yet been implemented so this proposal can't precisely determine the impact on blob inclusion proofs. A naive implementation of blob inclusion proofs may return NMT proofs for all shares that a blob occupies, in other words one NMT proof per row that a blob spans. Assuming shares are 512 bytes, square size is 128, and a blob is less than 128 shares, a blob would occupy a maximum of 2 rows. Therefore, the namespace ID size's impact on blob inclusion proofs would be approximately 2 * the impact on NMT proofs. A [blob size independent inclusion proof](https://github.com/celestiaorg/celestia-app/blob/6d27b78aa64a749a808e84ea682352b8b551fbd7/docs/architecture/adr-011-optimistic-blob-size-independent-inclusion-proofs-and-pfb-fraud-proofs.md?plain=1#L19) is likely smaller than this naive implementation because it depends on the number of shares that a PFB transaction spans (likely significantly fewer than 2 rows).
+
+### Share Size
 
 Another tradeoff to consider is the size of the namespace ID in the share. Since a share is a fixed 512 bytes, a share's capacity for blob data decreases as the namespace ID increases.
 
@@ -102,7 +114,7 @@ Another tradeoff to consider is the size of the namespace ID in the share. Since
 
 1. What are the performance implications on celestia-node for a larger namespace ID size?
 1. Is it possible to mitigate some tradeoffs when adopting a large namespace ID size?
-    1. It may be possible to decrease the bandwidth requirements for NMT proofs by using lossless compression (proposed by @evan-forbes)
+    1. It may be possible to decrease the bandwidth requirements for NMT proofs by using lossless compression (proposed by @evan-forbes) and explored above.
     1. It may be possible to avoid writing the namespace ID to continuation blob shares (proposed by @nashqueue)
         1. Note this introduces complexity for erasure reconstruction. A share in row B may have its namespace in row A so to reconstruct a data square, we must refactor the process to two steps:
             1. Reconstruct all shares from the erasure coding
