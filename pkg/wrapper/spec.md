@@ -35,8 +35,8 @@ Before presenting the ENMT data structure, we shall understand how the shares ar
 Shares that belong to the original data square i.e., `Q0` already carry their namespace IDs, i.e., the first `NAMESPACE_ID_BYTES` of each share represents its namespace ID.
 However, the shares in `Q1`, `Q2`, and `Q3`, are the erasure coded version of `Q0` and by default do not carry any namespace IDs.
 Such shares are called [Parity shares](), and MUST be assigned a predefined namespace ID namely, [`ParitySharesNamespaceID`]().
-At the time of the write up of this specificaion, the namespace ID size in Celestia is `8` bytes. 
-In this setting, the `ParitySharesNamespaceID` is a 8 byte slice of `0xFF` values.
+At the time of the writeup of this specification, the namespace ID size in Celestia is `8` bytes. 
+In this setting, the `ParitySharesNamespaceID` is an 8 byte slice of `0xFF` values.
 
 The NMT wrapper performs namespace ID assignment to the shares according to the predefined rules.
 
@@ -72,29 +72,6 @@ Some insightful observations can be made from the above description:
 - For every row and column that has overlap with `Q0`, it is the case that the shares in the first half of the tree leaves  belong to `Q0`, whereas the second half of the leaves are the erasure coded version of the first half.
  This means, the second half of the tree leaves all have identical namespace IDs, i.e., `ParitySharesNamespaceID`.
 - Leaves corresponding to shares of `Q0` are actually doubly namespaced: the first and the second `NAMESPACE_ID_BYTES` bytes of the leaf both contain the namespace ID of the share.
- 
 
-
-
-
-### Erasured Namespaced Merkle Tree
-
-Data items are added to the ENMT in the order of their index in the row.
-
-
-It implements rsmt2d.Tree interface.
-```markdown
-type Tree interface {
-	Push(data []byte)
-	Root() []byte
-}
-```
-
-
-
-
-
-Give a visual example, with clear indication that share data is double namespaced.
 
 @TODO How about ignore max namespace ID? 
-# Implementation
