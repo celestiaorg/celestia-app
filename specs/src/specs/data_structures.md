@@ -51,6 +51,7 @@
       - [SignedTransactionDataBurn](#signedtransactiondataburn)
       - [SignedTransactionRedelegateCommission](#signedtransactionredelegatecommission)
       - [SignedTransactionRedelegateReward](#signedtransactionredelegatereward)
+  - [PayForBlobData](#payforblobdata)
   - [IntermediateStateRootData](#intermediatestaterootdata)
     - [WrappedIntermediateStateRoot](#wrappedintermediatestateroot)
     - [IntermediateStateRoot](#intermediatestateroot)
@@ -148,6 +149,7 @@ Data that is [erasure-coded](#erasure-coding) for [data availability checks](htt
 |-----------------------------|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
 | `transactionData`           | [TransactionData](#transactiondata)                     | Transaction data. Transactions modify the validator set and balances, and pay fees for messages to be included. |
 | `intermediateStateRootData` | [IntermediateStateRootData](#intermediatestaterootdata) | Intermediate state roots used for fraud proofs.                                                                 |
+| `payForBlobData` | [PayForBlobData](#payforblobdata) | PayForBlob data. Transactions that pay for blobs to be included. |
 | `messageData`               | [MessageData](#messagedata)                             | Message data. Messages are app data.                                                                            |
 
 ### Commit
@@ -791,6 +793,10 @@ Assigns validator's pending commission to a delegation.
 | `nonce` | [Nonce](#type-aliases)            |                                             |
 
 Adds delegation's pending rewards to voting power.
+
+### PayForBlobData
+
+// TODO: <https://github.com/celestiaorg/celestia-app/issues/1435>
 
 ### IntermediateStateRootData
 
