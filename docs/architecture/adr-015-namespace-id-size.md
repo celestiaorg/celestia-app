@@ -123,11 +123,13 @@ Another tradeoff to consider is the size of the namespace ID in the share. Since
 1. Is it possible to preserve backwards compatability if we increase namespace ID size in the future?
     1. One challenge with backwards compatability is that the NMT proof verification logic for old clients will not be able to verify the new larger namespace ID. Since the namespace ID is prefixed to each NMT data leaf and two namespace IDs are prefixed to each NMT inner node, an NMT constructed with two different size namespace IDs will result in different size nodes. An NMT proof contains the field [`nodes`](https://github.com/celestiaorg/nmt/blob/1bc0bb0099e01b30e37ddb56642734ae875917cd/proof.go#L20-L25) which would have different size nodes for different namespace ID sizes. An old client would not be able to split the namespace IDs from the hash digest unless the old client was written in a brittle way.
     1. Another challenge with backwards compatability is how to determine the min/max namespace ID for a parent node with one child of namespace ID size 16 and one child of namespace ID size 32. The naive approach of padding the 16 byte namespace ID to 32 bytes with leading or trailing zeroes does not work because the hash of the unpadded namespace ID != the hash of the padded namespace ID.
-1. If we start with a namespace ID size of 32 bytes, is it possible to mitigate the tradeoffs in subsequent namespace versions?  Yes for NMT proof size via an in-protocol compression mechanism. From NMT's perspective, all data pushed to the NMT has namespace ID size 32 bytes. But we may introduce a new share version that enables clients to specify a namespace ID with fewer than 32 bytes. In other words:
+1. If we start with a namespace ID size of 32 bytes, is it possible to mitigate the tradeoffs in subsequent namespace versions?
 
-- `namespaceVersion=0`: 32 bytes of significant namespace ID.
-- `namespaceVersion=1`: is interpreted as 32-8 bytes of leading 0s and 8 bytes of significant namespace ID.
-- Note this optimization is not possible for shares which would require all 32 bytes of the namespace ID so that share commitments are preserved. The optimization would require changes to `nmt_wrapper.go` and NMT's `Hasher` to interpolate the 32-8 bytes of leading zeros when presented with `namespaceVersion=1`.
+- No for share size because all 32 bytes of the namespace ID would need to be present in the share in order to not break share commitments.
+- Potentially for NMT proof size via an in-protocol compression mechanism. From the NMT's perspective, all data pushed to the NMT would have namespace ID size 32 bytes. But we may introduce a new share version that enables clients to specify a namespace ID with fewer than 32 bytes (e.g. 8 bytes). One could view this optimization as a run-length encoding scheme where `namespaceVersion=1` is a run of 24 bytes of 0s followed by 8 bytes of significant namespace ID. In other words:
+  - `namespaceVersion=0`: 32 bytes of significant namespace ID.
+  - `namespaceVersion=1`: is interpreted as 24 bytes of leading 0s and 8 bytes of significant namespace ID.
+  - The optimization would require changes to celestia-app's `nmt_wrapper.go` and nmt's `Hasher` to interpolate the 24 bytes of leading zeros when presented with `namespaceVersion=1`. This would enable clients to compress the 24 bytes of leading zeros in NMT proofs.
 
 ## Detailed Design
 
