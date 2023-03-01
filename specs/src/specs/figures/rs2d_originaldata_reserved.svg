@@ -26,5 +26,5 @@
 
     <text text-anchor="middle" font-size="12" fill="#FFFFFF" x="16" y="20">TXs</text>
     <text text-anchor="middle" font-size="12" fill="#FFFFFF" x="48" y="20">ISRs</text>
-    <text text-anchor="middle" font-size="12" fill="#FFFFFF" x="80" y="20">evi.</text>
+    <text text-anchor="middle" font-size="12" fill="#FFFFFF" x="80" y="20">PFBs</text>
 </svg>
