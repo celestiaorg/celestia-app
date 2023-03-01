@@ -121,9 +121,9 @@ func TestErasuredNamespacedMerkleTree(t *testing.T) {
 		tree.Push(d)
 	}
 
-	assert.Equal(t, tree.Tree(), tree.tree)
-	assert.Equal(t, tree.Tree().Root(), tree.tree.Root())
-	assert.Equal(t, appconsts.NamespaceSize, int(tree.Tree().NamespaceSize()))
+	assert.Equal(t, tree.tree, tree.tree)
+	assert.Equal(t, tree.tree.Root(), tree.tree.Root())
+	assert.Equal(t, appconsts.NamespaceSize, int(tree.tree.NamespaceSize()))
 }
 
 // generateErasuredData generates random data and then erasure codes it. It

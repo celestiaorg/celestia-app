@@ -108,9 +108,8 @@ func (w *ErasuredNamespacedMerkleTree) Prove(ind int) (nmt.Proof, error) {
 	return w.tree.Prove(ind)
 }
 
-// Tree returns the underlying NamespacedMerkleTree
-func (w *ErasuredNamespacedMerkleTree) Tree() *nmt.NamespacedMerkleTree {
-	return w.tree
+func (w *ErasuredNamespacedMerkleTree) ProveRange(start, end int) (nmt.Proof, error) {
+	return w.tree.ProveRange(start, end)
 }
 
 // incrementShareIndex increments the share index by one.
