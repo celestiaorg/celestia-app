@@ -11,7 +11,7 @@ Celestia uses [a data availability scheme](https://arxiv.org/abs/1809.09044) tha
 
 ## Message Layout Rationale
 
-Block data consists of transactions (which modify the Celestia chain's state), intermediate state roots (required for fraud proofs of the aforementioned transactions), messages (binary blobs which do not modify the Celestia state, but which are intended for a Celestia application identified with a provided namespace ID), and other relevant pieces of data (e.g. evidence for slashing). We want to arrange this data into a `k * k` matrix of fixed-sized shares, which will later be committed to in [Namespace Merkle Trees (NMTs)](../specs/data_structures.md#namespace-merkle-tree).
+Block data consists of transactions (which modify the Celestia chain's state), intermediate state roots (required for fraud proofs of the aforementioned transactions), messages (binary blobs which do not modify the Celestia state, but which are intended for a Celestia application identified with a provided namespace ID). We want to arrange this data into a `k * k` matrix of fixed-sized shares, which will later be committed to in [Namespace Merkle Trees (NMTs)](../specs/data_structures.md#namespace-merkle-tree).
 
 The simplest way we can imagine arranging block data is to simply serialize it all in no particular order, split it into fixed-sized shares, then arrange those shares into the `k * k` matrix in row-major order. However, this naive scheme can be improved in a number of ways, described below.
 

@@ -54,10 +54,6 @@
   - [IntermediateStateRootData](#intermediatestaterootdata)
     - [WrappedIntermediateStateRoot](#wrappedintermediatestateroot)
     - [IntermediateStateRoot](#intermediatestateroot)
-  - [EvidenceData](#evidencedata)
-    - [Evidence](#evidence)
-    - [PublicKey](#publickey)
-    - [Vote](#vote)
   - [MessageData](#messagedata)
     - [Message](#message)
 - [State](#state)
@@ -152,7 +148,6 @@ Data that is [erasure-coded](#erasure-coding) for [data availability checks](htt
 |-----------------------------|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
 | `transactionData`           | [TransactionData](#transactiondata)                     | Transaction data. Transactions modify the validator set and balances, and pay fees for messages to be included. |
 | `intermediateStateRootData` | [IntermediateStateRootData](#intermediatestaterootdata) | Intermediate state roots used for fraud proofs.                                                                 |
-| `evidenceData`              | [EvidenceData](#evidencedata)                           | Evidence used for slashing conditions (e.g. equivocation).                                                      |
 | `messageData`               | [MessageData](#messagedata)                             | Message data. Messages are app data.                                                                            |
 
 ### Commit
@@ -504,8 +499,8 @@ For shares **with a reserved namespace ID through [`NAMESPACE_ID_MAX_RESERVED`](
 
 - If this is the first share of a sequence, the next [`SEQUENCE_BYTES`](./consensus.md#constants) contain a big endian `uint32` that represents the length of the sequence that follows in bytes.
 - The next [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are the starting byte of the length of the [canonically serialized](#serialization) first request that starts in the share, or `0` if there is none, as an unsigned [varint](https://developers.google.com/protocol-buffers/docs/encoding).
-- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](.consensus.md#constants) bytes (only if this is the first share of a sequence) `-` [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are transactions, intermediate state roots, or evidence data depending on the namespace of ths share. Each transaction, intermediate state root, or evidence is prefixed with a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the length of that unit.
-- If there is insufficient transaction, intermediate state root, or evidence data to fill the share, the remaining bytes are filled with `0`.
+- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](.consensus.md#constants) bytes (only if this is the first share of a sequence) `-` [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are transactions, intermediate state roots, or PayForBlob transaction data. Each transaction, intermediate state root, or PayForBlob transaction is prefixed with a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the length of that unit.
+- If there is insufficient transaction, intermediate state root, or PayForBlob transaction data to fill the share, the remaining bytes are filled with `0`.
 
 First share in a sequence:
 
@@ -815,47 +810,6 @@ Adds delegation's pending rewards to voting power.
 | name   | type                      | description                                                                              |
 |--------|---------------------------|------------------------------------------------------------------------------------------|
 | `root` | [HashDigest](#hashdigest) | Root of intermediate state, which is composed of the global state and the validator set. |
-
-### EvidenceData
-
-Wrapper for evidence data.
-
-| name        | type                      | description                                    |
-|-------------|---------------------------|------------------------------------------------|
-| `evidences` | [Evidence](#evidence)`[]` | List of evidence used for slashing conditions. |
-
-#### Evidence
-
-| name     | type                    | description |
-|----------|-------------------------|-------------|
-| `pubKey` | [PublicKey](#publickey) |             |
-| `voteA`  | [Vote](#vote)           |             |
-| `voteB`  | [Vote](#vote)           |             |
-
-#### PublicKey
-
-| name | type       | description              |
-|------|------------|--------------------------|
-| `x`  | `byte[32]` | `x` value of public key. |
-| `y`  | `byte[32]` | `y` value of public key. |
-
-#### Vote
-
-```C++
-enum VoteType : uint8_t {
-    Prevote = 1,
-    Precommit = 2,
-};
-```
-
-| name         | type                      | description |
-|--------------|---------------------------|-------------|
-| `type`       | `VoteType`                |             |
-| `height`     | [Height](#type-aliases)   |             |
-| `round`      | [Round](#type-aliases)    |             |
-| `headerHash` | [HashDigest](#hashdigest) |             |
-| `timestamp`  | [Timestamp](#timestamp)   |             |
-| `signature`  | [Signature](#signature)   |             |
 
 ### MessageData
 
