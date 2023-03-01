@@ -26,7 +26,7 @@ Figure 1.
 The rows and columns of the extended data square, each, is modeled by a [Namespace Merkle tree (ENMT)]().
 NMTs require data items they represent to be namespaced.
 To this end, the shares within each row or column of the extended data square needs to be namespaced before being added to the NMT.
-This is where the [Erasured Namespaced MerkleTree]() comes in.
+This is where the [Namespaced MerkleTree Wrapper]() comes in.
 It wraps around the [Namespaced MerkleTree]() data structure and takes care of appending proper namespaces to the shares prior to being added to their respective row or column NMT.
 In this specification, we elaborate on the design and implementation of the Erasured Namespaced MerkleTree wrapper.
 
@@ -38,19 +38,13 @@ Such shares are called [Parity shares](), and MUST be assigned a predefined name
 At the time of the writeup of this specification, the namespace ID size in Celestia is `8` bytes. 
 In this setting, the `ParitySharesNamespaceID` is an 8 byte slice of `0xFF` values.
 
-The NMT wrapper performs namespace ID assignment to the shares according to the predefined rules.
-
-Each row/column of the data square is represented by an Erasured Namespaced Merkle Tree.
-By construction,  some of the rows may overlap with the erasure coded data i.e., with `Q1`, `Q2`, and `Q3`.
-The extended data square has 4 quadrants, namely, `Q0`, `Q1`, `Q2`, and `Q3`.
-As mentioned in the introduction, the original data is stored in `Q0`.
-
-
-
-
-## Erasured Namespaced Merkle Tree
-Erasured Namespaced Merkle Tree is used to represent a row or column of Celestia extended data square.
+## Namespaced Merkle Tree Wrapper
+Namespaced Merkle Tree Wrapper is used to represent a row or column of Celestia extended data square.
 At its core, it is an [NMT]() with the same exact functionalities???, and configuration options. 
+It exposes `Root` `Push`, `Prove`, and  `Tree`  methods. 
+`Prove` provides [Merkle inclusion proof](#link-to-the-nmt-spec-for-the-inclusion-proof) for the given share index.
+The `Tree` method returns the underlying NMT hence exposes the same functionalities as the underlying NMT.
+It also inherits the default configuration options of the underlying NMT.
 It further extends the NMT data insertion behaviour (i.e., the [`Push` method]()) to prepend shares with proper namespace, according to the quadrants they belong to, before insertion.
 
 To be able to properly determine and assign namespace IDs  to the inserted shares, ENMT is configured with the data square size, `k` in the above example, and the index of the row or column it represents `axis_index`.
