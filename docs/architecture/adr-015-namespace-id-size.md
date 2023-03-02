@@ -185,16 +185,16 @@ The namespace ID size is 32 bytes so that a future namespace version can be intr
 
 [^1]: This assumes a user uses sufficient entropy to generate the namespace ID and isn't front-run by an adversary prior to actually using the namespace.
 [^2]: <https://eager.io/blog/how-long-does-an-id-need-to-be/>
-[^3]: https://kevingal.com/apps/collision.html
-[^4]: https://www.johndcook.com/blog/2017/01/10/probability-of-secure-hash-collisions/
-[^5]: https://ycharts.com/indicators/ethereum_cumulative_unique_addresses
-[^6]: https://docs.google.com/spreadsheets/d/1vrRM4gAsmC142KrdUI1aCBS5IVFdJeU0q6gwwnM3Ekc/edit?usp=sharing
-[^7]: https://www.wolframalpha.com/input?i=4.05871E%2B15+%2F+2%5E160
-[^8]: https://www.wolframalpha.com/input?i=4.05871E%2B15+%2F+2%5E64
-[^9]: https://en.wikipedia.org/wiki/IPv6#Addressing
-[^10]: https://towardsdatascience.com/are-uuids-really-unique-57eb80fc2a87
-[^11]: https://github.com/ethereumbook/ethereumbook/blob/05f0dfe6c41635ac85527a60c06ac5389d8006e7/04keys-addresses.asciidoc
-[^12]: https://www.coinhouse.com/insights/news/what-if-my-wallet-generated-an-existing-bitcoin-address
-[^13]: https://github.com/FuelLabs/fuel-docs/issues/75
-[^14]: https://twitter.com/VitalikButerin/status/1588669782471368704/photo/1
-[^15]: https://ethereum-magicians.org/t/increasing-address-size-from-20-to-32-bytes/5485
+[^3]: <https://kevingal.com/apps/collision.html>
+[^4]: <https://www.johndcook.com/blog/2017/01/10/probability-of-secure-hash-collisions/>
+[^5]: <https://ycharts.com/indicators/ethereum_cumulative_unique_addresses>
+[^6]: <https://docs.google.com/spreadsheets/d/1vrRM4gAsmC142KrdUI1aCBS5IVFdJeU0q6gwwnM3Ekc/edit?usp=sharing>
+[^7]: <https://www.wolframalpha.com/input?i=4.05871E%2B15+%2F+2%5E160>
+[^8]: <https://www.wolframalpha.com/input?i=4.05871E%2B15+%2F+2%5E64>
+[^9]: <https://en.wikipedia.org/wiki/IPv6#Addressing>
+[^10]: <https://towardsdatascience.com/are-uuids-really-unique-57eb80fc2a87>
+[^11]: <https://github.com/ethereumbook/ethereumbook/blob/05f0dfe6c41635ac85527a60c06ac5389d8006e7/04keys-addresses.asciidoc>
+[^12]: <https://www.coinhouse.com/insights/news/what-if-my-wallet-generated-an-existing-bitcoin-address>
+[^13]: <https://github.com/FuelLabs/fuel-docs/issues/75>
+[^14]: <https://twitter.com/VitalikButerin/status/1588669782471368704/photo/1>
+[^15]: <https://ethereum-magicians.org/t/increasing-address-size-from-20-to-32-bytes/5485>
