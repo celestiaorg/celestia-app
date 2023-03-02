@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path"
 	"testing"
 	"time"
 
@@ -215,32 +214,9 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (accounts []string, c
 		t.Log("tearing down testnode")
 		require.NoError(t, stopNode())
 		require.NoError(t, cleanupGRPC())
-		require.NoError(t, removeDir(path.Join([]string{tmCfg.RootDir, "config"}...)))
 	})
 
 	return accounts, cctx
-}
-
-// removeDir removes the directory `rootDir`.
-// The main reason for using it is to know if some file is used by some leaking process during
-// cleanup and be able to identify where the leak is occurring.
-// TODO: remove after fixing the CI flakiness
-func removeDir(rootDir string) error {
-	dir, err := os.ReadDir(rootDir)
-	if err != nil {
-		return err
-	}
-	for _, d := range dir {
-		err := os.RemoveAll(path.Join([]string{rootDir, d.Name()}...))
-		if err != nil {
-			return err
-		}
-	}
-	err = os.RemoveAll(rootDir)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func getFreePort() int {
