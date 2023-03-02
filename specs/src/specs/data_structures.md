@@ -796,8 +796,6 @@ Adds delegation's pending rewards to voting power.
 
 ### PayForBlobData
 
-// TODO: <https://github.com/celestiaorg/celestia-app/issues/1435>
-
 ### IntermediateStateRootData
 
 | name                            | type                                                              | description                               |
