@@ -1,15 +1,6 @@
 # Networking
 
-- [Wire Format](#wire-format)
-  - [AvailableData](#availabledata)
-  - [AvailableDataRow](#availabledatarow)
-  - [ConsensusProposal](#consensusproposal)
-  - [MsgWirePayForData](#msgwirepayfordata)
-- [Invalid Erasure Coding](#invalid-erasure-coding)
-  - [ShareProof](#shareproof)
-  - [BadEncodingFraudProof](#badencodingfraudproof)
-- [Invalid State Update](#invalid-state-update)
-  - [StateFraudProof](#statefraudproof)
+<!-- toc -->
 
 ## Wire Format
 

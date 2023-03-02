@@ -2,7 +2,12 @@
 
 ## Building From Source
 
-Prerequisite: [install mdBook](https://rust-lang.github.io/mdBook/guide/installation.html).
+Install [mdbook](https://rust-lang.github.io/mdBook/guide/installation.html) and [mdbook-toc](https://github.com/badboy/mdbook-toc):
+
+```sh
+cargo install mdbook
+cargo install mdbook-toc
+```
 
 To build book:
 

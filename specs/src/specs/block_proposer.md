@@ -1,7 +1,6 @@
 # Honest Block Proposer
 
-- [Deciding on a Block Size](#deciding-on-a-block-size)
-- [Laying out Transactions and Messages](#laying-out-transactions-and-messages)
+<!-- toc -->
 
 This document describes the tasks of an honest block proposer to assemble a new block. Performing these actions is not enforced by the [consensus rules](./consensus.md), so long as a valid block is produced.
 
