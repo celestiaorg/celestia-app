@@ -44,13 +44,13 @@ func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, setters 
 	if squareSize == 0 {
 		panic("cannot create a ErasuredNamespacedMerkleTree of squareSize == 0")
 	}
-	setters = append(setters, nmt.NamespaceIDSize(appconsts.NamespaceSize))
+	setters = append(setters, nmt.NamespaceIDSize(appconsts.NamespaceSize)) // TODO what if there is another setter for the namespace size passed in the `setters`?
 	tree := nmt.New(appconsts.NewBaseHashFunc(), setters...)
 	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: setters, tree: tree, axisIndex: uint64(axisIndex), shareIndex: 0}
 }
 
 type constructor struct {
-	squareSize uint64 // TODO [Me] can be defined as a type
+	squareSize uint64
 	opts       []nmt.Option
 }
 
@@ -101,7 +101,7 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) {
 // Root fulfills the rsmt.Tree interface by generating and returning the
 // underlying NamespaceMerkleTree Root.
 func (w *ErasuredNamespacedMerkleTree) Root() []byte {
-	return w.tree.Root() // TODO [Me] we shall recompute the root in the underlying tree and not accessing an stale root
+	return w.tree.Root()
 }
 
 func (w *ErasuredNamespacedMerkleTree) Prove(ind int) (nmt.Proof, error) {
