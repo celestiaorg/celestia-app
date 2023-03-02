@@ -16,7 +16,7 @@ func TestQGBRPCQueries(t *testing.T) {
 		t.Skip("skipping QGB integration test in short mode.")
 	}
 	_, cctx := testnode.DefaultNetwork(t, time.Millisecond)
-	h, err := cctx.WaitForHeightWithTimeout(401, time.Minute)
+	h, err := cctx.WaitForHeightWithTimeout(405, time.Minute)
 	require.NoError(t, err)
 	require.Greater(t, h, int64(401))
 

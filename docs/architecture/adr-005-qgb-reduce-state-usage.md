@@ -1,5 +1,9 @@
 # ADR 005: QGB Reduce State Usage
 
+## Status
+
+Deprecated in favor of [orchestrator-relayer#65](https://github.com/celestiaorg/orchestrator-relayer/pull/66)
+
 ## Context
 
 The first design for the QGB was to use the state extensively to store all the QGB-related data: Attestations, `Valset Confirms` and `DataCommitment Confirms`.
@@ -40,7 +44,7 @@ However, slashing will be very difficult, especially for liveness, i.e. an orche
 
 Remove the `MsgValsetConfirm` defined in [here](https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L24-L49)
 And also, the `MsgDataCommitmentConfirm` defined in [here](
-https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L55-L76).
+<https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L55-L76>).
 Which were the way orchestrators were able to post confirms to the QGB module.
 Then, keep only the state that is created in [EndBlocker](https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/x/qgb/abci.go#L12-L16).
 Which are `Attestations`, i.e. `Valset`s and `DataCommitmentRequest`s.
@@ -63,7 +67,7 @@ We will need to decide on two things:
 ## Detailed Design
 
 The proposed design consists of keeping the same transaction types we currently have : the `MsgValsetConfirm` defined in [here](https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L24-L49), and the `MsgDataCommitmentConfirm` defined in [here](
-https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L55-L76). However, remove  all the message server checks defined in the [msg_server.go](https://github.com/celestiaorg/celestia-app/blob/9867b653b2a253ba01cb7889e2dbfa6c9ff67909/x/qgb/keeper/msg_server.go) :
+<https://github.com/celestiaorg/celestia-app/blob/a965914b8a467f0384b17d9a8a0bb1ac62f384db/proto/qgb/msgs.proto#L55-L76>). However, remove  all the message server checks defined in the [msg_server.go](https://github.com/celestiaorg/celestia-app/blob/9867b653b2a253ba01cb7889e2dbfa6c9ff67909/x/qgb/keeper/msg_server.go) :
 
 ```go
 // ValsetConfirm handles MsgValsetConfirm.
@@ -94,10 +98,6 @@ For the orchestrators, they will also need to parse the history to keep track of
 For posting transactions, we will rely on gas fees as a mechanism to limit malicious parties to flood the network with invalid transactions. Then, eventually, slash malicious behavior. However, since posting confirms will be possible for any user of the network. It won't be possible to slash ordinary users, who are not running validators if they post invalid confirms.
 
 When it comes to slashing, we can add the `dataRoot` of the blocks to the state during `ProcessProposal`,  `FinalizeCommit`, or in some other way to be defined. Then, we will have a way to slash orchestrators after a certain period of time if they didn't post any confirms. The exact details of this will be left for another ADR.
-
-## Status
-
-Proposed
 
 ## Consequences
 

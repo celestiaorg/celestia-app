@@ -1,5 +1,9 @@
 # ADR 12: Sequence Length Encoding
 
+## Status
+
+Implemented
+
 ## Changelog
 
 - 2022/12/14: initial draft
@@ -42,7 +46,7 @@ Inefficient space usage. Unlike compact share sequences which are bounded (i.e. 
   - 8 bytes is capable of storing a uint64. A uint64 can contain a max sequence length of 18,446,744,073,709,551,615 bytes so pebibyte scale.
 - If we choose this option, we should decide on big endian vs. little endian? Proposal: big endian because it seems more user friendly and more common on the network
   - Integers in Fuel are big endian. See <https://fuellabs.github.io/fuel-specs/master/vm/index.html?highlight=endian#semantics>.
-  - Bitcoin is little endian. Ref: <https://learnmeabitcoin.com/technical/little-endian#:~:text=Why%20is%20little%2Dendian%20used,a%20way%20of%20improving%20speed>.
+  - Bitcoin is little endian. Ref: <https://learnmeabitcoin.com/technical/little-endian>.
   - Ethereum uints are little endian. Ref: <https://jeancvllr.medium.com/solidity-tutorial-all-about-bytes-9d88fdb22676>
 
 Pros
@@ -82,10 +86,6 @@ Big endian uint32 seems equivalant to protobuf fixed32 but there is no fixed16. 
 ## Decision
 
 Option D
-
-## Status
-
-Accepted
 
 ## Consequences
 
