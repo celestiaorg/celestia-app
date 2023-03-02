@@ -175,6 +175,10 @@ Increase the namespace ID size to 32 bytes.
   - The last 10 bytes are unreserved namespace bytes. In other words, a user can specify a 10 byte namespace ID
 - Add a consensus rule that the leading 22 bytes of a namespace ID are 0s.
 
+The motivation for reserving the first 22 bytes of the namespace ID as 0s is to enable future bandwidth optimizations. In particular, the namespace ID may be run length encoded to reduce the size of NMT proofs.
+
+The namespace ID size is 32 bytes so that a future namespace version can be introduced to expand the namespace ID address space without a backwards incompatible change from the perspective of NMT.
+
 ## References
 
 - <https://github.com/celestiaorg/celestia-app/issues/1308>
