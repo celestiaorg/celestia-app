@@ -39,7 +39,7 @@ In addition, the NMT wrapper is configured with the data square size `SqaureSize
 These additional configurations are used to determine the namespace ID of the shares that the NMT wrapper represents based on the quadrants to which they belong.
 
 NMT wrapper supports [Merkle inclusion proof](#link-to-the-nmt-spec-for-the-inclusion-proof) for the given share index and [Merkle range proof](#link-to-the-nmt-spec-for-the-range-proof) for a range of share indices.
-It extends the NMT data insertion behaviour (i.e., the [`Push` method]()) to prepend shares with proper namespace before inclusion in the tree.
+It extends the NMT data insertion behaviour (i.e., the [`Push` method](https://github.com/celestiaorg/nmt/blob/master/spec/nmt.md#add-leaves)) to prepend shares with proper namespace before inclusion in the tree.
 
 ### Namespace ID assignment to the shares of an extended data square
 To understand the NMT wrapper data structure, it's important to first understand how shares are namespaced in Celestia.
