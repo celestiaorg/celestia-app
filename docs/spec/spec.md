@@ -26,7 +26,7 @@ Each row and column of the extended data square is modeled by a [Namespace Merkl
 NMTs require the data items they represent to be namespaced, which means that the shares within each row or column of the extended data square must be namespaced before being added to the NMT.
 This is where the [Namespaced MerkleTree Wrapper](https://github.com/celestiaorg/celestia-app/blob/main/pkg/wrapper/nmt_wrapper.go)  comes into play.
 It is a data structure that wraps around the [Namespaced Merkle Tree](https://github.com/celestiaorg/nmt/blob/master/spec/nmt.md) that ensures the proper namespaces are prepended to the shares  before they are added to their respective row or column NMT.
-In this specification, we elaborate on the design and implementation of the Namespace Merkle Tree wrapper.
+In this specification, we elaborate on the design and structure of the Namespace Merkle Tree wrapper.
 
 
 
@@ -56,7 +56,7 @@ These shares must be assigned a reserved namespace ID, which is called `ParitySh
 In Celestia, as of the writing of this specification, the `NamespaceIDSize` (which maps to the [`NAMESPACE_ID_BYTES`](https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/consensus.md#constants) constant) is `8` bytes, and therefore, [`ParitySharesNamespaceID`](https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/consensus.md#reserved-namespace-ids)  is represented by `8` bytes of `0xFF`.
 
 
-## NMT Wrapper Data Insertion
+### NMT Wrapper Data Insertion
 The NMT wrapper insertion logic is governed by the same rules as the NMT insertion logic.
 However, it takes care of namespace ID assignment to the shares before inserting them into the tree.
 During the insertion, the wrapper first checks whether the share is within the original data square or not.
