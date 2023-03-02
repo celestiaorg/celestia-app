@@ -185,7 +185,7 @@ Abstraction over transaction fees.
 
 Address is a [type alias](#type-aliases).
 
-Addresses are the [hash](#hashing) [digest](#hashdigest) of the [public key](#publickey).
+Addresses are the [hash](#hashing) [digest](#hashdigest) of the [public key](https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys).
 
 Addresses have a length of 32 bytes.
 
@@ -243,7 +243,7 @@ Unless otherwise indicated explicitly, objects are first [serialized](#serializa
 
 Consensus-critical data is authenticated using [ECDSA](https://www.secg.org/sec1-v2.pdf), with the curve [secp256k1](https://en.bitcoin.it/wiki/Secp256k1). A highly-optimized library is available in C (<https://github.com/bitcoin-core/secp256k1>), with wrappers in Go (<https://pkg.go.dev/github.com/ethereum/go-ethereum/crypto/secp256k1>) and Rust (<https://docs.rs/crate/secp256k1>).
 
-[Public keys](#publickey) are encoded in uncompressed form, as the concatenation of the `x` and `y` values. No prefix is needed to distinguish between encoding schemes as this is the only encoding supported.
+[Public keys](https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys) are encoded in uncompressed form, as the concatenation of the `x` and `y` values. No prefix is needed to distinguish between encoding schemes as this is the only encoding supported.
 
 Deterministic signatures ([RFC-6979](https://tools.ietf.org/rfc/rfc6979.txt)) should be used when signing, but this is not enforced at the protocol level as it cannot be.
 
