@@ -38,26 +38,28 @@ At its core, it is an [NMT](https://github.com/celestiaorg/nmt/blob/master/spec/
 Namely, the [namespace ID size `NamespaceIDSize`](https://github.com/celestiaorg/nmt/blob/master/spec/nmt.md#nmt-data-structure), 
 the underlying hash function for the digest calculation of the [namespaced hashes](https://github.com/celestiaorg/nmt/blob/master/spec/nmt.md#namespaced-hash), 
 and the [`IgnoreMaxNamespace` flag](https://github.com/celestiaorg/nmt/blob/master/spec/nmt.md#ignore-max-namespace) which dictates how namespace range of non-leaf nodes are determined.
-NMT wrapper is additionally configured with the data square size `SqaureSize`, `k` in the above example, and the index of the row or column it represents `AxisIndex`.
+NMT wrapper is additionally configured with the data square size `SqaureSize` (`k` in the above example), and the index of the row or column it represents `AxisIndex \in [0, SquareSize)`.
 These additional configurations are used to determine the namespace ID of the shares that the NMT wrapper represents, based on the quadrants they belong to.
 
 NMT wrapper supports [Merkle inclusion proof](#link-to-the-nmt-spec-for-the-inclusion-proof) for the given share index and [Merkle range proof](#link-to-the-nmt-spec-for-the-range-proof) for a range of share indices.
 It extends the NMT data insertion behaviour (i.e., the [`Push` method]()) to prepend shares with proper namespace before inclusion in the tree.
 
 ### Namespace ID assignment to the shares of an extended data square
-The namespace ID assignment of each share depends on the quadrant it belongs to.
-The namespace ID of the shares belonging to the original data square, `Q0` are assigned based on the first `NamespaceIDSize` of that share.
-That is the first `NamespaceIDSize` bytes of each share are treated as its namespace ID.
-However, shares in `Q1`, `Q2`, and `Q3` are erasure-coded versions of `Q0` and do not have any namespace IDs by default.
+To understand the NMT wrapper data structure, it's important to first understand how shares are namespaced in Celestia.
+Depending on the quadrant it belongs to, the namespace ID of a share can be identified differently. 
+Shares belonging to the original data square, `Q0`, already carry their namespace IDs, which are located in the first `NamespaceIDSize` of that share.
+That is, the namespace ID of the share is extracted from the first `NamespaceIDSize` bytes of it.
+However, shares in Q1, Q2, and Q3 are erasure-coded versions of Q0 and do not have any namespace IDs by default.
 These shares are called Parity shares and must be assigned a reserved namespace ID, namely [`ParitySharesNamespaceID`]().
 `ParitySharesNamespaceID` corresponds to the maximum value representable by `NamespaceIDSize` bytes.
-For example, as of the writing of this specification, the namespace ID size i.e., [`NAMESPACE_ID_BYTES`](https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/consensus.md#constants) in Celestia is `8` bytes, hence, [`ParitySharesNamespaceID`](https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/consensus.md#reserved-namespace-ids) equals to the binary value of `2^64-1`.
+For example, as of the writing of this specification, the `NamespaceIDSize` (which maps to the [`NAMESPACE_ID_BYTES`](https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/consensus.md#constants) constant) in Celestia is `8` bytes, hence, [`ParitySharesNamespaceID`](https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/consensus.md#reserved-namespace-ids) is `8` bytes of `0xFF`.
 
 
 ## NMT Wrapper Data Insertion
-When inserting a share into the NMT wrapper, it first checks whether the share is within the original data square or not.
+The NMT wrapper insertion logic is governed by the same rules as the NMT insertion logic.
+However, it takes care of namespace ID assignment to the shares before inserting them into the tree.
+During the insertion, the wrapper first checks whether the share is within the original data square or not.
 Accordingly, it assigns the share a namespace ID and prepends the share with the namespace ID.
-Based on these two piece of information, together with 
 A share with the index `ShareIndex` where `ShareIndex` is a value between `[0, SquareSize)`, belongs to the original data square if and only if both of the following conditions are satisfied:
 ```
 ShareIndex < SquareSize && AxisIndex < SquareSize
@@ -65,7 +67,7 @@ ShareIndex < SquareSize && AxisIndex < SquareSize
 Otherwise, the share is in `Q1`, `Q2`, or `Q3`.
 
 If the added item falls in the original data square, it's first `NamespaceIDSize` bytes are treated as its namespace ID (as explained in [Namespace ID assignment to the shares of an extended data square](#namespace-id-assignment-to-the-shares-of-an-extended-data-square), and the share is further prepended with the same namespace ID before getting pushed into the NMT.
-If the added share is not within `Q0` i.e, it is a parity share, then it is prepended with the `ParitySharesNamespaceID` i.e., `2^NamespaceIDSize-1` before getting pushed into the NMT.
+If the added share is not within `Q0` i.e, it is a parity share, then it is prepended with the `ParitySharesNamespaceID` before getting pushed into the NMT.
 
 
 **Some insightful observations can be made from the NMT wrapper description**:
@@ -78,4 +80,4 @@ If the added share is not within `Q0` i.e, it is a parity share, then it is prep
 ## References
 - [Namespaced Merkle Tree](https://github.com/celestiaorg/nmt/blob/master/spec/nmt.md)
 - [original data square](https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/data_structures.md#arranging-available-data-into-shares)
-  @TODO How about ignore max namespace ID? 
+
