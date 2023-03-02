@@ -44,7 +44,7 @@ func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, setters 
 	if squareSize == 0 {
 		panic("cannot create a ErasuredNamespacedMerkleTree of squareSize == 0")
 	}
-	setters = append(setters, nmt.NamespaceIDSize(appconsts.NamespaceSize)) // TODO what if there is another setter for the namespace size passed in the `setters`?
+	setters = append(setters, nmt.NamespaceIDSize(appconsts.NamespaceSize))
 	tree := nmt.New(appconsts.NewBaseHashFunc(), setters...)
 	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: setters, tree: tree, axisIndex: uint64(axisIndex), shareIndex: 0}
 }
