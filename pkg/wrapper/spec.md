@@ -78,6 +78,7 @@ Specifically, the underlying data of the leaf contains the namespace ID of the s
 One namespace ID is located in the first `NamespaceIDSize` bytes, while the other is located in the second `NamespaceIDSize` bytes.
 
 ## References
-- [Namespaced Merkle Tree Specifications](https://github.com/celestiaorg/nmt/blob/master/spec/nmt.md)
-- [Celestia original data square specification](https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/data_structures.md#arranging-available-data-into-shares)
-
+- Namespaced Merkle Tree Specifications: https://github.com/celestiaorg/nmt/blob/master/spec/nmt.md
+- Celestia original data square specification: https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/data_structures.md#arranging-available-data-into-shares
+- Celestia constants: https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/consensus.md#constants
+- Celestia reserved namespace IDs: https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/consensus.md#reserved-namespace-ids
