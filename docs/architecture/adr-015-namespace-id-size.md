@@ -184,7 +184,7 @@ The namespace ID size is 32 bytes so that a future namespace version can be intr
 - <https://github.com/celestiaorg/celestia-app/issues/1308>
 
 [^1]: This assumes a user uses sufficient entropy to generate the namespace ID and isn't front-run by an adversary prior to actually using the namespace.
-[^2]: https://eager.io/blog/how-long-does-an-id-need-to-be/
+[^2]: <https://eager.io/blog/how-long-does-an-id-need-to-be/>
 [^3]: https://kevingal.com/apps/collision.html
 [^4]: https://www.johndcook.com/blog/2017/01/10/probability-of-secure-hash-collisions/
 [^5]: https://ycharts.com/indicators/ethereum_cumulative_unique_addresses
