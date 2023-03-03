@@ -51,13 +51,10 @@
       - [SignedTransactionDataBurn](#signedtransactiondataburn)
       - [SignedTransactionRedelegateCommission](#signedtransactionredelegatecommission)
       - [SignedTransactionRedelegateReward](#signedtransactionredelegatereward)
+  - [PayForBlobData](#payforblobdata)
   - [IntermediateStateRootData](#intermediatestaterootdata)
     - [WrappedIntermediateStateRoot](#wrappedintermediatestateroot)
     - [IntermediateStateRoot](#intermediatestateroot)
-  - [EvidenceData](#evidencedata)
-    - [Evidence](#evidence)
-    - [PublicKey](#publickey)
-    - [Vote](#vote)
   - [MessageData](#messagedata)
     - [Message](#message)
 - [State](#state)
@@ -152,7 +149,7 @@ Data that is [erasure-coded](#erasure-coding) for [data availability checks](htt
 |-----------------------------|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
 | `transactionData`           | [TransactionData](#transactiondata)                     | Transaction data. Transactions modify the validator set and balances, and pay fees for messages to be included. |
 | `intermediateStateRootData` | [IntermediateStateRootData](#intermediatestaterootdata) | Intermediate state roots used for fraud proofs.                                                                 |
-| `evidenceData`              | [EvidenceData](#evidencedata)                           | Evidence used for slashing conditions (e.g. equivocation).                                                      |
+| `payForBlobData` | [PayForBlobData](#payforblobdata) | PayForBlob data. Transactions that pay for blobs to be included. |
 | `messageData`               | [MessageData](#messagedata)                             | Message data. Messages are app data.                                                                            |
 
 ### Commit
@@ -188,7 +185,7 @@ Abstraction over transaction fees.
 
 Address is a [type alias](#type-aliases).
 
-Addresses are the [hash](#hashing) [digest](#hashdigest) of the [public key](#publickey).
+Addresses are the [hash](#hashing) [digest](#hashdigest) of the [public key](https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys).
 
 Addresses have a length of 32 bytes.
 
@@ -246,7 +243,7 @@ Unless otherwise indicated explicitly, objects are first [serialized](#serializa
 
 Consensus-critical data is authenticated using [ECDSA](https://www.secg.org/sec1-v2.pdf), with the curve [secp256k1](https://en.bitcoin.it/wiki/Secp256k1). A highly-optimized library is available in C (<https://github.com/bitcoin-core/secp256k1>), with wrappers in Go (<https://pkg.go.dev/github.com/ethereum/go-ethereum/crypto/secp256k1>) and Rust (<https://docs.rs/crate/secp256k1>).
 
-[Public keys](#publickey) are encoded in uncompressed form, as the concatenation of the `x` and `y` values. No prefix is needed to distinguish between encoding schemes as this is the only encoding supported.
+[Public keys](https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys) are encoded in uncompressed form, as the concatenation of the `x` and `y` values. No prefix is needed to distinguish between encoding schemes as this is the only encoding supported.
 
 Deterministic signatures ([RFC-6979](https://tools.ietf.org/rfc/rfc6979.txt)) should be used when signing, but this is not enforced at the protocol level as it cannot be.
 
@@ -504,8 +501,8 @@ For shares **with a reserved namespace ID through [`NAMESPACE_ID_MAX_RESERVED`](
 
 - If this is the first share of a sequence, the next [`SEQUENCE_BYTES`](./consensus.md#constants) contain a big endian `uint32` that represents the length of the sequence that follows in bytes.
 - The next [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are the starting byte of the length of the [canonically serialized](#serialization) first request that starts in the share, or `0` if there is none, as an unsigned [varint](https://developers.google.com/protocol-buffers/docs/encoding).
-- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](.consensus.md#constants) bytes (only if this is the first share of a sequence) `-` [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are transactions, intermediate state roots, or evidence data depending on the namespace of ths share. Each transaction, intermediate state root, or evidence is prefixed with a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the length of that unit.
-- If there is insufficient transaction, intermediate state root, or evidence data to fill the share, the remaining bytes are filled with `0`.
+- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](.consensus.md#constants) bytes (only if this is the first share of a sequence) `-` [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are transactions, intermediate state roots, or PayForBlob transaction data. Each transaction, intermediate state root, or PayForBlob transaction is prefixed with a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the length of that unit.
+- If there is insufficient transaction, intermediate state root, or PayForBlob transaction data to fill the share, the remaining bytes are filled with `0`.
 
 First share in a sequence:
 
@@ -567,17 +564,17 @@ The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data
 
 ### Arranging Available Data Into Shares
 
-The previous sections described how some original data, arranged into a `k * k` matrix, can be extended into a `2k * 2k` matrix and committed to with NMT roots. This section specifies how [available data](#available-data) (which includes [transactions](#transactiondata), [intermediate state roots](#intermediatestaterootdata), [evidence](#evidencedata), and [messages](#messagedata)) is arranged into the matrix in the first place.
+The previous sections described how some original data, arranged into a `k * k` matrix, can be extended into a `2k * 2k` matrix and committed to with NMT roots. This section specifies how [available data](#available-data) (which includes [transactions](#transactiondata), [intermediate state roots](#intermediatestaterootdata), PayForBlob transactions, and [messages](#messagedata)) is arranged into the matrix in the first place.
 
 Then,
 
-1. For each of `transactionData`, `intermediateStateRootData`, and `evidenceData`, [serialize](#serialization):
+1. For each of `transactionData`, `intermediateStateRootData`, PayForBlob transactions, [serialize](#serialization):
     1. For each request in the list:
         1. [Serialize](#serialization) the request (individually).
         1. Compute the length of each serialized request, [serialize the length](#serialization), and pre-pend the serialized request with its serialized length.
     1. Split up the length/request pairs into [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_RESERVED_BYTES`](./consensus.md#constants)-byte chunks.
     1. Create a [share](#share) out of each chunk. This data has a _reserved_ namespace ID, so the first [`NAMESPACE_ID_BYTES`](./consensus.md#constants)`+`[`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes for these shares must be [set specially](#share).
-1. Concatenate the lists of shares in the order: transactions, intermediate state roots, evidence.
+1. Concatenate the lists of shares in the order: transactions, intermediate state roots, PayForBlob transactions.
 
 Note that by construction, each share only has a single namespace, and that the list of concatenated shares is [lexicographically ordered by namespace ID](consensus.md#reserved-namespace-ids).
 
@@ -797,6 +794,8 @@ Assigns validator's pending commission to a delegation.
 
 Adds delegation's pending rewards to voting power.
 
+### PayForBlobData
+
 ### IntermediateStateRootData
 
 | name                            | type                                                              | description                               |
@@ -815,47 +814,6 @@ Adds delegation's pending rewards to voting power.
 | name   | type                      | description                                                                              |
 |--------|---------------------------|------------------------------------------------------------------------------------------|
 | `root` | [HashDigest](#hashdigest) | Root of intermediate state, which is composed of the global state and the validator set. |
-
-### EvidenceData
-
-Wrapper for evidence data.
-
-| name        | type                      | description                                    |
-|-------------|---------------------------|------------------------------------------------|
-| `evidences` | [Evidence](#evidence)`[]` | List of evidence used for slashing conditions. |
-
-#### Evidence
-
-| name     | type                    | description |
-|----------|-------------------------|-------------|
-| `pubKey` | [PublicKey](#publickey) |             |
-| `voteA`  | [Vote](#vote)           |             |
-| `voteB`  | [Vote](#vote)           |             |
-
-#### PublicKey
-
-| name | type       | description              |
-|------|------------|--------------------------|
-| `x`  | `byte[32]` | `x` value of public key. |
-| `y`  | `byte[32]` | `y` value of public key. |
-
-#### Vote
-
-```C++
-enum VoteType : uint8_t {
-    Prevote = 1,
-    Precommit = 2,
-};
-```
-
-| name         | type                      | description |
-|--------------|---------------------------|-------------|
-| `type`       | `VoteType`                |             |
-| `height`     | [Height](#type-aliases)   |             |
-| `round`      | [Round](#type-aliases)    |             |
-| `headerHash` | [HashDigest](#hashdigest) |             |
-| `timestamp`  | [Timestamp](#timestamp)   |             |
-| `signature`  | [Signature](#signature)   |             |
 
 ### MessageData
 

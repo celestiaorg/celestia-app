@@ -15,7 +15,6 @@
   - [`block.lastCommit`](#blocklastcommit)
   - [`block.availableData`](#blockavailabledata)
 - [State Transitions](#state-transitions)
-  - [`block.availableData.evidenceData`](#blockavailabledataevidencedata)
   - [`block.availableData.transactionData`](#blockavailabledatatransactiondata)
     - [SignedTransactionDataTransfer](#signedtransactiondatatransfer)
     - [SignedTransactionDataMsgPayForData](#signedtransactiondatamsgpayfordata)
@@ -100,7 +99,7 @@ TODO
 
 The Tendermint consensus protocol is fork-free by construction under an honest majority of stake assumption.
 
-If a block has a [valid commit](#blocklastcommit), it is part of the canonical chain. If equivocation [evidence](./data_structures.md#evidence) is detected for more than 1/3 of voting power, the node must halt. See [rationale doc](../rationale/fork_choice_das.md) for more information.
+If a block has a [valid commit](#blocklastcommit), it is part of the canonical chain. If equivocation evidence is detected for more than 1/3 of voting power, the node must halt.
 
 ## Block Validity
 
@@ -165,7 +164,7 @@ The block's [available data](./data_structures.md#availabledata) (analogous to t
 Once parsed, the following checks must be `true`:
 
 1. The commitments of the [erasure-coded extended](./data_structures.md#2d-reed-solomon-encoding-scheme) `availableData` must match those in `header.availableDataHeader`. Implicitly, this means that both rows and columns must be ordered lexicographically by namespace ID since they are committed to in a [Namespace Merkle Tree](data_structures.md#namespace-merkle-tree).
-1. Length of `availableData.intermediateStateRootData` == length of `availableData.transactionData` + length of `availableData.evidenceData` + 2. (Two additional state transitions are the [begin](#begin-block) and [end block](#end-block) implicit transitions.)
+1. Length of `availableData.intermediateStateRootData` == length of `availableData.transactionData` + length of `availableData.payForBlobData` + 2. (Two additional state transitions are the [begin](#begin-block) and [end block](#end-block) implicit transitions.)
 
 ## State Transitions
 
@@ -176,18 +175,12 @@ For this section, the variable `state` represents the [state tree](./data_struct
 State transitions are applied in the following order:
 
 1. [Begin block](#begin-block).
-1. [Evidence](#blockavailabledataevidencedata).
 1. [Transactions](#blockavailabledatatransactiondata).
 1. [End block](#end-block).
 
-### `block.availableData.evidenceData`
-
-Evidence is the second set of state transitions that are applied, ahead of [transactions](#blockavailabledatatransactiondata).
-Each evidence represents proof of validator misbehavior, and causes a penalty against the validator(s).
-
 ### `block.availableData.transactionData`
 
-Once [evidence has been processed](#blockavailabledataevidencedata), transactions are applied to the state. Note that _transactions_ mutate the state (essentially, the validator set and minimal balances), while _messages_ do not. See [the architecture documentation](./architecture.md) for more info.
+Transactions are applied to the state. Note that _transactions_ mutate the state (essentially, the validator set and minimal balances), while _messages_ do not. See [the architecture documentation](./architecture.md) for more info.
 
 `block.availableData.transactionData` is simply a list of [WrappedTransaction](./data_structures.md#wrappedtransaction)s. For each wrapped transaction in this list, `wrappedTransaction`, with index `i` (starting from `0`), the following checks must be `true`:
 
