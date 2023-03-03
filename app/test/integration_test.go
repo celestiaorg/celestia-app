@@ -84,9 +84,9 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 	s.network.Cleanup()
 }
 
-// wait a few blocks to clear the txs
-func (s *IntegrationTestSuite) WaitForNBlocks(num int) {
-	for i := 0; i < num; i++ {
+// WaitForBlocks waits for blockCount number of blocks to be added to the chain.
+func (s *IntegrationTestSuite) WaitForBlocks(blockCount int) {
+	for i := 0; i < blockCount; i++ {
 		err := s.network.WaitForNextBlock()
 		s.Require().NoError(err)
 	}
