@@ -84,6 +84,14 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 	s.network.Cleanup()
 }
 
+// WaitForBlocks waits for blockCount number of blocks to be added to the chain.
+func (s *IntegrationTestSuite) WaitForBlocks(blockCount int) {
+	for i := 0; i < blockCount; i++ {
+		err := s.network.WaitForNextBlock()
+		s.Require().NoError(err)
+	}
+}
+
 func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	require := s.Require()
 	assert := s.Assert()
@@ -170,10 +178,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				hashes[i] = res.TxHash
 			}
 
-			// wait a few blocks to clear the txs
-			for i := 0; i < 8; i++ {
-				require.NoError(s.network.WaitForNextBlock())
-			}
+			s.WaitForBlocks(8)
 
 			heights := make(map[int64]int)
 			for _, hash := range hashes {
@@ -268,9 +273,8 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		s.Run(tc.name, func() {
 			// occasionally this test will error that the mempool is full (code
 			// 20) so we wait a few blocks for the txs to clear
-			for i := 0; i < 3; i++ {
-				require.NoError(s.network.WaitForNextBlock())
-			}
+			s.WaitForBlocks(3)
+
 			signer := blobtypes.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
 			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
 			require.NoError(err)
@@ -342,10 +346,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		hashes[i] = res.TxHash
 	}
 
-	// wait a few blocks to clear the txs
-	for i := 0; i < 20; i++ {
-		require.NoError(s.network.WaitForNextBlock())
-	}
+	s.WaitForBlocks(20)
 
 	for _, hash := range hashes {
 		txResp, err := queryTx(val.ClientCtx, hash, true)
