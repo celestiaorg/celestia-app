@@ -5,7 +5,8 @@ The rows and columns of the original data square is then extended using 2D Reed-
 The extended version is called extended data square, that is a `2k` by `2k` square consisting of `4` quadrants namely, `Q0`, `Q1`, `Q2`, and `Q3`.
 Figure 1 provides an illustration of a sample data square and its extended version.
 `Q0` corresponds to the original data square.
-`Q1` and `Q2` are the horizontal and vertical extension of `Q0`, respectively, whereas `Q3` is the horizontal extension of `Q2`. 
+`Q1` and `Q2` represent the horizontal and vertical extensions of `Q0`, respectively. 
+`Q3` is the extension of `Q2` in the horizontal direction.
 ```markdown
   k         k
  -------   -------
