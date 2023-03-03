@@ -99,7 +99,7 @@ TODO
 
 The Tendermint consensus protocol is fork-free by construction under an honest majority of stake assumption.
 
-If a block has a [valid commit](#blocklastcommit), it is part of the canonical chain. If equivocation evidence is detected for more than 1/3 of voting power, the node must halt. See [rationale doc](../rationale/fork_choice_das.md) for more information.
+If a block has a [valid commit](#blocklastcommit), it is part of the canonical chain. If equivocation evidence is detected for more than 1/3 of voting power, the node must halt. See [rationale doc](./../rationale/fork_choice_das.md) for more information.
 
 ## Block Validity
 
