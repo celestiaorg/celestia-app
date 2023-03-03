@@ -70,6 +70,7 @@ func Test_merge_randomData(t *testing.T) {
 
 func Test_merge_sampleBlock(t *testing.T) {
 	var pb tmproto.Block
+	// TODO need to update sample block
 	err := json.Unmarshal([]byte(sampleBlock), &pb)
 	require.NoError(t, err)
 
