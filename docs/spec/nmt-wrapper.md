@@ -5,9 +5,7 @@ The rows and columns of the original data square is then extended using 2D Reed-
 The extended version is called extended data square, that is a `2k` by `2k` square consisting of `4` quadrants namely, `Q0`, `Q1`, `Q2`, and `Q3`.
 Figure 1 provides an illustration of a sample data square and its extended version.
 `Q0` corresponds to the original data square.
-`Q1` is the row-wise erasure coded data of `Q0`.
-`Q2` is the column-wise erasure coded data of `Q0`.
-`Q3` is the erasure coded data of `Q2`.
+`Q1` and `Q2` are the horizontal and vertical extension of `Q0`, respectively, whereas `Q3` is the horizontal extension of `Q2`. 
 ```markdown
   k         k
  -------   -------
@@ -25,7 +23,7 @@ Figure 1.
 Each row and column of the extended data square is modeled by a [Namespace Merkle Tree](https://github.com/celestiaorg/nmt/blob/master/spec/nmt.md).
 NMTs require the data items they represent to be namespaced, which means that the shares within each row or column of the extended data square must be namespaced before being added to the NMT.
 This is where the [Namespaced MerkleTree Wrapper](https://github.com/celestiaorg/celestia-app/blob/main/pkg/wrapper/nmt_wrapper.go)  comes into play.
-It is a data structure that wraps around the [Namespaced Merkle Tree](https://github.com/celestiaorg/nmt/blob/master/spec/nmt.md) that ensures the proper namespaces are prepended to the shares  before they are added to their respective row or column NMT.
+It is a data structure that wraps around the [Namespaced Merkle Tree](https://github.com/celestiaorg/nmt/blob/master/spec/nmt.md) and ensures the proper namespaces are prepended to the shares  before they are added to their respective row or column NMT.
 In this specification, we elaborate on the design and structure of the Namespace Merkle Tree wrapper.
 
 
