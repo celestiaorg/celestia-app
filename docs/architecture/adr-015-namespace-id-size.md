@@ -17,6 +17,32 @@ Accepted
 
 Namespace ID is currently an 8 byte slice. 8 bytes provides a maximum of 2^64 possible namespace IDs. In practice some namespace IDs are reserved for protocol use so the number of namespace IDs available to users is 2^56 - 2. Modifying the size of a namespace ID post-launch is a breaking change and has implications for the NMT, share encoding, etc. so we'd like to carefully consider the size of the namespace ID pre-launch.
 
+## Decision
+
+Increase the namespace ID size to 32 bytes.
+
+- Prefix the namespace ID with 1 byte for the namespace version. See [ADR 14](./adr-014-versioned-namespaces.md).
+- For `namespaceVersion=0`, the namespace ID is 32 bytes where:
+  - The first 22 bytes are 0s
+  - The last 10 bytes are unreserved namespace bytes. In other words, a user can specify a 10 byte namespace ID
+- Add a consensus rule that the leading 22 bytes of a namespace ID are 0s.
+
+The motivation for reserving the first 22 bytes of the namespace ID as 0s is to enable future bandwidth optimizations. In particular, the namespace ID may be run length encoded to reduce the size of NMT proofs.
+
+The namespace ID size is 32 bytes so that a future namespace version can be introduced to expand the namespace ID address space without a backwards incompatible change from the perspective of NMT.
+
+The namespace version will be prefixed to the namespace ID prior to pushing data to the NMT so NMT should be constructed with a namespaceID size of 33 bytes.
+
+Users will specify a namespace version (1 byte / uint8) and a namespace ID (32 bytes) in their PFB. Additionally we should strive to make it clear to users that these two will be interpreted as distinct namespace IDs:
+
+```go
+namespaceVersion := 0
+namespaceId := []byte{1, 1, 1, ...} // 32 bytes
+
+namespaceVersion := 1
+namespaceId := []byte{1, 1, 1, ...} // 32 bytes
+```
+
 ## Desirable Criteria
 
 1. A user should be able to randomly generate a namespace that hasn't been used before[^1]
@@ -164,20 +190,6 @@ Another tradeoff to consider is the size of the namespace ID in the share. Since
   - Implementation complexity of parsing a varint
 - Desirable property: first 40 fixed bytes to be metadata
   - IPV6 packet header is fixed
-
-## Decision
-
-Increase the namespace ID size to 32 bytes.
-
-- Prefix the namespace ID with 1 byte for the namespace version. See [ADR 14](./adr-014-versioned-namespaces.md).
-- For `namespaceVersion=0`, the namespace ID is 32 bytes where:
-  - The first 22 bytes are 0s
-  - The last 10 bytes are unreserved namespace bytes. In other words, a user can specify a 10 byte namespace ID
-- Add a consensus rule that the leading 22 bytes of a namespace ID are 0s.
-
-The motivation for reserving the first 22 bytes of the namespace ID as 0s is to enable future bandwidth optimizations. In particular, the namespace ID may be run length encoded to reduce the size of NMT proofs.
-
-The namespace ID size is 32 bytes so that a future namespace version can be introduced to expand the namespace ID address space without a backwards incompatible change from the perspective of NMT.
 
 ## References
 
