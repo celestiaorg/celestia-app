@@ -178,7 +178,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				hashes[i] = res.TxHash
 			}
 
-			s.WaitForNBlocks(8)
+			s.WaitForBlocks(8)
 
 			heights := make(map[int64]int)
 			for _, hash := range hashes {
@@ -273,7 +273,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		s.Run(tc.name, func() {
 			// occasionally this test will error that the mempool is full (code
 			// 20) so we wait a few blocks for the txs to clear
-			s.WaitForNBlocks(3)
+			s.WaitForBlocks(3)
 
 			signer := blobtypes.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
 			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
@@ -346,7 +346,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		hashes[i] = res.TxHash
 	}
 
-	s.WaitForNBlocks(20)
+	s.WaitForBlocks(20)
 
 	for _, hash := range hashes {
 		txResp, err := queryTx(val.ClientCtx, hash, true)
