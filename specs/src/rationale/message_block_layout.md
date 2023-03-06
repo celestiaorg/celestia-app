@@ -1,9 +1,6 @@
 # Message Layout
 
-- [Preamble](#preamble)
-- [Message Layout Rationale](#message-layout-rationale)
-  - [Non-Interactive Default Rules](#non-interactive-default-rules)
-  - [Caveats](#caveats)
+<!-- toc -->
 
 ## Preamble
 

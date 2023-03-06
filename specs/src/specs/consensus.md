@@ -1,34 +1,6 @@
 # Consensus Rules
 
-- [System Parameters](#system-parameters)
-  - [Units](#units)
-  - [Constants](#constants)
-  - [Reserved Namespace IDs](#reserved-namespace-ids)
-  - [Reserved State Subtree IDs](#reserved-state-subtree-ids)
-  - [Rewards and Penalties](#rewards-and-penalties)
-- [Leader Selection](#leader-selection)
-- [Fork Choice](#fork-choice)
-- [Block Validity](#block-validity)
-- [Block Structure](#block-structure)
-  - [`block.header`](#blockheader)
-  - [`block.availableDataHeader`](#blockavailabledataheader)
-  - [`block.lastCommit`](#blocklastcommit)
-  - [`block.availableData`](#blockavailabledata)
-- [State Transitions](#state-transitions)
-  - [`block.availableData.transactionData`](#blockavailabledatatransactiondata)
-    - [SignedTransactionDataTransfer](#signedtransactiondatatransfer)
-    - [SignedTransactionDataMsgPayForData](#signedtransactiondatamsgpayfordata)
-    - [SignedTransactionDataCreateValidator](#signedtransactiondatacreatevalidator)
-    - [SignedTransactionDataBeginUnbondingValidator](#signedtransactiondatabeginunbondingvalidator)
-    - [SignedTransactionDataUnbondValidator](#signedtransactiondataunbondvalidator)
-    - [SignedTransactionDataCreateDelegation](#signedtransactiondatacreatedelegation)
-    - [SignedTransactionDataBeginUnbondingDelegation](#signedtransactiondatabeginunbondingdelegation)
-    - [SignedTransactionDataUnbondDelegation](#signedtransactiondataunbonddelegation)
-    - [SignedTransactionDataBurn](#signedtransactiondataburn)
-    - [SignedTransactionRedelegateCommission](#signedtransactionredelegatecommission)
-    - [SignedTransactionRedelegateReward](#signedtransactionredelegatereward)
-    - [Begin Block](#begin-block)
-    - [End Block](#end-block)
+<!-- toc -->
 
 ## System Parameters
 
