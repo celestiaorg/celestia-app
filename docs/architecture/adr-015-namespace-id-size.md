@@ -148,12 +148,12 @@ If the namespace ID size is increased, the maximum possible blob will decrease. 
 ## Open Questions
 
 1. What are the performance implications on celestia-node for a larger namespace ID size?
-2. Is it possible to mitigate some tradeoffs when adopting a large namespace ID size?
+1. Is it possible to mitigate some tradeoffs when adopting a large namespace ID size?
     1. It may be possible to decrease the bandwidth requirements for NMT proofs by using lossless compression (proposed by @evan-forbes) and explored above.
-    2. It may be possible to avoid writing the namespace ID to continuation blob shares (proposed by @nashqueue)
+    1. It may be possible to avoid writing the namespace ID to continuation blob shares (proposed by @nashqueue)
         1. Note this introduces complexity for erasure reconstruction. A share in row B may have its namespace in row A so to reconstruct a data square, we must refactor the process to two steps:
             1. Reconstruct all shares from the erasure coding
-            2. Reconstruct the NMT
+            1. Reconstruct the NMT
 
 1. Is it possible to preserve backwards compatability if we increase namespace ID size in the future?
     1. One challenge with backwards compatability is that the NMT proof verification logic for old clients will not be able to verify the new larger namespace ID. Since the namespace ID is prefixed to each NMT data leaf and two namespace IDs are prefixed to each NMT inner node, an NMT constructed with two different size namespace IDs will result in different size nodes. An NMT proof contains the field [`nodes`](https://github.com/celestiaorg/nmt/blob/1bc0bb0099e01b30e37ddb56642734ae875917cd/proof.go#L20-L25) which would have different size nodes for different namespace ID sizes. An old client would not be able to split the namespace IDs from the hash digest unless the old client was written in a brittle way.
