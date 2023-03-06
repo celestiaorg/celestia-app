@@ -48,7 +48,7 @@ namespaceB := append(namespaceVersionB, namespaceIdB)
 ## Desirable Criteria
 
 1. A user should be able to randomly generate a namespace that hasn't been used before[^1]
-1. There should exist a large enough namespace ID space for all rollups that may exist in the forseeable future (e.g. 100 years)
+2. There should exist a large enough namespace ID space for all rollups that may exist in the forseeable future (e.g. 100 years)
 
 ### Criteria 1
 
