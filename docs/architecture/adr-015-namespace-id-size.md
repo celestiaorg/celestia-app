@@ -141,6 +141,10 @@ Another tradeoff to consider is the size of the namespace ID in the share. Since
 | 20                        | 3.9%                                    |
 | 32                        | 6.2%                                    |
 
+### Maximum Blob Size
+
+If the namespace ID size is increased, the maximum possible blob will decrease. Given the maximum possible blob is bounded by the number of bytes available for blob space in a data square, if a 32 byte namespace ID size is adopted, the maxmimum blob size will decrease by an upper bound of `appconsts.DefaultMaxSquareSize * appconsts.DefaultMaxSquareSize * (32-8)`. Note this is an upper bound because not all shares in the data square can be used for blob data (i.e. at least one share must contain the associated PayForBlob transaction).
+
 ## Open Questions
 
 1. What are the performance implications on celestia-node for a larger namespace ID size?
