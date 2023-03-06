@@ -33,14 +33,16 @@ The namespace ID size is 32 bytes so that a future namespace version can be intr
 
 The namespace version will be prefixed to the namespace ID prior to pushing data to the NMT so NMT should be constructed with a namespaceID size of 33 bytes.
 
-Users will specify a namespace version (1 byte / uint8) and a namespace ID (32 bytes) in their PFB. Additionally we should strive to make it clear to users that these two will be interpreted as distinct namespace IDs:
+Users will specify a namespace version (1 byte / uint8) and a namespace ID (32 bytes) in their PFB. Additionally we should strive to make it clear to users that namespaceA and namespaceB will be interpreted as distinct namespaces:
 
 ```go
-namespaceVersion := 0
-namespaceId := []byte{1, 1, 1, ...} // 32 bytes
+namespaceVersionA := 0
+namespaceIdA := []byte{1, 1, 1, ...} // 32 bytes
+namespaceA := append(namespaceVersionA, namespaceIdA)
 
-namespaceVersion := 1
-namespaceId := []byte{1, 1, 1, ...} // 32 bytes
+namespaceVersionB := 1
+namespaceIdB := []byte{1, 1, 1, ...} // 32 bytes
+namespaceB := append(namespaceVersionB, namespaceIdB)
 ```
 
 ## Desirable Criteria
@@ -203,10 +205,3 @@ Another tradeoff to consider is the size of the namespace ID in the share. Since
 [^6]: <https://docs.google.com/spreadsheets/d/1vrRM4gAsmC142KrdUI1aCBS5IVFdJeU0q6gwwnM3Ekc/edit?usp=sharing>
 [^7]: <https://www.wolframalpha.com/input?i=4.05871E%2B15+%2F+2%5E160>
 [^8]: <https://www.wolframalpha.com/input?i=4.05871E%2B15+%2F+2%5E64>
-[^9]: <https://en.wikipedia.org/wiki/IPv6#Addressing>
-[^10]: <https://towardsdatascience.com/are-uuids-really-unique-57eb80fc2a87>
-[^11]: <https://github.com/ethereumbook/ethereumbook/blob/05f0dfe6c41635ac85527a60c06ac5389d8006e7/04keys-addresses.asciidoc>
-[^12]: <https://www.coinhouse.com/insights/news/what-if-my-wallet-generated-an-existing-bitcoin-address>
-[^13]: <https://github.com/FuelLabs/fuel-docs/issues/75>
-[^14]: <https://twitter.com/VitalikButerin/status/1588669782471368704/photo/1>
-[^15]: <https://ethereum-magicians.org/t/increasing-address-size-from-20-to-32-bytes/5485>
