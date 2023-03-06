@@ -23,8 +23,8 @@ Increase the namespace ID size to 32 bytes.
 
 - Prefix the namespace ID with 1 byte for the namespace version. See [ADR 14](./adr-014-versioned-namespaces.md).
 - For `namespaceVersion=0`, the namespace ID is 32 bytes where:
-  - The first 22 bytes are 0s
-  - The last 10 bytes are unreserved namespace bytes. In other words, a user can specify a 10 byte namespace ID
+  - The most-significant 22 bytes are 0s
+  - The least-significant 10 bytes are unreserved namespace bytes. In other words, a user can specify a 10 byte namespace ID
 - Add a consensus rule that the leading 22 bytes of a namespace ID are 0s.
 
 The motivation for reserving the first 22 bytes of the namespace ID as 0s is to enable future bandwidth optimizations. In particular, the namespace ID may be run length encoded to reduce the size of NMT proofs.
