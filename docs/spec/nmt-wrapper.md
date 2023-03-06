@@ -1,8 +1,8 @@
 # Namespaced Merkle Tree Wrapper
 ## Abstract
 In Celestia, block transactions are grouped into identical-size shares and arranged in a `k` by `k` matrix, called [original data square](https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/data_structures.md#arranging-available-data-into-shares).
-The rows and columns of the original data square is then extended using 2D Reed-Solomon coding scheme.
-The extended version is called extended data square, that is a `2k` by `2k` square consisting of `4` quadrants namely, `Q0`, `Q1`, `Q2`, and `Q3`.
+The rows and columns of the original data square are then extended using a 2D Reed-Solomon coding scheme.
+The [extended version](https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/data_structures.md#2d-reed-solomon-encoding-scheme) is called extended data square, that is a `2k` by `2k` square consisting of `4` quadrants namely, `Q0`, `Q1`, `Q2`, and `Q3`.
 Figure 1 provides an illustration of a sample data square and its extended version.
 `Q0` corresponds to the original data square.
 `Q1` and `Q2` represent the horizontal and vertical extensions of `Q0`, respectively. 
@@ -50,10 +50,9 @@ Thus, the namespace ID of a share in `Q0` can be extracted from the first `Names
 
 However, shares in `Q1`, `Q2`, and `Q3` (that are erasure-coded versions of `Q0` and known as parity shares) do not have any namespace IDs by default. 
 These shares must be assigned a reserved namespace ID, which is called `ParitySharesNamespaceID`.
-`ParitySharesNamespaceID` corresponds to the maximum value representable by `NamespaceIDSize` bytes.
-
-In Celestia, as of the writing of this specification, the `NamespaceIDSize` (which maps to the [`NAMESPACE_ID_BYTES`](https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/consensus.md#constants) constant) is `8` bytes, and therefore, [`ParitySharesNamespaceID`](https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/consensus.md#reserved-namespace-ids)  is represented by `8` bytes of `0xFF`.
-
+The `ParitySharesNamespaceID` corresponds to the lexicographically last namespace ID that can be represented by `NamespaceIDSize` bytes.
+"If `NamespaceIDSize` is `8`, then the value of `ParitySharesNamespaceID` is `2^8-1`, which is equivalent to `0xFFFFFFFFFFFFFFFF`.
+In Celestia, the values for `NamespaceIDSize` and `ParitySharesNamespaceID` can be found in [`NAMESPACE_ID_BYTES`](https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/consensus.md#constants) constant and the [`PARITY_SHARE_NAMESPACE_ID`](https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/consensus.md#reserved-namespace-ids), respectively.
 
 ### NMT Wrapper Data Insertion
 The NMT wrapper insertion logic is governed by the same rules as the NMT insertion logic.
