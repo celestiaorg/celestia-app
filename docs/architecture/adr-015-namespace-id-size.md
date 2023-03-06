@@ -115,7 +115,7 @@ Namespace ID size (bytes) | NMT data leaf size (bytes) | NMT inner node size (by
 
 ### NMT Proof Size
 
-Increasing the size of NMT nodes will increase the size of the NMT proof. Assuming shares are 512 bytes, square size is 128, and the NMT proof is for a single leaf:
+Increasing the size of NMT nodes will increase the size of the NMT proof. Assuming shares are 512 bytes, square size is 128, the NMT for a row will contain 2 * 128 leaves. If the NMT proof is for a single leaf:
 
 Namespace ID size (bytes) | Unencoded NMT proof size (bytes) | Protobuf encoded NMT proof size (bytes) | Protobuf encoded NMT proof with [gzip](https://pkg.go.dev/compress/gzip) (bytes)
 --------------------------|----------------------------------|-----------------------------------------|---------------------------------------------------------------------------------
