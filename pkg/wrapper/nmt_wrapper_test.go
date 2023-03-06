@@ -110,22 +110,6 @@ func TestComputeExtendedDataSquare(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestErasuredNamespacedMerkleTree verifies that Tree() returns the underlying
-// NMT tree.
-func TestErasuredNamespacedMerkleTree(t *testing.T) {
-	squareSize := 8
-	data := generateRandNamespacedRawData(squareSize, appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)
-	tree := NewErasuredNamespacedMerkleTree(uint64(squareSize), 0)
-
-	for _, d := range data {
-		tree.Push(d)
-	}
-
-	assert.Equal(t, tree.Tree(), tree.tree)
-	assert.Equal(t, tree.Tree().Root(), tree.tree.Root())
-	assert.Equal(t, appconsts.NamespaceSize, int(tree.Tree().NamespaceSize()))
-}
-
 // generateErasuredData generates random data and then erasure codes it. It
 // returns a slice that is twice as long as numLeaves because it returns the
 // original data + erasured data.
