@@ -94,7 +94,7 @@ We must make some assumptions for the number of rollups that will exist. Ethereu
 
 - [SHA256](https://en.wikipedia.org/wiki/SHA-2) has a digest size of 32 bytes so using a namespace ID size of 32 bytes would enable users to generate stable namespace IDs (e.g. `sha256('sov-labs')`) or unique namespace IDs (e.g. `sha256(blob)`) assuming the blob is unique.
 - [IPv6](https://en.wikipedia.org/wiki/IPv6) has an address space of 16 bytes and "the address space is deemed large enough for the foreseeable future".[^9]
-- [UUIDs](https://en.wikipedia.org/wiki/Universally_unique_identifier) have slightly less than 16 bytes of randomness  and are considered "unique enough for practical purposes".[^10]
+- [UUIDs](https://en.wikipedia.org/wiki/Universally_unique_identifier) have slightly less than 16 bytes of randomness  and are considered "unique enough for practical purposes"[^10].
 - The size of the Ethereum[^11] and Bitcoin[^12] address space is 20 bytes (2^160).
 - The size of Fuel's address space is 32 bytes.[^13]
 
