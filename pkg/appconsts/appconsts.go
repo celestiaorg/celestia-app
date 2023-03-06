@@ -9,11 +9,11 @@ import (
 // These constants were originally sourced from:
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/consensus.md#constants
 const (
+	// NamespaceSize is the namespace size in bytes.
+	NamespaceSize = consts.NamespaceSize
+
 	// ShareSize is the size of a share in bytes.
 	ShareSize = 512
-
-	// NamespaceSize is the namespace size in bytes.
-	NamespaceSize = 32
 
 	// ShareInfoBytes is the number of bytes reserved for information. The info
 	// byte contains the share version and a sequence start idicator.
