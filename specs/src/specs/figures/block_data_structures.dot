@@ -12,7 +12,7 @@ digraph G {
 
         subgraph cluster_body {
             label = "availableData";
-            struct3 [label = "{ | { transactionData | intermediateStateRoots | evidenceData | messageData } }"];
+            struct3 [label = "{ | { transactionData | intermediateStateRoots | payForBlobData | messageData } }"];
         }
 
         subgraph cluster_lastcommit {
