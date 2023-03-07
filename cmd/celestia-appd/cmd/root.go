@@ -115,7 +115,7 @@ func NewRootCmd() *cobra.Command {
 		SilenceUsage: true,
 	}
 
-	rootCmd.Flags().String(FlagLogToFile, "", "Log to file")
+	rootCmd.Flags().String(FlagLogToFile, "", "Write logs directly to a file. If empty, logs are written to stderr")
 	initRootCmd(rootCmd, encodingConfig)
 
 	return rootCmd
@@ -301,7 +301,7 @@ func createAppAndExport(
 }
 
 // replaceLogger optionally replaces the logger with a file logger if the flag
-// is set.
+// is set to something other than the default.
 func replaceLogger(cmd *cobra.Command) error {
 	logFilePath, err := cmd.Flags().GetString(flags.FlagLogFormat)
 	if err != nil {
@@ -316,7 +316,9 @@ func replaceLogger(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
+
 	sctx := server.GetServerContextFromCmd(cmd)
 	sctx.Logger = log.NewTMLogger(log.NewSyncWriter(file))
+
 	return server.SetCmdServerContext(cmd, sctx)
 }
