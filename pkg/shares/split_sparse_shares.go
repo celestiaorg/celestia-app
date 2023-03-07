@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/nmt/namespace"
+	"github.com/tendermint/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/slices"
 )
@@ -29,7 +29,7 @@ func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
 	}
 	rawBlob := MarshalDelimitedBlob(blob)
 	newShares := make([]Share, 0)
-	newShares = AppendToShares(newShares, blob.NamespaceID, rawBlob, blob.ShareVersion)
+	newShares = AppendToShares(newShares, blob, rawBlob)
 	sss.shares = append(sss.shares, newShares...)
 	return nil
 }
@@ -71,7 +71,11 @@ func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) {
 		return
 	}
 	lastBlob := sss.shares[len(sss.shares)-1]
-	sss.shares = append(sss.shares, NamespacePaddingShares(lastBlob.NamespaceID(), count)...)
+	ns, err := lastBlob.Namespace()
+	if err != nil {
+		panic(err)
+	}
+	sss.shares = append(sss.shares, NamespacePaddingShares(ns, count)...)
 }
 
 // Export finalizes and returns the underlying shares.
@@ -86,22 +90,21 @@ func (sss *SparseShareSplitter) Count() int {
 
 // AppendToShares appends raw data as shares.
 // Used for blobs.
-func AppendToShares(shares []Share, nid namespace.ID, rawData []byte, shareVersion uint8) []Share {
+func AppendToShares(shares []Share, blob types.Blob, rawData []byte) []Share {
 	if len(rawData) <= appconsts.ContinuationSparseShareContentSize {
-		infoByte, err := NewInfoByte(shareVersion, true)
+		infoByte, err := NewInfoByte(blob.ShareVersion, true)
 		if err != nil {
 			panic(err)
 		}
-		rawShare := append(append(append(
-			make([]byte, 0, appconsts.ShareSize),
-			nid...),
-			byte(infoByte)),
-			rawData...,
-		)
+		rawShare := make([]byte, 0, appconsts.ShareSize)
+		rawShare = append(rawShare, blob.NamespaceVersion)
+		rawShare = append(rawShare, blob.NamespaceID...)
+		rawShare = append(rawShare, byte(infoByte))
+		rawShare = append(rawShare, rawData...)
 		paddedShare, _ := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
 		shares = append(shares, paddedShare)
 	} else { // len(rawData) > BlobShareSize
-		shares = append(shares, splitBlob(rawData, nid, shareVersion)...)
+		shares = append(shares, splitBlob(rawData, blob)...)
 	}
 	return shares
 }
@@ -117,17 +120,16 @@ func MarshalDelimitedBlob(blob coretypes.Blob) []byte {
 
 // splitBlob breaks the data in a blob into the minimum number of
 // namespaced shares
-func splitBlob(rawData []byte, nid namespace.ID, shareVersion uint8) (shares []Share) {
-	infoByte, err := NewInfoByte(shareVersion, true)
+func splitBlob(rawData []byte, blob types.Blob) (shares []Share) {
+	infoByte, err := NewInfoByte(blob.ShareVersion, true)
 	if err != nil {
 		panic(err)
 	}
-	firstRawShare := append(append(append(
-		make([]byte, 0, appconsts.ShareSize),
-		nid...),
-		byte(infoByte)),
-		rawData[:appconsts.ContinuationSparseShareContentSize]...,
-	)
+	firstRawShare := make([]byte, 0, appconsts.ShareSize)
+	firstRawShare = append(firstRawShare, blob.NamespaceVersion)
+	firstRawShare = append(firstRawShare, blob.NamespaceID...)
+	firstRawShare = append(firstRawShare, byte(infoByte))
+	firstRawShare = append(firstRawShare, rawData[:appconsts.ContinuationSparseShareContentSize]...)
 	shares = append(shares, firstRawShare)
 	rawData = rawData[appconsts.ContinuationSparseShareContentSize:]
 	for len(rawData) > 0 {
@@ -136,12 +138,11 @@ func splitBlob(rawData []byte, nid namespace.ID, shareVersion uint8) (shares []S
 		if err != nil {
 			panic(err)
 		}
-		rawShare := append(append(append(
-			make([]byte, 0, appconsts.ShareSize),
-			nid...),
-			byte(infoByte)),
-			rawData[:shareSizeOrLen]...,
-		)
+		rawShare := make([]byte, 0, appconsts.ShareSize)
+		rawShare = append(rawShare, blob.NamespaceVersion)
+		rawShare = append(rawShare, blob.NamespaceID...)
+		rawShare = append(rawShare, byte(infoByte))
+		rawShare = append(rawShare, rawData[:shareSizeOrLen]...)
 		paddedShare, _ := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
 		shares = append(shares, paddedShare)
 		rawData = rawData[shareSizeOrLen:]

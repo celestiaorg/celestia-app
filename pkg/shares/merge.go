@@ -1,9 +1,7 @@
 package shares
 
 import (
-	"bytes"
-
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/rsmt2d"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -27,17 +25,21 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 
 		for _, share := range row[:squareSize] {
 			// sort the data of that share types via namespace
-			nid := share[:appconsts.NamespaceSize]
+			ns, err := appns.From(share[:appns.NamespaceSize])
+			if err != nil {
+				return coretypes.Data{}, err
+			}
+
 			switch {
-			case bytes.Equal(appconsts.TxNamespaceID, nid):
+			case ns.IsTx():
 				sortedTxShares = append(sortedTxShares, share)
-			case bytes.Equal(appconsts.PayForBlobNamespaceID, nid):
+			case ns.IsPayForBlob():
 				sortedPfbTxShares = append(sortedPfbTxShares, share)
-			case bytes.Equal(appconsts.TailPaddingNamespaceID, nid):
+			case ns.IsTailPadding():
 				continue
 
 			// ignore unused but reserved namespaces
-			case bytes.Compare(nid, appconsts.MaxReservedNamespace) < 1:
+			case ns.IsReserved():
 				continue
 
 			// every other namespaceID should be a blob

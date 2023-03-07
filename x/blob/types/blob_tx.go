@@ -4,8 +4,8 @@ import (
 	"bytes"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/cosmos/cosmos-sdk/client"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
@@ -15,8 +15,8 @@ type Blob = tmproto.Blob
 
 // NewBlob creates a new coretypes.Blob from the provided data after performing
 // basic stateless checks over it.
-func NewBlob(ns namespace.ID, blob []byte) (*Blob, error) {
-	err := ValidateBlobNamespaceID(ns)
+func NewBlob(ns appns.Namespace, blob []byte) (*Blob, error) {
+	err := ns.ValidateBlobNamespace()
 	if err != nil {
 		return nil, err
 	}
@@ -26,9 +26,10 @@ func NewBlob(ns namespace.ID, blob []byte) (*Blob, error) {
 	}
 
 	return &tmproto.Blob{
-		NamespaceId:  ns,
-		Data:         blob,
-		ShareVersion: uint32(appconsts.DefaultShareVersion),
+		NamespaceId:      ns.ID,
+		Data:             blob,
+		ShareVersion:     uint32(appconsts.DefaultShareVersion),
+		NamespaceVersion: uint32(ns.Version),
 	}, nil
 }
 
@@ -71,10 +72,19 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) error {
 		return ErrBlobSizeMismatch.Wrapf("actual %v declared %v", sizes, pfb.BlobSizes)
 	}
 
-	for i := range pfb.NamespaceIds {
-		// check that the metadata matches
-		if !bytes.Equal(bTx.Blobs[i].NamespaceId, pfb.NamespaceIds[i]) {
-			return ErrNamespaceMismatch.Wrapf("%v %v", bTx.Blobs[i].NamespaceId, pfb.NamespaceIds[i])
+	for i, ns := range pfb.Namespaces {
+		pfbNamespace, err := appns.From(ns)
+		if err != nil {
+			return err
+		}
+
+		blobNs, err := appns.New(uint8(bTx.Blobs[i].NamespaceVersion), bTx.Blobs[i].NamespaceId)
+		if err != nil {
+			return err
+		}
+
+		if !bytes.Equal(blobNs.Bytes(), pfbNamespace.Bytes()) {
+			return ErrNamespaceMismatch.Wrapf("%v %v", blobNs.Bytes(), pfb.Namespaces[i])
 		}
 	}
 

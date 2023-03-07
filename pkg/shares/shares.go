@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/nmt/namespace"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 )
 
 // Share contains the raw share data (including namespace ID).
@@ -18,19 +18,19 @@ func NewShare(data []byte) (Share, error) {
 	return Share(data), nil
 }
 
-func (s Share) NamespaceID() namespace.ID {
-	if len(s) < appconsts.NamespaceSize {
-		panic(fmt.Sprintf("share %s is too short to contain a namespace ID", s))
+func (s Share) Namespace() (appns.Namespace, error) {
+	if len(s) < appns.NamespaceSize {
+		panic(fmt.Sprintf("share %s is too short to contain a namespace", s))
 	}
-	return namespace.ID(s[:appconsts.NamespaceSize])
+	return appns.From(s[:appns.NamespaceSize])
 }
 
 func (s Share) InfoByte() (InfoByte, error) {
-	if len(s) < appconsts.NamespaceSize+appconsts.ShareInfoBytes {
+	if len(s) < appns.NamespaceSize+appconsts.ShareInfoBytes {
 		return 0, fmt.Errorf("share %s is too short to contain an info byte", s)
 	}
-	// the info byte is the first byte after the namespace ID
-	unparsed := s[appconsts.NamespaceSize]
+	// the info byte is the first byte after the namespace
+	unparsed := s[appns.NamespaceSize]
 	return ParseInfoByte(unparsed)
 }
 
@@ -52,8 +52,13 @@ func (s Share) IsSequenceStart() (bool, error) {
 }
 
 // IsCompactShare returns true if this is a compact share.
-func (s Share) IsCompactShare() bool {
-	return s.NamespaceID().Equal(appconsts.TxNamespaceID) || s.NamespaceID().Equal(appconsts.PayForBlobNamespaceID)
+func (s Share) IsCompactShare() (bool, error) {
+	ns, err := s.Namespace()
+	if err != nil {
+		return false, err
+	}
+	isCompact := ns.IsTx() || ns.IsPayForBlob()
+	return isCompact, nil
 }
 
 // SequenceLen returns the sequence length of this share and optionally an
@@ -82,7 +87,15 @@ func (s Share) IsPadding() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return isNamespacePadding || s.isTailPadding() || s.isReservedPadding(), nil
+	isTailPadding, err := s.isTailPadding()
+	if err != nil {
+		return false, err
+	}
+	isReservedPadding, err := s.isReservedPadding()
+	if err != nil {
+		return false, err
+	}
+	return isNamespacePadding || isTailPadding || isReservedPadding, nil
 }
 
 func (s Share) isNamespacePadding() (bool, error) {
@@ -98,12 +111,20 @@ func (s Share) isNamespacePadding() (bool, error) {
 	return isSequenceStart && sequenceLen == 0, nil
 }
 
-func (s Share) isTailPadding() bool {
-	return s.NamespaceID().Equal(appconsts.TailPaddingNamespaceID)
+func (s Share) isTailPadding() (bool, error) {
+	ns, err := s.Namespace()
+	if err != nil {
+		return false, err
+	}
+	return ns.IsTailPadding(), nil
 }
 
-func (s Share) isReservedPadding() bool {
-	return s.NamespaceID().Equal(appconsts.ReservedPaddingNamespaceID)
+func (s Share) isReservedPadding() (bool, error) {
+	ns, err := s.Namespace()
+	if err != nil {
+		return false, err
+	}
+	return ns.IsReservedPadding(), nil
 }
 
 func (s Share) ToBytes() []byte {
@@ -125,13 +146,17 @@ func (s Share) rawDataStartIndex() int {
 	if err != nil {
 		panic(err)
 	}
-	if isStart && s.IsCompactShare() {
+	isCompact, err := s.IsCompactShare()
+	if err != nil {
+		panic(err)
+	}
+	if isStart && isCompact {
 		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.SequenceLenBytes + appconsts.CompactShareReservedBytes
-	} else if isStart && !s.IsCompactShare() {
+	} else if isStart && !isCompact {
 		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.SequenceLenBytes
-	} else if !isStart && s.IsCompactShare() {
+	} else if !isStart && isCompact {
 		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.CompactShareReservedBytes
-	} else if !isStart && !s.IsCompactShare() {
+	} else if !isStart && !isCompact {
 		return appconsts.NamespaceSize + appconsts.ShareInfoBytes
 	} else {
 		panic(fmt.Sprintf("unable to determine the rawDataStartIndex for share %s", s))

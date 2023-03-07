@@ -9,9 +9,9 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
-	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 )
@@ -126,7 +126,7 @@ func Test_estimatePFBTxSharesUsed(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			blobTxs := generateBlobTxsWithNIDs(t, namespace.RandomBlobNamespaces(tt.pfbCount), blobfactory.Repeat([]int{tt.pfbSize}, tt.pfbCount))
+			blobTxs := generateBlobTxsWithNamespaces(t, appns.RandomBlobNamespaces(tt.pfbCount), blobfactory.Repeat([]int{tt.pfbSize}, tt.pfbCount))
 			got := estimatePFBTxSharesUsed(tt.squareSize, blobTxs)
 
 			// check that our estimate is always larger or equal to the number
@@ -158,7 +158,7 @@ func Test_estimateTxSharesUsed(t *testing.T) {
 		{"one tx", generateNormalTxs(1), 1},             // 1 tx is approximately 316 bytes which fits in 1 share
 		{"two txs", generateNormalTxs(2), 2},            // 2 txs is approximately 632 bytes which fits in 2 shares
 		{"ten txs", generateNormalTxs(10), 7},           // 10 txs is approximately 3160 bytes which fits in 7 shares
-		{"one hundred txs", generateNormalTxs(100), 67}, // 100 txs is approximately 31600 bytes which fits in 67 share
+		{"one hundred txs", generateNormalTxs(100), 68}, // 100 txs is approximately 31600 bytes which fits in 68 share
 	}
 	for _, tc := range testCases {
 		got := estimateTxSharesUsed(tc.txs)

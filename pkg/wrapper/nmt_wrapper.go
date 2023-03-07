@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 )
@@ -87,7 +88,7 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) {
 	if w.isQuadrantZero() {
 		copy(nidAndData[:appconsts.NamespaceSize], data[:appconsts.NamespaceSize])
 	} else {
-		copy(nidAndData[:appconsts.NamespaceSize], appconsts.ParitySharesNamespaceID)
+		copy(nidAndData[:appconsts.NamespaceSize], appns.ParitySharesNamespaceID.Bytes())
 	}
 	// push to the underlying tree
 	err := w.tree.Push(nidAndData)

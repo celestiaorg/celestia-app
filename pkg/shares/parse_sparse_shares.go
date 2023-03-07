@@ -53,10 +53,15 @@ func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) (blob
 			if err != nil {
 				return nil, err
 			}
+			ns, err := share.Namespace()
+			if err != nil {
+				return nil, err
+			}
 			blob := coretypes.Blob{
-				NamespaceID:  share.NamespaceID(),
-				Data:         data,
-				ShareVersion: version,
+				NamespaceID:      ns.ID,
+				Data:             data,
+				ShareVersion:     version,
+				NamespaceVersion: ns.Version,
 			}
 			sequences = append(sequences, sequence{
 				blob:        blob,

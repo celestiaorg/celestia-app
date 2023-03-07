@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/nmt/namespace"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -22,7 +22,7 @@ type ShareRange struct {
 type CompactShareSplitter struct {
 	shares       []Share
 	pendingShare Share
-	namespace    namespace.ID
+	namespace    appns.Namespace
 	done         bool
 	shareVersion uint8
 	// shareRanges is a map from a transaction key to the range of shares it
@@ -34,7 +34,7 @@ type CompactShareSplitter struct {
 
 // NewCompactShareSplitter returns a CompactShareSplitter using the provided
 // namespace and shareVersion.
-func NewCompactShareSplitter(ns namespace.ID, shareVersion uint8) *CompactShareSplitter {
+func NewCompactShareSplitter(ns appns.Namespace, shareVersion uint8) *CompactShareSplitter {
 	pendingShare := make([]byte, 0, appconsts.ShareSize)
 	infoByte, err := NewInfoByte(shareVersion, true)
 	if err != nil {
@@ -43,7 +43,7 @@ func NewCompactShareSplitter(ns namespace.ID, shareVersion uint8) *CompactShareS
 	placeholderSequenceLen := make([]byte, appconsts.SequenceLenBytes)
 	placeholderReservedBytes := make([]byte, appconsts.CompactShareReservedBytes)
 
-	pendingShare = append(pendingShare, ns...)
+	pendingShare = append(pendingShare, ns.Bytes()...)
 	pendingShare = append(pendingShare, byte(infoByte))
 	pendingShare = append(pendingShare, placeholderSequenceLen...)
 	pendingShare = append(pendingShare, placeholderReservedBytes...)
@@ -122,7 +122,7 @@ func (css *CompactShareSplitter) stackPending() {
 	}
 	css.shares = append(css.shares, css.pendingShare)
 	newPendingShare := make([]byte, 0, appconsts.ShareSize)
-	newPendingShare = append(newPendingShare, css.namespace...)
+	newPendingShare = append(newPendingShare, css.namespace.Bytes()...)
 	infoByte, err := NewInfoByte(css.shareVersion, false)
 	if err != nil {
 		panic(err)

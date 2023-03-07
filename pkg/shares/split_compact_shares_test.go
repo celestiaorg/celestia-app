@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/stretchr/testify/assert"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -25,7 +26,7 @@ func TestCount(t *testing.T) {
 		{transactions: []coretypes.Tx{generateTx(20)}, wantShareCount: 20},
 	}
 	for _, tc := range testCases {
-		css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+		css := NewCompactShareSplitter(appns.TxNamespaceID, appconsts.ShareVersionZero)
 		for _, transaction := range tc.transactions {
 			css.WriteTx(transaction)
 		}
@@ -57,28 +58,28 @@ func TestExport_write(t *testing.T) {
 
 	oneShare, _ := zeroPadIfNecessary(
 		append(
-			appconsts.TxNamespaceID,
+			appns.TxNamespaceID.Bytes(),
 			[]byte{
 				0x1,                // info byte
 				0x0, 0x0, 0x0, 0x1, // sequence len
-				0x0, 0x0, 0x0, 0x29, // reserved bytes
+				0x0, 0x0, 0x0, 0x2a, // reserved bytes
 				0xf, // data
 			}...,
 		),
 		appconsts.ShareSize)
 
 	firstShare := fillShare(append(
-		appconsts.TxNamespaceID,
+		appns.TxNamespaceID.Bytes(),
 		[]byte{
 			0x1,                // info byte
 			0x0, 0x0, 0x2, 0x0, // sequence len
-			0x0, 0x0, 0x0, 0x29, // reserved bytes
+			0x0, 0x0, 0x0, 0x2a, // reserved bytes
 		}...,
 	), 0xf) //
 
 	continuationShare, _ := zeroPadIfNecessary(
 		append(
-			appconsts.TxNamespaceID,
+			appns.TxNamespaceID.Bytes(),
 			append(
 				[]byte{
 					0x0,                // info byte
@@ -112,7 +113,7 @@ func TestExport_write(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+			css := NewCompactShareSplitter(appns.TxNamespaceID, appconsts.ShareVersionZero)
 			for _, bytes := range tc.writeBytes {
 				css.write(bytes)
 			}
@@ -177,7 +178,7 @@ func TestWriteAndExportIdempotence(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+			css := NewCompactShareSplitter(appns.TxNamespaceID, appconsts.ShareVersionZero)
 
 			for _, tx := range tc.txs {
 				css.WriteTx(tx)
@@ -307,7 +308,7 @@ func TestExport(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+			css := NewCompactShareSplitter(appns.TxNamespaceID, appconsts.ShareVersionZero)
 
 			for _, tx := range tc.txs {
 				css.WriteTx(tx)
@@ -325,7 +326,7 @@ func TestWriteAfterExport(t *testing.T) {
 	c := bytes.Repeat([]byte{0xf}, rawTxSize(appconsts.ContinuationCompactShareContentSize))
 	d := []byte{0xf}
 
-	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+	css := NewCompactShareSplitter(appns.TxNamespaceID, appconsts.ShareVersionZero)
 	shares, _ := css.Export(0)
 	assert.Equal(t, 0, len(shares))
 

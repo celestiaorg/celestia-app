@@ -16,12 +16,11 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
-	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 )
 
@@ -42,11 +41,7 @@ func TestProcessProposal(t *testing.T) {
 		infos[:3],
 		blobfactory.NestedBlobs(
 			t,
-			[][]byte{
-				namespace.RandomBlobNamespace(),
-				namespace.RandomBlobNamespace(),
-				namespace.RandomBlobNamespace(),
-			},
+			appns.RandomBlobNamespaces(3),
 			[][]int{{100}, {1000}, {420}},
 		),
 	)
@@ -117,7 +112,8 @@ func TestProcessProposal(t *testing.T) {
 		mutator        func(*core.Data)
 		expectedResult abci.ResponseProcessProposal_Result
 	}
-	namespaceOne := bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
+	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	data := []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 
 	tests := []test{
 		{
@@ -140,7 +136,11 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *core.Data) {
 				d.Blobs = append(
 					d.Blobs,
-					core.Blob{NamespaceId: namespaceOne, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}},
+					core.Blob{
+						NamespaceId:      ns1.ID,
+						Data:             data,
+						NamespaceVersion: uint32(ns1.Version),
+					},
 				)
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -149,7 +149,11 @@ func TestProcessProposal(t *testing.T) {
 			name:  "modified a blob",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Blobs[0] = core.Blob{NamespaceId: namespaceOne, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
+				d.Blobs[0] = core.Blob{
+					NamespaceId:      ns1.ID,
+					Data:             data,
+					NamespaceVersion: uint32(ns1.Version),
+				}
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -157,7 +161,11 @@ func TestProcessProposal(t *testing.T) {
 			name:  "invalid namespace TailPadding",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Blobs[0] = core.Blob{NamespaceId: appconsts.TailPaddingNamespaceID, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
+				d.Blobs[0] = core.Blob{
+					NamespaceId:      appns.TailPaddingNamespaceID.ID,
+					Data:             data,
+					NamespaceVersion: uint32(appns.TailPaddingNamespaceID.Version),
+				}
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -165,7 +173,11 @@ func TestProcessProposal(t *testing.T) {
 			name:  "invalid namespace TxNamespace",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Blobs[0] = core.Blob{NamespaceId: appconsts.TxNamespaceID, Data: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
+				d.Blobs[0] = core.Blob{
+					NamespaceId:      appns.TxNamespaceID.ID,
+					Data:             data,
+					NamespaceVersion: uint32(appns.TxNamespaceID.Version),
+				}
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -225,7 +237,7 @@ func TestProcessProposal(t *testing.T) {
 			name:  "blob with parity namespace",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
-				d.Blobs[len(d.Blobs)-1].NamespaceId = appconsts.ParitySharesNamespaceID
+				d.Blobs[len(d.Blobs)-1].NamespaceId = appns.ParitySharesNamespaceID.ID
 				// todo: replace the data root with an updated hash
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -275,7 +287,7 @@ func TestProcessProposal(t *testing.T) {
 // flipSequenceStart flips the sequence start indicator of the share provided
 func flipSequenceStart(share shares.Share) shares.Share {
 	// the info byte is immediately after the namespace
-	infoByteIndex := appconsts.NamespaceSize
+	infoByteIndex := appns.NamespaceSize
 	// the sequence start indicator is the last bit of the info byte so flip the
 	// last bit
 	share[infoByteIndex] = share[infoByteIndex] ^ 0x01
