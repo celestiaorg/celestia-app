@@ -312,8 +312,6 @@ func replaceLogger(cmd *cobra.Command) error {
 		return nil
 	}
 
-	fmt.Println("logging to file ", logFilePath)
-
 	file, err := os.OpenFile(logFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		return err
