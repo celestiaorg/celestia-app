@@ -42,7 +42,12 @@ import (
 	dbm "github.com/tendermint/tm-db"
 )
 
-const EnvPrefix = "CELESTIA"
+const (
+	EnvPrefix = "CELESTIA"
+
+	// FlagLogToFile specifies whether to log to file or not.
+	FlagLogToFile = "log-to-file"
+)
 
 // NewRootCmd creates a new root command for celestia-appd. It is called once in the
 // main function.
@@ -62,7 +67,7 @@ func NewRootCmd() *cobra.Command {
 
 	rootCmd := &cobra.Command{
 		Use:   "celestia-appd",
-		Short: "Start celestia app",
+		Short: "interface with the celestia blockchain",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			initClientCtx, err := client.ReadPersistentCommandFlags(initClientCtx, cmd.Flags())
 			if err != nil {
@@ -99,11 +104,18 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
+			// optionally log to file by replaceing the default logger with a file logger
+			err = replaceLogger(cmd)
+			if err != nil {
+				return err
+			}
+
 			return overrideServerConfig(cmd)
 		},
 		SilenceUsage: true,
 	}
 
+	rootCmd.Flags().String(FlagLogToFile, "", "Log to file")
 	initRootCmd(rootCmd, encodingConfig)
 
 	return rootCmd
@@ -286,4 +298,25 @@ func createAppAndExport(
 	}
 
 	return capp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
+}
+
+// replaceLogger optionally replaces the logger with a file logger if the flag
+// is set.
+func replaceLogger(cmd *cobra.Command) error {
+	logFilePath, err := cmd.Flags().GetString(flags.FlagLogFormat)
+	if err != nil {
+		return err
+	}
+
+	if logFilePath == "" {
+		return nil
+	}
+
+	file, err := os.OpenFile(logFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		return err
+	}
+	sctx := server.GetServerContextFromCmd(cmd)
+	sctx.Logger = log.NewTMLogger(log.NewSyncWriter(file))
+	return server.SetCmdServerContext(cmd, sctx)
 }
