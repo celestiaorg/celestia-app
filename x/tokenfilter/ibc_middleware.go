@@ -1,6 +1,7 @@
 package tokenfilter
 
 import (
+	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	transfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
@@ -57,7 +58,7 @@ func (m *tokenFilterMiddleware) OnRecvPacket(
 		return m.IBCModule.OnRecvPacket(ctx, packet, relayer)
 	}
 
-	ackErr := sdkerrors.Wrapf(sdkerrors.ErrInvalidType, "only native denom transfers accepted, got %s", data.Denom)
+	ackErr := errors.Wrapf(sdkerrors.ErrInvalidType, "only native denom transfers accepted, got %s", data.Denom)
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(

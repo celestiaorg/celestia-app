@@ -1,20 +1,22 @@
 package types
 
-import sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+import (
+	"cosmossdk.io/errors"
+)
 
 var (
-	ErrDuplicate                             = sdkerrors.Register(ModuleName, 2, "duplicate")
-	ErrEmpty                                 = sdkerrors.Register(ModuleName, 6, "empty")
-	ErrNoValidators                          = sdkerrors.Register(ModuleName, 12, "no bonded validators in active set")
-	ErrInvalidValAddress                     = sdkerrors.Register(ModuleName, 13, "invalid validator address in current valset %v")
-	ErrInvalidEVMAddress                     = sdkerrors.Register(ModuleName, 14, "discovered invalid EVM address stored for validator %v")
-	ErrInvalidValset                         = sdkerrors.Register(ModuleName, 15, "generated invalid valset")
-	ErrAttestationNotValsetRequest           = sdkerrors.Register(ModuleName, 16, "attestation is not a valset request")
-	ErrAttestationNotFound                   = sdkerrors.Register(ModuleName, 18, "attestation not found")
-	ErrNilAttestation                        = sdkerrors.Register(ModuleName, 22, "nil attestation")
-	ErrUnmarshalllAttestation                = sdkerrors.Register(ModuleName, 26, "couldn't unmarshall attestation from store")
-	ErrNonceHigherThanLatestAttestationNonce = sdkerrors.Register(ModuleName, 27, "the provided nonce is higher than the latest attestation nonce")
-	ErrNoValsetBeforeNonceOne                = sdkerrors.Register(ModuleName, 28, "there is no valset before attestation nonce 1")
-	ErrDataCommitmentNotGenerated            = sdkerrors.Register(ModuleName, 29, "no data commitment has been generated for the provided height")
-	ErrDataCommitmentNotFound                = sdkerrors.Register(ModuleName, 30, "data commitment not found")
+	ErrDuplicate                             = errors.Register(ModuleName, 2, "duplicate")
+	ErrEmpty                                 = errors.Register(ModuleName, 6, "empty")
+	ErrNoValidators                          = errors.Register(ModuleName, 12, "no bonded validators in active set")
+	ErrInvalidValAddress                     = errors.Register(ModuleName, 13, "invalid validator address in current valset %v")
+	ErrInvalidEVMAddress                     = errors.Register(ModuleName, 14, "discovered invalid EVM address stored for validator %v")
+	ErrInvalidValset                         = errors.Register(ModuleName, 15, "generated invalid valset")
+	ErrAttestationNotValsetRequest           = errors.Register(ModuleName, 16, "attestation is not a valset request")
+	ErrAttestationNotFound                   = errors.Register(ModuleName, 18, "attestation not found")
+	ErrNilAttestation                        = errors.Register(ModuleName, 22, "nil attestation")
+	ErrUnmarshalllAttestation                = errors.Register(ModuleName, 26, "couldn't unmarshall attestation from store")
+	ErrNonceHigherThanLatestAttestationNonce = errors.Register(ModuleName, 27, "the provided nonce is higher than the latest attestation nonce")
+	ErrNoValsetBeforeNonceOne                = errors.Register(ModuleName, 28, "there is no valset before attestation nonce 1")
+	ErrDataCommitmentNotGenerated            = errors.Register(ModuleName, 29, "no data commitment has been generated for the provided height")
+	ErrDataCommitmentNotFound                = errors.Register(ModuleName, 30, "data commitment not found")
 )

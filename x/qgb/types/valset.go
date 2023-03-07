@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"cosmossdk.io/errors"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -15,7 +15,7 @@ var _ AttestationRequestI = &Valset{}
 // NewValset returns a new valset.
 func NewValset(nonce, height uint64, members InternalBridgeValidators) (*Valset, error) {
 	if err := members.ValidateBasic(); err != nil {
-		return nil, sdkerrors.Wrap(err, "invalid members")
+		return nil, errors.Wrap(err, "invalid members")
 	}
 	members.Sort()
 	mem := make([]BridgeValidator, 0)
