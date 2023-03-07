@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"runtime/debug"
 
+	"cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -33,7 +34,7 @@ func incrementSequenceAnteHandler(accKeeper *authkeeper.AccountKeeper) sdk.AnteH
 // recoverHandler will simply wrap the caught panic in an error containing the
 // stack trace.
 func recoverHandler(recoveryObj interface{}) error {
-	return sdkerrors.Wrap(
+	return errors.Wrap(
 		sdkerrors.ErrPanic, fmt.Sprintf(
 			"recovered: %v\nstack:\n%v", recoveryObj, string(debug.Stack()),
 		),
