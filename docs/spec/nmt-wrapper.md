@@ -7,19 +7,9 @@ Figure 1 provides an illustration of a sample data square and its extended versi
 `Q0` corresponds to the original data square.
 `Q1` and `Q2` represent the horizontal and vertical extensions of `Q0`, respectively. 
 `Q3` is the extension of `Q2` in the horizontal direction.
-```markdown
-  k         k
- -------   -------
-|        |        |
-|   Q0 → |   Q1   | k
-|   ↓    |        |
--------  -------
-|        |        |
-|   Q2 → |   Q3   | k
-|        |        |
- -------   -------
-```
-Figure 1.
+<img src="https://raw.githubusercontent.com/celestiaorg/celestia-app/c09843d07d4c3842753138de96b304b4866e8f5d/specs/src/specs/figures/rs2d_extending.svg" alt="Figure 1. Extended Data Square." style="max-width: 50%; height: auto;">
+
+Figure 1. `r` and `c` stand for row and column, respectively.
 
 Each row and column of the extended data square is modeled by a [Namespace Merkle Tree](nmtlink).
 NMTs require the data items they represent to be namespaced, which means that the shares within each row or column of the extended data square must be namespaced before being added to the NMT.
