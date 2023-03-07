@@ -6,10 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
@@ -29,6 +25,11 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
+
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 )
 
 // New creates a ready to use tendermint node that operates a single validator
@@ -44,6 +45,7 @@ func New(
 	supressLog bool,
 	genState map[string]json.RawMessage,
 	kr keyring.Keyring,
+	chainID string,
 ) (*node.Node, srvtypes.Application, Context, error) {
 	var logger log.Logger
 	if supressLog {
@@ -57,8 +59,6 @@ func New(
 	if err != nil {
 		return nil, nil, Context{}, err
 	}
-
-	chainID := tmrand.Str(6)
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
@@ -192,7 +192,7 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func() error
 	genState, kr, err := DefaultGenesisState(accounts...)
 	require.NoError(t, err)
 
-	tmNode, app, cctx, err := New(t, DefaultParams(), tmCfg, false, genState, kr)
+	tmNode, app, cctx, err := New(t, DefaultParams(), tmCfg, false, genState, kr, tmrand.Str(6))
 	require.NoError(t, err)
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
