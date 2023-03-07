@@ -72,6 +72,8 @@ See <https://docs.celestia.org/category/celestia-app> for more information
 
 1. Install [golangci-lint](https://golangci-lint.run/usage/install/)
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint)
+1. Install [hadolint](https://github.com/hadolint/hadolint)
+1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)
 
 ### Helpful Commands
 
