@@ -68,9 +68,11 @@ func Test_merge_randomData(t *testing.T) {
 	}
 }
 
+// Test_merge_sampleBlock verifies the behavior of merge against a sampleBlock.
+// To update the sampleBlock see:
+// https://github.com/celestiaorg/celestia-node/blob/a27f8488a4d732b00a9ae2ff8b212040111151c7/state/integration_test.go#L119-L121
 func Test_merge_sampleBlock(t *testing.T) {
 	var pb tmproto.Block
-	// TODO need to update sample block
 	err := json.Unmarshal([]byte(sampleBlock), &pb)
 	require.NoError(t, err)
 
