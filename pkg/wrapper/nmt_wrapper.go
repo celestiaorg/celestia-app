@@ -104,13 +104,14 @@ func (w *ErasuredNamespacedMerkleTree) Root() []byte {
 	return w.tree.Root()
 }
 
+// Prove returns a Merkle inclusion proof for the leaf at index `ind`.
 func (w *ErasuredNamespacedMerkleTree) Prove(ind int) (nmt.Proof, error) {
 	return w.tree.Prove(ind)
 }
 
-// Tree returns the underlying NamespacedMerkleTree
-func (w *ErasuredNamespacedMerkleTree) Tree() *nmt.NamespacedMerkleTree {
-	return w.tree
+// ProveRange returns a Merkle range proof for the leaf range [start, end] where `end` is non-inclusive.
+func (w *ErasuredNamespacedMerkleTree) ProveRange(start, end int) (nmt.Proof, error) {
+	return w.tree.ProveRange(start, end)
 }
 
 // incrementShareIndex increments the share index by one.

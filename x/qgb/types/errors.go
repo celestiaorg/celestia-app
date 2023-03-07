@@ -15,4 +15,6 @@ var (
 	ErrUnmarshalllAttestation                = sdkerrors.Register(ModuleName, 26, "couldn't unmarshall attestation from store")
 	ErrNonceHigherThanLatestAttestationNonce = sdkerrors.Register(ModuleName, 27, "the provided nonce is higher than the latest attestation nonce")
 	ErrNoValsetBeforeNonceOne                = sdkerrors.Register(ModuleName, 28, "there is no valset before attestation nonce 1")
+	ErrDataCommitmentNotGenerated            = sdkerrors.Register(ModuleName, 29, "no data commitment has been generated for the provided height")
+	ErrDataCommitmentNotFound                = sdkerrors.Register(ModuleName, 30, "data commitment not found")
 )

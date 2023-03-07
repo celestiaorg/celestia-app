@@ -90,7 +90,7 @@ func TestGetDataCommitmentForHeight(t *testing.T) {
 			height:        window * 100,
 			expectedDCC:   types.DataCommitment{},
 			expectError:   true,
-			expectedError: "no data commitment has been generated for the provided height. Last height 3999 < 40000",
+			expectedError: "Last height 3999 < 40000: no data commitment has been generated for the provided height",
 		},
 	}
 	for _, tt := range tests {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 // TODO add unit tests for all the keepers
@@ -37,10 +38,13 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 		return types.DataCommitment{}, err
 	}
 	if lastDC.EndBlock < height {
-		return types.DataCommitment{}, fmt.Errorf(
-			"no data commitment has been generated for the provided height. Last height %d < %d",
-			lastDC.EndBlock,
-			height,
+		return types.DataCommitment{}, sdkerrors.Wrap(
+			types.ErrDataCommitmentNotGenerated,
+			fmt.Sprintf(
+				"Last height %d < %d",
+				lastDC.EndBlock,
+				height,
+			),
 		)
 	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
@@ -51,7 +55,7 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 			return types.DataCommitment{}, err
 		}
 		if !found {
-			return types.DataCommitment{}, fmt.Errorf("couldn't find attestation with nonce %d", i)
+			return types.DataCommitment{}, sdkerrors.Wrap(types.ErrAttestationNotFound, fmt.Sprintf("nonce %d", i))
 		}
 		dcc, ok := att.(*types.DataCommitment)
 		if !ok {
@@ -61,7 +65,7 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 			return *dcc, nil
 		}
 	}
-	return types.DataCommitment{}, fmt.Errorf("data commitment for height not found")
+	return types.DataCommitment{}, sdkerrors.Wrap(types.ErrDataCommitmentNotFound, "data commitment for height not found")
 }
 
 // GetLastDataCommitment returns the last data commitment.
@@ -73,7 +77,7 @@ func (k Keeper) GetLastDataCommitment(ctx sdk.Context) (types.DataCommitment, er
 			return types.DataCommitment{}, err
 		}
 		if !found {
-			return types.DataCommitment{}, fmt.Errorf("couldn't find attestation with nonce %d", latestNonce-i)
+			return types.DataCommitment{}, sdkerrors.Wrapf(types.ErrAttestationNotFound, fmt.Sprintf("nonce %d", latestNonce-i))
 		}
 		dcc, ok := att.(*types.DataCommitment)
 		if !ok {
@@ -81,5 +85,5 @@ func (k Keeper) GetLastDataCommitment(ctx sdk.Context) (types.DataCommitment, er
 		}
 		return *dcc, nil
 	}
-	return types.DataCommitment{}, fmt.Errorf("last data commitment not found")
+	return types.DataCommitment{}, types.ErrDataCommitmentNotFound
 }
