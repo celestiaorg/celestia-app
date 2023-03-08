@@ -1,6 +1,7 @@
 # Namespaced Merkle Tree Wrapper
 ## Abstract
-In Celestia, block transactions are grouped into identical-size shares and arranged in a `k` by `k` matrix, where `k` is a power of `2`, called [original data square](originalds-link).
+In Celestia, block transactions are grouped into identical-size shares and arranged in a `k` by `k` matrix called [original data square](originalds-link).
+According to the Celestia consensus rules, `k` must be a power of `2`, and the share size is determined by the  [`SHARE_SIZE` parameter](celestia-constants-link). 
 The rows and columns of the original data square are then extended using a 2D Reed-Solomon coding scheme.
 The [extended version](reedsolomon-link) is called extended data square, that is a `2k` by `2k` square consisting of `4` quadrants namely, `Q0`, `Q1`, `Q2`, and `Q3`.
 Figure 1 provides an illustration of a sample data square and its extended version.
