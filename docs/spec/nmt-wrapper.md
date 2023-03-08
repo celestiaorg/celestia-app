@@ -30,7 +30,7 @@ and the [`IgnoreMaxNamespace` flag][nmt-ignoremax-link] which dictates how names
 In addition, the NMT wrapper is configured with the original data square size `SqaureSize` (`k` in the above example), and the index of the row or column it represents `AxisIndex` which is a value in `[0, 2*SquareSize)`.
 These additional configurations are used to determine the namespace ID of the shares that the NMT wrapper represents based on the quadrants to which they belong.
 
-NMT wrapper supports [Merkle inclusion proof][nmtlink] for the given share index and [Merkle range proof](nmtlink) for a range of share indices.
+NMT wrapper supports [Merkle inclusion proof][nmtlink] for the given share index and [Merkle range proof][nmtlink] for a range of share indices.
 It extends the NMT data insertion behaviour (i.e., the [`Push` method][nmt-add-leaves-link]) to prepend shares with proper namespace before inclusion in the tree.
 
 ### Namespace ID assignment to the shares of an extended data square
@@ -74,7 +74,7 @@ One namespace ID is located in the first `NamespaceIDSize` bytes, while the othe
 
 ## References
 
-- Namespaced Merkle tree specifications: <https://github.com/celestiaorg/nmt/blob/master/spec/nmt.md>
+- Namespaced Merkle tree specifications: <https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md>
 - Celestia original data square specification: <https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/data_structures.md#arranging-available-data-into-shares>
 - Celestia constants: <https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/consensus.md#constants>
 - Celestia reserved namespace IDs: <https://github.com/celestiaorg/celestia-app/blob/specs-staging/specs/src/specs/consensus.md#reserved-namespace-ids>
