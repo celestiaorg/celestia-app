@@ -101,7 +101,7 @@ var (
 	// (ordinary and PFBs) but before blobs.
 	ReservedPaddingNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
 
-	// MaxReservedNamespace is the lexicographically largest namespace that is
+	// MaxReservedNamespace is lexicographically the largest namespace that is
 	// reserved for protocol use.
 	MaxReservedNamespace = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
 
