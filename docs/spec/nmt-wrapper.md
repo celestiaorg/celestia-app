@@ -14,7 +14,7 @@ Figure 1. `r` and `c` stand for row and column, respectively.
 
 Each row and column of the extended data square is modeled by a [Namespace Merkle Tree](nmtlink).
 NMTs require the data items they represent to be namespaced, which means that the shares within each row or column of the extended data square must be namespaced before being added to the NMT.
-This is where the Namespaced Merkle Tree Wrapper, more specifically, [Erasured Namespaced Merkle Tree](nmtwrapper-link) comes into play.
+This is where the Namespaced Merkle Tree Wrapper, more specifically, [`ErasuredNamespacedMerkleTree`](nmtwrapper-link) comes into play.
 It is a data structure that wraps around the [Namespaced Merkle Tree](nmtlink) and ensures the proper namespaces are prepended to the shares  before they are added to their respective row or column NMT.
 In this specification, we elaborate on the design and structure of the Namespace Merkle Tree wrapper.
 
