@@ -9,7 +9,8 @@ The [extended version][reedsolomon-link] is called extended data square, that is
 Figure 1 provides an illustration of a sample data square and its extended version.
 `Q0` corresponds to the original data square.
 `Q1` and `Q2` represent the horizontal and vertical extensions of `Q0`, respectively.
-`Q3` is the extension of `Q2` in the horizontal direction.
+`Q3` is the horizontal extension of `Q2` or alternatively, it can be considered as the vertical extension of `Q1`.
+Additional information about the extension logic can be found in the specifications of the [2D Reed-Solomon encoding scheme][reedsolomon-link].
 <img src="https://raw.githubusercontent.com/celestiaorg/celestia-app/c09843d07d4c3842753138de96b304b4866e8f5d/specs/src/specs/figures/rs2d_extending.svg" alt="Figure 1. Extended Data Square." style="max-width: 50%; height: auto;">
 
 Figure 1. `r` and `c` stand for row and column, respectively.
