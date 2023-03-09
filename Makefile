@@ -85,6 +85,11 @@ lint:
 	@golangci-lint run
 	@echo "--> Running markdownlint"
 	@markdownlint --config .markdownlint.yaml '**/*.md'
+	@echo "--> Running hadolint"
+	@hadolint Dockerfile
+	@echo "--> Running yamllint"
+	@yamllint --no-warnings . -c .yamllint.yml
+
 .PHONY: lint
 
 ## fmt: Format files per linters golangci-lint and markdownlint.
