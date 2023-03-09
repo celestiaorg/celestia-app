@@ -272,12 +272,16 @@ func TestProcessProposal(t *testing.T) {
 
 // flipSequenceStart flips the sequence start indicator of the share provided
 func flipSequenceStart(share shares.Share) shares.Share {
-	// the info byte is immediately after the namespace
-	infoByteIndex := appconsts.NamespaceSize
-	// the sequence start indicator is the last bit of the info byte so flip the
-	// last bit
-	share[infoByteIndex] = share[infoByteIndex] ^ 0x01
-	return share
+
+	// input params do not matter as we import the entire share in raw format
+	b := shares.NewBuilder([]byte{}, 0, false, false)
+	b.ImportRawShare(share)
+	b.FlipSequenceStart()
+	updatedShare, err := b.Build()
+	if err != nil {
+		panic(err)
+	}
+	return *updatedShare
 }
 
 func deref[T any](s []*T) []T {

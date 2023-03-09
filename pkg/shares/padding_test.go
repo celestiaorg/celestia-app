@@ -29,8 +29,8 @@ var tailPadding, _ = zeroPadIfNecessary([]byte{
 }, appconsts.ShareSize)
 
 func TestNamespacePaddingShare(t *testing.T) {
-	got := NamespacePaddingShare(nsOne).ToBytes()
-	assert.Equal(t, nsOnePadding, got)
+	got := NamespacePaddingShare(nsOne)
+	assert.Equal(t, nsOnePadding, got.ToBytes())
 }
 
 func TestNamespacePaddingShares(t *testing.T) {
@@ -41,8 +41,8 @@ func TestNamespacePaddingShares(t *testing.T) {
 }
 
 func TestReservedPaddingShare(t *testing.T) {
-	got := ReservedPaddingShare().ToBytes()
-	assert.Equal(t, reservedPadding, got)
+	got := ReservedPaddingShare()
+	assert.Equal(t, reservedPadding, got.ToBytes())
 }
 
 func TestReservedPaddingShares(t *testing.T) {
@@ -53,8 +53,8 @@ func TestReservedPaddingShares(t *testing.T) {
 }
 
 func TestTailPaddingShare(t *testing.T) {
-	got := TailPaddingShare().ToBytes()
-	assert.Equal(t, tailPadding, got)
+	got := TailPaddingShare()
+	assert.Equal(t, tailPadding, got.ToBytes())
 }
 
 func TestTailPaddingShares(t *testing.T) {
