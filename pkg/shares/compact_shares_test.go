@@ -80,7 +80,6 @@ func Test_processCompactShares(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			fmt.Printf("len(parsedTxs): %v\n", len(parsedTxs))
 
 			// check that the data parsed is identical
 			for i := 0; i < len(txs); i++ {
