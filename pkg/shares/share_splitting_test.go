@@ -89,13 +89,13 @@ func TestSplitTxs_forTxShares(t *testing.T) {
 					0xa,    // data of first transaction
 					128, 4, // unit length of second transaction is 512
 				}}, 0xc), // data of second transaction
-				padShare(
-					Share{data: append([]uint8{
+				padShare(Share{
+					data: append([]uint8{
 						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
 						0x0,                // info byte
 						0x0, 0x0, 0x0, 0x0, // reserved bytes
 					}, bytes.Repeat([]byte{0xc}, 21)...), // continuation data of second transaction
-					}),
+				}),
 			},
 		},
 		{
