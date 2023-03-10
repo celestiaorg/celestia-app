@@ -50,7 +50,6 @@ func NewCompactShareSplitter(ns namespace.ID, shareVersion uint8) *CompactShareS
 func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
 	rawData, err := MarshalDelimitedTx(tx)
 	if err != nil {
-		//TODO: is this error msg relevant here?
 		panic(fmt.Sprintf("included Tx in mem-pool that can not be encoded %v", tx))
 	}
 
@@ -66,7 +65,6 @@ func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) {
 
 // write adds the delimited data to the underlying compact shares.
 func (css *CompactShareSplitter) write(rawData []byte) {
-
 	if css.done {
 		// remove the last element
 		if !css.shareBuilder.IsEmptyShare() {
@@ -93,7 +91,6 @@ func (css *CompactShareSplitter) write(rawData []byte) {
 	if css.shareBuilder.AvailableBytes() == 0 {
 		css.stackPending()
 	}
-
 }
 
 // stackPending will build & add the pending share to accumulated shares
