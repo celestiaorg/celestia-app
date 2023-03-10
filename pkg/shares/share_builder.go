@@ -56,7 +56,7 @@ func (b *Builder) AddData(rawData []byte) (rawDataLeftOver []byte) {
 		return nil
 	}
 
-	// if we can only add a portion of the transaction to the pending share,
+	// if we can only add a portion of the rawData to the pending share,
 	// then we add it and add the pending share to the finalized shares.
 	chunk := rawData[:pendingLeft]
 	b.rawShareData = append(b.rawShareData, chunk...)
