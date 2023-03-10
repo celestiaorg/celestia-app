@@ -141,11 +141,11 @@ func (b *Builder) MaybeWriteReservedBytes() error {
 
 // writeSequenceLen writes the sequence length to the first share.
 func (b *Builder) WriteSequenceLen(sequenceLen uint32) error {
-	if !b.isFirstShare {
-		return errors.New("not the first share")
-	}
 	if b == nil {
 		return errors.New("the builder object is not initialized (is nil)")
+	}
+	if !b.isFirstShare {
+		return errors.New("not the first share")
 	}
 	sequenceLenBuf := make([]byte, appconsts.SequenceLenBytes)
 	binary.BigEndian.PutUint32(sequenceLenBuf, sequenceLen)
