@@ -80,7 +80,7 @@ func (b *Builder) IsEmptyShare() bool {
 
 func (b *Builder) ZeroPadIfNecessary() (bytesOfPadding int) {
 	b.rawShareData, bytesOfPadding = zeroPadIfNecessary(b.rawShareData, appconsts.ShareSize)
-	return
+	return bytesOfPadding
 }
 
 // isEmptyReservedBytes returns true if the reserved bytes are empty.
