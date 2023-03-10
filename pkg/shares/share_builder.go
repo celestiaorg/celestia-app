@@ -16,15 +16,15 @@ type Builder struct {
 	rawShareData   []byte
 }
 
-func NewBuilder(ns namespace.ID, shareVersion uint8, isCompactShare bool, isFirstShare bool) *Builder {
+func NewBuilder(ns namespace.ID, shareVersion uint8, isFirstShare bool) *Builder {
 	b := Builder{
 		namespace:      ns,
 		shareVersion:   shareVersion,
 		isFirstShare:   isFirstShare,
-		isCompactShare: isCompactShare,
+		isCompactShare: isCompactShare(ns),
 	}
 
-	if isCompactShare {
+	if b.isCompactShare {
 		if err := b.prepareCompactShare(); err != nil {
 			panic(err)
 		}
@@ -72,15 +72,19 @@ func (b *Builder) Build() (*Share, error) {
 
 // IsEmptyShare returns true if no data has been written to the share
 func (b *Builder) IsEmptyShare() bool {
-	if b.isFirstShare {
-		return len(b.rawShareData) == appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.SequenceLenBytes+appconsts.CompactShareReservedBytes
+	expectedLen := appconsts.NamespaceSize + appconsts.ShareInfoBytes
+	if b.isCompactShare {
+		expectedLen += appconsts.CompactShareReservedBytes
 	}
-	return len(b.rawShareData) == appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes
+	if b.isFirstShare {
+		expectedLen += appconsts.SequenceLenBytes
+	}
+	return len(b.rawShareData) == expectedLen
 }
 
 func (b *Builder) ZeroPadIfNecessary() (bytesOfPadding int) {
 	b.rawShareData, bytesOfPadding = zeroPadIfNecessary(b.rawShareData, appconsts.ShareSize)
-	return
+	return bytesOfPadding
 }
 
 // isEmptyReservedBytes returns true if the reserved bytes are empty.
@@ -202,4 +206,8 @@ func (b *Builder) prepareSparseShare() error {
 
 	b.rawShareData = shareData
 	return nil
+}
+
+func isCompactShare(ns namespace.ID) bool {
+	return ns.Equal(appconsts.TxNamespaceID) || ns.Equal(appconsts.PayForBlobNamespaceID)
 }

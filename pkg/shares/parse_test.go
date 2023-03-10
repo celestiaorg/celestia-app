@@ -47,7 +47,7 @@ func TestParseShares(t *testing.T) {
 	invalidShareBytes = append(invalidShareBytes, []byte{0}...) // invalidShareBytes is now longer than the length of a valid share
 	invalidShare := Share{data: invalidShareBytes}
 
-	b := NewBuilder(blobOneNamespace, appconsts.ShareVersionZero, false, start)
+	b := NewBuilder(blobOneNamespace, appconsts.ShareVersionZero, start)
 
 	largeSequenceLen := 1000 // it takes more than one share to store a sequence of 1000 bytes
 	oneShareWithTooLargeSequenceLenBytes := generateRawShare(blobOneNamespace, start, uint32(largeSequenceLen))

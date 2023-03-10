@@ -41,7 +41,7 @@ func NewCompactShareSplitter(ns namespace.ID, shareVersion uint8) *CompactShareS
 		namespace:    ns,
 		shareVersion: shareVersion,
 		shareRanges:  map[coretypes.TxKey]ShareRange{},
-		shareBuilder: NewBuilder(ns, shareVersion, true, true),
+		shareBuilder: NewBuilder(ns, shareVersion, true),
 	}
 }
 
@@ -102,7 +102,7 @@ func (css *CompactShareSplitter) stackPending() {
 	css.shares = append(css.shares, *pendingShare)
 
 	// Now we need to create a new builder
-	css.shareBuilder = NewBuilder(css.namespace, css.shareVersion, true, false)
+	css.shareBuilder = NewBuilder(css.namespace, css.shareVersion, false)
 }
 
 // Export finalizes and returns the underlying compact shares and a map of
@@ -151,7 +151,7 @@ func (css *CompactShareSplitter) writeSequenceLen(sequenceLen uint32) {
 	}
 
 	// We may find a more efficient way to write seqLen
-	b := NewBuilder(css.namespace, css.shareVersion, true, true)
+	b := NewBuilder(css.namespace, css.shareVersion, true)
 	b.ImportRawShare(css.shares[0])
 
 	if err := b.WriteSequenceLen(sequenceLen); err != nil {

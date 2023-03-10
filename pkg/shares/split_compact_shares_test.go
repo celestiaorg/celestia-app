@@ -56,7 +56,7 @@ func TestExport_write(t *testing.T) {
 	}
 
 	// since we will import the raw share data, the inputs here do not matter
-	builder := NewBuilder([]byte{0}, 0, false, false)
+	builder := NewBuilder([]byte{0}, 0, false)
 
 	builder.ImportRawShare(Share{data: []byte{
 		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, // namespace id
