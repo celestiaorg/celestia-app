@@ -46,7 +46,6 @@ func (b *Builder) ImportRawShare(rawShare Share) {
 }
 
 func (b *Builder) AddData(rawData []byte) (rawDataLeftOver []byte) {
-
 	// find the len left in the pending share
 	pendingLeft := appconsts.ShareSize - len(b.rawShareData)
 
@@ -114,7 +113,6 @@ func (b *Builder) indexOfInfoBytes() int {
 // have already been populated. If the reserved bytes are empty, it will write
 // the location of the next unit of data to the reserved bytes.
 func (b *Builder) MaybeWriteReservedBytes() error {
-
 	if !b.isCompactShare {
 		return errors.New("this is not a compact share")
 	}
@@ -157,7 +155,6 @@ func (b *Builder) WriteSequenceLen(sequenceLen uint32) error {
 
 // FlipSequenceStart flips the sequence start indicator of the share provided
 func (b *Builder) FlipSequenceStart() {
-
 	infoByteIndex := b.indexOfInfoBytes()
 
 	// the sequence start indicator is the last bit of the info byte so flip the
@@ -166,7 +163,6 @@ func (b *Builder) FlipSequenceStart() {
 }
 
 func (b *Builder) prepareCompactShare() error {
-
 	shareData := make([]byte, 0, appconsts.ShareSize)
 	infoByte, err := NewInfoByte(b.shareVersion, b.isFirstShare)
 	if err != nil {
@@ -190,7 +186,6 @@ func (b *Builder) prepareCompactShare() error {
 }
 
 func (b *Builder) prepareSparseShare() error {
-
 	shareData := make([]byte, 0, appconsts.ShareSize)
 	infoByte, err := NewInfoByte(b.shareVersion, b.isFirstShare)
 	if err != nil {

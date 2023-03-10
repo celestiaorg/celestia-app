@@ -34,7 +34,6 @@ func parseCompactShares(shares []Share, supportedShareVersions []uint8) (data []
 // data may be transactions or intermediate state roots depending
 // on the namespace ID for this share
 func peel(shares []Share) (data [][]byte, err error) {
-
 	seqStart, err := shares[0].IsSequenceStart()
 	if err != nil {
 		return nil, err

@@ -12,9 +12,10 @@ import (
 // conforms to non-interactive default rules. The ns parameter provided should
 // be the namespace of the blob that precedes this padding in the data square.
 func NamespacePaddingShare(ns namespace.ID) Share {
-
 	b := NewBuilder(ns, appconsts.ShareVersionZero, false, true)
-	b.WriteSequenceLen(0)
+	if err := b.WriteSequenceLen(0); err != nil {
+		panic(err)
+	}
 	padding := bytes.Repeat([]byte{0}, appconsts.FirstSparseShareContentSize)
 	b.AddData(padding)
 

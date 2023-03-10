@@ -30,7 +30,9 @@ func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
 
 	// First share
 	b := NewBuilder(blob.NamespaceID, blob.ShareVersion, false, true)
-	b.WriteSequenceLen(uint32(len(rawData)))
+	if err := b.WriteSequenceLen(uint32(len(rawData))); err != nil {
+		return err
+	}
 
 	for rawData != nil {
 
