@@ -390,6 +390,8 @@ Where `A -> B` indicates that `B` is computed using [erasure coding](#reed-solom
 - `Q0 -> Q2` for each column in `Q0` and `Q2`
 - `Q2 -> Q3` for each row in `Q2` and `Q3`
 
+Note that the parity data in `Q3` will be identical if it is vertically extended from `Q1` or horizontally extended from `Q2`.
+
 ![fig: RS2D encoding: extending data.](./figures/rs2d_extending.svg)
 
 As an example, the parity data in the second column of `Q2` (in striped purple) is computed by [extending](#reed-solomon-erasure-coding) the original data in the second column of `Q0` (in solid blue).
