@@ -160,7 +160,7 @@ func Test_parseCompactSharesErrors(t *testing.T) {
 	shareWithUnsupportedShareVersionBytes := rawShares[0]
 	shareWithUnsupportedShareVersionBytes[appconsts.NamespaceSize] = byte(infoByte)
 
-	shareWithUnsupportedShareVersion, err := NewShare(shareWithUnsupportedShareVersionBytes)
+	shareWithUnsupportedShareVersion, err := newShare(shareWithUnsupportedShareVersionBytes)
 	if err != nil {
 		t.Fatal(err)
 	}

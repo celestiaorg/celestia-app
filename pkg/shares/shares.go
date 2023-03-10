@@ -13,7 +13,7 @@ type Share struct {
 	data []byte
 }
 
-func NewShare(data []byte) (*Share, error) {
+func newShare(data []byte) (*Share, error) {
 	if len(data) != appconsts.ShareSize {
 		return nil, fmt.Errorf("share data must be %d bytes, got %d", appconsts.ShareSize, len(data))
 	}

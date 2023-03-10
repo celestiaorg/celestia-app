@@ -3,6 +3,7 @@ package shares
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
@@ -14,6 +15,12 @@ type Builder struct {
 	isFirstShare   bool
 	isCompactShare bool
 	rawShareData   []byte
+}
+
+func NewEmptyBuilder() *Builder {
+	return &Builder{
+		rawShareData: make([]byte, 0, appconsts.ShareSize),
+	}
 }
 
 func NewBuilder(ns namespace.ID, shareVersion uint8, isFirstShare bool) *Builder {
@@ -41,8 +48,13 @@ func (b *Builder) AvailableBytes() int {
 	return appconsts.ShareSize - len(b.rawShareData)
 }
 
-func (b *Builder) ImportRawShare(rawShare Share) {
-	b.rawShareData = rawShare.data
+func (b *Builder) ImportRawShare(rawBytes []byte) (*Builder, error) {
+	// TODO: we may need more check here
+	if len(rawBytes) != appconsts.ShareSize {
+		return nil, fmt.Errorf("share data must be %d bytes, got %d", appconsts.ShareSize, len(rawBytes))
+	}
+	b.rawShareData = rawBytes
+	return b, nil
 }
 
 func (b *Builder) AddData(rawData []byte) (rawDataLeftOver []byte) {
@@ -67,7 +79,7 @@ func (b *Builder) AddData(rawData []byte) (rawDataLeftOver []byte) {
 }
 
 func (b *Builder) Build() (*Share, error) {
-	return NewShare(b.rawShareData)
+	return newShare(b.rawShareData)
 }
 
 // IsEmptyShare returns true if no data has been written to the share

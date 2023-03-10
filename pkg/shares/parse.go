@@ -39,11 +39,7 @@ func ParseShares(rawShares []Share) ([]ShareSequence, error) {
 	sequences := []ShareSequence{}
 	currentSequence := ShareSequence{}
 
-	for _, rawShare := range rawShares {
-		share, err := NewShare(rawShare.ToBytes())
-		if err != nil {
-			return sequences, err
-		}
+	for _, share := range rawShares {
 		isStart, err := share.IsSequenceStart()
 		if err != nil {
 			return sequences, err
@@ -53,14 +49,14 @@ func ParseShares(rawShares []Share) ([]ShareSequence, error) {
 				sequences = append(sequences, currentSequence)
 			}
 			currentSequence = ShareSequence{
-				Shares:      []Share{*share},
+				Shares:      []Share{share},
 				NamespaceID: share.NamespaceID(),
 			}
 		} else {
 			if !bytes.Equal(currentSequence.NamespaceID, share.NamespaceID()) {
 				return sequences, fmt.Errorf("share sequence %v has inconsistent namespace IDs with share %v", currentSequence, share)
 			}
-			currentSequence.Shares = append(currentSequence.Shares, *share)
+			currentSequence.Shares = append(currentSequence.Shares, share)
 		}
 	}
 

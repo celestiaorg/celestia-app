@@ -51,7 +51,9 @@ func TestParseShares(t *testing.T) {
 
 	largeSequenceLen := 1000 // it takes more than one share to store a sequence of 1000 bytes
 	oneShareWithTooLargeSequenceLenBytes := generateRawShare(blobOneNamespace, start, uint32(largeSequenceLen))
-	b.ImportRawShare(Share{data: oneShareWithTooLargeSequenceLenBytes})
+	if _, err := b.ImportRawShare(oneShareWithTooLargeSequenceLenBytes); err != nil {
+		t.Fatal(err)
+	}
 	if err := b.WriteSequenceLen(uint32(largeSequenceLen)); err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +65,9 @@ func TestParseShares(t *testing.T) {
 
 	shortSequenceLen := 0
 	oneShareWithTooShortSequenceLenBytes := generateRawShare(blobOneNamespace, start, uint32(shortSequenceLen))
-	b.ImportRawShare(Share{data: oneShareWithTooShortSequenceLenBytes})
+	if _, err := b.ImportRawShare(oneShareWithTooShortSequenceLenBytes); err != nil {
+		t.Fatal(err)
+	}
 	if err := b.WriteSequenceLen(uint32(shortSequenceLen)); err != nil {
 		t.Fatal(err)
 	}
