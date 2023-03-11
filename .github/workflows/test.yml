@@ -7,7 +7,7 @@ on:
   workflow_call:
   
 concurrency:
-  group: ${{ github.workflow }}-${{ !startsWith(github.ref, 'refs/tags/') &&
+  group: ${{ !startsWith(github.ref, 'refs/tags/') &&
       github.ref != 'refs/heads/master' }}
   cancel-in-progress: true
 
