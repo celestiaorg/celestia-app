@@ -5,7 +5,7 @@ name: Tests / Code Coverage
 #  .mod, .sum have been changed
 on:
   workflow_call:
-  
+
 concurrency:
   group: ${{ !startsWith(github.ref, 'refs/tags/') &&
       github.ref != 'refs/heads/master' }}
