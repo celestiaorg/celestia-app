@@ -38,8 +38,7 @@ jobs:
           add-labels: "external"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # If an PR was created by dependabot
-      # celestia-core, add the `bot` label.
+      # If a PR was created by dependabot add the `bot` label.
       - name: Maybe label PR with `bot`
         if: ${{ github.actor == 'dependabot[bot]' }}
         uses: andymckay/labeler@master
