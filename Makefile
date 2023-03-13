@@ -27,11 +27,9 @@ help: Makefile
 
 ## build: Build the celestia-appd binary into the ./build directory.
 build: mod
-	@go install github.com/gobuffalo/packr/v2/packr2@latest
-	@cd ./cmd/celestia-appd && packr2
+	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
-	@packr2 clean
 	@go mod tidy -compat=1.18
 .PHONY: build
 
