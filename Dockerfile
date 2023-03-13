@@ -12,6 +12,12 @@ RUN make build
 
 # stage 2
 FROM docker.io/alpine:3.17.2
+
+ARG UID=10001
+ARG USER_NAME=celestia
+
+ENV CELESTIA_HOME=/opt/${USER_NAME}
+
 # hadolint ignore=DL3018
 RUN apk update && apk --no-cache add \
     bash
@@ -22,11 +28,14 @@ COPY  docker/entrypoint.sh /opt/entrypoint.sh
 # p2p, rpc and prometheus port
 EXPOSE 26656 26657 1317 9090
 
-ENV CELESTIA_HOME /opt
+# Creates a user with $UID and $GID=$UID
+RUN adduser ${USER_NAME} \
+    -D \
+    -g "celestia" \
+    -h ${CELESTIA_HOME} \
+    -s /sbin/nologin \
+    -u ${UID}
 
-RUN adduser -D -u 1000 celestia \
-    && chown -R celestia:celestia /opt
-
-USER celestia
+USER ${USER_NAME}
 
 ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]
