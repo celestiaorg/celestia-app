@@ -1,6 +1,7 @@
 package shares
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 
@@ -57,6 +58,17 @@ func (s *Share) Version() (uint8, error) {
 		return 0, err
 	}
 	return infoByte.Version(), nil
+}
+
+func (s *Share) DoesSupportVersions(supportedShareVersions []uint8) error {
+	ver, err := s.Version()
+	if err != nil {
+		return err
+	}
+	if !bytes.Contains(supportedShareVersions, []byte{ver}) {
+		return fmt.Errorf("unsupported share version %v is not present in the list of supported share versions %v", ver, supportedShareVersions)
+	}
+	return nil
 }
 
 // IsSequenceStart returns true if this is the first share in a sequence.
