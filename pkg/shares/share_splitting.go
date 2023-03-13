@@ -49,7 +49,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 			blobShareStart = int(blobIndexes[0])
 		}
 
-		padding = NamespacedPaddedShares(appconsts.ReservedNamespacePadding, blobShareStart-currentShareCount)
+		padding = NamespacePaddingShares(appconsts.ReservedPaddingNamespaceID, blobShareStart-currentShareCount)
 	}
 	currentShareCount += len(padding)
 

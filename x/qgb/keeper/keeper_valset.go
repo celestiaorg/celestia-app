@@ -6,8 +6,10 @@ import (
 
 	cosmosmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
+
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
+	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -25,7 +27,7 @@ func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
 			return nil, err
 		}
 		if !found {
-			panic(sdkerrors.Wrap(
+			panic(errors.Wrap(
 				types.ErrNilAttestation,
 				fmt.Sprintf("stumbled upon nil attestation for nonce %d", i),
 			))
@@ -33,13 +35,13 @@ func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
 		if at.Type() == types.ValsetRequestType {
 			valset, ok := at.(*types.Valset)
 			if !ok {
-				return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
+				return nil, errors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
 			}
 			return valset, nil
 		}
 	}
 	// should never execute
-	panic(sdkerrors.Wrap(sdkerrors.ErrNotFound, "couldn't find latest valset"))
+	panic(errors.Wrap(sdkerrors.ErrNotFound, "couldn't find latest valset"))
 }
 
 // SetLastUnBondingBlockHeight sets the last unbonding block height. Note this
@@ -78,7 +80,7 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 	for _, validator := range validators {
 		val := validator.GetOperator()
 		if err := sdk.VerifyAddressFormat(val); err != nil {
-			return types.Valset{}, sdkerrors.Wrap(err, types.ErrInvalidValAddress.Error())
+			return types.Valset{}, errors.Wrap(err, types.ErrInvalidValAddress.Error())
 		}
 
 		p := sdk.NewInt(k.StakingKeeper.GetLastValidatorPower(ctx, val))
@@ -87,7 +89,7 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 		bv := types.BridgeValidator{Power: p.Uint64(), EvmAddress: validator.EvmAddress}
 		ibv, err := types.NewInternalBridgeValidator(bv)
 		if err != nil {
-			return types.Valset{}, sdkerrors.Wrapf(err, types.ErrInvalidEVMAddress.Error(), val)
+			return types.Valset{}, errors.Wrapf(err, types.ErrInvalidEVMAddress.Error(), val)
 		}
 		bridgeValidators = append(bridgeValidators, ibv)
 		totalPower = totalPower.Add(p)
@@ -102,7 +104,7 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 
 	valset, err := types.NewValset(valsetNonce, uint64(ctx.BlockHeight()), bridgeValidators)
 	if err != nil {
-		return types.Valset{}, (sdkerrors.Wrap(err, types.ErrInvalidValset.Error()))
+		return types.Valset{}, (errors.Wrap(err, types.ErrInvalidValset.Error()))
 	}
 	return *valset, nil
 }
@@ -146,7 +148,7 @@ func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.
 			return nil, err
 		}
 		if !found {
-			return nil, sdkerrors.Wrap(
+			return nil, errors.Wrap(
 				types.ErrNilAttestation,
 				fmt.Sprintf("nonce=%d", nonce-i),
 			)
@@ -154,12 +156,12 @@ func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.
 		if at.Type() == types.ValsetRequestType {
 			valset, ok := at.(*types.Valset)
 			if !ok {
-				return nil, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
+				return nil, errors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
 			}
 			return valset, nil
 		}
 	}
-	return nil, sdkerrors.Wrap(
+	return nil, errors.Wrap(
 		sdkerrors.ErrNotFound,
 		fmt.Sprintf("couldn't find valset before nonce %d", nonce),
 	)
@@ -177,12 +179,12 @@ func (k Keeper) GetValsetByNonce(ctx sdk.Context, nonce uint64) (*types.Valset, 
 		return nil, false, nil
 	}
 	if at.Type() != types.ValsetRequestType {
-		return nil, false, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "attestation is not a valset request")
+		return nil, false, errors.Wrap(types.ErrAttestationNotValsetRequest, "attestation is not a valset request")
 	}
 
 	valset, ok := at.(*types.Valset)
 	if !ok {
-		return nil, false, sdkerrors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
+		return nil, false, errors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
 	}
 	return valset, true, nil
 }

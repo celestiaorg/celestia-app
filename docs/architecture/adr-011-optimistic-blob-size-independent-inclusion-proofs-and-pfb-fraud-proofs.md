@@ -1,5 +1,11 @@
 # ADR 011: Optimistic Blob Size Independent Inclusion Proofs and PFB Fraud Proofs
 
+## Status
+
+Accepted -> Does not affect the Celestia Core Specification
+
+Optimization 1 & 2 **Declined** as it is currently not worth it to introduce extra complexity for reducing the PFB proof size by 512-1024 bytes.
+
 ## Changelog
 
 - 18.11.2022: Initial Draft
@@ -64,17 +70,17 @@ Share size := 512 bytes
 NMT-Node size := 32 bytes + 2\*8 bytes = 48 bytes
 MT-Node size := 32 bytes
 
-Worst Case Normal PFB proof size in bytes  
-= 2 PFB Shares + blue nodes to row roots + blue nodes to (`DataRoot`)  
-= 2 \* Share size + 2 \* log(k) \* NMT-Node size + log(k) \* MT-Node size  
-= 2 \* 512 + 2 \* log(k) \* 48 + log(k) \* 32  
-= 1024 + 128 \* log(k)  
+Worst Case Normal PFB proof size in bytes
+= 2 PFB Shares + blue nodes to row roots + blue nodes to (`DataRoot`)
+= 2 \* Share size + 2 \* log(k) \* NMT-Node size + log(k) \* MT-Node size
+= 2 \* 512 + 2 \* log(k) \* 48 + log(k) \* 32
+= 1024 + 128 \* log(k)
 
 As the size of a PFB transaction is unbounded you can encompass even more shares. To put a bound on this we assume that most PFB transactions will be able to be captured by 4 shares.
 
-Huge PFB proof size in bytes  
-= 4 PFB Shares + blue nodes to row roots + blue nodes to (`DataRoot`)  
-= 4 \* Share size + 2 \* log(k) \* NMT-Node size + log(k) \* MT-Node size  
+Huge PFB proof size in bytes
+= 4 PFB Shares + blue nodes to row roots + blue nodes to (`DataRoot`)
+= 4 \* Share size + 2 \* log(k) \* NMT-Node size + log(k) \* MT-Node size
 = 2048 + 128 \* log(k)
 
 ### Blob Inclusion Proof
@@ -85,54 +91,54 @@ The worst-case blob inclusion proof size will result from the biggest possible b
 
 With a blob of size n and a square size of k, this means that we have O(sqrt(n)) subtree row roots and O(log(k)) subtree row roots in the last row. As the whole block is filled up, sqrt(n) tends towards k. We will also require additional k blue parity nodes to prove the row roots.
 
-Worst case blob inclusion proof size  
-= subtree roots (all rows) + subtree roots (last row) + blue nodes (parity shares)  
-= (sqrt(n) + log(k) + k) \* NMT-Node size     | sqrt(n) => k  
+Worst case blob inclusion proof size
+= subtree roots (all rows) + subtree roots (last row) + blue nodes (parity shares)
+= (sqrt(n) + log(k) + k) \* NMT-Node size     | sqrt(n) => k
 = ( 2 \* k + log(k) ) \* 48
 
 ## Optimizations
 
 ### Optimization 1
 
-If a PFB would be guaranteed to be in one share then we could decrease the PFB proof size significantly. You would not only get rid of one share resulting in a 512 bytes save but also log(k) fewer blue nodes in the worst case. The maximum size PFB that fits into one share is 501 bytes long:  
-= Share size - nid - special byte - reserved bytes - transaction length  
-= 512 - 8 - 1 - 1 - 1 = 501  
+If a PFB would be guaranteed to be in one share then we could decrease the PFB proof size significantly. You would not only get rid of one share resulting in a 512 bytes save but also log(k) fewer blue nodes in the worst case. The maximum size PFB that fits into one share is 501 bytes long:
+= Share size - nid - special byte - reserved bytes - transaction length
+= 512 - 8 - 1 - 1 - 1 = 501
 Therefore a normal-sized PFB of 330 bytes fits easily into a share with additional spare bytes to be used for more complex PFBs.
 A requirement for this is an option for the transaction to be the only one in a share or at the start of a share if it fits in the share. This would extend to bigger PFB shares as well so you can potentially reduce the size of overlapping PFB proofs by 1 share (512 bytes).
 
-One share PFB proof size  
-= Share + blue nodes to row root + blue nodes (`DataRoot`)  
-= Share size + log(k) \* NMT-Node size + log(k) \* MT-Node size  
-= 512 + log(k) \* 48 + log(k) \* 32  
+One share PFB proof size
+= Share + blue nodes to row root + blue nodes (`DataRoot`)
+= Share size + log(k) \* NMT-Node size + log(k) \* MT-Node size
+= 512 + log(k) \* 48 + log(k) \* 32
 = 512 + 80 \* log(k)
 
 ### Optimization 2
 
-The second optimization that could be possible is to only prove the commitment over the PFB transaction and not the PFB transaction itself. This requires the next block header in the rollup chain to include the commitment of the PFB transaction shares as well.  
-This would require the PFB transaction to be deterministic and therefore predictable so you can calculate the commitment over PFB transaction beforehand. How the PFB transaction is created like gas used and signatures, is something the roll-up has to agree upon before. It only needs to be predictable, if we want to keep the option of asynchronous blocktimes and multiple Rollmint blocks per Celestia block.  
+The second optimization that could be possible is to only prove the commitment over the PFB transaction and not the PFB transaction itself. This requires the next block header in the rollup chain to include the commitment of the PFB transaction shares as well.
+This would require the PFB transaction to be deterministic and therefore predictable so you can calculate the commitment over PFB transaction beforehand. How the PFB transaction is created like gas used and signatures, is something the roll-up has to agree upon before. It only needs to be predictable, if we want to keep the option of asynchronous blocktimes and multiple Rollmint blocks per Celestia block.
 Another requirement is that the content of the PFB shares is predictable. You could enforce this by only having the PFB transaction in the share.
 
 The commitment over the PFB transaction is created by using the same principle of creating the commitment over a blob. Therefore the size of the inclusion proof is the same as the size of a blob inclusion proof of the size of how many shares the PFB transaction spans.
 
 Commitment inclusion proof size over one share PFB
-= subtree root + blue nodes to share + blue nodes to (`DataRoot`)  
-= NMT-Node size + log(k) \* NMT-Node size + log(k) \* MT-Node size  
-= 48 + log(k) \* 48 + log(k) \* 32  
+= subtree root + blue nodes to share + blue nodes to (`DataRoot`)
+= NMT-Node size + log(k) \* NMT-Node size + log(k) \* MT-Node size
+= 48 + log(k) \* 48 + log(k) \* 32
 = 48 + 80 \* log(k)
 
 For two shares the best case is the same as for one share but the worst case includes twice the blue nodes to the row root. For 3 and 4 shares for a PFB transaction, the worst case proof size does not change significantly.
 
 Worst case commitment inclusion proof size over 2-4 share PFB
-= subtree roots + blue nodes to share + blue nodes to (`DataRoot`)  
-= 2 \* NMT-Node size + 2 \* log(k) \* NMT-Node size + log(k) \* MT-Node size  
-= 96 + log(k) \* 96 + log(k) \* 32  
+= subtree roots + blue nodes to share + blue nodes to (`DataRoot`)
+= 2 \* NMT-Node size + 2 \* log(k) \* NMT-Node size + log(k) \* MT-Node size
+= 96 + log(k) \* 96 + log(k) \* 32
 = 96 + 128 \* log(k)
 
 ![Optimized Pfb Proofs](./assets/optimized-pfb-proofs.png)
 
 <!--- This does not need a fraud proof as it could be a validation rule that even light clients can check. This would require the light clients to know the sequencer set and whose turn it was. (not sure about this)
 --->
-The fraud proof for this would be to prove that the commitment of the PFB transaction does not equal the predicted commitment in the header. Therefore this is equivalent to a PFB transaction inclusion proof. This fraud proof would be optimistic as we would assume that the PFB commitment is correct. But realistically if the commitment over the PFB transaction is wrong then the PFB commitment is most likely wrong as well. Therefore the fraud poof would be a PFB Fraud Proof as described at the top.  
+The fraud proof for this would be to prove that the commitment of the PFB transaction does not equal the predicted commitment in the header. Therefore this is equivalent to a PFB transaction inclusion proof. This fraud proof would be optimistic as we would assume that the PFB commitment is correct. But realistically if the commitment over the PFB transaction is wrong then the PFB commitment is most likely wrong as well. Therefore the fraud poof would be a PFB Fraud Proof as described at the top.
 If we do not have a PFB transaction that can be predicted, we also need to slash double signing of 2 valid PFB transactions in Celestia. This is required so we don't create a valid fraud proof over a valid commitment over the PFB transaction.
 
 The third optimization could be to SNARK the PFB Inclusion Proof to reduce the size even more.?
@@ -153,12 +159,6 @@ The other way to prove blob inclusion is dependent on the blob size. A blob incl
 ## Detailed Design
 
 TODO
-
-## Status
-
-Accepted -> Does not affect the Celestia Core Specification
-
-Optimization 1 & 2 **Declined** as it is currently not worth it to introduce extra complexity for reducing the PFB proof size by 512-1024 bytes.
 
 ## Consequences
 

@@ -1,0 +1,38 @@
+name: issue-label-automation
+on:
+  pull_request_target:
+    types: [opened]
+  issues:
+    types: [opened]
+jobs:
+  automate-labels:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Check if issue or PR was created by external contributor
+        uses: tspascoal/get-user-teams-membership@v2
+        id: teamCheck
+        with:
+          username: ${{ github.actor }}
+          team: "celestia-core"
+          GITHUB_TOKEN: ${{ secrets.PAT_TEAM_CHECK }}
+
+      # If an issue was unlabeled add `needs:triage`.
+      - name: Maybe label issue with `needs:triage`
+        if: ${{ github.event_name == 'issues' }}
+        uses: andymckay/labeler@master
+        with:
+          add-labels: "needs:triage"
+          ignore-if-labeled: true
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # If an issue or PR was created by someone that isn't part of
+      # celestia-core, add the `external` label.
+      - name: Maybe label issue or PR with `external`
+        if: ${{ steps.teamCheck.outputs.isTeamMember == 'false' }}
+        uses: andymckay/labeler@master
+        with:
+          add-labels: "external"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}

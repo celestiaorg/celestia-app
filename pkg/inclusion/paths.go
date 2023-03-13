@@ -4,7 +4,6 @@ import (
 	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 )
 
 type path struct {
@@ -12,9 +11,9 @@ type path struct {
 	row          int
 }
 
-// calculateCommitPaths calculates all of the paths to subtree roots needed to
+// calculateCommitmentPaths calculates all of the paths to subtree roots needed to
 // create the commitment for a given blob.
-func calculateCommitPaths(squareSize, start, blobShareLen int) []path {
+func calculateCommitmentPaths(squareSize, start, blobShareLen int) []path {
 	// TODO: make the non-interactive defaults optional. by calculating the
 	// NextMultipleOfBlobMinSquareSize, we are forcing use of the
 	// non-interactive defaults. If we want to make this optional in the future,
@@ -37,7 +36,7 @@ func calculateCommitPaths(squareSize, start, blobShareLen int) []path {
 		// subTreeRootMaxHeight is the maximum height of a subtree root that was
 		// used to generate the commitment. The height is based on the minimum
 		// square size the blob can fit into. See ADR-008 for more details.
-		subTreeRootMaxHeight := int(math.Log2(float64(types.MinSquareSize(blobShareLen))))
+		subTreeRootMaxHeight := int(math.Log2(float64(shares.MinSquareSize(blobShareLen))))
 		minDepth := maxDepth - subTreeRootMaxHeight
 		coords := calculateSubTreeRootCoordinates(maxDepth, minDepth, start, end)
 		for _, c := range coords {

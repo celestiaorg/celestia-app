@@ -9,6 +9,6 @@ option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 // been processed.
 message EventPayForBlobs {
   string signer = 1;
-  uint32 blob_size = 2;
+  repeated uint32 blob_sizes = 2;
   repeated bytes namespace_ids = 3;
 }

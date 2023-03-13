@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	qgbcmd "github.com/celestiaorg/celestia-app/x/qgb/client"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -41,18 +42,17 @@ import (
 	dbm "github.com/tendermint/tm-db"
 )
 
-const EnvPrefix = "CELESTIA"
+const (
+	EnvPrefix = "CELESTIA"
+
+	// FlagLogToFile specifies whether to log to file or not.
+	FlagLogToFile = "log-to-file"
+)
 
 // NewRootCmd creates a new root command for celestia-appd. It is called once in the
 // main function.
 func NewRootCmd() *cobra.Command {
 	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	cfg := sdk.GetConfig()
-	cfg.SetBech32PrefixForAccount(app.Bech32PrefixAccAddr, app.Bech32PrefixAccPub)
-	cfg.SetBech32PrefixForValidator(app.Bech32PrefixValAddr, app.Bech32PrefixValPub)
-	cfg.SetBech32PrefixForConsensusNode(app.Bech32PrefixConsAddr, app.Bech32PrefixConsPub)
-	cfg.Seal()
 
 	initClientCtx := client.Context{}.
 		WithCodec(encodingConfig.Codec).
@@ -92,17 +92,30 @@ func NewRootCmd() *cobra.Command {
 			tmCfg.Mempool.TTLNumBlocks = 10
 			tmCfg.Mempool.MaxTxBytes = 2 * 1024 * 1024 // 2 MiB
 			tmCfg.Mempool.Version = "v1"               // prioritized mempool
-			tmCfg.Consensus.TimeoutPropose = time.Second * 10
-			tmCfg.Consensus.TimeoutCommit = time.Second * 8
+			tmCfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
+			tmCfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
 			tmCfg.Consensus.SkipTimeoutCommit = false
 			tmCfg.TxIndex.Indexer = "null"
 
 			customAppTemplate, customAppConfig := initAppConfig()
-			return server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
+
+			err = server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
+			if err != nil {
+				return err
+			}
+
+			// optionally log to file by replaceing the default logger with a file logger
+			err = replaceLogger(cmd)
+			if err != nil {
+				return err
+			}
+
+			return overrideServerConfig(cmd)
 		},
 		SilenceUsage: true,
 	}
 
+	rootCmd.PersistentFlags().String(FlagLogToFile, "", "Write logs directly to a file. If empty, logs are written to stderr")
 	initRootCmd(rootCmd, encodingConfig)
 
 	return rootCmd
@@ -285,4 +298,26 @@ func createAppAndExport(
 	}
 
 	return capp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
+}
+
+// replaceLogger optionally replaces the logger with a file logger if the flag
+// is set to something other than the default.
+func replaceLogger(cmd *cobra.Command) error {
+	logFilePath, err := cmd.Flags().GetString(FlagLogToFile)
+	if err != nil {
+		return err
+	}
+
+	if logFilePath == "" {
+		return nil
+	}
+
+	file, err := os.OpenFile(logFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
+	if err != nil {
+		return err
+	}
+
+	sctx := server.GetServerContextFromCmd(cmd)
+	sctx.Logger = log.NewTMLogger(log.NewSyncWriter(file))
+	return server.SetCmdServerContext(cmd, sctx)
 }

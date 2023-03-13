@@ -34,7 +34,6 @@ func TestStandardSDKIntegrationTestSuite(t *testing.T) {
 type StandardSDKIntegrationTestSuite struct {
 	suite.Suite
 
-	cleanup  func() error
 	accounts []string
 	cctx     testnode.Context
 	ecfg     encoding.Config
@@ -46,17 +45,10 @@ type StandardSDKIntegrationTestSuite struct {
 func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	t.Log("setting up integration test suite")
-	cleanup, accounts, cctx := testnode.DefaultNetwork(t, time.Millisecond*400)
-	s.cleanup = cleanup
+	accounts, cctx := testnode.DefaultNetwork(t, time.Millisecond*400)
 	s.accounts = accounts
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	s.cctx = cctx
-}
-
-func (s *StandardSDKIntegrationTestSuite) TearDownSuite() {
-	t := s.T()
-	t.Log("tearing down integration test suite")
-	require.NoError(t, s.cleanup())
 }
 
 func (s *StandardSDKIntegrationTestSuite) unusedAccount() string {

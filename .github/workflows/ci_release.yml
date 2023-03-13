@@ -27,32 +27,16 @@ on:
           - major
 
 jobs:
-  # Dockerfile Linting
-  hadolint:
-    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@main # yamllint disable-line rule:line-length
-
-  yamllint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: celestiaorg/.github/.github/actions/yamllint@main
-
-  markdown-lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: celestiaorg/.github/.github/actions/markdown-lint@main
 
   lint:
     uses: ./.github/workflows/lint.yml
 
   test:
-    needs: lint
     uses: ./.github/workflows/test.yml
 
   # Make a release if this is a manually trigger job, i.e. workflow_dispatch
   release:
-    needs: [hadolint, yamllint, markdown-lint, lint, test]
+    needs: [lint, test]
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' }}
     permissions: "write-all"
@@ -63,17 +47,3 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           version-bump: ${{inputs.version}}
-
-  # TODO: include docker build, Josh currently working on updates.
-  #
-  # The below if statement is a recommendation of how to only build the docker
-  # image on manual workflow triggers and push events for the tag
-  #
-  # docker-build:
-  #   needs: [hadolint, yamllint, markdown-lint, lint, test, go-ci]
-  # yamllint disable
-  #   if: |
-  #     ${{ github.event_name == 'workflow_dispatch' ||
-  #     startsWith('refs/tags/v', github.ref) }}
-  # yamllint enable
-  #   uses: ....

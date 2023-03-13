@@ -85,8 +85,6 @@ func roundUpBy(cursor, v int) int {
 
 // MinSquareSize returns the minimum square size that can contain shareCount
 // number of shares.
-//
-// NOTE: this function was duplicated to avoid import cycles.
 func MinSquareSize(shareCount int) int {
 	return RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(shareCount)))))
 }
