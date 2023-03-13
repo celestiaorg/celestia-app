@@ -35,11 +35,14 @@ func ParseBlobs(shares []Share) ([]coretypes.Blob, error) {
 	return blobList, nil
 }
 
-func ParseShares(rawShares []Share) ([]ShareSequence, error) {
+func ParseShares(shares []Share) ([]ShareSequence, error) {
 	sequences := []ShareSequence{}
 	currentSequence := ShareSequence{}
 
-	for _, share := range rawShares {
+	for _, share := range shares {
+		if err := share.Validate(); err != nil {
+			return sequences, err
+		}
 		isStart, err := share.IsSequenceStart()
 		if err != nil {
 			return sequences, err

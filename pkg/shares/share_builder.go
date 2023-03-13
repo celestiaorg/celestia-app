@@ -3,7 +3,6 @@ package shares
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
@@ -48,13 +47,9 @@ func (b *Builder) AvailableBytes() int {
 	return appconsts.ShareSize - len(b.rawShareData)
 }
 
-func (b *Builder) ImportRawShare(rawBytes []byte) (*Builder, error) {
-	// TODO: we may need more check here
-	if len(rawBytes) != appconsts.ShareSize {
-		return nil, fmt.Errorf("share data must be %d bytes, got %d", appconsts.ShareSize, len(rawBytes))
-	}
+func (b *Builder) ImportRawShare(rawBytes []byte) *Builder {
 	b.rawShareData = rawBytes
-	return b, nil
+	return b
 }
 
 func (b *Builder) AddData(rawData []byte) (rawDataLeftOver []byte) {

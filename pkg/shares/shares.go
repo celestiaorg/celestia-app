@@ -14,10 +14,21 @@ type Share struct {
 }
 
 func newShare(data []byte) (*Share, error) {
-	if len(data) != appconsts.ShareSize {
-		return nil, fmt.Errorf("share data must be %d bytes, got %d", appconsts.ShareSize, len(data))
+	if err := validateSize(data); err != nil {
+		return nil, err
 	}
 	return &Share{data}, nil
+}
+
+func (s *Share) Validate() error {
+	return validateSize(s.data)
+}
+
+func validateSize(data []byte) error {
+	if len(data) != appconsts.ShareSize {
+		return fmt.Errorf("share data must be %d bytes, got %d", appconsts.ShareSize, len(data))
+	}
+	return nil
 }
 
 func (s *Share) NamespaceID() namespace.ID {

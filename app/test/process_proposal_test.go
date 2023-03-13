@@ -273,10 +273,7 @@ func TestProcessProposal(t *testing.T) {
 // flipSequenceStart flips the sequence start indicator of the share provided
 func flipSequenceStart(share shares.Share) shares.Share {
 	// input params do not matter as we import the entire share in raw format
-	b, err := shares.NewEmptyBuilder().ImportRawShare(share.ToBytes())
-	if err != nil {
-		panic(err)
-	}
+	b := shares.NewEmptyBuilder().ImportRawShare(share.ToBytes())
 	b.FlipSequenceStart()
 	updatedShare, err := b.Build()
 	if err != nil {

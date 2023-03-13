@@ -27,11 +27,7 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 
 		for _, shareBytes := range row[:squareSize] {
 			// sort the data of that share types via namespace
-			b, err := NewEmptyBuilder().ImportRawShare(shareBytes)
-			if err != nil {
-				return coretypes.Data{}, err
-			}
-			share, err := b.Build()
+			share, err := NewEmptyBuilder().ImportRawShare(shareBytes).Build()
 			if err != nil {
 				return coretypes.Data{}, err
 			}

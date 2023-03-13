@@ -152,9 +152,7 @@ func (css *CompactShareSplitter) writeSequenceLen(sequenceLen uint32) {
 
 	// We may find a more efficient way to write seqLen
 	b := NewBuilder(css.namespace, css.shareVersion, true)
-	if _, err := b.ImportRawShare(css.shares[0].ToBytes()); err != nil {
-		panic(err)
-	}
+	b.ImportRawShare(css.shares[0].ToBytes())
 
 	if err := b.WriteSequenceLen(sequenceLen); err != nil {
 		panic(err)
