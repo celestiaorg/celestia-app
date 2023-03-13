@@ -22,14 +22,14 @@ const (
 
 func TestNewBlob(t *testing.T) {
 	rawBlob := []byte{1}
-	validBlob, err := NewBlob([]byte{1, 2, 3, 4, 5, 6, 7, 8}, rawBlob)
+	validBlob, err := NewBlob(namespace.RandomBlobNamespace(), rawBlob)
 	require.NoError(t, err)
 	require.Equal(t, validBlob.Data, rawBlob)
 
 	_, err = NewBlob(appconsts.TxNamespaceID, rawBlob)
 	require.Error(t, err)
 
-	_, err = NewBlob([]byte{1, 2, 3, 4, 5, 6, 7, 8}, []byte{})
+	_, err = NewBlob(namespace.RandomBlobNamespace(), []byte{})
 	require.Error(t, err)
 }
 

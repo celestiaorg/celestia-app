@@ -68,6 +68,9 @@ func Test_merge_randomData(t *testing.T) {
 	}
 }
 
+// Test_merge_sampleBlock verifies the behavior of merge against a sampleBlock.
+// To update the sampleBlock see:
+// https://github.com/celestiaorg/celestia-node/blob/a27f8488a4d732b00a9ae2ff8b212040111151c7/state/integration_test.go#L119-L121
 func Test_merge_sampleBlock(t *testing.T) {
 	var pb tmproto.Block
 	err := json.Unmarshal([]byte(sampleBlock), &pb)
@@ -85,8 +88,9 @@ func Test_merge_sampleBlock(t *testing.T) {
 	got, err := merge(eds)
 	assert.NoError(t, err)
 
-	// TODO: the assertions below are a hack because the data returned by merge does
-	// contain the same hash as the original block. Ideally this test would verify:
+	// TODO: the assertions below are a hack because the data returned by merge
+	// does not contain the same hash as the original block. Ideally this test
+	// would verify:
 	//
 	//     assert.Equal(t, b.Data, got)
 	//

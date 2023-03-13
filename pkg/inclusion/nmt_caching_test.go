@@ -18,25 +18,26 @@ import (
 func TestWalkCachedSubTreeRoot(t *testing.T) {
 	// create the first main tree
 	strc := newSubTreeRootCacher()
-	oss := uint64(8)
-	tr := wrapper.NewErasuredNamespacedMerkleTree(oss, 0, nmt.NodeVisitor(strc.Visit))
-	d := []byte{0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 3, 4, 5, 6, 7, 8}
+	squareSize := uint64(8)
+	tr := wrapper.NewErasuredNamespacedMerkleTree(squareSize, 0, nmt.NodeVisitor(strc.Visit))
+	namespaceOne := bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
+	data := append(namespaceOne, []byte("data")...)
 	for i := 0; i < 8; i++ {
-		tr.Push(d)
+		tr.Push(data)
 	}
 	highestRoot := tr.Root()
 
 	// create a short sub tree
-	shortSubTree := wrapper.NewErasuredNamespacedMerkleTree(oss, 0)
+	shortSubTree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, 0)
 	for i := 0; i < 2; i++ {
-		shortSubTree.Push(d)
+		shortSubTree.Push(data)
 	}
 	shortSTR := shortSubTree.Root()
 
 	// create a tall sub tree root
-	tallSubTree := wrapper.NewErasuredNamespacedMerkleTree(oss, 0)
+	tallSubTree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, 0)
 	for i := 0; i < 4; i++ {
-		tallSubTree.Push(d)
+		tallSubTree.Push(data)
 	}
 	tallSTR := tallSubTree.Root()
 

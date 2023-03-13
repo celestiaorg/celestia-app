@@ -1,6 +1,7 @@
 package shares
 
 import (
+	"bytes"
 	"encoding/binary"
 	"math/rand"
 	"reflect"
@@ -22,8 +23,8 @@ func TestParseShares(t *testing.T) {
 	}
 
 	start := true
-	blobOneNamespace := namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}
-	blobTwoNamespace := namespace.ID{2, 2, 2, 2, 2, 2, 2, 2}
+	blobOneNamespace := bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
+	blobTwoNamespace := bytes.Repeat([]byte{2}, appconsts.NamespaceSize)
 
 	txShares, _, _ := SplitTxs(generateRandomTxs(2, 1000))
 	txShareStart := txShares[0]

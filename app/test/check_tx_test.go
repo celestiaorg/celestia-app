@@ -1,10 +1,12 @@
 package app_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
@@ -19,6 +21,7 @@ import (
 // assume that the rest of CheckTx is tested by the cosmos-sdk.
 func TestCheckTx(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	namespaceOne := bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
 
 	accs := []string{"a", "b", "c", "d", "e", "f"}
 
@@ -40,7 +43,7 @@ func TestCheckTx(t *testing.T) {
 					encCfg.TxConfig.TxEncoder(),
 					blobtypes.NewKeyringSigner(kr, accs[0], testutil.ChainID),
 					[][]byte{
-						{1, 1, 1, 1, 1, 1, 1, 1},
+						namespaceOne,
 					},
 					[]int{100},
 				)[0]
@@ -56,7 +59,7 @@ func TestCheckTx(t *testing.T) {
 					encCfg.TxConfig.TxEncoder(),
 					blobtypes.NewKeyringSigner(kr, accs[1], testutil.ChainID),
 					[][]byte{
-						{1, 1, 1, 1, 1, 1, 1, 1},
+						namespaceOne,
 					},
 					[]int{100},
 				)[0]
@@ -72,7 +75,7 @@ func TestCheckTx(t *testing.T) {
 					encCfg.TxConfig.TxEncoder(),
 					blobtypes.NewKeyringSigner(kr, accs[2], testutil.ChainID),
 					[][]byte{
-						{1, 1, 1, 1, 1, 1, 1, 1},
+						namespaceOne,
 					},
 					[]int{100},
 				)[0]
@@ -93,7 +96,7 @@ func TestCheckTx(t *testing.T) {
 					encCfg.TxConfig.TxEncoder(),
 					blobtypes.NewKeyringSigner(kr, accs[3], testutil.ChainID),
 					[][]byte{
-						{1, 1, 1, 1, 1, 1, 1, 1},
+						namespaceOne,
 					},
 					[]int{100},
 				)[0]

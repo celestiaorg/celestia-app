@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/nmt/namespace"
+	testutilns "github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -24,7 +24,11 @@ func TestPadFirstIndexedBlob(t *testing.T) {
 	bd := coretypes.Data{
 		Txs: []coretypes.Tx{indexedTx},
 		Blobs: []coretypes.Blob{
-			{NamespaceID: []byte{1, 2, 3, 4, 5, 6, 7, 8}, Data: blob, ShareVersion: appconsts.ShareVersionZero},
+			{
+				NamespaceID:  testutilns.RandomBlobNamespace(),
+				Data:         blob,
+				ShareVersion: appconsts.ShareVersionZero,
+			},
 		},
 		SquareSize: 64,
 	}
@@ -45,33 +49,32 @@ func TestSequenceLen(t *testing.T) {
 		wantLen uint32
 		wantErr bool
 	}
-	firstShare := []byte{
-		1, 1, 1, 1, 1, 1, 1, 1, // namespace
-		1,           // info byte
-		0, 0, 0, 10, // sequence len
-		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
-	}
-	firstShareWithLongSequence := []byte{
-		1, 1, 1, 1, 1, 1, 1, 1, // namespace
-		1,           // info byte
-		0, 0, 1, 67, // sequence len
-	}
-	continuationShare := []byte{
-		1, 1, 1, 1, 1, 1, 1, 1, // namespace
-		0, // info byte
-	}
-	compactShare := []byte{
-		0, 0, 0, 0, 0, 0, 0, 1, // namespace
-		1,           // info byte
-		0, 0, 0, 10, // sequence len
-	}
-	noInfoByte := []byte{
-		0, 0, 0, 0, 0, 0, 0, 1, // namespace
-	}
-	noSequenceLen := []byte{
-		0, 0, 0, 0, 0, 0, 0, 1, // namespace
-		1, // info byte
-	}
+	sparseNamespaceID := bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
+	firstShare := append(sparseNamespaceID,
+		[]byte{
+			1,           // info byte
+			0, 0, 0, 10, // sequence len
+			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
+		}...)
+	firstShareWithLongSequence := append(sparseNamespaceID,
+		[]byte{
+			1,           // info byte
+			0, 0, 1, 67, // sequence len
+		}...)
+	continuationShare := append(sparseNamespaceID,
+		[]byte{
+			0, // info byte
+		}...)
+	compactShare := append([]byte(appconsts.TxNamespaceID),
+		[]byte{
+			1,           // info byte
+			0, 0, 0, 10, // sequence len
+		}...)
+	noInfoByte := []byte(appconsts.TxNamespaceID)
+	noSequenceLen := append([]byte(appconsts.TxNamespaceID),
+		[]byte{
+			1, // info byte
+		}...)
 	testCases := []testCase{
 		{
 			name:    "first share",
@@ -133,39 +136,42 @@ func TestRawData(t *testing.T) {
 		want    []byte
 		wantErr bool
 	}
-	firstSparseShare := []byte{
-		1, 1, 1, 1, 1, 1, 1, 1, // namespace
-		1,           // info byte
-		0, 0, 0, 10, // sequence len
-		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
-	}
-	continuationSparseShare := []byte{
-		1, 1, 1, 1, 1, 1, 1, 1, // namespace
-		0,                             // info byte
-		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
-	}
-	firstCompactShare := []byte{
-		0, 0, 0, 0, 0, 0, 0, 1, // namespace
-		1,           // info byte
-		0, 0, 0, 10, // sequence len
-		0, 0, 0, 15, // reserved bytes
-		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
-	}
-	continuationCompactShare := []byte{
-		0, 0, 0, 0, 0, 0, 0, 1, // namespace
-		0,          // info byte
-		0, 0, 0, 0, // reserved bytes
-		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
-	}
-	noSequenceLen := []byte{
-		0, 0, 0, 0, 0, 0, 0, 1, // namespace
-		1, // info byte
-	}
-	notEnoughSequenceLenBytes := []byte{
-		0, 0, 0, 0, 0, 0, 0, 1, // namespace
-		1,        // info byte
-		0, 0, 10, // sequence len
-	}
+	sparseNamespaceID := bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
+	firstSparseShare := append(
+		sparseNamespaceID,
+		[]byte{
+			1,           // info byte
+			0, 0, 0, 10, // sequence len
+			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
+		}...)
+	continuationSparseShare := append(
+		sparseNamespaceID,
+		[]byte{
+			0,                             // info byte
+			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
+		}...)
+	firstCompactShare := append([]byte(appconsts.TxNamespaceID),
+		[]byte{
+			1,           // info byte
+			0, 0, 0, 10, // sequence len
+			0, 0, 0, 15, // reserved bytes
+			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
+		}...)
+	continuationCompactShare := append([]byte(appconsts.TxNamespaceID),
+		[]byte{
+			0,          // info byte
+			0, 0, 0, 0, // reserved bytes
+			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
+		}...)
+	noSequenceLen := append([]byte(appconsts.TxNamespaceID),
+		[]byte{
+			1, // info byte
+		}...)
+	notEnoughSequenceLenBytes := append([]byte(appconsts.TxNamespaceID),
+		[]byte{
+			1,        // info byte
+			0, 0, 10, // sequence len
+		}...)
 	testCases := []testCase{
 		{
 			name:  "first sparse share",
@@ -218,17 +224,9 @@ func TestIsCompactShare(t *testing.T) {
 		want  bool
 	}
 
-	txShare, _ := zeroPadIfNecessary([]byte{
-		0, 0, 0, 0, 0, 0, 0, 1, // tx namespace ID
-	}, appconsts.ShareSize)
-
-	pfbTxShare, _ := zeroPadIfNecessary([]byte{
-		0, 0, 0, 0, 0, 0, 0, 4, // pfb tx namespace ID
-	}, appconsts.ShareSize)
-
-	blobShare, _ := zeroPadIfNecessary([]byte{
-		1, 2, 3, 4, 5, 6, 7, 8, // blob namespace ID
-	}, appconsts.ShareSize)
+	txShare, _ := zeroPadIfNecessary(appconsts.TxNamespaceID, appconsts.ShareSize)
+	pfbTxShare, _ := zeroPadIfNecessary(appconsts.PayForBlobNamespaceID, appconsts.ShareSize)
+	blobShare, _ := zeroPadIfNecessary(namespaceOne, appconsts.ShareSize)
 
 	testCases := []testCase{
 		{
@@ -262,12 +260,16 @@ func TestIsPadding(t *testing.T) {
 		wantErr bool
 	}
 	emptyShare := Share{}
-	blobShare, _ := zeroPadIfNecessary([]byte{
-		1, 1, 1, 1, 1, 1, 1, 1, // namespace ID
-		1,          // info byte
-		0, 0, 0, 1, // sequence len
-		0xff, // data
-	}, appconsts.ShareSize)
+	blobShare, _ := zeroPadIfNecessary(
+		append(
+			namespaceOne,
+			[]byte{
+				1,          // info byte
+				0, 0, 0, 1, // sequence len
+				0xff, // data
+			}...,
+		),
+		appconsts.ShareSize)
 
 	testCases := []testCase{
 		{
@@ -282,7 +284,7 @@ func TestIsPadding(t *testing.T) {
 		},
 		{
 			name:  "namespace padding",
-			share: NamespacePaddingShare(namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}),
+			share: NamespacePaddingShare(namespaceOne),
 			want:  true,
 		},
 		{

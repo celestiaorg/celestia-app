@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"testing"
@@ -222,6 +223,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	require := s.Require()
 	assert := s.Assert()
 	val := s.network.Validators[0]
+	namespaceOne := bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
 
 	mustNewBlob := func(ns, data []byte) *blobtypes.Blob {
 		b, err := blobtypes.NewBlob(ns, data)
@@ -238,7 +240,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	tests := []test{
 		{
 			"small random typical",
-			mustNewBlob([]byte{1, 2, 3, 4, 5, 6, 7, 8}, tmrand.Bytes(3000)),
+			mustNewBlob(namespaceOne, tmrand.Bytes(3000)),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
 				blobtypes.SetGasLimit(1_000_000_000),
@@ -246,7 +248,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"large random typical",
-			mustNewBlob([]byte{2, 3, 4, 5, 6, 7, 8, 9}, tmrand.Bytes(350000)),
+			mustNewBlob(namespaceOne, tmrand.Bytes(350000)),
 			[]types.TxBuilderOption{
 				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
 				blobtypes.SetGasLimit(1_000_000_000),
@@ -254,7 +256,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"medium random with memo",
-			mustNewBlob([]byte{2, 3, 4, 5, 6, 7, 8, 9}, tmrand.Bytes(100000)),
+			mustNewBlob(namespaceOne, tmrand.Bytes(100000)),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetMemo("lol I could stick the rollup block here if I wanted to"),
 				blobtypes.SetGasLimit(1_000_000_000),
@@ -262,7 +264,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"medium random with timeout height",
-			mustNewBlob([]byte{2, 3, 4, 5, 6, 7, 8, 9}, tmrand.Bytes(100000)),
+			mustNewBlob(namespaceOne, tmrand.Bytes(100000)),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetTimeoutHeight(1000),
 				blobtypes.SetGasLimit(1_000_000_000),
