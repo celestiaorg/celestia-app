@@ -15,4 +15,4 @@ then
 EOF
 fi
 
-/bin/celestia-appd --home ${CELESTIA_HOME} $@
+/bin/celestia-appd $@

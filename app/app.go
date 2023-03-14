@@ -180,8 +180,18 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	// Try to get CELESTIA_HOME env variable, if not set, use user home dir
+	userHomeDir = getEnv("CELESTIA_HOME", userHomeDir)
 
 	DefaultNodeHome = filepath.Join(userHomeDir, "."+Name)
+}
+
+// Get environment variable or fallback to default value
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
 }
 
 // App extends an ABCI application, but with most of its parameters exported.
