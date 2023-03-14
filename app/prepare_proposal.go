@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -8,44 +9,52 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// PrepareProposal fullfills the celestia-core version of the ABCI interface by
+// PrepareProposal fulfills the celestia-core version of the ABCI interface by
 // preparing the proposal block data. The square size is determined by first
-// estimating it via the size of the passed block data. Then the included
-// MsgWirePayForData messages are malleated into MsgPayForData messages by
-// separating the message and transaction that pays for that message. Lastly,
-// this method generates the data root for the proposal block and passes it back
-// to tendermint via the blockdata.
+// estimating it via the size of the passed block data. Then, this method
+// generates the data root for the proposal block and passes it back to
+// tendermint via the BlockData.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-	// parse the txs, extracting any MsgWirePayForData and performing basic
-	// validation for each transaction. Invalid txs are ignored. Original order
-	// of the txs is maintained.
-	parsedTxs := parseTxs(app.txConfig, req.BlockData.Txs)
-
-	// estimate the square size. This estimation errors on the side of larger
-	// squares but can only return values within the min and max square size.
-	squareSize, totalSharesUsed := estimateSquareSize(parsedTxs, req.BlockData.Evidence)
-
-	// the totalSharesUsed can be larger that the max number of shares if we
-	// reach the max square size. In this case, we must prune the deprioritized
-	// txs (and their messages if they're pfd txs).
-	if totalSharesUsed > int(squareSize*squareSize) {
-		parsedTxs = prune(app.txConfig, parsedTxs, totalSharesUsed, int(squareSize))
+	// cap the amount of transactions in the block. See https://github.com/celestiaorg/celestia-app/issues/1209
+	// TODO: find a better long term solution
+	if len(req.BlockData.Txs) > appconsts.TransactionsPerBlockLimit {
+		req.BlockData.Txs = req.BlockData.Txs[:appconsts.TransactionsPerBlockLimit]
 	}
 
-	// in this step we are processing any MsgWirePayForData transactions into
-	// MsgPayForData and their respective messages. The malleatedTxs contain the
-	// the new sdk.Msg with the original tx's metadata (sequence number, gas
-	// price etc).
-	processedTxs, messages, err := malleateTxs(app.txConfig, squareSize, parsedTxs, req.BlockData.Evidence)
+	// parse the txs, extracting any valid BlobTxs. Original order of
+	// the txs is maintained.
+	normalTxs, blobTxs := separateTxs(app.txConfig, req.BlockData.Txs)
+
+	sdkCtx, err := app.NewProcessProposalQueryContext()
 	if err != nil {
 		panic(err)
 	}
 
+	// increment the sequences of the standard cosmos-sdk transactions. Panics
+	// from the anteHandler are caught and logged.
+	seqHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
+	normalTxs, sdkCtx = filterStdTxs(app.Logger(), app.txConfig.TxDecoder(), sdkCtx, seqHandler, normalTxs)
+
+	// check the signatures and increment the sequences of the blob txs,
+	// and filter out any that fail. Panics from the anteHandler are caught and
+	// logged.
+	svHandler := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
+	blobTxs, _ = filterBlobTxs(app.Logger(), app.txConfig.TxDecoder(), sdkCtx, svHandler, blobTxs)
+
+	// estimate the square size. This estimation errs on the side of larger
+	// squares but can only return values within the min and max square size.
+	squareSize, nonreservedStart := estimateSquareSize(normalTxs, blobTxs)
+
+	// finalizeLayout wraps any blob transactions with their final share index.
+	// This requires sorting the blobs by namespace and potentially pruning
+	// MsgPayForBlobs transactions and their respective blobs from the block if
+	// they do not fit into the square.
+	wrappedPFBTxs, blobs := finalizeBlobLayout(squareSize, nonreservedStart, blobTxs)
+
 	blockData := core.Data{
-		Txs:                processedTxs,
-		Evidence:           req.BlockData.Evidence,
-		Messages:           core.Messages{MessagesList: messages},
-		OriginalSquareSize: squareSize,
+		Txs:        append(normalTxs, wrappedPFBTxs...),
+		Blobs:      blobs,
+		SquareSize: squareSize,
 	}
 
 	coreData, err := coretypes.DataFromProto(&blockData)
@@ -59,7 +68,9 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	}
 
 	// erasure the data square which we use to create the data root.
-	eds, err := da.ExtendShares(squareSize, dataSquare)
+	// Note: uses the nmt wrapper to construct the tree.
+	// checkout pkg/wrapper/nmt_wrapper.go for more information.
+	eds, err := da.ExtendShares(squareSize, shares.ToBytes(dataSquare))
 	if err != nil {
 		app.Logger().Error(
 			"failure to erasure the data square while creating a proposal block",
@@ -76,7 +87,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// We use the block data struct to pass the square size and calculated data
 	// root to tendermint.
 	blockData.Hash = dah.Hash()
-	blockData.OriginalSquareSize = squareSize
+	blockData.SquareSize = squareSize
 
 	// tendermint doesn't need to use any of the erasure data, as only the
 	// protobuf encoded version of the block data is gossiped.

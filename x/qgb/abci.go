@@ -3,10 +3,10 @@ package qgb
 import (
 	"errors"
 
+	sdkerrors "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 // SignificantPowerDifferenceThreshold the threshold of change in the validator set power
@@ -72,7 +72,7 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 	}
 
 	if (latestValset == nil) || (lastUnbondingHeight == uint64(ctx.BlockHeight())) || significantPowerDiff {
-		// if the conditions are true, put in a new validator set request to be signed and submitted to Ethereum
+		// if the conditions are true, put in a new validator set request to be signed and submitted to EVM
 		valset, err := k.GetCurrentValset(ctx)
 		if err != nil {
 			panic(err)

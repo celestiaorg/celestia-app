@@ -1,69 +1,96 @@
 package app_test
 
 import (
-	"bytes"
 	"testing"
 
-	"github.com/celestiaorg/nmt/namespace"
-	"github.com/cosmos/cosmos-sdk/client"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
+	"github.com/cosmos/cosmos-sdk/crypto/hd"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	"github.com/celestiaorg/celestia-app/testutil/namespace"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 )
 
-func TestPrepareProposal(t *testing.T) {
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
-
+func TestPrepareProposalBlobSorting(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	testApp := testutil.SetupTestAppWithGenesisValSet(t)
+	accnts := testfactory.GenerateAccounts(6)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accnts...)
+	infos := queryAccountInfo(testApp, accnts, kr)
 
 	type test struct {
-		input            abci.RequestPrepareProposal
-		expectedMessages []*core.Message
-		expectedTxs      int
+		input         abci.RequestPrepareProposal
+		expectedBlobs []tmproto.Blob
+		expectedTxs   int
 	}
 
-	firstNS := []byte{2, 2, 2, 2, 2, 2, 2, 2}
-	firstMessage := bytes.Repeat([]byte{4}, 512)
-	firstRawTx := generateRawTx(t, encCfg.TxConfig, firstNS, firstMessage, signer, types.AllSquareSizes(len(firstMessage))...)
+	blobTxs := blobfactory.ManyMultiBlobTx(
+		t,
+		encCfg.TxConfig.TxEncoder(),
+		kr,
+		testutil.ChainID,
+		accnts[:3],
+		infos[:3],
+		[][]*tmproto.Blob{
+			{
+				{
+					NamespaceId: []byte{1, 1, 1, 1, 1, 1, 1, 1},
+					Data:        tmrand.Bytes(100),
+				},
+			},
+			{
+				{
+					NamespaceId: []byte{3, 3, 3, 3, 3, 3, 3, 3},
+					Data:        tmrand.Bytes(1000),
+				},
+			},
+			{
+				{
+					NamespaceId: []byte{2, 2, 2, 2, 2, 2, 2, 2},
+					Data:        tmrand.Bytes(420),
+				},
+			},
+		},
+	)
 
-	secondNS := []byte{1, 1, 1, 1, 1, 1, 1, 1}
-	secondMessage := []byte{2}
-	secondRawTx := generateRawTx(t, encCfg.TxConfig, secondNS, secondMessage, signer, types.AllSquareSizes(len(secondMessage))...)
-
-	thirdNS := []byte{3, 3, 3, 3, 3, 3, 3, 3}
-	thirdMessage := []byte{1}
-	thirdRawTx := generateRawTx(t, encCfg.TxConfig, thirdNS, thirdMessage, signer, types.AllSquareSizes(len(thirdMessage))...)
+	decodedBlobTxs := make([]tmproto.BlobTx, 0, len(blobTxs))
+	for _, rawBtx := range blobTxs {
+		btx, isbtx := coretypes.UnmarshalBlobTx(rawBtx)
+		if !isbtx {
+			panic("unexpected testing error")
+		}
+		decodedBlobTxs = append(decodedBlobTxs, btx)
+	}
 
 	tests := []test{
 		{
 			input: abci.RequestPrepareProposal{
-				BlockData: &core.Data{
-					Txs: [][]byte{firstRawTx, secondRawTx, thirdRawTx},
+				BlockData: &tmproto.Data{
+					Txs: blobTxs,
 				},
 			},
-			expectedMessages: []*core.Message{
+			expectedBlobs: []tmproto.Blob{
 				{
-					NamespaceId: secondNS, // the second message should be first
-					Data:        []byte{2},
+					NamespaceId: decodedBlobTxs[0].Blobs[0].NamespaceId,
+					Data:        decodedBlobTxs[0].Blobs[0].Data,
 				},
 				{
-					NamespaceId: firstNS,
-					Data:        firstMessage,
+					NamespaceId: decodedBlobTxs[2].Blobs[0].NamespaceId,
+					Data:        decodedBlobTxs[2].Blobs[0].Data,
 				},
 				{
-					NamespaceId: thirdNS,
-					Data:        []byte{1},
+					NamespaceId: decodedBlobTxs[1].Blobs[0].NamespaceId,
+					Data:        decodedBlobTxs[1].Blobs[0].Data,
 				},
 			},
 			expectedTxs: 3,
@@ -72,113 +99,254 @@ func TestPrepareProposal(t *testing.T) {
 
 	for _, tt := range tests {
 		res := testApp.PrepareProposal(tt.input)
-		assert.Equal(t, tt.expectedMessages, res.BlockData.Messages.MessagesList)
+		assert.Equal(t, tt.expectedBlobs, res.BlockData.Blobs)
 		assert.Equal(t, tt.expectedTxs, len(res.BlockData.Txs))
-
-		// verify the signatures of the prepared txs
-		sdata, err := signer.GetSignerData()
-		if err != nil {
-			require.NoError(t, err)
-		}
-		dec := encoding.MalleatedTxDecoder(encCfg.TxConfig.TxDecoder())
-		for _, tx := range res.BlockData.Txs {
-			sTx, err := dec(tx)
-			require.NoError(t, err)
-
-			sigTx, ok := sTx.(authsigning.SigVerifiableTx)
-			require.True(t, ok)
-
-			sigs, err := sigTx.GetSignaturesV2()
-			require.NoError(t, err)
-			require.Equal(t, 1, len(sigs))
-			sig := sigs[0]
-
-			err = authsigning.VerifySignature(
-				sdata.PubKey,
-				sdata,
-				sig.Data,
-				encCfg.TxConfig.SignModeHandler(),
-				sTx,
-			)
-			assert.NoError(t, err)
-		}
 	}
 }
 
-func TestPrepareMessagesWithReservedNamespaces(t *testing.T) {
-	testApp := testutil.SetupTestAppWithGenesisValSet(t)
+func TestPrepareProposalOverflow(t *testing.T) {
+	acc := "test"
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	signer := testutil.GenerateKeyringSigner(t, testAccName)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(acc)
+	signer := blobtypes.NewKeyringSigner(kr, acc, testutil.ChainID)
 
 	type test struct {
-		name             string
-		namespace        namespace.ID
-		expectedMessages int
+		name               string
+		singleSharePFBs    int
+		expectedTxsInBlock int
+		expectedSquareSize uint64
 	}
 
+	limit := appconsts.TransactionsPerBlockLimit
+
 	tests := []test{
-		{"transaction namespace id for message", appconsts.TxNamespaceID, 0},
-		{"evidence namespace id for message", appconsts.EvidenceNamespaceID, 0},
-		{"tail padding namespace id for message", appconsts.TailPaddingNamespaceID, 0},
-		{"parity shares namespace id for message", appconsts.ParitySharesNamespaceID, 0},
-		{"reserved namespace id for message", namespace.ID{0, 0, 0, 0, 0, 0, 0, 200}, 0},
-		{"valid namespace id for message", namespace.ID{3, 3, 2, 2, 2, 1, 1, 1}, 1},
+		{
+			name:               "one below the limit",
+			singleSharePFBs:    limit - 1,
+			expectedTxsInBlock: limit - 1,
+			expectedSquareSize: appconsts.DefaultMaxSquareSize,
+		},
+		{
+			name:               "exactly the limit",
+			singleSharePFBs:    limit,
+			expectedTxsInBlock: limit,
+			expectedSquareSize: appconsts.DefaultMaxSquareSize,
+		},
+		{
+			name:               "well above the limit",
+			singleSharePFBs:    limit + 5000,
+			expectedTxsInBlock: limit,
+			expectedSquareSize: appconsts.DefaultMaxSquareSize,
+		},
 	}
 
 	for _, tt := range tests {
-		message := []byte{1}
-		tx := generateRawTx(t, encCfg.TxConfig, tt.namespace, message, signer, types.AllSquareSizes(len(message))...)
-		input := abci.RequestPrepareProposal{
-			BlockData: &core.Data{
-				Txs: [][]byte{tx},
+		btxs := blobfactory.ManyMultiBlobTxSameSigner(
+			t,
+			encCfg.TxConfig.TxEncoder(),
+			signer,
+			testfactory.Repeat([]int{1}, tt.singleSharePFBs),
+			0,
+			1, // use the account number 1 since the first account is taken by the validator
+		)
+		req := abci.RequestPrepareProposal{
+			BlockData: &tmproto.Data{
+				Txs: coretypes.Txs(btxs).ToSliceOfBytes(),
 			},
 		}
-		res := testApp.PrepareProposal(input)
-		assert.Equal(t, tt.expectedMessages, len(res.BlockData.Messages.MessagesList))
+		res := testApp.PrepareProposal(req)
+		assert.Equal(t, tt.expectedSquareSize, res.BlockData.SquareSize, tt.name)
+		assert.Equal(t, tt.expectedTxsInBlock, len(res.BlockData.Blobs), tt.name)
+		assert.Equal(t, tt.expectedTxsInBlock, len(res.BlockData.Txs), tt.name)
 	}
 }
 
-func generateRawTx(t *testing.T, txConfig client.TxConfig, ns, message []byte, signer *types.KeyringSigner, ks ...uint64) (rawTx []byte) {
-	coin := sdk.Coin{
-		Denom:  app.BondDenom,
-		Amount: sdk.NewInt(10),
+func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
+	numBlobTxs, numNormalTxs := 3, 3
+	accnts := testfactory.GenerateAccounts(numBlobTxs + numNormalTxs)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accnts...)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	infos := queryAccountInfo(testApp, accnts, kr)
+
+	blobTxs := blobfactory.ManyMultiBlobTx(
+		t,
+		encCfg.TxConfig.TxEncoder(),
+		kr,
+		testutil.ChainID,
+		accnts[:numBlobTxs],
+		infos[:numBlobTxs],
+		testfactory.Repeat([]*tmproto.Blob{
+			{
+				NamespaceId:  namespace.RandomBlobNamespace(),
+				Data:         []byte{1},
+				ShareVersion: uint32(appconsts.DefaultShareVersion),
+			},
+		}, numBlobTxs),
+	)
+
+	normalTxs := testutil.SendTxsWithAccounts(
+		t,
+		testApp,
+		encCfg.TxConfig.TxEncoder(),
+		kr,
+		1000,
+		accnts[0],
+		accnts[numBlobTxs:],
+		"",
+	)
+	txs := append(blobTxs, coretypes.Txs(normalTxs).ToSliceOfBytes()...)
+
+	resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
+		BlockData: &tmproto.Data{
+			Txs: txs,
+		},
+	})
+	require.Len(t, resp.BlockData.Txs, numBlobTxs+numNormalTxs)
+	for idx, txBytes := range resp.BlockData.Txs {
+		_, isWrapper := coretypes.UnmarshalIndexWrapper(coretypes.Tx(txBytes))
+		if idx < numNormalTxs {
+			require.False(t, isWrapper)
+		} else {
+			require.True(t, isWrapper)
+		}
+	}
+}
+
+func TestPrepareProposalFiltering(t *testing.T) {
+	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(6)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	// create 3 single blob blobTxs that are signed with valid account numbers
+	// and sequences
+	blobTxs := blobfactory.ManyMultiBlobTx(
+		t,
+		encConf.TxConfig.TxEncoder(),
+		kr,
+		testutil.ChainID,
+		accounts[:3],
+		infos[:3],
+		blobfactory.NestedBlobs(
+			t,
+			[][]byte{
+				namespace.RandomBlobNamespace(),
+				namespace.RandomBlobNamespace(),
+				namespace.RandomBlobNamespace(),
+			},
+			[][]int{{100}, {1000}, {420}},
+		),
+	)
+
+	// create 3 MsgSend transactions that are signed with valid account numbers
+	// and sequences
+	sendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
+		t,
+		testApp,
+		encConf.TxConfig.TxEncoder(),
+		kr,
+		1000,
+		accounts[0],
+		accounts[len(accounts)-3:],
+		"",
+	)).ToSliceOfBytes()
+
+	validTxs := func() [][]byte {
+		txs := make([][]byte, 0, len(sendTxs)+len(blobTxs))
+		txs = append(txs, blobTxs...)
+		txs = append(txs, sendTxs...)
+		return txs
 	}
 
-	opts := []types.TxBuilderOption{
-		types.SetFeeAmount(sdk.NewCoins(coin)),
-		types.SetGasLimit(10000000),
-	}
+	// create 3 MsgSend transactions that are using the same sequence as the
+	// first three blob transactions above
+	duplicateSeqSendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
+		t,
+		testApp,
+		encConf.TxConfig.TxEncoder(),
+		kr,
+		1000,
+		accounts[0],
+		accounts[:3],
+		"",
+	)).ToSliceOfBytes()
 
-	// create a msg
-	msg := generateSignedWirePayForData(t, ns, message, signer, opts, ks...)
-
-	builder := signer.NewTxBuilder(opts...)
-
-	tx, err := signer.BuildSignedTx(builder, msg)
+	// create a transaction with an account that doesn't exist. This will cause the increment nonce
+	nilAccount := "carmon san diego"
+	_, _, err := kr.NewMnemonic(nilAccount, keyring.English, "", "", hd.Secp256k1)
 	require.NoError(t, err)
+	noAccountTx := []byte(testutil.SendTxWithManualSequence(t, encConf.TxConfig.TxEncoder(), kr, nilAccount, accounts[0], 1000, "", 0, 6))
 
-	// encode the tx
-	rawTx, err = txConfig.TxEncoder()(tx)
-	require.NoError(t, err)
-
-	return rawTx
-}
-
-func generateSignedWirePayForData(t *testing.T, ns, message []byte, signer *types.KeyringSigner, options []types.TxBuilderOption, ks ...uint64) *types.MsgWirePayForData {
-	msg, err := types.NewWirePayForData(ns, message, ks...)
-	if err != nil {
-		t.Error(err)
+	type test struct {
+		name      string
+		txs       func() [][]byte
+		prunedTxs [][]byte
 	}
 
-	err = msg.SignShareCommitments(signer, options...)
-	if err != nil {
-		t.Error(err)
+	tests := []test{
+		{
+			name:      "all valid txs, none are pruned",
+			txs:       func() [][]byte { return validTxs() },
+			prunedTxs: [][]byte{},
+		},
+		{
+			// even though duplicateSeqSendTxs are getting appended to the end of the
+			// block, and we do not check the signatures of the standard txs,
+			// the blob txs still get pruned because we are separating the
+			// normal and blob txs, and checking/executing the normal txs first.
+			name: "duplicate sequence appended to the end of the block",
+			txs: func() [][]byte {
+				return append(validTxs(), duplicateSeqSendTxs...)
+			},
+			prunedTxs: blobTxs,
+		},
+		{
+			name: "duplicate sequence txs",
+			txs: func() [][]byte {
+				txs := make([][]byte, 0, len(sendTxs)+len(blobTxs)+len(duplicateSeqSendTxs))
+				// these should increment the nonce of the accounts that are
+				// signing the blobtxs, which should make those signatures
+				// invalid.
+				txs = append(txs, duplicateSeqSendTxs...)
+				txs = append(txs, blobTxs...)
+				txs = append(txs, sendTxs...)
+				return txs
+			},
+			prunedTxs: blobTxs,
+		},
+		{
+			name: "nil account panic catch",
+			txs: func() [][]byte {
+				return [][]byte{noAccountTx}
+			},
+			prunedTxs: [][]byte{noAccountTx},
+		},
 	}
 
-	return msg
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
+				BlockData: &tmproto.Data{Txs: tt.txs()},
+			})
+			// check that we have the expected number of transactions
+			require.Equal(t, len(tt.txs())-len(tt.prunedTxs), len(resp.BlockData.Txs))
+			// check the the expected txs were removed
+			for _, ptx := range tt.prunedTxs {
+				assert.NotContains(t, resp.BlockData.Txs, ptx)
+			}
+		})
+	}
 }
 
-const (
-	testAccName = "test-account"
-)
+func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfactory.AccountInfo {
+	infos := make([]blobfactory.AccountInfo, len(accs))
+	for i, acc := range accs {
+		addr := getAddress(acc, kr)
+		accI := testutil.DirectQueryAccount(capp, addr)
+		infos[i] = blobfactory.AccountInfo{
+			AccountNum: accI.GetAccountNumber(),
+			Sequence:   accI.GetSequence(),
+		}
+	}
+	return infos
+}

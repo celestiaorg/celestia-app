@@ -7,9 +7,10 @@ body:
   - type: markdown
     attributes:
       value: |
-        IMPORTANT: Prior to opening a bug report, check if it affects one of the core modules
-        and if its eligible for a bug bounty on `SECURITY.md`. Bugs that are not submitted
-        through the appropriate channels won't receive any bounty.
+        IMPORTANT: Prior to opening a bug report, check if it affects one of the
+        core modules and if it's eligible for a bug bounty on `SECURITY.md`.
+        Bugs that are not submitted through the appropriate channels won't
+        receive any bounty.
 
   - type: textarea
     id: summary
@@ -31,7 +32,8 @@ body:
     id: repro
     attributes:
       label: Steps to Reproduce
-      description: What commands in order should someone run to reproduce your problem?
+      description: >
+        What commands in order should someone run to reproduce your problem?
     validations:
       required: true
 

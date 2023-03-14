@@ -11,17 +11,17 @@ type path struct {
 	row          int
 }
 
-// calculateCommitPaths calculates all of the paths to subtree roots needed to
-// create the commitment for a given message.
-func calculateCommitPaths(squareSize, start, msgShareLen int) []path {
-	// todo: make the non-interactive defaults optional. by calculating the
-	// NextAlignedPowerOfTwo, we are forcing use of the non-interactive
-	// defaults. If we want to make this optional in the future, we have to move
-	// this next line out of this function.
-	start, _ = shares.NextAlignedPowerOfTwo(start, msgShareLen, squareSize)
-	startRow, endRow := start/squareSize, (start+msgShareLen-1)/squareSize
+// calculateCommitmentPaths calculates all of the paths to subtree roots needed to
+// create the commitment for a given blob.
+func calculateCommitmentPaths(squareSize, start, blobShareLen int) []path {
+	// TODO: make the non-interactive defaults optional. by calculating the
+	// NextMultipleOfBlobMinSquareSize, we are forcing use of the
+	// non-interactive defaults. If we want to make this optional in the future,
+	// we have to move this next line out of this function.
+	start, _ = shares.NextMultipleOfBlobMinSquareSize(start, blobShareLen, squareSize)
+	startRow, endRow := start/squareSize, (start+blobShareLen-1)/squareSize
 	normalizedStartIndex := start % squareSize
-	normalizedEndIndex := (start + msgShareLen) - endRow*squareSize
+	normalizedEndIndex := (start + blobShareLen) - endRow*squareSize
 	paths := []path{}
 	maxDepth := int(math.Log2(float64(squareSize)))
 	for i := startRow; i <= endRow; i++ {
@@ -32,8 +32,14 @@ func calculateCommitPaths(squareSize, start, msgShareLen int) []path {
 		if i == endRow {
 			end = normalizedEndIndex
 		}
-		coord := calculateSubTreeRootCoordinates(maxDepth, start, end)
-		for _, c := range coord {
+
+		// subTreeRootMaxHeight is the maximum height of a subtree root that was
+		// used to generate the commitment. The height is based on the minimum
+		// square size the blob can fit into. See ADR-008 for more details.
+		subTreeRootMaxHeight := int(math.Log2(float64(shares.MinSquareSize(blobShareLen))))
+		minDepth := maxDepth - subTreeRootMaxHeight
+		coords := calculateSubTreeRootCoordinates(maxDepth, minDepth, start, end)
+		for _, c := range coords {
 			paths = append(paths, path{
 				instructions: genSubTreeRootPath(c.depth, uint(c.position)),
 				row:          i,
@@ -47,6 +53,7 @@ func calculateCommitPaths(squareSize, start, msgShareLen int) []path {
 // genSubTreeRootPath calculates the path to a given subtree root of a node, given the
 // depth and position of the node. note: the root of the tree is depth 0.
 // The following nolint can be removed after this function is used.
+//
 //nolint:unused,deadcode
 func genSubTreeRootPath(depth int, pos uint) []WalkInstruction {
 	path := make([]WalkInstruction, depth)
@@ -63,15 +70,16 @@ func genSubTreeRootPath(depth int, pos uint) []WalkInstruction {
 }
 
 // coord identifies a tree node using the depth and position
-// Depth       Position
-// 0              0
-//               / \
-//              /   \
-// 1           0     1
-//            /\     /\
-// 2         0  1   2  3
-//          /\  /\ /\  /\
-// 3       0 1 2 3 4 5 6 7
+//
+//	Depth       Position
+//	0              0
+//	              / \
+//	             /   \
+//	1           0     1
+//	           /\     /\
+//	2         0  1   2  3
+//	         /\  /\ /\  /\
+//	3       0 1 2 3 4 5 6 7
 type coord struct {
 	// depth is the typical depth of a tree, 0 being the root
 	depth int
@@ -92,17 +100,17 @@ func (c coord) climb() coord {
 // canClimbRight uses the current position to calculate the direction of the next
 // climb. Returns true if the next climb is right (if the position (index) is
 // even). please see depth and position example map in docs for coord.
-func (c coord) canClimbRight() bool {
-	return c.position%2 == 0 && c.depth > 0
+func (c coord) canClimbRight(minDepth int) bool {
+	return c.position%2 == 0 && c.depth > minDepth
 }
 
 // calculateSubTreeRootCoordinates generates the sub tree root coordinates of a
 // set of shares for a balanced binary tree of a given depth. It assumes that
 // end does not exceed the range of a tree of the provided depth, and that end
-// >= start. This function works by starting at the first index of the msg and
+// >= start. This function works by starting at the first index of the blob and
 // working our way right.
-func calculateSubTreeRootCoordinates(maxDepth, start, end int) []coord {
-	cds := []coord{}
+func calculateSubTreeRootCoordinates(maxDepth, minDepth, start, end int) []coord {
+	coords := []coord{}
 	// leafCursor keeps track of the current leaf that we are starting with when
 	// finding the subtree root for some set. When leafCursor == end, we are
 	// finished calculating sub tree roots
@@ -135,25 +143,25 @@ func calculateSubTreeRootCoordinates(maxDepth, start, end int) []coord {
 	}
 	// recursively climb the tree starting at the left most leaf node (the
 	// starting leaf), and save each subtree root as we find it. After finding a
-	// subtree root, if there's still leaves left in the message, then restart
+	// subtree root, if there's still leaves left in the blob, then restart
 	// the process from that leaf.
 	for {
 		switch {
 		// check if we're finished, if so add the last coord and return
 		case leafCursor+1 == end:
-			cds = append(cds, nodeCursor)
-			return cds
+			coords = append(coords, nodeCursor)
+			return coords
 		// check if we've climbed too high in the tree. if so, add the last
 		// highest node and proceed.
 		case leafCursor+1 > end:
-			cds = append(cds, lastNodeCursor)
+			coords = append(coords, lastNodeCursor)
 			leafCursor = lastLeafCursor + 1
 			reset()
 		// check if can climb right again (only even positions will climb
 		// right). If not, we want to record this coord as it is a subtree
 		// root, then adjust the cursor and proceed.
-		case !nodeCursor.canClimbRight():
-			cds = append(cds, nodeCursor)
+		case !nodeCursor.canClimbRight(minDepth):
+			coords = append(coords, nodeCursor)
 			leafCursor++
 			reset()
 		// proceed to climb higher by incrementing the relevant state and

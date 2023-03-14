@@ -1,0 +1,10 @@
+syntax = "proto3";
+package celestia.blob.v1;
+
+import "gogoproto/gogo.proto";
+import "celestia/blob/v1/params.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
+
+// GenesisState defines the capability module's genesis state.
+message GenesisState { Params params = 1 [ (gogoproto.nullable) = false ]; }

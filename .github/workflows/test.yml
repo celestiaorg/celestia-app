@@ -1,20 +1,18 @@
 name: Tests / Code Coverage
-#  Tests / Code Coverage workflow runs unit tests and uploads a code coverage report
-#  This workflow is run on pushes to main & every Pull Requests where a .go, .mod, .sum have been changed
+#  Tests / Code Coverage workflow runs unit tests and uploads a code coverage
+#  report
+#  This workflow is run on pushes to main & every Pull Requests where a .go,
+#  .mod, .sum have been changed
 on:
-  pull_request:
-  push:
-    branches:
-      - main
-jobs:
-  cleanup-runs:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: rokroskar/workflow-run-cleanup-action@master
-        env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-    if: "!startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/heads/master'"
+  workflow_call:
 
+concurrency:
+  # do not cancel jobs from earlier commits for tags or the main branch
+  group: ${{ github.workflow }}-${{ !startsWith(github.ref, 'refs/tags/') &&
+      github.ref != 'refs/heads/main' }}
+  cancel-in-progress: true
+
+jobs:
   install-tparse:
     runs-on: ubuntu-latest
     steps:
@@ -24,9 +22,10 @@ jobs:
       - name: Display go version
         run: go version
       - name: install tparse
-        run: |
-          export GO111MODULE="on" && go install github.com/mfridman/tparse@v0.8.3
-      - uses: actions/cache@v3.0.8
+        run: >
+          export GO111MODULE="on" &&
+          go install github.com/mfridman/tparse@v0.8.3
+      - uses: actions/cache@v3.3.1
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-tparse-binary
@@ -41,7 +40,7 @@ jobs:
   #         go-version: 1.18
   #     - name: Display go version
   #       run: go version
-  #     - uses: technote-space/get-diff-action@v6.1.0
+  #     - uses: technote-space/get-diff-action@v6.1.2
   #       id: git_diff
   #       with:
   #         PREFIX_FILTER: |
@@ -61,7 +60,7 @@ jobs:
       - name: Create a file with all the pkgs
         run: go list ./... > pkgs.txt
       - name: Split pkgs into 4 files
-        run: split -d -n l/4 pkgs.txt pkgs.txt.part.
+        run: split -d -n l/4 --elide-empty-files pkgs.txt pkgs.txt.part.
       # cache multiple
       - uses: actions/upload-artifact@v3
         with:
@@ -92,7 +91,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: 1.18
-      - uses: technote-space/get-diff-action@v6.1.0
+      - uses: technote-space/get-diff-action@v6.1.2
         with:
           PATTERNS: |
             **/**.go
@@ -103,8 +102,11 @@ jobs:
           name: "${{ github.sha }}-${{ matrix.part }}"
         if: env.GIT_DIFF
       - name: test & coverage report creation
-        run: |
-          cat pkgs.txt.part.${{ matrix.part }} | xargs go test -mod=readonly -timeout 30m -coverprofile=${{ matrix.part }}profile.out -covermode=atomic -tags='norace ledger test_ledger_mock'
+        run: >
+          cat pkgs.txt.part.${{ matrix.part }} |
+          xargs go test -mod=readonly -timeout 30m
+          -coverprofile=${{ matrix.part }}profile.out
+          -covermode=atomic
         if: env.GIT_DIFF
       - uses: actions/upload-artifact@v3
         with:
@@ -116,7 +118,7 @@ jobs:
     needs: tests
     steps:
       - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6.1.0
+      - uses: technote-space/get-diff-action@v6.1.2
         with:
           PATTERNS: |
             **/**.go
@@ -142,16 +144,18 @@ jobs:
           cat ./*profile.out | grep -v "mode: atomic" >> coverage.txt
         if: env.GIT_DIFF
       - name: filter out DONTCOVER
+        # yamllint disable
         run: |
-          excludelist="$(find ./ -type f -name '*.go' | xargs grep -l 'DONTCOVER')"
-          excludelist+=" $(find ./ -type f -name '*.pb.go')"
-          excludelist+=" $(find ./ -type f -name '*.pb.gw.go')"
-          excludelist+=" $(find ./ -type f -path './tests/mocks/*.go')"
-          for filename in ${excludelist}; do
-            filename=$(echo $filename | sed 's/^./github.com\/cosmos\/cosmos-sdk/g')
-            echo "Excluding ${filename} from coverage report..."
-            sed -i.bak "/$(echo $filename | sed 's/\//\\\//g')/d" coverage.txt
-          done
+          (find . -type f -name '*.go' | xargs grep -l 'DONTCOVER') > excludelist.txt
+          find . -type f -name '*.pb.*' >> excludelist.txt
+          find . -type f -path './tests/mocks/*.go' >> excludelist.txt
+          while IFS= read -r filename; do
+            # trim filename
+            trimmedname=$(echo $filename | xargs)
+            echo "Excluding ${trimmedname} from coverage report..."
+            sed -i.bak "/$(echo $trimmedname | sed 's/\//\\\//g')/d" coverage.txt
+          done < excludelist.txt
+        # yamllint enable
         if: env.GIT_DIFF
       - uses: codecov/codecov-action@v3
         with:
@@ -170,7 +174,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: 1.18
-      - uses: technote-space/get-diff-action@v6.1.0
+      - uses: technote-space/get-diff-action@v6.1.2
         with:
           PATTERNS: |
             **/**.go
@@ -181,8 +185,10 @@ jobs:
           name: "${{ github.sha }}-${{ matrix.part }}"
         if: env.GIT_DIFF
       - name: test & coverage report creation
-        run: |
-          cat pkgs.txt.part.${{ matrix.part }} | xargs go test -mod=readonly -json -timeout 30m -race -test.short -tags='cgo' > ${{ matrix.part }}-race-output.txt
+        run: >
+          cat pkgs.txt.part.${{ matrix.part }} |
+          xargs go test -mod=readonly -json -timeout 30m
+          -race -test.short > ${{ matrix.part }}-race-output.txt
         if: env.GIT_DIFF
       - uses: actions/upload-artifact@v3
         with:
@@ -195,7 +201,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6.1.0
+      - uses: technote-space/get-diff-action@v6.1.2
         id: git_diff
         with:
           PATTERNS: |
@@ -218,7 +224,7 @@ jobs:
         with:
           name: "${{ github.sha }}-03-race-output"
         if: env.GIT_DIFF
-      - uses: actions/cache@v3.0.8
+      - uses: actions/cache@v3.3.1
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-tparse-binary
@@ -236,7 +242,7 @@ jobs:
   #     - uses: actions/setup-go@v3
   #       with:
   #         go-version: 1.18
-  #     - uses: technote-space/get-diff-action@v6.1.0
+  #     - uses: technote-space/get-diff-action@v6.1.2
   #       id: git_diff
   #       with:
   #         PATTERNS: |

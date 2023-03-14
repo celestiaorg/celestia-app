@@ -1,14 +1,11 @@
-name: Lint
-# Lint runs golangci-lint over the entire cosmos-sdk repository
-# This workflow is run on every pull request and push to main
-# The `golangci` will pass without running if no *.{go, mod, sum} files have been changed.
+# lint runs all linters in this repository. This workflow is run on every pull
+# request and push to main.
+name: lint
 on:
-  pull_request:
-  push:
-    branches:
-      - main
+  workflow_call:
+
 jobs:
-  golangci:
+  golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -17,15 +14,33 @@ jobs:
         with:
           go-version: 1.18
       - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6.1.0
+      - uses: technote-space/get-diff-action@v6.1.2
         with:
+          # This job will pass without running if go.mod, go.sum, and *.go
+          # wasn't modified.
           PATTERNS: |
             **/**.go
             go.mod
             go.sum
-      - uses: golangci/golangci-lint-action@v3.2.0
+      - uses: golangci/golangci-lint-action@v3.4.0
         with:
-          version: v1.47.2
+          version: v1.50.1
           args: --timeout 10m
           github-token: ${{ secrets.github_token }}
         if: env.GIT_DIFF
+
+  # hadolint lints the Dockerfile
+  hadolint:
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_lint.yml@main # yamllint disable-line rule:line-length
+
+  yamllint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: celestiaorg/.github/.github/actions/yamllint@main
+
+  markdown-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: celestiaorg/.github/.github/actions/markdown-lint@main

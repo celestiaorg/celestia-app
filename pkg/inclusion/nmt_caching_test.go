@@ -1,12 +1,14 @@
 package inclusion
 
 import (
+	"bytes"
+	"crypto/rand"
+	"sort"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/testutil/coretestutil"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
@@ -17,33 +19,24 @@ func TestWalkCachedSubTreeRoot(t *testing.T) {
 	// create the first main tree
 	strc := newSubTreeRootCacher()
 	oss := uint64(8)
-	tr := wrapper.NewErasuredNamespacedMerkleTree(oss, nmt.NodeVisitor(strc.Visit))
+	tr := wrapper.NewErasuredNamespacedMerkleTree(oss, 0, nmt.NodeVisitor(strc.Visit))
 	d := []byte{0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 3, 4, 5, 6, 7, 8}
 	for i := 0; i < 8; i++ {
-		tr.Push(d, rsmt2d.SquareIndex{
-			Axis: uint(rsmt2d.Row),
-			Cell: uint(i),
-		})
+		tr.Push(d)
 	}
 	highestRoot := tr.Root()
 
 	// create a short sub tree
-	shortSubTree := wrapper.NewErasuredNamespacedMerkleTree(oss)
+	shortSubTree := wrapper.NewErasuredNamespacedMerkleTree(oss, 0)
 	for i := 0; i < 2; i++ {
-		shortSubTree.Push(d, rsmt2d.SquareIndex{
-			Axis: uint(rsmt2d.Row),
-			Cell: uint(i),
-		})
+		shortSubTree.Push(d)
 	}
 	shortSTR := shortSubTree.Root()
 
 	// create a tall sub tree root
-	tallSubTree := wrapper.NewErasuredNamespacedMerkleTree(oss)
+	tallSubTree := wrapper.NewErasuredNamespacedMerkleTree(oss, 0)
 	for i := 0; i < 4; i++ {
-		tallSubTree.Push(d, rsmt2d.SquareIndex{
-			Axis: uint(rsmt2d.Row),
-			Cell: uint(i),
-		})
+		tallSubTree.Push(d)
 	}
 	tallSTR := tallSubTree.Root()
 
@@ -114,7 +107,7 @@ func TestWalkCachedSubTreeRoot(t *testing.T) {
 
 func TestEDSSubRootCacher(t *testing.T) {
 	oss := uint64(8)
-	d := coretestutil.GenerateRandNamespacedRawData(uint32(oss*oss), appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)
+	d := generateRandNamespacedRawData(uint32(oss*oss), appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)
 	stc := NewSubtreeCacher(oss)
 
 	eds, err := rsmt2d.ComputeExtendedDataSquare(d, appconsts.DefaultCodec(), stc.Constructor)
@@ -152,13 +145,9 @@ func calculateSubTreeRoots(row [][]byte, depth int) [][]byte {
 	subTreeRoots := make([][]byte, count)
 	chunks := chunkSlice(row, subLeafRange)
 	for i, rowChunk := range chunks {
-		tr := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(row)))
-		for j, r := range rowChunk {
-			c := (i * subLeafRange) + j
-			tr.Push(r, rsmt2d.SquareIndex{
-				Axis: uint(rsmt2d.Row),
-				Cell: uint(c),
-			})
+		tr := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(row)), 0)
+		for _, r := range rowChunk {
+			tr.Push(r)
 		}
 		subTreeRoots[i] = tr.Root()
 	}
@@ -181,4 +170,25 @@ func chunkSlice(slice [][]byte, chunkSize int) [][][]byte {
 	}
 
 	return chunks
+}
+
+func generateRandNamespacedRawData(total, nidSize, leafSize uint32) [][]byte {
+	data := make([][]byte, total)
+	for i := uint32(0); i < total; i++ {
+		nid := make([]byte, nidSize)
+		_, _ = rand.Read(nid)
+		data[i] = nid
+	}
+	sortByteArrays(data)
+	for i := uint32(0); i < total; i++ {
+		d := make([]byte, leafSize)
+		_, _ = rand.Read(d)
+		data[i] = append(data[i], d...)
+	}
+
+	return data
+}
+
+func sortByteArrays(src [][]byte) {
+	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
 }

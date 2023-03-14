@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"cosmossdk.io/errors"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -15,7 +15,7 @@ var _ AttestationRequestI = &Valset{}
 // NewValset returns a new valset.
 func NewValset(nonce, height uint64, members InternalBridgeValidators) (*Valset, error) {
 	if err := members.ValidateBasic(); err != nil {
-		return nil, sdkerrors.Wrap(err, "invalid members")
+		return nil, errors.Wrap(err, "invalid members")
 	}
 	members.Sort()
 	mem := make([]BridgeValidator, 0)
@@ -28,7 +28,7 @@ func NewValset(nonce, height uint64, members InternalBridgeValidators) (*Valset,
 
 // SignBytes produces the bytes that celestia validators are required to sign
 // over when the validator set changes.
-func (v *Valset) SignBytes(bridgeID ethcmn.Hash) (ethcmn.Hash, error) {
+func (v *Valset) SignBytes() (ethcmn.Hash, error) {
 	vsHash, err := v.Hash()
 	if err != nil {
 		return ethcmn.Hash{}, err
@@ -39,7 +39,6 @@ func (v *Valset) SignBytes(bridgeID ethcmn.Hash) (ethcmn.Hash, error) {
 	// it gets encoded as a function name which we must then discard.
 	bytes, err := InternalQGBabi.Pack(
 		"domainSeparateValidatorSetHash",
-		bridgeID,
 		VsDomainSeparator,
 		big.NewInt(int64(v.Nonce)),
 		big.NewInt(int64(v.TwoThirdsThreshold())),
@@ -61,7 +60,7 @@ func (v *Valset) Hash() (ethcmn.Hash, error) {
 	ethVals := make([]wrapper.Validator, len(v.Members))
 	for i, val := range v.Members {
 		ethVals[i] = wrapper.Validator{
-			Addr:  ethcmn.HexToAddress(val.EthereumAddress),
+			Addr:  ethcmn.HexToAddress(val.EvmAddress),
 			Power: big.NewInt(int64(val.Power)),
 		}
 	}

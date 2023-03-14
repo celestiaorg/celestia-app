@@ -2,12 +2,15 @@ package app
 
 import (
 	"bytes"
+	"fmt"
+	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/x/payment/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -21,9 +24,9 @@ const (
 )
 
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
-	// Check for message inclusion:
-	//  - each MsgPayForData included in a block should have a corresponding data also in the block body
-	//  - the commitment in each PFD should match that of its corresponding data
+	// Check for blob inclusion:
+	//  - each MsgPayForBlobs included in a block should have a corresponding blob data in the block body
+	//  - the commitment in each PFB should match the commitment for the shares that contain that blob data
 	//  - there should be no unpaid-for data
 
 	data, err := coretypes.DataFromProto(req.BlockData)
@@ -34,8 +37,24 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	if !data.Messages.IsSorted() {
-		logInvalidPropBlock(app.Logger(), req.Header, "messages are unsorted")
+	if !sort.IsSorted(coretypes.BlobsByNamespace(data.Blobs)) {
+		logInvalidPropBlock(app.Logger(), req.Header, "blobs are unsorted")
+		return abci.ResponseProcessProposal{
+			Result: abci.ResponseProcessProposal_REJECT,
+		}
+	}
+
+	for _, blob := range data.Blobs {
+		if !isValidBlobNamespace(blob.NamespaceID) {
+			logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("invalid blob namespace %v", blob.NamespaceID))
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
+			}
+		}
+	}
+
+	if !arePFBsOrderedAfterTxs(req.BlockData.Txs) {
+		logInvalidPropBlock(app.Logger(), req.Header, "PFBs are not all ordered at the end of the list of transactions")
 		return abci.ResponseProcessProposal{
 			Result: abci.ResponseProcessProposal_REJECT,
 		}
@@ -49,8 +68,8 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	cacher := inclusion.NewSubtreeCacher(data.OriginalSquareSize)
-	eds, err := rsmt2d.ComputeExtendedDataSquare(dataSquare, appconsts.DefaultCodec(), cacher.Constructor)
+	cacher := inclusion.NewSubtreeCacher(data.SquareSize)
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(dataSquare), appconsts.DefaultCodec(), cacher.Constructor)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to erasure the data square", err)
 		return abci.ResponseProcessProposal{
@@ -67,16 +86,31 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 	}
 
-	// iterate over all of the MsgPayForData transactions and ensure that their
+	// create the anteHanders that are used to check the validity of
+	// transactions. We verify the signatures of PFB containing txs using the
+	// sigVerifyAnterHandler, and simply increase the nonce of all other
+	// transactions.
+	svHander := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
+	seqHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
+
+	sdkCtx, err := app.NewProcessProposalQueryContext()
+	if err != nil {
+		logInvalidPropBlockError(app.Logger(), req.Header, "failure to load query context", err)
+		return abci.ResponseProcessProposal{
+			Result: abci.ResponseProcessProposal_REJECT,
+		}
+	}
+
+	// iterate over all of the MsgPayForBlob transactions and ensure that their
 	// commitments are subtree roots of the data root.
-	commitmentCounter := 0
 	for _, rawTx := range req.BlockData.Txs {
-		malleatedTx, isMalleated := coretypes.UnwrapMalleatedTx(rawTx)
-		if !isMalleated {
-			continue
+		tx := rawTx
+		wrappedTx, isWrapped := coretypes.UnmarshalIndexWrapper(rawTx)
+		if isWrapped {
+			tx = wrappedTx.Tx
 		}
 
-		tx, err := app.txConfig.TxDecoder()(malleatedTx.Tx)
+		sdkTx, err := app.txConfig.TxDecoder()(tx)
 		if err != nil {
 			// we don't reject the block here because it is not a block validity
 			// rule that all transactions included in the block data are
@@ -84,54 +118,105 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			continue
 		}
 
-		for _, msg := range tx.GetMsgs() {
-			if sdk.MsgTypeURL(msg) != types.URLMsgPayForData {
-				continue
-			}
-
-			pfd, ok := msg.(*types.MsgPayForData)
-			if !ok {
-				app.Logger().Error("Msg type does not match MsgPayForData URL")
-				continue
-			}
-
-			if err = pfd.ValidateBasic(); err != nil {
-				logInvalidPropBlockError(app.Logger(), req.Header, "invalid MsgPayForData", err)
+		pfb, has := hasPFB(sdkTx.GetMsgs())
+		if !has {
+			// we need to increment the sequence for every transaction so that
+			// the signature check below is accurate. this error only gets hit
+			// if the account in question doens't exist.
+			sdkCtx, err = seqHandler(sdkCtx, sdkTx, false)
+			if err != nil {
+				logInvalidPropBlockError(app.Logger(), req.Header, "failure to incrememnt sequence", err)
 				return abci.ResponseProcessProposal{
 					Result: abci.ResponseProcessProposal_REJECT,
 				}
 			}
 
-			commitment, err := inclusion.GetCommit(cacher, dah, int(malleatedTx.ShareIndex), shares.MsgSharesUsed(int(pfd.MessageSize)))
+			// we do not need to perform further checks on this transaction,
+			// since it has no PFB
+			continue
+		}
+
+		// ensure there is only a single sdk.Msg included in the transaction
+		if len(sdkTx.GetMsgs()) > 1 {
+			logInvalidPropBlock(app.Logger(), req.Header, "invalid PFB found: combined with one or more other sdk.Msg")
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
+			}
+		}
+
+		// all PFBs must have a share index, so that we can find their
+		// respective blob.
+		if !isWrapped {
+			logInvalidPropBlock(app.Logger(), req.Header, "Found a MsgPayForBlobs without a share index")
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
+			}
+		}
+
+		if err = pfb.ValidateBasic(); err != nil {
+			logInvalidPropBlockError(app.Logger(), req.Header, "invalid MsgPayForBlobs", err)
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
+			}
+		}
+
+		for i, shareIndex := range wrappedTx.ShareIndexes {
+			commitment, err := inclusion.GetCommitment(cacher, dah, int(shareIndex), shares.SparseSharesNeeded(pfb.BlobSizes[i]))
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), req.Header, "commitment not found", err)
 				return abci.ResponseProcessProposal{
 					Result: abci.ResponseProcessProposal_REJECT,
 				}
 			}
-
-			if !bytes.Equal(pfd.MessageShareCommitment, commitment) {
+			if !bytes.Equal(pfb.ShareCommitments[i], commitment) {
 				logInvalidPropBlock(app.Logger(), req.Header, "found commitment does not match user's")
 				return abci.ResponseProcessProposal{
 					Result: abci.ResponseProcessProposal_REJECT,
 				}
 			}
+		}
 
-			commitmentCounter++
+		sdkCtx, err = svHander(sdkCtx, sdkTx, true)
+		if err != nil {
+			logInvalidPropBlockError(app.Logger(), req.Header, "invalid PFB signature", err)
+			return abci.ResponseProcessProposal{
+				Result: abci.ResponseProcessProposal_REJECT,
+			}
 		}
 	}
 
-	// compare the number of PFDs and messages, if they aren't
-	// identical, then  we already know this block is invalid
-	if commitmentCounter != len(req.BlockData.Messages.MessagesList) {
-		logInvalidPropBlock(app.Logger(), req.Header, "varying number of messages and payForData txs in the same block")
-		return abci.ResponseProcessProposal{
-			Result: abci.ResponseProcessProposal_REJECT,
-		}
-	}
 	return abci.ResponseProcessProposal{
 		Result: abci.ResponseProcessProposal_ACCEPT,
 	}
+}
+
+func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {
+	for _, msg := range msgs {
+		if pfb, ok := msg.(*blobtypes.MsgPayForBlobs); ok {
+			return pfb, true
+		}
+	}
+	return nil, false
+}
+
+func arePFBsOrderedAfterTxs(txs [][]byte) bool {
+	seenFirstPFB := false
+	for _, tx := range txs {
+		_, isWrapped := coretypes.UnmarshalIndexWrapper(tx)
+		if isWrapped {
+			seenFirstPFB = true
+		} else if seenFirstPFB {
+			return false
+		}
+	}
+	return true
+}
+
+func isValidBlobNamespace(namespace namespace.ID) bool {
+	isReserved := bytes.Compare(namespace, appconsts.MaxReservedNamespace) <= 0
+	isParity := bytes.Equal(namespace, appconsts.ParitySharesNamespaceID)
+	isTailPadding := bytes.Equal(namespace, appconsts.TailPaddingNamespaceID)
+	return !isReserved && !isParity && !isTailPadding
 }
 
 func logInvalidPropBlock(l log.Logger, h tmproto.Header, reason string) {

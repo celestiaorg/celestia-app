@@ -9,8 +9,10 @@ import (
 )
 
 // Fulfills the rsmt2d.Tree interface and rsmt2d.TreeConstructorFn function
-var _ rsmt2d.TreeConstructorFn = ErasuredNamespacedMerkleTree{}.Constructor
-var _ rsmt2d.Tree = &ErasuredNamespacedMerkleTree{}
+var (
+	_ rsmt2d.TreeConstructorFn = NewConstructor(0)
+	_ rsmt2d.Tree              = &ErasuredNamespacedMerkleTree{}
+)
 
 // ErasuredNamespacedMerkleTree wraps NamespaceMerkleTree to conform to the
 // rsmt2d.Tree interface while also providing the correct namespaces to the
@@ -23,21 +25,50 @@ type ErasuredNamespacedMerkleTree struct {
 	squareSize uint64 // note: this refers to the width of the original square before erasure-coded
 	options    []nmt.Option
 	tree       *nmt.NamespacedMerkleTree
+	// axisIndex is the index of the axis (row or column) that this tree is on. This is passed
+	// by rsmt2d and used to help determine which quadrant each leaf belongs to.
+	axisIndex uint64
+	// shareIndex is the index of the share in a row or column that is being
+	// pushed to the tree. It is expected to be in the range: 0 <= shareIndex <
+	// 2*squareSize. shareIndex is used to help determine which quadrant each
+	// leaf belongs to, along with keeping track of how many leaves have been
+	// added to the tree so far.
+	shareIndex uint64
 }
 
-// NewErasuredNamespacedMerkleTree issues a new ErasuredNamespacedMerkleTree. squareSize must be greater than zero
-func NewErasuredNamespacedMerkleTree(squareSize uint64, setters ...nmt.Option) ErasuredNamespacedMerkleTree {
+// NewErasuredNamespacedMerkleTree creates a new ErasuredNamespacedMerkleTree
+// with an underlying NMT of namespace size `appconsts.NamespaceSize`. axisIndex
+// is the index of the row or column that this tree is committing to. squareSize
+// must be greater than zero.
+func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, setters ...nmt.Option) ErasuredNamespacedMerkleTree {
 	if squareSize == 0 {
 		panic("cannot create a ErasuredNamespacedMerkleTree of squareSize == 0")
 	}
+	setters = append(setters, nmt.NamespaceIDSize(appconsts.NamespaceSize))
 	tree := nmt.New(appconsts.NewBaseHashFunc(), setters...)
-	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: setters, tree: tree}
+	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: setters, tree: tree, axisIndex: uint64(axisIndex), shareIndex: 0}
 }
 
-// Constructor acts as the rsmt2d.TreeConstructorFn for
-// ErasuredNamespacedMerkleTree
-func (w ErasuredNamespacedMerkleTree) Constructor() rsmt2d.Tree {
-	newTree := NewErasuredNamespacedMerkleTree(w.squareSize, w.options...)
+type constructor struct {
+	squareSize uint64
+	opts       []nmt.Option
+}
+
+// NewConstructor creates a tree constructor function as required by rsmt2d to
+// calculate the data root. It creates that tree using the
+// wrapper.ErasuredNamespacedMerkleTree.
+func NewConstructor(squareSize uint64, opts ...nmt.Option) rsmt2d.TreeConstructorFn {
+	return constructor{
+		squareSize: squareSize,
+		opts:       opts,
+	}.NewTree
+}
+
+// NewTree creates a new rsmt2d.Tree using the
+// wrapper.ErasuredNamespacedMerkleTree with predefined square size and
+// nmt.Options
+func (c constructor) NewTree(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
+	newTree := NewErasuredNamespacedMerkleTree(c.squareSize, axisIndex, c.opts...)
 	return &newTree
 }
 
@@ -46,17 +77,17 @@ func (w ErasuredNamespacedMerkleTree) Constructor() rsmt2d.Tree {
 // namespace unless the data pushed to the second half of the tree. Fulfills the
 // rsmt.Tree interface. NOTE: panics if an error is encountered while pushing or
 // if the tree size is exceeded.
-func (w *ErasuredNamespacedMerkleTree) Push(data []byte, idx rsmt2d.SquareIndex) {
-	if idx.Axis+1 > 2*uint(w.squareSize) || idx.Cell+1 > 2*uint(w.squareSize) {
-		panic(fmt.Sprintf("pushed past predetermined square size: boundary at %d index at %+v", 2*w.squareSize, idx))
+func (w *ErasuredNamespacedMerkleTree) Push(data []byte) {
+	if w.axisIndex+1 > 2*w.squareSize || w.shareIndex+1 > 2*w.squareSize {
+		panic(fmt.Sprintf("pushed past predetermined square size: boundary at %d index at %d %d", 2*w.squareSize, w.axisIndex, w.shareIndex))
 	}
 	nidAndData := make([]byte, appconsts.NamespaceSize+len(data))
 	copy(nidAndData[appconsts.NamespaceSize:], data)
 	// use the parity namespace if the cell is not in Q0 of the extended data square
-	if idx.Axis+1 > uint(w.squareSize) || idx.Cell+1 > uint(w.squareSize) {
-		copy(nidAndData[:appconsts.NamespaceSize], appconsts.ParitySharesNamespaceID)
-	} else {
+	if w.isQuadrantZero() {
 		copy(nidAndData[:appconsts.NamespaceSize], data[:appconsts.NamespaceSize])
+	} else {
+		copy(nidAndData[:appconsts.NamespaceSize], appconsts.ParitySharesNamespaceID)
 	}
 	// push to the underlying tree
 	err := w.tree.Push(nidAndData)
@@ -64,6 +95,7 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte, idx rsmt2d.SquareIndex)
 	if err != nil {
 		panic(err)
 	}
+	w.incrementShareIndex()
 }
 
 // Root fulfills the rsmt.Tree interface by generating and returning the
@@ -72,11 +104,23 @@ func (w *ErasuredNamespacedMerkleTree) Root() []byte {
 	return w.tree.Root()
 }
 
+// Prove returns a Merkle inclusion proof for the leaf at index `ind`.
 func (w *ErasuredNamespacedMerkleTree) Prove(ind int) (nmt.Proof, error) {
 	return w.tree.Prove(ind)
 }
 
-// Tree returns the underlying NamespacedMerkleTree
-func (w *ErasuredNamespacedMerkleTree) Tree() *nmt.NamespacedMerkleTree {
-	return w.tree
+// ProveRange returns a Merkle range proof for the leaf range [start, end] where `end` is non-inclusive.
+func (w *ErasuredNamespacedMerkleTree) ProveRange(start, end int) (nmt.Proof, error) {
+	return w.tree.ProveRange(start, end)
+}
+
+// incrementShareIndex increments the share index by one.
+func (w *ErasuredNamespacedMerkleTree) incrementShareIndex() {
+	w.shareIndex++
+}
+
+// isQuadrantZero returns true if the current share index and axis index are both
+// in the original data square.
+func (w *ErasuredNamespacedMerkleTree) isQuadrantZero() bool {
+	return w.shareIndex < w.squareSize && w.axisIndex < w.squareSize
 }

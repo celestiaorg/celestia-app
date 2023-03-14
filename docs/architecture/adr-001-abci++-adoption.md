@@ -1,5 +1,9 @@
 # ADR 001: ABCI++ Adoption
 
+## Status
+
+Implemented
+
 ## Changelog
 
 - 2022-03-03: Initial Commit
@@ -19,7 +23,7 @@ We need this functionality in order for block producers to:
 
 We also need this functionality for validators to verify that:
 
-- For every `MsgPayForData` (previously `MsgPayForMessage`) included in the block, there is also a corresponding message and vice versa.
+- For every `MsgPayForBlob` (previously `MsgPayForData`) included in the block, there is also a corresponding blob and vice versa.
 - The data hash represents the properly-erasure-coded block data for the selected block size.
 - The included messages are arranged in the expected locations in the square according to the non-interactive default rules (not done here)
 
@@ -31,10 +35,6 @@ While the adoption of ABCI++ is inevitable given the already made decision by up
 
 - [Alternatives for Message Inclusion.](https://github.com/celestiaorg/celestia-app/blob/92341dd68ee6e555ec6c0bb780afa3a1c8243a93/adrs/adr008:adopt-ABC%2B%2B-early.md#alternative-approaches)
 - [Alternatives for Picking a square size.](https://github.com/celestiaorg/celestia-core/issues/454)
-
-## Decision
-
-Proposed and initial implementation is complete.
 
 ## Detailed Design
 
@@ -185,10 +185,10 @@ We estimate the square size by assuming that all the malleable transactions in t
 In order to efficiently fill the data square and ensure that each message included in the block is paid for, we progressively generate the data square using a few new types. More details can be found in [#637](https://github.com/celestiaorg/celestia-core/pull/637)
 
 ```go
-// CompactShareWriter lazily merges transaction or other compact types in
+// CompactShareWriter lazily merges transactions or other compact types in
 // the block data into shares that will eventually be included in a data square.
 // It also has methods to help progressively count how many shares the transactions
-// written take up.
+// written take-up.
 type CompactShareWriter struct {
    shares       []NamespacedShare
    pendingShare NamespacedShare
@@ -219,8 +219,8 @@ type shareSplitter struct {
 
 ```go
 // SplitShares uses the provided block data to create a flattened data square.
-// Any MsgWirePayForDatas are malleated, and their corresponding
-// MsgPayForData and Message are written atomically. If there are
+// Any MsgWirePayForBlobs are malleated, and their corresponding
+// MsgPayForBlob and blob are written atomically. If there are
 // transactions that will not fit in the given square size, then they are
 // discarded. This is reflected in the returned block data. Note: pointers to
 // block data are only used to avoid dereferencing, not because we need the block
@@ -238,7 +238,7 @@ func SplitShares(txConf client.TxConfig, squareSize uint64, data *core.Data) ([]
        ... // decode the transaction
 
        // write the tx to the square if it normal
-       if !hasWirePayForData(authTx) {
+       if !hasWirePayForBlob(authTx) {
            success, err := sqwr.writeTx(rawTx)
            if err != nil {
                continue
@@ -299,18 +299,18 @@ func (sqwr *shareSplitter) writeTx(tx []byte) (ok bool, err error) {
    return true, nil
 }
 
-// writeMalleatedTx malleates a MsgWirePayForData into a MsgPayForData and
-// its corresponding message provided that it has a MsgPayForData for the
+// writeMalleatedTx malleates a MsgWirePayForBlob into a MsgPayForBlob and
+// its corresponding message provided that it has a MsgPayForBlob for the
 // preselected square size. Returns true if the write was successful, false if
 // there was not enough room in the square.
 func (sqwr *shareSplitter) writeMalleatedTx(
    parentHash []byte,
    tx signing.Tx,
-   wpfd *types.MsgWirePayForData,
+   wpfb *types.MsgWirePayForBlob,
 ) (ok bool, malleatedTx coretypes.Tx, msg *core.Message, err error) {
    ... // process the malleated tx and extract the message.
 
-   // check if we have room for both the tx and message it is crucial that we
+   // check if we have room for both the tx and the message it is crucial that we
    // add both atomically, otherwise the block is invalid
    if !sqwr.hasRoomForBoth(wrappedTx, coreMsg.Data) {
        return false, nil, nil, nil
@@ -328,7 +328,7 @@ func (sqwr *shareSplitter) writeMalleatedTx(
 }
 ```
 
-Lastly, the data availability header is used to create the `DataHash` in the `Header` in the application instead of in tendermint. This is done by modifying the protobuf version of the block data to retain the cached hash and setting it during `ProcessProposal`. Later, in `ProcessProposal` other fullnodes check that the `DataHash` matches the block data by recomputing it. Previously, this extra check was performed inside the `ValidateBasic` method of `types.Data`, where is was computed each time it was decoded. Not only is this more efficient as it saves significant computational resources and keeps `ValidateBasic` light, it is also much more explicit. This approach does not however dramatically change any existing code in tendermint, as the code to compute the hash of the block data remains there. Ideally, we would move all of the code that computes erasure encoding to the app. This approach allows us to keep the intuitiveness of the `Hash` method for `types.Data`, along with not forcing us to change many tests in tendermint, which rely on this functionality.
+Lastly, the data availability header is used to create the `DataHash` in the `Header` in the application instead of in tendermint. This is done by modifying the protobuf version of the block data to retain the cached hash and setting it during `ProcessProposal`. Later, in `ProcessProposal` other full nodes check that the `DataHash` matches the block data by recomputing it. Previously, this extra check was performed inside the `ValidateBasic` method of `types.Data`, where is was computed each time it was decoded. Not only is this more efficient as it saves significant computational resources and keeps `ValidateBasic` light, it is also much more explicit. This approach does not however dramatically change any existing code in tendermint, as the code to compute the hash of the block data remains there. Ideally, we would move all of the code that computes erasure encoding to the app. This approach allows us to keep the intuitiveness of the `Hash` method for `types.Data`, along with not forcing us to change many tests in tendermint, which rely on this functionality.
 
 ### ProcessProposal [#214](https://github.com/celestiaorg/celestia-app/pull/214), [#216](https://github.com/celestiaorg/celestia-app/pull/216), and [#224](https://github.com/celestiaorg/celestia-app/pull/224)
 
@@ -340,19 +340,19 @@ During `ProcessProposal`, we
 ```go
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
    // Check for message inclusion:
-   //  - each MsgPayForData included in a block should have a corresponding message also in the block data
-   //  - the commitment in each PFD should match that of its corresponding message
-   //  - there should be no unpaid for messages
+   //  - each MsgPayForBlob included in a block should have a corresponding blob also in the block data
+   //  - the commitment in each PFB should match that of its corresponding blob
+   //  - there should be no unpaid messages
 
-   // extract the commitments from any MsgPayForDatas in the block
+   // extract the commitments from any MsgPayForBlobs in the block
    commitments := make(map[string]struct{})
    for _, rawTx := range req.BlockData.Txs {
        ...
-       commitments[string(pfd.MessageShareCommitment)] = struct{}{}
+       commitments[string(pfb.ShareCommitment)] = struct{}{}
        ...
    }
 
-   // quickly compare the number of PFDs and messages, if they aren't
+   // quickly compare the number of PFBs and messages, if they aren't
    // identical, then  we already know this block is invalid
    if len(commitments) != len(req.BlockData.Messages.MessagesList) {
        ... // logging and rejecting
@@ -369,10 +369,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
    }
 }
 ```
-
-## Status
-
-Proposed and initial implementation is complete.
 
 ## Consequences
 
@@ -409,7 +405,7 @@ Proposed and initial implementation is complete.
 [#637](https://github.com/celestiaorg/celestia-core/pull/637)
 [#224](https://github.com/celestiaorg/celestia-app/pull/224)
 
-### Other related by unmerged ADRs that we can close after merging this ADR
+### Other related unmerged ADRs that we can close after merging this ADR
 
 [#559](https://github.com/celestiaorg/celestia-core/pull/559)
 [#157](https://github.com/celestiaorg/celestia-app/pull/157)

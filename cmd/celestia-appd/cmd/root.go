@@ -4,6 +4,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	qgbcmd "github.com/celestiaorg/celestia-app/x/qgb/client"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -21,6 +26,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	"github.com/cosmos/cosmos-sdk/snapshots"
+	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
 	"github.com/cosmos/cosmos-sdk/store"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
@@ -29,25 +36,23 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
-	tmcmds "github.com/tendermint/tendermint/cmd/tendermint/commands"
 	tmcfg "github.com/tendermint/tendermint/config"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
 )
 
-const EnvPrefix = "CELESTIA"
+const (
+	EnvPrefix = "CELESTIA"
+
+	// FlagLogToFile specifies whether to log to file or not.
+	FlagLogToFile = "log-to-file"
+)
 
 // NewRootCmd creates a new root command for celestia-appd. It is called once in the
 // main function.
 func NewRootCmd() *cobra.Command {
 	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	cfg := sdk.GetConfig()
-	cfg.SetBech32PrefixForAccount(app.Bech32PrefixAccAddr, app.Bech32PrefixAccPub)
-	cfg.SetBech32PrefixForValidator(app.Bech32PrefixValAddr, app.Bech32PrefixValPub)
-	cfg.SetBech32PrefixForConsensusNode(app.Bech32PrefixConsAddr, app.Bech32PrefixConsPub)
-	cfg.Seal()
 
 	initClientCtx := client.Context{}.
 		WithCodec(encodingConfig.Codec).
@@ -77,14 +82,40 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
+			// Override the default tendermint config for celestia-app
 			tmCfg := tmcfg.DefaultConfig()
 
+			// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
+			// TODO: make TimeoutBroadcastTx configurable per https://github.com/celestiaorg/celestia-app/issues/1034
+			tmCfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
+			tmCfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
+			tmCfg.Mempool.TTLNumBlocks = 10
+			tmCfg.Mempool.MaxTxBytes = 2 * 1024 * 1024 // 2 MiB
+			tmCfg.Mempool.Version = "v1"               // prioritized mempool
+			tmCfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
+			tmCfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
+			tmCfg.Consensus.SkipTimeoutCommit = false
+			tmCfg.TxIndex.Indexer = "null"
+
 			customAppTemplate, customAppConfig := initAppConfig()
-			return server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
+
+			err = server.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, tmCfg)
+			if err != nil {
+				return err
+			}
+
+			// optionally log to file by replaceing the default logger with a file logger
+			err = replaceLogger(cmd)
+			if err != nil {
+				return err
+			}
+
+			return overrideServerConfig(cmd)
 		},
 		SilenceUsage: true,
 	}
 
+	rootCmd.PersistentFlags().String(FlagLogToFile, "", "Write logs directly to a file. If empty, logs are written to stderr")
 	initRootCmd(rootCmd, encodingConfig)
 
 	return rootCmd
@@ -108,7 +139,7 @@ func initAppConfig() (string, interface{}) {
 	// snapshots to nodes that state sync
 	srvCfg.StateSync.SnapshotInterval = 1500
 	srvCfg.StateSync.SnapshotKeepRecent = 2
-	srvCfg.MinGasPrices = fmt.Sprintf("0%s", app.BondDenom)
+	srvCfg.MinGasPrices = fmt.Sprintf("0.001%s", app.BondDenom)
 
 	CelestiaAppCfg := CustomAppConfig{Config: *srvCfg}
 
@@ -131,19 +162,19 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig encoding.Config) {
 		genutilcli.GenTxCmd(app.ModuleBasics, encodingConfig.TxConfig, banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
 		genutilcli.ValidateGenesisCmd(app.ModuleBasics),
 		tmcli.NewCompletionCmd(rootCmd, true),
-		tmcmds.RollbackStateCmd,
 		debugCmd,
 		config.Cmd(),
 	)
 
-	server.AddCommands(rootCmd, app.DefaultNodeHome, newApp, createAppAndExport, addModuleInitFlags)
+	server.AddCommands(rootCmd, app.DefaultNodeHome, NewAppServer, createAppAndExport, addModuleInitFlags)
 
-	// add keybase, auxiliary RPC, query, and tx child commands
+	// add status, query, tx, and keys subcommands
 	rootCmd.AddCommand(
 		rpc.StatusCommand(),
 		queryCommand(),
 		txCommand(),
 		keys.Commands(app.DefaultNodeHome),
+		qgbcmd.VerifyCmd(),
 	)
 }
 
@@ -201,7 +232,7 @@ func txCommand() *cobra.Command {
 	return cmd
 }
 
-func newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts servertypes.AppOptions) servertypes.Application {
+func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts servertypes.AppOptions) servertypes.Application {
 	var cache sdk.MultiStorePersistentCache
 
 	if cast.ToBool(appOpts.Get(server.FlagInterBlockCache)) {
@@ -214,6 +245,18 @@ func newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts serverty
 	}
 
 	pruningOpts, err := server.GetPruningOptionsFromFlags(appOpts)
+	if err != nil {
+		panic(err)
+	}
+
+	// Add snapshots
+	snapshotDir := filepath.Join(cast.ToString(appOpts.Get(flags.FlagHome)), "data", "snapshots")
+	//nolint: staticcheck
+	snapshotDB, err := sdk.NewLevelDB("metadata", snapshotDir)
+	if err != nil {
+		panic(err)
+	}
+	snapshotStore, err := snapshots.NewStore(snapshotDB, snapshotDir)
 	if err != nil {
 		panic(err)
 	}
@@ -233,6 +276,7 @@ func newApp(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts serverty
 		baseapp.SetInterBlockCache(cache),
 		baseapp.SetTrace(cast.ToBool(appOpts.Get(server.FlagTrace))),
 		baseapp.SetIndexEvents(cast.ToStringSlice(appOpts.Get(server.FlagIndexEvents))),
+		baseapp.SetSnapshot(snapshotStore, snapshottypes.NewSnapshotOptions(cast.ToUint64(appOpts.Get(server.FlagStateSyncSnapshotInterval)), cast.ToUint32(appOpts.Get(server.FlagStateSyncSnapshotKeepRecent)))),
 	)
 }
 
@@ -254,4 +298,26 @@ func createAppAndExport(
 	}
 
 	return capp.ExportAppStateAndValidators(forZeroHeight, jailWhiteList)
+}
+
+// replaceLogger optionally replaces the logger with a file logger if the flag
+// is set to something other than the default.
+func replaceLogger(cmd *cobra.Command) error {
+	logFilePath, err := cmd.Flags().GetString(FlagLogToFile)
+	if err != nil {
+		return err
+	}
+
+	if logFilePath == "" {
+		return nil
+	}
+
+	file, err := os.OpenFile(logFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
+	if err != nil {
+		return err
+	}
+
+	sctx := server.GetServerContextFromCmd(cmd)
+	sctx.Logger = log.NewTMLogger(log.NewSyncWriter(file))
+	return server.SetCmdServerContext(cmd, sctx)
 }

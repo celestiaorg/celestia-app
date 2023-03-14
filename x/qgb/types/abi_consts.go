@@ -10,10 +10,6 @@ import (
 )
 
 const (
-	// EthSignPrefix is used to mimic the expected encoding. see
-	// https://github.com/OpenZeppelin/openzeppelin-contracts/blob/c9f328ef66251db7fac7c704dd6c5523fc53b0ab/contracts/cryptography/ECDSA.sol#L69-L82 //nolint:lll
-	EthSignPrefix = "\x19Ethereum Signed Message:\n32"
-
 	// InternalQGBabiJSON is the json encoded abi for private functions in the
 	// qgb contract. This is needed to encode data that is signed over in a way
 	// that the contracts can easily verify.
@@ -53,11 +49,6 @@ const (
 			"inputs": [
 				{
 				"internalType": "bytes32",
-				"name": "_bridge_id",
-				"type": "bytes32"
-				},
-				{
-				"internalType": "bytes32",
 				"name": "_separator",
 				"type": "bytes32"
 				},
@@ -85,11 +76,6 @@ const (
 			},
 			{
 			"inputs": [
-				{
-				"internalType": "bytes32",
-				"name": "_bridge_id",
-				"type": "bytes32"
-				},
 				{
 				"internalType": "bytes32",
 				"name": "_separator",
@@ -136,7 +122,6 @@ var (
 
 	VsDomainSeparator ethcmn.Hash
 	DcDomainSeparator ethcmn.Hash
-	BridgeID          = ethcmn.HexToHash("Evm_Celestia_Bridge") //  TODO to be removed afterwards
 )
 
 func init() {

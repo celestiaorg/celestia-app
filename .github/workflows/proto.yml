@@ -19,6 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: "Check protobuf generated code matches committed code"
+        # yamllint disable
         run: |
           set -euo pipefail
 
@@ -32,6 +33,8 @@ jobs:
             echo ">>"
             exit 1
           fi
+        # yamllint enable
+
   # add this back when we start using versioning
   # breakage:
   #   runs-on: ubuntu-latest
