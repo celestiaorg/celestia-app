@@ -80,6 +80,11 @@ func (suite *TokenFilterTestSuite) TestHandleOutboundTransfer() {
 	coinSentFromAToB := types.GetTransferCoin(path.EndpointB.ChannelConfig.PortID, path.EndpointB.ChannelID, sdk.DefaultBondDenom, amount)
 	suite.Require().Equal(coinSentFromAToB, balance)
 
+	// check that the account on celestiaChain has "amount" less tokens than before
+	intermediateBalance := celestiaApp.BankKeeper.GetBalance(suite.celestiaChain.GetContext(), suite.celestiaChain.SenderAccount.GetAddress(), sdk.DefaultBondDenom)
+	want := originalBalance.Amount.Sub(coinToSendToB.Amount)
+	suite.Require().Equal(want, intermediateBalance.Amount)
+
 	// Send the native celestiaChain token on otherChain back to celestiaChain
 	msg = types.NewMsgTransfer(path.EndpointB.ChannelConfig.PortID, path.EndpointB.ChannelID, coinSentFromAToB, suite.otherChain.SenderAccount.GetAddress().String(), suite.celestiaChain.SenderAccount.GetAddress().String(), timeoutHeight, 0, "")
 	res, err = suite.otherChain.SendMsgs(msg)
