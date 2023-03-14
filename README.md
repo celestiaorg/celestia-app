@@ -47,6 +47,12 @@ node            |  |                               |  |
 celestia-appd --help
 ```
 
+### Environment variables
+
+| Variable        | Explanation                        | Default value | Required |
+| --------------- | ---------------------------------- | ------------- | -------- |
+| `CELESITA_HOME` | Home directory for the application |               | Optional |
+
 ### Create your own single node devnet
 
 ```sh
