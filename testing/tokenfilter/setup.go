@@ -85,7 +85,6 @@ func NewTestChainWithValSet(t *testing.T, coord *ibctesting.Coordinator, chainID
 
 	txConfig := app.GetTxConfig()
 
-	// create an account to send transactions from
 	chain := &ibctesting.TestChain{
 		T:              t,
 		Coordinator:    coord,
@@ -108,16 +107,16 @@ func NewTestChainWithValSet(t *testing.T, coord *ibctesting.Coordinator, chainID
 	return chain
 }
 
-// NewTestChain initializes a new test chain with a default of 4 validators
-// Use this function if the tests do not need custom control over the validator set
+// NewTestChain initializes a new test chain with a default of 4 validators.
+// Use this function if the tests do not need custom control over the validator set.
 func NewTestChain(t *testing.T, coord *ibctesting.Coordinator, chainID string) *ibctesting.TestChain {
-	// generate validators private/public key
 	var (
 		validatorsPerChain = 4
 		validators         []*tmtypes.Validator
 		signersByAddress   = make(map[string]tmtypes.PrivValidator, validatorsPerChain)
 	)
 
+	// generate validators private/public key
 	for i := 0; i < validatorsPerChain; i++ {
 		privVal := mock.NewPV()
 		pubKey, err := privVal.GetPubKey()
