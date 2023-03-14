@@ -1,5 +1,9 @@
 # ADR 009: Non-Interactive Default Rules for Reduced Padding
 
+## Status
+
+Implemented
+
 ## Changelog
 
 - 14.11.2022: Initial Draft
@@ -18,7 +22,7 @@ Proposed
 
 The upside of this proposal is that it reduces the inter-message padding. The downside is that a message inclusion proof will not be as efficient for large square sizes so the proof will be larger.
 
-> **Note**  
+> **Note**
 > This analysis assumes the implementation of [celestia-app#1004](https://github.com/celestiaorg/celestia-app/issues/1004). If the tree over the subtree roots is not a Namespace Merkle Tree then both methods have the same proof size.
 
 As an example, take the diagram below. Message 1 is 3 shares long and message 2 is 11 shares long.
@@ -119,17 +123,17 @@ Each row consists of one subtree root, which means if you have log(n) rows you w
 
 ![Current ni rules proof size](./assets/current-ni-rules-proof-size.png)
 
-NMT-Node size := 32 bytes + 2\*8 bytes = 48 bytes  
+NMT-Node size := 32 bytes + 2\*8 bytes = 48 bytes
 MT-Node size := 32 bytes
 
-Proof size = subtree roots (rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)  
-Proof size = (log(n) + log(k) + log(n)) \* NMT-Node size  + 2\*log(k) \* MT-Node size  
+Proof size = subtree roots (rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)
+Proof size = (log(n) + log(k) + log(n)) \* NMT-Node size  + 2\*log(k) \* MT-Node size
 Proof size = 48 \* (2\*log(n) + log(k)) + 64 \*log(k)
 
 ### Current Non-Interactive Default Rules for k/4
 
-Proof size = subtree roots (rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)  
-Proof size = (k/4 + log(k) + k/4) \* NMT-Node size  + 2\*log(k) \* MT-Node size  
+Proof size = subtree roots (rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)
+Proof size = (k/4 + log(k) + k/4) \* NMT-Node size  + 2\*log(k) \* MT-Node size
 Proof size = 48 \* (k/2 + log(k)) + 64 \*log(k)
 
 ### Proposed Non-Interactive Default Rules
@@ -138,14 +142,14 @@ Each row consists of sqrt(n)/log(n) subtree roots. Which makes in total sqrt(n) 
 
 ![Proposed ni rules proof size](./assets/proposed-ni-rules-proof-size.png)
 
-Proof size = subtree roots (all rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)  
-Proof size = (sqrt(n) + log(k) + log(n)) \* NMT-Node size  + 2\*log(k) \* MT-Node size  
+Proof size = subtree roots (all rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)
+Proof size = (sqrt(n) + log(k) + log(n)) \* NMT-Node size  + 2\*log(k) \* MT-Node size
 Proof size = 48 \* (sqrt(n) + log(k) + log(n)) + 64 \*log(k)
 
 ### Proposed Non-Interactive Default Rules for k/4
 
-Proof size = subtree roots (rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)  
-Proof size = (**k/2** + log(k) + k/4) \* NMT-Node size  + 2\*log(k) \* MT-Node size  
+Proof size = subtree roots (rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)
+Proof size = (**k/2** + log(k) + k/4) \* NMT-Node size  + 2\*log(k) \* MT-Node size
 Proof size = 48 \* (3k/4 + log(k)) + 64 \*log(k)
 
 ## 5. What is the worst constructible block with the most amount of padding with old and new non-interactive default rules?
@@ -191,10 +195,6 @@ The worst-case padding decreases from 1.1 GB to 0.8 GB in 2 GB Blocks. In the cu
 ## Additional Optimizations
 
 You can further optimize the proof size by using the fact the Namespace is known and the same for all the subtree roots. You can do the same trick for parity shares as the namespace is fixed for them too. Both of these optimizations are not included in the analysis and would save the bytes that are used to store the namespace.
-
-## Status
-
-Accepted
 
 ## Consequences
 

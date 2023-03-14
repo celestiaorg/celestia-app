@@ -35,7 +35,6 @@ import (
 	crisiskeeper "github.com/cosmos/cosmos-sdk/x/crisis/keeper"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
 	distr "github.com/cosmos/cosmos-sdk/x/distribution"
-	distrclient "github.com/cosmos/cosmos-sdk/x/distribution/client"
 	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"github.com/cosmos/cosmos-sdk/x/evidence"
@@ -47,7 +46,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
 	"github.com/cosmos/cosmos-sdk/x/gov"
-	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1beta2 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -56,7 +54,6 @@ import (
 	mintkeeper "github.com/cosmos/cosmos-sdk/x/mint/keeper"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/x/params"
-	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	paramskeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	paramproposal "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
@@ -67,7 +64,6 @@ import (
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/cosmos/cosmos-sdk/x/upgrade"
-	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
 	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	"github.com/cosmos/ibc-go/v6/modules/apps/transfer"
@@ -75,7 +71,6 @@ import (
 	ibctransfertypes "github.com/cosmos/ibc-go/v6/modules/apps/transfer/types"
 	ibc "github.com/cosmos/ibc-go/v6/modules/core"
 	ibcclient "github.com/cosmos/ibc-go/v6/modules/core/02-client"
-	ibcclientclient "github.com/cosmos/ibc-go/v6/modules/core/02-client/client"
 	ibcclienttypes "github.com/cosmos/ibc-go/v6/modules/core/02-client/types"
 	ibcporttypes "github.com/cosmos/ibc-go/v6/modules/core/05-port/types"
 	ibchost "github.com/cosmos/ibc-go/v6/modules/core/24-host"
@@ -143,7 +138,7 @@ var (
 		stakingModule{},
 		mintModule{},
 		distr.AppModuleBasic{},
-		gov.NewAppModuleBasic(getGovProposalHandlers()),
+		newGovModule(),
 		params.AppModuleBasic{},
 		crisisModule{},
 		slashing.AppModuleBasic{},
@@ -693,21 +688,6 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(qgbmoduletypes.ModuleName)
 
 	return paramsKeeper
-}
-
-func getGovProposalHandlers() []govclient.ProposalHandler {
-	var govProposalHandlers []govclient.ProposalHandler
-
-	govProposalHandlers = append(govProposalHandlers,
-		paramsclient.ProposalHandler,
-		distrclient.ProposalHandler,
-		upgradeclient.LegacyProposalHandler,
-		upgradeclient.LegacyCancelProposalHandler,
-		ibcclientclient.UpdateClientProposalHandler,
-		ibcclientclient.UpgradeProposalHandler,
-	)
-
-	return govProposalHandlers
 }
 
 func moduleMapToSlice(m module.BasicManager) []encoding.ModuleRegister {

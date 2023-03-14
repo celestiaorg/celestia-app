@@ -3,8 +3,7 @@ package types
 import (
 	"fmt"
 
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-
+	"cosmossdk.io/errors"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
@@ -30,7 +29,7 @@ func DefaultGenesis() *GenesisState {
 func (gs GenesisState) Validate() error {
 	// this line is used by starport scaffolding # genesis/types/validate
 	if err := gs.Params.ValidateBasic(); err != nil {
-		return sdkerrors.Wrap(err, "params")
+		return errors.Wrap(err, "params")
 	}
 	return nil
 }
@@ -61,7 +60,7 @@ func validateDataCommitmentWindow(i interface{}) error {
 // ValidateBasic checks that the parameters have valid values.
 func (p Params) ValidateBasic() error {
 	if err := validateDataCommitmentWindow(p.DataCommitmentWindow); err != nil {
-		return sdkerrors.Wrap(err, "data commitment window")
+		return errors.Wrap(err, "data commitment window")
 	}
 	return nil
 }

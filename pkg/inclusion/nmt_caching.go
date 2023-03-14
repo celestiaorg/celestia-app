@@ -94,7 +94,7 @@ func NewSubtreeCacher(squareSize uint64) *EDSSubTreeRootCacher {
 
 // Constructor fullfills the rsmt2d.TreeCreatorFn by keeping a pointer to the
 // cache and embedding it as a nmt.NodeVisitor into a new wrapped nmt.
-func (stc *EDSSubTreeRootCacher) Constructor(axis rsmt2d.Axis, index uint) rsmt2d.Tree {
+func (stc *EDSSubTreeRootCacher) Constructor(axis rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
 	// see docs of counter field for more
 	// info. if the counter is even or == 0, then we make the assumption that we
 	// are creating a tree for a row
@@ -103,11 +103,11 @@ func (stc *EDSSubTreeRootCacher) Constructor(axis rsmt2d.Axis, index uint) rsmt2
 	case rsmt2d.Row:
 		strc := newSubTreeRootCacher()
 		stc.mut.Lock()
-		stc.caches[index] = strc
+		stc.caches[axisIndex] = strc
 		stc.mut.Unlock()
-		newTree = wrapper.NewErasuredNamespacedMerkleTree(stc.squareSize, index, nmt.NodeVisitor(strc.Visit))
+		newTree = wrapper.NewErasuredNamespacedMerkleTree(stc.squareSize, axisIndex, nmt.NodeVisitor(strc.Visit))
 	default:
-		newTree = wrapper.NewErasuredNamespacedMerkleTree(stc.squareSize, index)
+		newTree = wrapper.NewErasuredNamespacedMerkleTree(stc.squareSize, axisIndex)
 	}
 	return &newTree
 }
