@@ -235,7 +235,7 @@ function messagePaidListInsert(tx, txid)
         state.messagePaidHead = txid
 ```
 
-We define a helper function to compute [F1 entries](../rationale/distributing_rewards.md):
+We define a helper function to compute F1 entries:
 
 ```py
 function compute_new_entry(reward, power)
