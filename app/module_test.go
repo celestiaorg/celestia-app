@@ -22,8 +22,7 @@ func Test_newGovModule(t *testing.T) {
 	// HACKHACK explicitly ignore the error returned from json.Unmarshal because
 	// the error is a failure to unmarshal the string StartingProposalId as a
 	// uint which is unrelated to the test here.
-	//nolint:errcheck
-	json.Unmarshal(raw, &govGenesisState)
+	_ = json.Unmarshal(raw, &govGenesisState)
 
 	want := []types.Coin{{
 		Denom:  BondDenom,
