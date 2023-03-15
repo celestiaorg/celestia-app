@@ -152,7 +152,7 @@ State transitions are applied in the following order:
 
 ### `block.availableData.transactionData`
 
-Transactions are applied to the state. Note that _transactions_ mutate the state (essentially, the validator set and minimal balances), while _messages_ do not. See [the architecture documentation](./architecture.md) for more info.
+Transactions are applied to the state. Note that _transactions_ mutate the state (essentially, the validator set and minimal balances), while _messages_ do not.
 
 `block.availableData.transactionData` is simply a list of [WrappedTransaction](./data_structures.md#wrappedtransaction)s. For each wrapped transaction in this list, `wrappedTransaction`, with index `i` (starting from `0`), the following checks must be `true`:
 

@@ -46,8 +46,8 @@ When receiving a new block proposal `proposal` from the network, the following s
 1. The number of elements in `proposal.da_header.row_roots` and `proposal.da_header.row_roots` must be equal.
 1. The number of elements in `proposal.da_header.row_roots` must be the same as computed [here](./data_structures.md#header).
 1. `proposal.proposer_signature` must be a valid [digital signature](./data_structures.md#public-key-cryptography) over the header hash of `proposal.header` that recovers to `proposal.header.proposer_address`.
-1. For [full nodes](./node_types.md#node-type-definitions), `proposal.da_header` must be the result of computing the roots of the shares (received separately).
-1. For [light nodes](./node_types.md#node-type-definitions), `proposal.da_header` should be sampled from for availability.
+1. For full nodes, `proposal.da_header` must be the result of computing the roots of the shares (received separately).
+1. For light nodes, `proposal.da_header` should be sampled from for availability.
 
 ### MsgWirePayForData
 
