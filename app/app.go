@@ -92,6 +92,7 @@ import (
 	qgbmodule "github.com/celestiaorg/celestia-app/x/qgb"
 	qgbmodulekeeper "github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	qgbmoduletypes "github.com/celestiaorg/celestia-app/x/qgb/types"
+	ibctestingtypes "github.com/cosmos/ibc-go/v6/testing/types"
 )
 
 const (
@@ -575,6 +576,31 @@ func (app *App) ModuleAccountAddrs() map[string]bool {
 	}
 
 	return modAccAddrs
+}
+
+// GetBaseApp implements the TestingApp interface.
+func (app *App) GetBaseApp() *baseapp.BaseApp {
+	return app.BaseApp
+}
+
+// GetStakingKeeper implements the TestingApp interface.
+func (app *App) GetStakingKeeper() ibctestingtypes.StakingKeeper {
+	return app.StakingKeeper
+}
+
+// GetIBCKeeper implements the TestingApp interface.
+func (app *App) GetIBCKeeper() *ibckeeper.Keeper {
+	return app.IBCKeeper
+}
+
+// GetScopedIBCKeeper implements the TestingApp interface.
+func (app *App) GetScopedIBCKeeper() capabilitykeeper.ScopedKeeper {
+	return app.ScopedIBCKeeper
+}
+
+// GetTxConfig implements the TestingApp interface.
+func (app *App) GetTxConfig() client.TxConfig {
+	return app.txConfig
 }
 
 // LegacyAmino returns SimApp's amino codec.
