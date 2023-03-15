@@ -13,6 +13,7 @@ RUN make build
 # stage 2
 FROM docker.io/alpine:3.17.2
 
+# Read here why UID 10001: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001
 ARG USER_NAME=celestia
 
