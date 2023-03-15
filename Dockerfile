@@ -17,26 +17,27 @@ FROM docker.io/alpine:3.17.2
 ARG UID=10001
 ARG USER_NAME=celestia
 
-ENV CELESTIA_HOME=/opt/${USER_NAME}
+ENV CELESTIA_HOME=/home/${USER_NAME}
 
 # hadolint ignore=DL3018
 RUN apk update && apk --no-cache add \
-    bash
+        bash \
+    # Creates a user with $UID and $GID=$UID
+    && adduser ${USER_NAME} \
+        -D \
+        -g "celestia" \
+        -h ${CELESTIA_HOME} \
+        -s /sbin/nologin \
+        -u ${UID}
 
+# Copy in the binary
 COPY --from=builder /celestia-app/build/celestia-appd /bin/celestia-appd
-COPY  docker/entrypoint.sh /opt/entrypoint.sh
 
-# Creates a user with $UID and $GID=$UID
-RUN adduser ${USER_NAME} \
-    -D \
-    -g "celestia" \
-    -h ${CELESTIA_HOME} \
-    -s /sbin/nologin \
-    -u ${UID}
+COPY docker/entrypoint.sh /home/celestia/entrypoint.sh
 
 USER ${USER_NAME}
 
 # p2p, rpc and prometheus port
 EXPOSE 26656 26657 1317 9090
 
-ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]
+ENTRYPOINT [ "/bin/bash", "/home/celestia/entrypoint.sh" ]
