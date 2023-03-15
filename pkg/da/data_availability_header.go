@@ -5,13 +5,14 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/celestiaorg/rsmt2d"
+	"github.com/tendermint/tendermint/crypto/merkle"
+	"github.com/tendermint/tendermint/types"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	daproto "github.com/celestiaorg/celestia-app/proto/celestia/da"
-	"github.com/celestiaorg/rsmt2d"
-	"github.com/tendermint/tendermint/crypto/merkle"
-	"github.com/tendermint/tendermint/types"
 )
 
 const (
@@ -171,11 +172,16 @@ func (dah *DataAvailabilityHeader) IsZero() bool {
 // It is equal to the data availability header for a block with one tail padding
 // share.
 func MinDataAvailabilityHeader() DataAvailabilityHeader {
-	s := shares.ToBytes(shares.TailPaddingShares(appconsts.MinShareCount))
+	s := MinShares()
 	eds, err := ExtendShares(appconsts.DefaultMinSquareSize, s)
 	if err != nil {
 		panic(err)
 	}
 	dah := NewDataAvailabilityHeader(eds)
 	return dah
+}
+
+// MinShares returns one tail-padded share.
+func MinShares() [][]byte {
+	return shares.ToBytes(shares.TailPaddingShares(appconsts.MinShareCount))
 }
