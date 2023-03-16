@@ -28,8 +28,7 @@ The goal of this approach is to set a deadline to upgrade via social consensus. 
 
 ## Decision
 
-> This section records the decision that was made.
-> It is best to record as much info as possible from the discussion that happened. This aids in not having to go back to the Pull Request to get the needed information.
+TODO
 
 ## Detailed Design
 
