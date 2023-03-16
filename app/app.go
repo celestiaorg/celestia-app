@@ -172,17 +172,17 @@ var (
 var _ servertypes.Application = (*App)(nil)
 
 func init() {
-	homeDir := os.Getenv("CELESTIA_HOME")
+	userHomeDir := os.Getenv("CELESTIA_HOME")
 
-	if homeDir == "" {
-		userHomeDir, err := os.UserHomeDir()
+	if userHomeDir == "" {
+		var err error
+		userHomeDir, err = os.UserHomeDir()
 		if err != nil {
 			panic(err)
 		}
-		homeDir = userHomeDir
 	}
 
-	DefaultNodeHome = filepath.Join(homeDir, "."+Name)
+	DefaultNodeHome = filepath.Join(userHomeDir, "."+Name)
 }
 
 // App extends an ABCI application, but with most of its parameters exported.
