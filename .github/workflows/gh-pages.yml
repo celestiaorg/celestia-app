@@ -30,8 +30,8 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./specs/book
-          # keep_files is to prevent PR preview files from being overwritten. 
-          # If we need to overwrite such files, trigger this workflow manually. 
+          # keep_files is to prevent PR preview files from being overwritten.
+          # If we need to overwrite such files, trigger this workflow manually.
           keep_files: ${{ github.event_name != 'workflow_dispatch' }}
 
       - name: Deploy PR preview
