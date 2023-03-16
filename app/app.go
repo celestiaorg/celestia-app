@@ -172,9 +172,14 @@ var (
 var _ servertypes.Application = (*App)(nil)
 
 func init() {
-	userHomeDir, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
+	userHomeDir := os.Getenv("CELESTIA_HOME")
+
+	if userHomeDir == "" {
+		var err error
+		userHomeDir, err = os.UserHomeDir()
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	DefaultNodeHome = filepath.Join(userHomeDir, "."+Name)

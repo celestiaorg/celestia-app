@@ -15,4 +15,8 @@ then
 EOF
 fi
 
-/bin/celestia-appd --home ${CELESTIA_HOME} $@
+echo "Starting celestia-appd with command:"
+echo "/bin/celestia-appd $@"
+echo ""
+
+/bin/celestia-appd $@
