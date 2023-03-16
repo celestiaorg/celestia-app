@@ -162,7 +162,7 @@ func TestShareBuilderAddData(t *testing.T) {
 		{
 			name:    "exact fit first compact share",
 			builder: NewBuilder(appconsts.TxNamespaceID, appconsts.ShareVersionZero, true),
-			data:    bytes.Repeat([]byte{1}, appconsts.ShareSize-appconsts.NamespaceSize-appconsts.CompactShareReservedBytes-appconsts.SequenceLenBytes-1 /*1 = info byte*/),
+			data:    bytes.Repeat([]byte{1}, appconsts.ShareSize-appconsts.NamespaceSize-appconsts.ShareInfoBytes-appconsts.CompactShareReservedBytes-appconsts.SequenceLenBytes),
 			want:    nil,
 		},
 		{
