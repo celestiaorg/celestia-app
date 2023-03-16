@@ -13,7 +13,8 @@
 # directory owners
 # NOTE: the directory owners should include the global owners unless the global
 # owner is fully deferring ownership to the directory owner
-docs @liamsi @adlerjohn @MSevey @evan-forbes
+docs @liamsi @adlerjohn @MSevey @evan-forbes @rootulp
+specs @liamsi @adlerjohn @MSevey @evan-forbes @rootulp
 x/qgb @SweeXordious @evan-forbes
 pkg/shares @rootulp @evan-forbes
 pkg/wrapper @staheri14 @evan-forbes
