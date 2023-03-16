@@ -16,7 +16,7 @@ jobs:
   install-tparse:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v4
         with:
           go-version: 1.18
       - name: Display go version
@@ -35,7 +35,7 @@ jobs:
   #   runs-on: ubuntu-latest
   #   steps:
   #     - uses: actions/checkout@v3
-  #     - uses: actions/setup-go@v3
+  #     - uses: actions/setup-go@v4
   #       with:
   #         go-version: 1.18
   #     - name: Display go version
@@ -88,7 +88,7 @@ jobs:
         part: ["00", "01", "02", "03"]
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v4
         with:
           go-version: 1.18
       - uses: technote-space/get-diff-action@v6.1.2
@@ -171,7 +171,7 @@ jobs:
         part: ["00", "01", "02", "03"]
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v4
         with:
           go-version: 1.18
       - uses: technote-space/get-diff-action@v6.1.2
@@ -239,7 +239,7 @@ jobs:
   #   timeout-minutes: 10
   #   steps:
   #     - uses: actions/checkout@v3
-  #     - uses: actions/setup-go@v3
+  #     - uses: actions/setup-go@v4
   #       with:
   #         go-version: 1.18
   #     - uses: technote-space/get-diff-action@v6.1.2
