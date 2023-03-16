@@ -132,7 +132,7 @@ Most importantly, we would also need to add this bomb height to light clients. T
 
 #### Halting the Node using Social Consensus
 
-We hope to perform most upgrades using mechanism that doesn't involve shutting down a switching binaries, but depending on changes to the code, this might be difficult or not desirable (note that single binary syncing would still work fine). In that case, we would still require a mechanism to halt all nodes that are running the old binary in a way that respects social consensus. We can do that using the existing functionality in the application. Below are the configs in app.toml that would allow node operators to pick a height to shutdown their nodes at.
+We hope to perform most upgrades using mechanism that doesn't involve shutting down and switching binaries, but depending on changes to the code, this might be difficult or not desirable (note that single binary syncing would still work fine). In that case, we would still require a mechanism to halt all nodes that are running the old binary in a way that respects social consensus. We can do that using the existing functionality in the application. Below are the configs in app.toml that would allow node operators to pick a height to shutdown their nodes at.
 
 ```toml
 # HaltHeight contains a non-zero block height at which a node will gracefully
