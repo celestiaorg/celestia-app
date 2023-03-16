@@ -7,7 +7,7 @@ import "errors"
 // contains a share with a version that isn't present in supportedShareVersions,
 // an error is returned. The returned data [][]byte does not have namespaces,
 // info bytes, data length delimiter, or unit length delimiters and are ready to
-// be unmarshaled.
+// be unmarshalled.
 func parseCompactShares(shares []Share, supportedShareVersions []uint8) (data [][]byte, err error) {
 	if len(shares) == 0 {
 		return nil, nil
