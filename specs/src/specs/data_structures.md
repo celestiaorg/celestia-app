@@ -2,6 +2,8 @@
 
 <!-- toc -->
 
+foo
+
 ## Data Structures Overview
 
 ![fig: Block data structures.](./figures/block_data_structures.svg)
