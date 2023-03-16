@@ -1,4 +1,4 @@
-# ADR 016: Forcing Social Upgrades
+# ADR 016: Removing Token Voting for Upgrades
 
 ## Status
 
