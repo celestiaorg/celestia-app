@@ -103,7 +103,8 @@ func (k msgServer) SoftwareUpgrade(goCtx context.Context, req *types.MsgSoftware
 
 #### Implement a deadline module into the state machine that will halt at a hardcoded height
 
-This could be as simple as:
+There are a few different mechanisms that we could use to add a constant that
+would halt all nodes in the network. This could be as simple as:
 
 ```go
 func BeginBlocker(k keeper.Keeper, ctx sdk.Context, _ abci.RequestBeginBlock) {
@@ -128,7 +129,21 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 }
 ```
 
-Most importantly, we would also need to add this bomb height to light clients. This way validators cannot just ignore the bomb height and continue to produce blocks.
+Most importantly, we would also need to add this bomb height to light clients. This way validators cannot just ignore the bomb height and continue to produce blocks. There are multiple different ways to do that, but one universal way to make sure that all nodes, including light, halt at the bomb height would be to include it in the header verification logic:
+
+```go
+// ValidateBasic performs stateless validation on a Header returning an error
+// if any validation fails.
+//
+// NOTE: Timestamp validation is subtle and handled elsewhere.
+func (h Header) ValidateBasic() error {
+    if h.Height >= consts.BombHeight {
+        return errors.New("bomb height reached or exceeded")
+    }
+    ...
+	return nil
+}
+```
 
 #### Halting the Node using Social Consensus
 
