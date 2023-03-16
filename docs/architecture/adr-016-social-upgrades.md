@@ -24,7 +24,7 @@ Given that we don't have a lot of time until mainnet, we could leave the current
 
 ### Option 2: Predetermined halt height and removal of token voting for upgrades (aka "difficulty bomb")
 
-The goal of this approach is to set a deadline to reach social consensus. It involves removing the upgrade mechanism from the state machine, and replaces it with a predefined shut down height. If this height is reached without first upgrading, then the chain will halt. Without an onchain voting mechanism, the only way to upgrade the chain is to reach social consensus. If we don't collectively do that, then the chain will halt.
+The goal of this approach is to set a deadline to upgrade via social consensus. It involves removing the upgrade mechanism from the state machine, and replaces it with a predefined shut down height. This change should be added to all node types, including light clients. If this height is reached without first upgrading, then the chain will halt for all participants.
 
 ## Decision
 
@@ -113,6 +113,22 @@ func BeginBlocker(k keeper.Keeper, ctx sdk.Context, _ abci.RequestBeginBlock) {
    return
 }
 ```
+
+We could also impose other similar restrictions elsewhere instead, such as voting to reject the block if the deadline height is `BombHeight` is reached.
+
+```go
+func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
+    if req.Header.Height >= consts.BombHeight {
+        logInvalidPropBlock(app.Logger(), req.Header, "bomb height reached")
+        return abci.ResponseProcessProposal{
+            Result: abci.ResponseProcessProposal_REJECT,
+        }
+    }
+    ...
+}
+```
+
+Most importantly, we would also need to add this bomb height to light clients. This way validators cannot just ignore the bomb height and continue to produce blocks.
 
 #### Halting the Node using Social Consensus
 
