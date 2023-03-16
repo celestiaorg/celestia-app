@@ -2,8 +2,6 @@
 
 [Celestia App Specifications](./README.md)
 
-These are the specs for celestia-app.
-
 - [Specification](./specs/index.md)
   - [Data Structures](./specs/data_structures.md)
   - [Consensus](./specs/consensus.md)
