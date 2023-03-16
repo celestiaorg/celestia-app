@@ -69,7 +69,7 @@ func parseRawData(rawData []byte) (units [][]byte, err error) {
 	}
 }
 
-// extractRawData returns the raw data contain in the shares. The raw data does
+// extractRawData returns the raw data contained in the shares. The raw data does
 // not contain the namespace ID, info byte, sequence length, or reserved bytes.
 func extractRawData(shares []Share) (rawData []byte, err error) {
 	for i := 0; i < len(shares); i++ {
