@@ -165,6 +165,6 @@ halt-time = 0
 
 ## Consequences
 
-If we adopt Option 2, then we will be able to remove token voting from the statemachine sooner rather than later. This is riskier in that we will not have the battle tested mechanism, but it will set a precedent for future upgrades that respect social consensus.
+If we adopt Option 2, then we will be able to remove token voting from the statemachine sooner rather than later. This is riskier in that we will not have the battle tested mechanism, but it will force future upgrades that respect social consensus.
 
 ## References
