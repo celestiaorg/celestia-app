@@ -239,7 +239,12 @@ func TestProcessProposal(t *testing.T) {
 
 				dataSquare, err := shares.Split(bd, true)
 				require.NoError(t, err)
-				dataSquare[1] = flipSequenceStart(dataSquare[1])
+
+				b := shares.NewEmptyBuilder().ImportRawShare(dataSquare[1].ToBytes())
+				b.FlipSequenceStart()
+				updatedShare, err := b.Build()
+				require.NoError(t, err)
+				dataSquare[1] = *updatedShare
 
 				eds, err := da.ExtendShares(d.SquareSize, shares.ToBytes(dataSquare))
 				require.NoError(t, err)
@@ -268,16 +273,6 @@ func TestProcessProposal(t *testing.T) {
 			assert.Equal(t, tt.expectedResult, res.Result, tt.name)
 		})
 	}
-}
-
-// flipSequenceStart flips the sequence start indicator of the share provided
-func flipSequenceStart(share shares.Share) shares.Share {
-	// the info byte is immediately after the namespace
-	infoByteIndex := appconsts.NamespaceSize
-	// the sequence start indicator is the last bit of the info byte so flip the
-	// last bit
-	share[infoByteIndex] = share[infoByteIndex] ^ 0x01
-	return share
 }
 
 func deref[T any](s []*T) []T {

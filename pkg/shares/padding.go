@@ -2,7 +2,6 @@ package shares
 
 import (
 	"bytes"
-	"encoding/binary"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
@@ -13,22 +12,19 @@ import (
 // conforms to non-interactive default rules. The ns parameter provided should
 // be the namespace of the blob that precedes this padding in the data square.
 func NamespacePaddingShare(ns namespace.ID) Share {
-	infoByte, err := NewInfoByte(appconsts.ShareVersionZero, true)
+	b := NewBuilder(ns, appconsts.ShareVersionZero, true)
+	if err := b.WriteSequenceLen(0); err != nil {
+		panic(err)
+	}
+	padding := bytes.Repeat([]byte{0}, appconsts.FirstSparseShareContentSize)
+	b.AddData(padding)
+
+	share, err := b.Build()
 	if err != nil {
 		panic(err)
 	}
 
-	sequenceLen := make([]byte, appconsts.SequenceLenBytes)
-	binary.BigEndian.PutUint32(sequenceLen, uint32(0))
-
-	padding := bytes.Repeat([]byte{0}, appconsts.FirstSparseShareContentSize)
-
-	share := make([]byte, 0, appconsts.ShareSize)
-	share = append(share, ns...)
-	share = append(share, byte(infoByte))
-	share = append(share, sequenceLen...)
-	share = append(share, padding...)
-	return share
+	return *share
 }
 
 // NamespacePaddingShares returns n namespace padding shares.

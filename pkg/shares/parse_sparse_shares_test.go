@@ -62,9 +62,7 @@ func Test_parseSparseShares(t *testing.T) {
 			sort.Sort(coretypes.BlobsByNamespace(blobs))
 
 			shares, _ := SplitBlobs(0, nil, blobs, false)
-			rawShares := ToBytes(shares)
-
-			parsedBlobs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
+			parsedBlobs, err := parseSparseShares(shares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
 			}
@@ -80,12 +78,7 @@ func Test_parseSparseShares(t *testing.T) {
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
 			blobs := testfactory.GenerateRandomlySizedBlobs(tc.blobCount, tc.blobSize)
 			shares, _ := SplitBlobs(0, nil, blobs, false)
-			rawShares := make([][]byte, len(shares))
-			for i, share := range shares {
-				rawShares[i] = []byte(share)
-			}
-
-			parsedBlobs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
+			parsedBlobs, err := parseSparseShares(shares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
 			}
@@ -101,8 +94,8 @@ func Test_parseSparseShares(t *testing.T) {
 
 func Test_parseSparseSharesErrors(t *testing.T) {
 	type testCase struct {
-		name      string
-		rawShares [][]byte
+		name   string
+		shares []Share
 	}
 
 	unsupportedShareVersion := 5
@@ -112,17 +105,21 @@ func Test_parseSparseSharesErrors(t *testing.T) {
 	rawShare = append(rawShare, namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}...)
 	rawShare = append(rawShare, byte(infoByte))
 	rawShare = append(rawShare, bytes.Repeat([]byte{0}, appconsts.ShareSize-len(rawShare))...)
+	share, err := newShare(rawShare)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tests := []testCase{
 		{
 			"share with unsupported share version",
-			[][]byte{rawShare},
+			[]Share{*share},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(*testing.T) {
-			_, err := parseSparseShares(tt.rawShares, appconsts.SupportedShareVersions)
+			_, err := parseSparseShares(tt.shares, appconsts.SupportedShareVersions)
 			assert.Error(t, err)
 		})
 	}
@@ -144,8 +141,7 @@ func Test_parseSparseSharesWithNamespacedPadding(t *testing.T) {
 	assert.NoError(t, err)
 	sss.WriteNamespacedPaddedShares(10)
 	shares := sss.Export()
-	rawShares := ToBytes(shares)
-	pblobs, err := parseSparseShares(rawShares, appconsts.SupportedShareVersions)
+	pblobs, err := parseSparseShares(shares, appconsts.SupportedShareVersions)
 	require.NoError(t, err)
 	require.Equal(t, blobs, pblobs)
 }

@@ -145,7 +145,7 @@ func NewShareInclusionProof(
 		tree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, uint(i))
 		for _, share := range row {
 			tree.Push(
-				share,
+				share.ToBytes(),
 			)
 		}
 

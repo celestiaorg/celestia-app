@@ -15,9 +15,9 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 
 	// sort block data shares by namespace
 	var (
-		sortedTxShares    [][]byte
-		sortedPfbTxShares [][]byte
-		sortedBlobShares  [][]byte
+		sortedTxShares    []Share
+		sortedPfbTxShares []Share
+		sortedBlobShares  []Share
 	)
 
 	// iterate over each row index
@@ -25,14 +25,19 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 		// iterate over each share in the original data square
 		row := eds.Row(x)
 
-		for _, share := range row[:squareSize] {
+		for _, shareBytes := range row[:squareSize] {
 			// sort the data of that share types via namespace
-			nid := share[:appconsts.NamespaceSize]
+			share, err := NewEmptyBuilder().ImportRawShare(shareBytes).Build()
+			if err != nil {
+				return coretypes.Data{}, err
+			}
+			nid := share.NamespaceID()
+
 			switch {
 			case bytes.Equal(appconsts.TxNamespaceID, nid):
-				sortedTxShares = append(sortedTxShares, share)
+				sortedTxShares = append(sortedTxShares, *share)
 			case bytes.Equal(appconsts.PayForBlobNamespaceID, nid):
-				sortedPfbTxShares = append(sortedPfbTxShares, share)
+				sortedPfbTxShares = append(sortedPfbTxShares, *share)
 			case bytes.Equal(appconsts.TailPaddingNamespaceID, nid):
 				continue
 
@@ -42,7 +47,7 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 
 			// every other namespaceID should be a blob
 			default:
-				sortedBlobShares = append(sortedBlobShares, share)
+				sortedBlobShares = append(sortedBlobShares, *share)
 			}
 		}
 	}
