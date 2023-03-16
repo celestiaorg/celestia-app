@@ -141,7 +141,7 @@ func (h Header) ValidateBasic() error {
         return errors.New("bomb height reached or exceeded")
     }
     ...
-	return nil
+    return nil
 }
 ```
 
