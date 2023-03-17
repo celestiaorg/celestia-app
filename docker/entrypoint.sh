@@ -19,4 +19,4 @@ echo "Starting celestia-appd with command:"
 echo "/bin/celestia-appd $@"
 echo ""
 
-/bin/celestia-appd $@
+exec /bin/celestia-appd $@
