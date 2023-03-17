@@ -5,6 +5,7 @@ on:
     branches:
       - main
   pull_request:
+  pull_request_target:
   workflow_dispatch:
 
 jobs:
@@ -35,7 +36,7 @@ jobs:
           keep_files: ${{ github.event_name != 'workflow_dispatch' }}
 
       - name: Deploy PR preview
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request_target'
         uses: rossjrw/pr-preview-action@v1
         with:
           source-dir: ./specs/book
