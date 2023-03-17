@@ -1,5 +1,9 @@
 # ADR 004: QGB Relayer Security
 
+## Status
+
+Implemented
+
 ## Changelog
 
 - 2022-06-05: Synchronous QGB implementation
@@ -396,10 +400,6 @@ In a nutshell, a new valset will be emitted if any of the following is true:
 ```go
 significantPowerDiff = intCurrMembers.PowerDiff(*intLatestMembers) > 0.05
 ```
-
-## Status
-
-Accepted
 
 ## References
 

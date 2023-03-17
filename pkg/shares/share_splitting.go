@@ -7,11 +7,12 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	coretypes "github.com/tendermint/tendermint/types"
+	"golang.org/x/exp/maps"
 )
 
 var (
 	ErrIncorrectNumberOfIndexes = errors.New(
-		"number of malleated transactions is not identical to the number of wrapped transactions",
+		"number of indexes is not identical to the number of blobs",
 	)
 	ErrUnexpectedFirstBlobShareIndex = errors.New(
 		"the first blob started at an unexpected index",
@@ -28,8 +29,8 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 	wantShareCount := int(data.SquareSize * data.SquareSize)
 	currentShareCount := 0
 
-	txShares := SplitTxs(data.Txs)
-	currentShareCount += len(txShares)
+	txShares, pfbTxShares, _ := SplitTxs(data.Txs)
+	currentShareCount += len(txShares) + len(pfbTxShares)
 	// blobIndexes will be nil if we are working with a list of txs that do not
 	// have a blob index. This preserves backwards compatibility with old blocks
 	// that do not follow the non-interactive defaults
@@ -48,7 +49,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 			blobShareStart = int(blobIndexes[0])
 		}
 
-		padding = namespacedPaddedShares(appconsts.TxNamespaceID, blobShareStart-currentShareCount)
+		padding = NamespacePaddingShares(appconsts.ReservedPaddingNamespaceID, blobShareStart-currentShareCount)
 	}
 	currentShareCount += len(padding)
 
@@ -63,9 +64,10 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 	currentShareCount += len(blobShares)
 	tailShares := TailPaddingShares(wantShareCount - currentShareCount)
 	shares := make([]Share, 0, data.SquareSize*data.SquareSize)
-	shares = append(append(append(append(
+	shares = append(append(append(append(append(
 		shares,
 		txShares...),
+		pfbTxShares...),
 		padding...),
 		blobShares...),
 		tailShares...)
@@ -78,7 +80,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 	var shareIndexes []uint32
 	for _, rawTx := range txs {
-		if malleatedTx, isMalleated := coretypes.UnmarshalIndexWrapper(rawTx); isMalleated {
+		if indexWrappedTxs, isIndexWrapped := coretypes.UnmarshalIndexWrapper(rawTx); isIndexWrapped {
 			// Since share index == 0 is invalid, it indicates that we are
 			// attempting to extract share indexes from txs that do not have any
 			// due to them being old. here we return nil to indicate that we are
@@ -86,22 +88,32 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 			// it. It checks for 0 because if there is a message in the block,
 			// then there must also be a tx, which will take up at least one
 			// share.
-			if malleatedTx.ShareIndex == 0 {
+			if len(indexWrappedTxs.ShareIndexes) == 0 {
 				return nil
 			}
-			shareIndexes = append(shareIndexes, malleatedTx.ShareIndex)
+			shareIndexes = append(shareIndexes, indexWrappedTxs.ShareIndexes...)
 		}
 	}
 
 	return shareIndexes
 }
 
-func SplitTxs(txs coretypes.Txs) []Share {
-	writer := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRanges map[coretypes.TxKey]ShareRange) {
+	txWriter := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+	pfbTxWriter := NewCompactShareSplitter(appconsts.PayForBlobNamespaceID, appconsts.ShareVersionZero)
+
 	for _, tx := range txs {
-		writer.WriteTx(tx)
+		if _, isIndexWrapper := coretypes.UnmarshalIndexWrapper(tx); isIndexWrapper {
+			pfbTxWriter.WriteTx(tx)
+		} else {
+			txWriter.WriteTx(tx)
+		}
 	}
-	return writer.Export()
+
+	txShares, txMap := txWriter.Export(0)
+	pfbShares, pfbMap := pfbTxWriter.Export(len(txShares))
+
+	return txShares, pfbShares, mergeMaps(txMap, pfbMap)
 }
 
 func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIndexes bool) ([]Share, error) {
@@ -119,4 +131,13 @@ func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIn
 		}
 	}
 	return writer.Export(), nil
+}
+
+// mergeMaps merges two maps into a new map. If there are any duplicate keys,
+// the value in the second map takes precedence.
+func mergeMaps(mapOne, mapTwo map[coretypes.TxKey]ShareRange) map[coretypes.TxKey]ShareRange {
+	merged := make(map[coretypes.TxKey]ShareRange, len(mapOne)+len(mapTwo))
+	maps.Copy(merged, mapOne)
+	maps.Copy(merged, mapTwo)
+	return merged
 }

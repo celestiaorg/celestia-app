@@ -6,21 +6,17 @@ name: Tests / Code Coverage
 on:
   workflow_call:
 
-jobs:
-  cleanup-runs:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: rokroskar/workflow-run-cleanup-action@master
-        env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-    if: |
-      !startsWith(github.ref, 'refs/tags/') &&
-      github.ref != 'refs/heads/master'
+concurrency:
+  # do not cancel jobs from earlier commits for tags or the main branch
+  group: ${{ github.workflow }}-${{ !startsWith(github.ref, 'refs/tags/') &&
+      github.ref != 'refs/heads/main' }}
+  cancel-in-progress: true
 
+jobs:
   install-tparse:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v4
         with:
           go-version: 1.18
       - name: Display go version
@@ -29,7 +25,7 @@ jobs:
         run: >
           export GO111MODULE="on" &&
           go install github.com/mfridman/tparse@v0.8.3
-      - uses: actions/cache@v3.2.2
+      - uses: actions/cache@v3.3.1
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-tparse-binary
@@ -39,7 +35,7 @@ jobs:
   #   runs-on: ubuntu-latest
   #   steps:
   #     - uses: actions/checkout@v3
-  #     - uses: actions/setup-go@v3
+  #     - uses: actions/setup-go@v4
   #       with:
   #         go-version: 1.18
   #     - name: Display go version
@@ -92,7 +88,7 @@ jobs:
         part: ["00", "01", "02", "03"]
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v4
         with:
           go-version: 1.18
       - uses: technote-space/get-diff-action@v6.1.2
@@ -110,7 +106,7 @@ jobs:
           cat pkgs.txt.part.${{ matrix.part }} |
           xargs go test -mod=readonly -timeout 30m
           -coverprofile=${{ matrix.part }}profile.out
-          -covermode=atomic -tags='norace ledger test_ledger_mock'
+          -covermode=atomic
         if: env.GIT_DIFF
       - uses: actions/upload-artifact@v3
         with:
@@ -175,7 +171,7 @@ jobs:
         part: ["00", "01", "02", "03"]
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v4
         with:
           go-version: 1.18
       - uses: technote-space/get-diff-action@v6.1.2
@@ -192,7 +188,7 @@ jobs:
         run: >
           cat pkgs.txt.part.${{ matrix.part }} |
           xargs go test -mod=readonly -json -timeout 30m
-          -race -test.short -tags='cgo' > ${{ matrix.part }}-race-output.txt
+          -race -test.short > ${{ matrix.part }}-race-output.txt
         if: env.GIT_DIFF
       - uses: actions/upload-artifact@v3
         with:
@@ -228,7 +224,7 @@ jobs:
         with:
           name: "${{ github.sha }}-03-race-output"
         if: env.GIT_DIFF
-      - uses: actions/cache@v3.2.2
+      - uses: actions/cache@v3.3.1
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-go-tparse-binary
@@ -243,7 +239,7 @@ jobs:
   #   timeout-minutes: 10
   #   steps:
   #     - uses: actions/checkout@v3
-  #     - uses: actions/setup-go@v3
+  #     - uses: actions/setup-go@v4
   #       with:
   #         go-version: 1.18
   #     - uses: technote-space/get-diff-action@v6.1.2

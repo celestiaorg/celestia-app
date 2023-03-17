@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -19,47 +19,18 @@ import (
 type IntegrationTestSuite struct {
 	suite.Suite
 
-	cleanups []func() error
 	accounts []string
 	cctx     Context
 }
 
 func (s *IntegrationTestSuite) SetupSuite() {
 	if testing.Short() {
-		s.T().Skip("skipping test in unit-tests or race-detector mode.")
+		s.T().Skip("skipping full node integration test in short mode.")
 	}
 
 	s.T().Log("setting up integration test suite")
-	require := s.Require()
 
-	// we create an arbitrary number of funded accounts
-	for i := 0; i < 300; i++ {
-		s.accounts = append(s.accounts, tmrand.Str(9))
-	}
-
-	genState, kr, err := DefaultGenesisState(s.accounts...)
-	require.NoError(err)
-
-	tmNode, app, cctx, err := New(s.T(), DefaultParams(), DefaultTendermintConfig(), false, genState, kr)
-	require.NoError(err)
-
-	cctx, stopNode, err := StartNode(tmNode, cctx)
-	require.NoError(err)
-	s.cleanups = append(s.cleanups, stopNode)
-
-	cctx, cleanupGRPC, err := StartGRPCServer(app, DefaultAppConfig(), cctx)
-	require.NoError(err)
-	s.cleanups = append(s.cleanups, cleanupGRPC)
-
-	s.cctx = cctx
-}
-
-func (s *IntegrationTestSuite) TearDownSuite() {
-	s.T().Log("tearing down integration test suite")
-	for _, c := range s.cleanups {
-		err := c()
-		require.NoError(s.T(), err)
-	}
+	s.accounts, s.cctx = DefaultNetwork(s.T(), 400*time.Millisecond)
 }
 
 func (s *IntegrationTestSuite) Test_Liveness() {

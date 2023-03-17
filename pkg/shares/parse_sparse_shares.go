@@ -12,22 +12,15 @@ type sequence struct {
 	sequenceLen uint32
 }
 
-// TODO: namespaced padding shares aren't formally specified so this is subject
-// to change. See https://github.com/celestiaorg/celestia-app/issues/1136
-func (s sequence) isNamespacedPadding() bool {
-	return s.sequenceLen == 0
-}
-
 // parseSparseShares iterates through rawShares and parses out individual
 // blobs. It returns an error if a rawShare contains a share version that
 // isn't present in supportedShareVersions.
-func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) (blobs []coretypes.Blob, err error) {
-	if len(rawShares) == 0 {
+func parseSparseShares(shares []Share, supportedShareVersions []uint8) (blobs []coretypes.Blob, err error) {
+	if len(shares) == 0 {
 		return nil, nil
 	}
 	sequences := make([]sequence, 0)
 
-	shares := FromBytes(rawShares)
 	for _, share := range shares {
 		version, err := share.Version()
 		if err != nil {
@@ -35,6 +28,14 @@ func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) (blob
 		}
 		if !bytes.Contains(supportedShareVersions, []byte{version}) {
 			return nil, fmt.Errorf("unsupported share version %v is not present in supported share versions %v", version, supportedShareVersions)
+		}
+
+		isPadding, err := share.IsPadding()
+		if err != nil {
+			return nil, err
+		}
+		if isPadding {
+			continue
 		}
 
 		isStart, err := share.IsSequenceStart()
@@ -75,12 +76,6 @@ func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) (blob
 	for _, sequence := range sequences {
 		// trim any padding from the end of the sequence
 		sequence.blob.Data = sequence.blob.Data[:sequence.sequenceLen]
-
-		// filter out any namespaced padding shares
-		if sequence.isNamespacedPadding() {
-			continue
-		}
-
 		blobs = append(blobs, sequence.blob)
 	}
 

@@ -13,18 +13,16 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func TestCompactShareWriter(t *testing.T) {
+func TestCompactShareSplitter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
 	// tests occur in TestMerge and Test_processCompactShares
-	w := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
 	txs := testfactory.GenerateRandomTxs(33, 200)
 	for _, tx := range txs {
-		rawTx, _ := MarshalDelimitedTx(tx)
-		w.WriteBytes(rawTx)
+		css.WriteTx(tx)
 	}
-	shares := w.Export()
-	rawShares := ToBytes(shares)
-	rawResTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
+	shares, _ := css.Export(0)
+	rawResTxs, err := parseCompactShares(shares, appconsts.SupportedShareVersions)
 	resTxs := coretypes.ToTxs(rawResTxs)
 	require.NoError(t, err)
 
@@ -77,10 +75,8 @@ func Test_processCompactShares(t *testing.T) {
 		t.Run(fmt.Sprintf("%s idendically sized", tc.name), func(t *testing.T) {
 			txs := testfactory.GenerateRandomTxs(tc.txCount, tc.txSize)
 
-			shares := SplitTxs(txs)
-			rawShares := ToBytes(shares)
-
-			parsedTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
+			shares, _, _ := SplitTxs(txs)
+			parsedTxs, err := parseCompactShares(shares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
 			}
@@ -95,10 +91,8 @@ func Test_processCompactShares(t *testing.T) {
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
 			txs := testfactory.GenerateRandomlySizedTxs(tc.txCount, tc.txSize)
 
-			shares := SplitTxs(txs)
-			rawShares := ToBytes(shares)
-
-			parsedTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
+			txShares, _, _ := SplitTxs(txs)
+			parsedTxs, err := parseCompactShares(txShares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
 			}
@@ -119,10 +113,10 @@ func TestCompactShareContainsInfoByte(t *testing.T) {
 		css.WriteTx(tx)
 	}
 
-	shares := css.Export()
+	shares, _ := css.Export(0)
 	assert.Condition(t, func() bool { return len(shares) == 1 })
 
-	infoByte := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
+	infoByte := shares[0].data[appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
 	isSequenceStart := true
 	want, err := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
@@ -139,10 +133,10 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 		css.WriteTx(tx)
 	}
 
-	shares := css.Export()
+	shares, _ := css.Export(0)
 	assert.Condition(t, func() bool { return len(shares) > 1 })
 
-	infoByte := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
+	infoByte := shares[1].data[appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
 	isSequenceStart := false
 	want, err := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
@@ -153,33 +147,38 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 
 func Test_parseCompactSharesErrors(t *testing.T) {
 	type testCase struct {
-		name      string
-		rawShares [][]byte
+		name   string
+		shares []Share
 	}
 
 	txs := testfactory.GenerateRandomTxs(2, appconsts.ContinuationCompactShareContentSize*4)
-	shares := SplitTxs(txs)
-	rawShares := ToBytes(shares)
+	txShares, _, _ := SplitTxs(txs)
+	rawShares := ToBytes(txShares)
 
 	unsupportedShareVersion := 5
 	infoByte, _ := NewInfoByte(uint8(unsupportedShareVersion), true)
-	shareWithUnsupportedShareVersion := rawShares[0]
-	shareWithUnsupportedShareVersion[appconsts.NamespaceSize] = byte(infoByte)
+	shareWithUnsupportedShareVersionBytes := rawShares[0]
+	shareWithUnsupportedShareVersionBytes[appconsts.NamespaceSize] = byte(infoByte)
+
+	shareWithUnsupportedShareVersion, err := newShare(shareWithUnsupportedShareVersionBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	testCases := []testCase{
 		{
 			"share with start indicator false",
-			rawShares[1:], // set the first share to the second share which has the start indicator set to false
+			txShares[1:], // set the first share to the second share which has the start indicator set to false
 		},
 		{
 			"share with unsupported share version",
-			[][]byte{shareWithUnsupportedShareVersion},
+			[]Share{*shareWithUnsupportedShareVersion},
 		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := parseCompactShares(tt.rawShares, appconsts.SupportedShareVersions)
+			_, err := parseCompactShares(tt.shares, appconsts.SupportedShareVersions)
 			assert.Error(t, err)
 		})
 	}

@@ -48,21 +48,24 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 	return ctx.Logger().With("module", fmt.Sprintf("x/%s", types.ModuleName))
 }
 
-// PayForBlob consumes gas based on the blob size.
-func (k Keeper) PayForBlob(goCtx context.Context, msg *types.MsgPayForBlob) (*types.MsgPayForBlobResponse, error) {
+// PayForBlobs consumes gas based on the blob sizes in the MsgPayForBlobs.
+func (k Keeper) PayForBlobs(goCtx context.Context, msg *types.MsgPayForBlobs) (*types.MsgPayForBlobsResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	// calculate gas per blob share by fetching the constant share size and the gas cost per byte from the KV store
-	gasPerBlobShare := appconsts.ShareSize * k.GasPerBlobByte(ctx)
-	gasToConsume := uint64(shares.SparseSharesNeeded(uint32(msg.BlobSize)) * int(gasPerBlobShare))
-	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
-
-	err := ctx.EventManager().EmitTypedEvent(
-		types.NewPayForBlobEvent(sdk.AccAddress(msg.Signer).String(), msg.GetBlobSize()),
-	)
-	if err != nil {
-		return &types.MsgPayForBlobResponse{}, err
+	totalSharesUsed := 0
+	for _, size := range msg.BlobSizes {
+		totalSharesUsed += shares.SparseSharesNeeded(size)
 	}
 
-	return &types.MsgPayForBlobResponse{}, nil
+	gasToConsume := uint32(totalSharesUsed*appconsts.ShareSize) * k.GasPerBlobByte(ctx)
+	ctx.GasMeter().ConsumeGas(uint64(gasToConsume), payForBlobGasDescriptor)
+
+	err := ctx.EventManager().EmitTypedEvent(
+		types.NewPayForBlobsEvent(sdk.AccAddress(msg.Signer).String(), msg.BlobSizes, msg.NamespaceIds),
+	)
+	if err != nil {
+		return &types.MsgPayForBlobsResponse{}, err
+	}
+
+	return &types.MsgPayForBlobsResponse{}, nil
 }

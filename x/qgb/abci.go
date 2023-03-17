@@ -3,10 +3,10 @@ package qgb
 import (
 	"errors"
 
+	sdkerrors "cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 // SignificantPowerDifferenceThreshold the threshold of change in the validator set power

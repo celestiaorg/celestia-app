@@ -1,5 +1,9 @@
 # ADR 001: ABCI++ Adoption
 
+## Status
+
+Implemented
+
 ## Changelog
 
 - 2022-03-03: Initial Commit
@@ -31,10 +35,6 @@ While the adoption of ABCI++ is inevitable given the already made decision by up
 
 - [Alternatives for Message Inclusion.](https://github.com/celestiaorg/celestia-app/blob/92341dd68ee6e555ec6c0bb780afa3a1c8243a93/adrs/adr008:adopt-ABC%2B%2B-early.md#alternative-approaches)
 - [Alternatives for Picking a square size.](https://github.com/celestiaorg/celestia-core/issues/454)
-
-## Decision
-
-Proposed and initial implementation is complete.
 
 ## Detailed Design
 
@@ -369,10 +369,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
    }
 }
 ```
-
-## Status
-
-The proposed and initial implementation is complete.
 
 ## Consequences
 

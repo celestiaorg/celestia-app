@@ -9,32 +9,23 @@ import (
 	sdk_tx "github.com/cosmos/cosmos-sdk/types/tx"
 
 	"github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/celestiaorg/nmt/namespace"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// SubmitPayForBlob builds, signs, and synchronously submits a PayForBlob
+// SubmitPayForBlobs builds, signs, and synchronously submits a PayForBlob
 // transaction. It returns a sdk.TxResponse after submission.
 func SubmitPayForBlob(
 	ctx context.Context,
 	signer *types.KeyringSigner,
 	conn *grpc.ClientConn,
-	nID namespace.ID,
-	blob []byte,
-	shareVersion uint8,
-	gasLim uint64,
+	blobs []*types.Blob,
 	opts ...types.TxBuilderOption,
 ) (*sdk.TxResponse, error) {
-	opts = append(opts, types.SetGasLimit(gasLim))
 	addr, err := signer.GetSignerInfo().GetAddress()
 	if err != nil {
 		return nil, err
 	}
-	msg, err := types.NewMsgPayForBlob(
-		addr.String(),
-		nID,
-		blob,
-	)
+	msg, err := types.NewMsgPayForBlobs(addr.String(), blobs...)
 	if err != nil {
 		return nil, err
 	}
@@ -47,15 +38,11 @@ func SubmitPayForBlob(
 	if err != nil {
 		return nil, err
 	}
-	wblob, err := types.NewBlob(msg.NamespaceId, blob)
-	if err != nil {
-		return nil, err
-	}
 	rawTx, err := signer.EncodeTx(stx)
 	if err != nil {
 		return nil, err
 	}
-	blobTx, err := coretypes.MarshalBlobTx(rawTx, wblob)
+	blobTx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
 	if err != nil {
 		return nil, err
 	}

@@ -7,9 +7,9 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/testutil"
-	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -19,51 +19,74 @@ import (
 // blocks produced by PrepareProposal should be accepted by ProcessProposal. It
 // doesn't use the standard go tools for fuzzing as those tools only support
 // fuzzing limited types, instead we create blocks our selves using random
-// transction.
+// transactions.
 func TestPrepareProposalConsistency(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping TestPrepareProposalConsistency in short mode.")
+	}
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
-	timer := time.After(time.Minute * 1)
+	accounts := make([]string, 1100) // 1000 for creating blob txs, 100 for creating send txs
+	for i := range accounts {
+		accounts[i] = tmrand.Str(20)
+	}
+
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accounts...)
 
 	type test struct {
-		count, size int
+		name                   string
+		count, blobCount, size int
 	}
-	tests := []test{{10000, 400}, {100, 400000}}
-
+	tests := []test{
+		{"many small single share single blob transactions", 1000, 1, 400},
+		{"one hundred normal sized single blob transactions", 100, 1, 400000},
+		{"many single share multi-blob transactions", 1000, 100, 400},
+		{"one hundred normal sized multi-blob transactions", 100, 4, 400000},
+	}
 	for _, tt := range tests {
-		for {
-			select {
-			case <-timer:
-				return
-			default:
-				t.Run("randomized inputs to Prepare and Process Proposal", func(t *testing.T) {
-					ProcessRandomProposal(t, tt.count, tt.size, encConf, testApp)
-				})
+		t.Run(tt.name, func(t *testing.T) {
+			timer := time.After(time.Second * 20)
+			for {
+				select {
+				case <-timer:
+					return
+				default:
+					txs := testutil.RandBlobTxsWithAccounts(
+						t,
+						testApp,
+						encConf.TxConfig.TxEncoder(),
+						kr,
+						tt.size,
+						tt.count,
+						true,
+						"",
+						accounts[:tt.count],
+					)
+					// create 100 send transactions
+					sendTxs := testutil.SendTxsWithAccounts(
+						t,
+						testApp,
+						encConf.TxConfig.TxEncoder(),
+						kr,
+						1000,
+						accounts[0],
+						accounts[len(accounts)-100:],
+						"",
+					)
+					txs = append(txs, sendTxs...)
+					resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
+						BlockData: &core.Data{
+							Txs: coretypes.Txs(txs).ToSliceOfBytes(),
+						},
+					})
+					res := testApp.ProcessProposal(abci.RequestProcessProposal{
+						BlockData: resp.BlockData,
+						Header: core.Header{
+							DataHash: resp.BlockData.Hash,
+						},
+					})
+					require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Result)
+				}
 			}
-		}
+		})
 	}
-}
-
-func ProcessRandomProposal(
-	t *testing.T,
-	count,
-	maxSize int,
-	cfg encoding.Config,
-	capp *app.App,
-) {
-	txs := blobfactory.RandBlobTxsRandomlySized(cfg.TxConfig.TxEncoder(), count, maxSize)
-	sendTxs := blobfactory.GenerateManyRawSendTxs(cfg.TxConfig, count)
-	txs = append(txs, sendTxs...)
-	resp := capp.PrepareProposal(abci.RequestPrepareProposal{
-		BlockData: &core.Data{
-			Txs: coretypes.Txs(txs).ToSliceOfBytes(),
-		},
-	})
-	res := capp.ProcessProposal(abci.RequestProcessProposal{
-		BlockData: resp.BlockData,
-		Header: core.Header{
-			DataHash: resp.BlockData.Hash,
-		},
-	})
-	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Result)
 }

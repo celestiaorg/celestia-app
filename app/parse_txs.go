@@ -1,68 +1,88 @@
 package app
 
 import (
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
-	tmbytes "github.com/tendermint/tendermint/libs/bytes"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/tendermint/libs/log"
+	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// parsedTx is an internal struct that keeps track of all transactions.
-type parsedTx struct {
-	// normalTx is the raw unmodified transaction only filled if the transaction does not have any blobs
-	// attached
-	normalTx []byte
-	// blobTx is the processed blob transaction. this field is only filled if
-	// the transaction has blobs attached
-	blobTx     blobtypes.ProcessedBlobTx
-	shareIndex uint32
-}
-
-// parseTxs decodes raw tendermint txs along with checking for and processing
-// blob transactions.
-func parseTxs(txcfg client.TxConfig, rawTxs [][]byte) []parsedTx {
-	parsedTxs := make([]parsedTx, len(rawTxs))
-	for i, rawTx := range rawTxs {
+// separateTxs decodes raw tendermint txs into normal and blob txs.
+func separateTxs(txcfg client.TxConfig, rawTxs [][]byte) ([][]byte, []core.BlobTx) {
+	normalTxs := make([][]byte, 0, len(rawTxs))
+	blobTxs := make([]core.BlobTx, 0, len(rawTxs))
+	for _, rawTx := range rawTxs {
 		bTx, isBlob := coretypes.UnmarshalBlobTx(rawTx)
-		if !isBlob {
-			parsedTxs[i] = parsedTx{normalTx: rawTx}
-			continue
+		if isBlob {
+			blobTxs = append(blobTxs, bTx)
+		} else {
+			normalTxs = append(normalTxs, rawTx)
 		}
-		pBTx, err := blobtypes.ProcessBlobTx(txcfg, bTx)
-		if err != nil {
-			// this should never occur, as we should be performing this exact
-			// same check during CheckTx
-			continue
-		}
-		parsedTxs[i] = parsedTx{blobTx: pBTx}
 	}
-	return parsedTxs
+	return normalTxs, blobTxs
 }
 
-// processTxs wraps the parsed transactions with the attached share index
-func processTxs(logger log.Logger, txs []parsedTx) [][]byte {
-	processedTxs := make([][]byte, 0)
-	for _, pTx := range txs {
-		if len(pTx.normalTx) != 0 {
-			processedTxs = append(processedTxs, pTx.normalTx)
-			continue
-		}
-
-		// if this is a blob transaction, then we need to encode and wrap the
-		// underlying MsgPFB containing transaction
-		wTx, err := coretypes.MarshalIndexWrapper(pTx.shareIndex, pTx.blobTx.Tx)
+// filterStdTxs applies the provided antehandler to each transaction and removes
+// transactions that return an error. Panics are caught by the checkTxValidity
+// function used to apply the ante handler.
+func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs [][]byte) ([][]byte, sdk.Context) {
+	n := 0
+	var err error
+	for _, tx := range txs {
+		ctx, err = checkTxValidity(logger, dec, ctx, handler, tx)
+		// either the transaction is invalid (ie incorrect nonce) and we
+		// simply want to remove this tx, or we're catching a panic from one
+		// of the anteHanders which is logged.
 		if err != nil {
-			// note: Its not safe to bubble this error up and stop the block
-			// creation process.
-			logger.Error(
-				"failure to wrap an otherwise valid BlobTx when creating a block: %v",
-				tmbytes.HexBytes(coretypes.Tx(pTx.blobTx.Tx).Hash()),
-			)
 			continue
 		}
+		txs[n] = tx
+		n++
 
-		processedTxs = append(processedTxs, wTx)
 	}
-	return processedTxs
+
+	return txs[:n], ctx
+}
+
+// filterBlobTxs applies the provided antehandler to each transaction
+// and removes transactions that return an error. Panics are caught by the checkTxValidity
+// function used to apply the ante handler.
+func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []tmproto.BlobTx) ([]tmproto.BlobTx, sdk.Context) {
+	n := 0
+	var err error
+	for _, tx := range txs {
+		ctx, err = checkTxValidity(logger, dec, ctx, handler, tx.Tx)
+		// either the transaction is invalid (ie incorrect nonce) and we
+		// simply want to remove this tx, or we're catching a panic from one
+		// of the anteHanders which is logged.
+		if err != nil {
+			continue
+		}
+		txs[n] = tx
+		n++
+
+	}
+
+	return txs[:n], ctx
+}
+
+func checkTxValidity(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, tx []byte) (sdk.Context, error) {
+	// catch panics from anteHandlers
+	defer func() {
+		if r := recover(); r != nil {
+			err := recoverHandler(r)
+			if err != nil {
+				logger.Error(err.Error())
+			}
+		}
+	}()
+
+	sdkTx, err := dec(tx)
+	if err != nil {
+		return ctx, err
+	}
+
+	return handler(ctx, sdkTx, false)
 }

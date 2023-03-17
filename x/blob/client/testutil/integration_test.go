@@ -39,6 +39,9 @@ func NewIntegrationTestSuite(cfg cosmosnet.Config) *IntegrationTestSuite {
 }
 
 func (s *IntegrationTestSuite) SetupSuite() {
+	if testing.Short() {
+		s.T().Skip("skipping integration test in short mode.")
+	}
 	s.T().Log("setting up integration test suite")
 
 	net := network.New(s.T(), s.cfg, username)
@@ -88,7 +91,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 		tc := tc
 		s.Require().NoError(s.network.WaitForNextBlock())
 		s.Run(tc.name, func() {
-			cmd := paycli.CmdWirePayForBlob()
+			cmd := paycli.CmdPayForBlob()
 			clientCtx := val.ClientCtx
 
 			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
@@ -123,7 +126,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 			// wait for the tx to be indexed
 			s.Require().NoError(s.network.WaitForNextBlock())
 
-			// attempt to query for the malleated transaction using the original tx's hash
+			// attempt to query for the transaction using the tx's hash
 			res, err := testfactory.QueryWithoutProof(clientCtx, txResp.TxHash)
 			require.NoError(err)
 			require.Equal(abci.CodeTypeOK, res.TxResult.Code)

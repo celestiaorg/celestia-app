@@ -1,11 +1,14 @@
 package app_test
 
 import (
+	"bytes"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -17,24 +20,95 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	"github.com/celestiaorg/celestia-app/testutil/namespace"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 )
 
-func TestBlobInclusionCheck(t *testing.T) {
-	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
+func TestProcessProposal(t *testing.T) {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(6)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	// create 3 single blob blobTxs that are signed with valid account numbers
+	// and sequences
+	blobTxs := blobfactory.ManyMultiBlobTx(
+		t,
+		encConf.TxConfig.TxEncoder(),
+		kr,
+		testutil.ChainID,
+		accounts[:3],
+		infos[:3],
+		blobfactory.NestedBlobs(
+			t,
+			[][]byte{
+				namespace.RandomBlobNamespace(),
+				namespace.RandomBlobNamespace(),
+				namespace.RandomBlobNamespace(),
+			},
+			[][]int{{100}, {1000}, {420}},
+		),
+	)
+
+	// create 3 MsgSend transactions that are signed with valid account numbers
+	// and sequences
+	sendTxs := testutil.SendTxsWithAccounts(
+		t,
+		testApp,
+		encConf.TxConfig.TxEncoder(),
+		kr,
+		1000,
+		accounts[0],
+		accounts[len(accounts)-3:],
+		"",
+	)
 
 	// block with all blobs included
-	validData := func() *core.Data {
-		return &core.Data{
-			Txs: coretypes.Txs(blobfactory.RandBlobTxs(encConf.TxConfig.TxEncoder(), 4, 1000)).ToSliceOfBytes(),
+	validData := func() *tmproto.Data {
+		return &tmproto.Data{
+			Txs: blobTxs,
 		}
 	}
 
 	// create block data with a PFB that is not indexed and has no blob
 	unindexedData := validData()
-	blobtx := blobfactory.RandBlobTxs(encConf.TxConfig.TxEncoder(), 1, 1000)[0]
+	blobtx := testutil.RandBlobTxsWithAccounts(
+		t,
+		testApp,
+		encConf.TxConfig.TxEncoder(),
+		kr,
+		1000,
+		2,
+		false,
+		"",
+		accounts[:1],
+	)[0]
 	btx, _ := coretypes.UnmarshalBlobTx(blobtx)
 	unindexedData.Txs = append(unindexedData.Txs, btx.Tx)
+
+	// create block data with a tx that is random data, and therefore cannot be
+	// decoded into an sdk.Tx
+	undecodableData := validData()
+	undecodableData.Txs = append(unindexedData.Txs, tmrand.Bytes(300))
+
+	mixedData := validData()
+	mixedData.Txs = append(mixedData.Txs, coretypes.Txs(sendTxs).ToSliceOfBytes()...)
+
+	// create an invalid block by adding an otherwise valid PFB, but an invalid
+	// signature since there's no account
+	badSigPFBData := validData()
+	badSigBlobTx := testutil.RandBlobTxsWithManualSequence(
+		t,
+		encConf.TxConfig.TxEncoder(),
+		kr,
+		1000,
+		1,
+		false,
+		"",
+		accounts[:1],
+		420, 42,
+	)[0]
+	badSigPFBData.Txs = append(badSigPFBData.Txs, badSigBlobTx)
 
 	type test struct {
 		name           string
@@ -110,82 +184,101 @@ func TestBlobInclusionCheck(t *testing.T) {
 			mutator:        func(d *core.Data) {},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
+		{
+			name:           "undecodable tx",
+			input:          undecodableData,
+			mutator:        func(d *core.Data) {},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "incorrectly sorted wrapped pfb's",
+			input: mixedData,
+			mutator: func(d *core.Data) {
+				// swap txs at index 3 and 4 (essentially swapping a PFB with a normal tx)
+				d.Txs[4], d.Txs[3] = d.Txs[3], d.Txs[4]
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			// while this test passes and the block gets rejected, it is getting
+			// rejected because the data root is different. We need to refactor
+			// prepare proposal to abstract functionality into a different
+			// function or be able to skip the filtering checks. TODO: perform
+			// the mentioned refactor and make it easier to create invalid
+			// blocks for testing.
+			name:  "included pfb with bad signature",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				btx, _ := coretypes.UnmarshalBlobTx(badSigBlobTx)
+				d.Txs = append(d.Txs, btx.Tx)
+				d.Blobs = append(d.Blobs, deref(btx.Blobs)...)
+				sort.SliceStable(d.Blobs, func(i, j int) bool {
+					return bytes.Compare(d.Blobs[i].NamespaceId, d.Blobs[j].NamespaceId) < 0
+				})
+				// todo: replace the data root with an updated hash
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "blob with parity namespace",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				d.Blobs[len(d.Blobs)-1].NamespaceId = appconsts.ParitySharesNamespaceID
+				// todo: replace the data root with an updated hash
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name: "tampered sequence start",
+			input: &tmproto.Data{
+				Txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
+			},
+			mutator: func(d *tmproto.Data) {
+				bd, err := coretypes.DataFromProto(d)
+				require.NoError(t, err)
+
+				dataSquare, err := shares.Split(bd, true)
+				require.NoError(t, err)
+
+				b := shares.NewEmptyBuilder().ImportRawShare(dataSquare[1].ToBytes())
+				b.FlipSequenceStart()
+				updatedShare, err := b.Build()
+				require.NoError(t, err)
+				dataSquare[1] = *updatedShare
+
+				eds, err := da.ExtendShares(d.SquareSize, shares.ToBytes(dataSquare))
+				require.NoError(t, err)
+
+				dah := da.NewDataAvailabilityHeader(eds)
+				// replace the hash of the prepare proposal response with the hash of a data
+				// square with a tampered sequence start indicator
+				d.Hash = dah.Hash()
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
 	}
 
 	for _, tt := range tests {
-		resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
-			BlockData: tt.input,
+		t.Run(tt.name, func(t *testing.T) {
+			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
+				BlockData: tt.input,
+			})
+			tt.mutator(resp.BlockData)
+			res := testApp.ProcessProposal(abci.RequestProcessProposal{
+				BlockData: resp.BlockData,
+				Header: core.Header{
+					DataHash: resp.BlockData.Hash,
+				},
+			})
+			assert.Equal(t, tt.expectedResult, res.Result, tt.name)
 		})
-		tt.mutator(resp.BlockData)
-		res := testApp.ProcessProposal(abci.RequestProcessProposal{
-			BlockData: resp.BlockData,
-			Header: core.Header{
-				DataHash: resp.BlockData.Hash,
-			},
-		})
-		assert.Equal(t, tt.expectedResult, res.Result, tt.name)
 	}
 }
 
-func TestProcessProposalWithParityShareNamespace(t *testing.T) {
-	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
-	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	txs := coretypes.Txs(blobfactory.RandBlobTxs(encConf.TxConfig.TxEncoder(), 4, 1000)).ToSliceOfBytes()
-	req := abci.RequestPrepareProposal{
-		BlockData: &tmproto.Data{
-			Txs: txs,
-		},
+func deref[T any](s []*T) []T {
+	t := make([]T, len(s))
+	for i, ss := range s {
+		t[i] = *ss
 	}
-
-	resp := testApp.PrepareProposal(req)
-
-	resp.BlockData.Blobs[0].NamespaceId = appconsts.ParitySharesNamespaceID
-
-	input := abci.RequestProcessProposal{
-		BlockData: resp.BlockData,
-	}
-	res := testApp.ProcessProposal(input)
-	require.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
-}
-
-func TestProcessProposalWithTamperedSequenceStart(t *testing.T) {
-	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
-	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	txs := coretypes.Txs(blobfactory.GenerateManyRawSendTxs(encConf.TxConfig, 10)).ToSliceOfBytes()
-	req := abci.RequestPrepareProposal{
-		BlockData: &tmproto.Data{
-			Txs: txs,
-		},
-	}
-	resp := testApp.PrepareProposal(req)
-
-	coreData, err := coretypes.DataFromProto(resp.BlockData)
-	assert.NoError(t, err)
-	dataSquare, err := shares.Split(coreData, true)
-	assert.NoError(t, err)
-	dataSquare[1] = flipSequenceStart(dataSquare[1])
-	eds, err := da.ExtendShares(resp.BlockData.SquareSize, shares.ToBytes(dataSquare))
-	assert.NoError(t, err)
-	dah := da.NewDataAvailabilityHeader(eds)
-	// replace the hash of the prepare proposal response with the hash of a data
-	// square with a tampered sequence start indicator
-	resp.BlockData.Hash = dah.Hash()
-	input := abci.RequestProcessProposal{
-		BlockData: resp.BlockData,
-	}
-
-	res := testApp.ProcessProposal(input)
-	require.Equal(t, abci.ResponseProcessProposal_REJECT, res.Result)
-}
-
-// flipSequenceStart flips the sequence start indicator of the share provided
-func flipSequenceStart(share shares.Share) shares.Share {
-	// the info byte is immediately after the namespace
-	infoByteIndex := appconsts.NamespaceSize
-	// the sequence start indicator is the last bit of the info byte so flip the
-	// last bit
-	share[infoByteIndex] = share[infoByteIndex] ^ 0x01
-	return share
+	return t
 }

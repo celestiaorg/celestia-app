@@ -1,0 +1,33 @@
+syntax = "proto3";
+package celestia.blob.v1;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
+
+// Msg defines the blob Msg service.
+service Msg {
+  // PayForBlobs allows the user to pay for the inclusion of one or more blobs
+  rpc PayForBlobs(MsgPayForBlobs) returns (MsgPayForBlobsResponse) {
+    option (google.api.http).get = "/blob/v1/payforblobs";
+  }
+}
+
+// MsgPayForBlobs pays for the inclusion of a blob in the block.
+message MsgPayForBlobs {
+  string signer = 1;
+  repeated bytes namespace_ids = 2;
+  repeated uint32 blob_sizes = 3;
+  // share_commitments is a list of share commitments (one per blob).
+  repeated bytes share_commitments = 4;
+  // share_versions are the versions of the share format that the blobs
+  // associated with this message should use when included in a block. The
+  // share_versions specified must match the share_versions used to generate the
+  // share_commitment in this message.
+  repeated uint32 share_versions = 8;
+}
+
+// MsgPayForBlobsResponse describes the response returned after the submission
+// of a PayForBlobs
+message MsgPayForBlobsResponse {}

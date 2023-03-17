@@ -95,3 +95,11 @@ func FundKeyringAccounts(cdc codec.Codec, accounts ...string) (keyring.Keyring, 
 	}
 	return kr, genBalances, genAccounts
 }
+
+func GenerateAccounts(count int) []string {
+	accs := make([]string, count)
+	for i := 0; i < count; i++ {
+		accs[i] = tmrand.Str(20)
+	}
+	return accs
+}

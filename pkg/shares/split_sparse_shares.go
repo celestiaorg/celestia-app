@@ -1,12 +1,9 @@
 package shares
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/nmt/namespace"
 	coretypes "github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/slices"
 )
@@ -28,10 +25,33 @@ func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
 	if !slices.Contains(appconsts.SupportedShareVersions, blob.ShareVersion) {
 		return fmt.Errorf("unsupported share version: %d", blob.ShareVersion)
 	}
-	rawBlob := MarshalDelimitedBlob(blob)
-	newShares := make([]Share, 0)
-	newShares = AppendToShares(newShares, blob.NamespaceID, rawBlob, blob.ShareVersion)
-	sss.shares = append(sss.shares, newShares...)
+
+	rawData := blob.Data
+
+	// First share
+	b := NewBuilder(blob.NamespaceID, blob.ShareVersion, true)
+	if err := b.WriteSequenceLen(uint32(len(rawData))); err != nil {
+		return err
+	}
+
+	for rawData != nil {
+
+		rawDataLeftOver := b.AddData(rawData)
+		if rawDataLeftOver == nil {
+			// Just call it on the latest share
+			b.ZeroPadIfNecessary()
+		}
+
+		share, err := b.Build()
+		if err != nil {
+			return err
+		}
+		sss.shares = append(sss.shares, *share)
+
+		b = NewBuilder(blob.NamespaceID, blob.ShareVersion, false)
+		rawData = rawDataLeftOver
+	}
+
 	return nil
 }
 
@@ -72,7 +92,7 @@ func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) {
 		return
 	}
 	lastBlob := sss.shares[len(sss.shares)-1]
-	sss.shares = append(sss.shares, namespacedPaddedShares(lastBlob.NamespaceID(), count)...)
+	sss.shares = append(sss.shares, NamespacePaddingShares(lastBlob.NamespaceID(), count)...)
 }
 
 // Export finalizes and returns the underlying shares.
@@ -83,100 +103,4 @@ func (sss *SparseShareSplitter) Export() []Share {
 // Count returns the current number of shares that will be made if exporting.
 func (sss *SparseShareSplitter) Count() int {
 	return len(sss.shares)
-}
-
-// AppendToShares appends raw data as shares.
-// Used for blobs.
-func AppendToShares(shares []Share, nid namespace.ID, rawData []byte, shareVersion uint8) []Share {
-	if len(rawData) <= appconsts.ContinuationSparseShareContentSize {
-		infoByte, err := NewInfoByte(shareVersion, true)
-		if err != nil {
-			panic(err)
-		}
-		rawShare := append(append(append(
-			make([]byte, 0, appconsts.ShareSize),
-			nid...),
-			byte(infoByte)),
-			rawData...,
-		)
-		paddedShare, _ := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
-		shares = append(shares, paddedShare)
-	} else { // len(rawData) > BlobShareSize
-		shares = append(shares, splitBlob(rawData, nid, shareVersion)...)
-	}
-	return shares
-}
-
-// MarshalDelimitedBlob marshals the raw share data (excluding the namespace)
-// of this blob and prefixes it with the length of the blob.
-func MarshalDelimitedBlob(blob coretypes.Blob) []byte {
-	lenBuf := make([]byte, appconsts.SequenceLenBytes)
-	length := uint32(len(blob.Data))
-	binary.BigEndian.PutUint32(lenBuf, length)
-	return append(lenBuf, blob.Data...)
-}
-
-// splitBlob breaks the data in a blob into the minimum number of
-// namespaced shares
-func splitBlob(rawData []byte, nid namespace.ID, shareVersion uint8) (shares []Share) {
-	infoByte, err := NewInfoByte(shareVersion, true)
-	if err != nil {
-		panic(err)
-	}
-	firstRawShare := append(append(append(
-		make([]byte, 0, appconsts.ShareSize),
-		nid...),
-		byte(infoByte)),
-		rawData[:appconsts.ContinuationSparseShareContentSize]...,
-	)
-	shares = append(shares, firstRawShare)
-	rawData = rawData[appconsts.ContinuationSparseShareContentSize:]
-	for len(rawData) > 0 {
-		shareSizeOrLen := min(appconsts.ContinuationSparseShareContentSize, len(rawData))
-		infoByte, err := NewInfoByte(appconsts.ShareVersionZero, false)
-		if err != nil {
-			panic(err)
-		}
-		rawShare := append(append(append(
-			make([]byte, 0, appconsts.ShareSize),
-			nid...),
-			byte(infoByte)),
-			rawData[:shareSizeOrLen]...,
-		)
-		paddedShare, _ := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
-		shares = append(shares, paddedShare)
-		rawData = rawData[shareSizeOrLen:]
-	}
-	return shares
-}
-
-func namespacedPaddedShares(ns namespace.ID, count int) []Share {
-	shares := make([]Share, count)
-	for i := 0; i < count; i++ {
-		shares[i] = namespacedPaddedShare(ns)
-	}
-	return shares
-}
-
-// namespacedPaddedShareBytes are the raw bytes that are used in the contents
-// of a namespacedPaddedShare. A namespacedPaddedShare follows a blob so
-// that the next blob starts at an index that conforms to non-interactive
-// defaults.
-var namespacedPaddedShareBytes = bytes.Repeat([]byte{0}, appconsts.FirstSparseShareContentSize)
-
-func namespacedPaddedShare(ns namespace.ID) Share {
-	infoByte, err := NewInfoByte(appconsts.ShareVersionZero, true)
-	if err != nil {
-		panic(err)
-	}
-
-	sequenceLen := make([]byte, appconsts.SequenceLenBytes)
-	binary.BigEndian.PutUint32(sequenceLen, uint32(0))
-
-	share := make([]byte, 0, appconsts.ShareSize)
-	share = append(share, ns...)
-	share = append(share, byte(infoByte))
-	share = append(share, sequenceLen...)
-	share = append(share, namespacedPaddedShareBytes...)
-	return share
 }

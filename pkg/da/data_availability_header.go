@@ -5,13 +5,14 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	daproto "github.com/celestiaorg/celestia-app/proto/da"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/types"
+
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	daproto "github.com/celestiaorg/celestia-app/proto/celestia/da"
 )
 
 const (
@@ -69,6 +70,7 @@ func ExtendShares(squareSize uint64, shares [][]byte) (*rsmt2d.ExtendedDataSquar
 		)
 	}
 	// here we construct a tree
+	// Note: uses the nmt wrapper to construct the tree.
 	return rsmt2d.ComputeExtendedDataSquare(shares, appconsts.DefaultCodec(), wrapper.NewConstructor(squareSize))
 }
 
@@ -167,10 +169,11 @@ func (dah *DataAvailabilityHeader) IsZero() bool {
 }
 
 // MinDataAvailabilityHeader returns the minimum valid data availability header.
-// It is equal to the data availability header for an empty block
+// It is equal to the data availability header for a block with one tail padding
+// share.
 func MinDataAvailabilityHeader() DataAvailabilityHeader {
-	shares := GenerateEmptyShares(appconsts.MinShareCount)
-	eds, err := ExtendShares(appconsts.DefaultMinSquareSize, shares)
+	s := MinShares()
+	eds, err := ExtendShares(appconsts.DefaultMinSquareSize, s)
 	if err != nil {
 		panic(err)
 	}
@@ -178,11 +181,7 @@ func MinDataAvailabilityHeader() DataAvailabilityHeader {
 	return dah
 }
 
-// GenerateEmptyShares generate an array of empty shares
-func GenerateEmptyShares(size int) [][]byte {
-	result := make([][]byte, size)
-	for i := 0; i < size; i++ {
-		result[i] = shares.TailPaddingShare()
-	}
-	return result
+// MinShares returns one tail-padded share.
+func MinShares() [][]byte {
+	return shares.ToBytes(shares.TailPaddingShares(appconsts.MinShareCount))
 }

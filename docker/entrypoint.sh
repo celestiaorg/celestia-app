@@ -5,7 +5,7 @@
 # only create the priv_validator_state.json if it doesn't exist and the command is start
 if [[ $1 == "start" && ! -f ${CELESTIA_HOME}/data/priv_validator_state.json ]]
 then
-    mkdir ${CELESTIA_HOME}/data # it is alright if it fails, the script will continue executing
+    mkdir -p ${CELESTIA_HOME}/data
     cat <<EOF > ${CELESTIA_HOME}/data/priv_validator_state.json
 {
   "height": "0",
@@ -15,4 +15,8 @@ then
 EOF
 fi
 
-/bin/celestia-appd --home ${CELESTIA_HOME} $@
+echo "Starting celestia-appd with command:"
+echo "/bin/celestia-appd $@"
+echo ""
+
+exec /bin/celestia-appd $@
