@@ -29,7 +29,7 @@ As an example, take the diagram below. Message 1 is 3 shares long and message 2 
 
 With the current non-interactive default rules, message 2 must start at a location aligned with the largest power of 2 that is not larger than 11 (message length) or 8 (square size). Therefore, message 2 must start at a location aligned with 8 which is index 16 in the example below. This arrangement results in 5 shares of padding.
 
-With the proposed non-interactive default rules, message 2 must start at an index that is a multiple of `msgMinSquareSize`. A message of 11 shares can fit in a square size of 4 (since 4 * 4 = 16 available shares which are < 11) so `msgMinSquareSize` is 4. Therefore, message 2 can start at index 12. This arrangement results in 1 share of padding.
+With the proposed non-interactive default rules, message 2 must start at an index that is a multiple of `msgMinSquareSize`. A message of 11 shares can fit in a square size of 4 (since 4 * 4 = 16 available shares which are > 11) so `msgMinSquareSize` is 4. Therefore, message 2 can start at index 12. This arrangement results in 1 share of padding.
 
 ![Padding Savings](./assets/padding-savings.png)
 
