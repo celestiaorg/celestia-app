@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -122,7 +123,8 @@ func TestSplitTxs_forTxShares(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			got, _, _ := SplitTxs(tt.txs)
+			got, _, _, err := SplitTxs(tt.txs)
+			require.NoError(t, err)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SplitTxs()\n got %#v\n want %#v", got, tt.want)
 			}
@@ -152,7 +154,7 @@ func TestSplitTxs(t *testing.T) {
 	}
 
 	pfbTx, err := coretypes.MarshalIndexWrapper(coretypes.Tx{0xb}, 10) // spans one share
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	pfbTxShares := []Share{
 		padShare(Share{data: []uint8{
 			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4, // namespace id
@@ -231,7 +233,8 @@ func TestSplitTxs(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			txShares, pfbTxShares, gotMap := SplitTxs(tc.txs)
+			txShares, pfbTxShares, gotMap, err := SplitTxs(tc.txs)
+			require.NoError(t, err)
 			assert.Equal(t, tc.wantTxShares, txShares)
 			assert.Equal(t, tc.wantPfbShares, pfbTxShares)
 			assert.Equal(t, tc.wantMap, gotMap)

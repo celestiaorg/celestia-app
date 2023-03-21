@@ -19,9 +19,12 @@ func TestCompactShareSplitter(t *testing.T) {
 	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
 	txs := testfactory.GenerateRandomTxs(33, 200)
 	for _, tx := range txs {
-		css.WriteTx(tx)
+		err := css.WriteTx(tx)
+		require.NoError(t, err)
 	}
-	shares, _ := css.Export(0)
+	shares, _, err := css.Export(0)
+	require.NoError(t, err)
+
 	rawResTxs, err := parseCompactShares(shares, appconsts.SupportedShareVersions)
 	resTxs := coretypes.ToTxs(rawResTxs)
 	require.NoError(t, err)
@@ -75,7 +78,9 @@ func Test_processCompactShares(t *testing.T) {
 		t.Run(fmt.Sprintf("%s idendically sized", tc.name), func(t *testing.T) {
 			txs := testfactory.GenerateRandomTxs(tc.txCount, tc.txSize)
 
-			shares, _, _ := SplitTxs(txs)
+			shares, _, _, err := SplitTxs(txs)
+			require.NoError(t, err)
+
 			parsedTxs, err := parseCompactShares(shares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
@@ -91,7 +96,8 @@ func Test_processCompactShares(t *testing.T) {
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
 			txs := testfactory.GenerateRandomlySizedTxs(tc.txCount, tc.txSize)
 
-			txShares, _, _ := SplitTxs(txs)
+			txShares, _, _, err := SplitTxs(txs)
+			require.NoError(t, err)
 			parsedTxs, err := parseCompactShares(txShares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
@@ -110,10 +116,12 @@ func TestCompactShareContainsInfoByte(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(1, appconsts.ContinuationCompactShareContentSize/4)
 
 	for _, tx := range txs {
-		css.WriteTx(tx)
+		err := css.WriteTx(tx)
+		require.NoError(t, err)
 	}
 
-	shares, _ := css.Export(0)
+	shares, _, err := css.Export(0)
+	require.NoError(t, err)
 	assert.Condition(t, func() bool { return len(shares) == 1 })
 
 	infoByte := shares[0].data[appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
@@ -130,10 +138,12 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(1, appconsts.ContinuationCompactShareContentSize*4)
 
 	for _, tx := range txs {
-		css.WriteTx(tx)
+		err := css.WriteTx(tx)
+		require.NoError(t, err)
 	}
 
-	shares, _ := css.Export(0)
+	shares, _, err := css.Export(0)
+	require.NoError(t, err)
 	assert.Condition(t, func() bool { return len(shares) > 1 })
 
 	infoByte := shares[1].data[appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
@@ -152,7 +162,8 @@ func Test_parseCompactSharesErrors(t *testing.T) {
 	}
 
 	txs := testfactory.GenerateRandomTxs(2, appconsts.ContinuationCompactShareContentSize*4)
-	txShares, _, _ := SplitTxs(txs)
+	txShares, _, _, err := SplitTxs(txs)
+	require.NoError(t, err)
 	rawShares := ToBytes(txShares)
 
 	unsupportedShareVersion := 5

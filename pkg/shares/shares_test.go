@@ -269,6 +269,15 @@ func TestIsPadding(t *testing.T) {
 		0xff, // data
 	}, appconsts.ShareSize)
 
+	nsPadding, err := NamespacePaddingShare(namespace.ID{1, 1, 1, 1, 1, 1, 1, 1})
+	require.NoError(t, err)
+
+	tailPadding, err := TailPaddingShare()
+	require.NoError(t, err)
+
+	reservedPaddingShare, err := ReservedPaddingShare()
+	require.NoError(t, err)
+
 	testCases := []testCase{
 		{
 			name:    "empty share",
@@ -282,17 +291,17 @@ func TestIsPadding(t *testing.T) {
 		},
 		{
 			name:  "namespace padding",
-			share: NamespacePaddingShare(namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}),
+			share: nsPadding,
 			want:  true,
 		},
 		{
 			name:  "tail padding",
-			share: TailPaddingShare(),
+			share: tailPadding,
 			want:  true,
 		},
 		{
 			name:  "reserved padding",
-			share: ReservedPaddingShare(),
+			share: reservedPaddingShare,
 			want:  true,
 		},
 	}
@@ -304,7 +313,7 @@ func TestIsPadding(t *testing.T) {
 				assert.Error(t, err)
 				return
 			}
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})
 	}

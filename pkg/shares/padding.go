@@ -11,52 +11,59 @@ import (
 // shares follow a blob so that the next blob may start at an index that
 // conforms to non-interactive default rules. The ns parameter provided should
 // be the namespace of the blob that precedes this padding in the data square.
-func NamespacePaddingShare(ns namespace.ID) Share {
-	b := NewBuilder(ns, appconsts.ShareVersionZero, true)
+func NamespacePaddingShare(ns namespace.ID) (Share, error) {
+	b, err := NewBuilder(ns, appconsts.ShareVersionZero, true).Init()
+	if err != nil {
+		return Share{}, err
+	}
 	if err := b.WriteSequenceLen(0); err != nil {
-		panic(err)
+		return Share{}, err
 	}
 	padding := bytes.Repeat([]byte{0}, appconsts.FirstSparseShareContentSize)
 	b.AddData(padding)
 
 	share, err := b.Build()
 	if err != nil {
-		panic(err)
+		return Share{}, err
 	}
 
-	return *share
+	return *share, nil
 }
 
 // NamespacePaddingShares returns n namespace padding shares.
-func NamespacePaddingShares(ns namespace.ID, n int) []Share {
+func NamespacePaddingShares(ns namespace.ID, n int) ([]Share, error) {
+	var err error
 	shares := make([]Share, n)
 	for i := 0; i < n; i++ {
-		shares[i] = NamespacePaddingShare(ns)
+		shares[i], err = NamespacePaddingShare(ns)
+		if err != nil {
+			return shares, err
+		}
 	}
-	return shares
+	return shares, nil
 }
 
 // ReservedPaddingShare returns a share that acts as padding. Reserved padding
 // shares follow all significant shares in the reserved namespace so that the
 // first blob can start at an index that conforms to non-interactive default
 // rules.
-func ReservedPaddingShare() Share {
+func ReservedPaddingShare() (Share, error) {
 	return NamespacePaddingShare(appconsts.ReservedPaddingNamespaceID)
 }
 
 // ReservedPaddingShare returns n reserved padding shares.
-func ReservedPaddingShares(n int) []Share {
+func ReservedPaddingShares(n int) ([]Share, error) {
 	return NamespacePaddingShares(appconsts.ReservedPaddingNamespaceID, n)
 }
 
 // TailPaddingShare is a share that is used to pad a data square to the desired
 // square size. Tail padding shares follow the last blob share in the data
 // square.
-func TailPaddingShare() Share {
+func TailPaddingShare() (Share, error) {
 	return NamespacePaddingShare(appconsts.TailPaddingNamespaceID)
 }
 
 // TailPaddingShares returns n tail padding shares.
-func TailPaddingShares(n int) []Share {
+func TailPaddingShares(n int) ([]Share, error) {
 	return NamespacePaddingShares(appconsts.TailPaddingNamespaceID, n)
 }

@@ -134,12 +134,19 @@ func Test_parseSparseSharesWithNamespacedPadding(t *testing.T) {
 		randomLargeBlob,
 	}
 	sort.Sort(coretypes.BlobsByNamespace(blobs))
+
 	err := sss.Write(blobs[0])
-	assert.NoError(t, err)
-	sss.WriteNamespacedPaddedShares(4)
+	require.NoError(t, err)
+
+	err = sss.WriteNamespacedPaddedShares(4)
+	require.NoError(t, err)
+
 	err = sss.Write(blobs[1])
-	assert.NoError(t, err)
-	sss.WriteNamespacedPaddedShares(10)
+	require.NoError(t, err)
+
+	err = sss.WriteNamespacedPaddedShares(10)
+	require.NoError(t, err)
+
 	shares := sss.Export()
 	pblobs, err := parseSparseShares(shares, appconsts.SupportedShareVersions)
 	require.NoError(t, err)
