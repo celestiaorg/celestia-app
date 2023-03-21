@@ -24,16 +24,12 @@ func NewEmptyBuilder() *Builder {
 
 // Init() needs to be called right after this method
 func NewBuilder(ns namespace.ID, shareVersion uint8, isFirstShare bool) *Builder {
-	b := &Builder{
+	return &Builder{
 		namespace:      ns,
 		shareVersion:   shareVersion,
 		isFirstShare:   isFirstShare,
 		isCompactShare: isCompactShare(ns),
 	}
-	if _, err := b.Init(); err != nil {
-		panic(err)
-	}
-	return b
 }
 
 func (b *Builder) Init() (*Builder, error) {
