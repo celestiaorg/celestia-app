@@ -84,7 +84,7 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) {
 	if len(data) < appconsts.NamespaceSize {
 		// TODO: consider adding an error return parameter to the rsmt.Tree interface for Push
 		// https://github.com/celestiaorg/rsmt2d/issues/156
-		panic(fmt.Sprintf("data is too short to contain namespace ID"))
+		panic("data is too short to contain namespace ID")
 	}
 	nidAndData := make([]byte, appconsts.NamespaceSize+len(data))
 	copy(nidAndData[appconsts.NamespaceSize:], data)
