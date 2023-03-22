@@ -114,7 +114,7 @@ func BeginBlocker(k keeper.Keeper, ctx sdk.Context, _ abci.RequestBeginBlock) {
 }
 ```
 
-We could also impose other similar restrictions elsewhere instead, such as voting to reject the block if the deadline height is `BombHeight` is reached.
+We could also impose other similar restrictions elsewhere instead, such as voting to reject the block if the deadline height in `BombHeight` is reached.
 
 ```go
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
