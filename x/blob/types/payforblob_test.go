@@ -55,7 +55,8 @@ func Test_merkleMountainRangeHeights(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		res := merkleMountainRangeSizes(tt.totalSize, tt.squareSize)
+		res, err := merkleMountainRangeSizes(tt.totalSize, tt.squareSize)
+		require.NoError(t, err)
 		assert.Equal(t, tt.expected, res)
 	}
 }

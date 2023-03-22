@@ -22,25 +22,28 @@ func NewEmptyBuilder() *Builder {
 	}
 }
 
+// Init() needs to be called right after this method
 func NewBuilder(ns namespace.ID, shareVersion uint8, isFirstShare bool) *Builder {
-	b := Builder{
+	return &Builder{
 		namespace:      ns,
 		shareVersion:   shareVersion,
 		isFirstShare:   isFirstShare,
 		isCompactShare: isCompactShare(ns),
 	}
+}
 
+func (b *Builder) Init() (*Builder, error) {
 	if b.isCompactShare {
 		if err := b.prepareCompactShare(); err != nil {
-			panic(err)
+			return nil, err
 		}
 	} else {
 		if err := b.prepareSparseShare(); err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
-	return &b
+	return b, nil
 }
 
 func (b *Builder) AvailableBytes() int {
@@ -95,13 +98,13 @@ func (b *Builder) ZeroPadIfNecessary() (bytesOfPadding int) {
 }
 
 // isEmptyReservedBytes returns true if the reserved bytes are empty.
-func (b *Builder) isEmptyReservedBytes() bool {
+func (b *Builder) isEmptyReservedBytes() (bool, error) {
 	indexOfReservedBytes := b.indexOfReservedBytes()
 	reservedBytes, err := ParseReservedBytes(b.rawShareData[indexOfReservedBytes : indexOfReservedBytes+appconsts.CompactShareReservedBytes])
 	if err != nil {
-		panic(err)
+		return false, err
 	}
-	return reservedBytes == 0
+	return reservedBytes == 0, nil
 }
 
 // indexOfReservedBytes returns the index of the reserved bytes in the share.
@@ -128,7 +131,11 @@ func (b *Builder) MaybeWriteReservedBytes() error {
 		return errors.New("this is not a compact share")
 	}
 
-	if !b.isEmptyReservedBytes() {
+	empty, err := b.isEmptyReservedBytes()
+	if err != nil {
+		return err
+	}
+	if !empty {
 		return nil
 	}
 

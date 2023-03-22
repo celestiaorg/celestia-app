@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/nmt/namespace"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
 )
@@ -25,7 +26,8 @@ func TestParseShares(t *testing.T) {
 	blobOneNamespace := namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}
 	blobTwoNamespace := namespace.ID{2, 2, 2, 2, 2, 2, 2, 2}
 
-	txShares, _, _ := SplitTxs(generateRandomTxs(2, 1000))
+	txShares, _, _, err := SplitTxs(generateRandomTxs(2, 1000))
+	require.NoError(t, err)
 	txShareStart := txShares[0]
 	txShareContinuation := txShares[1]
 
@@ -47,7 +49,8 @@ func TestParseShares(t *testing.T) {
 	invalidShareBytes = append(invalidShareBytes, []byte{0}...) // invalidShareBytes is now longer than the length of a valid share
 	invalidShare := Share{data: invalidShareBytes}
 
-	b := NewBuilder(blobOneNamespace, appconsts.ShareVersionZero, start)
+	b, err := NewBuilder(blobOneNamespace, appconsts.ShareVersionZero, start).Init()
+	require.NoError(t, err)
 
 	largeSequenceLen := 1000 // it takes more than one share to store a sequence of 1000 bytes
 	oneShareWithTooLargeSequenceLenBytes := generateRawShare(blobOneNamespace, start, uint32(largeSequenceLen))

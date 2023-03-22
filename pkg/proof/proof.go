@@ -53,7 +53,10 @@ func TxShareRange(data types.Data, txIndex uint64) (startShare uint64, endShare 
 		return 0, 0, errors.New("transaction index is greater than the number of txs")
 	}
 
-	_, _, shareRanges := shares.SplitTxs(data.Txs)
+	_, _, shareRanges, err := shares.SplitTxs(data.Txs)
+	if err != nil {
+		return 0, 0, err
+	}
 	shareRange := shareRanges[data.Txs[txIndex].Key()]
 
 	return uint64(shareRange.Start), uint64(shareRange.End), nil

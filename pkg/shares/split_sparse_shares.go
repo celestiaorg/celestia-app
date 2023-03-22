@@ -1,6 +1,7 @@
 package shares
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -29,7 +30,10 @@ func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
 	rawData := blob.Data
 
 	// First share
-	b := NewBuilder(blob.NamespaceID, blob.ShareVersion, true)
+	b, err := NewBuilder(blob.NamespaceID, blob.ShareVersion, true).Init()
+	if err != nil {
+		return err
+	}
 	if err := b.WriteSequenceLen(uint32(len(rawData))); err != nil {
 		return err
 	}
@@ -48,7 +52,10 @@ func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
 		}
 		sss.shares = append(sss.shares, *share)
 
-		b = NewBuilder(blob.NamespaceID, blob.ShareVersion, false)
+		b, err = NewBuilder(blob.NamespaceID, blob.ShareVersion, false).Init()
+		if err != nil {
+			return err
+		}
 		rawData = rawDataLeftOver
 	}
 
@@ -81,18 +88,25 @@ func (sss *SparseShareSplitter) RemoveBlob(i int) (int, error) {
 // WriteNamespacedPaddedShares adds empty shares using the namespace of the last written share.
 // This is useful to follow the message layout rules. It assumes that at least
 // one share has already been written, if not it panics.
-func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) {
+func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) error {
 	if len(sss.shares) == 0 {
-		panic("cannot write empty namespaced shares on an empty SparseShareSplitter")
+		return errors.New("cannot write empty namespaced shares on an empty SparseShareSplitter")
 	}
 	if count < 0 {
-		panic("cannot write negative namespaced shares")
+		return errors.New("cannot write negative namespaced shares")
 	}
 	if count == 0 {
-		return
+		return nil
 	}
 	lastBlob := sss.shares[len(sss.shares)-1]
-	sss.shares = append(sss.shares, NamespacePaddingShares(lastBlob.NamespaceID(), count)...)
+
+	nsPaddingShares, err := NamespacePaddingShares(lastBlob.NamespaceID(), count)
+	if err != nil {
+		return err
+	}
+	sss.shares = append(sss.shares, nsPaddingShares...)
+
+	return nil
 }
 
 // Export finalizes and returns the underlying shares.

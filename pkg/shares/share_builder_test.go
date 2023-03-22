@@ -71,6 +71,8 @@ func TestShareBuilderIsEmptyShare(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			_, err := tc.builder.Init()
+			require.NoError(t, err)
 			tc.builder.AddData(tc.data)
 			assert.Equal(t, tc.want, tc.builder.IsEmptyShare())
 		})
@@ -126,8 +128,9 @@ func TestShareBuilderWriteSequenceLen(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.builder.WriteSequenceLen(tc.wantLen)
-			if tc.wantErr {
+			_, err := tc.builder.Init()
+			require.NoError(t, err)
+			if err := tc.builder.WriteSequenceLen(tc.wantLen); tc.wantErr {
 				assert.Error(t, err)
 				return
 			}
@@ -211,6 +214,9 @@ func TestShareBuilderAddData(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			_, err := tc.builder.Init()
+			require.NoError(t, err)
+
 			got := tc.builder.AddData(tc.data)
 			assert.Equal(t, tc.want, got)
 		})
