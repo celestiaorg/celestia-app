@@ -168,8 +168,8 @@ func TestDataCommitmentRange(t *testing.T) {
 	assert.Equal(t, types.DataCommitmentRequestType, att1.Type())
 	dc1, ok := att1.(*types.DataCommitment)
 	require.True(t, ok)
-	assert.Equal(t, newHeight-1, int64(dc1.EndBlock))
-	assert.Equal(t, int64(0), int64(dc1.BeginBlock))
+	assert.Equal(t, newHeight, int64(dc1.EndBlock))
+	assert.Equal(t, int64(1), int64(dc1.BeginBlock))
 
 	// increment height to 2*data commitment window
 	newHeight = int64(qk.GetDataCommitmentWindowParam(ctx)) * 2
@@ -183,6 +183,6 @@ func TestDataCommitmentRange(t *testing.T) {
 	assert.Equal(t, types.DataCommitmentRequestType, att2.Type())
 	dc2, ok := att2.(*types.DataCommitment)
 	require.True(t, ok)
-	assert.Equal(t, newHeight-1, int64(dc2.EndBlock))
+	assert.Equal(t, newHeight, int64(dc2.EndBlock))
 	assert.Equal(t, dc1.EndBlock+1, dc2.BeginBlock)
 }
