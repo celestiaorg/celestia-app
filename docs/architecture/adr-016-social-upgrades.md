@@ -22,7 +22,7 @@ It should also be noted that this ADR is not discussion parameter changes, as li
 Given that we don't have a lot of time until mainnet, we could leave the current implementation in place which gives us the option to use it if needed. Ideally, we would work on the longer term upgrade mechanism that respects social consensus and finish it before the first upgrade. While this option does allow for maximum flexibility, it is also very risky because if the mechanism is ever needed or used, then it could set a precedent for future upgrades.
 
 ### Option 2: Removal of token voting for upgrades
-The goal of this approach is to force social consensus to reach an upgrade instead of relying on token voting. It works by simply removing the currently upgrade module. This way, the only way to upgrade the chain is to agree on the upgrade logic and the upgrade height.
+The goal of this approach is to force social consensus to reach an upgrade instead of relying on token voting. It works by simply removing the current upgrade module. This way, the only way to upgrade the chain is to agree on the upgrade logic and the upgrade height.
 
 ### Option 3: Adding a predetermined halt height (aka "difficulty bomb")
 This option is not mutually exclusive to option 2. Its goal is to explicitly state that, without changing binaries, light clients will halt at a given height, despite what logic validators are running. This acts as an explicit statement to large token holders that they either come to some sort of agreement with the rest of the network, or chain will halt. Not coming to agreement is not a viable option.
