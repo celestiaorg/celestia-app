@@ -19,12 +19,13 @@ It should also be noted that this ADR is not discussion parameter changes, as li
 ## Alternative Approaches
 
 ### Option 1: Temporarily use the current token voting mechanism
-
 Given that we don't have a lot of time until mainnet, we could leave the current implementation in place which gives us the option to use it if needed. Ideally, we would work on the longer term upgrade mechanism that respects social consensus and finish it before the first upgrade. While this option does allow for maximum flexibility, it is also very risky because if the mechanism is ever needed or used, then it could set a precedent for future upgrades.
 
-### Option 2: Predetermined halt height and removal of token voting for upgrades (aka "difficulty bomb")
+### Option 2: Removal of token voting for upgrades
+The goal of this approach is to force social consensus to reach an upgrade instead of relying on token voting. It works by simply removing the currently upgrade module. This way, the only way to upgrade the chain is to agree on the upgrade logic and the upgrade height.
 
-The goal of this approach is to set a deadline to upgrade via social consensus. It involves removing the upgrade mechanism from the state machine, and replaces it with a predefined shut down height. This change should be added to all node types, including light clients. If this height is reached without first upgrading, then the chain will halt for all participants.
+### Option 3: Adding a predetermined halt height (aka "difficulty bomb")
+This option is not mutually exclusive to option 2. Its goal is to explicitly state that, without changing binaries, light clients will halt at a given height, despite what logic validators are running. This acts as an explicit statement to large token holders that they either come to some sort of agreement with the rest of the network, or chain will halt. Not coming to agreement is not a viable option.
 
 ## Decision
 
@@ -100,35 +101,11 @@ func (k msgServer) SoftwareUpgrade(goCtx context.Context, req *types.MsgSoftware
 }
 ```
 
+### Implementing Option 3
+
 #### Implement a deadline module into the state machine that will halt at a hardcoded height
 
-There are a few different mechanisms that we could use to add a constant that
-would halt all nodes in the network. This could be as simple as:
-
-```go
-func BeginBlocker(k keeper.Keeper, ctx sdk.Context, _ abci.RequestBeginBlock) {
-   if ctx.BlockHeader().Height >= BombHeight {
-       panic("social consensus must be reached to pass the bomb height")
-   }
-   return
-}
-```
-
-We could also impose other similar restrictions elsewhere instead, such as voting to reject the block if the deadline height in `BombHeight` is reached.
-
-```go
-func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
-    if req.Header.Height >= consts.BombHeight {
-        logInvalidPropBlock(app.Logger(), req.Header, "bomb height reached")
-        return abci.ResponseProcessProposal{
-            Result: abci.ResponseProcessProposal_REJECT,
-        }
-    }
-    ...
-}
-```
-
-Most importantly, we would also need to add this bomb height to light clients. This way validators cannot just ignore the bomb height and continue to produce blocks. There are multiple different ways to do that, but one universal way to make sure that all nodes, including light, halt at the bomb height would be to include it in the header verification logic:
+This mechanism needs to stop all honest nodes, particularly light clients. This way validators cannot just ignore the bomb height and continue to produce blocks. There are multiple different ways to do that, but one universal way to make sure that all nodes halt would be to include it in the header verification logic:
 
 ```go
 // ValidateBasic performs stateless validation on a Header returning an error
