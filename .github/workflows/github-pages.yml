@@ -4,7 +4,11 @@ on:
   push:
     branches:
       - main
+    paths:
+      - specs/**
   pull_request:
+    paths:
+      - specs/**
   workflow_dispatch:
 
 jobs:
