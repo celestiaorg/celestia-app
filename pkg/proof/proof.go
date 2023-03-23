@@ -152,6 +152,11 @@ func NewShareInclusionProof(
 			)
 		}
 
+		// make sure that the generated root is the same as the eds row root.
+		if !bytes.Equal(rowRoots[i].Bytes(), tree.Root()) {
+			return types.ShareProof{}, errors.New("eds row root is different than tree root")
+		}
+
 		startLeafPos := startLeaf
 		endLeafPos := endLeaf
 
@@ -176,11 +181,6 @@ func NewShareInclusionProof(
 			Nodes:    proof.Nodes(),
 			LeafHash: proof.LeafHash(),
 		})
-
-		// make sure that the generated root is the same as the eds row root.
-		if !bytes.Equal(rowRoots[i].Bytes(), tree.Root()) {
-			return types.ShareProof{}, errors.New("eds row root is different than tree root")
-		}
 	}
 
 	return types.ShareProof{
