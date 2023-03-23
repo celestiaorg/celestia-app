@@ -89,6 +89,16 @@ func TestErasureNamespacedMerkleTreePanics(t *testing.T) {
 				},
 			),
 		},
+		{
+			"push data that is too short to contain a namespace ID",
+			assert.PanicTestFunc(
+				func() {
+					data := []byte{0x1}
+					tree := NewErasuredNamespacedMerkleTree(uint64(16), 0)
+					tree.Push(data)
+				},
+			),
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
