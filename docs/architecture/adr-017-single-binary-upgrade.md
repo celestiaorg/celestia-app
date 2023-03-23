@@ -69,6 +69,61 @@ TBD
 
 - Block sync needs to be aware of changes across block heights
 
+### Implementation proposal
+
+There are multiple ways of doing it. The app version can be found in the SDK context.
+So, in the `PrepareProposal` method, we can get the app version [from the context](https://github.com/celestiaorg/celestia-app/blob/main/app/prepare_proposal.go#L28) and use it as the version indicator.
+
+#### Option 1: Passing the app version throughout all the required functions
+
+In this case we need to pass either sdk context or the app version itself to all the functions and objects that we think they might be affected by a version change in future.
+So for those functions that do not have the ctx already, we need to add an extra parameter to pass it.
+
+#### Option 2: Define a version package and call a global function to get the version
+
+We can define a package e.g. `version` that has a setter and getter. And the getter can be called by anyone throughout the application.
+
+```go
+var appVersion string
+
+func SetVersion( newVer string) error {
+  // Check if the caller is eligible to call this.
+  appVersion = newVer
+}
+
+func GetVersion() string {
+  return appVersion
+}
+
+```
+
+Then we call the setter function in `ProcessProposal` where it reads it from the block header.
+The getter function will be called everywhere e.g. [mergeMaps](https://github.com/celestiaorg/celestia-app/blob/f1dec1014a7159c0f0b213182aff4793163e9732/pkg/shares/share_splitting.go#L159)
+
+```go
+func mergeMaps(mapOne, mapTwo map[coretypes.TxKey]ShareRange) map[coretypes.TxKey]ShareRange {
+	merged := make(map[coretypes.TxKey]ShareRange, len(mapOne)+len(mapTwo))
+
+  switch version.GetVersion() {
+
+    case version.V0:
+      maps.Copy(merged, mapOne)
+      maps.Copy(merged, mapTwo)
+
+    case version.V1:
+      maps.Copy(merged, mapTwo)
+      maps.Copy(merged, mapOne)
+
+    default:
+        panic(version.ErrVersionNotFound)
+  }
+  return merged
+}
+```
+
+This option has an advantage over the option #1 as we do not need to pass an extra parameter everywhere in the code and it has less maintenance burden to modify the version logic.
+We can even add more structure to the version package in future if needed.
+
 ## Consequences
 
 > This section describes the consequences, after applying the decision. All consequences should be summarized here, not just the "positive" ones.
