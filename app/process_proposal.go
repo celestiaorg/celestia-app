@@ -11,7 +11,6 @@ import (
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -218,13 +217,6 @@ func arePFBsOrderedAfterTxs(txs [][]byte) bool {
 		}
 	}
 	return true
-}
-
-func isValidBlobNamespace(namespace namespace.ID) bool {
-	isReserved := bytes.Compare(namespace, appns.MaxReservedNamespace.Bytes()) <= 0
-	isParity := bytes.Equal(namespace, appns.ParitySharesNamespaceID.Bytes())
-	isTailPadding := bytes.Equal(namespace, appns.TailPaddingNamespaceID.Bytes())
-	return !isReserved && !isParity && !isTailPadding
 }
 
 func logInvalidPropBlock(l log.Logger, h tmproto.Header, reason string) {

@@ -62,7 +62,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	require := s.Require()
 	val := s.network.Validators[0]
 
-	hexNamespaceId := hex.EncodeToString(appns.RandomBlobNamespace().ID)
+	hexNamespaceID := hex.EncodeToString(appns.RandomBlobNamespace().ID)
 
 	// some hex blob
 	hexBlob := "0204033704032c0b162109000908094d425837422c2116"
@@ -77,7 +77,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		{
 			name: "valid transaction",
 			args: []string{
-				hexNamespaceId,
+				hexNamespaceID,
 				hexBlob,
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
