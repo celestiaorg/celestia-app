@@ -43,26 +43,36 @@ This transaction flow only describes the support for one tx with one message wit
 
 Assume a user wants to publish the data "hello world" to the namespace: `11111111`.
 
-1. User creates a `MsgPayForBlob`
+1. User creates a `MsgPayForBlobs`
 
     ```golang
-    type MsgPayForBlob struct {
-        Signer string
-        NamespaceID []byte // 11111111
-        BlobSize uint64 // len("hello world")
-        ShareCommitment []byte // e945c0bd85c106990...
-        ShareVersion uint32 // 0
+    // MsgPayForBlobs pays for the inclusion of a blob in the block.
+    type MsgPayForBlobs struct {
+        Signer       string   `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
+        NamespaceIds [][]byte `protobuf:"bytes,2,rep,name=namespace_ids,json=namespaceIds,proto3" json:"namespace_ids,omitempty"`
+        BlobSizes    []uint32 `protobuf:"varint,3,rep,packed,name=blob_sizes,json=blobSizes,proto3" json:"blob_sizes,omitempty"`
+        // share_commitments is a list of share commitments (one per blob).
+        ShareCommitments [][]byte `protobuf:"bytes,4,rep,name=share_commitments,json=shareCommitments,proto3" json:"share_commitments,omitempty"`
+        // share_versions are the versions of the share format that the blobs
+        // associated with this message should use when included in a block. The
+        // share_versions specified must match the share_versions used to generate the
+        // share_commitment in this message.
+        ShareVersions []uint32 `protobuf:"varint,8,rep,packed,name=share_versions,json=shareVersions,proto3" json:"share_versions,omitempty"`
     }
     ```
 
-2. The user takes this `MsgPayForBlob` and includes it as the sole message in a transaction (henceforth known as `MsgPayForBlobTx`).
+2. The user takes this `MsgPayForBlobs` and includes it as the sole message in a transaction (henceforth known as `MsgPayForBlobTx`).
 3. The user signs the `MsgPayForBlobTx`.
 4. The user marshals the `MsgPayForBlobTx` to bytes and includes it as a field in a new transaction. The new transaction is a `BlobTx` which includes an additional field for the data they wish to publish.
 
     ```golang
+    // BlobTx wraps an encoded sdk.Tx with a second field to contain blobs of data.
+    // The raw bytes of the blobs are not signed over, instead we verify each blob
+    // using the relevant MsgPayForBlobs that is signed over in the encoded sdk.Tx.
     type BlobTx struct {
-        Tx []byte // marshalled sdk.Tx that includes one MsgPayForBlob
-        Blob []byte // []byte("hello world")
+        Tx     []byte  `protobuf:"bytes,1,opt,name=tx,proto3" json:"tx,omitempty"`
+        Blobs  []*Blob `protobuf:"bytes,2,rep,name=blobs,proto3" json:"blobs,omitempty"`
+        TypeId string  `protobuf:"bytes,3,opt,name=type_id,json=typeId,proto3" json:"type_id,omitempty"`
     }
     ```
 
