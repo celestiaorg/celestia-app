@@ -16,6 +16,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
@@ -113,6 +114,9 @@ func TestProcessProposal(t *testing.T) {
 		expectedResult abci.ResponseProcessProposal_Result
 	}
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	// explicitly ignore the error from appns.New because we know the input is
+	// invalid because it doesn't contain the namespace verzion zero prefix
+	invalidNamespace, _ := appns.New(appns.NamespaceVersionZero, bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 	data := []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 
 	tests := []test{
@@ -140,6 +144,7 @@ func TestProcessProposal(t *testing.T) {
 						NamespaceId:      ns1.ID,
 						Data:             data,
 						NamespaceVersion: uint32(ns1.Version),
+						ShareVersion:     uint32(appconsts.ShareVersionZero),
 					},
 				)
 			},
@@ -153,6 +158,7 @@ func TestProcessProposal(t *testing.T) {
 					NamespaceId:      ns1.ID,
 					Data:             data,
 					NamespaceVersion: uint32(ns1.Version),
+					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -165,6 +171,7 @@ func TestProcessProposal(t *testing.T) {
 					NamespaceId:      appns.TailPaddingNamespaceID.ID,
 					Data:             data,
 					NamespaceVersion: uint32(appns.TailPaddingNamespaceID.Version),
+					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -177,6 +184,33 @@ func TestProcessProposal(t *testing.T) {
 					NamespaceId:      appns.TxNamespaceID.ID,
 					Data:             data,
 					NamespaceVersion: uint32(appns.TxNamespaceID.Version),
+					ShareVersion:     uint32(appconsts.ShareVersionZero),
+				}
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "invalid namespace ParityShares",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				d.Blobs[0] = core.Blob{
+					NamespaceId:      appns.ParitySharesNamespaceID.ID,
+					Data:             data,
+					NamespaceVersion: uint32(appns.ParitySharesNamespaceID.Version),
+					ShareVersion:     uint32(appconsts.ShareVersionZero),
+				}
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "invalid namespace",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				d.Blobs[0] = core.Blob{
+					NamespaceId:      invalidNamespace.ID,
+					Data:             data,
+					NamespaceVersion: uint32(invalidNamespace.Version),
+					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -229,15 +263,6 @@ func TestProcessProposal(t *testing.T) {
 				sort.SliceStable(d.Blobs, func(i, j int) bool {
 					return bytes.Compare(d.Blobs[i].NamespaceId, d.Blobs[j].NamespaceId) < 0
 				})
-				// todo: replace the data root with an updated hash
-			},
-			expectedResult: abci.ResponseProcessProposal_REJECT,
-		},
-		{
-			name:  "blob with parity namespace",
-			input: validData(),
-			mutator: func(d *tmproto.Data) {
-				d.Blobs[len(d.Blobs)-1].NamespaceId = appns.ParitySharesNamespaceID.ID
 				// todo: replace the data root with an updated hash
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
