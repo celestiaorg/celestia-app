@@ -1,21 +1,21 @@
 package shares
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	coretypes "github.com/tendermint/tendermint/types"
+	"golang.org/x/exp/maps"
 )
 
 var (
 	ErrIncorrectNumberOfIndexes = errors.New(
-		"number of malleated transactions is not identical to the number of wrapped transactions",
+		"number of indexes is not identical to the number of blobs",
 	)
-	ErrUnexpectedFirstMessageShareIndex = errors.New(
-		"the first message started at an unexpected index",
+	ErrUnexpectedFirstBlobShareIndex = errors.New(
+		"the first blob started at an unexpected index",
 	)
 )
 
@@ -23,62 +23,63 @@ var (
 // that are encoded as wrapped transactions. Most use cases out of this package
 // should use these share indexes and therefore set useShareIndexes to true.
 func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
-	if data.OriginalSquareSize == 0 || !isPowerOf2(data.OriginalSquareSize) {
-		return nil, fmt.Errorf("square size is not a power of two: %d", data.OriginalSquareSize)
+	if data.SquareSize == 0 || !isPowerOf2(data.SquareSize) {
+		return nil, fmt.Errorf("square size is not a power of two: %d", data.SquareSize)
 	}
-	wantShareCount := int(data.OriginalSquareSize * data.OriginalSquareSize)
+	wantShareCount := int(data.SquareSize * data.SquareSize)
 	currentShareCount := 0
 
-	txShares := SplitTxs(data.Txs)
-	currentShareCount += len(txShares)
-
-	evdShares, err := SplitEvidence(data.Evidence.Evidence)
+	txShares, pfbTxShares, _, err := SplitTxs(data.Txs)
 	if err != nil {
 		return nil, err
 	}
-	currentShareCount += len(evdShares)
-
-	// msgIndexes will be nil if we are working with a list of txs that do not
-	// have a msg index. this preserves backwards compatibility with old blocks
+	currentShareCount += len(txShares) + len(pfbTxShares)
+	// blobIndexes will be nil if we are working with a list of txs that do not
+	// have a blob index. This preserves backwards compatibility with old blocks
 	// that do not follow the non-interactive defaults
-	msgIndexes := ExtractShareIndexes(data.Txs)
-	sort.Slice(msgIndexes, func(i, j int) bool { return msgIndexes[i] < msgIndexes[j] })
+	blobIndexes := ExtractShareIndexes(data.Txs)
+	sort.Slice(blobIndexes, func(i, j int) bool { return blobIndexes[i] < blobIndexes[j] })
 
 	var padding []Share
-	if len(data.Messages.MessagesList) > 0 {
-		msgShareStart, _ := NextAlignedPowerOfTwo(
+	if len(data.Blobs) > 0 {
+		blobShareStart, _ := NextMultipleOfBlobMinSquareSize(
 			currentShareCount,
-			MsgSharesUsed(len(data.Messages.MessagesList[0].Data)),
-			int(data.OriginalSquareSize),
+			SparseSharesNeeded(uint32(len(data.Blobs[0].Data))),
+			int(data.SquareSize),
 		)
-		ns := appconsts.TxNamespaceID
-		if len(evdShares) > 0 {
-			ns = appconsts.EvidenceNamespaceID
+		// force blobSharesStart to be the first share index
+		if len(blobIndexes) != 0 && useShareIndexes {
+			blobShareStart = int(blobIndexes[0])
 		}
-		padding = namespacedPaddedShares(ns, msgShareStart-currentShareCount)
+
+		padding, err = NamespacePaddingShares(appconsts.ReservedPaddingNamespaceID, blobShareStart-currentShareCount)
+		if err != nil {
+			return nil, err
+		}
 	}
 	currentShareCount += len(padding)
 
-	var msgShares []Share
-	if msgIndexes != nil && int(msgIndexes[0]) < currentShareCount {
-		return nil, ErrUnexpectedFirstMessageShareIndex
+	if blobIndexes != nil && int(blobIndexes[0]) < currentShareCount {
+		return nil, ErrUnexpectedFirstBlobShareIndex
 	}
 
-	msgShares, err = SplitMessages(currentShareCount, msgIndexes, data.Messages.MessagesList, useShareIndexes)
+	blobShares, err := SplitBlobs(currentShareCount, blobIndexes, data.Blobs, useShareIndexes)
 	if err != nil {
 		return nil, err
 	}
-	currentShareCount += len(msgShares)
-	tailShares := TailPaddingShares(wantShareCount - currentShareCount)
-
-	// todo: optimize using a predefined slice
-	shares := append(append(append(append(
-		txShares,
-		evdShares...),
+	currentShareCount += len(blobShares)
+	tailShares, err := TailPaddingShares(wantShareCount - currentShareCount)
+	if err != nil {
+		return nil, err
+	}
+	shares := make([]Share, 0, data.SquareSize*data.SquareSize)
+	shares = append(append(append(append(append(
+		shares,
+		txShares...),
+		pfbTxShares...),
 		padding...),
-		msgShares...),
+		blobShares...),
 		tailShares...)
-
 	return shares, nil
 }
 
@@ -86,75 +87,78 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 // indexes from wrapped transactions. It returns nil if the transactions are
 // from an old block that did not have share indexes in the wrapped txs.
 func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
-	var msgIndexes []uint32
+	var shareIndexes []uint32
 	for _, rawTx := range txs {
-		if malleatedTx, isMalleated := coretypes.UnwrapMalleatedTx(rawTx); isMalleated {
+		if indexWrappedTxs, isIndexWrapped := coretypes.UnmarshalIndexWrapper(rawTx); isIndexWrapped {
 			// Since share index == 0 is invalid, it indicates that we are
 			// attempting to extract share indexes from txs that do not have any
 			// due to them being old. here we return nil to indicate that we are
 			// attempting to extract indexes from a block that doesn't support
-			// it. It's check for 0 because if there is a message in the block,
+			// it. It checks for 0 because if there is a message in the block,
 			// then there must also be a tx, which will take up at least one
 			// share.
-			if malleatedTx.ShareIndex == 0 {
+			if len(indexWrappedTxs.ShareIndexes) == 0 {
 				return nil
 			}
-			msgIndexes = append(msgIndexes, malleatedTx.ShareIndex)
+			shareIndexes = append(shareIndexes, indexWrappedTxs.ShareIndexes...)
 		}
 	}
 
-	return msgIndexes
+	return shareIndexes
 }
 
-func SplitTxs(txs coretypes.Txs) []Share {
-	writer := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
+func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRanges map[coretypes.TxKey]ShareRange, err error) {
+	txWriter := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+	pfbTxWriter := NewCompactShareSplitter(appconsts.PayForBlobNamespaceID, appconsts.ShareVersionZero)
+
 	for _, tx := range txs {
-		writer.WriteTx(tx)
-	}
-	return writer.Export()
-}
-
-func SplitEvidence(evd coretypes.EvidenceList) ([]Share, error) {
-	writer := NewCompactShareSplitter(appconsts.EvidenceNamespaceID, appconsts.ShareVersion)
-	for _, ev := range evd {
-		err := writer.WriteEvidence(ev)
+		if _, isIndexWrapper := coretypes.UnmarshalIndexWrapper(tx); isIndexWrapper {
+			err = pfbTxWriter.WriteTx(tx)
+		} else {
+			err = txWriter.WriteTx(tx)
+		}
 		if err != nil {
-			return nil, err
+			return nil, nil, nil, err
 		}
 	}
-	return writer.Export(), nil
+
+	txShares, txMap, err := txWriter.Export(0)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	pfbShares, pfbMap, err := pfbTxWriter.Export(len(txShares))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return txShares, pfbShares, mergeMaps(txMap, pfbMap), nil
 }
 
-func SplitMessages(cursor int, indexes []uint32, msgs []coretypes.Message, useShareIndexes bool) ([]Share, error) {
-	if useShareIndexes && len(indexes) != len(msgs) {
+func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIndexes bool) ([]Share, error) {
+	if useShareIndexes && len(indexes) != len(blobs) {
 		return nil, ErrIncorrectNumberOfIndexes
 	}
 	writer := NewSparseShareSplitter()
-	for i, msg := range msgs {
-		writer.Write(msg)
+	for i, blob := range blobs {
+		if err := writer.Write(blob); err != nil {
+			return nil, err
+		}
 		if useShareIndexes && len(indexes) > i+1 {
 			paddedShareCount := int(indexes[i+1]) - (writer.Count() + cursor)
-			writer.WriteNamespacedPaddedShares(paddedShareCount)
+			if err := writer.WriteNamespacedPaddedShares(paddedShareCount); err != nil {
+				return nil, err
+			}
 		}
 	}
 	return writer.Export(), nil
 }
 
-var tailPaddingInfo, _ = NewInfoByte(appconsts.ShareVersion, false)
-
-// tail is filler for all tail padded shares
-// it is allocated once and used everywhere
-var tailPaddingShare = append(append(
-	append(make([]byte, 0, appconsts.ShareSize), appconsts.TailPaddingNamespaceID...),
-	byte(tailPaddingInfo)),
-	bytes.Repeat([]byte{0}, appconsts.ShareSize-appconsts.NamespaceSize-appconsts.ShareInfoBytes)...,
-)
-
-// TailPaddingShares creates n tail padding shares.
-func TailPaddingShares(n int) []Share {
-	shares := make([]Share, n)
-	for i := 0; i < n; i++ {
-		shares[i] = tailPaddingShare
-	}
-	return shares
+// mergeMaps merges two maps into a new map. If there are any duplicate keys,
+// the value in the second map takes precedence.
+func mergeMaps(mapOne, mapTwo map[coretypes.TxKey]ShareRange) map[coretypes.TxKey]ShareRange {
+	merged := make(map[coretypes.TxKey]ShareRange, len(mapOne)+len(mapTwo))
+	maps.Copy(merged, mapOne)
+	maps.Copy(merged, mapTwo)
+	return merged
 }

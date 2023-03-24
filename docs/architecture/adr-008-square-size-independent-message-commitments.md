@@ -1,5 +1,9 @@
 # ADR 008: square size independent message commitments
 
+## Status
+
+Implemented
+
 ## Changelog
 
 - 03.08.2022: Initial Draft
@@ -63,10 +67,6 @@ func MinSquareSize(shareCount uint64) uint64 {
 }
 ```
 
-## Status
-
-Implemented
-
 ## Consequences
 
 ### Negative
@@ -80,7 +80,7 @@ Therefore the height of the tree over the subtree roots is in this implementatio
 
 ### Positive Rollmint changes
 
-1. A Rollup can include the commitment in the block header *before* posting to Celestia because it is size-independent and does not have to wait for Celestia to confirm the square size. In general, the rollup needs access to this commitment in some form to verify a message inclusion proof guaranteeing data availability, which Rollmint currently does not have access to.
+1. A Rollup can include the commitment in the block header *before* posting to Celestia because it is size-independent and does not have to wait for Celestia to confirm the square size. In general, the roll-up needs access to this commitment in some form to verify a message inclusion proof guaranteeing data availability, which Rollmint currently does not have access to.
 2. In turn, this would serve as an alternative to [rollmint/adr-007](https://github.com/celestiaorg/optimint/blob/main/docs/lazy-adr/adr-007-header-commit-to-shares.md)
 3. Here is one scheme on how a Rollup might use this new commitment in the block header. Let's assume a Rollup that looks like this:
   BH1 <-- BH2 <-- BH3 <-- BH4
@@ -91,16 +91,16 @@ Therefore the height of the tree over the subtree roots is in this implementatio
   The Commitment of BH1+B2 is saved into BH2.
   Message 3: (BH2+B3)
   The Commitment of (BH2+B3) is saved into BH3, and so on.
-4. Verifying a message inclusion proof could be done with Merkle proofs of the subtree roots to the `DataRoot`, recalculating the commitment, and comparing to what's in the rollup block header. It could also be as simple as submitting a proof over the PFB transaction that included the message and then checking if the commitment is the same as in the PFB transaction. The simple message inclusion proof requires a fraud proof of the PFB transaction not to have included a message.
-5. So far, a full node in Rollmint downloads new blocks from the DA Layer after each Celestia block, coupled tightly for syncing. With this approach, we can send blocks over the p2p Layer giving a soft-commit to full nodes. Then, they would receive the hard-commit after verifying a message inclusion proof without the need to download the blocks anymore. **P2P Blocksync** You could also achieve this by saving multiple commits for each possible square size in the block header.
+4. Verifying a message inclusion proof could be done with Merkle proofs of the subtree roots to the `DataRoot`, recalculating the commitment, and comparing to what's in the rollup block header. It could also be as simple as submitting proof over the PFB transaction that included the message and then checking if the commitment is the same as in the PFB transaction. The simple message inclusion proof requires a fraud-proof of the PFB transaction not to have included a message.
+5. So far, a full node in Rollmint downloads new blocks from the DA Layer after each Celestia block, coupled tightly for syncing. With this approach, we can send blocks over the p2p Layer giving a soft commit to full nodes. Then, they would receive the hard commit after verifying a message inclusion proof without the need to download the blocks anymore. **P2P Blocksync** You could also achieve this by saving multiple commits for each possible square size in the block header.
     1. P2P Blocksync allows a Rollmint full node to run a Celestia light node and not a Celestia full node.
     2. It allows the Rollup node to continue running after Celestia halts, relying on soft commits with no data availability.
     3. It gives the Rollup the option to run asynchronously to Celestia because you don't have to wait for new Celestia blocks/commitments of the messages.
-6. Combining P2P Blocksync and the scheme in 3, we could have multiple rollup blocks in one Celestia block. It could look like this:
+6. Combining P2P Blocksync and the scheme in 3, we could have multiple roll-up blocks in one Celestia block. It could look like this:
   ![multiple-blocks](./assets/multiple-blocks.png)
 7. When submitting a message to Celestia, you only sign the message over one commitment and not all square sizes.
 
-We should note that Rollups can decide to do this scheme without changing core-app apart from Number 4.
+We should note that Rollups can decide to do this scheme without changing the core-app apart from Number 4.
 
 ## Positive celestia-app changes
 
@@ -114,13 +114,4 @@ We should note that Rollups can decide to do this scheme without changing core-a
   - Currently, prepare proposal performs [`estimateSquareSize`](https://github.com/rootulp/celestia-app/blob/6f3b3ae437b2a70d72ff6be2741abb8b5378caa0/app/estimate_square_size.go#L98-L101) prior to splitting PFBs into shares because the square size is needed to malleate PFBs and extract the appropriate message share commitment for a particular square size. Since malleation no longer requires a square size, it may be possible to remove square size estimation which renders the following issues obsolete:
     - <https://github.com/informalsystems/audit-celestia/issues/12>
     - <https://github.com/informalsystems/audit-celestia/issues/24>
-- Inter-message padding can be reduced because we can change the non-interactive default rules from this:
-
-    > - Messages that span multiple rows must begin at the start of a row (this can occur if a message is longer than k shares or if the block producer decides to start a message partway through a row and it cannot fit).
-    > - Messages begin at a location aligned with the largest power of 2 that is not larger than the message length or k.
-
-    To this: Messages start at an index that is a multiple of its `msgMinSquareSize`.
-
-    As an example, we have this diagram. Message 1 is three shares long and is followed by message 2, which is 11 shares long, so the `msgMinSquareSize` of the second message is equal to four. Therefore we have a padding of 5 shares shown in light blue. Furthermore, with the new non-interactive default rule set, a message of size 11 can start in this block at index zero and index three because they are multiples of four. Therefore, we save four shares of padding while retaining the same commitment.
-
-    ![Padding Savings](./assets/padding-savings.png)
+- Inter-message padding can be reduced in the worst case by 50% if we can change the non-interactive default rules. An in-depth analysis is performed at [ADR 009: New Non-Interactive Default Rules for Reduced Padding](./adr-009-non-interactive-default-rules-for-reduced-padding.md).

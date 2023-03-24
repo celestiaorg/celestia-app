@@ -9,7 +9,7 @@ import (
 
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"cosmossdk.io/errors"
 )
 
 // ToInternal transforms a BridgeValidator into its fully validated internal type.
@@ -25,7 +25,7 @@ func (b BridgeValidators) ToInternal() (*InternalBridgeValidators, error) {
 	for i := range b {
 		ibv, err := NewInternalBridgeValidator(b[i])
 		if err != nil {
-			return nil, sdkerrors.Wrapf(err, "member %d", i)
+			return nil, errors.Wrapf(err, "member %d", i)
 		}
 		ret[i] = ibv
 	}
@@ -48,14 +48,14 @@ func NewInternalBridgeValidator(bridgeValidator BridgeValidator) (*InternalBridg
 		EVMAddress: validatorEVMAddr,
 	}
 	if err := i.ValidateBasic(); err != nil {
-		return nil, sdkerrors.Wrap(err, "invalid bridge validator")
+		return nil, errors.Wrap(err, "invalid bridge validator")
 	}
 	return i, nil
 }
 
 func (i InternalBridgeValidator) ValidateBasic() error {
 	if i.Power == 0 {
-		return sdkerrors.Wrap(ErrEmpty, "power")
+		return errors.Wrap(ErrEmpty, "power")
 	}
 	return nil
 }
@@ -170,11 +170,11 @@ func (ibv InternalBridgeValidators) ValidateBasic() error {
 	}
 	for i := range ibv {
 		if err := ibv[i].ValidateBasic(); err != nil {
-			return sdkerrors.Wrapf(err, "member %d", i)
+			return errors.Wrapf(err, "member %d", i)
 		}
 	}
 	if ibv.HasDuplicates() {
-		return sdkerrors.Wrap(ErrDuplicate, "addresses")
+		return errors.Wrap(ErrDuplicate, "addresses")
 	}
 	return nil
 }

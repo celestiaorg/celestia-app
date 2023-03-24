@@ -25,14 +25,11 @@ func TestNilDataAvailabilityHeaderHashDoesntCrash(t *testing.T) {
 func TestMinDataAvailabilityHeader(t *testing.T) {
 	dah := MinDataAvailabilityHeader()
 	expectedHash := []byte{
-		0x6f, 0x52, 0xda, 0xc1, 0x65, 0x45, 0xe4, 0x57, 0x25, 0xbe, 0x6e, 0xa3, 0x2a, 0xed, 0x55, 0x26,
-		0x6e, 0x45, 0x3, 0x48, 0x0, 0xee, 0xe1, 0xd8, 0x7c, 0x94, 0x28, 0xf4, 0x84, 0x4e, 0xa4, 0x7a,
+		0x25, 0x77, 0x60, 0x46, 0x19, 0x93, 0xf8, 0xf1, 0x97, 0xb4, 0x21, 0xec, 0x74, 0x35, 0xf3, 0xc3,
+		0x6c, 0x37, 0x34, 0x92, 0x3e, 0x3d, 0xa9, 0xa4, 0x2d, 0xc7, 0x3b, 0x5, 0xf0, 0x7b, 0x3d, 0x8,
 	}
 	require.Equal(t, expectedHash, dah.hash)
 	require.NoError(t, dah.ValidateBasic())
-	// important note: also see the types.TestEmptyBlockDataAvailabilityHeader test
-	// which ensures that empty block data results in the minimum data availability
-	// header
 }
 
 func TestNewDataAvailabilityHeader(t *testing.T) {
@@ -59,8 +56,8 @@ func TestNewDataAvailabilityHeader(t *testing.T) {
 				0xbf, 0xe5, 0x8f, 0x4b, 0xae, 0x2b, 0x65, 0x8b, 0xa8, 0xcb, 0xf9, 0xee, 0x8c, 0x6a, 0x1f, 0x72,
 				0xa9, 0x58, 0xc4, 0xcc, 0xca, 0x41, 0x4c, 0xbf, 0x8b, 0x18, 0xf9, 0x53, 0xe, 0xb1, 0x40, 0x54,
 			},
-			squareSize: appconsts.MaxSquareSize,
-			shares:     generateShares(appconsts.MaxSquareSize*appconsts.MaxSquareSize, 99),
+			squareSize: appconsts.DefaultMaxSquareSize,
+			shares:     generateShares(appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize, 99),
 		},
 	}
 
@@ -88,8 +85,8 @@ func TestExtendShares(t *testing.T) {
 		{
 			name:        "too large square size",
 			expectedErr: true,
-			squareSize:  appconsts.MaxSquareSize + 1,
-			shares:      generateShares((appconsts.MaxSquareSize+1)*(appconsts.MaxSquareSize+1), 1),
+			squareSize:  appconsts.DefaultMaxSquareSize + 1,
+			shares:      generateShares((appconsts.DefaultMaxSquareSize+1)*(appconsts.DefaultMaxSquareSize+1), 1),
 		},
 		{
 			name:        "invalid number of shares",
@@ -117,8 +114,8 @@ func TestDataAvailabilityHeaderProtoConversion(t *testing.T) {
 		dah  DataAvailabilityHeader
 	}
 
-	shares := generateShares(appconsts.MaxSquareSize*appconsts.MaxSquareSize, 1)
-	eds, err := ExtendShares(appconsts.MaxSquareSize, shares)
+	shares := generateShares(appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize, 1)
+	eds, err := ExtendShares(appconsts.DefaultMaxSquareSize, shares)
 	require.NoError(t, err)
 	bigdah := NewDataAvailabilityHeader(eds)
 
@@ -152,15 +149,15 @@ func Test_DAHValidateBasic(t *testing.T) {
 		errStr    string
 	}
 
-	shares := generateShares(appconsts.MaxSquareSize*appconsts.MaxSquareSize, 1)
-	eds, err := ExtendShares(appconsts.MaxSquareSize, shares)
+	shares := generateShares(appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize, 1)
+	eds, err := ExtendShares(appconsts.DefaultMaxSquareSize, shares)
 	require.NoError(t, err)
 	bigdah := NewDataAvailabilityHeader(eds)
 
 	// make a mutant dah that has too many roots
 	var tooBigDah DataAvailabilityHeader
-	tooBigDah.ColumnRoots = make([][]byte, appconsts.MaxSquareSize*appconsts.MaxSquareSize)
-	tooBigDah.RowsRoots = make([][]byte, appconsts.MaxSquareSize*appconsts.MaxSquareSize)
+	tooBigDah.ColumnRoots = make([][]byte, appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize)
+	tooBigDah.RowsRoots = make([][]byte, appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize)
 	copy(tooBigDah.ColumnRoots, bigdah.ColumnRoots)
 	copy(tooBigDah.RowsRoots, bigdah.RowsRoots)
 	tooBigDah.ColumnRoots = append(tooBigDah.ColumnRoots, bytes.Repeat([]byte{1}, 32))

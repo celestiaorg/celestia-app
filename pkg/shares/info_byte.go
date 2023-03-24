@@ -31,7 +31,7 @@ func (i InfoByte) Version() uint8 {
 	return version
 }
 
-// IsSequenceStart returns whether this share is the start of a message.
+// IsSequenceStart returns whether this share is the start of a sequence.
 func (i InfoByte) IsSequenceStart() bool {
 	return uint(i)%2 == 1
 }

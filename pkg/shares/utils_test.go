@@ -4,20 +4,21 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 )
 
-func FuzzMsgSharesUsed(f *testing.F) {
-	f.Add(int(1))
-	f.Fuzz(func(t *testing.T, a int) {
+func FuzzBlobSharesUsed(f *testing.F) {
+	f.Add(uint32(1))
+	f.Fuzz(func(t *testing.T, a uint32) {
 		if a < 1 {
 			t.Skip()
 		}
-		ml := MsgSharesUsed(int(a))
-		msg := generateRandomMessage(int(a))
-		rawShares, err := SplitMessages(0, nil, []types.Message{msg}, false)
+		ml := SparseSharesNeeded(a)
+		blob := testfactory.GenerateRandomBlob(int(a))
+		rawShares, err := SplitBlobs(0, nil, []types.Blob{blob}, false)
 		require.NoError(t, err)
 		require.Equal(t, len(rawShares), ml)
 	})
@@ -54,7 +55,7 @@ func Test_zeroPadIfNecessary(t *testing.T) {
 
 func TestParseDelimiter(t *testing.T) {
 	for i := uint64(0); i < 100; i++ {
-		tx := generateRandomTransaction(1, int(i))[0]
+		tx := testfactory.GenerateRandomTxs(1, int(i))[0]
 		input, err := MarshalDelimitedTx(tx)
 		if err != nil {
 			panic(err)

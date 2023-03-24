@@ -1,23 +1,14 @@
 package types
 
-import (
-	"strconv"
+import "github.com/cosmos/gogoproto/proto"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-)
+var EventTypePayForBlob = proto.MessageName(&EventPayForBlobs{})
 
-const (
-	EventTypePayForBlob = "payforblob"
-
-	AttributeKeySigner = "signer"
-	AttributeKeySize   = "size"
-)
-
-// NewPayForBlobEvent constructs a new payforblob sdk.Event
-func NewPayForBlobEvent(signer string, size uint64) sdk.Event {
-	return sdk.NewEvent(
-		EventTypePayForBlob,
-		sdk.NewAttribute(AttributeKeySigner, signer),
-		sdk.NewAttribute(AttributeKeySize, strconv.FormatUint(size, 10)),
-	)
+// NewPayForBlobsEvent returns a new EventPayForBlobs
+func NewPayForBlobsEvent(signer string, blobSizes []uint32, namespaceIDs [][]byte) *EventPayForBlobs {
+	return &EventPayForBlobs{
+		Signer:       signer,
+		BlobSizes:    blobSizes,
+		NamespaceIds: namespaceIDs,
+	}
 }

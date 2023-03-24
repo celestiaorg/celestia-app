@@ -1,11 +1,13 @@
 # celestia-app
 
 [![Go Reference](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/celestiaorg/celestia-app)
+[![mdBook Specs](https://img.shields.io/badge/mdBook-specs-blue)](https://celestiaorg.github.io/celestia-app/)
 [![GitHub Release](https://img.shields.io/github/v/release/celestiaorg/celestia-app)](https://github.com/celestiaorg/celestia-app/releases/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/celestia-app)](https://goreportcard.com/report/github.com/celestiaorg/celestia-app)
 [![Lint](https://github.com/celestiaorg/celestia-app/actions/workflows/lint.yml/badge.svg)](https://github.com/celestiaorg/celestia-app/actions/workflows/lint.yml)
 [![Tests / Code Coverage](https://github.com/celestiaorg/celestia-app/actions/workflows/test.yml/badge.svg)](https://github.com/celestiaorg/celestia-app/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/celestiaorg/celestia-app/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://codecov.io/gh/celestiaorg/celestia-app)
+[![codecov](https://codecov.io/gh/celestiaorg/celestia-app/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://app.codecov.io/gh/celestiaorg/celestia-app/tree/main)
+[![GitPOAP Badge](https://public-api.gitpoap.io/v1/repo/celestiaorg/celestia-app/badge)](https://www.gitpoap.io/gh/celestiaorg/celestia-app)
 
 **celestia-app** is a blockchain application built using Cosmos SDK and [celestia-core](https://github.com/celestiaorg/celestia-core) in place of Tendermint.
 
@@ -31,7 +33,7 @@ node            |  |                               |  |
 
 ## Install
 
-1. [Install Go](https://go.dev/doc/install) 1.18+
+1. [Install Go](https://go.dev/doc/install) 1.18
 1. Clone this repo
 1. Install the celestia-app CLI
 
@@ -42,9 +44,15 @@ node            |  |                               |  |
 ## Usage
 
 ```sh
-# Print help message
+# Print help
 celestia-appd --help
 ```
+
+### Environment variables
+
+| Variable        | Explanation                        | Default value                                            | Required |
+| --------------- | ---------------------------------- | -------------------------------------------------------- | -------- |
+| `CELESITA_HOME` | Home directory for the application | User home dir. [Ref](https://pkg.go.dev/os#UserHomeDir). | Optional |
 
 ### Create your own single node devnet
 
@@ -56,7 +64,7 @@ rm -r ~/.celestia-app
 ./scripts/single-node.sh
 
 # Post data to the local devnet
-celestia-appd tx blob payForBlob [hexNamespace] [hexMessage] [flags]
+celestia-appd tx blob PayForBlobs [hexNamespace] [hexBlob] [flags]
 ```
 
 <!-- markdown-link-check-disable -->
@@ -71,6 +79,8 @@ See <https://docs.celestia.org/category/celestia-app> for more information
 
 1. Install [golangci-lint](https://golangci-lint.run/usage/install/)
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint)
+1. Install [hadolint](https://github.com/hadolint/hadolint)
+1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)
 
 ### Helpful Commands
 

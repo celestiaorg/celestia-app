@@ -8,13 +8,13 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/testutil/namespace"
-	blob "github.com/celestiaorg/celestia-app/x/blob"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 type Context struct {
@@ -86,11 +86,10 @@ func (c *Context) WaitForNextBlock() error {
 	return err
 }
 
-// PostData will create and submit PFB transaction containing the message and
-// namespace. This function blocks until the PFB has been included in a block
-// and returns an error if the transaction is invalid or is rejected by the
-// mempool.
-func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.TxResponse, error) {
+// PostData will create and submit PFB transaction containing the namespace and
+// blobData. This function blocks until the PFB has been included in a block and
+// returns an error if the transaction is invalid or is rejected by the mempool.
+func (c *Context) PostData(account, broadcastMode string, ns, blobData []byte) (*sdk.TxResponse, error) {
 	opts := []types.TxBuilderOption{
 		types.SetGasLimit(100000000000000),
 	}
@@ -112,36 +111,43 @@ func (c *Context) PostData(account, broadcastMode string, ns, msg []byte) (*sdk.
 	signer.SetAccountNumber(acc)
 	signer.SetSequence(seq)
 
-	// create a random msg per row
-	pfb, err := blob.BuildPayForBlob(
-		c.rootCtx,
-		signer,
-		c.GRPCClient,
-		ns,
-		msg,
-		opts...,
+	blob, err := types.NewBlob(ns, blobData)
+	if err != nil {
+		return nil, err
+	}
+
+	msg, err := types.NewMsgPayForBlobs(
+		addr.String(),
+		blob,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	signed, err := blob.SignPayForBlob(signer, pfb, opts...)
+	builder := signer.NewTxBuilder(opts...)
+	stx, err := signer.BuildSignedTx(builder, msg)
 	if err != nil {
 		return nil, err
 	}
 
-	rawTx, err := signer.EncodeTx(signed)
+	rawTx, err := signer.EncodeTx(stx)
 	if err != nil {
 		return nil, err
 	}
+
+	blobTx, err := coretypes.MarshalBlobTx(rawTx, blob)
+	if err != nil {
+		return nil, err
+	}
+
 	var res *sdk.TxResponse
 	switch broadcastMode {
 	case flags.BroadcastSync:
-		res, err = c.BroadcastTxSync(rawTx)
+		res, err = c.BroadcastTxSync(blobTx)
 	case flags.BroadcastAsync:
-		res, err = c.BroadcastTxAsync(rawTx)
+		res, err = c.BroadcastTxAsync(blobTx)
 	case flags.BroadcastBlock:
-		res, err = c.BroadcastTxCommit(rawTx)
+		res, err = c.BroadcastTxCommit(blobTx)
 	default:
 		return nil, fmt.Errorf("unsupported broadcast mode %s; supported modes: sync, async, block", c.BroadcastMode)
 	}
@@ -167,13 +173,16 @@ func (c *Context) FillBlock(squareSize int, accounts []string, broadcastMode str
 	if broadcastMode == "" {
 		broadcastMode = flags.BroadcastBlock
 	}
-	maxShareCount := squareSize * squareSize
+	// in order to get the square size that we want, we need to fill half the
+	// square minus a few for the tx (see the square estimation logic in
+	// app/estimate_square_size.go)
+	shareCount := (squareSize * squareSize / 2) - 1
 	// we use a formula to guarantee that the tx is the exact size needed to force a specific square size.
-	msgSize := (maxShareCount - (2 * squareSize)) * appconsts.SparseShareContentSize
+	blobSize := shareCount * appconsts.ContinuationSparseShareContentSize
 	// this last patch allows for the formula above to work on a square size of
 	// 2.
-	if msgSize < 1 {
-		msgSize = 1
+	if blobSize < 1 {
+		blobSize = 1
 	}
-	return c.PostData(accounts[0], broadcastMode, namespace.RandomMessageNamespace(), tmrand.Bytes(msgSize))
+	return c.PostData(accounts[0], broadcastMode, namespace.RandomBlobNamespace(), tmrand.Bytes(blobSize))
 }

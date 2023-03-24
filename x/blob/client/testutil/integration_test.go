@@ -18,8 +18,9 @@ import (
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/celestiaorg/celestia-app/testutil/network"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	paycli "github.com/celestiaorg/celestia-app/x/blob/client/cli"
-	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
+	abci "github.com/tendermint/tendermint/abci/types"
 )
 
 // username is used to create a funded genesis account under this name
@@ -38,6 +39,9 @@ func NewIntegrationTestSuite(cfg cosmosnet.Config) *IntegrationTestSuite {
 }
 
 func (s *IntegrationTestSuite) SetupSuite() {
+	if testing.Short() {
+		s.T().Skip("skipping integration test in short mode.")
+	}
 	s.T().Log("setting up integration test suite")
 
 	net := network.New(s.T(), s.cfg, username)
@@ -59,8 +63,8 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 
 	// some hex namespace
 	hexNS := "0102030405060708"
-	// some hex message
-	hexMsg := "0204033704032c0b162109000908094d425837422c2116"
+	// some hex blob
+	hexBlob := "0204033704032c0b162109000908094d425837422c2116"
 
 	testCases := []struct {
 		name         string
@@ -73,7 +77,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 			"valid transaction",
 			[]string{
 				hexNS,
-				hexMsg,
+				hexBlob,
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
@@ -87,7 +91,7 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 		tc := tc
 		s.Require().NoError(s.network.WaitForNextBlock())
 		s.Run(tc.name, func() {
-			cmd := paycli.CmdWirePayForBlob()
+			cmd := paycli.CmdPayForBlob()
 			clientCtx := val.ClientCtx
 
 			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
@@ -111,24 +115,21 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 					signer := e.GetAttributes()[0].GetValue()
 					_, err = sdk.AccAddressFromBech32(signer)
 					require.NoError(err)
-					msg, err := hex.DecodeString(tc.args[1])
+					blob, err := hex.DecodeString(tc.args[1])
 					require.NoError(err)
-					msgSize, err := strconv.ParseInt(e.GetAttributes()[1].GetValue(), 10, 64)
+					blobSize, err := strconv.ParseInt(e.GetAttributes()[1].GetValue(), 10, 64)
 					require.NoError(err)
-					require.Equal(len(msg), int(msgSize))
+					require.Equal(len(blob), int(blobSize))
 				}
 			}
 
 			// wait for the tx to be indexed
 			s.Require().NoError(s.network.WaitForNextBlock())
 
-			// attempt to query for the malleated transaction using the original tx's hash
-			qTxCmd := authcmd.QueryTxCmd()
-			out, err = clitestutil.ExecTestCLICmd(clientCtx, qTxCmd, []string{txResp.TxHash, "--output=json"})
+			// attempt to query for the transaction using the tx's hash
+			res, err := testfactory.QueryWithoutProof(clientCtx, txResp.TxHash)
 			require.NoError(err)
-
-			var result sdk.TxResponse
-			s.Require().NoError(val.ClientCtx.Codec.UnmarshalJSON(out.Bytes(), &result))
+			require.Equal(abci.CodeTypeOK, res.TxResult.Code)
 		})
 	}
 }

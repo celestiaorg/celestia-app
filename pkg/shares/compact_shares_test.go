@@ -7,23 +7,25 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func TestCompactShareWriter(t *testing.T) {
+func TestCompactShareSplitter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
 	// tests occur in TestMerge and Test_processCompactShares
-	w := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
-	txs := generateRandomTransaction(33, 200)
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+	txs := testfactory.GenerateRandomTxs(33, 200)
 	for _, tx := range txs {
-		rawTx, _ := MarshalDelimitedTx(tx)
-		w.WriteBytes(rawTx)
+		err := css.WriteTx(tx)
+		require.NoError(t, err)
 	}
-	shares := w.Export()
-	rawShares := ToBytes(shares)
-	rawResTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
+	shares, _, err := css.Export(0)
+	require.NoError(t, err)
+
+	rawResTxs, err := parseCompactShares(shares, appconsts.SupportedShareVersions)
 	resTxs := coretypes.ToTxs(rawResTxs)
 	require.NoError(t, err)
 
@@ -50,7 +52,7 @@ func Test_processCompactShares(t *testing.T) {
 	// share, accounting for the tx length delimiter prepended to
 	// each tx. Note that the length delimiter can be 1 to 10 bytes (varint) but
 	// this test assumes it is 1 byte.
-	const exactTxShareSize = appconsts.ContinuationCompactShareContentSize - 1
+	const exactTxShareSize = appconsts.FirstCompactShareContentSize - 1
 
 	type test struct {
 		name    string
@@ -74,12 +76,12 @@ func Test_processCompactShares(t *testing.T) {
 
 		// run the tests with identically sized txs
 		t.Run(fmt.Sprintf("%s idendically sized", tc.name), func(t *testing.T) {
-			txs := generateRandomTransaction(tc.txCount, tc.txSize)
+			txs := testfactory.GenerateRandomTxs(tc.txCount, tc.txSize)
 
-			shares := SplitTxs(txs)
-			rawShares := ToBytes(shares)
+			shares, _, _, err := SplitTxs(txs)
+			require.NoError(t, err)
 
-			parsedTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
+			parsedTxs, err := parseCompactShares(shares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
 			}
@@ -92,12 +94,11 @@ func Test_processCompactShares(t *testing.T) {
 
 		// run the same tests using randomly sized txs with caps of tc.txSize
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
-			txs := generateRandomlySizedTransactions(tc.txCount, tc.txSize)
+			txs := testfactory.GenerateRandomlySizedTxs(tc.txCount, tc.txSize)
 
-			shares := SplitTxs(txs)
-			rawShares := ToBytes(shares)
-
-			parsedTxs, err := parseCompactShares(rawShares, appconsts.SupportedShareVersions)
+			txShares, _, _, err := SplitTxs(txs)
+			require.NoError(t, err)
+			parsedTxs, err := parseCompactShares(txShares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
 			}
@@ -111,40 +112,44 @@ func Test_processCompactShares(t *testing.T) {
 }
 
 func TestCompactShareContainsInfoByte(t *testing.T) {
-	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
-	txs := generateRandomTransaction(1, appconsts.ContinuationCompactShareContentSize/4)
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+	txs := testfactory.GenerateRandomTxs(1, appconsts.ContinuationCompactShareContentSize/4)
 
 	for _, tx := range txs {
-		css.WriteTx(tx)
+		err := css.WriteTx(tx)
+		require.NoError(t, err)
 	}
 
-	shares := css.Export()
+	shares, _, err := css.Export(0)
+	require.NoError(t, err)
 	assert.Condition(t, func() bool { return len(shares) == 1 })
 
-	infoByte := shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
+	infoByte := shares[0].data[appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
 	isSequenceStart := true
-	want, err := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
+	want, err := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
 
 	require.NoError(t, err)
 	assert.Equal(t, byte(want), infoByte)
 }
 
 func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
-	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersion)
-	txs := generateRandomTransaction(1, appconsts.ContinuationCompactShareContentSize*4)
+	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+	txs := testfactory.GenerateRandomTxs(1, appconsts.ContinuationCompactShareContentSize*4)
 
 	for _, tx := range txs {
-		css.WriteTx(tx)
+		err := css.WriteTx(tx)
+		require.NoError(t, err)
 	}
 
-	shares := css.Export()
+	shares, _, err := css.Export(0)
+	require.NoError(t, err)
 	assert.Condition(t, func() bool { return len(shares) > 1 })
 
-	infoByte := shares[1][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
+	infoByte := shares[1].data[appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0]
 
 	isSequenceStart := false
-	want, err := NewInfoByte(appconsts.ShareVersion, isSequenceStart)
+	want, err := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
 
 	require.NoError(t, err)
 	assert.Equal(t, byte(want), infoByte)
@@ -152,33 +157,39 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 
 func Test_parseCompactSharesErrors(t *testing.T) {
 	type testCase struct {
-		name      string
-		rawShares [][]byte
+		name   string
+		shares []Share
 	}
 
-	txs := generateRandomTransaction(2, appconsts.ContinuationCompactShareContentSize*4)
-	shares := SplitTxs(txs)
-	rawShares := ToBytes(shares)
+	txs := testfactory.GenerateRandomTxs(2, appconsts.ContinuationCompactShareContentSize*4)
+	txShares, _, _, err := SplitTxs(txs)
+	require.NoError(t, err)
+	rawShares := ToBytes(txShares)
 
 	unsupportedShareVersion := 5
 	infoByte, _ := NewInfoByte(uint8(unsupportedShareVersion), true)
-	shareWithUnsupportedShareVersion := rawShares[0]
-	shareWithUnsupportedShareVersion[appconsts.NamespaceSize] = byte(infoByte)
+	shareWithUnsupportedShareVersionBytes := rawShares[0]
+	shareWithUnsupportedShareVersionBytes[appconsts.NamespaceSize] = byte(infoByte)
+
+	shareWithUnsupportedShareVersion, err := newShare(shareWithUnsupportedShareVersionBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	testCases := []testCase{
 		{
 			"share with start indicator false",
-			rawShares[1:], // set the first share to the second share which has the start indicator set to false
+			txShares[1:], // set the first share to the second share which has the start indicator set to false
 		},
 		{
 			"share with unsupported share version",
-			[][]byte{shareWithUnsupportedShareVersion},
+			[]Share{*shareWithUnsupportedShareVersion},
 		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := parseCompactShares(tt.rawShares, appconsts.SupportedShareVersions)
+			_, err := parseCompactShares(tt.shares, appconsts.SupportedShareVersions)
 			assert.Error(t, err)
 		})
 	}

@@ -8,7 +8,7 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
-func RandomMessageNamespace() nmtnamespace.ID {
+func RandomBlobNamespace() nmtnamespace.ID {
 	for {
 		ns := tmrand.Bytes(8)
 		isReservedNS := bytes.Compare(ns, appconsts.MaxReservedNamespace) <= 0
@@ -19,4 +19,12 @@ func RandomMessageNamespace() nmtnamespace.ID {
 		}
 		return ns
 	}
+}
+
+func RandomBlobNamespaces(count int) [][]byte {
+	namespaces := make([][]byte, count)
+	for i := 0; i < count; i++ {
+		namespaces[i] = RandomBlobNamespace()
+	}
+	return namespaces
 }

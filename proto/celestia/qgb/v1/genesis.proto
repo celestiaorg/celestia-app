@@ -1,0 +1,18 @@
+syntax = "proto3";
+package celestia.qgb.v1;
+
+import "gogoproto/gogo.proto";
+import "celestia/qgb/v1/types.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/qgb/types";
+
+// Params represent the Quantum Gravity Bridge genesis and store parameters.
+message Params {
+  option (gogoproto.stringer) = false;
+
+  uint64 data_commitment_window = 1;
+}
+
+// GenesisState struct, containing all persistent data required by the Gravity
+// module
+message GenesisState { Params params = 1; }

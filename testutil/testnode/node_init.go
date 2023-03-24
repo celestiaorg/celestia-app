@@ -13,12 +13,10 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/genutil"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
@@ -31,31 +29,9 @@ import (
 	tmtime "github.com/tendermint/tendermint/types/time"
 )
 
-func fundKeyringAccounts(cdc codec.Codec, accounts ...string) (keyring.Keyring, []banktypes.Balance, []authtypes.GenesisAccount) {
-	kb := keyring.NewInMemory(cdc)
-	genAccounts := make([]authtypes.GenesisAccount, len(accounts))
-	genBalances := make([]banktypes.Balance, len(accounts))
-
-	for i, acc := range accounts {
-		rec, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
-		if err != nil {
-			panic(err)
-		}
-
-		addr, err := rec.GetAddress()
-		if err != nil {
-			panic(err)
-		}
-
-		balances := sdk.NewCoins(
-			sdk.NewCoin(app.BondDenom, sdk.NewInt(99999999999999999)),
-		)
-
-		genBalances[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}
-		genAccounts[i] = authtypes.NewBaseAccount(addr, nil, 0, 0)
-	}
-	return kb, genBalances, genAccounts
-}
+// NodeEVMPrivateKey the key used to initialize the test node validator.
+// Its corresponding address is: "0x9c2B12b5a07FC6D719Ed7646e5041A7E85758329".
+var NodeEVMPrivateKey, _ = crypto.HexToECDSA("64a1d6f0e760a8d62b4afdde4096f16f51b401eaaecc915740f71770ea76a8ad")
 
 func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey cryptotypes.PubKey, nodeID, chainID, rootDir string) error {
 	genTime := tmtime.Now()
@@ -101,30 +77,9 @@ func initGenFiles(
 	cparams *tmproto.ConsensusParams,
 	state map[string]json.RawMessage,
 	codec codec.Codec,
-	genAccounts []authtypes.GenesisAccount,
-	genBalances []banktypes.Balance,
 	file,
 	chainID string,
 ) error {
-	// set the accounts in the genesis state
-	var authGenState authtypes.GenesisState
-	codec.MustUnmarshalJSON(state[authtypes.ModuleName], &authGenState)
-
-	accounts, err := authtypes.PackAccounts(genAccounts)
-	if err != nil {
-		return err
-	}
-
-	authGenState.Accounts = append(authGenState.Accounts, accounts...)
-	state[authtypes.ModuleName] = codec.MustMarshalJSON(&authGenState)
-
-	// set the balances in the genesis state
-	var bankGenState banktypes.GenesisState
-	codec.MustUnmarshalJSON(state[banktypes.ModuleName], &bankGenState)
-
-	bankGenState.Balances = append(bankGenState.Balances, genBalances...)
-	state[banktypes.ModuleName] = codec.MustMarshalJSON(&bankGenState)
-
 	appGenStateJSON, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return err
@@ -169,11 +124,7 @@ func createValidator(
 	if err != nil {
 		return err
 	}
-	ethPrivateKey, err := crypto.GenerateKey()
-	if err != nil {
-		return err
-	}
-	orchEVMPublicKey := ethPrivateKey.Public().(*ecdsa.PublicKey)
+	orchEVMPublicKey := NodeEVMPrivateKey.Public().(*ecdsa.PublicKey)
 	evmAddr := crypto.PubkeyToAddress(*orchEVMPublicKey)
 
 	createValMsg, err := stakingtypes.NewMsgCreateValidator(
@@ -183,7 +134,6 @@ func createValidator(
 		stakingtypes.NewDescription("test", "", "", "", ""),
 		stakingtypes.NewCommissionRates(commission, sdk.OneDec(), sdk.OneDec()),
 		sdk.OneInt(),
-		addr,
 		evmAddr,
 	)
 	if err != nil {
@@ -243,9 +193,6 @@ func initFileStructure(t *testing.T, tmCfg *config.Config) (string, error) {
 	tmCfg.SetRoot(basePath)
 	configPath := filepath.Join(basePath, "config")
 	err := os.MkdirAll(configPath, os.ModePerm)
-	if err != nil {
-		return "", err
-	}
 	if err != nil {
 		return "", err
 	}
