@@ -7,7 +7,7 @@
 
 ## Status
 
-Implemented in https://github.com/celestiaorg/celestia-core/pull/893 and https://github.com/celestiaorg/celestia-app/pull/1089.
+Implemented in <https://github.com/celestiaorg/celestia-core/pull/893> and <https://github.com/celestiaorg/celestia-app/pull/1089>.
 
 ## Context
 
@@ -33,7 +33,6 @@ See [celestia-core#607](https://github.com/celestiaorg/celestia-core/pull/607) a
 ## Alternative Approaches
 
 Preserve existing `WireMsgPayForBlob` and `MsgPayForBlob`.
-
 
 ## Detailed Design
 
@@ -105,7 +104,6 @@ Assume a user wants to publish the data "hello world" to the namespace: `1111111
     ```
 
 2. In celestia-core, remove [`MalleatedTx`](https://github.com/celestiaorg/celestia-core/blob/b7a7c1ab37fde91f9687b5c1c4766119e7b71db5/proto/tendermint/types/types.pb.go#L1468).
-
 
 ## Consequences
 
