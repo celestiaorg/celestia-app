@@ -1,5 +1,5 @@
 # stage 1 Generate celestia-appd Binary
-FROM docker.io/golang:1.18.10-alpine3.17 as builder
+FROM docker.io/golang:1.19.7-alpine3.17 as builder
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
     gcc \
@@ -21,14 +21,14 @@ ENV CELESTIA_HOME=/home/${USER_NAME}
 
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
-        bash \
+    bash \
     # Creates a user with $UID and $GID=$UID
     && adduser ${USER_NAME} \
-        -D \
-        -g "celestia" \
-        -h ${CELESTIA_HOME} \
-        -s /sbin/nologin \
-        -u ${UID}
+    -D \
+    -g "celestia" \
+    -h ${CELESTIA_HOME} \
+    -s /sbin/nologin \
+    -u ${UID}
 
 # Copy in the binary
 COPY --from=builder /celestia-app/build/celestia-appd /bin/celestia-appd
