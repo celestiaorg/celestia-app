@@ -1,0 +1,16 @@
+[book]
+authors = ["Celestia Labs"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Celestia App Specifications"
+
+[output.html]
+git-repository-url = "https://github.com/celestiaorg/celestia-app"
+
+[rust]
+edition = "2021"
+
+[preprocessor.toc]
+command = "mdbook-toc"
+renderer = ["html"]

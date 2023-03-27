@@ -148,7 +148,10 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 	// equal to the minimum square size the blob can be included in. See
 	// https://github.com/celestiaorg/celestia-app/blob/fbfbf111bcaa056e53b0bc54d327587dee11a945/docs/architecture/adr-008-blocksize-independent-commitment.md
 	minSquareSize := BlobMinSquareSize(len(blob.Data))
-	treeSizes := merkleMountainRangeSizes(uint64(len(shares)), uint64(minSquareSize))
+	treeSizes, err := merkleMountainRangeSizes(uint64(len(shares)), uint64(minSquareSize))
+	if err != nil {
+		return nil, err
+	}
 	leafSets := make([][][]byte, len(treeSizes))
 	cursor := uint64(0)
 	for i, treeSize := range treeSizes {
@@ -275,7 +278,7 @@ func BlobMinSquareSize[T constraints.Integer](blobSize T) T {
 // https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/
 // https://github.com/opentimestamps/opentimestamps-server/blob/master/doc/merkle-mountain-range.md
 // TODO: potentially rename function because this doesn't return heights
-func merkleMountainRangeSizes(totalSize, maxTreeSize uint64) []uint64 {
+func merkleMountainRangeSizes(totalSize, maxTreeSize uint64) ([]uint64, error) {
 	var treeSizes []uint64
 
 	for totalSize != 0 {
@@ -284,11 +287,14 @@ func merkleMountainRangeSizes(totalSize, maxTreeSize uint64) []uint64 {
 			treeSizes = append(treeSizes, maxTreeSize)
 			totalSize = totalSize - maxTreeSize
 		case totalSize < maxTreeSize:
-			treeSize := appshares.RoundDownPowerOfTwo(totalSize)
+			treeSize, err := appshares.RoundDownPowerOfTwo(totalSize)
+			if err != nil {
+				return treeSizes, err
+			}
 			treeSizes = append(treeSizes, treeSize)
 			totalSize = totalSize - treeSize
 		}
 	}
 
-	return treeSizes
+	return treeSizes, nil
 }

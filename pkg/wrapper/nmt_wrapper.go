@@ -81,6 +81,11 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) {
 	if w.axisIndex+1 > 2*w.squareSize || w.shareIndex+1 > 2*w.squareSize {
 		panic(fmt.Sprintf("pushed past predetermined square size: boundary at %d index at %d %d", 2*w.squareSize, w.axisIndex, w.shareIndex))
 	}
+	if len(data) < appconsts.NamespaceSize {
+		// TODO: consider adding an error return parameter to the rsmt.Tree interface for Push
+		// https://github.com/celestiaorg/rsmt2d/issues/156
+		panic("data is too short to contain namespace ID")
+	}
 	nidAndData := make([]byte, appconsts.NamespaceSize+len(data))
 	copy(nidAndData[appconsts.NamespaceSize:], data)
 	// use the parity namespace if the cell is not in Q0 of the extended data square

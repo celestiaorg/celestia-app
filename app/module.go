@@ -9,10 +9,17 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
+	distrclient "github.com/cosmos/cosmos-sdk/x/distribution/client"
+	"github.com/cosmos/cosmos-sdk/x/gov"
+	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"github.com/cosmos/cosmos-sdk/x/mint"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
+	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
+	ibcclientclient "github.com/cosmos/ibc-go/v6/modules/core/02-client/client"
 )
 
 // bankModule defines a custom wrapper around the x/bank module's AppModuleBasic
@@ -88,4 +95,35 @@ func (mintModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genState.Params.MintDenom = BondDenom
 
 	return cdc.MustMarshalJSON(genState)
+}
+
+func newGovModule() govModule {
+	return govModule{gov.NewAppModuleBasic(getLegacyProposalHandlers())}
+}
+
+// govModule is a custom wrapper around the x/gov module's AppModuleBasic
+// implementation to provide custom default genesis state.
+type govModule struct {
+	gov.AppModuleBasic
+}
+
+// DefaultGenesis returns custom x/gov module genesis state.
+func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
+	genState := govtypes.DefaultGenesisState()
+	genState.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(BondDenom, sdk.NewInt(10000000)))
+
+	return cdc.MustMarshalJSON(genState)
+}
+
+func getLegacyProposalHandlers() (result []govclient.ProposalHandler) {
+	result = append(result,
+		paramsclient.ProposalHandler,
+		distrclient.ProposalHandler,
+		upgradeclient.LegacyProposalHandler,
+		upgradeclient.LegacyCancelProposalHandler,
+		ibcclientclient.UpdateClientProposalHandler,
+		ibcclientclient.UpgradeProposalHandler,
+	)
+
+	return result
 }

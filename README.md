@@ -1,6 +1,7 @@
 # celestia-app
 
 [![Go Reference](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/celestiaorg/celestia-app)
+[![mdBook Specs](https://img.shields.io/badge/mdBook-specs-blue)](https://celestiaorg.github.io/celestia-app/)
 [![GitHub Release](https://img.shields.io/github/v/release/celestiaorg/celestia-app)](https://github.com/celestiaorg/celestia-app/releases/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/celestia-app)](https://goreportcard.com/report/github.com/celestiaorg/celestia-app)
 [![Lint](https://github.com/celestiaorg/celestia-app/actions/workflows/lint.yml/badge.svg)](https://github.com/celestiaorg/celestia-app/actions/workflows/lint.yml)
@@ -32,7 +33,7 @@ node            |  |                               |  |
 
 ## Install
 
-1. [Install Go](https://go.dev/doc/install) 1.18+
+1. [Install Go](https://go.dev/doc/install) 1.19
 1. Clone this repo
 1. Install the celestia-app CLI
 
@@ -46,6 +47,12 @@ node            |  |                               |  |
 # Print help
 celestia-appd --help
 ```
+
+### Environment variables
+
+| Variable        | Explanation                        | Default value                                            | Required |
+| --------------- | ---------------------------------- | -------------------------------------------------------- | -------- |
+| `CELESITA_HOME` | Home directory for the application | User home dir. [Ref](https://pkg.go.dev/os#UserHomeDir). | Optional |
 
 ### Create your own single node devnet
 
@@ -72,6 +79,8 @@ See <https://docs.celestia.org/category/celestia-app> for more information
 
 1. Install [golangci-lint](https://golangci-lint.run/usage/install/)
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint)
+1. Install [hadolint](https://github.com/hadolint/hadolint)
+1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)
 
 ### Helpful Commands
 

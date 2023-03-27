@@ -122,16 +122,17 @@ func Test_sparseSharesNeeded(t *testing.T) {
 	}
 }
 
-func shareWithData(namespace namespace.ID, isSequenceStart bool, sequenceLen uint32, data []byte) (rawShare []byte) {
+func shareWithData(namespace namespace.ID, isSequenceStart bool, sequenceLen uint32, data []byte) (rawShare Share) {
 	infoByte, _ := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
-	rawShare = append(rawShare, namespace...)
-	rawShare = append(rawShare, byte(infoByte))
+	rawShareBytes := make([]byte, 0, appconsts.ShareSize)
+	rawShareBytes = append(rawShareBytes, namespace...)
+	rawShareBytes = append(rawShareBytes, byte(infoByte))
 	if isSequenceStart {
 		sequenceLenBuf := make([]byte, appconsts.SequenceLenBytes)
 		binary.BigEndian.PutUint32(sequenceLenBuf, sequenceLen)
-		rawShare = append(rawShare, sequenceLenBuf...)
+		rawShareBytes = append(rawShareBytes, sequenceLenBuf...)
 	}
-	rawShare = append(rawShare, data...)
+	rawShareBytes = append(rawShareBytes, data...)
 
-	return padShare(rawShare)
+	return padShare(Share{data: rawShareBytes})
 }
