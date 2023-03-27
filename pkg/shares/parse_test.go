@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
 )
@@ -17,7 +18,7 @@ import (
 func TestParseShares(t *testing.T) {
 	type testCase struct {
 		name      string
-		shares    [][]byte
+		shares    []Share
 		want      []ShareSequence
 		expectErr bool
 	}
@@ -26,7 +27,8 @@ func TestParseShares(t *testing.T) {
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 	namespaceTwo := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 
-	txShares, _, _ := SplitTxs(generateRandomTxs(2, 1000))
+	txShares, _, _, err := SplitTxs(generateRandomTxs(2, 1000))
+	require.NoError(t, err)
 	txShareStart := txShares[0]
 	txShareContinuation := txShares[1]
 
@@ -44,8 +46,7 @@ func TestParseShares(t *testing.T) {
 	blobTwoStart := blobTwoShares[0]
 	blobTwoContinuation := blobTwoShares[1]
 
-	invalidShare := generateRawShare(ns1, start, 1)
-	invalidShare = append(invalidShare, []byte{0}...) // invalidShare is now longer than the length of a valid share
+	invalidShare := Share{data: append(generateRawShare(ns1, start, 1), []byte{0}...)} // invalidShare is now longer than the length of a valid share
 
 	largeSequenceLen := 1000 // it takes more than one share to store a sequence of 1000 bytes
 	oneShareWithTooLargeSequenceLen := generateRawShare(ns1, start, uint32(largeSequenceLen))
@@ -56,37 +57,37 @@ func TestParseShares(t *testing.T) {
 	tests := []testCase{
 		{
 			"empty",
-			[][]byte{},
+			[]Share{},
 			[]ShareSequence{},
 			false,
 		},
 		{
 			"one transaction share",
-			[][]byte{txShareStart},
+			[]Share{txShareStart},
 			[]ShareSequence{{Namespace: appns.TxNamespaceID, Shares: []Share{txShareStart}}},
 			false,
 		},
 		{
 			"two transaction shares",
-			[][]byte{txShareStart, txShareContinuation},
+			[]Share{txShareStart, txShareContinuation},
 			[]ShareSequence{{Namespace: appns.TxNamespaceID, Shares: []Share{txShareStart, txShareContinuation}}},
 			false,
 		},
 		{
 			"one blob share",
-			[][]byte{blobOneStart},
+			[]Share{blobOneStart},
 			[]ShareSequence{{Namespace: ns1, Shares: []Share{blobOneStart}}},
 			false,
 		},
 		{
 			"two blob shares",
-			[][]byte{blobOneStart, blobOneContinuation},
+			[]Share{blobOneStart, blobOneContinuation},
 			[]ShareSequence{{Namespace: ns1, Shares: []Share{blobOneStart, blobOneContinuation}}},
 			false,
 		},
 		{
 			"two blobs with two shares each",
-			[][]byte{blobOneStart, blobOneContinuation, blobTwoStart, blobTwoContinuation},
+			[]Share{blobOneStart, blobOneContinuation, blobTwoStart, blobTwoContinuation},
 			[]ShareSequence{
 				{Namespace: ns1, Shares: []Share{blobOneStart, blobOneContinuation}},
 				{Namespace: namespaceTwo, Shares: []Share{blobTwoStart, blobTwoContinuation}},
@@ -95,7 +96,7 @@ func TestParseShares(t *testing.T) {
 		},
 		{
 			"one transaction, one blob",
-			[][]byte{txShareStart, blobOneStart},
+			[]Share{txShareStart, blobOneStart},
 			[]ShareSequence{
 				{Namespace: appns.TxNamespaceID, Shares: []Share{txShareStart}},
 				{Namespace: ns1, Shares: []Share{blobOneStart}},
@@ -104,7 +105,7 @@ func TestParseShares(t *testing.T) {
 		},
 		{
 			"one transaction, two blobs",
-			[][]byte{txShareStart, blobOneStart, blobTwoStart},
+			[]Share{txShareStart, blobOneStart, blobTwoStart},
 			[]ShareSequence{
 				{Namespace: appns.TxNamespaceID, Shares: []Share{txShareStart}},
 				{Namespace: ns1, Shares: []Share{blobOneStart}},
@@ -114,25 +115,25 @@ func TestParseShares(t *testing.T) {
 		},
 		{
 			"one share with invalid size",
-			[][]byte{invalidShare},
+			[]Share{invalidShare},
 			[]ShareSequence{},
 			true,
 		},
 		{
 			"blob one start followed by blob two continuation",
-			[][]byte{blobOneStart, blobTwoContinuation},
+			[]Share{blobOneStart, blobTwoContinuation},
 			[]ShareSequence{},
 			true,
 		},
 		{
 			"one share with too large sequence length",
-			[][]byte{oneShareWithTooLargeSequenceLen},
+			[]Share{{data: oneShareWithTooLargeSequenceLen}},
 			[]ShareSequence{},
 			true,
 		},
 		{
 			"one share with too short sequence length",
-			[][]byte{oneShareWithTooShortSequenceLen},
+			[]Share{{data: oneShareWithTooShortSequenceLen}},
 			[]ShareSequence{},
 			true,
 		},
@@ -164,7 +165,7 @@ func generateRawShare(namespace appns.Namespace, isSequenceStart bool, sequenceL
 	return padWithRandomBytes(rawShare)
 }
 
-func padWithRandomBytes(partialShare Share) (paddedShare Share) {
+func padWithRandomBytes(partialShare []byte) (paddedShare []byte) {
 	paddedShare = make([]byte, appconsts.ShareSize)
 	copy(paddedShare, partialShare)
 	rand.Read(paddedShare[len(partialShare):])

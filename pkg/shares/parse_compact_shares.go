@@ -1,13 +1,6 @@
 package shares
 
-import (
-	"bytes"
-	"encoding/binary"
-	"errors"
-	"fmt"
-
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-)
+import "errors"
 
 // parseCompactShares returns data (transactions or intermediate state roots
 // based on the contents of rawShares and supportedShareVersions. If rawShares
@@ -15,94 +8,76 @@ import (
 // an error is returned. The returned data [][]byte does not have namespaces,
 // info bytes, data length delimiter, or unit length delimiters and are ready to
 // be unmarshalled.
-func parseCompactShares(rawShares [][]byte, supportedShareVersions []uint8) (data [][]byte, err error) {
-	if len(rawShares) == 0 {
+func parseCompactShares(shares []Share, supportedShareVersions []uint8) (data [][]byte, err error) {
+	if len(shares) == 0 {
 		return nil, nil
 	}
-	shares := FromBytes(rawShares)
-	for _, share := range shares {
-		infoByte, err := share.InfoByte()
+
+	seqStart, err := shares[0].IsSequenceStart()
+	if err != nil {
+		return nil, err
+	}
+	if !seqStart {
+		return nil, errors.New("first share is not the start of a sequence")
+	}
+
+	err = validateShareVersions(shares, supportedShareVersions)
+	if err != nil {
+		return nil, err
+	}
+
+	rawData, err := extractRawData(shares)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err = parseRawData(rawData)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+// validateShareVersions returns an error if the shares contain a share with an
+// unsupported share version. Returns nil if all shares contain supported share
+// versions.
+func validateShareVersions(shares []Share, supportedShareVersions []uint8) error {
+	for i := 0; i < len(shares); i++ {
+		if err := shares[i].DoesSupportVersions(supportedShareVersions); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// parseRawData returns the units (transactions, PFB transactions, intermediate
+// state roots) contained in raw data by parsing the unit length delimiter
+// prefixed to each unit.
+func parseRawData(rawData []byte) (units [][]byte, err error) {
+	units = make([][]byte, 0)
+	for {
+		actualData, unitLen, err := ParseDelimiter(rawData)
 		if err != nil {
 			return nil, err
 		}
-		if !bytes.Contains(supportedShareVersions, []byte{infoByte.Version()}) {
-			return nil, fmt.Errorf("unsupported share version %v is not present in the list of supported share versions %v", infoByte.Version(), supportedShareVersions)
-		}
-	}
-
-	ss := newShareStack(rawShares)
-	return ss.resolve()
-}
-
-// shareStack holds variables for peel
-type shareStack struct {
-	shares  [][]byte
-	dataLen uint64
-	// data may be transactions or intermediate state roots depending
-	// on the namespace ID for this share
-	data   [][]byte
-	cursor int
-}
-
-func newShareStack(shares [][]byte) *shareStack {
-	return &shareStack{shares: shares}
-}
-
-func (ss *shareStack) resolve() ([][]byte, error) {
-	if len(ss.shares) == 0 {
-		return nil, nil
-	}
-	infoByte, err := ParseInfoByte(ss.shares[0][appconsts.NamespaceSize : appconsts.NamespaceSize+appconsts.ShareInfoBytes][0])
-	if err != nil {
-		panic(err)
-	}
-	if !infoByte.IsSequenceStart() {
-		return nil, errors.New("first share is not the start of a sequence")
-	}
-	err = ss.peel(ss.shares[0][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.SequenceLenBytes+appconsts.CompactShareReservedBytes:], true)
-	return ss.data, err
-}
-
-// peel recursively parses each unit of data (either a transaction or
-// intermediate state root) and adds it to the underlying slice of data.
-// delimited should be `true` if this is the start of the next unit of data (in
-// other words the data contains a unitLen delimiter prefixed to the unit).
-// delimited should be `false` if calling peel on an in-progress unit.
-func (ss *shareStack) peel(share []byte, delimited bool) (err error) {
-	if delimited {
-		var unitLen uint64
-		share, unitLen, err = ParseDelimiter(share)
-		if err != nil {
-			return err
-		}
 		if unitLen == 0 {
-			return nil
+			return units, nil
 		}
-		ss.dataLen = unitLen
+		rawData = actualData[unitLen:]
+		units = append(units, actualData[:unitLen])
 	}
-	// safeLen describes the point in the share where it can be safely split. If
-	// split beyond this point, it is possible to break apart a length
-	// delimiter, which will result in incorrect share merging
-	safeLen := len(share) - binary.MaxVarintLen64
-	if safeLen < 0 {
-		safeLen = 0
+}
+
+// extractRawData returns the raw data contained in the shares. The raw data does
+// not contain the namespace ID, info byte, sequence length, or reserved bytes.
+func extractRawData(shares []Share) (rawData []byte, err error) {
+	for i := 0; i < len(shares); i++ {
+		raw, err := shares[i].RawData()
+		if err != nil {
+			return nil, err
+		}
+		rawData = append(rawData, raw...)
 	}
-	if ss.dataLen <= uint64(safeLen) {
-		ss.data = append(ss.data, share[:ss.dataLen])
-		share = share[ss.dataLen:]
-		return ss.peel(share, true)
-	}
-	// add the next share to the current share to continue merging if possible
-	if len(ss.shares) > ss.cursor+1 {
-		ss.cursor++
-		share := append(share, ss.shares[ss.cursor][appconsts.NamespaceSize+appconsts.ShareInfoBytes+appconsts.CompactShareReservedBytes:]...)
-		return ss.peel(share, false)
-	}
-	// collect any remaining data
-	if ss.dataLen <= uint64(len(share)) {
-		ss.data = append(ss.data, share[:ss.dataLen])
-		share = share[ss.dataLen:]
-		return ss.peel(share, true)
-	}
-	return errors.New("failure to parse block data: transaction length exceeded data length")
+	return rawData, nil
 }

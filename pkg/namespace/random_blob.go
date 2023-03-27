@@ -4,15 +4,18 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
+func RandomBlobNamespaceID() []byte {
+	return tmrand.Bytes(NamespaceVersionZeroIDSize)
+}
+
 func RandomBlobNamespace() Namespace {
 	for {
-		randomID := tmrand.Bytes(NamespaceVersionZeroIDSize)
-		namespace := MustNewV0(randomID)
-
-		if namespace.IsReserved() || namespace.IsParityShares() || namespace.IsTailPadding() {
+		id := RandomBlobNamespaceID()
+		namespace := MustNewV0(id)
+		err := namespace.ValidateBlobNamespace()
+		if err != nil {
 			continue
 		}
-
 		return namespace
 	}
 }

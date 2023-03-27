@@ -66,12 +66,12 @@ While not directly supported, the steps in the [`SubmitPayForBlob`](https://gith
 
 <!-- markdownlint-enable MD010 -->
 
-### How is the `ShareCommitment` generated?
+### How is the `ShareCommitment` of a blob generated?
 
-1. For each blob in the `BlobTx`:
-    1. Split the blob into shares of size `appconsts.ShareSize`
-    1. Determine the `BlobMinSquareSize` (the minimum square size the blob can fit into). This is done by taking the number of shares from the previous step and rounding up to the next perfect square that is a power of two.
-    1. Arrange the shares into a Merkle mountain range where each tree in the mountain range has a maximum size of the `BlobMinSquareSize`.
-    1. Take the roots of the trees in the Merkle mountain range and create a new Merkle tree.
-    1. The share commitment of this blob is the Merkle root of the Merkle tree from the previous step.
-1. Compose a Merkle tree where the leaves are all the share commitments from the previous step. The share commitment of the `BlobTx` is the Merkle root of this tree.
+See [`CreateCommitment`](https://github.com/celestiaorg/celestia-app/blob/ead76d2bb607ac8a2deaba552de86d4df74a116b/x/blob/types/payforblob.go#L133).
+
+1. Split the blob into shares of size `appconsts.ShareSize`
+1. Determine the `BlobMinSquareSize` (the minimum square size the blob can fit into). This is done by taking the number of shares from the previous step and rounding up to the next perfect square that is a power of two.
+1. Arrange the shares into a Merkle mountain range where each tree in the mountain range has a maximum size of the `BlobMinSquareSize`. Note: each share is prefixed with a duplicate copy of the namespace so that the roots in the next step match up with the subtree roots of the NMT of the data square.
+1. Take the roots of the trees in the Merkle mountain range and create a new Merkle tree.
+1. The share commitment of this blob is the Merkle root of the Merkle tree from the previous step.

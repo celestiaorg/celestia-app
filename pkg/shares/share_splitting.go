@@ -30,7 +30,10 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 	wantShareCount := int(data.SquareSize * data.SquareSize)
 	currentShareCount := 0
 
-	txShares, pfbTxShares, _ := SplitTxs(data.Txs)
+	txShares, pfbTxShares, _, err := SplitTxs(data.Txs)
+	if err != nil {
+		return nil, err
+	}
 	currentShareCount += len(txShares) + len(pfbTxShares)
 	// blobIndexes will be nil if we are working with a list of txs that do not
 	// have a blob index. This preserves backwards compatibility with old blocks
@@ -53,7 +56,10 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 			panic(fmt.Sprintf("blobShareStart %v < currentShareCount %v", blobShareStart, currentShareCount))
 		}
 
-		padding = NamespacePaddingShares(appns.ReservedPaddingNamespaceID, blobShareStart-currentShareCount)
+		padding, err = NamespacePaddingShares(appns.ReservedPaddingNamespaceID, blobShareStart-currentShareCount)
+		if err != nil {
+			return nil, err
+		}
 	}
 	currentShareCount += len(padding)
 
@@ -66,7 +72,10 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 		return nil, err
 	}
 	currentShareCount += len(blobShares)
-	tailShares := TailPaddingShares(wantShareCount - currentShareCount)
+	tailShares, err := TailPaddingShares(wantShareCount - currentShareCount)
+	if err != nil {
+		return nil, err
+	}
 	shares := make([]Share, 0, data.SquareSize*data.SquareSize)
 	shares = append(append(append(append(append(
 		shares,
@@ -102,22 +111,32 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 	return shareIndexes
 }
 
-func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRanges map[coretypes.TxKey]ShareRange) {
+func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRanges map[coretypes.TxKey]ShareRange, err error) {
 	txWriter := NewCompactShareSplitter(appns.TxNamespaceID, appconsts.ShareVersionZero)
 	pfbTxWriter := NewCompactShareSplitter(appns.PayForBlobNamespaceID, appconsts.ShareVersionZero)
 
 	for _, tx := range txs {
 		if _, isIndexWrapper := coretypes.UnmarshalIndexWrapper(tx); isIndexWrapper {
-			pfbTxWriter.WriteTx(tx)
+			err = pfbTxWriter.WriteTx(tx)
 		} else {
-			txWriter.WriteTx(tx)
+			err = txWriter.WriteTx(tx)
+		}
+		if err != nil {
+			return nil, nil, nil, err
 		}
 	}
 
-	txShares, txMap := txWriter.Export(0)
-	pfbShares, pfbMap := pfbTxWriter.Export(len(txShares))
+	txShares, txMap, err := txWriter.Export(0)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
-	return txShares, pfbShares, mergeMaps(txMap, pfbMap)
+	pfbShares, pfbMap, err := pfbTxWriter.Export(len(txShares))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return txShares, pfbShares, mergeMaps(txMap, pfbMap), nil
 }
 
 func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIndexes bool) ([]Share, error) {
@@ -131,7 +150,9 @@ func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIn
 		}
 		if useShareIndexes && len(indexes) > i+1 {
 			paddedShareCount := int(indexes[i+1]) - (writer.Count() + cursor)
-			writer.WriteNamespacedPaddedShares(paddedShareCount)
+			if err := writer.WriteNamespacedPaddedShares(paddedShareCount); err != nil {
+				return nil, err
+			}
 		}
 	}
 	return writer.Export(), nil

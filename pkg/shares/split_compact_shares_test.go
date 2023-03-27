@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -28,7 +29,8 @@ func TestCount(t *testing.T) {
 	for _, tc := range testCases {
 		css := NewCompactShareSplitter(appns.TxNamespaceID, appconsts.ShareVersionZero)
 		for _, transaction := range tc.transactions {
-			css.WriteTx(transaction)
+			err := css.WriteTx(transaction)
+			require.NoError(t, err)
 		}
 		got := css.Count()
 		if got != tc.wantShareCount {
@@ -68,14 +70,14 @@ func TestExport_write(t *testing.T) {
 		),
 		appconsts.ShareSize)
 
-	firstShare := fillShare(append(
+	firstShare := fillShare(Share{data: append(
 		appns.TxNamespaceID.Bytes(),
 		[]byte{
 			0x1,                // info byte
 			0x0, 0x0, 0x2, 0x0, // sequence len
 			0x0, 0x0, 0x0, 0x2a, // reserved bytes
 		}...,
-	), 0xf) //
+	)}, 0xf)
 
 	continuationShare, _ := zeroPadIfNecessary(
 		append(
@@ -97,7 +99,7 @@ func TestExport_write(t *testing.T) {
 		{
 			name: "one share with small sequence len",
 			want: []Share{
-				oneShare,
+				{data: oneShare},
 			},
 			writeBytes: [][]byte{{0xf}},
 		},
@@ -105,7 +107,7 @@ func TestExport_write(t *testing.T) {
 			name: "two shares with big sequence len",
 			want: []Share{
 				firstShare,
-				continuationShare,
+				{data: continuationShare},
 			},
 			writeBytes: [][]byte{bytes.Repeat([]byte{0xf}, 512)},
 		},
@@ -115,11 +117,15 @@ func TestExport_write(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			css := NewCompactShareSplitter(appns.TxNamespaceID, appconsts.ShareVersionZero)
 			for _, bytes := range tc.writeBytes {
-				css.write(bytes)
+				err := css.write(bytes)
+				require.NoError(t, err)
 			}
-			got, _ := css.Export(0)
+			got, _, err := css.Export(0)
+			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
-			shares, _ := css.Export(0)
+
+			shares, _, err := css.Export(0)
+			require.NoError(t, err)
 			assert.Equal(t, got, shares)
 			assert.Len(t, got, css.Count())
 		})
@@ -181,11 +187,13 @@ func TestWriteAndExportIdempotence(t *testing.T) {
 			css := NewCompactShareSplitter(appns.TxNamespaceID, appconsts.ShareVersionZero)
 
 			for _, tx := range tc.txs {
-				css.WriteTx(tx)
+				err := css.WriteTx(tx)
+				require.NoError(t, err)
 			}
 
 			assert.Equal(t, tc.wantLen, css.Count())
-			shares, _ := css.Export(0)
+			shares, _, err := css.Export(0)
+			require.NoError(t, err)
 			assert.Equal(t, tc.wantLen, len(shares))
 		})
 	}
@@ -311,10 +319,12 @@ func TestExport(t *testing.T) {
 			css := NewCompactShareSplitter(appns.TxNamespaceID, appconsts.ShareVersionZero)
 
 			for _, tx := range tc.txs {
-				css.WriteTx(tx)
+				err := css.WriteTx(tx)
+				require.NoError(t, err)
 			}
 
-			_, got := css.Export(tc.shareRangeOffset)
+			_, got, err := css.Export(tc.shareRangeOffset)
+			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})
 	}
@@ -327,25 +337,40 @@ func TestWriteAfterExport(t *testing.T) {
 	d := []byte{0xf}
 
 	css := NewCompactShareSplitter(appns.TxNamespaceID, appconsts.ShareVersionZero)
-	shares, _ := css.Export(0)
+	shares, _, err := css.Export(0)
+	require.NoError(t, err)
 	assert.Equal(t, 0, len(shares))
 
-	css.WriteTx(a)
-	shares, _ = css.Export(0)
+	err = css.WriteTx(a)
+	require.NoError(t, err)
+
+	shares, _, err = css.Export(0)
+	require.NoError(t, err)
 	assert.Equal(t, 1, len(shares))
 
-	css.WriteTx(b)
-	shares, _ = css.Export(0)
+	err = css.WriteTx(b)
+	require.NoError(t, err)
+
+	shares, _, err = css.Export(0)
+	require.NoError(t, err)
 	assert.Equal(t, 3, len(shares))
 
-	css.WriteTx(c)
-	shares, _ = css.Export(0)
+	err = css.WriteTx(c)
+	require.NoError(t, err)
+
+	shares, _, err = css.Export(0)
+	require.NoError(t, err)
 	assert.Equal(t, 4, len(shares))
 
-	css.WriteTx(d)
-	shares, _ = css.Export(0)
+	err = css.WriteTx(d)
+	require.NoError(t, err)
+
+	shares, _, err = css.Export(0)
+	require.NoError(t, err)
 	assert.Equal(t, 5, len(shares))
-	shares, _ = css.Export(0)
+
+	shares, _, err = css.Export(0)
+	require.NoError(t, err)
 	assert.Equal(t, 5, len(shares))
 }
 

@@ -79,37 +79,37 @@ func TestSequenceLen(t *testing.T) {
 	testCases := []testCase{
 		{
 			name:    "first share",
-			share:   firstShare,
+			share:   Share{data: firstShare},
 			wantLen: 10,
 			wantErr: false,
 		},
 		{
 			name:    "first share with long sequence",
-			share:   firstShareWithLongSequence,
+			share:   Share{data: firstShareWithLongSequence},
 			wantLen: 323,
 			wantErr: false,
 		},
 		{
 			name:    "continuation share",
-			share:   continuationShare,
+			share:   Share{data: continuationShare},
 			wantLen: 0,
 			wantErr: false,
 		},
 		{
 			name:    "compact share",
-			share:   compactShare,
+			share:   Share{data: compactShare},
 			wantLen: 10,
 			wantErr: false,
 		},
 		{
 			name:    "no info byte returns error",
-			share:   noInfoByte,
+			share:   Share{data: noInfoByte},
 			wantLen: 0,
 			wantErr: true,
 		},
 		{
 			name:    "no sequence len returns error",
-			share:   noSequenceLen,
+			share:   Share{data: noSequenceLen},
 			wantLen: 0,
 			wantErr: true,
 		},
@@ -176,32 +176,32 @@ func TestRawData(t *testing.T) {
 	testCases := []testCase{
 		{
 			name:  "first sparse share",
-			share: firstSparseShare,
+			share: Share{data: firstSparseShare},
 			want:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 		},
 		{
 			name:  "continuation sparse share",
-			share: continuationSparseShare,
+			share: Share{data: continuationSparseShare},
 			want:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 		},
 		{
 			name:  "first compact share",
-			share: firstCompactShare,
+			share: Share{data: firstCompactShare},
 			want:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 		},
 		{
 			name:  "continuation compact share",
-			share: continuationCompactShare,
+			share: Share{data: continuationCompactShare},
 			want:  []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 		},
 		{
 			name:    "no sequence len returns error",
-			share:   noSequenceLen,
+			share:   Share{data: noSequenceLen},
 			wantErr: true,
 		},
 		{
 			name:    "not enough sequence len bytes returns error",
-			share:   notEnoughSequenceLenBytes,
+			share:   Share{data: notEnoughSequenceLenBytes},
 			wantErr: true,
 		},
 	}
@@ -225,6 +225,7 @@ func TestIsCompactShare(t *testing.T) {
 		want  bool
 	}
 
+	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 	txShare, _ := zeroPadIfNecessary(appns.TxNamespaceID.Bytes(), appconsts.ShareSize)
 	pfbTxShare, _ := zeroPadIfNecessary(appns.PayForBlobNamespaceID.Bytes(), appconsts.ShareSize)
 	blobShare, _ := zeroPadIfNecessary(ns1.Bytes(), appconsts.ShareSize)
@@ -232,17 +233,17 @@ func TestIsCompactShare(t *testing.T) {
 	testCases := []testCase{
 		{
 			name:  "tx share",
-			share: txShare,
+			share: Share{data: txShare},
 			want:  true,
 		},
 		{
 			name:  "pfb tx share",
-			share: pfbTxShare,
+			share: Share{data: pfbTxShare},
 			want:  true,
 		},
 		{
 			name:  "blob share",
-			share: blobShare,
+			share: Share{data: blobShare},
 			want:  false,
 		},
 	}
@@ -273,6 +274,15 @@ func TestIsPadding(t *testing.T) {
 		),
 		appconsts.ShareSize)
 
+	nsPadding, err := NamespacePaddingShare(ns1)
+	require.NoError(t, err)
+
+	tailPadding, err := TailPaddingShare()
+	require.NoError(t, err)
+
+	reservedPaddingShare, err := ReservedPaddingShare()
+	require.NoError(t, err)
+
 	testCases := []testCase{
 		{
 			name:    "empty share",
@@ -281,22 +291,22 @@ func TestIsPadding(t *testing.T) {
 		},
 		{
 			name:  "blob share",
-			share: blobShare,
+			share: Share{data: blobShare},
 			want:  false,
 		},
 		{
 			name:  "namespace padding",
-			share: NamespacePaddingShare(ns1),
+			share: nsPadding,
 			want:  true,
 		},
 		{
 			name:  "tail padding",
-			share: TailPaddingShare(),
+			share: tailPadding,
 			want:  true,
 		},
 		{
 			name:  "reserved padding",
-			share: ReservedPaddingShare(),
+			share: reservedPaddingShare,
 			want:  true,
 		},
 	}
@@ -308,7 +318,7 @@ func TestIsPadding(t *testing.T) {
 				assert.Error(t, err)
 				return
 			}
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})
 	}

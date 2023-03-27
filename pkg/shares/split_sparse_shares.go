@@ -1,11 +1,11 @@
 package shares
 
 import (
-	"encoding/binary"
+	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/tendermint/tendermint/types"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	coretypes "github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/slices"
 )
@@ -27,10 +27,43 @@ func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
 	if !slices.Contains(appconsts.SupportedShareVersions, blob.ShareVersion) {
 		return fmt.Errorf("unsupported share version: %d", blob.ShareVersion)
 	}
-	rawBlob := MarshalDelimitedBlob(blob)
-	newShares := make([]Share, 0)
-	newShares = AppendToShares(newShares, blob, rawBlob)
-	sss.shares = append(sss.shares, newShares...)
+
+	rawData := blob.Data
+	blobNamespace, err := appns.New(blob.NamespaceVersion, blob.NamespaceID)
+	if err != nil {
+		return err
+	}
+
+	// First share
+	b, err := NewBuilder(blobNamespace, blob.ShareVersion, true).Init()
+	if err != nil {
+		return err
+	}
+	if err := b.WriteSequenceLen(uint32(len(rawData))); err != nil {
+		return err
+	}
+
+	for rawData != nil {
+
+		rawDataLeftOver := b.AddData(rawData)
+		if rawDataLeftOver == nil {
+			// Just call it on the latest share
+			b.ZeroPadIfNecessary()
+		}
+
+		share, err := b.Build()
+		if err != nil {
+			return err
+		}
+		sss.shares = append(sss.shares, *share)
+
+		b, err = NewBuilder(blobNamespace, blob.ShareVersion, false).Init()
+		if err != nil {
+			return err
+		}
+		rawData = rawDataLeftOver
+	}
+
 	return nil
 }
 
@@ -60,22 +93,28 @@ func (sss *SparseShareSplitter) RemoveBlob(i int) (int, error) {
 // WriteNamespacedPaddedShares adds empty shares using the namespace of the last written share.
 // This is useful to follow the message layout rules. It assumes that at least
 // one share has already been written, if not it panics.
-func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) {
+func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) error {
 	if len(sss.shares) == 0 {
-		panic("cannot write empty namespaced shares on an empty SparseShareSplitter")
+		return errors.New("cannot write empty namespaced shares on an empty SparseShareSplitter")
 	}
 	if count < 0 {
-		panic("cannot write negative namespaced shares")
+		return errors.New("cannot write negative namespaced shares")
 	}
 	if count == 0 {
-		return
+		return nil
 	}
 	lastBlob := sss.shares[len(sss.shares)-1]
-	ns, err := lastBlob.Namespace()
+	lastBlobNs, err := lastBlob.Namespace()
 	if err != nil {
-		panic(err)
+		return err
 	}
-	sss.shares = append(sss.shares, NamespacePaddingShares(ns, count)...)
+	nsPaddingShares, err := NamespacePaddingShares(lastBlobNs, count)
+	if err != nil {
+		return err
+	}
+	sss.shares = append(sss.shares, nsPaddingShares...)
+
+	return nil
 }
 
 // Export finalizes and returns the underlying shares.
@@ -86,66 +125,4 @@ func (sss *SparseShareSplitter) Export() []Share {
 // Count returns the current number of shares that will be made if exporting.
 func (sss *SparseShareSplitter) Count() int {
 	return len(sss.shares)
-}
-
-// AppendToShares appends raw data as shares.
-// Used for blobs.
-func AppendToShares(shares []Share, blob types.Blob, rawData []byte) []Share {
-	if len(rawData) <= appconsts.ContinuationSparseShareContentSize {
-		infoByte, err := NewInfoByte(blob.ShareVersion, true)
-		if err != nil {
-			panic(err)
-		}
-		rawShare := make([]byte, 0, appconsts.ShareSize)
-		rawShare = append(rawShare, blob.NamespaceVersion)
-		rawShare = append(rawShare, blob.NamespaceID...)
-		rawShare = append(rawShare, byte(infoByte))
-		rawShare = append(rawShare, rawData...)
-		paddedShare, _ := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
-		shares = append(shares, paddedShare)
-	} else { // len(rawData) > BlobShareSize
-		shares = append(shares, splitBlob(rawData, blob)...)
-	}
-	return shares
-}
-
-// MarshalDelimitedBlob marshals the raw share data (excluding the namespace)
-// of this blob and prefixes it with the length of the blob.
-func MarshalDelimitedBlob(blob coretypes.Blob) []byte {
-	lenBuf := make([]byte, appconsts.SequenceLenBytes)
-	length := uint32(len(blob.Data))
-	binary.BigEndian.PutUint32(lenBuf, length)
-	return append(lenBuf, blob.Data...)
-}
-
-// splitBlob breaks the data in a blob into the minimum number of
-// namespaced shares
-func splitBlob(rawData []byte, blob types.Blob) (shares []Share) {
-	infoByte, err := NewInfoByte(blob.ShareVersion, true)
-	if err != nil {
-		panic(err)
-	}
-	firstRawShare := make([]byte, 0, appconsts.ShareSize)
-	firstRawShare = append(firstRawShare, blob.NamespaceVersion)
-	firstRawShare = append(firstRawShare, blob.NamespaceID...)
-	firstRawShare = append(firstRawShare, byte(infoByte))
-	firstRawShare = append(firstRawShare, rawData[:appconsts.ContinuationSparseShareContentSize]...)
-	shares = append(shares, firstRawShare)
-	rawData = rawData[appconsts.ContinuationSparseShareContentSize:]
-	for len(rawData) > 0 {
-		shareSizeOrLen := min(appconsts.ContinuationSparseShareContentSize, len(rawData))
-		infoByte, err := NewInfoByte(appconsts.ShareVersionZero, false)
-		if err != nil {
-			panic(err)
-		}
-		rawShare := make([]byte, 0, appconsts.ShareSize)
-		rawShare = append(rawShare, blob.NamespaceVersion)
-		rawShare = append(rawShare, blob.NamespaceID...)
-		rawShare = append(rawShare, byte(infoByte))
-		rawShare = append(rawShare, rawData[:shareSizeOrLen]...)
-		paddedShare, _ := zeroPadIfNecessary(rawShare, appconsts.ShareSize)
-		shares = append(shares, paddedShare)
-		rawData = rawData[shareSizeOrLen:]
-	}
-	return shares
 }

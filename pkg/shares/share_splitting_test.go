@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -31,8 +32,8 @@ func TestSplitTxs_forTxShares(t *testing.T) {
 			name: "one small tx",
 			txs:  coretypes.Txs{smallTransactionA},
 			want: []Share{
-				padShare(
-					append(
+				padShare(Share{
+					data: append(
 						appns.TxNamespaceID.Bytes(),
 						[]byte{
 							0x1,                // info byte
@@ -42,6 +43,7 @@ func TestSplitTxs_forTxShares(t *testing.T) {
 							0xa, // data of first transaction
 						}...,
 					),
+				},
 				),
 			},
 		},
@@ -49,8 +51,8 @@ func TestSplitTxs_forTxShares(t *testing.T) {
 			name: "two small txs",
 			txs:  coretypes.Txs{smallTransactionA, smallTransactionB},
 			want: []Share{
-				padShare(
-					append(
+				padShare(Share{
+					data: append(
 						appns.TxNamespaceID.Bytes(),
 						[]byte{
 							0x1,                // info byte
@@ -62,6 +64,7 @@ func TestSplitTxs_forTxShares(t *testing.T) {
 							0xb, // data of second transaction
 						}...,
 					),
+				},
 				),
 			},
 		},
@@ -69,8 +72,8 @@ func TestSplitTxs_forTxShares(t *testing.T) {
 			name: "one large tx that spans two shares",
 			txs:  coretypes.Txs{largeTransaction},
 			want: []Share{
-				fillShare(
-					append(
+				fillShare(Share{
+					data: append(
 						appns.TxNamespaceID.Bytes(),
 						[]byte{
 							0x1,                // info byte
@@ -79,10 +82,11 @@ func TestSplitTxs_forTxShares(t *testing.T) {
 							128, 4, // unit length of transaction is 512
 						}...,
 					),
+				},
 					0xc, // data of transaction
 				),
-				padShare(
-					append(
+				padShare(Share{
+					data: append(
 						append(
 							appns.TxNamespaceID.Bytes(),
 							[]byte{
@@ -92,6 +96,7 @@ func TestSplitTxs_forTxShares(t *testing.T) {
 						),
 						bytes.Repeat([]byte{0xc}, 44)..., // continuation data of transaction
 					),
+				},
 				),
 			},
 		},
@@ -99,8 +104,8 @@ func TestSplitTxs_forTxShares(t *testing.T) {
 			name: "one small tx then one large tx that spans two shares",
 			txs:  coretypes.Txs{smallTransactionA, largeTransaction},
 			want: []Share{
-				fillShare(
-					append(
+				fillShare(Share{
+					data: append(
 						appns.TxNamespaceID.Bytes(),
 						[]byte{
 							0x1,                // info byte
@@ -109,11 +114,13 @@ func TestSplitTxs_forTxShares(t *testing.T) {
 							1,      // unit length of first transaction
 							0xa,    // data of first transaction
 							128, 4, // unit length of second transaction is 512
-						}...),
+						}...,
+					),
+				},
 					0xc, // data of second transaction
 				),
-				padShare(
-					append(
+				padShare(Share{
+					data: append(
 						append(
 							appns.TxNamespaceID.Bytes(),
 							[]byte{
@@ -123,6 +130,7 @@ func TestSplitTxs_forTxShares(t *testing.T) {
 						),
 						bytes.Repeat([]byte{0xc}, 46)..., // continuation data of second transaction
 					),
+				},
 				),
 			},
 		},
@@ -130,8 +138,8 @@ func TestSplitTxs_forTxShares(t *testing.T) {
 			name: "one large tx that spans two shares then one small tx",
 			txs:  coretypes.Txs{largeTransaction, smallTransactionA},
 			want: []Share{
-				fillShare(
-					append(
+				fillShare(Share{
+					data: append(
 						appns.TxNamespaceID.Bytes(),
 						[]byte{
 							0x1,                // info byte
@@ -140,10 +148,11 @@ func TestSplitTxs_forTxShares(t *testing.T) {
 							128, 4, // unit length of first transaction is 512
 						}...,
 					),
+				},
 					0xc, // data of first transaction
 				),
-				padShare(
-					append(
+				padShare(Share{
+					data: append(
 						appns.TxNamespaceID.Bytes(),
 						[]byte{
 							0x0,                 // info byte
@@ -155,13 +164,15 @@ func TestSplitTxs_forTxShares(t *testing.T) {
 							0xa, // data of second transaction
 						}...,
 					),
+				},
 				),
 			},
 		},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			got, _, _ := SplitTxs(tt.txs)
+			got, _, _, err := SplitTxs(tt.txs)
+			require.NoError(t, err)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SplitTxs()\n got %#v\n want %#v", got, tt.want)
 			}
@@ -180,8 +191,8 @@ func TestSplitTxs(t *testing.T) {
 
 	smallTx := coretypes.Tx{0xa} // spans one share
 	smallTxShares := []Share{
-		padShare(
-			append(appns.TxNamespaceID.Bytes(),
+		padShare(Share{
+			data: append(appns.TxNamespaceID.Bytes(),
 				[]byte{
 					0x1,                // info byte
 					0x0, 0x0, 0x0, 0x2, // 1 byte (unit) + 1 byte (unit length) = 2 bytes sequence length
@@ -190,14 +201,15 @@ func TestSplitTxs(t *testing.T) {
 					0xa, // data of first transaction
 				}...,
 			),
+		},
 		),
 	}
 
 	pfbTx, err := coretypes.MarshalIndexWrapper(coretypes.Tx{0xb}, 10) // spans one share
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	pfbTxShares := []Share{
-		padShare(
-			append(
+		padShare(Share{
+			data: append(
 				appns.PayForBlobNamespaceID.Bytes(),
 				[]uint8{
 					0x1,               // info byte
@@ -207,13 +219,14 @@ func TestSplitTxs(t *testing.T) {
 					0xa, 0x1, 0xb, 0x12, 0x1, 0xa, 0x1a, 0x4, 0x49, 0x4e, 0x44, 0x58, // data of first transaction
 				}...,
 			),
+		},
 		),
 	}
 
 	largeTx := coretypes.Tx(bytes.Repeat([]byte{0xc}, appconsts.ShareSize)) // spans two shares
 	largeTxShares := []Share{
-		fillShare(
-			append(appns.TxNamespaceID.Bytes(),
+		fillShare(Share{
+			data: append(appns.TxNamespaceID.Bytes(),
 				[]uint8{
 					0x1,                // info byte
 					0x0, 0x0, 0x2, 0x2, // 512 (unit) + 2 (unit length) = 514 sequence length
@@ -221,9 +234,10 @@ func TestSplitTxs(t *testing.T) {
 					128, 4, // unit length of transaction is 512
 				}...,
 			),
+		},
 			0xc), // data of transaction
-		padShare(
-			append(
+		padShare(Share{
+			data: append(
 				append(
 					appns.TxNamespaceID.Bytes(),
 					[]uint8{
@@ -233,6 +247,7 @@ func TestSplitTxs(t *testing.T) {
 				),
 				bytes.Repeat([]byte{0xc}, 44)..., // continuation data of transaction
 			),
+		},
 		),
 	}
 
@@ -285,7 +300,8 @@ func TestSplitTxs(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			txShares, pfbTxShares, gotMap := SplitTxs(tc.txs)
+			txShares, pfbTxShares, gotMap, err := SplitTxs(tc.txs)
+			require.NoError(t, err)
 			assert.Equal(t, tc.wantTxShares, txShares)
 			assert.Equal(t, tc.wantPfbShares, pfbTxShares)
 			assert.Equal(t, tc.wantMap, gotMap)
@@ -294,14 +310,14 @@ func TestSplitTxs(t *testing.T) {
 }
 
 // padShare returns a share padded with trailing zeros.
-func padShare(share []byte) (paddedShare []byte) {
+func padShare(share Share) (paddedShare Share) {
 	return fillShare(share, 0)
 }
 
 // fillShare returns a share filled with filler so that the share length
 // is equal to appconsts.ShareSize.
-func fillShare(share []byte, filler byte) (paddedShare []byte) {
-	return append(share, bytes.Repeat([]byte{filler}, appconsts.ShareSize-len(share))...)
+func fillShare(share Share, filler byte) (paddedShare Share) {
+	return Share{data: append(share.data, bytes.Repeat([]byte{filler}, appconsts.ShareSize-len(share.data))...)}
 }
 
 func Test_mergeMaps(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var ns1 = appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
@@ -39,36 +40,42 @@ var tailPadding, _ = zeroPadIfNecessary(
 	), appconsts.ShareSize)
 
 func TestNamespacePaddingShare(t *testing.T) {
-	got := NamespacePaddingShare(ns1).ToBytes()
-	assert.Equal(t, nsOnePadding, got)
+	got, err := NamespacePaddingShare(ns1)
+	assert.NoError(t, err)
+	assert.Equal(t, nsOnePadding, got.ToBytes())
 }
 
 func TestNamespacePaddingShares(t *testing.T) {
-	shares := NamespacePaddingShares(ns1, 2)
+	shares, err := NamespacePaddingShares(ns1, 2)
+	assert.NoError(t, err)
 	for _, share := range shares {
 		assert.Equal(t, nsOnePadding, share.ToBytes())
 	}
 }
 
 func TestReservedPaddingShare(t *testing.T) {
-	got := ReservedPaddingShare().ToBytes()
-	assert.Equal(t, reservedPadding, got)
+	got, err := ReservedPaddingShare()
+	require.NoError(t, err)
+	assert.Equal(t, reservedPadding, got.ToBytes())
 }
 
 func TestReservedPaddingShares(t *testing.T) {
-	shares := ReservedPaddingShares(2)
+	shares, err := ReservedPaddingShares(2)
+	require.NoError(t, err)
 	for _, share := range shares {
 		assert.Equal(t, reservedPadding, share.ToBytes())
 	}
 }
 
 func TestTailPaddingShare(t *testing.T) {
-	got := TailPaddingShare().ToBytes()
-	assert.Equal(t, tailPadding, got)
+	got, err := TailPaddingShare()
+	require.NoError(t, err)
+	assert.Equal(t, tailPadding, got.ToBytes())
 }
 
 func TestTailPaddingShares(t *testing.T) {
-	shares := TailPaddingShares(2)
+	shares, err := TailPaddingShares(2)
+	require.NoError(t, err)
 	for _, share := range shares {
 		assert.Equal(t, tailPadding, share.ToBytes())
 	}

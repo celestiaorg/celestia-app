@@ -61,8 +61,7 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	require := s.Require()
 	val := s.network.Validators[0]
-
-	hexNamespaceID := hex.EncodeToString(appns.RandomBlobNamespace().ID)
+	hexNamespace := hex.EncodeToString(appns.RandomBlobNamespaceID())
 
 	// some hex blob
 	hexBlob := "0204033704032c0b162109000908094d425837422c2116"
@@ -77,7 +76,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		{
 			name: "valid transaction",
 			args: []string{
-				hexNamespaceID,
+				hexNamespace,
 				hexBlob,
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
