@@ -26,7 +26,7 @@ TBD
 
 ## Detailed Design
 
-- Cosmos blocks contain a version.app (version of state machine) that can be used to indicate which version of `celestia-app` should be used to process a block.
+- Cosmos blocks contain a `version.app` (version of state machine) that can be used to indicate which version of celestia-app should be used to process a block.
   - Example: Osmosis is currently on [version.app: 15](https://www.mintscan.io/osmosis/blocks/8804111) and release [v15.0.0](https://github.com/osmosis-labs/osmosis/releases/tag/v15.0.0).
 
   - Have to maintain old versions of binaries. Need to update dependencies for security issues.
