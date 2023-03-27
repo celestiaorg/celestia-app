@@ -2,17 +2,19 @@ package namespace
 
 import (
 	"bytes"
+
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
 
 const (
 	// NamespaveVersionSize is the size of a namespace version in bytes.
-	NamespaceVersionSize = 1
+	NamespaceVersionSize = appconsts.NamespaceVersionSize
 
 	// NamespaceIDSize is the size of a namespace ID in bytes.
-	NamespaceIDSize = 32
+	NamespaceIDSize = appconsts.NamespaceIDSize
 
 	// NamespaceSize is the size of a namespace (version + ID) in bytes.
-	NamespaceSize = NamespaceVersionSize + NamespaceIDSize
+	NamespaceSize = appconsts.NamespaceSize
 
 	// NamespaceVersionZero is the first namespace version.
 	NamespaceVersionZero = uint8(0)

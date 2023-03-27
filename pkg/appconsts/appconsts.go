@@ -8,8 +8,14 @@ import (
 // These constants were originally sourced from:
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/consensus.md#constants
 const (
+	// NamespaveVersionSize is the size of a namespace version in bytes.
+	NamespaceVersionSize = 1
+
+	// NamespaceIDSize is the size of a namespace ID in bytes.
+	NamespaceIDSize = 32
+
 	// NamespaceSize is the size of a namespace (version + ID) in bytes.
-	NamespaceSize = 33
+	NamespaceSize = NamespaceVersionSize + NamespaceIDSize
 
 	// ShareSize is the size of a share in bytes.
 	ShareSize = 512
