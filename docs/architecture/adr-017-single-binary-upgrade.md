@@ -124,6 +124,25 @@ func mergeMaps(mapOne, mapTwo map[coretypes.TxKey]ShareRange) map[coretypes.TxKe
 This option has an advantage over the option #1 as we do not need to pass an extra parameter everywhere in the code and it has less maintenance burden to modify the version logic.
 We can even add more structure to the version package in future if needed.
 
+#### Initializing the app version
+
+The app version can be configured in the genesis file as below:
+
+```json
+{
+  ...
+"consensus_params": {
+    ...
+    "version": {
+      "app_version": "<a uint64 number>"
+    }
+  },
+  ...
+}
+```
+
+Then, it is read in the endblock of each module.
+
 ## Consequences
 
 > This section describes the consequences, after applying the decision. All consequences should be summarized here, not just the "positive" ones.
