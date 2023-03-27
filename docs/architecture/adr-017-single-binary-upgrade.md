@@ -155,6 +155,3 @@ Then, it is read in the endblock of each module.
 
 ## References
 
-[The meeting notes](https://docs.google.com/document/d/1UuiM9sKQ4g30OBoZLI5pwYBwoicvgC65xm9yzqmbh0g/edit#)
-
-- {reference link}
