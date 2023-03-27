@@ -17,7 +17,7 @@ It makes it possible to sync headers from chain and download blobs from third pa
 ## Alternative Approaches
 
 Instead of having a single binary, we can have multiple binaries that are managed by another supervisory binary e.g. [Cosmovisor](https://docs.desmos.network/fullnode/cosmovisor/).
-Osmosis does it through having a significant number of binaries gathered in one docker container and switch them in particular heights.
+Osmosis does it through having a significant number of binaries gathered in one docker container and switching them at particular heights.
 This approach has a lot of maintenance burden and is fragile to sync from genesis.
 
 ## Decision
