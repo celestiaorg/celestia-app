@@ -1,4 +1,4 @@
-# ADR 017: Single binary upgrade
+# ADR 017: Single binary sync
 
 ## Status
 
