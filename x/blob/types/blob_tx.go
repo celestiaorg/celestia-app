@@ -48,11 +48,11 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) error {
 		return ErrMultipleMsgsInBlobTx
 	}
 	msg := msgs[0]
-	pfb, ok := msg.(*MsgPayForBlobs)
+	msgPFB, ok := msg.(*MsgPayForBlobs)
 	if !ok {
 		return ErrNoPFB
 	}
-	err = pfb.ValidateBasic()
+	err = msgPFB.ValidateBasic()
 	if err != nil {
 		return err
 	}
@@ -67,29 +67,29 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) error {
 		return err
 	}
 
-	// check that the info in the pfb matches that in the blobs
-	if !equalSlices(sizes, pfb.BlobSizes) {
-		return ErrBlobSizeMismatch.Wrapf("actual %v declared %v", sizes, pfb.BlobSizes)
+	// check that the sizes in the blobTx match the sizes in the msgPFB
+	if !equalSlices(sizes, msgPFB.BlobSizes) {
+		return ErrBlobSizeMismatch.Wrapf("actual %v declared %v", sizes, msgPFB.BlobSizes)
 	}
 
-	for i, ns := range pfb.Namespaces {
-		pfbNamespace, err := appns.From(ns)
+	for i, ns := range msgPFB.Namespaces {
+		msgPFBNamespace, err := appns.From(ns)
 		if err != nil {
 			return err
 		}
 
-		blobNs, err := appns.New(uint8(bTx.Blobs[i].NamespaceVersion), bTx.Blobs[i].NamespaceId)
+		blobNamespace, err := appns.New(uint8(bTx.Blobs[i].NamespaceVersion), bTx.Blobs[i].NamespaceId)
 		if err != nil {
 			return err
 		}
 
-		if !bytes.Equal(blobNs.Bytes(), pfbNamespace.Bytes()) {
-			return ErrNamespaceMismatch.Wrapf("%v %v", blobNs.Bytes(), pfb.Namespaces[i])
+		if !bytes.Equal(blobNamespace.Bytes(), msgPFBNamespace.Bytes()) {
+			return ErrNamespaceMismatch.Wrapf("%v %v", blobNamespace.Bytes(), msgPFB.Namespaces[i])
 		}
 	}
 
-	// verify that the commitment of the blob matches that of the PFB
-	for i, commitment := range pfb.ShareCommitments {
+	// verify that the commitment of the blob matches that of the msgPFB
+	for i, commitment := range msgPFB.ShareCommitments {
 		calculatedCommit, err := CreateCommitment(bTx.Blobs[i])
 		if err != nil {
 			return ErrCalculateCommitment
