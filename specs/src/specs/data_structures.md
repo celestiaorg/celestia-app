@@ -10,7 +10,6 @@
 
 | name                        | type                        |
 |-----------------------------|-----------------------------|
-| [`Address`](#address)       | `byte[32]`                  |
 | `Amount`                    | `uint64`                    |
 | `Graffiti`                  | `byte[MAX_GRAFFITI_BYTES]`  |
 | [`HashDigest`](#hashdigest) | `byte[32]`                  |
@@ -112,11 +111,7 @@ Abstraction over transaction fees.
 
 ### Address
 
-Address is a [type alias](#type-aliases).
-
-Addresses are the [hash](#hashing) [digest](#hashdigest) of the [public key](https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys).
-
-Addresses have a length of 32 bytes.
+Celestia supports [secp256k1](https://en.bitcoin.it/wiki/Secp256k1) keys where [addresses](https://docs.cosmos.network/v0.46/basics/accounts.html#addresses) are 20 bytes in length. Addresses are prefixed with the [Bech32](https://en.bitcoin.it/wiki/Bech32) prefix `celestia`. For example, a valid address is `celestia1kj39jkzqlr073t42am9d8pd40tgudc3e2kj9yf`.
 
 ### CommitSig
 
@@ -172,7 +167,7 @@ Unless otherwise indicated explicitly, objects are first [serialized](#serializa
 
 Consensus-critical data is authenticated using [ECDSA](https://www.secg.org/sec1-v2.pdf), with the curve [secp256k1](https://en.bitcoin.it/wiki/Secp256k1). A highly-optimized library is available in C (<https://github.com/bitcoin-core/secp256k1>), with wrappers in Go (<https://pkg.go.dev/github.com/ethereum/go-ethereum/crypto/secp256k1>) and Rust (<https://docs.rs/crate/secp256k1>).
 
-[Public keys](https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys) are encoded in uncompressed form, as the concatenation of the `x` and `y` values. No prefix is needed to distinguish between encoding schemes as this is the only encoding supported.
+[Public keys](https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys) are serialized in a compressed format.
 
 Deterministic signatures ([RFC-6979](https://tools.ietf.org/rfc/rfc6979.txt)) should be used when signing, but this is not enforced at the protocol level as it cannot be.
 
