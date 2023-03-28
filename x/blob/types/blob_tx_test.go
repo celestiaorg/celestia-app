@@ -26,7 +26,7 @@ func TestNewBlob(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, validBlob.Data, rawBlob)
 
-	_, err = NewBlob(appns.TxNamespaceID, rawBlob)
+	_, err = NewBlob(appns.TxNamespace, rawBlob)
 	require.Error(t, err)
 
 	_, err = NewBlob(namespace.RandomBlobNamespace(), []byte{})

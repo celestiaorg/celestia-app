@@ -110,21 +110,21 @@ func (n Namespace) IsReserved() bool {
 }
 
 func (n Namespace) IsParityShares() bool {
-	return bytes.Equal(n.Bytes(), ParitySharesNamespaceID.Bytes())
+	return bytes.Equal(n.Bytes(), ParitySharesNamespace.Bytes())
 }
 
 func (n Namespace) IsTailPadding() bool {
-	return bytes.Equal(n.Bytes(), TailPaddingNamespaceID.Bytes())
+	return bytes.Equal(n.Bytes(), TailPaddingNamespace.Bytes())
 }
 
 func (n Namespace) IsReservedPadding() bool {
-	return bytes.Equal(n.Bytes(), ReservedPaddingNamespaceID.Bytes())
+	return bytes.Equal(n.Bytes(), ReservedPaddingNamespace.Bytes())
 }
 
 func (n Namespace) IsTx() bool {
-	return bytes.Equal(n.Bytes(), TxNamespaceID.Bytes())
+	return bytes.Equal(n.Bytes(), TxNamespace.Bytes())
 }
 
 func (n Namespace) IsPayForBlob() bool {
-	return bytes.Equal(n.Bytes(), PayForBlobNamespaceID.Bytes())
+	return bytes.Equal(n.Bytes(), PayForBlobNamespace.Bytes())
 }

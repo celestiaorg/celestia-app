@@ -40,9 +40,9 @@ func NewTxInclusionProof(data types.Data, txIndex uint64) (types.ShareProof, err
 func getTxNamespace(tx types.Tx) (ns appns.Namespace) {
 	_, isIndexWrapper := types.UnmarshalIndexWrapper(tx)
 	if isIndexWrapper {
-		return appns.PayForBlobNamespaceID
+		return appns.PayForBlobNamespace
 	}
-	return appns.TxNamespaceID
+	return appns.TxNamespace
 }
 
 // TxShareRange returns the range of shares that include a given txIndex.

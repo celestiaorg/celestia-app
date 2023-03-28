@@ -48,22 +48,22 @@ func NamespacePaddingShares(ns appns.Namespace, n int) ([]Share, error) {
 // first blob can start at an index that conforms to non-interactive default
 // rules.
 func ReservedPaddingShare() (Share, error) {
-	return NamespacePaddingShare(appns.ReservedPaddingNamespaceID)
+	return NamespacePaddingShare(appns.ReservedPaddingNamespace)
 }
 
 // ReservedPaddingShare returns n reserved padding shares.
 func ReservedPaddingShares(n int) ([]Share, error) {
-	return NamespacePaddingShares(appns.ReservedPaddingNamespaceID, n)
+	return NamespacePaddingShares(appns.ReservedPaddingNamespace, n)
 }
 
 // TailPaddingShare is a share that is used to pad a data square to the desired
 // square size. Tail padding shares follow the last blob share in the data
 // square.
 func TailPaddingShare() (Share, error) {
-	return NamespacePaddingShare(appns.TailPaddingNamespaceID)
+	return NamespacePaddingShare(appns.TailPaddingNamespace)
 }
 
 // TailPaddingShares returns n tail padding shares.
 func TailPaddingShares(n int) ([]Share, error) {
-	return NamespacePaddingShares(appns.TailPaddingNamespaceID, n)
+	return NamespacePaddingShares(appns.TailPaddingNamespace, n)
 }

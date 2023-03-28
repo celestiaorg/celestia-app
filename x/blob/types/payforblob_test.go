@@ -125,23 +125,23 @@ func TestValidateBasic(t *testing.T) {
 
 	// MsgPayForBlobs that uses parity shares namespace id
 	paritySharesMsg := validMsgPayForBlobs(t)
-	paritySharesMsg.Namespaces[0] = appns.ParitySharesNamespaceID.Bytes()
+	paritySharesMsg.Namespaces[0] = appns.ParitySharesNamespace.Bytes()
 
 	// MsgPayForBlobs that uses tail padding namespace id
 	tailPaddingMsg := validMsgPayForBlobs(t)
-	tailPaddingMsg.Namespaces[0] = appns.TailPaddingNamespaceID.Bytes()
+	tailPaddingMsg.Namespaces[0] = appns.TailPaddingNamespace.Bytes()
 
 	// MsgPayForBlobs that uses transaction namespace id
 	txNamespaceMsg := validMsgPayForBlobs(t)
-	txNamespaceMsg.Namespaces[0] = appns.TxNamespaceID.Bytes()
+	txNamespaceMsg.Namespaces[0] = appns.TxNamespace.Bytes()
 
 	// MsgPayForBlobs that uses intermediateStateRoots namespace id
 	intermediateStateRootsNamespaceMsg := validMsgPayForBlobs(t)
-	intermediateStateRootsNamespaceMsg.Namespaces[0] = appns.IntermediateStateRootsNamespaceID.Bytes()
+	intermediateStateRootsNamespaceMsg.Namespaces[0] = appns.IntermediateStateRootsNamespace.Bytes()
 
 	// MsgPayForBlobs that uses evidence namespace id
 	evidenceNamespaceMsg := validMsgPayForBlobs(t)
-	evidenceNamespaceMsg.Namespaces[0] = appns.EvidenceNamespaceID.Bytes()
+	evidenceNamespaceMsg.Namespaces[0] = appns.EvidenceNamespace.Bytes()
 
 	// MsgPayForBlobs that uses the max reserved namespace id
 	maxReservedNamespaceMsg := validMsgPayForBlobs(t)
@@ -350,8 +350,8 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 			signer: addr.String(),
 			blobs: []*tmproto.Blob{
 				{
-					NamespaceVersion: uint32(appns.TxNamespaceID.Version),
-					NamespaceId:      appns.TxNamespaceID.ID,
+					NamespaceVersion: uint32(appns.TxNamespace.Version),
+					NamespaceId:      appns.TxNamespace.ID,
 					Data:             tmrand.Bytes(1000000),
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				},
@@ -478,7 +478,7 @@ func TestValidateBlobs(t *testing.T) {
 			name: "invalid namespace",
 			blob: &Blob{
 				Data:             []byte{1},
-				NamespaceId:      appns.TxNamespaceID.ID,
+				NamespaceId:      appns.TxNamespace.ID,
 				ShareVersion:     uint32(appconsts.DefaultShareVersion),
 				NamespaceVersion: uint32(appns.NamespaceVersionZero),
 			},

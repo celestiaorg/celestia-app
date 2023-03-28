@@ -168,9 +168,9 @@ func TestProcessProposal(t *testing.T) {
 			input: validData(),
 			mutator: func(d *core.Data) {
 				d.Blobs[0] = core.Blob{
-					NamespaceId:      appns.TailPaddingNamespaceID.ID,
+					NamespaceId:      appns.TailPaddingNamespace.ID,
 					Data:             data,
-					NamespaceVersion: uint32(appns.TailPaddingNamespaceID.Version),
+					NamespaceVersion: uint32(appns.TailPaddingNamespace.Version),
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
 			},
@@ -181,9 +181,9 @@ func TestProcessProposal(t *testing.T) {
 			input: validData(),
 			mutator: func(d *core.Data) {
 				d.Blobs[0] = core.Blob{
-					NamespaceId:      appns.TxNamespaceID.ID,
+					NamespaceId:      appns.TxNamespace.ID,
 					Data:             data,
-					NamespaceVersion: uint32(appns.TxNamespaceID.Version),
+					NamespaceVersion: uint32(appns.TxNamespace.Version),
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
 			},
@@ -194,9 +194,9 @@ func TestProcessProposal(t *testing.T) {
 			input: validData(),
 			mutator: func(d *core.Data) {
 				d.Blobs[0] = core.Blob{
-					NamespaceId:      appns.ParitySharesNamespaceID.ID,
+					NamespaceId:      appns.ParitySharesNamespace.ID,
 					Data:             data,
-					NamespaceVersion: uint32(appns.ParitySharesNamespaceID.Version),
+					NamespaceVersion: uint32(appns.ParitySharesNamespace.Version),
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
 			},

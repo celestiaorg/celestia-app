@@ -93,7 +93,7 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) {
 	if w.isQuadrantZero() {
 		copy(nidAndData[:appconsts.NamespaceSize], data[:appconsts.NamespaceSize])
 	} else {
-		copy(nidAndData[:appconsts.NamespaceSize], appns.ParitySharesNamespaceID.Bytes())
+		copy(nidAndData[:appconsts.NamespaceSize], appns.ParitySharesNamespace.Bytes())
 	}
 	// push to the underlying tree
 	err := w.tree.Push(nidAndData)

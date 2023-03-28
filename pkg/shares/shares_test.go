@@ -66,13 +66,13 @@ func TestSequenceLen(t *testing.T) {
 		[]byte{
 			0, // info byte
 		}...)
-	compactShare := append(appns.TxNamespaceID.Bytes(),
+	compactShare := append(appns.TxNamespace.Bytes(),
 		[]byte{
 			1,           // info byte
 			0, 0, 0, 10, // sequence len
 		}...)
-	noInfoByte := appns.TxNamespaceID.Bytes()
-	noSequenceLen := append(appns.TxNamespaceID.Bytes(),
+	noInfoByte := appns.TxNamespace.Bytes()
+	noSequenceLen := append(appns.TxNamespace.Bytes(),
 		[]byte{
 			1, // info byte
 		}...)
@@ -151,24 +151,24 @@ func TestRawData(t *testing.T) {
 			0,                             // info byte
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 		}...)
-	firstCompactShare := append(appns.TxNamespaceID.Bytes(),
+	firstCompactShare := append(appns.TxNamespace.Bytes(),
 		[]byte{
 			1,           // info byte
 			0, 0, 0, 10, // sequence len
 			0, 0, 0, 15, // reserved bytes
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 		}...)
-	continuationCompactShare := append(appns.TxNamespaceID.Bytes(),
+	continuationCompactShare := append(appns.TxNamespace.Bytes(),
 		[]byte{
 			0,          // info byte
 			0, 0, 0, 0, // reserved bytes
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 		}...)
-	noSequenceLen := append(appns.TxNamespaceID.Bytes(),
+	noSequenceLen := append(appns.TxNamespace.Bytes(),
 		[]byte{
 			1, // info byte
 		}...)
-	notEnoughSequenceLenBytes := append(appns.TxNamespaceID.Bytes(),
+	notEnoughSequenceLenBytes := append(appns.TxNamespace.Bytes(),
 		[]byte{
 			1,        // info byte
 			0, 0, 10, // sequence len
@@ -226,8 +226,8 @@ func TestIsCompactShare(t *testing.T) {
 	}
 
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-	txShare, _ := zeroPadIfNecessary(appns.TxNamespaceID.Bytes(), appconsts.ShareSize)
-	pfbTxShare, _ := zeroPadIfNecessary(appns.PayForBlobNamespaceID.Bytes(), appconsts.ShareSize)
+	txShare, _ := zeroPadIfNecessary(appns.TxNamespace.Bytes(), appconsts.ShareSize)
+	pfbTxShare, _ := zeroPadIfNecessary(appns.PayForBlobNamespace.Bytes(), appconsts.ShareSize)
 	blobShare, _ := zeroPadIfNecessary(ns1.Bytes(), appconsts.ShareSize)
 
 	testCases := []testCase{

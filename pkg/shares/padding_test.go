@@ -23,7 +23,7 @@ var nsOnePadding, _ = zeroPadIfNecessary(
 
 var reservedPadding, _ = zeroPadIfNecessary(
 	append(
-		appns.ReservedPaddingNamespaceID.Bytes(),
+		appns.ReservedPaddingNamespace.Bytes(),
 		[]byte{
 			1,          // info byte
 			0, 0, 0, 0, // sequence len
@@ -32,7 +32,7 @@ var reservedPadding, _ = zeroPadIfNecessary(
 
 var tailPadding, _ = zeroPadIfNecessary(
 	append(
-		appns.TailPaddingNamespaceID.Bytes(),
+		appns.TailPaddingNamespace.Bytes(),
 		[]byte{
 			1,          // info byte
 			0, 0, 0, 0, // sequence len

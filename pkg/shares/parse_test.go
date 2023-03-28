@@ -64,13 +64,13 @@ func TestParseShares(t *testing.T) {
 		{
 			"one transaction share",
 			[]Share{txShareStart},
-			[]ShareSequence{{Namespace: appns.TxNamespaceID, Shares: []Share{txShareStart}}},
+			[]ShareSequence{{Namespace: appns.TxNamespace, Shares: []Share{txShareStart}}},
 			false,
 		},
 		{
 			"two transaction shares",
 			[]Share{txShareStart, txShareContinuation},
-			[]ShareSequence{{Namespace: appns.TxNamespaceID, Shares: []Share{txShareStart, txShareContinuation}}},
+			[]ShareSequence{{Namespace: appns.TxNamespace, Shares: []Share{txShareStart, txShareContinuation}}},
 			false,
 		},
 		{
@@ -98,7 +98,7 @@ func TestParseShares(t *testing.T) {
 			"one transaction, one blob",
 			[]Share{txShareStart, blobOneStart},
 			[]ShareSequence{
-				{Namespace: appns.TxNamespaceID, Shares: []Share{txShareStart}},
+				{Namespace: appns.TxNamespace, Shares: []Share{txShareStart}},
 				{Namespace: ns1, Shares: []Share{blobOneStart}},
 			},
 			false,
@@ -107,7 +107,7 @@ func TestParseShares(t *testing.T) {
 			"one transaction, two blobs",
 			[]Share{txShareStart, blobOneStart, blobTwoStart},
 			[]ShareSequence{
-				{Namespace: appns.TxNamespaceID, Shares: []Share{txShareStart}},
+				{Namespace: appns.TxNamespace, Shares: []Share{txShareStart}},
 				{Namespace: ns1, Shares: []Share{blobOneStart}},
 				{Namespace: namespaceTwo, Shares: []Share{blobTwoStart}},
 			},

@@ -23,13 +23,13 @@ func TestShareBuilderIsEmptyShare(t *testing.T) {
 	testCases := []testCase{
 		{
 			name:    "first compact share empty",
-			builder: NewBuilder(appns.TxNamespaceID, appconsts.ShareVersionZero, true),
+			builder: NewBuilder(appns.TxNamespace, appconsts.ShareVersionZero, true),
 			data:    nil,
 			want:    true,
 		},
 		{
 			name:    "first compact share not empty",
-			builder: NewBuilder(appns.TxNamespaceID, appconsts.ShareVersionZero, true),
+			builder: NewBuilder(appns.TxNamespace, appconsts.ShareVersionZero, true),
 			data:    []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 			want:    false,
 		},
@@ -47,13 +47,13 @@ func TestShareBuilderIsEmptyShare(t *testing.T) {
 		},
 		{
 			name:    "continues compact share empty",
-			builder: NewBuilder(appns.TxNamespaceID, appconsts.ShareVersionZero, false),
+			builder: NewBuilder(appns.TxNamespace, appconsts.ShareVersionZero, false),
 			data:    nil,
 			want:    true,
 		},
 		{
 			name:    "continues compact share not empty",
-			builder: NewBuilder(appns.TxNamespaceID, appconsts.ShareVersionZero, false),
+			builder: NewBuilder(appns.TxNamespace, appconsts.ShareVersionZero, false),
 			data:    []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 			want:    false,
 		},
@@ -111,7 +111,7 @@ func TestShareBuilderWriteSequenceLen(t *testing.T) {
 		},
 		{
 			name:    "compact share",
-			builder: NewBuilder(appns.TxNamespaceID, 1, true),
+			builder: NewBuilder(appns.TxNamespace, 1, true),
 			wantLen: 10,
 			wantErr: false,
 		},
@@ -168,7 +168,7 @@ func TestShareBuilderAddData(t *testing.T) {
 		},
 		{
 			name:    "exact fit first compact share",
-			builder: NewBuilder(appns.TxNamespaceID, appconsts.ShareVersionZero, true),
+			builder: NewBuilder(appns.TxNamespace, appconsts.ShareVersionZero, true),
 			data:    bytes.Repeat([]byte{1}, appconsts.ShareSize-appconsts.NamespaceSize-appconsts.ShareInfoBytes-appconsts.CompactShareReservedBytes-appconsts.SequenceLenBytes),
 			want:    nil,
 		},
@@ -180,7 +180,7 @@ func TestShareBuilderAddData(t *testing.T) {
 		},
 		{
 			name:    "exact fit continues compact share",
-			builder: NewBuilder(appns.TxNamespaceID, appconsts.ShareVersionZero, false),
+			builder: NewBuilder(appns.TxNamespace, appconsts.ShareVersionZero, false),
 			data:    bytes.Repeat([]byte{1}, appconsts.ShareSize-appconsts.NamespaceSize-appconsts.CompactShareReservedBytes-1 /*1 = info byte*/),
 			want:    nil,
 		},
@@ -192,7 +192,7 @@ func TestShareBuilderAddData(t *testing.T) {
 		},
 		{
 			name:    "oversize first compact share",
-			builder: NewBuilder(appns.TxNamespaceID, appconsts.ShareVersionZero, true),
+			builder: NewBuilder(appns.TxNamespace, appconsts.ShareVersionZero, true),
 			data:    bytes.Repeat([]byte{1}, 1 /*1 extra byte*/ +appconsts.ShareSize-appconsts.NamespaceSize-appconsts.CompactShareReservedBytes-appconsts.SequenceLenBytes-1 /*1 = info byte*/),
 			want:    []byte{1},
 		},
@@ -204,7 +204,7 @@ func TestShareBuilderAddData(t *testing.T) {
 		},
 		{
 			name:    "oversize continues compact share",
-			builder: NewBuilder(appns.TxNamespaceID, appconsts.ShareVersionZero, false),
+			builder: NewBuilder(appns.TxNamespace, appconsts.ShareVersionZero, false),
 			data:    bytes.Repeat([]byte{1}, 1 /*1 extra byte*/ +appconsts.ShareSize-appconsts.NamespaceSize-appconsts.CompactShareReservedBytes-1 /*1 = info byte*/),
 			want:    []byte{1},
 		},
@@ -247,14 +247,14 @@ func TestShareBuilderImportRawData(t *testing.T) {
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 	}...)
 
-	firstCompactShare := append(appns.TxNamespaceID.Bytes(), []byte{
+	firstCompactShare := append(appns.TxNamespace.Bytes(), []byte{
 		1,           // info byte
 		0, 0, 0, 10, // sequence len
 		0, 0, 0, 15, // reserved bytes
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 	}...)
 
-	continuationCompactShare := append(appns.TxNamespaceID.Bytes(), []byte{
+	continuationCompactShare := append(appns.TxNamespace.Bytes(), []byte{
 		0,          // info byte
 		0, 0, 0, 0, // reserved bytes
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
