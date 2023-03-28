@@ -48,7 +48,7 @@ Block header, which is fully downloaded by both full clients and light clients.
 | `lastHeaderHash`                  | [HashDigest](#hashdigest)             | Previous block's header hash.                                                                                                                                      |
 | `lastCommitHash`                  | [HashDigest](#hashdigest)             | Previous block's Tendermint commit hash.                                                                                                                           |
 | `consensusHash`                   | [HashDigest](#hashdigest)             | Hash of [consensus parameters](#consensus-parameters) for this block.                                                                                              |
-| `stateCommitment`                 | [HashDigest](#hashdigest)             | The [state root](#state) after this block's transactions are applied.                                                                                              |
+| `AppHash`                         | [HashDigest](#hashdigest)             | The [state root](#state) after the previous block's transactions are applied.                                                                                      |
 | `availableDataOriginalSharesUsed` | `uint64`                              | The number of shares used in the [original data square](#arranging-available-data-into-shares) that are not [tail padding](./consensus.md#reserved-namespace-ids). |
 | `availableDataRoot`               | [HashDigest](#hashdigest)             | Root of [commitments to erasure-coded data](#availabledataheader).                                                                                                 |
 | `proposerAddress`                 | [Address](#address)                   | Address of this block's proposer.                                                                                                                                  |
@@ -78,7 +78,7 @@ Data that is [erasure-coded](#erasure-coding) for [data availability checks](htt
 |-----------------------------|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
 | `transactionData`           | [TransactionData](#transactiondata)                     | Transaction data. Transactions modify the validator set and balances, and pay fees for messages to be included. |
 | `intermediateStateRootData` | [IntermediateStateRootData](#intermediatestaterootdata) | Intermediate state roots used for fraud proofs.                                                                 |
-| `payForBlobData` | [PayForBlobData](#payforblobdata) | PayForBlob data. Transactions that pay for blobs to be included. |
+| `payForBlobData`            | [PayForBlobData](#payforblobdata)                       | PayForBlob data. Transactions that pay for blobs to be included.                                                |
 | `messageData`               | [MessageData](#messagedata)                             | Message data. Messages are app data.                                                                            |
 
 ### Commit
@@ -576,9 +576,6 @@ The commitment to message shares `messageShareCommitment` is a [Merkle root](#bi
 | `type`           | `TransactionType`                 | Must be `TransactionType.CreateValidator`. |
 | `fee`            | [TransactionFee](#transactionfee) |                                            |
 | `nonce`          | [Nonce](#type-aliases)            |                                            |
-| `commissionRate` | [Decimal](#decimal)               |                                            |
-
-Create a new [Validator](#validator) at this address.
 
 ##### SignedTransactionDataBeginUnbondingValidator
 
@@ -588,8 +585,6 @@ Create a new [Validator](#validator) at this address.
 | `fee`   | [TransactionFee](#transactionfee) |                                                    |
 | `nonce` | [Nonce](#type-aliases)            |                                                    |
 
-Begin unbonding the [Validator](#validator) at this address.
-
 ##### SignedTransactionDataUnbondValidator
 
 | name    | type                              | description                                |
@@ -597,8 +592,6 @@ Begin unbonding the [Validator](#validator) at this address.
 | `type`  | `TransactionType`                 | Must be `TransactionType.UnbondValidator`. |
 | `fee`   | [TransactionFee](#transactionfee) |                                            |
 | `nonce` | [Nonce](#type-aliases)            |                                            |
-
-Finish unbonding the [Validator](#validator) at this address.
 
 ##### SignedTransactionDataCreateDelegation
 
@@ -610,8 +603,6 @@ Finish unbonding the [Validator](#validator) at this address.
 | `fee`    | [TransactionFee](#transactionfee) |                                             |
 | `nonce`  | [Nonce](#type-aliases)            |                                             |
 
-Create a new [Delegation](#delegation) of `amount` coins worth of voting power for validator with address `to`.
-
 ##### SignedTransactionDataBeginUnbondingDelegation
 
 | name    | type                              | description                                         |
@@ -620,8 +611,6 @@ Create a new [Delegation](#delegation) of `amount` coins worth of voting power f
 | `fee`   | [TransactionFee](#transactionfee) |                                                     |
 | `nonce` | [Nonce](#type-aliases)            |                                                     |
 
-Begin unbonding the [Delegation](#delegation) at this address.
-
 ##### SignedTransactionDataUnbondDelegation
 
 | name    | type                              | description                                 |
@@ -629,8 +618,6 @@ Begin unbonding the [Delegation](#delegation) at this address.
 | `type`  | `TransactionType`                 | Must be `TransactionType.UnbondDelegation`. |
 | `fee`   | [TransactionFee](#transactionfee) |                                             |
 | `nonce` | [Nonce](#type-aliases)            |                                             |
-
-Finish unbonding the [Delegation](#delegation) at this address.
 
 ##### SignedTransactionDataBurn
 
@@ -699,172 +686,7 @@ Adds delegation's pending rewards to voting power.
 
 ## State
 
-The state of the Celestia chain is intentionally restricted to containing only account balances and the validator set metadata. One unified [Sparse Merkle Tree](#sparse-merkle-tree) is maintained for the entire chain state, the _state tree_. The root of this tree is committed to in the [block header](#header).
-
-The state tree is separated into `2**(8*STATE_SUBTREE_RESERVED_BYTES)` subtrees, each of which can be used to store a different component of the state. This is done by slicing off the highest `STATE_SUBTREE_RESERVED_BYTES` bytes from the key and replacing them with the appropriate [reserved state subtree ID](consensus.md#reserved-state-subtree-ids). Reducing the key size within subtrees also reduces the collision resistance of keys by `8*STATE_SUBTREE_RESERVED_BYTES` bits, but this is not an issue due the number of bits removed being small.
-
-A number of subtrees are maintained:
-
-1. [Accounts](#account)
-1. [Active validator set](#validator)
-1. [Inactive validator set](#validator)
-1. [Delegation set](#delegation)
-1. [Message shares paid for](#messagepaid)
-
-### StateElement
-
-Data structure for state elements is given below:
-
-| name    | type                                                                                                                                                                                                                                                                                                                                                    | description                                                                                                                                  |
-|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| `key`   | `byte[32]`                                                                                                                                                                                                                                                                                                                                              | Keys are byte arrays with size 32.                                                                                                           |
-| `value` | [Account](#account), [Delegation](#delegation), [Validator](#validator), [ActiveValidatorCount](#activevalidatorcount), [ActiveVotingPower](#activevotingpower), [ProposerBlockReward](#proposerblockreward), [ProposerInitialVotingPower](#proposerinitialvotingpower), [ValidatorQueueHead](#validatorqueuehead), [MessagePaidHead](#messagepaidhead) | `value` can be of different types depending on the state elements listed below. There exists a unique protobuf for different state elements. |
-
-### Account
-
-```C++
-enum AccountStatus : uint8_t {
-    None = 1,
-    DelegationBonded = 2,
-    DelegationUnbonding = 3,
-    ValidatorQueued = 4,
-    ValidatorBonded = 5,
-    ValidatorUnbonding = 6,
-    ValidatorUnbonded = 7,
-};
-```
-
-| name      | type                    | description                                                                       |
-|-----------|-------------------------|-----------------------------------------------------------------------------------|
-| `balance` | [Amount](#type-aliases) | Coin balance.                                                                     |
-| `nonce`   | [Nonce](#type-aliases)  | Account nonce. Every outgoing transaction from this account increments the nonce. |
-| `status`  | `AccountStatus`         | Validator or delegation status of this account.                                   |
-
-The `status` of an account indicates weather it is a validator (`AccountStatus.Validator*`), delegating to a validator (`AccountStatus.Delegation*`), or neither (`AccountStatus.None`). Being a validator and delegating are mutually exclusive, and only a single validator can be delegated to.
-
-Delegations have two statuses:
-
-1. `DelegationBonded`: This delegation is enabled for a `Queued` _or_ `Bonded` validator. Delegations to a `Queued` validator can be withdrawn immediately, while delegations for a `Bonded` validator must be unbonded first.
-1. `DelegationUnbonding`: This delegation is unbonding. It will remain in this status for at least `UNBONDING_DURATION` blocks, and while unbonding may still be slashed. Once the unbonding duration has expired, the delegation can be withdrawn.
-
-Validators have four statuses:
-
-1. `ValidatorQueued`: This validator has entered the queue to become an active validator. Once the next validator set transition occurs, if this validator has sufficient voting power (including its own stake and stake delegated to it) to be in the top `MAX_VALIDATORS` validators by voting power, it will become an active, i.e. `ValidatorBonded` validator. Until bonded, this validator can immediately exit the queue.
-1. `ValidatorBonded`: This validator is active and bonded. It can propose new blocks and vote on proposed blocks. Once bonded, an active validator must go through an unbonding process until its stake can be freed.
-1. `ValidatorUnbonding`: This validator is in the process of unbonding, which can be voluntary (the validator decided to stop being an active validator) or forced (the validator committed a slashable offence and was kicked from the active validator set). Validators will remain in this status for at least `UNBONDING_DURATION` blocks, and while unbonding may still be slashed.
-1. `ValidatorUnbonded`: This validator has completed its unbonding and has withdrawn its stake. The validator object will remain in this status until `delegatedCount` reaches zero, at which point it is destroyed.
-
-In the accounts subtree, accounts (i.e. leaves) are keyed by the [hash](#hashdigest) of their [address](#address). The first byte is then replaced with [`ACCOUNTS_SUBTREE_ID`](./consensus.md#reserved-state-subtree-ids).
-
-### Delegation
-
-| name              | type                         | description                                         |
-|-------------------|------------------------------|-----------------------------------------------------|
-| `validator`       | [Address](#address)          | The validator being delegating to.                  |
-| `stakedBalance`   | [VotingPower](#type-aliases) | Delegated stake, in `4u`.                           |
-| `beginEntry`      | [PeriodEntry](#periodentry)  | Entry when delegation began.                        |
-| `endEntry`        | [PeriodEntry](#periodentry)  | Entry when delegation ended (i.e. began unbonding). |
-| `unbondingHeight` | [Height](#type-aliases)      | Block height delegation began unbonding.            |
-
-Delegation objects represent a delegation.
-
-In the delegation subtree, delegations are keyed by the [hash](#hashdigest) of their [address](#address). The first byte is then replaced with [`DELEGATIONS_SUBTREE_ID`](./consensus.md#reserved-state-subtree-ids).
-
-### Validator
-
-| name                | type                         | description                                                                            |
-|---------------------|------------------------------|----------------------------------------------------------------------------------------|
-| `commissionRewards` | `uint64`                     | Validator's commission rewards, in `1u`.                                               |
-| `commissionRate`    | [Decimal](#decimal)          | Commission rate.                                                                       |
-| `delegatedCount`    | `uint32`                     | Number of accounts delegating to this validator.                                       |
-| `votingPower`       | [VotingPower](#type-aliases) | Total voting power as staked balance + delegated stake, in `4u`.                       |
-| `pendingRewards`    | [Amount](#type-aliases)      | Rewards collected so far this period, in `1u`.                                         |
-| `latestEntry`       | [PeriodEntry](#periodentry)  | Latest entry, used for calculating reward distribution.                                |
-| `unbondingHeight`   | [Height](#type-aliases)      | Block height validator began unbonding.                                                |
-| `isSlashed`         | `bool`                       | If this validator has been slashed or not.                                             |
-| `slashRate`         | [Decimal](#decimal)          | _Optional_, only if `isSlashed` is set. Rate at which this validator has been slashed. |
-| `next`              | [Address](#type-aliases)     | Next validator in the queue. Zero if this validator is not in the queue.               |
-
-Validator objects represent all the information needed to be keep track of a validator.
-
-In the validators subtrees, validators are keyed by the [hash](#hashdigest) of their [address](#address). The first byte is then replaced with [`ACTIVE_VALIDATORS_SUBTREE_ID`](./consensus.md#reserved-state-subtree-ids) for the active validator set or [`INACTIVE_VALIDATORS_SUBTREE_ID`](./consensus.md#reserved-state-subtree-ids) for the inactive validator set. Active validators are bonded, (i.e. `ValidatorBonded`), while inactive validators are not bonded (i.e. `ValidatorUnbonded`). By construction, the validators subtrees will be a subset of a mirror of the [accounts subtree](#account).
-
-The validator queue (i.e. validators with status `ValidatorQueued`) is a subset of the inactive validator set. This queue is represented as a linked list, with each validator pointing to the `next` validator in the queue, and the head of the linked list stored in [ValidatorQueueHead](#validatorqueuehead).
-
-### ActiveValidatorCount
-
-| name            | type     | description                  |
-|-----------------|----------|------------------------------|
-| `numValidators` | `uint32` | Number of active validators. |
-
-Since the [active validator set](#validator) is stored in a [Sparse Merkle Tree](#sparse-merkle-tree), there is no compact way of proving that the number of active validators exceeds `MAX_VALIDATORS` without keeping track of the number of active validators. The active validator count is stored in the active validators subtree, and is keyed with `0` (i.e. `0x0000000000000000000000000000000000000000000000000000000000000000`), with the first byte replaced with `ACTIVE_VALIDATORS_SUBTREE_ID`.
-
-### ActiveVotingPower
-
-| name          | type     | description          |
-|---------------|----------|----------------------|
-| `votingPower` | `uint64` | Active voting power. |
-
-Since the [active validator set](#validator) is stored in a [Sparse Merkle Tree](#sparse-merkle-tree), there is no compact way of proving the active voting power. The active voting power is stored in the active validators subtree, and is keyed with `1` (i.e. `0x0000000000000000000000000000000000000000000000000000000000000001`), with the first byte replaced with `ACTIVE_VALIDATORS_SUBTREE_ID`.
-
-### ProposerBlockReward
-
-| name     | type     | description                                                                    |
-|----------|----------|--------------------------------------------------------------------------------|
-| `reward` | `uint64` | Total block reward (subsidy + fees) in current block so far. Reset each block. |
-
-The current block reward for the proposer is kept track of here. This is keyed with `2` (i.e. `0x0000000000000000000000000000000000000000000000000000000000000002`), with the first byte replaced with `ACTIVE_VALIDATORS_SUBTREE_ID`.
-
-### ProposerInitialVotingPower
-
-| name          | type     | description                                                              |
-|---------------|----------|--------------------------------------------------------------------------|
-| `votingPower` | `uint64` | Voting power of the proposer at the start of each block. Set each block. |
-
-The proposer's voting power at the beginning of the block is kept track of here. This is keyed with `3` (i.e. `0x0000000000000000000000000000000000000000000000000000000000000003`), with the first byte replaced with `ACTIVE_VALIDATORS_SUBTREE_ID`.
-
-### ValidatorQueueHead
-
-| name   | type                | description                                                       |
-|--------|---------------------|-------------------------------------------------------------------|
-| `head` | [Address](#address) | Address of inactive validator at the head of the validator queue. |
-
-The head of the queue for validators that are waiting to become active validators is stored in the inactive validators subtree, and is keyed with `0` (i.e. `0x0000000000000000000000000000000000000000000000000000000000000000`), with the first byte replaced with `INACTIVE_VALIDATORS_SUBTREE_ID`.
-
-If the queue is empty, `head` is set to the default value (i.e. the hash of the leaf is [the default value for a Sparse Merkle Tree](#sparse-merkle-tree)).
-
-### PeriodEntry
-
-| name         | type                    | description                                                   |
-|--------------|-------------------------|---------------------------------------------------------------|
-| `rewardRate` | [Amount](#type-aliases) | Rewards per unit of voting power accumulated so far, in `1u`. |
-
-### Decimal
-
-| name          | type   | description           |
-|---------------|--------|-----------------------|
-| `numerator`   | uint64 | Rational numerator.   |
-| `denominator` | uint64 | Rational denominator. |
-
-Represents a (potentially) non-integer number.
-
-### MessagePaid
-
-| name     | type                      | description                                                           |
-|----------|---------------------------|-----------------------------------------------------------------------|
-| `start`  | `uint64`                  | Share index (in row-major order) of first share paid for (inclusive). |
-| `finish` | `uint64`                  | Share index (in row-major order) of last share paid for (inclusive).  |
-| `next`   | [HashDigest](#hashdigest) | Next transaction ID in the list.                                      |
-
-### MessagePaidHead
-
-| name   | type                      | description                                                              |
-|--------|---------------------------|--------------------------------------------------------------------------|
-| `head` | [HashDigest](#hashdigest) | Transaction hash at the head of the list (has the smallest start index). |
-
-The head of the list of paid message shares is stored in the message share paid subtree, and is keyed with `0` (i.e. `0x0000000000000000000000000000000000000000000000000000000000000000`), with the first byte replaced with `MESSAGE_PAID_SUBTREE_ID`.
-
-If the paid list is empty, `head` is set to the default value (i.e. the hash of the leaf is [the default value for a Sparse Merkle Tree](#sparse-merkle-tree)).
+The state of the Celestia chain is intentionally restricted to containing only account balances and the validator set metadata. Similar to other Cosmos SDK based chains, the state of the Celestia chain is maintained in a [multistore](https://docs.cosmos.network/main/core/store#multistore). The root of the application state is committed to in the [block header](#header) via the `AppHash`.
 
 ## Consensus Parameters
 
