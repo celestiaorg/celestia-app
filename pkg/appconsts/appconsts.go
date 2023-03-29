@@ -55,7 +55,7 @@ const (
 	//
 	// Note: 128 shares in a row * 128 shares in a column * 512 bytes in a share
 	// = 8 MiB
-	DefaultMaxSquareSize = 128
+	DefaultMaxSquareSize = 1024
 
 	// MaxShareCount is the maximum number of shares allowed in the original
 	// data square.
