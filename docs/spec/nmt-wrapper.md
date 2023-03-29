@@ -46,7 +46,7 @@ However, shares in `Q1`, `Q2`, and `Q3` (that are erasure-coded versions of `Q0`
 These shares must be assigned a reserved namespace ID, which is called `ParitySharesNamespaceID`.
 The `ParitySharesNamespaceID` corresponds to the lexicographically last namespace ID that can be represented by `NamespaceIDSize` bytes.
 If `NamespaceIDSize` is `8`, then the value of `ParitySharesNamespaceID` is `2^64-1`, which is equivalent to `0xFFFFFFFFFFFFFFFF`.
-In Celestia, the values for `NamespaceIDSize` and `ParitySharesNamespaceID` can be found in [`NAMESPACE_ID_BYTES`][celestia-constants-link] constant and the [`PARITY_SHARE_NAMESPACE_ID`][celestia-consensus-link], respectively.
+In Celestia, the values for `NamespaceIDSize` and `ParitySharesNamespaceID` can be found in [`NAMESPACE_SIZE`][celestia-constants-link] constant and the [`PARITY_SHARE_NAMESPACE`][celestia-consensus-link], respectively.
 
 ### NMT Wrapper Data Insertion
 
