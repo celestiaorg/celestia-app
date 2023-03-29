@@ -8,13 +8,12 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -38,12 +37,12 @@ func NewTxInclusionProof(data types.Data, txIndex uint64) (types.ShareProof, err
 	return NewShareInclusionProof(rawShares, data.SquareSize, namespace, startShare, endShare)
 }
 
-func getTxNamespace(tx types.Tx) (ns namespace.ID) {
+func getTxNamespace(tx types.Tx) (ns appns.Namespace) {
 	_, isIndexWrapper := types.UnmarshalIndexWrapper(tx)
 	if isIndexWrapper {
-		return appconsts.PayForBlobNamespaceID
+		return appns.PayForBlobNamespace
 	}
-	return appconsts.TxNamespaceID
+	return appns.TxNamespace
 }
 
 // TxShareRange returns the range of shares that include a given txIndex.
@@ -109,7 +108,7 @@ func BlobShareRange(tx types.Tx) (beginShare uint64, endShare uint64, err error)
 func NewShareInclusionProof(
 	allRawShares []shares.Share,
 	squareSize uint64,
-	namespaceID namespace.ID,
+	namespace appns.Namespace,
 	startShare uint64,
 	endShare uint64,
 ) (types.ShareProof, error) {
@@ -190,8 +189,9 @@ func NewShareInclusionProof(
 			StartRow: uint32(startRow),
 			EndRow:   uint32(endRow),
 		},
-		Data:        rawShares,
-		ShareProofs: shareProofs,
-		NamespaceID: namespaceID,
+		Data:             rawShares,
+		ShareProofs:      shareProofs,
+		NamespaceID:      namespace.ID,
+		NamespaceVersion: uint32(namespace.Version),
 	}, nil
 }

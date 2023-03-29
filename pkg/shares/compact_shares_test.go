@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,7 +17,7 @@ import (
 func TestCompactShareSplitter(t *testing.T) {
 	// note that this test is mainly for debugging purposes, the main round trip
 	// tests occur in TestMerge and Test_processCompactShares
-	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+	css := NewCompactShareSplitter(appns.TxNamespace, appconsts.ShareVersionZero)
 	txs := testfactory.GenerateRandomTxs(33, 200)
 	for _, tx := range txs {
 		err := css.WriteTx(tx)
@@ -112,7 +113,7 @@ func Test_processCompactShares(t *testing.T) {
 }
 
 func TestCompactShareContainsInfoByte(t *testing.T) {
-	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+	css := NewCompactShareSplitter(appns.TxNamespace, appconsts.ShareVersionZero)
 	txs := testfactory.GenerateRandomTxs(1, appconsts.ContinuationCompactShareContentSize/4)
 
 	for _, tx := range txs {
@@ -134,7 +135,7 @@ func TestCompactShareContainsInfoByte(t *testing.T) {
 }
 
 func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
-	css := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
+	css := NewCompactShareSplitter(appns.TxNamespace, appconsts.ShareVersionZero)
 	txs := testfactory.GenerateRandomTxs(1, appconsts.ContinuationCompactShareContentSize*4)
 
 	for _, tx := range txs {

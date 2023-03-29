@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -20,17 +21,26 @@ import (
 
 func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "PayForBlobs [hexNamespace] [hexBlob]",
+		Use:   "PayForBlobs [hexNamespaceID] [hexBlob]",
 		Short: "Pay for a data blob to be published to the Celestia blockchain",
-		Args:  cobra.ExactArgs(2),
+		Long: "Pay for a data blob to be published to the Celestia blockchain. " +
+			"[hexNamespaceID] must be a 10 byte hex encoded namespace ID. " +
+			"[hexBlob] can be an arbitrary length hex encoded data blob. " +
+			"This command only supports a single blob per invocation. ",
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// decode the namespace
-			namespace, err := hex.DecodeString(args[0])
+			namespaceID, err := hex.DecodeString(args[0])
 			if err != nil {
-				return fmt.Errorf("failure to decode hex namespace: %w", err)
+				return fmt.Errorf("failure to decode hex namespace ID: %w", err)
 			}
 
-			// decode the blob
+			// TODO: allow the user to override the namespace version via a new flag
+			// See https://github.com/celestiaorg/celestia-app/issues/1528
+			namespace, err := appns.New(appns.NamespaceVersionZero, append(appns.NamespaceVersionZeroPrefix, namespaceID...))
+			if err != nil {
+				return fmt.Errorf("failure to create namespace: %w", err)
+			}
+
 			rawblob, err := hex.DecodeString(args[1])
 			if err != nil {
 				return fmt.Errorf("failure to decode hex blob: %w", err)

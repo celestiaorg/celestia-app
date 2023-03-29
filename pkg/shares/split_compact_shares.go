@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/nmt/namespace"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -23,7 +23,7 @@ type CompactShareSplitter struct {
 	shares []Share
 	// pendingShare Share
 	shareBuilder *Builder
-	namespace    namespace.ID
+	namespace    appns.Namespace
 	done         bool
 	shareVersion uint8
 	// shareRanges is a map from a transaction key to the range of shares it
@@ -35,7 +35,7 @@ type CompactShareSplitter struct {
 
 // NewCompactShareSplitter returns a CompactShareSplitter using the provided
 // namespace and shareVersion.
-func NewCompactShareSplitter(ns namespace.ID, shareVersion uint8) *CompactShareSplitter {
+func NewCompactShareSplitter(ns appns.Namespace, shareVersion uint8) *CompactShareSplitter {
 	sb, err := NewBuilder(ns, shareVersion, true).Init()
 	if err != nil {
 		panic(err)
@@ -129,7 +129,6 @@ func (css *CompactShareSplitter) Export(shareRangeOffset int) ([]Share, map[core
 	// apply the shareRangeOffset to all share ranges
 	shareRanges := make(map[coretypes.TxKey]ShareRange, len(css.shareRanges))
 
-	fmt.Printf("css.shareBuilder.IsEmptyShare(): %v\n", css.shareBuilder.IsEmptyShare())
 	if css.isEmpty() {
 		return []Share{}, shareRanges, nil
 	}
@@ -146,8 +145,6 @@ func (css *CompactShareSplitter) Export(shareRangeOffset int) ([]Share, map[core
 		return css.shares, shareRanges, nil
 	}
 
-	fmt.Printf("len(css.shares): %+v\n", len(css.shares))
-
 	var bytesOfPadding int
 	// add the pending share to the current shares before returning
 	if !css.shareBuilder.IsEmptyShare() {
@@ -156,8 +153,6 @@ func (css *CompactShareSplitter) Export(shareRangeOffset int) ([]Share, map[core
 			return []Share{}, shareRanges, err
 		}
 	}
-
-	fmt.Printf("len(css.shares): %+v\n", len(css.shares))
 
 	sequenceLen := css.sequenceLen(bytesOfPadding)
 	if err := css.writeSequenceLen(sequenceLen); err != nil {
