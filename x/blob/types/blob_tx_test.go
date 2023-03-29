@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/testutil/namespace"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
@@ -26,7 +26,7 @@ func TestNewBlob(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, validBlob.Data, rawBlob)
 
-	_, err = NewBlob(appconsts.TxNamespaceID, rawBlob)
+	_, err = NewBlob(appns.TxNamespace, rawBlob)
 	require.Error(t, err)
 
 	_, err = NewBlob(namespace.RandomBlobNamespace(), []byte{})
@@ -104,8 +104,8 @@ func setupSigTest(t *testing.T) (string, sdk.Address, *KeyringSigner, encoding.C
 	return acc, addr, signer, encCfg
 }
 
-func randMsgPayForBlobsWithNamespaceAndSigner(t *testing.T, signer string, nid []byte, size int) (*MsgPayForBlobs, *tmproto.Blob) {
-	blob, err := NewBlob(nid, tmrand.Bytes(size))
+func randMsgPayForBlobsWithNamespaceAndSigner(t *testing.T, signer string, ns appns.Namespace, size int) (*MsgPayForBlobs, *tmproto.Blob) {
+	blob, err := NewBlob(ns, tmrand.Bytes(size))
 	require.NoError(t, err)
 	msg, err := NewMsgPayForBlobs(
 		signer,

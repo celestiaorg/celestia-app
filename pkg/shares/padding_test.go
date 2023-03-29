@@ -5,15 +5,16 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-var nsOne = bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
+var ns1 = appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 
 var nsOnePadding, _ = zeroPadIfNecessary(
 	append(
-		nsOne,
+		ns1.Bytes(),
 		[]byte{
 			1,          // info byte
 			0, 0, 0, 0, // sequence len
@@ -22,7 +23,7 @@ var nsOnePadding, _ = zeroPadIfNecessary(
 
 var reservedPadding, _ = zeroPadIfNecessary(
 	append(
-		appconsts.ReservedPaddingNamespaceID,
+		appns.ReservedPaddingNamespace.Bytes(),
 		[]byte{
 			1,          // info byte
 			0, 0, 0, 0, // sequence len
@@ -31,7 +32,7 @@ var reservedPadding, _ = zeroPadIfNecessary(
 
 var tailPadding, _ = zeroPadIfNecessary(
 	append(
-		appconsts.TailPaddingNamespaceID,
+		appns.TailPaddingNamespace.Bytes(),
 		[]byte{
 			1,          // info byte
 			0, 0, 0, 0, // sequence len
@@ -39,14 +40,14 @@ var tailPadding, _ = zeroPadIfNecessary(
 	), appconsts.ShareSize)
 
 func TestNamespacePaddingShare(t *testing.T) {
-	got, err := NamespacePaddingShare(nsOne)
-	require.NoError(t, err)
+	got, err := NamespacePaddingShare(ns1)
+	assert.NoError(t, err)
 	assert.Equal(t, nsOnePadding, got.ToBytes())
 }
 
 func TestNamespacePaddingShares(t *testing.T) {
-	shares, err := NamespacePaddingShares(nsOne, 2)
-	require.NoError(t, err)
+	shares, err := NamespacePaddingShares(ns1, 2)
+	assert.NoError(t, err)
 	for _, share := range shares {
 		assert.Equal(t, nsOnePadding, share.ToBytes())
 	}

@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	coretypes "github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/maps"
 )
@@ -55,7 +56,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 			panic(fmt.Sprintf("blobShareStart %v < currentShareCount %v", blobShareStart, currentShareCount))
 		}
 
-		padding, err = NamespacePaddingShares(appconsts.ReservedPaddingNamespaceID, blobShareStart-currentShareCount)
+		padding, err = NamespacePaddingShares(appns.ReservedPaddingNamespace, blobShareStart-currentShareCount)
 		if err != nil {
 			return nil, err
 		}
@@ -111,8 +112,8 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 }
 
 func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRanges map[coretypes.TxKey]ShareRange, err error) {
-	txWriter := NewCompactShareSplitter(appconsts.TxNamespaceID, appconsts.ShareVersionZero)
-	pfbTxWriter := NewCompactShareSplitter(appconsts.PayForBlobNamespaceID, appconsts.ShareVersionZero)
+	txWriter := NewCompactShareSplitter(appns.TxNamespace, appconsts.ShareVersionZero)
+	pfbTxWriter := NewCompactShareSplitter(appns.PayForBlobNamespace, appconsts.ShareVersionZero)
 
 	for _, tx := range txs {
 		if _, isIndexWrapper := coretypes.UnmarshalIndexWrapper(tx); isIndexWrapper {

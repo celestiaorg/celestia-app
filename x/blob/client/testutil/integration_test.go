@@ -17,7 +17,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 
-	"github.com/celestiaorg/celestia-app/testutil/namespace"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	paycli "github.com/celestiaorg/celestia-app/x/blob/client/cli"
@@ -61,8 +61,7 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	require := s.Require()
 	val := s.network.Validators[0]
-
-	hexNS := hex.EncodeToString(namespace.RandomBlobNamespace())
+	hexNamespace := hex.EncodeToString(appns.RandomBlobNamespaceID())
 
 	// some hex blob
 	hexBlob := "0204033704032c0b162109000908094d425837422c2116"
@@ -77,7 +76,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		{
 			name: "valid transaction",
 			args: []string{
-				hexNS,
+				hexNamespace,
 				hexBlob,
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),

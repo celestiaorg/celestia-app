@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	"github.com/celestiaorg/celestia-app/x/blob"
@@ -223,9 +224,9 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	require := s.Require()
 	assert := s.Assert()
 	val := s.network.Validators[0]
-	namespaceOne := bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
+	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 
-	mustNewBlob := func(ns, data []byte) *blobtypes.Blob {
+	mustNewBlob := func(ns appns.Namespace, data []byte) *blobtypes.Blob {
 		b, err := blobtypes.NewBlob(ns, data)
 		require.NoError(err)
 		return b
@@ -240,7 +241,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	tests := []test{
 		{
 			"small random typical",
-			mustNewBlob(namespaceOne, tmrand.Bytes(3000)),
+			mustNewBlob(ns1, tmrand.Bytes(3000)),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
 				blobtypes.SetGasLimit(1_000_000_000),
@@ -248,7 +249,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"large random typical",
-			mustNewBlob(namespaceOne, tmrand.Bytes(350000)),
+			mustNewBlob(ns1, tmrand.Bytes(350000)),
 			[]types.TxBuilderOption{
 				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
 				blobtypes.SetGasLimit(1_000_000_000),
@@ -256,7 +257,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"medium random with memo",
-			mustNewBlob(namespaceOne, tmrand.Bytes(100000)),
+			mustNewBlob(ns1, tmrand.Bytes(100000)),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetMemo("lol I could stick the rollup block here if I wanted to"),
 				blobtypes.SetGasLimit(1_000_000_000),
@@ -264,7 +265,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"medium random with timeout height",
-			mustNewBlob(namespaceOne, tmrand.Bytes(100000)),
+			mustNewBlob(ns1, tmrand.Bytes(100000)),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetTimeoutHeight(1000),
 				blobtypes.SetGasLimit(1_000_000_000),

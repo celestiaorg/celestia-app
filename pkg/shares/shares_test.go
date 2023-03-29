@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	testutilns "github.com/celestiaorg/celestia-app/testutil/namespace"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -25,9 +25,10 @@ func TestPadFirstIndexedBlob(t *testing.T) {
 		Txs: []coretypes.Tx{indexedTx},
 		Blobs: []coretypes.Blob{
 			{
-				NamespaceID:  testutilns.RandomBlobNamespace(),
-				Data:         blob,
-				ShareVersion: appconsts.ShareVersionZero,
+				NamespaceVersion: appns.RandomBlobNamespace().Version,
+				NamespaceID:      appns.RandomBlobNamespace().ID,
+				Data:             blob,
+				ShareVersion:     appconsts.ShareVersionZero,
 			},
 		},
 		SquareSize: 64,
@@ -65,13 +66,13 @@ func TestSequenceLen(t *testing.T) {
 		[]byte{
 			0, // info byte
 		}...)
-	compactShare := append([]byte(appconsts.TxNamespaceID),
+	compactShare := append(appns.TxNamespace.Bytes(),
 		[]byte{
 			1,           // info byte
 			0, 0, 0, 10, // sequence len
 		}...)
-	noInfoByte := []byte(appconsts.TxNamespaceID)
-	noSequenceLen := append([]byte(appconsts.TxNamespaceID),
+	noInfoByte := appns.TxNamespace.Bytes()
+	noSequenceLen := append(appns.TxNamespace.Bytes(),
 		[]byte{
 			1, // info byte
 		}...)
@@ -136,38 +137,38 @@ func TestRawData(t *testing.T) {
 		want    []byte
 		wantErr bool
 	}
-	sparseNamespaceID := bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
+	sparseNamespaceID := appns.MustNewV0(bytes.Repeat([]byte{0x1}, appns.NamespaceVersionZeroIDSize))
 	firstSparseShare := append(
-		sparseNamespaceID,
+		sparseNamespaceID.Bytes(),
 		[]byte{
 			1,           // info byte
 			0, 0, 0, 10, // sequence len
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 		}...)
 	continuationSparseShare := append(
-		sparseNamespaceID,
+		sparseNamespaceID.Bytes(),
 		[]byte{
 			0,                             // info byte
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 		}...)
-	firstCompactShare := append([]byte(appconsts.TxNamespaceID),
+	firstCompactShare := append(appns.TxNamespace.Bytes(),
 		[]byte{
 			1,           // info byte
 			0, 0, 0, 10, // sequence len
 			0, 0, 0, 15, // reserved bytes
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 		}...)
-	continuationCompactShare := append([]byte(appconsts.TxNamespaceID),
+	continuationCompactShare := append(appns.TxNamespace.Bytes(),
 		[]byte{
 			0,          // info byte
 			0, 0, 0, 0, // reserved bytes
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, // data
 		}...)
-	noSequenceLen := append([]byte(appconsts.TxNamespaceID),
+	noSequenceLen := append(appns.TxNamespace.Bytes(),
 		[]byte{
 			1, // info byte
 		}...)
-	notEnoughSequenceLenBytes := append([]byte(appconsts.TxNamespaceID),
+	notEnoughSequenceLenBytes := append(appns.TxNamespace.Bytes(),
 		[]byte{
 			1,        // info byte
 			0, 0, 10, // sequence len
@@ -224,10 +225,10 @@ func TestIsCompactShare(t *testing.T) {
 		want  bool
 	}
 
-	namespaceOne := bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
-	txShare, _ := zeroPadIfNecessary(appconsts.TxNamespaceID, appconsts.ShareSize)
-	pfbTxShare, _ := zeroPadIfNecessary(appconsts.PayForBlobNamespaceID, appconsts.ShareSize)
-	blobShare, _ := zeroPadIfNecessary(namespaceOne, appconsts.ShareSize)
+	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	txShare, _ := zeroPadIfNecessary(appns.TxNamespace.Bytes(), appconsts.ShareSize)
+	pfbTxShare, _ := zeroPadIfNecessary(appns.PayForBlobNamespace.Bytes(), appconsts.ShareSize)
+	blobShare, _ := zeroPadIfNecessary(ns1.Bytes(), appconsts.ShareSize)
 
 	testCases := []testCase{
 		{
@@ -248,7 +249,8 @@ func TestIsCompactShare(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		got := tc.share.IsCompactShare()
+		got, err := tc.share.IsCompactShare()
+		assert.NoError(t, err)
 		assert.Equal(t, tc.want, got)
 	}
 }
@@ -261,10 +263,9 @@ func TestIsPadding(t *testing.T) {
 		wantErr bool
 	}
 	emptyShare := Share{}
-	namespaceOne := bytes.Repeat([]byte{1}, appconsts.NamespaceSize)
 	blobShare, _ := zeroPadIfNecessary(
 		append(
-			namespaceOne,
+			ns1.Bytes(),
 			[]byte{
 				1,          // info byte
 				0, 0, 0, 1, // sequence len
@@ -273,7 +274,7 @@ func TestIsPadding(t *testing.T) {
 		),
 		appconsts.ShareSize)
 
-	nsPadding, err := NamespacePaddingShare(namespaceOne)
+	nsPadding, err := NamespacePaddingShare(ns1)
 	require.NoError(t, err)
 
 	tailPadding, err := TailPaddingShare()

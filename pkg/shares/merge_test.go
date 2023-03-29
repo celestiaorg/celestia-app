@@ -39,6 +39,8 @@ func Test_merge_randomData(t *testing.T) {
 	}
 
 	tests := []test{
+		{"just one tx", 1, 0, 40},
+		{"just one blob", 0, 1, 40},
 		{"one of each random small size", 1, 1, 40},
 		{"one of each random large size", 1, 1, 400},
 		{"many of each random large size", 10, 10, 40},
