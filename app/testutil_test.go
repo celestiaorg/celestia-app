@@ -7,6 +7,7 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 )
@@ -23,11 +24,11 @@ func generateMixedTxs(normalTxCount, pfbCount, pfbSize int) ([][]byte, []tmproto
 	return separateTxs(encCfg.TxConfig, coretypes.Txs(txs).ToSliceOfBytes())
 }
 
-// generateBlobTxsWithNIDs will generate len(nids) BlobTxs with
+// generateBlobTxsWithNamespaces will generate len(namespaces) BlobTxs with
 // len(blobSizes[i]) number of blobs per BlobTx. Note: not suitable for using in
 // prepare or process proposal, as the signatures will be invalid since this
 // does not query for relevant account numbers or sequences.
-func generateBlobTxsWithNIDs(t *testing.T, nids [][]byte, blobSizes [][]int) []tmproto.BlobTx {
+func generateBlobTxsWithNamespaces(t *testing.T, namespaces []appns.Namespace, blobSizes [][]int) []tmproto.BlobTx {
 	encCfg := encoding.MakeConfig(ModuleEncodingRegisters...)
 	const acc = "signer"
 	kr := testfactory.GenerateKeyring(acc)
@@ -38,7 +39,7 @@ func generateBlobTxsWithNIDs(t *testing.T, nids [][]byte, blobSizes [][]int) []t
 		"chainid",
 		blobfactory.Repeat(acc, len(blobSizes)),
 		blobfactory.Repeat(blobfactory.AccountInfo{}, len(blobSizes)),
-		blobfactory.NestedBlobs(t, nids, blobSizes),
+		blobfactory.NestedBlobs(t, namespaces, blobSizes),
 	)
 	_, blobTxs := separateTxs(encCfg.TxConfig, txs)
 	return blobTxs

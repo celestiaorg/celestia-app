@@ -6,8 +6,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	testns "github.com/celestiaorg/celestia-app/testutil/namespace"
-	"github.com/celestiaorg/nmt/namespace"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,14 +17,14 @@ func TestShareSequenceRawData(t *testing.T) {
 		want          []byte
 		wantErr       bool
 	}
-	blobNamespace := testns.RandomBlobNamespace()
+	blobNamespace := appns.RandomBlobNamespace()
 
 	testCases := []testCase{
 		{
 			name: "empty share sequence",
 			shareSequence: ShareSequence{
-				NamespaceID: appconsts.TxNamespaceID,
-				Shares:      []Share{},
+				Namespace: appns.TxNamespace,
+				Shares:    []Share{},
 			},
 			want:    []byte{},
 			wantErr: false,
@@ -33,7 +32,7 @@ func TestShareSequenceRawData(t *testing.T) {
 		{
 			name: "one empty share",
 			shareSequence: ShareSequence{
-				NamespaceID: appconsts.TxNamespaceID,
+				Namespace: appns.TxNamespace,
 				Shares: []Share{
 					shareWithData(blobNamespace, true, 0, []byte{}),
 				},
@@ -44,7 +43,7 @@ func TestShareSequenceRawData(t *testing.T) {
 		{
 			name: "one share with one byte",
 			shareSequence: ShareSequence{
-				NamespaceID: appconsts.TxNamespaceID,
+				Namespace: appns.TxNamespace,
 				Shares: []Share{
 					shareWithData(blobNamespace, true, 1, []byte{0x0f}),
 				},
@@ -55,7 +54,7 @@ func TestShareSequenceRawData(t *testing.T) {
 		{
 			name: "removes padding from last share",
 			shareSequence: ShareSequence{
-				NamespaceID: appconsts.TxNamespaceID,
+				Namespace: appns.TxNamespace,
 				Shares: []Share{
 					shareWithData(blobNamespace, true, appconsts.FirstSparseShareContentSize+1, bytes.Repeat([]byte{0xf}, appconsts.FirstSparseShareContentSize)),
 					shareWithData(blobNamespace, false, 0, []byte{0x0f}),
@@ -112,9 +111,9 @@ func Test_sparseSharesNeeded(t *testing.T) {
 		{appconsts.FirstSparseShareContentSize + appconsts.ContinuationSparseShareContentSize, 2},
 		{appconsts.FirstSparseShareContentSize + appconsts.ContinuationCompactShareContentSize*2, 3},
 		{appconsts.FirstSparseShareContentSize + appconsts.ContinuationCompactShareContentSize*99, 100},
-		{1000, 2},
-		{10000, 20},
-		{100000, 199},
+		{1000, 3},
+		{10000, 21},
+		{100000, 210},
 	}
 	for _, tc := range testCases {
 		got := SparseSharesNeeded(tc.sequenceLen)
@@ -122,10 +121,10 @@ func Test_sparseSharesNeeded(t *testing.T) {
 	}
 }
 
-func shareWithData(namespace namespace.ID, isSequenceStart bool, sequenceLen uint32, data []byte) (rawShare Share) {
+func shareWithData(namespace appns.Namespace, isSequenceStart bool, sequenceLen uint32, data []byte) (rawShare Share) {
 	infoByte, _ := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
 	rawShareBytes := make([]byte, 0, appconsts.ShareSize)
-	rawShareBytes = append(rawShareBytes, namespace...)
+	rawShareBytes = append(rawShareBytes, namespace.Bytes()...)
 	rawShareBytes = append(rawShareBytes, byte(infoByte))
 	if isSequenceStart {
 		sequenceLenBuf := make([]byte, appconsts.SequenceLenBytes)

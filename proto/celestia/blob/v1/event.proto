@@ -10,5 +10,8 @@ option go_package = "github.com/celestiaorg/celestia-app/x/blob/types";
 message EventPayForBlobs {
   string signer = 1;
   repeated uint32 blob_sizes = 2;
-  repeated bytes namespace_ids = 3;
+  // namespaces is a list of namespaces that the blobs in blob_sizes belong to.
+  // A namespace has length of 33 bytes where the first byte is the
+  // namespaceVersion and the subsequent 32 bytes are the namespaceID.
+  repeated bytes namespaces = 3;
 }

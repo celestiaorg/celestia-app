@@ -1,7 +1,6 @@
 package appconsts
 
 import (
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/pkg/consts"
 )
@@ -9,11 +8,17 @@ import (
 // These constants were originally sourced from:
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/consensus.md#constants
 const (
+	// NamespaveVersionSize is the size of a namespace version in bytes.
+	NamespaceVersionSize = 1
+
+	// NamespaceIDSize is the size of a namespace ID in bytes.
+	NamespaceIDSize = 32
+
+	// NamespaceSize is the size of a namespace (version + ID) in bytes.
+	NamespaceSize = NamespaceVersionSize + NamespaceIDSize
+
 	// ShareSize is the size of a share in bytes.
 	ShareSize = 512
-
-	// NamespaceSize is the namespace size in bytes.
-	NamespaceSize = 8
 
 	// ShareInfoBytes is the number of bytes reserved for information. The info
 	// byte contains the share version and a sequence start idicator.
@@ -83,35 +88,6 @@ const (
 )
 
 var (
-	// TxNamespaceID is the namespace reserved for transaction data.
-	TxNamespaceID = consts.TxNamespaceID
-
-	// IntermediateStateRootsNamespaceID is the namespace reserved for
-	// intermediate state root data.
-	// IntermediateStateRootsNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 2}
-
-	// EvidenceNamespaceID is the namespace reserved for evidence.
-	EvidenceNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 3}
-
-	// PayForBlobNamespaceID is the namespace reserved for PayForBlobs transactions.
-	PayForBlobNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 4}
-
-	// ReservedPaddingNamespaceID is the namespace used for padding after all
-	// reserved namespaces. In practice this padding is after transactions
-	// (ordinary and PFBs) but before blobs.
-	ReservedPaddingNamespaceID = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
-
-	// MaxReservedNamespace is lexicographically the largest namespace that is
-	// reserved for protocol use.
-	MaxReservedNamespace = namespace.ID{0, 0, 0, 0, 0, 0, 0, 255}
-
-	// TailPaddingNamespaceID is the namespace reserved for tail padding. All data
-	// with this namespace will be ignored.
-	TailPaddingNamespaceID = namespace.ID{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE}
-
-	// ParitySharesNamespaceID is the namespace reserved for erasure coded data.
-	ParitySharesNamespaceID = namespace.ID{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
-
 	// NewBaseHashFunc is the base hash function used by NMT. Change accordingly
 	// if another hash.Hash should be used as a base hasher in the NMT.
 	NewBaseHashFunc = consts.NewBaseHashFunc
