@@ -46,16 +46,6 @@
 | `TAIL_PADDING_NAMESPACE_ID`             | `NamespaceID` | `0xFFFFFFFFFFFFFFFE` | Tail padding for messages: padding after all messages to fill up the original data square. |
 | `PARITY_SHARE_NAMESPACE_ID`             | `NamespaceID` | `0xFFFFFFFFFFFFFFFF` | Parity shares: extended shares in the available data matrix.                               |
 
-### Reserved State Subtree IDs
-
-| name                             | type             | value  |
-|----------------------------------|------------------|--------|
-| `ACCOUNTS_SUBTREE_ID`            | `StateSubtreeID` | `0x01` |
-| `ACTIVE_VALIDATORS_SUBTREE_ID`   | `StateSubtreeID` | `0x02` |
-| `INACTIVE_VALIDATORS_SUBTREE_ID` | `StateSubtreeID` | `0x03` |
-| `DELEGATIONS_SUBTREE_ID`         | `StateSubtreeID` | `0x04` |
-| `MESSAGE_PAID_SUBTREE_ID`        | `StateSubtreeID` | `0x05` |
-
 ### Rewards and Penalties
 
 | name                     | type     | value       | unit   | description                                             |
@@ -731,7 +721,5 @@ else if account.status == AccountStatus.ValidatorBonded
 At the end of a block, the top `MAX_VALIDATORS` validators by voting power with voting power _greater than_ zero are or become active (bonded). For newly-bonded validators, the entire validator object is moved to the active validators subtree and their status is changed to bonded. For previously-bonded validators that are no longer in the top `MAX_VALIDATORS` validators begin unbonding.
 
 Bonding validators is simply setting their status to `AccountStatus.ValidatorBonded`. The logic for validator unbonding is found [here](#signedtransactiondatabeginunbondingvalidator), minus transaction sender updates (nonce, balance, and fee).
-
-Finally, the state subtree with ID [`MESSAGE_PAID_SUBTREE_ID`](#reserved-state-subtree-ids) is deleted.
 
 This end block implicit state transition is a single state transition, and [only has a single intermediate state root](#blockavailabledata) associated with it.
