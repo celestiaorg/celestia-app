@@ -6,7 +6,7 @@ Proposed
 
 ## Changelog
 
-- 2023/03/29: {changelog}
+- 2023/03/29: Initial draft
 
 ## Context
 
