@@ -179,15 +179,6 @@
 <tr><td><code>PARITY_SHARE_NAMESPACE_ID</code></td><td><code>NamespaceID</code></td><td><code>0xFFFFFFFFFFFFFFFF</code></td><td>Parity shares: extended shares in the available data matrix.</td></tr>
 </tbody></table>
 </div>
-<h3 id="reserved-state-subtree-ids"><a class="header" href="#reserved-state-subtree-ids">Reserved State Subtree IDs</a></h3>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>value</th></tr></thead><tbody>
-<tr><td><code>ACCOUNTS_SUBTREE_ID</code></td><td><code>StateSubtreeID</code></td><td><code>0x01</code></td></tr>
-<tr><td><code>ACTIVE_VALIDATORS_SUBTREE_ID</code></td><td><code>StateSubtreeID</code></td><td><code>0x02</code></td></tr>
-<tr><td><code>INACTIVE_VALIDATORS_SUBTREE_ID</code></td><td><code>StateSubtreeID</code></td><td><code>0x03</code></td></tr>
-<tr><td><code>DELEGATIONS_SUBTREE_ID</code></td><td><code>StateSubtreeID</code></td><td><code>0x04</code></td></tr>
-<tr><td><code>MESSAGE_PAID_SUBTREE_ID</code></td><td><code>StateSubtreeID</code></td><td><code>0x05</code></td></tr>
-</tbody></table>
-</div>
 <h3 id="rewards-and-penalties"><a class="header" href="#rewards-and-penalties">Rewards and Penalties</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>value</th><th>unit</th><th>description</th></tr></thead><tbody>
 <tr><td><code>SECONDS_PER_YEAR</code></td><td><code>uint64</code></td><td><code>31536000</code></td><td>second</td><td>Seconds per year. Omit leap seconds.</td></tr>
@@ -754,7 +745,6 @@ else if account.status == AccountStatus.ValidatorBonded
 </code></pre>
 <p>At the end of a block, the top <code>MAX_VALIDATORS</code> validators by voting power with voting power <em>greater than</em> zero are or become active (bonded). For newly-bonded validators, the entire validator object is moved to the active validators subtree and their status is changed to bonded. For previously-bonded validators that are no longer in the top <code>MAX_VALIDATORS</code> validators begin unbonding.</p>
 <p>Bonding validators is simply setting their status to <code>AccountStatus.ValidatorBonded</code>. The logic for validator unbonding is found <a href="#signedtransactiondatabeginunbondingvalidator">here</a>, minus transaction sender updates (nonce, balance, and fee).</p>
-<p>Finally, the state subtree with ID <a href="#reserved-state-subtree-ids"><code>MESSAGE_PAID_SUBTREE_ID</code></a> is deleted.</p>
 <p>This end block implicit state transition is a single state transition, and <a href="#blockavailabledata">only has a single intermediate state root</a> associated with it.</p>
 
                     </main>
