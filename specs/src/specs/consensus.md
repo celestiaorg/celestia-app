@@ -24,27 +24,30 @@
 | `GENESIS_COIN_COUNT`                    | `uint64` | `10**8`      | `4u`    | `(= 100000000)` Number of coins at genesis.                                                                                                                         |
 | `MAX_GRAFFITI_BYTES`                    | `uint64` | `32`         | `byte`  | Maximum size of transaction graffiti, in bytes.                                                                                                                     |
 | `MAX_VALIDATORS`                        | `uint16` | `64`         |         | Maximum number of active validators.                                                                                                                                |
-| `NAMESPACE_ID_BYTES`                    | `uint64` | `8`          | `byte`  | Size of namespace ID, in bytes.                                                                                                                                     |
-| `NAMESPACE_ID_MAX_RESERVED`             | `uint64` | `255`        |         | Value of maximum reserved namespace ID (inclusive). 1 byte worth of IDs.                                                                                            |
+| `NAMESPACE_VERSION_SIZE`                | `int`    | `1`          | `byte`  | Size of namespace version in bytes.                                                                                                                                 |
+| `NAMESPACE_ID_SIZE`                     | `int`    | `32`         | `byte`  | Size of namespace ID in bytes.                                                                                                                                      |
+| `NAMESPACE_SIZE`                        | `int`    | `33`         | `byte`  | Size of namespace in bytes.                                                                                                                                         |
+| `NAMESPACE_ID_MAX_RESERVED`             | `uint64` | `255`        |         | Value of maximum reserved namespace (inclusive). 1 byte worth of IDs.                                                                                               |
 | `SEQUENCE_BYTES`                        | `uint64` | `4`          | `byte`  | The number of bytes used to store the sequence length in the first share of a sequence                                                                              |
 | `SHARE_INFO_BYTES`                      | `uint64` | `1`          | `byte`  | The number of bytes used for [share](data_structures.md#share) information                                                                                          |
-| `SHARE_RESERVED_BYTES`                  | `uint64` | `4`          | `byte`  | The number of bytes used to store the location of the first unit in a compact share. Must be able to represent any integer up to and including `SHARE_SIZE - 1`.                           |
+| `SHARE_RESERVED_BYTES`                  | `uint64` | `4`          | `byte`  | The number of bytes used to store the location of the first unit in a compact share. Must be able to represent any integer up to and including `SHARE_SIZE - 1`.    |
 | `SHARE_SIZE`                            | `uint64` | `512`        | `byte`  | Size of transaction and message [shares](data_structures.md#share), in bytes.                                                                                       |
 | `STATE_SUBTREE_RESERVED_BYTES`          | `uint64` | `1`          | `byte`  | Number of bytes reserved to identify state subtrees.                                                                                                                |
 | `UNBONDING_DURATION`                    | `uint32` |              | `block` | Duration, in blocks, for unbonding a validator or delegation.                                                                                                       |
 | `VERSION_APP`                           | `uint64` | `1`          |         | Version of the Celestia application. Breaking changes (hard forks) must update this parameter.                                                                      |
 | `VERSION_BLOCK`                         | `uint64` | `1`          |         | Version of the Celestia chain. Breaking changes (hard forks) must update this parameter.                                                                            |
 
-### Reserved Namespace IDs
+### Reserved Namespaces
 
-| name                                    | type          | value                | description                                                                                |
-|-----------------------------------------|---------------|----------------------|--------------------------------------------------------------------------------------------|
-| `TRANSACTION_NAMESPACE_ID`              | `NamespaceID` | `0x0000000000000001` | Transactions: requests that modify the state.                                              |
-| `INTERMEDIATE_STATE_ROOT_NAMESPACE_ID`  | `NamespaceID` | `0x0000000000000002` | Intermediate state roots, committed after every transaction.                               |
-| `EVIDENCE_NAMESPACE_ID`                 | `NamespaceID` | `0x0000000000000003` | Evidence: fraud proofs or other proof of slashable action.                                 |
-| `RESERVED_PADDING_NAMESPACE_ID`         | `NamespaceID` | `0x00000000000000FF` | Padding after all reserved namespaces but before blobs.                                    |
-| `TAIL_PADDING_NAMESPACE_ID`             | `NamespaceID` | `0xFFFFFFFFFFFFFFFE` | Tail padding for messages: padding after all messages to fill up the original data square. |
-| `PARITY_SHARE_NAMESPACE_ID`             | `NamespaceID` | `0xFFFFFFFFFFFFFFFF` | Parity shares: extended shares in the available data matrix.                               |
+| name                                | type        | value                                                                  | description                                                                                          |
+|-------------------------------------|-------------|------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
+| `TRANSACTION_NAMESPACE`             | `Namespace` | `0x000000000000000000000000000000000000000000000000000000000000000001` | Transactions: requests that modify the state.                                                        |
+| `INTERMEDIATE_STATE_ROOT_NAMESPACE` | `Namespace` | `0x000000000000000000000000000000000000000000000000000000000000000002` | Intermediate state roots, committed after every transaction.                                         |
+| `EVIDENCE_NAMESPACE`                | `Namespace` | `0x000000000000000000000000000000000000000000000000000000000000000003` | Evidence: fraud proofs or other proof of slashable action.                                           |
+| `RESERVED_PADDING_NAMESPACE`        | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000000000000FF` | Padding after all reserved namespaces but before blobs.                                              |
+| `MAX_RESERVED_NAMESPACE`            | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000000000000FF` | Max reserved namespace is lexicographically the largest namespace that is reserved for protocol use. |
+| `TAIL_PADDING_NAMESPACE`            | `Namespace` | `0x00000000000000000000000000000000000000000000000000FFFFFFFFFFFFFFFE` | Tail padding for messages: padding after all messages to fill up the original data square.           |
+| `PARITY_SHARE_NAMESPACE`            | `Namespace` | `0x00000000000000000000000000000000000000000000000000FFFFFFFFFFFFFFFF` | Parity shares: extended shares in the available data matrix.                                         |
 
 ### Rewards and Penalties
 
@@ -125,7 +128,7 @@ The block's [available data](./data_structures.md#availabledata) (analogous to t
 
 Once parsed, the following checks must be `true`:
 
-1. The commitments of the [erasure-coded extended](./data_structures.md#2d-reed-solomon-encoding-scheme) `availableData` must match those in `header.availableDataHeader`. Implicitly, this means that both rows and columns must be ordered lexicographically by namespace ID since they are committed to in a [Namespace Merkle Tree](data_structures.md#namespace-merkle-tree).
+1. The commitments of the [erasure-coded extended](./data_structures.md#2d-reed-solomon-encoding-scheme) `availableData` must match those in `header.availableDataHeader`. Implicitly, this means that both rows and columns must be ordered lexicographically by namespace since they are committed to in a [Namespace Merkle Tree](data_structures.md#namespace-merkle-tree).
 1. Length of `availableData.intermediateStateRootData` == length of `availableData.transactionData` + length of `availableData.payForBlobData` + 2. (Two additional state transitions are the [begin](#begin-block) and [end block](#end-block) implicit transitions.)
 
 ## State Transitions
@@ -273,7 +276,7 @@ The following checks must be `true`:
 1. `totalCost(0, tx.fee.tipRate, bytesPaid)` <= `state.accounts[sender].balance`.
 1. `tx.nonce` == `state.accounts[sender].nonce + 1`.
 1. The `ceil(tx.messageSize / SHARE_SIZE)` shares starting at index `tx.messageStartIndex` must:
-    1. Have namespace ID `tx.messageNamespaceID`.
+    1. Have namespace `tx.messageNamespace`.
 1. `tx.messageShareCommitment` == computed as described [here](./data_structures.md#signedtransactiondatamsgpayfordata).
 1. `parentStartFinish.finish` < `tx.messageStartIndex`.
 1. `currentStartFinish.start` == `0` or `currentStartFinish.start` > `tx.messageStartIndex + ceil(tx.messageSize / SHARE_SIZE)`.

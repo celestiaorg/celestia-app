@@ -8,9 +8,9 @@ import (
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	nmtnamespace "github.com/celestiaorg/nmt/namespace"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,22 +74,26 @@ func TestNewTxInclusionProof(t *testing.T) {
 }
 
 func TestNewShareInclusionProof(t *testing.T) {
+	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	namespaceTwo := appns.MustNewV0(bytes.Repeat([]byte{2}, appns.NamespaceVersionZeroIDSize))
+	namespaceThree := appns.MustNewV0(bytes.Repeat([]byte{3}, appns.NamespaceVersionZeroIDSize))
+
 	blobs := append(
 		testfactory.GenerateBlobsWithNamespace(
 			100,
 			500,
-			[]byte{0, 0, 0, 0, 0, 1, 0, 0},
+			ns1,
 		),
 		append(
 			testfactory.GenerateBlobsWithNamespace(
 				50,
 				500,
-				[]byte{0, 0, 0, 1, 0, 0, 0, 0},
+				namespaceTwo,
 			),
 			testfactory.GenerateBlobsWithNamespace(
 				50,
 				500,
-				[]byte{0, 0, 1, 0, 0, 0, 0, 0},
+				namespaceThree,
 			)...,
 		)...,
 	)
@@ -120,7 +124,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 		name          string
 		startingShare int64
 		endingShare   int64
-		namespaceID   nmtnamespace.ID
+		namespaceID   appns.Namespace
 		expectErr     bool
 	}
 	tests := []test{
@@ -128,77 +132,77 @@ func TestNewShareInclusionProof(t *testing.T) {
 			name:          "negative starting share",
 			startingShare: -1,
 			endingShare:   99,
-			namespaceID:   appconsts.TxNamespaceID,
+			namespaceID:   appns.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "negative ending share",
 			startingShare: 0,
 			endingShare:   -99,
-			namespaceID:   appconsts.TxNamespaceID,
+			namespaceID:   appns.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "ending share lower than starting share",
 			startingShare: 1,
 			endingShare:   0,
-			namespaceID:   appconsts.TxNamespaceID,
+			namespaceID:   appns.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "ending share higher than number of shares available in square size of 32",
 			startingShare: 0,
 			endingShare:   4097,
-			namespaceID:   appconsts.TxNamespaceID,
+			namespaceID:   appns.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "1 transaction share",
 			startingShare: 0,
 			endingShare:   0,
-			namespaceID:   appconsts.TxNamespaceID,
+			namespaceID:   appns.TxNamespace,
 			expectErr:     false,
 		},
 		{
 			name:          "10 transaction shares",
 			startingShare: 0,
 			endingShare:   9,
-			namespaceID:   appconsts.TxNamespaceID,
+			namespaceID:   appns.TxNamespace,
 			expectErr:     false,
 		},
 		{
 			name:          "50 transaction shares",
 			startingShare: 0,
 			endingShare:   49,
-			namespaceID:   appconsts.TxNamespaceID,
+			namespaceID:   appns.TxNamespace,
 			expectErr:     false,
 		},
 		{
 			name:          "shares from different namespaces",
 			startingShare: 48,
 			endingShare:   54,
-			namespaceID:   appconsts.TxNamespaceID,
+			namespaceID:   appns.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "20 custom namespace shares",
 			startingShare: 106,
 			endingShare:   125,
-			namespaceID:   []byte{0, 0, 0, 0, 0, 1, 0, 0},
+			namespaceID:   ns1,
 			expectErr:     false,
 		},
 		{
 			name:          "40 custom namespace shares",
 			startingShare: 355,
 			endingShare:   394,
-			namespaceID:   []byte{0, 0, 1, 0, 0, 0, 0, 0},
+			namespaceID:   namespaceThree,
 			expectErr:     false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualNID, err := ParseNamespaceID(rawShares, tt.startingShare, tt.endingShare)
+			actualNID, err := ParseNamespace(rawShares, tt.startingShare, tt.endingShare)
 			if tt.expectErr {
 				require.Error(t, err)
 				return

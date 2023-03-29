@@ -2,15 +2,16 @@ package wrapper
 
 import (
 	"bytes"
-	"crypto/rand"
 	"crypto/sha256"
 	"sort"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
@@ -46,7 +47,7 @@ func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
 // to the second half of the tree.
 func TestRootErasuredNamespacedMerkleTree(t *testing.T) {
 	size := 8
-	data := generateRandNamespacedRawData(size, appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)
+	data := generateRandNamespacedRawData(size)
 	tree := NewErasuredNamespacedMerkleTree(uint64(size), 0)
 	nmtTree := nmt.New(sha256.New())
 
@@ -110,11 +111,7 @@ func TestErasureNamespacedMerkleTreePanics(t *testing.T) {
 func TestComputeExtendedDataSquare(t *testing.T) {
 	squareSize := 4
 	// data for a 4X4 square
-	data := generateRandNamespacedRawData(
-		squareSize*squareSize,
-		appconsts.NamespaceSize,
-		appconsts.ShareSize-appconsts.NamespaceSize,
-	)
+	data := generateRandNamespacedRawData(squareSize * squareSize)
 
 	_, err := rsmt2d.ComputeExtendedDataSquare(data, appconsts.DefaultCodec(), NewConstructor(uint64(squareSize)))
 	assert.NoError(t, err)
@@ -124,11 +121,7 @@ func TestComputeExtendedDataSquare(t *testing.T) {
 // returns a slice that is twice as long as numLeaves because it returns the
 // original data + erasured data.
 func generateErasuredData(t *testing.T, numLeaves int, codec rsmt2d.Codec) [][]byte {
-	raw := generateRandNamespacedRawData(
-		numLeaves,
-		appconsts.NamespaceSize,
-		appconsts.ShareSize-appconsts.NamespaceSize,
-	)
+	raw := generateRandNamespacedRawData(numLeaves)
 	erasuredData, err := codec.Encode(raw)
 	if err != nil {
 		t.Error(err)
@@ -136,30 +129,19 @@ func generateErasuredData(t *testing.T, numLeaves int, codec rsmt2d.Codec) [][]b
 	return append(raw, erasuredData...)
 }
 
-// generateRandNamespacedRawData returns random data of length total. Each chunk
-// of random data is of size nidSize + leafSize.
-func generateRandNamespacedRawData(total int, nidSize int, leafSize int) [][]byte {
-	data := make([][]byte, total)
-	for i := 0; i < total; i++ {
-		nid := make([]byte, nidSize)
-		_, err := rand.Read(nid)
-		if err != nil {
-			panic(err)
-		}
-		data[i] = nid
+// generateRandNamespacedRawData returns random data of length count. Each chunk
+// of random data is of size shareSize and is prefixed with a random blob
+// namespace.
+func generateRandNamespacedRawData(count int) (result [][]byte) {
+	for i := 0; i < count; i++ {
+		rawData := tmrand.Bytes(appconsts.ShareSize)
+		namespace := appns.RandomBlobNamespace().Bytes()
+		copy(rawData, namespace)
+		result = append(result, rawData)
 	}
 
-	sortByteArrays(data)
-	for i := 0; i < total; i++ {
-		d := make([]byte, leafSize)
-		_, err := rand.Read(d)
-		if err != nil {
-			panic(err)
-		}
-		data[i] = append(data[i], d...)
-	}
-
-	return data
+	sortByteArrays(result)
+	return result
 }
 
 func sortByteArrays(src [][]byte) {

@@ -5,16 +5,18 @@ digraph G {
     <table border="0" cellborder="1" cellspacing="0">
         <tr>
             <td align="left" border="0" cellpadding="0">0</td>
-            <td align="left" border="0" cellpadding="0">8</td>
-            <td align="left" border="0" cellpadding="0">9</td>
-            <td align="left" border="0" cellpadding="0">13</td>
+            <td align="left" border="0" cellpadding="0">1</td>
+            <td align="left" border="0" cellpadding="0">33</td>
+            <td align="left" border="0" cellpadding="0">34</td>
+            <td align="left" border="0" cellpadding="0">38</td>
             <td align="left" border="0" cellpadding="0">512</td>
         </tr>
         <tr>
+            <td width="8" cellpadding="4">namespace version</td>
             <td width="8" cellpadding="4">namespace id</td>
             <td width="1" cellpadding="4">info byte</td>
             <td width="4" cellpadding="4">sequence length</td>
-            <td width="200" cellpadding="4">msg1</td>
+            <td width="200" cellpadding="4">blob1</td>
         </tr>
     </table>
     >];

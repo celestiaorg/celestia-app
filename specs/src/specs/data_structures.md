@@ -15,7 +15,6 @@
 | `Graffiti`                  | `byte[MAX_GRAFFITI_BYTES]`  |
 | [`HashDigest`](#hashdigest) | `byte[32]`                  |
 | `Height`                    | `int64`                     |
-| `NamespaceID`               | `byte[NAMESPACE_ID_BYTES]`  |
 | `Nonce`                     | `uint64`                    |
 | `Round`                     | `int32`                     |
 | `StateSubtreeID`            | `byte`                      |
@@ -144,6 +143,27 @@ enum CommitFlag : uint8_t {
 
 Output of the [signing](#public-key-cryptography) process.
 
+### Namespace
+
+| name      | type       | description |
+|-----------|------------|-------------|
+| `version` | `uint8`    |             |
+| `id`      | `byte[32]` |             |
+
+The only supported Namespace `version` is `0`. The format for a namespace ID with namespace `version: 0` is: 22 bytes of leading `0`s followed by 10 bytes of significant namespace ID.
+
+```go
+// valid namespaces
+0x000000000000000000000000000000000000000000000000000000000000000001
+0x000000000000000000000000000000000000000000000001010101010101010101
+0x000000000000000000000000000000000000000000000011111111111111111111
+
+// invalid namespaces
+0x000000000000000000000000000000000111111111111111111111111111111111
+0x100000000000000000000000000000000000000000000000000000000000000001
+0x111111111111111111111111111111111111111111111111111111111111111111
+```
+
 ## ConsensusVersion
 
 | name    | type     | description          |
@@ -236,15 +256,15 @@ A proof for a leaf in a [binary Merkle tree](#binary-merkle-tree), as per Sectio
 
 ### Namespace Merkle Tree
 
-[Shares](#share) in Celestia are associated with a provided _namespace ID_. The Namespace Merkle Tree (NMT) is a variation of the [Merkle Interval Tree](https://eprint.iacr.org/2018/642), which is itself an extension of the [Merkle Sum Tree](https://bitcointalk.org/index.php?topic=845978.0). It allows for compact proofs around the inclusion or exclusion of shares with particular namespace IDs.
+[Shares](#share) in Celestia are associated with a provided _namespace_. The Namespace Merkle Tree (NMT) is a variation of the [Merkle Interval Tree](https://eprint.iacr.org/2018/642), which is itself an extension of the [Merkle Sum Tree](https://bitcointalk.org/index.php?topic=845978.0). It allows for compact proofs around the inclusion or exclusion of shares with particular namespace IDs.
 
 Nodes contain three fields:
 
-| name    | type                         | description                                      |
-|---------|------------------------------|--------------------------------------------------|
-| `n_min` | [NamespaceID](#type-aliases) | Min namespace ID in subtree rooted at this node. |
-| `n_max` | [NamespaceID](#type-aliases) | Max namespace ID in subtree rooted at this node. |
-| `v`     | [HashDigest](#hashdigest)    | Node value.                                      |
+| name    | type                      | description                                   |
+|---------|---------------------------|-----------------------------------------------|
+| `n_min` | [Namespace](#namespace)   | Min namespace in subtree rooted at this node. |
+| `n_max` | [Namespace](#namespace)   | Max namespace in subtree rooted at this node. |
+| `v`     | [HashDigest](#hashdigest) | Node value.                                   |
 
 The base case (an empty tree) is defined as:
 
@@ -257,43 +277,43 @@ node.v = 0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 For leaf node `node` of [share](#share) data `d`:
 
 ```C++
-node.n_min = d.namespaceID
-node.n_max = d.namespaceID
-node.v = h(0x00, d.namespaceID, d.rawData)
+node.n_min = d.namespace
+node.n_max = d.namespace
+node.v = h(0x00, d.namespace, d.rawData)
 ```
 
-The `namespaceID` message field here is the namespace ID of the leaf, which is a [`NAMESPACE_ID_BYTES`](consensus.md#system-parameters)-long byte array.
+The `namespace` message field here is the namespace ID of the leaf, which is a [`NAMESPACE_ID_BYTES`](consensus.md#system-parameters)-long byte array.
 
-Leaves in an NMT **must** be lexicographically sorted by namespace ID in ascending order.
+Leaves in an NMT **must** be lexicographically sorted by namespace in ascending order.
 
 For internal node `node` with children `l` and `r`:
 
 ```C++
 node.n_min = min(l.n_min, r.n_min)
-if l.n_min == PARITY_SHARE_NAMESPACE_ID
-  node.n_max = PARITY_SHARE_NAMESPACE_ID
-else if r.n_min == PARITY_SHARE_NAMESPACE_ID
+if l.n_min == PARITY_SHARE_NAMESPACE
+  node.n_max = PARITY_SHARE_NAMESPACE
+else if r.n_min == PARITY_SHARE_NAMESPACE
   node.n_max = l.n_max
 else
   node.n_max = max(l.n_max, r.n_max)
 node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 ```
 
-Note that the above snippet leverages the property that leaves are sorted by namespace ID: if `l.n_min` is [`PARITY_SHARE_NAMESPACE_ID`](consensus.md#reserved-state-subtree-ids), so must `{l,r}.n_max`. By construction, either both the min and max namespace IDs of a node will be [`PARITY_SHARE_NAMESPACE_ID`](consensus.md#reserved-state-subtree-ids), or neither will: if `r.n_min` is [`PARITY_SHARE_NAMESPACE_ID`](consensus.md#reserved-state-subtree-ids), so must `r.n_max`.
+Note that the above snippet leverages the property that leaves are sorted by namespace: if `l.n_min` is [`PARITY_SHARE_NAMESPACE`](consensus.md#reserved-state-subtree-ids), so must `{l,r}.n_max`. By construction, either both the min and max namespace of a node will be [`PARITY_SHARE_NAMESPACE`](consensus.md#reserved-state-subtree-ids), or neither will: if `r.n_min` is [`PARITY_SHARE_NAMESPACE`](consensus.md#reserved-state-subtree-ids), so must `r.n_max`.
 
-For some intuition: the min and max namespace IDs for subtree roots with at least one non-parity leaf (which includes the root of an NMT, as [the right half of an NMT as used in Celestia will be parity shares](#2d-reed-solomon-encoding-scheme)) _ignore_ the namespace ID for the parity leaves. Subtree roots with _only parity leaves_ have their min and max namespace ID set to [`PARITY_SHARE_NAMESPACE_ID`](consensus.md#reserved-state-subtree-ids). This allows for shorter proofs into the tree than if the namespace ID of parity shares was not ignored (which would cause the max namespace ID of the root to always be [`PARITY_SHARE_NAMESPACE_ID`](consensus.md#reserved-state-subtree-ids)).
+For some intuition: the min and max namespace for subtree roots with at least one non-parity leaf (which includes the root of an NMT, as [the right half of an NMT as used in Celestia will be parity shares](#2d-reed-solomon-encoding-scheme)) _ignore_ the namespace ID for the parity leaves. Subtree roots with _only parity leaves_ have their min and max namespace ID set to [`PARITY_SHARE_NAMESPACE`](consensus.md#reserved-state-subtree-ids). This allows for shorter proofs into the tree than if the namespace ID of parity shares was not ignored (which would cause the max namespace ID of the root to always be [`PARITY_SHARE_NAMESPACE`](consensus.md#reserved-state-subtree-ids)).
 
 A compact commitment can be computed by taking the [hash](#hashing) of the [serialized](#serialization) root node.
 
 #### NamespaceMerkleTreeInclusionProof
 
-| name            | type                             | description                                                     |
-|-----------------|----------------------------------|-----------------------------------------------------------------|
-| `siblingValues` | [HashDigest](#hashdigest)`[]`    | Sibling hash values, ordered starting from the leaf's neighbor. |
-| `siblingMins`   | [NamespaceID](#type-aliases)`[]` | Sibling min namespace IDs.                                      |
-| `siblingMaxes`  | [NamespaceID](#type-aliases)`[]` | Sibling max namespace IDs.                                      |
+| name            | type                          | description                                                     |
+|-----------------|-------------------------------|-----------------------------------------------------------------|
+| `siblingValues` | [HashDigest](#hashdigest)`[]` | Sibling hash values, ordered starting from the leaf's neighbor. |
+| `siblingMins`   | [Namespace](#namespace)`[]`   | Sibling min namespace IDs.                                      |
+| `siblingMaxes`  | [Namespace](#namespace)`[]`   | Sibling max namespace IDs.                                      |
 
-When verifying an NMT proof, the root hash is checked by reconstructing the root node `root_node` with the computed `root_node.v` (computed as with a [plain Merkle proof](#binarymerkletreeinclusionproof)) and the provided `rootNamespaceIDMin` and `rootNamespaceIDMax` as the `root_node.n_min` and `root_node.n_max`, respectively.
+When verifying an NMT proof, the root hash is checked by reconstructing the root node `root_node` with the computed `root_node.v` (computed as with a [plain Merkle proof](#binarymerkletreeinclusionproof)) and the provided `rootNamespaceMin` and `rootNamespaceMax` as the `root_node.n_min` and `root_node.n_max`, respectively.
 
 ## Erasure Coding
 
@@ -346,16 +366,16 @@ Finally, the `availableDataRoot` of the block [Header](#header) is computed as t
 
 ### Share
 
-| name          | type                         | description                |
-|---------------|------------------------------|----------------------------|
-| `namespaceID` | [NamespaceID](#type-aliases) | Namespace ID of the share. |
-| `rawData`     | `byte[SHARE_SIZE]`           | Raw share data.            |
+| name        | type                    | description             |
+|-------------|-------------------------|-------------------------|
+| `namespace` | [Namespace](#namespace) | Namespace of the share. |
+| `rawData`   | `byte[SHARE_SIZE]`      | Raw share data.         |
 
-A share is a fixed-size data chunk associated with a namespace ID, whose data will be erasure-coded and committed to in [Namespace Merkle trees](#namespace-merkle-tree).
+A share is a fixed-size data chunk associated with a namespace, whose data will be erasure-coded and committed to in [Namespace Merkle trees](#namespace-merkle-tree).
 
 A sequence is a contiguous set of shares that contain semantically relevant data. A sequence should be parsed together because data may be split across share boundaries. One sequence exists per reserved namespace and per message.
 
-- The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`.
+- The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `rawData` is the namespace of that share.
 - The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information with the following structure:
   - The first 7 bits represent the share version in big endian form (initially, this will be `0000000` for version `0`);
   - The last bit is a sequence start indicator, that is `1` if the share is at the start of a sequence or `0` if it is a continuation share.
@@ -366,18 +386,18 @@ The remainder of a share's raw data `rawData` is interpreted differently dependi
 
 For shares **with a reserved namespace ID through [`NAMESPACE_ID_MAX_RESERVED`](./consensus.md#constants)**:
 
-> **Note** The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information.
+> **Note** The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `rawData` is the namespace of that share. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information.
 
 - If this is the first share of a sequence, the next [`SEQUENCE_BYTES`](./consensus.md#constants) contain a big endian `uint32` that represents the length of the sequence that follows in bytes.
 - The next [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are the starting byte of the length of the [canonically serialized](#serialization) first request that starts in the share, or `0` if there is none, as an unsigned [varint](https://developers.google.com/protocol-buffers/docs/encoding).
-- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes (only if this is the first share of a sequence) `-` [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are transactions, intermediate state roots, or PayForBlob transaction data. Each transaction, intermediate state root, or PayForBlob transaction is prefixed with a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the length of that unit.
+- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes (only if this is the first share of a sequence) `-` [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are transactions, intermediate state roots, or PayForBlob transaction data. Each transaction, intermediate state root, or PayForBlob transaction is prefixed with a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the length of that unit.
 - If there is insufficient transaction, intermediate state root, or PayForBlob transaction data to fill the share, the remaining bytes are filled with `0`.
 
 First share in a sequence:
 
 ![fig: compact start share.](./figures/compact_start_share.svg)
 
-where reserved bytes would be `17` as a binary big endian `uint32` (`[0b00000000, 0b00000000, 0b00000000, 0b00010001]`).
+where reserved bytes would be `42` as a binary big endian `uint32` (`[0b00000000, 0b00000000, 0b00000000, 0b00101010]`).
 
 Continuation share in a sequence:
 
@@ -387,12 +407,12 @@ where reserved bytes would be `80` as a binary big endian `uint32` (`[0b00000000
 
 #### Sparse Share
 
-For shares **with a namespace ID above [`NAMESPACE_ID_MAX_RESERVED`](./consensus.md#constants) but below [`PARITY_SHARE_NAMESPACE_ID`](./consensus.md#constants)**:
+For shares **with a namespace above [`MAX_RESERVED_NAMESPACE`](./consensus.md#constants) but below [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants)**:
 
-> **Note** The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information.
+> **Note** The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `rawData` is the namespace of that share. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information.
 
 - If this is the first share of a sequence, the next [`SEQUENCE_BYTES`](./consensus.md#constants) contain a big endian `uint32` that represents the length of the sequence that follows in bytes.
-- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes (only if this is the first share of a sequence) bytes are message data. Message data are opaque bytes of data that are included in the block but do not impact the state. In other words, the remaining bytes have no special meaning and are simply used to store data.
+- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes (only if this is the first share of a sequence) bytes are message data. Message data are opaque bytes of data that are included in the block but do not impact the state. In other words, the remaining bytes have no special meaning and are simply used to store data.
 - If there is insufficient message data to fill the share, the remaining bytes are filled with `0`.
 
 First share in a sequence:
@@ -405,7 +425,7 @@ Continuation share in a sequence:
 
 #### Parity Share
 
-For shares **with a namespace ID equal to [`PARITY_SHARE_NAMESPACE_ID`](./consensus.md#constants)** (i.e. parity shares):
+For shares **with a namespace equal to [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants)** (i.e. parity shares):
 
 - Bytes carry no special meaning.
 
@@ -413,23 +433,23 @@ For shares **with a namespace ID equal to [`PARITY_SHARE_NAMESPACE_ID`](./consen
 
 A namespace padding share acts as padding between blobs so that the subsequent blob may begin at an index that conforms to the [non-interactive default rules](../rationale/message_block_layout.md#non-interactive-default-rules). A namespace padding share contains the namespace ID of the blob that precedes it in the data square so that the data square can retain the property that all shares are ordered by namespace.
 
-The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of the blob that precedes this padding share. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information. The sequence start indicator is always `1`. The version bits are filled with the share version. The sequence length is zeroed out. The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes are filled with `0`.
+The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `rawData` is the namespace of the blob that precedes this padding share. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information. The sequence start indicator is always `1`. The version bits are filled with the share version. The sequence length is zeroed out. The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes are filled with `0`.
 
 #### Reserved Padding Share
 
 Reserved padding shares are placed after the last reserved namespace share in the data square so that the first blob can start at an index that conforms to non-interactive default rules. Clients can safely ignore the contents of these shares because they don't contain any significant data.
 
-For shares **with a namespace ID equal to [`RESERVED_PADDING_NAMESPACE_ID`](./consensus.md#constants)** (i.e. reserved padding shares):
+For shares **with a namespace ID equal to [`RESERVED_PADDING_NAMESPACE`](./consensus.md#constants)** (i.e. reserved padding shares):
 
-The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information. The sequence start indicator is always `1`. The version bits are filled with the share version. The sequence length is zeroed out. The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes are filled with `0`.
+The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `rawData` is the namespace of that share. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information. The sequence start indicator is always `1`. The version bits are filled with the share version. The sequence length is zeroed out. The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes are filled with `0`.
 
 #### Tail Padding Share
 
 Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients can safely ignore the contents of these shares because they don't contain any significant data.
 
-For shares **with a namespace ID equal to [`TAIL_PADDING_NAMESPACE_ID`](./consensus.md#constants)** (i.e. tail padding shares):
+For shares **with a namespace ID equal to [`TAIL_PADDING_NAMESPACE`](./consensus.md#constants)** (i.e. tail padding shares):
 
-The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information. The sequence start indicator is always `1`. The version bits are filled with the share version. The sequence length is zeroed out. The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes are filled with `0`.
+The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information. The sequence start indicator is always `1`. The version bits are filled with the share version. The sequence length is zeroed out. The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes are filled with `0`.
 
 ### Arranging Available Data Into Shares
 
@@ -442,7 +462,7 @@ Then,
         1. [Serialize](#serialization) the request (individually).
         1. Compute the length of each serialized request, [serialize the length](#serialization), and pre-pend the serialized request with its serialized length.
     1. Split up the length/request pairs into [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_RESERVED_BYTES`](./consensus.md#constants)-byte chunks.
-    1. Create a [share](#share) out of each chunk. This data has a _reserved_ namespace ID, so the first [`NAMESPACE_ID_BYTES`](./consensus.md#constants)`+`[`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes for these shares must be [set specially](#share).
+    1. Create a [share](#share) out of each chunk. This data has a _reserved_ namespace ID, so the first [`NAMESPACE_SIZE`](./consensus.md#constants)`+`[`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes for these shares must be [set specially](#share).
 1. Concatenate the lists of shares in the order: transactions, intermediate state roots, PayForBlob transactions.
 
 Note that by construction, each share only has a single namespace, and that the list of concatenated shares is [lexicographically ordered by namespace ID](consensus.md#reserved-namespace-ids).
@@ -455,8 +475,8 @@ Each message in the list `messageData`:
 
 1. [Serialize](#serialization) the message (individually).
 1. Compute the length of each serialized message, [serialize the length](#serialization), and pre-pend the serialized message with its serialized length.
-1. Split up the length/message pairs into [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)-byte chunks.
-1. Create a [share](#share) out of each chunk. The first [`NAMESPACE_ID_BYTES`](./consensus.md#constants) bytes for these shares is [set to the namespace ID](#share).
+1. Split up the length/message pairs into [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)-byte chunks.
+1. Create a [share](#share) out of each chunk. The first [`NAMESPACE_SIZE`](./consensus.md#constants) bytes for these shares is [set to the namespace](#share).
 
 For each message, it is placed in the available data matrix, with row-major order, as follows:
 

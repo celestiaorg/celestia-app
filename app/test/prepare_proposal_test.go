@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -15,9 +16,9 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
-	"github.com/celestiaorg/celestia-app/testutil/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 )
@@ -27,6 +28,9 @@ func TestPrepareProposalBlobSorting(t *testing.T) {
 	accnts := testfactory.GenerateAccounts(6)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accnts...)
 	infos := queryAccountInfo(testApp, accnts, kr)
+	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	namespaceTwo := appns.MustNewV0(bytes.Repeat([]byte{2}, appns.NamespaceVersionZeroIDSize))
+	namespaceThree := appns.MustNewV0(bytes.Repeat([]byte{3}, appns.NamespaceVersionZeroIDSize))
 
 	type test struct {
 		input         abci.RequestPrepareProposal
@@ -44,20 +48,23 @@ func TestPrepareProposalBlobSorting(t *testing.T) {
 		[][]*tmproto.Blob{
 			{
 				{
-					NamespaceId: []byte{1, 1, 1, 1, 1, 1, 1, 1},
-					Data:        tmrand.Bytes(100),
+					NamespaceVersion: uint32(ns1.Version),
+					NamespaceId:      ns1.ID,
+					Data:             tmrand.Bytes(100),
 				},
 			},
 			{
 				{
-					NamespaceId: []byte{3, 3, 3, 3, 3, 3, 3, 3},
-					Data:        tmrand.Bytes(1000),
+					NamespaceVersion: uint32(namespaceThree.Version),
+					NamespaceId:      namespaceThree.ID,
+					Data:             tmrand.Bytes(1000),
 				},
 			},
 			{
 				{
-					NamespaceId: []byte{2, 2, 2, 2, 2, 2, 2, 2},
-					Data:        tmrand.Bytes(420),
+					NamespaceVersion: uint32(namespaceTwo.Version),
+					NamespaceId:      namespaceTwo.ID,
+					Data:             tmrand.Bytes(420),
 				},
 			},
 		},
@@ -177,7 +184,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		infos[:numBlobTxs],
 		testfactory.Repeat([]*tmproto.Blob{
 			{
-				NamespaceId:  namespace.RandomBlobNamespace(),
+				NamespaceId:  appns.RandomBlobNamespace().ID,
 				Data:         []byte{1},
 				ShareVersion: uint32(appconsts.DefaultShareVersion),
 			},
@@ -229,11 +236,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		infos[:3],
 		blobfactory.NestedBlobs(
 			t,
-			[][]byte{
-				namespace.RandomBlobNamespace(),
-				namespace.RandomBlobNamespace(),
-				namespace.RandomBlobNamespace(),
-			},
+			appns.RandomBlobNamespaces(3),
 			[][]int{{100}, {1000}, {420}},
 		),
 	)
