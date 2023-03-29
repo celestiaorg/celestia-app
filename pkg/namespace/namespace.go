@@ -39,7 +39,7 @@ func MustNew(version uint8, id []byte) Namespace {
 }
 
 // MustNewV0 returns a new namespace with version 0 and the provided id. This
-// function panics if the provided id is not exactly 10 bytes.
+// function panics if the provided id is not exactly NamespaceVersionZeroIDSize bytes.
 func MustNewV0(id []byte) Namespace {
 	if len(id) != NamespaceVersionZeroIDSize {
 		panic(fmt.Sprintf("invalid namespace id length: %v must be %v", len(id), NamespaceVersionZeroIDSize))
