@@ -3,8 +3,8 @@ package keeper
 import (
 	"context"
 
+	"github.com/celestiaorg/celestia-app/x/mint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/mint/types"
 )
 
 var _ types.QueryServer = Keeper{}

@@ -9,7 +9,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
-	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
+	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 )
 
 func (s *IntegrationTestSuite) TestQueryGRPC() {

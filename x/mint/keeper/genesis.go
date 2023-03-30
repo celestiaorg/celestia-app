@@ -1,8 +1,8 @@
 package keeper
 
 import (
+	"github.com/celestiaorg/celestia-app/x/mint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/mint/types"
 )
 
 // InitGenesis new mint genesis

@@ -8,8 +8,8 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/x/simulation"
 
+	"github.com/celestiaorg/celestia-app/x/mint/types"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
-	"github.com/cosmos/cosmos-sdk/x/mint/types"
 )
 
 const (
