@@ -134,10 +134,10 @@ func BenchmarkNextInflation(b *testing.B) {
 	b.ReportAllocs()
 	minter := InitialMinter(sdk.NewDecWithPrec(1, 1))
 	params := DefaultParams()
-	ctx := sdk.NewContext(nil, tmproto.Header{Height: 1}, false, nil)
 
 	// run the NextInflationRate function b.N times
 	for n := 0; n < b.N; n++ {
+		ctx := sdk.NewContext(nil, tmproto.Header{Height: int64(n)}, false, nil)
 		minter.NextInflationRate(ctx, params)
 	}
 }
