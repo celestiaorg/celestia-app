@@ -1,4 +1,4 @@
-# ADR 019: Inflation rate change
+# ADR 019: Inflation rate
 
 ## Status
 
