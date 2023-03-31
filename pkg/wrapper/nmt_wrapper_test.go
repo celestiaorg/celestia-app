@@ -115,7 +115,13 @@ func TestErasuredNamespacedMerkleTree(t *testing.T) {
 	}
 
 	assert.Equal(t, tree.Tree(), tree.tree)
-	assert.Equal(t, tree.Tree().Root(), tree.tree.Root())
+
+	publicRoot, err := tree.Tree().Root()
+	assert.NoError(t, err)
+
+	privateRoot, err := tree.tree.Root()
+	assert.NoError(t, err)
+	assert.Equal(t, publicRoot, privateRoot)
 }
 
 // generateErasuredData produces a slice that is twice as long as it erasures
