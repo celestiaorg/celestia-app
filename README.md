@@ -61,7 +61,7 @@ celestia-appd --help
 # Start a single node devnet using the pre-installed celestia app
 ./scripts/single-node.sh
 
-# Build and Start a single node devnet
+# Build and start a single node devnet
 ./scripts/build-run-single-node.sh
 
 # Post data to the local devnet
