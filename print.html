@@ -536,141 +536,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 </tbody></table>
 </div>
 <h4 id="transaction"><a class="header" href="#transaction">Transaction</a></h4>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>signedTransactionData</code></td><td><a href="specs/data_structures.html#signedtransactiondata">SignedTransactionData</a></td><td>Data payload that is signed over.</td></tr>
-<tr><td><code>signature</code></td><td><a href="specs/data_structures.html#signature">Signature</a></td><td>Signature.</td></tr>
-</tbody></table>
-</div>
-<h4 id="signedtransactiondata"><a class="header" href="#signedtransactiondata">SignedTransactionData</a></h4>
-<pre><code class="language-C++">enum TransactionType : uint8_t {
-    Transfer = 1,
-    MsgPayForData = 2,
-    CreateValidator = 3,
-    BeginUnbondingValidator = 4,
-    UnbondValidator = 5,
-    CreateDelegation = 6,
-    BeginUnbondingDelegation = 7,
-    UnbondDelegation = 8,
-    Burn = 9,
-    RedelegateCommission = 10,
-    RedelegateReward = 11,
-};
-</code></pre>
-<p>Signed transaction data comes in a number of types:</p>
-<ol>
-<li><a href="specs/data_structures.html#signedtransactiondatatransfer">Transfer</a></li>
-<li><a href="specs/data_structures.html#signedtransactiondatamsgpayfordata">MsgPayForData</a></li>
-<li><a href="specs/data_structures.html#signedtransactiondatacreatevalidator">CreateValidator</a></li>
-<li><a href="specs/data_structures.html#signedtransactiondatabeginunbondingvalidator">BeginUnbondingValidator</a></li>
-<li><a href="specs/data_structures.html#signedtransactiondataunbondvalidator">UnbondValidator</a></li>
-<li><a href="specs/data_structures.html#signedtransactiondatacreatedelegation">CreateDelegation</a></li>
-<li><a href="specs/data_structures.html#signedtransactiondatabeginunbondingdelegation">BeginUnbondingDelegation</a></li>
-<li><a href="specs/data_structures.html#signedtransactiondataunbonddelegation">UnbondDelegation</a></li>
-<li><a href="specs/data_structures.html#signedtransactiondataburn">Burn</a></li>
-<li><a href="specs/data_structures.html#signedtransactionredelegatecommission">RedelegateCommission</a></li>
-<li><a href="specs/data_structures.html#signedtransactionredelegatereward">RedelegateReward</a></li>
-</ol>
-<p>Common fields are denoted here to avoid repeating descriptions:</p>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>type</code></td><td><code>TransactionType</code></td><td>Type of the transaction. Each type indicates a different state transition.</td></tr>
-<tr><td><code>amount</code></td><td><a href="specs/data_structures.html#type-aliases">Amount</a></td><td>Amount of coins to send, in <code>1u</code>.</td></tr>
-<tr><td><code>to</code></td><td><a href="specs/data_structures.html#address">Address</a></td><td>Recipient's address.</td></tr>
-<tr><td><code>fee</code></td><td><a href="specs/data_structures.html#transactionfee">TransactionFee</a></td><td>The fee information for this transaction.</td></tr>
-<tr><td><code>nonce</code></td><td><a href="specs/data_structures.html#type-aliases">Nonce</a></td><td>Nonce of sender.</td></tr>
-</tbody></table>
-</div>
-<h5 id="signedtransactiondatatransfer"><a class="header" href="#signedtransactiondatatransfer">SignedTransactionDataTransfer</a></h5>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>type</code></td><td><code>TransactionType</code></td><td>Must be <code>TransactionType.Transfer</code>.</td></tr>
-<tr><td><code>amount</code></td><td><a href="specs/data_structures.html#type-aliases">Amount</a></td><td></td></tr>
-<tr><td><code>to</code></td><td><a href="specs/data_structures.html#address">Address</a></td><td></td></tr>
-<tr><td><code>fee</code></td><td><a href="specs/data_structures.html#transactionfee">TransactionFee</a></td><td></td></tr>
-<tr><td><code>nonce</code></td><td><a href="specs/data_structures.html#type-aliases">Nonce</a></td><td></td></tr>
-</tbody></table>
-</div>
-<p>Transfers <code>amount</code> coins to <code>to</code>.</p>
-<h5 id="signedtransactiondatamsgpayfordata"><a class="header" href="#signedtransactiondatamsgpayfordata">SignedTransactionDataMsgPayForData</a></h5>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>type</code></td><td><code>TransactionType</code></td><td>Must be <code>TransactionType.MsgPayForData</code>.</td></tr>
-<tr><td><code>fee</code></td><td><a href="specs/data_structures.html#transactionfee">TransactionFee</a></td><td></td></tr>
-<tr><td><code>nonce</code></td><td><a href="specs/data_structures.html#type-aliases">Nonce</a></td><td></td></tr>
-<tr><td><code>messageNamespaceID</code></td><td><a href="specs/data_structures.html#type-aliases"><code>NamespaceID</code></a></td><td>Namespace ID of message this transaction pays a fee for.</td></tr>
-<tr><td><code>messageSize</code></td><td><code>uint32</code></td><td>Size of message this transaction pays a fee for, in <code>byte</code>s.</td></tr>
-<tr><td><code>messageShareCommitment</code></td><td><a href="specs/data_structures.html#hashdigest">HashDigest</a></td><td>Commitment to message shares (details below).</td></tr>
-</tbody></table>
-</div>
-<p>Pays for the inclusion of a <a href="specs/data_structures.html#message">message</a> in the same block.</p>
-<p>The commitment to message shares <code>messageShareCommitment</code> is a <a href="specs/data_structures.html#binary-merkle-tree">Merkle root</a> of message share roots. Each message share root is <a href="specs/data_structures.html#arranging-available-data-into-shares">a subtree root in a row NMT</a>. For rationale, see <a href="specs/../rationale/message_block_layout.html">rationale doc</a>.</p>
-<h5 id="signedtransactiondatacreatevalidator"><a class="header" href="#signedtransactiondatacreatevalidator">SignedTransactionDataCreateValidator</a></h5>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>type</code></td><td><code>TransactionType</code></td><td>Must be <code>TransactionType.CreateValidator</code>.</td></tr>
-<tr><td><code>fee</code></td><td><a href="specs/data_structures.html#transactionfee">TransactionFee</a></td><td></td></tr>
-<tr><td><code>nonce</code></td><td><a href="specs/data_structures.html#type-aliases">Nonce</a></td><td></td></tr>
-</tbody></table>
-</div>
-<h5 id="signedtransactiondatabeginunbondingvalidator"><a class="header" href="#signedtransactiondatabeginunbondingvalidator">SignedTransactionDataBeginUnbondingValidator</a></h5>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>type</code></td><td><code>TransactionType</code></td><td>Must be <code>TransactionType.BeginUnbondingValidator</code>.</td></tr>
-<tr><td><code>fee</code></td><td><a href="specs/data_structures.html#transactionfee">TransactionFee</a></td><td></td></tr>
-<tr><td><code>nonce</code></td><td><a href="specs/data_structures.html#type-aliases">Nonce</a></td><td></td></tr>
-</tbody></table>
-</div>
-<h5 id="signedtransactiondataunbondvalidator"><a class="header" href="#signedtransactiondataunbondvalidator">SignedTransactionDataUnbondValidator</a></h5>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>type</code></td><td><code>TransactionType</code></td><td>Must be <code>TransactionType.UnbondValidator</code>.</td></tr>
-<tr><td><code>fee</code></td><td><a href="specs/data_structures.html#transactionfee">TransactionFee</a></td><td></td></tr>
-<tr><td><code>nonce</code></td><td><a href="specs/data_structures.html#type-aliases">Nonce</a></td><td></td></tr>
-</tbody></table>
-</div>
-<h5 id="signedtransactiondatacreatedelegation"><a class="header" href="#signedtransactiondatacreatedelegation">SignedTransactionDataCreateDelegation</a></h5>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>type</code></td><td><code>TransactionType</code></td><td>Must be <code>TransactionType.CreateDelegation</code>.</td></tr>
-<tr><td><code>amount</code></td><td><a href="specs/data_structures.html#type-aliases">Amount</a></td><td></td></tr>
-<tr><td><code>to</code></td><td><a href="specs/data_structures.html#address">Address</a></td><td></td></tr>
-<tr><td><code>fee</code></td><td><a href="specs/data_structures.html#transactionfee">TransactionFee</a></td><td></td></tr>
-<tr><td><code>nonce</code></td><td><a href="specs/data_structures.html#type-aliases">Nonce</a></td><td></td></tr>
-</tbody></table>
-</div>
-<h5 id="signedtransactiondatabeginunbondingdelegation"><a class="header" href="#signedtransactiondatabeginunbondingdelegation">SignedTransactionDataBeginUnbondingDelegation</a></h5>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>type</code></td><td><code>TransactionType</code></td><td>Must be <code>TransactionType.BeginUnbondingDelegation</code>.</td></tr>
-<tr><td><code>fee</code></td><td><a href="specs/data_structures.html#transactionfee">TransactionFee</a></td><td></td></tr>
-<tr><td><code>nonce</code></td><td><a href="specs/data_structures.html#type-aliases">Nonce</a></td><td></td></tr>
-</tbody></table>
-</div>
-<h5 id="signedtransactiondataunbonddelegation"><a class="header" href="#signedtransactiondataunbonddelegation">SignedTransactionDataUnbondDelegation</a></h5>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>type</code></td><td><code>TransactionType</code></td><td>Must be <code>TransactionType.UnbondDelegation</code>.</td></tr>
-<tr><td><code>fee</code></td><td><a href="specs/data_structures.html#transactionfee">TransactionFee</a></td><td></td></tr>
-<tr><td><code>nonce</code></td><td><a href="specs/data_structures.html#type-aliases">Nonce</a></td><td></td></tr>
-</tbody></table>
-</div>
-<h5 id="signedtransactiondataburn"><a class="header" href="#signedtransactiondataburn">SignedTransactionDataBurn</a></h5>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>type</code></td><td><code>TransactionType</code></td><td>Must be <code>TransactionType.Burn</code>.</td></tr>
-<tr><td><code>amount</code></td><td><a href="specs/data_structures.html#type-aliases">Amount</a></td><td></td></tr>
-<tr><td><code>fee</code></td><td><a href="specs/data_structures.html#transactionfee">TransactionFee</a></td><td></td></tr>
-<tr><td><code>nonce</code></td><td><a href="specs/data_structures.html#type-aliases">Nonce</a></td><td></td></tr>
-<tr><td><code>graffiti</code></td><td><a href="specs/data_structures.html#type-aliases">Graffiti</a></td><td>Graffiti to indicate the reason for burning.</td></tr>
-</tbody></table>
-</div>
-<h5 id="signedtransactionredelegatecommission"><a class="header" href="#signedtransactionredelegatecommission">SignedTransactionRedelegateCommission</a></h5>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>type</code></td><td><code>TransactionType</code></td><td>Must be <code>TransactionType.RedelegateCommission</code>.</td></tr>
-<tr><td><code>to</code></td><td><a href="specs/data_structures.html#address">Address</a></td><td></td></tr>
-<tr><td><code>fee</code></td><td><a href="specs/data_structures.html#transactionfee">TransactionFee</a></td><td></td></tr>
-<tr><td><code>nonce</code></td><td><a href="specs/data_structures.html#type-aliases">Nonce</a></td><td></td></tr>
-</tbody></table>
-</div>
-<p>Assigns validator's pending commission to a delegation.</p>
-<h5 id="signedtransactionredelegatereward"><a class="header" href="#signedtransactionredelegatereward">SignedTransactionRedelegateReward</a></h5>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>type</code></td><td><code>TransactionType</code></td><td>Must be <code>TransactionType.RedelegateReward</code>.</td></tr>
-<tr><td><code>fee</code></td><td><a href="specs/data_structures.html#transactionfee">TransactionFee</a></td><td></td></tr>
-<tr><td><code>nonce</code></td><td><a href="specs/data_structures.html#type-aliases">Nonce</a></td><td></td></tr>
-</tbody></table>
-</div>
-<p>Adds delegation's pending rewards to voting power.</p>
+<p>Celestia transactions are Cosmos SDK <a href="https://docs.cosmos.network/v0.46/core/transactions.html">transactions</a>.</p>
 <h3 id="payforblobdata"><a class="header" href="#payforblobdata">PayForBlobData</a></h3>
 <h3 id="intermediatestaterootdata"><a class="header" href="#intermediatestaterootdata">IntermediateStateRootData</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
@@ -911,7 +777,7 @@ totalCost(x, y, z) = x + tipCost(y, z)
     return reward // power
 </code></pre>
 <p>After applying a transaction, the new state state root is computed.</p>
-<h4 id="signedtransactiondatatransfer-1"><a class="header" href="#signedtransactiondatatransfer-1">SignedTransactionDataTransfer</a></h4>
+<h4 id="signedtransactiondatatransfer"><a class="header" href="#signedtransactiondatatransfer">SignedTransactionDataTransfer</a></h4>
 <pre><code class="language-py">bytesPaid = len(tx)
 </code></pre>
 <p>The following checks must be <code>true</code>:</p>
@@ -928,7 +794,7 @@ state.accounts[tx.to].balance += tx.amount
 
 state.activeValidatorSet.proposerBlockReward += tipCost(bytesPaid)
 </code></pre>
-<h4 id="signedtransactiondatamsgpayfordata-1"><a class="header" href="#signedtransactiondatamsgpayfordata-1">SignedTransactionDataMsgPayForData</a></h4>
+<h4 id="signedtransactiondatamsgpayfordata"><a class="header" href="#signedtransactiondatamsgpayfordata">SignedTransactionDataMsgPayForData</a></h4>
 <pre><code class="language-py">bytesPaid = len(tx) + tx.messageSize
 currentStartFinish = state.messagesPaid[findFromMessagePaidList(tx.messageStartIndex)]
 parentStartFinish = state.messagesPaid[parentFromMessagePaidList(findFromMessagePaidList(tx.messageStartIndex))]
@@ -955,7 +821,7 @@ messagePaidListInsert(tx, id(tx))
 
 state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
 </code></pre>
-<h4 id="signedtransactiondatacreatevalidator-1"><a class="header" href="#signedtransactiondatacreatevalidator-1">SignedTransactionDataCreateValidator</a></h4>
+<h4 id="signedtransactiondatacreatevalidator"><a class="header" href="#signedtransactiondatacreatevalidator">SignedTransactionDataCreateValidator</a></h4>
 <pre><code class="language-py">bytesPaid = len(tx)
 </code></pre>
 <p>The following checks must be <code>true</code>:</p>
@@ -987,7 +853,7 @@ state.inactiveValidatorSet[sender] = validator
 
 state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
 </code></pre>
-<h4 id="signedtransactiondatabeginunbondingvalidator-1"><a class="header" href="#signedtransactiondatabeginunbondingvalidator-1">SignedTransactionDataBeginUnbondingValidator</a></h4>
+<h4 id="signedtransactiondatabeginunbondingvalidator"><a class="header" href="#signedtransactiondatabeginunbondingvalidator">SignedTransactionDataBeginUnbondingValidator</a></h4>
 <pre><code class="language-py">bytesPaid = len(tx)
 </code></pre>
 <p>The following checks must be <code>true</code>:</p>
@@ -1020,7 +886,7 @@ state.activeValidatorSet.activeVotingPower -= validator.votingPower
 
 state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
 </code></pre>
-<h4 id="signedtransactiondataunbondvalidator-1"><a class="header" href="#signedtransactiondataunbondvalidator-1">SignedTransactionDataUnbondValidator</a></h4>
+<h4 id="signedtransactiondataunbondvalidator"><a class="header" href="#signedtransactiondataunbondvalidator">SignedTransactionDataUnbondValidator</a></h4>
 <pre><code class="language-py">bytesPaid = len(tx)
 </code></pre>
 <p>The following checks must be <code>true</code>:</p>
@@ -1048,7 +914,7 @@ if validator.delegatedCount == 0
 
 state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
 </code></pre>
-<h4 id="signedtransactiondatacreatedelegation-1"><a class="header" href="#signedtransactiondatacreatedelegation-1">SignedTransactionDataCreateDelegation</a></h4>
+<h4 id="signedtransactiondatacreatedelegation"><a class="header" href="#signedtransactiondatacreatedelegation">SignedTransactionDataCreateDelegation</a></h4>
 <pre><code class="language-py">bytesPaid = len(tx)
 </code></pre>
 <p>The following checks must be <code>true</code>:</p>
@@ -1096,7 +962,7 @@ else if state.accounts[tx.to].status == AccountStatus.ValidatorBonded
 
 state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
 </code></pre>
-<h4 id="signedtransactiondatabeginunbondingdelegation-1"><a class="header" href="#signedtransactiondatabeginunbondingdelegation-1">SignedTransactionDataBeginUnbondingDelegation</a></h4>
+<h4 id="signedtransactiondatabeginunbondingdelegation"><a class="header" href="#signedtransactiondatabeginunbondingdelegation">SignedTransactionDataBeginUnbondingDelegation</a></h4>
 <pre><code class="language-py">bytesPaid = len(tx)
 </code></pre>
 <p>The following checks must be <code>true</code>:</p>
@@ -1148,7 +1014,7 @@ else if state.accounts[delegation.validator].status == AccountStatus.ValidatorBo
 
 state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
 </code></pre>
-<h4 id="signedtransactiondataunbonddelegation-1"><a class="header" href="#signedtransactiondataunbonddelegation-1">SignedTransactionDataUnbondDelegation</a></h4>
+<h4 id="signedtransactiondataunbonddelegation"><a class="header" href="#signedtransactiondataunbonddelegation">SignedTransactionDataUnbondDelegation</a></h4>
 <pre><code class="language-py">bytesPaid = len(tx)
 </code></pre>
 <p>The following checks must be <code>true</code>:</p>
@@ -1187,7 +1053,7 @@ delete state.accounts[sender].delegationInfo
 
 state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
 </code></pre>
-<h4 id="signedtransactiondataburn-1"><a class="header" href="#signedtransactiondataburn-1">SignedTransactionDataBurn</a></h4>
+<h4 id="signedtransactiondataburn"><a class="header" href="#signedtransactiondataburn">SignedTransactionDataBurn</a></h4>
 <pre><code class="language-py">bytesPaid = len(tx)
 </code></pre>
 <p>The following checks must be <code>true</code>:</p>
@@ -1202,7 +1068,7 @@ state.accounts[sender].balance -= totalCost(tx.amount, tx.fee.tipRate, bytesPaid
 
 state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
 </code></pre>
-<h4 id="signedtransactionredelegatecommission-1"><a class="header" href="#signedtransactionredelegatecommission-1">SignedTransactionRedelegateCommission</a></h4>
+<h4 id="signedtransactionredelegatecommission"><a class="header" href="#signedtransactionredelegatecommission">SignedTransactionRedelegateCommission</a></h4>
 <pre><code class="language-py">bytesPaid = len(tx)
 </code></pre>
 <p>The following checks must be <code>true</code>:</p>
@@ -1242,7 +1108,7 @@ state.activeValidatorSet[delegation.validator] = validator
 
 state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
 </code></pre>
-<h4 id="signedtransactionredelegatereward-1"><a class="header" href="#signedtransactionredelegatereward-1">SignedTransactionRedelegateReward</a></h4>
+<h4 id="signedtransactionredelegatereward"><a class="header" href="#signedtransactionredelegatereward">SignedTransactionRedelegateReward</a></h4>
 <pre><code class="language-py">bytesPaid = len(tx)
 </code></pre>
 <p>The following checks must be <code>true</code>:</p>
