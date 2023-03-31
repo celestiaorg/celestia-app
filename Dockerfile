@@ -25,7 +25,7 @@ RUN apk update && apk add --no-cache \
     # Creates a user with $UID and $GID=$UID
     && adduser ${USER_NAME} \
     -D \
-    -g "celestia" \
+    -g ${USER_NAME} \
     -h ${CELESTIA_HOME} \
     -s /sbin/nologin \
     -u ${UID}
@@ -33,11 +33,11 @@ RUN apk update && apk add --no-cache \
 # Copy in the binary
 COPY --from=builder /celestia-app/build/celestia-appd /bin/celestia-appd
 
-COPY docker/entrypoint.sh /home/celestia/entrypoint.sh
+COPY --chown=${USER_NAME}:${USER_NAME} docker/entrypoint.sh /opt/entrypoint.sh
 
 USER ${USER_NAME}
 
 # p2p, rpc and prometheus port
 EXPOSE 26656 26657 1317 9090
 
-ENTRYPOINT [ "/bin/bash", "/home/celestia/entrypoint.sh" ]
+ENTRYPOINT [ "/bin/bash", "/opt/entrypoint.sh" ]

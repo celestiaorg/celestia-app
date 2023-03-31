@@ -98,9 +98,14 @@ make fmt
 make proto-gen
 ```
 
-### Package-specific documentation
+### Docs
 
-- [Shares](https://pkg.go.dev/github.com/celestiaorg/celestia-app/pkg/shares)
+Package-specific docs aim to explain implementation details for developers that are contributing to these packages. The [specs](https://celestiaorg.github.io/celestia-app/) aim to explain the protocol as a whole for developers building on top of Celestia.
+
+- [pkg/shares](https://pkg.go.dev/github.com/celestiaorg/celestia-app/pkg/shares)
+- [pkg/wrapper](https://github.com/celestiaorg/celestia-app/blob/main/pkg/wrapper)
+- [x/blob](https://github.com/celestiaorg/celestia-app/tree/main/x/blob)
+- [x/qgb](https://github.com/celestiaorg/celestia-app/tree/main/x/qgb)
 
 ## Careers
 
