@@ -117,12 +117,12 @@ func MakeGenesis(testnet *Testnet) (types.GenesisDoc, error) {
 	slashingGenesis := slashing.DefaultGenesisState()
 	genAccs := []auth.GenesisAccount{}
 	stakingGenesis.Params.BondDenom = app.BondDenom
+	delegations := make([]staking.Delegation, 0, len(testnet.Nodes))
+	valInfo := make([]slashing.SigningInfo, 0, len(testnet.Nodes))
+	balances := make([]bank.Balance, 0, len(testnet.Accounts)+1)
 	var (
 		validators  staking.Validators
 		totalBonded int64
-		balances    []bank.Balance
-		delegations []staking.Delegation
-		valInfo     []slashing.SigningInfo
 	)
 
 	for name, node := range testnet.Nodes {
