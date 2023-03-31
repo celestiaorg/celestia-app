@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
@@ -34,11 +35,31 @@ func CmdPayForBlob() *cobra.Command {
 				return fmt.Errorf("failure to decode hex namespace ID: %w", err)
 			}
 
-			// TODO: allow the user to override the namespace version via a new flag
-			// See https://github.com/celestiaorg/celestia-app/issues/1528
-			namespace, err := appns.New(appns.NamespaceVersionZero, append(appns.NamespaceVersionZeroPrefix, namespaceID...))
+			nameSpaceFlag, err := cmd.Flags().GetString("--namespace-version")
 			if err != nil {
-				return fmt.Errorf("failure to create namespace: %w", err)
+				return fmt.Errorf("failure to read namespace flag: %w", err)
+			}
+			var namespace appns.Namespace
+
+			if nameSpaceFlag != "" {
+				// load given namespace version
+				namespaceflag, err := strconv.Atoi(nameSpaceFlag)
+				if err != nil {
+					return fmt.Errorf("failure to convert namespace from string: %w", err)
+				}
+				if uint8(namespaceflag) != appns.NamespaceVersionZero {
+					return fmt.Errorf("unsupported namespace version %v", namespaceflag)
+				}
+				namespace, err = appns.New(appns.NamespaceVersionZero, append(appns.NamespaceVersionZeroPrefix, namespaceID...))
+				if err != nil {
+					return fmt.Errorf("failure to create namespace: %w", err)
+				}
+			} else {
+				// namespace version should default to the latest supported namespace version.
+				namespace, err = appns.New(appns.NamespaceVersionZero, append(appns.NamespaceVersionZeroPrefix, namespaceID...))
+				if err != nil {
+					return fmt.Errorf("failure to create namespace: %w", err)
+				}
 			}
 
 			rawblob, err := hex.DecodeString(args[1])
