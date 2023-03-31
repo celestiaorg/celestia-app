@@ -59,7 +59,9 @@ func TestRootErasuredNamespacedMerkleTree(t *testing.T) {
 		}
 	}
 
-	assert.NotEqual(t, nmtTree.Root(), tree.Root())
+	root, err := nmtTree.Root()
+	assert.NoError(t, err)
+	assert.NotEqual(t, root, tree.Root())
 }
 
 func TestErasureNamespacedMerkleTreePanics(t *testing.T) {
