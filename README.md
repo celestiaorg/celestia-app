@@ -68,7 +68,7 @@ celestia-appd --help
 celestia-appd tx blob PayForBlobs [hexNamespace] [hexBlob] [flags]
 ```
 
-**Note:** please note that the `script` commands above, created a random `tmp` directory and keeps all data/configs there.
+**Note:** please note that the `./scripts/` commands above, created a random `tmp` directory and keeps all data/configs there.
 
 <!-- markdown-link-check-disable -->
 <!-- markdown-link encounters an HTTP 503 on this link even though it works. -->
