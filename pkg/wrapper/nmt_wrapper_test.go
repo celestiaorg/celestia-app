@@ -119,6 +119,7 @@ func TestErasuredNamespacedMerkleTree(t *testing.T) {
 	privateRoot, err := tree.tree.Root()
 	assert.NoError(t, err)
 	assert.Equal(t, tree.Tree(), tree.tree)
+
 	assert.Equal(t, publicRoot, privateRoot)
 }
 
