@@ -4,15 +4,15 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/nmt/namespace"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 )
 
 // ShareSequence represents a contiguous sequence of shares that are part of the
 // same namespace and blob. For compact shares, one share sequence exists per
 // reserved namespace. For sparse shares, one share sequence exists per blob.
 type ShareSequence struct {
-	NamespaceID namespace.ID
-	Shares      []Share
+	Namespace appns.Namespace
+	Shares    []Share
 }
 
 // RawData returns the raw share data of this share sequence. The raw data does
@@ -71,7 +71,11 @@ func numberOfSharesNeeded(firstShare Share) (sharesUsed int, err error) {
 		return 0, err
 	}
 
-	if firstShare.IsCompactShare() {
+	isCompact, err := firstShare.IsCompactShare()
+	if err != nil {
+		return 0, err
+	}
+	if isCompact {
 		return CompactSharesNeeded(int(sequenceLen)), nil
 	}
 	return SparseSharesNeeded(sequenceLen), nil

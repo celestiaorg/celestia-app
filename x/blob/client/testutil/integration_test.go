@@ -17,6 +17,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/network"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	paycli "github.com/celestiaorg/celestia-app/x/blob/client/cli"
@@ -57,12 +58,11 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 	s.network.Cleanup()
 }
 
-func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
+func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	require := s.Require()
 	val := s.network.Validators[0]
+	hexNamespace := hex.EncodeToString(appns.RandomBlobNamespaceID())
 
-	// some hex namespace
-	hexNS := "0102030405060708"
 	// some hex blob
 	hexBlob := "0204033704032c0b162109000908094d425837422c2116"
 
@@ -74,16 +74,18 @@ func (s *IntegrationTestSuite) TestSubmitWirePayForBlob() {
 		respType     proto.Message
 	}{
 		{
-			"valid transaction",
-			[]string{
-				hexNS,
+			name: "valid transaction",
+			args: []string{
+				hexNamespace,
 				hexBlob,
 				fmt.Sprintf("--from=%s", username),
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 			},
-			false, 0, &sdk.TxResponse{},
+			expectErr:    false,
+			expectedCode: 0,
+			respType:     &sdk.TxResponse{},
 		},
 	}
 

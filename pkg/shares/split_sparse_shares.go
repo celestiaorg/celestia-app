@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	coretypes "github.com/tendermint/tendermint/types"
 	"golang.org/x/exp/slices"
 )
@@ -28,9 +29,13 @@ func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
 	}
 
 	rawData := blob.Data
+	blobNamespace, err := appns.New(blob.NamespaceVersion, blob.NamespaceID)
+	if err != nil {
+		return err
+	}
 
 	// First share
-	b, err := NewBuilder(blob.NamespaceID, blob.ShareVersion, true).Init()
+	b, err := NewBuilder(blobNamespace, blob.ShareVersion, true).Init()
 	if err != nil {
 		return err
 	}
@@ -52,7 +57,7 @@ func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
 		}
 		sss.shares = append(sss.shares, *share)
 
-		b, err = NewBuilder(blob.NamespaceID, blob.ShareVersion, false).Init()
+		b, err = NewBuilder(blobNamespace, blob.ShareVersion, false).Init()
 		if err != nil {
 			return err
 		}
@@ -99,8 +104,11 @@ func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) error {
 		return nil
 	}
 	lastBlob := sss.shares[len(sss.shares)-1]
-
-	nsPaddingShares, err := NamespacePaddingShares(lastBlob.NamespaceID(), count)
+	lastBlobNs, err := lastBlob.Namespace()
+	if err != nil {
+		return err
+	}
+	nsPaddingShares, err := NamespacePaddingShares(lastBlobNs, count)
 	if err != nil {
 		return err
 	}

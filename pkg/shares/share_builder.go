@@ -5,11 +5,11 @@ import (
 	"errors"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/nmt/namespace"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 )
 
 type Builder struct {
-	namespace      namespace.ID
+	namespace      appns.Namespace
 	shareVersion   uint8
 	isFirstShare   bool
 	isCompactShare bool
@@ -23,7 +23,7 @@ func NewEmptyBuilder() *Builder {
 }
 
 // Init() needs to be called right after this method
-func NewBuilder(ns namespace.ID, shareVersion uint8, isFirstShare bool) *Builder {
+func NewBuilder(ns appns.Namespace, shareVersion uint8, isFirstShare bool) *Builder {
 	return &Builder{
 		namespace:      ns,
 		shareVersion:   shareVersion,
@@ -189,7 +189,7 @@ func (b *Builder) prepareCompactShare() error {
 	placeholderSequenceLen := make([]byte, appconsts.SequenceLenBytes)
 	placeholderReservedBytes := make([]byte, appconsts.CompactShareReservedBytes)
 
-	shareData = append(shareData, b.namespace...)
+	shareData = append(shareData, b.namespace.Bytes()...)
 	shareData = append(shareData, byte(infoByte))
 
 	if b.isFirstShare {
@@ -211,7 +211,7 @@ func (b *Builder) prepareSparseShare() error {
 	}
 	placeholderSequenceLen := make([]byte, appconsts.SequenceLenBytes)
 
-	shareData = append(shareData, b.namespace...)
+	shareData = append(shareData, b.namespace.Bytes()...)
 	shareData = append(shareData, byte(infoByte))
 
 	if b.isFirstShare {
@@ -222,6 +222,6 @@ func (b *Builder) prepareSparseShare() error {
 	return nil
 }
 
-func isCompactShare(ns namespace.ID) bool {
-	return ns.Equal(appconsts.TxNamespaceID) || ns.Equal(appconsts.PayForBlobNamespaceID)
+func isCompactShare(ns appns.Namespace) bool {
+	return ns.IsTx() || ns.IsPayForBlob()
 }

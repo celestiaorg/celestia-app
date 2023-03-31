@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/testutil/namespace"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -89,7 +90,7 @@ func (c *Context) WaitForNextBlock() error {
 // PostData will create and submit PFB transaction containing the namespace and
 // blobData. This function blocks until the PFB has been included in a block and
 // returns an error if the transaction is invalid or is rejected by the mempool.
-func (c *Context) PostData(account, broadcastMode string, ns, blobData []byte) (*sdk.TxResponse, error) {
+func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, blobData []byte) (*sdk.TxResponse, error) {
 	opts := []types.TxBuilderOption{
 		types.SetGasLimit(100000000000000),
 	}
