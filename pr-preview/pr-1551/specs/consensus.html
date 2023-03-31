@@ -157,8 +157,10 @@
 <tr><td><code>GENESIS_COIN_COUNT</code></td><td><code>uint64</code></td><td><code>10**8</code></td><td><code>4u</code></td><td><code>(= 100000000)</code> Number of coins at genesis.</td></tr>
 <tr><td><code>MAX_GRAFFITI_BYTES</code></td><td><code>uint64</code></td><td><code>32</code></td><td><code>byte</code></td><td>Maximum size of transaction graffiti, in bytes.</td></tr>
 <tr><td><code>MAX_VALIDATORS</code></td><td><code>uint16</code></td><td><code>64</code></td><td></td><td>Maximum number of active validators.</td></tr>
-<tr><td><code>NAMESPACE_ID_BYTES</code></td><td><code>uint64</code></td><td><code>8</code></td><td><code>byte</code></td><td>Size of namespace ID, in bytes.</td></tr>
-<tr><td><code>NAMESPACE_ID_MAX_RESERVED</code></td><td><code>uint64</code></td><td><code>255</code></td><td></td><td>Value of maximum reserved namespace ID (inclusive). 1 byte worth of IDs.</td></tr>
+<tr><td><code>NAMESPACE_VERSION_SIZE</code></td><td><code>int</code></td><td><code>1</code></td><td><code>byte</code></td><td>Size of namespace version in bytes.</td></tr>
+<tr><td><code>NAMESPACE_ID_SIZE</code></td><td><code>int</code></td><td><code>32</code></td><td><code>byte</code></td><td>Size of namespace ID in bytes.</td></tr>
+<tr><td><code>NAMESPACE_SIZE</code></td><td><code>int</code></td><td><code>33</code></td><td><code>byte</code></td><td>Size of namespace in bytes.</td></tr>
+<tr><td><code>NAMESPACE_ID_MAX_RESERVED</code></td><td><code>uint64</code></td><td><code>255</code></td><td></td><td>Value of maximum reserved namespace (inclusive). 1 byte worth of IDs.</td></tr>
 <tr><td><code>SEQUENCE_BYTES</code></td><td><code>uint64</code></td><td><code>4</code></td><td><code>byte</code></td><td>The number of bytes used to store the sequence length in the first share of a sequence</td></tr>
 <tr><td><code>SHARE_INFO_BYTES</code></td><td><code>uint64</code></td><td><code>1</code></td><td><code>byte</code></td><td>The number of bytes used for <a href="data_structures.html#share">share</a> information</td></tr>
 <tr><td><code>SHARE_RESERVED_BYTES</code></td><td><code>uint64</code></td><td><code>4</code></td><td><code>byte</code></td><td>The number of bytes used to store the location of the first unit in a compact share. Must be able to represent any integer up to and including <code>SHARE_SIZE - 1</code>.</td></tr>
@@ -169,23 +171,15 @@
 <tr><td><code>VERSION_BLOCK</code></td><td><code>uint64</code></td><td><code>1</code></td><td></td><td>Version of the Celestia chain. Breaking changes (hard forks) must update this parameter.</td></tr>
 </tbody></table>
 </div>
-<h3 id="reserved-namespace-ids"><a class="header" href="#reserved-namespace-ids">Reserved Namespace IDs</a></h3>
+<h3 id="reserved-namespaces"><a class="header" href="#reserved-namespaces">Reserved Namespaces</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>value</th><th>description</th></tr></thead><tbody>
-<tr><td><code>TRANSACTION_NAMESPACE_ID</code></td><td><code>NamespaceID</code></td><td><code>0x0000000000000001</code></td><td>Transactions: requests that modify the state.</td></tr>
-<tr><td><code>INTERMEDIATE_STATE_ROOT_NAMESPACE_ID</code></td><td><code>NamespaceID</code></td><td><code>0x0000000000000002</code></td><td>Intermediate state roots, committed after every transaction.</td></tr>
-<tr><td><code>EVIDENCE_NAMESPACE_ID</code></td><td><code>NamespaceID</code></td><td><code>0x0000000000000003</code></td><td>Evidence: fraud proofs or other proof of slashable action.</td></tr>
-<tr><td><code>RESERVED_PADDING_NAMESPACE_ID</code></td><td><code>NamespaceID</code></td><td><code>0x00000000000000FF</code></td><td>Padding after all reserved namespaces but before blobs.</td></tr>
-<tr><td><code>TAIL_PADDING_NAMESPACE_ID</code></td><td><code>NamespaceID</code></td><td><code>0xFFFFFFFFFFFFFFFE</code></td><td>Tail padding for messages: padding after all messages to fill up the original data square.</td></tr>
-<tr><td><code>PARITY_SHARE_NAMESPACE_ID</code></td><td><code>NamespaceID</code></td><td><code>0xFFFFFFFFFFFFFFFF</code></td><td>Parity shares: extended shares in the available data matrix.</td></tr>
-</tbody></table>
-</div>
-<h3 id="reserved-state-subtree-ids"><a class="header" href="#reserved-state-subtree-ids">Reserved State Subtree IDs</a></h3>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>value</th></tr></thead><tbody>
-<tr><td><code>ACCOUNTS_SUBTREE_ID</code></td><td><code>StateSubtreeID</code></td><td><code>0x01</code></td></tr>
-<tr><td><code>ACTIVE_VALIDATORS_SUBTREE_ID</code></td><td><code>StateSubtreeID</code></td><td><code>0x02</code></td></tr>
-<tr><td><code>INACTIVE_VALIDATORS_SUBTREE_ID</code></td><td><code>StateSubtreeID</code></td><td><code>0x03</code></td></tr>
-<tr><td><code>DELEGATIONS_SUBTREE_ID</code></td><td><code>StateSubtreeID</code></td><td><code>0x04</code></td></tr>
-<tr><td><code>MESSAGE_PAID_SUBTREE_ID</code></td><td><code>StateSubtreeID</code></td><td><code>0x05</code></td></tr>
+<tr><td><code>TRANSACTION_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x000000000000000000000000000000000000000000000000000000000000000001</code></td><td>Transactions: requests that modify the state.</td></tr>
+<tr><td><code>INTERMEDIATE_STATE_ROOT_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x000000000000000000000000000000000000000000000000000000000000000002</code></td><td>Intermediate state roots, committed after every transaction.</td></tr>
+<tr><td><code>EVIDENCE_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x000000000000000000000000000000000000000000000000000000000000000003</code></td><td>Evidence: fraud proofs or other proof of slashable action.</td></tr>
+<tr><td><code>RESERVED_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000000000000FF</code></td><td>Padding after all reserved namespaces but before blobs.</td></tr>
+<tr><td><code>MAX_RESERVED_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000000000000FF</code></td><td>Max reserved namespace is lexicographically the largest namespace that is reserved for protocol use.</td></tr>
+<tr><td><code>TAIL_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000FFFFFFFFFFFFFFFE</code></td><td>Tail padding for messages: padding after all messages to fill up the original data square.</td></tr>
+<tr><td><code>PARITY_SHARE_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000FFFFFFFFFFFFFFFF</code></td><td>Parity shares: extended shares in the available data matrix.</td></tr>
 </tbody></table>
 </div>
 <h3 id="rewards-and-penalties"><a class="header" href="#rewards-and-penalties">Rewards and Penalties</a></h3>
@@ -250,7 +244,7 @@
 <p>The block's <a href="./data_structures.html#availabledata">available data</a> (analogous to transactions in contemporary blockchain designs) <code>block.availableData</code> (<code>availableData</code> for short) is finally processed. The <a href="./networking.html#availabledata">list of share rows</a> is parsed into the <a href="./data_structures.html#availabledata">actual data structures</a> using the reverse of <a href="./data_structures.html#arranging-available-data-into-shares">the process to encode available data into shares</a>; if parsing fails here, the block is invalid.</p>
 <p>Once parsed, the following checks must be <code>true</code>:</p>
 <ol>
-<li>The commitments of the <a href="./data_structures.html#2d-reed-solomon-encoding-scheme">erasure-coded extended</a> <code>availableData</code> must match those in <code>header.availableDataHeader</code>. Implicitly, this means that both rows and columns must be ordered lexicographically by namespace ID since they are committed to in a <a href="data_structures.html#namespace-merkle-tree">Namespace Merkle Tree</a>.</li>
+<li>The commitments of the <a href="./data_structures.html#2d-reed-solomon-encoding-scheme">erasure-coded extended</a> <code>availableData</code> must match those in <code>header.availableDataHeader</code>. Implicitly, this means that both rows and columns must be ordered lexicographically by namespace since they are committed to in a <a href="data_structures.html#namespace-merkle-tree">Namespace Merkle Tree</a>.</li>
 <li>Length of <code>availableData.intermediateStateRootData</code> == length of <code>availableData.transactionData</code> + length of <code>availableData.payForBlobData</code> + 2. (Two additional state transitions are the <a href="#begin-block">begin</a> and <a href="#end-block">end block</a> implicit transitions.)</li>
 </ol>
 <h2 id="state-transitions"><a class="header" href="#state-transitions">State Transitions</a></h2>
@@ -371,7 +365,7 @@ parentStartFinish = state.messagesPaid[parentFromMessagePaidList(findFromMessage
 <li><code>tx.nonce</code> == <code>state.accounts[sender].nonce + 1</code>.</li>
 <li>The <code>ceil(tx.messageSize / SHARE_SIZE)</code> shares starting at index <code>tx.messageStartIndex</code> must:
 <ol>
-<li>Have namespace ID <code>tx.messageNamespaceID</code>.</li>
+<li>Have namespace <code>tx.messageNamespace</code>.</li>
 </ol>
 </li>
 <li><code>tx.messageShareCommitment</code> == computed as described <a href="./data_structures.html#signedtransactiondatamsgpayfordata">here</a>.</li>
@@ -754,7 +748,6 @@ else if account.status == AccountStatus.ValidatorBonded
 </code></pre>
 <p>At the end of a block, the top <code>MAX_VALIDATORS</code> validators by voting power with voting power <em>greater than</em> zero are or become active (bonded). For newly-bonded validators, the entire validator object is moved to the active validators subtree and their status is changed to bonded. For previously-bonded validators that are no longer in the top <code>MAX_VALIDATORS</code> validators begin unbonding.</p>
 <p>Bonding validators is simply setting their status to <code>AccountStatus.ValidatorBonded</code>. The logic for validator unbonding is found <a href="#signedtransactiondatabeginunbondingvalidator">here</a>, minus transaction sender updates (nonce, balance, and fee).</p>
-<p>Finally, the state subtree with ID <a href="#reserved-state-subtree-ids"><code>MESSAGE_PAID_SUBTREE_ID</code></a> is deleted.</p>
 <p>This end block implicit state transition is a single state transition, and <a href="#blockavailabledata">only has a single intermediate state root</a> associated with it.</p>
 
                     </main>
