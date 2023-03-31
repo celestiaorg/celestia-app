@@ -70,7 +70,7 @@ const (
 )
 ```
 
-The `NextInflationRate` function calculated the `year` based on the current block height that comes from the `sdk.Context` and the number of `BlocksPerYear` that comes from the params.
+The `NextInflationRate` function calculates the `year` based on the current block height that comes from the `sdk.Context` and the number of `BlocksPerYear` that comes from the params.
 Then it computes the inflation rate according to the determined fixed rate per year.
 
 ```go
