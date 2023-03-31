@@ -13,10 +13,11 @@ Proposed
 The inflation rate is decided to have a fixed rate with an initial value and a target value.
 Table below shows that how it looks like according to the made decision.
 
-| Initial Inflation |     8.00% |
-|------------------------|----------------------------|
-| Disinflation rate p.a |    10.00% |
-| Target Inflation (floor)  |  1.50% |
+| Name                     | Value  |
+|--------------------------|--------|
+| Initial Inflation        | 8.00%  |
+| Disinflation rate p.a    | 10.00% |
+| Target Inflation (floor) | 1.50%  |
 
 Once we approach the target inflation, we stick to it forever.
 Table below depicts the values throughout the coming years:
