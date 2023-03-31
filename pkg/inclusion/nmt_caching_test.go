@@ -2,41 +2,44 @@ package inclusion
 
 import (
 	"bytes"
-	"crypto/rand"
 	"sort"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func TestWalkCachedSubTreeRoot(t *testing.T) {
 	// create the first main tree
 	strc := newSubTreeRootCacher()
-	oss := uint64(8)
-	tr := wrapper.NewErasuredNamespacedMerkleTree(oss, 0, nmt.NodeVisitor(strc.Visit))
-	d := []byte{0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 3, 4, 5, 6, 7, 8}
+	squareSize := uint64(8)
+	tr := wrapper.NewErasuredNamespacedMerkleTree(squareSize, 0, nmt.NodeVisitor(strc.Visit))
+	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+
+	data := append(ns1.Bytes(), []byte("data")...)
 	for i := 0; i < 8; i++ {
-		tr.Push(d)
+		tr.Push(data)
 	}
 	highestRoot := tr.Root()
 
 	// create a short sub tree
-	shortSubTree := wrapper.NewErasuredNamespacedMerkleTree(oss, 0)
+	shortSubTree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, 0)
 	for i := 0; i < 2; i++ {
-		shortSubTree.Push(d)
+		shortSubTree.Push(data)
 	}
 	shortSTR := shortSubTree.Root()
 
 	// create a tall sub tree root
-	tallSubTree := wrapper.NewErasuredNamespacedMerkleTree(oss, 0)
+	tallSubTree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, 0)
 	for i := 0; i < 4; i++ {
-		tallSubTree.Push(d)
+		tallSubTree.Push(data)
 	}
 	tallSTR := tallSubTree.Root()
 
@@ -106,17 +109,17 @@ func TestWalkCachedSubTreeRoot(t *testing.T) {
 }
 
 func TestEDSSubRootCacher(t *testing.T) {
-	oss := uint64(8)
-	d := generateRandNamespacedRawData(uint32(oss*oss), appconsts.NamespaceSize, appconsts.ShareSize-appconsts.NamespaceSize)
-	stc := NewSubtreeCacher(oss)
+	squareSize := 8
+	d := generateRandNamespacedRawData(squareSize * squareSize)
+	stc := NewSubtreeCacher(uint64(squareSize))
 
 	eds, err := rsmt2d.ComputeExtendedDataSquare(d, appconsts.DefaultCodec(), stc.Constructor)
 	require.NoError(t, err)
 
 	dah := da.NewDataAvailabilityHeader(eds)
 
-	for i := range dah.RowsRoots[:oss] {
-		expectedSubTreeRoots := calculateSubTreeRoots(eds.Row(uint(i))[:oss], 2)
+	for i := range dah.RowsRoots[:squareSize] {
+		expectedSubTreeRoots := calculateSubTreeRoots(eds.Row(uint(i))[:squareSize], 2)
 		require.NotNil(t, expectedSubTreeRoots)
 		// note: the depth is one greater than expected because we're dividing
 		// the row in half when we calculate the expected roots.
@@ -172,21 +175,19 @@ func chunkSlice(slice [][]byte, chunkSize int) [][][]byte {
 	return chunks
 }
 
-func generateRandNamespacedRawData(total, nidSize, leafSize uint32) [][]byte {
-	data := make([][]byte, total)
-	for i := uint32(0); i < total; i++ {
-		nid := make([]byte, nidSize)
-		_, _ = rand.Read(nid)
-		data[i] = nid
-	}
-	sortByteArrays(data)
-	for i := uint32(0); i < total; i++ {
-		d := make([]byte, leafSize)
-		_, _ = rand.Read(d)
-		data[i] = append(data[i], d...)
+// generateRandNamespacedRawData returns random data of length count. Each chunk
+// of random data is of size shareSize and is prefixed with a random blob
+// namespace.
+func generateRandNamespacedRawData(count int) (result [][]byte) {
+	for i := 0; i < count; i++ {
+		rawData := tmrand.Bytes(appconsts.ShareSize)
+		namespace := appns.RandomBlobNamespace().Bytes()
+		copy(rawData, namespace)
+		result = append(result, rawData)
 	}
 
-	return data
+	sortByteArrays(result)
+	return result
 }
 
 func sortByteArrays(src [][]byte) {

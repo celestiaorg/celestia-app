@@ -1,9 +1,7 @@
 package shares
 
 import (
-	"bytes"
-
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/rsmt2d"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -15,9 +13,9 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 
 	// sort block data shares by namespace
 	var (
-		sortedTxShares    [][]byte
-		sortedPfbTxShares [][]byte
-		sortedBlobShares  [][]byte
+		sortedTxShares    []Share
+		sortedPfbTxShares []Share
+		sortedBlobShares  []Share
 	)
 
 	// iterate over each row index
@@ -25,24 +23,32 @@ func merge(eds *rsmt2d.ExtendedDataSquare) (coretypes.Data, error) {
 		// iterate over each share in the original data square
 		row := eds.Row(x)
 
-		for _, share := range row[:squareSize] {
+		for _, shareBytes := range row[:squareSize] {
 			// sort the data of that share types via namespace
-			nid := share[:appconsts.NamespaceSize]
+			share, err := NewEmptyBuilder().ImportRawShare(shareBytes).Build()
+			if err != nil {
+				return coretypes.Data{}, err
+			}
+			ns, err := appns.From(share.data[:appns.NamespaceSize])
+			if err != nil {
+				return coretypes.Data{}, err
+			}
+
 			switch {
-			case bytes.Equal(appconsts.TxNamespaceID, nid):
-				sortedTxShares = append(sortedTxShares, share)
-			case bytes.Equal(appconsts.PayForBlobNamespaceID, nid):
-				sortedPfbTxShares = append(sortedPfbTxShares, share)
-			case bytes.Equal(appconsts.TailPaddingNamespaceID, nid):
+			case ns.IsTx():
+				sortedTxShares = append(sortedTxShares, *share)
+			case ns.IsPayForBlob():
+				sortedPfbTxShares = append(sortedPfbTxShares, *share)
+			case ns.IsTailPadding():
 				continue
 
 			// ignore unused but reserved namespaces
-			case bytes.Compare(nid, appconsts.MaxReservedNamespace) < 1:
+			case ns.IsReserved():
 				continue
 
 			// every other namespaceID should be a blob
 			default:
-				sortedBlobShares = append(sortedBlobShares, share)
+				sortedBlobShares = append(sortedBlobShares, *share)
 			}
 		}
 	}

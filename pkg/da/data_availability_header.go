@@ -172,7 +172,10 @@ func (dah *DataAvailabilityHeader) IsZero() bool {
 // It is equal to the data availability header for a block with one tail padding
 // share.
 func MinDataAvailabilityHeader() DataAvailabilityHeader {
-	s := MinShares()
+	s, err := MinShares()
+	if err != nil {
+		panic(err)
+	}
 	eds, err := ExtendShares(appconsts.DefaultMinSquareSize, s)
 	if err != nil {
 		panic(err)
@@ -182,6 +185,12 @@ func MinDataAvailabilityHeader() DataAvailabilityHeader {
 }
 
 // MinShares returns one tail-padded share.
-func MinShares() [][]byte {
-	return shares.ToBytes(shares.TailPaddingShares(appconsts.MinShareCount))
+// An error returned when there is an issue with building the share
+// for example if the shareVersion is wrong, or WriteSequenceLen fails, or the share size is incorrect
+func MinShares() ([][]byte, error) {
+	tpShares, err := shares.TailPaddingShares(appconsts.MinShareCount)
+	if err != nil {
+		return nil, err
+	}
+	return shares.ToBytes(tpShares), nil
 }

@@ -15,13 +15,12 @@ type sequence struct {
 // parseSparseShares iterates through rawShares and parses out individual
 // blobs. It returns an error if a rawShare contains a share version that
 // isn't present in supportedShareVersions.
-func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) (blobs []coretypes.Blob, err error) {
-	if len(rawShares) == 0 {
+func parseSparseShares(shares []Share, supportedShareVersions []uint8) (blobs []coretypes.Blob, err error) {
+	if len(shares) == 0 {
 		return nil, nil
 	}
 	sequences := make([]sequence, 0)
 
-	shares := FromBytes(rawShares)
 	for _, share := range shares {
 		version, err := share.Version()
 		if err != nil {
@@ -53,10 +52,15 @@ func parseSparseShares(rawShares [][]byte, supportedShareVersions []uint8) (blob
 			if err != nil {
 				return nil, err
 			}
+			ns, err := share.Namespace()
+			if err != nil {
+				return nil, err
+			}
 			blob := coretypes.Blob{
-				NamespaceID:  share.NamespaceID(),
-				Data:         data,
-				ShareVersion: version,
+				NamespaceID:      ns.ID,
+				Data:             data,
+				ShareVersion:     version,
+				NamespaceVersion: ns.Version,
 			}
 			sequences = append(sequences, sequence{
 				blob:        blob,

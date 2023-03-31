@@ -8,13 +8,12 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
-	"github.com/celestiaorg/nmt/namespace"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -38,12 +37,12 @@ func NewTxInclusionProof(data types.Data, txIndex uint64) (types.ShareProof, err
 	return NewShareInclusionProof(rawShares, data.SquareSize, namespace, startShare, endShare)
 }
 
-func getTxNamespace(tx types.Tx) (ns namespace.ID) {
+func getTxNamespace(tx types.Tx) (ns appns.Namespace) {
 	_, isIndexWrapper := types.UnmarshalIndexWrapper(tx)
 	if isIndexWrapper {
-		return appconsts.PayForBlobNamespaceID
+		return appns.PayForBlobNamespace
 	}
-	return appconsts.TxNamespaceID
+	return appns.TxNamespace
 }
 
 // TxShareRange returns the range of shares that include a given txIndex.
@@ -53,7 +52,10 @@ func TxShareRange(data types.Data, txIndex uint64) (startShare uint64, endShare 
 		return 0, 0, errors.New("transaction index is greater than the number of txs")
 	}
 
-	_, _, shareRanges := shares.SplitTxs(data.Txs)
+	_, _, shareRanges, err := shares.SplitTxs(data.Txs)
+	if err != nil {
+		return 0, 0, err
+	}
 	shareRange := shareRanges[data.Txs[txIndex].Key()]
 
 	return uint64(shareRange.Start), uint64(shareRange.End), nil
@@ -106,7 +108,7 @@ func BlobShareRange(tx types.Tx) (beginShare uint64, endShare uint64, err error)
 func NewShareInclusionProof(
 	allRawShares []shares.Share,
 	squareSize uint64,
-	namespaceID namespace.ID,
+	namespace appns.Namespace,
 	startShare uint64,
 	endShare uint64,
 ) (types.ShareProof, error) {
@@ -145,8 +147,13 @@ func NewShareInclusionProof(
 		tree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, uint(i))
 		for _, share := range row {
 			tree.Push(
-				share,
+				share.ToBytes(),
 			)
+		}
+
+		// make sure that the generated root is the same as the eds row root.
+		if !bytes.Equal(rowRoots[i].Bytes(), tree.Root()) {
+			return types.ShareProof{}, errors.New("eds row root is different than tree root")
 		}
 
 		startLeafPos := startLeaf
@@ -173,11 +180,6 @@ func NewShareInclusionProof(
 			Nodes:    proof.Nodes(),
 			LeafHash: proof.LeafHash(),
 		})
-
-		// make sure that the generated root is the same as the eds row root.
-		if !bytes.Equal(rowRoots[i].Bytes(), tree.Root()) {
-			return types.ShareProof{}, errors.New("eds row root is different than tree root")
-		}
 	}
 
 	return types.ShareProof{
@@ -187,8 +189,9 @@ func NewShareInclusionProof(
 			StartRow: uint32(startRow),
 			EndRow:   uint32(endRow),
 		},
-		Data:        rawShares,
-		ShareProofs: shareProofs,
-		NamespaceID: namespaceID,
+		Data:             rawShares,
+		ShareProofs:      shareProofs,
+		NamespaceID:      namespace.ID,
+		NamespaceVersion: uint32(namespace.Version),
 	}, nil
 }

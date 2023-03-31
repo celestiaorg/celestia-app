@@ -9,8 +9,8 @@ import (
 )
 
 // ParseTxs collects all of the transactions from the shares provided
-func ParseTxs(shares [][]byte) (coretypes.Txs, error) {
-	// parse the sharse
+func ParseTxs(shares []Share) (coretypes.Txs, error) {
+	// parse the shares
 	rawTxs, err := parseCompactShares(shares, appconsts.SupportedShareVersions)
 	if err != nil {
 		return nil, err
@@ -26,7 +26,7 @@ func ParseTxs(shares [][]byte) (coretypes.Txs, error) {
 }
 
 // ParseBlobs collects all blobs from the shares provided
-func ParseBlobs(shares [][]byte) ([]coretypes.Blob, error) {
+func ParseBlobs(shares []Share) ([]coretypes.Blob, error) {
 	blobList, err := parseSparseShares(shares, appconsts.SupportedShareVersions)
 	if err != nil {
 		return []coretypes.Blob{}, err
@@ -35,16 +35,19 @@ func ParseBlobs(shares [][]byte) ([]coretypes.Blob, error) {
 	return blobList, nil
 }
 
-func ParseShares(rawShares [][]byte) ([]ShareSequence, error) {
+func ParseShares(shares []Share) ([]ShareSequence, error) {
 	sequences := []ShareSequence{}
 	currentSequence := ShareSequence{}
 
-	for _, rawShare := range rawShares {
-		share, err := NewShare(rawShare)
-		if err != nil {
+	for _, share := range shares {
+		if err := share.Validate(); err != nil {
 			return sequences, err
 		}
 		isStart, err := share.IsSequenceStart()
+		if err != nil {
+			return sequences, err
+		}
+		ns, err := share.Namespace()
 		if err != nil {
 			return sequences, err
 		}
@@ -53,11 +56,11 @@ func ParseShares(rawShares [][]byte) ([]ShareSequence, error) {
 				sequences = append(sequences, currentSequence)
 			}
 			currentSequence = ShareSequence{
-				Shares:      []Share{share},
-				NamespaceID: share.NamespaceID(),
+				Shares:    []Share{share},
+				Namespace: ns,
 			}
 		} else {
-			if !bytes.Equal(currentSequence.NamespaceID, share.NamespaceID()) {
+			if !bytes.Equal(currentSequence.Namespace.Bytes(), ns.Bytes()) {
 				return sequences, fmt.Errorf("share sequence %v has inconsistent namespace IDs with share %v", currentSequence, share)
 			}
 			currentSequence.Shares = append(currentSequence.Shares, share)
