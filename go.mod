@@ -38,6 +38,19 @@ require (
 )
 
 require (
+	github.com/Microsoft/go-winio v0.6.0 // indirect
+	github.com/docker/distribution v2.8.1+incompatible // indirect
+	github.com/docker/go-connections v0.4.0 // indirect
+	github.com/docker/go-units v0.5.0 // indirect
+	github.com/opencontainers/go-digest v1.0.0 // indirect
+	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
+	github.com/sirupsen/logrus v1.9.0 // indirect
+	golang.org/x/mod v0.6.0 // indirect
+	golang.org/x/tools v0.2.0 // indirect
+	gotest.tools/v3 v3.4.0 // indirect
+)
+
+require (
 	cloud.google.com/go v0.104.0 // indirect
 	cloud.google.com/go/compute v1.12.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.1 // indirect
@@ -46,6 +59,7 @@ require (
 	filippo.io/edwards25519 v1.0.0-rc.1 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.1 // indirect
+	github.com/BurntSushi/toml v1.2.1
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20200405005733-88cbf1b4c40d // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/Workiva/go-datastructures v1.0.53 // indirect
@@ -79,6 +93,7 @@ require (
 	github.com/dgraph-io/badger/v2 v2.2007.4 // indirect
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
+	github.com/docker/docker v20.10.21+incompatible
 	github.com/dustin/go-humanize v1.0.1-0.20200219035652-afde56e7acac // indirect
 	github.com/dvsekhvalnov/jose2go v1.5.0 // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
@@ -149,7 +164,7 @@ require (
 	github.com/rakyll/statik v0.1.7 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rs/cors v1.8.2 // indirect
-	github.com/rs/zerolog v1.27.0 // indirect
+	github.com/rs/zerolog v1.27.0
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
 	github.com/shirou/gopsutil v3.21.6+incompatible // indirect
 	github.com/spf13/afero v1.9.2 // indirect
