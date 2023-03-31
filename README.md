@@ -57,15 +57,18 @@ celestia-appd --help
 ### Create your own single node devnet
 
 ```sh
-# WARNING: this deletes config, data, and keyrings from previous local devnets
-rm -r ~/.celestia-app
 
-# Start a single node devnet
+# Start a single node devnet using the pre-installed celestia app
 ./scripts/single-node.sh
+
+# Build and start a single node devnet
+./scripts/build-run-single-node.sh
 
 # Post data to the local devnet
 celestia-appd tx blob PayForBlobs [hexNamespace] [hexBlob] [flags]
 ```
+
+**Note:** please note that the `./scripts/` commands above, created a random `tmp` directory and keeps all data/configs there.
 
 <!-- markdown-link-check-disable -->
 <!-- markdown-link encounters an HTTP 503 on this link even though it works. -->
