@@ -13,11 +13,11 @@ Proposed
 The inflation rate is decided to have a fixed rate with an initial value and a target value.
 Table below shows that how it looks like according to the made decision.
 
-| Name                     | Value  |
-|--------------------------|--------|
-| Initial Inflation        | 8.00%  |
-| Disinflation rate p.a    | 10.00% |
-| Target Inflation (floor) | 1.50%  |
+| Name                       | Value  |
+|-------------------------------|--------|
+| Initial Inflation          | 8.00%  |
+| Disinflation rate per year    | 10.00% |
+| Target Inflation (floor)   | 1.50%  |
 
 Once we approach the target inflation, we stick to it forever.
 The table below depicts the values over the coming years:
@@ -46,19 +46,17 @@ The table below depicts the values over the coming years:
 |19 | 1.50 |
 |20 | 1.50 |
 
-## Alternative Approaches
+## Decision
+
+The decision is already made and the ADR is accepted. We are waiting for a final inspection though.
+
+## Detailed Design
 
 In order to do so, we need to have a simple mint module. So we remove the dynamic inflation rate calculation and simply map the current block height to the respective year and calculate the inflation rate according to that.
 
 The logic is implemented in the `NextInflationRate` function and is called in the `BeginBlock` of the `mint` module.
 
 If no custom inflation calculator function is passed to the Minter, the default function calculates the inflation rate that this ADR desires to achieve.
-
-## Decision
-
-The decision is already made and the ADR is accepted. We are waiting for a final inspection though.
-
-## Detailed Design
 
 Since the rates are fixed, we hardcoded them in a set of constants.
 
