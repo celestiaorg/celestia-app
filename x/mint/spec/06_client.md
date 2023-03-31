@@ -68,11 +68,7 @@ Example:
 
 ```yml
 blocks_per_year: "4360000"
-goal_bonded: "0.670000000000000000"
-inflation_max: "0.200000000000000000"
-inflation_min: "0.070000000000000000"
-inflation_rate_change: "0.130000000000000000"
-mint_denom: stake
+mint_denom: utia
 ```
 
 ## gRPC
@@ -142,11 +138,7 @@ Example Output:
 ```json
 {
   "params": {
-    "mintDenom": "stake",
-    "inflationRateChange": "130000000000000000",
-    "inflationMax": "200000000000000000",
-    "inflationMin": "70000000000000000",
-    "goalBonded": "670000000000000000",
+    "mintDenom": "utia",
     "blocksPerYear": "6311520"
   }
 }
@@ -213,11 +205,7 @@ Example Output:
 ```json
 {
   "params": {
-    "mintDenom": "stake",
-    "inflationRateChange": "130000000000000000",
-    "inflationMax": "200000000000000000",
-    "inflationMin": "70000000000000000",
-    "goalBonded": "670000000000000000",
+    "mintDenom": "utia",
     "blocksPerYear": "6311520"
   }
 }

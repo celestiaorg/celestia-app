@@ -22,26 +22,42 @@ type InflationCalculationFn func(ctx sdk.Context, minter Minter, params Params, 
 ### NextInflationRate
 
 The target annual inflation rate is recalculated each block.
-The inflation is also subject to a rate change (positive or negative)
-depending on the distance from the desired ratio (67%). The maximum rate change
-possible is defined to be 13% per year, however the annual inflation is capped
-as between 7% and 20%.
+Since the rates are fixed, we hardcoded them in a set of constants.
 
 ```go
-NextInflationRate(params Params, bondedRatio sdk.Dec) (inflation sdk.Dec) {
-	inflationRateChangePerYear = (1 - bondedRatio/params.GoalBonded) * params.InflationRateChange
-	inflationRateChange = inflationRateChangePerYear/blocksPerYr
+const (
+	InitialInflationRate    = 0.08
+	TargetInflationRate     = 0.015 // floor
+	DisinflationRatePerYear = 0.1
+)
+```
 
-	// increase the new annual inflation for this next cycle
-	inflation += inflationRateChange
-	if inflation > params.InflationMax {
-		inflation = params.InflationMax
-	}
-	if inflation < params.InflationMin {
-		inflation = params.InflationMin
+The `NextInflationRate` function calculated the `year` based on the current block height that comes from the `sdk.Context` and the number of `BlocksPerYear` that comes from the params.
+Then it computes the inflation rate according to the determined fixed rate per year.
+
+```go
+NextInflationRate(ctx sdk.Context, params Params) sdk.Dec {
+
+	year := uint64(ctx.BlockHeader().Height) / params.BlocksPerYear
+
+	initInflationRate := sdk.NewDecWithPrec(InitialInflationRate*1000, 3 /* since we used 1000 */)
+	targetInflationRate := sdk.NewDecWithPrec(TargetInflationRate*1000, 3 /* since we used 1000 */)
+
+	// initInflationRate * ((1 - DisinflationRate) ^ year)
+	newInflationRate := initInflationRate.Mul(
+		sdk.OneDec().Sub(
+			sdk.NewDecWithPrec(DisinflationRatePerYear*100, 2 /* since we used 100 */)).
+			Power(year))
+
+	if newInflationRate.LT(targetInflationRate) {
+		newInflationRate = targetInflationRate
+	} else {
+		if newInflationRate.GT(initInflationRate) {
+			newInflationRate = initInflationRate
+		}
 	}
 
-	return inflation
+	return newInflationRate
 }
 ```
 
