@@ -20,7 +20,7 @@ Table below shows that how it looks like according to the made decision.
 | Target Inflation (floor) | 1.50%  |
 
 Once we approach the target inflation, we stick to it forever.
-Table below depicts the values throughout the coming years:
+The table below depicts the values over the coming years:
 
 | year | inflation (%) |
 |------|------|
