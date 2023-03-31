@@ -23,23 +23,22 @@
 //
 // # Universal Prefix
 //
-// Both types of shares have a universal prefix. The first 8 bytes of a share
-// contain the [namespace.ID]. The next byte is an [InfoByte] that contains the
+// Both types of shares have a universal prefix. The first 1 byte of a share
+// contains the namespace version. The next 32 bytes contain the namespace ID.
+// The next one byte contains an [InfoByte] that contains the
 // share version and a sequence start indicator. If the sequence start indicator
 // is `1` (i.e. this is the first share of a sequence) then the next 4 bytes
 // contain a big endian uint32 of the sequence length.
 //
 // For the first share of a sequence:
 //
-//	| universal prefix                           | data                      |
-//	| namespace_id | info_byte | sequence_length | sequence_data             |
-//	| 8 bytes      | 1 byte    | 4 bytes         | remaining bytes of share  |
+//	| namespace_version | namespace_id | info_byte | sequence_length | sequence_data             |
+//	| 1 byte            | 32 bytes     | 1 byte    | 4 bytes         | remaining bytes of share  |
 //
 // For continuation share of a sequence:
 //
-//	| universal prefix         | data                      |
-//	| namespace_id | info_byte | sequence_data             |
-//	| 8 bytes      | 1 byte    | remaining bytes of share  |
+//	| namespace_version | namespace_id | info_byte | sequence_data             |
+//	| 1 byte            | 32 bytes     | 1 byte    | remaining bytes of share  |
 //
 // The remaining bytes depend on the share type.
 //
@@ -51,15 +50,13 @@
 //
 // For the first compact share:
 //
-//	| universal prefix                           | reserved bytes         | data                                                |
-//	| namespace_id | info_byte | sequence_length | location_of_first_unit | transactions or intermediate state roots            |
-//	| 8 bytes      | 1 byte    | 4 bytes         | 4 bytes                | remaining bytes of share                            |
+//	| namespace_version | namespace_id | info_byte | sequence_length | location_of_first_unit | transactions or intermediate state roots            |
+//	| 1 byte            | 32 bytes     | 1 byte    | 4 bytes         | 4 bytes                | remaining bytes of share                            |
 //
 // For continuation compact share:
 //
-//	| universal prefix         | reserved bytes         | data                                                |
-//	| namespace_id | info_byte | location_of_first_unit | transactions or intermediate state roots            |
-//	| 8 bytes      | 1 byte    | 4 bytes                | remaining bytes of share                            |
+//	| namespace_version | namespace_id | info_byte | location_of_first_unit | transactions or intermediate state roots            |
+//	| 1 byte            | 32 bytes     | 1 byte    | 4 bytes                | remaining bytes of share                            |
 //
 // Notes
 //   - All shares in a reserved namespace belong to one sequence.
@@ -71,5 +68,6 @@
 //
 // [message layout rational]: https://celestiaorg.github.io/celestia-specs/latest/rationale/message_block_layout.html#message-layout-rationale
 // [adr-006-non-interactive-defaults]: https://github.com/celestiaorg/celestia-app/pull/673
+//
 // [namespace.ID]: https://github.com/celestiaorg/nmt/blob/master/namespace/id.go
 package shares

@@ -2,10 +2,12 @@ package da
 
 import (
 	"bytes"
+	"sort"
 	"strings"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,10 +26,7 @@ func TestNilDataAvailabilityHeaderHashDoesntCrash(t *testing.T) {
 
 func TestMinDataAvailabilityHeader(t *testing.T) {
 	dah := MinDataAvailabilityHeader()
-	expectedHash := []byte{
-		0x25, 0x77, 0x60, 0x46, 0x19, 0x93, 0xf8, 0xf1, 0x97, 0xb4, 0x21, 0xec, 0x74, 0x35, 0xf3, 0xc3,
-		0x6c, 0x37, 0x34, 0x92, 0x3e, 0x3d, 0xa9, 0xa4, 0x2d, 0xc7, 0x3b, 0x5, 0xf0, 0x7b, 0x3d, 0x8,
-	}
+	expectedHash := []byte{0xad, 0x23, 0x6a, 0x2e, 0x4c, 0x5f, 0xca, 0x6c, 0xdb, 0xae, 0x5d, 0x5e, 0xdf, 0x79, 0xe8, 0x8e, 0x84, 0xc5, 0x2e, 0xed, 0x62, 0xeb, 0xd0, 0xb6, 0x5d, 0x18, 0xb2, 0x7c, 0x32, 0xa8, 0xbc, 0x58}
 	require.Equal(t, expectedHash, dah.hash)
 	require.NoError(t, dah.ValidateBasic())
 }
@@ -42,22 +41,16 @@ func TestNewDataAvailabilityHeader(t *testing.T) {
 
 	tests := []test{
 		{
-			name: "typical",
-			expectedHash: []byte{
-				0x57, 0x71, 0xc6, 0x77, 0x2f, 0x32, 0x95, 0x73, 0xaa, 0xb8, 0x20, 0xd1, 0xbe, 0x4c, 0xc2, 0x21,
-				0x7d, 0x54, 0xb6, 0x7e, 0xf2, 0x4f, 0xbc, 0xd3, 0x9a, 0x95, 0x15, 0xd0, 0x92, 0x63, 0xc1, 0xf9,
-			},
-			squareSize: 2,
-			shares:     generateShares(4, 1),
+			name:         "typical",
+			expectedHash: []byte{0xeb, 0xfd, 0xb5, 0xc5, 0x52, 0x59, 0xd6, 0xe, 0x72, 0x6b, 0xde, 0x58, 0x7, 0x9a, 0x58, 0xd2, 0x18, 0x7b, 0xc9, 0x44, 0x7, 0x6e, 0xbe, 0x74, 0x47, 0x67, 0x45, 0xa3, 0xb7, 0x3a, 0x52, 0x47},
+			squareSize:   2,
+			shares:       generateShares(4),
 		},
 		{
-			name: "max square size",
-			expectedHash: []byte{
-				0xbf, 0xe5, 0x8f, 0x4b, 0xae, 0x2b, 0x65, 0x8b, 0xa8, 0xcb, 0xf9, 0xee, 0x8c, 0x6a, 0x1f, 0x72,
-				0xa9, 0x58, 0xc4, 0xcc, 0xca, 0x41, 0x4c, 0xbf, 0x8b, 0x18, 0xf9, 0x53, 0xe, 0xb1, 0x40, 0x54,
-			},
-			squareSize: appconsts.DefaultMaxSquareSize,
-			shares:     generateShares(appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize, 99),
+			name:         "max square size",
+			expectedHash: []byte{0x48, 0x28, 0xa9, 0xef, 0x79, 0xc2, 0x12, 0x12, 0xc, 0x53, 0x83, 0x27, 0x55, 0x7d, 0x42, 0xdd, 0x64, 0x74, 0xad, 0x4e, 0x82, 0xcb, 0xa0, 0x43, 0xed, 0x14, 0x2, 0x54, 0x0, 0x3b, 0xf6, 0x11},
+			squareSize:   appconsts.DefaultMaxSquareSize,
+			shares:       generateShares(appconsts.DefaultMaxSquareSize * appconsts.DefaultMaxSquareSize),
 		},
 	}
 
@@ -86,13 +79,13 @@ func TestExtendShares(t *testing.T) {
 			name:        "too large square size",
 			expectedErr: true,
 			squareSize:  appconsts.DefaultMaxSquareSize + 1,
-			shares:      generateShares((appconsts.DefaultMaxSquareSize+1)*(appconsts.DefaultMaxSquareSize+1), 1),
+			shares:      generateShares((appconsts.DefaultMaxSquareSize + 1) * (appconsts.DefaultMaxSquareSize + 1)),
 		},
 		{
 			name:        "invalid number of shares",
 			expectedErr: true,
 			squareSize:  2,
-			shares:      generateShares(5, 1),
+			shares:      generateShares(5),
 		},
 	}
 
@@ -114,7 +107,7 @@ func TestDataAvailabilityHeaderProtoConversion(t *testing.T) {
 		dah  DataAvailabilityHeader
 	}
 
-	shares := generateShares(appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize, 1)
+	shares := generateShares(appconsts.DefaultMaxSquareSize * appconsts.DefaultMaxSquareSize)
 	eds, err := ExtendShares(appconsts.DefaultMaxSquareSize, shares)
 	require.NoError(t, err)
 	bigdah := NewDataAvailabilityHeader(eds)
@@ -149,7 +142,7 @@ func Test_DAHValidateBasic(t *testing.T) {
 		errStr    string
 	}
 
-	shares := generateShares(appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize, 1)
+	shares := generateShares(appconsts.DefaultMaxSquareSize * appconsts.DefaultMaxSquareSize)
 	eds, err := ExtendShares(appconsts.DefaultMaxSquareSize, shares)
 	require.NoError(t, err)
 	bigdah := NewDataAvailabilityHeader(eds)
@@ -220,10 +213,28 @@ func Test_DAHValidateBasic(t *testing.T) {
 	}
 }
 
-func generateShares(count int, repeatByte byte) [][]byte {
-	shares := make([][]byte, count)
+// generateShares generates count number of shares with a constant namespace and
+// share contents.
+func generateShares(count int) (shares [][]byte) {
+	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+
 	for i := 0; i < count; i++ {
-		shares[i] = bytes.Repeat([]byte{repeatByte}, appconsts.ShareSize)
+		share := generateShare(ns1.Bytes())
+		shares = append(shares, share)
 	}
+	sortByteArrays(shares)
 	return shares
+}
+
+func generateShare(namespace []byte) (share []byte) {
+	remainder := bytes.Repeat([]byte{0xFF}, appconsts.ShareSize-len(namespace))
+	share = append(share, namespace...)
+	share = append(share, remainder...)
+	return share
+}
+
+func sortByteArrays(arr [][]byte) {
+	sort.Slice(arr, func(i, j int) bool {
+		return bytes.Compare(arr[i], arr[j]) < 0
+	})
 }

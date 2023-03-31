@@ -1,11 +1,11 @@
 package testfactory
 
 import (
+	"bytes"
 	"sort"
 
-	nmtnamespace "github.com/celestiaorg/nmt/namespace"
-
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
 )
@@ -28,13 +28,15 @@ func GenerateRandomlySizedBlobs(count, maxBlobSize int) []types.Blob {
 	return blobs
 }
 
-// GenerateBlobsWithNamespace generates blobs with namespace ID `nID`.
-func GenerateBlobsWithNamespace(count, blobSize int, nID nmtnamespace.ID) types.BlobsByNamespace {
+// GenerateBlobsWithNamespace generates blobs with namespace ns.
+func GenerateBlobsWithNamespace(count int, blobSize int, ns appns.Namespace) types.BlobsByNamespace {
 	blobs := make([]types.Blob, count)
 	for i := 0; i < count; i++ {
 		blobs[i] = types.Blob{
-			NamespaceID: nID,
-			Data:        tmrand.Bytes(blobSize),
+			NamespaceVersion: ns.Version,
+			NamespaceID:      ns.ID,
+			Data:             tmrand.Bytes(blobSize),
+			ShareVersion:     appconsts.ShareVersionZero,
 		}
 	}
 
@@ -46,11 +48,12 @@ func GenerateBlobsWithNamespace(count, blobSize int, nID nmtnamespace.ID) types.
 	return blobs
 }
 
-func GenerateRandomBlob(size int) types.Blob {
+func GenerateRandomBlob(dataSize int) types.Blob {
 	blob := types.Blob{
-		NamespaceID:  tmrand.Bytes(appconsts.NamespaceSize),
-		Data:         tmrand.Bytes(size),
-		ShareVersion: appconsts.ShareVersionZero,
+		NamespaceVersion: appns.NamespaceVersionZero,
+		NamespaceID:      append(appns.NamespaceVersionZeroPrefix, bytes.Repeat([]byte{0x1}, appns.NamespaceVersionZeroIDSize)...),
+		Data:             tmrand.Bytes(dataSize),
+		ShareVersion:     appconsts.ShareVersionZero,
 	}
 	return blob
 }
