@@ -8,31 +8,32 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/testutil"
 	keep "github.com/celestiaorg/celestia-app/x/mint/keeper"
 	"github.com/celestiaorg/celestia-app/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 type MintKeeperTestSuite struct {
 	suite.Suite
 
-	app              *simapp.SimApp
+	app              *app.App
 	ctx              sdk.Context
 	legacyQuerierCdc *codec.AminoCodec
 }
 
 func (suite *MintKeeperTestSuite) SetupTest() {
-	app := simapp.Setup(suite.T(), true)
-	ctx := app.BaseApp.NewContext(true, tmproto.Header{})
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
+	ctx := testApp.NewContext(true, tmproto.Header{})
 
-	app.MintKeeper.SetParams(ctx, types.DefaultParams())
-	app.MintKeeper.SetMinter(ctx, types.DefaultInitialMinter())
+	testApp.MintKeeper.SetParams(ctx, types.DefaultParams())
+	testApp.MintKeeper.SetMinter(ctx, types.DefaultInitialMinter())
 
-	legacyQuerierCdc := codec.NewAminoCodec(app.LegacyAmino())
+	legacyQuerierCdc := codec.NewAminoCodec(testApp.LegacyAmino())
 
-	suite.app = app
+	suite.app = testApp
 	suite.ctx = ctx
 	suite.legacyQuerierCdc = legacyQuerierCdc
 }
