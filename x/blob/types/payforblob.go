@@ -223,7 +223,11 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 			}
 		}
 		// add the root
-		subTreeRoots[i] = tree.Root()
+		root, err := tree.Root()
+		if err != nil {
+			return nil, err
+		}
+		subTreeRoots[i] = root
 	}
 	return merkle.HashFromByteSlices(subTreeRoots), nil
 }
