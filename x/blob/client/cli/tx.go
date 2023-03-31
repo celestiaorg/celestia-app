@@ -22,7 +22,6 @@ func GetTxCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(CmdPayForBlob())
-	cmd.LocalFlags().String("--namespace-version", "", "User can use this to specify the namespace version when they submit a pay for blob.")
 	cmd.AddCommand(CmdTestRandBlob())
 
 	return cmd

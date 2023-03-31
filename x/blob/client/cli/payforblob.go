@@ -35,10 +35,7 @@ func CmdPayForBlob() *cobra.Command {
 				return fmt.Errorf("failure to decode hex namespace ID: %w", err)
 			}
 
-			nameSpaceFlag, err := cmd.Flags().GetString("--namespace-version")
-			if err != nil {
-				return fmt.Errorf("failure to read namespace flag: %w", err)
-			}
+			nameSpaceFlag, _ := cmd.Flags().GetString("--namespace-version")
 			var namespace appns.Namespace
 
 			if nameSpaceFlag != "" {
@@ -78,6 +75,7 @@ func CmdPayForBlob() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
+	cmd.PersistentFlags().String("namespace-version", "", "User can use this to specify the namespace version when they submit a pay for blob.")
 
 	return cmd
 }
