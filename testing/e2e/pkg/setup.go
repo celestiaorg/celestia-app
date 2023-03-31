@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,8 +33,6 @@ import (
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/types"
 )
-
-const CELESTIA_UID = 10001
 
 func Setup(ctx context.Context, testnet *Testnet) error {
 	// Ensure that all the requisite images are available
@@ -99,7 +96,7 @@ func SetupImages(ctx context.Context, testnet *Testnet) error {
 			// the current docker image
 			continue
 		}
-		refStr := dockerSrcUrl + ":" + v
+		refStr := dockerSrcURL + ":" + v
 		fmt.Printf("Pulling in docker image: %s\n", refStr)
 		rc, err := c.ImagePull(ctx, refStr, dockertypes.ImagePullOptions{})
 		if err != nil {
@@ -122,7 +119,7 @@ func MakeGenesis(testnet *Testnet) (types.GenesisDoc, error) {
 	stakingGenesis.Params.BondDenom = app.BondDenom
 	var (
 		validators  staking.Validators
-		totalBonded int64 = 0
+		totalBonded int64
 		balances    []bank.Balance
 		delegations []staking.Delegation
 		valInfo     []slashing.SigningInfo
@@ -328,7 +325,7 @@ services:
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(file, buf.Bytes(), 0644)
+	return os.WriteFile(file, buf.Bytes(), 0o644)
 }
 
 func WriteAddressBook(peers []string, file string) error {

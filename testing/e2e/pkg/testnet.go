@@ -22,7 +22,7 @@ const (
 	ed25519Type                 = "ed25519"
 	networkIPv4                 = "10.186.73.0/24"
 	firstProxyPort       uint32 = 4201
-	dockerSrcUrl                = "ghcr.io/celestiaorg/celestia-app"
+	dockerSrcURL                = "ghcr.io/celestiaorg/celestia-app"
 	randomSeed           int64  = 589308084734268
 	defaultAccountTokens        = 1e6
 )

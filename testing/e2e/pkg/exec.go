@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"fmt"
-	"os"
 	osexec "os/exec"
 	"path/filepath"
 )
@@ -21,24 +20,9 @@ func exec(args ...string) error {
 	}
 }
 
-// execVerbose executes a shell command while displaying its output.
-func execVerbose(args ...string) error {
-	cmd := osexec.Command(args[0], args[1:]...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
 // execCompose runs a Docker Compose command for a testnet.
 func execCompose(dir string, args ...string) error {
 	return exec(append(
-		[]string{"docker-compose", "-f", filepath.Join(dir, "docker-compose.yml")},
-		args...)...)
-}
-
-// execComposeVerbose runs a Docker Compose command for a testnet and displays its output.
-func execComposeVerbose(dir string, args ...string) error {
-	return execVerbose(append(
 		[]string{"docker-compose", "-f", filepath.Join(dir, "docker-compose.yml")},
 		args...)...)
 }

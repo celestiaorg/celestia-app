@@ -52,7 +52,6 @@ func Cleanup(_ context.Context, testnet *Testnet) error {
 // cleanupDocker removes all E2E resources (with label e2e=True), regardless
 // of testnet.
 func cleanupDocker() error {
-
 	// GNU xargs requires the -r flag to not run when input is empty, macOS
 	// does this by default. Ugly, but works.
 	xargsR := `$(if [[ $OSTYPE == "linux-gnu"* ]]; then echo -n "-r"; fi)`

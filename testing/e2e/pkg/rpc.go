@@ -34,9 +34,9 @@ func WaitForNBlocks(ctx context.Context, testnet *Testnet, blocks int64) error {
 func WaitForHeight(ctx context.Context, testnet *Testnet, height int64) error {
 	var (
 		err          error
-		maxHeight    int64 = 0
-		clients            = map[string]*rpchttp.HTTP{}
-		lastIncrease       = time.Now()
+		maxHeight    int64
+		clients      = map[string]*rpchttp.HTTP{}
+		lastIncrease = time.Now()
 	)
 
 	for {
