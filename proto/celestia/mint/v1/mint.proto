@@ -1,0 +1,34 @@
+syntax = "proto3";
+package celestia.mint.v1;
+
+option go_package = "github.com/celestiaorg/celestia-app/x/mint/types";
+
+import "gogoproto/gogo.proto";
+import "cosmos_proto/cosmos.proto";
+
+// Minter represents the minting state.
+message Minter {
+  // current annual inflation rate
+  string inflation = 1 [
+    (cosmos_proto.scalar)  = "cosmos.Dec",
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
+    (gogoproto.nullable)   = false
+  ];
+  // current annual expected provisions
+  string annual_provisions = 2 [
+    (cosmos_proto.scalar)  = "cosmos.Dec",
+    (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
+    (gogoproto.nullable)   = false
+  ];
+}
+
+// Params holds parameters for the mint module.
+message Params {
+  option (gogoproto.goproto_stringer) = false;
+
+  // type of coin to mint
+  string mint_denom = 1;
+
+  // expected blocks per year
+  uint64 blocks_per_year = 2;
+}

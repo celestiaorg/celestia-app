@@ -3,6 +3,8 @@ package app
 import (
 	"encoding/json"
 
+	"github.com/celestiaorg/celestia-app/x/mint"
+	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/bank"
@@ -13,8 +15,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/gov"
 	govclient "github.com/cosmos/cosmos-sdk/x/gov/client"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
-	"github.com/cosmos/cosmos-sdk/x/mint"
-	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	paramsclient "github.com/cosmos/cosmos-sdk/x/params/client"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
