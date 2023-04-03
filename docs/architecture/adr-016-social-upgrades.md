@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Changelog
 
@@ -29,7 +29,7 @@ This option is not mutually exclusive to option 2. Its goal is to explicitly sta
 
 ## Decision
 
-TODO
+We will implement option 2 by removing the upgrade module.
 
 ## Detailed Design
 
