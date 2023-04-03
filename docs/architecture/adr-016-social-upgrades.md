@@ -14,7 +14,7 @@ Standard cosmos-sdk based chains are sovereign and have the ability to hardfork,
 
 The most pertinent issue at the moment is that we are launching mainnet soon, and don't have a fully functional upgrade mechanism that empowers social consensus in place. We need to first decide how to remove token voting in a way that supports our future efforts to change the upgrade mechanism. The latter discussion on how to actually implement upgrades that fit all of our desired properties is out of scope for this ADR, and will be discussed separately.
 
-It should also be noted that this ADR is not discussion parameter changes, as limiting token voting on those is also a separate discussion.
+It should also be noted that this ADR is not discussing parameter changes, as limiting token voting on those is also a separate discussion.
 
 ## Alternative Approaches
 
