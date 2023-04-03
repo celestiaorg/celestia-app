@@ -55,7 +55,7 @@ func NewCLI() *CLI {
 			if err := e2e.Setup(ctx, cli.testnet); err != nil {
 				return fmt.Errorf("setting up testnet: %w", err)
 			}
-			// defer e2e.Cleanup(ctx, cli.testnet)
+			defer func() { _ = e2e.Cleanup(ctx, cli.testnet) }()
 
 			if err := e2e.Start(ctx, cli.testnet); err != nil {
 				return fmt.Errorf("starting network: %w", err)

@@ -125,6 +125,7 @@ func MakeGenesis(testnet *Testnet) (types.GenesisDoc, error) {
 		totalBonded int64
 	)
 
+	// setup the validator information on the state machine
 	for name, node := range testnet.Nodes {
 		if !node.IsValidator() || node.StartHeight != 0 {
 			continue
@@ -227,7 +228,7 @@ func MakeConfig(node *Node) (*config.Config, error) {
 	// TODO: when we use adaptive timeouts, add a parameter in the testnet manifest
 	// to set block times
 	// FIXME: This values get overridden by the timeout consts in the app package.
-	// We should modify this if we want to quicken the time of the seconds.
+	// We should modify this if we want to quicken the time of the blocks.
 	cfg.Consensus.TimeoutPropose = 1000 * time.Millisecond
 	cfg.Consensus.TimeoutCommit = 300 * time.Millisecond
 	return cfg, nil
@@ -281,7 +282,6 @@ func InitNode(node *Node, genesis types.GenesisDoc, rootDir string) error {
 }
 
 func WriteDockerCompose(testnet *Testnet, file string) error {
-	// Must use version 2 Docker Compose format, to support IPv6.
 	tmpl, err := template.New("docker-compose").Parse(`version: '2.4'
 
 networks:
