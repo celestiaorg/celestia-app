@@ -20,7 +20,8 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// FlagNamespaceVersion specifies namespace version when user submit a pay for blob.
+// FlagNamespaceVersion allows the user to override the namespace version when
+// submitting a PayForBlob.
 const FlagNamespaceVersion = "namespace-version"
 
 func CmdPayForBlob() *cobra.Command {
@@ -37,29 +38,10 @@ func CmdPayForBlob() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failure to decode hex namespace ID: %w", err)
 			}
-
-			namespaceFlag, _ := cmd.Flags().GetString(FlagNamespaceVersion)
-			var namespace appns.Namespace
-
-			if namespaceFlag != "" {
-				// load given namespace version
-				namespaceflag, err := strconv.Atoi(namespaceFlag)
-				if err != nil {
-					return fmt.Errorf("failure to convert namespace from string: %w", err)
-				}
-				if uint8(namespaceflag) != appns.NamespaceVersionZero {
-					return fmt.Errorf("unsupported namespace version %v", namespaceflag)
-				}
-				namespace, err = appns.New(appns.NamespaceVersionZero, append(appns.NamespaceVersionZeroPrefix, namespaceID...))
-				if err != nil {
-					return fmt.Errorf("failure to create namespace: %w", err)
-				}
-			} else {
-				// namespace version should default to the latest supported namespace version.
-				namespace, err = appns.New(appns.NamespaceVersionZero, append(appns.NamespaceVersionZeroPrefix, namespaceID...))
-				if err != nil {
-					return fmt.Errorf("failure to create namespace: %w", err)
-				}
+			namespaceVersion, _ := cmd.Flags().GetString(FlagNamespaceVersion)
+			namespace, err := getNamespace(namespaceID, namespaceVersion)
+			if err != nil {
+				return err
 			}
 
 			rawblob, err := hex.DecodeString(args[1])
@@ -78,9 +60,22 @@ func CmdPayForBlob() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
-	cmd.PersistentFlags().String(FlagNamespaceVersion, "", "User can use this to specify the namespace version when they submit a pay for blob.")
+	cmd.PersistentFlags().String(FlagNamespaceVersion, "0", "Specify the namespace version (default is 0)")
 
 	return cmd
+}
+
+func getNamespace(namespaceID []byte, namespaceVersion string) (appns.Namespace, error) {
+	version, err := strconv.ParseUint(namespaceVersion, 10, 8)
+	if err != nil {
+		return appns.Namespace{}, fmt.Errorf("failed to convert namespace version from string to uint8: %w", err)
+	}
+	switch uint8(version) {
+	case appns.NamespaceVersionZero:
+		return appns.New(uint8(version), append(appns.NamespaceVersionZeroPrefix, namespaceID...))
+	default:
+		return appns.Namespace{}, fmt.Errorf("namespace version %d is not supported", version)
+	}
 }
 
 // broadcastPFB creates the new PFB message type that will later be broadcast to tendermint nodes
