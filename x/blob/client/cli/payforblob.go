@@ -20,6 +20,8 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
+const FlagNamespaceVersion = "namespace-version"
+
 func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "PayForBlobs [hexNamespaceID] [hexBlob]",
@@ -35,12 +37,12 @@ func CmdPayForBlob() *cobra.Command {
 				return fmt.Errorf("failure to decode hex namespace ID: %w", err)
 			}
 
-			nameSpaceFlag, _ := cmd.Flags().GetString("namespace-version")
+			namespaceFlag, _ := cmd.Flags().GetString(FlagNamespaceVersion)
 			var namespace appns.Namespace
 
-			if nameSpaceFlag != "" {
+			if namespaceFlag != "" {
 				// load given namespace version
-				namespaceflag, err := strconv.Atoi(nameSpaceFlag)
+				namespaceflag, err := strconv.Atoi(namespaceFlag)
 				if err != nil {
 					return fmt.Errorf("failure to convert namespace from string: %w", err)
 				}
@@ -75,7 +77,7 @@ func CmdPayForBlob() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
-	cmd.PersistentFlags().String("namespace-version", "", "User can use this to specify the namespace version when they submit a pay for blob.")
+	cmd.PersistentFlags().String(FlagNamespaceVersion, "", "User can use this to specify the namespace version when they submit a pay for blob.")
 
 	return cmd
 }
