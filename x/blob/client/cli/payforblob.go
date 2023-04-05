@@ -35,7 +35,7 @@ func CmdPayForBlob() *cobra.Command {
 				return fmt.Errorf("failure to decode hex namespace ID: %w", err)
 			}
 
-			nameSpaceFlag, _ := cmd.Flags().GetString("--namespace-version")
+			nameSpaceFlag, _ := cmd.Flags().GetString("namespace-version")
 			var namespace appns.Namespace
 
 			if nameSpaceFlag != "" {
