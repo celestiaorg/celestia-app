@@ -1,6 +1,7 @@
 package blobfactory
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
@@ -309,13 +310,11 @@ func ManyBlobs(t *testing.T, namespaces []appns.Namespace, sizes []int) []*tmpro
 
 func NestedBlobs(t *testing.T, namespaces []appns.Namespace, sizes [][]int) [][]*tmproto.Blob {
 	blobs := make([][]*tmproto.Blob, len(sizes))
-	counter := 0
 	for i, set := range sizes {
 		for _, size := range set {
-			blob, err := blobtypes.NewBlob(namespaces[counter], tmrand.Bytes(size))
+			blob, err := blobtypes.NewBlob(namespaces[i], tmrand.Bytes(size))
 			require.NoError(t, err)
 			blobs[i] = append(blobs[i], blob)
-			counter++
 		}
 	}
 	return blobs
@@ -362,6 +361,46 @@ func MultiBlobTx(
 
 	signer.SetAccountNumber(accountNum)
 	signer.SetSequence(sequence)
+
+	builder := signer.NewTxBuilder(opts...)
+	stx, err := signer.BuildSignedTx(builder, msg)
+	require.NoError(t, err)
+
+	rawTx, err := enc(stx)
+	require.NoError(t, err)
+
+	cTx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
+	require.NoError(t, err)
+
+	return cTx
+}
+
+func MultiBlobTxInvalidNamespace(
+	t *testing.T,
+	enc sdk.TxEncoder,
+	signer *blobtypes.KeyringSigner,
+	sequence uint64,
+	accountNum uint64,
+	blobs ...*tmproto.Blob,
+) coretypes.Tx {
+	addr, err := signer.GetSignerInfo().GetAddress()
+	require.NoError(t, err)
+
+	coin := sdk.Coin{
+		Denom:  bondDenom,
+		Amount: sdk.NewInt(10),
+	}
+	opts := []blobtypes.TxBuilderOption{
+		blobtypes.SetFeeAmount(sdk.NewCoins(coin)),
+		blobtypes.SetGasLimit(10000000),
+	}
+	msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), blobs...)
+	require.NoError(t, err)
+
+	signer.SetAccountNumber(accountNum)
+	signer.SetSequence(sequence)
+
+	msg.Namespaces[0] = bytes.Repeat([]byte{1}, 33)
 
 	builder := signer.NewTxBuilder(opts...)
 	stx, err := signer.BuildSignedTx(builder, msg)
@@ -442,3 +481,22 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, kr keyring.Keyring, enc sdk.TxEnco
 	require.NoError(t, err)
 	return btx
 }
+
+// func ComplexBlobTxWithOtherMsgs(t *testing.T, kr keyring.Keyring, enc sdk.TxEncoder, chainid, account string, msgs ...sdk.Msg) coretypes.Tx {
+// func NewSignedTx(t *testing.T, kr keyring.Keyring, enc sdk.TxEncoder, chainid string, account string, msg sdk.Msg) (*coretypes.Tx, error) {
+// 	signer := blobtypes.NewKeyringSigner(kr, account, chainid)
+// 	coin := sdk.Coin{
+// 		Denom:  bondDenom,
+// 		Amount: sdk.NewInt(10),
+// 	}
+// 	opts := []blobtypes.TxBuilderOption{
+// 		blobtypes.SetFeeAmount(sdk.NewCoins(coin)),
+// 		blobtypes.SetGasLimit(100000000000000),
+// 	}
+
+// 	builder := signer.NewTxBuilder(opts...)
+// 	stx, err := signer.BuildSignedTx(builder, msg)
+// 	assert.NoError(t, err)
+
+// 	return stx, nil
+// }
