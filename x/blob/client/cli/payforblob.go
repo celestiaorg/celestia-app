@@ -20,6 +20,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
+// FlagNamespaceVersion specifies namespace version when user submit a pay for blob.
 const FlagNamespaceVersion = "namespace-version"
 
 func CmdPayForBlob() *cobra.Command {
