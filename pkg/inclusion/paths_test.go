@@ -350,85 +350,101 @@ func Test_calculateCommitPaths(t *testing.T) {
 	// note that calculateCommitPaths assumes ODS, so we prepend a WalkLeft to
 	// everything elsewhere
 	tests := []test{
-		{"all paths for a basic 2x2", 2, 2, 2, []path{
-			{
-				row:          1,
-				instructions: []WalkInstruction{WalkLeft},
+		{
+			"all paths for a basic 2x2", 2, 2, 2,
+			[]path{
+				{
+					row:          1,
+					instructions: []WalkInstruction{WalkLeft},
+				},
+				{
+					row:          1,
+					instructions: []WalkInstruction{WalkRight},
+				},
 			},
-			{
-				row:          1,
-				instructions: []WalkInstruction{WalkRight},
-			},
-		},
 			[]int{0, 1},
 		},
-		{"all paths for a basic 4x4", 4, 2, 2, []path{
-			{
-				row:          0,
-				instructions: []WalkInstruction{WalkRight, WalkLeft},
+		{
+			"all paths for a basic 4x4", 4, 2, 2,
+			[]path{
+				{
+					row:          0,
+					instructions: []WalkInstruction{WalkRight, WalkLeft},
+				},
+				{
+					row:          0,
+					instructions: []WalkInstruction{WalkRight, WalkRight},
+				},
 			},
-			{
-				row:          0,
-				instructions: []WalkInstruction{WalkRight, WalkRight},
-			},
-		},
 			[]int{0, 1},
 		},
-		{"all paths for a basic 4x4 span more than 1 row", 4, 3, 2, []path{
-			{
-				row:          0,
-				instructions: []WalkInstruction{WalkRight, WalkRight},
+		{
+			"all paths for a basic 4x4 span more than 1 row", 4, 3, 2,
+			[]path{
+				{
+					row:          0,
+					instructions: []WalkInstruction{WalkRight, WalkRight},
+				},
+				{
+					row:          1,
+					instructions: []WalkInstruction{WalkLeft, WalkLeft},
+				},
 			},
-			{
-				row:          1,
-				instructions: []WalkInstruction{WalkLeft, WalkLeft},
-			},
-		},
 			[]int{0, 1},
 		},
-		{"single share in the middle of a 128x128", 128, 8252, 1, []path{
-			{
-				row:          64,
-				instructions: []WalkInstruction{WalkLeft, WalkRight, WalkRight, WalkRight, WalkRight, WalkLeft, WalkLeft},
+		{
+			"single share in the middle of a 128x128", 128, 8252, 1,
+			[]path{
+				{
+					row:          64,
+					instructions: []WalkInstruction{WalkLeft, WalkRight, WalkRight, WalkRight, WalkRight, WalkLeft, WalkLeft},
+				},
 			},
-		},
 			[]int{0},
 		},
-		{"the 32nd path for the smallest blob with a subtree width of 128", 128, 0, 8193, []path{
-			{
-				row:          31,
-				instructions: []WalkInstruction{}, // there should be no instructions because we're using the first root
+		{
+			"the 32nd path for the smallest blob with a subtree width of 128", 128, 0, 8193,
+			[]path{
+				{
+					row:          31,
+					instructions: []WalkInstruction{}, // there should be no instructions because we're using the first root
+				},
 			},
-		},
 			[]int{31},
 		},
-		{"the 32nd path for the largest blob with a subtree width of 64", 128, 0, 8192, []path{
-			{
-				row:          15,
-				instructions: []WalkInstruction{WalkRight},
+		{
+			"the 32nd path for the largest blob with a subtree width of 64", 128, 0, 8192,
+			[]path{
+				{
+					row:          15,
+					instructions: []WalkInstruction{WalkRight},
+				},
 			},
-		},
 			[]int{31},
 		},
-		{"the 32nd path for the largest blob with a subtree width of 1", 128, 0, appconsts.SubtreeRootHeightThreshold, []path{
-			{
-				row:          0,
-				instructions: []WalkInstruction{WalkLeft, WalkLeft, WalkRight, WalkRight, WalkRight, WalkRight, WalkRight},
+		{
+			"the 32nd path for the largest blob with a subtree width of 1", 128, 0, appconsts.SubtreeRootHeightThreshold,
+			[]path{
+				{
+					row:          0,
+					instructions: []WalkInstruction{WalkLeft, WalkLeft, WalkRight, WalkRight, WalkRight, WalkRight, WalkRight},
+				},
 			},
-		},
 			[]int{31},
 		},
-		{"the 32nd and last path for the smallest blob with a subtree width of 2", 128, 0, appconsts.SubtreeRootHeightThreshold + 1, []path{
-			{
-				row:          0,
-				instructions: []WalkInstruction{WalkLeft, WalkRight, WalkRight, WalkRight, WalkRight, WalkRight},
+		{
+			"the 32nd and last path for the smallest blob with a subtree width of 2", 128, 0, appconsts.SubtreeRootHeightThreshold + 1,
+			[]path{
+				{
+					row:          0,
+					instructions: []WalkInstruction{WalkLeft, WalkRight, WalkRight, WalkRight, WalkRight, WalkRight},
+				},
+				// note that the last path should be one instruction longer
+				{
+					row:          1,
+					instructions: []WalkInstruction{WalkLeft, WalkLeft, WalkLeft, WalkLeft, WalkLeft, WalkLeft, WalkLeft},
+				},
 			},
-			// note that the last path should be one instruction longer
-			{
-				row:          1,
-				instructions: []WalkInstruction{WalkLeft, WalkLeft, WalkLeft, WalkLeft, WalkLeft, WalkLeft, WalkLeft},
-			},
-		},
 			[]int{31, 64},
 		},
 	}
