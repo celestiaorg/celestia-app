@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -18,6 +20,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
+
+// FlagShareVersion allows the user to override the share version when
+// submitting a PayForBlob.
+const FlagShareVersion = "share-version"
 
 func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
@@ -41,13 +47,19 @@ func CmdPayForBlob() *cobra.Command {
 				return fmt.Errorf("failure to create namespace: %w", err)
 			}
 
+			shareVersion, _ := cmd.Flags().GetString(FlagShareVersion)
+			share, err := getShare(shareVersion)
+			if err != nil {
+				return err
+			}
+
 			rawblob, err := hex.DecodeString(args[1])
 			if err != nil {
 				return fmt.Errorf("failure to decode hex blob: %w", err)
 			}
 
 			// TODO: allow for more than one blob to be sumbmitted via the cli
-			blob, err := types.NewBlob(namespace, rawblob)
+			blob, err := types.NewBlob(namespace, rawblob, share)
 			if err != nil {
 				return err
 			}
@@ -57,8 +69,22 @@ func CmdPayForBlob() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
+	cmd.PersistentFlags().String(FlagShareVersion, "0", "Specify the share version (default is 0)")
 
 	return cmd
+}
+
+func getShare(shareVersion string) (uint8, error) {
+	version, err := strconv.ParseUint(shareVersion, 10, 8)
+	if err != nil {
+		return uint8(0), fmt.Errorf("failed to convert share version from string to uint8: %w", err)
+	}
+	switch uint8(version) {
+	case appconsts.ShareVersionZero:
+		return uint8(version), nil
+	default:
+		return uint8(0), fmt.Errorf("share version %d is not supported", version)
+	}
 }
 
 // broadcastPFB creates the new PFB message type that will later be broadcast to tendermint nodes
