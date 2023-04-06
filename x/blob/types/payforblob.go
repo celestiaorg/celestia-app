@@ -13,7 +13,6 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
-	"golang.org/x/exp/constraints"
 	"golang.org/x/exp/slices"
 )
 
@@ -185,7 +184,7 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 	// the commitment is the root of a merkle mountain range with max tree size
 	// equal to the minimum square size the blob can be included in. See
 	// https://github.com/celestiaorg/celestia-app/blob/fbfbf111bcaa056e53b0bc54d327587dee11a945/docs/architecture/adr-008-blocksize-independent-commitment.md
-	minSquareSize := BlobMinSquareSize(len(blob.Data))
+	minSquareSize := appshares.SubTreeSize(len(shares))
 	treeSizes, err := merkleMountainRangeSizes(uint64(len(shares)), uint64(minSquareSize))
 	if err != nil {
 		return nil, err
@@ -291,14 +290,6 @@ func extractBlobComponents(pblobs []*tmproto.Blob) (namespaceVersions []uint32, 
 	}
 
 	return namespaceVersions, namespaceIds, sizes, shareVersions
-}
-
-// BlobMinSquareSize returns the minimum square size that blobSize can be included
-// in. The returned square size does not account for the associated transaction
-// shares or non-interactive defaults, so it is a minimum.
-func BlobMinSquareSize[T constraints.Integer](blobSize T) T {
-	shareCount := appshares.SparseSharesNeeded(uint32(blobSize))
-	return T(appshares.MinSquareSize(shareCount))
 }
 
 // merkleMountainRangeSizes returns the sizes (number of leaf nodes) of the

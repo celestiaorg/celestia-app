@@ -72,6 +72,13 @@ const (
 	// data square.
 	MinShareCount = DefaultMinSquareSize * DefaultMinSquareSize
 
+	// SubtreeRootHeightThreshold dictates the threashold for increasing the
+	// sub tree root height for blobs. It is used for calculating the amount of
+	// padding between blobs, and the number of shares included in each subtree
+	// root for a blob. The rationale for this value is described in more detail
+	// in ADR013.
+	SubtreeRootHeightThreshold = 128
+
 	// MaxShareVersion is the maximum value a share version can be.
 	MaxShareVersion = 127
 
