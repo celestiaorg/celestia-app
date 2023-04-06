@@ -1,10 +1,12 @@
 package app_test
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/assert"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -216,41 +218,37 @@ func TestProcessProposal(t *testing.T) {
 		// 	expectedResult: abci.ResponseProcessProposal_REJECT,
 		// },
 		{
-			name:    "invalid namespace in index wrapper tx",
-			input:   invalidNamespaceData,
-			mutator: func(d *core.Data) {},
-			// 	rawTx := d.Txs[0]
-			// 	wrappedTx, isWrapped := coretypes.UnmarshalIndexWrapper(rawTx)
-			// 	fmt.Printf("isWrapped %v\n", isWrapped)
-			// 	assert.True(t, isWrapped)
+			name:  "invalid namespace in index wrapper tx",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				rawTx := d.Txs[0]
+				wrappedTx, isWrapped := coretypes.UnmarshalIndexWrapper(rawTx)
+				assert.True(t, isWrapped)
 
-			// 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-			// 	sdkTx, err := encCfg.TxConfig.TxDecoder()(wrappedTx.Tx)
-			// 	assert.NoError(t, err)
+				encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+				sdkTx, err := encCfg.TxConfig.TxDecoder()(wrappedTx.Tx)
+				assert.NoError(t, err)
 
-			// 	msgs := sdkTx.GetMsgs()
-			// 	assert.Len(t, msgs, 1)
+				msgs := sdkTx.GetMsgs()
+				assert.Len(t, msgs, 1)
+				msg := msgs[0]
+				msgPFB, ok := msg.(*blobtypes.MsgPayForBlobs)
+				assert.True(t, ok)
+				msgPFB.Namespaces[0] = bytes.Repeat([]byte{1}, 33)
 
-			// 	msg := msgs[0]
-			// 	msgPFB, ok := msg.(*blobtypes.MsgPayForBlobs)
-			// 	assert.True(t, ok)
+				// TODO replace the sdkTx message with msgPFB
+				signedTx, err := blobfactory.NewSignedTx(t, encCfg.TxConfig.TxEncoder(), msgPFB)
+				assert.NoError(t, err)
 
-			// 	msgPFB.Namespaces[0] = bytes.Repeat([]byte{1}, 33)
-			// 	// sdkTx.GetMsgs()
+				newSdkTx, err := encCfg.TxConfig.TxEncoder()(signedTx)
+				assert.NoError(t, err)
 
-			// 	// TODO replace the sdkTx message with msgPFB
-			// 	signedTx, err := blobfactory.NewSignedTx(t, encCfg.TxConfig.TxEncoder(), msgPFB)
-			// 	assert.NoError(t, err)
-			// 	signedTx.GetMsgs()
-			// 	newSdkTx, err := encCfg.TxConfig.TxEncoder()(signedTx)
-			// 	assert.NoError(t, err)
+				newWrappedTx, err := coretypes.MarshalIndexWrapper(newSdkTx, wrappedTx.ShareIndexes...)
+				assert.NoError(t, err)
 
-			// 	newWrappedTx, err := coretypes.MarshalIndexWrapper(newSdkTx, wrappedTx.ShareIndexes...)
-			// 	assert.NoError(t, err)
-
-			// 	d.Txs[0] = newWrappedTx
-			// 	assert.NotEqual(t, rawTx, newWrappedTx)
-			// },
+				d.Txs[0] = newWrappedTx
+				assert.NotEqual(t, rawTx, newWrappedTx)
+			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		// {
