@@ -184,8 +184,8 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 	// the commitment is the root of a merkle mountain range with max tree size
 	// equal to the minimum square size the blob can be included in. See
 	// https://github.com/celestiaorg/celestia-app/blob/fbfbf111bcaa056e53b0bc54d327587dee11a945/docs/architecture/adr-008-blocksize-independent-commitment.md
-	minSquareSize := appshares.SubTreeSize(len(shares))
-	treeSizes, err := merkleMountainRangeSizes(uint64(len(shares)), uint64(minSquareSize))
+	subTreeWidth := appshares.SubTreeWidth(len(shares))
+	treeSizes, err := merkleMountainRangeSizes(uint64(len(shares)), uint64(subTreeWidth))
 	if err != nil {
 		return nil, err
 	}

@@ -54,7 +54,7 @@ func NextShareIndex(cursor, blobShareLen, squareSize int) (index int, fitsInRow 
 		return cursor, true
 	}
 
-	blobMinSquareSize := SubTreeSize(blobShareLen)
+	blobMinSquareSize := SubTreeWidth(blobShareLen)
 	startOfNextRow := ((cursor / squareSize) + 1) * squareSize
 	cursor = roundUpBy(cursor, blobMinSquareSize)
 	switch {
@@ -83,9 +83,9 @@ func roundUpBy(cursor, v int) int {
 	}
 }
 
-// SubTreeSize determines how many shares should be included when creating subtree. This is used for determining the padding and the reasoning behind this
+// SubTreeWidth determines how many shares should be included when creating subtree. This is used for determining the padding and the reasoning behind this
 // algorithm is discussed in depth in ADR013.
-func SubTreeSize(shareCount int) int {
+func SubTreeWidth(shareCount int) int {
 	// per ADR013, we use a predetermined threshold to determine the padding
 	// needed
 	s := (shareCount / appconsts.SubtreeRootHeightThreshold)

@@ -370,7 +370,7 @@ func Test_roundUpBy(t *testing.T) {
 	}
 }
 
-func TestSubTreeSize(t *testing.T) {
+func TestSubTreeWidth(t *testing.T) {
 	type testCase struct {
 		shareCount int
 		want       int
@@ -427,7 +427,7 @@ func TestSubTreeSize(t *testing.T) {
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("shareCount %d", tc.shareCount), func(t *testing.T) {
-			got := SubTreeSize(tc.shareCount)
+			got := SubTreeWidth(tc.shareCount)
 			assert.Equal(t, tc.want, got, i)
 			assert.GreaterOrEqual(t, got, appconsts.DefaultMinSquareSize)
 		})
