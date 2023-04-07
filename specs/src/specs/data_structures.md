@@ -171,13 +171,7 @@ Public keys are serialized in a compressed format described [here](https://docs.
 
 Deterministic signatures ([RFC-6979](https://tools.ietf.org/rfc/rfc6979.txt)) should be used when signing, but this is not enforced at the protocol level as it cannot be.
 
-[Signatures](#signature) are represented as the `r` and `s` (each 32 bytes) values of the signature. `r` and `s` take on their usual meaning (see: [SEC 1, 4.1.3 Signing Operation](https://www.secg.org/sec1-v2.pdf)). The encoding for signatures is:
-
-<!-- markdownlint-disable-next-line MD040 -->
-```
-|    32 bytes   ||    32 bytes   |
-[256-bit r value][256-bit s value]
-```
+[Signatures](#signature) are represented as the `r` and `s` (each 32 bytes) values of the signature. `r` and `s` take on their usual meaning (see: [SEC 1, 4.1.3 Signing Operation](https://www.secg.org/sec1-v2.pdf)). Signatures are encoded with protobuf as described [here](https://docs.cosmos.network/v0.46/core/encoding.html#transaction-encoding).
 
 ## Merkle Trees
 
