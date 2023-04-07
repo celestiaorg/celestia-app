@@ -233,7 +233,6 @@ func TestNextShareIndex(t *testing.T) {
 			expectedIndex: 11,
 		},
 		{
-			// inspired by the diagram at https://github.com/celestiaorg/celestia-app/blob/1b80b94a62c8c292f569e2fc576e26299985681a/docs/architecture/adr-009-non-interactive-default-rules-for-reduced-padding.md?plain=1#L30
 			name:          "non-interactive default rules for reduced padding diagram",
 			cursor:        11,
 			blobLen:       11,
