@@ -77,7 +77,7 @@ Data that is [erasure-coded](#erasure-coding) for [data availability checks](htt
 |-----------------------------|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
 | `transactionData`           | [TransactionData](#transactiondata)                     | Transaction data. Transactions modify the validator set and balances, and pay fees for messages to be included. |
 | `intermediateStateRootData` | [IntermediateStateRootData](#intermediatestaterootdata) | Intermediate state roots used for fraud proofs.                                                                 |
-| `payForBlobData` | [PayForBlobData](#payforblobdata) | PayForBlob data. Transactions that pay for blobs to be included. |
+| `payForBlobData`            | [PayForBlobData](#payforblobdata)                       | PayForBlob data. Transactions that pay for blobs to be included.                                                |
 | `messageData`               | [MessageData](#messagedata)                             | Message data. Messages are app data.                                                                            |
 
 ### Commit
@@ -111,7 +111,11 @@ Abstraction over transaction fees.
 
 ### Address
 
-Celestia supports [secp256k1](https://en.bitcoin.it/wiki/Secp256k1) keys where [addresses](https://docs.cosmos.network/v0.46/basics/accounts.html#addresses) are 20 bytes in length. Addresses are prefixed with the [Bech32](https://en.bitcoin.it/wiki/Bech32) prefix `celestia`. For example, a valid address is `celestia1kj39jkzqlr073t42am9d8pd40tgudc3e2kj9yf`.
+Celestia supports [secp256k1](https://en.bitcoin.it/wiki/Secp256k1) keys where [addresses](https://docs.cosmos.network/v0.46/basics/accounts.html#addresses) are 20 bytes in length.
+
+| name         | type       | description                                                             |
+|--------------|------------|-------------------------------------------------------------------------|
+| `AccAddress` | `[20]byte` | AccAddress a wrapper around bytes meant to represent an account address |
 
 ### CommitSig
 
@@ -132,12 +136,10 @@ enum CommitFlag : uint8_t {
 
 ### Signature
 
-| name | type       | description                                                          |
-|------|------------|----------------------------------------------------------------------|
-| `r`  | `byte[32]` | `r` value of the signature.                                          |
-| `vs` | `byte[32]` | 1-bit `v` value followed by last 255 bits of `s` value of signature. |
-
-Output of the [signing](#public-key-cryptography) process.
+| name | type       | description                 |
+|------|------------|-----------------------------|
+| `r`  | `byte[32]` | `r` value of the signature. |
+| `s`  | `byte[32]` | `s` value of signature.     |
 
 ## ConsensusVersion
 
@@ -162,16 +164,6 @@ All protocol-level hashing is done using SHA-2-256 as defined in [FIPS 180-4](ht
 Libraries implementing SHA-2-256 are available in Go (<https://pkg.go.dev/crypto/sha256>) and Rust (<https://docs.rs/sha2>).
 
 Unless otherwise indicated explicitly, objects are first [serialized](#serialization) before being hashed.
-
-## Public-Key Cryptography
-
-Consensus-critical data is authenticated using [ECDSA](https://www.secg.org/sec1-v2.pdf), with the curve [secp256k1](https://en.bitcoin.it/wiki/Secp256k1). A highly-optimized library is available in C (<https://github.com/bitcoin-core/secp256k1>), with wrappers in Go (<https://pkg.go.dev/github.com/ethereum/go-ethereum/crypto/secp256k1>) and Rust (<https://docs.rs/crate/secp256k1>).
-
-Public keys are serialized in a compressed format described [here](https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys).
-
-Deterministic signatures ([RFC-6979](https://tools.ietf.org/rfc/rfc6979.txt)) should be used when signing, but this is not enforced at the protocol level as it cannot be.
-
-[Signatures](#signature) are represented as the `r` and `s` (each 32 bytes) values of the signature. `r` and `s` take on their usual meaning (see: [SEC 1, 4.1.3 Signing Operation](https://www.secg.org/sec1-v2.pdf)). Signatures are encoded with protobuf as described [here](https://docs.cosmos.network/v0.46/core/encoding.html#transaction-encoding).
 
 ## Merkle Trees
 
