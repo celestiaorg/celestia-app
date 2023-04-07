@@ -303,7 +303,7 @@
 <p>Unless otherwise indicated explicitly, objects are first <a href="specs/data_structures.html#serialization">serialized</a> before being hashed.</p>
 <h2 id="public-key-cryptography"><a class="header" href="#public-key-cryptography">Public-Key Cryptography</a></h2>
 <p>Consensus-critical data is authenticated using <a href="https://www.secg.org/sec1-v2.pdf">ECDSA</a>, with the curve <a href="https://en.bitcoin.it/wiki/Secp256k1">secp256k1</a>. A highly-optimized library is available in C (<a href="https://github.com/bitcoin-core/secp256k1">https://github.com/bitcoin-core/secp256k1</a>), with wrappers in Go (<a href="https://pkg.go.dev/github.com/ethereum/go-ethereum/crypto/secp256k1">https://pkg.go.dev/github.com/ethereum/go-ethereum/crypto/secp256k1</a>) and Rust (<a href="https://docs.rs/crate/secp256k1">https://docs.rs/crate/secp256k1</a>).</p>
-<p><a href="https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys">Public keys</a> are serialized in a compressed format.</p>
+<p>Public keys are serialized in a compressed format described <a href="https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys">here</a>.</p>
 <p>Deterministic signatures (<a href="https://tools.ietf.org/rfc/rfc6979.txt">RFC-6979</a>) should be used when signing, but this is not enforced at the protocol level as it cannot be.</p>
 <p><a href="specs/data_structures.html#signature">Signatures</a> are represented as the <code>r</code> and <code>s</code> (each 32 bytes) values of the signature. <code>r</code> and <code>s</code> take on their usual meaning (see: <a href="https://www.secg.org/sec1-v2.pdf">SEC 1, 4.1.3 Signing Operation</a>). The encoding for signatures is:</p>
 <!-- markdownlint-disable-next-line MD040 -->
