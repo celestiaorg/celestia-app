@@ -83,22 +83,25 @@ func roundUpBy(cursor, v int) int {
 	}
 }
 
-// SubTreeWidth determines how many shares should be included when creating subtree. This is used for determining the padding and the reasoning behind this
-// algorithm is discussed in depth in ADR013.
+// SubTreeWidth determines how many shares should be included when creating
+// subtree. This is used for determining which subtree roots are used in the
+// share commitment for PFBs, and therefore also the padding between blobs. The
+// reasoning behind this algorithm is discussed in depth in ADR013.
 func SubTreeWidth(shareCount int) int {
-	// per ADR013, we use a predetermined threshold to determine the padding
-	// needed
+	// per ADR013, we use a predetermined threshold to determine width of sub
+	// trees used to create share commitments
 	s := (shareCount / appconsts.SubtreeRootHeightThreshold)
 
-	// round up if the batch size is not an exact multiple of the threshold
+	// round up if the width is not an exact multiple of the threshold
 	if shareCount%appconsts.SubtreeRootHeightThreshold != 0 {
 		s++
 	}
 
-	// use the next power of two, as subtree roots inherently require this
+	// use a power of two equal to or larger than the multiple of the threshold
 	s = RoundUpPowerOfTwo(s)
 
-	// per ADR013, use the min square size should that ever raise
+	// using a value below the min square size is wasteful, see ADR013 for more
+	// details
 	if s < appconsts.DefaultMinSquareSize {
 		return appconsts.DefaultMinSquareSize
 	}
