@@ -182,8 +182,9 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 	}
 
 	// the commitment is the root of a merkle mountain range with max tree size
-	// determined by a constant threshold, where size of the tree is only
-	// increased if the length of the blob in shares crosses that threshold.
+	// determined by the number of roots required to create a share commitment
+	// over that blob. The size of the tree is only increased if the number of
+	// subtree roots surpasses a constant threshold.
 	subTreeWidth := appshares.SubTreeWidth(len(shares))
 	treeSizes, err := merkleMountainRangeSizes(uint64(len(shares)), uint64(subTreeWidth))
 	if err != nil {
