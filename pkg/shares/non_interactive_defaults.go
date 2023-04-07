@@ -97,7 +97,8 @@ func SubTreeWidth(shareCount int) int {
 		s++
 	}
 
-	// use a power of two equal to or larger than the multiple of the threshold
+	// use a power of two equal to or larger than the multiple of the subtree
+	// root threshold
 	s = RoundUpPowerOfTwo(s)
 
 	// using a value below the min square size is wasteful, see ADR013 for more
