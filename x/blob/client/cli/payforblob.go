@@ -60,7 +60,7 @@ func CmdPayForBlob() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
-	cmd.PersistentFlags().String(FlagNamespaceVersion, "0", "Specify the namespace version (default is 0)")
+	cmd.PersistentFlags().String(FlagNamespaceVersion, "0", "Specify the namespace version")
 
 	return cmd
 }
