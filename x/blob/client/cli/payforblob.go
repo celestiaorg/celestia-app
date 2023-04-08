@@ -74,7 +74,7 @@ func CmdPayForBlob() *cobra.Command {
 	return cmd
 }
 
-func getShare(shareVersion string) (uint8, error) {
+func getShareVersion(shareVersion string) (uint8, error) {
 	version, err := strconv.ParseUint(shareVersion, 10, 8)
 	if err != nil {
 		return uint8(0), fmt.Errorf("failed to convert share version from string to uint8: %w", err)
