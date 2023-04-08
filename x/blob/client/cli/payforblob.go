@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/spf13/cobra"
 
@@ -38,7 +37,7 @@ func CmdPayForBlob() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failure to decode hex namespace ID: %w", err)
 			}
-			namespaceVersion, _ := cmd.Flags().GetString(FlagNamespaceVersion)
+			namespaceVersion, _ := cmd.Flags().GetUint8(FlagNamespaceVersion)
 			namespace, err := getNamespace(namespaceID, namespaceVersion)
 			if err != nil {
 				return err
@@ -60,21 +59,17 @@ func CmdPayForBlob() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
-	cmd.PersistentFlags().String(FlagNamespaceVersion, "0", "Specify the namespace version")
+	cmd.PersistentFlags().Uint8(FlagNamespaceVersion, 0, "Specify the namespace version")
 
 	return cmd
 }
 
-func getNamespace(namespaceID []byte, namespaceVersion string) (appns.Namespace, error) {
-	version, err := strconv.ParseUint(namespaceVersion, 10, 8)
-	if err != nil {
-		return appns.Namespace{}, fmt.Errorf("failed to convert namespace version from string to uint8: %w", err)
-	}
-	switch uint8(version) {
+func getNamespace(namespaceID []byte, namespaceVersion uint8) (appns.Namespace, error) {
+	switch uint8(namespaceVersion) {
 	case appns.NamespaceVersionZero:
-		return appns.New(uint8(version), append(appns.NamespaceVersionZeroPrefix, namespaceID...))
+		return appns.New(uint8(namespaceVersion), append(appns.NamespaceVersionZeroPrefix, namespaceID...))
 	default:
-		return appns.Namespace{}, fmt.Errorf("namespace version %d is not supported", version)
+		return appns.Namespace{}, fmt.Errorf("namespace version %d is not supported", namespaceVersion)
 	}
 }
 
