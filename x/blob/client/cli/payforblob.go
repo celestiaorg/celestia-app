@@ -75,7 +75,7 @@ func CmdPayForBlob() *cobra.Command {
 
 func getShareVersion(shareVersion uint8) (uint8, error) {
 	// Check if share version is present in SupportedShareVersions
-	var result bool = false
+	var result = false
 	for _, val := range appconsts.SupportedShareVersions {
 		if val == shareVersion {
 			result = true
@@ -85,9 +85,8 @@ func getShareVersion(shareVersion uint8) (uint8, error) {
 
 	if result {
 		return shareVersion, nil
-	} else {
-		return uint8(0), fmt.Errorf("share version %d is not supported", shareVersion)
 	}
+	return uint8(0), fmt.Errorf("share version %d is not supported", shareVersion)
 }
 
 // broadcastPFB creates the new PFB message type that will later be broadcast to tendermint nodes
