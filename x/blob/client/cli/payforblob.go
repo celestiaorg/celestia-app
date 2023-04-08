@@ -75,7 +75,7 @@ func CmdPayForBlob() *cobra.Command {
 
 func getShareVersion(shareVersion uint8) (uint8, error) {
 	// Check if share version is present in SupportedShareVersions
-	var result = false
+	result := false
 	for _, val := range appconsts.SupportedShareVersions {
 		if val == shareVersion {
 			result = true
