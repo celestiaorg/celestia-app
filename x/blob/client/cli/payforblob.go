@@ -47,8 +47,7 @@ func CmdPayForBlob() *cobra.Command {
 				return fmt.Errorf("failure to create namespace: %w", err)
 			}
 
-			shareVersion, _ := cmd.Flags().GetString(FlagShareVersion)
-			share, err := getShare(shareVersion)
+			shareVersion, err := getShareVersion(cmd.Flags().GetString(FlagShareVersion))
 			if err != nil {
 				return err
 			}
