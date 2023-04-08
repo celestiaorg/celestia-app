@@ -15,7 +15,7 @@ type Blob = tmproto.Blob
 
 // NewBlob creates a new coretypes.Blob from the provided data after performing
 // basic stateless checks over it.
-func NewBlob(ns appns.Namespace, blob []byte, share uint8) (*Blob, error) {
+func NewBlob(ns appns.Namespace, blob []byte, shareVersion uint8) (*Blob, error) {
 	err := ns.ValidateBlobNamespace()
 	if err != nil {
 		return nil, err
