@@ -3,7 +3,6 @@ package types
 import (
 	"bytes"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -28,7 +27,7 @@ func NewBlob(ns appns.Namespace, blob []byte, shareVersion uint8) (*Blob, error)
 	return &tmproto.Blob{
 		NamespaceId:      ns.ID,
 		Data:             blob,
-		ShareVersion:     uint32(appconsts.DefaultShareVersion),
+		ShareVersion:     uint32(shareVersion),
 		NamespaceVersion: uint32(ns.Version),
 	}, nil
 }

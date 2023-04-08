@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/spf13/cobra"
 
@@ -47,7 +46,8 @@ func CmdPayForBlob() *cobra.Command {
 				return fmt.Errorf("failure to create namespace: %w", err)
 			}
 
-			shareVersion, err := getShareVersion(cmd.Flags().GetString(FlagShareVersion))
+			shareVersionFlag, _ := cmd.Flags().GetUint8(FlagShareVersion)
+			shareVersion, err := getShareVersion(shareVersionFlag)
 			if err != nil {
 				return err
 			}
@@ -58,7 +58,7 @@ func CmdPayForBlob() *cobra.Command {
 			}
 
 			// TODO: allow for more than one blob to be sumbmitted via the cli
-			blob, err := types.NewBlob(namespace, rawblob, share)
+			blob, err := types.NewBlob(namespace, rawblob, shareVersion)
 			if err != nil {
 				return err
 			}
@@ -68,21 +68,25 @@ func CmdPayForBlob() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
-	cmd.PersistentFlags().String(FlagShareVersion, "0", "Specify the share version (default is 0)")
+	cmd.PersistentFlags().Uint8(FlagShareVersion, 0, "Specify the share version")
 
 	return cmd
 }
 
-func getShareVersion(shareVersion string) (uint8, error) {
-	version, err := strconv.ParseUint(shareVersion, 10, 8)
-	if err != nil {
-		return uint8(0), fmt.Errorf("failed to convert share version from string to uint8: %w", err)
+func getShareVersion(shareVersion uint8) (uint8, error) {
+	// Check if share version is present in SupportedShareVersions
+	var result bool = false
+	for _, val := range appconsts.SupportedShareVersions {
+		if val == shareVersion {
+			result = true
+			break
+		}
 	}
-	switch uint8(version) {
-	case appconsts.ShareVersionZero:
-		return uint8(version), nil
-	default:
-		return uint8(0), fmt.Errorf("share version %d is not supported", version)
+
+	if result {
+		return shareVersion, nil
+	} else {
+		return uint8(0), fmt.Errorf("share version %d is not supported", shareVersion)
 	}
 }
 
