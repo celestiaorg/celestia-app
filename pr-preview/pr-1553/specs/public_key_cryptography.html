@@ -139,16 +139,43 @@
                     <main>
                         <h1 id="public-key-cryptography"><a class="header" href="#public-key-cryptography">Public-Key Cryptography</a></h1>
 <!-- toc -->
-<p>Consensus-critical data is authenticated using <a href="https://www.secg.org/sec1-v2.pdf">ECDSA</a>, with the curve <a href="https://en.bitcoin.it/wiki/Secp256k1">secp256k1</a>. A highly-optimized library is available in C (<a href="https://github.com/bitcoin-core/secp256k1">https://github.com/bitcoin-core/secp256k1</a>), with wrappers in Go (<a href="https://pkg.go.dev/github.com/ethereum/go-ethereum/crypto/secp256k1">https://pkg.go.dev/github.com/ethereum/go-ethereum/crypto/secp256k1</a>) and Rust (<a href="https://docs.rs/crate/secp256k1">https://docs.rs/crate/secp256k1</a>).</p>
-<h2 id="public-keys"><a class="header" href="#public-keys">Public-keys</a></h2>
-<p>Public keys are serialized in a compressed format described <a href="https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys">here</a>.</p>
-<h2 id="addresses"><a class="header" href="#addresses">Addresses</a></h2>
-<p>Celestia supports <a href="https://en.bitcoin.it/wiki/Secp256k1">secp256k1</a> keys where <a href="https://docs.cosmos.network/v0.46/basics/accounts.html#addresses">addresses</a> are 20 bytes in length.</p>
+<p>Consensus-critical data is authenticated using <a href="https://www.secg.org/sec1-v2.pdf">ECDSA</a> with the curves: <a href="https://en.bitcoin.it/wiki/Secp256k1">Secp256k1</a> or <a href="https://en.wikipedia.org/wiki/EdDSA#Ed25519">Ed25519</a>.</p>
+<h2 id="secp256k1"><a class="header" href="#secp256k1">Secp256k1</a></h2>
+<p>The Secp256k1 key type is used by accounts that submit transactions to be included in Celestia.</p>
+<h3 id="libraries"><a class="header" href="#libraries">Libraries</a></h3>
+<p>A highly-optimized library is available in C (<a href="https://github.com/bitcoin-core/secp256k1">https://github.com/bitcoin-core/secp256k1</a>), with wrappers in Go (<a href="https://pkg.go.dev/github.com/ethereum/go-ethereum/crypto/secp256k1">https://pkg.go.dev/github.com/ethereum/go-ethereum/crypto/secp256k1</a>) and Rust (<a href="https://docs.rs/crate/secp256k1">https://docs.rs/crate/secp256k1</a>).</p>
+<h3 id="public-keys"><a class="header" href="#public-keys">Public-keys</a></h3>
+<p>Secp256k1 public keys can be compressed to 257-bits (or 33 bytes) per the format described <a href="https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys">here</a>.</p>
+<h3 id="addresses"><a class="header" href="#addresses">Addresses</a></h3>
+<p>Cosmos <a href="https://docs.cosmos.network/v0.46/basics/accounts.html#addresses">addresses</a> are 20 bytes in length.</p>
+<h3 id="signatures"><a class="header" href="#signatures">Signatures</a></h3>
+<p>Deterministic signatures (<a href="https://tools.ietf.org/rfc/rfc6979.txt">RFC-6979</a>) should be used when signing, but this is not enforced at the protocol level as it cannot be for Secp256k1 signatures.</p>
+<p>Signatures are represented as the <code>r</code> and <code>s</code> (each 32 bytes) values of the signature. <code>r</code> and <code>s</code> take on their usual meaning (see: <a href="https://www.secg.org/sec1-v2.pdf">SEC 1, 4.1.3 Signing Operation</a>). Signatures are encoded with protobuf as described <a href="https://docs.cosmos.network/v0.46/core/encoding.html#transaction-encoding">here</a>.</p>
 <h3 id="human-readable-encoding"><a class="header" href="#human-readable-encoding">Human Readable Encoding</a></h3>
 <p>In front-ends addresses are prefixed with the <a href="https://en.bitcoin.it/wiki/Bech32">Bech32</a> prefix <code>celestia</code>. For example, a valid address is <code>celestia1kj39jkzqlr073t42am9d8pd40tgudc3e2kj9yf</code>.</p>
-<h2 id="signatures"><a class="header" href="#signatures">Signatures</a></h2>
-<p>Deterministic signatures (<a href="https://tools.ietf.org/rfc/rfc6979.txt">RFC-6979</a>) should be used when signing, but this is not enforced at the protocol level as it cannot be.</p>
-<p>Signatures are represented as the <code>r</code> and <code>s</code> (each 32 bytes) values of the signature. <code>r</code> and <code>s</code> take on their usual meaning (see: <a href="https://www.secg.org/sec1-v2.pdf">SEC 1, 4.1.3 Signing Operation</a>). Signatures are encoded with protobuf as described <a href="https://docs.cosmos.network/v0.46/core/encoding.html#transaction-encoding">here</a>.</p>
+<h2 id="ed25519"><a class="header" href="#ed25519">Ed25519</a></h2>
+<p>The Ed25519 key type is used by validators.</p>
+<!-- markdownlint-disable-next-line MD024 -->
+<h3 id="libraries-1"><a class="header" href="#libraries-1">Libraries</a></h3>
+<ul>
+<li><a href="https://pkg.go.dev/crypto/ed25519">crypto/ed25519</a></li>
+<li><a href="https://pkg.go.dev/github.com/cometbft/cometbft@v0.37.0/crypto/ed25519">cometbft crypto/ed25519</a></li>
+</ul>
+<h3 id="public-keys-1"><a class="header" href="#public-keys-1">Public Keys</a></h3>
+<p>Ed25519 public keys are 32 bytes in length. They often appear in validator configuration files (e.g. <code>genesis.json</code>) base64 encoded:</p>
+<pre><code class="language-json">      &quot;pub_key&quot;: {
+        &quot;type&quot;: &quot;tendermint/PubKeyEd25519&quot;,
+        &quot;value&quot;: &quot;DMEMMj1+thrkUCGocbvvKzXeaAtRslvX9MWtB+smuIA=&quot;
+      }
+</code></pre>
+<!-- markdownlint-disable-next-line MD024 -->
+<h3 id="addresses-1"><a class="header" href="#addresses-1">Addresses</a></h3>
+<p>Ed25519 addresses are the first 20-bytes of the SHA256 hash of the raw 32-byte public key:</p>
+<pre><code class="language-go">address = SHA256(pubkey)[:20]
+</code></pre>
+<!-- markdownlint-disable-next-line MD024 -->
+<h3 id="signatures-1"><a class="header" href="#signatures-1">Signatures</a></h3>
+<p>Ed25519 signatures are 64 bytes in length.</p>
 
                     </main>
 
