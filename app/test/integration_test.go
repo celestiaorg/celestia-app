@@ -226,8 +226,8 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	val := s.network.Validators[0]
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 
-	mustNewBlob := func(ns appns.Namespace, data []byte, share uint8) *blobtypes.Blob {
-		b, err := blobtypes.NewBlob(ns, data, share)
+	mustNewBlob := func(ns appns.Namespace, data []byte, shareVersion uint8) *blobtypes.Blob {
+		b, err := blobtypes.NewBlob(ns, data, shareVersion)
 		require.NoError(err)
 		return b
 	}

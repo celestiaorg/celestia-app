@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/slices"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
@@ -46,8 +47,8 @@ func CmdPayForBlob() *cobra.Command {
 				return fmt.Errorf("failure to create namespace: %w", err)
 			}
 
-			shareVersionFlag, _ := cmd.Flags().GetUint8(FlagShareVersion)
-			shareVersion, err := getShareVersion(shareVersionFlag)
+			shareVersion, _ := cmd.Flags().GetUint8(FlagShareVersion)
+			err = validateShareVersion(shareVersion)
 			if err != nil {
 				return err
 			}
@@ -73,20 +74,12 @@ func CmdPayForBlob() *cobra.Command {
 	return cmd
 }
 
-func getShareVersion(shareVersion uint8) (uint8, error) {
+func validateShareVersion(shareVersion uint8) error {
 	// Check if share version is present in SupportedShareVersions
-	result := false
-	for _, val := range appconsts.SupportedShareVersions {
-		if val == shareVersion {
-			result = true
-			break
-		}
+	if !slices.Contains(appconsts.SupportedShareVersions, shareVersion) {
+		return fmt.Errorf("share version %d is not supported", shareVersion)
 	}
-
-	if result {
-		return shareVersion, nil
-	}
-	return uint8(0), fmt.Errorf("share version %d is not supported", shareVersion)
+	return nil
 }
 
 // broadcastPFB creates the new PFB message type that will later be broadcast to tendermint nodes
