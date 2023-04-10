@@ -61,8 +61,6 @@ chain is to agree on the upgrade logic and the upgrade height offchain.
 Instead of relying on token voting, a mechanism described in ADR018 for rolling
 upgrades and signalling will be used.
 
-
-
 ### Option 3: Adding a predetermined halt height (aka "difficulty bomb")
 
 This option is not mutually exclusive to option 2. Its goal is to explicitly
@@ -88,8 +86,8 @@ No changes are needed.
 #### Remove the ability to schedule an upgrade via token voting
 
 Implementing option 2 will involve removing the ability of the gov module to
-schedule an upgrade, while maintaining all of the upgrade logic. The upgrade
-logic could be removed entirely, but more can be removed later depending on the
+schedule an upgrade, while maintaining all the upgrade logic. The upgrade logic
+could be removed entirely, but more can be removed later depending on the
 decisions made in ADR018
 
 ```diff
@@ -168,7 +166,7 @@ func (k msgServer) SoftwareUpgrade(goCtx context.Context, req *types.MsgSoftware
 
 ### Implementing Option 3
 
-#### Implement a deadline module into the state machine that will halt at a hardcoded height
+#### Implement a mechanism that will halt at a hardcoded height
 
 This mechanism needs to stop all honest nodes, particularly light clients. This
 way validators cannot just ignore the bomb height and continue to produce
@@ -190,7 +188,7 @@ func (h Header) ValidateBasic() error {
 }
 ```
 
-#### Halting the Node using Social Consensus
+#### Halting the chain using social consensus
 
 We hope to perform most upgrades using mechanism that doesn't involve shutting
 down and switching binaries, but depending on changes to the code, this might be
@@ -200,7 +198,7 @@ are running the old binary in a way that respects social consensus. One of the
 main issues with this approach is that it has a higher halt risk since node
 operators could accidently configure this value inconsistently across the
 network. We can do that using the existing functionality in the application.
-Below is the config in app.toml that would allow node operators to pick a height
+Below is the config in `app.toml` that would allow node operators to pick a height
 to shut down their nodes at.
 
 ```toml
@@ -217,6 +215,9 @@ If we adopt Option 2, then we will be able to remove token voting from the state
 machine sooner rather than later. This is riskier in that we will not have the
 battle tested mechanism, but it will force future upgrades that attempt to give
 more influence to node operators and less influence to large token holders.
+
+Until we implement our own fork of the upgrade module in ADR018, this approach
+will also increase our diff between our fork of the cosmos-sdk and upstream.
 
 ## References
 
