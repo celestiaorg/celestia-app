@@ -85,7 +85,7 @@ No changes are needed.
 
 #### Remove the ability to schedule an upgrade via token voting
 
-Implementing option 2 will involve removing the ability of the gov module to
+Implementing option 2 will involve removing the ability of the state machine to
 schedule an upgrade, while maintaining all the upgrade logic. The upgrade logic
 could be removed entirely, but more can be removed later depending on the
 decisions made in ADR018
