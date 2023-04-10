@@ -67,7 +67,7 @@ func CmdPayForBlob() *cobra.Command {
 func getNamespace(namespaceID []byte, namespaceVersion uint8) (appns.Namespace, error) {
 	switch namespaceVersion {
 	case appns.NamespaceVersionZero:
-		return appns.New(uint8(namespaceVersion), append(appns.NamespaceVersionZeroPrefix, namespaceID...))
+		return appns.New(namespaceVersion, append(appns.NamespaceVersionZeroPrefix, namespaceID...))
 	default:
 		return appns.Namespace{}, fmt.Errorf("namespace version %d is not supported", namespaceVersion)
 	}
