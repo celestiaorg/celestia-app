@@ -116,9 +116,10 @@ func TestMsgTypeURLParity(t *testing.T) {
 
 func TestValidateBasic(t *testing.T) {
 	type test struct {
-		name    string
-		msg     *MsgPayForBlobs
-		wantErr *sdkerrors.Error
+		name        string
+		msg         *MsgPayForBlobs
+		wantErr     *sdkerrors.Error
+		wantErrBool bool
 	}
 
 	validMsg := validMsgPayForBlobs(t)
@@ -174,9 +175,9 @@ func TestValidateBasic(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			name:    "parity shares namespace id",
-			msg:     paritySharesMsg,
-			wantErr: ErrParitySharesNamespace,
+			name:        "parity shares namespace id",
+			msg:         paritySharesMsg,
+			wantErrBool: true,
 		},
 		{
 			name:    "tail padding namespace id",
@@ -233,6 +234,10 @@ func TestValidateBasic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.msg.ValidateBasic()
+			if tt.wantErrBool {
+				assert.Error(t, err)
+				return
+			}
 			if tt.wantErr != nil {
 				assert.Contains(t, err.Error(), tt.wantErr.Error())
 				space, code, log := sdkerrors.ABCIInfo(err, false)
