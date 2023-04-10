@@ -65,7 +65,7 @@ func CmdPayForBlob() *cobra.Command {
 }
 
 func getNamespace(namespaceID []byte, namespaceVersion uint8) (appns.Namespace, error) {
-	switch uint8(namespaceVersion) {
+	switch namespaceVersion {
 	case appns.NamespaceVersionZero:
 		return appns.New(uint8(namespaceVersion), append(appns.NamespaceVersionZeroPrefix, namespaceID...))
 	default:
