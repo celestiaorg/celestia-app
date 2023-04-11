@@ -491,7 +491,7 @@ However, with only the rule above, interaction between the block producer and tr
 
 In the example below, two messages (of lengths 2 and 1, respectively) are placed using the aforementioned default non-interactive rules.
 
-![fig: original data blob](./figures/rs2d_originaldata_blob.svg)
+![fig: Original data: messages.](./figures/rs2d_originaldata_message.svg)
 
 The non-interactive default rules may introduce empty shares that do not belong to any message (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either [`TAIL_TRANSACTION_PADDING_NAMESPACE_ID`](./consensus.md#constants) if between a request with a reserved namespace ID and a message, or the namespace ID of the previous message if succeeded by a message. See the [rationale doc](../rationale/message_block_layout.md) for more info.
 
