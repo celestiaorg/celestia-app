@@ -376,46 +376,6 @@ func MultiBlobTx(
 	return cTx
 }
 
-func MultiBlobTxInvalidNamespace(
-	t *testing.T,
-	enc sdk.TxEncoder,
-	signer *blobtypes.KeyringSigner,
-	sequence uint64,
-	accountNum uint64,
-	blobs ...*tmproto.Blob,
-) coretypes.Tx {
-	addr, err := signer.GetSignerInfo().GetAddress()
-	require.NoError(t, err)
-
-	coin := sdk.Coin{
-		Denom:  bondDenom,
-		Amount: sdk.NewInt(10),
-	}
-	opts := []blobtypes.TxBuilderOption{
-		blobtypes.SetFeeAmount(sdk.NewCoins(coin)),
-		blobtypes.SetGasLimit(10000000),
-	}
-	msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), blobs...)
-	require.NoError(t, err)
-
-	signer.SetAccountNumber(accountNum)
-	signer.SetSequence(sequence)
-
-	msg.Namespaces[0] = bytes.Repeat([]byte{1}, 33)
-
-	builder := signer.NewTxBuilder(opts...)
-	stx, err := signer.BuildSignedTx(builder, msg)
-	require.NoError(t, err)
-
-	rawTx, err := enc(stx)
-	require.NoError(t, err)
-
-	cTx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
-	require.NoError(t, err)
-
-	return cTx
-}
-
 // IndexWrapperWithInvalidNamespace returns an index wrapped PFB tx with an
 // invalid namespace and a blob associated with that index wrapped PFB tx.
 func IndexWrapperWithInvalidNamespace(
