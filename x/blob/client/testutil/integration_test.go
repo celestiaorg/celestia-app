@@ -89,7 +89,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			respType:     &sdk.TxResponse{},
 		},
 		{
-			name: "invalid share version",
+			name: "unsupported share version",
 			args: []string{
 				hexNamespace,
 				hexBlob,
