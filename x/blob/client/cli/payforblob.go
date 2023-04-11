@@ -8,9 +8,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/exp/slices"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -48,10 +46,6 @@ func CmdPayForBlob() *cobra.Command {
 			}
 
 			shareVersion, _ := cmd.Flags().GetUint8(FlagShareVersion)
-			err = validateShareVersion(shareVersion)
-			if err != nil {
-				return err
-			}
 
 			rawblob, err := hex.DecodeString(args[1])
 			if err != nil {
@@ -72,14 +66,6 @@ func CmdPayForBlob() *cobra.Command {
 	cmd.PersistentFlags().Uint8(FlagShareVersion, 0, "Specify the share version")
 
 	return cmd
-}
-
-func validateShareVersion(shareVersion uint8) error {
-	// Check if share version is present in SupportedShareVersions
-	if !slices.Contains(appconsts.SupportedShareVersions, shareVersion) {
-		return fmt.Errorf("share version %d is not supported", shareVersion)
-	}
-	return nil
 }
 
 // broadcastPFB creates the new PFB message type that will later be broadcast to tendermint nodes
