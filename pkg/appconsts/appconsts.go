@@ -72,12 +72,17 @@ const (
 	// data square.
 	MinShareCount = DefaultMinSquareSize * DefaultMinSquareSize
 
-	// SubtreeRootHeightThreshold dictates the threashold for increasing the sub
+	// SubtreeRootSizeThreshold dictates the threashold for increasing the sub
 	// tree root height for blobs. If the number of subtree roots used to create
 	// a share commitment surpasses this threshold, then the height is
 	// increased. The rationale for this value is described in more detail in
-	// ADR013 (./docs/architecture/adr-013).
-	SubtreeRootHeightThreshold = 128
+	// ADR013 (./docs/architecture/adr-013). Note that this value should not
+	// drop below the max square size. That could result in the caculating a sub
+	// tree width for a blob that is larger than whatever the actual suquare
+	// size for that block. Having a value that is larger than the square is
+	// simply wasteful in that the proofs for large blobs are unnecessarily
+	// large.
+	SubtreeRootSizeThreshold = DefaultMaxSquareSize
 
 	// MaxShareVersion is the maximum value a share version can be.
 	MaxShareVersion = 127

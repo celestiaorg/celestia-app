@@ -90,10 +90,10 @@ func roundUpBy(cursor, v int) int {
 func SubTreeWidth(shareCount int) int {
 	// per ADR013, we use a predetermined threshold to determine width of sub
 	// trees used to create share commitments
-	s := (shareCount / appconsts.SubtreeRootHeightThreshold)
+	s := (shareCount / appconsts.SubtreeRootSizeThreshold)
 
 	// round up if the width is not an exact multiple of the threshold
-	if shareCount%appconsts.SubtreeRootHeightThreshold != 0 {
+	if shareCount%appconsts.SubtreeRootSizeThreshold != 0 {
 		s++
 	}
 
