@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
@@ -24,7 +25,7 @@ var defaultSigner = testfactory.RandomAddress().String()
 func RandMsgPayForBlobsWithSigner(singer string, size, blobCount int) (*blobtypes.MsgPayForBlobs, []*tmproto.Blob) {
 	blobs := make([]*tmproto.Blob, blobCount)
 	for i := 0; i < blobCount; i++ {
-		blob, err := types.NewBlob(appns.RandomBlobNamespace(), tmrand.Bytes(size))
+		blob, err := types.NewBlob(appns.RandomBlobNamespace(), tmrand.Bytes(size), appconsts.ShareVersionZero)
 		if err != nil {
 			panic(err)
 		}
@@ -44,7 +45,7 @@ func RandMsgPayForBlobsWithSigner(singer string, size, blobCount int) (*blobtype
 func RandBlobsWithNamespace(namespaces []appns.Namespace, sizes []int) []*tmproto.Blob {
 	blobs := make([]*tmproto.Blob, len(namespaces))
 	for i, ns := range namespaces {
-		blob, err := types.NewBlob(ns, tmrand.Bytes(sizes[i]))
+		blob, err := types.NewBlob(ns, tmrand.Bytes(sizes[i]), appconsts.ShareVersionZero)
 		if err != nil {
 			panic(err)
 		}
@@ -54,7 +55,7 @@ func RandBlobsWithNamespace(namespaces []appns.Namespace, sizes []int) []*tmprot
 }
 
 func RandMsgPayForBlobsWithNamespaceAndSigner(signer string, ns appns.Namespace, size int) (*blobtypes.MsgPayForBlobs, *tmproto.Blob) {
-	blob, err := types.NewBlob(ns, tmrand.Bytes(size))
+	blob, err := types.NewBlob(ns, tmrand.Bytes(size), appconsts.ShareVersionZero)
 	if err != nil {
 		panic(err)
 	}
@@ -69,7 +70,7 @@ func RandMsgPayForBlobsWithNamespaceAndSigner(signer string, ns appns.Namespace,
 }
 
 func RandMsgPayForBlobs(size int) (*blobtypes.MsgPayForBlobs, *tmproto.Blob) {
-	blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(size))
+	blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(size), appconsts.ShareVersionZero)
 	if err != nil {
 		panic(err)
 	}
@@ -300,7 +301,7 @@ func Repeat[T any](s T, count int) []T {
 func ManyBlobs(t *testing.T, namespaces []appns.Namespace, sizes []int) []*tmproto.Blob {
 	blobs := make([]*tmproto.Blob, len(namespaces))
 	for i, ns := range namespaces {
-		blob, err := blobtypes.NewBlob(ns, tmrand.Bytes(sizes[i]))
+		blob, err := blobtypes.NewBlob(ns, tmrand.Bytes(sizes[i]), appconsts.ShareVersionZero)
 		require.NoError(t, err)
 		blobs[i] = blob
 	}
@@ -312,7 +313,7 @@ func NestedBlobs(t *testing.T, namespaces []appns.Namespace, sizes [][]int) [][]
 	counter := 0
 	for i, set := range sizes {
 		for _, size := range set {
-			blob, err := blobtypes.NewBlob(namespaces[counter], tmrand.Bytes(size))
+			blob, err := blobtypes.NewBlob(namespaces[counter], tmrand.Bytes(size), appconsts.ShareVersionZero)
 			require.NoError(t, err)
 			blobs[i] = append(blobs[i], blob)
 			counter++
