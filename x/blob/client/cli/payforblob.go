@@ -19,6 +19,10 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
+// FlagShareVersion allows the user to override the share version when
+// submitting a PayForBlob.
+const FlagShareVersion = "share-version"
+
 func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "PayForBlobs [hexNamespaceID] [hexBlob]",
@@ -41,13 +45,15 @@ func CmdPayForBlob() *cobra.Command {
 				return fmt.Errorf("failure to create namespace: %w", err)
 			}
 
+			shareVersion, _ := cmd.Flags().GetUint8(FlagShareVersion)
+
 			rawblob, err := hex.DecodeString(args[1])
 			if err != nil {
 				return fmt.Errorf("failure to decode hex blob: %w", err)
 			}
 
 			// TODO: allow for more than one blob to be sumbmitted via the cli
-			blob, err := types.NewBlob(namespace, rawblob)
+			blob, err := types.NewBlob(namespace, rawblob, shareVersion)
 			if err != nil {
 				return err
 			}
@@ -57,6 +63,7 @@ func CmdPayForBlob() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
+	cmd.PersistentFlags().Uint8(FlagShareVersion, 0, "Specify the share version")
 
 	return cmd
 }
