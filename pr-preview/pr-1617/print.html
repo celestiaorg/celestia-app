@@ -519,7 +519,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <li>If there are insufficient unused locations in the row, place the first share of the blob at the first column of the next row. Then place the remaining shares in the following locations. By construction, any blob whose length is greater than <a href="specs/data_structures.html#header"><code>availableDataOriginalSquareSize</code></a> will be placed in this way.</li>
 </ol>
 <p>In the example below, two blobs (of lengths 2 and 1, respectively) are placed using the aforementioned default non-interactive rules.</p>
-<p><img src="specs/./figures/rs2d_originaldata_blob.svg" alt="fig: Original data: blobs." /></p>
+<p><img src="specs/./figures/rs2d_originaldata_blob.svg" alt="fig: original data blob" /></p>
 <p>The non-interactive default rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either <a href="specs/./consensus.html#constants"><code>TAIL_TRANSACTION_PADDING_NAMESPACE_ID</code></a> if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the <a href="specs/../rationale/data_square_layout.html">rationale doc</a> for more info.</p>
 <h2 id="available-data"><a class="header" href="#available-data">Available Data</a></h2>
 <h3 id="transactiondata"><a class="header" href="#transactiondata">TransactionData</a></h3>
