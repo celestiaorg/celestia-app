@@ -54,15 +54,15 @@ func NextShareIndex(cursor, blobShareLen, squareSize int) (index int, fitsInRow 
 		return cursor, true
 	}
 
-	blobMinSquareSize := SubTreeWidth(blobShareLen)
+	treeWidth := SubTreeWidth(blobShareLen)
 	startOfNextRow := ((cursor / squareSize) + 1) * squareSize
-	cursor = roundUpBy(cursor, blobMinSquareSize)
+	cursor = roundUpBy(cursor, treeWidth)
 	switch {
 	// the entire blob fits in this row
 	case cursor+blobShareLen <= startOfNextRow:
 		return cursor, true
 	// only a portion of the blob fits in this row
-	case cursor+blobMinSquareSize <= startOfNextRow:
+	case cursor+treeWidth <= startOfNextRow:
 		return cursor, false
 	// none of the blob fits on this row, so return the start of the next row
 	default:
