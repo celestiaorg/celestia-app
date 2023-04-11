@@ -31,7 +31,7 @@
 | `SEQUENCE_BYTES`                        | `uint64` | `4`          | `byte`  | The number of bytes used to store the sequence length in the first share of a sequence                                                                              |
 | `SHARE_INFO_BYTES`                      | `uint64` | `1`          | `byte`  | The number of bytes used for [share](data_structures.md#share) information                                                                                          |
 | `SHARE_RESERVED_BYTES`                  | `uint64` | `4`          | `byte`  | The number of bytes used to store the location of the first unit in a compact share. Must be able to represent any integer up to and including `SHARE_SIZE - 1`.    |
-| `SHARE_SIZE`                            | `uint64` | `512`        | `byte`  | Size of transaction and message [shares](data_structures.md#share), in bytes.                                                                                       |
+| `SHARE_SIZE`                            | `uint64` | `512`        | `byte`  | Size of transaction and blob [shares](data_structures.md#share), in bytes.                                                                                       |
 | `STATE_SUBTREE_RESERVED_BYTES`          | `uint64` | `1`          | `byte`  | Number of bytes reserved to identify state subtrees.                                                                                                                |
 | `UNBONDING_DURATION`                    | `uint32` |              | `block` | Duration, in blocks, for unbonding a validator or delegation.                                                                                                       |
 | `VERSION_APP`                           | `uint64` | `1`          |         | Version of the Celestia application. Breaking changes (hard forks) must update this parameter.                                                                      |
@@ -46,7 +46,7 @@
 | `EVIDENCE_NAMESPACE`                | `Namespace` | `0x000000000000000000000000000000000000000000000000000000000000000003` | Evidence: fraud proofs or other proof of slashable action.                                           |
 | `RESERVED_PADDING_NAMESPACE`        | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000000000000FF` | Padding after all reserved namespaces but before blobs.                                              |
 | `MAX_RESERVED_NAMESPACE`            | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000000000000FF` | Max reserved namespace is lexicographically the largest namespace that is reserved for protocol use. |
-| `TAIL_PADDING_NAMESPACE`            | `Namespace` | `0x00000000000000000000000000000000000000000000000000FFFFFFFFFFFFFFFE` | Tail padding for messages: padding after all messages to fill up the original data square.           |
+| `TAIL_PADDING_NAMESPACE`            | `Namespace` | `0x00000000000000000000000000000000000000000000000000FFFFFFFFFFFFFFFE` | Tail padding for blobs: padding after all blobs to fill up the original data square.           |
 | `PARITY_SHARE_NAMESPACE`            | `Namespace` | `0x00000000000000000000000000000000000000000000000000FFFFFFFFFFFFFFFF` | Parity shares: extended shares in the available data matrix.                                         |
 
 ### Rewards and Penalties
@@ -145,7 +145,7 @@ State transitions are applied in the following order:
 
 ### `block.availableData.transactionData`
 
-Transactions are applied to the state. Note that _transactions_ mutate the state (essentially, the validator set and minimal balances), while _messages_ do not.
+Transactions are applied to the state. Note that _transactions_ mutate the state (essentially, the validator set and minimal balances), while _blobs_ do not.
 
 `block.availableData.transactionData` is simply a list of [WrappedTransaction](./data_structures.md#wrappedtransaction)s. For each wrapped transaction in this list, `wrappedTransaction`, with index `i` (starting from `0`), the following checks must be `true`:
 
@@ -207,25 +207,25 @@ function validatorQueueRemove(validator, sender)
 
 Note that light clients cannot perform a linear search through a linked list, and are instead provided logarithmic proofs (e.g. in the case of `parentFromQueue`, a proof to the parent is provided, which should have `address` as its next validator).
 
-In addition, three helper functions to manage the [message paid list](./data_structures.md#messagepaid):
+In addition, three helper functions to manage the [blob paid list](./data_structures.md#blobpaid):
 
-1. `findFromMessagePaidList(start)`, which returns the transaction ID of the last transaction in the [message paid list](./data_structures.md#messagepaid) with `finish` greater than `start`, or `0` if the list is empty or no transactions in the list have at least `start` `finish`.
-1. `parentFromMessagePaidList(txid)`, which returns the transaction ID of the parent in the message paid list of the transaction with ID `txid`, or `0` if `txid` is not in the list or is the head of the list.
-1. `messagePaidListInsert`, defined as
+1. `findFromBlobPaidList(start)`, which returns the transaction ID of the last transaction in the [blob paid list](./data_structures.md#blobpaid) with `finish` greater than `start`, or `0` if the list is empty or no transactions in the list have at least `start` `finish`.
+1. `parentFromBlobPaidList(txid)`, which returns the transaction ID of the parent in the blob paid list of the transaction with ID `txid`, or `0` if `txid` is not in the list or is the head of the list.
+1. `blobPaidListInsert`, defined as
 
 ```py
-function messagePaidListInsert(tx, txid)
+function blobPaidListInsert(tx, txid)
     # Insert the new transaction into the linked list
-    parent = findFromMessagePaidList(tx.messageStartIndex)
-    state.messagesPaid[txid].start = tx.messageStartIndex
-    numShares = ceil(tx.messageSize / SHARE_SIZE)
-    state.messagesPaid[txid].finish = tx.messageStartIndex + numShares - 1
+    parent = findFromBlobPaidList(tx.blobStartIndex)
+    state.blobsPaid[txid].start = tx.blobStartIndex
+    numShares = ceil(tx.blobSize / SHARE_SIZE)
+    state.blobsPaid[txid].finish = tx.blobStartIndex + numShares - 1
     if parent != 0
-        state.messagesPaid[txid].next = state.messagesPaid[parent].next
-        state.messagesPaid[parent].next = txid
+        state.blobsPaid[txid].next = state.blobsPaid[parent].next
+        state.blobsPaid[parent].next = txid
     else
-        state.messagesPaid[txid].next = state.messagePaidHead
-        state.messagePaidHead = txid
+        state.blobsPaid[txid].next = state.blobPaidHead
+        state.blobPaidHead = txid
 ```
 
 We define a helper function to compute F1 entries:
@@ -265,9 +265,9 @@ state.activeValidatorSet.proposerBlockReward += tipCost(bytesPaid)
 #### SignedTransactionDataMsgPayForData
 
 ```py
-bytesPaid = len(tx) + tx.messageSize
-currentStartFinish = state.messagesPaid[findFromMessagePaidList(tx.messageStartIndex)]
-parentStartFinish = state.messagesPaid[parentFromMessagePaidList(findFromMessagePaidList(tx.messageStartIndex))]
+bytesPaid = len(tx) + tx.blobSize
+currentStartFinish = state.blobsPaid[findFromBlobPaidList(tx.blobStartIndex)]
+parentStartFinish = state.blobsPaid[parentFromBlobPaidList(findFromBlobPaidList(tx.blobStartIndex))]
 ```
 
 The following checks must be `true`:
@@ -275,11 +275,11 @@ The following checks must be `true`:
 1. `tx.type` == [`TransactionType.MsgPayForData`](./data_structures.md#signedtransactiondata).
 1. `totalCost(0, tx.fee.tipRate, bytesPaid)` <= `state.accounts[sender].balance`.
 1. `tx.nonce` == `state.accounts[sender].nonce + 1`.
-1. The `ceil(tx.messageSize / SHARE_SIZE)` shares starting at index `tx.messageStartIndex` must:
-    1. Have namespace `tx.messageNamespace`.
-1. `tx.messageShareCommitment` == computed as described [here](./data_structures.md#signedtransactiondatamsgpayfordata).
-1. `parentStartFinish.finish` < `tx.messageStartIndex`.
-1. `currentStartFinish.start` == `0` or `currentStartFinish.start` > `tx.messageStartIndex + ceil(tx.messageSize / SHARE_SIZE)`.
+1. The `ceil(tx.blobSize / SHARE_SIZE)` shares starting at index `tx.blobStartIndex` must:
+    1. Have namespace `tx.blobNamespace`.
+1. `tx.blobShareCommitment` == computed as described [here](./data_structures.md#signedtransactiondatamsgpayfordata).
+1. `parentStartFinish.finish` < `tx.blobStartIndex`.
+1. `currentStartFinish.start` == `0` or `currentStartFinish.start` > `tx.blobStartIndex + ceil(tx.blobSize / SHARE_SIZE)`.
 
 Apply the following to the state:
 
@@ -287,7 +287,7 @@ Apply the following to the state:
 state.accounts[sender].nonce += 1
 state.accounts[sender].balance -= totalCost(tx.amount, tx.fee.tipRate, bytesPaid)
 
-messagePaidListInsert(tx, id(tx))
+blobPaidListInsert(tx, id(tx))
 
 state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
 ```

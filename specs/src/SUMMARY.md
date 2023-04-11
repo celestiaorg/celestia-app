@@ -8,4 +8,4 @@
   - [Block Proposer](./specs/block_proposer.md)
   - [Networking](./specs/networking.md)
 - [Rationale](./rationale/index.md)
-  - [Message Layout](./rationale/message_block_layout.md)
+  - [Data Square Layout](./rationale/data_square_layout.md)
