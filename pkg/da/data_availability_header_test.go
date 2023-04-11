@@ -60,7 +60,7 @@ func TestNewDataAvailabilityHeader(t *testing.T) {
 			require.NoError(t, err)
 			resdah := NewDataAvailabilityHeader(eds)
 			require.Equal(t, tt.squareSize*2, uint64(len(resdah.ColumnRoots)), tt.name)
-			require.Equal(t, tt.squareSize*2, uint64(len(resdah.RowsRoots)), tt.name)
+			require.Equal(t, tt.squareSize*2, uint64(len(resdah.RowRoots)), tt.name)
 			require.Equal(t, tt.expectedHash, resdah.hash, tt.name)
 		})
 	}
@@ -150,15 +150,15 @@ func Test_DAHValidateBasic(t *testing.T) {
 	// make a mutant dah that has too many roots
 	var tooBigDah DataAvailabilityHeader
 	tooBigDah.ColumnRoots = make([][]byte, appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize)
-	tooBigDah.RowsRoots = make([][]byte, appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize)
+	tooBigDah.RowRoots = make([][]byte, appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize)
 	copy(tooBigDah.ColumnRoots, bigdah.ColumnRoots)
-	copy(tooBigDah.RowsRoots, bigdah.RowsRoots)
+	copy(tooBigDah.RowRoots, bigdah.RowRoots)
 	tooBigDah.ColumnRoots = append(tooBigDah.ColumnRoots, bytes.Repeat([]byte{1}, 32))
-	tooBigDah.RowsRoots = append(tooBigDah.RowsRoots, bytes.Repeat([]byte{1}, 32))
+	tooBigDah.RowRoots = append(tooBigDah.RowRoots, bytes.Repeat([]byte{1}, 32))
 	// make a mutant dah that has too few roots
 	var tooSmallDah DataAvailabilityHeader
 	tooSmallDah.ColumnRoots = [][]byte{bytes.Repeat([]byte{2}, 32)}
-	tooSmallDah.RowsRoots = [][]byte{bytes.Repeat([]byte{2}, 32)}
+	tooSmallDah.RowRoots = [][]byte{bytes.Repeat([]byte{2}, 32)}
 	// use a bad hash
 	badHashDah := MinDataAvailabilityHeader()
 	badHashDah.hash = []byte{1, 2, 3, 4}
