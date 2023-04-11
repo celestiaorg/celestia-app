@@ -330,7 +330,6 @@ func (am *AccountManager) signTransaction(builder client.TxBuilder) error {
 		if err != nil {
 			return fmt.Errorf("error creating signature: %w", err)
 		}
-		fmt.Printf("signing msg with pubkey %s\n", acc.PubKey.String())
 		sigV2[index] = signing.SignatureV2{
 			PubKey: acc.PubKey,
 			Data: &signing.SingleSignatureData{

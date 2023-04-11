@@ -8,7 +8,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/gogo/protobuf/grpc"
-	"github.com/rs/zerolog/log"
 )
 
 var _ Sequence = &SendSequence{}
@@ -51,7 +50,6 @@ func (s *SendSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 		},
 		Delay: rand.Int63n(int64(s.maxHeightDelay)),
 	}
-	log.Info().Msg("next send sequence")
 	s.sequence++
 	return op, nil
 }
