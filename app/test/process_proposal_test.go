@@ -222,11 +222,11 @@ func TestProcessProposal(t *testing.T) {
 			input: validData(),
 			mutator: func(d *core.Data) {
 				encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-				blobs := blobfactory.ManyRandBlobs(t, 100)
-				assert.Len(t, blobs, 1)
 				index := 4
-				tx := blobfactory.IndexWrapperWithInvalidNamespace(t, encCfg.TxConfig.TxEncoder(), signer, 0, 0, uint32(index), blobs...)
-				d.Blobs = []tmproto.Blob{*blobs[0]}
+				tx, blob := blobfactory.IndexWrapperWithInvalidNamespace(t, encCfg.TxConfig.TxEncoder(), signer, 0, 0, uint32(index))
+
+				// Replace the data with new contents
+				d.Blobs = []tmproto.Blob{blob}
 				d.Txs = [][]byte{tx}
 
 				// Erasure code the data to update the data root so this doesn't doesn't fail on an incorrect data root.
