@@ -90,6 +90,21 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			respType:     &sdk.TxResponse{},
 		},
 		{
+			name: "unsupported share version",
+			args: []string{
+				hexNamespace,
+				hexBlob,
+				fmt.Sprintf("--from=%s", username),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+				fmt.Sprintf("--%s=1", cli.FlagShareVersion),
+			},
+			expectErr:    true,
+			expectedCode: 0,
+			respType:     &sdk.TxResponse{},
+		},
+		{
 			name: "invalid namespace ID",
 			args: []string{
 				invalidNamespaceID,

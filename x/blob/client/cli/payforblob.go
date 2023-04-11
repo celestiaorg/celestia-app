@@ -22,6 +22,9 @@ import (
 // FlagNamespaceVersion allows the user to override the namespace version when
 // submitting a PayForBlob.
 const FlagNamespaceVersion = "namespace-version"
+// FlagShareVersion allows the user to override the share version when
+// submitting a PayForBlob.
+const FlagShareVersion = "share-version"
 
 func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
@@ -43,13 +46,15 @@ func CmdPayForBlob() *cobra.Command {
 				return err
 			}
 
+			shareVersion, _ := cmd.Flags().GetUint8(FlagShareVersion)
+
 			rawblob, err := hex.DecodeString(args[1])
 			if err != nil {
 				return fmt.Errorf("failure to decode hex blob: %w", err)
 			}
 
 			// TODO: allow for more than one blob to be sumbmitted via the cli
-			blob, err := types.NewBlob(namespace, rawblob)
+			blob, err := types.NewBlob(namespace, rawblob, shareVersion)
 			if err != nil {
 				return err
 			}
@@ -60,7 +65,7 @@ func CmdPayForBlob() *cobra.Command {
 
 	flags.AddTxFlagsToCmd(cmd)
 	cmd.PersistentFlags().Uint8(FlagNamespaceVersion, 0, "Specify the namespace version")
-
+	cmd.PersistentFlags().Uint8(FlagShareVersion, 0, "Specify the share version")
 	return cmd
 }
 
