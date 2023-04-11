@@ -22,6 +22,7 @@ import (
 // FlagNamespaceVersion allows the user to override the namespace version when
 // submitting a PayForBlob.
 const FlagNamespaceVersion = "namespace-version"
+
 // FlagShareVersion allows the user to override the share version when
 // submitting a PayForBlob.
 const FlagShareVersion = "share-version"
