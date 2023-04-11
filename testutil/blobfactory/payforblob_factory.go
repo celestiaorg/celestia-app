@@ -416,6 +416,47 @@ func MultiBlobTxInvalidNamespace(
 	return cTx
 }
 
+func IndexWrapperWithInvalidNamespace(
+	t *testing.T,
+	enc sdk.TxEncoder,
+	signer *blobtypes.KeyringSigner,
+	sequence uint64,
+	accountNum uint64,
+	index uint32,
+	blobs ...*tmproto.Blob,
+) coretypes.Tx {
+	addr, err := signer.GetSignerInfo().GetAddress()
+	require.NoError(t, err)
+
+	coin := sdk.Coin{
+		Denom:  bondDenom,
+		Amount: sdk.NewInt(10),
+	}
+	opts := []blobtypes.TxBuilderOption{
+		blobtypes.SetFeeAmount(sdk.NewCoins(coin)),
+		blobtypes.SetGasLimit(10000000),
+	}
+	msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), blobs...)
+	require.NoError(t, err)
+
+	signer.SetAccountNumber(accountNum)
+	signer.SetSequence(sequence)
+
+	msg.Namespaces[0] = bytes.Repeat([]byte{1}, 33)
+
+	builder := signer.NewTxBuilder(opts...)
+	stx, err := signer.BuildSignedTx(builder, msg)
+	require.NoError(t, err)
+
+	rawTx, err := enc(stx)
+	require.NoError(t, err)
+
+	cTx, err := coretypes.MarshalIndexWrapper(rawTx, index)
+	require.NoError(t, err)
+
+	return cTx
+}
+
 func RandBlobTxsWithNamespacesAndSigner(
 	enc sdk.TxEncoder,
 	signer *blobtypes.KeyringSigner,
@@ -482,22 +523,3 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, kr keyring.Keyring, enc sdk.TxEnco
 	require.NoError(t, err)
 	return btx
 }
-
-// func ComplexBlobTxWithOtherMsgs(t *testing.T, kr keyring.Keyring, enc sdk.TxEncoder, chainid, account string, msgs ...sdk.Msg) coretypes.Tx {
-// func NewSignedTx(t *testing.T, kr keyring.Keyring, enc sdk.TxEncoder, chainid string, account string, msg sdk.Msg) (*coretypes.Tx, error) {
-// 	signer := blobtypes.NewKeyringSigner(kr, account, chainid)
-// 	coin := sdk.Coin{
-// 		Denom:  bondDenom,
-// 		Amount: sdk.NewInt(10),
-// 	}
-// 	opts := []blobtypes.TxBuilderOption{
-// 		blobtypes.SetFeeAmount(sdk.NewCoins(coin)),
-// 		blobtypes.SetGasLimit(100000000000000),
-// 	}
-
-// 	builder := signer.NewTxBuilder(opts...)
-// 	stx, err := signer.BuildSignedTx(builder, msg)
-// 	assert.NoError(t, err)
-
-// 	return stx, nil
-// }

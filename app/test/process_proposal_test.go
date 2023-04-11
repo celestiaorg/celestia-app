@@ -1,12 +1,10 @@
 package app_test
 
 import (
-	"bytes"
 	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/x/blob/types"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/assert"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -16,7 +14,9 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	"github.com/celestiaorg/celestia-app/testutil/testfactory"
@@ -221,33 +221,23 @@ func TestProcessProposal(t *testing.T) {
 			name:  "invalid namespace in index wrapper tx",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				rawTx := d.Txs[0]
-				wrappedTx, isWrapped := coretypes.UnmarshalIndexWrapper(rawTx)
-				assert.True(t, isWrapped)
-
 				encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-				sdkTx, err := encCfg.TxConfig.TxDecoder()(wrappedTx.Tx)
+				blobs := blobfactory.ManyRandBlobs(t, 100)
+				assert.Len(t, blobs, 1)
+				index := 4
+				tx := blobfactory.IndexWrapperWithInvalidNamespace(t, encCfg.TxConfig.TxEncoder(), signer, 0, 0, uint32(index), blobs...)
+				d.Blobs = []tmproto.Blob{*blobs[0]}
+				d.Txs = [][]byte{tx}
+
+				// Erasure code the data to update the data root so this doesn't doesn't fail on an incorrect data root.
+				coreData, err := coretypes.DataFromProto(d)
 				assert.NoError(t, err)
-
-				msgs := sdkTx.GetMsgs()
-				assert.Len(t, msgs, 1)
-				msg := msgs[0]
-				msgPFB, ok := msg.(*blobtypes.MsgPayForBlobs)
-				assert.True(t, ok)
-				msgPFB.Namespaces[0] = bytes.Repeat([]byte{1}, 33)
-
-				// TODO replace the sdkTx message with msgPFB
-				signedTx, err := blobfactory.NewSignedTx(t, encCfg.TxConfig.TxEncoder(), msgPFB)
+				dataSquare, err := shares.Split(coreData, true)
 				assert.NoError(t, err)
-
-				newSdkTx, err := encCfg.TxConfig.TxEncoder()(signedTx)
+				eds, err := da.ExtendShares(d.SquareSize, shares.ToBytes(dataSquare))
 				assert.NoError(t, err)
-
-				newWrappedTx, err := coretypes.MarshalIndexWrapper(newSdkTx, wrappedTx.ShareIndexes...)
-				assert.NoError(t, err)
-
-				d.Txs[0] = newWrappedTx
-				assert.NotEqual(t, rawTx, newWrappedTx)
+				dah := da.NewDataAvailabilityHeader(eds)
+				d.Hash = dah.Hash()
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
