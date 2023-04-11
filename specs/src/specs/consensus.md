@@ -46,7 +46,7 @@
 | `EVIDENCE_NAMESPACE`                | `Namespace` | `0x000000000000000000000000000000000000000000000000000000000000000003` | Evidence: fraud proofs or other proof of slashable action.                                           |
 | `RESERVED_PADDING_NAMESPACE`        | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000000000000FF` | Padding after all reserved namespaces but before blobs.                                              |
 | `MAX_RESERVED_NAMESPACE`            | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000000000000FF` | Max reserved namespace is lexicographically the largest namespace that is reserved for protocol use. |
-| `TAIL_PADDING_NAMESPACE`            | `Namespace` | `0x00000000000000000000000000000000000000000000000000FFFFFFFFFFFFFFFE` | Tail padding for messages: padding after all messages to fill up the original data square.           |
+| `TAIL_PADDING_NAMESPACE`            | `Namespace` | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE` | Tail padding for messages: padding after all messages to fill up the original data square.           |
 | `PARITY_SHARE_NAMESPACE`            | `Namespace` | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF` | Parity shares: extended shares in the available data matrix.                                         |
 
 ### Rewards and Penalties

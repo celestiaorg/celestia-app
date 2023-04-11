@@ -180,9 +180,9 @@ func TestValidateBasic(t *testing.T) {
 			wantErrBool: true,
 		},
 		{
-			name:    "tail padding namespace id",
-			msg:     tailPaddingMsg,
-			wantErr: ErrTailPaddingNamespace,
+			name:        "tail padding namespace id",
+			msg:         tailPaddingMsg,
+			wantErrBool: true,
 		},
 		{
 			name:    "transaction namspace namespace id",

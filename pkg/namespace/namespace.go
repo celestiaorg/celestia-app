@@ -86,7 +86,7 @@ func (n Namespace) ValidateBlobNamespace() error {
 
 // validateVersion returns an error if the version is not supported.
 func validateVersion(version uint8) error {
-	if version != NamespaceVersionZero {
+	if version != NamespaceVersionZero && version != NamespaceVersionMax {
 		return fmt.Errorf("unsupported namespace version %v", version)
 	}
 	return nil
