@@ -491,7 +491,7 @@ However, with only the rule above, interaction between the block producer and tr
 
 In the example below, two blobs (of lengths 2 and 1, respectively) are placed using the aforementioned default non-interactive rules.
 
-![fig: Original data: blobs.](./figures/rs2d_originaldata_blob.svg)
+![fig: original data blob](./figures/rs2d_originaldata_blob.svg)
 
 The non-interactive default rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either [`TAIL_TRANSACTION_PADDING_NAMESPACE_ID`](./consensus.md#constants) if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the [rationale doc](../rationale/data_square_layout.md) for more info.
 
