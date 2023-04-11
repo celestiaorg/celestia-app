@@ -109,10 +109,10 @@ func TestProcessProposal(t *testing.T) {
 	)[0]
 	badSigPFBData.Txs = append(badSigPFBData.Txs, badSigBlobTx)
 
-	invalidNamespaceData := validData()
-	blobs := blobfactory.ManyRandBlobs(t, 100)
-	invalidNamespaceTx := blobfactory.MultiBlobTxInvalidNamespace(t, encConf.TxConfig.TxEncoder(), signer, 0, 0, blobs...)
-	invalidNamespaceData.Txs = append(invalidNamespaceData.Txs, invalidNamespaceTx)
+	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	invalidNamespace, err := appns.New(appns.NamespaceVersionZero, bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	assert.Error(t, err) // expect an error because the input is invalid: it doesn't contain the namespace version zero prefix.
+	data := bytes.Repeat([]byte{1}, 13)
 
 	type test struct {
 		name           string
@@ -120,10 +120,6 @@ func TestProcessProposal(t *testing.T) {
 		mutator        func(*core.Data)
 		expectedResult abci.ResponseProcessProposal_Result
 	}
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-	invalidNamespace, err := appns.New(appns.NamespaceVersionZero, bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-	assert.Error(t, err) // expect an error because the input is invalid: it doesn't contain the namespace version zero prefix.
-	data := bytes.Repeat([]byte{1}, 13)
 
 	tests := []test{
 		{
