@@ -111,7 +111,8 @@ func TestProcessProposal(t *testing.T) {
 
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 	invalidNamespace, err := appns.New(appns.NamespaceVersionZero, bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-	assert.Error(t, err) // expect an error because the input is invalid: it doesn't contain the namespace version zero prefix.
+	// expect an error because the input is invalid: it doesn't contain the namespace version zero prefix.
+	assert.Error(t, err)
 	data := bytes.Repeat([]byte{1}, 13)
 
 	type test struct {
