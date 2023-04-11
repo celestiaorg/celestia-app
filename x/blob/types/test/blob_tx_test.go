@@ -68,7 +68,7 @@ func TestValidateBlobTx(t *testing.T) {
 			name: "invalid transaction, no pfb",
 			getTx: func() tmproto.BlobTx {
 				sendTx := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, 1)
-				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100))
+				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				return tmproto.BlobTx{
 					Tx:    sendTx[0],
@@ -82,7 +82,7 @@ func TestValidateBlobTx(t *testing.T) {
 			getTx: func() tmproto.BlobTx {
 				rawBtx := validRawBtx()
 				btx, _ := coretypes.UnmarshalBlobTx(rawBtx)
-				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100))
+				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				btx.Blobs = append(btx.Blobs, blob)
 				return btx
@@ -92,7 +92,7 @@ func TestValidateBlobTx(t *testing.T) {
 		{
 			name: "invalid share commitment",
 			getTx: func() tmproto.BlobTx {
-				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100))
+				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				msg, err := types.NewMsgPayForBlobs(
 					signerAddr.String(),

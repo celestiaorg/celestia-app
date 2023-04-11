@@ -112,7 +112,7 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 	signer.SetAccountNumber(acc)
 	signer.SetSequence(seq)
 
-	blob, err := types.NewBlob(ns, blobData)
+	blob, err := types.NewBlob(ns, blobData, appconsts.ShareVersionZero)
 	if err != nil {
 		return nil, err
 	}
