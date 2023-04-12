@@ -2,6 +2,7 @@ package testfactory
 
 import (
 	"bytes"
+	"encoding/binary"
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -56,4 +57,24 @@ func GenerateRandomBlob(dataSize int) types.Blob {
 		ShareVersion:     appconsts.ShareVersionZero,
 	}
 	return blob
+}
+
+// GenerateRandomBlobOfShareCount returns a blob that spans the given
+// number of shares
+func GenerateRandomBlobOfShareCount(count int) types.Blob {
+	size := rawBlobSize(appconsts.FirstSparseShareContentSize * count)
+	return GenerateRandomBlob(size)
+}
+
+// rawBlobSize returns the raw blob size that can be used to construct a
+// blob of totalSize bytes. This function is useful in tests to account for
+// the delimiter length that is prefixed to a blob's data.
+func rawBlobSize(totalSize int) int {
+	return totalSize - DelimLen(uint64(totalSize))
+}
+
+// DelimLen calculates the length of the delimiter for a given unit size
+func DelimLen(size uint64) int {
+	lenBuf := make([]byte, binary.MaxVarintLen64)
+	return binary.PutUvarint(lenBuf, size)
 }
