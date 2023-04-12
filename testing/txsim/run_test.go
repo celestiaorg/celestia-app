@@ -1,3 +1,7 @@
+//go:build !race
+
+// known race in testnode
+// ref: https://github.com/celestiaorg/celestia-app/issues/1369
 package txsim_test
 
 import (
