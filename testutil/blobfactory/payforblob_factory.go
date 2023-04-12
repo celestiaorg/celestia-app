@@ -311,11 +311,13 @@ func ManyBlobs(t *testing.T, namespaces []appns.Namespace, sizes []int) []*tmpro
 
 func NestedBlobs(t *testing.T, namespaces []appns.Namespace, sizes [][]int) [][]*tmproto.Blob {
 	blobs := make([][]*tmproto.Blob, len(sizes))
+	counter := 0
 	for i, set := range sizes {
 		for _, size := range set {
-			blob, err := blobtypes.NewBlob(namespaces[i], tmrand.Bytes(size), appconsts.ShareVersionZero)
+			blob, err := blobtypes.NewBlob(namespaces[counter], tmrand.Bytes(size), appconsts.ShareVersionZero)
 			require.NoError(t, err)
 			blobs[i] = append(blobs[i], blob)
+			counter++
 		}
 	}
 	return blobs
