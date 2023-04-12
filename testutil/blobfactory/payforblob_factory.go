@@ -376,9 +376,9 @@ func MultiBlobTx(
 	return cTx
 }
 
-// IndexWrapperWithInvalidNamespace returns an index wrapped PFB tx with an
+// IndexWrappedTxWithInvalidNamespace returns an index wrapped PFB tx with an
 // invalid namespace and a blob associated with that index wrapped PFB tx.
-func IndexWrapperWithInvalidNamespace(
+func IndexWrappedTxWithInvalidNamespace(
 	t *testing.T,
 	enc sdk.TxEncoder,
 	signer *blobtypes.KeyringSigner,

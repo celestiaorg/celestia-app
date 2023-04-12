@@ -224,7 +224,7 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *core.Data) {
 				encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 				index := 4
-				tx, blob := blobfactory.IndexWrapperWithInvalidNamespace(t, encCfg.TxConfig.TxEncoder(), signer, 0, 0, uint32(index))
+				tx, blob := blobfactory.IndexWrappedTxWithInvalidNamespace(t, encCfg.TxConfig.TxEncoder(), signer, 0, 0, uint32(index))
 
 				// Replace the data with new contents
 				d.Blobs = []tmproto.Blob{blob}
