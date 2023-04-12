@@ -30,7 +30,7 @@ func Run(
 	pollTime time.Duration,
 	sequences ...Sequence,
 ) error {
-	rand := rand.New(rand.NewSource(seed))
+	r := rand.New(rand.NewSource(seed))
 
 	txClient, err := NewTxClient(ctx, encoding.MakeConfig(app.ModuleEncodingRegisters...), pollTime, rpcEndpoints)
 	if err != nil {
@@ -41,6 +41,7 @@ func Run(
 	if err != nil {
 		return err
 	}
+	defer queryClient.Close()
 
 	// Create the account manager to handle account transactions.
 	manager, err := NewAccountManager(ctx, keys, txClient, queryClient)
@@ -50,7 +51,7 @@ func Run(
 
 	// Initiaize each of the sequences by allowing them to allocate accounts.
 	for _, sequence := range sequences {
-		sequence.Init(ctx, manager.query.Conn(), manager.AllocateAccounts, rand)
+		sequence.Init(ctx, manager.query.Conn(), manager.AllocateAccounts, r)
 	}
 
 	// Generate the allotted accounts on chain by sending them sufficient funds
@@ -64,10 +65,11 @@ func Run(
 	for idx, sequence := range sequences {
 		go func(seqID int, sequence Sequence, errCh chan<- error) {
 			opNum := 0
+			r := rand.New(rand.NewSource(seed))
 			// each sequence loops through the next set of operations, the new messages are then
 			// submitted on chain
 			for {
-				ops, err := sequence.Next(ctx, manager.query.Conn(), rand)
+				ops, err := sequence.Next(ctx, manager.query.Conn(), r)
 				if err != nil {
 					errCh <- fmt.Errorf("sequence %d: %w", seqID, err)
 					return

@@ -72,10 +72,7 @@ func TestTxSimulator(t *testing.T) {
 			},
 		},
 	}
-	for idx, tc := range testCases {
-		if idx != 4 {
-			continue
-		}
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()

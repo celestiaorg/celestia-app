@@ -229,7 +229,9 @@ func (tc *TxClient) next() {
 
 type QueryClient struct {
 	connections []*grpc.ClientConn
-	sequence    int
+
+	mtx      sync.Mutex
+	sequence int
 }
 
 func NewQueryClient(grpcEndpoints []string) (*QueryClient, error) {
@@ -252,18 +254,18 @@ func (qc *QueryClient) next() {
 }
 
 func (qc *QueryClient) Conn() protogrpc.ClientConn {
+	qc.mtx.Lock()
+	defer qc.mtx.Unlock()
 	defer qc.next()
 	return qc.connections[qc.sequence]
 }
 
 func (qc *QueryClient) Bank() bank.QueryClient {
-	defer qc.next()
-	return bank.NewQueryClient(qc.connections[qc.sequence])
+	return bank.NewQueryClient(qc.Conn())
 }
 
 func (qc *QueryClient) Auth() auth.QueryClient {
-	defer qc.next()
-	return auth.NewQueryClient(qc.connections[qc.sequence])
+	return auth.NewQueryClient(qc.Conn())
 }
 
 func (qc *QueryClient) Close() error {
