@@ -82,6 +82,7 @@ const (
 	// size for that block. Having a value that is larger than the square is
 	// simply wasteful in that the proofs for large blobs are unnecessarily
 	// large.
+	// ADR013 https://github.com/celestiaorg/celestia-app/blob/e905143e8fe138ce6085ae9a5c1af950a2d87638/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md //nolint: lll
 	SubtreeRootSizeThreshold = DefaultMaxSquareSize
 
 	// MaxShareVersion is the maximum value a share version can be.

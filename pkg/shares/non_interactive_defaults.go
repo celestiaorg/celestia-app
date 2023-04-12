@@ -83,10 +83,11 @@ func roundUpBy(cursor, v int) int {
 	}
 }
 
-// SubTreeWidth determines how many shares should be included when creating
-// subtree. This is used for determining which subtree roots are used in the
-// share commitment for PFBs, and therefore also the padding between blobs. The
-// reasoning behind this algorithm is discussed in depth in ADR013.
+// SubTreeWidth determines the number of leaves per subtree in the share
+// commitment over a given blob. The input should be the total number of shares
+// used by that blob. The reasoning behind this algorithm is discussed in depth
+// in ADR013
+// (celestia-app/docs/architecture/adr-013-non-interative-default-rules-for-zero-padding).
 func SubTreeWidth(shareCount int) int {
 	// per ADR013, we use a predetermined threshold to determine width of sub
 	// trees used to create share commitments
