@@ -57,8 +57,8 @@ func TestTxSimulator(t *testing.T) {
 		{
 			name: "multi blob sequence",
 			sequences: txsim.NewBlobSequence(
-				txsim.NewRange(100, 1000),
-				txsim.NewRange(1, 3),
+				txsim.NewRange(1000, 1000),
+				txsim.NewRange(1, 1),
 			).Clone(4),
 			expMessages: map[string]int64{sdk.MsgTypeURL(&blob.MsgPayForBlobs{}): 20},
 		},
@@ -67,7 +67,7 @@ func TestTxSimulator(t *testing.T) {
 			sequences: append(append(
 				txsim.NewSendSequence(2, 1000).Clone(3),
 				txsim.NewStakeSequence(1000).Clone(3)...),
-				txsim.NewBlobSequence(txsim.NewRange(100, 400), txsim.NewRange(1, 4)).Clone(2)...),
+				txsim.NewBlobSequence(txsim.NewRange(1000, 1000), txsim.NewRange(1, 1)).Clone(3)...),
 			expMessages: map[string]int64{
 				sdk.MsgTypeURL(&bank.MsgSend{}):                            15,
 				sdk.MsgTypeURL(&staking.MsgDelegate{}):                     2,
@@ -115,7 +115,7 @@ func TestTxSimulator(t *testing.T) {
 	}
 }
 
-func Setup(t *testing.T) (keyring.Keyring, string, string) {
+func Setup(t testing.TB) (keyring.Keyring, string, string) {
 	t.Helper()
 	genesis, keyring, err := testnode.DefaultGenesisState()
 	require.NoError(t, err)

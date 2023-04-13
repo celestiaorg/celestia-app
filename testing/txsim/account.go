@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -26,7 +25,6 @@ const (
 )
 
 type AccountManager struct {
-	mtx           sync.Mutex
 	keys          keyring.Keyring
 	masterAccount *Account
 	accounts      map[string]*Account
@@ -281,8 +279,6 @@ func (am *AccountManager) setupAccountMsgs(account *Account) ([]types.Msg, error
 }
 
 func (am *AccountManager) signTransaction(builder client.TxBuilder) error {
-	am.mtx.Lock()
-	defer am.mtx.Unlock()
 	signers := builder.GetTx().GetSigners()
 	for _, signer := range signers {
 		_, ok := am.accounts[signer.String()]

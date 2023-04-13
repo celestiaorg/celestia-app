@@ -29,15 +29,17 @@ const (
 
 var errTimedOutWaitingForTx = errors.New("timed out waiting for tx to be committed (1 minute)")
 
-// TxClient is a client for submitting transactions to one of several nodes.
+// TxClient is a client for submitting transactions to one of several nodes. It uses a round-robin
+// algorithm for multiplexing requests across multiple clients.
 type TxClient struct {
 	rpcClients []*http.HTTP
 	encCfg     encoding.Config
 	chainID    string
 	pollTime   time.Duration
 
-	mtx         sync.Mutex
-	sequence    int
+	mtx sync.Mutex
+	// index indicates which client to use next
+	index       int
 	height      int64
 	lastUpdated time.Time
 }
@@ -190,7 +192,7 @@ func (tc *TxClient) Client() *http.HTTP {
 	tc.mtx.Lock()
 	defer tc.mtx.Unlock()
 	defer tc.next()
-	return tc.rpcClients[tc.sequence]
+	return tc.rpcClients[tc.index]
 }
 
 // Broadcast encodes and broadcasts a transaction to the network. If CheckTx fails,
@@ -223,15 +225,18 @@ func (tc *TxClient) Broadcast(ctx context.Context, txBuilder sdkclient.TxBuilder
 	return tc.WaitForTx(ctx, resp.Hash)
 }
 
+// next iterates the index of the RPC clients. It is not thread safe and should be called within a mutex.
 func (tc *TxClient) next() {
-	tc.sequence = (tc.sequence + 1) % len(tc.rpcClients)
+	tc.index = (tc.index + 1) % len(tc.rpcClients)
 }
 
+// QueryClient multiplexes requests across multiple running gRPC connections. It does this in a round-robin fashion.
 type QueryClient struct {
 	connections []*grpc.ClientConn
 
-	mtx      sync.Mutex
-	sequence int
+	mtx sync.Mutex
+	// index indicates which client to be used next
+	index int
 }
 
 func NewQueryClient(grpcEndpoints []string) (*QueryClient, error) {
@@ -249,15 +254,16 @@ func NewQueryClient(grpcEndpoints []string) (*QueryClient, error) {
 	}, nil
 }
 
+// next iterates the index of the RPC clients. It is not thread safe and should be called within a mutex.
 func (qc *QueryClient) next() {
-	qc.sequence = (qc.sequence + 1) % len(qc.connections)
+	qc.index = (qc.index + 1) % len(qc.connections)
 }
 
 func (qc *QueryClient) Conn() protogrpc.ClientConn {
 	qc.mtx.Lock()
 	defer qc.mtx.Unlock()
 	defer qc.next()
-	return qc.connections[qc.sequence]
+	return qc.connections[qc.index]
 }
 
 func (qc *QueryClient) Bank() bank.QueryClient {

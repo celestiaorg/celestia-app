@@ -41,7 +41,7 @@ import (
 // NOTE: the forced delay between blocks, TimeIotaMs in the consensus
 // parameters, is set to the lowest possible value (1ms).
 func New(
-	t *testing.T,
+	t testing.TB,
 	cparams *tmproto.ConsensusParams,
 	tmCfg *config.Config,
 	supressLog bool,
