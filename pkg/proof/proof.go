@@ -136,7 +136,11 @@ func NewShareInclusionProof(
 	// get the extended rows containing the shares.
 	rows := make([][]shares.Share, endRow-startRow+1)
 	for i := startRow; i <= endRow; i++ {
-		rows[i-startRow] = shares.FromBytes(eds.Row(uint(i)))
+		shares, err := shares.FromBytes(eds.Row(uint(i)))
+		if err != nil {
+			return types.ShareProof{}, err
+		}
+		rows[i-startRow] = shares
 	}
 
 	var shareProofs []*tmproto.NMTProof //nolint:prealloc
