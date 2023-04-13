@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -20,17 +21,23 @@ import (
 )
 
 const (
+	// set default gas limit to cover the costs of most transactions
+	// At 0.001 utia per gas, this equates to 1000utia per transaction
+	// In the future we may want to give some access to the sequence itself
 	gasLimit  = 1000000
 	feeAmount = 1000
 )
 
 type AccountManager struct {
-	keys          keyring.Keyring
+	keys    keyring.Keyring
+	tx      *TxClient
+	query   *QueryClient
+	pending []*Account
+
+	// to protect from concurrent writes to the map
+	mtx           sync.Mutex
 	masterAccount *Account
 	accounts      map[string]*Account
-	pending       []*Account
-	tx            *TxClient
-	query         *QueryClient
 }
 
 type Account struct {
@@ -76,6 +83,9 @@ func NewAccountManager(ctx context.Context, keys keyring.Keyring, txClient *TxCl
 // the highest balance as the master account. Accounts that don't yet exist on chain are
 // ignored.
 func (am *AccountManager) setupMasterAccount(ctx context.Context) error {
+	am.mtx.Lock()
+	defer am.mtx.Unlock()
+
 	records, err := am.keys.List()
 	if err != nil {
 		return err
@@ -158,6 +168,7 @@ func (am *AccountManager) AllocateAccounts(n, balance int) []types.AccAddress {
 	return addresses
 }
 
+// Submit executes on an operation. This is thread safe.
 func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	for _, msg := range op.Msgs {
 		if err := msg.ValidateBasic(); err != nil {
@@ -196,16 +207,14 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 
 	signers := builder.GetTx().GetSigners()
 
+	// increment the sequence number for all the signers
+	am.incrementSignerSequences(signers)
+
 	log.Info().
 		Int64("height", resp.Height).
 		Str("signers", addrsToString(signers)).
 		Str("msgs", msgsToString(op.Msgs)).
 		Msg("tx committed")
-
-	// increment the sequence number for all the signers
-	for _, signer := range signers {
-		am.accounts[signer.String()].Sequence++
-	}
 
 	return nil
 }
@@ -372,15 +381,20 @@ func (am *AccountManager) createSignature(account *Account, builder client.TxBui
 }
 
 func (am *AccountManager) updateAccount(ctx context.Context, account *Account) error {
-	var err error
-	account.Balance, err = am.getBalance(ctx, account.Address)
+	newBalance, err := am.getBalance(ctx, account.Address)
 	if err != nil {
 		return fmt.Errorf("getting account balance: %w", err)
 	}
-	account.AccountNumber, account.Sequence, err = am.getAccountDetails(ctx, account.Address)
+	newAccountNumber, newSequence, err := am.getAccountDetails(ctx, account.Address)
 	if err != nil {
 		return fmt.Errorf("getting account details: %w", err)
 	}
+
+	am.mtx.Lock()
+	defer am.mtx.Unlock()
+	account.Balance = newBalance
+	account.AccountNumber = newAccountNumber
+	account.Sequence = newSequence
 	return nil
 }
 
@@ -412,6 +426,14 @@ func (am *AccountManager) getAccountDetails(ctx context.Context, address types.A
 	}
 
 	return acc.GetAccountNumber(), acc.GetSequence(), nil
+}
+
+func (am *AccountManager) incrementSignerSequences(signers []types.AccAddress) {
+	am.mtx.Lock()
+	defer am.mtx.Unlock()
+	for _, signer := range signers {
+		am.accounts[signer.String()].Sequence++
+	}
 }
 
 func (am *AccountManager) nextAccountName() string {
