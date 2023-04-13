@@ -1,6 +1,8 @@
 package shares
 
 import (
+	"math"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
 
@@ -83,6 +85,12 @@ func roundUpBy(cursor, v int) int {
 	}
 }
 
+// BlobMinSquareSize returns the minimum square size that can contain shareCount
+// number of shares.
+func BlobMinSquareSize(shareCount int) int {
+	return RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(shareCount)))))
+}
+
 // SubTreeWidth determines the number of leaves per subtree in the share
 // commitment over a given blob. The input should be the total number of shares
 // used by that blob. The reasoning behind this algorithm is discussed in depth
@@ -108,7 +116,16 @@ func SubTreeWidth(shareCount int) int {
 		return appconsts.DefaultMinSquareSize
 	}
 
-	return s
+	// return the minimum of the subtree width and the min square size, this
+	// gurarantees that a valid value is returned
+	return min(s, BlobMinSquareSize(shareCount))
+}
+
+func min(i, j int) int {
+	if i < j {
+		return i
+	}
+	return j
 }
 
 // isStartOfRow returns true if cursor is at the start of a row

@@ -369,6 +369,53 @@ func Test_roundUpBy(t *testing.T) {
 	}
 }
 
+func TestMinSquareSize(t *testing.T) {
+	type testCase struct {
+		shareCount int
+		want       int
+	}
+	testCases := []testCase{
+		{
+			shareCount: 0,
+			want:       1,
+		},
+		{
+			shareCount: 1,
+			want:       1,
+		},
+		{
+			shareCount: 2,
+			want:       2,
+		},
+		{
+			shareCount: 3,
+			want:       2,
+		},
+		{
+			shareCount: 4,
+			want:       2,
+		},
+		{
+			shareCount: 5,
+			want:       4,
+		},
+		{
+			shareCount: 16,
+			want:       4,
+		},
+		{
+			shareCount: 17,
+			want:       8,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("shareCount %d", tc.shareCount), func(t *testing.T) {
+			got := BlobMinSquareSize(tc.shareCount)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 func TestSubTreeWidth(t *testing.T) {
 	type testCase struct {
 		shareCount int
