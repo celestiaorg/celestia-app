@@ -35,7 +35,7 @@ To that end, we impose some additional rules onto _blobs only_: blobs must be pl
 
 Specifically, blobs must begin at a new share. We note a nice property from this rule: if the transaction sender knows 1) `k`, the size of the matrix, 2) the starting location of their blob in a row, and 3) the length of the blob (they know this since they are sending the blob), then they can actually compute a sequence of roots to _subtrees in the row NMTs_. More importantly, anyone can compute this, and can compute _the simple Merkle root of these subtree roots_.
 
-This, however, requires the block producer to interact with the transaction sender to provide them the starting location of their blob. This can be done selectively, but is not ideal as a default for e.g. end-user wallets.
+This, however, requires the block producer to interact with the transaction sender to provide them the starting location of their blob, so that the sender can sign over the commitment based on that starting location. This can be done selectively, but is not ideal as a default for e.g. end-user wallets.
 
 ### Non-Interactive Default Rules
 
