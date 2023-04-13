@@ -10,7 +10,6 @@
 
 | name                        | type                        |
 |-----------------------------|-----------------------------|
-| [`Address`](#address)       | `byte[32]`                  |
 | `Amount`                    | `uint64`                    |
 | `Graffiti`                  | `byte[MAX_GRAFFITI_BYTES]`  |
 | [`HashDigest`](#hashdigest) | `byte[32]`                  |
@@ -111,11 +110,11 @@ Abstraction over transaction fees.
 
 ### Address
 
-Address is a [type alias](#type-aliases).
+Celestia supports [secp256k1](https://en.bitcoin.it/wiki/Secp256k1) keys where [addresses](https://docs.cosmos.network/v0.46/basics/accounts.html#addresses) are 20 bytes in length.
 
-Addresses are the [hash](#hashing) [digest](#hashdigest) of the [public key](https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys).
-
-Addresses have a length of 32 bytes.
+| name         | type       | description                                                             |
+|--------------|------------|-------------------------------------------------------------------------|
+| `AccAddress` | `[20]byte` | AccAddress a wrapper around bytes meant to represent an account address |
 
 ### CommitSig
 
@@ -136,12 +135,10 @@ enum CommitFlag : uint8_t {
 
 ### Signature
 
-| name | type       | description                                                          |
-|------|------------|----------------------------------------------------------------------|
-| `r`  | `byte[32]` | `r` value of the signature.                                          |
-| `vs` | `byte[32]` | 1-bit `v` value followed by last 255 bits of `s` value of signature. |
-
-Output of the [signing](#public-key-cryptography) process.
+| name | type       | description                 |
+|------|------------|-----------------------------|
+| `r`  | `byte[32]` | `r` value of the signature. |
+| `s`  | `byte[32]` | `s` value of signature.     |
 
 ### Namespace
 
@@ -187,28 +184,6 @@ All protocol-level hashing is done using SHA-2-256 as defined in [FIPS 180-4](ht
 Libraries implementing SHA-2-256 are available in Go (<https://pkg.go.dev/crypto/sha256>) and Rust (<https://docs.rs/sha2>).
 
 Unless otherwise indicated explicitly, objects are first [serialized](#serialization) before being hashed.
-
-## Public-Key Cryptography
-
-Consensus-critical data is authenticated using [ECDSA](https://www.secg.org/sec1-v2.pdf), with the curve [secp256k1](https://en.bitcoin.it/wiki/Secp256k1). A highly-optimized library is available in C (<https://github.com/bitcoin-core/secp256k1>), with wrappers in Go (<https://pkg.go.dev/github.com/ethereum/go-ethereum/crypto/secp256k1>) and Rust (<https://docs.rs/crate/secp256k1>).
-
-[Public keys](https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys) are encoded in uncompressed form, as the concatenation of the `x` and `y` values. No prefix is needed to distinguish between encoding schemes as this is the only encoding supported.
-
-Deterministic signatures ([RFC-6979](https://tools.ietf.org/rfc/rfc6979.txt)) should be used when signing, but this is not enforced at the protocol level as it cannot be.
-
-[Signatures](#signature) are represented as the `r` and `s` (each 32 bytes), and `v` (1-bit) values of the signature. `r` and `s` take on their usual meaning (see: [SEC 1, 4.1.3 Signing Operation](https://www.secg.org/sec1-v2.pdf)), while `v` is used for recovering the public key from a signature more quickly (see: [SEC 1, 4.1.6 Public Key Recovery Operation](https://www.secg.org/sec1-v2.pdf)). Only low-`s` values in signatures are valid (i.e. `s <= secp256k1.n//2`); `s` can be replaced with `-s mod secp256k1.n` during the signing process if it is high. Given this, the first bit of `s` will always be `0`, and can be used to store the 1-bit `v` value.
-
-`v` represents the parity of the `Y` component of the point, `0` for even and `1` for odd. The `X` component of the point is assumed to always be low, since [the possibility of it being high is negligible](https://bitcoin.stackexchange.com/a/38909).
-
-Putting it all together, the encoding for signatures is:
-
-<!-- markdownlint-disable-next-line MD040 -->
-```
-|    32 bytes   ||           32 bytes           |
-[256-bit r value][1-bit v value][255-bit s value]
-```
-
-This encoding scheme is derived from [EIP 2098: Compact Signature Representation](https://eips.ethereum.org/EIPS/eip-2098).
 
 ## Merkle Trees
 
