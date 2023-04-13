@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"golang.org/x/exp/constraints"
 )
 
 // FitsInSquare uses the non interactive default rules to see if blobs of
@@ -99,10 +100,10 @@ func BlobMinSquareSize(shareCount int) int {
 func SubTreeWidth(shareCount int) int {
 	// per ADR013, we use a predetermined threshold to determine width of sub
 	// trees used to create share commitments
-	s := (shareCount / appconsts.SubtreeRootSizeThreshold)
+	s := (shareCount / appconsts.SubtreeRootThreshold)
 
 	// round up if the width is not an exact multiple of the threshold
-	if shareCount%appconsts.SubtreeRootSizeThreshold != 0 {
+	if shareCount%appconsts.SubtreeRootThreshold != 0 {
 		s++
 	}
 
@@ -110,19 +111,24 @@ func SubTreeWidth(shareCount int) int {
 	// root threshold
 	s = RoundUpPowerOfTwo(s)
 
+	// use the minimum of the subtree width and the min square size, this
+	// gurarantees that a valid value is returned
+	s = min(s, BlobMinSquareSize(shareCount))
+
 	// using a value below the min square size is wasteful, see ADR013 for more
 	// details
-	if s < appconsts.DefaultMinSquareSize {
-		return appconsts.DefaultMinSquareSize
-	}
-
-	// return the minimum of the subtree width and the min square size, this
-	// gurarantees that a valid value is returned
-	return min(s, BlobMinSquareSize(shareCount))
+	return max(s, appconsts.DefaultMinSquareSize)
 }
 
-func min(i, j int) int {
+func min[T constraints.Integer](i, j T) T {
 	if i < j {
+		return i
+	}
+	return j
+}
+
+func max[T constraints.Integer](i, j T) T {
+	if i > j {
 		return i
 	}
 	return j

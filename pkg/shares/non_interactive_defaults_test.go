@@ -243,15 +243,15 @@ func TestNextShareIndex(t *testing.T) {
 		{
 			name:          "at threshold",
 			cursor:        11,
-			blobLen:       appconsts.SubtreeRootSizeThreshold,
-			squareSize:    RoundUpPowerOfTwo(appconsts.SubtreeRootSizeThreshold),
+			blobLen:       appconsts.SubtreeRootThreshold,
+			squareSize:    RoundUpPowerOfTwo(appconsts.SubtreeRootThreshold),
 			fits:          false,
 			expectedIndex: 11,
 		},
 		{
 			name:          "one over the threshold",
 			cursor:        11,
-			blobLen:       appconsts.SubtreeRootSizeThreshold + 1,
+			blobLen:       appconsts.SubtreeRootThreshold + 1,
 			squareSize:    128,
 			fits:          false,
 			expectedIndex: 12,
@@ -259,7 +259,7 @@ func TestNextShareIndex(t *testing.T) {
 		{
 			name:          "one under the threshold",
 			cursor:        11,
-			blobLen:       appconsts.SubtreeRootSizeThreshold - 1,
+			blobLen:       appconsts.SubtreeRootThreshold - 1,
 			squareSize:    128,
 			fits:          false,
 			expectedIndex: 11,
@@ -267,7 +267,7 @@ func TestNextShareIndex(t *testing.T) {
 		{
 			name:          "one under the threshold small square size",
 			cursor:        1,
-			blobLen:       appconsts.SubtreeRootSizeThreshold - 1,
+			blobLen:       appconsts.SubtreeRootThreshold - 1,
 			squareSize:    16,
 			fits:          false,
 			expectedIndex: 1,
@@ -435,39 +435,39 @@ func TestSubTreeWidth(t *testing.T) {
 			want:       1,
 		},
 		{
-			shareCount: appconsts.SubtreeRootSizeThreshold,
+			shareCount: appconsts.SubtreeRootThreshold,
 			want:       1,
 		},
 		{
-			shareCount: appconsts.SubtreeRootSizeThreshold + 1,
+			shareCount: appconsts.SubtreeRootThreshold + 1,
 			want:       2,
 		},
 		{
-			shareCount: appconsts.SubtreeRootSizeThreshold - 1,
+			shareCount: appconsts.SubtreeRootThreshold - 1,
 			want:       1,
 		},
 		{
-			shareCount: appconsts.SubtreeRootSizeThreshold * 2,
+			shareCount: appconsts.SubtreeRootThreshold * 2,
 			want:       2,
 		},
 		{
-			shareCount: (appconsts.SubtreeRootSizeThreshold * 2) + 1,
+			shareCount: (appconsts.SubtreeRootThreshold * 2) + 1,
 			want:       4,
 		},
 		{
-			shareCount: (appconsts.SubtreeRootSizeThreshold * 3) - 1,
+			shareCount: (appconsts.SubtreeRootThreshold * 3) - 1,
 			want:       4,
 		},
 		{
-			shareCount: (appconsts.SubtreeRootSizeThreshold * 4),
+			shareCount: (appconsts.SubtreeRootThreshold * 4),
 			want:       4,
 		},
 		{
-			shareCount: (appconsts.SubtreeRootSizeThreshold * 5),
+			shareCount: (appconsts.SubtreeRootThreshold * 5),
 			want:       8,
 		},
 		{
-			shareCount: (appconsts.SubtreeRootSizeThreshold * appconsts.DefaultMaxSquareSize) - 1,
+			shareCount: (appconsts.SubtreeRootThreshold * appconsts.DefaultMaxSquareSize) - 1,
 			want:       128,
 		},
 	}

@@ -423,7 +423,7 @@ func Test_calculateCommitPaths(t *testing.T) {
 			[]int{31},
 		},
 		{
-			"the 32nd path for the largest blob with a subtree width of 1", 128, 0, appconsts.SubtreeRootSizeThreshold,
+			"the 32nd path for the largest blob with a subtree width of 1", 128, 0, appconsts.SubtreeRootThreshold,
 			[]path{
 				{
 					row:          0,
@@ -433,7 +433,7 @@ func Test_calculateCommitPaths(t *testing.T) {
 			[]int{31},
 		},
 		{
-			"the 32nd and last path for the smallest blob with a subtree width of 2", 128, 0, appconsts.SubtreeRootSizeThreshold + 1,
+			"the 32nd and last path for the smallest blob with a subtree width of 2", 128, 0, appconsts.SubtreeRootThreshold + 1,
 			[]path{
 				{
 					row:          0,
