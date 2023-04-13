@@ -44,7 +44,7 @@ As a non-consensus-critical default, we can impose one additional rule on blob p
 > Blobs start at an index that is a multiple of the blob minimum square size. The blob minimum square size is the smallest square that can contain the blob in isolation (i.e. a square with only this blob and no other transactions or blobs).
 
 In the constraint mentioned above, the number of rows/columns in the minimum square size should be a power of 2.
-With the above constraint, we can compute subtree roots deterministically. In order to compute the subtree roots, split the blob into chunks that are of maximum size: blob minimum square size. As an example, a blob of length `11` has a minimum square size of `4` because `11` is not greater than `4 * 4 = 16` total shares. Split the blob into chunks of length `4, 4, 2, 1`. The resulting slices are the leaves of subtrees whose roots can be computed. These subtree roots will be present as internal nodes in the NMT of _some_ row(s).
+With the above constraint, we can compute subtree roots deterministically. In order to compute the subtree roots, split the blob into chunks that are of maximum size: blob minimum square size. As an example, a blob of length `11` has a minimum square size of `4` because `11` is not greater than `4 * 4 = 16` total shares. Split the blob into chunks of length `4, 4, 2, 1` because each chunk must be a power of `2`. The resulting slices are the leaves of subtrees whose roots can be computed. These subtree roots will be present as internal nodes in the NMT of _some_ row(s).
 
 This is similar to [Merkle Mountain Ranges](https://www.usenix.org/legacy/event/sec09/tech/full_papers/crosby.pdf), though with the largest subtree bounded by the blob minimum square size rather than being unbounded.
 
