@@ -162,7 +162,7 @@
 <p>To that end, we impose some additional rules onto <em>blobs only</em>: blobs must be placed is a way such that both the transaction sender and the block producer can be held accountable—a necessary property for e.g. fee burning. Accountable in this context means that</p>
 <ol>
 <li>The transaction sender must pay sufficient fees for blob inclusion.</li>
-<li>The block proposer cannot claim that a blob was included when it was not (which implies that a transaction and the blob it pays for must be included in the same block).</li>
+<li>The block proposer cannot claim that a blob was included when it was not (which implies that a transaction and the blob it pays for must be included in the same block). In addition all blobs must be accompanied by a PayForBlob transaction.</li>
 </ol>
 <p>Specifically, blobs must begin at a new share, unlike non-blob data which can span multiple shares. We note a nice property from this rule: if the transaction sender knows 1) <code>k</code>, the size of the matrix, 2) the starting location of their blob in a row, and 3) the length of the blob (they know this since they are sending the blob), then they can actually compute a sequence of roots to <em>subtrees in the row NMTs</em>. More importantly, anyone can compute this, and can compute <em>the simple Merkle root of these subtree roots</em>.</p>
 <p>This, however, requires the block producer to interact with the transaction sender to provide them the starting location of their blob. This can be done selectively, but is not ideal as a default for e.g. end-user wallets.</p>
