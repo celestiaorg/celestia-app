@@ -48,7 +48,7 @@ With the above constraint, we can compute subtree roots deterministically. In or
 
 This is similar to [Merkle Mountain Ranges](https://www.usenix.org/legacy/event/sec09/tech/full_papers/crosby.pdf), though with the largest subtree bounded by the blob minimum square size rather than being unbounded.
 
-The last piece of the puzzle is determining _which_ row the blob is placed at (or, more specifically, the starting location). This is needed to keep the block producer accountable. To this end, the block producer simply augments each fee-paying transaction with some metadata: the starting location of the blob the transaction pays for.
+The last piece of the puzzle is determining _which_ row the blob is placed at (or, more specifically, the starting location). This is needed to keep the block producer accountable. To this end, the block producer simply augments each fee-paying transaction with the starting locations of the blobs the transaction pays for.
 
 ### Caveats
 
