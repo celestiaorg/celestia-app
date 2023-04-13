@@ -6,6 +6,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -30,6 +31,7 @@ func TestProcessProposal(t *testing.T) {
 	accounts := testfactory.GenerateAccounts(6)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
+	signer := types.GenerateKeyringSigner(t, accounts[0])
 
 	// create 3 single blob blobTxs that are signed with valid account numbers
 	// and sequences
@@ -107,17 +109,18 @@ func TestProcessProposal(t *testing.T) {
 	)[0]
 	badSigPFBData.Txs = append(badSigPFBData.Txs, badSigBlobTx)
 
+	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	invalidNamespace, err := appns.New(appns.NamespaceVersionZero, bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	// expect an error because the input is invalid: it doesn't contain the namespace version zero prefix.
+	assert.Error(t, err)
+	data := bytes.Repeat([]byte{1}, 13)
+
 	type test struct {
 		name           string
 		input          *core.Data
 		mutator        func(*core.Data)
 		expectedResult abci.ResponseProcessProposal_Result
 	}
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-	// explicitly ignore the error from appns.New because we know the input is
-	// invalid because it doesn't contain the namespace verzion zero prefix
-	invalidNamespace, _ := appns.New(appns.NamespaceVersionZero, bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-	data := []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 
 	tests := []test{
 		{
@@ -203,15 +206,39 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "invalid namespace",
+			name:  "invalid blob namespace",
 			input: validData(),
 			mutator: func(d *core.Data) {
 				d.Blobs[0] = core.Blob{
 					NamespaceId:      invalidNamespace.ID,
 					Data:             data,
-					NamespaceVersion: uint32(invalidNamespace.Version),
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
+					NamespaceVersion: uint32(invalidNamespace.Version),
 				}
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "invalid namespace in index wrapper tx",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+				index := 4
+				tx, blob := blobfactory.IndexWrappedTxWithInvalidNamespace(t, encCfg.TxConfig.TxEncoder(), signer, 0, 0, uint32(index))
+
+				// Replace the data with new contents
+				d.Blobs = []tmproto.Blob{blob}
+				d.Txs = [][]byte{tx}
+
+				// Erasure code the data to update the data root so this doesn't doesn't fail on an incorrect data root.
+				coreData, err := coretypes.DataFromProto(d)
+				assert.NoError(t, err)
+				dataSquare, err := shares.Split(coreData, true)
+				assert.NoError(t, err)
+				eds, err := da.ExtendShares(d.SquareSize, shares.ToBytes(dataSquare))
+				assert.NoError(t, err)
+				dah := da.NewDataAvailabilityHeader(eds)
+				d.Hash = dah.Hash()
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
