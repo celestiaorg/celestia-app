@@ -139,10 +139,6 @@ func TestValidateBasic(t *testing.T) {
 	intermediateStateRootsNamespaceMsg := validMsgPayForBlobs(t)
 	intermediateStateRootsNamespaceMsg.Namespaces[0] = appns.IntermediateStateRootsNamespace.Bytes()
 
-	// MsgPayForBlobs that uses evidence namespace id
-	evidenceNamespaceMsg := validMsgPayForBlobs(t)
-	evidenceNamespaceMsg.Namespaces[0] = appns.EvidenceNamespace.Bytes()
-
 	// MsgPayForBlobs that uses the max reserved namespace id
 	maxReservedNamespaceMsg := validMsgPayForBlobs(t)
 	maxReservedNamespaceMsg.Namespaces[0] = appns.MaxReservedNamespace.Bytes()
@@ -191,11 +187,6 @@ func TestValidateBasic(t *testing.T) {
 		{
 			name:    "intermediate state root namespace id",
 			msg:     intermediateStateRootsNamespaceMsg,
-			wantErr: ErrReservedNamespace,
-		},
-		{
-			name:    "evidence namespace namespace id",
-			msg:     evidenceNamespaceMsg,
 			wantErr: ErrReservedNamespace,
 		},
 		{
