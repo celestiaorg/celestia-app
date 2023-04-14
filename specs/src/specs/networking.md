@@ -24,7 +24,7 @@ Defined as `ConsensusProposal`:
 {{#include ./proto/consensus.proto:ConsensusProposal}}
 ```
 
-When receiving a new block proposal `proposal` from the network, the following steps are performed in order. _Must_ indicates that peers must be blacklisted (to prevent DoS attacks) and _should_ indicates that the network message can simply be ignored.
+When receiving a new block proposal `proposal` from the network, the following steps are performed in order. _Must_ indicates that peers must be blacklisted (to prevent DoS attacks) and _should_ indicates that the network blob can simply be ignored.
 
 1. `proposal.type` must be a `SignedMsgType`.
 1. `proposal.round` is processed identically to Tendermint.
@@ -59,9 +59,9 @@ Defined as `MsgWirePayForData`:
 
 Accepting a `MsgWirePayForData` into the mempool requires different logic than other transactions in Celestia, since it leverages the paradigm of block proposers being able to malleate transaction data. Unlike [SignedTransactionDataMsgPayForData](./data_structures.md#signedtransactiondatamsgpayfordata) (the canonical data type that is included in blocks and committed to with a data root in the block header), each `MsgWirePayForData` (the over-the-wire representation of the same) has potentially multiple signatures.
 
-Transaction senders who want to pay for a message will create a [SignedTransactionDataMsgPayForData](./data_structures.md#signedtransactiondatamsgpayfordata) object, `stx`, filling in the `stx.messageShareCommitment` field [based on the non-interactive default rules](../rationale/message_block_layout.md#non-interactive-default-rules) for `k = AVAILABLE_DATA_ORIGINAL_SQUARE_MAX`, then signing it to get a [transaction](./data_structures.md#transaction) `tx`. This process is repeated with successively smaller `k`s, decreasing by powers of 2 until `k * k <= stx.messageSize`. At that point, there would be insufficient shares to include both the message and transaction. Using the rest of the signed transaction data along with the pairs of `(tx.signedTransactionData.messageShareCommitment, tx.signature)`, a `MsgWirePayForData` object is constructed.
+Transaction senders who want to pay for a blob will create a [SignedTransactionDataMsgPayForData](./data_structures.md#signedtransactiondatamsgpayfordata) object, `stx`, filling in the `stx.blobShareCommitment` field [based on the non-interactive default rules](../rationale/data_square_layout.md#non-interactive-default-rules), then signing it to get a [transaction](./data_structures.md#transaction) `tx`.
 
-Receiving a `MsgWirePayForData` object from the network follows the reverse process: for each `message_commitment_and_signature`, verify using the [non-interactive default rules](../rationale/message_block_layout.md#non-interactive-default-rules) that the signature is valid.
+Receiving a `MsgWirePayForData` object from the network follows the reverse process: verify using the [non-interactive default rules](../rationale/data_square_layout.md#non-interactive-default-rules) that the signature is valid.
 
 ## Invalid Erasure Coding
 

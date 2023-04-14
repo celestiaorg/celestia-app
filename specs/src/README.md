@@ -7,4 +7,4 @@
   - [Networking](./specs/networking.md)
   - [Public-Key Cryptography](./specs/public_key_cryptography.md)
 - [Rationale](./rationale/index.md)
-  - [Message Layout](./rationale/message_block_layout.md)
+  - [Data Square Layout](./rationale/data_square_layout.md)
