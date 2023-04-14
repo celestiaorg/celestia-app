@@ -226,7 +226,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	for _, tt := range tests {
-		res, err := queryTx(s.cctx.Context, tt.hash, true)
+		res, err := testnode.QueryTx(s.cctx.Context, tt.hash, true)
 		assert.NoError(t, err)
 		assert.Equal(t, tt.expectedCode, res.TxResult.Code, tt.name)
 	}
