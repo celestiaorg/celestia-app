@@ -201,7 +201,7 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 	subTreeRoots := make([][]byte, len(leafSets))
 	for i, set := range leafSets {
 		// create the nmt todo(evan) use nmt wrapper
-		tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(appns.NamespaceSize))
+		tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(appns.NamespaceSize), nmt.IgnoreMaxNamespace(true))
 		for _, leaf := range set {
 			namespace, err := appns.New(uint8(blob.NamespaceVersion), blob.NamespaceId)
 			if err != nil {
