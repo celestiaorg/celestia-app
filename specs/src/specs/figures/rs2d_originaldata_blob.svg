@@ -28,7 +28,7 @@
     <text text-anchor="middle" font-size="12" fill="#FFFFFF" x="48" y="20">ISRs</text>
     <text text-anchor="middle" font-size="12" fill="#FFFFFF" x="80" y="20">PFBs</text>
 
-    <text text-anchor="middle" font-size="12" fill="#FFFFFF" x="16" y="52">msg1</text>
-    <text text-anchor="middle" font-size="12" fill="#FFFFFF" x="48" y="52">msg1</text>
-    <text text-anchor="middle" font-size="12" fill="#FFFFFF" x="80" y="52">msg2</text>
+    <text text-anchor="middle" font-size="12" fill="#FFFFFF" x="16" y="52">blob1</text>
+    <text text-anchor="middle" font-size="12" fill="#FFFFFF" x="48" y="52">blob1</text>
+    <text text-anchor="middle" font-size="12" fill="#FFFFFF" x="80" y="52">blob2</text>
 </svg>
