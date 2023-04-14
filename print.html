@@ -76,7 +76,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="specs/consensus.html"><strong aria-hidden="true">1.2.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="specs/block_proposer.html"><strong aria-hidden="true">1.3.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="specs/networking.html"><strong aria-hidden="true">1.4.</strong> Networking</a></li><li class="chapter-item expanded "><a href="specs/public_key_cryptography.html"><strong aria-hidden="true">1.5.</strong> Public-Key Cryptography</a></li></ol></li><li class="chapter-item expanded "><a href="rationale/index.html"><strong aria-hidden="true">2.</strong> Rationale</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rationale/message_block_layout.html"><strong aria-hidden="true">2.1.</strong> Message Layout</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="specs/consensus.html"><strong aria-hidden="true">1.2.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="specs/block_proposer.html"><strong aria-hidden="true">1.3.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="specs/networking.html"><strong aria-hidden="true">1.4.</strong> Networking</a></li><li class="chapter-item expanded "><a href="specs/public_key_cryptography.html"><strong aria-hidden="true">1.5.</strong> Public-Key Cryptography</a></li></ol></li><li class="chapter-item expanded "><a href="rationale/index.html"><strong aria-hidden="true">2.</strong> Rationale</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rationale/data_square_layout.html"><strong aria-hidden="true">2.1.</strong> Data Square Layout</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -151,7 +151,7 @@
 </li>
 <li><a href="./rationale/index.html">Rationale</a>
 <ul>
-<li><a href="./rationale/message_block_layout.html">Message Layout</a></li>
+<li><a href="./rationale/data_square_layout.html">Data Square Layout</a></li>
 </ul>
 </li>
 </ul>
@@ -219,10 +219,10 @@
 <h3 id="availabledata"><a class="header" href="#availabledata">AvailableData</a></h3>
 <p>Data that is <a href="specs/data_structures.html#erasure-coding">erasure-coded</a> for <a href="https://arxiv.org/abs/1809.09044">data availability checks</a>.</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>transactionData</code></td><td><a href="specs/data_structures.html#transactiondata">TransactionData</a></td><td>Transaction data. Transactions modify the validator set and balances, and pay fees for messages to be included.</td></tr>
+<tr><td><code>transactionData</code></td><td><a href="specs/data_structures.html#transactiondata">TransactionData</a></td><td>Transaction data. Transactions modify the validator set and balances, and pay fees for blobs to be included.</td></tr>
 <tr><td><code>intermediateStateRootData</code></td><td><a href="specs/data_structures.html#intermediatestaterootdata">IntermediateStateRootData</a></td><td>Intermediate state roots used for fraud proofs.</td></tr>
 <tr><td><code>payForBlobData</code></td><td><a href="specs/data_structures.html#payforblobdata">PayForBlobData</a></td><td>PayForBlob data. Transactions that pay for blobs to be included.</td></tr>
-<tr><td><code>messageData</code></td><td><a href="specs/data_structures.html#messagedata">MessageData</a></td><td>Message data. Messages are app data.</td></tr>
+<tr><td><code>blobData</code></td><td><a href="specs/data_structures.html#blobdata">BlobData</a></td><td>Blob data. Blobs are app data.</td></tr>
 </tbody></table>
 </div>
 <h3 id="commit"><a class="header" href="#commit">Commit</a></h3>
@@ -306,7 +306,7 @@
 <p>Libraries implementing SHA-2-256 are available in Go (<a href="https://pkg.go.dev/crypto/sha256">https://pkg.go.dev/crypto/sha256</a>) and Rust (<a href="https://docs.rs/sha2">https://docs.rs/sha2</a>).</p>
 <p>Unless otherwise indicated explicitly, objects are first <a href="specs/data_structures.html#serialization">serialized</a> before being hashed.</p>
 <h2 id="merkle-trees"><a class="header" href="#merkle-trees">Merkle Trees</a></h2>
-<p>Merkle trees are used to authenticate various pieces of data across the Celestia stack, including transactions, messages, the validator set, etc. This section provides an overview of the different tree types used, and specifies how to construct them.</p>
+<p>Merkle trees are used to authenticate various pieces of data across the Celestia stack, including transactions, blobs, the validator set, etc. This section provides an overview of the different tree types used, and specifies how to construct them.</p>
 <h3 id="binary-merkle-tree"><a class="header" href="#binary-merkle-tree">Binary Merkle Tree</a></h3>
 <p>Binary Merkle trees are constructed in the same fashion as described in <a href="https://tools.ietf.org/html/rfc6962">Certificate Transparency (RFC-6962)</a>, except for using <a href="specs/data_structures.html#hashing">a different hashing function</a>. Leaves are hashed once to get leaf node values and internal node values are the hash of the concatenation of their children (either leaf nodes or other internal nodes).</p>
 <p>Nodes contain a single field:</p>
@@ -350,7 +350,7 @@ node.v = 0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 node.n_max = d.namespace
 node.v = h(0x00, d.namespace, d.rawData)
 </code></pre>
-<p>The <code>namespace</code> message field here is the namespace ID of the leaf, which is a <a href="specs/consensus.html#system-parameters"><code>NAMESPACE_ID_BYTES</code></a>-long byte array.</p>
+<p>The <code>namespace</code> blob field here is the namespace of the leaf, which is a <a href="specs/consensus.html#system-parameters"><code>NAMESPACE_SIZE</code></a>-long byte array.</p>
 <p>Leaves in an NMT <strong>must</strong> be lexicographically sorted by namespace in ascending order.</p>
 <p>For internal node <code>node</code> with children <code>l</code> and <code>r</code>:</p>
 <pre><code class="language-C++">node.n_min = min(l.n_min, r.n_min)
@@ -411,7 +411,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 </tbody></table>
 </div>
 <p>A share is a fixed-size data chunk associated with a namespace, whose data will be erasure-coded and committed to in <a href="specs/data_structures.html#namespace-merkle-tree">Namespace Merkle trees</a>.</p>
-<p>A sequence is a contiguous set of shares that contain semantically relevant data. A sequence should be parsed together because data may be split across share boundaries. One sequence exists per reserved namespace and per message.</p>
+<p>A sequence is a contiguous set of shares that contain semantically relevant data. A sequence should be parsed together because data may be split across share boundaries. One sequence exists per reserved namespace and per blob.</p>
 <ul>
 <li>The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> of a share's raw data <code>rawData</code> is the namespace of that share.</li>
 <li>The next <a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information with the following structure:
@@ -446,8 +446,8 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 </blockquote>
 <ul>
 <li>If this is the first share of a sequence, the next <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> contain a big endian <code>uint32</code> that represents the length of the sequence that follows in bytes.</li>
-<li>The remaining <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> <code>-</code> <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes (only if this is the first share of a sequence) bytes are message data. Message data are opaque bytes of data that are included in the block but do not impact the state. In other words, the remaining bytes have no special meaning and are simply used to store data.</li>
-<li>If there is insufficient message data to fill the share, the remaining bytes are filled with <code>0</code>.</li>
+<li>The remaining <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> <code>-</code> <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes (only if this is the first share of a sequence) bytes are blob data. Blob data are opaque bytes of data that are included in the block but do not impact the state. In other words, the remaining bytes have no special meaning and are simply used to store data.</li>
+<li>If there is insufficient blob data to fill the share, the remaining bytes are filled with <code>0</code>.</li>
 </ul>
 <p>First share in a sequence:</p>
 <p><img src="specs/./figures/sparse_start_share.svg" alt="fig: sparse start share." /></p>
@@ -459,7 +459,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <li>Bytes carry no special meaning.</li>
 </ul>
 <h4 id="namespace-padding-share"><a class="header" href="#namespace-padding-share">Namespace Padding Share</a></h4>
-<p>A namespace padding share acts as padding between blobs so that the subsequent blob may begin at an index that conforms to the <a href="specs/../rationale/message_block_layout.html#non-interactive-default-rules">non-interactive default rules</a>. A namespace padding share contains the namespace ID of the blob that precedes it in the data square so that the data square can retain the property that all shares are ordered by namespace.</p>
+<p>A namespace padding share acts as padding between blobs so that the subsequent blob may begin at an index that conforms to the <a href="specs/../rationale/data_square_layout.html#non-interactive-default-rules">non-interactive default rules</a>. A namespace padding share contains the namespace ID of the blob that precedes it in the data square so that the data square can retain the property that all shares are ordered by namespace.</p>
 <p>The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> of a share's raw data <code>rawData</code> is the namespace of the blob that precedes this padding share. The next <a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information. The sequence start indicator is always <code>1</code>. The version bits are filled with the share version. The sequence length is zeroed out. The remaining <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> <code>-</code> <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes are filled with <code>0</code>.</p>
 <h4 id="reserved-padding-share"><a class="header" href="#reserved-padding-share">Reserved Padding Share</a></h4>
 <p>Reserved padding shares are placed after the last reserved namespace share in the data square so that the first blob can start at an index that conforms to non-interactive default rules. Clients can safely ignore the contents of these shares because they don't contain any significant data.</p>
@@ -470,7 +470,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <p>For shares <strong>with a namespace ID equal to <a href="specs/./consensus.html#constants"><code>TAIL_PADDING_NAMESPACE</code></a></strong> (i.e. tail padding shares):</p>
 <p>The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> of a share's raw data <code>rawData</code> is the namespace ID of that share, <code>namespaceID</code>. The next <a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information. The sequence start indicator is always <code>1</code>. The version bits are filled with the share version. The sequence length is zeroed out. The remaining <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> <code>-</code> <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes are filled with <code>0</code>.</p>
 <h3 id="arranging-available-data-into-shares"><a class="header" href="#arranging-available-data-into-shares">Arranging Available Data Into Shares</a></h3>
-<p>The previous sections described how some original data, arranged into a <code>k * k</code> matrix, can be extended into a <code>2k * 2k</code> matrix and committed to with NMT roots. This section specifies how <a href="specs/data_structures.html#available-data">available data</a> (which includes <a href="specs/data_structures.html#transactiondata">transactions</a>, <a href="specs/data_structures.html#intermediatestaterootdata">intermediate state roots</a>, PayForBlob transactions, and <a href="specs/data_structures.html#messagedata">messages</a>) is arranged into the matrix in the first place.</p>
+<p>The previous sections described how some original data, arranged into a <code>k * k</code> matrix, can be extended into a <code>2k * 2k</code> matrix and committed to with NMT roots. This section specifies how <a href="specs/data_structures.html#available-data">available data</a> (which includes <a href="specs/data_structures.html#transactiondata">transactions</a>, <a href="specs/data_structures.html#intermediatestaterootdata">intermediate state roots</a>, PayForBlob transactions, and <a href="specs/data_structures.html#blobdata">blobs</a>) is arranged into the matrix in the first place.</p>
 <p>Then,</p>
 <ol>
 <li>For each of <code>transactionData</code>, <code>intermediateStateRootData</code>, PayForBlob transactions, <a href="specs/data_structures.html#serialization">serialize</a>:
@@ -490,26 +490,26 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <p>Note that by construction, each share only has a single namespace, and that the list of concatenated shares is <a href="specs/consensus.html#reserved-namespace-ids">lexicographically ordered by namespace ID</a>.</p>
 <p>These shares are arranged in the <a href="specs/data_structures.html#2d-reed-solomon-encoding-scheme">first quadrant</a> (<code>Q0</code>) of the <code>availableDataOriginalSquareSize*2 * availableDataOriginalSquareSize*2</code> available data matrix in <em>row-major</em> order. In the example below, each reserved data element takes up exactly one share.</p>
 <p><img src="specs/./figures/rs2d_originaldata_reserved.svg" alt="fig: Original data: reserved." /></p>
-<p>Each message in the list <code>messageData</code>:</p>
+<p>Each blob in the list <code>blobData</code>:</p>
 <ol>
-<li><a href="specs/data_structures.html#serialization">Serialize</a> the message (individually).</li>
-<li>Compute the length of each serialized message, <a href="specs/data_structures.html#serialization">serialize the length</a>, and pre-pend the serialized message with its serialized length.</li>
-<li>Split up the length/message pairs into <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a>-byte chunks.</li>
+<li><a href="specs/data_structures.html#serialization">Serialize</a> the blob (individually).</li>
+<li>Compute the length of each serialized blob, <a href="specs/data_structures.html#serialization">serialize the length</a>, and pre-pend the serialized blob with its serialized length.</li>
+<li>Split up the length/blob pairs into <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a>-byte chunks.</li>
 <li>Create a <a href="specs/data_structures.html#share">share</a> out of each chunk. The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> bytes for these shares is <a href="specs/data_structures.html#share">set to the namespace</a>.</li>
 </ol>
-<p>For each message, it is placed in the available data matrix, with row-major order, as follows:</p>
+<p>For each blob, it is placed in the available data matrix, with row-major order, as follows:</p>
 <ol>
-<li>Place the first share of the message at the next unused location in the matrix, then place the remaining shares in the following locations.</li>
+<li>Place the first share of the blob at the next unused location in the matrix, then place the remaining shares in the following locations.</li>
 </ol>
-<p>Transactions <a href="specs/data_structures.html#transaction">must commit to a Merkle root of a list of hashes</a> that are each guaranteed (assuming the block is valid) to be subtree roots in one or more of the row NMTs. For additional info, see <a href="specs/../rationale/message_block_layout.html">the rationale document</a> for this section.</p>
-<p>However, with only the rule above, interaction between the block producer and transaction sender may be required to compute a commitment to the message the transaction sender can sign over. To remove interaction, messages can optionally be laid out using a non-interactive default:</p>
+<p>Transactions <a href="specs/data_structures.html#transaction">must commit to a Merkle root of a list of hashes</a> that are each guaranteed (assuming the block is valid) to be subtree roots in one or more of the row NMTs. For additional info, see <a href="specs/../rationale/data_square_layout.html">the rationale document</a> for this section.</p>
+<p>However, with only the rule above, interaction between the block producer and transaction sender may be required to compute a commitment to the blob the transaction sender can sign over. To remove interaction, blobs can optionally be laid out using a non-interactive default:</p>
 <ol>
-<li>Place the first share of the message at the next unused location in the matrix whose column is aligned with the largest power of 2 that is not larger than the message length or <a href="specs/data_structures.html#header"><code>availableDataOriginalSquareSize</code></a>, then place the remaining shares in the following locations <strong>unless</strong> there are insufficient unused locations in the row.</li>
-<li>If there are insufficient unused locations in the row, place the first share of the message at the first column of the next row. Then place the remaining shares in the following locations. By construction, any message whose length is greater than <a href="specs/data_structures.html#header"><code>availableDataOriginalSquareSize</code></a> will be placed in this way.</li>
+<li>Place the first share of the blob at the next unused location in the matrix whose column is aligned with the largest power of 2 that is not larger than the blob length or <a href="specs/data_structures.html#header"><code>availableDataOriginalSquareSize</code></a>, then place the remaining shares in the following locations <strong>unless</strong> there are insufficient unused locations in the row.</li>
+<li>If there are insufficient unused locations in the row, place the first share of the blob at the first column of the next row. Then place the remaining shares in the following locations. By construction, any blob whose length is greater than <a href="specs/data_structures.html#header"><code>availableDataOriginalSquareSize</code></a> will be placed in this way.</li>
 </ol>
-<p>In the example below, two messages (of lengths 2 and 1, respectively) are placed using the aforementioned default non-interactive rules.</p>
-<p><img src="specs/./figures/rs2d_originaldata_message.svg" alt="fig: Original data: messages." /></p>
-<p>The non-interactive default rules may introduce empty shares that do not belong to any message (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either <a href="specs/./consensus.html#constants"><code>TAIL_TRANSACTION_PADDING_NAMESPACE_ID</code></a> if between a request with a reserved namespace ID and a message, or the namespace ID of the previous message if succeeded by a message. See the <a href="specs/../rationale/message_block_layout.html">rationale doc</a> for more info.</p>
+<p>In the example below, two blobs (of lengths 2 and 1, respectively) are placed using the aforementioned default non-interactive rules.</p>
+<p><img src="specs/./figures/rs2d_originaldata_blob.svg" alt="fig: original data blob" /></p>
+<p>The non-interactive default rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either <a href="specs/./consensus.html#constants"><code>TAIL_TRANSACTION_PADDING_NAMESPACE_ID</code></a> if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the <a href="specs/../rationale/data_square_layout.html">rationale doc</a> for more info.</p>
 <h2 id="available-data"><a class="header" href="#available-data">Available Data</a></h2>
 <h3 id="transactiondata"><a class="header" href="#transactiondata">TransactionData</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
@@ -521,7 +521,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>index</code></td><td><code>uint64</code></td><td>Index of this transaction in the list of wrapped transactions. This information is lost when splitting transactions into <a href="specs/data_structures.html#share">fixed-sized shares</a>, and needs to be re-added here for fraud proof support. Allows linking a transaction to an <a href="specs/data_structures.html#wrappedintermediatestateroot">intermediate state root</a>.</td></tr>
 <tr><td><code>transaction</code></td><td><a href="specs/data_structures.html#transaction">Transaction</a></td><td>Actual transaction.</td></tr>
-<tr><td><code>messageStartIndex</code></td><td><code>uint64</code></td><td><em>Optional, only used if transaction pays for a message or padding</em>. Share index (in row-major order) of first share of message this transaction pays for. Needed for light verification of proper message inclusion.</td></tr>
+<tr><td><code>blobStartIndex</code></td><td><code>uint64</code></td><td><em>Optional, only used if transaction pays for a blob or padding</em>. Share index (in row-major order) of first share of blob this transaction pays for. Needed for light verification of proper blob inclusion.</td></tr>
 </tbody></table>
 </div>
 <h4 id="transaction"><a class="header" href="#transaction">Transaction</a></h4>
@@ -543,15 +543,15 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <tr><td><code>root</code></td><td><a href="specs/data_structures.html#hashdigest">HashDigest</a></td><td>Root of intermediate state, which is composed of the global state and the validator set.</td></tr>
 </tbody></table>
 </div>
-<h3 id="messagedata"><a class="header" href="#messagedata">MessageData</a></h3>
+<h3 id="blobdata"><a class="header" href="#blobdata">BlobData</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>messages</code></td><td><a href="specs/data_structures.html#message">Message</a><code>[]</code></td><td>List of messages.</td></tr>
+<tr><td><code>blobs</code></td><td><a href="specs/data_structures.html#blob">Blob</a><code>[]</code></td><td>List of blobs.</td></tr>
 </tbody></table>
 </div>
-<h4 id="message"><a class="header" href="#message">Message</a></h4>
+<h4 id="blob"><a class="header" href="#blob">Blob</a></h4>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>namespaceID</code></td><td><a href="specs/data_structures.html#type-aliases">NamespaceID</a></td><td>Namespace ID of this message.</td></tr>
-<tr><td><code>rawData</code></td><td><code>byte[]</code></td><td>Raw message bytes.</td></tr>
+<tr><td><code>namespaceID</code></td><td><a href="specs/data_structures.html#type-aliases">NamespaceID</a></td><td>Namespace ID of this blob.</td></tr>
+<tr><td><code>rawData</code></td><td><code>byte[]</code></td><td>Raw blob bytes.</td></tr>
 </tbody></table>
 </div>
 <h2 id="state"><a class="header" href="#state">State</a></h2>
@@ -594,7 +594,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <tr><td><code>SEQUENCE_BYTES</code></td><td><code>uint64</code></td><td><code>4</code></td><td><code>byte</code></td><td>The number of bytes used to store the sequence length in the first share of a sequence</td></tr>
 <tr><td><code>SHARE_INFO_BYTES</code></td><td><code>uint64</code></td><td><code>1</code></td><td><code>byte</code></td><td>The number of bytes used for <a href="specs/data_structures.html#share">share</a> information</td></tr>
 <tr><td><code>SHARE_RESERVED_BYTES</code></td><td><code>uint64</code></td><td><code>4</code></td><td><code>byte</code></td><td>The number of bytes used to store the location of the first unit in a compact share. Must be able to represent any integer up to and including <code>SHARE_SIZE - 1</code>.</td></tr>
-<tr><td><code>SHARE_SIZE</code></td><td><code>uint64</code></td><td><code>512</code></td><td><code>byte</code></td><td>Size of transaction and message <a href="specs/data_structures.html#share">shares</a>, in bytes.</td></tr>
+<tr><td><code>SHARE_SIZE</code></td><td><code>uint64</code></td><td><code>512</code></td><td><code>byte</code></td><td>Size of transaction and blob <a href="specs/data_structures.html#share">shares</a>, in bytes.</td></tr>
 <tr><td><code>STATE_SUBTREE_RESERVED_BYTES</code></td><td><code>uint64</code></td><td><code>1</code></td><td><code>byte</code></td><td>Number of bytes reserved to identify state subtrees.</td></tr>
 <tr><td><code>UNBONDING_DURATION</code></td><td><code>uint32</code></td><td></td><td><code>block</code></td><td>Duration, in blocks, for unbonding a validator or delegation.</td></tr>
 <tr><td><code>VERSION_APP</code></td><td><code>uint64</code></td><td><code>1</code></td><td></td><td>Version of the Celestia application. Breaking changes (hard forks) must update this parameter.</td></tr>
@@ -608,7 +608,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <tr><td><code>EVIDENCE_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x000000000000000000000000000000000000000000000000000000000000000003</code></td><td>Evidence: fraud proofs or other proof of slashable action.</td></tr>
 <tr><td><code>RESERVED_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000000000000FF</code></td><td>Padding after all reserved namespaces but before blobs.</td></tr>
 <tr><td><code>MAX_RESERVED_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000000000000FF</code></td><td>Max reserved namespace is lexicographically the largest namespace that is reserved for protocol use.</td></tr>
-<tr><td><code>TAIL_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000FFFFFFFFFFFFFFFE</code></td><td>Tail padding for messages: padding after all messages to fill up the original data square.</td></tr>
+<tr><td><code>TAIL_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000FFFFFFFFFFFFFFFE</code></td><td>Tail padding for blobs: padding after all blobs to fill up the original data square.</td></tr>
 <tr><td><code>PARITY_SHARE_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000FFFFFFFFFFFFFFFF</code></td><td>Parity shares: extended shares in the available data matrix.</td></tr>
 </tbody></table>
 </div>
@@ -687,7 +687,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <li><a href="specs/consensus.html#end-block">End block</a>.</li>
 </ol>
 <h3 id="blockavailabledatatransactiondata"><a class="header" href="#blockavailabledatatransactiondata"><code>block.availableData.transactionData</code></a></h3>
-<p>Transactions are applied to the state. Note that <em>transactions</em> mutate the state (essentially, the validator set and minimal balances), while <em>messages</em> do not.</p>
+<p>Transactions are applied to the state. Note that <em>transactions</em> mutate the state (essentially, the validator set and minimal balances), while <em>blobs</em> do not.</p>
 <p><code>block.availableData.transactionData</code> is simply a list of <a href="specs/./data_structures.html#wrappedtransaction">WrappedTransaction</a>s. For each wrapped transaction in this list, <code>wrappedTransaction</code>, with index <code>i</code> (starting from <code>0</code>), the following checks must be <code>true</code>:</p>
 <ol>
 <li><code>wrappedTransaction.index</code> == <code>i</code>.</li>
@@ -740,24 +740,24 @@ totalCost(x, y, z) = x + tipCost(y, z)
         validator.next = 0
 </code></pre>
 <p>Note that light clients cannot perform a linear search through a linked list, and are instead provided logarithmic proofs (e.g. in the case of <code>parentFromQueue</code>, a proof to the parent is provided, which should have <code>address</code> as its next validator).</p>
-<p>In addition, three helper functions to manage the <a href="specs/./data_structures.html#messagepaid">message paid list</a>:</p>
+<p>In addition, three helper functions to manage the <a href="specs/./data_structures.html#blobpaid">blob paid list</a>:</p>
 <ol>
-<li><code>findFromMessagePaidList(start)</code>, which returns the transaction ID of the last transaction in the <a href="specs/./data_structures.html#messagepaid">message paid list</a> with <code>finish</code> greater than <code>start</code>, or <code>0</code> if the list is empty or no transactions in the list have at least <code>start</code> <code>finish</code>.</li>
-<li><code>parentFromMessagePaidList(txid)</code>, which returns the transaction ID of the parent in the message paid list of the transaction with ID <code>txid</code>, or <code>0</code> if <code>txid</code> is not in the list or is the head of the list.</li>
-<li><code>messagePaidListInsert</code>, defined as</li>
+<li><code>findFromBlobPaidList(start)</code>, which returns the transaction ID of the last transaction in the <a href="specs/./data_structures.html#blobpaid">blob paid list</a> with <code>finish</code> greater than <code>start</code>, or <code>0</code> if the list is empty or no transactions in the list have at least <code>start</code> <code>finish</code>.</li>
+<li><code>parentFromBlobPaidList(txid)</code>, which returns the transaction ID of the parent in the blob paid list of the transaction with ID <code>txid</code>, or <code>0</code> if <code>txid</code> is not in the list or is the head of the list.</li>
+<li><code>blobPaidListInsert</code>, defined as</li>
 </ol>
-<pre><code class="language-py">function messagePaidListInsert(tx, txid)
+<pre><code class="language-py">function blobPaidListInsert(tx, txid)
     # Insert the new transaction into the linked list
-    parent = findFromMessagePaidList(tx.messageStartIndex)
-    state.messagesPaid[txid].start = tx.messageStartIndex
-    numShares = ceil(tx.messageSize / SHARE_SIZE)
-    state.messagesPaid[txid].finish = tx.messageStartIndex + numShares - 1
+    parent = findFromBlobPaidList(tx.blobStartIndex)
+    state.blobsPaid[txid].start = tx.blobStartIndex
+    numShares = ceil(tx.blobSize / SHARE_SIZE)
+    state.blobsPaid[txid].finish = tx.blobStartIndex + numShares - 1
     if parent != 0
-        state.messagesPaid[txid].next = state.messagesPaid[parent].next
-        state.messagesPaid[parent].next = txid
+        state.blobsPaid[txid].next = state.blobsPaid[parent].next
+        state.blobsPaid[parent].next = txid
     else
-        state.messagesPaid[txid].next = state.messagePaidHead
-        state.messagePaidHead = txid
+        state.blobsPaid[txid].next = state.blobPaidHead
+        state.blobPaidHead = txid
 </code></pre>
 <p>We define a helper function to compute F1 entries:</p>
 <pre><code class="language-py">function compute_new_entry(reward, power)
@@ -784,29 +784,29 @@ state.accounts[tx.to].balance += tx.amount
 state.activeValidatorSet.proposerBlockReward += tipCost(bytesPaid)
 </code></pre>
 <h4 id="signedtransactiondatamsgpayfordata"><a class="header" href="#signedtransactiondatamsgpayfordata">SignedTransactionDataMsgPayForData</a></h4>
-<pre><code class="language-py">bytesPaid = len(tx) + tx.messageSize
-currentStartFinish = state.messagesPaid[findFromMessagePaidList(tx.messageStartIndex)]
-parentStartFinish = state.messagesPaid[parentFromMessagePaidList(findFromMessagePaidList(tx.messageStartIndex))]
+<pre><code class="language-py">bytesPaid = len(tx) + tx.blobSize
+currentStartFinish = state.blobsPaid[findFromBlobPaidList(tx.blobStartIndex)]
+parentStartFinish = state.blobsPaid[parentFromBlobPaidList(findFromBlobPaidList(tx.blobStartIndex))]
 </code></pre>
 <p>The following checks must be <code>true</code>:</p>
 <ol>
 <li><code>tx.type</code> == <a href="specs/./data_structures.html#signedtransactiondata"><code>TransactionType.MsgPayForData</code></a>.</li>
 <li><code>totalCost(0, tx.fee.tipRate, bytesPaid)</code> &lt;= <code>state.accounts[sender].balance</code>.</li>
 <li><code>tx.nonce</code> == <code>state.accounts[sender].nonce + 1</code>.</li>
-<li>The <code>ceil(tx.messageSize / SHARE_SIZE)</code> shares starting at index <code>tx.messageStartIndex</code> must:
+<li>The <code>ceil(tx.blobSize / SHARE_SIZE)</code> shares starting at index <code>tx.blobStartIndex</code> must:
 <ol>
-<li>Have namespace <code>tx.messageNamespace</code>.</li>
+<li>Have namespace <code>tx.blobNamespace</code>.</li>
 </ol>
 </li>
-<li><code>tx.messageShareCommitment</code> == computed as described <a href="specs/./data_structures.html#signedtransactiondatamsgpayfordata">here</a>.</li>
-<li><code>parentStartFinish.finish</code> &lt; <code>tx.messageStartIndex</code>.</li>
-<li><code>currentStartFinish.start</code> == <code>0</code> or <code>currentStartFinish.start</code> &gt; <code>tx.messageStartIndex + ceil(tx.messageSize / SHARE_SIZE)</code>.</li>
+<li><code>tx.blobShareCommitment</code> == computed as described <a href="specs/./data_structures.html#signedtransactiondatamsgpayfordata">here</a>.</li>
+<li><code>parentStartFinish.finish</code> &lt; <code>tx.blobStartIndex</code>.</li>
+<li><code>currentStartFinish.start</code> == <code>0</code> or <code>currentStartFinish.start</code> &gt; <code>tx.blobStartIndex + ceil(tx.blobSize / SHARE_SIZE)</code>.</li>
 </ol>
 <p>Apply the following to the state:</p>
 <pre><code class="language-py">state.accounts[sender].nonce += 1
 state.accounts[sender].balance -= totalCost(tx.amount, tx.fee.tipRate, bytesPaid)
 
-messagePaidListInsert(tx, id(tx))
+blobPaidListInsert(tx, id(tx))
 
 state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
 </code></pre>
@@ -1191,16 +1191,16 @@ else if account.status == AccountStatus.ValidatorBonded
 </ol>
 <p>With these restrictions in mind, the block proposer performs the following actions:</p>
 <ol>
-<li>Collect as many transactions and messages from the mempool as possible, such that the total number of shares is at most <a href="specs/./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>.</li>
+<li>Collect as many transactions and blobs from the mempool as possible, such that the total number of shares is at most <a href="specs/./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>.</li>
 <li>Compute the smallest square size that is a power of 2 that can fit the number of shares.</li>
-<li>Attempt to <a href="specs/block_proposer.html#laying-out-transactions-and-messages">lay out the collected transactions and messages</a> in the current square.
+<li>Attempt to lay out the collected transactions and blobs in the current square.
 <ol>
-<li>If the square is too small to fit all transactions and messages (which may happen <a href="specs/../rationale/message_block_layout.html">due to needing to insert padding between messages</a>) and the square size is smaller than <a href="specs/./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>, double the size of the square and repeat the above step.</li>
+<li>If the square is too small to fit all transactions and blobs (which may happen <a href="specs/../rationale/data_square_layout.html">due to needing to insert padding between blobs</a>) and the square size is smaller than <a href="specs/./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>, double the size of the square and repeat the above step.</li>
+<li>If the square is too small to fit all transactions and blobs (which may happen <a href="specs/../rationale/data_square_layout.html">due to needing to insert padding between blobs</a>) and the square size is at <a href="specs/./consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>, drop the transactions and blobs until the data fits within the square.</li>
 </ol>
 </li>
 </ol>
-<p>Note: the maximum padding shares between messages should be at most twice the number of message shares. Doubling the square size (i.e. quadrupling the number of shares in the square) should thus only have to happen at most once.</p>
-<h2 id="laying-out-transactions-and-messages"><a class="header" href="#laying-out-transactions-and-messages">Laying out Transactions and Messages</a></h2>
+<p>Note: the maximum padding shares between blobs should be at most twice the number of blob shares. Doubling the square size (i.e. quadrupling the number of shares in the square) should thus only have to happen at most once.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="networking"><a class="header" href="#networking">Networking</a></h1>
 <!-- toc -->
 <h2 id="wire-format"><a class="header" href="#wire-format">Wire Format</a></h2>
@@ -1228,7 +1228,7 @@ else if account.status == AccountStatus.ValidatorBonded
   bytes proposer_signature = 6;
 }
 </code></pre>
-<p>When receiving a new block proposal <code>proposal</code> from the network, the following steps are performed in order. <em>Must</em> indicates that peers must be blacklisted (to prevent DoS attacks) and <em>should</em> indicates that the network message can simply be ignored.</p>
+<p>When receiving a new block proposal <code>proposal</code> from the network, the following steps are performed in order. <em>Must</em> indicates that peers must be blacklisted (to prevent DoS attacks) and <em>should</em> indicates that the network blob can simply be ignored.</p>
 <ol>
 <li><code>proposal.type</code> must be a <code>SignedMsgType</code>.</li>
 <li><code>proposal.round</code> is processed identically to Tendermint.</li>
@@ -1266,8 +1266,8 @@ else if account.status == AccountStatus.ValidatorBonded
 }
 </code></pre>
 <p>Accepting a <code>MsgWirePayForData</code> into the mempool requires different logic than other transactions in Celestia, since it leverages the paradigm of block proposers being able to malleate transaction data. Unlike <a href="specs/./data_structures.html#signedtransactiondatamsgpayfordata">SignedTransactionDataMsgPayForData</a> (the canonical data type that is included in blocks and committed to with a data root in the block header), each <code>MsgWirePayForData</code> (the over-the-wire representation of the same) has potentially multiple signatures.</p>
-<p>Transaction senders who want to pay for a message will create a <a href="specs/./data_structures.html#signedtransactiondatamsgpayfordata">SignedTransactionDataMsgPayForData</a> object, <code>stx</code>, filling in the <code>stx.messageShareCommitment</code> field <a href="specs/../rationale/message_block_layout.html#non-interactive-default-rules">based on the non-interactive default rules</a> for <code>k = AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code>, then signing it to get a <a href="specs/./data_structures.html#transaction">transaction</a> <code>tx</code>. This process is repeated with successively smaller <code>k</code>s, decreasing by powers of 2 until <code>k * k &lt;= stx.messageSize</code>. At that point, there would be insufficient shares to include both the message and transaction. Using the rest of the signed transaction data along with the pairs of <code>(tx.signedTransactionData.messageShareCommitment, tx.signature)</code>, a <code>MsgWirePayForData</code> object is constructed.</p>
-<p>Receiving a <code>MsgWirePayForData</code> object from the network follows the reverse process: for each <code>message_commitment_and_signature</code>, verify using the <a href="specs/../rationale/message_block_layout.html#non-interactive-default-rules">non-interactive default rules</a> that the signature is valid.</p>
+<p>Transaction senders who want to pay for a blob will create a <a href="specs/./data_structures.html#signedtransactiondatamsgpayfordata">SignedTransactionDataMsgPayForData</a> object, <code>stx</code>, filling in the <code>stx.blobShareCommitment</code> field <a href="specs/../rationale/data_square_layout.html#non-interactive-default-rules">based on the non-interactive default rules</a>, then signing it to get a <a href="specs/./data_structures.html#transaction">transaction</a> <code>tx</code>.</p>
+<p>Receiving a <code>MsgWirePayForData</code> object from the network follows the reverse process: verify using the <a href="specs/../rationale/data_square_layout.html#non-interactive-default-rules">non-interactive default rules</a> that the signature is valid.</p>
 <h2 id="invalid-erasure-coding"><a class="header" href="#invalid-erasure-coding">Invalid Erasure Coding</a></h2>
 <p>If a malicious block producer incorrectly computes the 2D Reed-Solomon code for a block's data, a fraud proof for this can be presented. We assume that the light clients have the <a href="specs/./data_structures.html#availabledataheader">AvailableDataHeader</a> and the <a href="specs/./data_structures.html#header">Header</a> for each block. Hence, given a <a href="specs/networking.html#shareproof">ShareProof</a>, they can verify if the <code>rowRoot</code> or <code>colRoot</code> specified by <code>isCol</code> and <code>position</code> commits to the corresponding <a href="specs/./data_structures.html#share">Share</a>. Similarly, given the <code>height</code> of a block, they can access all elements within the <a href="specs/./data_structures.html#availabledataheader">AvailableDataHeader</a> and the <a href="specs/./data_structures.html#header">Header</a> of the block.</p>
 <h3 id="shareproof"><a class="header" href="#shareproof">ShareProof</a></h3>
@@ -1374,48 +1374,48 @@ message StateFraudProof {
 <p>Ed25519 signatures are 64 bytes in length.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="rationale"><a class="header" href="#rationale">Rationale</a></h1>
 <ul>
-<li><a href="rationale/./message_block_layout.html">Message Layout</a></li>
+<li><a href="rationale/./data_square_layout.html">Data Square Layout</a></li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="message-layout"><a class="header" href="#message-layout">Message Layout</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="data-square-layout"><a class="header" href="#data-square-layout">Data Square Layout</a></h1>
 <!-- toc -->
 <h2 id="preamble"><a class="header" href="#preamble">Preamble</a></h2>
-<p>Celestia uses <a href="https://arxiv.org/abs/1809.09044">a data availability scheme</a> that allows nodes to determine whether a block's data was published without downloading the whole block. The core of this scheme is arranging data in a two-dimensional matrix then applying erasure coding to each row and column. This document describes the rationale for how data—transactions, messages, and other data—<a href="rationale/../specs/data_structures.html#arranging-available-data-into-shares">is actually arranged</a>. Familiarity with the <a href="https://arxiv.org/abs/1809.09044">originally proposed data layout format</a> is assumed.</p>
-<h2 id="message-layout-rationale"><a class="header" href="#message-layout-rationale">Message Layout Rationale</a></h2>
+<p>Celestia uses <a href="https://arxiv.org/abs/1809.09044">a data availability scheme</a> that allows nodes to determine whether a block's data was published without downloading the whole block. The core of this scheme is arranging data in a two-dimensional matrix then applying erasure coding to each row and column. This document describes the rationale for how data—transactions, blobs, and other data—<a href="rationale/../specs/data_structures.html#arranging-available-data-into-shares">is actually arranged</a>. Familiarity with the <a href="https://arxiv.org/abs/1809.09044">originally proposed data layout format</a> is assumed.</p>
+<h2 id="rationale-1"><a class="header" href="#rationale-1">Rationale</a></h2>
 <p>Block data consists of:</p>
 <ol>
 <li>Cosmos SDK module transactions (e.g. <a href="https://github.com/cosmos/cosmos-sdk/blob/f71df80e93bffbf7ce5fbd519c6154a2ee9f991b/proto/cosmos/bank/v1beta1/tx.proto#L21-L32">MsgSend</a>). These modify the Celestia chain's state.</li>
 <li>Celestia-specific transactions (e.g. <a href="rationale/../specs/data_structures.html#payforblobdata">PayForBlobs</a>). These modify the Celestia chain's state.</li>
 <li>Intermediate state roots: required for fraud proofs of the aforementioned transactions.</li>
-<li>Messages: binary blobs which do not modify the Celestia state, but which are intended for a Celestia application identified with a provided namespace ID.</li>
+<li>Blobs: binary blobs which do not modify the Celestia state, but which are intended for a Celestia application identified with a provided namespace.</li>
 </ol>
-<p>We want to arrange this data into a <code>k * k</code> matrix of fixed-sized shares, which will later be committed to in <a href="rationale/../specs/data_structures.html#namespace-merkle-tree">Namespace Merkle Trees (NMTs)</a>.</p>
+<p>We want to arrange this data into a <code>k * k</code> matrix of fixed-sized shares, which will later be committed to in <a href="rationale/../specs/data_structures.html#namespace-merkle-tree">Namespace Merkle Trees (NMTs)</a> so that individual shares in this matrix can be proven to belong to a single data root.</p>
 <p>The simplest way we can imagine arranging block data is to simply serialize it all in no particular order, split it into fixed-sized shares, then arrange those shares into the <code>k * k</code> matrix in row-major order. However, this naive scheme can be improved in a number of ways, described below.</p>
 <p>First, we impose some ground rules:</p>
 <ol>
-<li>Data must be ordered by namespace ID. This makes queries into a NMT commitment of that data more efficient.</li>
-<li>Since non-message data are not naturally intended for particular namespaces, we assign reserved namespaces for them. A range of namespaces is reserved for this purpose, starting from the lowest possible namespace ID.</li>
-<li>By construction, the above two rules mean that non-message data always precedes message data in the row-major matrix, even when considering single rows or columns.</li>
+<li>Data must be ordered by namespace. This makes queries into a NMT commitment of that data more efficient.</li>
+<li>Since non-blob data are not naturally intended for particular namespaces, we assign reserved namespaces for them. A range of namespaces is reserved for this purpose, starting from the lowest possible namespace.</li>
+<li>By construction, the above two rules mean that non-blob data always precedes blob data in the row-major matrix, even when considering single rows or columns.</li>
 <li>Data with different namespaces must not be in the same share. This might cause a small amount of wasted block space, but makes the NMT easier to reason about in general since leaves are guaranteed to belong to a single namespace.</li>
 </ol>
-<p>Transactions can pay fees for a message to be included in the same block as the transaction itself. However, we do not want serialized transactions to include the entire message they pay for (which is the case in other blockchains with native execution, e.g. calldata in Ethereum transactions or OP_RETURN data in Bitcoin transactions), otherwise every node that validates the sanctity of the Celestia coin would need to download all message data. Transactions must therefore only include a commitment to (i.e. some hash of) the message they pay fees for. If implemented naively (e.g. with a simple hash of the message, or a simple binary Merkle tree root of the message), this can lead to a data availability problem, as there are no guarantees that the data behind these commitments is actually part of the block data.</p>
-<p>To that end, we impose some additional rules onto <em>messages only</em>: messages must be placed is a way such that both the transaction sender and the block producer can be held accountable—a necessary property for e.g. fee burning. Accountable in this context means that</p>
+<p>Transactions can pay fees for a blob to be included in the same block as the transaction itself. It may seem natural to bundle the PayForBlob transaction that pays for a number of blobs with these blobs (which is the case in other blockchains with native execution, e.g. calldata in Ethereum transactions or OP_RETURN data in Bitcoin transactions), however this would mean that processes validating the state of the Celestia network would need to download all blob data. PayForBlob transactions must therefore only include a commitment to (i.e. some hash of) the blob they pay fees for. If implemented naively (e.g. with a simple hash of the blob, or a simple binary Merkle tree root of the blob), this can lead to a data availability problem, as there are no guarantees that the data behind these commitments is actually part of the block data.</p>
+<p>To that end, we impose some additional rules onto <em>blobs only</em>: blobs must be placed is a way such that both the transaction sender and the block producer can be held accountable—a necessary property for e.g. fee burning. Accountable in this context means that</p>
 <ol>
-<li>The transaction sender must pay sufficient fees for message inclusion.</li>
-<li>The block proposer cannot claim that a message was included when it was not (which implies that a transaction and the message it pays for must be included in the same block).</li>
+<li>The transaction sender must pay sufficient fees for blob inclusion.</li>
+<li>The block proposer cannot claim that a blob was included when it was not (which implies that a transaction and the blob it pays for must be included in the same block). In addition all blobs must be accompanied by a PayForBlob transaction.</li>
 </ol>
-<p>Specifically, messages must begin at a new share, unlike non-message data which can span multiple shares. We note a nice property from this rule: if the transaction sender knows 1) <code>k</code>, the size of the matrix, 2) the starting location of their message in a row, and 3) the length of the message (they know this since they are sending the message), then they can actually compute a sequence of roots to <em>subtrees in the row NMTs</em>. More importantly, anyone can compute this, and can compute <em>the simple Merkle root of these subtree roots</em>.</p>
-<p>This, however, requires the block producer to interact with the transaction sender to provide them the starting location of their message. This can be done selectively, but is not ideal as a default for e.g. end-user wallets.</p>
+<p>Specifically, blobs must begin at a new share. We note a nice property from this rule: if the transaction sender knows 1) <code>k</code>, the size of the matrix, 2) the starting location of their blob in a row, and 3) the length of the blob (they know this since they are sending the blob), then they can actually compute a sequence of roots to <em>subtrees in the row NMTs</em>. More importantly, anyone can compute this, and can compute <em>the simple Merkle root of these subtree roots</em>.</p>
+<p>This, however, requires the block producer to interact with the transaction sender to provide them the starting location of their blob, so that the sender can sign over the commitment based on that starting location. This can be done selectively, but is not ideal as a default for e.g. end-user wallets.</p>
 <h3 id="non-interactive-default-rules"><a class="header" href="#non-interactive-default-rules">Non-Interactive Default Rules</a></h3>
-<p>As a non-consensus-critical default, we can impose one additional rule on message placement to make the possible starting locations of messages sufficiently predictable and constrained such that users can deterministically compute subtree roots without interaction:</p>
+<p>As a non-consensus-critical default, we can impose one additional rule on blob placement to make the possible starting locations of blobs sufficiently predictable and constrained such that users can deterministically compute subtree roots without interaction:</p>
 <blockquote>
-<p>Messages start at an index that is a multiple of the message minimum square size. The message minimum square size is the smallest square that can contain the message in isolation (i.e. a square with only this message and no other transactions or messages).</p>
+<p>Blobs start at an index that is a multiple of the blob minimum square size. The blob minimum square size is the smallest square that can contain the blob in isolation (i.e. a square with only this blob and no other transactions or blobs).</p>
 </blockquote>
 <p>In the constraint mentioned above, the number of rows/columns in the minimum square size should be a power of 2.
-With the above constraint, we can compute subtree roots deterministically. In order to compute the subtree roots, split the message into chunks that are of maximum size: message minimum square size. As an example, a message of length <code>11</code> has a minimum square size of <code>4</code> because <code>11</code> is not greater than <code>4 * 4 = 16</code> total shares. Split the message into chunks of length <code>4, 4, 2, 1</code>. The resulting slices are the leaves of subtrees whose roots can be computed. These subtree roots will be present as internal nodes in the NMT of <em>some</em> row(s).</p>
-<p>This is similar to <a href="https://www.usenix.org/legacy/event/sec09/tech/full_papers/crosby.pdf">Merkle Mountain Ranges</a>, though with the largest subtree bounded by the message minimum square size rather than being unbounded.</p>
-<p>The last piece of the puzzle is determining <em>which</em> row the message is placed at (or, more specifically, the starting location). This is needed to keep the block producer accountable. To this end, the block producer simply augments each fee-paying transaction with some metadata: the starting location of the message the transaction pays for.</p>
+With the above constraint, we can compute subtree roots deterministically. In order to compute the subtree roots, split the blob into chunks that are of maximum size: blob minimum square size. As an example, a blob of length <code>11</code> has a minimum square size of <code>4</code> because <code>11</code> is not greater than <code>4 * 4 = 16</code> total shares. Split the blob into chunks of length <code>4, 4, 2, 1</code> because each chunk must be a power of <code>2</code>. The resulting slices are the leaves of subtrees whose roots can be computed. These subtree roots will be present as internal nodes in the NMT of <em>some</em> row(s).</p>
+<p>This is similar to <a href="https://www.usenix.org/legacy/event/sec09/tech/full_papers/crosby.pdf">Merkle Mountain Ranges</a>, though with the largest subtree bounded by the blob minimum square size rather than being unbounded.</p>
+<p>The last piece of the puzzle is determining <em>which</em> row the blob is placed at (or, more specifically, the starting location). This is needed to keep the block producer accountable. To this end, the block producer simply augments each fee-paying transaction with the starting locations of the blobs the transaction pays for.</p>
 <h3 id="caveats"><a class="header" href="#caveats">Caveats</a></h3>
-<p>The message placement rules described above conflict with the first rule that shares must be ordered by namespace ID, as shares between two messages that are not placed adjacent to each other do not have a natural namespace they belong to. This is resolved by requiring that such shares have a value of zero and a namespace ID equal to the preceding message's. Since their value is known, they can be omitted from NMT proofs of all shares of a given namespace ID.</p>
+<p>The blob placement rules described above conflict with the first rule that shares must be ordered by namespace ID, as shares between two blobs that are not placed adjacent to each other do not have a natural namespace they belong to. This is resolved by requiring that such shares have a value of zero and a namespace ID equal to the preceding blob's. Since their value is known, they can be omitted from NMT proofs of all shares of a given namespace ID.</p>
 
                     </main>
 
