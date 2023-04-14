@@ -75,7 +75,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="../specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/data_structures.html" class="active"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="../specs/consensus.html"><strong aria-hidden="true">1.2.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="../specs/block_proposer.html"><strong aria-hidden="true">1.3.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="../specs/networking.html"><strong aria-hidden="true">1.4.</strong> Networking</a></li></ol></li><li class="chapter-item expanded "><a href="../rationale/index.html"><strong aria-hidden="true">2.</strong> Rationale</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../rationale/message_block_layout.html"><strong aria-hidden="true">2.1.</strong> Message Layout</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="../specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/data_structures.html" class="active"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="../specs/consensus.html"><strong aria-hidden="true">1.2.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="../specs/block_proposer.html"><strong aria-hidden="true">1.3.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="../specs/networking.html"><strong aria-hidden="true">1.4.</strong> Networking</a></li><li class="chapter-item expanded "><a href="../specs/public_key_cryptography.html"><strong aria-hidden="true">1.5.</strong> Public-Key Cryptography</a></li></ol></li><li class="chapter-item expanded "><a href="../rationale/index.html"><strong aria-hidden="true">2.</strong> Rationale</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../rationale/message_block_layout.html"><strong aria-hidden="true">2.1.</strong> Message Layout</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -143,7 +143,6 @@
 <p><img src="./figures/block_data_structures.svg" alt="fig: Block data structures." /></p>
 <h2 id="type-aliases"><a class="header" href="#type-aliases">Type Aliases</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th></tr></thead><tbody>
-<tr><td><a href="#address"><code>Address</code></a></td><td><code>byte[32]</code></td></tr>
 <tr><td><code>Amount</code></td><td><code>uint64</code></td></tr>
 <tr><td><code>Graffiti</code></td><td><code>byte[MAX_GRAFFITI_BYTES]</code></td></tr>
 <tr><td><a href="#hashdigest"><code>HashDigest</code></a></td><td><code>byte[32]</code></td></tr>
@@ -222,9 +221,11 @@
 </div>
 <p>Abstraction over transaction fees.</p>
 <h3 id="address"><a class="header" href="#address">Address</a></h3>
-<p>Address is a <a href="#type-aliases">type alias</a>.</p>
-<p>Addresses are the <a href="#hashing">hash</a> <a href="#hashdigest">digest</a> of the <a href="https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys">public key</a>.</p>
-<p>Addresses have a length of 32 bytes.</p>
+<p>Celestia supports <a href="https://en.bitcoin.it/wiki/Secp256k1">secp256k1</a> keys where <a href="https://docs.cosmos.network/v0.46/basics/accounts.html#addresses">addresses</a> are 20 bytes in length.</p>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
+<tr><td><code>AccAddress</code></td><td><code>[20]byte</code></td><td>AccAddress a wrapper around bytes meant to represent an account address</td></tr>
+</tbody></table>
+</div>
 <h3 id="commitsig"><a class="header" href="#commitsig">CommitSig</a></h3>
 <pre><code class="language-C++">enum CommitFlag : uint8_t {
     CommitFlagAbsent = 1,
@@ -242,10 +243,9 @@
 <h3 id="signature"><a class="header" href="#signature">Signature</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>r</code></td><td><code>byte[32]</code></td><td><code>r</code> value of the signature.</td></tr>
-<tr><td><code>vs</code></td><td><code>byte[32]</code></td><td>1-bit <code>v</code> value followed by last 255 bits of <code>s</code> value of signature.</td></tr>
+<tr><td><code>s</code></td><td><code>byte[32]</code></td><td><code>s</code> value of signature.</td></tr>
 </tbody></table>
 </div>
-<p>Output of the <a href="#public-key-cryptography">signing</a> process.</p>
 <h3 id="namespace"><a class="header" href="#namespace">Namespace</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>version</code></td><td><code>uint8</code></td><td></td></tr>
@@ -280,18 +280,6 @@
 <p>All protocol-level hashing is done using SHA-2-256 as defined in <a href="https://doi.org/10.6028/NIST.FIPS.180-4">FIPS 180-4</a>. SHA-2-256 outputs a digest that is 256 bits (i.e. 32 bytes) long.</p>
 <p>Libraries implementing SHA-2-256 are available in Go (<a href="https://pkg.go.dev/crypto/sha256">https://pkg.go.dev/crypto/sha256</a>) and Rust (<a href="https://docs.rs/sha2">https://docs.rs/sha2</a>).</p>
 <p>Unless otherwise indicated explicitly, objects are first <a href="#serialization">serialized</a> before being hashed.</p>
-<h2 id="public-key-cryptography"><a class="header" href="#public-key-cryptography">Public-Key Cryptography</a></h2>
-<p>Consensus-critical data is authenticated using <a href="https://www.secg.org/sec1-v2.pdf">ECDSA</a>, with the curve <a href="https://en.bitcoin.it/wiki/Secp256k1">secp256k1</a>. A highly-optimized library is available in C (<a href="https://github.com/bitcoin-core/secp256k1">https://github.com/bitcoin-core/secp256k1</a>), with wrappers in Go (<a href="https://pkg.go.dev/github.com/ethereum/go-ethereum/crypto/secp256k1">https://pkg.go.dev/github.com/ethereum/go-ethereum/crypto/secp256k1</a>) and Rust (<a href="https://docs.rs/crate/secp256k1">https://docs.rs/crate/secp256k1</a>).</p>
-<p><a href="https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys">Public keys</a> are encoded in uncompressed form, as the concatenation of the <code>x</code> and <code>y</code> values. No prefix is needed to distinguish between encoding schemes as this is the only encoding supported.</p>
-<p>Deterministic signatures (<a href="https://tools.ietf.org/rfc/rfc6979.txt">RFC-6979</a>) should be used when signing, but this is not enforced at the protocol level as it cannot be.</p>
-<p><a href="#signature">Signatures</a> are represented as the <code>r</code> and <code>s</code> (each 32 bytes), and <code>v</code> (1-bit) values of the signature. <code>r</code> and <code>s</code> take on their usual meaning (see: <a href="https://www.secg.org/sec1-v2.pdf">SEC 1, 4.1.3 Signing Operation</a>), while <code>v</code> is used for recovering the public key from a signature more quickly (see: <a href="https://www.secg.org/sec1-v2.pdf">SEC 1, 4.1.6 Public Key Recovery Operation</a>). Only low-<code>s</code> values in signatures are valid (i.e. <code>s &lt;= secp256k1.n//2</code>); <code>s</code> can be replaced with <code>-s mod secp256k1.n</code> during the signing process if it is high. Given this, the first bit of <code>s</code> will always be <code>0</code>, and can be used to store the 1-bit <code>v</code> value.</p>
-<p><code>v</code> represents the parity of the <code>Y</code> component of the point, <code>0</code> for even and <code>1</code> for odd. The <code>X</code> component of the point is assumed to always be low, since <a href="https://bitcoin.stackexchange.com/a/38909">the possibility of it being high is negligible</a>.</p>
-<p>Putting it all together, the encoding for signatures is:</p>
-<!-- markdownlint-disable-next-line MD040 -->
-<pre><code>|    32 bytes   ||           32 bytes           |
-[256-bit r value][1-bit v value][255-bit s value]
-</code></pre>
-<p>This encoding scheme is derived from <a href="https://eips.ethereum.org/EIPS/eip-2098">EIP 2098: Compact Signature Representation</a>.</p>
 <h2 id="merkle-trees"><a class="header" href="#merkle-trees">Merkle Trees</a></h2>
 <p>Merkle trees are used to authenticate various pieces of data across the Celestia stack, including transactions, messages, the validator set, etc. This section provides an overview of the different tree types used, and specifies how to construct them.</p>
 <h3 id="binary-merkle-tree"><a class="header" href="#binary-merkle-tree">Binary Merkle Tree</a></h3>
