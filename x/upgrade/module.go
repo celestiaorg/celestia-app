@@ -3,7 +3,6 @@ package upgrade
 import (
 	"context"
 
-	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -21,10 +20,6 @@ import (
 var (
 	_ module.AppModule = AppModule{}
 )
-
-func init() {
-	types.RegisterLegacyAminoCodec(codec.NewLegacyAmino())
-}
 
 const (
 	consensusVersion uint64 = 1
