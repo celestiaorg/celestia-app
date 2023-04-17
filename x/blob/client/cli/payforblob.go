@@ -43,7 +43,10 @@ func CmdPayForBlob() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failure to decode hex namespace ID: %w", err)
 			}
-			namespaceVersion, _ := cmd.Flags().GetUint8(FlagNamespaceVersion)
+			namespaceVersion, err := cmd.Flags().GetUint8(FlagNamespaceVersion)
+			if err != nil {
+				return err
+			}
 			namespace, err := getNamespace(namespaceID, namespaceVersion)
 			if err != nil {
 				return err
@@ -75,9 +78,10 @@ func CmdPayForBlob() *cobra.Command {
 func getNamespace(namespaceID []byte, namespaceVersion uint8) (appns.Namespace, error) {
 	switch namespaceVersion {
 	case appns.NamespaceVersionZero:
-		nsp := make([]byte, 0, appns.NamespaceSize)
-		nsp = append(nsp, appns.NamespaceVersionZeroPrefix...)
-		return appns.New(namespaceVersion, append(nsp, namespaceID...))
+		id := make([]byte, 0, appns.NamespaceIDSize)
+		id = append(id, appns.NamespaceVersionZeroPrefix...)
+		id = append(id, namespaceID...)
+		return appns.New(namespaceVersion, id)
 	default:
 		return appns.Namespace{}, fmt.Errorf("namespace version %d is not supported", namespaceVersion)
 	}
