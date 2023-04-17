@@ -19,13 +19,15 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// FlagNamespaceVersion allows the user to override the namespace version when
-// submitting a PayForBlob.
-const FlagNamespaceVersion = "namespace-version"
+const (
+	// FlagShareVersion allows the user to override the share version when
+	// submitting a PayForBlob.
+	FlagShareVersion = "share-version"
 
-// FlagShareVersion allows the user to override the share version when
-// submitting a PayForBlob.
-const FlagShareVersion = "share-version"
+	// FlagNamespaceVersion allows the user to override the namespace version when
+	// submitting a PayForBlob.
+	FlagNamespaceVersion = "namespace-version"
+)
 
 func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
@@ -73,7 +75,7 @@ func CmdPayForBlob() *cobra.Command {
 func getNamespace(namespaceID []byte, namespaceVersion uint8) (appns.Namespace, error) {
 	switch namespaceVersion {
 	case appns.NamespaceVersionZero:
-		nsp := make([]byte, 0, appns.NamespaceVersionZeroPrefixSize)
+		nsp := make([]byte, 0, appns.NamespaceSize)
 		nsp = append(nsp, appns.NamespaceVersionZeroPrefix...)
 		return appns.New(namespaceVersion, append(nsp, namespaceID...))
 	default:
