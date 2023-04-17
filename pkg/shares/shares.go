@@ -30,7 +30,7 @@ func (s *Share) InfoByte() (InfoByte, error) {
 	return ParseInfoByte(unparsed)
 }
 
-func newShare(data []byte) (*Share, error) {
+func NewShare(data []byte) (*Share, error) {
 	if err := validateSize(data); err != nil {
 		return nil, err
 	}
@@ -200,10 +200,13 @@ func ToBytes(shares []Share) (bytes [][]byte) {
 	return bytes
 }
 
-func FromBytes(bytes [][]byte) (shares []Share) {
-	shares = make([]Share, len(bytes))
-	for i, b := range bytes {
-		shares[i] = Share{data: b}
+func FromBytes(bytes [][]byte) (shares []Share, err error) {
+	for _, b := range bytes {
+		share, err := NewShare(b)
+		if err != nil {
+			return nil, err
+		}
+		shares = append(shares, *share)
 	}
-	return shares
+	return shares, nil
 }
