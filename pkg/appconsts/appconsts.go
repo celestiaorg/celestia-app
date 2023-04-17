@@ -72,16 +72,15 @@ const (
 	// data square.
 	MinShareCount = DefaultMinSquareSize * DefaultMinSquareSize
 
-	// SubtreeRootThreshold dictates the threashold for increasing the sub
-	// tree root height for blobs. If the number of subtree roots used to create
-	// a share commitment surpasses this threshold, then the height is
-	// increased. The rationale for this value is described in more detail in
-	// ADR013 (./docs/architecture/adr-013). Note that this value should not
-	// drop below the max square size. That could result in the caculating a sub
-	// tree width for a blob that is larger than whatever the actual suquare
-	// size for that block. Having a value that is larger than the square is
-	// simply wasteful in that the proofs for large blobs are unnecessarily
-	// large.
+	// SubtreeRootThreshold dictates the threashold for increasing the sub tree
+	// root height for blobs. If the number of subtree roots used to create a
+	// share commitment surpasses this threshold, then the height is increased.
+	// The rationale for this value is described in more detail in ADR013
+	// (./docs/architecture/adr-013). Note that this value should not drop below
+	// the max square size because that would result in sub tree widths that are
+	// larger than the actual suquare size for that block. Having a value that
+	// is larger than the square is simply wasteful in that the proofs for large
+	// blobs are unnecessarily large.
 	// ADR013 https://github.com/celestiaorg/celestia-app/blob/e905143e8fe138ce6085ae9a5c1af950a2d87638/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md //nolint: lll
 	SubtreeRootThreshold = DefaultMaxSquareSize
 
