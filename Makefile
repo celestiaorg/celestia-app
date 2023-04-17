@@ -133,6 +133,6 @@ test-cover:
 #
 # Usage: make adr-gen NUM=016 TITLE=my-adr-title
 adr-gen:
-	@echo "--> Generating adr template"
+	@echo "--> Generating ADR template"
 	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-$(NUM)-$(TITLE).md
 .PHONY: adr-gen
