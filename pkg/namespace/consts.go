@@ -39,9 +39,6 @@ var (
 	// intermediate state root data.
 	IntermediateStateRootsNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 2})
 
-	// EvidenceNamespace is the namespace reserved for evidence.
-	EvidenceNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 3})
-
 	// PayForBlobNamespace is the namespace reserved for PayForBlobs transactions.
 	PayForBlobNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 4})
 
