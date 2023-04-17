@@ -172,25 +172,9 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account
 			},
-			expectedCode: 20,
-		},
-		{
-			name: "create new governance proposal",
-			msgFunc: func() (msgs []sdk.Msg, signer string) {
-				account := s.unusedAccount()
-				content, ok := oldgov.ContentFromProposalType("title", "description", "text")
-				require.True(t, ok)
-				addr := getAddress(account, s.cctx.Keyring)
-				msg, err := oldgov.NewMsgSubmitProposal(
-					content,
-					sdk.NewCoins(
-						sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
-					addr,
-				)
-				require.NoError(t, err)
-				return []sdk.Msg{msg}, account
-			},
-			expectedCode: 20,
+			// despite token voting being removed, we still expect a code of 0.
+			// However, the tx still fails. See tests in local upgrade module
+			expectedCode: abci.CodeTypeOK,
 		},
 		{
 			name: "multiple send sdk.Msgs in one sdk.Tx",

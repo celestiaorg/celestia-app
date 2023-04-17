@@ -17,9 +17,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
-var (
-	_ module.AppModule = AppModule{}
-)
+var _ module.AppModule = AppModule{}
 
 const (
 	consensusVersion uint64 = 1
