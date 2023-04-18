@@ -105,7 +105,8 @@ func (s *Share) SequenceLen() (sequenceLen uint32, err error) {
 	start := appconsts.NamespaceSize + appconsts.ShareInfoBytes
 	end := start + appconsts.SequenceLenBytes
 	if len(s.data) < end {
-		return 0, fmt.Errorf("share %s is too short to contain a sequence length", s)
+		return 0, fmt.Errorf("share %s with length %d is too short to contain a sequence length",
+			s, len(s.data))
 	}
 	return binary.BigEndian.Uint32(s.data[start:end]), nil
 }
