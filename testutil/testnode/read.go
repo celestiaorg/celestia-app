@@ -85,11 +85,11 @@ func CalculateMeanGasFromRecentBlocks(ctx context.Context, rpcAddress, msgType s
 
 func CalculateMeanGas(ctx context.Context, rpcAddress, msgType string, fromHeight int64, toHeight int64) (float64, int64, error) {
 	var (
-		encCfg         = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-		decoder        = encoding.IndexWrapperDecoder(encCfg.TxConfig.TxDecoder())
-		totalGas int64 = 0
-		count    int64 = 0
-		average        = func() float64 {
+		encCfg   = encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		decoder  = encoding.IndexWrapperDecoder(encCfg.TxConfig.TxDecoder())
+		totalGas int64
+		count    int64
+		average  = func() float64 {
 			if count == 0 {
 				return 0
 			}
