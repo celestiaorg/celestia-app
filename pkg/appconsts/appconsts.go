@@ -72,7 +72,7 @@ const (
 	// data square.
 	MinShareCount = DefaultMinSquareSize * DefaultMinSquareSize
 
-	// SubtreeRootThreshold dictates the threashold for increasing the sub tree
+	// SubtreeRootThreshold dictates the threshold for increasing the sub tree
 	// root height for blobs. If the number of subtree roots used to create a
 	// share commitment surpasses this threshold, then the height is increased.
 	// The rationale for this value is described in more detail in ADR013
