@@ -136,8 +136,7 @@ func (s *UpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	// submit the transaction and wait a block for it to be included
 	res, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, acc, msg)
 	require.NoError(t, err)
-
-	// require.Equal(t, abci.CodeTypeOK, res.Code) // we're only submitting the tx, so we expect everything to work
+	require.Equal(t, abci.CodeTypeOK, res.Code) // we're only submitting the tx, so we expect everything to work
 	require.NoError(t, s.cctx.WaitForNextBlock())
 
 	// compare the result after the tx has been executed.
