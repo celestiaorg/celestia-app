@@ -32,4 +32,5 @@ var (
 	ErrNoShareVersions                = errors.Register(ModuleName, 11133, "no share versions provided")
 	ErrNoBlobSizes                    = errors.Register(ModuleName, 11134, "no blob sizes provided")
 	ErrNoShareCommitments             = errors.Register(ModuleName, 11135, "no share commitments provided")
+	ErrInvalidNamespace               = errors.Register(ModuleName, 11136, "invalid namespace")
 )

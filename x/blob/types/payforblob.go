@@ -5,6 +5,7 @@ import (
 	fmt "fmt"
 	math "math"
 
+	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
@@ -104,7 +105,7 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 	for _, namespace := range msg.Namespaces {
 		ns, err := appns.From(namespace)
 		if err != nil {
-			return err
+			return errors.Wrap(ErrInvalidNamespace, err.Error())
 		}
 		err = ValidateBlobNamespaceID(ns)
 		if err != nil {
