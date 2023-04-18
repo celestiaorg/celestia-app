@@ -73,8 +73,8 @@ const (
 	MinShareCount = DefaultMinSquareSize * DefaultMinSquareSize
 
 	// SubtreeRootThreshold dictates the threshold for increasing the sub tree
-	// root height for blobs. If the number of subtree roots used to create a
-	// share commitment surpasses this threshold, then the height is increased.
+	// root width for blobs. If the number of subtree roots used to create a
+	// share commitment surpasses this threshold, then the width is increased.
 	// The rationale for this value is described in more detail in ADR013
 	// (./docs/architecture/adr-013).
 	// ADR013 https://github.com/celestiaorg/celestia-app/blob/e905143e8fe138ce6085ae9a5c1af950a2d87638/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md //nolint: lll
