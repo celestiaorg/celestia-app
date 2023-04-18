@@ -113,11 +113,7 @@ func SubTreeWidth(shareCount int) int {
 
 	// use the minimum of the subtree width and the min square size, this
 	// gurarantees that a valid value is returned
-	s = min(s, BlobMinSquareSize(shareCount))
-
-	// using a value below the min square size is wasteful, see ADR013 for more
-	// details
-	return max(s, appconsts.DefaultMinSquareSize)
+	return min(s, BlobMinSquareSize(shareCount))
 }
 
 func min[T constraints.Integer](i, j T) T {
