@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"bytes"
+	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
@@ -56,5 +57,8 @@ var (
 	TailPaddingNamespace = MustNewV0([]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE})
 
 	// ParitySharesNamespace is the namespace reserved for erasure coded data.
-	ParitySharesNamespace = MustNewV0([]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF})
+	ParitySharesNamespace = Namespace{
+		Version: math.MaxUint8,
+		ID:      bytes.Repeat([]byte{0xFF}, NamespaceIDSize),
+	}
 )
