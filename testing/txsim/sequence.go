@@ -32,11 +32,21 @@ type Sequence interface {
 
 // An operation represents a series of messages and blobs that are to be bundled in a
 // single transaction. A delay (in heights) may also be set before the transaction is sent.
+// The gas limit and price can also be set. If left at 0, the DefaultGasLimit will be used.
 type Operation struct {
-	Msgs  []types.Msg
-	Blobs []*blob.Blob
-	Delay int64
+	Msgs     []types.Msg
+	Blobs    []*blob.Blob
+	Delay    int64
+	GasLimit uint64
+	GasPrice float64
 }
+
+const (
+	// set default gas limit to cover the costs of most transactions
+	// At 0.001 utia per gas, this equates to 1000utia per transaction
+	DefaultGasLimit = 1000000
+	DefaultGasPrice = 0.001
+)
 
 // EndOfSequence is a special error which indicates that the sequence has been terminated
 // nolint: revive

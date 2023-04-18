@@ -39,7 +39,7 @@ func (s *StakeSequence) Clone(n int) []Sequence {
 }
 
 func (s *StakeSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand) {
-	s.account = allocateAccounts(1, s.initialStake)[0]
+	s.account = allocateAccounts(1, s.initialStake+fundsForGas)[0]
 }
 
 func (s *StakeSequence) Next(ctx context.Context, querier grpc.ClientConn, rand *rand.Rand) (Operation, error) {

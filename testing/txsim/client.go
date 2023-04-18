@@ -21,13 +21,18 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// how often to poll the network for the latest height
 const (
+	// how often to poll the network for the latest height
 	DefaultPollTime = 3 * time.Second
-	maxRetries      = 20
+
+	// how many times to wait for a transaction to be committed before
+	// concluding that it has failed
+	maxRetries = 10
+
+	rpcContextTimeout = 10 * time.Second
 )
 
-var errTimedOutWaitingForTx = errors.New("timed out waiting for tx to be committed (1 minute)")
+var errTimedOutWaitingForTx = errors.New("timed out waiting for tx to be committed")
 
 // TxClient is a client for submitting transactions to one of several nodes. It uses a round-robin
 // algorithm for multiplexing requests across multiple clients.
@@ -168,8 +173,16 @@ func (tc *TxClient) WaitForHeight(ctx context.Context, height int64) error {
 
 func (tc *TxClient) WaitForTx(ctx context.Context, txID []byte) (*coretypes.ResultTx, error) {
 	for i := 0; i < maxRetries; i++ {
-		resp, err := tc.Client().Tx(ctx, txID, false)
+		subctx, cancel := context.WithTimeout(ctx, rpcContextTimeout)
+		defer cancel()
+
+		resp, err := tc.Client().Tx(subctx, txID, false)
 		if err != nil {
+			// sub context timed out but the parent hasn't (we retry)
+			if subctx.Err() != nil && ctx.Err() == nil {
+				continue
+			}
+
 			// tx still no longer exists
 			if strings.Contains(err.Error(), "not found") {
 				time.Sleep(tc.pollTime)
@@ -213,16 +226,24 @@ func (tc *TxClient) Broadcast(ctx context.Context, txBuilder sdkclient.TxBuilder
 		tx = txWithBlobs
 	}
 
-	resp, err := tc.Client().BroadcastTxSync(ctx, tx)
-	if err != nil {
-		return nil, fmt.Errorf("broadcast commit: %w", err)
-	}
+	for {
+		subctx, cancel := context.WithTimeout(ctx, rpcContextTimeout)
+		defer cancel()
 
-	if resp.Code != 0 {
-		return nil, fmt.Errorf("non zero code checking tx (%d): %s", resp.Code, resp.Log)
-	}
+		resp, err := tc.Client().BroadcastTxSync(subctx, tx)
+		if err != nil {
+			if subctx.Err() != nil {
+				continue
+			}
+			return nil, err
+		}
 
-	return tc.WaitForTx(ctx, resp.Hash)
+		if resp.Code != 0 {
+			return nil, fmt.Errorf("non zero code checking tx (%d): %s", resp.Code, resp.Log)
+		}
+
+		return tc.WaitForTx(ctx, resp.Hash)
+	}
 }
 
 // next iterates the index of the RPC clients. It is not thread safe and should be called within a mutex.

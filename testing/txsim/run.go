@@ -16,7 +16,8 @@ import (
 // Run is the entrypoint function for starting the txsim client. The lifecycle of the client is managed
 // through the context. At least one grpc and rpc endpoint must be provided. The client relies on a
 // single funded master account present in the keyring. The client allocates subaccounts for sequences
-// at runtime. A seed can be provided for deterministic randomness.
+// at runtime. A seed can be provided for deterministic randomness. The pollTime dictates the frequency
+// that the client should check for updates from state and that transactions have been committed.
 //
 // This should be used for testing purposes only.
 //

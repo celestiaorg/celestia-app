@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	ns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -13,6 +14,9 @@ import (
 )
 
 var _ Sequence = &BlobSequence{}
+
+// As napkin math, this would cover the cost of 8267 4KB blobs
+const fundsForGas = 1e9 // 1000 TIA
 
 // BlobSequence defines a pattern whereby a single user repeatedly sends a pay for blob
 // message roughly every height. The PFB may consist of several blobs
@@ -24,7 +28,7 @@ type BlobSequence struct {
 	account types.AccAddress
 }
 
-func NewBlobSequence(sizes Range, blobsPerPFB Range) *BlobSequence {
+func NewBlobSequence(sizes, blobsPerPFB Range) *BlobSequence {
 	return &BlobSequence{
 		sizes:       sizes,
 		blobsPerPFB: blobsPerPFB,
@@ -51,7 +55,7 @@ func (s *BlobSequence) Clone(n int) []Sequence {
 }
 
 func (s *BlobSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccounts AccountAllocator, _ *rand.Rand) {
-	s.account = allocateAccounts(1, 1)[0]
+	s.account = allocateAccounts(1, fundsForGas)[0]
 }
 
 func (s *BlobSequence) Next(ctx context.Context, querier grpc.ClientConn, rand *rand.Rand) (Operation, error) {
@@ -80,8 +84,9 @@ func (s *BlobSequence) Next(ctx context.Context, querier grpc.ClientConn, rand *
 		return Operation{}, err
 	}
 	return Operation{
-		Msgs:  []types.Msg{msg},
-		Blobs: blobs,
+		Msgs:     []types.Msg{msg},
+		Blobs:    blobs,
+		GasLimit: EstimateGas(sizes),
 	}, nil
 }
 
@@ -94,9 +99,26 @@ func NewRange(min, max int) Range {
 	return Range{Min: min, Max: max}
 }
 
+// Rand returns a random number between min (inclusive) and max (exclusive).
 func (r Range) Rand(rand *rand.Rand) int {
 	if r.Max <= r.Min {
 		return r.Min
 	}
 	return rand.Intn(r.Max-r.Min) + r.Min
+}
+
+const (
+	perByteGasTolerance = 2
+	pfbGasFixedCost     = 80000
+)
+
+// EstimateGas estimates the gas required to pay for a set of blobs in a PFB.
+func EstimateGas(blobSizes []int) uint64 {
+	totalByteCount := 0
+	for _, size := range blobSizes {
+		totalByteCount += size
+	}
+	variableGasAmount := (appconsts.DefaultGasPerBlobByte + perByteGasTolerance) * totalByteCount
+
+	return uint64(variableGasAmount + pfbGasFixedCost)
 }

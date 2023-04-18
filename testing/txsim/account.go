@@ -16,17 +16,10 @@ import (
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	"github.com/rs/zerolog/log"
 )
 
-const (
-	// set default gas limit to cover the costs of most transactions
-	// At 0.001 utia per gas, this equates to 1000utia per transaction
-	// In the future we may want to give some access to the sequence itself
-	gasLimit  = 1000000
-	feeAmount = 1000
-)
+const defaultFee = DefaultGasLimit * DefaultGasPrice
 
 type AccountManager struct {
 	keys    keyring.Keyring
@@ -183,10 +176,17 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		return fmt.Errorf("error setting messages: %w", err)
 	}
 
-	builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(app.BondDenom, feeAmount)))
-	// the master account is responsible for paying the fees
-	builder.SetFeeGranter(am.masterAccount.Address)
-	builder.SetGasLimit(gasLimit)
+	if op.GasLimit == 0 {
+		builder.SetGasLimit(DefaultGasLimit)
+		builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(app.BondDenom, int64(defaultFee))))
+	} else {
+		builder.SetGasLimit(op.GasLimit)
+		if op.GasPrice > 0 {
+			builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(app.BondDenom, int64(float64(op.GasLimit)*op.GasPrice))))
+		} else {
+			builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(app.BondDenom, int64(float64(op.GasLimit)*DefaultGasPrice))))
+		}
+	}
 
 	if err := am.signTransaction(builder); err != nil {
 		return err
@@ -229,12 +229,12 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 	msgs := make([]types.Msg, 0)
 	// batch together all the messages needed to create all the accounts
 	for _, acc := range am.pending {
-		accMsgs, err := am.setupAccountMsgs(acc)
-		if err != nil {
-			return fmt.Errorf("generating account %s: %w", acc.Address, err)
+		if am.masterAccount.Balance < acc.Balance {
+			return fmt.Errorf("master account has insufficient funds")
 		}
 
-		msgs = append(msgs, accMsgs...)
+		bankMsg := bank.NewMsgSend(am.masterAccount.Address, acc.Address, types.NewCoins(types.NewInt64Coin(app.BondDenom, acc.Balance)))
+		msgs = append(msgs, bankMsg)
 	}
 
 	err := am.Submit(ctx, Operation{Msgs: msgs})
@@ -269,22 +269,6 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 	// clear the pending accounts
 	am.pending = nil
 	return nil
-}
-
-// setupAccount initializes the account on chain with the given balance. It also sets up
-// a grant such that the master account covers the fees of any message sent.
-func (am *AccountManager) setupAccountMsgs(account *Account) ([]types.Msg, error) {
-	if am.masterAccount.Balance < account.Balance {
-		return nil, fmt.Errorf("master account has insufficient funds")
-	}
-
-	// create a feegrant message so that the master account pays for all the fees of the sub accounts
-	feegrantMsg, err := feegrant.NewMsgGrantAllowance(&feegrant.BasicAllowance{}, am.masterAccount.Address, account.Address)
-	if err != nil {
-		return nil, fmt.Errorf("error creating feegrant message: %w", err)
-	}
-	bankMsg := bank.NewMsgSend(am.masterAccount.Address, account.Address, types.NewCoins(types.NewInt64Coin(app.BondDenom, account.Balance)))
-	return []types.Msg{feegrantMsg, bankMsg}, nil
 }
 
 func (am *AccountManager) signTransaction(builder client.TxBuilder) error {
