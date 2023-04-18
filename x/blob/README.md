@@ -49,10 +49,9 @@ The blob module emits the following events:
 
 ## Parameters
 
-| Key           | Type   | Example |
-|---------------|--------|---------|
-| MinSquareSize | uint32 | 1       |
-| MaxSquareSize | uint32 | 128     |
+| Key            | Type   | Default |
+|----------------|--------|---------|
+| GasPerBlobByte | uint32 | 8       |
 
 ### Usage
 

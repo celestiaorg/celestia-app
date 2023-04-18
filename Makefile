@@ -127,3 +127,9 @@ test-cover:
 	@echo "--> Generating coverage.txt"
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-cover
+
+## adr-gen: Download the ADR template from the celestiaorg/.github repo. Ex. `make adr-gen`
+adr-gen:
+	@echo "--> Downloading ADR template"
+	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-template.md
+.PHONY: adr-gen

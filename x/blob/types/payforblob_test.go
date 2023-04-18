@@ -116,10 +116,9 @@ func TestMsgTypeURLParity(t *testing.T) {
 
 func TestValidateBasic(t *testing.T) {
 	type test struct {
-		name        string
-		msg         *MsgPayForBlobs
-		wantErr     *sdkerrors.Error
-		wantErrBool bool
+		name    string
+		msg     *MsgPayForBlobs
+		wantErr *sdkerrors.Error
 	}
 
 	validMsg := validMsgPayForBlobs(t)
@@ -139,10 +138,6 @@ func TestValidateBasic(t *testing.T) {
 	// MsgPayForBlobs that uses intermediateStateRoots namespace id
 	intermediateStateRootsNamespaceMsg := validMsgPayForBlobs(t)
 	intermediateStateRootsNamespaceMsg.Namespaces[0] = appns.IntermediateStateRootsNamespace.Bytes()
-
-	// MsgPayForBlobs that uses evidence namespace id
-	evidenceNamespaceMsg := validMsgPayForBlobs(t)
-	evidenceNamespaceMsg.Namespaces[0] = appns.EvidenceNamespace.Bytes()
 
 	// MsgPayForBlobs that uses the max reserved namespace id
 	maxReservedNamespaceMsg := validMsgPayForBlobs(t)
@@ -175,14 +170,14 @@ func TestValidateBasic(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			name:        "parity shares namespace id",
-			msg:         paritySharesMsg,
-			wantErrBool: true,
+			name:    "parity shares namespace id",
+			msg:     paritySharesMsg,
+			wantErr: ErrParitySharesNamespace,
 		},
 		{
-			name:        "tail padding namespace id",
-			msg:         tailPaddingMsg,
-			wantErrBool: true,
+			name:    "tail padding namespace id",
+			msg:     tailPaddingMsg,
+			wantErr: ErrTailPaddingNamespace,
 		},
 		{
 			name:    "transaction namspace namespace id",
@@ -192,11 +187,6 @@ func TestValidateBasic(t *testing.T) {
 		{
 			name:    "intermediate state root namespace id",
 			msg:     intermediateStateRootsNamespaceMsg,
-			wantErr: ErrReservedNamespace,
-		},
-		{
-			name:    "evidence namespace namespace id",
-			msg:     evidenceNamespaceMsg,
 			wantErr: ErrReservedNamespace,
 		},
 		{
@@ -234,10 +224,6 @@ func TestValidateBasic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.msg.ValidateBasic()
-			if tt.wantErrBool {
-				assert.Error(t, err)
-				return
-			}
 			if tt.wantErr != nil {
 				assert.Contains(t, err.Error(), tt.wantErr.Error())
 				space, code, log := sdkerrors.ABCIInfo(err, false)
