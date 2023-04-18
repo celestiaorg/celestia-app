@@ -92,7 +92,7 @@ func BlobMinSquareSize(shareCount int) int {
 	return RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(shareCount)))))
 }
 
-// SubTreeWidth determines the number of leaves per subtree in the share
+// SubTreeWidth determines the maximum number of leaves per subtree in the share
 // commitment over a given blob. The input should be the total number of shares
 // used by that blob. The reasoning behind this algorithm is discussed in depth
 // in ADR013
