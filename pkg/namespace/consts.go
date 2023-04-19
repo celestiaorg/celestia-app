@@ -20,6 +20,9 @@ const (
 	// NamespaceVersionZero is the first namespace version.
 	NamespaceVersionZero = uint8(0)
 
+	// NamespaceVersionMax is the max namespace version.
+	NamespaceVersionMax = math.MaxUint8
+
 	// NamespaceZeroPrefixSize is the number of `0` bytes that are prefixed to
 	// namespace IDs for version 0.
 	NamespaceVersionZeroPrefixSize = 22
@@ -54,7 +57,10 @@ var (
 
 	// TailPaddingNamespace is the namespace reserved for tail padding. All data
 	// with this namespace will be ignored.
-	TailPaddingNamespace = MustNewV0([]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE})
+	TailPaddingNamespace = Namespace{
+		Version: math.MaxUint8,
+		ID:      append(bytes.Repeat([]byte{0xFF}, NamespaceIDSize-1), 0xFE),
+	}
 
 	// ParitySharesNamespace is the namespace reserved for erasure coded data.
 	ParitySharesNamespace = Namespace{
