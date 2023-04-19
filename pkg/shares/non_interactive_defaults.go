@@ -123,13 +123,6 @@ func min[T constraints.Integer](i, j T) T {
 	return j
 }
 
-func max[T constraints.Integer](i, j T) T {
-	if i > j {
-		return i
-	}
-	return j
-}
-
 // isStartOfRow returns true if cursor is at the start of a row
 func isStartOfRow(cursor, squareSize int) bool {
 	return cursor == 0 || cursor%squareSize == 0
