@@ -29,7 +29,7 @@ func calculateCommitmentPaths(squareSize, start, blobShareLen int) []path {
 			end = normalizedEndIndex
 		}
 
-		// subTreeRootMaxDepth is the maximum height of a subtree root that was
+		// subTreeRootMaxDepth is the maximum depth of a subtree root that was
 		// used to generate the commitment. The height is based on the
 		// SubtreeRootThreshold. See ADR-013 for more details.
 		subTreeRootMaxDepth := int(math.Log2(float64(shares.SubTreeWidth(blobShareLen))))
