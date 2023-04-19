@@ -10,7 +10,7 @@ Proposed
 
 ## Context
 
-The current protocol around the construction of a square (ODS) is based around a set of constraints that are enforced during consensus through validation (See `ProcessProposal`). Block proposers are at liberty to choosing not only what transactions are included and in what order but can effectively decide on the amount of padding (i.e. where each blob is located in the square) and the size of the square. This degree of control leaks needless complexity to users with little upside and allows for adverse behaviour.
+The current protocol around the construction of an original data square (ODS) is based around a set of constraints that are enforced during consensus through validation (See `ProcessProposal`). Block proposers are at liberty to choosing not only what transactions are included and in what order but can effectively decide on the amount of padding (i.e. where each blob is located in the square) and the size of the square. This degree of control leaks needless complexity to users with little upside and allows for adverse behaviour.
 
 Earlier designs were incorporated around the notion of interaction between the block proposer and the transaction submitter. A user that wanted to submit a PFB would go to a potential block proposer, provide them with the transaction, the proposer would then reserve a position in the square for the transaction and finally the transaction submitter would sign the transaction with the provided share index. However, Celestia may have 100 potential block proposers which are often hidden from the network. Furthermore, tranasctions often reach a block proposer through a gossip network, severing the ability for the block proposer to directly communicate with the transaction submitter. Lastly, new transactions with greater fees might arrive causing the block proposer to want to shuffle the transactions around in the square. The response to these problems was to come up with "non-interactive defaults" (first mentioned in [ADR006](./adr-006-non-interactive-defaults.md)).
 
@@ -42,7 +42,7 @@ Validation in `ProcessProposal` is simplified to reconstructing the square given
 
 A new pkg `square` will be responsible for housing the square construction logic. Any modifications to the algorithm must come as a coordinated upgrade and thus be mapped to the `AppVersion`.
 
-Squares are bound by an upper limit on the square size, ergo not all transactions can fit in a square. Given a prioritised ordering of transactions, each transaction is individually staged and if it fits is added to the pending square else it is dropped. Each addition of a transaction has the potential to shuffle up the order of the squares (since data is ordered by namespace not order of priority). Therefore, the design conservatively estimates how much padding the blob could have and tracks the total offset to understand whether it fits in the square. This is done for both compact shares and sparse shares (which follow different rules):
+Squares are bound by an upper limit on the square size, ergo not all transactions can fit in a square. Given a prioritised ordering of transactions, each transaction is individually staged and if it fits is added to the pending square else it is dropped. Each addition of a transaction has the potential to shuffle up the order of the shares (since shares are ordered by namespace not order of priority). Therefore, the design conservatively estimates how much padding the blob could have and tracks the total offset to understand whether it fits in the square. This is done for both compact shares and sparse shares (which follow different rules):
 
 For compact shares i.e. PFBs and other state transactions, we introduce a `CompactShareCounter` that tracks two fields (`shares` & `remainder`). It is centered around the `Add` method:
 
@@ -63,13 +63,13 @@ Both `PrepareProposal` and `ProcessProposal` will as a result, call much the sam
 
 ### Positive
 
-- By staging transactions in order of priority, we prevent the removal of a higher priority transaction that had a higher namespace than a transaction with a lower namespace and lower priority.
+- By staging transactions in order of priority, we prevent the removal of a higher priority transaction that had a higher namespace than a transaction with a lower namespace and lower priority. [#1519](https://github.com/celestiaorg/celestia-app/issues/1519)
 - Block proposers aren't able to spam the network as they no longer have control over the size of the square insofar as the amount of transactions included.
 - Gossiping of data can be condensed to just an ordered list of transactions. This more easily enables a compact blocks style of consensus.
 
 ### Negative
 
-- We remove the opportunity for users to fork and make optimizations to the square layout. Optimizations have to be funneled through the canonical implementation.
+- Block proposers can no longer run forks of celestia-app that make optimizations to the square layout. Optimizations have to be funneled through the canonical implementation.
 
 ### Neutral
 
