@@ -93,6 +93,7 @@ import (
 	blobmodulekeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
 	blobmoduletypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/celestia-app/x/tokenfilter"
+	appversion "github.com/celestiaorg/celestia-app/x/version"
 
 	qgbmodule "github.com/celestiaorg/celestia-app/x/qgb"
 	qgbmodulekeeper "github.com/celestiaorg/celestia-app/x/qgb/keeper"
@@ -223,8 +224,9 @@ type App struct {
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
-	BlobKeeper blobmodulekeeper.Keeper
-	QgbKeeper  qgbmodulekeeper.Keeper
+	BlobKeeper    blobmodulekeeper.Keeper
+	QgbKeeper     qgbmodulekeeper.Keeper
+	VersionKeeper appversion.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -323,6 +325,12 @@ func New(
 		&stakingKeeper,
 	)
 	qgbmod := qgbmodule.NewAppModule(appCodec, app.QgbKeeper)
+
+	vg, err := appversion.NewVersionGetter()
+	if err != nil {
+		panic(err)
+	}
+	app.VersionKeeper = appversion.NewKeeper(vg)
 
 	// register the staking hooks
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
@@ -554,7 +562,12 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	return app.mm.EndBlock(ctx, req)
+	resp := app.mm.EndBlock(ctx, req)
+	ctx.ChainID()
+	// update the app version per the app's version module
+	appVersion := app.VersionKeeper.GetVersion(ctx, req.Height)
+	resp.ConsensusParamUpdates.Version.AppVersion = appVersion
+	return resp
 }
 
 // InitChainer application update at chain initialization
