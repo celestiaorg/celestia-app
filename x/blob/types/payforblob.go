@@ -5,6 +5,7 @@ import (
 	fmt "fmt"
 	math "math"
 
+	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
@@ -103,7 +104,7 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 	for _, namespace := range msg.Namespaces {
 		ns, err := appns.From(namespace)
 		if err != nil {
-			return err
+			return errors.Wrap(ErrInvalidNamespace, err.Error())
 		}
 		err = ValidateBlobNamespaceID(ns)
 		if err != nil {
@@ -201,7 +202,7 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 	subTreeRoots := make([][]byte, len(leafSets))
 	for i, set := range leafSets {
 		// create the nmt todo(evan) use nmt wrapper
-		tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(appns.NamespaceSize))
+		tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(appns.NamespaceSize), nmt.IgnoreMaxNamespace(true))
 		for _, leaf := range set {
 			namespace, err := appns.New(uint8(blob.NamespaceVersion), blob.NamespaceId)
 			if err != nil {

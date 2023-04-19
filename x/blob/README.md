@@ -59,7 +59,7 @@ The blob module emits the following events:
 celestia-app tx blob PayForBlobs <hex encoded namespace> <hex encoded data> [flags]
 ```
 
-For submitting PFB transaction via a light client's rpc, see [celestia-node's documention](https://docs.celestia.org/developers/node-gateway-docs/#post-submit_pfd).
+For submitting PFB transaction via a light client's rpc, see [celestia-node's documention](https://docs.celestia.org/developers/rpc-tutorial/#submitpayforblob-arguments).
 
 While not directly supported, the steps in the [`SubmitPayForBlob`](https://github.com/celestiaorg/celestia-app/blob/a82110a281bf9ee95a9bf9f0492e5d091371ff0b/x/blob/payforblob.go) function can be reverse engineered to submit blobs programmatically.
 

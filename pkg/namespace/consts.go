@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"bytes"
+	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
@@ -39,9 +40,6 @@ var (
 	// intermediate state root data.
 	IntermediateStateRootsNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 2})
 
-	// EvidenceNamespace is the namespace reserved for evidence.
-	EvidenceNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 3})
-
 	// PayForBlobNamespace is the namespace reserved for PayForBlobs transactions.
 	PayForBlobNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 4})
 
@@ -59,5 +57,8 @@ var (
 	TailPaddingNamespace = MustNewV0([]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE})
 
 	// ParitySharesNamespace is the namespace reserved for erasure coded data.
-	ParitySharesNamespace = MustNewV0([]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF})
+	ParitySharesNamespace = Namespace{
+		Version: math.MaxUint8,
+		ID:      bytes.Repeat([]byte{0xFF}, NamespaceIDSize),
+	}
 )
