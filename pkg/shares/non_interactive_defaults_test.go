@@ -369,7 +369,7 @@ func Test_roundUpBy(t *testing.T) {
 	}
 }
 
-func TestMinSquareSize(t *testing.T) {
+func TestBlobMinSquareSize(t *testing.T) {
 	type testCase struct {
 		shareCount int
 		want       int
