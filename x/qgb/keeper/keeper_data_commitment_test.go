@@ -144,3 +144,45 @@ func TestLastDataCommitment(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, dcs[3], dcc)
 }
+
+func TestCheckingLatestAttestationNonceInDataCommitments(t *testing.T) {
+	input := testutil.CreateTestEnvWithoutAttestationNonceInit(t)
+	k := input.QgbKeeper
+
+	tests := []struct {
+		name          string
+		requestFunc   func() error
+		expectedError error
+	}{
+		{
+			name: "check latest nonce before getting current data commitment",
+			requestFunc: func() error {
+				_, err := k.GetCurrentDataCommitment(input.Context)
+				return err
+			},
+			expectedError: types.ErrLatestAttestationNonceStillNotInitialized,
+		},
+		{
+			name: "check latest nonce before getting data commitment for height",
+			requestFunc: func() error {
+				_, err := k.GetDataCommitmentForHeight(input.Context, 1)
+				return err
+			},
+			expectedError: types.ErrLatestAttestationNonceStillNotInitialized,
+		},
+		{
+			name: "check latest nonce before getting last data commitment",
+			requestFunc: func() error {
+				_, err := k.GetLastDataCommitment(input.Context)
+				return err
+			},
+			expectedError: types.ErrLatestAttestationNonceStillNotInitialized,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.requestFunc()
+			assert.ErrorIs(t, err, tt.expectedError)
+		})
+	}
+}
