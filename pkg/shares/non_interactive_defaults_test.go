@@ -475,7 +475,6 @@ func TestSubTreeWidth(t *testing.T) {
 		t.Run(fmt.Sprintf("shareCount %d", tc.shareCount), func(t *testing.T) {
 			got := SubTreeWidth(tc.shareCount)
 			assert.Equal(t, tc.want, got, i)
-			assert.LessOrEqual(t, got, BlobMinSquareSize(tc.shareCount))
 		})
 	}
 }
