@@ -177,7 +177,7 @@ func (c *Context) FillBlock(squareSize int, accounts []string, broadcastMode str
 	// in order to get the square size that we want, we need to fill half the
 	// square minus a few for the tx (see the square estimation logic in
 	// app/estimate_square_size.go)
-	shareCount := (squareSize * squareSize / 2) - 1
+	shareCount := (squareSize * squareSize / 2) - 2
 	// we use a formula to guarantee that the tx is the exact size needed to force a specific square size.
 	blobSize := shareCount * appconsts.ContinuationSparseShareContentSize
 	// this last patch allows for the formula above to work on a square size of
