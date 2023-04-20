@@ -83,20 +83,7 @@ func Test_finalizeLayout(t *testing.T) {
 				[]appns.Namespace{ns1, ns1, ns1},
 				[][]int{{1000}, {10000}, {100000}},
 			),
-			expectedIndexes: [][]uint32{
-				// BlobMinSquareSize(2) = 2 so the first blob has to start at the
-				// next multiple of 2 >= 32 which is 32. This blob occupies
-				// shares 32 to 33.
-				{32},
-				// BlobMinSquareSize(20) = 8 so the second blob has to start at
-				// the next multiple of 8 >= 34 which is 40. This blob occupies
-				// shares 40 to 59.
-				{40},
-				// BlobMinSquareSize(199) = 16 so the third blob has to start at
-				// the next multiple of 16 >= 60 which is 64. This blob occupies
-				// shares 64 to 262.
-				{64},
-			},
+			expectedIndexes: [][]uint32{{32}, {35}, {56}},
 		},
 		{
 			squareSize:      32,
@@ -114,29 +101,9 @@ func Test_finalizeLayout(t *testing.T) {
 			blobTxs: generateBlobTxsWithNamespaces(
 				t,
 				[]appns.Namespace{ns1, ns2, ns1},
-				[][]int{{100}, {1000}, {1000}},
+				[][]int{{100}, {900}, {900}}, // 1, 2, 2 shares respectively
 			),
-			expectedIndexes: [][]uint32{{32}, {38}, {34}},
-		},
-		{
-			squareSize:      32,
-			nonreserveStart: 32,
-			blobTxs: generateBlobTxsWithNamespaces(
-				t,
-				[]appns.Namespace{ns1, ns2, ns1},
-				[][]int{{100}, {1000}, {1000}},
-			),
-			expectedIndexes: [][]uint32{{32}, {38}, {34}},
-		},
-		{
-			squareSize:      4,
-			nonreserveStart: 3,
-			blobTxs: generateBlobTxsWithNamespaces(
-				t,
-				[]appns.Namespace{ns1, ns3, ns2},
-				[][]int{{100}, {1000}, {420}},
-			),
-			expectedIndexes: [][]uint32{{3}, {6}, {4}},
+			expectedIndexes: [][]uint32{{32}, {35}, {33}},
 		},
 		{
 			squareSize:      4,
@@ -146,7 +113,7 @@ func Test_finalizeLayout(t *testing.T) {
 				[]appns.Namespace{ns1, ns3, ns3, ns2},
 				[][]int{{100}, {1000, 1000}, {420}},
 			),
-			expectedIndexes: [][]uint32{{4}, {6, 10}, {5}},
+			expectedIndexes: [][]uint32{{4}, {6, 9}, {5}},
 		},
 		{
 			// no blob txs should make it in the square
@@ -160,24 +127,13 @@ func Test_finalizeLayout(t *testing.T) {
 			expectedIndexes: [][]uint32{},
 		},
 		{
-			// only two blob txs should make it in the square
-			squareSize:      4,
-			nonreserveStart: 4,
-			blobTxs: generateBlobTxsWithNamespaces(
-				t,
-				[]appns.Namespace{ns1, ns2, ns3},
-				[][]int{{1800}, {1800}, {6000}},
-			),
-			expectedIndexes: [][]uint32{{4}, {8}},
-		},
-		{
 			// only one blob tx should make it in the square (after reordering)
 			squareSize:      4,
 			nonreserveStart: 4,
 			blobTxs: generateBlobTxsWithNamespaces(
 				t,
 				[]appns.Namespace{ns3, ns2, ns1},
-				[][]int{{2000}, {2000}, {6000}},
+				[][]int{{2000}, {2000}, {5000}},
 			),
 			expectedIndexes: [][]uint32{{4}},
 		},
@@ -198,9 +154,9 @@ func Test_finalizeLayout(t *testing.T) {
 			blobTxs: generateBlobTxsWithNamespaces(
 				t,
 				[]appns.Namespace{ns1, ns3, ns3, ns1, ns2, ns2},
-				[][]int{{100}, {1400, 1000, 200, 200}, {420}},
+				[][]int{{100}, {1400, 900, 200, 200}, {420}},
 			),
-			expectedIndexes: [][]uint32{{4}, {8, 12, 5, 6}, {7}},
+			expectedIndexes: [][]uint32{{4}, {8, 11, 5, 6}, {7}},
 		},
 		{
 			squareSize:      4,
@@ -208,9 +164,9 @@ func Test_finalizeLayout(t *testing.T) {
 			blobTxs: generateBlobTxsWithNamespaces(
 				t,
 				[]appns.Namespace{ns1, ns3, ns3, ns1, ns2, ns2},
-				[][]int{{100}, {1000, 1400, 200, 200}, {420}},
+				[][]int{{100}, {900, 1400, 200, 200}, {420}},
 			),
-			expectedIndexes: [][]uint32{{4}, {8, 12, 5, 6}, {7}},
+			expectedIndexes: [][]uint32{{4}, {8, 10, 5, 6}, {7}},
 		},
 	}
 	for i, tt := range tests {
