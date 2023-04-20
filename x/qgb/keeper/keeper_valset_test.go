@@ -2,8 +2,9 @@ package keeper_test
 
 import (
 	"bytes"
-	"github.com/cosmos/cosmos-sdk/x/staking"
 	"testing"
+
+	"github.com/cosmos/cosmos-sdk/x/staking"
 
 	"github.com/celestiaorg/celestia-app/testutil"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
