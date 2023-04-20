@@ -41,7 +41,7 @@ import (
 // NOTE: the forced delay between blocks, TimeIotaMs in the consensus
 // parameters, is set to the lowest possible value (1ms).
 func New(
-	t *testing.T,
+	t testing.TB,
 	cparams *tmproto.ConsensusParams,
 	tmCfg *config.Config,
 	supressLog bool,
@@ -190,9 +190,9 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (accounts []string, c
 
 	tmCfg := DefaultTendermintConfig()
 	tmCfg.Consensus.TimeoutCommit = blockTime
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
-	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
+	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
 
 	genState, kr, err := DefaultGenesisState(accounts...)
 	require.NoError(t, err)
@@ -204,8 +204,8 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (accounts []string, c
 	require.NoError(t, err)
 
 	appConf := DefaultAppConfig()
-	appConf.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", getFreePort())
-	appConf.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
+	appConf.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetFreePort())
+	appConf.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
 
 	cctx, cleanupGRPC, err := StartGRPCServer(app, appConf, cctx)
 	require.NoError(t, err)
@@ -219,7 +219,7 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (accounts []string, c
 	return accounts, cctx
 }
 
-func getFreePort() int {
+func GetFreePort() int {
 	a, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err == nil {
 		var l *net.TCPListener

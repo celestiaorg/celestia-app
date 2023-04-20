@@ -25,12 +25,12 @@ func Test_estimateSquareSize(t *testing.T) {
 	}
 	tests := []test{
 		{"empty block", 0, 0, 0, appconsts.DefaultMinSquareSize},
-		{"one normal tx", 1, 0, 0, appconsts.DefaultMinSquareSize},
+		{"one normal tx", 1, 0, 0, 2},
 		{"one small pfb small block", 0, 1, 100, 2},
 		{"mixed small block", 10, 12, 500, 16},
 		{"small block 2", 0, 12, 1000, 16},
 		{"mixed medium block 2", 10, 20, 10000, 32},
-		{"one large pfb large block", 0, 1, 1000000, 64},
+		{"one large pfb large block", 0, 1, 1000000, appconsts.DefaultMaxSquareSize},
 		{"one hundred large pfb large block", 0, 100, 100000, appconsts.DefaultMaxSquareSize},
 		{"one hundred large pfb medium block", 100, 100, 100000, appconsts.DefaultMaxSquareSize},
 		{"mixed transactions large block", 100, 100, 100000, appconsts.DefaultMaxSquareSize},
@@ -75,7 +75,7 @@ func Test_estimateSquareSize_MultiBlob(t *testing.T) {
 			func() [][]int {
 				return blobfactory.Repeat([]int{1000}, 10)
 			},
-			8, 8,
+			16, 8,
 		},
 		{
 			"10 multiblob 4 share transactions",

@@ -91,7 +91,7 @@ func FundKeyringAccounts(cdc codec.Codec, accounts ...string) (keyring.Keyring, 
 		)
 
 		genBalances[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}
-		genAccounts[i] = authtypes.NewBaseAccount(addr, nil, 0, 0)
+		genAccounts[i] = authtypes.NewBaseAccount(addr, nil, uint64(i), 0)
 	}
 	return kr, genBalances, genAccounts
 }
