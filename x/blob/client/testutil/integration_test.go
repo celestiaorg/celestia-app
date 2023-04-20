@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"strconv"
@@ -63,8 +64,8 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	require := s.Require()
 	val := s.network.Validators[0]
 	hexNamespace := hex.EncodeToString(appns.RandomBlobNamespaceID())
+	invalidNamespaceID := hex.EncodeToString(bytes.Repeat([]byte{0}, 8)) // invalid because ID is expected to be 10 bytes
 
-	// some hex blob
 	hexBlob := "0204033704032c0b162109000908094d425837422c2116"
 
 	testCases := []struct {
@@ -98,6 +99,35 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
 				fmt.Sprintf("--%s=1", cli.FlagShareVersion),
+			},
+			expectErr:    true,
+			expectedCode: 0,
+			respType:     &sdk.TxResponse{},
+		},
+		{
+			name: "invalid namespace ID",
+			args: []string{
+				invalidNamespaceID,
+				hexBlob,
+				fmt.Sprintf("--from=%s", username),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+			},
+			expectErr:    true,
+			expectedCode: 0,
+			respType:     &sdk.TxResponse{},
+		},
+		{
+			name: "invalid namespace version",
+			args: []string{
+				hexNamespace,
+				hexBlob,
+				fmt.Sprintf("--from=%s", username),
+				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
+				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
+				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
+				fmt.Sprintf("--%s=1", cli.FlagNamespaceVersion),
 			},
 			expectErr:    true,
 			expectedCode: 0,

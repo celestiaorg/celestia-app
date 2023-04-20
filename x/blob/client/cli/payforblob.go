@@ -19,9 +19,15 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// FlagShareVersion allows the user to override the share version when
-// submitting a PayForBlob.
-const FlagShareVersion = "share-version"
+const (
+	// FlagShareVersion allows the user to override the share version when
+	// submitting a PayForBlob.
+	FlagShareVersion = "share-version"
+
+	// FlagNamespaceVersion allows the user to override the namespace version when
+	// submitting a PayForBlob.
+	FlagNamespaceVersion = "namespace-version"
+)
 
 func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
@@ -37,12 +43,13 @@ func CmdPayForBlob() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failure to decode hex namespace ID: %w", err)
 			}
-
-			// TODO: allow the user to override the namespace version via a new flag
-			// See https://github.com/celestiaorg/celestia-app/issues/1528
-			namespace, err := appns.New(appns.NamespaceVersionZero, append(appns.NamespaceVersionZeroPrefix, namespaceID...))
+			namespaceVersion, err := cmd.Flags().GetUint8(FlagNamespaceVersion)
 			if err != nil {
-				return fmt.Errorf("failure to create namespace: %w", err)
+				return err
+			}
+			namespace, err := getNamespace(namespaceID, namespaceVersion)
+			if err != nil {
+				return err
 			}
 
 			shareVersion, _ := cmd.Flags().GetUint8(FlagShareVersion)
@@ -63,9 +70,21 @@ func CmdPayForBlob() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
+	cmd.PersistentFlags().Uint8(FlagNamespaceVersion, 0, "Specify the namespace version")
 	cmd.PersistentFlags().Uint8(FlagShareVersion, 0, "Specify the share version")
-
 	return cmd
+}
+
+func getNamespace(namespaceID []byte, namespaceVersion uint8) (appns.Namespace, error) {
+	switch namespaceVersion {
+	case appns.NamespaceVersionZero:
+		id := make([]byte, 0, appns.NamespaceIDSize)
+		id = append(id, appns.NamespaceVersionZeroPrefix...)
+		id = append(id, namespaceID...)
+		return appns.New(namespaceVersion, id)
+	default:
+		return appns.Namespace{}, fmt.Errorf("namespace version %d is not supported", namespaceVersion)
+	}
 }
 
 // broadcastPFB creates the new PFB message type that will later be broadcast to tendermint nodes
