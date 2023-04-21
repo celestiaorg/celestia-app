@@ -27,7 +27,7 @@ import (
 
 func TestUpgrade(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping SDK integration test in short mode.")
+		t.Skip("skipping x/upgrade SDK integration test in short mode.")
 	}
 	suite.Run(t, new(UpgradeTestSuite))
 }
