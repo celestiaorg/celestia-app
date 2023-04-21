@@ -15,14 +15,14 @@ func TestChainVersionConfig(t *testing.T) {
 	}
 	vg, err := NewChainVersionConfig(input)
 	require.NoError(t, err)
-	require.Equal(t, "v1", vg.GetVersion(0))
-	require.Equal(t, "v1", vg.GetVersion(1))
-	require.Equal(t, "v1", vg.GetVersion(9))
-	require.Equal(t, "v2", vg.GetVersion(10))
-	require.Equal(t, "v2", vg.GetVersion(11))
-	require.Equal(t, "v2", vg.GetVersion(19))
-	require.Equal(t, "v3", vg.GetVersion(20))
-	require.Equal(t, "v3", vg.GetVersion(math.MaxInt64))
+	require.Equal(t, uint64(1), vg.GetVersion(0))
+	require.Equal(t, uint64(1), vg.GetVersion(1))
+	require.Equal(t, uint64(1), vg.GetVersion(9))
+	require.Equal(t, uint64(2), vg.GetVersion(10))
+	require.Equal(t, uint64(2), vg.GetVersion(11))
+	require.Equal(t, uint64(2), vg.GetVersion(19))
+	require.Equal(t, uint64(3), vg.GetVersion(20))
+	require.Equal(t, uint64(3), vg.GetVersion(math.MaxInt64))
 }
 
 func Test_createRange(t *testing.T) {
