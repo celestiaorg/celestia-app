@@ -93,6 +93,11 @@ const (
 	// NOTE: Currently this value is set at roughly the number of PFBs that
 	// would fill one quarter of the max square size.
 	TransactionsPerBlockLimit = 5090
+
+	// DefaultMinGasPrice is the default min gas price that gets set in the app.toml file.
+	// The min gas price acts as a filter. Transactions below that limit will not pass
+	// a nodes `CheckTx` and thus not be proposed by that node.
+	DefaultMinGasPrice = 0.001
 )
 
 var (
