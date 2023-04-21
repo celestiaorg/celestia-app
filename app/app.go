@@ -149,7 +149,6 @@ var (
 		authzmodule.AppModuleBasic{},
 		feegrantmodule.AppModuleBasic{},
 		ibc.AppModuleBasic{},
-		appupgrade.AppModuleBasic{},
 		evidence.AppModuleBasic{},
 		transfer.AppModuleBasic{},
 		vesting.AppModuleBasic{},
@@ -159,7 +158,7 @@ var (
 
 	// ModuleEncodingRegisters keeps track of all the module methods needed to
 	// register interfaces and specific type to encoding config
-	ModuleEncodingRegisters = moduleMapToSlice(ModuleBasics)
+	ModuleEncodingRegisters = extractRegisters(ModuleBasics, appupgrade.TypeRegister{})
 
 	// module account permissions
 	maccPerms = map[string][]string{
@@ -431,7 +430,6 @@ func New(
 		transferModule,
 		blobmod,
 		qgbmod,
-		appupgrade.NewAppModule(app.UpgradeKeeper),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -458,7 +456,6 @@ func New(
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
-		sdkupgradetypes.ModuleName,
 	)
 
 	app.mm.SetOrderEndBlockers(
@@ -481,7 +478,6 @@ func New(
 		paramstypes.ModuleName,
 		authz.ModuleName,
 		vestingtypes.ModuleName,
-		sdkupgradetypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -732,13 +728,16 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	return paramsKeeper
 }
 
-func moduleMapToSlice(m module.BasicManager) []encoding.ModuleRegister {
+func extractRegisters(m module.BasicManager, soloRegisters ...encoding.ModuleRegister) []encoding.ModuleRegister {
 	// TODO: might be able to use some standard generics in go 1.18
-	s := make([]encoding.ModuleRegister, len(m))
+	s := make([]encoding.ModuleRegister, len(m)+len(soloRegisters))
 	i := 0
 	for _, v := range m {
 		s[i] = v
 		i++
+	}
+	for i, v := range soloRegisters {
+		s[i+len(m)] = v
 	}
 	return s
 }
