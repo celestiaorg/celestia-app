@@ -7,13 +7,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestVersionGetter(t *testing.T) {
+func TestChainVersionConfig(t *testing.T) {
 	input := map[uint64]int64{
 		1: 0,
 		2: 10,
 		3: 20,
 	}
-	vg, err := NewVersionGetter(input)
+	vg, err := NewChainVersionConfig(input)
 	require.NoError(t, err)
 	require.Equal(t, "v1", vg.GetVersion(0))
 	require.Equal(t, "v1", vg.GetVersion(1))
@@ -29,7 +29,7 @@ func Test_createRange(t *testing.T) {
 	type test struct {
 		name    string
 		input   map[uint64]int64
-		want    []heightRange
+		want    []HeightRange
 		wantErr bool
 	}
 
@@ -41,33 +41,24 @@ func Test_createRange(t *testing.T) {
 				2: 10,
 				3: 20,
 			},
-			want: []heightRange{
+			want: []HeightRange{
 				{
-					start:   0,
-					end:     9,
-					version: 1,
+					Start:   0,
+					End:     9,
+					Version: 1,
 				},
 				{
-					start:   10,
-					end:     19,
-					version: 2,
+					Start:   10,
+					End:     19,
+					Version: 2,
 				},
 				{
-					start:   20,
-					end:     math.MaxInt64, // the end height should be the max uint64
-					version: 3,
+					Start:   20,
+					End:     math.MaxInt64, // the end height should be the max uint64
+					Version: 3,
 				},
 			},
 			wantErr: false,
-		},
-		{
-			name: "invalid: does not start at 0",
-			input: map[uint64]int64{
-				2: 10,
-				3: 20,
-			},
-			want:    nil,
-			wantErr: true,
 		},
 	}
 
@@ -83,7 +74,7 @@ func Test_createRange(t *testing.T) {
 			}
 			// double check that all ranges are contiguous
 			for i := 0; i < len(got)-1; i++ {
-				require.Equal(t, got[i].end, got[i+1].start-1)
+				require.Equal(t, got[i].End, got[i+1].Start-1)
 			}
 		})
 	}

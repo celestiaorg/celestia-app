@@ -326,11 +326,9 @@ func New(
 	)
 	qgbmod := qgbmodule.NewAppModule(appCodec, app.QgbKeeper)
 
-	vg, err := appversion.NewVersionGetter()
-	if err != nil {
-		panic(err)
-	}
-	app.VersionKeeper = appversion.NewKeeper(vg)
+	customVersions := appOpts.Get(appversion.CustomVersionConfigKey)
+	cv, _ := customVersions.(map[string]appversion.ChainVersionConfig)
+	app.VersionKeeper = appversion.NewKeeper(cv)
 
 	// register the staking hooks
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks
@@ -562,12 +560,7 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	resp := app.mm.EndBlock(ctx, req)
-	ctx.ChainID()
-	// update the app version per the app's version module
-	appVersion := app.VersionKeeper.GetVersion(ctx, req.Height)
-	resp.ConsensusParamUpdates.Version.AppVersion = appVersion
-	return resp
+	return app.mm.EndBlock(ctx, req)
 }
 
 // InitChainer application update at chain initialization

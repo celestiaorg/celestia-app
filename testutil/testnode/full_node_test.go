@@ -40,7 +40,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	genState, kr, err := DefaultGenesisState(s.accounts...)
 	require.NoError(err)
 
-	tmNode, app, cctx, err := New(s.T(), DefaultParams(), DefaultTendermintConfig(), false, genState, kr, tmrand.Str(6))
+	tmNode, app, cctx, err := New(s.T(), DefaultParams(), DefaultTendermintConfig(), false, genState, kr, tmrand.Str(6), nil)
 	require.NoError(err)
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
