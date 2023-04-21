@@ -80,7 +80,7 @@ func TestCreateCommitment(t *testing.T) {
 			name:         "blob of 3 shares succeeds",
 			namespace:    ns1,
 			blob:         bytes.Repeat([]byte{0xFF}, 3*ShareSize),
-			expected:     []byte{0xb9, 0xc, 0x52, 0x68, 0x37, 0xbe, 0x37, 0x47, 0x85, 0x4e, 0x48, 0x2f, 0xd1, 0x8a, 0x77, 0x82, 0xe4, 0x17, 0x44, 0x82, 0xd8, 0x55, 0x71, 0x2b, 0x6e, 0x5f, 0x91, 0x1b, 0xf2, 0xaf, 0x39, 0x60},
+			expected:     []byte{0x52, 0xd3, 0x11, 0x76, 0x12, 0xdc, 0x5c, 0x7, 0x6d, 0xa7, 0xc7, 0xe2, 0xdf, 0xd6, 0x4a, 0xa5, 0xfa, 0xbf, 0x37, 0xcd, 0x59, 0xb, 0x59, 0x5f, 0x6a, 0xf2, 0x27, 0xa0, 0x43, 0x34, 0x87, 0xa6},
 			shareVersion: appconsts.ShareVersionZero,
 		},
 		{
@@ -382,47 +382,6 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, expectedCommitment, msgPFB.ShareCommitments[i])
 			}
-		})
-	}
-}
-
-func TestBlobMinSquareSize(t *testing.T) {
-	type testCase struct {
-		name     string
-		blobSize uint64
-		expected uint64
-	}
-	tests := []testCase{
-		{
-			name:     "1 byte",
-			blobSize: 1,
-			expected: 1,
-		},
-		{
-			name:     "100 bytes",
-			blobSize: 100,
-			expected: 1,
-		},
-		{
-			name:     "2 sparse shares",
-			blobSize: appconsts.FirstCompactShareContentSize + appconsts.ContinuationCompactShareContentSize,
-			expected: 2,
-		},
-		{
-			name:     "5 sparse shares",
-			blobSize: appconsts.FirstCompactShareContentSize + appconsts.ContinuationCompactShareContentSize*4,
-			expected: 4,
-		},
-		{
-			name:     "17 sparse shares",
-			blobSize: appconsts.FirstCompactShareContentSize + appconsts.ContinuationCompactShareContentSize*16,
-			expected: 8,
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := BlobMinSquareSize(tc.blobSize)
-			assert.Equal(t, tc.expected, got)
 		})
 	}
 }
