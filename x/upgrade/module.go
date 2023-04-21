@@ -6,8 +6,7 @@ import (
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 )
 
-type TypeRegister struct {
-}
+type TypeRegister struct{}
 
 // RegisterLegacyAminoCodec registers the upgrade types on the LegacyAmino codec
 func (TypeRegister) RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
