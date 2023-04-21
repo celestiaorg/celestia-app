@@ -82,8 +82,8 @@ func (s *VersionIntegrationTestSuite) TestVersionBump() {
 
 	// wait until the app version should have changed
 	h := int64(12)
-	s.cctx.WaitForHeight(h)
-
+	_, err := s.cctx.WaitForHeight(h)
+	require.NoError(t, err)
 	res, err := s.cctx.Client.Block(s.cctx.GoContext(), &h)
 	require.NoError(t, err)
 	require.NotNil(t, res)

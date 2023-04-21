@@ -68,15 +68,13 @@ func Test_createRange(t *testing.T) {
 			if tc.wantErr {
 				require.Error(t, err)
 				return
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tc.want, got)
 			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
 			// double check that all ranges are contiguous
 			for i := 0; i < len(got)-1; i++ {
 				require.Equal(t, got[i].End, got[i+1].Start-1)
 			}
 		})
 	}
-
 }
