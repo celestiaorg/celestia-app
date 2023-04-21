@@ -13,8 +13,7 @@ func TestChainVersionConfig(t *testing.T) {
 		2: 10,
 		3: 20,
 	}
-	vg, err := NewChainVersionConfig(input)
-	require.NoError(t, err)
+	vg := NewChainVersionConfig(input)
 	require.Equal(t, uint64(1), vg.GetVersion(0))
 	require.Equal(t, uint64(1), vg.GetVersion(1))
 	require.Equal(t, uint64(1), vg.GetVersion(9))
@@ -27,10 +26,9 @@ func TestChainVersionConfig(t *testing.T) {
 
 func Test_createRange(t *testing.T) {
 	type test struct {
-		name    string
-		input   map[uint64]int64
-		want    []HeightRange
-		wantErr bool
+		name  string
+		input map[uint64]int64
+		want  []HeightRange
 	}
 
 	tests := []test{
@@ -58,18 +56,12 @@ func Test_createRange(t *testing.T) {
 					Version: 3,
 				},
 			},
-			wantErr: false,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := createRange(tc.input)
-			if tc.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
+			got := createRange(tc.input)
 			require.Equal(t, tc.want, got)
 			// double check that all ranges are contiguous
 			for i := 0; i < len(got)-1; i++ {

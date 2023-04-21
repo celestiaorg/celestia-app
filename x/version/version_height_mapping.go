@@ -12,14 +12,10 @@ type ChainVersionConfig struct {
 }
 
 // NewChainVersionConfig creates a new ChainVersionConfig from a map of app versions to starting heights.
-func NewChainVersionConfig(versions map[uint64]int64) (ChainVersionConfig, error) {
-	ranges, err := createRange(versions)
-	if err != nil {
-		return ChainVersionConfig{}, err
-	}
+func NewChainVersionConfig(versions map[uint64]int64) ChainVersionConfig {
 	return ChainVersionConfig{
-		Ranges: ranges,
-	}, nil
+		Ranges: createRange(versions),
+	}
 }
 
 // GetVersion returns the app version for a given height.
@@ -27,7 +23,7 @@ func (v ChainVersionConfig) GetVersion(height int64) (appVersion uint64) {
 	return getVersion(height, v.Ranges)
 }
 
-// heightRange is a range of heights that a version is valid for. It is an
+// HeightRange is a range of heights that a version is valid for. It is an
 // internal struct used to search for the correct version given a height.
 type HeightRange struct {
 	Start   int64
@@ -37,7 +33,7 @@ type HeightRange struct {
 
 // createRange creates a set of heightRange structs from a map of version
 // strings to start heights.
-func createRange(versions map[uint64]int64) ([]HeightRange, error) {
+func createRange(versions map[uint64]int64) []HeightRange {
 	ranges := make([]HeightRange, 0, len(versions))
 	for version, start := range versions {
 		ranges = append(ranges, HeightRange{
@@ -57,7 +53,7 @@ func createRange(versions map[uint64]int64) ([]HeightRange, error) {
 	// set the end of the last range to the max uint64 to cover all heights
 	ranges[len(ranges)-1].End = math.MaxInt64
 
-	return ranges, nil
+	return ranges
 }
 
 // getVersion returns the app version for a given block height. It performs a

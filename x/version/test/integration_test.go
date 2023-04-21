@@ -35,10 +35,6 @@ func (s *VersionIntegrationTestSuite) SetupSuite() {
 		0: 0,
 		1: 10,
 		2: 20,
-		3: 30,
-		4: 40,
-		5: 50,
-		6: 60,
 	}
 	s.vm = vm
 
@@ -88,4 +84,13 @@ func (s *VersionIntegrationTestSuite) TestVersionBump() {
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	require.Greater(t, res.Block.Header.Version.App, uint64(0))
+
+	// wait until the app version should have changed
+	h = int64(22)
+	_, err = s.cctx.WaitForHeight(h)
+	require.NoError(t, err)
+	res, err = s.cctx.Client.Block(s.cctx.GoContext(), &h)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Greater(t, res.Block.Header.Version.App, uint64(1))
 }

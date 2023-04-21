@@ -7,19 +7,15 @@ const (
 	MainnetChainID        = "celestia-1"
 )
 
+// StandardChainVersions returns a map of chain IDs to their respective
+// ChainVersionConfig. Each hardfork should be added to this map.
 func StandardChainVersions() map[string]ChainVersionConfig {
-	version0Only, err := NewChainVersionConfig(map[uint64]int64{
+	version0Only := NewChainVersionConfig(map[uint64]int64{
 		0: 0,
 	})
-	if err != nil {
-		panic(err)
-	}
-	mainnetVersions, err := NewChainVersionConfig(map[uint64]int64{
+	mainnetVersions := NewChainVersionConfig(map[uint64]int64{
 		1: 0,
 	})
-	if err != nil {
-		panic(err)
-	}
 	return map[string]ChainVersionConfig{
 		MochaChainID:          version0Only,
 		ArabicaChainID:        version0Only,

@@ -328,7 +328,7 @@ func New(
 
 	customVersions := appOpts.Get(appversion.CustomVersionConfigKey)
 	cv, _ := customVersions.(map[string]appversion.ChainVersionConfig)
-	app.VersionKeeper = appversion.NewKeeper(cv)
+	app.VersionKeeper = appversion.NewKeeper(app.BaseApp, cv)
 
 	// register the staking hooks
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks

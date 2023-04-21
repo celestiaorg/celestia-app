@@ -97,16 +97,14 @@ func New(
 			1: 0,
 		}
 	}
-	vm, err := version.NewChainVersionConfig(versionMap)
-	if err != nil {
-		return nil, nil, Context{}, err
-	}
 
 	appOpts := appOptions{
 		options: map[string]interface{}{
-			server.FlagPruning:             pruningtypes.PruningOptionNothing,
-			flags.FlagHome:                 baseDir,
-			version.CustomVersionConfigKey: map[string]version.ChainVersionConfig{chainID: vm},
+			server.FlagPruning: pruningtypes.PruningOptionNothing,
+			flags.FlagHome:     baseDir,
+			version.CustomVersionConfigKey: map[string]version.ChainVersionConfig{
+				chainID: version.NewChainVersionConfig(versionMap),
+			},
 		},
 	}
 

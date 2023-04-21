@@ -2,19 +2,22 @@ package version
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/upgrade/exported"
 )
 
 type Keeper struct {
+	versionSetter    exported.ProtocolVersionSetter
 	chainAppVersions map[string]ChainVersionConfig
 }
 
-func NewKeeper(nonStandardVersions map[string]ChainVersionConfig) Keeper {
+func NewKeeper(versionSetter exported.ProtocolVersionSetter, nonStandardVersions map[string]ChainVersionConfig) Keeper {
 	vs := StandardChainVersions()
 	for k, v := range nonStandardVersions {
 		vs[k] = v
 	}
 	return Keeper{
 		chainAppVersions: vs,
+		versionSetter:    versionSetter,
 	}
 }
 
