@@ -728,6 +728,8 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	return paramsKeeper
 }
 
+// extractRegisters isolates the encoding module registers from the module
+// manager, and appends any solo registers.
 func extractRegisters(m module.BasicManager, soloRegisters ...encoding.ModuleRegister) []encoding.ModuleRegister {
 	// TODO: might be able to use some standard generics in go 1.18
 	s := make([]encoding.ModuleRegister, len(m)+len(soloRegisters))
