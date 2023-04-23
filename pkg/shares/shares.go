@@ -180,17 +180,15 @@ func (s *Share) rawDataStartIndex() int {
 	if err != nil {
 		panic(err)
 	}
-	if isStart && isCompact {
-		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.SequenceLenBytes + appconsts.CompactShareReservedBytes
-	} else if isStart && !isCompact {
-		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.SequenceLenBytes
-	} else if !isStart && isCompact {
-		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.CompactShareReservedBytes
-	} else if !isStart && !isCompact {
-		return appconsts.NamespaceSize + appconsts.ShareInfoBytes
-	} else {
-		panic(fmt.Sprintf("unable to determine the rawDataStartIndex for share %s", s.data))
+
+	index := appconsts.NamespaceSize + appconsts.ShareInfoBytes
+	if isStart {
+		index += appconsts.SequenceLenBytes
 	}
+	if isCompact {
+		index += appconsts.CompactShareReservedBytes
+	}
+	return index
 }
 
 func ToBytes(shares []Share) (bytes [][]byte) {
