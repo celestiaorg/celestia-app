@@ -17,23 +17,17 @@ func TestBlobSharesUsedNonInteractiveDefaults(t *testing.T) {
 	tests := []test{
 		{2, 4, 1, []int{1}, []uint32{2}},
 		{2, 2, 1, []int{1}, []uint32{2}},
-		{3, 4, 8, []int{3, 3}, []uint32{4, 8}},
+		{3, 4, 6, []int{3, 3}, []uint32{3, 6}},
 		{0, 8, 8, []int{8}, []uint32{0}},
-		{0, 8, 7, []int{7}, []uint32{0}},
-		{0, 8, 7, []int{3, 3}, []uint32{0, 4}},
-		{1, 8, 8, []int{3, 3}, []uint32{2, 6}},
+		{1, 8, 6, []int{3, 3}, []uint32{1, 4}},
 		{1, 8, 32, []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, []uint32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}},
-		{3, 8, 16, []int{5, 7}, []uint32{4, 12}},
-		{0, 8, 29, []int{5, 5, 5, 5}, []uint32{0, 8, 16, 24}},
+		{3, 8, 12, []int{5, 7}, []uint32{3, 8}},
+		{0, 8, 20, []int{5, 5, 5, 5}, []uint32{0, 5, 10, 15}},
 		{0, 8, 10, []int{10}, []uint32{0}},
-		{0, 8, 22, []int{10, 10}, []uint32{0, 12}},
-		{1, 8, 25, []int{10, 10}, []uint32{4, 16}},
-		{2, 8, 24, []int{10, 10}, []uint32{4, 16}},
-		{0, 8, 55, []int{21, 31}, []uint32{0, 24}},
-		{0, 8, 128, []int{64, 64}, []uint32{0, 64}},
+		{1, 8, 20, []int{10, 10}, []uint32{1, 11}},
 		{0, appconsts.DefaultMaxSquareSize, 1000, []int{1000}, []uint32{0}},
 		{0, appconsts.DefaultMaxSquareSize, appconsts.DefaultMaxSquareSize + 1, []int{appconsts.DefaultMaxSquareSize + 1}, []uint32{0}},
-		{1, 128, 399, []int{128, 128, 128}, []uint32{16, 144, 272}},
+		{1, 128, 384, []int{128, 128, 128}, []uint32{1, 129, 257}},
 		{1024, appconsts.DefaultMaxSquareSize, 32, []int{32}, []uint32{1024}},
 	}
 	for i, tt := range tests {
@@ -150,7 +144,7 @@ func TestFitsInSquare(t *testing.T) {
 	}
 }
 
-func TestNextMultipleOfBlobMinSquareSize(t *testing.T) {
+func TestNextShareIndex(t *testing.T) {
 	type test struct {
 		name                        string
 		cursor, blobLen, squareSize int
@@ -172,7 +166,7 @@ func TestNextMultipleOfBlobMinSquareSize(t *testing.T) {
 			blobLen:       2,
 			squareSize:    4,
 			fits:          true,
-			expectedIndex: 2,
+			expectedIndex: 1,
 		},
 		{
 			name:          "half row blobLen 2 cursor 2",
@@ -188,15 +182,15 @@ func TestNextMultipleOfBlobMinSquareSize(t *testing.T) {
 			blobLen:       4,
 			squareSize:    8,
 			fits:          true,
-			expectedIndex: 4,
+			expectedIndex: 3,
 		},
 		{
 			name:          "blobLen 5 cursor 3 size 8",
 			cursor:        3,
 			blobLen:       5,
 			squareSize:    8,
-			fits:          false,
-			expectedIndex: 4,
+			fits:          true,
+			expectedIndex: 3,
 		},
 		{
 			name:          "blobLen 2 cursor 3 square size 8",
@@ -204,15 +198,15 @@ func TestNextMultipleOfBlobMinSquareSize(t *testing.T) {
 			blobLen:       2,
 			squareSize:    8,
 			fits:          true,
-			expectedIndex: 4,
+			expectedIndex: 3,
 		},
 		{
 			name:          "cursor 3 blobLen 5 size 8",
 			cursor:        3,
 			blobLen:       5,
 			squareSize:    8,
-			fits:          false,
-			expectedIndex: 4,
+			fits:          true,
+			expectedIndex: 3,
 		},
 		{
 			name:          "bloblen 12 cursor 1 size 16",
@@ -220,7 +214,7 @@ func TestNextMultipleOfBlobMinSquareSize(t *testing.T) {
 			blobLen:       12,
 			squareSize:    16,
 			fits:          true,
-			expectedIndex: 4,
+			expectedIndex: 1,
 		},
 		{
 			name:          "edge case where there are many blobs with a single size",
@@ -236,21 +230,76 @@ func TestNextMultipleOfBlobMinSquareSize(t *testing.T) {
 			blobLen:       2,
 			squareSize:    8,
 			fits:          true,
-			expectedIndex: 12,
+			expectedIndex: 11,
 		},
 		{
-			// inspired by the diagram at https://github.com/celestiaorg/celestia-app/blob/1b80b94a62c8c292f569e2fc576e26299985681a/docs/architecture/adr-009-non-interactive-default-rules-for-reduced-padding.md?plain=1#L30
 			name:          "non-interactive default rules for reduced padding diagram",
 			cursor:        11,
 			blobLen:       11,
 			squareSize:    8,
 			fits:          false,
+			expectedIndex: 11,
+		},
+		{
+			name:          "at threshold",
+			cursor:        11,
+			blobLen:       appconsts.SubtreeRootThreshold,
+			squareSize:    RoundUpPowerOfTwo(appconsts.SubtreeRootThreshold),
+			fits:          false,
+			expectedIndex: 11,
+		},
+		{
+			name:          "one over the threshold",
+			cursor:        11,
+			blobLen:       appconsts.SubtreeRootThreshold + 1,
+			squareSize:    128,
+			fits:          false,
 			expectedIndex: 12,
+		},
+		{
+			name:          "one under the threshold",
+			cursor:        11,
+			blobLen:       appconsts.SubtreeRootThreshold - 1,
+			squareSize:    128,
+			fits:          false,
+			expectedIndex: 11,
+		},
+		{
+			name:          "one under the threshold small square size",
+			cursor:        1,
+			blobLen:       appconsts.SubtreeRootThreshold - 1,
+			squareSize:    16,
+			fits:          false,
+			expectedIndex: 1,
+		},
+		{
+			name:          "max padding for square size 128",
+			cursor:        1,
+			blobLen:       16256,
+			squareSize:    128,
+			fits:          false,
+			expectedIndex: 128,
+		},
+		{
+			name:          "half max padding for square size 128",
+			cursor:        1,
+			blobLen:       8192,
+			squareSize:    128,
+			fits:          false,
+			expectedIndex: 64,
+		},
+		{
+			name:          "round up to 128 subtree size",
+			cursor:        1,
+			blobLen:       8193,
+			squareSize:    128,
+			fits:          false,
+			expectedIndex: 128,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, fits := NextMultipleOfBlobMinSquareSize(tt.cursor, tt.blobLen, tt.squareSize)
+			res, fits := NextShareIndex(tt.cursor, tt.blobLen, tt.squareSize)
 			assert.Equal(t, tt.fits, fits)
 			assert.Equal(t, tt.expectedIndex, res)
 		})
@@ -320,7 +369,7 @@ func Test_roundUpBy(t *testing.T) {
 	}
 }
 
-func TestMinSquareSize(t *testing.T) {
+func TestBlobMinSquareSize(t *testing.T) {
 	type testCase struct {
 		shareCount int
 		want       int
@@ -361,8 +410,71 @@ func TestMinSquareSize(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("shareCount %d", tc.shareCount), func(t *testing.T) {
-			got := MinSquareSize(tc.shareCount)
+			got := BlobMinSquareSize(tc.shareCount)
 			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestSubTreeWidth(t *testing.T) {
+	type testCase struct {
+		shareCount int
+		want       int
+	}
+	testCases := []testCase{
+		{
+			shareCount: 0,
+			want:       1,
+		},
+		{
+			shareCount: 1,
+			want:       1,
+		},
+		{
+			shareCount: 2,
+			want:       1,
+		},
+		{
+			shareCount: appconsts.SubtreeRootThreshold,
+			want:       1,
+		},
+		{
+			shareCount: appconsts.SubtreeRootThreshold + 1,
+			want:       2,
+		},
+		{
+			shareCount: appconsts.SubtreeRootThreshold - 1,
+			want:       1,
+		},
+		{
+			shareCount: appconsts.SubtreeRootThreshold * 2,
+			want:       2,
+		},
+		{
+			shareCount: (appconsts.SubtreeRootThreshold * 2) + 1,
+			want:       4,
+		},
+		{
+			shareCount: (appconsts.SubtreeRootThreshold * 3) - 1,
+			want:       4,
+		},
+		{
+			shareCount: (appconsts.SubtreeRootThreshold * 4),
+			want:       4,
+		},
+		{
+			shareCount: (appconsts.SubtreeRootThreshold * 5),
+			want:       8,
+		},
+		{
+			shareCount: (appconsts.SubtreeRootThreshold * appconsts.DefaultMaxSquareSize) - 1,
+			want:       128,
+		},
+	}
+	for i, tc := range testCases {
+		t.Run(fmt.Sprintf("shareCount %d", tc.shareCount), func(t *testing.T) {
+			got := SubTreeWidth(tc.shareCount)
+			assert.Equal(t, tc.want, got, i)
 		})
 	}
 }

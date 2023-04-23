@@ -62,7 +62,7 @@ func finalizeBlobLayout(squareSize uint64, nonreserveStart int, blobTxs []tmprot
 		if removePFBIndexes[tBlob.parsedIndex] {
 			continue
 		}
-		cursor, _ = shares.NextMultipleOfBlobMinSquareSize(cursor, tBlob.sharesUsed, iSS)
+		cursor, _ = shares.NextShareIndex(cursor, tBlob.sharesUsed, iSS)
 		// remove the parsed transaction if it cannot fit into the square
 		if cursor+tBlob.sharesUsed > maxSharesSize {
 			removePFBIndexes[tBlob.parsedIndex] = true

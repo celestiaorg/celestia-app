@@ -14,11 +14,7 @@ type path struct {
 // calculateCommitmentPaths calculates all of the paths to subtree roots needed to
 // create the commitment for a given blob.
 func calculateCommitmentPaths(squareSize, start, blobShareLen int) []path {
-	// TODO: make the non-interactive defaults optional. by calculating the
-	// NextMultipleOfBlobMinSquareSize, we are forcing use of the
-	// non-interactive defaults. If we want to make this optional in the future,
-	// we have to move this next line out of this function.
-	start, _ = shares.NextMultipleOfBlobMinSquareSize(start, blobShareLen, squareSize)
+	start, _ = shares.NextShareIndex(start, blobShareLen, squareSize)
 	startRow, endRow := start/squareSize, (start+blobShareLen-1)/squareSize
 	normalizedStartIndex := start % squareSize
 	normalizedEndIndex := (start + blobShareLen) - endRow*squareSize
@@ -33,11 +29,11 @@ func calculateCommitmentPaths(squareSize, start, blobShareLen int) []path {
 			end = normalizedEndIndex
 		}
 
-		// subTreeRootMaxHeight is the maximum height of a subtree root that was
-		// used to generate the commitment. The height is based on the minimum
-		// square size the blob can fit into. See ADR-008 for more details.
-		subTreeRootMaxHeight := int(math.Log2(float64(shares.MinSquareSize(blobShareLen))))
-		minDepth := maxDepth - subTreeRootMaxHeight
+		// subTreeRootMaxDepth is the maximum depth of a subtree root that was
+		// used to generate the commitment. The height is based on the
+		// SubtreeRootThreshold. See ADR-013 for more details.
+		subTreeRootMaxDepth := int(math.Log2(float64(shares.SubTreeWidth(blobShareLen))))
+		minDepth := maxDepth - subTreeRootMaxDepth
 		coords := calculateSubTreeRootCoordinates(maxDepth, minDepth, start, end)
 		for _, c := range coords {
 			paths = append(paths, path{

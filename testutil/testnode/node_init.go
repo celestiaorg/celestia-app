@@ -188,7 +188,7 @@ func writeFile(name string, dir string, contents []byte) error {
 	return nil
 }
 
-func initFileStructure(t *testing.T, tmCfg *config.Config) (string, error) {
+func initFileStructure(t testing.TB, tmCfg *config.Config) (string, error) {
 	basePath := filepath.Join(t.TempDir(), ".celestia-app")
 	tmCfg.SetRoot(basePath)
 	configPath := filepath.Join(basePath, "config")
