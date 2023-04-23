@@ -121,9 +121,9 @@ func GetHeights(ctx context.Context, testnet *Testnet) ([]int64, error) {
 		return nil, errors.New("network is not running")
 	}
 
-	// return heights in ascending order
+	// return heights in descending order
 	sort.Slice(heights, func(i, j int) bool {
-		return heights[i] < heights[j]
+		return heights[i] > heights[j]
 	})
 
 	return heights, nil

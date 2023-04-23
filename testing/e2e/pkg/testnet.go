@@ -25,6 +25,7 @@ const (
 	dockerSrcURL                = "ghcr.io/celestiaorg/celestia-app"
 	randomSeed           int64  = 589308084734268
 	defaultAccountTokens        = 1e6
+	rpcPort                     = 26657
 )
 
 type Testnet struct {
@@ -219,7 +220,7 @@ func (n Node) AddressP2P(withID bool) string {
 
 // Address returns an RPC endpoint address for the node.
 func (n Node) AddressRPC() string {
-	return fmt.Sprintf("%v:26657", n.IP.String())
+	return fmt.Sprintf("%v:%d", n.IP.String(), rpcPort)
 }
 
 func (n Node) IsValidator() bool {
