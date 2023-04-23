@@ -5,6 +5,7 @@ import (
 	"math/rand"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/gogo/protobuf/grpc"
@@ -14,7 +15,7 @@ var _ Sequence = &SendSequence{}
 
 const (
 	sendGasLimit = 100000
-	sendFee      = sendGasLimit * DefaultGasPrice
+	sendFee      = sendGasLimit * appconsts.DefaultMinGasPrice
 )
 
 // SendSequence sets up an endless sequence of send transactions, moving tokens

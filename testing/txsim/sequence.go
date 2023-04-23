@@ -45,7 +45,6 @@ const (
 	// set default gas limit to cover the costs of most transactions
 	// At 0.001 utia per gas, this equates to 1000utia per transaction
 	DefaultGasLimit = 1000000
-	DefaultGasPrice = 0.001
 )
 
 // EndOfSequence is a special error which indicates that the sequence has been terminated

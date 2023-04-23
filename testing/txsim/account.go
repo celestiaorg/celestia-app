@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -19,7 +20,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const defaultFee = DefaultGasLimit * DefaultGasPrice
+const defaultFee = DefaultGasLimit * appconsts.DefaultMinGasPrice
 
 type AccountManager struct {
 	keys    keyring.Keyring
@@ -184,7 +185,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		if op.GasPrice > 0 {
 			builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(app.BondDenom, int64(float64(op.GasLimit)*op.GasPrice))))
 		} else {
-			builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(app.BondDenom, int64(float64(op.GasLimit)*DefaultGasPrice))))
+			builder.SetFeeAmount(types.NewCoins(types.NewInt64Coin(app.BondDenom, int64(float64(op.GasLimit)*appconsts.DefaultMinGasPrice))))
 		}
 	}
 
