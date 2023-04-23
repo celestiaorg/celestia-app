@@ -43,7 +43,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 
 	var padding []Share
 	if len(data.Blobs) > 0 {
-		blobShareStart, _ := NextMultipleOfBlobMinSquareSize(
+		blobShareStart, _ := NextShareIndex(
 			currentShareCount,
 			SparseSharesNeeded(uint32(len(data.Blobs[0].Data))),
 			int(data.SquareSize),

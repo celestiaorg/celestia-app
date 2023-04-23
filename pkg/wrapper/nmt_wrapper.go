@@ -38,16 +38,17 @@ type ErasuredNamespacedMerkleTree struct {
 }
 
 // NewErasuredNamespacedMerkleTree creates a new ErasuredNamespacedMerkleTree
-// with an underlying NMT of namespace size `appconsts.NamespaceSize`. axisIndex
-// is the index of the row or column that this tree is committing to. squareSize
-// must be greater than zero.
-func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, setters ...nmt.Option) ErasuredNamespacedMerkleTree {
+// with an underlying NMT of namespace size `appconsts.NamespaceSize` and with
+// `ignoreMaxNamespace=true`. axisIndex is the index of the row or column that
+// this tree is committing to. squareSize must be greater than zero.
+func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, options ...nmt.Option) ErasuredNamespacedMerkleTree {
 	if squareSize == 0 {
 		panic("cannot create a ErasuredNamespacedMerkleTree of squareSize == 0")
 	}
-	setters = append(setters, nmt.NamespaceIDSize(appconsts.NamespaceSize))
-	tree := nmt.New(appconsts.NewBaseHashFunc(), setters...)
-	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: setters, tree: tree, axisIndex: uint64(axisIndex), shareIndex: 0}
+	options = append(options, nmt.NamespaceIDSize(appconsts.NamespaceSize))
+	options = append(options, nmt.IgnoreMaxNamespace(true))
+	tree := nmt.New(appconsts.NewBaseHashFunc(), options...)
+	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: options, tree: tree, axisIndex: uint64(axisIndex), shareIndex: 0}
 }
 
 type constructor struct {

@@ -29,7 +29,7 @@ const (
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/data_structures.md#availabledataheader
 type DataAvailabilityHeader struct {
 	// RowRoot_j = root((M_{j,1} || M_{j,2} || ... || M_{j,2k} ))
-	RowsRoots [][]byte `json:"row_roots"`
+	RowRoots [][]byte `json:"row_roots"`
 	// ColumnRoot_j = root((M_{1,j} || M_{2,j} || ... || M_{2k,j} ))
 	ColumnRoots [][]byte `json:"column_roots"`
 	// hash is the Merkle root of the row and column roots. This field is the
@@ -41,7 +41,7 @@ type DataAvailabilityHeader struct {
 func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) DataAvailabilityHeader {
 	// generate the row and col roots using the EDS
 	dah := DataAvailabilityHeader{
-		RowsRoots:   eds.RowRoots(),
+		RowRoots:    eds.RowRoots(),
 		ColumnRoots: eds.ColRoots(),
 	}
 
@@ -97,9 +97,9 @@ func (dah *DataAvailabilityHeader) Hash() []byte {
 		return dah.hash
 	}
 
-	rowsCount := len(dah.RowsRoots)
+	rowsCount := len(dah.RowRoots)
 	slices := make([][]byte, rowsCount+rowsCount)
-	copy(slices[0:rowsCount], dah.RowsRoots)
+	copy(slices[0:rowsCount], dah.RowRoots)
 	copy(slices[rowsCount:], dah.ColumnRoots)
 	// The single data root is computed using a simple binary merkle tree.
 	// Effectively being root(rowRoots || columnRoots):
@@ -113,7 +113,7 @@ func (dah *DataAvailabilityHeader) ToProto() (*daproto.DataAvailabilityHeader, e
 	}
 
 	dahp := new(daproto.DataAvailabilityHeader)
-	dahp.RowRoots = dah.RowsRoots
+	dahp.RowRoots = dah.RowRoots
 	dahp.ColumnRoots = dah.ColumnRoots
 	return dahp, nil
 }
@@ -124,7 +124,7 @@ func DataAvailabilityHeaderFromProto(dahp *daproto.DataAvailabilityHeader) (dah 
 	}
 
 	dah = new(DataAvailabilityHeader)
-	dah.RowsRoots = dahp.RowRoots
+	dah.RowRoots = dahp.RowRoots
 	dah.ColumnRoots = dahp.ColumnRoots
 
 	return dah, dah.ValidateBasic()
@@ -135,22 +135,22 @@ func (dah *DataAvailabilityHeader) ValidateBasic() error {
 	if dah == nil {
 		return errors.New("nil data availability header is not valid")
 	}
-	if len(dah.ColumnRoots) < minExtendedSquareWidth || len(dah.RowsRoots) < minExtendedSquareWidth {
+	if len(dah.ColumnRoots) < minExtendedSquareWidth || len(dah.RowRoots) < minExtendedSquareWidth {
 		return fmt.Errorf(
 			"minimum valid DataAvailabilityHeader has at least %d row and column roots",
 			minExtendedSquareWidth,
 		)
 	}
-	if len(dah.ColumnRoots) > maxExtendedSquareWidth || len(dah.RowsRoots) > maxExtendedSquareWidth {
+	if len(dah.ColumnRoots) > maxExtendedSquareWidth || len(dah.RowRoots) > maxExtendedSquareWidth {
 		return fmt.Errorf(
 			"maximum valid DataAvailabilityHeader has at most %d row and column roots",
 			maxExtendedSquareWidth,
 		)
 	}
-	if len(dah.ColumnRoots) != len(dah.RowsRoots) {
+	if len(dah.ColumnRoots) != len(dah.RowRoots) {
 		return fmt.Errorf(
 			"unequal number of row and column roots: row %d col %d",
-			len(dah.RowsRoots),
+			len(dah.RowRoots),
 			len(dah.ColumnRoots),
 		)
 	}
@@ -165,7 +165,7 @@ func (dah *DataAvailabilityHeader) IsZero() bool {
 	if dah == nil {
 		return true
 	}
-	return len(dah.ColumnRoots) == 0 || len(dah.RowsRoots) == 0
+	return len(dah.ColumnRoots) == 0 || len(dah.RowRoots) == 0
 }
 
 // MinDataAvailabilityHeader returns the minimum valid data availability header.
