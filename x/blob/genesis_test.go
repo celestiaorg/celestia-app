@@ -3,7 +3,7 @@ package blob_test
 import (
 	"testing"
 
-	keepertest "github.com/celestiaorg/celestia-app/testutil/keeper"
+	keepertest "github.com/celestiaorg/celestia-app/test/util/keeper"
 	"github.com/celestiaorg/celestia-app/x/blob"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/require"

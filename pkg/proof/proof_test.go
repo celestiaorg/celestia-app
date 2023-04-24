@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 
 	"github.com/celestiaorg/celestia-app/pkg/da"
 

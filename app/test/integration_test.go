@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -21,7 +21,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
-	"github.com/celestiaorg/celestia-app/testutil/network"
+	"github.com/celestiaorg/celestia-app/test/util/network"
 	"github.com/celestiaorg/celestia-app/x/blob"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"

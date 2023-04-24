@@ -3,7 +3,7 @@ package keeper_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/testutil"
+	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

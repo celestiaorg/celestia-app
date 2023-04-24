@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/cosmos/cosmos-sdk/x/staking"
+	testutil "github.com/cosmos/cosmos-sdk/x/staking"
 
-	"github.com/celestiaorg/celestia-app/testutil"
+	"github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
