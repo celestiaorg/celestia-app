@@ -52,7 +52,7 @@ func TestTxsimCommandEnvVar(t *testing.T) {
 
 func setup(t testing.TB) (keyring.Keyring, string, string) {
 	t.Helper()
-	genesis, keyring, err := testnode.DefaultGenesisState()
+	genesis, keyring, err := testnode.DefaultGenesisState(testfactory.TestAccName)
 	require.NoError(t, err)
 
 	tmCfg := testnode.DefaultTendermintConfig()

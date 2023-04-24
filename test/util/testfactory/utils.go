@@ -41,13 +41,13 @@ func GenerateKeyring(accounts ...string) keyring.Keyring {
 	kb := keyring.NewInMemory(cdc)
 
 	for _, acc := range accounts {
-		_, _, err := kb.NewMnemonic(acc, keyring.English, keyring.DefaultBIP39Passphrase, sdk.FullFundraiserPath, hd.Secp256k1)
+		_, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	_, err := kb.NewAccount(TestAccName, TestAccMnemo, keyring.DefaultBIP39Passphrase, sdk.FullFundraiserPath, hd.Secp256k1)
+	_, err := kb.NewAccount(TestAccName, TestAccMnemo, "", "", hd.Secp256k1)
 	if err != nil {
 		panic(err)
 	}
@@ -71,33 +71,28 @@ func RandomAddress() sdk.Address {
 
 func FundKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balance, []authtypes.GenesisAccount) {
 	kr := GenerateKeyring(accounts...)
-	genBalances, genAccounts := FundAllKeyringAccounts(kr, 99999999999999999)
-	return kr, genBalances, genAccounts
-}
+	genAccounts := make([]authtypes.GenesisAccount, len(accounts))
+	genBalances := make([]banktypes.Balance, len(accounts))
 
-func FundAllKeyringAccounts(keys keyring.Keyring, amount int64) ([]banktypes.Balance, []authtypes.GenesisAccount) {
-	records, err := keys.List()
-	if err != nil {
-		panic(err)
-	}
+	for i, acc := range accounts {
+		rec, err := kr.Key(acc)
+		if err != nil {
+			panic(err)
+		}
 
-	genAccounts := make([]authtypes.GenesisAccount, len(records))
-	genBalances := make([]banktypes.Balance, len(records))
-
-	for i, rec := range records {
 		addr, err := rec.GetAddress()
 		if err != nil {
 			panic(err)
 		}
 
 		balances := sdk.NewCoins(
-			sdk.NewCoin(bondDenom, sdk.NewInt(amount)),
+			sdk.NewCoin(bondDenom, sdk.NewInt(99999999999999999)),
 		)
 
 		genBalances[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}
 		genAccounts[i] = authtypes.NewBaseAccount(addr, nil, uint64(i), 0)
 	}
-	return genBalances, genAccounts
+	return kr, genBalances, genAccounts
 }
 
 func GenerateAccounts(count int) []string {

@@ -16,12 +16,9 @@ import (
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 )
-
-// txsim --key-path --rpc-endpoints --grpc-endpoints --seed --poll-time
 
 // A set of environment variables that can be used instead of flags
 const (
@@ -51,6 +48,8 @@ func main() {
 	}
 }
 
+// command returns the cobra command which wraps the txsim.Run() function using flags and/or
+// environment variables to instruct the client.
 func command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "txsim",
@@ -64,10 +63,9 @@ well funded account that can act as the master account. The command runs until a
 		Example: "txsim --key-path /path/to/keyring --rpc-endpoints localhost:26657 --grpc-endpoints localhost:9090 --seed 1234 --poll-time 1s --blob 5",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var (
-				keys   keyring.Keyring
-				err    error
-				cdc    = encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
-				hdPath = hd.CreateHDPath(types.CoinType, 0, 0).String()
+				keys keyring.Keyring
+				err  error
+				cdc  = encoding.MakeConfig(app.ModuleEncodingRegisters...).Codec
 			)
 
 			// setup the keyring
@@ -76,12 +74,12 @@ well funded account that can act as the master account. The command runs until a
 				keys, err = keyring.New(app.Name, keyring.BackendTest, keyPath, nil, cdc)
 			case keyPath == "" && keyMnemonic != "":
 				keys = keyring.NewInMemory(cdc)
-				_, err = keys.NewAccount("master", keyMnemonic, keyring.DefaultBIP39Passphrase, hdPath, hd.Secp256k1)
+				_, err = keys.NewAccount("master", keyMnemonic, keyring.DefaultBIP39Passphrase, "", hd.Secp256k1)
 			case os.Getenv(TxsimKeypath) != "":
 				keys, err = keyring.New(app.Name, keyring.BackendTest, os.Getenv(TxsimKeypath), nil, cdc)
 			case os.Getenv(TxsimMnemonic) != "":
 				keys = keyring.NewInMemory(cdc)
-				_, err = keys.NewAccount("master", os.Getenv(TxsimMnemonic), keyring.DefaultBIP39Passphrase, hdPath, hd.Secp256k1)
+				_, err = keys.NewAccount("master", os.Getenv(TxsimMnemonic), keyring.DefaultBIP39Passphrase, "", hd.Secp256k1)
 			default:
 				return errors.New("keyring not specified. Use --key-path, --key-mnemonic or TXSIM_KEYPATH env var")
 			}
@@ -174,7 +172,7 @@ well funded account that can act as the master account. The command runs until a
 func flags() *flag.FlagSet {
 	flags := &flag.FlagSet{}
 	flags.StringVar(&keyPath, "key-path", "", "path to the keyring")
-	flags.StringVar(&keyMnemonic, "key-mnemonic", "", "comma separated mnemonic for the keyring")
+	flags.StringVar(&keyMnemonic, "key-mnemonic", "", "space separated mnemonic for the keyring. The hdpath used is an empty string")
 	flags.StringVar(&rpcEndpoints, "rpc-endpoints", "", "comma separated list of rpc endpoints")
 	flags.StringVar(&grpcEndpoints, "grpc-endpoints", "", "comma separated list of grpc endpoints")
 	flags.Int64Var(&seed, "seed", 0, "seed for the random number generator")
