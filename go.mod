@@ -32,7 +32,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.46.11
 	github.com/cosmos/gogoproto v1.4.2
 	github.com/cosmos/ibc-go/v6 v6.1.0
-	github.com/rs/zerolog v1.27.0
+	github.com/rs/zerolog v1.29.1
 	github.com/tendermint/tendermint v0.34.24
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
 	gopkg.in/yaml.v2 v2.4.0
