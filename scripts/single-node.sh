@@ -12,7 +12,6 @@ CHAINID="private"
 coins="1000000000000000utia"
 celestia-appd init $CHAINID --chain-id $CHAINID --home ${HOME_DIR}
 celestia-appd keys add validator --keyring-backend="test" --home ${HOME_DIR}
-# this won't work because the some proto types are decalared twice and the logs output to stdout (dependency hell involving iavl)
 celestia-appd add-genesis-account $(celestia-appd keys show validator -a --keyring-backend="test" --home ${HOME_DIR}) $coins --home ${HOME_DIR}
 celestia-appd gentx validator 5000000000utia \
 	--keyring-backend="test" \
