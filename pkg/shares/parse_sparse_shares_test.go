@@ -105,7 +105,7 @@ func Test_parseSparseSharesErrors(t *testing.T) {
 	rawShare = append(rawShare, namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}...)
 	rawShare = append(rawShare, byte(infoByte))
 	rawShare = append(rawShare, bytes.Repeat([]byte{0}, appconsts.ShareSize-len(rawShare))...)
-	share, err := newShare(rawShare)
+	share, err := NewShare(rawShare)
 	if err != nil {
 		t.Fatal(err)
 	}
