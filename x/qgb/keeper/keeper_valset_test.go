@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/testutil"
+	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"

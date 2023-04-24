@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

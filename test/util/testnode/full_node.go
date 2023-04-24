@@ -31,7 +31,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 )
 
 // New creates a ready to use tendermint node that operates a single validator

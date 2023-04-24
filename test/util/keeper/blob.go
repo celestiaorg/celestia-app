@@ -3,7 +3,7 @@ package keeper
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/testutil"
+	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/x/blob/keeper"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/codec"

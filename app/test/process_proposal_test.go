@@ -21,9 +21,9 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/testutil"
-	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	testutil "github.com/celestiaorg/celestia-app/test/util"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 )
 
 func TestProcessProposal(t *testing.T) {

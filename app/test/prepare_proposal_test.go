@@ -17,9 +17,9 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/testutil"
-	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	testutil "github.com/celestiaorg/celestia-app/test/util"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 )
 
