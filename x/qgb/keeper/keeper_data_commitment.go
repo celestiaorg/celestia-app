@@ -17,7 +17,7 @@ func (k Keeper) GetCurrentDataCommitment(ctx sdk.Context) (types.DataCommitment,
 	// for a data commitment window of 400, the ranges will be: 1-400;401-800;801-1200
 	endBlock := uint64(ctx.BlockHeight())
 
-	if !k.CheckLatestAttestationNonce(sdk.UnwrapSDKContext(ctx)) {
+	if !k.CheckLatestAttestationNonce(ctx) {
 		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
 	}
 	nonce := k.GetLatestAttestationNonce(ctx) + 1
@@ -50,7 +50,7 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 			),
 		)
 	}
-	if !k.CheckLatestAttestationNonce(sdk.UnwrapSDKContext(ctx)) {
+	if !k.CheckLatestAttestationNonce(ctx) {
 		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
 	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
@@ -76,7 +76,7 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 
 // GetLastDataCommitment returns the last data commitment.
 func (k Keeper) GetLastDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
-	if !k.CheckLatestAttestationNonce(sdk.UnwrapSDKContext(ctx)) {
+	if !k.CheckLatestAttestationNonce(ctx) {
 		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
 	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
