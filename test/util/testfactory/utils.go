@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/simapp"
@@ -18,9 +17,9 @@ import (
 
 const (
 	// nolint:lll
-	TestAccName = "test-account"
-	testMnemo   = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
-	bondDenom   = "utia"
+	TestAccName  = "test-account"
+	TestAccMnemo = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
+	bondDenom    = "utia"
 )
 
 func QueryWithoutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.ResultTx, error) {
@@ -42,13 +41,13 @@ func GenerateKeyring(accounts ...string) keyring.Keyring {
 	kb := keyring.NewInMemory(cdc)
 
 	for _, acc := range accounts {
-		_, _, err := kb.NewMnemonic(acc, keyring.English, "", "", hd.Secp256k1)
+		_, _, err := kb.NewMnemonic(acc, keyring.English, keyring.DefaultBIP39Passphrase, sdk.FullFundraiserPath, hd.Secp256k1)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	_, err := kb.NewAccount(TestAccName, testMnemo, "1234", "", hd.Secp256k1)
+	_, err := kb.NewAccount(TestAccName, TestAccMnemo, keyring.DefaultBIP39Passphrase, sdk.FullFundraiserPath, hd.Secp256k1)
 	if err != nil {
 		panic(err)
 	}
@@ -70,30 +69,35 @@ func RandomAddress() sdk.Address {
 	return addr
 }
 
-func FundKeyringAccounts(cdc codec.Codec, accounts ...string) (keyring.Keyring, []banktypes.Balance, []authtypes.GenesisAccount) {
+func FundKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balance, []authtypes.GenesisAccount) {
 	kr := GenerateKeyring(accounts...)
-	genAccounts := make([]authtypes.GenesisAccount, len(accounts))
-	genBalances := make([]banktypes.Balance, len(accounts))
+	genBalances, genAccounts := FundAllKeyringAccounts(kr, 99999999999999999)
+	return kr, genBalances, genAccounts
+}
 
-	for i, acc := range accounts {
-		rec, err := kr.Key(acc)
-		if err != nil {
-			panic(err)
-		}
+func FundAllKeyringAccounts(keys keyring.Keyring, amount int64) ([]banktypes.Balance, []authtypes.GenesisAccount) {
+	records, err := keys.List()
+	if err != nil {
+		panic(err)
+	}
 
+	genAccounts := make([]authtypes.GenesisAccount, len(records))
+	genBalances := make([]banktypes.Balance, len(records))
+
+	for i, rec := range records {
 		addr, err := rec.GetAddress()
 		if err != nil {
 			panic(err)
 		}
 
 		balances := sdk.NewCoins(
-			sdk.NewCoin(bondDenom, sdk.NewInt(99999999999999999)),
+			sdk.NewCoin(bondDenom, sdk.NewInt(amount)),
 		)
 
 		genBalances[i] = banktypes.Balance{Address: addr.String(), Coins: balances.Sort()}
 		genAccounts[i] = authtypes.NewBaseAccount(addr, nil, uint64(i), 0)
 	}
-	return kr, genBalances, genAccounts
+	return genBalances, genAccounts
 }
 
 func GenerateAccounts(count int) []string {
