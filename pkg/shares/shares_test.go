@@ -277,12 +277,6 @@ func TestIsPadding(t *testing.T) {
 	nsPadding, err := NamespacePaddingShare(ns1)
 	require.NoError(t, err)
 
-	tailPadding, err := TailPaddingShare()
-	require.NoError(t, err)
-
-	reservedPaddingShare, err := ReservedPaddingShare()
-	require.NoError(t, err)
-
 	testCases := []testCase{
 		{
 			name:    "empty share",
@@ -301,12 +295,12 @@ func TestIsPadding(t *testing.T) {
 		},
 		{
 			name:  "tail padding",
-			share: tailPadding,
+			share: TailPaddingShare(),
 			want:  true,
 		},
 		{
 			name:  "reserved padding",
-			share: reservedPaddingShare,
+			share: ReservedPaddingShare(),
 			want:  true,
 		},
 	}

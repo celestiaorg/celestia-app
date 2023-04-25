@@ -72,10 +72,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 		return nil, err
 	}
 	currentShareCount += len(blobShares)
-	tailShares, err := TailPaddingShares(wantShareCount - currentShareCount)
-	if err != nil {
-		return nil, err
-	}
+	tailShares := TailPaddingShares(wantShareCount - currentShareCount)
 	shares := make([]Share, 0, data.SquareSize*data.SquareSize)
 	shares = append(append(append(append(append(
 		shares,
@@ -126,15 +123,17 @@ func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRang
 		}
 	}
 
-	txShares, txMap, err := txWriter.Export(0)
+	txShares, err = txWriter.Export()
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	txMap := txWriter.ShareRanges(0)
 
-	pfbShares, pfbMap, err := pfbTxWriter.Export(len(txShares))
+	pfbShares, err = pfbTxWriter.Export()
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	pfbMap := pfbTxWriter.ShareRanges(len(txShares))
 
 	return txShares, pfbShares, mergeMaps(txMap, pfbMap), nil
 }

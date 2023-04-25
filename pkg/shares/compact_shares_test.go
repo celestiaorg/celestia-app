@@ -23,7 +23,7 @@ func TestCompactShareSplitter(t *testing.T) {
 		err := css.WriteTx(tx)
 		require.NoError(t, err)
 	}
-	shares, _, err := css.Export(0)
+	shares, err := css.Export()
 	require.NoError(t, err)
 
 	rawResTxs, err := parseCompactShares(shares, appconsts.SupportedShareVersions)
@@ -121,7 +121,7 @@ func TestCompactShareContainsInfoByte(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	shares, _, err := css.Export(0)
+	shares, err := css.Export()
 	require.NoError(t, err)
 	assert.Condition(t, func() bool { return len(shares) == 1 })
 
@@ -143,7 +143,7 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	shares, _, err := css.Export(0)
+	shares, err := css.Export()
 	require.NoError(t, err)
 	assert.Condition(t, func() bool { return len(shares) > 1 })
 
