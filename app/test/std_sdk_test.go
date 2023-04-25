@@ -62,9 +62,10 @@ func (s *StandardSDKIntegrationTestSuite) unusedAccount() string {
 func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 	t := s.T()
 	type test struct {
-		name    string
-		msgFunc func() (msgs []sdk.Msg, signer string)
-		hash    string
+		name         string
+		msgFunc      func() (msgs []sdk.Msg, signer string)
+		hash         string
+		expectedCode uint32
 	}
 	tests := []test{
 		{
@@ -78,6 +79,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				)
 				return []sdk.Msg{msgSend}, account1
 			},
+			expectedCode: abci.CodeTypeOK,
 		},
 		{
 			name: "send 1,000,000 TIA",
@@ -90,6 +92,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				)
 				return []sdk.Msg{msgSend}, account1
 			},
+			expectedCode: abci.CodeTypeOK,
 		},
 		{
 			name: "delegate 1 TIA",
@@ -100,6 +103,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msg := stakingtypes.NewMsgDelegate(account1Addr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
 				return []sdk.Msg{msg}, account1
 			},
+			expectedCode: abci.CodeTypeOK,
 		},
 		{
 			name: "undelegate 1 TIA",
@@ -109,6 +113,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msg := stakingtypes.NewMsgUndelegate(valAccAddr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
 				return []sdk.Msg{msg}, "validator"
 			},
+			expectedCode: abci.CodeTypeOK,
 		},
 		{
 			name: "create validator",
@@ -130,6 +135,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account
 			},
+			expectedCode: abci.CodeTypeOK,
 		},
 		{
 			name: "create vesting account",
@@ -148,6 +154,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				)
 				return []sdk.Msg{msg}, sendAcc
 			},
+			expectedCode: abci.CodeTypeOK,
 		},
 		{
 			name: "create legacy governance proposal",
@@ -165,6 +172,9 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account
 			},
+			// despite token voting being removed, we still expect a code of 0.
+			// However, the tx still fails. See tests in local upgrade module
+			expectedCode: abci.CodeTypeOK,
 		},
 		{
 			name: "multiple send sdk.Msgs in one sdk.Tx",
@@ -183,6 +193,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				)
 				return []sdk.Msg{msgSend1, msgSend2}, account1
 			},
+			expectedCode: abci.CodeTypeOK,
 		},
 	}
 
@@ -192,16 +203,16 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 		res, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, signer, msgs...)
 		require.NoError(t, err)
 		require.NotNil(t, res)
-		require.Equal(t, abci.CodeTypeOK, res.Code, tt.name)
+		assert.Equal(t, abci.CodeTypeOK, res.Code, tt.name)
 		tests[i].hash = res.TxHash
 	}
 
 	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	for _, tt := range tests {
-		res, err := queryTx(s.cctx.Context, tt.hash, true)
-		require.NoError(t, err)
-		assert.Equal(t, abci.CodeTypeOK, res.TxResult.Code, tt.name)
+		res, err := testnode.QueryTx(s.cctx.Context, tt.hash, true)
+		assert.NoError(t, err)
+		assert.Equal(t, tt.expectedCode, res.TxResult.Code, tt.name)
 	}
 }
 
