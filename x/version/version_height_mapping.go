@@ -24,7 +24,10 @@ func (v ChainVersionConfig) GetVersion(height int64) (appVersion uint64) {
 }
 
 // HeightRange is a range of heights that a version is valid for. It is an
-// internal struct used to search for the correct version given a height.
+// internal struct used to search for the correct version given a height, and
+// should only be created using the createRange function. Heights are
+// non-overlapping and inclusive, meaning that the version is valid for all
+// heights >= Start and <= End.
 type HeightRange struct {
 	Start   int64
 	End     int64

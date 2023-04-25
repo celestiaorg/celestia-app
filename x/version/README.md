@@ -39,8 +39,8 @@ func EndBlocker(ctx sdk.Context, keeper Keeper, resp abci.ResponseEndBlock) abci
 The state in the version module is abnormal because it can be modified by the
 party building the binary without breaking the app hash. This is because the
 state is not stored in the iavl tree, but rather as a simple predefined golang
-map. Its important to note that even though this state is not in the state
-store, that is can still cause consensus breaking changes. This is because that
+map. It's important to note that even though this state is not in the state
+store, that it can still cause consensus breaking changes. This is because that
 state controls at which height the application will increment the app version.
 
 ```go
@@ -57,7 +57,7 @@ TODO: Add events
 
 The standard usage of the version module is to load the app version height
 mappings that are embedded into the binary, but it is also possible to load
-custom mappings by passing including a `map[string]ChainVersionConfig` in the
+custom mappings by including a `map[string]ChainVersionConfig` in the
 app options using the `version.CustomVersionConfigKey` key.
 
 Mappings are defined by a `map[uint64]int64` where the key is the app version
@@ -73,11 +73,14 @@ vm := map[uint64]int64{
 }
 ```
 
-The application will convert this mapping into a HeightVersionConfig:
+The application will convert this mapping into a ChainVersionConfig:
 
 ```go
 // HeightRange is a range of heights that a version is valid for. It is an
-// internal struct used to search for the correct version given a height.
+// internal struct used to search for the correct version given a height, and
+// should only be created using the createRange function. Heights are
+// non-overlapping and inclusive, meaning that the version is valid for all
+// heights >= Start and <= End.
 type HeightRange struct {
 	Start   int64
 	End     int64
