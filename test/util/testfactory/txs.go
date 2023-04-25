@@ -1,7 +1,8 @@
 package testfactory
 
 import (
-	mrand "math/rand"
+	crand "crypto/rand"
+	"math/rand"
 
 	"github.com/tendermint/tendermint/types"
 )
@@ -9,7 +10,7 @@ import (
 func GenerateRandomlySizedTxs(count, maxSize int) types.Txs {
 	txs := make(types.Txs, count)
 	for i := 0; i < count; i++ {
-		size := mrand.Intn(maxSize)
+		size := rand.Intn(maxSize)
 		if size == 0 {
 			size = 1
 		}
@@ -22,7 +23,7 @@ func GenerateRandomTxs(count, size int) types.Txs {
 	txs := make(types.Txs, count)
 	for i := 0; i < count; i++ {
 		tx := make([]byte, size)
-		_, err := mrand.Read(tx)
+		_, err := crand.Read(tx)
 		if err != nil {
 			panic(err)
 		}
