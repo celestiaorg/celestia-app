@@ -29,12 +29,12 @@ func FuzzSquareConstruction(f *testing.F) {
 		pfbSize       uint = 8
 	)
 	f.Add(normalTxCount, pfbCount, pfbSize)
-	f.Fuzz(func(t *testing.T, normalTxCount int, pfbCount int, pfbSize int) {
+	f.Fuzz(func(t *testing.T, normalTxCount uint, pfbCount uint, pfbSize uint) {
 		// ignore invalid values
-		if normalTxCount < 0 || pfbCount < 0 || pfbSize < 1 {
+		if pfbCount > 0 && pfbSize == 0 {
 			t.Skip()
 		}
-		txs := generateMixedTxs(normalTxCount, pfbCount, pfbSize)
+		txs := generateMixedTxs(int(normalTxCount), int(pfbCount), int(pfbSize))
 		s, newTxs, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
 		if err != nil {
 			t.Error(err)

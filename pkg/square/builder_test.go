@@ -2,11 +2,13 @@ package square_test
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	ns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
@@ -67,6 +69,49 @@ func TestBuilderRejectsTransactions(t *testing.T) {
 }
 
 func TestBuilderRejectsBlobTransactions(t *testing.T) {
+	ns1 := ns.MustNewV0(bytes.Repeat([]byte{1}, ns.NamespaceVersionZeroIDSize))
+	testCases := []struct {
+		blobSize []int
+		added    bool
+	}{
+		{
+			blobSize: []int{shares.AvailableBytesFromSparseShares(3) + 1},
+			added:    false,
+		},
+		{
+			blobSize: []int{shares.AvailableBytesFromSparseShares(3)},
+			added:    true,
+		},
+		{
+			blobSize: []int{shares.AvailableBytesFromSparseShares(2) + 1, shares.AvailableBytesFromSparseShares(1)},
+			added:    false,
+		},
+		{
+			blobSize: []int{shares.AvailableBytesFromSparseShares(1), shares.AvailableBytesFromSparseShares(1)},
+			added:    true,
+		},
+		{
+			// fun fact: three blobs increases the size of the PFB to two shares, hence this fails
+			blobSize: []int{
+				shares.AvailableBytesFromSparseShares(1),
+				shares.AvailableBytesFromSparseShares(1),
+				shares.AvailableBytesFromSparseShares(1),
+			},
+			added: false,
+		},
+	}
+
+	for idx, tc := range testCases {
+		t.Run(fmt.Sprintf("case%d", idx), func(t *testing.T) {
+			builder, err := square.NewBuilder(2)
+			require.NoError(t, err)
+			txs := generateBlobTxsWithNamespaces(t, ns1.Repeat(len(tc.blobSize)), [][]int{tc.blobSize})
+			require.Len(t, txs, 1)
+			blobTx, isBlobTx := coretypes.UnmarshalBlobTx(txs[0])
+			require.True(t, isBlobTx)
+			require.Equal(t, tc.added, builder.AppendBlobTx(blobTx))
+		})
+	}
 }
 
 func TestBuilderInvalidConstructor(t *testing.T) {
