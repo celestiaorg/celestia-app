@@ -9,3 +9,4 @@ coverage.txt
 tools-stamp
 __debug_bin
 profile.out
+testing/e2e/networks/*/

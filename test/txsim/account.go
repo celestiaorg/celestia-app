@@ -120,7 +120,7 @@ func (am *AccountManager) setupMasterAccount(ctx context.Context) error {
 	}
 
 	if am.masterAccount == nil {
-		return fmt.Errorf("no suitable account found")
+		return fmt.Errorf("no suitable master account found")
 	}
 
 	return nil
@@ -136,7 +136,7 @@ func (am *AccountManager) AllocateAccounts(n, balance int) []types.AccAddress {
 		panic("balance must be greater than 0")
 	}
 
-	path := hd.CreateHDPath(118, 0, 0).String()
+	path := hd.CreateHDPath(types.CoinType, 0, 0).String()
 	addresses := make([]types.AccAddress, n)
 	for i := 0; i < n; i++ {
 		record, _, err := am.keys.NewMnemonic(am.nextAccountName(), keyring.English, path, keyring.DefaultBIP39Passphrase, hd.Secp256k1)
