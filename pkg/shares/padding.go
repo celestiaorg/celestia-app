@@ -61,9 +61,6 @@ func ReservedPaddingShare() Share {
 
 // ReservedPaddingShare returns n reserved padding shares.
 func ReservedPaddingShares(n int) []Share {
-	if n < 0 {
-		panic("n must be positive")
-	}
 	shares, err := NamespacePaddingShares(appns.ReservedPaddingNamespace, n)
 	if err != nil {
 		panic(err)
@@ -84,9 +81,6 @@ func TailPaddingShare() Share {
 
 // TailPaddingShares returns n tail padding shares.
 func TailPaddingShares(n int) []Share {
-	if n < 0 {
-		panic("n must be positive")
-	}
 	shares, err := NamespacePaddingShares(appns.TailPaddingNamespace, n)
 	if err != nil {
 		panic(err)
