@@ -9,7 +9,7 @@ type CompactShareCounter struct {
 	lastRemainder int
 	shares        int
 	// remainder is the number of bytes used for data in the last share
-	remainder     int
+	remainder int
 }
 
 // NewCompactShareCounter creates a new instance of a counter which calculates the amount
