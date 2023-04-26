@@ -119,19 +119,42 @@ func (css *CompactShareSplitter) stackPending() error {
 	return err
 }
 
-// Export finalizes and returns the underlying compact shares and a map of
-// shareRanges. All share ranges in the map of shareRanges will be offset (i.e.
-// incremented) by the shareRangeOffset provided. shareRangeOffset should be 0
-// for the first compact share sequence in the data square (transactions) but
-// should be some non-zero number for subsequent compact share sequences (e.g.
-// pfb txs).
-func (css *CompactShareSplitter) Export(shareRangeOffset int) ([]Share, map[coretypes.TxKey]ShareRange, error) {
+// Export returns the underlying compact shares
+func (css *CompactShareSplitter) Export() ([]Share, error) {
+	if css.isEmpty() {
+		return []Share{}, nil
+	}
+
+	// in case Export is called multiple times
+	if css.done {
+		return css.shares, nil
+	}
+
+	var bytesOfPadding int
+	// add the pending share to the current shares before returning
+	if !css.shareBuilder.IsEmptyShare() {
+		bytesOfPadding = css.shareBuilder.ZeroPadIfNecessary()
+		if err := css.stackPending(); err != nil {
+			return []Share{}, err
+		}
+	}
+
+	sequenceLen := css.sequenceLen(bytesOfPadding)
+	if err := css.writeSequenceLen(sequenceLen); err != nil {
+		return []Share{}, err
+	}
+	css.done = true
+	return css.shares, nil
+}
+
+// ShareRanges returns a map of share ranges to the corresponding tx keys. All
+// share ranges in the map of shareRanges will be offset (i.e. incremented) by
+// the shareRangeOffset provided. shareRangeOffset should be 0 for the first
+// compact share sequence in the data square (transactions) but should be some
+// non-zero number for subsequent compact share sequences (e.g. pfb txs).
+func (css *CompactShareSplitter) ShareRanges(shareRangeOffset int) map[coretypes.TxKey]ShareRange {
 	// apply the shareRangeOffset to all share ranges
 	shareRanges := make(map[coretypes.TxKey]ShareRange, len(css.shareRanges))
-
-	if css.isEmpty() {
-		return []Share{}, shareRanges, nil
-	}
 
 	for k, v := range css.shareRanges {
 		shareRanges[k] = ShareRange{
@@ -140,26 +163,7 @@ func (css *CompactShareSplitter) Export(shareRangeOffset int) ([]Share, map[core
 		}
 	}
 
-	// in case Export is called multiple times
-	if css.done {
-		return css.shares, shareRanges, nil
-	}
-
-	var bytesOfPadding int
-	// add the pending share to the current shares before returning
-	if !css.shareBuilder.IsEmptyShare() {
-		bytesOfPadding = css.shareBuilder.ZeroPadIfNecessary()
-		if err := css.stackPending(); err != nil {
-			return []Share{}, shareRanges, err
-		}
-	}
-
-	sequenceLen := css.sequenceLen(bytesOfPadding)
-	if err := css.writeSequenceLen(sequenceLen); err != nil {
-		return []Share{}, shareRanges, err
-	}
-	css.done = true
-	return css.shares, shareRanges, nil
+	return shareRanges
 }
 
 // writeSequenceLen writes the sequence length to the first share.
