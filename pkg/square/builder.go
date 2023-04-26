@@ -15,9 +15,9 @@ import (
 )
 
 type Builder struct {
-	// upper bound on the total amount of shares that could fit in the biggest square
+	// maxCapacity is an upper bound on the total amount of shares that could fit in the biggest square
 	maxCapacity int
-	// current estimated amount of shares used. These are worst case estimates.
+	// currentSize is an overestimate for the number of shares used by this builder.
 	currentSize int
 
 	// here we keep track of the actual data to go in a square
