@@ -124,7 +124,7 @@ func (c *Builder) Export() (Square, error) {
 	for i, element := range c.blobs {
 		// NextShareIndex returned where the next blob should start so as to comply with the share commitment rules
 		// We fill out the remaining
-		cursor, _ = shares.NextShareIndex(cursor, element.shareSize, ss)
+		cursor, _ = shares.NextShareIndex(cursor, element.numShares, ss)
 		if i == 0 {
 			nonReservedStart = cursor
 		}
@@ -149,7 +149,7 @@ func (c *Builder) Export() (Square, error) {
 			return nil, fmt.Errorf("writing blob into sparse shares: %w", err)
 		}
 		// increment the cursor by the size of the blob
-		cursor += element.shareSize
+		cursor += element.numShares
 		endOfLastBlob = cursor
 	}
 
@@ -221,12 +221,12 @@ func newElement(blob core.Blob, pfbIndex, blobIndex int) *element {
 		//
 		// Note that the padding would actually belong to the namespace of the transaction before it, but
 		// this makes no difference to the total share size.
-		maxPadding: shares.SubTreeWidth(shareSize) - 1,
+		maxPadding: shares.SubTreeWidth(numShares) - 1,
 	}
 }
 
 func (e element) maxShareOffset() int {
-	return e.shareSize + e.maxPadding
+	return e.numShares + e.maxPadding
 }
 
 func worstCaseShareIndexes(blobs, maxSquareCapacity int) []uint32 {
