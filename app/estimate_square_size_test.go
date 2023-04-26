@@ -100,7 +100,7 @@ func Test_estimateSquareSize_MultiBlob(t *testing.T) {
 				tt.getBlobSizes(),
 				0, 0,
 			)
-			normalTxs, blobTxs := separateTxs(enc.TxConfig, txsToBytes(txs))
+			normalTxs, blobTxs := separateTxs(enc.TxConfig, coretypes.Txs(txs).ToBytes())
 			resSquareSize, resStart := estimateSquareSize(normalTxs, blobTxs)
 			require.Equal(t, tt.expectedSquareSize, resSquareSize)
 			require.Equal(t, tt.expectedStartingShareIndex, resStart)
@@ -206,12 +206,4 @@ func Test_maxIndexWrapperOverhead(t *testing.T) {
 
 		assert.LessOrEqual(t, len(wtx)-len(tx), wrapperOverhead+indexOverhead, i)
 	}
-}
-
-func txsToBytes(txs coretypes.Txs) [][]byte {
-	e := make([][]byte, len(txs))
-	for i, tx := range txs {
-		e[i] = []byte(tx)
-	}
-	return e
 }

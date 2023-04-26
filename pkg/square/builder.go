@@ -187,17 +187,17 @@ type element struct {
 	blob       core.Blob
 	pfbIndex   int
 	blobIndex  int
-	shareSize  int
+	numShares  int
 	maxPadding int
 }
 
 func newElement(blob core.Blob, pfbIndex, blobIndex int) *element {
-	shareSize := shares.SparseSharesNeeded(uint32(len(blob.Data)))
+	numShares := shares.SparseSharesNeeded(uint32(len(blob.Data)))
 	return &element{
 		blob:      blob,
 		pfbIndex:  pfbIndex,
 		blobIndex: blobIndex,
-		shareSize: shareSize,
+		numShares: numShares,
 		//
 		// For cacluating the maximum possible padding consider the following tree
 		// where each leaf corresponds to a share.
