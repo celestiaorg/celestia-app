@@ -3,11 +3,11 @@ package app_test
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -29,7 +29,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -184,7 +183,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 
 			heights := make(map[int64]int)
 			for _, hash := range hashes {
-				resp, err := queryTx(val.ClientCtx, hash, true)
+				resp, err := testnode.QueryTx(val.ClientCtx, hash, true)
 				assert.NoError(err)
 				assert.NotNil(resp)
 				if resp == nil {
@@ -310,20 +309,6 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 	require.Equal(t, blobtypes.ErrNoBlobs.ABCICode(), res.Code)
 }
 
-func queryTx(clientCtx client.Context, hashHexStr string, prove bool) (*rpctypes.ResultTx, error) {
-	hash, err := hex.DecodeString(hashHexStr)
-	if err != nil {
-		return nil, err
-	}
-
-	node, err := clientCtx.GetNode()
-	if err != nil {
-		return nil, err
-	}
-
-	return node.Tx(context.Background(), hash, prove)
-}
-
 func (s *IntegrationTestSuite) TestShareInclusionProof() {
 	require := s.Require()
 	val := s.network.Validators[0]
@@ -352,7 +337,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 	s.WaitForBlocks(20)
 
 	for _, hash := range hashes {
-		txResp, err := queryTx(val.ClientCtx, hash, true)
+		txResp, err := testnode.QueryTx(val.ClientCtx, hash, true)
 		require.NoError(err)
 		require.Equal(abci.CodeTypeOK, txResp.TxResult.Code)
 

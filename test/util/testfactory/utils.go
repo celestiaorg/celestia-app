@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/simapp"
@@ -18,9 +17,9 @@ import (
 
 const (
 	// nolint:lll
-	TestAccName = "test-account"
-	testMnemo   = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
-	bondDenom   = "utia"
+	TestAccName  = "test-account"
+	TestAccMnemo = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
+	bondDenom    = "utia"
 )
 
 func QueryWithoutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.ResultTx, error) {
@@ -48,7 +47,7 @@ func GenerateKeyring(accounts ...string) keyring.Keyring {
 		}
 	}
 
-	_, err := kb.NewAccount(TestAccName, testMnemo, "1234", "", hd.Secp256k1)
+	_, err := kb.NewAccount(TestAccName, TestAccMnemo, "", "", hd.Secp256k1)
 	if err != nil {
 		panic(err)
 	}
@@ -70,7 +69,7 @@ func RandomAddress() sdk.Address {
 	return addr
 }
 
-func FundKeyringAccounts(cdc codec.Codec, accounts ...string) (keyring.Keyring, []banktypes.Balance, []authtypes.GenesisAccount) {
+func FundKeyringAccounts(accounts ...string) (keyring.Keyring, []banktypes.Balance, []authtypes.GenesisAccount) {
 	kr := GenerateKeyring(accounts...)
 	genAccounts := make([]authtypes.GenesisAccount, len(accounts))
 	genBalances := make([]banktypes.Balance, len(accounts))

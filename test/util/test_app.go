@@ -203,7 +203,7 @@ func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (a
 		Coins:   sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(100000000000000))),
 	})
 
-	kr, fundedBankAccs, fundedAuthAccs := testfactory.FundKeyringAccounts(testApp.AppCodec(), genAccounts...)
+	kr, fundedBankAccs, fundedAuthAccs := testfactory.FundKeyringAccounts(genAccounts...)
 	accs = append(accs, fundedAuthAccs...)
 	balances = append(balances, fundedBankAccs...)
 

@@ -115,11 +115,6 @@ func (w *ErasuredNamespacedMerkleTree) Root() []byte {
 	return root
 }
 
-// Prove returns a Merkle inclusion proof for the leaf at index `ind`.
-func (w *ErasuredNamespacedMerkleTree) Prove(ind int) (nmt.Proof, error) {
-	return w.tree.Prove(ind)
-}
-
 // ProveRange returns a Merkle range proof for the leaf range [start, end] where `end` is non-inclusive.
 func (w *ErasuredNamespacedMerkleTree) ProveRange(start, end int) (nmt.Proof, error) {
 	return w.tree.ProveRange(start, end)
