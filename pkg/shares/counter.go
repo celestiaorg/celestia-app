@@ -29,7 +29,7 @@ func (c *CompactShareCounter) Add(dataLen int) int {
 
 	// if this is the first share, calculate how much is taken up by dataLen
 	if c.shares == 0 {
-		if dataLen+c.remainder > appconsts.FirstCompactShareContentSize {
+		if dataLen >= appconsts.FirstCompactShareContentSize-c.remainder {
 			dataLen -= (appconsts.FirstCompactShareContentSize - c.remainder)
 			c.shares++
 			c.remainder = 0

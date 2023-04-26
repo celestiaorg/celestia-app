@@ -11,6 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	daproto "github.com/celestiaorg/celestia-app/proto/celestia/da"
 )
@@ -185,6 +186,5 @@ func MinDataAvailabilityHeader() DataAvailabilityHeader {
 // An error returned when there is an issue with building the share
 // for example if the shareVersion is wrong, or WriteSequenceLen fails, or the share size is incorrect
 func MinShares() [][]byte {
-	tpShares := shares.TailPaddingShares(appconsts.MinShareCount)
-	return shares.ToBytes(tpShares)
+	return shares.ToBytes(square.EmptySquare())
 }
