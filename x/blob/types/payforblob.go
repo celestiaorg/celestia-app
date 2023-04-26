@@ -20,8 +20,6 @@ import (
 const (
 	URLMsgPayForBlobs = "/celestia.blob.v1.MsgPayForBlobs"
 	ShareSize         = appconsts.ShareSize
-	SquareSize        = appconsts.DefaultMaxSquareSize
-	NamespaceIDSize   = appconsts.NamespaceSize
 )
 
 var _ sdk.Msg = &MsgPayForBlobs{}
