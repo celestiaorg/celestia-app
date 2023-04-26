@@ -8,6 +8,7 @@ type CompactShareCounter struct {
 	lastShares    int
 	lastRemainder int
 	shares        int
+	// remainder is the number of bytes used for data in the last share
 	remainder     int
 }
 

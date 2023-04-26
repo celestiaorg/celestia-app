@@ -182,8 +182,6 @@ func MinDataAvailabilityHeader() DataAvailabilityHeader {
 }
 
 // MinShares returns one tail-padded share.
-// An error returned when there is an issue with building the share
-// for example if the shareVersion is wrong, or WriteSequenceLen fails, or the share size is incorrect
 func MinShares() [][]byte {
 	tpShares := shares.TailPaddingShares(appconsts.MinShareCount)
 	return shares.ToBytes(tpShares)

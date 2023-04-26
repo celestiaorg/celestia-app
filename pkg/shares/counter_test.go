@@ -20,6 +20,8 @@ func TestCounterMatchesCompactShareSplitter(t *testing.T) {
 		{txs: []coretypes.Tx{newTx(120)}},
 		{txs: []coretypes.Tx{newTx(appconsts.FirstCompactShareContentSize - 2)}},
 		{txs: []coretypes.Tx{newTx(appconsts.FirstCompactShareContentSize - 1)}},
+		{txs: []coretypes.Tx{newTx(appconsts.FirstCompactShareContentSize)}},
+		{txs: []coretypes.Tx{newTx(appconsts.FirstCompactShareContentSize + 1)}},
 		{txs: []coretypes.Tx{newTx(appconsts.FirstCompactShareContentSize), newTx(appconsts.ContinuationCompactShareContentSize - 4)}},
 		{txs: newTxs(1000, 100)},
 		{txs: newTxs(100, 1000)},
