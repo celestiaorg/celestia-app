@@ -401,7 +401,6 @@ func CreateValidator(
 	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
 	_, err := msgServer.CreateValidator(input.Context, NewTestMsgCreateValidator(valAddr, consPubKey, stakingAmount, evmAddr))
 
-	// Return error if one exists
 	require.NoError(t, err)
 }
 
