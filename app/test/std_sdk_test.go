@@ -13,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/errors"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	disttypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
@@ -198,7 +199,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			},
 			// plain text proposals have been removed, so we expect an error. "No
 			// handler exists for proposal type"
-			expectedCode: uint32(9),
+			expectedCode: errors.ErrInvalidAddress.ABCICode(),
 		},
 		{
 			name: "multiple send sdk.Msgs in one sdk.Tx",
