@@ -93,6 +93,7 @@ import (
 	blobmodulekeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
 	blobmoduletypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/celestia-app/x/tokenfilter"
+	appversion "github.com/celestiaorg/celestia-app/x/version"
 
 	qgbmodule "github.com/celestiaorg/celestia-app/x/qgb"
 	qgbmodulekeeper "github.com/celestiaorg/celestia-app/x/qgb/keeper"
@@ -223,8 +224,9 @@ type App struct {
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
-	BlobKeeper blobmodulekeeper.Keeper
-	QgbKeeper  qgbmodulekeeper.Keeper
+	BlobKeeper    blobmodulekeeper.Keeper
+	QgbKeeper     qgbmodulekeeper.Keeper
+	VersionKeeper appversion.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -323,6 +325,10 @@ func New(
 		&stakingKeeper,
 	)
 	qgbmod := qgbmodule.NewAppModule(appCodec, app.QgbKeeper)
+
+	customVersions := appOpts.Get(appversion.CustomVersionConfigKey)
+	cv, _ := customVersions.(map[string]appversion.ChainVersionConfig)
+	app.VersionKeeper = appversion.NewKeeper(app.BaseApp, cv)
 
 	// register the staking hooks
 	// NOTE: stakingKeeper above is passed by reference, so that it will contain these hooks

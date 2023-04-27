@@ -6,10 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
@@ -29,11 +25,18 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
+
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
+	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	"github.com/celestiaorg/celestia-app/x/version"
 )
 
 // New creates a ready to use tendermint node that operates a single validator
 // celestia-app network using the provided genesis state. The provided keyring
-// is stored in the client.Context that is returned.
+// is stored in the client.Context that is returned. versionMap is used to
+// specify the version of the application at a given height.
 //
 // NOTE: the forced delay between blocks, TimeIotaMs in the consensus
 // parameters, is set to the lowest possible value (1ms).
@@ -44,6 +47,8 @@ func New(
 	supressLog bool,
 	genState map[string]json.RawMessage,
 	kr keyring.Keyring,
+	chainID string,
+	versionMap map[uint64]int64,
 ) (*node.Node, srvtypes.Application, Context, error) {
 	var logger log.Logger
 	if supressLog {
@@ -57,8 +62,6 @@ func New(
 	if err != nil {
 		return nil, nil, Context{}, err
 	}
-
-	chainID := tmrand.Str(6)
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
@@ -89,10 +92,19 @@ func New(
 
 	db := dbm.NewMemDB()
 
+	if versionMap == nil {
+		versionMap = map[uint64]int64{
+			1: 0,
+		}
+	}
+
 	appOpts := appOptions{
 		options: map[string]interface{}{
 			server.FlagPruning: pruningtypes.PruningOptionNothing,
 			flags.FlagHome:     baseDir,
+			version.CustomVersionConfigKey: map[string]version.ChainVersionConfig{
+				chainID: version.NewChainVersionConfig(versionMap),
+			},
 		},
 	}
 
@@ -192,7 +204,7 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (cleanup func() error
 	genState, kr, err := DefaultGenesisState(accounts...)
 	require.NoError(t, err)
 
-	tmNode, app, cctx, err := New(t, DefaultParams(), tmCfg, false, genState, kr)
+	tmNode, app, cctx, err := New(t, DefaultParams(), tmCfg, false, genState, kr, tmrand.Str(6), nil)
 	require.NoError(t, err)
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
