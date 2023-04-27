@@ -390,8 +390,8 @@ func CreateValidator(
 
 	// Set the balance for the account
 	require.NoError(t, input.BankKeeper.MintCoins(input.Context, types.ModuleName, InitCoins))
-	// nolint
-	input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, types.ModuleName, acc.GetAddress(), InitCoins)
+	err := input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, types.ModuleName, acc.GetAddress(), InitCoins)
+	require.NoError(t, err)
 
 	// Set the account in state
 	input.AccountKeeper.SetAccount(input.Context, acc)
@@ -399,8 +399,7 @@ func CreateValidator(
 	// Create a validator for that account using some tokens in the account
 	// and the staking handler
 	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
-	_, err := msgServer.CreateValidator(input.Context, NewTestMsgCreateValidator(valAddr, consPubKey, stakingAmount, evmAddr))
-
+	_, err = msgServer.CreateValidator(input.Context, NewTestMsgCreateValidator(valAddr, consPubKey, stakingAmount, evmAddr))
 	require.NoError(t, err)
 }
 
