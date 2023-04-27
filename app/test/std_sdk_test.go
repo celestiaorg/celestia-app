@@ -199,7 +199,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			},
 			// plain text proposals have been removed, so we expect an error. "No
 			// handler exists for proposal type"
-			expectedCode: errors.ErrInvalidAddress.ABCICode(),
+			expectedCode: errors.ErrUnknownAddress.ABCICode(),
 		},
 		{
 			name: "multiple send sdk.Msgs in one sdk.Tx",
