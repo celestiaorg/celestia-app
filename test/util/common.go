@@ -315,7 +315,7 @@ func CreateTestEnvWithoutAttestationNonceInit(t *testing.T) TestInput {
 	}
 }
 
-// CreateTestEnv creates the keeper testing environment for gravity
+// CreateTestEnv creates the keeper testing environment for QGB
 func CreateTestEnv(t *testing.T) TestInput {
 	input := CreateTestEnvWithoutAttestationNonceInit(t)
 	input.QgbKeeper.SetLatestAttestationNonce(input.Context, 0)
