@@ -146,7 +146,7 @@ type TestInput struct {
 	LegacyAmino    *codec.LegacyAmino
 }
 
-// CreateTestEnv creates the keeper testing environment for gravity
+// CreateTestEnvWithoutAttestationNonceInit creates the keeper testing environment for the QGB
 func CreateTestEnvWithoutAttestationNonceInit(t *testing.T) TestInput {
 	t.Helper()
 
