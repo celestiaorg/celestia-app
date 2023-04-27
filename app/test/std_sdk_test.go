@@ -196,7 +196,9 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account
 			},
-			expectedCode: uint32(9), // plain text proposals have been removed
+			// plain text proposals have been removed, so we expect an error. "No
+			// handler exists for proposal type"
+			expectedCode: uint32(9),
 		},
 		{
 			name: "multiple send sdk.Msgs in one sdk.Tx",
