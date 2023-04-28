@@ -1,6 +1,7 @@
 package _test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -40,6 +41,9 @@ func (s *VersionIntegrationTestSuite) SetupSuite() {
 
 	tmCfg := testnode.DefaultTendermintConfig()
 	tmCfg.Consensus.TimeoutCommit = time.Millisecond * 400
+	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
+	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
+	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
 
 	genState, kr, err := testnode.DefaultGenesisState()
 	require.NoError(t, err)
