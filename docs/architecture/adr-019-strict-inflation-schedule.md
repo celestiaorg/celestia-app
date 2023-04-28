@@ -1,4 +1,4 @@
-# ADR 019: Inflation rate
+# ADR 019: Strict Inflation Schedule
 
 ## Status
 
