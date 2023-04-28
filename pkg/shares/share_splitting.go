@@ -24,7 +24,7 @@ var (
 // that are encoded as wrapped transactions. Most use cases out of this package
 // should use these share indexes and therefore set useShareIndexes to true.
 func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
-	if data.SquareSize == 0 || !isPowerOf2(data.SquareSize) {
+	if data.SquareSize == 0 || !IsPowerOfTwo(data.SquareSize) {
 		return nil, fmt.Errorf("square size is not a power of two: %d", data.SquareSize)
 	}
 	wantShareCount := int(data.SquareSize * data.SquareSize)

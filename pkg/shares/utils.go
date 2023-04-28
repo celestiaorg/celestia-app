@@ -3,11 +3,8 @@ package shares
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
-	"math"
 
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
-	coretypes "github.com/tendermint/tendermint/types"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 )
 
 // DelimLen calculates the length of the delimiter for a given unit size
@@ -16,39 +13,12 @@ func DelimLen(size uint64) int {
 	return binary.PutUvarint(lenBuf, size)
 }
 
-func isPowerOf2(v uint64) bool {
-	return v&(v-1) == 0 && v != 0
-}
-
-func BlobsFromProto(blobs []core.Blob) ([]coretypes.Blob, error) {
-	result := make([]coretypes.Blob, len(blobs))
-	for i, blob := range blobs {
-		if blob.ShareVersion > math.MaxUint8 {
-			return nil, fmt.Errorf("share version %d is too large to be a uint8", blob.ShareVersion)
-		}
-		result[i] = coretypes.Blob{
-			NamespaceID:  blob.NamespaceId,
-			Data:         blob.Data,
-			ShareVersion: uint8(blob.ShareVersion),
-		}
-	}
-	return result, nil
-}
-
-func TxsToBytes(txs coretypes.Txs) [][]byte {
-	e := make([][]byte, len(txs))
-	for i, tx := range txs {
-		e[i] = []byte(tx)
-	}
-	return e
-}
-
-func TxsFromBytes(txs [][]byte) coretypes.Txs {
-	e := make(coretypes.Txs, len(txs))
-	for i, tx := range txs {
-		e[i] = coretypes.Tx(tx)
-	}
-	return e
+// RawTxSize returns the raw tx size that can be used to construct a
+// tx of desiredSize bytes. This function is useful in tests to account for
+// the length delimiter that is prefixed to a tx when it is converted into
+// a compact share
+func RawTxSize(desiredSize int) int {
+	return desiredSize - DelimLen(uint64(desiredSize))
 }
 
 // zeroPadIfNecessary pads the share with trailing zero bytes if the provided
@@ -98,4 +68,27 @@ func ParseDelimiter(input []byte) (inputWithoutLenDelimiter []byte, unitLen uint
 
 	// return the input without the length delimiter
 	return input[n:], dataLen, nil
+}
+
+// AvailableBytesFromCompactShares returns the maximum amount of bytes that could fit in `n` compact shares.
+// Note that all compact shares are length prefixed. To account for this use `RawTxSize`.
+func AvailableBytesFromCompactShares(n int) int {
+	if n <= 0 {
+		return 0
+	}
+	if n == 1 {
+		return appconsts.FirstCompactShareContentSize
+	}
+	return (n-1)*appconsts.ContinuationCompactShareContentSize + appconsts.FirstCompactShareContentSize
+}
+
+// AvailableBytesFromSparseShares returns the maximum amount of bytes that could fit in `n` sparse shares
+func AvailableBytesFromSparseShares(n int) int {
+	if n <= 0 {
+		return 0
+	}
+	if n == 1 {
+		return appconsts.FirstSparseShareContentSize
+	}
+	return (n-1)*appconsts.ContinuationSparseShareContentSize + appconsts.FirstSparseShareContentSize
 }
