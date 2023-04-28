@@ -54,7 +54,11 @@ func (s *VersionIntegrationTestSuite) SetupSuite() {
 	cctx, stopNode, err := testnode.StartNode(tmNode, cctx)
 	require.NoError(t, err)
 
-	cctx, cleanupGRPC, err := testnode.StartGRPCServer(app, testnode.DefaultAppConfig(), cctx)
+	appCfg := testnode.DefaultAppConfig()
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", testnode.GetFreePort())
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
+
+	cctx, cleanupGRPC, err := testnode.StartGRPCServer(app, appCfg, cctx)
 	require.NoError(t, err)
 
 	cleanup := func() error {
