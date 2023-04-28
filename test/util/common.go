@@ -146,8 +146,8 @@ type TestInput struct {
 	LegacyAmino    *codec.LegacyAmino
 }
 
-// CreateTestEnv creates the keeper testing environment for gravity
-func CreateTestEnv(t *testing.T) TestInput {
+// CreateTestEnvWithoutAttestationNonceInit creates the keeper testing environment for the QGB
+func CreateTestEnvWithoutAttestationNonceInit(t *testing.T) TestInput {
 	t.Helper()
 
 	// Initialize store keys
@@ -295,8 +295,6 @@ func CreateTestEnv(t *testing.T) TestInput {
 	testQGBParams := types.DefaultGenesis().Params
 	k.SetParams(ctx, *testQGBParams)
 
-	k.SetLatestAttestationNonce(ctx, 0)
-
 	stakingKeeper = *stakingKeeper.SetHooks(
 		stakingtypes.NewMultiStakingHooks(
 			distKeeper.Hooks(),
@@ -304,7 +302,6 @@ func CreateTestEnv(t *testing.T) TestInput {
 			k.Hooks(),
 		),
 	)
-
 	return TestInput{
 		QgbKeeper:      k,
 		AccountKeeper:  accountKeeper,
@@ -316,6 +313,13 @@ func CreateTestEnv(t *testing.T) TestInput {
 		Marshaler:      marshaler,
 		LegacyAmino:    cdc,
 	}
+}
+
+// CreateTestEnv creates the keeper testing environment for QGB
+func CreateTestEnv(t *testing.T) TestInput {
+	input := CreateTestEnvWithoutAttestationNonceInit(t)
+	input.QgbKeeper.SetLatestAttestationNonce(input.Context, 0)
+	return input
 }
 
 // MakeTestCodec creates a legacy amino codec for testing
@@ -356,29 +360,8 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 	input.StakingKeeper.SetParams(input.Context, TestingStakeParams)
 
 	// Initialize each of the validators
-	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
 	for i := range []int{0, 1, 2, 3, 4} {
-
-		// Initialize the account for the key
-		acc := input.AccountKeeper.NewAccount(
-			input.Context,
-			authtypes.NewBaseAccount(AccAddrs[i], AccPubKeys[i], uint64(i), 0),
-		)
-
-		// Set the balance for the account
-		require.NoError(t, input.BankKeeper.MintCoins(input.Context, types.ModuleName, InitCoins))
-		// nolint
-		input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, types.ModuleName, acc.GetAddress(), InitCoins)
-
-		// Set the account in state
-		input.AccountKeeper.SetAccount(input.Context, acc)
-
-		// Create a validator for that account using some tokens in the account
-		// and the staking handler
-		_, err := msgServer.CreateValidator(input.Context, NewTestMsgCreateValidator(ValAddrs[i], ConsPubKeys[i], StakingAmount, EVMAddrs[i]))
-
-		// Return error if one exists
-		require.NoError(t, err)
+		CreateValidator(t, input, AccAddrs[i], AccPubKeys[i], uint64(i), ValAddrs[i], ConsPubKeys[i], StakingAmount, EVMAddrs[i])
 	}
 
 	// Run the staking endblocker to ensure valset is correct in state
@@ -386,6 +369,38 @@ func SetupFiveValChain(t *testing.T) (TestInput, sdk.Context) {
 
 	// Return the test input
 	return input, input.Context
+}
+
+func CreateValidator(
+	t *testing.T,
+	input TestInput,
+	accAddr sdk.AccAddress,
+	accPubKey ccrypto.PubKey,
+	accountNumber uint64,
+	valAddr sdk.ValAddress,
+	consPubKey ccrypto.PubKey,
+	stakingAmount cosmosmath.Int,
+	evmAddr gethcommon.Address,
+) {
+	// Initialize the account for the key
+	acc := input.AccountKeeper.NewAccount(
+		input.Context,
+		authtypes.NewBaseAccount(accAddr, accPubKey, accountNumber, 0),
+	)
+
+	// Set the balance for the account
+	require.NoError(t, input.BankKeeper.MintCoins(input.Context, types.ModuleName, InitCoins))
+	err := input.BankKeeper.SendCoinsFromModuleToAccount(input.Context, types.ModuleName, acc.GetAddress(), InitCoins)
+	require.NoError(t, err)
+
+	// Set the account in state
+	input.AccountKeeper.SetAccount(input.Context, acc)
+
+	// Create a validator for that account using some tokens in the account
+	// and the staking handler
+	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
+	_, err = msgServer.CreateValidator(input.Context, NewTestMsgCreateValidator(valAddr, consPubKey, stakingAmount, evmAddr))
+	require.NoError(t, err)
 }
 
 func NewTestMsgCreateValidator(
