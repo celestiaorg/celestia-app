@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/tendermint/tendermint/pkg/consts"
 	coretypes "github.com/tendermint/tendermint/proto/tendermint/types"
 	core "github.com/tendermint/tendermint/types"
@@ -75,7 +76,7 @@ func (c *Builder) AppendBlobTx(blobTx coretypes.BlobTx) bool {
 	blobElements := make([]*element, len(blobTx.Blobs))
 	maxBlobShareCount := 0
 	for idx, blobProto := range blobTx.Blobs {
-		blob := core.BlobFromProto(blobProto)
+		blob := types.BlobFromProto(blobProto)
 		blobElements[idx] = newElement(blob, len(c.pfbs), idx)
 		maxBlobShareCount += blobElements[idx].maxShareOffset()
 	}
