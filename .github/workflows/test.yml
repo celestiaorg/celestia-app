@@ -55,10 +55,6 @@ jobs:
 
   tests:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        part: ["00", "01", "02", "03"]
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
@@ -70,21 +66,13 @@ jobs:
             **/**.go
             go.mod
             go.sum
-      - uses: actions/download-artifact@v3
-        with:
-          name: "${{ github.sha }}-${{ matrix.part }}"
-        if: env.GIT_DIFF
       - name: test & coverage report creation
-        run: >
-          cat pkgs.txt.part.${{ matrix.part }} |
-          xargs go test -mod=readonly -timeout 30m
-          -coverprofile=${{ matrix.part }}profile.out
-          -covermode=atomic
+        run: go test -mod=readonly -timeout 30m -coverprofile=coverage.out -covermode=atomic
         if: env.GIT_DIFF
       - uses: actions/upload-artifact@v3
         with:
-          name: "${{ github.sha }}-${{ matrix.part }}-coverage"
-          path: ./${{ matrix.part }}profile.out
+          name: "${{ github.sha }}-coverage"
+          path: ./coverage.out
 
   upload-coverage-report:
     runs-on: ubuntu-latest
@@ -137,11 +125,6 @@ jobs:
 
   test-race:
     runs-on: ubuntu-latest
-    needs: split-test-files
-    strategy:
-      fail-fast: false
-      matrix:
-        part: ["00", "01", "02", "03"]
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
@@ -153,20 +136,13 @@ jobs:
             **/**.go
             go.mod
             go.sum
-      - uses: actions/download-artifact@v3
-        with:
-          name: "${{ github.sha }}-${{ matrix.part }}"
-        if: env.GIT_DIFF
       - name: test & coverage report creation
-        run: >
-          cat pkgs.txt.part.${{ matrix.part }} |
-          xargs go test -mod=readonly -json -timeout 30m
-          -race -test.short > ${{ matrix.part }}-race-output.txt
+        run: go test -mod=readonly -json -timeout 30m -race -test.short > race-output.txt
         if: env.GIT_DIFF
       - uses: actions/upload-artifact@v3
         with:
-          name: "${{ github.sha }}-${{ matrix.part }}-race-output"
-          path: ./${{ matrix.part }}-race-output.txt
+          name: "${{ github.sha }}-race-output"
+          path: ./race-output.txt
 
   race-detector-report:
     runs-on: ubuntu-latest
