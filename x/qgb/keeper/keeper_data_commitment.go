@@ -16,6 +16,10 @@ func (k Keeper) GetCurrentDataCommitment(ctx sdk.Context) (types.DataCommitment,
 	beginBlock := uint64(ctx.BlockHeight()) - k.GetDataCommitmentWindowParam(ctx) + 1
 	// for a data commitment window of 400, the ranges will be: 1-400;401-800;801-1200
 	endBlock := uint64(ctx.BlockHeight())
+
+	if !k.CheckLatestAttestationNonce(ctx) {
+		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
+	}
 	nonce := k.GetLatestAttestationNonce(ctx) + 1
 
 	dataCommitment := types.NewDataCommitment(nonce, beginBlock, endBlock)
@@ -46,6 +50,9 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 			),
 		)
 	}
+	if !k.CheckLatestAttestationNonce(ctx) {
+		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
+	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
 	for i := latestNonce; i > 0; i-- {
 		// TODO better search
@@ -69,6 +76,9 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 
 // GetLastDataCommitment returns the last data commitment.
 func (k Keeper) GetLastDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
+	if !k.CheckLatestAttestationNonce(ctx) {
+		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
+	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
 	for i := uint64(0); i < latestNonce; i++ {
 		att, found, err := k.GetAttestationByNonce(ctx, latestNonce-i)

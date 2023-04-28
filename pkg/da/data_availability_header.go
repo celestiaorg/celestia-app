@@ -11,6 +11,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	daproto "github.com/celestiaorg/celestia-app/proto/celestia/da"
 )
@@ -183,6 +184,5 @@ func MinDataAvailabilityHeader() DataAvailabilityHeader {
 
 // MinShares returns one tail-padded share.
 func MinShares() [][]byte {
-	tpShares := shares.TailPaddingShares(appconsts.MinShareCount)
-	return shares.ToBytes(tpShares)
+	return shares.ToBytes(square.EmptySquare())
 }

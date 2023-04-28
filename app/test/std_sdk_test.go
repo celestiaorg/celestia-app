@@ -15,6 +15,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	disttypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -157,7 +159,30 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			expectedCode: abci.CodeTypeOK,
 		},
 		{
-			name: "create legacy governance proposal",
+			name: "create legacy community spend governance proposal",
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
+				account := s.unusedAccount()
+				coins := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
+				content := disttypes.NewCommunityPoolSpendProposal(
+					"title",
+					"description",
+					getAddress(s.unusedAccount(), s.cctx.Keyring),
+					coins,
+				)
+				addr := getAddress(account, s.cctx.Keyring)
+				msg, err := oldgov.NewMsgSubmitProposal(
+					content,
+					sdk.NewCoins(
+						sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
+					addr,
+				)
+				require.NoError(t, err)
+				return []sdk.Msg{msg}, account
+			},
+			expectedCode: abci.CodeTypeOK,
+		},
+		{
+			name: "create legacy text governance proposal",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
 				content, ok := oldgov.ContentFromProposalType("title", "description", "text")
@@ -172,9 +197,9 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account
 			},
-			// despite token voting being removed, we still expect a code of 0.
-			// However, the tx still fails. See tests in local upgrade module
-			expectedCode: abci.CodeTypeOK,
+			// plain text proposals have been removed, so we expect an error. "No
+			// handler exists for proposal type"
+			expectedCode: govtypes.ErrNoProposalHandlerExists.ABCICode(),
 		},
 		{
 			name: "multiple send sdk.Msgs in one sdk.Tx",

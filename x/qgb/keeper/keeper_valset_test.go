@@ -6,6 +6,7 @@ import (
 
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	"github.com/cosmos/cosmos-sdk/x/staking"
 	gethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -60,6 +61,61 @@ func TestCurrentValsetNormalization(t *testing.T) {
 			rMembers, err := types.BridgeValidators(r.Members).ToInternal()
 			require.NoError(t, err)
 			assert.Equal(t, spec.expPowers, rMembers.GetPowers())
+		})
+	}
+}
+
+func TestCheckingLatestAttestationNonceInValsets(t *testing.T) {
+	input := testutil.CreateTestEnvWithoutAttestationNonceInit(t)
+	k := input.QgbKeeper
+	// create a validator to have a  realistic scenario
+	testutil.CreateValidator(
+		t,
+		input,
+		testutil.AccAddrs[0],
+		testutil.AccPubKeys[0],
+		0,
+		testutil.ValAddrs[0],
+		testutil.ConsPubKeys[0],
+		testutil.StakingAmount,
+		testutil.EVMAddrs[0],
+	)
+	// Run the staking endblocker to ensure valset is correct in state
+	staking.EndBlocker(input.Context, input.StakingKeeper)
+	tests := []struct {
+		name          string
+		requestFunc   func() error
+		expectedError error
+	}{
+		{
+			name: "check latest nonce before getting the latest valset",
+			requestFunc: func() error {
+				_, err := k.GetLatestValset(input.Context)
+				return err
+			},
+			expectedError: types.ErrLatestAttestationNonceStillNotInitialized,
+		},
+		{
+			name: "check latest nonce before getting the current valset",
+			requestFunc: func() error {
+				_, err := k.GetCurrentValset(input.Context)
+				return err
+			},
+			expectedError: types.ErrLatestAttestationNonceStillNotInitialized,
+		},
+		{
+			name: "check latest nonce before getting last valset before nonce",
+			requestFunc: func() error {
+				_, err := k.GetLastValsetBeforeNonce(input.Context, 1)
+				return err
+			},
+			expectedError: types.ErrLatestAttestationNonceStillNotInitialized,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.requestFunc()
+			assert.ErrorIs(t, err, tt.expectedError)
 		})
 	}
 }

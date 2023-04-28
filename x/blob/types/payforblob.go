@@ -11,6 +11,7 @@ import (
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -23,7 +24,9 @@ const (
 	ShareSize = appconsts.ShareSize
 )
 
-var _ sdk.Msg = &MsgPayForBlobs{}
+// MsgPayForBlobs implements the `LegacyMsg` interface.
+// See: https://docs.cosmos.network/v0.46/building-modules/messages-and-queries.html#legacy-amino-legacymsgs
+var _ legacytx.LegacyMsg = &MsgPayForBlobs{}
 
 func NewMsgPayForBlobs(signer string, blobs ...*Blob) (*MsgPayForBlobs, error) {
 	err := ValidateBlobs(blobs...)
@@ -66,10 +69,10 @@ func namespacesToBytes(namespaces []appns.Namespace) (result [][]byte) {
 	return result
 }
 
-// Route fulfills the sdk.Msg interface
+// Route fulfills the legacytx.LegacyMsg interface
 func (msg *MsgPayForBlobs) Route() string { return RouterKey }
 
-// Type fulfills the sdk.Msg interface
+// Type fulfills the legacytx.LegacyMsg interface
 func (msg *MsgPayForBlobs) Type() string {
 	return URLMsgPayForBlobs
 }
@@ -148,7 +151,7 @@ func ValidateBlobNamespaceID(ns appns.Namespace) error {
 	return nil
 }
 
-// GetSignBytes fulfills the sdk.Msg interface by returning a deterministic set
+// GetSignBytes fulfills the legacytx.LegacyMsg interface by returning a deterministic set
 // of bytes to sign over
 func (msg *MsgPayForBlobs) GetSignBytes() []byte {
 	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(msg))

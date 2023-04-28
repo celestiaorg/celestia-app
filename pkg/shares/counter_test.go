@@ -25,6 +25,7 @@ func TestCounterMatchesCompactShareSplitter(t *testing.T) {
 		{txs: []coretypes.Tx{newTx(appconsts.FirstCompactShareContentSize), newTx(appconsts.ContinuationCompactShareContentSize - 4)}},
 		{txs: newTxs(1000, 100)},
 		{txs: newTxs(100, 1000)},
+		{txs: newTxs(8931, 77)},
 	}
 
 	for idx, tc := range testCases {
@@ -38,6 +39,7 @@ func TestCounterMatchesCompactShareSplitter(t *testing.T) {
 				diff := counter.Add(len(tx))
 				require.Equal(t, writer.Count()-sum, diff)
 				sum = writer.Count()
+				require.Equal(t, sum, counter.Size())
 			}
 			shares, err := writer.Export()
 			require.NoError(t, err)
