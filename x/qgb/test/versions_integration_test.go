@@ -26,7 +26,7 @@ import (
 
 func TestQGBVersionIntegrationTestSuite(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping SDK integration test in short mode.")
+		t.Skip("skipping QGB version integration test in short mode.")
 	}
 	suite.Run(t, new(QGBVersionIntegrationTestSuite))
 }
