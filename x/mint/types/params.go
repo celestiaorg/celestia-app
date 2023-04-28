@@ -29,28 +29,16 @@ func ParamKeyTable() paramtypes.KeyTable {
 func NewParams(
 	mintDenom string, inflationRateChange, inflationMax, inflationMin, goalBonded sdk.Dec, blocksPerYear uint64,
 ) Params {
-	return Params{
-		MintDenom:     mintDenom,
-		BlocksPerYear: blocksPerYear,
-	}
+	return Params{}
 }
 
 // default minting module parameters
 func DefaultParams() Params {
-	return Params{
-		MintDenom:     sdk.DefaultBondDenom,
-		BlocksPerYear: DefaultBlocksPerYear,
-	}
+	return Params{}
 }
 
-// validate params
+// Validate validates the params
 func (p Params) Validate() error {
-	if err := validateMintDenom(p.MintDenom); err != nil {
-		return err
-	}
-	if err := validateBlocksPerYear(p.BlocksPerYear); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -62,10 +50,7 @@ func (p Params) String() string {
 
 // Implements params.ParamSet
 func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
-	return paramtypes.ParamSetPairs{
-		paramtypes.NewParamSetPair(KeyMintDenom, &p.MintDenom, validateMintDenom),
-		paramtypes.NewParamSetPair(KeyBlocksPerYear, &p.BlocksPerYear, validateBlocksPerYear),
-	}
+	return paramtypes.ParamSetPairs{}
 }
 
 func validateMintDenom(i interface{}) error {

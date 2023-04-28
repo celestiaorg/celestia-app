@@ -52,7 +52,7 @@ func (m Minter) NextInflationRate(ctx sdk.Context, params Params) sdk.Dec {
 	// The target annual inflation rate is recalculated for each previsions cycle.
 	// The rates are hardcoded in a number of constants above
 
-	year := uint64(ctx.BlockHeader().Height) / params.BlocksPerYear
+	year := uint64(ctx.BlockHeader().Height) / BlocksPerYear
 
 	initInflationRate := sdk.NewDecWithPrec(InitialInflationRate*1000, 3 /* since we used 1000 */)
 	targetInflationRate := sdk.NewDecWithPrec(TargetInflationRate*1000, 3 /* since we used 1000 */)
@@ -83,6 +83,6 @@ func (m Minter) NextAnnualProvisions(_ Params, totalSupply math.Int) sdk.Dec {
 // BlockProvision returns the provisions for a block based on the annual
 // provisions rate.
 func (m Minter) BlockProvision(params Params) sdk.Coin {
-	provisionAmt := m.AnnualProvisions.QuoInt(sdk.NewInt(int64(params.BlocksPerYear)))
-	return sdk.NewCoin(params.MintDenom, provisionAmt.TruncateInt())
+	provisionAmt := m.AnnualProvisions.QuoInt(sdk.NewInt(int64(BlocksPerYear)))
+	return sdk.NewCoin(sdk.DefaultBondDenom, provisionAmt.TruncateInt())
 }

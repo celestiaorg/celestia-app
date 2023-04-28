@@ -25,10 +25,4 @@ message Minter {
 // Params holds parameters for the mint module.
 message Params {
   option (gogoproto.goproto_stringer) = false;
-
-  // type of coin to mint
-  string mint_denom = 1;
-
-  // expected blocks per year
-  uint64 blocks_per_year = 2;
 }

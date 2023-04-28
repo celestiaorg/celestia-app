@@ -64,7 +64,7 @@ func TestNextInflation(t *testing.T) {
 	}
 
 	for i, tc := range tests {
-		targetHeight := params.BlocksPerYear * uint64(tc.year)
+		targetHeight := BlocksPerYear * uint64(tc.year)
 
 		ctx := sdk.NewContext(nil, tmproto.Header{Height: int64(targetHeight)}, false, nil)
 
@@ -98,7 +98,7 @@ func TestBlockProvision(t *testing.T) {
 		minter.AnnualProvisions = sdk.NewDec(tc.annualProvisions)
 		provisions := minter.BlockProvision(params)
 
-		expProvisions := sdk.NewCoin(params.MintDenom,
+		expProvisions := sdk.NewCoin(sdk.DefaultBondDenom,
 			sdk.NewInt(tc.expProvisions))
 
 		require.True(t, expProvisions.IsEqual(provisions),

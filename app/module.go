@@ -92,7 +92,6 @@ type mintModule struct {
 // DefaultGenesis returns custom x/mint module genesis state.
 func (mintModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genState := minttypes.DefaultGenesisState()
-	genState.Params.MintDenom = BondDenom
 
 	return cdc.MustMarshalJSON(genState)
 }
