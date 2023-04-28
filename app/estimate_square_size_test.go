@@ -100,7 +100,7 @@ func Test_estimateSquareSize_MultiBlob(t *testing.T) {
 				tt.getBlobSizes(),
 				0, 0,
 			)
-			normalTxs, blobTxs := separateTxs(enc.TxConfig, shares.TxsToBytes(txs))
+			normalTxs, blobTxs := separateTxs(enc.TxConfig, coretypes.Txs(txs).ToSliceOfBytes())
 			resSquareSize, resStart := estimateSquareSize(normalTxs, blobTxs)
 			require.Equal(t, tt.expectedSquareSize, resSquareSize)
 			require.Equal(t, tt.expectedStartingShareIndex, resStart)
