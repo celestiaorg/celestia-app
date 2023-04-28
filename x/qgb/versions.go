@@ -6,12 +6,8 @@ import (
 )
 
 func GetSignificantPowerDiffThreshold(appVersion uint64) float64 {
-	switch appVersion {
-	case 0:
+	if appVersion == 0 {
 		return v1beta1.SignificantPowerDifferenceThreshold
-	case 1:
-		return v1.SignificantPowerDifferenceThreshold
-	default:
-		return v1.SignificantPowerDifferenceThreshold
 	}
+	return v1.SignificantPowerDifferenceThreshold
 }
