@@ -7,12 +7,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-const (
-	InitialInflationRate    = 0.08
-	TargetInflationRate     = 0.015 // floor
-	DisinflationRatePerYear = 0.1
-)
-
 // NewMinter returns a new Minter object with the given inflation and annual
 // provisions values.
 func NewMinter(inflation, annualProvisions sdk.Dec) Minter {
