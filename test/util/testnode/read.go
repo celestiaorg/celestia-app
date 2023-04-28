@@ -56,7 +56,7 @@ func ReadBlockHeights(ctx context.Context, rpcAddress string, fromHeight, toHeig
 
 func DecodeBlockData(data types.Data) ([]sdk.Msg, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	decoder := encoding.IndexWrapperDecoder(encCfg.TxConfig.TxDecoder())
+	decoder := encCfg.TxConfig.TxDecoder()
 	msgs := make([]sdk.Msg, 0)
 	for _, txBytes := range data.Txs {
 		tx, err := decoder(txBytes)
@@ -86,7 +86,7 @@ func CalculateMeanGasFromRecentBlocks(ctx context.Context, rpcAddress, msgType s
 func CalculateMeanGas(ctx context.Context, rpcAddress, msgType string, fromHeight int64, toHeight int64) (float64, int64, error) {
 	var (
 		encCfg   = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-		decoder  = encoding.IndexWrapperDecoder(encCfg.TxConfig.TxDecoder())
+		decoder  = encCfg.TxConfig.TxDecoder()
 		totalGas int64
 		count    int64
 		average  = func() float64 {
