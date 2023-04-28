@@ -67,7 +67,7 @@ jobs:
             go.mod
             go.sum
       - name: test & coverage report creation
-        run: go test -mod=readonly -timeout 30m -coverprofile=coverage.out -covermode=atomic
+        run: go test -mod=readonly -timeout 30m -coverprofile=./coverage.out -covermode=atomic
         if: env.GIT_DIFF
       - uses: actions/upload-artifact@v3
         with:
