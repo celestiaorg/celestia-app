@@ -24,7 +24,7 @@ var (
 // that are encoded as wrapped transactions. Most use cases out of this package
 // should use these share indexes and therefore set useShareIndexes to true.
 func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
-	if data.SquareSize == 0 || !isPowerOf2(data.SquareSize) {
+	if data.SquareSize == 0 || !IsPowerOfTwo(data.SquareSize) {
 		return nil, fmt.Errorf("square size is not a power of two: %d", data.SquareSize)
 	}
 	wantShareCount := int(data.SquareSize * data.SquareSize)
@@ -43,7 +43,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 
 	var padding []Share
 	if len(data.Blobs) > 0 {
-		blobShareStart, _ := NextMultipleOfBlobMinSquareSize(
+		blobShareStart, _ := NextShareIndex(
 			currentShareCount,
 			SparseSharesNeeded(uint32(len(data.Blobs[0].Data))),
 			int(data.SquareSize),
@@ -72,10 +72,7 @@ func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
 		return nil, err
 	}
 	currentShareCount += len(blobShares)
-	tailShares, err := TailPaddingShares(wantShareCount - currentShareCount)
-	if err != nil {
-		return nil, err
-	}
+	tailShares := TailPaddingShares(wantShareCount - currentShareCount)
 	shares := make([]Share, 0, data.SquareSize*data.SquareSize)
 	shares = append(append(append(append(append(
 		shares,
@@ -126,15 +123,17 @@ func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRang
 		}
 	}
 
-	txShares, txMap, err := txWriter.Export(0)
+	txShares, err = txWriter.Export()
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	txMap := txWriter.ShareRanges(0)
 
-	pfbShares, pfbMap, err := pfbTxWriter.Export(len(txShares))
+	pfbShares, err = pfbTxWriter.Export()
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	pfbMap := pfbTxWriter.ShareRanges(len(txShares))
 
 	return txShares, pfbShares, mergeMaps(txMap, pfbMap), nil
 }

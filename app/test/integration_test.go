@@ -3,11 +3,11 @@ package app_test
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -21,7 +21,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
-	"github.com/celestiaorg/celestia-app/testutil/network"
+	"github.com/celestiaorg/celestia-app/test/util/network"
 	"github.com/celestiaorg/celestia-app/x/blob"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -29,7 +29,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -184,7 +183,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 
 			heights := make(map[int64]int)
 			for _, hash := range hashes {
-				resp, err := queryTx(val.ClientCtx, hash, true)
+				resp, err := testnode.QueryTx(val.ClientCtx, hash, true)
 				assert.NoError(err)
 				assert.NotNil(resp)
 				if resp == nil {
@@ -226,8 +225,8 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	val := s.network.Validators[0]
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 
-	mustNewBlob := func(ns appns.Namespace, data []byte) *blobtypes.Blob {
-		b, err := blobtypes.NewBlob(ns, data)
+	mustNewBlob := func(ns appns.Namespace, data []byte, shareVersion uint8) *blobtypes.Blob {
+		b, err := blobtypes.NewBlob(ns, data, shareVersion)
 		require.NoError(err)
 		return b
 	}
@@ -241,7 +240,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	tests := []test{
 		{
 			"small random typical",
-			mustNewBlob(ns1, tmrand.Bytes(3000)),
+			mustNewBlob(ns1, tmrand.Bytes(3000), appconsts.ShareVersionZero),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))),
 				blobtypes.SetGasLimit(1_000_000_000),
@@ -249,7 +248,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"large random typical",
-			mustNewBlob(ns1, tmrand.Bytes(350000)),
+			mustNewBlob(ns1, tmrand.Bytes(350000), appconsts.ShareVersionZero),
 			[]types.TxBuilderOption{
 				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10)))),
 				blobtypes.SetGasLimit(1_000_000_000),
@@ -257,7 +256,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"medium random with memo",
-			mustNewBlob(ns1, tmrand.Bytes(100000)),
+			mustNewBlob(ns1, tmrand.Bytes(100000), appconsts.ShareVersionZero),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetMemo("lol I could stick the rollup block here if I wanted to"),
 				blobtypes.SetGasLimit(1_000_000_000),
@@ -265,7 +264,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		},
 		{
 			"medium random with timeout height",
-			mustNewBlob(ns1, tmrand.Bytes(100000)),
+			mustNewBlob(ns1, tmrand.Bytes(100000), appconsts.ShareVersionZero),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetTimeoutHeight(1000),
 				blobtypes.SetGasLimit(1_000_000_000),
@@ -310,20 +309,6 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 	require.Equal(t, blobtypes.ErrNoBlobs.ABCICode(), res.Code)
 }
 
-func queryTx(clientCtx client.Context, hashHexStr string, prove bool) (*rpctypes.ResultTx, error) {
-	hash, err := hex.DecodeString(hashHexStr)
-	if err != nil {
-		return nil, err
-	}
-
-	node, err := clientCtx.GetNode()
-	if err != nil {
-		return nil, err
-	}
-
-	return node.Tx(context.Background(), hash, prove)
-}
-
 func (s *IntegrationTestSuite) TestShareInclusionProof() {
 	require := s.Require()
 	val := s.network.Validators[0]
@@ -352,7 +337,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 	s.WaitForBlocks(20)
 
 	for _, hash := range hashes {
-		txResp, err := queryTx(val.ClientCtx, hash, true)
+		txResp, err := testnode.QueryTx(val.ClientCtx, hash, true)
 		require.NoError(err)
 		require.Equal(abci.CodeTypeOK, txResp.TxResult.Code)
 

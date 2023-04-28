@@ -11,8 +11,8 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 )
 
@@ -25,12 +25,12 @@ func Test_estimateSquareSize(t *testing.T) {
 	}
 	tests := []test{
 		{"empty block", 0, 0, 0, appconsts.DefaultMinSquareSize},
-		{"one normal tx", 1, 0, 0, appconsts.DefaultMinSquareSize},
+		{"one normal tx", 1, 0, 0, 2},
 		{"one small pfb small block", 0, 1, 100, 2},
 		{"mixed small block", 10, 12, 500, 16},
 		{"small block 2", 0, 12, 1000, 16},
 		{"mixed medium block 2", 10, 20, 10000, 32},
-		{"one large pfb large block", 0, 1, 1000000, 64},
+		{"one large pfb large block", 0, 1, 1000000, appconsts.DefaultMaxSquareSize},
 		{"one hundred large pfb large block", 0, 100, 100000, appconsts.DefaultMaxSquareSize},
 		{"one hundred large pfb medium block", 100, 100, 100000, appconsts.DefaultMaxSquareSize},
 		{"mixed transactions large block", 100, 100, 100000, appconsts.DefaultMaxSquareSize},
@@ -75,7 +75,7 @@ func Test_estimateSquareSize_MultiBlob(t *testing.T) {
 			func() [][]int {
 				return blobfactory.Repeat([]int{1000}, 10)
 			},
-			8, 8,
+			16, 8,
 		},
 		{
 			"10 multiblob 4 share transactions",
@@ -100,7 +100,7 @@ func Test_estimateSquareSize_MultiBlob(t *testing.T) {
 				tt.getBlobSizes(),
 				0, 0,
 			)
-			normalTxs, blobTxs := separateTxs(enc.TxConfig, shares.TxsToBytes(txs))
+			normalTxs, blobTxs := separateTxs(enc.TxConfig, coretypes.Txs(txs).ToSliceOfBytes())
 			resSquareSize, resStart := estimateSquareSize(normalTxs, blobTxs)
 			require.Equal(t, tt.expectedSquareSize, resSquareSize)
 			require.Equal(t, tt.expectedStartingShareIndex, resStart)

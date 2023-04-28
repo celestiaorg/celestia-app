@@ -86,7 +86,7 @@ func (n Namespace) ValidateBlobNamespace() error {
 
 // validateVersion returns an error if the version is not supported.
 func validateVersion(version uint8) error {
-	if version != NamespaceVersionZero {
+	if version != NamespaceVersionZero && version != NamespaceVersionMax {
 		return fmt.Errorf("unsupported namespace version %v", version)
 	}
 	return nil
@@ -127,4 +127,12 @@ func (n Namespace) IsTx() bool {
 
 func (n Namespace) IsPayForBlob() bool {
 	return bytes.Equal(n.Bytes(), PayForBlobNamespace.Bytes())
+}
+
+func (n Namespace) Repeat(times int) []Namespace {
+	ns := make([]Namespace, times)
+	for i := 0; i < times; i++ {
+		ns[i] = n
+	}
+	return ns
 }

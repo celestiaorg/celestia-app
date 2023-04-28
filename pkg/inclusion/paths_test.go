@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_calculateSubTreeRootCoordinates(t *testing.T) {
@@ -338,97 +340,144 @@ func Test_genSubTreeRootPath(t *testing.T) {
 
 func Test_calculateCommitPaths(t *testing.T) {
 	type test struct {
-		squareSize int
-		start      int
-		blobLen    int
-		expected   []path
+		name                string
+		squareSize          int
+		start               int
+		blobLen             int
+		expectedPath        []path
+		expectedPathIndexes []int
 	}
+	// note that calculateCommitPaths assumes ODS, so we prepend a WalkLeft to
+	// everything elsewhere
 	tests := []test{
-		{2, 0, 1, []path{{instructions: []WalkInstruction{WalkLeft}, row: 0}}},
-		{2, 2, 2, []path{{instructions: []WalkInstruction{}, row: 1}}},
-		// the next test case's blob gets pushed to index 2 due to
-		// non-interactive defaults so its path is the same as the
-		// previous testcase.
-		{2, 1, 2, []path{{instructions: []WalkInstruction{}, row: 1}}},
-		{4, 2, 2, []path{{instructions: []WalkInstruction{WalkRight}, row: 0}}},
-		// C = compact share
-		//
-		// |C|C|4|4|
-		// |4|4| | |
-		// | | | | |
-		// | | | | |
-		{4, 2, 4, []path{
-			{instructions: []WalkInstruction{WalkRight}, row: 0},
-			{instructions: []WalkInstruction{WalkLeft}, row: 1},
-		}},
-		// the next test case's blob gets pushed to index 4 due to
-		// non-interactive defaults.
-		{4, 3, 4, []path{
-			{instructions: []WalkInstruction{WalkLeft}, row: 1},
-			{instructions: []WalkInstruction{WalkRight}, row: 1},
-		}},
-		{4, 2, 9, []path{
-			{instructions: []WalkInstruction{}, row: 1},
-			{instructions: []WalkInstruction{}, row: 2},
-			{instructions: []WalkInstruction{WalkLeft, WalkLeft}, row: 3},
-		}},
-		// C = compact share
-		// B = blob share
-		//
-		// |C|C|C| |B|B|B|B|
-		// |B|B|B|B|B|B|B|B|
-		// |B|B|B|B| | | | |
-		// | | | | | | | | |
-		// | | | | | | | | |
-		// | | | | | | | | |
-		// | | | | | | | | |
-		// | | | | | | | | |
-		{8, 3, 16, []path{
-			{instructions: []WalkInstruction{WalkRight}, row: 0},
-			{instructions: []WalkInstruction{WalkLeft}, row: 1},
-			{instructions: []WalkInstruction{WalkRight}, row: 1},
-			{instructions: []WalkInstruction{WalkLeft}, row: 2},
-		}},
-		// BlobMinSquareSize(32) = 8 so the blob starts at index 144 which is a
-		// multiple of 8. The blob occupies 32 shares so the middle 32 shares of
-		// the third row.
-		//
-		// |       | blob  | blob  |       |
-		// 128 ... 144 ... 160 ... 176 ... 192
-		{64, 144, 32, []path{
-			{instructions: []WalkInstruction{WalkLeft, WalkRight, WalkLeft}, row: 2},
-			{instructions: []WalkInstruction{WalkLeft, WalkRight, WalkRight}, row: 2},
-			{instructions: []WalkInstruction{WalkRight, WalkLeft, WalkLeft}, row: 2},
-			{instructions: []WalkInstruction{WalkRight, WalkLeft, WalkRight}, row: 2},
-		}},
-		// first 33 shares in the last row of a 64 x 64 square.
-		{64, 4032, 33, []path{
-			{instructions: []WalkInstruction{WalkLeft, WalkLeft, WalkLeft}, row: 63},
-			{instructions: []WalkInstruction{WalkLeft, WalkLeft, WalkRight}, row: 63},
-			{instructions: []WalkInstruction{WalkLeft, WalkRight, WalkLeft}, row: 63},
-			{instructions: []WalkInstruction{WalkLeft, WalkRight, WalkRight}, row: 63},
-			{instructions: []WalkInstruction{WalkRight, WalkLeft, WalkLeft, WalkLeft, WalkLeft, WalkLeft}, row: 63},
-		}},
-		// last 63 shares in the last row of a 64 x 64 square.
-		{64, 4032, 63, []path{
-			{instructions: []WalkInstruction{WalkLeft, WalkLeft, WalkLeft}, row: 63},
-			{instructions: []WalkInstruction{WalkLeft, WalkLeft, WalkRight}, row: 63},
-			{instructions: []WalkInstruction{WalkLeft, WalkRight, WalkLeft}, row: 63},
-			{instructions: []WalkInstruction{WalkLeft, WalkRight, WalkRight}, row: 63},
-			{instructions: []WalkInstruction{WalkRight, WalkLeft, WalkLeft}, row: 63},
-			{instructions: []WalkInstruction{WalkRight, WalkLeft, WalkRight}, row: 63},
-			{instructions: []WalkInstruction{WalkRight, WalkRight, WalkLeft}, row: 63},
-			{instructions: []WalkInstruction{WalkRight, WalkRight, WalkRight, WalkLeft}, row: 63},
-			{instructions: []WalkInstruction{WalkRight, WalkRight, WalkRight, WalkRight, WalkLeft}, row: 63},
-			{instructions: []WalkInstruction{WalkRight, WalkRight, WalkRight, WalkRight, WalkRight, WalkLeft}, row: 63},
-		}},
+		{
+			"all paths for a basic 2x2", 2, 2, 2,
+			[]path{
+				{
+					row:          1,
+					instructions: []WalkInstruction{WalkLeft},
+				},
+				{
+					row:          1,
+					instructions: []WalkInstruction{WalkRight},
+				},
+			},
+			[]int{0, 1},
+		},
+		{
+			"all paths for a basic 4x4", 4, 2, 2,
+			[]path{
+				{
+					row:          0,
+					instructions: []WalkInstruction{WalkRight, WalkLeft},
+				},
+				{
+					row:          0,
+					instructions: []WalkInstruction{WalkRight, WalkRight},
+				},
+			},
+			[]int{0, 1},
+		},
+		{
+			"all paths for a basic 4x4 span more than 1 row", 4, 3, 2,
+			[]path{
+				{
+					row:          0,
+					instructions: []WalkInstruction{WalkRight, WalkRight},
+				},
+				{
+					row:          1,
+					instructions: []WalkInstruction{WalkLeft, WalkLeft},
+				},
+			},
+			[]int{0, 1},
+		},
+		{
+			"single share in the middle of a 128x128", 128, 8252, 1,
+			[]path{
+				{
+					row:          64,
+					instructions: []WalkInstruction{WalkLeft, WalkRight, WalkRight, WalkRight, WalkRight, WalkLeft, WalkLeft},
+				},
+			},
+			[]int{0},
+		},
+		{
+			"the 32nd path for the smallest blob with a subtree width of 128", 128, 0, 8193,
+			[]path{
+				{
+					row:          31,
+					instructions: []WalkInstruction{}, // there should be no instructions because we're using the first root
+				},
+			},
+			[]int{31},
+		},
+		{
+			"the 32nd path for the largest blob with a subtree width of 64", 128, 0, 8192,
+			[]path{
+				{
+					row:          15,
+					instructions: []WalkInstruction{WalkRight},
+				},
+			},
+			[]int{31},
+		},
+		{
+			"the 32nd path for the largest blob with a subtree width of 1", 128, 0, appconsts.SubtreeRootThreshold,
+			[]path{
+				{
+					row:          0,
+					instructions: []WalkInstruction{WalkLeft, WalkLeft, WalkRight, WalkRight, WalkRight, WalkRight, WalkRight},
+				},
+			},
+			[]int{31},
+		},
+		{
+			"the 32nd and last path for the smallest blob with a subtree width of 2", 128, 0, appconsts.SubtreeRootThreshold + 1,
+			[]path{
+				{
+					row:          0,
+					instructions: []WalkInstruction{WalkLeft, WalkRight, WalkRight, WalkRight, WalkRight, WalkRight},
+				},
+				// note that the last path should be one instruction longer
+				{
+					row:          1,
+					instructions: []WalkInstruction{WalkLeft, WalkLeft, WalkLeft, WalkLeft, WalkLeft, WalkLeft, WalkLeft},
+				},
+			},
+			[]int{31, 64},
+		},
 	}
-	for i, tt := range tests {
+	for _, tt := range tests {
 		t.Run(
-			fmt.Sprintf("test %d: square size %d start %d blobLen %d", i, tt.squareSize, tt.start, tt.blobLen),
+			tt.name,
 			func(t *testing.T) {
-				assert.Equal(t, tt.expected, calculateCommitmentPaths(tt.squareSize, tt.start, tt.blobLen))
+				paths := calculateCommitmentPaths(tt.squareSize, tt.start, tt.blobLen)
+				for j, pi := range tt.expectedPathIndexes {
+					assert.Equal(t, tt.expectedPath[j], paths[pi])
+				}
+				// check that each path is unique
+				pm := make(map[string]struct{})
+				for _, p := range paths {
+					sp := pathToString(p)
+					_, has := pm[sp]
+					require.False(t, has)
+					pm[sp] = struct{}{}
+				}
 			},
 		)
 	}
+}
+
+func pathToString(p path) string {
+	s := fmt.Sprintf("%d", p.row)
+	for _, wi := range p.instructions {
+		switch wi {
+		case WalkLeft:
+			s = s + "l"
+		case WalkRight:
+			s = s + "r"
+		}
+	}
+	return s
 }

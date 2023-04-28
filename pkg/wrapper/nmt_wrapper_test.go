@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
@@ -49,7 +50,7 @@ func TestRootErasuredNamespacedMerkleTree(t *testing.T) {
 	size := 8
 	data := generateRandNamespacedRawData(size)
 	tree := NewErasuredNamespacedMerkleTree(uint64(size), 0)
-	nmtTree := nmt.New(sha256.New())
+	nmtTree := nmt.New(sha256.New(), nmt.NamespaceIDSize(namespace.NamespaceSize), nmt.IgnoreMaxNamespace(true))
 
 	for _, d := range data {
 		tree.Push(d)
@@ -59,7 +60,9 @@ func TestRootErasuredNamespacedMerkleTree(t *testing.T) {
 		}
 	}
 
-	assert.NotEqual(t, nmtTree.Root(), tree.Root())
+	root, err := nmtTree.Root()
+	assert.NoError(t, err)
+	assert.NotEqual(t, root, tree.Root())
 }
 
 func TestErasureNamespacedMerkleTreePanics(t *testing.T) {

@@ -11,3 +11,4 @@ __debug_bin
 profile.out
 tmp/
 run.sh
+testing/e2e/networks/*/

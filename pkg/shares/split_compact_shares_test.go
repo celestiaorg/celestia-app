@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,7 +22,7 @@ func TestCount(t *testing.T) {
 		{transactions: []coretypes.Tx{[]byte{0}}, wantShareCount: 1},
 		{transactions: []coretypes.Tx{bytes.Repeat([]byte{1}, 100)}, wantShareCount: 1},
 		// Test with 1 byte over 1 share
-		{transactions: []coretypes.Tx{bytes.Repeat([]byte{1}, rawTxSize(appconsts.FirstCompactShareContentSize+1))}, wantShareCount: 2},
+		{transactions: []coretypes.Tx{bytes.Repeat([]byte{1}, RawTxSize(appconsts.FirstCompactShareContentSize+1))}, wantShareCount: 2},
 		{transactions: []coretypes.Tx{generateTx(1)}, wantShareCount: 1},
 		{transactions: []coretypes.Tx{generateTx(2)}, wantShareCount: 2},
 		{transactions: []coretypes.Tx{generateTx(20)}, wantShareCount: 20},
@@ -37,6 +38,9 @@ func TestCount(t *testing.T) {
 			t.Errorf("count got %d want %d", got, tc.wantShareCount)
 		}
 	}
+
+	css := NewCompactShareSplitter(namespace.TxNamespace, appconsts.ShareVersionZero)
+	assert.Equal(t, 0, css.Count())
 }
 
 // generateTx generates a transaction that occupies exactly numShares number of
@@ -46,9 +50,9 @@ func generateTx(numShares int) coretypes.Tx {
 		return coretypes.Tx{}
 	}
 	if numShares == 1 {
-		return bytes.Repeat([]byte{1}, rawTxSize(appconsts.FirstCompactShareContentSize))
+		return bytes.Repeat([]byte{1}, RawTxSize(appconsts.FirstCompactShareContentSize))
 	}
-	return bytes.Repeat([]byte{2}, rawTxSize(appconsts.FirstCompactShareContentSize+(numShares-1)*appconsts.ContinuationCompactShareContentSize))
+	return bytes.Repeat([]byte{2}, RawTxSize(appconsts.FirstCompactShareContentSize+(numShares-1)*appconsts.ContinuationCompactShareContentSize))
 }
 
 func TestExport_write(t *testing.T) {
@@ -120,11 +124,11 @@ func TestExport_write(t *testing.T) {
 				err := css.write(bytes)
 				require.NoError(t, err)
 			}
-			got, _, err := css.Export(0)
+			got, err := css.Export()
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 
-			shares, _, err := css.Export(0)
+			shares, err := css.Export()
 			require.NoError(t, err)
 			assert.Equal(t, got, shares)
 			assert.Len(t, got, css.Count())
@@ -157,26 +161,26 @@ func TestWriteAndExportIdempotence(t *testing.T) {
 		{
 			name: "two txs that occupy exactly two shares",
 			txs: []coretypes.Tx{
-				bytes.Repeat([]byte{0xf}, rawTxSize(appconsts.FirstCompactShareContentSize)),
-				bytes.Repeat([]byte{0xf}, rawTxSize(appconsts.ContinuationCompactShareContentSize)),
+				bytes.Repeat([]byte{0xf}, RawTxSize(appconsts.FirstCompactShareContentSize)),
+				bytes.Repeat([]byte{0xf}, RawTxSize(appconsts.ContinuationCompactShareContentSize)),
 			},
 			wantLen: 2,
 		},
 		{
 			name: "three txs that occupy exactly three shares",
 			txs: []coretypes.Tx{
-				bytes.Repeat([]byte{0xf}, rawTxSize(appconsts.FirstCompactShareContentSize)),
-				bytes.Repeat([]byte{0xf}, rawTxSize(appconsts.ContinuationCompactShareContentSize)),
-				bytes.Repeat([]byte{0xf}, rawTxSize(appconsts.ContinuationCompactShareContentSize)),
+				bytes.Repeat([]byte{0xf}, RawTxSize(appconsts.FirstCompactShareContentSize)),
+				bytes.Repeat([]byte{0xf}, RawTxSize(appconsts.ContinuationCompactShareContentSize)),
+				bytes.Repeat([]byte{0xf}, RawTxSize(appconsts.ContinuationCompactShareContentSize)),
 			},
 			wantLen: 3,
 		},
 		{
 			name: "four txs that occupy three full shares and one partial share",
 			txs: []coretypes.Tx{
-				bytes.Repeat([]byte{0xf}, rawTxSize(appconsts.FirstCompactShareContentSize)),
-				bytes.Repeat([]byte{0xf}, rawTxSize(appconsts.ContinuationCompactShareContentSize)),
-				bytes.Repeat([]byte{0xf}, rawTxSize(appconsts.ContinuationCompactShareContentSize)),
+				bytes.Repeat([]byte{0xf}, RawTxSize(appconsts.FirstCompactShareContentSize)),
+				bytes.Repeat([]byte{0xf}, RawTxSize(appconsts.ContinuationCompactShareContentSize)),
+				bytes.Repeat([]byte{0xf}, RawTxSize(appconsts.ContinuationCompactShareContentSize)),
 				[]byte{0xf},
 			},
 			wantLen: 4,
@@ -192,7 +196,7 @@ func TestWriteAndExportIdempotence(t *testing.T) {
 			}
 
 			assert.Equal(t, tc.wantLen, css.Count())
-			shares, _, err := css.Export(0)
+			shares, err := css.Export()
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantLen, len(shares))
 		})
@@ -210,8 +214,8 @@ func TestExport(t *testing.T) {
 	txOne := coretypes.Tx{0x1}
 	txTwo := coretypes.Tx(bytes.Repeat([]byte{2}, 600))
 	txThree := coretypes.Tx(bytes.Repeat([]byte{3}, 1000))
-	exactlyOneShare := coretypes.Tx(bytes.Repeat([]byte{4}, rawTxSize(appconsts.FirstCompactShareContentSize)))
-	exactlyTwoShares := coretypes.Tx(bytes.Repeat([]byte{5}, rawTxSize(appconsts.FirstCompactShareContentSize+appconsts.ContinuationCompactShareContentSize)))
+	exactlyOneShare := coretypes.Tx(bytes.Repeat([]byte{4}, RawTxSize(appconsts.FirstCompactShareContentSize)))
+	exactlyTwoShares := coretypes.Tx(bytes.Repeat([]byte{5}, RawTxSize(appconsts.FirstCompactShareContentSize+appconsts.ContinuationCompactShareContentSize)))
 
 	testCases := []testCase{
 		{
@@ -323,60 +327,52 @@ func TestExport(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			_, got, err := css.Export(tc.shareRangeOffset)
-			require.NoError(t, err)
+			got := css.ShareRanges(tc.shareRangeOffset)
 			assert.Equal(t, tc.want, got)
 		})
 	}
 }
 
 func TestWriteAfterExport(t *testing.T) {
-	a := bytes.Repeat([]byte{0xf}, rawTxSize(appconsts.FirstCompactShareContentSize))
-	b := bytes.Repeat([]byte{0xf}, rawTxSize(appconsts.ContinuationCompactShareContentSize*2))
-	c := bytes.Repeat([]byte{0xf}, rawTxSize(appconsts.ContinuationCompactShareContentSize))
+	a := bytes.Repeat([]byte{0xf}, RawTxSize(appconsts.FirstCompactShareContentSize))
+	b := bytes.Repeat([]byte{0xf}, RawTxSize(appconsts.ContinuationCompactShareContentSize*2))
+	c := bytes.Repeat([]byte{0xf}, RawTxSize(appconsts.ContinuationCompactShareContentSize))
 	d := []byte{0xf}
 
 	css := NewCompactShareSplitter(appns.TxNamespace, appconsts.ShareVersionZero)
-	shares, _, err := css.Export(0)
+	shares, err := css.Export()
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(shares))
 
 	err = css.WriteTx(a)
 	require.NoError(t, err)
 
-	shares, _, err = css.Export(0)
+	shares, err = css.Export()
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(shares))
 
 	err = css.WriteTx(b)
 	require.NoError(t, err)
 
-	shares, _, err = css.Export(0)
+	shares, err = css.Export()
 	require.NoError(t, err)
 	assert.Equal(t, 3, len(shares))
 
 	err = css.WriteTx(c)
 	require.NoError(t, err)
 
-	shares, _, err = css.Export(0)
+	shares, err = css.Export()
 	require.NoError(t, err)
 	assert.Equal(t, 4, len(shares))
 
 	err = css.WriteTx(d)
 	require.NoError(t, err)
 
-	shares, _, err = css.Export(0)
+	shares, err = css.Export()
 	require.NoError(t, err)
 	assert.Equal(t, 5, len(shares))
 
-	shares, _, err = css.Export(0)
+	shares, err = css.Export()
 	require.NoError(t, err)
 	assert.Equal(t, 5, len(shares))
-}
-
-// rawTxSize returns the raw tx size that can be used to construct a
-// tx of desiredSize bytes. This function is useful in tests to account for
-// the length delimiter that is prefixed to a tx.
-func rawTxSize(desiredSize int) int {
-	return desiredSize - DelimLen(uint64(desiredSize))
 }
