@@ -27,10 +27,7 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 			fmt.Sprintf("%s/cosmos/mint/v1beta1/params", baseURL),
 			map[string]string{},
 			&minttypes.QueryParamsResponse{},
-			&minttypes.QueryParamsResponse{
-				Params: minttypes.NewParams("stake", sdk.NewDecWithPrec(13, 2), sdk.NewDecWithPrec(100, 2),
-					sdk.NewDec(1), sdk.NewDecWithPrec(67, 2), (60 * 60 * 8766 / 5)),
-			},
+			&minttypes.QueryParamsResponse{Params: minttypes.NewParams()},
 		},
 		{
 			"gRPC request inflation",
