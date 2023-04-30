@@ -65,14 +65,10 @@ func TestNextInflation(t *testing.T) {
 
 	for i, tc := range tests {
 		targetHeight := BlocksPerYear * uint64(tc.year)
-
 		ctx := sdk.NewContext(nil, tmproto.Header{Height: int64(targetHeight)}, false, nil)
-
 		inflation := minter.NextInflationRate(ctx, params)
-
 		infRate, err := inflation.Float64()
 		require.NoError(t, err)
-
 		require.Equal(t, tc.expInflationRate, infRate,
 			"Test Index: %v\nTarget year: %v\nTarget height: %v\nGot Rate: %v\nExpected Rate: %v\n", i, tc.year, targetHeight, inflation, tc.expInflationRate)
 
