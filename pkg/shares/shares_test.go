@@ -117,14 +117,14 @@ func TestSequenceLen(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			len, err := tc.share.SequenceLen()
+			length, err := tc.share.SequenceLen()
 
 			if tc.wantErr {
 				assert.Error(t, err)
 				return
 			}
-			if tc.wantLen != len {
-				t.Errorf("want %d, got %d", tc.wantLen, len)
+			if tc.wantLen != length {
+				t.Errorf("want %d, got %d", tc.wantLen, length)
 			}
 		})
 	}
