@@ -16,10 +16,14 @@ func StandardChainVersions() map[string]ChainVersionConfig {
 	mainnetVersions := NewChainVersionConfig(map[uint64]int64{
 		1: 0,
 	})
+	bsr := NewChainVersionConfig(map[uint64]int64{
+		0: 0,
+		1: 674000,
+	})
 	return map[string]ChainVersionConfig{
 		MochaChainID:          version0Only,
 		ArabicaChainID:        version0Only,
-		BlockspaceraceChainID: version0Only,
+		BlockspaceraceChainID: bsr,
 		MainnetChainID:        mainnetVersions,
 	}
 }
