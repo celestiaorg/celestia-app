@@ -82,6 +82,18 @@ The `x/distribution` BeginBlock
 
 ![inflation flow of funds](./assets/inflation-flow-of-funds.png)
 
+Q: If we use a time-based inflation schedule, how can we avoid a hard-coded assumption for the `BlocksPerYear`?
+
+A: Likely calculate an estimate for the # of `BlocksPerYear` in BeginBlock by looking at the # of blocks in the year so far or the # of seconds between the last block and the current block.
+
+Q: Do any other Cosmos chains use a time-based inflation schedule?
+
+// TODO
+
+Q: What is the skew between `BlocksPerYear` on popular Cosmos SDK chains and the actual number of blocks per year?
+
+// TODO
+
 ## References
 
 // TODO
