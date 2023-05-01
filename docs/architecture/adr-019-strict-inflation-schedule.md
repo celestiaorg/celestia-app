@@ -88,14 +88,20 @@ A: Likely calculate an estimate for the # of `BlocksPerYear` in BeginBlock by lo
 
 Q: Do any other Cosmos chains use a time-based inflation schedule?
 
-A:
+Osmosis creates new tokens due to inflation once per day. Their inflation rate decreases by 1/3 every year. They use a time-based inflation schedule. See [`osmosis/x/epochs`](https://github.com/osmosis-labs/osmosis/tree/main/x/epochs) and [`osmosis/x/mint`](https://github.com/osmosis-labs/osmosis/tree/main/x/mint). Note: Some of the Osmosis inflation goes to a developer vesting pool, a community pool, and liquidity pool incentives.
 
-Osmosis creates new tokens due to inflation once per day. Their inflation rate decreases by 1/3 every year. They use a time-based inflation schedule. See [`osmosis/x/epochs`](https://github.com/osmosis-labs/osmosis/tree/main/x/epochs) and [`osmosis/x/mint`](https://github.com/osmosis-labs/osmosis/tree/main/x/mint). Note: A fraction of Osmosis inflation doesn't go to a community pool. A fraction of Osmosis inflation does go to a developer vesting pool.
+Osmosis doesn't specify a `BlocksPerYear` because their inflation mechanism uses epochs.
+
+Osmosis decreases inflation rate by a third every 365 days. See <https://github.com/rootulp/osmosis/blob/94e0042d6cbd91ffab05cc71ab214a55e441f89f/x/mint/keeper/hooks.go#L39-L49>
+
+Note: we should use DecCoin to avoid rounding errors. See <https://github.com/osmosis-labs/osmosis/issues/1917>.
 
 Q: What is the skew between `BlocksPerYear` on popular Cosmos SDK chains and the actual number of blocks per year?
 
-// TODO
+Cosmos Hub (a.k.a Gaia) sets `BlocksPerYear` to 4,360,000 [here](https://github.com/cosmos/gaia/blob/8a522e98a2863205cf02fb97f8ad27d091670b9d/docs/governance/current-parameters.json#L86). Cosmos Hub has a block time 6.353 ms. Numia data doesn't have complete data for 2021 so we'll examine 2022:
 
-## References
+Year | BlocksPerYear | Actual # of Blocks | Skew
+-----|---------------|--------------------|------
+2022 | 4,360,000     | 4,580,463          | 5.05%
 
-// TODO
+Source: [Numia query](https://console.cloud.google.com/bigquery?sq=611612269782:f0c42f9584c448c78a4ec5f118c2091c)
