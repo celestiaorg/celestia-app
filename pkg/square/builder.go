@@ -63,7 +63,7 @@ func (c *Builder) AppendTx(tx []byte) bool {
 
 // AppendBlobTx attempts to allocate the blob transaction to the square. It returns false if there is not
 // enough space in the square to fit the transaction.
-func (c *Builder) AppendBlobTx(blobTx coretypes.BlobTx) bool {
+func (c *Builder) AppendBlobTx(blobTx coretypes.BlobTx) (bool, error) {
 	iw := &coretypes.IndexWrapper{
 		Tx:           blobTx.Tx,
 		TypeId:       consts.ProtoIndexWrapperTypeID,
@@ -76,7 +76,10 @@ func (c *Builder) AppendBlobTx(blobTx coretypes.BlobTx) bool {
 	blobElements := make([]*element, len(blobTx.Blobs))
 	maxBlobShareCount := 0
 	for idx, blobProto := range blobTx.Blobs {
-		blob := types.BlobFromProto(blobProto)
+		blob, err := types.BlobFromProto(blobProto)
+		if err != nil {
+			return false, err
+		}
 		blobElements[idx] = newElement(blob, len(c.pfbs), idx)
 		maxBlobShareCount += blobElements[idx].maxShareOffset()
 	}
@@ -85,10 +88,10 @@ func (c *Builder) AppendBlobTx(blobTx coretypes.BlobTx) bool {
 		c.blobs = append(c.blobs, blobElements...)
 		c.pfbs = append(c.pfbs, iw)
 		c.currentSize += (pfbShareDiff + maxBlobShareCount)
-		return true
+		return true, nil
 	}
 	c.pfbCounter.Revert()
-	return false
+	return false, nil
 }
 
 // Export returns the square.

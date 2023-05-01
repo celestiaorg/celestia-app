@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	math "math"
 
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
@@ -111,17 +112,17 @@ func BlobTxSharesUsed(btx tmproto.BlobTx) int {
 	return sharesUsed
 }
 
-func BlobFromProto(p *tmproto.Blob) core.Blob {
+func BlobFromProto(p *tmproto.Blob) (core.Blob, error) {
 	if p == nil {
-		return core.Blob{}
+		return core.Blob{}, fmt.Errorf("nil blob")
 	}
 
 	if p.ShareVersion > math.MaxUint8 {
-		return core.Blob{}
+		return core.Blob{}, fmt.Errorf("invalid share version %d", p.ShareVersion)
 	}
 
 	if p.NamespaceVersion > math.MaxUint8 {
-		return core.Blob{}
+		return core.Blob{}, fmt.Errorf("invalid namespace version %d", p.NamespaceVersion)
 	}
 
 	return core.Blob{
@@ -129,7 +130,7 @@ func BlobFromProto(p *tmproto.Blob) core.Blob {
 		Data:             p.Data,
 		ShareVersion:     uint8(p.ShareVersion),
 		NamespaceVersion: uint8(p.NamespaceVersion),
-	}
+	}, nil
 }
 
 func equalSlices[T comparable](a, b []T) bool {
