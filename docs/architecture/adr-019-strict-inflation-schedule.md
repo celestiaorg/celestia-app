@@ -59,9 +59,21 @@ In order to implement the inflation rate specified above, we need to make a few 
 1. Remove blocks per year calculation
 1. Move module parameters to be constants because they should not be modifiable via governance
 
-### Flow of funds
+### FAQ
 
-// TODO
+Q: What is the flow of funds for newly created tokens in the existing `x/mint` module?
+
+1. The BeginBlock of `x/mint` recalculates the inflation rate based on the bonded ratio and target bonded ratio.
+1. Then the BeginBlock of `x/mint` calculates the total amount of tokens that should be minted in the year due to inflation:  `AnnualProvisions`
+    1. It updates the `x/mint` Minter field with these two newly calculated values
+1. Then the BeginBlocker of `xmint` calculates the amount of tokens that should be minted in the previous block due to inflation. This method makes an assumption on the number of blocks per year by depending on the param: `BlocksPerYear`
+1. It then mints these tokens:
+    1. Calls BankKeeper MintCoins which creates new coins and adds them to the `x/mint` module account
+    1. Moves coins from `x/mint` module account to `x/auth` fee_collector module account
+1. The `x/distribution` BeginBlock moves the fees from the `x/auth` fee_collector module account to the `x/distribution` distribution module account
+1. The block proposer receives a fraction of the fees from the block based on the params `BaseProposerReward` and `BonusProposerReward`. Celestia has set `BaseProposerReward=0` and `BonusProposerReward=0` [here](https://github.com/celestiaorg/cosmos-sdk/commit/d931c27bdf9a6958618c541458ca2272a79de787) so this step does not apply.
+1. A community pool receives a fraction of the fees gets Based on the params `CommunityTax`. Celestia has set `CommunityTax=.02`
+1. Validators receive a fraction of the fees from the block based on their voting power. Tokens don't actually leave the distribution module account at this step. At some point in the future when a validator or delegator trigger a withdrawl, tokens are withdrawn from the distribution module account.
 
 ## References
 
