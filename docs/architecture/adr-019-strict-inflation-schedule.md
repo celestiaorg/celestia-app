@@ -88,7 +88,9 @@ A: Likely calculate an estimate for the # of `BlocksPerYear` in BeginBlock by lo
 
 Q: Do any other Cosmos chains use a time-based inflation schedule?
 
-// TODO
+A:
+
+Osmosis creates new tokens due to inflation once per day. Their inflation rate decreases by 1/3 every year. They use a time-based inflation schedule. See [`osmosis/x/epochs`](https://github.com/osmosis-labs/osmosis/tree/main/x/epochs) and [`osmosis/x/mint`](https://github.com/osmosis-labs/osmosis/tree/main/x/mint). Note: A fraction of Osmosis inflation doesn't go to a community pool. A fraction of Osmosis inflation does go to a developer vesting pool.
 
 Q: What is the skew between `BlocksPerYear` on popular Cosmos SDK chains and the actual number of blocks per year?
 
