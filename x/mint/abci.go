@@ -20,7 +20,6 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 
 	k.SetMinter(ctx, minter)
 
-	// mint coins, update supply
 	mintedCoin := minter.CalculateBlockProvision()
 	mintedCoins := sdk.NewCoins(mintedCoin)
 
@@ -29,8 +28,7 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 		panic(err)
 	}
 
-	// send the minted coins to the fee collector account
-	err = k.AddCollectedFees(ctx, mintedCoins)
+	err = k.SendCoinsToFeeCollector(ctx, mintedCoins)
 	if err != nil {
 		panic(err)
 	}
@@ -42,7 +40,7 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			types.EventTypeMint,
-			sdk.NewAttribute(types.AttributeKeyInflation, minter.InflationRate.String()),
+			sdk.NewAttribute(types.AttributeKeyInflationRate, minter.InflationRate.String()),
 			sdk.NewAttribute(types.AttributeKeyAnnualProvisions, minter.AnnualProvisions.String()),
 			sdk.NewAttribute(sdk.AttributeKeyAmount, mintedCoin.Amount.String()),
 		),
