@@ -21,10 +21,10 @@ type Keeper struct {
 	feeCollectorName string
 }
 
-// NewKeeper creates a new mint Keeper instance
+// NewKeeper creates a new mint Keeper instance.
 func NewKeeper(
-	cdc codec.BinaryCodec, key storetypes.StoreKey, paramSpace paramtypes.Subspace,
-	sk types.StakingKeeper, ak types.AccountKeeper, bk types.BankKeeper,
+	cdc codec.BinaryCodec, storeKey storetypes.StoreKey, paramSpace paramtypes.Subspace,
+	stakingKeeper types.StakingKeeper, ak types.AccountKeeper, bankKeeper types.BankKeeper,
 	feeCollectorName string,
 ) Keeper {
 	// ensure mint module account is set
@@ -39,10 +39,10 @@ func NewKeeper(
 
 	return Keeper{
 		cdc:              cdc,
-		storeKey:         key,
+		storeKey:         storeKey,
 		paramSpace:       paramSpace,
-		stakingKeeper:    sk,
-		bankKeeper:       bk,
+		stakingKeeper:    stakingKeeper,
+		bankKeeper:       bankKeeper,
 		feeCollectorName: feeCollectorName,
 	}
 }
@@ -52,7 +52,7 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 	return ctx.Logger().With("module", "x/"+types.ModuleName)
 }
 
-// GetMinter returns the minter
+// GetMinter returns the minter.
 func (k Keeper) GetMinter(ctx sdk.Context) (minter types.Minter) {
 	store := ctx.KVStore(k.storeKey)
 	b := store.Get(types.MinterKey)
@@ -64,7 +64,7 @@ func (k Keeper) GetMinter(ctx sdk.Context) (minter types.Minter) {
 	return
 }
 
-// SetMinter sets the minter
+// SetMinter sets the minter.
 func (k Keeper) SetMinter(ctx sdk.Context, minter types.Minter) {
 	store := ctx.KVStore(k.storeKey)
 	b := k.cdc.MustMarshal(&minter)
@@ -83,30 +83,23 @@ func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
 }
 
 // StakingTokenSupply implements an alias call to the underlying staking keeper's
-// StakingTokenSupply to be used in BeginBlocker.
+// StakingTokenSupply.
 func (k Keeper) StakingTokenSupply(ctx sdk.Context) math.Int {
 	return k.stakingKeeper.StakingTokenSupply(ctx)
-}
-
-// BondedRatio implements an alias call to the underlying staking keeper's
-// BondedRatio to be used in BeginBlocker.
-func (k Keeper) BondedRatio(ctx sdk.Context) sdk.Dec {
-	return k.stakingKeeper.BondedRatio(ctx)
 }
 
 // MintCoins implements an alias call to the underlying bank keeper's
 // MintCoins.
 func (k Keeper) MintCoins(ctx sdk.Context, newCoins sdk.Coins) error {
 	if newCoins.Empty() {
-		// skip as no coins need to be minted
 		return nil
 	}
 
 	return k.bankKeeper.MintCoins(ctx, types.ModuleName, newCoins)
 }
 
-// SendCoinsToFeeCollector sends coins from the x/mint module to the x/auth
-// fee collector module account.
+// SendCoinsToFeeCollector sends newly minted coins from the x/mint module to
+// the x/auth fee collector module account.
 func (k Keeper) SendCoinsToFeeCollector(ctx sdk.Context, coins sdk.Coins) error {
 	return k.bankKeeper.SendCoinsFromModuleToModule(ctx, types.ModuleName, k.feeCollectorName, coins)
 }
