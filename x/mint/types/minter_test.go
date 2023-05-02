@@ -13,7 +13,6 @@ import (
 
 func TestNextInflationRate(t *testing.T) {
 	minter := DefaultInitialMinter()
-	params := DefaultParams()
 
 	type testCase struct {
 		year int
@@ -67,10 +66,10 @@ func TestNextInflationRate(t *testing.T) {
 	for _, tc := range testCases {
 		height := BlocksPerYear * uint64(tc.year)
 		ctx := sdk.NewContext(nil, tmproto.Header{Height: int64(height)}, false, nil)
-		inflation := minter.NextInflationRate(ctx, params)
-		inflationRate, err := inflation.Float64()
+		inflationRate := minter.InflationRate(ctx)
+		got, err := inflationRate.Float64()
 		assert.NoError(t, err)
-		assert.Equal(t, tc.want, inflationRate, "year %v height %v want %v got %v", tc.year, height, tc.want, inflationRate)
+		assert.Equal(t, tc.want, got, "want %v got %v year %v height %v", tc.want, got, tc.year, height)
 	}
 }
 
@@ -128,12 +127,11 @@ func BenchmarkBlockProvision(b *testing.B) {
 func BenchmarkNextInflation(b *testing.B) {
 	b.ReportAllocs()
 	minter := InitialMinter(sdk.NewDecWithPrec(1, 1))
-	params := DefaultParams()
 
 	// run the NextInflationRate function b.N times
 	for n := 0; n < b.N; n++ {
 		ctx := sdk.NewContext(nil, tmproto.Header{Height: int64(n)}, false, nil)
-		minter.NextInflationRate(ctx, params)
+		minter.InflationRate(ctx)
 	}
 }
 

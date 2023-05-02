@@ -41,23 +41,16 @@ func ValidateMinter(minter Minter) error {
 	return nil
 }
 
-// NextInflationRate returns the next inflation rate.
-func (m Minter) NextInflationRate(ctx sdk.Context, params Params) sdk.Dec {
+// InflationRate returns the inflation rate for the current year depending on
+// the current block height in context.
+func (m Minter) InflationRate(ctx sdk.Context) sdk.Dec {
 	year := uint64(ctx.BlockHeader().Height) / BlocksPerYear
+	inflationRate := initInflationRate.Mul(sdk.OneDec().Sub(disinflationRate).Power(year))
 
-	initInflationRate := sdk.NewDecWithPrec(InitialInflationRate*1000, 3)
-	targetInflationRate := sdk.NewDecWithPrec(TargetInflationRate*1000, 3)
-
-	// nextInflationRate = initInflationRate * ((1 - DisinflationRate) ^ year)
-	nextInflationRate := initInflationRate.Mul(
-		sdk.OneDec().Sub(
-			sdk.NewDecWithPrec(DisinflationRatePerYear*1000, 3)).
-			Power(year))
-
-	if nextInflationRate.LT(targetInflationRate) {
+	if inflationRate.LT(targetInflationRate) {
 		return targetInflationRate
 	}
-	return nextInflationRate
+	return inflationRate
 }
 
 // NextAnnualProvisions returns the annual provisions based on current total
