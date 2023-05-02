@@ -75,7 +75,6 @@ func TestNextInflationRate(t *testing.T) {
 
 func TestBlockProvision(t *testing.T) {
 	minter := DefaultMinter()
-	params := DefaultParams()
 
 	type testCase struct {
 		annualProvisions int64
@@ -101,7 +100,7 @@ func TestBlockProvision(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		minter.AnnualProvisions = sdk.NewDec(tc.annualProvisions)
-		got := minter.BlockProvision(params)
+		got := minter.BlockProvision()
 		require.True(t, tc.want.IsEqual(got), "want %v got %v", tc.want, got)
 	}
 }
@@ -115,7 +114,6 @@ func TestBlockProvision(t *testing.T) {
 func BenchmarkBlockProvision(b *testing.B) {
 	b.ReportAllocs()
 	minter := DefaultMinter()
-	params := DefaultParams()
 
 	s1 := rand.NewSource(100)
 	r1 := rand.New(s1)
@@ -123,7 +121,7 @@ func BenchmarkBlockProvision(b *testing.B) {
 
 	// run the BlockProvision function b.N times
 	for n := 0; n < b.N; n++ {
-		minter.BlockProvision(params)
+		minter.BlockProvision()
 	}
 }
 
