@@ -29,7 +29,7 @@ func (suite *MintKeeperTestSuite) SetupTest() {
 	ctx := testApp.NewContext(true, tmproto.Header{})
 
 	testApp.MintKeeper.SetParams(ctx, types.DefaultParams())
-	testApp.MintKeeper.SetMinter(ctx, types.DefaultInitialMinter())
+	testApp.MintKeeper.SetMinter(ctx, types.DefaultMinter())
 
 	legacyQuerierCdc := codec.NewAminoCodec(testApp.LegacyAmino())
 

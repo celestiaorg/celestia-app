@@ -14,7 +14,8 @@ message Minter {
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
     (gogoproto.nullable)   = false
   ];
-  // current annual expected provisions
+  // current expected annual provisions (i.e. the total number of tokens to be
+  // minted in the year due to inflation)
   string annual_provisions = 2 [
     (cosmos_proto.scalar)  = "cosmos.Dec",
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",

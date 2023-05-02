@@ -12,7 +12,7 @@ import (
 )
 
 func TestNextInflationRate(t *testing.T) {
-	minter := DefaultInitialMinter()
+	minter := DefaultMinter()
 
 	type testCase struct {
 		year int
@@ -74,30 +74,35 @@ func TestNextInflationRate(t *testing.T) {
 }
 
 func TestBlockProvision(t *testing.T) {
-	minter := InitialMinter(sdk.NewDecWithPrec(1, 1))
+	minter := DefaultMinter()
 	params := DefaultParams()
 
-	secondsPerYear := int64(60 * 60 * 8766)
-
-	tests := []struct {
+	type testCase struct {
 		annualProvisions int64
-		expProvisions    int64
-	}{
-		{secondsPerYear / 5, 1},
-		{secondsPerYear/5 + 1, 1},
-		{(secondsPerYear / 5) * 2, 2},
-		{(secondsPerYear / 5) / 2, 0},
+		want             sdk.Coin
 	}
-	for i, tc := range tests {
+	testCases := []testCase{
+		{
+			annualProvisions: BlocksPerYear,
+			want:             sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(1)),
+		},
+		{
+			annualProvisions: BlocksPerYear * 2,
+			want:             sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(2)),
+		},
+		{
+			annualProvisions: (BlocksPerYear * 10) - 1,
+			want:             sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(9)),
+		},
+		{
+			annualProvisions: BlocksPerYear / 2,
+			want:             sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(0)),
+		},
+	}
+	for _, tc := range testCases {
 		minter.AnnualProvisions = sdk.NewDec(tc.annualProvisions)
-		provisions := minter.BlockProvision(params)
-
-		expProvisions := sdk.NewCoin(sdk.DefaultBondDenom,
-			sdk.NewInt(tc.expProvisions))
-
-		require.True(t, expProvisions.IsEqual(provisions),
-			"test: %v\n\tExp: %v\n\tGot: %v\n",
-			i, tc.expProvisions, provisions)
+		got := minter.BlockProvision(params)
+		require.True(t, tc.want.IsEqual(got), "want %v got %v", tc.want, got)
 	}
 }
 
@@ -109,7 +114,7 @@ func TestBlockProvision(t *testing.T) {
 // BenchmarkBlockProvision-4 3000000 429 ns/op
 func BenchmarkBlockProvision(b *testing.B) {
 	b.ReportAllocs()
-	minter := InitialMinter(sdk.NewDecWithPrec(1, 1))
+	minter := DefaultMinter()
 	params := DefaultParams()
 
 	s1 := rand.NewSource(100)
@@ -126,7 +131,7 @@ func BenchmarkBlockProvision(b *testing.B) {
 // BenchmarkNextInflation-4 1000000 1828 ns/op
 func BenchmarkNextInflation(b *testing.B) {
 	b.ReportAllocs()
-	minter := InitialMinter(sdk.NewDecWithPrec(1, 1))
+	minter := DefaultMinter()
 
 	// run the NextInflationRate function b.N times
 	for n := 0; n < b.N; n++ {
@@ -139,7 +144,7 @@ func BenchmarkNextInflation(b *testing.B) {
 // BenchmarkNextAnnualProvisions-4 5000000 251 ns/op
 func BenchmarkNextAnnualProvisions(b *testing.B) {
 	b.ReportAllocs()
-	minter := InitialMinter(sdk.NewDecWithPrec(1, 1))
+	minter := DefaultMinter()
 	params := DefaultParams()
 	totalSupply := sdk.NewInt(100000000000000)
 
