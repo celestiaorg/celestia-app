@@ -56,7 +56,7 @@ func (s *UpgradeTestSuite) SetupSuite() {
 	}
 	blockTime := time.Millisecond * 300
 	tmCfg := config.DefaultConfig()
-	tmCfg.Consensus.TimeoutCommit = blockTime
+	tmCfg.Consensus.TargetHeightDuration = blockTime
 	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
 	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
 	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())

@@ -61,7 +61,7 @@ var DefaultConsensusParams = &abci.ConsensusParams{
 type emptyAppOptions struct{}
 
 // Get implements AppOptions
-func (ao emptyAppOptions) Get(o string) interface{} {
+func (ao emptyAppOptions) Get(_ string) interface{} {
 	return nil
 }
 

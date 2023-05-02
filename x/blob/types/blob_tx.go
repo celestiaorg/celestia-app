@@ -2,11 +2,14 @@ package types
 
 import (
 	"bytes"
+	"fmt"
+	math "math"
 
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/cosmos/cosmos-sdk/client"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	core "github.com/tendermint/tendermint/types"
 )
 
 // Blob wraps the tendermint type so that users can simply import this one.
@@ -107,6 +110,27 @@ func BlobTxSharesUsed(btx tmproto.BlobTx) int {
 		sharesUsed += shares.SparseSharesNeeded(uint32(len(blob.Data)))
 	}
 	return sharesUsed
+}
+
+func BlobFromProto(p *tmproto.Blob) (core.Blob, error) {
+	if p == nil {
+		return core.Blob{}, fmt.Errorf("nil blob")
+	}
+
+	if p.ShareVersion > math.MaxUint8 {
+		return core.Blob{}, fmt.Errorf("invalid share version %d", p.ShareVersion)
+	}
+
+	if p.NamespaceVersion > math.MaxUint8 {
+		return core.Blob{}, fmt.Errorf("invalid namespace version %d", p.NamespaceVersion)
+	}
+
+	return core.Blob{
+		NamespaceID:      p.NamespaceId,
+		Data:             p.Data,
+		ShareVersion:     uint8(p.ShareVersion),
+		NamespaceVersion: uint8(p.NamespaceVersion),
+	}, nil
 }
 
 func equalSlices[T comparable](a, b []T) bool {

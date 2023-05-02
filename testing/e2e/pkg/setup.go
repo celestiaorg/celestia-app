@@ -230,7 +230,7 @@ func MakeConfig(node *Node) (*config.Config, error) {
 	// FIXME: This values get overridden by the timeout consts in the app package.
 	// We should modify this if we want to quicken the time of the blocks.
 	cfg.Consensus.TimeoutPropose = 1000 * time.Millisecond
-	cfg.Consensus.TimeoutCommit = 300 * time.Millisecond
+	cfg.Consensus.TargetHeightDuration = 300 * time.Millisecond
 	return cfg, nil
 }
 
@@ -344,7 +344,7 @@ func WriteAddressBook(peers []string, file string) error {
 	return nil
 }
 
-func MakeAppConfig(node *Node) (*serverconfig.Config, error) {
+func MakeAppConfig(_ *Node) (*serverconfig.Config, error) {
 	srvCfg := serverconfig.DefaultConfig()
 	srvCfg.MinGasPrices = fmt.Sprintf("0.001%s", app.BondDenom)
 	return srvCfg, srvCfg.ValidateBasic()
