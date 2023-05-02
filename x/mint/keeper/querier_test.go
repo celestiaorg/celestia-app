@@ -50,7 +50,7 @@ func (suite *MintKeeperTestSuite) TestNewQuerier(t *testing.T) {
 	_, err := querier(ctx, []string{types.QueryParameters}, query)
 	require.NoError(t, err)
 
-	_, err = querier(ctx, []string{types.QueryInflation}, query)
+	_, err = querier(ctx, []string{types.QueryInflationRate}, query)
 	require.NoError(t, err)
 
 	_, err = querier(ctx, []string{types.QueryAnnualProvisions}, query)
@@ -81,7 +81,7 @@ func (suite *MintKeeperTestSuite) TestQueryInflation(t *testing.T) {
 
 	var inflation sdk.Dec
 
-	res, sdkErr := querier(ctx, []string{types.QueryInflation}, abci.RequestQuery{})
+	res, sdkErr := querier(ctx, []string{types.QueryInflationRate}, abci.RequestQuery{})
 	require.NoError(t, sdkErr)
 
 	err := app.LegacyAmino().UnmarshalJSON(res, &inflation)

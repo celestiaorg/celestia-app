@@ -27,12 +27,12 @@ func NewKeeper(
 	stakingKeeper types.StakingKeeper, ak types.AccountKeeper, bankKeeper types.BankKeeper,
 	feeCollectorName string,
 ) Keeper {
-	// ensure mint module account is set
+	// Ensure the mint module account has been set
 	if addr := ak.GetModuleAddress(types.ModuleName); addr == nil {
 		panic("the mint module account has not been set")
 	}
 
-	// set KeyTable if it has not already been set
+	// Set KeyTable if it has not already been set
 	if !paramSpace.HasKeyTable() {
 		paramSpace = paramSpace.WithKeyTable(types.ParamKeyTable())
 	}

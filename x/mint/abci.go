@@ -16,6 +16,8 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 	minter := k.GetMinter(ctx)
 	totalSupply := k.StakingTokenSupply(ctx)
 	minter.AnnualProvisions = minter.CalculateAnnualProvisions(totalSupply)
+	// TODO: since the inflation rate only changes once per year, we don't need
+	// to perform this every block.
 	minter.InflationRate = minter.CalculateInflationRate(ctx)
 
 	k.SetMinter(ctx, minter)

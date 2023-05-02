@@ -55,6 +55,5 @@ func (m Minter) CalculateAnnualProvisions(totalSupply math.Int) sdk.Dec {
 // coins that should be minted due to inflation for the current block).
 func (m Minter) CalculateBlockProvision() sdk.Coin {
 	blockProvision := m.AnnualProvisions.QuoInt(blocksPerYear)
-	// TODO(@rootulp) why does this truncate?
 	return sdk.NewCoin(sdk.DefaultBondDenom, blockProvision.TruncateInt())
 }
