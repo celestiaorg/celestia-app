@@ -46,7 +46,7 @@ func (m Minter) InflationRate(ctx sdk.Context) sdk.Dec {
 
 // NextAnnualProvisions returns the annual provisions based on current total
 // supply and inflation rate.
-func (m Minter) NextAnnualProvisions(_ Params, totalSupply math.Int) sdk.Dec {
+func (m Minter) NextAnnualProvisions(totalSupply math.Int) sdk.Dec {
 	return m.Inflation.MulInt(totalSupply)
 }
 

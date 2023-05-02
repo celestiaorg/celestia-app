@@ -143,11 +143,10 @@ func BenchmarkNextInflation(b *testing.B) {
 func BenchmarkNextAnnualProvisions(b *testing.B) {
 	b.ReportAllocs()
 	minter := DefaultMinter()
-	params := DefaultParams()
 	totalSupply := sdk.NewInt(100000000000000)
 
 	// run the NextAnnualProvisions function b.N times
 	for n := 0; n < b.N; n++ {
-		minter.NextAnnualProvisions(params, totalSupply)
+		minter.NextAnnualProvisions(totalSupply)
 	}
 }

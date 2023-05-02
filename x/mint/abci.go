@@ -14,10 +14,8 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 	defer telemetry.ModuleMeasureSince(types.ModuleName, time.Now(), telemetry.MetricKeyBeginBlocker)
 
 	minter := k.GetMinter(ctx)
-	params := k.GetParams(ctx)
-
 	totalSupply := k.StakingTokenSupply(ctx)
-	minter.AnnualProvisions = minter.NextAnnualProvisions(params, totalSupply)
+	minter.AnnualProvisions = minter.NextAnnualProvisions(totalSupply)
 	minter.Inflation = minter.InflationRate(ctx)
 
 	k.SetMinter(ctx, minter)
