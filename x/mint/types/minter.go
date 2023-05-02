@@ -31,10 +31,10 @@ func ValidateMinter(minter Minter) error {
 	return nil
 }
 
-// InflationRate returns the inflation rate for the current year depending on
+// CalculateInflationRate returns the inflation rate for the current year depending on
 // the current block height in context. The inflation rate is expected to
 // decrease every year according to the schedule specified in the README.
-func (m Minter) InflationRate(ctx sdk.Context) sdk.Dec {
+func (m Minter) CalculateInflationRate(ctx sdk.Context) sdk.Dec {
 	year := uint64(ctx.BlockHeader().Height) / BlocksPerYear
 	inflationRate := initalInflationRate.Mul(sdk.OneDec().Sub(disinflationRate).Power(year))
 
@@ -44,15 +44,17 @@ func (m Minter) InflationRate(ctx sdk.Context) sdk.Dec {
 	return inflationRate
 }
 
-// NextAnnualProvisions returns the annual provisions based on current total
-// supply and inflation rate.
-func (m Minter) NextAnnualProvisions(totalSupply math.Int) sdk.Dec {
+// CalculateAnnualProvisions returns the annual provisions (i.e. the total
+// number of tokens that should be minted due to inflation for the current
+// year).
+func (m Minter) CalculateAnnualProvisions(totalSupply math.Int) sdk.Dec {
 	return m.Inflation.MulInt(totalSupply)
 }
 
-// BlockProvision returns the provisions for a block based on the annual
-// provisions rate.
-func (m Minter) BlockProvision() sdk.Coin {
-	provisionAmt := m.AnnualProvisions.QuoInt(sdk.NewInt(int64(BlocksPerYear)))
-	return sdk.NewCoin(sdk.DefaultBondDenom, provisionAmt.TruncateInt())
+// CalculateBlockProvision returns the provisions for a block (i.e. the total number of
+// coins that should be minted due to inflation for the current block).
+func (m Minter) CalculateBlockProvision() sdk.Coin {
+	blockProvision := m.AnnualProvisions.QuoInt(blocksPerYear)
+	// TODO(@rootulp) why does this truncate?
+	return sdk.NewCoin(sdk.DefaultBondDenom, blockProvision.TruncateInt())
 }

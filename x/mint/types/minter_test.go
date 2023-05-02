@@ -11,7 +11,7 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
-func TestNextInflationRate(t *testing.T) {
+func TestCalculateInflationRate(t *testing.T) {
 	minter := DefaultMinter()
 
 	type testCase struct {
@@ -66,14 +66,14 @@ func TestNextInflationRate(t *testing.T) {
 	for _, tc := range testCases {
 		height := BlocksPerYear * tc.year
 		ctx := sdk.NewContext(nil, tmproto.Header{Height: int64(height)}, false, nil)
-		inflationRate := minter.InflationRate(ctx)
+		inflationRate := minter.CalculateInflationRate(ctx)
 		got, err := inflationRate.Float64()
 		assert.NoError(t, err)
 		assert.Equal(t, tc.want, got, "want %v got %v year %v height %v", tc.want, got, tc.year, height)
 	}
 }
 
-func TestBlockProvision(t *testing.T) {
+func TestCalculateBlockProvision(t *testing.T) {
 	minter := DefaultMinter()
 
 	type testCase struct {
@@ -100,18 +100,12 @@ func TestBlockProvision(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		minter.AnnualProvisions = sdk.NewDec(tc.annualProvisions)
-		got := minter.BlockProvision()
+		got := minter.CalculateBlockProvision()
 		require.True(t, tc.want.IsEqual(got), "want %v got %v", tc.want, got)
 	}
 }
 
-// Benchmarking :)
-// previously using math.Int operations:
-// BenchmarkBlockProvision-4 5000000 220 ns/op
-//
-// using sdk.Dec operations: (current implementation)
-// BenchmarkBlockProvision-4 3000000 429 ns/op
-func BenchmarkBlockProvision(b *testing.B) {
+func BenchmarkCalculateBlockProvision(b *testing.B) {
 	b.ReportAllocs()
 	minter := DefaultMinter()
 
@@ -121,32 +115,28 @@ func BenchmarkBlockProvision(b *testing.B) {
 
 	// run the BlockProvision function b.N times
 	for n := 0; n < b.N; n++ {
-		minter.BlockProvision()
+		minter.CalculateBlockProvision()
 	}
 }
 
-// Next inflation benchmarking
-// BenchmarkNextInflation-4 1000000 1828 ns/op
-func BenchmarkNextInflation(b *testing.B) {
+func BenchmarkCalculateInflationRate(b *testing.B) {
 	b.ReportAllocs()
 	minter := DefaultMinter()
 
 	// run the NextInflationRate function b.N times
 	for n := 0; n < b.N; n++ {
 		ctx := sdk.NewContext(nil, tmproto.Header{Height: int64(n)}, false, nil)
-		minter.InflationRate(ctx)
+		minter.CalculateInflationRate(ctx)
 	}
 }
 
-// Next annual provisions benchmarking
-// BenchmarkNextAnnualProvisions-4 5000000 251 ns/op
-func BenchmarkNextAnnualProvisions(b *testing.B) {
+func BenchmarkCalculateAnnualProvisions(b *testing.B) {
 	b.ReportAllocs()
 	minter := DefaultMinter()
 	totalSupply := sdk.NewInt(100000000000000)
 
 	// run the NextAnnualProvisions function b.N times
 	for n := 0; n < b.N; n++ {
-		minter.NextAnnualProvisions(totalSupply)
+		minter.CalculateAnnualProvisions(totalSupply)
 	}
 }
