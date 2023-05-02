@@ -41,10 +41,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 
 // Validate validates the set of params
 func (p Params) Validate() error {
-	if err := validateGasPerBlobByte(p.GasPerBlobByte); err != nil {
-		return err
-	}
-	return nil
+	return validateGasPerBlobByte(p.GasPerBlobByte)
 }
 
 // String implements the Stringer interface.
