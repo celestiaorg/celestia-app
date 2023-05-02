@@ -93,7 +93,7 @@ func NewRootCmd() *cobra.Command {
 			tmCfg.Mempool.MaxTxBytes = 2 * 1024 * 1024 // 2 MiB
 			tmCfg.Mempool.Version = "v1"               // prioritized mempool
 			tmCfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
-			tmCfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
+			tmCfg.Consensus.TargetHeightDuration = appconsts.TargetHeightDuration
 			tmCfg.Consensus.SkipTimeoutCommit = false
 			tmCfg.TxIndex.Indexer = "null"
 

@@ -141,7 +141,9 @@ func DefaultParams() *tmproto.ConsensusParams {
 
 func DefaultTendermintConfig() *config.Config {
 	tmCfg := config.DefaultConfig()
-	tmCfg.Consensus.TimeoutCommit = time.Millisecond * 300
+	// Reduce the target height duration so that blocks are produced faster
+	// during tests.
+	tmCfg.Consensus.TargetHeightDuration = time.Millisecond * 300
 	tmCfg.Mempool.MaxTxBytes = 22020096 // 21MB
 	return tmCfg
 }
@@ -189,7 +191,7 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (accounts []string, c
 	}
 
 	tmCfg := DefaultTendermintConfig()
-	tmCfg.Consensus.TimeoutCommit = blockTime
+	tmCfg.Consensus.TargetHeightDuration = blockTime
 	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
 	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
 	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())

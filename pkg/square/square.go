@@ -25,7 +25,11 @@ func Construct(txs [][]byte, maxSquareSize int) (Square, [][]byte, error) {
 	for _, tx := range txs {
 		blobTx, isBlobTx := core.UnmarshalBlobTx(tx)
 		if isBlobTx {
-			if builder.AppendBlobTx(blobTx) {
+			canAppend, err := builder.AppendBlobTx(blobTx)
+			if err != nil {
+				return nil, nil, err
+			}
+			if canAppend {
 				blobTxs = append(blobTxs, tx)
 			}
 		} else {
@@ -52,7 +56,11 @@ func Reconstruct(txs [][]byte, maxSquareSize int) (Square, error) {
 		blobTx, isBlobTx := core.UnmarshalBlobTx(tx)
 		if isBlobTx {
 			seenFirstBlobTx = true
-			if !builder.AppendBlobTx(blobTx) {
+			canAppend, err := builder.AppendBlobTx(blobTx)
+			if err != nil {
+				return nil, err
+			}
+			if !canAppend {
 				return nil, fmt.Errorf("not enough space to append blob tx at index %d", idx)
 			}
 		} else {

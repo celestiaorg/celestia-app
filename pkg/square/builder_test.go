@@ -109,7 +109,9 @@ func TestBuilderRejectsBlobTransactions(t *testing.T) {
 			require.Len(t, txs, 1)
 			blobTx, isBlobTx := coretypes.UnmarshalBlobTx(txs[0])
 			require.True(t, isBlobTx)
-			require.Equal(t, tc.added, builder.AppendBlobTx(blobTx))
+			got, err := builder.AppendBlobTx(blobTx)
+			require.NoError(t, err)
+			require.Equal(t, tc.added, got)
 		})
 	}
 }
