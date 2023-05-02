@@ -147,7 +147,7 @@ enum CommitFlag : uint8_t {
 | `version` | `uint8`    |             |
 | `id`      | `byte[32]` |             |
 
-The only supported Namespace `version` is `0`. The format for a namespace ID with namespace `version: 0` is: 22 bytes of leading `0`s followed by 10 bytes of significant namespace ID.
+The namespace is a 33 byte array. The first byte is the `version`. The remaining 32 bytes are the `id`. The namespace version may enforce constraints on the id. The only supported `version` is `0`. The format for a namespace with `version: 0` is 22 bytes of leading `0`s followed by 10 bytes of significant namespace id.
 
 ```go
 // valid namespaces
