@@ -4,22 +4,23 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
-func TestNextInflation(t *testing.T) {
+func TestNextInflationRate(t *testing.T) {
 	minter := DefaultInitialMinter()
 	params := DefaultParams()
 
-	tests := []struct {
-		year             int
-		expInflationRate float64
-		// tokensIssued     uint64
-		// totalSupply      uint64
-	}{
+	type testCase struct {
+		year int
+		want float64
+	}
+
+	testCases := []testCase{
 		{0, 0.08},
 		{1, 0.072},
 		{2, 0.0648},
@@ -63,15 +64,13 @@ func TestNextInflation(t *testing.T) {
 		{40, 0.0150},
 	}
 
-	for i, tc := range tests {
-		targetHeight := BlocksPerYear * uint64(tc.year)
-		ctx := sdk.NewContext(nil, tmproto.Header{Height: int64(targetHeight)}, false, nil)
+	for _, tc := range testCases {
+		height := BlocksPerYear * uint64(tc.year)
+		ctx := sdk.NewContext(nil, tmproto.Header{Height: int64(height)}, false, nil)
 		inflation := minter.NextInflationRate(ctx, params)
-		infRate, err := inflation.Float64()
-		require.NoError(t, err)
-		require.Equal(t, tc.expInflationRate, infRate,
-			"Test Index: %v\nTarget year: %v\nTarget height: %v\nGot Rate: %v\nExpected Rate: %v\n", i, tc.year, targetHeight, inflation, tc.expInflationRate)
-
+		inflationRate, err := inflation.Float64()
+		assert.NoError(t, err)
+		assert.Equal(t, tc.want, inflationRate, "year %v height %v want %v got %v", tc.year, height, tc.want, inflationRate)
 	}
 }
 

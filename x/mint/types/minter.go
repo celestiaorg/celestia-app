@@ -41,31 +41,23 @@ func ValidateMinter(minter Minter) error {
 	return nil
 }
 
-// NextInflationRate returns the new inflation rate for the next hour.
+// NextInflationRate returns the next inflation rate.
 func (m Minter) NextInflationRate(ctx sdk.Context, params Params) sdk.Dec {
-	// The target annual inflation rate is recalculated for each previsions cycle.
-	// The rates are hardcoded in a number of constants above
-
 	year := uint64(ctx.BlockHeader().Height) / BlocksPerYear
 
-	initInflationRate := sdk.NewDecWithPrec(InitialInflationRate*1000, 3 /* since we used 1000 */)
-	targetInflationRate := sdk.NewDecWithPrec(TargetInflationRate*1000, 3 /* since we used 1000 */)
+	initInflationRate := sdk.NewDecWithPrec(InitialInflationRate*1000, 3)
+	targetInflationRate := sdk.NewDecWithPrec(TargetInflationRate*1000, 3)
 
-	// initInflationRate * ((1 - DisinflationRate) ^ year)
-	newInflationRate := initInflationRate.Mul(
+	// nextInflationRate = initInflationRate * ((1 - DisinflationRate) ^ year)
+	nextInflationRate := initInflationRate.Mul(
 		sdk.OneDec().Sub(
-			sdk.NewDecWithPrec(DisinflationRatePerYear*100, 2 /* since we used 100 */)).
+			sdk.NewDecWithPrec(DisinflationRatePerYear*1000, 3)).
 			Power(year))
 
-	if newInflationRate.LT(targetInflationRate) {
-		newInflationRate = targetInflationRate
-	} else {
-		if newInflationRate.GT(initInflationRate) {
-			newInflationRate = initInflationRate
-		}
+	if nextInflationRate.LT(targetInflationRate) {
+		return targetInflationRate
 	}
-
-	return newInflationRate
+	return nextInflationRate
 }
 
 // NextAnnualProvisions returns the annual provisions based on current total
