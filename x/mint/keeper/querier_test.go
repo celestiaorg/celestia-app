@@ -87,7 +87,7 @@ func (suite *MintKeeperTestSuite) TestQueryInflation(t *testing.T) {
 	err := app.LegacyAmino().UnmarshalJSON(res, &inflation)
 	require.NoError(t, err)
 
-	require.Equal(t, app.MintKeeper.GetMinter(ctx).Inflation, inflation)
+	require.Equal(t, app.MintKeeper.GetMinter(ctx).InflationRate, inflation)
 }
 
 func (suite *MintKeeperTestSuite) TestQueryAnnualProvisions(t *testing.T) {

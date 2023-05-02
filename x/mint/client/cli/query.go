@@ -22,7 +22,7 @@ func GetQueryCmd() *cobra.Command {
 
 	mintingQueryCmd.AddCommand(
 		GetCmdQueryParams(),
-		GetCmdQueryInflation(),
+		GetCmdQueryInflationRate(),
 		GetCmdQueryAnnualProvisions(),
 	)
 
@@ -58,9 +58,9 @@ func GetCmdQueryParams() *cobra.Command {
 	return cmd
 }
 
-// GetCmdQueryInflation implements a command to return the current minting
+// GetCmdQueryInflationRate implements a command to return the current minting
 // inflation value.
-func GetCmdQueryInflation() *cobra.Command {
+func GetCmdQueryInflationRate() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "inflation",
 		Short: "Query the current minting inflation value",
@@ -72,13 +72,13 @@ func GetCmdQueryInflation() *cobra.Command {
 			}
 			queryClient := types.NewQueryClient(clientCtx)
 
-			params := &types.QueryInflationRequest{}
-			res, err := queryClient.Inflation(cmd.Context(), params)
+			params := &types.QueryInflationRateRequest{}
+			res, err := queryClient.InflationRate(cmd.Context(), params)
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintString(fmt.Sprintf("%s\n", res.Inflation))
+			return clientCtx.PrintString(fmt.Sprintf("%s\n", res.InflationRate))
 		},
 	}
 

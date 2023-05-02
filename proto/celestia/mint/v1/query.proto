@@ -14,12 +14,12 @@ service Query {
     option (google.api.http).get = "/cosmos/mint/v1beta1/params";
   }
 
-  // Inflation returns the current minting inflation value.
-  rpc Inflation(QueryInflationRequest) returns (QueryInflationResponse) {
-    option (google.api.http).get = "/cosmos/mint/v1beta1/inflation";
+  // InflationRate returns the current inflation rate.
+  rpc InflationRate(QueryInflationRateRequest) returns (QueryInflationRateResponse) {
+    option (google.api.http).get = "/cosmos/mint/v1beta1/inflation_rate";
   }
 
-  // AnnualProvisions current minting annual provisions value.
+  // AnnualProvisions returns the current annual provisions.
   rpc AnnualProvisions(QueryAnnualProvisionsRequest) returns (QueryAnnualProvisionsResponse) {
     option (google.api.http).get = "/cosmos/mint/v1beta1/annual_provisions";
   }
@@ -34,14 +34,14 @@ message QueryParamsResponse {
   Params params = 1 [(gogoproto.nullable) = false];
 }
 
-// QueryInflationRequest is the request type for the Query/Inflation RPC method.
-message QueryInflationRequest {}
+// QueryInflationRateRequest is the request type for the Query/InflationRate RPC method.
+message QueryInflationRateRequest {}
 
-// QueryInflationResponse is the response type for the Query/Inflation RPC
+// QueryInflationRateResponse is the response type for the Query/InflationRate RPC
 // method.
-message QueryInflationResponse {
-  // inflation is the current minting inflation value.
-  bytes inflation = 1 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec", (gogoproto.nullable) = false];
+message QueryInflationRateResponse {
+  // inflation_rate is the current inflation rate.
+  bytes inflation_rate = 1 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec", (gogoproto.nullable) = false];
 }
 
 // QueryAnnualProvisionsRequest is the request type for the

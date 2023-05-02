@@ -16,7 +16,7 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 	minter := k.GetMinter(ctx)
 	totalSupply := k.StakingTokenSupply(ctx)
 	minter.AnnualProvisions = minter.CalculateAnnualProvisions(totalSupply)
-	minter.Inflation = minter.CalculateInflationRate(ctx)
+	minter.InflationRate = minter.CalculateInflationRate(ctx)
 
 	k.SetMinter(ctx, minter)
 
@@ -42,7 +42,7 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			types.EventTypeMint,
-			sdk.NewAttribute(types.AttributeKeyInflation, minter.Inflation.String()),
+			sdk.NewAttribute(types.AttributeKeyInflation, minter.InflationRate.String()),
 			sdk.NewAttribute(types.AttributeKeyAnnualProvisions, minter.AnnualProvisions.String()),
 			sdk.NewAttribute(sdk.AttributeKeyAmount, mintedCoin.Amount.String()),
 		),

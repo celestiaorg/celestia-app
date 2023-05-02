@@ -8,14 +8,16 @@ import "cosmos_proto/cosmos.proto";
 
 // Minter represents the minting state.
 message Minter {
-  // current annual inflation rate
-  string inflation = 1 [
+  // InflationRate is the rate at which new tokens should be minted for the
+  // current year. For example if InflationRate=0.1, then 10% of the total
+  // supply will be minted over the course of the year.
+  string inflation_rate = 1 [
     (cosmos_proto.scalar)  = "cosmos.Dec",
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
     (gogoproto.nullable)   = false
   ];
-  // current expected annual provisions (i.e. the total number of tokens to be
-  // minted in the year due to inflation)
+  // AnnualProvisions is the total number of tokens to be minted in the current
+  // year due to inflation.
   string annual_provisions = 2 [
     (cosmos_proto.scalar)  = "cosmos.Dec",
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",

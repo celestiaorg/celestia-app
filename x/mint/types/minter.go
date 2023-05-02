@@ -8,9 +8,9 @@ import (
 )
 
 // NewMinter returns a new Minter object.
-func NewMinter(inflation sdk.Dec, annualProvisions sdk.Dec) Minter {
+func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec) Minter {
 	return Minter{
-		Inflation:        inflation,
+		InflationRate:    inflationRate,
 		AnnualProvisions: annualProvisions,
 	}
 }
@@ -22,8 +22,8 @@ func DefaultMinter() Minter {
 
 // ValidateMinter returns an error if the provided minter is invalid.
 func ValidateMinter(minter Minter) error {
-	if minter.Inflation.IsNegative() {
-		return fmt.Errorf("minter inflation %v should be positive", minter.Inflation.String())
+	if minter.InflationRate.IsNegative() {
+		return fmt.Errorf("minter inflation %v should be positive", minter.InflationRate.String())
 	}
 	if minter.AnnualProvisions.IsNegative() {
 		return fmt.Errorf("minter annual provisions %v should be positive", minter.AnnualProvisions.String())
@@ -48,7 +48,7 @@ func (m Minter) CalculateInflationRate(ctx sdk.Context) sdk.Dec {
 // number of tokens that should be minted due to inflation for the current
 // year).
 func (m Minter) CalculateAnnualProvisions(totalSupply math.Int) sdk.Dec {
-	return m.Inflation.MulInt(totalSupply)
+	return m.InflationRate.MulInt(totalSupply)
 }
 
 // CalculateBlockProvision returns the provisions for a block (i.e. the total number of

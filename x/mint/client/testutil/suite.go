@@ -34,8 +34,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	var mintData minttypes.GenesisState
 	s.Require().NoError(s.cfg.Codec.UnmarshalJSON(genesisState[minttypes.ModuleName], &mintData))
 
-	inflation := sdk.MustNewDecFromStr("1.0")
-	mintData.Minter.Inflation = inflation
+	mintData.Minter.InflationRate = sdk.MustNewDecFromStr("1.0")
 
 	mintDataBz, err := s.cfg.Codec.MarshalJSON(&mintData)
 	s.Require().NoError(err)
@@ -93,7 +92,7 @@ mint_denom: stake`,
 	}
 }
 
-func (s *IntegrationTestSuite) TestGetCmdQueryInflation() {
+func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 	val := s.network.Validators[0]
 
 	testCases := []struct {
@@ -117,7 +116,7 @@ func (s *IntegrationTestSuite) TestGetCmdQueryInflation() {
 		tc := tc
 
 		s.Run(tc.name, func() {
-			cmd := cli.GetCmdQueryInflation()
+			cmd := cli.GetCmdQueryInflationRate()
 			clientCtx := val.ClientCtx
 
 			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)

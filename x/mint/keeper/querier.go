@@ -44,7 +44,7 @@ func queryParams(ctx sdk.Context, k Keeper, legacyQuerierCdc *codec.LegacyAmino)
 func queryInflation(ctx sdk.Context, k Keeper, legacyQuerierCdc *codec.LegacyAmino) ([]byte, error) {
 	minter := k.GetMinter(ctx)
 
-	res, err := codec.MarshalJSONIndent(legacyQuerierCdc, minter.Inflation)
+	res, err := codec.MarshalJSONIndent(legacyQuerierCdc, minter.InflationRate)
 	if err != nil {
 		return nil, errors.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
 	}
