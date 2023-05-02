@@ -64,7 +64,7 @@ func TestNextInflationRate(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		height := BlocksPerYear * uint64(tc.year)
+		height := BlocksPerYear * tc.year
 		ctx := sdk.NewContext(nil, tmproto.Header{Height: int64(height)}, false, nil)
 		inflationRate := minter.InflationRate(ctx)
 		got, err := inflationRate.Float64()

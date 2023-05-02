@@ -45,7 +45,7 @@ func ValidateMinter(minter Minter) error {
 // the current block height in context.
 func (m Minter) InflationRate(ctx sdk.Context) sdk.Dec {
 	year := uint64(ctx.BlockHeader().Height) / BlocksPerYear
-	inflationRate := initInflationRate.Mul(sdk.OneDec().Sub(disinflationRate).Power(year))
+	inflationRate := initalInflationRate.Mul(sdk.OneDec().Sub(disinflationRate).Power(year))
 
 	if inflationRate.LT(targetInflationRate) {
 		return targetInflationRate
