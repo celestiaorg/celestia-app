@@ -6,7 +6,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/mint/types";
 import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";
 
-// Minter represents the minting state.
+// Minter represents the mint state.
 message Minter {
   // InflationRate is the rate at which new tokens should be minted for the
   // current year. For example if InflationRate=0.1, then 10% of the total
