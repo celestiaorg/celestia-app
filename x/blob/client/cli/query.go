@@ -9,7 +9,7 @@ import (
 )
 
 // GetQueryCmd returns the CLI query commands for this module
-func GetQueryCmd(queryRoute string) *cobra.Command {
+func GetQueryCmd(_ string) *cobra.Command {
 	// Group blob queries under a subcommand
 	cmd := &cobra.Command{
 		Use:                        types.ModuleName,

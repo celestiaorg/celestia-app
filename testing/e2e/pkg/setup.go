@@ -344,7 +344,7 @@ func WriteAddressBook(peers []string, file string) error {
 	return nil
 }
 
-func MakeAppConfig(node *Node) (*serverconfig.Config, error) {
+func MakeAppConfig(_ *Node) (*serverconfig.Config, error) {
 	srvCfg := serverconfig.DefaultConfig()
 	srvCfg.MinGasPrices = fmt.Sprintf("0.001%s", app.BondDenom)
 	return srvCfg, srvCfg.ValidateBasic()
