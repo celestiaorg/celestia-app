@@ -76,7 +76,7 @@ func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey crypto
 func initGenFiles(
 	cparams *tmproto.ConsensusParams,
 	state map[string]json.RawMessage,
-	codec codec.Codec,
+	_ codec.Codec,
 	file,
 	chainID string,
 ) error {

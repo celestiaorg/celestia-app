@@ -36,7 +36,7 @@ Block proposers need not know nor care about the internals of square constructio
 []Tx <=> []Share (ODS) <=> EDS
 ```
 
-Validation in `ProcessProposal` is simplified to reconstructing the square given the transaction set and then evaluating whether the computed data root matches the proposed one. 
+Validation in `ProcessProposal` is simplified to reconstructing the square given the transaction set and then evaluating whether the computed data root matches the proposed one.
 
 ## Detailed Design
 
@@ -57,7 +57,7 @@ For sparse shares i.e. the blobs themselves, the `SparseShareCounter` estimates 
 
 With these two structs, we can safely guarantee that all staged transactions can be included in the square and from the estimation can formulate the minimum square size that will be used to calculate the share index for all the blobs. The construction of the square itself remains the same. Additionally, as the share index and square size can be deterministically calculated it no longer needs to be gossiped to all nodes in the consensus network. However, for verifiability purposes the square size should still remain in the `Data` struct.
 
-Both `PrepareProposal` and `ProcessProposal` will as a result, call much the same methods. Verification is thus reduced to: did I create the same square as you, rather than is your version of the square valid. The main difference is that `PrepareProposal` will handle overflow of transactions by discarding them, while `ProcessProposal` will handle overflow by rejecting the block. 
+Both `PrepareProposal` and `ProcessProposal` will as a result, call much the same methods. Verification is thus reduced to: did I create the same square as you, rather than is your version of the square valid. The main difference is that `PrepareProposal` will handle overflow of transactions by discarding them, while `ProcessProposal` will handle overflow by rejecting the block.
 
 The new algorithm will no longer need to check that the blobs are ordered by namespace and that the wrapped PFBs contain the corrext share index. `ProcessProposal` will still need to verify the `BlobTx` format (i.e that each blob has a matching PFB and that the PFBs are correctly signed)
 

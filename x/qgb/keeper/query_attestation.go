@@ -34,7 +34,7 @@ func (k Keeper) AttestationRequestByNonce(
 
 func (k Keeper) LatestAttestationNonce(
 	ctx context.Context,
-	request *types.QueryLatestAttestationNonceRequest,
+	_ *types.QueryLatestAttestationNonceRequest,
 ) (*types.QueryLatestAttestationNonceResponse, error) {
 	if !k.CheckLatestAttestationNonce(sdk.UnwrapSDKContext(ctx)) {
 		return nil, types.ErrLatestAttestationNonceStillNotInitialized
