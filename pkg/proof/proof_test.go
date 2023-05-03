@@ -112,7 +112,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 	}
 
 	// erasure the data square which we use to create the data root.
-	eds, err := da.ExtendShares(blockData.SquareSize, shares.ToBytes(rawShares))
+	eds, err := da.ExtendShares(shares.ToBytes(rawShares))
 	require.NoError(t, err)
 
 	// create the new data root by creating the data availability header (merkle

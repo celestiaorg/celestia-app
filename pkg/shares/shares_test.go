@@ -317,3 +317,8 @@ func TestIsPadding(t *testing.T) {
 		})
 	}
 }
+
+
+func TestSharesAreSortedByNamespace(t *testing.T) {
+	
+}

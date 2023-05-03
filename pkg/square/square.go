@@ -10,12 +10,12 @@ import (
 	core "github.com/tendermint/tendermint/types"
 )
 
-// Construct takes a list of (prioritized) transactions and constructs a square that is never
+// Build takes an arbitrary long list of (prioritized) transactions and builds a square that is never
 // greater than maxSquareSize. It also returns the ordered list of transactions that are present
 // in the square and which have all PFBs trailing regular transactions. Note, this function does
 // not check the underlying validity of the transactions.
 // Errors should not occur and would reflect a violation in an invariant.
-func Construct(txs [][]byte, maxSquareSize int) (Square, [][]byte, error) {
+func Build(txs [][]byte, maxSquareSize int) (Square, [][]byte, error) {
 	builder, err := NewBuilder(maxSquareSize)
 	if err != nil {
 		return nil, nil, err
@@ -38,11 +38,13 @@ func Construct(txs [][]byte, maxSquareSize int) (Square, [][]byte, error) {
 	return square, append(normalTxs, blobTxs...), err
 }
 
-// Reconstruct takes a list of ordered transactions and reconstructs a square, validating that
-// all PFBs are ordered after regular transactions and that the transactions don't collectively
-// exceed the maxSquareSize. Note that this function does not check the underlying validity of
+// Construct takes the exact list of ordered transactions and constructs a square, validating that
+//   - all PFBs are ordered after regular transactions that
+//   - the transactions don't collectively exceed the maxSquareSize.
+//
+// Note that this function does not check the underlying validity of
 // the transactions.
-func Reconstruct(txs [][]byte, maxSquareSize int) (Square, error) {
+func Construct(txs [][]byte, maxSquareSize int) (Square, error) {
 	builder, err := NewBuilder(maxSquareSize)
 	if err != nil {
 		return nil, err
@@ -72,7 +74,11 @@ type Square []shares.Share
 
 // Size returns the size of the sides of a square
 func (s Square) Size() uint64 {
-	return uint64(math.Sqrt(float64(len(s))))
+	return Size(len(s))
+}
+
+func Size(len int) uint64 {
+	return uint64(math.Sqrt(float64(len)))
 }
 
 // Equals returns true if two squares are equal
@@ -104,7 +110,7 @@ func WriteSquare(
 	if nonReservedStart < paddingStartIndex {
 		return nil, fmt.Errorf("nonReservedStart %d is too small to fit all PFBs and txs", nonReservedStart)
 	}
-	padding := shares.TailPaddingShares(nonReservedStart - paddingStartIndex)
+	padding := shares.ReservedPaddingShares(nonReservedStart - paddingStartIndex)
 	endOfLastBlob := nonReservedStart + blobWriter.Count()
 	if totalShares < endOfLastBlob {
 		return nil, fmt.Errorf("square size %d is too small to fit all blobs", totalShares)

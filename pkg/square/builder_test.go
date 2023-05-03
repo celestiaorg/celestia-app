@@ -3,6 +3,7 @@ package square_test
 import (
 	"bytes"
 	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -41,7 +42,7 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			txs := generateMixedTxs(tt.normalTxs, tt.pfbCount, tt.pfbSize)
-			square, _, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
+			square, _, err := square.Build(txs, appconsts.DefaultMaxSquareSize)
 			require.NoError(t, err)
 			require.EqualValues(t, tt.expectedSquareSize, square.Size())
 		})
@@ -57,7 +58,15 @@ func generateMixedTxs(normalTxCount, pfbCount, pfbSize int) [][]byte {
 		normieTxs...),
 		pfbTxs...,
 	)
-	return coretypes.Txs(txs).ToSliceOfBytes()
+	return shuffle(coretypes.Txs(txs).ToSliceOfBytes())
+}
+
+func shuffle(slice [][]byte) [][]byte {
+	for i := range slice {
+		j := rand.Intn(i + 1)
+		slice[i], slice[j] = slice[j], slice[i]
+	}
+	return slice
 }
 
 func TestBuilderRejectsTransactions(t *testing.T) {

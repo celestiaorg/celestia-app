@@ -117,7 +117,7 @@ func NewShareInclusionProof(
 	startLeaf := startShare % squareSize
 	endLeaf := endShare % squareSize
 
-	eds, err := da.ExtendShares(squareSize, shares.ToBytes(allRawShares))
+	eds, err := da.ExtendShares(shares.ToBytes(allRawShares))
 	if err != nil {
 		return types.ShareProof{}, err
 	}

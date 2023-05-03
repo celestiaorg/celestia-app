@@ -105,7 +105,7 @@ func (c *Builder) Export() (Square, error) {
 	// sort the blobs in order of namespace. We use slice stable here to respect the
 	// order of multiple blobs within a namespace as per the priority of the PFB
 	sort.SliceStable(c.blobs, func(i, j int) bool {
-		return bytes.Compare(c.blobs[i].blob.NamespaceID, c.blobs[j].blob.NamespaceID) < 0
+		return bytes.Compare(fullNamespace(c.blobs[i].blob), fullNamespace(c.blobs[j].blob)) < 0
 	})
 
 	// write all the regular transactions into compact shares
@@ -181,6 +181,11 @@ func (c *Builder) canFit(shareNum int) bool {
 
 func (c *Builder) isEmpty() bool {
 	return c.txCounter.Size() == 0 && c.pfbCounter.Size() == 0
+}
+
+// TODO: celestia-core should provide this method for `Blob`s
+func fullNamespace(blob core.Blob) []byte {
+	return append([]byte{byte(blob.NamespaceVersion)}, blob.NamespaceID...)
 }
 
 type element struct {

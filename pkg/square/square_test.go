@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	ns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
@@ -22,7 +23,8 @@ import (
 // - That `Construct` never errors
 // - That `Reconstruct` never errors from the input of `Construct`'s output
 // - That both `Construct` and `Reconstruct` return the same square
-func FuzzSquareConstruction(f *testing.F) {
+// - That the square can be extended and a data availability header can be generated
+func FuzzSquareBuildAndConstruction(f *testing.F) {
 	var (
 		normalTxCount uint = 123
 		pfbCount      uint = 217
@@ -35,34 +37,31 @@ func FuzzSquareConstruction(f *testing.F) {
 			t.Skip()
 		}
 		txs := generateMixedTxs(int(normalTxCount), int(pfbCount), int(pfbSize))
-		s, newTxs, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
-		if err != nil {
-			t.Error(err)
-		}
-		s2, err := square.Reconstruct(newTxs, appconsts.DefaultMaxSquareSize)
-		if err != nil {
-			t.Error(err)
-		}
+		s, newTxs, err := square.Build(txs, appconsts.DefaultMaxSquareSize)
+		require.NoError(t, err)
+		s2, err := square.Construct(newTxs, appconsts.DefaultMaxSquareSize)
+		require.NoError(t, err)
+		require.Equal(t, s, s2)
 
-		if !s.Equals(s2) {
-			t.Error("squares are not equal")
-		}
+		eds, err := da.ExtendShares(shares.ToBytes(s))
+		require.NoError(t, err)
+		_ = da.NewDataAvailabilityHeader(eds)
 	})
 }
 
-func TestSquareReconstruction(t *testing.T) {
+func TestSquareConstruction(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	sendTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, 10)
 	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 10, 100)
 	t.Run("normal transactions after PFB trasactions", func(t *testing.T) {
 		txs := append(sendTxs[:5], append(pfbTxs, sendTxs[5:]...)...)
-		_, err := square.Reconstruct(coretypes.Txs(txs).ToSliceOfBytes(), appconsts.DefaultMaxSquareSize)
+		_, err := square.Construct(coretypes.Txs(txs).ToSliceOfBytes(), appconsts.DefaultMaxSquareSize)
 		require.Error(t, err)
 	})
 	t.Run("not enough space to append transactions", func(t *testing.T) {
-		_, err := square.Reconstruct(coretypes.Txs(sendTxs).ToSliceOfBytes(), 2)
+		_, err := square.Construct(coretypes.Txs(sendTxs).ToSliceOfBytes(), 2)
 		require.Error(t, err)
-		_, err = square.Reconstruct(coretypes.Txs(pfbTxs).ToSliceOfBytes(), 2)
+		_, err = square.Construct(coretypes.Txs(pfbTxs).ToSliceOfBytes(), 2)
 		require.Error(t, err)
 	})
 }
@@ -223,7 +222,7 @@ func TestSquareBlobPostions(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("case%d", i), func(t *testing.T) {
-			square, _, err := square.Construct(tt.blobTxs, tt.squareSize)
+			square, _, err := square.Build(tt.blobTxs, tt.squareSize)
 			require.NoError(t, err)
 			txs, err := shares.ParseTxs(square)
 			require.NoError(t, err)
