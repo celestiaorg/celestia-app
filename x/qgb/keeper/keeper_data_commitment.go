@@ -13,10 +13,16 @@ import (
 // GetCurrentDataCommitment creates the latest data commitment at current height according to
 // the data commitment window specified
 func (k Keeper) GetCurrentDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
-	beginBlock := uint64(ctx.BlockHeight()) - k.GetDataCommitmentWindowParam(ctx) + 1
-	// for a data commitment window of 400, the ranges will be: 1-400;401-800;801-1200
-	endBlock := uint64(ctx.BlockHeight())
-
+	var beginBlock, endBlock uint64
+	if ctx.BlockHeader().Version.App == 0 {
+		beginBlock = uint64(ctx.BlockHeight()) - k.GetDataCommitmentWindowParam(ctx)
+		// for a data commitment window of 400, the ranges will be: 0-399;400-799;800-1199
+		endBlock = uint64(ctx.BlockHeight()) - 1
+	} else {
+		beginBlock = uint64(ctx.BlockHeight()) - k.GetDataCommitmentWindowParam(ctx) + 1
+		// for a data commitment window of 400, the ranges will be: 1-400;401-800;801-1200
+		endBlock = uint64(ctx.BlockHeight())
+	}
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
 	}
