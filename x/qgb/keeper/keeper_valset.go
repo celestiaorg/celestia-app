@@ -20,6 +20,9 @@ import (
 // Panics if no valset is found. Because, a valset is always created when starting
 // the chain. Check x/qgb/abci.go:68 for more information.
 func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
+	if !k.CheckLatestAttestationNonce(ctx) {
+		return nil, types.ErrLatestAttestationNonceStillNotInitialized
+	}
 	nonce := k.GetLatestAttestationNonce(ctx)
 	for i := uint64(0); i <= nonce; i++ {
 		at, found, err := k.GetAttestationByNonce(ctx, nonce-i)
@@ -100,6 +103,9 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 	}
 
 	// increment the nonce, since this potential future valset should be after the current valset
+	if !k.CheckLatestAttestationNonce(ctx) {
+		return types.Valset{}, types.ErrLatestAttestationNonceStillNotInitialized
+	}
 	valsetNonce := k.GetLatestAttestationNonce(ctx) + 1
 
 	valset, err := types.NewValset(valsetNonce, uint64(ctx.BlockHeight()), bridgeValidators)
@@ -134,6 +140,9 @@ func normalizeValidatorPower(rawPower uint64, totalValidatorPower cosmosmath.Int
 // the `nonce` can be a valset, but this method will return the valset before it.
 // If the provided nonce is 1, it will return an error, because, there is no valset before nonce 1.
 func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.Valset, error) {
+	if !k.CheckLatestAttestationNonce(ctx) {
+		return nil, types.ErrLatestAttestationNonceStillNotInitialized
+	}
 	if nonce == 1 {
 		return nil, types.ErrNoValsetBeforeNonceOne
 	}

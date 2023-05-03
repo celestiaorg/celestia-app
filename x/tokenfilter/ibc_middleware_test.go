@@ -76,94 +76,94 @@ func (m *MockIBCModule) MethodCalled() bool {
 }
 
 func (m *MockIBCModule) OnChanOpenInit(
-	ctx sdk.Context,
-	order channeltypes.Order,
-	connectionHops []string,
-	portID string,
-	channelID string,
-	channelCap *capabilitytypes.Capability,
-	counterparty channeltypes.Counterparty,
-	version string,
+	_ sdk.Context,
+	_ channeltypes.Order,
+	_ []string,
+	_ string,
+	_ string,
+	_ *capabilitytypes.Capability,
+	_ channeltypes.Counterparty,
+	_ string,
 ) (string, error) {
 	m.t.Fatalf("unexpected call to OnChanOpenInit")
 	return "", nil
 }
 
 func (m *MockIBCModule) OnChanOpenTry(
-	ctx sdk.Context,
-	order channeltypes.Order,
-	connectionHops []string,
-	portID,
-	channelID string,
-	channelCap *capabilitytypes.Capability,
-	counterparty channeltypes.Counterparty,
-	counterpartyVersion string,
+	_ sdk.Context,
+	_ channeltypes.Order,
+	_ []string,
+	_,
+	_ string,
+	_ *capabilitytypes.Capability,
+	_ channeltypes.Counterparty,
+	_ string,
 ) (version string, err error) {
 	m.t.Fatalf("unexpected call to OnChanOpenTry")
 	return "", nil
 }
 
 func (m *MockIBCModule) OnChanOpenAck(
-	ctx sdk.Context,
-	portID,
-	channelID string,
-	counterpartyChannelID string,
-	counterpartyVersion string,
+	_ sdk.Context,
+	_,
+	_ string,
+	_ string,
+	_ string,
 ) error {
 	m.t.Fatalf("unexpected call to OnChanOpenAck")
 	return nil
 }
 
 func (m *MockIBCModule) OnChanOpenConfirm(
-	ctx sdk.Context,
-	portID,
-	channelID string,
+	_ sdk.Context,
+	_,
+	_ string,
 ) error {
 	m.t.Fatalf("unexpected call to OnChanOpenConfirm")
 	return nil
 }
 
 func (m *MockIBCModule) OnChanCloseInit(
-	ctx sdk.Context,
-	portID,
-	channelID string,
+	_ sdk.Context,
+	_,
+	_ string,
 ) error {
 	m.t.Fatalf("unexpected call to OnChanCloseInit")
 	return nil
 }
 
 func (m *MockIBCModule) OnChanCloseConfirm(
-	ctx sdk.Context,
-	portID,
-	channelID string,
+	_ sdk.Context,
+	_,
+	_ string,
 ) error {
 	m.t.Fatalf("unexpected call to OnChanCloseConfirm")
 	return nil
 }
 
 func (m *MockIBCModule) OnRecvPacket(
-	ctx sdk.Context,
-	packet channeltypes.Packet,
-	relayer sdk.AccAddress,
+	_ sdk.Context,
+	_ channeltypes.Packet,
+	_ sdk.AccAddress,
 ) exported.Acknowledgement {
 	m.called = true
 	return channeltypes.NewResultAcknowledgement([]byte{byte(1)})
 }
 
 func (m *MockIBCModule) OnAcknowledgementPacket(
-	ctx sdk.Context,
-	packet channeltypes.Packet,
-	acknowledgement []byte,
-	relayer sdk.AccAddress,
+	_ sdk.Context,
+	_ channeltypes.Packet,
+	_ []byte,
+	_ sdk.AccAddress,
 ) error {
 	m.t.Fatalf("unexpected call to OnAcknowledgementPacket")
 	return nil
 }
 
 func (m *MockIBCModule) OnTimeoutPacket(
-	ctx sdk.Context,
-	packet channeltypes.Packet,
-	relayer sdk.AccAddress,
+	_ sdk.Context,
+	_ channeltypes.Packet,
+	_ sdk.AccAddress,
 ) error {
 	m.t.Fatalf("unexpected call to OnTimeoutPacket")
 	return nil

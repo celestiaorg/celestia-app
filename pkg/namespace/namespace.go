@@ -136,7 +136,3 @@ func (n Namespace) Repeat(times int) []Namespace {
 	}
 	return ns
 }
-
-func (n Namespace) IsLessThan(other Namespace) bool {
-	return bytes.Compare(n.Bytes(), other.Bytes()) < 1
-}

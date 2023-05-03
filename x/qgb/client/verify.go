@@ -303,7 +303,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 }
 
 func VerifyDataRootInclusion(
-	ctx context.Context,
+	_ context.Context,
 	qgbWrapper *wrapper.QuantumGravityBridge,
 	nonce uint64,
 	height uint64,

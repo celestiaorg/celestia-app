@@ -20,9 +20,9 @@ import (
 // provided configuration. The account info is queried directly from the
 // application. One blob transaction is generated per account provided.
 func RandBlobTxsWithAccounts(
-	t *testing.T,
+	_ *testing.T,
 	capp *app.App,
-	enc sdk.TxEncoder,
+	_ sdk.TxEncoder,
 	kr keyring.Keyring,
 	size int,
 	blobCount int,
@@ -108,8 +108,8 @@ func DirectQueryAccount(app *app.App, addr sdk.AccAddress) authtypes.AccountI {
 // provided configuration. One blob transaction is generated per account
 // provided. The sequence and account numbers are set manually using the provided values.
 func RandBlobTxsWithManualSequence(
-	t *testing.T,
-	enc sdk.TxEncoder,
+	_ *testing.T,
+	_ sdk.TxEncoder,
 	kr keyring.Keyring,
 	size int,
 	blobCount int,
@@ -233,7 +233,7 @@ func SendTxsWithAccounts(
 // account info must be provided.
 func SendTxWithManualSequence(
 	t *testing.T,
-	enc sdk.TxEncoder,
+	_ sdk.TxEncoder,
 	kr keyring.Keyring,
 	fromAcc, toAcc string,
 	amount uint64,

@@ -58,7 +58,7 @@ func (s *BlobSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccoun
 	s.account = allocateAccounts(1, fundsForGas)[0]
 }
 
-func (s *BlobSequence) Next(ctx context.Context, querier grpc.ClientConn, rand *rand.Rand) (Operation, error) {
+func (s *BlobSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Rand) (Operation, error) {
 	numBlobs := s.blobsPerPFB.Rand(rand)
 	sizes := make([]int, numBlobs)
 	namespaces := make([]ns.Namespace, numBlobs)
