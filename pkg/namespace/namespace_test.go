@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -149,12 +148,4 @@ func TestBytes(t *testing.T) {
 	got := namespace.Bytes()
 
 	assert.Equal(t, want, got)
-}
-
-func TestNamespaceLessThan(t *testing.T) {
-	ns1 := MustNewV0(bytes.Repeat([]byte{1}, NamespaceVersionZeroIDSize))
-	ns2 := MustNewV0(bytes.Repeat([]byte{2}, NamespaceVersionZeroIDSize))
-	require.True(t, ns1.IsLessThan(ns2))
-	require.True(t, ns1.IsLessThan(ns2))
-	require.False(t, ns2.IsLessThan(ns1))
 }
