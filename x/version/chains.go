@@ -18,7 +18,7 @@ func StandardChainVersions() map[string]ChainVersionConfig {
 	})
 	bsr := NewChainVersionConfig(map[uint64]int64{
 		0: 0,
-		1: 674000,
+		1: 446500,
 	})
 	return map[string]ChainVersionConfig{
 		MochaChainID:          version0Only,
