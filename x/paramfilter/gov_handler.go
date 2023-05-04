@@ -46,14 +46,14 @@ func (pbl ParamBlockList) GovHandler(pk paramskeeper.Keeper) govtypes.Handler {
 	}
 }
 
-func (ph ParamBlockList) handleParameterChangeProposal(
+func (pbl ParamBlockList) handleParameterChangeProposal(
 	ctx sdk.Context,
 	pk paramskeeper.Keeper,
 	p *proposal.ParameterChangeProposal,
 ) error {
 	// throw an error if any of the parameter changes are forbidden
 	for _, c := range p.Changes {
-		if ph.IsBlocked(c.Subspace, c.Key) {
+		if pbl.IsBlocked(c.Subspace, c.Key) {
 			return ErrForbiddenParameter
 		}
 	}
