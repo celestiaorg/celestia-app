@@ -126,7 +126,7 @@ func TestGetDataCommitment(t *testing.T) {
 
 	dcWindow := qk.GetDataCommitmentWindowParam(ctx)
 
-	// getting the first data commitment
+	// get the first data commitment
 	ctx = ctx.WithBlockHeight(int64(dcWindow))
 	dc1, err := qk.GetCurrentDataCommitment(ctx)
 	require.NoError(t, err)
