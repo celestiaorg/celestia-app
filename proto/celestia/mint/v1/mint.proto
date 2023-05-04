@@ -5,6 +5,7 @@ option go_package = "github.com/celestiaorg/celestia-app/x/mint/types";
 
 import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";
+import "google/protobuf/timestamp.proto";
 
 // Minter represents the mint state.
 message Minter {
@@ -23,6 +24,10 @@ message Minter {
     (gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec",
     (gogoproto.nullable)   = false
   ];
+
+  // genesis_time is the timestamp of the genesis block.
+  google.protobuf.Timestamp genesis_time = 3 [(gogoproto.stdtime) = true];
+
 }
 
 // Params holds parameters for the mint module.

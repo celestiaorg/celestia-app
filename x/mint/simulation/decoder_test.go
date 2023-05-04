@@ -3,6 +3,7 @@ package simulation_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -16,8 +17,8 @@ import (
 func TestDecodeStore(t *testing.T) {
 	cdc := simapp.MakeTestEncodingConfig().Codec
 	dec := simulation.NewDecodeStore(cdc)
-
-	minter := types.NewMinter(sdk.OneDec(), sdk.NewDec(15))
+	unixEpoch := time.Unix(0, 0)
+	minter := types.NewMinter(sdk.OneDec(), sdk.NewDec(15), &unixEpoch)
 
 	kvPairs := kv.Pairs{
 		Pairs: []kv.Pair{

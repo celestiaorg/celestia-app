@@ -3,6 +3,7 @@ package types
 import (
 	"math/rand"
 	"testing"
+	time "time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -138,5 +139,71 @@ func BenchmarkCalculateAnnualProvisions(b *testing.B) {
 	// run the NextAnnualProvisions function b.N times
 	for n := 0; n < b.N; n++ {
 		minter.CalculateAnnualProvisions(totalSupply)
+	}
+}
+
+func Test_yearsSinceGenesis(t *testing.T) {
+	type testCase struct {
+		name    string
+		current time.Time
+		want    uint64
+	}
+
+	genesis := time.Date(2023, 1, 1, 12, 30, 15, 0, time.UTC) // 2023-01-01T12:30:15Z
+	oneDay, err := time.ParseDuration("24h")
+	assert.NoError(t, err)
+	oneWeek := oneDay * 7
+	oneMonth := oneDay * 30
+	oneYear := oneDay * 365
+	twoYears := oneYear * 2
+	tenYears := oneYear * 10
+	tenYearsOneMonth := oneYear*10 + oneMonth
+
+	testCases := []testCase{
+		{
+			name:    "one day after genesis",
+			current: genesis.Add(oneDay),
+			want:    0,
+		},
+		{
+			name:    "one day before genesis",
+			current: genesis.Add(-oneDay),
+			want:    0,
+		},
+		{
+			name:    "one week after genesis",
+			current: genesis.Add(oneWeek),
+			want:    0,
+		},
+		{
+			name:    "one month after genesis",
+			current: genesis.Add(oneMonth),
+			want:    0,
+		},
+		{
+			name:    "one year after genesis",
+			current: genesis.Add(oneYear),
+			want:    1,
+		},
+		{
+			name:    "two years after genesis",
+			current: genesis.Add(twoYears),
+			want:    2,
+		},
+		{
+			name:    "ten years after genesis",
+			current: genesis.Add(tenYears),
+			want:    10,
+		},
+		{
+			name:    "ten years and one month after genesis",
+			current: genesis.Add(tenYearsOneMonth),
+			want:    10,
+		},
+	}
+
+	for _, tc := range testCases {
+		got := yearsSinceGenesis(genesis, tc.current)
+		assert.Equal(t, tc.want, got, tc.name)
 	}
 }

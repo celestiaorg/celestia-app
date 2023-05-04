@@ -14,12 +14,14 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 	defer telemetry.ModuleMeasureSince(types.ModuleName, time.Now(), telemetry.MetricKeyBeginBlocker)
 
 	minter := k.GetMinter(ctx)
-	totalSupply := k.StakingTokenSupply(ctx)
-	minter.AnnualProvisions = minter.CalculateAnnualProvisions(totalSupply)
-	// TODO: since the inflation rate only changes once per year, we don't need
-	// to perform this every block.
-	minter.InflationRate = minter.CalculateInflationRate(ctx)
 
+	// Recalculate the inflation rate and annual provisions and update the minter with the new values.
+	totalSupply := k.StakingTokenSupply(ctx)
+	// TODO: since the inflation rate only changes once per year, we don't need
+	// to perform this every block. One potential optimization is to only do
+	// this once per year.
+	minter.InflationRate = minter.CalculateInflationRate(ctx)
+	minter.AnnualProvisions = minter.CalculateAnnualProvisions(totalSupply)
 	k.SetMinter(ctx, minter)
 
 	mintedCoin := minter.CalculateBlockProvision()

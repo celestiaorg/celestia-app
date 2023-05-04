@@ -2,22 +2,25 @@ package types
 
 import (
 	"fmt"
+	"time"
 
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // NewMinter returns a new Minter object.
-func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec) Minter {
+func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec, genesisTime *time.Time) Minter {
 	return Minter{
 		InflationRate:    inflationRate,
 		AnnualProvisions: annualProvisions,
+		GenesisTime:      genesisTime,
 	}
 }
 
 // DefaultMinter returns a Minter object with default values.
 func DefaultMinter() Minter {
-	return NewMinter(initalInflationRate, sdk.NewDec(0))
+	unixEpoch := time.Unix(0, 0)
+	return NewMinter(initalInflationRate, sdk.NewDec(0), &unixEpoch)
 }
 
 // ValidateMinter returns an error if the provided minter is invalid.
@@ -35,8 +38,8 @@ func ValidateMinter(minter Minter) error {
 // the current block height in context. The inflation rate is expected to
 // decrease every year according to the schedule specified in the README.
 func (m Minter) CalculateInflationRate(ctx sdk.Context) sdk.Dec {
-	year := uint64(ctx.BlockHeader().Height) / BlocksPerYear
-	inflationRate := initalInflationRate.Mul(sdk.OneDec().Sub(disinflationRate).Power(year))
+	years := yearsSinceGenesis(*m.GenesisTime, ctx.BlockTime())
+	inflationRate := initalInflationRate.Mul(sdk.OneDec().Sub(disinflationRate).Power(years))
 
 	if inflationRate.LT(targetInflationRate) {
 		return targetInflationRate
@@ -56,4 +59,11 @@ func (m Minter) CalculateAnnualProvisions(totalSupply math.Int) sdk.Dec {
 func (m Minter) CalculateBlockProvision() sdk.Coin {
 	blockProvision := m.AnnualProvisions.QuoInt(blocksPerYear)
 	return sdk.NewCoin(sdk.DefaultBondDenom, blockProvision.TruncateInt())
+}
+
+func yearsSinceGenesis(genesis time.Time, current time.Time) (years uint64) {
+	if current.Before(genesis) {
+		return 0
+	}
+	return uint64(current.Sub(genesis).Seconds() / SecondsPerYear)
 }

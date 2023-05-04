@@ -23,8 +23,12 @@ type Keeper struct {
 
 // NewKeeper creates a new mint Keeper instance.
 func NewKeeper(
-	cdc codec.BinaryCodec, storeKey storetypes.StoreKey, paramSpace paramtypes.Subspace,
-	stakingKeeper types.StakingKeeper, ak types.AccountKeeper, bankKeeper types.BankKeeper,
+	cdc codec.BinaryCodec,
+	storeKey storetypes.StoreKey,
+	paramSpace paramtypes.Subspace,
+	stakingKeeper types.StakingKeeper,
+	ak types.AccountKeeper,
+	bankKeeper types.BankKeeper,
 	feeCollectorName string,
 ) Keeper {
 	// Ensure the mint module account has been set
