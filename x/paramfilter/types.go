@@ -11,6 +11,7 @@ const (
 )
 
 var (
-	// Error code for ErrForbiddenParameter
+	// ErrForbiddenParameter is the error wrapped when a proposal to change a
+	// forbidden parameter is submitted.
 	ErrForbiddenParameter = sdkerrors.Register(ModuleName, baseErrorCode, "forbidden parameter change, hard fork required")
 )
