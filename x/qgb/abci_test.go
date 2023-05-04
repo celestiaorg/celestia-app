@@ -174,7 +174,7 @@ func TestGetDataCommitment(t *testing.T) {
 	qk.SetParams(ctx, *genesis.Params)
 	require.Equal(t, newExpandedDCWindow, qk.GetDataCommitmentWindowParam(ctx))
 
-	// getting the fourth data commitment window
+	// get the fourth data commitment window
 	wantedHeight = nextMultiple(int64(newShrinkedDCWindow), wantedHeight)
 	// to simulate the condition in endBlocker: ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx))
 	ctx = ctx.WithBlockHeight(wantedHeight)
