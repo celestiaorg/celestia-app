@@ -111,13 +111,78 @@ func TestSetDataCommitment(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	qk := input.QgbKeeper
 
-	input.Context = ctx.WithBlockHeight(int64(qk.GetDataCommitmentWindowParam(ctx)))
-	vs, err := qk.GetCurrentDataCommitment(ctx)
+	ctx = ctx.WithBlockHeight(int64(qk.GetDataCommitmentWindowParam(ctx)))
+	dc, err := qk.GetCurrentDataCommitment(ctx)
 	require.Nil(t, err)
-	err = qk.SetAttestationRequest(ctx, &vs)
+	err = qk.SetAttestationRequest(ctx, &dc)
 	require.Nil(t, err)
 
-	require.Equal(t, uint64(1), qk.GetLatestAttestationNonce(ctx))
+	require.Equal(t, uint64(1), qk.GetLatestAttestationNonce(input.Context))
+}
+
+func TestGetDataCommitment(t *testing.T) {
+	input, ctx := testutil.SetupFiveValChain(t)
+	qk := input.QgbKeeper
+
+	dcWindow := qk.GetDataCommitmentWindowParam(ctx)
+
+	// getting the first data commitment
+	ctx = ctx.WithBlockHeight(int64(dcWindow))
+	dc1, err := qk.GetCurrentDataCommitment(ctx)
+	require.Nil(t, err)
+	require.Equal(t, uint64(1), dc1.BeginBlock)
+	require.Equal(t, uint64(dcWindow), dc1.EndBlock)
+	require.Equal(t, uint64(1), dc1.Nonce)
+	// setting the first data commitment
+	err = qk.SetAttestationRequest(ctx, &dc1)
+	require.Nil(t, err)
+
+	// getting the second data commitment
+	ctx = ctx.WithBlockHeight(int64(dcWindow) * 2)
+	dc2, err := qk.GetCurrentDataCommitment(ctx)
+	require.Nil(t, err)
+	require.Equal(t, dc1.EndBlock+1, dc2.BeginBlock)
+	require.Equal(t, dc1.EndBlock+dcWindow, dc2.EndBlock)
+	require.Equal(t, uint64(2), dc2.Nonce)
+	// setting the second data commitment
+	err = qk.SetAttestationRequest(ctx, &dc2)
+	require.Nil(t, err)
+
+	// shrinking the data commitment window
+	genesis := types.DefaultGenesis()
+	newShrinkedDCWindow := dcWindow - 299 // 101, since the default one is 400
+	genesis.Params.DataCommitmentWindow = newShrinkedDCWindow
+	qk.SetParams(ctx, *genesis.Params)
+	require.Equal(t, newShrinkedDCWindow, qk.GetDataCommitmentWindowParam(ctx))
+
+	// getting the third data commitment window
+	wantedHeight := nextMultiple(int64(newShrinkedDCWindow), int64(dcWindow)*2)
+	// to simulate the condition in endBlocker: ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx))
+	ctx = ctx.WithBlockHeight(wantedHeight)
+	dc3, err := qk.GetCurrentDataCommitment(ctx)
+	require.Nil(t, err)
+	require.Equal(t, dc2.EndBlock+1, dc3.BeginBlock)
+	require.Equal(t, dc2.EndBlock+newShrinkedDCWindow, dc3.EndBlock)
+	require.Equal(t, uint64(3), dc3.Nonce)
+	// setting the third data commitment
+	err = qk.SetAttestationRequest(ctx, &dc3)
+	require.Nil(t, err)
+
+	// expanding the data commitment window
+	newExpandedDCWindow := dcWindow + 100 // 500, since the default one is 400
+	genesis.Params.DataCommitmentWindow = newExpandedDCWindow
+	qk.SetParams(ctx, *genesis.Params)
+	require.Equal(t, newExpandedDCWindow, qk.GetDataCommitmentWindowParam(ctx))
+
+	// getting the fourth data commitment window
+	wantedHeight = nextMultiple(int64(newShrinkedDCWindow), wantedHeight)
+	// to simulate the condition in endBlocker: ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx))
+	ctx = ctx.WithBlockHeight(wantedHeight)
+	dc4, err := qk.GetCurrentDataCommitment(ctx)
+	require.Nil(t, err)
+	require.Equal(t, dc3.EndBlock+1, dc4.BeginBlock)
+	require.Equal(t, dc3.EndBlock+newExpandedDCWindow, dc4.EndBlock)
+	require.Equal(t, uint64(4), dc4.Nonce)
 }
 
 func TestDataCommitmentCreation(t *testing.T) {
@@ -185,4 +250,14 @@ func TestDataCommitmentRange(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, newHeight, int64(dc2.EndBlock))
 	assert.Equal(t, dc1.EndBlock+1, dc2.BeginBlock)
+}
+
+// nextMultiple calculates the next multiple of the base starting from num.
+// for example, nextMultiple(10, 101) will return 110.
+func nextMultiple(base, num int64) int64 {
+	remainder := num % base
+	if remainder == 0 {
+		return num
+	}
+	return num + base - remainder
 }
