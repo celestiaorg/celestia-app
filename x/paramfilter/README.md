@@ -22,7 +22,7 @@ initialization.
 // ParamBlockList keeps track of parameters that cannot be changed by governance
 // proposals
 type ParamBlockList struct {
-	blockedParams map[string]bool
+	params map[string]bool
 }
 
 // NewParamBlockList creates a new ParamBlockList that can be used to block gov
@@ -32,14 +32,15 @@ func NewParamBlockList(blockedParams ...[2]string) ParamBlockList {
 	for _, param := range blockedParams {
 		consolidatedParams[fmt.Sprintf("%s-%s", param[0], param[1])] = true
 	}
-	return ParamBlockList{blockedParams: consolidatedParams}
+	return ParamBlockList{params: consolidatedParams}
 }
 ```
 
 ## Usage
 
 Pass a list of the blocked subspace key pairs that describe each parameter to
-the block list, then register the param change handler with the governance module.
+the block list, then register the param change handler with the governance
+module.
 
 ```go
 func (*App) Blocked() [][2]string {
