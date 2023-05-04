@@ -113,7 +113,7 @@ func TestSetDataCommitment(t *testing.T) {
 
 	ctx = ctx.WithBlockHeight(int64(qk.GetDataCommitmentWindowParam(ctx)))
 	dc, err := qk.GetCurrentDataCommitment(ctx)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	err = qk.SetAttestationRequest(ctx, &dc)
 	require.NoError(t, err)
 
