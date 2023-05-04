@@ -19,26 +19,30 @@ All state is immutable and stored in memory during the application's
 initialization.
 
 ```go
-type Keeper struct {
+/ ParamBlockList keeps track of parameters that cannot be changed by governance
+// proposals
+type ParamBlockList struct {
 	forbiddenParams map[string]bool
 }
 
-func NewKeeper(forbiddenParams ...[2]string) Keeper {
+// NewParamBlockList creates a new ParamBlockList that can be used to block gov
+// proposals that attempt to change locked parameters.
+func NewParamBlockList(forbiddenParams ...[2]string) ParamBlockList {
 	consolidatedParams := make(map[string]bool, len(forbiddenParams))
 	for _, param := range forbiddenParams {
 		consolidatedParams[fmt.Sprintf("%s-%s", param[0], param[1])] = true
 	}
-	return Keeper{forbiddenParams: consolidatedParams}
+	return ParamBlockList{forbiddenParams: consolidatedParams}
 }
 ```
 
 ## Usage
 
 Pass a list of the forbidden subspace key pairs that describe each parameter to
-the keeper, then register the paramfilter handler with the governance module.
+the block list, then register the param change handler with the governance module.
 
 ```go
-func (*App) ForbiddenParams() [][2]string {
+func (*App) Blocked() [][2]string {
 	return [][2]string{
 		{banktypes.ModuleName, string(banktypes.KeySendEnabled)},
 		{stakingtypes.ModuleName, string(stakingtypes.KeyUnbondingTime)},
@@ -49,9 +53,11 @@ func (*App) ForbiddenParams() [][2]string {
 
 func NewApp(...) *App {
     ...
-    app.ParamFilterKeeper = paramfilter.NewKeeper(app.ForbiddenParams()...)
-    ...
-    govRouter.AddRoute(paramproposal.RouterKey, paramfilter.NewParamChangeProposalHandler(app.ParamFilterKeeper, app.ParamsKeeper))
+    paramBlockList := paramfilter.NewParamBlockList(app.BlockedParams()...)
+
+	// register the proposal types
+	govRouter := oldgovtypes.NewRouter()
+	govRouter.AddRoute(paramproposal.RouterKey, paramBlockList.GovHandler(app.ParamsKeeper))
     ...
 }
 ```

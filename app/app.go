@@ -229,9 +229,8 @@ type App struct {
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
-	BlobKeeper        blobmodulekeeper.Keeper
-	QgbKeeper         qgbmodulekeeper.Keeper
-	ParamFilterKeeper paramfilter.Keeper
+	BlobKeeper blobmodulekeeper.Keeper
+	QgbKeeper  qgbmodulekeeper.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -350,11 +349,11 @@ func New(
 		appCodec, keys[ibchost.StoreKey], app.GetSubspace(ibchost.ModuleName), app.StakingKeeper, app.UpgradeKeeper, scopedIBCKeeper,
 	)
 
-	app.ParamFilterKeeper = paramfilter.NewKeeper(app.ForbiddenParams()...)
+	paramBlockList := paramfilter.NewParamBlockList(app.BlockedParams()...)
 
 	// register the proposal types
 	govRouter := oldgovtypes.NewRouter()
-	govRouter.AddRoute(paramproposal.RouterKey, paramfilter.NewParamChangeProposalHandler(app.ParamFilterKeeper, app.ParamsKeeper)).
+	govRouter.AddRoute(paramproposal.RouterKey, paramBlockList.GovHandler(app.ParamsKeeper)).
 		AddRoute(distrtypes.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.DistrKeeper)).
 		AddRoute(ibcclienttypes.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
 
@@ -702,11 +701,17 @@ func (app *App) setPostHanders() {
 	app.SetPostHandler(postHandler)
 }
 
-func (*App) ForbiddenParams() [][2]string {
+// LockedParams are that require a hardfork to change, and cannot be changed via
+// governance.
+func (*App) BlockedParams() [][2]string {
 	return [][2]string{
+		// bank.SendEnabled
 		{banktypes.ModuleName, string(banktypes.KeySendEnabled)},
+		// staking.UnbondingTime
 		{stakingtypes.ModuleName, string(stakingtypes.KeyUnbondingTime)},
+		// staking.BondDenom
 		{stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom)},
+		// consensus.validator.PubKeyTypes
 		{baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams)},
 	}
 }

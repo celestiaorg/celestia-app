@@ -16,18 +16,18 @@ import (
 func TestParamFilter(t *testing.T) {
 	app, _ := testutil.SetupTestAppWithGenesisValSet()
 
-	require.Greater(t, len(app.ForbiddenParams()), 0)
+	require.Greater(t, len(app.BlockedParams()), 0)
 
 	// check that all forbidden parameters are in the filter keeper
-	pfk := app.ParamFilterKeeper
-	for _, p := range app.ForbiddenParams() {
-		require.True(t, pfk.IsForbidden(p[0], p[1]))
+	pph := paramfilter.NewParamBlockList(app.BlockedParams()...)
+	for _, p := range app.BlockedParams() {
+		require.True(t, pph.IsBlocked(p[0], p[1]))
 	}
 
-	handler := paramfilter.NewParamChangeProposalHandler(app.ParamFilterKeeper, app.ParamsKeeper)
+	handler := pph.GovHandler(app.ParamsKeeper)
 	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 
-	for _, p := range app.ForbiddenParams() {
+	for _, p := range app.BlockedParams() {
 		p := testProposal(proposal.NewParamChange(p[0], p[1], "value"))
 		err := handler(ctx, p)
 		require.Error(t, err)
@@ -44,7 +44,7 @@ func TestParamFilter(t *testing.T) {
 	require.Equal(t, ps.MaxValidators, uint32(1))
 
 	// ensure that we're throwing out entire proposals if any of the changes are forbidden
-	for _, p := range app.ForbiddenParams() {
+	for _, p := range app.BlockedParams() {
 		// try to set the max validators to 2, unlike above this should fail
 		validChange := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "2")
 		invalidChange := proposal.NewParamChange(p[0], p[1], "value")
