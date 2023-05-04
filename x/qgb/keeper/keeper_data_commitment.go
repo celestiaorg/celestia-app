@@ -24,6 +24,7 @@ func (k Keeper) GetCurrentDataCommitment(ctx sdk.Context) (types.DataCommitment,
 	// for a data commitment window of 400, the ranges will be: 1-400;401-800;801-1200
 	var beginBlock, endBlock uint64
 	if ctx.BlockHeight() == int64(dcWindow) {
+		// only for the first data commitment range, which is: [1, data commitment window]
 		beginBlock = 1
 		endBlock = dcWindow
 	} else {
