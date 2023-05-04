@@ -144,7 +144,7 @@ func TestGetDataCommitment(t *testing.T) {
 	require.Equal(t, dc1.EndBlock+1, dc2.BeginBlock)
 	require.Equal(t, dc1.EndBlock+dcWindow, dc2.EndBlock)
 	require.Equal(t, uint64(2), dc2.Nonce)
-	// setting the second data commitment
+	// set the second data commitment
 	err = qk.SetAttestationRequest(ctx, &dc2)
 	require.Nil(t, err)
 
