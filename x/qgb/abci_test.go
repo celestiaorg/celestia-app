@@ -179,7 +179,7 @@ func TestGetDataCommitment(t *testing.T) {
 	require.Nil(t, err)
 
 	// expand the data commitment window
-	newExpandedDCWindow := dcWindow + 100 // 500, since the default one is 400
+	newExpandedDCWindow := 500
 	genesis.Params.DataCommitmentWindow = newExpandedDCWindow
 	qk.SetParams(ctx, *genesis.Params)
 	require.Equal(t, newExpandedDCWindow, qk.GetDataCommitmentWindowParam(ctx))
