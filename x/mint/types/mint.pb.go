@@ -25,7 +25,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// Minter represents the minting state.
+// Minter represents the mint state.
 type Minter struct {
 	// InflationRate is the rate at which new tokens should be minted for the
 	// current year. For example if InflationRate=0.1, then 10% of the total
