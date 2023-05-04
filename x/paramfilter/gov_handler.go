@@ -14,22 +14,22 @@ import (
 // ParamBlockList keeps track of parameters that cannot be changed by governance
 // proposals
 type ParamBlockList struct {
-	forbiddenParams map[string]bool
+	params map[string]bool
 }
 
 // NewParamBlockList creates a new ParamBlockList that can be used to block gov
 // proposals that attempt to change locked parameters.
-func NewParamBlockList(forbiddenParams ...[2]string) ParamBlockList {
-	consolidatedParams := make(map[string]bool, len(forbiddenParams))
-	for _, param := range forbiddenParams {
+func NewParamBlockList(blockedParams ...[2]string) ParamBlockList {
+	consolidatedParams := make(map[string]bool, len(blockedParams))
+	for _, param := range blockedParams {
 		consolidatedParams[fmt.Sprintf("%s-%s", param[0], param[1])] = true
 	}
-	return ParamBlockList{forbiddenParams: consolidatedParams}
+	return ParamBlockList{params: consolidatedParams}
 }
 
 // IsBlocked returns true if the given parameter is blocked.
 func (pbl ParamBlockList) IsBlocked(subspace string, key string) bool {
-	return pbl.forbiddenParams[fmt.Sprintf("%s-%s", subspace, key)]
+	return pbl.params[fmt.Sprintf("%s-%s", subspace, key)]
 }
 
 // GovHandler creates a new governance Handler for a ParamChangeProposal using
@@ -51,10 +51,10 @@ func (pbl ParamBlockList) handleParameterChangeProposal(
 	pk paramskeeper.Keeper,
 	p *proposal.ParameterChangeProposal,
 ) error {
-	// throw an error if any of the parameter changes are forbidden
+	// throw an error if any of the parameter changes are blocked
 	for _, c := range p.Changes {
 		if pbl.IsBlocked(c.Subspace, c.Key) {
-			return ErrForbiddenParameter
+			return ErrBlockedParameter
 		}
 	}
 

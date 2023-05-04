@@ -22,23 +22,23 @@ initialization.
 / ParamBlockList keeps track of parameters that cannot be changed by governance
 // proposals
 type ParamBlockList struct {
-	forbiddenParams map[string]bool
+	blockedParams map[string]bool
 }
 
 // NewParamBlockList creates a new ParamBlockList that can be used to block gov
 // proposals that attempt to change locked parameters.
-func NewParamBlockList(forbiddenParams ...[2]string) ParamBlockList {
-	consolidatedParams := make(map[string]bool, len(forbiddenParams))
-	for _, param := range forbiddenParams {
+func NewParamBlockList(blockedParams ...[2]string) ParamBlockList {
+	consolidatedParams := make(map[string]bool, len(blockedParams))
+	for _, param := range blockedParams {
 		consolidatedParams[fmt.Sprintf("%s-%s", param[0], param[1])] = true
 	}
-	return ParamBlockList{forbiddenParams: consolidatedParams}
+	return ParamBlockList{blockedParams: consolidatedParams}
 }
 ```
 
 ## Usage
 
-Pass a list of the forbidden subspace key pairs that describe each parameter to
+Pass a list of the blocked subspace key pairs that describe each parameter to
 the block list, then register the param change handler with the governance module.
 
 ```go

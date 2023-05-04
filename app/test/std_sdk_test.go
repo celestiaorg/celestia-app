@@ -222,7 +222,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			expectedCode: abci.CodeTypeOK,
 		},
 		{
-			name: "create forbidden param proposal change",
+			name: "create blocked param proposal change",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
 				change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom), "stake")
@@ -240,7 +240,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			// this parameter is protected by the paramfilter module, and we
 			// should expect an error. Due to how errors are bubbled up, we get
 			// this code despite wrapping the expected error,
-			// paramfilter.ErrForbiddenParameter
+			// paramfilter.ErrBlockedParameter
 			expectedCode: govtypes.ErrNoProposalHandlerExists.ABCICode(),
 		},
 		{

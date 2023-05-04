@@ -18,7 +18,7 @@ func TestParamFilter(t *testing.T) {
 
 	require.Greater(t, len(app.BlockedParams()), 0)
 
-	// check that all forbidden parameters are in the filter keeper
+	// check that all blocked parameters are in the filter keeper
 	pph := paramfilter.NewParamBlockList(app.BlockedParams()...)
 	for _, p := range app.BlockedParams() {
 		require.True(t, pph.IsBlocked(p[0], p[1]))
@@ -31,7 +31,7 @@ func TestParamFilter(t *testing.T) {
 		p := testProposal(proposal.NewParamChange(p[0], p[1], "value"))
 		err := handler(ctx, p)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "forbidden parameter change")
+		require.Contains(t, err.Error(), "blocked parameter change")
 	}
 
 	// ensure that we are not filtering out valid proposals
@@ -43,7 +43,7 @@ func TestParamFilter(t *testing.T) {
 	ps := app.StakingKeeper.GetParams(ctx)
 	require.Equal(t, ps.MaxValidators, uint32(1))
 
-	// ensure that we're throwing out entire proposals if any of the changes are forbidden
+	// ensure that we're throwing out entire proposals if any of the changes are blocked
 	for _, p := range app.BlockedParams() {
 		// try to set the max validators to 2, unlike above this should fail
 		validChange := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "2")
@@ -51,7 +51,7 @@ func TestParamFilter(t *testing.T) {
 		p := testProposal(validChange, invalidChange)
 		err := handler(ctx, p)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "forbidden parameter change")
+		require.Contains(t, err.Error(), "blocked parameter change")
 
 		ps := app.StakingKeeper.GetParams(ctx)
 		require.Equal(t, ps.MaxValidators, uint32(1))
