@@ -701,7 +701,7 @@ func (app *App) setPostHanders() {
 	app.SetPostHandler(postHandler)
 }
 
-// LockedParams are that require a hardfork to change, and cannot be changed via
+// BlockedParams are params that require a hardfork to change, and cannot be changed via
 // governance.
 func (*App) BlockedParams() [][2]string {
 	return [][2]string{
