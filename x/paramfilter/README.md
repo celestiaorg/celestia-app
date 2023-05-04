@@ -34,7 +34,7 @@ func NewKeeper(forbiddenParams ...[2]string) Keeper {
 
 ## Usage
 
-Pass a list of the forbidden subsapce key pairs that describe each parameter to
+Pass a list of the forbidden subspace key pairs that describe each parameter to
 the keeper, then register the paramfilter handler with the governance module.
 
 ```go
