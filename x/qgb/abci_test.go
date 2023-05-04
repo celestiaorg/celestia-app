@@ -115,7 +115,7 @@ func TestSetDataCommitment(t *testing.T) {
 	dc, err := qk.GetCurrentDataCommitment(ctx)
 	require.Nil(t, err)
 	err = qk.SetAttestationRequest(ctx, &dc)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	require.Equal(t, uint64(1), qk.GetLatestAttestationNonce(input.Context))
 }
