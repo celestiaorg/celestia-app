@@ -89,6 +89,7 @@ import (
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
 	blobmodulekeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
 	blobmoduletypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/x/paramfilter"
 	"github.com/celestiaorg/celestia-app/x/tokenfilter"
 	appupgrade "github.com/celestiaorg/celestia-app/x/upgrade"
 
@@ -228,8 +229,9 @@ type App struct {
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
-	BlobKeeper blobmodulekeeper.Keeper
-	QgbKeeper  qgbmodulekeeper.Keeper
+	BlobKeeper        blobmodulekeeper.Keeper
+	QgbKeeper         qgbmodulekeeper.Keeper
+	ParamFilterKeeper paramfilter.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -348,9 +350,11 @@ func New(
 		appCodec, keys[ibchost.StoreKey], app.GetSubspace(ibchost.ModuleName), app.StakingKeeper, app.UpgradeKeeper, scopedIBCKeeper,
 	)
 
+	app.ParamFilterKeeper = paramfilter.NewKeeper(app.ForbiddenParams()...)
+
 	// register the proposal types
 	govRouter := oldgovtypes.NewRouter()
-	govRouter.AddRoute(paramproposal.RouterKey, params.NewParamChangeProposalHandler(app.ParamsKeeper)).
+	govRouter.AddRoute(paramproposal.RouterKey, paramfilter.NewParamChangeProposalHandler(app.ParamFilterKeeper, app.ParamsKeeper)).
 		AddRoute(distrtypes.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.DistrKeeper)).
 		AddRoute(ibcclienttypes.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
 
@@ -696,6 +700,15 @@ func (app *App) setPostHanders() {
 	}
 
 	app.SetPostHandler(postHandler)
+}
+
+func (*App) ForbiddenParams() [][2]string {
+	return [][2]string{
+		{banktypes.ModuleName, string(banktypes.KeySendEnabled)},
+		{stakingtypes.ModuleName, string(stakingtypes.KeyUnbondingTime)},
+		{stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom)},
+		{baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams)},
+	}
 }
 
 // GetMaccPerms returns a copy of the module account permissions
