@@ -57,7 +57,6 @@ func TestParamFilter(t *testing.T) {
 		require.Equal(t, ps.MaxValidators, uint32(1))
 
 	}
-
 }
 
 func testProposal(changes ...proposal.ParamChange) *proposal.ParameterChangeProposal {
