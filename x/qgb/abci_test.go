@@ -148,7 +148,7 @@ func TestGetDataCommitment(t *testing.T) {
 	err = qk.SetAttestationRequest(ctx, &dc2)
 	require.Nil(t, err)
 
-	// shrinking the data commitment window
+	// shrink the data commitment window
 	genesis := types.DefaultGenesis()
 	newShrinkedDCWindow := dcWindow - 299 // 101, since the default one is 400
 	genesis.Params.DataCommitmentWindow = newShrinkedDCWindow
