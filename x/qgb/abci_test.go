@@ -120,6 +120,16 @@ func TestSetDataCommitment(t *testing.T) {
 	require.Equal(t, uint64(1), qk.GetLatestAttestationNonce(input.Context))
 }
 
+// TestGetDataCommitment This test will test the create of data commitment ranges
+// in the event of the data commitment window changing via an upgrade or a gov proposal.
+// The test goes as follows:
+//   - Start with a data commitment window of 400
+//   - Get the first data commitment, its range should be: [1, 400]
+//   - Get the second data commitment, its range should be: [401, 800]
+//   - Shrink the data commitment window to 101
+//   - Get the third data commitment, its range should be: [801, 901]
+//   - Expand the data commitment window to 500
+//   - Get the fourth data commitment, its range should be: [902, 1401]
 func TestGetDataCommitment(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	qk := input.QgbKeeper
