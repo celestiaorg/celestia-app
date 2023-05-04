@@ -43,9 +43,9 @@ func TestParamFilter(t *testing.T) {
 	ps := app.StakingKeeper.GetParams(ctx)
 	require.Equal(t, ps.MaxValidators, uint32(1))
 
-	// ensure that we're still throwing errors for invalid proposals
+	// ensure that we're throwing out entire proposals if any of the changes are forbidden
 	for _, p := range app.ForbiddenParams() {
-		// try to set the max validators to 2
+		// try to set the max validators to 2, unlike above this should fail
 		validChange := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "2")
 		invalidChange := proposal.NewParamChange(p[0], p[1], "value")
 		p := testProposal(validChange, invalidChange)

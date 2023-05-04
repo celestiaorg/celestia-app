@@ -3,10 +3,14 @@
 ## Abstract
 
 The paramfilter module allows for specific parameters to be added to a block
-list, so that they cannot be changed by governance proposals. This is useful for
-forcing hardforks to change parameters that are critical to the network's
-operation that are also part of the cosmos-sdk's standard modules. New modules
-should not use this module, and instead use hardcoded constants.
+list, so that they cannot be changed by governance proposals. If a proposal
+contains a single blocked parameter change, then none of the parameters are
+updated.
+
+This is useful for forcing hardforks to change parameters that are
+critical to the network's operation that are also part of the cosmos-sdk's
+standard modules. New modules should not use this module, and instead use
+hardcoded constants.
 
 ## State
 
