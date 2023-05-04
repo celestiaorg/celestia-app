@@ -222,7 +222,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			expectedCode: abci.CodeTypeOK,
 		},
 		{
-			name: "create blocked param proposal change",
+			name: "create param change proposal for a blocked parameter",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
 				change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom), "stake")
