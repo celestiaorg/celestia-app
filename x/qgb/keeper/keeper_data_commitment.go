@@ -32,7 +32,7 @@ func (k Keeper) GetCurrentDataCommitment(ctx sdk.Context) (types.DataCommitment,
 			return types.DataCommitment{}, err
 		}
 		beginBlock = lastDCC.EndBlock + 1
-		endBlock = beginBlock + dcWindow - 1
+		endBlock = lastDCC.EndBlock + dcWindow
 	}
 
 	dataCommitment := types.NewDataCommitment(nonce, beginBlock, endBlock)
