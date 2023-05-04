@@ -129,7 +129,7 @@ func TestGetDataCommitment(t *testing.T) {
 	// getting the first data commitment
 	ctx = ctx.WithBlockHeight(int64(dcWindow))
 	dc1, err := qk.GetCurrentDataCommitment(ctx)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Equal(t, uint64(1), dc1.BeginBlock)
 	require.Equal(t, uint64(dcWindow), dc1.EndBlock)
 	require.Equal(t, uint64(1), dc1.Nonce)
