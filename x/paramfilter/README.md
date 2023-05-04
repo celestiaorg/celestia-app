@@ -19,14 +19,14 @@ All state is immutable and stored in memory during the application's
 initialization.
 
 ```go
-/ ParamBlockList keeps track of parameters that cannot be changed by governance
+// ParamBlockList keeps track of parameters that cannot be changed by governance
 // proposals
 type ParamBlockList struct {
 	blockedParams map[string]bool
 }
 
 // NewParamBlockList creates a new ParamBlockList that can be used to block gov
-// proposals that attempt to change locked parameters.
+// proposals that attempt to change hard-coded parameters.
 func NewParamBlockList(blockedParams ...[2]string) ParamBlockList {
 	consolidatedParams := make(map[string]bool, len(blockedParams))
 	for _, param := range blockedParams {

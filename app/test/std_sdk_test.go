@@ -244,7 +244,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			expectedCode: govtypes.ErrNoProposalHandlerExists.ABCICode(),
 		},
 		{
-			name: "create param proposal change",
+			name: "create param proposal change for a modifiable parameter",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
 				change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "1")
