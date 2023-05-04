@@ -137,7 +137,7 @@ func TestGetDataCommitment(t *testing.T) {
 	err = qk.SetAttestationRequest(ctx, &dc1)
 	require.Nil(t, err)
 
-	// getting the second data commitment
+	// get the second data commitment
 	ctx = ctx.WithBlockHeight(int64(dcWindow) * 2)
 	dc2, err := qk.GetCurrentDataCommitment(ctx)
 	require.Nil(t, err)
