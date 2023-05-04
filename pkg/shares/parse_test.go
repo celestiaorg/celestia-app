@@ -227,7 +227,7 @@ func padWithRandomBytes(t *testing.T, partialShare []byte) (paddedShare []byte) 
 	paddedShare = make([]byte, appconsts.ShareSize)
 	copy(paddedShare, partialShare)
 	_, err := rand.Read(paddedShare[len(partialShare):])
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	return paddedShare
 }
 
