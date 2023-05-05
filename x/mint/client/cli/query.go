@@ -24,6 +24,7 @@ func GetQueryCmd() *cobra.Command {
 		GetCmdQueryParams(),
 		GetCmdQueryInflationRate(),
 		GetCmdQueryAnnualProvisions(),
+		GetCmdQueryGenesisTime(),
 	)
 
 	return mintQueryCmd
@@ -129,13 +130,13 @@ func GetCmdQueryGenesisTime() *cobra.Command {
 			}
 			queryClient := types.NewQueryClient(clientCtx)
 
-			params := &types.QueryAnnualProvisionsRequest{}
-			res, err := queryClient.AnnualProvisions(cmd.Context(), params)
+			request := &types.QueryGenesisTimeRequest{}
+			res, err := queryClient.GenesisTime(cmd.Context(), request)
 			if err != nil {
 				return err
 			}
 
-			return clientCtx.PrintString(fmt.Sprintf("%s\n", res.AnnualProvisions))
+			return clientCtx.PrintString(fmt.Sprintf("%s\n", res.GenesisTime))
 		},
 	}
 
