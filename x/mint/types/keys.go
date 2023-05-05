@@ -17,4 +17,5 @@ const (
 	QueryParameters       = "parameters"
 	QueryInflationRate    = "inflation_rate"
 	QueryAnnualProvisions = "annual_provisions"
+	QueryGenesisTime      = "genesis_time"
 )

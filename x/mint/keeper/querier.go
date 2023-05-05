@@ -24,6 +24,9 @@ func NewQuerier(k Keeper, legacyQuerierCdc *codec.LegacyAmino) sdk.Querier {
 		case types.QueryAnnualProvisions:
 			return queryAnnualProvisions(ctx, k, legacyQuerierCdc)
 
+		case types.QueryGenesisTime:
+			return queryGenesisTime(ctx, k, legacyQuerierCdc)
+
 		default:
 			return nil, errors.Wrapf(sdkerrors.ErrUnknownRequest, "unknown query path: %s", path[0])
 		}
@@ -56,6 +59,17 @@ func queryAnnualProvisions(ctx sdk.Context, k Keeper, legacyQuerierCdc *codec.Le
 	minter := k.GetMinter(ctx)
 
 	res, err := codec.MarshalJSONIndent(legacyQuerierCdc, minter.AnnualProvisions)
+	if err != nil {
+		return nil, errors.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
+	}
+
+	return res, nil
+}
+
+func queryGenesisTime(ctx sdk.Context, k Keeper, legacyQuerierCdc *codec.LegacyAmino) ([]byte, error) {
+	minter := k.GetMinter(ctx)
+
+	res, err := codec.MarshalJSONIndent(legacyQuerierCdc, minter.GenesisTime)
 	if err != nil {
 		return nil, errors.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
 	}
