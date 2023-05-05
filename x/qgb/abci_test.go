@@ -271,13 +271,3 @@ func TestDataCommitmentRange(t *testing.T) {
 	assert.Equal(t, newHeight, int64(dc2.EndBlock))
 	assert.Equal(t, dc1.EndBlock+1, dc2.BeginBlock)
 }
-
-// nextMultiple calculates the next multiple of the base starting from num.
-// for example, nextMultiple(10, 101) will return 110.
-func nextMultiple(base, num int64) int64 {
-	remainder := num % base
-	if remainder == 0 {
-		return num
-	}
-	return num + base - remainder
-}
