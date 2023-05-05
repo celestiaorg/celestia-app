@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -18,6 +19,7 @@ import (
 
 // TestRandomizedGenState tests the normal scenario of applying RandomizedGenState.
 // Abonormal scenarios are not tested here.
+// TODO(@rootulp): there is no real randomness being used here.
 func TestRandomizedGenState(t *testing.T) {
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
 	cdc := codec.NewProtoCodec(interfaceRegistry)
@@ -41,9 +43,9 @@ func TestRandomizedGenState(t *testing.T) {
 	simState.Cdc.MustUnmarshalJSON(simState.GenState[types.ModuleName], &mintGenesis)
 
 	require.Equal(t, "0stake", mintGenesis.Minter.CalculateBlockProvision().String())
-	// require.Equal(t, "0.170000000000000000", mintGenesis.Minter.NextAnnualProvisions(mintGenesis.Params, sdk.OneInt()).String())
 	require.Equal(t, "0.080000000000000000", mintGenesis.Minter.InflationRate.String())
 	require.Equal(t, "0.000000000000000000", mintGenesis.Minter.AnnualProvisions.String())
+	require.Equal(t, time.Unix(0, 0).UTC(), *mintGenesis.Minter.GenesisTime)
 }
 
 // TestRandomizedGenState tests abnormal scenarios of applying RandomizedGenState.
