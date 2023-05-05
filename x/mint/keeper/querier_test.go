@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -56,6 +57,9 @@ func (suite *MintKeeperTestSuite) TestNewQuerier(t *testing.T) {
 	_, err = querier(ctx, []string{types.QueryAnnualProvisions}, query)
 	require.NoError(t, err)
 
+	_, err = querier(ctx, []string{types.QueryGenesisTime}, query)
+	require.NoError(t, err)
+
 	_, err = querier(ctx, []string{"foo"}, query)
 	require.Error(t, err)
 }
@@ -103,4 +107,19 @@ func (suite *MintKeeperTestSuite) TestQueryAnnualProvisions(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions, annualProvisions)
+}
+
+func (suite *MintKeeperTestSuite) TestQueryGenesisTime(t *testing.T) {
+	app, ctx, legacyQuerierCdc := suite.app, suite.ctx, suite.legacyQuerierCdc
+	querier := keep.NewQuerier(app.MintKeeper, legacyQuerierCdc.LegacyAmino)
+
+	var genesisTime *time.Time
+
+	res, sdkErr := querier(ctx, []string{types.QueryGenesisTime}, abci.RequestQuery{})
+	require.NoError(t, sdkErr)
+
+	err := app.LegacyAmino().UnmarshalJSON(res, &genesisTime)
+	require.NoError(t, err)
+
+	require.Equal(t, app.MintKeeper.GetMinter(ctx).GenesisTime, genesisTime)
 }
