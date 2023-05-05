@@ -38,7 +38,7 @@ type Minter struct {
 	// AnnualProvisions is the total number of tokens to be minted in the current
 	// year due to inflation.
 	AnnualProvisions github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,2,opt,name=annual_provisions,json=annualProvisions,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"annual_provisions"`
-	// genesis_time is the timestamp of the genesis block.
+	// GenesisTime is the timestamp of the genesis block.
 	GenesisTime *time.Time `protobuf:"bytes,3,opt,name=genesis_time,json=genesisTime,proto3,stdtime" json:"genesis_time,omitempty"`
 }
 

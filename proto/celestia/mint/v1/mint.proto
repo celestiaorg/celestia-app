@@ -25,7 +25,7 @@ message Minter {
     (gogoproto.nullable)   = false
   ];
 
-  // genesis_time is the timestamp of the genesis block.
+  // GenesisTime is the timestamp of the genesis block.
   google.protobuf.Timestamp genesis_time = 3 [(gogoproto.stdtime) = true];
 
 }
