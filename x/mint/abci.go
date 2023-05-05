@@ -22,7 +22,7 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 	// this once per year.
 	minter.InflationRate = minter.CalculateInflationRate(ctx)
 	minter.AnnualProvisions = minter.CalculateAnnualProvisions(totalSupply)
-	if ctx.BlockHeight() == 0 {
+	if ctx.BlockHeight() == 1 {
 		genesisTime := ctx.BlockTime()
 		minter.GenesisTime = &genesisTime
 	}
