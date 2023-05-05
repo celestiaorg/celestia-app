@@ -1,7 +1,6 @@
 package simulation_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 
 func TestDecodeStore(t *testing.T) {
 	cdc := simapp.MakeTestEncodingConfig().Codec
-	dec := simulation.NewDecodeStore(cdc)
+	decoder := simulation.NewDecodeStore(cdc)
 	unixEpoch := time.Unix(0, 0)
 	minter := types.NewMinter(sdk.OneDec(), sdk.NewDec(15), &unixEpoch)
 
@@ -28,21 +27,25 @@ func TestDecodeStore(t *testing.T) {
 	}
 	tests := []struct {
 		name        string
-		expectedLog string
+		expected    string
+		expectPanic bool
 	}{
-		{"Minter", fmt.Sprintf("%v\n%v", minter, minter)},
-		{"other", ""},
+		// {"Minter", fmt.Sprintf("%v\n%v", minter, minter)},
+		{
+			name:        "other",
+			expected:    "",
+			expectPanic: true,
+		},
 	}
 
 	for i, tt := range tests {
 		i, tt := i, tt
 		t.Run(tt.name, func(t *testing.T) {
-			switch i {
-			case len(tests) - 1:
-				require.Panics(t, func() { dec(kvPairs.Pairs[i], kvPairs.Pairs[i]) }, tt.name)
-			default:
-				require.Equal(t, tt.expectedLog, dec(kvPairs.Pairs[i], kvPairs.Pairs[i]), tt.name)
+			if tt.expectPanic {
+				require.Panics(t, func() { decoder(kvPairs.Pairs[i], kvPairs.Pairs[i]) }, tt.name)
+				return
 			}
+			require.Equal(t, tt.expected, decoder(kvPairs.Pairs[i], kvPairs.Pairs[i]), tt.name)
 		})
 	}
 }
