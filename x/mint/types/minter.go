@@ -9,18 +9,19 @@ import (
 )
 
 // NewMinter returns a new Minter object.
-func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec, genesisTime *time.Time) Minter {
+func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec, genesisTime *time.Time, bondDenom string) Minter {
 	return Minter{
 		InflationRate:    inflationRate,
 		AnnualProvisions: annualProvisions,
 		GenesisTime:      genesisTime,
+		BondDenom:        bondDenom,
 	}
 }
 
 // DefaultMinter returns a Minter object with default values.
 func DefaultMinter() Minter {
 	unixEpoch := time.Unix(0, 0).UTC()
-	return NewMinter(initalInflationRate, sdk.NewDec(0), &unixEpoch)
+	return NewMinter(initalInflationRate, sdk.NewDec(0), &unixEpoch, sdk.DefaultBondDenom)
 }
 
 // ValidateMinter returns an error if the provided minter is invalid.
@@ -57,7 +58,7 @@ func (m Minter) CalculateAnnualProvisions(totalSupply math.Int) sdk.Dec {
 // minted due to inflation for the current block).
 func (m Minter) CalculateBlockProvision() sdk.Coin {
 	blockProvision := m.AnnualProvisions.QuoInt(blocksPerYear)
-	return sdk.NewCoin(sdk.DefaultBondDenom, blockProvision.TruncateInt())
+	return sdk.NewCoin(m.BondDenom, blockProvision.TruncateInt())
 }
 
 // yearsSinceGenesis returns the number of years that have passed between
