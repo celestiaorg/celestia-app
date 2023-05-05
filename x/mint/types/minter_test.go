@@ -14,6 +14,8 @@ import (
 
 func TestCalculateInflationRate(t *testing.T) {
 	minter := DefaultMinter()
+	genesisTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	minter.GenesisTime = &genesisTime
 
 	type testCase struct {
 		year int
@@ -65,12 +67,12 @@ func TestCalculateInflationRate(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		height := BlocksPerYear * tc.year
-		ctx := sdk.NewContext(nil, tmproto.Header{Height: int64(height)}, false, nil)
+		blockTime := genesisTime.AddDate(tc.year, 0, 0)
+		ctx := sdk.NewContext(nil, tmproto.Header{}, false, nil).WithBlockTime(blockTime)
 		inflationRate := minter.CalculateInflationRate(ctx)
 		got, err := inflationRate.Float64()
 		assert.NoError(t, err)
-		assert.Equal(t, tc.want, got, "want %v got %v year %v height %v", tc.want, got, tc.year, height)
+		assert.Equal(t, tc.want, got, "want %v got %v year %v blockTime %v", tc.want, got, tc.year, blockTime)
 	}
 }
 
@@ -114,7 +116,6 @@ func BenchmarkCalculateBlockProvision(b *testing.B) {
 	r1 := rand.New(s1)
 	minter.AnnualProvisions = sdk.NewDec(r1.Int63n(1000000))
 
-	// run the BlockProvision function b.N times
 	for n := 0; n < b.N; n++ {
 		minter.CalculateBlockProvision()
 	}
@@ -124,7 +125,6 @@ func BenchmarkCalculateInflationRate(b *testing.B) {
 	b.ReportAllocs()
 	minter := DefaultMinter()
 
-	// run the NextInflationRate function b.N times
 	for n := 0; n < b.N; n++ {
 		ctx := sdk.NewContext(nil, tmproto.Header{Height: int64(n)}, false, nil)
 		minter.CalculateInflationRate(ctx)
@@ -136,7 +136,6 @@ func BenchmarkCalculateAnnualProvisions(b *testing.B) {
 	minter := DefaultMinter()
 	totalSupply := sdk.NewInt(100000000000000)
 
-	// run the NextAnnualProvisions function b.N times
 	for n := 0; n < b.N; n++ {
 		minter.CalculateAnnualProvisions(totalSupply)
 	}
