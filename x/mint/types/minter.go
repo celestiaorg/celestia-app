@@ -47,20 +47,21 @@ func (m Minter) CalculateInflationRate(ctx sdk.Context) sdk.Dec {
 	return inflationRate
 }
 
-// CalculateAnnualProvisions returns the annual provisions (i.e. the total
-// number of tokens that should be minted due to inflation for the current
-// year).
+// CalculateAnnualProvisions returns the total number of tokens that should be
+// minted due to inflation for the current year.
 func (m Minter) CalculateAnnualProvisions(totalSupply math.Int) sdk.Dec {
 	return m.InflationRate.MulInt(totalSupply)
 }
 
-// CalculateBlockProvision returns the provisions for a block (i.e. the total number of
-// coins that should be minted due to inflation for the current block).
+// CalculateBlockProvision returns the total number of coins that should be
+// minted due to inflation for the current block).
 func (m Minter) CalculateBlockProvision() sdk.Coin {
 	blockProvision := m.AnnualProvisions.QuoInt(blocksPerYear)
 	return sdk.NewCoin(sdk.DefaultBondDenom, blockProvision.TruncateInt())
 }
 
+// yearsSinceGenesis returns the number of years that have passed between
+// genesis and current (rounded down).
 func yearsSinceGenesis(genesis time.Time, current time.Time) (years uint64) {
 	if current.Before(genesis) {
 		return 0
