@@ -19,7 +19,7 @@ func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec, genesisTime *tim
 
 // DefaultMinter returns a Minter object with default values.
 func DefaultMinter() Minter {
-	unixEpoch := time.Unix(0, 0)
+	unixEpoch := time.Unix(0, 0).UTC()
 	return NewMinter(initalInflationRate, sdk.NewDec(0), &unixEpoch)
 }
 
