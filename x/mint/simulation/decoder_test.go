@@ -1,6 +1,7 @@
 package simulation_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 func TestDecodeStore(t *testing.T) {
 	cdc := simapp.MakeTestEncodingConfig().Codec
 	decoder := simulation.NewDecodeStore(cdc)
-	unixEpoch := time.Unix(0, 0)
+	unixEpoch := time.Unix(0, 0).UTC()
 	minter := types.NewMinter(sdk.OneDec(), sdk.NewDec(15), &unixEpoch)
 
 	kvPairs := kv.Pairs{
@@ -30,7 +31,11 @@ func TestDecodeStore(t *testing.T) {
 		expected    string
 		expectPanic bool
 	}{
-		// {"Minter", fmt.Sprintf("%v\n%v", minter, minter)},
+		{
+			name:        "Minter",
+			expected:    fmt.Sprintf("%v\n%v", minter, minter),
+			expectPanic: false,
+		},
 		{
 			name:        "other",
 			expected:    "",
