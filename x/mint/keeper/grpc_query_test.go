@@ -36,7 +36,7 @@ func (suite *MintTestSuite) SetupTest() {
 	suite.queryClient = queryClient
 }
 
-func (suite *MintTestSuite) TestGRPCParams() {
+func (suite *MintTestSuite) TestGRPC() {
 	app, ctx, queryClient := suite.app, suite.ctx, suite.queryClient
 
 	params, err := queryClient.Params(gocontext.Background(), &types.QueryParamsRequest{})
@@ -50,6 +50,10 @@ func (suite *MintTestSuite) TestGRPCParams() {
 	annualProvisions, err := queryClient.AnnualProvisions(gocontext.Background(), &types.QueryAnnualProvisionsRequest{})
 	suite.Require().NoError(err)
 	suite.Require().Equal(annualProvisions.AnnualProvisions, app.MintKeeper.GetMinter(ctx).AnnualProvisions)
+
+	genesisTime, err := queryClient.GenesisTime(gocontext.Background(), &types.QueryGenesisTimeRequest{})
+	suite.Require().NoError(err)
+	suite.Require().Equal(genesisTime.GenesisTime, app.MintKeeper.GetMinter(ctx).GenesisTime)
 }
 
 func TestMintTestSuite(t *testing.T) {
