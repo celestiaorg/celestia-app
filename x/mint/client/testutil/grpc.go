@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -12,9 +13,11 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 )
 
+// TODO(@rootulp): I'm pretty sure this test is never run
 func (s *IntegrationTestSuite) TestQueryGRPC() {
 	val := s.network.Validators[0]
 	baseURL := val.APIAddress
+	genesisTime := time.Unix(0, 0).UTC()
 	testCases := []struct {
 		name     string
 		url      string
@@ -47,6 +50,15 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 			&minttypes.QueryAnnualProvisionsResponse{},
 			&minttypes.QueryAnnualProvisionsResponse{
 				AnnualProvisions: sdk.NewDec(500000000),
+			},
+		},
+		{
+			"gRPC request genesis time",
+			fmt.Sprintf("%s/cosmos/mint/v1beta1/genesis_time", baseURL),
+			map[string]string{},
+			&minttypes.QueryGenesisTimeRequest{},
+			&minttypes.QueryGenesisTimeResponse{
+				GenesisTime: &genesisTime,
 			},
 		},
 	}

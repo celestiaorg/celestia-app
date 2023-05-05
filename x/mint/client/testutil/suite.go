@@ -67,6 +67,7 @@ func (s *IntegrationTestSuite) TestGetCmdQueryParams() {
 			`{"mint_denom":"stake","inflation_rate_change":"0.130000000000000000","inflation_max":"1.000000000000000000","inflation_min":"1.000000000000000000","goal_bonded":"0.670000000000000000","blocks_per_year":"6311520"}`,
 		},
 		{
+			// TODO(@rootulp): I'm pretty sure this test is never run
 			"text output",
 			[]string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=text", tmcli.OutputFlag)},
 			`blocks_per_year: "6311520"
