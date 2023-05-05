@@ -30,7 +30,7 @@ build: mod
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
-	@go mod tidy -compat=1.19
+	@go mod tidy -compat=1.20
 .PHONY: build
 
 ## install: Build and install the celestia-appd binary into the $GOPATH/bin directory.
@@ -42,7 +42,7 @@ install: go.sum
 ## mod: Update go.mod.
 mod:
 	@echo "--> Updating go.mod"
-	@go mod tidy -compat=1.19
+	@go mod tidy -compat=1.20
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.

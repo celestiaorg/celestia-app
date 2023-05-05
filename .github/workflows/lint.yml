@@ -4,16 +4,19 @@ name: lint
 on:
   workflow_call:
 
+env:
+  GO_VERSION: '1.20'
+
 jobs:
   golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
+      - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
-          go-version: 1.19
-      - uses: actions/checkout@v3
+          go-version: ${{ env.GO_VERSION }}
       - uses: technote-space/get-diff-action@v6.1.2
         with:
           # This job will pass without running if go.mod, go.sum, and *.go
@@ -24,7 +27,7 @@ jobs:
             go.sum
       - uses: golangci/golangci-lint-action@v3.4.0
         with:
-          version: v1.50.1
+          version: v1.52.2
           args: --timeout 10m
           github-token: ${{ secrets.github_token }}
         if: env.GIT_DIFF
