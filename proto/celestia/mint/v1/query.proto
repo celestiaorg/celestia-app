@@ -4,6 +4,7 @@ package celestia.mint.v1;
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "celestia/mint/v1/mint.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/mint/types";
 
@@ -22,6 +23,11 @@ service Query {
   // AnnualProvisions returns the current annual provisions.
   rpc AnnualProvisions(QueryAnnualProvisionsRequest) returns (QueryAnnualProvisionsResponse) {
     option (google.api.http).get = "/cosmos/mint/v1beta1/annual_provisions";
+  }
+
+  // GenesisTime returns the genesis time.
+  rpc GenesisTime(QueryGenesisTimeRequest) returns (QueryGenesisTimeResponse) {
+    option (google.api.http).get = "/cosmos/mint/v1beta1/genesis_time";
   }
 }
 
@@ -56,4 +62,8 @@ message QueryAnnualProvisionsResponse {
       [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec", (gogoproto.nullable) = false];
 }
 
-// TODO(@rootulp): consider adding a QueryGenesisBlock RPC method.
+message QueryGenesisTimeRequest {}
+
+message QueryGenesisTimeResponse {
+  google.protobuf.Timestamp genesis_time = 1 [(gogoproto.stdtime) = true];
+}

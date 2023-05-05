@@ -72,8 +72,8 @@ func GetCmdQueryInflationRate() *cobra.Command {
 			}
 			queryClient := types.NewQueryClient(clientCtx)
 
-			params := &types.QueryInflationRateRequest{}
-			res, err := queryClient.InflationRate(cmd.Context(), params)
+			request := &types.QueryInflationRateRequest{}
+			res, err := queryClient.InflationRate(cmd.Context(), request)
 			if err != nil {
 				return err
 			}
@@ -93,6 +93,34 @@ func GetCmdQueryAnnualProvisions() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "annual-provisions",
 		Short: "Query the current annual provisions",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+			queryClient := types.NewQueryClient(clientCtx)
+
+			request := &types.QueryAnnualProvisionsRequest{}
+			res, err := queryClient.AnnualProvisions(cmd.Context(), request)
+			if err != nil {
+				return err
+			}
+
+			return clientCtx.PrintString(fmt.Sprintf("%s\n", res.AnnualProvisions))
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+
+	return cmd
+}
+
+// GetCmdQueryGenesisTime implements a command to return the genesis time.
+func GetCmdQueryGenesisTime() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "genesis-time",
+		Short: "Query the genesis time",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
