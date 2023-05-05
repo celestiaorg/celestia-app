@@ -134,63 +134,75 @@ func TestGetDataCommitment(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	qk := input.QgbKeeper
 
-	dcWindow := qk.GetDataCommitmentWindowParam(ctx)
+	tests := []struct {
+		name   string
+		window uint64
+		// to simulate the height condition in endBlocker: ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx))
+		height     int64
+		expectedDC types.DataCommitment
+	}{
+		{
+			name:   "first data commitment for a window of 400",
+			window: 400,
+			height: 400,
+			expectedDC: types.DataCommitment{
+				Nonce:      1,
+				BeginBlock: 1,
+				EndBlock:   400,
+			},
+		},
+		{
+			name:   "second data commitment for a window of 400",
+			window: 400,
+			height: 800,
+			expectedDC: types.DataCommitment{
+				Nonce:      2,
+				BeginBlock: 401,
+				EndBlock:   800,
+			},
+		},
+		{
+			name:   "third data commitment after changing the window to 101",
+			window: 101,
+			height: 901,
+			expectedDC: types.DataCommitment{
+				Nonce:      3,
+				BeginBlock: 801,
+				EndBlock:   901,
+			},
+		},
+		{
+			name:   "fourth data commitment after changing the window to 500",
+			window: 500,
+			height: 1401,
+			expectedDC: types.DataCommitment{
+				Nonce:      4,
+				BeginBlock: 902,
+				EndBlock:   1401,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// set the data commitment window
+			qk.SetParams(ctx, types.Params{DataCommitmentWindow: tt.window})
+			require.Equal(t, tt.window, qk.GetDataCommitmentWindowParam(ctx))
 
-	// get the first data commitment
-	ctx = ctx.WithBlockHeight(int64(dcWindow))
-	dc1, err := qk.GetCurrentDataCommitment(ctx)
-	require.NoError(t, err)
-	require.Equal(t, uint64(1), dc1.BeginBlock)
-	require.Equal(t, uint64(400), dc1.EndBlock)
-	require.Equal(t, uint64(1), dc1.Nonce)
-	// set the first data commitment
-	err = qk.SetAttestationRequest(ctx, &dc1)
-	require.Nil(t, err)
+			// change the block height
+			ctx = ctx.WithBlockHeight(tt.height)
 
-	// get the second data commitment
-	ctx = ctx.WithBlockHeight(int64(dcWindow) * 2)
-	dc2, err := qk.GetCurrentDataCommitment(ctx)
-	require.Nil(t, err)
-	require.Equal(t, uint64(401), dc2.BeginBlock)
-	require.Equal(t, uint64(800), dc2.EndBlock)
-	require.Equal(t, uint64(2), dc2.Nonce)
-	// set the second data commitment
-	err = qk.SetAttestationRequest(ctx, &dc2)
-	require.Nil(t, err)
+			// get the data commitment
+			dc, err := qk.GetCurrentDataCommitment(ctx)
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedDC.BeginBlock, dc.BeginBlock)
+			require.Equal(t, tt.expectedDC.EndBlock, dc.EndBlock)
+			require.Equal(t, tt.expectedDC.Nonce, dc.Nonce)
 
-	// shrink the data commitment window
-	genesis := types.DefaultGenesis()
-	genesis.Params.DataCommitmentWindow = 101
-	qk.SetParams(ctx, *genesis.Params)
-	require.Equal(t, uint64(101), qk.GetDataCommitmentWindowParam(ctx))
-
-	// get the third data commitment window
-	wantedHeight := nextMultiple(int64(101), int64(dcWindow)*2)
-	// to simulate the condition in endBlocker: ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx))
-	ctx = ctx.WithBlockHeight(wantedHeight)
-	dc3, err := qk.GetCurrentDataCommitment(ctx)
-	require.Nil(t, err)
-	require.Equal(t, uint64(801), dc3.BeginBlock)
-	require.Equal(t, uint64(901), dc3.EndBlock)
-	require.Equal(t, uint64(3), dc3.Nonce)
-	// set the third data commitment
-	err = qk.SetAttestationRequest(ctx, &dc3)
-	require.Nil(t, err)
-
-	// expand the data commitment window
-	genesis.Params.DataCommitmentWindow = 500
-	qk.SetParams(ctx, *genesis.Params)
-	require.Equal(t, uint64(500), qk.GetDataCommitmentWindowParam(ctx))
-
-	// get the fourth data commitment window
-	wantedHeight = nextMultiple(int64(500), wantedHeight)
-	// to simulate the condition in endBlocker: ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx))
-	ctx = ctx.WithBlockHeight(wantedHeight)
-	dc4, err := qk.GetCurrentDataCommitment(ctx)
-	require.Nil(t, err)
-	require.Equal(t, uint64(902), dc4.BeginBlock)
-	require.Equal(t, uint64(1401), dc4.EndBlock)
-	require.Equal(t, uint64(4), dc4.Nonce)
+			// set the attestation request to be referenced by the next test cases
+			err = qk.SetAttestationRequest(ctx, &dc)
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestDataCommitmentCreation(t *testing.T) {
