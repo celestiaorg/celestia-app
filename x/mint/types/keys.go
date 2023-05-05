@@ -1,7 +1,7 @@
 package types
 
-// MinterKey is the key to use for the keeper store.
-var MinterKey = []byte{0x00}
+// MintKey is the key to use for the keeper store.
+var MintKey = []byte{0x00}
 
 const (
 	// ModuleName is the name of the mint module.

@@ -14,7 +14,7 @@ import (
 func NewDecodeStore(cdc codec.Codec) func(kvA, kvB kv.Pair) string {
 	return func(kvA, kvB kv.Pair) string {
 		switch {
-		case bytes.Equal(kvA.Key, types.MinterKey):
+		case bytes.Equal(kvA.Key, types.MintKey):
 			var minterA, minterB types.Minter
 			cdc.MustUnmarshal(kvA.Value, &minterA)
 			cdc.MustUnmarshal(kvB.Value, &minterB)

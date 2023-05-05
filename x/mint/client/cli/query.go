@@ -10,31 +10,31 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 )
 
-// GetQueryCmd returns the cli query commands for the minting module.
+// GetQueryCmd returns the CLI query commands for the mint module.
 func GetQueryCmd() *cobra.Command {
-	mintingQueryCmd := &cobra.Command{
+	mintQueryCmd := &cobra.Command{
 		Use:                        types.ModuleName,
-		Short:                      "Querying commands for the minting module",
+		Short:                      "Querying commands for the mint module",
 		DisableFlagParsing:         true,
 		SuggestionsMinimumDistance: 2,
 		RunE:                       client.ValidateCmd,
 	}
 
-	mintingQueryCmd.AddCommand(
+	mintQueryCmd.AddCommand(
 		GetCmdQueryParams(),
 		GetCmdQueryInflationRate(),
 		GetCmdQueryAnnualProvisions(),
 	)
 
-	return mintingQueryCmd
+	return mintQueryCmd
 }
 
-// GetCmdQueryParams implements a command to return the current minting
+// GetCmdQueryParams implements a command to return the current mint
 // parameters.
 func GetCmdQueryParams() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "params",
-		Short: "Query the current minting parameters",
+		Short: "Query the current mint parameters",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
@@ -58,12 +58,12 @@ func GetCmdQueryParams() *cobra.Command {
 	return cmd
 }
 
-// GetCmdQueryInflationRate implements a command to return the current minting
-// inflation value.
+// GetCmdQueryInflationRate implements a command to return the current mint
+// inflation rate.
 func GetCmdQueryInflationRate() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "inflation",
-		Short: "Query the current minting inflation value",
+		Short: "Query the current inflation rate",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
@@ -87,12 +87,12 @@ func GetCmdQueryInflationRate() *cobra.Command {
 	return cmd
 }
 
-// GetCmdQueryAnnualProvisions implements a command to return the current minting
-// annual provisions value.
+// GetCmdQueryAnnualProvisions implements a command to return the current mint
+// annual provisions.
 func GetCmdQueryAnnualProvisions() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "annual-provisions",
-		Short: "Query the current minting annual provisions value",
+		Short: "Query the current annual provisions",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
