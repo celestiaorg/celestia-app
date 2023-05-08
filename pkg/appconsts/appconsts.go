@@ -98,10 +98,6 @@ const (
 	// The min gas price acts as a filter. Transactions below that limit will not pass
 	// a nodes `CheckTx` and thus not be proposed by that node.
 	DefaultMinGasPrice = 0.1
-
-	// MinimumDataCommitmentWindow is a constant that defines the minimum allowable window for the QGB data commitments.
-	// Any data commitment window set to a value lower than this constant will trigger an error.
-	MinimumDataCommitmentWindow = 100
 )
 
 var (
