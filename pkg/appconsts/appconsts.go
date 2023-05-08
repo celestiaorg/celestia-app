@@ -101,7 +101,6 @@ const (
 
 	// MinimumDataCommitmentWindow is a constant that defines the minimum allowable window for the QGB data commitments.
 	// Any data commitment window set to a value lower than this constant will trigger an error.
-	// The value of this constant can be configured in genesis, through governance proposals, or in upgrades.
 	MinimumDataCommitmentWindow = 100
 )
 
