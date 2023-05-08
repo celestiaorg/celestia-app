@@ -3,6 +3,8 @@ package types
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+
 	"cosmossdk.io/errors"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
@@ -51,8 +53,12 @@ func validateDataCommitmentWindow(i interface{}) error {
 	val, ok := i.(uint64)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
-	} else if val < 100 {
-		return fmt.Errorf("invalid average EVM block time, too short for latency limitations")
+	} else if val < appconsts.MinimumDataCommitmentWindow {
+		return fmt.Errorf(
+			"data commitment window %v must be >= minimum data commitment window %v",
+			val,
+			appconsts.MinimumDataCommitmentWindow,
+		)
 	}
 	return nil
 }
