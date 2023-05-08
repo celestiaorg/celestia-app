@@ -74,7 +74,6 @@ func TestProcessProposal(t *testing.T) {
 
 	// create an invalid block by adding an otherwise valid PFB, but an invalid
 	// signature since there's no account
-	badSigPFBData := validData()
 	badSigBlobTx := testutil.RandBlobTxsWithManualSequence(
 		t,
 		encConf.TxConfig.TxEncoder(),
@@ -86,7 +85,6 @@ func TestProcessProposal(t *testing.T) {
 		accounts[:1],
 		420, 42,
 	)[0]
-	badSigPFBData.Txs = append(badSigPFBData.Txs, badSigBlobTx)
 
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 	invalidNamespace, err := appns.New(appns.NamespaceVersionZero, bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
@@ -258,6 +256,21 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *core.Data) {
 				// swap txs at index 3 and 4 (essentially swapping a PFB with a normal tx)
 				d.Txs[4], d.Txs[3] = d.Txs[3], d.Txs[4]
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			// while this test passes and the block gets rejected, it is getting
+			// rejected because the data root is different. We need to refactor
+			// prepare proposal to abstract functionality into a different
+			// function or be able to skip the filtering checks. TODO: perform
+			// the mentioned refactor and make it easier to create invalid
+			// blocks for testing.
+			name:  "included pfb with bad signature",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				d.Txs = append(d.Txs, badSigBlobTx)
+				// todo: replace the data root with an updated hash
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},

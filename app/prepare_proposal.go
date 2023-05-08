@@ -51,7 +51,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// protobuf encoded version of the block data is gossiped.
 	return abci.ResponsePrepareProposal{
 		BlockData: &core.Data{
-			Txs: txs,
+			Txs:        txs,
 			SquareSize: dataSquare.Size(),
 			Hash:       dah.Hash(),
 		},

@@ -5,17 +5,12 @@ import (
 	"errors"
 	"fmt"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
-	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmbytes "github.com/tendermint/tendermint/libs/bytes"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -54,54 +49,6 @@ func getTxNamespace(tx []byte) (ns appns.Namespace) {
 		return appns.PayForBlobNamespace
 	}
 	return appns.TxNamespace
-}
-
-// BlobShareRange returns the start and end positions for the shares
-// where a given blob, referenced by its wrapped PFB transaction, was published at.
-// Note: only supports transactions containing a single blob.
-func BlobShareRange(tx types.Tx) (beginShare uint64, endShare uint64, err error) {
-	blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
-	if isBlobTx {
-		tx = blobTx.Tx
-	} else {
-		panic("not a blob tx")
-	}
-
-	indexWrappedTx, isIndexWrapped := types.UnmarshalIndexWrapper(tx)
-	if !isIndexWrapped {
-		return beginShare, endShare, fmt.Errorf("not an index wrapped pfb")
-	}
-
-	encCfg := encoding.MakeConfig(blobmodule.AppModuleBasic{})
-	decodedTx, err := encCfg.TxConfig.TxDecoder()(indexWrappedTx.Tx)
-	if err != nil {
-		return beginShare, endShare, err
-	}
-
-	if len(decodedTx.GetMsgs()) == 0 {
-		return beginShare, endShare, fmt.Errorf("PayForBlobs contains no messages")
-	}
-
-	if len(decodedTx.GetMsgs()) > 1 {
-		return beginShare, endShare, fmt.Errorf("PayForBlobs contains multiple messages and this is not currently supported")
-	}
-
-	if sdk.MsgTypeURL(decodedTx.GetMsgs()[0]) != blobtypes.URLMsgPayForBlobs {
-		return beginShare, endShare, fmt.Errorf("expected msg type %s, but got %s instead", blobtypes.URLMsgPayForBlobs, sdk.MsgTypeURL(decodedTx.GetMsgs()[0]))
-	}
-
-	pfb, ok := decodedTx.GetMsgs()[0].(*blobtypes.MsgPayForBlobs)
-	if !ok {
-		return beginShare, endShare, fmt.Errorf("unable to decode PayForBlob")
-	}
-
-	if err = pfb.ValidateBasic(); err != nil {
-		return beginShare, endShare, err
-	}
-
-	beginShare = uint64(indexWrappedTx.ShareIndexes[0])
-	sharesUsed := shares.SparseSharesNeeded(pfb.BlobSizes[0])
-	return beginShare, beginShare + uint64(sharesUsed) - 1, nil
 }
 
 // NewShareInclusionProof returns an NMT inclusion proof for a set of shares to the data root.

@@ -42,7 +42,7 @@ func FuzzSquareBuildAndConstruction(f *testing.F) {
 		require.NoError(t, err)
 		s2, err := square.Construct(newTxs, appconsts.DefaultMaxSquareSize)
 		require.NoError(t, err)
-		require.Equal(t, s, s2)
+		require.True(t, s.Equals(s2))
 
 		eds, err := da.ExtendShares(shares.ToBytes(s))
 		require.NoError(t, err)
@@ -236,7 +236,7 @@ func TestSquareBlobPostions(t *testing.T) {
 	}
 }
 
-func TestTxShareRange(t *testing.T) {
+func TestSquareTxShareRange(t *testing.T) {
 	type test struct {
 		name      string
 		txs       [][]byte
@@ -256,7 +256,7 @@ func TestTxShareRange(t *testing.T) {
 			txs:       [][]byte{txOne},
 			index:     0,
 			wantStart: 0,
-			wantEnd:   1,
+			wantEnd:   0,
 			expectErr: false,
 		},
 		{
@@ -264,7 +264,7 @@ func TestTxShareRange(t *testing.T) {
 			txs:       [][]byte{txTwo},
 			index:     0,
 			wantStart: 0,
-			wantEnd:   2,
+			wantEnd:   1,
 			expectErr: false,
 		},
 		{
@@ -272,15 +272,15 @@ func TestTxShareRange(t *testing.T) {
 			txs:       [][]byte{txThree},
 			index:     0,
 			wantStart: 0,
-			wantEnd:   3,
+			wantEnd:   2,
 			expectErr: false,
 		},
 		{
-			name:      "txThree occupies shares 0 to 2",
+			name:      "txThree occupies shares 1 to 3",
 			txs:       [][]byte{txOne, txTwo, txThree},
 			index:     2,
-			wantStart: 2,
-			wantEnd:   4,
+			wantStart: 1,
+			wantEnd:   3,
 			expectErr: false,
 		},
 		{
@@ -324,4 +324,41 @@ func generateBlobTxsWithNamespaces(t *testing.T, namespaces []ns.Namespace, blob
 		blobfactory.Repeat(blobfactory.AccountInfo{}, len(blobSizes)),
 		blobfactory.NestedBlobs(t, namespaces, blobSizes),
 	)
+}
+
+func TestSquareBlobShareRange(t *testing.T) {
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	txs := blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), 10, 1000, 10).ToSliceOfBytes()
+
+	builder, err := square.NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
+	require.NoError(t, err)
+
+	dataSquare, err := builder.Export()
+	require.NoError(t, err)
+
+	for pfbIdx, tx := range txs {
+		blobTx, isBlobTx := coretypes.UnmarshalBlobTx(tx)
+		require.True(t, isBlobTx)
+		for blobIdx := range blobTx.Blobs {
+			shareRange, err := square.BlobShareRange(txs, pfbIdx, blobIdx)
+			require.NoError(t, err)
+			blobShares := dataSquare[shareRange.Start : shareRange.End+1]
+			blobSharesBytes, err := rawData(blobShares)
+			require.NoError(t, err)
+			require.True(t, bytes.Contains(blobSharesBytes, blobTx.Blobs[blobIdx].Data))
+		}
+	}
+
+	// error on out of bounds cases
+	_, err = square.BlobShareRange(txs, -1, 0)
+	require.Error(t, err)
+
+	_, err = square.BlobShareRange(txs, 0, -1)
+	require.Error(t, err)
+
+	_, err = square.BlobShareRange(txs, 10, 0)
+	require.Error(t, err)
+
+	_, err = square.BlobShareRange(txs, 0, 10)
+	require.Error(t, err)
 }

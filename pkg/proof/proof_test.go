@@ -22,6 +22,9 @@ import (
 
 func TestNewTxInclusionProof(t *testing.T) {
 	blockTxs := testfactory.GenerateRandomTxs(50, 500).ToSliceOfBytes()
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	blockTxs = append(blockTxs, blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 50, 500).ToSliceOfBytes()...)
+	require.Len(t, blockTxs, 100)
 
 	type test struct {
 		name      string
@@ -43,15 +46,27 @@ func TestNewTxInclusionProof(t *testing.T) {
 			expectErr: false,
 		},
 		{
-			name:      "txIndex 49 of block data",
+			name:      "last regular transaction of block data",
 			txs:       blockTxs,
 			txIndex:   49,
 			expectErr: false,
 		},
 		{
-			name:      "txIndex 50 of block data returns error because only 50 txs",
+			name:      "first PFB of block data",
 			txs:       blockTxs,
 			txIndex:   50,
+			expectErr: false,
+		},
+		{
+			name:      "last PFB of block data",
+			txs:       blockTxs,
+			txIndex:   99,
+			expectErr: false,
+		},
+		{
+			name:      "txIndex 100 of block data returns error because only 50 txs",
+			txs:       blockTxs,
+			txIndex:   100,
 			expectErr: true,
 		},
 	}

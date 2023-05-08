@@ -13,7 +13,9 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -134,4 +136,53 @@ func TestBuilderInvalidConstructor(t *testing.T) {
 
 func newTx(len int) []byte {
 	return bytes.Repeat([]byte{0}, shares.RawTxSize(len))
+}
+
+func TestBuilderFindTxShareRange(t *testing.T) {
+	blockTxs := testfactory.GenerateRandomTxs(5, 900).ToSliceOfBytes()
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	blockTxs = append(blockTxs, blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), 5, 1000, 10).ToSliceOfBytes()...)
+	require.Len(t, blockTxs, 10)
+
+	builder, err := square.NewBuilder(appconsts.DefaultMaxSquareSize, blockTxs...)
+	require.NoError(t, err)
+
+	dataSquare, err := builder.Export()
+	require.NoError(t, err)
+	size := dataSquare.Size() * dataSquare.Size()
+
+	var lastEnd int
+	for idx, tx := range blockTxs {
+		blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
+		if isBlobTx {
+			tx = blobTx.Tx
+		}
+		shareRange, err := builder.FindTxShareRange(idx)
+		require.NoError(t, err)
+		if idx == 5 {
+			// normal txs and PFBs use a different namespace so there
+			// can't be any overlap in the index
+			require.Greater(t, shareRange.Start, lastEnd)
+		} else {
+			require.GreaterOrEqual(t, shareRange.Start, lastEnd)
+		}
+		require.Less(t, uint64(shareRange.End), size)
+		txShares := dataSquare[shareRange.Start : shareRange.End+1]
+		parsedShares, err := rawData(txShares)
+		require.NoError(t, err)
+		require.True(t, bytes.Contains(parsedShares, tx))
+		lastEnd = shareRange.End
+	}
+}
+
+func rawData(shares []shares.Share) ([]byte, error) {
+	var data []byte
+	for _, share := range shares {
+		rawData, err := share.RawData()
+		if err != nil {
+			return nil, err
+		}
+		data = append(data, rawData...)
+	}
+	return data, nil
 }

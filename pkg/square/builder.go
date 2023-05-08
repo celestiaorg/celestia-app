@@ -238,7 +238,8 @@ func (b *Builder) FindBlobStartingIndex(pfbIndex, blobIndex int) (uint64, error)
 
 // BlobShareLength returns the amount of shares a blob takes up in the square. It takes
 // the index of the pfb in the tx set and the index of the blob within the PFB.
-// Note, if you already have the blob i
+// TODO: we could look in to creating a map to avoid O(n) lookup when we expect large
+// numbers of blobs
 func (b *Builder) BlobShareLength(pfbIndex, blobIndex int) (int, error) {
 	for _, blob := range b.blobs {
 		if blob.pfbIndex == pfbIndex && blob.blobIndex == blobIndex {
@@ -249,8 +250,11 @@ func (b *Builder) BlobShareLength(pfbIndex, blobIndex int) (int, error) {
 }
 
 // FindTxStartingIndex returns the first and last share index that the transaction
-// occupies within the square.
+// occupies within the square. The indexes are both inclusive.
 func (b *Builder) FindTxShareRange(txIndex int) (shares.ShareRange, error) {
+	// the square must be built before we can find the share range as we need to compute
+	// the wrapped indexes for the PFBs. NOTE: If a tx isn't a PFB, we could theoretically
+	// calculate the index without having to build the entire square.
 	if !b.done {
 		_, err := b.Export()
 		if err != nil {
@@ -265,41 +269,37 @@ func (b *Builder) FindTxShareRange(txIndex int) (shares.ShareRange, error) {
 		return shares.ShareRange{}, fmt.Errorf("txIndex %d out of range", txIndex)
 	}
 
-	txWriter := shares.NewCompactShareSplitter(namespace.TxNamespace, appconsts.ShareVersionZero)
-	pfbWriter := shares.NewCompactShareSplitter(namespace.PayForBlobNamespace, appconsts.ShareVersionZero)
+	txWriter := shares.NewCompactShareCounter()
+	pfbWriter := shares.NewCompactShareCounter()
 	for i := 0; i < txIndex; i++ {
 		if i < len(b.txs) {
-			if err := txWriter.WriteTx(b.txs[i]); err != nil {
-				return shares.ShareRange{}, fmt.Errorf("writing tx into compact shares: %w", err)
-			}
+			_ = txWriter.Add(len(b.txs[i]))
 		} else {
-			iwBytes, err := b.pfbs[i-len(b.txs)].Marshal()
-			if err != nil {
-				return shares.ShareRange{}, fmt.Errorf("marshaling pay for blob tx: %w", err)
-			}
-
-			if err := pfbWriter.WriteTx(iwBytes); err != nil {
-				return shares.ShareRange{}, fmt.Errorf("writing tx into compact shares: %w", err)
-			}
+			_ = pfbWriter.Add(b.pfbs[i-len(b.txs)].Size())
 		}
 	}
-	start := uint64(txWriter.Count() + pfbWriter.Count())
+
+	start := txWriter.Size() + pfbWriter.Size() - 1
+
+	// the chosen tx is a regular tx
 	if txIndex < len(b.txs) {
-		if err := txWriter.WriteTx(b.txs[txIndex]); err != nil {
-			return shares.ShareRange{}, fmt.Errorf("writing tx into compact shares: %w", err)
+		// If the remainder is 0, it means the tx will begin with the next share
+		// so we need to increment the start index.
+		if txWriter.Remainder() == 0 {
+			start++
 		}
-	} else {
-		iwBytes, err := b.pfbs[txIndex-len(b.txs)].Marshal()
-		if err != nil {
-			return shares.ShareRange{}, fmt.Errorf("marshaling pay for blob tx: %w", err)
+		_ = txWriter.Add(len(b.txs[txIndex]))
+	} else { // the chosen tx is a PFB
+		// If the remainder is 0, it means the tx will begin with the next share
+		// so we need to increment the start index.
+		if pfbWriter.Remainder() == 0 {
+			start++
 		}
-
-		if err := pfbWriter.WriteTx(iwBytes); err != nil {
-			return shares.ShareRange{}, fmt.Errorf("writing tx into compact shares: %w", err)
-		}
+		_ = pfbWriter.Add(b.pfbs[txIndex-len(b.txs)].Size())
 	}
-	end := uint64(txWriter.Count() + pfbWriter.Count())
-	return shares.ShareRange{Start: int(start), End: int(end)}, nil
+	end := txWriter.Size() + pfbWriter.Size() - 1
+
+	return shares.ShareRange{Start: start, End: end}, nil
 }
 
 func (b *Builder) canFit(shareNum int) bool {
