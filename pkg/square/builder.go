@@ -229,11 +229,11 @@ func (b *Builder) FindBlobStartingIndex(pfbIndex, blobIndex int) (uint64, error)
 		return 0, fmt.Errorf("blobIndex %d must not be negative", blobIndex)
 	}
 
-	if blobIndex >= len(b.pfbs[pfbIndex].ShareIndexes) {
+	if blobIndex >= len(b.pfbs[index].ShareIndexes) {
 		return 0, fmt.Errorf("blobIndex %d out of range", blobIndex)
 	}
 
-	return uint64(b.pfbs[pfbIndex].ShareIndexes[blobIndex]), nil
+	return uint64(b.pfbs[index].ShareIndexes[blobIndex]), nil
 }
 
 // BlobShareLength returns the amount of shares a blob takes up in the square. It takes
@@ -241,6 +241,16 @@ func (b *Builder) FindBlobStartingIndex(pfbIndex, blobIndex int) (uint64, error)
 // TODO: we could look in to creating a map to avoid O(n) lookup when we expect large
 // numbers of blobs
 func (b *Builder) BlobShareLength(pfbIndex, blobIndex int) (int, error) {
+	if pfbIndex < len(b.txs) {
+		return 0, fmt.Errorf("pfbIndex %d does not match a pfb", pfbIndex)
+	}
+	pfbIndex -= len(b.txs)
+	if pfbIndex >= len(b.pfbs) {
+		return 0, fmt.Errorf("pfbIndex %d out of range", pfbIndex)
+	}
+	if blobIndex < 0 {
+		return 0, fmt.Errorf("blobIndex %d must not be negative", blobIndex)
+	}
 	for _, blob := range b.blobs {
 		if blob.pfbIndex == pfbIndex && blob.blobIndex == blobIndex {
 			return blob.numShares, nil
