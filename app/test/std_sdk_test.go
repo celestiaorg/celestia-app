@@ -18,6 +18,7 @@ import (
 	disttypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
+	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
@@ -217,6 +218,46 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 					sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1))),
 				)
 				return []sdk.Msg{msgSend1, msgSend2}, account1
+			},
+			expectedCode: abci.CodeTypeOK,
+		},
+		{
+			name: "create param change proposal for a blocked parameter",
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
+				account := s.unusedAccount()
+				change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom), "stake")
+				content := proposal.NewParameterChangeProposal("title", "description", []proposal.ParamChange{change})
+				addr := getAddress(account, s.cctx.Keyring)
+				msg, err := oldgov.NewMsgSubmitProposal(
+					content,
+					sdk.NewCoins(
+						sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
+					addr,
+				)
+				require.NoError(t, err)
+				return []sdk.Msg{msg}, account
+			},
+			// this parameter is protected by the paramfilter module, and we
+			// should expect an error. Due to how errors are bubbled up, we get
+			// this code despite wrapping the expected error,
+			// paramfilter.ErrBlockedParameter
+			expectedCode: govtypes.ErrNoProposalHandlerExists.ABCICode(),
+		},
+		{
+			name: "create param proposal change for a modifiable parameter",
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
+				account := s.unusedAccount()
+				change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "1")
+				content := proposal.NewParameterChangeProposal("title", "description", []proposal.ParamChange{change})
+				addr := getAddress(account, s.cctx.Keyring)
+				msg, err := oldgov.NewMsgSubmitProposal(
+					content,
+					sdk.NewCoins(
+						sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
+					addr,
+				)
+				require.NoError(t, err)
+				return []sdk.Msg{msg}, account
 			},
 			expectedCode: abci.CodeTypeOK,
 		},

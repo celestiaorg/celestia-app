@@ -111,13 +111,98 @@ func TestSetDataCommitment(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	qk := input.QgbKeeper
 
-	input.Context = ctx.WithBlockHeight(int64(qk.GetDataCommitmentWindowParam(ctx)))
-	vs, err := qk.GetCurrentDataCommitment(ctx)
-	require.Nil(t, err)
-	err = qk.SetAttestationRequest(ctx, &vs)
-	require.Nil(t, err)
+	ctx = ctx.WithBlockHeight(int64(qk.GetDataCommitmentWindowParam(ctx)))
+	dc, err := qk.GetCurrentDataCommitment(ctx)
+	require.NoError(t, err)
+	err = qk.SetAttestationRequest(ctx, &dc)
+	require.NoError(t, err)
 
-	require.Equal(t, uint64(1), qk.GetLatestAttestationNonce(ctx))
+	require.Equal(t, uint64(1), qk.GetLatestAttestationNonce(input.Context))
+}
+
+// TestGetDataCommitment This test will test the create of data commitment ranges
+// in the event of the data commitment window changing via an upgrade or a gov proposal.
+// The test goes as follows:
+//   - Start with a data commitment window of 400
+//   - Get the first data commitment, its range should be: [1, 400]
+//   - Get the second data commitment, its range should be: [401, 800]
+//   - Shrink the data commitment window to 101
+//   - Get the third data commitment, its range should be: [801, 901]
+//   - Expand the data commitment window to 500
+//   - Get the fourth data commitment, its range should be: [902, 1401]
+func TestGetDataCommitment(t *testing.T) {
+	input, ctx := testutil.SetupFiveValChain(t)
+	qk := input.QgbKeeper
+
+	tests := []struct {
+		name   string
+		window uint64
+		// to simulate the height condition in endBlocker: ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx))
+		height     int64
+		expectedDC types.DataCommitment
+	}{
+		{
+			name:   "first data commitment for a window of 400",
+			window: 400,
+			height: 400,
+			expectedDC: types.DataCommitment{
+				Nonce:      1,
+				BeginBlock: 1,
+				EndBlock:   400,
+			},
+		},
+		{
+			name:   "second data commitment for a window of 400",
+			window: 400,
+			height: 800,
+			expectedDC: types.DataCommitment{
+				Nonce:      2,
+				BeginBlock: 401,
+				EndBlock:   800,
+			},
+		},
+		{
+			name:   "third data commitment after changing the window to 101",
+			window: 101,
+			height: 901,
+			expectedDC: types.DataCommitment{
+				Nonce:      3,
+				BeginBlock: 801,
+				EndBlock:   901,
+			},
+		},
+		{
+			name:   "fourth data commitment after changing the window to 500",
+			window: 500,
+			height: 1401,
+			expectedDC: types.DataCommitment{
+				Nonce:      4,
+				BeginBlock: 902,
+				EndBlock:   1401,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// set the data commitment window
+			qk.SetParams(ctx, types.Params{DataCommitmentWindow: tt.window})
+			require.Equal(t, tt.window, qk.GetDataCommitmentWindowParam(ctx))
+
+			// change the block height
+			ctx = ctx.WithBlockHeight(tt.height)
+
+			// get the data commitment
+			dc, err := qk.GetCurrentDataCommitment(ctx)
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedDC.BeginBlock, dc.BeginBlock)
+			require.Equal(t, tt.expectedDC.EndBlock, dc.EndBlock)
+			require.Equal(t, tt.expectedDC.Nonce, dc.Nonce)
+
+			// set the attestation request to be referenced by the next test cases
+			err = qk.SetAttestationRequest(ctx, &dc)
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestDataCommitmentCreation(t *testing.T) {

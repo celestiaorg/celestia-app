@@ -89,6 +89,7 @@ import (
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
 	blobmodulekeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
 	blobmoduletypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/celestia-app/x/paramfilter"
 	"github.com/celestiaorg/celestia-app/x/tokenfilter"
 	appupgrade "github.com/celestiaorg/celestia-app/x/upgrade"
 
@@ -348,9 +349,11 @@ func New(
 		appCodec, keys[ibchost.StoreKey], app.GetSubspace(ibchost.ModuleName), app.StakingKeeper, app.UpgradeKeeper, scopedIBCKeeper,
 	)
 
+	paramBlockList := paramfilter.NewParamBlockList(app.BlockedParams()...)
+
 	// register the proposal types
 	govRouter := oldgovtypes.NewRouter()
-	govRouter.AddRoute(paramproposal.RouterKey, params.NewParamChangeProposalHandler(app.ParamsKeeper)).
+	govRouter.AddRoute(paramproposal.RouterKey, paramBlockList.GovHandler(app.ParamsKeeper)).
 		AddRoute(distrtypes.RouterKey, distr.NewCommunityPoolSpendProposalHandler(app.DistrKeeper)).
 		AddRoute(ibcclienttypes.RouterKey, ibcclient.NewClientProposalHandler(app.IBCKeeper.ClientKeeper))
 
@@ -696,6 +699,21 @@ func (app *App) setPostHanders() {
 	}
 
 	app.SetPostHandler(postHandler)
+}
+
+// BlockedParams are params that require a hardfork to change, and cannot be changed via
+// governance.
+func (*App) BlockedParams() [][2]string {
+	return [][2]string{
+		// bank.SendEnabled
+		{banktypes.ModuleName, string(banktypes.KeySendEnabled)},
+		// staking.UnbondingTime
+		{stakingtypes.ModuleName, string(stakingtypes.KeyUnbondingTime)},
+		// staking.BondDenom
+		{stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom)},
+		// consensus.validator.PubKeyTypes
+		{baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams)},
+	}
 }
 
 // GetMaccPerms returns a copy of the module account permissions

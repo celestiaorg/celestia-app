@@ -2,8 +2,8 @@ package shares
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
-	"math/rand"
 	"reflect"
 	"testing"
 
@@ -35,11 +35,11 @@ func TestParseShares(t *testing.T) {
 	blobTwoContinuation := blobTwoShares[1]
 
 	// invalidShare is longer than the length of a valid share
-	invalidShare := Share{data: append(generateRawShare(ns1, true, 1), []byte{0}...)}
+	invalidShare := Share{data: append(generateRawShare(t, ns1, true, 1), []byte{0}...)}
 
 	// tooLargeSequenceLen is a single share with too large of a sequence len
 	// because it takes more than one share to store a sequence of 1000 bytes
-	tooLargeSequenceLen := generateRawShare(ns1, true, uint32(1000))
+	tooLargeSequenceLen := generateRawShare(t, ns1, true, uint32(1000))
 
 	ns1Padding, err := NamespacePaddingShare(ns1)
 	require.NoError(t, err)
@@ -210,7 +210,7 @@ func TestParseShares(t *testing.T) {
 	}
 }
 
-func generateRawShare(namespace appns.Namespace, isSequenceStart bool, sequenceLen uint32) (rawShare []byte) {
+func generateRawShare(t *testing.T, namespace appns.Namespace, isSequenceStart bool, sequenceLen uint32) (rawShare []byte) {
 	infoByte, _ := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
 
 	sequenceLenBuf := make([]byte, appconsts.SequenceLenBytes)
@@ -220,13 +220,14 @@ func generateRawShare(namespace appns.Namespace, isSequenceStart bool, sequenceL
 	rawShare = append(rawShare, byte(infoByte))
 	rawShare = append(rawShare, sequenceLenBuf...)
 
-	return padWithRandomBytes(rawShare)
+	return padWithRandomBytes(t, rawShare)
 }
 
-func padWithRandomBytes(partialShare []byte) (paddedShare []byte) {
+func padWithRandomBytes(t *testing.T, partialShare []byte) (paddedShare []byte) {
 	paddedShare = make([]byte, appconsts.ShareSize)
 	copy(paddedShare, partialShare)
-	rand.Read(paddedShare[len(partialShare):])
+	_, err := rand.Read(paddedShare[len(partialShare):])
+	require.NoError(t, err)
 	return paddedShare
 }
 
