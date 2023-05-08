@@ -54,11 +54,11 @@ func validateDataCommitmentWindow(i interface{}) error {
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
 	} else if val < appconsts.MinimumDataCommitmentWindow {
-		return fmt.Errorf(
+		return errors.Wrap(ErrInvalidDataCommitmentWindow, fmt.Sprintf(
 			"data commitment window %v must be >= minimum data commitment window %v",
 			val,
 			appconsts.MinimumDataCommitmentWindow,
-		)
+		))
 	}
 	return nil
 }
