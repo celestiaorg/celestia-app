@@ -3,7 +3,6 @@ package app_test
 import (
 	"bytes"
 	"fmt"
-	"sort"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/x/blob/types"
@@ -69,11 +68,6 @@ func TestProcessProposal(t *testing.T) {
 			Txs: blobTxs[:3],
 		}
 	}
-
-	// create block data with a tx that is random data, and therefore cannot be
-	// decoded into an sdk.Tx
-	undecodableData := validData()
-	undecodableData.Txs = append(undecodableData.Txs, tmrand.Bytes(300))
 
 	mixedData := validData()
 	mixedData.Txs = append(mixedData.Txs, coretypes.Txs(sendTxs).ToSliceOfBytes()...)
@@ -251,24 +245,10 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			// This is okay. We currently accept undecodable txs
 			name:  "undecodable tx",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d = undecodableData
-			},
-			expectedResult: abci.ResponseProcessProposal_ACCEPT,
-		},
-		{
-			name:  "used the blobs field",
-			input: validData(),
-			mutator: func(d *core.Data) {
-				d.Blobs = []core.Blob{{
-					NamespaceId:      invalidNamespace.ID,
-					Data:             data,
-					ShareVersion:     uint32(appconsts.ShareVersionZero),
-					NamespaceVersion: uint32(invalidNamespace.Version),
-				}}
+				d.Txs = append(d.Txs, tmrand.Bytes(300))
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -282,35 +262,12 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			// while this test passes and the block gets rejected, it is getting
-			// rejected because the data root is different. We need to refactor
-			// prepare proposal to abstract functionality into a different
-			// function or be able to skip the filtering checks. TODO: perform
-			// the mentioned refactor and make it easier to create invalid
-			// blocks for testing.
-			name:  "included pfb with bad signature",
-			input: validData(),
-			mutator: func(d *core.Data) {
-				btx, _ := coretypes.UnmarshalBlobTx(badSigBlobTx)
-				d.Txs = append(d.Txs, btx.Tx)
-				d.Blobs = append(d.Blobs, deref(btx.Blobs)...)
-				sort.SliceStable(d.Blobs, func(i, j int) bool {
-					return bytes.Compare(d.Blobs[i].NamespaceId, d.Blobs[j].NamespaceId) < 0
-				})
-				// todo: replace the data root with an updated hash
-			},
-			expectedResult: abci.ResponseProcessProposal_REJECT,
-		},
-		{
 			name: "tampered sequence start",
 			input: &tmproto.Data{
 				Txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
 			},
-			mutator: func(d *tmproto.Data) {
-				bd, err := coretypes.DataFromProto(d)
-				require.NoError(t, err)
-
-				dataSquare, err := shares.Split(bd, true)
+			mutator: func(d *core.Data) {
+				dataSquare, err := square.Construct(d.Txs, appconsts.DefaultMaxSquareSize)
 				require.NoError(t, err)
 
 				b := shares.NewEmptyBuilder().ImportRawShare(dataSquare[1].ToBytes())
@@ -336,7 +293,6 @@ func TestProcessProposal(t *testing.T) {
 			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
 				BlockData: tt.input,
 			})
-			require.Len(t, resp.BlockData.Blobs, 0)
 			tt.mutator(resp.BlockData)
 			res := testApp.ProcessProposal(abci.RequestProcessProposal{
 				BlockData: resp.BlockData,
@@ -347,12 +303,4 @@ func TestProcessProposal(t *testing.T) {
 			assert.Equal(t, tt.expectedResult, res.Result, fmt.Sprintf("expected %v, got %v", tt.expectedResult, res.Result))
 		})
 	}
-}
-
-func deref[T any](s []*T) []T {
-	t := make([]T, len(s))
-	for i, ss := range s {
-		t[i] = *ss
-	}
-	return t
 }

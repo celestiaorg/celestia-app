@@ -20,7 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/proof"
+	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/test/util/network"
 	"github.com/celestiaorg/celestia-app/x/blob"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
@@ -345,16 +345,19 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		blockRes, err := node.Block(context.Background(), &txResp.Height)
 		require.NoError(err)
 
+		_, isBlobTx := coretypes.UnmarshalBlobTx(blockRes.Block.Txs[txResp.Index])
+		require.True(isBlobTx)
+
 		// get the blob shares
-		beginBlobShare, endBlobShare, err := proof.BlobShareRange(blockRes.Block.Txs[txResp.Index])
+		shareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(txResp.Index), 0)
 		require.NoError(err)
 
 		// verify the blob shares proof
 		blobProof, err := node.ProveShares(
 			context.Background(),
 			uint64(txResp.Height),
-			beginBlobShare,
-			endBlobShare,
+			uint64(shareRange.Start),
+			uint64(shareRange.End),
 		)
 		require.NoError(err)
 		require.NoError(blobProof.Validate(blockRes.Block.DataHash))

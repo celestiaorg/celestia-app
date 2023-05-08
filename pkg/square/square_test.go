@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -231,6 +232,77 @@ func TestSquareBlobPostions(t *testing.T) {
 				require.True(t, isWrappedPFB)
 				require.Equal(t, tt.expectedIndexes[j], wrappedPFB.ShareIndexes, j)
 			}
+		})
+	}
+}
+
+func TestTxShareRange(t *testing.T) {
+	type test struct {
+		name      string
+		txs       [][]byte
+		index     int
+		wantStart int
+		wantEnd   int
+		expectErr bool
+	}
+
+	txOne := types.Tx{0x1}
+	txTwo := types.Tx(bytes.Repeat([]byte{2}, 600))
+	txThree := types.Tx(bytes.Repeat([]byte{3}, 1000))
+
+	testCases := []test{
+		{
+			name:      "txOne occupies shares 0 to 0",
+			txs:       [][]byte{txOne},
+			index:     0,
+			wantStart: 0,
+			wantEnd:   1,
+			expectErr: false,
+		},
+		{
+			name:      "txTwo occupies shares 0 to 1",
+			txs:       [][]byte{txTwo},
+			index:     0,
+			wantStart: 0,
+			wantEnd:   2,
+			expectErr: false,
+		},
+		{
+			name:      "txThree occupies shares 0 to 2",
+			txs:       [][]byte{txThree},
+			index:     0,
+			wantStart: 0,
+			wantEnd:   3,
+			expectErr: false,
+		},
+		{
+			name:      "txThree occupies shares 0 to 2",
+			txs:       [][]byte{txOne, txTwo, txThree},
+			index:     2,
+			wantStart: 2,
+			wantEnd:   4,
+			expectErr: false,
+		},
+		{
+			name:      "invalid index",
+			txs:       [][]byte{txOne, txTwo, txThree},
+			index:     3,
+			wantStart: 0,
+			wantEnd:   0,
+			expectErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			shareRange, err := square.TxShareRange(tc.txs, tc.index)
+			if tc.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.wantStart, shareRange.Start)
+			require.Equal(t, tc.wantEnd, shareRange.End)
 		})
 	}
 }

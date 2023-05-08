@@ -47,7 +47,7 @@ func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) 
 	}
 
 	// create and marshal the tx inclusion proof, which we return in the form of []byte
-	shareProof, err := NewTxInclusionProof(data, uint64(index))
+	shareProof, err := NewTxInclusionProof(data.Txs.ToSliceOfBytes(), uint64(index))
 	if err != nil {
 		return nil, err
 	}

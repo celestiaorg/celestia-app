@@ -11,6 +11,7 @@ import (
 	"github.com/tendermint/tendermint/crypto/merkle"
 
 	"github.com/celestiaorg/celestia-app/pkg/proof"
+	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -79,12 +80,12 @@ func txCmd() *cobra.Command {
 				return err
 			}
 
-			beginTxShare, endTxShare, err := proof.TxShareRange(blockRes.Block.Data, uint64(tx.Index))
+			shareRange, err := square.TxShareRange(blockRes.Block.Data.Txs.ToSliceOfBytes(), int(tx.Index))
 			if err != nil {
 				return err
 			}
 
-			_, err = VerifyShares(cmd.Context(), logger, config, uint64(tx.Height), beginTxShare, endTxShare)
+			_, err = VerifyShares(cmd.Context(), logger, config, uint64(tx.Height), uint64(shareRange.Start), uint64(shareRange.End))
 			return err
 		},
 	}

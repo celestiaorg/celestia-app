@@ -26,12 +26,6 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	//  - the commitment in each PFB should match the commitment for the shares that contain that blob data
 	//  - there should be no unpaid-for data
 
-	// NOTE: temporary check while the blobs field still exists. This will be removed in the future
-	if len(req.BlockData.Blobs) > 0 {
-		logInvalidPropBlock(app.Logger(), req.Header, "proposer has populated a no longer valid field")
-		return reject()
-	}
-
 	// create the anteHanders that are used to check the validity of
 	// transactions. We verify the signatures of PFB containing txs using the
 	// sigVerifyAnterHandler, and simply increase the nonce of all other
@@ -142,19 +136,6 @@ func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {
 		}
 	}
 	return nil, false
-}
-
-func arePFBsOrderedAfterTxs(txs [][]byte) bool {
-	seenFirstPFB := false
-	for _, tx := range txs {
-		_, isWrapped := coretypes.UnmarshalIndexWrapper(tx)
-		if isWrapped {
-			seenFirstPFB = true
-		} else if seenFirstPFB {
-			return false
-		}
-	}
-	return true
 }
 
 func logInvalidPropBlock(l log.Logger, h tmproto.Header, reason string) {

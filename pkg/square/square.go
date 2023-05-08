@@ -45,28 +45,43 @@ func Build(txs [][]byte, maxSquareSize int) (Square, [][]byte, error) {
 // Note that this function does not check the underlying validity of
 // the transactions.
 func Construct(txs [][]byte, maxSquareSize int) (Square, error) {
-	builder, err := NewBuilder(maxSquareSize)
+	builder, err := NewBuilder(maxSquareSize, txs...)
 	if err != nil {
 		return nil, err
 	}
-	seenFirstBlobTx := false
-	for idx, tx := range txs {
-		blobTx, isBlobTx := core.UnmarshalBlobTx(tx)
-		if isBlobTx {
-			seenFirstBlobTx = true
-			if !builder.AppendBlobTx(blobTx) {
-				return nil, fmt.Errorf("not enough space to append blob tx at index %d", idx)
-			}
-		} else {
-			if seenFirstBlobTx {
-				return nil, fmt.Errorf("normal tx at index %d can not be Appended after blob tx", idx)
-			}
-			if !builder.AppendTx(tx) {
-				return nil, fmt.Errorf("not enough space to append tx at index %d", idx)
-			}
-		}
-	}
 	return builder.Export()
+}
+
+// TxShareRange returns the range of share indexes that the tx, specified by txIndex, occupies.
+// Both ends of the range are inclusive.
+func TxShareRange(txs [][]byte, txIndex int) (shares.ShareRange, error) {
+	builder, err := NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
+	if err != nil {
+		return shares.ShareRange{}, err
+	}
+
+	return builder.FindTxShareRange(txIndex)
+}
+
+// BlobShareRange returns the range of share indexes that the blob, identified by txIndex and blobIndex, occupies.
+// Both ends of the range are inclusive.
+func BlobShareRange(txs [][]byte, txIndex, blobIndex int) (shares.ShareRange, error) {
+	builder, err := NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
+	if err != nil {
+		return shares.ShareRange{}, err
+	}
+
+	start, err := builder.FindBlobStartingIndex(txIndex, blobIndex)
+	if err != nil {
+		return shares.ShareRange{}, err
+	}
+
+	blobLen, err := builder.BlobShareLength(txIndex, blobIndex)
+	if err != nil {
+		return shares.ShareRange{}, err
+	}
+
+	return shares.ShareRange{Start: int(start), End: int(start) + blobLen - 1}, nil
 }
 
 // Square is a 2D square of shares with symmetrical sides that are always a power of 2.
@@ -99,7 +114,7 @@ func EmptySquare() Square {
 	return shares.TailPaddingShares(appconsts.MinShareCount)
 }
 
-func WriteSquare(
+func writeSquare(
 	txWriter, pfbWriter *shares.CompactShareSplitter,
 	blobWriter *shares.SparseShareSplitter,
 	nonReservedStart, squareSize int,
