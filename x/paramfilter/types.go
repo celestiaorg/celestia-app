@@ -12,4 +12,4 @@ const (
 
 // ErrBlockedParameter is the error wrapped when a proposal to change a
 // blocked parameter is submitted.
-var ErrBlockedParameter = sdkerrors.Register(ModuleName, baseErrorCode, "blocked parameter change, hard fork required")
+var ErrBlockedParameter = sdkerrors.Register(ModuleName, baseErrorCode, "parameter can not be modified")
