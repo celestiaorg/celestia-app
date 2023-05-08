@@ -44,8 +44,8 @@ func NewTxInclusionProof(txs [][]byte, txIndex uint64) (types.ShareProof, error)
 }
 
 func getTxNamespace(tx []byte) (ns appns.Namespace) {
-	_, isIndexWrapper := types.UnmarshalIndexWrapper(tx)
-	if isIndexWrapper {
+	_, isBlobTx := types.UnmarshalBlobTx(tx)
+	if isBlobTx {
 		return appns.PayForBlobNamespace
 	}
 	return appns.TxNamespace
