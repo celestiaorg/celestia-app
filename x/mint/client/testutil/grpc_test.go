@@ -15,7 +15,6 @@ import (
 func (s *IntegrationTestSuite) TestQueryGRPC() {
 	val := s.network.Validators[0]
 	baseURL := val.APIAddress
-	// genesisTime := time.Unix(0, 0).UTC()
 	testCases := []struct {
 		name     string
 		url      string
@@ -50,15 +49,6 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 				AnnualProvisions: sdk.NewDec(7500000),
 			},
 		},
-		// {
-		// 	"gRPC request genesis time",
-		// 	fmt.Sprintf("%s/cosmos/mint/v1beta1/genesis_time", baseURL),
-		// 	map[string]string{},
-		// 	&minttypes.QueryGenesisTimeRequest{},
-		// 	&minttypes.QueryGenesisTimeResponse{
-		// 		GenesisTime: &genesisTime,
-		// 	},
-		// },
 	}
 	for _, tc := range testCases {
 		resp, err := testutil.GetRequestWithHeaders(tc.url, tc.headers)

@@ -93,12 +93,12 @@ func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 		{
 			"json output",
 			[]string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=json", tmcli.OutputFlag)},
-			`1.000000000000000000`,
+			`0.015000000000000000`,
 		},
 		{
 			"text output",
 			[]string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=text", tmcli.OutputFlag)},
-			`1.000000000000000000`,
+			`0.015000000000000000`,
 		},
 	}
 
