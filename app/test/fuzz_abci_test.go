@@ -30,7 +30,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 		accounts[i] = tmrand.Str(20)
 	}
 
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accounts...)
+	testApp, kr := util.SetupTestAppWithGenesisValSet(accounts...)
 
 	type test struct {
 		name                   string
@@ -50,7 +50,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 				case <-timer:
 					return
 				default:
-					txs := testutil.RandBlobTxsWithAccounts(
+					txs := util.RandBlobTxsWithAccounts(
 						t,
 						testApp,
 						encConf.TxConfig.TxEncoder(),
@@ -62,7 +62,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						accounts[:tt.count],
 					)
 					// create 100 send transactions
-					sendTxs := testutil.SendTxsWithAccounts(
+					sendTxs := util.SendTxsWithAccounts(
 						t,
 						testApp,
 						encConf.TxConfig.TxEncoder(),
