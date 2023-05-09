@@ -79,7 +79,7 @@ func (suite *MintKeeperTestSuite) TestQueryParams(t *testing.T) {
 	require.Equal(t, app.MintKeeper.GetParams(ctx), params)
 }
 
-func (suite *MintKeeperTestSuite) TestQueryInflation(t *testing.T) {
+func (suite *MintKeeperTestSuite) TestQueryInflationRate(t *testing.T) {
 	app, ctx, legacyQuerierCdc := suite.app, suite.ctx, suite.legacyQuerierCdc
 	querier := keep.NewQuerier(app.MintKeeper, legacyQuerierCdc.LegacyAmino)
 

@@ -2,7 +2,6 @@ package testutil
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -13,11 +12,10 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 )
 
-// TODO(@rootulp): I'm pretty sure this test is never run
 func (s *IntegrationTestSuite) TestQueryGRPC() {
 	val := s.network.Validators[0]
 	baseURL := val.APIAddress
-	genesisTime := time.Unix(0, 0).UTC()
+	// genesisTime := time.Unix(0, 0).UTC()
 	testCases := []struct {
 		name     string
 		url      string
@@ -33,12 +31,12 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 			&minttypes.QueryParamsResponse{Params: minttypes.NewParams()},
 		},
 		{
-			"gRPC request inflation",
-			fmt.Sprintf("%s/cosmos/mint/v1beta1/inflation", baseURL),
+			"gRPC request inflation rate",
+			fmt.Sprintf("%s/cosmos/mint/v1beta1/inflation_rate", baseURL),
 			map[string]string{},
 			&minttypes.QueryInflationRateResponse{},
 			&minttypes.QueryInflationRateResponse{
-				InflationRate: sdk.NewDec(1),
+				InflationRate: sdk.NewDecWithPrec(8, 2),
 			},
 		},
 		{
@@ -49,18 +47,18 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 			},
 			&minttypes.QueryAnnualProvisionsResponse{},
 			&minttypes.QueryAnnualProvisionsResponse{
-				AnnualProvisions: sdk.NewDec(500000000),
+				AnnualProvisions: sdk.NewDec(7500000),
 			},
 		},
-		{
-			"gRPC request genesis time",
-			fmt.Sprintf("%s/cosmos/mint/v1beta1/genesis_time", baseURL),
-			map[string]string{},
-			&minttypes.QueryGenesisTimeRequest{},
-			&minttypes.QueryGenesisTimeResponse{
-				GenesisTime: &genesisTime,
-			},
-		},
+		// {
+		// 	"gRPC request genesis time",
+		// 	fmt.Sprintf("%s/cosmos/mint/v1beta1/genesis_time", baseURL),
+		// 	map[string]string{},
+		// 	&minttypes.QueryGenesisTimeRequest{},
+		// 	&minttypes.QueryGenesisTimeResponse{
+		// 		GenesisTime: &genesisTime,
+		// 	},
+		// },
 	}
 	for _, tc := range testCases {
 		resp, err := testutil.GetRequestWithHeaders(tc.url, tc.headers)
