@@ -20,4 +20,5 @@ var (
 	ErrDataCommitmentNotGenerated                = errors.Register(ModuleName, 29, "no data commitment has been generated for the provided height")
 	ErrDataCommitmentNotFound                    = errors.Register(ModuleName, 30, "data commitment not found")
 	ErrLatestAttestationNonceStillNotInitialized = errors.Register(ModuleName, 31, "the latest attestation nonce has still not been defined in store")
+	ErrInvalidDataCommitmentWindow               = errors.Register(ModuleName, 32, "invalid data commitment window")
 )
