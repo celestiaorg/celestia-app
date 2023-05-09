@@ -62,8 +62,11 @@ message QueryAnnualProvisionsResponse {
       [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec", (gogoproto.nullable) = false];
 }
 
+// QueryGenesisTimeRequest is the request type for the Query/GenesisTime RPC method.
 message QueryGenesisTimeRequest {}
 
+// QueryGenesisTimeResponse is the response type for the Query/GenesisTime RPC method.
 message QueryGenesisTimeResponse {
+  // GenesisTime is the timestamp associated with the first block.
   google.protobuf.Timestamp genesis_time = 1 [(gogoproto.stdtime) = true];
 }
