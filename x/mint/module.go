@@ -147,9 +147,9 @@ func (am AppModule) BeginBlock(ctx sdk.Context, _ abci.RequestBeginBlock) {
 
 // AppModuleSimulation functions
 
-// GenerateGenesisState creates a randomized GenState of the mint module.
+// GenerateGenesisState is a no-op.
 func (AppModule) GenerateGenesisState(simState *module.SimulationState) {
-	simulation.RandomizedGenState(simState)
+	// no-op
 }
 
 // ProposalContents doesn't return any content functions for governance proposals.
