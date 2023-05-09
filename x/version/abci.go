@@ -1,6 +1,8 @@
 package version
 
 import (
+	"fmt"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	coretypes "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -17,6 +19,19 @@ func EndBlocker(ctx sdk.Context, keeper Keeper, resp abci.ResponseEndBlock) abci
 		// set the version in the application to ensure that tendermint is
 		// passed the correct value upon rebooting
 		keeper.versionSetter.SetProtocolVersion(newAppVersion)
+		fmt.Printf("***BSR Hardfork Activated***\n\n%s\n\n", coffeeArt)
 	}
 	return resp
 }
+
+var coffeeArt = `
+      )  (
+	(   ) )
+	 ) ( (
+   _______)_
+.-'---------|  
+( C|/\/\/\/\/|
+'-./\/\/\/\/|
+  '_________'
+   '-------'
+`
