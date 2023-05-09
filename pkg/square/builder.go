@@ -58,7 +58,7 @@ func NewBuilder(maxSquareSize int, txs ...[]byte) (*Builder, error) {
 			}
 		} else {
 			if seenFirstBlobTx {
-				return nil, fmt.Errorf("normal tx at index %d can not be Appended after blob tx", idx)
+				return nil, fmt.Errorf("normal tx at index %d can not be appended after blob tx", idx)
 			}
 			if !builder.AppendTx(tx) {
 				return nil, fmt.Errorf("not enough space to append tx at index %d", idx)
