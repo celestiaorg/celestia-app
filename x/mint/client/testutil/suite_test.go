@@ -3,6 +3,7 @@ package testutil
 import (
 	"fmt"
 	"strings"
+	"testing"
 
 	"github.com/stretchr/testify/suite"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
@@ -11,8 +12,9 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	clitestutil "github.com/cosmos/cosmos-sdk/testutil/cli"
+
+	appnetwork "github.com/celestiaorg/celestia-app/test/util/network"
 	"github.com/cosmos/cosmos-sdk/testutil/network"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 type IntegrationTestSuite struct {
@@ -34,13 +36,13 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	var mintData minttypes.GenesisState
 	s.Require().NoError(s.cfg.Codec.UnmarshalJSON(genesisState[minttypes.ModuleName], &mintData))
 
-	mintData.Minter.InflationRate = sdk.MustNewDecFromStr("1.0")
+	// mintData.Minter.InflationRate = sdk.MustNewDecFromStr("1.0")
 
-	mintDataBz, err := s.cfg.Codec.MarshalJSON(&mintData)
-	s.Require().NoError(err)
-	genesisState[minttypes.ModuleName] = mintDataBz
-	s.cfg.GenesisState = genesisState
-
+	// mintDataBz, err := s.cfg.Codec.MarshalJSON(&mintData)
+	// s.Require().NoError(err)
+	// genesisState[minttypes.ModuleName] = mintDataBz
+	// s.cfg.GenesisState = genesisState
+	var err error
 	s.network, err = network.New(s.T(), s.T().TempDir(), s.cfg)
 	s.Require().NoError(err)
 
@@ -138,12 +140,12 @@ func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
 		{
 			"json output",
 			[]string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=json", tmcli.OutputFlag)},
-			`500000000.000000000000000000`,
+			`7500000.000000000000000000`,
 		},
 		{
 			"text output",
 			[]string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=text", tmcli.OutputFlag)},
-			`500000000.000000000000000000`,
+			`7500000.000000000000000000`,
 		},
 	}
 
@@ -159,4 +161,10 @@ func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
 			s.Require().Equal(tc.expectedOutput, strings.TrimSpace(out.String()))
 		})
 	}
+}
+
+func TestIntegrationTestSuite(t *testing.T) {
+	cfg := appnetwork.DefaultConfig()
+	cfg.NumValidators = 1
+	suite.Run(t, NewIntegrationTestSuite(cfg))
 }
