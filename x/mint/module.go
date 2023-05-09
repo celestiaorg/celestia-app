@@ -148,7 +148,7 @@ func (am AppModule) BeginBlock(ctx sdk.Context, _ abci.RequestBeginBlock) {
 // AppModuleSimulation functions
 
 // GenerateGenesisState is a no-op.
-func (AppModule) GenerateGenesisState(simState *module.SimulationState) {
+func (AppModule) GenerateGenesisState(_ *module.SimulationState) {
 	// no-op
 }
 
