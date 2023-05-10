@@ -1,6 +1,7 @@
 package types
 
 import (
+	fmt "fmt"
 	"math/rand"
 	"testing"
 	time "time"
@@ -67,7 +68,7 @@ func TestCalculateInflationRate(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		blockTime := genesisTime.AddDate(tc.year, 0, 0)
+		blockTime := genesisTime.AddDate(tc.year, 0, 1) // add one year and one day because DAYS_PER_YEAR is slightly larger than 365 to account for leap years
 		ctx := sdk.NewContext(nil, tmproto.Header{}, false, nil).WithBlockTime(blockTime)
 		inflationRate := minter.CalculateInflationRate(ctx)
 		got, err := inflationRate.Float64()
@@ -153,10 +154,11 @@ func Test_yearsSinceGenesis(t *testing.T) {
 	assert.NoError(t, err)
 	oneWeek := oneDay * 7
 	oneMonth := oneDay * 30
-	oneYear := oneDay * 365
-	twoYears := oneYear * 2
-	tenYears := oneYear * 10
-	tenYearsOneMonth := oneYear*10 + oneMonth
+	oneYear, err := time.ParseDuration(fmt.Sprintf("%vs", SecondsPerYear))
+	assert.NoError(t, err)
+	twoYears := 2 * oneYear
+	tenYears := 10 * oneYear
+	tenYearsOneMonth := tenYears + oneMonth
 
 	testCases := []testCase{
 		{

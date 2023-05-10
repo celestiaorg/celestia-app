@@ -6,8 +6,11 @@ const (
 	SecondsPerMinute = 60
 	MinutesPerHour   = 60
 	HoursPerDay      = 24
-	DaysPerYear      = 365
-	SecondsPerYear   = SecondsPerMinute * MinutesPerHour * HoursPerDay * DaysPerYear // 31,536,000
+	// DaysPerYear is the mean length of the Gregorian calendar year. Note this
+	// value isn't 365 because 97 out of 400 years are leap years. See
+	// https://en.wikipedia.org/wiki/Year
+	DaysPerYear    = 365.2425
+	SecondsPerYear = int(SecondsPerMinute * MinutesPerHour * HoursPerDay * DaysPerYear) // 31,556,952
 
 	// BlocksPerYear is an estimate for the number of blocks produced by the
 	// Celestia blockchain per year. This number is based on the assumption that

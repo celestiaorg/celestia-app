@@ -67,5 +67,5 @@ func yearsSinceGenesis(genesis time.Time, current time.Time) (years uint64) {
 	if current.Before(genesis) {
 		return 0
 	}
-	return uint64(current.Sub(genesis).Seconds() / SecondsPerYear)
+	return uint64(current.Sub(genesis).Seconds() / float64(SecondsPerYear))
 }

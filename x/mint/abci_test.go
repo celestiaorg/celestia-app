@@ -1,6 +1,7 @@
 package mint_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -56,10 +57,11 @@ func TestInflationRate(t *testing.T) {
 	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 	unixEpoch := time.Unix(0, 0).UTC()
 	yearZero := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-	yearZeroAndSixMonths := time.Date(2023, 6, 1, 1, 1, 1, 1, time.UTC).UTC()
-	yearOne := time.Date(2024, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-	yearTwo := time.Date(2025, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-	yearTwenty := time.Date(2043, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	oneYear, err := time.ParseDuration(fmt.Sprintf("%vs", minttypes.SecondsPerYear))
+	assert.NoError(t, err)
+	yearOne := yearZero.Add(oneYear)
+	yearTwo := yearZero.Add(2 * oneYear)
+	yearTwenty := yearZero.Add(20 * oneYear)
 
 	type testCase struct {
 		name string
@@ -76,11 +78,6 @@ func TestInflationRate(t *testing.T) {
 		{
 			name: "inflation rate is 0.08 for year zero",
 			ctx:  ctx.WithBlockHeight(1).WithBlockTime(yearZero),
-			want: sdk.NewDecWithPrec(8, 2), // 0.08
-		},
-		{
-			name: "inflation rate is 0.08 for year zero and six months",
-			ctx:  ctx.WithBlockTime(yearZeroAndSixMonths),
 			want: sdk.NewDecWithPrec(8, 2), // 0.08
 		},
 		{
@@ -118,10 +115,11 @@ func TestAnnualProvisions(t *testing.T) {
 	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 	unixEpoch := time.Unix(0, 0).UTC()
 	yearZero := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-	yearZeroAndSixMonths := time.Date(2023, 6, 1, 1, 1, 1, 1, time.UTC).UTC()
-	yearOne := time.Date(2024, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-	yearTwo := time.Date(2025, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-	yearTwenty := time.Date(2043, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	oneYear, err := time.ParseDuration(fmt.Sprintf("%vs", minttypes.SecondsPerYear))
+	assert.NoError(t, err)
+	yearOne := yearZero.Add(oneYear)
+	yearTwo := yearZero.Add(2 * oneYear)
+	yearTwenty := yearZero.Add(20 * oneYear)
 
 	type testCase struct {
 		name string
@@ -141,8 +139,8 @@ func TestAnnualProvisions(t *testing.T) {
 			want: sdk.NewDec(80_000), // 1,000,000 (total supply) * 0.08 (inflation rate)
 		},
 		{
-			name: "annual provisions is 80,000 for year zero and six months",
-			ctx:  ctx.WithBlockTime(yearZeroAndSixMonths),
+			name: "annual provisions is 80,000 for year one minus one minute",
+			ctx:  ctx.WithBlockTime(yearOne.Add(-time.Minute)),
 			want: sdk.NewDec(80_000), // 1,000,000 (total supply) * 0.08 (inflation rate)
 		},
 		{
