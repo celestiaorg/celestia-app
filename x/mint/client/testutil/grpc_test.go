@@ -46,7 +46,7 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 			},
 			&minttypes.QueryAnnualProvisionsResponse{},
 			&minttypes.QueryAnnualProvisionsResponse{
-				AnnualProvisions: sdk.NewDec(7500000),
+				AnnualProvisions: sdk.NewDec(40_000_000),
 			},
 		},
 	}
