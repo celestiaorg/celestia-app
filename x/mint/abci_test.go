@@ -35,27 +35,37 @@ import (
 func TestGenesisTime(t *testing.T) {
 	app, _ := util.SetupTestAppWithGenesisValSet()
 	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
-
 	unixEpoch := time.Unix(0, 0).UTC()
-	ctx = ctx.WithBlockHeight(0)
-	ctx = ctx.WithBlockTime(time.Unix(0, 0).UTC())
-	mint.BeginBlocker(ctx, app.MintKeeper)
-	got, err := app.MintKeeper.GenesisTime(ctx, &minttypes.QueryGenesisTimeRequest{})
-	assert.NoError(t, err)
-	assert.Equal(t, &unixEpoch, got.GenesisTime)
-
 	fixedTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-	ctx = ctx.WithBlockHeight(1)
-	ctx = ctx.WithBlockTime(fixedTime)
-	mint.BeginBlocker(ctx, app.MintKeeper)
-	got, err = app.MintKeeper.GenesisTime(ctx, &minttypes.QueryGenesisTimeRequest{})
-	assert.NoError(t, err)
-	assert.Equal(t, &fixedTime, got.GenesisTime)
 
-	ctx = ctx.WithBlockHeight(2)
-	ctx = ctx.WithBlockTime(fixedTime)
-	mint.BeginBlocker(ctx, app.MintKeeper)
-	got, err = app.MintKeeper.GenesisTime(ctx, &minttypes.QueryGenesisTimeRequest{})
-	assert.NoError(t, err)
-	assert.Equal(t, &fixedTime, got.GenesisTime)
+	type testCase struct {
+		name string
+		ctx  sdk.Context
+		want time.Time
+	}
+
+	testCases := []testCase{
+		{
+			name: "initially genesis time is unix epoch",
+			ctx:  ctx.WithBlockHeight(0).WithBlockTime(unixEpoch),
+			want: unixEpoch,
+		},
+		{
+			name: "genesis time is set to time of first block",
+			ctx:  ctx.WithBlockHeight(1).WithBlockTime(fixedTime),
+			want: fixedTime,
+		},
+		{
+			name: "genesis time remains set to time of first block",
+			ctx:  ctx.WithBlockHeight(2).WithBlockTime(fixedTime.Add(time.Hour)),
+			want: fixedTime,
+		},
+	}
+
+	for _, tc := range testCases {
+		mint.BeginBlocker(tc.ctx, app.MintKeeper)
+		got, err := app.MintKeeper.GenesisTime(ctx, &minttypes.QueryGenesisTimeRequest{})
+		assert.NoError(t, err)
+		assert.Equal(t, &tc.want, got.GenesisTime)
+	}
 }
