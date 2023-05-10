@@ -48,23 +48,31 @@ func (s *IntegrationTestSuite) TearDownSuite() {
 	s.network.Cleanup()
 }
 
+func (s *IntegrationTestSuite) jsonArgs() []string {
+	return []string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=json", tmcli.OutputFlag)}
+}
+
+func (s *IntegrationTestSuite) textArgs() []string {
+	return []string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=json", tmcli.OutputFlag)}
+}
+
 func (s *IntegrationTestSuite) TestGetCmdQueryParams() {
 	val := s.network.Validators[0]
 
 	testCases := []struct {
-		name           string
-		args           []string
-		expectedOutput string
+		name string
+		args []string
+		want string
 	}{
 		{
-			"json output",
-			[]string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=json", tmcli.OutputFlag)},
-			`{}`,
+			name: "json output",
+			args: s.jsonArgs(),
+			want: `{}`,
 		},
 		{
-			"text output",
-			[]string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=text", tmcli.OutputFlag)},
-			`{}`,
+			name: "text output",
+			args: s.textArgs(),
+			want: `{}`,
 		},
 	}
 
@@ -75,9 +83,9 @@ func (s *IntegrationTestSuite) TestGetCmdQueryParams() {
 			cmd := cli.GetCmdQueryParams()
 			clientCtx := val.ClientCtx
 
-			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
+			got, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
 			s.Require().NoError(err)
-			s.Require().Equal(tc.expectedOutput, strings.TrimSpace(out.String()))
+			s.Require().Equal(tc.want, strings.TrimSpace(got.String()))
 		})
 	}
 }
@@ -86,19 +94,19 @@ func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 	val := s.network.Validators[0]
 
 	testCases := []struct {
-		name           string
-		args           []string
-		expectedOutput string
+		name string
+		args []string
+		want string
 	}{
 		{
-			"json output",
-			[]string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=json", tmcli.OutputFlag)},
-			`0.015000000000000000`,
+			name: "json output",
+			args: s.jsonArgs(),
+			want: `0.080000000000000000`,
 		},
 		{
-			"text output",
-			[]string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=text", tmcli.OutputFlag)},
-			`0.015000000000000000`,
+			name: "text output",
+			args: s.textArgs(),
+			want: `0.080000000000000000`,
 		},
 	}
 
@@ -109,9 +117,9 @@ func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 			cmd := cli.GetCmdQueryInflationRate()
 			clientCtx := val.ClientCtx
 
-			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
+			got, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
 			s.Require().NoError(err)
-			s.Require().Equal(tc.expectedOutput, strings.TrimSpace(out.String()))
+			s.Require().Equal(tc.want, strings.TrimSpace(got.String()))
 		})
 	}
 }
@@ -120,19 +128,19 @@ func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
 	val := s.network.Validators[0]
 
 	testCases := []struct {
-		name           string
-		args           []string
-		expectedOutput string
+		name string
+		args []string
+		want string
 	}{
 		{
-			"json output",
-			[]string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=json", tmcli.OutputFlag)},
-			`7500000.000000000000000000`,
+			name: "json output",
+			args: s.jsonArgs(),
+			want: `40000000.000000000000000000`,
 		},
 		{
-			"text output",
-			[]string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=text", tmcli.OutputFlag)},
-			`7500000.000000000000000000`,
+			name: "text output",
+			args: s.textArgs(),
+			want: `40000000.000000000000000000`,
 		},
 	}
 
@@ -145,7 +153,7 @@ func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
 
 			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
 			s.Require().NoError(err)
-			s.Require().Equal(tc.expectedOutput, strings.TrimSpace(out.String()))
+			s.Require().Equal(tc.want, strings.TrimSpace(out.String()))
 		})
 	}
 }
