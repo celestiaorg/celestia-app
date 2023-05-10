@@ -3,7 +3,6 @@ package app_test
 import (
 	"bytes"
 	"fmt"
-	"sort"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/x/blob/types"
@@ -21,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/pkg/square"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
@@ -40,12 +40,12 @@ func TestProcessProposal(t *testing.T) {
 		encConf.TxConfig.TxEncoder(),
 		kr,
 		testutil.ChainID,
-		accounts[:3],
-		infos[:3],
+		accounts[:4],
+		infos[:4],
 		blobfactory.NestedBlobs(
 			t,
-			appns.RandomBlobNamespaces(3),
-			[][]int{{100}, {1000}, {420}},
+			appns.RandomBlobNamespaces(4),
+			[][]int{{100}, {1000}, {420}, {300}},
 		),
 	)
 
@@ -65,37 +65,15 @@ func TestProcessProposal(t *testing.T) {
 	// block with all blobs included
 	validData := func() *tmproto.Data {
 		return &tmproto.Data{
-			Txs: blobTxs,
+			Txs: blobTxs[:3],
 		}
 	}
-
-	// create block data with a PFB that is not indexed and has no blob
-	unindexedData := validData()
-	blobtx := testutil.RandBlobTxsWithAccounts(
-		t,
-		testApp,
-		encConf.TxConfig.TxEncoder(),
-		kr,
-		1000,
-		2,
-		false,
-		"",
-		accounts[:1],
-	)[0]
-	btx, _ := coretypes.UnmarshalBlobTx(blobtx)
-	unindexedData.Txs = append(unindexedData.Txs, btx.Tx)
-
-	// create block data with a tx that is random data, and therefore cannot be
-	// decoded into an sdk.Tx
-	undecodableData := validData()
-	undecodableData.Txs = append(unindexedData.Txs, tmrand.Bytes(300))
 
 	mixedData := validData()
 	mixedData.Txs = append(mixedData.Txs, coretypes.Txs(sendTxs).ToSliceOfBytes()...)
 
 	// create an invalid block by adding an otherwise valid PFB, but an invalid
 	// signature since there's no account
-	badSigPFBData := validData()
 	badSigBlobTx := testutil.RandBlobTxsWithManualSequence(
 		t,
 		encConf.TxConfig.TxEncoder(),
@@ -107,7 +85,6 @@ func TestProcessProposal(t *testing.T) {
 		accounts[:1],
 		420, 42,
 	)[0]
-	badSigPFBData.Txs = append(badSigPFBData.Txs, badSigBlobTx)
 
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 	invalidNamespace, err := appns.New(appns.NamespaceVersionZero, bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
@@ -130,39 +107,34 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 		},
 		{
-			name:  "removed first blob",
+			name:  "removed first blob tx",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Blobs = d.Blobs[1:]
+				d.Txs = d.Txs[1:]
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "added an extra blob",
+			name:  "added an extra blob tx",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Blobs = append(
-					d.Blobs,
-					core.Blob{
-						NamespaceId:      ns1.ID,
-						Data:             data,
-						NamespaceVersion: uint32(ns1.Version),
-						ShareVersion:     uint32(appconsts.ShareVersionZero),
-					},
-				)
+				d.Txs = append(d.Txs, blobTxs[3])
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "modified a blob",
+			name:  "modified a blobtx",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Blobs[0] = core.Blob{
+				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0] = &core.Blob{
 					NamespaceId:      ns1.ID,
 					Data:             data,
 					NamespaceVersion: uint32(ns1.Version),
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
+				blobTxBytes, _ := blobTx.Marshal()
+				d.Txs[0] = blobTxBytes
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -170,12 +142,15 @@ func TestProcessProposal(t *testing.T) {
 			name:  "invalid namespace TailPadding",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Blobs[0] = core.Blob{
+				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0] = &core.Blob{
 					NamespaceId:      appns.TailPaddingNamespace.ID,
 					Data:             data,
 					NamespaceVersion: uint32(appns.TailPaddingNamespace.Version),
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
+				blobTxBytes, _ := blobTx.Marshal()
+				d.Txs[0] = blobTxBytes
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -183,12 +158,15 @@ func TestProcessProposal(t *testing.T) {
 			name:  "invalid namespace TxNamespace",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Blobs[0] = core.Blob{
+				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0] = &core.Blob{
 					NamespaceId:      appns.TxNamespace.ID,
 					Data:             data,
 					NamespaceVersion: uint32(appns.TxNamespace.Version),
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
+				blobTxBytes, _ := blobTx.Marshal()
+				d.Txs[0] = blobTxBytes
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -196,12 +174,15 @@ func TestProcessProposal(t *testing.T) {
 			name:  "invalid namespace ParityShares",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Blobs[0] = core.Blob{
+				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0] = &core.Blob{
 					NamespaceId:      appns.ParitySharesNamespace.ID,
 					Data:             data,
 					NamespaceVersion: uint32(appns.ParitySharesNamespace.Version),
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 				}
+				blobTxBytes, _ := blobTx.Marshal()
+				d.Txs[0] = blobTxBytes
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -209,12 +190,15 @@ func TestProcessProposal(t *testing.T) {
 			name:  "invalid blob namespace",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				d.Blobs[0] = core.Blob{
+				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0] = &core.Blob{
 					NamespaceId:      invalidNamespace.ID,
 					Data:             data,
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
 					NamespaceVersion: uint32(invalidNamespace.Version),
 				}
+				blobTxBytes, _ := blobTx.Marshal()
+				d.Txs[0] = blobTxBytes
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -225,44 +209,45 @@ func TestProcessProposal(t *testing.T) {
 				encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 				index := 4
 				tx, blob := blobfactory.IndexWrappedTxWithInvalidNamespace(t, encCfg.TxConfig.TxEncoder(), signer, 0, 0, uint32(index))
+				blobTx, err := coretypes.MarshalBlobTx(tx, &blob)
+				require.NoError(t, err)
 
 				// Replace the data with new contents
-				d.Blobs = []tmproto.Blob{blob}
-				d.Txs = [][]byte{tx}
+				d.Txs = [][]byte{blobTx}
 
 				// Erasure code the data to update the data root so this doesn't doesn't fail on an incorrect data root.
-				coreData, err := coretypes.DataFromProto(d)
-				assert.NoError(t, err)
-				dataSquare, err := shares.Split(coreData, true)
-				assert.NoError(t, err)
-				eds, err := da.ExtendShares(d.SquareSize, shares.ToBytes(dataSquare))
-				assert.NoError(t, err)
+				dataSquare, err := square.Construct(d.Txs, appconsts.DefaultMaxSquareSize)
+				require.NoError(t, err)
+				eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
+				require.NoError(t, err)
 				dah := da.NewDataAvailabilityHeader(eds)
 				d.Hash = dah.Hash()
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "unsorted blobs",
+			name:  "swap blobTxs",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				blob1, blob2, blob3 := d.Blobs[0], d.Blobs[1], d.Blobs[2]
-				d.Blobs[0] = blob3
-				d.Blobs[1] = blob1
-				d.Blobs[2] = blob2
+				d.Txs[0], d.Txs[1], d.Txs[2] = d.Txs[1], d.Txs[2], d.Txs[0]
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:           "un-indexed PFB",
-			input:          unindexedData,
-			mutator:        func(d *core.Data) {},
+			name:  "PFB without blobTx",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				btx, _ := coretypes.UnmarshalBlobTx(blobTxs[3])
+				d.Txs = append(d.Txs, btx.Tx)
+			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:           "undecodable tx",
-			input:          undecodableData,
-			mutator:        func(d *core.Data) {},
+			name:  "undecodable tx",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				d.Txs = append(d.Txs, tmrand.Bytes(300))
+			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -284,12 +269,7 @@ func TestProcessProposal(t *testing.T) {
 			name:  "included pfb with bad signature",
 			input: validData(),
 			mutator: func(d *core.Data) {
-				btx, _ := coretypes.UnmarshalBlobTx(badSigBlobTx)
-				d.Txs = append(d.Txs, btx.Tx)
-				d.Blobs = append(d.Blobs, deref(btx.Blobs)...)
-				sort.SliceStable(d.Blobs, func(i, j int) bool {
-					return bytes.Compare(d.Blobs[i].NamespaceId, d.Blobs[j].NamespaceId) < 0
-				})
+				d.Txs = append(d.Txs, badSigBlobTx)
 				// todo: replace the data root with an updated hash
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -299,11 +279,8 @@ func TestProcessProposal(t *testing.T) {
 			input: &tmproto.Data{
 				Txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
 			},
-			mutator: func(d *tmproto.Data) {
-				bd, err := coretypes.DataFromProto(d)
-				require.NoError(t, err)
-
-				dataSquare, err := shares.Split(bd, true)
+			mutator: func(d *core.Data) {
+				dataSquare, err := square.Construct(d.Txs, appconsts.DefaultMaxSquareSize)
 				require.NoError(t, err)
 
 				b := shares.NewEmptyBuilder().ImportRawShare(dataSquare[1].ToBytes())
@@ -312,7 +289,7 @@ func TestProcessProposal(t *testing.T) {
 				require.NoError(t, err)
 				dataSquare[1] = *updatedShare
 
-				eds, err := da.ExtendShares(d.SquareSize, shares.ToBytes(dataSquare))
+				eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
 				require.NoError(t, err)
 
 				dah := da.NewDataAvailabilityHeader(eds)
@@ -339,12 +316,4 @@ func TestProcessProposal(t *testing.T) {
 			assert.Equal(t, tt.expectedResult, res.Result, fmt.Sprintf("expected %v, got %v", tt.expectedResult, res.Result))
 		})
 	}
-}
-
-func deref[T any](s []*T) []T {
-	t := make([]T, len(s))
-	for i, ss := range s {
-		t[i] = *ss
-	}
-	return t
 }

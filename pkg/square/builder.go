@@ -21,7 +21,7 @@ type Builder struct {
 	// currentSize is an overestimate for the number of shares used by this builder.
 	currentSize int
 
-	// here we keep track of the actual data to go in a square
+	// here we keep track of the pending data to go in a square
 	txs   [][]byte
 	pfbs  []*coretypes.IndexWrapper
 	blobs []*element
@@ -29,48 +29,69 @@ type Builder struct {
 	// for compact shares we use a counter to track the amount of shares needed
 	txCounter  *shares.CompactShareCounter
 	pfbCounter *shares.CompactShareCounter
+
+	done bool
 }
 
-func NewBuilder(maxSquareSize int) (*Builder, error) {
+func NewBuilder(maxSquareSize int, txs ...[]byte) (*Builder, error) {
 	if maxSquareSize < 0 {
 		return nil, errors.New("max square size must be positive")
 	}
 	if !shares.IsPowerOfTwo(maxSquareSize) {
 		return nil, errors.New("max square size must be a power of two")
 	}
-	return &Builder{
+	builder := &Builder{
 		maxCapacity: maxSquareSize * maxSquareSize,
 		blobs:       make([]*element, 0),
 		pfbs:        make([]*coretypes.IndexWrapper, 0),
 		txs:         make([][]byte, 0),
 		txCounter:   shares.NewCompactShareCounter(),
 		pfbCounter:  shares.NewCompactShareCounter(),
-	}, nil
+	}
+	seenFirstBlobTx := false
+	for idx, tx := range txs {
+		blobTx, isBlobTx := core.UnmarshalBlobTx(tx)
+		if isBlobTx {
+			seenFirstBlobTx = true
+			if !builder.AppendBlobTx(blobTx) {
+				return nil, fmt.Errorf("not enough space to append blob tx at index %d", idx)
+			}
+		} else {
+			if seenFirstBlobTx {
+				return nil, fmt.Errorf("normal tx at index %d can not be appended after blob tx", idx)
+			}
+			if !builder.AppendTx(tx) {
+				return nil, fmt.Errorf("not enough space to append tx at index %d", idx)
+			}
+		}
+	}
+	return builder, nil
 }
 
 // AppendTx attempts to allocate the transaction to the square. It returns false if there is not
 // enough space in the square to fit the transaction.
-func (c *Builder) AppendTx(tx []byte) bool {
-	lenChange := c.txCounter.Add(len(tx))
-	if c.canFit(lenChange) {
-		c.txs = append(c.txs, tx)
-		c.currentSize += lenChange
+func (b *Builder) AppendTx(tx []byte) bool {
+	lenChange := b.txCounter.Add(len(tx))
+	if b.canFit(lenChange) {
+		b.txs = append(b.txs, tx)
+		b.currentSize += lenChange
+		b.done = false
 		return true
 	}
-	c.txCounter.Revert()
+	b.txCounter.Revert()
 	return false
 }
 
 // AppendBlobTx attempts to allocate the blob transaction to the square. It returns false if there is not
 // enough space in the square to fit the transaction.
-func (c *Builder) AppendBlobTx(blobTx coretypes.BlobTx) (bool, error) {
+func (b *Builder) AppendBlobTx(blobTx coretypes.BlobTx) bool {
 	iw := &coretypes.IndexWrapper{
 		Tx:           blobTx.Tx,
 		TypeId:       consts.ProtoIndexWrapperTypeID,
-		ShareIndexes: worstCaseShareIndexes(len(blobTx.Blobs), c.maxCapacity),
+		ShareIndexes: worstCaseShareIndexes(len(blobTx.Blobs), b.maxCapacity),
 	}
 	size := iw.Size()
-	pfbShareDiff := c.pfbCounter.Add(size)
+	pfbShareDiff := b.pfbCounter.Add(size)
 
 	// create a new blob element for each blob and track the worst-case share count
 	blobElements := make([]*element, len(blobTx.Blobs))
@@ -78,54 +99,55 @@ func (c *Builder) AppendBlobTx(blobTx coretypes.BlobTx) (bool, error) {
 	for idx, blobProto := range blobTx.Blobs {
 		blob, err := types.BlobFromProto(blobProto)
 		if err != nil {
-			return false, err
+			return false
 		}
-		blobElements[idx] = newElement(blob, len(c.pfbs), idx)
+		blobElements[idx] = newElement(blob, len(b.pfbs), idx)
 		maxBlobShareCount += blobElements[idx].maxShareOffset()
 	}
 
-	if c.canFit(pfbShareDiff + maxBlobShareCount) {
-		c.blobs = append(c.blobs, blobElements...)
-		c.pfbs = append(c.pfbs, iw)
-		c.currentSize += (pfbShareDiff + maxBlobShareCount)
-		return true, nil
+	if b.canFit(pfbShareDiff + maxBlobShareCount) {
+		b.blobs = append(b.blobs, blobElements...)
+		b.pfbs = append(b.pfbs, iw)
+		b.currentSize += (pfbShareDiff + maxBlobShareCount)
+		b.done = false
+		return true
 	}
-	c.pfbCounter.Revert()
-	return false, nil
+	b.pfbCounter.Revert()
+	return false
 }
 
-// Export returns the square.
-func (c *Builder) Export() (Square, error) {
+// Export constructs the square.
+func (b *Builder) Export() (Square, error) {
 	// if there are no transactions, return an empty square
-	if c.isEmpty() {
+	if b.isEmpty() {
 		return EmptySquare(), nil
 	}
 
 	// calculate the square size.
 	// NOTE: A future optimization could be to recalculate the currentSize based on the actual
 	// interblob padding used when the blobs are correctly ordered instead of using worst case padding.
-	ss := shares.BlobMinSquareSize(c.currentSize)
+	ss := shares.BlobMinSquareSize(b.currentSize)
 
 	// sort the blobs in order of namespace. We use slice stable here to respect the
 	// order of multiple blobs within a namespace as per the priority of the PFB
-	sort.SliceStable(c.blobs, func(i, j int) bool {
-		return bytes.Compare(c.blobs[i].blob.NamespaceID, c.blobs[j].blob.NamespaceID) < 0
+	sort.SliceStable(b.blobs, func(i, j int) bool {
+		return bytes.Compare(fullNamespace(b.blobs[i].blob), fullNamespace(b.blobs[j].blob)) < 0
 	})
 
 	// write all the regular transactions into compact shares
 	txWriter := shares.NewCompactShareSplitter(namespace.TxNamespace, appconsts.ShareVersionZero)
-	for _, tx := range c.txs {
+	for _, tx := range b.txs {
 		if err := txWriter.WriteTx(tx); err != nil {
 			return nil, fmt.Errorf("writing tx into compact shares: %w", err)
 		}
 	}
 
 	// begin to iteratively add blobs to the sparse share splitter calculating the actual padding
-	nonReservedStart := c.txCounter.Size() + c.pfbCounter.Size()
+	nonReservedStart := b.txCounter.Size() + b.pfbCounter.Size()
 	cursor := nonReservedStart
 	endOfLastBlob := nonReservedStart
 	blobWriter := shares.NewSparseShareSplitter()
-	for i, element := range c.blobs {
+	for i, element := range b.blobs {
 		// NextShareIndex returned where the next blob should start so as to comply with the share commitment rules
 		// We fill out the remaining
 		cursor, _ = shares.NextShareIndex(cursor, element.numShares, ss)
@@ -140,7 +162,7 @@ func (c *Builder) Export() (Square, error) {
 		}
 
 		// record the starting share index of the blob in the PFB that paid for it
-		c.pfbs[element.pfbIndex].ShareIndexes[element.blobIndex] = uint32(cursor)
+		b.pfbs[element.pfbIndex].ShareIndexes[element.blobIndex] = uint32(cursor)
 		// If this is not the first blob, we add padding by writing padded shares to the previous blob
 		// (which could be of a different namespace)
 		if i > 0 {
@@ -159,32 +181,148 @@ func (c *Builder) Export() (Square, error) {
 
 	// write all the pay for blob transactions into compact shares. We need to do this after allocating the blobs to their
 	// appropriate shares as the starting index of each blob needs to be included in the PFB transaction
-	pfbTxWriter := shares.NewCompactShareSplitter(namespace.PayForBlobNamespace, appconsts.ShareVersionZero)
-	for _, iw := range c.pfbs {
+	pfbWriter := shares.NewCompactShareSplitter(namespace.PayForBlobNamespace, appconsts.ShareVersionZero)
+	for _, iw := range b.pfbs {
 		iwBytes, err := iw.Marshal()
 		if err != nil {
 			return nil, fmt.Errorf("marshaling pay for blob tx: %w", err)
 		}
-		if err := pfbTxWriter.WriteTx(iwBytes); err != nil {
+		if err := pfbWriter.WriteTx(iwBytes); err != nil {
 			return nil, fmt.Errorf("writing pay for blob tx into compact shares: %w", err)
 		}
 	}
 
 	// defensively check that the counter is always greater in share count than the pfbTxWriter.
-	if c.pfbCounter.Size() < pfbTxWriter.Count() {
-		return nil, fmt.Errorf("pfbCounter.Size() < pfbTxWriter.Count(): %d < %d", c.pfbCounter.Size(), pfbTxWriter.Count())
+	if b.pfbCounter.Size() < pfbWriter.Count() {
+		return nil, fmt.Errorf("pfbCounter.Size() < pfbTxWriter.Count(): %d < %d", b.pfbCounter.Size(), pfbWriter.Count())
 	}
 
 	// Write out the square
-	return WriteSquare(txWriter, pfbTxWriter, blobWriter, nonReservedStart, ss)
+	square, err := writeSquare(txWriter, pfbWriter, blobWriter, nonReservedStart, ss)
+	if err != nil {
+		return nil, fmt.Errorf("writing square: %w", err)
+	}
+
+	b.done = true
+
+	return square, nil
 }
 
-func (c *Builder) canFit(shareNum int) bool {
-	return c.currentSize+shareNum <= c.maxCapacity
+// FindBlobStartingIndex returns the starting share index of the blob in the square. It takes
+// the index of the pfb in the tx set and the index of the blob within the PFB.
+func (b *Builder) FindBlobStartingIndex(pfbIndex, blobIndex int) (uint64, error) {
+	if !b.done {
+		_, err := b.Export()
+		if err != nil {
+			return 0, fmt.Errorf("building square: %w", err)
+		}
+	}
+	index := pfbIndex - len(b.txs)
+	if index < 0 {
+		return 0, fmt.Errorf("pfbIndex %d does not match a pfb", pfbIndex)
+	}
+
+	if index >= len(b.pfbs) {
+		return 0, fmt.Errorf("pfbIndex %d out of range", pfbIndex)
+	}
+	if blobIndex < 0 {
+		return 0, fmt.Errorf("blobIndex %d must not be negative", blobIndex)
+	}
+
+	if blobIndex >= len(b.pfbs[index].ShareIndexes) {
+		return 0, fmt.Errorf("blobIndex %d out of range", blobIndex)
+	}
+
+	return uint64(b.pfbs[index].ShareIndexes[blobIndex]), nil
 }
 
-func (c *Builder) isEmpty() bool {
-	return c.txCounter.Size() == 0 && c.pfbCounter.Size() == 0
+// BlobShareLength returns the amount of shares a blob takes up in the square. It takes
+// the index of the pfb in the tx set and the index of the blob within the PFB.
+// TODO: we could look in to creating a map to avoid O(n) lookup when we expect large
+// numbers of blobs
+func (b *Builder) BlobShareLength(pfbIndex, blobIndex int) (int, error) {
+	if pfbIndex < len(b.txs) {
+		return 0, fmt.Errorf("pfbIndex %d does not match a pfb", pfbIndex)
+	}
+	pfbIndex -= len(b.txs)
+	if pfbIndex >= len(b.pfbs) {
+		return 0, fmt.Errorf("pfbIndex %d out of range", pfbIndex)
+	}
+	if blobIndex < 0 {
+		return 0, fmt.Errorf("blobIndex %d must not be negative", blobIndex)
+	}
+	for _, blob := range b.blobs {
+		if blob.pfbIndex == pfbIndex && blob.blobIndex == blobIndex {
+			return blob.numShares, nil
+		}
+	}
+	return 0, fmt.Errorf("blob not found")
+}
+
+// FindTxStartingIndex returns the first and last share index that the transaction
+// occupies within the square. The indexes are both inclusive.
+func (b *Builder) FindTxShareRange(txIndex int) (shares.ShareRange, error) {
+	// the square must be built before we can find the share range as we need to compute
+	// the wrapped indexes for the PFBs. NOTE: If a tx isn't a PFB, we could theoretically
+	// calculate the index without having to build the entire square.
+	if !b.done {
+		_, err := b.Export()
+		if err != nil {
+			return shares.ShareRange{}, fmt.Errorf("building square: %w", err)
+		}
+	}
+	if txIndex < 0 {
+		return shares.ShareRange{}, fmt.Errorf("txIndex %d must not be negative", txIndex)
+	}
+
+	if txIndex >= len(b.txs)+len(b.pfbs) {
+		return shares.ShareRange{}, fmt.Errorf("txIndex %d out of range", txIndex)
+	}
+
+	txWriter := shares.NewCompactShareCounter()
+	pfbWriter := shares.NewCompactShareCounter()
+	for i := 0; i < txIndex; i++ {
+		if i < len(b.txs) {
+			_ = txWriter.Add(len(b.txs[i]))
+		} else {
+			_ = pfbWriter.Add(b.pfbs[i-len(b.txs)].Size())
+		}
+	}
+
+	start := txWriter.Size() + pfbWriter.Size() - 1
+
+	// the chosen tx is a regular tx
+	if txIndex < len(b.txs) {
+		// If the remainder is 0, it means the tx will begin with the next share
+		// so we need to increment the start index.
+		if txWriter.Remainder() == 0 {
+			start++
+		}
+		_ = txWriter.Add(len(b.txs[txIndex]))
+	} else { // the chosen tx is a PFB
+		// If the remainder is 0, it means the tx will begin with the next share
+		// so we need to increment the start index.
+		if pfbWriter.Remainder() == 0 {
+			start++
+		}
+		_ = pfbWriter.Add(b.pfbs[txIndex-len(b.txs)].Size())
+	}
+	end := txWriter.Size() + pfbWriter.Size() - 1
+
+	return shares.ShareRange{Start: start, End: end}, nil
+}
+
+func (b *Builder) canFit(shareNum int) bool {
+	return b.currentSize+shareNum <= b.maxCapacity
+}
+
+func (b *Builder) isEmpty() bool {
+	return b.txCounter.Size() == 0 && b.pfbCounter.Size() == 0
+}
+
+// TODO: celestia-core should provide this method for `Blob`s
+func fullNamespace(blob core.Blob) []byte {
+	return append([]byte{byte(blob.NamespaceVersion)}, blob.NamespaceID...)
 }
 
 type element struct {

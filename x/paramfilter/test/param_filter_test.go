@@ -31,7 +31,7 @@ func TestParamFilter(t *testing.T) {
 		p := testProposal(proposal.NewParamChange(p[0], p[1], "value"))
 		err := handler(ctx, p)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "blocked parameter change")
+		require.Contains(t, err.Error(), "parameter can not be modified")
 	}
 
 	// ensure that we are not filtering out valid proposals
@@ -51,7 +51,7 @@ func TestParamFilter(t *testing.T) {
 		p := testProposal(validChange, invalidChange)
 		err := handler(ctx, p)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "blocked parameter change")
+		require.Contains(t, err.Error(), "parameter can not be modified")
 
 		ps := app.StakingKeeper.GetParams(ctx)
 		require.Equal(t, ps.MaxValidators, uint32(1))
