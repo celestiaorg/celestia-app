@@ -56,7 +56,7 @@ service Query {
     option (google.api.http).get = "/qgb/v1/data_commitment/range/height";
   }
 
-  // DataCommitmentRangeForHeight returns the last data commitment in store
+  // LastDataCommitment returns the last data commitment in store
   rpc LastDataCommitment(QueryLastDataCommitmentRequest)
       returns (QueryLastDataCommitmentResponse) {
     option (google.api.http).get = "/qgb/v1/data_commitment/last";
