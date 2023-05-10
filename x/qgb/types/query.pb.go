@@ -6,8 +6,8 @@ package types
 import (
 	context "context"
 	fmt "fmt"
-	_ "github.com/cosmos/cosmos-proto"
 	types "github.com/cosmos/cosmos-sdk/codec/types"
+	_ "github.com/cosmos/cosmos-proto"
 	_ "github.com/cosmos/cosmos-sdk/types/query"
 	_ "github.com/cosmos/gogoproto/gogoproto"
 	grpc1 "github.com/gogo/protobuf/grpc"
@@ -770,7 +770,7 @@ type QueryClient interface {
 	// DataCommitmentRangeForHeight returns the data commitment window
 	// that includes the provided height
 	DataCommitmentRangeForHeight(ctx context.Context, in *QueryDataCommitmentRangeForHeightRequest, opts ...grpc.CallOption) (*QueryDataCommitmentRangeForHeightResponse, error)
-	// DataCommitmentRangeForHeight returns the last data commitment in store
+	// LastDataCommitment returns the last data commitment in store
 	LastDataCommitment(ctx context.Context, in *QueryLastDataCommitmentRequest, opts ...grpc.CallOption) (*QueryLastDataCommitmentResponse, error)
 }
 
@@ -865,7 +865,7 @@ type QueryServer interface {
 	// DataCommitmentRangeForHeight returns the data commitment window
 	// that includes the provided height
 	DataCommitmentRangeForHeight(context.Context, *QueryDataCommitmentRangeForHeightRequest) (*QueryDataCommitmentRangeForHeightResponse, error)
-	// DataCommitmentRangeForHeight returns the last data commitment in store
+	// LastDataCommitment returns the last data commitment in store
 	LastDataCommitment(context.Context, *QueryLastDataCommitmentRequest) (*QueryLastDataCommitmentResponse, error)
 }
 
