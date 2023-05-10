@@ -56,8 +56,7 @@ func TestInflationRate(t *testing.T) {
 	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 	unixEpoch := time.Unix(0, 0).UTC()
 	yearZero := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-	sixMonths := time.Duration(6 * 30 * 24 * time.Hour) // 6 months * 30 days * 24 hours
-	yearZeroAndSixMonths := yearZero.Add(sixMonths)
+	yearZeroAndSixMonths := time.Date(2023, 6, 1, 1, 1, 1, 1, time.UTC).UTC()
 	yearOne := time.Date(2024, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
 	yearTwo := time.Date(2025, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
 	yearTwenty := time.Date(2043, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
@@ -106,5 +105,67 @@ func TestInflationRate(t *testing.T) {
 		got, err := app.MintKeeper.InflationRate(ctx, &minttypes.QueryInflationRateRequest{})
 		assert.NoError(t, err)
 		assert.Equal(t, tc.want, got.InflationRate)
+	}
+}
+
+func TestAnnualProvisions(t *testing.T) {
+	app, _ := util.SetupTestAppWithGenesisValSet()
+	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
+	unixEpoch := time.Unix(0, 0).UTC()
+	yearZero := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	yearZeroAndSixMonths := time.Date(2023, 6, 1, 1, 1, 1, 1, time.UTC).UTC()
+	yearOne := time.Date(2024, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	yearTwo := time.Date(2025, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	yearTwenty := time.Date(2043, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+
+	type testCase struct {
+		name string
+		ctx  sdk.Context
+		want sdk.Dec
+	}
+
+	testCases := []testCase{
+		{
+			name: "annual provisions is 80,000 initially",
+			ctx:  ctx.WithBlockHeight(0).WithBlockTime(unixEpoch),
+			want: sdk.NewDec(80_000), // 1,000,000 (total supply) * 0.08 (inflation rate)
+		},
+		{
+			name: "annual provisions is 80,000 for year zero",
+			ctx:  ctx.WithBlockHeight(1).WithBlockTime(yearZero),
+			want: sdk.NewDec(80_000), // 1,000,000 (total supply) * 0.08 (inflation rate)
+		},
+		{
+			name: "annual provisions is 80,000 for year zero and six months",
+			ctx:  ctx.WithBlockTime(yearZeroAndSixMonths),
+			want: sdk.NewDec(80_000), // 1,000,000 (total supply) * 0.08 (inflation rate)
+		},
+		{
+			name: "annual provisions is 72,000 for year one",
+			ctx:  ctx.WithBlockTime(yearOne),
+			want: sdk.NewDec(72_000), // 1,000,000 (total supply) * 0.072 (inflation rate)
+		},
+		{
+			name: "annual provisions is 72,000 for year two",
+			ctx:  ctx.WithBlockTime(yearTwo),
+			want: sdk.NewDec(64_800), // 1,000,000 (total supply) * 0.0648 (inflation rate)
+		},
+		{
+			name: "annual provisions is 72,000 for year twenty",
+			ctx:  ctx.WithBlockTime(yearTwenty),
+			want: sdk.NewDec(15_000), // 1,000,000 (total supply) * 0.015 (inflation rate)
+		},
+	}
+
+	for _, tc := range testCases {
+		// Run BeginBlocker twice because minter uses the previous inflation
+		// rate in minter to calculate the annual provisions. By running this
+		// twice, we can test against block times rather than simulating a block
+		// at yearOne and another at yearOne + 15 seconds.
+		mint.BeginBlocker(tc.ctx, app.MintKeeper)
+		mint.BeginBlocker(tc.ctx, app.MintKeeper)
+		got, err := app.MintKeeper.AnnualProvisions(ctx, &minttypes.QueryAnnualProvisionsRequest{})
+		assert.NoError(t, err)
+		assert.Equal(t, tc.want, got.AnnualProvisions)
 	}
 }
