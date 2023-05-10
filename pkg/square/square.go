@@ -10,12 +10,12 @@ import (
 	core "github.com/tendermint/tendermint/types"
 )
 
-// Construct takes a list of (prioritized) transactions and constructs a square that is never
+// Build takes an arbitrary long list of (prioritized) transactions and builds a square that is never
 // greater than maxSquareSize. It also returns the ordered list of transactions that are present
 // in the square and which have all PFBs trailing regular transactions. Note, this function does
 // not check the underlying validity of the transactions.
 // Errors should not occur and would reflect a violation in an invariant.
-func Construct(txs [][]byte, maxSquareSize int) (Square, [][]byte, error) {
+func Build(txs [][]byte, maxSquareSize int) (Square, [][]byte, error) {
 	builder, err := NewBuilder(maxSquareSize)
 	if err != nil {
 		return nil, nil, err
@@ -25,11 +25,7 @@ func Construct(txs [][]byte, maxSquareSize int) (Square, [][]byte, error) {
 	for _, tx := range txs {
 		blobTx, isBlobTx := core.UnmarshalBlobTx(tx)
 		if isBlobTx {
-			canAppend, err := builder.AppendBlobTx(blobTx)
-			if err != nil {
-				return nil, nil, err
-			}
-			if canAppend {
+			if builder.AppendBlobTx(blobTx) {
 				blobTxs = append(blobTxs, tx)
 			}
 		} else {
@@ -42,37 +38,50 @@ func Construct(txs [][]byte, maxSquareSize int) (Square, [][]byte, error) {
 	return square, append(normalTxs, blobTxs...), err
 }
 
-// Reconstruct takes a list of ordered transactions and reconstructs a square, validating that
-// all PFBs are ordered after regular transactions and that the transactions don't collectively
-// exceed the maxSquareSize. Note that this function does not check the underlying validity of
+// Construct takes the exact list of ordered transactions and constructs a square, validating that
+//   - all PFBs are ordered after regular transactions that
+//   - the transactions don't collectively exceed the maxSquareSize.
+//
+// Note that this function does not check the underlying validity of
 // the transactions.
-func Reconstruct(txs [][]byte, maxSquareSize int) (Square, error) {
-	builder, err := NewBuilder(maxSquareSize)
+func Construct(txs [][]byte, maxSquareSize int) (Square, error) {
+	builder, err := NewBuilder(maxSquareSize, txs...)
 	if err != nil {
 		return nil, err
 	}
-	seenFirstBlobTx := false
-	for idx, tx := range txs {
-		blobTx, isBlobTx := core.UnmarshalBlobTx(tx)
-		if isBlobTx {
-			seenFirstBlobTx = true
-			canAppend, err := builder.AppendBlobTx(blobTx)
-			if err != nil {
-				return nil, err
-			}
-			if !canAppend {
-				return nil, fmt.Errorf("not enough space to append blob tx at index %d", idx)
-			}
-		} else {
-			if seenFirstBlobTx {
-				return nil, fmt.Errorf("normal tx at index %d can not be Appended after blob tx", idx)
-			}
-			if !builder.AppendTx(tx) {
-				return nil, fmt.Errorf("not enough space to append tx at index %d", idx)
-			}
-		}
-	}
 	return builder.Export()
+}
+
+// TxShareRange returns the range of share indexes that the tx, specified by txIndex, occupies.
+// Both ends of the range are inclusive.
+func TxShareRange(txs [][]byte, txIndex int) (shares.ShareRange, error) {
+	builder, err := NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
+	if err != nil {
+		return shares.ShareRange{}, err
+	}
+
+	return builder.FindTxShareRange(txIndex)
+}
+
+// BlobShareRange returns the range of share indexes that the blob, identified by txIndex and blobIndex, occupies.
+// Both ends of the range are inclusive.
+func BlobShareRange(txs [][]byte, txIndex, blobIndex int) (shares.ShareRange, error) {
+	builder, err := NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
+	if err != nil {
+		return shares.ShareRange{}, err
+	}
+
+	start, err := builder.FindBlobStartingIndex(txIndex, blobIndex)
+	if err != nil {
+		return shares.ShareRange{}, err
+	}
+
+	blobLen, err := builder.BlobShareLength(txIndex, blobIndex)
+	if err != nil {
+		return shares.ShareRange{}, err
+	}
+
+	return shares.ShareRange{Start: int(start), End: int(start) + blobLen - 1}, nil
 }
 
 // Square is a 2D square of shares with symmetrical sides that are always a power of 2.
@@ -80,7 +89,11 @@ type Square []shares.Share
 
 // Size returns the size of the sides of a square
 func (s Square) Size() uint64 {
-	return uint64(math.Sqrt(float64(len(s))))
+	return Size(len(s))
+}
+
+func Size(len int) uint64 {
+	return uint64(math.Sqrt(float64(len)))
 }
 
 // Equals returns true if two squares are equal
@@ -101,7 +114,7 @@ func EmptySquare() Square {
 	return shares.TailPaddingShares(appconsts.MinShareCount)
 }
 
-func WriteSquare(
+func writeSquare(
 	txWriter, pfbWriter *shares.CompactShareSplitter,
 	blobWriter *shares.SparseShareSplitter,
 	nonReservedStart, squareSize int,
@@ -112,7 +125,7 @@ func WriteSquare(
 	if nonReservedStart < paddingStartIndex {
 		return nil, fmt.Errorf("nonReservedStart %d is too small to fit all PFBs and txs", nonReservedStart)
 	}
-	padding := shares.TailPaddingShares(nonReservedStart - paddingStartIndex)
+	padding := shares.ReservedPaddingShares(nonReservedStart - paddingStartIndex)
 	endOfLastBlob := nonReservedStart + blobWriter.Count()
 	if totalShares < endOfLastBlob {
 		return nil, fmt.Errorf("square size %d is too small to fit all blobs", totalShares)

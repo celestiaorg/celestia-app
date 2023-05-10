@@ -17,7 +17,7 @@ func TestQGBRPCQueries(t *testing.T) {
 	}
 	_, cctx := testnode.DefaultNetwork(t, time.Millisecond)
 	h, err := cctx.WaitForHeightWithTimeout(405, time.Minute)
-	require.NoError(t, err)
+	require.NoError(t, err, h)
 	require.Greater(t, h, int64(401))
 
 	queryClient := types.NewQueryClient(cctx.GRPCClient)
