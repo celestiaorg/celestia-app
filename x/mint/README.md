@@ -1,10 +1,13 @@
 # `x/mint`
 
-`x/mint` is a fork of the Cosmos SDK `x/mint` module that makes some changes to the inflation mechanism. See ADR-019 for the motivation behind these changes.
+`x/mint` is a fork of the Cosmos SDK `x/mint` module that makes some changes to the inflation mechanism.
+
+1. Remove all parameters from the module
+1. Calculate inflation rate based on the number of years since genesis
 
 ## Constants
 
-See [./types/constants.go](./types/constants.go) for the constants used in the module.
+See [./types/constants.go](./types/constants.go) for the constants used in this module.
 
 ## Inflation Schedule
 
@@ -31,3 +34,7 @@ See [./types/constants.go](./types/constants.go) for the constants used in the m
 | 18   | 1.50              |
 | 19   | 1.50              |
 | 20   | 1.50              |
+
+## References
+
+1. ADR-019
