@@ -17,15 +17,16 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 
 	// Recalculate the inflation rate and annual provisions and update the minter with the new values.
 	totalSupply := k.StakingTokenSupply(ctx)
+
+	if ctx.BlockHeight() == 1 {
+		genesisTime := ctx.BlockTime()
+		minter.GenesisTime = &genesisTime
+	}
 	// TODO: since the inflation rate only changes once per year, we don't need
 	// to perform this every block. One potential optimization is to only do
 	// this once per year.
 	minter.InflationRate = minter.CalculateInflationRate(ctx)
 	minter.AnnualProvisions = minter.CalculateAnnualProvisions(totalSupply)
-	if ctx.BlockHeight() == 1 {
-		genesisTime := ctx.BlockTime()
-		minter.GenesisTime = &genesisTime
-	}
 	k.SetMinter(ctx, minter)
 
 	mintedCoin := minter.CalculateBlockProvision()
