@@ -56,7 +56,7 @@ func TestNewDataAvailabilityHeader(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eds, err := ExtendShares(tt.squareSize, tt.shares)
+			eds, err := ExtendShares(tt.shares)
 			require.NoError(t, err)
 			resdah := NewDataAvailabilityHeader(eds)
 			require.Equal(t, tt.squareSize*2, uint64(len(resdah.ColumnRoots)), tt.name)
@@ -70,7 +70,6 @@ func TestExtendShares(t *testing.T) {
 	type test struct {
 		name        string
 		expectedErr bool
-		squareSize  uint64
 		shares      [][]byte
 	}
 
@@ -78,26 +77,23 @@ func TestExtendShares(t *testing.T) {
 		{
 			name:        "too large square size",
 			expectedErr: true,
-			squareSize:  appconsts.DefaultMaxSquareSize + 1,
 			shares:      generateShares((appconsts.DefaultMaxSquareSize + 1) * (appconsts.DefaultMaxSquareSize + 1)),
 		},
 		{
 			name:        "invalid number of shares",
 			expectedErr: true,
-			squareSize:  2,
 			shares:      generateShares(5),
 		},
 	}
 
 	for _, tt := range tests {
 		tt := tt
-		eds, err := ExtendShares(tt.squareSize, tt.shares)
+		_, err := ExtendShares(tt.shares)
 		if tt.expectedErr {
 			require.NotNil(t, err)
 			continue
 		}
 		require.NoError(t, err)
-		require.Equal(t, tt.squareSize*2, eds.Width(), tt.name)
 	}
 }
 
@@ -108,7 +104,7 @@ func TestDataAvailabilityHeaderProtoConversion(t *testing.T) {
 	}
 
 	shares := generateShares(appconsts.DefaultMaxSquareSize * appconsts.DefaultMaxSquareSize)
-	eds, err := ExtendShares(appconsts.DefaultMaxSquareSize, shares)
+	eds, err := ExtendShares(shares)
 	require.NoError(t, err)
 	bigdah := NewDataAvailabilityHeader(eds)
 
@@ -143,7 +139,7 @@ func Test_DAHValidateBasic(t *testing.T) {
 	}
 
 	shares := generateShares(appconsts.DefaultMaxSquareSize * appconsts.DefaultMaxSquareSize)
-	eds, err := ExtendShares(appconsts.DefaultMaxSquareSize, shares)
+	eds, err := ExtendShares(shares)
 	require.NoError(t, err)
 	bigdah := NewDataAvailabilityHeader(eds)
 

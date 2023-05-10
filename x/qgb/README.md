@@ -131,7 +131,7 @@ Usage:
   celestia-appd verify [command]
 
 Available Commands:
-  blob        Verifies that a blob, referenced by its transaction hash, in hex format, has been committed to by the QGB contract. Only supports one blob for now
+  blob        Verifies that a blob, referenced by its transaction hash, in hex format, has been committed to by the QGB contract.
   shares      Verifies that a range of shares has been committed to by the QGB contract
   tx          Verifies that a transaction hash, in hex format, has been committed to by the QGB contract
 

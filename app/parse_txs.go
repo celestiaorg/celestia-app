@@ -3,6 +3,7 @@ package app
 import (
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	"github.com/tendermint/tendermint/libs/log"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -22,6 +23,26 @@ func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []core.BlobTx) {
 		}
 	}
 	return normalTxs, blobTxs
+}
+
+// filterForValidPFBSignature verifies the signatures of the provided PFB transactions. If it is invalid, it
+// drops the transaction.
+func filterForValidPFBSignature(ctx sdk.Context, accountKeeper *keeper.AccountKeeper, txConfig client.TxConfig, txs [][]byte) [][]byte {
+	normalTxs, blobTxs := separateTxs(txConfig, txs)
+
+	// increment the sequences of the standard cosmos-sdk transactions. Panics
+	// from the anteHandler are caught and logged.
+	seqHandler := incrementSequenceAnteHandler(accountKeeper)
+
+	normalTxs, ctx = filterStdTxs(ctx.Logger(), txConfig.TxDecoder(), ctx, seqHandler, normalTxs)
+
+	// check the signatures and increment the sequences of the blob txs,
+	// and filter out any that fail. Panics from the anteHandler are caught and
+	// logged.
+	svHandler := sigVerifyAnteHandler(accountKeeper, txConfig)
+	blobTxs, _ = filterBlobTxs(ctx.Logger(), txConfig.TxDecoder(), ctx, svHandler, blobTxs)
+
+	return append(normalTxs, encodeBlobTxs(blobTxs)...)
 }
 
 // filterStdTxs applies the provided antehandler to each transaction and removes
@@ -85,4 +106,16 @@ func checkTxValidity(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, hand
 	}
 
 	return handler(ctx, sdkTx, false)
+}
+
+func encodeBlobTxs(blobTxs []tmproto.BlobTx) [][]byte {
+	txs := make([][]byte, len(blobTxs))
+	var err error
+	for i, tx := range blobTxs {
+		txs[i], err = coretypes.MarshalBlobTx(tx.Tx, tx.Blobs...)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return txs
 }
