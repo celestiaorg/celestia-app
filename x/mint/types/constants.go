@@ -14,8 +14,6 @@ const (
 	// the block interval (i.e. TargetHeightDuration) is 15 seconds.
 	//
 	// 31,536,000 seconds in a year / 15 seconds per block = 2,102,400 blocks per year.
-	//
-	// TODO(@rootulp): explore removing this constant.
 	BlocksPerYear        = 2_102_400
 	InitialInflationRate = 0.08
 	DisinflationRate     = 0.1
