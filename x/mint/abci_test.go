@@ -84,6 +84,11 @@ func TestInflationRate(t *testing.T) {
 			want: sdk.NewDecWithPrec(8, 2), // 0.08
 		},
 		{
+			name: "inflation rate is 0.08 for year one minus one minute",
+			ctx:  ctx.WithBlockTime(yearOne.Add(-time.Minute)),
+			want: sdk.NewDecWithPrec(8, 2), // 0.08
+		},
+		{
 			name: "inflation rate is 0.072 for year one",
 			ctx:  ctx.WithBlockTime(yearOne),
 			want: sdk.NewDecWithPrec(72, 3), // 0.072
