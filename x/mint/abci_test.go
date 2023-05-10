@@ -151,7 +151,7 @@ func TestAnnualProvisions(t *testing.T) {
 			want: sdk.NewDec(64_800), // 1,000,000 (total supply) * 0.0648 (inflation rate)
 		},
 		{
-			name: "annual provisions is 72,000 for year twenty",
+			name: "annual provisions is 15,000 for year twenty",
 			ctx:  ctx.WithBlockTime(yearTwenty),
 			want: sdk.NewDec(15_000), // 1,000,000 (total supply) * 0.015 (inflation rate)
 		},
