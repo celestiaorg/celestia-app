@@ -259,8 +259,7 @@ func (b *Builder) BlobShareLength(pfbIndex, blobIndex int) (int, error) {
 	return 0, fmt.Errorf("blob not found")
 }
 
-// FindTxStartingIndex returns the first and last share index that the transaction
-// occupies within the square. The indexes are both inclusive.
+// FindTxShareRange returns the range of shares occupied by the tx at txIndex.
 func (b *Builder) FindTxShareRange(txIndex int) (shares.Range, error) {
 	// the square must be built before we can find the share range as we need to compute
 	// the wrapped indexes for the PFBs. NOTE: If a tx isn't a PFB, we could theoretically
