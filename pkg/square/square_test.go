@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -38,9 +39,9 @@ func FuzzSquareBuildAndConstruction(f *testing.F) {
 			t.Skip()
 		}
 		txs := generateMixedTxs(int(normalTxCount), int(pfbCount), int(pfbSize))
-		s, newTxs, err := square.Build(txs, appconsts.DefaultMaxSquareSize)
+		s, newTxs, err := square.Build(txs, appconsts.MaxSquareSize)
 		require.NoError(t, err)
-		s2, err := square.Construct(newTxs, appconsts.DefaultMaxSquareSize)
+		s2, err := square.Construct(newTxs, appconsts.MaxSquareSize)
 		require.NoError(t, err)
 		require.True(t, s.Equals(s2))
 
@@ -56,7 +57,7 @@ func TestSquareConstruction(t *testing.T) {
 	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 10, 100)
 	t.Run("normal transactions after PFB trasactions", func(t *testing.T) {
 		txs := append(sendTxs[:5], append(pfbTxs, sendTxs[5:]...)...)
-		_, err := square.Construct(coretypes.Txs(txs).ToSliceOfBytes(), appconsts.DefaultMaxSquareSize)
+		_, err := square.Construct(coretypes.Txs(txs).ToSliceOfBytes(), appconsts.MaxSquareSize)
 		require.Error(t, err)
 	})
 	t.Run("not enough space to append transactions", func(t *testing.T) {
@@ -330,7 +331,7 @@ func TestSquareBlobShareRange(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txs := blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), 10, 1000, 10).ToSliceOfBytes()
 
-	builder, err := square.NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
+	builder, err := square.NewBuilder(appconsts.MaxSquareSize, txs...)
 	require.NoError(t, err)
 
 	dataSquare, err := builder.Export()
@@ -361,4 +362,25 @@ func TestSquareBlobShareRange(t *testing.T) {
 
 	_, err = square.BlobShareRange(txs, 0, 10)
 	require.Error(t, err)
+}
+
+func TestSize(t *testing.T) {
+	type test struct {
+		input  int
+		expect uint64
+	}
+	tests := []test{
+		{input: 0, expect: appconsts.MinSquareSize},
+		{input: 1, expect: appconsts.MinSquareSize},
+		{input: 64, expect: 8},
+		{input: 100, expect: 16},
+		{input: 1000, expect: 32},
+		{input: appconsts.MaxSquareSize * appconsts.MaxSquareSize, expect: appconsts.MaxSquareSize},
+		{input: appconsts.MaxSquareSize*appconsts.MaxSquareSize + 1, expect: appconsts.MaxSquareSize},
+	}
+	for _, tt := range tests {
+		res := square.Size(tt.input)
+		assert.Equal(t, tt.expect, res)
+		assert.True(t, shares.IsPowerOfTwo(res))
+	}
 }

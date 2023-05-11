@@ -25,7 +25,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
-	dataSquare, txs, err := square.Build(txs, appconsts.DefaultMaxSquareSize)
+	dataSquare, txs, err := square.Build(txs, appconsts.MaxSquareSize)
 	if err != nil {
 		panic(err)
 	}

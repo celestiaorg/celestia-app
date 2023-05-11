@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/x/paramfilter"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
 )
@@ -13,5 +14,11 @@ func overrideServerConfig(command *cobra.Command) error {
 	ctx.Config.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 	ctx.Config.Consensus.TargetHeightDuration = appconsts.TargetHeightDuration
 	ctx.Config.Consensus.SkipTimeoutCommit = false
+	return server.SetCmdServerContext(command, ctx)
+}
+
+func setDefaultConsensusParams(command *cobra.Command) error {
+	ctx := server.GetServerContextFromCmd(command)
+	ctx.DefaultConsensusParams = paramfilter.DefaultConsensusParams(appconsts.MaxSquareSize)
 	return server.SetCmdServerContext(command, ctx)
 }

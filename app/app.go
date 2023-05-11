@@ -85,6 +85,7 @@ import (
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/proof"
 	blobmodule "github.com/celestiaorg/celestia-app/x/blob"
 	blobmodulekeeper "github.com/celestiaorg/celestia-app/x/blob/keeper"
@@ -285,7 +286,7 @@ func New(
 	app.ParamsKeeper = initParamsKeeper(appCodec, cdc, keys[paramstypes.StoreKey], tkeys[paramstypes.TStoreKey])
 
 	// set the BaseApp's parameter store
-	bApp.SetParamStore(app.ParamsKeeper.Subspace(baseapp.Paramspace).WithKeyTable(paramstypes.ConsensusParamsKeyTable()))
+	bApp.SetParamStore(app.ParamsKeeper.Subspace(baseapp.Paramspace).WithKeyTable(paramfilter.ConsensusParamsKeyTable(appconsts.MaxSquareSize)))
 
 	// add capability keeper and ScopeToModule for ibc module
 	app.CapabilityKeeper = capabilitykeeper.NewKeeper(appCodec, keys[capabilitytypes.StoreKey], memKeys[capabilitytypes.MemStoreKey])
@@ -713,6 +714,8 @@ func (*App) BlockedParams() [][2]string {
 		{stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom)},
 		// consensus.validator.PubKeyTypes
 		{baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams)},
+		// consensus.Evidence
+		{baseapp.Paramspace, string(baseapp.ParamStoreKeyEvidenceParams)},
 	}
 }
 

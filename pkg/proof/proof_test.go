@@ -99,7 +99,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 
 	// not setting useShareIndexes because the transactions indexes do not refer
 	// to the messages because the square and transactions were created manually.
-	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.DefaultMaxSquareSize)
+	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.MaxSquareSize)
 	if err != nil {
 		panic(err)
 	}
