@@ -12,6 +12,7 @@ Accepted
 - 2023/2/28: NMT proof size
 - 2023/3/1: blob inclusion proof size
 - 2023/3/2: accepted
+- 2023/5/10: add section on SHA256 performance
 
 ## Context
 
