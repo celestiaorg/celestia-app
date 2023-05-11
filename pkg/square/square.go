@@ -39,7 +39,7 @@ func Build(txs [][]byte, maxSquareSize int) (Square, [][]byte, error) {
 }
 
 // Construct takes the exact list of ordered transactions and constructs a square, validating that
-//   - all PFBs are ordered after regular transactions that
+//   - all blobTxs are ordered after non-blob transactions
 //   - the transactions don't collectively exceed the maxSquareSize.
 //
 // Note that this function does not check the underlying validity of
@@ -93,7 +93,7 @@ func (s Square) Size() uint64 {
 }
 
 func Size(len int) uint64 {
-	return uint64(math.Sqrt(float64(len)))
+	return uint64(math.Ceil(math.Sqrt(float64(len))))
 }
 
 // Equals returns true if two squares are equal

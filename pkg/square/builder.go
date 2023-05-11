@@ -208,32 +208,35 @@ func (b *Builder) Export() (Square, error) {
 	return square, nil
 }
 
-// FindBlobStartingIndex returns the starting share index of the blob in the square. It takes
-// the index of the pfb in the tx set and the index of the blob within the PFB.
+// FindBlobStartingIndex returns the starting share index of the blob in the
+// square. It takes the index of the PFB in the total tx set (normalTxs +
+// blobTxs) and the index of the blob within the PFB.
 func (b *Builder) FindBlobStartingIndex(pfbIndex, blobIndex int) (uint64, error) {
-	if !b.done {
-		_, err := b.Export()
-		if err != nil {
-			return 0, fmt.Errorf("building square: %w", err)
-		}
-	}
-	index := pfbIndex - len(b.txs)
-	if index < 0 {
+	if pfbIndex < len(b.txs) {
 		return 0, fmt.Errorf("pfbIndex %d does not match a pfb", pfbIndex)
 	}
-
-	if index >= len(b.pfbs) {
+	pfbIndex -= len(b.txs)
+	if pfbIndex >= len(b.pfbs) {
 		return 0, fmt.Errorf("pfbIndex %d out of range", pfbIndex)
 	}
 	if blobIndex < 0 {
 		return 0, fmt.Errorf("blobIndex %d must not be negative", blobIndex)
 	}
 
-	if blobIndex >= len(b.pfbs[index].ShareIndexes) {
+	// The share indexes of each blob needs to be computed thus we need to ensure
+	// that we have called Export() before we can return the share index of a blob
+	if !b.done {
+		_, err := b.Export()
+		if err != nil {
+			return 0, fmt.Errorf("building square: %w", err)
+		}
+	}
+
+	if blobIndex >= len(b.pfbs[pfbIndex].ShareIndexes) {
 		return 0, fmt.Errorf("blobIndex %d out of range", blobIndex)
 	}
 
-	return uint64(b.pfbs[index].ShareIndexes[blobIndex]), nil
+	return uint64(b.pfbs[pfbIndex].ShareIndexes[blobIndex]), nil
 }
 
 // BlobShareLength returns the amount of shares a blob takes up in the square. It takes
@@ -251,6 +254,7 @@ func (b *Builder) BlobShareLength(pfbIndex, blobIndex int) (int, error) {
 	if blobIndex < 0 {
 		return 0, fmt.Errorf("blobIndex %d must not be negative", blobIndex)
 	}
+
 	for _, blob := range b.blobs {
 		if blob.pfbIndex == pfbIndex && blob.blobIndex == blobIndex {
 			return blob.numShares, nil
@@ -259,7 +263,7 @@ func (b *Builder) BlobShareLength(pfbIndex, blobIndex int) (int, error) {
 	return 0, fmt.Errorf("blob not found")
 }
 
-// FindTxStartingIndex returns the first and last share index that the transaction
+// FindTxShareRange returns the first and last share index that the transaction
 // occupies within the square. The indexes are both inclusive.
 func (b *Builder) FindTxShareRange(txIndex int) (shares.ShareRange, error) {
 	// the square must be built before we can find the share range as we need to compute
