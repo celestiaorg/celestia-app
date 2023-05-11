@@ -75,14 +75,6 @@ func shuffle(slice [][]byte) [][]byte {
 	return slice
 }
 
-func shuffle(slice [][]byte) [][]byte {
-	for i := range slice {
-		j := rand.Intn(i + 1)
-		slice[i], slice[j] = slice[j], slice[i]
-	}
-	return slice
-}
-
 func TestBuilderRejectsTransactions(t *testing.T) {
 	builder, err := square.NewBuilder(2) // 2 x 2 square
 	require.NoError(t, err)
