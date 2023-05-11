@@ -3,13 +3,12 @@ package app
 import (
 	"bytes"
 	"fmt"
-	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
-	"github.com/celestiaorg/celestia-app/pkg/inclusion"
-	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -19,9 +18,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-const (
-	rejectedPropBlockLog = "Rejected proposal block:"
-)
+const rejectedPropBlockLog = "Rejected proposal block:"
 
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
 	// Check for blob inclusion:
@@ -29,92 +26,25 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	//  - the commitment in each PFB should match the commitment for the shares that contain that blob data
 	//  - there should be no unpaid-for data
 
-	data, err := coretypes.DataFromProto(req.BlockData)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), req.Header, "failure to unmarshal block data:", err)
-		return abci.ResponseProcessProposal{
-			Result: abci.ResponseProcessProposal_REJECT,
-		}
-	}
-
-	if !sort.IsSorted(coretypes.BlobsByNamespace(data.Blobs)) {
-		logInvalidPropBlock(app.Logger(), req.Header, "blobs are unsorted")
-		return abci.ResponseProcessProposal{
-			Result: abci.ResponseProcessProposal_REJECT,
-		}
-	}
-
-	for _, blob := range data.Blobs {
-		namespace, err := appns.New(blob.NamespaceVersion, blob.NamespaceID)
-		if err != nil {
-			return abci.ResponseProcessProposal{
-				Result: abci.ResponseProcessProposal_REJECT,
-			}
-		}
-		err = namespace.ValidateBlobNamespace()
-		if err != nil {
-			logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("invalid blob namespace %v", namespace.Bytes()))
-			return abci.ResponseProcessProposal{
-				Result: abci.ResponseProcessProposal_REJECT,
-			}
-		}
-	}
-
-	if !arePFBsOrderedAfterTxs(req.BlockData.Txs) {
-		logInvalidPropBlock(app.Logger(), req.Header, "PFBs are not all ordered at the end of the list of transactions")
-		return abci.ResponseProcessProposal{
-			Result: abci.ResponseProcessProposal_REJECT,
-		}
-	}
-
-	dataSquare, err := shares.Split(data, true)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute shares from block data:", err)
-		return abci.ResponseProcessProposal{
-			Result: abci.ResponseProcessProposal_REJECT,
-		}
-	}
-
-	cacher := inclusion.NewSubtreeCacher(data.SquareSize)
-	eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(dataSquare), appconsts.DefaultCodec(), cacher.Constructor)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), req.Header, "failure to erasure the data square", err)
-		return abci.ResponseProcessProposal{
-			Result: abci.ResponseProcessProposal_REJECT,
-		}
-	}
-
-	dah := da.NewDataAvailabilityHeader(eds)
-
-	if !bytes.Equal(dah.Hash(), req.Header.DataHash) {
-		logInvalidPropBlock(app.Logger(), req.Header, "proposed data root differs from calculated data root")
-		return abci.ResponseProcessProposal{
-			Result: abci.ResponseProcessProposal_REJECT,
-		}
-	}
-
 	// create the anteHanders that are used to check the validity of
 	// transactions. We verify the signatures of PFB containing txs using the
 	// sigVerifyAnterHandler, and simply increase the nonce of all other
 	// transactions.
 	svHander := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
 	seqHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
-
 	sdkCtx, err := app.NewProcessProposalQueryContext()
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to load query context", err)
-		return abci.ResponseProcessProposal{
-			Result: abci.ResponseProcessProposal_REJECT,
-		}
+		return reject()
 	}
 
-	// iterate over all of the MsgPayForBlob transactions and ensure that their
-	// commitments are subtree roots of the data root.
-	for _, rawTx := range req.BlockData.Txs {
+	// iterate over all Txs and ensure that all BlobTxs are valid, PFBS are correctly signed and non
+	// blobTxs have no PFBs present
+	for idx, rawTx := range req.BlockData.Txs {
 		tx := rawTx
-		wrappedTx, isWrapped := coretypes.UnmarshalIndexWrapper(rawTx)
-		if isWrapped {
-			tx = wrappedTx.Tx
+		blobTx, isBlob := coretypes.UnmarshalBlobTx(rawTx)
+		if isBlob {
+			tx = blobTx.Tx
 		}
 
 		sdkTx, err := app.txConfig.TxDecoder()(tx)
@@ -125,17 +55,22 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			continue
 		}
 
-		pfb, has := hasPFB(sdkTx.GetMsgs())
-		if !has {
+		// handle non-blob transactions first
+		if !isBlob {
+			_, has := hasPFB(sdkTx.GetMsgs())
+			if has {
+				// A non blob tx has a PFB, which is invalid
+				logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("tx %d has PFB but is not a blob tx", idx))
+				return reject()
+			}
+
 			// we need to increment the sequence for every transaction so that
 			// the signature check below is accurate. this error only gets hit
 			// if the account in question doens't exist.
 			sdkCtx, err = seqHandler(sdkCtx, sdkTx, false)
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), req.Header, "failure to incrememnt sequence", err)
-				return abci.ResponseProcessProposal{
-					Result: abci.ResponseProcessProposal_REJECT,
-				}
+				return reject()
 			}
 
 			// we do not need to perform further checks on this transaction,
@@ -143,58 +78,54 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 			continue
 		}
 
-		// ensure there is only a single sdk.Msg included in the transaction
-		if len(sdkTx.GetMsgs()) > 1 {
-			logInvalidPropBlock(app.Logger(), req.Header, "invalid PFB found: combined with one or more other sdk.Msg")
-			return abci.ResponseProcessProposal{
-				Result: abci.ResponseProcessProposal_REJECT,
-			}
+		// validate the blobTx. This is the same validation used in CheckTx ensuring
+		// - there is one PFB
+		// - that each blob has a valid namespace
+		// - that the sizes match
+		// - that the namespaces match between blob and PFB
+		// - that the share commitment is correct
+		if err := blobtypes.ValidateBlobTx(app.txConfig, blobTx); err != nil {
+			logInvalidPropBlockError(app.Logger(), req.Header, fmt.Sprintf("invalid blob tx %d", idx), err)
+			return reject()
 		}
 
-		// all PFBs must have a share index, so that we can find their
-		// respective blob.
-		if !isWrapped {
-			logInvalidPropBlock(app.Logger(), req.Header, "Found a MsgPayForBlobs without a share index")
-			return abci.ResponseProcessProposal{
-				Result: abci.ResponseProcessProposal_REJECT,
-			}
-		}
-
-		if err = pfb.ValidateBasic(); err != nil {
-			logInvalidPropBlockError(app.Logger(), req.Header, "invalid MsgPayForBlobs", err)
-			return abci.ResponseProcessProposal{
-				Result: abci.ResponseProcessProposal_REJECT,
-			}
-		}
-
-		for i, shareIndex := range wrappedTx.ShareIndexes {
-			commitment, err := inclusion.GetCommitment(cacher, dah, int(shareIndex), shares.SparseSharesNeeded(pfb.BlobSizes[i]))
-			if err != nil {
-				logInvalidPropBlockError(app.Logger(), req.Header, "commitment not found", err)
-				return abci.ResponseProcessProposal{
-					Result: abci.ResponseProcessProposal_REJECT,
-				}
-			}
-			if !bytes.Equal(pfb.ShareCommitments[i], commitment) {
-				logInvalidPropBlock(app.Logger(), req.Header, "found commitment does not match user's")
-				return abci.ResponseProcessProposal{
-					Result: abci.ResponseProcessProposal_REJECT,
-				}
-			}
-		}
-
+		// validated the PFB signature
 		sdkCtx, err = svHander(sdkCtx, sdkTx, true)
 		if err != nil {
 			logInvalidPropBlockError(app.Logger(), req.Header, "invalid PFB signature", err)
-			return abci.ResponseProcessProposal{
-				Result: abci.ResponseProcessProposal_REJECT,
-			}
+			return reject()
 		}
+
 	}
 
-	return abci.ResponseProcessProposal{
-		Result: abci.ResponseProcessProposal_ACCEPT,
+	// Construct the data square from the block's transactions
+	dataSquare, err := square.Construct(req.BlockData.Txs, appconsts.DefaultMaxSquareSize)
+	if err != nil {
+		logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute data square from transactions:", err)
+		return reject()
 	}
+
+	// Assert that the square size stated by the proposer is correct
+	if dataSquare.Size() != req.BlockData.SquareSize {
+		logInvalidPropBlock(app.Logger(), req.Header, "proposed square size differs from calculated square size")
+		return reject()
+	}
+
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(dataSquare), appconsts.DefaultCodec(), wrapper.NewConstructor(dataSquare.Size()))
+	if err != nil {
+		logInvalidPropBlockError(app.Logger(), req.Header, "failure to erasure the data square", err)
+		return reject()
+	}
+
+	dah := da.NewDataAvailabilityHeader(eds)
+	// by comparing the hashes we know the computed WrappedIndex is correct and that square construction is
+	// consistent.
+	if !bytes.Equal(dah.Hash(), req.Header.DataHash) {
+		logInvalidPropBlock(app.Logger(), req.Header, "proposed data root differs from calculated data root")
+		return reject()
+	}
+
+	return accept()
 }
 
 func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {
@@ -204,19 +135,6 @@ func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {
 		}
 	}
 	return nil, false
-}
-
-func arePFBsOrderedAfterTxs(txs [][]byte) bool {
-	seenFirstPFB := false
-	for _, tx := range txs {
-		_, isWrapped := coretypes.UnmarshalIndexWrapper(tx)
-		if isWrapped {
-			seenFirstPFB = true
-		} else if seenFirstPFB {
-			return false
-		}
-	}
-	return true
 }
 
 func logInvalidPropBlock(l log.Logger, h tmproto.Header, reason string) {
@@ -239,4 +157,16 @@ func logInvalidPropBlockError(l log.Logger, h tmproto.Header, reason string, err
 		"err",
 		err.Error(),
 	)
+}
+
+func reject() abci.ResponseProcessProposal {
+	return abci.ResponseProcessProposal{
+		Result: abci.ResponseProcessProposal_REJECT,
+	}
+}
+
+func accept() abci.ResponseProcessProposal {
+	return abci.ResponseProcessProposal{
+		Result: abci.ResponseProcessProposal_ACCEPT,
+	}
 }

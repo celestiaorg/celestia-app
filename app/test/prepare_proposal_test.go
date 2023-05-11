@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -9,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
@@ -20,153 +18,7 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
-	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 )
-
-func TestPrepareProposalBlobSorting(t *testing.T) {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	accnts := testfactory.GenerateAccounts(6)
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accnts...)
-	infos := queryAccountInfo(testApp, accnts, kr)
-	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
-	namespaceTwo := appns.MustNewV0(bytes.Repeat([]byte{2}, appns.NamespaceVersionZeroIDSize))
-	namespaceThree := appns.MustNewV0(bytes.Repeat([]byte{3}, appns.NamespaceVersionZeroIDSize))
-
-	type test struct {
-		input         abci.RequestPrepareProposal
-		expectedBlobs []tmproto.Blob
-		expectedTxs   int
-	}
-
-	blobTxs := blobfactory.ManyMultiBlobTx(
-		t,
-		encCfg.TxConfig.TxEncoder(),
-		kr,
-		testutil.ChainID,
-		accnts[:3],
-		infos[:3],
-		[][]*tmproto.Blob{
-			{
-				{
-					NamespaceVersion: uint32(ns1.Version),
-					NamespaceId:      ns1.ID,
-					Data:             tmrand.Bytes(100),
-				},
-			},
-			{
-				{
-					NamespaceVersion: uint32(namespaceThree.Version),
-					NamespaceId:      namespaceThree.ID,
-					Data:             tmrand.Bytes(1000),
-				},
-			},
-			{
-				{
-					NamespaceVersion: uint32(namespaceTwo.Version),
-					NamespaceId:      namespaceTwo.ID,
-					Data:             tmrand.Bytes(420),
-				},
-			},
-		},
-	)
-
-	decodedBlobTxs := make([]tmproto.BlobTx, 0, len(blobTxs))
-	for _, rawBtx := range blobTxs {
-		btx, isbtx := coretypes.UnmarshalBlobTx(rawBtx)
-		if !isbtx {
-			panic("unexpected testing error")
-		}
-		decodedBlobTxs = append(decodedBlobTxs, btx)
-	}
-
-	tests := []test{
-		{
-			input: abci.RequestPrepareProposal{
-				BlockData: &tmproto.Data{
-					Txs: blobTxs,
-				},
-			},
-			expectedBlobs: []tmproto.Blob{
-				{
-					NamespaceId: decodedBlobTxs[0].Blobs[0].NamespaceId,
-					Data:        decodedBlobTxs[0].Blobs[0].Data,
-				},
-				{
-					NamespaceId: decodedBlobTxs[2].Blobs[0].NamespaceId,
-					Data:        decodedBlobTxs[2].Blobs[0].Data,
-				},
-				{
-					NamespaceId: decodedBlobTxs[1].Blobs[0].NamespaceId,
-					Data:        decodedBlobTxs[1].Blobs[0].Data,
-				},
-			},
-			expectedTxs: 3,
-		},
-	}
-
-	for _, tt := range tests {
-		res := testApp.PrepareProposal(tt.input)
-		assert.Equal(t, tt.expectedBlobs, res.BlockData.Blobs)
-		assert.Equal(t, tt.expectedTxs, len(res.BlockData.Txs))
-	}
-}
-
-func TestPrepareProposalOverflow(t *testing.T) {
-	acc := "test"
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(acc)
-	signer := blobtypes.NewKeyringSigner(kr, acc, testutil.ChainID)
-
-	type test struct {
-		name               string
-		singleSharePFBs    int
-		expectedTxsInBlock int
-		expectedSquareSize uint64
-	}
-
-	limit := appconsts.TransactionsPerBlockLimit
-
-	tests := []test{
-		{
-			name:               "one below the limit",
-			singleSharePFBs:    limit - 1,
-			expectedTxsInBlock: limit - 1,
-			expectedSquareSize: appconsts.DefaultMaxSquareSize,
-		},
-		{
-			name:               "exactly the limit",
-			singleSharePFBs:    limit,
-			expectedTxsInBlock: limit,
-			expectedSquareSize: appconsts.DefaultMaxSquareSize,
-		},
-		{
-			name:               "well above the limit",
-			singleSharePFBs:    limit + 5000,
-			expectedTxsInBlock: limit,
-			expectedSquareSize: appconsts.DefaultMaxSquareSize,
-		},
-	}
-
-	for _, tt := range tests {
-		btxs := blobfactory.ManyMultiBlobTxSameSigner(
-			t,
-			encCfg.TxConfig.TxEncoder(),
-			signer,
-			testfactory.Repeat([]int{1}, tt.singleSharePFBs),
-			0,
-			1, // use the account number 1 since the first account is taken by the validator
-		)
-		req := abci.RequestPrepareProposal{
-			BlockData: &tmproto.Data{
-				Txs: coretypes.Txs(btxs).ToSliceOfBytes(),
-			},
-		}
-		res := testApp.PrepareProposal(req)
-		assert.Equal(t, tt.expectedSquareSize, res.BlockData.SquareSize, tt.name)
-		assert.Equal(t, tt.expectedTxsInBlock, len(res.BlockData.Blobs), tt.name)
-		assert.Equal(t, tt.expectedTxsInBlock, len(res.BlockData.Txs), tt.name)
-	}
-}
 
 func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	numBlobTxs, numNormalTxs := 3, 3
@@ -210,11 +62,11 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	})
 	require.Len(t, resp.BlockData.Txs, numBlobTxs+numNormalTxs)
 	for idx, txBytes := range resp.BlockData.Txs {
-		_, isWrapper := coretypes.UnmarshalIndexWrapper(coretypes.Tx(txBytes))
+		_, isBlob := coretypes.UnmarshalBlobTx(coretypes.Tx(txBytes))
 		if idx < numNormalTxs {
-			require.False(t, isWrapper)
+			require.False(t, isBlob)
 		} else {
-			require.True(t, isWrapper)
+			require.True(t, isBlob)
 		}
 	}
 }

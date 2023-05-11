@@ -52,8 +52,14 @@ func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) DataAvailabilityH
 	return dah
 }
 
-func ExtendShares(squareSize uint64, shares [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
-	// Check that square size is with range
+func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
+	// Check that the length of the square is a power of 2.
+	if !shares.IsPowerOfTwo(len(s)) {
+		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
+	}
+
+	squareSize := square.Size(len(s))
+
 	if squareSize < appconsts.DefaultMinSquareSize || squareSize > appconsts.DefaultMaxSquareSize {
 		return nil, fmt.Errorf(
 			"invalid square size: min %d max %d provided %d",
@@ -62,17 +68,10 @@ func ExtendShares(squareSize uint64, shares [][]byte) (*rsmt2d.ExtendedDataSquar
 			squareSize,
 		)
 	}
-	// check that valid number of shares have been provided
-	if squareSize*squareSize != uint64(len(shares)) {
-		return nil, fmt.Errorf(
-			"must provide valid number of shares for square size: got %d wanted %d",
-			len(shares),
-			squareSize*squareSize,
-		)
-	}
+
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
-	return rsmt2d.ComputeExtendedDataSquare(shares, appconsts.DefaultCodec(), wrapper.NewConstructor(squareSize))
+	return rsmt2d.ComputeExtendedDataSquare(s, appconsts.DefaultCodec(), wrapper.NewConstructor(uint64(squareSize)))
 }
 
 // String returns hex representation of merkle hash of the DAHeader.
@@ -174,7 +173,7 @@ func (dah *DataAvailabilityHeader) IsZero() bool {
 // share.
 func MinDataAvailabilityHeader() DataAvailabilityHeader {
 	s := MinShares()
-	eds, err := ExtendShares(appconsts.DefaultMinSquareSize, s)
+	eds, err := ExtendShares(s)
 	if err != nil {
 		panic(err)
 	}

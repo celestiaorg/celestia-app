@@ -81,3 +81,7 @@ func (c *CompactShareCounter) Size() int {
 	}
 	return c.shares + 1
 }
+
+func (c *CompactShareCounter) Remainder() int {
+	return c.remainder
+}

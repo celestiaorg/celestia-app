@@ -59,6 +59,10 @@ func DecodeBlockData(data types.Data) ([]sdk.Msg, error) {
 	decoder := encCfg.TxConfig.TxDecoder()
 	msgs := make([]sdk.Msg, 0)
 	for _, txBytes := range data.Txs {
+		blobTx, isBlobTx := types.UnmarshalBlobTx(txBytes)
+		if isBlobTx {
+			txBytes = blobTx.Tx
+		}
 		tx, err := decoder(txBytes)
 		if err != nil {
 			return nil, fmt.Errorf("decoding tx: %s: %w", string(txBytes), err)
