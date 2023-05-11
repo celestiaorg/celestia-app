@@ -145,6 +145,31 @@ Another tradeoff to consider is the size of the namespace ID in the share. Since
 
 If the namespace ID size is increased, the maximum possible blob will decrease. Given the maximum possible blob is bounded by the number of bytes available for blob space in a data square, if a 32 byte namespace ID size is adopted, the maxmimum blob size will decrease by an upper bound of `appconsts.DefaultMaxSquareSize * appconsts.DefaultMaxSquareSize * (32-8)`. Note this is an upper bound because not all shares in the data square can be used for blob data (i.e. at least one share must contain the associated PayForBlob transaction).
 
+### SHA256 Performance
+
+If the namespace size is increased, whenever a SHA256 invocation takes place (e.g. NMT's [HashNode](https://github.com/celestiaorg/nmt/blob/fd00c52175c48bad64d03444689162fb9c6bee41/hasher.go#L265)), more data needs to be SHA256'ed. For example:
+
+Namespace size (bytes) |[HashNode](https://github.com/celestiaorg/nmt/blob/fd00c52175c48bad64d03444689162fb9c6bee41/hasher.go#L302)'s SHA256 max data (bytes)
+-----------------------|------------------------------------
+8                      | 97
+16                     | 129
+32                     | 193
+33                     | 197
+
+The data size is calculated as follows:
+`SHA256(domain_sep || left_min || left_max || left_data_hash || right_min || right_max || right_data_hash)` = 1 + namespaceSize + namespaceSize + 32 + namespaceSize + namespaceSize + 32 which simplifies to (4 \* namespaceSIze) + (2 \* 32) + 1.
+
+Hashing has a high performance impact in ZK contexts. Since a larger namespace size results in a larger data size for the SHA256 operation, increasing the namespace size has a negative impact impact on the cost to perform the SHA256 operation in a ZK context.
+
+Based on this StackOverflow [post](https://crypto.stackexchange.com/questions/54852/what-happens-if-a-sha-256-input-is-too-long-longer-than-512-bits), when the data provided to SHA256 exceeds 56 bytes, the data must be chunked into 64 byte blocks with a trailing 56 byte block + 8 bytes of metadata. The following table shows the range of namespace sizes acceptable for a single SHA256 compression invocation:
+
+Namespace size (bytes) | [HashNode](https://github.com/celestiaorg/nmt/blob/fd00c52175c48bad64d03444689162fb9c6bee41/hasher.go#L302)'s SHA256 max data (bytes) | SHA256 compression invocations
+-----------------------|----------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------
+N/A                    | 56                                                                                                                                           | 1
+0 to 13                | 64 + 56 = 120                                                                                                                                | 2
+14 to 29               | 64 + 64 + 56 = 184                                                                                                                           | 3
+30 to 45               | 64 + 64 + 64 + 56 = 248                                                                                                                      | 4
+
 ## Open Questions
 
 1. What are the performance implications on celestia-node for a larger namespace ID size?
