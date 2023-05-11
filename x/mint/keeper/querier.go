@@ -15,9 +15,6 @@ import (
 func NewQuerier(k Keeper, legacyQuerierCdc *codec.LegacyAmino) sdk.Querier {
 	return func(ctx sdk.Context, path []string, _ abci.RequestQuery) ([]byte, error) {
 		switch path[0] {
-		case types.QueryParameters:
-			return queryParams(ctx, k, legacyQuerierCdc)
-
 		case types.QueryInflationRate:
 			return queryInflationRate(ctx, k, legacyQuerierCdc)
 
@@ -31,17 +28,6 @@ func NewQuerier(k Keeper, legacyQuerierCdc *codec.LegacyAmino) sdk.Querier {
 			return nil, errors.Wrapf(sdkerrors.ErrUnknownRequest, "unknown query path: %s", path[0])
 		}
 	}
-}
-
-func queryParams(ctx sdk.Context, k Keeper, legacyQuerierCdc *codec.LegacyAmino) ([]byte, error) {
-	params := k.GetParams(ctx)
-
-	res, err := codec.MarshalJSONIndent(legacyQuerierCdc, params)
-	if err != nil {
-		return nil, errors.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
-	}
-
-	return res, nil
 }
 
 func queryInflationRate(ctx sdk.Context, k Keeper, legacyQuerierCdc *codec.LegacyAmino) ([]byte, error) {

@@ -10,11 +10,6 @@ option go_package = "github.com/celestiaorg/celestia-app/x/mint/types";
 
 // Query defines the gRPC querier service.
 service Query {
-  // Params returns the mint parameters.
-  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
-    option (google.api.http).get = "/cosmos/mint/v1beta1/params";
-  }
-
   // InflationRate returns the current inflation rate.
   rpc InflationRate(QueryInflationRateRequest) returns (QueryInflationRateResponse) {
     option (google.api.http).get = "/cosmos/mint/v1beta1/inflation_rate";
@@ -29,15 +24,6 @@ service Query {
   rpc GenesisTime(QueryGenesisTimeRequest) returns (QueryGenesisTimeResponse) {
     option (google.api.http).get = "/cosmos/mint/v1beta1/genesis_time";
   }
-}
-
-// QueryParamsRequest is the request type for the Query/Params RPC method.
-message QueryParamsRequest {}
-
-// QueryParamsResponse is the response type for the Query/Params RPC method.
-message QueryParamsResponse {
-  // params defines the parameters of the module.
-  Params params = 1 [(gogoproto.nullable) = false];
 }
 
 // QueryInflationRateRequest is the request type for the Query/InflationRate RPC method.

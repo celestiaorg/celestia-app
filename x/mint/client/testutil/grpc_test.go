@@ -23,13 +23,6 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 		expected proto.Message
 	}{
 		{
-			"gRPC request params",
-			fmt.Sprintf("%s/cosmos/mint/v1beta1/params", baseURL),
-			map[string]string{},
-			&minttypes.QueryParamsResponse{},
-			&minttypes.QueryParamsResponse{Params: minttypes.NewParams()},
-		},
-		{
 			"gRPC request inflation rate",
 			fmt.Sprintf("%s/cosmos/mint/v1beta1/inflation_rate", baseURL),
 			map[string]string{},

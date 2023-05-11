@@ -56,40 +56,6 @@ func (s *IntegrationTestSuite) textArgs() []string {
 	return []string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=json", tmcli.OutputFlag)}
 }
 
-func (s *IntegrationTestSuite) TestGetCmdQueryParams() {
-	val := s.network.Validators[0]
-
-	testCases := []struct {
-		name string
-		args []string
-		want string
-	}{
-		{
-			name: "json output",
-			args: s.jsonArgs(),
-			want: `{}`,
-		},
-		{
-			name: "text output",
-			args: s.textArgs(),
-			want: `{}`,
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-
-		s.Run(tc.name, func() {
-			cmd := cli.GetCmdQueryParams()
-			clientCtx := val.ClientCtx
-
-			got, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
-			s.Require().NoError(err)
-			s.Require().Equal(tc.want, strings.TrimSpace(got.String()))
-		})
-	}
-}
-
 func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 	val := s.network.Validators[0]
 

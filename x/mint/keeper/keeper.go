@@ -36,11 +36,6 @@ func NewKeeper(
 		panic("the mint module account has not been set")
 	}
 
-	// Set KeyTable if it has not already been set
-	if !paramSpace.HasKeyTable() {
-		paramSpace = paramSpace.WithKeyTable(types.ParamKeyTable())
-	}
-
 	return Keeper{
 		cdc:              cdc,
 		storeKey:         storeKey,
@@ -73,17 +68,6 @@ func (k Keeper) SetMinter(ctx sdk.Context, minter types.Minter) {
 	store := ctx.KVStore(k.storeKey)
 	b := k.cdc.MustMarshal(&minter)
 	store.Set(types.MintKey, b)
-}
-
-// GetParams returns the total set of minting parameters.
-func (k Keeper) GetParams(ctx sdk.Context) (params types.Params) {
-	k.paramSpace.GetParamSet(ctx, &params)
-	return params
-}
-
-// SetParams sets the total set of minting parameters.
-func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
-	k.paramSpace.SetParamSet(ctx, &params)
 }
 
 // StakingTokenSupply implements an alias call to the underlying staking keeper's

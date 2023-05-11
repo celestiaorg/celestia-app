@@ -1,4 +1,4 @@
-package keeper_test
+package keeper_test //nolint:all
 
 import (
 	gocontext "context"
@@ -38,10 +38,6 @@ func (suite *MintTestSuite) SetupTest() {
 
 func (suite *MintTestSuite) TestGRPC() {
 	app, ctx, queryClient := suite.app, suite.ctx, suite.queryClient
-
-	params, err := queryClient.Params(gocontext.Background(), &types.QueryParamsRequest{})
-	suite.Require().NoError(err)
-	suite.Require().Equal(params.Params, app.MintKeeper.GetParams(ctx))
 
 	inflation, err := queryClient.InflationRate(gocontext.Background(), &types.QueryInflationRateRequest{})
 	suite.Require().NoError(err)

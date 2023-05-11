@@ -29,7 +29,6 @@ func (suite *MintKeeperTestSuite) SetupTest() {
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
 	ctx := testApp.NewContext(true, tmproto.Header{})
 
-	testApp.MintKeeper.SetParams(ctx, types.DefaultParams())
 	testApp.MintKeeper.SetMinter(ctx, types.DefaultMinter())
 
 	legacyQuerierCdc := codec.NewAminoCodec(testApp.LegacyAmino())
@@ -62,21 +61,6 @@ func (suite *MintKeeperTestSuite) TestNewQuerier(t *testing.T) {
 
 	_, err = querier(ctx, []string{"foo"}, query)
 	require.Error(t, err)
-}
-
-func (suite *MintKeeperTestSuite) TestQueryParams(t *testing.T) {
-	app, ctx, legacyQuerierCdc := suite.app, suite.ctx, suite.legacyQuerierCdc
-	querier := keep.NewQuerier(app.MintKeeper, legacyQuerierCdc.LegacyAmino)
-
-	var params types.Params
-
-	res, sdkErr := querier(ctx, []string{types.QueryParameters}, abci.RequestQuery{})
-	require.NoError(t, sdkErr)
-
-	err := app.LegacyAmino().UnmarshalJSON(res, &params)
-	require.NoError(t, err)
-
-	require.Equal(t, app.MintKeeper.GetParams(ctx), params)
 }
 
 func (suite *MintKeeperTestSuite) TestQueryInflationRate(t *testing.T) {
