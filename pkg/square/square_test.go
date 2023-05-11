@@ -256,7 +256,7 @@ func TestSquareTxShareRange(t *testing.T) {
 			txs:       [][]byte{txOne},
 			index:     0,
 			wantStart: 0,
-			wantEnd:   0,
+			wantEnd:   1,
 			expectErr: false,
 		},
 		{
@@ -264,7 +264,7 @@ func TestSquareTxShareRange(t *testing.T) {
 			txs:       [][]byte{txTwo},
 			index:     0,
 			wantStart: 0,
-			wantEnd:   1,
+			wantEnd:   2,
 			expectErr: false,
 		},
 		{
@@ -272,7 +272,7 @@ func TestSquareTxShareRange(t *testing.T) {
 			txs:       [][]byte{txThree},
 			index:     0,
 			wantStart: 0,
-			wantEnd:   2,
+			wantEnd:   3,
 			expectErr: false,
 		},
 		{
@@ -280,7 +280,7 @@ func TestSquareTxShareRange(t *testing.T) {
 			txs:       [][]byte{txOne, txTwo, txThree},
 			index:     2,
 			wantStart: 1,
-			wantEnd:   3,
+			wantEnd:   4,
 			expectErr: false,
 		},
 		{

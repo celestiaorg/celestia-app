@@ -40,7 +40,7 @@ func NewTxInclusionProof(txs [][]byte, txIndex uint64) (types.ShareProof, error)
 	}
 
 	namespace := getTxNamespace(txs[txIndex])
-	return NewShareInclusionProof(dataSquare, dataSquare.Size(), namespace, uint64(shareRange.Start), uint64(shareRange.End))
+	return NewShareInclusionProof(dataSquare, namespace, shareRange)
 }
 
 func getTxNamespace(tx []byte) (ns appns.Namespace) {
@@ -51,22 +51,21 @@ func getTxNamespace(tx []byte) (ns appns.Namespace) {
 	return appns.TxNamespace
 }
 
-// NewShareInclusionProof returns an NMT inclusion proof for a set of shares to the data root.
+// NewShareInclusionProof returns an NMT inclusion proof for a set of shares
+// belonging to the same namespace to the data root.
 // Expects the share range to be pre-validated.
-// Note: only supports inclusion proofs for shares belonging to the same namespace.
 func NewShareInclusionProof(
-	allRawShares []shares.Share,
-	squareSize uint64,
+	dataSquare square.Square,
 	namespace appns.Namespace,
-	startShare uint64,
-	endShare uint64,
+	shareRange shares.Range,
 ) (types.ShareProof, error) {
-	startRow := startShare / squareSize
-	endRow := endShare / squareSize
-	startLeaf := startShare % squareSize
-	endLeaf := endShare % squareSize
+	squareSize := dataSquare.Size()
+	startRow := shareRange.Start / squareSize
+	endRow := (shareRange.End - 1) / squareSize
+	startLeaf := shareRange.Start % squareSize
+	endLeaf := (shareRange.End - 1) % squareSize
 
-	eds, err := da.ExtendShares(shares.ToBytes(allRawShares))
+	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
 	if err != nil {
 		return types.ShareProof{}, err
 	}
@@ -97,7 +96,7 @@ func NewShareInclusionProof(
 	for i, row := range rows {
 		// create an nmt to generate a proof.
 		// we have to re-create the tree as the eds one is not accessible.
-		tree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, uint(i))
+		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), uint(i))
 		for _, share := range row {
 			tree.Push(
 				share.ToBytes(),

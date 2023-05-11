@@ -210,7 +210,7 @@ func (b *Builder) Export() (Square, error) {
 
 // FindBlobStartingIndex returns the starting share index of the blob in the square. It takes
 // the index of the pfb in the tx set and the index of the blob within the PFB.
-func (b *Builder) FindBlobStartingIndex(pfbIndex, blobIndex int) (uint64, error) {
+func (b *Builder) FindBlobStartingIndex(pfbIndex, blobIndex int) (int, error) {
 	if !b.done {
 		_, err := b.Export()
 		if err != nil {
@@ -233,7 +233,7 @@ func (b *Builder) FindBlobStartingIndex(pfbIndex, blobIndex int) (uint64, error)
 		return 0, fmt.Errorf("blobIndex %d out of range", blobIndex)
 	}
 
-	return uint64(b.pfbs[index].ShareIndexes[blobIndex]), nil
+	return int(b.pfbs[index].ShareIndexes[blobIndex]), nil
 }
 
 // BlobShareLength returns the amount of shares a blob takes up in the square. It takes
@@ -261,22 +261,22 @@ func (b *Builder) BlobShareLength(pfbIndex, blobIndex int) (int, error) {
 
 // FindTxStartingIndex returns the first and last share index that the transaction
 // occupies within the square. The indexes are both inclusive.
-func (b *Builder) FindTxShareRange(txIndex int) (shares.ShareRange, error) {
+func (b *Builder) FindTxShareRange(txIndex int) (shares.Range, error) {
 	// the square must be built before we can find the share range as we need to compute
 	// the wrapped indexes for the PFBs. NOTE: If a tx isn't a PFB, we could theoretically
 	// calculate the index without having to build the entire square.
 	if !b.done {
 		_, err := b.Export()
 		if err != nil {
-			return shares.ShareRange{}, fmt.Errorf("building square: %w", err)
+			return shares.Range{}, fmt.Errorf("building square: %w", err)
 		}
 	}
 	if txIndex < 0 {
-		return shares.ShareRange{}, fmt.Errorf("txIndex %d must not be negative", txIndex)
+		return shares.Range{}, fmt.Errorf("txIndex %d must not be negative", txIndex)
 	}
 
 	if txIndex >= len(b.txs)+len(b.pfbs) {
-		return shares.ShareRange{}, fmt.Errorf("txIndex %d out of range", txIndex)
+		return shares.Range{}, fmt.Errorf("txIndex %d out of range", txIndex)
 	}
 
 	txWriter := shares.NewCompactShareCounter()
@@ -307,9 +307,9 @@ func (b *Builder) FindTxShareRange(txIndex int) (shares.ShareRange, error) {
 		}
 		_ = pfbWriter.Add(b.pfbs[txIndex-len(b.txs)].Size())
 	}
-	end := txWriter.Size() + pfbWriter.Size() - 1
+	end := txWriter.Size() + pfbWriter.Size()
 
-	return shares.ShareRange{Start: start, End: end}, nil
+	return shares.NewRange(start, end), nil
 }
 
 func (b *Builder) canFit(shareNum int) bool {
