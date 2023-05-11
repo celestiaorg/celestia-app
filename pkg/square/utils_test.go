@@ -15,10 +15,10 @@ func TestEstimateMaxBlockSize(t *testing.T) {
 	}
 
 	tests := []test{
-		{squareSize: 64, expect: 1957888},
-		{squareSize: appconsts.MaxSquareSize, expect: 7831552},
-		{squareSize: 256, expect: 31326208},
-		{squareSize: 512, expect: 125304832},
+		{squareSize: 64, expect: 1918731},
+		{squareSize: appconsts.MaxSquareSize, expect: 7674921},
+		{squareSize: 256, expect: 30699684},
+		{squareSize: 512, expect: 122798736},
 	}
 	for _, tc := range tests {
 		res := EstimateMaxBlockBytes(tc.squareSize)
