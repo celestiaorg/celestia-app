@@ -13,6 +13,7 @@ Accepted
 - 2023/3/1: blob inclusion proof size
 - 2023/3/2: accepted
 - 2023/5/10: add section on SHA256 performance
+- 2023/5/11: revise decision 33 bytes => 29 bytes
 
 ## Context
 
