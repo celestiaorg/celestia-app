@@ -64,7 +64,7 @@ func generateOrderedTxs(normalTxCount, pfbCount, pfbSize int) [][]byte {
 		normieTxs...),
 		pfbTxs...,
 	)
-	return shuffle(coretypes.Txs(txs).ToSliceOfBytes())
+	return coretypes.Txs(txs).ToSliceOfBytes()
 }
 
 func shuffle(slice [][]byte) [][]byte {
