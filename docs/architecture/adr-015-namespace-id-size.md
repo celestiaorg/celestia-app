@@ -155,9 +155,9 @@ Namespace size (bytes) | [HashNode](https://github.com/celestiaorg/nmt/blob/fd00
 The data size is calculated as follows:
 `SHA256(domain_sep || left_min || left_max || left_data_hash || right_min || right_max || right_data_hash)` = 1 + namespaceSize + namespaceSize + 32 + namespaceSize + namespaceSize + 32 which simplifies to (4 \* namespaceSIze) + (2 \* 32) + 1.
 
-Hashing has a high performance impact in ZK contexts. Since a larger namespace size results in a larger data size for the SHA256 operation, increasing the namespace size has a negative impact impact on the cost to perform the SHA256 operation in a ZK context.
+Hashing has a high performance impact in ZK contexts. Since a larger namespace size results in a larger data size for the SHA256 operation, increasing the namespace size has a negative performance impact on the cost to perform the SHA256 operation in a ZK context.
 
-Based on this StackOverflow [post](https://crypto.stackexchange.com/questions/54852/what-happens-if-a-sha-256-input-is-too-long-longer-than-512-bits), when the data provided to SHA256 exceeds 56 bytes, the data must be chunked into 64 byte blocks with a trailing 56 byte block + 8 bytes of metadata.
+Based on this StackOverflow [post](https://crypto.stackexchange.com/questions/54852/what-happens-if-a-sha-256-input-is-too-long-longer-than-512-bits), when the data provided to SHA256 exceeds 56 bytes, the data must be chunked into [64 byte blocks](https://cs.opensource.google/go/go/+/refs/tags/go1.20.4:src/crypto/sha256/sha256.go;l=29;drc=995c0f310c087c9cbc49112ecc48459a96310451) with a trailing 56 byte block + 8 bytes to store the original data length as a `uint64`.
 
 Namespace size (bytes) | [HashNode](https://github.com/celestiaorg/nmt/blob/fd00c52175c48bad64d03444689162fb9c6bee41/hasher.go#L302)'s SHA256 max data (bytes) | SHA256 compression invocations
 -----------------------|---------------------------------------------------------------------------------------------------------------------------------------|-------------------------------
@@ -165,6 +165,8 @@ N/A                    | 56                                                     
 0 to 13                | 64 + 56 = 120                                                                                                                         | 2
 14 to 29               | 64 + 64 + 56 = 184                                                                                                                    | 3
 30 to 45               | 64 + 64 + 64 + 56 = 248                                                                                                               | 4
+
+Note: to verify the number of SHA256 compression invocations, we analyzed the number of loop executions inside the Golang SHA256 implementation [here](https://github.com/golang/go/blob/96add980ad27faed627f26ef1ab09e8fe45d6bd1/src/crypto/sha256/sha256block.go#L83) and it matches the expected number of invocations in the table above. See raw data [here](https://gist.github.com/rootulp/4cfc10c1c80a15cc57f0b35f330ac542).
 
 ## Open questions
 
