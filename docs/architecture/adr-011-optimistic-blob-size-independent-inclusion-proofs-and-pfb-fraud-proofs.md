@@ -18,7 +18,14 @@ Validators check if the commitment in the PFB transaction matches the commitment
 
 ## Blob size independent inclusion proof - PFB inclusion proof
 
-A PFB transaction inclusion proof proves that a PFB transaction was included in a block. A PFB transaction inclusion proof contains the shares that have the PFB transaction and the inclusion proof that proves those shares are present in a Merkle tree with root `DataRoot`. Note that a PFB transaction inclusion proof does not scale with the size of the blob it pays for because the blob was separated from the PFB transaction before being written to the data square. In other words, a PFB transaction inclusion proof is blob size independent.
+A PFB transaction inclusion proof proves that a PFB transaction was included in a block. A PFB transaction inclusion proof contains the shares that have the PFB transaction and two distinct inclusion proofs:
+
+1. An NMT proof that proves the shares exist in a Merkle tree with root `RowRoot`.
+2. A Merkle proof that proves the `RowRoot` exists in a Merkle tree with root `DataRoot`.
+
+Note the second proof may not be necessary because light clients download the `DataAvailabilityHeader` which contains all `RowRoot`s of the block's extended data square (EDS).
+
+Note that a PFB transaction inclusion proof does not scale with the size of the blob it pays for because the blob was separated from the PFB transaction before being written to the data square. In other words, a PFB transaction inclusion proof is blob size independent.
 
 The verifier could do the following steps:
 
