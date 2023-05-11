@@ -3,6 +3,7 @@ package paramfilter
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
@@ -11,20 +12,22 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// DefaultConsensusParams returns a default ConsensusParams.
-func DefaultConsensusParams(maxSquareSize uint64) *tmproto.ConsensusParams {
+// DefaultConsensusParams returns a ConsensusParams with a MaxBytes
+// determined using a goal square size.
+func DefaultConsensusParams() *tmproto.ConsensusParams {
 	return &tmproto.ConsensusParams{
-		Block:     DefaultBlockParams(maxSquareSize),
+		Block:     DefaultBlockParams(),
 		Evidence:  coretypes.DefaultEvidenceParams(),
 		Validator: coretypes.DefaultValidatorParams(),
 		Version:   coretypes.DefaultVersionParams(),
 	}
 }
 
-// DefaultBlockParams returns a default BlockParams.
-func DefaultBlockParams(maxSquareSize uint64) tmproto.BlockParams {
+// DefaultBlockParams returns a default BlockParams with a MaxBytes determined
+// using a goal square size.
+func DefaultBlockParams() tmproto.BlockParams {
 	return tmproto.BlockParams{
-		MaxBytes:   square.EstimateMaxBlockBytes(maxSquareSize),
+		MaxBytes:   square.EstimateMaxBlockBytes(appconsts.MaxSquareSize),
 		MaxGas:     -1,
 		TimeIotaMs: 1000, // 1s
 	}
