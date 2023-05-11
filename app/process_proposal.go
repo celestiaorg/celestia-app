@@ -21,11 +21,6 @@ import (
 const rejectedPropBlockLog = "Rejected proposal block:"
 
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
-	// Check for blob inclusion:
-	//  - each MsgPayForBlobs included in a block should have a corresponding blob data in the block body
-	//  - the commitment in each PFB should match the commitment for the shares that contain that blob data
-	//  - there should be no unpaid-for data
-
 	// create the anteHanders that are used to check the validity of
 	// transactions. We verify the signatures of PFB containing txs using the
 	// sigVerifyAnterHandler, and simply increase the nonce of all other
@@ -38,12 +33,12 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		return reject()
 	}
 
-	// iterate over all Txs and ensure that all BlobTxs are valid, PFBS are correctly signed and non
+	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed and non
 	// blobTxs have no PFBs present
 	for idx, rawTx := range req.BlockData.Txs {
 		tx := rawTx
-		blobTx, isBlob := coretypes.UnmarshalBlobTx(rawTx)
-		if isBlob {
+		blobTx, isBlobTx := coretypes.UnmarshalBlobTx(rawTx)
+		if isBlobTx {
 			tx = blobTx.Tx
 		}
 
@@ -56,7 +51,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 
 		// handle non-blob transactions first
-		if !isBlob {
+		if !isBlobTx {
 			_, has := hasPFB(sdkTx.GetMsgs())
 			if has {
 				// A non blob tx has a PFB, which is invalid
@@ -118,8 +113,9 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	}
 
 	dah := da.NewDataAvailabilityHeader(eds)
-	// by comparing the hashes we know the computed WrappedIndex is correct and that square construction is
-	// consistent.
+	// by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
+	// are identical and that square layout is consistent. This also means that the share commitment rules
+	// have been followed and thus each blobs share commitment should be valid
 	if !bytes.Equal(dah.Hash(), req.Header.DataHash) {
 		logInvalidPropBlock(app.Logger(), req.Header, "proposed data root differs from calculated data root")
 		return reject()
