@@ -8,14 +8,12 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
 
 // Keeper of the mint store
 type Keeper struct {
 	cdc              codec.BinaryCodec
 	storeKey         storetypes.StoreKey
-	paramSpace       paramtypes.Subspace
 	stakingKeeper    types.StakingKeeper
 	bankKeeper       types.BankKeeper
 	feeCollectorName string
@@ -25,7 +23,6 @@ type Keeper struct {
 func NewKeeper(
 	cdc codec.BinaryCodec,
 	storeKey storetypes.StoreKey,
-	paramSpace paramtypes.Subspace,
 	stakingKeeper types.StakingKeeper,
 	ak types.AccountKeeper,
 	bankKeeper types.BankKeeper,
@@ -39,7 +36,6 @@ func NewKeeper(
 	return Keeper{
 		cdc:              cdc,
 		storeKey:         storeKey,
-		paramSpace:       paramSpace,
 		stakingKeeper:    stakingKeeper,
 		bankKeeper:       bankKeeper,
 		feeCollectorName: feeCollectorName,
