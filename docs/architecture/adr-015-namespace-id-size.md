@@ -45,7 +45,7 @@ namespaceIdB := []byte{1, 1, 1, ...} // 32 bytes
 namespaceB := append(namespaceVersionB, namespaceIdB)
 ```
 
-## Desirable Criteria
+## Desirable criteria
 
 1. A user should be able to randomly generate a namespace that hasn't been used before[^1]
 2. There should exist a large enough namespace ID space for all rollups that may exist in the forseeable future (e.g. 100 years)
@@ -102,7 +102,7 @@ We must make some assumptions for the number of rollups that will exist. Ethereu
 
 There are some tradeoffs to consider when choosing a namespace ID size.
 
-### NMT Node Size
+### NMT node size
 
 The namespace ID is prefixed to each NMT data leaf. Two namespace IDs are prefixed to each NMT non-leaf hash. Therefore, the nodes of an NMT will be larger based on the namespace ID size. Assuming shares are 512 bytes:
 
@@ -113,7 +113,7 @@ Namespace ID size (bytes) | NMT data leaf size (bytes) | NMT inner node size (by
 20                        | 20 + 512 = 532             | 2*20 + 32 = 72
 32                        | 32 + 512 = 544             | 2*32 + 32 = 96
 
-### NMT Proof Size
+### NMT proof size
 
 Increasing the size of NMT nodes will increase the size of the NMT proof. Assuming shares are 512 bytes, square size is 128, the NMT for a row will contain 2 * 128 leaves. If the NMT proof is for a single leaf:
 
@@ -126,11 +126,11 @@ Namespace ID size (bytes) | Unencoded NMT proof size (bytes) | Protobuf encoded 
 
 Note: if the NMT proof is an absence proof, an additional leaf node is included in the proof.
 
-### Blob Inclusion Proof Size
+### Blob inclusion proof size
 
 Blob inclusion proofs haven't yet been implemented so this proposal can't precisely determine the impact on blob inclusion proofs. A naive implementation of blob inclusion proofs may return NMT proofs for all shares that a blob occupies, in other words one NMT proof per row that a blob spans. Assuming shares are 512 bytes, square size is 128, and a blob is less than 128 shares, a blob would occupy a maximum of 2 rows. Therefore, the namespace ID size's impact on blob inclusion proofs would be approximately 2 * the impact on NMT proofs. A [blob size independent inclusion proof](https://github.com/celestiaorg/celestia-app/blob/6d27b78aa64a749a808e84ea682352b8b551fbd7/docs/architecture/adr-011-optimistic-blob-size-independent-inclusion-proofs-and-pfb-fraud-proofs.md?plain=1#L19) is likely smaller than this naive implementation because it depends on the number of shares that a PFB transaction spans (likely significantly fewer than 2 rows).
 
-### Share Size
+### Share size
 
 Another tradeoff to consider is the size of the namespace ID in the share. Since a share is a fixed 512 bytes, a share's capacity for blob data decreases as the namespace ID increases.
 
@@ -141,11 +141,11 @@ Another tradeoff to consider is the size of the namespace ID in the share. Since
 | 20                        | 3.9%                                    |
 | 32                        | 6.2%                                    |
 
-### Maximum Blob Size
+### Maximum blob size
 
 If the namespace ID size is increased, the maximum possible blob will decrease. Given the maximum possible blob is bounded by the number of bytes available for blob space in a data square, if a 32 byte namespace ID size is adopted, the maxmimum blob size will decrease by an upper bound of `appconsts.DefaultMaxSquareSize * appconsts.DefaultMaxSquareSize * (32-8)`. Note this is an upper bound because not all shares in the data square can be used for blob data (i.e. at least one share must contain the associated PayForBlob transaction).
 
-### SHA256 Performance
+### SHA256 performance
 
 If the namespace size is increased, whenever a SHA256 invocation takes place (e.g. NMT's [HashNode](https://github.com/celestiaorg/nmt/blob/fd00c52175c48bad64d03444689162fb9c6bee41/hasher.go#L265)), more data needs to be SHA256'ed. For example:
 
@@ -170,7 +170,7 @@ N/A                    | 56                                                     
 14 to 29               | 64 + 64 + 56 = 184                                                                                                                           | 3
 30 to 45               | 64 + 64 + 64 + 56 = 248                                                                                                                      | 4
 
-## Open Questions
+## Open questions
 
 1. What are the performance implications on celestia-node for a larger namespace ID size?
 1. Is it possible to mitigate some tradeoffs when adopting a large namespace ID size?
@@ -200,7 +200,7 @@ N/A                    | 56                                                     
     - celestia-node
       - TBD
 
-## Discussion Notes
+## Discussion notes
 
 - Do we care about collisions created by an adversary?
   - If so, an adversary can look at previously used namespace IDs and perform a woods attack on an existing namespace ID so increasing the namespace ID size doesn't resolve this threat.
