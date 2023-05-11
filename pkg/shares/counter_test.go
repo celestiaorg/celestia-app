@@ -17,6 +17,7 @@ func TestCounterMatchesCompactShareSplitter(t *testing.T) {
 	testCases := []struct {
 		txs []coretypes.Tx
 	}{
+		{txs: []coretypes.Tx{}},
 		{txs: []coretypes.Tx{newTx(120)}},
 		{txs: []coretypes.Tx{newTx(appconsts.FirstCompactShareContentSize - 2)}},
 		{txs: []coretypes.Tx{newTx(appconsts.FirstCompactShareContentSize - 1)}},
@@ -56,6 +57,7 @@ func TestCounterMatchesCompactShareSplitter(t *testing.T) {
 
 func TestCompactShareCounterRevert(t *testing.T) {
 	counter := shares.NewCompactShareCounter()
+	require.Equal(t, counter.Size(), 0)
 	counter.Add(appconsts.FirstCompactShareContentSize - 2)
 	counter.Add(1)
 	require.Equal(t, counter.Size(), 2)

@@ -20,7 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/pkg/proof"
+	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/test/util/network"
 	"github.com/celestiaorg/celestia-app/x/blob"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
@@ -152,11 +152,11 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 
 	tests := []test{
 		{
-			"20 ~1Mb txs",
+			"20 1Mb txs",
 			equallySized1MbTxGen,
 		},
 		{
-			"20 ~1Mb multiblob txs",
+			"20 1Mb multiblob txs",
 			randMultiBlob1MbTxGen,
 		},
 		{
@@ -184,15 +184,15 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 			heights := make(map[int64]int)
 			for _, hash := range hashes {
 				resp, err := testnode.QueryTx(val.ClientCtx, hash, true)
-				assert.NoError(err)
+				require.NoError(err)
 				assert.NotNil(resp)
 				if resp == nil {
 					continue
 				}
-				assert.Equal(abci.CodeTypeOK, resp.TxResult.Code)
+				require.Equal(abci.CodeTypeOK, resp.TxResult.Code, resp.TxResult.Log)
 				heights[resp.Height]++
 				// ensure that some gas was used
-				assert.GreaterOrEqual(resp.TxResult.GasUsed, int64(10))
+				require.GreaterOrEqual(resp.TxResult.GasUsed, int64(10))
 				// require.True(resp.Proof.VerifyProof())
 			}
 
@@ -208,8 +208,8 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				size := blockRes.Block.Data.SquareSize
 
 				// perform basic checks on the size of the square
-				assert.LessOrEqual(size, uint64(appconsts.DefaultMaxSquareSize))
-				assert.GreaterOrEqual(size, uint64(appconsts.DefaultMinSquareSize))
+				require.LessOrEqual(size, uint64(appconsts.DefaultMaxSquareSize))
+				require.GreaterOrEqual(size, uint64(appconsts.DefaultMinSquareSize))
 				sizes = append(sizes, size)
 			}
 			// ensure that at least one of the blocks used the max square size
@@ -221,7 +221,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 
 func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	require := s.Require()
-	assert := s.Assert()
 	val := s.network.Validators[0]
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 
@@ -281,7 +280,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
 			require.NoError(err)
 			require.NotNil(res)
-			assert.Equal(abci.CodeTypeOK, res.Code)
+			require.Equal(abci.CodeTypeOK, res.Code, res.Logs)
 		})
 	}
 }
@@ -346,16 +345,19 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		blockRes, err := node.Block(context.Background(), &txResp.Height)
 		require.NoError(err)
 
+		_, isBlobTx := coretypes.UnmarshalBlobTx(blockRes.Block.Txs[txResp.Index])
+		require.True(isBlobTx)
+
 		// get the blob shares
-		beginBlobShare, endBlobShare, err := proof.BlobShareRange(blockRes.Block.Txs[txResp.Index])
+		shareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(txResp.Index), 0)
 		require.NoError(err)
 
 		// verify the blob shares proof
 		blobProof, err := node.ProveShares(
 			context.Background(),
 			uint64(txResp.Height),
-			beginBlobShare,
-			endBlobShare,
+			uint64(shareRange.Start),
+			uint64(shareRange.End),
 		)
 		require.NoError(err)
 		require.NoError(blobProof.Validate(blockRes.Block.DataHash))
