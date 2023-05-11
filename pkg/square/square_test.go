@@ -232,6 +232,9 @@ func TestSquareBlobPostions(t *testing.T) {
 				require.True(t, isWrappedPFB)
 				require.Equal(t, tt.expectedIndexes[j], wrappedPFB.ShareIndexes, j)
 			}
+			wrappedTxs, err := square.WrappedPFBs()
+			require.NoError(t, err)
+			require.Equal(t, txs, wrappedTxs)
 		})
 	}
 }
@@ -361,4 +364,31 @@ func TestSquareBlobShareRange(t *testing.T) {
 
 	_, err = square.BlobShareRange(txs, 0, 10)
 	require.Error(t, err)
+}
+
+func TestSquareDeconstruct(t *testing.T) {
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	t.Run("ConstructDecostructParity", func(t *testing.T) {
+		const numTxs = 10
+		txs := generateOrderedTxs(numTxs, numTxs, 100)
+		dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
+		require.NoError(t, err)
+		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
+		require.NoError(t, err)
+		require.Equal(t, txs, recomputedTxs.ToSliceOfBytes())
+	})
+	t.Run("NoPFBs", func(t *testing.T) {
+		const numTxs = 10
+		txs := types.Txs(blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, numTxs)).ToSliceOfBytes()
+		dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
+		require.NoError(t, err)
+		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
+		require.NoError(t, err)
+		require.Equal(t, txs, recomputedTxs.ToSliceOfBytes())
+	})
+	t.Run("EmptySquare", func(t *testing.T) {
+		tx, err := square.Deconstruct(square.EmptySquare(), encCfg.TxConfig.TxDecoder())
+		require.NoError(t, err)
+		require.Equal(t, types.Txs(nil), tx)
+	})
 }

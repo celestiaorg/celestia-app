@@ -16,6 +16,10 @@ type ShareRange struct {
 	End int
 }
 
+func (sr *ShareRange) IsEmpty() bool {
+	return sr.Start == 0 && sr.End == 0
+}
+
 // CompactShareSplitter will write raw data compactly across a progressively
 // increasing set of shares. It is used to lazily split block data such as
 // transactions or intermediate state roots into shares.
