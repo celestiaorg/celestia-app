@@ -24,13 +24,16 @@ func DefaultMinter() Minter {
 	return NewMinter(initalInflationRate, sdk.NewDec(0), &unixEpoch, sdk.DefaultBondDenom)
 }
 
-// ValidateMinter returns an error if the provided minter is invalid.
-func ValidateMinter(minter Minter) error {
-	if minter.InflationRate.IsNegative() {
-		return fmt.Errorf("minter inflation %v should be positive", minter.InflationRate.String())
+// Validate returns an error if the minter is invalid.
+func (m Minter) Validate() error {
+	if m.InflationRate.IsNegative() {
+		return fmt.Errorf("inflation rate %v should be positive", m.InflationRate.String())
 	}
-	if minter.AnnualProvisions.IsNegative() {
-		return fmt.Errorf("minter annual provisions %v should be positive", minter.AnnualProvisions.String())
+	if m.AnnualProvisions.IsNegative() {
+		return fmt.Errorf("annual provisions %v should be positive", m.AnnualProvisions.String())
+	}
+	if m.BondDenom == "" {
+		return fmt.Errorf("bond denom should not be empty string")
 	}
 	return nil
 }
