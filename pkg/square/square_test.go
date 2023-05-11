@@ -367,7 +367,8 @@ func TestSquareBlobShareRange(t *testing.T) {
 }
 
 func TestSquareShareCommitments(t *testing.T) {
-	txs := generateOrderedTxs(10, 10, 5)
+	const numTxs = 10
+	txs := generateOrderedTxs(numTxs, numTxs, 5)
 	builder, err := square.NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
 	require.NoError(t, err)
 
@@ -380,8 +381,8 @@ func TestSquareShareCommitments(t *testing.T) {
 	dah := da.NewDataAvailabilityHeader(eds)
 	decoder := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig.TxDecoder()
 
-	for pfbIndex := 0; pfbIndex < 10; pfbIndex++ {
-		wpfb, err := builder.GetWrappedPFB(pfbIndex + 10)
+	for pfbIndex := 0; pfbIndex < numTxs; pfbIndex++ {
+		wpfb, err := builder.GetWrappedPFB(pfbIndex + numTxs)
 		require.NoError(t, err)
 		tx, err := decoder(wpfb.Tx)
 		require.NoError(t, err)
