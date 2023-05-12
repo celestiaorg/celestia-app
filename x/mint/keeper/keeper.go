@@ -1,8 +1,11 @@
 package keeper
 
 import (
+	"time"
+
 	"cosmossdk.io/math"
 	"github.com/tendermint/tendermint/libs/log"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/celestiaorg/celestia-app/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -50,20 +53,38 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 // GetMinter returns the minter.
 func (k Keeper) GetMinter(ctx sdk.Context) (minter types.Minter) {
 	store := ctx.KVStore(k.storeKey)
-	b := store.Get(types.MintKey)
+	b := store.Get(types.MinterKey)
 	if b == nil {
 		panic("stored minter should not have been nil")
 	}
 
 	k.cdc.MustUnmarshal(b, &minter)
-	return
+	return minter
 }
 
 // SetMinter sets the minter.
 func (k Keeper) SetMinter(ctx sdk.Context, minter types.Minter) {
 	store := ctx.KVStore(k.storeKey)
 	b := k.cdc.MustMarshal(&minter)
-	store.Set(types.MintKey, b)
+	store.Set(types.MinterKey, b)
+}
+
+func (k Keeper) GetGenesisTime(ctx sdk.Context) (genesisTime *time.Time) {
+	store := ctx.KVStore(k.storeKey)
+	b := store.Get(types.GenesisTimeKey)
+	if b == nil {
+		panic("stored genesis time should not have been nil")
+	}
+
+	var foo timestamppb.Timestamp
+	k.cdc.MustUnmarshal(b, &foo)
+	return genesisTime
+}
+
+func (k Keeper) SetGenesisTime(ctx sdk.Context, genesisTime *time.Time) {
+	store := ctx.KVStore(k.storeKey)
+	b := k.cdc.MustMarshal(genesisTime)
+	store.Set(types.GenesisTimeKey, b)
 }
 
 // StakingTokenSupply implements an alias call to the underlying staking keeper's
@@ -86,4 +107,8 @@ func (k Keeper) MintCoins(ctx sdk.Context, newCoins sdk.Coins) error {
 // the x/auth fee collector module account.
 func (k Keeper) SendCoinsToFeeCollector(ctx sdk.Context, coins sdk.Coins) error {
 	return k.bankKeeper.SendCoinsFromModuleToModule(ctx, types.ModuleName, k.feeCollectorName, coins)
+}
+
+func (k Keeper) GenesisTime(ctx sdk.Context) int64 {
+	return k.GenesisTime()
 }

@@ -49,7 +49,7 @@ func (suite *MintTestSuite) TestGRPC() {
 
 	genesisTime, err := queryClient.GenesisTime(gocontext.Background(), &types.QueryGenesisTimeRequest{})
 	suite.Require().NoError(err)
-	suite.Require().Equal(genesisTime.GenesisTime, app.MintKeeper.GetMinter(ctx).GenesisTime)
+	suite.Require().Equal(genesisTime.GenesisTime, app.MintKeeper.GenesisTime(ctx))
 }
 
 func TestMintTestSuite(t *testing.T) {

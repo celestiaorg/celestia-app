@@ -3,6 +3,7 @@ package celestia.mint.v1;
 
 import "gogoproto/gogo.proto";
 import "celestia/mint/v1/mint.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/mint/types";
 
@@ -10,4 +11,9 @@ option go_package = "github.com/celestiaorg/celestia-app/x/mint/types";
 message GenesisState {
   // minter is a space for holding current inflation information.
   Minter minter = 1 [(gogoproto.nullable) = false];
+
+  // genesis_time is the timestamp of the genesis block. Note: this field must be
+  // duplicated from the genesis.json's root-level `genesis_time` because
+  // modules don't have access to common genesis fields.
+  google.protobuf.Timestamp genesis_time = 2 [(gogoproto.stdtime) = true];
 }

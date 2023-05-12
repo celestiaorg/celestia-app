@@ -8,11 +8,13 @@ import (
 // InitGenesis new mint genesis
 func (keeper Keeper) InitGenesis(ctx sdk.Context, ak types.AccountKeeper, data *types.GenesisState) {
 	keeper.SetMinter(ctx, data.Minter)
+	keeper.SetGenesisTime(ctx, data.GenesisTime)
 	ak.GetModuleAccount(ctx, types.ModuleName)
 }
 
 // ExportGenesis returns a GenesisState for a given context and keeper.
 func (keeper Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 	minter := keeper.GetMinter(ctx)
-	return types.NewGenesisState(minter)
+	genesisTime := keeper.GetGenesisTime(ctx)
+	return types.NewGenesisState(minter, genesisTime)
 }
