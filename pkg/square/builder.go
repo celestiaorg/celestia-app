@@ -316,6 +316,29 @@ func (b *Builder) FindTxShareRange(txIndex int) (shares.ShareRange, error) {
 	return shares.ShareRange{Start: start, End: end}, nil
 }
 
+func (b *Builder) GetWrappedPFB(txIndex int) (*coretypes.IndexWrapper, error) {
+	if txIndex < 0 {
+		return nil, fmt.Errorf("txIndex %d must not be negative", txIndex)
+	}
+
+	if txIndex < len(b.txs) {
+		return nil, fmt.Errorf("txIndex %d does not match a pfb", txIndex)
+	}
+
+	if txIndex >= len(b.txs)+len(b.pfbs) {
+		return nil, fmt.Errorf("txIndex %d out of range", txIndex)
+	}
+
+	if !b.done {
+		_, err := b.Export()
+		if err != nil {
+			return nil, fmt.Errorf("building square: %w", err)
+		}
+	}
+
+	return b.pfbs[txIndex-len(b.txs)], nil
+}
+
 func (b *Builder) canFit(shareNum int) bool {
 	return b.currentSize+shareNum <= b.maxCapacity
 }
