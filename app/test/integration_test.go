@@ -37,7 +37,7 @@ func TestIntegrationTestSuite(t *testing.T) {
 	cfg.EnableTMLogging = false
 	cfg.MinGasPrices = "0utia"
 	cfg.NumValidators = 1
-	cfg.TimeoutCommit = time.Millisecond * 400
+	cfg.TargetHeightDuration = time.Millisecond * 400
 	suite.Run(t, NewIntegrationTestSuite(cfg))
 }
 
