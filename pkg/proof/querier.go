@@ -92,7 +92,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 		return nil, err
 	}
 
-	nID, err := ParseNamespace(dataSquare, beginShare, endShare)
+	nID, err := ParseNamespace(dataSquare, int(beginShare), int(endShare))
 	if err != nil {
 		return nil, err
 	}
@@ -100,10 +100,8 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 	// create and marshal the share inclusion proof, which we return in the form of []byte
 	shareProof, err := NewShareInclusionProof(
 		dataSquare,
-		dataSquare.Size(),
 		nID,
-		uint64(beginShare),
-		uint64(endShare),
+		shares.NewRange(int(beginShare), int(endShare)),
 	)
 	if err != nil {
 		return nil, err
@@ -119,7 +117,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 
 // ParseNamespace validates the share range, checks if it only contains one namespace and returns
 // that namespace ID.
-func ParseNamespace(rawShares []shares.Share, startShare int64, endShare int64) (appns.Namespace, error) {
+func ParseNamespace(rawShares []shares.Share, startShare, endShare int) (appns.Namespace, error) {
 	if startShare < 0 {
 		return appns.Namespace{}, fmt.Errorf("start share %d should be positive", startShare)
 	}
@@ -132,7 +130,7 @@ func ParseNamespace(rawShares []shares.Share, startShare int64, endShare int64) 
 		return appns.Namespace{}, fmt.Errorf("end share %d cannot be lower than starting share %d", endShare, startShare)
 	}
 
-	if endShare >= int64(len(rawShares)) {
+	if endShare >= len(rawShares) {
 		return appns.Namespace{}, fmt.Errorf("end share %d is higher than block shares %d", endShare, len(rawShares))
 	}
 

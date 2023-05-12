@@ -9,11 +9,14 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	ns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	blob "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -259,7 +262,7 @@ func TestSquareTxShareRange(t *testing.T) {
 			txs:       [][]byte{txOne},
 			index:     0,
 			wantStart: 0,
-			wantEnd:   0,
+			wantEnd:   1,
 			expectErr: false,
 		},
 		{
@@ -267,7 +270,7 @@ func TestSquareTxShareRange(t *testing.T) {
 			txs:       [][]byte{txTwo},
 			index:     0,
 			wantStart: 0,
-			wantEnd:   1,
+			wantEnd:   2,
 			expectErr: false,
 		},
 		{
@@ -275,7 +278,7 @@ func TestSquareTxShareRange(t *testing.T) {
 			txs:       [][]byte{txThree},
 			index:     0,
 			wantStart: 0,
-			wantEnd:   2,
+			wantEnd:   3,
 			expectErr: false,
 		},
 		{
@@ -283,7 +286,7 @@ func TestSquareTxShareRange(t *testing.T) {
 			txs:       [][]byte{txOne, txTwo, txThree},
 			index:     2,
 			wantStart: 1,
-			wantEnd:   3,
+			wantEnd:   4,
 			expectErr: false,
 		},
 		{
@@ -391,4 +394,36 @@ func TestSquareDeconstruct(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, types.Txs(nil), tx)
 	})
+}
+
+func TestSquareShareCommitments(t *testing.T) {
+	const numTxs = 10
+	txs := generateOrderedTxs(numTxs, numTxs, 5)
+	builder, err := square.NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
+	require.NoError(t, err)
+
+	dataSquare, err := builder.Export()
+	require.NoError(t, err)
+
+	cacher := inclusion.NewSubtreeCacher(uint64(dataSquare.Size()))
+	eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(dataSquare), appconsts.DefaultCodec(), cacher.Constructor)
+	require.NoError(t, err)
+	dah := da.NewDataAvailabilityHeader(eds)
+	decoder := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig.TxDecoder()
+
+	for pfbIndex := 0; pfbIndex < numTxs; pfbIndex++ {
+		wpfb, err := builder.GetWrappedPFB(pfbIndex + numTxs)
+		require.NoError(t, err)
+		tx, err := decoder(wpfb.Tx)
+		require.NoError(t, err)
+
+		pfb, ok := tx.GetMsgs()[0].(*blob.MsgPayForBlobs)
+		require.True(t, ok)
+
+		for blobIndex, shareIndex := range wpfb.ShareIndexes {
+			commitment, err := inclusion.GetCommitment(cacher, dah, int(shareIndex), shares.SparseSharesNeeded(pfb.BlobSizes[blobIndex]))
+			require.NoError(t, err)
+			require.Equal(t, pfb.ShareCommitments[blobIndex], commitment)
+		}
+	}
 }

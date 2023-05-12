@@ -186,7 +186,7 @@ func TestSplitTxs(t *testing.T) {
 		txs           coretypes.Txs
 		wantTxShares  []Share
 		wantPfbShares []Share
-		wantMap       map[coretypes.TxKey]ShareRange
+		wantMap       map[coretypes.TxKey]Range
 	}
 
 	smallTx := coretypes.Tx{0xa} // spans one share
@@ -257,15 +257,15 @@ func TestSplitTxs(t *testing.T) {
 			txs:           coretypes.Txs{},
 			wantTxShares:  []Share{},
 			wantPfbShares: []Share{},
-			wantMap:       map[coretypes.TxKey]ShareRange{},
+			wantMap:       map[coretypes.TxKey]Range{},
 		},
 		{
 			name:          "smallTx",
 			txs:           coretypes.Txs{smallTx},
 			wantTxShares:  smallTxShares,
 			wantPfbShares: []Share{},
-			wantMap: map[coretypes.TxKey]ShareRange{
-				smallTx.Key(): {0, 0},
+			wantMap: map[coretypes.TxKey]Range{
+				smallTx.Key(): {0, 1},
 			},
 		},
 		{
@@ -273,8 +273,8 @@ func TestSplitTxs(t *testing.T) {
 			txs:           coretypes.Txs{largeTx},
 			wantTxShares:  largeTxShares,
 			wantPfbShares: []Share{},
-			wantMap: map[coretypes.TxKey]ShareRange{
-				largeTx.Key(): {0, 1},
+			wantMap: map[coretypes.TxKey]Range{
+				largeTx.Key(): {0, 2},
 			},
 		},
 		{
@@ -282,8 +282,8 @@ func TestSplitTxs(t *testing.T) {
 			txs:           coretypes.Txs{pfbTx},
 			wantTxShares:  []Share{},
 			wantPfbShares: pfbTxShares,
-			wantMap: map[coretypes.TxKey]ShareRange{
-				pfbTx.Key(): {0, 0},
+			wantMap: map[coretypes.TxKey]Range{
+				pfbTx.Key(): {0, 1},
 			},
 		},
 		{
@@ -291,9 +291,9 @@ func TestSplitTxs(t *testing.T) {
 			txs:           coretypes.Txs{largeTx, pfbTx},
 			wantTxShares:  largeTxShares,
 			wantPfbShares: pfbTxShares,
-			wantMap: map[coretypes.TxKey]ShareRange{
-				largeTx.Key(): {0, 1},
-				pfbTx.Key():   {2, 2},
+			wantMap: map[coretypes.TxKey]Range{
+				largeTx.Key(): {0, 2},
+				pfbTx.Key():   {2, 3},
 			},
 		},
 	}
@@ -323,41 +323,41 @@ func fillShare(share Share, filler byte) (paddedShare Share) {
 func Test_mergeMaps(t *testing.T) {
 	type testCase struct {
 		name   string
-		mapOne map[coretypes.TxKey]ShareRange
-		mapTwo map[coretypes.TxKey]ShareRange
-		want   map[coretypes.TxKey]ShareRange
+		mapOne map[coretypes.TxKey]Range
+		mapTwo map[coretypes.TxKey]Range
+		want   map[coretypes.TxKey]Range
 	}
 	testCases := []testCase{
 		{
 			name:   "empty maps",
-			mapOne: map[coretypes.TxKey]ShareRange{},
-			mapTwo: map[coretypes.TxKey]ShareRange{},
-			want:   map[coretypes.TxKey]ShareRange{},
+			mapOne: map[coretypes.TxKey]Range{},
+			mapTwo: map[coretypes.TxKey]Range{},
+			want:   map[coretypes.TxKey]Range{},
 		},
 		{
 			name: "merges maps with one key each",
-			mapOne: map[coretypes.TxKey]ShareRange{
+			mapOne: map[coretypes.TxKey]Range{
 				{0x1}: {0, 1},
 			},
-			mapTwo: map[coretypes.TxKey]ShareRange{
+			mapTwo: map[coretypes.TxKey]Range{
 				{0x2}: {2, 3},
 			},
-			want: map[coretypes.TxKey]ShareRange{
+			want: map[coretypes.TxKey]Range{
 				{0x1}: {0, 1},
 				{0x2}: {2, 3},
 			},
 		},
 		{
 			name: "merges maps with multiple keys each",
-			mapOne: map[coretypes.TxKey]ShareRange{
+			mapOne: map[coretypes.TxKey]Range{
 				{0x1}: {0, 1},
 				{0x2}: {2, 3},
 			},
-			mapTwo: map[coretypes.TxKey]ShareRange{
+			mapTwo: map[coretypes.TxKey]Range{
 				{0x3}: {3, 3},
 				{0x4}: {4, 4},
 			},
-			want: map[coretypes.TxKey]ShareRange{
+			want: map[coretypes.TxKey]Range{
 				{0x1}: {0, 1},
 				{0x2}: {2, 3},
 				{0x3}: {3, 3},
@@ -366,13 +366,13 @@ func Test_mergeMaps(t *testing.T) {
 		},
 		{
 			name: "merges maps with a duplicate key and the second map's value takes precedence",
-			mapOne: map[coretypes.TxKey]ShareRange{
+			mapOne: map[coretypes.TxKey]Range{
 				{0x1}: {0, 0},
 			},
-			mapTwo: map[coretypes.TxKey]ShareRange{
+			mapTwo: map[coretypes.TxKey]Range{
 				{0x1}: {1, 1},
 			},
-			want: map[coretypes.TxKey]ShareRange{
+			want: map[coretypes.TxKey]Range{
 				{0x1}: {1, 1},
 			},
 		},

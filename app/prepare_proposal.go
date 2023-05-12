@@ -52,7 +52,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	return abci.ResponsePrepareProposal{
 		BlockData: &core.Data{
 			Txs:        txs,
-			SquareSize: dataSquare.Size(),
+			SquareSize: uint64(dataSquare.Size()),
 			Hash:       dah.Hash(),
 		},
 	}
