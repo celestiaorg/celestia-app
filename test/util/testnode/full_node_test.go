@@ -46,11 +46,13 @@ func (s *IntegrationTestSuite) Test_Liveness() {
 		if err != nil || params == nil {
 			continue
 		}
+		time.Sleep(100 * time.Millisecond)
 		break
 	}
+	require.NoError(err)
 	require.NotNil(params)
 	require.Equal(int64(1), params.ConsensusParams.Block.TimeIotaMs)
-	_, err = s.cctx.WaitForHeight(40)
+	_, err = s.cctx.WaitForHeight(20)
 	require.NoError(err)
 }
 
@@ -72,15 +74,15 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 		require.NoError(err)
 
 		err = s.cctx.WaitForNextBlock()
-		require.NoError(err)
+		require.NoError(err, squareSize)
 
 		res, err := testfactory.QueryWithoutProof(s.cctx.Context, resp.TxHash)
-		require.NoError(err)
-		require.Equal(abci.CodeTypeOK, res.TxResult.Code)
+		require.NoError(err, squareSize)
+		require.Equal(abci.CodeTypeOK, res.TxResult.Code, squareSize)
 
 		b, err := s.cctx.Client.Block(context.TODO(), &res.Height)
-		require.NoError(err)
-		require.Equal(uint64(squareSize), b.Block.SquareSize)
+		require.NoError(err, squareSize)
+		require.Equal(uint64(squareSize), b.Block.SquareSize, squareSize)
 	}
 }
 

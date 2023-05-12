@@ -85,7 +85,7 @@ func RandMsgPayForBlobs(size int) (*blobtypes.MsgPayForBlobs, *tmproto.Blob) {
 	return msg, blob
 }
 
-func RandBlobTxsRandomlySized(enc sdk.TxEncoder, count, maxSize, maxBlobs int) []coretypes.Tx {
+func RandBlobTxsRandomlySized(enc sdk.TxEncoder, count, maxSize, maxBlobs int) coretypes.Txs {
 	const acc = "signer"
 	kr := testfactory.GenerateKeyring(acc)
 	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
@@ -214,7 +214,7 @@ func RandBlobTxsWithAccounts(
 	return txs
 }
 
-func RandBlobTxs(enc sdk.TxEncoder, count, size int) []coretypes.Tx {
+func RandBlobTxs(enc sdk.TxEncoder, count, size int) coretypes.Txs {
 	const acc = "signer"
 	kr := testfactory.GenerateKeyring(acc)
 	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")

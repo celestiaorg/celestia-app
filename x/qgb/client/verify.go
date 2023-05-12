@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/tendermint/tendermint/crypto/merkle"
 
-	"github.com/celestiaorg/celestia-app/pkg/proof"
+	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -79,12 +79,12 @@ func txCmd() *cobra.Command {
 				return err
 			}
 
-			beginTxShare, endTxShare, err := proof.TxShareRange(blockRes.Block.Data, uint64(tx.Index))
+			shareRange, err := square.TxShareRange(blockRes.Block.Data.Txs.ToSliceOfBytes(), int(tx.Index))
 			if err != nil {
 				return err
 			}
 
-			_, err = VerifyShares(cmd.Context(), logger, config, uint64(tx.Height), beginTxShare, endTxShare)
+			_, err = VerifyShares(cmd.Context(), logger, config, uint64(tx.Height), uint64(shareRange.Start), uint64(shareRange.End))
 			return err
 		},
 	}
@@ -93,11 +93,16 @@ func txCmd() *cobra.Command {
 
 func blobCmd() *cobra.Command {
 	command := &cobra.Command{
-		Use:   "blob <tx_hash>",
-		Args:  cobra.ExactArgs(1),
-		Short: "Verifies that a blob, referenced by its transaction hash, in hex format, has been committed to by the QGB contract. Only supports one blob for now",
+		Use:   "blob <tx_hash> <blob_index>",
+		Args:  cobra.ExactArgs(2),
+		Short: "Verifies that a blob, referenced by its transaction hash, in hex format, has been committed to by the QGB contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			txHash, err := hex.DecodeString(args[0])
+			if err != nil {
+				return err
+			}
+
+			blobIndex, err := strconv.ParseUint(args[1], 10, 64)
 			if err != nil {
 				return err
 			}
@@ -136,12 +141,12 @@ func blobCmd() *cobra.Command {
 				return err
 			}
 
-			beginBlobShare, endBlobShare, err := proof.BlobShareRange(blockRes.Block.Txs[tx.Index])
+			blobShareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(tx.Index), int(blobIndex))
 			if err != nil {
 				return err
 			}
 
-			_, err = VerifyShares(cmd.Context(), logger, config, uint64(tx.Height), beginBlobShare, endBlobShare)
+			_, err = VerifyShares(cmd.Context(), logger, config, uint64(tx.Height), uint64(blobShareRange.Start), uint64(blobShareRange.End))
 			return err
 		},
 	}

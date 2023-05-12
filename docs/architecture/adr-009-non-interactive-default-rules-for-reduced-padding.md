@@ -31,7 +31,7 @@ With the current non-interactive default rules, message 2 must start at a locati
 
 With the proposed non-interactive default rules, message 2 must start at an index that is a multiple of `msgMinSquareSize`. A message of 11 shares can fit in a square size of 4 (since 4 * 4 = 16 available shares which are > 11) so `msgMinSquareSize` is 4. Therefore, message 2 can start at index 12. This arrangement results in 1 share of padding.
 
-![Padding Savings](./assets/padding-savings.png)
+![Padding Savings](./assets/adr009/padding-savings.png)
 
 ### Defining variables for this analysis
 
@@ -53,12 +53,12 @@ With the proposed non-interactive default rules, message 2 must start at an inde
 If you use the current non-interactive default rules then the message begins at a location aligned with the largest power of 2 that is not larger than the message length or k. Because the subtree roots are aligned you can skip some subtree roots and calculate their parents.
 In the example below instead of proving H1, H2, H3, and H4 to the DataRoot you can prove H10. **H10 is part of the commitment generation and part of the Merkle tree to the DataRoot.** That is why you can use it for more efficient proofs. In smaller square sizes, you cannot do this, because H10 does not exist. The nodes in **red** are the subtree nodes that you need to provide for the message inclusion proof. The nodes in **blue** are the additional nodes for the Merkle proof.
 
-![Efficient Merkle Proofs with ADR008](./assets/effizicient-proof-size-ADR008.png)
+![Efficient Merkle Proofs with ADR008](./assets/adr009/effizicient-proof-size-ADR008.png)
 
 So why can you not do it with the proposed non-interactive default rules? This is because H10 is not generated. In the diagram below the first 8 shares are in the row before and therefore the tree structure changes. The previous subtree root H10 is now H23 and cannot be used for the efficiency boost.
 The commitment is still the same but we need to use the bottom subtree roots for the message inclusion proof.
 
-![Shifted Message](./assets/new-ni-rules-message-shift.png)
+![Shifted Message](./assets/adr009/new-ni-rules-message-shift.png)
 
 ## 2. Assuming message inclusion proof sizes change from O(log(n)) to O(sqrt(n)), what is the worst-case constructible message?
 
@@ -110,7 +110,7 @@ H12 is part of the commitment generation and part of the Merkle tree to the Data
 It is only generated in the bigger square and not in the smaller square because in the smaller square you have to take into account the nodes over the parity shares.
 As H12 only exists in the bigger square the more efficient proofs only work in those squares.
 
-![Row root might not be subtree root](./assets/rowroots-might-not-be-subtreeroot.png)
+![Row root might not be subtree root](./assets/adr009/rowroots-might-not-be-subtreeroot.png)
 
 ## 4. How big is the proof size for this message?
 
@@ -121,7 +121,7 @@ For completion, we also included the scenario of k/4 to compare the proof size b
 
 Each row consists of one subtree root, which means if you have log(n) rows you will have in total log(n) subtree roots. The last row has log(k) subtree roots. To get the row roots we will need log(n) blue nodes from the parity shares. Blue nodes are additional nodes that you need for the Merkle proof, which have been used in the previous diagrams. After having now r row roots we need to a Merkle proof of them to the `DataRoot`. In the worst case, the message lies in the middle of the block. Therefore we will need 2* log(k) blue nodes for the proof.
 
-![Current ni rules proof size](./assets/current-ni-rules-proof-size.png)
+![Current ni rules proof size](./assets/adr009/current-ni-rules-proof-size.png)
 
 NMT-Node size := 32 bytes + 2\*8 bytes = 48 bytes
 MT-Node size := 32 bytes
@@ -140,7 +140,7 @@ Proof size = 48 \* (k/2 + log(k)) + 64 \*log(k)
 
 Each row consists of sqrt(n)/log(n) subtree roots. Which makes in total sqrt(n) subtree roots. The rest is here the same as before.
 
-![Proposed ni rules proof size](./assets/proposed-ni-rules-proof-size.png)
+![Proposed ni rules proof size](./assets/adr009/proposed-ni-rules-proof-size.png)
 
 Proof size = subtree roots (all rows) + subtree roots (last row) + blue nodes (parity shares) + 2 \* blue nodes (`DataRoot`)
 Proof size = (sqrt(n) + log(k) + log(n)) \* NMT-Node size  + 2\*log(k) \* MT-Node size
@@ -161,7 +161,7 @@ To have the most amount of padding for the proposed non-interactive default rule
 
 Padding = 3 \* (k-1) \* k/8
 
-![Worst Case Padding](./assets/worst-case-padding.png)
+![Worst Case Padding](./assets/adr009/worst-case-padding.png)
 
 ## What are the quantified padding and proof size costs?
 
@@ -169,13 +169,13 @@ Padding = 3 \* (k-1) \* k/8
 
 Proof size increases from 2928 bytes to 10352 bytes in 2 GB blocks. In the current `MaxSquareSize` it's from 2096 to 3088 bytes. For bigger messages, the number of row roots will approach sqrt(n). Before that, we will get to k/4+1 roots which will make the message act the same before and after the proposed non-interactive default rules.
 
-![Proof Size Result](./assets/proof-size-result.png)
+![Proof Size Result](./assets/adr009/proof-size-result.png)
 
 ### Proof Size for Light-Nodes
 
 Light Nodes have additional access to row and collum roots from the Data Availability header. Therefore we can discard any blue nodes to the `DataRoot` from the analysis.
 
-![Proof Size Result 2](./assets/proof-size-result2.png)
+![Proof Size Result 2](./assets/adr009/proof-size-result2.png)
 
 ### Total Proof Size for Parital Nodes
 
@@ -184,13 +184,13 @@ Partial nodes in this context are light clients that may download all of the dat
 For this analysis, we take the result from the light nodes and scale them up to fill the whole square. We ignore for now the reserved namespace and what space it might occupy.
 For the proposed non-interactive default rules we are also creating 1 more message that could practically fit into a square. This is because the current non-interactive default rules fit one more message if we construct it this way and don't adjust the first and last messages.
 
-![Proof Size Result 3](./assets/proof-size-result3.png)
+![Proof Size Result 3](./assets/adr009/proof-size-result3.png)
 
 ### Padding
 
 The worst-case padding decreases from 1.1 GB to 0.8 GB in 2 GB Blocks. In the current `MaxSquareSize` it's from 4 MB to 3 MB. In general, the worst-case padding size approaches in current non-interactive default rules 50% and the proposed non-interactive default rules 37.5%. That is a maximum reduction of padding to 25%.
 
-![Padding Size Result](./assets/padding-size-result.png)
+![Padding Size Result](./assets/adr009/padding-size-result.png)
 
 ## Additional Optimizations
 
