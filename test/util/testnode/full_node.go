@@ -182,8 +182,10 @@ func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, 
 // DefaultNetwork creates an in-process single validator celestia-app network
 // using test friendly defaults. These defaults include fast block times and
 // funded accounts. The returned client.Context has a keyring with all of the
-// funded keys stored in it.
-func DefaultNetwork(t *testing.T, blockTime time.Duration) (accounts []string, cctx Context) {
+// funded keys stored in it. If no custom consensus parameters are provided, the
+// default are used. If providing custom consensus parameters and fast block
+// time is desired, the caller must set the TimeIotaMs parameter to 1.
+func DefaultNetwork(t *testing.T, blockTime time.Duration, customParams *tmproto.ConsensusParams) (accounts []string, cctx Context) {
 	// we create an arbitrary number of funded accounts
 	accounts = make([]string, 300)
 	for i := 0; i < 300; i++ {
@@ -199,7 +201,11 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (accounts []string, c
 	genState, kr, err := DefaultGenesisState(accounts...)
 	require.NoError(t, err)
 
-	tmNode, app, cctx, err := New(t, DefaultParams(), tmCfg, false, genState, kr, tmrand.Str(6))
+	if customParams == nil {
+		customParams = DefaultParams()
+	}
+
+	tmNode, app, cctx, err := New(t, customParams, tmCfg, false, genState, kr, tmrand.Str(6))
 	require.NoError(t, err)
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)

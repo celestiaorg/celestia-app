@@ -8,7 +8,9 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
@@ -25,6 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 func TestStandardSDKIntegrationTestSuite(t *testing.T) {
@@ -48,7 +51,7 @@ type StandardSDKIntegrationTestSuite struct {
 func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	t.Log("setting up integration test suite")
-	accounts, cctx := testnode.DefaultNetwork(t, time.Millisecond*400)
+	accounts, cctx := testnode.DefaultNetwork(t, time.Millisecond*400, nil)
 	s.accounts = accounts
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	s.cctx = cctx
@@ -260,6 +263,33 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				return []sdk.Msg{msg}, account
 			},
 			expectedCode: abci.CodeTypeOK,
+		},
+		{
+			name: "create param proposal change for a consensus parameter",
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
+				account := s.unusedAccount()
+				newMaxBytes := &tmproto.BlockParams{
+					MaxBytes:   square.EstimateMaxBlockBytes(256),
+					MaxGas:     -1,
+					TimeIotaMs: 1000,
+				}
+
+				change := proposal.NewParamChange(baseapp.Paramspace, string(baseapp.ParamStoreKeyBlockParams), string(s.ecfg.Amino.MustMarshalJSON(newMaxBytes)))
+				content := proposal.NewParameterChangeProposal("title", "description", []proposal.ParamChange{change})
+				addr := getAddress(account, s.cctx.Keyring)
+				msg, err := oldgov.NewMsgSubmitProposal(
+					content,
+					sdk.NewCoins(
+						sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
+					addr,
+				)
+				require.NoError(t, err)
+				return []sdk.Msg{msg}, account
+			},
+			// the error we're looking for is err: invalid parameter value:
+			// block maximum bytes must be less than or equal to XXXXXXX, but
+			// due to how the sdk bubbles up errors, we get this code instead
+			expectedCode: govtypes.ErrNoProposalHandlerExists.ABCICode(),
 		},
 	}
 

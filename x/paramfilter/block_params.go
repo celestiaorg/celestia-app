@@ -19,7 +19,7 @@ func DefaultConsensusParams() *tmproto.ConsensusParams {
 		Block:     DefaultBlockParams(),
 		Evidence:  coretypes.DefaultEvidenceParams(),
 		Validator: coretypes.DefaultValidatorParams(),
-		Version:   coretypes.DefaultVersionParams(),
+		Version:   coretypes.DefaultVersionParams(), // TODO: set the default version to 1
 	}
 }
 
@@ -27,6 +27,10 @@ func DefaultConsensusParams() *tmproto.ConsensusParams {
 // using a goal square size.
 func DefaultBlockParams() tmproto.BlockParams {
 	return tmproto.BlockParams{
+		// since the max square size is already enforced as a hard cap, the only
+		// benefit we are getting here is stopping governance proposals from
+		// proposing a useless proposal. Its possible that this value is not
+		// as efficient as a larger value.
 		MaxBytes:   square.EstimateMaxBlockBytes(appconsts.MaxSquareSize),
 		MaxGas:     -1,
 		TimeIotaMs: 1000, // 1s

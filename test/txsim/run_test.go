@@ -7,13 +7,11 @@ package txsim_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/test/txsim"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -81,7 +79,7 @@ func TestTxSimulator(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
-			keyring, rpcAddr, grpcAddr := Setup(t)
+			keyring, rpcAddr, grpcAddr := txsim.Setup(t, testnode.DefaultParams())
 
 			err := txsim.Run(
 				ctx,
@@ -113,44 +111,4 @@ func TestTxSimulator(t *testing.T) {
 			}
 		})
 	}
-}
-
-func Setup(t testing.TB) (keyring.Keyring, string, string) {
-	t.Helper()
-	genesis, keyring, err := testnode.DefaultGenesisState()
-	require.NoError(t, err)
-
-	tmCfg := testnode.DefaultTendermintConfig()
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
-	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
-
-	node, app, cctx, err := testnode.New(
-		t,
-		testnode.DefaultParams(),
-		tmCfg,
-		true,
-		genesis,
-		keyring,
-		"testnet",
-	)
-	require.NoError(t, err)
-
-	cctx, stopNode, err := testnode.StartNode(node, cctx)
-	require.NoError(t, err)
-
-	appConf := testnode.DefaultAppConfig()
-	appConf.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", testnode.GetFreePort())
-	appConf.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
-
-	_, cleanupGRPC, err := testnode.StartGRPCServer(app, appConf, cctx)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		t.Log("tearing down testnode")
-		require.NoError(t, stopNode())
-		require.NoError(t, cleanupGRPC())
-	})
-
-	return keyring, tmCfg.RPC.ListenAddress, appConf.GRPC.Address
 }

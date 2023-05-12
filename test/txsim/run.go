@@ -5,12 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/rs/zerolog/log"
+	"github.com/stretchr/testify/require"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 // Run is the entrypoint function for starting the txsim client. The lifecycle of the client is managed
@@ -101,4 +105,49 @@ func Run(
 	}
 
 	return finalErr
+}
+
+func Setup(t testing.TB, customParams *tmproto.ConsensusParams) (keyring.Keyring, string, string) {
+	t.Helper()
+	genesis, keyring, err := testnode.DefaultGenesisState()
+	require.NoError(t, err)
+
+	tmCfg := testnode.DefaultTendermintConfig()
+	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
+	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
+	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
+	tmCfg.RPC.MaxBodyBytes = 1024 * 1024 * 8 // 8MB
+
+	if customParams == nil {
+		customParams = testnode.DefaultParams()
+	}
+
+	node, app, cctx, err := testnode.New(
+		t,
+		customParams,
+		tmCfg,
+		true,
+		genesis,
+		keyring,
+		"testnet",
+	)
+	require.NoError(t, err)
+
+	cctx, stopNode, err := testnode.StartNode(node, cctx)
+	require.NoError(t, err)
+
+	appConf := testnode.DefaultAppConfig()
+	appConf.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", testnode.GetFreePort())
+	appConf.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
+
+	_, cleanupGRPC, err := testnode.StartGRPCServer(app, appConf, cctx)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		t.Log("tearing down testnode")
+		require.NoError(t, stopNode())
+		require.NoError(t, cleanupGRPC())
+	})
+
+	return keyring, tmCfg.RPC.ListenAddress, appConf.GRPC.Address
 }
