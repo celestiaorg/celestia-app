@@ -154,3 +154,10 @@ func writeSquare(
 
 	return square, nil
 }
+
+// EstimateMaxBlockBytes estimates the maximum number of bytes a block can have.
+// The value produced does not guarantee that a square of the desired size will
+// always be created using the resulting parameter.
+func EstimateMaxBlockBytes(squareSize uint64) int64 {
+	return int64(squareSize * squareSize * appconsts.ContinuationSparseShareContentSize)
+}
