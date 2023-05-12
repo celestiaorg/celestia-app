@@ -9,26 +9,16 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// BeginBlocker mints new tokens for the previous block.
+// BeginBlocker updates the inflation rate, annual provisions, and then mints
+// the block provision for the current block.
 func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 	defer telemetry.ModuleMeasureSince(types.ModuleName, time.Now(), telemetry.MetricKeyBeginBlocker)
 
+	maybeSetGenesisTime(ctx, k)
+	updateInflationRate(ctx, k)
+	updateAnnualProvisions(ctx, k)
+
 	minter := k.GetMinter(ctx)
-
-	// Recalculate the inflation rate and annual provisions and update the minter with the new values.
-	totalSupply := k.StakingTokenSupply(ctx)
-
-	if ctx.BlockHeight() == 1 {
-		genesisTime := ctx.BlockTime()
-		minter.GenesisTime = &genesisTime
-	}
-	// TODO: since the inflation rate only changes once per year, we don't need
-	// to perform this every block. One potential optimization is to only do
-	// this once per year.
-	minter.InflationRate = minter.CalculateInflationRate(ctx)
-	minter.AnnualProvisions = minter.CalculateAnnualProvisions(totalSupply)
-	k.SetMinter(ctx, minter)
-
 	mintedCoin := minter.CalculateBlockProvision()
 	mintedCoins := sdk.NewCoins(mintedCoin)
 
@@ -54,4 +44,29 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 			sdk.NewAttribute(sdk.AttributeKeyAmount, mintedCoin.Amount.String()),
 		),
 	)
+}
+
+func maybeSetGenesisTime(ctx sdk.Context, k keeper.Keeper) {
+	if ctx.BlockHeight() == 1 {
+		genesisTime := ctx.BlockTime()
+		minter := k.GetMinter(ctx)
+		minter.GenesisTime = &genesisTime
+		k.SetMinter(ctx, minter)
+	}
+}
+
+func updateInflationRate(ctx sdk.Context, k keeper.Keeper) {
+	// TODO: since the inflation rate only changes once per year, we don't need
+	// to perform this every block. One potential optimization is to only do
+	// this once per year.
+	minter := k.GetMinter(ctx)
+	minter.InflationRate = minter.CalculateInflationRate(ctx)
+	k.SetMinter(ctx, minter)
+}
+
+func updateAnnualProvisions(ctx sdk.Context, k keeper.Keeper) {
+	minter := k.GetMinter(ctx)
+	totalSupply := k.StakingTokenSupply(ctx)
+	minter.AnnualProvisions = minter.CalculateAnnualProvisions(totalSupply)
+	k.SetMinter(ctx, minter)
 }
