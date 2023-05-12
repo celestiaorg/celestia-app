@@ -22,7 +22,7 @@ The system is missing the ability for governance to limit the square size, which
 
 ### Reduce the `MaxBytes` Governance Parameter
 
-One solution is to reduce the `MaxBytes` governance parameter to roughly the size of a 64 x 64 square (~1.8 MB). While tendermint will reject blocks that exceed `MaxBytes`, due to encoding overhead, it's possible for a significantly smaller block to require a square size larger than 64.
+One solution is to reduce the `MaxBytes` governance parameter to roughly the size of a 64 x 64 square (~1.8 MB). While tendermint will reject blocks that exceed `MaxBytes`, due to encoding overhead, it's possible for a significantly smaller block to require a square size larger than 64. This results in only ever confidently achieving a soft block of squares over size 64. Implementation and fuzzing test for this option can be found at [#1743](https://github.com/celestiaorg/celestia-app/pull/1743).
 
 ### Introduce a new Governance Parameter
 
@@ -44,6 +44,7 @@ TBD
 
 ## References
 
+- Option 1 was implemented in [#1743](https://github.com/celestiaorg/celestia-app/pull/1743)
 - Issue to restrict the block size in a configurable way [#1592](https://github.com/celestiaorg/celestia-app/issues/1592)
 - Decision to limit the block size [#1737](https://github.com/celestiaorg/celestia-app/issues/1737)
 - Original issues to add `MaxBlockSize` parameters [#183](https://github.com/celestiaorg/celestia-app/issues/183)
