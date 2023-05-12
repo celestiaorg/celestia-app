@@ -65,8 +65,9 @@ In order to implement the inflation rate specified above, we need to make a few 
 
 ## Detailed Design
 
-1. Remove blocks per year calculation
-1. Move module parameters to be constants because they should not be modifiable via governance
+1. Remove all parameters from the module
+1. Calculate inflation rate based on the number of years since genesis
+1. Calculate block provision based on the number of seconds elapsed between the current block and the previous block
 
 ### FAQ
 
