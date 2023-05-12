@@ -6,8 +6,9 @@ Proposed
 
 ## Changelog
 
-- 2023/3/31: initial draft
-- 2023/4/27: height-based vs time-based
+- 2023/3/31: Initial draft
+- 2023/4/27: Height-based vs time-based
+- 2023/5/12: Clarify annual provisions based on year start
 
 ## Context
 
