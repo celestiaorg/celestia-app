@@ -25,6 +25,9 @@ message Minter {
     (gogoproto.nullable)   = false
   ];
 
+  // GenesisTime is the timestamp of the genesis block.
+  google.protobuf.Timestamp genesis_time = 3 [(gogoproto.stdtime) = true];
+
   // BondDenom is the denomination of the token that should be minted.
-  string bond_denom = 3;
+  string bond_denom = 4;
 }
