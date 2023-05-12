@@ -48,6 +48,14 @@ The table below depicts the inflation rate for the forseeable future:
 | 19   | 1.50              |
 | 20   | 1.50              |
 
+Additionally, the annual provisions should be based on the total supply at the beginning of each year. In other words, tokens that are minted throughout the course of a year should not be considered when calculating the annual provisions for that year. For example:
+
+| Year | Inflation (%) | Total supply at year start | Annual provisions |
+|------|---------------|----------------------------|-------------------|
+| 0    | 8.00          | 100                        | 8.00              |
+| 1    | 7.20          | 108                        | 7.776             |
+| 2    | 7.20          | 115                        | 6.48              |
+
 ## Design
 
 In order to implement the inflation rate specified above, we need to make a few modifications to the existing `x/mint` module:
