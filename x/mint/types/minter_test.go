@@ -81,27 +81,37 @@ func TestCalculateBlockProvision(t *testing.T) {
 	minter := DefaultMinter()
 	current := time.Date(2023, 1, 2, 0, 0, 0, 0, time.UTC)
 	blockInterval := 15 * time.Second
+	totalSupply := sdk.NewDec(1_000_000_000_000)             // 1 trillion utia
+	annualProvisions := totalSupply.Mul(initalInflationRate) // 80 billion utia
 
 	type testCase struct {
 		name             string
-		annualProvisions int64
+		annualProvisions sdk.Dec
 		current          time.Time
 		previous         time.Time
 		want             sdk.Coin
 	}
 
 	testCases := []testCase{
-		// failing test case
 		{
-			name:             "1 block of annual provisions",
-			annualProvisions: 1_000_000,
+			name:             "one 15 second block during the first year",
+			annualProvisions: annualProvisions,
 			current:          current,
 			previous:         current.Add(-blockInterval),
-			want:             sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(int64(SecondsPerYear/15))),
+			// 80 billion utia (annual provisions) * 15 (seconds) / 31,556,952 (seconds per year) = 38026.48620817 which truncates to 38026 utia
+			want: sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(38026)),
+		},
+		{
+			name:             "one 30 second block during the first year",
+			annualProvisions: annualProvisions,
+			current:          current,
+			previous:         current.Add(-2 * blockInterval),
+			// 80 billion utia (annual provisions) * 30 (seconds) / 31,556,952 (seconds per year) = 76052.97241635 which truncates to 76052 utia
+			want: sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(76052)),
 		},
 	}
 	for _, tc := range testCases {
-		minter.AnnualProvisions = sdk.NewDec(tc.annualProvisions)
+		minter.AnnualProvisions = tc.annualProvisions
 		got := minter.CalculateBlockProvision(tc.current, tc.previous)
 		require.True(t, tc.want.IsEqual(got), "want %v got %v", tc.want, got)
 	}

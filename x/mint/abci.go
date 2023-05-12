@@ -17,6 +17,7 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 	maybeSetGenesisTime(ctx, k)
 	maybeUpdateMinter(ctx, k)
 	mintBlockProvision(ctx, k)
+	setPreviousBlockTime(ctx, k)
 }
 
 // maybeSetGenesisTime sets the genesis time if the current block height is 1.
@@ -51,21 +52,27 @@ func maybeUpdateMinter(ctx sdk.Context, k keeper.Keeper) {
 // mintBlockProvision mints the block provision for the current block.
 func mintBlockProvision(ctx sdk.Context, k keeper.Keeper) {
 	minter := k.GetMinter(ctx)
-	mintedCoin := minter.CalculateBlockProvision(ctx.BlockTime(), *minter.PreviousBlockTime)
-	mintedCoins := sdk.NewCoins(mintedCoin)
+	if minter.PreviousBlockTime == nil {
+		// exit early if previous block time is nil
+		// this is expected to happen for block height = 1
+		return
+	}
 
-	err := k.MintCoins(ctx, mintedCoins)
+	toMintCoin := minter.CalculateBlockProvision(ctx.BlockTime(), *minter.PreviousBlockTime)
+	toMintCoins := sdk.NewCoins(toMintCoin)
+
+	err := k.MintCoins(ctx, toMintCoins)
 	if err != nil {
 		panic(err)
 	}
 
-	err = k.SendCoinsToFeeCollector(ctx, mintedCoins)
+	err = k.SendCoinsToFeeCollector(ctx, toMintCoins)
 	if err != nil {
 		panic(err)
 	}
 
-	if mintedCoin.Amount.IsInt64() {
-		defer telemetry.ModuleSetGauge(types.ModuleName, float32(mintedCoin.Amount.Int64()), "minted_tokens")
+	if toMintCoin.Amount.IsInt64() {
+		defer telemetry.ModuleSetGauge(types.ModuleName, float32(toMintCoin.Amount.Int64()), "minted_tokens")
 	}
 
 	ctx.EventManager().EmitEvent(
@@ -73,7 +80,14 @@ func mintBlockProvision(ctx sdk.Context, k keeper.Keeper) {
 			types.EventTypeMint,
 			sdk.NewAttribute(types.AttributeKeyInflationRate, minter.InflationRate.String()),
 			sdk.NewAttribute(types.AttributeKeyAnnualProvisions, minter.AnnualProvisions.String()),
-			sdk.NewAttribute(sdk.AttributeKeyAmount, mintedCoin.Amount.String()),
+			sdk.NewAttribute(sdk.AttributeKeyAmount, toMintCoin.Amount.String()),
 		),
 	)
+}
+
+func setPreviousBlockTime(ctx sdk.Context, k keeper.Keeper) {
+	minter := k.GetMinter(ctx)
+	blockTime := ctx.BlockTime()
+	minter.PreviousBlockTime = &blockTime
+	k.SetMinter(ctx, minter)
 }
