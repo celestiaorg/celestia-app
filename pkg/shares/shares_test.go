@@ -8,40 +8,7 @@ import (
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	coretypes "github.com/tendermint/tendermint/types"
 )
-
-// TestPadFirstIndexedBlob ensures that we are adding padding to the first share
-// instead of calculating the value.
-func TestPadFirstIndexedBlob(t *testing.T) {
-	tx := tmrand.Bytes(300)
-	blob := tmrand.Bytes(300)
-	index := 100
-	indexedTx, err := coretypes.MarshalIndexWrapper(tx, 100)
-	require.NoError(t, err)
-
-	bd := coretypes.Data{
-		Txs: []coretypes.Tx{indexedTx},
-		Blobs: []coretypes.Blob{
-			{
-				NamespaceVersion: appns.RandomBlobNamespace().Version,
-				NamespaceID:      appns.RandomBlobNamespace().ID,
-				Data:             blob,
-				ShareVersion:     appconsts.ShareVersionZero,
-			},
-		},
-		SquareSize: 64,
-	}
-
-	shares, err := Split(bd, true)
-	require.NoError(t, err)
-
-	resShare, err := shares[index].RawData()
-	require.NoError(t, err)
-
-	require.True(t, bytes.Contains(resShare, blob))
-}
 
 func TestSequenceLen(t *testing.T) {
 	type testCase struct {
@@ -117,14 +84,14 @@ func TestSequenceLen(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			len, err := tc.share.SequenceLen()
+			length, err := tc.share.SequenceLen()
 
 			if tc.wantErr {
 				assert.Error(t, err)
 				return
 			}
-			if tc.wantLen != len {
-				t.Errorf("want %d, got %d", tc.wantLen, len)
+			if tc.wantLen != length {
+				t.Errorf("want %d, got %d", tc.wantLen, length)
 			}
 		})
 	}
@@ -277,12 +244,6 @@ func TestIsPadding(t *testing.T) {
 	nsPadding, err := NamespacePaddingShare(ns1)
 	require.NoError(t, err)
 
-	tailPadding, err := TailPaddingShare()
-	require.NoError(t, err)
-
-	reservedPaddingShare, err := ReservedPaddingShare()
-	require.NoError(t, err)
-
 	testCases := []testCase{
 		{
 			name:    "empty share",
@@ -301,12 +262,12 @@ func TestIsPadding(t *testing.T) {
 		},
 		{
 			name:  "tail padding",
-			share: tailPadding,
+			share: TailPaddingShare(),
 			want:  true,
 		},
 		{
 			name:  "reserved padding",
-			share: reservedPaddingShare,
+			share: ReservedPaddingShare(),
 			want:  true,
 		},
 	}

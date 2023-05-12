@@ -10,13 +10,30 @@ import (
 
 // TODO add unit tests for all the keepers
 
-// GetCurrentDataCommitment creates the latest data commitment at current height according to
-// the data commitment window specified
+// GetCurrentDataCommitment returns a data commitment for the current height.
+// Assumes that this method is called when:
+//
+//	ctx.BlockHeight() != 0 && ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx)) == 0
 func (k Keeper) GetCurrentDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
-	beginBlock := uint64(ctx.BlockHeight()) - k.GetDataCommitmentWindowParam(ctx) + 1
-	// for a data commitment window of 400, the ranges will be: 1-400;401-800;801-1200
-	endBlock := uint64(ctx.BlockHeight())
+	if !k.CheckLatestAttestationNonce(ctx) {
+		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
+	}
 	nonce := k.GetLatestAttestationNonce(ctx) + 1
+	dcWindow := k.GetDataCommitmentWindowParam(ctx)
+	// for a data commitment window of 400, the ranges will be: 1-400;401-800;801-1200
+	var beginBlock, endBlock uint64
+	if ctx.BlockHeight() == int64(dcWindow) {
+		// only for the first data commitment range, which is: [1, data commitment window]
+		beginBlock = 1
+		endBlock = dcWindow
+	} else {
+		lastDCC, err := k.GetLastDataCommitment(ctx)
+		if err != nil {
+			return types.DataCommitment{}, err
+		}
+		beginBlock = lastDCC.EndBlock + 1
+		endBlock = lastDCC.EndBlock + dcWindow
+	}
 
 	dataCommitment := types.NewDataCommitment(nonce, beginBlock, endBlock)
 	return *dataCommitment, nil
@@ -46,6 +63,9 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 			),
 		)
 	}
+	if !k.CheckLatestAttestationNonce(ctx) {
+		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
+	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
 	for i := latestNonce; i > 0; i-- {
 		// TODO better search
@@ -69,6 +89,9 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 
 // GetLastDataCommitment returns the last data commitment.
 func (k Keeper) GetLastDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
+	if !k.CheckLatestAttestationNonce(ctx) {
+		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
+	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
 	for i := uint64(0); i < latestNonce; i++ {
 		att, found, err := k.GetAttestationByNonce(ctx, latestNonce-i)

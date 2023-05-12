@@ -8,7 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/testutil/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -23,7 +23,7 @@ func TestCompactShareSplitter(t *testing.T) {
 		err := css.WriteTx(tx)
 		require.NoError(t, err)
 	}
-	shares, _, err := css.Export(0)
+	shares, err := css.Export()
 	require.NoError(t, err)
 
 	rawResTxs, err := parseCompactShares(shares, appconsts.SupportedShareVersions)
@@ -121,7 +121,7 @@ func TestCompactShareContainsInfoByte(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	shares, _, err := css.Export(0)
+	shares, err := css.Export()
 	require.NoError(t, err)
 	assert.Condition(t, func() bool { return len(shares) == 1 })
 
@@ -143,7 +143,7 @@ func TestContiguousCompactShareContainsInfoByte(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	shares, _, err := css.Export(0)
+	shares, err := css.Export()
 	require.NoError(t, err)
 	assert.Condition(t, func() bool { return len(shares) > 1 })
 
@@ -172,7 +172,7 @@ func Test_parseCompactSharesErrors(t *testing.T) {
 	shareWithUnsupportedShareVersionBytes := rawShares[0]
 	shareWithUnsupportedShareVersionBytes[appconsts.NamespaceSize] = byte(infoByte)
 
-	shareWithUnsupportedShareVersion, err := newShare(shareWithUnsupportedShareVersionBytes)
+	shareWithUnsupportedShareVersion, err := NewShare(shareWithUnsupportedShareVersionBytes)
 	if err != nil {
 		t.Fatal(err)
 	}
