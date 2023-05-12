@@ -79,32 +79,30 @@ func TestCalculateInflationRate(t *testing.T) {
 
 func TestCalculateBlockProvision(t *testing.T) {
 	minter := DefaultMinter()
+	current := time.Date(2023, 1, 2, 0, 0, 0, 0, time.UTC)
+	blockInterval := 15 * time.Second
 
 	type testCase struct {
+		name             string
 		annualProvisions int64
+		current          time.Time
+		previous         time.Time
 		want             sdk.Coin
 	}
+
 	testCases := []testCase{
+		// failing test case
 		{
-			annualProvisions: BlocksPerYear,
-			want:             sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(1)),
-		},
-		{
-			annualProvisions: BlocksPerYear * 2,
-			want:             sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(2)),
-		},
-		{
-			annualProvisions: (BlocksPerYear * 10) - 1,
-			want:             sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(9)),
-		},
-		{
-			annualProvisions: BlocksPerYear / 2,
-			want:             sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(0)),
+			name:             "1 block of annual provisions",
+			annualProvisions: 1_000_000,
+			current:          current,
+			previous:         current.Add(-blockInterval),
+			want:             sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(int64(SecondsPerYear/15))),
 		},
 	}
 	for _, tc := range testCases {
 		minter.AnnualProvisions = sdk.NewDec(tc.annualProvisions)
-		got := minter.CalculateBlockProvision()
+		got := minter.CalculateBlockProvision(tc.current, tc.previous)
 		require.True(t, tc.want.IsEqual(got), "want %v got %v", tc.want, got)
 	}
 }
@@ -116,9 +114,11 @@ func BenchmarkCalculateBlockProvision(b *testing.B) {
 	s1 := rand.NewSource(100)
 	r1 := rand.New(s1)
 	minter.AnnualProvisions = sdk.NewDec(r1.Int63n(1000000))
+	current := time.Unix(r1.Int63n(1000000), 0)
+	previous := current.Add(time.Second * 15)
 
 	for n := 0; n < b.N; n++ {
-		minter.CalculateBlockProvision()
+		minter.CalculateBlockProvision(current, previous)
 	}
 }
 

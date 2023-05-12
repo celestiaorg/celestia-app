@@ -58,9 +58,11 @@ func (m Minter) CalculateAnnualProvisions(totalSupply math.Int) sdk.Dec {
 }
 
 // CalculateBlockProvision returns the total number of coins that should be
-// minted due to inflation for the current block).
-func (m Minter) CalculateBlockProvision() sdk.Coin {
-	blockProvision := m.AnnualProvisions.QuoInt(blocksPerYear)
+// minted due to inflation for the current block.
+func (m Minter) CalculateBlockProvision(current time.Time, previous time.Time) sdk.Coin {
+	timeElapsed := current.Sub(previous).Seconds()
+	portionOfYear := sdk.NewDec(int64(timeElapsed)).Quo(sdk.NewDec(int64(SecondsPerYear)))
+	blockProvision := m.AnnualProvisions.Mul(portionOfYear)
 	return sdk.NewCoin(m.BondDenom, blockProvision.TruncateInt())
 }
 

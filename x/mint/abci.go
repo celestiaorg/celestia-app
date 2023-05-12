@@ -51,7 +51,7 @@ func maybeUpdateMinter(ctx sdk.Context, k keeper.Keeper) {
 // mintBlockProvision mints the block provision for the current block.
 func mintBlockProvision(ctx sdk.Context, k keeper.Keeper) {
 	minter := k.GetMinter(ctx)
-	mintedCoin := minter.CalculateBlockProvision()
+	mintedCoin := minter.CalculateBlockProvision(ctx.BlockTime(), *minter.PreviousBlockTime)
 	mintedCoins := sdk.NewCoins(mintedCoin)
 
 	err := k.MintCoins(ctx, mintedCoins)
