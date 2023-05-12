@@ -63,7 +63,6 @@ func (m Minter) CalculateBlockProvision(current time.Time, previous time.Time) s
 	timeElapsed := current.Sub(previous).Seconds()
 	portionOfYear := sdk.NewDec(int64(timeElapsed)).Quo(sdk.NewDec(int64(SecondsPerYear)))
 	blockProvision := m.AnnualProvisions.Mul(portionOfYear)
-	fmt.Printf("timeElapsed %vs, portionOfYear %v, blockProvision %v", timeElapsed, portionOfYear.String(), blockProvision.String())
 	return sdk.NewCoin(m.BondDenom, blockProvision.TruncateInt())
 }
 
