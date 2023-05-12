@@ -17,7 +17,36 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 	maybeSetGenesisTime(ctx, k)
 	updateInflationRate(ctx, k)
 	updateAnnualProvisions(ctx, k)
+	mintBlockProvision(ctx, k)
+}
 
+func maybeSetGenesisTime(ctx sdk.Context, k keeper.Keeper) {
+	if ctx.BlockHeight() == 1 {
+		genesisTime := ctx.BlockTime()
+		minter := k.GetMinter(ctx)
+		minter.GenesisTime = &genesisTime
+		k.SetMinter(ctx, minter)
+	}
+}
+
+func updateInflationRate(ctx sdk.Context, k keeper.Keeper) {
+	// TODO: since the inflation rate only changes once per year, we don't need
+	// to perform this every block. One potential optimization is to only do
+	// this once per year.
+	minter := k.GetMinter(ctx)
+	minter.InflationRate = minter.CalculateInflationRate(ctx)
+	k.SetMinter(ctx, minter)
+}
+
+func updateAnnualProvisions(ctx sdk.Context, k keeper.Keeper) {
+	// TODO: only perform this once per year.
+	minter := k.GetMinter(ctx)
+	totalSupply := k.StakingTokenSupply(ctx)
+	minter.AnnualProvisions = minter.CalculateAnnualProvisions(totalSupply)
+	k.SetMinter(ctx, minter)
+}
+
+func mintBlockProvision(ctx sdk.Context, k keeper.Keeper) {
 	minter := k.GetMinter(ctx)
 	mintedCoin := minter.CalculateBlockProvision()
 	mintedCoins := sdk.NewCoins(mintedCoin)
@@ -44,29 +73,4 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 			sdk.NewAttribute(sdk.AttributeKeyAmount, mintedCoin.Amount.String()),
 		),
 	)
-}
-
-func maybeSetGenesisTime(ctx sdk.Context, k keeper.Keeper) {
-	if ctx.BlockHeight() == 1 {
-		genesisTime := ctx.BlockTime()
-		minter := k.GetMinter(ctx)
-		minter.GenesisTime = &genesisTime
-		k.SetMinter(ctx, minter)
-	}
-}
-
-func updateInflationRate(ctx sdk.Context, k keeper.Keeper) {
-	// TODO: since the inflation rate only changes once per year, we don't need
-	// to perform this every block. One potential optimization is to only do
-	// this once per year.
-	minter := k.GetMinter(ctx)
-	minter.InflationRate = minter.CalculateInflationRate(ctx)
-	k.SetMinter(ctx, minter)
-}
-
-func updateAnnualProvisions(ctx sdk.Context, k keeper.Keeper) {
-	minter := k.GetMinter(ctx)
-	totalSupply := k.StakingTokenSupply(ctx)
-	minter.AnnualProvisions = minter.CalculateAnnualProvisions(totalSupply)
-	k.SetMinter(ctx, minter)
 }
