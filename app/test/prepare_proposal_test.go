@@ -62,11 +62,11 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	})
 	require.Len(t, resp.BlockData.Txs, numBlobTxs+numNormalTxs)
 	for idx, txBytes := range resp.BlockData.Txs {
-		_, isBlob := coretypes.UnmarshalBlobTx(coretypes.Tx(txBytes))
+		_, isBlobTx := coretypes.UnmarshalBlobTx(coretypes.Tx(txBytes))
 		if idx < numNormalTxs {
-			require.False(t, isBlob)
+			require.False(t, isBlobTx)
 		} else {
-			require.True(t, isBlob)
+			require.True(t, isBlobTx)
 		}
 	}
 }
