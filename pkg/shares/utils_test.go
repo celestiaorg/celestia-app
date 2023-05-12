@@ -6,23 +6,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
 )
-
-func FuzzBlobSharesUsed(f *testing.F) {
-	f.Add(uint32(1))
-	f.Fuzz(func(t *testing.T, a uint32) {
-		if a < 1 {
-			t.Skip()
-		}
-		ml := SparseSharesNeeded(a)
-		blob := testfactory.GenerateRandomBlob(int(a))
-		rawShares, err := SplitBlobs(0, nil, []types.Blob{blob}, false)
-		require.NoError(t, err)
-		require.Equal(t, len(rawShares), ml)
-	})
-}
 
 func Test_zeroPadIfNecessary(t *testing.T) {
 	type args struct {

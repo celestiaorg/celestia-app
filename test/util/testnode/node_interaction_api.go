@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -167,23 +168,18 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 // should be submitted async, sync, or block. (see flags.BroadcastModeSync). If
 // broadcast mode is the string zero value, then it will be set to block.
 func (c *Context) FillBlock(squareSize int, accounts []string, broadcastMode string) (*sdk.TxResponse, error) {
-	if squareSize < 2 || (squareSize&(squareSize-1) != 0) {
+	if squareSize < appconsts.DefaultMinSquareSize+1 || (squareSize&(squareSize-1) != 0) {
 		return nil, fmt.Errorf("unsupported squareSize: %d", squareSize)
 	}
 
 	if broadcastMode == "" {
 		broadcastMode = flags.BroadcastBlock
 	}
-	// in order to get the square size that we want, we need to fill half the
-	// square minus a few for the tx (see the square estimation logic in
-	// app/estimate_square_size.go)
-	shareCount := (squareSize * squareSize / 2) - 2
+
+	// create the tx the size of the square minus one row
+	shareCount := (squareSize - 1) * squareSize
+
 	// we use a formula to guarantee that the tx is the exact size needed to force a specific square size.
-	blobSize := shareCount * appconsts.ContinuationSparseShareContentSize
-	// this last patch allows for the formula above to work on a square size of
-	// 2.
-	if blobSize < 1 {
-		blobSize = 1
-	}
+	blobSize := shares.AvailableBytesFromSparseShares(shareCount)
 	return c.PostData(accounts[0], broadcastMode, namespace.RandomBlobNamespace(), tmrand.Bytes(blobSize))
 }

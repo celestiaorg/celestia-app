@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/pkg/square"
 
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -45,7 +47,7 @@ func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) 
 	}
 
 	// create and marshal the tx inclusion proof, which we return in the form of []byte
-	shareProof, err := NewTxInclusionProof(data, uint64(index))
+	shareProof, err := NewTxInclusionProof(data.Txs.ToSliceOfBytes(), uint64(index))
 	if err != nil {
 		return nil, err
 	}
@@ -84,25 +86,21 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 	if err != nil {
 		return nil, fmt.Errorf("error reading block: %w", err)
 	}
-	data, err := types.DataFromProto(&pbb.Data)
-	if err != nil {
-		panic(fmt.Errorf("error from proto block: %w", err))
-	}
 
-	rawShares, err := shares.Split(data, true)
+	dataSquare, err := square.Construct(pbb.Data.Txs, appconsts.DefaultMaxSquareSize)
 	if err != nil {
 		return nil, err
 	}
 
-	nID, err := ParseNamespace(rawShares, beginShare, endShare)
+	nID, err := ParseNamespace(dataSquare, beginShare, endShare)
 	if err != nil {
 		return nil, err
 	}
 
 	// create and marshal the share inclusion proof, which we return in the form of []byte
 	shareProof, err := NewShareInclusionProof(
-		rawShares,
-		data.SquareSize,
+		dataSquare,
+		dataSquare.Size(),
 		nID,
 		uint64(beginShare),
 		uint64(endShare),

@@ -10,8 +10,7 @@ import (
 
 // TODO add unit tests for all the keepers
 
-// GetCurrentDataCommitment creates the latest data commitment at current height according to
-// the data commitment window specified.
+// GetCurrentDataCommitment returns a data commitment for the current height.
 // Assumes that this method is called when:
 //
 //	ctx.BlockHeight() != 0 && ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx)) == 0
