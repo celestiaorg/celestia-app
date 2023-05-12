@@ -123,7 +123,7 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "modified a blobtx",
+			name:  "modified a blobTx",
 			input: validData(),
 			mutator: func(d *core.Data) {
 				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
