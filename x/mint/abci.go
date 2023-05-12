@@ -15,11 +15,11 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 	defer telemetry.ModuleMeasureSince(types.ModuleName, time.Now(), telemetry.MetricKeyBeginBlocker)
 
 	maybeSetGenesisTime(ctx, k)
-	updateInflationRate(ctx, k)
-	updateAnnualProvisions(ctx, k)
+	maybeUpdateMinter(ctx, k)
 	mintBlockProvision(ctx, k)
 }
 
+// maybeSetGenesisTime sets the genesis time if the current block height is 1.
 func maybeSetGenesisTime(ctx sdk.Context, k keeper.Keeper) {
 	if ctx.BlockHeight() == 1 {
 		genesisTime := ctx.BlockTime()
@@ -29,23 +29,26 @@ func maybeSetGenesisTime(ctx sdk.Context, k keeper.Keeper) {
 	}
 }
 
-func updateInflationRate(ctx sdk.Context, k keeper.Keeper) {
-	// TODO: since the inflation rate only changes once per year, we don't need
-	// to perform this every block. One potential optimization is to only do
-	// this once per year.
+// maybeUpdateMinter updates the inflation rate and annual provisions if the
+// inflation rate has changed.
+func maybeUpdateMinter(ctx sdk.Context, k keeper.Keeper) {
 	minter := k.GetMinter(ctx)
-	minter.InflationRate = minter.CalculateInflationRate(ctx)
+	newInflationRate := minter.CalculateInflationRate(ctx)
+	if newInflationRate == minter.InflationRate {
+		// The minter's InflationRate AnnualProvisions already reflect the
+		// values for this year. Exit early because we don't need to update
+		// them.
+		return
+	}
+	minter.InflationRate = newInflationRate
 	k.SetMinter(ctx, minter)
-}
 
-func updateAnnualProvisions(ctx sdk.Context, k keeper.Keeper) {
-	// TODO: only perform this once per year.
-	minter := k.GetMinter(ctx)
 	totalSupply := k.StakingTokenSupply(ctx)
 	minter.AnnualProvisions = minter.CalculateAnnualProvisions(totalSupply)
 	k.SetMinter(ctx, minter)
 }
 
+// mintBlockProvision mints the block provision for the current block.
 func mintBlockProvision(ctx sdk.Context, k keeper.Keeper) {
 	minter := k.GetMinter(ctx)
 	mintedCoin := minter.CalculateBlockProvision()
