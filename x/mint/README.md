@@ -4,10 +4,21 @@
 
 1. Remove all parameters from the module
 1. Calculate inflation rate based on the number of years since genesis
+1. Calculate block provision based on the number of seconds elapsed between the current block and the previous block
 
 ## Constants
 
 See [./types/constants.go](./types/constants.go) for the constants used in this module.
+
+Note: this module assumes `DaysPerYear = 365.2425` so when modifying tests, developers must define durations based on this assumption because ordinary durations won't return the expected results. In other words:
+
+```go
+// oneYear is 31,556,952 seconds which will likely return expected results in tests
+oneYear, err := time.ParseDuration(fmt.Sprintf("%vs", minttypes.SecondsPerYear))
+
+// this oneYear is 31,536,000 seconds which will likely return unexpected results in tests
+oneYear := time.Hour * 24 * 365
+```
 
 ## Inflation Schedule
 
