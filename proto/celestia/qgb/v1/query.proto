@@ -55,6 +55,12 @@ service Query {
       returns (QueryDataCommitmentRangeForHeightResponse) {
     option (google.api.http).get = "/qgb/v1/data_commitment/range/height";
   }
+
+  // LastDataCommitment returns the last data commitment in store
+  rpc LastDataCommitment(QueryLastDataCommitmentRequest)
+      returns (QueryLastDataCommitmentResponse) {
+    option (google.api.http).get = "/qgb/v1/data_commitment/last";
+  }
 }
 
 // QueryParamsRequest
@@ -94,6 +100,12 @@ message QueryLastUnbondingHeightRequest {}
 
 // QueryLastUnbondingHeightResponse
 message QueryLastUnbondingHeightResponse { uint64 height = 1; }
+
+// QueryLastDataCommitmentRequest
+message QueryLastDataCommitmentRequest {}
+
+// QueryLastDataCommitmentResponse
+message QueryLastDataCommitmentResponse { DataCommitment data_commitment = 1; }
 
 // QueryDataCommitmentRangeForHeightRequest
 message QueryDataCommitmentRangeForHeightRequest { uint64 height = 1; }
