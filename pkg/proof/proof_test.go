@@ -34,7 +34,7 @@ func TestNewTxInclusionProof(t *testing.T) {
 	}
 	tests := []test{
 		{
-			name:      "empty data returns error",
+			name:      "empty txs returns error",
 			txs:       nil,
 			txIndex:   0,
 			expectErr: true,
@@ -52,19 +52,19 @@ func TestNewTxInclusionProof(t *testing.T) {
 			expectErr: false,
 		},
 		{
-			name:      "first PFB of block data",
+			name:      "first blobTx of block data",
 			txs:       blockTxs,
 			txIndex:   50,
 			expectErr: false,
 		},
 		{
-			name:      "last PFB of block data",
+			name:      "last blobTx of block data",
 			txs:       blockTxs,
 			txIndex:   99,
 			expectErr: false,
 		},
 		{
-			name:      "txIndex 100 of block data returns error because only 50 txs",
+			name:      "txIndex 100 of block data returns error because only 100 txs",
 			txs:       blockTxs,
 			txIndex:   100,
 			expectErr: true,
@@ -97,8 +97,6 @@ func TestNewShareInclusionProof(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(50, 500)
 	txs = append(txs, blobTxs...)
 
-	// not setting useShareIndexes because the transactions indexes do not refer
-	// to the messages because the square and transactions were created manually.
 	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.DefaultMaxSquareSize)
 	if err != nil {
 		panic(err)
@@ -178,7 +176,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 			expectErr:     true,
 		},
 		{
-			name:          "shares from pfb namespaces",
+			name:          "shares from PFB namespace",
 			startingShare: 53,
 			endingShare:   55,
 			namespaceID:   appns.PayForBlobNamespace,

@@ -52,6 +52,10 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 }
 
 func generateMixedTxs(normalTxCount, pfbCount, pfbSize int) [][]byte {
+	return shuffle(generateOrderedTxs(normalTxCount, pfbCount, pfbSize))
+}
+
+func generateOrderedTxs(normalTxCount, pfbCount, pfbSize int) [][]byte {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), pfbCount, pfbSize)
 	normieTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, normalTxCount)
@@ -60,7 +64,7 @@ func generateMixedTxs(normalTxCount, pfbCount, pfbSize int) [][]byte {
 		normieTxs...),
 		pfbTxs...,
 	)
-	return shuffle(coretypes.Txs(txs).ToSliceOfBytes())
+	return coretypes.Txs(txs).ToSliceOfBytes()
 }
 
 func shuffle(slice [][]byte) [][]byte {
