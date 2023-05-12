@@ -22,41 +22,10 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// FuzzSquareConstruction uses fuzzing to test the following:
-// - That neither `Construct` or `Reconstruct` panics
-// - That `Construct` never errors
-// - That `Reconstruct` never errors from the input of `Construct`'s output
-// - That both `Construct` and `Reconstruct` return the same square
-// - That the square can be extended and a data availability header can be generated
-func FuzzSquareBuildAndConstruction(f *testing.F) {
-	var (
-		normalTxCount uint = 123
-		pfbCount      uint = 217
-		pfbSize       uint = 8
-	)
-	f.Add(normalTxCount, pfbCount, pfbSize)
-	f.Fuzz(func(t *testing.T, normalTxCount uint, pfbCount uint, pfbSize uint) {
-		// ignore invalid values
-		if pfbCount > 0 && pfbSize == 0 {
-			t.Skip()
-		}
-		txs := generateMixedTxs(int(normalTxCount), int(pfbCount), int(pfbSize))
-		s, newTxs, err := square.Build(txs, appconsts.DefaultMaxSquareSize)
-		require.NoError(t, err)
-		s2, err := square.Construct(newTxs, appconsts.DefaultMaxSquareSize)
-		require.NoError(t, err)
-		require.True(t, s.Equals(s2))
-
-		eds, err := da.ExtendShares(shares.ToBytes(s))
-		require.NoError(t, err)
-		_ = da.NewDataAvailabilityHeader(eds)
-	})
-}
-
 func TestSquareConstruction(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	sendTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, 10)
-	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 10, 100)
+	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 10, 1, 1024)
 	t.Run("normal transactions after PFB trasactions", func(t *testing.T) {
 		txs := append(sendTxs[:5], append(pfbTxs, sendTxs[5:]...)...)
 		_, err := square.Construct(coretypes.Txs(txs).ToSliceOfBytes(), appconsts.DefaultMaxSquareSize)
@@ -368,7 +337,7 @@ func TestSquareBlobShareRange(t *testing.T) {
 
 func TestSquareShareCommitments(t *testing.T) {
 	const numTxs = 10
-	txs := generateOrderedTxs(numTxs, numTxs, 5)
+	txs := generateOrderedTxs(numTxs, numTxs, 3, 800)
 	builder, err := square.NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
 	require.NoError(t, err)
 

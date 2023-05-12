@@ -43,7 +43,7 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			txs := generateMixedTxs(tt.normalTxs, tt.pfbCount, tt.pfbSize)
+			txs := generateMixedTxs(tt.normalTxs, tt.pfbCount, 1, tt.pfbSize)
 			square, _, err := square.Build(txs, appconsts.DefaultMaxSquareSize)
 			require.NoError(t, err)
 			require.EqualValues(t, tt.expectedSquareSize, square.Size())
@@ -51,13 +51,13 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 	}
 }
 
-func generateMixedTxs(normalTxCount, pfbCount, pfbSize int) [][]byte {
-	return shuffle(generateOrderedTxs(normalTxCount, pfbCount, pfbSize))
+func generateMixedTxs(normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
+	return shuffle(generateOrderedTxs(normalTxCount, pfbCount, blobsPerPfb, blobSize))
 }
 
-func generateOrderedTxs(normalTxCount, pfbCount, pfbSize int) [][]byte {
+func generateOrderedTxs(normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), pfbCount, pfbSize)
+	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), pfbCount, blobsPerPfb, blobSize)
 	normieTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, normalTxCount)
 	txs := append(append(
 		make([]coretypes.Tx, 0, len(pfbTxs)+len(normieTxs)),
