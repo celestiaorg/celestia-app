@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	e2e "github.com/celestiaorg/celestia-app/testing/e2e/pkg"
+	e2e "github.com/celestiaorg/celestia-app/test/e2e/pkg"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
