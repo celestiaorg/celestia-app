@@ -8,7 +8,7 @@
 # directory-level definitions.
 
 # global owners
-* @evan-forbes
+* @evan-forbes @rootulp @cmwaters
 
 # directory owners
 # NOTE: the directory owners should include the global owners unless the global
@@ -16,5 +16,4 @@
 docs @liamsi @adlerjohn @MSevey @evan-forbes @rootulp
 specs @liamsi @adlerjohn @MSevey @evan-forbes @rootulp
 x/qgb @SweeXordious @evan-forbes
-pkg/shares @rootulp @evan-forbes
 pkg/wrapper @staheri14 @evan-forbes
