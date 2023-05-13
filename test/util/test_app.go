@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -37,25 +38,6 @@ const (
 // Get flags every time the simulator is run
 func init() {
 	simapp.GetSimulatorFlags()
-}
-
-// DefaultConsensusParams defines the default Tendermint consensus params used in
-// SimApp testing.
-var DefaultConsensusParams = &abci.ConsensusParams{
-	Block: &abci.BlockParams{
-		MaxBytes: 200000,
-		MaxGas:   2000000,
-	},
-	Evidence: &tmproto.EvidenceParams{
-		MaxAgeNumBlocks: 302400,
-		MaxAgeDuration:  504 * time.Hour, // 3 weeks is the max duration
-		MaxBytes:        10000,
-	},
-	Validator: &tmproto.ValidatorParams{
-		PubKeyTypes: []string{
-			tmtypes.ABCIPubKeyTypeEd25519,
-		},
-	},
 }
 
 type emptyAppOptions struct{}
@@ -94,11 +76,24 @@ func SetupTestAppWithGenesisValSet(genAccounts ...string) (*app.App, keyring.Key
 		panic(err)
 	}
 
+	cparams := app.DefaultConsensusParams()
+
+	abciParams := &abci.ConsensusParams{
+		Block: &abci.BlockParams{
+			// choose some value large enough to not bottleneck the max square
+			// size
+			MaxBytes: appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize,
+			MaxGas:   cparams.Block.MaxGas,
+		},
+		Evidence:  &cparams.Evidence,
+		Validator: &cparams.Validator,
+	}
+
 	// init chain will set the validator set and initialize the genesis accounts
 	testApp.InitChain(
 		abci.RequestInitChain{
 			Validators:      []abci.ValidatorUpdate{},
-			ConsensusParams: DefaultConsensusParams,
+			ConsensusParams: abciParams,
 			AppStateBytes:   stateBytes,
 			ChainId:         ChainID,
 		},
