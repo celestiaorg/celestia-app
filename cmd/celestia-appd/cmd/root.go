@@ -110,6 +110,11 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
+			err = setDefaultConsensusParams(cmd)
+			if err != nil {
+				return err
+			}
+
 			return overrideServerConfig(cmd)
 		},
 		SilenceUsage: true,

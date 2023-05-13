@@ -61,6 +61,10 @@ const (
 	// = 8 MiB
 	MaxSquareSize = 128
 
+	DefaultGovMaxSquareSize = 64
+
+	DefaultMaxBytes = DefaultGovMaxSquareSize * DefaultGovMaxSquareSize * ContinuationSparseShareContentSize
+
 	// MaxShareCount is the maximum number of shares allowed in the original
 	// data square.
 	MaxShareCount = MaxSquareSize * MaxSquareSize
