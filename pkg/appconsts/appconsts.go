@@ -61,7 +61,7 @@ const (
 	// = 8 MiB
 	MaxSquareSize = 128
 
-	// DefaultGovMaxSquareSize is the default value for the goverance modifiable
+	// DefaultGovMaxSquareSize is the default value for the governance modifiable
 	// max square size.
 	DefaultGovMaxSquareSize = 64
 
