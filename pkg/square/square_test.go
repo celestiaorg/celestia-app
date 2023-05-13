@@ -41,9 +41,9 @@ func FuzzSquareBuildAndConstruction(f *testing.F) {
 			t.Skip()
 		}
 		txs := generateMixedTxs(int(normalTxCount), int(pfbCount), int(pfbSize))
-		s, newTxs, err := square.Build(txs, appconsts.DefaultMaxSquareSize)
+		s, newTxs, err := square.Build(txs, appconsts.MaxSquareSize)
 		require.NoError(t, err)
-		s2, err := square.Construct(newTxs, appconsts.DefaultMaxSquareSize)
+		s2, err := square.Construct(newTxs, appconsts.MaxSquareSize)
 		require.NoError(t, err)
 		require.True(t, s.Equals(s2))
 
@@ -59,7 +59,7 @@ func TestSquareConstruction(t *testing.T) {
 	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 10, 100)
 	t.Run("normal transactions after PFB trasactions", func(t *testing.T) {
 		txs := append(sendTxs[:5], append(pfbTxs, sendTxs[5:]...)...)
-		_, err := square.Construct(coretypes.Txs(txs).ToSliceOfBytes(), appconsts.DefaultMaxSquareSize)
+		_, err := square.Construct(coretypes.Txs(txs).ToSliceOfBytes(), appconsts.MaxSquareSize)
 		require.Error(t, err)
 	})
 	t.Run("not enough space to append transactions", func(t *testing.T) {
@@ -333,7 +333,7 @@ func TestSquareBlobShareRange(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txs := blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), 10, 1000, 10).ToSliceOfBytes()
 
-	builder, err := square.NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
+	builder, err := square.NewBuilder(appconsts.MaxSquareSize, txs...)
 	require.NoError(t, err)
 
 	dataSquare, err := builder.Export()
@@ -369,7 +369,7 @@ func TestSquareBlobShareRange(t *testing.T) {
 func TestSquareShareCommitments(t *testing.T) {
 	const numTxs = 10
 	txs := generateOrderedTxs(numTxs, numTxs, 5)
-	builder, err := square.NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
+	builder, err := square.NewBuilder(appconsts.MaxSquareSize, txs...)
 	require.NoError(t, err)
 
 	dataSquare, err := builder.Export()

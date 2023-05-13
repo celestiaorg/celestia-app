@@ -55,7 +55,7 @@ func Construct(txs [][]byte, maxSquareSize int) (Square, error) {
 // TxShareRange returns the range of share indexes that the tx, specified by txIndex, occupies.
 // Both ends of the range are inclusive.
 func TxShareRange(txs [][]byte, txIndex int) (shares.ShareRange, error) {
-	builder, err := NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
+	builder, err := NewBuilder(appconsts.MaxSquareSize, txs...)
 	if err != nil {
 		return shares.ShareRange{}, err
 	}
@@ -66,7 +66,7 @@ func TxShareRange(txs [][]byte, txIndex int) (shares.ShareRange, error) {
 // BlobShareRange returns the range of share indexes that the blob, identified by txIndex and blobIndex, occupies.
 // Both ends of the range are inclusive.
 func BlobShareRange(txs [][]byte, txIndex, blobIndex int) (shares.ShareRange, error) {
-	builder, err := NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
+	builder, err := NewBuilder(appconsts.MaxSquareSize, txs...)
 	if err != nil {
 		return shares.ShareRange{}, err
 	}

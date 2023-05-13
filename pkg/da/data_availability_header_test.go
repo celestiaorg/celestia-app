@@ -49,8 +49,8 @@ func TestNewDataAvailabilityHeader(t *testing.T) {
 		{
 			name:         "max square size",
 			expectedHash: []byte{0xce, 0x5c, 0xf3, 0xc9, 0x15, 0xeb, 0xbf, 0xb0, 0x67, 0xe1, 0xa5, 0x97, 0x35, 0xf3, 0x25, 0x7b, 0x1c, 0x47, 0x74, 0x1f, 0xec, 0x6a, 0x33, 0x19, 0x7f, 0x8f, 0xc2, 0x4a, 0xe, 0xe2, 0xbe, 0x73},
-			squareSize:   appconsts.DefaultMaxSquareSize,
-			shares:       generateShares(appconsts.DefaultMaxSquareSize * appconsts.DefaultMaxSquareSize),
+			squareSize:   appconsts.MaxSquareSize,
+			shares:       generateShares(appconsts.MaxSquareSize * appconsts.MaxSquareSize),
 		},
 	}
 
@@ -77,7 +77,7 @@ func TestExtendShares(t *testing.T) {
 		{
 			name:        "too large square size",
 			expectedErr: true,
-			shares:      generateShares((appconsts.DefaultMaxSquareSize + 1) * (appconsts.DefaultMaxSquareSize + 1)),
+			shares:      generateShares((appconsts.MaxSquareSize + 1) * (appconsts.MaxSquareSize + 1)),
 		},
 		{
 			name:        "invalid number of shares",
@@ -103,7 +103,7 @@ func TestDataAvailabilityHeaderProtoConversion(t *testing.T) {
 		dah  DataAvailabilityHeader
 	}
 
-	shares := generateShares(appconsts.DefaultMaxSquareSize * appconsts.DefaultMaxSquareSize)
+	shares := generateShares(appconsts.MaxSquareSize * appconsts.MaxSquareSize)
 	eds, err := ExtendShares(shares)
 	require.NoError(t, err)
 	bigdah := NewDataAvailabilityHeader(eds)
@@ -138,15 +138,15 @@ func Test_DAHValidateBasic(t *testing.T) {
 		errStr    string
 	}
 
-	shares := generateShares(appconsts.DefaultMaxSquareSize * appconsts.DefaultMaxSquareSize)
+	shares := generateShares(appconsts.MaxSquareSize * appconsts.MaxSquareSize)
 	eds, err := ExtendShares(shares)
 	require.NoError(t, err)
 	bigdah := NewDataAvailabilityHeader(eds)
 
 	// make a mutant dah that has too many roots
 	var tooBigDah DataAvailabilityHeader
-	tooBigDah.ColumnRoots = make([][]byte, appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize)
-	tooBigDah.RowRoots = make([][]byte, appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize)
+	tooBigDah.ColumnRoots = make([][]byte, appconsts.MaxSquareSize*appconsts.MaxSquareSize)
+	tooBigDah.RowRoots = make([][]byte, appconsts.MaxSquareSize*appconsts.MaxSquareSize)
 	copy(tooBigDah.ColumnRoots, bigdah.ColumnRoots)
 	copy(tooBigDah.RowRoots, bigdah.RowRoots)
 	tooBigDah.ColumnRoots = append(tooBigDah.ColumnRoots, bytes.Repeat([]byte{1}, 32))
