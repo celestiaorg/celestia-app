@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -395,5 +396,26 @@ func TestSquareShareCommitments(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, pfb.ShareCommitments[blobIndex], commitment)
 		}
+	}
+}
+
+func TestSize(t *testing.T) {
+	type test struct {
+		input  int
+		expect uint64
+	}
+	tests := []test{
+		{input: 0, expect: appconsts.MinSquareSize},
+		{input: 1, expect: appconsts.MinSquareSize},
+		{input: 64, expect: 8},
+		{input: 100, expect: 16},
+		{input: 1000, expect: 32},
+		{input: appconsts.MaxSquareSize * appconsts.MaxSquareSize, expect: appconsts.MaxSquareSize},
+		{input: appconsts.MaxSquareSize*appconsts.MaxSquareSize + 1, expect: appconsts.MaxSquareSize},
+	}
+	for _, tt := range tests {
+		res := square.Size(tt.input)
+		assert.Equal(t, tt.expect, res)
+		assert.True(t, shares.IsPowerOfTwo(res))
 	}
 }
