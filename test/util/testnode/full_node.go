@@ -190,8 +190,10 @@ func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, 
 
 // NewNetwork starts a single valiator celestia-app network using the provided
 // configurations. Provided accounts will be funded and their keys can be
-// accessed in keyring returned client.Context. The node can be accessed via the
-// returned client.Context or via the returned rpc and grpc addresses.
+// accessed in keyring returned client.Context. All rpc, p2p, and grpc addresses
+// in the provided configs are overwritten to use open ports. The node can be
+// accessed via the returned client.Context or via the returned rpc and grpc
+// addresses.
 func NewNetwork(
 	t testing.TB,
 	cparams *tmproto.ConsensusParams,
