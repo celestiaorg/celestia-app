@@ -146,10 +146,6 @@ func DefaultConsensusParams() *tmproto.ConsensusParams {
 // using a goal square size.
 func DefaultBlockParams() tmproto.BlockParams {
 	return tmproto.BlockParams{
-		// since the max square size is already enforced as a hard cap, the only
-		// benefit we are getting here is stopping governance proposals from
-		// proposing a useless proposal. Its possible that this value is not
-		// as efficient as a larger value.
 		MaxBytes:   appconsts.DefaultMaxBytes,
 		MaxGas:     -1,
 		TimeIotaMs: 1000, // 1s
