@@ -30,7 +30,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	s.T().Log("setting up integration test suite")
 
-	s.accounts, s.cctx = DefaultNetwork(s.T(), 400*time.Millisecond)
+	s.accounts, s.cctx = DefaultNetwork(s.T())
 }
 
 func (s *IntegrationTestSuite) Test_Liveness() {

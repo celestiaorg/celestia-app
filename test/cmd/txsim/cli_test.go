@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -52,40 +51,14 @@ func TestTxsimCommandEnvVar(t *testing.T) {
 
 func setup(t testing.TB) (keyring.Keyring, string, string) {
 	t.Helper()
-	genesis, keyring, err := testnode.DefaultGenesisState(testfactory.TestAccName)
-	require.NoError(t, err)
 
-	tmCfg := testnode.DefaultTendermintConfig()
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
-	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
-
-	node, app, cctx, err := testnode.New(
+	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(
 		t,
 		testnode.DefaultParams(),
-		tmCfg,
-		true,
-		genesis,
-		keyring,
-		"testnet",
+		testnode.DefaultTendermintConfig(),
+		testnode.DefaultAppConfig(),
+		testfactory.TestAccName,
 	)
-	require.NoError(t, err)
 
-	cctx, stopNode, err := testnode.StartNode(node, cctx)
-	require.NoError(t, err)
-
-	appConf := testnode.DefaultAppConfig()
-	appConf.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", testnode.GetFreePort())
-	appConf.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
-
-	_, cleanupGRPC, err := testnode.StartGRPCServer(app, appConf, cctx)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		t.Log("tearing down testnode")
-		require.NoError(t, stopNode())
-		require.NoError(t, cleanupGRPC())
-	})
-
-	return keyring, tmCfg.RPC.ListenAddress, appConf.GRPC.Address
+	return cctx.Keyring, rpcAddr, grpcAddr
 }
