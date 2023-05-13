@@ -411,11 +411,11 @@ func TestSize(t *testing.T) {
 		{input: 100, expect: 16},
 		{input: 1000, expect: 32},
 		{input: appconsts.MaxSquareSize * appconsts.MaxSquareSize, expect: appconsts.MaxSquareSize},
-		{input: appconsts.MaxSquareSize*appconsts.MaxSquareSize + 1, expect: appconsts.MaxSquareSize},
+		{input: appconsts.MaxSquareSize*appconsts.MaxSquareSize + 1, expect: appconsts.MaxSquareSize * 2},
 	}
-	for _, tt := range tests {
+	for i, tt := range tests {
 		res := square.Size(tt.input)
-		assert.Equal(t, tt.expect, res)
+		assert.Equal(t, tt.expect, res, i)
 		assert.True(t, shares.IsPowerOfTwo(res))
 	}
 }
