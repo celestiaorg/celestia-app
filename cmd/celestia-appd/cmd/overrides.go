@@ -22,6 +22,5 @@ func overrideServerConfig(command *cobra.Command) error {
 func setDefaultConsensusParams(command *cobra.Command) error {
 	ctx := server.GetServerContextFromCmd(command)
 	ctx.DefaultConsensusParams = app.DefaultConsensusParams()
-	ctx.DefaultConsensusParams.Block.MaxBytes = appconsts.DefaultMaxBytes
 	return server.SetCmdServerContext(command, ctx)
 }
