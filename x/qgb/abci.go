@@ -39,7 +39,7 @@ func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
 			panic(err)
 		}
 		if hasLastDataCommitment {
-			// if the store has already a data commitment, we use it to check if need to create a new data commitment
+			// if the store already has a data commitment, we use it to check if we need to create a new data commitment
 			lastDataCommitment, err := k.GetLastDataCommitment(ctx)
 			if err != nil {
 				panic(err)
