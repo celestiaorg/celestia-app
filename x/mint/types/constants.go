@@ -22,11 +22,3 @@ var (
 	disinflationRate    = sdk.NewDecWithPrec(DisinflationRate*1000, 3)
 	targetInflationRate = sdk.NewDecWithPrec(TargetInflationRate*1000, 3)
 )
-
-type Mode string
-
-const (
-	DefaultMode = HeightMode
-	HeightMode  = Mode("height")
-	TimeMode    = Mode("time")
-)
