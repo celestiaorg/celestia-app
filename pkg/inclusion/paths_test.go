@@ -416,8 +416,8 @@ func Test_calculateCommitPaths(t *testing.T) {
 			"the 32nd path for the largest blob with a subtree width of 64", 128, 0, 8192,
 			[]path{
 				{
-					row:          15,
-					instructions: []WalkInstruction{WalkRight},
+					row:          31,
+					instructions: []WalkInstruction{},
 				},
 			},
 			[]int{31},
@@ -441,11 +441,11 @@ func Test_calculateCommitPaths(t *testing.T) {
 				},
 				// note that the last path should be one instruction longer
 				{
-					row:          1,
-					instructions: []WalkInstruction{WalkLeft, WalkLeft, WalkLeft, WalkLeft, WalkLeft, WalkLeft, WalkLeft},
+					row:          0,
+					instructions: []WalkInstruction{WalkRight, WalkLeft, WalkLeft, WalkLeft, WalkLeft, WalkLeft, WalkLeft},
 				},
 			},
-			[]int{31, 64},
+			[]int{31, 32},
 		},
 	}
 	for _, tt := range tests {
