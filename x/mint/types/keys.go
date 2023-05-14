@@ -14,7 +14,6 @@ const (
 	QuerierRoute = StoreKey
 
 	// Query endpoints supported by the mint querier
-	QueryParameters       = "parameters"
 	QueryInflationRate    = "inflation_rate"
 	QueryAnnualProvisions = "annual_provisions"
 	QueryGenesisTime      = "genesis_time"

@@ -47,10 +47,7 @@ func (suite *MintKeeperTestSuite) TestNewQuerier(t *testing.T) {
 		Data: []byte{},
 	}
 
-	_, err := querier(ctx, []string{types.QueryParameters}, query)
-	require.NoError(t, err)
-
-	_, err = querier(ctx, []string{types.QueryInflationRate}, query)
+	_, err := querier(ctx, []string{types.QueryInflationRate}, query)
 	require.NoError(t, err)
 
 	_, err = querier(ctx, []string{types.QueryAnnualProvisions}, query)
