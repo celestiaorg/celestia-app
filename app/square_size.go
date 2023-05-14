@@ -11,10 +11,11 @@ import (
 // the result of this value by changing the MaxBytes consensus parameter.
 func (app *App) GovMaxSquareSize(ctx sdk.Context) int {
 	// TODO: fix hack that forces the max square size for the first height to
-	// 64. This is due to the sdk not loading state until calling commit for
-	// height 1. This means that even if the actual GovMaxSquareSize is supposed
-	// to be something other than 64, it will be 64 for the first block
-	// prodcuced.
+	// 64. This is due to tendermint not technically supposed to be calling
+	// PrepareProposal when heights are not >= 1. This is remedied in versions
+	// of the sdk and coment that have full support of PreparePropsoal, although
+	// celestia-app does not currently using those.
+	// https://github.com/cosmos/cosmos-sdk/pull/14505
 	if ctx.BlockHeader().Height == 0 {
 		return int(SquareSizeFromMaxBytes(int64(appconsts.DefaultMaxBytes)))
 	}
