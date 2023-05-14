@@ -68,7 +68,8 @@ func TestCalculateInflationRate(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		blockTime := genesisTime.AddDate(tc.year, 0, 1) // add one year and one day because DAYS_PER_YEAR is slightly larger than 365 to account for leap years
+		years := time.Duration(tc.year * SecondsPerYear * int(time.Second))
+		blockTime := genesisTime.Add(years)
 		ctx := sdk.NewContext(nil, tmproto.Header{}, false, nil).WithBlockTime(blockTime)
 		inflationRate := minter.CalculateInflationRate(ctx)
 		got, err := inflationRate.Float64()
