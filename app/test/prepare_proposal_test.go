@@ -23,7 +23,7 @@ import (
 func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	numBlobTxs, numNormalTxs := 3, 3
 	accnts := testfactory.GenerateAccounts(numBlobTxs + numNormalTxs)
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accnts...)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	infos := queryAccountInfo(testApp, accnts, kr)
 
@@ -74,7 +74,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 func TestPrepareProposalFiltering(t *testing.T) {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(6)
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accounts...)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
 	// create 3 single blob blobTxs that are signed with valid account numbers
