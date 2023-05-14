@@ -111,7 +111,7 @@ func (k Keeper) GetLastDataCommitment(ctx sdk.Context) (types.DataCommitment, er
 	return types.DataCommitment{}, types.ErrDataCommitmentNotFound
 }
 
-// HasDataCommitmentInStore checks whether the store has a data commitment set or not yet.
+// HasDataCommitmentInStore returns true if the store has at least one data commitment.
 func (k Keeper) HasDataCommitmentInStore(ctx sdk.Context) (bool, error) {
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return false, nil
