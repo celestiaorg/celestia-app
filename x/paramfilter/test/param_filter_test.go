@@ -3,6 +3,7 @@ package test
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/app"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/x/paramfilter"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -14,7 +15,7 @@ import (
 )
 
 func TestParamFilter(t *testing.T) {
-	app, _ := testutil.SetupTestAppWithGenesisValSet()
+	app, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 
 	require.Greater(t, len(app.BlockedParams()), 0)
 
