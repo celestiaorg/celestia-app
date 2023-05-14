@@ -32,6 +32,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
 )
 
 // New creates a ready to use tendermint node that operates a single validator
@@ -143,7 +144,8 @@ func DefaultTendermintConfig() *config.Config {
 	tmCfg := config.DefaultConfig()
 	// Reduce the target height duration so that blocks are produced faster
 	// during tests.
-	tmCfg.Consensus.TargetHeightDuration = time.Millisecond * 300
+	tmCfg.Consensus.TargetHeightDuration = 300 * time.Millisecond
+	tmCfg.Consensus.TimeoutPropose = 200 * time.Millisecond
 	tmCfg.Mempool.MaxTxBytes = 22020096 // 21MB
 	return tmCfg
 }
@@ -175,6 +177,12 @@ func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, 
 
 	bankGenState.Balances = append(bankGenState.Balances, bankBals...)
 	state[banktypes.ModuleName] = encCfg.Codec.MustMarshalJSON(&bankGenState)
+
+	// use the minimum data commitment window (100)
+	var qgbGenState qgbtypes.GenesisState
+	encCfg.Codec.MustUnmarshalJSON(state[qgbtypes.ModuleName], &qgbGenState)
+	qgbGenState.Params.DataCommitmentWindow = qgbtypes.MinimumDataCommitmentWindow
+	state[qgbtypes.ModuleName] = encCfg.Codec.MustMarshalJSON(&qgbGenState)
 
 	return state, kr, nil
 }

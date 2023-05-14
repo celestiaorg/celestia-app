@@ -52,7 +52,7 @@ func (c *Context) WaitForHeightWithTimeout(h int64, t time.Duration) (int64, err
 	for {
 		select {
 		case <-ctx.Done():
-			return latestHeight, errors.New("timeout exceeded waiting for block")
+			return latestHeight, errors.New("timeout exceeded waiting for network to reach height")
 		case <-ticker.C:
 			latestHeight, err := c.LatestHeight()
 			if err != nil {
