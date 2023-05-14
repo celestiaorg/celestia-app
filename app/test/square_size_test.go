@@ -88,7 +88,6 @@ func TestRestrictedBlockSize(t *testing.T) {
 			}
 			// check that at least one block was at or above the goal size
 			assert.GreaterOrEqual(t, atMax, 1)
-
 		})
 	}
 }
