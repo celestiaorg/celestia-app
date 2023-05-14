@@ -379,7 +379,7 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 
 	// check if the ranges are continuous
 	var previousDC types.DataCommitment
-	dcCount := 0
+	got := []types.DataCommitment{}
 	for i := uint64(1); i <= lastAttestationNonce; i++ {
 		att, found, err := qk.GetAttestationByNonce(ctx, i)
 		require.NoError(t, err)
@@ -388,7 +388,7 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 		if !ok {
 			continue
 		}
-		dcCount++
+		got = append(got, *dc)
 		if previousDC.Nonce == 0 {
 			// initialize the previous dc
 			previousDC = *dc
@@ -403,6 +403,103 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 	// - window 100: [1201, 1300], [1301, 1400], [1401, 1500], [1501, 1600], [1601, 1700], [1701, 1800], [1801, 1900]
 	// - window 1000: [1901, 2900]
 	// - window 111: [2901, 3011], [3012, 3122], [3123,3233], [3234, 3344], [3345, 3455], [3456, 3566], [3567, 3677], [3678, 3788]
-	assert.Equal(t, 19, dcCount)
-	assert.Equal(t, uint64(3788), previousDC.EndBlock)
+	want := []types.DataCommitment{
+		{
+			Nonce:      2, // nonce 1 is the valset attestation
+			BeginBlock: 1,
+			EndBlock:   400,
+		},
+		{
+			Nonce:      3,
+			BeginBlock: 401,
+			EndBlock:   800,
+		},
+		{
+			Nonce:      4,
+			BeginBlock: 801,
+			EndBlock:   1200,
+		},
+		{
+			Nonce:      5,
+			BeginBlock: 1201,
+			EndBlock:   1300,
+		},
+		{
+			Nonce:      6,
+			BeginBlock: 1301,
+			EndBlock:   1400,
+		},
+		{
+			Nonce:      7,
+			BeginBlock: 1401,
+			EndBlock:   1500,
+		},
+		{
+			Nonce:      8,
+			BeginBlock: 1501,
+			EndBlock:   1600,
+		},
+		{
+			Nonce:      9,
+			BeginBlock: 1601,
+			EndBlock:   1700,
+		},
+		{
+			Nonce:      10,
+			BeginBlock: 1701,
+			EndBlock:   1800,
+		},
+		{
+			Nonce:      11,
+			BeginBlock: 1801,
+			EndBlock:   1900,
+		},
+		{
+			Nonce:      12,
+			BeginBlock: 1901,
+			EndBlock:   2900,
+		},
+		{
+			Nonce:      13,
+			BeginBlock: 2901,
+			EndBlock:   3011,
+		},
+		{
+			Nonce:      14,
+			BeginBlock: 3012,
+			EndBlock:   3122,
+		},
+		{
+			Nonce:      15,
+			BeginBlock: 3123,
+			EndBlock:   3233,
+		},
+		{
+			Nonce:      16,
+			BeginBlock: 3234,
+			EndBlock:   3344,
+		},
+		{
+			Nonce:      17,
+			BeginBlock: 3345,
+			EndBlock:   3455,
+		},
+		{
+			Nonce:      18,
+			BeginBlock: 3456,
+			EndBlock:   3566,
+		},
+		{
+			Nonce:      19,
+			BeginBlock: 3567,
+			EndBlock:   3677,
+		},
+		{
+			Nonce:      20,
+			BeginBlock: 3678,
+			EndBlock:   3788,
+		},
+	}
+	assert.Equal(t, 19, len(got))
+	assert.Equal(t, want, got)
 }
