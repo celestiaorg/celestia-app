@@ -377,7 +377,7 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 	// get the last attestation nonce
 	lastAttestationNonce := qk.GetLatestAttestationNonce(ctx)
 
-	// check if the ranges are contineous
+	// check if the ranges are continuous
 	var previousDC types.DataCommitment
 	dcCount := 0
 	for i := uint64(1); i <= lastAttestationNonce; i++ {
