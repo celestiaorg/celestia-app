@@ -20,6 +20,7 @@ func TestFirstAttestationIsValset(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
+	ctx = ctx.WithBlockHeight(1)
 	// EndBlocker should set a new validator set
 	qgb.EndBlocker(ctx, *pk)
 
@@ -41,23 +42,24 @@ func TestValsetCreationWhenValidatorUnbonds(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
+	ctx = ctx.WithBlockHeight(1)
 	// run abci methods after chain init
-	staking.EndBlocker(input.Context, input.StakingKeeper)
+	staking.EndBlocker(ctx, input.StakingKeeper)
 	qgb.EndBlocker(ctx, *pk)
 
 	// current attestation expectedNonce should be 1 because a valset has been emitted upon chain init.
 	currentAttestationNonce := pk.GetLatestAttestationNonce(ctx)
 	require.Equal(t, uint64(1), currentAttestationNonce)
 
-	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
 	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
 
 	undelegateMsg := testutil.NewTestMsgUnDelegateValidator(testutil.ValAddrs[0], testutil.StakingAmount)
-	_, err := msgServer.Undelegate(input.Context, undelegateMsg)
+	_, err := msgServer.Undelegate(ctx, undelegateMsg)
 	require.NoError(t, err)
-	staking.EndBlocker(input.Context, input.StakingKeeper)
-	qgb.EndBlocker(input.Context, *pk)
-	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
+	staking.EndBlocker(ctx, input.StakingKeeper)
+	qgb.EndBlocker(ctx, *pk)
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
 
 	assert.Equal(t, currentAttestationNonce+1, pk.GetLatestAttestationNonce(ctx))
 }
@@ -66,15 +68,17 @@ func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	pk := input.QgbKeeper
 
+	ctx = ctx.WithBlockHeight(1)
+
 	// run abci methods after chain init
-	staking.EndBlocker(input.Context, input.StakingKeeper)
+	staking.EndBlocker(ctx, input.StakingKeeper)
 	qgb.EndBlocker(ctx, *pk)
 
 	// current attestation expectedNonce should be 1 because a valset has been emitted upon chain init.
 	currentAttestationNonce := pk.GetLatestAttestationNonce(ctx)
 	require.Equal(t, uint64(1), currentAttestationNonce)
 
-	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 1)
 	msgServer := stakingkeeper.NewMsgServerImpl(input.StakingKeeper)
 
 	newEVMAddr, err := teststaking.RandomEVMAddress()
@@ -86,11 +90,11 @@ func TestValsetCreationWhenEditingEVMAddr(t *testing.T) {
 		nil,
 		newEVMAddr,
 	)
-	_, err = msgServer.EditValidator(input.Context, editMsg)
+	_, err = msgServer.EditValidator(ctx, editMsg)
 	require.NoError(t, err)
-	staking.EndBlocker(input.Context, input.StakingKeeper)
-	qgb.EndBlocker(input.Context, *pk)
-	input.Context = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
+	staking.EndBlocker(ctx, input.StakingKeeper)
+	qgb.EndBlocker(ctx, *pk)
+	ctx = ctx.WithBlockHeight(ctx.BlockHeight() + 10)
 
 	assert.Equal(t, currentAttestationNonce+1, pk.GetLatestAttestationNonce(ctx))
 }
@@ -112,12 +116,12 @@ func TestSetDataCommitment(t *testing.T) {
 	qk := input.QgbKeeper
 
 	ctx = ctx.WithBlockHeight(int64(qk.GetDataCommitmentWindowParam(ctx)))
-	dc, err := qk.GetCurrentDataCommitment(ctx)
+	dc, err := qk.NextDataCommitment(ctx)
 	require.NoError(t, err)
 	err = qk.SetAttestationRequest(ctx, &dc)
 	require.NoError(t, err)
 
-	require.Equal(t, uint64(1), qk.GetLatestAttestationNonce(input.Context))
+	require.Equal(t, uint64(1), qk.GetLatestAttestationNonce(ctx))
 }
 
 // TestGetDataCommitment This test will test the create of data commitment ranges
@@ -135,9 +139,8 @@ func TestGetDataCommitment(t *testing.T) {
 	qk := input.QgbKeeper
 
 	tests := []struct {
-		name   string
-		window uint64
-		// to simulate the height condition in endBlocker: ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx))
+		name       string
+		window     uint64
 		height     int64
 		expectedDC types.DataCommitment
 	}{
@@ -192,7 +195,7 @@ func TestGetDataCommitment(t *testing.T) {
 			ctx = ctx.WithBlockHeight(tt.height)
 
 			// get the data commitment
-			dc, err := qk.GetCurrentDataCommitment(ctx)
+			dc, err := qk.NextDataCommitment(ctx)
 			require.NoError(t, err)
 			require.Equal(t, tt.expectedDC.BeginBlock, dc.BeginBlock)
 			require.Equal(t, tt.expectedDC.EndBlock, dc.EndBlock)
@@ -209,8 +212,10 @@ func TestDataCommitmentCreation(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	qk := input.QgbKeeper
 
+	ctx = ctx.WithBlockHeight(1)
+
 	// run abci methods after chain init
-	staking.EndBlocker(input.Context, input.StakingKeeper)
+	staking.EndBlocker(ctx, input.StakingKeeper)
 	qgb.EndBlocker(ctx, *qk)
 
 	// current attestation nonce should be 1 because a valset has been emitted upon chain init.
@@ -219,10 +224,10 @@ func TestDataCommitmentCreation(t *testing.T) {
 
 	// increment height to be the same as the data commitment window
 	newHeight := int64(qk.GetDataCommitmentWindowParam(ctx))
-	input.Context = ctx.WithBlockHeight(newHeight)
-	qgb.EndBlocker(input.Context, *qk)
+	ctx = ctx.WithBlockHeight(newHeight)
+	qgb.EndBlocker(ctx, *qk)
 
-	require.Less(t, newHeight, ctx.BlockHeight())
+	require.LessOrEqual(t, newHeight, ctx.BlockHeight())
 	assert.Equal(t, uint64(2), qk.GetLatestAttestationNonce(ctx))
 }
 
@@ -230,8 +235,9 @@ func TestDataCommitmentRange(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	qk := input.QgbKeeper
 
+	ctx = ctx.WithBlockHeight(1)
 	// run abci methods after chain init
-	staking.EndBlocker(input.Context, input.StakingKeeper)
+	staking.EndBlocker(ctx, input.StakingKeeper)
 	qgb.EndBlocker(ctx, *qk)
 
 	// current attestation nonce should be 1 because a valset has been emitted upon chain init.
@@ -240,13 +246,13 @@ func TestDataCommitmentRange(t *testing.T) {
 
 	// increment height to be the same as the data commitment window
 	newHeight := int64(qk.GetDataCommitmentWindowParam(ctx))
-	input.Context = ctx.WithBlockHeight(newHeight)
-	qgb.EndBlocker(input.Context, *qk)
+	ctx = ctx.WithBlockHeight(newHeight)
+	qgb.EndBlocker(ctx, *qk)
 
-	require.Less(t, newHeight, ctx.BlockHeight())
+	require.LessOrEqual(t, newHeight, ctx.BlockHeight())
 	assert.Equal(t, uint64(2), qk.GetLatestAttestationNonce(ctx))
 
-	att1, found, err := qk.GetAttestationByNonce(input.Context, 2)
+	att1, found, err := qk.GetAttestationByNonce(ctx, 2)
 	require.NoError(t, err)
 	require.True(t, found)
 
@@ -258,10 +264,10 @@ func TestDataCommitmentRange(t *testing.T) {
 
 	// increment height to 2*data commitment window
 	newHeight = int64(qk.GetDataCommitmentWindowParam(ctx)) * 2
-	input.Context = ctx.WithBlockHeight(newHeight)
-	qgb.EndBlocker(input.Context, *qk)
+	ctx = ctx.WithBlockHeight(newHeight)
+	qgb.EndBlocker(ctx, *qk)
 
-	att2, found, err := qk.GetAttestationByNonce(input.Context, 3)
+	att2, found, err := qk.GetAttestationByNonce(ctx, 3)
 	require.NoError(t, err)
 	require.True(t, found)
 
@@ -270,4 +276,133 @@ func TestDataCommitmentRange(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, newHeight, int64(dc2.EndBlock))
 	assert.Equal(t, dc1.EndBlock+1, dc2.BeginBlock)
+}
+
+func TestHasDataCommitmentInStore(t *testing.T) {
+	input, ctx := testutil.SetupFiveValChain(t)
+	qk := input.QgbKeeper
+	// set the data commitment window
+	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 400})
+	require.Equal(t, uint64(400), qk.GetDataCommitmentWindowParam(ctx))
+
+	tests := []struct {
+		name         string
+		setup        func()
+		expectExists bool
+	}{
+		{
+			name:         "when store has no attestation set",
+			setup:        func() {},
+			expectExists: false,
+		},
+		{
+			name: "when store has one valset attestation set",
+			setup: func() {
+				vs, err := qk.GetCurrentValset(ctx)
+				require.NoError(t, err)
+				err = qk.SetAttestationRequest(ctx, &vs)
+				require.NoError(t, err)
+			},
+			expectExists: false,
+		},
+		{
+			name: "when store has 2 valsets set",
+			setup: func() {
+				vs, err := qk.GetCurrentValset(ctx)
+				require.NoError(t, err)
+				err = qk.SetAttestationRequest(ctx, &vs)
+				require.NoError(t, err)
+			},
+			expectExists: false,
+		},
+		{
+			name: "when store has one data commitment",
+			setup: func() {
+				ctx = ctx.WithBlockHeight(400)
+				dc, err := qk.NextDataCommitment(ctx)
+				require.NoError(t, err)
+				err = qk.SetAttestationRequest(ctx, &dc)
+				require.NoError(t, err)
+			},
+			expectExists: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setup()
+			exists, err := qk.HasDataCommitmentInStore(ctx)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectExists, exists)
+		})
+	}
+}
+
+// TestGetDataCommitment This test will test the data commitment creation catchup mechanism.
+// It will run `abci.EndBlocker` on all the heights while changing the data commitment window
+// in different occasions, to see if at the end of the test, the data commitments cover all
+// the needed ranges.
+func TestDataCommitmentCreationCatchup(t *testing.T) {
+	input, ctx := testutil.SetupFiveValChain(t)
+	qk := input.QgbKeeper
+	ctx = ctx.WithBlockHeight(1)
+
+	executeHeights := func(beginHeight int64, endHeight int64) {
+		for i := beginHeight; i <= endHeight; i++ {
+			ctx = ctx.WithBlockHeight(i)
+			qgb.EndBlocker(ctx, *qk)
+		}
+	}
+
+	// from height 1 to 1500 with a window of 400
+	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 400})
+	executeHeights(1, 1500)
+
+	// change window to 100 and execute up to 1920
+	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 100})
+	executeHeights(1501, 1920)
+
+	// change window to 1000 and execute up to 3500
+	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 1000})
+	executeHeights(1921, 3500)
+
+	// change window to 111 and execute up to 3800
+	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 111})
+	executeHeights(3501, 3800)
+
+	// check if a data commitment was created
+	hasDataCommitment, err := qk.HasDataCommitmentInStore(ctx)
+	require.NoError(t, err)
+	require.True(t, hasDataCommitment)
+
+	// get the last attestation nonce
+	lastAttestationNonce := qk.GetLatestAttestationNonce(ctx)
+
+	// check if the ranges are contineous
+	var previousDC types.DataCommitment
+	dcCount := 0
+	for i := uint64(1); i <= lastAttestationNonce; i++ {
+		att, found, err := qk.GetAttestationByNonce(ctx, i)
+		require.NoError(t, err)
+		require.True(t, found)
+		dc, ok := att.(*types.DataCommitment)
+		if !ok {
+			continue
+		}
+		dcCount++
+		if previousDC.Nonce == 0 {
+			// initialize the previous dc
+			previousDC = *dc
+			continue
+		}
+		assert.Equal(t, previousDC.EndBlock+1, dc.BeginBlock)
+		previousDC = *dc
+	}
+
+	// we should have 19 data commitments created in the above setup
+	// - window 400: [1, 400], [401, 800], [801, 1200]
+	// - window 100: [1201, 1300], [1301, 1400], [1401, 1500], [1501, 1600], [1601, 1700], [1701, 1800], [1801, 1900]
+	// - window 1000: [1901, 2900]
+	// - window 111: [2901, 3011], [3012, 3122], [3123,3233], [3234, 3344], [3345, 3455], [3456, 3566], [3567, 3677], [3678, 3788]
+	assert.Equal(t, 19, dcCount)
+	assert.Equal(t, uint64(3788), previousDC.EndBlock)
 }

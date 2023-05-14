@@ -157,7 +157,7 @@ func TestCheckingLatestAttestationNonceInDataCommitments(t *testing.T) {
 		{
 			name: "check latest nonce before getting current data commitment",
 			requestFunc: func() error {
-				_, err := k.GetCurrentDataCommitment(input.Context)
+				_, err := k.NextDataCommitment(input.Context)
 				return err
 			},
 			expectedError: types.ErrLatestAttestationNonceStillNotInitialized,
