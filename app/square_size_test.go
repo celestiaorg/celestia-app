@@ -17,6 +17,8 @@ func TestSquareSizeFromMaxBytes(t *testing.T) {
 		{input: appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize, want: appconsts.MaxSquareSize},
 		{input: appconsts.MaxShareCount*appconsts.ContinuationSparseShareContentSize + 1, want: appconsts.MaxSquareSize},
 		{input: appconsts.DefaultMaxBytes, want: appconsts.DefaultGovMaxSquareSize},
+		// increase the default by 1 share to rquire a larger square
+		{input: appconsts.DefaultMaxBytes + appconsts.ContinuationSparseShareContentSize, want: appconsts.MaxSquareSize},
 	}
 	for _, tt := range tests {
 		got := SquareSizeFromMaxBytes(tt.input)
