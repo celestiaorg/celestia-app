@@ -3,8 +3,9 @@
 `x/mint` is a fork of the Cosmos SDK `x/mint` module that makes some changes to the inflation mechanism.
 
 1. Remove all parameters from the module
-1. Calculate inflation rate based on the number of years since genesis
-1. Calculate block provision based on the number of seconds elapsed between the current block and the previous block
+1. Calculate inflation rate once per year based on the number of years since genesis
+1. Calculate annual provisions once per year based on the total supply
+1. Calculate block provision once per block based on the number of seconds elapsed between the current block and the previous block
 
 ## Constants
 
