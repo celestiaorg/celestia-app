@@ -161,11 +161,6 @@ func TestAnnualProvisions(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		// Run BeginBlocker twice because minter uses the previous inflation
-		// rate in minter to calculate the annual provisions. By running this
-		// twice, we can test against block times rather than simulating a block
-		// at yearOne and another at yearOne + 15 seconds.
-		mint.BeginBlocker(tc.ctx, app.MintKeeper)
 		mint.BeginBlocker(tc.ctx, app.MintKeeper)
 		got, err := app.MintKeeper.AnnualProvisions(ctx, &minttypes.QueryAnnualProvisionsRequest{})
 		assert.NoError(t, err)
