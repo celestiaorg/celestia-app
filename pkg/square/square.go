@@ -63,6 +63,12 @@ func Construct(txs [][]byte, maxSquareSize int) (Square, error) {
 // decode the blobs. Data that may be included in the square but isn't
 // recognised by the square construction algorithm will be ignored
 func Deconstruct(s Square, decoder types.TxDecoder) (core.Txs, error) {
+	if s.IsEmpty() {
+		return []core.Tx{}, nil
+	}
+
+	// Work out which range of shares are non-pfb transactions
+	// and which ones are pfb transactions
 	txShareRange, err := shares.GetShareRangeForNamespace(s, namespace.TxNamespace)
 	if err != nil {
 		return nil, err
@@ -70,26 +76,38 @@ func Deconstruct(s Square, decoder types.TxDecoder) (core.Txs, error) {
 	if txShareRange.Start != 0 {
 		return nil, fmt.Errorf("expected txs to start at index 0, but got %d", txShareRange.Start)
 	}
-	wpfbShareRange, err := shares.GetShareRangeForNamespace(s[txShareRange.End+1:], namespace.PayForBlobNamespace)
-	if err != nil {
-		return nil, err
-	}
-	wpfbShareRange.Start += txShareRange.End + 1
-	wpfbShareRange.End += txShareRange.End + 1
 
-	if wpfbShareRange.Start != txShareRange.End+1 {
-		return nil, fmt.Errorf("expected PFBs to start at index %d, but got %d", txShareRange.End+1, wpfbShareRange.Start)
-	}
-
-	txs, err := shares.ParseTxs(s[txShareRange.Start : txShareRange.End+1])
-	if err != nil {
-		return nil, err
-	}
-	wpfbs, err := shares.ParseTxs(s[wpfbShareRange.Start : wpfbShareRange.End+1])
+	wpfbShareRange, err := shares.GetShareRangeForNamespace(s[txShareRange.End:], namespace.PayForBlobNamespace)
 	if err != nil {
 		return nil, err
 	}
 
+	// If there are no pfb transactions, then we can just return the txs
+	if wpfbShareRange.IsEmpty() {
+		return shares.ParseTxs(s[txShareRange.Start:txShareRange.End])
+	}
+
+	// We expect pfb transactions to come directly after non-pfb transactions
+	if wpfbShareRange.Start != 0 {
+		return nil, fmt.Errorf("expected PFBs to start directly after non PFBs at index %d, but got %d", txShareRange.End, wpfbShareRange.Start)
+	}
+	wpfbShareRange.Add(txShareRange.End)
+
+	// Parse both txs
+	fmt.Println(txShareRange)
+	txs, err := shares.ParseTxs(s[txShareRange.Start:txShareRange.End])
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(wpfbShareRange)
+	wpfbs, err := shares.ParseTxs(s[wpfbShareRange.Start:wpfbShareRange.End])
+	if err != nil {
+		return nil, err
+	}
+
+	// loop through the wrapped pfbs and generate the original
+	// blobTx that they derive from
 	for i, wpfbBytes := range wpfbs {
 		wpfb, isWpfb := core.UnmarshalIndexWrapper(wpfbBytes)
 		if !isWpfb {
@@ -208,6 +226,10 @@ func (s Square) WrappedPFBs() (core.Txs, error) {
 		return core.Txs{}, nil
 	}
 	return shares.ParseTxs(s[wpfbShareRange.Start : wpfbShareRange.End+1])
+}
+
+func (s Square) IsEmpty() bool {
+	return s.Equals(EmptySquare())
 }
 
 // EmptySquare returns a 1x1 square with a single tail padding share
