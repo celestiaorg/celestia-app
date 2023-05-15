@@ -12,7 +12,7 @@ const (
 	NamespaceVersionSize = 1
 
 	// NamespaceIDSize is the size of a namespace ID in bytes.
-	NamespaceIDSize = 32
+	NamespaceIDSize = 28
 
 	// NamespaceSize is the size of a namespace (version + ID) in bytes.
 	NamespaceSize = NamespaceVersionSize + NamespaceIDSize
