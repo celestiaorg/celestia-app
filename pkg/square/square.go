@@ -94,13 +94,11 @@ func Deconstruct(s Square, decoder types.TxDecoder) (core.Txs, error) {
 	wpfbShareRange.Add(txShareRange.End)
 
 	// Parse both txs
-	fmt.Println(txShareRange)
 	txs, err := shares.ParseTxs(s[txShareRange.Start:txShareRange.End])
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Println(wpfbShareRange)
 	wpfbs, err := shares.ParseTxs(s[wpfbShareRange.Start:wpfbShareRange.End])
 	if err != nil {
 		return nil, err
