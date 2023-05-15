@@ -53,47 +53,48 @@ func Construct(txs [][]byte, maxSquareSize int) (Square, error) {
 }
 
 // TxShareRange returns the range of share indexes that the tx, specified by txIndex, occupies.
-// Both ends of the range are inclusive.
-func TxShareRange(txs [][]byte, txIndex int) (shares.ShareRange, error) {
+// The range is end exclusive.
+func TxShareRange(txs [][]byte, txIndex int) (shares.Range, error) {
 	builder, err := NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
 	if err != nil {
-		return shares.ShareRange{}, err
+		return shares.Range{}, err
 	}
 
 	return builder.FindTxShareRange(txIndex)
 }
 
 // BlobShareRange returns the range of share indexes that the blob, identified by txIndex and blobIndex, occupies.
-// Both ends of the range are inclusive.
-func BlobShareRange(txs [][]byte, txIndex, blobIndex int) (shares.ShareRange, error) {
+// The range is end exclusive.
+func BlobShareRange(txs [][]byte, txIndex, blobIndex int) (shares.Range, error) {
 	builder, err := NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
 	if err != nil {
-		return shares.ShareRange{}, err
+		return shares.Range{}, err
 	}
 
 	start, err := builder.FindBlobStartingIndex(txIndex, blobIndex)
 	if err != nil {
-		return shares.ShareRange{}, err
+		return shares.Range{}, err
 	}
 
 	blobLen, err := builder.BlobShareLength(txIndex, blobIndex)
 	if err != nil {
-		return shares.ShareRange{}, err
+		return shares.Range{}, err
 	}
+	end := start + blobLen
 
-	return shares.ShareRange{Start: int(start), End: int(start) + blobLen - 1}, nil
+	return shares.NewRange(start, end), nil
 }
 
 // Square is a 2D square of shares with symmetrical sides that are always a power of 2.
 type Square []shares.Share
 
 // Size returns the size of the sides of a square
-func (s Square) Size() uint64 {
+func (s Square) Size() int {
 	return Size(len(s))
 }
 
-func Size(len int) uint64 {
-	return uint64(math.Ceil(math.Sqrt(float64(len))))
+func Size(len int) int {
+	return int(math.Ceil(math.Sqrt(float64(len))))
 }
 
 // Equals returns true if two squares are equal
