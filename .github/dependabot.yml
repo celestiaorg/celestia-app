@@ -5,22 +5,27 @@ updates:
     schedule:
       interval: daily
     open-pull-requests-limit: 10
+    labels:
+      - dependencies
   # There are more Dockerfiles in the `docker` directory, therefore we need this one
   - package-ecosystem: docker
     directory: "/docker"
     schedule:
       interval: daily
     open-pull-requests-limit: 10
+    labels:
+      - dependencies
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: daily
     open-pull-requests-limit: 10
+    labels:
+      - dependencies
   - package-ecosystem: gomod
     directory: "/"
     schedule:
       interval: daily
     open-pull-requests-limit: 10
     labels:
-      - automerge
       - dependencies
