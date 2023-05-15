@@ -28,7 +28,7 @@ func BenchmarkSquareBuild(b *testing.B) {
 			txs := generateMixedTxs(txCount/2, txCount/2, 1, 1024)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_, _, err := square.Build(txs, appconsts.DefaultMaxSquareSize)
+				_, _, err := square.Build(txs, appconsts.MaxSquareSize)
 				require.NoError(b, err)
 			}
 		})
