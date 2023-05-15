@@ -11,8 +11,10 @@ import (
 var _ paramtypes.ParamSet = (*Params)(nil)
 
 var (
-	KeyGasPerBlobByte            = []byte("GasPerBlobByte")
-	DefaultGasPerBlobByte uint32 = appconsts.DefaultGasPerBlobByte
+	KeyGasPerBlobByte              = []byte("GasPerBlobByte")
+	DefaultGasPerBlobByte   uint32 = appconsts.DefaultGasPerBlobByte
+	KeyGovMaxSquareSize            = []byte("GasPerBlobByte")
+	DefaultGovMaxSquareSize uint64 = appconsts.DefaultGovMaxSquareSize
 )
 
 // ParamKeyTable returns the param key table for the blob module
@@ -21,27 +23,33 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new Params instance
-func NewParams(GasPerBlobByte uint32) Params {
+func NewParams(gasPerBlobByte uint32, govMaxSquareSize uint64) Params {
 	return Params{
-		GasPerBlobByte: GasPerBlobByte,
+		GasPerBlobByte:   gasPerBlobByte,
+		GovMaxSquareSize: govMaxSquareSize,
 	}
 }
 
 // DefaultParams returns a default set of parameters
 func DefaultParams() Params {
-	return NewParams(DefaultGasPerBlobByte)
+	return NewParams(DefaultGasPerBlobByte, appconsts.DefaultGovMaxSquareSize)
 }
 
 // ParamSetPairs gets the list of param key-value pairs
 func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
 		paramtypes.NewParamSetPair(KeyGasPerBlobByte, &p.GasPerBlobByte, validateGasPerBlobByte),
+		paramtypes.NewParamSetPair(KeyGovMaxSquareSize, &p.GovMaxSquareSize, validateGovMaxSquareSize),
 	}
 }
 
 // Validate validates the set of params
 func (p Params) Validate() error {
-	return validateGasPerBlobByte(p.GasPerBlobByte)
+	err := validateGasPerBlobByte(p.GasPerBlobByte)
+	if err != nil {
+		return err
+	}
+	return validateGovMaxSquareSize(p.GovMaxSquareSize)
 }
 
 // String implements the Stringer interface.
@@ -52,13 +60,34 @@ func (p Params) String() string {
 
 // validateGasPerBlobByte validates the GasPerBlobByte param
 func validateGasPerBlobByte(v interface{}) error {
-	GasPerBlobByte, ok := v.(uint32)
+	gasPerBlobByte, ok := v.(uint32)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
 	}
 
-	if GasPerBlobByte == 0 {
+	if gasPerBlobByte == 0 {
 		return fmt.Errorf("gas per blob byte cannot be 0")
+	}
+
+	return nil
+}
+
+// validateGovMaxSquareSize validates the GovMaxSquareSize param
+func validateGovMaxSquareSize(v interface{}) error {
+	govMaxSquareSize, ok := v.(uint64)
+	if !ok {
+		return fmt.Errorf("invalid parameter type: %T", v)
+	}
+
+	if govMaxSquareSize == 0 {
+		return fmt.Errorf("gov max square size cannot be zero")
+	}
+
+	if govMaxSquareSize > appconsts.MaxSquareSize {
+		return fmt.Errorf(
+			"gov max square size cannot exceed the max square size: max %d",
+			appconsts.MaxSquareSize,
+		)
 	}
 
 	return nil

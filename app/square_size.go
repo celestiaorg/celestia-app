@@ -2,7 +2,6 @@ package app
 
 import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/square"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -17,21 +16,14 @@ func (app *App) GovMaxSquareSize(ctx sdk.Context) int {
 	// celestia-app does not currently use those. see this PR for more
 	// details https://github.com/cosmos/cosmos-sdk/pull/14505
 	if ctx.BlockHeader().Height == 0 {
-		return int(SquareSizeFromMaxBytes(int64(appconsts.DefaultMaxBytes)))
+		return int(appconsts.DefaultGovMaxSquareSize)
 	}
-	params := app.GetConsensusParams(ctx)
-	return int(SquareSizeFromMaxBytes(params.Block.MaxBytes))
-}
 
-// SquareSizeFromMaxBytes returns the square size that will be used for a given
-// max bytes value. It does not account for any encoding overhead. It will
-// return the hardcoded appconsts.MaxSquareSize if the size is greater than
-// that.
-func SquareSizeFromMaxBytes(mbytes int64) uint64 {
-	sharesUsed := mbytes / appconsts.ContinuationSparseShareContentSize
-	size := square.Size(int(sharesUsed))
-	if size > appconsts.MaxSquareSize {
-		size = appconsts.MaxSquareSize
+	gmax := app.BlobKeeper.GovMaxSquareSize(ctx)
+	// perform a secondary check on the max square size
+	if gmax > appconsts.MaxSquareSize {
+		gmax = appconsts.MaxSquareSize
 	}
-	return size
+
+	return int(gmax)
 }
