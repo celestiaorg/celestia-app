@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 
@@ -47,7 +46,7 @@ func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) 
 	}
 
 	// create and marshal the tx inclusion proof, which we return in the form of []byte
-	shareProof, err := NewTxInclusionProof(data.Txs.ToSliceOfBytes(), uint64(index))
+	shareProof, err := NewTxInclusionProof(data.Txs.ToSliceOfBytes(), uint64(index), pbb.Header.Version.App)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +86,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 		return nil, fmt.Errorf("error reading block: %w", err)
 	}
 
-	dataSquare, err := square.Construct(pbb.Data.Txs, appconsts.DefaultMaxSquareSize)
+	dataSquare, err := square.Construct(pbb.Data.Txs, pbb.Header.Version.App)
 	if err != nil {
 		return nil, err
 	}

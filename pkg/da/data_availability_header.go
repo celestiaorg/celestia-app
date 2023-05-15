@@ -16,7 +16,7 @@ import (
 	daproto "github.com/celestiaorg/celestia-app/proto/celestia/da"
 )
 
-const (
+var (
 	maxExtendedSquareWidth = appconsts.DefaultMaxSquareSize * 2
 	minExtendedSquareWidth = appconsts.DefaultMinSquareSize * 2
 )

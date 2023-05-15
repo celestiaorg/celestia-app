@@ -1,7 +1,6 @@
 package app
 
 import (
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
@@ -25,7 +24,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
-	dataSquare, txs, err := square.Build(txs, appconsts.DefaultMaxSquareSize)
+	dataSquare, txs, err := square.Build(txs, app.GetBaseApp().AppVersion())
 	if err != nil {
 		panic(err)
 	}

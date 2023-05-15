@@ -79,7 +79,7 @@ func txCmd() *cobra.Command {
 				return err
 			}
 
-			shareRange, err := square.TxShareRange(blockRes.Block.Data.Txs.ToSliceOfBytes(), int(tx.Index))
+			shareRange, err := square.TxShareRange(blockRes.Block.Data.Txs.ToSliceOfBytes(), int(tx.Index), blockRes.Block.Header.Version.App)
 			if err != nil {
 				return err
 			}
@@ -141,7 +141,7 @@ func blobCmd() *cobra.Command {
 				return err
 			}
 
-			blobShareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(tx.Index), int(blobIndex))
+			blobShareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(tx.Index), int(blobIndex), blockRes.Block.Header.Version.App)
 			if err != nil {
 				return err
 			}

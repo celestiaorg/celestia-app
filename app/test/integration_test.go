@@ -349,7 +349,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		require.True(isBlobTx)
 
 		// get the blob shares
-		shareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(txResp.Index), 0)
+		shareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(txResp.Index), 0, appconsts.LatestVersion)
 		require.NoError(err)
 
 		// verify the blob shares proof

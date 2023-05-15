@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -56,6 +57,9 @@ var DefaultConsensusParams = &abci.ConsensusParams{
 			tmtypes.ABCIPubKeyTypeEd25519,
 		},
 	},
+	Version: &tmproto.VersionParams{
+		AppVersion: appconsts.LatestVersion,
+	},
 }
 
 type emptyAppOptions struct{}
@@ -86,6 +90,7 @@ func SetupTestAppWithGenesisValSet(genAccounts ...string) (*app.App, keyring.Key
 		encCfg,
 		emptyOpts,
 	)
+	testApp.GetBaseApp().SetProtocolVersion(appconsts.LatestVersion)
 
 	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genAccounts...)
 

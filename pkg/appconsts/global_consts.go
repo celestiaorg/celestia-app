@@ -55,30 +55,12 @@ const (
 	// in a continuation sparse share of a sequence.
 	ContinuationSparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes
 
-	// DefaultMaxSquareSize is the maximum original square width.
-	//
-	// Note: 128 shares in a row * 128 shares in a column * 512 bytes in a share
-	// = 8 MiB
-	DefaultMaxSquareSize = 128
-
-	// MaxShareCount is the maximum number of shares allowed in the original
-	// data square.
-	MaxShareCount = DefaultMaxSquareSize * DefaultMaxSquareSize
-
 	// DefaultMinSquareSize is the smallest original square width.
 	DefaultMinSquareSize = 1
 
 	// MinshareCount is the minimum number of shares allowed in the original
 	// data square.
 	MinShareCount = DefaultMinSquareSize * DefaultMinSquareSize
-
-	// SubtreeRootThreshold works as a target value for the number of subtree roots in the
-	// share commitment. If a blob contains more shares than this number, than the height
-	// of the subtree roots will gradually increases to so that the amount remains within that limit.
-	// The rationale for this value is described in more detail in ADR013
-	// (./docs/architecture/adr-013).
-	// ADR013 https://github.com/celestiaorg/celestia-app/blob/e905143e8fe138ce6085ae9a5c1af950a2d87638/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md //nolint: lll
-	SubtreeRootThreshold = DefaultMaxSquareSize
 
 	// MaxShareVersion is the maximum value a share version can be.
 	MaxShareVersion = 127
@@ -100,10 +82,6 @@ var (
 
 	// DefaultCodec is the default codec creator used for data erasure.
 	DefaultCodec = rsmt2d.NewLeoRSCodec
-
-	// DataCommitmentBlocksLimit is the limit to the number of blocks we can
-	// generate a data commitment for.
-	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
 
 	// SupportedShareVersions is a list of supported share versions.
 	SupportedShareVersions = []uint8{ShareVersionZero}

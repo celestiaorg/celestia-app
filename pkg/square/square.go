@@ -15,8 +15,8 @@ import (
 // in the square and which have all PFBs trailing regular transactions. Note, this function does
 // not check the underlying validity of the transactions.
 // Errors should not occur and would reflect a violation in an invariant.
-func Build(txs [][]byte, maxSquareSize int) (Square, [][]byte, error) {
-	builder, err := NewBuilder(maxSquareSize)
+func Build(txs [][]byte, appVersion uint64) (Square, [][]byte, error) {
+	builder, err := NewBuilder(appconsts.MaxSquareSize(appVersion), appconsts.SubtreeRootThreshold(appVersion))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -44,8 +44,8 @@ func Build(txs [][]byte, maxSquareSize int) (Square, [][]byte, error) {
 //
 // Note that this function does not check the underlying validity of
 // the transactions.
-func Construct(txs [][]byte, maxSquareSize int) (Square, error) {
-	builder, err := NewBuilder(maxSquareSize, txs...)
+func Construct(txs [][]byte, appVersion uint64) (Square, error) {
+	builder, err := NewBuilder(appconsts.MaxSquareSize(appVersion), appconsts.SubtreeRootThreshold(appVersion), txs...)
 	if err != nil {
 		return nil, err
 	}
@@ -54,8 +54,8 @@ func Construct(txs [][]byte, maxSquareSize int) (Square, error) {
 
 // TxShareRange returns the range of share indexes that the tx, specified by txIndex, occupies.
 // The range is end exclusive.
-func TxShareRange(txs [][]byte, txIndex int) (shares.Range, error) {
-	builder, err := NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
+func TxShareRange(txs [][]byte, txIndex int, appVersion uint64) (shares.Range, error) {
+	builder, err := NewBuilder(appconsts.MaxSquareSize(appVersion), appconsts.SubtreeRootThreshold(appVersion), txs...)
 	if err != nil {
 		return shares.Range{}, err
 	}
@@ -65,8 +65,8 @@ func TxShareRange(txs [][]byte, txIndex int) (shares.Range, error) {
 
 // BlobShareRange returns the range of share indexes that the blob, identified by txIndex and blobIndex, occupies.
 // The range is end exclusive.
-func BlobShareRange(txs [][]byte, txIndex, blobIndex int) (shares.Range, error) {
-	builder, err := NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
+func BlobShareRange(txs [][]byte, txIndex, blobIndex int, appVersion uint64) (shares.Range, error) {
+	builder, err := NewBuilder(appconsts.MaxSquareSize(appVersion), appconsts.SubtreeRootThreshold(appVersion), txs...)
 	if err != nil {
 		return shares.Range{}, err
 	}

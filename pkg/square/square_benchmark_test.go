@@ -14,7 +14,7 @@ func BenchmarkSquareConstruct(b *testing.B) {
 		b.Run(fmt.Sprintf("txCount=%d", txCount), func(b *testing.B) {
 			txs := generateOrderedTxs(txCount/2, txCount/2, 1024)
 			for i := 0; i < b.N; i++ {
-				_, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
+				_, err := square.Construct(txs, appconsts.LatestVersion)
 				require.NoError(b, err)
 			}
 		})
@@ -26,7 +26,7 @@ func BenchmarkSquareBuild(b *testing.B) {
 		b.Run(fmt.Sprintf("txCount=%d", txCount), func(b *testing.B) {
 			txs := generateMixedTxs(txCount/2, txCount/2, 1024)
 			for i := 0; i < b.N; i++ {
-				_, _, err := square.Build(txs, appconsts.DefaultMaxSquareSize)
+				_, _, err := square.Build(txs, appconsts.LatestVersion)
 				require.NoError(b, err)
 			}
 		})
