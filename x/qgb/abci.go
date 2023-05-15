@@ -25,7 +25,7 @@ func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
 	setDataCommitmentAttestation := func() {
 		dataCommitment, err := k.NextDataCommitment(ctx)
 		if err != nil {
-			panic(sdkerrors.Wrap(err, "coudln't get current data commitment"))
+			panic(sdkerrors.Wrap(err, "couldn't get current data commitment"))
 		}
 		err = k.SetAttestationRequest(ctx, &dataCommitment)
 		if err != nil {
