@@ -148,6 +148,6 @@ func DefaultBlockParams() tmproto.BlockParams {
 	return tmproto.BlockParams{
 		MaxBytes:   appconsts.DefaultMaxBytes,
 		MaxGas:     -1,
-		TimeIotaMs: 1000, // 1s
+		TimeIotaMs: 1, // 1ms
 	}
 }

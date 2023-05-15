@@ -244,7 +244,7 @@ func DefaultNetwork(t *testing.T) (accounts []string, cctx Context) {
 	}
 
 	tmCfg := DefaultTendermintConfig()
-	tmCfg.Consensus.TargetHeightDuration = time.Millisecond * 400
+	tmCfg.Consensus.TargetHeightDuration = time.Millisecond * 1
 	appConf := DefaultAppConfig()
 
 	cctx, _, _ = NewNetwork(t, DefaultParams(), tmCfg, appConf, accounts...)
