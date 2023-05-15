@@ -112,6 +112,23 @@ func Test_processCompactShares(t *testing.T) {
 	}
 }
 
+func TestParseOutOfContextShares(t *testing.T) {
+	txs := testfactory.GenerateRandomlySizedTxs(1000, 150)
+	txShares, _, _, err := SplitTxs(txs)
+	require.NoError(t, err)
+
+	for i := 0; i < 1000; i++ {
+		start, length := testfactory.GetRandomSlice(len(txShares))
+
+		rawResTxs, err := parseCompactShares(txShares[start:start+length], appconsts.SupportedShareVersions)
+		require.NoError(t, err)
+
+		resTxs := coretypes.ToTxs(rawResTxs)
+		require.NoError(t, err)
+		assert.True(t, testfactory.CheckSubArray(txs, resTxs))
+	}
+}
+
 func TestCompactShareContainsInfoByte(t *testing.T) {
 	css := NewCompactShareSplitter(appns.TxNamespace, appconsts.ShareVersionZero)
 	txs := testfactory.GenerateRandomTxs(1, appconsts.ContinuationCompactShareContentSize/4)
