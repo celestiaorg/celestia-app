@@ -166,11 +166,11 @@ func TestBuilderFindTxShareRange(t *testing.T) {
 		if idx == 5 {
 			// normal txs and PFBs use a different namespace so there
 			// can't be any overlap in the index
-			require.Greater(t, shareRange.Start, lastEnd)
+			require.Greater(t, shareRange.Start, lastEnd-1)
 		} else {
-			require.GreaterOrEqual(t, shareRange.Start, lastEnd)
+			require.GreaterOrEqual(t, shareRange.Start, lastEnd-1)
 		}
-		require.Less(t, uint64(shareRange.End), size)
+		require.LessOrEqual(t, shareRange.End, size)
 		txShares := dataSquare[shareRange.Start : shareRange.End+1]
 		parsedShares, err := rawData(txShares)
 		require.NoError(t, err)

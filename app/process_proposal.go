@@ -99,7 +99,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	}
 
 	// Assert that the square size stated by the proposer is correct
-	if dataSquare.Size() != req.BlockData.SquareSize {
+	if uint64(dataSquare.Size()) != req.BlockData.SquareSize {
 		logInvalidPropBlock(app.Logger(), req.Header, "proposed square size differs from calculated square size")
 		return reject()
 	}

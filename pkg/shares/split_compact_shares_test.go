@@ -207,7 +207,7 @@ func TestExport(t *testing.T) {
 	type testCase struct {
 		name             string
 		txs              []coretypes.Tx
-		want             map[coretypes.TxKey]ShareRange
+		want             map[coretypes.TxKey]Range
 		shareRangeOffset int
 	}
 
@@ -221,15 +221,15 @@ func TestExport(t *testing.T) {
 		{
 			name: "empty",
 			txs:  []coretypes.Tx{},
-			want: map[coretypes.TxKey]ShareRange{},
+			want: map[coretypes.TxKey]Range{},
 		},
 		{
 			name: "txOne occupies shares 0 to 0",
 			txs: []coretypes.Tx{
 				txOne,
 			},
-			want: map[coretypes.TxKey]ShareRange{
-				txOne.Key(): {0, 0},
+			want: map[coretypes.TxKey]Range{
+				txOne.Key(): {0, 1},
 			},
 		},
 		{
@@ -237,8 +237,8 @@ func TestExport(t *testing.T) {
 			txs: []coretypes.Tx{
 				txTwo,
 			},
-			want: map[coretypes.TxKey]ShareRange{
-				txTwo.Key(): {0, 1},
+			want: map[coretypes.TxKey]Range{
+				txTwo.Key(): {0, 2},
 			},
 		},
 		{
@@ -246,8 +246,8 @@ func TestExport(t *testing.T) {
 			txs: []coretypes.Tx{
 				txThree,
 			},
-			want: map[coretypes.TxKey]ShareRange{
-				txThree.Key(): {0, 2},
+			want: map[coretypes.TxKey]Range{
+				txThree.Key(): {0, 3},
 			},
 		},
 		{
@@ -257,10 +257,10 @@ func TestExport(t *testing.T) {
 				txTwo,
 				txThree,
 			},
-			want: map[coretypes.TxKey]ShareRange{
-				txOne.Key():   {0, 0},
-				txTwo.Key():   {0, 1},
-				txThree.Key(): {1, 3},
+			want: map[coretypes.TxKey]Range{
+				txOne.Key():   {0, 1},
+				txTwo.Key():   {0, 2},
+				txThree.Key(): {1, 4},
 			},
 		},
 
@@ -269,8 +269,8 @@ func TestExport(t *testing.T) {
 			txs: []coretypes.Tx{
 				exactlyOneShare,
 			},
-			want: map[coretypes.TxKey]ShareRange{
-				exactlyOneShare.Key(): {0, 0},
+			want: map[coretypes.TxKey]Range{
+				exactlyOneShare.Key(): {0, 1},
 			},
 		},
 		{
@@ -278,8 +278,8 @@ func TestExport(t *testing.T) {
 			txs: []coretypes.Tx{
 				exactlyTwoShares,
 			},
-			want: map[coretypes.TxKey]ShareRange{
-				exactlyTwoShares.Key(): {0, 1},
+			want: map[coretypes.TxKey]Range{
+				exactlyTwoShares.Key(): {0, 2},
 			},
 		},
 		{
@@ -288,9 +288,9 @@ func TestExport(t *testing.T) {
 				exactlyTwoShares,
 				exactlyOneShare,
 			},
-			want: map[coretypes.TxKey]ShareRange{
-				exactlyTwoShares.Key(): {0, 1},
-				exactlyOneShare.Key():  {2, 2},
+			want: map[coretypes.TxKey]Range{
+				exactlyTwoShares.Key(): {0, 2},
+				exactlyOneShare.Key():  {2, 3},
 			},
 		},
 		{
@@ -299,9 +299,9 @@ func TestExport(t *testing.T) {
 				exactlyOneShare,
 				exactlyTwoShares,
 			},
-			want: map[coretypes.TxKey]ShareRange{
-				exactlyOneShare.Key():  {0, 0},
-				exactlyTwoShares.Key(): {1, 2},
+			want: map[coretypes.TxKey]Range{
+				exactlyOneShare.Key():  {0, 1},
+				exactlyTwoShares.Key(): {1, 3},
 			},
 		},
 		{
@@ -310,9 +310,9 @@ func TestExport(t *testing.T) {
 				exactlyOneShare,
 				exactlyTwoShares,
 			},
-			want: map[coretypes.TxKey]ShareRange{
-				exactlyOneShare.Key():  {10, 10},
-				exactlyTwoShares.Key(): {11, 12},
+			want: map[coretypes.TxKey]Range{
+				exactlyOneShare.Key():  {10, 11},
+				exactlyTwoShares.Key(): {11, 13},
 			},
 			shareRangeOffset: 10,
 		},
