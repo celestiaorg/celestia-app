@@ -179,10 +179,6 @@ func Test_parseCompactSharesErrors(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			"share with start indicator false",
-			txShares[1:], // set the first share to the second share which has the start indicator set to false
-		},
-		{
 			"share with unsupported share version",
 			[]Share{*shareWithUnsupportedShareVersion},
 		},

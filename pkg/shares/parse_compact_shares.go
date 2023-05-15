@@ -1,7 +1,5 @@
 package shares
 
-import "errors"
-
 // parseCompactShares returns data (transactions or intermediate state roots
 // based on the contents of rawShares and supportedShareVersions. If rawShares
 // contains a share with a version that isn't present in supportedShareVersions,
@@ -11,14 +9,6 @@ import "errors"
 func parseCompactShares(shares []Share, supportedShareVersions []uint8) (data [][]byte, err error) {
 	if len(shares) == 0 {
 		return nil, nil
-	}
-
-	seqStart, err := shares[0].IsSequenceStart()
-	if err != nil {
-		return nil, err
-	}
-	if !seqStart {
-		return nil, errors.New("first share is not the start of a sequence")
 	}
 
 	err = validateShareVersions(shares, supportedShareVersions)
@@ -61,7 +51,7 @@ func parseRawData(rawData []byte) (units [][]byte, err error) {
 		if err != nil {
 			return nil, err
 		}
-		if unitLen == 0 {
+		if unitLen == 0 || unitLen > uint64(len(actualData)) {
 			return units, nil
 		}
 		rawData = actualData[unitLen:]
@@ -73,7 +63,12 @@ func parseRawData(rawData []byte) (units [][]byte, err error) {
 // not contain the namespace ID, info byte, sequence length, or reserved bytes.
 func extractRawData(shares []Share) (rawData []byte, err error) {
 	for i := 0; i < len(shares); i++ {
-		raw, err := shares[i].RawData()
+		var raw []byte
+		if i == 0 {
+			raw, err = shares[i].RawDataUsingReserved()
+		} else {
+			raw, err = shares[i].RawData()
+		}
 		if err != nil {
 			return nil, err
 		}
