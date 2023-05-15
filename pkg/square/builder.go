@@ -338,6 +338,14 @@ func (b *Builder) GetWrappedPFB(txIndex int) (*coretypes.IndexWrapper, error) {
 	return b.pfbs[txIndex-len(b.txs)], nil
 }
 
+func (b *Builder) NumPFBs() int {
+	return len(b.pfbs)
+}
+
+func (b *Builder) NumTxs() int {
+	return len(b.txs) + len(b.pfbs)
+}
+
 func (b *Builder) canFit(shareNum int) bool {
 	return b.currentSize+shareNum <= b.maxCapacity
 }
