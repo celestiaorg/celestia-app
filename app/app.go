@@ -308,7 +308,8 @@ func New(
 		appCodec, keys[stakingtypes.StoreKey], app.AccountKeeper, app.BankKeeper, app.GetSubspace(stakingtypes.ModuleName),
 	)
 	app.MintKeeper = mintkeeper.NewKeeper(
-		appCodec, keys[minttypes.StoreKey],
+		appCodec,
+		keys[minttypes.StoreKey],
 		&stakingKeeper,
 		app.AccountKeeper,
 		app.BankKeeper,
