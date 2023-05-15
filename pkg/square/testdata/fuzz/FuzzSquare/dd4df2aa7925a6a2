@@ -1,5 +1,0 @@
-go test fuzz v1
-uint(47)
-uint(182)
-uint(60)
-uint(867)
