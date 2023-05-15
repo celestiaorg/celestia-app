@@ -36,10 +36,10 @@ type Builder struct {
 
 func NewBuilder(maxSquareSize, subtreeRootThreshold int, txs ...[]byte) (*Builder, error) {
 	if maxSquareSize <= 0 {
-		return nil, errors.New("max square size must be positive")
+		return nil, errors.New("max square size must be strictly positive")
 	}
 	if subtreeRootThreshold <= 0 {
-		return nil, errors.New("subtreeRootThreshold must be positive")
+		return nil, errors.New("subtreeRootThreshold must be strictly positive")
 	}
 	if !shares.IsPowerOfTwo(maxSquareSize) {
 		return nil, errors.New("max square size must be a power of two")
