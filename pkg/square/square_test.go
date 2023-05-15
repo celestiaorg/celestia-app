@@ -371,7 +371,7 @@ func TestSquareShareCommitments(t *testing.T) {
 func TestSize(t *testing.T) {
 	type test struct {
 		input  int
-		expect uint64
+		expect int
 	}
 	tests := []test{
 		{input: 0, expect: appconsts.MinSquareSize},
