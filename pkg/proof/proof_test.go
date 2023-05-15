@@ -113,8 +113,8 @@ func TestNewShareInclusionProof(t *testing.T) {
 
 	type test struct {
 		name          string
-		startingShare int64
-		endingShare   int64
+		startingShare int
+		endingShare   int
 		namespaceID   appns.Namespace
 		expectErr     bool
 	}
@@ -150,49 +150,49 @@ func TestNewShareInclusionProof(t *testing.T) {
 		{
 			name:          "1 transaction share",
 			startingShare: 0,
-			endingShare:   0,
+			endingShare:   1,
 			namespaceID:   appns.TxNamespace,
 			expectErr:     false,
 		},
 		{
 			name:          "10 transaction shares",
 			startingShare: 0,
-			endingShare:   9,
+			endingShare:   10,
 			namespaceID:   appns.TxNamespace,
 			expectErr:     false,
 		},
 		{
 			name:          "53 transaction shares",
 			startingShare: 0,
-			endingShare:   52,
+			endingShare:   53,
 			namespaceID:   appns.TxNamespace,
 			expectErr:     false,
 		},
 		{
 			name:          "shares from different namespaces",
 			startingShare: 48,
-			endingShare:   54,
+			endingShare:   55,
 			namespaceID:   appns.TxNamespace,
 			expectErr:     true,
 		},
 		{
 			name:          "shares from PFB namespace",
 			startingShare: 53,
-			endingShare:   55,
+			endingShare:   56,
 			namespaceID:   appns.PayForBlobNamespace,
 			expectErr:     false,
 		},
 		{
 			name:          "blob shares for first namespace",
 			startingShare: 56,
-			endingShare:   57,
+			endingShare:   58,
 			namespaceID:   ns1,
 			expectErr:     false,
 		},
 		{
 			name:          "blob shares for third namespace",
 			startingShare: 60,
-			endingShare:   61,
+			endingShare:   62,
 			namespaceID:   ns3,
 			expectErr:     false,
 		},
@@ -209,10 +209,8 @@ func TestNewShareInclusionProof(t *testing.T) {
 			require.Equal(t, tt.namespaceID, actualNID)
 			proof, err := proof.NewShareInclusionProof(
 				dataSquare,
-				dataSquare.Size(),
 				tt.namespaceID,
-				uint64(tt.startingShare),
-				uint64(tt.endingShare),
+				shares.NewRange(tt.startingShare, tt.endingShare),
 			)
 			require.NoError(t, err)
 			assert.NoError(t, proof.Validate(dataRoot))

@@ -9,13 +9,6 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-type ShareRange struct {
-	// Start is the index of the first share occupied by this range.
-	Start int
-	// End is the index of the last share occupied by this range.
-	End int
-}
-
 // CompactShareSplitter will write raw data compactly across a progressively
 // increasing set of shares. It is used to lazily split block data such as
 // transactions or intermediate state roots into shares.
@@ -30,7 +23,7 @@ type CompactShareSplitter struct {
 	// occupies. The range assumes this compact share splitter is the only
 	// thing in the data square (e.g. the range for the first tx starts at index
 	// 0).
-	shareRanges map[coretypes.TxKey]ShareRange
+	shareRanges map[coretypes.TxKey]Range
 }
 
 // NewCompactShareSplitter returns a CompactShareSplitter using the provided
@@ -45,7 +38,7 @@ func NewCompactShareSplitter(ns appns.Namespace, shareVersion uint8) *CompactSha
 		shares:       []Share{},
 		namespace:    ns,
 		shareVersion: shareVersion,
-		shareRanges:  map[coretypes.TxKey]ShareRange{},
+		shareRanges:  map[coretypes.TxKey]Range{},
 		shareBuilder: sb,
 	}
 }
@@ -63,12 +56,9 @@ func (css *CompactShareSplitter) WriteTx(tx coretypes.Tx) error {
 	if err := css.write(rawData); err != nil {
 		return err
 	}
-	endShare := css.Count() - 1
+	endShare := css.Count()
+	css.shareRanges[tx.Key()] = NewRange(startShare, endShare)
 
-	css.shareRanges[tx.Key()] = ShareRange{
-		Start: startShare,
-		End:   endShare,
-	}
 	return nil
 }
 
@@ -152,12 +142,12 @@ func (css *CompactShareSplitter) Export() ([]Share, error) {
 // the shareRangeOffset provided. shareRangeOffset should be 0 for the first
 // compact share sequence in the data square (transactions) but should be some
 // non-zero number for subsequent compact share sequences (e.g. pfb txs).
-func (css *CompactShareSplitter) ShareRanges(shareRangeOffset int) map[coretypes.TxKey]ShareRange {
+func (css *CompactShareSplitter) ShareRanges(shareRangeOffset int) map[coretypes.TxKey]Range {
 	// apply the shareRangeOffset to all share ranges
-	shareRanges := make(map[coretypes.TxKey]ShareRange, len(css.shareRanges))
+	shareRanges := make(map[coretypes.TxKey]Range, len(css.shareRanges))
 
 	for k, v := range css.shareRanges {
-		shareRanges[k] = ShareRange{
+		shareRanges[k] = Range{
 			Start: v.Start + shareRangeOffset,
 			End:   v.End + shareRangeOffset,
 		}
@@ -218,7 +208,7 @@ func (css *CompactShareSplitter) isEmpty() bool {
 
 // Count returns the number of shares that would be made if `Export` was invoked
 // on this compact share splitter.
-func (css *CompactShareSplitter) Count() (shareCount int) {
+func (css *CompactShareSplitter) Count() int {
 	if !css.shareBuilder.IsEmptyShare() && !css.done {
 		// pending share is non-empty, so it will be zero padded and added to shares during export
 		return len(css.shares) + 1

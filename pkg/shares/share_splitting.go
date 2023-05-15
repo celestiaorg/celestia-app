@@ -42,7 +42,7 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 	return shareIndexes
 }
 
-func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRanges map[coretypes.TxKey]ShareRange, err error) {
+func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRanges map[coretypes.TxKey]Range, err error) {
 	txWriter := NewCompactShareSplitter(appns.TxNamespace, appconsts.ShareVersionZero)
 	pfbTxWriter := NewCompactShareSplitter(appns.PayForBlobNamespace, appconsts.ShareVersionZero)
 
@@ -93,8 +93,8 @@ func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIn
 
 // mergeMaps merges two maps into a new map. If there are any duplicate keys,
 // the value in the second map takes precedence.
-func mergeMaps(mapOne, mapTwo map[coretypes.TxKey]ShareRange) map[coretypes.TxKey]ShareRange {
-	merged := make(map[coretypes.TxKey]ShareRange, len(mapOne)+len(mapTwo))
+func mergeMaps(mapOne, mapTwo map[coretypes.TxKey]Range) map[coretypes.TxKey]Range {
+	merged := make(map[coretypes.TxKey]Range, len(mapOne)+len(mapTwo))
 	maps.Copy(merged, mapOne)
 	maps.Copy(merged, mapTwo)
 	return merged
