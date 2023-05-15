@@ -344,7 +344,7 @@ func (b *Builder) NumPFBs() int {
 }
 
 func (b *Builder) NumTxs() int {
-	return len(b.txs)
+	return len(b.txs) + len(b.pfbs)
 }
 
 func (b *Builder) canFit(shareNum int) bool {

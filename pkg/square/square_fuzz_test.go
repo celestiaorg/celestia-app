@@ -52,7 +52,7 @@ func FuzzSquare(f *testing.F) {
 		builder, err := square.NewBuilder(appconsts.DefaultMaxSquareSize, orderedTxs...)
 		require.NoError(t, err)
 		totalPfbs := builder.NumPFBs()
-		totalNormalTxs := builder.NumTxs()
+		totalNormalTxs := builder.NumTxs() - totalPfbs
 		for pfbIndex := 0; pfbIndex < totalPfbs; pfbIndex++ {
 			wpfb, err := builder.GetWrappedPFB(pfbIndex + totalNormalTxs)
 			require.NoError(t, err)
