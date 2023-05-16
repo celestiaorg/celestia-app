@@ -6,7 +6,11 @@ import (
 	"math"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
+	blob "github.com/celestiaorg/celestia-app/x/blob/types"
+	"github.com/cosmos/cosmos-sdk/types"
+	coreproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	core "github.com/tendermint/tendermint/types"
 )
 
@@ -50,6 +54,109 @@ func Construct(txs [][]byte, maxSquareSize int) (Square, error) {
 		return nil, err
 	}
 	return builder.Export()
+}
+
+// Deconstruct takes a square and returns the ordered list of block
+// transactions that constructed that square
+//
+// This method uses the wrapped pfbs in the PFB namespace to identify and
+// decode the blobs. Data that may be included in the square but isn't
+// recognised by the square construction algorithm will be ignored
+func Deconstruct(s Square, decoder types.TxDecoder) (core.Txs, error) {
+	if s.IsEmpty() {
+		return []core.Tx{}, nil
+	}
+
+	// Work out which range of shares are non-pfb transactions
+	// and which ones are pfb transactions
+	txShareRange, err := shares.GetShareRangeForNamespace(s, namespace.TxNamespace)
+	if err != nil {
+		return nil, err
+	}
+	if txShareRange.Start != 0 {
+		return nil, fmt.Errorf("expected txs to start at index 0, but got %d", txShareRange.Start)
+	}
+
+	wpfbShareRange, err := shares.GetShareRangeForNamespace(s[txShareRange.End:], namespace.PayForBlobNamespace)
+	if err != nil {
+		return nil, err
+	}
+
+	// If there are no pfb transactions, then we can just return the txs
+	if wpfbShareRange.IsEmpty() {
+		return shares.ParseTxs(s[txShareRange.Start:txShareRange.End])
+	}
+
+	// We expect pfb transactions to come directly after non-pfb transactions
+	if wpfbShareRange.Start != 0 {
+		return nil, fmt.Errorf("expected PFBs to start directly after non PFBs at index %d, but got %d", txShareRange.End, wpfbShareRange.Start)
+	}
+	wpfbShareRange.Add(txShareRange.End)
+
+	// Parse both txs
+	txs, err := shares.ParseTxs(s[txShareRange.Start:txShareRange.End])
+	if err != nil {
+		return nil, err
+	}
+
+	wpfbs, err := shares.ParseTxs(s[wpfbShareRange.Start:wpfbShareRange.End])
+	if err != nil {
+		return nil, err
+	}
+
+	// loop through the wrapped pfbs and generate the original
+	// blobTx that they derive from
+	for i, wpfbBytes := range wpfbs {
+		wpfb, isWpfb := core.UnmarshalIndexWrapper(wpfbBytes)
+		if !isWpfb {
+			return nil, fmt.Errorf("expected wrapped PFB at index %d", i)
+		}
+		if len(wpfb.ShareIndexes) == 0 {
+			return nil, fmt.Errorf("wrapped PFB %d has no blobs attached", i)
+		}
+		pfbTx, err := decoder(wpfb.Tx)
+		if err != nil {
+			return nil, err
+		}
+		pfbMsgs := pfbTx.GetMsgs()
+		if len(pfbMsgs) != 1 {
+			return nil, fmt.Errorf("expected PFB to have 1 message, but got %d", len(pfbMsgs))
+		}
+		pfb, isPfb := pfbMsgs[0].(*blob.MsgPayForBlobs)
+		if !isPfb {
+			return nil, fmt.Errorf("expected PFB message, but got %T", pfbMsgs[0])
+		}
+		if len(pfb.BlobSizes) != len(wpfb.ShareIndexes) {
+			return nil, fmt.Errorf("expected PFB to have %d blob sizes, but got %d", len(wpfb.ShareIndexes), len(pfb.BlobSizes))
+		}
+
+		blobs := make([]*coreproto.Blob, len(wpfb.ShareIndexes))
+		for j, shareIndex := range wpfb.ShareIndexes {
+			end := int(shareIndex) + shares.SparseSharesNeeded(pfb.BlobSizes[j])
+			parsedBlobs, err := shares.ParseBlobs(s[shareIndex:end])
+			if err != nil {
+				return nil, err
+			}
+			if len(parsedBlobs) != 1 {
+				return nil, fmt.Errorf("expected to parse a single blob, but got %d", len(blobs))
+			}
+
+			blobs[j] = &coreproto.Blob{
+				NamespaceId:      parsedBlobs[0].NamespaceID,
+				Data:             parsedBlobs[0].Data,
+				ShareVersion:     uint32(parsedBlobs[0].ShareVersion),
+				NamespaceVersion: uint32(parsedBlobs[0].NamespaceVersion),
+			}
+		}
+
+		tx, err := core.MarshalBlobTx(wpfb.Tx, blobs...)
+		if err != nil {
+			return nil, err
+		}
+		txs = append(txs, tx)
+	}
+
+	return txs, nil
 }
 
 // TxShareRange returns the range of share indexes that the tx, specified by txIndex, occupies.
@@ -108,6 +215,19 @@ func (s Square) Equals(other Square) bool {
 		}
 	}
 	return true
+}
+
+// WrappedPFBs returns the wrapped PFBs in a square
+func (s Square) WrappedPFBs() (core.Txs, error) {
+	wpfbShareRange, err := shares.GetShareRangeForNamespace(s, namespace.PayForBlobNamespace)
+	if err != nil {
+		return core.Txs{}, nil
+	}
+	return shares.ParseTxs(s[wpfbShareRange.Start:wpfbShareRange.End])
+}
+
+func (s Square) IsEmpty() bool {
+	return s.Equals(EmptySquare())
 }
 
 // EmptySquare returns a 1x1 square with a single tail padding share
