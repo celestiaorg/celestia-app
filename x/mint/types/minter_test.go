@@ -118,14 +118,18 @@ func TestCalculateBlockProvision(t *testing.T) {
 	}
 }
 
+// TestCalculateBlockProvisionError verifies that the error for total block
+// provisions in a year is less than .01
 func TestCalculateBlockProvisionError(t *testing.T) {
+	oneYear, err := time.ParseDuration(fmt.Sprintf("%vns", NanosecondsPerYear))
+	assert.NoError(t, err)
+
 	minter := DefaultMinter()
 	current := time.Date(2023, 1, 2, 0, 0, 0, 0, time.UTC)
-	end := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
+	end := current.Add(oneYear)
 
 	totalSupply := sdk.NewDec(1_000_000_000_000)             // 1 trillion utia
 	annualProvisions := totalSupply.Mul(initalInflationRate) // 80 billion utia
-
 	minter.AnnualProvisions = annualProvisions
 	totalBlockProvisions := sdk.NewDec(0)
 	for current.Before(end) {
@@ -135,17 +139,21 @@ func TestCalculateBlockProvisionError(t *testing.T) {
 		got := minter.CalculateBlockProvision(current, previous)
 		totalBlockProvisions = totalBlockProvisions.Add(sdk.NewDecFromInt(got.Amount))
 	}
-	fmt.Printf("totalBlockProvisions %v\n", totalBlockProvisions)
-	fmt.Printf("annualProvisions %v\n", annualProvisions)
+
+	gotError := totalBlockProvisions.Sub(annualProvisions).Abs().Quo(annualProvisions)
+	wantError := sdk.NewDecWithPrec(1, 2) // .01
+	assert.True(t, gotError.LTE(wantError))
 }
 
 func randomBlockInterval() time.Duration {
-	return time.Duration(randInRange(14000, 16000)) * time.Millisecond
+	min := (14 * time.Second).Nanoseconds()
+	max := (16 * time.Second).Nanoseconds()
+	return time.Duration(randInRange(min, max))
 }
 
 // randInRange returns a random number in the range (min, max) inclusive.
-func randInRange(min int, max int) int {
-	return rand.Intn(max-min) + min
+func randInRange(min int64, max int64) int64 {
+	return rand.Int63n(max-min) + min
 }
 
 func BenchmarkCalculateBlockProvision(b *testing.B) {
