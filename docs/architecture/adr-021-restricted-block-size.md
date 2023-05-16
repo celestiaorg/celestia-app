@@ -6,7 +6,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -36,7 +36,7 @@ Note that there is technically a fourth solution, where the `GovMaxSquareSize` i
 
 ## Decision
 
-TBD
+Option 2: Introduce a new parameter, `GovMaxSquareSize`.
 
 ## Detailed Design
 
