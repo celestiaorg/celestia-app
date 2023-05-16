@@ -31,7 +31,8 @@ func TestRestrictedBlockSize(t *testing.T) {
 		},
 		// the testnode cannot consistently be started and stopped in the same
 		// test, so we only run this test once. See
-		// TestPrepareProposalConsistency for the below
+		// TestPrepareProposalConsistency for a simulated version of the below
+		// tests
 		//
 		// {
 		//  "max",
@@ -53,7 +54,13 @@ func TestRestrictedBlockSize(t *testing.T) {
 			cparams := testnode.DefaultParams()
 			cparams.Block.MaxBytes = tt.maxBytes
 
-			cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cparams, testnode.DefaultTendermintConfig(), testnode.DefaultAppConfig())
+			cctx, rpcAddr, grpcAddr := testnode.NewNetwork(
+				t,
+				cparams,
+				testnode.DefaultTendermintConfig(),
+				testnode.DefaultAppConfig(),
+				[]string{},
+			)
 
 			// using lots of individual small blobs will result in a large amount of
 			// overhead added to the square, which helps ensure we are hitting large squares

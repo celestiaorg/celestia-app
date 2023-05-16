@@ -26,6 +26,6 @@ func (k Keeper) GasPerBlobByte(ctx sdk.Context) (res uint32) {
 
 // GovMaxSquareSize returns the GovMaxSquareSize param
 func (k Keeper) GovMaxSquareSize(ctx sdk.Context) (res uint64) {
-	k.paramStore.Get(ctx, types.KeyGasPerBlobByte, &res)
+	k.paramStore.Get(ctx, types.KeyGovMaxSquareSize, &res)
 	return
 }

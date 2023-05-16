@@ -127,6 +127,7 @@ func Setup(t testing.TB) (keyring.Keyring, string, string) {
 		cparams,
 		testnode.DefaultTendermintConfig(),
 		testnode.DefaultAppConfig(),
+		[]string{},
 	)
 
 	return cctx.Keyring, rpcAddr, grpcAddr

@@ -153,8 +153,9 @@ func DefaultTendermintConfig() *config.Config {
 }
 
 // DefaultGenesisState returns a default genesis state and a keyring with
-// accounts that have coins. The keyring accounts are based on the
-// fundedAccounts parameter.
+// accounts that have coins. It adds a default "validator" account that is
+// funded and used for the valop address of the single validator. The keyring
+// accounts are based on the fundedAccounts parameter.
 func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, keyring.Keyring, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	state := app.ModuleBasics.DefaultGenesis(encCfg.Codec)
@@ -194,13 +195,15 @@ func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, 
 // accessed in keyring returned client.Context. All rpc, p2p, and grpc addresses
 // in the provided configs are overwritten to use open ports. The node can be
 // accessed via the returned client.Context or via the returned rpc and grpc
-// addresses.
+// addresses. Provided genesis options will be applied after all accounts have
+// been initialized.
 func NewNetwork(
 	t testing.TB,
 	cparams *tmproto.ConsensusParams,
 	tmCfg *config.Config,
 	appCfg *srvconfig.Config,
-	accounts ...string,
+	accounts []string,
+	genesisOpts ...GenesisOption,
 ) (cctx Context, rpcAddr, grpcAddr string) {
 	t.Helper()
 
@@ -210,6 +213,10 @@ func NewNetwork(
 
 	genState, kr, err := DefaultGenesisState(accounts...)
 	require.NoError(t, err)
+
+	for _, opt := range genesisOpts {
+		genState = opt(genState)
+	}
 
 	tmNode, app, cctx, err := New(t, cparams, tmCfg, false, genState, kr, tmrand.Str(6))
 	require.NoError(t, err)
@@ -248,7 +255,7 @@ func DefaultNetwork(t *testing.T) (accounts []string, cctx Context) {
 	tmCfg.Consensus.TargetHeightDuration = time.Millisecond * 1
 	appConf := DefaultAppConfig()
 
-	cctx, _, _ = NewNetwork(t, DefaultParams(), tmCfg, appConf, accounts...)
+	cctx, _, _ = NewNetwork(t, DefaultParams(), tmCfg, appConf, accounts)
 
 	return accounts, cctx
 }

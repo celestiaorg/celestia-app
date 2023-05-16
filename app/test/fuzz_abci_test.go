@@ -62,14 +62,14 @@ func TestPrepareProposalConsistency(t *testing.T) {
 			appconsts.MaxSquareSize,
 		},
 		{
-			"over max (square size 256)",
-			256 * 256 * appconsts.ContinuationSparseShareContentSize,
-			appconsts.MaxSquareSize,
+			"larger MaxBytes than SquareSize",
+			appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize,
+			appconsts.DefaultGovMaxSquareSize,
 		},
 		{
-			"square size of 32",
+			"smaller MaxBytes than SquareSize",
 			32 * 32 * appconsts.ContinuationSparseShareContentSize,
-			32,
+			appconsts.DefaultGovMaxSquareSize,
 		},
 	}
 

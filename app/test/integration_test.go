@@ -32,7 +32,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func TestIntegrationTestSuite(t *testing.T) {
+func TestTIntegrationTestSuite(t *testing.T) {
 	cfg := network.DefaultConfig()
 	cfg.EnableTMLogging = false
 	cfg.MinGasPrices = "0utia"
@@ -213,7 +213,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				sizes = append(sizes, size)
 			}
 			// ensure that at least one of the blocks used the max square size
-			assert.Contains(sizes, uint64(appconsts.MaxSquareSize))
+			assert.Contains(sizes, uint64(appconsts.DefaultGovMaxSquareSize))
 		})
 		require.NoError(s.network.WaitForNextBlock())
 	}
