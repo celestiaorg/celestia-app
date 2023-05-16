@@ -1,19 +1,26 @@
-package types
+package types_test
 
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
+	"github.com/cosmos/cosmos-sdk/x/authz"
+	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+	"github.com/tendermint/tendermint/pkg/consts"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -23,14 +30,14 @@ const (
 
 func TestNewBlob(t *testing.T) {
 	rawBlob := []byte{1}
-	validBlob, err := NewBlob(namespace.RandomBlobNamespace(), rawBlob, appconsts.ShareVersionZero)
+	validBlob, err := types.NewBlob(namespace.RandomBlobNamespace(), rawBlob, appconsts.ShareVersionZero)
 	require.NoError(t, err)
 	require.Equal(t, validBlob.Data, rawBlob)
 
-	_, err = NewBlob(appns.TxNamespace, rawBlob, appconsts.ShareVersionZero)
+	_, err = types.NewBlob(appns.TxNamespace, rawBlob, appconsts.ShareVersionZero)
 	require.Error(t, err)
 
-	_, err = NewBlob(namespace.RandomBlobNamespace(), []byte{}, appconsts.ShareVersionZero)
+	_, err = types.NewBlob(namespace.RandomBlobNamespace(), []byte{}, appconsts.ShareVersionZero)
 	require.Error(t, err)
 }
 
@@ -41,9 +48,9 @@ func TestVerifySignature(t *testing.T) {
 		Amount: sdk.NewInt(10),
 	}
 
-	opts := []TxBuilderOption{
-		SetFeeAmount(sdk.NewCoins(coin)),
-		SetGasLimit(10000000),
+	opts := []types.TxBuilderOption{
+		types.SetFeeAmount(sdk.NewCoins(coin)),
+		types.SetGasLimit(10000000),
 	}
 
 	msg, blob := randMsgPayForBlobsWithNamespaceAndSigner(
@@ -96,19 +103,19 @@ func TestVerifySignature(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func setupSigTest(t *testing.T) (string, sdk.Address, *KeyringSigner, encoding.Config) {
+func setupSigTest(t *testing.T) (string, sdk.Address, *types.KeyringSigner, encoding.Config) {
 	acc := "test account"
-	signer := GenerateKeyringSigner(t, acc)
-	encCfg := makeBlobEncodingConfig()
+	signer := types.GenerateKeyringSigner(t, acc)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	addr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
 	return acc, addr, signer, encCfg
 }
 
-func randMsgPayForBlobsWithNamespaceAndSigner(t *testing.T, signer string, ns appns.Namespace, size int) (*MsgPayForBlobs, *tmproto.Blob) {
-	blob, err := NewBlob(ns, tmrand.Bytes(size), appconsts.ShareVersionZero)
+func randMsgPayForBlobsWithNamespaceAndSigner(t *testing.T, signer string, ns appns.Namespace, size int) (*types.MsgPayForBlobs, *tmproto.Blob) {
+	blob, err := types.NewBlob(ns, tmrand.Bytes(size), appconsts.ShareVersionZero)
 	require.NoError(t, err)
-	msg, err := NewMsgPayForBlobs(
+	msg, err := types.NewMsgPayForBlobs(
 		signer,
 		blob,
 	)
@@ -116,4 +123,68 @@ func randMsgPayForBlobsWithNamespaceAndSigner(t *testing.T, signer string, ns ap
 		panic(err)
 	}
 	return msg, blob
+}
+
+func TestValidateBlobTxUsingMsgExec(t *testing.T) {
+	grantee := testfactory.RandomAddress()
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	pfb, blob := blobfactory.RandMsgPayForBlobs(1024)
+	blob2 := types.BlobToProto(testfactory.GenerateRandomBlob(512))
+	msg := authz.NewMsgExec(grantee, []sdk.Msg{pfb})
+	invalidMsgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{pfb})
+	require.Error(t, invalidMsgExec.ValidateBasic())
+	bankMsg := bank.NewMsgSend(testfactory.RandomAddress(), testfactory.RandomAddress(), sdk.NewCoins(sdk.NewCoin("foo", sdk.NewInt(10))))
+	msgExecWithTwoMsgs := authz.NewMsgExec(grantee, []sdk.Msg{pfb, bankMsg})
+
+	testCases := []struct {
+		name   string
+		msgs   []sdk.Msg
+		blobs  []*tmproto.Blob
+		expErr bool
+	}{
+		{
+			name:   "valid blob tx with msg exec",
+			msgs:   []sdk.Msg{&msg},
+			blobs:  []*tmproto.Blob{blob},
+			expErr: false,
+		},
+		{
+			name:   "blob tx using msg exec with unaccounted blob",
+			msgs:   []sdk.Msg{&msg},
+			blobs:  []*tmproto.Blob{blob, blob2},
+			expErr: true,
+		},
+		{
+			name:   "blob tx using invalid msg exec",
+			msgs:   []sdk.Msg{&invalidMsgExec},
+			blobs:  []*tmproto.Blob{blob},
+			expErr: true,
+		},
+		{
+			name:   "blob tx using invalid msg exec that has multiple messages",
+			msgs:   []sdk.Msg{&msgExecWithTwoMsgs},
+			blobs:  []*tmproto.Blob{blob},
+			expErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			builder := encCfg.TxConfig.NewTxBuilder()
+			require.NoError(t, builder.SetMsgs(tc.msgs...))
+			tx := builder.GetTx()
+			txBytes, err := encCfg.TxConfig.TxEncoder()(tx)
+			require.NoError(t, err)
+			blobTx := tmproto.BlobTx{
+				Tx:     txBytes,
+				Blobs:  tc.blobs,
+				TypeId: consts.ProtoBlobTxTypeID,
+			}
+			if tc.expErr {
+				require.Error(t, types.ValidateBlobTx(encCfg.TxConfig, blobTx))
+			} else {
+				require.NoError(t, types.ValidateBlobTx(encCfg.TxConfig, blobTx))
+			}
+		})
+	}
 }

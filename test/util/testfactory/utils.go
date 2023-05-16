@@ -55,7 +55,7 @@ func GenerateKeyring(accounts ...string) keyring.Keyring {
 	return kb
 }
 
-func RandomAddress() sdk.Address {
+func RandomAddress() sdk.AccAddress {
 	name := tmrand.Str(6)
 	kr := GenerateKeyring(name)
 	rec, err := kr.Key(name)

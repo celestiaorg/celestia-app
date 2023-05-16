@@ -33,4 +33,5 @@ var (
 	ErrNoBlobSizes                    = errors.Register(ModuleName, 11134, "no blob sizes provided")
 	ErrNoShareCommitments             = errors.Register(ModuleName, 11135, "no share commitments provided")
 	ErrInvalidNamespace               = errors.Register(ModuleName, 11136, "invalid namespace")
+	ErrMsgExecMustContainPFB          = errors.Register(ModuleName, 11137, "blobTx using MsgExec must contain only the PFB")
 )

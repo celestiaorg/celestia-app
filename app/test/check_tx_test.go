@@ -105,6 +105,15 @@ func TestCheckTx(t *testing.T) {
 			},
 			expectedABCICode: abci.CodeTypeOK,
 		},
+		{
+			name:      "blobTx with MsgExec wrapped around PFB",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), kr, nil, 10000, 10, true, testutil.ChainID, accs[3:4])[0]
+				return tx
+			},
+			expectedABCICode: abci.CodeTypeOK,
+		},
 	}
 
 	for _, tt := range tests {

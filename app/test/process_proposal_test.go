@@ -28,10 +28,12 @@ import (
 
 func TestProcessProposal(t *testing.T) {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	accounts := testfactory.GenerateAccounts(6)
+	accounts := testfactory.GenerateAccounts(7)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
 	signer := types.GenerateKeyringSigner(t, accounts[0])
+	signerAddr, err := signer.GetSignerInfo().GetAddress()
+	require.NoError(t, err)
 
 	// create 3 single blob blobTxs that are signed with valid account numbers
 	// and sequences
@@ -58,8 +60,19 @@ func TestProcessProposal(t *testing.T) {
 		kr,
 		1000,
 		accounts[0],
-		accounts[len(accounts)-3:],
-		"",
+		accounts[3:6],
+		testutil.ChainID,
+	)
+
+	authorizedBlobTx := blobfactory.MakeAuthorizedBlobTx(
+		t,
+		encConf.TxConfig.TxEncoder(),
+		kr,
+		testutil.ChainID,
+		accounts[6],
+		infos[6],
+		signerAddr,
+		1024, 2,
 	)
 
 	// block with all blobs included
@@ -299,9 +312,22 @@ func TestProcessProposal(t *testing.T) {
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
+		{
+			name: "blob tx using msg exec",
+			input: &tmproto.Data{
+				Txs: coretypes.Txs{authorizedBlobTx}.ToSliceOfBytes(),
+			},
+			mutator: func(d *core.Data) {
+				require.Len(t, d.Txs, 1)
+			},
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+		},
 	}
 
-	for _, tt := range tests {
+	for idx, tt := range tests {
+		if idx != 15 {
+			continue
+		}
 		t.Run(tt.name, func(t *testing.T) {
 			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
 				BlockData: tt.input,

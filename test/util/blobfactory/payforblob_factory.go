@@ -13,6 +13,7 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -23,7 +24,7 @@ import (
 
 var defaultSigner = testfactory.RandomAddress().String()
 
-func RandMsgPayForBlobsWithSigner(singer string, size, blobCount int) (*blobtypes.MsgPayForBlobs, []*tmproto.Blob) {
+func RandMsgPayForBlobsWithSigner(signer string, size, blobCount int) (*blobtypes.MsgPayForBlobs, []*tmproto.Blob) {
 	blobs := make([]*tmproto.Blob, blobCount)
 	for i := 0; i < blobCount; i++ {
 		blob, err := types.NewBlob(appns.RandomBlobNamespace(), tmrand.Bytes(size), appconsts.ShareVersionZero)
@@ -34,7 +35,7 @@ func RandMsgPayForBlobsWithSigner(singer string, size, blobCount int) (*blobtype
 	}
 
 	msg, err := blobtypes.NewMsgPayForBlobs(
-		singer,
+		signer,
 		blobs...,
 	)
 	if err != nil {
@@ -480,6 +481,42 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, kr keyring.Keyring, enc sdk.TxEnco
 	msgs = append(msgs, pfb)
 
 	sdkTx, err := signer.BuildSignedTx(signer.NewTxBuilder(opts...), msgs...)
+	require.NoError(t, err)
+	rawTx, err := enc(sdkTx)
+	require.NoError(t, err)
+
+	btx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
+	require.NoError(t, err)
+	return btx
+}
+
+func MakeAuthorizedBlobTx(
+	t *testing.T,
+	enc sdk.TxEncoder,
+	kr keyring.Keyring,
+	chainid string,
+	account string,
+	accInfo AccountInfo,
+	granter sdk.AccAddress,
+	size, bobCount int,
+) coretypes.Tx {
+	signer := blobtypes.NewKeyringSigner(kr, account, chainid)
+	signerAddr, err := signer.GetSignerInfo().GetAddress()
+	require.NoError(t, err)
+
+	pfb, blobs := RandMsgPayForBlobsWithSigner(granter.String(), size, bobCount)
+
+	msg := authz.NewMsgExec(signerAddr, []sdk.Msg{pfb})
+
+	opts := []blobtypes.TxBuilderOption{
+		blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(bondDenom, sdk.NewInt(10)))),
+		blobtypes.SetGasLimit(10000000),
+	}
+
+	signer.SetAccountNumber(accInfo.AccountNum)
+	signer.SetSequence(accInfo.Sequence)
+
+	sdkTx, err := signer.BuildSignedTx(signer.NewTxBuilder(opts...), &msg)
 	require.NoError(t, err)
 	rawTx, err := enc(sdkTx)
 	require.NoError(t, err)
