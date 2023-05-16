@@ -329,6 +329,9 @@ func TestProcessProposal(t *testing.T) {
 			continue
 		}
 		t.Run(tt.name, func(t *testing.T) {
+			checkTxResp := testApp.CheckTx(abci.RequestCheckTx{Tx: tt.input.Txs[0], Type: abci.CheckTxType_New})
+			require.Equal(t, checkTxResp.Code, abci.CodeTypeOK, checkTxResp.Log)
+
 			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
 				BlockData: tt.input,
 			})

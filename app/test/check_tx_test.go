@@ -109,7 +109,10 @@ func TestCheckTx(t *testing.T) {
 			name:      "blobTx with MsgExec wrapped around PFB",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), kr, nil, 10000, 10, true, testutil.ChainID, accs[3:4])[0]
+				signer := blobtypes.NewKeyringSigner(kr, accs[0], testutil.ChainID)
+				granter, err := signer.GetSignerInfo().GetAddress()
+				require.NoError(t, err)
+				tx := blobfactory.MakeAuthorizedBlobTx(t, encCfg.TxConfig.TxEncoder(), kr, testutil.ChainID, accs[5], blobfactory.AccountInfo{}, granter, 1024, 1)
 				return tx
 			},
 			expectedABCICode: abci.CodeTypeOK,
@@ -119,7 +122,7 @@ func TestCheckTx(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resp := testApp.CheckTx(abci.RequestCheckTx{Type: tt.checkType, Tx: tt.getTx()})
-			assert.Equal(t, tt.expectedABCICode, resp.Code, tt.name, resp.Log)
+			assert.Equal(t, tt.expectedABCICode, resp.Code, resp.Log)
 		})
 	}
 }

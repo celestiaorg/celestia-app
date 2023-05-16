@@ -518,6 +518,7 @@ func MakeAuthorizedBlobTx(
 
 	sdkTx, err := signer.BuildSignedTx(signer.NewTxBuilder(opts...), &msg)
 	require.NoError(t, err)
+
 	rawTx, err := enc(sdkTx)
 	require.NoError(t, err)
 

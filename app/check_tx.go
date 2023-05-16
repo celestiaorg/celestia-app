@@ -39,8 +39,6 @@ func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
 		}
-
-	// blobTxs are never rechecked
 	case abci.CheckTxType_Recheck:
 	default:
 		panic(fmt.Sprintf("unknown RequestCheckTx type: %s", req.Type))
