@@ -26,7 +26,7 @@ func GenerateKeyring(t *testing.T, accts ...string) keyring.Keyring {
 		}
 	}
 
-	_, err := kb.NewAccount(TestAccName, testMnemo, "1234", "", hd.Secp256k1)
+	_, err := kb.NewAccount(TestAccName, testMnemo, "", "", hd.Secp256k1)
 	if err != nil {
 		panic(err)
 	}

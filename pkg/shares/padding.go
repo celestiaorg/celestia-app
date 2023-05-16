@@ -2,6 +2,7 @@ package shares
 
 import (
 	"bytes"
+	"errors"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
@@ -33,6 +34,9 @@ func NamespacePaddingShare(ns appns.Namespace) (Share, error) {
 // NamespacePaddingShares returns n namespace padding shares.
 func NamespacePaddingShares(ns appns.Namespace, n int) ([]Share, error) {
 	var err error
+	if n < 0 {
+		return nil, errors.New("n must be positive")
+	}
 	shares := make([]Share, n)
 	for i := 0; i < n; i++ {
 		shares[i], err = NamespacePaddingShare(ns)
@@ -47,23 +51,39 @@ func NamespacePaddingShares(ns appns.Namespace, n int) ([]Share, error) {
 // shares follow all significant shares in the reserved namespace so that the
 // first blob can start at an index that conforms to non-interactive default
 // rules.
-func ReservedPaddingShare() (Share, error) {
-	return NamespacePaddingShare(appns.ReservedPaddingNamespace)
+func ReservedPaddingShare() Share {
+	share, err := NamespacePaddingShare(appns.ReservedPaddingNamespace)
+	if err != nil {
+		panic(err)
+	}
+	return share
 }
 
 // ReservedPaddingShare returns n reserved padding shares.
-func ReservedPaddingShares(n int) ([]Share, error) {
-	return NamespacePaddingShares(appns.ReservedPaddingNamespace, n)
+func ReservedPaddingShares(n int) []Share {
+	shares, err := NamespacePaddingShares(appns.ReservedPaddingNamespace, n)
+	if err != nil {
+		panic(err)
+	}
+	return shares
 }
 
 // TailPaddingShare is a share that is used to pad a data square to the desired
 // square size. Tail padding shares follow the last blob share in the data
 // square.
-func TailPaddingShare() (Share, error) {
-	return NamespacePaddingShare(appns.TailPaddingNamespace)
+func TailPaddingShare() Share {
+	share, err := NamespacePaddingShare(appns.TailPaddingNamespace)
+	if err != nil {
+		panic(err)
+	}
+	return share
 }
 
 // TailPaddingShares returns n tail padding shares.
-func TailPaddingShares(n int) ([]Share, error) {
-	return NamespacePaddingShares(appns.TailPaddingNamespace, n)
+func TailPaddingShares(n int) []Share {
+	shares, err := NamespacePaddingShares(appns.TailPaddingNamespace, n)
+	if err != nil {
+		panic(err)
+	}
+	return shares
 }

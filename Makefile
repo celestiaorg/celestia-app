@@ -1,5 +1,3 @@
-#!/usr/bin/make -f
-
 VERSION := $(shell echo $(shell git describe --tags) | sed 's/^v//')
 COMMIT := $(shell git log -1 --format='%H')
 DOCKER := $(shell which docker)
@@ -30,7 +28,7 @@ build: mod
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
-	@go mod tidy -compat=1.19
+	@go mod tidy -compat=1.20
 .PHONY: build
 
 ## install: Build and install the celestia-appd binary into the $GOPATH/bin directory.
@@ -42,7 +40,7 @@ install: go.sum
 ## mod: Update go.mod.
 mod:
 	@echo "--> Updating go.mod"
-	@go mod tidy -compat=1.19
+	@go mod tidy -compat=1.20
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
@@ -127,3 +125,9 @@ test-cover:
 	@echo "--> Generating coverage.txt"
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-cover
+
+## adr-gen: Download the ADR template from the celestiaorg/.github repo. Ex. `make adr-gen`
+adr-gen:
+	@echo "--> Downloading ADR template"
+	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-template.md
+.PHONY: adr-gen

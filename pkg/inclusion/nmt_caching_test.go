@@ -118,7 +118,7 @@ func TestEDSSubRootCacher(t *testing.T) {
 
 	dah := da.NewDataAvailabilityHeader(eds)
 
-	for i := range dah.RowsRoots[:squareSize] {
+	for i := range dah.RowRoots[:squareSize] {
 		expectedSubTreeRoots := calculateSubTreeRoots(eds.Row(uint(i))[:squareSize], 2)
 		require.NotNil(t, expectedSubTreeRoots)
 		// note: the depth is one greater than expected because we're dividing

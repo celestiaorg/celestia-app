@@ -27,22 +27,22 @@ To fix this, the spec outlines the “non-interactive default rules”. These in
 
 Below illustrates how we can break a message up into two different subtree roots, following a [Merkle Mountain Range](https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/) structure, i.e. root `A` for first four shares, and root `B` consisting of the last two shares. We can then create a commitment out of any number of subtree roots by creating a merkle root of those commitments.
 
-![Subtree root commitment](./assets/subtree-root.png "Subtree Root based commitments")
+![Subtree root commitment](./assets/adr006/subtree-root.png "Subtree Root based commitments")
 
 > **If the messages are larger than k, then they must start on a new row.**
 
-![Multi row share commitment](./assets/multirow.png "Subtree Root based commitments")
+![Multi row share commitment](./assets/adr006/multirow.png "Subtree Root based commitments")
 
 If we follow this rule, we can always create a commitment to subtree roots of the data root, that commit to the data.
 
 In practice, this usually means that we end up adding padding between messages (zig-zag hatched shares in the figure below) to ensure that each message is starting at an "aligned power of two". Padding consists of shares with the namespace of the message before it, with all zeros for data.
 
-![Before using the non-interactive defaults](./assets/before.png "Before requiring that all commits consist of subtree roots")
-![after](./assets/after.png "After requiring that all commits consist of subtree roots")
+![Before using the non-interactive defaults](./assets/adr006/before.png "Before requiring that all commits consist of subtree roots")
+![after](./assets/adr006/after.png "After requiring that all commits consist of subtree roots")
 
 Below is an example block that has been filled using the non-interactive default rules to ensure that all commitments consist only of subtree roots.
 
-![example](./assets/example-full-block.png "example")
+![example](./assets/adr006/example-full-block.png "example")
 
 - `ns = 1`: The first namespace is put at the beginning of the messages space.
 - `ns = 2`: Starting at the largest power of 2 that is not larger than the message length or `k`.
@@ -78,8 +78,8 @@ For squares that are smaller than the max square size, the exact approach is muc
 
 Arranging the messages in the block to maximize fees and optimize square space is a difficult problem that is similar to the ["Bin packing problem"](https://en.wikipedia.org/wiki/Bin_packing_problem). While the actual computation of the number of shares could be cached to an extent, each change to the square potentially affects the rest of the messages in the square. The only way to know for certain is to calculate the number of shares used. Calculating the exact number of bytes used is further complicated by the order of the steps due and our rampant use of varints, both in our encoding scheme and protobuf's. The example below shows how removing a single share (from the transactions in this case) could change the rest of the square and allow for a message that otherwise would not fit.
 
-![extra message that can't fit](./assets/extra-message-that-doesnt-fit.png "extra message")
-![fit the extra message by removing a tx](./assets/fit-extra-msg-byremoving-tx.png "extra message")
+![extra message that can't fit](./assets/adr006/extra-message-that-doesnt-fit.png "extra message")
+![fit the extra message by removing a tx](./assets/adr006/fit-extra-msg-byremoving-tx.png "extra message")
 
 To meet the above constraints, there are multiple refactors required.
 
@@ -507,7 +507,7 @@ func calculateSubTreeRootCoordinates(maxDepth, start, end uint64) []coord {
 
 This is effectively calculating the positions of subtree root A and subtree root B in the diagram below.
 
-![Subtree root commitment](./assets/subtree-root.png "Subtree Root based commitments")
+![Subtree root commitment](./assets/adr006/subtree-root.png "Subtree Root based commitments")
 
 While we could regenerate the commitments using the data square, since we already have to calculate the data root during `ProcessProposal`, we cache them instead.
 

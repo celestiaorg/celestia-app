@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/testutil/testnode"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,9 +16,9 @@ func TestQGBRPCQueries(t *testing.T) {
 		t.Skip("skipping QGB integration test in short mode.")
 	}
 	_, cctx := testnode.DefaultNetwork(t, time.Millisecond)
-	h, err := cctx.WaitForHeightWithTimeout(405, time.Minute)
-	require.NoError(t, err)
-	require.Greater(t, h, int64(401))
+	h, err := cctx.WaitForHeightWithTimeout(105, 2*time.Minute)
+	require.NoError(t, err, h)
+	require.Greater(t, h, int64(101))
 
 	queryClient := types.NewQueryClient(cctx.GRPCClient)
 

@@ -72,6 +72,14 @@ const (
 	// data square.
 	MinShareCount = DefaultMinSquareSize * DefaultMinSquareSize
 
+	// SubtreeRootThreshold works as a target value for the number of subtree roots in the
+	// share commitment. If a blob contains more shares than this number, than the height
+	// of the subtree roots will gradually increases to so that the amount remains within that limit.
+	// The rationale for this value is described in more detail in ADR013
+	// (./docs/architecture/adr-013).
+	// ADR013 https://github.com/celestiaorg/celestia-app/blob/e905143e8fe138ce6085ae9a5c1af950a2d87638/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md //nolint: lll
+	SubtreeRootThreshold = 64
+
 	// MaxShareVersion is the maximum value a share version can be.
 	MaxShareVersion = 127
 
@@ -79,12 +87,10 @@ const (
 	// included in a PayForBlobs txn
 	DefaultGasPerBlobByte = 8
 
-	// TransactionsPerBlockLimit is the maximum number of transactions a block
-	// producer will include in a block.
-	//
-	// NOTE: Currently this value is set at roughly the number of PFBs that
-	// would fill one quarter of the max square size.
-	TransactionsPerBlockLimit = 5090
+	// DefaultMinGasPrice is the default min gas price that gets set in the app.toml file.
+	// The min gas price acts as a filter. Transactions below that limit will not pass
+	// a nodes `CheckTx` and thus not be proposed by that node.
+	DefaultMinGasPrice = 0.1
 )
 
 var (

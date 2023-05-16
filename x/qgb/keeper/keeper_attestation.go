@@ -66,7 +66,8 @@ func (k Keeper) CheckLatestAttestationNonce(ctx sdk.Context) bool {
 // GetLatestAttestationNonce returns the latest attestation request nonce.
 // Panics if the latest attestation nonce doesn't exit. Make sure to call `CheckLatestAttestationNonce`
 // before getting the nonce.
-// This value is set on chain startup, it shouldn't panic in normal conditions.
+// This value is set on chain startup. However, it won't be written to store until height = 1.
+// Thus, it's mandatory to run `CheckLatestAttestationNonce` before calling this method.
 // Check x/qgb/genesis.go for more information.
 func (k Keeper) GetLatestAttestationNonce(ctx sdk.Context) uint64 {
 	store := ctx.KVStore(k.storeKey)

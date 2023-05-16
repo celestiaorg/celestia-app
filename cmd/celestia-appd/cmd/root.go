@@ -12,6 +12,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/simapp/simd/cmd"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 
@@ -22,7 +23,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -93,7 +93,7 @@ func NewRootCmd() *cobra.Command {
 			tmCfg.Mempool.MaxTxBytes = 2 * 1024 * 1024 // 2 MiB
 			tmCfg.Mempool.Version = "v1"               // prioritized mempool
 			tmCfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
-			tmCfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
+			tmCfg.Consensus.TargetHeightDuration = appconsts.TargetHeightDuration
 			tmCfg.Consensus.SkipTimeoutCommit = false
 			tmCfg.TxIndex.Indexer = "null"
 
@@ -139,7 +139,7 @@ func initAppConfig() (string, interface{}) {
 	// snapshots to nodes that state sync
 	srvCfg.StateSync.SnapshotInterval = 1500
 	srvCfg.StateSync.SnapshotKeepRecent = 2
-	srvCfg.MinGasPrices = fmt.Sprintf("0.001%s", app.BondDenom)
+	srvCfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, app.BondDenom)
 
 	CelestiaAppCfg := CustomAppConfig{Config: *srvCfg}
 

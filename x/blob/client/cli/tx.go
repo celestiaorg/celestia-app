@@ -2,14 +2,11 @@ package cli
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/spf13/cobra"
 )
-
-var DefaultRelativePacketTimeoutTimestamp = uint64((time.Duration(10) * time.Minute).Nanoseconds())
 
 // GetTxCmd returns the transaction commands for this module
 func GetTxCmd() *cobra.Command {

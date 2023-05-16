@@ -9,7 +9,10 @@
 [![codecov](https://codecov.io/gh/celestiaorg/celestia-app/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://app.codecov.io/gh/celestiaorg/celestia-app/tree/main)
 [![GitPOAP Badge](https://public-api.gitpoap.io/v1/repo/celestiaorg/celestia-app/badge)](https://www.gitpoap.io/gh/celestiaorg/celestia-app)
 
-**celestia-app** is a blockchain application built using Cosmos SDK and [celestia-core](https://github.com/celestiaorg/celestia-core) in place of Tendermint.
+celestia-app is a blockchain application built using parts of the Cosmos stack. celestia-app uses
+
+- [celestiaorg/cosmos-sdk](https://github.com/celestiaorg/cosmos-sdk) a fork of [cosmos/cosmos-sdk](https://github.com/cosmos/cosmos-sdk)
+- [celestiaorg/celestia-core](https://github.com/celestiaorg/celestia-core) a fork of [cometbft/cometbft](https://github.com/cometbft/cometbft)
 
 ## Diagram
 
@@ -24,7 +27,7 @@ Celestia        |  |            +      v           |  ^
 validator or    |  |                               |  |
 full consensus  |  |           Consensus           |  |
 node            |  |                               |  |
-                |  +-------------------------------+  |   celestia-core (fork of Tendermint Core)
+                |  +-------------------------------+  |   celestia-core (fork of CometBFT)
                 |  |                               |  |
                 |  |           Networking          |  |
                 |  |                               |  |
@@ -33,7 +36,7 @@ node            |  |                               |  |
 
 ## Install
 
-1. [Install Go](https://go.dev/doc/install) 1.19
+1. [Install Go](https://go.dev/doc/install) 1.20
 1. Clone this repo
 1. Install the celestia-app CLI
 
@@ -57,15 +60,18 @@ celestia-appd --help
 ### Create your own single node devnet
 
 ```sh
-# WARNING: this deletes config, data, and keyrings from previous local devnets
-rm -r ~/.celestia-app
 
-# Start a single node devnet
+# Start a single node devnet using the pre-installed celestia app
 ./scripts/single-node.sh
+
+# Build and start a single node devnet
+./scripts/build-run-single-node.sh
 
 # Post data to the local devnet
 celestia-appd tx blob PayForBlobs [hexNamespace] [hexBlob] [flags]
 ```
+
+**Note:** please note that the `./scripts/` commands above, created a random `tmp` directory and keeps all data/configs there.
 
 <!-- markdown-link-check-disable -->
 <!-- markdown-link encounters an HTTP 503 on this link even though it works. -->

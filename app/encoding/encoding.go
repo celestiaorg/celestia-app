@@ -42,6 +42,10 @@ func MakeConfig(regs ...ModuleRegister) Config {
 	marshaler := codec.NewProtoCodec(interfaceRegistry)
 	txCfg := tx.NewTxConfig(marshaler, tx.DefaultSignModes)
 
+	dec := txCfg.TxDecoder()
+	dec = indexWrapperDecoder(dec)
+	txCfg.SetTxDecoder(dec)
+
 	return Config{
 		InterfaceRegistry: interfaceRegistry,
 		Codec:             marshaler,

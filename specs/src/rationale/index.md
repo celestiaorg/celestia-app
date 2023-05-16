@@ -1,3 +1,3 @@
 # Rationale
 
-- [Message Layout](./message_block_layout.md)
+- [Data Square Layout](./data_square_layout.md)

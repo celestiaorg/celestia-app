@@ -84,6 +84,7 @@ func TestFrom(t *testing.T) {
 	validNamespace = append(validNamespace, NamespaceVersionZero)
 	validNamespace = append(validNamespace, NamespaceVersionZeroPrefix...)
 	validNamespace = append(validNamespace, bytes.Repeat([]byte{0x1}, NamespaceVersionZeroIDSize)...)
+	parityNamespace := bytes.Repeat([]byte{0xFF}, NamespaceSize)
 
 	testCases := []testCase{
 		{
@@ -93,6 +94,15 @@ func TestFrom(t *testing.T) {
 			want: Namespace{
 				Version: NamespaceVersionZero,
 				ID:      validID,
+			},
+		},
+		{
+			name:    "parity namespace",
+			bytes:   parityNamespace,
+			wantErr: false,
+			want: Namespace{
+				Version: NamespaceVersionMax,
+				ID:      bytes.Repeat([]byte{0xFF}, NamespaceIDSize),
 			},
 		},
 		{

@@ -8,14 +8,17 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/testutil/testnode"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	disttypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
+	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
@@ -62,9 +65,10 @@ func (s *StandardSDKIntegrationTestSuite) unusedAccount() string {
 func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 	t := s.T()
 	type test struct {
-		name    string
-		msgFunc func() (msgs []sdk.Msg, signer string)
-		hash    string
+		name         string
+		msgFunc      func() (msgs []sdk.Msg, signer string)
+		hash         string
+		expectedCode uint32
 	}
 	tests := []test{
 		{
@@ -78,6 +82,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				)
 				return []sdk.Msg{msgSend}, account1
 			},
+			expectedCode: abci.CodeTypeOK,
 		},
 		{
 			name: "send 1,000,000 TIA",
@@ -90,6 +95,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				)
 				return []sdk.Msg{msgSend}, account1
 			},
+			expectedCode: abci.CodeTypeOK,
 		},
 		{
 			name: "delegate 1 TIA",
@@ -100,6 +106,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msg := stakingtypes.NewMsgDelegate(account1Addr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
 				return []sdk.Msg{msg}, account1
 			},
+			expectedCode: abci.CodeTypeOK,
 		},
 		{
 			name: "undelegate 1 TIA",
@@ -109,6 +116,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				msg := stakingtypes.NewMsgUndelegate(valAccAddr, valopAddr, sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
 				return []sdk.Msg{msg}, "validator"
 			},
+			expectedCode: abci.CodeTypeOK,
 		},
 		{
 			name: "create validator",
@@ -130,6 +138,7 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account
 			},
+			expectedCode: abci.CodeTypeOK,
 		},
 		{
 			name: "create vesting account",
@@ -148,9 +157,33 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				)
 				return []sdk.Msg{msg}, sendAcc
 			},
+			expectedCode: abci.CodeTypeOK,
 		},
 		{
-			name: "create legacy governance proposal",
+			name: "create legacy community spend governance proposal",
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
+				account := s.unusedAccount()
+				coins := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
+				content := disttypes.NewCommunityPoolSpendProposal(
+					"title",
+					"description",
+					getAddress(s.unusedAccount(), s.cctx.Keyring),
+					coins,
+				)
+				addr := getAddress(account, s.cctx.Keyring)
+				msg, err := oldgov.NewMsgSubmitProposal(
+					content,
+					sdk.NewCoins(
+						sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
+					addr,
+				)
+				require.NoError(t, err)
+				return []sdk.Msg{msg}, account
+			},
+			expectedCode: abci.CodeTypeOK,
+		},
+		{
+			name: "create legacy text governance proposal",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
 				content, ok := oldgov.ContentFromProposalType("title", "description", "text")
@@ -165,6 +198,9 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				require.NoError(t, err)
 				return []sdk.Msg{msg}, account
 			},
+			// plain text proposals have been removed, so we expect an error. "No
+			// handler exists for proposal type"
+			expectedCode: govtypes.ErrNoProposalHandlerExists.ABCICode(),
 		},
 		{
 			name: "multiple send sdk.Msgs in one sdk.Tx",
@@ -183,6 +219,47 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 				)
 				return []sdk.Msg{msgSend1, msgSend2}, account1
 			},
+			expectedCode: abci.CodeTypeOK,
+		},
+		{
+			name: "create param change proposal for a blocked parameter",
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
+				account := s.unusedAccount()
+				change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom), "stake")
+				content := proposal.NewParameterChangeProposal("title", "description", []proposal.ParamChange{change})
+				addr := getAddress(account, s.cctx.Keyring)
+				msg, err := oldgov.NewMsgSubmitProposal(
+					content,
+					sdk.NewCoins(
+						sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
+					addr,
+				)
+				require.NoError(t, err)
+				return []sdk.Msg{msg}, account
+			},
+			// this parameter is protected by the paramfilter module, and we
+			// should expect an error. Due to how errors are bubbled up, we get
+			// this code despite wrapping the expected error,
+			// paramfilter.ErrBlockedParameter
+			expectedCode: govtypes.ErrNoProposalHandlerExists.ABCICode(),
+		},
+		{
+			name: "create param proposal change for a modifiable parameter",
+			msgFunc: func() (msgs []sdk.Msg, signer string) {
+				account := s.unusedAccount()
+				change := proposal.NewParamChange(stakingtypes.ModuleName, string(stakingtypes.KeyMaxValidators), "1")
+				content := proposal.NewParameterChangeProposal("title", "description", []proposal.ParamChange{change})
+				addr := getAddress(account, s.cctx.Keyring)
+				msg, err := oldgov.NewMsgSubmitProposal(
+					content,
+					sdk.NewCoins(
+						sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000000))),
+					addr,
+				)
+				require.NoError(t, err)
+				return []sdk.Msg{msg}, account
+			},
+			expectedCode: abci.CodeTypeOK,
 		},
 	}
 
@@ -192,16 +269,16 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 		res, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, signer, msgs...)
 		require.NoError(t, err)
 		require.NotNil(t, res)
-		require.Equal(t, abci.CodeTypeOK, res.Code, tt.name)
+		assert.Equal(t, abci.CodeTypeOK, res.Code, tt.name)
 		tests[i].hash = res.TxHash
 	}
 
 	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	for _, tt := range tests {
-		res, err := queryTx(s.cctx.Context, tt.hash, true)
-		require.NoError(t, err)
-		assert.Equal(t, abci.CodeTypeOK, res.TxResult.Code, tt.name)
+		res, err := testnode.QueryTx(s.cctx.Context, tt.hash, true)
+		assert.NoError(t, err)
+		assert.Equal(t, tt.expectedCode, res.TxResult.Code, tt.name)
 	}
 }
 

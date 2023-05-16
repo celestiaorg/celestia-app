@@ -38,16 +38,17 @@ type ErasuredNamespacedMerkleTree struct {
 }
 
 // NewErasuredNamespacedMerkleTree creates a new ErasuredNamespacedMerkleTree
-// with an underlying NMT of namespace size `appconsts.NamespaceSize`. axisIndex
-// is the index of the row or column that this tree is committing to. squareSize
-// must be greater than zero.
-func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, setters ...nmt.Option) ErasuredNamespacedMerkleTree {
+// with an underlying NMT of namespace size `appconsts.NamespaceSize` and with
+// `ignoreMaxNamespace=true`. axisIndex is the index of the row or column that
+// this tree is committing to. squareSize must be greater than zero.
+func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, options ...nmt.Option) ErasuredNamespacedMerkleTree {
 	if squareSize == 0 {
 		panic("cannot create a ErasuredNamespacedMerkleTree of squareSize == 0")
 	}
-	setters = append(setters, nmt.NamespaceIDSize(appconsts.NamespaceSize))
-	tree := nmt.New(appconsts.NewBaseHashFunc(), setters...)
-	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: setters, tree: tree, axisIndex: uint64(axisIndex), shareIndex: 0}
+	options = append(options, nmt.NamespaceIDSize(appconsts.NamespaceSize))
+	options = append(options, nmt.IgnoreMaxNamespace(true))
+	tree := nmt.New(appconsts.NewBaseHashFunc(), options...)
+	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: options, tree: tree, axisIndex: uint64(axisIndex), shareIndex: 0}
 }
 
 type constructor struct {
@@ -107,12 +108,11 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) {
 // Root fulfills the rsmt.Tree interface by generating and returning the
 // underlying NamespaceMerkleTree Root.
 func (w *ErasuredNamespacedMerkleTree) Root() []byte {
-	return w.tree.Root()
-}
-
-// Prove returns a Merkle inclusion proof for the leaf at index `ind`.
-func (w *ErasuredNamespacedMerkleTree) Prove(ind int) (nmt.Proof, error) {
-	return w.tree.Prove(ind)
+	root, err := w.tree.Root()
+	if err != nil {
+		panic(err)
+	}
+	return root
 }
 
 // ProveRange returns a Merkle range proof for the leaf range [start, end] where `end` is non-inclusive.

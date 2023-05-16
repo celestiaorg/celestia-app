@@ -142,10 +142,10 @@ func TestShareBuilderWriteSequenceLen(t *testing.T) {
 			share, err := tc.builder.Build()
 			require.NoError(t, err)
 
-			len, err := share.SequenceLen()
+			length, err := share.SequenceLen()
 			require.NoError(t, err)
 
-			assert.Equal(t, tc.wantLen, len)
+			assert.Equal(t, tc.wantLen, length)
 		})
 	}
 }

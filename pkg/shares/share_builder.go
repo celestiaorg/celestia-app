@@ -77,7 +77,7 @@ func (b *Builder) AddData(rawData []byte) (rawDataLeftOver []byte) {
 }
 
 func (b *Builder) Build() (*Share, error) {
-	return newShare(b.rawShareData)
+	return NewShare(b.rawShareData)
 }
 
 // IsEmptyShare returns true if no data has been written to the share

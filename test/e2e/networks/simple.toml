@@ -1,0 +1,13 @@
+[node.validator01]
+self_delegation = 1000000
+[node.validator02]
+self_delegation = 1000000
+[node.validator03]
+self_delegation = 1000000
+[node.validator04]
+self_delegation = 1000000
+[node.full01]
+start_height = 10
+
+[account.user1]
+[account.user2]

@@ -10,7 +10,7 @@ When laying out blobs in the square we create padding to follow the non-interact
 
 Looking at different ranges of blob sizes we can see that the ratio of blob size to padding is not constant. Insight:  **The ratio of blob size to padding is smaller for smaller blobs and larger for larger blobs.** The bigger the ratio the better.
 
-![Worst Case Padding In Blob Size Range](./assets/worst-case-padding-in-blob-size-range.png)
+![Worst Case Padding In Blob Size Range](./assets/adr013/worst-case-padding-in-blob-size-range.png)
 
 This means small blobs generate more possible padding in comparison to the data they provide. This is not ideal as we want to have as little padding as possible. As padding is not being paid for there is no incentive to use larger blobs.
 
@@ -31,7 +31,7 @@ If the blob length is smaller than `MaxSquareSize` then the blob starts at index
 
 The picture below shows the difference between the old and new non-interactive default rules in a square of size 8 and a threshold of 8.
 
-![Blob Alignment Comparison](./assets/blob-alignment-comparison.png)
+![Blob Alignment Comparison](./assets/adr013/blob-alignment-comparison.png)
 
 ## Analysis
 
@@ -59,7 +59,7 @@ If we choose the threshold to be the `MaxSquareSize` then the worst-case padding
 
 Here is a diagram of the worst-case padding for a threshold of 16 for the square size of 16. The left side is before and the right side is after this change. The bigger the square the more noticeable the change will be.
 
-![Worst Case Padding Comparison](./assets/worst-case-padding-comparison.png)
+![Worst Case Padding Comparison](./assets/adr013/worst-case-padding-comparison.png)
 
 ### Additional Remarks
 

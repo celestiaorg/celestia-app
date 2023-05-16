@@ -21,3 +21,16 @@ func (k Keeper) DataCommitmentRangeForHeight(
 		Nonce:      resp.Nonce,
 	}, nil
 }
+
+func (k Keeper) LastDataCommitment(
+	c context.Context,
+	_ *types.QueryLastDataCommitmentRequest,
+) (*types.QueryLastDataCommitmentResponse, error) {
+	resp, err := k.GetLastDataCommitment(sdk.UnwrapSDKContext(c))
+	if err != nil {
+		return nil, err
+	}
+	return &types.QueryLastDataCommitmentResponse{
+		DataCommitment: &resp,
+	}, nil
+}

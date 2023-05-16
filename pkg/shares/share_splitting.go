@@ -2,8 +2,6 @@ package shares
 
 import (
 	"errors"
-	"fmt"
-	"sort"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
@@ -19,73 +17,6 @@ var (
 		"the first blob started at an unexpected index",
 	)
 )
-
-// Split converts block data into encoded shares, optionally using share indexes
-// that are encoded as wrapped transactions. Most use cases out of this package
-// should use these share indexes and therefore set useShareIndexes to true.
-func Split(data coretypes.Data, useShareIndexes bool) ([]Share, error) {
-	if data.SquareSize == 0 || !isPowerOf2(data.SquareSize) {
-		return nil, fmt.Errorf("square size is not a power of two: %d", data.SquareSize)
-	}
-	wantShareCount := int(data.SquareSize * data.SquareSize)
-	currentShareCount := 0
-
-	txShares, pfbTxShares, _, err := SplitTxs(data.Txs)
-	if err != nil {
-		return nil, err
-	}
-	currentShareCount += len(txShares) + len(pfbTxShares)
-	// blobIndexes will be nil if we are working with a list of txs that do not
-	// have a blob index. This preserves backwards compatibility with old blocks
-	// that do not follow the non-interactive defaults
-	blobIndexes := ExtractShareIndexes(data.Txs)
-	sort.Slice(blobIndexes, func(i, j int) bool { return blobIndexes[i] < blobIndexes[j] })
-
-	var padding []Share
-	if len(data.Blobs) > 0 {
-		blobShareStart, _ := NextMultipleOfBlobMinSquareSize(
-			currentShareCount,
-			SparseSharesNeeded(uint32(len(data.Blobs[0].Data))),
-			int(data.SquareSize),
-		)
-		// force blobSharesStart to be the first share index
-		if len(blobIndexes) != 0 && useShareIndexes {
-			blobShareStart = int(blobIndexes[0])
-		}
-		if blobShareStart < currentShareCount {
-			panic(fmt.Sprintf("blobShareStart %v < currentShareCount %v", blobShareStart, currentShareCount))
-		}
-
-		padding, err = NamespacePaddingShares(appns.ReservedPaddingNamespace, blobShareStart-currentShareCount)
-		if err != nil {
-			return nil, err
-		}
-	}
-	currentShareCount += len(padding)
-
-	if blobIndexes != nil && int(blobIndexes[0]) < currentShareCount {
-		return nil, ErrUnexpectedFirstBlobShareIndex
-	}
-
-	blobShares, err := SplitBlobs(currentShareCount, blobIndexes, data.Blobs, useShareIndexes)
-	if err != nil {
-		return nil, err
-	}
-	currentShareCount += len(blobShares)
-	tailShares, err := TailPaddingShares(wantShareCount - currentShareCount)
-	if err != nil {
-		return nil, err
-	}
-	shares := make([]Share, 0, data.SquareSize*data.SquareSize)
-	shares = append(append(append(append(append(
-		shares,
-		txShares...),
-		pfbTxShares...),
-		padding...),
-		blobShares...),
-		tailShares...)
-	return shares, nil
-}
 
 // ExtractShareIndexes iterates over the transactions and extracts the share
 // indexes from wrapped transactions. It returns nil if the transactions are
@@ -111,7 +42,7 @@ func ExtractShareIndexes(txs coretypes.Txs) []uint32 {
 	return shareIndexes
 }
 
-func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRanges map[coretypes.TxKey]ShareRange, err error) {
+func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRanges map[coretypes.TxKey]Range, err error) {
 	txWriter := NewCompactShareSplitter(appns.TxNamespace, appconsts.ShareVersionZero)
 	pfbTxWriter := NewCompactShareSplitter(appns.PayForBlobNamespace, appconsts.ShareVersionZero)
 
@@ -126,15 +57,17 @@ func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRang
 		}
 	}
 
-	txShares, txMap, err := txWriter.Export(0)
+	txShares, err = txWriter.Export()
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	txMap := txWriter.ShareRanges(0)
 
-	pfbShares, pfbMap, err := pfbTxWriter.Export(len(txShares))
+	pfbShares, err = pfbTxWriter.Export()
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	pfbMap := pfbTxWriter.ShareRanges(len(txShares))
 
 	return txShares, pfbShares, mergeMaps(txMap, pfbMap), nil
 }
@@ -160,8 +93,8 @@ func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIn
 
 // mergeMaps merges two maps into a new map. If there are any duplicate keys,
 // the value in the second map takes precedence.
-func mergeMaps(mapOne, mapTwo map[coretypes.TxKey]ShareRange) map[coretypes.TxKey]ShareRange {
-	merged := make(map[coretypes.TxKey]ShareRange, len(mapOne)+len(mapTwo))
+func mergeMaps(mapOne, mapTwo map[coretypes.TxKey]Range) map[coretypes.TxKey]Range {
+	merged := make(map[coretypes.TxKey]Range, len(mapOne)+len(mapTwo))
 	maps.Copy(merged, mapOne)
 	maps.Copy(merged, mapTwo)
 	return merged

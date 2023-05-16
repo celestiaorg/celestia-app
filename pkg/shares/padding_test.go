@@ -54,29 +54,33 @@ func TestNamespacePaddingShares(t *testing.T) {
 }
 
 func TestReservedPaddingShare(t *testing.T) {
-	got, err := ReservedPaddingShare()
-	require.NoError(t, err)
-	assert.Equal(t, reservedPadding, got.ToBytes())
+	require.NotPanics(t, func() {
+		got := ReservedPaddingShare()
+		assert.Equal(t, reservedPadding, got.ToBytes())
+	})
 }
 
 func TestReservedPaddingShares(t *testing.T) {
-	shares, err := ReservedPaddingShares(2)
-	require.NoError(t, err)
-	for _, share := range shares {
-		assert.Equal(t, reservedPadding, share.ToBytes())
-	}
+	require.NotPanics(t, func() {
+		shares := ReservedPaddingShares(2)
+		for _, share := range shares {
+			assert.Equal(t, reservedPadding, share.ToBytes())
+		}
+	})
 }
 
 func TestTailPaddingShare(t *testing.T) {
-	got, err := TailPaddingShare()
-	require.NoError(t, err)
-	assert.Equal(t, tailPadding, got.ToBytes())
+	require.NotPanics(t, func() {
+		got := TailPaddingShare()
+		assert.Equal(t, tailPadding, got.ToBytes())
+	})
 }
 
 func TestTailPaddingShares(t *testing.T) {
-	shares, err := TailPaddingShares(2)
-	require.NoError(t, err)
-	for _, share := range shares {
-		assert.Equal(t, tailPadding, share.ToBytes())
-	}
+	require.NotPanics(t, func() {
+		shares := TailPaddingShares(2)
+		for _, share := range shares {
+			assert.Equal(t, tailPadding, share.ToBytes())
+		}
+	})
 }

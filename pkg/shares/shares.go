@@ -30,7 +30,7 @@ func (s *Share) InfoByte() (InfoByte, error) {
 	return ParseInfoByte(unparsed)
 }
 
-func newShare(data []byte) (*Share, error) {
+func NewShare(data []byte) (*Share, error) {
 	if err := validateSize(data); err != nil {
 		return nil, err
 	}
@@ -105,7 +105,8 @@ func (s *Share) SequenceLen() (sequenceLen uint32, err error) {
 	start := appconsts.NamespaceSize + appconsts.ShareInfoBytes
 	end := start + appconsts.SequenceLenBytes
 	if len(s.data) < end {
-		return 0, fmt.Errorf("share %s is too short to contain a sequence length", s)
+		return 0, fmt.Errorf("share %s with length %d is too short to contain a sequence length",
+			s, len(s.data))
 	}
 	return binary.BigEndian.Uint32(s.data[start:end]), nil
 }
@@ -179,17 +180,15 @@ func (s *Share) rawDataStartIndex() int {
 	if err != nil {
 		panic(err)
 	}
-	if isStart && isCompact {
-		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.SequenceLenBytes + appconsts.CompactShareReservedBytes
-	} else if isStart && !isCompact {
-		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.SequenceLenBytes
-	} else if !isStart && isCompact {
-		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.CompactShareReservedBytes
-	} else if !isStart && !isCompact {
-		return appconsts.NamespaceSize + appconsts.ShareInfoBytes
-	} else {
-		panic(fmt.Sprintf("unable to determine the rawDataStartIndex for share %s", s.data))
+
+	index := appconsts.NamespaceSize + appconsts.ShareInfoBytes
+	if isStart {
+		index += appconsts.SequenceLenBytes
 	}
+	if isCompact {
+		index += appconsts.CompactShareReservedBytes
+	}
+	return index
 }
 
 func ToBytes(shares []Share) (bytes [][]byte) {
@@ -200,10 +199,13 @@ func ToBytes(shares []Share) (bytes [][]byte) {
 	return bytes
 }
 
-func FromBytes(bytes [][]byte) (shares []Share) {
-	shares = make([]Share, len(bytes))
-	for i, b := range bytes {
-		shares[i] = Share{data: b}
+func FromBytes(bytes [][]byte) (shares []Share, err error) {
+	for _, b := range bytes {
+		share, err := NewShare(b)
+		if err != nil {
+			return nil, err
+		}
+		shares = append(shares, *share)
 	}
-	return shares
+	return shares, nil
 }

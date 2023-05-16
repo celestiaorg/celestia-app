@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
-	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -68,7 +68,7 @@ func TestValidateBlobTx(t *testing.T) {
 			name: "invalid transaction, no pfb",
 			getTx: func() tmproto.BlobTx {
 				sendTx := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, 1)
-				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100))
+				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				return tmproto.BlobTx{
 					Tx:    sendTx[0],
@@ -82,7 +82,7 @@ func TestValidateBlobTx(t *testing.T) {
 			getTx: func() tmproto.BlobTx {
 				rawBtx := validRawBtx()
 				btx, _ := coretypes.UnmarshalBlobTx(rawBtx)
-				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100))
+				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				btx.Blobs = append(btx.Blobs, blob)
 				return btx
@@ -92,7 +92,7 @@ func TestValidateBlobTx(t *testing.T) {
 		{
 			name: "invalid share commitment",
 			getTx: func() tmproto.BlobTx {
-				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100))
+				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				msg, err := types.NewMsgPayForBlobs(
 					signerAddr.String(),

@@ -10,7 +10,6 @@
 
 | name                        | type                        |
 |-----------------------------|-----------------------------|
-| [`Address`](#address)       | `byte[32]`                  |
 | `Amount`                    | `uint64`                    |
 | `Graffiti`                  | `byte[MAX_GRAFFITI_BYTES]`  |
 | [`HashDigest`](#hashdigest) | `byte[32]`                  |
@@ -75,10 +74,10 @@ Data that is [erasure-coded](#erasure-coding) for [data availability checks](htt
 
 | name                        | type                                                    | description                                                                                                     |
 |-----------------------------|---------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
-| `transactionData`           | [TransactionData](#transactiondata)                     | Transaction data. Transactions modify the validator set and balances, and pay fees for messages to be included. |
+| `transactionData`           | [TransactionData](#transactiondata)                     | Transaction data. Transactions modify the validator set and balances, and pay fees for blobs to be included. |
 | `intermediateStateRootData` | [IntermediateStateRootData](#intermediatestaterootdata) | Intermediate state roots used for fraud proofs.                                                                 |
 | `payForBlobData`            | [PayForBlobData](#payforblobdata)                       | PayForBlob data. Transactions that pay for blobs to be included.                                                |
-| `messageData`               | [MessageData](#messagedata)                             | Message data. Messages are app data.                                                                            |
+| `blobData`               | [BlobData](#blobdata)                             | Blob data. Blobs are app data.                                                                            |
 
 ### Commit
 
@@ -111,11 +110,11 @@ Abstraction over transaction fees.
 
 ### Address
 
-Address is a [type alias](#type-aliases).
+Celestia supports [secp256k1](https://en.bitcoin.it/wiki/Secp256k1) keys where [addresses](https://docs.cosmos.network/v0.46/basics/accounts.html#addresses) are 20 bytes in length.
 
-Addresses are the [hash](#hashing) [digest](#hashdigest) of the [public key](https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys).
-
-Addresses have a length of 32 bytes.
+| name         | type       | description                                                             |
+|--------------|------------|-------------------------------------------------------------------------|
+| `AccAddress` | `[20]byte` | AccAddress a wrapper around bytes meant to represent an account address |
 
 ### CommitSig
 
@@ -136,12 +135,10 @@ enum CommitFlag : uint8_t {
 
 ### Signature
 
-| name | type       | description                                                          |
-|------|------------|----------------------------------------------------------------------|
-| `r`  | `byte[32]` | `r` value of the signature.                                          |
-| `vs` | `byte[32]` | 1-bit `v` value followed by last 255 bits of `s` value of signature. |
-
-Output of the [signing](#public-key-cryptography) process.
+| name | type       | description                 |
+|------|------------|-----------------------------|
+| `r`  | `byte[32]` | `r` value of the signature. |
+| `s`  | `byte[32]` | `s` value of signature.     |
 
 ### Namespace
 
@@ -150,7 +147,7 @@ Output of the [signing](#public-key-cryptography) process.
 | `version` | `uint8`    |             |
 | `id`      | `byte[32]` |             |
 
-The only supported Namespace `version` is `0`. The format for a namespace ID with namespace `version: 0` is: 22 bytes of leading `0`s followed by 10 bytes of significant namespace ID.
+The namespace is a 33 byte array. The first byte is the `version`. The remaining 32 bytes are the `id`. The namespace version may enforce constraints on the id. The only supported `version` is `0`. The format for a namespace with `version: 0` is 22 bytes of leading `0`s followed by 10 bytes of significant namespace id.
 
 ```go
 // valid namespaces
@@ -188,31 +185,9 @@ Libraries implementing SHA-2-256 are available in Go (<https://pkg.go.dev/crypto
 
 Unless otherwise indicated explicitly, objects are first [serialized](#serialization) before being hashed.
 
-## Public-Key Cryptography
-
-Consensus-critical data is authenticated using [ECDSA](https://www.secg.org/sec1-v2.pdf), with the curve [secp256k1](https://en.bitcoin.it/wiki/Secp256k1). A highly-optimized library is available in C (<https://github.com/bitcoin-core/secp256k1>), with wrappers in Go (<https://pkg.go.dev/github.com/ethereum/go-ethereum/crypto/secp256k1>) and Rust (<https://docs.rs/crate/secp256k1>).
-
-[Public keys](https://docs.cosmos.network/v0.46/basics/accounts.html#public-keys) are encoded in uncompressed form, as the concatenation of the `x` and `y` values. No prefix is needed to distinguish between encoding schemes as this is the only encoding supported.
-
-Deterministic signatures ([RFC-6979](https://tools.ietf.org/rfc/rfc6979.txt)) should be used when signing, but this is not enforced at the protocol level as it cannot be.
-
-[Signatures](#signature) are represented as the `r` and `s` (each 32 bytes), and `v` (1-bit) values of the signature. `r` and `s` take on their usual meaning (see: [SEC 1, 4.1.3 Signing Operation](https://www.secg.org/sec1-v2.pdf)), while `v` is used for recovering the public key from a signature more quickly (see: [SEC 1, 4.1.6 Public Key Recovery Operation](https://www.secg.org/sec1-v2.pdf)). Only low-`s` values in signatures are valid (i.e. `s <= secp256k1.n//2`); `s` can be replaced with `-s mod secp256k1.n` during the signing process if it is high. Given this, the first bit of `s` will always be `0`, and can be used to store the 1-bit `v` value.
-
-`v` represents the parity of the `Y` component of the point, `0` for even and `1` for odd. The `X` component of the point is assumed to always be low, since [the possibility of it being high is negligible](https://bitcoin.stackexchange.com/a/38909).
-
-Putting it all together, the encoding for signatures is:
-
-<!-- markdownlint-disable-next-line MD040 -->
-```
-|    32 bytes   ||           32 bytes           |
-[256-bit r value][1-bit v value][255-bit s value]
-```
-
-This encoding scheme is derived from [EIP 2098: Compact Signature Representation](https://eips.ethereum.org/EIPS/eip-2098).
-
 ## Merkle Trees
 
-Merkle trees are used to authenticate various pieces of data across the Celestia stack, including transactions, messages, the validator set, etc. This section provides an overview of the different tree types used, and specifies how to construct them.
+Merkle trees are used to authenticate various pieces of data across the Celestia stack, including transactions, blobs, the validator set, etc. This section provides an overview of the different tree types used, and specifies how to construct them.
 
 ### Binary Merkle Tree
 
@@ -282,7 +257,7 @@ node.n_max = d.namespace
 node.v = h(0x00, d.namespace, d.rawData)
 ```
 
-The `namespace` message field here is the namespace ID of the leaf, which is a [`NAMESPACE_ID_BYTES`](consensus.md#system-parameters)-long byte array.
+The `namespace` blob field here is the namespace of the leaf, which is a [`NAMESPACE_SIZE`](consensus.md#system-parameters)-long byte array.
 
 Leaves in an NMT **must** be lexicographically sorted by namespace in ascending order.
 
@@ -373,7 +348,7 @@ Finally, the `availableDataRoot` of the block [Header](#header) is computed as t
 
 A share is a fixed-size data chunk associated with a namespace, whose data will be erasure-coded and committed to in [Namespace Merkle trees](#namespace-merkle-tree).
 
-A sequence is a contiguous set of shares that contain semantically relevant data. A sequence should be parsed together because data may be split across share boundaries. One sequence exists per reserved namespace and per message.
+A sequence is a contiguous set of shares that contain semantically relevant data. A sequence should be parsed together because data may be split across share boundaries. One sequence exists per reserved namespace and per blob.
 
 - The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `rawData` is the namespace of that share.
 - The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information with the following structure:
@@ -412,8 +387,8 @@ For shares **with a namespace above [`MAX_RESERVED_NAMESPACE`](./consensus.md#co
 > **Note** The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `rawData` is the namespace of that share. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information.
 
 - If this is the first share of a sequence, the next [`SEQUENCE_BYTES`](./consensus.md#constants) contain a big endian `uint32` that represents the length of the sequence that follows in bytes.
-- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes (only if this is the first share of a sequence) bytes are message data. Message data are opaque bytes of data that are included in the block but do not impact the state. In other words, the remaining bytes have no special meaning and are simply used to store data.
-- If there is insufficient message data to fill the share, the remaining bytes are filled with `0`.
+- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes (only if this is the first share of a sequence) bytes are blob data. Blob data are opaque bytes of data that are included in the block but do not impact the state. In other words, the remaining bytes have no special meaning and are simply used to store data.
+- If there is insufficient blob data to fill the share, the remaining bytes are filled with `0`.
 
 First share in a sequence:
 
@@ -431,7 +406,7 @@ For shares **with a namespace equal to [`PARITY_SHARE_NAMESPACE`](./consensus.md
 
 #### Namespace Padding Share
 
-A namespace padding share acts as padding between blobs so that the subsequent blob may begin at an index that conforms to the [non-interactive default rules](../rationale/message_block_layout.md#non-interactive-default-rules). A namespace padding share contains the namespace ID of the blob that precedes it in the data square so that the data square can retain the property that all shares are ordered by namespace.
+A namespace padding share acts as padding between blobs so that the subsequent blob may begin at an index that conforms to the [non-interactive default rules](../rationale/data_square_layout.md#non-interactive-default-rules). A namespace padding share contains the namespace ID of the blob that precedes it in the data square so that the data square can retain the property that all shares are ordered by namespace.
 
 The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `rawData` is the namespace of the blob that precedes this padding share. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information. The sequence start indicator is always `1`. The version bits are filled with the share version. The sequence length is zeroed out. The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes are filled with `0`.
 
@@ -453,7 +428,7 @@ The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `ra
 
 ### Arranging Available Data Into Shares
 
-The previous sections described how some original data, arranged into a `k * k` matrix, can be extended into a `2k * 2k` matrix and committed to with NMT roots. This section specifies how [available data](#available-data) (which includes [transactions](#transactiondata), [intermediate state roots](#intermediatestaterootdata), PayForBlob transactions, and [messages](#messagedata)) is arranged into the matrix in the first place.
+The previous sections described how some original data, arranged into a `k * k` matrix, can be extended into a `2k * 2k` matrix and committed to with NMT roots. This section specifies how [available data](#available-data) (which includes [transactions](#transactiondata), [intermediate state roots](#intermediatestaterootdata), PayForBlob transactions, and [blobs](#blobdata)) is arranged into the matrix in the first place.
 
 Then,
 
@@ -471,29 +446,29 @@ These shares are arranged in the [first quadrant](#2d-reed-solomon-encoding-sche
 
 ![fig: Original data: reserved.](./figures/rs2d_originaldata_reserved.svg)
 
-Each message in the list `messageData`:
+Each blob in the list `blobData`:
 
-1. [Serialize](#serialization) the message (individually).
-1. Compute the length of each serialized message, [serialize the length](#serialization), and pre-pend the serialized message with its serialized length.
-1. Split up the length/message pairs into [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)-byte chunks.
+1. [Serialize](#serialization) the blob (individually).
+1. Compute the length of each serialized blob, [serialize the length](#serialization), and pre-pend the serialized blob with its serialized length.
+1. Split up the length/blob pairs into [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)-byte chunks.
 1. Create a [share](#share) out of each chunk. The first [`NAMESPACE_SIZE`](./consensus.md#constants) bytes for these shares is [set to the namespace](#share).
 
-For each message, it is placed in the available data matrix, with row-major order, as follows:
+For each blob, it is placed in the available data matrix, with row-major order, as follows:
 
-1. Place the first share of the message at the next unused location in the matrix, then place the remaining shares in the following locations.
+1. Place the first share of the blob at the next unused location in the matrix, then place the remaining shares in the following locations.
 
-Transactions [must commit to a Merkle root of a list of hashes](#transaction) that are each guaranteed (assuming the block is valid) to be subtree roots in one or more of the row NMTs. For additional info, see [the rationale document](../rationale/message_block_layout.md) for this section.
+Transactions [must commit to a Merkle root of a list of hashes](#transaction) that are each guaranteed (assuming the block is valid) to be subtree roots in one or more of the row NMTs. For additional info, see [the rationale document](../rationale/data_square_layout.md) for this section.
 
-However, with only the rule above, interaction between the block producer and transaction sender may be required to compute a commitment to the message the transaction sender can sign over. To remove interaction, messages can optionally be laid out using a non-interactive default:
+However, with only the rule above, interaction between the block producer and transaction sender may be required to compute a commitment to the blob the transaction sender can sign over. To remove interaction, blobs can optionally be laid out using a non-interactive default:
 
-1. Place the first share of the message at the next unused location in the matrix whose column is aligned with the largest power of 2 that is not larger than the message length or [`availableDataOriginalSquareSize`](#header), then place the remaining shares in the following locations **unless** there are insufficient unused locations in the row.
-1. If there are insufficient unused locations in the row, place the first share of the message at the first column of the next row. Then place the remaining shares in the following locations. By construction, any message whose length is greater than [`availableDataOriginalSquareSize`](#header) will be placed in this way.
+1. Place the first share of the blob at the next unused location in the matrix whose column is aligned with the largest power of 2 that is not larger than the blob length or [`availableDataOriginalSquareSize`](#header), then place the remaining shares in the following locations **unless** there are insufficient unused locations in the row.
+1. If there are insufficient unused locations in the row, place the first share of the blob at the first column of the next row. Then place the remaining shares in the following locations. By construction, any blob whose length is greater than [`availableDataOriginalSquareSize`](#header) will be placed in this way.
 
-In the example below, two messages (of lengths 2 and 1, respectively) are placed using the aforementioned default non-interactive rules.
+In the example below, two blobs (of lengths 2 and 1, respectively) are placed using the aforementioned default non-interactive rules.
 
-![fig: Original data: messages.](./figures/rs2d_originaldata_message.svg)
+![fig: original data blob](./figures/rs2d_originaldata_blob.svg)
 
-The non-interactive default rules may introduce empty shares that do not belong to any message (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either [`TAIL_TRANSACTION_PADDING_NAMESPACE_ID`](./consensus.md#constants) if between a request with a reserved namespace ID and a message, or the namespace ID of the previous message if succeeded by a message. See the [rationale doc](../rationale/message_block_layout.md) for more info.
+The non-interactive default rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either [`TAIL_TRANSACTION_PADDING_NAMESPACE_ID`](./consensus.md#constants) if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the [rationale doc](../rationale/data_square_layout.md) for more info.
 
 ## Available Data
 
@@ -511,7 +486,7 @@ Wrapped transactions include additional metadata by the block proposer that is c
 |---------------------|-----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `index`             | `uint64`                    | Index of this transaction in the list of wrapped transactions. This information is lost when splitting transactions into [fixed-sized shares](#share), and needs to be re-added here for fraud proof support. Allows linking a transaction to an [intermediate state root](#wrappedintermediatestateroot). |
 | `transaction`       | [Transaction](#transaction) | Actual transaction.                                                                                                                                                                                                                                                                                        |
-| `messageStartIndex` | `uint64`                    | _Optional, only used if transaction pays for a message or padding_. Share index (in row-major order) of first share of message this transaction pays for. Needed for light verification of proper message inclusion.                                                                                       |
+| `blobStartIndex` | `uint64`                    | _Optional, only used if transaction pays for a blob or padding_. Share index (in row-major order) of first share of blob this transaction pays for. Needed for light verification of proper blob inclusion.                                                                                       |
 
 #### Transaction
 
@@ -538,18 +513,18 @@ Celestia transactions are Cosmos SDK [transactions](https://docs.cosmos.network/
 |--------|---------------------------|------------------------------------------------------------------------------------------|
 | `root` | [HashDigest](#hashdigest) | Root of intermediate state, which is composed of the global state and the validator set. |
 
-### MessageData
+### BlobData
 
 | name       | type                    | description       |
 |------------|-------------------------|-------------------|
-| `messages` | [Message](#message)`[]` | List of messages. |
+| `blobs` | [Blob](#blob)`[]` | List of blobs. |
 
-#### Message
+#### Blob
 
 | name          | type                         | description                   |
 |---------------|------------------------------|-------------------------------|
-| `namespaceID` | [NamespaceID](#type-aliases) | Namespace ID of this message. |
-| `rawData`     | `byte[]`                     | Raw message bytes.            |
+| `namespaceID` | [NamespaceID](#type-aliases) | Namespace ID of this blob. |
+| `rawData`     | `byte[]`                     | Raw blob bytes.            |
 
 ## State
 
