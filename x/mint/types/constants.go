@@ -9,9 +9,9 @@ const (
 	// DaysPerYear is the mean length of the Gregorian calendar year. Note this
 	// value isn't 365 because 97 out of 400 years are leap years. See
 	// https://en.wikipedia.org/wiki/Year
-	DaysPerYear    = 365.2425
-	SecondsPerYear = int(SecondsPerMinute * MinutesPerHour * HoursPerDay * DaysPerYear) // 31,556,952
-
+	DaysPerYear          = 365.2425
+	SecondsPerYear       = int(SecondsPerMinute * MinutesPerHour * HoursPerDay * DaysPerYear) // 31,556,952
+	NanoSecondsPerYear   = SecondsPerYear * 1_000_000_000                                     // 31,556,952,000,000,000
 	InitialInflationRate = 0.08
 	DisinflationRate     = 0.1
 	TargetInflationRate  = 0.015

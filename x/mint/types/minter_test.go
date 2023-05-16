@@ -68,7 +68,7 @@ func TestCalculateInflationRate(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		years := time.Duration(tc.year * SecondsPerYear * int(time.Second))
+		years := time.Duration(tc.year * NanoSecondsPerYear * int(time.Nanosecond))
 		blockTime := genesisTime.Add(years)
 		ctx := sdk.NewContext(nil, tmproto.Header{}, false, nil).WithBlockTime(blockTime)
 		inflationRate := minter.CalculateInflationRate(ctx)
@@ -116,6 +116,36 @@ func TestCalculateBlockProvision(t *testing.T) {
 		got := minter.CalculateBlockProvision(tc.current, tc.previous)
 		require.True(t, tc.want.IsEqual(got), "want %v got %v", tc.want, got)
 	}
+}
+
+func TestCalculateBlockProvisionError(t *testing.T) {
+	minter := DefaultMinter()
+	current := time.Date(2023, 1, 2, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
+
+	totalSupply := sdk.NewDec(1_000_000_000_000)             // 1 trillion utia
+	annualProvisions := totalSupply.Mul(initalInflationRate) // 80 billion utia
+
+	minter.AnnualProvisions = annualProvisions
+	totalBlockProvisions := sdk.NewDec(0)
+	for current.Before(end) {
+		blockInterval := randomBlockInterval()
+		previous := current
+		current = current.Add(blockInterval)
+		got := minter.CalculateBlockProvision(current, previous)
+		totalBlockProvisions = totalBlockProvisions.Add(sdk.NewDecFromInt(got.Amount))
+	}
+	fmt.Printf("totalBlockProvisions %v\n", totalBlockProvisions)
+	fmt.Printf("annualProvisions %v\n", annualProvisions)
+}
+
+func randomBlockInterval() time.Duration {
+	return time.Duration(randInRange(14000, 16000)) * time.Millisecond
+}
+
+// randInRange returns a random number in the range (min, max) inclusive.
+func randInRange(min int, max int) int {
+	return rand.Intn(max-min) + min
 }
 
 func BenchmarkCalculateBlockProvision(b *testing.B) {
