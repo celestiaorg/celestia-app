@@ -346,7 +346,7 @@ func TestSquareDeconstruct(t *testing.T) {
 		for _, numTxs := range []int{2, 128, 1024, 8192} {
 			t.Run(fmt.Sprintf("%d", numTxs), func(t *testing.T) {
 				txs := generateOrderedTxs(numTxs/2, numTxs/2, 1, 800)
-				dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
+				dataSquare, err := square.Construct(txs, appconsts.MaxSquareSize)
 				require.NoError(t, err)
 				recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
 				require.NoError(t, err)
@@ -357,7 +357,7 @@ func TestSquareDeconstruct(t *testing.T) {
 	t.Run("NoPFBs", func(t *testing.T) {
 		const numTxs = 10
 		txs := types.Txs(blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, numTxs)).ToSliceOfBytes()
-		dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
+		dataSquare, err := square.Construct(txs, appconsts.MaxSquareSize)
 		require.NoError(t, err)
 		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
 		require.NoError(t, err)
@@ -365,7 +365,7 @@ func TestSquareDeconstruct(t *testing.T) {
 	})
 	t.Run("PFBsOnly", func(t *testing.T) {
 		txs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 100, 1, 1024).ToSliceOfBytes()
-		dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
+		dataSquare, err := square.Construct(txs, appconsts.MaxSquareSize)
 		require.NoError(t, err)
 		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
 		require.NoError(t, err)
