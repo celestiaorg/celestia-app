@@ -394,7 +394,6 @@ func TestSquareDeconstruct(t *testing.T) {
 		require.Equal(t, txs, recomputedTxs.ToSliceOfBytes())
 	})
 	t.Run("PFBsOnly", func(t *testing.T) {
-		const numTxs = 10
 		txs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 100, 1024).ToSliceOfBytes()
 		dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
 		require.NoError(t, err)

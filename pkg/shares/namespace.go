@@ -6,10 +6,10 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 )
 
-// GetSharesByNamespace returns all shares that belong to a given namespace.
-// It will return an empty range if the namespace could not be found.
-// This assumes that the slice of shares are lexicographically sorted by
-// namespace. Ranges here are always end exlusive.
+// GetShareRangeForNamespace returns all shares that belong to a given
+// namespace. It will return an empty range if the namespace could not be
+// found. This assumes that the slice of shares are lexicographically
+// sorted by namespace. Ranges here are always end exlusive.
 func GetShareRangeForNamespace(shares []Share, ns namespace.Namespace) (Range, error) {
 	if len(shares) == 0 {
 		return EmptyRange(), nil

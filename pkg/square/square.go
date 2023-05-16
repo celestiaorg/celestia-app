@@ -223,7 +223,7 @@ func (s Square) WrappedPFBs() (core.Txs, error) {
 	if err != nil {
 		return core.Txs{}, nil
 	}
-	return shares.ParseTxs(s[wpfbShareRange.Start : wpfbShareRange.End+1])
+	return shares.ParseTxs(s[wpfbShareRange.Start:wpfbShareRange.End])
 }
 
 func (s Square) IsEmpty() bool {
