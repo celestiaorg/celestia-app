@@ -163,16 +163,12 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			name: "create legacy community spend governance proposal",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
-				// HACKHACK this test implicitly depends on other test cases
-				// being run before it because it attempts to spend tokens from
-				// the community pool. Tokens get minted to the community pool
-				// due to inflation so this test may fail if executed in
-				// isolation or the number of tokens that are included in the
-				// spend proposal exceeds the number of tokens minted to the
-				// community pool. To avoid depending on the number of coins
-				// present in the community pool, the spend proposal attempts to
-				// spend 0 coins.
-				coins := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(0)))
+				// Note: this test depends on at least one coin being present
+				// in the community pool. Funds land in the community pool due
+				// to inflation so if 1 coin is not present in the community
+				// pool, consider expanding the block interval or waiting for
+				// more blocks to be produced prior to executing this test case.
+				coins := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))
 				content := disttypes.NewCommunityPoolSpendProposal(
 					"title",
 					"description",
