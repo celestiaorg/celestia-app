@@ -43,7 +43,7 @@ func (m Minter) Validate() error {
 // decrease every year according to the schedule specified in the README.
 func (m Minter) CalculateInflationRate(ctx sdk.Context) sdk.Dec {
 	years := yearsSinceGenesis(*m.GenesisTime, ctx.BlockTime())
-	inflationRate := initalInflationRate.Mul(sdk.OneDec().Sub(disinflationRate).Power(years))
+	inflationRate := initalInflationRate.Mul(sdk.OneDec().Sub(disinflationRate).Power(uint64(years)))
 
 	if inflationRate.LT(targetInflationRate) {
 		return targetInflationRate
@@ -68,9 +68,9 @@ func (m Minter) CalculateBlockProvision(current time.Time, previous time.Time) s
 
 // yearsSinceGenesis returns the number of years that have passed between
 // genesis and current (rounded down).
-func yearsSinceGenesis(genesis time.Time, current time.Time) (years uint64) {
+func yearsSinceGenesis(genesis time.Time, current time.Time) (years int64) {
 	if current.Before(genesis) {
 		return 0
 	}
-	return uint64(current.Sub(genesis).Nanoseconds() / int64(NanoSecondsPerYear))
+	return current.Sub(genesis).Nanoseconds() / int64(NanoSecondsPerYear)
 }
