@@ -344,7 +344,7 @@ func TestSquareDeconstruct(t *testing.T) {
 		// 8192 -> square size 128
 		for _, numTxs := range []int{2, 128, 1024, 8192} {
 			t.Run(fmt.Sprintf("%d", numTxs), func(t *testing.T) {
-				txs := generateOrderedTxs(numTxs/2, numTxs/2, 800)
+				txs := generateOrderedTxs(numTxs/2, numTxs/2, 1, 800)
 				dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
 				require.NoError(t, err)
 				recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
@@ -363,7 +363,7 @@ func TestSquareDeconstruct(t *testing.T) {
 		require.Equal(t, txs, recomputedTxs.ToSliceOfBytes())
 	})
 	t.Run("PFBsOnly", func(t *testing.T) {
-		txs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 100, 1024).ToSliceOfBytes()
+		txs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 100, 1, 1024).ToSliceOfBytes()
 		dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
 		require.NoError(t, err)
 		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
