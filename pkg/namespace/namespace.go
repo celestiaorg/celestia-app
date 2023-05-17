@@ -136,3 +136,23 @@ func (n Namespace) Repeat(times int) []Namespace {
 	}
 	return ns
 }
+
+func (n Namespace) Equals(n2 Namespace) bool {
+	return bytes.Equal(n.Bytes(), n2.Bytes())
+}
+
+func (n Namespace) IsLessThan(n2 Namespace) bool {
+	return bytes.Compare(n.Bytes(), n2.Bytes()) == -1
+}
+
+func (n Namespace) IsLessOrEqualThan(n2 Namespace) bool {
+	return bytes.Compare(n.Bytes(), n2.Bytes()) < 1
+}
+
+func (n Namespace) IsGreaterThan(n2 Namespace) bool {
+	return bytes.Compare(n.Bytes(), n2.Bytes()) == 1
+}
+
+func (n Namespace) IsGreaterOrEqualThan(n2 Namespace) bool {
+	return bytes.Compare(n.Bytes(), n2.Bytes()) > -1
+}

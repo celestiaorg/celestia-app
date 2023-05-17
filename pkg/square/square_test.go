@@ -38,6 +38,178 @@ func TestSquareConstruction(t *testing.T) {
 	})
 }
 
+// TestSquareBlobPositions ensures that the share commitment rules which dictate the padding
+// between blobs is followed as well as the ordering of blobs by namespace.
+func TestSquareBlobPostions(t *testing.T) {
+	ns1 := ns.MustNewV0(bytes.Repeat([]byte{1}, ns.NamespaceVersionZeroIDSize))
+	ns2 := ns.MustNewV0(bytes.Repeat([]byte{2}, ns.NamespaceVersionZeroIDSize))
+	ns3 := ns.MustNewV0(bytes.Repeat([]byte{3}, ns.NamespaceVersionZeroIDSize))
+
+	type test struct {
+		squareSize      int
+		blobTxs         [][]byte
+		expectedIndexes [][]uint32
+	}
+	tests := []test{
+		{
+			squareSize: 4,
+			blobTxs: generateBlobTxsWithNamespaces(
+				t,
+				[]ns.Namespace{ns1},
+				[][]int{{1}},
+			),
+			expectedIndexes: [][]uint32{{1}},
+		},
+		{
+			squareSize: 4,
+			blobTxs: generateBlobTxsWithNamespaces(
+				t,
+				[]ns.Namespace{ns1, ns1},
+				blobfactory.Repeat([]int{100}, 2),
+			),
+			expectedIndexes: [][]uint32{{2}, {3}},
+		},
+		{
+			squareSize: 4,
+			blobTxs: generateBlobTxsWithNamespaces(
+				t,
+				[]ns.Namespace{ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1, ns1},
+				blobfactory.Repeat([]int{100}, 9),
+			),
+			expectedIndexes: [][]uint32{{7}, {8}, {9}, {10}, {11}, {12}, {13}, {14}, {15}},
+		},
+		{
+			squareSize: 4,
+			blobTxs: generateBlobTxsWithNamespaces(
+				t,
+				[]ns.Namespace{ns1, ns1, ns1},
+				[][]int{{10000}, {10000}, {1000000}},
+			),
+			expectedIndexes: [][]uint32{},
+		},
+		{
+			squareSize: 64,
+			blobTxs: generateBlobTxsWithNamespaces(
+				t,
+				[]ns.Namespace{ns1, ns1, ns1},
+				[][]int{{1000}, {10000}, {10000}},
+			),
+			expectedIndexes: [][]uint32{{3}, {6}, {27}},
+		},
+		{
+			squareSize: 32,
+			blobTxs: generateBlobTxsWithNamespaces(
+				t,
+				[]ns.Namespace{ns2, ns1, ns1},
+				[][]int{{100}, {100}, {100}},
+			),
+			expectedIndexes: [][]uint32{{5}, {3}, {4}},
+		},
+		{
+			squareSize: 16,
+			blobTxs: generateBlobTxsWithNamespaces(
+				t,
+				[]ns.Namespace{ns1, ns2, ns1},
+				[][]int{{100}, {900}, {900}}, // 1, 2, 2 shares respectively
+			),
+			expectedIndexes: [][]uint32{{3}, {6}, {4}},
+		},
+		{
+			squareSize: 4,
+			blobTxs: generateBlobTxsWithNamespaces(
+				t,
+				[]ns.Namespace{ns1, ns3, ns3, ns2},
+				[][]int{{100}, {1000, 1000}, {420}},
+			),
+			expectedIndexes: [][]uint32{{3}, {5, 8}, {4}},
+		},
+		{
+			// no blob txs should make it in the square
+			squareSize: 1,
+			blobTxs: generateBlobTxsWithNamespaces(
+				t,
+				[]ns.Namespace{ns1, ns2, ns3},
+				[][]int{{1000}, {1000}, {1000}},
+			),
+			expectedIndexes: [][]uint32{},
+		},
+		{
+			// only two blob txs should make it in the square (after reordering)
+			squareSize: 4,
+			blobTxs: generateBlobTxsWithNamespaces(
+				t,
+				[]ns.Namespace{ns3, ns2, ns1},
+				[][]int{{2000}, {2000}, {5000}},
+			),
+			expectedIndexes: [][]uint32{{7}, {2}},
+		},
+		{
+			squareSize: 4,
+			blobTxs: generateBlobTxsWithNamespaces(
+				t,
+				[]ns.Namespace{ns3, ns3, ns2, ns1},
+				[][]int{{1800, 1000}, {22000}, {1800}},
+			),
+			// should be ns1 and {ns3, ns3} as ns2 is too large
+			expectedIndexes: [][]uint32{{6, 10}, {2}},
+		},
+		{
+			squareSize: 4,
+			blobTxs: generateBlobTxsWithNamespaces(
+				t,
+				[]ns.Namespace{ns1, ns3, ns3, ns1, ns2, ns2},
+				[][]int{{100}, {1400, 900, 200, 200}, {420}},
+			),
+			expectedIndexes: [][]uint32{{3}, {7, 10, 4, 5}, {6}},
+		},
+		{
+			squareSize: 4,
+			blobTxs: generateBlobTxsWithNamespaces(
+				t,
+				[]ns.Namespace{ns1, ns3, ns3, ns1, ns2, ns2},
+				[][]int{{100}, {900, 1400, 200, 200}, {420}},
+			),
+			expectedIndexes: [][]uint32{{3}, {7, 9, 4, 5}, {6}},
+		},
+		{
+			squareSize: 16,
+			blobTxs: generateBlobTxsWithNamespaces(
+				t,
+				[]ns.Namespace{ns1, ns1},
+				[][]int{{100}, {shares.AvailableBytesFromSparseShares(appconsts.SubtreeRootThreshold)}},
+			),
+			// There should be one share padding between the two blobs
+			expectedIndexes: [][]uint32{{2}, {3}},
+		},
+		{
+			squareSize: 16,
+			blobTxs: generateBlobTxsWithNamespaces(
+				t,
+				[]ns.Namespace{ns1, ns1},
+				[][]int{{100}, {shares.AvailableBytesFromSparseShares(appconsts.SubtreeRootThreshold) + 1}},
+			),
+			// There should be one share padding between the two blobs
+			expectedIndexes: [][]uint32{{2}, {4}},
+		},
+	}
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("case%d", i), func(t *testing.T) {
+			square, _, err := square.Build(tt.blobTxs, tt.squareSize)
+			require.NoError(t, err)
+			txs, err := shares.ParseTxs(square)
+			require.NoError(t, err)
+			for j, tx := range txs {
+				wrappedPFB, isWrappedPFB := coretypes.UnmarshalIndexWrapper(tx)
+				require.True(t, isWrappedPFB)
+				require.Equal(t, tt.expectedIndexes[j], wrappedPFB.ShareIndexes, j)
+			}
+			wrappedTxs, err := square.WrappedPFBs()
+			require.NoError(t, err)
+			require.Equal(t, txs, wrappedTxs)
+		})
+	}
+}
+
 func TestSquareTxShareRange(t *testing.T) {
 	type test struct {
 		name      string
@@ -163,6 +335,45 @@ func TestSquareBlobShareRange(t *testing.T) {
 
 	_, err = square.BlobShareRange(txs, 0, 10, appconsts.LatestVersion)
 	require.Error(t, err)
+}
+
+func TestSquareDeconstruct(t *testing.T) {
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	t.Run("ConstructDeconstructParity", func(t *testing.T) {
+		// 8192 -> square size 128
+		for _, numTxs := range []int{2, 128, 1024, 8192} {
+			t.Run(fmt.Sprintf("%d", numTxs), func(t *testing.T) {
+				txs := generateOrderedTxs(numTxs/2, numTxs/2, 1, 800)
+				dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
+				require.NoError(t, err)
+				recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
+				require.NoError(t, err)
+				require.Equal(t, txs, recomputedTxs.ToSliceOfBytes())
+			})
+		}
+	})
+	t.Run("NoPFBs", func(t *testing.T) {
+		const numTxs = 10
+		txs := types.Txs(blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, numTxs)).ToSliceOfBytes()
+		dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
+		require.NoError(t, err)
+		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
+		require.NoError(t, err)
+		require.Equal(t, txs, recomputedTxs.ToSliceOfBytes())
+	})
+	t.Run("PFBsOnly", func(t *testing.T) {
+		txs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 100, 1, 1024).ToSliceOfBytes()
+		dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
+		require.NoError(t, err)
+		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
+		require.NoError(t, err)
+		require.Equal(t, txs, recomputedTxs.ToSliceOfBytes())
+	})
+	t.Run("EmptySquare", func(t *testing.T) {
+		tx, err := square.Deconstruct(square.EmptySquare(), encCfg.TxConfig.TxDecoder())
+		require.NoError(t, err)
+		require.Equal(t, types.Txs{}, tx)
+	})
 }
 
 func TestSquareShareCommitments(t *testing.T) {
