@@ -67,7 +67,7 @@ const (
 
 	// DefaultMaxBytes is the default value for the maximum number of bytes
 	// allowed in a valid block.
-	DefaultMaxBytes = DefaultGovMaxSquareSize * DefaultGovMaxSquareSize * ContinuationSparseShareContentSize
+	DefaultMaxBytes = DefaultGovMaxSquareSize * DefaultGovMaxSquareSize * ShareSize
 
 	// MaxShareCount is the maximum number of shares allowed in the original
 	// data square.
