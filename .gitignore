@@ -9,5 +9,7 @@ coverage.txt
 tools-stamp
 __debug_bin
 profile.out
+tmp/
+run.sh
 testing/e2e/networks/*/
 square/testdata
