@@ -30,7 +30,7 @@ func TestGenesisState_Validate(t *testing.T) {
 			valid: true,
 		},
 		{
-			desc: "valid genesis state",
+			desc: "invalid genesis state because GovMaxSquareSize",
 			genState: &types.GenesisState{
 				Params: types.Params{
 					GasPerBlobByte:   20,
