@@ -324,10 +324,7 @@ func TestProcessProposal(t *testing.T) {
 		},
 	}
 
-	for idx, tt := range tests {
-		if idx != 15 {
-			continue
-		}
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			checkTxResp := testApp.CheckTx(abci.RequestCheckTx{Tx: tt.input.Txs[0], Type: abci.CheckTxType_New})
 			require.Equal(t, checkTxResp.Code, abci.CodeTypeOK, checkTxResp.Log)
