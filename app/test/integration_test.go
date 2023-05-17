@@ -208,12 +208,12 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				size := blockRes.Block.Data.SquareSize
 
 				// perform basic checks on the size of the square
-				require.LessOrEqual(size, uint64(appconsts.DefaultMaxSquareSize))
-				require.GreaterOrEqual(size, uint64(appconsts.DefaultMinSquareSize))
+				require.LessOrEqual(size, uint64(appconsts.MaxSquareSize))
+				require.GreaterOrEqual(size, uint64(appconsts.MinSquareSize))
 				sizes = append(sizes, size)
 			}
 			// ensure that at least one of the blocks used the max square size
-			assert.Contains(sizes, uint64(appconsts.DefaultMaxSquareSize))
+			assert.Contains(sizes, uint64(appconsts.MaxSquareSize))
 		})
 		require.NoError(s.network.WaitForNextBlock())
 	}

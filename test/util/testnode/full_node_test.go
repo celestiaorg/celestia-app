@@ -30,7 +30,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	s.T().Log("setting up integration test suite")
 
-	s.accounts, s.cctx = DefaultNetwork(s.T(), 400*time.Millisecond)
+	s.accounts, s.cctx = DefaultNetwork(s.T())
 }
 
 func (s *IntegrationTestSuite) Test_Liveness() {
@@ -69,7 +69,7 @@ func TestIntegrationTestSuite(t *testing.T) {
 func (s *IntegrationTestSuite) Test_FillBlock() {
 	require := s.Require()
 
-	for squareSize := 2; squareSize <= appconsts.DefaultMaxSquareSize; squareSize *= 2 {
+	for squareSize := 2; squareSize <= appconsts.MaxSquareSize; squareSize *= 2 {
 		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastAsync)
 		require.NoError(err)
 
