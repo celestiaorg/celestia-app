@@ -120,10 +120,7 @@ func TestParseOutOfContextShares(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		start, length := testfactory.GetRandomSlice(len(txShares))
 
-		rawResTxs, err := parseCompactShares(txShares[start:start+length], appconsts.SupportedShareVersions)
-		require.NoError(t, err)
-
-		resTxs := coretypes.ToTxs(rawResTxs)
+		resTxs, err := ParseTxs(txShares[start : start+length])
 		require.NoError(t, err)
 		assert.True(t, testfactory.CheckSubArray(txs, resTxs))
 	}
