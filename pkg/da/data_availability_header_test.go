@@ -138,15 +138,17 @@ func Test_DAHValidateBasic(t *testing.T) {
 		errStr    string
 	}
 
-	shares := generateShares(appconsts.DefaultMaxSquareSize * appconsts.DefaultMaxSquareSize)
+	maxSize := appconsts.DefaultMaxSquareSize * appconsts.DefaultMaxSquareSize
+
+	shares := generateShares(maxSize)
 	eds, err := ExtendShares(shares)
 	require.NoError(t, err)
 	bigdah := NewDataAvailabilityHeader(eds)
 
 	// make a mutant dah that has too many roots
 	var tooBigDah DataAvailabilityHeader
-	tooBigDah.ColumnRoots = make([][]byte, appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize)
-	tooBigDah.RowRoots = make([][]byte, appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize)
+	tooBigDah.ColumnRoots = make([][]byte, maxSize)
+	tooBigDah.RowRoots = make([][]byte, maxSize)
 	copy(tooBigDah.ColumnRoots, bigdah.ColumnRoots)
 	copy(tooBigDah.RowRoots, bigdah.RowRoots)
 	tooBigDah.ColumnRoots = append(tooBigDah.ColumnRoots, bytes.Repeat([]byte{1}, 32))

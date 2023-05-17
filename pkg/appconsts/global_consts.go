@@ -55,15 +55,26 @@ const (
 	// in a continuation sparse share of a sequence.
 	ContinuationSparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes
 
-	// DefaultMinSquareSize is the smallest original square width.
-	DefaultMinSquareSize = 1
+	// MinSquareSize is the smallest original square width.
+	MinSquareSize = 1
 
 	// MinshareCount is the minimum number of shares allowed in the original
 	// data square.
-	MinShareCount = DefaultMinSquareSize * DefaultMinSquareSize
+	MinShareCount = MinSquareSize * MinSquareSize
 
 	// MaxShareVersion is the maximum value a share version can be.
 	MaxShareVersion = 127
+)
+
+// The following defaults are 
+const (
+	// DefaultGovMaxSquareSize is the default value for the governance modifiable
+	// max square size.
+	DefaultGovMaxSquareSize = 64
+
+	// DefaultMaxBytes is the default value for the maximum number of bytes
+	// allowed in a valid block.
+	DefaultMaxBytes = DefaultGovMaxSquareSize * DefaultGovMaxSquareSize * ContinuationSparseShareContentSize
 
 	// DefaultGasPerBlobByte is the default gas cost deducted per byte of blob
 	// included in a PayForBlobs txn

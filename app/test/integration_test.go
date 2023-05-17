@@ -37,7 +37,7 @@ func TestIntegrationTestSuite(t *testing.T) {
 	cfg.EnableTMLogging = false
 	cfg.MinGasPrices = "0utia"
 	cfg.NumValidators = 1
-	cfg.TimeoutCommit = time.Millisecond * 400
+	cfg.TargetHeightDuration = time.Millisecond * 400
 	suite.Run(t, NewIntegrationTestSuite(cfg))
 }
 
@@ -209,7 +209,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 
 				// perform basic checks on the size of the square
 				require.LessOrEqual(size, uint64(appconsts.DefaultMaxSquareSize))
-				require.GreaterOrEqual(size, uint64(appconsts.DefaultMinSquareSize))
+				require.GreaterOrEqual(size, uint64(appconsts.MinSquareSize))
 				sizes = append(sizes, size)
 			}
 			// ensure that at least one of the blocks used the max square size

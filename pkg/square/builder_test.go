@@ -28,7 +28,7 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 		expectedSquareSize int
 	}
 	tests := []test{
-		{"empty block", 0, 0, 0, appconsts.DefaultMinSquareSize},
+		{"empty block", 0, 0, 0, appconsts.MinSquareSize},
 		{"one normal tx", 1, 0, 0, 1},
 		{"one small pfb small block", 0, 1, 100, 2},
 		{"mixed small block", 10, 12, 500, 8},

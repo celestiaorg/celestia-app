@@ -201,7 +201,7 @@ func (s Square) Size() int {
 }
 
 func Size(len int) int {
-	return int(math.Ceil(math.Sqrt(float64(len))))
+	return shares.RoundUpPowerOfTwo(int(math.Ceil(math.Sqrt(float64(len)))))
 }
 
 // Equals returns true if two squares are equal
