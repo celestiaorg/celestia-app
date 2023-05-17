@@ -26,7 +26,7 @@ type MintKeeperTestSuite struct {
 }
 
 func (suite *MintKeeperTestSuite) SetupTest() {
-	testApp, _ := testutil.SetupTestAppWithGenesisValSet()
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	ctx := testApp.NewContext(true, tmproto.Header{})
 
 	testApp.MintKeeper.SetMinter(ctx, types.DefaultMinter())
