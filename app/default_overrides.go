@@ -138,7 +138,9 @@ func DefaultConsensusParams() *tmproto.ConsensusParams {
 		Block:     DefaultBlockParams(),
 		Evidence:  coretypes.DefaultEvidenceParams(),
 		Validator: coretypes.DefaultValidatorParams(),
-		Version:   coretypes.DefaultVersionParams(), // TODO: set the default version to 1
+		Version: tmproto.VersionParams{
+			AppVersion: appconsts.LatestVersion,
+		},
 	}
 }
 
