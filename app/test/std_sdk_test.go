@@ -162,7 +162,12 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			name: "create legacy community spend governance proposal",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
-				coins := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
+				// Note: this test depends on at least one coin being present
+				// in the community pool. Funds land in the community pool due
+				// to inflation so if 1 coin is not present in the community
+				// pool, consider expanding the block interval or waiting for
+				// more blocks to be produced prior to executing this test case.
+				coins := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))
 				content := disttypes.NewCommunityPoolSpendProposal(
 					"title",
 					"description",
