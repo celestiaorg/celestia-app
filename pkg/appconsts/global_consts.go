@@ -66,7 +66,7 @@ const (
 	MaxShareVersion = 127
 )
 
-// The following defaults are 
+// The following defaults are
 const (
 	// DefaultGovMaxSquareSize is the default value for the governance modifiable
 	// max square size.
