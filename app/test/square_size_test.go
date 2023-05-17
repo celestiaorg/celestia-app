@@ -65,7 +65,7 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 	require.NoError(t, err)
 }
 
-// TestMaxSquare size sets the app's params to specific sizes, then fills the
+// TestMaxSquareSize sets the app's params to specific sizes, then fills the
 // block with spam txs to measure that the desired max is getting hit
 func (s *SquareSizeIntegrationTest) TestMaxSquareSize() {
 	t := s.T()
