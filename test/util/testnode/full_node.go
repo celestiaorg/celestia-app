@@ -12,6 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	"github.com/cosmos/cosmos-sdk/server"
+	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -187,19 +188,21 @@ func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, 
 	return state, kr, nil
 }
 
-// DefaultNetwork creates an in-process single validator celestia-app network
-// using test friendly defaults. These defaults include fast block times and
-// funded accounts. The returned client.Context has a keyring with all of the
-// funded keys stored in it.
-func DefaultNetwork(t *testing.T, blockTime time.Duration) (accounts []string, cctx Context) {
-	// we create an arbitrary number of funded accounts
-	accounts = make([]string, 300)
-	for i := 0; i < 300; i++ {
-		accounts[i] = tmrand.Str(9)
-	}
+// NewNetwork starts a single valiator celestia-app network using the provided
+// configurations. Provided accounts will be funded and their keys can be
+// accessed in keyring returned client.Context. All rpc, p2p, and grpc addresses
+// in the provided configs are overwritten to use open ports. The node can be
+// accessed via the returned client.Context or via the returned rpc and grpc
+// addresses.
+func NewNetwork(
+	t testing.TB,
+	cparams *tmproto.ConsensusParams,
+	tmCfg *config.Config,
+	appCfg *srvconfig.Config,
+	accounts ...string,
+) (cctx Context, rpcAddr, grpcAddr string) {
+	t.Helper()
 
-	tmCfg := DefaultTendermintConfig()
-	tmCfg.Consensus.TargetHeightDuration = blockTime
 	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
 	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
 	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
@@ -207,17 +210,16 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (accounts []string, c
 	genState, kr, err := DefaultGenesisState(accounts...)
 	require.NoError(t, err)
 
-	tmNode, app, cctx, err := New(t, DefaultParams(), tmCfg, false, genState, kr, tmrand.Str(6))
+	tmNode, app, cctx, err := New(t, cparams, tmCfg, false, genState, kr, tmrand.Str(6))
 	require.NoError(t, err)
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)
 
-	appConf := DefaultAppConfig()
-	appConf.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetFreePort())
-	appConf.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetFreePort())
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
 
-	cctx, cleanupGRPC, err := StartGRPCServer(app, appConf, cctx)
+	cctx, cleanupGRPC, err := StartGRPCServer(app, appCfg, cctx)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -225,6 +227,27 @@ func DefaultNetwork(t *testing.T, blockTime time.Duration) (accounts []string, c
 		require.NoError(t, stopNode())
 		require.NoError(t, cleanupGRPC())
 	})
+
+	return cctx, tmCfg.RPC.ListenAddress, appCfg.GRPC.Address
+}
+
+// DefaultNetwork starts a single valiator celestia-app network using test
+// friendly defaults. These defaults include all default values and genesis
+// params, modified for fast block times and 300 funded accounts. The returned
+// client.Context has a keyring with all of the funded keys stored in it, which
+// can be accessed using the returned accounts.
+func DefaultNetwork(t *testing.T) (accounts []string, cctx Context) {
+	// we create an arbitrary number of funded accounts
+	accounts = make([]string, 300)
+	for i := 0; i < 300; i++ {
+		accounts[i] = tmrand.Str(9)
+	}
+
+	tmCfg := DefaultTendermintConfig()
+	tmCfg.Consensus.TargetHeightDuration = time.Millisecond * 1
+	appConf := DefaultAppConfig()
+
+	cctx, _, _ = NewNetwork(t, DefaultParams(), tmCfg, appConf, accounts...)
 
 	return accounts, cctx
 }
