@@ -66,14 +66,15 @@ const (
 	MaxShareVersion = 127
 )
 
-// The following defaults are
+// The following defaults correspond to initial parameters of the network that can be changed, not via app versions
+// but other means such as on-chain governance
 const (
 	// DefaultGovMaxSquareSize is the default value for the governance modifiable
 	// max square size.
 	DefaultGovMaxSquareSize = 64
 
-	// DefaultMaxBytes is the default value for the maximum number of bytes
-	// allowed in a valid block.
+	// DefaultMaxBytes is the default value for the governance modifiable
+	// maximum number of bytes allowed in a valid block.
 	DefaultMaxBytes = DefaultGovMaxSquareSize * DefaultGovMaxSquareSize * ContinuationSparseShareContentSize
 
 	// DefaultGasPerBlobByte is the default gas cost deducted per byte of blob
