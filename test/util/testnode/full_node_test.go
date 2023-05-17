@@ -6,9 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -27,10 +30,29 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	if testing.Short() {
 		s.T().Skip("skipping full node integration test in short mode.")
 	}
+	t := s.T()
 
-	s.T().Log("setting up integration test suite")
+	cparams := DefaultParams()
+	cparams.Block.MaxBytes = appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize
 
-	s.accounts, s.cctx = DefaultNetwork(s.T())
+	accounts := make([]string, 40)
+	for i := 0; i < 40; i++ {
+		accounts[i] = tmrand.Str(10)
+	}
+
+	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	blobGenState := blobtypes.DefaultGenesis()
+	blobGenState.Params.GovMaxSquareSize = appconsts.MaxSquareSize
+	cctx, _, _ := NewNetwork(
+		t,
+		cparams,
+		DefaultTendermintConfig(),
+		DefaultAppConfig(),
+		accounts,
+		SetBlobParams(ecfg.Codec, blobGenState.Params),
+	)
+	s.cctx = cctx
+	s.accounts = accounts
 }
 
 func (s *IntegrationTestSuite) Test_Liveness() {
@@ -73,6 +95,10 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastAsync)
 		require.NoError(err)
 
+		err = s.cctx.WaitForNextBlock()
+		require.NoError(err, squareSize)
+		err = s.cctx.WaitForNextBlock()
+		require.NoError(err, squareSize)
 		err = s.cctx.WaitForNextBlock()
 		require.NoError(err, squareSize)
 
