@@ -3,7 +3,6 @@ package app_test
 import (
 	"context"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -38,19 +37,13 @@ type IntegrationTest struct {
 	cctx              testnode.Context
 	rpcAddr, grpcAddr string
 	ecfg              encoding.Config
-
-	mut            sync.Mutex
-	accountCounter int
 }
 
 func (s *IntegrationTest) SetupSuite() {
 	t := s.T()
 	t.Log("setting up square size integration test")
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	accounts := make([]string, 20)
-	for i := 0; i < 20; i++ {
-		accounts[i] = rand.Str(10)
-	}
+	accounts := []string{}
 
 	cparams := testnode.DefaultParams()
 	cparams.Block.MaxBytes = appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize
@@ -70,14 +63,6 @@ func (s *IntegrationTest) SetupSuite() {
 	s.grpcAddr = grpcAddr
 	err := s.cctx.WaitForNextBlock()
 	require.NoError(t, err)
-}
-
-func (s *IntegrationTest) unusedAccount() string {
-	s.mut.Lock()
-	acc := s.accounts[s.accountCounter]
-	s.accountCounter++
-	s.mut.Unlock()
-	return acc
 }
 
 // TestMaxSquare size sets the app's params to specific sizes, then fills the
@@ -140,7 +125,6 @@ func (s *IntegrationTest) TestMaxSquareSize() {
 			require.Greater(t, hitMaxCounter, 0)
 		})
 	}
-
 }
 
 // fillBlock runs txsim with blob sequences using the provided
