@@ -27,24 +27,24 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 		expectedSquareSize uint64
 	}
 	tests := []test{
-		{"empty block", 0, 0, 0, appconsts.DefaultMinSquareSize},
+		{"empty block", 0, 0, 0, appconsts.MinSquareSize},
 		{"one normal tx", 1, 0, 0, 1},
 		{"one small pfb small block", 0, 1, 100, 2},
 		{"mixed small block", 10, 12, 500, 8},
 		{"small block 2", 0, 12, 1000, 8},
 		{"mixed medium block 2", 10, 20, 10000, 32},
 		{"one large pfb large block", 0, 1, 1000000, 64},
-		{"one hundred large pfb large block", 0, 100, 100000, appconsts.DefaultMaxSquareSize},
-		{"one hundred large pfb medium block", 100, 100, 100000, appconsts.DefaultMaxSquareSize},
-		{"mixed transactions large block", 100, 100, 100000, appconsts.DefaultMaxSquareSize},
-		{"mixed transactions large block 2", 1000, 1000, 10000, appconsts.DefaultMaxSquareSize},
-		{"mostly transactions large block", 10000, 1000, 100, appconsts.DefaultMaxSquareSize},
-		{"only small pfb large block", 0, 10000, 1, appconsts.DefaultMaxSquareSize},
+		{"one hundred large pfb large block", 0, 100, 100000, appconsts.MaxSquareSize},
+		{"one hundred large pfb medium block", 100, 100, 100000, appconsts.MaxSquareSize},
+		{"mixed transactions large block", 100, 100, 100000, appconsts.MaxSquareSize},
+		{"mixed transactions large block 2", 1000, 1000, 10000, appconsts.MaxSquareSize},
+		{"mostly transactions large block", 10000, 1000, 100, appconsts.MaxSquareSize},
+		{"only small pfb large block", 0, 10000, 1, appconsts.MaxSquareSize},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			txs := generateMixedTxs(tt.normalTxs, tt.pfbCount, 1, tt.pfbSize)
-			square, _, err := square.Build(txs, appconsts.DefaultMaxSquareSize)
+			square, _, err := square.Build(txs, appconsts.MaxSquareSize)
 			require.NoError(t, err)
 			require.EqualValues(t, tt.expectedSquareSize, square.Size())
 		})
@@ -148,7 +148,7 @@ func TestBuilderFindTxShareRange(t *testing.T) {
 	blockTxs = append(blockTxs, blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), 5, 1000, 10).ToSliceOfBytes()...)
 	require.Len(t, blockTxs, 10)
 
-	builder, err := square.NewBuilder(appconsts.DefaultMaxSquareSize, blockTxs...)
+	builder, err := square.NewBuilder(appconsts.MaxSquareSize, blockTxs...)
 	require.NoError(t, err)
 
 	dataSquare, err := builder.Export()

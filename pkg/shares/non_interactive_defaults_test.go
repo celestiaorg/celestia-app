@@ -25,10 +25,10 @@ func TestBlobSharesUsedNonInteractiveDefaults(t *testing.T) {
 		{0, 8, 20, []int{5, 5, 5, 5}, []uint32{0, 5, 10, 15}},
 		{0, 8, 10, []int{10}, []uint32{0}},
 		{1, 8, 20, []int{10, 10}, []uint32{1, 11}},
-		{0, appconsts.DefaultMaxSquareSize, 1000, []int{1000}, []uint32{0}},
-		{0, appconsts.DefaultMaxSquareSize, appconsts.DefaultMaxSquareSize + 1, []int{appconsts.DefaultMaxSquareSize + 1}, []uint32{0}},
+		{0, appconsts.MaxSquareSize, 1000, []int{1000}, []uint32{0}},
+		{0, appconsts.MaxSquareSize, appconsts.MaxSquareSize + 1, []int{appconsts.MaxSquareSize + 1}, []uint32{0}},
 		{1, 128, 385, []int{128, 128, 128}, []uint32{2, 130, 258}},
-		{1024, appconsts.DefaultMaxSquareSize, 32, []int{32}, []uint32{1024}},
+		{1024, appconsts.MaxSquareSize, 32, []int{32}, []uint32{1024}},
 	}
 	for i, tt := range tests {
 		res, indexes := BlobSharesUsedNonInteractiveDefaults(tt.cursor, tt.squareSize, tt.blobLens...)
@@ -475,7 +475,7 @@ func TestSubTreeWidth(t *testing.T) {
 			want:       8,
 		},
 		{
-			shareCount: (appconsts.SubtreeRootThreshold * appconsts.DefaultMaxSquareSize) - 1,
+			shareCount: (appconsts.SubtreeRootThreshold * appconsts.MaxSquareSize) - 1,
 			want:       128,
 		},
 	}
