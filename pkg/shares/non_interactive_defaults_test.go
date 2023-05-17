@@ -27,7 +27,7 @@ func TestBlobSharesUsedNonInteractiveDefaults(t *testing.T) {
 		{1, 8, 20, []int{10, 10}, []uint32{1, 11}},
 		{0, appconsts.DefaultMaxSquareSize, 1000, []int{1000}, []uint32{0}},
 		{0, appconsts.DefaultMaxSquareSize, appconsts.DefaultMaxSquareSize + 1, []int{appconsts.DefaultMaxSquareSize + 1}, []uint32{0}},
-		{1, 128, 384, []int{128, 128, 128}, []uint32{1, 129, 257}},
+		{1, 128, 385, []int{128, 128, 128}, []uint32{2, 130, 258}},
 		{1024, appconsts.DefaultMaxSquareSize, 32, []int{32}, []uint32{1024}},
 	}
 	for i, tt := range tests {
@@ -250,19 +250,19 @@ func TestNextShareIndex(t *testing.T) {
 		},
 		{
 			name:          "one over the threshold",
-			cursor:        11,
+			cursor:        63,
 			blobLen:       appconsts.SubtreeRootThreshold + 1,
 			squareSize:    128,
 			fits:          false,
-			expectedIndex: 12,
+			expectedIndex: 64,
 		},
 		{
 			name:          "one under the threshold",
-			cursor:        11,
+			cursor:        64,
 			blobLen:       appconsts.SubtreeRootThreshold - 1,
 			squareSize:    128,
-			fits:          false,
-			expectedIndex: 11,
+			fits:          true,
+			expectedIndex: 64,
 		},
 		{
 			name:          "one under the threshold small square size",
@@ -284,6 +284,14 @@ func TestNextShareIndex(t *testing.T) {
 			name:          "half max padding for square size 128",
 			cursor:        1,
 			blobLen:       8192,
+			squareSize:    128,
+			fits:          false,
+			expectedIndex: 128,
+		},
+		{
+			name:          "quarter max padding for square size 128",
+			cursor:        1,
+			blobLen:       4096,
 			squareSize:    128,
 			fits:          false,
 			expectedIndex: 64,

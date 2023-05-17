@@ -204,6 +204,9 @@ func TestSquareBlobPostions(t *testing.T) {
 				require.True(t, isWrappedPFB)
 				require.Equal(t, tt.expectedIndexes[j], wrappedPFB.ShareIndexes, j)
 			}
+			wrappedTxs, err := square.WrappedPFBs()
+			require.NoError(t, err)
+			require.Equal(t, txs, wrappedTxs)
 		})
 	}
 }
@@ -333,6 +336,45 @@ func TestSquareBlobShareRange(t *testing.T) {
 
 	_, err = square.BlobShareRange(txs, 0, 10)
 	require.Error(t, err)
+}
+
+func TestSquareDeconstruct(t *testing.T) {
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	t.Run("ConstructDeconstructParity", func(t *testing.T) {
+		// 8192 -> square size 128
+		for _, numTxs := range []int{2, 128, 1024, 8192} {
+			t.Run(fmt.Sprintf("%d", numTxs), func(t *testing.T) {
+				txs := generateOrderedTxs(numTxs/2, numTxs/2, 1, 800)
+				dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
+				require.NoError(t, err)
+				recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
+				require.NoError(t, err)
+				require.Equal(t, txs, recomputedTxs.ToSliceOfBytes())
+			})
+		}
+	})
+	t.Run("NoPFBs", func(t *testing.T) {
+		const numTxs = 10
+		txs := types.Txs(blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, numTxs)).ToSliceOfBytes()
+		dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
+		require.NoError(t, err)
+		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
+		require.NoError(t, err)
+		require.Equal(t, txs, recomputedTxs.ToSliceOfBytes())
+	})
+	t.Run("PFBsOnly", func(t *testing.T) {
+		txs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 100, 1, 1024).ToSliceOfBytes()
+		dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
+		require.NoError(t, err)
+		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
+		require.NoError(t, err)
+		require.Equal(t, txs, recomputedTxs.ToSliceOfBytes())
+	})
+	t.Run("EmptySquare", func(t *testing.T) {
+		tx, err := square.Deconstruct(square.EmptySquare(), encCfg.TxConfig.TxDecoder())
+		require.NoError(t, err)
+		require.Equal(t, types.Txs{}, tx)
+	})
 }
 
 func TestSquareShareCommitments(t *testing.T) {
