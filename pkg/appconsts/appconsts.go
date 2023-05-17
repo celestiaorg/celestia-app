@@ -78,7 +78,7 @@ const (
 	// The rationale for this value is described in more detail in ADR013
 	// (./docs/architecture/adr-013).
 	// ADR013 https://github.com/celestiaorg/celestia-app/blob/e905143e8fe138ce6085ae9a5c1af950a2d87638/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md //nolint: lll
-	SubtreeRootThreshold = DefaultMaxSquareSize
+	SubtreeRootThreshold = 64
 
 	// MaxShareVersion is the maximum value a share version can be.
 	MaxShareVersion = 127
