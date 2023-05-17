@@ -113,6 +113,16 @@ func (s *IntegrationTest) TestMaxSquareSize() {
 			blobsPerPFB:     100,
 			maxPFBsPerBlock: 12,
 		},
+		{
+			name:             "small blocks 32x32",
+			govMaxSquareSize: 32,
+			maxBytes:         int64(32 * 32 * appconsts.ContinuationSparseShareContentSize),
+			// using many small blobs ensures that there is a lot of encoding
+			// overhead and therefore full squares
+			blobSize:        10_000,
+			blobsPerPFB:     100,
+			maxPFBsPerBlock: 12,
+		},
 	}
 
 	for _, tt := range tests {
@@ -238,5 +248,15 @@ func (s *IntegrationTest) setBlockSizeParams(t *testing.T, squareSize uint64, ma
 	require.NoError(t, err)
 	require.Equal(t, squareSize, presp.Params.GovMaxSquareSize)
 
-	// we could query for consensus params here, but unfortunately
+	// unfortunately the rpc connection is very flakey with super fast block
+	// times, so we have to retry many times.
+	var newMaxBytes int64
+	for i := 0; i < 20; i++ {
+		cpresp, err := s.cctx.Client.ConsensusParams(s.cctx.GoContext(), nil)
+		if err != nil || cpresp == nil {
+			continue
+		}
+		newMaxBytes = cpresp.ConsensusParams.Block.MaxBytes
+	}
+	require.Equal(t, maxBytes, newMaxBytes)
 }
