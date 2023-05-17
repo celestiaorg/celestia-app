@@ -12,7 +12,6 @@ import (
 
 const (
 	waitForHeightTimeout = 20 * time.Second
-	maxTimePerBlock      = 20 * time.Second
 )
 
 // WaitForNBlocks queries the current latest height and waits until the network

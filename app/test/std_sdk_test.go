@@ -4,7 +4,6 @@ import (
 	"math/big"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -48,7 +47,7 @@ type StandardSDKIntegrationTestSuite struct {
 func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	t.Log("setting up integration test suite")
-	accounts, cctx := testnode.DefaultNetwork(t, time.Millisecond*400)
+	accounts, cctx := testnode.DefaultNetwork(t)
 	s.accounts = accounts
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	s.cctx = cctx
