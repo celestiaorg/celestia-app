@@ -39,7 +39,7 @@ func GetRandomSlice(size int) (start int, length int) {
 	return start, length
 }
 
-// Returns whether subTxList is a subarray of txList
+// CheckSubArray returns whether subTxList is a subarray of txList
 func CheckSubArray(txList []types.Tx, subTxList []types.Tx) bool {
 	for i := 0; i <= len(txList)-len(subTxList); i++ {
 		j := 0
