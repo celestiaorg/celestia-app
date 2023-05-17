@@ -86,7 +86,7 @@ func (s *SquareSizeIntegrationTest) TestMaxSquareSize() {
 			// overhead and therefore full squares
 			blobSize:        10_000,
 			blobsPerPFB:     100,
-			maxPFBsPerBlock: 5,
+			maxPFBsPerBlock: 10,
 		},
 		{
 			name:             "gov square size == hardcoded max",
