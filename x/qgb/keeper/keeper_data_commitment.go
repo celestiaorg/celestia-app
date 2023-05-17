@@ -10,29 +10,30 @@ import (
 
 // TODO add unit tests for all the keepers
 
-// GetCurrentDataCommitment returns a data commitment for the current height.
-// Assumes that this method is called when:
-//
-//	ctx.BlockHeight() != 0 && ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx)) == 0
-func (k Keeper) GetCurrentDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
+// NextDataCommitment returns the next data commitment that can be written to state.
+func (k Keeper) NextDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
 	}
 	nonce := k.GetLatestAttestationNonce(ctx) + 1
 	dcWindow := k.GetDataCommitmentWindowParam(ctx)
+	hasDC, err := k.HasDataCommitmentInStore(ctx)
+	if err != nil {
+		return types.DataCommitment{}, err
+	}
 	// for a data commitment window of 400, the ranges will be: 1-400;401-800;801-1200
 	var beginBlock, endBlock uint64
-	if ctx.BlockHeight() == int64(dcWindow) {
-		// only for the first data commitment range, which is: [1, data commitment window]
-		beginBlock = 1
-		endBlock = dcWindow
-	} else {
+	if hasDC {
 		lastDCC, err := k.GetLastDataCommitment(ctx)
 		if err != nil {
 			return types.DataCommitment{}, err
 		}
 		beginBlock = lastDCC.EndBlock + 1
 		endBlock = lastDCC.EndBlock + dcWindow
+	} else {
+		// only for the first data commitment range, which is: [1, data commitment window]
+		beginBlock = 1
+		endBlock = dcWindow
 	}
 
 	dataCommitment := types.NewDataCommitment(nonce, beginBlock, endBlock)
@@ -108,4 +109,27 @@ func (k Keeper) GetLastDataCommitment(ctx sdk.Context) (types.DataCommitment, er
 		return *dcc, nil
 	}
 	return types.DataCommitment{}, types.ErrDataCommitmentNotFound
+}
+
+// HasDataCommitmentInStore returns true if the store has at least one data commitment.
+func (k Keeper) HasDataCommitmentInStore(ctx sdk.Context) (bool, error) {
+	if !k.CheckLatestAttestationNonce(ctx) {
+		return false, nil
+	}
+	latestNonce := k.GetLatestAttestationNonce(ctx)
+	for i := uint64(1); i <= latestNonce; i++ {
+		att, found, err := k.GetAttestationByNonce(ctx, i)
+		if err != nil {
+			return false, err
+		}
+		if !found {
+			return false, errors.Wrapf(types.ErrAttestationNotFound, fmt.Sprintf("nonce %d", i))
+		}
+		_, ok := att.(*types.DataCommitment)
+		if !ok {
+			continue
+		}
+		return true, nil
+	}
+	return false, nil
 }
