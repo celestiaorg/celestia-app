@@ -12,9 +12,9 @@ import (
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 )
 
-// GenesisOption allows for arbitrary changes to be make the genesis state after
-// initial accounts have been added. It accepts the genesis state as input and
-// it expected to return it as output.
+// GenesisOption allows for arbitrary changes to be made on the genesis state
+// after initial accounts have been added. It accepts the genesis state as input
+// and it expected to return it as output.
 type GenesisOption func(state map[string]json.RawMessage) map[string]json.RawMessage
 
 // SetBlobParams will set the provided blob params as genesis state.

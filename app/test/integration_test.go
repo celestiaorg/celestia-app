@@ -31,7 +31,7 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-func TestTIntegrationTestSuite(t *testing.T) {
+func TestIntegrationTestSuite(t *testing.T) {
 	cfg := network.DefaultConfig()
 	cfg.EnableTMLogging = false
 	cfg.MinGasPrices = "0utia"
