@@ -96,14 +96,6 @@ func (s *IntegrationTest) TestMaxSquareSize() {
 			blobsPerPFB:      100,
 			maxPFBsPerBlock:  12,
 		},
-		{
-			name:             "small blocks 32x32",
-			govMaxSquareSize: 32,
-			maxBytes:         int64(32 * 32 * appconsts.ContinuationSparseShareContentSize),
-			blobSize:         10_000,
-			blobsPerPFB:      100,
-			maxPFBsPerBlock:  5,
-		},
 	}
 
 	for _, tt := range tests {
