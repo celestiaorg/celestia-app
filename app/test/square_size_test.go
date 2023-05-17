@@ -23,14 +23,14 @@ import (
 	"github.com/tendermint/tendermint/libs/rand"
 )
 
-func TestIntegrationTest(t *testing.T) {
+func TestSquareSizeIntegrationTest(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode.")
 	}
-	suite.Run(t, new(IntegrationTest))
+	suite.Run(t, new(SquareSizeIntegrationTest))
 }
 
-type IntegrationTest struct {
+type SquareSizeIntegrationTest struct {
 	suite.Suite
 
 	accounts          []string
@@ -39,7 +39,7 @@ type IntegrationTest struct {
 	ecfg              encoding.Config
 }
 
-func (s *IntegrationTest) SetupSuite() {
+func (s *SquareSizeIntegrationTest) SetupSuite() {
 	t := s.T()
 	t.Log("setting up square size integration test")
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -67,7 +67,7 @@ func (s *IntegrationTest) SetupSuite() {
 
 // TestMaxSquare size sets the app's params to specific sizes, then fills the
 // block with spam txs to measure that the desired max is getting hit
-func (s *IntegrationTest) TestMaxSquareSize() {
+func (s *SquareSizeIntegrationTest) TestMaxSquareSize() {
 	t := s.T()
 
 	type test struct {
@@ -121,7 +121,7 @@ func (s *IntegrationTest) TestMaxSquareSize() {
 
 // fillBlock runs txsim with blob sequences using the provided
 // arguments. The start and end blocks are returned.
-func (s *IntegrationTest) fillBlock(blobSize, blobsPerPFB, pfbsPerBlock int, period time.Duration) (start, end int64) {
+func (s *SquareSizeIntegrationTest) fillBlock(blobSize, blobsPerPFB, pfbsPerBlock int, period time.Duration) (start, end int64) {
 	t := s.T()
 	seqs := txsim.NewBlobSequence(
 		txsim.NewRange(blobSize/2, blobSize),
@@ -154,7 +154,7 @@ func (s *IntegrationTest) fillBlock(blobSize, blobsPerPFB, pfbsPerBlock int, per
 // max bytes parameters. It assumes that the governance params have been set to
 // allow for fast acceptance of proposals, and will fail the test if the
 // parameters are not set as expected.
-func (s *IntegrationTest) setBlockSizeParams(t *testing.T, squareSize uint64, maxBytes int64) {
+func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize uint64, maxBytes int64) {
 	account := "validator"
 
 	bparams := &abci.BlockParams{
