@@ -97,7 +97,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(50, 500)
 	txs = append(txs, blobTxs...)
 
-	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.DefaultMaxSquareSize)
+	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.MaxSquareSize)
 	if err != nil {
 		panic(err)
 	}

@@ -55,22 +55,30 @@ const (
 	// in a continuation sparse share of a sequence.
 	ContinuationSparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes
 
-	// DefaultMaxSquareSize is the maximum original square width.
+	// MaxSquareSize is the maximum original square width.
 	//
 	// Note: 128 shares in a row * 128 shares in a column * 512 bytes in a share
 	// = 8 MiB
-	DefaultMaxSquareSize = 128
+	MaxSquareSize = 128
+
+	// DefaultGovMaxSquareSize is the default value for the governance modifiable
+	// max square size.
+	DefaultGovMaxSquareSize = 64
+
+	// DefaultMaxBytes is the default value for the maximum number of bytes
+	// allowed in a valid block.
+	DefaultMaxBytes = DefaultGovMaxSquareSize * DefaultGovMaxSquareSize * ContinuationSparseShareContentSize
 
 	// MaxShareCount is the maximum number of shares allowed in the original
 	// data square.
-	MaxShareCount = DefaultMaxSquareSize * DefaultMaxSquareSize
+	MaxShareCount = MaxSquareSize * MaxSquareSize
 
-	// DefaultMinSquareSize is the smallest original square width.
-	DefaultMinSquareSize = 1
+	// MinSquareSize is the smallest original square width.
+	MinSquareSize = 1
 
 	// MinshareCount is the minimum number of shares allowed in the original
 	// data square.
-	MinShareCount = DefaultMinSquareSize * DefaultMinSquareSize
+	MinShareCount = MinSquareSize * MinSquareSize
 
 	// SubtreeRootThreshold works as a target value for the number of subtree roots in the
 	// share commitment. If a blob contains more shares than this number, than the height

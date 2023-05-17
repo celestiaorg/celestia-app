@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -28,7 +29,7 @@ func TestSquareConstruction(t *testing.T) {
 	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 10, 1, 1024)
 	t.Run("normal transactions after PFB trasactions", func(t *testing.T) {
 		txs := append(sendTxs[:5], append(pfbTxs, sendTxs[5:]...)...)
-		_, err := square.Construct(coretypes.Txs(txs).ToSliceOfBytes(), appconsts.DefaultMaxSquareSize)
+		_, err := square.Construct(coretypes.Txs(txs).ToSliceOfBytes(), appconsts.MaxSquareSize)
 		require.Error(t, err)
 	})
 	t.Run("not enough space to append transactions", func(t *testing.T) {
@@ -305,7 +306,7 @@ func TestSquareBlobShareRange(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txs := blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), 10, 1000, 10).ToSliceOfBytes()
 
-	builder, err := square.NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
+	builder, err := square.NewBuilder(appconsts.MaxSquareSize, txs...)
 	require.NoError(t, err)
 
 	dataSquare, err := builder.Export()
@@ -345,7 +346,7 @@ func TestSquareDeconstruct(t *testing.T) {
 		for _, numTxs := range []int{2, 128, 1024, 8192} {
 			t.Run(fmt.Sprintf("%d", numTxs), func(t *testing.T) {
 				txs := generateOrderedTxs(numTxs/2, numTxs/2, 1, 800)
-				dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
+				dataSquare, err := square.Construct(txs, appconsts.MaxSquareSize)
 				require.NoError(t, err)
 				recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
 				require.NoError(t, err)
@@ -356,7 +357,7 @@ func TestSquareDeconstruct(t *testing.T) {
 	t.Run("NoPFBs", func(t *testing.T) {
 		const numTxs = 10
 		txs := types.Txs(blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, numTxs)).ToSliceOfBytes()
-		dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
+		dataSquare, err := square.Construct(txs, appconsts.MaxSquareSize)
 		require.NoError(t, err)
 		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
 		require.NoError(t, err)
@@ -364,7 +365,7 @@ func TestSquareDeconstruct(t *testing.T) {
 	})
 	t.Run("PFBsOnly", func(t *testing.T) {
 		txs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 100, 1, 1024).ToSliceOfBytes()
-		dataSquare, err := square.Construct(txs, appconsts.DefaultMaxSquareSize)
+		dataSquare, err := square.Construct(txs, appconsts.MaxSquareSize)
 		require.NoError(t, err)
 		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
 		require.NoError(t, err)
@@ -380,7 +381,7 @@ func TestSquareDeconstruct(t *testing.T) {
 func TestSquareShareCommitments(t *testing.T) {
 	const numTxs = 10
 	txs := generateOrderedTxs(numTxs, numTxs, 3, 800)
-	builder, err := square.NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
+	builder, err := square.NewBuilder(appconsts.MaxSquareSize, txs...)
 	require.NoError(t, err)
 
 	dataSquare, err := builder.Export()
@@ -406,5 +407,26 @@ func TestSquareShareCommitments(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, pfb.ShareCommitments[blobIndex], commitment)
 		}
+	}
+}
+
+func TestSize(t *testing.T) {
+	type test struct {
+		input  int
+		expect int
+	}
+	tests := []test{
+		{input: 0, expect: appconsts.MinSquareSize},
+		{input: 1, expect: appconsts.MinSquareSize},
+		{input: 64, expect: 8},
+		{input: 100, expect: 16},
+		{input: 1000, expect: 32},
+		{input: appconsts.MaxSquareSize * appconsts.MaxSquareSize, expect: appconsts.MaxSquareSize},
+		{input: appconsts.MaxSquareSize*appconsts.MaxSquareSize + 1, expect: appconsts.MaxSquareSize * 2},
+	}
+	for i, tt := range tests {
+		res := square.Size(tt.input)
+		assert.Equal(t, tt.expect, res, i)
+		assert.True(t, shares.IsPowerOfTwo(res))
 	}
 }

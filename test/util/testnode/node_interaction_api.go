@@ -168,7 +168,7 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 // should be submitted async, sync, or block. (see flags.BroadcastModeSync). If
 // broadcast mode is the string zero value, then it will be set to block.
 func (c *Context) FillBlock(squareSize int, accounts []string, broadcastMode string) (*sdk.TxResponse, error) {
-	if squareSize < appconsts.DefaultMinSquareSize+1 || (squareSize&(squareSize-1) != 0) {
+	if squareSize < appconsts.MinSquareSize+1 || (squareSize&(squareSize-1) != 0) {
 		return nil, fmt.Errorf("unsupported squareSize: %d", squareSize)
 	}
 
