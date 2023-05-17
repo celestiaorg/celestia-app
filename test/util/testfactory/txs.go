@@ -36,7 +36,7 @@ func GenerateRandomTxs(count, size int) types.Txs {
 func GetRandomSlice(size int) (start int, length int) {
 	length = rand.Intn(size + 1)
 	start = rand.Intn(size - length + 1)
-	return
+	return start, length
 }
 
 // Returns whether subTxList is a subarray of txList
