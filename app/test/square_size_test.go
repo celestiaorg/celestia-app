@@ -107,21 +107,17 @@ func (s *IntegrationTest) TestMaxSquareSize() {
 			name:             "gov square size == hardcoded max",
 			govMaxSquareSize: appconsts.MaxSquareSize,
 			maxBytes:         int64(appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize),
-			// using many small blobs ensures that there is a lot of encoding
-			// overhead and therefore full squares
-			blobSize:        10_000,
-			blobsPerPFB:     100,
-			maxPFBsPerBlock: 12,
+			blobSize:         10_000,
+			blobsPerPFB:      100,
+			maxPFBsPerBlock:  12,
 		},
 		{
 			name:             "small blocks 32x32",
 			govMaxSquareSize: 32,
 			maxBytes:         int64(32 * 32 * appconsts.ContinuationSparseShareContentSize),
-			// using many small blobs ensures that there is a lot of encoding
-			// overhead and therefore full squares
-			blobSize:        10_000,
-			blobsPerPFB:     100,
-			maxPFBsPerBlock: 12,
+			blobSize:         10_000,
+			blobsPerPFB:      100,
+			maxPFBsPerBlock:  5,
 		},
 	}
 

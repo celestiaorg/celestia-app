@@ -6,7 +6,7 @@ import (
 )
 
 // GovMaxSquareSize returns the maximum square size that can be used for a block
-// using the max bytes value from the consensus params. Governance can change
+// using the governance parameter blob.GovMaxSquareSize. Governance can change
 // the result of this value by changing the MaxBytes consensus parameter.
 func (app *App) GovMaxSquareSize(ctx sdk.Context) int {
 	// TODO: fix hack that forces the max square size for the first height to
@@ -20,7 +20,7 @@ func (app *App) GovMaxSquareSize(ctx sdk.Context) int {
 	}
 
 	gmax := app.BlobKeeper.GovMaxSquareSize(ctx)
-	// perform a secondary check on the max square size
+	// perform a secondary check on the max square size.
 	if gmax > appconsts.MaxSquareSize {
 		gmax = appconsts.MaxSquareSize
 	}

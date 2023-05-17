@@ -63,11 +63,6 @@ const (
 
 	// DefaultGovMaxSquareSize is the default value for the governance
 	// modifiable max square size.
-	//
-	// NOTE: In order for governance to change this value,
-	// they must change the MaxBytes consensus parameter to be something larger
-	// than DefaultMaxBytes. This is due to the factor that this value is
-	// calculated at each block from the MaxBytes consensus parameter.
 	DefaultGovMaxSquareSize = 64
 
 	// DefaultMaxBytes is the default value for the maximum number of bytes
