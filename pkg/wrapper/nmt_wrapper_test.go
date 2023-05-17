@@ -71,11 +71,14 @@ func TestRootErasuredNamespacedMerkleTree(t *testing.T) {
 	assert.NotEqual(t, rootStandard, rootErasured)
 }
 
-func TestErasureNamespacedMerkleTreeErrors(t *testing.T) {
+func TestErasureNamespacedMerkleTreePushErrors(t *testing.T) {
 	squareSize := 16
+
 	dataOverSquareSize := generateErasuredData(t, squareSize+1, appconsts.DefaultCodec())
-	dataUnsorted := generateErasuredData(t, squareSize, appconsts.DefaultCodec())
-	dataUnsorted[0], dataUnsorted[1] = dataUnsorted[1], dataUnsorted[0]
+	dataReversed := generateErasuredData(t, squareSize, appconsts.DefaultCodec())
+	sort.Slice(dataReversed, func(i, j int) bool {
+		return bytes.Compare(dataReversed[i], dataReversed[j]) > 0
+	})
 	dataWithoutNamespace := [][]byte{{0x1}}
 
 	testCases := []struct {
@@ -88,7 +91,7 @@ func TestErasureNamespacedMerkleTreeErrors(t *testing.T) {
 		},
 		{
 			name: "push in incorrect lexicographic order",
-			data: dataUnsorted,
+			data: dataReversed,
 		},
 		{
 			name: "push data that is too short to contain a namespace",
