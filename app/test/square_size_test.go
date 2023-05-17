@@ -25,7 +25,7 @@ import (
 
 func TestSquareSizeIntegrationTest(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping integration test in short mode.")
+		t.Skip("skipping square size integration test in short mode.")
 	}
 	suite.Run(t, new(SquareSizeIntegrationTest))
 }
