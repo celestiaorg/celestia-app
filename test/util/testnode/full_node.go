@@ -147,8 +147,8 @@ func DefaultTendermintConfig() *config.Config {
 	// during tests.
 	tmCfg.Consensus.TargetHeightDuration = 300 * time.Millisecond
 	tmCfg.Consensus.TimeoutPropose = 200 * time.Millisecond
-	tmCfg.Mempool.MaxTxBytes = 220020096 // 210MB
-	tmCfg.RPC.MaxBodyBytes = 220020096   // 210MB
+	tmCfg.Mempool.MaxTxBytes = 220_000_960 // 210MB
+	tmCfg.RPC.MaxBodyBytes = 220_000_960   // 210MB
 	return tmCfg
 }
 
