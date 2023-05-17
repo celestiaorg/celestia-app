@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/bank"
@@ -20,6 +21,8 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
 	ibcclientclient "github.com/cosmos/ibc-go/v6/modules/core/02-client/client"
+	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // bankModule defines a custom wrapper around the x/bank module's AppModuleBasic
@@ -126,4 +129,25 @@ func getLegacyProposalHandlers() (result []govclient.ProposalHandler) {
 	)
 
 	return result
+}
+
+// DefaultConsensusParams returns a ConsensusParams with a MaxBytes
+// determined using a goal square size.
+func DefaultConsensusParams() *tmproto.ConsensusParams {
+	return &tmproto.ConsensusParams{
+		Block:     DefaultBlockParams(),
+		Evidence:  coretypes.DefaultEvidenceParams(),
+		Validator: coretypes.DefaultValidatorParams(),
+		Version:   coretypes.DefaultVersionParams(), // TODO: set the default version to 1
+	}
+}
+
+// DefaultBlockParams returns a default BlockParams with a MaxBytes determined
+// using a goal square size.
+func DefaultBlockParams() tmproto.BlockParams {
+	return tmproto.BlockParams{
+		MaxBytes:   appconsts.DefaultMaxBytes,
+		MaxGas:     -1,
+		TimeIotaMs: 1, // 1ms
+	}
 }

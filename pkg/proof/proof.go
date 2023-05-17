@@ -24,7 +24,7 @@ func NewTxInclusionProof(txs [][]byte, txIndex uint64) (types.ShareProof, error)
 		return types.ShareProof{}, fmt.Errorf("txIndex %d out of bounds", txIndex)
 	}
 
-	builder, err := square.NewBuilder(appconsts.DefaultMaxSquareSize, txs...)
+	builder, err := square.NewBuilder(appconsts.MaxSquareSize, txs...)
 	if err != nil {
 		return types.ShareProof{}, err
 	}

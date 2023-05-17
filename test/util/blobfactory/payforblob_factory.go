@@ -214,7 +214,7 @@ func RandBlobTxsWithAccounts(
 	return txs
 }
 
-func RandBlobTxs(enc sdk.TxEncoder, count, size int) coretypes.Txs {
+func RandBlobTxs(enc sdk.TxEncoder, count, blobsPerTx, size int) coretypes.Txs {
 	const acc = "signer"
 	kr := testfactory.GenerateKeyring(acc)
 	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
@@ -235,7 +235,7 @@ func RandBlobTxs(enc sdk.TxEncoder, count, size int) coretypes.Txs {
 
 	txs := make([]coretypes.Tx, count)
 	for i := 0; i < count; i++ {
-		msg, blobs := RandMsgPayForBlobsWithSigner(addr.String(), size, 1)
+		msg, blobs := RandMsgPayForBlobsWithSigner(addr.String(), size, blobsPerTx)
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
