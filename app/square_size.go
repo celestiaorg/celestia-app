@@ -6,8 +6,7 @@ import (
 )
 
 // GovMaxSquareSize returns the maximum square size that can be used for a block
-// using the governance parameter blob.GovMaxSquareSize. Governance can change
-// the result of this value by changing the MaxBytes consensus parameter.
+// using the governance parameter blob.GovMaxSquareSize.
 func (app *App) GovMaxSquareSize(ctx sdk.Context) int {
 	// TODO: fix hack that forces the max square size for the first height to
 	// 64. This is due to tendermint not technically supposed to be calling
