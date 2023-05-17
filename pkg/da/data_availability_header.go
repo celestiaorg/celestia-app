@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	maxExtendedSquareWidth = appconsts.DefaultMaxSquareSize * 2
-	minExtendedSquareWidth = appconsts.DefaultMinSquareSize * 2
+	maxExtendedSquareWidth = appconsts.MaxSquareSize * 2
+	minExtendedSquareWidth = appconsts.MinSquareSize * 2
 )
 
 // DataAvailabilityHeader (DAHeader) contains the row and column roots of the
@@ -60,11 +60,11 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 
 	squareSize := square.Size(len(s))
 
-	if squareSize < appconsts.DefaultMinSquareSize || squareSize > appconsts.DefaultMaxSquareSize {
+	if squareSize < appconsts.MinSquareSize || squareSize > appconsts.MaxSquareSize {
 		return nil, fmt.Errorf(
 			"invalid square size: min %d max %d provided %d",
-			appconsts.DefaultMinSquareSize,
-			appconsts.DefaultMaxSquareSize,
+			appconsts.MinSquareSize,
+			appconsts.MaxSquareSize,
 			squareSize,
 		)
 	}

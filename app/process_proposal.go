@@ -92,14 +92,14 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	}
 
 	// Construct the data square from the block's transactions
-	dataSquare, err := square.Construct(req.BlockData.Txs, appconsts.DefaultMaxSquareSize)
+	dataSquare, err := square.Construct(req.BlockData.Txs, appconsts.MaxSquareSize)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), req.Header, "failure to compute data square from transactions:", err)
 		return reject()
 	}
 
 	// Assert that the square size stated by the proposer is correct
-	if dataSquare.Size() != req.BlockData.SquareSize {
+	if uint64(dataSquare.Size()) != req.BlockData.SquareSize {
 		logInvalidPropBlock(app.Logger(), req.Header, "proposed square size differs from calculated square size")
 		return reject()
 	}
