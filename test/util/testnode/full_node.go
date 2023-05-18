@@ -148,10 +148,17 @@ func DefaultTendermintConfig() *config.Config {
 	// during tests.
 	tmCfg.Consensus.TargetHeightDuration = 300 * time.Millisecond
 	tmCfg.Consensus.TimeoutPropose = 200 * time.Millisecond
-	// remove all barriers from the testnode being able to accept very large
-	// transactions (max square size) and respond to very large queries (200MiB)
+
+	// set the mempool's MaxTxBytes to allow the testnode to accept a
+	// transaction that fills the entire square. Any blob transaction larger
+	// than the square size will still fail no matter what.
 	tmCfg.Mempool.MaxTxBytes = appconsts.MaxShareCount * appconsts.ShareSize
+
+	// remove all barriers from the testnode being able to accept very large
+	// transactions and respond to very queries with large responses (~200MB was
+	// chosen only as an arbitary large number).
 	tmCfg.RPC.MaxBodyBytes = 200_000_000
+
 	return tmCfg
 }
 
