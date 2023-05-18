@@ -34,9 +34,8 @@ func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
 			tree := NewErasuredNamespacedMerkleTree(uint64(tc.squareSize), 0)
 
 			for _, d := range generateErasuredData(t, tc.squareSize, appconsts.DefaultCodec()) {
-				// push test data to the tree. push will panic if there's an
-				// error.
-				tree.Push(d)
+				err := tree.Push(d)
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -49,64 +48,64 @@ func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
 func TestRootErasuredNamespacedMerkleTree(t *testing.T) {
 	size := 8
 	data := generateRandNamespacedRawData(size)
-	tree := NewErasuredNamespacedMerkleTree(uint64(size), 0)
-	nmtTree := nmt.New(sha256.New(), nmt.NamespaceIDSize(namespace.NamespaceSize), nmt.IgnoreMaxNamespace(true))
+	nmtErasured := NewErasuredNamespacedMerkleTree(uint64(size), 0)
+	nmtStandard := nmt.New(sha256.New(), nmt.NamespaceIDSize(namespace.NamespaceSize), nmt.IgnoreMaxNamespace(true))
 
 	for _, d := range data {
-		tree.Push(d)
-		err := nmtTree.Push(d)
+		err := nmtErasured.Push(d)
+		if err != nil {
+			t.Error(err)
+		}
+		err = nmtStandard.Push(d)
 		if err != nil {
 			t.Error(err)
 		}
 	}
 
-	root, err := nmtTree.Root()
+	rootErasured, err := nmtErasured.Root()
 	assert.NoError(t, err)
-	assert.NotEqual(t, root, tree.Root())
+
+	rootStandard, err := nmtStandard.Root()
+	assert.NoError(t, err)
+
+	assert.NotEqual(t, rootStandard, rootErasured)
 }
 
-func TestErasureNamespacedMerkleTreePanics(t *testing.T) {
+func TestErasureNamespacedMerkleTreePushErrors(t *testing.T) {
+	squareSize := 16
+
+	dataOverSquareSize := generateErasuredData(t, squareSize+1, appconsts.DefaultCodec())
+	dataReversed := generateErasuredData(t, squareSize, appconsts.DefaultCodec())
+	sort.Slice(dataReversed, func(i, j int) bool {
+		return bytes.Compare(dataReversed[i], dataReversed[j]) > 0
+	})
+	dataWithoutNamespace := [][]byte{{0x1}}
+
 	testCases := []struct {
-		name  string
-		pFunc assert.PanicTestFunc
+		name string
+		data [][]byte
 	}{
 		{
-			"push over square size",
-			assert.PanicTestFunc(
-				func() {
-					data := generateErasuredData(t, 16, appconsts.DefaultCodec())
-					tree := NewErasuredNamespacedMerkleTree(uint64(15), 0)
-					for _, d := range data {
-						tree.Push(d)
-					}
-				}),
+			name: "push over square size",
+			data: dataOverSquareSize,
 		},
 		{
-			"push in incorrect lexigraphic order",
-			assert.PanicTestFunc(
-				func() {
-					data := generateErasuredData(t, 16, appconsts.DefaultCodec())
-					tree := NewErasuredNamespacedMerkleTree(uint64(16), 0)
-					for i := len(data) - 1; i > 0; i-- {
-						tree.Push(data[i])
-					}
-				},
-			),
+			name: "push in incorrect lexicographic order",
+			data: dataReversed,
 		},
 		{
-			"push data that is too short to contain a namespace ID",
-			assert.PanicTestFunc(
-				func() {
-					data := []byte{0x1}
-					tree := NewErasuredNamespacedMerkleTree(uint64(16), 0)
-					tree.Push(data)
-				},
-			),
+			name: "push data that is too short to contain a namespace",
+			data: dataWithoutNamespace,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Panics(t, tc.pFunc, tc.name)
+			tree := NewErasuredNamespacedMerkleTree(uint64(squareSize), 0)
+			var err error
+			for _, d := range tc.data {
+				err = tree.Push(d)
+			}
+			assert.Error(t, err)
 		})
 	}
 }
