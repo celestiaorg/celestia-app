@@ -112,14 +112,13 @@ func Test_processCompactShares(t *testing.T) {
 	}
 }
 
-func TestAlSplit(t *testing.T) {
+func TestAllSplit(t *testing.T) {
 	txs := testfactory.GenerateRandomlySizedTxs(1000, 150)
 	txShares, _, _, err := SplitTxs(txs)
 	require.NoError(t, err)
 	resTxs, err := ParseTxs(txShares)
 	require.NoError(t, err)
 	assert.Equal(t, resTxs, txs)
-
 }
 
 func TestParseRandomOutOfContextShares(t *testing.T) {
@@ -140,10 +139,6 @@ func TestParseOutOfContextSharesUsingShareRanges(t *testing.T) {
 	txs := testfactory.GenerateRandomlySizedTxs(1000, 150)
 	txShares, _, shareRanges, err := SplitTxs(txs)
 	require.NoError(t, err)
-
-	resTxs, err := ParseTxs(txShares)
-	require.NoError(t, err)
-	assert.Equal(t, resTxs, txs)
 
 	for key, r := range shareRanges {
 		resTxs, err := ParseTxs(txShares[r.Start:r.End])
