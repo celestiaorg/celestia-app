@@ -25,13 +25,13 @@
 | `MAX_GRAFFITI_BYTES`                    | `uint64` | `32`         | `byte`  | Maximum size of transaction graffiti, in bytes.                                                                                                                     |
 | `MAX_VALIDATORS`                        | `uint16` | `64`         |         | Maximum number of active validators.                                                                                                                                |
 | `NAMESPACE_VERSION_SIZE`                | `int`    | `1`          | `byte`  | Size of namespace version in bytes.                                                                                                                                 |
-| `NAMESPACE_ID_SIZE`                     | `int`    | `32`         | `byte`  | Size of namespace ID in bytes.                                                                                                                                      |
-| `NAMESPACE_SIZE`                        | `int`    | `33`         | `byte`  | Size of namespace in bytes.                                                                                                                                         |
+| `NAMESPACE_ID_SIZE`                     | `int`    | `28`         | `byte`  | Size of namespace ID in bytes.                                                                                                                                      |
+| `NAMESPACE_SIZE`                        | `int`    | `29`         | `byte`  | Size of namespace in bytes.                                                                                                                                         |
 | `NAMESPACE_ID_MAX_RESERVED`             | `uint64` | `255`        |         | Value of maximum reserved namespace (inclusive). 1 byte worth of IDs.                                                                                               |
 | `SEQUENCE_BYTES`                        | `uint64` | `4`          | `byte`  | The number of bytes used to store the sequence length in the first share of a sequence                                                                              |
 | `SHARE_INFO_BYTES`                      | `uint64` | `1`          | `byte`  | The number of bytes used for [share](data_structures.md#share) information                                                                                          |
 | `SHARE_RESERVED_BYTES`                  | `uint64` | `4`          | `byte`  | The number of bytes used to store the location of the first unit in a compact share. Must be able to represent any integer up to and including `SHARE_SIZE - 1`.    |
-| `SHARE_SIZE`                            | `uint64` | `512`        | `byte`  | Size of transaction and blob [shares](data_structures.md#share), in bytes.                                                                                       |
+| `SHARE_SIZE`                            | `uint64` | `512`        | `byte`  | Size of transaction and blob [shares](data_structures.md#share), in bytes.                                                                                          |
 | `STATE_SUBTREE_RESERVED_BYTES`          | `uint64` | `1`          | `byte`  | Number of bytes reserved to identify state subtrees.                                                                                                                |
 | `UNBONDING_DURATION`                    | `uint32` |              | `block` | Duration, in blocks, for unbonding a validator or delegation.                                                                                                       |
 | `VERSION_APP`                           | `uint64` | `1`          |         | Version of the Celestia application. Breaking changes (hard forks) must update this parameter.                                                                      |
@@ -39,14 +39,14 @@
 
 ### Reserved Namespaces
 
-| name                                | type        | value                                                                  | description                                                                                          |
-|-------------------------------------|-------------|------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
-| `TRANSACTION_NAMESPACE`             | `Namespace` | `0x000000000000000000000000000000000000000000000000000000000000000001` | Transactions: requests that modify the state.                                                        |
-| `INTERMEDIATE_STATE_ROOT_NAMESPACE` | `Namespace` | `0x000000000000000000000000000000000000000000000000000000000000000002` | Intermediate state roots, committed after every transaction.                                         |
-| `RESERVED_PADDING_NAMESPACE`        | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000000000000FF` | Padding after all reserved namespaces but before blobs.                                              |
-| `MAX_RESERVED_NAMESPACE`            | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000000000000FF` | Max reserved namespace is lexicographically the largest namespace that is reserved for protocol use. |
-| `TAIL_PADDING_NAMESPACE`            | `Namespace` | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE` | Tail padding for blobs: padding after all blobs to fill up the original data square.           |
-| `PARITY_SHARE_NAMESPACE`            | `Namespace` | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF` | Parity shares: extended shares in the available data matrix.                                         |
+| name                                | type        | value                                                          | description                                                                                          |
+|-------------------------------------|-------------|----------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
+| `TRANSACTION_NAMESPACE`             | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000001` | Transactions: requests that modify the state.                                                        |
+| `INTERMEDIATE_STATE_ROOT_NAMESPACE` | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000002` | Intermediate state roots, committed after every transaction.                                         |
+| `RESERVED_PADDING_NAMESPACE`        | `Namespace` | `0x00000000000000000000000000000000000000000000000000000000FF` | Padding after all reserved namespaces but before blobs.                                              |
+| `MAX_RESERVED_NAMESPACE`            | `Namespace` | `0x00000000000000000000000000000000000000000000000000000000FF` | Max reserved namespace is lexicographically the largest namespace that is reserved for protocol use. |
+| `TAIL_PADDING_NAMESPACE`            | `Namespace` | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE` | Tail padding for blobs: padding after all blobs to fill up the original data square.                 |
+| `PARITY_SHARE_NAMESPACE`            | `Namespace` | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF` | Parity shares: extended shares in the available data matrix.                                         |
 
 ### Rewards and Penalties
 

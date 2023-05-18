@@ -145,20 +145,20 @@ enum CommitFlag : uint8_t {
 | name      | type       | description |
 |-----------|------------|-------------|
 | `version` | `uint8`    |             |
-| `id`      | `byte[32]` |             |
+| `id`      | `byte[28]` |             |
 
-The namespace is a 33 byte array. The first byte is the `version`. The remaining 32 bytes are the `id`. The namespace version may enforce constraints on the id. The only supported `version` is `0`. The format for a namespace with `version: 0` is 22 bytes of leading `0`s followed by 10 bytes of significant namespace id.
+The namespace is a 29 byte array. The first byte is the `version`. The remaining 28 bytes are the `id`. The namespace version may enforce constraints on the id. The only supported `version` is `0`. The format for a namespace with `version: 0` is 18 bytes of leading `0`s followed by 10 bytes of significant namespace id.
 
 ```go
 // valid namespaces
-0x000000000000000000000000000000000000000000000000000000000000000001
-0x000000000000000000000000000000000000000000000001010101010101010101
-0x000000000000000000000000000000000000000000000011111111111111111111
+0x0000000000000000000000000000000000000000000000000000000001
+0x0000000000000000000000000000000000000001010101010101010101
+0x0000000000000000000000000000000000000011111111111111111111
 
 // invalid namespaces
-0x000000000000000000000000000000000111111111111111111111111111111111
-0x100000000000000000000000000000000000000000000000000000000000000001
-0x111111111111111111111111111111111111111111111111111111111111111111
+0x0000000000000000000000000111111111111111111111111111111111
+0x1000000000000000000000000000000000000000000000000000000001
+0x1111111111111111111111111111111111111111111111111111111111
 ```
 
 ## ConsensusVersion
