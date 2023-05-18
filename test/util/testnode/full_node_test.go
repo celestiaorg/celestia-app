@@ -19,6 +19,10 @@ import (
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
+func TestIntegrationTestSuite(t *testing.T) {
+	suite.Run(t, new(IntegrationTestSuite))
+}
+
 type IntegrationTestSuite struct {
 	suite.Suite
 
@@ -62,14 +66,13 @@ func (s *IntegrationTestSuite) Test_Liveness() {
 	// check that we're actually able to set the consensus params
 	var params *coretypes.ResultConsensusParams
 	// this query can be flaky with fast block times, so we repeat it multiple
-	// times in attempt to increase the probability of it working
-	for i := 0; i < 20; i++ {
+	// times in attempt to decrease flakiness
+	for i := 0; i < 30; i++ {
 		params, err = s.cctx.Client.ConsensusParams(context.TODO(), nil)
-		if err != nil || params == nil {
-			continue
+		if err == nil || params != nil {
+			break
 		}
 		time.Sleep(100 * time.Millisecond)
-		break
 	}
 	require.NoError(err)
 	require.NotNil(params)
@@ -84,21 +87,13 @@ func (s *IntegrationTestSuite) Test_PostData() {
 	require.NoError(err)
 }
 
-func TestIntegrationTestSuite(t *testing.T) {
-	suite.Run(t, new(IntegrationTestSuite))
-}
-
 func (s *IntegrationTestSuite) Test_FillBlock() {
 	require := s.Require()
 
 	for squareSize := 2; squareSize <= appconsts.MaxSquareSize; squareSize *= 2 {
-		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastAsync)
+		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastSync)
 		require.NoError(err)
 
-		err = s.cctx.WaitForNextBlock()
-		require.NoError(err, squareSize)
-		err = s.cctx.WaitForNextBlock()
-		require.NoError(err, squareSize)
 		err = s.cctx.WaitForNextBlock()
 		require.NoError(err, squareSize)
 
