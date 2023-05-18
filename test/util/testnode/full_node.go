@@ -32,6 +32,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
 )
@@ -148,8 +149,8 @@ func DefaultTendermintConfig() *config.Config {
 	tmCfg.Consensus.TargetHeightDuration = 300 * time.Millisecond
 	tmCfg.Consensus.TimeoutPropose = 200 * time.Millisecond
 	// remove all barriers from the testnode being able to accept very large
-	// transactions (200MiB)
-	tmCfg.Mempool.MaxTxBytes = 200_000_000
+	// transactions (max square size) and respond to very large queries (200MiB)
+	tmCfg.Mempool.MaxTxBytes = appconsts.MaxShareCount * appconsts.ShareSize
 	tmCfg.RPC.MaxBodyBytes = 200_000_000
 	return tmCfg
 }
