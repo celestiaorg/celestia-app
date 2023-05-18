@@ -274,19 +274,19 @@
 <h3 id="namespace"><a class="header" href="#namespace">Namespace</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>version</code></td><td><code>uint8</code></td><td></td></tr>
-<tr><td><code>id</code></td><td><code>byte[32]</code></td><td></td></tr>
+<tr><td><code>id</code></td><td><code>byte[28]</code></td><td></td></tr>
 </tbody></table>
 </div>
-<p>The namespace is a 33 byte array. The first byte is the <code>version</code>. The remaining 32 bytes are the <code>id</code>. The namespace version may enforce constraints on the id. The only supported <code>version</code> is <code>0</code>. The format for a namespace with <code>version: 0</code> is 22 bytes of leading <code>0</code>s followed by 10 bytes of significant namespace id.</p>
+<p>The namespace is a 29 byte array. The first byte is the <code>version</code>. The remaining 28 bytes are the <code>id</code>. The namespace version may enforce constraints on the id. The only supported <code>version</code> is <code>0</code>. The format for a namespace with <code>version: 0</code> is 18 bytes of leading <code>0</code>s followed by 10 bytes of significant namespace id.</p>
 <pre><code class="language-go">// valid namespaces
-0x000000000000000000000000000000000000000000000000000000000000000001
-0x000000000000000000000000000000000000000000000001010101010101010101
-0x000000000000000000000000000000000000000000000011111111111111111111
+0x0000000000000000000000000000000000000000000000000000000001
+0x0000000000000000000000000000000000000001010101010101010101
+0x0000000000000000000000000000000000000011111111111111111111
 
 // invalid namespaces
-0x000000000000000000000000000000000111111111111111111111111111111111
-0x100000000000000000000000000000000000000000000000000000000000000001
-0x111111111111111111111111111111111111111111111111111111111111111111
+0x0000000000000000000000000111111111111111111111111111111111
+0x1000000000000000000000000000000000000000000000000000000001
+0x1111111111111111111111111111111111111111111111111111111111
 </code></pre>
 <h2 id="consensusversion"><a class="header" href="#consensusversion">ConsensusVersion</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
@@ -588,8 +588,8 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <tr><td><code>MAX_GRAFFITI_BYTES</code></td><td><code>uint64</code></td><td><code>32</code></td><td><code>byte</code></td><td>Maximum size of transaction graffiti, in bytes.</td></tr>
 <tr><td><code>MAX_VALIDATORS</code></td><td><code>uint16</code></td><td><code>64</code></td><td></td><td>Maximum number of active validators.</td></tr>
 <tr><td><code>NAMESPACE_VERSION_SIZE</code></td><td><code>int</code></td><td><code>1</code></td><td><code>byte</code></td><td>Size of namespace version in bytes.</td></tr>
-<tr><td><code>NAMESPACE_ID_SIZE</code></td><td><code>int</code></td><td><code>32</code></td><td><code>byte</code></td><td>Size of namespace ID in bytes.</td></tr>
-<tr><td><code>NAMESPACE_SIZE</code></td><td><code>int</code></td><td><code>33</code></td><td><code>byte</code></td><td>Size of namespace in bytes.</td></tr>
+<tr><td><code>NAMESPACE_ID_SIZE</code></td><td><code>int</code></td><td><code>28</code></td><td><code>byte</code></td><td>Size of namespace ID in bytes.</td></tr>
+<tr><td><code>NAMESPACE_SIZE</code></td><td><code>int</code></td><td><code>29</code></td><td><code>byte</code></td><td>Size of namespace in bytes.</td></tr>
 <tr><td><code>NAMESPACE_ID_MAX_RESERVED</code></td><td><code>uint64</code></td><td><code>255</code></td><td></td><td>Value of maximum reserved namespace (inclusive). 1 byte worth of IDs.</td></tr>
 <tr><td><code>SEQUENCE_BYTES</code></td><td><code>uint64</code></td><td><code>4</code></td><td><code>byte</code></td><td>The number of bytes used to store the sequence length in the first share of a sequence</td></tr>
 <tr><td><code>SHARE_INFO_BYTES</code></td><td><code>uint64</code></td><td><code>1</code></td><td><code>byte</code></td><td>The number of bytes used for <a href="specs/data_structures.html#share">share</a> information</td></tr>
@@ -603,12 +603,12 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 </div>
 <h3 id="reserved-namespaces"><a class="header" href="#reserved-namespaces">Reserved Namespaces</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>value</th><th>description</th></tr></thead><tbody>
-<tr><td><code>TRANSACTION_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x000000000000000000000000000000000000000000000000000000000000000001</code></td><td>Transactions: requests that modify the state.</td></tr>
-<tr><td><code>INTERMEDIATE_STATE_ROOT_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x000000000000000000000000000000000000000000000000000000000000000002</code></td><td>Intermediate state roots, committed after every transaction.</td></tr>
-<tr><td><code>RESERVED_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000000000000FF</code></td><td>Padding after all reserved namespaces but before blobs.</td></tr>
-<tr><td><code>MAX_RESERVED_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000000000000FF</code></td><td>Max reserved namespace is lexicographically the largest namespace that is reserved for protocol use.</td></tr>
-<tr><td><code>TAIL_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE</code></td><td>Tail padding for blobs: padding after all blobs to fill up the original data square.</td></tr>
-<tr><td><code>PARITY_SHARE_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF</code></td><td>Parity shares: extended shares in the available data matrix.</td></tr>
+<tr><td><code>TRANSACTION_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000001</code></td><td>Transactions: requests that modify the state.</td></tr>
+<tr><td><code>INTERMEDIATE_STATE_ROOT_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000002</code></td><td>Intermediate state roots, committed after every transaction.</td></tr>
+<tr><td><code>RESERVED_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Padding after all reserved namespaces but before blobs.</td></tr>
+<tr><td><code>MAX_RESERVED_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Max reserved namespace is lexicographically the largest namespace that is reserved for protocol use.</td></tr>
+<tr><td><code>TAIL_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE</code></td><td>Tail padding for blobs: padding after all blobs to fill up the original data square.</td></tr>
+<tr><td><code>PARITY_SHARE_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF</code></td><td>Parity shares: extended shares in the available data matrix.</td></tr>
 </tbody></table>
 </div>
 <h3 id="rewards-and-penalties"><a class="header" href="#rewards-and-penalties">Rewards and Penalties</a></h3>

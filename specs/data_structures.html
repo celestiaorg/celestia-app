@@ -249,19 +249,19 @@
 <h3 id="namespace"><a class="header" href="#namespace">Namespace</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>version</code></td><td><code>uint8</code></td><td></td></tr>
-<tr><td><code>id</code></td><td><code>byte[32]</code></td><td></td></tr>
+<tr><td><code>id</code></td><td><code>byte[28]</code></td><td></td></tr>
 </tbody></table>
 </div>
-<p>The namespace is a 33 byte array. The first byte is the <code>version</code>. The remaining 32 bytes are the <code>id</code>. The namespace version may enforce constraints on the id. The only supported <code>version</code> is <code>0</code>. The format for a namespace with <code>version: 0</code> is 22 bytes of leading <code>0</code>s followed by 10 bytes of significant namespace id.</p>
+<p>The namespace is a 29 byte array. The first byte is the <code>version</code>. The remaining 28 bytes are the <code>id</code>. The namespace version may enforce constraints on the id. The only supported <code>version</code> is <code>0</code>. The format for a namespace with <code>version: 0</code> is 18 bytes of leading <code>0</code>s followed by 10 bytes of significant namespace id.</p>
 <pre><code class="language-go">// valid namespaces
-0x000000000000000000000000000000000000000000000000000000000000000001
-0x000000000000000000000000000000000000000000000001010101010101010101
-0x000000000000000000000000000000000000000000000011111111111111111111
+0x0000000000000000000000000000000000000000000000000000000001
+0x0000000000000000000000000000000000000001010101010101010101
+0x0000000000000000000000000000000000000011111111111111111111
 
 // invalid namespaces
-0x000000000000000000000000000000000111111111111111111111111111111111
-0x100000000000000000000000000000000000000000000000000000000000000001
-0x111111111111111111111111111111111111111111111111111111111111111111
+0x0000000000000000000000000111111111111111111111111111111111
+0x1000000000000000000000000000000000000000000000000000000001
+0x1111111111111111111111111111111111111111111111111111111111
 </code></pre>
 <h2 id="consensusversion"><a class="header" href="#consensusversion">ConsensusVersion</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
