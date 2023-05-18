@@ -67,9 +67,9 @@ func (s *IntegrationTestSuite) Test_Liveness() {
 	var params *coretypes.ResultConsensusParams
 	// this query can be flaky with fast block times, so we repeat it multiple
 	// times in attempt to decrease flakiness
-	for i := 0; i < 30; i++ {
+	for i := 0; i < 40; i++ {
 		params, err = s.cctx.Client.ConsensusParams(context.TODO(), nil)
-		if err == nil || params != nil {
+		if err == nil && params != nil {
 			break
 		}
 		time.Sleep(100 * time.Millisecond)
@@ -94,8 +94,10 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastSync)
 		require.NoError(err)
 
-		err = s.cctx.WaitForNextBlock()
-		require.NoError(err, squareSize)
+		for i := 0; i < 3; i++ {
+			err = s.cctx.WaitForNextBlock()
+			require.NoError(err, squareSize)
+		}
 
 		res, err := testfactory.QueryWithoutProof(s.cctx.Context, resp.TxHash)
 		require.NoError(err, squareSize)
