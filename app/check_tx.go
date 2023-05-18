@@ -24,10 +24,9 @@ func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 		}
 		// reject transactions that have a MsgPFB but no blobs attached to the tx
 		for _, msg := range sdkTx.GetMsgs() {
-			if _, ok := msg.(*blobtypes.MsgPayForBlobs); !ok {
-				continue
+			if _, ok := msg.(*blobtypes.MsgPayForBlobs); ok {
+				return sdkerrors.ResponseCheckTxWithEvents(blobtypes.ErrNoBlobs, 0, 0, []abci.Event{}, false)
 			}
-			return sdkerrors.ResponseCheckTxWithEvents(blobtypes.ErrNoBlobs, 0, 0, []abci.Event{}, false)
 		}
 		// don't do anything special if we have a normal transaction
 		return app.BaseApp.CheckTx(req)

@@ -8,6 +8,9 @@ import (
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/cosmos/cosmos-sdk/client"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
+	"github.com/cosmos/gogoproto/proto"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	core "github.com/tendermint/tendermint/types"
 )
@@ -49,13 +52,12 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) error {
 	if len(msgs) != 1 {
 		return ErrMultipleMsgsInBlobTx
 	}
-	msg := msgs[0]
-	msgPFB, ok := msg.(*MsgPayForBlobs)
-	if !ok {
-		return ErrNoPFB
-	}
-	err = msgPFB.ValidateBasic()
+	msgPFB, err := unwrapPFB(msgs[0])
 	if err != nil {
+		return err
+	}
+
+	if err = msgPFB.ValidateBasic(); err != nil {
 		return err
 	}
 
@@ -133,6 +135,15 @@ func BlobFromProto(p *tmproto.Blob) (core.Blob, error) {
 	}, nil
 }
 
+func BlobToProto(blob core.Blob) *tmproto.Blob {
+	return &tmproto.Blob{
+		NamespaceId:      blob.NamespaceID,
+		Data:             blob.Data,
+		ShareVersion:     uint32(blob.ShareVersion),
+		NamespaceVersion: uint32(blob.NamespaceVersion),
+	}
+}
+
 func equalSlices[T comparable](a, b []T) bool {
 	if len(a) != len(b) {
 		return false
@@ -143,4 +154,31 @@ func equalSlices[T comparable](a, b []T) bool {
 		}
 	}
 	return true
+}
+
+func unwrapPFB(msg sdk.Msg) (*MsgPayForBlobs, error) {
+	switch m := msg.(type) {
+	case *MsgPayForBlobs:
+		return m, nil
+	case *authz.MsgExec:
+		if err := m.ValidateBasic(); err != nil {
+			return nil, fmt.Errorf("blobTx has invalid MsgExec: %w", err)
+		}
+		if len(m.Msgs) != 1 {
+			return nil, ErrMsgExecMustContainPFB
+		}
+		if m.Msgs[0].TypeUrl != URLMsgPayForBlobs {
+			return nil, ErrMsgExecMustContainPFB
+		}
+		pfb := &MsgPayForBlobs{}
+		if err := proto.Unmarshal(m.Msgs[0].Value, pfb); err != nil {
+			return nil, fmt.Errorf("unmarshalling PFB within MsgExec: %w", err)
+		}
+		return pfb, nil
+
+	// all other messages are invalid. Note that this includes
+	// MsgSubmitProposal.
+	default:
+		return nil, ErrNoPFB
+	}
 }
