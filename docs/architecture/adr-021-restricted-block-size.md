@@ -47,7 +47,8 @@ The second suggestion is to create a new governance parameter,
 `GovMaxSquareSize`, which governance could set. Now the protocol would use the
 lowest of 4 values to determine the size of a block at a given height. This has
 the benefit of allowing for the most flexibility in terms of options, however it
-has the downside of exposing a rather technical parameter to governance.
+has the downside of exposing a rather technical parameter to governance. Full
+implementation in [#1772](https://github.com/celestiaorg/celestia-app/pull/1772)
 
 ### Use `MaxBytes` Governance Parameter to Limit Square Size
 
@@ -61,7 +62,8 @@ size. This has the benefit of not exposing another parameter to governance, but
 it makes the result of the currently exposed parameter, `MaxBytes`, more
 complicated. It also eliminates the possibility to allow for small blocks with a
 lot of encoding overhead, since the only way to increase the square size is to
-also increase the `MaxBytes`.
+also increase the `MaxBytes`.Full implementation in
+[#1765](https://github.com/celestiaorg/celestia-app/pull/1765)
 
 Note that there is technically a fourth solution, where the `GovMaxSquareSize`
 is added, and it determines the value for `MaxBytes`. The result of this
@@ -148,7 +150,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 
 - Option 1 was implemented in [#1743](https://github.com/celestiaorg/celestia-app/pull/1743)
 - Option 2 was implemented in [#1772](https://github.com/celestiaorg/celestia-app/pull/1772)
-- Option 3 was implemented in [#1765](https://github.com/celestiaorg/celestia-app/pull/1765 )
+- Option 3 was implemented in [#1765](https://github.com/celestiaorg/celestia-app/pull/1765)
 - Issue to restrict the block size in a configurable way [#1592](https://github.com/celestiaorg/celestia-app/issues/1592)
 - Decision to limit the block size [#1737](https://github.com/celestiaorg/celestia-app/issues/1737)
 - Original issues to add `MaxBlockSize` parameters [#183](https://github.com/celestiaorg/celestia-app/issues/183)
