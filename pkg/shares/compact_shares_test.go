@@ -118,7 +118,7 @@ func TestParseOutOfContextShares(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 0; i < 1000; i++ {
-		start, length := testfactory.GetRandomSlice(len(txShares))
+		start, length := testfactory.GetRandomSubSlice(len(txShares))
 
 		resTxs, err := ParseTxs(txShares[start : start+length])
 		require.NoError(t, err)

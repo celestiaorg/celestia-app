@@ -209,14 +209,16 @@ func (s *Share) RawDataUsingReserved() (rawData []byte, err error) {
 	return s.data[rawDataStartIndexUsingReserved:], nil
 }
 
+// rawDataStartIndexUsingReserved returns the start index of raw data while accounting for
+// reserved bytes, if it exists in the share.
 func (s *Share) rawDataStartIndexUsingReserved() (int, error) {
 	isStart, err := s.IsSequenceStart()
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 	isCompact, err := s.IsCompactShare()
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 
 	index := appconsts.NamespaceSize + appconsts.ShareInfoBytes
