@@ -25,23 +25,29 @@ func TestWalkCachedSubTreeRoot(t *testing.T) {
 
 	data := append(ns1.Bytes(), []byte("data")...)
 	for i := 0; i < 8; i++ {
-		tr.Push(data)
+		err := tr.Push(data)
+		assert.NoError(t, err)
 	}
-	highestRoot := tr.Root()
+	highestRoot, err := tr.Root()
+	assert.NoError(t, err)
 
 	// create a short sub tree
 	shortSubTree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, 0)
 	for i := 0; i < 2; i++ {
-		shortSubTree.Push(data)
+		err := shortSubTree.Push(data)
+		assert.NoError(t, err)
 	}
-	shortSTR := shortSubTree.Root()
+	shortSTR, err := shortSubTree.Root()
+	assert.NoError(t, err)
 
 	// create a tall sub tree root
 	tallSubTree := wrapper.NewErasuredNamespacedMerkleTree(squareSize, 0)
 	for i := 0; i < 4; i++ {
-		tallSubTree.Push(data)
+		err := tallSubTree.Push(data)
+		assert.NoError(t, err)
 	}
-	tallSTR := tallSubTree.Root()
+	tallSTR, err := tallSubTree.Root()
+	assert.NoError(t, err)
 
 	type test struct {
 		name          string
@@ -119,7 +125,7 @@ func TestEDSSubRootCacher(t *testing.T) {
 	dah := da.NewDataAvailabilityHeader(eds)
 
 	for i := range dah.RowRoots[:squareSize] {
-		expectedSubTreeRoots := calculateSubTreeRoots(eds.Row(uint(i))[:squareSize], 2)
+		expectedSubTreeRoots := calculateSubTreeRoots(t, eds.Row(uint(i))[:squareSize], 2)
 		require.NotNil(t, expectedSubTreeRoots)
 		// note: the depth is one greater than expected because we're dividing
 		// the row in half when we calculate the expected roots.
@@ -134,7 +140,7 @@ func TestEDSSubRootCacher(t *testing.T) {
 // passing a row whose length is a power of 2 and assumes that the row is
 // **NOT** extended since calculating subtree root for erasure data using the
 // nmt wrapper makes this difficult.
-func calculateSubTreeRoots(row [][]byte, depth int) [][]byte {
+func calculateSubTreeRoots(t *testing.T, row [][]byte, depth int) [][]byte {
 	subLeafRange := len(row)
 	for i := 0; i < depth; i++ {
 		subLeafRange = subLeafRange / 2
@@ -150,9 +156,12 @@ func calculateSubTreeRoots(row [][]byte, depth int) [][]byte {
 	for i, rowChunk := range chunks {
 		tr := wrapper.NewErasuredNamespacedMerkleTree(uint64(len(row)), 0)
 		for _, r := range rowChunk {
-			tr.Push(r)
+			err := tr.Push(r)
+			assert.NoError(t, err)
 		}
-		subTreeRoots[i] = tr.Root()
+		root, err := tr.Root()
+		assert.NoError(t, err)
+		subTreeRoots[i] = root
 	}
 
 	return subTreeRoots
