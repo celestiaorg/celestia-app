@@ -79,14 +79,12 @@ func (c constructor) NewTree(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
 // namespace unless the data pushed to the second half of the tree. Fulfills the
 // rsmt.Tree interface. NOTE: panics if an error is encountered while pushing or
 // if the tree size is exceeded.
-func (w *ErasuredNamespacedMerkleTree) Push(data []byte) {
+func (w *ErasuredNamespacedMerkleTree) Push(data []byte) error {
 	if w.axisIndex+1 > 2*w.squareSize || w.shareIndex+1 > 2*w.squareSize {
-		panic(fmt.Sprintf("pushed past predetermined square size: boundary at %d index at %d %d", 2*w.squareSize, w.axisIndex, w.shareIndex))
+		return fmt.Errorf("pushed past predetermined square size: boundary at %d index at %d %d", 2*w.squareSize, w.axisIndex, w.shareIndex)
 	}
 	if len(data) < appconsts.NamespaceSize {
-		// TODO: consider adding an error return parameter to the rsmt.Tree interface for Push
-		// https://github.com/celestiaorg/rsmt2d/issues/156
-		panic("data is too short to contain namespace ID")
+		return fmt.Errorf("data is too short to contain namespace ID")
 	}
 	nidAndData := make([]byte, appconsts.NamespaceSize+len(data))
 	copy(nidAndData[appconsts.NamespaceSize:], data)
@@ -96,23 +94,22 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) {
 	} else {
 		copy(nidAndData[:appconsts.NamespaceSize], appns.ParitySharesNamespace.Bytes())
 	}
-	// push to the underlying tree
 	err := w.tree.Push(nidAndData)
-	// panic on error
 	if err != nil {
-		panic(err)
+		return err
 	}
 	w.incrementShareIndex()
+	return nil
 }
 
 // Root fulfills the rsmt.Tree interface by generating and returning the
 // underlying NamespaceMerkleTree Root.
-func (w *ErasuredNamespacedMerkleTree) Root() []byte {
+func (w *ErasuredNamespacedMerkleTree) Root() ([]byte, error) {
 	root, err := w.tree.Root()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return root
+	return root, nil
 }
 
 // ProveRange returns a Merkle range proof for the leaf range [start, end] where `end` is non-inclusive.

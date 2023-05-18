@@ -15,19 +15,49 @@ const SignificantPowerDifferenceThreshold = 0.05
 
 // EndBlocker is called at the end of every block.
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
-	handleDataCommitmentRequest(ctx, k)
+	// we always want to create the valset at first so that if there is a new validator set, then it is
+	// the one responsible for signing from now on.
 	handleValsetRequest(ctx, k)
+	handleDataCommitmentRequest(ctx, k)
 }
 
 func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
-	if ctx.BlockHeight() != 0 && ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx)) == 0 {
-		dataCommitment, err := k.GetCurrentDataCommitment(ctx)
+	setDataCommitmentAttestation := func() {
+		dataCommitment, err := k.NextDataCommitment(ctx)
 		if err != nil {
-			panic(sdkerrors.Wrap(err, "coudln't get current data commitment"))
+			panic(sdkerrors.Wrap(err, "couldn't get current data commitment"))
 		}
 		err = k.SetAttestationRequest(ctx, &dataCommitment)
 		if err != nil {
 			panic(err)
+		}
+	}
+	// this will  keep executing until all the needed data commitments are created and we catchup to the current height
+	for {
+		hasLastDataCommitment, err := k.HasDataCommitmentInStore(ctx)
+		if err != nil {
+			panic(err)
+		}
+		if hasLastDataCommitment {
+			// if the store already has a data commitment, we use it to check if we need to create a new data commitment
+			lastDataCommitment, err := k.GetLastDataCommitment(ctx)
+			if err != nil {
+				panic(err)
+			}
+			if ctx.BlockHeight()-int64(lastDataCommitment.EndBlock) >= int64(k.GetDataCommitmentWindowParam(ctx)) {
+				setDataCommitmentAttestation()
+			} else {
+				// the needed data commitments are already created and we need to wait for the next window to elapse
+				break
+			}
+		} else {
+			// if the store doesn't have a data commitment, we check if the window has passed to create a new data commitment
+			if ctx.BlockHeight() >= int64(k.GetDataCommitmentWindowParam(ctx)) {
+				setDataCommitmentAttestation()
+			} else {
+				// the first data commitment window hasn't elapsed yet to create a commitment
+				break
+			}
 		}
 	}
 }

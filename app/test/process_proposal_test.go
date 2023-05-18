@@ -216,7 +216,7 @@ func TestProcessProposal(t *testing.T) {
 				d.Txs = [][]byte{blobTx}
 
 				// Erasure code the data to update the data root so this doesn't doesn't fail on an incorrect data root.
-				dataSquare, err := square.Construct(d.Txs, appconsts.DefaultMaxSquareSize)
+				dataSquare, err := square.Construct(d.Txs, appconsts.MaxSquareSize)
 				require.NoError(t, err)
 				eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
 				require.NoError(t, err)
@@ -280,7 +280,7 @@ func TestProcessProposal(t *testing.T) {
 				Txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
 			},
 			mutator: func(d *core.Data) {
-				dataSquare, err := square.Construct(d.Txs, appconsts.DefaultMaxSquareSize)
+				dataSquare, err := square.Construct(d.Txs, appconsts.MaxSquareSize)
 				require.NoError(t, err)
 
 				b := shares.NewEmptyBuilder().ImportRawShare(dataSquare[1].ToBytes())
