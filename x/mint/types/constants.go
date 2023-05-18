@@ -20,7 +20,7 @@ const (
 )
 
 var (
-	initalInflationRate = sdk.NewDecWithPrec(InitialInflationRate*1000, 3)
-	disinflationRate    = sdk.NewDecWithPrec(DisinflationRate*1000, 3)
-	targetInflationRate = sdk.NewDecWithPrec(TargetInflationRate*1000, 3)
+	InitalInflationRateDec = sdk.NewDecWithPrec(InitialInflationRate*1000, 3)
+	DisinflationRateDec    = sdk.NewDecWithPrec(DisinflationRate*1000, 3)
+	TargetInflationRateDec = sdk.NewDecWithPrec(TargetInflationRate*1000, 3)
 )
