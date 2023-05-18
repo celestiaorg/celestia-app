@@ -112,17 +112,50 @@ func Test_processCompactShares(t *testing.T) {
 	}
 }
 
-func TestParseOutOfContextShares(t *testing.T) {
+func TestAlSplit(t *testing.T) {
+	txs := testfactory.GenerateRandomlySizedTxs(1000, 150)
+	txShares, _, _, err := SplitTxs(txs)
+	require.NoError(t, err)
+	resTxs, err := ParseTxs(txShares)
+	require.NoError(t, err)
+	assert.Equal(t, resTxs, txs)
+
+}
+
+func TestParseRandomOutOfContextShares(t *testing.T) {
 	txs := testfactory.GenerateRandomlySizedTxs(1000, 150)
 	txShares, _, _, err := SplitTxs(txs)
 	require.NoError(t, err)
 
 	for i := 0; i < 1000; i++ {
 		start, length := testfactory.GetRandomSubSlice(len(txShares))
-
-		resTxs, err := ParseTxs(txShares[start : start+length])
+		randomRange := NewRange(start, start+length)
+		resTxs, err := ParseTxs(txShares[randomRange.Start:randomRange.End])
 		require.NoError(t, err)
 		assert.True(t, testfactory.CheckSubArray(txs, resTxs))
+	}
+}
+
+func TestParseOutOfContextSharesUsingShareRanges(t *testing.T) {
+	txs := testfactory.GenerateRandomlySizedTxs(1000, 150)
+	txShares, _, shareRanges, err := SplitTxs(txs)
+	require.NoError(t, err)
+
+	resTxs, err := ParseTxs(txShares)
+	require.NoError(t, err)
+	assert.Equal(t, resTxs, txs)
+
+	for key, r := range shareRanges {
+		resTxs, err := ParseTxs(txShares[r.Start:r.End])
+		require.NoError(t, err)
+		has := false
+		for _, tx := range resTxs {
+			if tx.Key() == key {
+				has = true
+				break
+			}
+		}
+		assert.True(t, has)
 	}
 }
 
