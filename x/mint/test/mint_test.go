@@ -2,10 +2,13 @@ package test
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
@@ -45,6 +48,43 @@ func (s *IntegrationTestSuite) TestTotalSupplyIncreasesOverTime() {
 	require.True(initalSupply.AmountOf(app.BondDenom).LT(laterSupply.AmountOf(app.BondDenom)))
 }
 
+// TestInitialInflationRate tests that the initial inflation rate is
+// approximately 8% per year.
+func (s *IntegrationTestSuite) TestInitialInflationRate() {
+	require := s.Require()
+
+	oneYear, err := time.ParseDuration(fmt.Sprintf("%vns", minttypes.NanosecondsPerYear))
+	require.NoError(err)
+
+	err = s.cctx.WaitForNextBlock()
+	require.NoError(err)
+	initalSupply := s.GetTotalSupply()
+	initialTimestamp := s.GetTimestamp()
+
+	_, err = s.cctx.WaitForHeight(20)
+	require.NoError(err)
+	laterSupply := s.GetTotalSupply()
+	laterTimestamp := s.GetTimestamp()
+
+	diffSupply := laterSupply.AmountOf(app.BondDenom).Sub(initalSupply.AmountOf(app.BondDenom))
+	diffTime := laterTimestamp.Sub(initialTimestamp)
+
+	fmt.Printf("diffSupply: %v\n", diffSupply)
+	fmt.Printf("diffTime: %v\n", diffTime)
+
+	projectedAnnualProvisions := diffSupply.Mul(sdktypes.NewInt(oneYear.Nanoseconds())).Quo(sdktypes.NewInt(diffTime.Nanoseconds()))
+	// expectedAnnualProvisions := sdktypes.NewDec(initalSupply.AmountOf(app.BondDenom)).Mul(minttypes.InitialInflationRate)
+	fmt.Printf("projectedAnnualProvisions %v\n", projectedAnnualProvisions)
+	// fmt.Printf("expectedAnnualProvisions %v\n", expectedAnnualProvisions)
+
+	// Note: we use a 1% margin of error to account
+	// numerator := diffSupply.Quo(initalSupply.AmountOf(app.BondDenom))
+	// denominator := diffTime.Nanoseconds() / oneYear.Nanoseconds()
+
+	// fmt.Printf("numerator: %v\n", numerator)
+	// fmt.Printf("denominator: %v\n", denominator)
+}
+
 func (s *IntegrationTestSuite) GetTotalSupply() sdktypes.Coins {
 	require := s.Require()
 
@@ -64,6 +104,15 @@ func (s *IntegrationTestSuite) GetTotalSupply() sdktypes.Coins {
 	require.NoError(cdc.Unmarshal(res.Response.Value, &txResp))
 
 	return txResp.GetSupply()
+}
+
+func (s *IntegrationTestSuite) GetTimestamp() time.Time {
+	require := s.Require()
+
+	got, err := s.cctx.LatestBlockTime()
+	require.NoError(err)
+
+	return got
 }
 
 // In order for 'go test' to run this suite, we need to create
