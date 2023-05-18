@@ -58,7 +58,7 @@ func (s *IntegrationTestSuite) TestInitialInflationRate() {
 
 	err = s.cctx.WaitForNextBlock()
 	require.NoError(err)
-	initalSupply := s.GetTotalSupply()
+	initialSupply := s.GetTotalSupply()
 	initialTimestamp := s.GetTimestamp()
 
 	_, err = s.cctx.WaitForHeight(20)
@@ -66,23 +66,28 @@ func (s *IntegrationTestSuite) TestInitialInflationRate() {
 	laterSupply := s.GetTotalSupply()
 	laterTimestamp := s.GetTimestamp()
 
-	diffSupply := laterSupply.AmountOf(app.BondDenom).Sub(initalSupply.AmountOf(app.BondDenom))
+	diffSupply := laterSupply.AmountOf(app.BondDenom).Sub(initialSupply.AmountOf(app.BondDenom))
 	diffTime := laterTimestamp.Sub(initialTimestamp)
 
 	fmt.Printf("diffSupply: %v\n", diffSupply)
 	fmt.Printf("diffTime: %v\n", diffTime)
 
 	projectedAnnualProvisions := diffSupply.Mul(sdktypes.NewInt(oneYear.Nanoseconds())).Quo(sdktypes.NewInt(diffTime.Nanoseconds()))
-	// expectedAnnualProvisions := sdktypes.NewDec(initalSupply.AmountOf(app.BondDenom)).Mul(minttypes.InitialInflationRate)
+	expectedAnnualProvisions := minttypes.InitalInflationRateDec.Mul(sdktypes.NewDecFromBigInt(initialSupply.AmountOf(app.BondDenom).BigInt())).TruncateInt()
+	diffAnnualProvisions := projectedAnnualProvisions.Sub(expectedAnnualProvisions).Abs()
+
 	fmt.Printf("projectedAnnualProvisions %v\n", projectedAnnualProvisions)
-	// fmt.Printf("expectedAnnualProvisions %v\n", expectedAnnualProvisions)
+	fmt.Printf("expectedAnnualProvisions %v\n", expectedAnnualProvisions)
+	fmt.Printf("diffAnnualProvisions: %v\n", diffAnnualProvisions)
 
-	// Note: we use a 1% margin of error to account
-	// numerator := diffSupply.Quo(initalSupply.AmountOf(app.BondDenom))
-	// denominator := diffTime.Nanoseconds() / oneYear.Nanoseconds()
+	// Note we use a .01 margin of error because the projected annual provisions
+	// are based on a small block time iwindow.
+	marginOfError := sdktypes.NewDecWithPrec(1, 2) // .01
+	actualError := sdktypes.NewDecFromBigInt(diffAnnualProvisions.BigInt()).Quo(sdktypes.NewDecFromBigInt(initialSupply.AmountOf(app.BondDenom).BigInt()))
+	fmt.Printf("actualError: %v\n", actualError)
+	fmt.Printf("marginOfError: %v\n", marginOfError)
 
-	// fmt.Printf("numerator: %v\n", numerator)
-	// fmt.Printf("denominator: %v\n", denominator)
+	require.True(actualError.LTE(marginOfError))
 }
 
 func (s *IntegrationTestSuite) GetTotalSupply() sdktypes.Coins {
