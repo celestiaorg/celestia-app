@@ -87,7 +87,7 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 		return nil, fmt.Errorf("error reading block: %w", err)
 	}
 
-	dataSquare, err := square.Construct(pbb.Data.Txs, appconsts.DefaultMaxSquareSize)
+	dataSquare, err := square.Construct(pbb.Data.Txs, appconsts.MaxSquareSize)
 	if err != nil {
 		return nil, err
 	}

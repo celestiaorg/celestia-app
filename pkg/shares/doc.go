@@ -33,12 +33,12 @@
 // For the first share of a sequence:
 //
 //	| namespace_version | namespace_id | info_byte | sequence_length | sequence_data             |
-//	| 1 byte            | 32 bytes     | 1 byte    | 4 bytes         | remaining bytes of share  |
+//	| 1 byte            | 28 bytes     | 1 byte    | 4 bytes         | remaining bytes of share  |
 //
 // For continuation share of a sequence:
 //
 //	| namespace_version | namespace_id | info_byte | sequence_data             |
-//	| 1 byte            | 32 bytes     | 1 byte    | remaining bytes of share  |
+//	| 1 byte            | 28 bytes     | 1 byte    | remaining bytes of share  |
 //
 // The remaining bytes depend on the share type.
 //
@@ -51,12 +51,12 @@
 // For the first compact share:
 //
 //	| namespace_version | namespace_id | info_byte | sequence_length | location_of_first_unit | transactions or intermediate state roots            |
-//	| 1 byte            | 32 bytes     | 1 byte    | 4 bytes         | 4 bytes                | remaining bytes of share                            |
+//	| 1 byte            | 28 bytes     | 1 byte    | 4 bytes         | 4 bytes                | remaining bytes of share                            |
 //
 // For continuation compact share:
 //
 //	| namespace_version | namespace_id | info_byte | location_of_first_unit | transactions or intermediate state roots            |
-//	| 1 byte            | 32 bytes     | 1 byte    | 4 bytes                | remaining bytes of share                            |
+//	| 1 byte            | 28 bytes     | 1 byte    | 4 bytes                | remaining bytes of share                            |
 //
 // Notes
 //   - All shares in a reserved namespace belong to one sequence.
