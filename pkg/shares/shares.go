@@ -226,16 +226,12 @@ func (s *Share) rawDataStartIndexUsingReserved() (int, error) {
 		index += appconsts.SequenceLenBytes
 	}
 
-	if !isStart && isCompact {
+	if isCompact {
 		reservedBytes, err := ParseReservedBytes(s.data[index : index+appconsts.CompactShareReservedBytes])
 		if err != nil {
 			return 0, err
 		}
 		return int(reservedBytes), nil
-	}
-
-	if isCompact {
-		index += appconsts.CompactShareReservedBytes
 	}
 	return index, nil
 }
