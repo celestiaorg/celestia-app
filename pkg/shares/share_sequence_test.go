@@ -113,7 +113,7 @@ func Test_sparseSharesNeeded(t *testing.T) {
 		{appconsts.FirstSparseShareContentSize + appconsts.ContinuationCompactShareContentSize*99, 100},
 		{1000, 3},
 		{10000, 21},
-		{100000, 210},
+		{100000, 208},
 	}
 	for _, tc := range testCases {
 		got := SparseSharesNeeded(tc.sequenceLen)

@@ -18,7 +18,13 @@ func TestQGBRPCQueries(t *testing.T) {
 	tmCfg := testnode.DefaultTendermintConfig()
 	tmCfg.Consensus.TargetHeightDuration = time.Millisecond
 
-	cctx, _, _ := testnode.NewNetwork(t, testnode.DefaultParams(), tmCfg, testnode.DefaultAppConfig())
+	cctx, _, _ := testnode.NewNetwork(
+		t,
+		testnode.DefaultParams(),
+		tmCfg,
+		testnode.DefaultAppConfig(),
+		[]string{},
+	)
 	h, err := cctx.WaitForHeightWithTimeout(105, 2*time.Minute)
 	require.NoError(t, err, h)
 	require.Greater(t, h, int64(101))
