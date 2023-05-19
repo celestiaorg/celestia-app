@@ -51,7 +51,13 @@ func parseRawData(rawData []byte) (units [][]byte, err error) {
 		if err != nil {
 			return nil, err
 		}
-		if unitLen == 0 || unitLen > uint64(len(actualData)) {
+		// the rest of raw data is padding
+		if unitLen == 0 {
+			return units, nil
+		}
+		// the rest of actual data contains only part of the next transaction so
+		// we stop parsing raw data
+		if unitLen > uint64(len(actualData)) {
 			return units, nil
 		}
 		rawData = actualData[unitLen:]
@@ -59,8 +65,10 @@ func parseRawData(rawData []byte) (units [][]byte, err error) {
 	}
 }
 
-// extractRawData returns the raw data contained in the shares. The raw data does
-// not contain the namespace ID, info byte, sequence length, or reserved bytes.
+// extractRawData returns the raw data representing complete transactions
+// contained in the shares. The raw data does not contain the namespace, info
+// byte, sequence length, or reserved bytes. Starts reading raw data based on
+// the reserved bytes in the first share.
 func extractRawData(shares []Share) (rawData []byte, err error) {
 	for i := 0; i < len(shares); i++ {
 		var raw []byte
