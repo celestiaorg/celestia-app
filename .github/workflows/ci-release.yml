@@ -1,4 +1,4 @@
-name: CI and Release
+name: ci-release
 
 # Trigger on push events to main (i.e. merges), pushing new semantic version
 # tags, all PRs, and manual triggers
