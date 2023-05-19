@@ -74,7 +74,6 @@ func TestRootErasuredNamespacedMerkleTree(t *testing.T) {
 
 // TestErasuredNamespacedMerkleTreeEmptyRoot checks that the root of an empty erasured NMT is always the same
 func TestErasuredNamespacedMerkleTreeEmptyRoot(t *testing.T) {
-
 	// set up a first tree with some parameters
 	tree1 := NewErasuredNamespacedMerkleTree(1, 0)
 	r1, err := tree1.Root()
@@ -197,5 +196,4 @@ func TestErasuredNamespacedMerkleTree_ProveRange(t *testing.T) {
 			assert.True(t, verfied)
 		}
 	}
-
 }
