@@ -19,8 +19,7 @@ import (
 type IntegrationTestSuite struct {
 	suite.Suite
 
-	accounts []string
-	cctx     testnode.Context
+	cctx testnode.Context
 }
 
 func (s *IntegrationTestSuite) SetupSuite() {
@@ -28,8 +27,18 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		s.T().Skip("skipping mint integration test in short mode.")
 	}
 
-	s.T().Log("setting up mint integration test suite")
-	s.accounts, s.cctx = testnode.DefaultNetwork(s.T())
+	t := s.T()
+
+	t.Log("setting up mint integration test suite")
+
+	// set the minimum time between blocks to be 10 days. this will cause the
+	// block time to increase by 10 days despite that time not actually passing,
+	// which allows this test to not take 1 year to complete
+	cparams := testnode.DefaultParams()
+	cparams.Block.TimeIotaMs = int64(time.Hour.Milliseconds() * 240)
+
+	cctx, _, _ := testnode.NewNetwork(t, cparams, testnode.DefaultTendermintConfig(), testnode.DefaultAppConfig())
+	s.cctx = cctx
 }
 
 // TestTotalSupplyIncreasesOverTime tests that the total supply of tokens
