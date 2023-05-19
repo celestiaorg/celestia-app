@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/nmt"
+	nmtnamespace "github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -177,11 +178,23 @@ func TestErasuredNamespacedMerkleTree_ProveRange(t *testing.T) {
 			assert.NoError(t, err)
 		}
 
-		// iterate over all the shares and check that the proof is non-empty
+		root, err := tree.Root()
+		assert.NoError(t, err)
+		// iterate over all the shares and check that the proof is non-empty and can be verified
 		for i := 0; i < len(data); i++ {
 			proof, err := tree.ProveRange(i, i+1)
 			assert.NoError(t, err)
 			assert.NotEmpty(t, proof.Nodes())
+			assert.False(t, proof.IsEmptyProof())
+
+			var namespaceID nmtnamespace.ID
+			if i < sqaureSize {
+				namespaceID = data[i][:appconsts.NamespaceSize]
+			} else {
+				namespaceID = appns.ParitySharesNamespace.Bytes()
+			}
+			verfied := proof.VerifyInclusion(appconsts.NewBaseHashFunc(), namespaceID, [][]byte{data[i]}, root)
+			assert.True(t, verfied)
 		}
 	}
 
