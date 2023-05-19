@@ -105,7 +105,7 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) error {
 // Root fulfills the rsmt.Tree interface by generating and returning the
 // underlying NamespaceMerkleTree Root.
 func (w *ErasuredNamespacedMerkleTree) Root() ([]byte, error) {
-	root, err := w.tree.Root() // TODO range error cannot happen, since range is based on the w size which is valid, though empty root should be identical for two instance of w that are empty
+	root, err := w.tree.Root()
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func (w *ErasuredNamespacedMerkleTree) Root() ([]byte, error) {
 
 // ProveRange returns a Merkle range proof for the leaf range [start, end] where `end` is non-inclusive.
 func (w *ErasuredNamespacedMerkleTree) ProveRange(start, end int) (nmt.Proof, error) {
-	return w.tree.ProveRange(start, end) // TODO affected by buildRangeProof and HashNode
+	return w.tree.ProveRange(start, end)
 }
 
 // incrementShareIndex increments the share index by one.
