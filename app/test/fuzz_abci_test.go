@@ -2,10 +2,10 @@ package app_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -18,8 +18,8 @@ import (
 // PrepareProposal and then tests those blocks by calling ProcessProposal. All
 // blocks produced by PrepareProposal should be accepted by ProcessProposal. It
 // doesn't use the standard go tools for fuzzing as those tools only support
-// fuzzing limited types, instead we create blocks our selves using random
-// transactions.
+// fuzzing limited types, instead we repeatedly create random blocks using
+// various square sizes.
 func TestPrepareProposalConsistency(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestPrepareProposalConsistency in short mode.")
@@ -30,26 +30,64 @@ func TestPrepareProposalConsistency(t *testing.T) {
 		accounts[i] = tmrand.Str(20)
 	}
 
-	testApp, kr := util.SetupTestAppWithGenesisValSet(accounts...)
-
 	type test struct {
 		name                   string
 		count, blobCount, size int
+		iterations             int
 	}
 	tests := []test{
-		{"many small single share single blob transactions", 1000, 1, 400},
-		{"one hundred normal sized single blob transactions", 100, 1, 400000},
-		{"many single share multi-blob transactions", 1000, 100, 400},
-		{"one hundred normal sized multi-blob transactions", 100, 4, 400000},
+		// running these tests more than once in CI will sometimes timout, so we
+		// have to run them each once per square size. However, we can run these
+		// more locally by increasing the iterations.
+		{"many small single share single blob transactions", 1000, 1, 400, 1},
+		{"one hundred normal sized single blob transactions", 100, 1, 400000, 1},
+		{"many single share multi-blob transactions", 1000, 100, 400, 1},
+		{"one hundred normal sized multi-blob transactions", 100, 4, 400000, 1},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			timer := time.After(time.Second * 20)
-			for {
-				select {
-				case <-timer:
-					return
-				default:
+
+	type testSize struct {
+		name             string
+		maxBytes         int64
+		govMaxSquareSize uint64
+	}
+	sizes := []testSize{
+		{
+			"default (should be 64 as of mainnet)",
+			appconsts.DefaultMaxBytes,
+			appconsts.DefaultGovMaxSquareSize,
+		},
+		{
+			"max",
+			appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize,
+			appconsts.MaxSquareSize,
+		},
+		{
+			"larger MaxBytes than SquareSize",
+			appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize,
+			appconsts.DefaultGovMaxSquareSize,
+		},
+		{
+			"smaller MaxBytes than SquareSize",
+			32 * 32 * appconsts.ContinuationSparseShareContentSize,
+			appconsts.DefaultGovMaxSquareSize,
+		},
+	}
+
+	// run the above test case for each square size the specified number of
+	// iterations
+	for _, size := range sizes {
+		// setup a new application with different MaxBytes consensus parameter
+		// values.
+		cparams := app.DefaultConsensusParams()
+		cparams.Block.MaxBytes = size.maxBytes
+
+		testApp, kr := util.SetupTestAppWithGenesisValSet(cparams, accounts...)
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				// repeat the test multiple times with random data each
+				// iteration.
+				for i := 0; i < tt.iterations; i++ {
 					txs := util.RandBlobTxsWithAccounts(
 						t,
 						testApp,
@@ -78,6 +116,11 @@ func TestPrepareProposalConsistency(t *testing.T) {
 							Txs: coretypes.Txs(txs).ToSliceOfBytes(),
 						},
 					})
+
+					// check that the square size is smaller than or equal to
+					// the specified size
+					require.LessOrEqual(t, resp.BlockData.SquareSize, size.govMaxSquareSize)
+
 					res := testApp.ProcessProposal(abci.RequestProcessProposal{
 						BlockData: resp.BlockData,
 						Header: core.Header{
@@ -86,7 +129,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					})
 					require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Result)
 				}
-			}
-		})
+			})
+		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
@@ -15,7 +16,7 @@ import (
 )
 
 func TestGenesisTime(t *testing.T) {
-	app, _ := util.SetupTestAppWithGenesisValSet()
+	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 	unixEpoch := time.Unix(0, 0).UTC()
 	fixedTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
@@ -53,7 +54,7 @@ func TestGenesisTime(t *testing.T) {
 }
 
 func TestInflationRate(t *testing.T) {
-	app, _ := util.SetupTestAppWithGenesisValSet()
+	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 	unixEpoch := time.Unix(0, 0).UTC()
 	yearZero := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
@@ -111,7 +112,7 @@ func TestInflationRate(t *testing.T) {
 }
 
 func TestAnnualProvisions(t *testing.T) {
-	app, _ := util.SetupTestAppWithGenesisValSet()
+	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 	unixEpoch := time.Unix(0, 0).UTC()
 	yearZero := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
