@@ -196,7 +196,7 @@ func pruneAttestations(
 	if !k.CheckLastUnbondingNonce(ctx) {
 		// We should never hit this case in the happy path because at this level, we're sure that
 		// all store values are initialized.
-		// However, we might hit it in an upgrade if we don't handle the store values carefuly.
+		// However, we might hit it in an upgrade if we don't handle the store values carefully.
 		// So, it's good to have this check in place.
 		return fmt.Errorf("last unbonding nonce not initialized in store")
 	}
