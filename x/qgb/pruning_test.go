@@ -15,25 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//type PruningTestSuite struct {
-//	suite.Suite
-//	input     testutil.TestInput
-//	ctx       sdktypes.Context
-//	qgbKeeper qgbmodulekeeper.Keeper
-//}
-//
-//func (s *PruningTestSuite) SetupSuite() {
-//	t := s.T()
-//	input, ctx := testutil.SetupFiveValChain(t)
-//	s.qgbKeeper = *input.QgbKeeper
-//	s.input = input
-//	s.ctx = ctx
-//}
-//
-//func TestPruning(t *testing.T) {
-//	suite.Run(t, new(PruningTestSuite))
-//}
-
 // TestAttestationsLowerThanPruningThreshold tests the first check for pruning, which is
 // not pruning if the number of attestations is lower than the threshold.
 func TestAttestationsLowerThanPruningThreshold(t *testing.T) {
