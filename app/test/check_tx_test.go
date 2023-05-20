@@ -24,7 +24,7 @@ func TestCheckTx(t *testing.T) {
 
 	accs := []string{"a", "b", "c", "d", "e", "f"}
 
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accs...)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accs...)
 
 	type test struct {
 		name             string

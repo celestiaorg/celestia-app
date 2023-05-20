@@ -227,6 +227,9 @@ func (tc *TxClient) Broadcast(ctx context.Context, txBuilder sdkclient.TxBuilder
 	}
 
 	for {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		subctx, cancel := context.WithTimeout(ctx, rpcContextTimeout)
 		defer cancel()
 
