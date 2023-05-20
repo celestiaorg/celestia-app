@@ -162,12 +162,10 @@ func PruneIfNeeded(ctx sdk.Context, k keeper.Keeper) {
 	if lastNonceHeight > lastUnbondingHeight {
 		// checking if it's the initial case following the startup of the chain
 		if lastNonceHeight == 1 && lastUnbondingHeight == 0 {
-			// if lastUnbondingHeight == 0 {
 			return
-		} else {
-			// we should never hit this case, since we will keep the attestations up to the last unbonding height
-			panic("missing attestations up to the unbonding height")
 		}
+		// we should never hit this case, since we will keep the attestations up to the last unbonding height
+		panic("missing attestations up to the unbonding height")
 	}
 	// now we have attestations before the unbonding height, we should check wether we need to prune them
 	// or not yet
