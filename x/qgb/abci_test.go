@@ -349,28 +349,21 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 	qk := input.QgbKeeper
 	ctx = ctx.WithBlockHeight(1)
 
-	executeHeights := func(beginHeight int64, endHeight int64) {
-		for i := beginHeight; i <= endHeight; i++ {
-			ctx = ctx.WithBlockHeight(i)
-			qgb.EndBlocker(ctx, *qk)
-		}
-	}
-
 	// from height 1 to 1500 with a window of 400
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 400})
-	executeHeights(1, 1500)
+	ctx = testutil.ExecuteQGBHeights(ctx, *qk, 1, 1501)
 
 	// change window to 100 and execute up to 1920
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 100})
-	executeHeights(1501, 1920)
+	ctx = testutil.ExecuteQGBHeights(ctx, *qk, 1501, 1921)
 
 	// change window to 1000 and execute up to 3500
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 1000})
-	executeHeights(1921, 3500)
+	ctx = testutil.ExecuteQGBHeights(ctx, *qk, 1921, 3501)
 
 	// change window to 111 and execute up to 3800
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 111})
-	executeHeights(3501, 3800)
+	ctx = testutil.ExecuteQGBHeights(ctx, *qk, 3501, 3801)
 
 	// check if a data commitment was created
 	hasDataCommitment, err := qk.HasDataCommitmentInStore(ctx)

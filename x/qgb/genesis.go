@@ -10,6 +10,8 @@ import (
 // state.
 func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) {
 	k.SetLatestAttestationNonce(ctx, 0)
+	k.SetLastPrunedAttestationNonce(ctx, 0)
+	k.SetLastUnbondingNonce(ctx, 0)
 	k.SetParams(ctx, *genState.Params)
 }
 

@@ -2,16 +2,24 @@ package qgb
 
 import (
 	"errors"
+	"fmt"
 
 	sdkerrors "cosmossdk.io/errors"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// SignificantPowerDifferenceThreshold the threshold of change in the validator set power
-// that would need the creation of a new valset request.
-const SignificantPowerDifferenceThreshold = 0.05
+const (
+	// SignificantPowerDifferenceThreshold the threshold of change in the validator set power
+	// that would need the creation of a new valset request.
+	SignificantPowerDifferenceThreshold = 0.05
+
+	// AttestationPruningThreshold the minimum number of recent attestations that will always be present
+	// in state.
+	AttestationPruningThreshold = 100
+)
 
 // EndBlocker is called at the end of every block.
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
@@ -19,6 +27,7 @@ func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
 	// the one responsible for signing from now on.
 	handleValsetRequest(ctx, k)
 	handleDataCommitmentRequest(ctx, k)
+	PruneIfNeeded(ctx, k)
 }
 
 func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
@@ -112,4 +121,111 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 			panic(err)
 		}
 	}
+}
+
+func PruneIfNeeded(ctx sdk.Context, k keeper.Keeper) {
+	if !k.CheckLatestAttestationNonce(ctx) ||
+		k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx) <= AttestationPruningThreshold {
+		// If the attestations nonce hasn't been initialized yet, or the nonce is not greater than the minimum
+		// number of attestations, we don't need to prune anything
+		return
+	}
+
+	lastAvailableNonce := k.GetLastPrunedAttestationNonce(ctx) + 1
+	lastAttestationInStore, found, err := k.GetAttestationByNonce(ctx, lastAvailableNonce)
+	if err != nil {
+		panic(err)
+	}
+	if !found {
+		panic(fmt.Sprintf("couldn't find attestation %s for pruning", lastAttestationInStore))
+	}
+	var lastNonceHeight uint64
+	switch lastAttestationInStore.Type() {
+	case types.DataCommitmentRequestType:
+		dc, ok := lastAttestationInStore.(*types.DataCommitment)
+		if !ok {
+			panic("couldn't cast data commitment type")
+		}
+		lastNonceHeight = dc.EndBlock
+	case types.ValsetRequestType:
+		vs, ok := lastAttestationInStore.(*types.Valset)
+		if !ok {
+			panic("couldn't cast valset type")
+		}
+		lastNonceHeight = vs.Height
+	}
+	lastUnbondingHeight := k.GetLastUnBondingBlockHeight(ctx)
+	if lastNonceHeight == lastUnbondingHeight {
+		// we don't need to do anything, we wont to keep attestations up to the unbonding height
+		return
+	}
+	if lastNonceHeight > lastUnbondingHeight {
+		// checking if it's the initial case following the startup of the chain
+		if lastNonceHeight == 1 && lastUnbondingHeight == 0 {
+			// if lastUnbondingHeight == 0 {
+			return
+		} else {
+			// we should never hit this case, since we will keep the attestations up to the last unbonding height
+			panic("missing attestations up to the unbonding height")
+		}
+	}
+	// now we have attestations before the unbonding height, we should check wether we need to prune them
+	// or not yet
+	latestAttestationNonce := k.GetLatestAttestationNonce(ctx)
+	if latestAttestationNonce-lastAvailableNonce+1 <= AttestationPruningThreshold {
+		// we don't need to prune as we still have room to store more attestations
+		return
+	}
+	// now we want to prune attestations as we have the following conditions:
+	// - we have attestations up to the last unbonding period
+	// - the total number of attestations, including the ones before the unbonding period, are greater
+	// than the AttestationPruningThreshold
+	err = pruneAttestations(ctx, k, lastAvailableNonce, latestAttestationNonce)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// pruneAttestations prunes attestations to keep attestations up to the last unbonding period
+// and the total number of attestations lesser than AttestationPruningThreshold.
+func pruneAttestations(
+	ctx sdk.Context,
+	k keeper.Keeper,
+	lastAvailableAttestationNonce uint64,
+	latestAttestationNonce uint64,
+) error {
+	ctx.Logger().Debug("pruning attestations from qgb store")
+	if !k.CheckLastUnbondingNonce(ctx) {
+		// We should never hit this case in the happy path because at this level, we're sure that
+		// all store values are initialized.
+		// However, we might hit it in an upgrade if we don't handle the store values carefuly.
+		// So, it's good to have this check in place.
+		return fmt.Errorf("last unbonding nonce not initialized in store")
+	}
+	lastUnbondingNonce := k.GetLastUnbondingNonce(ctx)
+	count := 0
+	newLastAvailableNonce := lastAvailableAttestationNonce
+	for i := lastAvailableAttestationNonce; i < lastUnbondingNonce; i++ {
+		if newLastAvailableNonce == lastUnbondingNonce ||
+			latestAttestationNonce-i+1 == AttestationPruningThreshold {
+			// we either reached the last unbonding height, and we need to keep all those attestations
+			// or, we reached the minimum number of attestations we want to keep in store
+			newLastAvailableNonce = i
+			break
+		}
+		k.DeleteAttestation(ctx, i)
+		count++
+	}
+	// persist the new last pruned attestation nonce
+	k.SetLastPrunedAttestationNonce(ctx, newLastAvailableNonce-1)
+	ctx.Logger().Debug(
+		"finished pruning attestations from qgb store",
+		"count",
+		count,
+		"new_last_available_nonce",
+		newLastAvailableNonce,
+		"latest_attestation_nonce",
+		latestAttestationNonce,
+	)
+	return nil
 }

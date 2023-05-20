@@ -78,6 +78,66 @@ func (k Keeper) GetLatestAttestationNonce(ctx sdk.Context) uint64 {
 	return UInt64FromBytes(bytes)
 }
 
+// CheckLastPrunedAttestationNonce returns true if the last pruned attestation nonce has been initialized
+// in store, and false if not.
+func (k Keeper) CheckLastPrunedAttestationNonce(ctx sdk.Context) bool {
+	store := ctx.KVStore(k.storeKey)
+	has := store.Has([]byte(types.LatestAttestationtNonce))
+	return has
+}
+
+// GetLastPrunedAttestationNonce returns the last pruned attestation nonce.
+// The nonce is not of the last available attestation in store that can be retrieved, but
+// the one before that.
+// Panics if the last pruned attestation nonce doesn't exit. Make sure to call `CheckLastPrunedAttestationNonce`
+// before getting the nonce.
+// This value is set on chain startup. However, it won't be written to store until height = 1.
+// Thus, it's mandatory to run `CheckLastPrunedAttestationNonce` before calling this method.
+func (k Keeper) GetLastPrunedAttestationNonce(ctx sdk.Context) uint64 {
+	store := ctx.KVStore(k.storeKey)
+	bytes := store.Get([]byte(types.LastPrunedAttestationNonce))
+	if bytes == nil {
+		panic("nil last pruned attestation nonce")
+	}
+	return UInt64FromBytes(bytes)
+}
+
+// SetLastPrunedAttestationNonce sets the last pruned attestation nonce.
+// The nonce is not of the last available attestation in store that can be retrieved, but
+// the one before that.
+func (k Keeper) SetLastPrunedAttestationNonce(ctx sdk.Context, nonce uint64) {
+	store := ctx.KVStore(k.storeKey)
+	store.Set([]byte(types.LastPrunedAttestationNonce), types.UInt64Bytes(nonce))
+}
+
+// CheckLastUnbondingNonce returns true if the last unbonding nonce has been initialized
+// in store, and false if not.
+func (k Keeper) CheckLastUnbondingNonce(ctx sdk.Context) bool {
+	store := ctx.KVStore(k.storeKey)
+	has := store.Has([]byte(types.LastUnbondingNonce))
+	return has
+}
+
+// GetLastUnbondingNonce returns the last unbonding nonce.
+// Panics if the last unbonding nonce doesn't exit. Make sure to call `CheckLastUnbondingNonce`
+// before getting the nonce.
+// This value is set on chain startup. However, it won't be written to store until height = 1.
+// Thus, it's mandatory to run `CheckLastUnbondingNonce` before calling this method.
+func (k Keeper) GetLastUnbondingNonce(ctx sdk.Context) uint64 {
+	store := ctx.KVStore(k.storeKey)
+	bytes := store.Get([]byte(types.LastUnbondingNonce))
+	if bytes == nil {
+		panic("nil last unbonding nonce")
+	}
+	return UInt64FromBytes(bytes)
+}
+
+// SetLastUnbondingNonce sets the last pruned attestation nonce.
+func (k Keeper) SetLastUnbondingNonce(ctx sdk.Context, nonce uint64) {
+	store := ctx.KVStore(k.storeKey)
+	store.Set([]byte(types.LastUnbondingNonce), types.UInt64Bytes(nonce))
+}
+
 // GetAttestationByNonce returns an attestation request by nonce.
 // Returns (nil, false, nil) if the attestation is not found.
 func (k Keeper) GetAttestationByNonce(ctx sdk.Context, nonce uint64) (types.AttestationRequestI, bool, error) {
@@ -92,4 +152,15 @@ func (k Keeper) GetAttestationByNonce(ctx sdk.Context, nonce uint64) (types.Atte
 		return nil, false, types.ErrUnmarshalllAttestation
 	}
 	return at, true, nil
+}
+
+// DeleteAttestation deletes an attestation from state.
+func (k Keeper) DeleteAttestation(ctx sdk.Context, nonce uint64) {
+	key := []byte(types.GetAttestationKey(nonce))
+	store := ctx.KVStore(k.storeKey)
+	if !store.Has(key) {
+		// if the store doesn't have the needed attestation, then no need to do anything.
+		return
+	}
+	store.Delete(key)
 }

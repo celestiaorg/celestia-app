@@ -30,6 +30,12 @@ const (
 
 	// LatestAttestationtNonce indexes the latest attestation request nonce
 	LatestAttestationtNonce = "LatestAttestationNonce"
+
+	// LastPrunedAttestationNonce indexes the last pruned attestation nonce
+	LastPrunedAttestationNonce = "LastPrunedAttestationNonce"
+
+	// LastUnbondingNonce indexes the nonce corresponding to the last unbonding height
+	LastUnbondingNonce = "LastUnbondingNonce"
 )
 
 // GetAttestationKey returns the following key format
