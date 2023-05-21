@@ -156,7 +156,7 @@ func PruneIfNeeded(ctx sdk.Context, k keeper.Keeper) {
 	}
 	lastUnbondingHeight := k.GetLastUnBondingBlockHeight(ctx)
 	if lastNonceHeight == lastUnbondingHeight {
-		// we don't need to do anything, we wont to keep attestations up to the unbonding height
+		// we don't need to do anything, we want to keep attestations up to the last unbonding height
 		return
 	}
 	if lastNonceHeight > lastUnbondingHeight {
