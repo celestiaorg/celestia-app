@@ -86,13 +86,12 @@ func (k Keeper) CheckLastPrunedAttestationNonce(ctx sdk.Context) bool {
 	return has
 }
 
-// GetLastPrunedAttestationNonce returns the last pruned attestation nonce.
-// The nonce is not of the last available attestation in store that can be retrieved, but
-// the one before that.
-// Panics if the last pruned attestation nonce doesn't exit. Make sure to call `CheckLastPrunedAttestationNonce`
-// before getting the nonce.
-// This value is set on chain startup. However, it won't be written to store until height = 1.
-// Thus, it's mandatory to run `CheckLastPrunedAttestationNonce` before calling this method.
+// GetLastPrunedAttestationNonce returns the last pruned attestation nonce. The
+// nonce is not of the last available attestation in store that can be
+// retrieved, but the one before that. Panics if the last pruned attestation
+// nonce doesn't exit. This value is set on chain startup. However, it won't be
+// written to store until height = 1. Thus, it's mandatory to run
+// `CheckLastPrunedAttestationNonce` before calling this method.
 func (k Keeper) GetLastPrunedAttestationNonce(ctx sdk.Context) uint64 {
 	store := ctx.KVStore(k.storeKey)
 	bytes := store.Get([]byte(types.LastPrunedAttestationNonce))
