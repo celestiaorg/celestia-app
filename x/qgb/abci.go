@@ -185,7 +185,7 @@ func PruneIfNeeded(ctx sdk.Context, k keeper.Keeper) {
 }
 
 // pruneAttestations prunes attestations to keep attestations up to the last unbonding height
-// and the total number of attestations lesser than AttestationPruningThreshold.
+// and the total number of attestations lower than the AttestationPruningThreshold.
 func pruneAttestations(
 	ctx sdk.Context,
 	k keeper.Keeper,
