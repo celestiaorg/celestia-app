@@ -176,7 +176,7 @@ func PruneIfNeeded(ctx sdk.Context, k keeper.Keeper) {
 	}
 	// now we want to prune attestations as we have the following conditions:
 	// - we have attestations up to the last unbonding height
-	// - the total number of attestations, including the ones before the unbonding period, are greater
+	// - the total number of attestations, including the ones before the unbonding height, are greater
 	// than the AttestationPruningThreshold
 	err = pruneAttestations(ctx, k, lastAvailableNonce, latestAttestationNonce)
 	if err != nil {
