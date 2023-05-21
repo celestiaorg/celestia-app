@@ -124,10 +124,14 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 }
 
 func PruneIfNeeded(ctx sdk.Context, k keeper.Keeper) {
-	if !k.CheckLatestAttestationNonce(ctx) ||
-		k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx) <= AttestationPruningThreshold {
-		// If the attestations nonce hasn't been initialized yet, or the nonce is not greater than the minimum
-		// number of attestations, we don't need to prune anything
+	// If the attestations nonce hasn't been initialized yet, no pruning is
+	// required
+	if !k.CheckLatestAttestationNonce(ctx) {
+		return
+	}
+	// If the nonce is not greater than the minimum number of attestations,
+	// no pruning is required.
+	if k.GetLatestAttestationNonce(ctx) <= AttestationPruningThreshold {
 		return
 	}
 
