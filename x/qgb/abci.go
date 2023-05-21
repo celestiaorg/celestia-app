@@ -149,10 +149,7 @@ func PruneIfNeeded(ctx sdk.Context, k keeper.Keeper) {
 		dc := lastAttestationInStore.(*types.DataCommitment)
 		lastNonceHeight = dc.EndBlock
 	case types.ValsetRequestType:
-		vs, ok := lastAttestationInStore.(*types.Valset)
-		if !ok {
-			panic("couldn't cast valset type")
-		}
+		vs := lastAttestationInStore.(*types.Valset)
 		lastNonceHeight = vs.Height
 	}
 	lastUnbondingHeight := k.GetLastUnBondingBlockHeight(ctx)
