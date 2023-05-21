@@ -203,6 +203,9 @@ func pruneAttestations(
 	newLastAvailableNonce := lastAvailableAttestationNonce
 	for i := lastAvailableAttestationNonce; i < lastUnbondingNonce; i++ {
 		if newLastAvailableNonce == lastUnbondingNonce ||
+			// the +1 is because we will have the following range in store:
+			// [lastAvailableAttestationNonce, latestAttestationNonce] with its
+			// length == AttestationPruningThreshold
 			latestAttestationNonce-i+1 == AttestationPruningThreshold {
 			// we either reached the last unbonding height, and we need to keep all those attestations
 			// or, we reached the minimum number of attestations we want to keep in store
