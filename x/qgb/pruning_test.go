@@ -106,7 +106,7 @@ func TestPruneMultiple(t *testing.T) {
 	window := uint64(101)
 	qgbKeeper.SetParams(ctx, types.Params{DataCommitmentWindow: window})
 
-	// test that no prunning occurs if last unbonding height is still 0 (chain startup scenario)
+	// test that no pruning occurs if last unbonding height is still 0 (chain startup scenario)
 	// but the attestations are way over the AttestationPruningThreshold
 	ctx = testutil.ExecuteQGBHeights(ctx, qgbKeeper, 1, 2*int64(qgb.AttestationPruningThreshold*window)+1)
 	assert.NotPanics(t, func() { qgb.PruneIfNeeded(ctx, qgbKeeper) })
