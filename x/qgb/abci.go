@@ -123,6 +123,9 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 	}
 }
 
+// PruneIfNeeded runs basic checks on saved attestations to see if we need to prune or not.
+// Also, proposes some gas optimizations by adding more checks to return before running any
+// of the pruning logic.
 func PruneIfNeeded(ctx sdk.Context, k keeper.Keeper) {
 	// If the attestations nonce hasn't been initialized yet, no pruning is
 	// required
