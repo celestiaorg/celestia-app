@@ -134,24 +134,8 @@ func PruneIfNeeded(ctx sdk.Context, k keeper.Keeper) {
 	if k.GetLatestAttestationNonce(ctx) <= AttestationPruningThreshold {
 		return
 	}
-
 	lastAvailableNonce := k.GetLastAvailableAttestationNonce(ctx)
-	lastAttestationInStore, found, err := k.GetAttestationByNonce(ctx, lastAvailableNonce)
-	if err != nil {
-		panic(err)
-	}
-	if !found {
-		panic(fmt.Sprintf("couldn't find attestation %s for pruning", lastAttestationInStore))
-	}
-	var lastNonceHeight uint64
-	switch lastAttestationInStore.Type() {
-	case types.DataCommitmentRequestType:
-		dc := lastAttestationInStore.(*types.DataCommitment)
-		lastNonceHeight = dc.EndBlock
-	case types.ValsetRequestType:
-		vs := lastAttestationInStore.(*types.Valset)
-		lastNonceHeight = vs.Height
-	}
+	lastNonceHeight := getLastAvailableNonceHeight(ctx, k)
 	lastUnbondingHeight := k.GetLastUnBondingBlockHeight(ctx)
 	if lastNonceHeight == lastUnbondingHeight {
 		// we don't need to do anything, we want to keep attestations up to the last unbonding height
@@ -176,9 +160,31 @@ func PruneIfNeeded(ctx sdk.Context, k keeper.Keeper) {
 	// - we have attestations up to the last unbonding height
 	// - the total number of attestations, including the ones before the unbonding height, are greater
 	// than the AttestationPruningThreshold
-	err = pruneAttestations(ctx, k, lastAvailableNonce, latestAttestationNonce)
+	err := pruneAttestations(ctx, k, lastAvailableNonce, latestAttestationNonce)
 	if err != nil {
 		panic(err)
+	}
+}
+
+// getLastAvailableNonceHeight returns the block height corresponding to the last available
+// nonce in store.
+func getLastAvailableNonceHeight(ctx sdk.Context, k keeper.Keeper) uint64 {
+	lastAttestationInStore, found, err := k.GetAttestationByNonce(ctx, k.GetLastAvailableAttestationNonce(ctx))
+	if err != nil {
+		panic(err)
+	}
+	if !found {
+		panic(fmt.Sprintf("couldn't find attestation %s for pruning", lastAttestationInStore))
+	}
+	switch lastAttestationInStore.Type() {
+	case types.DataCommitmentRequestType:
+		dc := lastAttestationInStore.(*types.DataCommitment)
+		return dc.EndBlock
+	case types.ValsetRequestType:
+		vs := lastAttestationInStore.(*types.Valset)
+		return vs.Height
+	default:
+		panic("unknown attestation type")
 	}
 }
 
