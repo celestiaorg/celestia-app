@@ -31,8 +31,8 @@ const (
 	// LatestAttestationtNonce indexes the latest attestation request nonce
 	LatestAttestationtNonce = "LatestAttestationNonce"
 
-	// LastPrunedAttestationNonce indexes the last pruned attestation nonce
-	LastPrunedAttestationNonce = "LastPrunedAttestationNonce"
+	// LastAvailableAttestationNonce indexes the last available attestation nonce
+	LastAvailableAttestationNonce = "LastAvailableAttestationNonce"
 
 	// LastUnbondingNonce indexes the nonce corresponding to the last unbonding height
 	LastUnbondingNonce = "LastUnbondingNonce"

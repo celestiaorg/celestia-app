@@ -67,12 +67,12 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
 	}
-	if !k.CheckLastPrunedAttestationNonce(ctx) {
-		return types.DataCommitment{}, types.ErrLastPrunedNonceStillNotInitialized
+	if !k.CheckLastAvailableAttestationNonce(ctx) {
+		return types.DataCommitment{}, types.ErrLastAvailableNonceStillNotInitialized
 	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
-	lastPrunedNonce := k.GetLastPrunedAttestationNonce(ctx)
-	for i := latestNonce; i > lastPrunedNonce; i-- {
+	lastAvailableNonce := k.GetLastAvailableAttestationNonce(ctx)
+	for i := latestNonce; i >= lastAvailableNonce; i-- {
 		// TODO better search
 		att, found, err := k.GetAttestationByNonce(ctx, i)
 		if err != nil {
@@ -97,12 +97,12 @@ func (k Keeper) GetLastDataCommitment(ctx sdk.Context) (types.DataCommitment, er
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
 	}
-	if !k.CheckLastPrunedAttestationNonce(ctx) {
-		return types.DataCommitment{}, types.ErrLastPrunedNonceStillNotInitialized
+	if !k.CheckLastAvailableAttestationNonce(ctx) {
+		return types.DataCommitment{}, types.ErrLastAvailableNonceStillNotInitialized
 	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
-	lastPrunedNonce := k.GetLastPrunedAttestationNonce(ctx)
-	for i := latestNonce; i > lastPrunedNonce; i-- {
+	lastAvailableNonce := k.GetLastAvailableAttestationNonce(ctx)
+	for i := latestNonce; i >= lastAvailableNonce; i-- {
 		att, found, err := k.GetAttestationByNonce(ctx, i)
 		if err != nil {
 			return types.DataCommitment{}, err
@@ -124,12 +124,12 @@ func (k Keeper) HasDataCommitmentInStore(ctx sdk.Context) (bool, error) {
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return false, nil
 	}
-	if !k.CheckLastPrunedAttestationNonce(ctx) {
-		return false, types.ErrLastPrunedNonceStillNotInitialized
+	if !k.CheckLastAvailableAttestationNonce(ctx) {
+		return false, types.ErrLastAvailableNonceStillNotInitialized
 	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
-	lastPrunedNonce := k.GetLastPrunedAttestationNonce(ctx)
-	for i := lastPrunedNonce + 1; i <= latestNonce; i++ {
+	lastAvailableNonce := k.GetLastAvailableAttestationNonce(ctx)
+	for i := lastAvailableNonce; i <= latestNonce; i++ {
 		att, found, err := k.GetAttestationByNonce(ctx, i)
 		if err != nil {
 			return false, err

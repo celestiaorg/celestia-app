@@ -130,20 +130,21 @@ func TestPruneMultiple(t *testing.T) {
 	qgb.EndBlocker(ctx, qgbKeeper)
 
 	// number of attestations that should be pruned
-	// the +2 is to account for the newly created valset that was set for the new unbonding height
-	// and the fact that attestations start at nonce 1 and not 0.
-	expectedLastPrunedAttestationNonce := totalNumberOfAttestations + 2 - qgb.AttestationPruningThreshold
-	assert.Equal(t, expectedLastPrunedAttestationNonce, qgbKeeper.GetLastPrunedAttestationNonce(ctx))
+	// the +3 is to account for the newly created valset that was set for the new unbonding height,
+	// and the fact that attestations start at nonce 1 and not 0,
+	// and the fact that we're comparing to the last available nonce == last pruned attestation nonce + 1
+	expectedLastAvailableAttestationNonce := totalNumberOfAttestations + 3 - qgb.AttestationPruningThreshold
+	assert.Equal(t, expectedLastAvailableAttestationNonce, qgbKeeper.GetLastAvailableAttestationNonce(ctx))
 
 	// check that the first attestations were pruned
-	for nonce := uint64(1); nonce <= expectedLastPrunedAttestationNonce; nonce++ {
+	for nonce := uint64(1); nonce < expectedLastAvailableAttestationNonce; nonce++ {
 		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
 		assert.NoError(t, err)
 		assert.False(t, found)
 	}
 
 	// check that the attestations after those still exist
-	for nonce := expectedLastPrunedAttestationNonce + 1; nonce <= qgbKeeper.GetLatestAttestationNonce(ctx); nonce++ {
+	for nonce := expectedLastAvailableAttestationNonce; nonce <= qgbKeeper.GetLatestAttestationNonce(ctx); nonce++ {
 		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
 		assert.NoError(t, err)
 		assert.True(t, found)
@@ -187,19 +188,18 @@ func TestPruneOneByOne(t *testing.T) {
 	qgbKeeper.SetLastUnbondingNonce(ctx, input.QgbKeeper.GetLatestAttestationNonce(ctx))
 	qgb.EndBlocker(ctx, qgbKeeper)
 
-	lastPrunedNonce := qgbKeeper.GetLastPrunedAttestationNonce(ctx)
+	lastAvailableNonce := qgbKeeper.GetLastAvailableAttestationNonce(ctx)
 	lastUnbondingNonce := qgbKeeper.GetLastUnbondingNonce(ctx)
 	// now, we should start seeing an attestation getting pruned as soon as a new one is created.
-	// the +1 to account for the newly pruned nonce created when executing QGB heights inside the loop.
 	// the -1 since we will keep the attestations from the last unbonding nonce (included)
-	for nonce := lastPrunedNonce + 1; nonce < lastUnbondingNonce-1; nonce++ {
+	for nonce := lastAvailableNonce; nonce < lastUnbondingNonce-1; nonce++ {
 		currentHeight := ctx.BlockHeight()
 		ctx = testutil.ExecuteQGBHeights(ctx, qgbKeeper, currentHeight, currentHeight+int64(window))
 		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
 		assert.NoError(t, err)
 		assert.False(t, found)
 		// check that we always have a constant number of attestations in store
-		assert.Equal(t, uint64(qgb.AttestationPruningThreshold), qgbKeeper.GetLatestAttestationNonce(ctx)-qgbKeeper.GetLastPrunedAttestationNonce(ctx))
+		assert.Equal(t, uint64(qgb.AttestationPruningThreshold), qgbKeeper.GetLatestAttestationNonce(ctx)-qgbKeeper.GetLastAvailableAttestationNonce(ctx)+1)
 	}
 }
 

@@ -23,12 +23,12 @@ func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return nil, types.ErrLatestAttestationNonceStillNotInitialized
 	}
-	if !k.CheckLastPrunedAttestationNonce(ctx) {
-		return nil, types.ErrLastPrunedNonceStillNotInitialized
+	if !k.CheckLastAvailableAttestationNonce(ctx) {
+		return nil, types.ErrLastAvailableNonceStillNotInitialized
 	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
-	lastPrunedNonce := k.GetLastPrunedAttestationNonce(ctx)
-	for i := latestNonce; i > lastPrunedNonce; i-- {
+	lastAvailableNonce := k.GetLastAvailableAttestationNonce(ctx)
+	for i := latestNonce; i >= lastAvailableNonce; i-- {
 		at, found, err := k.GetAttestationByNonce(ctx, i)
 		if err != nil {
 			return nil, err
@@ -147,14 +147,14 @@ func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return nil, types.ErrLatestAttestationNonceStillNotInitialized
 	}
-	if !k.CheckLastPrunedAttestationNonce(ctx) {
-		return nil, types.ErrLastPrunedNonceStillNotInitialized
+	if !k.CheckLastAvailableAttestationNonce(ctx) {
+		return nil, types.ErrLastAvailableNonceStillNotInitialized
 	}
 	if nonce == 1 {
 		return nil, types.ErrNoValsetBeforeNonceOne
 	}
-	lastPrunedNonce := k.GetLastPrunedAttestationNonce(ctx)
-	if nonce <= lastPrunedNonce {
+	lastAvailableNonce := k.GetLastAvailableAttestationNonce(ctx)
+	if nonce < lastAvailableNonce {
 		return nil, types.ErrRequestedNonceWasPruned
 	}
 	if nonce > k.GetLatestAttestationNonce(ctx) {
@@ -162,7 +162,7 @@ func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.
 	}
 	// starting at nonce-1 because the current nonce can be a valset
 	// and we need the previous one.
-	for i := nonce - 1; i > lastPrunedNonce; i-- {
+	for i := nonce - 1; i >= lastAvailableNonce; i-- {
 		at, found, err := k.GetAttestationByNonce(ctx, i)
 		if err != nil {
 			return nil, err

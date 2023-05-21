@@ -135,7 +135,7 @@ func PruneIfNeeded(ctx sdk.Context, k keeper.Keeper) {
 		return
 	}
 
-	lastAvailableNonce := k.GetLastPrunedAttestationNonce(ctx) + 1
+	lastAvailableNonce := k.GetLastAvailableAttestationNonce(ctx)
 	lastAttestationInStore, found, err := k.GetAttestationByNonce(ctx, lastAvailableNonce)
 	if err != nil {
 		panic(err)
@@ -215,8 +215,8 @@ func pruneAttestations(
 		k.DeleteAttestation(ctx, i)
 		count++
 	}
-	// persist the new last pruned attestation nonce
-	k.SetLastPrunedAttestationNonce(ctx, newLastAvailableNonce-1)
+	// persist the new last available attestation nonce
+	k.SetLastAvailableAttestationNonce(ctx, newLastAvailableNonce)
 	ctx.Logger().Debug(
 		"finished pruning attestations from qgb store",
 		"count",
