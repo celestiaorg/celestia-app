@@ -167,7 +167,7 @@ func PruneIfNeeded(ctx sdk.Context, k keeper.Keeper) {
 		// we should never hit this case, since we will keep the attestations up to the last unbonding height
 		panic("missing attestations up to the unbonding height")
 	}
-	// now we have attestations before the unbonding height, we should check wether we need to prune them
+	// now we have attestations before the unbonding height, we should check whether we need to prune them
 	// or not yet
 	latestAttestationNonce := k.GetLatestAttestationNonce(ctx)
 	if latestAttestationNonce-lastAvailableNonce+1 <= AttestationPruningThreshold {
