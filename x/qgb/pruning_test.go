@@ -98,7 +98,7 @@ func TestNoPruningUpToLastUnbondingNonce(t *testing.T) {
 
 // TestPruneMultiple tests the case where the (LatestNonce-LastUnbondingNonce) > AttestationPruningThreshold
 // But still will not prune because we want to keep attestations up to the last unbonding period.
-// Then, sets the last unbonding height to a higher nonce to trigger multiple prunining rounds.
+// Then, sets the last unbonding height to a higher nonce to trigger multiple pruning rounds.
 func TestPruneMultiple(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	qgbKeeper := *input.QgbKeeper
