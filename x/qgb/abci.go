@@ -146,10 +146,7 @@ func PruneIfNeeded(ctx sdk.Context, k keeper.Keeper) {
 	var lastNonceHeight uint64
 	switch lastAttestationInStore.Type() {
 	case types.DataCommitmentRequestType:
-		dc, ok := lastAttestationInStore.(*types.DataCommitment)
-		if !ok {
-			panic("couldn't cast data commitment type")
-		}
+		dc := lastAttestationInStore.(*types.DataCommitment)
 		lastNonceHeight = dc.EndBlock
 	case types.ValsetRequestType:
 		vs, ok := lastAttestationInStore.(*types.Valset)
