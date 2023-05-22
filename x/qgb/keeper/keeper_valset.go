@@ -27,7 +27,7 @@ func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
 		return nil, types.ErrLastAvailableNonceStillNotInitialized
 	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
-	lastAvailableNonce := k.GetLastAvailableAttestationNonce(ctx)
+	lastAvailableNonce := k.GetOldestAttestationNonce(ctx)
 	for i := latestNonce; i >= lastAvailableNonce; i-- {
 		at, found, err := k.GetAttestationByNonce(ctx, i)
 		if err != nil {
@@ -52,7 +52,7 @@ func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
 }
 
 // SetLastUnBondingBlockHeight sets the last unbonding block height. Note this
-// value is not saved to state or loaded at genesis. This value is reset to zero
+// value is not loaded at genesis. This value is reset to zero
 // on chain upgrade.
 func (k Keeper) SetLastUnBondingBlockHeight(ctx sdk.Context, unbondingBlockHeight uint64) {
 	store := ctx.KVStore(k.storeKey)
@@ -65,6 +65,27 @@ func (k Keeper) SetLastUnBondingBlockHeight(ctx sdk.Context, unbondingBlockHeigh
 func (k Keeper) GetLastUnBondingBlockHeight(ctx sdk.Context) uint64 {
 	store := ctx.KVStore(k.storeKey)
 	bytes := store.Get([]byte(types.LastUnBondingBlockHeight))
+
+	if len(bytes) == 0 {
+		return 0
+	}
+	return UInt64FromBytes(bytes)
+}
+
+// SetLastUnBondingBlockHeight sets the last block height in which the validator
+// set was updated. Note this value is not loaded at genesis. This value is
+// reset to zero on chain upgrade.
+func (k Keeper) SetValsetUpdateHeight(ctx sdk.Context, unbondingBlockHeight uint64) {
+	store := ctx.KVStore(k.storeKey)
+	store.Set([]byte(types.LastValsetUpdateHeight), types.UInt64Bytes(unbondingBlockHeight))
+}
+
+// GetValsetUpdateHeight returns the last block height in which the validator
+// set was updated or zero if not set. This value is not saved or loaded at
+// genesis. This value is reset to zero on chain upgrade.
+func (k Keeper) GetValsetUpdateHeight(ctx sdk.Context) uint64 {
+	store := ctx.KVStore(k.storeKey)
+	bytes := store.Get([]byte(types.LastValsetUpdateHeight))
 
 	if len(bytes) == 0 {
 		return 0
@@ -153,7 +174,7 @@ func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.
 	if nonce == 1 {
 		return nil, types.ErrNoValsetBeforeNonceOne
 	}
-	lastAvailableNonce := k.GetLastAvailableAttestationNonce(ctx)
+	lastAvailableNonce := k.GetOldestAttestationNonce(ctx)
 	if nonce < lastAvailableNonce {
 		return nil, types.ErrRequestedNonceWasPruned
 	}

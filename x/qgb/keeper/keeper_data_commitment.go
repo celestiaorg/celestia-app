@@ -71,7 +71,7 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 		return types.DataCommitment{}, types.ErrLastAvailableNonceStillNotInitialized
 	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
-	lastAvailableNonce := k.GetLastAvailableAttestationNonce(ctx)
+	lastAvailableNonce := k.GetOldestAttestationNonce(ctx)
 	for i := latestNonce; i >= lastAvailableNonce; i-- {
 		// TODO better search
 		att, found, err := k.GetAttestationByNonce(ctx, i)
@@ -101,7 +101,7 @@ func (k Keeper) GetLastDataCommitment(ctx sdk.Context) (types.DataCommitment, er
 		return types.DataCommitment{}, types.ErrLastAvailableNonceStillNotInitialized
 	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
-	lastAvailableNonce := k.GetLastAvailableAttestationNonce(ctx)
+	lastAvailableNonce := k.GetOldestAttestationNonce(ctx)
 	for i := latestNonce; i >= lastAvailableNonce; i-- {
 		att, found, err := k.GetAttestationByNonce(ctx, i)
 		if err != nil {
@@ -128,7 +128,7 @@ func (k Keeper) HasDataCommitmentInStore(ctx sdk.Context) (bool, error) {
 		return false, types.ErrLastAvailableNonceStillNotInitialized
 	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
-	lastAvailableNonce := k.GetLastAvailableAttestationNonce(ctx)
+	lastAvailableNonce := k.GetOldestAttestationNonce(ctx)
 	for i := lastAvailableNonce; i <= latestNonce; i++ {
 		att, found, err := k.GetAttestationByNonce(ctx, i)
 		if err != nil {

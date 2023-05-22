@@ -14,7 +14,7 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 	// a new valset will be created all the time.
 	// Also, it's easier to set it here to 1 instead of doing it in abci.EndBlocker and do
 	// the check on every iteration
-	k.SetLastAvailableAttestationNonce(ctx, 1)
+	k.SetOldestAttestationNonce(ctx, 1)
 	k.SetLastUnbondingNonce(ctx, 0)
 	k.SetParams(ctx, *genState.Params)
 }

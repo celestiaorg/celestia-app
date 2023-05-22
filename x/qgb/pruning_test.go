@@ -15,191 +15,89 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestAttestationsLowerThanPruningThreshold tests the first check for pruning, which is
-// not pruning if the number of attestations is lower than the threshold.
-func TestAttestationsLowerThanPruningThreshold(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t)
-	qgbKeeper := *input.QgbKeeper
-	// set the data commitment window
-	window := uint64(101)
-	qgbKeeper.SetParams(ctx, types.Params{DataCommitmentWindow: window})
-
-	// test that no prunning occurs while we're still under the pruning threshold
-	for attNonce := uint64(1); attNonce < qgb.AttestationPruningThreshold; attNonce++ {
-		ctx = testutil.ExecuteQGBHeights(ctx, qgbKeeper, int64((attNonce-1)*window), int64(attNonce*window)+1)
-		assert.NotPanics(t, func() { qgb.PruneIfNeeded(ctx, qgbKeeper) })
-
-		// the +1 serves to account for the valset created when initializing the chain
-		totalNumberOfAttestations := attNonce + 1
-		// check that the attestations are created
-		assert.Equal(t, totalNumberOfAttestations, qgbKeeper.GetLatestAttestationNonce(ctx))
-
-		// check that all the attestations are still in state
-		for nonce := uint64(1); nonce <= totalNumberOfAttestations; nonce++ {
-			_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
-			assert.NoError(t, err)
-			assert.True(t, found)
-		}
-	}
+func init() {
+	// begin pruning attestations after 500 blocks
+	qgb.SetTestPruningThreshold(500)
 }
 
-// TestAttestationsLowerThanPruningThreshold tests the chain startup case where there is no change
-// to the validator set aside from the one in block 1.
-func TestLastNonceHeightIsHigherThanLastUnbondingHeight(t *testing.T) {
+func TestPruning(t *testing.T) {
+	// setup
 	input, ctx := testutil.SetupFiveValChain(t)
 	qgbKeeper := *input.QgbKeeper
 	// set the data commitment window
-	window := uint64(101)
+	window := uint64(100)
 	qgbKeeper.SetParams(ctx, types.Params{DataCommitmentWindow: window})
 
-	// test that no prunning occurs if last unbonding height is still 0 (chain startup scenario)
-	ctx = testutil.ExecuteQGBHeights(ctx, qgbKeeper, 1, int64(qgb.AttestationPruningThreshold*window)+1)
-	assert.NotPanics(t, func() { qgb.PruneIfNeeded(ctx, qgbKeeper) })
-
-	// the +1 serves to account for the valset created when initializing the chain
-	totalNumberOfAttestations := uint64(qgb.AttestationPruningThreshold + 1)
-	// check that the attestations are created
-	assert.Equal(t, totalNumberOfAttestations, qgbKeeper.GetLatestAttestationNonce(ctx))
-
-	// check that all the attestations are still in state
-	for nonce := uint64(1); nonce <= totalNumberOfAttestations; nonce++ {
-		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
-		assert.NoError(t, err)
-		assert.True(t, found)
-	}
-}
-
-// TestAttestationsLowerThanPruningThreshold tests that no pruning occurs even if we go over the
-// AttestationPruningThreshold if the last available nonce height is that of the unbonding period.
-func TestNoPruningUpToLastUnbondingNonce(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t)
-	qgbKeeper := *input.QgbKeeper
-	// set the data commitment window
-	window := uint64(101)
-	qgbKeeper.SetParams(ctx, types.Params{DataCommitmentWindow: window})
-
-	// test that no prunning occurs if last unbonding height is still 0 (chain startup scenario)
-	// but the attestations are way over the AttestationPruningThreshold
-	ctx = testutil.ExecuteQGBHeights(ctx, qgbKeeper, 1, 2*int64(qgb.AttestationPruningThreshold*window)+1)
-	assert.NotPanics(t, func() { qgb.PruneIfNeeded(ctx, qgbKeeper) })
-
-	// the +1 serves to account for the valset created when initializing the chain
-	totalNumberOfAttestations := uint64(2*qgb.AttestationPruningThreshold + 1)
-	// check that the attestations are created
-	assert.Equal(t, totalNumberOfAttestations, qgbKeeper.GetLatestAttestationNonce(ctx))
-
-	// check that all the attestations are still in state
-	for nonce := uint64(1); nonce <= totalNumberOfAttestations; nonce++ {
-		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
-		assert.NoError(t, err)
-		assert.True(t, found)
-	}
-}
-
-// TestPruneMultiple tests the case where the (LatestNonce-LastUnbondingNonce) > AttestationPruningThreshold
-// But still will not prune because we want to keep attestations up to the last unbonding period.
-// Then, sets the last unbonding height to a higher nonce to trigger multiple pruning rounds.
-func TestPruneMultiple(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t)
-	qgbKeeper := *input.QgbKeeper
-	// set the data commitment window
-	window := uint64(101)
-	qgbKeeper.SetParams(ctx, types.Params{DataCommitmentWindow: window})
-
-	// test that no pruning occurs if last unbonding height is still 0 (chain startup scenario)
-	// but the attestations are way over the AttestationPruningThreshold
-	ctx = testutil.ExecuteQGBHeights(ctx, qgbKeeper, 1, 2*int64(qgb.AttestationPruningThreshold*window)+1)
-	assert.NotPanics(t, func() { qgb.PruneIfNeeded(ctx, qgbKeeper) })
-
-	// the +1 serves to account for the valset created when initializing the chain
-	totalNumberOfAttestations := uint64(2*qgb.AttestationPruningThreshold + 1)
-	// check that the attestations are created
-	assert.Equal(t, totalNumberOfAttestations, qgbKeeper.GetLatestAttestationNonce(ctx))
-
-	// check that all the attestations are still in state
-	for nonce := uint64(1); nonce <= totalNumberOfAttestations; nonce++ {
-		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
-		assert.NoError(t, err)
-		assert.True(t, found)
+	// orderedTest is like a normal test, except they depend on the tests before
+	// them to be executed in order.
+	type orderedTest struct {
+		step            string
+		execUntilHeight int64
+		newestAttNonce  uint64
+		oldestAttNonce  uint64
+		updateValSet    bool
 	}
 
-	// change the last unbonding height to a higher value
-	updateValidatorSet(t, ctx, input)
-	qgbKeeper.SetLastUnBondingBlockHeight(ctx, uint64(ctx.BlockHeight()))
-	qgbKeeper.SetLastUnbondingNonce(ctx, qgbKeeper.GetLatestAttestationNonce(ctx))
-	qgb.EndBlocker(ctx, qgbKeeper)
-
-	// number of attestations that should be pruned
-	// the +3 is to account for the newly created valset that was set for the new unbonding height,
-	// and the fact that attestations start at nonce 1 and not 0,
-	// and the fact that we're comparing to the last available nonce == last pruned attestation nonce + 1
-	expectedLastAvailableAttestationNonce := totalNumberOfAttestations + 3 - qgb.AttestationPruningThreshold
-	assert.Equal(t, expectedLastAvailableAttestationNonce, qgbKeeper.GetLastAvailableAttestationNonce(ctx))
-
-	// check that the first attestations were pruned
-	for nonce := uint64(1); nonce < expectedLastAvailableAttestationNonce; nonce++ {
-		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
-		assert.NoError(t, err)
-		assert.False(t, found)
+	// these tests assume that the PruningThreshold has been set to 500 blocks
+	// and that they are executed in order
+	tests := []orderedTest{
+		{
+			step:            "init chain, no pruning expected",
+			execUntilHeight: 301,
+			newestAttNonce:  4,
+			oldestAttNonce:  1,
+			updateValSet:    false,
+		},
+		// this test ensures that we don't prune every time the validator set
+		// updates and acts as a control for an upcoming edge case
+		{
+			step:            "update the validator set, no pruning expected",
+			execUntilHeight: 401,
+			newestAttNonce:  6, // +2 one for the valset and one for a new data commitment
+			oldestAttNonce:  1,
+			updateValSet:    true,
+		},
+		{
+			step:            "surpass pruning threshold, pruning expected",
+			execUntilHeight: 801,
+			newestAttNonce:  10,
+			oldestAttNonce:  5, // note that we are pruning 4 attestations
+			updateValSet:    false,
+		},
+		{
+			step:            "surpass pruning threshold without updating the validator set, no pruning expected",
+			execUntilHeight: 1001,
+			newestAttNonce:  12,
+			oldestAttNonce:  5, // note that we are not pruning despite the last attestation being > 500 blocks old
+			updateValSet:    false,
+		},
+		{
+			step:            "surpass pruning threshold but update the validator set, pruning expected",
+			execUntilHeight: 1201,
+			newestAttNonce:  15,
+			oldestAttNonce:  10,
+			updateValSet:    true,
+		},
 	}
 
-	// check that the attestations after those still exist
-	for nonce := expectedLastAvailableAttestationNonce; nonce <= qgbKeeper.GetLatestAttestationNonce(ctx); nonce++ {
-		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
-		assert.NoError(t, err)
-		assert.True(t, found)
-	}
+	currentHeight := int64(1)
 
-	// continue running the chain for a few more blocks to be sure no inconsistency happens
-	// after pruning
-	testutil.ExecuteQGBHeights(ctx, qgbKeeper, 2*int64(qgb.AttestationPruningThreshold*window), 2*int64(qgb.AttestationPruningThreshold*window)+10)
-}
+	for _, tt := range tests {
+		t.Run(tt.step, func(t *testing.T) {
+			if tt.updateValSet {
+				updateValidatorSet(t, ctx, input)
+			}
+			// test that no prunning occurs if last unbonding height is still 0 (chain startup scenario)
+			ctx = testutil.ExecuteQGBHeights(ctx, qgbKeeper, currentHeight, tt.execUntilHeight)
 
-// TestPruneOneByOne tests the case where the state machine prunes one by one, because the
-// last unbonding nonce is way higher than the AttestationPruningThreshold and we can prune one
-// by one attestations as new ones are created.
-func TestPruneOneByOne(t *testing.T) {
-	input, ctx := testutil.SetupFiveValChain(t)
-	qgbKeeper := *input.QgbKeeper
-	// set the data commitment window
-	window := uint64(101)
-	qgbKeeper.SetParams(ctx, types.Params{DataCommitmentWindow: window})
+			currentHeight = tt.execUntilHeight
 
-	// test that no prunning occurs if last unbonding height is still 0 (chain startup scenario)
-	// but the attestations are way over the AttestationPruningThreshold
-	ctx = testutil.ExecuteQGBHeights(ctx, qgbKeeper, 1, int64(qgb.AttestationPruningThreshold*window+1))
-	assert.NotPanics(t, func() { qgb.PruneIfNeeded(ctx, qgbKeeper) })
+			oldestNonce := qgbKeeper.GetOldestAttestationNonce(ctx)
+			newestNonce := qgbKeeper.GetLatestAttestationNonce(ctx)
 
-	// the +1 serves to account for the valset created when initializing the chain
-	totalNumberOfAttestations := uint64(qgb.AttestationPruningThreshold + 1)
-	// check that the attestations are created
-	assert.Equal(t, totalNumberOfAttestations, qgbKeeper.GetLatestAttestationNonce(ctx))
-
-	// check that all the attestations are still in state
-	for nonce := uint64(1); nonce <= totalNumberOfAttestations; nonce++ {
-		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
-		assert.NoError(t, err)
-		assert.True(t, found)
-	}
-
-	// change the last unbonding height to a higher value
-	updateValidatorSet(t, ctx, input)
-	qgbKeeper.SetLastUnBondingBlockHeight(ctx, uint64(ctx.BlockHeight()))
-	qgbKeeper.SetLastUnbondingNonce(ctx, input.QgbKeeper.GetLatestAttestationNonce(ctx))
-	qgb.EndBlocker(ctx, qgbKeeper)
-
-	lastAvailableNonce := qgbKeeper.GetLastAvailableAttestationNonce(ctx)
-	lastUnbondingNonce := qgbKeeper.GetLastUnbondingNonce(ctx)
-	// now, we should start seeing an attestation getting pruned as soon as a new one is created.
-	// the -1 since we will keep the attestations from the last unbonding nonce (included)
-	for nonce := lastAvailableNonce; nonce < lastUnbondingNonce-1; nonce++ {
-		currentHeight := ctx.BlockHeight()
-		ctx = testutil.ExecuteQGBHeights(ctx, qgbKeeper, currentHeight, currentHeight+int64(window))
-		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
-		assert.NoError(t, err)
-		assert.False(t, found)
-		// check that we always have a constant number of attestations in store
-		assert.Equal(t, uint64(qgb.AttestationPruningThreshold), qgbKeeper.GetLatestAttestationNonce(ctx)-qgbKeeper.GetLastAvailableAttestationNonce(ctx)+1)
+			assert.Equal(t, tt.newestAttNonce, newestNonce)
+			assert.Equal(t, tt.oldestAttNonce, oldestNonce)
+		})
 	}
 }
 
@@ -218,5 +116,4 @@ func updateValidatorSet(t *testing.T, ctx sdktypes.Context, input testutil.TestI
 	_, err = msgServer.EditValidator(ctx, editMsg)
 	require.NoError(t, err)
 	staking.EndBlocker(ctx, input.StakingKeeper)
-	qgb.EndBlocker(ctx, *input.QgbKeeper)
 }

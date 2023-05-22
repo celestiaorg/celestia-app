@@ -86,13 +86,13 @@ func (k Keeper) CheckLastAvailableAttestationNonce(ctx sdk.Context) bool {
 	return has
 }
 
-// GetLastAvailableAttestationNonce returns the last available attestation nonce. The
+// GetOldestAttestationNonce returns the last available attestation nonce. The
 // nonce is of the last available attestation in store that can be
 // retrieved. Panics if the last available attestation
 // nonce doesn't exit. This value is set on chain startup. However, it won't be
 // written to store until height = 1. Thus, it's mandatory to run
 // `CheckLastAvailableAttestationNonce` before calling this method.
-func (k Keeper) GetLastAvailableAttestationNonce(ctx sdk.Context) uint64 {
+func (k Keeper) GetOldestAttestationNonce(ctx sdk.Context) uint64 {
 	store := ctx.KVStore(k.storeKey)
 	bytes := store.Get([]byte(types.LastAvailableAttestationNonce))
 	if bytes == nil {
@@ -101,9 +101,9 @@ func (k Keeper) GetLastAvailableAttestationNonce(ctx sdk.Context) uint64 {
 	return UInt64FromBytes(bytes)
 }
 
-// SetLastAvailableAttestationNonce sets the last available attestation nonce.
+// SetOldestAttestationNonce sets the last available attestation nonce.
 // The nonce is of the last available attestation in store that can be retrieved.
-func (k Keeper) SetLastAvailableAttestationNonce(ctx sdk.Context, nonce uint64) {
+func (k Keeper) SetOldestAttestationNonce(ctx sdk.Context, nonce uint64) {
 	store := ctx.KVStore(k.storeKey)
 	store.Set([]byte(types.LastAvailableAttestationNonce), types.UInt64Bytes(nonce))
 }
