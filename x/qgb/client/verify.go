@@ -157,7 +157,7 @@ func sharesCmd() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "shares <height> <start_share> <end_share>",
 		Args:  cobra.ExactArgs(3),
-		Short: "Verifies that a shares range has been committed to by the QGB contract. The range should be end exclusive.",
+		Short: "Verifies that a range of shares has been committed to by the QGB contract. The range should be end exclusive.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			height, err := strconv.ParseUint(args[0], 10, 0)
 			if err != nil {
