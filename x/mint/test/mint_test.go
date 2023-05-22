@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -64,7 +63,7 @@ func (s *IntegrationTestSuite) TestInitialInflationRate() {
 
 	oneYear := time.Duration(int64(minttypes.NanosecondsPerYear))
 
-	err = s.cctx.WaitForNextBlock()
+	err := s.cctx.WaitForNextBlock()
 	require.NoError(err)
 	initialSupply := s.GetTotalSupply()
 	initialTimestamp := s.GetTimestamp()
@@ -78,7 +77,8 @@ func (s *IntegrationTestSuite) TestInitialInflationRate() {
 	diffTime := laterTimestamp.Sub(initialTimestamp)
 
 	projectedAnnualProvisions := diffSupply.Mul(sdktypes.NewInt(oneYear.Nanoseconds())).Quo(sdktypes.NewInt(diffTime.Nanoseconds()))
-	expectedAnnualProvisions := minttypes.InitalInflationRateDec.Mul(sdktypes.NewDecFromBigInt(initialSupply.AmountOf(app.BondDenom).BigInt())).TruncateInt()
+	initialInflationRate := minttypes.GetInitialInflationRateAsDec()
+	expectedAnnualProvisions := initialInflationRate.Mul(sdktypes.NewDecFromBigInt(initialSupply.AmountOf(app.BondDenom).BigInt())).TruncateInt()
 	diffAnnualProvisions := projectedAnnualProvisions.Sub(expectedAnnualProvisions).Abs()
 
 	// Note we use a .01 margin of error because the projected annual provisions

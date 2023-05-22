@@ -21,7 +21,8 @@ func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec, genesisTime *tim
 // DefaultMinter returns a Minter object with default values.
 func DefaultMinter() Minter {
 	unixEpoch := time.Unix(0, 0).UTC()
-	return NewMinter(InitalInflationRateDec, sdk.NewDec(0), &unixEpoch, sdk.DefaultBondDenom)
+	inflationRate := GetInitialInflationRateAsDec()
+	return NewMinter(inflationRate, sdk.NewDec(0), &unixEpoch, sdk.DefaultBondDenom)
 }
 
 // Validate returns an error if the minter is invalid.
@@ -43,10 +44,13 @@ func (m Minter) Validate() error {
 // decrease every year according to the schedule specified in the README.
 func (m Minter) CalculateInflationRate(ctx sdk.Context) sdk.Dec {
 	years := yearsSinceGenesis(*m.GenesisTime, ctx.BlockTime())
-	inflationRate := InitalInflationRateDec.Mul(sdk.OneDec().Sub(DisinflationRateDec).Power(uint64(years)))
+	initialInflationRate := GetInitialInflationRateAsDec()
+	disinflationRate := GetDisinflationRateAsDec()
+	inflationRate := initialInflationRate.Mul(sdk.OneDec().Sub(disinflationRate).Power(uint64(years)))
+	targetInflationRate := GetTargetInflationRateAsDec()
 
-	if inflationRate.LT(TargetInflationRateDec) {
-		return TargetInflationRateDec
+	if inflationRate.LT(targetInflationRate) {
+		return targetInflationRate
 	}
 	return inflationRate
 }
