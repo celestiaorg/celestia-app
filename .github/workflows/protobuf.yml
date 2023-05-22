@@ -1,6 +1,6 @@
-name: Protobuf
-# Protobuf runs buf (https://buf.build/) lint and generate
+# protobuf runs buf (https://buf.build/) lint and generate
 # This workflow is only run when a .proto file has been changed
+name: protobuf
 on:
   pull_request:
     paths:
