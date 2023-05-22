@@ -1,4 +1,4 @@
-name: Docker Build & Publish
+name: docker-build-publish
 
 # Trigger on all push events, new semantic version tags, and all PRs
 on:
