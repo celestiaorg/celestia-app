@@ -1,6 +1,3 @@
-# test workflow runs unit tests and uploads a code coverage report. This
-# workflow is run on pushes to main & every Pull Requests where a .go, .mod,
-# .sum have been changed
 name: test
 on:
   workflow_call:
@@ -8,254 +5,44 @@ on:
 env:
   GO_VERSION: '1.20'
 
-concurrency:
-  # do not cancel jobs from earlier commits for tags or the main branch
-  group: ${{ github.workflow }}-${{ !startsWith(github.ref, 'refs/tags/') &&
-      github.ref != 'refs/heads/main' }}
-  cancel-in-progress: true
-
 jobs:
-  install-tparse:
+  test:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
+
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: Display go version
-        run: go version
-      - name: install tparse
-        run: >
-          export GO111MODULE="on" &&
-          go install github.com/mfridman/tparse@v0.12.1
-      - uses: actions/cache@v3.3.1
-        with:
-          path: ~/go/bin
-          key: ${{ runner.os }}-go-tparse-binary
 
-  # don't use cosmovisor until we have tests
-  # test-cosmovisor:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/setup-go@v4
-  #       with:
-  #         go-version: ${{ env.GO_VERSION }}
-  #     - name: Display go version
-  #       run: go version
-  #     - uses: technote-space/get-diff-action@v6.1.2
-  #       id: git_diff
-  #       with:
-  #         PREFIX_FILTER: |
-  #           cosmovisor
-  #         PATTERNS: |
-  #           **/**.go
-  #           go.mod
-  #           go.sum
-  #     - name: Run cosmovisor tests
-  #       run: cd cosmovisor; make
-  #       if: env.GIT_DIFF
+      - name: Run unit tests
+        run: make test
 
-  split-test-files:
+  test-coverage:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Create a file with all the pkgs
-        run: go list ./... > pkgs.txt
-      - name: Split pkgs into 4 files
-        run: split -d -n l/4 --elide-empty-files pkgs.txt pkgs.txt.part.
-      # cache multiple
-      - uses: actions/upload-artifact@v3
-        with:
-          name: "${{ github.sha }}-00"
-          path: ./pkgs.txt.part.00
-      - uses: actions/upload-artifact@v3
-        with:
-          name: "${{ github.sha }}-01"
-          path: ./pkgs.txt.part.01
-      - uses: actions/upload-artifact@v3
-        with:
-          name: "${{ github.sha }}-02"
-          path: ./pkgs.txt.part.02
-      - uses: actions/upload-artifact@v3
-        with:
-          name: "${{ github.sha }}-03"
-          path: ./pkgs.txt.part.03
 
-  tests:
-    runs-on: ubuntu-latest
-    needs: split-test-files
-    strategy:
-      fail-fast: false
-      matrix:
-        part: ["00", "01", "02", "03"]
-    steps:
-      - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
-      - uses: technote-space/get-diff-action@v6.1.2
-        with:
-          PATTERNS: |
-            **/**.go
-            go.mod
-            go.sum
-      - uses: actions/download-artifact@v3
-        with:
-          name: "${{ github.sha }}-${{ matrix.part }}"
-        if: env.GIT_DIFF
-      - name: test & coverage report creation
-        run: >
-          cat pkgs.txt.part.${{ matrix.part }} |
-          xargs go test -mod=readonly -timeout 30m
-          -coverprofile=${{ matrix.part }}profile.out
-          -covermode=atomic
-        if: env.GIT_DIFF
-      - uses: actions/upload-artifact@v3
-        with:
-          name: "${{ github.sha }}-${{ matrix.part }}-coverage"
-          path: ./${{ matrix.part }}profile.out
 
-  upload-coverage-report:
-    runs-on: ubuntu-latest
-    needs: tests
-    steps:
-      - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6.1.2
-        with:
-          PATTERNS: |
-            **/**.go
-            go.mod
-            go.sum
-      - uses: actions/download-artifact@v3
-        with:
-          name: "${{ github.sha }}-00-coverage"
-        if: env.GIT_DIFF
-      - uses: actions/download-artifact@v3
-        with:
-          name: "${{ github.sha }}-01-coverage"
-        if: env.GIT_DIFF
-      - uses: actions/download-artifact@v3
-        with:
-          name: "${{ github.sha }}-02-coverage"
-        if: env.GIT_DIFF
-      - uses: actions/download-artifact@v3
-        with:
-          name: "${{ github.sha }}-03-coverage"
-        if: env.GIT_DIFF
-      - run: |
-          cat ./*profile.out | grep -v "mode: atomic" >> coverage.txt
-        if: env.GIT_DIFF
-      - name: filter out DONTCOVER
-        # yamllint disable
-        run: |
-          (find . -type f -name '*.go' | xargs grep -l 'DONTCOVER') > excludelist.txt
-          find . -type f -name '*.pb.*' >> excludelist.txt
-          find . -type f -path './tests/mocks/*.go' >> excludelist.txt
-          while IFS= read -r filename; do
-            # trim filename
-            trimmedname=$(echo $filename | xargs)
-            echo "Excluding ${trimmedname} from coverage report..."
-            sed -i.bak "/$(echo $trimmedname | sed 's/\//\\\//g')/d" coverage.txt
-          done < excludelist.txt
-        # yamllint enable
-        if: env.GIT_DIFF
-      - uses: codecov/codecov-action@v3
+      - name: Generate coverage.txt
+        run: make test-coverage
+
+      - name: Uploade coverage.txt
+        uses: codecov/codecov-action@v3.1.3
         with:
           file: ./coverage.txt
-        if: env.GIT_DIFF
 
   test-race:
     runs-on: ubuntu-latest
-    needs: split-test-files
-    strategy:
-      fail-fast: false
-      matrix:
-        part: ["00", "01", "02", "03"]
     steps:
       - uses: actions/checkout@v3
+
       - uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
-      - uses: technote-space/get-diff-action@v6.1.2
-        with:
-          PATTERNS: |
-            **/**.go
-            go.mod
-            go.sum
-      - uses: actions/download-artifact@v3
-        with:
-          name: "${{ github.sha }}-${{ matrix.part }}"
-        if: env.GIT_DIFF
-      - name: test & coverage report creation
-        run: >
-          cat pkgs.txt.part.${{ matrix.part }} |
-          xargs go test -mod=readonly -json -timeout 30m
-          -race -test.short > ${{ matrix.part }}-race-output.txt
-        if: env.GIT_DIFF
-      - uses: actions/upload-artifact@v3
-        with:
-          name: "${{ github.sha }}-${{ matrix.part }}-race-output"
-          path: ./${{ matrix.part }}-race-output.txt
 
-  race-detector-report:
-    runs-on: ubuntu-latest
-    needs: [test-race, install-tparse]
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v3
-      - uses: technote-space/get-diff-action@v6.1.2
-        id: git_diff
-        with:
-          PATTERNS: |
-            **/**.go
-            go.mod
-            go.sum
-      - uses: actions/download-artifact@v3
-        with:
-          name: "${{ github.sha }}-00-race-output"
-        if: env.GIT_DIFF
-      - uses: actions/download-artifact@v3
-        with:
-          name: "${{ github.sha }}-01-race-output"
-        if: env.GIT_DIFF
-      - uses: actions/download-artifact@v3
-        with:
-          name: "${{ github.sha }}-02-race-output"
-        if: env.GIT_DIFF
-      - uses: actions/download-artifact@v3
-        with:
-          name: "${{ github.sha }}-03-race-output"
-        if: env.GIT_DIFF
-      - uses: actions/cache@v3.3.1
-        with:
-          path: ~/go/bin
-          key: ${{ runner.os }}-go-tparse-binary
-        if: env.GIT_DIFF
-      - name: Generate test report (go test -race)
-        run: cat ./*-race-output.txt | ~/go/bin/tparse
-        if: env.GIT_DIFF
-
-  # # todo(evan) add later
-  # liveness-test:
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 10
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/setup-go@v4
-  #       with:
-  #         go-version: ${{ env.GO_VERSION }}
-  #     - uses: technote-space/get-diff-action@v6.1.2
-  #       id: git_diff
-  #       with:
-  #         PATTERNS: |
-  #           **/**.go
-  #           go.mod
-  #           go.sum
-  #     - name: start localnet
-  #       run: |
-  #         make clean build-simd-linux localnet-start
-  #       if: env.GIT_DIFF
-  #     - name: test liveness
-  #       run: |
-  #         ./contrib/localnet_liveness.sh 100 5 50 localhost
-  #       if: env.GIT_DIFF
+      - name: Run unit tests in race mode
+        run: make test-race
