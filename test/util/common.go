@@ -322,7 +322,7 @@ func CreateTestEnv(t *testing.T) TestInput {
 	input := CreateTestEnvWithoutAttestationNonceInit(t)
 	input.QgbKeeper.SetLatestAttestationNonce(input.Context, 0)
 	input.QgbKeeper.SetOldestAttestationNonce(input.Context, 1)
-	input.QgbKeeper.SetLastUnbondingNonce(input.Context, 0)
+	input.QgbKeeper.SetValsetUpdateHeight(input.Context, 1)
 	return input
 }
 
