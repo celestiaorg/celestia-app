@@ -16,7 +16,6 @@ ldflags += $(LDFLAGS)
 
 BUILD_FLAGS := -ldflags '$(ldflags)'
 
-
 ## help: Get more info on make commands.
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
@@ -48,8 +47,6 @@ mod-verify: mod
 	@echo "--> Verifying dependencies have expected content"
 	GO111MODULE=on go mod verify
 .PHONY: mod-verify
-
-
 
 ## proto-gen: Generate protobuf files. Requires docker.
 proto-gen:
@@ -120,11 +117,11 @@ test-bench:
 	@go test -mod=readonly -bench=. ./...
 .PHONY: test-bench
 
-## test-cover: Generate test coverage.txt
-test-cover:
+## test-coverage: Generate test coverage.txt
+test-coverage:
 	@echo "--> Generating coverage.txt"
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
-.PHONY: test-cover
+.PHONY: test-coverage
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo. Ex. `make adr-gen`
 adr-gen:
