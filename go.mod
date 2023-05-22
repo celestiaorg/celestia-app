@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app
 go 1.20
 
 require (
-	github.com/celestiaorg/nmt v0.15.0
+	github.com/celestiaorg/nmt v0.16.0
 	github.com/celestiaorg/quantum-gravity-bridge v1.3.0
 	github.com/ethereum/go-ethereum v1.11.6
 	github.com/gogo/protobuf v1.3.3
@@ -200,7 +200,7 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.13.0-sdk-v0.46.11
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.14.0-sdk-v0.46.11
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.19.0-tm-v0.34.27
 )

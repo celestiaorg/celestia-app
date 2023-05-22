@@ -2,6 +2,7 @@ package appconsts
 
 import (
 	"fmt"
+	"runtime/debug"
 
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 )
@@ -41,5 +42,5 @@ var (
 )
 
 func unsupportedVersion(version uint64) string {
-	return fmt.Sprintf("unsupported app version %d", version)
+	return fmt.Sprintf("unsupported app version %d\n%s", version, string(debug.Stack()))
 }

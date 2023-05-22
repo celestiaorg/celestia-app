@@ -1,7 +1,7 @@
 package v1
 
 const (
-	Version              = 1
-	MaxSquareSize        = 128
-	SubtreeRootThreshold = 64
+	Version              uint64 = 1
+	MaxSquareSize               = 128
+	SubtreeRootThreshold        = 64
 )
