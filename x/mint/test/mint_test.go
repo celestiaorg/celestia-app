@@ -46,13 +46,17 @@ func (s *IntegrationTestSuite) SetupSuite() {
 func (s *IntegrationTestSuite) TestTotalSupplyIncreasesOverTime() {
 	require := s.Require()
 
+	initialHeight := int64(1)
+	laterHeight := int64(20)
+
 	err := s.cctx.WaitForNextBlock()
 	require.NoError(err)
-	initalSupply := s.GetTotalSupply()
 
-	_, err = s.cctx.WaitForHeight(20)
+	initalSupply := s.GetTotalSupply(initialHeight)
+
+	_, err = s.cctx.WaitForHeight(laterHeight)
 	require.NoError(err)
-	laterSupply := s.GetTotalSupply()
+	laterSupply := s.GetTotalSupply(laterHeight)
 
 	require.True(initalSupply.AmountOf(app.BondDenom).LT(laterSupply.AmountOf(app.BondDenom)))
 }
@@ -88,46 +92,8 @@ func (s *IntegrationTestSuite) TestInitialInflationRate() {
 	require.True(actualError.LTE(marginOfError))
 }
 
-func (s *IntegrationTestSuite) GetTotalSupply() sdktypes.Coins {
+func (s *IntegrationTestSuite) GetTotalSupply(height int64) sdktypes.Coins {
 	require := s.Require()
-
-	// Note: we can also query for total supply via
-	// r1, r2, err := s.cctx.QueryWithData("/cosmos.bank.v1beta1.Query/TotalSupply", nil)
-	res, err := s.cctx.Client.ABCIQuery(
-		context.Background(),
-		"/cosmos.bank.v1beta1.Query/TotalSupply",
-		nil,
-	)
-	require.NoError(err)
-
-	registry := codectypes.NewInterfaceRegistry()
-	cdc := codec.NewProtoCodec(registry)
-
-	var txResp banktypes.QueryTotalSupplyResponse
-	require.NoError(cdc.Unmarshal(res.Response.Value, &txResp))
-
-	return txResp.GetSupply()
-}
-
-func (s *IntegrationTestSuite) GetTimestamp() time.Time {
-	require := s.Require()
-
-	got, err := s.cctx.LatestBlockTime()
-	require.NoError(err)
-
-	return got
-}
-
-func (s *IntegrationTestSuite) GetTotalSupplyAndTimestamp() (sdktypes.Coins, time.Time) {
-	require := s.Require()
-
-	info, err := s.cctx.Client.ABCIInfo(context.Background())
-	require.NoError(err)
-	height := info.Response.LastBlockHeight
-
-	block, err := s.cctx.WithHeight(height).Client.Block(context.Background(), &height)
-	require.NoError(err)
-	timestamp := block.Block.Header.Time
 
 	options := &client.ABCIQueryOptions{Height: height}
 	result, err := s.cctx.Client.ABCIQueryWithOptions(
@@ -143,8 +109,26 @@ func (s *IntegrationTestSuite) GetTotalSupplyAndTimestamp() (sdktypes.Coins, tim
 
 	var txResp banktypes.QueryTotalSupplyResponse
 	require.NoError(cdc.Unmarshal(result.Response.Value, &txResp))
-	totalSupply := txResp.GetSupply()
+	return txResp.GetSupply()
+}
 
+func (s *IntegrationTestSuite) GetTimestamp(height int64) time.Time {
+	require := s.Require()
+
+	block, err := s.cctx.WithHeight(height).Client.Block(context.Background(), &height)
+	require.NoError(err)
+	return block.Block.Header.Time
+}
+
+func (s *IntegrationTestSuite) GetTotalSupplyAndTimestamp() (sdktypes.Coins, time.Time) {
+	require := s.Require()
+
+	info, err := s.cctx.Client.ABCIInfo(context.Background())
+	require.NoError(err)
+	height := info.Response.LastBlockHeight
+
+	totalSupply := s.GetTotalSupply(height)
+	timestamp := s.GetTimestamp(height)
 	return totalSupply, timestamp
 }
 
