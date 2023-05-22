@@ -1,5 +1,5 @@
 # TODO: Refactor to common workflow
-name: "Close stale issues & pull requests"
+name: stale
 on:
   schedule:
     - cron: "0 0 * * *"
