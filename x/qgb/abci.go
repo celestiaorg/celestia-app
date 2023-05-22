@@ -32,6 +32,7 @@ func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
 			panic(err)
 		}
 	}
+	dataCommitmentWindow := int64(k.GetDataCommitmentWindowParam(ctx))
 	// this will  keep executing until all the needed data commitments are created and we catchup to the current height
 	for {
 		hasLastDataCommitment, err := k.HasDataCommitmentInStore(ctx)
@@ -44,7 +45,7 @@ func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
 			if err != nil {
 				panic(err)
 			}
-			if ctx.BlockHeight()-int64(lastDataCommitment.EndBlock) >= int64(k.GetDataCommitmentWindowParam(ctx)) {
+			if ctx.BlockHeight()-int64(lastDataCommitment.EndBlock) >= dataCommitmentWindow {
 				setDataCommitmentAttestation()
 			} else {
 				// the needed data commitments are already created and we need to wait for the next window to elapse
@@ -52,7 +53,7 @@ func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
 			}
 		} else {
 			// if the store doesn't have a data commitment, we check if the window has passed to create a new data commitment
-			if ctx.BlockHeight() >= int64(k.GetDataCommitmentWindowParam(ctx)) {
+			if ctx.BlockHeight() >= dataCommitmentWindow {
 				setDataCommitmentAttestation()
 			} else {
 				// the first data commitment window hasn't elapsed yet to create a commitment
