@@ -70,8 +70,13 @@ Note: a time-based inflation schedule implemented isn't as battle-tested as the 
 ## Detailed Design
 
 1. Remove all governance modififable parameters from the module. The inflation schedule is fixed and can only be modified by a major upgrade.
-1. Calculate inflation rate based on the number of years since genesis
-1. Calculate block provision based on the number of seconds elapsed between the current block and the previous block
+1. Every year
+    1. Calculate inflation rate based on the number of years since genesis
+    1. Calculate annual provisions for that year based on the new inflation rate
+1. Every block
+    1. Calculate block provision based on the annual provisions and the number of seconds elapsed between the current and previous block
+
+Note: all time-based calculations use nanosecond precision. Additionally time-based calculations assume 365.2425 [`DaysPerYear`](https://github.com/celestiaorg/celestia-app/blob/ddaa261b9b0dec5f5ea10dbfab4c8a03c95d7e72/x/mint/types/constants.go#LL13C23-L13C31) to account for leap years.
 
 ### FAQ
 
