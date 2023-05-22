@@ -13,6 +13,7 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/suite"
+	"github.com/tendermint/tendermint/rpc/client"
 )
 
 type IntegrationTestSuite struct {
@@ -65,13 +66,11 @@ func (s *IntegrationTestSuite) TestInitialInflationRate() {
 
 	err := s.cctx.WaitForNextBlock()
 	require.NoError(err)
-	initialSupply := s.GetTotalSupply()
-	initialTimestamp := s.GetTimestamp()
+	initialSupply, initialTimestamp := s.GetTotalSupplyAndTimestamp()
 
 	_, err = s.cctx.WaitForHeight(20)
 	require.NoError(err)
-	laterSupply := s.GetTotalSupply()
-	laterTimestamp := s.GetTimestamp()
+	laterSupply, laterTimestamp := s.GetTotalSupplyAndTimestamp()
 
 	diffSupply := laterSupply.AmountOf(app.BondDenom).Sub(initialSupply.AmountOf(app.BondDenom))
 	diffTime := laterTimestamp.Sub(initialTimestamp)
@@ -117,6 +116,36 @@ func (s *IntegrationTestSuite) GetTimestamp() time.Time {
 	require.NoError(err)
 
 	return got
+}
+
+func (s *IntegrationTestSuite) GetTotalSupplyAndTimestamp() (sdktypes.Coins, time.Time) {
+	require := s.Require()
+
+	info, err := s.cctx.Client.ABCIInfo(context.Background())
+	require.NoError(err)
+	height := info.Response.LastBlockHeight
+
+	block, err := s.cctx.WithHeight(height).Client.Block(context.Background(), &height)
+	require.NoError(err)
+	timestamp := block.Block.Header.Time
+
+	options := &client.ABCIQueryOptions{Height: height}
+	result, err := s.cctx.Client.ABCIQueryWithOptions(
+		context.Background(),
+		"/cosmos.bank.v1beta1.Query/TotalSupply",
+		nil,
+		*options,
+	)
+	require.NoError(err)
+
+	registry := codectypes.NewInterfaceRegistry()
+	cdc := codec.NewProtoCodec(registry)
+
+	var txResp banktypes.QueryTotalSupplyResponse
+	require.NoError(cdc.Unmarshal(result.Response.Value, &txResp))
+	totalSupply := txResp.GetSupply()
+
+	return totalSupply, timestamp
 }
 
 // In order for 'go test' to run this suite, we need to create
