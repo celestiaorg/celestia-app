@@ -30,7 +30,6 @@ func (h Hooks) AfterValidatorBeginUnbonding(ctx sdk.Context, _ sdk.ConsAddress, 
 	// in the endblocker therefore we call the keeper function ourselves there.
 
 	h.k.SetLastUnBondingBlockHeight(ctx, uint64(ctx.BlockHeight()))
-	h.k.SetLastUnbondingNonce(ctx, h.k.GetLatestAttestationNonce(ctx))
 	return nil
 }
 

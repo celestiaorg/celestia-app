@@ -67,7 +67,7 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
 	}
-	if !k.CheckLastAvailableAttestationNonce(ctx) {
+	if !k.CheckOldestAttestationNonce(ctx) {
 		return types.DataCommitment{}, types.ErrLastAvailableNonceStillNotInitialized
 	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
@@ -97,7 +97,7 @@ func (k Keeper) GetLastDataCommitment(ctx sdk.Context) (types.DataCommitment, er
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
 	}
-	if !k.CheckLastAvailableAttestationNonce(ctx) {
+	if !k.CheckOldestAttestationNonce(ctx) {
 		return types.DataCommitment{}, types.ErrLastAvailableNonceStillNotInitialized
 	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
@@ -124,7 +124,7 @@ func (k Keeper) HasDataCommitmentInStore(ctx sdk.Context) (bool, error) {
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return false, nil
 	}
-	if !k.CheckLastAvailableAttestationNonce(ctx) {
+	if !k.CheckOldestAttestationNonce(ctx) {
 		return false, types.ErrLastAvailableNonceStillNotInitialized
 	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)

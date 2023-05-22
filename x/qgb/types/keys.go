@@ -34,11 +34,8 @@ const (
 	// LatestAttestationtNonce indexes the latest attestation request nonce
 	LatestAttestationtNonce = "LatestAttestationNonce"
 
-	// LastAvailableAttestationNonce indexes the last available attestation nonce
-	LastAvailableAttestationNonce = "LastAvailableAttestationNonce"
-
-	// LastUnbondingNonce indexes the nonce corresponding to the last unbonding height
-	LastUnbondingNonce = "LastUnbondingNonce"
+	// OldestAttestationNonce indexes the last available attestation nonce
+	OldestAttestationNonce = "OldestAttestationNonce"
 )
 
 // GetAttestationKey returns the following key format

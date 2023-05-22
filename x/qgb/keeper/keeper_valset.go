@@ -23,7 +23,7 @@ func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return nil, types.ErrLatestAttestationNonceStillNotInitialized
 	}
-	if !k.CheckLastAvailableAttestationNonce(ctx) {
+	if !k.CheckOldestAttestationNonce(ctx) {
 		return nil, types.ErrLastAvailableNonceStillNotInitialized
 	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
@@ -168,7 +168,7 @@ func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return nil, types.ErrLatestAttestationNonceStillNotInitialized
 	}
-	if !k.CheckLastAvailableAttestationNonce(ctx) {
+	if !k.CheckOldestAttestationNonce(ctx) {
 		return nil, types.ErrLastAvailableNonceStillNotInitialized
 	}
 	if nonce == 1 {
