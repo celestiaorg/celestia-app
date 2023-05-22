@@ -25,7 +25,7 @@ const (
 
 	// NamespaceZeroPrefixSize is the number of `0` bytes that are prefixed to
 	// namespace IDs for version 0.
-	NamespaceVersionZeroPrefixSize = 22
+	NamespaceVersionZeroPrefixSize = 18
 
 	// NamespaceVersionZeroIDSize is the number of bytes available for
 	// user-specified namespace ID in a namespace ID for version 0.

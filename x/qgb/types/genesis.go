@@ -3,6 +3,8 @@ package types
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+
 	"cosmossdk.io/errors"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
@@ -60,6 +62,13 @@ func validateDataCommitmentWindow(i interface{}) error {
 			"data commitment window %v must be >= minimum data commitment window %v",
 			val,
 			MinimumDataCommitmentWindow,
+		))
+	}
+	if val > uint64(appconsts.DataCommitmentBlocksLimit) {
+		return errors.Wrap(ErrInvalidDataCommitmentWindow, fmt.Sprintf(
+			"data commitment window %v must be <= data commitment blocks limit %v",
+			val,
+			appconsts.DataCommitmentBlocksLimit,
 		))
 	}
 	return nil
