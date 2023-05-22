@@ -63,7 +63,7 @@ In order to implement the inflation rate specified above, we want to make a one 
 
 ## Detailed Design
 
-1. Remove all parameters from the module
+1. Remove all governance modififable parameters from the module. The inflation schedule is fixed and can only be modified by a major upgrade.
 1. Calculate inflation rate based on the number of years since genesis
 1. Calculate block provision based on the number of seconds elapsed between the current block and the previous block
 
