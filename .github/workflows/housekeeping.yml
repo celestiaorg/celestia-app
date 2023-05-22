@@ -1,4 +1,4 @@
-name: Housekeeping
+name: housekeeping
 
 on:
   # pull_request_target is used to allow forks write permissions when running
