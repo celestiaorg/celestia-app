@@ -21,7 +21,7 @@ func (k Keeper) NextDataCommitment(ctx sdk.Context) (types.DataCommitment, error
 	if err != nil {
 		return types.DataCommitment{}, err
 	}
-	// for a data commitment window of 400, the ranges will be: [1-401[, [401-801[, [801-1201[
+	// for a data commitment window of 400, the ranges will be: [1-401), [401-801), [801-1201)
 	var beginBlock, endBlock uint64
 	if hasDC {
 		lastDCC, err := k.GetLastDataCommitment(ctx)
@@ -31,7 +31,7 @@ func (k Keeper) NextDataCommitment(ctx sdk.Context) (types.DataCommitment, error
 		beginBlock = lastDCC.EndBlock
 		endBlock = lastDCC.EndBlock + dcWindow
 	} else {
-		// only for the first data commitment range, which is: [1, data commitment window + 1[
+		// only for the first data commitment range, which is: [1, data commitment window + 1)
 		beginBlock = 1
 		endBlock = dcWindow + 1
 	}

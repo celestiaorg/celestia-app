@@ -128,12 +128,12 @@ func TestSetDataCommitment(t *testing.T) {
 // in the event of the data commitment window changing via an upgrade or a gov proposal.
 // The test goes as follows:
 //   - Start with a data commitment window of 400
-//   - Get the first data commitment, its range should be: [1, 401]
-//   - Get the second data commitment, its range should be: [401, 801]
+//   - Get the first data commitment, its range should be: [1, 401)
+//   - Get the second data commitment, its range should be: [401, 801)
 //   - Shrink the data commitment window to 101
-//   - Get the third data commitment, its range should be: [801, 902]
+//   - Get the third data commitment, its range should be: [801, 902)
 //   - Expand the data commitment window to 500
-//   - Get the fourth data commitment, its range should be: [902, 1402]
+//   - Get the fourth data commitment, its range should be: [902, 1402)
 //
 // Note: the table tests cannot be run separately. The reason we're using a table structure
 // is to make it easy to understand the test flow.
@@ -402,10 +402,10 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 	}
 
 	// we should have 19 data commitments created in the above setup
-	// - window 400: [1, 401[, [401, 801[, [801, 1201[
-	// - window 100: [1201, 1301[, [1301, 1401[, [1401, 1501[, [1501, 1601[, [1601, 1701[, [1701, 1801[, [1801, 1901[
+	// - window 400: [1, 401), [401, 801), [801, 1201)
+	// - window 100: [1201, 1301), [1301, 1401), [1401, 1501), [1501, 1601), [1601, 1701), [1701, 1801), [1801, 1901)
 	// - window 1000: [1901, 2901[
-	// - window 111: [2901, 3012[, [3012, 3123[, [3123,3234[, [3234, 3345[, [3345, 3456[, [3456, 3567[, [3567, 3678[, [3678, 3789[
+	// - window 111: [2901, 3012), [3012, 3123), [3123,3234), [3234, 3345), [3345, 3456), [3456, 3567), [3567, 3678), [3678, 3789)
 	want := []types.DataCommitment{
 		{
 			Nonce:      2, // nonce 1 is the valset attestation
