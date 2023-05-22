@@ -39,17 +39,6 @@ func (c *Context) LatestHeight() (int64, error) {
 	return status.SyncInfo.LatestBlockHeight, nil
 }
 
-// LatestBlockTime returns the latest block time of the network or an error if
-// the query fails.
-func (c *Context) LatestBlockTime() (time.Time, error) {
-	status, err := c.Client.Status(c.GoContext())
-	if err != nil {
-		return time.Unix(0, 0), err
-	}
-
-	return status.SyncInfo.LatestBlockTime, nil
-}
-
 // WaitForHeightWithTimeout is the same as WaitForHeight except the caller can
 // provide a custom timeout.
 func (c *Context) WaitForHeightWithTimeout(h int64, t time.Duration) (int64, error) {
