@@ -21,6 +21,7 @@ func TestFirstAttestationIsValset(t *testing.T) {
 	pk := input.QgbKeeper
 
 	ctx = ctx.WithBlockHeight(1)
+	expectedTime := ctx.BlockTime()
 	// EndBlocker should set a new validator set
 	qgb.EndBlocker(ctx, *pk)
 
@@ -34,8 +35,9 @@ func TestFirstAttestationIsValset(t *testing.T) {
 	// get the valset
 	require.Equal(t, types.ValsetRequestType, attestation.Type())
 	vs, ok := attestation.(*types.Valset)
-	require.True(t, ok)
-	require.NotNil(t, vs)
+	assert.True(t, ok)
+	assert.NotNil(t, vs)
+	assert.Equal(t, expectedTime, vs.Time)
 }
 
 func TestValsetCreationWhenValidatorUnbonds(t *testing.T) {
@@ -116,12 +118,25 @@ func TestSetDataCommitment(t *testing.T) {
 	qk := input.QgbKeeper
 
 	ctx = ctx.WithBlockHeight(int64(qk.GetDataCommitmentWindowParam(ctx)))
+	expectedTime := ctx.BlockTime()
 	dc, err := qk.NextDataCommitment(ctx)
 	require.NoError(t, err)
 	err = qk.SetAttestationRequest(ctx, &dc)
 	require.NoError(t, err)
 
 	require.Equal(t, uint64(1), qk.GetLatestAttestationNonce(ctx))
+	attestation, found, err := qk.GetAttestationByNonce(ctx, 1)
+	require.Nil(t, err)
+	require.True(t, found)
+	require.NotNil(t, attestation)
+	require.Equal(t, uint64(1), attestation.GetNonce())
+
+	// get the data commitment
+	require.Equal(t, types.DataCommitmentRequestType, attestation.Type())
+	actualDC, ok := attestation.(*types.DataCommitment)
+	assert.True(t, ok)
+	assert.NotNil(t, actualDC)
+	assert.Equal(t, expectedTime, actualDC.Time)
 }
 
 // TestGetDataCommitment This test will test the creation of data commitment ranges
