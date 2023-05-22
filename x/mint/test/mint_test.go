@@ -62,8 +62,7 @@ func (s *IntegrationTestSuite) TestTotalSupplyIncreasesOverTime() {
 func (s *IntegrationTestSuite) TestInitialInflationRate() {
 	require := s.Require()
 
-	oneYear, err := time.ParseDuration(fmt.Sprintf("%vns", minttypes.NanosecondsPerYear))
-	require.NoError(err)
+	oneYear := time.Duration(int64(minttypes.NanosecondsPerYear))
 
 	err = s.cctx.WaitForNextBlock()
 	require.NoError(err)
