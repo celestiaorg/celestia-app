@@ -19,14 +19,14 @@ const (
 	TargetInflationRate  = 0.015
 )
 
-func GetInitialInflationRateAsDec() sdk.Dec {
+func InitialInflationRateAsDec() sdk.Dec {
 	return sdk.NewDecWithPrec(InitialInflationRate*1000, 3)
 }
 
-func GetDisinflationRateAsDec() sdk.Dec {
+func DisinflationRateAsDec() sdk.Dec {
 	return sdk.NewDecWithPrec(DisinflationRate*1000, 3)
 }
 
-func GetTargetInflationRateAsDec() sdk.Dec {
+func TargetInflationRateAsDec() sdk.Dec {
 	return sdk.NewDecWithPrec(TargetInflationRate*1000, 3)
 }

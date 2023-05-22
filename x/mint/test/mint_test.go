@@ -77,7 +77,7 @@ func (s *IntegrationTestSuite) TestInitialInflationRate() {
 	diffTime := laterTimestamp.Sub(initialTimestamp)
 
 	projectedAnnualProvisions := diffSupply.Mul(sdktypes.NewInt(oneYear.Nanoseconds())).Quo(sdktypes.NewInt(diffTime.Nanoseconds()))
-	initialInflationRate := minttypes.GetInitialInflationRateAsDec()
+	initialInflationRate := minttypes.InitialInflationRateAsDec()
 	expectedAnnualProvisions := initialInflationRate.Mul(sdktypes.NewDecFromBigInt(initialSupply.AmountOf(app.BondDenom).BigInt())).TruncateInt()
 	diffAnnualProvisions := projectedAnnualProvisions.Sub(expectedAnnualProvisions).Abs()
 
