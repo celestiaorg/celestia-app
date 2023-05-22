@@ -31,11 +31,19 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	t.Log("setting up mint integration test suite")
 
-	// set the minimum time between blocks to be 10 days. this will cause the
-	// block time to increase by 10 days despite that time not actually passing,
-	// which allows this test to not take 1 year to complete
 	cparams := testnode.DefaultParams()
-	cparams.Block.TimeIotaMs = int64(time.Hour.Milliseconds() * 240)
+	oneDay := time.Hour * 24
+	tenDays := oneDay * 10
+	// Set the minimum time between blocks to 10 days. This will make the
+	// timestamps between blocks increase by 10 days each block despite that
+	// much time not actually passing. We do this to test the inflation rate
+	// over time without having to wait one year for the test to complete.
+	//
+	// Example:
+	// height 7 time 2023-07-18 02:04:19.091578814 +0000 UTC
+	// height 8 time 2023-07-28 02:04:19.091578814 +0000 UTC
+	// height 9 time 2023-08-07 02:04:19.091578814 +0000 UTC
+	cparams.Block.TimeIotaMs = int64(tenDays)
 
 	cctx, _, _ := testnode.NewNetwork(t, cparams, testnode.DefaultTendermintConfig(), testnode.DefaultAppConfig())
 	s.cctx = cctx
