@@ -1,7 +1,6 @@
 package types
 
 import (
-	fmt "fmt"
 	"math/rand"
 	"testing"
 	time "time"
@@ -122,11 +121,9 @@ func TestCalculateBlockProvision(t *testing.T) {
 // TestCalculateBlockProvisionError verifies that the error for total block
 // provisions in a year is less than .01
 func TestCalculateBlockProvisionError(t *testing.T) {
-	oneYear, err := time.ParseDuration(fmt.Sprintf("%vns", NanosecondsPerYear))
-	assert.NoError(t, err)
-
 	minter := DefaultMinter()
 	current := time.Date(2023, 1, 2, 0, 0, 0, 0, time.UTC)
+	oneYear := time.Duration(NanosecondsPerYear)
 	end := current.Add(oneYear)
 
 	initialInflationRate := InitialInflationRateAsDec()
@@ -205,8 +202,7 @@ func Test_yearsSinceGenesis(t *testing.T) {
 	assert.NoError(t, err)
 	oneWeek := oneDay * 7
 	oneMonth := oneDay * 30
-	oneYear, err := time.ParseDuration(fmt.Sprintf("%vns", NanosecondsPerYear))
-	assert.NoError(t, err)
+	oneYear := time.Duration(NanosecondsPerYear)
 	twoYears := 2 * oneYear
 	tenYears := 10 * oneYear
 	tenYearsOneMonth := tenYears + oneMonth
