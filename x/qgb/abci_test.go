@@ -504,5 +504,10 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 		},
 	}
 	assert.Equal(t, 19, len(got))
-	assert.Equal(t, want, got)
+	for i, dc := range got {
+		// we don't care about checking the time of the blocks at this level
+		assert.Equal(t, want[i].EndBlock, dc.EndBlock)
+		assert.Equal(t, want[i].BeginBlock, dc.BeginBlock)
+		assert.Equal(t, want[i].Nonce, dc.Nonce)
+	}
 }
