@@ -153,7 +153,6 @@ func maybePruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 
 	ctx.Logger().Debug("pruning attestations from QGB store")
 	latestAttestationNonce := k.GetLatestAttestationNonce(ctx)
-	count := 0
 	var newEarliestAvailableNonce uint64
 	for newEarliestAvailableNonce = earliestAttestation.GetNonce(); newEarliestAvailableNonce < latestAttestationNonce; newEarliestAvailableNonce++ {
 		newEarliestAttestation, found, err := k.GetAttestationByNonce(ctx, newEarliestAvailableNonce)
@@ -174,14 +173,13 @@ func maybePruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 			break
 		}
 		k.DeleteAttestation(ctx, newEarliestAvailableNonce)
-		count++
 	}
 	// persist the new earliest available attestation nonce
 	k.SetEarliestAvailableAttestationNonce(ctx, newEarliestAvailableNonce)
 	ctx.Logger().Debug(
 		"finished pruning attestations from QGB store",
 		"count",
-		count,
+		newEarliestAvailableNonce-earliestAttestation.GetNonce(),
 		"new_earliest_available_nonce",
 		newEarliestAvailableNonce,
 		"latest_attestation_nonce",

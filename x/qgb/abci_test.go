@@ -529,6 +529,7 @@ func TestPruning(t *testing.T) {
 	// set the data commitment window
 	window := uint64(101)
 	qgbKeeper.SetParams(ctx, types.Params{DataCommitmentWindow: window})
+	initialBlockTime := ctx.BlockTime()
 	// make the interval between blocks being 3 days
 	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1, 5000, time.Hour)
 
@@ -544,9 +545,10 @@ func TestPruning(t *testing.T) {
 
 	// check that the attestations after those still exist
 	for nonce := qgbKeeper.GetEarliestAvailableAttestationNonce(ctx); nonce <= qgbKeeper.GetLatestAttestationNonce(ctx); nonce++ {
-		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
+		at, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
 		assert.NoError(t, err)
 		assert.True(t, found)
+		assert.True(t, initialBlockTime.Before(at.BlockTime().Add(qgb.AttestationExpiryTime)))
 	}
 
 	// continue running the chain for a few more blocks to be sure no inconsistency happens
