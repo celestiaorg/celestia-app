@@ -532,11 +532,11 @@ func TestPruning(t *testing.T) {
 	window := uint64(101)
 	qgbKeeper.SetParams(ctx, types.Params{DataCommitmentWindow: window})
 	initialBlockTime := ctx.BlockTime()
-	// make the interval between blocks being one hour
-	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1, 1345, time.Hour)
+	// make the interval between blocks being 10 minutes
+	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1, 1626, 10*time.Minute)
 
 	// check that we created a number of attestations
-	assert.Equal(t, uint64(14), qgbKeeper.GetLatestAttestationNonce(ctx))
+	assert.Equal(t, uint64(17), qgbKeeper.GetLatestAttestationNonce(ctx))
 
 	// check that no pruning occurs if the no attestation is expired
 	for nonce := uint64(1); nonce <= qgbKeeper.GetLatestAttestationNonce(ctx); nonce++ {
@@ -546,10 +546,10 @@ func TestPruning(t *testing.T) {
 	}
 
 	// continue executing heights
-	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1345, 5000, time.Hour)
+	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1626, 5000, 10*time.Minute)
 
 	earliestAttestationNonce := qgbKeeper.GetEarliestAvailableAttestationNonce(ctx)
-	assert.Equal(t, uint64(38), earliestAttestationNonce)
+	assert.Equal(t, uint64(21), earliestAttestationNonce)
 
 	// check that the first attestations were pruned
 	for nonce := uint64(1); nonce < earliestAttestationNonce; nonce++ {
