@@ -145,16 +145,8 @@ func pruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 		return
 	}
 	currentBlockTime := ctx.BlockTime()
-	// if the current time is before the earliest attestation creation time + expiry time
-	// then, all the subsequent attestations are unexpired so they should not be pruned.
-	if currentBlockTime.Before(earliestAttestation.BlockTime().Add(AttestationExpiryTime)) {
-		return
-	}
-
-	ctx.Logger().Debug("pruning attestations from QGB store")
 	latestAttestationNonce := k.GetLatestAttestationNonce(ctx)
-	var newEarliestAvailableNonce uint64
-	for newEarliestAvailableNonce = earliestAttestation.GetNonce(); newEarliestAvailableNonce < latestAttestationNonce; newEarliestAvailableNonce++ {
+	for newEarliestAvailableNonce := earliestAttestation.GetNonce(); newEarliestAvailableNonce < latestAttestationNonce; newEarliestAvailableNonce++ {
 		newEarliestAttestation, found, err := k.GetAttestationByNonce(ctx, newEarliestAvailableNonce)
 		if err != nil {
 			ctx.Logger().Error("error getting attestation for pruning", "nonce", newEarliestAvailableNonce, "err", err.Error())
@@ -170,19 +162,19 @@ func pruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 		}
 		if currentBlockTime.Before(newEarliestAttestation.BlockTime().Add(AttestationExpiryTime)) {
 			// the current attestation is unexpired so subsequent ones are also unexpired
-			break
+			// persist the new earliest available attestation nonce
+			k.SetEarliestAvailableAttestationNonce(ctx, newEarliestAvailableNonce)
+			ctx.Logger().Debug(
+				"pruned attestations from QGB store",
+				"count",
+				newEarliestAvailableNonce-earliestAttestation.GetNonce(),
+				"new_earliest_available_nonce",
+				newEarliestAvailableNonce,
+				"latest_attestation_nonce",
+				latestAttestationNonce,
+			)
+			return
 		}
 		k.DeleteAttestation(ctx, newEarliestAvailableNonce)
 	}
-	// persist the new earliest available attestation nonce
-	k.SetEarliestAvailableAttestationNonce(ctx, newEarliestAvailableNonce)
-	ctx.Logger().Debug(
-		"finished pruning attestations from QGB store",
-		"count",
-		newEarliestAvailableNonce-earliestAttestation.GetNonce(),
-		"new_earliest_available_nonce",
-		newEarliestAvailableNonce,
-		"latest_attestation_nonce",
-		latestAttestationNonce,
-	)
 }
