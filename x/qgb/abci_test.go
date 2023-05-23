@@ -532,7 +532,7 @@ func TestPruning(t *testing.T) {
 	window := uint64(101)
 	qgbKeeper.SetParams(ctx, types.Params{DataCommitmentWindow: window})
 	initialBlockTime := ctx.BlockTime()
-	// make the interval between blocks being 3 days
+	// make the interval between blocks being one hour
 	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1, 5000, time.Hour)
 
 	earliestAttestationNonce := qgbKeeper.GetEarliestAvailableAttestationNonce(ctx)
