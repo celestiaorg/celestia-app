@@ -386,13 +386,13 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, hasDataCommitment)
 
-	// get the last attestation nonce
-	lastAttestationNonce := qk.GetLatestAttestationNonce(ctx)
+	// get the latest attestation nonce
+	latestAttestationNonce := qk.GetLatestAttestationNonce(ctx)
 
 	// check if the ranges are continuous
 	var previousDC types.DataCommitment
 	got := []types.DataCommitment{}
-	for i := uint64(1); i <= lastAttestationNonce; i++ {
+	for i := uint64(1); i <= latestAttestationNonce; i++ {
 		att, found, err := qk.GetAttestationByNonce(ctx, i)
 		require.NoError(t, err)
 		require.True(t, found)

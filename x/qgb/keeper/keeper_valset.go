@@ -57,20 +57,20 @@ func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
 	return &currentVs, err
 }
 
-// SetLastUnBondingBlockHeight sets the last unbonding block height. Note this
+// SetLatestUnBondingBlockHeight sets the latest unbonding block height. Note this
 // value is not saved to state or loaded at genesis. This value is reset to zero
 // on chain upgrade.
-func (k Keeper) SetLastUnBondingBlockHeight(ctx sdk.Context, unbondingBlockHeight uint64) {
+func (k Keeper) SetLatestUnBondingBlockHeight(ctx sdk.Context, unbondingBlockHeight uint64) {
 	store := ctx.KVStore(k.storeKey)
-	store.Set([]byte(types.LastUnBondingBlockHeight), types.UInt64Bytes(unbondingBlockHeight))
+	store.Set([]byte(types.LatestUnBondingBlockHeight), types.UInt64Bytes(unbondingBlockHeight))
 }
 
-// GetLastUnBondingBlockHeight returns the last unbonding block height or zero
+// GetLatestUnBondingBlockHeight returns the latest unbonding block height or zero
 // if not set. This value is not saved or loaded at genesis. This value is reset
 // to zero on chain upgrade.
-func (k Keeper) GetLastUnBondingBlockHeight(ctx sdk.Context) uint64 {
+func (k Keeper) GetLatestUnBondingBlockHeight(ctx sdk.Context) uint64 {
 	store := ctx.KVStore(k.storeKey)
-	bytes := store.Get([]byte(types.LastUnBondingBlockHeight))
+	bytes := store.Get([]byte(types.LatestUnBondingBlockHeight))
 
 	if len(bytes) == 0 {
 		return 0
@@ -146,10 +146,10 @@ func normalizeValidatorPower(rawPower uint64, totalValidatorPower cosmosmath.Int
 	return power.Uint64()
 }
 
-// GetLastValsetBeforeNonce returns the previous valset before the provided `nonce`.
+// GetLatestValsetBeforeNonce returns the previous valset before the provided `nonce`.
 // the `nonce` can be a valset, but this method will return the valset before it.
 // If the provided nonce is 1, it will return an error, because, there is no valset before nonce 1.
-func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.Valset, error) {
+func (k Keeper) GetLatestValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.Valset, error) {
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return nil, types.ErrLatestAttestationNonceStillNotInitialized
 	}
