@@ -128,12 +128,12 @@ func TestSetDataCommitment(t *testing.T) {
 // in the event of the data commitment window changing via an upgrade or a gov proposal.
 // The test goes as follows:
 //   - Start with a data commitment window of 400
-//   - Get the first data commitment, its range should be: [1, 400]
-//   - Get the second data commitment, its range should be: [401, 800]
+//   - Get the first data commitment, its range should be: [1, 401)
+//   - Get the second data commitment, its range should be: [401, 801)
 //   - Shrink the data commitment window to 101
-//   - Get the third data commitment, its range should be: [801, 901]
+//   - Get the third data commitment, its range should be: [801, 902)
 //   - Expand the data commitment window to 500
-//   - Get the fourth data commitment, its range should be: [902, 1401]
+//   - Get the fourth data commitment, its range should be: [902, 1402)
 //
 // Note: the table tests cannot be run separately. The reason we're using a table structure
 // is to make it easy to understand the test flow.
@@ -150,41 +150,41 @@ func TestGetDataCommitment(t *testing.T) {
 		{
 			name:   "first data commitment for a window of 400",
 			window: 400,
-			height: 400,
+			height: 401,
 			expectedDC: types.DataCommitment{
 				Nonce:      1,
 				BeginBlock: 1,
-				EndBlock:   400,
+				EndBlock:   401,
 			},
 		},
 		{
 			name:   "second data commitment for a window of 400",
 			window: 400,
-			height: 800,
+			height: 801,
 			expectedDC: types.DataCommitment{
 				Nonce:      2,
 				BeginBlock: 401,
-				EndBlock:   800,
+				EndBlock:   801,
 			},
 		},
 		{
 			name:   "third data commitment after changing the window to 101",
 			window: 101,
-			height: 901,
+			height: 902,
 			expectedDC: types.DataCommitment{
 				Nonce:      3,
 				BeginBlock: 801,
-				EndBlock:   901,
+				EndBlock:   902,
 			},
 		},
 		{
 			name:   "fourth data commitment after changing the window to 500",
 			window: 500,
-			height: 1401,
+			height: 1402,
 			expectedDC: types.DataCommitment{
 				Nonce:      4,
 				BeginBlock: 902,
-				EndBlock:   1401,
+				EndBlock:   1402,
 			},
 		},
 	}
@@ -248,7 +248,7 @@ func TestDataCommitmentRange(t *testing.T) {
 	require.Equal(t, uint64(1), currentAttestationNonce)
 
 	// increment height to be the same as the data commitment window
-	newHeight := int64(qk.GetDataCommitmentWindowParam(ctx))
+	newHeight := int64(qk.GetDataCommitmentWindowParam(ctx)) + 1
 	ctx = ctx.WithBlockHeight(newHeight)
 	qgb.EndBlocker(ctx, *qk)
 
@@ -266,7 +266,7 @@ func TestDataCommitmentRange(t *testing.T) {
 	assert.Equal(t, int64(1), int64(dc1.BeginBlock))
 
 	// increment height to 2*data commitment window
-	newHeight = int64(qk.GetDataCommitmentWindowParam(ctx)) * 2
+	newHeight = int64(qk.GetDataCommitmentWindowParam(ctx))*2 + 1
 	ctx = ctx.WithBlockHeight(newHeight)
 	qgb.EndBlocker(ctx, *qk)
 
@@ -278,7 +278,7 @@ func TestDataCommitmentRange(t *testing.T) {
 	dc2, ok := att2.(*types.DataCommitment)
 	require.True(t, ok)
 	assert.Equal(t, newHeight, int64(dc2.EndBlock))
-	assert.Equal(t, dc1.EndBlock+1, dc2.BeginBlock)
+	assert.Equal(t, dc1.EndBlock, dc2.BeginBlock)
 }
 
 func TestHasDataCommitmentInStore(t *testing.T) {
@@ -397,110 +397,110 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 			previousDC = *dc
 			continue
 		}
-		assert.Equal(t, previousDC.EndBlock+1, dc.BeginBlock)
+		assert.Equal(t, previousDC.EndBlock, dc.BeginBlock)
 		previousDC = *dc
 	}
 
 	// we should have 19 data commitments created in the above setup
-	// - window 400: [1, 400], [401, 800], [801, 1200]
-	// - window 100: [1201, 1300], [1301, 1400], [1401, 1500], [1501, 1600], [1601, 1700], [1701, 1800], [1801, 1900]
-	// - window 1000: [1901, 2900]
-	// - window 111: [2901, 3011], [3012, 3122], [3123,3233], [3234, 3344], [3345, 3455], [3456, 3566], [3567, 3677], [3678, 3788]
+	// - window 400: [1, 401), [401, 801), [801, 1201)
+	// - window 100: [1201, 1301), [1301, 1401), [1401, 1501), [1501, 1601), [1601, 1701), [1701, 1801), [1801, 1901)
+	// - window 1000: [1901, 2901[
+	// - window 111: [2901, 3012), [3012, 3123), [3123,3234), [3234, 3345), [3345, 3456), [3456, 3567), [3567, 3678), [3678, 3789)
 	want := []types.DataCommitment{
 		{
 			Nonce:      2, // nonce 1 is the valset attestation
 			BeginBlock: 1,
-			EndBlock:   400,
+			EndBlock:   401,
 		},
 		{
 			Nonce:      3,
 			BeginBlock: 401,
-			EndBlock:   800,
+			EndBlock:   801,
 		},
 		{
 			Nonce:      4,
 			BeginBlock: 801,
-			EndBlock:   1200,
+			EndBlock:   1201,
 		},
 		{
 			Nonce:      5,
 			BeginBlock: 1201,
-			EndBlock:   1300,
+			EndBlock:   1301,
 		},
 		{
 			Nonce:      6,
 			BeginBlock: 1301,
-			EndBlock:   1400,
+			EndBlock:   1401,
 		},
 		{
 			Nonce:      7,
 			BeginBlock: 1401,
-			EndBlock:   1500,
+			EndBlock:   1501,
 		},
 		{
 			Nonce:      8,
 			BeginBlock: 1501,
-			EndBlock:   1600,
+			EndBlock:   1601,
 		},
 		{
 			Nonce:      9,
 			BeginBlock: 1601,
-			EndBlock:   1700,
+			EndBlock:   1701,
 		},
 		{
 			Nonce:      10,
 			BeginBlock: 1701,
-			EndBlock:   1800,
+			EndBlock:   1801,
 		},
 		{
 			Nonce:      11,
 			BeginBlock: 1801,
-			EndBlock:   1900,
+			EndBlock:   1901,
 		},
 		{
 			Nonce:      12,
 			BeginBlock: 1901,
-			EndBlock:   2900,
+			EndBlock:   2901,
 		},
 		{
 			Nonce:      13,
 			BeginBlock: 2901,
-			EndBlock:   3011,
+			EndBlock:   3012,
 		},
 		{
 			Nonce:      14,
 			BeginBlock: 3012,
-			EndBlock:   3122,
+			EndBlock:   3123,
 		},
 		{
 			Nonce:      15,
 			BeginBlock: 3123,
-			EndBlock:   3233,
+			EndBlock:   3234,
 		},
 		{
 			Nonce:      16,
 			BeginBlock: 3234,
-			EndBlock:   3344,
+			EndBlock:   3345,
 		},
 		{
 			Nonce:      17,
 			BeginBlock: 3345,
-			EndBlock:   3455,
+			EndBlock:   3456,
 		},
 		{
 			Nonce:      18,
 			BeginBlock: 3456,
-			EndBlock:   3566,
+			EndBlock:   3567,
 		},
 		{
 			Nonce:      19,
 			BeginBlock: 3567,
-			EndBlock:   3677,
+			EndBlock:   3678,
 		},
 		{
 			Nonce:      20,
 			BeginBlock: 3678,
-			EndBlock:   3788,
+			EndBlock:   3789,
 		},
 	}
 	assert.Equal(t, 19, len(got))

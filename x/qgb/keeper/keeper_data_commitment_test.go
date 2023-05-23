@@ -30,7 +30,7 @@ func TestGetDataCommitmentForHeight(t *testing.T) {
 		dcs[i] = types.DataCommitment{
 			Nonce:      i + 2, // because nonces start at 1, and we already set that one for the initial valset
 			BeginBlock: window * i,
-			EndBlock:   window*(i+1) - 1,
+			EndBlock:   window * (i + 1),
 		}
 		err = k.SetAttestationRequest(sdkCtx, &dcs[i])
 		require.NoError(t, err)
@@ -74,7 +74,7 @@ func TestGetDataCommitmentForHeight(t *testing.T) {
 		{
 			name:          "height is end block",
 			height:        dcs[1].EndBlock,
-			expectedDCC:   dcs[1],
+			expectedDCC:   dcs[2],
 			expectError:   false,
 			expectedError: "",
 		},
@@ -90,7 +90,7 @@ func TestGetDataCommitmentForHeight(t *testing.T) {
 			height:        window * 100,
 			expectedDCC:   types.DataCommitment{},
 			expectError:   true,
-			expectedError: "Last height 3999 < 40000: no data commitment has been generated for the provided height",
+			expectedError: "Last height 4000 < 40000: no data commitment has been generated for the provided height",
 		},
 	}
 	for _, tt := range tests {

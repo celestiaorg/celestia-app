@@ -15,11 +15,7 @@ func (k Keeper) DataCommitmentRangeForHeight(
 	if err != nil {
 		return nil, err
 	}
-	return &types.QueryDataCommitmentRangeForHeightResponse{
-		BeginBlock: resp.BeginBlock,
-		EndBlock:   resp.EndBlock,
-		Nonce:      resp.Nonce,
-	}, nil
+	return &types.QueryDataCommitmentRangeForHeightResponse{DataCommitment: &resp}, nil
 }
 
 func (k Keeper) LastDataCommitment(

@@ -109,9 +109,8 @@ message QueryLastDataCommitmentResponse { DataCommitment data_commitment = 1; }
 
 // QueryDataCommitmentRangeForHeightRequest
 message QueryDataCommitmentRangeForHeightRequest { uint64 height = 1; }
+
 // QueryDataCommitmentRangeForHeightResponse
 message QueryDataCommitmentRangeForHeightResponse {
-  uint64 begin_block = 1;
-  uint64 end_block = 2;
-  uint64 nonce = 3;
+  DataCommitment data_commitment = 1;
 }

@@ -151,6 +151,7 @@ func (m *Valset) GetHeight() uint64 {
 // It does not contain a `commitment` field as this message will be created
 // inside the state machine and it doesn't make sense to ask tendermint for the
 // commitment there.
+// The range defined by begin_block and end_block is end exclusive.
 type DataCommitment struct {
 	// Universal nonce defined under:
 	// https://github.com/celestiaorg/celestia-app/pull/464
@@ -158,8 +159,8 @@ type DataCommitment struct {
 	// First block defining the ordered set of blocks used to create the
 	// commitment.
 	BeginBlock uint64 `protobuf:"varint,2,opt,name=begin_block,json=beginBlock,proto3" json:"begin_block,omitempty"`
-	// Last block defining the ordered set of blocks used to create the
-	// commitment.
+	// End exclusive last block defining the ordered set of blocks used to create
+	// the commitment.
 	EndBlock uint64 `protobuf:"varint,3,opt,name=end_block,json=endBlock,proto3" json:"end_block,omitempty"`
 }
 
