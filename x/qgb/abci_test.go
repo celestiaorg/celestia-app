@@ -521,8 +521,10 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 	}
 }
 
-// TestPruning tests the pruning mechanism via generating a set of attestations, then checking if the expired
-// ones are pruned
+// TestPruning tests the pruning mechanism by:
+// 1. Generating a set of attestations
+// 2. Running the QGB EndBlocker
+// 3. Verifying that the expired attestations are pruned
 func TestPruning(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	qgbKeeper := *input.QgbKeeper
