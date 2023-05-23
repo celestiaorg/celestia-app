@@ -22,3 +22,7 @@ func NewDataCommitment(
 func (m *DataCommitment) Type() AttestationType {
 	return DataCommitmentRequestType
 }
+
+func (m *DataCommitment) BlockTime() time.Time {
+	return m.Time
+}
