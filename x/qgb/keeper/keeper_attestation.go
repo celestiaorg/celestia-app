@@ -78,7 +78,7 @@ func (k Keeper) GetLatestAttestationNonce(ctx sdk.Context) uint64 {
 	return UInt64FromBytes(bytes)
 }
 
-// CheckEarliestAvailableAttestationNonce returns true if the last available attestation nonce has been initialized
+// CheckEarliestAvailableAttestationNonce returns true if the earliest available attestation nonce has been initialized
 // in store, and false if not.
 func (k Keeper) CheckEarliestAvailableAttestationNonce(ctx sdk.Context) bool {
 	store := ctx.KVStore(k.storeKey)
