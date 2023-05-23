@@ -35,12 +35,12 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 		{"small block 2", 0, 12, 1000, 8},
 		{"mixed medium block 2", 10, 20, 10000, 32},
 		{"one large pfb large block", 0, 1, 1000000, 64},
-		{"one hundred large pfb large block", 0, 100, 100000, appconsts.DefaultMaxSquareSize},
-		{"one hundred large pfb medium block", 100, 100, 100000, appconsts.DefaultMaxSquareSize},
-		{"mixed transactions large block", 100, 100, 100000, appconsts.DefaultMaxSquareSize},
-		{"mixed transactions large block 2", 1000, 1000, 10000, appconsts.DefaultMaxSquareSize},
-		{"mostly transactions large block", 10000, 1000, 100, appconsts.DefaultMaxSquareSize},
-		{"only small pfb large block", 0, 10000, 1, appconsts.DefaultMaxSquareSize},
+		{"one hundred large pfb large block", 0, 100, 100000, appconsts.DefaultGovMaxSquareSize},
+		{"one hundred large pfb medium block", 100, 100, 100000, appconsts.DefaultGovMaxSquareSize},
+		{"mixed transactions large block", 100, 100, 100000, appconsts.DefaultGovMaxSquareSize},
+		{"mixed transactions large block 2", 1000, 1000, 10000, appconsts.DefaultGovMaxSquareSize},
+		{"mostly transactions large block", 10000, 1000, 100, appconsts.DefaultGovMaxSquareSize},
+		{"only small pfb large block", 0, 10000, 1, appconsts.DefaultGovMaxSquareSize},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

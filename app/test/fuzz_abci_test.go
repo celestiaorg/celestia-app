@@ -120,7 +120,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 
 					// check that the square size is smaller than or equal to
 					// the specified size
-					require.LessOrEqual(t, resp.BlockData.SquareSize, size.govMaxSquareSize)
+					require.LessOrEqual(t, resp.BlockData.SquareSize, uint64(size.govMaxSquareSize))
 
 					res := testApp.ProcessProposal(abci.RequestProcessProposal{
 						BlockData: resp.BlockData,
