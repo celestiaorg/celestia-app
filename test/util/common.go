@@ -500,7 +500,7 @@ func ExecuteQGBHeights(ctx sdk.Context, qgbKeeper keeper.Keeper, beginHeight int
 	return ctx
 }
 
-// ExecuteQGBHeights executes the end exclusive range of heights specified by beginHeight and endHeight
+// ExecuteQGBHeightsWithTime executes the end exclusive range of heights specified by beginHeight and endHeight
 // along with the QGB abci.EndBlocker on each one of them.
 // Uses the interval to calculate the block header time.
 func ExecuteQGBHeightsWithTime(ctx sdk.Context, qgbKeeper keeper.Keeper, beginHeight int64, endHeight int64, interval time.Duration) sdk.Context {
