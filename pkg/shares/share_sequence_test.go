@@ -163,6 +163,13 @@ func Test_validSequenceLen(t *testing.T) {
 		Shares:    []Share{ReservedPaddingShare()},
 	}
 
+	notSequenceStart := ShareSequence{
+		Namespace: ns1,
+		Shares: []Share{
+			shareWithData(ns1, false, 0, []byte{0x0f}),
+		},
+	}
+
 	testCases := []testCase{
 		{
 			name:          "empty share sequence",
@@ -188,6 +195,11 @@ func Test_validSequenceLen(t *testing.T) {
 			name:          "reserved padding",
 			shareSequence: reservedPadding,
 			wantErr:       false,
+		},
+		{
+			name:          "sequence length where first share is not sequence start",
+			shareSequence: notSequenceStart,
+			wantErr:       true, // error: "share sequence has 1 shares but needed 0 shares"
 		},
 	}
 
