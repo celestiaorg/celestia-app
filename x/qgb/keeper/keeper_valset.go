@@ -47,13 +47,14 @@ func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
 			return valset, nil
 		}
 	}
-	if earliestAvailableNonce > 1 {
-		// this means that the latest valset was pruned and we can return the current one as no significant
-		// changes to it happened
-		currentVs, err := k.GetCurrentValset(ctx)
-		return &currentVs, err
+	if earliestAvailableNonce == 1 {
+		// this means that the no pruning happened, but still the valset is missing from the store
+		panic(errors.Wrap(sdkerrors.ErrNotFound, "couldn't find latest valset"))
 	}
-	panic(errors.Wrap(sdkerrors.ErrNotFound, "couldn't find latest valset"))
+	// this means that the latest valset was pruned and we can return the current one as no significant
+	// changes to it happened
+	currentVs, err := k.GetCurrentValset(ctx)
+	return &currentVs, err
 }
 
 // SetLastUnBondingBlockHeight sets the last unbonding block height. Note this
