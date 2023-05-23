@@ -533,7 +533,20 @@ func TestPruning(t *testing.T) {
 	qgbKeeper.SetParams(ctx, types.Params{DataCommitmentWindow: window})
 	initialBlockTime := ctx.BlockTime()
 	// make the interval between blocks being one hour
-	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1, 5000, time.Hour)
+	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1, 1345, time.Hour)
+
+	// check that we created a number of attestations
+	assert.Equal(t, uint64(14), qgbKeeper.GetLatestAttestationNonce(ctx))
+
+	// check that no pruning occurs if the no attestation is expired
+	for nonce := uint64(1); nonce <= qgbKeeper.GetLatestAttestationNonce(ctx); nonce++ {
+		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
+		assert.NoError(t, err)
+		assert.True(t, found)
+	}
+
+	// continue executing heights
+	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1345, 5000, time.Hour)
 
 	earliestAttestationNonce := qgbKeeper.GetEarliestAvailableAttestationNonce(ctx)
 	assert.Equal(t, uint64(38), earliestAttestationNonce)
@@ -553,6 +566,20 @@ func TestPruning(t *testing.T) {
 		// make sure the remaining attestations have not expired yet
 		assert.True(t, initialBlockTime.Before(at.BlockTime().Add(qgb.AttestationExpiryTime)))
 	}
+
+	// check that no valset exists in store
+	for nonce := qgbKeeper.GetEarliestAvailableAttestationNonce(ctx); nonce <= qgbKeeper.GetLatestAttestationNonce(ctx); nonce++ {
+		at, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
+		assert.NoError(t, err)
+		assert.True(t, found)
+		assert.Equal(t, types.DataCommitmentRequestType, at.Type())
+	}
+
+	// check that we still can get a valset even after pruning all of them
+	vs, err := qgbKeeper.GetLatestValset(ctx)
+	assert.NoError(t, err)
+	assert.NotNil(t, vs)
+	assert.Equal(t, types.ValsetRequestType, vs.Type())
 
 	// continue running the chain for a few more blocks to be sure no inconsistency happens
 	// after pruning
