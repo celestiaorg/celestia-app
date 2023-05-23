@@ -210,7 +210,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				// perform basic checks on the size of the square
 				require.LessOrEqual(size, uint64(appconsts.DefaultMaxSquareSize))
 				require.GreaterOrEqual(size, uint64(appconsts.MinSquareSize))
-				
+
 				// assert that the app version is correctly set
 				require.Equal(appconsts.LatestVersion, blockRes.Block.Header.Version.App)
 

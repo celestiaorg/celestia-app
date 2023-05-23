@@ -19,8 +19,8 @@ import (
 // in the square and which have all PFBs trailing regular transactions. Note, this function does
 // not check the underlying validity of the transactions.
 // Errors should not occur and would reflect a violation in an invariant.
-func Build(txs [][]byte, appVersion uint64) (Square, [][]byte, error) {
-	builder, err := NewBuilder(appconsts.MaxSquareSize(appVersion), appconsts.SubtreeRootThreshold(appVersion))
+func Build(txs [][]byte, appVersion uint64, maxSquareSize int) (Square, [][]byte, error) {
+	builder, err := NewBuilder(maxSquareSize, appconsts.SubtreeRootThreshold(appVersion))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -48,8 +48,8 @@ func Build(txs [][]byte, appVersion uint64) (Square, [][]byte, error) {
 //
 // Note that this function does not check the underlying validity of
 // the transactions.
-func Construct(txs [][]byte, appVersion uint64) (Square, error) {
-	builder, err := NewBuilder(appconsts.MaxSquareSize(appVersion), appconsts.SubtreeRootThreshold(appVersion), txs...)
+func Construct(txs [][]byte, appVersion uint64, maxSquareSize int) (Square, error) {
+	builder, err := NewBuilder(maxSquareSize, appconsts.SubtreeRootThreshold(appVersion), txs...)
 	if err != nil {
 		return nil, err
 	}

@@ -45,7 +45,7 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			txs := generateMixedTxs(tt.normalTxs, tt.pfbCount, 1, tt.pfbSize)
-			square, _, err := square.Build(txs, appconsts.LatestVersion)
+			square, _, err := square.Build(txs, appconsts.LatestVersion, appconsts.DefaultGovMaxSquareSize)
 			require.NoError(t, err)
 			require.EqualValues(t, tt.expectedSquareSize, square.Size())
 		})

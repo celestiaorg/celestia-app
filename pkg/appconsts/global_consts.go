@@ -7,12 +7,14 @@ import (
 
 // These constants were originally sourced from:
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/consensus.md#constants
+//
+// They can not change throughout the lifetime of a network.
 const (
 	// NamespaveVersionSize is the size of a namespace version in bytes.
 	NamespaceVersionSize = 1
 
 	// NamespaceIDSize is the size of a namespace ID in bytes.
-	NamespaceIDSize = 32
+	NamespaceIDSize = 28
 
 	// NamespaceSize is the size of a namespace (version + ID) in bytes.
 	NamespaceSize = NamespaceVersionSize + NamespaceIDSize
@@ -64,27 +66,6 @@ const (
 
 	// MaxShareVersion is the maximum value a share version can be.
 	MaxShareVersion = 127
-)
-
-// The following defaults correspond to initial parameters of the network that can be changed, not via app versions
-// but other means such as on-chain governance
-const (
-	// DefaultGovMaxSquareSize is the default value for the governance modifiable
-	// max square size.
-	DefaultGovMaxSquareSize = 64
-
-	// DefaultMaxBytes is the default value for the governance modifiable
-	// maximum number of bytes allowed in a valid block.
-	DefaultMaxBytes = DefaultGovMaxSquareSize * DefaultGovMaxSquareSize * ContinuationSparseShareContentSize
-
-	// DefaultGasPerBlobByte is the default gas cost deducted per byte of blob
-	// included in a PayForBlobs txn
-	DefaultGasPerBlobByte = 8
-
-	// DefaultMinGasPrice is the default min gas price that gets set in the app.toml file.
-	// The min gas price acts as a filter. Transactions below that limit will not pass
-	// a nodes `CheckTx` and thus not be proposed by that node.
-	DefaultMinGasPrice = 0.1
 )
 
 var (

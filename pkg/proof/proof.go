@@ -98,13 +98,20 @@ func NewShareInclusionProof(
 		// we have to re-create the tree as the eds one is not accessible.
 		tree := wrapper.NewErasuredNamespacedMerkleTree(uint64(squareSize), uint(i))
 		for _, share := range row {
-			tree.Push(
+			err := tree.Push(
 				share.ToBytes(),
 			)
+			if err != nil {
+				return types.ShareProof{}, err
+			}
 		}
 
 		// make sure that the generated root is the same as the eds row root.
-		if !bytes.Equal(rowRoots[i].Bytes(), tree.Root()) {
+		root, err := tree.Root()
+		if err != nil {
+			return types.ShareProof{}, err
+		}
+		if !bytes.Equal(rowRoots[i].Bytes(), root) {
 			return types.ShareProof{}, errors.New("eds row root is different than tree root")
 		}
 

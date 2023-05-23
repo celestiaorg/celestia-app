@@ -68,7 +68,13 @@ If the calculated commitment doesn't equal the commitment in the PFB transaction
 
 We are comparing the size of a PFB inclusion proof to a worst-case blob inclusion proof.
 
-The size of a normal PFB transaction is about 330 bytes. This PFB transaction can span over 2 shares because the start of a transaction can happen in the middle of a share. The worst case is if the transaction starts in the middle of the share of the last block in a row and continues to the first share of the row after. The picture below shows this scenario and what you need to prove the inclusion of those shares. It is a Merkle Proof of the shares to ROW1 and ROW2 and then a Merkle proof of ROW1 and ROW2 to the DataRoot. The blue nodes are additional nodes that are needed for the Merkle proof.
+The size of a normal PFB transaction is about 330 bytes. This PFB transaction can span over 2 shares because the start of a transaction can occur in the middle of a share. In the worst case scenario, a transaction starts in the middle of the last share in a row and continues to the first share of the next row. This worst case scenario is depicted by the pink squares in the diagram below. In order to prove the inclusion of the pink shares, one needs:
+
+1. A NMT proof of the first share to ROW1's `RowRoot`.
+1. A NMT proof of the second share to ROW2's `RowRoot`.
+1. A Merkle proof of the `RowRoot`s from ROW1 and ROW2 to the `DataRoot`.
+
+Note: the blue nodes are additional nodes that are needed for the Merkle proofs.
 
 ![PFB Merkle Proof](./assets/adr011/pfd-merkle-proof.png)
 

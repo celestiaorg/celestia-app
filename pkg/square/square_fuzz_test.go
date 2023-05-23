@@ -36,9 +36,9 @@ func FuzzSquare(f *testing.F) {
 			t.Skip()
 		}
 		txs := generateMixedTxs(int(normalTxCount), int(pfbCount), int(blobsPerPfb), int(blobSize))
-		s, orderedTxs, err := square.Build(txs, appconsts.LatestVersion)
+		s, orderedTxs, err := square.Build(txs, appconsts.LatestVersion, appconsts.DefaultMaxSquareSize)
 		require.NoError(t, err)
-		s2, err := square.Construct(orderedTxs, appconsts.LatestVersion)
+		s2, err := square.Construct(orderedTxs, appconsts.LatestVersion, appconsts.DefaultMaxSquareSize)
 		require.NoError(t, err)
 		require.True(t, s.Equals(s2))
 
