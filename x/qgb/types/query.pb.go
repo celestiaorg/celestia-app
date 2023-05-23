@@ -291,8 +291,8 @@ func (m *QueryLatestAttestationNonceResponse) GetNonce() uint64 {
 	return 0
 }
 
-// QueryLatestValsetRequestBeforeNonceRequest latest Valset request before universal
-// nonce request
+// QueryLatestValsetRequestBeforeNonceRequest latest Valset request before
+// universal nonce request
 type QueryLatestValsetRequestBeforeNonceRequest struct {
 	Nonce uint64 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
 }
@@ -341,8 +341,8 @@ func (m *QueryLatestValsetRequestBeforeNonceRequest) GetNonce() uint64 {
 	return 0
 }
 
-// QueryLatestValsetRequestBeforeNonceResponse latest Valset request before height
-// response
+// QueryLatestValsetRequestBeforeNonceResponse latest Valset request before
+// height response
 type QueryLatestValsetRequestBeforeNonceResponse struct {
 	Valset *Valset `protobuf:"bytes,1,opt,name=valset,proto3" json:"valset,omitempty"`
 }
