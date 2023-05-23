@@ -146,7 +146,8 @@ func pruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 	}
 	currentBlockTime := ctx.BlockTime()
 	latestAttestationNonce := k.GetLatestAttestationNonce(ctx)
-	for newEarliestAvailableNonce := earliestAttestation.GetNonce(); newEarliestAvailableNonce < latestAttestationNonce; newEarliestAvailableNonce++ {
+	var newEarliestAvailableNonce uint64
+	for newEarliestAvailableNonce = earliestAttestation.GetNonce(); newEarliestAvailableNonce < latestAttestationNonce; newEarliestAvailableNonce++ {
 		newEarliestAttestation, found, err := k.GetAttestationByNonce(ctx, newEarliestAvailableNonce)
 		if err != nil {
 			ctx.Logger().Error("error getting attestation for pruning", "nonce", newEarliestAvailableNonce, "err", err.Error())
@@ -160,21 +161,25 @@ func pruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 			ctx.Logger().Error("nil attestation for pruning", "nonce", newEarliestAvailableNonce)
 			return
 		}
-		if currentBlockTime.Before(newEarliestAttestation.BlockTime().Add(AttestationExpiryTime)) {
+		attestationExpirationTime := newEarliestAttestation.BlockTime().Add(AttestationExpiryTime)
+		if attestationExpirationTime.After(currentBlockTime) {
 			// the current attestation is unexpired so subsequent ones are also unexpired
 			// persist the new earliest available attestation nonce
-			k.SetEarliestAvailableAttestationNonce(ctx, newEarliestAvailableNonce)
-			ctx.Logger().Debug(
-				"pruned attestations from QGB store",
-				"count",
-				newEarliestAvailableNonce-earliestAttestation.GetNonce(),
-				"new_earliest_available_nonce",
-				newEarliestAvailableNonce,
-				"latest_attestation_nonce",
-				latestAttestationNonce,
-			)
-			return
+			break
 		}
 		k.DeleteAttestation(ctx, newEarliestAvailableNonce)
+	}
+	if newEarliestAvailableNonce > earliestAttestation.GetNonce() {
+		// some attestations were pruned and we need to update the state for it
+		k.SetEarliestAvailableAttestationNonce(ctx, newEarliestAvailableNonce)
+		ctx.Logger().Debug(
+			"pruned attestations from QGB store",
+			"count",
+			newEarliestAvailableNonce-earliestAttestation.GetNonce(),
+			"new_earliest_available_nonce",
+			newEarliestAvailableNonce,
+			"latest_attestation_nonce",
+			latestAttestationNonce,
+		)
 	}
 }
