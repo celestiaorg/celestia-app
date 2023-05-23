@@ -69,6 +69,9 @@ const (
 )
 
 var (
+	// DataCommitmentBlocksLimit is the maximnum number of blocks that a data commitment can span
+	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
+
 	// NewBaseHashFunc is the base hash function used by NMT. Change accordingly
 	// if another hash.Hash should be used as a base hasher in the NMT.
 	NewBaseHashFunc = consts.NewBaseHashFunc
