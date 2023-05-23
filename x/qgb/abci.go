@@ -17,7 +17,7 @@ const (
 	SignificantPowerDifferenceThreshold = 0.05
 
 	// AttestationExpiryTime the expiration time of an attestation after which it will be pruned.
-	AttestationExpiryTime = 8 * 7 * 24 * time.Hour
+	AttestationExpiryTime = 3 * 7 * 24 * time.Hour
 )
 
 // EndBlocker is called at the end of every block.
