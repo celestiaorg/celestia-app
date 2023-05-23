@@ -37,6 +37,7 @@ message Valset {
 // It does not contain a `commitment` field as this message will be created
 // inside the state machine and it doesn't make sense to ask tendermint for the
 // commitment there.
+// The range defined by begin_block and end_block is end exclusive.
 message DataCommitment {
   option (cosmos_proto.implements_interface) = "AttestationRequestI";
   // Universal nonce defined under:
@@ -45,8 +46,8 @@ message DataCommitment {
   // First block defining the ordered set of blocks used to create the
   // commitment.
   uint64 begin_block = 2;
-  // Last block defining the ordered set of blocks used to create the
-  // commitment.
+  // End exclusive last block defining the ordered set of blocks used to create
+  // the commitment.
   uint64 end_block = 3;
   // Block time where this data commitment was created
   google.protobuf.Timestamp time = 4

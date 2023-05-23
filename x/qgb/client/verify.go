@@ -157,7 +157,7 @@ func sharesCmd() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "shares <height> <start_share> <end_share>",
 		Args:  cobra.ExactArgs(3),
-		Short: "Verifies that a shares range has been committed to by the QGB contract",
+		Short: "Verifies that a range of shares has been committed to by the QGB contract. The range should be end exclusive.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			height, err := strconv.ParseUint(args[0], 10, 0)
 			if err != nil {
@@ -242,7 +242,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 
 	queryClient := types.NewQueryClient(qgbGRPC)
 
-	blocksRange, err := queryClient.DataCommitmentRangeForHeight(
+	resp, err := queryClient.DataCommitmentRangeForHeight(
 		ctx,
 		&types.QueryDataCommitmentRangeForHeightRequest{Height: height},
 	)
@@ -255,15 +255,15 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 		"contract_address",
 		config.ContractAddr,
 		"fist_block",
-		blocksRange.BeginBlock,
+		resp.DataCommitment.BeginBlock,
 		"last_block",
-		blocksRange.EndBlock,
+		resp.DataCommitment.EndBlock,
 		"nonce",
-		blocksRange.Nonce,
+		resp.DataCommitment.Nonce,
 	)
 
 	logger.Debug("getting the data root to commitment inclusion proof")
-	dcProof, err := trpc.DataRootInclusionProof(ctx, height, blocksRange.BeginBlock, blocksRange.EndBlock)
+	dcProof, err := trpc.DataRootInclusionProof(ctx, height, resp.DataCommitment.BeginBlock, resp.DataCommitment.EndBlock)
 	if err != nil {
 		return
 	}
@@ -289,7 +289,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 	isCommittedTo, err = VerifyDataRootInclusion(
 		ctx,
 		qgbWrapper,
-		blocksRange.Nonce,
+		resp.DataCommitment.Nonce,
 		height,
 		block.Block.DataHash,
 		dcProof.Proof,
