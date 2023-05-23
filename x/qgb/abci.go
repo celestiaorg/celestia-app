@@ -26,7 +26,7 @@ func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
 	// the one responsible for signing from now on.
 	handleValsetRequest(ctx, k)
 	handleDataCommitmentRequest(ctx, k)
-	maybePruneAttestations(ctx, k)
+	pruneAttestations(ctx, k)
 }
 
 func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
@@ -123,9 +123,9 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 	}
 }
 
-// maybePruneAttestations runs basic checks on saved attestations to see if we need to prune or not.
+// pruneAttestations runs basic checks on saved attestations to see if we need to prune or not.
 // Then, it prunes all expired attestations from state.
-func maybePruneAttestations(ctx sdk.Context, k keeper.Keeper) {
+func pruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 	// If the attestation nonce hasn't been initialized yet, no pruning is
 	// required
 	if !k.CheckLatestAttestationNonce(ctx) {
