@@ -124,7 +124,7 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 }
 
 // maybePruneAttestations runs basic checks on saved attestations to see if we need to prune or not.
-// Then, it starts pruning the expired attestations until all attestations in state are still valid.
+// Then, it prunes all expired attestations from state.
 func maybePruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 	// If the attestations nonce hasn't been initialized yet, no pruning is
 	// required
