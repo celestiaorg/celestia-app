@@ -34,7 +34,8 @@ var _ = time.Kitchen
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-// QueryInflationRateRequest is the request type for the Query/InflationRate RPC method.
+// QueryInflationRateRequest is the request type for the Query/InflationRate RPC
+// method.
 type QueryInflationRateRequest struct {
 }
 
@@ -71,8 +72,8 @@ func (m *QueryInflationRateRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_QueryInflationRateRequest proto.InternalMessageInfo
 
-// QueryInflationRateResponse is the response type for the Query/InflationRate RPC
-// method.
+// QueryInflationRateResponse is the response type for the Query/InflationRate
+// RPC method.
 type QueryInflationRateResponse struct {
 	// InflationRate is the current inflation rate.
 	InflationRate github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,1,opt,name=inflation_rate,json=inflationRate,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"inflation_rate"`
@@ -189,7 +190,8 @@ func (m *QueryAnnualProvisionsResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_QueryAnnualProvisionsResponse proto.InternalMessageInfo
 
-// QueryGenesisTimeRequest is the request type for the Query/GenesisTime RPC method.
+// QueryGenesisTimeRequest is the request type for the Query/GenesisTime RPC
+// method.
 type QueryGenesisTimeRequest struct {
 }
 
@@ -226,7 +228,8 @@ func (m *QueryGenesisTimeRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_QueryGenesisTimeRequest proto.InternalMessageInfo
 
-// QueryGenesisTimeResponse is the response type for the Query/GenesisTime RPC method.
+// QueryGenesisTimeResponse is the response type for the Query/GenesisTime RPC
+// method.
 type QueryGenesisTimeResponse struct {
 	// GenesisTime is the timestamp associated with the first block.
 	GenesisTime *time.Time `protobuf:"bytes,1,opt,name=genesis_time,json=genesisTime,proto3,stdtime" json:"genesis_time,omitempty"`
