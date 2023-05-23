@@ -151,7 +151,7 @@ func maybePruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 		return
 	}
 
-	ctx.Logger().Debug("pruning attestations from qgb store")
+	ctx.Logger().Debug("pruning attestations from QGB store")
 	latestAttestationNonce := k.GetLatestAttestationNonce(ctx)
 	count := 0
 	var newEarliestAvailableNonce uint64
