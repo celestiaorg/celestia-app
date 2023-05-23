@@ -1,9 +1,10 @@
 package qgb_test
 
 import (
-	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"testing"
 	"time"
+
+	"github.com/celestiaorg/celestia-app/x/qgb/types"
 
 	"github.com/cosmos/cosmos-sdk/x/staking/teststaking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
