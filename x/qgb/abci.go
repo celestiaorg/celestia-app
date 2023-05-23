@@ -169,7 +169,7 @@ func maybePruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 			return
 		}
 		if currentBlockTime.Before(newEarliestAttestation.BlockTime().Add(AttestationExpiryTime)) {
-			// the earliest attestation is still valid. this means all the subsequent ones are also
+			// the current attestation is unexpired so subsequent ones are also unexpired
 			break
 		}
 		k.DeleteAttestation(ctx, newEarliestAvailableNonce)
