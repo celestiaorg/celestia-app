@@ -146,7 +146,7 @@ func maybePruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 	}
 	currentBlockTime := ctx.BlockTime()
 	// if the current time is before the earliest attestation creation time + expiry time
-	// then, all the subsequent attestations are also still valid and no need to prune them.
+	// then, all the subsequent attestations are unexpired so they should not be pruned.
 	if currentBlockTime.Before(earliestAttestation.BlockTime().Add(AttestationExpiryTime)) {
 		return
 	}
