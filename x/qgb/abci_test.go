@@ -1,9 +1,9 @@
 package qgb_test
 
 import (
-	"testing"
-
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	"testing"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/x/staking/teststaking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -364,28 +364,21 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 	qk := input.QgbKeeper
 	ctx = ctx.WithBlockHeight(1)
 
-	executeHeights := func(beginHeight int64, endHeight int64) {
-		for i := beginHeight; i <= endHeight; i++ {
-			ctx = ctx.WithBlockHeight(i)
-			qgb.EndBlocker(ctx, *qk)
-		}
-	}
-
 	// from height 1 to 1500 with a window of 400
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 400})
-	executeHeights(1, 1500)
+	ctx = testutil.ExecuteQGBHeights(ctx, *qk, 1, 1501)
 
 	// change window to 100 and execute up to 1920
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 100})
-	executeHeights(1501, 1920)
+	ctx = testutil.ExecuteQGBHeights(ctx, *qk, 1501, 1921)
 
 	// change window to 1000 and execute up to 3500
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 1000})
-	executeHeights(1921, 3500)
+	ctx = testutil.ExecuteQGBHeights(ctx, *qk, 1921, 3501)
 
 	// change window to 111 and execute up to 3800
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 111})
-	executeHeights(3501, 3800)
+	ctx = testutil.ExecuteQGBHeights(ctx, *qk, 3501, 3801)
 
 	// check if a data commitment was created
 	hasDataCommitment, err := qk.HasDataCommitmentInStore(ctx)
@@ -525,4 +518,37 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 		assert.Equal(t, want[i].BeginBlock, dc.BeginBlock)
 		assert.Equal(t, want[i].Nonce, dc.Nonce)
 	}
+}
+
+// TestPruning tests the pruning mechanism via generating a set of attestations, then checking if the expired
+// ones are pruned
+func TestPruning(t *testing.T) {
+	input, ctx := testutil.SetupFiveValChain(t)
+	qgbKeeper := *input.QgbKeeper
+	// set the data commitment window
+	window := uint64(101)
+	qgbKeeper.SetParams(ctx, types.Params{DataCommitmentWindow: window})
+	// make the interval between blocks being 3 days
+	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1, 5000, time.Hour)
+
+	earliestAttestationNonce := qgbKeeper.GetEarliestAvailableAttestationNonce(ctx)
+	assert.LessOrEqual(t, earliestAttestationNonce, qgbKeeper.GetLatestAttestationNonce(ctx))
+
+	// check that the first attestations were pruned
+	for nonce := uint64(1); nonce < earliestAttestationNonce; nonce++ {
+		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
+		assert.NoError(t, err)
+		assert.False(t, found)
+	}
+
+	// check that the attestations after those still exist
+	for nonce := qgbKeeper.GetEarliestAvailableAttestationNonce(ctx); nonce <= qgbKeeper.GetLatestAttestationNonce(ctx); nonce++ {
+		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
+		assert.NoError(t, err)
+		assert.True(t, found)
+	}
+
+	// continue running the chain for a few more blocks to be sure no inconsistency happens
+	// after pruning
+	testutil.ExecuteQGBHeights(ctx, qgbKeeper, 5000, 6000)
 }

@@ -30,6 +30,9 @@ const (
 
 	// LatestAttestationtNonce indexes the latest attestation request nonce
 	LatestAttestationtNonce = "LatestAttestationNonce"
+
+	// EarliestAvailableAttestationNonce indexes the earliest available attestation nonce
+	EarliestAvailableAttestationNonce = "EarliestAvailableAttestationNonce"
 )
 
 // GetAttestationKey returns the following key format
