@@ -102,7 +102,7 @@ func (k Keeper) GetEarliestAvailableAttestationNonce(ctx sdk.Context) uint64 {
 }
 
 // SetEarliestAvailableAttestationNonce sets the earliest available attestation nonce.
-// The nonce is of the last available attestation in store that can be retrieved.
+// The nonce is of the earliest available attestation in store that can be retrieved.
 func (k Keeper) SetEarliestAvailableAttestationNonce(ctx sdk.Context, nonce uint64) {
 	store := ctx.KVStore(k.storeKey)
 	store.Set([]byte(types.EarliestAvailableAttestationNonce), types.UInt64Bytes(nonce))
