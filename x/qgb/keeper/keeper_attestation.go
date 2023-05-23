@@ -125,6 +125,7 @@ func (k Keeper) GetAttestationByNonce(ctx sdk.Context, nonce uint64) (types.Atte
 }
 
 // DeleteAttestation deletes an attestation from state.
+// Will do nothing if the attestation doesn't exist in store.
 func (k Keeper) DeleteAttestation(ctx sdk.Context, nonce uint64) {
 	key := []byte(types.GetAttestationKey(nonce))
 	store := ctx.KVStore(k.storeKey)
