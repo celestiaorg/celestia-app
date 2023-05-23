@@ -536,7 +536,7 @@ func TestPruning(t *testing.T) {
 	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1, 5000, time.Hour)
 
 	earliestAttestationNonce := qgbKeeper.GetEarliestAvailableAttestationNonce(ctx)
-	assert.LessOrEqual(t, earliestAttestationNonce, qgbKeeper.GetLatestAttestationNonce(ctx))
+	assert.Equal(t, uint64(38), earliestAttestationNonce)
 
 	// check that the first attestations were pruned
 	for nonce := uint64(1); nonce < earliestAttestationNonce; nonce++ {
