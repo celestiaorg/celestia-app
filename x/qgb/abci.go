@@ -179,7 +179,7 @@ func maybePruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 	// persist the new earliest available attestation nonce
 	k.SetEarliestAvailableAttestationNonce(ctx, newEarliestAvailableNonce)
 	ctx.Logger().Debug(
-		"finished pruning attestations from qgb store",
+		"finished pruning attestations from QGB store",
 		"count",
 		count,
 		"new_earliest_available_nonce",
