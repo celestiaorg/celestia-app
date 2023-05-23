@@ -491,7 +491,7 @@ func NewTestMsgUnDelegateValidator(address sdk.ValAddress, amt cosmosmath.Int) *
 
 // ExecuteQGBHeights executes the end exclusive range of heights specified by beginHeight and endHeight
 // along with the QGB abci.EndBlocker on each one of them.
-// Returns the updated context with the correct height.
+// Returns the updated context with block height advanced to endHeight.
 func ExecuteQGBHeights(ctx sdk.Context, qgbKeeper keeper.Keeper, beginHeight int64, endHeight int64) sdk.Context {
 	for i := beginHeight; i < endHeight; i++ {
 		ctx = ctx.WithBlockHeight(i)
