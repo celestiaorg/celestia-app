@@ -108,7 +108,7 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 	}
 	valsetNonce := k.GetLatestAttestationNonce(ctx) + 1
 
-	valset, err := types.NewValset(valsetNonce, uint64(ctx.BlockHeight()), bridgeValidators)
+	valset, err := types.NewValset(valsetNonce, uint64(ctx.BlockHeight()), bridgeValidators, ctx.BlockTime())
 	if err != nil {
 		return types.Valset{}, (errors.Wrap(err, types.ErrInvalidValset.Error()))
 	}

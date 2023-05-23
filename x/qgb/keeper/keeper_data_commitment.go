@@ -36,7 +36,7 @@ func (k Keeper) NextDataCommitment(ctx sdk.Context) (types.DataCommitment, error
 		endBlock = dcWindow + 1
 	}
 
-	dataCommitment := types.NewDataCommitment(nonce, beginBlock, endBlock)
+	dataCommitment := types.NewDataCommitment(nonce, beginBlock, endBlock, ctx.BlockTime())
 	return *dataCommitment, nil
 }
 
