@@ -548,6 +548,7 @@ func TestPruning(t *testing.T) {
 		at, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
 		assert.NoError(t, err)
 		assert.True(t, found)
+		// make sure the remaining attestations have not expired yet
 		assert.True(t, initialBlockTime.Before(at.BlockTime().Add(qgb.AttestationExpiryTime)))
 	}
 
