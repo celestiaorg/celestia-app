@@ -39,11 +39,8 @@ func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
 				fmt.Sprintf("stumbled upon nil attestation for nonce %d", i),
 			))
 		}
-		if at.Type() == types.ValsetRequestType {
-			valset, ok := at.(*types.Valset)
-			if !ok {
-				return nil, errors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
-			}
+		valset, ok := at.(*types.Valset)
+		if ok {
 			return valset, nil
 		}
 	}
@@ -179,11 +176,8 @@ func (k Keeper) GetLatestValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*type
 				fmt.Sprintf("nonce=%d", i),
 			)
 		}
-		if at.Type() == types.ValsetRequestType {
-			valset, ok := at.(*types.Valset)
-			if !ok {
-				return nil, errors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
-			}
+		valset, ok := at.(*types.Valset)
+		if ok {
 			return valset, nil
 		}
 	}
@@ -191,26 +185,4 @@ func (k Keeper) GetLatestValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*type
 		sdkerrors.ErrNotFound,
 		fmt.Sprintf("couldn't find valset before nonce %d", nonce),
 	)
-}
-
-// TODO add query for this method and make the orchestrator Querier use it.
-// GetValsetByNonce returns the stored valset associated with the provided nonce.
-// Returns (nil, false, nil) if not found.
-func (k Keeper) GetValsetByNonce(ctx sdk.Context, nonce uint64) (*types.Valset, bool, error) {
-	at, found, err := k.GetAttestationByNonce(ctx, nonce)
-	if err != nil {
-		return nil, false, err
-	}
-	if !found {
-		return nil, false, nil
-	}
-	if at.Type() != types.ValsetRequestType {
-		return nil, false, errors.Wrap(types.ErrAttestationNotValsetRequest, "attestation is not a valset request")
-	}
-
-	valset, ok := at.(*types.Valset)
-	if !ok {
-		return nil, false, errors.Wrap(types.ErrAttestationNotValsetRequest, "couldn't cast attestation to valset")
-	}
-	return valset, true, nil
 }

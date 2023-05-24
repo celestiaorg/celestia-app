@@ -20,7 +20,6 @@ const (
 type AttestationRequestI interface {
 	proto.Message
 	codec.ProtoMarshaler
-	Type() AttestationType
 	GetNonce() uint64
 	BlockTime() time.Time
 }
