@@ -9,14 +9,14 @@ import (
 
 // TODO add unit tests for all of these requests
 
-// LastValsetRequestBeforeNonce queries the last valset request before nonce
-func (k Keeper) LastValsetRequestBeforeNonce(
+// LatestValsetRequestBeforeNonce queries the latest valset request before nonce
+func (k Keeper) LatestValsetRequestBeforeNonce(
 	c context.Context,
-	req *types.QueryLastValsetRequestBeforeNonceRequest,
-) (*types.QueryLastValsetRequestBeforeNonceResponse, error) {
-	vs, err := k.GetLastValsetBeforeNonce(sdk.UnwrapSDKContext(c), req.Nonce)
+	req *types.QueryLatestValsetRequestBeforeNonceRequest,
+) (*types.QueryLatestValsetRequestBeforeNonceResponse, error) {
+	vs, err := k.GetLatestValsetBeforeNonce(sdk.UnwrapSDKContext(c), req.Nonce)
 	if err != nil {
 		return nil, err
 	}
-	return &types.QueryLastValsetRequestBeforeNonceResponse{Valset: vs}, nil
+	return &types.QueryLatestValsetRequestBeforeNonceResponse{Valset: vs}, nil
 }

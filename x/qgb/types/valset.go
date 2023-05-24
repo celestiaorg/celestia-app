@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"math/big"
+	"time"
 
 	"cosmossdk.io/errors"
 	wrapper "github.com/celestiaorg/quantum-gravity-bridge/wrappers/QuantumGravityBridge.sol"
@@ -13,7 +14,7 @@ import (
 var _ AttestationRequestI = &Valset{}
 
 // NewValset returns a new valset.
-func NewValset(nonce, height uint64, members InternalBridgeValidators) (*Valset, error) {
+func NewValset(nonce, height uint64, members InternalBridgeValidators, blockTime time.Time) (*Valset, error) {
 	if err := members.ValidateBasic(); err != nil {
 		return nil, errors.Wrap(err, "invalid members")
 	}
@@ -22,7 +23,7 @@ func NewValset(nonce, height uint64, members InternalBridgeValidators) (*Valset,
 	for _, val := range members {
 		mem = append(mem, val.ToExternal())
 	}
-	vs := Valset{Nonce: nonce, Members: mem, Height: height}
+	vs := Valset{Nonce: nonce, Members: mem, Height: height, Time: blockTime}
 	return &vs, nil
 }
 
@@ -84,6 +85,10 @@ func (v *Valset) TwoThirdsThreshold() uint64 {
 	return 2 * oneThird
 }
 
-func (v Valset) Type() AttestationType {
+func (v *Valset) Type() AttestationType {
 	return ValsetRequestType
+}
+
+func (v *Valset) BlockTime() time.Time {
+	return v.Time
 }

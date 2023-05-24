@@ -6,15 +6,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
 )
+
+func TestIntegrationTestSuite(t *testing.T) {
+	suite.Run(t, new(IntegrationTestSuite))
+}
 
 type IntegrationTestSuite struct {
 	suite.Suite
@@ -27,10 +34,29 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	if testing.Short() {
 		s.T().Skip("skipping full node integration test in short mode.")
 	}
+	t := s.T()
 
-	s.T().Log("setting up integration test suite")
+	cparams := DefaultParams()
+	cparams.Block.MaxBytes = appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize
 
-	s.accounts, s.cctx = DefaultNetwork(s.T())
+	accounts := make([]string, 40)
+	for i := 0; i < 40; i++ {
+		accounts[i] = tmrand.Str(10)
+	}
+
+	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	blobGenState := blobtypes.DefaultGenesis()
+	blobGenState.Params.GovMaxSquareSize = appconsts.MaxSquareSize
+	cctx, _, _ := NewNetwork(
+		t,
+		cparams,
+		DefaultTendermintConfig(),
+		DefaultAppConfig(),
+		accounts,
+		SetBlobParams(ecfg.Codec, blobGenState.Params),
+	)
+	s.cctx = cctx
+	s.accounts = accounts
 }
 
 func (s *IntegrationTestSuite) Test_Liveness() {
@@ -40,14 +66,13 @@ func (s *IntegrationTestSuite) Test_Liveness() {
 	// check that we're actually able to set the consensus params
 	var params *coretypes.ResultConsensusParams
 	// this query can be flaky with fast block times, so we repeat it multiple
-	// times in attempt to increase the probability of it working
-	for i := 0; i < 20; i++ {
+	// times in attempt to decrease flakiness
+	for i := 0; i < 40; i++ {
 		params, err = s.cctx.Client.ConsensusParams(context.TODO(), nil)
-		if err != nil || params == nil {
-			continue
+		if err == nil && params != nil {
+			break
 		}
 		time.Sleep(100 * time.Millisecond)
-		break
 	}
 	require.NoError(err)
 	require.NotNil(params)
@@ -62,19 +87,17 @@ func (s *IntegrationTestSuite) Test_PostData() {
 	require.NoError(err)
 }
 
-func TestIntegrationTestSuite(t *testing.T) {
-	suite.Run(t, new(IntegrationTestSuite))
-}
-
 func (s *IntegrationTestSuite) Test_FillBlock() {
 	require := s.Require()
 
 	for squareSize := 2; squareSize <= appconsts.MaxSquareSize; squareSize *= 2 {
-		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastAsync)
+		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastSync)
 		require.NoError(err)
 
-		err = s.cctx.WaitForNextBlock()
-		require.NoError(err, squareSize)
+		for i := 0; i < 3; i++ {
+			err = s.cctx.WaitForNextBlock()
+			require.NoError(err, squareSize)
+		}
 
 		res, err := testfactory.QueryWithoutProof(s.cctx.Context, resp.TxHash)
 		require.NoError(err, squareSize)
