@@ -89,7 +89,7 @@ func (s *IntegrationTestSuite) Test_PostData() {
 func (s *IntegrationTestSuite) Test_FillBlock() {
 	require := s.Require()
 
-	for squareSize := 2; squareSize <= appconsts.DefaultSquareSizeUpperBound; squareSize *= 2 {
+	for squareSize := 2; squareSize <= appconsts.DefaultGovMaxSquareSize; squareSize *= 2 {
 		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastSync)
 		require.NoError(err)
 
@@ -100,7 +100,7 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 		require.NoError(err, squareSize)
 		require.Equal(abci.CodeTypeOK, res.TxResult.Code, squareSize)
 
-		b, err := s.cctx.Client.Block(context.TODO(), &res.Height)
+		b, err := s.cctx.Client.Block(s.cctx.GoContext(), &res.Height)
 		require.NoError(err, squareSize)
 		require.Equal(uint64(squareSize), b.Block.SquareSize, squareSize)
 	}
