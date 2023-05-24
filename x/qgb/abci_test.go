@@ -34,7 +34,6 @@ func TestFirstAttestationIsValset(t *testing.T) {
 	require.Equal(t, uint64(1), attestation.GetNonce())
 
 	// get the valset
-	require.Equal(t, types.ValsetRequestType, attestation.Type())
 	vs, ok := attestation.(*types.Valset)
 	assert.True(t, ok)
 	assert.NotNil(t, vs)
@@ -133,7 +132,6 @@ func TestSetDataCommitment(t *testing.T) {
 	require.Equal(t, uint64(1), attestation.GetNonce())
 
 	// get the data commitment
-	require.Equal(t, types.DataCommitmentRequestType, attestation.Type())
 	actualDC, ok := attestation.(*types.DataCommitment)
 	assert.True(t, ok)
 	assert.NotNil(t, actualDC)
@@ -275,7 +273,6 @@ func TestDataCommitmentRange(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, found)
 
-	assert.Equal(t, types.DataCommitmentRequestType, att1.Type())
 	dc1, ok := att1.(*types.DataCommitment)
 	require.True(t, ok)
 	assert.Equal(t, newHeight, int64(dc1.EndBlock))
@@ -290,7 +287,6 @@ func TestDataCommitmentRange(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, found)
 
-	assert.Equal(t, types.DataCommitmentRequestType, att2.Type())
 	dc2, ok := att2.(*types.DataCommitment)
 	require.True(t, ok)
 	assert.Equal(t, newHeight, int64(dc2.EndBlock))
@@ -572,14 +568,14 @@ func TestPruning(t *testing.T) {
 		at, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
 		assert.NoError(t, err)
 		assert.True(t, found)
-		assert.Equal(t, types.DataCommitmentRequestType, at.Type())
+		_, ok := at.(*types.DataCommitment)
+		assert.True(t, ok)
 	}
 
 	// check that we still can get a valset even after pruning all of them
 	vs, err := qgbKeeper.GetLatestValset(ctx)
 	assert.NoError(t, err)
 	assert.NotNil(t, vs)
-	assert.Equal(t, types.ValsetRequestType, vs.Type())
 
 	// continue running the chain for a few more blocks to be sure no inconsistency happens
 	// after pruning
