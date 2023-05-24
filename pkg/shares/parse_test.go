@@ -49,9 +49,6 @@ func TestParseShares(t *testing.T) {
 	largeSequenceLen := 1000 // it takes more than one share to store a sequence of 1000 bytes
 	oneShareWithTooLargeSequenceLen := generateRawShare(blobOneNamespace, start, uint32(largeSequenceLen))
 
-	shortSequenceLen := 0
-	oneShareWithTooShortSequenceLen := generateRawShare(blobOneNamespace, start, uint32(shortSequenceLen))
-
 	tests := []testCase{
 		{
 			"empty",
@@ -130,10 +127,37 @@ func TestParseShares(t *testing.T) {
 			true,
 		},
 		{
-			"one share with too short sequence length",
-			[][]byte{oneShareWithTooShortSequenceLen},
-			[]ShareSequence{},
-			true,
+			"tail padding share",
+			[][]byte{TailPaddingShare()},
+			[]ShareSequence{
+				{
+					NamespaceID: appconsts.TailPaddingNamespaceID,
+					Shares:      []Share{TailPaddingShare()},
+				},
+			},
+			false,
+		},
+		{
+			"reserved padding share",
+			[][]byte{ReservedPaddingShare()},
+			[]ShareSequence{
+				{
+					NamespaceID: appconsts.ReservedPaddingNamespaceID,
+					Shares:      []Share{ReservedPaddingShare()},
+				},
+			},
+			false,
+		},
+		{
+			"namespaced padding share",
+			[][]byte{NamespacePaddingShare(blobOneNamespace)},
+			[]ShareSequence{
+				{
+					NamespaceID: blobOneNamespace,
+					Shares:      []Share{NamespacePaddingShare(blobOneNamespace)},
+				},
+			},
+			false,
 		},
 	}
 	for _, tt := range tests {
