@@ -17,15 +17,19 @@ import (
 // from the CurrentValset because this one has been saved and is therefore *the* latest valset
 // saved in store. GetCurrentValset shows you what could be, if you chose to save it, this function
 // shows you what is the latest valset that was saved.
-// Panics if no valset is found. Because, a valset is always created when starting
-// the chain. Check x/qgb/abci.go:68 for more information.
+// If not found, returns the current valset in case no valset exists in store after pruning.
+// Otherwise panics.
 func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return nil, types.ErrLatestAttestationNonceStillNotInitialized
 	}
-	nonce := k.GetLatestAttestationNonce(ctx)
-	for i := uint64(0); i <= nonce; i++ {
-		at, found, err := k.GetAttestationByNonce(ctx, nonce-i)
+	if !k.CheckEarliestAvailableAttestationNonce(ctx) {
+		return nil, types.ErrEarliestAvailableNonceStillNotInitialized
+	}
+	latestNonce := k.GetLatestAttestationNonce(ctx)
+	earliestAvailableNonce := k.GetEarliestAvailableAttestationNonce(ctx)
+	for i := latestNonce; i >= earliestAvailableNonce; i-- {
+		at, found, err := k.GetAttestationByNonce(ctx, i)
 		if err != nil {
 			return nil, err
 		}
@@ -43,8 +47,14 @@ func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
 			return valset, nil
 		}
 	}
-	// should never execute
-	panic(errors.Wrap(sdkerrors.ErrNotFound, "couldn't find latest valset"))
+	if earliestAvailableNonce == 1 {
+		// this means that the no pruning happened, but still the valset is missing from the store
+		panic(errors.Wrap(sdkerrors.ErrNotFound, "couldn't find latest valset"))
+	}
+	// this means that the latest valset was pruned and we can return the current one as no significant
+	// changes to it happened
+	currentVs, err := k.GetCurrentValset(ctx)
+	return &currentVs, err
 }
 
 // SetLastUnBondingBlockHeight sets the last unbonding block height. Note this
@@ -143,23 +153,30 @@ func (k Keeper) GetLastValsetBeforeNonce(ctx sdk.Context, nonce uint64) (*types.
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return nil, types.ErrLatestAttestationNonceStillNotInitialized
 	}
+	if !k.CheckEarliestAvailableAttestationNonce(ctx) {
+		return nil, types.ErrEarliestAvailableNonceStillNotInitialized
+	}
 	if nonce == 1 {
 		return nil, types.ErrNoValsetBeforeNonceOne
+	}
+	earliestAvailableNonce := k.GetEarliestAvailableAttestationNonce(ctx)
+	if nonce < earliestAvailableNonce {
+		return nil, types.ErrRequestedNonceWasPruned
 	}
 	if nonce > k.GetLatestAttestationNonce(ctx) {
 		return nil, types.ErrNonceHigherThanLatestAttestationNonce
 	}
-	// starting at 1 because the current nonce can be a valset
+	// starting at nonce-1 because the current nonce can be a valset
 	// and we need the previous one.
-	for i := uint64(1); i < nonce; i++ {
-		at, found, err := k.GetAttestationByNonce(ctx, nonce-i)
+	for i := nonce - 1; i >= earliestAvailableNonce; i-- {
+		at, found, err := k.GetAttestationByNonce(ctx, i)
 		if err != nil {
 			return nil, err
 		}
 		if !found {
 			return nil, errors.Wrap(
 				types.ErrNilAttestation,
-				fmt.Sprintf("nonce=%d", nonce-i),
+				fmt.Sprintf("nonce=%d", i),
 			)
 		}
 		if at.Type() == types.ValsetRequestType {

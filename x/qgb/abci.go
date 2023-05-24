@@ -2,16 +2,23 @@ package qgb
 
 import (
 	"errors"
+	"time"
 
 	sdkerrors "cosmossdk.io/errors"
+
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// SignificantPowerDifferenceThreshold the threshold of change in the validator set power
-// that would need the creation of a new valset request.
-const SignificantPowerDifferenceThreshold = 0.05
+const (
+	// SignificantPowerDifferenceThreshold is the threshold of change in the validator set power
+	// that would trigger the creation of a new valset request.
+	SignificantPowerDifferenceThreshold = 0.05
+
+	// AttestationExpiryTime the expiration time of an attestation after which it will be pruned.
+	AttestationExpiryTime = 3 * 7 * 24 * time.Hour
+)
 
 // EndBlocker is called at the end of every block.
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
@@ -19,6 +26,7 @@ func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
 	// the one responsible for signing from now on.
 	handleValsetRequest(ctx, k)
 	handleDataCommitmentRequest(ctx, k)
+	pruneAttestations(ctx, k)
 }
 
 func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
@@ -112,5 +120,66 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 		if err != nil {
 			panic(err)
 		}
+	}
+}
+
+// pruneAttestations runs basic checks on saved attestations to see if we need to prune or not.
+// Then, it prunes all expired attestations from state.
+func pruneAttestations(ctx sdk.Context, k keeper.Keeper) {
+	// If the attestation nonce hasn't been initialized yet, no pruning is
+	// required
+	if !k.CheckLatestAttestationNonce(ctx) {
+		return
+	}
+	earliestAttestation, found, err := k.GetAttestationByNonce(ctx, k.GetEarliestAvailableAttestationNonce(ctx))
+	if err != nil {
+		ctx.Logger().Error("error getting earliest attestation for pruning", "err", err.Error())
+		return
+	}
+	if !found {
+		ctx.Logger().Error("couldn't find earliest attestation for pruning")
+		return
+	}
+	if earliestAttestation == nil {
+		ctx.Logger().Error("nil earliest attestation")
+		return
+	}
+	currentBlockTime := ctx.BlockTime()
+	latestAttestationNonce := k.GetLatestAttestationNonce(ctx)
+	var newEarliestAvailableNonce uint64
+	for newEarliestAvailableNonce = earliestAttestation.GetNonce(); newEarliestAvailableNonce < latestAttestationNonce; newEarliestAvailableNonce++ {
+		newEarliestAttestation, found, err := k.GetAttestationByNonce(ctx, newEarliestAvailableNonce)
+		if err != nil {
+			ctx.Logger().Error("error getting attestation for pruning", "nonce", newEarliestAvailableNonce, "err", err.Error())
+			return
+		}
+		if !found {
+			ctx.Logger().Error("couldn't find attestation for pruning", "nonce", newEarliestAvailableNonce)
+			return
+		}
+		if newEarliestAttestation == nil {
+			ctx.Logger().Error("nil attestation for pruning", "nonce", newEarliestAvailableNonce)
+			return
+		}
+		attestationExpirationTime := newEarliestAttestation.BlockTime().Add(AttestationExpiryTime)
+		if attestationExpirationTime.After(currentBlockTime) {
+			// the current attestation is unexpired so subsequent ones are also unexpired
+			// persist the new earliest available attestation nonce
+			break
+		}
+		k.DeleteAttestation(ctx, newEarliestAvailableNonce)
+	}
+	if newEarliestAvailableNonce > earliestAttestation.GetNonce() {
+		// some attestations were pruned and we need to update the state for it
+		k.SetEarliestAvailableAttestationNonce(ctx, newEarliestAvailableNonce)
+		ctx.Logger().Debug(
+			"pruned attestations from QGB store",
+			"count",
+			newEarliestAvailableNonce-earliestAttestation.GetNonce(),
+			"new_earliest_available_nonce",
+			newEarliestAvailableNonce,
+			"latest_attestation_nonce",
+			latestAttestationNonce,
+		)
 	}
 }
