@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app
 go 1.20
 
 require (
-	github.com/celestiaorg/nmt v0.15.0
+	github.com/celestiaorg/nmt v0.16.0
 	github.com/celestiaorg/quantum-gravity-bridge v1.3.0
 	github.com/ethereum/go-ethereum v1.11.6
 	github.com/gogo/protobuf v1.3.3
@@ -14,7 +14,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/cobra v1.6.1
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.8.3
 	github.com/tendermint/tm-db v0.6.7
 	golang.org/x/crypto v0.5.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
@@ -201,5 +201,5 @@ require (
 replace (
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.13.0-sdk-v0.46.11
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.20.0-tm-v0.34.27
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.21.0-tm-v0.34.27
 )

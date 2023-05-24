@@ -32,6 +32,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
 )
@@ -147,13 +148,24 @@ func DefaultTendermintConfig() *config.Config {
 	// during tests.
 	tmCfg.Consensus.TargetHeightDuration = 300 * time.Millisecond
 	tmCfg.Consensus.TimeoutPropose = 200 * time.Millisecond
-	tmCfg.Mempool.MaxTxBytes = 22020096 // 21MB
+
+	// set the mempool's MaxTxBytes to allow the testnode to accept a
+	// transaction that fills the entire square. Any blob transaction larger
+	// than the square size will still fail no matter what.
+	tmCfg.Mempool.MaxTxBytes = appconsts.MaxShareCount * appconsts.ShareSize
+
+	// remove all barriers from the testnode being able to accept very large
+	// transactions and respond to very queries with large responses (~200MB was
+	// chosen only as an arbitrary large number).
+	tmCfg.RPC.MaxBodyBytes = 200_000_000
+
 	return tmCfg
 }
 
 // DefaultGenesisState returns a default genesis state and a keyring with
-// accounts that have coins. The keyring accounts are based on the
-// fundedAccounts parameter.
+// accounts that have coins. It adds a default "validator" account that is
+// funded and used for the valop address of the single validator. The keyring
+// accounts are based on the fundedAccounts parameter.
 func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, keyring.Keyring, error) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	state := app.ModuleBasics.DefaultGenesis(encCfg.Codec)
@@ -193,13 +205,15 @@ func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, 
 // accessed in keyring returned client.Context. All rpc, p2p, and grpc addresses
 // in the provided configs are overwritten to use open ports. The node can be
 // accessed via the returned client.Context or via the returned rpc and grpc
-// addresses.
+// addresses. Provided genesis options will be applied after all accounts have
+// been initialized.
 func NewNetwork(
 	t testing.TB,
 	cparams *tmproto.ConsensusParams,
 	tmCfg *config.Config,
 	appCfg *srvconfig.Config,
-	accounts ...string,
+	accounts []string,
+	genesisOpts ...GenesisOption,
 ) (cctx Context, rpcAddr, grpcAddr string) {
 	t.Helper()
 
@@ -209,6 +223,10 @@ func NewNetwork(
 
 	genState, kr, err := DefaultGenesisState(accounts...)
 	require.NoError(t, err)
+
+	for _, opt := range genesisOpts {
+		genState = opt(genState)
+	}
 
 	tmNode, app, cctx, err := New(t, cparams, tmCfg, false, genState, kr, tmrand.Str(6))
 	require.NoError(t, err)
@@ -247,7 +265,7 @@ func DefaultNetwork(t *testing.T) (accounts []string, cctx Context) {
 	tmCfg.Consensus.TargetHeightDuration = time.Millisecond * 1
 	appConf := DefaultAppConfig()
 
-	cctx, _, _ = NewNetwork(t, DefaultParams(), tmCfg, appConf, accounts...)
+	cctx, _, _ = NewNetwork(t, DefaultParams(), tmCfg, appConf, accounts)
 
 	return accounts, cctx
 }

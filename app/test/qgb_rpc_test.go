@@ -18,7 +18,13 @@ func TestQGBRPCQueries(t *testing.T) {
 	tmCfg := testnode.DefaultTendermintConfig()
 	tmCfg.Consensus.TargetHeightDuration = time.Millisecond
 
-	cctx, _, _ := testnode.NewNetwork(t, testnode.DefaultParams(), tmCfg, testnode.DefaultAppConfig())
+	cctx, _, _ := testnode.NewNetwork(
+		t,
+		testnode.DefaultParams(),
+		tmCfg,
+		testnode.DefaultAppConfig(),
+		[]string{},
+	)
 	h, err := cctx.WaitForHeightWithTimeout(105, 2*time.Minute)
 	require.NoError(t, err, h)
 	require.Greater(t, h, int64(101))
@@ -43,9 +49,9 @@ func TestQGBRPCQueries(t *testing.T) {
 		{
 			name: "last unbonding height",
 			req: func() error {
-				_, err := queryClient.LastUnbondingHeight(
+				_, err := queryClient.LatestUnbondingHeight(
 					context.Background(),
-					&types.QueryLastUnbondingHeightRequest{},
+					&types.QueryLatestUnbondingHeightRequest{},
 				)
 				return err
 			},
@@ -73,9 +79,9 @@ func TestQGBRPCQueries(t *testing.T) {
 		{
 			name: "last valset before nonce",
 			req: func() error {
-				_, err := queryClient.LastValsetRequestBeforeNonce(
+				_, err := queryClient.LatestValsetRequestBeforeNonce(
 					context.Background(),
-					&types.QueryLastValsetRequestBeforeNonceRequest{Nonce: 2},
+					&types.QueryLatestValsetRequestBeforeNonceRequest{Nonce: 2},
 				)
 				return err
 			},

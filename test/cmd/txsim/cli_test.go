@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -50,14 +51,21 @@ func TestTxsimCommandEnvVar(t *testing.T) {
 }
 
 func setup(t testing.TB) (keyring.Keyring, string, string) {
+	if testing.Short() {
+		t.Skip("skipping tx sim in short mode.")
+	}
 	t.Helper()
+
+	// set the consensus params to allow for the max square size
+	cparams := testnode.DefaultParams()
+	cparams.Block.MaxBytes = appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize
 
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(
 		t,
-		testnode.DefaultParams(),
+		cparams,
 		testnode.DefaultTendermintConfig(),
 		testnode.DefaultAppConfig(),
-		testfactory.TestAccName,
+		[]string{testfactory.TestAccName},
 	)
 
 	return cctx.Keyring, rpcAddr, grpcAddr
