@@ -532,8 +532,8 @@ func TestPruning(t *testing.T) {
 	window := uint64(101)
 	qgbKeeper.SetParams(ctx, types.Params{DataCommitmentWindow: window})
 	initialBlockTime := ctx.BlockTime()
-	// make the interval between blocks being 10 minutes
-	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1, 1626, 10*time.Minute)
+	blockInterval := 10 * time.Minute
+	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1, 1626, blockInterval)
 
 	// check that we created a number of attestations
 	assert.Equal(t, uint64(17), qgbKeeper.GetLatestAttestationNonce(ctx))
@@ -546,7 +546,7 @@ func TestPruning(t *testing.T) {
 	}
 
 	// continue executing heights
-	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1626, 5000, 10*time.Minute)
+	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1626, 5000, blockInterval)
 
 	earliestAttestationNonce := qgbKeeper.GetEarliestAvailableAttestationNonce(ctx)
 	assert.Equal(t, uint64(21), earliestAttestationNonce)
@@ -583,5 +583,5 @@ func TestPruning(t *testing.T) {
 
 	// continue running the chain for a few more blocks to be sure no inconsistency happens
 	// after pruning
-	testutil.ExecuteQGBHeights(ctx, qgbKeeper, 5000, 6000)
+	testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 5000, 6000, blockInterval)
 }

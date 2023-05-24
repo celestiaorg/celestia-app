@@ -16,8 +16,12 @@ const (
 	// that would trigger the creation of a new valset request.
 	SignificantPowerDifferenceThreshold = 0.05
 
-	// AttestationExpiryTime the expiration time of an attestation after which it will be pruned.
-	AttestationExpiryTime = 3 * 7 * 24 * time.Hour
+	oneDay  = 24 * time.Hour
+	oneWeek = 7 * oneDay
+	// AttestationExpiryTime is the expiration time of an attestation.
+	// When this much time has passed after an attestation has been published, it will be
+	// pruned from state.
+	AttestationExpiryTime = 3 * oneWeek // 3 weeks
 )
 
 // EndBlocker is called at the end of every block.
