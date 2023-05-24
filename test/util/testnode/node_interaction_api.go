@@ -39,6 +39,17 @@ func (c *Context) LatestHeight() (int64, error) {
 	return status.SyncInfo.LatestBlockHeight, nil
 }
 
+// LatestTimestamp returns the latest timestamp of the network or an error if the
+// query fails.
+func (c *Context) LatestTimestamp() (time.Time, error) {
+	status, err := c.Client.Status(c.GoContext())
+	if err != nil {
+		return time.Unix(0, 0), err
+	}
+
+	return status.SyncInfo.LatestBlockTime, nil
+}
+
 // WaitForHeightWithTimeout is the same as WaitForHeight except the caller can
 // provide a custom timeout.
 func (c *Context) WaitForHeightWithTimeout(h int64, t time.Duration) (int64, error) {
@@ -65,11 +76,44 @@ func (c *Context) WaitForHeightWithTimeout(h int64, t time.Duration) (int64, err
 	}
 }
 
+// WaitForTimestampWithTimeout waits for a block with a timestamp greater than t.
+func (c *Context) WaitForTimestampWithTimeout(t time.Time, d time.Duration) (time.Time, error) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	ctx, cancel := context.WithTimeout(c.rootCtx, d)
+	defer cancel()
+
+	var latestTimestamp time.Time
+	for {
+		select {
+		case <-ctx.Done():
+			return latestTimestamp, fmt.Errorf("timeout %v exceeded waiting for network to reach block with timestamp %v", d, t)
+		case <-ticker.C:
+			latestTimestamp, err := c.LatestTimestamp()
+			fmt.Printf("latestTimestamp %v\n", latestTimestamp)
+			if err != nil {
+				return time.Unix(0, 0), err
+			}
+			if latestTimestamp.After(t) {
+				return latestTimestamp, nil
+			}
+		}
+	}
+}
+
 // WaitForHeight performs a blocking check where it waits for a block to be
 // committed after a given block. If that height is not reached within a timeout,
 // an error is returned. Regardless, the latest height queried is returned.
 func (c *Context) WaitForHeight(h int64) (int64, error) {
 	return c.WaitForHeightWithTimeout(h, 10*time.Second)
+}
+
+// WaitForTimestamp performs a blocking check where it waits for a block to be
+// committed after a given timestamp. If that height is not reached within a timeout,
+// an error is returned. Regardless, the latest timestamp queried is returned.
+func (c *Context) WaitForTimestamp(t time.Time) (time.Time, error) {
+	return c.WaitForTimestampWithTimeout(t, 10*time.Second)
 }
 
 // WaitForNextBlock waits for the next block to be committed, returning an error

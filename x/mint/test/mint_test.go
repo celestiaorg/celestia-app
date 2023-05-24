@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -45,7 +46,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	// height 9 time 2023-08-07 02:04:19.091578814 +0000 UTC
 	cparams.Block.TimeIotaMs = int64(tenDays)
 
-	cctx, _, _ := testnode.NewNetwork(t, cparams, testnode.DefaultTendermintConfig(), testnode.DefaultAppConfig())
+	cctx, _, _ := testnode.NewNetwork(t, cparams, testnode.DefaultTendermintConfig(), testnode.DefaultAppConfig(), []string{})
 	s.cctx = cctx
 }
 
@@ -98,6 +99,63 @@ func (s *IntegrationTestSuite) TestInitialInflationRate() {
 	actualError := sdktypes.NewDecFromBigInt(diffAnnualProvisions.BigInt()).Quo(sdktypes.NewDecFromBigInt(initialSupply.AmountOf(app.BondDenom).BigInt()))
 
 	require.True(actualError.LTE(marginOfError))
+}
+
+// TestInflationRate tests that the inflation rate matches the expected rate per year.
+//
+// | Year | Inflation (%)     |
+// |------|-------------------|
+// | 0    | 8.00              |
+// | 1    | 7.20              |
+// | 2    | 6.48              |
+// | 3    | 5.832             |
+// | 4    | 5.2488            |
+// | 5    | 4.72392           |
+// | 6    | 4.251528          |
+// | 7    | 3.8263752         |
+// | 8    | 3.44373768        |
+// | 9    | 3.099363912       |
+// | 10   | 2.7894275208      |
+// | 11   | 2.51048476872     |
+// | 12   | 2.259436291848    |
+// | 13   | 2.0334926626632   |
+// | 14   | 1.83014339639688  |
+// | 15   | 1.647129056757192 |
+// | 16   | 1.50              |
+// | 17   | 1.50              |
+// | 18   | 1.50              |
+// | 19   | 1.50              |
+// | 20   | 1.50              |
+func (s *IntegrationTestSuite) TestInflationRate() {
+	require := s.Require()
+
+	type testCase struct {
+		year int
+		want sdktypes.Dec
+	}
+
+	testCases := []testCase{
+		{year: 0, want: sdktypes.MustNewDecFromStr("8.00")},
+		{year: 1, want: sdktypes.MustNewDecFromStr("7.20")},
+	}
+
+	initialSupply, initialTimestamp := s.GetTotalSupplyAndTimestamp()
+	fmt.Printf("initial supply: %v\n", initialSupply)
+	fmt.Printf("initial timestamp: %v\n", initialSupply)
+
+	for _, tc := range testCases {
+		wantAsFloat, err := tc.want.Float64()
+		require.NoError(err)
+		fmt.Printf("wantAsFloat: %v\n", wantAsFloat)
+
+		wantTimestamp := initialTimestamp.Add(time.Duration(tc.year * minttypes.NanosecondsPerYear))
+		_, err = s.cctx.WaitForTimestampWithTimeout(wantTimestamp, 20*time.Second)
+		require.NoError(err)
+
+		laterSupply, laterTimestamp := s.GetTotalSupplyAndTimestamp()
+		fmt.Printf("later supply: %v\n", laterSupply)
+		fmt.Printf("later timestamp: %v\n", laterTimestamp)
+	}
 }
 
 func (s *IntegrationTestSuite) GetTotalSupply(height int64) sdktypes.Coins {
