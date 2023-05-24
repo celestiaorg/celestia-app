@@ -112,7 +112,7 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 			for i := start; i < end; i++ {
 				block, err := s.cctx.Client.Block(s.cctx.GoContext(), &i)
 				require.NoError(t, err)
-				require.LessOrEqual(t, block.Block.Data.SquareSize, tt.govMaxSquareSize)
+				require.LessOrEqual(t, block.Block.Data.SquareSize, uint64(tt.govMaxSquareSize))
 
 				fmt.Println("square size", block.Block.Data.SquareSize)
 
@@ -226,7 +226,7 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 	bqc := blobtypes.NewQueryClient(s.cctx.GRPCClient)
 	presp, err := bqc.Params(s.cctx.GoContext(), &blobtypes.QueryParamsRequest{})
 	require.NoError(t, err)
-	require.Equal(t, squareSize, presp.Params.GovMaxSquareSize)
+	require.Equal(t, uint64(squareSize), presp.Params.GovMaxSquareSize)
 	latestHeight, err := s.cctx.LatestHeight()
 	require.NoError(t, err)
 
@@ -237,7 +237,7 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize,
 			time.Sleep(time.Second)
 			continue
 		}
-		require.Equal(t, maxBytes, cpresp.ConsensusParams.Block.MaxBytes)
+		require.Equal(t, int64(maxBytes), cpresp.ConsensusParams.Block.MaxBytes)
 		break
 	}
 }
