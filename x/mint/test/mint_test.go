@@ -8,18 +8,17 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
-	"github.com/cosmos/cosmos-sdk/codec"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/suite"
-	"github.com/tendermint/tendermint/rpc/client"
 )
 
 type IntegrationTestSuite struct {
 	suite.Suite
 
-	cctx testnode.Context
+	cctx        testnode.Context
+	ctx         sdktypes.Context
+	queryClient banktypes.QueryClient
 }
 
 func (s *IntegrationTestSuite) SetupSuite() {
@@ -103,21 +102,26 @@ func (s *IntegrationTestSuite) TestInitialInflationRate() {
 func (s *IntegrationTestSuite) GetTotalSupply(height int64) sdktypes.Coins {
 	require := s.Require()
 
-	options := &client.ABCIQueryOptions{Height: height}
-	result, err := s.cctx.Client.ABCIQueryWithOptions(
-		context.Background(),
-		"/cosmos.bank.v1beta1.Query/TotalSupply",
-		nil,
-		*options,
-	)
+	ctx := s.ctx.WithBlockHeight(height)
+	resp, err := s.queryClient.TotalSupply(sdktypes.WrapSDKContext(ctx), &banktypes.QueryTotalSupplyRequest{})
 	require.NoError(err)
+	return resp.GetSupply()
 
-	registry := codectypes.NewInterfaceRegistry()
-	cdc := codec.NewProtoCodec(registry)
+	// options := &client.ABCIQueryOptions{Height: height}
+	// result, err := s.cctx.Client.ABCIQueryWithOptions(
+	// 	context.Background(),
+	// 	"/cosmos.bank.v1beta1.Query/TotalSupply",
+	// 	nil,
+	// 	*options,
+	// )
+	// require.NoError(err)
 
-	var txResp banktypes.QueryTotalSupplyResponse
-	require.NoError(cdc.Unmarshal(result.Response.Value, &txResp))
-	return txResp.GetSupply()
+	// registry := codectypes.NewInterfaceRegistry()
+	// cdc := codec.NewProtoCodec(registry)
+
+	// var txResp banktypes.QueryTotalSupplyResponse
+	// require.NoError(cdc.Unmarshal(result.Response.Value, &txResp))
+	// return txResp.GetSupply()
 }
 
 func (s *IntegrationTestSuite) GetTimestamp(height int64) time.Time {
