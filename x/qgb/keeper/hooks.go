@@ -29,7 +29,7 @@ func (h Hooks) AfterValidatorBeginUnbonding(ctx sdk.Context, _ sdk.ConsAddress, 
 	// this hook IS called for jailing or unbonding triggered by users but it IS NOT called for jailing triggered
 	// in the endblocker therefore we call the keeper function ourselves there.
 
-	h.k.SetLastUnBondingBlockHeight(ctx, uint64(ctx.BlockHeight()))
+	h.k.SetLatestUnBondingBlockHeight(ctx, uint64(ctx.BlockHeight()))
 	return nil
 }
 
