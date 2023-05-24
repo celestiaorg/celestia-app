@@ -49,9 +49,9 @@ func TestQGBRPCQueries(t *testing.T) {
 		{
 			name: "last unbonding height",
 			req: func() error {
-				_, err := queryClient.LastUnbondingHeight(
+				_, err := queryClient.LatestUnbondingHeight(
 					context.Background(),
-					&types.QueryLastUnbondingHeightRequest{},
+					&types.QueryLatestUnbondingHeightRequest{},
 				)
 				return err
 			},
@@ -79,9 +79,9 @@ func TestQGBRPCQueries(t *testing.T) {
 		{
 			name: "last valset before nonce",
 			req: func() error {
-				_, err := queryClient.LastValsetRequestBeforeNonce(
+				_, err := queryClient.LatestValsetRequestBeforeNonce(
 					context.Background(),
-					&types.QueryLastValsetRequestBeforeNonceRequest{Nonce: 2},
+					&types.QueryLatestValsetRequestBeforeNonceRequest{Nonce: 2},
 				)
 				return err
 			},

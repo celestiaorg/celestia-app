@@ -7,13 +7,13 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// LastUnbondingHeight queries the last unbonding height.
-func (k Keeper) LastUnbondingHeight(
+// LatestUnbondingHeight queries the latest unbonding height.
+func (k Keeper) LatestUnbondingHeight(
 	c context.Context,
-	_ *types.QueryLastUnbondingHeightRequest,
-) (*types.QueryLastUnbondingHeightResponse, error) {
-	return &types.QueryLastUnbondingHeightResponse{
-		Height: k.GetLastUnBondingBlockHeight(sdk.UnwrapSDKContext(c)),
+	_ *types.QueryLatestUnbondingHeightRequest,
+) (*types.QueryLatestUnbondingHeightResponse, error) {
+	return &types.QueryLatestUnbondingHeightResponse{
+		Height: k.GetLatestUnBondingBlockHeight(sdk.UnwrapSDKContext(c)),
 	}, nil
 }
 

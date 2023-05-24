@@ -58,7 +58,7 @@ func TestGetDataCommitmentForHeight(t *testing.T) {
 			expectedError: "",
 		},
 		{
-			name:          "height within range of last data commitment",
+			name:          "height within range of latest data commitment",
 			height:        dcs[len(dcs)-1].EndBlock - window/2,
 			expectedDCC:   dcs[len(dcs)-1],
 			expectError:   false,
@@ -90,7 +90,7 @@ func TestGetDataCommitmentForHeight(t *testing.T) {
 			height:        window * 100,
 			expectedDCC:   types.DataCommitment{},
 			expectError:   true,
-			expectedError: "Last height 4000 < 40000: no data commitment has been generated for the provided height",
+			expectedError: "Latest height 4000 < 40000: no data commitment has been generated for the provided height",
 		},
 	}
 	for _, tt := range tests {
@@ -107,7 +107,7 @@ func TestGetDataCommitmentForHeight(t *testing.T) {
 	}
 }
 
-func TestLastDataCommitment(t *testing.T) {
+func TestLatestDataCommitment(t *testing.T) {
 	input, sdkCtx := testutil.SetupFiveValChain(t)
 	k := input.QgbKeeper
 
@@ -118,8 +118,8 @@ func TestLastDataCommitment(t *testing.T) {
 	err = k.SetAttestationRequest(sdkCtx, &initialValset)
 	require.NoError(t, err)
 
-	// trying to get the last data commitment
-	dcc, err := k.GetLastDataCommitment(sdkCtx)
+	// trying to get the latest data commitment
+	dcc, err := k.GetLatestDataCommitment(sdkCtx)
 	assert.Error(t, err)
 	assert.Equal(t, dcc, types.DataCommitment{})
 
@@ -139,8 +139,8 @@ func TestLastDataCommitment(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	// getting the last data commitment
-	dcc, err = k.GetLastDataCommitment(sdkCtx)
+	// getting the latest data commitment
+	dcc, err = k.GetLatestDataCommitment(sdkCtx)
 	assert.NoError(t, err)
 	assert.Equal(t, dcs[3], dcc)
 }
@@ -171,9 +171,9 @@ func TestCheckingLatestAttestationNonceInDataCommitments(t *testing.T) {
 			expectedError: types.ErrLatestAttestationNonceStillNotInitialized,
 		},
 		{
-			name: "check latest nonce before getting last data commitment",
+			name: "check latest nonce before getting latest data commitment",
 			requestFunc: func() error {
-				_, err := k.GetLastDataCommitment(input.Context)
+				_, err := k.GetLatestDataCommitment(input.Context)
 				return err
 			},
 			expectedError: types.ErrLatestAttestationNonceStillNotInitialized,
