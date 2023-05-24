@@ -78,6 +78,36 @@ func (k Keeper) GetLatestAttestationNonce(ctx sdk.Context) uint64 {
 	return UInt64FromBytes(bytes)
 }
 
+// CheckEarliestAvailableAttestationNonce returns true if the earliest available attestation nonce has been initialized
+// in store, and false if not.
+func (k Keeper) CheckEarliestAvailableAttestationNonce(ctx sdk.Context) bool {
+	store := ctx.KVStore(k.storeKey)
+	has := store.Has([]byte(types.LatestAttestationtNonce))
+	return has
+}
+
+// GetEarliestAvailableAttestationNonce returns the earliest available attestation nonce. The
+// nonce is of the earliest available attestation in store that can be
+// retrieved. Panics if the earliest available attestation
+// nonce doesn't exit. This value is set on chain startup. However, it won't be
+// written to store until height = 1. Thus, it's mandatory to run
+// `CheckEarliestAvailableAttestationNonce` before calling this method.
+func (k Keeper) GetEarliestAvailableAttestationNonce(ctx sdk.Context) uint64 {
+	store := ctx.KVStore(k.storeKey)
+	bytes := store.Get([]byte(types.EarliestAvailableAttestationNonce))
+	if bytes == nil {
+		panic("nil earliest available attestation nonce")
+	}
+	return UInt64FromBytes(bytes)
+}
+
+// SetEarliestAvailableAttestationNonce sets the earliest available attestation nonce.
+// The nonce is of the earliest available attestation in store that can be retrieved.
+func (k Keeper) SetEarliestAvailableAttestationNonce(ctx sdk.Context, nonce uint64) {
+	store := ctx.KVStore(k.storeKey)
+	store.Set([]byte(types.EarliestAvailableAttestationNonce), types.UInt64Bytes(nonce))
+}
+
 // GetAttestationByNonce returns an attestation request by nonce.
 // Returns (nil, false, nil) if the attestation is not found.
 func (k Keeper) GetAttestationByNonce(ctx sdk.Context, nonce uint64) (types.AttestationRequestI, bool, error) {
@@ -92,4 +122,16 @@ func (k Keeper) GetAttestationByNonce(ctx sdk.Context, nonce uint64) (types.Atte
 		return nil, false, types.ErrUnmarshalllAttestation
 	}
 	return at, true, nil
+}
+
+// DeleteAttestation deletes an attestation from state.
+// Will do nothing if the attestation doesn't exist in store.
+func (k Keeper) DeleteAttestation(ctx sdk.Context, nonce uint64) {
+	key := []byte(types.GetAttestationKey(nonce))
+	store := ctx.KVStore(k.storeKey)
+	if !store.Has(key) {
+		// if the store doesn't have the needed attestation, then no need to do anything.
+		return
+	}
+	store.Delete(key)
 }

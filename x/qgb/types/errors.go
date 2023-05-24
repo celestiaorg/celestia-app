@@ -21,4 +21,6 @@ var (
 	ErrDataCommitmentNotFound                    = errors.Register(ModuleName, 30, "data commitment not found")
 	ErrLatestAttestationNonceStillNotInitialized = errors.Register(ModuleName, 31, "the latest attestation nonce has still not been defined in store")
 	ErrInvalidDataCommitmentWindow               = errors.Register(ModuleName, 32, "invalid data commitment window")
+	ErrEarliestAvailableNonceStillNotInitialized = errors.Register(ModuleName, 33, "the earliest available nonce after pruning has still not been defined in store")
+	ErrRequestedNonceWasPruned                   = errors.Register(ModuleName, 34, "the requested nonce has been pruned")
 )

@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/x/qgb"
+
 	cosmosmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
@@ -319,6 +321,7 @@ func CreateTestEnvWithoutAttestationNonceInit(t *testing.T) TestInput {
 func CreateTestEnv(t *testing.T) TestInput {
 	input := CreateTestEnvWithoutAttestationNonceInit(t)
 	input.QgbKeeper.SetLatestAttestationNonce(input.Context, 0)
+	input.QgbKeeper.SetEarliestAvailableAttestationNonce(input.Context, 1)
 	return input
 }
 
@@ -484,4 +487,28 @@ func SetupTestChain(t *testing.T, weights []uint64) (TestInput, sdk.Context) {
 func NewTestMsgUnDelegateValidator(address sdk.ValAddress, amt cosmosmath.Int) *stakingtypes.MsgUndelegate {
 	msg := stakingtypes.NewMsgUndelegate(sdk.AccAddress(address), address, sdk.NewCoin("stake", amt))
 	return msg
+}
+
+// ExecuteQGBHeights executes the end exclusive range of heights specified by beginHeight and endHeight
+// along with the QGB abci.EndBlocker on each one of them.
+// Returns the updated context with block height advanced to endHeight.
+func ExecuteQGBHeights(ctx sdk.Context, qgbKeeper keeper.Keeper, beginHeight int64, endHeight int64) sdk.Context {
+	for i := beginHeight; i < endHeight; i++ {
+		ctx = ctx.WithBlockHeight(i)
+		qgb.EndBlocker(ctx, qgbKeeper)
+	}
+	return ctx
+}
+
+// ExecuteQGBHeightsWithTime executes the end exclusive range of heights specified by beginHeight and endHeight
+// along with the QGB abci.EndBlocker on each one of them.
+// Uses the interval to calculate the block header time.
+func ExecuteQGBHeightsWithTime(ctx sdk.Context, qgbKeeper keeper.Keeper, beginHeight int64, endHeight int64, blockInterval time.Duration) sdk.Context {
+	blockTime := ctx.BlockTime()
+	for i := beginHeight; i < endHeight; i++ {
+		ctx = ctx.WithBlockHeight(i).WithBlockTime(blockTime)
+		qgb.EndBlocker(ctx, qgbKeeper)
+		blockTime = blockTime.Add(blockInterval)
+	}
+	return ctx
 }
