@@ -26,11 +26,13 @@ func SubtreeRootThreshold(version uint64) int {
 	}
 }
 
-// MaxSquareSize is the maximum original square width.
-func MaxSquareSize(version uint64) int {
+// SquareSizeUpperBound is the maximum original square width possible
+// for a version of the state machine. The maximum is decided through
+// governance. See `DefaultGovMaxSquareSize`.
+func SquareSizeUpperBound(version uint64) int {
 	switch version {
 	case v1.Version:
-		return v1.MaxSquareSize
+		return v1.SquareSizeUpperBound
 	default:
 		panic(unsupportedVersion(version))
 	}
@@ -38,7 +40,7 @@ func MaxSquareSize(version uint64) int {
 
 var (
 	DefaultSubtreeRootThreshold = SubtreeRootThreshold(LatestVersion)
-	DefaultMaxSquareSize        = MaxSquareSize(LatestVersion)
+	DefaultSquareSizeUpperBound = SquareSizeUpperBound(LatestVersion)
 )
 
 func unsupportedVersion(version uint64) string {

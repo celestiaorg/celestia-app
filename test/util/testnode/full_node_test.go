@@ -45,7 +45,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	blobGenState := blobtypes.DefaultGenesis()
-	blobGenState.Params.GovMaxSquareSize = uint64(appconsts.DefaultMaxSquareSize)
+	blobGenState.Params.GovMaxSquareSize = uint64(appconsts.DefaultSquareSizeUpperBound)
 	cctx, _, _ := NewNetwork(
 		t,
 		cparams,
@@ -89,7 +89,7 @@ func (s *IntegrationTestSuite) Test_PostData() {
 func (s *IntegrationTestSuite) Test_FillBlock() {
 	require := s.Require()
 
-	for squareSize := 2; squareSize <= appconsts.DefaultMaxSquareSize; squareSize *= 2 {
+	for squareSize := 2; squareSize <= appconsts.DefaultSquareSizeUpperBound; squareSize *= 2 {
 		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastSync)
 		require.NoError(err)
 

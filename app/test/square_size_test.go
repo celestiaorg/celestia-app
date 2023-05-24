@@ -66,45 +66,49 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 
 // TestMaxSquareSize sets the app's params to specific sizes, then fills the
 // block with spam txs to measure that the desired max is getting hit
-func (s *SquareSizeIntegrationTest) TestMaxSquareSize() {
+func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 	t := s.T()
 
 	type test struct {
-		name                                   string
-		govMaxSquareSize                       uint64
-		maxBytes                               int64
-		blobSize, blobsPerPFB, maxPFBsPerBlock int
+		name                  string
+		govMaxSquareSize      int
+		maxBytes              int
+		expectedMaxSquareSize int
+		pfbsPerBlock          int
 	}
 
 	tests := []test{
 		{
-			name:             "default",
-			govMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
-			maxBytes:         appconsts.DefaultMaxBytes,
-			// using many small blobs ensures that there is a lot of encoding
-			// overhead and therefore full squares
-			blobSize:        10_000,
-			blobsPerPFB:     100,
-			maxPFBsPerBlock: 20,
+			name:                  "default",
+			govMaxSquareSize:      appconsts.DefaultGovMaxSquareSize,
+			maxBytes:              appconsts.DefaultMaxBytes,
+			expectedMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
+			pfbsPerBlock:          20,
 		},
 		{
-			name:             "gov square size == hardcoded max",
-			govMaxSquareSize: uint64(appconsts.DefaultMaxSquareSize),
-			maxBytes:         appconsts.DefaultMaxBytes,
-			blobSize:         10_000,
-			blobsPerPFB:      100,
-			maxPFBsPerBlock:  40,
+			name:                  "max bytes constrains square size",
+			govMaxSquareSize:      appconsts.DefaultGovMaxSquareSize,
+			maxBytes:              appconsts.DefaultMaxBytes,
+			expectedMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
+			pfbsPerBlock:          40,
+		},
+		{
+			name:                  "gov square size == hardcoded max",
+			govMaxSquareSize:      appconsts.DefaultSquareSizeUpperBound,
+			maxBytes:              appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize,
+			expectedMaxSquareSize: appconsts.DefaultSquareSizeUpperBound,
+			pfbsPerBlock:          40,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s.setBlockSizeParams(t, tt.govMaxSquareSize, tt.maxBytes)
-			start, end := s.fillBlocks(tt.blobSize, tt.blobsPerPFB, tt.maxPFBsPerBlock, 20*time.Second)
+			start, end := s.fillBlocks(100_000, 100, tt.pfbsPerBlock, 20*time.Second)
 			fmt.Println("start", start, "end", end)
 
 			// check that we're not going above the specified size and that we hit the specified size
-			hitMaxCounter := 0
+			actualMaxSize := 0
 			for i := start; i < end; i++ {
 				block, err := s.cctx.Client.Block(s.cctx.GoContext(), &i)
 				require.NoError(t, err)
@@ -112,11 +116,11 @@ func (s *SquareSizeIntegrationTest) TestMaxSquareSize() {
 
 				fmt.Println("square size", block.Block.Data.SquareSize)
 
-				if block.Block.Data.SquareSize == tt.govMaxSquareSize {
-					hitMaxCounter++
+				if block.Block.Data.SquareSize > uint64(actualMaxSize) {
+					actualMaxSize = int(block.Block.Data.SquareSize)
 				}
 			}
-			require.Greater(t, hitMaxCounter, 0)
+			require.Greater(t, tt.expectedMaxSquareSize, actualMaxSize)
 		})
 	}
 }
@@ -158,11 +162,11 @@ func (s *SquareSizeIntegrationTest) fillBlocks(blobSize, blobsPerPFB, pfbsPerBlo
 // max bytes parameters. It assumes that the governance params have been set to
 // allow for fast acceptance of proposals, and will fail the test if the
 // parameters are not set as expected.
-func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize uint64, maxBytes int64) {
+func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize, maxBytes int) {
 	account := "validator"
 
 	bparams := &abci.BlockParams{
-		MaxBytes: maxBytes,
+		MaxBytes: int64(maxBytes),
 		MaxGas:   -1,
 	}
 

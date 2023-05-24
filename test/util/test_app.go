@@ -81,7 +81,7 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 		Block: &abci.BlockParams{
 			// choose some value large enough to not bottleneck the max square
 			// size
-			MaxBytes: int64(appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize) * appconsts.ContinuationSparseShareContentSize,
+			MaxBytes: int64(appconsts.DefaultSquareSizeUpperBound*appconsts.DefaultSquareSizeUpperBound) * appconsts.ContinuationSparseShareContentSize,
 			MaxGas:   cparams.Block.MaxGas,
 		},
 		Evidence:  &cparams.Evidence,

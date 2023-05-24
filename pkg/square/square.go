@@ -162,7 +162,7 @@ func Deconstruct(s Square, decoder types.TxDecoder) (core.Txs, error) {
 // TxShareRange returns the range of share indexes that the tx, specified by txIndex, occupies.
 // The range is end exclusive.
 func TxShareRange(txs [][]byte, txIndex int, appVersion uint64) (shares.Range, error) {
-	builder, err := NewBuilder(appconsts.MaxSquareSize(appVersion), appconsts.SubtreeRootThreshold(appVersion), txs...)
+	builder, err := NewBuilder(appconsts.SquareSizeUpperBound(appVersion), appconsts.SubtreeRootThreshold(appVersion), txs...)
 	if err != nil {
 		return shares.Range{}, err
 	}
@@ -173,7 +173,7 @@ func TxShareRange(txs [][]byte, txIndex int, appVersion uint64) (shares.Range, e
 // BlobShareRange returns the range of share indexes that the blob, identified by txIndex and blobIndex, occupies.
 // The range is end exclusive.
 func BlobShareRange(txs [][]byte, txIndex, blobIndex int, appVersion uint64) (shares.Range, error) {
-	builder, err := NewBuilder(appconsts.MaxSquareSize(appVersion), appconsts.SubtreeRootThreshold(appVersion), txs...)
+	builder, err := NewBuilder(appconsts.SquareSizeUpperBound(appVersion), appconsts.SubtreeRootThreshold(appVersion), txs...)
 	if err != nil {
 		return shares.Range{}, err
 	}

@@ -149,7 +149,7 @@ func TestBuilderFindTxShareRange(t *testing.T) {
 	blockTxs = append(blockTxs, blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), 5, 1000, 10).ToSliceOfBytes()...)
 	require.Len(t, blockTxs, 10)
 
-	builder, err := square.NewBuilder(appconsts.DefaultMaxSquareSize, appconsts.DefaultSubtreeRootThreshold, blockTxs...)
+	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold, blockTxs...)
 	require.NoError(t, err)
 
 	dataSquare, err := builder.Export()

@@ -29,7 +29,7 @@ func TestSquareConstruction(t *testing.T) {
 	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 10000, 1, 1024)
 	t.Run("normal transactions after PFB trasactions", func(t *testing.T) {
 		txs := append(sendTxs[:5], append(pfbTxs, sendTxs[5:]...)...)
-		_, err := square.Construct(coretypes.Txs(txs).ToSliceOfBytes(), appconsts.LatestVersion, appconsts.DefaultMaxSquareSize)
+		_, err := square.Construct(coretypes.Txs(txs).ToSliceOfBytes(), appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.Error(t, err)
 	})
 	t.Run("not enough space to append transactions", func(t *testing.T) {
@@ -134,7 +134,7 @@ func TestSquareBlobShareRange(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	txs := blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), 10, 1000, 10).ToSliceOfBytes()
 
-	builder, err := square.NewBuilder(appconsts.DefaultMaxSquareSize, appconsts.DefaultSubtreeRootThreshold, txs...)
+	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold, txs...)
 	require.NoError(t, err)
 
 	dataSquare, err := builder.Export()
@@ -174,7 +174,7 @@ func TestSquareDeconstruct(t *testing.T) {
 		for _, numTxs := range []int{2, 128, 1024, 8192} {
 			t.Run(fmt.Sprintf("%d", numTxs), func(t *testing.T) {
 				txs := generateOrderedTxs(numTxs/2, numTxs/2, 1, 800)
-				dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultMaxSquareSize)
+				dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 				require.NoError(t, err)
 				recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
 				require.NoError(t, err)
@@ -185,7 +185,7 @@ func TestSquareDeconstruct(t *testing.T) {
 	t.Run("NoPFBs", func(t *testing.T) {
 		const numTxs = 10
 		txs := types.Txs(blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, numTxs)).ToSliceOfBytes()
-		dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultMaxSquareSize)
+		dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
 		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
 		require.NoError(t, err)
@@ -193,7 +193,7 @@ func TestSquareDeconstruct(t *testing.T) {
 	})
 	t.Run("PFBsOnly", func(t *testing.T) {
 		txs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 100, 1, 1024).ToSliceOfBytes()
-		dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultMaxSquareSize)
+		dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
 		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
 		require.NoError(t, err)
@@ -209,7 +209,7 @@ func TestSquareDeconstruct(t *testing.T) {
 func TestSquareShareCommitments(t *testing.T) {
 	const numTxs = 10
 	txs := generateOrderedTxs(numTxs, numTxs, 3, 800)
-	builder, err := square.NewBuilder(appconsts.DefaultMaxSquareSize, appconsts.DefaultSubtreeRootThreshold, txs...)
+	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold, txs...)
 	require.NoError(t, err)
 
 	dataSquare, err := builder.Export()
@@ -249,8 +249,8 @@ func TestSize(t *testing.T) {
 		{input: 64, expect: 8},
 		{input: 100, expect: 16},
 		{input: 1000, expect: 32},
-		{input: appconsts.DefaultMaxSquareSize * appconsts.DefaultMaxSquareSize, expect: appconsts.DefaultMaxSquareSize},
-		{input: appconsts.DefaultMaxSquareSize*appconsts.DefaultMaxSquareSize + 1, expect: appconsts.DefaultMaxSquareSize * 2},
+		{input: appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound, expect: appconsts.DefaultSquareSizeUpperBound},
+		{input: appconsts.DefaultSquareSizeUpperBound*appconsts.DefaultSquareSizeUpperBound + 1, expect: appconsts.DefaultSquareSizeUpperBound * 2},
 	}
 	for i, tt := range tests {
 		res := square.Size(tt.input)

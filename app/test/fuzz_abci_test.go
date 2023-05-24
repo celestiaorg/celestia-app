@@ -29,7 +29,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 	for i := range accounts {
 		accounts[i] = tmrand.Str(20)
 	}
-	maxShareCount := int64(appconsts.DefaultMaxSquareSize * appconsts.DefaultMaxSquareSize)
+	maxShareCount := int64(appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound)
 
 	type test struct {
 		name                   string
@@ -60,7 +60,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 		{
 			"max",
 			maxShareCount * appconsts.ContinuationSparseShareContentSize,
-			appconsts.DefaultMaxSquareSize,
+			appconsts.DefaultSquareSizeUpperBound,
 		},
 		{
 			"larger MaxBytes than SquareSize",
