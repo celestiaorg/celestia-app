@@ -75,12 +75,18 @@ func (c *Context) WaitForHeight(h int64) (int64, error) {
 // WaitForNextBlock waits for the next block to be committed, returning an error
 // upon failure.
 func (c *Context) WaitForNextBlock() error {
+	return c.WaitForBlocks(1)
+}
+
+// WaitForBlocks waits until n blocks have been committed, returning an error
+// upon failure.
+func (c *Context) WaitForBlocks(n int64) error {
 	lastBlock, err := c.LatestHeight()
 	if err != nil {
 		return err
 	}
 
-	_, err = c.WaitForHeight(lastBlock + 1)
+	_, err = c.WaitForHeight(lastBlock + n)
 	if err != nil {
 		return err
 	}
@@ -157,7 +163,7 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 		return nil, err
 	}
 	if res.Code != abci.CodeTypeOK {
-		return res, fmt.Errorf("failure to broadcast tx sync: %s", res.RawLog)
+		return res, fmt.Errorf("failure to broadcast tx (%d): %s", res.Code, res.RawLog)
 	}
 
 	return res, nil

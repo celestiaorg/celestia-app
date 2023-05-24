@@ -93,10 +93,8 @@ func (s *IntegrationTestSuite) Test_FillBlock() {
 		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastSync)
 		require.NoError(err)
 
-		for i := 0; i < 3; i++ {
-			err = s.cctx.WaitForNextBlock()
-			require.NoError(err, squareSize)
-		}
+		err = s.cctx.WaitForBlocks(3)
+		require.NoError(err, squareSize)
 
 		res, err := testfactory.QueryWithoutProof(s.cctx.Context, resp.TxHash)
 		require.NoError(err, squareSize)

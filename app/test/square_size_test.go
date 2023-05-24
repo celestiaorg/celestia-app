@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -99,7 +100,7 @@ func (s *SquareSizeIntegrationTest) TestMaxSquareSize() {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s.setBlockSizeParams(t, tt.govMaxSquareSize, tt.maxBytes)
-			start, end := s.fillBlock(tt.blobSize, tt.blobsPerPFB, tt.maxPFBsPerBlock, time.Second*10)
+			start, end := s.fillBlocks(tt.blobSize, tt.blobsPerPFB, tt.maxPFBsPerBlock, time.Second*10)
 
 			// check that we're not going above the specified size and that we hit the specified size
 			hitMaxCounter := 0
@@ -119,7 +120,7 @@ func (s *SquareSizeIntegrationTest) TestMaxSquareSize() {
 
 // fillBlock runs txsim with blob sequences using the provided
 // arguments. The start and end blocks are returned.
-func (s *SquareSizeIntegrationTest) fillBlock(blobSize, blobsPerPFB, pfbsPerBlock int, period time.Duration) (start, end int64) {
+func (s *SquareSizeIntegrationTest) fillBlocks(blobSize, blobsPerPFB, pfbsPerBlock int, period time.Duration) (start, end int64) {
 	t := s.T()
 	seqs := txsim.NewBlobSequence(
 		txsim.NewRange(blobSize/2, blobSize),
@@ -132,7 +133,7 @@ func (s *SquareSizeIntegrationTest) fillBlock(blobSize, blobsPerPFB, pfbsPerBloc
 	startBlock, err := s.cctx.Client.Block(s.cctx.GoContext(), nil)
 	require.NoError(t, err)
 
-	_ = txsim.Run(
+	err = txsim.Run(
 		ctx,
 		[]string{s.rpcAddr},
 		[]string{s.grpcAddr},
@@ -141,6 +142,9 @@ func (s *SquareSizeIntegrationTest) fillBlock(blobSize, blobsPerPFB, pfbsPerBloc
 		time.Second,
 		seqs...,
 	)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatal(err)
+	}
 
 	endBlock, err := s.cctx.Client.Block(s.cctx.GoContext(), nil)
 	require.NoError(t, err)
@@ -187,8 +191,9 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize 
 	require.NoError(t, err)
 
 	res, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, account, msg)
+	require.Equal(t, res.Code, abci.CodeTypeOK, res.RawLog)
 	require.NoError(t, err)
-	require.NoError(t, s.cctx.WaitForNextBlock())
+	require.NoError(t, s.cctx.WaitForBlocks(3))
 	resp, err := testnode.QueryTx(s.cctx.Context, res.TxHash, false)
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, resp.TxResult.Code)
