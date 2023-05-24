@@ -146,7 +146,7 @@ func TestSquareBlobShareRange(t *testing.T) {
 		for blobIdx := range blobTx.Blobs {
 			shareRange, err := square.BlobShareRange(txs, pfbIdx, blobIdx, appconsts.LatestVersion)
 			require.NoError(t, err)
-			blobShares := dataSquare[shareRange.Start : shareRange.End]
+			blobShares := dataSquare[shareRange.Start:shareRange.End]
 			blobSharesBytes, err := rawData(blobShares)
 			require.NoError(t, err)
 			require.True(t, bytes.Contains(blobSharesBytes, blobTx.Blobs[blobIdx].Data))
