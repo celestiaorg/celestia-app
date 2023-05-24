@@ -50,8 +50,21 @@ func (s ShareSequence) validSequenceLen() error {
 	if len(s.Shares) == 0 {
 		return fmt.Errorf("invalid sequence length because share sequence %v has no shares", s)
 	}
-	firstShare := s.Shares[0]
-	sharesNeeded, err := numberOfSharesNeeded(firstShare)
+
+	// padding shares must be special-cased because they contain a sequence length of 0.
+	isPadding, err := s.Shares[0].IsPadding()
+	if err != nil {
+		return err
+	}
+	sequenceLen, err := s.Shares[0].SequenceLen()
+	if err != nil {
+		return err
+	}
+	if len(s.Shares) == 1 && isPadding && sequenceLen == 0 {
+		return nil
+	}
+
+	sharesNeeded, err := numberOfSharesNeeded(s.Shares[0])
 	if err != nil {
 		return err
 	}
