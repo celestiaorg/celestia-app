@@ -179,7 +179,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				hashes[i] = res.TxHash
 			}
 
-			s.WaitForBlocks(8)
+			s.WaitForBlocks(10)
 
 			heights := make(map[int64]int)
 			for _, hash := range hashes {
@@ -333,11 +333,11 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 	for i, tx := range txs {
 		res, err := val.ClientCtx.BroadcastTxSync(tx)
 		require.NoError(err)
-		require.Equal(abci.CodeTypeOK, res.Code)
+		require.Equal(abci.CodeTypeOK, res.Code, res.RawLog)
 		hashes[i] = res.TxHash
 	}
 
-	s.WaitForBlocks(20)
+	s.WaitForBlocks(10)
 
 	for _, hash := range hashes {
 		txResp, err := testnode.QueryTx(val.ClientCtx, hash, true)

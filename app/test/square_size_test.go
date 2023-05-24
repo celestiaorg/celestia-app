@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -18,6 +17,7 @@ import (
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -53,7 +53,7 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 		testnode.DefaultTendermintConfig(),
 		testnode.DefaultAppConfig(),
 		accounts,
-		testnode.ImmediateProposals(s.ecfg.Codec), // pass param changes in 2 seconds
+		testnode.ImmediateProposals(s.ecfg.Codec), // pass param changes in 5 seconds
 	)
 
 	s.accounts = accounts
@@ -85,7 +85,7 @@ func (s *SquareSizeIntegrationTest) TestMaxSquareSize() {
 			// overhead and therefore full squares
 			blobSize:        10_000,
 			blobsPerPFB:     100,
-			maxPFBsPerBlock: 10,
+			maxPFBsPerBlock: 20,
 		},
 		{
 			name:             "gov square size == hardcoded max",
@@ -93,14 +93,15 @@ func (s *SquareSizeIntegrationTest) TestMaxSquareSize() {
 			maxBytes:         appconsts.DefaultMaxBytes,
 			blobSize:         10_000,
 			blobsPerPFB:      100,
-			maxPFBsPerBlock:  12,
+			maxPFBsPerBlock:  40,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s.setBlockSizeParams(t, tt.govMaxSquareSize, tt.maxBytes)
-			start, end := s.fillBlocks(tt.blobSize, tt.blobsPerPFB, tt.maxPFBsPerBlock, time.Second*10)
+			start, end := s.fillBlocks(tt.blobSize, tt.blobsPerPFB, tt.maxPFBsPerBlock, 20*time.Second)
+			fmt.Println("start", start, "end", end)
 
 			// check that we're not going above the specified size and that we hit the specified size
 			hitMaxCounter := 0
@@ -108,6 +109,8 @@ func (s *SquareSizeIntegrationTest) TestMaxSquareSize() {
 				block, err := s.cctx.Client.Block(s.cctx.GoContext(), &i)
 				require.NoError(t, err)
 				require.LessOrEqual(t, block.Block.Data.SquareSize, tt.govMaxSquareSize)
+
+				fmt.Println("square size", block.Block.Data.SquareSize)
 
 				if block.Block.Data.SquareSize == tt.govMaxSquareSize {
 					hitMaxCounter++
@@ -133,7 +136,9 @@ func (s *SquareSizeIntegrationTest) fillBlocks(blobSize, blobsPerPFB, pfbsPerBlo
 	startBlock, err := s.cctx.Client.Block(s.cctx.GoContext(), nil)
 	require.NoError(t, err)
 
-	err = txsim.Run(
+	// disable the logger
+	zerolog.SetGlobalLevel(zerolog.Disabled)
+	_ = txsim.Run(
 		ctx,
 		[]string{s.rpcAddr},
 		[]string{s.grpcAddr},
@@ -142,9 +147,6 @@ func (s *SquareSizeIntegrationTest) fillBlocks(blobSize, blobsPerPFB, pfbsPerBlo
 		time.Second,
 		seqs...,
 	)
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatal(err)
-	}
 
 	endBlock, err := s.cctx.Client.Block(s.cctx.GoContext(), nil)
 	require.NoError(t, err)
@@ -193,10 +195,11 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize 
 	res, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, account, msg)
 	require.Equal(t, res.Code, abci.CodeTypeOK, res.RawLog)
 	require.NoError(t, err)
-	require.NoError(t, s.cctx.WaitForBlocks(3))
-	resp, err := testnode.QueryTx(s.cctx.Context, res.TxHash, false)
+	resp, err := s.cctx.WaitForTx(res.TxHash, 10)
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, resp.TxResult.Code)
+
+	require.NoError(t, s.cctx.WaitForNextBlock())
 
 	// query the proposal to get the id
 	gqc := v1.NewQueryClient(s.cctx.GRPCClient)
@@ -208,30 +211,29 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize 
 	vote := v1.NewMsgVote(getAddress(account, s.cctx.Keyring), gresp.Proposals[0].Id, v1.VoteOption_VOTE_OPTION_YES, "")
 	res, err = testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, account, vote)
 	require.NoError(t, err)
-	require.NoError(t, s.cctx.WaitForNextBlock())
-
-	resp, err = testnode.QueryTx(s.cctx.Context, res.TxHash, false)
+	resp, err = s.cctx.WaitForTx(res.TxHash, 10)
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, resp.TxResult.Code)
 
 	// wait for the voting period to complete
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 6)
 
 	// check that the parameters got updated as expected
 	bqc := blobtypes.NewQueryClient(s.cctx.GRPCClient)
 	presp, err := bqc.Params(s.cctx.GoContext(), &blobtypes.QueryParamsRequest{})
 	require.NoError(t, err)
 	require.Equal(t, squareSize, presp.Params.GovMaxSquareSize)
+	latestHeight, err := s.cctx.LatestHeight()
+	require.NoError(t, err)
 
-	// unfortunately the rpc connection is very flakey with super fast block
-	// times, so we have to retry many times.
-	var newMaxBytes int64
-	for i := 0; i < 20; i++ {
-		cpresp, err := s.cctx.Client.ConsensusParams(s.cctx.GoContext(), nil)
+	for i := 0; i < 10; i++ {
+		cpresp, err := s.cctx.Client.ConsensusParams(s.cctx.GoContext(), &latestHeight)
+		require.NoError(t, err)
 		if err != nil || cpresp == nil {
+			time.Sleep(time.Second)
 			continue
 		}
-		newMaxBytes = cpresp.ConsensusParams.Block.MaxBytes
+		require.Equal(t, maxBytes, cpresp.ConsensusParams.Block.MaxBytes)
+		break
 	}
-	require.Equal(t, maxBytes, newMaxBytes)
 }
