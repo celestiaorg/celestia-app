@@ -534,7 +534,7 @@ func TestPruning(t *testing.T) {
 	// check that we created a number of attestations
 	assert.Equal(t, uint64(17), qgbKeeper.GetLatestAttestationNonce(ctx))
 
-	// check that no pruning occurs if the no attestation is expired
+	// check that no pruning occurs if no attestations expired
 	for nonce := uint64(1); nonce <= qgbKeeper.GetLatestAttestationNonce(ctx); nonce++ {
 		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
 		assert.NoError(t, err)
