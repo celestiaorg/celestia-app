@@ -46,7 +46,7 @@ func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
 		}
 	}
 	dataCommitmentWindow := int64(k.GetDataCommitmentWindowParam(ctx))
-	// this will  keep executing until all the needed data commitments are
+	// this will keep executing until all the needed data commitments are
 	// created and we catchup to the current height
 	for {
 		hasLatestDataCommitment, err := k.HasDataCommitmentInStore(ctx)
