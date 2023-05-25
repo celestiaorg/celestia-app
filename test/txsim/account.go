@@ -238,7 +238,7 @@ func (am *AccountManager) GenerateAccounts(ctx context.Context) error {
 		msgs = append(msgs, bankMsg)
 	}
 
-	err := am.Submit(ctx, Operation{Msgs: msgs})
+	err := am.Submit(ctx, Operation{Msgs: msgs, GasLimit: SendGasLimit * uint64(len(am.pending))})
 	if err != nil {
 		return fmt.Errorf("error funding accounts: %w", err)
 	}

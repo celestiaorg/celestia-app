@@ -36,9 +36,9 @@ func FuzzSquare(f *testing.F) {
 			t.Skip()
 		}
 		txs := generateMixedTxs(int(normalTxCount), int(pfbCount), int(blobsPerPfb), int(blobSize))
-		s, orderedTxs, err := square.Build(txs, appconsts.MaxSquareSize)
+		s, orderedTxs, err := square.Build(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
-		s2, err := square.Construct(orderedTxs, appconsts.MaxSquareSize)
+		s2, err := square.Construct(orderedTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
 		require.True(t, s.Equals(s2))
 
@@ -49,7 +49,7 @@ func FuzzSquare(f *testing.F) {
 
 		decoder := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig.TxDecoder()
 
-		builder, err := square.NewBuilder(appconsts.MaxSquareSize, orderedTxs...)
+		builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold, orderedTxs...)
 		require.NoError(t, err)
 		totalPfbs := builder.NumPFBs()
 		totalNormalTxs := builder.NumTxs() - totalPfbs
@@ -63,7 +63,7 @@ func FuzzSquare(f *testing.F) {
 			require.True(t, ok)
 
 			for blobIndex, shareIndex := range wpfb.ShareIndexes {
-				commitment, err := inclusion.GetCommitment(cacher, dah, int(shareIndex), shares.SparseSharesNeeded(pfb.BlobSizes[blobIndex]))
+				commitment, err := inclusion.GetCommitment(cacher, dah, int(shareIndex), shares.SparseSharesNeeded(pfb.BlobSizes[blobIndex]), appconsts.DefaultSubtreeRootThreshold)
 				require.NoError(t, err)
 				require.Equal(t, pfb.ShareCommitments[blobIndex], commitment)
 			}
