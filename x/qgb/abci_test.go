@@ -2,6 +2,7 @@ package qgb_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 
@@ -33,7 +34,6 @@ func TestFirstAttestationIsValset(t *testing.T) {
 	require.Equal(t, uint64(1), attestation.GetNonce())
 
 	// get the valset
-	require.Equal(t, types.ValsetRequestType, attestation.Type())
 	vs, ok := attestation.(*types.Valset)
 	assert.True(t, ok)
 	assert.NotNil(t, vs)
@@ -132,7 +132,6 @@ func TestSetDataCommitment(t *testing.T) {
 	require.Equal(t, uint64(1), attestation.GetNonce())
 
 	// get the data commitment
-	require.Equal(t, types.DataCommitmentRequestType, attestation.Type())
 	actualDC, ok := attestation.(*types.DataCommitment)
 	assert.True(t, ok)
 	assert.NotNil(t, actualDC)
@@ -274,7 +273,6 @@ func TestDataCommitmentRange(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, found)
 
-	assert.Equal(t, types.DataCommitmentRequestType, att1.Type())
 	dc1, ok := att1.(*types.DataCommitment)
 	require.True(t, ok)
 	assert.Equal(t, newHeight, int64(dc1.EndBlock))
@@ -289,7 +287,6 @@ func TestDataCommitmentRange(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, found)
 
-	assert.Equal(t, types.DataCommitmentRequestType, att2.Type())
 	dc2, ok := att2.(*types.DataCommitment)
 	require.True(t, ok)
 	assert.Equal(t, newHeight, int64(dc2.EndBlock))
@@ -364,41 +361,34 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 	qk := input.QgbKeeper
 	ctx = ctx.WithBlockHeight(1)
 
-	executeHeights := func(beginHeight int64, endHeight int64) {
-		for i := beginHeight; i <= endHeight; i++ {
-			ctx = ctx.WithBlockHeight(i)
-			qgb.EndBlocker(ctx, *qk)
-		}
-	}
-
 	// from height 1 to 1500 with a window of 400
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 400})
-	executeHeights(1, 1500)
+	ctx = testutil.ExecuteQGBHeights(ctx, *qk, 1, 1501)
 
 	// change window to 100 and execute up to 1920
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 100})
-	executeHeights(1501, 1920)
+	ctx = testutil.ExecuteQGBHeights(ctx, *qk, 1501, 1921)
 
 	// change window to 1000 and execute up to 3500
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 1000})
-	executeHeights(1921, 3500)
+	ctx = testutil.ExecuteQGBHeights(ctx, *qk, 1921, 3501)
 
 	// change window to 111 and execute up to 3800
 	qk.SetParams(ctx, types.Params{DataCommitmentWindow: 111})
-	executeHeights(3501, 3800)
+	ctx = testutil.ExecuteQGBHeights(ctx, *qk, 3501, 3801)
 
 	// check if a data commitment was created
 	hasDataCommitment, err := qk.HasDataCommitmentInStore(ctx)
 	require.NoError(t, err)
 	require.True(t, hasDataCommitment)
 
-	// get the last attestation nonce
-	lastAttestationNonce := qk.GetLatestAttestationNonce(ctx)
+	// get the latest attestation nonce
+	latestAttestationNonce := qk.GetLatestAttestationNonce(ctx)
 
 	// check if the ranges are continuous
 	var previousDC types.DataCommitment
 	got := []types.DataCommitment{}
-	for i := uint64(1); i <= lastAttestationNonce; i++ {
+	for i := uint64(1); i <= latestAttestationNonce; i++ {
 		att, found, err := qk.GetAttestationByNonce(ctx, i)
 		require.NoError(t, err)
 		require.True(t, found)
@@ -525,4 +515,69 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 		assert.Equal(t, want[i].BeginBlock, dc.BeginBlock)
 		assert.Equal(t, want[i].Nonce, dc.Nonce)
 	}
+}
+
+// TestPruning tests the pruning mechanism by:
+// 1. Generating a set of attestations
+// 2. Running the QGB EndBlocker
+// 3. Verifying that the expired attestations are pruned
+func TestPruning(t *testing.T) {
+	input, ctx := testutil.SetupFiveValChain(t)
+	qgbKeeper := *input.QgbKeeper
+	// set the data commitment window
+	window := uint64(101)
+	qgbKeeper.SetParams(ctx, types.Params{DataCommitmentWindow: window})
+	initialBlockTime := ctx.BlockTime()
+	blockInterval := 10 * time.Minute
+	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1, 1626, blockInterval)
+
+	// check that we created a number of attestations
+	assert.Equal(t, uint64(17), qgbKeeper.GetLatestAttestationNonce(ctx))
+
+	// check that no pruning occurs if no attestations expired
+	for nonce := uint64(1); nonce <= qgbKeeper.GetLatestAttestationNonce(ctx); nonce++ {
+		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
+		assert.NoError(t, err)
+		assert.True(t, found)
+	}
+
+	// continue executing heights
+	ctx = testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 1626, 5000, blockInterval)
+
+	earliestAttestationNonce := qgbKeeper.GetEarliestAvailableAttestationNonce(ctx)
+	assert.Equal(t, uint64(21), earliestAttestationNonce)
+
+	// check that the first attestations were pruned
+	for nonce := uint64(1); nonce < earliestAttestationNonce; nonce++ {
+		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
+		assert.NoError(t, err)
+		assert.False(t, found)
+	}
+
+	// check that the attestations after those still exist
+	for nonce := qgbKeeper.GetEarliestAvailableAttestationNonce(ctx); nonce <= qgbKeeper.GetLatestAttestationNonce(ctx); nonce++ {
+		at, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
+		assert.NoError(t, err)
+		assert.True(t, found)
+		// make sure the remaining attestations have not expired yet
+		assert.True(t, initialBlockTime.Before(at.BlockTime().Add(qgb.AttestationExpiryTime)))
+	}
+
+	// check that no valset exists in store
+	for nonce := qgbKeeper.GetEarliestAvailableAttestationNonce(ctx); nonce <= qgbKeeper.GetLatestAttestationNonce(ctx); nonce++ {
+		at, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
+		assert.NoError(t, err)
+		assert.True(t, found)
+		_, ok := at.(*types.DataCommitment)
+		assert.True(t, ok)
+	}
+
+	// check that we still can get a valset even after pruning all of them
+	vs, err := qgbKeeper.GetLatestValset(ctx)
+	assert.NoError(t, err)
+	assert.NotNil(t, vs)
+
+	// continue running the chain for a few more blocks to be sure no inconsistency happens
+	// after pruning
+	testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 5000, 6000, blockInterval)
 }

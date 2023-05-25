@@ -1,6 +1,8 @@
 package types
 
 import (
+	"time"
+
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/gogo/protobuf/proto"
 )
@@ -18,6 +20,6 @@ const (
 type AttestationRequestI interface {
 	proto.Message
 	codec.ProtoMarshaler
-	Type() AttestationType
 	GetNonce() uint64
+	BlockTime() time.Time
 }
