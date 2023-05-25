@@ -113,7 +113,6 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 				require.NoError(t, err)
 				require.LessOrEqual(t, block.Block.Data.SquareSize, uint64(tt.govMaxSquareSize))
 
-
 				if block.Block.Data.SquareSize > uint64(actualMaxSize) {
 					actualMaxSize = int(block.Block.Data.SquareSize)
 				}
