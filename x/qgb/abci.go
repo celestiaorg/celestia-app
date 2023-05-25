@@ -47,17 +47,17 @@ func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
 	dataCommitmentWindow := int64(k.GetDataCommitmentWindowParam(ctx))
 	// this will  keep executing until all the needed data commitments are created and we catchup to the current height
 	for {
-		hasLastDataCommitment, err := k.HasDataCommitmentInStore(ctx)
+		hasLatestDataCommitment, err := k.HasDataCommitmentInStore(ctx)
 		if err != nil {
 			panic(err)
 		}
-		if hasLastDataCommitment {
+		if hasLatestDataCommitment {
 			// if the store already has a data commitment, we use it to check if we need to create a new data commitment
-			lastDataCommitment, err := k.GetLastDataCommitment(ctx)
+			latestDataCommitment, err := k.GetLatestDataCommitment(ctx)
 			if err != nil {
 				panic(err)
 			}
-			if ctx.BlockHeight()-int64(lastDataCommitment.EndBlock) >= dataCommitmentWindow {
+			if ctx.BlockHeight()-int64(latestDataCommitment.EndBlock) >= dataCommitmentWindow {
 				setDataCommitmentAttestation()
 			} else {
 				// the needed data commitments are already created and we need to wait for the next window to elapse
@@ -76,7 +76,7 @@ func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
 }
 
 func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
-	// get the last valsets to compare against
+	// get the latest valsets to compare against
 	var latestValset *types.Valset
 	if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx) != 0 {
 		var err error
@@ -86,7 +86,7 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 		}
 	}
 
-	lastUnbondingHeight := k.GetLastUnBondingBlockHeight(ctx)
+	latestUnbondingHeight := k.GetLatestUnBondingBlockHeight(ctx)
 
 	significantPowerDiff := false
 	if latestValset != nil {
@@ -114,7 +114,7 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 		significantPowerDiff = intCurrMembers.PowerDiff(*intLatestMembers) > SignificantPowerDifferenceThreshold
 	}
 
-	if (latestValset == nil) || (lastUnbondingHeight == uint64(ctx.BlockHeight())) || significantPowerDiff {
+	if (latestValset == nil) || (latestUnbondingHeight == uint64(ctx.BlockHeight())) || significantPowerDiff {
 		// if the conditions are true, put in a new validator set request to be signed and submitted to EVM
 		valset, err := k.GetCurrentValset(ctx)
 		if err != nil {

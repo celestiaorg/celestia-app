@@ -31,21 +31,21 @@ service Query {
       returns (QueryLatestAttestationNonceResponse) {
     option (google.api.http).get = "/qgb/v1/attestations/nonce/latest";
   }
-  // LastValsetRequestBeforeNonce Queries last Valset request before nonce.
+  // LatestValsetRequestBeforeNonce Queries latest Valset request before nonce.
   // And, even if the current nonce is a valset, it will return the previous
   // one.
   // If the provided nonce is 1, it will return an error, because, there is
   // no valset before nonce 1.
-  rpc LastValsetRequestBeforeNonce(QueryLastValsetRequestBeforeNonceRequest)
-      returns (QueryLastValsetRequestBeforeNonceResponse) {
+  rpc LatestValsetRequestBeforeNonce(QueryLatestValsetRequestBeforeNonceRequest)
+      returns (QueryLatestValsetRequestBeforeNonceResponse) {
     option (google.api.http).get = "/qgb/v1/valset/request/before/{nonce}";
   }
 
   // misc
 
-  // LastUnbondingHeight returns the last unbonding height
-  rpc LastUnbondingHeight(QueryLastUnbondingHeightRequest)
-      returns (QueryLastUnbondingHeightResponse) {
+  // LatestUnbondingHeight returns the latest unbonding height
+  rpc LatestUnbondingHeight(QueryLatestUnbondingHeightRequest)
+      returns (QueryLatestUnbondingHeightResponse) {
     option (google.api.http).get = "/qgb/v1/unbonding";
   }
 
@@ -56,10 +56,10 @@ service Query {
     option (google.api.http).get = "/qgb/v1/data_commitment/range/height";
   }
 
-  // LastDataCommitment returns the last data commitment in store
-  rpc LastDataCommitment(QueryLastDataCommitmentRequest)
-      returns (QueryLastDataCommitmentResponse) {
-    option (google.api.http).get = "/qgb/v1/data_commitment/last";
+  // LatestDataCommitment returns the latest data commitment in store
+  rpc LatestDataCommitment(QueryLatestDataCommitmentRequest)
+      returns (QueryLatestDataCommitmentResponse) {
+    option (google.api.http).get = "/qgb/v1/data_commitment/latest";
   }
 }
 
@@ -87,25 +87,27 @@ message QueryLatestAttestationNonceRequest {}
 // QueryLatestAttestationNonceResponse latest attestation nonce response
 message QueryLatestAttestationNonceResponse { uint64 nonce = 1; }
 
-// QueryLastValsetRequestBeforeNonceRequest last Valset request before universal
-// nonce request
-message QueryLastValsetRequestBeforeNonceRequest { uint64 nonce = 1; }
+// QueryLatestValsetRequestBeforeNonceRequest latest Valset request before
+// universal nonce request
+message QueryLatestValsetRequestBeforeNonceRequest { uint64 nonce = 1; }
 
-// QueryLastValsetRequestBeforeNonceResponse last Valset request before height
-// response
-message QueryLastValsetRequestBeforeNonceResponse { Valset valset = 1; }
+// QueryLatestValsetRequestBeforeNonceResponse latest Valset request before
+// height response
+message QueryLatestValsetRequestBeforeNonceResponse { Valset valset = 1; }
 
-// QueryLastUnbondingHeightRequest
-message QueryLastUnbondingHeightRequest {}
+// QueryLatestUnbondingHeightRequest
+message QueryLatestUnbondingHeightRequest {}
 
-// QueryLastUnbondingHeightResponse
-message QueryLastUnbondingHeightResponse { uint64 height = 1; }
+// QueryLatestUnbondingHeightResponse
+message QueryLatestUnbondingHeightResponse { uint64 height = 1; }
 
-// QueryLastDataCommitmentRequest
-message QueryLastDataCommitmentRequest {}
+// QueryLatestDataCommitmentRequest
+message QueryLatestDataCommitmentRequest {}
 
-// QueryLastDataCommitmentResponse
-message QueryLastDataCommitmentResponse { DataCommitment data_commitment = 1; }
+// QueryLatestDataCommitmentResponse
+message QueryLatestDataCommitmentResponse {
+  DataCommitment data_commitment = 1;
+}
 
 // QueryDataCommitmentRangeForHeightRequest
 message QueryDataCommitmentRangeForHeightRequest { uint64 height = 1; }

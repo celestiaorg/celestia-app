@@ -24,12 +24,12 @@ func (k Keeper) NextDataCommitment(ctx sdk.Context) (types.DataCommitment, error
 	// for a data commitment window of 400, the ranges will be: [1-401), [401-801), [801-1201)
 	var beginBlock, endBlock uint64
 	if hasDC {
-		lastDCC, err := k.GetLastDataCommitment(ctx)
+		latestDCC, err := k.GetLatestDataCommitment(ctx)
 		if err != nil {
 			return types.DataCommitment{}, err
 		}
-		beginBlock = lastDCC.EndBlock
-		endBlock = lastDCC.EndBlock + dcWindow
+		beginBlock = latestDCC.EndBlock
+		endBlock = latestDCC.EndBlock + dcWindow
 	} else {
 		// only for the first data commitment range, which is: [1, data commitment window + 1)
 		beginBlock = 1
@@ -50,16 +50,16 @@ func (k Keeper) GetDataCommitmentWindowParam(ctx sdk.Context) uint64 {
 
 // GetDataCommitmentForHeight returns the attestation containing the provided height.
 func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (types.DataCommitment, error) {
-	lastDC, err := k.GetLastDataCommitment(ctx)
+	latestDC, err := k.GetLatestDataCommitment(ctx)
 	if err != nil {
 		return types.DataCommitment{}, err
 	}
-	if lastDC.EndBlock < height {
+	if latestDC.EndBlock < height {
 		return types.DataCommitment{}, errors.Wrap(
 			types.ErrDataCommitmentNotGenerated,
 			fmt.Sprintf(
-				"Last height %d < %d",
-				lastDC.EndBlock,
+				"Latest height %d < %d",
+				latestDC.EndBlock,
 				height,
 			),
 		)
@@ -92,8 +92,8 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 	return types.DataCommitment{}, errors.Wrap(types.ErrDataCommitmentNotFound, "data commitment for height not found or was pruned")
 }
 
-// GetLastDataCommitment returns the last data commitment.
-func (k Keeper) GetLastDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
+// GetLatestDataCommitment returns the latest data commitment.
+func (k Keeper) GetLatestDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
 	}

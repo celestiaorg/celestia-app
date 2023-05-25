@@ -85,10 +85,6 @@ func (v *Valset) TwoThirdsThreshold() uint64 {
 	return 2 * oneThird
 }
 
-func (v *Valset) Type() AttestationType {
-	return ValsetRequestType
-}
-
 func (v *Valset) BlockTime() time.Time {
 	return v.Time
 }
