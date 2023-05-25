@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_validateGovSquareSizeUpperBound(t *testing.T) {
+func Test_validateGovMaxSquareSize(t *testing.T) {
 	type test struct {
 		name      string
 		input     interface{}

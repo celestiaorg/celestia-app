@@ -128,7 +128,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 		)
 	}
 
-	// Generate 80 randomly sized txs (max size == 100kb). Generate these
+	// Generate 80 randomly sized txs (max size == 50 KiB). Generate these
 	// transactions using some of the same accounts as the previous generator to
 	// ensure that the sequence number is being utilized correctly in blob
 	// txs
@@ -193,7 +193,6 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				heights[resp.Height]++
 				// ensure that some gas was used
 				require.GreaterOrEqual(resp.TxResult.GasUsed, int64(10))
-				// require.True(resp.Proof.VerifyProof())
 			}
 
 			require.Greater(len(heights), 0)

@@ -64,7 +64,7 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 	require.NoError(t, err)
 }
 
-// TestMaxSquareSize sets the app's params to specific sizes, then fills the
+// TestSquareSizeUpperBound sets the app's params to specific sizes, then fills the
 // block with spam txs to measure that the desired max is getting hit
 func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 	t := s.T()
@@ -105,7 +105,6 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 		t.Run(tt.name, func(t *testing.T) {
 			s.setBlockSizeParams(t, tt.govMaxSquareSize, tt.maxBytes)
 			start, end := s.fillBlocks(100_000, 100, tt.pfbsPerBlock, 20*time.Second)
-			fmt.Println("start", start, "end", end)
 
 			// check that we're not going above the specified size and that we hit the specified size
 			actualMaxSize := 0
@@ -114,7 +113,6 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 				require.NoError(t, err)
 				require.LessOrEqual(t, block.Block.Data.SquareSize, uint64(tt.govMaxSquareSize))
 
-				fmt.Println("square size", block.Block.Data.SquareSize)
 
 				if block.Block.Data.SquareSize > uint64(actualMaxSize) {
 					actualMaxSize = int(block.Block.Data.SquareSize)
