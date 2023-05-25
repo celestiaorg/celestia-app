@@ -67,7 +67,8 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 
 // TestMaxSquareSize sets the app's params to specific sizes, then fills the
 // block with spam txs to measure that the desired max is getting hit
-func (s *SquareSizeIntegrationTest) TestMaxSquareSize() {
+// The "_flaky" suffix indicates that the test may fail non-deterministically especially when executed in CI.
+func (s *SquareSizeIntegrationTest) TestMaxSquareSize_Flaky() {
 	t := s.T()
 
 	type test struct {
@@ -89,7 +90,7 @@ func (s *SquareSizeIntegrationTest) TestMaxSquareSize() {
 			maxPFBsPerBlock: 10,
 		},
 		{
-			name:             "gov square size == hardcoded max",
+			name:             "gov square size == hardcoded max", // this test may behave flaky in the CIs
 			govMaxSquareSize: appconsts.MaxSquareSize,
 			maxBytes:         int64(appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize),
 			blobSize:         10_000,
