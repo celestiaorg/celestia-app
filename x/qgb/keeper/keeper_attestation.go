@@ -7,8 +7,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// SetAttestationRequest sets a new attestation request to the store to be signed
-// by orchestrators afterwards.
+// SetAttestationRequest sets a new attestation request to the store to be
+// signed by orchestrators afterwards.
 func (k Keeper) SetAttestationRequest(ctx sdk.Context, at types.AttestationRequestI) error {
 	k.StoreAttestation(ctx, at)
 	k.SetLatestAttestationNonce(ctx, at.GetNonce())
@@ -23,8 +23,8 @@ func (k Keeper) SetAttestationRequest(ctx sdk.Context, at types.AttestationReque
 	return nil
 }
 
-// StoreAttestation saves the attestation in store.
-// Should panic if overwriting existing one.
+// StoreAttestation saves the attestation in store. Should panic if overwriting
+// existing one.
 func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) {
 	nonce := at.GetNonce()
 	key := []byte(types.GetAttestationKey(nonce))
@@ -41,12 +41,13 @@ func (k Keeper) StoreAttestation(ctx sdk.Context, at types.AttestationRequestI) 
 	store.Set((key), b)
 }
 
-// SetLatestAttestationNonce sets the latest attestation request nonce, since it's
-// expected that this value will only increase by one and it panics otherwise.
+// SetLatestAttestationNonce sets the latest attestation request nonce, since
+// it's expected that this value will only increase by one and it panics
+// otherwise.
 func (k Keeper) SetLatestAttestationNonce(ctx sdk.Context, nonce uint64) {
-	// in case the latest attestation nonce doesn't exist,
-	// we proceed to initialize it in the store.
-	// however, if it already exists, we check if the nonce is correctly incremented.
+	// in case the latest attestation nonce doesn't exist, we proceed to
+	// initialize it in the store. however, if it already exists, we check if
+	// the nonce is correctly incremented.
 	if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx)+1 != nonce {
 		panic("not incrementing latest attestation nonce correctly")
 	}
@@ -55,8 +56,8 @@ func (k Keeper) SetLatestAttestationNonce(ctx sdk.Context, nonce uint64) {
 	store.Set([]byte(types.LatestAttestationtNonce), types.UInt64Bytes(nonce))
 }
 
-// CheckLatestAttestationNonce returns true if the latest attestation request nonce
-// is declared in the store and false if it has not been initialized.
+// CheckLatestAttestationNonce returns true if the latest attestation request
+// nonce is declared in the store and false if it has not been initialized.
 func (k Keeper) CheckLatestAttestationNonce(ctx sdk.Context) bool {
 	store := ctx.KVStore(k.storeKey)
 	has := store.Has([]byte(types.LatestAttestationtNonce))
@@ -64,11 +65,11 @@ func (k Keeper) CheckLatestAttestationNonce(ctx sdk.Context) bool {
 }
 
 // GetLatestAttestationNonce returns the latest attestation request nonce.
-// Panics if the latest attestation nonce doesn't exit. Make sure to call `CheckLatestAttestationNonce`
-// before getting the nonce.
-// This value is set on chain startup. However, it won't be written to store until height = 1.
-// Thus, it's mandatory to run `CheckLatestAttestationNonce` before calling this method.
-// Check x/qgb/genesis.go for more information.
+// Panics if the latest attestation nonce doesn't exit. Make sure to call
+// `CheckLatestAttestationNonce` before getting the nonce. This value is set on
+// chain startup. However, it won't be written to store until height = 1. Thus,
+// it's mandatory to run `CheckLatestAttestationNonce` before calling this
+// method. Check x/qgb/genesis.go for more information.
 func (k Keeper) GetLatestAttestationNonce(ctx sdk.Context) uint64 {
 	store := ctx.KVStore(k.storeKey)
 	bytes := store.Get([]byte(types.LatestAttestationtNonce))
@@ -78,17 +79,17 @@ func (k Keeper) GetLatestAttestationNonce(ctx sdk.Context) uint64 {
 	return UInt64FromBytes(bytes)
 }
 
-// CheckEarliestAvailableAttestationNonce returns true if the earliest available attestation nonce has been initialized
-// in store, and false if not.
+// CheckEarliestAvailableAttestationNonce returns true if the earliest available
+// attestation nonce has been initialized in store, and false if not.
 func (k Keeper) CheckEarliestAvailableAttestationNonce(ctx sdk.Context) bool {
 	store := ctx.KVStore(k.storeKey)
 	has := store.Has([]byte(types.LatestAttestationtNonce))
 	return has
 }
 
-// GetEarliestAvailableAttestationNonce returns the earliest available attestation nonce. The
-// nonce is of the earliest available attestation in store that can be
-// retrieved. Panics if the earliest available attestation
+// GetEarliestAvailableAttestationNonce returns the earliest available
+// attestation nonce. The nonce is of the earliest available attestation in
+// store that can be retrieved. Panics if the earliest available attestation
 // nonce doesn't exit. This value is set on chain startup. However, it won't be
 // written to store until height = 1. Thus, it's mandatory to run
 // `CheckEarliestAvailableAttestationNonce` before calling this method.
@@ -101,15 +102,16 @@ func (k Keeper) GetEarliestAvailableAttestationNonce(ctx sdk.Context) uint64 {
 	return UInt64FromBytes(bytes)
 }
 
-// SetEarliestAvailableAttestationNonce sets the earliest available attestation nonce.
-// The nonce is of the earliest available attestation in store that can be retrieved.
+// SetEarliestAvailableAttestationNonce sets the earliest available attestation
+// nonce. The nonce is of the earliest available attestation in store that can
+// be retrieved.
 func (k Keeper) SetEarliestAvailableAttestationNonce(ctx sdk.Context, nonce uint64) {
 	store := ctx.KVStore(k.storeKey)
 	store.Set([]byte(types.EarliestAvailableAttestationNonce), types.UInt64Bytes(nonce))
 }
 
-// GetAttestationByNonce returns an attestation request by nonce.
-// Returns (nil, false, nil) if the attestation is not found.
+// GetAttestationByNonce returns an attestation request by nonce. Returns (nil,
+// false, nil) if the attestation is not found.
 func (k Keeper) GetAttestationByNonce(ctx sdk.Context, nonce uint64) (types.AttestationRequestI, bool, error) {
 	store := ctx.KVStore(k.storeKey)
 	bz := store.Get([]byte(types.GetAttestationKey(nonce)))
@@ -124,13 +126,14 @@ func (k Keeper) GetAttestationByNonce(ctx sdk.Context, nonce uint64) (types.Atte
 	return at, true, nil
 }
 
-// DeleteAttestation deletes an attestation from state.
-// Will do nothing if the attestation doesn't exist in store.
+// DeleteAttestation deletes an attestation from state. Will do nothing if the
+// attestation doesn't exist in store.
 func (k Keeper) DeleteAttestation(ctx sdk.Context, nonce uint64) {
 	key := []byte(types.GetAttestationKey(nonce))
 	store := ctx.KVStore(k.storeKey)
 	if !store.Has(key) {
-		// if the store doesn't have the needed attestation, then no need to do anything.
+		// if the store doesn't have the needed attestation, then no need to do
+		// anything.
 		return
 	}
 	store.Delete(key)
