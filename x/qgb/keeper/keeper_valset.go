@@ -129,12 +129,11 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 // errors Example: rawPower = max (2^63 - 1), totalValidatorPower = 1 validator:
 // (2^63 - 1)
 //
-//  result: (2^63 - 1) * 2^32 / (2^63 - 1) = 2^32 = 4294967296 [this is the multiplier value below, our max output]
+//	result: (2^63 - 1) * 2^32 / (2^63 - 1) = 2^32 = 4294967296 [this is the multiplier value below, our max output]
 //
-// Example: rawPower = max (2^63 - 1), totalValidatorPower = 1000 validators
-// with the same power: 1000*(2^63 - 1)
+// Example: rawPower = max (2^63 - 1), totalValidatorPower = 1000 validators with the same power: 1000*(2^63 - 1)
 //
-//  result: (2^63 - 1) * 2^32 / (1000(2^63 - 1)) = 2^32 / 1000 = 4294967
+//	result: (2^63 - 1) * 2^32 / (1000(2^63 - 1)) = 2^32 / 1000 = 4294967
 func normalizeValidatorPower(rawPower uint64, totalValidatorPower cosmosmath.Int) uint64 {
 	// Compute rawPower * multiplier / quotient Set the upper limit to 2^32,
 	// which would happen if there is a single validator with all the power
