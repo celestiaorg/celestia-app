@@ -58,7 +58,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.accounts = accounts
 }
 
-// The "_flaky" suffix indicates that the test may fail non-deterministically especially when executed in CI.
+// The "_Flaky" suffix indicates that the test may fail non-deterministically especially when executed in CI.
 func (s *IntegrationTestSuite) Test_Liveness_Flaky() {
 	require := s.Require()
 	err := s.cctx.WaitForNextBlock()
