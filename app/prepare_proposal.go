@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
@@ -14,6 +16,7 @@ import (
 // generates the data root for the proposal block and passes it back to
 // tendermint via the BlockData.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+	fmt.Println("prepareing proposal")
 	sdkCtx, err := app.NewProcessProposalQueryContext()
 	if err != nil {
 		panic(err)

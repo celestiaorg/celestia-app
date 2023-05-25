@@ -28,13 +28,14 @@ func init() {
 
 func CmdSoftSpoon() *cobra.Command {
 	command := &cobra.Command{
-		Use:   "hardspoon [pathToExportedGenesis] [pathToNewGenesis]",
+		Use:   "hardspoon [newChainID] [pathToExportedGenesis] [pathToNewGenesis]",
 		Short: "hardspoon an exported chain by copying the balances from one state to a new one",
-		Args:  cobra.ExactArgs(2),
+		Args:  cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			srcPath := args[0]
-			dstPath := args[1]
-			_, _, err := Fork(srcPath, dstPath)
+			chainid := args[0]
+			srcPath := args[1]
+			dstPath := args[2]
+			_, _, err := Spoon(srcPath, dstPath, chainid)
 
 			return err
 		},
@@ -43,7 +44,7 @@ func CmdSoftSpoon() *cobra.Command {
 	return command
 }
 
-func Fork(src, dst string, newAccounts ...string) (map[string]json.RawMessage, keyring.Keyring, error) {
+func Spoon(src, dst, chainid string, newAccounts ...string) (map[string]json.RawMessage, keyring.Keyring, error) {
 	oldstate, err := loadGenState(src)
 	if err != nil {
 		return nil, nil, err
@@ -63,7 +64,7 @@ func Fork(src, dst string, newAccounts ...string) (map[string]json.RawMessage, k
 
 	gdoc := coretypes.GenesisDoc{
 		GenesisTime:     time.Now(),
-		ChainID:         "mocha-1",
+		ChainID:         chainid,
 		InitialHeight:   0,
 		ConsensusParams: coretypes.DefaultConsensusParams(),
 		AppState:        gbz,

@@ -117,7 +117,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		logInvalidPropBlock(app.Logger(), req.Header, "proposed data root differs from calculated data root")
 		return reject()
 	}
-
+	fmt.Println("accepted proposal", req.Header.Height)
 	return accept()
 }
 

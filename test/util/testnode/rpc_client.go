@@ -2,6 +2,7 @@ package testnode
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path"
 	"strings"
@@ -23,6 +24,8 @@ func StartNode(tmNode *node.Node, cctx Context) (Context, func() error, error) {
 	if err := tmNode.Start(); err != nil {
 		return cctx, func() error { return nil }, err
 	}
+
+	fmt.Println("started node")
 
 	coreClient := local.New(tmNode)
 
