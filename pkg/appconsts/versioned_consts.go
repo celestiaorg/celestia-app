@@ -1,9 +1,6 @@
 package appconsts
 
 import (
-	"fmt"
-	"runtime/debug"
-
 	v1 "github.com/celestiaorg/celestia-app/pkg/appconsts/v1"
 )
 
@@ -17,32 +14,18 @@ const (
 // The rationale for this value is described in more detail in ADR013
 // (./docs/architecture/adr-013).
 // ADR013 https://github.com/celestiaorg/celestia-app/blob/e905143e8fe138ce6085ae9a5c1af950a2d87638/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md //nolint: lll
-func SubtreeRootThreshold(version uint64) int {
-	switch version {
-	case v1.Version:
-		return v1.SubtreeRootThreshold
-	default:
-		panic(unsupportedVersion(version))
-	}
+func SubtreeRootThreshold(_ uint64) int {
+	return v1.SubtreeRootThreshold
 }
 
 // SquareSizeUpperBound is the maximum original square width possible
 // for a version of the state machine. The maximum is decided through
 // governance. See `DefaultGovMaxSquareSize`.
-func SquareSizeUpperBound(version uint64) int {
-	switch version {
-	case v1.Version:
-		return v1.SquareSizeUpperBound
-	default:
-		panic(unsupportedVersion(version))
-	}
+func SquareSizeUpperBound(_ uint64) int {
+	return v1.SquareSizeUpperBound
 }
 
 var (
 	DefaultSubtreeRootThreshold = SubtreeRootThreshold(LatestVersion)
 	DefaultSquareSizeUpperBound = SquareSizeUpperBound(LatestVersion)
 )
-
-func unsupportedVersion(version uint64) string {
-	return fmt.Sprintf("unsupported app version %d\n%s", version, string(debug.Stack()))
-}
