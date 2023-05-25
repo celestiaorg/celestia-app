@@ -5,9 +5,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// GovMaxSquareSize returns the maximum square size that can be used for a block
+// GovSquareSizeUpperBound returns the maximum square size that can be used for a block
 // using the governance parameter blob.GovMaxSquareSize.
-func (app *App) GovMaxSquareSize(ctx sdk.Context) int {
+func (app *App) GovSquareSizeUpperBound(ctx sdk.Context) int {
 	// TODO: fix hack that forces the max square size for the first height to
 	// 64. This is due to tendermint not technically supposed to be calling
 	// PrepareProposal when heights are not >= 1. This is remedied in versions
@@ -18,11 +18,11 @@ func (app *App) GovMaxSquareSize(ctx sdk.Context) int {
 		return int(appconsts.DefaultGovMaxSquareSize)
 	}
 
-	gmax := app.BlobKeeper.GovMaxSquareSize(ctx)
+	gmax := int(app.BlobKeeper.GovSquareSizeUpperBound(ctx))
 	// perform a secondary check on the max square size.
-	if gmax > appconsts.MaxSquareSize {
-		gmax = appconsts.MaxSquareSize
+	if gmax > appconsts.SquareSizeUpperBound(app.AppVersion()) {
+		gmax = appconsts.SquareSizeUpperBound(app.AppVersion())
 	}
 
-	return int(gmax)
+	return gmax
 }

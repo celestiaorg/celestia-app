@@ -16,8 +16,8 @@ import (
 	daproto "github.com/celestiaorg/celestia-app/proto/celestia/da"
 )
 
-const (
-	maxExtendedSquareWidth = appconsts.MaxSquareSize * 2
+var (
+	maxExtendedSquareWidth = appconsts.DefaultSquareSizeUpperBound * 2
 	minExtendedSquareWidth = appconsts.MinSquareSize * 2
 )
 
@@ -57,17 +57,7 @@ func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
 	if !shares.IsPowerOfTwo(len(s)) {
 		return nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(s))
 	}
-
 	squareSize := square.Size(len(s))
-
-	if squareSize < appconsts.MinSquareSize || squareSize > appconsts.MaxSquareSize {
-		return nil, fmt.Errorf(
-			"invalid square size: min %d max %d provided %d",
-			appconsts.MinSquareSize,
-			appconsts.MaxSquareSize,
-			squareSize,
-		)
-	}
 
 	// here we construct a tree
 	// Note: uses the nmt wrapper to construct the tree.
