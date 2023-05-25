@@ -37,7 +37,6 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	t := s.T()
 
 	cparams := DefaultParams()
-	cparams.Block.MaxBytes = appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize
 
 	accounts := make([]string, 40)
 	for i := 0; i < 40; i++ {
@@ -46,7 +45,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	blobGenState := blobtypes.DefaultGenesis()
-	blobGenState.Params.GovMaxSquareSize = appconsts.MaxSquareSize
+	blobGenState.Params.GovMaxSquareSize = uint64(appconsts.DefaultSquareSizeUpperBound)
 	cctx, _, _ := NewNetwork(
 		t,
 		cparams,
@@ -90,20 +89,18 @@ func (s *IntegrationTestSuite) Test_PostData() {
 func (s *IntegrationTestSuite) Test_FillBlock() {
 	require := s.Require()
 
-	for squareSize := 2; squareSize <= appconsts.MaxSquareSize; squareSize *= 2 {
+	for squareSize := 2; squareSize <= appconsts.DefaultGovMaxSquareSize; squareSize *= 2 {
 		resp, err := s.cctx.FillBlock(squareSize, s.accounts, flags.BroadcastSync)
 		require.NoError(err)
 
-		for i := 0; i < 3; i++ {
-			err = s.cctx.WaitForNextBlock()
-			require.NoError(err, squareSize)
-		}
+		err = s.cctx.WaitForBlocks(3)
+		require.NoError(err, squareSize)
 
 		res, err := testfactory.QueryWithoutProof(s.cctx.Context, resp.TxHash)
 		require.NoError(err, squareSize)
 		require.Equal(abci.CodeTypeOK, res.TxResult.Code, squareSize)
 
-		b, err := s.cctx.Client.Block(context.TODO(), &res.Height)
+		b, err := s.cctx.Client.Block(s.cctx.GoContext(), &res.Height)
 		require.NoError(err, squareSize)
 		require.Equal(uint64(squareSize), b.Block.SquareSize, squareSize)
 	}

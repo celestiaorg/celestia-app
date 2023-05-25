@@ -17,6 +17,7 @@ import (
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	oldgov "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/cosmos/cosmos-sdk/x/params/types/proposal"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -46,15 +47,13 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 	accounts := []string{}
 
 	cparams := testnode.DefaultParams()
-	cparams.Block.MaxBytes = appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize
-
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(
 		t,
 		cparams,
 		testnode.DefaultTendermintConfig(),
 		testnode.DefaultAppConfig(),
 		accounts,
-		testnode.ImmediateProposals(s.ecfg.Codec), // pass param changes in 2 seconds
+		testnode.ImmediateProposals(s.ecfg.Codec), // pass param changes in 5 seconds
 	)
 
 	s.accounts = accounts
@@ -65,63 +64,67 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 	require.NoError(t, err)
 }
 
-// TestMaxSquareSize sets the app's params to specific sizes, then fills the
+// TestSquareSizeUpperBound sets the app's params to specific sizes, then fills the
 // block with spam txs to measure that the desired max is getting hit
-func (s *SquareSizeIntegrationTest) TestMaxSquareSize() {
+func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 	t := s.T()
 
 	type test struct {
-		name                                   string
-		govMaxSquareSize                       uint64
-		maxBytes                               int64
-		blobSize, blobsPerPFB, maxPFBsPerBlock int
+		name                  string
+		govMaxSquareSize      int
+		maxBytes              int
+		expectedMaxSquareSize int
+		pfbsPerBlock          int
 	}
 
 	tests := []test{
 		{
-			name:             "default",
-			govMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
-			maxBytes:         appconsts.DefaultMaxBytes,
-			// using many small blobs ensures that there is a lot of encoding
-			// overhead and therefore full squares
-			blobSize:        10_000,
-			blobsPerPFB:     100,
-			maxPFBsPerBlock: 10,
+			name:                  "default",
+			govMaxSquareSize:      appconsts.DefaultGovMaxSquareSize,
+			maxBytes:              appconsts.DefaultMaxBytes,
+			expectedMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
+			pfbsPerBlock:          20,
 		},
 		{
-			name:             "gov square size == hardcoded max",
-			govMaxSquareSize: appconsts.MaxSquareSize,
-			maxBytes:         int64(appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize),
-			blobSize:         10_000,
-			blobsPerPFB:      100,
-			maxPFBsPerBlock:  12,
+			name:                  "max bytes constrains square size",
+			govMaxSquareSize:      appconsts.DefaultGovMaxSquareSize,
+			maxBytes:              appconsts.DefaultMaxBytes,
+			expectedMaxSquareSize: appconsts.DefaultGovMaxSquareSize,
+			pfbsPerBlock:          40,
+		},
+		{
+			name:                  "gov square size == hardcoded max",
+			govMaxSquareSize:      appconsts.DefaultSquareSizeUpperBound,
+			maxBytes:              appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound * appconsts.ContinuationSparseShareContentSize,
+			expectedMaxSquareSize: appconsts.DefaultSquareSizeUpperBound,
+			pfbsPerBlock:          40,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s.setBlockSizeParams(t, tt.govMaxSquareSize, tt.maxBytes)
-			start, end := s.fillBlock(tt.blobSize, tt.blobsPerPFB, tt.maxPFBsPerBlock, time.Second*10)
+			start, end := s.fillBlocks(100_000, 100, tt.pfbsPerBlock, 20*time.Second)
 
 			// check that we're not going above the specified size and that we hit the specified size
-			hitMaxCounter := 0
+			actualMaxSize := 0
 			for i := start; i < end; i++ {
 				block, err := s.cctx.Client.Block(s.cctx.GoContext(), &i)
 				require.NoError(t, err)
-				require.LessOrEqual(t, block.Block.Data.SquareSize, tt.govMaxSquareSize)
+				require.LessOrEqual(t, block.Block.Data.SquareSize, uint64(tt.govMaxSquareSize))
 
-				if block.Block.Data.SquareSize == tt.govMaxSquareSize {
-					hitMaxCounter++
+				if block.Block.Data.SquareSize > uint64(actualMaxSize) {
+					actualMaxSize = int(block.Block.Data.SquareSize)
 				}
 			}
-			require.Greater(t, hitMaxCounter, 0)
+			require.Greater(t, tt.expectedMaxSquareSize, actualMaxSize)
 		})
 	}
 }
 
 // fillBlock runs txsim with blob sequences using the provided
 // arguments. The start and end blocks are returned.
-func (s *SquareSizeIntegrationTest) fillBlock(blobSize, blobsPerPFB, pfbsPerBlock int, period time.Duration) (start, end int64) {
+func (s *SquareSizeIntegrationTest) fillBlocks(blobSize, blobsPerPFB, pfbsPerBlock int, period time.Duration) (start, end int64) {
 	t := s.T()
 	seqs := txsim.NewBlobSequence(
 		txsim.NewRange(blobSize/2, blobSize),
@@ -134,6 +137,8 @@ func (s *SquareSizeIntegrationTest) fillBlock(blobSize, blobsPerPFB, pfbsPerBloc
 	startBlock, err := s.cctx.Client.Block(s.cctx.GoContext(), nil)
 	require.NoError(t, err)
 
+	// disable the logger
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 	_ = txsim.Run(
 		ctx,
 		[]string{s.rpcAddr},
@@ -154,11 +159,11 @@ func (s *SquareSizeIntegrationTest) fillBlock(blobSize, blobsPerPFB, pfbsPerBloc
 // max bytes parameters. It assumes that the governance params have been set to
 // allow for fast acceptance of proposals, and will fail the test if the
 // parameters are not set as expected.
-func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize uint64, maxBytes int64) {
+func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize, maxBytes int) {
 	account := "validator"
 
 	bparams := &abci.BlockParams{
-		MaxBytes: maxBytes,
+		MaxBytes: int64(maxBytes),
 		MaxGas:   -1,
 	}
 
@@ -189,11 +194,13 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize 
 	require.NoError(t, err)
 
 	res, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, account, msg)
+	require.Equal(t, res.Code, abci.CodeTypeOK, res.RawLog)
 	require.NoError(t, err)
-	require.NoError(t, s.cctx.WaitForNextBlock())
-	resp, err := testnode.QueryTx(s.cctx.Context, res.TxHash, false)
+	resp, err := s.cctx.WaitForTx(res.TxHash, 10)
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, resp.TxResult.Code)
+
+	require.NoError(t, s.cctx.WaitForNextBlock())
 
 	// query the proposal to get the id
 	gqc := v1.NewQueryClient(s.cctx.GRPCClient)
@@ -205,30 +212,29 @@ func (s *SquareSizeIntegrationTest) setBlockSizeParams(t *testing.T, squareSize 
 	vote := v1.NewMsgVote(getAddress(account, s.cctx.Keyring), gresp.Proposals[0].Id, v1.VoteOption_VOTE_OPTION_YES, "")
 	res, err = testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, account, vote)
 	require.NoError(t, err)
-	require.NoError(t, s.cctx.WaitForNextBlock())
-
-	resp, err = testnode.QueryTx(s.cctx.Context, res.TxHash, false)
+	resp, err = s.cctx.WaitForTx(res.TxHash, 10)
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, resp.TxResult.Code)
 
 	// wait for the voting period to complete
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 6)
 
 	// check that the parameters got updated as expected
 	bqc := blobtypes.NewQueryClient(s.cctx.GRPCClient)
 	presp, err := bqc.Params(s.cctx.GoContext(), &blobtypes.QueryParamsRequest{})
 	require.NoError(t, err)
-	require.Equal(t, squareSize, presp.Params.GovMaxSquareSize)
+	require.Equal(t, uint64(squareSize), presp.Params.GovMaxSquareSize)
+	latestHeight, err := s.cctx.LatestHeight()
+	require.NoError(t, err)
 
-	// unfortunately the rpc connection is very flakey with super fast block
-	// times, so we have to retry many times.
-	var newMaxBytes int64
-	for i := 0; i < 20; i++ {
-		cpresp, err := s.cctx.Client.ConsensusParams(s.cctx.GoContext(), nil)
+	for i := 0; i < 10; i++ {
+		cpresp, err := s.cctx.Client.ConsensusParams(s.cctx.GoContext(), &latestHeight)
+		require.NoError(t, err)
 		if err != nil || cpresp == nil {
+			time.Sleep(time.Second)
 			continue
 		}
-		newMaxBytes = cpresp.ConsensusParams.Block.MaxBytes
+		require.Equal(t, int64(maxBytes), cpresp.ConsensusParams.Block.MaxBytes)
+		break
 	}
-	require.Equal(t, maxBytes, newMaxBytes)
 }

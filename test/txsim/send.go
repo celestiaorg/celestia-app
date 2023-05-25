@@ -14,8 +14,8 @@ import (
 var _ Sequence = &SendSequence{}
 
 const (
-	sendGasLimit = 100000
-	sendFee      = sendGasLimit * appconsts.DefaultMinGasPrice
+	SendGasLimit = 100000
+	sendFee      = SendGasLimit * appconsts.DefaultMinGasPrice
 )
 
 // SendSequence sets up an endless sequence of send transactions, moving tokens
@@ -63,7 +63,7 @@ func (s *SendSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 			bank.NewMsgSend(s.accounts[s.index%s.numAccounts], s.accounts[(s.index+1)%s.numAccounts], types.NewCoins(types.NewInt64Coin(app.BondDenom, int64(s.sendAmount)))),
 		},
 		Delay:    rand.Int63n(int64(s.maxHeightDelay)),
-		GasLimit: sendGasLimit,
+		GasLimit: SendGasLimit,
 	}
 	s.index++
 	return op, nil

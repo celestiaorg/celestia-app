@@ -9,9 +9,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-const (
-	veryLargeGasLim uint64 = appconsts.MaxShareCount * appconsts.ShareSize * 10
-)
+var veryLargeGasLim uint64 = uint64(appconsts.DefaultSquareSizeUpperBound*appconsts.DefaultSquareSizeUpperBound) * appconsts.ShareSize * 10
 
 // SignAndBroadcastTx signs a transaction using the provided account and keyring
 // inside the client.Context, then broadcasts it synchronously.

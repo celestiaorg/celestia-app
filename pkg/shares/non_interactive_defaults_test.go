@@ -25,13 +25,13 @@ func TestBlobSharesUsedNonInteractiveDefaults(t *testing.T) {
 		{0, 8, 20, []int{5, 5, 5, 5}, []uint32{0, 5, 10, 15}},
 		{0, 8, 10, []int{10}, []uint32{0}},
 		{1, 8, 20, []int{10, 10}, []uint32{1, 11}},
-		{0, appconsts.MaxSquareSize, 1000, []int{1000}, []uint32{0}},
-		{0, appconsts.MaxSquareSize, appconsts.MaxSquareSize + 1, []int{appconsts.MaxSquareSize + 1}, []uint32{0}},
+		{0, appconsts.DefaultSquareSizeUpperBound, 1000, []int{1000}, []uint32{0}},
+		{0, appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSquareSizeUpperBound + 1, []int{appconsts.DefaultSquareSizeUpperBound + 1}, []uint32{0}},
 		{1, 128, 385, []int{128, 128, 128}, []uint32{2, 130, 258}},
-		{1024, appconsts.MaxSquareSize, 32, []int{32}, []uint32{1024}},
+		{1024, appconsts.DefaultSquareSizeUpperBound, 32, []int{32}, []uint32{1024}},
 	}
 	for i, tt := range tests {
-		res, indexes := BlobSharesUsedNonInteractiveDefaults(tt.cursor, tt.squareSize, tt.blobLens...)
+		res, indexes := BlobSharesUsedNonInteractiveDefaults(tt.cursor, tt.squareSize, appconsts.DefaultSubtreeRootThreshold, tt.blobLens...)
 		test := fmt.Sprintf("test %d: cursor %d, squareSize %d", i, tt.cursor, tt.squareSize)
 		assert.Equal(t, tt.expected, res, test)
 		assert.Equal(t, tt.indexes, indexes, test)
@@ -138,7 +138,7 @@ func TestFitsInSquare(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, _ := FitsInSquare(tt.start, tt.size, tt.blobs...)
+			res, _ := FitsInSquare(tt.start, tt.size, appconsts.DefaultSubtreeRootThreshold, tt.blobs...)
 			assert.Equal(t, tt.fits, res)
 		})
 	}
@@ -243,15 +243,15 @@ func TestNextShareIndex(t *testing.T) {
 		{
 			name:          "at threshold",
 			cursor:        11,
-			blobLen:       appconsts.SubtreeRootThreshold,
-			squareSize:    RoundUpPowerOfTwo(appconsts.SubtreeRootThreshold),
+			blobLen:       appconsts.DefaultSubtreeRootThreshold,
+			squareSize:    RoundUpPowerOfTwo(appconsts.DefaultSubtreeRootThreshold),
 			fits:          false,
 			expectedIndex: 11,
 		},
 		{
 			name:          "one over the threshold",
-			cursor:        63,
-			blobLen:       appconsts.SubtreeRootThreshold + 1,
+			cursor:        64,
+			blobLen:       appconsts.DefaultSubtreeRootThreshold + 1,
 			squareSize:    128,
 			fits:          false,
 			expectedIndex: 64,
@@ -259,7 +259,7 @@ func TestNextShareIndex(t *testing.T) {
 		{
 			name:          "one under the threshold",
 			cursor:        64,
-			blobLen:       appconsts.SubtreeRootThreshold - 1,
+			blobLen:       appconsts.DefaultSubtreeRootThreshold - 1,
 			squareSize:    128,
 			fits:          true,
 			expectedIndex: 64,
@@ -267,7 +267,7 @@ func TestNextShareIndex(t *testing.T) {
 		{
 			name:          "one under the threshold small square size",
 			cursor:        1,
-			blobLen:       appconsts.SubtreeRootThreshold - 1,
+			blobLen:       appconsts.DefaultSubtreeRootThreshold - 1,
 			squareSize:    16,
 			fits:          false,
 			expectedIndex: 1,
@@ -307,7 +307,7 @@ func TestNextShareIndex(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, fits := NextShareIndex(tt.cursor, tt.blobLen, tt.squareSize)
+			res, fits := NextShareIndex(tt.cursor, tt.blobLen, tt.squareSize, appconsts.DefaultSubtreeRootThreshold)
 			assert.Equal(t, tt.fits, fits)
 			assert.Equal(t, tt.expectedIndex, res)
 		})
@@ -443,45 +443,45 @@ func TestSubTreeWidth(t *testing.T) {
 			want:       1,
 		},
 		{
-			shareCount: appconsts.SubtreeRootThreshold,
+			shareCount: appconsts.DefaultSubtreeRootThreshold,
 			want:       1,
 		},
 		{
-			shareCount: appconsts.SubtreeRootThreshold + 1,
+			shareCount: appconsts.DefaultSubtreeRootThreshold + 1,
 			want:       2,
 		},
 		{
-			shareCount: appconsts.SubtreeRootThreshold - 1,
+			shareCount: appconsts.DefaultSubtreeRootThreshold - 1,
 			want:       1,
 		},
 		{
-			shareCount: appconsts.SubtreeRootThreshold * 2,
+			shareCount: appconsts.DefaultSubtreeRootThreshold * 2,
 			want:       2,
 		},
 		{
-			shareCount: (appconsts.SubtreeRootThreshold * 2) + 1,
+			shareCount: (appconsts.DefaultSubtreeRootThreshold * 2) + 1,
 			want:       4,
 		},
 		{
-			shareCount: (appconsts.SubtreeRootThreshold * 3) - 1,
+			shareCount: (appconsts.DefaultSubtreeRootThreshold * 3) - 1,
 			want:       4,
 		},
 		{
-			shareCount: (appconsts.SubtreeRootThreshold * 4),
+			shareCount: (appconsts.DefaultSubtreeRootThreshold * 4),
 			want:       4,
 		},
 		{
-			shareCount: (appconsts.SubtreeRootThreshold * 5),
+			shareCount: (appconsts.DefaultSubtreeRootThreshold * 5),
 			want:       8,
 		},
 		{
-			shareCount: (appconsts.SubtreeRootThreshold * appconsts.MaxSquareSize) - 1,
+			shareCount: (appconsts.DefaultSubtreeRootThreshold * appconsts.DefaultSquareSizeUpperBound) - 1,
 			want:       128,
 		},
 	}
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("shareCount %d", tc.shareCount), func(t *testing.T) {
-			got := SubTreeWidth(tc.shareCount)
+			got := SubTreeWidth(tc.shareCount, appconsts.DefaultSubtreeRootThreshold)
 			assert.Equal(t, tc.want, got, i)
 		})
 	}
