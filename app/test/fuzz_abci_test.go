@@ -29,6 +29,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 	for i := range accounts {
 		accounts[i] = tmrand.Str(20)
 	}
+	maxShareCount := int64(appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound)
 
 	type test struct {
 		name                   string
@@ -48,7 +49,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 	type testSize struct {
 		name             string
 		maxBytes         int64
-		govMaxSquareSize uint64
+		govMaxSquareSize int
 	}
 	sizes := []testSize{
 		{
@@ -58,12 +59,12 @@ func TestPrepareProposalConsistency(t *testing.T) {
 		},
 		{
 			"max",
-			appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize,
-			appconsts.MaxSquareSize,
+			maxShareCount * appconsts.ContinuationSparseShareContentSize,
+			appconsts.DefaultSquareSizeUpperBound,
 		},
 		{
 			"larger MaxBytes than SquareSize",
-			appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize,
+			maxShareCount * appconsts.ContinuationSparseShareContentSize,
 			appconsts.DefaultGovMaxSquareSize,
 		},
 		{
@@ -119,7 +120,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 
 					// check that the square size is smaller than or equal to
 					// the specified size
-					require.LessOrEqual(t, resp.BlockData.SquareSize, size.govMaxSquareSize)
+					require.LessOrEqual(t, resp.BlockData.SquareSize, uint64(size.govMaxSquareSize))
 
 					res := testApp.ProcessProposal(abci.RequestProcessProposal{
 						BlockData: resp.BlockData,

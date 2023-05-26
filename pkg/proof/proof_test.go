@@ -76,6 +76,7 @@ func TestNewTxInclusionProof(t *testing.T) {
 			proof, err := proof.NewTxInclusionProof(
 				tt.txs,
 				tt.txIndex,
+				appconsts.LatestVersion,
 			)
 			if tt.expectErr {
 				assert.Error(t, err)
@@ -97,7 +98,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(50, 500)
 	txs = append(txs, blobTxs...)
 
-	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.MaxSquareSize)
+	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.LatestVersion, appconsts.SquareSizeUpperBound(appconsts.LatestVersion))
 	if err != nil {
 		panic(err)
 	}

@@ -84,13 +84,6 @@ func validateGovMaxSquareSize(v interface{}) error {
 		return fmt.Errorf("gov max square size cannot be zero")
 	}
 
-	if govMaxSquareSize > appconsts.MaxSquareSize {
-		return fmt.Errorf(
-			"gov max square size cannot exceed the max square size: max %d",
-			appconsts.MaxSquareSize,
-		)
-	}
-
 	if !shares.IsPowerOfTwo(govMaxSquareSize) {
 		return fmt.Errorf(
 			"gov max square size must be a power of two: %d",

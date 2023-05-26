@@ -36,7 +36,7 @@ func ImmediateProposals(codec codec.Codec) GenesisOption {
 		gs.DepositParams.MinDeposit = sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))
 		gs.TallyParams.Quorum = "0.000001"
 		gs.TallyParams.Threshold = "0.000001"
-		vp := time.Second * 2
+		vp := time.Second * 5
 		gs.VotingParams.VotingPeriod = &vp
 		state[govtypes.ModuleName] = codec.MustMarshalJSON(gs)
 		return state

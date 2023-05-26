@@ -139,6 +139,7 @@ func (ao appOptions) Get(o string) interface{} {
 func DefaultParams() *tmproto.ConsensusParams {
 	cparams := types.DefaultConsensusParams()
 	cparams.Block.TimeIotaMs = 1
+	cparams.Block.MaxBytes = appconsts.DefaultMaxBytes
 	return cparams
 }
 
@@ -152,7 +153,7 @@ func DefaultTendermintConfig() *config.Config {
 	// set the mempool's MaxTxBytes to allow the testnode to accept a
 	// transaction that fills the entire square. Any blob transaction larger
 	// than the square size will still fail no matter what.
-	tmCfg.Mempool.MaxTxBytes = appconsts.MaxShareCount * appconsts.ShareSize
+	tmCfg.Mempool.MaxTxBytes = appconsts.DefaultMaxBytes
 
 	// remove all barriers from the testnode being able to accept very large
 	// transactions and respond to very queries with large responses (~200MB was

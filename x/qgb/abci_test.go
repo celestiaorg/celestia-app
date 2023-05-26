@@ -34,7 +34,6 @@ func TestFirstAttestationIsValset(t *testing.T) {
 	require.Equal(t, uint64(1), attestation.GetNonce())
 
 	// get the valset
-	require.Equal(t, types.ValsetRequestType, attestation.Type())
 	vs, ok := attestation.(*types.Valset)
 	assert.True(t, ok)
 	assert.NotNil(t, vs)
@@ -133,16 +132,15 @@ func TestSetDataCommitment(t *testing.T) {
 	require.Equal(t, uint64(1), attestation.GetNonce())
 
 	// get the data commitment
-	require.Equal(t, types.DataCommitmentRequestType, attestation.Type())
 	actualDC, ok := attestation.(*types.DataCommitment)
 	assert.True(t, ok)
 	assert.NotNil(t, actualDC)
 	assert.Equal(t, expectedTime, actualDC.Time)
 }
 
-// TestGetDataCommitment This test will test the creation of data commitment ranges
-// in the event of the data commitment window changing via an upgrade or a gov proposal.
-// The test goes as follows:
+// TestGetDataCommitment This test will test the creation of data commitment
+// ranges in the event of the data commitment window changing via an upgrade or
+// a gov proposal. The test goes as follows:
 //   - Start with a data commitment window of 400
 //   - Get the first data commitment, its range should be: [1, 401)
 //   - Get the second data commitment, its range should be: [401, 801)
@@ -151,8 +149,8 @@ func TestSetDataCommitment(t *testing.T) {
 //   - Expand the data commitment window to 500
 //   - Get the fourth data commitment, its range should be: [902, 1402)
 //
-// Note: the table tests cannot be run separately. The reason we're using a table structure
-// is to make it easy to understand the test flow.
+// Note: the table tests cannot be run separately. The reason we're using a
+// table structure is to make it easy to understand the test flow.
 func TestGetDataCommitment(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	qk := input.QgbKeeper
@@ -220,7 +218,8 @@ func TestGetDataCommitment(t *testing.T) {
 			require.Equal(t, tt.expectedDC.EndBlock, dc.EndBlock)
 			require.Equal(t, tt.expectedDC.Nonce, dc.Nonce)
 
-			// set the attestation request to be referenced by the next test cases
+			// set the attestation request to be referenced by the next test
+			// cases
 			err = qk.SetAttestationRequest(ctx, &dc)
 			require.NoError(t, err)
 		})
@@ -237,7 +236,8 @@ func TestDataCommitmentCreation(t *testing.T) {
 	staking.EndBlocker(ctx, input.StakingKeeper)
 	qgb.EndBlocker(ctx, *qk)
 
-	// current attestation nonce should be 1 because a valset has been emitted upon chain init.
+	// current attestation nonce should be 1 because a valset has been emitted
+	// upon chain init.
 	currentAttestationNonce := qk.GetLatestAttestationNonce(ctx)
 	require.Equal(t, uint64(1), currentAttestationNonce)
 
@@ -259,7 +259,8 @@ func TestDataCommitmentRange(t *testing.T) {
 	staking.EndBlocker(ctx, input.StakingKeeper)
 	qgb.EndBlocker(ctx, *qk)
 
-	// current attestation nonce should be 1 because a valset has been emitted upon chain init.
+	// current attestation nonce should be 1 because a valset has been emitted
+	// upon chain init.
 	currentAttestationNonce := qk.GetLatestAttestationNonce(ctx)
 	require.Equal(t, uint64(1), currentAttestationNonce)
 
@@ -275,7 +276,6 @@ func TestDataCommitmentRange(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, found)
 
-	assert.Equal(t, types.DataCommitmentRequestType, att1.Type())
 	dc1, ok := att1.(*types.DataCommitment)
 	require.True(t, ok)
 	assert.Equal(t, newHeight, int64(dc1.EndBlock))
@@ -290,7 +290,6 @@ func TestDataCommitmentRange(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, found)
 
-	assert.Equal(t, types.DataCommitmentRequestType, att2.Type())
 	dc2, ok := att2.(*types.DataCommitment)
 	require.True(t, ok)
 	assert.Equal(t, newHeight, int64(dc2.EndBlock))
@@ -356,10 +355,10 @@ func TestHasDataCommitmentInStore(t *testing.T) {
 	}
 }
 
-// TestGetDataCommitment This test will test the data commitment creation catchup mechanism.
-// It will run `abci.EndBlocker` on all the heights while changing the data commitment window
-// in different occasions, to see if at the end of the test, the data commitments cover all
-// the needed ranges.
+// TestGetDataCommitment This test will test the data commitment creation
+// catchup mechanism. It will run `abci.EndBlocker` on all the heights while
+// changing the data commitment window in different occasions, to see if at the
+// end of the test, the data commitments cover all the needed ranges.
 func TestDataCommitmentCreationCatchup(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	qk := input.QgbKeeper
@@ -521,10 +520,9 @@ func TestDataCommitmentCreationCatchup(t *testing.T) {
 	}
 }
 
-// TestPruning tests the pruning mechanism by:
-// 1. Generating a set of attestations
-// 2. Running the QGB EndBlocker
-// 3. Verifying that the expired attestations are pruned
+// TestPruning tests the pruning mechanism by: 1. Generating a set of
+// attestations 2. Running the QGB EndBlocker 3. Verifying that the expired
+// attestations are pruned
 func TestPruning(t *testing.T) {
 	input, ctx := testutil.SetupFiveValChain(t)
 	qgbKeeper := *input.QgbKeeper
@@ -538,7 +536,7 @@ func TestPruning(t *testing.T) {
 	// check that we created a number of attestations
 	assert.Equal(t, uint64(17), qgbKeeper.GetLatestAttestationNonce(ctx))
 
-	// check that no pruning occurs if the no attestation is expired
+	// check that no pruning occurs if no attestations expired
 	for nonce := uint64(1); nonce <= qgbKeeper.GetLatestAttestationNonce(ctx); nonce++ {
 		_, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
 		assert.NoError(t, err)
@@ -572,16 +570,16 @@ func TestPruning(t *testing.T) {
 		at, found, err := qgbKeeper.GetAttestationByNonce(ctx, nonce)
 		assert.NoError(t, err)
 		assert.True(t, found)
-		assert.Equal(t, types.DataCommitmentRequestType, at.Type())
+		_, ok := at.(*types.DataCommitment)
+		assert.True(t, ok)
 	}
 
 	// check that we still can get a valset even after pruning all of them
 	vs, err := qgbKeeper.GetLatestValset(ctx)
 	assert.NoError(t, err)
 	assert.NotNil(t, vs)
-	assert.Equal(t, types.ValsetRequestType, vs.Type())
 
-	// continue running the chain for a few more blocks to be sure no inconsistency happens
-	// after pruning
+	// continue running the chain for a few more blocks to be sure no
+	// inconsistency happens after pruning
 	testutil.ExecuteQGBHeightsWithTime(ctx, qgbKeeper, 5000, 6000, blockInterval)
 }

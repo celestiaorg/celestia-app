@@ -14,13 +14,12 @@ const (
 	ValsetRequestType
 )
 
-// AttestationRequestI is either a DataCommitment or a Valset.
-// This was decided as part of the universal nonce approach under:
+// AttestationRequestI is either a DataCommitment or a Valset. This was decided
+// as part of the universal nonce approach under:
 // https://github.com/celestiaorg/celestia-app/issues/468#issuecomment-1156887715
 type AttestationRequestI interface {
 	proto.Message
 	codec.ProtoMarshaler
-	Type() AttestationType
 	GetNonce() uint64
 	BlockTime() time.Time
 }
