@@ -30,23 +30,28 @@ type Builder struct {
 	txCounter  *shares.CompactShareCounter
 	pfbCounter *shares.CompactShareCounter
 
-	done bool
+	done                 bool
+	subtreeRootThreshold int
 }
 
-func NewBuilder(maxSquareSize int, txs ...[]byte) (*Builder, error) {
-	if maxSquareSize < 0 {
-		return nil, errors.New("max square size must be positive")
+func NewBuilder(maxSquareSize, subtreeRootThreshold int, txs ...[]byte) (*Builder, error) {
+	if maxSquareSize <= 0 {
+		return nil, errors.New("max square size must be strictly positive")
+	}
+	if subtreeRootThreshold <= 0 {
+		return nil, errors.New("subtreeRootThreshold must be strictly positive")
 	}
 	if !shares.IsPowerOfTwo(maxSquareSize) {
 		return nil, errors.New("max square size must be a power of two")
 	}
 	builder := &Builder{
-		maxCapacity: maxSquareSize * maxSquareSize,
-		blobs:       make([]*element, 0),
-		pfbs:        make([]*coretypes.IndexWrapper, 0),
-		txs:         make([][]byte, 0),
-		txCounter:   shares.NewCompactShareCounter(),
-		pfbCounter:  shares.NewCompactShareCounter(),
+		maxCapacity:          maxSquareSize * maxSquareSize,
+		subtreeRootThreshold: subtreeRootThreshold,
+		blobs:                make([]*element, 0),
+		pfbs:                 make([]*coretypes.IndexWrapper, 0),
+		txs:                  make([][]byte, 0),
+		txCounter:            shares.NewCompactShareCounter(),
+		pfbCounter:           shares.NewCompactShareCounter(),
 	}
 	seenFirstBlobTx := false
 	for idx, tx := range txs {
@@ -101,7 +106,7 @@ func (b *Builder) AppendBlobTx(blobTx coretypes.BlobTx) bool {
 		if err != nil {
 			return false
 		}
-		blobElements[idx] = newElement(blob, len(b.pfbs), idx)
+		blobElements[idx] = newElement(blob, len(b.pfbs), idx, b.subtreeRootThreshold)
 		maxBlobShareCount += blobElements[idx].maxShareOffset()
 	}
 
@@ -150,7 +155,7 @@ func (b *Builder) Export() (Square, error) {
 	for i, element := range b.blobs {
 		// NextShareIndex returned where the next blob should start so as to comply with the share commitment rules
 		// We fill out the remaining
-		cursor, _ = shares.NextShareIndex(cursor, element.numShares, ss)
+		cursor, _ = shares.NextShareIndex(cursor, element.numShares, ss, b.subtreeRootThreshold)
 		if i == 0 {
 			nonReservedStart = cursor
 		}
@@ -367,7 +372,7 @@ type element struct {
 	maxPadding int
 }
 
-func newElement(blob core.Blob, pfbIndex, blobIndex int) *element {
+func newElement(blob core.Blob, pfbIndex, blobIndex, subtreeRootThreshold int) *element {
 	numShares := shares.SparseSharesNeeded(uint32(len(blob.Data)))
 	return &element{
 		blob:      blob,
@@ -397,7 +402,7 @@ func newElement(blob core.Blob, pfbIndex, blobIndex int) *element {
 		//
 		// Note that the padding would actually belong to the namespace of the transaction before it, but
 		// this makes no difference to the total share size.
-		maxPadding: shares.SubTreeWidth(numShares) - 1,
+		maxPadding: shares.SubTreeWidth(numShares, subtreeRootThreshold) - 1,
 	}
 }
 

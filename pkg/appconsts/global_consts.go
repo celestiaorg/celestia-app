@@ -7,6 +7,8 @@ import (
 
 // These constants were originally sourced from:
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/specs/consensus.md#constants
+//
+// They can not change throughout the lifetime of a network.
 const (
 	// NamespaveVersionSize is the size of a namespace version in bytes.
 	NamespaceVersionSize = 1
@@ -55,24 +57,6 @@ const (
 	// in a continuation sparse share of a sequence.
 	ContinuationSparseShareContentSize = ShareSize - NamespaceSize - ShareInfoBytes
 
-	// MaxSquareSize is the maximum original square width.
-	//
-	// Note: 128 shares in a row * 128 shares in a column * 512 bytes in a share
-	// = 8 MiB
-	MaxSquareSize = 128
-
-	// DefaultGovMaxSquareSize is the default value for the governance
-	// modifiable max square size.
-	DefaultGovMaxSquareSize = 64
-
-	// DefaultMaxBytes is the default value for the maximum number of bytes
-	// allowed in a valid block.
-	DefaultMaxBytes = DefaultGovMaxSquareSize * DefaultGovMaxSquareSize * ShareSize
-
-	// MaxShareCount is the maximum number of shares allowed in the original
-	// data square.
-	MaxShareCount = MaxSquareSize * MaxSquareSize
-
 	// MinSquareSize is the smallest original square width.
 	MinSquareSize = 1
 
@@ -80,38 +64,20 @@ const (
 	// data square.
 	MinShareCount = MinSquareSize * MinSquareSize
 
-	// SubtreeRootThreshold works as a target value for the number of subtree roots in the
-	// share commitment. If a blob contains more shares than this number, than the height
-	// of the subtree roots will gradually increases to so that the amount remains within that limit.
-	// The rationale for this value is described in more detail in ADR013
-	// (./docs/architecture/adr-013).
-	// ADR013 https://github.com/celestiaorg/celestia-app/blob/e905143e8fe138ce6085ae9a5c1af950a2d87638/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md //nolint: lll
-	SubtreeRootThreshold = 64
-
 	// MaxShareVersion is the maximum value a share version can be.
 	MaxShareVersion = 127
-
-	// DefaultGasPerBlobByte is the default gas cost deducted per byte of blob
-	// included in a PayForBlobs txn
-	DefaultGasPerBlobByte = 8
-
-	// DefaultMinGasPrice is the default min gas price that gets set in the app.toml file.
-	// The min gas price acts as a filter. Transactions below that limit will not pass
-	// a nodes `CheckTx` and thus not be proposed by that node.
-	DefaultMinGasPrice = 0.1
 )
 
 var (
+	// DataCommitmentBlocksLimit is the maximnum number of blocks that a data commitment can span
+	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
+
 	// NewBaseHashFunc is the base hash function used by NMT. Change accordingly
 	// if another hash.Hash should be used as a base hasher in the NMT.
 	NewBaseHashFunc = consts.NewBaseHashFunc
 
 	// DefaultCodec is the default codec creator used for data erasure.
 	DefaultCodec = rsmt2d.NewLeoRSCodec
-
-	// DataCommitmentBlocksLimit is the limit to the number of blocks we can
-	// generate a data commitment for.
-	DataCommitmentBlocksLimit = consts.DataCommitmentBlocksLimit
 
 	// SupportedShareVersions is a list of supported share versions.
 	SupportedShareVersions = []uint8{ShareVersionZero}
