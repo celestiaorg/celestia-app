@@ -10,9 +10,10 @@ import (
 // state.
 func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) {
 	k.SetLatestAttestationNonce(ctx, 0)
-	// The reason we're setting the earliest available nonce to 1 is because at chain startup,
-	// a new valset will always be created.
-	// Also, it's easier to set it once here rather than conditionally setting it in abci.EndBlocker which is executed on every block.
+	// The reason we're setting the earliest available nonce to 1 is because at
+	// chain startup, a new valset will always be created. Also, it's easier to
+	// set it once here rather than conditionally setting it in abci.EndBlocker
+	// which is executed on every block.
 	k.SetEarliestAvailableAttestationNonce(ctx, 1)
 	k.SetParams(ctx, *genState.Params)
 }
