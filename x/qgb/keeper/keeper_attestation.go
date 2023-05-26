@@ -65,7 +65,7 @@ func (k Keeper) CheckLatestAttestationNonce(ctx sdk.Context) bool {
 }
 
 // GetLatestAttestationNonce returns the latest attestation request nonce.
-// Panics if the latest attestation nonce doesn't exit in store. This value is
+// Panics if the latest attestation nonce doesn't exist in store. This value is
 // set on chain startup. However, it won't be written to store until height = 1.
 // To check if this value exists in store, use the `CheckLatestAttestationNonce`
 // method.
