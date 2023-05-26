@@ -7,7 +7,9 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestShareSequenceRawData(t *testing.T) {
@@ -77,7 +79,7 @@ func TestShareSequenceRawData(t *testing.T) {
 	}
 }
 
-func Test_compactSharesNeeded(t *testing.T) {
+func TestCompactSharesNeeded(t *testing.T) {
 	type testCase struct {
 		sequenceLen int
 		want        int
@@ -97,7 +99,7 @@ func Test_compactSharesNeeded(t *testing.T) {
 	}
 }
 
-func Test_sparseSharesNeeded(t *testing.T) {
+func TestSparseSharesNeeded(t *testing.T) {
 	type testCase struct {
 		sequenceLen uint32
 		want        int
@@ -134,4 +136,120 @@ func shareWithData(namespace appns.Namespace, isSequenceStart bool, sequenceLen 
 	rawShareBytes = append(rawShareBytes, data...)
 
 	return padShare(Share{data: rawShareBytes})
+}
+
+func Test_validSequenceLen(t *testing.T) {
+	type testCase struct {
+		name          string
+		shareSequence ShareSequence
+		wantErr       bool
+	}
+
+	tailPadding := ShareSequence{
+		Namespace: appns.TailPaddingNamespace,
+		Shares:    []Share{TailPaddingShare()},
+	}
+
+	ns1 := appns.MustNewV0(bytes.Repeat([]byte{0x1}, appns.NamespaceVersionZeroIDSize))
+	share, err := NamespacePaddingShare(ns1)
+	require.NoError(t, err)
+	namespacePadding := ShareSequence{
+		Namespace: ns1,
+		Shares:    []Share{share},
+	}
+
+	reservedPadding := ShareSequence{
+		Namespace: appns.ReservedPaddingNamespace,
+		Shares:    []Share{ReservedPaddingShare()},
+	}
+
+	notSequenceStart := ShareSequence{
+		Namespace: ns1,
+		Shares: []Share{
+			shareWithData(ns1, false, 0, []byte{0x0f}),
+		},
+	}
+
+	testCases := []testCase{
+		{
+			name:          "empty share sequence",
+			shareSequence: ShareSequence{},
+			wantErr:       true,
+		},
+		{
+			name:          "valid share sequence",
+			shareSequence: generateValidShareSequence(t),
+			wantErr:       false,
+		},
+		{
+			name:          "tail padding",
+			shareSequence: tailPadding,
+			wantErr:       false,
+		},
+		{
+			name:          "namespace padding",
+			shareSequence: namespacePadding,
+			wantErr:       false,
+		},
+		{
+			name:          "reserved padding",
+			shareSequence: reservedPadding,
+			wantErr:       false,
+		},
+		{
+			name:          "sequence length where first share is not sequence start",
+			shareSequence: notSequenceStart,
+			wantErr:       true, // error: "share sequence has 1 shares but needed 0 shares"
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.shareSequence.validSequenceLen()
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func generateValidShareSequence(t *testing.T) ShareSequence {
+	css := NewCompactShareSplitter(appns.TxNamespace, appconsts.ShareVersionZero)
+	txs := testfactory.GenerateRandomTxs(5, 200)
+	for _, tx := range txs {
+		err := css.WriteTx(tx)
+		require.NoError(t, err)
+	}
+	shares, err := css.Export()
+	require.NoError(t, err)
+
+	return ShareSequence{
+		Namespace: appns.TxNamespace,
+		Shares:    shares,
+	}
+}
+
+func Fuzz_validSequenceLen(f *testing.F) {
+	f.Fuzz(func(t *testing.T, rawData []byte, rawNamespace []byte) {
+		share, err := NewShare(rawData)
+		if err != nil {
+			t.Skip()
+		}
+
+		ns, err := appns.From(rawNamespace)
+		if err != nil {
+			t.Skip()
+		}
+
+		shareSequence := ShareSequence{
+			Namespace: ns,
+			Shares:    []Share{*share},
+		}
+
+		// want := fmt.Errorf("share sequence has 1 shares but needed 0 shares")
+		err = shareSequence.validSequenceLen()
+		assert.NoError(t, err)
+	})
 }

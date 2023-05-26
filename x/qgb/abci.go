@@ -12,22 +12,23 @@ import (
 )
 
 const (
-	// SignificantPowerDifferenceThreshold is the threshold of change in the validator set power
-	// that would trigger the creation of a new valset request.
+	// SignificantPowerDifferenceThreshold is the threshold of change in the
+	// validator set power that would trigger the creation of a new valset
+	// request.
 	SignificantPowerDifferenceThreshold = 0.05
 
 	oneDay  = 24 * time.Hour
 	oneWeek = 7 * oneDay
-	// AttestationExpiryTime is the expiration time of an attestation.
-	// When this much time has passed after an attestation has been published, it will be
+	// AttestationExpiryTime is the expiration time of an attestation. When this
+	// much time has passed after an attestation has been published, it will be
 	// pruned from state.
 	AttestationExpiryTime = 3 * oneWeek // 3 weeks
 )
 
 // EndBlocker is called at the end of every block.
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
-	// we always want to create the valset at first so that if there is a new validator set, then it is
-	// the one responsible for signing from now on.
+	// we always want to create the valset at first so that if there is a new
+	// validator set, then it is the one responsible for signing from now on.
 	handleValsetRequest(ctx, k)
 	handleDataCommitmentRequest(ctx, k)
 	pruneAttestations(ctx, k)
@@ -45,14 +46,16 @@ func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
 		}
 	}
 	dataCommitmentWindow := int64(k.GetDataCommitmentWindowParam(ctx))
-	// this will  keep executing until all the needed data commitments are created and we catchup to the current height
+	// this will keep executing until all the needed data commitments are
+	// created and we catchup to the current height
 	for {
 		hasLatestDataCommitment, err := k.HasDataCommitmentInStore(ctx)
 		if err != nil {
 			panic(err)
 		}
 		if hasLatestDataCommitment {
-			// if the store already has a data commitment, we use it to check if we need to create a new data commitment
+			// if the store already has a data commitment, we use it to check if
+			// we need to create a new data commitment
 			latestDataCommitment, err := k.GetLatestDataCommitment(ctx)
 			if err != nil {
 				panic(err)
@@ -60,15 +63,18 @@ func handleDataCommitmentRequest(ctx sdk.Context, k keeper.Keeper) {
 			if ctx.BlockHeight()-int64(latestDataCommitment.EndBlock) >= dataCommitmentWindow {
 				setDataCommitmentAttestation()
 			} else {
-				// the needed data commitments are already created and we need to wait for the next window to elapse
+				// the needed data commitments are already created and we need
+				// to wait for the next window to elapse
 				break
 			}
 		} else {
-			// if the store doesn't have a data commitment, we check if the window has passed to create a new data commitment
+			// if the store doesn't have a data commitment, we check if the
+			// window has passed to create a new data commitment
 			if ctx.BlockHeight() >= dataCommitmentWindow {
 				setDataCommitmentAttestation()
 			} else {
-				// the first data commitment window hasn't elapsed yet to create a commitment
+				// the first data commitment window hasn't elapsed yet to create
+				// a commitment
 				break
 			}
 		}
@@ -92,8 +98,8 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 	if latestValset != nil {
 		vs, err := k.GetCurrentValset(ctx)
 		if err != nil {
-			// this condition should only occur in the simulator
-			// ref : https://github.com/Gravity-Bridge/Gravity-Bridge/issues/35
+			// this condition should only occur in the simulator ref :
+			// https://github.com/Gravity-Bridge/Gravity-Bridge/issues/35
 			if errors.Is(err, types.ErrNoValidators) {
 				ctx.Logger().Error("no bonded validators",
 					"cause", err.Error(),
@@ -115,7 +121,8 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 	}
 
 	if (latestValset == nil) || (latestUnbondingHeight == uint64(ctx.BlockHeight())) || significantPowerDiff {
-		// if the conditions are true, put in a new validator set request to be signed and submitted to EVM
+		// if the conditions are true, put in a new validator set request to be
+		// signed and submitted to EVM
 		valset, err := k.GetCurrentValset(ctx)
 		if err != nil {
 			panic(err)
@@ -127,8 +134,8 @@ func handleValsetRequest(ctx sdk.Context, k keeper.Keeper) {
 	}
 }
 
-// pruneAttestations runs basic checks on saved attestations to see if we need to prune or not.
-// Then, it prunes all expired attestations from state.
+// pruneAttestations runs basic checks on saved attestations to see if we need
+// to prune or not. Then, it prunes all expired attestations from state.
 func pruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 	// If the attestation nonce hasn't been initialized yet, no pruning is
 	// required
@@ -167,8 +174,8 @@ func pruneAttestations(ctx sdk.Context, k keeper.Keeper) {
 		}
 		attestationExpirationTime := newEarliestAttestation.BlockTime().Add(AttestationExpiryTime)
 		if attestationExpirationTime.After(currentBlockTime) {
-			// the current attestation is unexpired so subsequent ones are also unexpired
-			// persist the new earliest available attestation nonce
+			// the current attestation is unexpired so subsequent ones are also
+			// unexpired persist the new earliest available attestation nonce
 			break
 		}
 		k.DeleteAttestation(ctx, newEarliestAvailableNonce)
