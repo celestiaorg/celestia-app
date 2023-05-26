@@ -89,7 +89,7 @@ func (k Keeper) CheckEarliestAvailableAttestationNonce(ctx sdk.Context) bool {
 // GetEarliestAvailableAttestationNonce returns the earliest available
 // attestation nonce. The nonce is of the earliest available attestation in
 // store that can be retrieved. Panics if the earliest available attestation
-// nonce doesn't exit in store. This value is set on chain startup. However, it
+// nonce doesn't exist in store. This value is set on chain startup. However, it
 // won't be written to store until height = 1. To check if this value exists in
 // store, use the `CheckEarliestAvailableAttestationNonce` method.
 func (k Keeper) GetEarliestAvailableAttestationNonce(ctx sdk.Context) uint64 {
