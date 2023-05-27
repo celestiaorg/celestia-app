@@ -42,12 +42,11 @@ func (c *Context) LatestHeight() (int64, error) {
 // LatestTimestamp returns the latest timestamp of the network or an error if the
 // query fails.
 func (c *Context) LatestTimestamp() (time.Time, error) {
-	status, err := c.Client.Status(c.GoContext())
+	current, err := c.Client.Block(c.GoContext(), nil)
 	if err != nil {
 		return time.Unix(0, 0), err
 	}
-
-	return status.SyncInfo.LatestBlockTime, nil
+	return current.Block.Time, nil
 }
 
 // WaitForHeightWithTimeout is the same as WaitForHeight except the caller can
