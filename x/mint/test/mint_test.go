@@ -44,7 +44,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	// height 7 time 2023-07-18 02:04:19.091578814 +0000 UTC
 	// height 8 time 2023-07-28 02:04:19.091578814 +0000 UTC
 	// height 9 time 2023-08-07 02:04:19.091578814 +0000 UTC
-	cparams.Block.TimeIotaMs = int64(tenDays)
+	cparams.Block.TimeIotaMs = int64(tenDays.Milliseconds())
 
 	cctx, _, _ := testnode.NewNetwork(t, cparams, testnode.DefaultTendermintConfig(), testnode.DefaultAppConfig(), []string{})
 	s.cctx = cctx
@@ -149,7 +149,7 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 		fmt.Printf("wantAsFloat: %v\n", wantAsFloat)
 
 		wantTimestamp := initialTimestamp.Add(time.Duration(tc.year * minttypes.NanosecondsPerYear))
-		_, err = s.cctx.WaitForTimestampWithTimeout(wantTimestamp, 20*time.Second)
+		_, err = s.cctx.WaitForTimestamp(wantTimestamp)
 		require.NoError(err)
 
 		laterSupply, laterTimestamp := s.GetTotalSupplyAndTimestamp()
