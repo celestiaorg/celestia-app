@@ -30,6 +30,18 @@ func (c *Context) GoContext() context.Context {
 
 // LatestHeight returns the latest height of the network or an error if the
 // query fails.
+func (c *Context) GenesisTime() (time.Time, error) {
+	height := int64(1)
+	status, err := c.Client.Block(c.GoContext(), &height)
+	if err != nil {
+		return time.Unix(0, 0), err
+	}
+
+	return status.Block.Time, nil
+}
+
+// LatestHeight returns the latest height of the network or an error if the
+// query fails.
 func (c *Context) LatestHeight() (int64, error) {
 	status, err := c.Client.Status(c.GoContext())
 	if err != nil {
@@ -43,7 +55,6 @@ func (c *Context) LatestHeight() (int64, error) {
 // query fails.
 func (c *Context) LatestTimestamp() (time.Time, error) {
 	current, err := c.Client.Block(c.GoContext(), nil)
-	fmt.Printf("current height: %v timestamp %v\n", current.Block.Height, current.Block.Time)
 	if err != nil {
 		return time.Unix(0, 0), err
 	}
@@ -91,7 +102,6 @@ func (c *Context) WaitForTimestampWithTimeout(t time.Time, d time.Duration) (tim
 			return latestTimestamp, fmt.Errorf("timeout %v exceeded waiting for network to reach block with timestamp %v", d, t)
 		case <-ticker.C:
 			latestTimestamp, err := c.LatestTimestamp()
-			fmt.Printf("latestTimestamp %v\n", latestTimestamp)
 			if err != nil {
 				return time.Unix(0, 0), err
 			}

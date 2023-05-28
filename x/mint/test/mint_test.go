@@ -74,19 +74,18 @@ func (s *IntegrationTestSuite) TestTotalSupplyIncreasesOverTime() {
 // approximately 8% per year.
 func (s *IntegrationTestSuite) TestInitialInflationRate() {
 	require := s.Require()
-
 	oneYear := time.Duration(int64(minttypes.NanosecondsPerYear))
 
 	err := s.cctx.WaitForNextBlock()
 	require.NoError(err)
-	initialSupply, initialTimestamp := s.GetTotalSupplyAndTimestamp()
+	initialSupply, initialTime := s.GetTotalSupplyAndTimestamp()
 
-	_, err = s.cctx.WaitForHeight(20)
+	_, err = s.cctx.WaitForHeight(10)
 	require.NoError(err)
-	laterSupply, laterTimestamp := s.GetTotalSupplyAndTimestamp()
+	laterSupply, laterTime := s.GetTotalSupplyAndTimestamp()
 
 	diffSupply := laterSupply.AmountOf(app.BondDenom).Sub(initialSupply.AmountOf(app.BondDenom))
-	diffTime := laterTimestamp.Sub(initialTimestamp)
+	diffTime := laterTime.Sub(initialTime)
 
 	projectedAnnualProvisions := diffSupply.Mul(sdktypes.NewInt(oneYear.Nanoseconds())).Quo(sdktypes.NewInt(diffTime.Nanoseconds()))
 	initialInflationRate := minttypes.InitialInflationRateAsDec()
@@ -138,23 +137,28 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 		{year: 0, want: sdktypes.MustNewDecFromStr("8.00")},
 		{year: 1, want: sdktypes.MustNewDecFromStr("7.20")},
 	}
-
-	initialSupply, initialTimestamp := s.GetTotalSupplyAndTimestamp()
-	fmt.Printf("initial supply: %v\n", initialSupply)
-	fmt.Printf("initial timestamp: %v\n", initialSupply)
+	genesisTime, err := s.cctx.GenesisTime()
+	fmt.Printf("genesisTime: %v\n", genesisTime)
+	require.NoError(err)
 
 	for _, tc := range testCases {
+		wantTimestamp := genesisTime.Add(time.Duration((tc.year + 1) * minttypes.NanosecondsPerYear))
+		fmt.Printf("wantTimestamp: %v\n", wantTimestamp)
+
+		initialSupply, initialTime := s.GetTotalSupplyAndTimestamp()
+		fmt.Printf("initial supply: %v and time %v \n", initialSupply, initialTime)
+
 		wantAsFloat, err := tc.want.Float64()
 		require.NoError(err)
 		fmt.Printf("wantAsFloat: %v\n", wantAsFloat)
 
-		wantTimestamp := initialTimestamp.Add(time.Duration(tc.year * minttypes.NanosecondsPerYear))
-		_, err = s.cctx.WaitForTimestamp(wantTimestamp)
+		_, err = s.cctx.WaitForTimestampWithTimeout(wantTimestamp, 20*time.Second)
 		require.NoError(err)
 
-		laterSupply, laterTimestamp := s.GetTotalSupplyAndTimestamp()
-		fmt.Printf("later supply: %v\n", laterSupply)
-		fmt.Printf("later timestamp: %v\n", laterTimestamp)
+		laterSupply, laterTime := s.GetTotalSupplyAndTimestamp()
+		fmt.Printf("later supply: %v and timestamp %v\n", laterSupply, laterTime)
+
+		estimateInflationRate(initialSupply, initialTime, laterSupply, laterTime)
 	}
 }
 
@@ -196,6 +200,31 @@ func (s *IntegrationTestSuite) GetTotalSupplyAndTimestamp() (sdktypes.Coins, tim
 	totalSupply := s.GetTotalSupply(height)
 	timestamp := s.GetTimestamp(height)
 	return totalSupply, timestamp
+}
+
+func estimateInflationRate(initialSupply sdktypes.Coins, initialTimestamp time.Time, laterSupply sdktypes.Coins, laterTimestamp time.Time) sdktypes.Dec {
+	// oneYear := time.Duration(int64(minttypes.NanosecondsPerYear))
+
+	// diffSupply := laterSupply.AmountOf(app.BondDenom).Sub(initialSupply.AmountOf(app.BondDenom))
+	// diffTime := laterTimestamp.Sub(initialTimestamp)
+
+	// projectedAnnualProvisions := diffSupply.Mul(sdktypes.NewInt(oneYear.Nanoseconds())).Quo(sdktypes.NewInt(diffTime.Nanoseconds()))
+
+	// laterSupply = initalSupply + (initialSupply * inflationRate)
+
+	inflationRate := sdktypes.NewDecFromBigInt(laterSupply.AmountOf(app.BondDenom).Sub(initialSupply.AmountOf(app.BondDenom)).BigInt()).QuoInt(initialSupply.AmountOf(app.BondDenom))
+	fmt.Printf("inflationRate %v\n", inflationRate.String())
+	return inflationRate
+	// inflationRate := projectedAnnualProvisions.ToDec().Quo(sdktypes.NewDecFromInt(initialSupply.AmountOf(app.BondDenom)))
+
+	// initialInflationRate := minttypes.InitialInflationRateAsDec()
+	// expectedAnnualProvisions := initialInflationRate.Mul(sdktypes.NewDecFromBigInt(initialSupply.AmountOf(app.BondDenom).BigInt())).TruncateInt()
+	// diffAnnualProvisions := projectedAnnualProvisions.Sub(expectedAnnualProvisions).Abs()
+
+	// Note we use a .01 margin of error because the projected annual provisions
+	// are based on a small block time iwindow.
+	// marginOfError := sdktypes.NewDecWithPrec(1, 2) // .01
+	// actualError := sdktypes.NewDecFromBigInt(diffAnnualProvisions.BigInt()).Quo(sdktypes.NewDecFromBigInt(initialSupply.AmountOf(app.BondDenom).BigInt()))
 }
 
 // In order for 'go test' to run this suite, we need to create
