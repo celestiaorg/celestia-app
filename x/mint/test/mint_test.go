@@ -71,36 +71,6 @@ func (s *IntegrationTestSuite) TestTotalSupplyIncreasesOverTime() {
 	require.True(initalSupply.AmountOf(app.BondDenom).LT(laterSupply.AmountOf(app.BondDenom)))
 }
 
-// TestInitialInflationRate tests that the initial inflation rate is
-// approximately 8% per year.
-func (s *IntegrationTestSuite) TestInitialInflationRate() {
-	require := s.Require()
-	oneYear := time.Duration(int64(minttypes.NanosecondsPerYear))
-
-	err := s.cctx.WaitForNextBlock()
-	require.NoError(err)
-	initialSupply, initialTime := s.GetTotalSupplyAndTimestamp()
-
-	_, err = s.cctx.WaitForHeight(10)
-	require.NoError(err)
-	laterSupply, laterTime := s.GetTotalSupplyAndTimestamp()
-
-	diffSupply := laterSupply.AmountOf(app.BondDenom).Sub(initialSupply.AmountOf(app.BondDenom))
-	diffTime := laterTime.Sub(initialTime)
-
-	projectedAnnualProvisions := diffSupply.Mul(sdktypes.NewInt(oneYear.Nanoseconds())).Quo(sdktypes.NewInt(diffTime.Nanoseconds()))
-	initialInflationRate := minttypes.InitialInflationRateAsDec()
-	expectedAnnualProvisions := initialInflationRate.Mul(sdktypes.NewDecFromBigInt(initialSupply.AmountOf(app.BondDenom).BigInt())).TruncateInt()
-	diffAnnualProvisions := projectedAnnualProvisions.Sub(expectedAnnualProvisions).Abs()
-
-	// Note we use a .01 margin of error because the projected annual provisions
-	// are based on a small block time iwindow.
-	marginOfError := sdktypes.NewDecWithPrec(1, 2) // .01
-	actualError := sdktypes.NewDecFromBigInt(diffAnnualProvisions.BigInt()).Quo(sdktypes.NewDecFromBigInt(initialSupply.AmountOf(app.BondDenom).BigInt()))
-
-	require.True(actualError.LTE(marginOfError))
-}
-
 // TestInflationRate verifies that the inflation rate each year matches the
 // expected rate of inflation. See the README.md for the expected rate of
 // inflation.
@@ -212,18 +182,6 @@ func (s *IntegrationTestSuite) GetTimestamp(height int64) time.Time {
 	block, err := s.cctx.WithHeight(height).Client.Block(context.Background(), &height)
 	require.NoError(err)
 	return block.Block.Header.Time
-}
-
-func (s *IntegrationTestSuite) GetTotalSupplyAndTimestamp() (sdktypes.Coins, time.Time) {
-	require := s.Require()
-
-	info, err := s.cctx.Client.ABCIInfo(context.Background())
-	require.NoError(err)
-	height := info.Response.LastBlockHeight
-
-	totalSupply := s.GetTotalSupply(height)
-	timestamp := s.GetTimestamp(height)
-	return totalSupply, timestamp
 }
 
 func (s *IntegrationTestSuite) estimateInflationRate(startHeight int64, endHeight int64) sdktypes.Dec {
