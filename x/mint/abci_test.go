@@ -16,10 +16,11 @@ import (
 )
 
 func TestGenesisTime(t *testing.T) {
-	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 	unixEpoch := time.Unix(0, 0).UTC()
-	fixedTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+
+	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime)
+	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 
 	type testCase struct {
 		name string
@@ -29,40 +30,41 @@ func TestGenesisTime(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "initially genesis time is unix epoch",
+			name: "genesis time is set for block 0",
 			ctx:  ctx.WithBlockHeight(0).WithBlockTime(unixEpoch),
-			want: unixEpoch,
+			want: genesisTime,
 		},
 		{
-			name: "genesis time is set to time of first block",
-			ctx:  ctx.WithBlockHeight(1).WithBlockTime(fixedTime),
-			want: fixedTime,
+			name: "genesis time is set for block 1",
+			ctx:  ctx.WithBlockHeight(1).WithBlockTime(genesisTime),
+			want: genesisTime,
 		},
 		{
-			name: "genesis time remains set to time of first block",
-			ctx:  ctx.WithBlockHeight(2).WithBlockTime(fixedTime.Add(time.Hour)),
-			want: fixedTime,
+			name: "genesis time remains set for future block heights and block times",
+			ctx:  ctx.WithBlockHeight(2).WithBlockTime(genesisTime.Add(time.Hour)),
+			want: genesisTime,
 		},
 	}
 
 	for _, tc := range testCases {
-		mint.BeginBlocker(tc.ctx, app.MintKeeper)
-		got, err := app.MintKeeper.GenesisTime(ctx, &minttypes.QueryGenesisTimeRequest{})
-		assert.NoError(t, err)
-		assert.Equal(t, &tc.want, got.GenesisTime)
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := app.MintKeeper.GenesisTime(ctx, &minttypes.QueryGenesisTimeRequest{})
+			assert.NoError(t, err)
+			assert.Equal(t, &tc.want, got.GenesisTime)
+		})
 	}
 }
 
 func TestInflationRate(t *testing.T) {
-	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime)
 	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 	unixEpoch := time.Unix(0, 0).UTC()
-	yearZero := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
 	oneYear, err := time.ParseDuration(fmt.Sprintf("%vns", minttypes.NanosecondsPerYear))
 	assert.NoError(t, err)
-	yearOne := yearZero.Add(oneYear)
-	yearTwo := yearZero.Add(2 * oneYear)
-	yearTwenty := yearZero.Add(20 * oneYear)
+	yearOne := genesisTime.Add(oneYear)
+	yearTwo := genesisTime.Add(2 * oneYear)
+	yearTwenty := genesisTime.Add(20 * oneYear)
 
 	type testCase struct {
 		name string
@@ -78,7 +80,7 @@ func TestInflationRate(t *testing.T) {
 		},
 		{
 			name: "inflation rate is 0.08 for year zero",
-			ctx:  ctx.WithBlockHeight(1).WithBlockTime(yearZero),
+			ctx:  ctx.WithBlockHeight(1).WithBlockTime(genesisTime),
 			want: sdk.NewDecWithPrec(8, 2), // 0.08
 		},
 		{
@@ -112,15 +114,15 @@ func TestInflationRate(t *testing.T) {
 }
 
 func TestAnnualProvisions(t *testing.T) {
-	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime)
 	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 	unixEpoch := time.Unix(0, 0).UTC()
-	yearZero := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
 	oneYear, err := time.ParseDuration(fmt.Sprintf("%vns", minttypes.NanosecondsPerYear))
 	assert.NoError(t, err)
-	yearOne := yearZero.Add(oneYear)
-	yearTwo := yearZero.Add(2 * oneYear)
-	yearTwenty := yearZero.Add(20 * oneYear)
+	yearOne := genesisTime.Add(oneYear)
+	yearTwo := genesisTime.Add(2 * oneYear)
+	yearTwenty := genesisTime.Add(20 * oneYear)
 
 	type testCase struct {
 		name string
@@ -136,7 +138,7 @@ func TestAnnualProvisions(t *testing.T) {
 		},
 		{
 			name: "annual provisions is 80,000 for year zero",
-			ctx:  ctx.WithBlockHeight(1).WithBlockTime(yearZero),
+			ctx:  ctx.WithBlockHeight(1).WithBlockTime(genesisTime),
 			want: sdk.NewDec(80_000), // 1,000,000 (total supply) * 0.08 (inflation rate)
 		},
 		{

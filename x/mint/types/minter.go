@@ -35,6 +35,9 @@ func (m Minter) Validate() error {
 	if m.BondDenom == "" {
 		return fmt.Errorf("bond denom should not be empty string")
 	}
+	if m.GenesisTime == nil {
+		return fmt.Errorf("genesis time should not be nil")
+	}
 	return nil
 }
 

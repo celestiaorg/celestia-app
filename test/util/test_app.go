@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -51,7 +52,7 @@ func (ao emptyAppOptions) Get(_ string) interface{} {
 // that also act as delegators. For simplicity, each validator is bonded with a delegation
 // of one consensus engine unit in the default token of the app from first genesis
 // account. A Nop logger is set in app.
-func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, keyring.Keyring) {
+func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genesisTime time.Time, genAccounts ...string) (*app.App, keyring.Keyring) {
 	// var cache sdk.MultiStorePersistentCache
 	// EmptyAppOptions is a stub implementing AppOptions
 	emptyOpts := emptyAppOptions{}
@@ -69,7 +70,7 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 		emptyOpts,
 	)
 
-	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genAccounts...)
+	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genesisTime, genAccounts...)
 
 	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
 	if err != nil {
@@ -174,7 +175,7 @@ func AddGenesisAccount(addr sdk.AccAddress, appState app.GenesisState, cdc codec
 
 // GenesisStateWithSingleValidator initializes GenesisState with a single validator and genesis accounts
 // that also act as delegators.
-func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (app.GenesisState, *tmtypes.ValidatorSet, keyring.Keyring) {
+func GenesisStateWithSingleValidator(testApp *app.App, genesisTime time.Time, genAccounts ...string) (app.GenesisState, *tmtypes.ValidatorSet, keyring.Keyring) {
 	privVal := mock.NewPV()
 	pubKey, err := privVal.GetPubKey()
 	if err != nil {
@@ -202,6 +203,7 @@ func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (a
 
 	genesisState := NewDefaultGenesisState(testApp.AppCodec())
 	genesisState = genesisStateWithValSet(testApp, genesisState, valSet, accs, balances...)
+	genesisState = genesisStateWithGenesisTime(testApp, genesisState, genesisTime)
 
 	return genesisState, valSet, kr
 }
@@ -273,6 +275,18 @@ func genesisStateWithValSet(
 	bankGenesis := banktypes.NewGenesisState(banktypes.DefaultGenesisState().Params, balances, totalSupply, []banktypes.Metadata{})
 	genesisState[banktypes.ModuleName] = app.AppCodec().MustMarshalJSON(bankGenesis)
 
+	return genesisState
+}
+
+func genesisStateWithGenesisTime(
+	app *app.App,
+	genesisState app.GenesisState,
+	time time.Time,
+) app.GenesisState {
+	minter := minttypes.DefaultMinter()
+	minter.GenesisTime = &time
+	mintGenesis := minttypes.NewGenesisState(minter)
+	genesisState[minttypes.ModuleName] = app.AppCodec().MustMarshalJSON(mintGenesis)
 	return genesisState
 }
 

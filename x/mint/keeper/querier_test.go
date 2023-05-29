@@ -26,10 +26,9 @@ type MintKeeperTestSuite struct {
 }
 
 func (suite *MintKeeperTestSuite) SetupTest() {
-	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime)
 	ctx := testApp.NewContext(true, tmproto.Header{})
-
-	testApp.MintKeeper.SetMinter(ctx, types.DefaultMinter())
 
 	legacyQuerierCdc := codec.NewAminoCodec(testApp.LegacyAmino())
 

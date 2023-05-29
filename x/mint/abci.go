@@ -14,20 +14,9 @@ import (
 func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 	defer telemetry.ModuleMeasureSince(types.ModuleName, time.Now(), telemetry.MetricKeyBeginBlocker)
 
-	maybeSetGenesisTime(ctx, k)
 	maybeUpdateMinter(ctx, k)
 	mintBlockProvision(ctx, k)
 	setPreviousBlockTime(ctx, k)
-}
-
-// maybeSetGenesisTime sets the genesis time if the current block height is 1.
-func maybeSetGenesisTime(ctx sdk.Context, k keeper.Keeper) {
-	if ctx.BlockHeight() == 1 {
-		genesisTime := ctx.BlockTime()
-		minter := k.GetMinter(ctx)
-		minter.GenesisTime = &genesisTime
-		k.SetMinter(ctx, minter)
-	}
 }
 
 // maybeUpdateMinter updates the inflation rate and annual provisions if the

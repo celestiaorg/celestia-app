@@ -3,6 +3,7 @@ package keeper_test //nolint:all
 import (
 	gocontext "context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -23,7 +24,8 @@ type MintTestSuite struct {
 }
 
 func (suite *MintTestSuite) SetupTest() {
-	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime)
 	ctx := testApp.NewContext(false, tmproto.Header{})
 
 	queryHelper := baseapp.NewQueryServerTestHelper(ctx, testApp.InterfaceRegistry())

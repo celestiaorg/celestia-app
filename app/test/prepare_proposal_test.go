@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -23,7 +24,8 @@ import (
 func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	numBlobTxs, numNormalTxs := 3, 3
 	accnts := testfactory.GenerateAccounts(numBlobTxs + numNormalTxs)
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
+	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime, accnts...)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	infos := queryAccountInfo(testApp, accnts, kr)
 
@@ -74,7 +76,8 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 func TestPrepareProposalFiltering(t *testing.T) {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(6)
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime, accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
 	// create 3 single blob blobTxs that are signed with valid account numbers
