@@ -135,14 +135,6 @@ func (s *IntegrationTestSuite) getTotalSupply(height int64) sdktypes.Coins {
 	return txResp.GetSupply()
 }
 
-func (s *IntegrationTestSuite) getTimestamp(height int64) time.Time {
-	require := s.Require()
-
-	block, err := s.cctx.WithHeight(height).Client.Block(context.Background(), &height)
-	require.NoError(err)
-	return block.Block.Header.Time
-}
-
 func (s *IntegrationTestSuite) estimateInflationRate(startHeight int64, endHeight int64) sdktypes.Dec {
 	startSupply := s.getTotalSupply(startHeight).AmountOf(app.BondDenom)
 	endSupply := s.getTotalSupply(endHeight).AmountOf(app.BondDenom)
