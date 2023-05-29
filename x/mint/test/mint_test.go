@@ -34,8 +34,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	cparams := testnode.DefaultParams()
 	oneDay := time.Hour * 24
-	tenDays := oneDay * 10
-	// oneMonth := oneDay * 30
+	oneMonth := oneDay * 30
 	// sixMonths := oneMonth * 6
 	// Set the minimum time between blocks to 10 days. This will make the
 	// timestamps between blocks increase by 10 days each block despite that
@@ -46,7 +45,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	// height 7 time 2023-07-18 02:04:19.091578814 +0000 UTC
 	// height 8 time 2023-07-28 02:04:19.091578814 +0000 UTC
 	// height 9 time 2023-08-07 02:04:19.091578814 +0000 UTC
-	cparams.Block.TimeIotaMs = int64(tenDays.Milliseconds())
+	cparams.Block.TimeIotaMs = int64(oneMonth.Milliseconds())
 
 	cctx, _, _ := testnode.NewNetwork(t, cparams, testnode.DefaultTendermintConfig(), testnode.DefaultAppConfig(), []string{})
 	s.cctx = cctx
@@ -115,10 +114,10 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 	testCases := []testCase{
 		{year: 0, want: sdktypes.MustNewDecFromStr("8.00")},
 		{year: 1, want: sdktypes.MustNewDecFromStr("7.20")},
-		// {year: 2, want: sdktypes.MustNewDecFromStr("6.48")},
-		// {year: 3, want: sdktypes.MustNewDecFromStr("5.832")},
-		// {year: 4, want: sdktypes.MustNewDecFromStr("5.2488")},
-		// {year: 5, want: sdktypes.MustNewDecFromStr("4.72392")},
+		{year: 2, want: sdktypes.MustNewDecFromStr("6.48")},
+		{year: 3, want: sdktypes.MustNewDecFromStr("5.832")},
+		{year: 4, want: sdktypes.MustNewDecFromStr("5.2488")},
+		{year: 5, want: sdktypes.MustNewDecFromStr("4.72392")},
 		// {year: 6, want: sdktypes.MustNewDecFromStr("4.251528")},
 		// {year: 7, want: sdktypes.MustNewDecFromStr("3.8263752")},
 		// {year: 8, want: sdktypes.MustNewDecFromStr("3.44373768")},
@@ -140,8 +139,8 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 	fmt.Printf("genesisTime: %v\n", genesisTime)
 	require.NoError(err)
 
-	// wait until the last timestamp
-	lastTimestamp := genesisTime.Add(time.Duration(2 * minttypes.NanosecondsPerYear))
+	lastYear := testCases[len(testCases)-1].year
+	lastTimestamp := genesisTime.Add(time.Duration((lastYear + 1) * minttypes.NanosecondsPerYear))
 	_, err = s.cctx.WaitForTimestampWithTimeout(lastTimestamp, 30*time.Second)
 	require.NoError(err)
 
@@ -161,6 +160,12 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 
 		inflationRate := s.estimateInflationRate(startHeight, endHeight)
 		fmt.Printf("inflationRate %v\n", inflationRate.String())
+
+		actualError := inflationRate.Sub(tc.want).Abs()
+		marginOfError := sdktypes.MustNewDecFromStr("0.01")
+		if marginOfError.GT(actualError) {
+			s.Failf("TestInflationRate failure", "inflation rate for year %v is %v, want %v with a .01 margin of error", tc.year, inflationRate, tc.want)
+		}
 	}
 }
 
@@ -168,8 +173,10 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 // given timestamp.
 func (s *IntegrationTestSuite) GetHeightForTimestamp(timestamp time.Time) int64 {
 	require := s.Require()
+	latestHeight, err := s.cctx.LatestHeight()
+	require.NoError(err)
 
-	for i := int64(1); i < 1000; i++ {
+	for i := int64(1); i <= latestHeight; i++ {
 		result, err := s.cctx.Client.Block(context.Background(), &i)
 		require.NoError(err)
 		if result.Block.Time.After(timestamp) {
@@ -224,26 +231,7 @@ func (s *IntegrationTestSuite) estimateInflationRate(startHeight int64, endHeigh
 	endSupply := s.GetTotalSupply(endHeight).AmountOf(app.BondDenom)
 	diffSupply := endSupply.Sub(startSupply)
 
-	// startTimestamp := s.GetTimestamp(startHeight)
-	// endTimestamp := s.GetTimestamp(endHeight)
-	// diffTime := endTimestamp.Sub(startTimestamp)
-
-	// projectedAnnualProvisions := diffSupply.Mul(sdktypes.NewInt(oneYear.Nanoseconds())).Quo(sdktypes.NewInt(diffTime.Nanoseconds()))
-	// laterSupply = initalSupply + (initialSupply * inflationRate)
-
-	inflationRate := sdktypes.NewDecFromBigInt(diffSupply.BigInt()).QuoInt(startSupply)
-	fmt.Printf("inflationRate %v\n", inflationRate.String())
-	return inflationRate
-	// inflationRate := projectedAnnualProvisions.ToDec().Quo(sdktypes.NewDecFromInt(initialSupply.AmountOf(app.BondDenom)))
-
-	// initialInflationRate := minttypes.InitialInflationRateAsDec()
-	// expectedAnnualProvisions := initialInflationRate.Mul(sdktypes.NewDecFromBigInt(initialSupply.AmountOf(app.BondDenom).BigInt())).TruncateInt()
-	// diffAnnualProvisions := projectedAnnualProvisions.Sub(expectedAnnualProvisions).Abs()
-
-	// Note we use a .01 margin of error because the projected annual provisions
-	// are based on a small block time iwindow.
-	// marginOfError := sdktypes.NewDecWithPrec(1, 2) // .01
-	// actualError := sdktypes.NewDecFromBigInt(diffAnnualProvisions.BigInt()).Quo(sdktypes.NewDecFromBigInt(initialSupply.AmountOf(app.BondDenom).BigInt()))
+	return sdktypes.NewDecFromBigInt(diffSupply.BigInt()).QuoInt(startSupply)
 }
 
 // In order for 'go test' to run this suite, we need to create
