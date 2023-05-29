@@ -100,31 +100,9 @@ func (s *IntegrationTestSuite) TestInitialInflationRate() {
 	require.True(actualError.LTE(marginOfError))
 }
 
-// TestInflationRate tests that the inflation rate matches the expected rate per year.
-//
-// | Year | Inflation (%)     |
-// |------|-------------------|
-// | 0    | 8.00              |
-// | 1    | 7.20              |
-// | 2    | 6.48              |
-// | 3    | 5.832             |
-// | 4    | 5.2488            |
-// | 5    | 4.72392           |
-// | 6    | 4.251528          |
-// | 7    | 3.8263752         |
-// | 8    | 3.44373768        |
-// | 9    | 3.099363912       |
-// | 10   | 2.7894275208      |
-// | 11   | 2.51048476872     |
-// | 12   | 2.259436291848    |
-// | 13   | 2.0334926626632   |
-// | 14   | 1.83014339639688  |
-// | 15   | 1.647129056757192 |
-// | 16   | 1.50              |
-// | 17   | 1.50              |
-// | 18   | 1.50              |
-// | 19   | 1.50              |
-// | 20   | 1.50              |
+// TestInflationRate verifies that the inflation rate each year matches the
+// expected rate of inflation. See the README.md for the expected rate of
+// inflation.
 func (s *IntegrationTestSuite) TestInflationRate() {
 	require := s.Require()
 
@@ -132,10 +110,28 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 		year int
 		want sdktypes.Dec
 	}
-
 	testCases := []testCase{
 		{year: 0, want: sdktypes.MustNewDecFromStr("8.00")},
 		{year: 1, want: sdktypes.MustNewDecFromStr("7.20")},
+		// {year: 2, want: sdktypes.MustNewDecFromStr("6.48")},
+		// {year: 3, want: sdktypes.MustNewDecFromStr("5.832")},
+		// {year: 4, want: sdktypes.MustNewDecFromStr("5.2488")},
+		// {year: 5, want: sdktypes.MustNewDecFromStr("4.72392")},
+		// {year: 6, want: sdktypes.MustNewDecFromStr("4.251528")},
+		// {year: 7, want: sdktypes.MustNewDecFromStr("3.8263752")},
+		// {year: 8, want: sdktypes.MustNewDecFromStr("3.44373768")},
+		// {year: 9, want: sdktypes.MustNewDecFromStr("3.099363912")},
+		// {year: 10, want: sdktypes.MustNewDecFromStr("2.7894275208")},
+		// {year: 11, want: sdktypes.MustNewDecFromStr("2.51048476872")},
+		// {year: 12, want: sdktypes.MustNewDecFromStr("2.259436291848")},
+		// {year: 13, want: sdktypes.MustNewDecFromStr("2.0334926626632")},
+		// {year: 14, want: sdktypes.MustNewDecFromStr("1.83014339639688")},
+		// {year: 15, want: sdktypes.MustNewDecFromStr("1.647129056757192")},
+		// {year: 16, want: sdktypes.MustNewDecFromStr("1.50")},
+		// {year: 17, want: sdktypes.MustNewDecFromStr("1.50")},
+		// {year: 18, want: sdktypes.MustNewDecFromStr("1.50")},
+		// {year: 19, want: sdktypes.MustNewDecFromStr("1.50")},
+		// {year: 20, want: sdktypes.MustNewDecFromStr("1.50")},
 	}
 	genesisTime, err := s.cctx.GenesisTime()
 	fmt.Printf("genesisTime: %v\n", genesisTime)
