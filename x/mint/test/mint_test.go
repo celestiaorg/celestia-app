@@ -119,8 +119,8 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 		endTimestamp := genesisTime.Add(time.Duration((tc.year + 1) * minttypes.NanosecondsPerYear))
 		fmt.Printf("startTimestamp %v, endTimestamp: %v\n", startTimestamp, endTimestamp)
 
-		startHeight := s.GetHeightForTimestamp(startTimestamp)
-		endHeight := s.GetHeightForTimestamp(endTimestamp)
+		startHeight := s.HeightForTimestamp(startTimestamp)
+		endHeight := s.HeightForTimestamp(endTimestamp)
 
 		fmt.Printf("startHeight: %v, endHeight: %v\n", startHeight, endHeight)
 
@@ -139,9 +139,9 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 	}
 }
 
-// GetHeightForTimestamp returns the block height for the first block after a
+// HeightForTimestamp returns the block height for the first block after a
 // given timestamp.
-func (s *IntegrationTestSuite) GetHeightForTimestamp(timestamp time.Time) int64 {
+func (s *IntegrationTestSuite) HeightForTimestamp(timestamp time.Time) (int64, error) {
 	require := s.Require()
 	latestHeight, err := s.cctx.LatestHeight()
 	require.NoError(err)
@@ -150,10 +150,10 @@ func (s *IntegrationTestSuite) GetHeightForTimestamp(timestamp time.Time) int64 
 		result, err := s.cctx.Client.Block(context.Background(), &i)
 		require.NoError(err)
 		if result.Block.Time.After(timestamp) {
-			return i
+			return i, nil
 		}
 	}
-	panic(fmt.Sprintf("could not find block with timestamp after %v", timestamp))
+	return 0, fmt.Errorf("could not find block with timestamp after %v", timestamp)
 }
 
 func (s *IntegrationTestSuite) GetTotalSupply(height int64) sdktypes.Coins {
