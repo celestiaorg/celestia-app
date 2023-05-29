@@ -169,10 +169,10 @@ github.com/btcsuite/winsvc v1.0.0/go.mod h1:jsenWakMcC0zFBFurPLEAyrnc/teJEM1O46f
 github.com/bwesterb/go-ristretto v1.2.0/go.mod h1:fUIoIZaG73pV5biE2Blr2xEzDoMj7NFEuV9ekS419A0=
 github.com/c-bata/go-prompt v0.2.2/go.mod h1:VzqtzE2ksDBcdln8G7mk2RX9QyGjH+OVqOCSiVIqS34=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
-github.com/celestiaorg/celestia-core v1.21.0-tm-v0.34.27 h1:EdkqFRBypVEq/nX2ZE7KQ6dTlN8j3rEYe+WGahWuSUk=
-github.com/celestiaorg/celestia-core v1.21.0-tm-v0.34.27/go.mod h1:GVo91Wifg9KL/nFx9nPkpl0UIFdvvs4fhnly9GhGxZU=
-github.com/celestiaorg/cosmos-sdk v1.13.0-sdk-v0.46.11 h1:Rd5EvJx1nG3KurBspVN51RVmvif0Lp2UVURbG2ad3Cs=
-github.com/celestiaorg/cosmos-sdk v1.13.0-sdk-v0.46.11/go.mod h1:xCG6OUkJy5KUMEg20Zk010lra9XjkmKS3+bk0wp7bd8=
+github.com/celestiaorg/celestia-core v1.21.1-tm-v0.34.27 h1:ZuvWGlsHW3QqT3v7f2oRrYzwn4R2Ec6mz4y1p75XLdA=
+github.com/celestiaorg/celestia-core v1.21.1-tm-v0.34.27/go.mod h1:GVo91Wifg9KL/nFx9nPkpl0UIFdvvs4fhnly9GhGxZU=
+github.com/celestiaorg/cosmos-sdk v1.14.0-sdk-v0.46.11 h1:xDLC0ZvIwj9S2gTs9b8EespilL/u/vOGcqJuHz1r/eA=
+github.com/celestiaorg/cosmos-sdk v1.14.0-sdk-v0.46.11/go.mod h1:IwvD2nN3vEMkjxhTw/SF5tyJ0+x3GB0EdyQJyteK06U=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4/go.mod h1:fzuHnhzj1pUygGz+1ZkB3uQbEUL4htqCGJ4Qs2LwMZA=
 github.com/celestiaorg/nmt v0.16.0 h1:4CX6d1Uwf1C+tGcAWskPve0HCDTnI4Ey8ffjiDwcGH0=
@@ -300,8 +300,8 @@ github.com/dnaeon/go-vcr v1.2.0/go.mod h1:R4UdLID7HZT3taECzJs4YgbbH6PIGXB6W/sc5O
 github.com/docker/distribution v2.8.1+incompatible h1:Q50tZOPR6T/hjNsyc9g8/syEs6bk8XXApsHjKukMl68=
 github.com/docker/distribution v2.8.1+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
 github.com/docker/docker v1.4.2-0.20180625184442-8e610b2b55bf/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
-github.com/docker/docker v23.0.6+incompatible h1:aBD4np894vatVX99UTx/GyOUOK4uEcROwA3+bQhEcoU=
-github.com/docker/docker v23.0.6+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
+github.com/docker/docker v24.0.0+incompatible h1:z4bf8HvONXX9Tde5lGBMQ7yCJgNahmJumdrStZAbeY4=
+github.com/docker/docker v24.0.0+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
 github.com/docker/go-connections v0.4.0 h1:El9xVISelRB7BuFusrZozjnkIM5YnzCViNKohAFqRJQ=
 github.com/docker/go-connections v0.4.0/go.mod h1:Gbd7IOopHjR8Iph03tsViu4nIes5XhDvyHbTtUxmeec=
 github.com/docker/go-units v0.5.0 h1:69rxXcBk27SvSaaxTtLh/8llcHD8vYHT7WSdRZ/jvr4=
