@@ -29,13 +29,11 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	}
 
 	t := s.T()
-
 	t.Log("setting up mint integration test suite")
 
 	cparams := testnode.DefaultParams()
 	oneDay := time.Hour * 24
 	oneMonth := oneDay * 30
-	// sixMonths := oneMonth * 6
 	// Set the minimum time between blocks to 10 days. This will make the
 	// timestamps between blocks increase by 10 days each block despite that
 	// much time not actually passing. We do this to test the inflation rate
@@ -88,21 +86,6 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 		{year: 3, want: sdktypes.MustNewDecFromStr("5.832")},
 		{year: 4, want: sdktypes.MustNewDecFromStr("5.2488")},
 		{year: 5, want: sdktypes.MustNewDecFromStr("4.72392")},
-		// {year: 6, want: sdktypes.MustNewDecFromStr("4.251528")},
-		// {year: 7, want: sdktypes.MustNewDecFromStr("3.8263752")},
-		// {year: 8, want: sdktypes.MustNewDecFromStr("3.44373768")},
-		// {year: 9, want: sdktypes.MustNewDecFromStr("3.099363912")},
-		// {year: 10, want: sdktypes.MustNewDecFromStr("2.7894275208")},
-		// {year: 11, want: sdktypes.MustNewDecFromStr("2.51048476872")},
-		// {year: 12, want: sdktypes.MustNewDecFromStr("2.259436291848")},
-		// {year: 13, want: sdktypes.MustNewDecFromStr("2.0334926626632")},
-		// {year: 14, want: sdktypes.MustNewDecFromStr("1.83014339639688")},
-		// {year: 15, want: sdktypes.MustNewDecFromStr("1.647129056757192")},
-		// {year: 16, want: sdktypes.MustNewDecFromStr("1.50")},
-		// {year: 17, want: sdktypes.MustNewDecFromStr("1.50")},
-		// {year: 18, want: sdktypes.MustNewDecFromStr("1.50")},
-		// {year: 19, want: sdktypes.MustNewDecFromStr("1.50")},
-		// {year: 20, want: sdktypes.MustNewDecFromStr("1.50")},
 	}
 
 	genesisTime, err := s.cctx.GenesisTime()
@@ -111,7 +94,7 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 
 	lastYear := testCases[len(testCases)-1].year
 	lastTimestamp := genesisTime.Add(time.Duration((lastYear + 1) * minttypes.NanosecondsPerYear))
-	_, err = s.cctx.WaitForTimestampWithTimeout(lastTimestamp, 30*time.Second)
+	_, err = s.cctx.WaitForTimestampWithTimeout(lastTimestamp, 20*time.Second)
 	require.NoError(err)
 
 	for _, tc := range testCases {
