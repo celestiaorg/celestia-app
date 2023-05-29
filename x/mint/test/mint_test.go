@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -60,11 +59,11 @@ func (s *IntegrationTestSuite) TestTotalSupplyIncreasesOverTime() {
 	err := s.cctx.WaitForNextBlock()
 	require.NoError(err)
 
-	initalSupply := s.GetTotalSupply(initialHeight)
+	initalSupply := s.getTotalSupply(initialHeight)
 
 	_, err = s.cctx.WaitForHeight(laterHeight)
 	require.NoError(err)
-	laterSupply := s.GetTotalSupply(laterHeight)
+	laterSupply := s.getTotalSupply(laterHeight)
 
 	require.True(initalSupply.AmountOf(app.BondDenom).LT(laterSupply.AmountOf(app.BondDenom)))
 }
@@ -86,10 +85,11 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 		{year: 3, want: sdktypes.MustNewDecFromStr("5.832")},
 		{year: 4, want: sdktypes.MustNewDecFromStr("5.2488")},
 		{year: 5, want: sdktypes.MustNewDecFromStr("4.72392")},
+		// Note: since the testnode takes time to create blocks, test cases
+		// for years 6+ will time out give the current TimeIotaMs.
 	}
 
 	genesisTime, err := s.cctx.GenesisTime()
-	fmt.Printf("genesisTime: %v\n", genesisTime)
 	require.NoError(err)
 
 	lastYear := testCases[len(testCases)-1].year
@@ -100,22 +100,13 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 	for _, tc := range testCases {
 		startTimestamp := genesisTime.Add(time.Duration(tc.year * minttypes.NanosecondsPerYear))
 		endTimestamp := genesisTime.Add(time.Duration((tc.year + 1) * minttypes.NanosecondsPerYear))
-		fmt.Printf("startTimestamp %v, endTimestamp: %v\n", startTimestamp, endTimestamp)
 
 		startHeight, err := s.cctx.HeightForTimestamp(startTimestamp)
 		require.NoError(err)
 		endHeight, err := s.cctx.HeightForTimestamp(endTimestamp)
 		require.NoError(err)
 
-		fmt.Printf("startHeight: %v, endHeight: %v\n", startHeight, endHeight)
-
-		wantAsFloat, err := tc.want.Float64()
-		require.NoError(err)
-		fmt.Printf("wantAsFloat: %v\n", wantAsFloat)
-
 		inflationRate := s.estimateInflationRate(startHeight, endHeight)
-		fmt.Printf("inflationRate %v\n", inflationRate.String())
-
 		actualError := inflationRate.Sub(tc.want).Abs()
 		marginOfError := sdktypes.MustNewDecFromStr("0.01")
 		if marginOfError.GT(actualError) {
@@ -124,7 +115,7 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 	}
 }
 
-func (s *IntegrationTestSuite) GetTotalSupply(height int64) sdktypes.Coins {
+func (s *IntegrationTestSuite) getTotalSupply(height int64) sdktypes.Coins {
 	require := s.Require()
 
 	options := &client.ABCIQueryOptions{Height: height}
@@ -144,7 +135,7 @@ func (s *IntegrationTestSuite) GetTotalSupply(height int64) sdktypes.Coins {
 	return txResp.GetSupply()
 }
 
-func (s *IntegrationTestSuite) GetTimestamp(height int64) time.Time {
+func (s *IntegrationTestSuite) getTimestamp(height int64) time.Time {
 	require := s.Require()
 
 	block, err := s.cctx.WithHeight(height).Client.Block(context.Background(), &height)
@@ -153,8 +144,8 @@ func (s *IntegrationTestSuite) GetTimestamp(height int64) time.Time {
 }
 
 func (s *IntegrationTestSuite) estimateInflationRate(startHeight int64, endHeight int64) sdktypes.Dec {
-	startSupply := s.GetTotalSupply(startHeight).AmountOf(app.BondDenom)
-	endSupply := s.GetTotalSupply(endHeight).AmountOf(app.BondDenom)
+	startSupply := s.getTotalSupply(startHeight).AmountOf(app.BondDenom)
+	endSupply := s.getTotalSupply(endHeight).AmountOf(app.BondDenom)
 	diffSupply := endSupply.Sub(startSupply)
 
 	return sdktypes.NewDecFromBigInt(diffSupply.BigInt()).QuoInt(startSupply)
