@@ -238,3 +238,23 @@ func (c *Context) FillBlock(squareSize int, accounts []string, broadcastMode str
 	blobSize := shares.AvailableBytesFromSparseShares(shareCount)
 	return c.PostData(accounts[0], broadcastMode, namespace.RandomBlobNamespace(), tmrand.Bytes(blobSize))
 }
+
+// HeightForTimestamp returns the block height for the first block after a
+// given timestamp.
+func (c *Context) HeightForTimestamp(timestamp time.Time) (int64, error) {
+	latestHeight, err := c.LatestHeight()
+	if err != nil {
+		return 0, err
+	}
+
+	for i := int64(1); i <= latestHeight; i++ {
+		result, err := c.Client.Block(context.Background(), &i)
+		if err != nil {
+			return 0, err
+		}
+		if result.Block.Time.After(timestamp) {
+			return i, nil
+		}
+	}
+	return 0, fmt.Errorf("could not find block with timestamp after %v", timestamp)
+}
