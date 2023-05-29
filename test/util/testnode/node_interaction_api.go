@@ -55,6 +55,7 @@ func (c *Context) LatestHeight() (int64, error) {
 // query fails.
 func (c *Context) LatestTimestamp() (time.Time, error) {
 	current, err := c.Client.Block(c.GoContext(), nil)
+	fmt.Printf("current block height: %v and time %v\n", current.Block.Height, current.Block.Time)
 	if err != nil {
 		return time.Unix(0, 0), err
 	}

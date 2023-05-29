@@ -35,6 +35,8 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	cparams := testnode.DefaultParams()
 	oneDay := time.Hour * 24
 	tenDays := oneDay * 10
+	// oneMonth := oneDay * 30
+	// sixMonths := oneMonth * 6
 	// Set the minimum time between blocks to 10 days. This will make the
 	// timestamps between blocks increase by 10 days each block despite that
 	// much time not actually passing. We do this to test the inflation rate
@@ -133,29 +135,48 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 		// {year: 19, want: sdktypes.MustNewDecFromStr("1.50")},
 		// {year: 20, want: sdktypes.MustNewDecFromStr("1.50")},
 	}
+
 	genesisTime, err := s.cctx.GenesisTime()
 	fmt.Printf("genesisTime: %v\n", genesisTime)
 	require.NoError(err)
 
-	for _, tc := range testCases {
-		wantTimestamp := genesisTime.Add(time.Duration((tc.year + 1) * minttypes.NanosecondsPerYear))
-		fmt.Printf("wantTimestamp: %v\n", wantTimestamp)
+	// wait until the last timestamp
+	lastTimestamp := genesisTime.Add(time.Duration(2 * minttypes.NanosecondsPerYear))
+	_, err = s.cctx.WaitForTimestampWithTimeout(lastTimestamp, 30*time.Second)
+	require.NoError(err)
 
-		initialSupply, initialTime := s.GetTotalSupplyAndTimestamp()
-		fmt.Printf("initial supply: %v and time %v \n", initialSupply, initialTime)
+	for _, tc := range testCases {
+		startTimestamp := genesisTime.Add(time.Duration(tc.year * minttypes.NanosecondsPerYear))
+		endTimestamp := genesisTime.Add(time.Duration((tc.year + 1) * minttypes.NanosecondsPerYear))
+		fmt.Printf("startTimestamp %v, endTimestamp: %v\n", startTimestamp, endTimestamp)
+
+		startHeight := s.GetHeightForTimestamp(startTimestamp)
+		endHeight := s.GetHeightForTimestamp(endTimestamp)
+
+		fmt.Printf("startHeight: %v, endHeight: %v\n", startHeight, endHeight)
 
 		wantAsFloat, err := tc.want.Float64()
 		require.NoError(err)
 		fmt.Printf("wantAsFloat: %v\n", wantAsFloat)
 
-		_, err = s.cctx.WaitForTimestampWithTimeout(wantTimestamp, 20*time.Second)
-		require.NoError(err)
-
-		laterSupply, laterTime := s.GetTotalSupplyAndTimestamp()
-		fmt.Printf("later supply: %v and timestamp %v\n", laterSupply, laterTime)
-
-		estimateInflationRate(initialSupply, initialTime, laterSupply, laterTime)
+		inflationRate := s.estimateInflationRate(startHeight, endHeight)
+		fmt.Printf("inflationRate %v\n", inflationRate.String())
 	}
+}
+
+// GetHeightForTimestamp returns the block height for the first block after a
+// given timestamp.
+func (s *IntegrationTestSuite) GetHeightForTimestamp(timestamp time.Time) int64 {
+	require := s.Require()
+
+	for i := int64(1); i < 1000; i++ {
+		result, err := s.cctx.Client.Block(context.Background(), &i)
+		require.NoError(err)
+		if result.Block.Time.After(timestamp) {
+			return i
+		}
+	}
+	panic(fmt.Sprintf("could not find block with timestamp after %v", timestamp))
 }
 
 func (s *IntegrationTestSuite) GetTotalSupply(height int64) sdktypes.Coins {
@@ -198,17 +219,19 @@ func (s *IntegrationTestSuite) GetTotalSupplyAndTimestamp() (sdktypes.Coins, tim
 	return totalSupply, timestamp
 }
 
-func estimateInflationRate(initialSupply sdktypes.Coins, initialTimestamp time.Time, laterSupply sdktypes.Coins, laterTimestamp time.Time) sdktypes.Dec {
-	// oneYear := time.Duration(int64(minttypes.NanosecondsPerYear))
+func (s *IntegrationTestSuite) estimateInflationRate(startHeight int64, endHeight int64) sdktypes.Dec {
+	startSupply := s.GetTotalSupply(startHeight).AmountOf(app.BondDenom)
+	endSupply := s.GetTotalSupply(endHeight).AmountOf(app.BondDenom)
+	diffSupply := endSupply.Sub(startSupply)
 
-	// diffSupply := laterSupply.AmountOf(app.BondDenom).Sub(initialSupply.AmountOf(app.BondDenom))
-	// diffTime := laterTimestamp.Sub(initialTimestamp)
+	// startTimestamp := s.GetTimestamp(startHeight)
+	// endTimestamp := s.GetTimestamp(endHeight)
+	// diffTime := endTimestamp.Sub(startTimestamp)
 
 	// projectedAnnualProvisions := diffSupply.Mul(sdktypes.NewInt(oneYear.Nanoseconds())).Quo(sdktypes.NewInt(diffTime.Nanoseconds()))
-
 	// laterSupply = initalSupply + (initialSupply * inflationRate)
 
-	inflationRate := sdktypes.NewDecFromBigInt(laterSupply.AmountOf(app.BondDenom).Sub(initialSupply.AmountOf(app.BondDenom)).BigInt()).QuoInt(initialSupply.AmountOf(app.BondDenom))
+	inflationRate := sdktypes.NewDecFromBigInt(diffSupply.BigInt()).QuoInt(startSupply)
 	fmt.Printf("inflationRate %v\n", inflationRate.String())
 	return inflationRate
 	// inflationRate := projectedAnnualProvisions.ToDec().Quo(sdktypes.NewDecFromInt(initialSupply.AmountOf(app.BondDenom)))
