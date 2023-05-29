@@ -41,8 +41,8 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	//
 	// Example:
 	// height 7 time 2023-07-18 02:04:19.091578814 +0000 UTC
-	// height 8 time 2023-07-28 02:04:19.091578814 +0000 UTC
-	// height 9 time 2023-08-07 02:04:19.091578814 +0000 UTC
+	// height 8 time 2023-08-18 02:04:19.091578814 +0000 UTC
+	// height 9 time 2023-09-18 02:04:19.091578814 +0000 UTC
 	cparams.Block.TimeIotaMs = int64(oneMonth.Milliseconds())
 
 	cctx, _, _ := testnode.NewNetwork(t, cparams, testnode.DefaultTendermintConfig(), testnode.DefaultAppConfig(), []string{})
