@@ -7,26 +7,20 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
-	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
-	"github.com/cosmos/cosmos-sdk/baseapp"
-	"github.com/cosmos/cosmos-sdk/store"
+	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
-	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/suite"
-	tmlog "github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/proto/tendermint/types"
-	dbm "github.com/tendermint/tm-db"
+	"github.com/tendermint/tendermint/rpc/client"
 )
 
 type IntegrationTestSuite struct {
 	suite.Suite
 
-	cctx        testnode.Context
-	queryClient banktypes.QueryClient
-	bankKeeper  bankkeeper.BaseKeeper
+	cctx testnode.Context
 }
 
 func (s *IntegrationTestSuite) SetupSuite() {
@@ -53,16 +47,6 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	cctx, _, _ := testnode.NewNetwork(t, cparams, testnode.DefaultTendermintConfig(), testnode.DefaultAppConfig(), []string{})
 	s.cctx = cctx
-
-	// Set up the GRPC query client.
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	db := dbm.NewMemDB()
-	ms := store.NewCommitMultiStore(db)
-	ctx := sdktypes.NewContext(ms, types.Header{}, false, tmlog.NewNopLogger())
-	queryHelper := baseapp.NewQueryServerTestHelper(ctx, encCfg.InterfaceRegistry)
-	banktypes.RegisterQueryServer(queryHelper, s.bankKeeper)
-	queryClient := banktypes.NewQueryClient(queryHelper)
-	s.queryClient = queryClient
 }
 
 // TestTotalSupplyIncreasesOverTime tests that the total supply of tokens
@@ -143,25 +127,21 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 func (s *IntegrationTestSuite) GetTotalSupply(height int64) sdktypes.Coins {
 	require := s.Require()
 
-	resp, err := s.queryClient.TotalSupply(context.Background(), &banktypes.QueryTotalSupplyRequest{})
+	options := &client.ABCIQueryOptions{Height: height}
+	result, err := s.cctx.Client.ABCIQueryWithOptions(
+		context.Background(),
+		"/cosmos.bank.v1beta1.Query/TotalSupply",
+		nil,
+		*options,
+	)
 	require.NoError(err)
-	return resp.Supply
 
-	// options := &client.ABCIQueryOptions{Height: height}
-	// result, err := s.cctx.Client.ABCIQueryWithOptions(
-	// 	context.Background(),
-	// 	"/cosmos.bank.v1beta1.Query/TotalSupply",
-	// 	nil,
-	// 	*options,
-	// )
-	// require.NoError(err)
+	registry := codectypes.NewInterfaceRegistry()
+	cdc := codec.NewProtoCodec(registry)
 
-	// registry := codectypes.NewInterfaceRegistry()
-	// cdc := codec.NewProtoCodec(registry)
-
-	// var txResp banktypes.QueryTotalSupplyResponse
-	// require.NoError(cdc.Unmarshal(result.Response.Value, &txResp))
-	// return txResp.GetSupply()
+	var txResp banktypes.QueryTotalSupplyResponse
+	require.NoError(cdc.Unmarshal(result.Response.Value, &txResp))
+	return txResp.GetSupply()
 }
 
 func (s *IntegrationTestSuite) GetTimestamp(height int64) time.Time {
