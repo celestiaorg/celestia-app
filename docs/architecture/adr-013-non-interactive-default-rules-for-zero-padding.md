@@ -1,8 +1,13 @@
 # ADR 013: Non-Interactive Default Rules for Zero Padding
 
+## Status
+
+Implemented in <https://github.com/celestiaorg/celestia-app/pull/1604>
+
 ## Changelog
 
-- 03.01.2023: initial draft
+- 2023/03/01: Initial draft
+- 2023/05/30: Update status
 
 ## Context
 
@@ -66,10 +71,6 @@ Here is a diagram of the worst-case padding for a threshold of 16 for the square
 If the threshold is bigger than `MinSquareSize` for a particular blob then the blob will be aligned to the index of the `MinSquareSize` of the blob. This would prevent some blob size ranges to have higher padding than they had before this change. So the real new non-interactive default rules would be:
 
 Blobs start at an index that is equal to a multiple of the blob length divided by `MaxSquareSize` rounded up. If this index is larger than the `MinSquareSize` of the blob then the blob starts at the index of the `MinSquareSize`.
-
-## Status
-
-Proposed
 
 ## Consequences
 
