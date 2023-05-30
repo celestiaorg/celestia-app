@@ -119,18 +119,13 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 func (s *IntegrationTestSuite) getTotalSupply(height int64) sdktypes.Coins {
 	require := s.Require()
 
-	options := &client.ABCIQueryOptions{Height: height}
-	result, err := s.cctx.Client.ABCIQueryWithOptions(
-		context.Background(),
-		"/cosmos.bank.v1beta1.Query/TotalSupply",
-		nil,
-		*options,
-	)
+	bqc := banktypes.NewQueryClient(s.cctx.GRPCClient)
+	ctx := metadata.AppendToOutgoingContext(context.Background(), grpctypes.GRPCBlockHeightHeader, fmt.Sprintf("%d", height))
+
+	resp, err := bqc.TotalSupply(ctx, &banktypes.QueryTotalSupplyRequest{})
 	require.NoError(err)
 
-	var txResp banktypes.QueryTotalSupplyResponse
-	require.NoError(proto.Unmarshal(result.Response.Value, &txResp))
-	return txResp.GetSupply()
+	return resp.Supply
 }
 
 func (s *IntegrationTestSuite) estimateInflationRate(startHeight int64, endHeight int64) sdktypes.Dec {
