@@ -29,18 +29,15 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	cparams := testnode.DefaultParams()
 	oneDay := time.Hour * 24
 	oneMonth := oneDay * 30
-	// Set the minimum time between blocks to 10 days. This will make the
-	// timestamps between blocks increase by 10 days each block despite that
+	sixMonths := oneMonth * 6
+	// Set the minimum time between blocks to six months. This will make the
+	// timestamps between blocks increase by six months each block despite that
 	// much time not actually passing. We do this to test the inflation rate
 	// over time without having to wait one year for the test to complete.
 	//
-	// Example: height 7 time 2023-07-18 02:04:19.091578814 +0000 UTC height 8
-	// time 2023-08-18 02:04:19.091578814 +0000 UTC height 9 time 2023-09-18
-	// 02:04:19.091578814 +0000 UTC
-	//
 	// Note: if TimeIotaMs is removed from CometBFT, this technique will no
 	// longer work.
-	cparams.Block.TimeIotaMs = int64(oneMonth.Milliseconds())
+	cparams.Block.TimeIotaMs = int64(sixMonths.Milliseconds())
 
 	cctx, _, _ := testnode.NewNetwork(t, cparams, testnode.DefaultTendermintConfig(), testnode.DefaultAppConfig(), []string{})
 	s.cctx = cctx
@@ -92,7 +89,7 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 
 	lastYear := testCases[len(testCases)-1].year
 	lastTimestamp := genesisTime.Add(time.Duration((lastYear + 1) * minttypes.NanosecondsPerYear))
-	_, err = s.cctx.WaitForTimestampWithTimeout(lastTimestamp, 20*time.Second)
+	_, err = s.cctx.WaitForTimestamp(lastTimestamp)
 	require.NoError(err)
 
 	for _, tc := range testCases {
