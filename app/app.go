@@ -8,6 +8,8 @@ import (
 	"github.com/celestiaorg/celestia-app/x/mint"
 	mintkeeper "github.com/celestiaorg/celestia-app/x/mint/keeper"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
+	"github.com/celestiaorg/celestia-app/x/ssz"
+	sszkeeper "github.com/celestiaorg/celestia-app/x/ssz/keeper"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
@@ -231,6 +233,7 @@ type App struct {
 
 	BlobKeeper blobmodulekeeper.Keeper
 	QgbKeeper  qgbmodulekeeper.Keeper
+	SSZKeeper  sszkeeper.Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -267,6 +270,7 @@ func New(
 		qgbmoduletypes.StoreKey,
 		ibctransfertypes.StoreKey,
 		ibchost.StoreKey,
+		sszkeeper.StoreKey,
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
@@ -398,6 +402,8 @@ func New(
 		app.GetSubspace(blobmoduletypes.ModuleName),
 	)
 	blobmod := blobmodule.NewAppModule(appCodec, app.BlobKeeper)
+
+	app.SSZKeeper = sszkeeper.NewKeeper(keys[sszkeeper.StoreKey], app.StakingKeeper)
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := ibcporttypes.NewRouter()
@@ -568,7 +574,9 @@ func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.R
 
 // EndBlocker application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	return app.mm.EndBlock(ctx, req)
+	resp := app.mm.EndBlock(ctx, req)
+	ssz.EndBlocker(ctx, app.SSZKeeper)
+	return resp
 }
 
 // InitChainer application update at chain initialization
