@@ -5,10 +5,8 @@ import (
 
 	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
-	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
@@ -18,10 +16,7 @@ const (
 )
 
 type Keeper struct {
-	cdc        codec.BinaryCodec
-	storeKey   storetypes.StoreKey
-	paramSpace paramtypes.Subspace
-
+	storeKey      storetypes.StoreKey
 	StakingKeeper StakingKeeper
 }
 
