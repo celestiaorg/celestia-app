@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -9,10 +10,10 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/suite"
-	"github.com/tendermint/tendermint/rpc/client"
+	"google.golang.org/grpc/metadata"
 )
 
 type IntegrationTestSuite struct {
