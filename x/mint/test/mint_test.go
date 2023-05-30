@@ -22,10 +22,6 @@ type IntegrationTestSuite struct {
 }
 
 func (s *IntegrationTestSuite) SetupSuite() {
-	if testing.Short() {
-		s.T().Skip("skipping mint integration test in short mode.")
-	}
-
 	t := s.T()
 	t.Log("setting up mint integration test suite")
 
@@ -139,5 +135,8 @@ func (s *IntegrationTestSuite) estimateInflationRate(startHeight int64, endHeigh
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestIntegrationTestSuite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping mint integration test in short mode.")
+	}
 	suite.Run(t, new(IntegrationTestSuite))
 }
