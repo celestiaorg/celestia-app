@@ -38,10 +38,12 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	// much time not actually passing. We do this to test the inflation rate
 	// over time without having to wait one year for the test to complete.
 	//
-	// Example:
-	// height 7 time 2023-07-18 02:04:19.091578814 +0000 UTC
-	// height 8 time 2023-08-18 02:04:19.091578814 +0000 UTC
-	// height 9 time 2023-09-18 02:04:19.091578814 +0000 UTC
+	// Example: height 7 time 2023-07-18 02:04:19.091578814 +0000 UTC height 8
+	// time 2023-08-18 02:04:19.091578814 +0000 UTC height 9 time 2023-09-18
+	// 02:04:19.091578814 +0000 UTC
+	//
+	// Note: if TimeIotaMs is removed from CometBFT, this technique will no
+	// longer work.
 	cparams.Block.TimeIotaMs = int64(oneMonth.Milliseconds())
 
 	cctx, _, _ := testnode.NewNetwork(t, cparams, testnode.DefaultTendermintConfig(), testnode.DefaultAppConfig(), []string{})
