@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/x/qgb/keeper"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
+	sszkeeper "github.com/celestiaorg/celestia-app/x/ssz/keeper"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	ccodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -138,6 +139,7 @@ func initEVMAddrs(count int) []gethcommon.Address {
 // TestInput stores the various keepers required to test gravity
 type TestInput struct {
 	QgbKeeper      *keeper.Keeper
+	SSZKeeper      *sszkeeper.Keeper
 	AccountKeeper  authkeeper.AccountKeeper
 	StakingKeeper  stakingkeeper.Keeper
 	SlashingKeeper slashingkeeper.Keeper
@@ -161,7 +163,7 @@ func CreateTestEnvWithoutAttestationNonceInit(t *testing.T) TestInput {
 	keyParams := sdk.NewKVStoreKey(paramstypes.StoreKey)
 	tkeyParams := sdk.NewTransientStoreKey(paramstypes.TStoreKey)
 	keySlashing := sdk.NewKVStoreKey(slashingtypes.StoreKey)
-
+	sszKey := sdk.NewKVStoreKey(sszkeeper.StoreKey)
 	// Initialize memory database and mount stores on it
 	db := dbm.NewMemDB()
 	ms := store.NewCommitMultiStore(db)
@@ -173,6 +175,7 @@ func CreateTestEnvWithoutAttestationNonceInit(t *testing.T) TestInput {
 	ms.MountStoreWithDB(keyDistro, storetypes.StoreTypeIAVL, db)
 	ms.MountStoreWithDB(tkeyParams, storetypes.StoreTypeTransient, db)
 	ms.MountStoreWithDB(keySlashing, storetypes.StoreTypeIAVL, db)
+	ms.MountStoreWithDB(sszKey, storetypes.StoreTypeIAVL, db)
 	err := ms.LoadLatestVersion()
 	require.Nil(t, err)
 
@@ -304,8 +307,11 @@ func CreateTestEnvWithoutAttestationNonceInit(t *testing.T) TestInput {
 			k.Hooks(),
 		),
 	)
+
+	SSZKeeper := sszkeeper.NewKeeper(sszKey, stakingKeeper)
 	return TestInput{
 		QgbKeeper:      k,
+		SSZKeeper:      &SSZKeeper,
 		AccountKeeper:  accountKeeper,
 		BankKeeper:     bankKeeper,
 		StakingKeeper:  stakingKeeper,

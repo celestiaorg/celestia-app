@@ -3,6 +3,7 @@ package keeper
 import (
 	"time"
 
+	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
@@ -45,13 +46,39 @@ func (k Keeper) CurrentValsetSSZHash(ctx sdk.Context) ([]byte, error) {
 		return nil, types.ErrNoValidators
 	}
 
-	// TODO: serialize the validator using the ssz codec
-	// TODO: return the hash
+	sszValidators := make([]*ValidatorSSZ, len(validators))
 
-	return nil, nil
+	// Taken from z/qgb/keeper/keeper_valset.go
+	for i, validator := range validators {
+		val := validator.GetOperator()
+		pubkey, _ := validator.ConsPubKey()
+		if err := sdk.VerifyAddressFormat(val); err != nil {
+			return nil, errors.Wrap(err, types.ErrInvalidValAddress.Error())
+		}
+
+		power := uint64(k.StakingKeeper.GetLastValidatorPower(ctx, val))
+		sszValidators[i] = &ValidatorSSZ{
+			PubKey:      pubkey.Bytes(),
+			VotingPower: power,
+		}
+	}
+
+	sszStruct := ValidatorSetSSZ{
+		Validators: sszValidators,
+	}
+
+	root, err := sszStruct.HashTreeRoot()
+	return root[:], err
 }
 
 func (k Keeper) SetSSZHash(ctx sdk.Context, hash []byte) {
 	store := ctx.KVStore(k.storeKey)
 	store.Set([]byte(HashKey), hash)
+}
+
+// Gets the latest SSZ hash
+func (k Keeper) GetSSZHash(ctx sdk.Context) []byte {
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get([]byte(HashKey))
+	return bz
 }
