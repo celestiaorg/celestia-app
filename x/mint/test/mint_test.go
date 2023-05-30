@@ -8,10 +8,9 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
-	"github.com/cosmos/cosmos-sdk/codec"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/suite"
 	"github.com/tendermint/tendermint/rpc/client"
 )
@@ -129,11 +128,8 @@ func (s *IntegrationTestSuite) getTotalSupply(height int64) sdktypes.Coins {
 	)
 	require.NoError(err)
 
-	registry := codectypes.NewInterfaceRegistry()
-	cdc := codec.NewProtoCodec(registry)
-
 	var txResp banktypes.QueryTotalSupplyResponse
-	require.NoError(cdc.Unmarshal(result.Response.Value, &txResp))
+	require.NoError(proto.Unmarshal(result.Response.Value, &txResp))
 	return txResp.GetSupply()
 }
 
