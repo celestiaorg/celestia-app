@@ -1,7 +1,6 @@
 package mint_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -58,8 +57,7 @@ func TestInflationRate(t *testing.T) {
 	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 	unixEpoch := time.Unix(0, 0).UTC()
 	yearZero := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-	oneYear, err := time.ParseDuration(fmt.Sprintf("%vns", minttypes.NanosecondsPerYear))
-	assert.NoError(t, err)
+	oneYear := time.Duration(minttypes.NanosecondsPerYear)
 	yearOne := yearZero.Add(oneYear)
 	yearTwo := yearZero.Add(2 * oneYear)
 	yearTwenty := yearZero.Add(20 * oneYear)
@@ -116,8 +114,7 @@ func TestAnnualProvisions(t *testing.T) {
 	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 	unixEpoch := time.Unix(0, 0).UTC()
 	yearZero := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-	oneYear, err := time.ParseDuration(fmt.Sprintf("%vns", minttypes.NanosecondsPerYear))
-	assert.NoError(t, err)
+	oneYear := time.Duration(minttypes.NanosecondsPerYear)
 	yearOne := yearZero.Add(oneYear)
 	yearTwo := yearZero.Add(2 * oneYear)
 	yearTwenty := yearZero.Add(20 * oneYear)

@@ -15,9 +15,9 @@ Note: this module assumes `DaysPerYear = 365.2425` so when modifying tests, deve
 
 ```go
 // oneYear is 31,556,952 seconds which will likely return expected results in tests
-oneYear, err := time.ParseDuration(fmt.Sprintf("%vs", minttypes.SecondsPerYear))
+oneYear := time.Duration(minttypes.NanosecondsPerYear)
 
-// this oneYear is 31,536,000 seconds which will likely return unexpected results in tests
+// oneYear is 31,536,000 seconds which will likely return unexpected results in tests
 oneYear := time.Hour * 24 * 365
 ```
 
