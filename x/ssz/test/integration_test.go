@@ -94,6 +94,7 @@ func (s *StandardSDKIntegrationTestSuite) TestHash() {
 	// and specific to our choice of stores & keys
 	branch, err := proof.GenerateProofFromResponse(operators, root, keys, [][]byte{value})
 	require.NoError(t, err, "Failed to generate proof of ssz/hash key")
+	fmt.Printf("The number of nodes in branch is %d\n", len(branch))
 	computedRoot := proof.ComputeRootFromProof(value, branch)
 	require.Equal(t, root.Bytes(), computedRoot)
 
