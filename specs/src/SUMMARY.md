@@ -6,7 +6,15 @@
   - [Data Structures](./specs/data_structures.md)
   - [Consensus](./specs/consensus.md)
   - [Block Proposer](./specs/block_proposer.md)
+  - [Block Validity Rules](./specs/block_validity_rules.md)
   - [Networking](./specs/networking.md)
   - [Public-Key Cryptography](./specs/public_key_cryptography.md)
 - [Rationale](./rationale/index.md)
   - [Data Square Layout](./rationale/data_square_layout.md)
+- State Machine Modules
+  - [blob](../../x/blob/README.md)
+  - [qgb](../../x/qgb/README.md)
+  - tokenfilter
+  - [mint](../../x/mint/README.md)
+  - [paramfilter](../../x/paramfilter/README.md)
+  - [upgrade](../../x/upgrade/README.md)
