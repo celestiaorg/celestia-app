@@ -76,7 +76,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="specs/consensus.html"><strong aria-hidden="true">1.2.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="specs/block_proposer.html"><strong aria-hidden="true">1.3.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="specs/networking.html"><strong aria-hidden="true">1.4.</strong> Networking</a></li><li class="chapter-item expanded "><a href="specs/public_key_cryptography.html"><strong aria-hidden="true">1.5.</strong> Public-Key Cryptography</a></li></ol></li><li class="chapter-item expanded "><a href="rationale/index.html"><strong aria-hidden="true">2.</strong> Rationale</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rationale/data_square_layout.html"><strong aria-hidden="true">2.1.</strong> Data Square Layout</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="specs/consensus.html"><strong aria-hidden="true">1.2.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="specs/block_proposer.html"><strong aria-hidden="true">1.3.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="specs/block_validity_rules.html"><strong aria-hidden="true">1.4.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="specs/networking.html"><strong aria-hidden="true">1.5.</strong> Networking</a></li><li class="chapter-item expanded "><a href="specs/public_key_cryptography.html"><strong aria-hidden="true">1.6.</strong> Public-Key Cryptography</a></li></ol></li><li class="chapter-item expanded "><a href="rationale/index.html"><strong aria-hidden="true">2.</strong> Rationale</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rationale/data_square_layout.html"><strong aria-hidden="true">2.1.</strong> Data Square Layout</a></li></ol></li><li class="chapter-item expanded "><a href="specs/state_machine_modules.html"><strong aria-hidden="true">3.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../x/blob/index.html"><strong aria-hidden="true">3.1.</strong> blob</a></li><li class="chapter-item expanded "><a href="../../x/qgb/index.html"><strong aria-hidden="true">3.2.</strong> qgb</a></li><li class="chapter-item expanded "><a href="../../x/mint/index.html"><strong aria-hidden="true">3.3.</strong> mint</a></li><li class="chapter-item expanded "><a href="../../x/paramfilter/index.html"><strong aria-hidden="true">3.4.</strong> paramfilter</a></li><li class="chapter-item expanded "><a href="../../x/upgrade/index.html"><strong aria-hidden="true">3.5.</strong> upgrade</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -145,6 +145,7 @@
 <li><a href="./specs/data_structures.html">Data Structures</a></li>
 <li><a href="./specs/consensus.html">Consensus</a></li>
 <li><a href="./specs/block_proposer.html">Block Proposer</a></li>
+<li><a href="./specs/block_validity_rules.html">Block Validity Rules</a></li>
 <li><a href="./specs/networking.html">Networking</a></li>
 <li><a href="./specs/public_key_cryptography.html">Public-Key Cryptography</a></li>
 </ul>
@@ -152,6 +153,15 @@
 <li><a href="./rationale/index.html">Rationale</a>
 <ul>
 <li><a href="./rationale/data_square_layout.html">Data Square Layout</a></li>
+</ul>
+</li>
+<li><a href="./specs/state_machine_modules.html">State Machine Modules</a>
+<ul>
+<li><a href="../../x/blob/README.html">blob</a></li>
+<li><a href="../../x/qgb/README.html">qgb</a></li>
+<li><a href="../../x/mint/README.html">mint</a></li>
+<li><a href="../../x/paramfilter/README.html">paramfilter</a></li>
+<li><a href="../../x/upgrade/README.html">upgrade</a></li>
 </ul>
 </li>
 </ul>
@@ -1200,6 +1210,7 @@ else if account.status == AccountStatus.ValidatorBonded
 </li>
 </ol>
 <p>Note: the maximum padding shares between blobs should be at most twice the number of blob shares. Doubling the square size (i.e. quadrupling the number of shares in the square) should thus only have to happen at most once.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="block-validity-rules"><a class="header" href="#block-validity-rules">Block Validity Rules</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="networking"><a class="header" href="#networking">Networking</a></h1>
 <!-- toc -->
 <h2 id="wire-format"><a class="header" href="#wire-format">Wire Format</a></h2>
@@ -1415,6 +1426,330 @@ With the above constraint, we can compute subtree roots deterministically. In or
 <p>The last piece of the puzzle is determining <em>which</em> row the blob is placed at (or, more specifically, the starting location). This is needed to keep the block producer accountable. To this end, the block producer simply augments each fee-paying transaction with the starting locations of the blobs the transaction pays for.</p>
 <h3 id="caveats"><a class="header" href="#caveats">Caveats</a></h3>
 <p>The blob placement rules described above conflict with the first rule that shares must be ordered by namespace ID, as shares between two blobs that are not placed adjacent to each other do not have a natural namespace they belong to. This is resolved by requiring that such shares have a value of zero and a namespace ID equal to the preceding blob's. Since their value is known, they can be omitted from NMT proofs of all shares of a given namespace ID.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="state-machine-modules"><a class="header" href="#state-machine-modules">State Machine Modules</a></h1>
+<p>Celestia app is built using the cosmos-sdk, and follows standard cosmos-sdk module structure.</p>
+<h2 id="celestia-app-specific-modules"><a class="header" href="#celestia-app-specific-modules"><code>celestia-app</code> Specific Modules</a></h2>
+<ul>
+<li><a href="specs/../../../x/blob/README.html">blob</a></li>
+<li><a href="specs/../../../x/qgb/README.html">qgb</a></li>
+<li><a href="specs/../../../x/mint/README.html">mint</a></li>
+<li><a href="specs/../../../x/paramfilter/README.html">paramfilter</a></li>
+<li><a href="specs/../../../x/upgrade/README.html">upgrade</a></li>
+</ul>
+<h2 id="standard-cosmos-sdk-modules"><a class="header" href="#standard-cosmos-sdk-modules">Standard <code>cosmos-sdk</code> Modules</a></h2>
+<ul>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/auth/spec/README.md">auth</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/authz/spec/README.md">authz</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/bank/spec/README.md">bank</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/capability/spec/README.md">capability</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/crisis/spec/README.md">crisis</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/distribution/spec/README.md">distribution</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/evidence/spec/README.md">evidence</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/feegrant/spec/README.md">feegrant</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/tree/v1.14.0-sdk-v0.46.11/x/genutil">genutil</a> (no spec)</li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/gov/spec/README.md">gov</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/params/spec/README.md">params</a></li>
+<li><a href="https://github.com/cosmos/ibc/blob/f990a7f96eb7753c2fabbd49ed50b64d3a807629/README.md">ibc</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/slashing/spec/README.md">slashing</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/staking/spec/README.md">staking</a></li>
+<li><a href="https://github.com/cosmos/ibc/blob/f990a7f96eb7753c2fabbd49ed50b64d3a807629/spec/app/ics-020-fungible-token-transfer/README.md">transfer</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/tree/v1.14.0-sdk-v0.46.11/x/auth/vesting">vesting</a> (no spec)</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="xblob"><a class="header" href="#xblob"><code>x/blob</code></a></h1>
+<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
+<p>The <code>x/blob</code> module enables users to pay for arbitrary data to be published to the Celestia blockchain. Users create a single <code>BlobTx</code> that is composed of:</p>
+<ol>
+<li>Multiple <code>Blob</code>s (Binary Large OBjects): the data they wish to publish. A single <code>Blob</code> is composed of:
+<ol>
+<li><code>NamespaceId  []byte</code>: the namespace this blob should be published to.</li>
+<li><code>Data         []byte</code>: the data to be published.</li>
+<li><code>ShareVersion uint32</code>: the version of the share format used to encode this blob into a share.</li>
+</ol>
+</li>
+<li>A single <code>sdk.Tx</code> which is composed of:
+<ol>
+<li><code>Signer string</code>: the transaction signer</li>
+<li><code>NamespaceIds []byte</code>: the namespaces they wish to publish each blob to. The namespaces here must match the namespaces in the <code>Blob</code>s.</li>
+<li><code>ShareCommitment []byte</code>: a share commitment that is the root of a Merkle tree where the leaves are share commitments to each blob associated with this BlobTx.</li>
+</ol>
+</li>
+</ol>
+<p>After the <code>BlobTx</code> is submitted to the network, a block producer separates the transaction from the blob. Both components get included in the data square in different namespaces: the BlobTx gets included in the PayForBlobNamespace and the associated blob gets included in the namespace the user specified in the original <code>BlobTx</code>. Further reading: <a href="https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md">Message Block Layout</a></p>
+<p>After a block has been created, the user can verify that their data was included in a block via a blob inclusion proof. A blob inclusion proof uses the <code>ShareCommitment</code> in the original transaction and subtree roots of the block's data square to prove to the user that the shares that compose their original data do in fact exist in a particular block.</p>
+<h2 id="state-1"><a class="header" href="#state-1">State</a></h2>
+<p>The blob module doesn't maintain it's own state.</p>
+<p>When a <code>MsgPayForBlob</code> is processed, it consumes gas based on the blob size.</p>
+<h2 id="messages"><a class="header" href="#messages">Messages</a></h2>
+<ul>
+<li><a href="https://github.com/celestiaorg/celestia-app/blob/8b9c4c9d13fe0ccb6ea936cc26dee3f52b6f6129/proto/blob/tx.proto#L39-L44"><code>MsgPayForBlob</code></a> pays for the blob to be included in the block.</li>
+</ul>
+<h2 id="prepareproposal"><a class="header" href="#prepareproposal">PrepareProposal</a></h2>
+<p>When a block producer is preparing a block, they must perform an extra step for <code>BlobTx</code>s so that end-users can find the blob shares relevant to their submitted <code>BlobTx</code>. In particular, block proposers wrap the <code>BlobTx</code> in the PayForBlobs namespace with the index of the first share of the blob in the data square. See <a href="https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules">Non-interactive Default Rules</a> for more details.</p>
+<p>Since <code>BlobTx</code>s can contain multiple blobs, the <code>BlobTx</code> is wrapped with one share index per blob in the transaction. The index wrapped transaction is called an <a href="https://github.com/celestiaorg/celestia-core/blob/2d2a65f59eabf1993804168414b86d758f30c383/proto/tendermint/types/types.proto#L192-L198">IndexWrapper</a> and this is the type that gets marshalled and written to the PayForBlobNamespace.</p>
+<h2 id="events"><a class="header" href="#events">Events</a></h2>
+<p>The blob module emits the following events:</p>
+<h3 id="blob-events"><a class="header" href="#blob-events">Blob Events</a></h3>
+<h4 id="eventpayforblob"><a class="header" href="#eventpayforblob">EventPayForBlob</a></h4>
+<div class="table-wrapper"><table><thead><tr><th>Attribute Key</th><th>Attribute Value</th></tr></thead><tbody>
+<tr><td>signer</td><td>{bech32 encoded signer address}</td></tr>
+<tr><td>blob_size</td><td>{size in bytes}</td></tr>
+<tr><td>namespace_ids</td><td>{namespaces the blobs should be published to}</td></tr>
+</tbody></table>
+</div>
+<h2 id="parameters"><a class="header" href="#parameters">Parameters</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Type</th><th>Default</th></tr></thead><tbody>
+<tr><td>GasPerBlobByte</td><td>uint32</td><td>8</td></tr>
+</tbody></table>
+</div>
+<h3 id="usage"><a class="header" href="#usage">Usage</a></h3>
+<pre><code class="language-shell">celestia-app tx blob PayForBlobs &lt;hex encoded namespace&gt; &lt;hex encoded data&gt; [flags]
+</code></pre>
+<p>For submitting PFB transaction via a light client's rpc, see <a href="https://docs.celestia.org/developers/rpc-tutorial/#submitpayforblob-arguments">celestia-node's documention</a>.</p>
+<p>While not directly supported, the steps in the <a href="https://github.com/celestiaorg/celestia-app/blob/a82110a281bf9ee95a9bf9f0492e5d091371ff0b/x/blob/payforblob.go"><code>SubmitPayForBlob</code></a> function can be reverse engineered to submit blobs programmatically.</p>
+<!-- markdownlint-enable MD010 -->
+<h3 id="how-is-the-sharecommitment-of-a-blob-generated"><a class="header" href="#how-is-the-sharecommitment-of-a-blob-generated">How is the <code>ShareCommitment</code> of a blob generated?</a></h3>
+<p>See <a href="https://github.com/celestiaorg/celestia-app/blob/ead76d2bb607ac8a2deaba552de86d4df74a116b/x/blob/types/payforblob.go#L133"><code>CreateCommitment</code></a>.</p>
+<ol>
+<li>Split the blob into shares of size <code>appconsts.ShareSize</code></li>
+<li>Determine the <code>BlobMinSquareSize</code> (the minimum square size the blob can fit into). This is done by taking the number of shares from the previous step and rounding up to the next perfect square that is a power of two.</li>
+<li>Arrange the shares into a Merkle mountain range where each tree in the mountain range has a maximum size of the <code>BlobMinSquareSize</code>. Note: each share is prefixed with a duplicate copy of the namespace so that the roots in the next step match up with the subtree roots of the NMT of the data square.</li>
+<li>Take the roots of the trees in the Merkle mountain range and create a new Merkle tree.</li>
+<li>The share commitment of this blob is the Merkle root of the Merkle tree from the previous step.</li>
+</ol>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="xqgb"><a class="header" href="#xqgb"><code>x/qgb</code></a></h1>
+<h2 id="abstract-1"><a class="header" href="#abstract-1">Abstract</a></h2>
+<p>This module contains the <a href="https://blog.celestia.org/celestiums/">Quantum Gravity Bridge</a> (QGB) state machine implementation.</p>
+<h2 id="state-machine"><a class="header" href="#state-machine">State machine</a></h2>
+<p>The QGB state machine handles the creation of <a href="https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/x/qgb/types/attestation.go#L15-L23"><code>AttestationRequestI</code></a> which can be either a <a href="https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/proto/qgb/types.proto#L31-L47"><code>DataCommitment</code></a> or a <a href="https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/proto/qgb/types.proto#L17-L29"><code>Valset</code></a>.</p>
+<p>During their creation, the state machine might panic due to an unexpected behavior or event. These panics will be discussed below.</p>
+<h3 id="conditions-of-generating-a-new-attestation"><a class="header" href="#conditions-of-generating-a-new-attestation">Conditions of generating a new attestation</a></h3>
+<h4 id="new-valset-creation"><a class="header" href="#new-valset-creation">New valset creation</a></h4>
+<p>A new valset is created in the following situations:</p>
+<pre><code class="language-golang">if (latestValset == nil) || (lastUnbondingHeight == uint64(ctx.BlockHeight())) || significantPowerDiff {
+    ...
+}
+</code></pre>
+<ul>
+<li>No valset exists in store, so a new valset will be created. This happens mostly after genesis, or after a hard fork.</li>
+<li>The current block height is the last unbonding height, i.e. when a validator is leaving the validator set. A new valset will need to be created to accommodate that change.</li>
+<li>A significant power difference happened since the last valset. This could happen if a validator has way more staking power or the opposite. The significant power difference threshold is defined by the constant <code>SignificantPowerDifferenceThreshold</code>, and is set to 5% currently.</li>
+</ul>
+<h4 id="new-data-commitment-creation"><a class="header" href="#new-data-commitment-creation">New data commitment creation</a></h4>
+<p>A new data commitment is created in the following situation:</p>
+<pre><code class="language-golang">if ctx.BlockHeight() != 0 &amp;&amp; ctx.BlockHeight()%int64(k.GetDataCommitmentWindowParam(ctx)) == 0 {
+	...
+}
+</code></pre>
+<p>I.e. the current block height is not 0, and we're at a data commitment window height.</p>
+<p>The data commitment window is defined as a governance parameter that can be changed. Currently, it is set to 400.</p>
+<h3 id="panics"><a class="header" href="#panics">Panics</a></h3>
+<p>During EndBlock step, the state machine generates new attestations if needed. During this generation, the state machine could panic.</p>
+<h4 id="valset-panics"><a class="header" href="#valset-panics">Valset panics</a></h4>
+<p>When checking if the state machine needs to generate a new valset, the state machine might panic if it finds invalid state. This can happen in the following cases:</p>
+<ul>
+<li>When checking that a previous valset has been emitted, but it is unable to get it:</li>
+</ul>
+<pre><code class="language-golang">if k.CheckLatestAttestationNonce(ctx) &amp;&amp; k.GetLatestAttestationNonce(ctx) != 0 {  
+   var err error  
+   latestValset, err = k.GetLatestValset(ctx)  
+   if err != nil {  
+      panic(err)  
+   }  
+}
+</code></pre>
+<ul>
+<li>When getting the current valset:</li>
+</ul>
+<pre><code class="language-golang">vs, err := k.GetCurrentValset(ctx)
+if err != nil {  
+   // this condition should only occur in the simulator  
+   // ref : https://github.com/Gravity-Bridge/Gravity-Bridge/issues/35 
+   if errors.Is(err, types.ErrNoValidators) {  
+      ctx.Logger().Error(&quot;no bonded validators&quot;,  
+         &quot;cause&quot;, err.Error(),  
+      )  
+      return  
+   }  
+   panic(err)  
+}
+</code></pre>
+<ul>
+<li>When creating the internal validator struct, i.e. mapping the validators EVM addresses to their powers:</li>
+</ul>
+<pre><code class="language-golang">intLatestMembers, err := types.BridgeValidators(latestValset.Members).ToInternal()  
+if err != nil {  
+   panic(sdkerrors.Wrap(err, &quot;invalid latest valset members&quot;))  
+}
+</code></pre>
+<h4 id="attestations-panics"><a class="header" href="#attestations-panics">Attestations panics</a></h4>
+<p>When storing a new attestation, the state machine can panic if it finds invalid state. This latter can happen in the following cases:</p>
+<ul>
+<li>The attestation request created is a duplicate of an existing attestation:</li>
+</ul>
+<pre><code class="language-golang">key := []byte(types.GetAttestationKey(nonce))  
+store := ctx.KVStore(k.storeKey)  
+  
+if store.Has(key) {  
+   panic(&quot;trying to overwrite existing attestation request&quot;)  
+}
+</code></pre>
+<ul>
+<li>An error happened while marshalling the interface:</li>
+</ul>
+<pre><code class="language-golang">b, err := k.cdc.MarshalInterface(at)  
+if err != nil {  
+   panic(err)  
+}
+</code></pre>
+<ul>
+<li>The universal nonce was not incremented correctly by 1:</li>
+</ul>
+<pre><code class="language-golang">if k.CheckLatestAttestationNonce(ctx) &amp;&amp; k.GetLatestAttestationNonce(ctx)+1 != nonce {  
+   panic(&quot;not incrementing latest attestation nonce correctly&quot;)  
+}
+</code></pre>
+<h2 id="verification-command"><a class="header" href="#verification-command">Verification command</a></h2>
+<p>The QGB verification command is part of the <code>celestia-appd</code> binary. It allows the user to verify that a set of shares has been posted to a specific QGB contract.</p>
+<pre><code class="language-shell">$ celestia-appd verify --help          
+                              
+Verifies that a transaction hash, a range of shares, or a blob referenced by its transaction hash were committed to by the QGB contract
+
+Usage:
+  celestia-appd verify [command]
+
+Available Commands:
+  blob        Verifies that a blob, referenced by its transaction hash, in hex format, has been committed to by the QGB contract.
+  shares      Verifies that a range of shares has been committed to by the QGB contract
+  tx          Verifies that a transaction hash, in hex format, has been committed to by the QGB contract
+
+Flags:
+  -h, --help   help for verify
+
+Global Flags:
+      --home string         directory for config and data (default &quot;/home/midnight/.celestia-app&quot;)
+      --log_format string   The logging format (json|plain) (default &quot;plain&quot;)
+      --log_level string    The logging level (trace|debug|info|warn|error|fatal|panic) (default &quot;info&quot;)
+      --trace               print out full stack trace on errors
+
+Use &quot;celestia-appd verify [command] --help&quot; for more information about a command.
+
+</code></pre>
+<p>It currently supports three sub-commands:</p>
+<ul>
+<li><code>blob</code>: Takes a transaction hash, in hex format, and verifies that the blob paid for by the transaction has been committed to by the QGB contract. It only supports one blob for now.</li>
+<li><code>shares</code>: Takes a range of shares and a height, and verifies that these shares have been committed to by the QGB contract.</li>
+<li><code>tx</code>: Takes a transaction hash, in hex format, and verifies that it has been committed to by the QGB contract.</li>
+</ul>
+<h2 id="useful-links"><a class="header" href="#useful-links">Useful links</a></h2>
+<p>The smart contract implementation is in <a href="https://github.com/celestiaorg/quantum-gravity-bridge/">quantum-gravity-bridge</a>.</p>
+<p>For QGB v2, the orchestrator and relayer implementations will be in a separate repository. Links will be added subsequently.</p>
+<p>QGB v1 implementation, including the orchestrator and relayer, is in the <a href="https://github.com/celestiaorg/celestia-app/tree/qgb-integration">qgb-integration</a> branch.</p>
+<p>QGB ADRs are in the <a href="https://github.com/celestiaorg/celestia-app/tree/main/docs/architecture">docs</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="xmint"><a class="header" href="#xmint"><code>x/mint</code></a></h1>
+<p><code>x/mint</code> is a fork of the Cosmos SDK <code>x/mint</code> module that makes some changes to the inflation mechanism.</p>
+<ol>
+<li>Remove all parameters from the module</li>
+<li>Calculate inflation rate once per year based on the number of years since genesis</li>
+<li>Calculate annual provisions once per year based on the total supply</li>
+<li>Calculate block provision once per block based on the number of seconds elapsed between the current block and the previous block</li>
+</ol>
+<h2 id="constants-1"><a class="header" href="#constants-1">Constants</a></h2>
+<p>See <a href="../../x/mint/./types/constants.go">./types/constants.go</a> for the constants used in this module.</p>
+<p>Note: this module assumes <code>DaysPerYear = 365.2425</code> so when modifying tests, developers must define durations based on this assumption because ordinary durations won't return the expected results. In other words:</p>
+<pre><code class="language-go">// oneYear is 31,556,952 seconds which will likely return expected results in tests
+oneYear, err := time.ParseDuration(fmt.Sprintf(&quot;%vs&quot;, minttypes.SecondsPerYear))
+
+// this oneYear is 31,536,000 seconds which will likely return unexpected results in tests
+oneYear := time.Hour * 24 * 365
+</code></pre>
+<h2 id="inflation-schedule"><a class="header" href="#inflation-schedule">Inflation Schedule</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Year</th><th>Inflation (%)</th></tr></thead><tbody>
+<tr><td>0</td><td>8.00</td></tr>
+<tr><td>1</td><td>7.20</td></tr>
+<tr><td>2</td><td>6.48</td></tr>
+<tr><td>3</td><td>5.832</td></tr>
+<tr><td>4</td><td>5.2488</td></tr>
+<tr><td>5</td><td>4.72392</td></tr>
+<tr><td>6</td><td>4.251528</td></tr>
+<tr><td>7</td><td>3.8263752</td></tr>
+<tr><td>8</td><td>3.44373768</td></tr>
+<tr><td>9</td><td>3.099363912</td></tr>
+<tr><td>10</td><td>2.7894275208</td></tr>
+<tr><td>11</td><td>2.51048476872</td></tr>
+<tr><td>12</td><td>2.259436291848</td></tr>
+<tr><td>13</td><td>2.0334926626632</td></tr>
+<tr><td>14</td><td>1.83014339639688</td></tr>
+<tr><td>15</td><td>1.647129056757192</td></tr>
+<tr><td>16</td><td>1.50</td></tr>
+<tr><td>17</td><td>1.50</td></tr>
+<tr><td>18</td><td>1.50</td></tr>
+<tr><td>19</td><td>1.50</td></tr>
+<tr><td>20</td><td>1.50</td></tr>
+</tbody></table>
+</div>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
+<ol>
+<li>ADR-019</li>
+</ol>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="xparamfilter"><a class="header" href="#xparamfilter"><code>x/paramfilter</code></a></h1>
+<h2 id="abstract-2"><a class="header" href="#abstract-2">Abstract</a></h2>
+<p>The paramfilter module allows for specific parameters to be added to a block
+list, so that they cannot be changed by governance proposals. If a proposal
+contains a single blocked parameter change, then none of the parameters are
+updated.</p>
+<p>This is useful for forcing hardforks to change parameters that are
+critical to the network's operation that are also part of the cosmos-sdk's
+standard modules. New modules should not use this module, and instead use
+hardcoded constants.</p>
+<h2 id="state-2"><a class="header" href="#state-2">State</a></h2>
+<p>The state consists only of the parameters that are protected by the paramfilter.
+All state is immutable and stored in memory during the application's
+initialization.</p>
+<pre><code class="language-go">// ParamBlockList keeps track of parameters that cannot be changed by governance
+// proposals
+type ParamBlockList struct {
+	params map[string]bool
+}
+
+// NewParamBlockList creates a new ParamBlockList that can be used to block gov
+// proposals that attempt to change hard-coded parameters.
+func NewParamBlockList(blockedParams ...[2]string) ParamBlockList {
+	consolidatedParams := make(map[string]bool, len(blockedParams))
+	for _, param := range blockedParams {
+		consolidatedParams[fmt.Sprintf(&quot;%s-%s&quot;, param[0], param[1])] = true
+	}
+	return ParamBlockList{params: consolidatedParams}
+}
+</code></pre>
+<h2 id="usage-1"><a class="header" href="#usage-1">Usage</a></h2>
+<p>Pass a list of the blocked subspace key pairs that describe each parameter to
+the block list, then register the param change handler with the governance
+module.</p>
+<pre><code class="language-go">func (*App) Blocked() [][2]string {
+	return [][2]string{
+		{banktypes.ModuleName, string(banktypes.KeySendEnabled)},
+		{stakingtypes.ModuleName, string(stakingtypes.KeyUnbondingTime)},
+		{stakingtypes.ModuleName, string(stakingtypes.KeyBondDenom)},
+		{baseapp.Paramspace, string(baseapp.ParamStoreKeyValidatorParams)},
+	}
+}
+
+func NewApp(...) *App {
+    ...
+    paramBlockList := paramfilter.NewParamBlockList(app.BlockedParams()...)
+
+	// register the proposal types
+	govRouter := oldgovtypes.NewRouter()
+	govRouter.AddRoute(paramproposal.RouterKey, paramBlockList.GovHandler(app.ParamsKeeper))
+    ...
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="xupgrade"><a class="header" href="#xupgrade"><code>x/upgrade</code></a></h1>
+<h2 id="abstract-3"><a class="header" href="#abstract-3">Abstract</a></h2>
+<p>The upgrade module removes the entrypoints to the standard upgrade module by not
+registering a message server. It registers the standard upgrade module types to
+preserve the ability to marshal them. Note that the keeper of the standard
+upgrade module is still added to the application.</p>
 
                     </main>
 
