@@ -4,7 +4,7 @@
   - [Data Structures](./specs/data_structures.md)
   - [Consensus](./specs/consensus.md)
   - [Block Proposer](./specs/block_proposer.md)
-  - - [Block Validity Rules](./specs/block_validity_rules.md)
+  - [Block Validity Rules](./specs/block_validity_rules.md)
   - [Networking](./specs/networking.md)
   - [Public-Key Cryptography](./specs/public_key_cryptography.md)
 - [Rationale](./rationale/index.md)
