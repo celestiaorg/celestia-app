@@ -9,7 +9,7 @@
   - [Public-Key Cryptography](./specs/public_key_cryptography.md)
 - [Rationale](./rationale/index.md)
   - [Data Square Layout](./rationale/data_square_layout.md)
-- State Machine Modules
+- [State Machine Modules](./specs/state_machine_modules.md)
   - [blob](../../x/blob/README.md)
   - [qgb](../../x/qgb/README.md)
   - [mint](../../x/mint/README.md)
