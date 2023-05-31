@@ -9,12 +9,10 @@
   - [Block Validity Rules](./specs/block_validity_rules.md)
   - [Networking](./specs/networking.md)
   - [Public-Key Cryptography](./specs/public_key_cryptography.md)
+  - [x/blob](../../x/blob/README.md)
+  - [x/qgb](../../x/qgb/README.md)
+  - [x/mint](../../x/mint/README.md)
+  - [x/paramfilter](../../x/paramfilter/README.md)
+  - [x/upgrade](../../x/upgrade/README.md)
 - [Rationale](./rationale/index.md)
   - [Data Square Layout](./rationale/data_square_layout.md)
-- State Machine Modules
-  - [blob](../../x/blob/README.md)
-  - [qgb](../../x/qgb/README.md)
-  - tokenfilter
-  - [mint](../../x/mint/README.md)
-  - [paramfilter](../../x/paramfilter/README.md)
-  - [upgrade](../../x/upgrade/README.md)
