@@ -113,7 +113,7 @@ func EVMAddrLessThan(e common.Address, o common.Address) bool {
 // validator set updates. For example if the total on chain voting power
 // increases by 1% due to inflation, we shouldn't have to generate a new
 // validator set, after all the validators retained their relative percentages
-// during inflation and normalized QGB bridge power shows no difference.
+// during inflation and normalized QGB power shows no difference.
 func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) float64 {
 	powers := map[string]int64{}
 	// loop over ibv and initialize the map with their powers
