@@ -76,7 +76,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="specs/consensus.html"><strong aria-hidden="true">1.2.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="specs/block_proposer.html"><strong aria-hidden="true">1.3.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="specs/block_validity_rules.html"><strong aria-hidden="true">1.4.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="specs/networking.html"><strong aria-hidden="true">1.5.</strong> Networking</a></li><li class="chapter-item expanded "><a href="specs/public_key_cryptography.html"><strong aria-hidden="true">1.6.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="../../x/blob/index.html"><strong aria-hidden="true">1.7.</strong> x/blob</a></li><li class="chapter-item expanded "><a href="../../x/qgb/index.html"><strong aria-hidden="true">1.8.</strong> x/qgb</a></li><li class="chapter-item expanded "><a href="../../x/mint/index.html"><strong aria-hidden="true">1.9.</strong> x/mint</a></li><li class="chapter-item expanded "><a href="../../x/paramfilter/index.html"><strong aria-hidden="true">1.10.</strong> x/paramfilter</a></li><li class="chapter-item expanded "><a href="../../x/upgrade/index.html"><strong aria-hidden="true">1.11.</strong> x/upgrade</a></li></ol></li><li class="chapter-item expanded "><a href="rationale/index.html"><strong aria-hidden="true">2.</strong> Rationale</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rationale/data_square_layout.html"><strong aria-hidden="true">2.1.</strong> Data Square Layout</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="specs/consensus.html"><strong aria-hidden="true">1.2.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="specs/block_proposer.html"><strong aria-hidden="true">1.3.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="specs/block_validity_rules.html"><strong aria-hidden="true">1.4.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="specs/networking.html"><strong aria-hidden="true">1.5.</strong> Networking</a></li><li class="chapter-item expanded "><a href="specs/public_key_cryptography.html"><strong aria-hidden="true">1.6.</strong> Public-Key Cryptography</a></li></ol></li><li class="chapter-item expanded "><a href="rationale/index.html"><strong aria-hidden="true">2.</strong> Rationale</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rationale/data_square_layout.html"><strong aria-hidden="true">2.1.</strong> Data Square Layout</a></li></ol></li><li class="chapter-item expanded "><a href="specs/state_machine_modules.html"><strong aria-hidden="true">3.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../x/blob/index.html"><strong aria-hidden="true">3.1.</strong> blob</a></li><li class="chapter-item expanded "><a href="../../x/qgb/index.html"><strong aria-hidden="true">3.2.</strong> qgb</a></li><li class="chapter-item expanded "><a href="../../x/mint/index.html"><strong aria-hidden="true">3.3.</strong> mint</a></li><li class="chapter-item expanded "><a href="../../x/paramfilter/index.html"><strong aria-hidden="true">3.4.</strong> paramfilter</a></li><li class="chapter-item expanded "><a href="../../x/upgrade/index.html"><strong aria-hidden="true">3.5.</strong> upgrade</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -1381,6 +1381,58 @@ message StateFraudProof {
 <!-- markdownlint-disable-next-line MD024 -->
 <h3 id="signatures-1"><a class="header" href="#signatures-1">Signatures</a></h3>
 <p>Ed25519 signatures are 64 bytes in length.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="rationale"><a class="header" href="#rationale">Rationale</a></h1>
+<ul>
+<li><a href="rationale/./data_square_layout.html">Data Square Layout</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="data-square-layout"><a class="header" href="#data-square-layout">Data Square Layout</a></h1>
+<!-- toc -->
+<h2 id="preamble"><a class="header" href="#preamble">Preamble</a></h2>
+<p>Celestia uses <a href="https://arxiv.org/abs/1809.09044">a data availability scheme</a> that allows nodes to determine whether a block's data was published without downloading the whole block. The core of this scheme is arranging data in a two-dimensional matrix then applying erasure coding to each row and column. This document describes the rationale for how data—transactions, blobs, and other data—<a href="rationale/../specs/data_structures.html#arranging-available-data-into-shares">is actually arranged</a>. Familiarity with the <a href="https://arxiv.org/abs/1809.09044">originally proposed data layout format</a> is assumed.</p>
+<h2 id="rationale-1"><a class="header" href="#rationale-1">Rationale</a></h2>
+<p>Block data consists of:</p>
+<ol>
+<li>Cosmos SDK module transactions (e.g. <a href="https://github.com/cosmos/cosmos-sdk/blob/f71df80e93bffbf7ce5fbd519c6154a2ee9f991b/proto/cosmos/bank/v1beta1/tx.proto#L21-L32">MsgSend</a>). These modify the Celestia chain's state.</li>
+<li>Celestia-specific transactions (e.g. <a href="rationale/../specs/data_structures.html#payforblobdata">PayForBlobs</a>). These modify the Celestia chain's state.</li>
+<li>Intermediate state roots: required for fraud proofs of the aforementioned transactions.</li>
+<li>Blobs: binary blobs which do not modify the Celestia state, but which are intended for a Celestia application identified with a provided namespace.</li>
+</ol>
+<p>We want to arrange this data into a <code>k * k</code> matrix of fixed-sized shares, which will later be committed to in <a href="rationale/../specs/data_structures.html#namespace-merkle-tree">Namespace Merkle Trees (NMTs)</a> so that individual shares in this matrix can be proven to belong to a single data root.</p>
+<p>The simplest way we can imagine arranging block data is to simply serialize it all in no particular order, split it into fixed-sized shares, then arrange those shares into the <code>k * k</code> matrix in row-major order. However, this naive scheme can be improved in a number of ways, described below.</p>
+<p>First, we impose some ground rules:</p>
+<ol>
+<li>Data must be ordered by namespace. This makes queries into a NMT commitment of that data more efficient.</li>
+<li>Since non-blob data are not naturally intended for particular namespaces, we assign reserved namespaces for them. A range of namespaces is reserved for this purpose, starting from the lowest possible namespace.</li>
+<li>By construction, the above two rules mean that non-blob data always precedes blob data in the row-major matrix, even when considering single rows or columns.</li>
+<li>Data with different namespaces must not be in the same share. This might cause a small amount of wasted block space, but makes the NMT easier to reason about in general since leaves are guaranteed to belong to a single namespace.</li>
+</ol>
+<p>Transactions can pay fees for a blob to be included in the same block as the transaction itself. It may seem natural to bundle the PayForBlob transaction that pays for a number of blobs with these blobs (which is the case in other blockchains with native execution, e.g. calldata in Ethereum transactions or OP_RETURN data in Bitcoin transactions), however this would mean that processes validating the state of the Celestia network would need to download all blob data. PayForBlob transactions must therefore only include a commitment to (i.e. some hash of) the blob they pay fees for. If implemented naively (e.g. with a simple hash of the blob, or a simple binary Merkle tree root of the blob), this can lead to a data availability problem, as there are no guarantees that the data behind these commitments is actually part of the block data.</p>
+<p>To that end, we impose some additional rules onto <em>blobs only</em>: blobs must be placed is a way such that both the transaction sender and the block producer can be held accountable—a necessary property for e.g. fee burning. Accountable in this context means that</p>
+<ol>
+<li>The transaction sender must pay sufficient fees for blob inclusion.</li>
+<li>The block proposer cannot claim that a blob was included when it was not (which implies that a transaction and the blob it pays for must be included in the same block). In addition all blobs must be accompanied by a PayForBlob transaction.</li>
+</ol>
+<p>Specifically, blobs must begin at a new share. We note a nice property from this rule: if the transaction sender knows 1) <code>k</code>, the size of the matrix, 2) the starting location of their blob in a row, and 3) the length of the blob (they know this since they are sending the blob), then they can actually compute a sequence of roots to <em>subtrees in the row NMTs</em>. More importantly, anyone can compute this, and can compute <em>the simple Merkle root of these subtree roots</em>.</p>
+<p>This, however, requires the block producer to interact with the transaction sender to provide them the starting location of their blob, so that the sender can sign over the commitment based on that starting location. This can be done selectively, but is not ideal as a default for e.g. end-user wallets.</p>
+<h3 id="non-interactive-default-rules"><a class="header" href="#non-interactive-default-rules">Non-Interactive Default Rules</a></h3>
+<p>As a non-consensus-critical default, we can impose one additional rule on blob placement to make the possible starting locations of blobs sufficiently predictable and constrained such that users can deterministically compute subtree roots without interaction:</p>
+<blockquote>
+<p>Blobs start at an index that is a multiple of the blob minimum square size. The blob minimum square size is the smallest square that can contain the blob in isolation (i.e. a square with only this blob and no other transactions or blobs).</p>
+</blockquote>
+<p>In the constraint mentioned above, the number of rows/columns in the minimum square size should be a power of 2.
+With the above constraint, we can compute subtree roots deterministically. In order to compute the subtree roots, split the blob into chunks that are of maximum size: blob minimum square size. As an example, a blob of length <code>11</code> has a minimum square size of <code>4</code> because <code>11</code> is not greater than <code>4 * 4 = 16</code> total shares. Split the blob into chunks of length <code>4, 4, 2, 1</code> because each chunk must be a power of <code>2</code>. The resulting slices are the leaves of subtrees whose roots can be computed. These subtree roots will be present as internal nodes in the NMT of <em>some</em> row(s).</p>
+<p>This is similar to <a href="https://www.usenix.org/legacy/event/sec09/tech/full_papers/crosby.pdf">Merkle Mountain Ranges</a>, though with the largest subtree bounded by the blob minimum square size rather than being unbounded.</p>
+<p>The last piece of the puzzle is determining <em>which</em> row the blob is placed at (or, more specifically, the starting location). This is needed to keep the block producer accountable. To this end, the block producer simply augments each fee-paying transaction with the starting locations of the blobs the transaction pays for.</p>
+<h3 id="caveats"><a class="header" href="#caveats">Caveats</a></h3>
+<p>The blob placement rules described above conflict with the first rule that shares must be ordered by namespace ID, as shares between two blobs that are not placed adjacent to each other do not have a natural namespace they belong to. This is resolved by requiring that such shares have a value of zero and a namespace ID equal to the preceding blob's. Since their value is known, they can be omitted from NMT proofs of all shares of a given namespace ID.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="state-machine-modules"><a class="header" href="#state-machine-modules">State Machine Modules</a></h1>
+<ul>
+<li><a href="specs/../../../x/blob/README.html">blob</a></li>
+<li><a href="specs/../../../x/qgb/README.html">qgb</a></li>
+<li><a href="specs/../../../x/mint/README.html">mint</a></li>
+<li><a href="specs/../../../x/paramfilter/README.html">paramfilter</a></li>
+<li><a href="specs/../../../x/upgrade/README.html">upgrade</a></li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xblob"><a class="header" href="#xblob"><code>x/blob</code></a></h1>
 <h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
 <p>The <code>x/blob</code> module enables users to pay for arbitrary data to be published to the Celestia blockchain. Users create a single <code>BlobTx</code> that is composed of:</p>
@@ -1676,50 +1728,6 @@ func NewApp(...) *App {
 registering a message server. It registers the standard upgrade module types to
 preserve the ability to marshal them. Note that the keeper of the standard
 upgrade module is still added to the application.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="rationale"><a class="header" href="#rationale">Rationale</a></h1>
-<ul>
-<li><a href="rationale/./data_square_layout.html">Data Square Layout</a></li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="data-square-layout"><a class="header" href="#data-square-layout">Data Square Layout</a></h1>
-<!-- toc -->
-<h2 id="preamble"><a class="header" href="#preamble">Preamble</a></h2>
-<p>Celestia uses <a href="https://arxiv.org/abs/1809.09044">a data availability scheme</a> that allows nodes to determine whether a block's data was published without downloading the whole block. The core of this scheme is arranging data in a two-dimensional matrix then applying erasure coding to each row and column. This document describes the rationale for how data—transactions, blobs, and other data—<a href="rationale/../specs/data_structures.html#arranging-available-data-into-shares">is actually arranged</a>. Familiarity with the <a href="https://arxiv.org/abs/1809.09044">originally proposed data layout format</a> is assumed.</p>
-<h2 id="rationale-1"><a class="header" href="#rationale-1">Rationale</a></h2>
-<p>Block data consists of:</p>
-<ol>
-<li>Cosmos SDK module transactions (e.g. <a href="https://github.com/cosmos/cosmos-sdk/blob/f71df80e93bffbf7ce5fbd519c6154a2ee9f991b/proto/cosmos/bank/v1beta1/tx.proto#L21-L32">MsgSend</a>). These modify the Celestia chain's state.</li>
-<li>Celestia-specific transactions (e.g. <a href="rationale/../specs/data_structures.html#payforblobdata">PayForBlobs</a>). These modify the Celestia chain's state.</li>
-<li>Intermediate state roots: required for fraud proofs of the aforementioned transactions.</li>
-<li>Blobs: binary blobs which do not modify the Celestia state, but which are intended for a Celestia application identified with a provided namespace.</li>
-</ol>
-<p>We want to arrange this data into a <code>k * k</code> matrix of fixed-sized shares, which will later be committed to in <a href="rationale/../specs/data_structures.html#namespace-merkle-tree">Namespace Merkle Trees (NMTs)</a> so that individual shares in this matrix can be proven to belong to a single data root.</p>
-<p>The simplest way we can imagine arranging block data is to simply serialize it all in no particular order, split it into fixed-sized shares, then arrange those shares into the <code>k * k</code> matrix in row-major order. However, this naive scheme can be improved in a number of ways, described below.</p>
-<p>First, we impose some ground rules:</p>
-<ol>
-<li>Data must be ordered by namespace. This makes queries into a NMT commitment of that data more efficient.</li>
-<li>Since non-blob data are not naturally intended for particular namespaces, we assign reserved namespaces for them. A range of namespaces is reserved for this purpose, starting from the lowest possible namespace.</li>
-<li>By construction, the above two rules mean that non-blob data always precedes blob data in the row-major matrix, even when considering single rows or columns.</li>
-<li>Data with different namespaces must not be in the same share. This might cause a small amount of wasted block space, but makes the NMT easier to reason about in general since leaves are guaranteed to belong to a single namespace.</li>
-</ol>
-<p>Transactions can pay fees for a blob to be included in the same block as the transaction itself. It may seem natural to bundle the PayForBlob transaction that pays for a number of blobs with these blobs (which is the case in other blockchains with native execution, e.g. calldata in Ethereum transactions or OP_RETURN data in Bitcoin transactions), however this would mean that processes validating the state of the Celestia network would need to download all blob data. PayForBlob transactions must therefore only include a commitment to (i.e. some hash of) the blob they pay fees for. If implemented naively (e.g. with a simple hash of the blob, or a simple binary Merkle tree root of the blob), this can lead to a data availability problem, as there are no guarantees that the data behind these commitments is actually part of the block data.</p>
-<p>To that end, we impose some additional rules onto <em>blobs only</em>: blobs must be placed is a way such that both the transaction sender and the block producer can be held accountable—a necessary property for e.g. fee burning. Accountable in this context means that</p>
-<ol>
-<li>The transaction sender must pay sufficient fees for blob inclusion.</li>
-<li>The block proposer cannot claim that a blob was included when it was not (which implies that a transaction and the blob it pays for must be included in the same block). In addition all blobs must be accompanied by a PayForBlob transaction.</li>
-</ol>
-<p>Specifically, blobs must begin at a new share. We note a nice property from this rule: if the transaction sender knows 1) <code>k</code>, the size of the matrix, 2) the starting location of their blob in a row, and 3) the length of the blob (they know this since they are sending the blob), then they can actually compute a sequence of roots to <em>subtrees in the row NMTs</em>. More importantly, anyone can compute this, and can compute <em>the simple Merkle root of these subtree roots</em>.</p>
-<p>This, however, requires the block producer to interact with the transaction sender to provide them the starting location of their blob, so that the sender can sign over the commitment based on that starting location. This can be done selectively, but is not ideal as a default for e.g. end-user wallets.</p>
-<h3 id="non-interactive-default-rules"><a class="header" href="#non-interactive-default-rules">Non-Interactive Default Rules</a></h3>
-<p>As a non-consensus-critical default, we can impose one additional rule on blob placement to make the possible starting locations of blobs sufficiently predictable and constrained such that users can deterministically compute subtree roots without interaction:</p>
-<blockquote>
-<p>Blobs start at an index that is a multiple of the blob minimum square size. The blob minimum square size is the smallest square that can contain the blob in isolation (i.e. a square with only this blob and no other transactions or blobs).</p>
-</blockquote>
-<p>In the constraint mentioned above, the number of rows/columns in the minimum square size should be a power of 2.
-With the above constraint, we can compute subtree roots deterministically. In order to compute the subtree roots, split the blob into chunks that are of maximum size: blob minimum square size. As an example, a blob of length <code>11</code> has a minimum square size of <code>4</code> because <code>11</code> is not greater than <code>4 * 4 = 16</code> total shares. Split the blob into chunks of length <code>4, 4, 2, 1</code> because each chunk must be a power of <code>2</code>. The resulting slices are the leaves of subtrees whose roots can be computed. These subtree roots will be present as internal nodes in the NMT of <em>some</em> row(s).</p>
-<p>This is similar to <a href="https://www.usenix.org/legacy/event/sec09/tech/full_papers/crosby.pdf">Merkle Mountain Ranges</a>, though with the largest subtree bounded by the blob minimum square size rather than being unbounded.</p>
-<p>The last piece of the puzzle is determining <em>which</em> row the blob is placed at (or, more specifically, the starting location). This is needed to keep the block producer accountable. To this end, the block producer simply augments each fee-paying transaction with the starting locations of the blobs the transaction pays for.</p>
-<h3 id="caveats"><a class="header" href="#caveats">Caveats</a></h3>
-<p>The blob placement rules described above conflict with the first rule that shares must be ordered by namespace ID, as shares between two blobs that are not placed adjacent to each other do not have a natural namespace they belong to. This is resolved by requiring that such shares have a value of zero and a namespace ID equal to the preceding blob's. Since their value is known, they can be omitted from NMT proofs of all shares of a given namespace ID.</p>
 
                     </main>
 
