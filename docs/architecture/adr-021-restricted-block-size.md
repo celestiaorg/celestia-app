@@ -1,12 +1,13 @@
 # ADR 021: Restricted and Configurable Block Size
 
-## Changelog
-
-- 2023-05-12: Initial
-
 ## Status
 
-Accepted
+Implemented in <https://github.com/celestiaorg/celestia-app/pull/1772>
+
+## Changelog
+
+- 2023/05/12: Initial draft
+- 2023/05/30: Update status
 
 ## Context
 
