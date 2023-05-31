@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"fmt"
 	"time"
 
 	"cosmossdk.io/errors"
@@ -68,6 +69,9 @@ func (k Keeper) CurrentValsetSSZHash(ctx sdk.Context) ([]byte, error) {
 
 func (k Keeper) SetSSZHash(ctx sdk.Context, hash []byte) {
 	store := ctx.KVStore(k.storeKey)
+	// TODO remove, this is only for debugging
+	blockHeight := ctx.BlockHeight()
+	fmt.Printf("Storing SSZ hash: Block=%d SSZ hash=%x\n", blockHeight, hash)
 	store.Set([]byte(HashKey), hash)
 }
 
