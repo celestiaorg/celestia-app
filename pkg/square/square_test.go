@@ -258,3 +258,26 @@ func TestSize(t *testing.T) {
 		assert.True(t, shares.IsPowerOfTwo(res))
 	}
 }
+
+// FuzzSquareDeconstruct test whether square.Deconstruct can correctly deconstruct a square.
+func FuzzSquareDeconstruct(f *testing.F) {
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	f.Fuzz(func(t *testing.T, normalTxCount int, pfbCount int, blobsPerPfb int, blobSize int) {
+		// skip negative values
+		if normalTxCount < 0 || pfbCount < 0 || blobsPerPfb < 0 || blobSize < 0 {
+			t.Skip()
+		}
+		// each PFB should have at least one non-zero size blob
+		if pfbCount > 0 && (blobSize == 0 || blobsPerPfb == 0) {
+			t.Skip()
+		}
+		txs := generateOrderedTxs(normalTxCount, pfbCount, blobsPerPfb, blobSize)
+		dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
+		if err != nil {
+			t.Skip()
+		}
+		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
+		require.NoError(t, err)
+		require.Equal(t, txs, recomputedTxs.ToSliceOfBytes())
+	})
+}
