@@ -9,12 +9,12 @@ import (
 
 // GetCommitment gets the share commitment for a blob in the original data
 // square.
-func GetCommitment(cacher *EDSSubTreeRootCacher, dah da.DataAvailabilityHeader, start, blobShareLen int) ([]byte, error) {
+func GetCommitment(cacher *EDSSubTreeRootCacher, dah da.DataAvailabilityHeader, start, blobShareLen, subtreeRootThreshold int) ([]byte, error) {
 	squareSize := len(dah.RowRoots) / 2
 	if start+blobShareLen > squareSize*squareSize {
 		return nil, errors.New("cannot get commitment for blob that doesn't fit in square")
 	}
-	paths := calculateCommitmentPaths(squareSize, start, blobShareLen)
+	paths := calculateCommitmentPaths(squareSize, start, blobShareLen, subtreeRootThreshold)
 	subTreeRoots := make([][]byte, len(paths))
 	for i, path := range paths {
 		// here we prepend false (walk left down the tree) because we only need

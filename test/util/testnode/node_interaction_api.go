@@ -2,8 +2,9 @@ package testnode
 
 import (
 	"context"
-	"errors"
+	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -16,7 +17,12 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 	coretypes "github.com/tendermint/tendermint/types"
+)
+
+const (
+	DefaultTimeout = 10 * time.Second
 )
 
 type Context struct {
@@ -52,7 +58,7 @@ func (c *Context) WaitForHeightWithTimeout(h int64, t time.Duration) (int64, err
 	for {
 		select {
 		case <-ctx.Done():
-			return latestHeight, errors.New("timeout exceeded waiting for network to reach height")
+			return latestHeight, fmt.Errorf("timeout (%v) exceeded waiting for network to reach height", t)
 		case <-ticker.C:
 			latestHeight, err := c.LatestHeight()
 			if err != nil {
@@ -69,23 +75,67 @@ func (c *Context) WaitForHeightWithTimeout(h int64, t time.Duration) (int64, err
 // committed after a given block. If that height is not reached within a timeout,
 // an error is returned. Regardless, the latest height queried is returned.
 func (c *Context) WaitForHeight(h int64) (int64, error) {
-	return c.WaitForHeightWithTimeout(h, 10*time.Second)
+	return c.WaitForHeightWithTimeout(h, DefaultTimeout)
 }
 
 // WaitForNextBlock waits for the next block to be committed, returning an error
 // upon failure.
 func (c *Context) WaitForNextBlock() error {
+	return c.WaitForBlocks(1)
+}
+
+// WaitForBlocks waits until n blocks have been committed, returning an error
+// upon failure.
+func (c *Context) WaitForBlocks(n int64) error {
 	lastBlock, err := c.LatestHeight()
 	if err != nil {
 		return err
 	}
 
-	_, err = c.WaitForHeight(lastBlock + 1)
+	_, err = c.WaitForHeight(lastBlock + n)
 	if err != nil {
 		return err
 	}
 
 	return err
+}
+
+func (c *Context) WaitForTx(hashHexStr string, blocks int) (*rpctypes.ResultTx, error) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	hash, err := hex.DecodeString(hashHexStr)
+	if err != nil {
+		return nil, err
+	}
+
+	height, err := c.LatestHeight()
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(c.rootCtx, DefaultTimeout)
+	defer cancel()
+
+	for {
+		latestHeight, err := c.LatestHeight()
+		if err != nil {
+			return nil, err
+		}
+		if blocks > 0 && latestHeight > height+int64(blocks) {
+			return nil, fmt.Errorf("waited %d blocks for tx to be included in block", blocks)
+		}
+
+		<-ticker.C
+		res, err := c.Client.Tx(ctx, hash, false)
+		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				continue
+			}
+			return nil, err
+		}
+		return res, nil
+	}
 }
 
 // PostData will create and submit PFB transaction containing the namespace and
@@ -157,7 +207,7 @@ func (c *Context) PostData(account, broadcastMode string, ns appns.Namespace, bl
 		return nil, err
 	}
 	if res.Code != abci.CodeTypeOK {
-		return res, fmt.Errorf("failure to broadcast tx sync: %s", res.RawLog)
+		return res, fmt.Errorf("failure to broadcast tx (%d): %s", res.Code, res.RawLog)
 	}
 
 	return res, nil

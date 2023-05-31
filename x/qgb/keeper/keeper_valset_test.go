@@ -104,9 +104,9 @@ func TestCheckingLatestAttestationNonceInValsets(t *testing.T) {
 			expectedError: types.ErrLatestAttestationNonceStillNotInitialized,
 		},
 		{
-			name: "check latest nonce before getting last valset before nonce",
+			name: "check latest nonce before getting latest valset before nonce",
 			requestFunc: func() error {
-				_, err := k.GetLastValsetBeforeNonce(input.Context, 1)
+				_, err := k.GetLatestValsetBeforeNonce(input.Context, 1)
 				return err
 			},
 			expectedError: types.ErrLatestAttestationNonceStillNotInitialized,

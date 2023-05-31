@@ -10,8 +10,8 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// Can be deleted after implementing the Orchestrator and Relayer as per QGB ADR-005.
-// NewHandler uses the provided qgb keeper to create an sdk.Handler.
+// Can be deleted after implementing the Orchestrator and Relayer as per QGB
+// ADR-005. NewHandler uses the provided qgb keeper to create an sdk.Handler.
 func NewHandler(_ keeper.Keeper) sdk.Handler {
 	return func(ctx sdk.Context, msg sdk.Msg) (*sdk.Result, error) {
 		_ = ctx.WithEventManager(sdk.NewEventManager())

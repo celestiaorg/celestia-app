@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -81,6 +82,9 @@ func DefaultConfig() network.Config {
 				simapp.EmptyAppOptions{},
 				baseapp.SetPruning(pruningtypes.NewPruningOptionsFromString(val.AppConfig.Pruning)),
 				baseapp.SetMinGasPrices(val.AppConfig.MinGasPrices),
+				func(b *baseapp.BaseApp) {
+					b.SetProtocolVersion(appconsts.LatestVersion)
+				},
 			)
 		},
 		GenesisState:         app.ModuleBasics.DefaultGenesis(encCfg.Codec),

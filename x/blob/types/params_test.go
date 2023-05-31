@@ -20,13 +20,8 @@ func Test_validateGovMaxSquareSize(t *testing.T) {
 			expectErr: false,
 		},
 		{
-			name:      "too big",
-			input:     uint64(appconsts.MaxSquareSize * 2),
-			expectErr: true,
-		},
-		{
 			name:      "not a power of 2",
-			input:     uint64(appconsts.MaxSquareSize - 1),
+			input:     uint64(appconsts.DefaultSquareSizeUpperBound - 1),
 			expectErr: true,
 		},
 		{
