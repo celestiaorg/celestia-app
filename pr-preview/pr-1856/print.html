@@ -1426,12 +1426,33 @@ With the above constraint, we can compute subtree roots deterministically. In or
 <h3 id="caveats"><a class="header" href="#caveats">Caveats</a></h3>
 <p>The blob placement rules described above conflict with the first rule that shares must be ordered by namespace ID, as shares between two blobs that are not placed adjacent to each other do not have a natural namespace they belong to. This is resolved by requiring that such shares have a value of zero and a namespace ID equal to the preceding blob's. Since their value is known, they can be omitted from NMT proofs of all shares of a given namespace ID.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="state-machine-modules"><a class="header" href="#state-machine-modules">State Machine Modules</a></h1>
+<p>Celestia app is built using the cosmos-sdk, and follows standard cosmos-sdk module structure.</p>
+<h2 id="celestia-app-specific-modules"><a class="header" href="#celestia-app-specific-modules"><code>celestia-app</code> Specific Modules</a></h2>
 <ul>
 <li><a href="specs/../../../x/blob/README.html">blob</a></li>
 <li><a href="specs/../../../x/qgb/README.html">qgb</a></li>
 <li><a href="specs/../../../x/mint/README.html">mint</a></li>
 <li><a href="specs/../../../x/paramfilter/README.html">paramfilter</a></li>
 <li><a href="specs/../../../x/upgrade/README.html">upgrade</a></li>
+</ul>
+<h2 id="standard-cosmos-sdk-modules"><a class="header" href="#standard-cosmos-sdk-modules">Standard <code>cosmos-sdk</code> Modules</a></h2>
+<ul>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/auth/spec/README.md">auth</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/authz/spec/README.md">authz</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/bank/spec/README.md">bank</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/capability/spec/README.md">capability</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/crisis/spec/README.md">crisis</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/distribution/spec/README.md">distribution</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/evidence/spec/README.md">evidence</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/feegrant/spec/README.md">feegrant</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/tree/v1.14.0-sdk-v0.46.11/x/genutil">genutil</a> (no spec)</li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/gov/spec/README.md">gov</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/params/spec/README.md">params</a></li>
+<li><a href="https://github.com/cosmos/ibc/blob/f990a7f96eb7753c2fabbd49ed50b64d3a807629/README.md">ibc</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/slashing/spec/README.md">slashing</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/x/staking/spec/README.md">staking</a></li>
+<li><a href="https://github.com/cosmos/ibc/blob/f990a7f96eb7753c2fabbd49ed50b64d3a807629/spec/app/ics-020-fungible-token-transfer/README.md">transfer</a></li>
+<li><a href="https://github.com/celestiaorg/cosmos-sdk/tree/v1.14.0-sdk-v0.46.11/x/auth/vesting">vesting</a> (no spec)</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xblob"><a class="header" href="#xblob"><code>x/blob</code></a></h1>
 <h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
