@@ -107,7 +107,7 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 		if err != nil {
 			return errors.Wrap(ErrInvalidNamespace, err.Error())
 		}
-		err = ValidateBlobNamespaceID(ns)
+		err = ValidateBlobNamespace(ns)
 		if err != nil {
 			return err
 		}
@@ -133,8 +133,9 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 	return nil
 }
 
-// ValidateBlobNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.
-func ValidateBlobNamespaceID(ns appns.Namespace) error {
+// ValidateBlobNamespace returns an error if the provided namespace is reserved,
+// parity shares, or tail padding.
+func ValidateBlobNamespace(ns appns.Namespace) error {
 	if ns.IsReserved() {
 		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", ns, appns.MaxReservedNamespace)
 	}
