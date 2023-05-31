@@ -10,7 +10,8 @@ import (
 
 // TODO add unit tests for all the keepers
 
-// NextDataCommitment returns the next data commitment that can be written to state.
+// NextDataCommitment returns the next data commitment that can be written to
+// state.
 func (k Keeper) NextDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
 	if !k.CheckLatestAttestationNonce(ctx) {
 		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
