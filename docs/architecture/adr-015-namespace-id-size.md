@@ -2,18 +2,19 @@
 
 ## Status
 
-Accepted
+Implemented in <https://github.com/celestiaorg/celestia-app/pull/1419> and revised in <https://github.com/celestiaorg/celestia-app/pull/1771>
 
 ## Changelog
 
-- 2023/2/17: initial draft
-- 2023/2/22: discussion notes
-- 2023/2/23: reorder content
+- 2023/2/17: Initial draft
+- 2023/2/22: Discussion notes
+- 2023/2/23: Reorder content
 - 2023/2/28: NMT proof size
-- 2023/3/1: blob inclusion proof size
-- 2023/3/2: accepted
-- 2023/5/10: add section on SHA256 performance
-- 2023/5/11: revise decision 33 bytes => 29 bytes
+- 2023/3/1: Blob inclusion proof size
+- 2023/3/2: Accepted
+- 2023/5/10: Add section on SHA256 performance
+- 2023/5/11: Revise decision 33 bytes => 29 bytes
+- 2023/5/30: Update status
 
 ## Context
 

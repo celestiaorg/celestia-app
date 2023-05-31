@@ -35,9 +35,10 @@ func (v *Valset) SignBytes() (ethcmn.Hash, error) {
 		return ethcmn.Hash{}, err
 	}
 
-	// the word 'checkpoint' needs to be the same as the 'name' above in the checkpointAbiJson
-	// but other than that it's a constant that has no impact on the output. This is because
-	// it gets encoded as a function name which we must then discard.
+	// the word 'checkpoint' needs to be the same as the 'name' above in the
+	// checkpointAbiJson but other than that it's a constant that has no impact
+	// on the output. This is because it gets encoded as a function name which
+	// we must then discard.
 	bytes, err := InternalQGBabi.Pack(
 		"domainSeparateValidatorSetHash",
 		VsDomainSeparator,
@@ -45,8 +46,8 @@ func (v *Valset) SignBytes() (ethcmn.Hash, error) {
 		big.NewInt(int64(v.TwoThirdsThreshold())),
 		vsHash,
 	)
-	// this should never happen outside of test since any case that could crash on encoding
-	// should be filtered above.
+	// this should never happen outside of test since any case that could crash
+	// on encoding should be filtered above.
 	if err != nil {
 		panic(fmt.Sprintf("Error packing checkpoint! %s/n", err))
 	}
@@ -55,8 +56,8 @@ func (v *Valset) SignBytes() (ethcmn.Hash, error) {
 	return hash, nil
 }
 
-// Hash mimics the 'computeValsetHash' function used by the qgb contracts by using
-// a Valset to compute the hash of the abi encoded validator set.
+// Hash mimics the 'computeValsetHash' function used by the qgb contracts by
+// using a Valset to compute the hash of the abi encoded validator set.
 func (v *Valset) Hash() (ethcmn.Hash, error) {
 	ethVals := make([]wrapper.Validator, len(v.Members))
 	for i, val := range v.Members {

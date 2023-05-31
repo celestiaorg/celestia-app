@@ -25,13 +25,15 @@ const (
 	// AttestationRequestKey indexes attestation requests by nonce
 	AttestationRequestKey = "AttestationRequestKey"
 
-	// LatestUnBondingBlockHeight indexes the latest validator unbonding block height
+	// LatestUnBondingBlockHeight indexes the latest validator unbonding block
+	// height
 	LatestUnBondingBlockHeight = "LatestUnBondingBlockHeight"
 
 	// LatestAttestationtNonce indexes the latest attestation request nonce
 	LatestAttestationtNonce = "LatestAttestationNonce"
 
-	// EarliestAvailableAttestationNonce indexes the earliest available attestation nonce
+	// EarliestAvailableAttestationNonce indexes the earliest available
+	// attestation nonce
 	EarliestAvailableAttestationNonce = "EarliestAvailableAttestationNonce"
 )
 

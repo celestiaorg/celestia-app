@@ -13,8 +13,8 @@ import (
 const (
 	DefaultParamspace = ModuleName
 
-	// MinimumDataCommitmentWindow is a constant that defines the minimum allowable window for the
-	// QGB data commitments.
+	// MinimumDataCommitmentWindow is a constant that defines the minimum
+	// allowable window for the QGB data commitments.
 	MinimumDataCommitmentWindow = 100
 )
 
