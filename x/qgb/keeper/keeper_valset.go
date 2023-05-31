@@ -125,7 +125,7 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 // normalizeValidatorPower scales rawPower with respect to totalValidatorPower
 // to take a value between 0 and 2^32.
 // Uses BigInt operations to avoid overflow errors.
-// Example: rawPower = max (2^63 - 1), totalValidatorPower = 1 validator: (2^63 - 1)
+// Example: rawPower = max (2^63 - 1), totalValidatorPower = 1, validator: (2^63 - 1)
 //
 //	result: (2^63 - 1) * 2^32 / (2^63 - 1) = 2^32 = 4294967296 [this is the multiplier value below, our max output]
 //
