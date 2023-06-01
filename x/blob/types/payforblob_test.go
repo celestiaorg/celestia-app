@@ -147,7 +147,7 @@ func TestValidateBasic(t *testing.T) {
 	emptyShareCommitment := validMsgPayForBlobs(t)
 	emptyShareCommitment.ShareCommitments[0] = []byte{}
 
-	// MsgPayForBlobs that has an empty share commitment
+	// MsgPayForBlobs that has an invalid share commitment size
 	invalidShareCommitmentSize := validMsgPayForBlobs(t)
 	invalidShareCommitmentSize.ShareCommitments[0] = bytes.Repeat([]byte{0x1}, 31)
 

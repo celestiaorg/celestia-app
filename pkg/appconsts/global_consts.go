@@ -86,7 +86,7 @@ var (
 	SupportedShareVersions = []uint8{ShareVersionZero}
 )
 
-// HashLen returns the length of a hash in bytes.
+// HashLength returns the length of a hash in bytes.
 func HashLength() int {
 	return hashLength
 }
