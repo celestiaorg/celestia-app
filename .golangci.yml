@@ -7,5 +7,11 @@ linters:
     - exportloopref
     - gofumpt
     - misspell
+    - nakedret
     - revive
     - prealloc
+
+linters-settings:
+  nakedret:
+    # Ban the use of naked returns because they reduce code readability.
+    max-func-lines: 0 # override the default: 30
