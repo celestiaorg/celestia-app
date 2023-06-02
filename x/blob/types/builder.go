@@ -281,5 +281,5 @@ func QueryAccount(ctx context.Context, conn *grpc.ClientConn, encCfg encoding.Co
 	}
 
 	accNum, seqNum = acc.GetAccountNumber(), acc.GetSequence()
-	return
+	return accNum, seqNum, nil
 }
