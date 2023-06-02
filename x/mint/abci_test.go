@@ -1,6 +1,7 @@
 package mint_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -111,93 +112,50 @@ func TestInflationRate(t *testing.T) {
 }
 
 func TestAnnualProvisions(t *testing.T) {
-	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
-	unixEpoch := time.Unix(0, 0).UTC()
-	yearZero := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-	oneYear := time.Duration(minttypes.NanosecondsPerYear)
-	yearOne := yearZero.Add(oneYear)
+	t.Run("annual provisions are set when originally zero", func(t *testing.T) {
+		a, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+		ctx := sdk.NewContext(a.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 
-	initialSupply := sdk.NewInt(100_000_001_000_000)
-	require.Equal(t, initialSupply, app.MintKeeper.StakingTokenSupply(ctx))
-	require.Equal(t, app.MintKeeper.GetMinter(ctx).BondDenom, app.StakingKeeper.BondDenom(ctx))
-	require.True(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
+		assert.True(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
+		mint.BeginBlocker(ctx, a.MintKeeper)
+		assert.False(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
+	})
 
-	type testCase struct {
-		name string
-		ctx  sdk.Context
-		want sdk.Dec
-	}
+	t.Run("annual provisions are not updated more than once per year", func(t *testing.T) {
+		a, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+		ctx := sdk.NewContext(a.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 
-	testCases := []testCase{
-		{
-			name: "initial",
-			ctx:  ctx.WithBlockHeight(0).WithBlockTime(unixEpoch),
-			want: sdk.NewDec(8_000_000_080_000),
-		},
-		{
-			name: "year zero",
-			ctx:  ctx.WithBlockHeight(1).WithBlockTime(yearZero),
-			want: sdk.NewDec(8_000_000_080_000),
-		},
-		{
-			name: "annual provisions is 80,000 for year one minus one minute",
-			ctx:  ctx.WithBlockTime(yearOne.Add(-time.Minute)),
-			want: sdk.NewDec(8_000_000_080_000),
-		},
-		// testing annual provisions for years after year zero depends on the
-		// total supply which increased due to inflation in year zero.
-	}
+		initialSupply := sdk.NewInt(100_000_001_000_000)
+		require.Equal(t, initialSupply, a.MintKeeper.StakingTokenSupply(ctx))
+		require.Equal(t, a.MintKeeper.GetMinter(ctx).BondDenom, a.StakingKeeper.BondDenom(ctx))
+		require.True(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			mint.BeginBlocker(tc.ctx, app.MintKeeper)
-			got, err := app.MintKeeper.AnnualProvisions(ctx, &minttypes.QueryAnnualProvisionsRequest{})
-			assert.NoError(t, err)
-			assert.Equal(t, tc.want, got.AnnualProvisions)
-		})
-	}
-}
+		blockInterval := time.Second * 15
+		firstBlockTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+		oneYear := time.Duration(minttypes.NanosecondsPerYear)
+		lastBlockInYear := firstBlockTime.Add(oneYear).Add(-time.Second)
 
-func TestAnnualProvisionsIsSetWhenOriginallyZero(t *testing.T) {
-	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
+		want := minttypes.InitialInflationRateAsDec().MulInt(initialSupply)
 
-	assert.True(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
-	mint.BeginBlocker(ctx, app.MintKeeper)
-	assert.False(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
-}
+		type testCase struct {
+			height int64
+			time   time.Time
+		}
+		testCases := []testCase{
+			{1, firstBlockTime},
+			{2, firstBlockTime.Add(blockInterval)},
+			{3, firstBlockTime.Add(blockInterval * 2)},
+			{4, lastBlockInYear},
+			// testing annual provisions for years after year zero depends on the
+			// total supply which increased due to inflation in year zero.
+		}
 
-func TestAnnualProvisionsIsNotUpdatedMoreThanOncePerYear(t *testing.T) {
-	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
-	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
-
-	initialSupply := sdk.NewInt(100_000_001_000_000)
-	require.Equal(t, initialSupply, app.MintKeeper.StakingTokenSupply(ctx))
-	require.Equal(t, app.MintKeeper.GetMinter(ctx).BondDenom, app.StakingKeeper.BondDenom(ctx))
-	require.True(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
-
-	blockInterval := time.Second * 15
-	firstBlockTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-
-	want := minttypes.InitialInflationRateAsDec().MulInt(initialSupply)
-
-	type testCase struct {
-		name   string
-		height int64
-		time   time.Time
-	}
-	testCases := []testCase{
-		{"first block", 1, firstBlockTime},
-		{"second block", 2, firstBlockTime.Add(blockInterval)},
-		{"third block", 3, firstBlockTime.Add(blockInterval * 2)},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx = ctx.WithBlockHeight(tc.height).WithBlockTime(tc.time)
-			mint.BeginBlocker(ctx, app.MintKeeper)
-			assert.Equal(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions, want)
-		})
-	}
+		for _, tc := range testCases {
+			t.Run(fmt.Sprintf("block height %v", tc.height), func(t *testing.T) {
+				ctx = ctx.WithBlockHeight(tc.height).WithBlockTime(tc.time)
+				mint.BeginBlocker(ctx, a.MintKeeper)
+				assert.Equal(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions, want)
+			})
+		}
+	})
 }
