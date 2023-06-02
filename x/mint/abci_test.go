@@ -10,6 +10,7 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/proto/tendermint/types"
 )
@@ -164,4 +165,45 @@ func TestAnnualProvisions(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, tc.want, got.AnnualProvisions)
 	}
+}
+
+func TestAnnualProvisionsIsSetWhenOriginallyZero(t *testing.T) {
+	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
+
+	assert.True(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
+	mint.BeginBlocker(ctx, app.MintKeeper)
+	assert.False(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
+}
+
+func TestAnnualProvisionsIsNotUpdatedMoreThanOncePerYear(t *testing.T) {
+	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
+
+	initialSupply := sdk.NewInt(100_000_001_000_000)
+	require.Equal(t, initialSupply, app.MintKeeper.StakingTokenSupply(ctx))
+	require.Equal(t, app.MintKeeper.GetMinter(ctx).BondDenom, app.StakingKeeper.BondDenom(ctx))
+	require.True(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
+
+	blockInterval := time.Second * 15
+	firstBlockTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	secondBlockTime := firstBlockTime.Add(blockInterval)
+	thirdBlockTime := secondBlockTime.Add(blockInterval)
+
+	ctx = ctx.WithBlockHeight(1).WithBlockTime(firstBlockTime)
+	mint.BeginBlocker(ctx, app.MintKeeper)
+
+	want := minttypes.InitialInflationRateAsDec().MulInt(initialSupply)
+	assert.Equal(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions, want)
+	// fmt.Printf("height %v time %v annual provisions %v total supply %v\n", ctx.BlockHeight(), ctx.BlockTime(), app.MintKeeper.GetMinter(ctx).AnnualProvisions, app.MintKeeper.StakingTokenSupply(ctx))
+
+	ctx = ctx.WithBlockHeight(2).WithBlockTime(secondBlockTime)
+	mint.BeginBlocker(ctx, app.MintKeeper)
+	assert.Equal(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions, want)
+	// fmt.Printf("height %v time %v annual provisions %v total supply %v\n", ctx.BlockHeight(), ctx.BlockTime(), app.MintKeeper.GetMinter(ctx).AnnualProvisions, app.MintKeeper.StakingTokenSupply(ctx))
+
+	ctx = ctx.WithBlockHeight(3).WithBlockTime(thirdBlockTime)
+	mint.BeginBlocker(ctx, app.MintKeeper)
+	assert.Equal(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions, want)
+	// fmt.Printf("height %v time %v annual provisions %v total supply %v\n", ctx.BlockHeight(), ctx.BlockTime(), app.MintKeeper.GetMinter(ctx).AnnualProvisions, app.MintKeeper.StakingTokenSupply(ctx))
 }
