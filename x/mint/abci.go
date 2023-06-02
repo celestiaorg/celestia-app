@@ -38,7 +38,6 @@ func maybeUpdateMinter(ctx sdk.Context, k keeper.Keeper) {
 
 	isNonZeroAnnualProvisions := !minter.AnnualProvisions.IsZero()
 	if newInflationRate.Equal(minter.InflationRate) && isNonZeroAnnualProvisions {
-		// if newInflationRate == minter.InflationRate {
 		// The minter's InflationRate AnnualProvisions already reflect the
 		// values for this year. Exit early because we don't need to update
 		// them.
