@@ -187,23 +187,25 @@ func TestAnnualProvisionsIsNotUpdatedMoreThanOncePerYear(t *testing.T) {
 
 	blockInterval := time.Second * 15
 	firstBlockTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-	secondBlockTime := firstBlockTime.Add(blockInterval)
-	thirdBlockTime := secondBlockTime.Add(blockInterval)
-
-	ctx = ctx.WithBlockHeight(1).WithBlockTime(firstBlockTime)
-	mint.BeginBlocker(ctx, app.MintKeeper)
 
 	want := minttypes.InitialInflationRateAsDec().MulInt(initialSupply)
-	assert.Equal(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions, want)
-	// fmt.Printf("height %v time %v annual provisions %v total supply %v\n", ctx.BlockHeight(), ctx.BlockTime(), app.MintKeeper.GetMinter(ctx).AnnualProvisions, app.MintKeeper.StakingTokenSupply(ctx))
 
-	ctx = ctx.WithBlockHeight(2).WithBlockTime(secondBlockTime)
-	mint.BeginBlocker(ctx, app.MintKeeper)
-	assert.Equal(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions, want)
-	// fmt.Printf("height %v time %v annual provisions %v total supply %v\n", ctx.BlockHeight(), ctx.BlockTime(), app.MintKeeper.GetMinter(ctx).AnnualProvisions, app.MintKeeper.StakingTokenSupply(ctx))
+	type testCase struct {
+		name   string
+		height int64
+		time   time.Time
+	}
+	testCases := []testCase{
+		{"first block", 1, firstBlockTime},
+		{"second block", 2, firstBlockTime.Add(blockInterval)},
+		{"third block", 3, firstBlockTime.Add(blockInterval * 2)},
+	}
 
-	ctx = ctx.WithBlockHeight(3).WithBlockTime(thirdBlockTime)
-	mint.BeginBlocker(ctx, app.MintKeeper)
-	assert.Equal(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions, want)
-	// fmt.Printf("height %v time %v annual provisions %v total supply %v\n", ctx.BlockHeight(), ctx.BlockTime(), app.MintKeeper.GetMinter(ctx).AnnualProvisions, app.MintKeeper.StakingTokenSupply(ctx))
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx = ctx.WithBlockHeight(tc.height).WithBlockTime(tc.time)
+			mint.BeginBlocker(ctx, app.MintKeeper)
+			assert.Equal(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions, want)
+		})
+	}
 }
