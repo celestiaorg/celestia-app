@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
 
@@ -127,5 +129,19 @@ func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
 func TestIntegrationTestSuite(t *testing.T) {
 	cfg := appnetwork.DefaultConfig()
 	cfg.NumValidators = 1
+
+	// override the minter's genesis time
+	minter := minttypes.DefaultMinter()
+	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	minter.GenesisTime = &genesisTime
+
+	mintGenesis := minttypes.NewGenesisState(minter)
+	err := minttypes.ValidateGenesis(*mintGenesis)
+	require.NoError(t, err)
+
+	// genesisState := cfg.GenesisState
+	cfg.GenesisState[minttypes.ModuleName] = cfg.AppCodec().MustMarshalJSON(mintGenesis)
+	// cfg.GenesisState = genesisState
+
 	suite.Run(t, NewIntegrationTestSuite(cfg))
 }
