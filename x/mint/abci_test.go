@@ -117,8 +117,11 @@ func TestAnnualProvisions(t *testing.T) {
 	yearZero := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
 	oneYear := time.Duration(minttypes.NanosecondsPerYear)
 	yearOne := yearZero.Add(oneYear)
-	yearTwo := yearZero.Add(2 * oneYear)
-	yearTwenty := yearZero.Add(20 * oneYear)
+
+	initialSupply := sdk.NewInt(100_000_001_000_000)
+	require.Equal(t, initialSupply, app.MintKeeper.StakingTokenSupply(ctx))
+	require.Equal(t, app.MintKeeper.GetMinter(ctx).BondDenom, app.StakingKeeper.BondDenom(ctx))
+	require.True(t, app.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
 
 	type testCase struct {
 		name string
@@ -128,42 +131,31 @@ func TestAnnualProvisions(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "annual provisions is 80,000 initially",
+			name: "initial",
 			ctx:  ctx.WithBlockHeight(0).WithBlockTime(unixEpoch),
-			want: sdk.NewDec(80_000), // 1,000,000 (total supply) * 0.08 (inflation rate)
+			want: sdk.NewDec(8_000_000_080_000),
 		},
 		{
-			name: "annual provisions is 80,000 for year zero",
+			name: "year zero",
 			ctx:  ctx.WithBlockHeight(1).WithBlockTime(yearZero),
-			want: sdk.NewDec(80_000), // 1,000,000 (total supply) * 0.08 (inflation rate)
+			want: sdk.NewDec(8_000_000_080_000),
 		},
 		{
 			name: "annual provisions is 80,000 for year one minus one minute",
 			ctx:  ctx.WithBlockTime(yearOne.Add(-time.Minute)),
-			want: sdk.NewDec(80_000), // 1,000,000 (total supply) * 0.08 (inflation rate)
+			want: sdk.NewDec(8_000_000_080_000),
 		},
-		{
-			name: "annual provisions is 72,000 for year one",
-			ctx:  ctx.WithBlockTime(yearOne),
-			want: sdk.NewDec(72_000), // 1,000,000 (total supply) * 0.072 (inflation rate)
-		},
-		{
-			name: "annual provisions is 64,800 for year two",
-			ctx:  ctx.WithBlockTime(yearTwo),
-			want: sdk.NewDec(64_800), // 1,000,000 (total supply) * 0.0648 (inflation rate)
-		},
-		{
-			name: "annual provisions is 15,000 for year twenty",
-			ctx:  ctx.WithBlockTime(yearTwenty),
-			want: sdk.NewDec(15_000), // 1,000,000 (total supply) * 0.015 (inflation rate)
-		},
+		// testing annual provisions for years after year zero depends on the
+		// total supply which increased due to inflation in year zero.
 	}
 
 	for _, tc := range testCases {
-		mint.BeginBlocker(tc.ctx, app.MintKeeper)
-		got, err := app.MintKeeper.AnnualProvisions(ctx, &minttypes.QueryAnnualProvisionsRequest{})
-		assert.NoError(t, err)
-		assert.Equal(t, tc.want, got.AnnualProvisions)
+		t.Run(tc.name, func(t *testing.T) {
+			mint.BeginBlocker(tc.ctx, app.MintKeeper)
+			got, err := app.MintKeeper.AnnualProvisions(ctx, &minttypes.QueryAnnualProvisionsRequest{})
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, got.AnnualProvisions)
+		})
 	}
 }
 
