@@ -69,6 +69,7 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genesisTime
 		encCfg,
 		emptyOpts,
 	)
+	testApp.GetBaseApp().SetProtocolVersion(appconsts.LatestVersion)
 
 	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genesisTime, genAccounts...)
 
@@ -81,7 +82,7 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genesisTime
 		Block: &abci.BlockParams{
 			// choose some value large enough to not bottleneck the max square
 			// size
-			MaxBytes: appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize,
+			MaxBytes: int64(appconsts.DefaultSquareSizeUpperBound*appconsts.DefaultSquareSizeUpperBound) * appconsts.ContinuationSparseShareContentSize,
 			MaxGas:   cparams.Block.MaxGas,
 		},
 		Evidence:  &cparams.Evidence,

@@ -51,11 +51,14 @@ func TestTxsimCommandEnvVar(t *testing.T) {
 }
 
 func setup(t testing.TB) (keyring.Keyring, string, string) {
+	if testing.Short() {
+		t.Skip("skipping tx sim in short mode.")
+	}
 	t.Helper()
 
 	// set the consensus params to allow for the max square size
 	cparams := testnode.DefaultParams()
-	cparams.Block.MaxBytes = appconsts.MaxShareCount * appconsts.ContinuationSparseShareContentSize
+	cparams.Block.MaxBytes = int64(appconsts.DefaultSquareSizeUpperBound*appconsts.DefaultSquareSizeUpperBound) * appconsts.ContinuationSparseShareContentSize
 
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(
 		t,

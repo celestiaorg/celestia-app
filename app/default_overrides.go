@@ -70,6 +70,7 @@ type stakingModule struct {
 // DefaultGenesis returns custom x/staking module genesis state.
 func (stakingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	params := stakingtypes.DefaultParams()
+	params.UnbondingTime = appconsts.DefaultUnbondingTime
 	params.BondDenom = BondDenom
 
 	return cdc.MustMarshalJSON(&stakingtypes.GenesisState{
@@ -138,7 +139,9 @@ func DefaultConsensusParams() *tmproto.ConsensusParams {
 		Block:     DefaultBlockParams(),
 		Evidence:  coretypes.DefaultEvidenceParams(),
 		Validator: coretypes.DefaultValidatorParams(),
-		Version:   coretypes.DefaultVersionParams(), // TODO: set the default version to 1
+		Version: tmproto.VersionParams{
+			AppVersion: appconsts.LatestVersion,
+		},
 	}
 }
 

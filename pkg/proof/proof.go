@@ -19,12 +19,12 @@ import (
 
 // NewTxInclusionProof returns a new share inclusion proof for the given
 // transaction index.
-func NewTxInclusionProof(txs [][]byte, txIndex uint64) (types.ShareProof, error) {
+func NewTxInclusionProof(txs [][]byte, txIndex, appVersion uint64) (types.ShareProof, error) {
 	if txIndex >= uint64(len(txs)) {
 		return types.ShareProof{}, fmt.Errorf("txIndex %d out of bounds", txIndex)
 	}
 
-	builder, err := square.NewBuilder(appconsts.MaxSquareSize, txs...)
+	builder, err := square.NewBuilder(appconsts.SquareSizeUpperBound(appVersion), appconsts.SubtreeRootThreshold(appVersion), txs...)
 	if err != nil {
 		return types.ShareProof{}, err
 	}

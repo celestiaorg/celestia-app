@@ -107,7 +107,7 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 		if err != nil {
 			return errors.Wrap(ErrInvalidNamespace, err.Error())
 		}
-		err = ValidateBlobNamespaceID(ns)
+		err = ValidateBlobNamespace(ns)
 		if err != nil {
 			return err
 		}
@@ -133,8 +133,9 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 	return nil
 }
 
-// ValidateBlobNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.
-func ValidateBlobNamespaceID(ns appns.Namespace) error {
+// ValidateBlobNamespace returns an error if the provided namespace is reserved,
+// parity shares, or tail padding.
+func ValidateBlobNamespace(ns appns.Namespace) error {
 	if ns.IsReserved() {
 		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", ns, appns.MaxReservedNamespace)
 	}
@@ -187,7 +188,7 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 	// determined by the number of roots required to create a share commitment
 	// over that blob. The size of the tree is only increased if the number of
 	// subtree roots surpasses a constant threshold.
-	subTreeWidth := appshares.SubTreeWidth(len(shares))
+	subTreeWidth := appshares.SubTreeWidth(len(shares), appconsts.DefaultSubtreeRootThreshold)
 	treeSizes, err := merkleMountainRangeSizes(uint64(len(shares)), uint64(subTreeWidth))
 	if err != nil {
 		return nil, err

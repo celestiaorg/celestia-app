@@ -47,7 +47,7 @@ func QueryTxInclusionProof(_ sdk.Context, path []string, req abci.RequestQuery) 
 	}
 
 	// create and marshal the tx inclusion proof, which we return in the form of []byte
-	shareProof, err := NewTxInclusionProof(data.Txs.ToSliceOfBytes(), uint64(index))
+	shareProof, err := NewTxInclusionProof(data.Txs.ToSliceOfBytes(), uint64(index), pbb.Header.Version.App)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,10 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req abci.RequestQuer
 		return nil, fmt.Errorf("error reading block: %w", err)
 	}
 
-	dataSquare, err := square.Construct(pbb.Data.Txs, appconsts.MaxSquareSize)
+	// construct the data square from the block data. As we don't have
+	// access to the application's state machine we use the upper bound
+	// square size instead of the square size dictated from governance
+	dataSquare, err := square.Construct(pbb.Data.Txs, pbb.Header.Version.App, appconsts.SquareSizeUpperBound(pbb.Header.Version.App))
 	if err != nil {
 		return nil, err
 	}
