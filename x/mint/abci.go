@@ -1,6 +1,7 @@
 package mint
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/x/mint/keeper"
@@ -20,20 +21,25 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 }
 
 // maybeUpdateMinter updates the inflation rate and annual provisions if the
-// inflation rate has changed.
+// inflation rate has changed. The inflation rate is expected to change once per
+// year at the genesis time anniversary until the TargetInflationRate is
+// reached.
 func maybeUpdateMinter(ctx sdk.Context, k keeper.Keeper) {
 	minter := k.GetMinter(ctx)
 	newInflationRate := minter.CalculateInflationRate(ctx)
-	if newInflationRate == minter.InflationRate {
-		// The minter's InflationRate AnnualProvisions already reflect the
+	isNonZeroAnnualProvisions := !minter.AnnualProvisions.Equal(sdk.NewDec(0))
+	if newInflationRate.Equal(minter.InflationRate) && isNonZeroAnnualProvisions {
+		// The minter's InflationRate and AnnualProvisions already reflect the
 		// values for this year. Exit early because we don't need to update
-		// them.
+		// them. AnnualProvisions must be updated if it is zero (expected at
+		// genesis).
 		return
 	}
 	minter.InflationRate = newInflationRate
 	k.SetMinter(ctx, minter)
 
 	totalSupply := k.StakingTokenSupply(ctx)
+	fmt.Printf("block height %v time %v totalSupply: %v\n", ctx.BlockHeight(), ctx.BlockTime(), totalSupply)
 	minter.AnnualProvisions = minter.CalculateAnnualProvisions(totalSupply)
 	k.SetMinter(ctx, minter)
 }
