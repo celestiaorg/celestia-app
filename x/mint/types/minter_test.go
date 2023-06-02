@@ -80,8 +80,7 @@ func TestCalculateInflationRate(t *testing.T) {
 }
 
 func TestCalculateAnnualProvisions(t *testing.T) {
-	minter := DefaultMinter()
-	// genesisTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	genesisTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	type testCase struct {
 		name        string
@@ -92,31 +91,29 @@ func TestCalculateAnnualProvisions(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:        "annual provisions is 1,000,000 (total supply) * .08 (inflation rate) = 80,000 initially",
-			minter:      minter,
-			want:        sdk.NewDec(80_000),
-			totalSupply: math.NewInt(1_000_000),
+			name:        "annual provisions is 100 (total supply) * 0.01 (inflation rate) = 1",
+			minter:      NewMinter(sdk.MustNewDecFromStr("0.01"), sdk.NewDec(0), &genesisTime, sdk.DefaultBondDenom),
+			want:        sdk.NewDec(1),
+			totalSupply: math.NewInt(100),
 		},
-		// {
-		// 	name: "annual provisions is 80,000 for year zero",
-		// 	want: sdk.NewDec(80_000), // 1,000,000 (total supply) * 0.08 (inflation rate)
-		// },
-		// {
-		// 	name: "annual provisions is 80,000 for year one minus one minute",
-		// 	want: sdk.NewDec(80_000), // 1,000,000 (total supply) * 0.08 (inflation rate)
-		// },
-		// {
-		// 	name: "annual provisions is 72,000 for year one",
-		// 	want: sdk.NewDec(72_000), // 1,000,000 (total supply) * 0.072 (inflation rate)
-		// },
-		// {
-		// 	name: "annual provisions is 64,800 for year two",
-		// 	want: sdk.NewDec(64_800), // 1,000,000 (total supply) * 0.0648 (inflation rate)
-		// },
-		// {
-		// 	name: "annual provisions is 15,000 for year twenty",
-		// 	want: sdk.NewDec(15_000), // 1,000,000 (total supply) * 0.015 (inflation rate)
-		// },
+		{
+			name:        "annual provisions is 1,000,000 (total supply) * 0.08 (inflation rate) = 80,000",
+			minter:      NewMinter(initalInflationRate, sdk.NewDec(0), &genesisTime, sdk.DefaultBondDenom),
+			totalSupply: math.NewInt(1_000_000),
+			want:        sdk.NewDec(80_000),
+		},
+		{
+			name:        "default minter",
+			minter:      DefaultMinter(),
+			totalSupply: math.NewInt(1_000_000),
+			want:        sdk.NewDec(80_000),
+		},
+		{
+			name:        "annual provisions is 1,000,000 (total supply) * 0.015 (target inflation rate) = 15,000",
+			minter:      NewMinter(targetInflationRate, sdk.NewDec(0), &genesisTime, sdk.DefaultBondDenom),
+			totalSupply: math.NewInt(1_000_000),
+			want:        sdk.NewDec(15_000),
+		},
 	}
 
 	for _, tc := range testCases {
