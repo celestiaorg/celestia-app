@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -53,12 +52,6 @@ func (m Minter) CalculateInflationRate(ctx sdk.Context) sdk.Dec {
 		return targetInflationRate
 	}
 	return inflationRate
-}
-
-// CalculateAnnualProvisions returns the total number of tokens that should be
-// minted due to inflation for the current year.
-func (m Minter) CalculateAnnualProvisions(totalSupply math.Int) sdk.Dec {
-	return m.InflationRate.MulInt(totalSupply)
 }
 
 // CalculateBlockProvision returns the total number of coins that should be
