@@ -6,8 +6,8 @@ require (
 	github.com/celestiaorg/nmt v0.16.0
 	github.com/celestiaorg/quantum-gravity-bridge v1.3.0
 	// We're setting this exact version so that we can update the orchestrator-relayer
-	// repository up to latest main.
-	// The reason for this is that orchestrator-relayer depends on testground which only supports
+	// repository up to latest app main.
+	// The reason for this is that orchestrator-relayer depends on testcontainers which only supports
 	// this version. And if we use a higher version here, the E2E tests break.
 	github.com/docker/docker v23.0.5+incompatible
 	github.com/ethereum/go-ethereum v1.12.0
