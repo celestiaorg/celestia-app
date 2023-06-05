@@ -180,16 +180,6 @@ func BenchmarkCalculateInflationRate(b *testing.B) {
 	}
 }
 
-func BenchmarkCalculateAnnualProvisions(b *testing.B) {
-	b.ReportAllocs()
-	minter := DefaultMinter()
-	totalSupply := sdk.NewInt(100000000000000)
-
-	for n := 0; n < b.N; n++ {
-		minter.CalculateAnnualProvisions(totalSupply)
-	}
-}
-
 func Test_yearsSinceGenesis(t *testing.T) {
 	type testCase struct {
 		name    string
