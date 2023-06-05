@@ -68,6 +68,36 @@ func generateOrderedTxs(normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]
 	return coretypes.Txs(txs).ToSliceOfBytes()
 }
 
+type blobTxAttribute struct {
+	blobsPerPfb, blobSize uint
+}
+
+type normalTxAttribute struct {
+	size uint
+}
+
+// generateOrderedTxsFromAttributes generates a slice of transactions with the given attributes.
+// The output consists of len(normalTxsAttributes) + len(blobTxsAttributes) transactions.
+func generateOrderedTxsFromAttributes(normalTxsAttributes []uint, blobTxsAttributes []blobTxAttribute) [][]byte {
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	pfbTxs := make([]coretypes.Tx, 0, len(blobTxsAttributes))
+	for _, txSetting := range blobTxsAttributes {
+		pfbTxs = append(pfbTxs, blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 1, int(txSetting.blobsPerPfb), int(txSetting.blobSize))...)
+	}
+
+	normalTxs := make([]coretypes.Tx, 0, len(normalTxsAttributes))
+	for _, normalTxAtt := range normalTxsAttributes {
+		normalTxs = append(pfbTxs, blobfactory.GenerateManyRawSendTxsWithSpecificSize(encCfg.TxConfig, 1, int64(normalTxAtt))...)
+	}
+	txs := append(append(
+		make([]coretypes.Tx, 0, len(pfbTxs)+len(normalTxs)),
+		normalTxs...),
+		pfbTxs...,
+	)
+	return coretypes.Txs(txs).ToSliceOfBytes()
+}
+
 func shuffle(slice [][]byte) [][]byte {
 	for i := range slice {
 		j := rand.Intn(i + 1)

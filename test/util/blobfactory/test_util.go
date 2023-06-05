@@ -26,6 +26,18 @@ func GenerateManyRawSendTxs(txConfig client.TxConfig, count int) []coretypes.Tx 
 	return txs
 }
 
+// GenerateManyRawSendTxsWithSpecificSize generates `count` many raw send txs with specific size `amount`.
+func GenerateManyRawSendTxsWithSpecificSize(txConfig client.TxConfig, count int, amount int64) []coretypes.Tx {
+	const acc = "signer"
+	kr := testfactory.GenerateKeyring(acc)
+	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
+	txs := make([]coretypes.Tx, count)
+	for i := 0; i < count; i++ {
+		txs[i] = GenerateRawSendTx(txConfig, signer, amount)
+	}
+	return txs
+}
+
 // GenerateRawSendTx creates send transactions meant to help test encoding/prepare/process
 // proposal, they are not meant to actually be executed by the state machine. If
 // we want that, we have to update nonce, and send funds to someone other than
