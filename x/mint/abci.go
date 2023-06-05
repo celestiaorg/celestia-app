@@ -35,17 +35,18 @@ func maybeSetGenesisTime(ctx sdk.Context, k keeper.Keeper) {
 func maybeUpdateMinter(ctx sdk.Context, k keeper.Keeper) {
 	minter := k.GetMinter(ctx)
 	newInflationRate := minter.CalculateInflationRate(ctx)
-	if newInflationRate == minter.InflationRate {
-		// The minter's InflationRate AnnualProvisions already reflect the
+
+	isNonZeroAnnualProvisions := !minter.AnnualProvisions.IsZero()
+	if newInflationRate.Equal(minter.InflationRate) && isNonZeroAnnualProvisions {
+		// The minter's InflationRate and AnnualProvisions already reflect the
 		// values for this year. Exit early because we don't need to update
 		// them.
 		return
 	}
-	minter.InflationRate = newInflationRate
-	k.SetMinter(ctx, minter)
 
 	totalSupply := k.StakingTokenSupply(ctx)
-	minter.AnnualProvisions = minter.CalculateAnnualProvisions(totalSupply)
+	minter.InflationRate = newInflationRate
+	minter.AnnualProvisions = newInflationRate.MulInt(totalSupply)
 	k.SetMinter(ctx, minter)
 }
 
