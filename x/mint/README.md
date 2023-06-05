@@ -54,21 +54,9 @@ See [./types/minter.go](./types/minter.go) for the `Minter` struct which contain
 
 The `Minter` struct is updated every block via `BeginBlocker`.
 
-## Messages
-
-N/A
-
 ## Begin Block
 
 See `BeginBlocker` in [./abci.go](./abci.go).
-
-## End Block
-
-N/A
-
-## Hooks
-
-N/A
 
 ## Events
 
