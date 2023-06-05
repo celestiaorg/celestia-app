@@ -2,11 +2,12 @@
 
 ## Status
 
-Proposed
+Implemented in <https://github.com/celestiaorg/celestia-app/pull/1690>
 
 ## Changelog
 
-- 2023/4/13: initial draft
+- 2023/4/13: Initial draft
+- 2023/5/30: Update status
 
 ## Context
 
