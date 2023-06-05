@@ -285,3 +285,16 @@ func FuzzSquareDeconstruct(f *testing.F) {
 		require.Equal(t, blockTxs, recomputedTxs.ToSliceOfBytes())
 	})
 }
+
+func contains(allTxs [][]byte, subset [][]byte) bool {
+	var allTxMap = make(map[string]bool)
+	for _, tx := range allTxs {
+		allTxMap[string(tx)] = true
+	}
+	for _, t := range subset {
+		if !allTxMap[string(t)] {
+			return false
+		}
+	}
+	return true
+}
