@@ -208,7 +208,7 @@ func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (a
 }
 
 func genesisStateWithValSet(
-	app *app.App,
+	a *app.App,
 	genesisState app.GenesisState,
 	valSet *tmtypes.ValidatorSet,
 	genAccs []authtypes.GenesisAccount,
@@ -216,7 +216,7 @@ func genesisStateWithValSet(
 ) app.GenesisState {
 	// set genesis accounts
 	authGenesis := authtypes.NewGenesisState(authtypes.DefaultParams(), genAccs)
-	genesisState[authtypes.ModuleName] = app.AppCodec().MustMarshalJSON(authGenesis)
+	genesisState[authtypes.ModuleName] = a.AppCodec().MustMarshalJSON(authGenesis)
 
 	validators := make([]stakingtypes.Validator, 0, len(valSet.Validators))
 	delegations := make([]stakingtypes.Delegation, 0, len(valSet.Validators))
@@ -250,8 +250,10 @@ func genesisStateWithValSet(
 
 	}
 	// set validators and delegations
-	stakingGenesis := stakingtypes.NewGenesisState(stakingtypes.DefaultParams(), validators, delegations)
-	genesisState[stakingtypes.ModuleName] = app.AppCodec().MustMarshalJSON(stakingGenesis)
+	params := stakingtypes.DefaultParams()
+	params.BondDenom = app.BondDenom
+	stakingGenesis := stakingtypes.NewGenesisState(params, validators, delegations)
+	genesisState[stakingtypes.ModuleName] = a.AppCodec().MustMarshalJSON(stakingGenesis)
 
 	totalSupply := sdk.NewCoins()
 	for _, b := range balances {
@@ -261,18 +263,18 @@ func genesisStateWithValSet(
 
 	for range delegations {
 		// add delegated tokens to total supply
-		totalSupply = totalSupply.Add(sdk.NewCoin(sdk.DefaultBondDenom, bondAmt))
+		totalSupply = totalSupply.Add(sdk.NewCoin(app.BondDenom, bondAmt))
 	}
 
 	// add bonded amount to bonded pool module account
 	balances = append(balances, banktypes.Balance{
 		Address: authtypes.NewModuleAddress(stakingtypes.BondedPoolName).String(),
-		Coins:   sdk.Coins{sdk.NewCoin(sdk.DefaultBondDenom, bondAmt)},
+		Coins:   sdk.Coins{sdk.NewCoin(app.BondDenom, bondAmt)},
 	})
 
 	// update total supply
 	bankGenesis := banktypes.NewGenesisState(banktypes.DefaultGenesisState().Params, balances, totalSupply, []banktypes.Metadata{})
-	genesisState[banktypes.ModuleName] = app.AppCodec().MustMarshalJSON(bankGenesis)
+	genesisState[banktypes.ModuleName] = a.AppCodec().MustMarshalJSON(bankGenesis)
 
 	return genesisState
 }
