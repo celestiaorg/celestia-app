@@ -277,7 +277,9 @@ func FuzzSquareDeconstruct(f *testing.F) {
 		// extract those transaction that fit into the block
 		_, blockTxs, err := square.Build(allTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 
-		// @TODO  may need to do a subset check for the blockTxs and the allTxs
+		// check that blockTxs is a subset of allTxs
+		require.True(t, contains(allTxs, blockTxs))
+
 		dataSquare, err := square.Construct(blockTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 
 		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
