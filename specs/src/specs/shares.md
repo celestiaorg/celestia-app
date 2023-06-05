@@ -49,7 +49,7 @@ First share in a sequence:
 
 ![fig: transaction share start](./figures/transaction_share_start.svg)
 
-where reserved bytes would be `42` as a binary big endian `uint32` (`[0b00000000, 0b00000000, 0b00000000, 0b00101010]`).
+where reserved bytes would be `38` as a binary big endian `uint32` (`[0b00000000, 0b00000000, 0b00000000, 0b00100110]`).
 
 Continuation share in a sequence:
 
