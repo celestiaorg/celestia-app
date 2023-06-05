@@ -157,5 +157,11 @@ func TestAnnualProvisions(t *testing.T) {
 				assert.Equal(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions, want)
 			})
 		}
+
+		t.Run(fmt.Sprintf("one year later"), func(t *testing.T) {
+			ctx = ctx.WithBlockHeight(5).WithBlockTime(lastBlockInYear.Add(time.Second))
+			mint.BeginBlocker(ctx, a.MintKeeper)
+			assert.True(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.LT(want))
+		})
 	})
 }
