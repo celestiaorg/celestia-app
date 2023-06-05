@@ -4,6 +4,6 @@
 - [Shares](./shares.md)
 - [Consensus](./consensus.md)
 - [Block Proposer](./block_proposer.md)
-- [Block Validity Rules](./specs/block_validity_rules.md)
+- [Block Validity Rules](./block_validity_rules.md)
 - [Networking](./networking.md)
-- [Public-Key Cryptography](./specs/public_key_cryptography.md)
+- [Public-Key Cryptography](./public_key_cryptography.md)
