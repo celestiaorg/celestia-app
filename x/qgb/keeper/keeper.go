@@ -40,7 +40,7 @@ func NewKeeper(cdc codec.BinaryCodec, storeKey storetypes.StoreKey, paramSpace p
 // GetParams returns the parameters from the store
 func (k Keeper) GetParams(ctx sdk.Context) (params types.Params) {
 	k.paramSpace.GetParamSet(ctx, &params)
-	return
+	return params
 }
 
 // SetParams sets the parameters in the store
