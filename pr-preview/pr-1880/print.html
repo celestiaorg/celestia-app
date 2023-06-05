@@ -143,6 +143,7 @@
 <li><a href="./specs/index.html">Specification</a>
 <ul>
 <li><a href="./specs/data_structures.html">Data Structures</a></li>
+<li><a href="./specs/shares.html">Shares</a></li>
 <li><a href="./specs/consensus.html">Consensus</a></li>
 <li><a href="./specs/block_proposer.html">Block Proposer</a></li>
 <li><a href="./specs/block_validity_rules.html">Block Validity Rules</a></li>
@@ -171,7 +172,9 @@
 <li><a href="specs/./shares.html">Shares</a></li>
 <li><a href="specs/./consensus.html">Consensus</a></li>
 <li><a href="specs/./block_proposer.html">Block Proposer</a></li>
+<li><a href="specs/./specs/block_validity_rules.html">Block Validity Rules</a></li>
 <li><a href="specs/./networking.html">Networking</a></li>
+<li><a href="specs/./specs/public_key_cryptography.html">Public-Key Cryptography</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="data-structures"><a class="header" href="#data-structures">Data Structures</a></h1>
 <!-- toc -->
@@ -533,11 +536,11 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <li>If there is insufficient blob data to fill the share, the remaining bytes are filled with <code>0</code>.</li>
 </ul>
 <p>First share in a sequence:</p>
-<p><img src="specs/./figures/sparse_start_share.svg" alt="fig: sparse start share." /></p>
+<p><img src="specs/./figures/share_start.svg" alt="fig: share start" /></p>
 <p>Continuation share in a sequence:</p>
-<p><img src="specs/./figures/sparse_continuation_share.svg" alt="fig: sparse continuation share." /></p>
+<p><img src="specs/./figures/share_continuation.svg" alt="fig: share continuation" /></p>
 <p>Since blob data that exceeds <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> <code>-</code> <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes will span more than one share, developers may choose to encode additional metadata in their raw blob data prior to inclusion in a Celestia block.</p>
-<h2 id="celestia-transaction-shares"><a class="header" href="#celestia-transaction-shares">Celestia Transaction Shares</a></h2>
+<h2 id="transaction-shares"><a class="header" href="#transaction-shares">Transaction Shares</a></h2>
 <p>In order for clients to parse shares in the middle of a sequence without downloading antecedent shares, Celestia encodes additional metadata in the shares associated with reserved namespaces. At the time of writing this only applies to the <a href="specs/./consensus.html#reserved-namespaces"><code>TRANSACTION_NAMESPACE</code></a> and <a href="specs/./consensus.html#reserved-namespaces"><code>PAY_FOR_BLOB_NAMESPACE</code></a>. This share structure is often reffered to as &quot;compact shares&quot; to differentiate from the share structure defined above (a.k.a &quot;sparse shares&quot;).</p>
 <p>For shares <strong>with a reserved namespace through <a href="specs/./consensus.html#constants"><code>NAMESPACE_ID_MAX_RESERVED</code></a></strong>:</p>
 <ul>
@@ -554,10 +557,10 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <li>If there is insufficient transaction or PayForBlob transaction data to fill the share, the remaining bytes are filled with <code>0</code>.</li>
 </ul>
 <p>First share in a sequence:</p>
-<p><img src="specs/./figures/compact_start_share.svg" alt="fig: compact start share." /></p>
-<p>where reserved bytes would be <code>42</code> as a binary big endian <code>uint32</code> (<code>[0b00000000, 0b00000000, 0b00000000, 0b00101010]</code>).</p>
+<p><img src="specs/./figures/transaction_share_start.svg" alt="fig: transaction share start" /></p>
+<p>where reserved bytes would be <code>38</code> as a binary big endian <code>uint32</code> (<code>[0b00000000, 0b00000000, 0b00000000, 0b00100110]</code>).</p>
 <p>Continuation share in a sequence:</p>
-<p><img src="specs/./figures/compact_continuation_share.svg" alt="fig: compact continuation share." /></p>
+<p><img src="specs/./figures/transaction_share_continuation.svg" alt="fig: transaction share continuation" /></p>
 <p>where reserved bytes would be <code>80</code> as a binary big endian <code>uint32</code> (<code>[0b00000000, 0b00000000, 0b00000000, 0b01010000]</code>).</p>
 <h2 id="padding"><a class="header" href="#padding">Padding</a></h2>
 <h3 id="namespace-padding-share"><a class="header" href="#namespace-padding-share">Namespace Padding Share</a></h3>
