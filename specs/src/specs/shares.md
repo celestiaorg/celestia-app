@@ -22,15 +22,15 @@ For shares **with a namespace above [`MAX_RESERVED_NAMESPACE`](./consensus.md#co
 
 First share in a sequence:
 
-![fig: sparse start share.](./figures/sparse_start_share.svg)
+![fig: share start](./figures/share_start.svg)
 
 Continuation share in a sequence:
 
-![fig: sparse continuation share.](./figures/sparse_continuation_share.svg)
+![fig: share continuation](./figures/share_continuation.svg)
 
 Since blob data that exceeds [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes will span more than one share, developers may choose to encode additional metadata in their raw blob data prior to inclusion in a Celestia block.
 
-## Celestia Transaction Shares
+## Transaction Shares
 
 In order for clients to parse shares in the middle of a sequence without downloading antecedent shares, Celestia encodes additional metadata in the shares associated with reserved namespaces. At the time of writing this only applies to the [`TRANSACTION_NAMESPACE`](./consensus.md#reserved-namespaces) and [`PAY_FOR_BLOB_NAMESPACE`](./consensus.md#reserved-namespaces). This share structure is often reffered to as "compact shares" to differentiate from the share structure defined above (a.k.a "sparse shares").
 
@@ -47,13 +47,13 @@ For shares **with a reserved namespace through [`NAMESPACE_ID_MAX_RESERVED`](./c
 
 First share in a sequence:
 
-![fig: compact start share.](./figures/compact_start_share.svg)
+![fig: transaction share start](./figures/transaction_share_start.svg)
 
 where reserved bytes would be `42` as a binary big endian `uint32` (`[0b00000000, 0b00000000, 0b00000000, 0b00101010]`).
 
 Continuation share in a sequence:
 
-![fig: compact continuation share.](./figures/compact_continuation_share.svg)
+![fig: transaction share continuation](./figures/transaction_share_continuation.svg)
 
 where reserved bytes would be `80` as a binary big endian `uint32` (`[0b00000000, 0b00000000, 0b00000000, 0b01010000]`).
 
