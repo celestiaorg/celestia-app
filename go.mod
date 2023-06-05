@@ -5,6 +5,11 @@ go 1.20
 require (
 	github.com/celestiaorg/nmt v0.16.0
 	github.com/celestiaorg/quantum-gravity-bridge v1.3.0
+	// We're setting this exact version so that we can update the orchestrator-relayer
+	// repository up to latest main.
+	// The reason for this is that orchestrator-relayer depends on testground which only supports
+	// this version. And if we use a higher version here, the E2E tests break.
+	github.com/docker/docker v23.0.5+incompatible
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.2
@@ -93,7 +98,6 @@ require (
 	github.com/dgraph-io/badger/v2 v2.2007.4 // indirect
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
-	github.com/docker/docker v24.0.2+incompatible
 	github.com/dustin/go-humanize v1.0.1-0.20200219035652-afde56e7acac // indirect
 	github.com/dvsekhvalnov/jose2go v1.5.0 // indirect
 	github.com/felixge/httpsnoop v1.0.1 // indirect
