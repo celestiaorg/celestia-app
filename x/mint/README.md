@@ -48,7 +48,7 @@ oneYear := time.Hour * 24 * 365
 
 ## State
 
-See [./types/minter.go](./types/minter.go) for the `Minter` struct which contains all of the state of this module. The
+See [./types/minter.go](./types/minter.go) for the `Minter` struct which contains all of the state of this module.
 
 ## State Transitions
 
