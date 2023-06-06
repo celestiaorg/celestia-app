@@ -6,8 +6,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/types"
-	"golang.org/x/exp/rand"
 )
 
 const (
@@ -85,19 +85,28 @@ func CreateRawTx(txConfig client.TxConfig, msg sdk.Msg, signer *blobtypes.Keyrin
 	return rawTx
 }
 
-// GenerateRandomSigner generates a random signer with a random length from the given seed and for the give chainID.
-func GenerateRandomSigner(seed uint64, maxLength int, chainID string) *blobtypes.KeyringSigner {
-	rand.Seed(seed)
-
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-
-	s := make([]rune, rand.Intn(maxLength))
-	for i := range s {
-		s[i] = letters[rand.Intn(len(letters))]
-	}
-	acc := string(s)
-
+// GenerateRandomSigner generates a random signer for the given chainID.
+func GenerateRandomSigner(chainID string) *blobtypes.KeyringSigner {
+	// generate a variable length string
+	acc := tmrand.Str(tmrand.Int())
 	kr := testfactory.GenerateKeyring(acc)
 	signer := blobtypes.NewKeyringSigner(kr, acc, chainID)
 	return signer
+}
+
+// GenerateRandomRawSendTx generates a random raw send tx.
+func GenerateRandomRawSendTx(txConfig client.TxConfig) (rawTx []byte) {
+	signer := GenerateRandomSigner("chainID")
+	amount := tmrand.Int64()
+	return GenerateRawSendTx(txConfig, signer, amount)
+
+}
+
+// GenerateManyRandomRawSendTxs  generates count many random raw send txs.
+func GenerateManyRandomRawSendTxs(txConfig client.TxConfig, count int) []coretypes.Tx {
+	txs := make([]coretypes.Tx, count)
+	for i := 0; i < count; i++ {
+		txs[i] = GenerateRandomRawSendTx(txConfig)
+	}
+	return txs
 }
