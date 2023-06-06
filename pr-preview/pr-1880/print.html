@@ -583,7 +583,7 @@ A namespace padding share acts as padding between blobs so that the subsequent b
 <h3 id="tail-padding-share"><a class="header" href="#tail-padding-share">Tail Padding Share</a></h3>
 <p>Tail padding shares use the <a href="specs/./consensus.html#constants"><code>TAIL_PADDING_NAMESPACE</code></a>. Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients may ignore the contents of these shares because they don't contain any significant data.</p>
 <h2 id="parity-share"><a class="header" href="#parity-share">Parity Share</a></h2>
-<p>Parity shares use the namespace <a href="specs/./consensus.html#constants"><code>PARITY_SHARE_NAMESPACE</code></a>. Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0) in the case of a data withholding attack. Bytes carry no special meaning.</p>
+<p>Parity shares use the namespace <a href="specs/./consensus.html#constants"><code>PARITY_SHARE_NAMESPACE</code></a>. Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.</p>
 <h2 id="glossary"><a class="header" href="#glossary">Glossary</a></h2>
 <ul>
 <li><strong>Share</strong>: A fixed-size data chunk that is associated with exactly one namespace.</li>
