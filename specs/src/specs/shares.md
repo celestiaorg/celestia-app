@@ -2,7 +2,7 @@
 
 <!-- toc -->
 
-## Overview
+## Abstract
 
 All available data in a Celestia block is split into fixed-size data chunks known as "shares". A share is associated with exactly one namespace. The shares in a Celestia block are eventually erasure-coded and committed to in [Namespace Merkle trees](./data_structures.md#namespace-merkle-tree).
 
