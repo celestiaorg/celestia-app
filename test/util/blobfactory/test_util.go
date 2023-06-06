@@ -85,8 +85,8 @@ func CreateRawTx(txConfig client.TxConfig, msg sdk.Msg, signer *blobtypes.Keyrin
 	return rawTx
 }
 
-// generateRandomSigner generates a random signer with a random length from the given seed.
-func generateRandomSigner(seed uint64, maxLength int) *blobtypes.KeyringSigner {
+// GenerateRandomSigner generates a random signer with a random length from the given seed and for the give chainID.
+func GenerateRandomSigner(seed uint64, maxLength int, chainID string) *blobtypes.KeyringSigner {
 	rand.Seed(seed)
 
 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
@@ -98,7 +98,6 @@ func generateRandomSigner(seed uint64, maxLength int) *blobtypes.KeyringSigner {
 	acc := string(s)
 
 	kr := testfactory.GenerateKeyring(acc)
-	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
+	signer := blobtypes.NewKeyringSigner(kr, acc, chainID)
 	return signer
-
 }
