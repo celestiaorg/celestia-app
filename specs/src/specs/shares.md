@@ -8,6 +8,15 @@ All available data in a Celestia [block](./data_structures.md#block) is split in
 
 A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence may contain one or more shares. In most cases, a share sequence should be parsed together because the original data may have been split across share boundaries. One share sequence exists per [reserved namespace](./consensus.md#reserved-namespaces) and per [blob](../../../x/blob/README.md).
 
+## Overview
+
+// TODO: convert these bullet points into prose
+
+- Shares in the original and extended data square are ordered by namespace.
+- Explain how blob data is split into shares.
+- Explain why padding is necessary.
+- Link to subsections below.
+
 ## Share Structure
 
 For shares **with a namespace above [`MAX_RESERVED_NAMESPACE`](./consensus.md#constants) but below [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants)**:
