@@ -292,6 +292,7 @@ func FuzzSquareDeconstruct(f *testing.F) {
 func FuzzSquareDeconstruct2(f *testing.F) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
+	f.Add(0, 1)
 	f.Fuzz(func(t *testing.T, normalTxCount int, pfbCount int) {
 		// skip negative values
 		if normalTxCount < 0 || pfbCount < 0 {
@@ -306,12 +307,13 @@ func FuzzSquareDeconstruct2(f *testing.F) {
 		// check that blockTxs is a subset of allTxs
 		require.True(t, contains(allTxs, blockTxs))
 
-		_, err = square.Construct(blockTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
+		dataSquare, err := square.Construct(blockTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
 
-		//recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
-		//require.NoError(t, err)
-		//require.Equal(t, blockTxs, recomputedTxs.ToSliceOfBytes())
+		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
+		require.NoError(t, err)
+		require.Equal(t, len(blockTxs), len(recomputedTxs.ToSliceOfBytes()))
+		require.Equal(t, blockTxs, recomputedTxs.ToSliceOfBytes())
 
 	})
 }
