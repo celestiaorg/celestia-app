@@ -139,7 +139,7 @@
                     <main>
                         <h1 id="shares"><a class="header" href="#shares">Shares</a></h1>
 <!-- toc -->
-<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
 <p>All available data in a Celestia block is split into fixed-size data chunks known as &quot;shares&quot;. A share is associated with exactly one namespace. The shares in a Celestia block are eventually erasure-coded and committed to in <a href="./data_structures.html#namespace-merkle-tree">Namespace Merkle trees</a>.</p>
 <p>A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence may contain one or more shares. In most cases, a share sequence should be parsed together because the original data may have been split across share boundaries. One share sequence exists per <a href="./consensus.html#reserved-namespaces">reserved namespace</a> and per <a href="../../../x/blob/README.html">blob</a>.</p>
 <h2 id="share-structure"><a class="header" href="#share-structure">Share Structure</a></h2>

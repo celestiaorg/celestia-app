@@ -518,7 +518,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <p>In order to compute the <code>consensusHash</code> field in the <a href="specs/data_structures.html#header">block header</a>, the above list of parameters is <a href="specs/data_structures.html#hashing">hashed</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="shares"><a class="header" href="#shares">Shares</a></h1>
 <!-- toc -->
-<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
 <p>All available data in a Celestia block is split into fixed-size data chunks known as &quot;shares&quot;. A share is associated with exactly one namespace. The shares in a Celestia block are eventually erasure-coded and committed to in <a href="specs/./data_structures.html#namespace-merkle-tree">Namespace Merkle trees</a>.</p>
 <p>A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence may contain one or more shares. In most cases, a share sequence should be parsed together because the original data may have been split across share boundaries. One share sequence exists per <a href="specs/./consensus.html#reserved-namespaces">reserved namespace</a> and per <a href="specs/../../../x/blob/README.html">blob</a>.</p>
 <h2 id="share-structure"><a class="header" href="#share-structure">Share Structure</a></h2>
@@ -1464,7 +1464,7 @@ With the above constraint, we can compute subtree roots deterministically. In or
 <li><a href="https://github.com/celestiaorg/cosmos-sdk/tree/v1.14.0-sdk-v0.46.11/x/auth/vesting">vesting</a> (no spec)</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xblob"><a class="header" href="#xblob"><code>x/blob</code></a></h1>
-<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
+<h2 id="abstract-1"><a class="header" href="#abstract-1">Abstract</a></h2>
 <p>The <code>x/blob</code> module enables users to pay for arbitrary data to be published to the Celestia blockchain. Users create a single <code>BlobTx</code> that is composed of:</p>
 <ol>
 <li>Multiple <code>Blob</code>s (Binary Large OBjects): the data they wish to publish. A single <code>Blob</code> is composed of:
@@ -1525,7 +1525,7 @@ With the above constraint, we can compute subtree roots deterministically. In or
 <li>The share commitment of this blob is the Merkle root of the Merkle tree from the previous step.</li>
 </ol>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xqgb"><a class="header" href="#xqgb"><code>x/qgb</code></a></h1>
-<h2 id="abstract-1"><a class="header" href="#abstract-1">Abstract</a></h2>
+<h2 id="abstract-2"><a class="header" href="#abstract-2">Abstract</a></h2>
 <p>This module contains the <a href="https://blog.celestia.org/celestiums/">Quantum Gravity Bridge</a> (QGB) state machine implementation.</p>
 <h2 id="state-machine"><a class="header" href="#state-machine">State machine</a></h2>
 <p>The QGB state machine handles the creation of <a href="https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/x/qgb/types/attestation.go#L15-L23"><code>AttestationRequestI</code></a> which can be either a <a href="https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/proto/qgb/types.proto#L31-L47"><code>DataCommitment</code></a> or a <a href="https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/proto/qgb/types.proto#L17-L29"><code>Valset</code></a>.</p>
@@ -1700,7 +1700,7 @@ oneYear := time.Hour * 24 * 365
 <li>ADR-019</li>
 </ol>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xparamfilter"><a class="header" href="#xparamfilter"><code>x/paramfilter</code></a></h1>
-<h2 id="abstract-2"><a class="header" href="#abstract-2">Abstract</a></h2>
+<h2 id="abstract-3"><a class="header" href="#abstract-3">Abstract</a></h2>
 <p>The paramfilter module allows for specific parameters to be added to a block
 list, so that they cannot be changed by governance proposals. If a proposal
 contains a single blocked parameter change, then none of the parameters are
@@ -1753,7 +1753,7 @@ func NewApp(...) *App {
 }
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xupgrade"><a class="header" href="#xupgrade"><code>x/upgrade</code></a></h1>
-<h2 id="abstract-3"><a class="header" href="#abstract-3">Abstract</a></h2>
+<h2 id="abstract-4"><a class="header" href="#abstract-4">Abstract</a></h2>
 <p>The upgrade module removes the entrypoints to the standard upgrade module by not
 registering a message server. It registers the standard upgrade module types to
 preserve the ability to marshal them. Note that the keeper of the standard
