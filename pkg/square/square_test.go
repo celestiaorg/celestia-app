@@ -292,27 +292,13 @@ func FuzzSquareDeconstruct(f *testing.F) {
 func FuzzSquareDeconstruct2(f *testing.F) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	f.Fuzz(func(t *testing.T, normalTxAttributes []uint, pfbAttributes []blobTxAttribute) {
-		//pfbCount := len(pfbAttributes)
-		//normalTxCount := len(normalTxAttributes)
-
-		// each PFB should have at least one non-zero size blob
-		validPfbAttributes := []blobTxAttribute{}
-		for _, pfbAttribute := range pfbAttributes {
-			if pfbAttribute.blobSize == 0 || pfbAttribute.blobsPerPfb == 0 {
-				continue
-			}
-			validPfbAttributes = append(validPfbAttributes, pfbAttribute)
+	f.Fuzz(func(t *testing.T, normalTxCount int, pfbCount int) {
+		// skip negative values
+		if normalTxCount < 0 || pfbCount < 0 {
+			t.Skip()
 		}
 
-		// total number of normal txs should be fuzzed
-		// signer seed should be fuzzed
-		// GenerateRandomSigner
-		// a seed for the amount generation should be fuzzed
-		// GenerateRawSendTx with the random amount
-		// append it to the set of normal transactions
-
-		allTxs := generateOrderedTxsFromAttributes(normalTxAttributes, validPfbAttributes)
+		allTxs := generateRandomOrderedTxs(encCfg.TxConfig, normalTxCount, pfbCount)
 		// extract those transaction that fit into the block
 		_, blockTxs, err := square.Build(allTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 
@@ -324,6 +310,7 @@ func FuzzSquareDeconstruct2(f *testing.F) {
 		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
 		require.NoError(t, err)
 		require.Equal(t, blockTxs, recomputedTxs.ToSliceOfBytes())
+
 	})
 }
 
