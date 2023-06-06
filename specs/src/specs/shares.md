@@ -71,15 +71,15 @@ Padding shares vary based on namespace but share a common structure:
 ### Namespace Padding Share
 
 A namespace padding share uses the namespace of the blob that precedes it in the data square so that the data square can retain the property that all shares are ordered by namespace.
-A namespace padding share acts as padding between blobs so that the subsequent blob may begin at an index that conforms to the [non-interactive default rules](../rationale/data_square_layout.md#non-interactive-default-rules). Clients can safely ignore the contents of these shares because they don't contain any significant data.
+A namespace padding share acts as padding between blobs so that the subsequent blob may begin at an index that conforms to the [non-interactive default rules](../rationale/data_square_layout.md#non-interactive-default-rules). Clients may ignore the contents of these shares because they don't contain any significant data.
 
 ### Reserved Padding Share
 
-Reserved padding shares use the [`RESERVED_PADDING_NAMESPACE`](./consensus.md#constants). Reserved padding shares are placed after the last reserved namespace share in the data square so that the first blob can start at an index that conforms to non-interactive default rules. Clients can safely ignore the contents of these shares because they don't contain any significant data.
+Reserved padding shares use the [`RESERVED_PADDING_NAMESPACE`](./consensus.md#constants). Reserved padding shares are placed after the last reserved namespace share in the data square so that the first blob can start at an index that conforms to non-interactive default rules. Clients may ignore the contents of these shares because they don't contain any significant data.
 
 ### Tail Padding Share
 
-Tail padding shares use the [`TAIL_PADDING_NAMESPACE`](./consensus.md#constants). Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients can safely ignore the contents of these shares because they don't contain any significant data.
+Tail padding shares use the [`TAIL_PADDING_NAMESPACE`](./consensus.md#constants). Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients may ignore the contents of these shares because they don't contain any significant data.
 
 ## Parity Share
 
