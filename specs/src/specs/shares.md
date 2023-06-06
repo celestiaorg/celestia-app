@@ -17,7 +17,7 @@ For shares **with a namespace above [`MAX_RESERVED_NAMESPACE`](./consensus.md#co
   - The first 7 bits represent the share version in big endian form (initially, this will be `0000000` for version `0`);
   - The last bit is a sequence start indicator. The indicator is `1` if the share is the first share of a sequence or `0` if the share is a continuation share of a sequence.
 - If this is the first share of a sequence the next [`SEQUENCE_BYTES`](./consensus.md#constants) contain a big endian `uint32` that represents the length of the sequence that follows in bytes.
-- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants)`-`[`SEQUENCE_BYTES`](./consensus.md#constants) bytes (if first share) or [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) bytes (if continuation share) are blob data. Blob data are opaque bytes of data that are included in the block but do not impact Celestia's state. In other words, the remaining bytes have no special meaning and are simply used to store data.
+- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants)`-`[`SEQUENCE_BYTES`](./consensus.md#constants) bytes (if first share) or [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) bytes (if continuation share) are blob data.
 - If there is insufficient blob data to fill the share, the remaining bytes are filled with `0`.
 
 First share in a sequence:
@@ -89,4 +89,4 @@ Parity shares use the namespace [`PARITY_SHARE_NAMESPACE`](./consensus.md#consta
 
 - **Share**: A fixed-size data chunk that is associated with exactly one namespace.
 - **Share sequence**: A contiguous set of shares that contain semantically relevant data.
-- **Blob**: User specified data (e.g. a roll-up block) that is associated with exactly one namespace.
+- **Blob**: User specified data (e.g. a roll-up block) that is associated with exactly one namespace. Blob data are opaque bytes of data that are included in the block but do not impact Celestia's state.
