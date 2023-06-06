@@ -83,7 +83,7 @@ Tail padding shares use the [`TAIL_PADDING_NAMESPACE`](./consensus.md#constants)
 
 ## Parity Share
 
-Parity shares use the namespace [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants). Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0) in the case of a data withholding attack. Bytes carry no special meaning.
+Parity shares use the namespace [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants). Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.
 
 ## Glossary
 
