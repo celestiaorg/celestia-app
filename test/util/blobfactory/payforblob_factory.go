@@ -263,7 +263,7 @@ func IndividuallyRandomizedBlobTxs(enc sdk.TxEncoder, count int) coretypes.Txs {
 
 		blobsPrTx := tmrand.Intn(10) + 1 // +1 is to avoid 0
 		size := tmrand.Intn(100) + 1     // +1 is to avoid 0
-		txs = append(txs, RandBlobTxs(enc, 1, blobsPrTx, size)...)
+		txs[i] = RandBlobTxs(enc, 1, blobsPrTx, size)[0]
 	}
 	return txs
 }
