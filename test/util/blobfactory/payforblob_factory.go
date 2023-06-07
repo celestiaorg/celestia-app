@@ -255,22 +255,9 @@ func RandBlobTxs(enc sdk.TxEncoder, count, blobsPerTx, size int) coretypes.Txs {
 	return txs
 }
 
-// IndividuallyRandomizedBlobTxs generates count number of blob transactions each with random number of blobs and random size.
-// the number of blobs per transaction and the size of each blob are non-zero.
-func IndividuallyRandomizedBlobTxs(enc sdk.TxEncoder, count int) coretypes.Txs {
-	txs := make([]coretypes.Tx, count)
-	for i := 0; i < count; i++ {
-
-		blobsPrTx := tmrand.Intn(10) + 1 // +1 is to avoid 0
-		size := tmrand.Intn(100) + 1     // +1 is to avoid 0
-		txs[i] = RandBlobTxs(enc, 1, blobsPrTx, size)[0]
-	}
-	return txs
-}
-
 func GenerateRandomBlobCount() int {
 	// TODO: there may be a hard cap for the total number of blobs in a transaction
-	return tmrand.Intn(10) + 1 // +1 is to avoid 0
+	return tmrand.Intn(500) + 1 // +1 is to avoid 0
 }
 
 func RandBlobTxsWithNamespaces(enc sdk.TxEncoder, namespaces []appns.Namespace, sizes []int) []coretypes.Tx {
