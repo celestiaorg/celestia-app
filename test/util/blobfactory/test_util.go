@@ -95,7 +95,6 @@ func GenerateRandomRawSendTx(txConfig client.TxConfig) (rawTx []byte) {
 	signer := generateRandomSigner("chainid")
 	amount := generateRandomAmount()
 	return GenerateRawSendTx(txConfig, signer, amount)
-
 }
 
 // GenerateManyRandomRawSendTxs  generates count many random raw send txs.
