@@ -86,12 +86,6 @@ $ celestia-appd query mint inflation
 
 All params have been removed from this module.
 
-## Future Improvements
-
-1. <https://github.com/celestiaorg/celestia-app/issues/1755>
-1. <https://github.com/celestiaorg/celestia-app/issues/1757>
-1. <https://github.com/celestiaorg/celestia-app/issues/1758>
-
 ## Tests
 
 See [./test/mint_test.go](./test/mint_test.go) for an integration test suite for this module.
