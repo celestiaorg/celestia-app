@@ -3,9 +3,10 @@ package square_test
 import (
 	"bytes"
 	"fmt"
-	"github.com/cosmos/cosmos-sdk/client"
 	"math/rand"
 	"testing"
+
+	"github.com/cosmos/cosmos-sdk/client"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
