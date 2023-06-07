@@ -16,7 +16,7 @@ import (
 
 // GetQueryCmd returns the CLI query commands for this module
 func GetQueryCmd() *cobra.Command {
-	// Group blob queries under a subcommand
+	// Group qgb queries under a subcommand
 	cmd := &cobra.Command{
 		Use:                        types.ModuleName,
 		Short:                      fmt.Sprintf("Querying commands for the %s module", types.ModuleName),
@@ -87,6 +87,7 @@ func unmarshallAttestation(attestation *cdctypes.Any) (types.AttestationRequestI
 	return unmarshalledAttestation, nil
 }
 
+// makeInterfaceRegistry creates the interface registry containing the QGB interfaces
 func makeInterfaceRegistry() codectypes.InterfaceRegistry {
 	// create the codec
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
