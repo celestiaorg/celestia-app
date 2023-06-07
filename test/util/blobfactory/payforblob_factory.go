@@ -268,6 +268,11 @@ func IndividuallyRandomizedBlobTxs(enc sdk.TxEncoder, count int) coretypes.Txs {
 	return txs
 }
 
+func GenerateRandomBlobCount() int {
+	// TODO: there may be a hard cap for the total number of blobs in a transaction
+	return tmrand.Intn(10) + 1 // +1 is to avoid 0
+}
+
 func RandBlobTxsWithNamespaces(enc sdk.TxEncoder, namespaces []appns.Namespace, sizes []int) []coretypes.Tx {
 	const acc = "signer"
 	kr := testfactory.GenerateKeyring(acc)
