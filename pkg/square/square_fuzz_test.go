@@ -70,3 +70,52 @@ func FuzzSquare(f *testing.F) {
 		}
 	})
 }
+
+// FuzzSquareDeconstruct tests whether square deconstruction function can correctly deconstruct a block back from a given square.
+func FuzzSquareDeconstruct(f *testing.F) {
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	f.Add(0, 1)
+	f.Fuzz(func(t *testing.T, normalTxCount int, pfbCount int) {
+		// skip negative values
+		if normalTxCount < 0 || pfbCount < 0 {
+			t.Skip()
+		}
+		maxBlobSize := 1000 // @TODO there might be a global constant for this
+		allTxs := GenerateOrderedRandomTxs(encCfg.TxConfig, normalTxCount, pfbCount, maxBlobSize)
+
+		// extract those transaction that fit into the block
+		builtSquare, blockTxs, err := square.Build(allTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
+		require.NoError(t, err)
+
+		// check that blockTxs is a subset of allTxs
+		require.True(t, contains(allTxs, blockTxs))
+
+		// construct the square
+		dataSquare, err := square.Construct(blockTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
+		require.NoError(t, err)
+
+		require.Equal(t, builtSquare, dataSquare)
+
+		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
+		require.NoError(t, err)
+		require.Equal(t, len(blockTxs), len(recomputedTxs.ToSliceOfBytes()))
+		require.Equal(t, blockTxs, recomputedTxs.ToSliceOfBytes())
+	})
+}
+
+// contains checks whether subTxs is a subset of allTxs.
+func contains(allTxs [][]byte, subTxs [][]byte) bool {
+	// create a map of allTxs
+	allTxMap := make(map[string]bool)
+	for _, tx := range allTxs {
+		allTxMap[string(tx)] = true
+	}
+	// check that all subTxs are in allTxs
+	for _, t := range subTxs {
+		if !allTxMap[string(t)] {
+			return false
+		}
+	}
+	return true
+}
