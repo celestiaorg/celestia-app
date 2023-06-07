@@ -75,6 +75,7 @@ func GenerateOrderedRandomTxs(txConfig client.TxConfig, normalTxCount, pfbCount,
 	pfbTxs := make([]coretypes.Tx, pfbCount)
 	for i := 0; i < pfbCount; i++ {
 		blobsPerPfb := blobfactory.GenerateRandomBlobCount()
+		// create one pfb with random number of blobs
 		pfbTxs[i] = blobfactory.RandBlobTxs(txConfig.TxEncoder(), 1, blobsPerPfb, maxBlobSize)[0]
 	}
 	txs := append(append(

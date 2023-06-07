@@ -323,12 +323,15 @@ func FuzzSquareDeconstruct2(f *testing.F) {
 	})
 }
 
-func contains(allTxs [][]byte, subset [][]byte) bool {
+// contains checks whether subTxs is a subset of allTxs.
+func contains(allTxs [][]byte, subTxs [][]byte) bool {
+	// create a map of allTxs
 	allTxMap := make(map[string]bool)
 	for _, tx := range allTxs {
 		allTxMap[string(tx)] = true
 	}
-	for _, t := range subset {
+	// check that all subTxs are in allTxs
+	for _, t := range subTxs {
 		if !allTxMap[string(t)] {
 			return false
 		}
