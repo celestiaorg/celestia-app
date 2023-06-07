@@ -301,7 +301,7 @@ func FuzzSquareDeconstruct2(f *testing.F) {
 			t.Skip()
 		}
 
-		allTxs := generateRandomOrderedTxs(encCfg.TxConfig, normalTxCount, pfbCount)
+		allTxs := GenerateOrderedRandomTxs(encCfg.TxConfig, normalTxCount, pfbCount)
 		// extract those transaction that fit into the block
 		_, blockTxs, err := square.Build(allTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
