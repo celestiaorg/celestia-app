@@ -1,6 +1,6 @@
 # `x/mint`
 
-`x/mint` is a fork of the Cosmos SDK `x/mint` module that makes some changes to the inflation mechanism. The changes were motivated by a desire for Celestia to have a predictable [inflation schedule](#inflation-schedule). See [ADR-019](../../docs/architecture/adr-019-strict-inflation-schedule.md) for more details.
+`x/mint` is a fork of the Cosmos SDK `x/mint` module that makes some changes to the inflation mechanism. The changes were motivated by a desire for Celestia to have a pre-determined [inflation schedule](#inflation-schedule). See [ADR-019](../../docs/architecture/adr-019-strict-inflation-schedule.md) for more details.
 
 ## Concepts
 
