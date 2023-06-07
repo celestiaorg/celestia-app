@@ -25,12 +25,12 @@ func GetQueryCmd() *cobra.Command {
 		RunE:                       client.ValidateCmd,
 	}
 
-	cmd.AddCommand(CmdQueryParams())
+	cmd.AddCommand(CmdQueryAttestationByNonce())
 
 	return cmd
 }
 
-func CmdQueryParams() *cobra.Command {
+func CmdQueryAttestationByNonce() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "attestation <nonce>",
 		Aliases: []string{"att"},
