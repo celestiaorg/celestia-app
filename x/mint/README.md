@@ -54,11 +54,11 @@ See [./types/minter.go](./types/minter.go) for the `Minter` struct which contain
 
 The `Minter` struct is updated every block via `BeginBlocker`.
 
-## Begin Block
+### Begin Block
 
 See `BeginBlocker` in [./abci.go](./abci.go).
 
-## Events
+### Events
 
 An event is emitted every time a block provision is minted. See `mintBlockProvision` in [./abci.go](./abci.go).
 
