@@ -263,37 +263,6 @@ func TestSize(t *testing.T) {
 func FuzzSquareDeconstruct(f *testing.F) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	f.Fuzz(func(t *testing.T, normalTxCount int, pfbCount int, blobsPerPfb int, blobSize int) {
-		// skip negative values
-		if normalTxCount < 0 || pfbCount < 0 || blobsPerPfb < 0 || blobSize < 0 {
-			t.Skip()
-		}
-		// each PFB should have at least one non-zero size blob
-		if pfbCount > 0 && (blobSize == 0 || blobsPerPfb == 0) {
-			t.Skip()
-		}
-
-		allTxs := generateOrderedTxs(normalTxCount, pfbCount, blobsPerPfb, blobSize)
-		// extract those transaction that fit into the block
-		_, blockTxs, err := square.Build(allTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
-		require.NoError(t, err)
-
-		// check that blockTxs is a subset of allTxs
-		require.True(t, contains(allTxs, blockTxs))
-
-		dataSquare, err := square.Construct(blockTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
-		require.NoError(t, err)
-
-		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
-		require.NoError(t, err)
-		require.Equal(t, blockTxs, recomputedTxs.ToSliceOfBytes())
-	})
-}
-
-// FuzzSquareDeconstruct tests whether square deconstruction function can correctly deconstruct a block back from a given square.
-func FuzzSquareDeconstruct2(f *testing.F) {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
 	f.Add(0, 1)
 	f.Fuzz(func(t *testing.T, normalTxCount int, pfbCount int) {
 		// skip negative values
