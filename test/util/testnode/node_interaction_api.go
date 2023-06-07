@@ -36,6 +36,18 @@ func (c *Context) GoContext() context.Context {
 
 // LatestHeight returns the latest height of the network or an error if the
 // query fails.
+func (c *Context) GenesisTime() (time.Time, error) {
+	height := int64(1)
+	status, err := c.Client.Block(c.GoContext(), &height)
+	if err != nil {
+		return time.Unix(0, 0), err
+	}
+
+	return status.Block.Time, nil
+}
+
+// LatestHeight returns the latest height of the network or an error if the
+// query fails.
 func (c *Context) LatestHeight() (int64, error) {
 	status, err := c.Client.Status(c.GoContext())
 	if err != nil {
@@ -43,6 +55,16 @@ func (c *Context) LatestHeight() (int64, error) {
 	}
 
 	return status.SyncInfo.LatestBlockHeight, nil
+}
+
+// LatestTimestamp returns the latest timestamp of the network or an error if the
+// query fails.
+func (c *Context) LatestTimestamp() (time.Time, error) {
+	current, err := c.Client.Block(c.GoContext(), nil)
+	if err != nil {
+		return time.Unix(0, 0), err
+	}
+	return current.Block.Time, nil
 }
 
 // WaitForHeightWithTimeout is the same as WaitForHeight except the caller can
@@ -71,11 +93,43 @@ func (c *Context) WaitForHeightWithTimeout(h int64, t time.Duration) (int64, err
 	}
 }
 
+// WaitForTimestampWithTimeout waits for a block with a timestamp greater than t.
+func (c *Context) WaitForTimestampWithTimeout(t time.Time, d time.Duration) (time.Time, error) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	ctx, cancel := context.WithTimeout(c.rootCtx, d)
+	defer cancel()
+
+	var latestTimestamp time.Time
+	for {
+		select {
+		case <-ctx.Done():
+			return latestTimestamp, fmt.Errorf("timeout %v exceeded waiting for network to reach block with timestamp %v", d, t)
+		case <-ticker.C:
+			latestTimestamp, err := c.LatestTimestamp()
+			if err != nil {
+				return time.Unix(0, 0), err
+			}
+			if latestTimestamp.After(t) {
+				return latestTimestamp, nil
+			}
+		}
+	}
+}
+
 // WaitForHeight performs a blocking check where it waits for a block to be
 // committed after a given block. If that height is not reached within a timeout,
 // an error is returned. Regardless, the latest height queried is returned.
 func (c *Context) WaitForHeight(h int64) (int64, error) {
 	return c.WaitForHeightWithTimeout(h, DefaultTimeout)
+}
+
+// WaitForTimestamp performs a blocking check where it waits for a block to be
+// committed after a given timestamp. If that height is not reached within a timeout,
+// an error is returned. Regardless, the latest timestamp queried is returned.
+func (c *Context) WaitForTimestamp(t time.Time) (time.Time, error) {
+	return c.WaitForTimestampWithTimeout(t, 10*time.Second)
 }
 
 // WaitForNextBlock waits for the next block to be committed, returning an error
@@ -232,4 +286,24 @@ func (c *Context) FillBlock(squareSize int, accounts []string, broadcastMode str
 	// we use a formula to guarantee that the tx is the exact size needed to force a specific square size.
 	blobSize := shares.AvailableBytesFromSparseShares(shareCount)
 	return c.PostData(accounts[0], broadcastMode, namespace.RandomBlobNamespace(), tmrand.Bytes(blobSize))
+}
+
+// HeightForTimestamp returns the block height for the first block after a
+// given timestamp.
+func (c *Context) HeightForTimestamp(timestamp time.Time) (int64, error) {
+	latestHeight, err := c.LatestHeight()
+	if err != nil {
+		return 0, err
+	}
+
+	for i := int64(1); i <= latestHeight; i++ {
+		result, err := c.Client.Block(context.Background(), &i)
+		if err != nil {
+			return 0, err
+		}
+		if result.Block.Time.After(timestamp) {
+			return i, nil
+		}
+	}
+	return 0, fmt.Errorf("could not find block with timestamp after %v", timestamp)
 }

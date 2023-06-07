@@ -65,11 +65,10 @@ func (k Keeper) CheckLatestAttestationNonce(ctx sdk.Context) bool {
 }
 
 // GetLatestAttestationNonce returns the latest attestation request nonce.
-// Panics if the latest attestation nonce doesn't exit. Make sure to call
-// `CheckLatestAttestationNonce` before getting the nonce. This value is set on
-// chain startup. However, it won't be written to store until height = 1. Thus,
-// it's mandatory to run `CheckLatestAttestationNonce` before calling this
-// method. Check x/qgb/genesis.go for more information.
+// Panics if the latest attestation nonce doesn't exist in store. This value is
+// set on chain startup. However, it won't be written to store until height = 1.
+// To check if this value exists in store, use the `CheckLatestAttestationNonce`
+// method.
 func (k Keeper) GetLatestAttestationNonce(ctx sdk.Context) uint64 {
 	store := ctx.KVStore(k.storeKey)
 	bytes := store.Get([]byte(types.LatestAttestationtNonce))
@@ -90,9 +89,9 @@ func (k Keeper) CheckEarliestAvailableAttestationNonce(ctx sdk.Context) bool {
 // GetEarliestAvailableAttestationNonce returns the earliest available
 // attestation nonce. The nonce is of the earliest available attestation in
 // store that can be retrieved. Panics if the earliest available attestation
-// nonce doesn't exit. This value is set on chain startup. However, it won't be
-// written to store until height = 1. Thus, it's mandatory to run
-// `CheckEarliestAvailableAttestationNonce` before calling this method.
+// nonce doesn't exist in store. This value is set on chain startup. However, it
+// won't be written to store until height = 1. To check if this value exists in
+// store, use the `CheckEarliestAvailableAttestationNonce` method.
 func (k Keeper) GetEarliestAvailableAttestationNonce(ctx sdk.Context) uint64 {
 	store := ctx.KVStore(k.storeKey)
 	bytes := store.Get([]byte(types.EarliestAvailableAttestationNonce))
