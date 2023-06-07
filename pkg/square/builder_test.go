@@ -70,9 +70,13 @@ func generateOrderedTxs(normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]
 	return coretypes.Txs(txs).ToSliceOfBytes()
 }
 
-func GenerateOrderedRandomTxs(txConfig client.TxConfig, normalTxCount, pfbCount int) [][]byte {
+func GenerateOrderedRandomTxs(txConfig client.TxConfig, normalTxCount, pfbCount, maxBlobSize int) [][]byte {
 	noramlTxs := blobfactory.GenerateManyRandomRawSendTxs(txConfig, normalTxCount)
-	pfbTxs := blobfactory.IndividuallyRandomizedBlobTxs(txConfig.TxEncoder(), pfbCount)
+	pfbTxs := make([]coretypes.Tx, pfbCount)
+	for i := 0; i < pfbCount; i++ {
+		blobsPerPfb := blobfactory.GenerateRandomBlobCount()
+		pfbTxs[i] = blobfactory.RandBlobTxs(txConfig.TxEncoder(), 1, blobsPerPfb, maxBlobSize)[0]
+	}
 	txs := append(append(
 		make([]coretypes.Tx, 0, len(pfbTxs)+len(noramlTxs)),
 		noramlTxs...),
