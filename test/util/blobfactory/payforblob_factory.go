@@ -23,10 +23,10 @@ import (
 
 var defaultSigner = testfactory.RandomAddress().String()
 
-func RandMsgPayForBlobsWithSigner(singer string, size, blobCount int) (*blobtypes.MsgPayForBlobs, []*tmproto.Blob) {
+func RandMsgPayForBlobsWithSigner(singer string, maxBlobSize, blobCount int) (*blobtypes.MsgPayForBlobs, []*tmproto.Blob) {
 	blobs := make([]*tmproto.Blob, blobCount)
 	for i := 0; i < blobCount; i++ {
-		blob, err := types.NewBlob(appns.RandomBlobNamespace(), tmrand.Bytes(size), appconsts.ShareVersionZero)
+		blob, err := types.NewBlob(appns.RandomBlobNamespace(), tmrand.Bytes(maxBlobSize), appconsts.ShareVersionZero)
 		if err != nil {
 			panic(err)
 		}
