@@ -92,7 +92,7 @@ func generateRandomAmount() int64 {
 
 // GenerateRandomRawSendTx generates a random raw send tx.
 func GenerateRandomRawSendTx(txConfig client.TxConfig) (rawTx []byte) {
-	signer := generateRandomSigner("chainID")
+	signer := generateRandomSigner("chainid")
 	amount := generateRandomAmount()
 	return GenerateRawSendTx(txConfig, signer, amount)
 
