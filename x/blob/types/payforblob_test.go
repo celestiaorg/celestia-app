@@ -147,6 +147,10 @@ func TestValidateBasic(t *testing.T) {
 	emptyShareCommitment := validMsgPayForBlobs(t)
 	emptyShareCommitment.ShareCommitments[0] = []byte{}
 
+	// MsgPayForBlobs that has an invalid share commitment size
+	invalidShareCommitmentSize := validMsgPayForBlobs(t)
+	invalidShareCommitmentSize.ShareCommitments[0] = bytes.Repeat([]byte{0x1}, 31)
+
 	// MsgPayForBlobs that has no namespace ids
 	noNamespaceIds := validMsgPayForBlobs(t)
 	noNamespaceIds.Namespaces = [][]byte{}
@@ -197,7 +201,12 @@ func TestValidateBasic(t *testing.T) {
 		{
 			name:    "empty share commitment",
 			msg:     emptyShareCommitment,
-			wantErr: ErrEmptyShareCommitment,
+			wantErr: ErrInvalidShareCommitment,
+		},
+		{
+			name:    "incorrect hash size share commitment",
+			msg:     invalidShareCommitmentSize,
+			wantErr: ErrInvalidShareCommitment,
 		},
 		{
 			name:    "no namespace ids",
@@ -225,6 +234,7 @@ func TestValidateBasic(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.msg.ValidateBasic()
 			if tt.wantErr != nil {
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr.Error())
 				space, code, log := sdkerrors.ABCIInfo(err, false)
 				assert.Equal(t, tt.wantErr.Codespace(), space)
