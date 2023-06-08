@@ -1,12 +1,10 @@
 package types
 
 import (
-	fmt "fmt"
 	"math/rand"
 	"testing"
 	time "time"
 
-	"cosmossdk.io/math"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -79,57 +77,13 @@ func TestCalculateInflationRate(t *testing.T) {
 	}
 }
 
-func TestCalculateAnnualProvisions(t *testing.T) {
-	genesisTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
-
-	type testCase struct {
-		name        string
-		minter      Minter
-		want        sdk.Dec
-		totalSupply math.Int
-	}
-
-	testCases := []testCase{
-		{
-			name:        "annual provisions is 100 (total supply) * 0.01 (inflation rate) = 1",
-			minter:      NewMinter(sdk.MustNewDecFromStr("0.01"), sdk.NewDec(0), &genesisTime, sdk.DefaultBondDenom),
-			want:        sdk.NewDec(1),
-			totalSupply: math.NewInt(100),
-		},
-		{
-			name:        "annual provisions is 1,000,000 (total supply) * 0.08 (inflation rate) = 80,000",
-			minter:      NewMinter(initalInflationRate, sdk.NewDec(0), &genesisTime, sdk.DefaultBondDenom),
-			totalSupply: math.NewInt(1_000_000),
-			want:        sdk.NewDec(80_000),
-		},
-		{
-			name:        "default minter",
-			minter:      DefaultMinter(),
-			totalSupply: math.NewInt(1_000_000),
-			want:        sdk.NewDec(80_000),
-		},
-		{
-			name:        "annual provisions is 1,000,000 (total supply) * 0.015 (target inflation rate) = 15,000",
-			minter:      NewMinter(targetInflationRate, sdk.NewDec(0), &genesisTime, sdk.DefaultBondDenom),
-			totalSupply: math.NewInt(1_000_000),
-			want:        sdk.NewDec(15_000),
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := tc.minter.CalculateAnnualProvisions(tc.totalSupply)
-			assert.Equal(t, tc.want, got)
-		})
-	}
-}
-
 func TestCalculateBlockProvision(t *testing.T) {
 	minter := DefaultMinter()
 	current := time.Date(2023, 1, 2, 0, 0, 0, 0, time.UTC)
 	blockInterval := 15 * time.Second
-	totalSupply := sdk.NewDec(1_000_000_000_000)             // 1 trillion utia
-	annualProvisions := totalSupply.Mul(initalInflationRate) // 80 billion utia
+	initialInflationRate := InitialInflationRateAsDec()
+	totalSupply := sdk.NewDec(1_000_000_000_000)              // 1 trillion utia
+	annualProvisions := totalSupply.Mul(initialInflationRate) // 80 billion utia
 
 	type testCase struct {
 		name             string
@@ -167,15 +121,14 @@ func TestCalculateBlockProvision(t *testing.T) {
 // TestCalculateBlockProvisionError verifies that the error for total block
 // provisions in a year is less than .01
 func TestCalculateBlockProvisionError(t *testing.T) {
-	oneYear, err := time.ParseDuration(fmt.Sprintf("%vns", NanosecondsPerYear))
-	assert.NoError(t, err)
-
 	minter := DefaultMinter()
 	current := time.Date(2023, 1, 2, 0, 0, 0, 0, time.UTC)
+	oneYear := time.Duration(NanosecondsPerYear)
 	end := current.Add(oneYear)
 
-	totalSupply := sdk.NewDec(1_000_000_000_000)             // 1 trillion utia
-	annualProvisions := totalSupply.Mul(initalInflationRate) // 80 billion utia
+	initialInflationRate := InitialInflationRateAsDec()
+	totalSupply := sdk.NewDec(1_000_000_000_000)              // 1 trillion utia
+	annualProvisions := totalSupply.Mul(initialInflationRate) // 80 billion utia
 	minter.AnnualProvisions = annualProvisions
 	totalBlockProvisions := sdk.NewDec(0)
 	for current.Before(end) {
@@ -227,16 +180,6 @@ func BenchmarkCalculateInflationRate(b *testing.B) {
 	}
 }
 
-func BenchmarkCalculateAnnualProvisions(b *testing.B) {
-	b.ReportAllocs()
-	minter := DefaultMinter()
-	totalSupply := sdk.NewInt(100000000000000)
-
-	for n := 0; n < b.N; n++ {
-		minter.CalculateAnnualProvisions(totalSupply)
-	}
-}
-
 func Test_yearsSinceGenesis(t *testing.T) {
 	type testCase struct {
 		name    string
@@ -249,8 +192,7 @@ func Test_yearsSinceGenesis(t *testing.T) {
 	assert.NoError(t, err)
 	oneWeek := oneDay * 7
 	oneMonth := oneDay * 30
-	oneYear, err := time.ParseDuration(fmt.Sprintf("%vns", NanosecondsPerYear))
-	assert.NoError(t, err)
+	oneYear := time.Duration(NanosecondsPerYear)
 	twoYears := 2 * oneYear
 	tenYears := 10 * oneYear
 	tenYearsOneMonth := tenYears + oneMonth

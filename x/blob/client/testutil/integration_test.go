@@ -41,6 +41,7 @@ func NewIntegrationTestSuite(cfg cosmosnet.Config) *IntegrationTestSuite {
 	return &IntegrationTestSuite{cfg: cfg}
 }
 
+// Note: the SetupSuite may act flaky especially in CI.
 func (s *IntegrationTestSuite) SetupSuite() {
 	if testing.Short() {
 		s.T().Skip("skipping integration test in short mode.")
@@ -182,6 +183,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 	}
 }
 
-func TestIntegrationTestSuite(t *testing.T) {
+// The "_Flaky" suffix indicates that the test may fail non-deterministically especially when executed in CI.
+func TestIntegrationTestSuite_Flaky(t *testing.T) {
 	suite.Run(t, NewIntegrationTestSuite(network.DefaultConfig()))
 }

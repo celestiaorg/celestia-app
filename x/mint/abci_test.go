@@ -11,6 +11,7 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	tmlog "github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/proto/tendermint/types"
 )
@@ -60,11 +61,11 @@ func TestInflationRate(t *testing.T) {
 	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime)
 	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 	unixEpoch := time.Unix(0, 0).UTC()
-	oneYear, err := time.ParseDuration(fmt.Sprintf("%vns", minttypes.NanosecondsPerYear))
-	assert.NoError(t, err)
-	yearOne := genesisTime.Add(oneYear)
-	yearTwo := genesisTime.Add(2 * oneYear)
-	yearTwenty := genesisTime.Add(20 * oneYear)
+	yearZero := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+	oneYear := time.Duration(minttypes.NanosecondsPerYear)
+	yearOne := yearZero.Add(oneYear)
+	yearTwo := yearZero.Add(2 * oneYear)
+	yearTwenty := yearZero.Add(20 * oneYear)
 
 	type testCase struct {
 		name string
@@ -111,4 +112,60 @@ func TestInflationRate(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, tc.want, got.InflationRate)
 	}
+}
+
+func TestAnnualProvisions(t *testing.T) {
+	genesisTime := time.Date(2023, 0, 0, 0, 0, 0, 0, time.UTC).UTC()
+	t.Run("annual provisions are set when originally zero", func(t *testing.T) {
+		a, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime)
+		ctx := sdk.NewContext(a.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
+
+		assert.True(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
+		mint.BeginBlocker(ctx, a.MintKeeper)
+		assert.False(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
+	})
+
+	t.Run("annual provisions are not updated more than once per year", func(t *testing.T) {
+		a, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime)
+		ctx := sdk.NewContext(a.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
+
+		initialSupply := sdk.NewInt(100_000_001_000_000)
+		require.Equal(t, initialSupply, a.MintKeeper.StakingTokenSupply(ctx))
+		require.Equal(t, a.MintKeeper.GetMinter(ctx).BondDenom, a.StakingKeeper.BondDenom(ctx))
+		require.True(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
+
+		blockInterval := time.Second * 15
+		firstBlockTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+		oneYear := time.Duration(minttypes.NanosecondsPerYear)
+		lastBlockInYear := firstBlockTime.Add(oneYear).Add(-time.Second)
+
+		want := minttypes.InitialInflationRateAsDec().MulInt(initialSupply)
+
+		type testCase struct {
+			height int64
+			time   time.Time
+		}
+		testCases := []testCase{
+			{1, firstBlockTime},
+			{2, firstBlockTime.Add(blockInterval)},
+			{3, firstBlockTime.Add(blockInterval * 2)},
+			{4, lastBlockInYear},
+			// testing annual provisions for years after year zero depends on the
+			// total supply which increased due to inflation in year zero.
+		}
+
+		for _, tc := range testCases {
+			t.Run(fmt.Sprintf("block height %v", tc.height), func(t *testing.T) {
+				ctx = ctx.WithBlockHeight(tc.height).WithBlockTime(tc.time)
+				mint.BeginBlocker(ctx, a.MintKeeper)
+				assert.True(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.Equal(want))
+			})
+		}
+
+		t.Run("one year later", func(t *testing.T) {
+			ctx = ctx.WithBlockHeight(5).WithBlockTime(lastBlockInYear.Add(time.Second))
+			mint.BeginBlocker(ctx, a.MintKeeper)
+			assert.False(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.Equal(want))
+		})
+	})
 }

@@ -125,8 +125,8 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 	}
 
 	for _, commitment := range msg.ShareCommitments {
-		if len(commitment) == 0 {
-			return ErrEmptyShareCommitment
+		if len(commitment) != appconsts.HashLength() {
+			return ErrInvalidShareCommitment
 		}
 	}
 

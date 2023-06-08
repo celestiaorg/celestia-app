@@ -140,7 +140,7 @@ func TestIntegrationTestSuite(t *testing.T) {
 	require.NoError(t, err)
 
 	// genesisState := cfg.GenesisState
-	cfg.GenesisState[minttypes.ModuleName] = cfg.AppCodec().MustMarshalJSON(mintGenesis)
+	// cfg.GenesisState[minttypes.ModuleName] = cfg.AppCodec().MustMarshalJSON(mintGenesis)
 	// cfg.GenesisState = genesisState
 
 	suite.Run(t, NewIntegrationTestSuite(cfg))
