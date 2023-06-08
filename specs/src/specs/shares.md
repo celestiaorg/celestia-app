@@ -6,7 +6,7 @@
 
 All available data in a Celestia [block](./data_structures.md#block) is split into fixed-size data chunks known as "shares". A share is associated with exactly one namespace. The shares in a Celestia block are eventually erasure-coded and committed to in [Namespace Merkle trees](./data_structures.md#namespace-merkle-tree) (also see [NMT spec](https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md)).
 
-A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence may contain one or more shares. In most cases, a share sequence should be parsed together because the original data may have been split across share boundaries. One share sequence exists per [reserved namespace](./consensus.md#reserved-namespaces) and per [blob](../../../x/blob/README.md).
+A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence SHOULD contain one or more shares. In most cases, a share sequence should be parsed together because the original data may have been split across share boundaries. One share sequence exists per [reserved namespace](./consensus.md#reserved-namespaces) and per [blob](../../../x/blob/README.md).
 
 ## Overview
 
@@ -37,7 +37,7 @@ Continuation share in a sequence:
 
 ![fig: share continuation](./figures/share_continuation.svg)
 
-Since blob data that exceeds [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes will span more than one share, developers may choose to encode additional metadata in their raw blob data prior to inclusion in a Celestia block.
+Since blob data that exceeds [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes will span more than one share, developers MAY choose to encode additional metadata in their raw blob data prior to inclusion in a Celestia block.
 
 ## Transaction Shares
 
@@ -80,15 +80,15 @@ Padding shares vary based on namespace but share a common structure:
 ### Namespace Padding Share
 
 A namespace padding share uses the namespace of the blob that precedes it in the data square so that the data square can retain the property that all shares are ordered by namespace.
-A namespace padding share acts as padding between blobs so that the subsequent blob may begin at an index that conforms to the [non-interactive default rules](../rationale/data_square_layout.md#non-interactive-default-rules). Clients may ignore the contents of these shares because they don't contain any significant data.
+A namespace padding share acts as padding between blobs so that the subsequent blob begins at an index that conforms to the [non-interactive default rules](../rationale/data_square_layout.md#non-interactive-default-rules). Clients MAY ignore the contents of these shares because they don't contain any significant data.
 
 ### Reserved Padding Share
 
-Reserved padding shares use the [`RESERVED_PADDING_NAMESPACE`](./consensus.md#constants). Reserved padding shares are placed after the last reserved namespace share in the data square so that the first blob can start at an index that conforms to non-interactive default rules. Clients may ignore the contents of these shares because they don't contain any significant data.
+Reserved padding shares use the [`RESERVED_PADDING_NAMESPACE`](./consensus.md#constants). Reserved padding shares are placed after the last reserved namespace share in the data square so that the first blob can start at an index that conforms to non-interactive default rules. Clients MAY ignore the contents of these shares because they don't contain any significant data.
 
 ### Tail Padding Share
 
-Tail padding shares use the [`TAIL_PADDING_NAMESPACE`](./consensus.md#constants). Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients may ignore the contents of these shares because they don't contain any significant data.
+Tail padding shares use the [`TAIL_PADDING_NAMESPACE`](./consensus.md#constants). Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients MAY ignore the contents of these shares because they don't contain any significant data.
 
 ## Parity Share
 
