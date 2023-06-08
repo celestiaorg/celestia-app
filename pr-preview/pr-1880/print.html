@@ -519,16 +519,15 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <div style="break-before: page; page-break-before: always;"></div><h1 id="shares"><a class="header" href="#shares">Shares</a></h1>
 <!-- toc -->
 <h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
-<p>All available data in a Celestia <a href="specs/./data_structures.html#block">block</a> is split into fixed-size data chunks known as &quot;shares&quot;. A share is associated with exactly one namespace. The shares in a Celestia block are eventually erasure-coded and committed to in <a href="specs/./data_structures.html#namespace-merkle-tree">Namespace Merkle trees</a> (also see <a href="https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md">NMT spec</a>).</p>
-<p>A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence SHOULD contain one or more shares. In most cases, a share sequence should be parsed together because the original data may have been split across share boundaries. One share sequence exists per <a href="specs/./consensus.html#reserved-namespaces">reserved namespace</a> and per <a href="specs/../../../x/blob/README.html">blob</a>.</p>
+<p>All available data in a Celestia <a href="specs/./data_structures.html#block">block</a> is split into fixed-size data chunks known as &quot;shares&quot;. Shares are the atomic unit of the Celestia data square. The shares in a Celestia block are eventually <a href="specs/./data_structures.html#erasure-coding">erasure-coded</a> and committed to in <a href="specs/./data_structures.html#namespace-merkle-tree">Namespace Merkle trees</a> (also see <a href="https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md">NMT spec</a>).</p>
 <h2 id="terms"><a class="header" href="#terms">Terms</a></h2>
 <ul>
 <li><strong>Share</strong>: A fixed-size data chunk that is associated with exactly one namespace.</li>
-<li><strong>Share sequence</strong>: A contiguous set of shares in the original data square that contain semantically relevant data.</li>
+<li><strong>Share sequence</strong>: A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence SHOULD contain one or more shares. In most cases, a share sequence should be parsed together because the original data may have been split across share boundaries. One share sequence exists per <a href="specs/./consensus.html#reserved-namespaces">reserved namespace</a> and per <a href="specs/../../../x/blob/README.html">blob</a>.</li>
 <li><strong>Blob</strong>: User specified data (e.g. a roll-up block) that is associated with exactly one namespace. Blob data are opaque bytes of data that are included in the block but do not impact Celestia's state.</li>
 </ul>
 <h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
-<p>User submitted <a href="specs/../../../x/blob/README.html">blob</a> data is split into shares (see <a href="specs/shares.html#share-splitting">share splitting</a>) and arranged in a <code>k * k</code> matrix (see <a href="specs/./data_structures.html#arranging-available-data-into-shares">arranging available data into shares</a>) prior to the erasure coding step. Shares in the <code>k * k</code> matrix are ordered by namespace and have a common <a href="specs/shares.html#share-structure">share structure</a>.</p>
+<p>User submitted <a href="specs/../../../x/blob/README.html">blob</a> data is split into shares (see <a href="specs/shares.html#share-splitting">share splitting</a>) and arranged in a <code>k * k</code> matrix (see <a href="specs/./data_structures.html#arranging-available-data-into-shares">arranging available data into shares</a>) prior to the erasure coding step. Shares in the <code>k * k</code> matrix are ordered by namespace and have a common <a href="specs/shares.html#share-format">share format</a>.</p>
 <p><a href="specs/shares.html#padding">Padding</a> shares are added to the <code>k * k</code> matrix to ensure:</p>
 <ol>
 <li>Blob sequences start on an index that conforms to <a href="specs/../rationale/data_square_layout.html#non-interactive-default-rules">non-interactive default rules</a> (see <a href="specs/shares.html#namespace-padding-share">namespace padding share</a> and <a href="specs/shares.html#reserved-padding-share">reserved padding share</a>)</li>
@@ -539,7 +538,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <ol>
 <li>// TODO</li>
 </ol>
-<h2 id="share-structure"><a class="header" href="#share-structure">Share Structure</a></h2>
+<h2 id="share-format"><a class="header" href="#share-format">Share Format</a></h2>
 <p>For shares <strong>with a namespace above <a href="specs/./consensus.html#constants"><code>MAX_RESERVED_NAMESPACE</code></a> but below <a href="specs/./consensus.html#constants"><code>PARITY_SHARE_NAMESPACE</code></a></strong>:</p>
 <ul>
 <li>The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> of a share's raw data is the namespace of that share.</li>
@@ -602,6 +601,12 @@ A namespace padding share acts as padding between blobs so that the subsequent b
 <p>Tail padding shares use the <a href="specs/./consensus.html#constants"><code>TAIL_PADDING_NAMESPACE</code></a>. Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients MAY ignore the contents of these shares because they don't contain any significant data.</p>
 <h2 id="parity-share"><a class="header" href="#parity-share">Parity Share</a></h2>
 <p>Parity shares use the namespace <a href="specs/./consensus.html#constants"><code>PARITY_SHARE_NAMESPACE</code></a>. Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.</p>
+<h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
+<ul>
+<li>Shares are assumed to be 512 byte chunks. Parsing shares of a different size WILL result in an error.</li>
+</ul>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<p>See <a href="specs/../../../pkg/shares">pkg/shares</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="consensus-rules"><a class="header" href="#consensus-rules">Consensus Rules</a></h1>
 <!-- toc -->
 <h2 id="system-parameters"><a class="header" href="#system-parameters">System Parameters</a></h2>
