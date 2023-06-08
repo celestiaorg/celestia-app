@@ -4,19 +4,17 @@
 
 ## Abstract
 
-All available data in a Celestia [block](./data_structures.md#block) is split into fixed-size data chunks known as "shares". A share is associated with exactly one namespace. The shares in a Celestia block are eventually erasure-coded and committed to in [Namespace Merkle trees](./data_structures.md#namespace-merkle-tree) (also see [NMT spec](https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md)).
-
-A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence SHOULD contain one or more shares. In most cases, a share sequence should be parsed together because the original data may have been split across share boundaries. One share sequence exists per [reserved namespace](./consensus.md#reserved-namespaces) and per [blob](../../../x/blob/README.md).
+All available data in a Celestia [block](./data_structures.md#block) is split into fixed-size data chunks known as "shares". Shares are the atomic unit of the Celestia data square. The shares in a Celestia block are eventually [erasure-coded](./data_structures.md#erasure-coding) and committed to in [Namespace Merkle trees](./data_structures.md#namespace-merkle-tree) (also see [NMT spec](https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md)).
 
 ## Terms
 
 - **Share**: A fixed-size data chunk that is associated with exactly one namespace.
-- **Share sequence**: A contiguous set of shares in the original data square that contain semantically relevant data.
+- **Share sequence**: A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence SHOULD contain one or more shares. In most cases, a share sequence should be parsed together because the original data may have been split across share boundaries. One share sequence exists per [reserved namespace](./consensus.md#reserved-namespaces) and per [blob](../../../x/blob/README.md).
 - **Blob**: User specified data (e.g. a roll-up block) that is associated with exactly one namespace. Blob data are opaque bytes of data that are included in the block but do not impact Celestia's state.
 
 ## Overview
 
-User submitted [blob](../../../x/blob/README.md) data is split into shares (see [share splitting](#share-splitting)) and arranged in a `k * k` matrix (see [arranging available data into shares](./data_structures.md#arranging-available-data-into-shares)) prior to the erasure coding step. Shares in the `k * k` matrix are ordered by namespace and have a common [share structure](#share-structure).
+User submitted [blob](../../../x/blob/README.md) data is split into shares (see [share splitting](#share-splitting)) and arranged in a `k * k` matrix (see [arranging available data into shares](./data_structures.md#arranging-available-data-into-shares)) prior to the erasure coding step. Shares in the `k * k` matrix are ordered by namespace and have a common [share format](#share-format).
 
 [Padding](#padding) shares are added to the `k * k` matrix to ensure:
 
@@ -29,7 +27,7 @@ Share splitting is the process of converting a blob into a set of shares. The fo
 
 1. // TODO
 
-## Share Structure
+## Share Format
 
 For shares **with a namespace above [`MAX_RESERVED_NAMESPACE`](./consensus.md#constants) but below [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants)**:
 
@@ -105,3 +103,11 @@ Tail padding shares use the [`TAIL_PADDING_NAMESPACE`](./consensus.md#constants)
 ## Parity Share
 
 Parity shares use the namespace [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants). Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.
+
+## Assumptions and Considerations
+
+- Shares are assumed to be 512 byte chunks. Parsing shares of a different size WILL result in an error.
+
+## Implementation
+
+See [pkg/shares](../../../pkg/shares).
