@@ -8,14 +8,26 @@ All available data in a Celestia [block](./data_structures.md#block) is split in
 
 A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence SHOULD contain one or more shares. In most cases, a share sequence should be parsed together because the original data may have been split across share boundaries. One share sequence exists per [reserved namespace](./consensus.md#reserved-namespaces) and per [blob](../../../x/blob/README.md).
 
+## Terms
+
+- **Share**: A fixed-size data chunk that is associated with exactly one namespace.
+- **Share sequence**: A contiguous set of shares in the original data square that contain semantically relevant data.
+- **Blob**: User specified data (e.g. a roll-up block) that is associated with exactly one namespace. Blob data are opaque bytes of data that are included in the block but do not impact Celestia's state.
+
 ## Overview
 
-// TODO: convert these bullet points into prose
+User submitted [blob](../../../x/blob/README.md) data is split into shares (see [share splitting](#share-splitting)) and arranged in a `k * k` matrix (see [arranging available data into shares](./data_structures.md#arranging-available-data-into-shares)) prior to the erasure coding step. Shares in the `k * k` matrix are ordered by namespace and have a common [share structure](#share-structure).
 
-- Shares in the original and extended data square are ordered by namespace.
-- Explain how blob data is split into shares.
-- Explain why padding is necessary.
-- Link to subsections below.
+[Padding](#padding) shares are added to the `k * k` matrix to ensure:
+
+1. Blob sequences start on an index that conforms to [non-interactive default rules](../rationale/data_square_layout.md#non-interactive-default-rules) (see [namespace padding share](#namespace-padding-share) and [reserved padding share](#reserved-padding-share))
+1. The number of shares in the matrix is a perfect square (see [tail padding share](#tail-padding-share))])
+
+## Share Splitting
+
+Share splitting is the process of converting a blob into a set of shares. The following steps are taken to split a blob into shares:
+
+1. // TODO
 
 ## Share Structure
 
@@ -93,9 +105,3 @@ Tail padding shares use the [`TAIL_PADDING_NAMESPACE`](./consensus.md#constants)
 ## Parity Share
 
 Parity shares use the namespace [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants). Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.
-
-## Glossary
-
-- **Share**: A fixed-size data chunk that is associated with exactly one namespace.
-- **Share sequence**: A contiguous set of shares that contain semantically relevant data.
-- **Blob**: User specified data (e.g. a roll-up block) that is associated with exactly one namespace. Blob data are opaque bytes of data that are included in the block but do not impact Celestia's state.
