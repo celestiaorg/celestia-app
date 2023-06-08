@@ -3,8 +3,9 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	math "math"
+
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"

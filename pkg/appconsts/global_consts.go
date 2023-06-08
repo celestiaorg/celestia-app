@@ -1,9 +1,10 @@
 package appconsts
 
 import (
+	"math"
+
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/pkg/consts"
-	"math"
 )
 
 // These constants were originally sourced from:
