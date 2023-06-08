@@ -12,9 +12,11 @@ import (
 //
 // They can not change throughout the lifetime of a network.
 const (
-	// NamespaveVersionSize is the size of a namespace version in bytes.
-	NamespaceVersionSize     = 1
-	NamespaceVersionMaxValue = math.MaxUint8 // this value should be set according to NamespaceVersionSize, i.e., 2^NamespaceVersionSize - 1
+	// NamespaceVersionSize is the size of a namespace version in bytes.
+	NamespaceVersionSize = 1
+	// NamespaceVersionMaxValue is the maximum value a namespace version can be.
+	// This const must be updated if NamespaceVersionSize is changed.
+	NamespaceVersionMaxValue = math.MaxUint8
 
 	// NamespaceIDSize is the size of a namespace ID in bytes.
 	NamespaceIDSize = 28
