@@ -34,7 +34,7 @@ func (s *CLITestSuite) SetupSuite() {
 	cfg.EnableTMLogging = false
 	cfg.MinGasPrices = "0utia"
 	cfg.NumValidators = 1
-	cfg.TargetHeightDuration = time.Millisecond * 400
+	cfg.TargetHeightDuration = time.Millisecond
 	s.cfg = cfg
 
 	numAccounts := 120
@@ -57,6 +57,8 @@ func (s *CLITestSuite) TearDownSuite() {
 }
 
 func (s *CLITestSuite) TestQueryAttestationByNonce() {
+	_, err := s.network.WaitForHeight(402)
+	s.Require().NoError(err)
 	val := s.network.Validators[0]
 	testCases := []struct {
 		name      string
@@ -64,8 +66,13 @@ func (s *CLITestSuite) TestQueryAttestationByNonce() {
 		expectErr bool
 	}{
 		{
-			name:      "query first attestation that's created on chain startup",
+			name:      "query the first valset that's created on chain startup",
 			nonce:     "1",
+			expectErr: false,
+		},
+		{
+			name:      "query the first data commitment",
+			nonce:     "2",
 			expectErr: false,
 		},
 		{
