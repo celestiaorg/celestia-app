@@ -61,7 +61,12 @@ func Test_parseSparseShares(t *testing.T) {
 
 			sort.Sort(coretypes.BlobsByNamespace(blobs))
 
-			shares, _ := SplitBlobs(0, nil, blobs, false)
+			shares := []Share{}
+			for _, blob := range blobs {
+				s, err := SplitBlob(blob)
+				require.NoError(t, err)
+				shares = append(shares, s...)
+			}
 			parsedBlobs, err := parseSparseShares(shares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)
@@ -77,7 +82,12 @@ func Test_parseSparseShares(t *testing.T) {
 		// run the same tests using randomly sized blobs with caps of tc.blobSize
 		t.Run(fmt.Sprintf("%s randomly sized", tc.name), func(t *testing.T) {
 			blobs := testfactory.GenerateRandomlySizedBlobs(tc.blobCount, tc.blobSize)
-			shares, _ := SplitBlobs(0, nil, blobs, false)
+			shares := []Share{}
+			for _, blob := range blobs {
+				s, err := SplitBlob(blob)
+				require.NoError(t, err)
+				shares = append(shares, s...)
+			}
 			parsedBlobs, err := parseSparseShares(shares, appconsts.SupportedShareVersions)
 			if err != nil {
 				t.Error(err)

@@ -72,21 +72,10 @@ func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRang
 	return txShares, pfbShares, mergeMaps(txMap, pfbMap), nil
 }
 
-func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIndexes bool) ([]Share, error) {
-	if useShareIndexes && len(indexes) != len(blobs) {
-		return nil, ErrIncorrectNumberOfIndexes
-	}
+func SplitBlob(blob coretypes.Blob) ([]Share, error) {
 	writer := NewSparseShareSplitter()
-	for i, blob := range blobs {
-		if err := writer.Write(blob); err != nil {
-			return nil, err
-		}
-		if useShareIndexes && len(indexes) > i+1 {
-			paddedShareCount := int(indexes[i+1]) - (writer.Count() + cursor)
-			if err := writer.WriteNamespacedPaddedShares(paddedShareCount); err != nil {
-				return nil, err
-			}
-		}
+	if err := writer.Write(blob); err != nil {
+		return nil, err
 	}
 	return writer.Export(), nil
 }
