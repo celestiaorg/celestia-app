@@ -76,9 +76,17 @@ var (
 	// if another hash.Hash should be used as a base hasher in the NMT.
 	NewBaseHashFunc = consts.NewBaseHashFunc
 
+	// hashLength is the length of a hash in bytes.
+	hashLength = NewBaseHashFunc().Size()
+
 	// DefaultCodec is the default codec creator used for data erasure.
 	DefaultCodec = rsmt2d.NewLeoRSCodec
 
 	// SupportedShareVersions is a list of supported share versions.
 	SupportedShareVersions = []uint8{ShareVersionZero}
 )
+
+// HashLength returns the length of a hash in bytes.
+func HashLength() int {
+	return hashLength
+}
