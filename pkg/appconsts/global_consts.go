@@ -3,6 +3,7 @@ package appconsts
 import (
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/pkg/consts"
+	"math"
 )
 
 // These constants were originally sourced from:
@@ -11,7 +12,8 @@ import (
 // They can not change throughout the lifetime of a network.
 const (
 	// NamespaveVersionSize is the size of a namespace version in bytes.
-	NamespaceVersionSize = 1
+	NamespaceVersionSize     = 1
+	NamespaceVersionMaxValue = math.MaxUint8 // this value should be set according to NamespaceVersionSize, i.e., 2^NamespaceVersionSize - 1
 
 	// NamespaceIDSize is the size of a namespace ID in bytes.
 	NamespaceIDSize = 28
