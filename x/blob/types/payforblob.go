@@ -1,9 +1,11 @@
 package types
 
 import (
-	"cosmossdk.io/errors"
 	"crypto/sha256"
 	fmt "fmt"
+
+	"cosmossdk.io/errors"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
