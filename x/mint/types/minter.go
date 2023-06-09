@@ -21,7 +21,8 @@ func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec, genesisTime *tim
 func DefaultMinter() Minter {
 	unixEpoch := time.Unix(0, 0).UTC()
 	inflationRate := InitialInflationRateAsDec()
-	return NewMinter(inflationRate, sdk.NewDec(0), &unixEpoch, sdk.DefaultBondDenom)
+	defaultBondDenom := "utia"
+	return NewMinter(inflationRate, sdk.NewDec(0), &unixEpoch, defaultBondDenom)
 }
 
 // Validate returns an error if the minter is invalid.

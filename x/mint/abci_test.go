@@ -16,46 +16,6 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
-func TestGenesisTime(t *testing.T) {
-	unixEpoch := time.Unix(0, 0).UTC()
-	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-
-	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime)
-	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
-
-	type testCase struct {
-		name string
-		ctx  sdk.Context
-		want time.Time
-	}
-
-	testCases := []testCase{
-		{
-			name: "genesis time is set for block 0",
-			ctx:  ctx.WithBlockHeight(0).WithBlockTime(unixEpoch),
-			want: genesisTime,
-		},
-		{
-			name: "genesis time is set for block 1",
-			ctx:  ctx.WithBlockHeight(1).WithBlockTime(genesisTime),
-			want: genesisTime,
-		},
-		{
-			name: "genesis time remains set for future block heights and block times",
-			ctx:  ctx.WithBlockHeight(2).WithBlockTime(genesisTime.Add(time.Hour)),
-			want: genesisTime,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := app.MintKeeper.GenesisTime(ctx, &minttypes.QueryGenesisTimeRequest{})
-			assert.NoError(t, err)
-			assert.Equal(t, &tc.want, got.GenesisTime)
-		})
-	}
-}
-
 func TestInflationRate(t *testing.T) {
 	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
 	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime)
@@ -135,9 +95,9 @@ func TestAnnualProvisions(t *testing.T) {
 		require.True(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
 
 		blockInterval := time.Second * 15
-		firstBlockTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+		genesisTime := a.MintKeeper.GetMinter(ctx).GenesisTime
 		oneYear := time.Duration(minttypes.NanosecondsPerYear)
-		lastBlockInYear := firstBlockTime.Add(oneYear).Add(-time.Second)
+		lastBlockInYear := genesisTime.Add(oneYear).Add(-time.Second)
 
 		want := minttypes.InitialInflationRateAsDec().MulInt(initialSupply)
 
@@ -146,10 +106,9 @@ func TestAnnualProvisions(t *testing.T) {
 			time   time.Time
 		}
 		testCases := []testCase{
-			{1, firstBlockTime},
-			{2, firstBlockTime.Add(blockInterval)},
-			{3, firstBlockTime.Add(blockInterval * 2)},
-			{4, lastBlockInYear},
+			{1, genesisTime.Add(blockInterval)},
+			{2, genesisTime.Add(blockInterval * 2)},
+			{3, lastBlockInYear},
 			// testing annual provisions for years after year zero depends on the
 			// total supply which increased due to inflation in year zero.
 		}
