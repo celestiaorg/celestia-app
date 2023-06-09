@@ -133,7 +133,8 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 //
 //	result: (2^63 - 1) * 2^32 / (1000(2^63 - 1)) = 2^32 / 1000 = 4294967
 //
-// This is using the min-max normalization from the interval [0, total validator power] to [0, 2^32].
+// This is using the min-max normalization https://en.wikipedia.org/wiki/Feature_scaling
+// from the interval [0, total validator power] to [0, 2^32].
 // Check the `PowerDiff` method under `types.validator.go` for more information.
 func normalizeValidatorPower(rawPower uint64, totalValidatorPower cosmosmath.Int) uint64 {
 	// Compute rawPower * multiplier / quotient Set the upper limit to 2^32,
