@@ -73,16 +73,8 @@ func CreateRawTx(txConfig client.TxConfig, msg sdk.Msg, signer *blobtypes.Keyrin
 	return rawTx
 }
 
-// GenerateRandomSigner generates a random signer for the given chainID.
-func generateRandomSigner(chainID string) *blobtypes.KeyringSigner {
-	// generate a variable length string
-	acc := tmrand.Str(tmrand.Intn(100) + 1)
-	kr := testfactory.GenerateKeyring(acc)
-	signer := blobtypes.NewKeyringSigner(kr, acc, chainID)
-	return signer
-}
-
-func generateRandomAmount() int64 {
+// GenerateRandomAmount generates a random amount for a Sand transaction.
+func GenerateRandomAmount() int64 {
 	n := tmrand.Int64()
 	if n < 0 {
 		return -n
@@ -92,8 +84,10 @@ func generateRandomAmount() int64 {
 
 // GenerateRandomRawSendTx generates a random raw send tx.
 func GenerateRandomRawSendTx(txConfig client.TxConfig) (rawTx []byte) {
-	signer := generateRandomSigner("chainid")
-	amount := generateRandomAmount()
+	acc := "signer"
+	kr := testfactory.GenerateKeyring(acc)
+	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
+	amount := GenerateRandomAmount()
 	return GenerateRawSendTx(txConfig, signer, amount)
 }
 
