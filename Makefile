@@ -99,7 +99,7 @@ test:
 	@go test -mod=readonly ./...
 .PHONY: test
 
-## test-short: Run unit tests in short mode.
+## test-short: Run unit tests in short mode.The tests which take more than 10 seconds are not computed further.
 test-short:
 	@echo "--> Running tests in short mode"
 	@go test -mod=readonly ./... -short -timeout 10s
