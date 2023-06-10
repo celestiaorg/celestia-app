@@ -15,6 +15,7 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 	// set it once here rather than conditionally setting it in abci.EndBlocker
 	// which is executed on every block.
 	k.SetEarliestAvailableAttestationNonce(ctx, 1)
+	k.SetLatestUnBondingBlockHeight(ctx, 0)
 	k.SetParams(ctx, *genState.Params)
 }
 
