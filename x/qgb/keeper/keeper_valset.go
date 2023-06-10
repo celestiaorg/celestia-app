@@ -55,9 +55,8 @@ func (k Keeper) GetLatestValset(ctx sdk.Context) (*types.Valset, error) {
 	return &currentVs, err
 }
 
-// SetLatestUnBondingBlockHeight sets the latest unbonding block height. Note
-// this value is not saved to state or loaded at genesis. This value is reset to
-// zero on chain upgrade.
+// SetLatestUnBondingBlockHeight sets the latest unbonding block height.
+// This value is initialized to 0 in genesis.
 func (k Keeper) SetLatestUnBondingBlockHeight(ctx sdk.Context, unbondingBlockHeight uint64) {
 	store := ctx.KVStore(k.storeKey)
 	store.Set([]byte(types.LatestUnBondingBlockHeight), types.UInt64Bytes(unbondingBlockHeight))
