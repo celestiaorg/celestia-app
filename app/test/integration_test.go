@@ -157,7 +157,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				hashes[i] = res.TxHash
 			}
 
-			s.cctx.WaitForBlocks(10)
+			require.NoError(t, s.cctx.WaitForBlocks(10))
 
 			heights := make(map[int64]int)
 			for _, hash := range hashes {
@@ -201,12 +201,12 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 }
 
 func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
-	require := s.Require()
+	t := s.T()
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 
 	mustNewBlob := func(ns appns.Namespace, data []byte, shareVersion uint8) *blobtypes.Blob {
 		b, err := blobtypes.NewBlob(ns, data, shareVersion)
-		require.NoError(err)
+		require.NoError(t, err)
 		return b
 	}
 
@@ -254,13 +254,13 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		s.Run(tc.name, func() {
 			// occasionally this test will error that the mempool is full (code
 			// 20) so we wait a few blocks for the txs to clear
-			s.cctx.WaitForBlocks(3)
+			require.NoError(t, s.cctx.WaitForBlocks(3))
 
 			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], s.cctx.ChainID)
 			res, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
-			require.NoError(err)
-			require.NotNil(res)
-			require.Equal(abci.CodeTypeOK, res.Code, res.Logs)
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			require.Equal(t, abci.CodeTypeOK, res.Code, res.Logs)
 		})
 	}
 }
@@ -311,7 +311,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		hashes[i] = res.TxHash
 	}
 
-	s.cctx.WaitForBlocks(10)
+	require.NoError(t, s.cctx.WaitForBlocks(10))
 
 	for _, hash := range hashes {
 		txResp, err := testnode.QueryTx(s.cctx.Context, hash, true)
