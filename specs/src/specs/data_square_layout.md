@@ -40,7 +40,7 @@ This, however, requires the block producer to interact with the transaction send
 
 We impose one additional rule on blob placement to make the possible starting locations of blobs sufficiently predictable and constrained such that users can deterministically compute subtree roots without the need to interact with the block proposer:
 
-> Blobs must start at an index that is a multiple of the `SubtreeWidth`. The `SubtreeWidth` is the length of the blob in shares, divided by the [`SubtreeRootThreshold`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/appconsts/v1/app_consts.go#L6) ([implementation here](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/shares/non_interactive_defaults.go#L94-L116)).
+> Blobs must start at an index that is a multiple of the `SubtreeWidth`. The `SubtreeWidth` is the length of the blob in shares, divided by the [`SubtreeRootThreshold`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/appconsts/v1/app_consts.go#L6) and rounded up to the nearest power of 2 ([implementation here](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/shares/non_interactive_defaults.go#L94-L116)).
 
 The `SubtreeRootThreshold` is an arbitrary versioned protocol constant that aims to put a soft limit the number of subtree roots included in a blob inclusion proof, as described in [ADR013](../../../docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md).
 
