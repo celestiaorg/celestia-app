@@ -1,15 +1,8 @@
 package e2e
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"html/template"
-	"io"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,99 +10,27 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 	slashing "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	staking "github.com/cosmos/cosmos-sdk/x/staking/types"
-	dockertypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/pex"
-	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/types"
 )
 
-func Setup(ctx context.Context, testnet *Testnet) error {
-	// Ensure that all the requisite images are available
-	if err := SetupImages(ctx, testnet); err != nil {
-		return fmt.Errorf("setting up images: %w", err)
-	}
-
-	fmt.Printf("Setting up network %s\n", testnet.Name)
-
-	_, err := os.Stat(testnet.Dir)
-	if err == nil {
-		return errors.New("testnet directory already exists")
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("checking if testnet directory exists: %w", err)
-	}
-
-	// Create the directory for the testnet
-	if err := os.MkdirAll(testnet.Dir, os.ModePerm); err != nil {
-		return err
-	}
-	cleanup := func() { os.RemoveAll(testnet.Dir) }
-
-	// Create the docker compose file
-	if err := WriteDockerCompose(testnet, filepath.Join(testnet.Dir, "docker-compose.yml")); err != nil {
-		cleanup()
-		return fmt.Errorf("setting up docker compose: %w", err)
-	}
-
-	// Make the genesis file for the testnet
-	genesis, err := MakeGenesis(testnet)
-	if err != nil {
-		cleanup()
-		return fmt.Errorf("making genesis: %w", err)
-	}
-
-	// Initialize the file system and configs for each node
-	for name, node := range testnet.Nodes {
-		err := InitNode(node, genesis, testnet.Dir)
-		if err != nil {
-			cleanup()
-			return fmt.Errorf("initializing node %s: %w", name, err)
-		}
-	}
-
-	return nil
+type GenesisAccount struct {
+	PubKey        cryptotypes.PubKey
+	InitialTokens int64
 }
 
-// SetupImages ensures that all the requisite docker images for each
-// used celestia consensus version.
-func SetupImages(ctx context.Context, testnet *Testnet) error {
-	c, err := client.NewClientWithOpts()
-	if err != nil {
-		return fmt.Errorf("establishing docker client: %v", err)
-	}
-
-	versions := testnet.GetAllVersions()
-
-	for _, v := range versions {
-		if v == "current" {
-			// we assume that the user has locally downloaded
-			// the current docker image
-			continue
-		}
-		refStr := dockerSrcURL + ":" + v
-		fmt.Printf("Pulling in docker image: %s\n", refStr)
-		rc, err := c.ImagePull(ctx, refStr, dockertypes.ImagePullOptions{})
-		if err != nil {
-			return fmt.Errorf("error pulling image %s: %w", refStr, err)
-		}
-		_, _ = io.Copy(io.Discard, rc)
-		_ = rc.Close()
-	}
-
-	return nil
-}
-
-func MakeGenesis(testnet *Testnet) (types.GenesisDoc, error) {
+func MakeGenesis(nodes []*Node, accounts []*GenesisAccount) (types.GenesisDoc, error) {
 	encCdc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	appGenState := app.ModuleBasics.DefaultGenesis(encCdc.Codec)
 	bankGenesis := bank.DefaultGenesisState()
@@ -117,16 +38,16 @@ func MakeGenesis(testnet *Testnet) (types.GenesisDoc, error) {
 	slashingGenesis := slashing.DefaultGenesisState()
 	genAccs := []auth.GenesisAccount{}
 	stakingGenesis.Params.BondDenom = app.BondDenom
-	delegations := make([]staking.Delegation, 0, len(testnet.Nodes))
-	valInfo := make([]slashing.SigningInfo, 0, len(testnet.Nodes))
-	balances := make([]bank.Balance, 0, len(testnet.Accounts)+1)
+	delegations := make([]staking.Delegation, 0, len(nodes))
+	valInfo := make([]slashing.SigningInfo, 0, len(nodes))
+	balances := make([]bank.Balance, 0, len(accounts))
 	var (
 		validators  staking.Validators
 		totalBonded int64
 	)
 
 	// setup the validator information on the state machine
-	for name, node := range testnet.Nodes {
+	for _, node := range nodes {
 		if !node.IsValidator() || node.StartHeight != 0 {
 			continue
 		}
@@ -146,7 +67,7 @@ func MakeGenesis(testnet *Testnet) (types.GenesisDoc, error) {
 			OperatorAddress: sdk.ValAddress(addr).String(),
 			ConsensusPubkey: pkAny,
 			Description: staking.Description{
-				Moniker: name,
+				Moniker: node.Name,
 			},
 			Status:          staking.Bonded,
 			Tokens:          sdk.NewInt(node.SelfDelegation),
@@ -168,20 +89,17 @@ func MakeGenesis(testnet *Testnet) (types.GenesisDoc, error) {
 	stakingGenesis.Validators = validators
 	slashingGenesis.SigningInfos = valInfo
 
-	accountNumber := uint64(0)
-	for _, account := range testnet.Accounts {
-		pk, err := cryptocodec.FromTmPubKeyInterface(account.Key.PubKey())
-		if err != nil {
-			return types.GenesisDoc{}, fmt.Errorf("converting public key for account %s: %w", account.Name, err)
-		}
-
-		addr := pk.Address()
-		acc := auth.NewBaseAccount(addr.Bytes(), pk, accountNumber, 0)
+	for idx, account := range accounts {
+		addr := account.PubKey.Address()
+		acc := auth.NewBaseAccount(addr.Bytes(), account.PubKey, uint64(idx), 0)
 		genAccs = append(genAccs, acc)
+		if account.InitialTokens == 0 {
+			return types.GenesisDoc{}, fmt.Errorf("account %s has no initial tokens", addr)
+		}
 		balances = append(balances, bank.Balance{
 			Address: sdk.AccAddress(addr).String(),
 			Coins: sdk.NewCoins(
-				sdk.NewCoin(app.BondDenom, sdk.NewInt(account.Tokens)),
+				sdk.NewCoin(app.BondDenom, sdk.NewInt(account.InitialTokens)),
 			),
 		})
 	}
@@ -210,7 +128,7 @@ func MakeGenesis(testnet *Testnet) (types.GenesisDoc, error) {
 
 	// Validator set and app hash are set in InitChain
 	return types.GenesisDoc{
-		ChainID:         testnet.Name,
+		ChainID:         "testnet",
 		GenesisTime:     time.Now().UTC(),
 		ConsensusParams: types.DefaultConsensusParams(),
 		AppState:        appState,
@@ -223,7 +141,7 @@ func MakeConfig(node *Node) (*config.Config, error) {
 	cfg.Moniker = node.Name
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))
-	cfg.P2P.PersistentPeers = strings.Join(node.Peers, ",")
+	cfg.P2P.PersistentPeers = strings.Join(node.InitialPeers, ",")
 
 	// TODO: when we use adaptive timeouts, add a parameter in the testnet manifest
 	// to set block times
@@ -232,100 +150,6 @@ func MakeConfig(node *Node) (*config.Config, error) {
 	cfg.Consensus.TimeoutPropose = 1000 * time.Millisecond
 	cfg.Consensus.TargetHeightDuration = 300 * time.Millisecond
 	return cfg, nil
-}
-
-func InitNode(node *Node, genesis types.GenesisDoc, rootDir string) error {
-	// Initialize file directories
-	nodeDir := filepath.Join(rootDir, node.Name)
-	for _, dir := range []string{
-		filepath.Join(nodeDir, "config"),
-		filepath.Join(nodeDir, "data"),
-	} {
-		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-			return fmt.Errorf("error creating directory %s: %w", dir, err)
-		}
-	}
-
-	// Create and write the config file
-	cfg, err := MakeConfig(node)
-	if err != nil {
-		return fmt.Errorf("making config: %w", err)
-	}
-	config.WriteConfigFile(filepath.Join(nodeDir, "config", "config.toml"), cfg)
-
-	// Store the genesis file
-	err = genesis.SaveAs(filepath.Join(nodeDir, "config", "genesis.json"))
-	if err != nil {
-		return fmt.Errorf("saving genesis: %w", err)
-	}
-
-	// Create the app.toml file
-	appConfig, err := MakeAppConfig(node)
-	if err != nil {
-		return fmt.Errorf("making app config: %w", err)
-	}
-	serverconfig.WriteConfigFile(filepath.Join(nodeDir, "config", "app.toml"), appConfig)
-
-	// Store the node key for the p2p handshake
-	err = (&p2p.NodeKey{PrivKey: node.NetworkKey}).SaveAs(filepath.Join(nodeDir, "config", "node_key.json"))
-	if err != nil {
-		return err
-	}
-
-	// Store the validator signer key for consensus
-	(privval.NewFilePV(node.SignerKey,
-		filepath.Join(nodeDir, "config", "priv_validator_key.json"),
-		filepath.Join(nodeDir, "data", "priv_validator_state.json"),
-	)).Save()
-
-	return nil
-}
-
-func WriteDockerCompose(testnet *Testnet, file string) error {
-	tmpl, err := template.New("docker-compose").Parse(`version: '2.4'
-
-networks:
-  {{ .Name }}:
-    labels:
-      e2e: true
-    driver: bridge
-    ipam:
-      driver: default
-      config:
-      - subnet: {{ .IP }}
-
-services:
-{{- range .Nodes }}
-  {{ .Name }}:
-    labels:
-      e2e: true
-    container_name: {{ .Name }}
-    image: ghcr.io/celestiaorg/celestia-app:{{ index .Versions 0 }}
-    entrypoint: ["/bin/celestia-appd"]
-    command: ["start"]
-    init: true
-    ports:
-    - 26656
-    - {{ if .ProxyPort }}{{ .ProxyPort }}:{{ end }}26657
-    - 6060
-    - 9090
-    - 1317
-    volumes:
-    - ./{{ .Name }}:/home/celestia/.celestia-app
-    networks:
-      {{ $.Name }}:
-        ipv4_address: {{ .IP }}
-
-{{end}}`)
-	if err != nil {
-		return err
-	}
-	var buf bytes.Buffer
-	err = tmpl.Execute(&buf, testnet)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(file, buf.Bytes(), 0o644)
 }
 
 func WriteAddressBook(peers []string, file string) error {
