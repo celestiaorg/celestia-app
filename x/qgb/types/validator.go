@@ -145,7 +145,7 @@ func (ibv InternalBridgeValidators) TotalPower() (out uint64) {
 	for _, v := range ibv {
 		out += v.Power
 	}
-	return
+	return out
 }
 
 // HasDuplicates returns true if there are duplicates in the set.
