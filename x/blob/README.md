@@ -2,20 +2,37 @@
 
 ## Abstract
 
-The `x/blob` module enables users to pay for arbitrary data to be published to the Celestia blockchain. Users create a single `BlobTx` that is composed of:
+The `x/blob` module enables users to pay for arbitrary data to be published to
+the Celestia blockchain. Users create a single `BlobTx` that is composed of:
 
-1. Multiple `Blob`s (Binary Large OBjects): the data they wish to publish. A single `Blob` is composed of:
+1. Multiple `Blob`s (Binary Large OBjects): the data they wish to publish. A
+   single `Blob` is composed of:
     1. `NamespaceId  []byte`: the namespace this blob should be published to.
     1. `Data         []byte`: the data to be published.
-    1. `ShareVersion uint32`: the version of the share format used to encode this blob into a share.
+    1. `ShareVersion uint32`: the version of the share format used to encode
+       this blob into a share.
 1. A single `sdk.Tx` which is composed of:
     1. `Signer string`: the transaction signer
-    1. `NamespaceIds []byte`: the namespaces they wish to publish each blob to. The namespaces here must match the namespaces in the `Blob`s.
-    1. `ShareCommitment []byte`: a share commitment that is the root of a Merkle tree where the leaves are share commitments to each blob associated with this BlobTx.
+    1. `NamespaceIds []byte`: the namespaces they wish to publish each blob to.
+       The namespaces here must match the namespaces in the `Blob`s.
+    1. `ShareCommitment []byte`: a share commitment that is the root of a Merkle
+       tree where the leaves are share commitments to each blob associated with
+       this BlobTx.
 
-After the `BlobTx` is submitted to the network, a block producer separates the transaction from the blob. Both components get included in the data square in different namespaces: the BlobTx gets included in the PayForBlobNamespace (one of the [reserved namespaces](../../specs/src/specs/consensus.md#reserved-namespaces)) and the associated blob gets included in the namespace the user specified in the original `BlobTx`. Further reading: [Message Block Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
+After the `BlobTx` is submitted to the network, a block producer separates the
+transaction from the blob. Both components get included in the data square in
+different namespaces: the BlobTx gets included in the PayForBlobNamespace (one
+of the [reserved
+namespaces](../../specs/src/specs/consensus.md#reserved-namespaces)) and the
+associated blob gets included in the namespace the user specified in the
+original `BlobTx`. Further reading: [Message Block
+Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
 
-After a block has been created, the user can verify that their data was included in a block via a blob inclusion proof. A blob inclusion proof uses the `ShareCommitment` in the original transaction and subtree roots of the block's data square to prove to the user that the shares that compose their original data do in fact exist in a particular block.
+After a block has been created, the user can verify that their data was included
+in a block via a blob inclusion proof. A blob inclusion proof uses the
+`ShareCommitment` in the original transaction and subtree roots of the block's
+data square to prove to the user that the shares that compose their original
+data do in fact exist in a particular block.
 
 ## State
 
@@ -26,7 +43,8 @@ When a `MsgPayForBlob` is processed, it consumes gas based on the blob size.
 ## Messages
 
 - [`MsgPayForBlobs`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/proto/celestia/blob/v1/tx.proto#L16-L31)
-  pays for a set of blobs to be included in the block.
+  pays for a set of blobs to be included in the block. Transactions containing
+  this `sdk.Msg` are better known as "PFBs".
 
 ```proto
 // MsgPayForBlobs pays for the inclusion of a blob in the block.
@@ -47,11 +65,70 @@ message MsgPayForBlobs {
 }
 ```
 
-## `PrepareProposal`
+### Generating the `ShareCommitment`
 
-When a block producer is preparing a block, they must perform an extra step for `BlobTx`s so that end-users can find the blob shares relevant to their submitted `BlobTx`. In particular, block proposers wrap the `BlobTx` in the PFB namespace with the index of the first share of the blob in the data square. See [Non-interactive Default Rules](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules) for more details.
+1. Split the blob into shares of size `appconsts.ShareSize`
+1. Determine the
+   [`SubtreeWidth`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/shares/non_interactive_defaults.go#L94-L116)
+   by dividing the length in shares by the `SubtreeRootThreshold`.
+1. Generate each subtree root by diving the blob shares into `SubtreeWidth`
+   sized sets, then take the binary [namespaced merkle tree
+   (NMT)](https://github.com/celestiaorg/nmt/blob/v0.16.0/docs/spec/nmt.md) root
+   of each set of shares.
+1. Calculate the final share commitment by taking the merkle root (note: not an
+   NMT, just a normal binary merkle root) of the subtree roots from the previous
+   step.
 
-Since `BlobTx`s can contain multiple blobs, the `sdk.Tx` portion of the `BlobTx` is wrapped with one share index per blob in the transaction. The index wrapped transaction is called an [IndexWrapper](https://github.com/celestiaorg/celestia-core/blob/2d2a65f59eabf1993804168414b86d758f30c383/proto/tendermint/types/types.proto#L192-L198) and this is the type that gets marshalled and written to the PayForBlobNamespace.
+See
+[`CreateCommitment`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/x/blob/types/payforblob.go#L169-L236)
+for an implementation. See [data square
+layout](../../specs/src/specs/data_square_layout.md) and
+[ADR013](../../docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md)
+for details on the rational of the square layout.
+
+## Validity Rules
+
+In order for a proposal block to be considered valid, each `BlobTx`, and thus
+each PFB, to be included in a block must follow a set of validity rules.
+
+1. Signatures: All blob transactions must have valid signatures. This is
+   state-dependent because correct signatures require using the correct sequence
+   number(aka nonce).
+1. Single SDK.Msg: There must be only a single sdk.Msg in the blob transaction.
+1. Namespace Validity: The namespace of each blob transaction must be valid.
+   This validity is determined by the following sub-rules:
+    1. The namespace is not within the reserved namespace range.
+    1. The namespace is not the tail padding or parity namespaces.
+1. Blob Size: No blob can have a size of 0.
+1. Blob Count: There must be one or more blobs included in the transaction.
+1. Share Commitment Validity: Each share commitment must be valid.
+    1. The size of each of the share commitments must be equal to the digest of
+       the hash function used (sha256 so 32 bytes).
+    1. The share commitment must be calculated using the steps specified above
+       in [Generating the Share
+       Commitment](./README.md#generating-the-sharecommitment)
+1. Share Versions: The versions of the shares must be supported.
+1. Signer Address: The signer address must be a valid Celestia address.
+1. Proper Encoding: The blob transactions must be properly encoded.
+1. Size Consistency: The sizes included in the transaction must match the actual
+   sizes of the blobs.
+
+## `IndexWrappedTx`
+
+When a block producer is preparing a block, they must perform an extra step for
+`BlobTx`s so that end-users can find the blob shares relevant to their submitted
+`BlobTx`. In particular, block proposers wrap the `BlobTx` in the PFB namespace
+with the index of the first share of the blob in the data square. See
+[Non-interactive Default
+Rules](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules)
+for more details.
+
+Since `BlobTx`s can contain multiple blobs, the `sdk.Tx` portion of the `BlobTx`
+is wrapped with one share index per blob in the transaction. The index wrapped
+transaction is called an
+[IndexWrapper](https://github.com/celestiaorg/celestia-core/blob/2d2a65f59eabf1993804168414b86d758f30c383/proto/tendermint/types/types.proto#L192-L198)
+and this is the struct that gets marshalled and written to the
+PayForBlobNamespace.
 
 ## Events
 
@@ -79,22 +156,11 @@ The blob module emits the following events:
 celestia-app tx blob PayForBlobs <hex encoded namespace> <hex encoded data> [flags]
 ```
 
-For submitting PFB transaction via a light client's rpc, see [celestia-node's documention](https://docs.celestia.org/developers/rpc-tutorial/#submitpayforblob-arguments).
+For submitting PFB transaction via a light client's rpc, see [celestia-node's
+documention](https://docs.celestia.org/developers/rpc-tutorial/#submitpayforblob-arguments).
 
-While not directly supported, the steps in the [`SubmitPayForBlob`](https://github.com/celestiaorg/celestia-app/blob/a82110a281bf9ee95a9bf9f0492e5d091371ff0b/x/blob/payforblob.go) function can be reverse engineered to submit blobs programmatically.
+The steps in the
+[`SubmitPayForBlobs`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/x/blob/payforblob.go#L15-L54)
+function can be reverse engineered to submit blobs programmatically.
 
 <!-- markdownlint-enable MD010 -->
-
-### Generating the `ShareCommitment`
-
-See [`CreateCommitment`](https://github.com/celestiaorg/celestia-app/blob/ead76d2bb607ac8a2deaba552de86d4df74a116b/x/blob/types/payforblob.go#L133), [data square layout](../../specs/src/specs/data_square_layout.md), and [ADR013](../../docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md) for rational on what the share commitment is created this way.
-
-1. Split the blob into shares of size `appconsts.ShareSize`
-1. Determine the `SubtreeWidth` by dividing the length in shares by the
-   `SubtreeRootThreshold`.
-1. Generate each subtree root by diving the blob shares into `SubtreeWidth`
-   sized sets, then take the binary [namespaced merkle
-   tree (NMT)](https://github.com/celestiaorg/nmt/blob/v0.16.0/docs/spec/nmt.md) root
-   of each set of shares.
-1. Calculate the final share commitment by taking the merkle root (note: not an
-   NMT, just a normal binary merkle root) of the subtree roots from the previous step.
