@@ -4,25 +4,24 @@
 
 ## Preamble
 
-Celestia uses [a data availability scheme](https://arxiv.org/abs/1809.09044) that allows nodes to determine whether a block's data was published without downloading the whole block. The core of this scheme is arranging data in a two-dimensional matrix then applying erasure coding to each row and column. This document describes the rationale for how data—transactions, blobs, and other data—[is actually arranged](../specs/data_structures.md#arranging-available-data-into-shares). Familiarity with the [originally proposed data layout format](https://arxiv.org/abs/1809.09044) is assumed.
+Celestia uses [a data availability scheme](https://arxiv.org/abs/1809.09044) that allows nodes to determine whether a block's data was published without downloading the whole block. The core of this scheme is arranging data in a two-dimensional matrix then applying erasure coding to each row and column. This document describes the rationale for how data—transactions, blobs, and other data—[is actually arranged](./data_structures.md#arranging-available-data-into-shares). Familiarity with the [originally proposed data layout format](https://arxiv.org/abs/1809.09044) is assumed.
 
-## Rationale
+## Layout Rationale
 
 Block data consists of:
 
-1. Cosmos SDK module transactions (e.g. [MsgSend](https://github.com/cosmos/cosmos-sdk/blob/f71df80e93bffbf7ce5fbd519c6154a2ee9f991b/proto/cosmos/bank/v1beta1/tx.proto#L21-L32)). These modify the Celestia chain's state.
-1. Celestia-specific transactions (e.g. [PayForBlobs](../specs/data_structures.md#payforblobdata)). These modify the Celestia chain's state.
-1. Intermediate state roots: required for fraud proofs of the aforementioned transactions.
+1. Standard cosmos-SDK transactions: (which are often represented internally as the [`sdk.Tx` interface](https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/types/tx_msg.go#L42-L50)) as described in [cosmos-sdk ADR020](https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/docs/architecture/adr-020-protobuf-transaction-encoding.md)
+    1. These transactions contain protobuf encoded [`sdk.Msg`](https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/types/tx_msg.go#L14-L26)s, which get executed atomically (if one fails they all fail) to update the Celestia state. The complete list of modules, which define the `sdk.Msg`s that the state machine is capable of handling, can be found in the [state machine modules spec](../specs/state_machine_modules.md). Examples include standard cosmos-sdk module messages such as [MsgSend](https://github.com/cosmos/cosmos-sdk/blob/f71df80e93bffbf7ce5fbd519c6154a2ee9f991b/proto/cosmos/bank/v1beta1/tx.proto#L21-L32)), and celestia specific module messages such as [`MsgPayForBlob`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/proto/celestia/blob/v1/tx.proto#L16-L31)
 1. Blobs: binary blobs which do not modify the Celestia state, but which are intended for a Celestia application identified with a provided namespace.
 
-We want to arrange this data into a `k * k` matrix of fixed-sized shares, which will later be committed to in [Namespace Merkle Trees (NMTs)](../specs/data_structures.md#namespace-merkle-tree) so that individual shares in this matrix can be proven to belong to a single data root.
+We want to arrange this data into a `k * k` matrix of fixed-sized [shares](../specs/shares.md), which will later be committed to in [Namespace Merkle Trees (NMTs)](https://github.com/celestiaorg/nmt/blob/v0.16.0/docs/spec/nmt.md) so that individual shares in this matrix can be proven to belong to a single data root.
 
 The simplest way we can imagine arranging block data is to simply serialize it all in no particular order, split it into fixed-sized shares, then arrange those shares into the `k * k` matrix in row-major order. However, this naive scheme can be improved in a number of ways, described below.
 
 First, we impose some ground rules:
 
 1. Data must be ordered by namespace. This makes queries into a NMT commitment of that data more efficient.
-1. Since non-blob data are not naturally intended for particular namespaces, we assign reserved namespaces for them. A range of namespaces is reserved for this purpose, starting from the lowest possible namespace.
+1. Since non-blob data are not naturally intended for particular namespaces, we assign [reserved namespaces](./consensus.md#Reservered-Namespaces) for them. A range of namespaces is reserved for this purpose, starting from the lowest possible namespace.
 1. By construction, the above two rules mean that non-blob data always precedes blob data in the row-major matrix, even when considering single rows or columns.
 1. Data with different namespaces must not be in the same share. This might cause a small amount of wasted block space, but makes the NMT easier to reason about in general since leaves are guaranteed to belong to a single namespace.
 
@@ -37,16 +36,16 @@ Specifically, blobs must begin at a new share. We note a nice property from this
 
 This, however, requires the block producer to interact with the transaction sender to provide them the starting location of their blob, so that the sender can sign over the commitment based on that starting location. This can be done selectively, but is not ideal as a default for e.g. end-user wallets.
 
-### Non-Interactive Default Rules
+### Non-Interaction Rules
 
-As a non-consensus-critical default, we can impose one additional rule on blob placement to make the possible starting locations of blobs sufficiently predictable and constrained such that users can deterministically compute subtree roots without interaction:
+We impose one additional rule on blob placement to make the possible starting locations of blobs sufficiently predictable and constrained such that users can deterministically compute subtree roots without the need to interact with the block proposer:
 
-> Blobs start at an index that is a multiple of the blob minimum square size. The blob minimum square size is the smallest square that can contain the blob in isolation (i.e. a square with only this blob and no other transactions or blobs).
+> Blobs must start at an index that is a multiple of the `SubtreeWidth`. The `SubtreeWidth` is the length of the blob in shares, divided by the [`SubtreeRootThreshold`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/appconsts/v1/app_consts.go#L6) ([implementation here](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/shares/non_interactive_defaults.go#L94-L116)).
+
+The `SubtreeRootThreshold` is an arbitrary versioned protocol constant that aims to put a soft limit the number of subtree roots included in a blob inclusion proof, as described in [ADR013](../../../docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md).
 
 In the constraint mentioned above, the number of rows/columns in the minimum square size should be a power of 2.
-With the above constraint, we can compute subtree roots deterministically. In order to compute the subtree roots, split the blob into chunks that are of maximum size: blob minimum square size. As an example, a blob of length `11` has a minimum square size of `4` because `11` is not greater than `4 * 4 = 16` total shares. Split the blob into chunks of length `4, 4, 2, 1` because each chunk must be a power of `2`. The resulting slices are the leaves of subtrees whose roots can be computed. These subtree roots will be present as internal nodes in the NMT of _some_ row(s).
-
-This is similar to [Merkle Mountain Ranges](https://www.usenix.org/legacy/event/sec09/tech/full_papers/crosby.pdf), though with the largest subtree bounded by the blob minimum square size rather than being unbounded.
+With the above constraint, we can compute subtree roots deterministically. For example, a blob of 128 shares and SRT = 64, must start on a share index that is a multiple of 2 because 128/64 = 2. In this case, there will be a maximum of 1 share of padding between blobs (more on padding below). The maximum subtree width in shares will also be 2, meaning that there will be 2 shares under each subtree root.
 
 The last piece of the puzzle is determining _which_ row the blob is placed at (or, more specifically, the starting location). This is needed to keep the block producer accountable. To this end, the block producer simply augments each fee-paying transaction with the starting locations of the blobs the transaction pays for.
 
