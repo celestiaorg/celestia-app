@@ -224,6 +224,37 @@ After creating a new attestation, and adding it to the QGB store, an event is [e
 
 ## Client
 
+### Query attestation command
+
+The QGB query attestation command is part of the `celestia-appd` binary. It allows the user to query specific attestations by their corresponding nonce.
+
+```shell
+$ celestia-appd query qgb attestation --help                                                     INT ✘ 
+query an attestation by nonce
+
+Usage:
+  celestia-appd query qgb attestation <nonce> [flags]
+
+Aliases:
+  attestation, att
+
+Flags:
+      --grpc-addr string   the gRPC endpoint to use for this chain
+      --grpc-insecure      allow gRPC over insecure channels, if not TLS the server must use TLS
+      --height int         Use a specific height to query state at (this can error if the node is pruning state)
+  -h, --help               help for attestation
+      --node string        <host>:<port> to Tendermint RPC interface for this chain (default "tcp://localhost:26657")
+  -o, --output string      Output format (text|json) (default "text")
+
+Global Flags:
+      --chain-id string      The network chain ID
+      --home string          directory for config and data (default "/home/midnight/.celestia-app")
+      --log-to-file string   Write logs directly to a file. If empty, logs are written to stderr
+      --log_format string    The logging format (json|plain) (default "plain")
+      --log_level string     The logging level (trace|debug|info|warn|error|fatal|panic) (default "info")
+      --trace                print out full stack trace on errors
+```
+
 ### Verification command
 
 The QGB verification command is part of the `celestia-appd` binary. It allows the user to verify that a set of shares has been posted to a specific QGB contract.
@@ -251,7 +282,6 @@ Global Flags:
       --trace               print out full stack trace on errors
 
 Use "celestia-appd verify [command] --help" for more information about a command.
-
 ```
 
 It currently supports three sub-commands:
