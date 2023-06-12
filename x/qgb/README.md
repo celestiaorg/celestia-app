@@ -56,6 +56,18 @@ message BridgeValidator {
 3. `height`: is the height at which the valset was created.
 4. `time`: is the timestamp of the height at which the valset was created.
 
+#### Validator power normalization
+
+The [QGB bridge power](https://github.com/celestiaorg/celestia-app/blob/6243f26fc419c32940d5dc4eb60b0e0aaf08eaa7/proto/celestia/qgb/v1/types.proto#L12-L13) is obtained by [normalizing](https://github.com/celestiaorg/celestia-app/blob/6243f26fc419c32940d5dc4eb60b0e0aaf08eaa7/x/qgb/keeper/keeper_valset.go#L125-L150) the validators' voting power using the [min-max normalization](https://en.wikipedia.org/wiki/Feature_scaling) formula. This formula takes into account the ratio of each validator's voting power to the total voting power in the block and scales it to a value between `0` and `2^32`.
+
+By normalizing the voting power, we can significantly reduce the frequency of generating new validator set updates. For example, if there is a small increase in the total on-chain voting power due to inflation, there is no need to create a new validator set. This is because the relative proportions of the validators remain the same, and the normalized QGB power doesn't show any significant difference.
+
+To ensure that the normalization process doesn't encounter overflow errors, the function normalizeValidatorPower uses [`BigInt`](https://github.com/celestiaorg/celestia-app/blob/6243f26fc419c32940d5dc4eb60b0e0aaf08eaa7/x/qgb/keeper/keeper_valset.go#LL142C1-L142C1) operations. It scales the raw power value with respect to the total validator power, making sure the result falls within the range of 0 to `2^32`.
+
+#### Power diff
+
+[`PowerDiff(...)`](https://github.com/celestiaorg/celestia-app/blob/6243f26fc419c32940d5dc4eb60b0e0aaf08eaa7/x/qgb/types/validator.go#L100-L141) is a function that calculates the difference in power between two sets of bridge validators. It's important to note that the power being compared is not the regular voting power in the Celestia consensus network, but a specific type called QGB bridge power (explained above).
+
 ### Data commitments
 
 A data commitment is an attestation type representing a request to commit over a set of blocks. It provides an end exclusive range of blocks for orchestrators to sign over and propagate in the QGB P2P network.
