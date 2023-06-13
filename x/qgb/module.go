@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	qgbcmd "github.com/celestiaorg/celestia-app/x/qgb/client"
+
 	"github.com/gorilla/mux"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
@@ -84,7 +86,7 @@ func (a AppModuleBasic) GetTxCmd() *cobra.Command {
 
 // GetQueryCmd returns the capability module's root query command.
 func (AppModuleBasic) GetQueryCmd() *cobra.Command {
-	return nil
+	return qgbcmd.GetQueryCmd()
 }
 
 // ----------------------------------------------------------------------------
