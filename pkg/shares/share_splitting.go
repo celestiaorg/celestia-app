@@ -81,7 +81,7 @@ func SplitBlob(blob coretypes.Blob) ([]Share, error) {
 	return writer.Export(), nil
 }
 
-// SplitBlobs splits the provided blobs into shares.
+// SplitBlobs splits the provided blobs into shares belonging to the same sequence. All blobs should thus belong to the same namespace
 func SplitBlobs(blobs []coretypes.Blob) ([]Share, error) {
 	writer := NewSparseShareSplitter()
 	for _, blob := range blobs {
