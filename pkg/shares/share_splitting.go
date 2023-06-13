@@ -72,17 +72,8 @@ func SplitTxs(txs coretypes.Txs) (txShares []Share, pfbShares []Share, shareRang
 	return txShares, pfbShares, mergeMaps(txMap, pfbMap), nil
 }
 
-// SplitBlob splits the provided blob into shares.
-func SplitBlob(blob coretypes.Blob) ([]Share, error) {
-	writer := NewSparseShareSplitter()
-	if err := writer.Write(blob); err != nil {
-		return nil, err
-	}
-	return writer.Export(), nil
-}
-
 // SplitBlobs splits the provided blobs into shares.
-func SplitBlobs(blobs []coretypes.Blob) ([]Share, error) {
+func SplitBlobs(blobs ...coretypes.Blob) ([]Share, error) {
 	writer := NewSparseShareSplitter()
 	for _, blob := range blobs {
 		if err := writer.Write(blob); err != nil {

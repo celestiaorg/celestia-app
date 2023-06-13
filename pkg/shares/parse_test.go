@@ -24,12 +24,12 @@ func TestParseShares(t *testing.T) {
 	txShareStart := txShares[0]
 	txShareContinuation := txShares[1]
 
-	blobOneShares, err := SplitBlob(generateRandomBlobWithNamespace(ns1, 1000))
+	blobOneShares, err := SplitBlobs(generateRandomBlobWithNamespace(ns1, 1000))
 	require.NoError(t, err)
 	blobOneStart := blobOneShares[0]
 	blobOneContinuation := blobOneShares[1]
 
-	blobTwoShares, err := SplitBlob(generateRandomBlobWithNamespace(ns2, 1000))
+	blobTwoShares, err := SplitBlobs(generateRandomBlobWithNamespace(ns2, 1000))
 	require.NoError(t, err)
 	blobTwoStart := blobTwoShares[0]
 	blobTwoContinuation := blobTwoShares[1]

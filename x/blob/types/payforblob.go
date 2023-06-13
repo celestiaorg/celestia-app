@@ -179,7 +179,7 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 		NamespaceVersion: uint8(blob.NamespaceVersion),
 	}
 
-	shares, err := appshares.SplitBlob(coreblob)
+	shares, err := appshares.SplitBlobs(coreblob)
 	if err != nil {
 		return nil, err
 	}
