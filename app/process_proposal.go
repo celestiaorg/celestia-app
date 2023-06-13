@@ -24,11 +24,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	// transactions.
 	svHander := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
 	seqHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
-	sdkCtx, err := app.NewProcessProposalQueryContext()
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), req.Header, "failure to load query context", err)
-		return reject()
-	}
+	sdkCtx := app.NewProposalContext(req.Header)
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed and non
 	// blobTxs have no PFBs present
