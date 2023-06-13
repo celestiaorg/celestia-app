@@ -81,8 +81,7 @@ func FuzzSquareDeconstruct(f *testing.F) {
 		if normalTxCount < 0 || pfbCount < 0 {
 			t.Skip()
 		}
-		maxBlobSize := 1000 // @TODO there might be a global constant for this
-		allTxs := GenerateOrderedRandomTxs(encCfg.TxConfig, normalTxCount, pfbCount, maxBlobSize)
+		allTxs := GenerateOrderedRandomTxs(t, encCfg.TxConfig, normalTxCount, pfbCount)
 
 		// extract those transaction that fit into the block
 		builtSquare, blockTxs, err := square.Build(allTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
