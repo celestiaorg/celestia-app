@@ -73,7 +73,7 @@ func CreateRawTx(txConfig client.TxConfig, msg sdk.Msg, signer *blobtypes.Keyrin
 	return rawTx
 }
 
-// GenerateRandomAmount generates a random amount for a Sand transaction.
+// GenerateRandomAmount generates a random amount for a Send transaction.
 func GenerateRandomAmount() int64 {
 	n := tmrand.Int64()
 	if n < 0 {
