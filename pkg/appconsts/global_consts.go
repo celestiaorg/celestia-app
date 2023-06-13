@@ -1,6 +1,8 @@
 package appconsts
 
 import (
+	"math"
+
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/tendermint/tendermint/pkg/consts"
 )
@@ -10,8 +12,11 @@ import (
 //
 // They can not change throughout the lifetime of a network.
 const (
-	// NamespaveVersionSize is the size of a namespace version in bytes.
+	// NamespaceVersionSize is the size of a namespace version in bytes.
 	NamespaceVersionSize = 1
+	// NamespaceVersionMaxValue is the maximum value a namespace version can be.
+	// This const must be updated if NamespaceVersionSize is changed.
+	NamespaceVersionMaxValue = math.MaxUint8
 
 	// NamespaceIDSize is the size of a namespace ID in bytes.
 	NamespaceIDSize = 28
@@ -76,9 +81,17 @@ var (
 	// if another hash.Hash should be used as a base hasher in the NMT.
 	NewBaseHashFunc = consts.NewBaseHashFunc
 
+	// hashLength is the length of a hash in bytes.
+	hashLength = NewBaseHashFunc().Size()
+
 	// DefaultCodec is the default codec creator used for data erasure.
 	DefaultCodec = rsmt2d.NewLeoRSCodec
 
 	// SupportedShareVersions is a list of supported share versions.
 	SupportedShareVersions = []uint8{ShareVersionZero}
 )
+
+// HashLength returns the length of a hash in bytes.
+func HashLength() int {
+	return hashLength
+}
