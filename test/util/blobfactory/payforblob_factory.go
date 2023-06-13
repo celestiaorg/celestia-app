@@ -10,6 +10,7 @@ import (
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -23,10 +24,19 @@ import (
 
 var defaultSigner = testfactory.RandomAddress().String()
 
+const (
+	MaxBlobSize  = 100000
+	MaxBlobCount = 500
+)
+
 func RandMsgPayForBlobsWithSigner(singer string, maxBlobSize, blobCount int) (*blobtypes.MsgPayForBlobs, []*tmproto.Blob) {
 	blobs := make([]*tmproto.Blob, blobCount)
 	for i := 0; i < blobCount; i++ {
-		blob, err := types.NewBlob(appns.RandomBlobNamespace(), tmrand.Bytes(maxBlobSize), appconsts.ShareVersionZero)
+		blobSize := tmrand.Intn(maxBlobSize)
+		if blobSize == 0 {
+			blobSize = 1
+		}
+		blob, err := types.NewBlob(appns.RandomBlobNamespace(), tmrand.Bytes(blobSize), appconsts.ShareVersionZero)
 		if err != nil {
 			panic(err)
 		}
@@ -253,11 +263,6 @@ func RandBlobTxs(enc sdk.TxEncoder, count, blobsPerTx, size int) coretypes.Txs {
 	}
 
 	return txs
-}
-
-func GenerateRandomBlobCount() int {
-	// TODO: there may be a hard cap for the total number of blobs in a transaction
-	return tmrand.Intn(500) + 1 // +1 is to avoid 0
 }
 
 func RandBlobTxsWithNamespaces(enc sdk.TxEncoder, namespaces []appns.Namespace, sizes []int) []coretypes.Tx {
@@ -492,4 +497,38 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, kr keyring.Keyring, enc sdk.TxEnco
 	btx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
 	require.NoError(t, err)
 	return btx
+}
+
+func GenerateRandomBlobCount() int {
+	return tmrand.Intn(MaxBlobCount) + 1 // +1 is to avoid 0
+}
+
+func GenerateRandomBlobSize() int {
+	return tmrand.Intn(MaxBlobSize) + 1 // +1 is to avoid 0
+}
+
+// GenerateRandomBlobSizes returns a slice of random non-zero blob sizes.
+func GenerateRandomBlobSizes(count int) []int {
+	sizes := make([]int, count)
+	for i := range sizes {
+		sizes[i] = GenerateRandomBlobSize()
+	}
+	return sizes
+}
+
+// RandMultiBlobTxs returns a slice of random PFB txs (consisting of pfbCount of PFB txs) each with random number of blobs and blob sizes.
+func RandMultiBlobTxs(t *testing.T, enc sdk.TxEncoder, pfbCount int) []coretypes.Tx {
+	pfbTxs := make([]coretypes.Tx, pfbCount)
+	for i := 0; i < pfbCount; i++ {
+		// create one pfb with random number of blobs and random sizes
+		signer := apptypes.GenerateKeyringSigner(t)
+		signerData, err := signer.GetSignerData()
+		require.NoError(t, err)
+
+		blobsPerPfb := GenerateRandomBlobCount()
+		blobSizes := GenerateRandomBlobSizes(blobsPerPfb)
+		blobs := ManyRandBlobs(t, blobSizes...)
+		pfbTxs[i] = MultiBlobTx(t, enc, signer, signerData.Sequence, signerData.AccountNumber, blobs...)
+	}
+	return pfbTxs
 }
