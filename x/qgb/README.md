@@ -16,7 +16,7 @@ There are two types of attestations, [valsets](https://github.com/celestiaorg/ce
 
 A valset is an attestation type representing a validator set change. It Allows keeping track of all the previous validator set changes in state, and helps specify which orchestrator should sign which attestation.
 
-In fact, when an orchestrator sees a newly generated valset, it queries the previous valset and checks whether it's part of its validator set. Then, the orchestrator signs the new valset and submits that signature to the [QGB P2P network](https://github.com/celestiaorg/orchestrator-relayer/pull/66). Otherwise, it ignores it and waits for new attestations.
+When an orchestrator sees a newly generated valset published by the Celestia state machine, it queries the previous valset and checks whether it's part of its validator set. Then, the orchestrator signs the new valset and submits that signature to the [QGB P2P network](https://github.com/celestiaorg/orchestrator-relayer/pull/66). Otherwise, it ignores it and waits for new attestations.
 
 A valset is comprised of the following fields:
 
