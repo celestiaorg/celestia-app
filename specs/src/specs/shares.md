@@ -112,3 +112,9 @@ Share splitting is the process of converting a blob into a share sequence. The p
 ## Implementation
 
 See [pkg/shares](../../../pkg/shares).
+
+## References
+
+1. [ADR-012](../../../docs/architecture/adr-012-sequence-length-encoding.md)
+1. [ADR-014](../../../docs/architecture/adr-014-versioned-namespaces.md)
+1. [ADR-015](../../../docs/architecture/adr-015-namespace-id-size.md)
