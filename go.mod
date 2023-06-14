@@ -31,7 +31,7 @@ require (
 	github.com/cosmos/cosmos-proto v1.0.0-alpha8
 	github.com/cosmos/cosmos-sdk v0.46.13
 	github.com/cosmos/gogoproto v1.4.10
-	github.com/cosmos/ibc-go/v6 v6.1.1
+	github.com/cosmos/ibc-go/v6 v6.2.0
 	github.com/rs/zerolog v1.29.1
 	github.com/tendermint/tendermint v0.34.28
 	golang.org/x/exp v0.0.0-20230310171629-522b1b587ee0
