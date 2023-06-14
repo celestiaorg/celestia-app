@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -92,7 +93,9 @@ func New(
 		return nil, nil, Context{}, err
 	}
 
-	db := dbm.NewMemDB()
+	dbPath := filepath.Join(tmCfg.RootDir, "data")
+	db, err := dbm.NewGoLevelDB("application", dbPath)
+	require.NoError(t, err)
 
 	appOpts := appOptions{
 		options: map[string]interface{}{
