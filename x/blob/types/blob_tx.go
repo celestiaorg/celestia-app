@@ -5,6 +5,8 @@ import (
 	"fmt"
 	math "math"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -121,7 +123,7 @@ func BlobFromProto(p *tmproto.Blob) (core.Blob, error) {
 		return core.Blob{}, fmt.Errorf("invalid share version %d", p.ShareVersion)
 	}
 
-	if p.NamespaceVersion > math.MaxUint8 {
+	if p.NamespaceVersion > appconsts.NamespaceVersionMaxValue {
 		return core.Blob{}, fmt.Errorf("invalid namespace version %d", p.NamespaceVersion)
 	}
 
