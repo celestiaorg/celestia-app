@@ -17,3 +17,4 @@
   - [mint](../../x/mint/README.md)
   - [paramfilter](../../x/paramfilter/README.md)
   - [upgrade](../../x/upgrade/README.md)
+  - [tokenfilter](../../x/tokenfilter/README.md)
