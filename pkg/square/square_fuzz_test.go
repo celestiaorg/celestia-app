@@ -75,7 +75,7 @@ func FuzzSquare(f *testing.F) {
 func FuzzSquareDeconstruct(f *testing.F) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	f.Add(0, 1)
+	f.Add(13, 34)
 	f.Fuzz(func(t *testing.T, normalTxCount int, pfbCount int) {
 		// skip negative values
 		if normalTxCount < 0 || pfbCount < 0 {
