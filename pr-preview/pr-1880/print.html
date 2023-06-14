@@ -534,11 +534,6 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <li>Blob sequences start on an index that conforms to <a href="specs/../rationale/data_square_layout.html#non-interactive-default-rules">non-interactive default rules</a> (see <a href="specs/shares.html#namespace-padding-share">namespace padding share</a> and <a href="specs/shares.html#reserved-padding-share">reserved padding share</a>)</li>
 <li>The number of shares in the matrix is a perfect square (see <a href="specs/shares.html#tail-padding-share">tail padding share</a>)</li>
 </ol>
-<h2 id="share-splitting"><a class="header" href="#share-splitting">Share Splitting</a></h2>
-<p>Share splitting is the process of converting a slice of bytes (typically a blob) into a set of shares. The following steps are taken to split a blob into shares:</p>
-<ol>
-<li>// TODO</li>
-</ol>
 <h2 id="share-format"><a class="header" href="#share-format">Share Format</a></h2>
 <p>For shares <strong>with a namespace above <a href="specs/./consensus.html#constants"><code>MAX_RESERVED_NAMESPACE</code></a> but below <a href="specs/./consensus.html#constants"><code>PARITY_SHARE_NAMESPACE</code></a></strong>:</p>
 <ul>
@@ -602,6 +597,14 @@ A namespace padding share acts as padding between blobs so that the subsequent b
 <p>Tail padding shares use the <a href="specs/./consensus.html#constants"><code>TAIL_PADDING_NAMESPACE</code></a>. Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients MAY ignore the contents of these shares because they don't contain any significant data.</p>
 <h2 id="parity-share"><a class="header" href="#parity-share">Parity Share</a></h2>
 <p>Parity shares use the namespace <a href="specs/./consensus.html#constants"><code>PARITY_SHARE_NAMESPACE</code></a>. Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.</p>
+<h2 id="share-splitting"><a class="header" href="#share-splitting">Share Splitting</a></h2>
+<p>Share splitting is the process of converting a blob into a share sequence. The process is as follows:</p>
+<ol>
+<li>Create a new share and populate the prefix of the share with the blob's namespace and share version. Set the sequence start indicator to <code>1</code>. Write the blob length as the sequence length. Write the blob's data into the share until the share is full.</li>
+<li>If there is more data to write, create a new share (a.k.a continuation share) and populate the prefix of the share with the blob's namespace and share version. Set the sequence start indicator to <code>0</code>. Write the remaining blob data into the share until the share is full.</li>
+<li>Repeat the previous step until all blob data has been written.</li>
+<li>If the last share is not full, fill the remainder of the share with <code>0</code>.</li>
+</ol>
 <h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
 <ul>
 <li>Shares are assumed to be 512 byte chunks. Parsing shares of a different size WILL result in an error.</li>
