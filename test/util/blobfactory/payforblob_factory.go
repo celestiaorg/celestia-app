@@ -24,11 +24,12 @@ import (
 
 var defaultSigner = testfactory.RandomAddress().String()
 
-const (
+var (
 	// TestMaxBlobSize is the maximum size of each blob in a blob transaction, for testing purposes
-	TestMaxBlobSize = 100
+	// it is roughly the size of two rows of a square
+	TestMaxBlobSize = appconsts.ShareSize * appconsts.DefaultSquareSizeUpperBound * 2
 	// TestMaxBlobCount is the maximum number of blobs in a blob transaction, for testing purposes
-	TestMaxBlobCount = 50
+	TestMaxBlobCount = 5
 )
 
 func RandMsgPayForBlobsWithSigner(singer string, size, blobCount int) (*blobtypes.MsgPayForBlobs, []*tmproto.Blob) {
