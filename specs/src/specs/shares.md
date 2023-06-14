@@ -21,12 +21,6 @@ User submitted [blob](../../../x/blob/README.md) data is split into shares (see 
 1. Blob sequences start on an index that conforms to [non-interactive default rules](../rationale/data_square_layout.md#non-interactive-default-rules) (see [namespace padding share](#namespace-padding-share) and [reserved padding share](#reserved-padding-share))
 1. The number of shares in the matrix is a perfect square (see [tail padding share](#tail-padding-share))
 
-## Share Splitting
-
-Share splitting is the process of converting a slice of bytes (typically a blob) into a set of shares. The following steps are taken to split a blob into shares:
-
-1. // TODO
-
 ## Share Format
 
 For shares **with a namespace above [`MAX_RESERVED_NAMESPACE`](./consensus.md#constants) but below [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants)**:
@@ -103,6 +97,15 @@ Tail padding shares use the [`TAIL_PADDING_NAMESPACE`](./consensus.md#constants)
 ## Parity Share
 
 Parity shares use the namespace [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants). Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.
+
+## Share Splitting
+
+Share splitting is the process of converting a blob into a share sequence. The process is as follows:
+
+1. Create a new share and populate the prefix of the share with the blob's namespace and share version. Set the sequence start indicator to `1`. Write the blob length as the sequence length. Write the blob's data into the share until the share is full.
+1. If there is more data to write, create a new share (a.k.a continuation share) and populate the prefix of the share with the blob's namespace and share version. Set the sequence start indicator to `0`. Write the remaining blob data into the share until the share is full.
+1. Repeat the previous step until all blob data has been written.
+1. If the last share is not full, fill the remainder of the share with `0`.
 
 ## Assumptions and Considerations
 
