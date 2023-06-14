@@ -498,11 +498,19 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, kr keyring.Keyring, enc sdk.TxEnco
 }
 
 func GenerateRandomBlobCount() int {
-	return tmrand.Intn(TestMaxBlobCount) + 1 // +1 is to avoid 0
+	v := tmrand.Intn(TestMaxBlobCount)
+	if v == 0 {
+		v = 1
+	}
+	return v
 }
 
 func GenerateRandomBlobSize() int {
-	return tmrand.Intn(TestMaxBlobSize) + 1 // +1 is to avoid 0
+	v := tmrand.Intn(TestMaxBlobSize)
+	if v == 0 {
+		v = 1
+	}
+	return v
 }
 
 // GenerateRandomBlobSizes returns a slice of random non-zero blob sizes.
@@ -514,11 +522,11 @@ func GenerateRandomBlobSizes(count int) []int {
 	return sizes
 }
 
-// RandMultiBlobTxs returns a slice of random PFB txs (consisting of pfbCount of PFB txs) each with random number of blobs and blob sizes.
+// RandMultiBlobTxs returns a slice of random Blob transactions (consisting of pfbCount number of txs) each with random number of blobs and blob sizes.
 func RandMultiBlobTxs(t *testing.T, enc sdk.TxEncoder, pfbCount int) []coretypes.Tx {
 	pfbTxs := make([]coretypes.Tx, pfbCount)
 	for i := 0; i < pfbCount; i++ {
-		// create one pfb with random number of blobs and random sizes
+		// create one blob tx with random number of blobs and blob sizes
 		signer := apptypes.GenerateKeyringSigner(t)
 		signerData, err := signer.GetSignerData()
 		require.NoError(t, err)
