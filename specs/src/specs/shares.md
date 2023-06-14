@@ -8,9 +8,9 @@ All available data in a Celestia [block](./data_structures.md#block) is split in
 
 ## Terms
 
-- **Share**: A fixed-size data chunk that is associated with exactly one namespace.
-- **Share sequence**: A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence SHOULD contain one or more shares. In most cases, a share sequence should be parsed together because the original data may have been split across share boundaries. One share sequence exists per [reserved namespace](./consensus.md#reserved-namespaces) and per [blob](../../../x/blob/README.md).
 - **Blob**: User specified data (e.g. a roll-up block) that is associated with exactly one namespace. Blob data are opaque bytes of data that are included in the block but do not impact Celestia's state.
+- **Share**: A fixed-size data chunk that is associated with exactly one namespace.
+- **Share sequence**: A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence MUST contain one or more shares. When a [blob](../../../x/blob/README.md) is split into shares, it is written to one share sequence. As a result, all shares in a share sequence are typically parsed together because the original blob data may have been split across share boundaries. All transactions in the [`TRANSACTION_NAMESPACE`](./consensus.md#reserved-namespaces) are contained in one share sequence. All transactions in the [`PAY_FOR_BLOB_NAMESPACE`](./consensus.md#reserved-namespaces) are contained in one share sequence.
 
 ## Overview
 
@@ -19,11 +19,11 @@ User submitted [blob](../../../x/blob/README.md) data is split into shares (see 
 [Padding](#padding) shares are added to the `k * k` matrix to ensure:
 
 1. Blob sequences start on an index that conforms to [non-interactive default rules](../rationale/data_square_layout.md#non-interactive-default-rules) (see [namespace padding share](#namespace-padding-share) and [reserved padding share](#reserved-padding-share))
-1. The number of shares in the matrix is a perfect square (see [tail padding share](#tail-padding-share))])
+1. The number of shares in the matrix is a perfect square (see [tail padding share](#tail-padding-share))
 
 ## Share Splitting
 
-Share splitting is the process of converting a blob into a set of shares. The following steps are taken to split a blob into shares:
+Share splitting is the process of converting a slice of bytes (typically a blob) into a set of shares. The following steps are taken to split a blob into shares:
 
 1. // TODO
 
