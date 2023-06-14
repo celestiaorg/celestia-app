@@ -76,7 +76,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="specs/shares.html"><strong aria-hidden="true">1.2.</strong> Shares</a></li><li class="chapter-item expanded "><a href="specs/consensus.html"><strong aria-hidden="true">1.3.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="specs/block_proposer.html"><strong aria-hidden="true">1.4.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="specs/block_validity_rules.html"><strong aria-hidden="true">1.5.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="specs/networking.html"><strong aria-hidden="true">1.6.</strong> Networking</a></li><li class="chapter-item expanded "><a href="specs/public_key_cryptography.html"><strong aria-hidden="true">1.7.</strong> Public-Key Cryptography</a></li></ol></li><li class="chapter-item expanded "><a href="rationale/index.html"><strong aria-hidden="true">2.</strong> Rationale</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rationale/data_square_layout.html"><strong aria-hidden="true">2.1.</strong> Data Square Layout</a></li></ol></li><li class="chapter-item expanded "><a href="specs/state_machine_modules.html"><strong aria-hidden="true">3.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../x/blob/index.html"><strong aria-hidden="true">3.1.</strong> blob</a></li><li class="chapter-item expanded "><a href="../../x/qgb/index.html"><strong aria-hidden="true">3.2.</strong> qgb</a></li><li class="chapter-item expanded "><a href="../../x/mint/index.html"><strong aria-hidden="true">3.3.</strong> mint</a></li><li class="chapter-item expanded "><a href="../../x/paramfilter/index.html"><strong aria-hidden="true">3.4.</strong> paramfilter</a></li><li class="chapter-item expanded "><a href="../../x/upgrade/index.html"><strong aria-hidden="true">3.5.</strong> upgrade</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="specs/shares.html"><strong aria-hidden="true">1.2.</strong> Shares</a></li><li class="chapter-item expanded "><a href="specs/consensus.html"><strong aria-hidden="true">1.3.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="specs/block_proposer.html"><strong aria-hidden="true">1.4.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="specs/block_validity_rules.html"><strong aria-hidden="true">1.5.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="specs/networking.html"><strong aria-hidden="true">1.6.</strong> Networking</a></li><li class="chapter-item expanded "><a href="specs/public_key_cryptography.html"><strong aria-hidden="true">1.7.</strong> Public-Key Cryptography</a></li></ol></li><li class="chapter-item expanded "><a href="rationale/index.html"><strong aria-hidden="true">2.</strong> Rationale</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="rationale/data_square_layout.html"><strong aria-hidden="true">2.1.</strong> Data Square Layout</a></li></ol></li><li class="chapter-item expanded "><a href="specs/state_machine_modules.html"><strong aria-hidden="true">3.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../x/blob/index.html"><strong aria-hidden="true">3.1.</strong> blob</a></li><li class="chapter-item expanded "><a href="../../x/qgb/index.html"><strong aria-hidden="true">3.2.</strong> qgb</a></li><li class="chapter-item expanded "><a href="../../x/mint/index.html"><strong aria-hidden="true">3.3.</strong> mint</a></li><li class="chapter-item expanded "><a href="../../x/paramfilter/index.html"><strong aria-hidden="true">3.4.</strong> paramfilter</a></li><li class="chapter-item expanded "><a href="../../x/upgrade/index.html"><strong aria-hidden="true">3.5.</strong> upgrade</a></li><li class="chapter-item expanded "><a href="../../x/tokenfilter/index.html"><strong aria-hidden="true">3.6.</strong> tokenfilter</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -163,6 +163,7 @@
 <li><a href="../../x/mint/README.html">mint</a></li>
 <li><a href="../../x/paramfilter/README.html">paramfilter</a></li>
 <li><a href="../../x/upgrade/README.html">upgrade</a></li>
+<li><a href="../../x/tokenfilter/README.html">tokenfilter</a></li>
 </ul>
 </li>
 </ul>
@@ -522,19 +523,19 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <p>All available data in a Celestia <a href="specs/./data_structures.html#block">block</a> is split into fixed-size data chunks known as &quot;shares&quot;. Shares are the atomic unit of the Celestia data square. The shares in a Celestia block are eventually <a href="specs/./data_structures.html#erasure-coding">erasure-coded</a> and committed to in <a href="specs/./data_structures.html#namespace-merkle-tree">Namespace Merkle trees</a> (also see <a href="https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md">NMT spec</a>).</p>
 <h2 id="terms"><a class="header" href="#terms">Terms</a></h2>
 <ul>
-<li><strong>Share</strong>: A fixed-size data chunk that is associated with exactly one namespace.</li>
-<li><strong>Share sequence</strong>: A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence SHOULD contain one or more shares. In most cases, a share sequence should be parsed together because the original data may have been split across share boundaries. One share sequence exists per <a href="specs/./consensus.html#reserved-namespaces">reserved namespace</a> and per <a href="specs/../../../x/blob/README.html">blob</a>.</li>
 <li><strong>Blob</strong>: User specified data (e.g. a roll-up block) that is associated with exactly one namespace. Blob data are opaque bytes of data that are included in the block but do not impact Celestia's state.</li>
+<li><strong>Share</strong>: A fixed-size data chunk that is associated with exactly one namespace.</li>
+<li><strong>Share sequence</strong>: A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence MUST contain one or more shares. When a <a href="specs/../../../x/blob/README.html">blob</a> is split into shares, it is written to one share sequence. As a result, all shares in a share sequence are typically parsed together because the original blob data may have been split across share boundaries. All transactions in the <a href="specs/./consensus.html#reserved-namespaces"><code>TRANSACTION_NAMESPACE</code></a> are contained in one share sequence. All transactions in the <a href="specs/./consensus.html#reserved-namespaces"><code>PAY_FOR_BLOB_NAMESPACE</code></a> are contained in one share sequence.</li>
 </ul>
 <h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
 <p>User submitted <a href="specs/../../../x/blob/README.html">blob</a> data is split into shares (see <a href="specs/shares.html#share-splitting">share splitting</a>) and arranged in a <code>k * k</code> matrix (see <a href="specs/./data_structures.html#arranging-available-data-into-shares">arranging available data into shares</a>) prior to the erasure coding step. Shares in the <code>k * k</code> matrix are ordered by namespace and have a common <a href="specs/shares.html#share-format">share format</a>.</p>
 <p><a href="specs/shares.html#padding">Padding</a> shares are added to the <code>k * k</code> matrix to ensure:</p>
 <ol>
 <li>Blob sequences start on an index that conforms to <a href="specs/../rationale/data_square_layout.html#non-interactive-default-rules">non-interactive default rules</a> (see <a href="specs/shares.html#namespace-padding-share">namespace padding share</a> and <a href="specs/shares.html#reserved-padding-share">reserved padding share</a>)</li>
-<li>The number of shares in the matrix is a perfect square (see <a href="specs/shares.html#tail-padding-share">tail padding share</a>)])</li>
+<li>The number of shares in the matrix is a perfect square (see <a href="specs/shares.html#tail-padding-share">tail padding share</a>)</li>
 </ol>
 <h2 id="share-splitting"><a class="header" href="#share-splitting">Share Splitting</a></h2>
-<p>Share splitting is the process of converting a blob into a set of shares. The following steps are taken to split a blob into shares:</p>
+<p>Share splitting is the process of converting a slice of bytes (typically a blob) into a set of shares. The following steps are taken to split a blob into shares:</p>
 <ol>
 <li>// TODO</li>
 </ol>
@@ -1466,6 +1467,7 @@ With the above constraint, we can compute subtree roots deterministically. In or
 <li><a href="specs/../../../x/mint/README.html">mint</a></li>
 <li><a href="specs/../../../x/paramfilter/README.html">paramfilter</a></li>
 <li><a href="specs/../../../x/upgrade/README.html">upgrade</a></li>
+<li><a href="specs/../../../x/tokenfilter/README.html">tokenfilter</a></li>
 </ul>
 <h2 id="standard-cosmos-sdk-modules"><a class="header" href="#standard-cosmos-sdk-modules">Standard <code>cosmos-sdk</code> Modules</a></h2>
 <ul>
@@ -1781,6 +1783,26 @@ func NewApp(...) *App {
 registering a message server. It registers the standard upgrade module types to
 preserve the ability to marshal them. Note that the keeper of the standard
 upgrade module is still added to the application.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="ibc-token-filter"><a class="header" href="#ibc-token-filter">IBC Token Filter</a></h1>
+<h2 id="abstract-5"><a class="header" href="#abstract-5">Abstract</a></h2>
+<p>The IBC token filter prevents non-native tokens from being transferred through the IBC transfer module from a counterparty chain to the host chain. This is useful if a chain wishes to only permit
+their native token within their state machine.</p>
+<h2 id="context"><a class="header" href="#context">Context</a></h2>
+<p>When tokens are transferred through the IBC transfer module, the denomination of that token is modified at each hop. It's more accurate to think of the tokens transferring to another network to actually remain held in escrow at the origin chain and the destination chain minting a &quot;wrapped&quot; equivalent. Thus tokens moved to a non-native state machine are beholdent to the security of both chains. The denomination is denoted as the path it's taken from the origin chain. To provide an example, imagine 3 chains: A, B and C with native tokens &quot;a&quot;, &quot;b&quot;, &quot;c&quot;. With IBC's transfer module, when a user transfers token &quot;a&quot; from A to B, the wrapped token is prefixed with the source port and source channel (i.e. <code>portidone/channel-0/a</code>), this is Ba. If the token is further transferred to C it becomes BCa (or <code>portidtwo/channel-1/portidone/channel-0/a</code>). This token is now beholdent to the security of B, C and A. Also note that this is different if &quot;a&quot; were to go directly to C. In other words: <code>Ca != BCa</code>.</p>
+<p>This context is important in recognising when a native token is returning to its origin state machine. Each IBC packet contains metadata including the source port and channel. Therefore if the denomination of the token is prefixed with the same source port and channel as detailed in the packet, we can conclude that the denomination originally came from the receiving chain.</p>
+<p>This logic is employed for path unwinding. Reversing the tokens through the path it came will eventually strip the denomination until it reaches the base denomination it started with.</p>
+<h2 id="protocol"><a class="header" href="#protocol">Protocol</a></h2>
+<p>The protocol targets inbound packets only. Outbound transfer messages are left unmodified. When a packet is sent to the IBC transfer module (denoted by the <code>transfer</code> port id), the token filter intercepts the message and attempts to unmarshal it as a <code>FungibleTokenPacketData</code>. If unmarshalling fails, the protocol should simply pass it down the stack for it to be handled elsewhere.</p>
+<p>When tokens are transferred the token filter checks if the denomination is prefixed with the source port and channel of the packet. If so it passes the packet along for the transfer module to handle, else it returns a new error acknowledgement which will be returned to the sending chain.</p>
+<p>The protocol does not check the length of the path that prefixes the base denomination i.e. it may still contain multiple ports and channels like <code>portidtwo/channel-1/portidone/channel-0/a</code>. This means that it may not be the native token but any other token that had previously passed through the state machine. This means if a chain were to adopt the middleware with existing state, the prior tokens may still unwind through that chain. For chains that commence using this middleware, no other token but the native denominations will be present.</p>
+<h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
+<p>The token filter is implemented as IBC middleware. It wraps the IBC transfer module. All other methods get routed directly to the underlying transfer module except for <code>OnRecvPacket</code> which adds extra logic before calling the <code>OnRecvPacket</code> method of the transfer module.</p>
+<p>The transfer module already includes a <code>ReceiverChainIsSource</code> method. The basic logic is therefore:</p>
+<pre><code class="language-go">if transfertypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
+	return m.IBCModule.OnRecvPacket(ctx, packet, relayer)
+}
+return channeltypes.NewErrorAcknowledgement(&quot;denomination not accepted by this chain&quot;)
+</code></pre>
 
                     </main>
 
