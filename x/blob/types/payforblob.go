@@ -3,9 +3,9 @@ package types
 import (
 	"crypto/sha256"
 	fmt "fmt"
-	math "math"
 
 	"cosmossdk.io/errors"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
@@ -40,8 +40,8 @@ func NewMsgPayForBlobs(signer string, blobs ...*Blob) (*MsgPayForBlobs, error) {
 	namespaceVersions, namespaceIds, sizes, shareVersions := extractBlobComponents(blobs)
 	namespaces := []appns.Namespace{}
 	for i := range namespaceVersions {
-		if namespaceVersions[i] > math.MaxUint8 {
-			return nil, fmt.Errorf("namespace version %d is too large (max %d)", namespaceVersions[i], math.MaxUint8)
+		if namespaceVersions[i] > appconsts.NamespaceVersionMaxValue {
+			return nil, fmt.Errorf("namespace version %d is too large (max %d)", namespaceVersions[i], appconsts.NamespaceVersionMaxValue)
 		}
 		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIds[i])
 		if err != nil {
@@ -254,7 +254,7 @@ func ValidateBlobs(blobs ...*Blob) error {
 	}
 
 	for _, blob := range blobs {
-		if blob.NamespaceVersion > math.MaxUint8 {
+		if blob.NamespaceVersion > appconsts.NamespaceVersionMaxValue {
 			return fmt.Errorf("namespace version %d is too large", blob.NamespaceVersion)
 		}
 		ns, err := appns.New(uint8(blob.NamespaceVersion), blob.NamespaceId)
