@@ -3,10 +3,12 @@ package e2e
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/test/txsim"
+	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,6 +18,11 @@ const (
 )
 
 func TestE2ESimple(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping e2e test in short mode")
+	}
+	identifier := fmt.Sprintf("%s_%s", t.Name(), time.Now().Format("20060102_150405"))
+	err := knuu.InitializeWithIdentifier(identifier)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	testnet := New(seed)
