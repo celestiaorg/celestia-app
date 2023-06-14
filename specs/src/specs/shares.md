@@ -23,7 +23,7 @@ User submitted [blob](../../../x/blob/README.md) data is split into shares (see 
 
 ## Share Format
 
-For shares **with a namespace above [`MAX_RESERVED_NAMESPACE`](./consensus.md#constants) but below [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants)**:
+The share format below is consistent for all blob shares. In other words, the share format below applies to shares with a namespace above [`MAX_RESERVED_NAMESPACE`](./consensus.md#reserved-namespaces) but below [`PARITY_SHARE_NAMESPACE`](./consensus.md#reserved-namespaces):
 
 - The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data is the namespace of that share.
 - The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information with the following structure:
@@ -45,9 +45,7 @@ Since blob data that exceeds [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESP
 
 ## Transaction Shares
 
-In order for clients to parse shares in the middle of a sequence without downloading antecedent shares, Celestia encodes additional metadata in the shares associated with reserved namespaces. At the time of writing this only applies to the [`TRANSACTION_NAMESPACE`](./consensus.md#reserved-namespaces) and [`PAY_FOR_BLOB_NAMESPACE`](./consensus.md#reserved-namespaces). This share structure is often reffered to as "compact shares" to differentiate from the share structure defined above (a.k.a "sparse shares").
-
-For shares **with a reserved namespace through [`NAMESPACE_ID_MAX_RESERVED`](./consensus.md#constants)**:
+In order for clients to parse shares in the middle of a sequence without downloading antecedent shares, Celestia encodes additional metadata in the shares associated with reserved namespaces. At the time of writing this only applies to the [`TRANSACTION_NAMESPACE`](./consensus.md#reserved-namespaces) and [`PAY_FOR_BLOB_NAMESPACE`](./consensus.md#reserved-namespaces). This share structure is often referred to as "compact shares" to differentiate from the share structure defined above for blob shares (a.k.a "sparse shares"). In other words, the format below applies to shares with below [`NAMESPACE_ID_MAX_RESERVED`](./consensus.md#reserved-namespaces):
 
 - The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data is the namespace of that share.
 - The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information with the following structure:
@@ -96,7 +94,7 @@ Tail padding shares use the [`TAIL_PADDING_NAMESPACE`](./consensus.md#constants)
 
 ## Parity Share
 
-Parity shares use the namespace [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants). Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.
+Parity shares use the [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants). Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.
 
 ## Share Splitting
 
@@ -109,7 +107,7 @@ Share splitting is the process of converting a blob into a share sequence. The p
 
 ## Assumptions and Considerations
 
-- Shares are assumed to be 512 byte chunks. Parsing shares of a different size WILL result in an error.
+- Shares are assumed to be 512 byte slices. Parsing shares of a different size WILL result in an error.
 
 ## Implementation
 
