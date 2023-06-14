@@ -44,8 +44,7 @@ func BlobSharesUsedNonInteractiveDefaults(cursor, squareSize, subtreeRootThresho
 }
 
 // NextShareIndex determines the next index in a square that can be used. It
-// follows the non-interactive default rules defined in ADR013. This function
-// returns false if the entire the blob cannot fit on the given row. Assumes
+// follows the non-interactive default rules defined in ADR013. Assumes
 // that all args are non negative, and that squareSize is a power of two.
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
 // https://github.com/celestiaorg/celestia-app/blob/0334749a9e9b989fa0a42b7f011f4a79af8f61aa/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md
