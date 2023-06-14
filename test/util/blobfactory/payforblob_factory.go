@@ -25,18 +25,16 @@ import (
 var defaultSigner = testfactory.RandomAddress().String()
 
 const (
-	MaxBlobSize  = 100000
-	MaxBlobCount = 500
+	// TestMaxBlobSize is the maximum size of each blob in a blob transaction, for testing purposes
+	TestMaxBlobSize = 100
+	// TestMaxBlobCount is the maximum number of blobs in a blob transaction, for testing purposes
+	TestMaxBlobCount = 50
 )
 
-func RandMsgPayForBlobsWithSigner(singer string, maxBlobSize, blobCount int) (*blobtypes.MsgPayForBlobs, []*tmproto.Blob) {
+func RandMsgPayForBlobsWithSigner(singer string, size, blobCount int) (*blobtypes.MsgPayForBlobs, []*tmproto.Blob) {
 	blobs := make([]*tmproto.Blob, blobCount)
 	for i := 0; i < blobCount; i++ {
-		blobSize := tmrand.Intn(maxBlobSize)
-		if blobSize == 0 {
-			blobSize = 1
-		}
-		blob, err := types.NewBlob(appns.RandomBlobNamespace(), tmrand.Bytes(blobSize), appconsts.ShareVersionZero)
+		blob, err := types.NewBlob(appns.RandomBlobNamespace(), tmrand.Bytes(size), appconsts.ShareVersionZero)
 		if err != nil {
 			panic(err)
 		}
@@ -500,11 +498,11 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, kr keyring.Keyring, enc sdk.TxEnco
 }
 
 func GenerateRandomBlobCount() int {
-	return tmrand.Intn(MaxBlobCount) + 1 // +1 is to avoid 0
+	return tmrand.Intn(TestMaxBlobCount) + 1 // +1 is to avoid 0
 }
 
 func GenerateRandomBlobSize() int {
-	return tmrand.Intn(MaxBlobSize) + 1 // +1 is to avoid 0
+	return tmrand.Intn(TestMaxBlobSize) + 1 // +1 is to avoid 0
 }
 
 // GenerateRandomBlobSizes returns a slice of random non-zero blob sizes.
