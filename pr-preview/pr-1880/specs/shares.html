@@ -157,7 +157,7 @@
 <h2 id="share-format"><a class="header" href="#share-format">Share Format</a></h2>
 <p>The share format below is consistent for all blob shares. In other words, the share format below applies to shares with a namespace above <a href="./consensus.html#reserved-namespaces"><code>MAX_RESERVED_NAMESPACE</code></a> but below <a href="./consensus.html#reserved-namespaces"><code>PARITY_SHARE_NAMESPACE</code></a>:</p>
 <ul>
-<li>The first <a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> of a share's raw data is the namespace of that share.</li>
+<li>The first <a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> of a share's raw data is the namespace of that share. Each namespace is comprised  of a namespace version and a namespace ID, which together occupy <code>NAMESPACE_SIZE</code> bytes.</li>
 <li>The next <a href="./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information with the following structure:
 <ul>
 <li>The first 7 bits represent the share version in big endian form (initially, this will be <code>0000000</code> for version <code>0</code>);</li>

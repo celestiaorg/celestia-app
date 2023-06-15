@@ -537,7 +537,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <h2 id="share-format"><a class="header" href="#share-format">Share Format</a></h2>
 <p>The share format below is consistent for all blob shares. In other words, the share format below applies to shares with a namespace above <a href="specs/./consensus.html#reserved-namespaces"><code>MAX_RESERVED_NAMESPACE</code></a> but below <a href="specs/./consensus.html#reserved-namespaces"><code>PARITY_SHARE_NAMESPACE</code></a>:</p>
 <ul>
-<li>The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> of a share's raw data is the namespace of that share.</li>
+<li>The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> of a share's raw data is the namespace of that share. Each namespace is comprised  of a namespace version and a namespace ID, which together occupy <code>NAMESPACE_SIZE</code> bytes.</li>
 <li>The next <a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information with the following structure:
 <ul>
 <li>The first 7 bits represent the share version in big endian form (initially, this will be <code>0000000</code> for version <code>0</code>);</li>
@@ -1687,23 +1687,9 @@ Use &quot;celestia-appd verify [command] --help&quot; for more information about
 <p>QGB v1 implementation, including the orchestrator and relayer, is in the <a href="https://github.com/celestiaorg/celestia-app/tree/qgb-integration">qgb-integration</a> branch.</p>
 <p>QGB ADRs are in the <a href="https://github.com/celestiaorg/celestia-app/tree/main/docs/architecture">docs</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xmint"><a class="header" href="#xmint"><code>x/mint</code></a></h1>
-<p><code>x/mint</code> is a fork of the Cosmos SDK <code>x/mint</code> module that makes some changes to the inflation mechanism.</p>
-<ol>
-<li>Remove all parameters from the module</li>
-<li>Calculate inflation rate once per year based on the number of years since genesis</li>
-<li>Calculate annual provisions once per year based on the total supply</li>
-<li>Calculate block provision once per block based on the number of seconds elapsed between the current block and the previous block</li>
-</ol>
-<h2 id="constants-1"><a class="header" href="#constants-1">Constants</a></h2>
-<p>See <a href="../../x/mint/./types/constants.go">./types/constants.go</a> for the constants used in this module.</p>
-<p>Note: this module assumes <code>DaysPerYear = 365.2425</code> so when modifying tests, developers must define durations based on this assumption because ordinary durations won't return the expected results. In other words:</p>
-<pre><code class="language-go">// oneYear is 31,556,952 seconds which will likely return expected results in tests
-oneYear := time.Duration(minttypes.NanosecondsPerYear)
-
-// oneYear is 31,536,000 seconds which will likely return unexpected results in tests
-oneYear := time.Hour * 24 * 365
-</code></pre>
-<h2 id="inflation-schedule"><a class="header" href="#inflation-schedule">Inflation Schedule</a></h2>
+<h2 id="abstract-3"><a class="header" href="#abstract-3">Abstract</a></h2>
+<p>celestia-app's <code>x/mint</code> is a fork of the Cosmos SDK <a href="https://github.com/cosmos/cosmos-sdk/tree/5cd0b2316a7103468af38eab5d886f9f069c9cd7/x/mint"><code>x/mint</code></a> module that makes some changes to the inflation mechanism. The changes were motivated by a desire for Celestia to have a pre-determined inflation schedule. See <a href="../../x/mint/../../docs/architecture/adr-019-strict-inflation-schedule.html">ADR-019</a> for more details.</p>
+<h3 id="inflation-schedule"><a class="header" href="#inflation-schedule">Inflation Schedule</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Year</th><th>Inflation (%)</th></tr></thead><tbody>
 <tr><td>0</td><td>8.00</td></tr>
 <tr><td>1</td><td>7.20</td></tr>
@@ -1728,12 +1714,55 @@ oneYear := time.Hour * 24 * 365
 <tr><td>20</td><td>1.50</td></tr>
 </tbody></table>
 </div>
+<ul>
+<li><strong>Year</strong> indicates the number of years elapsed since chain genesis.</li>
+<li><strong>Inflation (%)</strong> indicates the percentage of the total supply that will be minted in the next year.</li>
+</ul>
+<h2 id="terms-1"><a class="header" href="#terms-1">Terms</a></h2>
+<ul>
+<li><strong>Inflation Rate</strong>: The percentage of the total supply that will be minted each year. The inflation rate is calculated once per year on the anniversary of chain genesis based on the number of years elapsed since genesis. The inflation rate is calculated as <code>InitialInflationRate * ((1 - DisinflationRate) ^ YearsSinceGenesis)</code>. See <a href="../../x/mint/./types/constants.go">./types/constants.go</a> for the constants used in this module.</li>
+<li><strong>Annual Provisions</strong>: The total amount of tokens that will be minted each year. Annual provisions are calculated once per year on the anniversary of chain genesis based on the total supply and the inflation rate. Annual provisions are calculated as <code>TotalSupply * InflationRate</code></li>
+<li><strong>Block Provision</strong>: The amount of tokens that will be minted in the current block. Block provisions are calculated once per block based on the annual provisions and the number of seconds elapsed between the current block and the previous block. Block provisions are calculated as <code>AnnualProvisions * (NanoSecondsSincePreviousBlock / NanoSecondsPerYear)</code></li>
+</ul>
+<h2 id="state-2"><a class="header" href="#state-2">State</a></h2>
+<p>See <a href="../../x/mint/./types/minter.go">./types/minter.go</a> for the <code>Minter</code> struct which contains this module's state.</p>
+<h2 id="state-transitions-1"><a class="header" href="#state-transitions-1">State Transitions</a></h2>
+<p>The <code>Minter</code> struct is updated every block via <code>BeginBlocker</code>.</p>
+<h3 id="begin-block-1"><a class="header" href="#begin-block-1">Begin Block</a></h3>
+<p>See <code>BeginBlocker</code> in <a href="../../x/mint/./abci.go">./abci.go</a>.</p>
+<h3 id="events-1"><a class="header" href="#events-1">Events</a></h3>
+<p>An event is emitted every block when a block provision is minted. See <code>mintBlockProvision</code> in <a href="../../x/mint/./abci.go">./abci.go</a>.</p>
+<h2 id="client"><a class="header" href="#client">Client</a></h2>
+<h3 id="cli"><a class="header" href="#cli">CLI</a></h3>
+<pre><code class="language-shell">$ celestia-appd query mint annual-provisions
+80235005639941.760000000000000000
+</code></pre>
+<pre><code class="language-shell">$ celestia-appd query mint genesis-time
+2023-05-09 00:56:15.59304 +0000 UTC
+</code></pre>
+<pre><code class="language-shell">$ celestia-appd query mint inflation
+0.080000000000000000
+</code></pre>
+<h2 id="params"><a class="header" href="#params">Params</a></h2>
+<p>All params have been removed from this module because they should not be modifiable via governance.</p>
+<h2 id="tests"><a class="header" href="#tests">Tests</a></h2>
+<p>See <a href="../../x/mint/./test/mint_test.go">./test/mint_test.go</a> for an integration test suite for this module.</p>
+<h2 id="assumptions-and-considerations-1"><a class="header" href="#assumptions-and-considerations-1">Assumptions and Considerations</a></h2>
+<p>This module assumes <code>DaysPerYear = 365.2425</code> so when modifying tests, developers must define durations based on this assumption because ordinary durations won't return the expected results. In other words:</p>
+<pre><code class="language-go">// oneYear is 31,556,952 seconds which will likely return expected results in tests
+oneYear := time.Duration(minttypes.NanosecondsPerYear)
+
+// oneYear is 31,536,000 seconds which will likely return unexpected results in tests
+oneYear := time.Hour * 24 * 365
+</code></pre>
+<h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
+<p>See <a href="../../x/mint/../../x/mint">x/mint</a> for the implementation of this module.</p>
 <h2 id="references-1"><a class="header" href="#references-1">References</a></h2>
 <ol>
-<li>ADR-019</li>
+<li><a href="../../x/mint/../../docs/architecture/adr-019-strict-inflation-schedule.html">ADR-019</a></li>
 </ol>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xparamfilter"><a class="header" href="#xparamfilter"><code>x/paramfilter</code></a></h1>
-<h2 id="abstract-3"><a class="header" href="#abstract-3">Abstract</a></h2>
+<h2 id="abstract-4"><a class="header" href="#abstract-4">Abstract</a></h2>
 <p>The paramfilter module allows for specific parameters to be added to a block
 list, so that they cannot be changed by governance proposals. If a proposal
 contains a single blocked parameter change, then none of the parameters are
@@ -1742,7 +1771,7 @@ updated.</p>
 critical to the network's operation that are also part of the cosmos-sdk's
 standard modules. New modules should not use this module, and instead use
 hardcoded constants.</p>
-<h2 id="state-2"><a class="header" href="#state-2">State</a></h2>
+<h2 id="state-3"><a class="header" href="#state-3">State</a></h2>
 <p>The state consists only of the parameters that are protected by the paramfilter.
 All state is immutable and stored in memory during the application's
 initialization.</p>
@@ -1786,13 +1815,13 @@ func NewApp(...) *App {
 }
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xupgrade"><a class="header" href="#xupgrade"><code>x/upgrade</code></a></h1>
-<h2 id="abstract-4"><a class="header" href="#abstract-4">Abstract</a></h2>
+<h2 id="abstract-5"><a class="header" href="#abstract-5">Abstract</a></h2>
 <p>The upgrade module removes the entrypoints to the standard upgrade module by not
 registering a message server. It registers the standard upgrade module types to
 preserve the ability to marshal them. Note that the keeper of the standard
 upgrade module is still added to the application.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="ibc-token-filter"><a class="header" href="#ibc-token-filter">IBC Token Filter</a></h1>
-<h2 id="abstract-5"><a class="header" href="#abstract-5">Abstract</a></h2>
+<h2 id="abstract-6"><a class="header" href="#abstract-6">Abstract</a></h2>
 <p>The IBC token filter prevents non-native tokens from being transferred through the IBC transfer module from a counterparty chain to the host chain. This is useful if a chain wishes to only permit
 their native token within their state machine.</p>
 <h2 id="context"><a class="header" href="#context">Context</a></h2>
@@ -1803,7 +1832,7 @@ their native token within their state machine.</p>
 <p>The protocol targets inbound packets only. Outbound transfer messages are left unmodified. When a packet is sent to the IBC transfer module (denoted by the <code>transfer</code> port id), the token filter intercepts the message and attempts to unmarshal it as a <code>FungibleTokenPacketData</code>. If unmarshalling fails, the protocol should simply pass it down the stack for it to be handled elsewhere.</p>
 <p>When tokens are transferred the token filter checks if the denomination is prefixed with the source port and channel of the packet. If so it passes the packet along for the transfer module to handle, else it returns a new error acknowledgement which will be returned to the sending chain.</p>
 <p>The protocol does not check the length of the path that prefixes the base denomination i.e. it may still contain multiple ports and channels like <code>portidtwo/channel-1/portidone/channel-0/a</code>. This means that it may not be the native token but any other token that had previously passed through the state machine. This means if a chain were to adopt the middleware with existing state, the prior tokens may still unwind through that chain. For chains that commence using this middleware, no other token but the native denominations will be present.</p>
-<h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
+<h2 id="implementation-2"><a class="header" href="#implementation-2">Implementation</a></h2>
 <p>The token filter is implemented as IBC middleware. It wraps the IBC transfer module. All other methods get routed directly to the underlying transfer module except for <code>OnRecvPacket</code> which adds extra logic before calling the <code>OnRecvPacket</code> method of the transfer module.</p>
 <p>The transfer module already includes a <code>ReceiverChainIsSource</code> method. The basic logic is therefore:</p>
 <pre><code class="language-go">if transfertypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
