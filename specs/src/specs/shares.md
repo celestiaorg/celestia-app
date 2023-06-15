@@ -23,14 +23,14 @@ User submitted transactions are split into shares (see [share splitting](#share-
 
 ## Share Format
 
-The share format below is consistent for all shares. Note that each share has a fixed size [`SHARE_SIZE`](./consensus.md#constants):
+Every share has a fixed size [`SHARE_SIZE`](./consensus.md#constants). The share format below is consistent for all shares:
 
 - The first [`NAMESPACE_VERSION_SIZE`](./consensus.md#constants) bytes of a share's raw data is the namespace version of that share (denoted by "namespace version" in the figure below).
 - The next [`NAMESPACE_ID_SIZE`](./consensus.md#constants) bytes of a share's raw data is the namespace ID of that share (denoted by "namespace id" in the figure below).
 - The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information (denoted by "info byte" in the figure below) with the following structure:
   - The first 7 bits represent the share version in big endian form (initially, this will be `0000000` for version `0`);
   - The last bit is a sequence start indicator. The indicator is `1` if this share is the first share in a sequence or `0` if this share is a continuation share in a sequence.
-- If this share is the first share in a sequence, it will include the length of the sequence in bytes. The next [SEQUENCE_BYTES](./consensus.md#constants) represent a big-endian uint32 value (denoted by "sequence length" in the figure below). This length is placed immediately after the `SHARE_INFO_BYTES` field. It's important to note that shares that are not the first share in a sequence do not contain this field.
+- If this share is the first share in a sequence, it will include the length of the sequence in bytes. The next [`SEQUENCE_BYTES`](./consensus.md#constants) represent a big-endian uint32 value (denoted by "sequence length" in the figure below). This length is placed immediately after the `SHARE_INFO_BYTES` field. It's important to note that shares that are not the first share in a sequence do not contain this field.
 - The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants)`-`[`SEQUENCE_BYTES`](./consensus.md#constants) bytes (if first share) or [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) bytes (if continuation share) are raw data (denoted by "blob1" in the figure below). Typically raw data is the blob payload that user's submit in a [BlobTx](../../../x/blob/README.md). However, raw data can also be transaction data (see [transaction shares](#transaction-shares) below).
 - If there is insufficient raw data to fill the share, the remaining bytes are filled with `0`.
 
@@ -48,13 +48,7 @@ Since raw data that exceeds [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPA
 
 In order for clients to parse shares in the middle of a sequence without downloading antecedent shares, Celestia encodes additional metadata in the shares associated with reserved namespaces. At the time of writing this only applies to the [`TRANSACTION_NAMESPACE`](./consensus.md#reserved-namespaces) and [`PAY_FOR_BLOB_NAMESPACE`](./consensus.md#reserved-namespaces). This share structure is often referred to as "compact shares" to differentiate from the share structure defined above for all shares. It conforms to the common [share format](#share-format) with one additional field, the "reserved bytes" field, which is described below:
 
-- The first [`NAMESPACE_VERSION_SIZE`](./consensus.md#constants) bytes of a share's raw data is the namespace version of that share (denoted by "namespace version" in the figure below).
-- The next [`NAMESPACE_ID_SIZE`](./consensus.md#constants) bytes of a share's raw data is the namespace ID of that share (denoted by "namespace id" in the figure below).
-- The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information (denoted by "info byte" in the figure below) with the following structure:
-  - The first 7 bits represent the share version in big endian form (initially, this will be `0000000` for version `0`);
-  - The last bit is a sequence start indicator. The indicator is `1` if this share is the first share in a sequence or `0` if this share is a continuation share in a sequence.
-- If this share is the first share in a sequence, it will include the length of the sequence in bytes. The next [SEQUENCE_BYTES](./consensus.md#constants) represent a big-endian uint32 value (denoted by "sequence length" in the figure below). This length is placed immediately after the `SHARE_INFO_BYTES` field. It's important to note that shares that are not the first share in a sequence do not contain this field.
-- The next [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are the starting byte of the length of the [canonically serialized](./consensus.md#serialization) first request that starts in the share, or `0` if there is none, as an unsigned [varint](https://developers.google.com/protocol-buffers/docs/encoding). Denoted by "reserved bytes" in the figure below.
+- Every transaction share includes [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes that contain the index of the starting byte of the length of the [canonically serialized](./consensus.md#serialization) first transaction that starts in the share, or `0` if there is none, as a binary big endian `uint32`. Denoted by "reserved bytes" in the figure below. The [`SHARE_RESERVED_BYTES`](./consensus.md#constants) are placed immediately after the `SEQUENCE_BYTES` if this is the first share in a sequence or immediately after the `SHARE_INFO_BYTES` if this is a continuation share in a sequence.
 - The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants)`-`[`SEQUENCE_BYTES`](./consensus.md#constants)`-`[`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes (if first share) or [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants)`-`[`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes (if continuation share) are transaction or PayForBlob transaction data (denoted by "tx1" and "tx2" in the figure below). Each transaction or PayForBlob transaction is prefixed with a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the length of that unit (denoted by "len(tx1)" and "len(tx2)" in the figure below).
 - If there is insufficient transaction or PayForBlob transaction data to fill the share, the remaining bytes are filled with `0`.
 
@@ -72,9 +66,10 @@ where reserved bytes would be `80` as a binary big endian `uint32` (`[0b00000000
 
 ## Padding
 
-Padding shares vary based on namespace but share a common structure:
+Padding shares vary based on namespace but they conform to the [share format](#share-format) described above.
 
-- The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data is the namespace of that share.
+- The first [`NAMESPACE_VERSION_SIZE`](./consensus.md#constants) bytes of a share's raw data is the namespace version of that share (initially, this will be `0`).
+- The next [`NAMESPACE_ID_SIZE`](./consensus.md#constants) bytes of a share's raw data is the namespace ID of that share. This varies based on the type of padding share.
 - The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information.
   - The first 7 bits represent the share version in big endian form (initially, this will be `0000000` for version `0`);
   - The last bit is a sequence start indicator. The indicator is always `1`.
