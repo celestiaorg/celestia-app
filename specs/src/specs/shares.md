@@ -26,7 +26,7 @@ User submitted [blob](../../../x/blob/README.md) data is split into shares (see 
 The share format below is consistent for all blob shares. In other words, the share format below applies to shares with a namespace above [`MAX_RESERVED_NAMESPACE`](./consensus.md#reserved-namespaces) but below [`PARITY_SHARE_NAMESPACE`](./consensus.md#reserved-namespaces):
 
 - The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data is the namespace of that share. Each namespace is comprised  of a namespace version and a namespace ID, which together occupy `NAMESPACE_SIZE` bytes.
-- The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information (denoted by 'info bytes' in Fig.1) with the following structure:
+- The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information (denoted by 'info bytes' in figure 1) with the following structure:
   - The first 7 bits represent the share version in big endian form (initially, this will be `0000000` for version `0`);
   - The last bit is a sequence start indicator. The indicator is `1` if the share is the first share of a sequence or `0` if the share is a continuation share of a sequence.
 - If this is the first share of a sequence the next [`SEQUENCE_BYTES`](./consensus.md#constants) contain a big endian `uint32` that represents the length of the sequence that follows in bytes.
@@ -35,11 +35,11 @@ The share format below is consistent for all blob shares. In other words, the sh
 
 First share in a sequence:
 
-![fig: share start](./figures/share_start.svg)
+![figure 1: share start](./figures/share_start.svg)
 
 Continuation share in a sequence:
 
-![fig: share continuation](./figures/share_continuation.svg)
+![figure 2: share continuation](./figures/share_continuation.svg)
 
 Since blob data that exceeds [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes will span more than one share, developers MAY choose to encode additional metadata in their raw blob data prior to inclusion in a Celestia block.
 
@@ -58,13 +58,13 @@ In order for clients to parse shares in the middle of a sequence without downloa
 
 First share in a sequence:
 
-![fig: transaction share start](./figures/transaction_share_start.svg)
+![figure 3: transaction share start](./figures/transaction_share_start.svg)
 
 where reserved bytes would be `38` as a binary big endian `uint32` (`[0b00000000, 0b00000000, 0b00000000, 0b00100110]`).
 
 Continuation share in a sequence:
 
-![fig: transaction share continuation](./figures/transaction_share_continuation.svg)
+![figure 4: transaction share continuation](./figures/transaction_share_continuation.svg)
 
 where reserved bytes would be `80` as a binary big endian `uint32` (`[0b00000000, 0b00000000, 0b00000000, 0b01010000]`).
 
