@@ -138,13 +138,13 @@ func Test_parseSparseSharesWithNamespacedPadding(t *testing.T) {
 	err := sss.Write(blobs[0])
 	require.NoError(t, err)
 
-	err = sss.WriteNamespacedPaddedShares(4)
+	err = sss.WriteNamespacePaddingShares(4)
 	require.NoError(t, err)
 
 	err = sss.Write(blobs[1])
 	require.NoError(t, err)
 
-	err = sss.WriteNamespacedPaddedShares(10)
+	err = sss.WriteNamespacePaddingShares(10)
 	require.NoError(t, err)
 
 	shares := sss.Export()
