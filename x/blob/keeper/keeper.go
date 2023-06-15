@@ -52,7 +52,7 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 func (k Keeper) PayForBlobs(goCtx context.Context, msg *types.MsgPayForBlobs) (*types.MsgPayForBlobsResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	var totalSharesUsed uint64 = 0
+	var totalSharesUsed uint64
 	for _, size := range msg.BlobSizes {
 		totalSharesUsed += uint64(shares.SparseSharesNeeded(size))
 	}
