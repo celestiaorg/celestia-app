@@ -241,7 +241,7 @@ After creating a new attestation, and adding it to the QGB store, an event is [e
 The QGB query attestation command is part of the `celestia-appd` binary. It allows the user to query specific attestations by their corresponding nonce.
 
 ```shell
-$ celestia-appd query qgb attestation --help                                                     INT ✘ 
+$ celestia-appd query qgb attestation --help                                                
 query an attestation by nonce
 
 Usage:
