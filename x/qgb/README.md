@@ -258,13 +258,6 @@ Flags:
       --node string        <host>:<port> to Tendermint RPC interface for this chain (default "tcp://localhost:26657")
   -o, --output string      Output format (text|json) (default "text")
 
-Global Flags:
-      --chain-id string      The network chain ID
-      --home string          directory for config and data (default "/home/midnight/.celestia-app")
-      --log-to-file string   Write logs directly to a file. If empty, logs are written to stderr
-      --log_format string    The logging format (json|plain) (default "plain")
-      --log_level string     The logging level (trace|debug|info|warn|error|fatal|panic) (default "info")
-      --trace                print out full stack trace on errors
 ```
 
 ### Verification command
