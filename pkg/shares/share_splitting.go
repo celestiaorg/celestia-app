@@ -83,7 +83,7 @@ func SplitBlobs(cursor int, indexes []uint32, blobs []coretypes.Blob, useShareIn
 		}
 		if useShareIndexes && len(indexes) > i+1 {
 			paddedShareCount := int(indexes[i+1]) - (writer.Count() + cursor)
-			if err := writer.WriteNamespacedPaddedShares(paddedShareCount); err != nil {
+			if err := writer.WriteNamespacePaddingShares(paddedShareCount); err != nil {
 				return nil, err
 			}
 		}
