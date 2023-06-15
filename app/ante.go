@@ -22,7 +22,7 @@ func NewAnteHandler(
 		// reject all tx extensions
 		ante.NewExtensionOptionsDecorator(nil),
 		ante.NewValidateBasicDecorator(),
-		ante.TxTimeoutHeightDecorator{},
+		ante.NewTxTimeoutHeightDecorator(),
 		ante.NewValidateMemoDecorator(accountKeeper),
 		ante.NewConsumeGasForTxSizeDecorator(accountKeeper),
 		// check that the fee matches the gas and the local minimum gas price
