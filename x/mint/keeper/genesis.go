@@ -5,12 +5,12 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// InitGenesis new mint genesis
-func (keeper Keeper) InitGenesis(ctx sdk.Context, ak types.AccountKeeper, data *types.GenesisState) {
-	keeper.SetMinter(ctx, data.Minter)
+// InitGenesis initializes the x/mint store with data from the genesis state.
+func (keeper Keeper) InitGenesis(ctx sdk.Context, ak types.AccountKeeper, gs *types.GenesisState) {
+	keeper.SetMinter(ctx, gs.Minter)
 }
 
-// ExportGenesis returns a mint GenesisState for the given context.
+// ExportGenesis returns a x/mint GenesisState for the given context.
 func (keeper Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 	minter := keeper.GetMinter(ctx)
 	return types.NewGenesisState(minter)
