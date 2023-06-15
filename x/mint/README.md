@@ -1,27 +1,10 @@
 # `x/mint`
 
-`x/mint` is a fork of the Cosmos SDK `x/mint` module that makes some changes to the inflation mechanism.
+## Abstract
 
-1. Remove all parameters from the module
-1. Calculate inflation rate once per year based on the number of years since genesis
-1. Calculate annual provisions once per year based on the total supply
-1. Calculate block provision once per block based on the number of seconds elapsed between the current block and the previous block
+celestia-app's `x/mint` is a fork of the Cosmos SDK [`x/mint`](https://github.com/cosmos/cosmos-sdk/tree/5cd0b2316a7103468af38eab5d886f9f069c9cd7/x/mint) module that makes some changes to the inflation mechanism. The changes were motivated by a desire for Celestia to have a pre-determined inflation schedule. See [ADR-019](../../docs/architecture/adr-019-strict-inflation-schedule.md) for more details.
 
-## Constants
-
-See [./types/constants.go](./types/constants.go) for the constants used in this module.
-
-Note: this module assumes `DaysPerYear = 365.2425` so when modifying tests, developers must define durations based on this assumption because ordinary durations won't return the expected results. In other words:
-
-```go
-// oneYear is 31,556,952 seconds which will likely return expected results in tests
-oneYear := time.Duration(minttypes.NanosecondsPerYear)
-
-// oneYear is 31,536,000 seconds which will likely return unexpected results in tests
-oneYear := time.Hour * 24 * 365
-```
-
-## Inflation Schedule
+### Inflation Schedule
 
 | Year | Inflation (%)     |
 |------|-------------------|
@@ -125,4 +108,4 @@ See [x/mint](../../x/mint) for the implementation of this module.
 
 ## References
 
-1. ADR-019
+1. [ADR-019](../../docs/architecture/adr-019-strict-inflation-schedule.md)
