@@ -87,11 +87,9 @@ func TestPFBAnteHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			anteHandler := ante.NewMinGasPFBDecorator(mockBlobKeeper{})
 			ctx := sdk.Context{}.WithGasMeter(sdk.NewGasMeter(tc.txGas)).WithIsCheckTx(true)
-			require.EqualValues(t, tc.txGas, ctx.GasMeter().Limit())
 			ctx.GasMeter().ConsumeGas(tc.gasConsumed, "test")
 			txBuilder := txConfig.NewTxBuilder()
 			require.NoError(t, txBuilder.SetMsgs(tc.pfb))
-			txBuilder.SetGasLimit(tc.txGas)
 			tx := txBuilder.GetTx()
 			_, err := anteHandler.AnteHandle(ctx, tx, false, func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) { return ctx, nil })
 			if tc.wantErr {

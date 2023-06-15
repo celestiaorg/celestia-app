@@ -32,13 +32,8 @@ func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 		return next(ctx, tx, simulate)
 	}
 
-	feeTx, ok := tx.(sdk.FeeTx)
-	if !ok {
-		return ctx, errors.Wrap(sdkerrors.ErrTxDecode, "Tx must be a FeeTx")
-	}
-
 	var gasPerByte uint32
-	txGas := feeTx.GetGas() - ctx.GasMeter().GasConsumed()
+	txGas := ctx.GasMeter().GasRemaining()
 	for _, m := range tx.GetMsgs() {
 		// NOTE: here we assume only one PFB per transaction
 		if pfb, ok := m.(*types.MsgPayForBlobs); ok {
