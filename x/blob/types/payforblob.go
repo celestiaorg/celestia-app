@@ -167,10 +167,10 @@ func (msg *MsgPayForBlobs) GetSigners() []sdk.AccAddress {
 }
 
 // CreateCommitment generates the share commitment for a given blob.
-// See [Message layout rationale] and [Non-interactive default rules].
+// See [data square layout rationale] and [blob share commitment rules].
 //
-// [Message layout rationale]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L12
-// [Non-interactive default rules]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L36
+// [data square layout rationale]: ../../specs/src/specs/data_square_layout.md
+// [blob share commitment rules]: ../../specs/src/specs/data_square_layout.md#blob-share-commitment-rules
 func CreateCommitment(blob *Blob) ([]byte, error) {
 	coreblob := coretypes.Blob{
 		NamespaceID:      blob.NamespaceId,

@@ -406,13 +406,13 @@ For shares **with a namespace equal to [`PARITY_SHARE_NAMESPACE`](./consensus.md
 
 #### Namespace Padding Share
 
-A namespace padding share acts as padding between blobs so that the subsequent blob may begin at an index that conforms to the [non-interactive default rules](../specs/data_square_layout.md#non-interaction-rules). A namespace padding share contains the namespace ID of the blob that precedes it in the data square so that the data square can retain the property that all shares are ordered by namespace.
+A namespace padding share acts as padding between blobs so that the subsequent blob may begin at an index that conforms to the [blob share commitment rules](../specs/data_square_layout.md#blob-share-commitment-rules). A namespace padding share contains the namespace ID of the blob that precedes it in the data square so that the data square can retain the property that all shares are ordered by namespace.
 
 The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `rawData` is the namespace of the blob that precedes this padding share. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information. The sequence start indicator is always `1`. The version bits are filled with the share version. The sequence length is zeroed out. The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes are filled with `0`.
 
 #### Reserved Padding Share
 
-Reserved padding shares are placed after the last reserved namespace share in the data square so that the first blob can start at an index that conforms to non-interactive default rules. Clients can safely ignore the contents of these shares because they don't contain any significant data.
+Reserved padding shares are placed after the last reserved namespace share in the data square so that the first blob can start at an index that conforms to blob share commitment rules. Clients can safely ignore the contents of these shares because they don't contain any significant data.
 
 For shares **with a namespace ID equal to [`RESERVED_PADDING_NAMESPACE`](./consensus.md#constants)** (i.e. reserved padding shares):
 
@@ -468,7 +468,7 @@ In the example below, two blobs (of lengths 2 and 1, respectively) are placed us
 
 ![fig: original data blob](./figures/rs2d_originaldata_blob.svg)
 
-The non-interactive default rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either [`TAIL_TRANSACTION_PADDING_NAMESPACE_ID`](./consensus.md#constants) if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the [rationale doc](../specs/data_square_layout.md) for more info.
+The blob share commitment rules may introduce empty shares that do not belong to any blob (in the example above, the top-right share is empty). These are zeroes with namespace ID equal to the either [`TAIL_TRANSACTION_PADDING_NAMESPACE_ID`](./consensus.md#constants) if between a request with a reserved namespace ID and a blob, or the namespace ID of the previous blob if succeeded by a blob. See the [rationale doc](../specs/data_square_layout.md) for more info.
 
 ## Available Data
 
