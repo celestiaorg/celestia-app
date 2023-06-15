@@ -90,7 +90,7 @@ func TestPFBAnteHandler(t *testing.T) {
 			require.EqualValues(t, tc.txGas, ctx.GasMeter().Limit())
 			ctx.GasMeter().ConsumeGas(tc.gasConsumed, "test")
 			txBuilder := txConfig.NewTxBuilder()
-			txBuilder.SetMsgs(tc.pfb)
+			require.NoError(t, txBuilder.SetMsgs(tc.pfb))
 			txBuilder.SetGasLimit(tc.txGas)
 			tx := txBuilder.GetTx()
 			_, err := anteHandler.AnteHandle(ctx, tx, false, func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) { return ctx, nil })
@@ -105,6 +105,6 @@ func TestPFBAnteHandler(t *testing.T) {
 
 type mockBlobKeeper struct{}
 
-func (_ mockBlobKeeper) GasPerBlobByte(ctx sdk.Context) uint32 {
+func (mockBlobKeeper) GasPerBlobByte(_ sdk.Context) uint32 {
 	return testGasPerBlobByte
 }

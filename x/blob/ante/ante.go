@@ -5,6 +5,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 
+	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
@@ -33,7 +34,7 @@ func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
-		return ctx, sdkerrors.Wrap(sdkerrors.ErrTxDecode, "Tx must be a FeeTx")
+		return ctx, errors.Wrap(sdkerrors.ErrTxDecode, "Tx must be a FeeTx")
 	}
 
 	var gasPerByte uint32
@@ -47,7 +48,7 @@ func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 			}
 			gasToConsume := gasToConsume(pfb, gasPerByte)
 			if gasToConsume > txGas {
-				return ctx, sdkerrors.Wrapf(sdkerrors.ErrInsufficientFee, "not enough gas to pay for blobs (minimum: %d, got: %d)", gasToConsume, txGas)
+				return ctx, errors.Wrapf(sdkerrors.ErrInsufficientFee, "not enough gas to pay for blobs (minimum: %d, got: %d)", gasToConsume, txGas)
 			}
 		}
 	}
@@ -56,7 +57,7 @@ func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 }
 
 func gasToConsume(pfb *types.MsgPayForBlobs, gasPerByte uint32) uint64 {
-	var totalSharesUsed uint64 = 0
+	var totalSharesUsed uint64
 	for _, size := range pfb.BlobSizes {
 		totalSharesUsed += uint64(shares.SparseSharesNeeded(size))
 	}
