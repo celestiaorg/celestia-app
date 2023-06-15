@@ -26,7 +26,7 @@ User submitted [blob](../../../x/blob/README.md) data is split into shares (see 
 The share format below is consistent for all blob shares. In other words, the share format below applies to shares with a namespace above [`MAX_RESERVED_NAMESPACE`](./consensus.md#reserved-namespaces) but below [`PARITY_SHARE_NAMESPACE`](./consensus.md#reserved-namespaces):
 
 - The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data is the namespace of that share. Each namespace is comprised  of a namespace version and a namespace ID, which together occupy `NAMESPACE_SIZE` bytes.
-- The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information with the following structure:
+- The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information (denoted by 'info bytes' in Fig.1) with the following structure:
   - The first 7 bits represent the share version in big endian form (initially, this will be `0000000` for version `0`);
   - The last bit is a sequence start indicator. The indicator is `1` if the share is the first share of a sequence or `0` if the share is a continuation share of a sequence.
 - If this is the first share of a sequence the next [`SEQUENCE_BYTES`](./consensus.md#constants) contain a big endian `uint32` that represents the length of the sequence that follows in bytes.
