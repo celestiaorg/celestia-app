@@ -104,7 +104,7 @@ Share splitting is the process of converting a blob into a share sequence. The p
 
 ## Assumptions and Considerations
 
-- Shares are assumed to be 512 byte slices. Parsing shares of a different size WILL result in an error.
+- Shares are assumed to be byte slices of length 512. Parsing shares of a different length WILL result in an error.
 
 ## Implementation
 
