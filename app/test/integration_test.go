@@ -4,15 +4,13 @@ import (
 	"bytes"
 	"context"
 	"testing"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	cosmosnet "github.com/cosmos/cosmos-sdk/testutil/network"
 
 	"github.com/stretchr/testify/suite"
 
@@ -21,7 +19,6 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/square"
-	"github.com/celestiaorg/celestia-app/test/util/network"
 	"github.com/celestiaorg/celestia-app/x/blob"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -33,33 +30,22 @@ import (
 )
 
 func TestIntegrationTestSuite(t *testing.T) {
-	cfg := network.DefaultConfig()
-	cfg.EnableTMLogging = false
-	cfg.MinGasPrices = "0utia"
-	cfg.NumValidators = 1
-	cfg.TargetHeightDuration = time.Millisecond * 400
-	suite.Run(t, NewIntegrationTestSuite(cfg))
+	if testing.Short() {
+		t.Skip("skipping app/test/integration_test in short mode.")
+	}
+	suite.Run(t, &IntegrationTestSuite{})
 }
 
 type IntegrationTestSuite struct {
 	suite.Suite
 
-	cfg      cosmosnet.Config
-	encCfg   encoding.Config
-	network  *cosmosnet.Network
-	kr       keyring.Keyring
+	ecfg     encoding.Config
 	accounts []string
-}
-
-func NewIntegrationTestSuite(cfg cosmosnet.Config) *IntegrationTestSuite {
-	return &IntegrationTestSuite{cfg: cfg}
+	cctx     testnode.Context
 }
 
 func (s *IntegrationTestSuite) SetupSuite() {
-	if testing.Short() {
-		s.T().Skip("skipping app/test/integration_test in short mode.")
-	}
-	s.T().Log("setting up integration test suite")
+	t := s.T()
 
 	numAccounts := 120
 	s.accounts = make([]string, numAccounts)
@@ -67,47 +53,39 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		s.accounts[i] = tmrand.Str(20)
 	}
 
-	net := network.New(s.T(), s.cfg, s.accounts...)
+	cctx, _, _ := testnode.NewNetwork(
+		t,
+		testnode.DefaultParams(),
+		testnode.DefaultTendermintConfig(),
+		testnode.DefaultAppConfig(),
+		s.accounts,
+	)
 
-	err := network.GRPCConn(net)
-	s.Require().NoError(err)
+	s.cctx = cctx
+	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	s.network = net
-	s.kr = net.Validators[0].ClientCtx.Keyring
-	s.encCfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	require.NoError(t, cctx.WaitForNextBlock())
 
-	_, err = s.network.WaitForHeight(1)
-	s.Require().NoError(err)
-}
-
-func (s *IntegrationTestSuite) TearDownSuite() {
-	s.T().Log("tearing down integration test suite")
-	s.network.Cleanup()
-}
-
-// WaitForBlocks waits for blockCount number of blocks to be added to the chain.
-func (s *IntegrationTestSuite) WaitForBlocks(blockCount int) {
-	for i := 0; i < blockCount; i++ {
-		err := s.network.WaitForNextBlock()
-		s.Require().NoError(err)
+	for _, acc := range s.accounts {
+		signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, acc, s.cctx.ChainID)
+		err := signer.QueryAccountNumber(s.cctx.GoContext(), s.cctx.GRPCClient)
+		require.NoError(t, err)
 	}
 }
 
 func (s *IntegrationTestSuite) TestMaxBlockSize() {
-	require := s.Require()
-	assert := s.Assert()
-	val := s.network.Validators[0]
+	t := s.T()
 
 	// tendermint's default tx size limit is 1Mb, so we get close to that
 	equallySized1MbTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
-			s.cfg.TxConfig.TxEncoder(),
-			s.kr,
+			s.ecfg.TxConfig.TxEncoder(),
+			s.cctx.Keyring,
 			c.GRPCClient,
 			950000,
 			1,
 			false,
-			s.cfg.ChainID,
+			s.cctx.ChainID,
 			s.accounts[:20],
 		)
 	}
@@ -117,13 +95,13 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	// 200,000 bytes each = 600,000 total bytes = 600 KiB per transaction.
 	randMultiBlob1MbTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
-			s.cfg.TxConfig.TxEncoder(),
-			s.kr,
+			s.ecfg.TxConfig.TxEncoder(),
+			s.cctx.Keyring,
 			c.GRPCClient,
 			200000, // 200 KiB
 			3,
 			false,
-			s.cfg.ChainID,
+			s.cctx.ChainID,
 			s.accounts[20:40],
 		)
 	}
@@ -134,13 +112,13 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	// txs
 	randoTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
-			s.cfg.TxConfig.TxEncoder(),
-			s.kr,
+			s.ecfg.TxConfig.TxEncoder(),
+			s.cctx.Keyring,
 			c.GRPCClient,
 			50000,
 			8,
 			true,
-			s.cfg.ChainID,
+			s.cctx.ChainID,
 			s.accounts[40:120],
 		)
 	}
@@ -166,70 +144,69 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	}
 	for _, tc := range tests {
 		s.Run(tc.name, func() {
-			txs := tc.txGenerator(val.ClientCtx)
+			txs := tc.txGenerator(s.cctx.Context)
 			hashes := make([]string, len(txs))
 
 			for i, tx := range txs {
-				res, err := val.ClientCtx.BroadcastTxSync(tx)
-				require.NoError(err)
-				assert.Equal(abci.CodeTypeOK, res.Code)
+				res, err := s.cctx.Context.BroadcastTxSync(tx)
+				require.NoError(t, err)
+				assert.Equal(t, abci.CodeTypeOK, res.Code)
 				if res.Code != abci.CodeTypeOK {
 					continue
 				}
 				hashes[i] = res.TxHash
 			}
 
-			s.WaitForBlocks(10)
+			require.NoError(t, s.cctx.WaitForBlocks(10))
 
 			heights := make(map[int64]int)
 			for _, hash := range hashes {
-				resp, err := testnode.QueryTx(val.ClientCtx, hash, true)
-				require.NoError(err)
-				assert.NotNil(resp)
+				resp, err := testnode.QueryTx(s.cctx.Context, hash, true)
+				require.NoError(t, err)
+				assert.NotNil(t, resp)
 				if resp == nil {
 					continue
 				}
-				require.Equal(abci.CodeTypeOK, resp.TxResult.Code, resp.TxResult.Log)
+				require.Equal(t, abci.CodeTypeOK, resp.TxResult.Code, resp.TxResult.Log)
 				heights[resp.Height]++
 				// ensure that some gas was used
-				require.GreaterOrEqual(resp.TxResult.GasUsed, int64(10))
+				require.GreaterOrEqual(t, resp.TxResult.GasUsed, int64(10))
 			}
 
-			require.Greater(len(heights), 0)
+			require.Greater(t, len(heights), 0)
 
 			sizes := []uint64{}
 			// check the square size
 			for height := range heights {
-				node, err := val.ClientCtx.GetNode()
-				require.NoError(err)
+				node, err := s.cctx.Context.GetNode()
+				require.NoError(t, err)
 				blockRes, err := node.Block(context.Background(), &height)
-				require.NoError(err)
+				require.NoError(t, err)
 				size := blockRes.Block.Data.SquareSize
 
 				// perform basic checks on the size of the square
-				require.LessOrEqual(size, uint64(appconsts.DefaultGovMaxSquareSize))
-				require.GreaterOrEqual(size, uint64(appconsts.MinSquareSize))
+				require.LessOrEqual(t, size, uint64(appconsts.DefaultGovMaxSquareSize))
+				require.GreaterOrEqual(t, size, uint64(appconsts.MinSquareSize))
 
 				// assert that the app version is correctly set
-				require.Equal(appconsts.LatestVersion, blockRes.Block.Header.Version.App)
+				require.Equal(t, appconsts.LatestVersion, blockRes.Block.Header.Version.App)
 
 				sizes = append(sizes, size)
 			}
 			// ensure that at least one of the blocks used the max square size
-			assert.Contains(sizes, uint64(appconsts.DefaultGovMaxSquareSize))
+			assert.Contains(t, sizes, uint64(appconsts.DefaultGovMaxSquareSize))
 		})
-		require.NoError(s.network.WaitForNextBlock())
+		require.NoError(t, s.cctx.WaitForNextBlock())
 	}
 }
 
 func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
-	require := s.Require()
-	val := s.network.Validators[0]
+	t := s.T()
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 
 	mustNewBlob := func(ns appns.Namespace, data []byte, shareVersion uint8) *blobtypes.Blob {
 		b, err := blobtypes.NewBlob(ns, data, shareVersion)
-		require.NoError(err)
+		require.NoError(t, err)
 		return b
 	}
 
@@ -277,85 +254,83 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 		s.Run(tc.name, func() {
 			// occasionally this test will error that the mempool is full (code
 			// 20) so we wait a few blocks for the txs to clear
-			s.WaitForBlocks(3)
+			require.NoError(t, s.cctx.WaitForBlocks(3))
 
-			signer := blobtypes.NewKeyringSigner(s.kr, s.accounts[0], val.ClientCtx.ChainID)
-			res, err := blob.SubmitPayForBlob(context.TODO(), signer, val.ClientCtx.GRPCClient, []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
-			require.NoError(err)
-			require.NotNil(res)
-			require.Equal(abci.CodeTypeOK, res.Code, res.Logs)
+			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], s.cctx.ChainID)
+			res, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			require.Equal(t, abci.CodeTypeOK, res.Code, res.Logs)
 		})
 	}
 }
 
 func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 	t := s.T()
-	val := s.network.Validators[0]
 
 	blobTx := blobfactory.RandBlobTxsWithAccounts(
-		s.cfg.TxConfig.TxEncoder(),
-		s.kr,
-		val.ClientCtx.GRPCClient,
+		s.ecfg.TxConfig.TxEncoder(),
+		s.cctx.Keyring,
+		s.cctx.GRPCClient,
 		int(100000),
 		1,
 		false,
-		s.cfg.ChainID,
+		s.cctx.ChainID,
 		s.accounts[:1],
 	)
 
 	btx, isBlob := coretypes.UnmarshalBlobTx(blobTx[0])
 	require.True(t, isBlob)
 
-	res, err := val.ClientCtx.BroadcastTxSync(btx.Tx)
+	res, err := s.cctx.BroadcastTxSync(btx.Tx)
 	require.NoError(t, err)
 	require.Equal(t, blobtypes.ErrNoBlobs.ABCICode(), res.Code)
 }
 
 func (s *IntegrationTestSuite) TestShareInclusionProof() {
-	require := s.Require()
-	val := s.network.Validators[0]
+	t := s.T()
 
 	// generate 100 randomly sized txs (max size == 100kb)
 	txs := blobfactory.RandBlobTxsWithAccounts(
-		s.cfg.TxConfig.TxEncoder(),
-		s.kr,
-		val.ClientCtx.GRPCClient,
+		s.ecfg.TxConfig.TxEncoder(),
+		s.cctx.Keyring,
+		s.cctx.GRPCClient,
 		100000,
 		1,
 		true,
-		s.cfg.ChainID,
+		s.cctx.ChainID,
 		s.accounts[:20],
 	)
 
 	hashes := make([]string, len(txs))
 
 	for i, tx := range txs {
-		res, err := val.ClientCtx.BroadcastTxSync(tx)
-		require.NoError(err)
-		require.Equal(abci.CodeTypeOK, res.Code, res.RawLog)
+		res, err := s.cctx.Context.BroadcastTxSync(tx)
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, res.Code, res.RawLog)
 		hashes[i] = res.TxHash
 	}
 
-	s.WaitForBlocks(10)
+	require.NoError(t, s.cctx.WaitForBlocks(10))
 
 	for _, hash := range hashes {
-		txResp, err := testnode.QueryTx(val.ClientCtx, hash, true)
-		require.NoError(err)
-		require.Equal(abci.CodeTypeOK, txResp.TxResult.Code)
+		txResp, err := testnode.QueryTx(s.cctx.Context, hash, true)
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, txResp.TxResult.Code)
 
-		node, err := val.ClientCtx.GetNode()
-		require.NoError(err)
+		node, err := s.cctx.Context.GetNode()
+		require.NoError(t, err)
 		blockRes, err := node.Block(context.Background(), &txResp.Height)
-		require.NoError(err)
+		require.NoError(t, err)
 
-		require.Equal(appconsts.LatestVersion, blockRes.Block.Header.Version.App)
+		require.Equal(t, appconsts.LatestVersion, blockRes.Block.Header.Version.App)
 
 		_, isBlobTx := coretypes.UnmarshalBlobTx(blockRes.Block.Txs[txResp.Index])
-		require.True(isBlobTx)
+		require.True(t, isBlobTx)
 
 		// get the blob shares
 		shareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(txResp.Index), 0, appconsts.LatestVersion)
-		require.NoError(err)
+		require.NoError(t, err)
 
 		// verify the blob shares proof
 		blobProof, err := node.ProveShares(
@@ -364,7 +339,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 			uint64(shareRange.Start),
 			uint64(shareRange.End),
 		)
-		require.NoError(err)
-		require.NoError(blobProof.Validate(blockRes.Block.DataHash))
+		require.NoError(t, err)
+		require.NoError(t, blobProof.Validate(blockRes.Block.DataHash))
 	}
 }
