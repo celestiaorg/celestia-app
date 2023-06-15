@@ -14,7 +14,7 @@ type path struct {
 // calculateCommitmentPaths calculates all of the paths to subtree roots needed to
 // create the commitment for a given blob.
 func calculateCommitmentPaths(squareSize, start, blobShareLen, subtreeRootThreshold int) []path {
-	start, _ = shares.NextShareIndex(start, blobShareLen, squareSize, subtreeRootThreshold)
+	start = shares.NextShareIndex(start, blobShareLen, squareSize, subtreeRootThreshold)
 	startRow, endRow := start/squareSize, (start+blobShareLen-1)/squareSize
 	normalizedStartIndex := start % squareSize
 	normalizedEndIndex := (start + blobShareLen) - endRow*squareSize

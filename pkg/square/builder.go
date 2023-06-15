@@ -155,7 +155,7 @@ func (b *Builder) Export() (Square, error) {
 	for i, element := range b.blobs {
 		// NextShareIndex returned where the next blob should start so as to comply with the share commitment rules
 		// We fill out the remaining
-		cursor, _ = shares.NextShareIndex(cursor, element.numShares, ss, b.subtreeRootThreshold)
+		cursor = shares.NextShareIndex(cursor, element.numShares, ss, b.subtreeRootThreshold)
 		if i == 0 {
 			nonReservedStart = cursor
 		}
@@ -171,7 +171,7 @@ func (b *Builder) Export() (Square, error) {
 		// If this is not the first blob, we add padding by writing padded shares to the previous blob
 		// (which could be of a different namespace)
 		if i > 0 {
-			if err := blobWriter.WriteNamespacedPaddedShares(padding); err != nil {
+			if err := blobWriter.WriteNamespacePaddingShares(padding); err != nil {
 				return nil, fmt.Errorf("writing padding into sparse shares: %w", err)
 			}
 		}
