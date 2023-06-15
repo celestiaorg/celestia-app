@@ -149,7 +149,6 @@ func TestNextShareIndex(t *testing.T) {
 		name                        string
 		cursor, blobLen, squareSize int
 		expectedIndex               int
-		fits                        bool
 	}
 	tests := []test{
 		{
@@ -157,7 +156,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        0,
 			blobLen:       4,
 			squareSize:    4,
-			fits:          true,
 			expectedIndex: 0,
 		},
 		{
@@ -165,7 +163,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        1,
 			blobLen:       2,
 			squareSize:    4,
-			fits:          true,
 			expectedIndex: 1,
 		},
 		{
@@ -173,7 +170,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        2,
 			blobLen:       2,
 			squareSize:    4,
-			fits:          true,
 			expectedIndex: 2,
 		},
 		{
@@ -181,7 +177,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        3,
 			blobLen:       4,
 			squareSize:    8,
-			fits:          true,
 			expectedIndex: 3,
 		},
 		{
@@ -189,7 +184,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        3,
 			blobLen:       5,
 			squareSize:    8,
-			fits:          true,
 			expectedIndex: 3,
 		},
 		{
@@ -197,7 +191,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        3,
 			blobLen:       2,
 			squareSize:    8,
-			fits:          true,
 			expectedIndex: 3,
 		},
 		{
@@ -205,7 +198,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        3,
 			blobLen:       5,
 			squareSize:    8,
-			fits:          true,
 			expectedIndex: 3,
 		},
 		{
@@ -213,7 +205,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        1,
 			blobLen:       12,
 			squareSize:    16,
-			fits:          true,
 			expectedIndex: 1,
 		},
 		{
@@ -221,7 +212,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        10291,
 			blobLen:       1,
 			squareSize:    128,
-			fits:          true,
 			expectedIndex: 10291,
 		},
 		{
@@ -229,7 +219,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        11,
 			blobLen:       2,
 			squareSize:    8,
-			fits:          true,
 			expectedIndex: 11,
 		},
 		{
@@ -237,7 +226,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        11,
 			blobLen:       11,
 			squareSize:    8,
-			fits:          false,
 			expectedIndex: 11,
 		},
 		{
@@ -245,7 +233,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        11,
 			blobLen:       appconsts.DefaultSubtreeRootThreshold,
 			squareSize:    RoundUpPowerOfTwo(appconsts.DefaultSubtreeRootThreshold),
-			fits:          false,
 			expectedIndex: 11,
 		},
 		{
@@ -253,7 +240,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        64,
 			blobLen:       appconsts.DefaultSubtreeRootThreshold + 1,
 			squareSize:    128,
-			fits:          false,
 			expectedIndex: 64,
 		},
 		{
@@ -261,7 +247,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        64,
 			blobLen:       appconsts.DefaultSubtreeRootThreshold - 1,
 			squareSize:    128,
-			fits:          true,
 			expectedIndex: 64,
 		},
 		{
@@ -269,7 +254,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        1,
 			blobLen:       appconsts.DefaultSubtreeRootThreshold - 1,
 			squareSize:    16,
-			fits:          false,
 			expectedIndex: 1,
 		},
 		{
@@ -277,7 +261,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        1,
 			blobLen:       16256,
 			squareSize:    128,
-			fits:          false,
 			expectedIndex: 128,
 		},
 		{
@@ -285,7 +268,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        1,
 			blobLen:       8192,
 			squareSize:    128,
-			fits:          false,
 			expectedIndex: 128,
 		},
 		{
@@ -293,7 +275,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        1,
 			blobLen:       4096,
 			squareSize:    128,
-			fits:          false,
 			expectedIndex: 64,
 		},
 		{
@@ -301,14 +282,12 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        1,
 			blobLen:       8193,
 			squareSize:    128,
-			fits:          false,
 			expectedIndex: 128,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, fits := NextShareIndex(tt.cursor, tt.blobLen, tt.squareSize, appconsts.DefaultSubtreeRootThreshold)
-			assert.Equal(t, tt.fits, fits)
+			res := NextShareIndex(tt.cursor, tt.blobLen, tt.squareSize, appconsts.DefaultSubtreeRootThreshold)
 			assert.Equal(t, tt.expectedIndex, res)
 		})
 	}
