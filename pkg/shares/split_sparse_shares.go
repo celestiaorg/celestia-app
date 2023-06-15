@@ -90,18 +90,19 @@ func (sss *SparseShareSplitter) RemoveBlob(i int) (int, error) {
 	return initialCount - newCount, nil
 }
 
-// WriteNamespacedPaddedShares adds empty shares using the namespace of the last written share.
-// This is useful to follow the message layout rules. It assumes that at least
-// one share has already been written, if not it panics.
-func (sss *SparseShareSplitter) WriteNamespacedPaddedShares(count int) error {
-	if len(sss.shares) == 0 {
-		return errors.New("cannot write empty namespaced shares on an empty SparseShareSplitter")
-	}
+// WriteNamespacePaddingShares adds padding shares with the namespace of the
+// last written share. This is useful to follow the non-interactive default
+// rules. This function assumes that at least one share has already been
+// written.
+func (sss *SparseShareSplitter) WriteNamespacePaddingShares(count int) error {
 	if count < 0 {
 		return errors.New("cannot write negative namespaced shares")
 	}
 	if count == 0 {
 		return nil
+	}
+	if len(sss.shares) == 0 {
+		return errors.New("cannot write namespace padding shares on an empty SparseShareSplitter")
 	}
 	lastBlob := sss.shares[len(sss.shares)-1]
 	lastBlobNs, err := lastBlob.Namespace()
