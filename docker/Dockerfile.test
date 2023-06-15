@@ -18,7 +18,7 @@ RUN apk add --no-cache $PACKAGES && \
     make install
 
 # Final image
-FROM docker.io/alpine:3.18.0
+FROM docker.io/alpine:3.18.2
 
 # Install ca-certificates
 RUN apk add --no-cache --update ca-certificates
