@@ -538,7 +538,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <p>The share format below is consistent for all blob shares. In other words, the share format below applies to shares with a namespace above <a href="specs/./consensus.html#reserved-namespaces"><code>MAX_RESERVED_NAMESPACE</code></a> but below <a href="specs/./consensus.html#reserved-namespaces"><code>PARITY_SHARE_NAMESPACE</code></a>:</p>
 <ul>
 <li>The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> of a share's raw data is the namespace of that share. Each namespace is comprised  of a namespace version and a namespace ID, which together occupy <code>NAMESPACE_SIZE</code> bytes.</li>
-<li>The next <a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information (denoted by 'info bytes' in Fig.1) with the following structure:
+<li>The next <a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information (denoted by 'info bytes' in figure 1) with the following structure:
 <ul>
 <li>The first 7 bits represent the share version in big endian form (initially, this will be <code>0000000</code> for version <code>0</code>);</li>
 <li>The last bit is a sequence start indicator. The indicator is <code>1</code> if the share is the first share of a sequence or <code>0</code> if the share is a continuation share of a sequence.</li>
@@ -549,9 +549,9 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <li>If there is insufficient blob data to fill the share, the remaining bytes are filled with <code>0</code>.</li>
 </ul>
 <p>First share in a sequence:</p>
-<p><img src="specs/./figures/share_start.svg" alt="fig: share start" /></p>
+<p><img src="specs/./figures/share_start.svg" alt="figure 1: share start" /></p>
 <p>Continuation share in a sequence:</p>
-<p><img src="specs/./figures/share_continuation.svg" alt="fig: share continuation" /></p>
+<p><img src="specs/./figures/share_continuation.svg" alt="figure 2: share continuation" /></p>
 <p>Since blob data that exceeds <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> <code>-</code> <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes will span more than one share, developers MAY choose to encode additional metadata in their raw blob data prior to inclusion in a Celestia block.</p>
 <h2 id="transaction-shares"><a class="header" href="#transaction-shares">Transaction Shares</a></h2>
 <p>In order for clients to parse shares in the middle of a sequence without downloading antecedent shares, Celestia encodes additional metadata in the shares associated with reserved namespaces. At the time of writing this only applies to the <a href="specs/./consensus.html#reserved-namespaces"><code>TRANSACTION_NAMESPACE</code></a> and <a href="specs/./consensus.html#reserved-namespaces"><code>PAY_FOR_BLOB_NAMESPACE</code></a>. This share structure is often referred to as &quot;compact shares&quot; to differentiate from the share structure defined above for blob shares (a.k.a &quot;sparse shares&quot;). In other words, the format below applies to shares with below <a href="specs/./consensus.html#reserved-namespaces"><code>NAMESPACE_ID_MAX_RESERVED</code></a>:</p>
@@ -569,10 +569,10 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <li>If there is insufficient transaction or PayForBlob transaction data to fill the share, the remaining bytes are filled with <code>0</code>.</li>
 </ul>
 <p>First share in a sequence:</p>
-<p><img src="specs/./figures/transaction_share_start.svg" alt="fig: transaction share start" /></p>
+<p><img src="specs/./figures/transaction_share_start.svg" alt="figure 3: transaction share start" /></p>
 <p>where reserved bytes would be <code>38</code> as a binary big endian <code>uint32</code> (<code>[0b00000000, 0b00000000, 0b00000000, 0b00100110]</code>).</p>
 <p>Continuation share in a sequence:</p>
-<p><img src="specs/./figures/transaction_share_continuation.svg" alt="fig: transaction share continuation" /></p>
+<p><img src="specs/./figures/transaction_share_continuation.svg" alt="figure 4: transaction share continuation" /></p>
 <p>where reserved bytes would be <code>80</code> as a binary big endian <code>uint32</code> (<code>[0b00000000, 0b00000000, 0b00000000, 0b01010000]</code>).</p>
 <h2 id="padding"><a class="header" href="#padding">Padding</a></h2>
 <p>Padding shares vary based on namespace but share a common structure:</p>
