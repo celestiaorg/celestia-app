@@ -14,7 +14,7 @@ All available data in a Celestia [block](./data_structures.md#block) is split in
 
 ## Overview
 
-User submitted [blob](../../../x/blob/README.md) data is split into shares (see [share splitting](#share-splitting)) and arranged in a `k * k` matrix (see [arranging available data into shares](./data_structures.md#arranging-available-data-into-shares)) prior to the erasure coding step. Shares in the `k * k` matrix are ordered by namespace and have a common [share format](#share-format).
+User submitted transactions are split into shares (see [share splitting](#share-splitting)) and arranged in a `k * k` matrix (see [arranging available data into shares](./data_structures.md#arranging-available-data-into-shares)) prior to the erasure coding step. Shares in the `k * k` matrix are ordered by namespace and have a common [share format](#share-format).
 
 [Padding](#padding) shares are added to the `k * k` matrix to ensure:
 
