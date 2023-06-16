@@ -25,8 +25,8 @@ import (
 // - That each share commitment in each PFB can be used to verify the inclusion of the blob it corresponds to.
 func FuzzSquare(f *testing.F) {
 	var (
-		normalTxCount int = 12
-		pfbCount      int = 91
+		normalTxCount = 12
+		pfbCount      = 91
 	)
 	f.Add(normalTxCount, pfbCount)
 	f.Fuzz(func(t *testing.T, normalTxCount, pfbCount int) {
