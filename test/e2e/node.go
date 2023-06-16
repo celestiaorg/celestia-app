@@ -134,10 +134,24 @@ func (n *Node) Init(genesis types.GenesisDoc) error {
 		return err
 	}
 
+	err = os.Chmod(nodeKeyFilePath, 0777)
+	if err != nil {
+		return fmt.Errorf("chmod node key: %w", err)
+	}
+
 	// Store the validator signer key for consensus
 	pvKeyPath := filepath.Join(nodeDir, "config", "priv_validator_key.json")
 	pvStatePath := filepath.Join(nodeDir, "data", "priv_validator_state.json")
 	(privval.NewFilePV(n.SignerKey, pvKeyPath, pvStatePath)).Save()
+
+	_, err = n.Instance.ExecuteCommand("mkdir -p /root/.celestia-app/config")
+	if err != nil {
+		return fmt.Errorf("creating config directory: %w", err)
+	}
+	_, err = n.Instance.ExecuteCommand("mkdir -p /root/.celestia-app/data")
+	if err != nil {
+		return fmt.Errorf("creating data directory: %w", err)
+	}
 
 	err = n.Instance.AddFile(configFilePath, filepath.Join("/root/.celestia-app/config", "config.toml"), "0:0")
 	if err != nil {
