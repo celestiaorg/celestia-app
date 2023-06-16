@@ -26,8 +26,7 @@ var defaultSigner = testfactory.RandomAddress().String()
 
 var (
 	// TestMaxBlobSize is the maximum size of each blob in a blob transaction, for testing purposes
-	// it is roughly the size of two rows of a square
-	TestMaxBlobSize = appconsts.ShareSize * appconsts.DefaultSquareSizeUpperBound * 2
+	TestMaxBlobSize = appconsts.ShareSize * 4
 	// TestMaxBlobCount is the maximum number of blobs in a blob transaction, for testing purposes
 	TestMaxBlobCount = 5
 )
