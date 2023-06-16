@@ -34,7 +34,6 @@ func FuzzSquare(f *testing.F) {
 		if normalTxCount < 0 || pfbCount < 0 {
 			t.Skip()
 		}
-		//txs := generateMixedTxs(int(normalTxCount), int(pfbCount), int(blobsPerPfb), int(blobSize))
 		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		txs := GenerateMixedRandomTxs(t, encCfg.TxConfig, normalTxCount, pfbCount)
 
@@ -43,9 +42,10 @@ func FuzzSquare(f *testing.F) {
 		s2, err := square.Construct(orderedTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
 		require.True(t, s.Equals(s2))
-		// check that blockTxs is a subset of allTxs
+		// check that orderedTxs is a subset of all txs
 		require.True(t, contains(txs, orderedTxs))
 
+		// check that the same set of transactions is extracted from the square
 		recomputedTxs, err := square.Deconstruct(s2, encCfg.TxConfig.TxDecoder())
 		require.NoError(t, err)
 		require.Equal(t, orderedTxs, recomputedTxs.ToSliceOfBytes())
