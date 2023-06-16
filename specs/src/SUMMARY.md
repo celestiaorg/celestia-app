@@ -4,6 +4,7 @@
 
 - [Specification](./specs/index.md)
   - [Data Structures](./specs/data_structures.md)
+  - [Shares](./specs/shares.md)
   - [Consensus](./specs/consensus.md)
   - [Block Proposer](./specs/block_proposer.md)
   - [Block Validity Rules](./specs/block_validity_rules.md)
