@@ -18,29 +18,37 @@ import (
 // FuzzSquare uses fuzzing to test the following:
 // - That neither `Construct` or `Reconstruct` panics
 // - That `Construct` never errors
+// - That `Deconstruct` extracts transactions from a square identical to those used for its `Construct`ion.
 // - That `Reconstruct` never errors from the input of `Construct`'s output
 // - That both `Construct` and `Reconstruct` return the same square
 // - That the square can be extended and a data availability header can be generated
 // - That each share commitment in each PFB can be used to verify the inclusion of the blob it corresponds to.
 func FuzzSquare(f *testing.F) {
 	var (
-		normalTxCount uint = 12
-		pfbCount      uint = 91
-		blobsPerPfb   uint = 2
-		blobSize      uint = 812
+		normalTxCount int = 12
+		pfbCount      int = 91
 	)
-	f.Add(normalTxCount, pfbCount, blobsPerPfb, blobSize)
-	f.Fuzz(func(t *testing.T, normalTxCount, pfbCount, blobsPerPfb, blobSize uint) {
+	f.Add(normalTxCount, pfbCount)
+	f.Fuzz(func(t *testing.T, normalTxCount, pfbCount int) {
 		// ignore invalid values
-		if pfbCount > 0 && (blobSize == 0 || blobsPerPfb == 0) {
+		if normalTxCount < 0 || pfbCount < 0 {
 			t.Skip()
 		}
-		txs := generateMixedTxs(int(normalTxCount), int(pfbCount), int(blobsPerPfb), int(blobSize))
+		//txs := generateMixedTxs(int(normalTxCount), int(pfbCount), int(blobsPerPfb), int(blobSize))
+		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+		txs := GenerateMixedRandomTxs(t, encCfg.TxConfig, normalTxCount, pfbCount)
+
 		s, orderedTxs, err := square.Build(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
 		s2, err := square.Construct(orderedTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
 		require.True(t, s.Equals(s2))
+		// check that blockTxs is a subset of allTxs
+		require.True(t, contains(txs, orderedTxs))
+
+		recomputedTxs, err := square.Deconstruct(s2, encCfg.TxConfig.TxDecoder())
+		require.NoError(t, err)
+		require.Equal(t, orderedTxs, recomputedTxs.ToSliceOfBytes())
 
 		cacher := inclusion.NewSubtreeCacher(uint64(s.Size()))
 		eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(s), appconsts.DefaultCodec(), cacher.Constructor)
@@ -68,38 +76,6 @@ func FuzzSquare(f *testing.F) {
 				require.Equal(t, pfb.ShareCommitments[blobIndex], commitment)
 			}
 		}
-	})
-}
-
-// FuzzSquareDeconstruct tests whether square deconstruction function can correctly deconstruct a block back from a given square.
-func FuzzSquareDeconstruct(f *testing.F) {
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	f.Add(13, 34)
-	f.Fuzz(func(t *testing.T, normalTxCount int, pfbCount int) {
-		// skip negative values
-		if normalTxCount < 0 || pfbCount < 0 {
-			t.Skip()
-		}
-		allTxs := GenerateOrderedRandomTxs(t, encCfg.TxConfig, normalTxCount, pfbCount)
-
-		// extract those transaction that fit into the block
-		builtSquare, blockTxs, err := square.Build(allTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
-		require.NoError(t, err)
-
-		// check that blockTxs is a subset of allTxs
-		require.True(t, contains(allTxs, blockTxs))
-
-		// construct the square
-		dataSquare, err := square.Construct(blockTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
-		require.NoError(t, err)
-
-		require.Equal(t, builtSquare, dataSquare)
-
-		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
-		require.NoError(t, err)
-		require.Equal(t, len(blockTxs), len(recomputedTxs.ToSliceOfBytes()))
-		require.Equal(t, blockTxs, recomputedTxs.ToSliceOfBytes())
 	})
 }
 
