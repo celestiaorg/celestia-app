@@ -222,7 +222,7 @@ func TestNextShareIndex(t *testing.T) {
 			expectedIndex: 11,
 		},
 		{
-			name:          "non-interactive default rules for reduced padding diagram",
+			name:          "blob share commitment rules for reduced padding diagram",
 			cursor:        11,
 			blobLen:       11,
 			squareSize:    8,

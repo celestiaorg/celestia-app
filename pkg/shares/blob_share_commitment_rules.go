@@ -9,9 +9,9 @@ import (
 // FitsInSquare uses the non interactive default rules to see if blobs of
 // some lengths will fit in a square of squareSize starting at share index
 // cursor. Returns whether the blobs fit in the square and the number of
-// shares used by blobs. See non-interactive default rules
-// https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
-// https://github.com/celestiaorg/celestia-app/blob/1b80b94a62c8c292f569e2fc576e26299985681a/docs/architecture/adr-009-non-interactive-default-rules-for-reduced-padding.md
+// shares used by blobs. See blob share commitment rules
+// ../../specs/src/specs/data_square_layout.md#blob-share-commitment-rules
+// ../../docs/architecture/adr-013-non-interactive-default-rules-for-reduced-padding.md
 func FitsInSquare(cursor, squareSize, subtreeRootThreshold int, blobShareLens ...int) (bool, int) {
 	if len(blobShareLens) == 0 {
 		if cursor <= squareSize*squareSize {
@@ -30,7 +30,7 @@ func FitsInSquare(cursor, squareSize, subtreeRootThreshold int, blobShareLens ..
 }
 
 // BlobSharesUsedNonInteractiveDefaults returns the number of shares used by a given set
-// of blobs share lengths. It follows the non-interactive default rules and
+// of blobs share lengths. It follows the blob share commitment rules and
 // returns the share indexes for each blob.
 func BlobSharesUsedNonInteractiveDefaults(cursor, squareSize, subtreeRootThreshold int, blobShareLens ...int) (sharesUsed int, indexes []uint32) {
 	start := cursor
@@ -44,7 +44,7 @@ func BlobSharesUsedNonInteractiveDefaults(cursor, squareSize, subtreeRootThresho
 }
 
 // NextShareIndex determines the next index in a square that can be used. It
-// follows the non-interactive default rules defined in ADR013. Assumes
+// follows the blob share commitment rules defined in ADR013. Assumes
 // that all args are non negative, and that squareSize is a power of two.
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
 // https://github.com/celestiaorg/celestia-app/blob/0334749a9e9b989fa0a42b7f011f4a79af8f61aa/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md
