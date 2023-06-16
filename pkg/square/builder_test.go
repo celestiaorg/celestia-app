@@ -82,6 +82,10 @@ func GenerateOrderedRandomTxs(t *testing.T, txConfig client.TxConfig, normalTxCo
 	return coretypes.Txs(txs).ToSliceOfBytes()
 }
 
+func GenerateMixedRandomTxs(t *testing.T, txConfig client.TxConfig, normalTxCount, pfbCount int) [][]byte {
+	return shuffle(GenerateOrderedRandomTxs(t, txConfig, normalTxCount, pfbCount))
+}
+
 func shuffle(slice [][]byte) [][]byte {
 	for i := range slice {
 		j := rand.Intn(i + 1)
