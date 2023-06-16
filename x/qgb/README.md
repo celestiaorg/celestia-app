@@ -70,7 +70,7 @@ To ensure that the normalization process doesn't encounter overflow errors, the 
 
 ### Data commitments
 
-A data commitment is an attestation type representing a request to commit over a set of blocks. It provides an end exclusive range of blocks for orchestrators to sign over and propagate in the QGB P2P network.
+A data commitment is an attestation type representing a request to commit over a set of blocks. It provides an end exclusive range of blocks for orchestrators to sign over and propagate in the QGB P2P network. The range is defined by the param [`DataCommitmentWindow`](https://github.com/celestiaorg/celestia-app/blob/fc83b04c3a5638ac8d415770e38a4046b84fa128/x/qgb/keeper/keeper_data_commitment.go#L44-L50), more on this below.
 
 When an orchestrator sees a newly generated data commitment, it queries the previous valset and checks whether it's part of its validator set. Then, the orchestrator signs the new data commitment and submits that signature to the [QGB P2P network](https://github.com/celestiaorg/orchestrator-relayer/pull/66). Otherwise, it ignores it and waits for new attestations.
 
