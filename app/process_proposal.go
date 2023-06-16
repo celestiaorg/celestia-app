@@ -18,7 +18,6 @@ import (
 const rejectedPropBlockLog = "Rejected proposal block:"
 
 func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.ResponseProcessProposal) {
-
 	// In the case of a panic from an unexpected condition, it is better for the liveness of the
 	// network that we catch it, log an error and vote nil than to crash the node.
 	defer func() {
