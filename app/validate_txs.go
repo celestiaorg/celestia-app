@@ -97,16 +97,6 @@ func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handle
 }
 
 func checkTxValidity(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, tx []byte) (sdk.Context, error) {
-	// catch panics from anteHandlers
-	defer func() {
-		if r := recover(); r != nil {
-			err := recoverHandler(r)
-			if err != nil {
-				logger.Error(err.Error())
-			}
-		}
-	}()
-
 	sdkTx, err := dec(tx)
 	if err != nil {
 		return ctx, err
