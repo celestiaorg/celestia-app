@@ -11,7 +11,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
-	"github.com/tendermint/tendermint/libs/log"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
