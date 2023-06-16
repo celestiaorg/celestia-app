@@ -76,7 +76,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="specs/consensus.html"><strong aria-hidden="true">1.2.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="specs/block_proposer.html"><strong aria-hidden="true">1.3.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="specs/block_validity_rules.html"><strong aria-hidden="true">1.4.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="specs/networking.html"><strong aria-hidden="true">1.5.</strong> Networking</a></li><li class="chapter-item expanded "><a href="specs/public_key_cryptography.html"><strong aria-hidden="true">1.6.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="specs/data_square_layout.html"><strong aria-hidden="true">1.7.</strong> Data Square Layout</a></li></ol></li><li class="chapter-item expanded "><a href="specs/state_machine_modules.html"><strong aria-hidden="true">2.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../x/blob/index.html"><strong aria-hidden="true">2.1.</strong> blob</a></li><li class="chapter-item expanded "><a href="../../x/qgb/index.html"><strong aria-hidden="true">2.2.</strong> qgb</a></li><li class="chapter-item expanded "><a href="../../x/mint/index.html"><strong aria-hidden="true">2.3.</strong> mint</a></li><li class="chapter-item expanded "><a href="../../x/paramfilter/index.html"><strong aria-hidden="true">2.4.</strong> paramfilter</a></li><li class="chapter-item expanded "><a href="../../x/upgrade/index.html"><strong aria-hidden="true">2.5.</strong> upgrade</a></li><li class="chapter-item expanded "><a href="../../x/tokenfilter/index.html"><strong aria-hidden="true">2.6.</strong> tokenfilter</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="specs/shares.html"><strong aria-hidden="true">1.2.</strong> Shares</a></li><li class="chapter-item expanded "><a href="specs/consensus.html"><strong aria-hidden="true">1.3.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="specs/block_proposer.html"><strong aria-hidden="true">1.4.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="specs/block_validity_rules.html"><strong aria-hidden="true">1.5.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="specs/networking.html"><strong aria-hidden="true">1.6.</strong> Networking</a></li><li class="chapter-item expanded "><a href="specs/public_key_cryptography.html"><strong aria-hidden="true">1.7.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="specs/data_square_layout.html"><strong aria-hidden="true">1.8.</strong> Data Square Layout</a></li></ol></li><li class="chapter-item expanded "><a href="specs/state_machine_modules.html"><strong aria-hidden="true">2.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../x/blob/index.html"><strong aria-hidden="true">2.1.</strong> blob</a></li><li class="chapter-item expanded "><a href="../../x/qgb/index.html"><strong aria-hidden="true">2.2.</strong> qgb</a></li><li class="chapter-item expanded "><a href="../../x/mint/index.html"><strong aria-hidden="true">2.3.</strong> mint</a></li><li class="chapter-item expanded "><a href="../../x/paramfilter/index.html"><strong aria-hidden="true">2.4.</strong> paramfilter</a></li><li class="chapter-item expanded "><a href="../../x/upgrade/index.html"><strong aria-hidden="true">2.5.</strong> upgrade</a></li><li class="chapter-item expanded "><a href="../../x/tokenfilter/index.html"><strong aria-hidden="true">2.6.</strong> tokenfilter</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -143,6 +143,7 @@
 <li><a href="./specs/index.html">Specification</a>
 <ul>
 <li><a href="./specs/data_structures.html">Data Structures</a></li>
+<li><a href="./specs/shares.html">Shares</a></li>
 <li><a href="./specs/consensus.html">Consensus</a></li>
 <li><a href="./specs/block_proposer.html">Block Proposer</a></li>
 <li><a href="./specs/block_validity_rules.html">Block Validity Rules</a></li>
@@ -165,9 +166,12 @@
 <div style="break-before: page; page-break-before: always;"></div><h1 id="specification"><a class="header" href="#specification">Specification</a></h1>
 <ul>
 <li><a href="specs/./data_structures.html">Data Structures</a></li>
+<li><a href="specs/./shares.html">Shares</a></li>
 <li><a href="specs/./consensus.html">Consensus</a></li>
 <li><a href="specs/./block_proposer.html">Block Proposer</a></li>
+<li><a href="specs/./block_validity_rules.html">Block Validity Rules</a></li>
 <li><a href="specs/./networking.html">Networking</a></li>
+<li><a href="specs/./public_key_cryptography.html">Public-Key Cryptography</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="data-structures"><a class="header" href="#data-structures">Data Structures</a></h1>
 <!-- toc -->
@@ -339,7 +343,7 @@
 </div>
 <p>A proof for a leaf in a <a href="specs/data_structures.html#binary-merkle-tree">binary Merkle tree</a>, as per Section 2.1.1 of <a href="https://tools.ietf.org/html/rfc6962#section-2.1.1">Certificate Transparency (RFC-6962)</a>.</p>
 <h3 id="namespace-merkle-tree"><a class="header" href="#namespace-merkle-tree">Namespace Merkle Tree</a></h3>
-<p><a href="specs/data_structures.html#share">Shares</a> in Celestia are associated with a provided <em>namespace</em>. The Namespace Merkle Tree (NMT) is a variation of the <a href="https://eprint.iacr.org/2018/642">Merkle Interval Tree</a>, which is itself an extension of the <a href="https://bitcointalk.org/index.php?topic=845978.0">Merkle Sum Tree</a>. It allows for compact proofs around the inclusion or exclusion of shares with particular namespace IDs.</p>
+<p><a href="specs/./shares.html">Shares</a> in Celestia are associated with a provided <em>namespace</em>. The Namespace Merkle Tree (NMT) is a variation of the <a href="https://eprint.iacr.org/2018/642">Merkle Interval Tree</a>, which is itself an extension of the <a href="https://bitcointalk.org/index.php?topic=845978.0">Merkle Sum Tree</a>. It allows for compact proofs around the inclusion or exclusion of shares with particular namespace IDs.</p>
 <p>Nodes contain three fields:</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>n_min</code></td><td><a href="specs/data_structures.html#namespace">Namespace</a></td><td>Min namespace in subtree rooted at this node.</td></tr>
@@ -352,7 +356,7 @@
 node.n_max = 0x0000000000000000
 node.v = 0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 </code></pre>
-<p>For leaf node <code>node</code> of <a href="specs/data_structures.html#share">share</a> data <code>d</code>:</p>
+<p>For leaf node <code>node</code> of <a href="specs/./shares.html">share</a> data <code>d</code>:</p>
 <pre><code class="language-C++">node.n_min = d.namespace
 node.n_max = d.namespace
 node.v = h(0x00, d.namespace, d.rawData)
@@ -382,7 +386,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <p>When verifying an NMT proof, the root hash is checked by reconstructing the root node <code>root_node</code> with the computed <code>root_node.v</code> (computed as with a <a href="specs/data_structures.html#binarymerkletreeinclusionproof">plain Merkle proof</a>) and the provided <code>rootNamespaceMin</code> and <code>rootNamespaceMax</code> as the <code>root_node.n_min</code> and <code>root_node.n_max</code>, respectively.</p>
 <h2 id="erasure-coding"><a class="header" href="#erasure-coding">Erasure Coding</a></h2>
 <p>In order to enable trust-minimized light clients (i.e. light clients that do not rely on an honest majority of validating state assumption), it is critical that light clients can determine whether the data in each block is <em>available</em> or not, without downloading the whole block itself. The technique used here was formally described in the paper <a href="https://arxiv.org/abs/1809.09044">Fraud and Data Availability Proofs: Maximising Light Client Security and Scaling Blockchains with Dishonest Majorities</a>.</p>
-<p>The remainder of the subsections below specify the <a href="specs/data_structures.html#2d-reed-solomon-encoding-scheme">2D Reed-Solomon erasure coding scheme</a> used, along with the format of <a href="specs/data_structures.html#share">shares</a> and how <a href="specs/data_structures.html#available-data">available data</a> is arranged into shares.</p>
+<p>The remainder of the subsections below specify the <a href="specs/data_structures.html#2d-reed-solomon-encoding-scheme">2D Reed-Solomon erasure coding scheme</a> used, along with the format of <a href="specs/./shares.html">shares</a> and how <a href="specs/data_structures.html#available-data">available data</a> is arranged into shares.</p>
 <h3 id="reed-solomon-erasure-coding"><a class="header" href="#reed-solomon-erasure-coding">Reed-Solomon Erasure Coding</a></h3>
 <p>Note that while data is laid out in a two-dimensional square, rows and columns are erasure coded using a standard one-dimensional encoding.</p>
 <p>Reed-Solomon erasure coding is used as the underlying coding scheme. The parameters are:</p>
@@ -396,7 +400,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <h3 id="2d-reed-solomon-encoding-scheme"><a class="header" href="#2d-reed-solomon-encoding-scheme">2D Reed-Solomon Encoding Scheme</a></h3>
 <p>The 2-dimensional data layout is described in this section. The roots of <a href="specs/data_structures.html#namespace-merkle-tree">NMTs</a> for each row and column across four quadrants of data in a <code>2k * 2k</code> matrix of shares, <code>Q0</code> to <code>Q3</code> (shown below), must be computed. In other words, <code>2k</code> row roots and <code>2k</code> column roots must be computed. The row and column roots are stored in the <code>availableDataCommitments</code> of the <a href="specs/data_structures.html#availabledataheader">AvailableDataHeader</a>.</p>
 <p><img src="specs/./figures/rs2d_quadrants.svg" alt="fig: RS2D encoding: data quadrants." /></p>
-<p>The data of <code>Q0</code> is the original data, and the remaining quadrants are parity data. Setting <code>k = availableDataOriginalSquareSize</code>, the original data first must be <a href="specs/data_structures.html#share">split into shares</a> and <a href="specs/data_structures.html#arranging-available-data-into-shares">arranged into a <code>k * k</code> matrix</a>. Then the parity data can be computed.</p>
+<p>The data of <code>Q0</code> is the original data, and the remaining quadrants are parity data. Setting <code>k = availableDataOriginalSquareSize</code>, the original data first must be split into <a href="specs/./shares.html">shares</a> and <a href="specs/data_structures.html#arranging-available-data-into-shares">arranged into a <code>k * k</code> matrix</a>. Then the parity data can be computed.</p>
 <p>Where <code>A -&gt; B</code> indicates that <code>B</code> is computed using <a href="specs/data_structures.html#reed-solomon-erasure-coding">erasure coding</a> from <code>A</code>:</p>
 <ul>
 <li><code>Q0 -&gt; Q1</code> for each row in <code>Q0</code> and <code>Q1</code></li>
@@ -411,71 +415,6 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <p><img src="specs/./figures/rs2d_row.svg" alt="fig: RS2D encoding: a row root." /></p>
 <p>Finally, the <code>availableDataRoot</code> of the block <a href="specs/data_structures.html#header">Header</a> is computed as the Merkle root of the <a href="specs/data_structures.html#binary-merkle-tree">binary Merkle tree</a> with the row and column roots as leaves, in that order.</p>
 <p><img src="specs/./figures/data_root.svg" alt="fig: Available data root." /></p>
-<h3 id="share"><a class="header" href="#share">Share</a></h3>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>namespace</code></td><td><a href="specs/data_structures.html#namespace">Namespace</a></td><td>Namespace of the share.</td></tr>
-<tr><td><code>rawData</code></td><td><code>byte[SHARE_SIZE]</code></td><td>Raw share data.</td></tr>
-</tbody></table>
-</div>
-<p>A share is a fixed-size data chunk associated with a namespace, whose data will be erasure-coded and committed to in <a href="specs/data_structures.html#namespace-merkle-tree">Namespace Merkle trees</a>.</p>
-<p>A sequence is a contiguous set of shares that contain semantically relevant data. A sequence should be parsed together because data may be split across share boundaries. One sequence exists per reserved namespace and per blob.</p>
-<ul>
-<li>The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> of a share's raw data <code>rawData</code> is the namespace of that share.</li>
-<li>The next <a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information with the following structure:
-<ul>
-<li>The first 7 bits represent the share version in big endian form (initially, this will be <code>0000000</code> for version <code>0</code>);</li>
-<li>The last bit is a sequence start indicator, that is <code>1</code> if the share is at the start of a sequence or <code>0</code> if it is a continuation share.</li>
-</ul>
-</li>
-</ul>
-<p>The remainder of a share's raw data <code>rawData</code> is interpreted differently depending on the namespace ID.</p>
-<h4 id="compact-share"><a class="header" href="#compact-share">Compact Share</a></h4>
-<p>For shares <strong>with a reserved namespace ID through <a href="specs/./consensus.html#constants"><code>NAMESPACE_ID_MAX_RESERVED</code></a></strong>:</p>
-<blockquote>
-<p><strong>Note</strong> The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> of a share's raw data <code>rawData</code> is the namespace of that share. The next <a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information.</p>
-</blockquote>
-<ul>
-<li>If this is the first share of a sequence, the next <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> contain a big endian <code>uint32</code> that represents the length of the sequence that follows in bytes.</li>
-<li>The next <a href="specs/./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> bytes are the starting byte of the length of the <a href="specs/data_structures.html#serialization">canonically serialized</a> first request that starts in the share, or <code>0</code> if there is none, as an unsigned <a href="https://developers.google.com/protocol-buffers/docs/encoding">varint</a>.</li>
-<li>The remaining <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> <code>-</code> <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes (only if this is the first share of a sequence) <code>-</code> <a href="specs/./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> bytes are transactions, intermediate state roots, or PayForBlob transaction data. Each transaction, intermediate state root, or PayForBlob transaction is prefixed with a <a href="https://developers.google.com/protocol-buffers/docs/encoding">varint</a> of the length of that unit.</li>
-<li>If there is insufficient transaction, intermediate state root, or PayForBlob transaction data to fill the share, the remaining bytes are filled with <code>0</code>.</li>
-</ul>
-<p>First share in a sequence:</p>
-<p><img src="specs/./figures/compact_start_share.svg" alt="fig: compact start share." /></p>
-<p>where reserved bytes would be <code>42</code> as a binary big endian <code>uint32</code> (<code>[0b00000000, 0b00000000, 0b00000000, 0b00101010]</code>).</p>
-<p>Continuation share in a sequence:</p>
-<p><img src="specs/./figures/compact_continuation_share.svg" alt="fig: compact continuation share." /></p>
-<p>where reserved bytes would be <code>80</code> as a binary big endian <code>uint32</code> (<code>[0b00000000, 0b00000000, 0b00000000, 0b01010000]</code>).</p>
-<h4 id="sparse-share"><a class="header" href="#sparse-share">Sparse Share</a></h4>
-<p>For shares <strong>with a namespace above <a href="specs/./consensus.html#constants"><code>MAX_RESERVED_NAMESPACE</code></a> but below <a href="specs/./consensus.html#constants"><code>PARITY_SHARE_NAMESPACE</code></a></strong>:</p>
-<blockquote>
-<p><strong>Note</strong> The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> of a share's raw data <code>rawData</code> is the namespace of that share. The next <a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information.</p>
-</blockquote>
-<ul>
-<li>If this is the first share of a sequence, the next <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> contain a big endian <code>uint32</code> that represents the length of the sequence that follows in bytes.</li>
-<li>The remaining <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> <code>-</code> <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes (only if this is the first share of a sequence) bytes are blob data. Blob data are opaque bytes of data that are included in the block but do not impact the state. In other words, the remaining bytes have no special meaning and are simply used to store data.</li>
-<li>If there is insufficient blob data to fill the share, the remaining bytes are filled with <code>0</code>.</li>
-</ul>
-<p>First share in a sequence:</p>
-<p><img src="specs/./figures/sparse_start_share.svg" alt="fig: sparse start share." /></p>
-<p>Continuation share in a sequence:</p>
-<p><img src="specs/./figures/sparse_continuation_share.svg" alt="fig: sparse continuation share." /></p>
-<h4 id="parity-share"><a class="header" href="#parity-share">Parity Share</a></h4>
-<p>For shares <strong>with a namespace equal to <a href="specs/./consensus.html#constants"><code>PARITY_SHARE_NAMESPACE</code></a></strong> (i.e. parity shares):</p>
-<ul>
-<li>Bytes carry no special meaning.</li>
-</ul>
-<h4 id="namespace-padding-share"><a class="header" href="#namespace-padding-share">Namespace Padding Share</a></h4>
-<p>A namespace padding share acts as padding between blobs so that the subsequent blob may begin at an index that conforms to the <a href="specs/../specs/data_square_layout.html#blob-share-commitment-rules">blob share commitment rules</a>. A namespace padding share contains the namespace ID of the blob that precedes it in the data square so that the data square can retain the property that all shares are ordered by namespace.</p>
-<p>The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> of a share's raw data <code>rawData</code> is the namespace of the blob that precedes this padding share. The next <a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information. The sequence start indicator is always <code>1</code>. The version bits are filled with the share version. The sequence length is zeroed out. The remaining <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> <code>-</code> <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes are filled with <code>0</code>.</p>
-<h4 id="reserved-padding-share"><a class="header" href="#reserved-padding-share">Reserved Padding Share</a></h4>
-<p>Reserved padding shares are placed after the last reserved namespace share in the data square so that the first blob can start at an index that conforms to blob share commitment rules. Clients can safely ignore the contents of these shares because they don't contain any significant data.</p>
-<p>For shares <strong>with a namespace ID equal to <a href="specs/./consensus.html#constants"><code>RESERVED_PADDING_NAMESPACE</code></a></strong> (i.e. reserved padding shares):</p>
-<p>The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> of a share's raw data <code>rawData</code> is the namespace of that share. The next <a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information. The sequence start indicator is always <code>1</code>. The version bits are filled with the share version. The sequence length is zeroed out. The remaining <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> <code>-</code> <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes are filled with <code>0</code>.</p>
-<h4 id="tail-padding-share"><a class="header" href="#tail-padding-share">Tail Padding Share</a></h4>
-<p>Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients can safely ignore the contents of these shares because they don't contain any significant data.</p>
-<p>For shares <strong>with a namespace ID equal to <a href="specs/./consensus.html#constants"><code>TAIL_PADDING_NAMESPACE</code></a></strong> (i.e. tail padding shares):</p>
-<p>The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> of a share's raw data <code>rawData</code> is the namespace ID of that share, <code>namespaceID</code>. The next <a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information. The sequence start indicator is always <code>1</code>. The version bits are filled with the share version. The sequence length is zeroed out. The remaining <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> <code>-</code> <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes are filled with <code>0</code>.</p>
 <h3 id="arranging-available-data-into-shares"><a class="header" href="#arranging-available-data-into-shares">Arranging Available Data Into Shares</a></h3>
 <p>The previous sections described how some original data, arranged into a <code>k * k</code> matrix, can be extended into a <code>2k * 2k</code> matrix and committed to with NMT roots. This section specifies how <a href="specs/data_structures.html#available-data">available data</a> (which includes <a href="specs/data_structures.html#transactiondata">transactions</a>, <a href="specs/data_structures.html#intermediatestaterootdata">intermediate state roots</a>, PayForBlob transactions, and <a href="specs/data_structures.html#blobdata">blobs</a>) is arranged into the matrix in the first place.</p>
 <p>Then,</p>
@@ -489,7 +428,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 </ol>
 </li>
 <li>Split up the length/request pairs into <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_ID_BYTES</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a>-byte chunks.</li>
-<li>Create a <a href="specs/data_structures.html#share">share</a> out of each chunk. This data has a <em>reserved</em> namespace ID, so the first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>+</code><a href="specs/./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> bytes for these shares must be <a href="specs/data_structures.html#share">set specially</a>.</li>
+<li>Create a <a href="specs/./shares.html">share</a> out of each chunk. This data has a <em>reserved</em> namespace ID, so the first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>+</code><a href="specs/./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> bytes for these shares must be set specially.</li>
 </ol>
 </li>
 <li>Concatenate the lists of shares in the order: transactions, intermediate state roots, PayForBlob transactions.</li>
@@ -502,7 +441,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <li><a href="specs/data_structures.html#serialization">Serialize</a> the blob (individually).</li>
 <li>Compute the length of each serialized blob, <a href="specs/data_structures.html#serialization">serialize the length</a>, and pre-pend the serialized blob with its serialized length.</li>
 <li>Split up the length/blob pairs into <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a>-byte chunks.</li>
-<li>Create a <a href="specs/data_structures.html#share">share</a> out of each chunk. The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> bytes for these shares is <a href="specs/data_structures.html#share">set to the namespace</a>.</li>
+<li>Create a <a href="specs/./shares.html">share</a> out of each chunk. The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a> bytes for these shares is set to the namespace.</li>
 </ol>
 <p>For each blob, it is placed in the available data matrix, with row-major order, as follows:</p>
 <ol>
@@ -526,7 +465,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <h4 id="wrappedtransaction"><a class="header" href="#wrappedtransaction">WrappedTransaction</a></h4>
 <p>Wrapped transactions include additional metadata by the block proposer that is committed to in the <a href="specs/data_structures.html#arranging-available-data-into-shares">available data matrix</a>.</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>index</code></td><td><code>uint64</code></td><td>Index of this transaction in the list of wrapped transactions. This information is lost when splitting transactions into <a href="specs/data_structures.html#share">fixed-sized shares</a>, and needs to be re-added here for fraud proof support. Allows linking a transaction to an <a href="specs/data_structures.html#wrappedintermediatestateroot">intermediate state root</a>.</td></tr>
+<tr><td><code>index</code></td><td><code>uint64</code></td><td>Index of this transaction in the list of wrapped transactions. This information is lost when splitting transactions into fixed-sized <a href="specs/./shares.html">shares</a>, and needs to be re-added here for fraud proof support. Allows linking a transaction to an <a href="specs/data_structures.html#wrappedintermediatestateroot">intermediate state root</a>.</td></tr>
 <tr><td><code>transaction</code></td><td><a href="specs/data_structures.html#transaction">Transaction</a></td><td>Actual transaction.</td></tr>
 <tr><td><code>blobStartIndex</code></td><td><code>uint64</code></td><td><em>Optional, only used if transaction pays for a blob or padding</em>. Share index (in row-major order) of first share of blob this transaction pays for. Needed for light verification of proper blob inclusion.</td></tr>
 </tbody></table>
@@ -541,7 +480,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 </div>
 <h4 id="wrappedintermediatestateroot"><a class="header" href="#wrappedintermediatestateroot">WrappedIntermediateStateRoot</a></h4>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>index</code></td><td><code>uint64</code></td><td>Index of this intermediate state root in the list of intermediate state roots. This information is lost when splitting intermediate state roots into <a href="specs/data_structures.html#share">fixed-sized shares</a>, and needs to be re-added here for fraud proof support. Allows linking an intermediate state root to a <a href="specs/data_structures.html#wrappedtransaction">transaction</a>.</td></tr>
+<tr><td><code>index</code></td><td><code>uint64</code></td><td>Index of this intermediate state root in the list of intermediate state roots. This information is lost when splitting intermediate state roots into fixed-sized <a href="specs/./shares.html">shares</a>, and needs to be re-added here for fraud proof support. Allows linking an intermediate state root to a <a href="specs/data_structures.html#wrappedtransaction">transaction</a>.</td></tr>
 <tr><td><code>intermediateStateRoot</code></td><td><a href="specs/data_structures.html#intermediatestateroot">IntermediateStateRoot</a></td><td>Intermediate state root. Used for fraud proofs.</td></tr>
 </tbody></table>
 </div>
@@ -574,6 +513,99 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 </tbody></table>
 </div>
 <p>In order to compute the <code>consensusHash</code> field in the <a href="specs/data_structures.html#header">block header</a>, the above list of parameters is <a href="specs/data_structures.html#hashing">hashed</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="shares"><a class="header" href="#shares">Shares</a></h1>
+<!-- toc -->
+<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
+<p>All available data in a Celestia <a href="specs/./data_structures.html#block">block</a> is split into fixed-size data chunks known as &quot;shares&quot;. Shares are the atomic unit of the Celestia data square. The shares in a Celestia block are eventually <a href="specs/./data_structures.html#erasure-coding">erasure-coded</a> and committed to in <a href="specs/./data_structures.html#namespace-merkle-tree">Namespace Merkle trees</a> (also see <a href="https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md">NMT spec</a>).</p>
+<h2 id="terms"><a class="header" href="#terms">Terms</a></h2>
+<ul>
+<li><strong>Blob</strong>: User specified data (e.g. a roll-up block) that is associated with exactly one namespace. Blob data are opaque bytes of data that are included in the block but do not impact Celestia's state.</li>
+<li><strong>Share</strong>: A fixed-size data chunk that is associated with exactly one namespace.</li>
+<li><strong>Share sequence</strong>: A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence MUST contain one or more shares. When a <a href="specs/../../../x/blob/README.html">blob</a> is split into shares, it is written to one share sequence. As a result, all shares in a share sequence are typically parsed together because the original blob data may have been split across share boundaries. All transactions in the <a href="specs/./consensus.html#reserved-namespaces"><code>TRANSACTION_NAMESPACE</code></a> are contained in one share sequence. All transactions in the <a href="specs/./consensus.html#reserved-namespaces"><code>PAY_FOR_BLOB_NAMESPACE</code></a> are contained in one share sequence.</li>
+</ul>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>User submitted transactions are split into shares (see <a href="specs/shares.html#share-splitting">share splitting</a>) and arranged in a <code>k * k</code> matrix (see <a href="specs/./data_structures.html#arranging-available-data-into-shares">arranging available data into shares</a>) prior to the erasure coding step. Shares in the <code>k * k</code> matrix are ordered by namespace and have a common <a href="specs/shares.html#share-format">share format</a>.</p>
+<p><a href="specs/shares.html#padding">Padding</a> shares are added to the <code>k * k</code> matrix to ensure:</p>
+<ol>
+<li>Blob sequences start on an index that conforms to <a href="specs/./data_square_layout.html#blob-share-commitment-rules">blob share commitment rules</a> (see <a href="specs/shares.html#namespace-padding-share">namespace padding share</a> and <a href="specs/shares.html#reserved-padding-share">reserved padding share</a>)</li>
+<li>The number of shares in the matrix is a perfect square (see <a href="specs/shares.html#tail-padding-share">tail padding share</a>)</li>
+</ol>
+<h2 id="share-format"><a class="header" href="#share-format">Share Format</a></h2>
+<p>Every share has a fixed size <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a>. The share format below is consistent for all shares:</p>
+<ul>
+<li>The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_VERSION_SIZE</code></a> bytes of a share's raw data is the namespace version of that share (denoted by &quot;namespace version&quot; in the figure below).</li>
+<li>The next <a href="specs/./consensus.html#constants"><code>NAMESPACE_ID_SIZE</code></a> bytes of a share's raw data is the namespace ID of that share (denoted by &quot;namespace id&quot; in the figure below).</li>
+<li>The next <a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information (denoted by &quot;info byte&quot; in the figure below) with the following structure:
+<ul>
+<li>The first 7 bits represent the share version in big endian form (initially, this will be <code>0000000</code> for version <code>0</code>);</li>
+<li>The last bit is a sequence start indicator. The indicator is <code>1</code> if this share is the first share in a sequence or <code>0</code> if this share is a continuation share in a sequence.</li>
+</ul>
+</li>
+<li>If this share is the first share in a sequence, it will include the length of the sequence in bytes. The next <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> represent a big-endian uint32 value (denoted by &quot;sequence length&quot; in the figure below). This length is placed immediately after the <code>SHARE_INFO_BYTES</code> field. It's important to note that shares that are not the first share in a sequence do not contain this field.</li>
+<li>The remaining <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes (if first share) or <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes (if continuation share) are raw data (denoted by &quot;blob1&quot; in the figure below). Typically raw data is the blob payload that user's submit in a <a href="specs/../../../x/blob/README.html">BlobTx</a>. However, raw data can also be transaction data (see <a href="specs/shares.html#transaction-shares">transaction shares</a> below).</li>
+<li>If there is insufficient raw data to fill the share, the remaining bytes are filled with <code>0</code>.</li>
+</ul>
+<p>First share in a sequence:</p>
+<p><img src="specs/./figures/share_start.svg" alt="figure 1: share start" /></p>
+<p>Continuation share in a sequence:</p>
+<p><img src="specs/./figures/share_continuation.svg" alt="figure 2: share continuation" /></p>
+<p>Since raw data that exceeds <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> <code>-</code> <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes will span more than one share, developers MAY choose to encode additional metadata in their raw blob data prior to inclusion in a Celestia block. For example, Celestia transaction shares encode additional metadata in the form of &quot;reserved bytes&quot;.</p>
+<h2 id="transaction-shares"><a class="header" href="#transaction-shares">Transaction Shares</a></h2>
+<p>In order for clients to parse shares in the middle of a sequence without downloading antecedent shares, Celestia encodes additional metadata in the shares associated with reserved namespaces. At the time of writing this only applies to the <a href="specs/./consensus.html#reserved-namespaces"><code>TRANSACTION_NAMESPACE</code></a> and <a href="specs/./consensus.html#reserved-namespaces"><code>PAY_FOR_BLOB_NAMESPACE</code></a>. This share structure is often referred to as &quot;compact shares&quot; to differentiate from the share structure defined above for all shares. It conforms to the common <a href="specs/shares.html#share-format">share format</a> with one additional field, the &quot;reserved bytes&quot; field, which is described below:</p>
+<ul>
+<li>Every transaction share includes <a href="specs/./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> bytes that contain the index of the starting byte of the length of the <a href="specs/./consensus.html#serialization">canonically serialized</a> first transaction that starts in the share, or <code>0</code> if there is none, as a binary big endian <code>uint32</code>. Denoted by &quot;reserved bytes&quot; in the figure below. The <a href="specs/./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> are placed immediately after the <code>SEQUENCE_BYTES</code> if this is the first share in a sequence or immediately after the <code>SHARE_INFO_BYTES</code> if this is a continuation share in a sequence.</li>
+<li>The remaining <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> bytes (if first share) or <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> bytes (if continuation share) are transaction or PayForBlob transaction data (denoted by &quot;tx1&quot; and &quot;tx2&quot; in the figure below). Each transaction or PayForBlob transaction is prefixed with a <a href="https://developers.google.com/protocol-buffers/docs/encoding">varint</a> of the length of that unit (denoted by &quot;len(tx1)&quot; and &quot;len(tx2)&quot; in the figure below).</li>
+<li>If there is insufficient transaction or PayForBlob transaction data to fill the share, the remaining bytes are filled with <code>0</code>.</li>
+</ul>
+<p>First share in a sequence:</p>
+<p><img src="specs/./figures/transaction_share_start.svg" alt="figure 3: transaction share start" /></p>
+<p>where reserved bytes would be <code>38</code> as a binary big endian <code>uint32</code> (<code>[0b00000000, 0b00000000, 0b00000000, 0b00100110]</code>).</p>
+<p>Continuation share in a sequence:</p>
+<p><img src="specs/./figures/transaction_share_continuation.svg" alt="figure 4: transaction share continuation" /></p>
+<p>where reserved bytes would be <code>80</code> as a binary big endian <code>uint32</code> (<code>[0b00000000, 0b00000000, 0b00000000, 0b01010000]</code>).</p>
+<h2 id="padding"><a class="header" href="#padding">Padding</a></h2>
+<p>Padding shares vary based on namespace but they conform to the <a href="specs/shares.html#share-format">share format</a> described above.</p>
+<ul>
+<li>The first <a href="specs/./consensus.html#constants"><code>NAMESPACE_VERSION_SIZE</code></a> bytes of a share's raw data is the namespace version of that share (initially, this will be <code>0</code>).</li>
+<li>The next <a href="specs/./consensus.html#constants"><code>NAMESPACE_ID_SIZE</code></a> bytes of a share's raw data is the namespace ID of that share. This varies based on the type of padding share.</li>
+<li>The next <a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information.
+<ul>
+<li>The first 7 bits represent the share version in big endian form (initially, this will be <code>0000000</code> for version <code>0</code>);</li>
+<li>The last bit is a sequence start indicator. The indicator is always <code>1</code>.</li>
+</ul>
+</li>
+<li>The next <a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> contain a big endian <code>uint32</code> of value <code>0</code>.</li>
+<li>The remaining <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes are filled with <code>0</code>.</li>
+</ul>
+<h3 id="namespace-padding-share"><a class="header" href="#namespace-padding-share">Namespace Padding Share</a></h3>
+<p>A namespace padding share uses the namespace of the blob that precedes it in the data square so that the data square can retain the property that all shares are ordered by namespace.
+A namespace padding share acts as padding between blobs so that the subsequent blob begins at an index that conforms to the <a href="specs/./data_square_layout.html#blob-share-commitment-rules">blob share commitment rules</a>. Clients MAY ignore the contents of these shares because they don't contain any significant data.</p>
+<h3 id="reserved-padding-share"><a class="header" href="#reserved-padding-share">Reserved Padding Share</a></h3>
+<p>Reserved padding shares use the <a href="specs/./consensus.html#constants"><code>RESERVED_PADDING_NAMESPACE</code></a>. Reserved padding shares are placed after the last reserved namespace share in the data square so that the first blob can start at an index that conforms to blob share commitment rules. Clients MAY ignore the contents of these shares because they don't contain any significant data.</p>
+<h3 id="tail-padding-share"><a class="header" href="#tail-padding-share">Tail Padding Share</a></h3>
+<p>Tail padding shares use the <a href="specs/./consensus.html#constants"><code>TAIL_PADDING_NAMESPACE</code></a>. Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients MAY ignore the contents of these shares because they don't contain any significant data.</p>
+<h2 id="parity-share"><a class="header" href="#parity-share">Parity Share</a></h2>
+<p>Parity shares use the <a href="specs/./consensus.html#constants"><code>PARITY_SHARE_NAMESPACE</code></a>. Parity shares are the output of the erasure coding step of the data square construction process. They occupy quadrants Q1, Q2, and Q3 of the extended data square and are used to reconstruct the original data square (Q0). Bytes carry no special meaning.</p>
+<h2 id="share-splitting"><a class="header" href="#share-splitting">Share Splitting</a></h2>
+<p>Share splitting is the process of converting a blob into a share sequence. The process is as follows:</p>
+<ol>
+<li>Create a new share and populate the prefix of the share with the blob's namespace and share version. Set the sequence start indicator to <code>1</code>. Write the blob length as the sequence length. Write the blob's data into the share until the share is full.</li>
+<li>If there is more data to write, create a new share (a.k.a continuation share) and populate the prefix of the share with the blob's namespace and share version. Set the sequence start indicator to <code>0</code>. Write the remaining blob data into the share until the share is full.</li>
+<li>Repeat the previous step until all blob data has been written.</li>
+<li>If the last share is not full, fill the remainder of the share with <code>0</code>.</li>
+</ol>
+<h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
+<ul>
+<li>Shares are assumed to be byte slices of length 512. Parsing shares of a different length WILL result in an error.</li>
+</ul>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<p>See <a href="specs/../../../pkg/shares">pkg/shares</a>.</p>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
+<ol>
+<li><a href="specs/../../../docs/architecture/adr-012-sequence-length-encoding.html">ADR-012</a></li>
+<li><a href="specs/../../../docs/architecture/adr-014-versioned-namespaces.html">ADR-014</a></li>
+<li><a href="specs/../../../docs/architecture/adr-015-namespace-id-size.html">ADR-015</a></li>
+</ol>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="consensus-rules"><a class="header" href="#consensus-rules">Consensus Rules</a></h1>
 <!-- toc -->
 <h2 id="system-parameters"><a class="header" href="#system-parameters">System Parameters</a></h2>
@@ -600,7 +632,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <tr><td><code>NAMESPACE_ID_MAX_RESERVED</code></td><td><code>uint64</code></td><td><code>255</code></td><td></td><td>Value of maximum reserved namespace (inclusive). 1 byte worth of IDs.</td></tr>
 <tr><td><code>SEQUENCE_BYTES</code></td><td><code>uint64</code></td><td><code>4</code></td><td><code>byte</code></td><td>The number of bytes used to store the sequence length in the first share of a sequence</td></tr>
 <tr><td><code>SHARE_INFO_BYTES</code></td><td><code>uint64</code></td><td><code>1</code></td><td><code>byte</code></td><td>The number of bytes used for <a href="specs/data_structures.html#share">share</a> information</td></tr>
-<tr><td><code>SHARE_RESERVED_BYTES</code></td><td><code>uint64</code></td><td><code>4</code></td><td><code>byte</code></td><td>The number of bytes used to store the location of the first unit in a compact share. Must be able to represent any integer up to and including <code>SHARE_SIZE - 1</code>.</td></tr>
+<tr><td><code>SHARE_RESERVED_BYTES</code></td><td><code>uint64</code></td><td><code>4</code></td><td><code>byte</code></td><td>The number of bytes used to store the index of the first transaction in a transaction share. Must be able to represent any integer up to and including <code>SHARE_SIZE - 1</code>.</td></tr>
 <tr><td><code>SHARE_SIZE</code></td><td><code>uint64</code></td><td><code>512</code></td><td><code>byte</code></td><td>Size of transaction and blob <a href="specs/data_structures.html#share">shares</a>, in bytes.</td></tr>
 <tr><td><code>STATE_SUBTREE_RESERVED_BYTES</code></td><td><code>uint64</code></td><td><code>1</code></td><td><code>byte</code></td><td>Number of bytes reserved to identify state subtrees.</td></tr>
 <tr><td><code>UNBONDING_DURATION</code></td><td><code>uint32</code></td><td></td><td><code>block</code></td><td>Duration, in blocks, for unbonding a validator or delegation.</td></tr>
@@ -612,6 +644,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>value</th><th>description</th></tr></thead><tbody>
 <tr><td><code>TRANSACTION_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000001</code></td><td>Transactions: requests that modify the state.</td></tr>
 <tr><td><code>INTERMEDIATE_STATE_ROOT_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000002</code></td><td>Intermediate state roots, committed after every transaction.</td></tr>
+<tr><td><code>PAY_FOR_BLOB_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000004</code></td><td>Namespace reserved for transactions that contain a PayForBlob.</td></tr>
 <tr><td><code>RESERVED_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Padding after all reserved namespaces but before blobs.</td></tr>
 <tr><td><code>MAX_RESERVED_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Max reserved namespace is lexicographically the largest namespace that is reserved for protocol use.</td></tr>
 <tr><td><code>TAIL_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE</code></td><td>Tail padding for blobs: padding after all blobs to fill up the original data square.</td></tr>
@@ -1451,7 +1484,7 @@ With the above constraint, we can compute subtree roots deterministically. For e
 <li><a href="https://github.com/celestiaorg/cosmos-sdk/tree/v1.14.0-sdk-v0.46.11/x/auth/vesting">vesting</a> (no spec)</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xblob"><a class="header" href="#xblob"><code>x/blob</code></a></h1>
-<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
+<h2 id="abstract-1"><a class="header" href="#abstract-1">Abstract</a></h2>
 <p>The <code>x/blob</code> module enables users to pay for arbitrary data to be published to the Celestia blockchain. Users create a single <code>BlobTx</code> that is composed of:</p>
 <ol>
 <li>Multiple <code>Blob</code>s (Binary Large OBjects): the data they wish to publish. A single <code>Blob</code> is composed of:
@@ -1512,7 +1545,7 @@ With the above constraint, we can compute subtree roots deterministically. For e
 <li>The share commitment of this blob is the Merkle root of the Merkle tree from the previous step.</li>
 </ol>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xqgb"><a class="header" href="#xqgb"><code>x/qgb</code></a></h1>
-<h2 id="abstract-1"><a class="header" href="#abstract-1">Abstract</a></h2>
+<h2 id="abstract-2"><a class="header" href="#abstract-2">Abstract</a></h2>
 <p>This module contains the <a href="https://blog.celestia.org/celestiums/">Quantum Gravity Bridge</a> (QGB) state machine implementation.</p>
 <h2 id="state-machine"><a class="header" href="#state-machine">State machine</a></h2>
 <p>The QGB state machine handles the creation of <a href="https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/x/qgb/types/attestation.go#L15-L23"><code>AttestationRequestI</code></a> which can be either a <a href="https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/proto/qgb/types.proto#L31-L47"><code>DataCommitment</code></a> or a <a href="https://github.com/celestiaorg/celestia-app/blob/801a0d412631989ce97748badbd7bb676982db16/proto/qgb/types.proto#L17-L29"><code>Valset</code></a>.</p>
@@ -1641,7 +1674,7 @@ Use &quot;celestia-appd verify [command] --help&quot; for more information about
 <p>QGB v1 implementation, including the orchestrator and relayer, is in the <a href="https://github.com/celestiaorg/celestia-app/tree/qgb-integration">qgb-integration</a> branch.</p>
 <p>QGB ADRs are in the <a href="https://github.com/celestiaorg/celestia-app/tree/main/docs/architecture">docs</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xmint"><a class="header" href="#xmint"><code>x/mint</code></a></h1>
-<h2 id="abstract-2"><a class="header" href="#abstract-2">Abstract</a></h2>
+<h2 id="abstract-3"><a class="header" href="#abstract-3">Abstract</a></h2>
 <p>celestia-app's <code>x/mint</code> is a fork of the Cosmos SDK <a href="https://github.com/cosmos/cosmos-sdk/tree/5cd0b2316a7103468af38eab5d886f9f069c9cd7/x/mint"><code>x/mint</code></a> module that makes some changes to the inflation mechanism. The changes were motivated by a desire for Celestia to have a pre-determined inflation schedule. See <a href="../../x/mint/../../docs/architecture/adr-019-strict-inflation-schedule.html">ADR-019</a> for more details.</p>
 <h3 id="inflation-schedule"><a class="header" href="#inflation-schedule">Inflation Schedule</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Year</th><th>Inflation (%)</th></tr></thead><tbody>
@@ -1672,7 +1705,7 @@ Use &quot;celestia-appd verify [command] --help&quot; for more information about
 <li><strong>Year</strong> indicates the number of years elapsed since chain genesis.</li>
 <li><strong>Inflation (%)</strong> indicates the percentage of the total supply that will be minted in the next year.</li>
 </ul>
-<h2 id="terms"><a class="header" href="#terms">Terms</a></h2>
+<h2 id="terms-1"><a class="header" href="#terms-1">Terms</a></h2>
 <ul>
 <li><strong>Inflation Rate</strong>: The percentage of the total supply that will be minted each year. The inflation rate is calculated once per year on the anniversary of chain genesis based on the number of years elapsed since genesis. The inflation rate is calculated as <code>InitialInflationRate * ((1 - DisinflationRate) ^ YearsSinceGenesis)</code>. See <a href="../../x/mint/./types/constants.go">./types/constants.go</a> for the constants used in this module.</li>
 <li><strong>Annual Provisions</strong>: The total amount of tokens that will be minted each year. Annual provisions are calculated once per year on the anniversary of chain genesis based on the total supply and the inflation rate. Annual provisions are calculated as <code>TotalSupply * InflationRate</code></li>
@@ -1701,7 +1734,7 @@ Use &quot;celestia-appd verify [command] --help&quot; for more information about
 <p>All params have been removed from this module because they should not be modifiable via governance.</p>
 <h2 id="tests"><a class="header" href="#tests">Tests</a></h2>
 <p>See <a href="../../x/mint/./test/mint_test.go">./test/mint_test.go</a> for an integration test suite for this module.</p>
-<h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
+<h2 id="assumptions-and-considerations-1"><a class="header" href="#assumptions-and-considerations-1">Assumptions and Considerations</a></h2>
 <p>This module assumes <code>DaysPerYear = 365.2425</code> so when modifying tests, developers must define durations based on this assumption because ordinary durations won't return the expected results. In other words:</p>
 <pre><code class="language-go">// oneYear is 31,556,952 seconds which will likely return expected results in tests
 oneYear := time.Duration(minttypes.NanosecondsPerYear)
@@ -1709,14 +1742,14 @@ oneYear := time.Duration(minttypes.NanosecondsPerYear)
 // oneYear is 31,536,000 seconds which will likely return unexpected results in tests
 oneYear := time.Hour * 24 * 365
 </code></pre>
-<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
 <p>See <a href="../../x/mint/../../x/mint">x/mint</a> for the implementation of this module.</p>
-<h2 id="references"><a class="header" href="#references">References</a></h2>
+<h2 id="references-1"><a class="header" href="#references-1">References</a></h2>
 <ol>
 <li><a href="../../x/mint/../../docs/architecture/adr-019-strict-inflation-schedule.html">ADR-019</a></li>
 </ol>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xparamfilter"><a class="header" href="#xparamfilter"><code>x/paramfilter</code></a></h1>
-<h2 id="abstract-3"><a class="header" href="#abstract-3">Abstract</a></h2>
+<h2 id="abstract-4"><a class="header" href="#abstract-4">Abstract</a></h2>
 <p>The paramfilter module allows for specific parameters to be added to a block
 list, so that they cannot be changed by governance proposals. If a proposal
 contains a single blocked parameter change, then none of the parameters are
@@ -1769,13 +1802,13 @@ func NewApp(...) *App {
 }
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xupgrade"><a class="header" href="#xupgrade"><code>x/upgrade</code></a></h1>
-<h2 id="abstract-4"><a class="header" href="#abstract-4">Abstract</a></h2>
+<h2 id="abstract-5"><a class="header" href="#abstract-5">Abstract</a></h2>
 <p>The upgrade module removes the entrypoints to the standard upgrade module by not
 registering a message server. It registers the standard upgrade module types to
 preserve the ability to marshal them. Note that the keeper of the standard
 upgrade module is still added to the application.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="ibc-token-filter"><a class="header" href="#ibc-token-filter">IBC Token Filter</a></h1>
-<h2 id="abstract-5"><a class="header" href="#abstract-5">Abstract</a></h2>
+<h2 id="abstract-6"><a class="header" href="#abstract-6">Abstract</a></h2>
 <p>The IBC token filter prevents non-native tokens from being transferred through the IBC transfer module from a counterparty chain to the host chain. This is useful if a chain wishes to only permit
 their native token within their state machine.</p>
 <h2 id="context"><a class="header" href="#context">Context</a></h2>
@@ -1786,7 +1819,7 @@ their native token within their state machine.</p>
 <p>The protocol targets inbound packets only. Outbound transfer messages are left unmodified. When a packet is sent to the IBC transfer module (denoted by the <code>transfer</code> port id), the token filter intercepts the message and attempts to unmarshal it as a <code>FungibleTokenPacketData</code>. If unmarshalling fails, the protocol should simply pass it down the stack for it to be handled elsewhere.</p>
 <p>When tokens are transferred the token filter checks if the denomination is prefixed with the source port and channel of the packet. If so it passes the packet along for the transfer module to handle, else it returns a new error acknowledgement which will be returned to the sending chain.</p>
 <p>The protocol does not check the length of the path that prefixes the base denomination i.e. it may still contain multiple ports and channels like <code>portidtwo/channel-1/portidone/channel-0/a</code>. This means that it may not be the native token but any other token that had previously passed through the state machine. This means if a chain were to adopt the middleware with existing state, the prior tokens may still unwind through that chain. For chains that commence using this middleware, no other token but the native denominations will be present.</p>
-<h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
+<h2 id="implementation-2"><a class="header" href="#implementation-2">Implementation</a></h2>
 <p>The token filter is implemented as IBC middleware. It wraps the IBC transfer module. All other methods get routed directly to the underlying transfer module except for <code>OnRecvPacket</code> which adds extra logic before calling the <code>OnRecvPacket</code> method of the transfer module.</p>
 <p>The transfer module already includes a <code>ReceiverChainIsSource</code> method. The basic logic is therefore:</p>
 <pre><code class="language-go">if transfertypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
