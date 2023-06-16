@@ -18,7 +18,7 @@ User submitted transactions are split into shares (see [share splitting](#share-
 
 [Padding](#padding) shares are added to the `k * k` matrix to ensure:
 
-1. Blob sequences start on an index that conforms to [non-interactive default rules](../rationale/data_square_layout.md#non-interactive-default-rules) (see [namespace padding share](#namespace-padding-share) and [reserved padding share](#reserved-padding-share))
+1. Blob sequences start on an index that conforms to [blob share commitment rules](./data_square_layout.md#blob-share-commitment-rules) (see [namespace padding share](#namespace-padding-share) and [reserved padding share](#reserved-padding-share))
 1. The number of shares in the matrix is a perfect square (see [tail padding share](#tail-padding-share))
 
 ## Share Format
@@ -79,11 +79,11 @@ Padding shares vary based on namespace but they conform to the [share format](#s
 ### Namespace Padding Share
 
 A namespace padding share uses the namespace of the blob that precedes it in the data square so that the data square can retain the property that all shares are ordered by namespace.
-A namespace padding share acts as padding between blobs so that the subsequent blob begins at an index that conforms to the [non-interactive default rules](../rationale/data_square_layout.md#non-interactive-default-rules). Clients MAY ignore the contents of these shares because they don't contain any significant data.
+A namespace padding share acts as padding between blobs so that the subsequent blob begins at an index that conforms to the [blob share commitment rules](./data_square_layout.md#blob-share-commitment-rules). Clients MAY ignore the contents of these shares because they don't contain any significant data.
 
 ### Reserved Padding Share
 
-Reserved padding shares use the [`RESERVED_PADDING_NAMESPACE`](./consensus.md#constants). Reserved padding shares are placed after the last reserved namespace share in the data square so that the first blob can start at an index that conforms to non-interactive default rules. Clients MAY ignore the contents of these shares because they don't contain any significant data.
+Reserved padding shares use the [`RESERVED_PADDING_NAMESPACE`](./consensus.md#constants). Reserved padding shares are placed after the last reserved namespace share in the data square so that the first blob can start at an index that conforms to blob share commitment rules. Clients MAY ignore the contents of these shares because they don't contain any significant data.
 
 ### Tail Padding Share
 
