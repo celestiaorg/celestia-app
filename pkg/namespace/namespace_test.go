@@ -73,6 +73,52 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestNewV0(t *testing.T) {
+	type testCase struct {
+		name    string
+		subID   []byte
+		want    Namespace
+		wantErr bool
+	}
+
+	testCases := []testCase{
+		{
+			name:  "valid namespace",
+			subID: bytes.Repeat([]byte{1}, NamespaceVersionZeroIDSize),
+			want: Namespace{
+				Version: NamespaceVersionZero,
+				ID:      append(NamespaceVersionZeroPrefix, bytes.Repeat([]byte{1}, NamespaceVersionZeroIDSize)...),
+			},
+			wantErr: false,
+		},
+		{
+			name:  "left pads subID if too short",
+			subID: []byte{1, 2, 3, 4},
+			want: Namespace{
+				Version: NamespaceVersionZero,
+				ID:      append(NamespaceVersionZeroPrefix, []byte{0, 0, 0, 0, 0, 0, 1, 2, 3, 4}...),
+			},
+			wantErr: false,
+		},
+		{
+			name:    "invalid namespace because subID is too long",
+			subID:   bytes.Repeat([]byte{1}, NamespaceVersionZeroIDSize+1),
+			want:    Namespace{},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		got, err := NewV0(tc.subID)
+		if tc.wantErr {
+			assert.Error(t, err)
+			return
+		}
+		assert.NoError(t, err)
+		assert.Equal(t, tc.want, got)
+	}
+}
+
 func TestFrom(t *testing.T) {
 	type testCase struct {
 		name    string
