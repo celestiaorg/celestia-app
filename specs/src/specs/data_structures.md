@@ -231,7 +231,7 @@ A proof for a leaf in a [binary Merkle tree](#binary-merkle-tree), as per Sectio
 
 ### Namespace Merkle Tree
 
-[Shares](#share) in Celestia are associated with a provided _namespace_. The Namespace Merkle Tree (NMT) is a variation of the [Merkle Interval Tree](https://eprint.iacr.org/2018/642), which is itself an extension of the [Merkle Sum Tree](https://bitcointalk.org/index.php?topic=845978.0). It allows for compact proofs around the inclusion or exclusion of shares with particular namespace IDs.
+[Shares](./shares.md) in Celestia are associated with a provided _namespace_. The Namespace Merkle Tree (NMT) is a variation of the [Merkle Interval Tree](https://eprint.iacr.org/2018/642), which is itself an extension of the [Merkle Sum Tree](https://bitcointalk.org/index.php?topic=845978.0). It allows for compact proofs around the inclusion or exclusion of shares with particular namespace IDs.
 
 Nodes contain three fields:
 
@@ -249,7 +249,7 @@ node.n_max = 0x0000000000000000
 node.v = 0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 ```
 
-For leaf node `node` of [share](#share) data `d`:
+For leaf node `node` of [share](./shares.md) data `d`:
 
 ```C++
 node.n_min = d.namespace
@@ -294,7 +294,7 @@ When verifying an NMT proof, the root hash is checked by reconstructing the root
 
 In order to enable trust-minimized light clients (i.e. light clients that do not rely on an honest majority of validating state assumption), it is critical that light clients can determine whether the data in each block is _available_ or not, without downloading the whole block itself. The technique used here was formally described in the paper [Fraud and Data Availability Proofs: Maximising Light Client Security and Scaling Blockchains with Dishonest Majorities](https://arxiv.org/abs/1809.09044).
 
-The remainder of the subsections below specify the [2D Reed-Solomon erasure coding scheme](#2d-reed-solomon-encoding-scheme) used, along with the format of [shares](#share) and how [available data](#available-data) is arranged into shares.
+The remainder of the subsections below specify the [2D Reed-Solomon erasure coding scheme](#2d-reed-solomon-encoding-scheme) used, along with the format of [shares](./shares.md) and how [available data](#available-data) is arranged into shares.
 
 ### Reed-Solomon Erasure Coding
 
@@ -315,7 +315,7 @@ The 2-dimensional data layout is described in this section. The roots of [NMTs](
 
 ![fig: RS2D encoding: data quadrants.](./figures/rs2d_quadrants.svg)
 
-The data of `Q0` is the original data, and the remaining quadrants are parity data. Setting `k = availableDataOriginalSquareSize`, the original data first must be [split into shares](#share) and [arranged into a `k * k` matrix](#arranging-available-data-into-shares). Then the parity data can be computed.
+The data of `Q0` is the original data, and the remaining quadrants are parity data. Setting `k = availableDataOriginalSquareSize`, the original data first must be split into [shares](./shares.md) and [arranged into a `k * k` matrix](#arranging-available-data-into-shares). Then the parity data can be computed.
 
 Where `A -> B` indicates that `B` is computed using [erasure coding](#reed-solomon-erasure-coding) from `A`:
 
@@ -339,93 +339,6 @@ Finally, the `availableDataRoot` of the block [Header](#header) is computed as t
 
 ![fig: Available data root.](./figures/data_root.svg)
 
-### Share
-
-| name        | type                    | description             |
-|-------------|-------------------------|-------------------------|
-| `namespace` | [Namespace](#namespace) | Namespace of the share. |
-| `rawData`   | `byte[SHARE_SIZE]`      | Raw share data.         |
-
-A share is a fixed-size data chunk associated with a namespace, whose data will be erasure-coded and committed to in [Namespace Merkle trees](#namespace-merkle-tree).
-
-A sequence is a contiguous set of shares that contain semantically relevant data. A sequence should be parsed together because data may be split across share boundaries. One sequence exists per reserved namespace and per blob.
-
-- The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `rawData` is the namespace of that share.
-- The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information with the following structure:
-  - The first 7 bits represent the share version in big endian form (initially, this will be `0000000` for version `0`);
-  - The last bit is a sequence start indicator, that is `1` if the share is at the start of a sequence or `0` if it is a continuation share.
-
-The remainder of a share's raw data `rawData` is interpreted differently depending on the namespace ID.
-
-#### Compact Share
-
-For shares **with a reserved namespace ID through [`NAMESPACE_ID_MAX_RESERVED`](./consensus.md#constants)**:
-
-> **Note** The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `rawData` is the namespace of that share. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information.
-
-- If this is the first share of a sequence, the next [`SEQUENCE_BYTES`](./consensus.md#constants) contain a big endian `uint32` that represents the length of the sequence that follows in bytes.
-- The next [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are the starting byte of the length of the [canonically serialized](#serialization) first request that starts in the share, or `0` if there is none, as an unsigned [varint](https://developers.google.com/protocol-buffers/docs/encoding).
-- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes (only if this is the first share of a sequence) `-` [`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes are transactions, intermediate state roots, or PayForBlob transaction data. Each transaction, intermediate state root, or PayForBlob transaction is prefixed with a [varint](https://developers.google.com/protocol-buffers/docs/encoding) of the length of that unit.
-- If there is insufficient transaction, intermediate state root, or PayForBlob transaction data to fill the share, the remaining bytes are filled with `0`.
-
-First share in a sequence:
-
-![fig: compact start share.](./figures/compact_start_share.svg)
-
-where reserved bytes would be `42` as a binary big endian `uint32` (`[0b00000000, 0b00000000, 0b00000000, 0b00101010]`).
-
-Continuation share in a sequence:
-
-![fig: compact continuation share.](./figures/compact_continuation_share.svg)
-
-where reserved bytes would be `80` as a binary big endian `uint32` (`[0b00000000, 0b00000000, 0b00000000, 0b01010000]`).
-
-#### Sparse Share
-
-For shares **with a namespace above [`MAX_RESERVED_NAMESPACE`](./consensus.md#constants) but below [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants)**:
-
-> **Note** The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `rawData` is the namespace of that share. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information.
-
-- If this is the first share of a sequence, the next [`SEQUENCE_BYTES`](./consensus.md#constants) contain a big endian `uint32` that represents the length of the sequence that follows in bytes.
-- The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes (only if this is the first share of a sequence) bytes are blob data. Blob data are opaque bytes of data that are included in the block but do not impact the state. In other words, the remaining bytes have no special meaning and are simply used to store data.
-- If there is insufficient blob data to fill the share, the remaining bytes are filled with `0`.
-
-First share in a sequence:
-
-![fig: sparse start share.](./figures/sparse_start_share.svg)
-
-Continuation share in a sequence:
-
-![fig: sparse continuation share.](./figures/sparse_continuation_share.svg)
-
-#### Parity Share
-
-For shares **with a namespace equal to [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants)** (i.e. parity shares):
-
-- Bytes carry no special meaning.
-
-#### Namespace Padding Share
-
-A namespace padding share acts as padding between blobs so that the subsequent blob may begin at an index that conforms to the [blob share commitment rules](../specs/data_square_layout.md#blob-share-commitment-rules). A namespace padding share contains the namespace ID of the blob that precedes it in the data square so that the data square can retain the property that all shares are ordered by namespace.
-
-The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `rawData` is the namespace of the blob that precedes this padding share. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information. The sequence start indicator is always `1`. The version bits are filled with the share version. The sequence length is zeroed out. The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes are filled with `0`.
-
-#### Reserved Padding Share
-
-Reserved padding shares are placed after the last reserved namespace share in the data square so that the first blob can start at an index that conforms to blob share commitment rules. Clients can safely ignore the contents of these shares because they don't contain any significant data.
-
-For shares **with a namespace ID equal to [`RESERVED_PADDING_NAMESPACE`](./consensus.md#constants)** (i.e. reserved padding shares):
-
-The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `rawData` is the namespace of that share. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information. The sequence start indicator is always `1`. The version bits are filled with the share version. The sequence length is zeroed out. The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes are filled with `0`.
-
-#### Tail Padding Share
-
-Tail padding shares are placed after the last blob in the data square so that the number of shares in the data square is a perfect square. Clients can safely ignore the contents of these shares because they don't contain any significant data.
-
-For shares **with a namespace ID equal to [`TAIL_PADDING_NAMESPACE`](./consensus.md#constants)** (i.e. tail padding shares):
-
-The first [`NAMESPACE_SIZE`](./consensus.md#constants) of a share's raw data `rawData` is the namespace ID of that share, `namespaceID`. The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information. The sequence start indicator is always `1`. The version bits are filled with the share version. The sequence length is zeroed out. The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes are filled with `0`.
-
 ### Arranging Available Data Into Shares
 
 The previous sections described how some original data, arranged into a `k * k` matrix, can be extended into a `2k * 2k` matrix and committed to with NMT roots. This section specifies how [available data](#available-data) (which includes [transactions](#transactiondata), [intermediate state roots](#intermediatestaterootdata), PayForBlob transactions, and [blobs](#blobdata)) is arranged into the matrix in the first place.
@@ -437,7 +350,7 @@ Then,
         1. [Serialize](#serialization) the request (individually).
         1. Compute the length of each serialized request, [serialize the length](#serialization), and pre-pend the serialized request with its serialized length.
     1. Split up the length/request pairs into [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_ID_BYTES`](./consensus.md#constants)`-`[`SHARE_RESERVED_BYTES`](./consensus.md#constants)-byte chunks.
-    1. Create a [share](#share) out of each chunk. This data has a _reserved_ namespace ID, so the first [`NAMESPACE_SIZE`](./consensus.md#constants)`+`[`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes for these shares must be [set specially](#share).
+    1. Create a [share](./shares.md) out of each chunk. This data has a _reserved_ namespace ID, so the first [`NAMESPACE_SIZE`](./consensus.md#constants)`+`[`SHARE_RESERVED_BYTES`](./consensus.md#constants) bytes for these shares must be set specially.
 1. Concatenate the lists of shares in the order: transactions, intermediate state roots, PayForBlob transactions.
 
 Note that by construction, each share only has a single namespace, and that the list of concatenated shares is [lexicographically ordered by namespace ID](consensus.md#reserved-namespace-ids).
@@ -451,7 +364,7 @@ Each blob in the list `blobData`:
 1. [Serialize](#serialization) the blob (individually).
 1. Compute the length of each serialized blob, [serialize the length](#serialization), and pre-pend the serialized blob with its serialized length.
 1. Split up the length/blob pairs into [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)-byte chunks.
-1. Create a [share](#share) out of each chunk. The first [`NAMESPACE_SIZE`](./consensus.md#constants) bytes for these shares is [set to the namespace](#share).
+1. Create a [share](./shares.md) out of each chunk. The first [`NAMESPACE_SIZE`](./consensus.md#constants) bytes for these shares is set to the namespace.
 
 For each blob, it is placed in the available data matrix, with row-major order, as follows:
 
@@ -484,7 +397,7 @@ Wrapped transactions include additional metadata by the block proposer that is c
 
 | name                | type                        | description                                                                                                                                                                                                                                                                                                |
 |---------------------|-----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `index`             | `uint64`                    | Index of this transaction in the list of wrapped transactions. This information is lost when splitting transactions into [fixed-sized shares](#share), and needs to be re-added here for fraud proof support. Allows linking a transaction to an [intermediate state root](#wrappedintermediatestateroot). |
+| `index`             | `uint64`                    | Index of this transaction in the list of wrapped transactions. This information is lost when splitting transactions into fixed-sized [shares](./shares.md), and needs to be re-added here for fraud proof support. Allows linking a transaction to an [intermediate state root](#wrappedintermediatestateroot). |
 | `transaction`       | [Transaction](#transaction) | Actual transaction.                                                                                                                                                                                                                                                                                        |
 | `blobStartIndex` | `uint64`                    | _Optional, only used if transaction pays for a blob or padding_. Share index (in row-major order) of first share of blob this transaction pays for. Needed for light verification of proper blob inclusion.                                                                                       |
 
@@ -504,7 +417,7 @@ Celestia transactions are Cosmos SDK [transactions](https://docs.cosmos.network/
 
 | name                    | type                                            | description                                                                                                                                                                                                                                                                                                                  |
 |-------------------------|-------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `index`                 | `uint64`                                        | Index of this intermediate state root in the list of intermediate state roots. This information is lost when splitting intermediate state roots into [fixed-sized shares](#share), and needs to be re-added here for fraud proof support. Allows linking an intermediate state root to a [transaction](#wrappedtransaction). |
+| `index`                 | `uint64`                                        | Index of this intermediate state root in the list of intermediate state roots. This information is lost when splitting intermediate state roots into fixed-sized [shares](./shares.md), and needs to be re-added here for fraud proof support. Allows linking an intermediate state root to a [transaction](#wrappedtransaction). |
 | `intermediateStateRoot` | [IntermediateStateRoot](#intermediatestateroot) | Intermediate state root. Used for fraud proofs.                                                                                                                                                                                                                                                                              |
 
 #### IntermediateStateRoot
