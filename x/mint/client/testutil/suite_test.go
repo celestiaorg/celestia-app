@@ -124,7 +124,10 @@ func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
 	}
 }
 
-func TestIntegrationTestSuite(t *testing.T) {
+func TestMintIntegrationTestSuite(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping TestMintIntegrationTestSuite in short mode.")
+	}
 	cfg := appnetwork.DefaultConfig()
 	cfg.NumValidators = 1
 	suite.Run(t, NewIntegrationTestSuite(cfg))
