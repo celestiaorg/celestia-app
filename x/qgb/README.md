@@ -382,8 +382,6 @@ panic("hooks initialized before GravityKeeper")
 
 The smart contract implementation is in [quantum-gravity-bridge](https://github.com/celestiaorg/quantum-gravity-bridge/).
 
-For QGB v2, the orchestrator and relayer implementations are in the [orchestratory-relayer](https://github.com/celestiaorg/orchestrator-relayer) repo.
-
-QGB v1 implementation, including the orchestrator and relayer, is in the [qgb-integration](https://github.com/celestiaorg/celestia-app/tree/qgb-integration) branch (deprecated).
+The orchestrator and relayer implementations are in the [orchestrator-relayer](https://github.com/celestiaorg/orchestrator-relayer) repo.
 
 QGB ADRs are in the [docs](https://github.com/celestiaorg/celestia-app/tree/main/docs/architecture).
