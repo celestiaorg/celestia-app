@@ -140,14 +140,14 @@ each PFB, to be included in a block must follow a set of validity rules.
 1. Share Commitment Validity: Each share commitment must be valid.
     1. The size of each of the share commitments must be equal to the digest of
        the hash function used (sha256 so 32 bytes).
-    1. The share commitment must be calculated using the steps specified above
+    2. The share commitment must be calculated using the steps specified above
        in [Generating the Share
        Commitment](./README.md#generating-the-sharecommitment)
 1. Share Versions: The versions of the shares must be supported.
 1. Signer Address: The signer address must be a valid Celestia address.
 1. Proper Encoding: The blob transactions must be properly encoded.
-1. Size Consistency: The sizes included in the transaction must match the actual
-   sizes of the blobs.
+1. Size Consistency: The sizes included in the PFB field `blob_sizes`, and each must match the actual
+   size of the respective (same index) blob in bytes.
 
 ## `IndexWrappedTx`
 
