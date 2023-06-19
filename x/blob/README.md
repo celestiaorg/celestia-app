@@ -11,7 +11,7 @@ the Celestia blockchain. Users create a single `BlobTx` that is composed of:
     1. `Data         []byte`: the data to be published.
     1. `ShareVersion uint32`: the version of the share format used to encode
        this blob into a share.
-1. A single `sdk.Tx` which is composed of:
+1. A single [`sdk.Tx`](https://github.com/celestiaorg/cosmos-sdk/blob/v1.15.0-sdk-v0.46.13/docs/architecture/adr-020-protobuf-transaction-encoding.md) which is composed of:
     1. `Signer string`: the transaction signer
     1. `NamespaceIds []byte`: the namespaces they wish to publish each blob to.
        The namespaces here must match the namespaces in the `Blob`s.
@@ -130,14 +130,16 @@ each PFB, to be included in a block must follow a set of validity rules.
 1. Signatures: All blob transactions must have valid signatures. This is
    state-dependent because correct signatures require using the correct sequence
    number(aka nonce).
-1. Single SDK.Msg: There must be only a single sdk.Msg encoded in the `sdk.Tx` field of the blob transaction `BlobTx`.
-1. Namespace Validity: The namespace of each blob in a blob transaction `BlobTx` must be valid.
-   This validity is determined by the following sub-rules:
+1. Single SDK.Msg: There must be only a single sdk.Msg encoded in the `sdk.Tx`
+   field of the blob transaction `BlobTx`.
+1. Namespace Validity: The namespace of each blob in a blob transaction `BlobTx`
+   must be valid. This validity is determined by the following sub-rules:
+    1. The namepsace of each blob must match the respective (same index)
+       namespace in the `MsgPayForBlobs` `sdk.Msg`.
     1. The namespace is not within the reserved namespace range.
     1. The namespace is not the
        [`TAIL_PADDING_NAMESPACE`](../../specs/src/specs/consensus.md#constants)
-       or [RESERVED_PADDING_NAMESPACE
-       namespaces](../../specs/src/specs/consensus.md#constants).
+       or [RESERVED_PADDING_NAMESPACE namespaces](../../specs/src/specs/consensus.md#constants).
 1. Blob Size: No blob can have a size of 0.
 1. Blob Count: There must be one or more blobs included in the transaction.
 1. Share Commitment Validity: Each share commitment must be valid.
@@ -149,8 +151,8 @@ each PFB, to be included in a block must follow a set of validity rules.
 1. Share Versions: The versions of the shares must be supported.
 1. Signer Address: The signer address must be a valid Celestia address.
 1. Proper Encoding: The blob transactions must be properly encoded.
-1. Size Consistency: The sizes included in the PFB field `blob_sizes`, and each must match the actual
-   size of the respective (same index) blob in bytes.
+1. Size Consistency: The sizes included in the PFB field `blob_sizes`, and each
+   must match the actual size of the respective (same index) blob in bytes.
 
 ## `IndexWrappedTx`
 
