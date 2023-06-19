@@ -37,7 +37,9 @@ func FuzzSquare(f *testing.F) {
 			t.Skip()
 		}
 		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-		txs := GenerateMixedRandomTxs(t, encCfg.TxConfig, normalTxCount, pfbCount)
+		rand := tmrand.NewRand()
+		rand.Seed(1)
+		txs := GenerateMixedRandomTxs(t, encCfg.TxConfig, rand, normalTxCount, pfbCount)
 
 		s, orderedTxs, err := square.Build(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
