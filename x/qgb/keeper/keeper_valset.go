@@ -86,8 +86,6 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 	// depending on how many validators have keys set.
 	bridgeValidators := make([]*types.InternalBridgeValidator, 0, len(validators))
 	totalPower := sdk.NewInt(0)
-	// TODO someone with in depth info on Cosmos staking should determine if
-	// this is doing what I think it's doing
 	for _, validator := range validators {
 		val := validator.GetOperator()
 		if err := sdk.VerifyAddressFormat(val); err != nil {
@@ -125,15 +123,19 @@ func (k Keeper) GetCurrentValset(ctx sdk.Context) (types.Valset, error) {
 }
 
 // normalizeValidatorPower scales rawPower with respect to totalValidatorPower
-// to take a value between 0 and 2^32 Uses BigInt operations to avoid overflow
-// errors Example: rawPower = max (2^63 - 1), totalValidatorPower = 1 validator:
-// (2^63 - 1)
+// to take a value between 0 and 2^32.
+// Uses BigInt operations to avoid overflow errors.
+// Example: rawPower = max (2^63 - 1), totalValidatorPower = 1, validator: (2^63 - 1)
 //
 //	result: (2^63 - 1) * 2^32 / (2^63 - 1) = 2^32 = 4294967296 [this is the multiplier value below, our max output]
 //
 // Example: rawPower = max (2^63 - 1), totalValidatorPower = 1000 validators with the same power: 1000*(2^63 - 1)
 //
 //	result: (2^63 - 1) * 2^32 / (1000(2^63 - 1)) = 2^32 / 1000 = 4294967
+//
+// This is using the min-max normalization https://en.wikipedia.org/wiki/Feature_scaling
+// from the interval [0, total validator power] to [0, 2^32].
+// Check the `PowerDiff` method under `types.validator.go` for more information.
 func normalizeValidatorPower(rawPower uint64, totalValidatorPower cosmosmath.Int) uint64 {
 	// Compute rawPower * multiplier / quotient Set the upper limit to 2^32,
 	// which would happen if there is a single validator with all the power

@@ -19,7 +19,6 @@ type GenesisOption func(state map[string]json.RawMessage) map[string]json.RawMes
 
 // SetBlobParams will set the provided blob params as genesis state.
 func SetBlobParams(codec codec.Codec, params blobtypes.Params) GenesisOption {
-	// use the minimum data commitment window (100)
 	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
 		blobGenState := blobtypes.DefaultGenesis()
 		blobGenState.Params = params

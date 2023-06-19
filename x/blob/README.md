@@ -25,8 +25,7 @@ different namespaces: the BlobTx gets included in the PayForBlobNamespace (one
 of the [reserved
 namespaces](../../specs/src/specs/consensus.md#reserved-namespaces)) and the
 associated blob gets included in the namespace the user specified in the
-original `BlobTx`. Further reading: [Message Block
-Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
+original `BlobTx`. Further reading: [Data Square Layout](../../specs/src/specs/data_square_layout.md)
 
 After a block has been created, the user can verify that their data was included
 in a block via a blob inclusion proof. A blob inclusion proof uses the
@@ -64,6 +63,10 @@ message MsgPayForBlobs {
   repeated uint32 share_versions = 8;
 }
 ```
+
+Note that while the shares version in each protobuf encoded PFB are uint32s, the
+internal represantation of shares versions is always uint8s. This is because
+protobuf doesn't support uint8s.
 
 ### Generating the `ShareCommitment`
 
@@ -118,9 +121,9 @@ each PFB, to be included in a block must follow a set of validity rules.
 When a block producer is preparing a block, they must perform an extra step for
 `BlobTx`s so that end-users can find the blob shares relevant to their submitted
 `BlobTx`. In particular, block proposers wrap the `BlobTx` in the PFB namespace
-with the index of the first share of the blob in the data square. See
-[Non-interactive Default
-Rules](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules)
+with the index of the first share of the blob in the data square. See [Blob
+share commitment
+rules](../../specs/src/specs/data_square_layout.md#blob-share-commitment-rules)
 for more details.
 
 Since `BlobTx`s can contain multiple blobs, the `sdk.Tx` portion of the `BlobTx`
