@@ -35,6 +35,8 @@ in a block via a blob inclusion proof. A blob inclusion proof uses the
 block's data square to prove to the user that the shares that compose their
 original data do in fact exist in a particular block.
 
+> TODO: link to blob inclusion (and fraud) proof
+
 ## State
 
 The blob module doesn't maintain it's own state outside of two params. Meaning
