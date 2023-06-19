@@ -10,6 +10,7 @@ import (
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -22,6 +23,13 @@ import (
 )
 
 var defaultSigner = testfactory.RandomAddress().String()
+
+var (
+	// TestMaxBlobSize is the maximum size of each blob in a blob transaction, for testing purposes
+	TestMaxBlobSize = appconsts.ShareSize * 2 * appconsts.DefaultSquareSizeUpperBound
+	// TestMaxBlobCount is the maximum number of blobs in a blob transaction, for testing purposes
+	TestMaxBlobCount = 5
+)
 
 func RandMsgPayForBlobsWithSigner(singer string, size, blobCount int) (*blobtypes.MsgPayForBlobs, []*tmproto.Blob) {
 	blobs := make([]*tmproto.Blob, blobCount)
@@ -487,4 +495,46 @@ func ComplexBlobTxWithOtherMsgs(t *testing.T, kr keyring.Keyring, enc sdk.TxEnco
 	btx, err := coretypes.MarshalBlobTx(rawTx, blobs...)
 	require.NoError(t, err)
 	return btx
+}
+
+func GenerateRandomBlobCount() int {
+	v := tmrand.Intn(TestMaxBlobCount)
+	if v == 0 {
+		v = 1
+	}
+	return v
+}
+
+func GenerateRandomBlobSize() int {
+	v := tmrand.Intn(TestMaxBlobSize)
+	if v == 0 {
+		v = 1
+	}
+	return v
+}
+
+// GenerateRandomBlobSizes returns a slice of random non-zero blob sizes.
+func GenerateRandomBlobSizes(count int) []int {
+	sizes := make([]int, count)
+	for i := range sizes {
+		sizes[i] = GenerateRandomBlobSize()
+	}
+	return sizes
+}
+
+// RandMultiBlobTxs returns a slice of random Blob transactions (consisting of pfbCount number of txs) each with random number of blobs and blob sizes.
+func RandMultiBlobTxs(t *testing.T, enc sdk.TxEncoder, pfbCount int) []coretypes.Tx {
+	pfbTxs := make([]coretypes.Tx, pfbCount)
+	for i := 0; i < pfbCount; i++ {
+		// create one blob tx with random number of blobs and blob sizes
+		signer := apptypes.GenerateKeyringSigner(t)
+		signerData, err := signer.GetSignerData()
+		require.NoError(t, err)
+
+		blobsPerPfb := GenerateRandomBlobCount()
+		blobSizes := GenerateRandomBlobSizes(blobsPerPfb)
+		blobs := ManyRandBlobs(t, blobSizes...)
+		pfbTxs[i] = MultiBlobTx(t, enc, signer, signerData.Sequence, signerData.AccountNumber, blobs...)
+	}
+	return pfbTxs
 }
