@@ -134,7 +134,10 @@ each PFB, to be included in a block must follow a set of validity rules.
 1. Namespace Validity: The namespace of each blob in a blob transaction `BlobTx` must be valid.
    This validity is determined by the following sub-rules:
     1. The namespace is not within the reserved namespace range.
-    1. The namespace is not the tail padding or parity namespaces.
+    1. The namespace is not the
+       [`TAIL_PADDING_NAMESPACE`](../../specs/src/specs/consensus.md#constants)
+       or [RESERVED_PADDING_NAMESPACE
+       namespaces](../../specs/src/specs/consensus.md#constants).
 1. Blob Size: No blob can have a size of 0.
 1. Blob Count: There must be one or more blobs included in the transaction.
 1. Share Commitment Validity: Each share commitment must be valid.
