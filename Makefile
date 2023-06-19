@@ -114,7 +114,7 @@ test-short:
 ## test-race: Run unit tests in race mode.
 test-race:
 	@echo "--> Running tests in race mode"
-	@VERSION=$(VERSION) go test -mod=readonly -race -short ./...
+	@go test -mod=readonly -v -race ./... -skip "TestPrepareProposalConsistency/TestIntegrationTestSuite/TestQGBRPCQueries/TestSquareSizeIntegrationTest/TestStandardSDKIntegrationTestSuite/TestTxsimCommandFlags/TestTxsimCommandEnvVar/TestMintIntegrationTestSuite/TestQGBCLI/TestUpgrade"
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.
