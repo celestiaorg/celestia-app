@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/stretchr/testify/require"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
 	core "github.com/tendermint/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -46,7 +47,8 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			txs := generateMixedTxs(tt.normalTxs, tt.pfbCount, 1, tt.pfbSize)
+			rand := tmrand.NewRand()
+			txs := generateMixedTxs(rand, tt.normalTxs, tt.pfbCount, 1, tt.pfbSize)
 			square, _, err := square.Build(txs, appconsts.LatestVersion, appconsts.DefaultGovMaxSquareSize)
 			require.NoError(t, err)
 			require.EqualValues(t, tt.expectedSquareSize, square.Size())
@@ -54,13 +56,13 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 	}
 }
 
-func generateMixedTxs(normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
-	return shuffle(generateOrderedTxs(normalTxCount, pfbCount, blobsPerPfb, blobSize))
+func generateMixedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
+	return shuffle(generateOrderedTxs(rand, normalTxCount, pfbCount, blobsPerPfb, blobSize))
 }
 
-func generateOrderedTxs(normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
+func generateOrderedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), pfbCount, blobsPerPfb, blobSize)
+	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), rand, pfbCount, blobsPerPfb, blobSize)
 	normieTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, normalTxCount)
 	txs := append(append(
 		make([]coretypes.Tx, 0, len(pfbTxs)+len(normieTxs)),
@@ -71,9 +73,9 @@ func generateOrderedTxs(normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]
 }
 
 // GenerateOrderedRandomTxs generates normalTxCount random Send transactions and pfbCount random MultiBlob transactions.
-func GenerateOrderedRandomTxs(t *testing.T, txConfig client.TxConfig, normalTxCount, pfbCount int) [][]byte {
-	noramlTxs := blobfactory.GenerateManyRandomRawSendTxs(txConfig, normalTxCount)
-	pfbTxs := blobfactory.RandMultiBlobTxs(t, txConfig.TxEncoder(), pfbCount)
+func GenerateOrderedRandomTxs(t *testing.T, txConfig client.TxConfig, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
+	noramlTxs := blobfactory.GenerateManyRandomRawSendTxs(txConfig, rand, normalTxCount)
+	pfbTxs := blobfactory.RandMultiBlobTxs(t, txConfig.TxEncoder(), rand, pfbCount)
 	txs := append(append(
 		make([]coretypes.Tx, 0, len(pfbTxs)+len(noramlTxs)),
 		noramlTxs...),
@@ -82,8 +84,8 @@ func GenerateOrderedRandomTxs(t *testing.T, txConfig client.TxConfig, normalTxCo
 	return coretypes.Txs(txs).ToSliceOfBytes()
 }
 
-func GenerateMixedRandomTxs(t *testing.T, txConfig client.TxConfig, normalTxCount, pfbCount int) [][]byte {
-	return shuffle(GenerateOrderedRandomTxs(t, txConfig, normalTxCount, pfbCount))
+func GenerateMixedRandomTxs(t *testing.T, txConfig client.TxConfig, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
+	return shuffle(GenerateOrderedRandomTxs(t, txConfig, rand, normalTxCount, pfbCount))
 }
 
 func shuffle(slice [][]byte) [][]byte {
@@ -164,7 +166,7 @@ func newTx(len int) []byte {
 func TestBuilderFindTxShareRange(t *testing.T) {
 	blockTxs := testfactory.GenerateRandomTxs(5, 900).ToSliceOfBytes()
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	blockTxs = append(blockTxs, blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), 5, 1000, 10).ToSliceOfBytes()...)
+	blockTxs = append(blockTxs, blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), 5, 1000, 10).ToSliceOfBytes()...)
 	require.Len(t, blockTxs, 10)
 
 	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold, blockTxs...)

@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 // CmdTestRandBlob is triggered by testground's tests as part of apps' node scenario
@@ -30,7 +31,7 @@ func CmdTestRandBlob() *cobra.Command {
 				return fmt.Errorf("failure to decode blob size: %w", err)
 			}
 
-			ns := appns.RandomBlobNamespace()
+			ns := appns.RandomBlobNamespace(tmrand.NewRand())
 			coreBlob := testfactory.GenerateBlobsWithNamespace(1, size, ns)
 			blob, err := types.NewBlob(ns, coreBlob[0].Data, appconsts.ShareVersionZero)
 			if err != nil {
