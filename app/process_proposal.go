@@ -17,7 +17,16 @@ import (
 
 const rejectedPropBlockLog = "Rejected proposal block:"
 
-func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponseProcessProposal {
+func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.ResponseProcessProposal) {
+	// In the case of a panic from an unexpected condition, it is better for the liveness of the
+	// network that we catch it, log an error and vote nil than to crash the node.
+	defer func() {
+		if err := recover(); err != nil {
+			logInvalidPropBlock(app.Logger(), req.Header, fmt.Sprintf("%v", err))
+			resp = reject()
+		}
+	}()
+
 	// create the anteHanders that are used to check the validity of
 	// transactions. We verify the signatures of PFB containing txs using the
 	// sigVerifyAnterHandler, and simply increase the nonce of all other
