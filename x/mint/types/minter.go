@@ -7,6 +7,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+const DefaultBondDenom = "utia"
+
 // NewMinter returns a new Minter object.
 func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec, genesisTime *time.Time, bondDenom string) Minter {
 	return Minter{
@@ -19,10 +21,9 @@ func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec, genesisTime *tim
 
 // DefaultMinter returns a Minter object with default values.
 func DefaultMinter() Minter {
-	unixEpoch := time.Unix(0, 0).UTC()
 	inflationRate := InitialInflationRateAsDec()
-	defaultBondDenom := "utia"
-	return NewMinter(inflationRate, sdk.NewDec(0), &unixEpoch, defaultBondDenom)
+	genesisTime := time.Now()
+	return NewMinter(inflationRate, sdk.NewDec(0), &genesisTime, DefaultBondDenom)
 }
 
 // Validate returns an error if the minter is invalid.
