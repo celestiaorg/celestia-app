@@ -148,8 +148,8 @@ type TestInput struct {
 	LegacyAmino    *codec.LegacyAmino
 }
 
-// CreateTestEnvWithoutAttestationNonceInit creates the keeper testing environment for the QGB
-func CreateTestEnvWithoutAttestationNonceInit(t *testing.T) TestInput {
+// CreateTestEnvWithoutQGBKeysInit creates the keeper testing environment for the QGB
+func CreateTestEnvWithoutQGBKeysInit(t *testing.T) TestInput {
 	t.Helper()
 
 	// Initialize store keys
@@ -319,9 +319,9 @@ func CreateTestEnvWithoutAttestationNonceInit(t *testing.T) TestInput {
 
 // CreateTestEnv creates the keeper testing environment for QGB
 func CreateTestEnv(t *testing.T) TestInput {
-	input := CreateTestEnvWithoutAttestationNonceInit(t)
-	input.QgbKeeper.SetLatestAttestationNonce(input.Context, 0)
-	input.QgbKeeper.SetEarliestAvailableAttestationNonce(input.Context, 1)
+	input := CreateTestEnvWithoutQGBKeysInit(t)
+	input.QgbKeeper.SetLatestAttestationNonce(input.Context, qgb.InitialLatestAttestationNonce)
+	input.QgbKeeper.SetEarliestAvailableAttestationNonce(input.Context, qgb.InitialEarliestAvailableAttestationNonce)
 	return input
 }
 
