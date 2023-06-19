@@ -72,7 +72,7 @@ build-docker:
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
 .PHONY: build-docker
 
-## lint: Run linters golangci-lint and markdownlint.
+## lint: Run all linters: golangci-lint, markdownlint, hadolint, yamllint.
 lint:
 	@echo "--> Running golangci-lint"
 	@golangci-lint run
@@ -84,6 +84,12 @@ lint:
 	@yamllint --no-warnings . -c .yamllint.yml
 
 .PHONY: lint
+
+## markdown-link-check: Check all markdown links.
+markdown-link-check:
+	@echo "--> Running markdown-link-check"
+	@find . -name \*.md -print0 | xargs -0 -n1 markdown-link-check
+
 
 ## fmt: Format files per linters golangci-lint and markdownlint.
 fmt:

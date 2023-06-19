@@ -67,29 +67,6 @@ func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
 	return nil
 }
 
-// RemoveBlob will remove a blob from the underlying blob state. If
-// there is namespaced padding after the blob, then that is also removed.
-func (sss *SparseShareSplitter) RemoveBlob(i int) (int, error) {
-	j := 1
-	initialCount := len(sss.shares)
-	if len(sss.shares) > i+1 {
-		sequenceLen, err := sss.shares[i+1].SequenceLen()
-		if err != nil {
-			return 0, err
-		}
-		// 0 means that there is padding after the share that we are about to
-		// remove. to remove this padding, we increase j by 1
-		// with the blob
-		if sequenceLen == 0 {
-			j++
-		}
-	}
-	copy(sss.shares[i:], sss.shares[i+j:])
-	sss.shares = sss.shares[:len(sss.shares)-j]
-	newCount := len(sss.shares)
-	return initialCount - newCount, nil
-}
-
 // WriteNamespacePaddingShares adds padding shares with the namespace of the
 // last written share. This is useful to follow the non-interactive default
 // rules. This function assumes that at least one share has already been

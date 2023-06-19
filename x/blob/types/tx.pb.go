@@ -32,8 +32,8 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 type MsgPayForBlobs struct {
 	Signer string `protobuf:"bytes,1,opt,name=signer,proto3" json:"signer,omitempty"`
 	// namespaces is a list of namespaces that the blobs are associated with. A
-	// namespace is a byte slice of length 33 where the first byte is the
-	// namespaceVersion and the subsequent 32 bytes are the namespaceId.
+	// namespace is a byte slice of length 29 where the first byte is the
+	// namespaceVersion and the subsequent 28 bytes are the namespaceId.
 	Namespaces [][]byte `protobuf:"bytes,2,rep,name=namespaces,proto3" json:"namespaces,omitempty"`
 	BlobSizes  []uint32 `protobuf:"varint,3,rep,packed,name=blob_sizes,json=blobSizes,proto3" json:"blob_sizes,omitempty"`
 	// share_commitments is a list of share commitments (one per blob).
