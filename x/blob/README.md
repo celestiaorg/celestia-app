@@ -36,7 +36,7 @@ data do in fact exist in a particular block.
 ## State
 
 The blob module doesn't maintain it's own state outside of a two params. Meaning
-that the blob module only uses the paramstore and auth module stores.
+that the blob module only uses the params and auth module stores.
 
 ### Params
 
@@ -135,17 +135,17 @@ each PFB, to be included in a block must follow a set of validity rules.
 1. Namespace Validity: The namespace of each blob in a blob transaction `BlobTx`
    must be valid. This validity is determined by the following sub-rules:
     1. The namepsace of each blob must match the respective (same index)
-       namespace in the `MsgPayForBlobs` `sdk.Msg`.
-    1. The namespace is not within the reserved namespace range.
+       namespace in the `MsgPayForBlobs` `sdk.Msg` field `namespaces`.
+    1. The namespace is not lexicographically less than the [MAX_RESERVED_NAMESPACE](../../specs/src/specs/consensus.md#constants) range.
     1. The namespace is not the
-       [`TAIL_PADDING_NAMESPACE`](../../specs/src/specs/consensus.md#constants)
-       or [RESERVED_PADDING_NAMESPACE namespaces](../../specs/src/specs/consensus.md#constants).
+       [TAIL_PADDING_NAMESPACE](../../specs/src/specs/consensus.md#constants)
+       or [RESERVED_PADDING_NAMESPACE](../../specs/src/specs/consensus.md#constants).
 1. Blob Size: No blob can have a size of 0.
 1. Blob Count: There must be one or more blobs included in the transaction.
 1. Share Commitment Validity: Each share commitment must be valid.
     1. The size of each of the share commitments must be equal to the digest of
        the hash function used (sha256 so 32 bytes).
-    2. The share commitment must be calculated using the steps specified above
+    1. The share commitment must be calculated using the steps specified above
        in [Generating the Share
        Commitment](./README.md#generating-the-sharecommitment)
 1. Share Versions: The versions of the shares must be supported.
