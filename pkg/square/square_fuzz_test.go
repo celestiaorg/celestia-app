@@ -1,6 +1,7 @@
 package square_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -13,6 +14,7 @@ import (
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/require"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 // FuzzSquare uses fuzzing to test the following:
@@ -93,4 +95,22 @@ func contains(allTxs [][]byte, subTxs [][]byte) bool {
 		}
 	}
 	return true
+}
+
+func TestSeed(t *testing.T) {
+	tmrand.Seed(1)
+	var bytes [][]byte
+	for i := 0; i < 100; i++ {
+		bytes = append(bytes, tmrand.Bytes(1))
+	}
+	fmt.Println(bytes)
+	// [[121] [247] [233] [117] [42] [61] [188] [139] [202] [99] [156] [1] [251] [222] [43] [125] [196] [107] [141] [255] [5] [20] [144] [161] [198] [79] [100] [170] [186] [148] [99] [63] [7] [44] [169] [180] [118] [16] [207] [183] [118] [206] [39] [187] [125] [105] [56] [154] [234] [155] [181] [193] [55] [144] [245] [254] [223] [116] [52] [29] [186] [148] [115] [221] [81] [20] [87] [183] [176] [127] [39] [137] [44] [61] [59] [130] [12] [23] [232] [92] [202] [180] [71] [237] [172] [34] [102] [32] [49] [213] [88] [242] [148] [190] [86] [232] [45] [50] [152] [112]]
+
+	tmrand.Seed(1)
+	var nums []int
+	for i := 0; i < 100; i++ {
+		nums = append(nums, tmrand.Intn(100))
+	}
+	fmt.Println(nums)
+	//[81 87 47 59 81 18 25 40 56 0 94 11 62 89 28 74 11 45 37 6 95 66 28 58 47 47 87 88 90 15 41 8 87 31 29 56 37 31 85 26 13 90 94 63 33 47 78 24 59 53 57 21 89 99 0 5 88 38 3 55 51 10 5 56 66 28 61 2 83 46 63 76 2 18 47 94 77 63 96 20 23 53 37 33 41 59 33 43 91 2 78 36 46 7 40 3 52 43 5 98]
 }
