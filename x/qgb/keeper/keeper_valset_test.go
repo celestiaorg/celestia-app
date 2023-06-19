@@ -70,7 +70,7 @@ func TestCurrentValsetNormalization(t *testing.T) {
 func TestCheckingEarliestAvailableAttestationNonceInValsets(t *testing.T) {
 	input := testutil.CreateTestEnvWithoutQGBKeysInit(t)
 	k := input.QgbKeeper
-	// create a validator to have a  realistic scenario
+	// create a validator to have a realistic scenario
 	testutil.CreateValidator(
 		t,
 		input,
