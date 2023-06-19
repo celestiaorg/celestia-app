@@ -64,6 +64,8 @@ By normalizing the voting power, we can significantly reduce the frequency of ge
 
 To ensure that the normalization process doesn't encounter overflow errors, the function normalizeValidatorPower uses [`BigInt`](https://github.com/celestiaorg/celestia-app/blob/6243f26fc419c32940d5dc4eb60b0e0aaf08eaa7/x/qgb/keeper/keeper_valset.go#LL142C1-L142C1) operations. It scales the raw power value with respect to the total validator power, making sure the result falls within the range of 0 to `2^32`.
 
+This mechanism allows to increase/decrease the frequency at which validator set updates get created via increasing/decreasing the value of the [`SignificantPowerDifferenceThreshold`](https://github.com/celestiaorg/celestia-app/blob/9bf0cf1dd9ce31a3fecb51310c3913820b21a8c2/x/qgb/abci.go#L15-L18) constant (more details on it below).
+
 #### Power diff
 
 [`PowerDiff(...)`](https://github.com/celestiaorg/celestia-app/blob/6243f26fc419c32940d5dc4eb60b0e0aaf08eaa7/x/qgb/types/validator.go#L100-L141) is a function that calculates the difference in power between two sets of bridge validators. It's important to note that the power being compared is not the regular voting power in the Celestia consensus network, but a specific type called QGB bridge power (explained above).
