@@ -578,7 +578,6 @@ func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.Res
 		panic(err)
 	}
 	app.UpgradeKeeper.SetModuleVersionMap(ctx, app.mm.GetVersionMap())
-	app.MintKeeper.SetGenesisTime(ctx, &req.Time)
 	return app.mm.InitGenesis(ctx, app.appCodec, genesisState)
 }
 
