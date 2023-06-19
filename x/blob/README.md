@@ -103,15 +103,15 @@ protobuf doesn't support uint8s.
 
 ### Generating the `ShareCommitment`
 
-1. Split the blob into shares of size `appconsts.ShareSize`
-1. Determine the
+1. Split the blob into shares of size [`shareSize`](../../specs/src/specs/data_structures.md#consensus-parameters)
+2. Determine the
    [`SubtreeWidth`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/shares/non_interactive_defaults.go#L94-L116)
    by dividing the length in shares by the `SubtreeRootThreshold`.
-1. Generate each subtree root by diving the blob shares into `SubtreeWidth`
+3. Generate each subtree root by diving the blob shares into `SubtreeWidth`
    sized sets, then take the binary [namespaced merkle tree
    (NMT)](https://github.com/celestiaorg/nmt/blob/v0.16.0/docs/spec/nmt.md) root
    of each set of shares.
-1. Calculate the final share commitment by taking the merkle root (note: not an
+4. Calculate the final share commitment by taking the merkle root (note: not an
    NMT, just a normal binary merkle root) of the subtree roots from the previous
    step.
 
