@@ -11,13 +11,7 @@ the Celestia blockchain. Users create a single `BlobTx` that is composed of:
     1. `Data         []byte`: the data to be published.
     1. `ShareVersion uint32`: the version of the share format used to encode
        this blob into a share.
-1. A single `sdk.Tx` which is composed of:
-    1. `Signer string`: the transaction signer
-    1. `NamespaceIds []byte`: the namespaces they wish to publish each blob to.
-       The namespaces here must match the namespaces in the `Blob`s.
-    1. `ShareCommitment []byte`: a share commitment that is the root of a Merkle
-       tree where the leaves are share commitments to each blob associated with
-       this BlobTx.
+1. A single `sdk.Tx` which contains a single `sdk.Msg` of type `MsgPayForBlobs`.
 
 After the `BlobTx` is submitted to the network, a block producer separates the
 transaction from the blob. Both components get included in the data square in
@@ -35,9 +29,38 @@ data do in fact exist in a particular block.
 
 ## State
 
-The blob module doesn't maintain it's own state outside of a single param.
+The blob module doesn't maintain it's own state outside of a two params. Meaning
+that the blob module only uses the paramstore and auth module stores.
 
-When a `MsgPayForBlob` is processed, it consumes gas based on the blob size.
+### Params
+
+```proto
+// Params defines the parameters for the module.
+message Params {
+  option (gogoproto.goproto_stringer) = false;
+
+  uint32 gas_per_blob_byte = 1
+      [ (gogoproto.moretags) = "yaml:\"gas_per_blob_byte\"" ];
+
+  uint64 gov_max_square_size = 2
+      [ (gogoproto.moretags) = "yaml:\"gov_max_square_size\"" ];
+}
+
+```
+
+#### `GasPerBlobByte`
+
+`GasPerBlobByte` is the amount of gas that is consumed per byte of blob data
+when a `MsgPayForBlob` is processed. Currently, the Default value is 8. This
+value is set below that of normal transaction gas consumption, which is 10.
+
+#### `GovMaxSquareSize`
+
+`GovMaxSquareSize` is the maximum size of a data square that is considered valid
+by the validator set. This value is superseded by the `MaxSquareSize`, which is
+hardcoded and cannot change without hardforking the chain. See
+[ADR021](../../docs/architecture/adr-021-restricted-block-size.md) for more
+details.
 
 ## Messages
 
