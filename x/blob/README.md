@@ -15,7 +15,7 @@ the Celestia blockchain. Users create a single `BlobTx` that is composed of:
     1. `Signer string`: the transaction signer
     1. `NamespaceIds []byte`: the namespaces they wish to publish each blob to.
        The namespaces here must match the namespaces in the `Blob`s.
-    1. `ShareCommitment []byte`: a share commitment that is the root of a Merkle
+    1. `ShareCommitments [][]byte`: a share commitment that is the root of a Merkle
        tree where the leaves are share commitments to each blob associated with
        this `BlobTx`.
 
