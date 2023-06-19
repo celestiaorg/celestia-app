@@ -1,17 +1,11 @@
 package app
 
 import (
-	"fmt"
-	"runtime/debug"
-
-	"cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
-	"github.com/tendermint/tendermint/libs/log"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -41,13 +35,13 @@ func filterForValidPFBSignature(ctx sdk.Context, accountKeeper *keeper.AccountKe
 	// from the anteHandler are caught and logged.
 	seqHandler := incrementSequenceAnteHandler(accountKeeper)
 
-	normalTxs, ctx = filterStdTxs(ctx.Logger(), txConfig.TxDecoder(), ctx, seqHandler, normalTxs)
+	normalTxs, ctx = filterStdTxs(txConfig.TxDecoder(), ctx, seqHandler, normalTxs)
 
 	// check the signatures and increment the sequences of the blob txs,
 	// and filter out any that fail. Panics from the anteHandler are caught and
 	// logged.
 	svHandler := sigVerifyAnteHandler(accountKeeper, txConfig)
-	blobTxs, _ = filterBlobTxs(ctx.Logger(), txConfig.TxDecoder(), ctx, svHandler, blobTxs)
+	blobTxs, _ = filterBlobTxs(txConfig.TxDecoder(), ctx, svHandler, blobTxs)
 
 	return append(normalTxs, encodeBlobTxs(blobTxs)...)
 }
@@ -55,11 +49,11 @@ func filterForValidPFBSignature(ctx sdk.Context, accountKeeper *keeper.AccountKe
 // filterStdTxs applies the provided antehandler to each transaction and removes
 // transactions that return an error. Panics are caught by the checkTxValidity
 // function used to apply the ante handler.
-func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs [][]byte) ([][]byte, sdk.Context) {
+func filterStdTxs(dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs [][]byte) ([][]byte, sdk.Context) {
 	n := 0
 	var err error
 	for _, tx := range txs {
-		ctx, err = checkTxValidity(logger, dec, ctx, handler, tx)
+		ctx, err = checkTxValidity(dec, ctx, handler, tx)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHanders which is logged.
@@ -77,11 +71,11 @@ func filterStdTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler
 // filterBlobTxs applies the provided antehandler to each transaction
 // and removes transactions that return an error. Panics are caught by the checkTxValidity
 // function used to apply the ante handler.
-func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []tmproto.BlobTx) ([]tmproto.BlobTx, sdk.Context) {
+func filterBlobTxs(dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, txs []tmproto.BlobTx) ([]tmproto.BlobTx, sdk.Context) {
 	n := 0
 	var err error
 	for _, tx := range txs {
-		ctx, err = checkTxValidity(logger, dec, ctx, handler, tx.Tx)
+		ctx, err = checkTxValidity(dec, ctx, handler, tx.Tx)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHanders which is logged.
@@ -96,17 +90,7 @@ func filterBlobTxs(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handle
 	return txs[:n], ctx
 }
 
-func checkTxValidity(logger log.Logger, dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, tx []byte) (sdk.Context, error) {
-	// catch panics from anteHandlers
-	defer func() {
-		if r := recover(); r != nil {
-			err := recoverHandler(r)
-			if err != nil {
-				logger.Error(err.Error())
-			}
-		}
-	}()
-
+func checkTxValidity(dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, tx []byte) (sdk.Context, error) {
 	sdkTx, err := dec(tx)
 	if err != nil {
 		return ctx, err
@@ -144,14 +128,4 @@ func incrementSequenceAnteHandler(accKeeper *authkeeper.AccountKeeper) sdk.AnteH
 	setupd := ante.NewSetUpContextDecorator()
 	isd := ante.NewIncrementSequenceDecorator(accKeeper)
 	return sdk.ChainAnteDecorators(setupd, isd)
-}
-
-// recoverHandler will simply wrap the caught panic in an error containing the
-// stack trace.
-func recoverHandler(recoveryObj interface{}) error {
-	return errors.Wrap(
-		sdkerrors.ErrPanic, fmt.Sprintf(
-			"recovered: %v\nstack:\n%v", recoveryObj, string(debug.Stack()),
-		),
-	)
 }
