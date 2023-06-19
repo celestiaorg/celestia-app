@@ -35,7 +35,7 @@ func TestCheckEarliestAvailableAttestationNonce(t *testing.T) {
 	// init the earliest available attestation nonce
 	input.QgbKeeper.SetEarliestAvailableAttestationNonce(input.Context, qgb.InitialEarliestAvailableAttestationNonce)
 
-	// check if the latest attestation nonce value was initialized correctly
+	// check if the earliest attestation nonce value was initialized correctly
 	input.QgbKeeper.CheckEarliestAvailableAttestationNonce(input.Context)
 	assert.Equal(t, qgb.InitialEarliestAvailableAttestationNonce, input.QgbKeeper.GetEarliestAvailableAttestationNonce(input.Context))
 }
