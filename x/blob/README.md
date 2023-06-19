@@ -141,7 +141,7 @@ The blob module emits the following events:
 | Attribute Key | Attribute Value                               |
 |---------------|-----------------------------------------------|
 | signer        | {bech32 encoded signer address}               |
-| blob_size     | {size in bytes}                               |
+| blob_sizes    | {sizes of blobs in bytes}                     |
 | namespace_ids | {namespaces the blobs should be published to} |
 
 ## Parameters
