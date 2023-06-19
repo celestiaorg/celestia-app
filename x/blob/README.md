@@ -80,14 +80,22 @@ message MsgPayForBlobs {
   repeated bytes share_commitments = 4;
   repeated uint32 share_versions = 8;
 }
+```
 
-MsgPayForBlobs pays for the inclusion of a blob in the block and consists of the following fields:
-- signer: ...
+`MsgPayForBlobs` pays for the inclusion of a blob in the block and consists of the
+following fields:
+
+- signer: bech32 encoded signer address
 - namespace: namespace is a byte slice of length 33 where the first byte is the
   namespaceVersion and the subsequent 32 bytes are the namespaceId.
-- blob_sizes: ...
+- blob_sizes: sizes of each blob in bytes.
 - share_commitments is a list of share commitments (one per blob).
-- share_versions are the versions of the share format that the blobs associated with this message should use when included in a block. The share_versions specified must match the share_versions used to generate the share_commitment in this message.
+- share_versions are the versions of the share format that the blobs associated
+  with this message should use when included in a block. The share_versions
+  specified must match the share_versions used to generate the share_commitment
+  in this message. See
+  [ADR014](../../docs/architecture/adr-014-versioned-namespaces.md) for more
+  details on how this effects the share encoding and when it is updated.
 
 Note that while the shares version in each protobuf encoded PFB are uint32s, the
 internal represantation of shares versions is always uint8s. This is because
