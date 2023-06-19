@@ -12,7 +12,8 @@ import (
 // preparing the proposal block data. The square size is determined by first
 // estimating it via the size of the passed block data. Then, this method
 // generates the data root for the proposal block and passes it back to
-// tendermint via the BlockData.
+// tendermint via the BlockData. Panics indicate a developer error and should
+// immediately halt the node for visibility and so they can be quickly resolved.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	// create a context using a branch of the state and loaded using the
 	// proposal height and chain-id
