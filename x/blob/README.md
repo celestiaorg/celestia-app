@@ -17,20 +17,20 @@ the Celestia blockchain. Users create a single `BlobTx` that is composed of:
        The namespaces here must match the namespaces in the `Blob`s.
     1. `ShareCommitment []byte`: a share commitment that is the root of a Merkle
        tree where the leaves are share commitments to each blob associated with
-       this BlobTx.
+       this `BlobTx`.
 
 After the `BlobTx` is submitted to the network, a block producer separates the
-transaction from the blob. Both components get included in the data square in
-different namespaces: the BlobTx gets included in the PayForBlobNamespace (one
+transaction i.e., `sdk.Tx` from the blob. Both components get included in the data square in
+different namespaces: the `sdk.Tx` of the original `BlobTx` together with some metadata about the separated blobs get included in the PayForBlobNamespace (one
 of the [reserved
 namespaces](../../specs/src/specs/consensus.md#reserved-namespaces)) and the
-associated blob gets included in the namespace the user specified in the
+associated blobs get included in the namespaces the user specified in the
 original `BlobTx`. Further reading: [Message Block
 Layout](https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md)
 
 After a block has been created, the user can verify that their data was included
 in a block via a blob inclusion proof. A blob inclusion proof uses the
-`ShareCommitment` in the original transaction and subtree roots of the block's
+`ShareCommitment` in the original `sdk.Tx` transaction and subtree roots of the block's
 data square to prove to the user that the shares that compose their original
 data do in fact exist in a particular block.
 
@@ -38,32 +38,32 @@ data do in fact exist in a particular block.
 
 The blob module doesn't maintain it's own state outside of a single param.
 
-When a `MsgPayForBlob` is processed, it consumes gas based on the blob size.
+When a `MsgPayForBlob` of a `BlobTx` is processed, it consumes gas based on the blob size.
 
 ## Messages
 
 - [`MsgPayForBlobs`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/proto/celestia/blob/v1/tx.proto#L16-L31)
-  pays for a set of blobs to be included in the block. Transactions containing
+  pays for a set of blobs to be included in the block. Blob transactions that contain
+  this `sdk.Msg` are also referred to as "PFBs".
   this `sdk.Msg` are better known as "PFBs".
 
+
 ```proto
-// MsgPayForBlobs pays for the inclusion of a blob in the block.
 message MsgPayForBlobs {
   string signer = 1;
-  // namespaces is a list of namespaces that the blobs are associated with. A
-  // namespace is a byte slice of length 33 where the first byte is the
-  // namespaceVersion and the subsequent 32 bytes are the namespaceId.
   repeated bytes namespaces = 2;
   repeated uint32 blob_sizes = 3;
-  // share_commitments is a list of share commitments (one per blob).
   repeated bytes share_commitments = 4;
-  // share_versions are the versions of the share format that the blobs
-  // associated with this message should use when included in a block. The
-  // share_versions specified must match the share_versions used to generate the
-  // share_commitment in this message.
   repeated uint32 share_versions = 8;
 }
-```
+
+MsgPayForBlobs pays for the inclusion of a blob in the block and consists of the following fields:
+- signer: ...
+- namespace: namespace is a byte slice of length 33 where the first byte is the
+  namespaceVersion and the subsequent 32 bytes are the namespaceId.
+- blob_sizes: ...
+- share_commitments is a list of share commitments (one per blob).
+- share_versions are the versions of the share format that the blobs associated with this message should use when included in a block. The share_versions specified must match the share_versions used to generate the share_commitment in this message.
 
 ### Generating the `ShareCommitment`
 
@@ -94,8 +94,8 @@ each PFB, to be included in a block must follow a set of validity rules.
 1. Signatures: All blob transactions must have valid signatures. This is
    state-dependent because correct signatures require using the correct sequence
    number(aka nonce).
-1. Single SDK.Msg: There must be only a single sdk.Msg in the blob transaction.
-1. Namespace Validity: The namespace of each blob transaction must be valid.
+1. Single SDK.Msg: There must be only a single sdk.Msg encoded in the `sdk.Tx` field of the blob transaction `BlobTx`.
+1. Namespace Validity: The namespace of each blob in a blob transaction `BlobTx` must be valid.
    This validity is determined by the following sub-rules:
     1. The namespace is not within the reserved namespace range.
     1. The namespace is not the tail padding or parity namespaces.
