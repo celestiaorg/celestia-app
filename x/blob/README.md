@@ -11,7 +11,7 @@ the Celestia blockchain. Users create a single `BlobTx` that is composed of:
     1. `Data         []byte`: the data to be published.
     1. `ShareVersion uint32`: the version of the share format used to encode
        this blob into a share.
-1. A single [`sdk.Tx`](https://github.com/celestiaorg/cosmos-sdk/blob/v1.15.0-sdk-v0.46.13/docs/architecture/adr-020-protobuf-transaction-encoding.md) which is composed of:
+1. A single [`sdk.Tx`](https://github.com/celestiaorg/cosmos-sdk/blob/v1.15.0-sdk-v0.46.13/docs/architecture/adr-020-protobuf-transaction-encoding.md) which encapsulates a `MsgPayForBlobs` message that is composed of:
     1. `Signer string`: the transaction signer
     1. `NamespaceIds []byte`: the namespaces they wish to publish each blob to.
        The namespaces here must match the namespaces in the `Blob`s.
@@ -35,7 +35,7 @@ data do in fact exist in a particular block.
 
 ## State
 
-The blob module doesn't maintain it's own state outside of a two params. Meaning
+The blob module doesn't maintain it's own state outside of two params. Meaning
 that the blob module only uses the params and auth module stores.
 
 ### Params
@@ -54,7 +54,7 @@ message Params {
 #### `GasPerBlobByte`
 
 `GasPerBlobByte` is the amount of gas that is consumed per byte of blob data
-when a `MsgPayForBlob` is processed. Currently, the Default value is 8. This
+when a `MsgPayForBlobs` is processed. Currently, the default value is 8. This
 value is set below that of normal transaction gas consumption, which is 10.
 
 #### `GovMaxSquareSize`
@@ -70,7 +70,6 @@ details.
 - [`MsgPayForBlobs`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/proto/celestia/blob/v1/tx.proto#L16-L31)
   pays for a set of blobs to be included in the block. Blob transactions that contain
   this `sdk.Msg` are also referred to as "PFBs".
-  this `sdk.Msg` are better known as "PFBs".
 
 ```proto
 message MsgPayForBlobs {
@@ -82,12 +81,12 @@ message MsgPayForBlobs {
 }
 ```
 
-`MsgPayForBlobs` pays for the inclusion of a blob in the block and consists of the
+`MsgPayForBlobs` pays for the inclusion of blobs in the block and consists of the
 following fields:
 
 - signer: bech32 encoded signer address
-- namespace: namespace is a byte slice of length 33 where the first byte is the
-  namespaceVersion and the subsequent 32 bytes are the namespaceId.
+- namespace: namespace is a byte slice of length 29 where the first byte is the
+  namespaceVersion and the subsequent 28 bytes are the namespaceId.
 - blob_sizes: sizes of each blob in bytes.
 - share_commitments is a list of share commitments (one per blob).
 - share_versions are the versions of the share format that the blobs associated
