@@ -20,18 +20,20 @@ the Celestia blockchain. Users create a single `BlobTx` that is composed of:
        this `BlobTx`.
 
 After the `BlobTx` is submitted to the network, a block producer separates the
-transaction i.e., `sdk.Tx` from the blob. Both components get included in the data square in
-different namespaces: the `sdk.Tx` of the original `BlobTx` together with some metadata about the separated blobs get included in the PayForBlobNamespace (one
-of the [reserved
+transaction i.e., `sdk.Tx` from the blob. Both components get included in the
+data square in different namespaces: the `sdk.Tx` of the original `BlobTx`
+together with some metadata about the separated blobs get included in the
+PayForBlobNamespace (one of the [reserved
 namespaces](../../specs/src/specs/consensus.md#reserved-namespaces)) and the
 associated blob gets included in the namespace the user specified in the
-original `BlobTx`. Further reading: [Data Square Layout](../../specs/src/specs/data_square_layout.md)
+original `BlobTx`. Further reading: [Data Square
+Layout](../../specs/src/specs/data_square_layout.md)
 
 After a block has been created, the user can verify that their data was included
 in a block via a blob inclusion proof. A blob inclusion proof uses the
-`ShareCommitment` in the original `sdk.Tx` transaction and subtree roots of the block's
-data square to prove to the user that the shares that compose their original
-data do in fact exist in a particular block.
+`ShareCommitment` in the original `sdk.Tx` transaction and subtree roots of the
+block's data square to prove to the user that the shares that compose their
+original data do in fact exist in a particular block.
 
 ## State
 
@@ -93,7 +95,7 @@ following fields:
   with this message should use when included in a block. The share_versions
   specified must match the share_versions used to generate the share_commitment
   in this message. See
-  [ADR014](../../docs/architecture/adr-014-versioned-namespaces.md) for more
+  [ADR007](../../docs/architecture/adr-007-universal-share-prefix.md) for more
   details on how this effects the share encoding and when it is updated.
 
 Note that while the shares version in each protobuf encoded PFB are uint32s, the
