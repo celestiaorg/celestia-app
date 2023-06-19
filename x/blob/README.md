@@ -103,15 +103,20 @@ protobuf doesn't support uint8s.
 
 ### Generating the `ShareCommitment`
 
+The share commitment is the commitment to share encoded blobs. It can be used
+for cheap inclusion checks for some data by light clients. More information and
+rational can be found in the [data square layout
+specs](../../specs/src/specs/data_square_layout.md).
+
 1. Split the blob into shares of size [`shareSize`](../../specs/src/specs/data_structures.md#consensus-parameters)
-2. Determine the
+1. Determine the
    [`SubtreeWidth`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/shares/non_interactive_defaults.go#L94-L116)
    by dividing the length in shares by the `SubtreeRootThreshold`.
-3. Generate each subtree root by diving the blob shares into `SubtreeWidth`
+1. Generate each subtree root by diving the blob shares into `SubtreeWidth`
    sized sets, then take the binary [namespaced merkle tree
    (NMT)](https://github.com/celestiaorg/nmt/blob/v0.16.0/docs/spec/nmt.md) root
    of each set of shares.
-4. Calculate the final share commitment by taking the merkle root (note: not an
+1. Calculate the final share commitment by taking the merkle root (note: not an
    NMT, just a normal binary merkle root) of the subtree roots from the previous
    step.
 
