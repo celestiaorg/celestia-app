@@ -6,12 +6,12 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-// FitsInSquare uses the non interactive default rules to see if blobs of
-// some lengths will fit in a square of squareSize starting at share index
-// cursor. Returns whether the blobs fit in the square and the number of
-// shares used by blobs. See blob share commitment rules
+// FitsInSquare uses the non interactive default rules to see if blobs of some
+// lengths will fit in a square of squareSize starting at share index cursor.
+// Returns whether the blobs fit in the square and the number of shares used by
+// blobs. See ADR-013 and the blob share commitment rules.
+//
 // ../../specs/src/specs/data_square_layout.md#blob-share-commitment-rules
-// and ADR-013.
 func FitsInSquare(cursor, squareSize, subtreeRootThreshold int, blobShareLens ...int) (bool, int) {
 	if len(blobShareLens) == 0 {
 		if cursor <= squareSize*squareSize {
@@ -44,9 +44,8 @@ func BlobSharesUsedNonInteractiveDefaults(cursor, squareSize, subtreeRootThresho
 }
 
 // NextShareIndex determines the next index in a square that can be used. It
-// follows the blob share commitment rules defined in ADR013. Assumes
-// that all args are non negative, and that squareSize is a power of two.
-// See ADR-013.
+// follows the blob share commitment rules defined in ADR-013. Assumes that all
+// args are non negative, and that squareSize is a power of two.
 //
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
 func NextShareIndex(cursor, blobShareLen, squareSize, subtreeRootThreshold int) int {
