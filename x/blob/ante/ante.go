@@ -26,7 +26,7 @@ func NewMinGasPFBDecorator(k BlobKeeper) MinGasPFBDecorator {
 // the transaction has allocated enough gas.
 //
 // TODO: We need to run this antehandler in process proposal
-// hoever this will be a breaking change.
+// however this will be a breaking change.
 func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	if !ctx.IsCheckTx() {
 		return next(ctx, tx, simulate)
