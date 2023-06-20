@@ -3,6 +3,8 @@ package keeper_test
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/x/qgb"
+
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/stretchr/testify/assert"
@@ -146,7 +148,7 @@ func TestLatestDataCommitment(t *testing.T) {
 }
 
 func TestCheckingLatestAttestationNonceInDataCommitments(t *testing.T) {
-	input := testutil.CreateTestEnvWithoutAttestationNonceInit(t)
+	input := testutil.CreateTestEnvWithoutQGBKeysInit(t)
 	k := input.QgbKeeper
 
 	tests := []struct {
@@ -177,6 +179,51 @@ func TestCheckingLatestAttestationNonceInDataCommitments(t *testing.T) {
 				return err
 			},
 			expectedError: types.ErrLatestAttestationNonceStillNotInitialized,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.requestFunc()
+			assert.ErrorIs(t, err, tt.expectedError)
+		})
+	}
+}
+
+func TestCheckingEarliestAvailableAttestationNonceInDataCommitments(t *testing.T) {
+	input := testutil.CreateTestEnvWithoutQGBKeysInit(t)
+	k := input.QgbKeeper
+
+	// init the latest attestation nonce
+	input.QgbKeeper.SetLatestAttestationNonce(input.Context, qgb.InitialLatestAttestationNonce)
+
+	tests := []struct {
+		name          string
+		requestFunc   func() error
+		expectedError error
+	}{
+		{
+			name: "check earliest available attestation nonce before getting current data commitment",
+			requestFunc: func() error {
+				_, err := k.NextDataCommitment(input.Context)
+				return err
+			},
+			expectedError: types.ErrEarliestAvailableNonceStillNotInitialized,
+		},
+		{
+			name: "check earliest available attestation nonce before getting data commitment for height",
+			requestFunc: func() error {
+				_, err := k.GetDataCommitmentForHeight(input.Context, 1)
+				return err
+			},
+			expectedError: types.ErrEarliestAvailableNonceStillNotInitialized,
+		},
+		{
+			name: "check earliest available attestation nonce before getting latest data commitment",
+			requestFunc: func() error {
+				_, err := k.GetLatestDataCommitment(input.Context)
+				return err
+			},
+			expectedError: types.ErrEarliestAvailableNonceStillNotInitialized,
 		},
 	}
 	for _, tt := range tests {

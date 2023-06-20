@@ -34,8 +34,7 @@ func (c *Context) GoContext() context.Context {
 	return c.rootCtx
 }
 
-// LatestHeight returns the latest height of the network or an error if the
-// query fails.
+// GenesisTime returns the genesis block time.
 func (c *Context) GenesisTime() (time.Time, error) {
 	height := int64(1)
 	status, err := c.Client.Block(c.GoContext(), &height)
