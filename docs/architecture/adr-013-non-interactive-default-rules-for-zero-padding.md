@@ -20,18 +20,26 @@ If we analyze the worst case padding for different blob sizes, we can see that t
 
 This means small blobs are inefficient because they generate more potential padding for the data they provide. This is not ideal as we want to minimize padding. Since users do not pay for namespace padding shares, they may not be sufficiently incentivized to submit large blobs.
 
-In the naive approach if the block proposer aligned blobs one after another then there would be zero padding between blobs. Although this approach minimizes padding, it comes at the cost of large blob inclusion proofs because the hash of each share would be a subtree root of the proof. In a square with N shares, there would be N subtree roots. As a result, light nodes would need to download N subtree roots to verify blob inclusion proofs for this square which may be too large for resource constrained devices.
+In the naive approach if the block proposer aligned blobs one after another then there would be zero padding between blobs. Although this approach minimizes padding, it comes at the cost of large blob inclusion proofs because the hash of each share would be a subtree root of the proof. Put another way, the blob inclusion proof for a blob of size N shares would include N subtree roots. Large blob inclusion proofs may be difficult to download for resource constrained light nodes.
 
 Small blob sizes have the lowest ratio of data to padding but also have small blob inclusion proofs. Since the size of blob inclusion proofs is an important constraint, we can establish a threshold to bound the number of subtree roots in a blob inclusion proof. From now on this threshold is called the `SubtreeRootThreshold` and it sets an upper bound for the number of subtree roots in a blob inclusion proof.
 
 We can increase the `SubtreeRootThreshold` (and correspondingly the blob inclusion proof size) as long we are confident light nodes can process such a proof size. By increasing the subtree root threshold, we can place blobs closer together and therefore decrease the padding in the square. This is especially useful for small blobs since they have the lowest ratio of data to padding.
 
-Given this threshold, the new non-interactive default rules would be:
+## Proposal
 
-- If the blob length (in number of shares) is smaller than `SubtreeRootThreshold` then the blob starts at an index that is a multiple of 1.
-- If the blob length (in number of shares) is larger than `SubtreeRootThreshold` then the blob starts at an index that is a multiple of the blob length divided by `SubtreeRootThreshold` rounded up.
+The proposed non-interactive default rules: A blob must start at an index that is a multiple of the subtree root width for the given blob. The subtree root width for a blob is the minimum of:
 
-The picture below shows the difference between the old and new non-interactive default rules in a square of size 8 with `SubtreeRootThreshold` of 8.
+- `math.Ceil(blob / SubtreeRootThreshold)` rounded up to the next power of two
+- `MinSquareSize(blob)`[^1]
+
+where `blob` is the length of the blob in shares and `SubtreeRootThreshold` is some constant.
+
+Note, `MinSquareSize(blob)` is retained in this iteration of the non-interactive default rules to prevent some blobs from having more padding with this proposal than they had with the old non-interactive default rules.
+
+## Visualization
+
+The diagram below shows the difference between the old and new non-interactive default rules in a square of size 8 with `SubtreeRootThreshold` of 8.
 
 ![Blob Alignment Comparison](./assets/adr013/blob-alignment-comparison.png)
 
@@ -78,12 +86,6 @@ Here is a diagram of the worst-case padding for a threshold of 16 for the square
 
 ![Worst Case Padding Comparison](./assets/adr013/worst-case-padding-comparison.png)
 
-### Additional Remarks
-
-If the threshold is bigger than `MinSquareSize(blob)` then the blob will be aligned to the index of the `MinSquareSize(blob)`. This would prevent some blob size ranges to have higher padding than they had before this change. So the real new non-interactive default rules would be:
-
-Blobs start at an index that is equal to a multiple of the blob length divided by `MaxSquareSize` rounded up. If this index is larger than the `MinSquareSize(blob)` then the blob starts at the index that is a multiple of of the `MinSquareSize(blob)`.
-
 ## Consequences
 
 ### Positive
@@ -98,6 +100,6 @@ The number of subtree roots to download for partial nodes will increase in the a
 
 The number of subtree roots to download for light nodes will increase in the average case, but it is still small enough as the threshold will be chosen wisely. Furthermore, this effect can be mitigated by using PFB inclusion proofs.
 
-[^1]: `MinSquareSize(blob)` is a function that returns the minimum square size that can contain a blob of size `blob` shares. For example, a blob that spans 5 shares can be contained in a square of size 4 x 4 and therefore `MinSquareSize(5) = 4`.
+[^1]: `MinSquareSize(blob)` is a function that returns the minimum square size that can contain a blob of size `blob` shares. For example, a blob that spans 5 shares can be contained in a square of size 4 x 4 but it cannot be contained in a square of size 2 x 2. Note that square sizes must be powers of two. As a result `MinSquareSize(5) = 4`.
 
 [^2]: Subtree root width is the maximum number of leaves per subtree root.
