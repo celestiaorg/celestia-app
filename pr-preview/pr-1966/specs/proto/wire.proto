@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+// Define wire messages for transaction types.
+// https://github.com/celestiaorg/celestia-specs/blob/master/specs/data_structures.md#signedtransactiondata
+
+message TransactionFee {
+  // Tip fee rate (rewarded to block proposer)
+  uint64 tip_rate = 1;
+}
+
+message Decimal {
+  // https://github.com/celestiaorg/celestia-specs/issues/120
+  uint64 todo = 1;
+}
+
+message MessageCommitmentAndSignature {
+  // Original square size the share commitment was computed for
+  uint64 k = 1;
+  // 32-byte hash: commitment to message shares
+  bytes share_commitment = 2;
+  // 64-byte signature a single SignedTransactionPayForMessage
+  // https://github.com/celestiaorg/celestia-specs/blob/master/specs/data_structures.md#signedtransactiondatamsgpayfordata
+  bytes signature = 3;
+}
+
+message WireTxTransfer {
+  uint64 amount = 1;
+  // 32-byte address
+  bytes to = 2;
+  TransactionFee fee = 3;
+  uint64 nonce = 4;
+}
+
+// ANCHOR: MsgWirePayForData
+message MsgWirePayForData {
+  TransactionFee fee = 1;
+  uint64 nonce = 2;
+  // 8-byte namespace ID
+  bytes message_namespace_id = 3;
+  uint64 message_size = 4;
+  bytes message = 5;
+  repeated MessageCommitmentAndSignature message_commitment_and_signature = 6;
+}
+// ANCHOR_END: MsgWirePayForData
+
+message WireTxCreateValidator {
+  TransactionFee fee = 1;
+  uint64 nonce = 2;
+  Decimal commission_rate = 3;
+}
+
+message WireTxBeginUnbondingValidator {
+  TransactionFee fee = 1;
+  uint64 nonce = 2;
+}
+
+message WireTxUnbondValidator {
+  TransactionFee fee = 1;
+  uint64 nonce = 2;
+}
+
+message WireTxCreateDelegation {
+  uint64 amount = 1;
+  // 32-byte address
+  bytes to = 2;
+  TransactionFee fee = 3;
+  uint64 nonce = 4;
+}
+
+message WireTxBeginUnbondingDelegation {
+  TransactionFee fee = 1;
+  uint64 nonce = 2;
+}
+
+message WireTxUnbondDelegation {
+  TransactionFee fee = 1;
+  uint64 nonce = 2;
+}
+
+message WireTxBurn {
+  uint64 amount = 1;
+  TransactionFee fee = 2;
+  uint64 nonce = 3;
+  // 32-byte graffiti
+  bytes graffiti = 4;
+}
+
+message WireTxRedelegateCommission {
+  // 32-byte address
+  bytes to = 1;
+  TransactionFee fee = 2;
+  uint64 nonce = 3;
+}
+
+message WireTxRedelegateReward {
+  TransactionFee fee = 1;
+  uint64 nonce = 2;
+}
