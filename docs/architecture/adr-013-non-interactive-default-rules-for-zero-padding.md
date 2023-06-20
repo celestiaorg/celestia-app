@@ -1,4 +1,4 @@
-# ADR 013: Non-Interactive Default Rules for Reduced Padding 2
+# ADR 013: Non-Interactive Default Rules for Zero Padding
 
 ## Status
 
