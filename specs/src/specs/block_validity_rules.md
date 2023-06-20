@@ -17,10 +17,9 @@ not been followed in order to avoid making an honest majority assumption.
 Before any Celestia specific validation is performed, all cometBFT [block
 validation
 rules](https://github.com/cometbft/cometbft/blob/v0.34.28/spec/core/data_structures.md#block)
-must be followed. The only meaningful different from these rules is how the data
-root
+must be followed. The only deviation from these rules is how the data root
 ([DataHash](https://github.com/cometbft/cometbft/blob/v0.34.28/spec/core/data_structures.md#header))
-is generated. Almost all of celestia's functionality is derived from this
+is generated. Almost all of Celestia's functionality is derived from this
 change, including how it proves data availability to light clients.
 
 ## Data Availability
