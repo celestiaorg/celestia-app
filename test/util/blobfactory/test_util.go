@@ -3,12 +3,14 @@ package blobfactory
 import (
 	"fmt"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/types"
+	"testing"
 )
 
 const (
@@ -84,23 +86,17 @@ func GenerateRandomAmount(rand *tmrand.Rand) int64 {
 }
 
 // GenerateRandomRawSendTx generates a random raw send tx.
-func GenerateRandomRawSendTx(txConfig client.TxConfig, rand *tmrand.Rand) (rawTx []byte) {
-	acc := "signer"
-	kr := testfactory.GenerateKeyring(acc)
-	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
+func GenerateRandomRawSendTx(t *testing.T, txConfig client.TxConfig, rand *tmrand.Rand, signer *apptypes.KeyringSigner) (rawTx []byte) {
 	amount := GenerateRandomAmount(rand)
 	fmt.Println("amount", amount)
 	return GenerateRawSendTx(txConfig, signer, amount)
 }
 
-// GenerateManyRandomRawSendTxs  generates count many random raw send txs.
-func GenerateManyRandomRawSendTxs(txConfig client.TxConfig, rand *tmrand.Rand, count int) []coretypes.Tx {
+// GenerateManyRandomRawSendTxsSameSigner  generates count many random raw send txs.
+func GenerateManyRandomRawSendTxsSameSigner(t *testing.T, txConfig client.TxConfig, rand *tmrand.Rand, signer *apptypes.KeyringSigner, count int) []coretypes.Tx {
 	txs := make([]coretypes.Tx, count)
 	for i := 0; i < count; i++ {
-		txs[i] = GenerateRandomRawSendTx(txConfig, rand)
+		txs[i] = GenerateRandomRawSendTx(t, txConfig, rand, signer)
 	}
 	return txs
 }
-
-// raw send transactions => amount
-// blob transactions =? blob count, blob sizes, blob bytes

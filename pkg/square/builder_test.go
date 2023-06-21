@@ -3,6 +3,7 @@ package square_test
 import (
 	"bytes"
 	"fmt"
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"math/rand"
 	"testing"
 
@@ -74,7 +75,8 @@ func generateOrderedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb,
 
 // GenerateOrderedRandomTxs generates normalTxCount random Send transactions and pfbCount random MultiBlob transactions.
 func GenerateOrderedRandomTxs(t *testing.T, txConfig client.TxConfig, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
-	noramlTxs := blobfactory.GenerateManyRandomRawSendTxs(txConfig, rand, normalTxCount)
+	signer := apptypes.GenerateKeyringSigner(t)
+	noramlTxs := blobfactory.GenerateManyRandomRawSendTxsSameSigner(t, txConfig, rand, signer, normalTxCount)
 	pfbTxs := blobfactory.RandMultiBlobTxs(t, txConfig.TxEncoder(), rand, pfbCount)
 	txs := append(append(
 		make([]coretypes.Tx, 0, len(pfbTxs)+len(noramlTxs)),
