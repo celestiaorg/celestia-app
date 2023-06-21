@@ -534,6 +534,7 @@ func New(
 	app.SetAnteHandler(NewAnteHandler(
 		app.AccountKeeper,
 		app.BankKeeper,
+		app.BlobKeeper,
 		app.FeeGrantKeeper,
 		encodingConfig.TxConfig.SignModeHandler(),
 		ante.DefaultSigVerificationGasConsumer,

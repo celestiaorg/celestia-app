@@ -8,12 +8,14 @@ const (
 	LatestVersion = v1.Version
 )
 
-// SubtreeRootThreshold works as a target value for the number of subtree roots in the
-// share commitment. If a blob contains more shares than this number, then the height
-// of the subtree roots will gradually increase so that the amount remains within that limit.
-// The rationale for this value is described in more detail in ADR013
-// (./docs/architecture/adr-013).
-// ADR013 https://github.com/celestiaorg/celestia-app/blob/e905143e8fe138ce6085ae9a5c1af950a2d87638/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md //nolint: lll
+// SubtreeRootThreshold works as a target upper bound for the number of subtree
+// roots in the share commitment. If a blob contains more shares than this
+// number, then the height of the subtree roots will increase by one so that the
+// number of subtree roots in the share commitment decreases by a factor of two.
+// This step is repeated until the number of subtree roots is less than the
+// SubtreeRootThreshold.
+//
+// The rationale for this value is described in more detail in ADR-013.
 func SubtreeRootThreshold(_ uint64) int {
 	return v1.SubtreeRootThreshold
 }
