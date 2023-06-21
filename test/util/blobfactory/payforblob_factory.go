@@ -298,7 +298,7 @@ func ManyRandBlobsIdenticallySized(t *testing.T, rand *tmrand.Rand, count, size 
 }
 
 func ManyRandBlobs(t *testing.T, rand *tmrand.Rand, sizes ...int) []*tmproto.Blob {
-	return ManyBlobs(t, rand, appns.RandomBlobNamespaces(len(sizes), rand), sizes)
+	return ManyBlobs(t, rand, appns.RandomBlobNamespaces(rand, len(sizes)), sizes)
 }
 
 func Repeat[T any](s T, count int) []T {
