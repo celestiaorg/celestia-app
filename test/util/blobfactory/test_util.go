@@ -2,6 +2,7 @@ package blobfactory
 
 import (
 	"fmt"
+
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"

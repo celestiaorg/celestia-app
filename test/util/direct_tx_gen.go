@@ -1,9 +1,10 @@
 package util
 
 import (
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"math/rand"
 	"testing"
+
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
