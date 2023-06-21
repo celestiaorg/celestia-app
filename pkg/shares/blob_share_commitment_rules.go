@@ -6,12 +6,12 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-// FitsInSquare uses the non interactive default rules to see if blobs of
-// some lengths will fit in a square of squareSize starting at share index
-// cursor. Returns whether the blobs fit in the square and the number of
-// shares used by blobs. See non-interactive default rules
-// https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
-// https://github.com/celestiaorg/celestia-app/blob/1b80b94a62c8c292f569e2fc576e26299985681a/docs/architecture/adr-009-non-interactive-default-rules-for-reduced-padding.md
+// FitsInSquare uses the non interactive default rules to see if blobs of some
+// lengths will fit in a square of squareSize starting at share index cursor.
+// Returns whether the blobs fit in the square and the number of shares used by
+// blobs. See ADR-013 and the blob share commitment rules.
+//
+// ../../specs/src/specs/data_square_layout.md#blob-share-commitment-rules
 func FitsInSquare(cursor, squareSize, subtreeRootThreshold int, blobShareLens ...int) (bool, int) {
 	if len(blobShareLens) == 0 {
 		if cursor <= squareSize*squareSize {
@@ -24,19 +24,19 @@ func FitsInSquare(cursor, squareSize, subtreeRootThreshold int, blobShareLens ..
 		firstBlobLen = blobShareLens[0]
 	}
 	// here we account for padding between the compact and sparse shares
-	cursor, _ = NextShareIndex(cursor, firstBlobLen, squareSize, subtreeRootThreshold)
+	cursor = NextShareIndex(cursor, firstBlobLen, squareSize, subtreeRootThreshold)
 	sharesUsed, _ := BlobSharesUsedNonInteractiveDefaults(cursor, squareSize, subtreeRootThreshold, blobShareLens...)
 	return cursor+sharesUsed <= squareSize*squareSize, sharesUsed
 }
 
 // BlobSharesUsedNonInteractiveDefaults returns the number of shares used by a given set
-// of blobs share lengths. It follows the non-interactive default rules and
+// of blobs share lengths. It follows the blob share commitment rules and
 // returns the share indexes for each blob.
 func BlobSharesUsedNonInteractiveDefaults(cursor, squareSize, subtreeRootThreshold int, blobShareLens ...int) (sharesUsed int, indexes []uint32) {
 	start := cursor
 	indexes = make([]uint32, len(blobShareLens))
 	for i, blobLen := range blobShareLens {
-		cursor, _ = NextShareIndex(cursor, blobLen, squareSize, subtreeRootThreshold)
+		cursor = NextShareIndex(cursor, blobLen, squareSize, subtreeRootThreshold)
 		indexes[i] = uint32(cursor)
 		cursor += blobLen
 	}
@@ -44,31 +44,30 @@ func BlobSharesUsedNonInteractiveDefaults(cursor, squareSize, subtreeRootThresho
 }
 
 // NextShareIndex determines the next index in a square that can be used. It
-// follows the non-interactive default rules defined in ADR013. This function
-// returns false if the entire the blob cannot fit on the given row. Assumes
-// that all args are non negative, and that squareSize is a power of two.
+// follows the blob share commitment rules defined in ADR-013. Assumes that all
+// args are non negative, and that squareSize is a power of two.
+//
 // https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
-// https://github.com/celestiaorg/celestia-app/blob/0334749a9e9b989fa0a42b7f011f4a79af8f61aa/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md
-func NextShareIndex(cursor, blobShareLen, squareSize, subtreeRootThreshold int) (index int, fitsInRow bool) {
+func NextShareIndex(cursor, blobShareLen, squareSize, subtreeRootThreshold int) int {
 	// if we're starting at the beginning of the row, then return as there are
 	// no cases where we don't start at 0.
 	if isStartOfRow(cursor, squareSize) {
-		return cursor, true
+		return cursor
 	}
 
 	treeWidth := SubTreeWidth(blobShareLen, subtreeRootThreshold)
-	startOfNextRow := ((cursor / squareSize) + 1) * squareSize
+	startOfNextRow := getStartOfNextRow(cursor, squareSize)
 	cursor = roundUpBy(cursor, treeWidth)
 	switch {
 	// the entire blob fits in this row
 	case cursor+blobShareLen <= startOfNextRow:
-		return cursor, true
+		return cursor
 	// only a portion of the blob fits in this row
 	case cursor+treeWidth <= startOfNextRow:
-		return cursor, false
+		return cursor
 	// none of the blob fits on this row, so return the start of the next row
 	default:
-		return startOfNextRow, false
+		return startOfNextRow
 	}
 }
 
@@ -125,4 +124,9 @@ func min[T constraints.Integer](i, j T) T {
 // isStartOfRow returns true if cursor is at the start of a row
 func isStartOfRow(cursor, squareSize int) bool {
 	return cursor == 0 || cursor%squareSize == 0
+}
+
+// getStartOfRow returns the index of the first share in the next row
+func getStartOfNextRow(cursor, squareSize int) int {
+	return ((cursor / squareSize) + 1) * squareSize
 }

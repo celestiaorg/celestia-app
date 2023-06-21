@@ -18,8 +18,8 @@ func (b BridgeValidator) ToInternal() (*InternalBridgeValidator, error) {
 	return NewInternalBridgeValidator(b)
 }
 
-// BridgeValidators is the sorted set of validator data for EVM bridge MultiSig
-// set.
+// BridgeValidators is the sorted set of validators EVM address and their corresponding
+// power.
 type BridgeValidators []BridgeValidator
 
 func (b BridgeValidators) ToInternal() (*InternalBridgeValidators, error) {
@@ -97,22 +97,23 @@ func EVMAddrLessThan(e common.Address, o common.Address) bool {
 	return bytes.Compare([]byte(e.Hex())[:], []byte(o.Hex())[:]) == -1
 }
 
-// PowerDiff returns the difference in power between two bridge validator sets
-// note this is Gravity bridge power *not* Cosmos voting power. Cosmos voting
-// power is based on the absolute number of tokens in the staking pool at any
-// given time Gravity bridge power is normalized using the equation.
+// PowerDiff returns the difference in power between two bridge validator sets.
+// Note this is QGB bridge power *not* Cosmos voting power.
+// Cosmos voting power is based on the absolute number of tokens in the staking
+// pool at any given time.
+// QGB bridge power is normalized using the equation.
 //
 // validators cosmos voting power / total cosmos voting power in this block =
-// gravity bridge power / u32_max
+// QGB bridge power / u32_max
 //
 // As an example if someone has 52% of the Cosmos voting power when a validator
-// set is created their Gravity bridge voting power is u32_max * .52
+// set is created their QGB bridge voting power is u32_max * .52
 //
 // Normalized voting power dramatically reduces how often we have to produce new
 // validator set updates. For example if the total on chain voting power
 // increases by 1% due to inflation, we shouldn't have to generate a new
 // validator set, after all the validators retained their relative percentages
-// during inflation and normalized Gravity bridge power shows no difference.
+// during inflation and normalized QGB power shows no difference.
 func (ibv InternalBridgeValidators) PowerDiff(c InternalBridgeValidators) float64 {
 	powers := map[string]int64{}
 	// loop over ibv and initialize the map with their powers

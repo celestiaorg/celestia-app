@@ -12,13 +12,12 @@ import (
 // preparing the proposal block data. The square size is determined by first
 // estimating it via the size of the passed block data. Then, this method
 // generates the data root for the proposal block and passes it back to
-// tendermint via the BlockData.
+// tendermint via the BlockData. Panics indicate a developer error and should
+// immediately halt the node for visibility and so they can be quickly resolved.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-	sdkCtx, err := app.NewProcessProposalQueryContext()
-	if err != nil {
-		panic(err)
-	}
-
+	// create a context using a branch of the state and loaded using the
+	// proposal height and chain-id
+	sdkCtx := app.NewProposalContext(core.Header{ChainID: app.GetChainID(), Height: app.LastBlockHeight() + 1})
 	// verify the signatures of the PFBs in the block data. Only the valid PFBs are returned
 	txs := filterForValidPFBSignature(sdkCtx, &app.AccountKeeper, app.txConfig, req.BlockData.Txs)
 
