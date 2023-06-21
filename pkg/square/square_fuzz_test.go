@@ -30,25 +30,20 @@ import (
 // - That each share commitment in each PFB can be used to verify the inclusion of the blob it corresponds to.
 func FuzzSquare(f *testing.F) {
 	var (
-		normalTxCount = 0
+		normalTxCount = 12
 		pfbCount      = 91
+		seed          = int64(3554045230938829713)
 	)
-	f.Add(normalTxCount, pfbCount)
-	f.Fuzz(func(t *testing.T, normalTxCount, pfbCount int) {
+	f.Add(normalTxCount, pfbCount, seed)
+	f.Fuzz(func(t *testing.T, normalTxCount, pfbCount int, seed int64) {
 		// ignore invalid values
 		if normalTxCount < 0 || pfbCount < 0 {
 			t.Skip()
 		}
 		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		rand := tmrand.NewRand()
-		rand.Seed(1)
-		txs := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand, normalTxCount, pfbCount)
-
-		//rand2 := tmrand.NewRand()
-		//rand2.Seed(1)
-		//txs2 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand2, normalTxCount, pfbCount)
-
-		//assert.Equal(t, txs, txs2)
+		rand.Seed(seed)
+		txs := GenerateMixedRandomTxs(t, encCfg.TxConfig, rand, normalTxCount, pfbCount)
 
 		s, orderedTxs, err := square.Build(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
