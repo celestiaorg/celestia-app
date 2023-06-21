@@ -6,6 +6,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -70,4 +71,31 @@ func CreateRawTx(txConfig client.TxConfig, msg sdk.Msg, signer *blobtypes.Keyrin
 	}
 
 	return rawTx
+}
+
+// GenerateRandomAmount generates a random amount for a Send transaction.
+func GenerateRandomAmount() int64 {
+	n := tmrand.Int64()
+	if n < 0 {
+		return -n
+	}
+	return n
+}
+
+// GenerateRandomRawSendTx generates a random raw send tx.
+func GenerateRandomRawSendTx(txConfig client.TxConfig) (rawTx []byte) {
+	acc := "signer"
+	kr := testfactory.GenerateKeyring(acc)
+	signer := blobtypes.NewKeyringSigner(kr, acc, "chainid")
+	amount := GenerateRandomAmount()
+	return GenerateRawSendTx(txConfig, signer, amount)
+}
+
+// GenerateManyRandomRawSendTxs  generates count many random raw send txs.
+func GenerateManyRandomRawSendTxs(txConfig client.TxConfig, count int) []coretypes.Tx {
+	txs := make([]coretypes.Tx, count)
+	for i := 0; i < count; i++ {
+		txs[i] = GenerateRandomRawSendTx(txConfig)
+	}
+	return txs
 }
