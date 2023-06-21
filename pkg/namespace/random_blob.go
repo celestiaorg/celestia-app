@@ -20,7 +20,7 @@ func RandomBlobNamespace(rand *tmrand.Rand) Namespace {
 	}
 }
 
-func RandomBlobNamespaces(count int, rand *tmrand.Rand) (namespaces []Namespace) {
+func RandomBlobNamespaces(rand *tmrand.Rand, count int) (namespaces []Namespace) {
 	for i := 0; i < count; i++ {
 		namespaces = append(namespaces, RandomBlobNamespace(rand))
 	}
