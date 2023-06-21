@@ -161,7 +161,7 @@ func TestGenerateOrderedRandomTxs_Deterministic(t *testing.T) {
 
 // TestGenerateManyRandomRawSendTxsSameSigner_Determinism ensures that the same seed produces the same txs
 func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
-	normalTxCount := 1
+	normalTxCount := 10
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	TxDecoder := encCfg.TxConfig.TxDecoder()
 
@@ -169,26 +169,28 @@ func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
 
 	rand := tmrand.NewRand()
 	rand.Seed(1)
-	txs1 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(t, encCfg.TxConfig, rand, signer, normalTxCount)
+	encodedTxs1 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(encCfg.TxConfig, rand, signer, normalTxCount)
 
 	rand2 := tmrand.NewRand()
 	rand2.Seed(1)
-	txs2 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(t, encCfg.TxConfig, rand2, signer, normalTxCount)
+	encodedTxs2 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(encCfg.TxConfig, rand2, signer, normalTxCount)
 
 	// additional check for the sake of future debugging
-	for i, tx := range txs1 {
-		utx, err := TxDecoder(tx)
+	for i := 0; i < normalTxCount; i++ {
+		tx1, err := TxDecoder(encodedTxs1[i])
 		assert.NoError(t, err)
-		assert.NotNil(t, utx)
-		msgs1 := utx.GetMsgs()
+		assert.NotNil(t, tx1)
+		msgs1 := tx1.GetMsgs()
 
-		utx2, err2 := TxDecoder(txs2[i])
+		tx2, err2 := TxDecoder(encodedTxs2[i])
 		assert.NoError(t, err2)
-		assert.NotNil(t, utx2)
-		msgs2 := utx2.GetMsgs()
+		assert.NotNil(t, tx2)
+		msgs2 := tx2.GetMsgs()
+
 		assert.Equal(t, msgs1, msgs2)
+		assert.Equal(t, tx1, tx2)
 	}
 
-	assert.Equal(t, txs1, txs2)
+	assert.Equal(t, encodedTxs1, encodedTxs2)
 
 }
