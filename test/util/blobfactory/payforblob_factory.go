@@ -3,7 +3,6 @@ package blobfactory
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -535,11 +534,8 @@ func RandMultiBlobTxs(t *testing.T, enc sdk.TxEncoder, rand *tmrand.Rand, pfbCou
 		require.NoError(t, err)
 
 		blobsPerPfb := GenerateRandomBlobCount(rand)
-		//fmt.Println("blobsPerPfb", blobsPerPfb)
 		blobSizes := GenerateRandomBlobSizes(blobsPerPfb, rand)
-		//fmt.Println("blobSizes", blobSizes)
 		blobs := ManyRandBlobs(t, rand, blobSizes...)
-		fmt.Println("blobs", blobs)
 		pfbTxs[i] = MultiBlobTx(t, enc, signer, signerData.Sequence, signerData.AccountNumber, blobs...)
 	}
 	return pfbTxs
