@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/cosmos/cosmos-sdk/client"
+
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -66,6 +68,22 @@ func generateOrderedTxs(normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]
 		pfbTxs...,
 	)
 	return coretypes.Txs(txs).ToSliceOfBytes()
+}
+
+// GenerateOrderedRandomTxs generates normalTxCount random Send transactions and pfbCount random MultiBlob transactions.
+func GenerateOrderedRandomTxs(t *testing.T, txConfig client.TxConfig, normalTxCount, pfbCount int) [][]byte {
+	noramlTxs := blobfactory.GenerateManyRandomRawSendTxs(txConfig, normalTxCount)
+	pfbTxs := blobfactory.RandMultiBlobTxs(t, txConfig.TxEncoder(), pfbCount)
+	txs := append(append(
+		make([]coretypes.Tx, 0, len(pfbTxs)+len(noramlTxs)),
+		noramlTxs...),
+		pfbTxs...,
+	)
+	return coretypes.Txs(txs).ToSliceOfBytes()
+}
+
+func GenerateMixedRandomTxs(t *testing.T, txConfig client.TxConfig, normalTxCount, pfbCount int) [][]byte {
+	return shuffle(GenerateOrderedRandomTxs(t, txConfig, normalTxCount, pfbCount))
 }
 
 func shuffle(slice [][]byte) [][]byte {
