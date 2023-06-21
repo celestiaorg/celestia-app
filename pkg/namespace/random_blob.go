@@ -5,7 +5,7 @@ import (
 )
 
 func RandomBlobNamespaceID(rand *tmrand.Rand) []byte {
-	return tmrand.Bytes(NamespaceVersionZeroIDSize)
+	return rand.Bytes(NamespaceVersionZeroIDSize)
 }
 
 func RandomBlobNamespace(rand *tmrand.Rand) Namespace {
