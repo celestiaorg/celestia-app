@@ -38,14 +38,30 @@ func MustNew(version uint8, id []byte) Namespace {
 	return ns
 }
 
-// MustNewV0 returns a new namespace with version 0 and the provided id. This
-// function panics if the provided id is not exactly NamespaceVersionZeroIDSize bytes.
-func MustNewV0(id []byte) Namespace {
-	if len(id) != NamespaceVersionZeroIDSize {
-		panic(fmt.Sprintf("invalid namespace id length: %v must be %v", len(id), NamespaceVersionZeroIDSize))
+// NewV0 returns a new namespace with version 0 and the provided subID. subID
+// must be <= 10 bytes. If subID is < 10 bytes, it will be left-padded with 0s
+// to fill 10 bytes.
+func NewV0(subID []byte) (Namespace, error) {
+	if lenSubID := len(subID); lenSubID > NamespaceVersionZeroIDSize {
+		return Namespace{}, fmt.Errorf("subID must be <= %v, but it was %v bytes", NamespaceVersionZeroIDSize, lenSubID)
 	}
 
-	ns, err := New(NamespaceVersionZero, append(NamespaceVersionZeroPrefix, id...))
+	subID = leftPad(subID, NamespaceVersionZeroIDSize)
+	id := make([]byte, NamespaceIDSize)
+	copy(id[NamespaceVersionZeroPrefixSize:], subID)
+
+	ns, err := New(NamespaceVersionZero, id)
+	if err != nil {
+		return Namespace{}, err
+	}
+
+	return ns, nil
+}
+
+// MustNewV0 returns a new namespace with version 0 and the provided subID. This
+// function panics if the provided subID would result in an invalid namespace.
+func MustNewV0(subID []byte) Namespace {
+	ns, err := NewV0(subID)
 	if err != nil {
 		panic(err)
 	}
@@ -155,4 +171,12 @@ func (n Namespace) IsGreaterThan(n2 Namespace) bool {
 
 func (n Namespace) IsGreaterOrEqualThan(n2 Namespace) bool {
 	return bytes.Compare(n.Bytes(), n2.Bytes()) > -1
+}
+
+func leftPad(b []byte, size int) []byte {
+	if len(b) >= size {
+		return b
+	}
+	pad := make([]byte, size-len(b))
+	return append(pad, b...)
 }

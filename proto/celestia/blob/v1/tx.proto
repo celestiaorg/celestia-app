@@ -17,8 +17,8 @@ service Msg {
 message MsgPayForBlobs {
   string signer = 1;
   // namespaces is a list of namespaces that the blobs are associated with. A
-  // namespace is a byte slice of length 33 where the first byte is the
-  // namespaceVersion and the subsequent 32 bytes are the namespaceId.
+  // namespace is a byte slice of length 29 where the first byte is the
+  // namespaceVersion and the subsequent 28 bytes are the namespaceId.
   repeated bytes namespaces = 2;
   repeated uint32 blob_sizes = 3;
   // share_commitments is a list of share commitments (one per blob).

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/x/qgb"
+
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
@@ -65,8 +67,59 @@ func TestCurrentValsetNormalization(t *testing.T) {
 	}
 }
 
-func TestCheckingLatestAttestationNonceInValsets(t *testing.T) {
-	input := testutil.CreateTestEnvWithoutAttestationNonceInit(t)
+func TestCheckingEarliestAvailableAttestationNonceInValsets(t *testing.T) {
+	input := testutil.CreateTestEnvWithoutQGBKeysInit(t)
+	k := input.QgbKeeper
+	// create a validator to have a realistic scenario
+	testutil.CreateValidator(
+		t,
+		input,
+		testutil.AccAddrs[0],
+		testutil.AccPubKeys[0],
+		0,
+		testutil.ValAddrs[0],
+		testutil.ConsPubKeys[0],
+		testutil.StakingAmount,
+		testutil.EVMAddrs[0],
+	)
+	// Run the staking endblocker to ensure valset is correct in state
+	staking.EndBlocker(input.Context, input.StakingKeeper)
+
+	// init the latest attestation nonce
+	input.QgbKeeper.SetLatestAttestationNonce(input.Context, qgb.InitialLatestAttestationNonce)
+
+	tests := []struct {
+		name          string
+		requestFunc   func() error
+		expectedError error
+	}{
+		{
+			name: "check earliest available nonce before getting the latest valset",
+			requestFunc: func() error {
+				_, err := k.GetLatestValset(input.Context)
+				return err
+			},
+			expectedError: types.ErrEarliestAvailableNonceStillNotInitialized,
+		},
+		{
+			name: "check earliest available nonce before getting latest valset before nonce",
+			requestFunc: func() error {
+				_, err := k.GetLatestValsetBeforeNonce(input.Context, 1)
+				return err
+			},
+			expectedError: types.ErrEarliestAvailableNonceStillNotInitialized,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.requestFunc()
+			assert.ErrorIs(t, err, tt.expectedError)
+		})
+	}
+}
+
+func TestCheckingAttestationNonceInValsets(t *testing.T) {
+	input := testutil.CreateTestEnvWithoutQGBKeysInit(t)
 	k := input.QgbKeeper
 	// create a validator to have a  realistic scenario
 	testutil.CreateValidator(
