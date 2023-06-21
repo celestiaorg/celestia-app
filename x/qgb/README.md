@@ -376,7 +376,7 @@ When initializing the QGB hooks, if the QGB store key is not setup correctly, th
 // if startup is mis-ordered in app.go this hook will halt the chain when
 // called. Keep this check to make such a mistake obvious
 if k.storeKey == nil {
-panic("hooks initialized before GravityKeeper")
+   panic("hooks initialized before QGBKeeper")
 }
 ```
 
