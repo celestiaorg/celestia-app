@@ -76,8 +76,8 @@ func generateOrderedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb,
 // GenerateOrderedRandomTxs generates normalTxCount random Send transactions and pfbCount random MultiBlob transactions.
 func GenerateOrderedRandomTxs(t *testing.T, txConfig client.TxConfig, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
 	signer := apptypes.GenerateKeyringSigner(t)
-	noramlTxs := blobfactory.GenerateManyRandomRawSendTxsSameSigner(t, txConfig, rand, signer, normalTxCount)
-	pfbTxs := blobfactory.RandMultiBlobTxs(t, txConfig.TxEncoder(), rand, pfbCount)
+	noramlTxs := blobfactory.GenerateManyRandomRawSendTxsSameSigner(txConfig, rand, signer, normalTxCount)
+	pfbTxs := blobfactory.RandMultiBlobTxsSameSigner(t, txConfig.TxEncoder(), rand, signer, pfbCount)
 	txs := append(append(
 		make([]coretypes.Tx, 0, len(pfbTxs)+len(noramlTxs)),
 		noramlTxs...),

@@ -106,16 +106,17 @@ func contains(allTxs [][]byte, subTxs [][]byte) bool {
 // TestRandMultiBlobTxs tests whether the same random seed produces the same blob txs.
 func TestRandMultiBlobTxs_Deterministic(t *testing.T) {
 	pfbCount := 10
+	signer := apptypes.GenerateKeyringSigner(t)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	decoder := encCfg.TxConfig.TxDecoder()
 
 	rand1 := tmrand.NewRand()
 	rand1.Seed(1)
-	marshalledBlobTxs1 := blobfactory.RandMultiBlobTxs(t, encCfg.TxConfig.TxEncoder(), rand1, pfbCount)
+	marshalledBlobTxs1 := blobfactory.RandMultiBlobTxsSameSigner(t, encCfg.TxConfig.TxEncoder(), rand1, signer, pfbCount)
 
 	rand2 := tmrand.NewRand()
 	rand2.Seed(1)
-	marshalledBlobTxs2 := blobfactory.RandMultiBlobTxs(t, encCfg.TxConfig.TxEncoder(), rand2, pfbCount)
+	marshalledBlobTxs2 := blobfactory.RandMultiBlobTxsSameSigner(t, encCfg.TxConfig.TxEncoder(), rand2, signer, pfbCount)
 
 	// additional checks for the sake of future debugging
 	for index := 0; index < pfbCount; index++ {
@@ -141,22 +142,6 @@ func TestRandMultiBlobTxs_Deterministic(t *testing.T) {
 	}
 
 	assert.Equal(t, marshalledBlobTxs1, marshalledBlobTxs2)
-}
-func TestGenerateOrderedRandomTxs_Deterministic(t *testing.T) {
-	pfbCount := 10
-	noramlCount := 10
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	rand1 := tmrand.NewRand()
-	rand1.Seed(1)
-	set1 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand1, noramlCount, pfbCount)
-
-	rand2 := tmrand.NewRand()
-	rand2.Seed(1)
-	set2 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand2, noramlCount, pfbCount)
-
-	assert.Equal(t, set2, set1)
-
 }
 
 // TestGenerateManyRandomRawSendTxsSameSigner_Determinism ensures that the same seed produces the same txs
@@ -192,5 +177,22 @@ func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
 	}
 
 	assert.Equal(t, encodedTxs1, encodedTxs2)
+}
+
+// TestGenerateManyRandomRawSendTxs_Determinism ensures that the same seed produces the same txs
+func TestGenerateOrderedRandomTxs_Deterministic(t *testing.T) {
+	pfbCount := 10
+	noramlCount := 10
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	rand1 := tmrand.NewRand()
+	rand1.Seed(1)
+	set1 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand1, noramlCount, pfbCount)
+
+	rand2 := tmrand.NewRand()
+	rand2.Seed(1)
+	set2 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand2, noramlCount, pfbCount)
+
+	assert.Equal(t, set2, set1)
 
 }

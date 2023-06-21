@@ -524,12 +524,11 @@ func GenerateRandomBlobSizes(count int, rand *tmrand.Rand) []int {
 	return sizes
 }
 
-// RandMultiBlobTxs returns a slice of random Blob transactions (consisting of pfbCount number of txs) each with random number of blobs and blob sizes.
-func RandMultiBlobTxs(t *testing.T, enc sdk.TxEncoder, rand *tmrand.Rand, pfbCount int) []coretypes.Tx {
+// RandMultiBlobTxsSameSigner returns a slice of random Blob transactions (consisting of pfbCount number of txs) each with random number of blobs and blob sizes.
+func RandMultiBlobTxsSameSigner(t *testing.T, enc sdk.TxEncoder, rand *tmrand.Rand, signer *apptypes.KeyringSigner, pfbCount int) []coretypes.Tx {
 	pfbTxs := make([]coretypes.Tx, pfbCount)
 	for i := 0; i < pfbCount; i++ {
 		// create one blob tx with random number of blobs and blob sizes
-		signer := apptypes.GenerateKeyringSigner(t)
 		signerData, err := signer.GetSignerData()
 		require.NoError(t, err)
 
