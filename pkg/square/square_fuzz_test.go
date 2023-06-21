@@ -1,10 +1,11 @@
 package square_test
 
 import (
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/stretchr/testify/assert"
 	"github.com/tendermint/tendermint/types"
-	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -194,5 +195,4 @@ func TestGenerateOrderedRandomTxs_Deterministic(t *testing.T) {
 	set2 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand2, noramlCount, pfbCount)
 
 	assert.Equal(t, set2, set1)
-
 }

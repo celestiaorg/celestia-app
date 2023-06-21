@@ -3,9 +3,10 @@ package square_test
 import (
 	"bytes"
 	"fmt"
-	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"math/rand"
 	"testing"
+
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"github.com/cosmos/cosmos-sdk/client"
 

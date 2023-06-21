@@ -3,8 +3,9 @@ package square_test
 import (
 	"bytes"
 	"fmt"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"testing"
+
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"

@@ -2,8 +2,9 @@ package square_test
 
 import (
 	"fmt"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"testing"
+
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/square"

@@ -2,8 +2,9 @@ package app_test
 
 import (
 	"bytes"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"testing"
+
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"

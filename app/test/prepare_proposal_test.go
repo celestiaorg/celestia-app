@@ -1,8 +1,9 @@
 package app_test
 
 import (
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"testing"
+
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
