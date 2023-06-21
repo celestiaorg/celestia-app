@@ -22,6 +22,7 @@ const (
 	dockerSrcURL  = "ghcr.io/celestiaorg/celestia-app"
 	secp256k1Type = "secp256k1"
 	ed25519Type   = "ed25519"
+	remoteRootDir = "/home/celestia/.celestia-app"
 )
 
 type Node struct {
@@ -70,11 +71,11 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
-	err = instance.AddVolume("/root/.celestia-app", "1Gi")
+	err = instance.AddVolume(remoteRootDir, "1Gi")
 	if err != nil {
 		return nil, err
 	}
-	err = instance.SetArgs("start", "--home=/root/.celestia-app", "--rpc.laddr=tcp://0.0.0.0:26657")
+	err = instance.SetArgs("start", fmt.Sprintf("--home=%s", remoteRootDir), "--rpc.laddr=tcp://0.0.0.0:26657")
 	if err != nil {
 		return nil, err
 	}
@@ -144,41 +145,41 @@ func (n *Node) Init(genesis types.GenesisDoc) error {
 	pvStatePath := filepath.Join(nodeDir, "data", "priv_validator_state.json")
 	(privval.NewFilePV(n.SignerKey, pvKeyPath, pvStatePath)).Save()
 
-	_, err = n.Instance.ExecuteCommand("mkdir -p /root/.celestia-app/config")
+	_, err = n.Instance.ExecuteCommand(fmt.Sprintf("mkdir -p %s/config", remoteRootDir))
 	if err != nil {
 		return fmt.Errorf("creating config directory: %w", err)
 	}
-	_, err = n.Instance.ExecuteCommand("mkdir -p /root/.celestia-app/data")
+	_, err = n.Instance.ExecuteCommand(fmt.Sprintf("mkdir -p %s/data", remoteRootDir))
 	if err != nil {
 		return fmt.Errorf("creating data directory: %w", err)
 	}
 
-	err = n.Instance.AddFile(configFilePath, filepath.Join("/root/.celestia-app/config", "config.toml"), "0:0")
+	err = n.Instance.AddFile(configFilePath, filepath.Join(remoteRootDir, "config", "config.toml"), "0:0")
 	if err != nil {
 		return fmt.Errorf("adding config file: %w", err)
 	}
 
-	err = n.Instance.AddFile(genesisFilePath, filepath.Join("/root/.celestia-app/config", "genesis.json"), "0:0")
+	err = n.Instance.AddFile(genesisFilePath, filepath.Join(remoteRootDir, "config", "genesis.json"), "0:0")
 	if err != nil {
 		return fmt.Errorf("adding genesis file: %w", err)
 	}
 
-	err = n.Instance.AddFile(appConfigFilePath, filepath.Join("/root/.celestia-app/config", "app.toml"), "0:0")
+	err = n.Instance.AddFile(appConfigFilePath, filepath.Join(remoteRootDir, "config", "app.toml"), "0:0")
 	if err != nil {
 		return fmt.Errorf("adding app config file: %w", err)
 	}
 
-	err = n.Instance.AddFile(pvKeyPath, filepath.Join("/root/.celestia-app/config", "priv_validator_key.json"), "0:0")
+	err = n.Instance.AddFile(pvKeyPath, filepath.Join(remoteRootDir, "config", "priv_validator_key.json"), "0:0")
 	if err != nil {
 		return fmt.Errorf("adding priv_validator_key file: %w", err)
 	}
 
-	err = n.Instance.AddFile(pvStatePath, filepath.Join("/root/.celestia-app/data", "priv_validator_state.json"), "0:0")
+	err = n.Instance.AddFile(pvStatePath, filepath.Join(remoteRootDir, "data", "priv_validator_state.json"), "0:0")
 	if err != nil {
 		return fmt.Errorf("adding priv_validator_state file: %w", err)
 	}
 
-	err = n.Instance.AddFile(nodeKeyFilePath, filepath.Join("/root/.celestia-app/config", "node_key.json"), "0:0")
+	err = n.Instance.AddFile(nodeKeyFilePath, filepath.Join(remoteRootDir, "config", "node_key.json"), "0:0")
 	if err != nil {
 		return fmt.Errorf("adding node_key file: %w", err)
 	}
@@ -229,13 +230,19 @@ func (n *Node) Start() error {
 	if err := n.Instance.Start(); err != nil {
 		return err
 	}
-	rpcProxyPort, err := n.Instance.PortForwardTCP(rpcPort)
-	if err != nil {
+
+	if err := n.Instance.WaitInstanceIsRunning(); err != nil {
 		return err
 	}
+
+	rpcProxyPort, err := n.Instance.PortForwardTCP(rpcPort)
+	if err != nil {
+		return fmt.Errorf("forwarding port %d: %w", rpcPort, err)
+	}
+
 	grpcProxyPort, err := n.Instance.PortForwardTCP(grpcPort)
 	if err != nil {
-		return err
+		return fmt.Errorf("forwarding port %d: %w", grpcPort, err)
 	}
 	n.rpcProxyPort = rpcProxyPort
 	n.grpcProxyPort = grpcProxyPort

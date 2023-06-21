@@ -128,7 +128,7 @@ func (t *Testnet) Start() error {
 	for _, node := range genesisNodes {
 		err := node.Start()
 		if err != nil {
-			return err
+			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
 	}
 	return nil
