@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"bytes"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -100,7 +101,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "normal blobTx w/ multiple blobs, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), kr, nil, 10000, 10, true, testutil.ChainID, accs[3:4])[0]
+				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 10000, 10, true, testutil.ChainID, accs[3:4])[0]
 				return tx
 			},
 			expectedABCICode: abci.CodeTypeOK,

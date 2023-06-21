@@ -44,7 +44,7 @@ func TestProcessProposal(t *testing.T) {
 		infos[:4],
 		blobfactory.NestedBlobs(
 			t,
-			appns.RandomBlobNamespaces(4),
+			appns.RandomBlobNamespaces(tmrand.NewRand(), 4),
 			[][]int{{100}, {1000}, {420}, {300}},
 		),
 	)
@@ -208,7 +208,7 @@ func TestProcessProposal(t *testing.T) {
 			mutator: func(d *core.Data) {
 				encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 				index := 4
-				tx, blob := blobfactory.IndexWrappedTxWithInvalidNamespace(t, encCfg.TxConfig.TxEncoder(), signer, 0, 0, uint32(index))
+				tx, blob := blobfactory.IndexWrappedTxWithInvalidNamespace(t, encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), signer, 0, 0, uint32(index))
 				blobTx, err := coretypes.MarshalBlobTx(tx, &blob)
 				require.NoError(t, err)
 

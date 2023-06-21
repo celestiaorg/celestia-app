@@ -4,13 +4,21 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
-func RandomBlobNamespaceID(rand *tmrand.Rand) []byte {
+func RandomBlobNamespaceID() []byte {
+	return RandomBlobNamespaceIDWithPRG(tmrand.NewRand())
+}
+
+func RandomBlobNamespaceIDWithPRG(rand *tmrand.Rand) []byte {
 	return rand.Bytes(NamespaceVersionZeroIDSize)
 }
 
-func RandomBlobNamespace(rand *tmrand.Rand) Namespace {
+func RandomBlobNamespace() Namespace {
+	return RandomBlobNamespaceWithPRG(tmrand.NewRand())
+}
+
+func RandomBlobNamespaceWithPRG(rand *tmrand.Rand) Namespace {
 	for {
-		id := RandomBlobNamespaceID(rand)
+		id := RandomBlobNamespaceIDWithPRG(rand)
 		namespace := MustNewV0(id)
 		err := namespace.ValidateBlobNamespace()
 		if err != nil {
@@ -22,7 +30,7 @@ func RandomBlobNamespace(rand *tmrand.Rand) Namespace {
 
 func RandomBlobNamespaces(rand *tmrand.Rand, count int) (namespaces []Namespace) {
 	for i := 0; i < count; i++ {
-		namespaces = append(namespaces, RandomBlobNamespace(rand))
+		namespaces = append(namespaces, RandomBlobNamespaceWithPRG(rand))
 	}
 	return namespaces
 }

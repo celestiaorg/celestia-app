@@ -33,7 +33,7 @@ var (
 func RandMsgPayForBlobsWithSigner(rand *tmrand.Rand, singer string, size, blobCount int) (*blobtypes.MsgPayForBlobs, []*tmproto.Blob) {
 	blobs := make([]*tmproto.Blob, blobCount)
 	for i := 0; i < blobCount; i++ {
-		blob, err := types.NewBlob(appns.RandomBlobNamespace(rand), tmrand.Bytes(size), appconsts.ShareVersionZero)
+		blob, err := types.NewBlob(appns.RandomBlobNamespaceWithPRG(rand), tmrand.Bytes(size), appconsts.ShareVersionZero)
 		if err != nil {
 			panic(err)
 		}
@@ -78,7 +78,7 @@ func RandMsgPayForBlobsWithNamespaceAndSigner(signer string, ns appns.Namespace,
 }
 
 func RandMsgPayForBlobs(rand *tmrand.Rand, size int) (*blobtypes.MsgPayForBlobs, *tmproto.Blob) {
-	blob, err := types.NewBlob(namespace.RandomBlobNamespace(rand), tmrand.Bytes(size), appconsts.ShareVersionZero)
+	blob, err := types.NewBlob(namespace.RandomBlobNamespaceWithPRG(rand), tmrand.Bytes(size), appconsts.ShareVersionZero)
 	if err != nil {
 		panic(err)
 	}
