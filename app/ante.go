@@ -1,6 +1,8 @@
 package app
 
 import (
+	blobante "github.com/celestiaorg/celestia-app/x/blob/ante"
+	blob "github.com/celestiaorg/celestia-app/x/blob/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -12,6 +14,7 @@ import (
 func NewAnteHandler(
 	accountKeeper ante.AccountKeeper,
 	bankKeeper authtypes.BankKeeper,
+	blobKeeper blob.Keeper,
 	feegrantKeeper ante.FeegrantKeeper,
 	signModeHandler signing.SignModeHandler,
 	sigGasConsumer ante.SignatureVerificationGasConsumer,
@@ -32,6 +35,7 @@ func NewAnteHandler(
 		ante.NewValidateSigCountDecorator(accountKeeper),
 		ante.NewSigGasConsumeDecorator(accountKeeper, sigGasConsumer),
 		ante.NewSigVerificationDecorator(accountKeeper, signModeHandler),
+		blobante.NewMinGasPFBDecorator(blobKeeper),
 		ante.NewIncrementSequenceDecorator(accountKeeper),
 		ibcante.NewRedundantRelayDecorator(channelKeeper),
 	)
