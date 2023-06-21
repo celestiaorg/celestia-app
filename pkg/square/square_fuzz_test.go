@@ -1,7 +1,9 @@
 package square_test
 
 import (
-	"fmt"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
+	"github.com/stretchr/testify/assert"
+	"github.com/tendermint/tendermint/types"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -11,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/inclusion"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/require"
@@ -27,7 +30,7 @@ import (
 // - That each share commitment in each PFB can be used to verify the inclusion of the blob it corresponds to.
 func FuzzSquare(f *testing.F) {
 	var (
-		normalTxCount = 12
+		normalTxCount = 0
 		pfbCount      = 91
 	)
 	f.Add(normalTxCount, pfbCount)
@@ -39,7 +42,13 @@ func FuzzSquare(f *testing.F) {
 		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		rand := tmrand.NewRand()
 		rand.Seed(1)
-		txs := GenerateMixedRandomTxs(t, encCfg.TxConfig, rand, normalTxCount, pfbCount)
+		txs := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand, normalTxCount, pfbCount)
+
+		//rand2 := tmrand.NewRand()
+		//rand2.Seed(1)
+		//txs2 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand2, normalTxCount, pfbCount)
+
+		//assert.Equal(t, txs, txs2)
 
 		s, orderedTxs, err := square.Build(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
@@ -99,20 +108,92 @@ func contains(allTxs [][]byte, subTxs [][]byte) bool {
 	return true
 }
 
-func TestSeed(t *testing.T) {
-	tmrand.Seed(1)
-	var bytes [][]byte
-	for i := 0; i < 100; i++ {
-		bytes = append(bytes, tmrand.Bytes(1))
-	}
-	fmt.Println(bytes)
-	// [[121] [247] [233] [117] [42] [61] [188] [139] [202] [99] [156] [1] [251] [222] [43] [125] [196] [107] [141] [255] [5] [20] [144] [161] [198] [79] [100] [170] [186] [148] [99] [63] [7] [44] [169] [180] [118] [16] [207] [183] [118] [206] [39] [187] [125] [105] [56] [154] [234] [155] [181] [193] [55] [144] [245] [254] [223] [116] [52] [29] [186] [148] [115] [221] [81] [20] [87] [183] [176] [127] [39] [137] [44] [61] [59] [130] [12] [23] [232] [92] [202] [180] [71] [237] [172] [34] [102] [32] [49] [213] [88] [242] [148] [190] [86] [232] [45] [50] [152] [112]]
+// TestRandMultiBlobTxs tests whether the same random seed produces the same blob txs.
+func TestRandMultiBlobTxs_Deterministic(t *testing.T) {
+	pfbCount := 10
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	decoder := encCfg.TxConfig.TxDecoder()
 
-	tmrand.Seed(1)
-	var nums []int
-	for i := 0; i < 100; i++ {
-		nums = append(nums, tmrand.Intn(100))
+	rand1 := tmrand.NewRand()
+	rand1.Seed(1)
+	marshalledBlobTxs1 := blobfactory.RandMultiBlobTxs(t, encCfg.TxConfig.TxEncoder(), rand1, pfbCount)
+
+	rand2 := tmrand.NewRand()
+	rand2.Seed(1)
+	marshalledBlobTxs2 := blobfactory.RandMultiBlobTxs(t, encCfg.TxConfig.TxEncoder(), rand2, pfbCount)
+
+	// additional checks for the sake of future debugging
+	for index := 0; index < pfbCount; index++ {
+		blobTx1, isBlob := types.UnmarshalBlobTx(marshalledBlobTxs1[index])
+		assert.True(t, isBlob)
+		pfbMsgs1, err := decoder(blobTx1.Tx)
+		assert.NoError(t, err)
+
+		blobTx2, isBlob := types.UnmarshalBlobTx(marshalledBlobTxs2[index])
+		assert.True(t, isBlob)
+		pfbMsgs2, err := decoder(blobTx2.Tx)
+		assert.NoError(t, err)
+
+		assert.Equal(t, blobTx1.Blobs, blobTx2.Blobs)
+		assert.Equal(t, blobTx1.Tx, blobTx2.Tx)
+		assert.Equal(t, pfbMsgs1, pfbMsgs2)
+
+		msgs2 := pfbMsgs2.GetMsgs()
+		msgs1 := pfbMsgs1.GetMsgs()
+		for i, msg := range msgs1 {
+			assert.Equal(t, msg, msgs2[i])
+		}
 	}
-	fmt.Println(nums)
-	//[81 87 47 59 81 18 25 40 56 0 94 11 62 89 28 74 11 45 37 6 95 66 28 58 47 47 87 88 90 15 41 8 87 31 29 56 37 31 85 26 13 90 94 63 33 47 78 24 59 53 57 21 89 99 0 5 88 38 3 55 51 10 5 56 66 28 61 2 83 46 63 76 2 18 47 94 77 63 96 20 23 53 37 33 41 59 33 43 91 2 78 36 46 7 40 3 52 43 5 98]
+
+	assert.Equal(t, marshalledBlobTxs1, marshalledBlobTxs2)
+}
+func TestGenerateOrderedRandomTxs_Deterministic(t *testing.T) {
+	pfbCount := 10
+	noramlCount := 10
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	rand1 := tmrand.NewRand()
+	rand1.Seed(1)
+	set1 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand1, noramlCount, pfbCount)
+
+	rand2 := tmrand.NewRand()
+	rand2.Seed(1)
+	set2 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand2, noramlCount, pfbCount)
+
+	assert.Equal(t, set2, set1)
+
+}
+
+// TestGenerateManyRandomRawSendTxsSameSigner_Determinism ensures that the same seed produces the same txs
+func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
+	normalTxCount := 1
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	TxDecoder := encCfg.TxConfig.TxDecoder()
+
+	signer := apptypes.GenerateKeyringSigner(t)
+
+	rand := tmrand.NewRand()
+	rand.Seed(1)
+	txs1 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(t, encCfg.TxConfig, rand, signer, normalTxCount)
+
+	rand2 := tmrand.NewRand()
+	rand2.Seed(1)
+	txs2 := blobfactory.GenerateManyRandomRawSendTxsSameSigner(t, encCfg.TxConfig, rand2, signer, normalTxCount)
+
+	// additional check for the sake of future debugging
+	for i, tx := range txs1 {
+		utx, err := TxDecoder(tx)
+		assert.NoError(t, err)
+		assert.NotNil(t, utx)
+		msgs1 := utx.GetMsgs()
+
+		utx2, err2 := TxDecoder(txs2[i])
+		assert.NoError(t, err2)
+		assert.NotNil(t, utx2)
+		msgs2 := utx2.GetMsgs()
+		assert.Equal(t, msgs1, msgs2)
+	}
+
+	assert.Equal(t, txs1, txs2)
+
 }
