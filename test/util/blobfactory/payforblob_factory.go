@@ -30,7 +30,7 @@ var (
 	TestMaxBlobCount = 5
 )
 
-func RandMsgPayForBlobsWithSigner(singer string, size, blobCount int) (*blobtypes.MsgPayForBlobs, []*tmproto.Blob) {
+func RandMsgPayForBlobsWithSigner(rand *tmrand.Rand, singer string, size, blobCount int) (*blobtypes.MsgPayForBlobs, []*tmproto.Blob) {
 	blobs := make([]*tmproto.Blob, blobCount)
 	for i := 0; i < blobCount; i++ {
 		blob, err := types.NewBlob(appns.RandomBlobNamespace(rand), tmrand.Bytes(size), appconsts.ShareVersionZero)
