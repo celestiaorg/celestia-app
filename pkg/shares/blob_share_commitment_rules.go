@@ -58,8 +58,8 @@ func NextShareIndex(cursor, blobShareLen, squareSize, subtreeRootThreshold int) 
 		return cursor
 	}
 
-	// Calculate the subtreewidth. This is the width of the first mountain in the 
-	// merkle mountain range that makes up the blob share commitment (given the 
+	// Calculate the subtreewidth. This is the width of the first mountain in the
+	// merkle mountain range that makes up the blob share commitment (given the
 	// subtreeRootThreshold and the BlobMinSquareSize).
 	treeWidth := SubTreeWidth(blobShareLen, subtreeRootThreshold)
 	// We round up the cursor to the next multiple of this value i.e. if the cursor
@@ -120,9 +120,4 @@ func min[T constraints.Integer](i, j T) T {
 // isStartOfRow returns true if cursor is at the start of a row
 func isStartOfRow(cursor, squareSize int) bool {
 	return cursor == 0 || cursor%squareSize == 0
-}
-
-// getStartOfRow returns the index of the first share in the next row
-func getStartOfNextRow(cursor, squareSize int) int {
-	return ((cursor / squareSize) + 1) * squareSize
 }
