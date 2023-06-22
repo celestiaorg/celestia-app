@@ -24,7 +24,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 	// transactions.
 	svHander := sigVerifyAnteHandler(&app.AccountKeeper, app.txConfig)
 	seqHandler := incrementSequenceAnteHandler(&app.AccountKeeper)
-	sdkCtx := app.NewProposalContext(req.Header)
+	sdkCtx := app.NewProposalContext(req.Header).WithChainID(app.GetChainID())
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed and non
 	// blobTxs have no PFBs present
@@ -78,7 +78,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) abci.ResponsePr
 		}
 
 		// validated the PFB signature
-		sdkCtx, err = svHander(sdkCtx, sdkTx, true)
+		sdkCtx, err = svHander(sdkCtx, sdkTx, false)
 		if err != nil {
 			logInvalidPropBlockError(app.Logger(), req.Header, "invalid PFB signature", err)
 			return reject()
