@@ -99,7 +99,7 @@ These signatures are then verified in the smart contract using the [`verifySig()
 
 ## Security assumptions
 
-The QGB security relies on Celestia validator set security, which assumes that the majority of the participating validator aren't Byzantine and behave honestly. This assumption ensures that the honest nodes have control over the consensus outcome and can overpower any malicious behavior from the Byzantine nodes.
+The security of the QGB relies on an honest majority of the Celestia validator set. This assumption indicates that more than 2/3s of the voting power follows each [block validity rule](../../specs/src/specs/block_validity_rules.md). Additionally, over 2/3s of the voting power sign valid validator set updates and data commitments, as outlined above.
 
 So, if more than 1/3rd of the validator set stops running their orchestrators,then the QGB halts. And, if more than 2/3rds sign invalid data, then the QGB contract will commit to invalid data and we will need to redeploy the smart contract and social slash the dishonest validators.
 
