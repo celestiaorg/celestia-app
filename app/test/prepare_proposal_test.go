@@ -50,7 +50,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		1000,
 		accnts[0],
 		accnts[numBlobTxs:],
-		"",
+		testutil.ChainID,
 	)
 	txs := append(blobTxs, coretypes.Txs(normalTxs).ToSliceOfBytes()...)
 
