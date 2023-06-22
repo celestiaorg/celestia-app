@@ -82,6 +82,8 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) error {
 			return err
 		}
 
+		// this not only checks that the pfb namespaces match the ones in the blobs
+		// but that the namespace version and namespace id are valid
 		blobNamespace, err := appns.New(uint8(bTx.Blobs[i].NamespaceVersion), bTx.Blobs[i].NamespaceId)
 		if err != nil {
 			return err
