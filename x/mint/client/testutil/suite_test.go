@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 	tmcli "github.com/tendermint/tendermint/libs/cli"
@@ -54,6 +55,14 @@ func (s *IntegrationTestSuite) jsonArgs() []string {
 
 func (s *IntegrationTestSuite) textArgs() []string {
 	return []string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=json", tmcli.OutputFlag)}
+}
+
+// getGenesisTime returns the genesis time from the genesis state.
+func (s *IntegrationTestSuite) getGenesisTime() *time.Time {
+	genesisState := s.cfg.GenesisState
+	var mintData minttypes.GenesisState
+	s.Require().NoError(s.cfg.Codec.UnmarshalJSON(genesisState[minttypes.ModuleName], &mintData))
+	return mintData.GetMinter().GenesisTime
 }
 
 // TestGetCmdQueryInflationRate tests that the CLI query command for inflation
@@ -137,10 +146,7 @@ func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
 // query genesis time looks like: `celestia-appd query mint genesis-time`
 func (s *IntegrationTestSuite) TestGetCmdQueryGenesisTime() {
 	val := s.network.Validators[0]
-	genesisState := s.cfg.GenesisState
-	var mintData minttypes.GenesisState
-	s.Require().NoError(s.cfg.Codec.UnmarshalJSON(genesisState[minttypes.ModuleName], &mintData))
-	want := mintData.GetMinter().GenesisTime
+	want := s.getGenesisTime().String()
 
 	testCases := []struct {
 		name string
@@ -167,7 +173,7 @@ func (s *IntegrationTestSuite) TestGetCmdQueryGenesisTime() {
 			s.Require().NoError(err)
 
 			trimmed := strings.TrimSpace(out.String())
-			s.Require().Equal(want.String(), trimmed)
+			s.Require().Equal(want, trimmed)
 		})
 	}
 }
