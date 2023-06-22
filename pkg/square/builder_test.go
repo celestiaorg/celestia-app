@@ -3,7 +3,7 @@ package square_test
 import (
 	"bytes"
 	"fmt"
-	"math/rand"
+	"github.com/stretchr/testify/assert"
 	"testing"
 
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -59,7 +59,7 @@ func TestBuilderSquareSizeEstimation(t *testing.T) {
 }
 
 func generateMixedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
-	return shuffle(generateOrderedTxs(rand, normalTxCount, pfbCount, blobsPerPfb, blobSize))
+	return shuffle(rand, generateOrderedTxs(rand, normalTxCount, pfbCount, blobsPerPfb, blobSize))
 }
 
 func generateOrderedTxs(rand *tmrand.Rand, normalTxCount, pfbCount, blobsPerPfb, blobSize int) [][]byte {
@@ -87,11 +87,45 @@ func GenerateOrderedRandomTxs(t *testing.T, txConfig client.TxConfig, rand *tmra
 	return coretypes.Txs(txs).ToSliceOfBytes()
 }
 
-func GenerateMixedRandomTxs(t *testing.T, txConfig client.TxConfig, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
-	return shuffle(GenerateOrderedRandomTxs(t, txConfig, rand, normalTxCount, pfbCount))
+// TestGenerateManyRandomRawSendTxs_Determinism ensures that the same seed produces the same txs
+func TestGenerateOrderedRandomTxs_Deterministic(t *testing.T) {
+	pfbCount := 10
+	noramlCount := 10
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	rand1 := tmrand.NewRand()
+	rand1.Seed(1)
+	set1 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand1, noramlCount, pfbCount)
+
+	rand2 := tmrand.NewRand()
+	rand2.Seed(1)
+	set2 := GenerateOrderedRandomTxs(t, encCfg.TxConfig, rand2, noramlCount, pfbCount)
+
+	assert.Equal(t, set2, set1)
 }
 
-func shuffle(slice [][]byte) [][]byte {
+func GenerateMixedRandomTxs(t *testing.T, txConfig client.TxConfig, rand *tmrand.Rand, normalTxCount, pfbCount int) [][]byte {
+	return shuffle(rand, GenerateOrderedRandomTxs(t, txConfig, rand, normalTxCount, pfbCount))
+}
+
+// TestGenerateManyRandomRawSendTxs_Determinism ensures that the same seed produces the same txs
+func TestGenerateMixedRandomTxs_Deterministic(t *testing.T) {
+	pfbCount := 10
+	noramlCount := 10
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	rand1 := tmrand.NewRand()
+	rand1.Seed(1)
+	set1 := GenerateMixedRandomTxs(t, encCfg.TxConfig, rand1, noramlCount, pfbCount)
+
+	rand2 := tmrand.NewRand()
+	rand2.Seed(1)
+	set2 := GenerateMixedRandomTxs(t, encCfg.TxConfig, rand2, noramlCount, pfbCount)
+
+	assert.Equal(t, set2, set1)
+}
+
+func shuffle(rand *tmrand.Rand, slice [][]byte) [][]byte {
 	for i := range slice {
 		j := rand.Intn(i + 1)
 		slice[i], slice[j] = slice[j], slice[i]
