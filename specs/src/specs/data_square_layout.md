@@ -14,7 +14,7 @@ Block data consists of:
     1. These transactions contain protobuf encoded [`sdk.Msg`](https://github.com/celestiaorg/cosmos-sdk/blob/v1.14.0-sdk-v0.46.11/types/tx_msg.go#L14-L26)s, which get executed atomically (if one fails they all fail) to update the Celestia state. The complete list of modules, which define the `sdk.Msg`s that the state machine is capable of handling, can be found in the [state machine modules spec](../specs/state_machine_modules.md). Examples include standard cosmos-sdk module messages such as [MsgSend](https://github.com/cosmos/cosmos-sdk/blob/f71df80e93bffbf7ce5fbd519c6154a2ee9f991b/proto/cosmos/bank/v1beta1/tx.proto#L21-L32)), and celestia specific module messages such as [`MsgPayForBlobs`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/proto/celestia/blob/v1/tx.proto#L16-L31)
 1. Blobs: binary large objects which do not modify the Celestia state, but which are intended for a Celestia application identified with a provided namespace.
 
-We want to arrange this data into a `k * k` matrix of fixed-sized [shares](../specs/shares.md), which will later be committed to in [Namespace Merkle Trees (NMTs)](https://github.com/celestiaorg/nmt/blob/v0.16.0/docs/spec/nmt.md) so that individual shares in this matrix can be proven to belong to a single data root. `k` must always be a power of 2 (e.g. 4, 8, 16, 32, etc.) as this is optimal for the erasure coding algorithm.
+We want to arrange this data into a `k * k` matrix of fixed-sized [shares](../specs/shares.md), which will later be committed to in [Namespace Merkle Trees (NMTs)](https://github.com/celestiaorg/nmt/blob/v0.16.0/docs/spec/nmt.md) so that individual shares in this matrix can be proven to belong to a single data root. `k` must always be a power of 2 (e.g. 1, 2, 4, 8, 16, 32, etc.) as this is optimal for the erasure coding algorithm.
 
 The simplest way we can imagine arranging block data is to simply serialize it all in no particular order, split it into fixed-sized shares, then arrange those shares into the `k * k` matrix in row-major order. However, this naive scheme can be improved in a number of ways, described below.
 
@@ -30,6 +30,7 @@ Given these rules, a square may look as follows:
 ![](./figures/square_layout.svg)
 
 Padding is addressed in the [padding section](#padding). Namespace C contains two blobs of two shares each while Namespace D contains one blob of three shares.
+
 ### Ordering
 
 The order of blobs in a namespace is dictated by the priority of the PFBs that payed for the blob. A PFB with greater priority will have all blobs in that namespace strictly before a PFB with less priority.
@@ -56,9 +57,9 @@ The `SubtreeWidth` is the length of the blob in shares, divided by the [`Subtree
 
 ![](./figures/subtree_width.svg)
 
-The `SubtreeRootThreshold` is an arbitrary versioned protocol constant that aims to put a soft limit on the number of subtree roots included in a blob inclusion proof, as described in [ADR013](../../../docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md). A higher `SubtreeRootThreshold` means less padding and more tightly packed squares but also means greater proof sizes.
+The `SubtreeRootThreshold` is an arbitrary versioned protocol constant that aims to put a soft limit on the number of subtree roots included in a blob inclusion proof, as described in [ADR013](../../../docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md). A higher `SubtreeRootThreshold` means less padding and more tightly packed squares but also means greater blob inclusion proof sizes.
 With the above constraint, we can compute subtree roots deterministically. For example, a blob of 172 shares and `SubtreeRootThreshold` (SRT) = 64, must start on a share index that is a multiple of 2 because 172/64 = 3. 3 rounded up to the nearest power of 2 is 4. In this case, there will be a maximum of 3 share of padding between blobs (more on padding below). The maximum subtree width in shares for the first mountain in the merkle range will also be 4 (The actual mountain range would be 43 subtree roots of 4 shares each).
 
 ## Padding
 
-Given these rules whereby blobs in their share format can't be directly appended one after the other, we use padding shares to fill the gaps. These are shares with all `0` bytes. Padding always comes after the blobs in the namespace. The padding at the end of the square (Tail Padding) is unique in that it belongs to it's own namespace. All other padding shares the namespace of the blob before it.
+Given these rules whereby blobs in their share format can't be directly appended one after the other, we use padding shares to fill the gaps. These are shares with a particular format (see [padding](./shares.md#padding)). Padding always comes after all the blobs in the namespace. The padding at the end of the reserved namespace and at the end of the square are special in that they belong to unique namespaces. All other padding shares use the namespace of the blob before it in the data square.
