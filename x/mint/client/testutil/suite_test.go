@@ -124,10 +124,49 @@ func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
 	}
 }
 
+// TestGetCmdQueryGenesisTime tests that the CLI command for genesis time
+// returns the same time that is set in the genesis state. The CLI command to
+// query genesis time looks like: `celestia-appd query mint genesis-time`
+func (s *IntegrationTestSuite) TestGetCmdQueryGenesisTime() {
+	val := s.network.Validators[0]
+	genesisState := s.cfg.GenesisState
+	var mintData minttypes.GenesisState
+	s.Require().NoError(s.cfg.Codec.UnmarshalJSON(genesisState[minttypes.ModuleName], &mintData))
+	want := mintData.GetMinter().GenesisTime
+
+	testCases := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "json output",
+			args: s.jsonArgs(),
+		},
+		{
+			name: "text output",
+			args: s.textArgs(),
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+
+		s.Run(tc.name, func() {
+			cmd := cli.GetCmdQueryGenesisTime()
+			clientCtx := val.ClientCtx
+
+			out, err := clitestutil.ExecTestCLICmd(clientCtx, cmd, tc.args)
+			s.Require().NoError(err)
+
+			trimmed := strings.TrimSpace(out.String())
+			s.Require().Equal(want.String(), trimmed)
+		})
+	}
+}
+
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestIntegrationTestSuite(t *testing.T) {
 	cfg := appnetwork.DefaultConfig()
-	cfg.NumValidators = 1
 	suite.Run(t, NewIntegrationTestSuite(cfg))
 }
