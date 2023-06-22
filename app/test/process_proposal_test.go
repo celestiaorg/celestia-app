@@ -308,7 +308,7 @@ func TestProcessProposal(t *testing.T) {
 			res := testApp.ProcessProposal(abci.RequestProcessProposal{
 				BlockData: resp.BlockData,
 				Header: core.Header{
-					Height:    1,
+					Height:   1,
 					DataHash: resp.BlockData.Hash,
 				},
 			})
