@@ -56,6 +56,9 @@ func (s *IntegrationTestSuite) textArgs() []string {
 	return []string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=json", tmcli.OutputFlag)}
 }
 
+// TestGetCmdQueryInflationRate tests that the CLI query command for inflation
+// rate returns the correct value. This test assumes that the initial inflation
+// rate is 0.08.
 func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 	val := s.network.Validators[0]
 
@@ -90,6 +93,11 @@ func (s *IntegrationTestSuite) TestGetCmdQueryInflationRate() {
 	}
 }
 
+// TestGetCmdQueryAnnualProvisions tests that the CLI query command for annual-provisions
+// returns the correct value. This test assumes that the initial inflation
+// rate is 0.08 and the initial total supply is 500_000_000 utia.
+//
+// TODO assert that total supply is 500_000_000 utia.
 func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
 	val := s.network.Validators[0]
 
