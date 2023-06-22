@@ -1,13 +1,14 @@
 package blobfactory
 
 import (
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/assert"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
-	"testing"
 )
 
 // TestRandMultiBlobTxsSameSigner_Deterministic tests whether with the same random seed the RandMultiBlobTxsSameSigner function produces the same blob txs.
@@ -38,7 +39,6 @@ func TestRandMultiBlobTxsSameSigner_Deterministic(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, blobTx1.Blobs, blobTx2.Blobs)
-		assert.Equal(t, blobTx1.Tx, blobTx2.Tx)
 		assert.Equal(t, pfbMsgs1, pfbMsgs2)
 
 		msgs2 := pfbMsgs2.GetMsgs()

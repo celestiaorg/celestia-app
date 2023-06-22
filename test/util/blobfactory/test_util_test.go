@@ -1,12 +1,13 @@
 package blobfactory
 
 import (
+	"testing"
+
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/assert"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"testing"
 )
 
 // TestGenerateManyRandomRawSendTxsSameSigner_Determinism tests whether with the same random seed the GenerateManyRandomRawSendTxsSameSigner function produces the same send transactions.
