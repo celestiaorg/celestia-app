@@ -6,8 +6,9 @@ import (
 )
 
 // InitGenesis initializes the x/mint store with data from the genesis state.
-func (keeper Keeper) InitGenesis(ctx sdk.Context, ak types.AccountKeeper, gs *types.GenesisState) {
-	keeper.SetMinter(ctx, gs.Minter)
+func (keeper Keeper) InitGenesis(ctx sdk.Context, ak types.AccountKeeper, data *types.GenesisState) {
+	keeper.SetMinter(ctx, data.Minter)
+	ak.GetModuleAccount(ctx, types.ModuleName)
 }
 
 // ExportGenesis returns a x/mint GenesisState for the given context.
