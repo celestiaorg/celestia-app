@@ -350,7 +350,7 @@ func Test_roundUpBy(t *testing.T) {
 				tt.expectedIndex,
 			),
 			func(t *testing.T) {
-				res := roundUpBy(tt.cursor, tt.v)
+				res := roundUpByMultipleOf(tt.cursor, tt.v)
 				assert.Equal(t, tt.expectedIndex, res)
 			})
 	}

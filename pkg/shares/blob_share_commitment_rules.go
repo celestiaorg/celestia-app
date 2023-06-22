@@ -45,9 +45,12 @@ func BlobSharesUsedNonInteractiveDefaults(cursor, squareSize, subtreeRootThresho
 
 // NextShareIndex determines the next index in a square that can be used. It
 // follows the blob share commitment rules defined in ADR-013. Assumes that all
-// args are non negative, and that squareSize is a power of two.
+// args are non negative, that squareSize is a power of two and that the blob can
+// fit in the square. The cursor is expected to be the index after the end of
+// the previous blob.
 //
-// https://github.com/celestiaorg/celestia-specs/blob/master/src/rationale/message_block_layout.md#non-interactive-default-rules
+// See https://github.com/celestiaorg/celestia-app/blob/main/specs/src/specs/data_square_layout.md
+// for more information.
 func NextShareIndex(cursor, blobShareLen, squareSize, subtreeRootThreshold int) int {
 	// if we're starting at the beginning of the row, then return as there are
 	// no cases where we don't start at 0.
@@ -55,25 +58,18 @@ func NextShareIndex(cursor, blobShareLen, squareSize, subtreeRootThreshold int) 
 		return cursor
 	}
 
+	// Calculate the subtreewidth. This is the width of the first mountain in the 
+	// merkle mountain range that makes up the blob share commitment (given the 
+	// subtreeRootThreshold and the BlobMinSquareSize).
 	treeWidth := SubTreeWidth(blobShareLen, subtreeRootThreshold)
-	startOfNextRow := getStartOfNextRow(cursor, squareSize)
-	cursor = roundUpBy(cursor, treeWidth)
-	switch {
-	// the entire blob fits in this row
-	case cursor+blobShareLen <= startOfNextRow:
-		return cursor
-	// only a portion of the blob fits in this row
-	case cursor+treeWidth <= startOfNextRow:
-		return cursor
-	// none of the blob fits on this row, so return the start of the next row
-	default:
-		return startOfNextRow
-	}
+	// We round up the cursor to the next multiple of this value i.e. if the cursor
+	// was at 13 and the tree width was 4, we return 16.
+	return roundUpByMultipleOf(cursor, treeWidth)
 }
 
-// roundUpBy rounds cursor up to the next multiple of v. If cursor is divisible
+// roundUpByMultipleOf rounds cursor up to the next multiple of v. If cursor is divisible
 // by v, then it returns cursor
-func roundUpBy(cursor, v int) int {
+func roundUpByMultipleOf(cursor, v int) int {
 	switch {
 	case cursor == 0:
 		return cursor
