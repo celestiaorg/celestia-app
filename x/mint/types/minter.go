@@ -22,8 +22,9 @@ func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec, genesisTime *tim
 // DefaultMinter returns a Minter object with default values.
 func DefaultMinter() Minter {
 	inflationRate := InitialInflationRateAsDec()
+	annualProvisions := sdk.NewDec(0)
 	genesisTime := time.Now()
-	return NewMinter(inflationRate, sdk.NewDec(0), &genesisTime, DefaultBondDenom)
+	return NewMinter(inflationRate, annualProvisions, &genesisTime, DefaultBondDenom)
 }
 
 // Validate returns an error if the minter is invalid.
