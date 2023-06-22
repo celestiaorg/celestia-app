@@ -107,6 +107,8 @@ So, if more than 1/3rd of the validator set stops running their orchestrators,th
 
 We still don't support slashing for equivocation, liveness  or double signatures. However, if anything were to happen to the bridge, we would be able to social slash the corrupt validators and redeploy the contract.
 
+Future versions of the QGB will support slashing. It will be enforced via the use of [vote extensions](https://docs.cosmos.network/main/building-apps/vote-extensions).
+
 ## Proofs
 
 To prove that data was posted to an EVM chain, we have the following method: [`verifyAttestation()`](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol#L339-L358). This allows to verify that a data root tuple was committed to by the QGB  smart contract.
