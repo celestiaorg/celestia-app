@@ -135,7 +135,7 @@ func initEVMAddrs(count int) []gethcommon.Address {
 	return addresses
 }
 
-// TestInput stores the various keepers required to test gravity
+// TestInput stores the various keepers required to test the QGB
 type TestInput struct {
 	QgbKeeper      *keeper.Keeper
 	AccountKeeper  authkeeper.AccountKeeper
