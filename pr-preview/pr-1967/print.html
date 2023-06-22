@@ -1963,7 +1963,7 @@ if err != nil {
 <pre><code class="language-golang">// if startup is mis-ordered in app.go this hook will halt the chain when
 // called. Keep this check to make such a mistake obvious
 if k.storeKey == nil {
-panic(&quot;hooks initialized before GravityKeeper&quot;)
+   panic(&quot;hooks initialized before QGBKeeper&quot;)
 }
 </code></pre>
 <h2 id="appendix"><a class="header" href="#appendix">Appendix</a></h2>
