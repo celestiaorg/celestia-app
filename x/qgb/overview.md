@@ -42,7 +42,7 @@ At startup, it [loads](https://github.com/celestiaorg/orchestrator-relayer/blob/
 
 An attestation digest is a bytes array containing a digest of the attestation relevant information. More on this in the [hashes formats](#hashes-format) section.
 
-The orchestrator generally needs access to the validator's RPC/gRPC endpoints. However, it still can use public ones if needed. Its only hard requirement is having access to the specific private key for the target validator. Otherwise, the signatures will be invalid and the validator might get slashed.
+The orchestrator generally needs access to the validator's RPC/gRPC endpoints. However, it still can use public ones if needed. Its only hard requirement is having access to the specific private key for the target validator. Otherwise, the signatures will be invalid and the validator could get slashed in future versions.
 
 ### [Relayer](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/orchestrator.md)
 
