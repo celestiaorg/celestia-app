@@ -101,7 +101,7 @@ These signatures are then verified in the smart contract using the [`verifySig()
 
 The security of the QGB relies on an honest majority of the Celestia validator set. This assumption indicates that more than 2/3s of the voting power follows each [block validity rule](../../specs/src/specs/block_validity_rules.md). Additionally, over 2/3s of the voting power sign valid validator set updates and data commitments, as outlined above.
 
-So, if more than 1/3rd of the validator set stops running their orchestrators,then the QGB halts. And, if more than 2/3rds sign invalid data, then the QGB contract will commit to invalid data and we will need to redeploy the smart contract and social slash the dishonest validators.
+If more than 1/3rd of the validator set stops running their orchestrators, then the QGB halts. And, if more than 2/3rds sign invalid data, then the QGB contract will commit to invalid data. The only recovery from such a state is to revert to social consensus, potentially slashing the guilty validators and redeploying the smart contracts.
 
 ## Slashing
 
