@@ -100,7 +100,7 @@ func TestCalculateBlockProvision(t *testing.T) {
 			current:          current,
 			previous:         current.Add(-blockInterval),
 			// 80 billion utia (annual provisions) * 15 (seconds) / 31,556,952 (seconds per year) = 38026.48620817 which truncates to 38026 utia
-			want: sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(38026)),
+			want: sdk.NewCoin(DefaultBondDenom, sdk.NewInt(38026)),
 		},
 		{
 			name:             "one 30 second block during the first year",
@@ -108,7 +108,7 @@ func TestCalculateBlockProvision(t *testing.T) {
 			current:          current,
 			previous:         current.Add(-2 * blockInterval),
 			// 80 billion utia (annual provisions) * 30 (seconds) / 31,556,952 (seconds per year) = 76052.97241635 which truncates to 76052 utia
-			want: sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(76052)),
+			want: sdk.NewCoin(DefaultBondDenom, sdk.NewInt(76052)),
 		},
 	}
 	for _, tc := range testCases {
