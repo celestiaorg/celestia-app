@@ -1,8 +1,6 @@
 package blobfactory
 
 import (
-	"fmt"
-
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -88,7 +86,6 @@ func GenerateRandomAmount(rand *tmrand.Rand) int64 {
 // GenerateRandomRawSendTx generates a random raw send tx.
 func GenerateRandomRawSendTx(txConfig client.TxConfig, rand *tmrand.Rand, signer *apptypes.KeyringSigner) (rawTx []byte) {
 	amount := GenerateRandomAmount(rand)
-	fmt.Println("amount", amount)
 	return GenerateRawSendTx(txConfig, signer, amount)
 }
 
