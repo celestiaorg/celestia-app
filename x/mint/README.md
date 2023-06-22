@@ -74,6 +74,12 @@ $ celestia-appd query mint inflation
 0.080000000000000000
 ```
 
+## Genesis State
+
+The genesis state is defined in [./types/genesis.go](./types/genesis.go).
+
+It is worth pointing out that `Minter.GenesisTime` defaults to `time.Now()` which will likely not exactly match the root level `genesis_time` in the genesis.json. It is possible to override the `Minter.GenesisTime` in genesis.json prior to chain start.
+
 ## Params
 
 All params have been removed from this module because they should not be modifiable via governance.
