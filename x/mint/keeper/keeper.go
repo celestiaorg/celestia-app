@@ -1,8 +1,6 @@
 package keeper
 
 import (
-	"time"
-
 	"cosmossdk.io/math"
 	"github.com/tendermint/tendermint/libs/log"
 
@@ -66,13 +64,6 @@ func (k Keeper) SetMinter(ctx sdk.Context, minter types.Minter) {
 	store := ctx.KVStore(k.storeKey)
 	b := k.cdc.MustMarshal(&minter)
 	store.Set(types.MintKey, b)
-}
-
-// SetMinter sets the minter.
-func (k Keeper) SetGenesisTime(ctx sdk.Context, t *time.Time) {
-	m := types.DefaultMinter()
-	m.GenesisTime = t
-	k.SetMinter(ctx, m)
 }
 
 // StakingTokenSupply implements an alias call to the underlying staking keeper's
