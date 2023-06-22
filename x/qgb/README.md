@@ -220,7 +220,7 @@ The third action done during the QGB [`EndBlock`](https://github.com/celestiaorg
 
 The QGB state machine prunes old attestations up to the specified [`AttestationExpiryTime`](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L22-L25), which is currently set to 3 weeks, matching the consensus unbonding time.
 
-So, on every block height, the state machine [checks](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L140-L157) whether there are any [`expired`]((https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L22-L25)) attestations. Then, it starts [pruning](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L161-L182) via calling the [`DeleteAttestation(...)`](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/keeper/keeper_attestation.go#L128-L139) method. Then, it [`prints`](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L186-L194) a log message specifying the number of pruned attestations.
+So, on every block height, the state machine [checks](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L140-L157) whether there are any [`expired`](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L22-L25) attestations. Then, it starts [pruning](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L161-L182) via calling the [`DeleteAttestation(...)`](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/keeper/keeper_attestation.go#L128-L139) method. Then, it [`prints`](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L186-L194) a log message specifying the number of pruned attestations.
 
 If the all the attestations in store are expired, which is an edge case that should never occur, the QGB state machine [doesn't prune](https://github.com/celestiaorg/celestia-app/blob/0629c757ef35a24187a8d7a4c706c7cdc894c8b6/x/qgb/abci.go#L161) the latest attestation.
 
@@ -243,7 +243,7 @@ After creating a new attestation, and adding it to the QGB store, an event is [e
 The QGB query attestation command is part of the `celestia-appd` binary. It allows the user to query specific attestations by their corresponding nonce.
 
 ```shell
-$ celestia-appd query qgb attestation --help                                                
+$ celestia-appd query qgb attestation --help
 query an attestation by nonce
 
 Usage:
@@ -258,8 +258,8 @@ Aliases:
 The QGB verification command is part of the `celestia-appd` binary. It allows the user to verify that a set of shares has been posted to a specific QGB contract.
 
 ```shell
-$ celestia-appd verify --help          
-                              
+$ celestia-appd verify --help
+
 Verifies that a transaction hash, a range of shares, or a blob referenced by its transaction hash were committed to by the QGB contract
 
 Usage:
@@ -301,12 +301,12 @@ When checking if the state machine needs to generate a new valset, the state mac
 - When checking that a previous valset has been emitted, but it is unable to get it:
 
 ```golang
-if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx) != 0 {  
-   var err error  
-   latestValset, err = k.GetLatestValset(ctx)  
-   if err != nil {  
-      panic(err)  
-   }  
+if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx) != 0 {
+   var err error
+   latestValset, err = k.GetLatestValset(ctx)
+   if err != nil {
+      panic(err)
+   }
 }
 ```
 
@@ -314,25 +314,25 @@ if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx) != 0 {
 
 ```golang
 vs, err := k.GetCurrentValset(ctx)
-if err != nil {  
-   // this condition should only occur in the simulator  
-   // ref : https://github.com/Gravity-Bridge/Gravity-Bridge/issues/35 
-   if errors.Is(err, types.ErrNoValidators) {  
-      ctx.Logger().Error("no bonded validators",  
-         "cause", err.Error(),  
-      )  
-      return  
-   }  
-   panic(err)  
+if err != nil {
+   // this condition should only occur in the simulator
+   // ref : https://github.com/Gravity-Bridge/Gravity-Bridge/issues/35
+   if errors.Is(err, types.ErrNoValidators) {
+      ctx.Logger().Error("no bonded validators",
+         "cause", err.Error(),
+      )
+      return
+   }
+   panic(err)
 }
 ```
 
 - When creating the internal validator struct, i.e. mapping the validators EVM addresses to their powers:
 
 ```golang
-intLatestMembers, err := types.BridgeValidators(latestValset.Members).ToInternal()  
-if err != nil {  
-   panic(sdkerrors.Wrap(err, "invalid latest valset members"))  
+intLatestMembers, err := types.BridgeValidators(latestValset.Members).ToInternal()
+if err != nil {
+   panic(sdkerrors.Wrap(err, "invalid latest valset members"))
 }
 ```
 
@@ -343,28 +343,28 @@ When storing a new attestation, the state machine can panic if it finds invalid 
 - The attestation request created is a duplicate of an existing attestation:
 
 ```golang
-key := []byte(types.GetAttestationKey(nonce))  
-store := ctx.KVStore(k.storeKey)  
-  
-if store.Has(key) {  
-   panic("trying to overwrite existing attestation request")  
+key := []byte(types.GetAttestationKey(nonce))
+store := ctx.KVStore(k.storeKey)
+
+if store.Has(key) {
+   panic("trying to overwrite existing attestation request")
 }
 ```
 
 - An error happened while marshalling the interface:
 
 ```golang
-b, err := k.cdc.MarshalInterface(at)  
-if err != nil {  
-   panic(err)  
+b, err := k.cdc.MarshalInterface(at)
+if err != nil {
+   panic(err)
 }
 ```
 
 - The universal nonce wasn't incremented correctly by 1:
 
 ```golang
-if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx)+1 != nonce {  
-   panic("not incrementing latest attestation nonce correctly")  
+if k.CheckLatestAttestationNonce(ctx) && k.GetLatestAttestationNonce(ctx)+1 != nonce {
+   panic("not incrementing latest attestation nonce correctly")
 }
 ```
 
