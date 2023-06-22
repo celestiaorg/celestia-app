@@ -3,8 +3,9 @@ package square_test
 import (
 	"bytes"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	apptypes "github.com/celestiaorg/celestia-app/x/blob/types"
 
