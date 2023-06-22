@@ -113,8 +113,4 @@ Future versions of the QGB will support slashing. It will be enforced via the us
 
 To prove that data was posted to an EVM chain, we have the following method: [`verifyAttestation()`](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol#L339-L358). This allows to verify that a data root tuple was committed to by the QGB  smart contract.
 
-To prove that data was posted to Celestia, an extra contract will need to be used to verify the proofs from shares to the data root (TBD). These proofs are as follow:
-
-- NMT proof from the shares to the row roots.
-- The row roots proof to the data root.
-- the data root tuple proof to the data root tuple root, which is verified using the [`verifyAttestation()`](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol#L339-L358) method.
+For the remaining proofs, i.e. shares to data root tuples proofs, the app is currently able to generate and verify them. However, these are still not supported at the smart contract level. Future works will focus on this.
