@@ -10,8 +10,8 @@ import (
 	"testing"
 )
 
-// TestRandMultiBlobTxs tests whether the same random seed produces the same blob txs.
-func TestRandMultiBlobTxs_Deterministic(t *testing.T) {
+// TestRandMultiBlobTxsSameSigner_Deterministic tests whether with the same random seed the RandMultiBlobTxsSameSigner function produces the same blob txs.
+func TestRandMultiBlobTxsSameSigner_Deterministic(t *testing.T) {
 	pfbCount := 10
 	signer := apptypes.GenerateKeyringSigner(t)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)

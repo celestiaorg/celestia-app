@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// TestGenerateManyRandomRawSendTxsSameSigner_Determinism ensures that the same seed produces the same txs
+// TestGenerateManyRandomRawSendTxsSameSigner_Determinism tests whether with the same random seed the GenerateManyRandomRawSendTxsSameSigner function produces the same send transactions.
 func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
 	normalTxCount := 10
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
