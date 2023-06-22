@@ -52,13 +52,13 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 func (k Keeper) PayForBlobs(goCtx context.Context, msg *types.MsgPayForBlobs) (*types.MsgPayForBlobsResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	totalSharesUsed := 0
+	var totalSharesUsed uint64
 	for _, size := range msg.BlobSizes {
-		totalSharesUsed += shares.SparseSharesNeeded(size)
+		totalSharesUsed += uint64(shares.SparseSharesNeeded(size))
 	}
 
-	gasToConsume := uint32(totalSharesUsed*appconsts.ShareSize) * k.GasPerBlobByte(ctx)
-	ctx.GasMeter().ConsumeGas(uint64(gasToConsume), payForBlobGasDescriptor)
+	gasToConsume := totalSharesUsed * appconsts.ShareSize * uint64(k.GasPerBlobByte(ctx))
+	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
 
 	err := ctx.EventManager().EmitTypedEvent(
 		types.NewPayForBlobsEvent(sdk.AccAddress(msg.Signer).String(), msg.BlobSizes, msg.Namespaces),
