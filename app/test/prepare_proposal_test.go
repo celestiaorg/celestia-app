@@ -7,7 +7,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -53,7 +52,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		1000,
 		accnts[0],
 		accnts[numBlobTxs:],
-		"",
+		testutil.ChainID,
 	)
 	txs := append(blobTxs, coretypes.Txs(normalTxs).ToSliceOfBytes()...)
 
@@ -105,7 +104,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		1000,
 		accounts[0],
 		accounts[len(accounts)-3:],
-		"",
+		testutil.ChainID,
 	)).ToSliceOfBytes()
 
 	validTxs := func() [][]byte {
@@ -125,7 +124,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		1000,
 		accounts[0],
 		accounts[:3],
-		"",
+		testutil.ChainID,
 	)).ToSliceOfBytes()
 
 	// create a transaction with an account that doesn't exist. This will cause the increment nonce
@@ -189,7 +188,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			require.Equal(t, len(tt.txs())-len(tt.prunedTxs), len(resp.BlockData.Txs))
 			// check the the expected txs were removed
 			for _, ptx := range tt.prunedTxs {
-				assert.NotContains(t, resp.BlockData.Txs, ptx)
+				require.NotContains(t, resp.BlockData.Txs, ptx)
 			}
 		})
 	}
