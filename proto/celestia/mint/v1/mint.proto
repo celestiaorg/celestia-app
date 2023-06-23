@@ -25,13 +25,17 @@ message Minter {
     (gogoproto.nullable) = false
   ];
 
-  // GenesisTime is the timestamp of the genesis block.
-  google.protobuf.Timestamp genesis_time = 3 [ (gogoproto.stdtime) = true ];
-
   // PreviousBlockTime is the timestamp of the previous block.
   google.protobuf.Timestamp previous_block_time = 4
       [ (gogoproto.stdtime) = true ];
 
   // BondDenom is the denomination of the token that should be minted.
   string bond_denom = 5;
+}
+
+// GenesisTime contains the timestamp of the genesis block.
+message GenesisTime {
+  // GenesisTime is the timestamp of the genesis block.
+  google.protobuf.Timestamp genesis_time = 1
+      [ (gogoproto.stdtime) = true ];
 }
