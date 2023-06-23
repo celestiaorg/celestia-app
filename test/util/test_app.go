@@ -281,6 +281,8 @@ func genesisStateWithValSet(
 	return genesisState
 }
 
+// genesisStateWithGenesisTime sets the genesis time in the mint genesis state.
+// It does not modify the root level genesis time.
 func genesisStateWithGenesisTime(
 	app *app.App,
 	genesisState app.GenesisState,
