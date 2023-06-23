@@ -144,7 +144,7 @@ the protocol relies heavily on block validity rules. Notably, resource
 constrained light clients must be able to detect when these validity rules have
 not been followed in order to avoid making an honest majority assumption.</p>
 <blockquote>
-<p><strong>Note</strong> Celestia relies on cometBFT (formerly tendermint) for consensus,
+<p><strong>Note</strong> Celestia relies on CometBFT (formerly tendermint) for consensus,
 meaning that it has single slot finality and is fork-free. Therefore, in order
 to ensure that an invalid block is never committed to, each validator must
 check that each block follows all validity rules before voting. If over two
@@ -174,7 +174,7 @@ Majorities&quot;</a> and in the
 uses a 2D Reed-Solomon coding scheme
 (<a href="https://github.com/celestiaorg/rsmt2d">rsmt2d</a>) to accommodate data
 availability sampling. This involves &quot;splitting&quot; the cometBFT block data into
-shares. All with the 2D scheme, Celestia also makes use of <a href="https://github.com/celestiaorg/nmt">namespaced merkle
+shares. Along with the 2D scheme, Celestia also makes use of <a href="https://github.com/celestiaorg/nmt">namespaced merkle
 trees (nmt)</a>. These are combined to create
 the commitment over block data instead of the typical merkle tree used by
 cometBFT.</p>
@@ -199,7 +199,7 @@ construction of that square is also vital to correctly computing it.</p>
 <p>Each chunk of block data is split into equally size shares for sampling
 purposes. The encoding was designed to allow for light clients to decode these
 shares to retrieve relevant data and to be future-proof yet backwards
-compatible. The share encoding is deeply integrated into square contraction, and
+compatible. The share encoding is deeply integrated into square construction, and
 therefore critical to calculate the data root.</p>
 <p>See <a href="./shares.html">shares spec</a></p>
 <h2 id="blobtx-validity-rules"><a class="header" href="#blobtx-validity-rules"><code>BlobTx</code> Validity Rules</a></h2>
