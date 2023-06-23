@@ -52,11 +52,6 @@ func BlobSharesUsedNonInteractiveDefaults(cursor, squareSize, subtreeRootThresho
 // See https://github.com/celestiaorg/celestia-app/blob/main/specs/src/specs/data_square_layout.md
 // for more information.
 func NextShareIndex(cursor, blobShareLen, squareSize, subtreeRootThreshold int) int {
-	// if we're starting at the beginning of the row, then return as there are
-	// no cases where we don't start at 0.
-	if isStartOfRow(cursor, squareSize) {
-		return cursor
-	}
 
 	// Calculate the subtreewidth. This is the width of the first mountain in the
 	// merkle mountain range that makes up the blob share commitment (given the
