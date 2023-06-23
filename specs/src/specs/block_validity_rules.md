@@ -6,7 +6,7 @@ the protocol relies heavily on block validity rules. Notably, resource
 constrained light clients must be able to detect when these validity rules have
 not been followed in order to avoid making an honest majority assumption.
 
-> **Note** Celestia relies on cometBFT (formerly tendermint) for consensus,
+> **Note** Celestia relies on CometBFT (formerly tendermint) for consensus,
 > meaning that it has single slot finality and is fork-free. Therefore, in order
 > to ensure that an invalid block is never committed to, each validator must
 > check that each block follows all validity rules before voting. If over two
@@ -40,7 +40,7 @@ Per the [LazyLedger white paper](https://arxiv.org/pdf/1905.09274.pdf), Celestia
 uses a 2D Reed-Solomon coding scheme
 ([rsmt2d](https://github.com/celestiaorg/rsmt2d)) to accommodate data
 availability sampling. This involves "splitting" the cometBFT block data into
-shares. All with the 2D scheme, Celestia also makes use of [namespaced merkle
+shares. Along with the 2D scheme, Celestia also makes use of [namespaced merkle
 trees (nmt)](https://github.com/celestiaorg/nmt). These are combined to create
 the commitment over block data instead of the typical merkle tree used by
 cometBFT.
@@ -73,7 +73,7 @@ TODO
 Each chunk of block data is split into equally size shares for sampling
 purposes. The encoding was designed to allow for light clients to decode these
 shares to retrieve relevant data and to be future-proof yet backwards
-compatible. The share encoding is deeply integrated into square contraction, and
+compatible. The share encoding is deeply integrated into square construction, and
 therefore critical to calculate the data root.
 
 See [shares spec](./shares.md)
