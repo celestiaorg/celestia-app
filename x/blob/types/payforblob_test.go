@@ -228,6 +228,11 @@ func TestValidateBasic(t *testing.T) {
 			msg:     noShareCommitments,
 			wantErr: ErrNoShareCommitments,
 		},
+		{
+			name:    "invalid namespace version",
+			msg:     invalidNamespaceVersionMsgPayForBlobs(t),
+			wantErr: ErrInvalidNamespaceVersion,
+		},
 	}
 
 	for _, tt := range tests {
@@ -268,6 +273,45 @@ func validMsgPayForBlobs(t *testing.T) *MsgPayForBlobs {
 
 	pfb, err := NewMsgPayForBlobs(addr.String(), pblob)
 	assert.NoError(t, err)
+
+	return pfb
+}
+
+func invalidNamespaceVersionMsgPayForBlobs(t *testing.T) *MsgPayForBlobs {
+	signer := GenerateKeyringSigner(t, TestAccName)
+	ns1 := append(appns.NamespaceVersionZeroPrefix, bytes.Repeat([]byte{0x01}, appns.NamespaceVersionZeroIDSize)...)
+	blob := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.ContinuationSparseShareContentSize*12))
+
+	addr, err := signer.GetSignerInfo().GetAddress()
+	require.NoError(t, err)
+
+	pblob := &tmproto.Blob{
+		Data:             blob,
+		NamespaceId:      ns1,
+		NamespaceVersion: uint32(255),
+		ShareVersion:     uint32(appconsts.ShareVersionZero),
+	}
+
+	blobs := []*Blob{pblob}
+
+	commitments, err := CreateCommitments(blobs)
+	require.NoError(t, err)
+
+	namespaceVersions, namespaceIds, sizes, shareVersions := extractBlobComponents(blobs)
+	namespaces := []appns.Namespace{}
+	for i := range namespaceVersions {
+		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIds[i])
+		require.NoError(t, err)
+		namespaces = append(namespaces, namespace)
+	}
+
+	pfb := &MsgPayForBlobs{
+		Signer:           addr.String(),
+		Namespaces:       namespacesToBytes(namespaces),
+		ShareCommitments: commitments,
+		BlobSizes:        sizes,
+		ShareVersions:    shareVersions,
+	}
 
 	return pfb
 }
