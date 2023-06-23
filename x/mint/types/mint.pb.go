@@ -91,7 +91,9 @@ func (m *Minter) GetBondDenom() string {
 	return ""
 }
 
+// GenesisTime contains the timestamp of the genesis block.
 type GenesisTime struct {
+	// GenesisTime is the timestamp of the genesis block.
 	GenesisTime *time.Time `protobuf:"bytes,1,opt,name=genesis_time,json=genesisTime,proto3,stdtime" json:"genesis_time,omitempty"`
 }
 

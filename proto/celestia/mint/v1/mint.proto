@@ -33,7 +33,9 @@ message Minter {
   string bond_denom = 5;
 }
 
+// GenesisTime contains the timestamp of the genesis block.
 message GenesisTime {
+  // GenesisTime is the timestamp of the genesis block.
   google.protobuf.Timestamp genesis_time = 1
       [ (gogoproto.stdtime) = true ];
 }
