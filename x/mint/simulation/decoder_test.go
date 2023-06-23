@@ -23,8 +23,8 @@ func TestDecodeStore(t *testing.T) {
 
 	kvPairs := kv.Pairs{
 		Pairs: []kv.Pair{
-			{Key: types.MintKey, Value: cdc.MustMarshal(&minter)},
-			{Key: types.GenesisTimeKey, Value: cdc.MustMarshal(&genesisTime)},
+			{Key: types.KeyMinter, Value: cdc.MustMarshal(&minter)},
+			{Key: types.KeyGenesisTime, Value: cdc.MustMarshal(&genesisTime)},
 			{Key: []byte{0x99}, Value: []byte{0x99}},
 		},
 	}
