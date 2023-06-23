@@ -27,13 +27,13 @@ First, we impose some ground rules:
 
 Given these rules, a square may look as follows:
 
-![](./figures/square_layout.svg)
+![square_layout](./figures/square_layout.svg)
 
 Padding is addressed in the [padding section](#padding). Namespace C contains two blobs of two shares each while Namespace D contains one blob of three shares.
 
 ### Ordering
 
-The order of blobs in a namespace is dictated by the priority of the PFBs that payed for the blob. A PFB with greater priority will have all blobs in that namespace strictly before a PFB with less priority.
+The order of blobs in a namespace is dictated by the priority of the PFBs that payed for the blob. A PFB with greater priority will have all blobs in that namespace strictly before a PFB with less priority. Priority is determined by the `gas-price` of the transaction (`fee`/`gas`).
 
 ## Blob Share Commitment Rules
 
@@ -46,19 +46,19 @@ To that end, we impose some additional rules onto _blobs only_: blobs must be pl
 
 Specifically, a `MsgPayForBlobs` must include a `ShareCommitment` over the contents of each blob it is paying for. If the transaction sender knows 1) `k`, the size of the matrix, 2) the starting location of their blob in a row, and 3) the length of the blob (they know this since they are sending the blob), then they can actually compute a sequence of roots to _subtrees in the row NMTs_. Taking _the simple Merkle root of these subtree roots_ provides us with the `ShareCommitment` that gets included in `MsgPayForBlobs`. Using subtree roots instead of all the leafs makes blob inclusion proofs smaller.
 
-![](./figures/subtree_roots.svg)
+![subtree roots](./figures/subtree_roots.svg)
 
 Understanding 1) and 2) would usually require interaction with the block proposer. To make the possible starting locations of blobs sufficiently predictable and to make `ShareCommitment` independent of `k`, we impose an additional rule. The blob must start at an index that is either:
 
-1. A multiple of the `SubtreeWidth`. 
-2. A multiple of `k`, the size of the square. 
+1. A multiple of the `SubtreeWidth`.
+2. A multiple of `k`, the size of the square.
 
-The `SubtreeWidth` is the length of the blob in shares, divided by the [`SubtreeRootThreshold`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/appconsts/v1/app_consts.go#L6) and rounded up to the nearest power of 2 ([implementation here](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/shares/non_interactive_defaults.go#L94-L116)). It is the width of the first mountain in a [Merkle Mountain Range](https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/) as shown below.
+The `SubtreeWidth` is calculated as the length of the blob in shares, divided by the [`SubtreeRootThreshold`](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/appconsts/v1/app_consts.go#L6) and rounded up to the nearest power of 2 ([implementation here](https://github.com/celestiaorg/celestia-app/blob/v1.0.0-rc2/pkg/shares/non_interactive_defaults.go#L94-L116)). If the `SubtreeRootThreshold` is greater than the minimum square size that the blob can fit in (i.e. a blob of 15 shares has a minimum square size of 4) then we take that minimum value. This value is used as the width of the first mountain in the [Merkle Mountain Range](https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/) that would represent the `ShareCommitment` (as shown below).
 
 ![](./figures/subtree_width.svg)
 
 The `SubtreeRootThreshold` is an arbitrary versioned protocol constant that aims to put a soft limit on the number of subtree roots included in a blob inclusion proof, as described in [ADR013](../../../docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md). A higher `SubtreeRootThreshold` means less padding and more tightly packed squares but also means greater blob inclusion proof sizes.
-With the above constraint, we can compute subtree roots deterministically. For example, a blob of 172 shares and `SubtreeRootThreshold` (SRT) = 64, must start on a share index that is a multiple of 2 because 172/64 = 3. 3 rounded up to the nearest power of 2 is 4. In this case, there will be a maximum of 3 share of padding between blobs (more on padding below). The maximum subtree width in shares for the first mountain in the merkle range will also be 4 (The actual mountain range would be 43 subtree roots of 4 shares each).
+With the above constraint, we can compute subtree roots deterministically. For example, a blob of 172 shares and `SubtreeRootThreshold` (SRT) = 64, must start on a share index that is a multiple of 2 because 172/64 = 3. 3 rounded up to the nearest power of 2 is 4. In this case, there will be a maximum of 3 shares of padding between blobs (more on padding below). The maximum subtree width in shares for the first mountain in the merkle range will be 4 (The actual mountain range would be 43 subtree roots of 4 shares each). The `ShareCommitment` is then the merkle tree over the peaks of the mountain range.
 
 ## Padding
 
