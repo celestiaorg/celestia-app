@@ -49,7 +49,7 @@ func TestProcessProposal(t *testing.T) {
 	// create 3 MsgSend transactions that are signed with valid account numbers
 	// and sequences
 	sendTxs := testutil.SendTxsWithAccounts(
-		t, testApp, enc, kr, 1000, accounts[0], accounts[len(accounts)-3:], "",
+		t, testApp, enc, kr, 1000, accounts[0], accounts[len(accounts)-3:], testutil.ChainID,
 	)
 
 	// block with all blobs included
@@ -65,11 +65,11 @@ func TestProcessProposal(t *testing.T) {
 	// create an invalid block by adding an otherwise valid PFB, but an invalid
 	// signature since there's no account
 	badSigBlobTx := testutil.RandBlobTxsWithManualSequence(
-		t, enc, kr, 1000, 1, false, "", accounts[:1], 1, 1, true,
+		t, enc, kr, 1000, 1, false, testutil.ChainID, accounts[:1], 1, 1, true,
 	)[0]
 
 	blobTxWithInvalidNonce := testutil.RandBlobTxsWithManualSequence(
-		t, enc, kr, 1000, 1, false, "", accounts[:1], 1, 3, false,
+		t, enc, kr, 1000, 1, false, testutil.ChainID, accounts[:1], 1, 3, false,
 	)[0]
 
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
