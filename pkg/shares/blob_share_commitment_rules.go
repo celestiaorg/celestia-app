@@ -24,19 +24,19 @@ func FitsInSquare(cursor, squareSize, subtreeRootThreshold int, blobShareLens ..
 		firstBlobLen = blobShareLens[0]
 	}
 	// here we account for padding between the compact and sparse shares
-	cursor = NextShareIndex(cursor, firstBlobLen, squareSize, subtreeRootThreshold)
-	sharesUsed, _ := BlobSharesUsedNonInteractiveDefaults(cursor, squareSize, subtreeRootThreshold, blobShareLens...)
+	cursor = NextShareIndex(cursor, firstBlobLen, subtreeRootThreshold)
+	sharesUsed, _ := BlobSharesUsedNonInteractiveDefaults(cursor, subtreeRootThreshold, blobShareLens...)
 	return cursor+sharesUsed <= squareSize*squareSize, sharesUsed
 }
 
 // BlobSharesUsedNonInteractiveDefaults returns the number of shares used by a given set
 // of blobs share lengths. It follows the blob share commitment rules and
 // returns the share indexes for each blob.
-func BlobSharesUsedNonInteractiveDefaults(cursor, squareSize, subtreeRootThreshold int, blobShareLens ...int) (sharesUsed int, indexes []uint32) {
+func BlobSharesUsedNonInteractiveDefaults(cursor, subtreeRootThreshold int, blobShareLens ...int) (sharesUsed int, indexes []uint32) {
 	start := cursor
 	indexes = make([]uint32, len(blobShareLens))
 	for i, blobLen := range blobShareLens {
-		cursor = NextShareIndex(cursor, blobLen, squareSize, subtreeRootThreshold)
+		cursor = NextShareIndex(cursor, blobLen, subtreeRootThreshold)
 		indexes[i] = uint32(cursor)
 		cursor += blobLen
 	}
@@ -51,8 +51,7 @@ func BlobSharesUsedNonInteractiveDefaults(cursor, squareSize, subtreeRootThresho
 //
 // See https://github.com/celestiaorg/celestia-app/blob/main/specs/src/specs/data_square_layout.md
 // for more information.
-func NextShareIndex(cursor, blobShareLen, squareSize, subtreeRootThreshold int) int {
-
+func NextShareIndex(cursor, blobShareLen, subtreeRootThreshold int) int {
 	// Calculate the subtreewidth. This is the width of the first mountain in the
 	// merkle mountain range that makes up the blob share commitment (given the
 	// subtreeRootThreshold and the BlobMinSquareSize).
@@ -110,9 +109,4 @@ func min[T constraints.Integer](i, j T) T {
 		return i
 	}
 	return j
-}
-
-// isStartOfRow returns true if cursor is at the start of a row
-func isStartOfRow(cursor, squareSize int) bool {
-	return cursor == 0 || cursor%squareSize == 0
 }

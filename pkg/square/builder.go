@@ -155,7 +155,7 @@ func (b *Builder) Export() (Square, error) {
 	for i, element := range b.blobs {
 		// NextShareIndex returned where the next blob should start so as to comply with the share commitment rules
 		// We fill out the remaining
-		cursor = shares.NextShareIndex(cursor, element.numShares, ss, b.subtreeRootThreshold)
+		cursor = shares.NextShareIndex(cursor, element.numShares, b.subtreeRootThreshold)
 		if i == 0 {
 			nonReservedStart = cursor
 		}
