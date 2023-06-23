@@ -68,7 +68,7 @@ func (m *Params) GetGasPerBlobByte() uint32 {
 	return 0
 }
 
-func (m *Params) GetGovSquareSizeUpperBound() uint64 {
+func (m *Params) GetGovMaxSquareSize() uint64 {
 	if m != nil {
 		return m.GovMaxSquareSize
 	}
