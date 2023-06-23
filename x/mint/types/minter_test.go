@@ -15,7 +15,6 @@ import (
 func TestCalculateInflationRate(t *testing.T) {
 	minter := DefaultMinter()
 	genesisTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
-	minter.GenesisTime = &genesisTime
 
 	type testCase struct {
 		year int
@@ -70,7 +69,7 @@ func TestCalculateInflationRate(t *testing.T) {
 		years := time.Duration(tc.year * NanosecondsPerYear * int(time.Nanosecond))
 		blockTime := genesisTime.Add(years)
 		ctx := sdk.NewContext(nil, tmproto.Header{}, false, nil).WithBlockTime(blockTime)
-		inflationRate := minter.CalculateInflationRate(ctx)
+		inflationRate := minter.CalculateInflationRate(ctx, genesisTime)
 		got, err := inflationRate.Float64()
 		assert.NoError(t, err)
 		assert.Equal(t, tc.want, got, "want %v got %v year %v blockTime %v", tc.want, got, tc.year, blockTime)
@@ -173,10 +172,11 @@ func BenchmarkCalculateBlockProvision(b *testing.B) {
 func BenchmarkCalculateInflationRate(b *testing.B) {
 	b.ReportAllocs()
 	minter := DefaultMinter()
+	genesisTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	for n := 0; n < b.N; n++ {
 		ctx := sdk.NewContext(nil, tmproto.Header{Height: int64(n)}, false, nil)
-		minter.CalculateInflationRate(ctx)
+		minter.CalculateInflationRate(ctx, genesisTime)
 	}
 }
 

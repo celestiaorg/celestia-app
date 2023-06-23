@@ -26,8 +26,7 @@ type MintKeeperTestSuite struct {
 }
 
 func (suite *MintKeeperTestSuite) SetupTest() {
-	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	ctx := testApp.NewContext(true, tmproto.Header{})
 
 	legacyQuerierCdc := codec.NewAminoCodec(testApp.LegacyAmino())
@@ -101,5 +100,5 @@ func (suite *MintKeeperTestSuite) TestQueryGenesisTime(t *testing.T) {
 	err := app.LegacyAmino().UnmarshalJSON(res, &genesisTime)
 	require.NoError(t, err)
 
-	require.Equal(t, app.MintKeeper.GetMinter(ctx).GenesisTime, genesisTime)
+	require.Equal(t, app.MintKeeper.GetGenesisTime(ctx).GenesisTime, genesisTime)
 }

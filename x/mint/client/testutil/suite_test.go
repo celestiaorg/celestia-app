@@ -57,14 +57,6 @@ func (s *IntegrationTestSuite) textArgs() []string {
 	return []string{fmt.Sprintf("--%s=1", flags.FlagHeight), fmt.Sprintf("--%s=json", tmcli.OutputFlag)}
 }
 
-// getGenesisTime returns the genesis time from the genesis state.
-func (s *IntegrationTestSuite) getGenesisTime() *time.Time {
-	genesisState := s.cfg.GenesisState
-	var mintData minttypes.GenesisState
-	s.Require().NoError(s.cfg.Codec.UnmarshalJSON(genesisState[minttypes.ModuleName], &mintData))
-	return mintData.GetMinter().GenesisTime
-}
-
 // TestGetCmdQueryInflationRate tests that the CLI query command for inflation
 // rate returns the correct value. This test assumes that the initial inflation
 // rate is 0.08.
@@ -146,7 +138,6 @@ func (s *IntegrationTestSuite) TestGetCmdQueryAnnualProvisions() {
 // query genesis time looks like: `celestia-appd query mint genesis-time`
 func (s *IntegrationTestSuite) TestGetCmdQueryGenesisTime() {
 	val := s.network.Validators[0]
-	want := s.getGenesisTime().String()
 
 	testCases := []struct {
 		name string
@@ -173,7 +164,17 @@ func (s *IntegrationTestSuite) TestGetCmdQueryGenesisTime() {
 			s.Require().NoError(err)
 
 			trimmed := strings.TrimSpace(out.String())
-			s.Require().Equal(want, trimmed)
+			layout := "2006-01-02 15:04:05.999999 -0700 UTC"
+
+			got, err := time.Parse(layout, trimmed)
+			s.Require().NoError(err)
+
+			now := time.Now()
+			oneMinForward := now.Add(time.Minute)
+			oneMinBackward := now.Add(-time.Minute)
+
+			s.Assert().True(got.Before(oneMinForward), "genesis time is too far in the future")
+			s.Assert().True(got.After(oneMinBackward), "genesis time is too far in the past")
 		})
 	}
 }

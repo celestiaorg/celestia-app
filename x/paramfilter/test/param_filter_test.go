@@ -2,7 +2,6 @@ package test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
@@ -16,8 +15,7 @@ import (
 )
 
 func TestParamFilter(t *testing.T) {
-	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-	app, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime)
+	app, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 
 	require.Greater(t, len(app.BlockedParams()), 0)
 

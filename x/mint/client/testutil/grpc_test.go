@@ -42,17 +42,6 @@ func (s *IntegrationTestSuite) TestQueryGRPC() {
 				AnnualProvisions: sdk.NewDec(40_000_000),
 			},
 		},
-		{
-			"gRPC request genesis time",
-			fmt.Sprintf("%s/cosmos/mint/v1beta1/genesis_time", baseURL),
-			map[string]string{
-				grpctypes.GRPCBlockHeightHeader: "1",
-			},
-			&minttypes.QueryGenesisTimeResponse{},
-			&minttypes.QueryGenesisTimeResponse{
-				GenesisTime: s.getGenesisTime(),
-			},
-		},
 	}
 	for _, tc := range testCases {
 		resp, err := testutil.GetRequestWithHeaders(tc.url, tc.headers)

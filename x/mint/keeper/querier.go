@@ -53,9 +53,9 @@ func queryAnnualProvisions(ctx sdk.Context, k Keeper, legacyQuerierCdc *codec.Le
 }
 
 func queryGenesisTime(ctx sdk.Context, k Keeper, legacyQuerierCdc *codec.LegacyAmino) ([]byte, error) {
-	minter := k.GetMinter(ctx)
+	got := k.GetGenesisTime(ctx)
 
-	res, err := codec.MarshalJSONIndent(legacyQuerierCdc, minter.GenesisTime)
+	res, err := codec.MarshalJSONIndent(legacyQuerierCdc, got.GenesisTime)
 	if err != nil {
 		return nil, errors.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
 	}

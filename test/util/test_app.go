@@ -9,7 +9,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
-	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -51,11 +50,8 @@ func (ao emptyAppOptions) Get(_ string) interface{} {
 // SetupTestAppWithGenesisValSet initializes a new app with a validator set and
 // genesis accounts that also act as delegators. For simplicity, each validator
 // is bonded with a delegation of one consensus engine unit in the default token
-// of the app from first genesis account. A no-op logger is set in app. The
-// genesisTime param will overwrite the genesis time in the mint module's
-// genesis state. The genesisTime param will not overwrite the root level
-// genesis time.
-func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genesisTime time.Time, genAccounts ...string) (*app.App, keyring.Keyring) {
+// of the app from first genesis account. A no-op logger is set in app.
+func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, keyring.Keyring) {
 	// var cache sdk.MultiStorePersistentCache
 	// EmptyAppOptions is a stub implementing AppOptions
 	emptyOpts := emptyAppOptions{}
@@ -74,7 +70,7 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genesisTime
 	)
 	testApp.GetBaseApp().SetProtocolVersion(appconsts.LatestVersion)
 
-	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genesisTime, genAccounts...)
+	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genAccounts...)
 
 	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
 	if err != nil {
@@ -92,9 +88,12 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genesisTime
 		Validator: &cparams.Validator,
 	}
 
+	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+
 	// init chain will set the validator set and initialize the genesis accounts
 	testApp.InitChain(
 		abci.RequestInitChain{
+			Time:            genesisTime,
 			Validators:      []abci.ValidatorUpdate{},
 			ConsensusParams: abciParams,
 			AppStateBytes:   stateBytes,
@@ -177,9 +176,7 @@ func AddGenesisAccount(addr sdk.AccAddress, appState app.GenesisState, cdc codec
 	return appState, nil
 }
 
-// GenesisStateWithSingleValidator initializes GenesisState with a single validator and genesis accounts
-// that also act as delegators.
-func GenesisStateWithSingleValidator(testApp *app.App, genesisTime time.Time, genAccounts ...string) (app.GenesisState, *tmtypes.ValidatorSet, keyring.Keyring) {
+func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (app.GenesisState, *tmtypes.ValidatorSet, keyring.Keyring) {
 	privVal := mock.NewPV()
 	pubKey, err := privVal.GetPubKey()
 	if err != nil {
@@ -207,7 +204,6 @@ func GenesisStateWithSingleValidator(testApp *app.App, genesisTime time.Time, ge
 
 	genesisState := NewDefaultGenesisState(testApp.AppCodec())
 	genesisState = genesisStateWithValSet(testApp, genesisState, valSet, accs, balances...)
-	genesisState = genesisStateWithGenesisTime(testApp, genesisState, genesisTime)
 
 	return genesisState, valSet, kr
 }
@@ -281,20 +277,6 @@ func genesisStateWithValSet(
 	bankGenesis := banktypes.NewGenesisState(banktypes.DefaultGenesisState().Params, balances, totalSupply, []banktypes.Metadata{})
 	genesisState[banktypes.ModuleName] = a.AppCodec().MustMarshalJSON(bankGenesis)
 
-	return genesisState
-}
-
-// genesisStateWithGenesisTime sets the genesis time in the mint genesis state.
-// It does not modify the root level genesis time.
-func genesisStateWithGenesisTime(
-	app *app.App,
-	genesisState app.GenesisState,
-	time time.Time,
-) app.GenesisState {
-	minter := minttypes.DefaultMinter()
-	minter.GenesisTime = &time
-	mintGenesis := minttypes.NewGenesisState(minter)
-	genesisState[minttypes.ModuleName] = app.AppCodec().MustMarshalJSON(mintGenesis)
 	return genesisState
 }
 

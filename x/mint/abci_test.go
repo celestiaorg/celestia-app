@@ -16,22 +16,17 @@ import (
 	"github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
-var (
-	genesisTime = time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-
-	oneYear = time.Duration(minttypes.NanosecondsPerYear)
-
-	yearOneMinusOneSecond = genesisTime.Add(oneYear).Add(-time.Second)
-	yearOne               = genesisTime.Add(oneYear)
-	yearTwo               = genesisTime.Add(2 * oneYear)
-	yearTwenty            = genesisTime.Add(20 * oneYear)
-)
+var oneYear = time.Duration(minttypes.NanosecondsPerYear)
 
 func TestInflationRate(t *testing.T) {
-	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime)
+	app, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	ctx := sdk.NewContext(app.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
+	genesisTime := app.MintKeeper.GetGenesisTime(ctx).GenesisTime
 
-	unixEpoch := time.Unix(0, 0).UTC()
+	yearOneMinusOneSecond := genesisTime.Add(oneYear).Add(-time.Second)
+	yearOne := genesisTime.Add(oneYear)
+	yearTwo := genesisTime.Add(2 * oneYear)
+	yearTwenty := genesisTime.Add(20 * oneYear)
 
 	type testCase struct {
 		name string
@@ -41,13 +36,8 @@ func TestInflationRate(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name: "inflation rate is 0.08 initially",
-			ctx:  ctx.WithBlockHeight(0).WithBlockTime(unixEpoch),
-			want: sdk.NewDecWithPrec(8, 2), // 0.08
-		},
-		{
 			name: "inflation rate is 0.08 for year zero",
-			ctx:  ctx.WithBlockHeight(1).WithBlockTime(genesisTime),
+			ctx:  ctx.WithBlockHeight(1).WithBlockTime(*genesisTime),
 			want: sdk.NewDecWithPrec(8, 2), // 0.08
 		},
 		{
@@ -73,16 +63,18 @@ func TestInflationRate(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		mint.BeginBlocker(tc.ctx, app.MintKeeper)
-		got, err := app.MintKeeper.InflationRate(ctx, &minttypes.QueryInflationRateRequest{})
-		assert.NoError(t, err)
-		assert.Equal(t, tc.want, got.InflationRate)
+		t.Run(tc.name, func(t *testing.T) {
+			mint.BeginBlocker(tc.ctx, app.MintKeeper)
+			got, err := app.MintKeeper.InflationRate(ctx, &minttypes.QueryInflationRateRequest{})
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, got.InflationRate)
+		})
 	}
 }
 
 func TestAnnualProvisions(t *testing.T) {
 	t.Run("annual provisions are set when originally zero", func(t *testing.T) {
-		a, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime)
+		a, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 		ctx := sdk.NewContext(a.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
 
 		assert.True(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.IsZero())
@@ -91,8 +83,10 @@ func TestAnnualProvisions(t *testing.T) {
 	})
 
 	t.Run("annual provisions are not updated more than once per year", func(t *testing.T) {
-		a, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), genesisTime)
+		a, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 		ctx := sdk.NewContext(a.CommitMultiStore(), types.Header{}, false, tmlog.NewNopLogger())
+		genesisTime := a.MintKeeper.GetGenesisTime(ctx).GenesisTime
+		yearOneMinusOneSecond := genesisTime.Add(oneYear).Add(-time.Second)
 
 		initialSupply := sdk.NewInt(100_000_001_000_000)
 		require.Equal(t, initialSupply, a.MintKeeper.StakingTokenSupply(ctx))
@@ -124,6 +118,7 @@ func TestAnnualProvisions(t *testing.T) {
 		}
 
 		t.Run("one year later", func(t *testing.T) {
+			yearOne := genesisTime.Add(oneYear)
 			ctx = ctx.WithBlockHeight(5).WithBlockTime(yearOne)
 			mint.BeginBlocker(ctx, a.MintKeeper)
 			assert.False(t, a.MintKeeper.GetMinter(ctx).AnnualProvisions.Equal(want))

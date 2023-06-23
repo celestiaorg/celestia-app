@@ -10,11 +10,10 @@ import (
 const DefaultBondDenom = "utia"
 
 // NewMinter returns a new Minter object.
-func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec, genesisTime *time.Time, bondDenom string) Minter {
+func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec, bondDenom string) Minter {
 	return Minter{
 		InflationRate:    inflationRate,
 		AnnualProvisions: annualProvisions,
-		GenesisTime:      genesisTime,
 		BondDenom:        bondDenom,
 	}
 }
@@ -23,8 +22,7 @@ func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec, genesisTime *tim
 func DefaultMinter() Minter {
 	inflationRate := InitialInflationRateAsDec()
 	annualProvisions := sdk.NewDec(0)
-	genesisTime := time.Now()
-	return NewMinter(inflationRate, annualProvisions, &genesisTime, DefaultBondDenom)
+	return NewMinter(inflationRate, annualProvisions, DefaultBondDenom)
 }
 
 // Validate returns an error if the minter is invalid.
@@ -38,17 +36,14 @@ func (m Minter) Validate() error {
 	if m.BondDenom == "" {
 		return fmt.Errorf("bond denom should not be empty string")
 	}
-	if m.GenesisTime == nil {
-		return fmt.Errorf("genesis time should not be nil")
-	}
 	return nil
 }
 
 // CalculateInflationRate returns the inflation rate for the current year depending on
 // the current block height in context. The inflation rate is expected to
 // decrease every year according to the schedule specified in the README.
-func (m Minter) CalculateInflationRate(ctx sdk.Context) sdk.Dec {
-	years := yearsSinceGenesis(*m.GenesisTime, ctx.BlockTime())
+func (m Minter) CalculateInflationRate(ctx sdk.Context, genesis time.Time) sdk.Dec {
+	years := yearsSinceGenesis(genesis, ctx.BlockTime())
 	initialInflationRate := InitialInflationRateAsDec()
 	disinflationRate := DisinflationRateAsDec()
 	inflationRate := initialInflationRate.Mul(sdk.OneDec().Sub(disinflationRate).Power(uint64(years)))

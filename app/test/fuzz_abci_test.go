@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -83,8 +82,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 		cparams := app.DefaultConsensusParams()
 		cparams.Block.MaxBytes = size.maxBytes
 
-		genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
-		testApp, kr := util.SetupTestAppWithGenesisValSet(cparams, genesisTime, accounts...)
+		testApp, kr := util.SetupTestAppWithGenesisValSet(cparams, accounts...)
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {

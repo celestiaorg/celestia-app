@@ -25,7 +25,8 @@ func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 // reached.
 func maybeUpdateMinter(ctx sdk.Context, k keeper.Keeper) {
 	minter := k.GetMinter(ctx)
-	newInflationRate := minter.CalculateInflationRate(ctx)
+	genesisTime := k.GetGenesisTime(ctx).GenesisTime
+	newInflationRate := minter.CalculateInflationRate(ctx, *genesisTime)
 
 	isNonZeroAnnualProvisions := !minter.AnnualProvisions.IsZero()
 	if newInflationRate.Equal(minter.InflationRate) && isNonZeroAnnualProvisions {

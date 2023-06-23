@@ -66,6 +66,25 @@ func (k Keeper) SetMinter(ctx sdk.Context, minter types.Minter) {
 	store.Set(types.MintKey, b)
 }
 
+// GetGenesisTime returns the genesis time.
+func (k Keeper) GetGenesisTime(ctx sdk.Context) (gt types.GenesisTime) {
+	store := ctx.KVStore(k.storeKey)
+	b := store.Get(types.GenesisTimeKey)
+	if b == nil {
+		panic("stored genesis time should not have been nil")
+	}
+
+	k.cdc.MustUnmarshal(b, &gt)
+	return gt
+}
+
+// SetGenesisTime sets the genesis time.
+func (k Keeper) SetGenesisTime(ctx sdk.Context, gt types.GenesisTime) {
+	store := ctx.KVStore(k.storeKey)
+	b := k.cdc.MustMarshal(&gt)
+	store.Set(types.GenesisTimeKey, b)
+}
+
 // StakingTokenSupply implements an alias call to the underlying staking keeper's
 // StakingTokenSupply.
 func (k Keeper) StakingTokenSupply(ctx sdk.Context) math.Int {
