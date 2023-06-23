@@ -130,7 +130,7 @@ func MakeGenesis(nodes []*Node, accounts []*GenesisAccount) (types.GenesisDoc, e
 	return types.GenesisDoc{
 		ChainID:         "testnet",
 		GenesisTime:     time.Now().UTC(),
-		ConsensusParams: types.DefaultConsensusParams(),
+		ConsensusParams: app.DefaultConsensusParams(),
 		AppState:        appState,
 		// AppHash is not provided but computed after InitChain
 	}, nil

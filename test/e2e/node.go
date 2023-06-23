@@ -71,7 +71,7 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
-	err = instance.AddVolume(remoteRootDir, "1Gi")
+	err = instance.AddVolumeWithOwner(remoteRootDir, "1Gi", 10001)
 	if err != nil {
 		return nil, err
 	}
@@ -154,32 +154,32 @@ func (n *Node) Init(genesis types.GenesisDoc) error {
 		return fmt.Errorf("creating data directory: %w", err)
 	}
 
-	err = n.Instance.AddFile(configFilePath, filepath.Join(remoteRootDir, "config", "config.toml"), "0:0")
+	err = n.Instance.AddFile(configFilePath, filepath.Join(remoteRootDir, "config", "config.toml"), "10001:10001")
 	if err != nil {
 		return fmt.Errorf("adding config file: %w", err)
 	}
 
-	err = n.Instance.AddFile(genesisFilePath, filepath.Join(remoteRootDir, "config", "genesis.json"), "0:0")
+	err = n.Instance.AddFile(genesisFilePath, filepath.Join(remoteRootDir, "config", "genesis.json"), "10001:10001")
 	if err != nil {
 		return fmt.Errorf("adding genesis file: %w", err)
 	}
 
-	err = n.Instance.AddFile(appConfigFilePath, filepath.Join(remoteRootDir, "config", "app.toml"), "0:0")
+	err = n.Instance.AddFile(appConfigFilePath, filepath.Join(remoteRootDir, "config", "app.toml"), "10001:10001")
 	if err != nil {
 		return fmt.Errorf("adding app config file: %w", err)
 	}
 
-	err = n.Instance.AddFile(pvKeyPath, filepath.Join(remoteRootDir, "config", "priv_validator_key.json"), "0:0")
+	err = n.Instance.AddFile(pvKeyPath, filepath.Join(remoteRootDir, "config", "priv_validator_key.json"), "10001:10001")
 	if err != nil {
 		return fmt.Errorf("adding priv_validator_key file: %w", err)
 	}
 
-	err = n.Instance.AddFile(pvStatePath, filepath.Join(remoteRootDir, "data", "priv_validator_state.json"), "0:0")
+	err = n.Instance.AddFile(pvStatePath, filepath.Join(remoteRootDir, "data", "priv_validator_state.json"), "10001:10001")
 	if err != nil {
 		return fmt.Errorf("adding priv_validator_state file: %w", err)
 	}
 
-	err = n.Instance.AddFile(nodeKeyFilePath, filepath.Join(remoteRootDir, "config", "node_key.json"), "0:0")
+	err = n.Instance.AddFile(nodeKeyFilePath, filepath.Join(remoteRootDir, "config", "node_key.json"), "10001:10001")
 	if err != nil {
 		return fmt.Errorf("adding node_key file: %w", err)
 	}

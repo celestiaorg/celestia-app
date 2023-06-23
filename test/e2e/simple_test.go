@@ -24,7 +24,10 @@ func TestE2ESimple(t *testing.T) {
 	identifier := fmt.Sprintf("%s_%s", t.Name(), time.Now().Format("20060102_150405"))
 	err := knuu.InitializeWithIdentifier(identifier)
 	testnet := New(seed)
-	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000))
+	t.Cleanup(func() {
+		_ = testnet.Cleanup()
+	})
+	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000000))
 
 	kr, err := testnet.CreateGenesisAccount("alice", 10000000)
 	require.NoError(t, err)

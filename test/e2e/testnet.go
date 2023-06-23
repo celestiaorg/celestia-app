@@ -133,3 +133,13 @@ func (t *Testnet) Start() error {
 	}
 	return nil
 }
+
+func (t *Testnet) Cleanup() error {
+	for _, node := range t.nodes {
+		err := node.Instance.Destroy()
+		if err != nil {
+			return fmt.Errorf("node %s failed to cleanup: %w", node.Name, err)
+		}
+	}
+	return nil
+}
