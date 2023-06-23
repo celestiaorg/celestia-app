@@ -7,6 +7,7 @@ import (
 	"cosmossdk.io/errors"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt"
@@ -40,9 +41,6 @@ func NewMsgPayForBlobs(signer string, blobs ...*Blob) (*MsgPayForBlobs, error) {
 	namespaceVersions, namespaceIds, sizes, shareVersions := extractBlobComponents(blobs)
 	namespaces := []appns.Namespace{}
 	for i := range namespaceVersions {
-		if namespaceVersions[i] > appconsts.NamespaceVersionMaxValue {
-			return nil, fmt.Errorf("namespace version %d is too large (max %d)", namespaceVersions[i], appconsts.NamespaceVersionMaxValue)
-		}
 		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIds[i])
 		if err != nil {
 			return nil, err
@@ -146,6 +144,10 @@ func ValidateBlobNamespace(ns appns.Namespace) error {
 
 	if ns.IsTailPadding() {
 		return ErrTailPaddingNamespace
+	}
+
+	if ns.Version != namespace.NamespaceVersionZero {
+		return ErrInvalidNamespaceVersion
 	}
 
 	return nil
