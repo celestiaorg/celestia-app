@@ -2077,7 +2077,7 @@ if k.storeKey == nil {
 <ul>
 <li><strong>Inflation Rate</strong>: The percentage of the total supply that will be minted each year. The inflation rate is calculated once per year on the anniversary of chain genesis based on the number of years elapsed since genesis. The inflation rate is calculated as <code>InitialInflationRate * ((1 - DisinflationRate) ^ YearsSinceGenesis)</code>. See <a href="../../x/mint/./types/constants.go">./types/constants.go</a> for the constants used in this module.</li>
 <li><strong>Annual Provisions</strong>: The total amount of tokens that will be minted each year. Annual provisions are calculated once per year on the anniversary of chain genesis based on the total supply and the inflation rate. Annual provisions are calculated as <code>TotalSupply * InflationRate</code></li>
-<li><strong>Block Provision</strong>: The amount of tokens that will be minted in the current block. Block provisions are calculated once per block based on the annual provisions and the number of seconds elapsed between the current block and the previous block. Block provisions are calculated as <code>AnnualProvisions * (NanoSecondsSincePreviousBlock / NanoSecondsPerYear)</code></li>
+<li><strong>Block Provision</strong>: The amount of tokens that will be minted in the current block. Block provisions are calculated once per block based on the annual provisions and the number of nanoseconds elapsed between the current block and the previous block. Block provisions are calculated as <code>AnnualProvisions * (NanosecondsSincePreviousBlock / NanosecondsPerYear)</code></li>
 </ul>
 <h2 id="state-3"><a class="header" href="#state-3">State</a></h2>
 <p>See <a href="../../x/mint/./types/minter.go">./types/minter.go</a> for the <code>Minter</code> struct which contains this module's state.</p>
@@ -2103,7 +2103,11 @@ if k.storeKey == nil {
 <h2 id="tests"><a class="header" href="#tests">Tests</a></h2>
 <p>See <a href="../../x/mint/./test/mint_test.go">./test/mint_test.go</a> for an integration test suite for this module.</p>
 <h2 id="assumptions-and-considerations-1"><a class="header" href="#assumptions-and-considerations-1">Assumptions and Considerations</a></h2>
-<p>This module assumes <code>DaysPerYear = 365.2425</code> so when modifying tests, developers must define durations based on this assumption because ordinary durations won't return the expected results. In other words:</p>
+<blockquote>
+<p>For the Gregorian calendar, the average length of the calendar year (the mean year) across the complete leap cycle of 400 years is 365.2425 days (97 out of 400 years are leap years).</p>
+</blockquote>
+<p>Source: <a href="https://en.wikipedia.org/wiki/Year#Calendar_year">https://en.wikipedia.org/wiki/Year#Calendar_year</a></p>
+<p>This module assumes <code>DaysPerYear = 365.2425</code>  so when modifying tests, developers must define durations based on this assumption because ordinary durations won't return the expected results. In other words:</p>
 <pre><code class="language-go">// oneYear is 31,556,952 seconds which will likely return expected results in tests
 oneYear := time.Duration(minttypes.NanosecondsPerYear)
 
