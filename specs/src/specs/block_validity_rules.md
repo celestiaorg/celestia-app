@@ -67,6 +67,7 @@ light clients. Since the data root is a commitment to the square, the
 construction of that square is also vital to correctly computing it.
 
 TODO
+[data square layout](./data_square_layout.md)
 
 #### Share Encoding
 
