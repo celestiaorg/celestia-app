@@ -28,7 +28,7 @@ func (k Keeper) AnnualProvisions(c context.Context, _ *types.QueryAnnualProvisio
 // GenesisTime returns the GensisTime of the mint module.
 func (k Keeper) GenesisTime(c context.Context, _ *types.QueryGenesisTimeRequest) (*types.QueryGenesisTimeResponse, error) {
 	ctx := sdk.UnwrapSDKContext(c)
-	gt := k.GetGenesisTime(ctx)
+	genesisTime := k.GetGenesisTime(ctx).GenesisTime
 
-	return &types.QueryGenesisTimeResponse{GenesisTime: gt.GenesisTime}, nil
+	return &types.QueryGenesisTimeResponse{GenesisTime: genesisTime}, nil
 }

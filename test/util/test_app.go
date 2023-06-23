@@ -176,6 +176,8 @@ func AddGenesisAccount(addr sdk.AccAddress, appState app.GenesisState, cdc codec
 	return appState, nil
 }
 
+// GenesisStateWithSingleValidator initializes GenesisState with a single
+// validator and genesis accounts that also act as delegators.
 func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (app.GenesisState, *tmtypes.ValidatorSet, keyring.Keyring) {
 	privVal := mock.NewPV()
 	pubKey, err := privVal.GetPubKey()
