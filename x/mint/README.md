@@ -37,7 +37,7 @@ celestia-app's `x/mint` is a fork of the Cosmos SDK [`x/mint`](https://github.co
 
 - **Inflation Rate**: The percentage of the total supply that will be minted each year. The inflation rate is calculated once per year on the anniversary of chain genesis based on the number of years elapsed since genesis. The inflation rate is calculated as `InitialInflationRate * ((1 - DisinflationRate) ^ YearsSinceGenesis)`. See [./types/constants.go](./types/constants.go) for the constants used in this module.
 - **Annual Provisions**: The total amount of tokens that will be minted each year. Annual provisions are calculated once per year on the anniversary of chain genesis based on the total supply and the inflation rate. Annual provisions are calculated as `TotalSupply * InflationRate`
-- **Block Provision**: The amount of tokens that will be minted in the current block. Block provisions are calculated once per block based on the annual provisions and the number of seconds elapsed between the current block and the previous block. Block provisions are calculated as `AnnualProvisions * (NanoSecondsSincePreviousBlock / NanoSecondsPerYear)`
+- **Block Provision**: The amount of tokens that will be minted in the current block. Block provisions are calculated once per block based on the annual provisions and the number of nanoseconds elapsed between the current block and the previous block. Block provisions are calculated as `AnnualProvisions * (NanosecondsSincePreviousBlock / NanosecondsPerYear)`
 
 ## State
 
@@ -84,7 +84,11 @@ See [./test/mint_test.go](./test/mint_test.go) for an integration test suite for
 
 ## Assumptions and Considerations
 
-This module assumes `DaysPerYear = 365.2425` so when modifying tests, developers must define durations based on this assumption because ordinary durations won't return the expected results. In other words:
+> For the Gregorian calendar, the average length of the calendar year (the mean year) across the complete leap cycle of 400 years is 365.2425 days (97 out of 400 years are leap years).
+
+Source: <https://en.wikipedia.org/wiki/Year#Calendar_year>
+
+This module assumes `DaysPerYear = 365.2425`  so when modifying tests, developers must define durations based on this assumption because ordinary durations won't return the expected results. In other words:
 
 ```go
 // oneYear is 31,556,952 seconds which will likely return expected results in tests
