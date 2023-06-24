@@ -75,7 +75,7 @@ Each chunk of block data is split into equally size shares for sampling
 purposes. The encoding was designed to allow for light clients to decode these
 shares to retrieve relevant data and to be future-proof yet backwards
 compatible. The share encoding is deeply integrated into square construction, and
-    therefore critical to calculate the data root.
+therefore critical to calculate the data root.
 
 See [shares spec](./shares.md)
 
