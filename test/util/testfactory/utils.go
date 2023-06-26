@@ -17,9 +17,10 @@ import (
 
 const (
 	// nolint:lll
-	TestAccName  = "test-account"
-	TestAccMnemo = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
-	bondDenom    = "utia"
+	TestAccName               = "test-account"
+	TestAccMnemo              = `ramp soldier connect gadget domain mutual staff unusual first midnight iron good deputy wage vehicle mutual spike unlock rocket delay hundred script tumble choose`
+	bondDenom                 = "utia"
+	BaseAccountDefaultBalance = 10000
 )
 
 func QueryWithoutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.ResultTx, error) {
@@ -101,4 +102,21 @@ func GenerateAccounts(count int) []string {
 		accs[i] = tmrand.Str(20)
 	}
 	return accs
+}
+
+func NewBaseAccount(kr keyring.Keyring, name string) (*authtypes.BaseAccount, sdk.Coins) {
+	if name == "" {
+		name = tmrand.Str(6)
+	}
+	rec, _, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
+	if err != nil {
+		panic(err)
+	}
+	addr, err := rec.GetAddress()
+	if err != nil {
+		panic(err)
+	}
+	origCoins := sdk.Coins{sdk.NewInt64Coin(bondDenom, BaseAccountDefaultBalance)}
+	bacc := authtypes.NewBaseAccountWithAddress(addr)
+	return bacc, origCoins
 }
