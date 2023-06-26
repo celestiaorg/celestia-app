@@ -74,6 +74,10 @@ $ celestia-appd query mint inflation
 0.080000000000000000
 ```
 
+## Genesis State
+
+The genesis state is defined in [./types/genesis.go](./types/genesis.go).
+
 ## Params
 
 All params have been removed from this module because they should not be modifiable via governance.
