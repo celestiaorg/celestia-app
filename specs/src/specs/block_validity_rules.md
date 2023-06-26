@@ -4,7 +4,9 @@ Unlike most blockchains, Celestia derives most of its functionality from
 stateless commitments to data rather than stateful transitions. This means that
 the protocol relies heavily on block validity rules. Notably, resource
 constrained light clients must be able to detect when these validity rules have
-not been followed in order to avoid making an honest majority assumption.
+not been followed in order to avoid making an honest majority assumption. This
+has a significant impact on thier. More information on how light clients verify
+block validity rules can be foud in the [Fraud Proofs](./fraud_proofs.md) spec.
 
 > **Note** Celestia relies on CometBFT (formerly tendermint) for consensus,
 > meaning that it has single slot finality and is fork-free. Therefore, in order
@@ -14,7 +16,7 @@ not been followed in order to avoid making an honest majority assumption.
 > proofs are created for light clients. After light clients verify fraud proofs,
 > they halt.
 
-Before any Celestia specific validation is performed, all cometBFT [block
+Before any Celestia specific validation is performed, all CometBFT [block
 validation
 rules](https://github.com/cometbft/cometbft/blob/v0.34.28/spec/core/data_structures.md#block)
 must be followed. The only deviation from these rules is how the data root
@@ -26,7 +28,7 @@ change, including how it proves data availability to light clients.
 
 The data for each block must be considered available before a given block can be
 considered valid. For consensus nodes, this is done via an identical mechanism
-to a normal cometBFT node, which involves downloading the entire block by each
+to a normal CometBFT node, which involves downloading the entire block by each
 node before considering that block valid.
 
 Light clients however do not download the entire block. They only sample a
@@ -39,26 +41,14 @@ Majorities"](https://arxiv.org/abs/1809.09044) and in the
 Per the [LazyLedger white paper](https://arxiv.org/pdf/1905.09274.pdf), Celestia
 uses a 2D Reed-Solomon coding scheme
 ([rsmt2d](https://github.com/celestiaorg/rsmt2d)) to accommodate data
-availability sampling. This involves "splitting" the cometBFT block data into
+availability sampling. This involves "splitting" the CometBFT block data into
 shares. Along with the 2D scheme, Celestia also makes use of [namespaced merkle
 trees (nmt)](https://github.com/celestiaorg/nmt). These are combined to create
 the commitment over block data instead of the typical merkle tree used by
-cometBFT.
+CometBFT.
 
 <img src="./figures/data_root.svg" alt="Figure 1: Data Root" width="400"/> <img
 src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/>
-
-### Bad Encoding Fraud Proofs
-
-In order for data availability sampling to work, light clients must be convinced
-that erasure encoded parity data was encoded correctly. For light clients, this
-is ultimately enforced via [bad encoding fraud proofs
-(BEFPs)](https://github.com/celestiaorg/celestia-node/blob/v0.11.0-rc3/docs/adr/adr-006-fraud-service.md#detailed-design).
-Consensus nodes must verify this themselves before considering a block valid.
-This is done automatically by verifying the data root of the header, since that
-requires reconstructing the square from the block data, performing the erasure
-encoding, calculating the data root using that representation, and then
-comparing the data root found in the header.
 
 ### Square Construction
 
@@ -85,15 +75,3 @@ Each `BlobTx` consists of a transaction to pay for one or more blobs, and the
 blobs themselves. Each `BlobTx` that is included in the block must be valid.
 Those rules are described in [`x/blob` module
 specs](../../../x/blob/README.md#validity-rules)
-
-## Blob Inclusion
-
-TODO
-
-## State Fraud Proofs
-
-State fraud proofs allow light clients to avoid making an honest majority for
-state validity. While these are not incorporated into the protocol as of v1.0.0,
-there are example implementations that can be found in
-[Rollkit](https://github.com/rollkit/rollkit). More info in
-[rollkit-ADR009](https://github.com/rollkit/rollkit/blob/4fd97ba8b8352771f2e66454099785d06fd0c31b/docs/lazy-adr/adr-009-state-fraud-proofs.md).
