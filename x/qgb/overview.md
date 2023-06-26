@@ -14,7 +14,7 @@ All attestations have a [`nonce`](https://github.com/celestiaorg/celestia-app/bl
 
 ### [Valsets](https://github.com/celestiaorg/celestia-app/tree/main/x/qgb#valsets)
 
-A [valset](https://github.com/celestiaorg/celestia-app/tree/main/x/qgb#valsets) represents a validator set snapshot. It contains a list of validators' EVM addresses along with their [QGB staking power](https://github.com/celestiaorg/celestia-app/tree/main/x/qgb#validator-power-normalization). It allows tracking the validator set changes inside the QGB smart contract and verify the signatures accordingly.
+A [valset](https://github.com/celestiaorg/celestia-app/tree/main/x/qgb#valsets) represents a validator set snapshot. It contains a list of validators' EVM addresses along with their [QGB staking power](https://github.com/celestiaorg/celestia-app/tree/main/x/qgb#validator-power-normalization). It allows tracking of the validator set changes inside the QGB smart contract and for verification of the signatures.
 
 A valset is [generated](https://github.com/celestiaorg/celestia-app/blob/34d725993a3b2c7cbbf6e62c83bbfd90ad94657e/x/qgb/abci.go#L84-L135) inside the state machine. It is then queried, signed by orchestrators, and submitted to the QGB P2P network. After more than 2/3rds of the validator set have submitted their signatures, it is relayed to the QGB smart contract along with the signatures to be [verified](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol#L172-L211) and eventually [stored](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol#L266-L268).
 
