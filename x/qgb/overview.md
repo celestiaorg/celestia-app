@@ -111,6 +111,6 @@ Future versions of the QGB will support slashing. It will be enforced via the us
 
 ## Proofs
 
-To prove that data was posted to an EVM chain, we have the following method: [`verifyAttestation()`](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol#L339-L358). This allows to verify that a data root tuple was committed to by the QGB  smart contract.
+To prove that data was posted to an EVM chain, we have the following method: [`verifyAttestation()`](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol#L339-L358). This allows to verify that a data root tuple was committed to by the QGB smart contract.
 
 For the remaining proofs, i.e. shares to data root tuples proofs, the app is currently able to generate and verify them. However, these are still not supported at the smart contract level. Future works will focus on this.
