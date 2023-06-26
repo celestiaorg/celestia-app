@@ -105,7 +105,7 @@ If more than 1/3rd of the validator set stops running their orchestrators, then 
 
 ## Slashing
 
-We still don't support slashing for equivocation, liveness  or double signatures. However, if anything were to happen to the bridge, we would be able to social slash the corrupt validators and redeploy the contract.
+We still don't support slashing for equivocation, liveness  or invalid signatures. However, if anything were to happen to the bridge, we would be able to social slash the corrupt validators and redeploy the contract.
 
 Future versions of the QGB will support slashing. It will be enforced via the use of [vote extensions](https://docs.cosmos.network/main/building-apps/vote-extensions).
 
