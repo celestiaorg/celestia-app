@@ -8,8 +8,9 @@ func RandomBlobNamespaceID() []byte {
 	return RandomBlobNamespaceIDWithPRG(tmrand.NewRand())
 }
 
-func RandomBlobNamespaceIDWithPRG(rand *tmrand.Rand) []byte {
-	return rand.Bytes(NamespaceVersionZeroIDSize)
+// RandomBlobNamespaceIDWithPRG returns a random blob namespace ID using the supplied Pseudo-Random number Generator (PRG).
+func RandomBlobNamespaceIDWithPRG(prg *tmrand.Rand) []byte {
+	return prg.Bytes(NamespaceVersionZeroIDSize)
 }
 
 func RandomBlobNamespace() Namespace {
