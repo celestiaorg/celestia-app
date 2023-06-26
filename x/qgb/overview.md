@@ -1,6 +1,6 @@
 # Overview
 
-The Quantum Gravity Bridge (QGB) is a one way bridge from Celestia to EVM chains. It provides a way for rollups using Celestia for DA, and an EVM chain as a settlment layer, to prove on-chain that the rollup data was correctly posted to Celestia and verify fraud proofs otherwise. This type of rollups is called Celestiums and is discussed in the [Quantum Gravity Bridge: Secure Off-Chain Data Availability for Ethereum L2s with Celestia](https://blog.celestia.org/celestiums) blog post.
+The Quantum Gravity Bridge (QGB) is a one way bridge from Celestia to EVM chains. It provides a way for rollups using Celestia for DA, and an EVM chain as a settlment layer, to prove on-chain that the rollup data was correctly posted to Celestia and verify fraud proofs otherwise. These types of rollups are called Celestiums and are discussed in the [Quantum Gravity Bridge: Secure Off-Chain Data Availability for Ethereum L2s with Celestia](https://blog.celestia.org/celestiums) blog post.
 
 The QGB implementation consists of three components: The [state machine](https://github.com/celestiaorg/celestia-app/tree/main/x/qgb), the [orchestrator-relayer](https://github.com/celestiaorg/orchestrator-relayer), and the [QGB smart contract](https://github.com/celestiaorg/quantum-gravity-bridge).
 
