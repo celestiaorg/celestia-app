@@ -17,9 +17,10 @@ func RandomBlobNamespace() Namespace {
 	return RandomBlobNamespaceWithPRG(tmrand.NewRand())
 }
 
-func RandomBlobNamespaceWithPRG(rand *tmrand.Rand) Namespace {
+// RandomBlobNamespaceWithPRG generates and returns a random blob namespace using the supplied Pseudo-Random number Generator (PRG).
+func RandomBlobNamespaceWithPRG(prg *tmrand.Rand) Namespace {
 	for {
-		id := RandomBlobNamespaceIDWithPRG(rand)
+		id := RandomBlobNamespaceIDWithPRG(prg)
 		namespace := MustNewV0(id)
 		err := namespace.ValidateBlobNamespace()
 		if err != nil {

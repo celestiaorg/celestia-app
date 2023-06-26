@@ -88,7 +88,7 @@ func GenerateOrderedRandomTxs(t *testing.T, txConfig client.TxConfig, rand *tmra
 	return coretypes.Txs(txs).ToSliceOfBytes()
 }
 
-// TestGenerateManyRandomRawSendTxs_Determinism ensures that the same seed produces the same txs
+// TestGenerateOrderedRandomTxs_Deterministic ensures that the same seed produces the same txs
 func TestGenerateOrderedRandomTxs_Deterministic(t *testing.T) {
 	pfbCount := 10
 	noramlCount := 10
@@ -109,7 +109,7 @@ func GenerateMixedRandomTxs(t *testing.T, txConfig client.TxConfig, rand *tmrand
 	return shuffle(rand, GenerateOrderedRandomTxs(t, txConfig, rand, normalTxCount, pfbCount))
 }
 
-// TestGenerateManyRandomRawSendTxs_Determinism ensures that the same seed produces the same txs
+// TestGenerateMixedRandomTxs_Deterministic ensures that the same seed produces the same txs
 func TestGenerateMixedRandomTxs_Deterministic(t *testing.T) {
 	pfbCount := 10
 	noramlCount := 10

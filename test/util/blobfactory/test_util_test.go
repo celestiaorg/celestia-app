@@ -10,7 +10,7 @@ import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
-// TestGenerateManyRandomRawSendTxsSameSigner_Determinism tests whether with the same random seed the GenerateManyRandomRawSendTxsSameSigner function produces the same send transactions.
+// TestGenerateManyRandomRawSendTxsSameSigner_Deterministic tests whether with the same random seed the GenerateManyRandomRawSendTxsSameSigner function produces the same send transactions.
 func TestGenerateManyRandomRawSendTxsSameSigner_Deterministic(t *testing.T) {
 	normalTxCount := 10
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
