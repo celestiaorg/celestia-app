@@ -76,7 +76,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="specs/shares.html"><strong aria-hidden="true">1.2.</strong> Shares</a></li><li class="chapter-item expanded "><a href="specs/consensus.html"><strong aria-hidden="true">1.3.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="specs/block_proposer.html"><strong aria-hidden="true">1.4.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="specs/block_validity_rules.html"><strong aria-hidden="true">1.5.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="specs/networking.html"><strong aria-hidden="true">1.6.</strong> Networking</a></li><li class="chapter-item expanded "><a href="specs/public_key_cryptography.html"><strong aria-hidden="true">1.7.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="specs/data_square_layout.html"><strong aria-hidden="true">1.8.</strong> Data Square Layout</a></li></ol></li><li class="chapter-item expanded "><a href="specs/state_machine_modules.html"><strong aria-hidden="true">2.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../x/blob/index.html"><strong aria-hidden="true">2.1.</strong> blob</a></li><li class="chapter-item expanded "><a href="../../x/qgb/index.html"><strong aria-hidden="true">2.2.</strong> qgb</a></li><li class="chapter-item expanded "><a href="../../x/mint/index.html"><strong aria-hidden="true">2.3.</strong> mint</a></li><li class="chapter-item expanded "><a href="../../x/paramfilter/index.html"><strong aria-hidden="true">2.4.</strong> paramfilter</a></li><li class="chapter-item expanded "><a href="../../x/upgrade/index.html"><strong aria-hidden="true">2.5.</strong> upgrade</a></li><li class="chapter-item expanded "><a href="../../x/tokenfilter/index.html"><strong aria-hidden="true">2.6.</strong> tokenfilter</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="specs/shares.html"><strong aria-hidden="true">1.2.</strong> Shares</a></li><li class="chapter-item expanded "><a href="specs/consensus.html"><strong aria-hidden="true">1.3.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="specs/block_proposer.html"><strong aria-hidden="true">1.4.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="specs/block_validity_rules.html"><strong aria-hidden="true">1.5.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="specs/fraud_proofs.html"><strong aria-hidden="true">1.6.</strong> Fraud Proofs</a></li><li class="chapter-item expanded "><a href="specs/networking.html"><strong aria-hidden="true">1.7.</strong> Networking</a></li><li class="chapter-item expanded "><a href="specs/public_key_cryptography.html"><strong aria-hidden="true">1.8.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="specs/data_square_layout.html"><strong aria-hidden="true">1.9.</strong> Data Square Layout</a></li></ol></li><li class="chapter-item expanded "><a href="specs/state_machine_modules.html"><strong aria-hidden="true">2.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../x/blob/index.html"><strong aria-hidden="true">2.1.</strong> blob</a></li><li class="chapter-item expanded "><a href="../../x/qgb/index.html"><strong aria-hidden="true">2.2.</strong> qgb</a></li><li class="chapter-item expanded "><a href="../../x/mint/index.html"><strong aria-hidden="true">2.3.</strong> mint</a></li><li class="chapter-item expanded "><a href="../../x/paramfilter/index.html"><strong aria-hidden="true">2.4.</strong> paramfilter</a></li><li class="chapter-item expanded "><a href="../../x/upgrade/index.html"><strong aria-hidden="true">2.5.</strong> upgrade</a></li><li class="chapter-item expanded "><a href="../../x/tokenfilter/index.html"><strong aria-hidden="true">2.6.</strong> tokenfilter</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -147,6 +147,7 @@
 <li><a href="./specs/consensus.html">Consensus</a></li>
 <li><a href="./specs/block_proposer.html">Block Proposer</a></li>
 <li><a href="./specs/block_validity_rules.html">Block Validity Rules</a></li>
+<li><a href="./specs/fraud_proofs.html">Fraud Proofs</a></li>
 <li><a href="./specs/networking.html">Networking</a></li>
 <li><a href="./specs/public_key_cryptography.html">Public-Key Cryptography</a></li>
 <li><a href="./specs/data_square_layout.html">Data Square Layout</a></li>
@@ -1303,6 +1304,25 @@ therefore critical to calculate the data root.</p>
 blobs themselves. Each <code>BlobTx</code> that is included in the block must be valid.
 Those rules are described in <a href="specs/../../../x/blob/README.html#validity-rules"><code>x/blob</code> module
 specs</a></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="fraud-proofs"><a class="header" href="#fraud-proofs">Fraud Proofs</a></h1>
+<h2 id="bad-encoding-fraud-proofs"><a class="header" href="#bad-encoding-fraud-proofs">Bad Encoding Fraud Proofs</a></h2>
+<p>In order for data availability sampling to work, light clients must be convinced
+that erasure encoded parity data was encoded correctly. For light clients, this
+is ultimately enforced via <a href="https://github.com/celestiaorg/celestia-node/blob/v0.11.0-rc3/docs/adr/adr-006-fraud-service.md#detailed-design">bad encoding fraud proofs
+(BEFPs)</a>.
+Consensus nodes must verify this themselves before considering a block valid.
+This is done automatically by verifying the data root of the header, since that
+requires reconstructing the square from the block data, performing the erasure
+encoding, calculating the data root using that representation, and then
+comparing the data root found in the header.</p>
+<h2 id="blob-inclusion"><a class="header" href="#blob-inclusion">Blob Inclusion</a></h2>
+<p>TODO</p>
+<h2 id="state-1"><a class="header" href="#state-1">State</a></h2>
+<p>State fraud proofs allow light clients to avoid making an honest majority for
+state validity. While these are not incorporated into the protocol as of v1.0.0,
+there are example implementations that can be found in
+<a href="https://github.com/rollkit/rollkit">Rollkit</a>. More info in
+<a href="https://github.com/rollkit/rollkit/blob/4fd97ba8b8352771f2e66454099785d06fd0c31b/docs/lazy-adr/adr-009-state-fraud-proofs.md">rollkit-ADR009</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="networking"><a class="header" href="#networking">Networking</a></h1>
 <!-- toc -->
 <h2 id="wire-format"><a class="header" href="#wire-format">Wire Format</a></h2>
@@ -1587,7 +1607,7 @@ original data do in fact exist in a particular block.</p>
 <blockquote>
 <p>TODO: link to blob inclusion (and fraud) proof</p>
 </blockquote>
-<h2 id="state-1"><a class="header" href="#state-1">State</a></h2>
+<h2 id="state-2"><a class="header" href="#state-2">State</a></h2>
 <p>The blob module doesn't maintain it's own state outside of two params. Meaning
 that the blob module only uses the params and auth module stores.</p>
 <h3 id="params"><a class="header" href="#params">Params</a></h3>
@@ -1846,7 +1866,7 @@ struct DataRootTuple {
 <li><code>squareSize</code>: the <a href="https://celestiaorg.github.io/celestia-app/specs/data_structures.html#arranging-available-data-into-shares">square</a> size of the block.</li>
 </ol>
 <p>These commitments are queried by orchestrators from <a href="https://github.com/celestiaorg/celestia-core/blob/d280f37a8376ed54ae03b10896fa25a4cbbc6d5b/rpc/core/blocks.go#L178-L195">Celestia-core</a>, signed, then submitted to the QGB P2P network as described <a href="https://github.com/celestiaorg/orchestrator-relayer/blob/35b5df94c1602eb5e93a32d1bc6e5c8a4b5861e5/orchestrator/orchestrator.go#L331-L357">here</a>.</p>
-<h2 id="state-2"><a class="header" href="#state-2">State</a></h2>
+<h2 id="state-3"><a class="header" href="#state-3">State</a></h2>
 <h3 id="attestations"><a class="header" href="#attestations">Attestations</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Name</th><th>Key</th></tr></thead><tbody>
 <tr><td>Valset</td><td><a href="https://github.com/celestiaorg/celestia-app/blob/376a1d4c0f321f12ba78279d2bd34fc6cb5e6dc2/x/qgb/types/keys.go#L40-L45"><code>[AttestationRequestKey][nonce]</code></a></td></tr>
@@ -2063,7 +2083,7 @@ if k.storeKey == nil {
 <li><strong>Annual Provisions</strong>: The total amount of tokens that will be minted each year. Annual provisions are calculated once per year on the anniversary of chain genesis based on the total supply and the inflation rate. Annual provisions are calculated as <code>TotalSupply * InflationRate</code></li>
 <li><strong>Block Provision</strong>: The amount of tokens that will be minted in the current block. Block provisions are calculated once per block based on the annual provisions and the number of nanoseconds elapsed between the current block and the previous block. Block provisions are calculated as <code>AnnualProvisions * (NanosecondsSincePreviousBlock / NanosecondsPerYear)</code></li>
 </ul>
-<h2 id="state-3"><a class="header" href="#state-3">State</a></h2>
+<h2 id="state-4"><a class="header" href="#state-4">State</a></h2>
 <p>See <a href="../../x/mint/./types/minter.go">./types/minter.go</a> for the <code>Minter</code> struct which contains this module's state.</p>
 <h2 id="state-transitions-2"><a class="header" href="#state-transitions-2">State Transitions</a></h2>
 <p>The <code>Minter</code> struct is updated every block via <code>BeginBlocker</code>.</p>
@@ -2116,7 +2136,7 @@ updated.</p>
 critical to the network's operation that are also part of the cosmos-sdk's
 standard modules. New modules should not use this module, and instead use
 hardcoded constants.</p>
-<h2 id="state-4"><a class="header" href="#state-4">State</a></h2>
+<h2 id="state-5"><a class="header" href="#state-5">State</a></h2>
 <p>The state consists only of the parameters that are protected by the paramfilter.
 All state is immutable and stored in memory during the application's
 initialization.</p>
