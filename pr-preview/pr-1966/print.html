@@ -1245,7 +1245,9 @@ else if account.status == AccountStatus.ValidatorBonded
 stateless commitments to data rather than stateful transitions. This means that
 the protocol relies heavily on block validity rules. Notably, resource
 constrained light clients must be able to detect when these validity rules have
-not been followed in order to avoid making an honest majority assumption.</p>
+not been followed in order to avoid making an honest majority assumption. This
+has a significant impact on thier. More information on how light clients verify
+block validity rules can be foud in the <a href="specs/./fraud_proofs.html">Fraud Proofs</a> spec.</p>
 <blockquote>
 <p><strong>Note</strong> Celestia relies on CometBFT (formerly tendermint) for consensus,
 meaning that it has single slot finality and is fork-free. Therefore, in order
@@ -1255,7 +1257,7 @@ thirds of the voting power colludes to break a validity rule, then fraud
 proofs are created for light clients. After light clients verify fraud proofs,
 they halt.</p>
 </blockquote>
-<p>Before any Celestia specific validation is performed, all cometBFT <a href="https://github.com/cometbft/cometbft/blob/v0.34.28/spec/core/data_structures.md#block">block
+<p>Before any Celestia specific validation is performed, all CometBFT <a href="https://github.com/cometbft/cometbft/blob/v0.34.28/spec/core/data_structures.md#block">block
 validation
 rules</a>
 must be followed. The only deviation from these rules is how the data root
@@ -1265,7 +1267,7 @@ change, including how it proves data availability to light clients.</p>
 <h2 id="data-availability"><a class="header" href="#data-availability">Data Availability</a></h2>
 <p>The data for each block must be considered available before a given block can be
 considered valid. For consensus nodes, this is done via an identical mechanism
-to a normal cometBFT node, which involves downloading the entire block by each
+to a normal CometBFT node, which involves downloading the entire block by each
 node before considering that block valid.</p>
 <p>Light clients however do not download the entire block. They only sample a
 fraction of the block. More details on how sampling actually works can be found
@@ -1276,23 +1278,13 @@ Majorities&quot;</a> and in the
 <p>Per the <a href="https://arxiv.org/pdf/1905.09274.pdf">LazyLedger white paper</a>, Celestia
 uses a 2D Reed-Solomon coding scheme
 (<a href="https://github.com/celestiaorg/rsmt2d">rsmt2d</a>) to accommodate data
-availability sampling. This involves &quot;splitting&quot; the cometBFT block data into
+availability sampling. This involves &quot;splitting&quot; the CometBFT block data into
 shares. Along with the 2D scheme, Celestia also makes use of <a href="https://github.com/celestiaorg/nmt">namespaced merkle
 trees (nmt)</a>. These are combined to create
 the commitment over block data instead of the typical merkle tree used by
-cometBFT.</p>
+CometBFT.</p>
 <p><img src="specs/./figures/data_root.svg" alt="Figure 1: Data Root" width="400"/> <img
 src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/></p>
-<h3 id="bad-encoding-fraud-proofs"><a class="header" href="#bad-encoding-fraud-proofs">Bad Encoding Fraud Proofs</a></h3>
-<p>In order for data availability sampling to work, light clients must be convinced
-that erasure encoded parity data was encoded correctly. For light clients, this
-is ultimately enforced via <a href="https://github.com/celestiaorg/celestia-node/blob/v0.11.0-rc3/docs/adr/adr-006-fraud-service.md#detailed-design">bad encoding fraud proofs
-(BEFPs)</a>.
-Consensus nodes must verify this themselves before considering a block valid.
-This is done automatically by verifying the data root of the header, since that
-requires reconstructing the square from the block data, performing the erasure
-encoding, calculating the data root using that representation, and then
-comparing the data root found in the header.</p>
 <h3 id="square-construction"><a class="header" href="#square-construction">Square Construction</a></h3>
 <p>The construction of the square is critical in providing additional guarantees to
 light clients. Since the data root is a commitment to the square, the
@@ -1311,14 +1303,6 @@ therefore critical to calculate the data root.</p>
 blobs themselves. Each <code>BlobTx</code> that is included in the block must be valid.
 Those rules are described in <a href="specs/../../../x/blob/README.html#validity-rules"><code>x/blob</code> module
 specs</a></p>
-<h2 id="blob-inclusion"><a class="header" href="#blob-inclusion">Blob Inclusion</a></h2>
-<p>TODO</p>
-<h2 id="state-fraud-proofs"><a class="header" href="#state-fraud-proofs">State Fraud Proofs</a></h2>
-<p>State fraud proofs allow light clients to avoid making an honest majority for
-state validity. While these are not incorporated into the protocol as of v1.0.0,
-there are example implementations that can be found in
-<a href="https://github.com/rollkit/rollkit">Rollkit</a>. More info in
-<a href="https://github.com/rollkit/rollkit/blob/4fd97ba8b8352771f2e66454099785d06fd0c31b/docs/lazy-adr/adr-009-state-fraud-proofs.md">rollkit-ADR009</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="networking"><a class="header" href="#networking">Networking</a></h1>
 <!-- toc -->
 <h2 id="wire-format"><a class="header" href="#wire-format">Wire Format</a></h2>
