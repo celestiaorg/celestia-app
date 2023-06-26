@@ -10,29 +10,29 @@ import (
 
 func TestBlobSharesUsedNonInteractiveDefaults(t *testing.T) {
 	type test struct {
-		cursor, squareSize, expected int
-		blobLens                     []int
-		indexes                      []uint32
+		cursor, expected int
+		blobLens         []int
+		indexes          []uint32
 	}
 	tests := []test{
-		{2, 4, 1, []int{1}, []uint32{2}},
-		{2, 2, 1, []int{1}, []uint32{2}},
-		{3, 4, 6, []int{3, 3}, []uint32{3, 6}},
-		{0, 8, 8, []int{8}, []uint32{0}},
-		{1, 8, 6, []int{3, 3}, []uint32{1, 4}},
-		{1, 8, 32, []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, []uint32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}},
-		{3, 8, 12, []int{5, 7}, []uint32{3, 8}},
-		{0, 8, 20, []int{5, 5, 5, 5}, []uint32{0, 5, 10, 15}},
-		{0, 8, 10, []int{10}, []uint32{0}},
-		{1, 8, 20, []int{10, 10}, []uint32{1, 11}},
-		{0, appconsts.DefaultSquareSizeUpperBound, 1000, []int{1000}, []uint32{0}},
-		{0, appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSquareSizeUpperBound + 1, []int{appconsts.DefaultSquareSizeUpperBound + 1}, []uint32{0}},
-		{1, 128, 385, []int{128, 128, 128}, []uint32{2, 130, 258}},
-		{1024, appconsts.DefaultSquareSizeUpperBound, 32, []int{32}, []uint32{1024}},
+		{2, 1, []int{1}, []uint32{2}},
+		{2, 1, []int{1}, []uint32{2}},
+		{3, 6, []int{3, 3}, []uint32{3, 6}},
+		{0, 8, []int{8}, []uint32{0}},
+		{1, 6, []int{3, 3}, []uint32{1, 4}},
+		{1, 32, []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, []uint32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}},
+		{3, 12, []int{5, 7}, []uint32{3, 8}},
+		{0, 20, []int{5, 5, 5, 5}, []uint32{0, 5, 10, 15}},
+		{0, 10, []int{10}, []uint32{0}},
+		{1, 20, []int{10, 10}, []uint32{1, 11}},
+		{0, 1000, []int{1000}, []uint32{0}},
+		{0, appconsts.DefaultSquareSizeUpperBound + 1, []int{appconsts.DefaultSquareSizeUpperBound + 1}, []uint32{0}},
+		{1, 385, []int{128, 128, 128}, []uint32{2, 130, 258}},
+		{1024, 32, []int{32}, []uint32{1024}},
 	}
 	for i, tt := range tests {
-		res, indexes := BlobSharesUsedNonInteractiveDefaults(tt.cursor, tt.squareSize, appconsts.DefaultSubtreeRootThreshold, tt.blobLens...)
-		test := fmt.Sprintf("test %d: cursor %d, squareSize %d", i, tt.cursor, tt.squareSize)
+		res, indexes := BlobSharesUsedNonInteractiveDefaults(tt.cursor, appconsts.DefaultSubtreeRootThreshold, tt.blobLens...)
+		test := fmt.Sprintf("test %d: cursor %d", i, tt.cursor)
 		assert.Equal(t, tt.expected, res, test)
 		assert.Equal(t, tt.indexes, indexes, test)
 	}
@@ -287,7 +287,7 @@ func TestNextShareIndex(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res := NextShareIndex(tt.cursor, tt.blobLen, tt.squareSize, appconsts.DefaultSubtreeRootThreshold)
+			res := NextShareIndex(tt.cursor, tt.blobLen, appconsts.DefaultSubtreeRootThreshold)
 			assert.Equal(t, tt.expectedIndex, res)
 		})
 	}
@@ -350,7 +350,7 @@ func Test_roundUpBy(t *testing.T) {
 				tt.expectedIndex,
 			),
 			func(t *testing.T) {
-				res := roundUpBy(tt.cursor, tt.v)
+				res := roundUpByMultipleOf(tt.cursor, tt.v)
 				assert.Equal(t, tt.expectedIndex, res)
 			})
 	}

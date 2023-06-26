@@ -29,8 +29,6 @@ func (suite *MintKeeperTestSuite) SetupTest() {
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	ctx := testApp.NewContext(true, tmproto.Header{})
 
-	testApp.MintKeeper.SetMinter(ctx, types.DefaultMinter())
-
 	legacyQuerierCdc := codec.NewAminoCodec(testApp.LegacyAmino())
 
 	suite.app = testApp
@@ -102,5 +100,5 @@ func (suite *MintKeeperTestSuite) TestQueryGenesisTime(t *testing.T) {
 	err := app.LegacyAmino().UnmarshalJSON(res, &genesisTime)
 	require.NoError(t, err)
 
-	require.Equal(t, app.MintKeeper.GetMinter(ctx).GenesisTime, genesisTime)
+	require.Equal(t, app.MintKeeper.GetGenesisTime(ctx).GenesisTime, genesisTime)
 }

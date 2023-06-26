@@ -14,33 +14,26 @@ import (
 func BeginBlocker(ctx sdk.Context, k keeper.Keeper) {
 	defer telemetry.ModuleMeasureSince(types.ModuleName, time.Now(), telemetry.MetricKeyBeginBlocker)
 
-	maybeSetGenesisTime(ctx, k)
 	maybeUpdateMinter(ctx, k)
 	mintBlockProvision(ctx, k)
 	setPreviousBlockTime(ctx, k)
 }
 
-// maybeSetGenesisTime sets the genesis time if the current block height is 1.
-func maybeSetGenesisTime(ctx sdk.Context, k keeper.Keeper) {
-	if ctx.BlockHeight() == 1 {
-		genesisTime := ctx.BlockTime()
-		minter := k.GetMinter(ctx)
-		minter.GenesisTime = &genesisTime
-		k.SetMinter(ctx, minter)
-	}
-}
-
 // maybeUpdateMinter updates the inflation rate and annual provisions if the
-// inflation rate has changed.
+// inflation rate has changed. The inflation rate is expected to change once per
+// year at the genesis time anniversary until the TargetInflationRate is
+// reached.
 func maybeUpdateMinter(ctx sdk.Context, k keeper.Keeper) {
 	minter := k.GetMinter(ctx)
-	newInflationRate := minter.CalculateInflationRate(ctx)
+	genesisTime := k.GetGenesisTime(ctx).GenesisTime
+	newInflationRate := minter.CalculateInflationRate(ctx, *genesisTime)
 
 	isNonZeroAnnualProvisions := !minter.AnnualProvisions.IsZero()
 	if newInflationRate.Equal(minter.InflationRate) && isNonZeroAnnualProvisions {
 		// The minter's InflationRate and AnnualProvisions already reflect the
 		// values for this year. Exit early because we don't need to update
-		// them.
+		// them. AnnualProvisions must be updated if it is zero (expected at
+		// genesis).
 		return
 	}
 

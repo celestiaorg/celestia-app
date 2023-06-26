@@ -4,6 +4,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
+	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
@@ -18,8 +19,20 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// create a context using a branch of the state and loaded using the
 	// proposal height and chain-id
 	sdkCtx := app.NewProposalContext(core.Header{ChainID: app.GetChainID(), Height: app.LastBlockHeight() + 1})
-	// verify the signatures of the PFBs in the block data. Only the valid PFBs are returned
-	txs := filterForValidPFBSignature(sdkCtx, &app.AccountKeeper, app.txConfig, req.BlockData.Txs)
+	// filter out invalid transactions.
+	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
+	// and only check the state dependent checks like fees and nonces as all these transactions have already
+	// passed CheckTx.
+	handler := NewAnteHandler(
+		app.AccountKeeper,
+		app.BankKeeper,
+		app.BlobKeeper,
+		app.FeeGrantKeeper,
+		app.GetTxConfig().SignModeHandler(),
+		ante.DefaultSigVerificationGasConsumer,
+		app.IBCKeeper,
+	)
+	txs := filterTxs(sdkCtx, handler, app.txConfig, req.BlockData.Txs)
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block

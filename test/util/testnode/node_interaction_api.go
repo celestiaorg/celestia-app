@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	DefaultTimeout = 10 * time.Second
+	DefaultTimeout = 30 * time.Second
 )
 
 type Context struct {

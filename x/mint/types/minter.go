@@ -7,21 +7,22 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+const DefaultBondDenom = "utia"
+
 // NewMinter returns a new Minter object.
-func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec, genesisTime *time.Time, bondDenom string) Minter {
+func NewMinter(inflationRate sdk.Dec, annualProvisions sdk.Dec, bondDenom string) Minter {
 	return Minter{
 		InflationRate:    inflationRate,
 		AnnualProvisions: annualProvisions,
-		GenesisTime:      genesisTime,
 		BondDenom:        bondDenom,
 	}
 }
 
 // DefaultMinter returns a Minter object with default values.
 func DefaultMinter() Minter {
-	unixEpoch := time.Unix(0, 0).UTC()
 	inflationRate := InitialInflationRateAsDec()
-	return NewMinter(inflationRate, sdk.NewDec(0), &unixEpoch, sdk.DefaultBondDenom)
+	annualProvisions := sdk.NewDec(0)
+	return NewMinter(inflationRate, annualProvisions, DefaultBondDenom)
 }
 
 // Validate returns an error if the minter is invalid.
@@ -41,8 +42,8 @@ func (m Minter) Validate() error {
 // CalculateInflationRate returns the inflation rate for the current year depending on
 // the current block height in context. The inflation rate is expected to
 // decrease every year according to the schedule specified in the README.
-func (m Minter) CalculateInflationRate(ctx sdk.Context) sdk.Dec {
-	years := yearsSinceGenesis(*m.GenesisTime, ctx.BlockTime())
+func (m Minter) CalculateInflationRate(ctx sdk.Context, genesis time.Time) sdk.Dec {
+	years := yearsSinceGenesis(genesis, ctx.BlockTime())
 	initialInflationRate := InitialInflationRateAsDec()
 	disinflationRate := DisinflationRateAsDec()
 	inflationRate := initialInflationRate.Mul(sdk.OneDec().Sub(disinflationRate).Power(uint64(years)))

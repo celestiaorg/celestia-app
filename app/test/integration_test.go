@@ -47,7 +47,7 @@ type IntegrationTestSuite struct {
 func (s *IntegrationTestSuite) SetupSuite() {
 	t := s.T()
 
-	numAccounts := 120
+	numAccounts := 142
 	s.accounts = make([]string, numAccounts)
 	for i := 0; i < numAccounts; i++ {
 		s.accounts[i] = tmrand.Str(20)
@@ -256,7 +256,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			// 20) so we wait a few blocks for the txs to clear
 			require.NoError(t, s.cctx.WaitForBlocks(3))
 
-			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[0], s.cctx.ChainID)
+			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[141], s.cctx.ChainID)
 			res, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob, tc.blob}, tc.opts...)
 			require.NoError(t, err)
 			require.NotNil(t, res)
@@ -276,7 +276,7 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 		1,
 		false,
 		s.cctx.ChainID,
-		s.accounts[:1],
+		s.accounts[140:],
 	)
 
 	btx, isBlob := coretypes.UnmarshalBlobTx(blobTx[0])
@@ -299,7 +299,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		1,
 		true,
 		s.cctx.ChainID,
-		s.accounts[:20],
+		s.accounts[120:140],
 	)
 
 	hashes := make([]string, len(txs))
@@ -311,7 +311,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		hashes[i] = res.TxHash
 	}
 
-	require.NoError(t, s.cctx.WaitForBlocks(10))
+	require.NoError(t, s.cctx.WaitForBlocks(5))
 
 	for _, hash := range hashes {
 		txResp, err := testnode.QueryTx(s.cctx.Context, hash, true)
