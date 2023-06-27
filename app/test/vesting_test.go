@@ -17,6 +17,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -191,6 +192,7 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccounts() {
 			// test delegation of only the locked account(s)
 			if !mustSucceed {
 				s.testDelegation(cctx, tt.accName)
+				s.testClaimDelegationReward(cctx, tt.accName)
 			}
 		})
 	}
@@ -203,18 +205,17 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccounts() {
 	startTime := tmtime.Now()
 	periods := vestingtypes.Periods{
 		vestingtypes.Period{Length: int64(10), Amount: sdk.Coins{sdk.NewInt64Coin(app.BondDenom, 2500)}},
-		vestingtypes.Period{Length: int64(4), Amount: sdk.Coins{sdk.NewInt64Coin(app.BondDenom, 2500)}},
-		vestingtypes.Period{Length: int64(4), Amount: sdk.Coins{sdk.NewInt64Coin(app.BondDenom, 2500)}},
-		vestingtypes.Period{Length: int64(6), Amount: sdk.Coins{sdk.NewInt64Coin(app.BondDenom, 2500)}},
+		vestingtypes.Period{Length: int64(8), Amount: sdk.Coins{sdk.NewInt64Coin(app.BondDenom, 2500)}},
+		vestingtypes.Period{Length: int64(8), Amount: sdk.Coins{sdk.NewInt64Coin(app.BondDenom, 2500)}},
+		vestingtypes.Period{Length: int64(10), Amount: sdk.Coins{sdk.NewInt64Coin(app.BondDenom, 2500)}},
 	}
 
 	const accName = "period_vesting_0"
 	kr := testfactory.GenerateKeyring()
+	bacc, coins := testfactory.NewBaseAccount(kr, accName)
+	pva := vestingtypes.NewPeriodicVestingAccount(bacc, coins, startTime.Unix(), periods)
 
 	gsOpt := func(gs map[string]json.RawMessage) map[string]json.RawMessage {
-		bacc, coins := testfactory.NewBaseAccount(kr, accName)
-		pva := vestingtypes.NewPeriodicVestingAccount(bacc, coins, startTime.Unix(), periods)
-
 		vAccs := authtypes.GenesisAccounts{pva}
 		vBals := []banktypes.Balance{
 			{
@@ -277,17 +278,19 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccounts() {
 				expectedSpendableBal += pr.GetAmount()[0].Amount.Int64()
 			}
 		}
+
 		assert.EqualValues(s.T(),
 			expectedSpendableBal,
 			balances.AmountOf(app.BondDenom).Int64(),
 			"spendable balance must match")
 
-		_, err = cctx.WaitForTimestamp(startTime.Add(periods[i].Duration() + 1)) // Wait for the next period to be passed
+		_, err = cctx.WaitForTimestamp(startTime.Add(periods[i].Duration() + 10*time.Millisecond)) // Wait for the next period to be passed
 		assert.NoError(s.T(), err)
 	}
 
 	s.testTransferVestingAmount(cctx, accName, false)
 	s.testDelegation(cctx, accName)
+	s.testClaimDelegationReward(cctx, accName)
 }
 
 func (s *VestingModuleTestSuite) TestGenesisContinuesVestingAccounts() {
@@ -371,6 +374,7 @@ func (s *VestingModuleTestSuite) TestGenesisContinuesVestingAccounts() {
 
 	s.testTransferVestingAmount(cctx, accName, false)
 	s.testDelegation(cctx, accName)
+	s.testClaimDelegationReward(cctx, accName)
 }
 
 func (s *VestingModuleTestSuite) testTransferVestingAmount(cctx testnode.Context, accName string, mustSucceed bool) {
@@ -426,6 +430,54 @@ func (s *VestingModuleTestSuite) testDelegation(cctx testnode.Context, accName s
 		testfactory.BaseAccountDefaultBalance,
 		del[0].Balance.Amount.Int64(),
 		"delegation amount must match")
+}
+
+func (s *VestingModuleTestSuite) testClaimDelegationReward(cctx testnode.Context, accName string) {
+	assert.NoError(s.T(), cctx.WaitForNextBlock())
+
+	accAddress := getAddress(accName, cctx.Keyring).String()
+
+	cli := distributiontypes.NewQueryClient(cctx.GRPCClient)
+	resR, err := cli.DelegationTotalRewards(
+		context.Background(),
+		&distributiontypes.QueryDelegationTotalRewardsRequest{
+			DelegatorAddress: accAddress,
+		},
+	)
+	assert.NoError(s.T(), err)
+	assert.NotEmpty(s.T(), resR, "empty staking rewards")
+	assert.NotEmpty(s.T(), resR.Rewards)
+
+	rewardAmount := resR.Rewards[0].Reward.AmountOf(app.BondDenom).RoundInt().Int64()
+	assert.Greater(s.T(), rewardAmount, int64(0), "rewards must be more than zero")
+
+	balancesBefore, err := GetAccountSpendableBalance(cctx.GRPCClient, accAddress)
+	assert.NoError(s.T(), err)
+
+	// min is used as in the middle of the operation more tokens might be vested (unlocked)
+	minExpectedBalance := balancesBefore.AmountOf(app.BondDenom).Int64() + rewardAmount
+
+	validators, err := GetValidators(cctx.GRPCClient)
+	assert.NoError(s.T(), err)
+	assert.NotEmpty(s.T(), validators, "empty validators set")
+
+	msg := distributiontypes.NewMsgWithdrawDelegatorReward(
+		getAddress(accName, cctx.Keyring),
+		validators[0].GetOperator(),
+	)
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	resTx, err := testnode.SignAndBroadcastTx(encCfg, cctx.Context, accName, []sdk.Msg{msg}...)
+	assert.NoError(s.T(), err)
+
+	resQ, err := cctx.WaitForTx(resTx.TxHash, 10)
+	assert.NoError(s.T(), err)
+	assert.EqualValues(s.T(), 0, resQ.TxResult.Code, "the claim reward TX must succeed")
+
+	// Check if the reward amount in the account
+	balancesAfter, err := GetAccountSpendableBalance(cctx.GRPCClient, accAddress)
+	assert.NoError(s.T(), err)
+
+	assert.GreaterOrEqual(s.T(), balancesAfter.AmountOf(app.BondDenom).Int64(), minExpectedBalance, "Minimum balance after claiming reward")
 }
 
 func AddAccountsToGenesisState(gs map[string]json.RawMessage, accounts ...authtypes.GenesisAccount) (map[string]json.RawMessage, error) {
