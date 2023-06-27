@@ -80,6 +80,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	equallySized1MbTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg.TxConfig.TxEncoder(),
+			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
 			950000,
@@ -96,6 +97,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	randMultiBlob1MbTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg.TxConfig.TxEncoder(),
+			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
 			200000, // 200 KiB
@@ -113,6 +115,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 	randoTxGen := func(c client.Context) []coretypes.Tx {
 		return blobfactory.RandBlobTxsWithAccounts(
 			s.ecfg.TxConfig.TxEncoder(),
+			tmrand.NewRand(),
 			s.cctx.Keyring,
 			c.GRPCClient,
 			50000,
@@ -270,6 +273,7 @@ func (s *IntegrationTestSuite) TestUnwrappedPFBRejection() {
 
 	blobTx := blobfactory.RandBlobTxsWithAccounts(
 		s.ecfg.TxConfig.TxEncoder(),
+		tmrand.NewRand(),
 		s.cctx.Keyring,
 		s.cctx.GRPCClient,
 		int(100000),
@@ -293,6 +297,7 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 	// generate 100 randomly sized txs (max size == 100kb)
 	txs := blobfactory.RandBlobTxsWithAccounts(
 		s.ecfg.TxConfig.TxEncoder(),
+		tmrand.NewRand(),
 		s.cctx.Keyring,
 		s.cctx.GRPCClient,
 		100000,
