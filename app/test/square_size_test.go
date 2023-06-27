@@ -34,7 +34,6 @@ func TestSquareSizeIntegrationTest(t *testing.T) {
 type SquareSizeIntegrationTest struct {
 	suite.Suite
 
-	accounts          []string
 	cctx              testnode.Context
 	rpcAddr, grpcAddr string
 	ecfg              encoding.Config
@@ -44,19 +43,11 @@ func (s *SquareSizeIntegrationTest) SetupSuite() {
 	t := s.T()
 	t.Log("setting up square size integration test")
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	accounts := []string{}
+	cfg := testnode.DefaultConfig().
+		WithGenesisOptions(testnode.ImmediateProposals(s.ecfg.Codec))
 
-	cparams := testnode.DefaultParams()
-	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(
-		t,
-		cparams,
-		testnode.DefaultTendermintConfig(),
-		testnode.DefaultAppConfig(),
-		accounts,
-		testnode.ImmediateProposals(s.ecfg.Codec), // pass param changes in 5 seconds
-	)
+	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
 
-	s.accounts = accounts
 	s.cctx = cctx
 	s.rpcAddr = rpcAddr
 	s.grpcAddr = grpcAddr

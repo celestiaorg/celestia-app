@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
@@ -14,8 +16,11 @@ import (
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmconfig "github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -28,6 +33,21 @@ const (
 type Context struct {
 	rootCtx context.Context
 	client.Context
+}
+
+func NewContext(goCtx context.Context, kr keyring.Keyring, tmCfg *tmconfig.Config, chainID string) Context {
+	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	cctx := client.Context{}.
+		WithKeyring(kr).
+		WithHomeDir(tmCfg.RootDir).
+		WithChainID(chainID).
+		WithInterfaceRegistry(ecfg.InterfaceRegistry).
+		WithCodec(ecfg.Codec).
+		WithLegacyAmino(ecfg.Amino).
+		WithTxConfig(ecfg.TxConfig).
+		WithAccountRetriever(authtypes.AccountRetriever{})
+
+	return Context{rootCtx: goCtx, Context: cctx}
 }
 
 func (c *Context) GoContext() context.Context {

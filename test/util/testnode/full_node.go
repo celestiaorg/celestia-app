@@ -1,19 +1,16 @@
 package testnode
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
-	"github.com/cosmos/cosmos-sdk/server"
-	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -27,143 +24,88 @@ import (
 	"github.com/tendermint/tendermint/privval"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proxy"
-	"github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	qgbtypes "github.com/celestiaorg/celestia-app/x/qgb/types"
 )
 
-// New creates a ready to use tendermint node that operates a single validator
-// celestia-app network using the provided genesis state. The provided keyring
-// is stored in the client.Context that is returned.
-//
-// NOTE: the forced delay between blocks, TimeIotaMs in the consensus
-// parameters, is set to the lowest possible value (1ms).
-func New(
-	t testing.TB,
-	cparams *tmproto.ConsensusParams,
-	tmCfg *config.Config,
-	supressLog bool,
-	genState map[string]json.RawMessage,
-	kr keyring.Keyring,
-	chainID string,
-) (*node.Node, srvtypes.Application, Context, error) {
+// NewCometNode creates a ready to use comet node that operates a single
+// validator celestia-app network. It expects that all configuration files are
+// already initialized and saved to the baseDir.
+func NewCometNode(t testing.TB, baseDir string, cfg *Config) (*node.Node, srvtypes.Application, error) {
 	var logger log.Logger
-	if supressLog {
+	if cfg.SupressLogs {
 		logger = log.NewNopLogger()
 	} else {
 		logger = log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 		logger = log.NewFilter(logger, log.AllowError())
 	}
 
+	dbPath := filepath.Join(cfg.TmConfig.RootDir, "data")
+	db, err := dbm.NewGoLevelDB("application", dbPath)
+	require.NoError(t, err)
+
+	cfg.AppOptions.Set(flags.FlagHome, baseDir)
+
+	app := cfg.AppCreator(logger, db, nil, cfg.AppOptions)
+
+	nodeKey, err := p2p.LoadOrGenNodeKey(cfg.TmConfig.NodeKeyFile())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tmNode, err := node.NewNode(
+		cfg.TmConfig,
+		privval.LoadOrGenFilePV(cfg.TmConfig.PrivValidatorKeyFile(), cfg.TmConfig.PrivValidatorStateFile()),
+		nodeKey,
+		proxy.NewLocalClientCreator(app),
+		node.DefaultGenesisDocProviderFunc(cfg.TmConfig),
+		node.DefaultDBProvider,
+		node.DefaultMetricsProvider(cfg.TmConfig.Instrumentation),
+		logger,
+	)
+
+	return tmNode, app, err
+}
+
+// InitFiles initializes the files for a new tendermint node with the provided
+// genesis state and consensus parameters. The provided keyring is used to
+// create a validator key and the chainID is used to initialize the genesis
+// state. The keyring is returned with the validator account added.
+func InitFiles(
+	t testing.TB,
+	cparams *tmproto.ConsensusParams,
+	tmCfg *config.Config,
+	genState map[string]json.RawMessage,
+	kr keyring.Keyring,
+	chainID string,
+) (string, keyring.Keyring, error) {
 	baseDir, err := initFileStructure(t, tmCfg)
 	if err != nil {
-		return nil, nil, Context{}, err
+		return baseDir, kr, err
 	}
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	nodeKey, err := p2p.LoadOrGenNodeKey(tmCfg.NodeKeyFile())
-	if err != nil {
-		return nil, nil, Context{}, err
-	}
-
 	nodeID, pubKey, err := genutil.InitializeNodeValidatorFiles(tmCfg)
 	if err != nil {
-		return nil, nil, Context{}, err
+		return baseDir, kr, err
 	}
 
 	err = createValidator(kr, encCfg, pubKey, "validator", nodeID, chainID, baseDir)
 	if err != nil {
-		return nil, nil, Context{}, err
+		return baseDir, kr, err
 	}
 
 	err = initGenFiles(cparams, genState, encCfg.Codec, tmCfg.GenesisFile(), chainID)
 	if err != nil {
-		return nil, nil, Context{}, err
+		return baseDir, kr, err
 	}
 
-	err = collectGenFiles(tmCfg, encCfg, pubKey, nodeID, chainID, baseDir)
-	if err != nil {
-		return nil, nil, Context{}, err
-	}
-
-	dbPath := filepath.Join(tmCfg.RootDir, "data")
-	db, err := dbm.NewGoLevelDB("application", dbPath)
-	require.NoError(t, err)
-
-	appOpts := appOptions{
-		options: map[string]interface{}{
-			server.FlagPruning: pruningtypes.PruningOptionNothing,
-			flags.FlagHome:     baseDir,
-		},
-	}
-
-	app := cmd.NewAppServer(logger, db, nil, appOpts)
-
-	tmNode, err := node.NewNode(
-		tmCfg,
-		privval.LoadOrGenFilePV(tmCfg.PrivValidatorKeyFile(), tmCfg.PrivValidatorStateFile()),
-		nodeKey,
-		proxy.NewLocalClientCreator(app),
-		node.DefaultGenesisDocProviderFunc(tmCfg),
-		node.DefaultDBProvider,
-		node.DefaultMetricsProvider(tmCfg.Instrumentation),
-		logger,
-	)
-
-	cCtx := Context{}.
-		WithKeyring(kr).
-		WithHomeDir(tmCfg.RootDir).
-		WithChainID(chainID).
-		WithInterfaceRegistry(encCfg.InterfaceRegistry).
-		WithCodec(encCfg.Codec).
-		WithLegacyAmino(encCfg.Amino).
-		WithTxConfig(encCfg.TxConfig).
-		WithAccountRetriever(authtypes.AccountRetriever{})
-
-	return tmNode, app, Context{Context: cCtx}, err
-}
-
-type appOptions struct {
-	options map[string]interface{}
-}
-
-// Get implements AppOptions
-func (ao appOptions) Get(o string) interface{} {
-	return ao.options[o]
-}
-
-func DefaultParams() *tmproto.ConsensusParams {
-	cparams := types.DefaultConsensusParams()
-	cparams.Block.TimeIotaMs = 1
-	cparams.Block.MaxBytes = appconsts.DefaultMaxBytes
-	return cparams
-}
-
-func DefaultTendermintConfig() *config.Config {
-	tmCfg := config.DefaultConfig()
-	// Reduce the target height duration so that blocks are produced faster
-	// during tests.
-	tmCfg.Consensus.TargetHeightDuration = 300 * time.Millisecond
-	tmCfg.Consensus.TimeoutPropose = 200 * time.Millisecond
-
-	// set the mempool's MaxTxBytes to allow the testnode to accept a
-	// transaction that fills the entire square. Any blob transaction larger
-	// than the square size will still fail no matter what.
-	tmCfg.Mempool.MaxTxBytes = appconsts.DefaultMaxBytes
-
-	// remove all barriers from the testnode being able to accept very large
-	// transactions and respond to very queries with large responses (~200MB was
-	// chosen only as an arbitrary large number).
-	tmCfg.RPC.MaxBodyBytes = 200_000_000
-
-	return tmCfg
+	return baseDir, kr, collectGenFiles(tmCfg, encCfg, pubKey, nodeID, chainID, baseDir)
 }
 
 // DefaultGenesisState returns a default genesis state and a keyring with
@@ -205,39 +147,41 @@ func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, 
 }
 
 // NewNetwork starts a single valiator celestia-app network using the provided
-// configurations. Provided accounts will be funded and their keys can be
+// configurations. Configured accounts will be funded and their keys can be
 // accessed in keyring returned client.Context. All rpc, p2p, and grpc addresses
 // in the provided configs are overwritten to use open ports. The node can be
 // accessed via the returned client.Context or via the returned rpc and grpc
-// addresses. Provided genesis options will be applied after all accounts have
+// addresses. Configured genesis options will be applied after all accounts have
 // been initialized.
-func NewNetwork(
-	t testing.TB,
-	cparams *tmproto.ConsensusParams,
-	tmCfg *config.Config,
-	appCfg *srvconfig.Config,
-	accounts []string,
-	genesisOpts ...GenesisOption,
-) (cctx Context, rpcAddr, grpcAddr string) {
+func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr string) {
 	t.Helper()
 
+	tmCfg := cfg.TmConfig
 	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
 	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
 	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
 
-	genState, kr, err := DefaultGenesisState(accounts...)
+	genState, kr, err := DefaultGenesisState(cfg.Accounts...)
 	require.NoError(t, err)
 
-	for _, opt := range genesisOpts {
+	for _, opt := range cfg.GenesisOptions {
 		genState = opt(genState)
 	}
 
-	tmNode, app, cctx, err := New(t, cparams, tmCfg, false, genState, kr, tmrand.Str(6))
+	chainID := tmrand.Str(6)
+
+	baseDir, kr, err := InitFiles(t, cfg.ConsensusParams, tmCfg, genState, kr, chainID)
 	require.NoError(t, err)
+
+	tmNode, app, err := NewCometNode(t, baseDir, cfg)
+	require.NoError(t, err)
+
+	cctx = NewContext(context.TODO(), kr, tmCfg, chainID)
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)
 
+	appCfg := cfg.AppConfig
 	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetFreePort())
 	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
 
@@ -251,27 +195,6 @@ func NewNetwork(
 	})
 
 	return cctx, tmCfg.RPC.ListenAddress, appCfg.GRPC.Address
-}
-
-// DefaultNetwork starts a single valiator celestia-app network using test
-// friendly defaults. These defaults include all default values and genesis
-// params, modified for fast block times and 300 funded accounts. The returned
-// client.Context has a keyring with all of the funded keys stored in it, which
-// can be accessed using the returned accounts.
-func DefaultNetwork(t *testing.T) (accounts []string, cctx Context) {
-	// we create an arbitrary number of funded accounts
-	accounts = make([]string, 300)
-	for i := 0; i < 300; i++ {
-		accounts[i] = tmrand.Str(9)
-	}
-
-	tmCfg := DefaultTendermintConfig()
-	tmCfg.Consensus.TargetHeightDuration = time.Millisecond * 1
-	appConf := DefaultAppConfig()
-
-	cctx, _, _ = NewNetwork(t, DefaultParams(), tmCfg, appConf, accounts)
-
-	return accounts, cctx
 }
 
 func GetFreePort() int {
