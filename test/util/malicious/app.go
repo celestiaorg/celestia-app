@@ -60,7 +60,7 @@ func (app *App) SetPrepareProposalHandler(handler func(req abci.RequestPreparePr
 
 // ProcessProposal overwrites the default app's method to auto accepts any
 // proposal.
-func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.ResponseProcessProposal) {
+func (app *App) ProcessProposal(_ abci.RequestProcessProposal) (resp abci.ResponseProcessProposal) {
 	return abci.ResponseProcessProposal{
 		Result: abci.ResponseProcessProposal_ACCEPT,
 	}

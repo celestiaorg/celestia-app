@@ -214,20 +214,6 @@ func (n *Hasher) HashNode(left, right []byte) ([]byte, error) {
 	return h.Sum(res), nil
 }
 
-func max(ns []byte, ns2 []byte) []byte {
-	if bytes.Compare(ns, ns2) >= 0 {
-		return ns
-	}
-	return ns2
-}
-
-func min(ns []byte, ns2 []byte) []byte {
-	if bytes.Compare(ns, ns2) <= 0 {
-		return ns
-	}
-	return ns2
-}
-
 // computeNsRange computes the namespace range of the parent node based on the namespace ranges of its left and right children.
 func computeNsRange(leftMinNs, leftMaxNs, rightMinNs, rightMaxNs []byte, ignoreMaxNs bool, precomputedMaxNs namespace.ID) (minNs []byte, maxNs []byte) {
 	minNs = leftMinNs
