@@ -47,8 +47,9 @@ type StandardSDKIntegrationTestSuite struct {
 func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	t.Log("setting up integration test suite")
-	accounts, cctx := testnode.DefaultNetwork(t)
-	s.accounts = accounts
+	cfg := testnode.DefaultConfig()
+	cctx, _, _ := testnode.NewNetwork(t, cfg)
+	s.accounts = cfg.Accounts
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	s.cctx = cctx
 }
