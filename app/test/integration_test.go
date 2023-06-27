@@ -53,13 +53,9 @@ func (s *IntegrationTestSuite) SetupSuite() {
 		s.accounts[i] = tmrand.Str(20)
 	}
 
-	cctx, _, _ := testnode.NewNetwork(
-		t,
-		testnode.DefaultParams(),
-		testnode.DefaultTendermintConfig(),
-		testnode.DefaultAppConfig(),
-		s.accounts,
-	)
+	cfg := testnode.DefaultConfig().WithAccounts(s.accounts)
+
+	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
 	s.cctx = cctx
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
