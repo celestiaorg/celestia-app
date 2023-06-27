@@ -4,6 +4,8 @@ import (
 	"math/rand"
 	"testing"
 
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -78,7 +80,7 @@ func RandBlobTxsWithAccounts(
 			}
 		}
 
-		msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(addr.String(), randomizedSize, randomizedBlobCount)
+		msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), randomizedSize, randomizedBlobCount)
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {
@@ -162,7 +164,7 @@ func RandBlobTxsWithManualSequence(
 				randomizedBlobCount = 1
 			}
 		}
-		msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(addr.String(), randomizedSize, randomizedBlobCount)
+		msg, blobs := blobfactory.RandMsgPayForBlobsWithSigner(tmrand.NewRand(), addr.String(), randomizedSize, randomizedBlobCount)
 		builder := signer.NewTxBuilder(opts...)
 		stx, err := signer.BuildSignedTx(builder, msg)
 		if err != nil {

@@ -13,6 +13,7 @@ import (
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/require"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 // FuzzSquare uses fuzzing to test the following:
@@ -27,15 +28,18 @@ func FuzzSquare(f *testing.F) {
 	var (
 		normalTxCount = 12
 		pfbCount      = 91
+		seed          = int64(3554045230938829713)
 	)
-	f.Add(normalTxCount, pfbCount)
-	f.Fuzz(func(t *testing.T, normalTxCount, pfbCount int) {
+	f.Add(normalTxCount, pfbCount, seed)
+	f.Fuzz(func(t *testing.T, normalTxCount, pfbCount int, seed int64) {
 		// ignore invalid values
 		if normalTxCount < 0 || pfbCount < 0 {
 			t.Skip()
 		}
 		encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-		txs := GenerateMixedRandomTxs(t, encCfg.TxConfig, normalTxCount, pfbCount)
+		rand := tmrand.NewRand()
+		rand.Seed(seed)
+		txs := GenerateMixedRandomTxs(t, encCfg.TxConfig, rand, normalTxCount, pfbCount)
 
 		s, orderedTxs, err := square.Build(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)

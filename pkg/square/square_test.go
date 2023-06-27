@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -24,9 +26,10 @@ import (
 )
 
 func TestSquareConstruction(t *testing.T) {
+	rand := tmrand.NewRand()
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	sendTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, 250)
-	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 10000, 1, 1024)
+	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), rand, 10000, 1, 1024)
 	t.Run("normal transactions after PFB trasactions", func(t *testing.T) {
 		txs := append(sendTxs[:5], append(pfbTxs, sendTxs[5:]...)...)
 		_, err := square.Construct(coretypes.Txs(txs).ToSliceOfBytes(), appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
@@ -133,7 +136,8 @@ func generateBlobTxsWithNamespaces(t *testing.T, namespaces []ns.Namespace, blob
 // The "_Flaky" suffix indicates that the test may fail non-deterministically especially when executed in CI.
 func TestSquareBlobShareRange_Flaky(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	txs := blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), 10, 1000, 10).ToSliceOfBytes()
+	rand := tmrand.NewRand()
+	txs := blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), rand, 10, 1000, 10).ToSliceOfBytes()
 
 	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold, txs...)
 	require.NoError(t, err)
@@ -169,12 +173,13 @@ func TestSquareBlobShareRange_Flaky(t *testing.T) {
 }
 
 func TestSquareDeconstruct(t *testing.T) {
+	rand := tmrand.NewRand()
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	t.Run("ConstructDeconstructParity", func(t *testing.T) {
 		// 8192 -> square size 128
 		for _, numTxs := range []int{2, 128, 1024, 8192} {
 			t.Run(fmt.Sprintf("%d", numTxs), func(t *testing.T) {
-				txs := generateOrderedTxs(numTxs/2, numTxs/2, 1, 800)
+				txs := generateOrderedTxs(rand, numTxs/2, numTxs/2, 1, 800)
 				dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 				require.NoError(t, err)
 				recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
@@ -193,7 +198,7 @@ func TestSquareDeconstruct(t *testing.T) {
 		require.Equal(t, txs, recomputedTxs.ToSliceOfBytes())
 	})
 	t.Run("PFBsOnly", func(t *testing.T) {
-		txs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 100, 1, 1024).ToSliceOfBytes()
+		txs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), rand, 100, 1, 1024).ToSliceOfBytes()
 		dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
 		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
@@ -209,7 +214,8 @@ func TestSquareDeconstruct(t *testing.T) {
 
 func TestSquareShareCommitments(t *testing.T) {
 	const numTxs = 10
-	txs := generateOrderedTxs(numTxs, numTxs, 3, 800)
+	rand := tmrand.NewRand()
+	txs := generateOrderedTxs(rand, numTxs, numTxs, 3, 800)
 	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold, txs...)
 	require.NoError(t, err)
 

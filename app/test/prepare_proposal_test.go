@@ -3,6 +3,8 @@ package app_test
 import (
 	"testing"
 
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/require"
@@ -87,7 +89,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		infos[:3],
 		blobfactory.NestedBlobs(
 			t,
-			appns.RandomBlobNamespaces(3),
+			appns.RandomBlobNamespaces(tmrand.NewRand(), 3),
 			[][]int{{100}, {1000}, {420}},
 		),
 	)
