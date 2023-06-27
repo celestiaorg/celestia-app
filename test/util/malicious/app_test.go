@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
@@ -50,4 +51,14 @@ func TestOutOfOrderNMT(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, root, 90)                   // two namespaces + 32 bytes of hash = 90 bytes
 	require.NotEqual(t, goodOrderedRoot, root) // quick sanity check to ensure the roots are different
+}
+
+func TestMaliciousNodeTestNode(t *testing.T) {
+	// TODO: flesh out this test further
+	cfg := testnode.DefaultConfig().
+		WithAppCreator(NewAppServer)
+
+	cctx, _, _ := testnode.NewNetwork(t, cfg)
+
+	require.NoError(t, cctx.WaitForNextBlock())
 }
