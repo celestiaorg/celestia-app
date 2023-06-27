@@ -106,7 +106,6 @@ func DefaultConfig() *Config {
 		WithGenesisOptions().
 		WithAppCreator(cmd.NewAppServer).
 		WithSupressLogs(true)
-
 }
 
 type KVAppOptions struct {
