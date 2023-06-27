@@ -20,8 +20,8 @@ const (
 var _ hash.Hash = (*Hasher)(nil)
 
 var (
-	ErrInvalidNodeLen            = errors.New("invalid NMT node size")
-	ErrInvalidLeafLen            = errors.New("invalid NMT leaf size")
+	ErrInvalidNodeLen = errors.New("invalid NMT node size")
+	ErrInvalidLeafLen = errors.New("invalid NMT leaf size")
 )
 
 type Hasher struct {
