@@ -178,12 +178,12 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccounts() {
 			expectedSpendableBalAfterTx := expectedSpendableBal - 1 // -1utia for gas fee of the tx above
 			if mustSucceed {
 				// if the transfer was successful
-				expectedSpendableBalAfterTx -= 1 + initBalanceForGasFee.Amount.Int64() + testfactory.BaseAccountDefaultBalance
+				expectedSpendableBalAfterTx -= testfactory.BaseAccountDefaultBalance
 			}
 
-			assert.EqualValues(s.T(), // we pay for gas as well
-				balancesAfter.AmountOf(app.BondDenom).Int64(),
+			assert.EqualValues(s.T(),
 				expectedSpendableBalAfterTx,
+				balancesAfter.AmountOf(app.BondDenom).Int64(),
 				"spendable balance must be equal")
 
 			/*--------*/
@@ -347,8 +347,6 @@ func (s *VestingModuleTestSuite) TestGenesisContinuesVestingAccounts() {
 		testfactory.BaseAccountDefaultBalance,
 		qAcc.GetOriginalVesting().AmountOf(app.BondDenom).Int64(),
 		"original vesting must match")
-
-	fmt.Printf("qAcc.String(): %v\n", qAcc.String())
 
 	/*--------*/
 
