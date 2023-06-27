@@ -30,6 +30,13 @@ type constructor struct {
 // calculate the data root. It creates that tree using a malicious version of
 // the wrapper.ErasuredNamespacedMerkleTree.
 func NewConstructor(squareSize uint64, opts ...nmt.Option) rsmt2d.TreeConstructorFn {
+	hasher := NewBlindHasher(appconsts.NewBaseHashFunc(), appconsts.NamespaceSize, true)
+	copts := []nmt.Option{
+		nmt.CustomHasher(hasher),
+		nmt.NamespaceIDSize(appconsts.NamespaceSize),
+		nmt.IgnoreMaxNamespace(true),
+	}
+	opts = append(opts, copts...)
 	return constructor{
 		squareSize: squareSize,
 		opts:       opts,
@@ -40,14 +47,7 @@ func NewConstructor(squareSize uint64, opts ...nmt.Option) rsmt2d.TreeConstructo
 // wrapper.ErasuredNamespacedMerkleTree with predefined square size and
 // nmt.Options.
 func (c constructor) NewTree(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
-	hasher := NewBlindHasher(appconsts.NewBaseHashFunc(), appconsts.NamespaceSize, true)
-	opts := []nmt.Option{
-		nmt.CustomHasher(hasher),
-		nmt.NamespaceIDSize(appconsts.NamespaceSize),
-		nmt.IgnoreMaxNamespace(true),
-	}
-	c.opts = append(c.opts, opts...)
-	nmtTree := nmt.New(appconsts.NewBaseHashFunc(), opts...)
+	nmtTree := nmt.New(appconsts.NewBaseHashFunc(), c.opts...)
 	maliciousTree := &BlindTree{nmtTree}
 	newTree := wrapper.NewErasuredNamespacedMerkleTree(c.squareSize, axisIndex, c.opts...)
 	newTree.SetTree(maliciousTree)
