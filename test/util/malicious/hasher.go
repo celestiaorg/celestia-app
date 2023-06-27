@@ -20,10 +20,8 @@ const (
 var _ hash.Hash = (*Hasher)(nil)
 
 var (
-	ErrUnorderedSiblings         = errors.New("NMT sibling nodes should be ordered lexicographically by namespace IDs")
 	ErrInvalidNodeLen            = errors.New("invalid NMT node size")
 	ErrInvalidLeafLen            = errors.New("invalid NMT leaf size")
-	ErrInvalidNodeNamespaceOrder = errors.New("invalid NMT node namespace order")
 )
 
 type Hasher struct {
@@ -52,7 +50,7 @@ func (n *Hasher) NamespaceSize() namespace.IDSize {
 	return n.NamespaceLen
 }
 
-// NewHasher returns a nmt.Hasher that
+// NewBlindHasher returns a Hasher that performs no ordering validation when the Write method is invoked.
 func NewBlindHasher(baseHasher hash.Hash, nidLen namespace.IDSize, ignoreMaxNamespace bool) *Hasher {
 	return &Hasher{
 		baseHasher:       baseHasher,

@@ -38,7 +38,7 @@ func New(
 	goodApp := app.New(logger, db, traceStore, loadLatest, skipUpgradeHeights, homePath, invCheckPeriod, encodingConfig, appOpts, baseAppOptions...)
 	badApp := &App{App: goodApp}
 
-	// default to using the good app's handlerss
+	// default to using the good app's handlers
 	badApp.SetPrepareProposalHandler(goodApp.PrepareProposal)
 
 	// override the handler if it is set in the app options
@@ -58,7 +58,7 @@ func (app *App) SetPrepareProposalHandler(handler func(req abci.RequestPreparePr
 	app.preparePropsoalHandler = handler
 }
 
-// ProcessProposal overwrites the default app's method to auto accepts any
+// ProcessProposal overwrites the default app's method to auto accept any
 // proposal.
 func (app *App) ProcessProposal(_ abci.RequestProcessProposal) (resp abci.ResponseProcessProposal) {
 	return abci.ResponseProcessProposal{
