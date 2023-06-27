@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func TestStandardSDKIntegrationTestSuite(t *testing.T) {
@@ -47,7 +48,13 @@ type StandardSDKIntegrationTestSuite struct {
 func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	t.Log("setting up integration test suite")
-	cfg := testnode.DefaultConfig()
+
+	accounts := make([]string, 300)
+	for i := 0; i < len(accounts); i++ {
+		accounts[i] = tmrand.Str(9)
+	}
+
+	cfg := testnode.DefaultConfig().WithAccounts(accounts)
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.accounts = cfg.Accounts
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)

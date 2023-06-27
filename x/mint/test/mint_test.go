@@ -40,8 +40,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	cparams.Block.TimeIotaMs = int64(sixMonths.Milliseconds())
 
 	cfg := testnode.DefaultConfig().
-		WithConsensusParams(cparams).
-		WithAccounts([]string{})
+		WithConsensusParams(cparams)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.cctx = cctx

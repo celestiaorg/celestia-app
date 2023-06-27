@@ -93,16 +93,11 @@ func (c *Config) WithSupressLogs(sl bool) *Config {
 }
 
 func DefaultConfig() *Config {
-	// we create an arbitrary number of funded accounts
-	accounts := make([]string, 300)
-	for i := 0; i < 300; i++ {
-		accounts[i] = tmrand.Str(9)
-	}
 	tmcfg := DefaultTendermintConfig()
 	tmcfg.Consensus.TargetHeightDuration = 1 * time.Millisecond
 	cfg := &Config{}
 	return cfg.
-		WithAccounts(accounts).
+		WithAccounts([]string{}).
 		WithChainID(tmrand.Str(6)).
 		WithTendermintConfig(DefaultTendermintConfig()).
 		WithAppConfig(DefaultAppConfig()).

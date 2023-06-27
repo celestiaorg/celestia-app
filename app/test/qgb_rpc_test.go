@@ -15,7 +15,7 @@ func TestQGBRPCQueries(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping QGB integration test in short mode.")
 	}
-	cfg := testnode.DefaultConfig().WithAccounts([]string{})
+	cfg := testnode.DefaultConfig()
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
