@@ -26,7 +26,6 @@ func NewTestApp(cparams *tmproto.ConsensusParams, genAccounts ...string) *App {
 	app, _ := util.SetupTestAppWithGenesisValSet(cparams, genAccounts...)
 	badapp := &App{App: app}
 	badapp.SetPrepareProposalHandler(app.PrepareProposal)
-	badapp.SetProcessProposalHandler(app.ProcessProposal)
 	return badapp
 }
 

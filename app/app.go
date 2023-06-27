@@ -108,14 +108,6 @@ const (
 	BondDenomAlias = "microtia"
 	// DisplayDenom defines the name, symbol, and display value of the Celestia token.
 	DisplayDenom = "TIA"
-
-	// PrepareProposalHandlerKey is the key used to retrieve the PrepareProposal handler from the
-	// app options.
-	PrepareProposalHandlerKey = "prepare_proposal_handler"
-
-	// ProcessProposalHandlerKey is the key used to retrieve the ProcessProposal handler from the
-	// app options.
-	ProcessProposalHandlerKey = "process_proposal_handler"
 )
 
 // These constants are derived from the above variables.
@@ -242,9 +234,6 @@ type App struct {
 
 	// the module manager
 	mm *module.Manager
-
-	preparePropsoalHandler func(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal
-	processProposalHandler func(req abci.RequestProcessProposal) (resp abci.ResponseProcessProposal)
 }
 
 // New returns a reference to an initialized celestia app.
@@ -561,9 +550,6 @@ func New(
 
 	app.ScopedIBCKeeper = scopedIBCKeeper
 	app.ScopedTransferKeeper = scopedTransferKeeper
-
-	app.preparePropsoalHandler = app.NewPreparePropsoalHandler()
-	app.processProposalHandler = app.NewProcessProposalHandler()
 
 	return app
 }

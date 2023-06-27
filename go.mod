@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app
 go 1.20
 
 require (
-	github.com/celestiaorg/nmt v0.16.1-0.20230625213334-a60398817d43 // v0.16.0
+	github.com/celestiaorg/nmt v0.16.1-0.20230626222946-6dc07a6c7a35 // v0.16.0
 	github.com/celestiaorg/quantum-gravity-bridge v1.3.0
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/gogo/protobuf v1.3.3
