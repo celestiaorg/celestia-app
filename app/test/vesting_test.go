@@ -181,7 +181,6 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccounts() {
 				balancesAfter.AmountOf(app.BondDenom).Int64(),
 				"spendable balance must be equal")
 
-			/*--------*/
 
 			// test delegation of only the locked account(s)
 			if !mustSucceed {
