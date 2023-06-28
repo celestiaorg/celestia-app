@@ -6,6 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 )
 
@@ -25,7 +26,7 @@ var (
 type ErasuredNamespacedMerkleTree struct {
 	squareSize uint64 // note: this refers to the width of the original square before erasure-coded
 	options    []nmt.Option
-	tree       *nmt.NamespacedMerkleTree
+	tree       Tree
 	// axisIndex is the index of the axis (row or column) that this tree is on. This is passed
 	// by rsmt2d and used to help determine which quadrant each leaf belongs to.
 	axisIndex uint64
@@ -35,6 +36,16 @@ type ErasuredNamespacedMerkleTree struct {
 	// leaf belongs to, along with keeping track of how many leaves have been
 	// added to the tree so far.
 	shareIndex uint64
+}
+
+// Tree is an interface that wraps the methods of the underlying
+// NamespaceMerkleTree that are used by ErasuredNamespacedMerkleTree. This
+// interface is mainly used for testing. It is not recommended to use this
+// interface by implementing a different implementation.
+type Tree interface {
+	Root() ([]byte, error)
+	Push(namespacedData namespace.PrefixedData) error
+	ProveRange(start, end int) (nmt.Proof, error)
 }
 
 // NewErasuredNamespacedMerkleTree creates a new ErasuredNamespacedMerkleTree
@@ -126,4 +137,10 @@ func (w *ErasuredNamespacedMerkleTree) incrementShareIndex() {
 // in the original data square.
 func (w *ErasuredNamespacedMerkleTree) isQuadrantZero() bool {
 	return w.shareIndex < w.squareSize && w.axisIndex < w.squareSize
+}
+
+// SetTree sets the underlying tree to the provided tree. This is used for
+// testing purposes only.
+func (w *ErasuredNamespacedMerkleTree) SetTree(tree Tree) {
+	w.tree = tree
 }
