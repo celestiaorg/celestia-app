@@ -140,7 +140,7 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccounts() {
 			assert.EqualValues(s.T(),
 				testfactory.BaseAccountDefaultBalance,
 				qAcc.GetOriginalVesting().AmountOf(app.BondDenom).Int64(),
-				"original vesting must match")
+				"original vesting amount must match")
 
 
 			// Test the locking mechanism
