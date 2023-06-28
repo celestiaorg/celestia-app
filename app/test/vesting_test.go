@@ -137,7 +137,6 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccounts() {
 			// Checking the queried account data
 			assert.Equal(s.T(), accAddress, qAcc.GetAddress().String(), "account address must match")
 			assert.EqualValues(s.T(), tt.endTime.Unix(), qAcc.GetEndTime(), "end time must match")
-
 			assert.EqualValues(s.T(),
 				testfactory.BaseAccountDefaultBalance,
 				qAcc.GetOriginalVesting().AmountOf(app.BondDenom).Int64(),
