@@ -257,7 +257,7 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccounts() {
 	// Test available balance
 	for i := 0; i < 2; i++ { // We just let one period to be unlocked to keep some locked amount to test other stuff
 
-		currentLen := time.Since(startTime).Seconds()
+		timeElapsed := time.Since(startTime).Seconds()
 
 		balances, err := GetAccountSpendableBalance(cctx.GRPCClient, accAddress)
 		assert.NoError(s.T(), err)
