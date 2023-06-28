@@ -253,7 +253,6 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccounts() {
 		"original vesting amount must match")
 	assert.EqualValues(s.T(), periods, qAcc.VestingPeriods, "periods must match")
 
-	/*--------*/
 
 	// Test available balance
 	for i := 0; i < 2; i++ { // We just let one period to be unlocked to keep some locked amount to test other stuff
