@@ -450,7 +450,8 @@ func (s *VestingModuleTestSuite) testClaimDelegationReward(cctx testnode.Context
 	balancesBefore, err := GetAccountSpendableBalance(cctx.GRPCClient, accAddress)
 	assert.NoError(s.T(), err)
 
-	// min is used as in the middle of the operation more tokens might be vested (unlocked)
+	// minExpectedBalance is used because more tokens may be vested to the
+	// account in the middle of this test
 	minExpectedBalance := balancesBefore.AmountOf(app.BondDenom).Int64() + rewardAmount
 
 	validators, err := GetValidators(cctx.GRPCClient)
