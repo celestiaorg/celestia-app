@@ -12,7 +12,9 @@ In order to enable efficient retrieval of blobs by namespace, Celestia makes use
 
 ### Version
 
-The namespace version is an 8-bit unsigned integer that indicates the version of the namespace. The version is used to determine the format of the namespace id. The only supported namespace version is `0`. The version is encoded as a single byte.
+The namespace version is an 8-bit unsigned integer that indicates the version of the namespace. The version is used to determine the format of the namespace id. The only supported user-specifiable namespace version is `0`. The version is encoded as a single byte.
+
+Note: The `PARITY_SHARE_NAMESPACE` uses the namespace version `255` so that it can be ignored via the `IgnoreMaxNamespace` feature from [nmt](https://github.com/celestiaorg/nmt). The `TAIL_PADDING_NAMESPACE` uses the namespace version `255` so that it remains ordered after all blob namespaces even in the case a new namespace version is introduced.
 
 ### ID
 
@@ -20,7 +22,7 @@ The namespace ID is a 28 byte identifier that uniquely identifies a namespace. T
 
 ## Overview
 
-A namespace is composed of two fields: [version](#version) and [id](#id). The namespace is encoded as a byte slice of length 29.
+A namespace is composed of two fields: [version](#version) and [id](#id). The namespace is encoded as a byte slice of length 29. Each [share](./shares.md) is prefixed with the encoded namespace.
 
 ### Reserved Namespaces
 
