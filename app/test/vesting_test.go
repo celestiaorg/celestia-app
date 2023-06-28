@@ -165,7 +165,6 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccounts() {
 				balances.AmountOf(app.BondDenom).Int64(),
 				"spendable balance must match")
 
-			/*--------*/
 
 			s.testTransferVestingAmount(cctx, tt.accName, mustSucceed)
 
