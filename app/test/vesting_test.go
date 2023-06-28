@@ -343,7 +343,6 @@ func (s *VestingModuleTestSuite) TestGenesisContinuesVestingAccounts() {
 		qAcc.GetOriginalVesting().AmountOf(app.BondDenom).Int64(),
 		"original vesting amount must match")
 
-	/*--------*/
 
 	// Test available balance
 	for i := 0; i < 5; i++ {
