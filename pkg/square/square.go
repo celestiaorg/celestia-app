@@ -235,7 +235,7 @@ func EmptySquare() Square {
 	return shares.TailPaddingShares(appconsts.MinShareCount)
 }
 
-func writeSquare(
+func WriteSquare(
 	txWriter, pfbWriter *shares.CompactShareSplitter,
 	blobWriter *shares.SparseShareSplitter,
 	nonReservedStart, squareSize int,

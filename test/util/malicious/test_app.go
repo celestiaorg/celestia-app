@@ -22,10 +22,10 @@ import (
 	dbm "github.com/tendermint/tm-db"
 )
 
-func NewTestApp(cparams *tmproto.ConsensusParams, genAccounts ...string) *App {
+func NewTestApp(cparams *tmproto.ConsensusParams, mcfg BehaviorConfig, genAccounts ...string) *App {
 	app, _ := util.SetupTestAppWithGenesisValSet(cparams, genAccounts...)
 	badapp := &App{App: app}
-	badapp.SetPrepareProposalHandler(app.PrepareProposal)
+	badapp.SetMaliciousBehavor(mcfg)
 	return badapp
 }
 

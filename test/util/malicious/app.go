@@ -13,14 +13,38 @@ import (
 )
 
 const (
-	// PrepareProposalHandlerKey is the key used to retrieve the PrepareProposal handler from the
-	// app options.
-	PrepareProposalHandlerKey = "prepare_proposal_handler"
+	// BehaviorConfigKey is the key used to set the malicious config.
+	BehaviorConfigKey = "behavior_config"
+
+	// OutOfOrderHanlderKey is the key used to set the out of order prepare
+	// proposal handler.
+	OutOfOrderHanlderKey = "out_of_order"
 )
+
+// BehaviorConfig is defines the malicious behavior for the application. It
+// dictates the height at which the malicious behavior will start along with
+// what type of malicious behavior will be performed.
+type BehaviorConfig struct {
+	// HandlerName is the name of the malicious handler to use. All known
+	// handlers are defined in the PrepareProposalHandlerMap.
+	HandlerName string `json:"handler_name"`
+	// StartHeight is the height at which the malicious behavior will start.
+	StartHeight int64 `json:"start_height"`
+}
+
+type PrepareProposalHandler func(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal
+
+// PrepareProposalHandlerMap is a map of all the known prepare proposal handlers.
+func (app *App) PrepareProposalHandlerMap() map[string]PrepareProposalHandler {
+	return map[string]PrepareProposalHandler{
+		OutOfOrderHanlderKey: app.OutOfOrderPrepareProposal,
+	}
+}
 
 type App struct {
 	*app.App
-	preparePropsoalHandler func(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal
+	maliciousStartHeight      int64
+	malPreparePropsoalHandler PrepareProposalHandler
 }
 
 func New(
@@ -38,24 +62,30 @@ func New(
 	goodApp := app.New(logger, db, traceStore, loadLatest, skipUpgradeHeights, homePath, invCheckPeriod, encodingConfig, appOpts, baseAppOptions...)
 	badApp := &App{App: goodApp}
 
-	// default to using the good app's handlers
-	badApp.SetPrepareProposalHandler(goodApp.PrepareProposal)
-
-	// override the handler if it is set in the app options
-	if prepareHander := appOpts.Get(PrepareProposalHandlerKey); prepareHander != nil {
-		badApp.SetPrepareProposalHandler(prepareHander.(func(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal))
+	// set the malicious prepare proposal handler if it is set in the app options
+	if malHanderName := appOpts.Get(BehaviorConfigKey); malHanderName != nil {
+		badApp.SetMaliciousBehavor(malHanderName.(BehaviorConfig))
 	}
 
 	return badApp
 }
 
-func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-	return app.preparePropsoalHandler(req)
+func (app *App) SetMaliciousBehavor(mcfg BehaviorConfig) {
+	// check if the handler is known
+	if _, ok := app.PrepareProposalHandlerMap()[mcfg.HandlerName]; !ok {
+		panic("unknown malicious prepare proposal handler")
+	}
+	app.malPreparePropsoalHandler = app.PrepareProposalHandlerMap()[mcfg.HandlerName]
+	app.maliciousStartHeight = mcfg.StartHeight
 }
 
-// SetPrepareProposalHandler sets the PrepareProposal handler.
-func (app *App) SetPrepareProposalHandler(handler func(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal) {
-	app.preparePropsoalHandler = handler
+// PrepareProposal overwrites the default app's method to use the configured
+// malicious beahvior after a given height.
+func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+	if app.LastBlockHeight()+1 >= app.maliciousStartHeight {
+		return app.malPreparePropsoalHandler(req)
+	}
+	return app.App.PrepareProposal(req)
 }
 
 // ProcessProposal overwrites the default app's method to auto accept any
