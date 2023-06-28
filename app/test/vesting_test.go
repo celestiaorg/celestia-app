@@ -73,7 +73,6 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccounts() {
 
 	tests := []struct {
 		name    string
-		accName string // will be filled by the code
 		endTime time.Time
 	}{
 		{
