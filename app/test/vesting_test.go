@@ -150,7 +150,6 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccounts() {
 
 			assert.NoError(s.T(), cctx.WaitForNextBlock())
 
-			/*--------*/
 
 			// Test available balance
 			balances, err := GetAccountSpendableBalance(cctx.GRPCClient, accAddress)
