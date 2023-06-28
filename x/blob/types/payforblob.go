@@ -3,10 +3,11 @@ package types
 import (
 	"crypto/sha256"
 	fmt "fmt"
-	math "math"
 
 	"cosmossdk.io/errors"
+
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt"
@@ -40,9 +41,6 @@ func NewMsgPayForBlobs(signer string, blobs ...*Blob) (*MsgPayForBlobs, error) {
 	namespaceVersions, namespaceIds, sizes, shareVersions := extractBlobComponents(blobs)
 	namespaces := []appns.Namespace{}
 	for i := range namespaceVersions {
-		if namespaceVersions[i] > math.MaxUint8 {
-			return nil, fmt.Errorf("namespace version %d is too large (max %d)", namespaceVersions[i], math.MaxUint8)
-		}
 		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIds[i])
 		if err != nil {
 			return nil, err
@@ -107,7 +105,7 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 		if err != nil {
 			return errors.Wrap(ErrInvalidNamespace, err.Error())
 		}
-		err = ValidateBlobNamespaceID(ns)
+		err = ValidateBlobNamespace(ns)
 		if err != nil {
 			return err
 		}
@@ -125,16 +123,17 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 	}
 
 	for _, commitment := range msg.ShareCommitments {
-		if len(commitment) == 0 {
-			return ErrEmptyShareCommitment
+		if len(commitment) != appconsts.HashLength() {
+			return ErrInvalidShareCommitment
 		}
 	}
 
 	return nil
 }
 
-// ValidateBlobNamespaceID returns an error if the provided namespace.ID is an invalid or reserved namespace id.
-func ValidateBlobNamespaceID(ns appns.Namespace) error {
+// ValidateBlobNamespace returns an error if the provided namespace is reserved,
+// parity shares, or tail padding.
+func ValidateBlobNamespace(ns appns.Namespace) error {
 	if ns.IsReserved() {
 		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", ns, appns.MaxReservedNamespace)
 	}
@@ -145,6 +144,10 @@ func ValidateBlobNamespaceID(ns appns.Namespace) error {
 
 	if ns.IsTailPadding() {
 		return ErrTailPaddingNamespace
+	}
+
+	if ns.Version != namespace.NamespaceVersionZero {
+		return ErrInvalidNamespaceVersion
 	}
 
 	return nil
@@ -166,10 +169,10 @@ func (msg *MsgPayForBlobs) GetSigners() []sdk.AccAddress {
 }
 
 // CreateCommitment generates the share commitment for a given blob.
-// See [Message layout rationale] and [Non-interactive default rules].
+// See [data square layout rationale] and [blob share commitment rules].
 //
-// [Message layout rationale]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L12
-// [Non-interactive default rules]: https://github.com/celestiaorg/celestia-specs/blob/e59efd63a2165866584833e91e1cb8a6ed8c8203/src/rationale/message_block_layout.md?plain=1#L36
+// [data square layout rationale]: ../../specs/src/specs/data_square_layout.md
+// [blob share commitment rules]: ../../specs/src/specs/data_square_layout.md#blob-share-commitment-rules
 func CreateCommitment(blob *Blob) ([]byte, error) {
 	coreblob := coretypes.Blob{
 		NamespaceID:      blob.NamespaceId,
@@ -178,7 +181,7 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 		NamespaceVersion: uint8(blob.NamespaceVersion),
 	}
 
-	shares, err := appshares.SplitBlobs(0, nil, []coretypes.Blob{coreblob}, false)
+	shares, err := appshares.SplitBlobs(coreblob)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +190,7 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 	// determined by the number of roots required to create a share commitment
 	// over that blob. The size of the tree is only increased if the number of
 	// subtree roots surpasses a constant threshold.
-	subTreeWidth := appshares.SubTreeWidth(len(shares))
+	subTreeWidth := appshares.SubTreeWidth(len(shares), appconsts.DefaultSubtreeRootThreshold)
 	treeSizes, err := merkleMountainRangeSizes(uint64(len(shares)), uint64(subTreeWidth))
 	if err != nil {
 		return nil, err
@@ -253,7 +256,7 @@ func ValidateBlobs(blobs ...*Blob) error {
 	}
 
 	for _, blob := range blobs {
-		if blob.NamespaceVersion > math.MaxUint8 {
+		if blob.NamespaceVersion > appconsts.NamespaceVersionMaxValue {
 			return fmt.Errorf("namespace version %d is too large", blob.NamespaceVersion)
 		}
 		ns, err := appns.New(uint8(blob.NamespaceVersion), blob.NamespaceId)

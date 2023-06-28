@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -39,25 +40,6 @@ func init() {
 	simapp.GetSimulatorFlags()
 }
 
-// DefaultConsensusParams defines the default Tendermint consensus params used in
-// SimApp testing.
-var DefaultConsensusParams = &abci.ConsensusParams{
-	Block: &abci.BlockParams{
-		MaxBytes: 200000,
-		MaxGas:   2000000,
-	},
-	Evidence: &tmproto.EvidenceParams{
-		MaxAgeNumBlocks: 302400,
-		MaxAgeDuration:  504 * time.Hour, // 3 weeks is the max duration
-		MaxBytes:        10000,
-	},
-	Validator: &tmproto.ValidatorParams{
-		PubKeyTypes: []string{
-			tmtypes.ABCIPubKeyTypeEd25519,
-		},
-	},
-}
-
 type emptyAppOptions struct{}
 
 // Get implements AppOptions
@@ -65,11 +47,11 @@ func (ao emptyAppOptions) Get(_ string) interface{} {
 	return nil
 }
 
-// SetupTestAppWithGenesisValSet initializes a new app with a validator set and genesis accounts
-// that also act as delegators. For simplicity, each validator is bonded with a delegation
-// of one consensus engine unit in the default token of the app from first genesis
-// account. A Nop logger is set in app.
-func SetupTestAppWithGenesisValSet(genAccounts ...string) (*app.App, keyring.Keyring) {
+// SetupTestAppWithGenesisValSet initializes a new app with a validator set and
+// genesis accounts that also act as delegators. For simplicity, each validator
+// is bonded with a delegation of one consensus engine unit in the default token
+// of the app from first genesis account. A no-op logger is set in app.
+func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, keyring.Keyring) {
 	// var cache sdk.MultiStorePersistentCache
 	// EmptyAppOptions is a stub implementing AppOptions
 	emptyOpts := emptyAppOptions{}
@@ -86,6 +68,7 @@ func SetupTestAppWithGenesisValSet(genAccounts ...string) (*app.App, keyring.Key
 		encCfg,
 		emptyOpts,
 	)
+	testApp.GetBaseApp().SetProtocolVersion(appconsts.LatestVersion)
 
 	genesisState, valSet, kr := GenesisStateWithSingleValidator(testApp, genAccounts...)
 
@@ -94,11 +77,25 @@ func SetupTestAppWithGenesisValSet(genAccounts ...string) (*app.App, keyring.Key
 		panic(err)
 	}
 
+	abciParams := &abci.ConsensusParams{
+		Block: &abci.BlockParams{
+			// choose some value large enough to not bottleneck the max square
+			// size
+			MaxBytes: int64(appconsts.DefaultSquareSizeUpperBound*appconsts.DefaultSquareSizeUpperBound) * appconsts.ContinuationSparseShareContentSize,
+			MaxGas:   cparams.Block.MaxGas,
+		},
+		Evidence:  &cparams.Evidence,
+		Validator: &cparams.Validator,
+	}
+
+	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+
 	// init chain will set the validator set and initialize the genesis accounts
 	testApp.InitChain(
 		abci.RequestInitChain{
+			Time:            genesisTime,
 			Validators:      []abci.ValidatorUpdate{},
-			ConsensusParams: DefaultConsensusParams,
+			ConsensusParams: abciParams,
 			AppStateBytes:   stateBytes,
 			ChainId:         ChainID,
 		},
@@ -179,8 +176,8 @@ func AddGenesisAccount(addr sdk.AccAddress, appState app.GenesisState, cdc codec
 	return appState, nil
 }
 
-// GenesisStateWithSingleValidator initializes GenesisState with a single validator and genesis accounts
-// that also act as delegators.
+// GenesisStateWithSingleValidator initializes GenesisState with a single
+// validator and genesis accounts that also act as delegators.
 func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (app.GenesisState, *tmtypes.ValidatorSet, keyring.Keyring) {
 	privVal := mock.NewPV()
 	pubKey, err := privVal.GetPubKey()
@@ -214,7 +211,7 @@ func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (a
 }
 
 func genesisStateWithValSet(
-	app *app.App,
+	a *app.App,
 	genesisState app.GenesisState,
 	valSet *tmtypes.ValidatorSet,
 	genAccs []authtypes.GenesisAccount,
@@ -222,7 +219,7 @@ func genesisStateWithValSet(
 ) app.GenesisState {
 	// set genesis accounts
 	authGenesis := authtypes.NewGenesisState(authtypes.DefaultParams(), genAccs)
-	genesisState[authtypes.ModuleName] = app.AppCodec().MustMarshalJSON(authGenesis)
+	genesisState[authtypes.ModuleName] = a.AppCodec().MustMarshalJSON(authGenesis)
 
 	validators := make([]stakingtypes.Validator, 0, len(valSet.Validators))
 	delegations := make([]stakingtypes.Delegation, 0, len(valSet.Validators))
@@ -256,8 +253,10 @@ func genesisStateWithValSet(
 
 	}
 	// set validators and delegations
-	stakingGenesis := stakingtypes.NewGenesisState(stakingtypes.DefaultParams(), validators, delegations)
-	genesisState[stakingtypes.ModuleName] = app.AppCodec().MustMarshalJSON(stakingGenesis)
+	params := stakingtypes.DefaultParams()
+	params.BondDenom = app.BondDenom
+	stakingGenesis := stakingtypes.NewGenesisState(params, validators, delegations)
+	genesisState[stakingtypes.ModuleName] = a.AppCodec().MustMarshalJSON(stakingGenesis)
 
 	totalSupply := sdk.NewCoins()
 	for _, b := range balances {
@@ -267,18 +266,18 @@ func genesisStateWithValSet(
 
 	for range delegations {
 		// add delegated tokens to total supply
-		totalSupply = totalSupply.Add(sdk.NewCoin(sdk.DefaultBondDenom, bondAmt))
+		totalSupply = totalSupply.Add(sdk.NewCoin(app.BondDenom, bondAmt))
 	}
 
 	// add bonded amount to bonded pool module account
 	balances = append(balances, banktypes.Balance{
 		Address: authtypes.NewModuleAddress(stakingtypes.BondedPoolName).String(),
-		Coins:   sdk.Coins{sdk.NewCoin(sdk.DefaultBondDenom, bondAmt)},
+		Coins:   sdk.Coins{sdk.NewCoin(app.BondDenom, bondAmt)},
 	})
 
 	// update total supply
 	bankGenesis := banktypes.NewGenesisState(banktypes.DefaultGenesisState().Params, balances, totalSupply, []banktypes.Metadata{})
-	genesisState[banktypes.ModuleName] = app.AppCodec().MustMarshalJSON(bankGenesis)
+	genesisState[banktypes.ModuleName] = a.AppCodec().MustMarshalJSON(bankGenesis)
 
 	return genesisState
 }

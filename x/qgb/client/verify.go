@@ -79,7 +79,7 @@ func txCmd() *cobra.Command {
 				return err
 			}
 
-			shareRange, err := square.TxShareRange(blockRes.Block.Data.Txs.ToSliceOfBytes(), int(tx.Index))
+			shareRange, err := square.TxShareRange(blockRes.Block.Data.Txs.ToSliceOfBytes(), int(tx.Index), blockRes.Block.Header.Version.App)
 			if err != nil {
 				return err
 			}
@@ -141,7 +141,7 @@ func blobCmd() *cobra.Command {
 				return err
 			}
 
-			blobShareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(tx.Index), int(blobIndex))
+			blobShareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(tx.Index), int(blobIndex), blockRes.Block.Header.Version.App)
 			if err != nil {
 				return err
 			}
@@ -157,7 +157,7 @@ func sharesCmd() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "shares <height> <start_share> <end_share>",
 		Args:  cobra.ExactArgs(3),
-		Short: "Verifies that a shares range has been committed to by the QGB contract",
+		Short: "Verifies that a range of shares has been committed to by the QGB contract. The range should be end exclusive.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			height, err := strconv.ParseUint(args[0], 10, 0)
 			if err != nil {
@@ -189,11 +189,11 @@ func sharesCmd() *cobra.Command {
 func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig, height uint64, startShare uint64, endShare uint64) (isCommittedTo bool, err error) {
 	trpc, err := http.New(config.TendermintRPC, "/websocket")
 	if err != nil {
-		return
+		return false, err
 	}
 	err = trpc.Start()
 	if err != nil {
-		return
+		return false, err
 	}
 	defer func(trpc *http.HTTP) {
 		err := trpc.Stop()
@@ -215,7 +215,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 	logger.Debug("getting shares proof from tendermint node")
 	sharesProofs, err := trpc.ProveShares(ctx, height, startShare, endShare)
 	if err != nil {
-		return
+		return false, err
 	}
 
 	logger.Debug("verifying shares proofs")
@@ -224,14 +224,14 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 	// which the nmt shares proof is verified against.
 	if !sharesProofs.VerifyProof() {
 		logger.Info("proofs from shares to data root are invalid")
-		return
+		return false, err
 	}
 
 	logger.Info("proofs from shares to data root are valid")
 
 	qgbGRPC, err := grpc.Dial(config.CelesGRPC, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		return
+		return false, err
 	}
 	defer func(qgbGRPC *grpc.ClientConn) {
 		err := qgbGRPC.Close()
@@ -242,12 +242,12 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 
 	queryClient := types.NewQueryClient(qgbGRPC)
 
-	blocksRange, err := queryClient.DataCommitmentRangeForHeight(
+	resp, err := queryClient.DataCommitmentRangeForHeight(
 		ctx,
 		&types.QueryDataCommitmentRangeForHeightRequest{Height: height},
 	)
 	if err != nil {
-		return
+		return false, err
 	}
 
 	logger.Info(
@@ -255,47 +255,47 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 		"contract_address",
 		config.ContractAddr,
 		"fist_block",
-		blocksRange.BeginBlock,
+		resp.DataCommitment.BeginBlock,
 		"last_block",
-		blocksRange.EndBlock,
+		resp.DataCommitment.EndBlock,
 		"nonce",
-		blocksRange.Nonce,
+		resp.DataCommitment.Nonce,
 	)
 
 	logger.Debug("getting the data root to commitment inclusion proof")
-	dcProof, err := trpc.DataRootInclusionProof(ctx, height, blocksRange.BeginBlock, blocksRange.EndBlock)
+	dcProof, err := trpc.DataRootInclusionProof(ctx, height, resp.DataCommitment.BeginBlock, resp.DataCommitment.EndBlock)
 	if err != nil {
-		return
+		return false, err
 	}
 
 	heightI := int64(height)
 	block, err := trpc.Block(ctx, &heightI)
 	if err != nil {
-		return
+		return false, err
 	}
 
 	ethClient, err := ethclient.Dial(config.EVMRPC)
 	if err != nil {
-		return
+		return false, err
 	}
 	defer ethClient.Close()
 
 	qgbWrapper, err := wrapper.NewQuantumGravityBridge(config.ContractAddr, ethClient)
 	if err != nil {
-		return
+		return false, err
 	}
 
 	logger.Info("verifying that the data root was committed to in the QGB contract")
 	isCommittedTo, err = VerifyDataRootInclusion(
 		ctx,
 		qgbWrapper,
-		blocksRange.Nonce,
+		resp.DataCommitment.Nonce,
 		height,
 		block.Block.DataHash,
 		dcProof.Proof,
 	)
 	if err != nil {
-		return
+		return false, err
 	}
 
 	if isCommittedTo {
@@ -304,7 +304,7 @@ func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig,
 		logger.Info("the QGB contract didn't commit to the provided shares")
 	}
 
-	return
+	return isCommittedTo, nil
 }
 
 func VerifyDataRootInclusion(

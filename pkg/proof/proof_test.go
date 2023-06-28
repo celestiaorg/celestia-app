@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"testing"
 
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
@@ -23,7 +25,7 @@ import (
 func TestNewTxInclusionProof(t *testing.T) {
 	blockTxs := testfactory.GenerateRandomTxs(50, 500).ToSliceOfBytes()
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	blockTxs = append(blockTxs, blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), 50, 1, 500).ToSliceOfBytes()...)
+	blockTxs = append(blockTxs, blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), 50, 1, 500).ToSliceOfBytes()...)
 	require.Len(t, blockTxs, 100)
 
 	type test struct {
@@ -76,6 +78,7 @@ func TestNewTxInclusionProof(t *testing.T) {
 			proof, err := proof.NewTxInclusionProof(
 				tt.txs,
 				tt.txIndex,
+				appconsts.LatestVersion,
 			)
 			if tt.expectErr {
 				assert.Error(t, err)
@@ -97,7 +100,7 @@ func TestNewShareInclusionProof(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(50, 500)
 	txs = append(txs, blobTxs...)
 
-	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.DefaultMaxSquareSize)
+	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.LatestVersion, appconsts.SquareSizeUpperBound(appconsts.LatestVersion))
 	if err != nil {
 		panic(err)
 	}

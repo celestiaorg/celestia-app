@@ -16,7 +16,6 @@ ldflags += $(LDFLAGS)
 
 BUILD_FLAGS := -ldflags '$(ldflags)'
 
-
 ## help: Get more info on make commands.
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
@@ -49,8 +48,6 @@ mod-verify: mod
 	GO111MODULE=on go mod verify
 .PHONY: mod-verify
 
-
-
 ## proto-gen: Generate protobuf files. Requires docker.
 proto-gen:
 	@echo "--> Generating Protobuf files"
@@ -75,7 +72,7 @@ build-docker:
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
 .PHONY: build-docker
 
-## lint: Run linters golangci-lint and markdownlint.
+## lint: Run all linters: golangci-lint, markdownlint, hadolint, yamllint.
 lint:
 	@echo "--> Running golangci-lint"
 	@golangci-lint run
@@ -87,6 +84,12 @@ lint:
 	@yamllint --no-warnings . -c .yamllint.yml
 
 .PHONY: lint
+
+## markdown-link-check: Check all markdown links.
+markdown-link-check:
+	@echo "--> Running markdown-link-check"
+	@find . -name \*.md -print0 | xargs -0 -n1 markdown-link-check
+
 
 ## fmt: Format files per linters golangci-lint and markdownlint.
 fmt:
@@ -120,11 +123,11 @@ test-bench:
 	@go test -mod=readonly -bench=. ./...
 .PHONY: test-bench
 
-## test-cover: Generate test coverage.txt
-test-cover:
+## test-coverage: Generate test coverage.txt
+test-coverage:
 	@echo "--> Generating coverage.txt"
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
-.PHONY: test-cover
+.PHONY: test-coverage
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo. Ex. `make adr-gen`
 adr-gen:

@@ -3,6 +3,8 @@ package keeper_test
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/x/qgb"
+
 	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/stretchr/testify/assert"
@@ -30,7 +32,7 @@ func TestGetDataCommitmentForHeight(t *testing.T) {
 		dcs[i] = types.DataCommitment{
 			Nonce:      i + 2, // because nonces start at 1, and we already set that one for the initial valset
 			BeginBlock: window * i,
-			EndBlock:   window*(i+1) - 1,
+			EndBlock:   window * (i + 1),
 		}
 		err = k.SetAttestationRequest(sdkCtx, &dcs[i])
 		require.NoError(t, err)
@@ -58,7 +60,7 @@ func TestGetDataCommitmentForHeight(t *testing.T) {
 			expectedError: "",
 		},
 		{
-			name:          "height within range of last data commitment",
+			name:          "height within range of latest data commitment",
 			height:        dcs[len(dcs)-1].EndBlock - window/2,
 			expectedDCC:   dcs[len(dcs)-1],
 			expectError:   false,
@@ -74,7 +76,7 @@ func TestGetDataCommitmentForHeight(t *testing.T) {
 		{
 			name:          "height is end block",
 			height:        dcs[1].EndBlock,
-			expectedDCC:   dcs[1],
+			expectedDCC:   dcs[2],
 			expectError:   false,
 			expectedError: "",
 		},
@@ -90,7 +92,7 @@ func TestGetDataCommitmentForHeight(t *testing.T) {
 			height:        window * 100,
 			expectedDCC:   types.DataCommitment{},
 			expectError:   true,
-			expectedError: "Last height 3999 < 40000: no data commitment has been generated for the provided height",
+			expectedError: "Latest height 4000 < 40000: no data commitment has been generated for the provided height",
 		},
 	}
 	for _, tt := range tests {
@@ -107,7 +109,7 @@ func TestGetDataCommitmentForHeight(t *testing.T) {
 	}
 }
 
-func TestLastDataCommitment(t *testing.T) {
+func TestLatestDataCommitment(t *testing.T) {
 	input, sdkCtx := testutil.SetupFiveValChain(t)
 	k := input.QgbKeeper
 
@@ -118,8 +120,8 @@ func TestLastDataCommitment(t *testing.T) {
 	err = k.SetAttestationRequest(sdkCtx, &initialValset)
 	require.NoError(t, err)
 
-	// trying to get the last data commitment
-	dcc, err := k.GetLastDataCommitment(sdkCtx)
+	// trying to get the latest data commitment
+	dcc, err := k.GetLatestDataCommitment(sdkCtx)
 	assert.Error(t, err)
 	assert.Equal(t, dcc, types.DataCommitment{})
 
@@ -139,14 +141,14 @@ func TestLastDataCommitment(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	// getting the last data commitment
-	dcc, err = k.GetLastDataCommitment(sdkCtx)
+	// getting the latest data commitment
+	dcc, err = k.GetLatestDataCommitment(sdkCtx)
 	assert.NoError(t, err)
 	assert.Equal(t, dcs[3], dcc)
 }
 
 func TestCheckingLatestAttestationNonceInDataCommitments(t *testing.T) {
-	input := testutil.CreateTestEnvWithoutAttestationNonceInit(t)
+	input := testutil.CreateTestEnvWithoutQGBKeysInit(t)
 	k := input.QgbKeeper
 
 	tests := []struct {
@@ -157,7 +159,7 @@ func TestCheckingLatestAttestationNonceInDataCommitments(t *testing.T) {
 		{
 			name: "check latest nonce before getting current data commitment",
 			requestFunc: func() error {
-				_, err := k.GetCurrentDataCommitment(input.Context)
+				_, err := k.NextDataCommitment(input.Context)
 				return err
 			},
 			expectedError: types.ErrLatestAttestationNonceStillNotInitialized,
@@ -171,12 +173,57 @@ func TestCheckingLatestAttestationNonceInDataCommitments(t *testing.T) {
 			expectedError: types.ErrLatestAttestationNonceStillNotInitialized,
 		},
 		{
-			name: "check latest nonce before getting last data commitment",
+			name: "check latest nonce before getting latest data commitment",
 			requestFunc: func() error {
-				_, err := k.GetLastDataCommitment(input.Context)
+				_, err := k.GetLatestDataCommitment(input.Context)
 				return err
 			},
 			expectedError: types.ErrLatestAttestationNonceStillNotInitialized,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.requestFunc()
+			assert.ErrorIs(t, err, tt.expectedError)
+		})
+	}
+}
+
+func TestCheckingEarliestAvailableAttestationNonceInDataCommitments(t *testing.T) {
+	input := testutil.CreateTestEnvWithoutQGBKeysInit(t)
+	k := input.QgbKeeper
+
+	// init the latest attestation nonce
+	input.QgbKeeper.SetLatestAttestationNonce(input.Context, qgb.InitialLatestAttestationNonce)
+
+	tests := []struct {
+		name          string
+		requestFunc   func() error
+		expectedError error
+	}{
+		{
+			name: "check earliest available attestation nonce before getting current data commitment",
+			requestFunc: func() error {
+				_, err := k.NextDataCommitment(input.Context)
+				return err
+			},
+			expectedError: types.ErrEarliestAvailableNonceStillNotInitialized,
+		},
+		{
+			name: "check earliest available attestation nonce before getting data commitment for height",
+			requestFunc: func() error {
+				_, err := k.GetDataCommitmentForHeight(input.Context, 1)
+				return err
+			},
+			expectedError: types.ErrEarliestAvailableNonceStillNotInitialized,
+		},
+		{
+			name: "check earliest available attestation nonce before getting latest data commitment",
+			requestFunc: func() error {
+				_, err := k.GetLatestDataCommitment(input.Context)
+				return err
+			},
+			expectedError: types.ErrEarliestAvailableNonceStillNotInitialized,
 		},
 	}
 	for _, tt := range tests {

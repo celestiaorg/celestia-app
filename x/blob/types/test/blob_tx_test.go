@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/rand"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -134,6 +135,7 @@ func TestValidateBlobTx(t *testing.T) {
 				sendMsg := banktypes.NewMsgSend(signerAddr, signerAddr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10))))
 				tx := blobfactory.ComplexBlobTxWithOtherMsgs(
 					t,
+					tmrand.NewRand(),
 					signer.Keyring,
 					encCfg.TxConfig.TxEncoder(),
 					"test",

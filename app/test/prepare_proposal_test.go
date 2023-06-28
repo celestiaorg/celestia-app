@@ -3,9 +3,10 @@ package app_test
 import (
 	"testing"
 
+	tmrand "github.com/tendermint/tendermint/libs/rand"
+
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -23,7 +24,7 @@ import (
 func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 	numBlobTxs, numNormalTxs := 3, 3
 	accnts := testfactory.GenerateAccounts(numBlobTxs + numNormalTxs)
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accnts...)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accnts...)
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	infos := queryAccountInfo(testApp, accnts, kr)
 
@@ -51,7 +52,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		1000,
 		accnts[0],
 		accnts[numBlobTxs:],
-		"",
+		testutil.ChainID,
 	)
 	txs := append(blobTxs, coretypes.Txs(normalTxs).ToSliceOfBytes()...)
 
@@ -74,7 +75,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 func TestPrepareProposalFiltering(t *testing.T) {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(6)
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accounts...)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
 	// create 3 single blob blobTxs that are signed with valid account numbers
@@ -88,7 +89,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		infos[:3],
 		blobfactory.NestedBlobs(
 			t,
-			appns.RandomBlobNamespaces(3),
+			appns.RandomBlobNamespaces(tmrand.NewRand(), 3),
 			[][]int{{100}, {1000}, {420}},
 		),
 	)
@@ -103,7 +104,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		1000,
 		accounts[0],
 		accounts[len(accounts)-3:],
-		"",
+		testutil.ChainID,
 	)).ToSliceOfBytes()
 
 	validTxs := func() [][]byte {
@@ -123,7 +124,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		1000,
 		accounts[0],
 		accounts[:3],
-		"",
+		testutil.ChainID,
 	)).ToSliceOfBytes()
 
 	// create a transaction with an account that doesn't exist. This will cause the increment nonce
@@ -187,7 +188,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 			require.Equal(t, len(tt.txs())-len(tt.prunedTxs), len(resp.BlockData.Txs))
 			// check the the expected txs were removed
 			for _, ptx := range tt.prunedTxs {
-				assert.NotContains(t, resp.BlockData.Txs, ptx)
+				require.NotContains(t, resp.BlockData.Txs, ptx)
 			}
 		})
 	}

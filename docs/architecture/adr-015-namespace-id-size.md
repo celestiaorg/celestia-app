@@ -2,18 +2,19 @@
 
 ## Status
 
-Accepted
+Implemented in <https://github.com/celestiaorg/celestia-app/pull/1419> and revised in <https://github.com/celestiaorg/celestia-app/pull/1771>
 
 ## Changelog
 
-- 2023/2/17: initial draft
-- 2023/2/22: discussion notes
-- 2023/2/23: reorder content
+- 2023/2/17: Initial draft
+- 2023/2/22: Discussion notes
+- 2023/2/23: Reorder content
 - 2023/2/28: NMT proof size
-- 2023/3/1: blob inclusion proof size
-- 2023/3/2: accepted
-- 2023/5/10: add section on SHA256 performance
-- 2023/5/11: revise decision 33 bytes => 29 bytes
+- 2023/3/1: Blob inclusion proof size
+- 2023/3/2: Accepted
+- 2023/5/10: Add section on SHA256 performance
+- 2023/5/11: Revise decision 33 bytes => 29 bytes
+- 2023/5/30: Update status
 
 ## Context
 
@@ -140,7 +141,7 @@ Another tradeoff to consider is the size of the namespace in the share. Since a 
 
 ### Maximum blob size
 
-If the namespace size is increased, the maximum possible blob will decrease. Given the maximum possible blob is bounded by the number of bytes available for blob space in a data square, if a 32 byte namespace size is adopted, the maxmimum blob size will decrease by an upper bound of `appconsts.DefaultMaxSquareSize * appconsts.DefaultMaxSquareSize * (32-8)`. Note this is an upper bound because not all shares in the data square can be used for blob data (i.e. at least one share must contain the associated PayForBlob transaction).
+If the namespace size is increased, the maximum possible blob will decrease. Given the maximum possible blob is bounded by the number of bytes available for blob space in a data square, if a 32 byte namespace size is adopted, the maxmimum blob size will decrease by an upper bound of `appconsts.MaxSquareSize * appconsts.MaxSquareSize * (32-8)`. Note this is an upper bound because not all shares in the data square can be used for blob data (i.e. at least one share must contain the associated PayForBlob transaction).
 
 ### SHA256 performance
 

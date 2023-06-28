@@ -15,7 +15,10 @@ func TestQGBRPCQueries(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping QGB integration test in short mode.")
 	}
-	_, cctx := testnode.DefaultNetwork(t, time.Millisecond)
+	cfg := testnode.DefaultConfig()
+
+	cctx, _, _ := testnode.NewNetwork(t, cfg)
+
 	h, err := cctx.WaitForHeightWithTimeout(105, 2*time.Minute)
 	require.NoError(t, err, h)
 	require.Greater(t, h, int64(101))
@@ -40,9 +43,9 @@ func TestQGBRPCQueries(t *testing.T) {
 		{
 			name: "last unbonding height",
 			req: func() error {
-				_, err := queryClient.LastUnbondingHeight(
+				_, err := queryClient.LatestUnbondingHeight(
 					context.Background(),
-					&types.QueryLastUnbondingHeightRequest{},
+					&types.QueryLatestUnbondingHeightRequest{},
 				)
 				return err
 			},
@@ -70,9 +73,9 @@ func TestQGBRPCQueries(t *testing.T) {
 		{
 			name: "last valset before nonce",
 			req: func() error {
-				_, err := queryClient.LastValsetRequestBeforeNonce(
+				_, err := queryClient.LatestValsetRequestBeforeNonce(
 					context.Background(),
-					&types.QueryLastValsetRequestBeforeNonceRequest{Nonce: 2},
+					&types.QueryLatestValsetRequestBeforeNonceRequest{Nonce: 2},
 				)
 				return err
 			},

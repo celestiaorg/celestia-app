@@ -4,7 +4,6 @@ import (
 	"math/big"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -25,6 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func TestStandardSDKIntegrationTestSuite(t *testing.T) {
@@ -48,8 +48,15 @@ type StandardSDKIntegrationTestSuite struct {
 func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 	t := s.T()
 	t.Log("setting up integration test suite")
-	accounts, cctx := testnode.DefaultNetwork(t, time.Millisecond*400)
-	s.accounts = accounts
+
+	accounts := make([]string, 300)
+	for i := 0; i < len(accounts); i++ {
+		accounts[i] = tmrand.Str(9)
+	}
+
+	cfg := testnode.DefaultConfig().WithAccounts(accounts)
+	cctx, _, _ := testnode.NewNetwork(t, cfg)
+	s.accounts = cfg.Accounts
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	s.cctx = cctx
 }
@@ -163,7 +170,12 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 			name: "create legacy community spend governance proposal",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				account := s.unusedAccount()
-				coins := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1000000)))
+				// Note: this test depends on at least one coin being present
+				// in the community pool. Funds land in the community pool due
+				// to inflation so if 1 coin is not present in the community
+				// pool, consider expanding the block interval or waiting for
+				// more blocks to be produced prior to executing this test case.
+				coins := sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1)))
 				content := disttypes.NewCommunityPoolSpendProposal(
 					"title",
 					"description",

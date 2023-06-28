@@ -191,6 +191,51 @@ func (s *Share) rawDataStartIndex() int {
 	return index
 }
 
+// RawDataWithReserved returns the raw share data while taking reserved bytes into account.
+func (s *Share) RawDataUsingReserved() (rawData []byte, err error) {
+	rawDataStartIndexUsingReserved, err := s.rawDataStartIndexUsingReserved()
+	if err != nil {
+		return nil, err
+	}
+
+	// This means share is the last share and does not have any transaction beginning in it
+	if rawDataStartIndexUsingReserved == 0 {
+		return []byte{}, nil
+	}
+	if len(s.data) < rawDataStartIndexUsingReserved {
+		return rawData, fmt.Errorf("share %s is too short to contain raw data", s)
+	}
+
+	return s.data[rawDataStartIndexUsingReserved:], nil
+}
+
+// rawDataStartIndexUsingReserved returns the start index of raw data while accounting for
+// reserved bytes, if it exists in the share.
+func (s *Share) rawDataStartIndexUsingReserved() (int, error) {
+	isStart, err := s.IsSequenceStart()
+	if err != nil {
+		return 0, err
+	}
+	isCompact, err := s.IsCompactShare()
+	if err != nil {
+		return 0, err
+	}
+
+	index := appconsts.NamespaceSize + appconsts.ShareInfoBytes
+	if isStart {
+		index += appconsts.SequenceLenBytes
+	}
+
+	if isCompact {
+		reservedBytes, err := ParseReservedBytes(s.data[index : index+appconsts.CompactShareReservedBytes])
+		if err != nil {
+			return 0, err
+		}
+		return int(reservedBytes), nil
+	}
+	return index, nil
+}
+
 func ToBytes(shares []Share) (bytes [][]byte) {
 	bytes = make([][]byte, len(shares))
 	for i, share := range shares {

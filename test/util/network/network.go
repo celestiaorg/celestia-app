@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -81,22 +82,25 @@ func DefaultConfig() network.Config {
 				simapp.EmptyAppOptions{},
 				baseapp.SetPruning(pruningtypes.NewPruningOptionsFromString(val.AppConfig.Pruning)),
 				baseapp.SetMinGasPrices(val.AppConfig.MinGasPrices),
+				func(b *baseapp.BaseApp) {
+					b.SetProtocolVersion(appconsts.LatestVersion)
+				},
 			)
 		},
-		GenesisState:    app.ModuleBasics.DefaultGenesis(encCfg.Codec),
-		TimeoutCommit:   2 * time.Second,
-		ChainID:         "chain-" + tmrand.Str(6),
-		NumValidators:   1,
-		BondDenom:       app.BondDenom,
-		MinGasPrices:    fmt.Sprintf("0.000006%s", app.BondDenom),
-		AccountTokens:   sdk.TokensFromConsensusPower(1000, sdk.DefaultPowerReduction),
-		StakingTokens:   sdk.TokensFromConsensusPower(500, sdk.DefaultPowerReduction),
-		BondedTokens:    sdk.TokensFromConsensusPower(100, sdk.DefaultPowerReduction),
-		PruningStrategy: pruningtypes.PruningOptionNothing,
-		CleanupDir:      true,
-		SigningAlgo:     string(hd.Secp256k1Type),
-		KeyringOptions:  []keyring.Option{},
-		PrintMnemonic:   false,
+		GenesisState:         app.ModuleBasics.DefaultGenesis(encCfg.Codec),
+		TargetHeightDuration: 2 * time.Second,
+		ChainID:              "chain-" + tmrand.Str(6),
+		NumValidators:        1,
+		BondDenom:            app.BondDenom,
+		MinGasPrices:         fmt.Sprintf("0.000006%s", app.BondDenom),
+		AccountTokens:        sdk.TokensFromConsensusPower(1000, sdk.DefaultPowerReduction),
+		StakingTokens:        sdk.TokensFromConsensusPower(500, sdk.DefaultPowerReduction),
+		BondedTokens:         sdk.TokensFromConsensusPower(100, sdk.DefaultPowerReduction),
+		PruningStrategy:      pruningtypes.PruningOptionNothing,
+		CleanupDir:           true,
+		SigningAlgo:          string(hd.Secp256k1Type),
+		KeyringOptions:       []keyring.Option{},
+		PrintMnemonic:        false,
 	}
 }
 

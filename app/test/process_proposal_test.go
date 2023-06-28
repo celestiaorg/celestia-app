@@ -29,22 +29,19 @@ import (
 func TestProcessProposal(t *testing.T) {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(6)
-	testApp, kr := testutil.SetupTestAppWithGenesisValSet(accounts...)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
 	signer := types.GenerateKeyringSigner(t, accounts[0])
 
-	// create 3 single blob blobTxs that are signed with valid account numbers
+	enc := encConf.TxConfig.TxEncoder()
+
+	// create 4 single blob blobTxs that are signed with valid account numbers
 	// and sequences
 	blobTxs := blobfactory.ManyMultiBlobTx(
-		t,
-		encConf.TxConfig.TxEncoder(),
-		kr,
-		testutil.ChainID,
-		accounts[:4],
-		infos[:4],
+		t, enc, kr, testutil.ChainID, accounts[:4], infos[:4],
 		blobfactory.NestedBlobs(
 			t,
-			appns.RandomBlobNamespaces(4),
+			appns.RandomBlobNamespaces(tmrand.NewRand(), 4),
 			[][]int{{100}, {1000}, {420}, {300}},
 		),
 	)
@@ -52,14 +49,7 @@ func TestProcessProposal(t *testing.T) {
 	// create 3 MsgSend transactions that are signed with valid account numbers
 	// and sequences
 	sendTxs := testutil.SendTxsWithAccounts(
-		t,
-		testApp,
-		encConf.TxConfig.TxEncoder(),
-		kr,
-		1000,
-		accounts[0],
-		accounts[len(accounts)-3:],
-		"",
+		t, testApp, enc, kr, 1000, accounts[0], accounts[len(accounts)-3:], testutil.ChainID,
 	)
 
 	// block with all blobs included
@@ -70,20 +60,16 @@ func TestProcessProposal(t *testing.T) {
 	}
 
 	mixedData := validData()
-	mixedData.Txs = append(mixedData.Txs, coretypes.Txs(sendTxs).ToSliceOfBytes()...)
+	mixedData.Txs = append(coretypes.Txs(sendTxs).ToSliceOfBytes(), mixedData.Txs...)
 
 	// create an invalid block by adding an otherwise valid PFB, but an invalid
 	// signature since there's no account
 	badSigBlobTx := testutil.RandBlobTxsWithManualSequence(
-		t,
-		encConf.TxConfig.TxEncoder(),
-		kr,
-		1000,
-		1,
-		false,
-		"",
-		accounts[:1],
-		420, 42,
+		t, enc, kr, 1000, 1, false, testutil.ChainID, accounts[:1], 1, 1, true,
+	)[0]
+
+	blobTxWithInvalidNonce := testutil.RandBlobTxsWithManualSequence(
+		t, enc, kr, 1000, 1, false, testutil.ChainID, accounts[:1], 1, 3, false,
 	)[0]
 
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
@@ -203,12 +189,24 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
+			name:  "pfb namespace version does not match blob",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
+				blobTx.Blobs[0].NamespaceVersion = appns.NamespaceVersionMax
+				blobTxBytes, _ := blobTx.Marshal()
+				d.Txs[0] = blobTxBytes
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
 			name:  "invalid namespace in index wrapper tx",
 			input: validData(),
 			mutator: func(d *core.Data) {
 				encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 				index := 4
-				tx, blob := blobfactory.IndexWrappedTxWithInvalidNamespace(t, encCfg.TxConfig.TxEncoder(), signer, 0, 0, uint32(index))
+				tx, blob := blobfactory.IndexWrappedTxWithInvalidNamespace(t, encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), signer, 0, 0, uint32(index))
 				blobTx, err := coretypes.MarshalBlobTx(tx, &blob)
 				require.NoError(t, err)
 
@@ -216,12 +214,7 @@ func TestProcessProposal(t *testing.T) {
 				d.Txs = [][]byte{blobTx}
 
 				// Erasure code the data to update the data root so this doesn't doesn't fail on an incorrect data root.
-				dataSquare, err := square.Construct(d.Txs, appconsts.DefaultMaxSquareSize)
-				require.NoError(t, err)
-				eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
-				require.NoError(t, err)
-				dah := da.NewDataAvailabilityHeader(eds)
-				d.Hash = dah.Hash()
+				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -229,6 +222,7 @@ func TestProcessProposal(t *testing.T) {
 			name:  "swap blobTxs",
 			input: validData(),
 			mutator: func(d *core.Data) {
+				// swapping the order will cause the data root to be different
 				d.Txs[0], d.Txs[1], d.Txs[2] = d.Txs[1], d.Txs[2], d.Txs[0]
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -251,26 +245,29 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:  "incorrectly sorted wrapped pfb's",
+			name:  "incorrectly sorted; send tx after pfb",
 			input: mixedData,
 			mutator: func(d *core.Data) {
-				// swap txs at index 3 and 4 (essentially swapping a PFB with a normal tx)
-				d.Txs[4], d.Txs[3] = d.Txs[3], d.Txs[4]
+				// swap txs at index 2 and 3 (essentially swapping a PFB with a normal tx)
+				d.Txs[3], d.Txs[2] = d.Txs[2], d.Txs[3]
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			// while this test passes and the block gets rejected, it is getting
-			// rejected because the data root is different. We need to refactor
-			// prepare proposal to abstract functionality into a different
-			// function or be able to skip the filtering checks. TODO: perform
-			// the mentioned refactor and make it easier to create invalid
-			// blocks for testing.
 			name:  "included pfb with bad signature",
 			input: validData(),
 			mutator: func(d *core.Data) {
 				d.Txs = append(d.Txs, badSigBlobTx)
-				// todo: replace the data root with an updated hash
+				d.Hash = calculateNewDataHash(t, d.Txs)
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:  "included pfb with incorrect nonce",
+			input: validData(),
+			mutator: func(d *core.Data) {
+				d.Txs = append(d.Txs, blobTxWithInvalidNonce)
+				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
@@ -280,7 +277,7 @@ func TestProcessProposal(t *testing.T) {
 				Txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
 			},
 			mutator: func(d *core.Data) {
-				dataSquare, err := square.Construct(d.Txs, appconsts.DefaultMaxSquareSize)
+				dataSquare, err := square.Construct(d.Txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 				require.NoError(t, err)
 
 				b := shares.NewEmptyBuilder().ImportRawShare(dataSquare[1].ToBytes())
@@ -306,14 +303,25 @@ func TestProcessProposal(t *testing.T) {
 			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
 				BlockData: tt.input,
 			})
+			require.Equal(t, len(tt.input.Txs), len(resp.BlockData.Txs))
 			tt.mutator(resp.BlockData)
 			res := testApp.ProcessProposal(abci.RequestProcessProposal{
 				BlockData: resp.BlockData,
 				Header: core.Header{
+					Height:   1,
 					DataHash: resp.BlockData.Hash,
 				},
 			})
 			assert.Equal(t, tt.expectedResult, res.Result, fmt.Sprintf("expected %v, got %v", tt.expectedResult, res.Result))
 		})
 	}
+}
+
+func calculateNewDataHash(t *testing.T, txs [][]byte) []byte {
+	dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
+	require.NoError(t, err)
+	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
+	require.NoError(t, err)
+	dah := da.NewDataAvailabilityHeader(eds)
+	return dah.Hash()
 }

@@ -17,7 +17,6 @@ var (
 	ErrParitySharesNamespace          = errors.Register(ModuleName, 11117, "cannot use parity shares namespace ID")
 	ErrTailPaddingNamespace           = errors.Register(ModuleName, 11118, "cannot use tail padding namespace ID")
 	ErrTxNamespace                    = errors.Register(ModuleName, 11119, "cannot use transaction namespace ID")
-	ErrEmptyShareCommitment           = errors.Register(ModuleName, 11121, "empty share commitment")
 	ErrInvalidShareCommitments        = errors.Register(ModuleName, 11122, "invalid share commitments: all relevant square sizes must be committed to")
 	ErrUnsupportedShareVersion        = errors.Register(ModuleName, 11123, "unsupported share version")
 	ErrZeroBlobSize                   = errors.Register(ModuleName, 11124, "cannot use zero blob size")
@@ -33,4 +32,5 @@ var (
 	ErrNoBlobSizes                    = errors.Register(ModuleName, 11134, "no blob sizes provided")
 	ErrNoShareCommitments             = errors.Register(ModuleName, 11135, "no share commitments provided")
 	ErrInvalidNamespace               = errors.Register(ModuleName, 11136, "invalid namespace")
+	ErrInvalidNamespaceVersion        = errors.Register(ModuleName, 11137, "invalid namespace version")
 )

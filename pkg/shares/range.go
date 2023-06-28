@@ -19,3 +19,8 @@ func EmptyRange() Range {
 func (r Range) IsEmpty() bool {
 	return r.Start == 0 && r.End == 0
 }
+
+func (r *Range) Add(value int) {
+	r.Start += value
+	r.End += value
+}

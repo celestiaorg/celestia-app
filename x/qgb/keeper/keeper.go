@@ -40,7 +40,7 @@ func NewKeeper(cdc codec.BinaryCodec, storeKey storetypes.StoreKey, paramSpace p
 // GetParams returns the parameters from the store
 func (k Keeper) GetParams(ctx sdk.Context) (params types.Params) {
 	k.paramSpace.GetParamSet(ctx, &params)
-	return
+	return params
 }
 
 // SetParams sets the parameters in the store
@@ -49,7 +49,7 @@ func (k Keeper) SetParams(ctx sdk.Context, ps types.Params) {
 }
 
 // DeserializeValidatorIterator returns validators from the validator iterator.
-// Adding here in gravity keeper as cdc is not available inside endblocker.
+// Adding here in QGB keeper as cdc is not available inside endblocker.
 func (k Keeper) DeserializeValidatorIterator(vals []byte) stakingtypes.ValAddresses {
 	validators := stakingtypes.ValAddresses{
 		Addresses: []string{},
@@ -58,7 +58,8 @@ func (k Keeper) DeserializeValidatorIterator(vals []byte) stakingtypes.ValAddres
 	return validators
 }
 
-// StakingKeeper restricts the functionality of the bank keeper used in the qgb keeper
+// StakingKeeper restricts the functionality of the bank keeper used in the qgb
+// keeper
 type StakingKeeper interface {
 	GetValidator(ctx sdk.Context, addr sdk.ValAddress) (validator stakingtypes.Validator, found bool)
 	GetBondedValidatorsByPower(ctx sdk.Context) []stakingtypes.Validator

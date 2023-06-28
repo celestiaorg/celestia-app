@@ -9,6 +9,7 @@ import (
 func (k Keeper) GetParams(ctx sdk.Context) types.Params {
 	return types.NewParams(
 		k.GasPerBlobByte(ctx),
+		k.GovSquareSizeUpperBound(ctx),
 	)
 }
 
@@ -20,5 +21,11 @@ func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
 // GasPerBlobByte returns the GasPerBlobByte param
 func (k Keeper) GasPerBlobByte(ctx sdk.Context) (res uint32) {
 	k.paramStore.Get(ctx, types.KeyGasPerBlobByte, &res)
-	return
+	return res
+}
+
+// GovSquareSizeUpperBound returns the GovMaxSquareSize param
+func (k Keeper) GovSquareSizeUpperBound(ctx sdk.Context) (res uint64) {
+	k.paramStore.Get(ctx, types.KeyGovMaxSquareSize, &res)
+	return res
 }

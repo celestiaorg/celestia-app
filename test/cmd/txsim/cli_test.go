@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -51,41 +51,20 @@ func TestTxsimCommandEnvVar(t *testing.T) {
 }
 
 func setup(t testing.TB) (keyring.Keyring, string, string) {
+	if testing.Short() {
+		t.Skip("skipping tx sim in short mode.")
+	}
 	t.Helper()
-	genesis, keyring, err := testnode.DefaultGenesisState(testfactory.TestAccName)
-	require.NoError(t, err)
 
-	tmCfg := testnode.DefaultTendermintConfig()
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
-	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
+	// set the consensus params to allow for the max square size
+	cparams := testnode.DefaultParams()
+	cparams.Block.MaxBytes = int64(appconsts.DefaultSquareSizeUpperBound*appconsts.DefaultSquareSizeUpperBound) * appconsts.ContinuationSparseShareContentSize
 
-	node, app, cctx, err := testnode.New(
-		t,
-		testnode.DefaultParams(),
-		tmCfg,
-		true,
-		genesis,
-		keyring,
-		"testnet",
-	)
-	require.NoError(t, err)
+	cfg := testnode.DefaultConfig().
+		WithConsensusParams(cparams).
+		WithAccounts([]string{testfactory.TestAccName})
 
-	cctx, stopNode, err := testnode.StartNode(node, cctx)
-	require.NoError(t, err)
+	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
 
-	appConf := testnode.DefaultAppConfig()
-	appConf.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", testnode.GetFreePort())
-	appConf.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetFreePort())
-
-	_, cleanupGRPC, err := testnode.StartGRPCServer(app, appConf, cctx)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		t.Log("tearing down testnode")
-		require.NoError(t, stopNode())
-		require.NoError(t, cleanupGRPC())
-	})
-
-	return keyring, tmCfg.RPC.ListenAddress, appConf.GRPC.Address
+	return cctx.Keyring, rpcAddr, grpcAddr
 }

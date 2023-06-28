@@ -5,6 +5,8 @@ import (
 	"fmt"
 	math "math"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	shares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -80,6 +82,8 @@ func ValidateBlobTx(txcfg client.TxEncodingConfig, bTx tmproto.BlobTx) error {
 			return err
 		}
 
+		// this not only checks that the pfb namespaces match the ones in the blobs
+		// but that the namespace version and namespace id are valid
 		blobNamespace, err := appns.New(uint8(bTx.Blobs[i].NamespaceVersion), bTx.Blobs[i].NamespaceId)
 		if err != nil {
 			return err
@@ -121,7 +125,7 @@ func BlobFromProto(p *tmproto.Blob) (core.Blob, error) {
 		return core.Blob{}, fmt.Errorf("invalid share version %d", p.ShareVersion)
 	}
 
-	if p.NamespaceVersion > math.MaxUint8 {
+	if p.NamespaceVersion > appconsts.NamespaceVersionMaxValue {
 		return core.Blob{}, fmt.Errorf("invalid namespace version %d", p.NamespaceVersion)
 	}
 
