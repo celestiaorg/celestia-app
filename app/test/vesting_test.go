@@ -142,7 +142,6 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccounts() {
 				qAcc.GetOriginalVesting().AmountOf(app.BondDenom).Int64(),
 				"original vesting must match")
 
-			/*--------*/
 
 			// Test the locking mechanism
 			// If the end time is already passed, the funds must be unlocked
