@@ -358,7 +358,7 @@ func (s *VestingModuleTestSuite) TestGenesisContinuesVestingAccounts() {
 			minExpectedSpendableBal.AmountOf(app.BondDenom).Int64(),
 		)
 
-		_, err = cctx.WaitForTimestamp(startTime.Add(5)) // Wait for a while
+		_, err = cctx.WaitForTimestamp(startTime.Add(5))
 		assert.NoError(s.T(), err)
 	}
 	/*--------*/
