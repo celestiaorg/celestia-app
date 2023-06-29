@@ -1246,7 +1246,7 @@ else if account.status == AccountStatus.ValidatorBonded
 stateless commitments to data rather than stateful transitions. This means that
 the protocol relies heavily on block validity rules. Notably, resource
 constrained light clients must be able to detect when these validity rules have
-not been followed in order to avoid making an honest majority assumption. This
+not been followed in order to avoid making an honest majority assumption on the consensus network. This
 has a significant impact on thier design. More information on how light clients verify
 block validity rules can be foud in the <a href="specs/./fraud_proofs.html">Fraud Proofs</a> spec.</p>
 <blockquote>
@@ -1318,7 +1318,7 @@ comparing the data root found in the header.</p>
 <h2 id="blob-inclusion"><a class="header" href="#blob-inclusion">Blob Inclusion</a></h2>
 <p>TODO</p>
 <h2 id="state-1"><a class="header" href="#state-1">State</a></h2>
-<p>State fraud proofs allow light clients to avoid making an honest majority for
+<p>State fraud proofs allow light clients to avoid making an honest majority assumption for
 state validity. While these are not incorporated into the protocol as of v1.0.0,
 there are example implementations that can be found in
 <a href="https://github.com/rollkit/rollkit">Rollkit</a>. More info in
