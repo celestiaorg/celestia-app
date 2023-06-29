@@ -4,7 +4,7 @@ Unlike most blockchains, Celestia derives most of its functionality from
 stateless commitments to data rather than stateful transitions. This means that
 the protocol relies heavily on block validity rules. Notably, resource
 constrained light clients must be able to detect when these validity rules have
-not been followed in order to avoid making an honest majority assumption. This
+not been followed in order to avoid making an honest majority assumption on the consensus network. This
 has a significant impact on thier design. More information on how light clients verify
 block validity rules can be foud in the [Fraud Proofs](./fraud_proofs.md) spec.
 

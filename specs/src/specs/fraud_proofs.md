@@ -18,7 +18,7 @@ TODO
 
 ## State
 
-State fraud proofs allow light clients to avoid making an honest majority for
+State fraud proofs allow light clients to avoid making an honest majority assumption for
 state validity. While these are not incorporated into the protocol as of v1.0.0,
 there are example implementations that can be found in
 [Rollkit](https://github.com/rollkit/rollkit). More info in
