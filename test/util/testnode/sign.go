@@ -22,8 +22,6 @@ func SignAndBroadcastTx(encCfg encoding.Config, c client.Context, account string
 	}
 	return SignAndBroadcastTxWithBuilderOption(opts, encCfg, c, account, msg...)
 }
-	return SignAndBroadcastTxWithBuilderOption(opts, encCfg, c, account, msg...)
-}
 
 // SignAndBroadcastTxWithBuilderOption signs a transaction using the provided
 // account and keyring. It accepts customized Tx builder options inside the
