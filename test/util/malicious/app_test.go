@@ -69,11 +69,8 @@ func TestOutOfOrderNMT(t *testing.T) {
 // node. This will begin to produce out of order blocks after block height of 5.
 func TestMaliciousTestNode(t *testing.T) {
 	accounts := testfactory.RandomAccountNames(5)
-	cfg := testnode.DefaultConfig().
-		WithAppCreator(NewAppServer).
+	cfg := OutOfOrderNamespaceConfig(5).
 		WithAccounts(accounts)
-
-	cfg.AppOptions.Set(BehaviorConfigKey, BehaviorConfig{StartHeight: 5, HandlerName: OutOfOrderHanlderKey})
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	_, err := cctx.WaitForHeight(6)

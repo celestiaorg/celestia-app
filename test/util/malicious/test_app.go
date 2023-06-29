@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/test/util"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -22,6 +23,28 @@ import (
 	dbm "github.com/tendermint/tm-db"
 )
 
+// OutOfOrderNamesapceConfig returns a testnode config that will start producing
+// blocks with out of order namespaces at the provided height.
+//
+// Note: per the OutOfOrder go docs, the first two blobs with different
+// namespaces will be swapped, resulting in an invalid block.
+func OutOfOrderNamespaceConfig(startHeight int64) *testnode.Config {
+	bcfg := BehaviorConfig{StartHeight: startHeight, HandlerName: OutOfOrderHanlderKey}
+	return TestNodeConfig(bcfg)
+}
+
+// TestNodeConfig returns a testnode config with the malicous application and
+// provided behavior set in the app options.
+func TestNodeConfig(behavior BehaviorConfig) *testnode.Config {
+	cfg := testnode.DefaultConfig().
+		WithAppCreator(NewAppServer)
+
+	cfg.AppOptions.Set(BehaviorConfigKey, behavior)
+	return cfg
+}
+
+// NewTestApp creates a new malicious application with the provided consensus
+// params.
 func NewTestApp(cparams *tmproto.ConsensusParams, mcfg BehaviorConfig, genAccounts ...string) *App {
 	app, _ := util.SetupTestAppWithGenesisValSet(cparams, genAccounts...)
 	badapp := &App{App: app}
@@ -29,6 +52,7 @@ func NewTestApp(cparams *tmproto.ConsensusParams, mcfg BehaviorConfig, genAccoun
 	return badapp
 }
 
+// NewAppServer creates a new AppServer using the malicious application.
 func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOpts servertypes.AppOptions) servertypes.Application {
 	var cache sdk.MultiStorePersistentCache
 
