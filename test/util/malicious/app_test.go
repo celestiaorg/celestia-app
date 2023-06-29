@@ -1,7 +1,6 @@
 package malicious
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -96,8 +95,6 @@ func TestMaliciousTestNode(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, txres.Code)
 
-	fmt.Println("submitted tx ---------------")
-
 	// fetch the block that included in the tx
 	inclusionHeight := txres.Height
 	block, err := cctx.Client.Block(cctx.GoContext(), &inclusionHeight)
@@ -113,7 +110,7 @@ func TestMaliciousTestNode(t *testing.T) {
 	require.NoError(t, err)
 
 	dah := da.NewDataAvailabilityHeader(eds)
-	require.Equal(t, block.Block.DataHash, dah.Hash())
+	require.Equal(t, block.Block.DataHash.Bytes(), dah.Hash())
 
 	correctSquare, err := square.Construct(block.Block.Txs.ToSliceOfBytes(), appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 	require.NoError(t, err)
@@ -122,5 +119,5 @@ func TestMaliciousTestNode(t *testing.T) {
 	require.NoError(t, err)
 
 	goodDah := da.NewDataAvailabilityHeader(goodEds)
-	require.NotEqual(t, block.Block.DataHash, goodDah.Hash())
+	require.NotEqual(t, block.Block.DataHash.Bytes(), goodDah.Hash())
 }
