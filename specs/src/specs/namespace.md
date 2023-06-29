@@ -34,6 +34,8 @@ A namespace with version `0` must contain an id with a prefix of 18 leading `0` 
 0x1111111111111111111111111111111111111111111111111111111111 // invalid because it does not have version 0
 ```
 
+A new namespace version MUST be introduced if the namespace format changes in a backwards incompatible way (i.e. the number of leading `0` bytes in the id prefix is reduced).
+
 ### ID
 
 The namespace ID is a 28 byte identifier that uniquely identifies a namespace. The ID is encoded as a byte slice of length 28.
