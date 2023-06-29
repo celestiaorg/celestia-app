@@ -79,7 +79,7 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 		// iterate through each blob and find the first two that have different
 		// namespaces and swap them.
 		for i := 0; i < len(b.Blobs)-1; i++ {
-			if bytes.Equal(square.FullNamespace(b.Blobs[i].Blob), square.FullNamespace(b.Blobs[i+1].Blob)) {
+			if !bytes.Equal(square.FullNamespace(b.Blobs[i].Blob), square.FullNamespace(b.Blobs[i+1].Blob)) {
 				b.Blobs[i], b.Blobs[i+1] = b.Blobs[i+1], b.Blobs[i]
 				break
 			}
