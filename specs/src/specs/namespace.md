@@ -4,27 +4,41 @@
 
 ## Abstract
 
-One of Celestia's core data structures is the namespace. When a user submits a blob to Celestia they MUST associate their blob with exactly one namespace. The namespace enables users to take an interest in a subset of all blobs published to Celestia by allowing user's to query for blobs by namespace.
+One of Celestia's core data structures is the namespace. When a user submits a `MsgPayForBlobs` transaction to Celestia they MUST associate each blob with exactly one namespace. After their transaction has been included in a block, the namespace enables users to take an interest in a subset of the blobs published to Celestia by allowing the user to query for blobs by namespace.
 
 In order to enable efficient retrieval of blobs by namespace, Celestia makes use of a [Namespaced Merkle Tree](https://github.com/celestiaorg/nmt). See section 5.2 of the [LazyLedger whitepaper](https://arxiv.org/pdf/1905.09274.pdf) for more details.
 
-## Terms
+## Overview
+
+A namespace is composed of two fields: [version](#version) and [id](#id). A namespace is encoded as a byte slice with the version and id concatenated. Each [share](./shares.md) is prefixed with exactly one namespace.
+
+![namespace](./figures/namespace.svg)
 
 ### Version
 
-The namespace version is an 8-bit unsigned integer that indicates the version of the namespace. The version is used to determine the format of the namespace id. The only supported user-specifiable namespace version is `0`. The version is encoded as a single byte.
+The namespace version is an 8-bit unsigned integer that indicates the version of the namespace. The version is used to determine the format of the namespace. The only supported user-specifiable namespace version is `0`. The version is encoded as a single byte.
 
 Note: The `PARITY_SHARE_NAMESPACE` uses the namespace version `255` so that it can be ignored via the `IgnoreMaxNamespace` feature from [nmt](https://github.com/celestiaorg/nmt). The `TAIL_PADDING_NAMESPACE` uses the namespace version `255` so that it remains ordered after all blob namespaces even in the case a new namespace version is introduced.
+
+A namespace with version `0` must contain an id with a prefix of 18 leading `0` bytes. The remaining 10 bytes of the id are user-specified.
+
+```go
+// Valid encoded namespaces
+0x0000000000000000000000000000000000000000000000000000000001 // transaction namespace
+0x0000000000000000000000000000000000000001010101010101010101 // valid blob namespace
+0x0000000000000000000000000000000000000011111111111111111111 // valid blob namespace
+
+// Invalid encoded namespaces
+0x0000000000000000000000000111111111111111111111111111111111 // invalid because it does not have 18 leading 0 bytes
+0x1000000000000000000000000000000000000000000000000000000000 // invalid because it does not have version 0
+0x1111111111111111111111111111111111111111111111111111111111 // invalid because it does not have version 0
+```
 
 ### ID
 
 The namespace ID is a 28 byte identifier that uniquely identifies a namespace. The ID is encoded as a byte slice of length 28.
 
-## Overview
-
-A namespace is composed of two fields: [version](#version) and [id](#id). The namespace is encoded as a byte slice of length 29. Each [share](./shares.md) is prefixed with the encoded namespace.
-
-### Reserved Namespaces
+## Reserved Namespaces
 
 | name                                | type        | value                                                          | description                                                                                          |
 |-------------------------------------|-------------|----------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
