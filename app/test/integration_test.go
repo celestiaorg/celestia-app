@@ -3,6 +3,9 @@ package app_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
@@ -192,7 +195,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				require.Equal(t, appconsts.LatestVersion, blockRes.Block.Header.Version.App)
 
 				sizes = append(sizes, size)
-				s.ExtendBlobTest(t, blockRes.Block)
+				ExtendBlobTest(t, blockRes.Block)
 			}
 			// ensure that at least one of the blocks used the max square size
 			assert.Contains(t, sizes, uint64(appconsts.DefaultGovMaxSquareSize))
@@ -349,11 +352,16 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 
 // ExtendBlobTest re-extends the block and compares the data roots to ensure
 // that the public functions for extending the block are working correctly.
-func (s *IntegrationTestSuite) ExtendBlobTest(t *testing.T, block *coretypes.Block) {
+func ExtendBlobTest(t *testing.T, block *coretypes.Block) {
 	eds, err := app.ExtendBlock(block.Data, block.Header.Version.App)
 	require.NoError(t, err)
 	dah := da.NewDataAvailabilityHeader(eds)
-	require.Equal(t, dah.Hash(), block.DataHash.Bytes())
+	if !assert.Equal(t, dah.Hash(), block.DataHash.Bytes()) {
+		// save block to json file for further debugging if this occurs
+		b, err := json.MarshalIndent(block, "", "  ")
+		require.NoError(t, err)
+		require.NoError(t, ioutil.WriteFile(fmt.Sprintf("bad_block_%s.json", tmrand.Str(6)), b, 0644))
+	}
 }
 
 func (s *IntegrationTestSuite) TestEmptyBlock() {
@@ -363,7 +371,7 @@ func (s *IntegrationTestSuite) TestEmptyBlock() {
 		blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), &h)
 		require.NoError(t, err)
 		require.True(t, app.EmptyBlock(blockRes.Block.Data, blockRes.Block.Header.Version.App))
-		s.ExtendBlobTest(t, blockRes.Block)
+		ExtendBlobTest(t, blockRes.Block)
 	}
 
 }

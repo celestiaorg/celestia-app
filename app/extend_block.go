@@ -1,7 +1,6 @@
 package app
 
 import (
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
@@ -13,7 +12,7 @@ import (
 // version.
 func ExtendBlock(data coretypes.Data, appVersion uint64) (*rsmt2d.ExtendedDataSquare, error) {
 	// Construct the data square from the block's transactions
-	dataSquare, err := square.Construct(data.Txs.ToSliceOfBytes(), appVersion, appconsts.SquareSizeUpperBound(appVersion))
+	dataSquare, err := square.Construct(data.Txs.ToSliceOfBytes(), appVersion, 64)
 	if err != nil {
 		return nil, err
 	}
