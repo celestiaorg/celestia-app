@@ -363,6 +363,7 @@ func (s *IntegrationTestSuite) TestEmptyBlock() {
 		blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), &h)
 		require.NoError(t, err)
 		require.True(t, app.EmptyBlock(blockRes.Block.Data, blockRes.Block.Header.Version.App))
+		s.ExtendBlobTest(t, blockRes.Block)
 	}
 
 }
