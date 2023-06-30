@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
@@ -360,7 +360,7 @@ func ExtendBlobTest(t *testing.T, block *coretypes.Block) {
 		// save block to json file for further debugging if this occurs
 		b, err := json.MarshalIndent(block, "", "  ")
 		require.NoError(t, err)
-		require.NoError(t, ioutil.WriteFile(fmt.Sprintf("bad_block_%s.json", tmrand.Str(6)), b, 0644))
+		require.NoError(t, os.WriteFile(fmt.Sprintf("bad_block_%s.json", tmrand.Str(6)), b, 0o644))
 	}
 }
 
@@ -373,5 +373,4 @@ func (s *IntegrationTestSuite) TestEmptyBlock() {
 		require.True(t, app.EmptyBlock(blockRes.Block.Data, blockRes.Block.Header.Version.App))
 		ExtendBlobTest(t, blockRes.Block)
 	}
-
 }
