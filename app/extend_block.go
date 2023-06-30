@@ -12,7 +12,7 @@ import (
 // version.
 func ExtendBlock(data coretypes.Data, appVersion uint64) (*rsmt2d.ExtendedDataSquare, error) {
 	// Construct the data square from the block's transactions
-	dataSquare, err := square.Construct(data.Txs.ToSliceOfBytes(), appVersion, 64)
+	dataSquare, err := square.Construct(data.Txs.ToSliceOfBytes(), appVersion)
 	if err != nil {
 		return nil, err
 	}

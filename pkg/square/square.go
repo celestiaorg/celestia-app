@@ -48,7 +48,8 @@ func Build(txs [][]byte, appVersion uint64, maxSquareSize int) (Square, [][]byte
 //
 // Note that this function does not check the underlying validity of
 // the transactions.
-func Construct(txs [][]byte, appVersion uint64, maxSquareSize int) (Square, error) {
+func Construct(txs [][]byte, appVersion uint64) (Square, error) {
+	maxSquareSize := appconsts.SquareSizeUpperBound(appVersion)
 	builder, err := NewBuilder(maxSquareSize, appVersion, txs...)
 	if err != nil {
 		return nil, err

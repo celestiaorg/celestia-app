@@ -17,7 +17,7 @@ func BenchmarkSquareConstruct(b *testing.B) {
 			txs := generateOrderedTxs(tmrand.NewRand(), txCount/2, txCount/2, 1, 1024)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
+				_, err := square.Construct(txs, appconsts.LatestVersion)
 				require.NoError(b, err)
 			}
 		})
