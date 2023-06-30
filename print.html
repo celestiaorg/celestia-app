@@ -313,7 +313,10 @@
 <li>Serialization must include the length of dynamic structures (e.g. arrays with variable length).</li>
 </ol>
 <h2 id="hashing"><a class="header" href="#hashing">Hashing</a></h2>
+<!-- disable markdown link check for doi.org because it frequently fails -->
+<!-- markdown-link-check-disable -->
 <p>All protocol-level hashing is done using SHA-2-256 as defined in <a href="https://doi.org/10.6028/NIST.FIPS.180-4">FIPS 180-4</a>. SHA-2-256 outputs a digest that is 256 bits (i.e. 32 bytes) long.</p>
+<!-- markdown-link-check-enable -->
 <p>Libraries implementing SHA-2-256 are available in Go (<a href="https://pkg.go.dev/crypto/sha256">https://pkg.go.dev/crypto/sha256</a>) and Rust (<a href="https://docs.rs/sha2">https://docs.rs/sha2</a>).</p>
 <p>Unless otherwise indicated explicitly, objects are first <a href="specs/data_structures.html#serialization">serialized</a> before being hashed.</p>
 <h2 id="merkle-trees"><a class="header" href="#merkle-trees">Merkle Trees</a></h2>
