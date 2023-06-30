@@ -409,7 +409,7 @@ func (e element) maxShareOffset() int {
 	return e.numShares + e.maxPadding
 }
 
-// worstCaseShareIndexes returns the largest possible shared indexes for a set
+// worstCaseShareIndexes returns the largest possible share indexes for a set
 // of blobs at a given appversion. Largest possible is "worst" in that protobuf
 // uses varints to encode integers, so larger integers can require more bytes to
 // encode.
