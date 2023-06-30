@@ -179,7 +179,10 @@ Note: there are two requirements for a serialization scheme, should this need to
 
 ## Hashing
 
+<!-- disable markdown link check for doi.org because it frequently fails -->
+<!-- markdown-link-check-disable -->
 All protocol-level hashing is done using SHA-2-256 as defined in [FIPS 180-4](https://doi.org/10.6028/NIST.FIPS.180-4). SHA-2-256 outputs a digest that is 256 bits (i.e. 32 bytes) long.
+<!-- markdown-link-check-enable -->
 
 Libraries implementing SHA-2-256 are available in Go (<https://pkg.go.dev/crypto/sha256>) and Rust (<https://docs.rs/sha2>).
 
