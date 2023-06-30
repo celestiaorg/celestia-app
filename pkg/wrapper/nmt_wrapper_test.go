@@ -9,11 +9,11 @@ import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/nmt"
 	nmtnamespace "github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
@@ -48,7 +48,7 @@ func TestPushErasuredNamespacedMerkleTree(t *testing.T) {
 // to the second half of the tree.
 func TestRootErasuredNamespacedMerkleTree(t *testing.T) {
 	size := 8
-	data := generateRandNamespacedRawData(size)
+	data := testfactory.GenerateRandNamespacedRawData(size)
 	nmtErasured := NewErasuredNamespacedMerkleTree(uint64(size), 0)
 	nmtStandard := nmt.New(sha256.New(), nmt.NamespaceIDSize(namespace.NamespaceSize), nmt.IgnoreMaxNamespace(true))
 
@@ -130,7 +130,7 @@ func TestErasureNamespacedMerkleTreePushErrors(t *testing.T) {
 func TestComputeExtendedDataSquare(t *testing.T) {
 	squareSize := 4
 	// data for a 4X4 square
-	data := generateRandNamespacedRawData(squareSize * squareSize)
+	data := testfactory.GenerateRandNamespacedRawData(squareSize * squareSize)
 
 	_, err := rsmt2d.ComputeExtendedDataSquare(data, appconsts.DefaultCodec(), NewConstructor(uint64(squareSize)))
 	assert.NoError(t, err)
@@ -140,31 +140,12 @@ func TestComputeExtendedDataSquare(t *testing.T) {
 // returns a slice that is twice as long as numLeaves because it returns the
 // original data + erasured data.
 func generateErasuredData(t *testing.T, numLeaves int, codec rsmt2d.Codec) [][]byte {
-	raw := generateRandNamespacedRawData(numLeaves)
+	raw := testfactory.GenerateRandNamespacedRawData(numLeaves)
 	erasuredData, err := codec.Encode(raw)
 	if err != nil {
 		t.Error(err)
 	}
 	return append(raw, erasuredData...)
-}
-
-// generateRandNamespacedRawData returns random data of length count. Each chunk
-// of random data is of size shareSize and is prefixed with a random blob
-// namespace.
-func generateRandNamespacedRawData(count int) (result [][]byte) {
-	for i := 0; i < count; i++ {
-		rawData := tmrand.Bytes(appconsts.ShareSize)
-		namespace := appns.RandomBlobNamespace().Bytes()
-		copy(rawData, namespace)
-		result = append(result, rawData)
-	}
-
-	sortByteArrays(result)
-	return result
-}
-
-func sortByteArrays(src [][]byte) {
-	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
 }
 
 // TestErasuredNamespacedMerkleTree_ProveRange checks that the proof returned by the ProveRange for all the shares within the erasured data is non-empty.
