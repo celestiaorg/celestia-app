@@ -161,7 +161,7 @@
 <li>The next <a href="./consensus.html#constants"><code>NAMESPACE_ID_SIZE</code></a> bytes of a share's raw data is the namespace ID of that share (denoted by &quot;namespace id&quot; in the figure below).</li>
 <li>The next <a href="./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information (denoted by &quot;info byte&quot; in the figure below) with the following structure:
 <ul>
-<li>The first 7 bits represent the share version in big endian form (initially, this will be <code>0000000</code> for version <code>0</code>);</li>
+<li>The first 7 bits represent the <a href="#share-version">share version</a> in big endian form (initially, this will be <code>0000000</code> for version <code>0</code>);</li>
 <li>The last bit is a sequence start indicator. The indicator is <code>1</code> if this share is the first share in a sequence or <code>0</code> if this share is a continuation share in a sequence.</li>
 </ul>
 </li>
@@ -174,6 +174,8 @@
 <p>Continuation share in a sequence:</p>
 <p><img src="./figures/share_continuation.svg" alt="figure 2: share continuation" /></p>
 <p>Since raw data that exceeds <a href="./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> <code>-</code> <a href="./consensus.html#constants"><code>SEQUENCE_BYTES</code></a> bytes will span more than one share, developers MAY choose to encode additional metadata in their raw blob data prior to inclusion in a Celestia block. For example, Celestia transaction shares encode additional metadata in the form of &quot;reserved bytes&quot;.</p>
+<h3 id="share-version"><a class="header" href="#share-version">Share Version</a></h3>
+<p>The share version is a 7-bit big-endian unsigned integer that is used to indicate the version of the <a href="#share-format">share format</a>. The only supported share version is <code>0</code>. A new share version MUST be introduced if the share format changes in a way that is not backwards compatible.</p>
 <h2 id="transaction-shares"><a class="header" href="#transaction-shares">Transaction Shares</a></h2>
 <p>In order for clients to parse shares in the middle of a sequence without downloading antecedent shares, Celestia encodes additional metadata in the shares associated with reserved namespaces. At the time of writing this only applies to the <a href="./consensus.html#reserved-namespaces"><code>TRANSACTION_NAMESPACE</code></a> and <a href="./consensus.html#reserved-namespaces"><code>PAY_FOR_BLOB_NAMESPACE</code></a>. This share structure is often referred to as &quot;compact shares&quot; to differentiate from the share structure defined above for all shares. It conforms to the common <a href="#share-format">share format</a> with one additional field, the &quot;reserved bytes&quot; field, which is described below:</p>
 <ul>
@@ -194,7 +196,7 @@
 <li>The next <a href="./consensus.html#constants"><code>NAMESPACE_ID_SIZE</code></a> bytes of a share's raw data is the namespace ID of that share. This varies based on the type of padding share.</li>
 <li>The next <a href="./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a> bytes are for share information.
 <ul>
-<li>The first 7 bits represent the share version in big endian form (initially, this will be <code>0000000</code> for version <code>0</code>);</li>
+<li>The first 7 bits represent the <a href="#share-version">share version</a> in big endian form (initially, this will be <code>0000000</code> for version <code>0</code>);</li>
 <li>The last bit is a sequence start indicator. The indicator is always <code>1</code>.</li>
 </ul>
 </li>
@@ -213,8 +215,8 @@ A namespace padding share acts as padding between blobs so that the subsequent b
 <h2 id="share-splitting"><a class="header" href="#share-splitting">Share Splitting</a></h2>
 <p>Share splitting is the process of converting a blob into a share sequence. The process is as follows:</p>
 <ol>
-<li>Create a new share and populate the prefix of the share with the blob's namespace and share version. Set the sequence start indicator to <code>1</code>. Write the blob length as the sequence length. Write the blob's data into the share until the share is full.</li>
-<li>If there is more data to write, create a new share (a.k.a continuation share) and populate the prefix of the share with the blob's namespace and share version. Set the sequence start indicator to <code>0</code>. Write the remaining blob data into the share until the share is full.</li>
+<li>Create a new share and populate the prefix of the share with the blob's namespace and <a href="#share-version">share version</a>. Set the sequence start indicator to <code>1</code>. Write the blob length as the sequence length. Write the blob's data into the share until the share is full.</li>
+<li>If there is more data to write, create a new share (a.k.a continuation share) and populate the prefix of the share with the blob's namespace and <a href="#share-version">share version</a>. Set the sequence start indicator to <code>0</code>. Write the remaining blob data into the share until the share is full.</li>
 <li>Repeat the previous step until all blob data has been written.</li>
 <li>If the last share is not full, fill the remainder of the share with <code>0</code>.</li>
 </ol>
