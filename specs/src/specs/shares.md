@@ -28,7 +28,7 @@ Every share has a fixed size [`SHARE_SIZE`](./consensus.md#constants). The share
 - The first [`NAMESPACE_VERSION_SIZE`](./consensus.md#constants) bytes of a share's raw data is the namespace version of that share (denoted by "namespace version" in the figure below).
 - The next [`NAMESPACE_ID_SIZE`](./consensus.md#constants) bytes of a share's raw data is the namespace ID of that share (denoted by "namespace id" in the figure below).
 - The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information (denoted by "info byte" in the figure below) with the following structure:
-  - The first 7 bits represent the share version in big endian form (initially, this will be `0000000` for version `0`);
+  - The first 7 bits represent the [share version](#share-version) in big endian form (initially, this will be `0000000` for version `0`);
   - The last bit is a sequence start indicator. The indicator is `1` if this share is the first share in a sequence or `0` if this share is a continuation share in a sequence.
 - If this share is the first share in a sequence, it will include the length of the sequence in bytes. The next [`SEQUENCE_BYTES`](./consensus.md#constants) represent a big-endian uint32 value (denoted by "sequence length" in the figure below). This length is placed immediately after the `SHARE_INFO_BYTES` field. It's important to note that shares that are not the first share in a sequence do not contain this field.
 - The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants)`-`[`SEQUENCE_BYTES`](./consensus.md#constants) bytes (if first share) or [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) bytes (if continuation share) are raw data (denoted by "blob1" in the figure below). Typically raw data is the blob payload that user's submit in a [BlobTx](../../../x/blob/README.md). However, raw data can also be transaction data (see [transaction shares](#transaction-shares) below).
@@ -43,6 +43,10 @@ Continuation share in a sequence:
 ![figure 2: share continuation](./figures/share_continuation.svg)
 
 Since raw data that exceeds [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants) `-` [`SEQUENCE_BYTES`](./consensus.md#constants) bytes will span more than one share, developers MAY choose to encode additional metadata in their raw blob data prior to inclusion in a Celestia block. For example, Celestia transaction shares encode additional metadata in the form of "reserved bytes".
+
+### Share Version
+
+The share version is a 7-bit big-endian unsigned integer that is used to indicate the version of the [share format](#share-format). The only supported share version is `0`. A new share version MUST be introduced if the share format changes in a way that is not backwards compatible.
 
 ## Transaction Shares
 
@@ -71,7 +75,7 @@ Padding shares vary based on namespace but they conform to the [share format](#s
 - The first [`NAMESPACE_VERSION_SIZE`](./consensus.md#constants) bytes of a share's raw data is the namespace version of that share (initially, this will be `0`).
 - The next [`NAMESPACE_ID_SIZE`](./consensus.md#constants) bytes of a share's raw data is the namespace ID of that share. This varies based on the type of padding share.
 - The next [`SHARE_INFO_BYTES`](./consensus.md#constants) bytes are for share information.
-  - The first 7 bits represent the share version in big endian form (initially, this will be `0000000` for version `0`);
+  - The first 7 bits represent the [share version](#share-version) in big endian form (initially, this will be `0000000` for version `0`);
   - The last bit is a sequence start indicator. The indicator is always `1`.
 - The next [`SEQUENCE_BYTES`](./consensus.md#constants) contain a big endian `uint32` of value `0`.
 - The remaining [`SHARE_SIZE`](./consensus.md#constants)`-`[`NAMESPACE_SIZE`](./consensus.md#constants)`-`[`SHARE_INFO_BYTES`](./consensus.md#constants)`-`[`SEQUENCE_BYTES`](./consensus.md#constants) bytes are filled with `0`.
@@ -97,8 +101,8 @@ Parity shares use the [`PARITY_SHARE_NAMESPACE`](./consensus.md#constants). Pari
 
 Share splitting is the process of converting a blob into a share sequence. The process is as follows:
 
-1. Create a new share and populate the prefix of the share with the blob's namespace and share version. Set the sequence start indicator to `1`. Write the blob length as the sequence length. Write the blob's data into the share until the share is full.
-1. If there is more data to write, create a new share (a.k.a continuation share) and populate the prefix of the share with the blob's namespace and share version. Set the sequence start indicator to `0`. Write the remaining blob data into the share until the share is full.
+1. Create a new share and populate the prefix of the share with the blob's namespace and [share version](#share-version). Set the sequence start indicator to `1`. Write the blob length as the sequence length. Write the blob's data into the share until the share is full.
+1. If there is more data to write, create a new share (a.k.a continuation share) and populate the prefix of the share with the blob's namespace and [share version](#share-version). Set the sequence start indicator to `0`. Write the remaining blob data into the share until the share is full.
 1. Repeat the previous step until all blob data has been written.
 1. If the last share is not full, fill the remainder of the share with `0`.
 
