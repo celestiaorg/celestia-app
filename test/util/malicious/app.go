@@ -21,7 +21,7 @@ const (
 	OutOfOrderHanlderKey = "out_of_order"
 )
 
-// BehaviorConfig is defines the malicious behavior for the application. It
+// BehaviorConfig defines the malicious behavior for the application. It
 // dictates the height at which the malicious behavior will start along with
 // what type of malicious behavior will be performed.
 type BehaviorConfig struct {

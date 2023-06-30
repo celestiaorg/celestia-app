@@ -229,10 +229,8 @@ func (n *NmtHasher) ValidateNodeFormat(node []byte) (err error) {
 	return nil
 }
 
-// validateSiblingsNamespaceOrder checks whether left and right as two sibling
-// nodes in an NMT have correct namespace IDs relative to each other, more
-// specifically, the maximum namespace ID of the left sibling should not exceed
-// the minimum namespace ID of the right sibling. It returns ErrUnorderedSiblings error if the check fails.
+// validateSiblingsNamespaceOrder is intentionally faulty in that it does not
+// check that two siblings are ordered with respect to their namespaces.
 func (n *NmtHasher) validateSiblingsNamespaceOrder(left, right []byte) (err error) {
 	if err := n.ValidateNodeFormat(left); err != nil {
 		return fmt.Errorf("%w: left node does not match the namesapce hash format", err)

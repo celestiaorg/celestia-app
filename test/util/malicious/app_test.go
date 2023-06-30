@@ -65,7 +65,7 @@ func TestOutOfOrderNMT(t *testing.T) {
 	require.NotEqual(t, goodOrderedRoot, root) // quick sanity check to ensure the roots are different
 }
 
-// TestmaliciousTestNode runs a single validator network using the malicious
+// TestMaliciousTestNode runs a single validator network using the malicious
 // node. This will begin to produce out of order blocks after block height of 5.
 func TestMaliciousTestNode(t *testing.T) {
 	accounts := testfactory.RandomAccountNames(5)
