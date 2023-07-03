@@ -29,14 +29,16 @@ func TestSquareConstruction(t *testing.T) {
 	rand := tmrand.NewRand()
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	sendTxs := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, 250)
-	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), rand, 50, 1, 1_000_000) // 50MB (metric MB) of data
+	pfbTxs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), rand, 10000, 1, 1024)
 	t.Run("normal transactions after PFB trasactions", func(t *testing.T) {
 		txs := append(sendTxs[:5], append(pfbTxs, sendTxs[5:]...)...)
-		_, err := square.Construct(coretypes.Txs(txs).ToSliceOfBytes(), appconsts.LatestVersion)
+		_, err := square.Construct(coretypes.Txs(txs).ToSliceOfBytes(), appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.Error(t, err)
 	})
 	t.Run("not enough space to append transactions", func(t *testing.T) {
-		_, err := square.Construct(coretypes.Txs(pfbTxs).ToSliceOfBytes(), appconsts.LatestVersion)
+		_, err := square.Construct(coretypes.Txs(sendTxs).ToSliceOfBytes(), appconsts.LatestVersion, 2)
+		require.Error(t, err)
+		_, err = square.Construct(coretypes.Txs(pfbTxs).ToSliceOfBytes(), appconsts.LatestVersion, 2)
 		require.Error(t, err)
 	})
 }
@@ -178,7 +180,7 @@ func TestSquareDeconstruct(t *testing.T) {
 		for _, numTxs := range []int{2, 128, 1024, 8192} {
 			t.Run(fmt.Sprintf("%d", numTxs), func(t *testing.T) {
 				txs := generateOrderedTxs(rand, numTxs/2, numTxs/2, 1, 800)
-				dataSquare, err := square.Construct(txs, appconsts.LatestVersion)
+				dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 				require.NoError(t, err)
 				recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
 				require.NoError(t, err)
@@ -189,7 +191,7 @@ func TestSquareDeconstruct(t *testing.T) {
 	t.Run("NoPFBs", func(t *testing.T) {
 		const numTxs = 10
 		txs := types.Txs(blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, numTxs)).ToSliceOfBytes()
-		dataSquare, err := square.Construct(txs, appconsts.LatestVersion)
+		dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
 		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
 		require.NoError(t, err)
@@ -197,7 +199,7 @@ func TestSquareDeconstruct(t *testing.T) {
 	})
 	t.Run("PFBsOnly", func(t *testing.T) {
 		txs := blobfactory.RandBlobTxs(encCfg.TxConfig.TxEncoder(), rand, 100, 1, 1024).ToSliceOfBytes()
-		dataSquare, err := square.Construct(txs, appconsts.LatestVersion)
+		dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
 		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
 		require.NoError(t, err)

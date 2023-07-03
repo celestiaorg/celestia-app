@@ -43,7 +43,7 @@ func FuzzSquare(f *testing.F) {
 
 		s, orderedTxs, err := square.Build(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
-		s2, err := square.Construct(orderedTxs, appconsts.LatestVersion)
+		s2, err := square.Construct(orderedTxs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
 		require.True(t, s.Equals(s2))
 		// check that orderedTxs is a subset of all txs

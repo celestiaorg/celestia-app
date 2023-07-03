@@ -277,7 +277,7 @@ func TestProcessProposal(t *testing.T) {
 				Txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
 			},
 			mutator: func(d *core.Data) {
-				dataSquare, err := square.Construct(d.Txs, appconsts.LatestVersion)
+				dataSquare, err := square.Construct(d.Txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 				require.NoError(t, err)
 
 				b := shares.NewEmptyBuilder().ImportRawShare(dataSquare[1].ToBytes())
@@ -318,7 +318,7 @@ func TestProcessProposal(t *testing.T) {
 }
 
 func calculateNewDataHash(t *testing.T, txs [][]byte) []byte {
-	dataSquare, err := square.Construct(txs, appconsts.LatestVersion)
+	dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 	require.NoError(t, err)
 	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
 	require.NoError(t, err)
