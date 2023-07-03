@@ -9,7 +9,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/tendermint/tendermint/config"
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -136,8 +135,8 @@ func DefaultParams() *tmproto.ConsensusParams {
 	return cparams
 }
 
-func DefaultTendermintConfig() *config.Config {
-	tmCfg := config.DefaultConfig()
+func DefaultTendermintConfig() *tmconfig.Config {
+	tmCfg := tmconfig.DefaultConfig()
 	// Reduce the target height duration so that blocks are produced faster
 	// during tests.
 	tmCfg.Consensus.TargetHeightDuration = 300 * time.Millisecond

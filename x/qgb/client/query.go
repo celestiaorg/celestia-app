@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/x/qgb/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/std"
 	"github.com/spf13/cobra"
@@ -78,7 +77,7 @@ func CmdQueryAttestationByNonce() *cobra.Command {
 }
 
 // unmarshallAttestation unmarshal a wrapper protobuf `Any` type to an `AttestationRequestI`.
-func unmarshallAttestation(attestation *cdctypes.Any) (types.AttestationRequestI, error) {
+func unmarshallAttestation(attestation *codectypes.Any) (types.AttestationRequestI, error) {
 	var unmarshalledAttestation types.AttestationRequestI
 	err := makeInterfaceRegistry().UnpackAny(attestation, &unmarshalledAttestation)
 	if err != nil {
