@@ -21,8 +21,6 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	"github.com/tendermint/tendermint/types"
-	core "github.com/tendermint/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -216,7 +214,7 @@ func TestBuilderFindTxShareRange(t *testing.T) {
 
 	var lastEnd int
 	for idx, tx := range blockTxs {
-		blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
+		blobTx, isBlobTx := coretypes.UnmarshalBlobTx(tx)
 		if isBlobTx {
 			tx = blobTx.Tx
 		}
@@ -409,7 +407,7 @@ func TestSquareBlobPostions(t *testing.T) {
 			builder, err := square.NewBuilder(tt.squareSize, appconsts.DefaultSubtreeRootThreshold)
 			require.NoError(t, err)
 			for _, tx := range tt.blobTxs {
-				blobTx, isBlobTx := core.UnmarshalBlobTx(tx)
+				blobTx, isBlobTx := coretypes.UnmarshalBlobTx(tx)
 				require.True(t, isBlobTx)
 				_ = builder.AppendBlobTx(blobTx)
 			}

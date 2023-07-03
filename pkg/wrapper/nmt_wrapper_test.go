@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/nmt"
@@ -50,7 +49,7 @@ func TestRootErasuredNamespacedMerkleTree(t *testing.T) {
 	size := 8
 	data := testfactory.GenerateRandNamespacedRawData(size)
 	nmtErasured := NewErasuredNamespacedMerkleTree(uint64(size), 0)
-	nmtStandard := nmt.New(sha256.New(), nmt.NamespaceIDSize(namespace.NamespaceSize), nmt.IgnoreMaxNamespace(true))
+	nmtStandard := nmt.New(sha256.New(), nmt.NamespaceIDSize(appns.NamespaceSize), nmt.IgnoreMaxNamespace(true))
 
 	for _, d := range data {
 		err := nmtErasured.Push(d)

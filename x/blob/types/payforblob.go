@@ -7,7 +7,6 @@ import (
 	"cosmossdk.io/errors"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt"
@@ -146,7 +145,7 @@ func ValidateBlobNamespace(ns appns.Namespace) error {
 		return ErrTailPaddingNamespace
 	}
 
-	if ns.Version != namespace.NamespaceVersionZero {
+	if ns.Version != appns.NamespaceVersionZero {
 		return ErrInvalidNamespaceVersion
 	}
 
