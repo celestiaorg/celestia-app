@@ -56,7 +56,7 @@ func (s *SendSequence) Init(_ context.Context, _ grpc.ClientConn, allocateAccoun
 // Next sumbits a transaction to remove funds from one account to the next
 func (s *SendSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Rand) (Operation, error) {
 	if s.index >= s.numIterations {
-		return Operation{}, EndOfSequence
+		return Operation{}, ErrEndOfSequence
 	}
 	op := Operation{
 		Msgs: []types.Msg{
