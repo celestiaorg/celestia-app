@@ -10,29 +10,29 @@ import (
 
 func TestBlobSharesUsedNonInteractiveDefaults(t *testing.T) {
 	type test struct {
-		cursor, squareSize, expected int
-		blobLens                     []int
-		indexes                      []uint32
+		cursor, expected int
+		blobLens         []int
+		indexes          []uint32
 	}
 	tests := []test{
-		{2, 4, 1, []int{1}, []uint32{2}},
-		{2, 2, 1, []int{1}, []uint32{2}},
-		{3, 4, 6, []int{3, 3}, []uint32{3, 6}},
-		{0, 8, 8, []int{8}, []uint32{0}},
-		{1, 8, 6, []int{3, 3}, []uint32{1, 4}},
-		{1, 8, 32, []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, []uint32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}},
-		{3, 8, 12, []int{5, 7}, []uint32{3, 8}},
-		{0, 8, 20, []int{5, 5, 5, 5}, []uint32{0, 5, 10, 15}},
-		{0, 8, 10, []int{10}, []uint32{0}},
-		{1, 8, 20, []int{10, 10}, []uint32{1, 11}},
-		{0, appconsts.DefaultSquareSizeUpperBound, 1000, []int{1000}, []uint32{0}},
-		{0, appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSquareSizeUpperBound + 1, []int{appconsts.DefaultSquareSizeUpperBound + 1}, []uint32{0}},
-		{1, 128, 385, []int{128, 128, 128}, []uint32{2, 130, 258}},
-		{1024, appconsts.DefaultSquareSizeUpperBound, 32, []int{32}, []uint32{1024}},
+		{2, 1, []int{1}, []uint32{2}},
+		{2, 1, []int{1}, []uint32{2}},
+		{3, 6, []int{3, 3}, []uint32{3, 6}},
+		{0, 8, []int{8}, []uint32{0}},
+		{1, 6, []int{3, 3}, []uint32{1, 4}},
+		{1, 32, []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, []uint32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}},
+		{3, 12, []int{5, 7}, []uint32{3, 8}},
+		{0, 20, []int{5, 5, 5, 5}, []uint32{0, 5, 10, 15}},
+		{0, 10, []int{10}, []uint32{0}},
+		{1, 20, []int{10, 10}, []uint32{1, 11}},
+		{0, 1000, []int{1000}, []uint32{0}},
+		{0, appconsts.DefaultSquareSizeUpperBound + 1, []int{appconsts.DefaultSquareSizeUpperBound + 1}, []uint32{0}},
+		{1, 385, []int{128, 128, 128}, []uint32{2, 130, 258}},
+		{1024, 32, []int{32}, []uint32{1024}},
 	}
 	for i, tt := range tests {
-		res, indexes := BlobSharesUsedNonInteractiveDefaults(tt.cursor, tt.squareSize, appconsts.DefaultSubtreeRootThreshold, tt.blobLens...)
-		test := fmt.Sprintf("test %d: cursor %d, squareSize %d", i, tt.cursor, tt.squareSize)
+		res, indexes := BlobSharesUsedNonInteractiveDefaults(tt.cursor, appconsts.DefaultSubtreeRootThreshold, tt.blobLens...)
+		test := fmt.Sprintf("test %d: cursor %d", i, tt.cursor)
 		assert.Equal(t, tt.expected, res, test)
 		assert.Equal(t, tt.indexes, indexes, test)
 	}
@@ -149,7 +149,6 @@ func TestNextShareIndex(t *testing.T) {
 		name                        string
 		cursor, blobLen, squareSize int
 		expectedIndex               int
-		fits                        bool
 	}
 	tests := []test{
 		{
@@ -157,7 +156,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        0,
 			blobLen:       4,
 			squareSize:    4,
-			fits:          true,
 			expectedIndex: 0,
 		},
 		{
@@ -165,7 +163,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        1,
 			blobLen:       2,
 			squareSize:    4,
-			fits:          true,
 			expectedIndex: 1,
 		},
 		{
@@ -173,7 +170,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        2,
 			blobLen:       2,
 			squareSize:    4,
-			fits:          true,
 			expectedIndex: 2,
 		},
 		{
@@ -181,7 +177,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        3,
 			blobLen:       4,
 			squareSize:    8,
-			fits:          true,
 			expectedIndex: 3,
 		},
 		{
@@ -189,7 +184,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        3,
 			blobLen:       5,
 			squareSize:    8,
-			fits:          true,
 			expectedIndex: 3,
 		},
 		{
@@ -197,7 +191,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        3,
 			blobLen:       2,
 			squareSize:    8,
-			fits:          true,
 			expectedIndex: 3,
 		},
 		{
@@ -205,7 +198,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        3,
 			blobLen:       5,
 			squareSize:    8,
-			fits:          true,
 			expectedIndex: 3,
 		},
 		{
@@ -213,7 +205,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        1,
 			blobLen:       12,
 			squareSize:    16,
-			fits:          true,
 			expectedIndex: 1,
 		},
 		{
@@ -221,7 +212,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        10291,
 			blobLen:       1,
 			squareSize:    128,
-			fits:          true,
 			expectedIndex: 10291,
 		},
 		{
@@ -229,15 +219,13 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        11,
 			blobLen:       2,
 			squareSize:    8,
-			fits:          true,
 			expectedIndex: 11,
 		},
 		{
-			name:          "non-interactive default rules for reduced padding diagram",
+			name:          "blob share commitment rules for reduced padding diagram",
 			cursor:        11,
 			blobLen:       11,
 			squareSize:    8,
-			fits:          false,
 			expectedIndex: 11,
 		},
 		{
@@ -245,7 +233,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        11,
 			blobLen:       appconsts.DefaultSubtreeRootThreshold,
 			squareSize:    RoundUpPowerOfTwo(appconsts.DefaultSubtreeRootThreshold),
-			fits:          false,
 			expectedIndex: 11,
 		},
 		{
@@ -253,7 +240,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        64,
 			blobLen:       appconsts.DefaultSubtreeRootThreshold + 1,
 			squareSize:    128,
-			fits:          false,
 			expectedIndex: 64,
 		},
 		{
@@ -261,7 +247,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        64,
 			blobLen:       appconsts.DefaultSubtreeRootThreshold - 1,
 			squareSize:    128,
-			fits:          true,
 			expectedIndex: 64,
 		},
 		{
@@ -269,7 +254,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        1,
 			blobLen:       appconsts.DefaultSubtreeRootThreshold - 1,
 			squareSize:    16,
-			fits:          false,
 			expectedIndex: 1,
 		},
 		{
@@ -277,7 +261,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        1,
 			blobLen:       16256,
 			squareSize:    128,
-			fits:          false,
 			expectedIndex: 128,
 		},
 		{
@@ -285,7 +268,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        1,
 			blobLen:       8192,
 			squareSize:    128,
-			fits:          false,
 			expectedIndex: 128,
 		},
 		{
@@ -293,7 +275,6 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        1,
 			blobLen:       4096,
 			squareSize:    128,
-			fits:          false,
 			expectedIndex: 64,
 		},
 		{
@@ -301,14 +282,12 @@ func TestNextShareIndex(t *testing.T) {
 			cursor:        1,
 			blobLen:       8193,
 			squareSize:    128,
-			fits:          false,
 			expectedIndex: 128,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, fits := NextShareIndex(tt.cursor, tt.blobLen, tt.squareSize, appconsts.DefaultSubtreeRootThreshold)
-			assert.Equal(t, tt.fits, fits)
+			res := NextShareIndex(tt.cursor, tt.blobLen, appconsts.DefaultSubtreeRootThreshold)
 			assert.Equal(t, tt.expectedIndex, res)
 		})
 	}
@@ -371,7 +350,7 @@ func Test_roundUpBy(t *testing.T) {
 				tt.expectedIndex,
 			),
 			func(t *testing.T) {
-				res := roundUpBy(tt.cursor, tt.v)
+				res := roundUpByMultipleOf(tt.cursor, tt.v)
 				assert.Equal(t, tt.expectedIndex, res)
 			})
 	}

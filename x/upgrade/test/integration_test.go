@@ -1,8 +1,6 @@
 package test
 
 import (
-	"fmt"
-	"net"
 	"sync"
 	"testing"
 	"time"
@@ -13,7 +11,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/cosmos/cosmos-sdk/x/gov"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	v1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/cosmos/cosmos-sdk/x/upgrade/types"
@@ -21,7 +18,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
@@ -49,48 +45,25 @@ type UpgradeTestSuite struct {
 // dramatically lowered quorum and threshold to pass proposals
 func (s *UpgradeTestSuite) SetupSuite() {
 	t := s.T()
+
+	s.ecfg = encoding.MakeConfig(app.ModuleBasics)
+
 	// we create an arbitrary number of funded accounts
 	accounts := make([]string, 3)
 	for i := 0; i < len(accounts); i++ {
 		accounts[i] = tmrand.Str(9)
 	}
-	blockTime := time.Millisecond * 300
-	tmCfg := config.DefaultConfig()
-	tmCfg.Consensus.TargetHeightDuration = blockTime
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
-	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
 
-	// change the tally params in the genesis so we can pass votes quickly
-	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	gdgs := v1.DefaultGenesisState()
-	gdgs.TallyParams.Quorum = "0.000001"
-	gdgs.TallyParams.Threshold = "0.000001"
+	tmCfg := testnode.DefaultTendermintConfig()
+	tmCfg.Consensus.TargetHeightDuration = 3 * time.Second
 
-	genState, kr, err := testnode.DefaultGenesisState(accounts...)
-	require.NoError(t, err)
+	cfg := testnode.DefaultConfig().
+		WithAccounts(accounts).
+		WithTendermintConfig(tmCfg).
+		WithGenesisOptions(testnode.ImmediateProposals(s.ecfg.Codec))
 
-	// replace the default genesis state with the modified one
-	genState[gov.AppModuleBasic{}.Name()] = s.ecfg.Codec.MustMarshalJSON(gdgs)
+	cctx, _, _ := testnode.NewNetwork(t, cfg)
 
-	tmNode, capp, cctx, err := testnode.New(t, testnode.DefaultParams(), tmCfg, false, genState, kr, tmrand.Str(6))
-	require.NoError(t, err)
-
-	cctx, stopNode, err := testnode.StartNode(tmNode, cctx)
-	require.NoError(t, err)
-
-	appConf := testnode.DefaultAppConfig()
-	appConf.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", getFreePort())
-	appConf.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
-
-	cctx, cleanupGRPC, err := testnode.StartGRPCServer(capp, appConf, cctx)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		t.Log("tearing down testnode")
-		require.NoError(t, stopNode())
-		require.NoError(t, cleanupGRPC())
-	})
 	s.accounts = accounts
 	s.cctx = cctx
 	require.NoError(t, s.cctx.WaitForNextBlock())
@@ -185,17 +158,4 @@ func getAddress(account string, kr keyring.Keyring) sdk.AccAddress {
 		panic(err)
 	}
 	return addr
-}
-
-// TODO: delete after the exposed version gets included
-func getFreePort() int {
-	a, err := net.ResolveTCPAddr("tcp", "localhost:0")
-	if err == nil {
-		var l *net.TCPListener
-		if l, err = net.ListenTCP("tcp", a); err == nil {
-			defer l.Close()
-			return l.Addr().(*net.TCPAddr).Port
-		}
-	}
-	panic("while getting free port: " + err.Error())
 }

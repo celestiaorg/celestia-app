@@ -13,3 +13,4 @@ tmp/
 run.sh
 testing/e2e/networks/*/
 square/testdata
+**/*.html

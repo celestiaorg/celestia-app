@@ -1,9 +1,17 @@
 #!/usr/bin/env bash
 set -e
 
-PKGS=$(go list ./... | grep -v '/simapp')
+# Define the directories to exclude
+EXCLUDE_DIRS=("/malicious")
 
-set -e
+# Initialize PKGS variable with the list of all packages
+PKGS=$(go list ./...)
+
+# Loop over the directories to exclude and remove them from PKGS
+for DIR in "${EXCLUDE_DIRS[@]}"; do
+    PKGS=$(echo "$PKGS" | grep -v "$DIR")
+done
+
 echo "mode: atomic" > coverage.txt
 for pkg in ${PKGS[@]}; do
     go test -v -timeout 30m -race -test.short -coverprofile=profile.out -covermode=atomic "$pkg"
