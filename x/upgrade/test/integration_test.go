@@ -90,6 +90,8 @@ func (s *UpgradeTestSuite) unusedAccount() string {
 	return acc
 }
 
+// TestLegacyGovUpgradeFailure verifies that a transaction with a software
+// upgrade proposal fails to execute.
 func (s *UpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	t := s.T()
 
@@ -119,6 +121,8 @@ func (s *UpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	assert.Contains(t, finalResult.TxResult.Log, "no handler exists for proposal type")
 }
 
+// TestNewGovUpgradeFailure verifies that a transaction with a
+// MsgSoftwareUpgrade fails to execute.
 func (s *UpgradeTestSuite) TestNewGovUpgradeFailure() {
 	t := s.T()
 	sss := types.MsgSoftwareUpgrade{

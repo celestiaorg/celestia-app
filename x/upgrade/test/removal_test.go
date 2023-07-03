@@ -15,4 +15,6 @@ func TestRemoval(t *testing.T) {
 	router := app.MsgServiceRouter()
 	handler := router.Handler(&sftwrUpgrd)
 	require.Nil(t, handler)
+	// TODO should this also verify that no handler exists for a legacy software
+	// upgrade proposal?
 }
