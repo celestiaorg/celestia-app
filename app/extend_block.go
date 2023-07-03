@@ -22,6 +22,6 @@ func ExtendBlock(data coretypes.Data, appVersion uint64) (*rsmt2d.ExtendedDataSq
 
 // EmptyBlock returns true if the given block data is considered empty by the
 // application at a given version.
-func EmptyBlock(data coretypes.Data, _ uint64) bool {
+func IsEmptyBlock(data coretypes.Data, _ uint64) bool {
 	return len(data.Txs) == 0
 }
