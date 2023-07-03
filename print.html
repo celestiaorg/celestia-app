@@ -76,7 +76,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="specs/shares.html"><strong aria-hidden="true">1.2.</strong> Shares</a></li><li class="chapter-item expanded "><a href="specs/consensus.html"><strong aria-hidden="true">1.3.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="specs/block_proposer.html"><strong aria-hidden="true">1.4.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="specs/block_validity_rules.html"><strong aria-hidden="true">1.5.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="specs/networking.html"><strong aria-hidden="true">1.6.</strong> Networking</a></li><li class="chapter-item expanded "><a href="specs/public_key_cryptography.html"><strong aria-hidden="true">1.7.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="specs/data_square_layout.html"><strong aria-hidden="true">1.8.</strong> Data Square Layout</a></li></ol></li><li class="chapter-item expanded "><a href="specs/state_machine_modules.html"><strong aria-hidden="true">2.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../x/blob/index.html"><strong aria-hidden="true">2.1.</strong> blob</a></li><li class="chapter-item expanded "><a href="../../x/qgb/index.html"><strong aria-hidden="true">2.2.</strong> qgb</a></li><li class="chapter-item expanded "><a href="../../x/mint/index.html"><strong aria-hidden="true">2.3.</strong> mint</a></li><li class="chapter-item expanded "><a href="../../x/paramfilter/index.html"><strong aria-hidden="true">2.4.</strong> paramfilter</a></li><li class="chapter-item expanded "><a href="../../x/upgrade/index.html"><strong aria-hidden="true">2.5.</strong> upgrade</a></li><li class="chapter-item expanded "><a href="../../x/tokenfilter/index.html"><strong aria-hidden="true">2.6.</strong> tokenfilter</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="specs/data_structures.html"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="specs/namespace.html"><strong aria-hidden="true">1.2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="specs/shares.html"><strong aria-hidden="true">1.3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="specs/consensus.html"><strong aria-hidden="true">1.4.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="specs/block_proposer.html"><strong aria-hidden="true">1.5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="specs/block_validity_rules.html"><strong aria-hidden="true">1.6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="specs/networking.html"><strong aria-hidden="true">1.7.</strong> Networking</a></li><li class="chapter-item expanded "><a href="specs/public_key_cryptography.html"><strong aria-hidden="true">1.8.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="specs/data_square_layout.html"><strong aria-hidden="true">1.9.</strong> Data Square Layout</a></li></ol></li><li class="chapter-item expanded "><a href="specs/state_machine_modules.html"><strong aria-hidden="true">2.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../x/blob/index.html"><strong aria-hidden="true">2.1.</strong> blob</a></li><li class="chapter-item expanded "><a href="../../x/qgb/index.html"><strong aria-hidden="true">2.2.</strong> qgb</a></li><li class="chapter-item expanded "><a href="../../x/mint/index.html"><strong aria-hidden="true">2.3.</strong> mint</a></li><li class="chapter-item expanded "><a href="../../x/paramfilter/index.html"><strong aria-hidden="true">2.4.</strong> paramfilter</a></li><li class="chapter-item expanded "><a href="../../x/upgrade/index.html"><strong aria-hidden="true">2.5.</strong> upgrade</a></li><li class="chapter-item expanded "><a href="../../x/tokenfilter/index.html"><strong aria-hidden="true">2.6.</strong> tokenfilter</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -143,6 +143,7 @@
 <li><a href="./specs/index.html">Specification</a>
 <ul>
 <li><a href="./specs/data_structures.html">Data Structures</a></li>
+<li><a href="./specs/namespace.html">Namespace</a></li>
 <li><a href="./specs/shares.html">Shares</a></li>
 <li><a href="./specs/consensus.html">Consensus</a></li>
 <li><a href="./specs/block_proposer.html">Block Proposer</a></li>
@@ -166,6 +167,7 @@
 <div style="break-before: page; page-break-before: always;"></div><h1 id="specification"><a class="header" href="#specification">Specification</a></h1>
 <ul>
 <li><a href="specs/./data_structures.html">Data Structures</a></li>
+<li><a href="specs/./namespace.html">Namespace</a></li>
 <li><a href="specs/./shares.html">Shares</a></li>
 <li><a href="specs/./consensus.html">Consensus</a></li>
 <li><a href="specs/./block_proposer.html">Block Proposer</a></li>
@@ -282,23 +284,6 @@
 <tr><td><code>s</code></td><td><code>byte[32]</code></td><td><code>s</code> value of signature.</td></tr>
 </tbody></table>
 </div>
-<h3 id="namespace"><a class="header" href="#namespace">Namespace</a></h3>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>version</code></td><td><code>uint8</code></td><td></td></tr>
-<tr><td><code>id</code></td><td><code>byte[28]</code></td><td></td></tr>
-</tbody></table>
-</div>
-<p>The namespace is a 29 byte array. The first byte is the <code>version</code>. The remaining 28 bytes are the <code>id</code>. The namespace version may enforce constraints on the id. The only supported <code>version</code> is <code>0</code>. The format for a namespace with <code>version: 0</code> is 18 bytes of leading <code>0</code>s followed by 10 bytes of significant namespace id.</p>
-<pre><code class="language-go">// valid namespaces
-0x0000000000000000000000000000000000000000000000000000000001
-0x0000000000000000000000000000000000000001010101010101010101
-0x0000000000000000000000000000000000000011111111111111111111
-
-// invalid namespaces
-0x0000000000000000000000000111111111111111111111111111111111
-0x1000000000000000000000000000000000000000000000000000000001
-0x1111111111111111111111111111111111111111111111111111111111
-</code></pre>
 <h2 id="consensusversion"><a class="header" href="#consensusversion">ConsensusVersion</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>block</code></td><td><code>uint64</code></td><td>The <code>VERSION_BLOCK</code>.</td></tr>
@@ -349,8 +334,8 @@
 <p><a href="specs/./shares.html">Shares</a> in Celestia are associated with a provided <em>namespace</em>. The Namespace Merkle Tree (NMT) is a variation of the <a href="https://eprint.iacr.org/2018/642">Merkle Interval Tree</a>, which is itself an extension of the <a href="https://bitcointalk.org/index.php?topic=845978.0">Merkle Sum Tree</a>. It allows for compact proofs around the inclusion or exclusion of shares with particular namespace IDs.</p>
 <p>Nodes contain three fields:</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>n_min</code></td><td><a href="specs/data_structures.html#namespace">Namespace</a></td><td>Min namespace in subtree rooted at this node.</td></tr>
-<tr><td><code>n_max</code></td><td><a href="specs/data_structures.html#namespace">Namespace</a></td><td>Max namespace in subtree rooted at this node.</td></tr>
+<tr><td><code>n_min</code></td><td><a href="specs/./namespace.html">Namespace</a></td><td>Min namespace in subtree rooted at this node.</td></tr>
+<tr><td><code>n_max</code></td><td><a href="specs/./namespace.html">Namespace</a></td><td>Max namespace in subtree rooted at this node.</td></tr>
 <tr><td><code>v</code></td><td><a href="specs/data_structures.html#hashdigest">HashDigest</a></td><td>Node value.</td></tr>
 </tbody></table>
 </div>
@@ -382,8 +367,8 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <h4 id="namespacemerkletreeinclusionproof"><a class="header" href="#namespacemerkletreeinclusionproof">NamespaceMerkleTreeInclusionProof</a></h4>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>siblingValues</code></td><td><a href="specs/data_structures.html#hashdigest">HashDigest</a><code>[]</code></td><td>Sibling hash values, ordered starting from the leaf's neighbor.</td></tr>
-<tr><td><code>siblingMins</code></td><td><a href="specs/data_structures.html#namespace">Namespace</a><code>[]</code></td><td>Sibling min namespace IDs.</td></tr>
-<tr><td><code>siblingMaxes</code></td><td><a href="specs/data_structures.html#namespace">Namespace</a><code>[]</code></td><td>Sibling max namespace IDs.</td></tr>
+<tr><td><code>siblingMins</code></td><td><a href="specs/./namespace.html">Namespace</a><code>[]</code></td><td>Sibling min namespace IDs.</td></tr>
+<tr><td><code>siblingMaxes</code></td><td><a href="specs/./namespace.html">Namespace</a><code>[]</code></td><td>Sibling max namespace IDs.</td></tr>
 </tbody></table>
 </div>
 <p>When verifying an NMT proof, the root hash is checked by reconstructing the root node <code>root_node</code> with the computed <code>root_node.v</code> (computed as with a <a href="specs/data_structures.html#binarymerkletreeinclusionproof">plain Merkle proof</a>) and the provided <code>rootNamespaceMin</code> and <code>rootNamespaceMax</code> as the <code>root_node.n_min</code> and <code>root_node.n_max</code>, respectively.</p>
@@ -516,17 +501,61 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 </tbody></table>
 </div>
 <p>In order to compute the <code>consensusHash</code> field in the <a href="specs/data_structures.html#header">block header</a>, the above list of parameters is <a href="specs/data_structures.html#hashing">hashed</a>.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="shares"><a class="header" href="#shares">Shares</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="namespace"><a class="header" href="#namespace">Namespace</a></h1>
 <!-- toc -->
 <h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
+<p>One of Celestia's core data structures is the namespace. When a user submits a <code>MsgPayForBlobs</code> transaction to Celestia they MUST associate each blob with exactly one namespace. After their transaction has been included in a block, the namespace enables users to take an interest in a subset of the blobs published to Celestia by allowing the user to query for blobs by namespace.</p>
+<p>In order to enable efficient retrieval of blobs by namespace, Celestia makes use of a <a href="https://github.com/celestiaorg/nmt">Namespaced Merkle Tree</a>. See section 5.2 of the <a href="https://arxiv.org/pdf/1905.09274.pdf">LazyLedger whitepaper</a> for more details.</p>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>A namespace is composed of two fields: <a href="specs/namespace.html#version">version</a> and <a href="specs/namespace.html#id">id</a>. A namespace is encoded as a byte slice with the version and id concatenated. Each <a href="specs/./shares.html">share</a> is prefixed with exactly one namespace.</p>
+<p><img src="specs/./figures/namespace.svg" alt="namespace" /></p>
+<h3 id="version"><a class="header" href="#version">Version</a></h3>
+<p>The namespace version is an 8-bit unsigned integer that indicates the version of the namespace. The version is used to determine the format of the namespace. The only supported user-specifiable namespace version is <code>0</code>. The version is encoded as a single byte.</p>
+<p>Note: The <code>PARITY_SHARE_NAMESPACE</code> uses the namespace version <code>255</code> so that it can be ignored via the <code>IgnoreMaxNamespace</code> feature from <a href="https://github.com/celestiaorg/nmt">nmt</a>. The <code>TAIL_PADDING_NAMESPACE</code> uses the namespace version <code>255</code> so that it remains ordered after all blob namespaces even in the case a new namespace version is introduced.</p>
+<p>A namespace with version <code>0</code> must contain an id with a prefix of 18 leading <code>0</code> bytes. The remaining 10 bytes of the id are user-specified.</p>
+<pre><code class="language-go">// Valid encoded namespaces
+0x0000000000000000000000000000000000000000000000000000000001 // transaction namespace
+0x0000000000000000000000000000000000000001010101010101010101 // valid blob namespace
+0x0000000000000000000000000000000000000011111111111111111111 // valid blob namespace
+
+// Invalid encoded namespaces
+0x0000000000000000000000000111111111111111111111111111111111 // invalid because it does not have 18 leading 0 bytes
+0x1000000000000000000000000000000000000000000000000000000000 // invalid because it does not have version 0
+0x1111111111111111111111111111111111111111111111111111111111 // invalid because it does not have version 0
+</code></pre>
+<p>A new namespace version MUST be introduced if the namespace format changes in a backwards incompatible way (i.e. the number of leading <code>0</code> bytes in the id prefix is reduced).</p>
+<h3 id="id"><a class="header" href="#id">ID</a></h3>
+<p>The namespace ID is a 28 byte identifier that uniquely identifies a namespace. The ID is encoded as a byte slice of length 28.</p>
+<h2 id="reserved-namespaces"><a class="header" href="#reserved-namespaces">Reserved Namespaces</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>value</th><th>description</th></tr></thead><tbody>
+<tr><td><code>TRANSACTION_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000001</code></td><td>Transactions: requests that modify the state.</td></tr>
+<tr><td><code>INTERMEDIATE_STATE_ROOT_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000002</code></td><td>Intermediate state roots, committed after every transaction.</td></tr>
+<tr><td><code>PAY_FOR_BLOB_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000004</code></td><td>Namespace reserved for transactions that contain a PayForBlob.</td></tr>
+<tr><td><code>RESERVED_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Padding after all reserved namespaces but before blobs.</td></tr>
+<tr><td><code>MAX_RESERVED_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Max reserved namespace is lexicographically the largest namespace that is reserved for protocol use.</td></tr>
+<tr><td><code>TAIL_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE</code></td><td>Tail padding for blobs: padding after all blobs to fill up the original data square.</td></tr>
+<tr><td><code>PARITY_SHARE_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF</code></td><td>Parity shares: extended shares in the available data matrix.</td></tr>
+</tbody></table>
+</div>
+<h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<p>See <a href="specs/../../../pkg/namespace">pkg/namespace</a>.</p>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
+<ol>
+<li><a href="specs/../../../docs/architecture/adr-014-versioned-namespaces.html">ADR-014</a></li>
+<li><a href="specs/../../../docs/architecture/adr-015-namespace-id-size.html">ADR-015</a></li>
+</ol>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="shares"><a class="header" href="#shares">Shares</a></h1>
+<!-- toc -->
+<h2 id="abstract-1"><a class="header" href="#abstract-1">Abstract</a></h2>
 <p>All available data in a Celestia <a href="specs/./data_structures.html#block">block</a> is split into fixed-size data chunks known as &quot;shares&quot;. Shares are the atomic unit of the Celestia data square. The shares in a Celestia block are eventually <a href="specs/./data_structures.html#erasure-coding">erasure-coded</a> and committed to in <a href="specs/./data_structures.html#namespace-merkle-tree">Namespace Merkle trees</a> (also see <a href="https://github.com/celestiaorg/nmt/blob/master/docs/spec/nmt.md">NMT spec</a>).</p>
 <h2 id="terms"><a class="header" href="#terms">Terms</a></h2>
 <ul>
 <li><strong>Blob</strong>: User specified data (e.g. a roll-up block) that is associated with exactly one namespace. Blob data are opaque bytes of data that are included in the block but do not impact Celestia's state.</li>
 <li><strong>Share</strong>: A fixed-size data chunk that is associated with exactly one namespace.</li>
-<li><strong>Share sequence</strong>: A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence MUST contain one or more shares. When a <a href="specs/../../../x/blob/README.html">blob</a> is split into shares, it is written to one share sequence. As a result, all shares in a share sequence are typically parsed together because the original blob data may have been split across share boundaries. All transactions in the <a href="specs/./consensus.html#reserved-namespaces"><code>TRANSACTION_NAMESPACE</code></a> are contained in one share sequence. All transactions in the <a href="specs/./consensus.html#reserved-namespaces"><code>PAY_FOR_BLOB_NAMESPACE</code></a> are contained in one share sequence.</li>
+<li><strong>Share sequence</strong>: A share sequence is a contiguous set of shares that contain semantically relevant data. A share sequence MUST contain one or more shares. When a <a href="specs/../../../x/blob/README.html">blob</a> is split into shares, it is written to one share sequence. As a result, all shares in a share sequence are typically parsed together because the original blob data may have been split across share boundaries. All transactions in the <a href="specs/./namespace.html#reserved-namespaces"><code>TRANSACTION_NAMESPACE</code></a> are contained in one share sequence. All transactions in the <a href="specs/./namespace.html#reserved-namespaces"><code>PAY_FOR_BLOB_NAMESPACE</code></a> are contained in one share sequence.</li>
 </ul>
-<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<h2 id="overview-1"><a class="header" href="#overview-1">Overview</a></h2>
 <p>User submitted transactions are split into shares (see <a href="specs/shares.html#share-splitting">share splitting</a>) and arranged in a <code>k * k</code> matrix (see <a href="specs/./data_structures.html#arranging-available-data-into-shares">arranging available data into shares</a>) prior to the erasure coding step. Shares in the <code>k * k</code> matrix are ordered by namespace and have a common <a href="specs/shares.html#share-format">share format</a>.</p>
 <p><a href="specs/shares.html#padding">Padding</a> shares are added to the <code>k * k</code> matrix to ensure:</p>
 <ol>
@@ -556,7 +585,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <h3 id="share-version"><a class="header" href="#share-version">Share Version</a></h3>
 <p>The share version is a 7-bit big-endian unsigned integer that is used to indicate the version of the <a href="specs/shares.html#share-format">share format</a>. The only supported share version is <code>0</code>. A new share version MUST be introduced if the share format changes in a way that is not backwards compatible.</p>
 <h2 id="transaction-shares"><a class="header" href="#transaction-shares">Transaction Shares</a></h2>
-<p>In order for clients to parse shares in the middle of a sequence without downloading antecedent shares, Celestia encodes additional metadata in the shares associated with reserved namespaces. At the time of writing this only applies to the <a href="specs/./consensus.html#reserved-namespaces"><code>TRANSACTION_NAMESPACE</code></a> and <a href="specs/./consensus.html#reserved-namespaces"><code>PAY_FOR_BLOB_NAMESPACE</code></a>. This share structure is often referred to as &quot;compact shares&quot; to differentiate from the share structure defined above for all shares. It conforms to the common <a href="specs/shares.html#share-format">share format</a> with one additional field, the &quot;reserved bytes&quot; field, which is described below:</p>
+<p>In order for clients to parse shares in the middle of a sequence without downloading antecedent shares, Celestia encodes additional metadata in the shares associated with reserved namespaces. At the time of writing this only applies to the <a href="specs/./namespace.html#reserved-namespaces"><code>TRANSACTION_NAMESPACE</code></a> and <a href="specs/./namespace.html#reserved-namespaces"><code>PAY_FOR_BLOB_NAMESPACE</code></a>. This share structure is often referred to as &quot;compact shares&quot; to differentiate from the share structure defined above for all shares. It conforms to the common <a href="specs/shares.html#share-format">share format</a> with one additional field, the &quot;reserved bytes&quot; field, which is described below:</p>
 <ul>
 <li>Every transaction share includes <a href="specs/./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> bytes that contain the index of the starting byte of the length of the <a href="specs/./consensus.html#serialization">canonically serialized</a> first transaction that starts in the share, or <code>0</code> if there is none, as a binary big endian <code>uint32</code>. Denoted by &quot;reserved bytes&quot; in the figure below. The <a href="specs/./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> are placed immediately after the <code>SEQUENCE_BYTES</code> if this is the first share in a sequence or immediately after the <code>SHARE_INFO_BYTES</code> if this is a continuation share in a sequence.</li>
 <li>The remaining <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SEQUENCE_BYTES</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> bytes (if first share) or <a href="specs/./consensus.html#constants"><code>SHARE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>NAMESPACE_SIZE</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_INFO_BYTES</code></a><code>-</code><a href="specs/./consensus.html#constants"><code>SHARE_RESERVED_BYTES</code></a> bytes (if continuation share) are transaction or PayForBlob transaction data (denoted by &quot;tx1&quot; and &quot;tx2&quot; in the figure below). Each transaction or PayForBlob transaction is prefixed with a <a href="https://developers.google.com/protocol-buffers/docs/encoding">varint</a> of the length of that unit (denoted by &quot;len(tx1)&quot; and &quot;len(tx2)&quot; in the figure below).</li>
@@ -599,13 +628,13 @@ A namespace padding share acts as padding between blobs so that the subsequent b
 <li>Repeat the previous step until all blob data has been written.</li>
 <li>If the last share is not full, fill the remainder of the share with <code>0</code>.</li>
 </ol>
-<h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
+<h2 id="assumptions-and-considerations-1"><a class="header" href="#assumptions-and-considerations-1">Assumptions and Considerations</a></h2>
 <ul>
 <li>Shares are assumed to be byte slices of length 512. Parsing shares of a different length WILL result in an error.</li>
 </ul>
-<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
 <p>See <a href="specs/../../../pkg/shares">pkg/shares</a>.</p>
-<h2 id="references"><a class="header" href="#references">References</a></h2>
+<h2 id="references-1"><a class="header" href="#references-1">References</a></h2>
 <ol>
 <li><a href="specs/../../../docs/architecture/adr-012-sequence-length-encoding.html">ADR-012</a></li>
 <li><a href="specs/../../../docs/architecture/adr-014-versioned-namespaces.html">ADR-014</a></li>
@@ -643,17 +672,6 @@ A namespace padding share acts as padding between blobs so that the subsequent b
 <tr><td><code>UNBONDING_DURATION</code></td><td><code>uint32</code></td><td></td><td><code>block</code></td><td>Duration, in blocks, for unbonding a validator or delegation.</td></tr>
 <tr><td><code>VERSION_APP</code></td><td><code>uint64</code></td><td><code>1</code></td><td></td><td>Version of the Celestia application. Breaking changes (hard forks) must update this parameter.</td></tr>
 <tr><td><code>VERSION_BLOCK</code></td><td><code>uint64</code></td><td><code>1</code></td><td></td><td>Version of the Celestia chain. Breaking changes (hard forks) must update this parameter.</td></tr>
-</tbody></table>
-</div>
-<h3 id="reserved-namespaces"><a class="header" href="#reserved-namespaces">Reserved Namespaces</a></h3>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>value</th><th>description</th></tr></thead><tbody>
-<tr><td><code>TRANSACTION_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000001</code></td><td>Transactions: requests that modify the state.</td></tr>
-<tr><td><code>INTERMEDIATE_STATE_ROOT_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000002</code></td><td>Intermediate state roots, committed after every transaction.</td></tr>
-<tr><td><code>PAY_FOR_BLOB_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000004</code></td><td>Namespace reserved for transactions that contain a PayForBlob.</td></tr>
-<tr><td><code>RESERVED_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Padding after all reserved namespaces but before blobs.</td></tr>
-<tr><td><code>MAX_RESERVED_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x00000000000000000000000000000000000000000000000000000000FF</code></td><td>Max reserved namespace is lexicographically the largest namespace that is reserved for protocol use.</td></tr>
-<tr><td><code>TAIL_PADDING_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE</code></td><td>Tail padding for blobs: padding after all blobs to fill up the original data square.</td></tr>
-<tr><td><code>PARITY_SHARE_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF</code></td><td>Parity shares: extended shares in the available data matrix.</td></tr>
 </tbody></table>
 </div>
 <h3 id="rewards-and-penalties"><a class="header" href="#rewards-and-penalties">Rewards and Penalties</a></h3>
@@ -1492,7 +1510,7 @@ With the above constraint, we can compute subtree roots deterministically. For e
 <li><a href="https://github.com/celestiaorg/cosmos-sdk/tree/v1.14.0-sdk-v0.46.11/x/auth/vesting">vesting</a> (no spec)</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xblob"><a class="header" href="#xblob"><code>x/blob</code></a></h1>
-<h2 id="abstract-1"><a class="header" href="#abstract-1">Abstract</a></h2>
+<h2 id="abstract-2"><a class="header" href="#abstract-2">Abstract</a></h2>
 <p>The <code>x/blob</code> module enables users to pay for arbitrary data to be published to
 the Celestia blockchain. Users create a single <code>BlobTx</code> that is composed of:</p>
 <ol>
@@ -1520,7 +1538,7 @@ this <code>BlobTx</code>.</li>
 transaction i.e., <code>sdk.Tx</code> from the blob. Both components get included in the
 data square in different namespaces: the <code>sdk.Tx</code> of the original <code>BlobTx</code>
 together with some metadata about the separated blobs get included in the
-PayForBlobNamespace (one of the <a href="../../x/blob/../../specs/src/specs/consensus.html#reserved-namespaces">reserved
+PayForBlobNamespace (one of the <a href="../../x/blob/../../specs/src/specs/namespace.html#reserved-namespaces">reserved
 namespaces</a>) and the
 associated blob gets included in the namespace the user specified in the
 original <code>BlobTx</code>. Further reading: <a href="../../x/blob/../../specs/src/specs/data_square_layout.html">Data Square
@@ -1972,7 +1990,7 @@ if k.storeKey == nil {
 <p>The orchestrator and relayer implementations are in the <a href="https://github.com/celestiaorg/orchestrator-relayer">orchestrator-relayer</a> repo.</p>
 <p>QGB ADRs are in the <a href="https://github.com/celestiaorg/celestia-app/tree/main/docs/architecture">docs</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xmint"><a class="header" href="#xmint"><code>x/mint</code></a></h1>
-<h2 id="abstract-2"><a class="header" href="#abstract-2">Abstract</a></h2>
+<h2 id="abstract-3"><a class="header" href="#abstract-3">Abstract</a></h2>
 <p>celestia-app's <code>x/mint</code> is a fork of the Cosmos SDK <a href="https://github.com/cosmos/cosmos-sdk/tree/5cd0b2316a7103468af38eab5d886f9f069c9cd7/x/mint"><code>x/mint</code></a> module that makes some changes to the inflation mechanism. The changes were motivated by a desire for Celestia to have a pre-determined inflation schedule. See <a href="../../x/mint/../../docs/architecture/adr-019-strict-inflation-schedule.html">ADR-019</a> for more details.</p>
 <h3 id="inflation-schedule"><a class="header" href="#inflation-schedule">Inflation Schedule</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Year</th><th>Inflation (%)</th></tr></thead><tbody>
@@ -2034,7 +2052,7 @@ if k.storeKey == nil {
 <p>All params have been removed from this module because they should not be modifiable via governance.</p>
 <h2 id="tests"><a class="header" href="#tests">Tests</a></h2>
 <p>See <a href="../../x/mint/./test/mint_test.go">./test/mint_test.go</a> for an integration test suite for this module.</p>
-<h2 id="assumptions-and-considerations-1"><a class="header" href="#assumptions-and-considerations-1">Assumptions and Considerations</a></h2>
+<h2 id="assumptions-and-considerations-2"><a class="header" href="#assumptions-and-considerations-2">Assumptions and Considerations</a></h2>
 <blockquote>
 <p>For the Gregorian calendar, the average length of the calendar year (the mean year) across the complete leap cycle of 400 years is 365.2425 days (97 out of 400 years are leap years).</p>
 </blockquote>
@@ -2046,14 +2064,14 @@ oneYear := time.Duration(minttypes.NanosecondsPerYear)
 // oneYear is 31,536,000 seconds which will likely return unexpected results in tests
 oneYear := time.Hour * 24 * 365
 </code></pre>
-<h2 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h2>
+<h2 id="implementation-2"><a class="header" href="#implementation-2">Implementation</a></h2>
 <p>See <a href="../../x/mint/../../x/mint">x/mint</a> for the implementation of this module.</p>
-<h2 id="references-1"><a class="header" href="#references-1">References</a></h2>
+<h2 id="references-2"><a class="header" href="#references-2">References</a></h2>
 <ol>
 <li><a href="../../x/mint/../../docs/architecture/adr-019-strict-inflation-schedule.html">ADR-019</a></li>
 </ol>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xparamfilter"><a class="header" href="#xparamfilter"><code>x/paramfilter</code></a></h1>
-<h2 id="abstract-3"><a class="header" href="#abstract-3">Abstract</a></h2>
+<h2 id="abstract-4"><a class="header" href="#abstract-4">Abstract</a></h2>
 <p>The paramfilter module allows for specific parameters to be added to a block
 list, so that they cannot be changed by governance proposals. If a proposal
 contains a single blocked parameter change, then none of the parameters are
@@ -2106,13 +2124,13 @@ func NewApp(...) *App {
 }
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="xupgrade"><a class="header" href="#xupgrade"><code>x/upgrade</code></a></h1>
-<h2 id="abstract-4"><a class="header" href="#abstract-4">Abstract</a></h2>
+<h2 id="abstract-5"><a class="header" href="#abstract-5">Abstract</a></h2>
 <p>The upgrade module removes the entrypoints to the standard upgrade module by not
 registering a message server. It registers the standard upgrade module types to
 preserve the ability to marshal them. Note that the keeper of the standard
 upgrade module is still added to the application.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="ibc-token-filter"><a class="header" href="#ibc-token-filter">IBC Token Filter</a></h1>
-<h2 id="abstract-5"><a class="header" href="#abstract-5">Abstract</a></h2>
+<h2 id="abstract-6"><a class="header" href="#abstract-6">Abstract</a></h2>
 <p>The IBC token filter prevents non-native tokens from being transferred through the IBC transfer module from a counterparty chain to the host chain. This is useful if a chain wishes to only permit
 their native token within their state machine.</p>
 <h2 id="context"><a class="header" href="#context">Context</a></h2>
@@ -2123,7 +2141,7 @@ their native token within their state machine.</p>
 <p>The protocol targets inbound packets only. Outbound transfer messages are left unmodified. When a packet is sent to the IBC transfer module (denoted by the <code>transfer</code> port id), the token filter intercepts the message and attempts to unmarshal it as a <code>FungibleTokenPacketData</code>. If unmarshalling fails, the protocol should simply pass it down the stack for it to be handled elsewhere.</p>
 <p>When tokens are transferred the token filter checks if the denomination is prefixed with the source port and channel of the packet. If so it passes the packet along for the transfer module to handle, else it returns a new error acknowledgement which will be returned to the sending chain.</p>
 <p>The protocol does not check the length of the path that prefixes the base denomination i.e. it may still contain multiple ports and channels like <code>portidtwo/channel-1/portidone/channel-0/a</code>. This means that it may not be the native token but any other token that had previously passed through the state machine. This means if a chain were to adopt the middleware with existing state, the prior tokens may still unwind through that chain. For chains that commence using this middleware, no other token but the native denominations will be present.</p>
-<h2 id="implementation-2"><a class="header" href="#implementation-2">Implementation</a></h2>
+<h2 id="implementation-3"><a class="header" href="#implementation-3">Implementation</a></h2>
 <p>The token filter is implemented as IBC middleware. It wraps the IBC transfer module. All other methods get routed directly to the underlying transfer module except for <code>OnRecvPacket</code> which adds extra logic before calling the <code>OnRecvPacket</code> method of the transfer module.</p>
 <p>The transfer module already includes a <code>ReceiverChainIsSource</code> method. The basic logic is therefore:</p>
 <pre><code class="language-go">if transfertypes.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {

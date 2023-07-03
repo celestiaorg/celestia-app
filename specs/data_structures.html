@@ -75,7 +75,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="../specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/data_structures.html" class="active"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="../specs/shares.html"><strong aria-hidden="true">1.2.</strong> Shares</a></li><li class="chapter-item expanded "><a href="../specs/consensus.html"><strong aria-hidden="true">1.3.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="../specs/block_proposer.html"><strong aria-hidden="true">1.4.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="../specs/block_validity_rules.html"><strong aria-hidden="true">1.5.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="../specs/networking.html"><strong aria-hidden="true">1.6.</strong> Networking</a></li><li class="chapter-item expanded "><a href="../specs/public_key_cryptography.html"><strong aria-hidden="true">1.7.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="../specs/data_square_layout.html"><strong aria-hidden="true">1.8.</strong> Data Square Layout</a></li></ol></li><li class="chapter-item expanded "><a href="../specs/state_machine_modules.html"><strong aria-hidden="true">2.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../../x/blob/index.html"><strong aria-hidden="true">2.1.</strong> blob</a></li><li class="chapter-item expanded "><a href="../../../x/qgb/index.html"><strong aria-hidden="true">2.2.</strong> qgb</a></li><li class="chapter-item expanded "><a href="../../../x/mint/index.html"><strong aria-hidden="true">2.3.</strong> mint</a></li><li class="chapter-item expanded "><a href="../../../x/paramfilter/index.html"><strong aria-hidden="true">2.4.</strong> paramfilter</a></li><li class="chapter-item expanded "><a href="../../../x/upgrade/index.html"><strong aria-hidden="true">2.5.</strong> upgrade</a></li><li class="chapter-item expanded "><a href="../../../x/tokenfilter/index.html"><strong aria-hidden="true">2.6.</strong> tokenfilter</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Celestia App Specifications</a></li><li class="chapter-item expanded "><a href="../specs/index.html"><strong aria-hidden="true">1.</strong> Specification</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../specs/data_structures.html" class="active"><strong aria-hidden="true">1.1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="../specs/namespace.html"><strong aria-hidden="true">1.2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="../specs/shares.html"><strong aria-hidden="true">1.3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="../specs/consensus.html"><strong aria-hidden="true">1.4.</strong> Consensus</a></li><li class="chapter-item expanded "><a href="../specs/block_proposer.html"><strong aria-hidden="true">1.5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="../specs/block_validity_rules.html"><strong aria-hidden="true">1.6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="../specs/networking.html"><strong aria-hidden="true">1.7.</strong> Networking</a></li><li class="chapter-item expanded "><a href="../specs/public_key_cryptography.html"><strong aria-hidden="true">1.8.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="../specs/data_square_layout.html"><strong aria-hidden="true">1.9.</strong> Data Square Layout</a></li></ol></li><li class="chapter-item expanded "><a href="../specs/state_machine_modules.html"><strong aria-hidden="true">2.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../../x/blob/index.html"><strong aria-hidden="true">2.1.</strong> blob</a></li><li class="chapter-item expanded "><a href="../../../x/qgb/index.html"><strong aria-hidden="true">2.2.</strong> qgb</a></li><li class="chapter-item expanded "><a href="../../../x/mint/index.html"><strong aria-hidden="true">2.3.</strong> mint</a></li><li class="chapter-item expanded "><a href="../../../x/paramfilter/index.html"><strong aria-hidden="true">2.4.</strong> paramfilter</a></li><li class="chapter-item expanded "><a href="../../../x/upgrade/index.html"><strong aria-hidden="true">2.5.</strong> upgrade</a></li><li class="chapter-item expanded "><a href="../../../x/tokenfilter/index.html"><strong aria-hidden="true">2.6.</strong> tokenfilter</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -246,23 +246,6 @@
 <tr><td><code>s</code></td><td><code>byte[32]</code></td><td><code>s</code> value of signature.</td></tr>
 </tbody></table>
 </div>
-<h3 id="namespace"><a class="header" href="#namespace">Namespace</a></h3>
-<div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>version</code></td><td><code>uint8</code></td><td></td></tr>
-<tr><td><code>id</code></td><td><code>byte[28]</code></td><td></td></tr>
-</tbody></table>
-</div>
-<p>The namespace is a 29 byte array. The first byte is the <code>version</code>. The remaining 28 bytes are the <code>id</code>. The namespace version may enforce constraints on the id. The only supported <code>version</code> is <code>0</code>. The format for a namespace with <code>version: 0</code> is 18 bytes of leading <code>0</code>s followed by 10 bytes of significant namespace id.</p>
-<pre><code class="language-go">// valid namespaces
-0x0000000000000000000000000000000000000000000000000000000001
-0x0000000000000000000000000000000000000001010101010101010101
-0x0000000000000000000000000000000000000011111111111111111111
-
-// invalid namespaces
-0x0000000000000000000000000111111111111111111111111111111111
-0x1000000000000000000000000000000000000000000000000000000001
-0x1111111111111111111111111111111111111111111111111111111111
-</code></pre>
 <h2 id="consensusversion"><a class="header" href="#consensusversion">ConsensusVersion</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>block</code></td><td><code>uint64</code></td><td>The <code>VERSION_BLOCK</code>.</td></tr>
@@ -313,8 +296,8 @@
 <p><a href="./shares.html">Shares</a> in Celestia are associated with a provided <em>namespace</em>. The Namespace Merkle Tree (NMT) is a variation of the <a href="https://eprint.iacr.org/2018/642">Merkle Interval Tree</a>, which is itself an extension of the <a href="https://bitcointalk.org/index.php?topic=845978.0">Merkle Sum Tree</a>. It allows for compact proofs around the inclusion or exclusion of shares with particular namespace IDs.</p>
 <p>Nodes contain three fields:</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
-<tr><td><code>n_min</code></td><td><a href="#namespace">Namespace</a></td><td>Min namespace in subtree rooted at this node.</td></tr>
-<tr><td><code>n_max</code></td><td><a href="#namespace">Namespace</a></td><td>Max namespace in subtree rooted at this node.</td></tr>
+<tr><td><code>n_min</code></td><td><a href="./namespace.html">Namespace</a></td><td>Min namespace in subtree rooted at this node.</td></tr>
+<tr><td><code>n_max</code></td><td><a href="./namespace.html">Namespace</a></td><td>Max namespace in subtree rooted at this node.</td></tr>
 <tr><td><code>v</code></td><td><a href="#hashdigest">HashDigest</a></td><td>Node value.</td></tr>
 </tbody></table>
 </div>
@@ -346,8 +329,8 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <h4 id="namespacemerkletreeinclusionproof"><a class="header" href="#namespacemerkletreeinclusionproof">NamespaceMerkleTreeInclusionProof</a></h4>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>siblingValues</code></td><td><a href="#hashdigest">HashDigest</a><code>[]</code></td><td>Sibling hash values, ordered starting from the leaf's neighbor.</td></tr>
-<tr><td><code>siblingMins</code></td><td><a href="#namespace">Namespace</a><code>[]</code></td><td>Sibling min namespace IDs.</td></tr>
-<tr><td><code>siblingMaxes</code></td><td><a href="#namespace">Namespace</a><code>[]</code></td><td>Sibling max namespace IDs.</td></tr>
+<tr><td><code>siblingMins</code></td><td><a href="./namespace.html">Namespace</a><code>[]</code></td><td>Sibling min namespace IDs.</td></tr>
+<tr><td><code>siblingMaxes</code></td><td><a href="./namespace.html">Namespace</a><code>[]</code></td><td>Sibling max namespace IDs.</td></tr>
 </tbody></table>
 </div>
 <p>When verifying an NMT proof, the root hash is checked by reconstructing the root node <code>root_node</code> with the computed <code>root_node.v</code> (computed as with a <a href="#binarymerkletreeinclusionproof">plain Merkle proof</a>) and the provided <code>rootNamespaceMin</code> and <code>rootNamespaceMax</code> as the <code>root_node.n_min</code> and <code>root_node.n_max</code>, respectively.</p>
@@ -488,7 +471,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
                             <a rel="prev" href="../specs/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
-                            <a rel="next" href="../specs/shares.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="../specs/namespace.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         <div style="clear: both"></div>
@@ -500,7 +483,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
                     <a rel="prev" href="../specs/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
-                    <a rel="next" href="../specs/shares.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="../specs/namespace.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
