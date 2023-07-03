@@ -24,7 +24,7 @@ transaction i.e., `sdk.Tx` from the blob. Both components get included in the
 data square in different namespaces: the `sdk.Tx` of the original `BlobTx`
 together with some metadata about the separated blobs get included in the
 PayForBlobNamespace (one of the [reserved
-namespaces](../../specs/src/specs/consensus.md#reserved-namespaces)) and the
+namespaces](../../specs/src/specs/namespace.md#reserved-namespaces)) and the
 associated blob gets included in the namespace the user specified in the
 original `BlobTx`. Further reading: [Data Square
 Layout](../../specs/src/specs/data_square_layout.md)
