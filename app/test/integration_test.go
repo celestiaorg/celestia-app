@@ -3,6 +3,9 @@ package app_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
@@ -17,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/da"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/x/blob"
@@ -190,6 +194,7 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				require.Equal(t, appconsts.LatestVersion, blockRes.Block.Header.Version.App)
 
 				sizes = append(sizes, size)
+				ExtendBlobTest(t, blockRes.Block)
 			}
 			// ensure that at least one of the blocks used the max square size
 			assert.Contains(t, sizes, uint64(appconsts.DefaultGovMaxSquareSize))
@@ -341,5 +346,30 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		)
 		require.NoError(t, err)
 		require.NoError(t, blobProof.Validate(blockRes.Block.DataHash))
+	}
+}
+
+// ExtendBlobTest re-extends the block and compares the data roots to ensure
+// that the public functions for extending the block are working correctly.
+func ExtendBlobTest(t *testing.T, block *coretypes.Block) {
+	eds, err := app.ExtendBlock(block.Data, block.Header.Version.App)
+	require.NoError(t, err)
+	dah := da.NewDataAvailabilityHeader(eds)
+	if !assert.Equal(t, dah.Hash(), block.DataHash.Bytes()) {
+		// save block to json file for further debugging if this occurs
+		b, err := json.MarshalIndent(block, "", "  ")
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(fmt.Sprintf("bad_block_%s.json", tmrand.Str(6)), b, 0o644))
+	}
+}
+
+func (s *IntegrationTestSuite) TestEmptyBlock() {
+	t := s.T()
+	emptyHeights := []int64{1, 2, 3}
+	for _, h := range emptyHeights {
+		blockRes, err := s.cctx.Client.Block(s.cctx.GoContext(), &h)
+		require.NoError(t, err)
+		require.True(t, app.IsEmptyBlock(blockRes.Block.Data, blockRes.Block.Header.Version.App))
+		ExtendBlobTest(t, blockRes.Block)
 	}
 }

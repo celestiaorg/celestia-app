@@ -133,7 +133,7 @@ func shuffle(rand *tmrand.Rand, slice [][]byte) [][]byte {
 }
 
 func TestBuilderRejectsTransactions(t *testing.T) {
-	builder, err := square.NewBuilder(2, appconsts.DefaultSubtreeRootThreshold) // 2 x 2 square
+	builder, err := square.NewBuilder(2, appconsts.LatestVersion) // 2 x 2 square
 	require.NoError(t, err)
 	require.False(t, builder.AppendTx(newTx(shares.AvailableBytesFromCompactShares(4)+1)))
 	require.True(t, builder.AppendTx(newTx(shares.AvailableBytesFromCompactShares(4))))
@@ -175,7 +175,7 @@ func TestBuilderRejectsBlobTransactions(t *testing.T) {
 
 	for idx, tc := range testCases {
 		t.Run(fmt.Sprintf("case%d", idx), func(t *testing.T) {
-			builder, err := square.NewBuilder(2, appconsts.DefaultSubtreeRootThreshold)
+			builder, err := square.NewBuilder(2, appconsts.LatestVersion)
 			require.NoError(t, err)
 			txs := generateBlobTxsWithNamespaces(t, ns1.Repeat(len(tc.blobSize)), [][]int{tc.blobSize})
 			require.Len(t, txs, 1)
@@ -187,11 +187,11 @@ func TestBuilderRejectsBlobTransactions(t *testing.T) {
 }
 
 func TestBuilderInvalidConstructor(t *testing.T) {
-	_, err := square.NewBuilder(-4, appconsts.DefaultSubtreeRootThreshold)
+	_, err := square.NewBuilder(-4, appconsts.LatestVersion)
 	require.Error(t, err)
-	_, err = square.NewBuilder(0, appconsts.DefaultSubtreeRootThreshold)
+	_, err = square.NewBuilder(0, appconsts.LatestVersion)
 	require.Error(t, err)
-	_, err = square.NewBuilder(13, appconsts.DefaultSubtreeRootThreshold)
+	_, err = square.NewBuilder(13, appconsts.LatestVersion)
 	require.Error(t, err)
 }
 
@@ -205,7 +205,7 @@ func TestBuilderFindTxShareRange(t *testing.T) {
 	blockTxs = append(blockTxs, blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), 5, 1000, 10).ToSliceOfBytes()...)
 	require.Len(t, blockTxs, 10)
 
-	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold, blockTxs...)
+	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.LatestVersion, blockTxs...)
 	require.NoError(t, err)
 
 	dataSquare, err := builder.Export()
@@ -404,7 +404,7 @@ func TestSquareBlobPostions(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("case%d", i), func(t *testing.T) {
-			builder, err := square.NewBuilder(tt.squareSize, appconsts.DefaultSubtreeRootThreshold)
+			builder, err := square.NewBuilder(tt.squareSize, appconsts.LatestVersion)
 			require.NoError(t, err)
 			for _, tx := range tt.blobTxs {
 				blobTx, isBlobTx := coretypes.UnmarshalBlobTx(tx)

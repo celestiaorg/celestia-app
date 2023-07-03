@@ -61,7 +61,7 @@ func FuzzSquare(f *testing.F) {
 
 		decoder := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig.TxDecoder()
 
-		builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold, orderedTxs...)
+		builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.LatestVersion, orderedTxs...)
 		require.NoError(t, err)
 		totalPfbs := builder.NumPFBs()
 		totalNormalTxs := builder.NumTxs() - totalPfbs
