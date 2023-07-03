@@ -32,26 +32,25 @@ type Builder struct {
 
 	done                 bool
 	subtreeRootThreshold int
+	appVersion           uint64
 }
 
-func NewBuilder(maxSquareSize, subtreeRootThreshold int, txs ...[]byte) (*Builder, error) {
+func NewBuilder(maxSquareSize int, appVersion uint64, txs ...[]byte) (*Builder, error) {
 	if maxSquareSize <= 0 {
 		return nil, errors.New("max square size must be strictly positive")
-	}
-	if subtreeRootThreshold <= 0 {
-		return nil, errors.New("subtreeRootThreshold must be strictly positive")
 	}
 	if !shares.IsPowerOfTwo(maxSquareSize) {
 		return nil, errors.New("max square size must be a power of two")
 	}
 	builder := &Builder{
 		maxCapacity:          maxSquareSize * maxSquareSize,
-		subtreeRootThreshold: subtreeRootThreshold,
+		subtreeRootThreshold: appconsts.SubtreeRootThreshold(appVersion),
 		blobs:                make([]*element, 0),
 		pfbs:                 make([]*coretypes.IndexWrapper, 0),
 		txs:                  make([][]byte, 0),
 		txCounter:            shares.NewCompactShareCounter(),
 		pfbCounter:           shares.NewCompactShareCounter(),
+		appVersion:           appVersion,
 	}
 	seenFirstBlobTx := false
 	for idx, tx := range txs {
@@ -93,7 +92,7 @@ func (b *Builder) AppendBlobTx(blobTx coretypes.BlobTx) bool {
 	iw := &coretypes.IndexWrapper{
 		Tx:           blobTx.Tx,
 		TypeId:       consts.ProtoIndexWrapperTypeID,
-		ShareIndexes: worstCaseShareIndexes(len(blobTx.Blobs), b.maxCapacity),
+		ShareIndexes: worstCaseShareIndexes(len(blobTx.Blobs), b.appVersion),
 	}
 	size := iw.Size()
 	pfbShareDiff := b.pfbCounter.Add(size)
@@ -410,10 +409,15 @@ func (e element) maxShareOffset() int {
 	return e.numShares + e.maxPadding
 }
 
-func worstCaseShareIndexes(blobs, maxSquareCapacity int) []uint32 {
+// worstCaseShareIndexes returns the largest possible share indexes for a set
+// of blobs at a given appversion. Largest possible is "worst" in that protobuf
+// uses varints to encode integers, so larger integers can require more bytes to
+// encode.
+func worstCaseShareIndexes(blobs int, appVersion uint64) []uint32 {
+	maxSquareSize := appconsts.SquareSizeUpperBound(appVersion)
 	shareIndexes := make([]uint32, blobs)
 	for i := range shareIndexes {
-		shareIndexes[i] = uint32(maxSquareCapacity)
+		shareIndexes[i] = uint32(maxSquareSize * maxSquareSize)
 	}
 	return shareIndexes
 }

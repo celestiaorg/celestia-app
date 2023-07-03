@@ -138,7 +138,7 @@ func TestSquareBlobShareRange_Flaky(t *testing.T) {
 	rand := tmrand.NewRand()
 	txs := blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), rand, 10, 1000, 10).ToSliceOfBytes()
 
-	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold, txs...)
+	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.LatestVersion, txs...)
 	require.NoError(t, err)
 
 	dataSquare, err := builder.Export()
@@ -215,7 +215,7 @@ func TestSquareShareCommitments(t *testing.T) {
 	const numTxs = 10
 	rand := tmrand.NewRand()
 	txs := generateOrderedTxs(rand, numTxs, numTxs, 3, 800)
-	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold, txs...)
+	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.LatestVersion, txs...)
 	require.NoError(t, err)
 
 	dataSquare, err := builder.Export()
