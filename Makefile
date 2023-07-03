@@ -32,7 +32,7 @@ ifeq ($(LEDGER_ENABLED),true)
     endif
   endif
 endif
-
+build_tags := $(strip $(build_tags))
 whitespace :=
 whitespace := $(whitespace) $(whitespace)
 comma := ,
