@@ -231,7 +231,7 @@ func generateValidShareSequence(t *testing.T) ShareSequence {
 	}
 }
 
-func Fuzz_validSequenceLen(f *testing.F) {
+func FuzzValidSequenceLen(f *testing.F) {
 	f.Fuzz(func(t *testing.T, rawData []byte, rawNamespace []byte) {
 		share, err := NewShare(rawData)
 		if err != nil {

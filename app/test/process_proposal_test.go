@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 
@@ -80,8 +79,8 @@ func TestProcessProposal(t *testing.T) {
 
 	type test struct {
 		name           string
-		input          *core.Data
-		mutator        func(*core.Data)
+		input          *tmproto.Data
+		mutator        func(*tmproto.Data)
 		expectedResult abci.ResponseProcessProposal_Result
 	}
 
@@ -89,13 +88,13 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:           "valid untouched data",
 			input:          validData(),
-			mutator:        func(d *core.Data) {},
+			mutator:        func(d *tmproto.Data) {},
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 		},
 		{
 			name:  "removed first blob tx",
 			input: validData(),
-			mutator: func(d *core.Data) {
+			mutator: func(d *tmproto.Data) {
 				d.Txs = d.Txs[1:]
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -103,7 +102,7 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:  "added an extra blob tx",
 			input: validData(),
-			mutator: func(d *core.Data) {
+			mutator: func(d *tmproto.Data) {
 				d.Txs = append(d.Txs, blobTxs[3])
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -111,9 +110,9 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:  "modified a blobTx",
 			input: validData(),
-			mutator: func(d *core.Data) {
+			mutator: func(d *tmproto.Data) {
 				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
-				blobTx.Blobs[0] = &core.Blob{
+				blobTx.Blobs[0] = &tmproto.Blob{
 					NamespaceId:      ns1.ID,
 					Data:             data,
 					NamespaceVersion: uint32(ns1.Version),
@@ -127,9 +126,9 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:  "invalid namespace TailPadding",
 			input: validData(),
-			mutator: func(d *core.Data) {
+			mutator: func(d *tmproto.Data) {
 				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
-				blobTx.Blobs[0] = &core.Blob{
+				blobTx.Blobs[0] = &tmproto.Blob{
 					NamespaceId:      appns.TailPaddingNamespace.ID,
 					Data:             data,
 					NamespaceVersion: uint32(appns.TailPaddingNamespace.Version),
@@ -143,9 +142,9 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:  "invalid namespace TxNamespace",
 			input: validData(),
-			mutator: func(d *core.Data) {
+			mutator: func(d *tmproto.Data) {
 				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
-				blobTx.Blobs[0] = &core.Blob{
+				blobTx.Blobs[0] = &tmproto.Blob{
 					NamespaceId:      appns.TxNamespace.ID,
 					Data:             data,
 					NamespaceVersion: uint32(appns.TxNamespace.Version),
@@ -159,9 +158,9 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:  "invalid namespace ParityShares",
 			input: validData(),
-			mutator: func(d *core.Data) {
+			mutator: func(d *tmproto.Data) {
 				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
-				blobTx.Blobs[0] = &core.Blob{
+				blobTx.Blobs[0] = &tmproto.Blob{
 					NamespaceId:      appns.ParitySharesNamespace.ID,
 					Data:             data,
 					NamespaceVersion: uint32(appns.ParitySharesNamespace.Version),
@@ -175,9 +174,9 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:  "invalid blob namespace",
 			input: validData(),
-			mutator: func(d *core.Data) {
+			mutator: func(d *tmproto.Data) {
 				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
-				blobTx.Blobs[0] = &core.Blob{
+				blobTx.Blobs[0] = &tmproto.Blob{
 					NamespaceId:      invalidNamespace.ID,
 					Data:             data,
 					ShareVersion:     uint32(appconsts.ShareVersionZero),
@@ -191,7 +190,7 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:  "pfb namespace version does not match blob",
 			input: validData(),
-			mutator: func(d *core.Data) {
+			mutator: func(d *tmproto.Data) {
 				blobTx, _ := coretypes.UnmarshalBlobTx(blobTxs[0])
 				blobTx.Blobs[0].NamespaceVersion = appns.NamespaceVersionMax
 				blobTxBytes, _ := blobTx.Marshal()
@@ -203,7 +202,7 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:  "invalid namespace in index wrapper tx",
 			input: validData(),
-			mutator: func(d *core.Data) {
+			mutator: func(d *tmproto.Data) {
 				encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 				index := 4
 				tx, blob := blobfactory.IndexWrappedTxWithInvalidNamespace(t, encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), signer, 0, 0, uint32(index))
@@ -221,7 +220,7 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:  "swap blobTxs",
 			input: validData(),
-			mutator: func(d *core.Data) {
+			mutator: func(d *tmproto.Data) {
 				// swapping the order will cause the data root to be different
 				d.Txs[0], d.Txs[1], d.Txs[2] = d.Txs[1], d.Txs[2], d.Txs[0]
 			},
@@ -230,7 +229,7 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:  "PFB without blobTx",
 			input: validData(),
-			mutator: func(d *core.Data) {
+			mutator: func(d *tmproto.Data) {
 				btx, _ := coretypes.UnmarshalBlobTx(blobTxs[3])
 				d.Txs = append(d.Txs, btx.Tx)
 			},
@@ -239,7 +238,7 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:  "undecodable tx",
 			input: validData(),
-			mutator: func(d *core.Data) {
+			mutator: func(d *tmproto.Data) {
 				d.Txs = append(d.Txs, tmrand.Bytes(300))
 			},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
@@ -247,7 +246,7 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:  "incorrectly sorted; send tx after pfb",
 			input: mixedData,
-			mutator: func(d *core.Data) {
+			mutator: func(d *tmproto.Data) {
 				// swap txs at index 2 and 3 (essentially swapping a PFB with a normal tx)
 				d.Txs[3], d.Txs[2] = d.Txs[2], d.Txs[3]
 			},
@@ -256,7 +255,7 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:  "included pfb with bad signature",
 			input: validData(),
-			mutator: func(d *core.Data) {
+			mutator: func(d *tmproto.Data) {
 				d.Txs = append(d.Txs, badSigBlobTx)
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
@@ -265,7 +264,7 @@ func TestProcessProposal(t *testing.T) {
 		{
 			name:  "included pfb with incorrect nonce",
 			input: validData(),
-			mutator: func(d *core.Data) {
+			mutator: func(d *tmproto.Data) {
 				d.Txs = append(d.Txs, blobTxWithInvalidNonce)
 				d.Hash = calculateNewDataHash(t, d.Txs)
 			},
@@ -276,7 +275,7 @@ func TestProcessProposal(t *testing.T) {
 			input: &tmproto.Data{
 				Txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
 			},
-			mutator: func(d *core.Data) {
+			mutator: func(d *tmproto.Data) {
 				dataSquare, err := square.Construct(d.Txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 				require.NoError(t, err)
 
@@ -307,7 +306,7 @@ func TestProcessProposal(t *testing.T) {
 			tt.mutator(resp.BlockData)
 			res := testApp.ProcessProposal(abci.RequestProcessProposal{
 				BlockData: resp.BlockData,
-				Header: core.Header{
+				Header: tmproto.Header{
 					Height:   1,
 					DataHash: resp.BlockData.Hash,
 				},

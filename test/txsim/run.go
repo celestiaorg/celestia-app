@@ -92,7 +92,7 @@ func Run(
 		if err == nil { // should never happen
 			continue
 		}
-		if errors.Is(err, EndOfSequence) {
+		if errors.Is(err, ErrEndOfSequence) {
 			log.Info().Err(err).Msg("sequence terminated")
 			continue
 		}
