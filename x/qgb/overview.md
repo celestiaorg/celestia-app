@@ -6,7 +6,7 @@ The QGB implementation consists of three components: The [state machine](https:/
 
 ## [State machine](https://github.com/celestiaorg/celestia-app/tree/main/x/qgb)
 
-The state machine is the `qgb` module implementation. It is responsible for creating [attestations](https://github.com/celestiaorg/celestia-app/blob/main/x/qgb/types/attestation.go#L10-L18) which are signed by [orchestrators](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/orchestrator.md) and then submitted to the QGB smart contract, deployed to some EVM chain, using [relayers](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/relayer.md).
+The state machine is the `qgb` module implementation. It is responsible for creating [attestations](https://github.com/celestiaorg/celestia-app/blob/main/x/qgb/types/attestation.go#L10-L18) which are signed by [orchestrators](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/orchestrator.md). Each Celestia validator is expected to also run an orchestrator. [Relayers](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/relayer.md) periodically query the Celestia state for attestations and submit them to the QGB smart contract deployed on some EVM chain.
 
 There are two types of [attestations](https://github.com/celestiaorg/celestia-app/blob/main/x/qgb/types/attestation.go#L10-L18): [valsets](https://github.com/celestiaorg/celestia-app/blob/376a1d4c0f321f12ba78279d2bd34fc6cb5e6dc2/proto/celestia/qgb/v1/types.proto#L18-L33) and [data commitments](https://github.com/celestiaorg/celestia-app/blob/376a1d4c0f321f12ba78279d2bd34fc6cb5e6dc2/proto/celestia/qgb/v1/types.proto#L35-L55).
 
