@@ -310,6 +310,7 @@ func TestProcessProposal(t *testing.T) {
 				Header: tmproto.Header{
 					Height:   1,
 					DataHash: resp.BlockData.Hash,
+					ChainID:  testutil.ChainID,
 				},
 			})
 			assert.Equal(t, tt.expectedResult, res.Result, fmt.Sprintf("expected %v, got %v", tt.expectedResult, res.Result))
