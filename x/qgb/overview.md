@@ -91,7 +91,7 @@ A data commitment digest is created inside the [`domainSeparateDataRootTupleRoot
 
 ### Signatures
 
-The signature scheme used for signing the above hashes follow the [EIP-191](https://eips.ethereum.org/EIPS/eip-191) signing standard. It uses the `ECDSA` algorithm with the `secp256k1` curve. So, the orchestrator uses the keystore to [generate]((https://github.com/celestiaorg/orchestrator-relayer/blob/09ebfdc312c0d9e08856fb98cfd089e956ab7f3a/evm/ethereum_signature.go#L18-L28)) these signatures.
+The signature scheme used for signing the above hashes follow the [EIP-191](https://eips.ethereum.org/EIPS/eip-191) signing standard. It uses the `ECDSA` algorithm with the `secp256k1` curve. So, the orchestrator uses the keystore to [generate](https://github.com/celestiaorg/orchestrator-relayer/blob/09ebfdc312c0d9e08856fb98cfd089e956ab7f3a/evm/ethereum_signature.go#L18-L28) these signatures.
 
 The output signature is in the `[R || S || V]` format where `V` is `0` or `1`. This is defined in the QGB smart contract using the [Signature](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol#L17-L21) struct.
 
