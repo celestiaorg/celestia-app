@@ -10,7 +10,7 @@ The state machine is the `qgb` module implementation. It is responsible for crea
 
 There are two types of [attestations](https://github.com/celestiaorg/celestia-app/blob/main/x/qgb/types/attestation.go#L10-L18): [valsets](https://github.com/celestiaorg/celestia-app/blob/376a1d4c0f321f12ba78279d2bd34fc6cb5e6dc2/proto/celestia/qgb/v1/types.proto#L18-L33) and [data commitments](https://github.com/celestiaorg/celestia-app/blob/376a1d4c0f321f12ba78279d2bd34fc6cb5e6dc2/proto/celestia/qgb/v1/types.proto#L35-L55).
 
-All attestations have a [`nonce`](https://github.com/celestiaorg/celestia-app/blob/8ae6a84b2c99e55625bbe99f70db1e5a985c9675/x/qgb/types/attestation.go#L16) field that defines the order in which the attestations are generated. This nonce is stored in the QGB smart contract as per [ADR-004](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-004-qgb-relayer-security.md#decision), and is used to order attestations submissions.
+All attestations have a [`nonce`](https://github.com/celestiaorg/celestia-app/blob/8ae6a84b2c99e55625bbe99f70db1e5a985c9675/x/qgb/types/attestation.go#L16) field that defines the order in which the attestations are generated. This nonce is stored in the QGB smart contract as per [ADR-004](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-004-qgb-relayer-security.md#decision), and is used to order attestation submissions on the EVM chain.
 
 ### [Valsets](https://github.com/celestiaorg/celestia-app/tree/main/x/qgb#valsets)
 
