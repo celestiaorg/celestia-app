@@ -60,6 +60,7 @@ func TestPrepareProposalPutsPFBsAtEnd(t *testing.T) {
 		BlockData: &tmproto.Data{
 			Txs: txs,
 		},
+		ChainId: testutil.ChainID,
 	})
 	require.Len(t, resp.BlockData.Txs, numBlobTxs+numNormalTxs)
 	for idx, txBytes := range resp.BlockData.Txs {

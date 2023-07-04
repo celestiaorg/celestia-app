@@ -6,7 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/test/util"
+	testutil "github.com/celestiaorg/celestia-app/test/util"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -82,14 +82,14 @@ func TestPrepareProposalConsistency(t *testing.T) {
 		cparams := app.DefaultConsensusParams()
 		cparams.Block.MaxBytes = size.maxBytes
 
-		testApp, kr := util.SetupTestAppWithGenesisValSet(cparams, accounts...)
+		testApp, kr := testutil.SetupTestAppWithGenesisValSet(cparams, accounts...)
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
 				// repeat the test multiple times with random data each
 				// iteration.
 				for i := 0; i < tt.iterations; i++ {
-					txs := util.RandBlobTxsWithAccounts(
+					txs := testutil.RandBlobTxsWithAccounts(
 						t,
 						testApp,
 						encConf.TxConfig.TxEncoder(),
@@ -101,7 +101,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						accounts[:tt.count],
 					)
 					// create 100 send transactions
-					sendTxs := util.SendTxsWithAccounts(
+					sendTxs := testutil.SendTxsWithAccounts(
 						t,
 						testApp,
 						encConf.TxConfig.TxEncoder(),
@@ -116,6 +116,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						BlockData: &core.Data{
 							Txs: coretypes.Txs(txs).ToSliceOfBytes(),
 						},
+						ChainId: testutil.ChainID,
 					})
 
 					// check that the square size is smaller than or equal to
