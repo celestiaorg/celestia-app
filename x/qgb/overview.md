@@ -44,7 +44,7 @@ An attestation digest is a bytes array containing a digest of the attestation re
 
 The orchestrator generally needs access to the validator's RPC/gRPC endpoints. However, it still can use public ones if needed. Its only hard requirement is having access to the specific private key for the target validator. Otherwise, the signatures will be invalid and the validator could get slashed in future versions.
 
-### [Relayer](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/orchestrator.md)
+### [Relayer](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/relayer.md)
 
 A [relayer](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/orchestrator.md) is the software responsible for querying the signatures of a validator set from the P2P network and aggregate them into a format that the [QGB smart contract](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol) understands.
 
