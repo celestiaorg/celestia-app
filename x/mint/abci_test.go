@@ -26,6 +26,7 @@ func TestInflationRate(t *testing.T) {
 	yearOneMinusOneSecond := genesisTime.Add(oneYear).Add(-time.Second)
 	yearOne := genesisTime.Add(oneYear)
 	yearTwo := genesisTime.Add(2 * oneYear)
+	yearFifteen := genesisTime.Add(15 * oneYear)
 	yearTwenty := genesisTime.Add(20 * oneYear)
 
 	type testCase struct {
@@ -54,6 +55,11 @@ func TestInflationRate(t *testing.T) {
 			name: "inflation rate is 0.0648 for year two",
 			ctx:  ctx.WithBlockTime(yearTwo),
 			want: sdk.MustNewDecFromStr("0.0648"),
+		},
+		{
+			name: "inflation rate is 0.01647129056757192 for year fifteen",
+			ctx:  ctx.WithBlockTime(yearFifteen),
+			want: sdk.MustNewDecFromStr("0.01647129056757192"),
 		},
 		{
 			name: "inflation rate is 0.015 for year twenty",
