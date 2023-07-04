@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
-	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
@@ -168,15 +167,13 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 		genState = opt(genState)
 	}
 
-	chainID := tmrand.Str(6)
-
-	baseDir, kr, err := InitFiles(t, cfg.ConsensusParams, tmCfg, genState, kr, chainID)
+	baseDir, kr, err := InitFiles(t, cfg.ConsensusParams, tmCfg, genState, kr, cfg.ChainID)
 	require.NoError(t, err)
 
 	tmNode, app, err := NewCometNode(t, baseDir, cfg)
 	require.NoError(t, err)
 
-	cctx = NewContext(context.TODO(), kr, tmCfg, chainID)
+	cctx = NewContext(context.TODO(), kr, tmCfg, cfg.ChainID)
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)

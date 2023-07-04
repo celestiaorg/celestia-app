@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -24,6 +26,7 @@ func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []tmproto.BlobTx
 
 // filterTxs applies the antehandler to all proposed transactions and removes transactions that return an error.
 func filterTxs(ctx sdk.Context, handler sdk.AnteHandler, txConfig client.TxConfig, txs [][]byte) [][]byte {
+	fmt.Println("filter ctx stuff", ctx.ChainID())
 	normalTxs, blobTxs := separateTxs(txConfig, txs)
 	normalTxs, ctx = filterStdTxs(txConfig.TxDecoder(), ctx, handler, normalTxs)
 	blobTxs, _ = filterBlobTxs(txConfig.TxDecoder(), ctx, handler, blobTxs)
@@ -42,6 +45,7 @@ func filterStdTxs(dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, t
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHanders which is logged.
 		if err != nil {
+			fmt.Println("invalid tx when filtering", err)
 			continue
 		}
 		txs[n] = tx
@@ -64,6 +68,7 @@ func filterBlobTxs(dec sdk.TxDecoder, ctx sdk.Context, handler sdk.AnteHandler, 
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHanders which is logged.
 		if err != nil {
+			fmt.Println("invalid blobtx when filtering", err)
 			continue
 		}
 		txs[n] = tx
