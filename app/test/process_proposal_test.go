@@ -301,6 +301,7 @@ func TestProcessProposal(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
 				BlockData: tt.input,
+				ChainId:   testutil.ChainID,
 			})
 			require.Equal(t, len(tt.input.Txs), len(resp.BlockData.Txs))
 			tt.mutator(resp.BlockData)
@@ -309,6 +310,7 @@ func TestProcessProposal(t *testing.T) {
 				Header: tmproto.Header{
 					Height:   1,
 					DataHash: resp.BlockData.Hash,
+					ChainID:  testutil.ChainID,
 				},
 			})
 			assert.Equal(t, tt.expectedResult, res.Result, fmt.Sprintf("expected %v, got %v", tt.expectedResult, res.Result))
