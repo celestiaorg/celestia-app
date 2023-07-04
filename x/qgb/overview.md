@@ -66,7 +66,7 @@ In order to submit a validator set change, the QGB smart contract provides the [
 
 ### Batches
 
-The batches in the QGB smart contract refer to the `data root tuple root`s described above. These are submitted using the [`submitDataRootTupleRoot()`](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol#L275-L337) `external` method. This latter takes the new batch nonce, its corresponding valset, the `data root tuple root`, along with the actual validator set and their corresponding signatures as `calldata`. Then, it verifies the signature and [persists](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol#L331-L332) the new `data root tuple root` to the state along with the new nonce.
+The batches in the QGB smart contract refer to the `data root tuple root`s described above. These are submitted using the [`submitDataRootTupleRoot()`](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol#L275-L337) `external` method. This latter takes the new batch nonce, its corresponding valset, the `data root tuple root`, along with the actual validator set and their corresponding signatures as `calldata`. Then, it verifies the signature and [persists](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol#L331-L332) the new data root tuple root to the state along with the new nonce.
 
 ### Hashes format
 
