@@ -183,6 +183,7 @@ func TestPrepareProposalFiltering(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
 				BlockData: &tmproto.Data{Txs: tt.txs()},
+				ChainId:   testutil.ChainID,
 			})
 			// check that we have the expected number of transactions
 			require.Equal(t, len(tt.txs())-len(tt.prunedTxs), len(resp.BlockData.Txs))
