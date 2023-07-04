@@ -36,7 +36,7 @@ The [orchestrator-relayer](https://github.com/celestiaorg/orchestrator-relayer) 
 
 ### [Orchestrator](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/orchestrator.md)
 
-An [orchestrator](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/orchestrator.md) is the software responsible for querying the state machine for new attestations, as described above, sign them, and then submit them to the QGB P2P network.
+An [orchestrator](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/orchestrator.md) is the software responsible for querying the state machine for new attestations, signs them, and then submits them to the QGB P2P network.
 
 At startup, it [loads](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/orchestrator.md#evm-key) the EVM private key corresponding to the address used when creating the validator. Then, it uses it to sign the attestations digests before submitting them to the P2P network.
 
