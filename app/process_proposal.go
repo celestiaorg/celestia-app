@@ -41,7 +41,8 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
 	)
-	sdkCtx := app.NewProposalContext(req.Header).WithChainID("mocha-3")
+	fmt.Println("process proposal chain idsssssssss", req.Header.ChainID, "from baseapp", app.GetChainID())
+	sdkCtx := app.NewProposalContext(req.Header)
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed and non
 	// blobTxs have no PFBs present
