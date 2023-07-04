@@ -58,7 +58,7 @@ For a [QGB smart contract](https://github.com/celestiaorg/quantum-gravity-bridge
 
 The [QGB smart contract](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol) is the source of truth for Celestiums. It allows proving/verifying that data was posted to the Celestia blockchain.
 
-In order to reflect the Celestia chain data, the [QGB smart contract](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol) keeps track of the validator set changes, via valset updates, and commits to batches of blocks information, via data commitments.
+In order to reflect the Celestia chain data, the [QGB smart contract](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol) keeps track of the validator set changes, via valset updates, and commits to batches of block information, via data commitments.
 
 ### Validator set changes
 
