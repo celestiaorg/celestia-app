@@ -18,7 +18,7 @@ import (
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	// create a context using a branch of the state and loaded using the
 	// proposal height and chain-id
-	sdkCtx := app.NewProposalContext(core.Header{ChainID: app.GetChainID(), Height: app.LastBlockHeight() + 1})
+	sdkCtx := app.NewProposalContext(core.Header{ChainID: req.ChainId, Height: app.LastBlockHeight() + 1})
 	// filter out invalid transactions.
 	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
 	// and only check the state dependent checks like fees and nonces as all these transactions have already
