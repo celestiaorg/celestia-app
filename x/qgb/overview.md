@@ -52,7 +52,7 @@ It uses the previous valset to that attestation to know which validators should 
 
 When the relayer finds more than 2/3rds of the signatures, it immediately relays them to the QGB smart contract to be persisted, and starts again.
 
-For a [QGB smart contract](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol) not to halt, it needs at least one relayer relaying signatures to it regularly. Otherwise, the QGB contract will be out of sync and will not be able to commit to new data.
+For a [QGB smart contract](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol) to not halt, it needs at least one relayer relaying signatures to it regularly. Otherwise, the QGB contract will be out of sync and will not be able to commit to new data.
 
 ## [QGB smart contract](https://github.com/celestiaorg/quantum-gravity-bridge)
 
