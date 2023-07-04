@@ -46,7 +46,7 @@ The orchestrator generally needs access to the validator's RPC/gRPC endpoints. H
 
 ### [Relayer](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/relayer.md)
 
-A [relayer](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/orchestrator.md) is the software responsible for querying the signatures of a validator set from the P2P network and aggregate them into a format that the [QGB smart contract](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol) understands.
+A [relayer](https://github.com/celestiaorg/orchestrator-relayer/blob/main/docs/relayer.md) is the software responsible for querying the signatures of a validator set from the P2P network and aggregating them into a format that the [QGB smart contract](https://github.com/celestiaorg/quantum-gravity-bridge/blob/3cef3f5dfd37c3086fa40a6324f144595726dc16/src/QuantumGravityBridge.sol) understands.
 
 It uses the previous valset to that attestation to know which validators should sign. Then, it looks for all of those signatures.
 
