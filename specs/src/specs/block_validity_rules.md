@@ -1,12 +1,15 @@
 # Block Validity Rules
 
+## Introduction
+
 Unlike most blockchains, Celestia derives most of its functionality from
 stateless commitments to data rather than stateful transitions. This means that
 the protocol relies heavily on block validity rules. Notably, resource
-constrained light clients must be able to detect when these validity rules have
-not been followed in order to avoid making an honest majority assumption on the consensus network. This
-has a significant impact on thier design. More information on how light clients verify
-block validity rules can be foud in the [Fraud Proofs](./fraud_proofs.md) spec.
+constrained light clients must be able to detect when a subset of these validity
+rules have not been followed in order to avoid making an honest majority
+assumption on the consensus network. This has a significant impact on thier
+design. More information on how light clients can check the invalidity of a
+block can be foud in the [Fraud Proofs](./fraud_proofs.md) spec.
 
 > **Note** Celestia relies on CometBFT (formerly tendermint) for consensus,
 > meaning that it has single slot finality and is fork-free. Therefore, in order
@@ -24,8 +27,6 @@ must be followed. The only deviation from these rules is how the data root
 is generated. Almost all of Celestia's functionality is derived from this
 change, including how it proves data availability to light clients.
 
-## Data Availability
-
 The data for each block must be considered available before a given block can be
 considered valid. For consensus nodes, this is done via an identical mechanism
 to a normal CometBFT node, which involves downloading the entire block by each
@@ -37,6 +38,8 @@ in the seminal ["Fraud and Data Availability Proofs: Maximising Light Client
 Security and Scaling Blockchains with Dishonest
 Majorities"](https://arxiv.org/abs/1809.09044) and in the
 [`celestia-node`](https://github.com/celestiaorg/celestia-node) repo.
+
+### Square Construction
 
 Per the [LazyLedger white paper](https://arxiv.org/pdf/1905.09274.pdf), Celestia
 uses a 2D Reed-Solomon coding scheme
@@ -50,14 +53,11 @@ CometBFT.
 <img src="./figures/data_root.svg" alt="Figure 1: Data Root" width="400"/> <img
 src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/>
 
-### Square Construction
-
 The construction of the square is critical in providing additional guarantees to
 light clients. Since the data root is a commitment to the square, the
 construction of that square is also vital to correctly computing it.
 
-TODO
-[data square layout](./data_square_layout.md)
+See [data square layout](./data_square_layout.md)
 
 #### Share Encoding
 
