@@ -16,9 +16,9 @@ const (
 	// BehaviorConfigKey is the key used to set the malicious config.
 	BehaviorConfigKey = "behavior_config"
 
-	// OutOfOrderHanlderKey is the key used to set the out of order prepare
+	// OutOfOrderHandlerKey is the key used to set the out of order prepare
 	// proposal handler.
-	OutOfOrderHanlderKey = "out_of_order"
+	OutOfOrderHandlerKey = "out_of_order"
 )
 
 // BehaviorConfig defines the malicious behavior for the application. It
@@ -37,7 +37,7 @@ type PrepareProposalHandler func(req abci.RequestPrepareProposal) abci.ResponseP
 // PrepareProposalHandlerMap is a map of all the known prepare proposal handlers.
 func (app *App) PrepareProposalHandlerMap() map[string]PrepareProposalHandler {
 	return map[string]PrepareProposalHandler{
-		OutOfOrderHanlderKey: app.OutOfOrderPrepareProposal,
+		OutOfOrderHandlerKey: app.OutOfOrderPrepareProposal,
 	}
 }
 

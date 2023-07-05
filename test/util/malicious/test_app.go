@@ -29,7 +29,7 @@ import (
 // Note: per the OutOfOrder go docs, the first two blobs with different
 // namespaces will be swapped, resulting in an invalid block.
 func OutOfOrderNamespaceConfig(startHeight int64) *testnode.Config {
-	bcfg := BehaviorConfig{StartHeight: startHeight, HandlerName: OutOfOrderHanlderKey}
+	bcfg := BehaviorConfig{StartHeight: startHeight, HandlerName: OutOfOrderHandlerKey}
 	return TestNodeConfig(bcfg)
 }
 
