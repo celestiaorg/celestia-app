@@ -35,9 +35,9 @@ type BehaviorConfig struct {
 type PrepareProposalHandler func(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal
 
 // PrepareProposalHandlerMap is a map of all the known prepare proposal handlers.
-func (app *App) PrepareProposalHandlerMap() map[string]PrepareProposalHandler {
+func (a *App) PrepareProposalHandlerMap() map[string]PrepareProposalHandler {
 	return map[string]PrepareProposalHandler{
-		OutOfOrderHandlerKey: app.OutOfOrderPrepareProposal,
+		OutOfOrderHandlerKey: a.OutOfOrderPrepareProposal,
 	}
 }
 
@@ -70,27 +70,27 @@ func New(
 	return badApp
 }
 
-func (app *App) SetMaliciousBehavior(mcfg BehaviorConfig) {
+func (a *App) SetMaliciousBehavior(mcfg BehaviorConfig) {
 	// check if the handler is known
-	if _, ok := app.PrepareProposalHandlerMap()[mcfg.HandlerName]; !ok {
+	if _, ok := a.PrepareProposalHandlerMap()[mcfg.HandlerName]; !ok {
 		panic("unknown malicious prepare proposal handler")
 	}
-	app.malPreparePropsoalHandler = app.PrepareProposalHandlerMap()[mcfg.HandlerName]
-	app.maliciousStartHeight = mcfg.StartHeight
+	a.malPreparePropsoalHandler = a.PrepareProposalHandlerMap()[mcfg.HandlerName]
+	a.maliciousStartHeight = mcfg.StartHeight
 }
 
 // PrepareProposal overwrites the default app's method to use the configured
 // malicious behavior after a given height.
-func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
-	if app.LastBlockHeight()+1 >= app.maliciousStartHeight {
-		return app.malPreparePropsoalHandler(req)
+func (a *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
+	if a.LastBlockHeight()+1 >= a.maliciousStartHeight {
+		return a.malPreparePropsoalHandler(req)
 	}
-	return app.App.PrepareProposal(req)
+	return a.App.PrepareProposal(req)
 }
 
 // ProcessProposal overwrites the default app's method to auto accept any
 // proposal.
-func (app *App) ProcessProposal(_ abci.RequestProcessProposal) (resp abci.ResponseProcessProposal) {
+func (a *App) ProcessProposal(_ abci.RequestProcessProposal) (resp abci.ResponseProcessProposal) {
 	return abci.ResponseProcessProposal{
 		Result: abci.ResponseProcessProposal_ACCEPT,
 	}
