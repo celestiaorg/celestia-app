@@ -19,24 +19,21 @@ block can be foud in the [Fraud Proofs](./fraud_proofs.md) spec.
 > proofs are created for light clients. After light clients verify fraud proofs,
 > they halt.
 
-The data for each block must be considered available before a given block can be
-considered valid. For consensus nodes, this is done via an identical mechanism
-to a normal CometBFT node, which involves downloading the entire block by each
-node before considering that block valid.
-
-Light clients however do not download the entire block. They only sample a
-fraction of the block. More details on how sampling actually works can be found
-in the seminal ["Fraud and Data Availability Proofs: Maximising Light Client
-Security and Scaling Blockchains with Dishonest
-Majorities"](https://arxiv.org/abs/1809.09044) and in the
-[`celestia-node`](https://github.com/celestiaorg/celestia-node) repo.
-
 ## Validity Rules
 
 Before any Celestia specific validation is performed, all CometBFT [block
 validation
 rules](https://github.com/cometbft/cometbft/blob/v0.34.28/spec/core/data_structures.md#block)
 must be followed.
+
+Notably, this include verifying data availability. Consensus nodes verify data
+availabily by simply downloading the entire block.
+
+> **Note** Light clients only sample a fraction of the block. More details on
+> how sampling actually works can be found in the seminal ["Fraud and Data
+> Availability Proofs: Maximising Light Client Security and Scaling Blockchains
+> with Dishonest Majorities"](https://arxiv.org/abs/1809.09044) and in the
+> [`celestia-node`](https://github.com/celestiaorg/celestia-node) repo.
 
 Celestia specifc validity rules can be categorized into two groups:
 
