@@ -26,7 +26,7 @@ validation
 rules](https://github.com/cometbft/cometbft/blob/v0.34.28/spec/core/data_structures.md#block)
 must be followed.
 
-Notably, this include verifying data availability. Consensus nodes verify data
+Notably, this includes verifying data availability. Consensus nodes verify data
 availabily by simply downloading the entire block.
 
 > **Note** Light clients only sample a fraction of the block. More details on
