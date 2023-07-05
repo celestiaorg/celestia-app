@@ -48,7 +48,7 @@ func TestNodeConfig(behavior BehaviorConfig) *testnode.Config {
 func NewTestApp(cparams *tmproto.ConsensusParams, mcfg BehaviorConfig, genAccounts ...string) *App {
 	app, _ := util.SetupTestAppWithGenesisValSet(cparams, genAccounts...)
 	badapp := &App{App: app}
-	badapp.SetMaliciousBehavor(mcfg)
+	badapp.SetMaliciousBehavior(mcfg)
 	return badapp
 }
 

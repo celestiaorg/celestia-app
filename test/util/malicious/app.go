@@ -64,13 +64,13 @@ func New(
 
 	// set the malicious prepare proposal handler if it is set in the app options
 	if malHanderName := appOpts.Get(BehaviorConfigKey); malHanderName != nil {
-		badApp.SetMaliciousBehavor(malHanderName.(BehaviorConfig))
+		badApp.SetMaliciousBehavior(malHanderName.(BehaviorConfig))
 	}
 
 	return badApp
 }
 
-func (app *App) SetMaliciousBehavor(mcfg BehaviorConfig) {
+func (app *App) SetMaliciousBehavior(mcfg BehaviorConfig) {
 	// check if the handler is known
 	if _, ok := app.PrepareProposalHandlerMap()[mcfg.HandlerName]; !ok {
 		panic("unknown malicious prepare proposal handler")
