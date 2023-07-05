@@ -1298,10 +1298,13 @@ with Dishonest Majorities&quot;</a> and in the
 <a href="https://github.com/celestiaorg/celestia-node"><code>celestia-node</code></a> repo.</p>
 </blockquote>
 <p>Celestia specifc validity rules can be categorized into two groups:</p>
-<ul>
-<li><a href="specs/../../../x/blob/README.html#validity-rules">Transaction Validity</a></li>
-<li><a href="specs/./data_square_layout.html">Data Root Construction</a></li>
-</ul>
+<h3 id="transaction-validity-rules"><a class="header" href="#transaction-validity-rules">Transaction Validity Rules</a></h3>
+<p>All <code>BlobTx</code> transactions must be valid according to the <a href="specs/../../../x/blob/README.html#validity-rules">BlobTx validity rules</a></p>
+<p>All remaining transaction types do not have to by valid if included in a block. For a complete list of modules see <a href="specs/./state_machine_modules.html">state machine modules</a>.</p>
+<h3 id="data-root-construction"><a class="header" href="#data-root-construction">Data Root Construction</a></h3>
+<p>The data root must be calculated from a correctly constructed data square per the <a href="specs/./data_square_layout.html">data square layout rules</a></p>
+<p><img src="specs/./figures/rs2d_extending.svg" alt="Figure 1: Erasure Encoding" width="400"/> <img
+src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/> <img src="specs/./figures/data_root.svg" alt="Figure 3: Data Root" width="400"/></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="fraud-proofs"><a class="header" href="#fraud-proofs">Fraud Proofs</a></h1>
 <h2 id="bad-encoding-fraud-proofs"><a class="header" href="#bad-encoding-fraud-proofs">Bad Encoding Fraud Proofs</a></h2>
 <p>In order for data availability sampling to work, light clients must be convinced
@@ -1496,8 +1499,6 @@ message StateFraudProof {
 <!-- toc -->
 <h2 id="preamble"><a class="header" href="#preamble">Preamble</a></h2>
 <p>Celestia uses <a href="https://arxiv.org/abs/1809.09044">a data availability scheme</a> that allows nodes to determine whether a block's data was published without downloading the whole block. The core of this scheme is arranging data in a two-dimensional matrix of <a href="specs/./shares.html">shares</a>, then applying erasure coding to each row and column. This document describes the rationale for how data—transactions, blobs, and other data—<a href="specs/./data_structures.html#arranging-available-data-into-shares">is actually arranged</a>. Familiarity with the <a href="https://arxiv.org/abs/1809.09044">originally proposed data layout format</a> is assumed.</p>
-<p><img src="specs/./figures/rs2d_extending.svg" alt="Figure 1: Erasure Encoding" width="400"/> <img
-src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/> <img src="specs/./figures/data_root.svg" alt="Figure 3: Data Root" width="400"/></p>
 <h2 id="layout-rationale"><a class="header" href="#layout-rationale">Layout Rationale</a></h2>
 <p>Block data consists of:</p>
 <ol>

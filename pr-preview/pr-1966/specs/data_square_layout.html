@@ -141,8 +141,6 @@
 <!-- toc -->
 <h2 id="preamble"><a class="header" href="#preamble">Preamble</a></h2>
 <p>Celestia uses <a href="https://arxiv.org/abs/1809.09044">a data availability scheme</a> that allows nodes to determine whether a block's data was published without downloading the whole block. The core of this scheme is arranging data in a two-dimensional matrix of <a href="./shares.html">shares</a>, then applying erasure coding to each row and column. This document describes the rationale for how data—transactions, blobs, and other data—<a href="./data_structures.html#arranging-available-data-into-shares">is actually arranged</a>. Familiarity with the <a href="https://arxiv.org/abs/1809.09044">originally proposed data layout format</a> is assumed.</p>
-<p><img src="./figures/rs2d_extending.svg" alt="Figure 1: Erasure Encoding" width="400"/> <img
-src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/> <img src="./figures/data_root.svg" alt="Figure 3: Data Root" width="400"/></p>
 <h2 id="layout-rationale"><a class="header" href="#layout-rationale">Layout Rationale</a></h2>
 <p>Block data consists of:</p>
 <ol>

@@ -171,10 +171,13 @@ with Dishonest Majorities&quot;</a> and in the
 <a href="https://github.com/celestiaorg/celestia-node"><code>celestia-node</code></a> repo.</p>
 </blockquote>
 <p>Celestia specifc validity rules can be categorized into two groups:</p>
-<ul>
-<li><a href="../../../x/blob/README.html#validity-rules">Transaction Validity</a></li>
-<li><a href="./data_square_layout.html">Data Root Construction</a></li>
-</ul>
+<h3 id="transaction-validity-rules"><a class="header" href="#transaction-validity-rules">Transaction Validity Rules</a></h3>
+<p>All <code>BlobTx</code> transactions must be valid according to the <a href="../../../x/blob/README.html#validity-rules">BlobTx validity rules</a></p>
+<p>All remaining transaction types do not have to by valid if included in a block. For a complete list of modules see <a href="./state_machine_modules.html">state machine modules</a>.</p>
+<h3 id="data-root-construction"><a class="header" href="#data-root-construction">Data Root Construction</a></h3>
+<p>The data root must be calculated from a correctly constructed data square per the <a href="./data_square_layout.html">data square layout rules</a></p>
+<p><img src="./figures/rs2d_extending.svg" alt="Figure 1: Erasure Encoding" width="400"/> <img
+src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/> <img src="./figures/data_root.svg" alt="Figure 3: Data Root" width="400"/></p>
 
                     </main>
 
