@@ -37,5 +37,15 @@ availabily by simply downloading the entire block.
 
 Celestia specifc validity rules can be categorized into two groups:
 
-- [Transaction Validity](../../../x/blob/README.md#validity-rules)
-- [Data Root Construction](./data_square_layout.md)
+### Transaction Validity Rules
+
+All `BlobTx` transactions must be valid according to the [BlobTx validity rules](../../../x/blob/README.md#validity-rules)
+
+All remaining transaction types do not have to by valid if included in a block. For a complete list of modules see [state machine modules](./state_machine_modules.md).
+
+### Data Root Construction
+
+The data root must be calculated from a correctly constructed data square per the [data square layout rules](./data_square_layout.md)
+
+<img src="./figures/rs2d_extending.svg" alt="Figure 1: Erasure Encoding" width="400"/> <img
+src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/> <img src="./figures/data_root.svg" alt="Figure 3: Data Root" width="400"/>
