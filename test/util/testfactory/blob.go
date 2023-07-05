@@ -25,12 +25,12 @@ func GenerateRandomlySizedBlobs(count, maxBlobSize int) []types.Blob {
 		blobs = nil
 	}
 
-	sort.Sort(types.BlobsByNamespace(blobs))
+	blobs = SortBlobs(blobs)
 	return blobs
 }
 
 // GenerateBlobsWithNamespace generates blobs with namespace ns.
-func GenerateBlobsWithNamespace(count int, blobSize int, ns appns.Namespace) types.BlobsByNamespace {
+func GenerateBlobsWithNamespace(count int, blobSize int, ns appns.Namespace) []types.Blob {
 	blobs := make([]types.Blob, count)
 	for i := 0; i < count; i++ {
 		blobs[i] = types.Blob{
@@ -77,4 +77,9 @@ func rawBlobSize(totalSize int) int {
 func DelimLen(size uint64) int {
 	lenBuf := make([]byte, binary.MaxVarintLen64)
 	return binary.PutUvarint(lenBuf, size)
+}
+
+func SortBlobs(blobs []types.Blob) []types.Blob {
+	sort.Slice(blobs, func(i, j int) bool { return bytes.Compare(blobs[i].NamespaceID, blobs[j].NamespaceID) < 0 })
+	return blobs
 }

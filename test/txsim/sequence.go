@@ -47,9 +47,8 @@ const (
 	DefaultGasLimit = 1000000
 )
 
-// EndOfSequence is a special error which indicates that the sequence has been terminated
-// nolint: revive
-var EndOfSequence = errors.New("end of sequence")
+// ErrEndOfSequence is a special error which indicates that the sequence has been terminated
+var ErrEndOfSequence = errors.New("end of sequence")
 
 // AccountAllocator reserves and funds a series of accounts to be used exclusively by
 // the Sequence.

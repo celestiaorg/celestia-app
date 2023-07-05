@@ -21,7 +21,6 @@ import (
 	"github.com/celestiaorg/rsmt2d"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -53,9 +52,9 @@ func TestSquareTxShareRange(t *testing.T) {
 		expectErr bool
 	}
 
-	txOne := types.Tx{0x1}
-	txTwo := types.Tx(bytes.Repeat([]byte{2}, 600))
-	txThree := types.Tx(bytes.Repeat([]byte{3}, 1000))
+	txOne := coretypes.Tx{0x1}
+	txTwo := coretypes.Tx(bytes.Repeat([]byte{2}, 600))
+	txThree := coretypes.Tx(bytes.Repeat([]byte{3}, 1000))
 
 	testCases := []test{
 		{
@@ -139,7 +138,7 @@ func TestSquareBlobShareRange_Flaky(t *testing.T) {
 	rand := tmrand.NewRand()
 	txs := blobfactory.RandBlobTxsRandomlySized(encCfg.TxConfig.TxEncoder(), rand, 10, 1000, 10).ToSliceOfBytes()
 
-	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold, txs...)
+	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.LatestVersion, txs...)
 	require.NoError(t, err)
 
 	dataSquare, err := builder.Export()
@@ -190,7 +189,7 @@ func TestSquareDeconstruct(t *testing.T) {
 	})
 	t.Run("NoPFBs", func(t *testing.T) {
 		const numTxs = 10
-		txs := types.Txs(blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, numTxs)).ToSliceOfBytes()
+		txs := coretypes.Txs(blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, numTxs)).ToSliceOfBytes()
 		dataSquare, err := square.Construct(txs, appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
 		require.NoError(t, err)
 		recomputedTxs, err := square.Deconstruct(dataSquare, encCfg.TxConfig.TxDecoder())
@@ -208,7 +207,7 @@ func TestSquareDeconstruct(t *testing.T) {
 	t.Run("EmptySquare", func(t *testing.T) {
 		tx, err := square.Deconstruct(square.EmptySquare(), encCfg.TxConfig.TxDecoder())
 		require.NoError(t, err)
-		require.Equal(t, types.Txs{}, tx)
+		require.Equal(t, coretypes.Txs{}, tx)
 	})
 }
 
@@ -216,7 +215,7 @@ func TestSquareShareCommitments(t *testing.T) {
 	const numTxs = 10
 	rand := tmrand.NewRand()
 	txs := generateOrderedTxs(rand, numTxs, numTxs, 3, 800)
-	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.DefaultSubtreeRootThreshold, txs...)
+	builder, err := square.NewBuilder(appconsts.DefaultSquareSizeUpperBound, appconsts.LatestVersion, txs...)
 	require.NoError(t, err)
 
 	dataSquare, err := builder.Export()

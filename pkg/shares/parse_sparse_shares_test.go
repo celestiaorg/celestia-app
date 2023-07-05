@@ -3,7 +3,6 @@ package shares
 import (
 	"bytes"
 	"fmt"
-	"sort"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -59,7 +58,7 @@ func Test_parseSparseShares(t *testing.T) {
 				blobs[i] = testfactory.GenerateRandomBlob(tc.blobSize)
 			}
 
-			sort.Sort(coretypes.BlobsByNamespace(blobs))
+			blobs = testfactory.SortBlobs(blobs)
 
 			shares, err := SplitBlobs(blobs...)
 			require.NoError(t, err)
@@ -135,7 +134,7 @@ func Test_parseSparseSharesWithNamespacedPadding(t *testing.T) {
 		randomSmallBlob,
 		randomLargeBlob,
 	}
-	sort.Sort(coretypes.BlobsByNamespace(blobs))
+	blobs = testfactory.SortBlobs(blobs)
 
 	err := sss.Write(blobs[0])
 	require.NoError(t, err)

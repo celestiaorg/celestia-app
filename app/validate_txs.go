@@ -3,15 +3,14 @@ package app
 import (
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	core "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
 // separateTxs decodes raw tendermint txs into normal and blob txs.
-func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []core.BlobTx) {
+func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []tmproto.BlobTx) {
 	normalTxs := make([][]byte, 0, len(rawTxs))
-	blobTxs := make([]core.BlobTx, 0, len(rawTxs))
+	blobTxs := make([]tmproto.BlobTx, 0, len(rawTxs))
 	for _, rawTx := range rawTxs {
 		bTx, isBlob := coretypes.UnmarshalBlobTx(rawTx)
 		if isBlob {
