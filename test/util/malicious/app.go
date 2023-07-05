@@ -80,7 +80,7 @@ func (app *App) SetMaliciousBehavor(mcfg BehaviorConfig) {
 }
 
 // PrepareProposal overwrites the default app's method to use the configured
-// malicious beahvior after a given height.
+// malicious behavior after a given height.
 func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePrepareProposal {
 	if app.LastBlockHeight()+1 >= app.maliciousStartHeight {
 		return app.malPreparePropsoalHandler(req)
