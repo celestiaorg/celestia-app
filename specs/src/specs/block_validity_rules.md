@@ -19,14 +19,6 @@ block can be foud in the [Fraud Proofs](./fraud_proofs.md) spec.
 > proofs are created for light clients. After light clients verify fraud proofs,
 > they halt.
 
-Before any Celestia specific validation is performed, all CometBFT [block
-validation
-rules](https://github.com/cometbft/cometbft/blob/v0.34.28/spec/core/data_structures.md#block)
-must be followed. The only deviation from these rules is how the data root
-([DataHash](https://github.com/cometbft/cometbft/blob/v0.34.28/spec/core/data_structures.md#header))
-is generated. Almost all of Celestia's functionality is derived from this
-change, including how it proves data availability to light clients.
-
 The data for each block must be considered available before a given block can be
 considered valid. For consensus nodes, this is done via an identical mechanism
 to a normal CometBFT node, which involves downloading the entire block by each
@@ -39,39 +31,14 @@ Security and Scaling Blockchains with Dishonest
 Majorities"](https://arxiv.org/abs/1809.09044) and in the
 [`celestia-node`](https://github.com/celestiaorg/celestia-node) repo.
 
-### Square Construction
+## Validity Rules
 
-Per the [LazyLedger white paper](https://arxiv.org/pdf/1905.09274.pdf), Celestia
-uses a 2D Reed-Solomon coding scheme
-([rsmt2d](https://github.com/celestiaorg/rsmt2d)) to accommodate data
-availability sampling. This involves "splitting" the CometBFT block data into
-shares. Along with the 2D scheme, Celestia also makes use of [namespaced merkle
-trees (nmt)](https://github.com/celestiaorg/nmt). These are combined to create
-the commitment over block data instead of the typical merkle tree used by
-CometBFT.
+Before any Celestia specific validation is performed, all CometBFT [block
+validation
+rules](https://github.com/cometbft/cometbft/blob/v0.34.28/spec/core/data_structures.md#block)
+must be followed.
 
-<img src="./figures/data_root.svg" alt="Figure 1: Data Root" width="400"/> <img
-src="./figures/rs2d_quadrants.svg" alt="Figure 2: rsmt2d" width="400"/>
+Celestia specifc validity rules can be categorized into two groups:
 
-The construction of the square is critical in providing additional guarantees to
-light clients. Since the data root is a commitment to the square, the
-construction of that square is also vital to correctly computing it.
-
-See [data square layout](./data_square_layout.md)
-
-#### Share Encoding
-
-Each chunk of block data is split into equally size shares for sampling
-purposes. The encoding was designed to allow for light clients to decode these
-shares to retrieve relevant data and to be future-proof yet backwards
-compatible. The share encoding is deeply integrated into square construction, and
-therefore critical to calculate the data root.
-
-See [shares spec](./shares.md)
-
-## `BlobTx` Validity Rules
-
-Each `BlobTx` consists of a transaction to pay for one or more blobs, and the
-blobs themselves. Each `BlobTx` that is included in the block must be valid.
-Those rules are described in [`x/blob` module
-specs](../../../x/blob/README.md#validity-rules)
+- [Transaction Validity](../../../x/blob/README.md#validity-rules)
+- [Data Root Construction](./data_square_layout.md)
