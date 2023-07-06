@@ -95,7 +95,6 @@ func NewRootCmd() *cobra.Command {
 			tmCfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 			tmCfg.Consensus.TargetHeightDuration = appconsts.TargetHeightDuration
 			tmCfg.Consensus.SkipTimeoutCommit = false
-			tmCfg.TxIndex.Indexer = "kv"
 
 			customAppTemplate, customAppConfig := initAppConfig()
 
