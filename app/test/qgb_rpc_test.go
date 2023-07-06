@@ -15,10 +15,16 @@ func TestQGBRPCQueries(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping QGB integration test in short mode.")
 	}
-	cfg := testnode.DefaultConfig()
+	tmCfg := testnode.DefaultTendermintConfig()
+	tmCfg.Consensus.TargetHeightDuration = time.Millisecond
 
-	cctx, _, _ := testnode.NewNetwork(t, cfg)
-
+	cctx, _, _ := testnode.NewNetwork(
+		t,
+		testnode.DefaultParams(),
+		tmCfg,
+		testnode.DefaultAppConfig(),
+		[]string{},
+	)
 	h, err := cctx.WaitForHeightWithTimeout(105, 2*time.Minute)
 	require.NoError(t, err, h)
 	require.Greater(t, h, int64(101))

@@ -60,11 +60,13 @@ func setup(t testing.TB) (keyring.Keyring, string, string) {
 	cparams := testnode.DefaultParams()
 	cparams.Block.MaxBytes = int64(appconsts.DefaultSquareSizeUpperBound*appconsts.DefaultSquareSizeUpperBound) * appconsts.ContinuationSparseShareContentSize
 
-	cfg := testnode.DefaultConfig().
-		WithConsensusParams(cparams).
-		WithAccounts([]string{testfactory.TestAccName})
-
-	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
+	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(
+		t,
+		cparams,
+		testnode.DefaultTendermintConfig(),
+		testnode.DefaultAppConfig(),
+		[]string{testfactory.TestAccName},
+	)
 
 	return cctx.Keyring, rpcAddr, grpcAddr
 }
