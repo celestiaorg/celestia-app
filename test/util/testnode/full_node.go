@@ -169,9 +169,6 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 	}
 
 	chainID := cfg.ChainID
-	if chainID == "" {
-		chainID = tmrand.Str(6)
-	}
 
 	baseDir, kr, err := InitFiles(t, cfg.ConsensusParams, tmCfg, genState, kr, chainID)
 	require.NoError(t, err)
