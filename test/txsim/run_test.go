@@ -117,9 +117,13 @@ func TestTxSimulator(t *testing.T) {
 func Setup(t testing.TB) (keyring.Keyring, string, string) {
 	t.Helper()
 
-	cfg := testnode.DefaultConfig()
-
-	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
+	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(
+		t,
+		testnode.DefaultParams(),
+		testnode.DefaultTendermintConfig(),
+		testnode.DefaultAppConfig(),
+		[]string{},
+	)
 
 	return cctx.Keyring, rpcAddr, grpcAddr
 }
