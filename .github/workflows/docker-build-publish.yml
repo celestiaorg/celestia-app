@@ -24,15 +24,15 @@ jobs:
   debug:
     runs-on: ubuntu-latest
     steps:
-      - run: echo ${{github.event.pull_request.base.repo.full_name}}
-      - run: echo ${{github.event.pull_request.head.repo.full_name}}
-      - run: echo ${{github.repository}}
       - run: |
           echo github.event.pull_request.head.repo.full_name
           echo ${{github.event.pull_request.head.repo.full_name}}
       - run: |
           echo github.event.pull_request.base.repo.full_name
           echo ${{github.event.pull_request.base.repo.full_name}}
+      - run: |
+          echo github.event_name
+          echo ${{github.event_name}}
       - run: |
           echo github.repository
           echo ${{github.repository}}
