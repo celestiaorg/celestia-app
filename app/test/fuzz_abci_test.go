@@ -11,6 +11,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
+	"github.com/tendermint/tendermint/proto/tendermint/version"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
@@ -84,6 +85,8 @@ func TestPrepareProposalConsistency(t *testing.T) {
 
 		testApp, kr := testutil.SetupTestAppWithGenesisValSet(cparams, accounts...)
 
+		sendTxCount := 100
+
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
 				// repeat the test multiple times with random data each
@@ -97,7 +100,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						tt.size,
 						tt.count,
 						true,
-						"",
+						testutil.ChainID,
 						accounts[:tt.count],
 					)
 					// create 100 send transactions
@@ -108,8 +111,8 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						kr,
 						1000,
 						accounts[0],
-						accounts[len(accounts)-100:],
-						"",
+						accounts[len(accounts)-sendTxCount:],
+						testutil.ChainID,
 					)
 					txs = append(txs, sendTxs...)
 					resp := testApp.PrepareProposal(abci.RequestPrepareProposal{
@@ -127,9 +130,18 @@ func TestPrepareProposalConsistency(t *testing.T) {
 						BlockData: resp.BlockData,
 						Header: core.Header{
 							DataHash: resp.BlockData.Hash,
+							ChainID:  testutil.ChainID,
+							Version:  version.Consensus{App: appconsts.LatestVersion},
+							Height:   testApp.LastBlockHeight() + 1,
 						},
-					})
+					},
+					)
 					require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Result)
+					// At least all of the send transactions and one blob tx
+					// should make it into the block. This should be expected to
+					// change if PFB transactions are not separated and put into
+					// their own namespace
+					require.Greater(t, len(resp.BlockData.Txs), sendTxCount+1)
 				}
 			})
 		}
