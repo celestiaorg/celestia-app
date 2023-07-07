@@ -16,15 +16,15 @@ func RoundUpPowerOfTwo[I constraints.Integer](input I) I {
 }
 
 // RoundDownPowerOfTwo returns the next power of two less than or equal to input.
-func RoundDownPowerOfTwo[I constraints.Integer](input I) I {
+func RoundDownPowerOfTwo[I constraints.Integer](input I) (I, error) {
 	if input <= 0 {
-		panic(fmt.Sprintf("input %v must be positive", input))
+		return 0, fmt.Errorf("input %v must be positive", input)
 	}
 	roundedUp := RoundUpPowerOfTwo(input)
 	if roundedUp == input {
-		return roundedUp
+		return roundedUp, nil
 	}
-	return roundedUp / 2
+	return roundedUp / 2, nil
 }
 
 // RoundUpPowerOfTwo returns the next power of two that is strictly greater than input.

@@ -24,37 +24,18 @@
 | `GENESIS_COIN_COUNT`                    | `uint64` | `10**8`      | `4u`    | `(= 100000000)` Number of coins at genesis.                                                                                                                         |
 | `MAX_GRAFFITI_BYTES`                    | `uint64` | `32`         | `byte`  | Maximum size of transaction graffiti, in bytes.                                                                                                                     |
 | `MAX_VALIDATORS`                        | `uint16` | `64`         |         | Maximum number of active validators.                                                                                                                                |
-| `NAMESPACE_ID_BYTES`                    | `uint64` | `8`          | `byte`  | Size of namespace ID, in bytes.                                                                                                                                     |
-| `NAMESPACE_ID_MAX_RESERVED`             | `uint64` | `255`        |         | Value of maximum reserved namespace ID (inclusive). 1 byte worth of IDs.                                                                                            |
+| `NAMESPACE_VERSION_SIZE`                | `int`    | `1`          | `byte`  | Size of namespace version in bytes.                                                                                                                                 |
+| `NAMESPACE_ID_SIZE`                     | `int`    | `28`         | `byte`  | Size of namespace ID in bytes.                                                                                                                                      |
+| `NAMESPACE_SIZE`                        | `int`    | `29`         | `byte`  | Size of namespace in bytes.                                                                                                                                         |
+| `NAMESPACE_ID_MAX_RESERVED`             | `uint64` | `255`        |         | Value of maximum reserved namespace (inclusive). 1 byte worth of IDs.                                                                                               |
 | `SEQUENCE_BYTES`                        | `uint64` | `4`          | `byte`  | The number of bytes used to store the sequence length in the first share of a sequence                                                                              |
 | `SHARE_INFO_BYTES`                      | `uint64` | `1`          | `byte`  | The number of bytes used for [share](data_structures.md#share) information                                                                                          |
-| `SHARE_RESERVED_BYTES`                  | `uint64` | `4`          | `byte`  | The number of bytes used to store the location of the first unit in a compact share. Must be able to represent any integer up to and including `SHARE_SIZE - 1`.                           |
-| `SHARE_SIZE`                            | `uint64` | `512`        | `byte`  | Size of transaction and message [shares](data_structures.md#share), in bytes.                                                                                       |
+| `SHARE_RESERVED_BYTES`                  | `uint64` | `4`          | `byte`  | The number of bytes used to store the index of the first transaction in a transaction share. Must be able to represent any integer up to and including `SHARE_SIZE - 1`.    |
+| `SHARE_SIZE`                            | `uint64` | `512`        | `byte`  | Size of transaction and blob [shares](data_structures.md#share), in bytes.                                                                                          |
 | `STATE_SUBTREE_RESERVED_BYTES`          | `uint64` | `1`          | `byte`  | Number of bytes reserved to identify state subtrees.                                                                                                                |
 | `UNBONDING_DURATION`                    | `uint32` |              | `block` | Duration, in blocks, for unbonding a validator or delegation.                                                                                                       |
 | `VERSION_APP`                           | `uint64` | `1`          |         | Version of the Celestia application. Breaking changes (hard forks) must update this parameter.                                                                      |
 | `VERSION_BLOCK`                         | `uint64` | `1`          |         | Version of the Celestia chain. Breaking changes (hard forks) must update this parameter.                                                                            |
-
-### Reserved Namespace IDs
-
-| name                                    | type          | value                | description                                                                                |
-|-----------------------------------------|---------------|----------------------|--------------------------------------------------------------------------------------------|
-| `TRANSACTION_NAMESPACE_ID`              | `NamespaceID` | `0x0000000000000001` | Transactions: requests that modify the state.                                              |
-| `INTERMEDIATE_STATE_ROOT_NAMESPACE_ID`  | `NamespaceID` | `0x0000000000000002` | Intermediate state roots, committed after every transaction.                               |
-| `EVIDENCE_NAMESPACE_ID`                 | `NamespaceID` | `0x0000000000000003` | Evidence: fraud proofs or other proof of slashable action.                                 |
-| `RESERVED_PADDING_NAMESPACE_ID`         | `NamespaceID` | `0x00000000000000FF` | Padding after all reserved namespaces but before blobs.                                    |
-| `TAIL_PADDING_NAMESPACE_ID`             | `NamespaceID` | `0xFFFFFFFFFFFFFFFE` | Tail padding for messages: padding after all messages to fill up the original data square. |
-| `PARITY_SHARE_NAMESPACE_ID`             | `NamespaceID` | `0xFFFFFFFFFFFFFFFF` | Parity shares: extended shares in the available data matrix.                               |
-
-### Reserved State Subtree IDs
-
-| name                             | type             | value  |
-|----------------------------------|------------------|--------|
-| `ACCOUNTS_SUBTREE_ID`            | `StateSubtreeID` | `0x01` |
-| `ACTIVE_VALIDATORS_SUBTREE_ID`   | `StateSubtreeID` | `0x02` |
-| `INACTIVE_VALIDATORS_SUBTREE_ID` | `StateSubtreeID` | `0x03` |
-| `DELEGATIONS_SUBTREE_ID`         | `StateSubtreeID` | `0x04` |
-| `MESSAGE_PAID_SUBTREE_ID`        | `StateSubtreeID` | `0x05` |
 
 ### Rewards and Penalties
 
@@ -135,7 +116,7 @@ The block's [available data](./data_structures.md#availabledata) (analogous to t
 
 Once parsed, the following checks must be `true`:
 
-1. The commitments of the [erasure-coded extended](./data_structures.md#2d-reed-solomon-encoding-scheme) `availableData` must match those in `header.availableDataHeader`. Implicitly, this means that both rows and columns must be ordered lexicographically by namespace ID since they are committed to in a [Namespace Merkle Tree](data_structures.md#namespace-merkle-tree).
+1. The commitments of the [erasure-coded extended](./data_structures.md#2d-reed-solomon-encoding-scheme) `availableData` must match those in `header.availableDataHeader`. Implicitly, this means that both rows and columns must be ordered lexicographically by namespace since they are committed to in a [Namespace Merkle Tree](data_structures.md#namespace-merkle-tree).
 1. Length of `availableData.intermediateStateRootData` == length of `availableData.transactionData` + length of `availableData.payForBlobData` + 2. (Two additional state transitions are the [begin](#begin-block) and [end block](#end-block) implicit transitions.)
 
 ## State Transitions
@@ -152,7 +133,7 @@ State transitions are applied in the following order:
 
 ### `block.availableData.transactionData`
 
-Transactions are applied to the state. Note that _transactions_ mutate the state (essentially, the validator set and minimal balances), while _messages_ do not.
+Transactions are applied to the state. Note that _transactions_ mutate the state (essentially, the validator set and minimal balances), while _blobs_ do not.
 
 `block.availableData.transactionData` is simply a list of [WrappedTransaction](./data_structures.md#wrappedtransaction)s. For each wrapped transaction in this list, `wrappedTransaction`, with index `i` (starting from `0`), the following checks must be `true`:
 
@@ -214,25 +195,25 @@ function validatorQueueRemove(validator, sender)
 
 Note that light clients cannot perform a linear search through a linked list, and are instead provided logarithmic proofs (e.g. in the case of `parentFromQueue`, a proof to the parent is provided, which should have `address` as its next validator).
 
-In addition, three helper functions to manage the [message paid list](./data_structures.md#messagepaid):
+In addition, three helper functions to manage the [blob paid list](./data_structures.md#blobpaid):
 
-1. `findFromMessagePaidList(start)`, which returns the transaction ID of the last transaction in the [message paid list](./data_structures.md#messagepaid) with `finish` greater than `start`, or `0` if the list is empty or no transactions in the list have at least `start` `finish`.
-1. `parentFromMessagePaidList(txid)`, which returns the transaction ID of the parent in the message paid list of the transaction with ID `txid`, or `0` if `txid` is not in the list or is the head of the list.
-1. `messagePaidListInsert`, defined as
+1. `findFromBlobPaidList(start)`, which returns the transaction ID of the last transaction in the [blob paid list](./data_structures.md#blobpaid) with `finish` greater than `start`, or `0` if the list is empty or no transactions in the list have at least `start` `finish`.
+1. `parentFromBlobPaidList(txid)`, which returns the transaction ID of the parent in the blob paid list of the transaction with ID `txid`, or `0` if `txid` is not in the list or is the head of the list.
+1. `blobPaidListInsert`, defined as
 
 ```py
-function messagePaidListInsert(tx, txid)
+function blobPaidListInsert(tx, txid)
     # Insert the new transaction into the linked list
-    parent = findFromMessagePaidList(tx.messageStartIndex)
-    state.messagesPaid[txid].start = tx.messageStartIndex
-    numShares = ceil(tx.messageSize / SHARE_SIZE)
-    state.messagesPaid[txid].finish = tx.messageStartIndex + numShares - 1
+    parent = findFromBlobPaidList(tx.blobStartIndex)
+    state.blobsPaid[txid].start = tx.blobStartIndex
+    numShares = ceil(tx.blobSize / SHARE_SIZE)
+    state.blobsPaid[txid].finish = tx.blobStartIndex + numShares - 1
     if parent != 0
-        state.messagesPaid[txid].next = state.messagesPaid[parent].next
-        state.messagesPaid[parent].next = txid
+        state.blobsPaid[txid].next = state.blobsPaid[parent].next
+        state.blobsPaid[parent].next = txid
     else
-        state.messagesPaid[txid].next = state.messagePaidHead
-        state.messagePaidHead = txid
+        state.blobsPaid[txid].next = state.blobPaidHead
+        state.blobPaidHead = txid
 ```
 
 We define a helper function to compute F1 entries:
@@ -272,9 +253,9 @@ state.activeValidatorSet.proposerBlockReward += tipCost(bytesPaid)
 #### SignedTransactionDataMsgPayForData
 
 ```py
-bytesPaid = len(tx) + tx.messageSize
-currentStartFinish = state.messagesPaid[findFromMessagePaidList(tx.messageStartIndex)]
-parentStartFinish = state.messagesPaid[parentFromMessagePaidList(findFromMessagePaidList(tx.messageStartIndex))]
+bytesPaid = len(tx) + tx.blobSize
+currentStartFinish = state.blobsPaid[findFromBlobPaidList(tx.blobStartIndex)]
+parentStartFinish = state.blobsPaid[parentFromBlobPaidList(findFromBlobPaidList(tx.blobStartIndex))]
 ```
 
 The following checks must be `true`:
@@ -282,11 +263,11 @@ The following checks must be `true`:
 1. `tx.type` == [`TransactionType.MsgPayForData`](./data_structures.md#signedtransactiondata).
 1. `totalCost(0, tx.fee.tipRate, bytesPaid)` <= `state.accounts[sender].balance`.
 1. `tx.nonce` == `state.accounts[sender].nonce + 1`.
-1. The `ceil(tx.messageSize / SHARE_SIZE)` shares starting at index `tx.messageStartIndex` must:
-    1. Have namespace ID `tx.messageNamespaceID`.
-1. `tx.messageShareCommitment` == computed as described [here](./data_structures.md#signedtransactiondatamsgpayfordata).
-1. `parentStartFinish.finish` < `tx.messageStartIndex`.
-1. `currentStartFinish.start` == `0` or `currentStartFinish.start` > `tx.messageStartIndex + ceil(tx.messageSize / SHARE_SIZE)`.
+1. The `ceil(tx.blobSize / SHARE_SIZE)` shares starting at index `tx.blobStartIndex` must:
+    1. Have namespace `tx.blobNamespace`.
+1. `tx.blobShareCommitment` == computed as described [here](./data_structures.md#signedtransactiondatamsgpayfordata).
+1. `parentStartFinish.finish` < `tx.blobStartIndex`.
+1. `currentStartFinish.start` == `0` or `currentStartFinish.start` > `tx.blobStartIndex + ceil(tx.blobSize / SHARE_SIZE)`.
 
 Apply the following to the state:
 
@@ -294,7 +275,7 @@ Apply the following to the state:
 state.accounts[sender].nonce += 1
 state.accounts[sender].balance -= totalCost(tx.amount, tx.fee.tipRate, bytesPaid)
 
-messagePaidListInsert(tx, id(tx))
+blobPaidListInsert(tx, id(tx))
 
 state.activeValidatorSet.proposerBlockReward += tipCost(tx.fee.tipRate, bytesPaid)
 ```
@@ -731,7 +712,5 @@ else if account.status == AccountStatus.ValidatorBonded
 At the end of a block, the top `MAX_VALIDATORS` validators by voting power with voting power _greater than_ zero are or become active (bonded). For newly-bonded validators, the entire validator object is moved to the active validators subtree and their status is changed to bonded. For previously-bonded validators that are no longer in the top `MAX_VALIDATORS` validators begin unbonding.
 
 Bonding validators is simply setting their status to `AccountStatus.ValidatorBonded`. The logic for validator unbonding is found [here](#signedtransactiondatabeginunbondingvalidator), minus transaction sender updates (nonce, balance, and fee).
-
-Finally, the state subtree with ID [`MESSAGE_PAID_SUBTREE_ID`](#reserved-state-subtree-ids) is deleted.
 
 This end block implicit state transition is a single state transition, and [only has a single intermediate state root](#blockavailabledata) associated with it.

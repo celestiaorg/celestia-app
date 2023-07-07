@@ -1,5 +1,3 @@
-#!/usr/bin/make -f
-
 VERSION := $(shell echo $(shell git describe --tags) | sed 's/^v//')
 COMMIT := $(shell git log -1 --format='%H')
 DOCKER := $(shell which docker)
@@ -18,7 +16,6 @@ ldflags += $(LDFLAGS)
 
 BUILD_FLAGS := -ldflags '$(ldflags)'
 
-
 ## help: Get more info on make commands.
 help: Makefile
 	@echo " Choose a command run in "$(PROJECTNAME)":"
@@ -30,7 +27,7 @@ build: mod
 	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@go build $(BUILD_FLAGS) -o build/ ./cmd/celestia-appd
-	@go mod tidy -compat=1.18
+	@go mod tidy -compat=1.20
 .PHONY: build
 
 ## install: Build and install the celestia-appd binary into the $GOPATH/bin directory.
@@ -42,7 +39,7 @@ install: go.sum
 ## mod: Update go.mod.
 mod:
 	@echo "--> Updating go.mod"
-	@go mod tidy -compat=1.18
+	@go mod tidy -compat=1.20
 .PHONY: mod
 
 ## mod-verify: Verify dependencies have expected content.
@@ -50,8 +47,6 @@ mod-verify: mod
 	@echo "--> Verifying dependencies have expected content"
 	GO111MODULE=on go mod verify
 .PHONY: mod-verify
-
-
 
 ## proto-gen: Generate protobuf files. Requires docker.
 proto-gen:
@@ -77,7 +72,7 @@ build-docker:
 	$(DOCKER) build -t celestiaorg/celestia-app -f docker/Dockerfile .
 .PHONY: build-docker
 
-## lint: Run linters golangci-lint and markdownlint.
+## lint: Run all linters: golangci-lint, markdownlint, hadolint, yamllint.
 lint:
 	@echo "--> Running golangci-lint"
 	@golangci-lint run
@@ -89,6 +84,12 @@ lint:
 	@yamllint --no-warnings . -c .yamllint.yml
 
 .PHONY: lint
+
+## markdown-link-check: Check all markdown links.
+markdown-link-check:
+	@echo "--> Running markdown-link-check"
+	@find . -name \*.md -print0 | xargs -0 -n1 markdown-link-check
+
 
 ## fmt: Format files per linters golangci-lint and markdownlint.
 fmt:
@@ -122,8 +123,14 @@ test-bench:
 	@go test -mod=readonly -bench=. ./...
 .PHONY: test-bench
 
-## test-cover: Generate test coverage.txt
-test-cover:
+## test-coverage: Generate test coverage.txt
+test-coverage:
 	@echo "--> Generating coverage.txt"
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
-.PHONY: test-cover
+.PHONY: test-coverage
+
+## adr-gen: Download the ADR template from the celestiaorg/.github repo. Ex. `make adr-gen`
+adr-gen:
+	@echo "--> Downloading ADR template"
+	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-template.md
+.PHONY: adr-gen

@@ -3,6 +3,8 @@ package types
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+
 	"cosmossdk.io/errors"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 )
@@ -10,9 +12,14 @@ import (
 // DefaultParamspace defines the default qgb module parameter subspace
 const (
 	DefaultParamspace = ModuleName
+
+	// MinimumDataCommitmentWindow is a constant that defines the minimum
+	// allowable window for the QGB data commitments.
+	MinimumDataCommitmentWindow = 100
 )
 
-// ParamsStoreKeyDataCommitmentWindow
+// ParamsStoreKeyDataCommitmentWindow is the key used for the
+// DataCommitmentWindow param.
 var ParamsStoreKeyDataCommitmentWindow = []byte("DataCommitmentWindow")
 
 // DefaultGenesis returns the default Capability genesis state
@@ -51,8 +58,19 @@ func validateDataCommitmentWindow(i interface{}) error {
 	val, ok := i.(uint64)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", i)
-	} else if val < 100 {
-		return fmt.Errorf("invalid average EVM block time, too short for latency limitations")
+	} else if val < MinimumDataCommitmentWindow {
+		return errors.Wrap(ErrInvalidDataCommitmentWindow, fmt.Sprintf(
+			"data commitment window %v must be >= minimum data commitment window %v",
+			val,
+			MinimumDataCommitmentWindow,
+		))
+	}
+	if val > uint64(appconsts.DataCommitmentBlocksLimit) {
+		return errors.Wrap(ErrInvalidDataCommitmentWindow, fmt.Sprintf(
+			"data commitment window %v must be <= data commitment blocks limit %v",
+			val,
+			appconsts.DataCommitmentBlocksLimit,
+		))
 	}
 	return nil
 }

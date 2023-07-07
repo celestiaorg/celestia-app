@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/nmt/namespace"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 )
 
 // Share contains the raw share data (including namespace ID).
@@ -14,7 +14,23 @@ type Share struct {
 	data []byte
 }
 
-func newShare(data []byte) (*Share, error) {
+func (s *Share) Namespace() (appns.Namespace, error) {
+	if len(s.data) < appns.NamespaceSize {
+		panic(fmt.Sprintf("share %s is too short to contain a namespace", s))
+	}
+	return appns.From(s.data[:appns.NamespaceSize])
+}
+
+func (s *Share) InfoByte() (InfoByte, error) {
+	if len(s.data) < appns.NamespaceSize+appconsts.ShareInfoBytes {
+		return 0, fmt.Errorf("share %s is too short to contain an info byte", s)
+	}
+	// the info byte is the first byte after the namespace
+	unparsed := s.data[appns.NamespaceSize]
+	return ParseInfoByte(unparsed)
+}
+
+func NewShare(data []byte) (*Share, error) {
 	if err := validateSize(data); err != nil {
 		return nil, err
 	}
@@ -32,24 +48,8 @@ func validateSize(data []byte) error {
 	return nil
 }
 
-func (s *Share) NamespaceID() namespace.ID {
-	if len(s.data) < appconsts.NamespaceSize {
-		panic(fmt.Sprintf("share %s is too short to contain a namespace ID", s))
-	}
-	return namespace.ID(s.data[:appconsts.NamespaceSize])
-}
-
 func (s *Share) Len() int {
 	return len(s.data)
-}
-
-func (s *Share) InfoByte() (InfoByte, error) {
-	if len(s.data) < appconsts.NamespaceSize+appconsts.ShareInfoBytes {
-		return 0, fmt.Errorf("share %s is too short to contain an info byte", s)
-	}
-	// the info byte is the first byte after the namespace ID
-	unparsed := s.data[appconsts.NamespaceSize]
-	return ParseInfoByte(unparsed)
 }
 
 func (s *Share) Version() (uint8, error) {
@@ -81,8 +81,13 @@ func (s *Share) IsSequenceStart() (bool, error) {
 }
 
 // IsCompactShare returns true if this is a compact share.
-func (s *Share) IsCompactShare() bool {
-	return s.NamespaceID().Equal(appconsts.TxNamespaceID) || s.NamespaceID().Equal(appconsts.PayForBlobNamespaceID)
+func (s Share) IsCompactShare() (bool, error) {
+	ns, err := s.Namespace()
+	if err != nil {
+		return false, err
+	}
+	isCompact := ns.IsTx() || ns.IsPayForBlob()
+	return isCompact, nil
 }
 
 // SequenceLen returns the sequence length of this *share and optionally an
@@ -100,7 +105,8 @@ func (s *Share) SequenceLen() (sequenceLen uint32, err error) {
 	start := appconsts.NamespaceSize + appconsts.ShareInfoBytes
 	end := start + appconsts.SequenceLenBytes
 	if len(s.data) < end {
-		return 0, fmt.Errorf("share %s is too short to contain a sequence length", s)
+		return 0, fmt.Errorf("share %s with length %d is too short to contain a sequence length",
+			s, len(s.data))
 	}
 	return binary.BigEndian.Uint32(s.data[start:end]), nil
 }
@@ -111,7 +117,15 @@ func (s *Share) IsPadding() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return isNamespacePadding || s.isTailPadding() || s.isReservedPadding(), nil
+	isTailPadding, err := s.isTailPadding()
+	if err != nil {
+		return false, err
+	}
+	isReservedPadding, err := s.isReservedPadding()
+	if err != nil {
+		return false, err
+	}
+	return isNamespacePadding || isTailPadding || isReservedPadding, nil
 }
 
 func (s *Share) isNamespacePadding() (bool, error) {
@@ -127,12 +141,20 @@ func (s *Share) isNamespacePadding() (bool, error) {
 	return isSequenceStart && sequenceLen == 0, nil
 }
 
-func (s *Share) isTailPadding() bool {
-	return s.NamespaceID().Equal(appconsts.TailPaddingNamespaceID)
+func (s *Share) isTailPadding() (bool, error) {
+	ns, err := s.Namespace()
+	if err != nil {
+		return false, err
+	}
+	return ns.IsTailPadding(), nil
 }
 
-func (s *Share) isReservedPadding() bool {
-	return s.NamespaceID().Equal(appconsts.ReservedPaddingNamespaceID)
+func (s *Share) isReservedPadding() (bool, error) {
+	ns, err := s.Namespace()
+	if err != nil {
+		return false, err
+	}
+	return ns.IsReservedPadding(), nil
 }
 
 func (s *Share) ToBytes() []byte {
@@ -154,17 +176,64 @@ func (s *Share) rawDataStartIndex() int {
 	if err != nil {
 		panic(err)
 	}
-	if isStart && s.IsCompactShare() {
-		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.SequenceLenBytes + appconsts.CompactShareReservedBytes
-	} else if isStart && !s.IsCompactShare() {
-		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.SequenceLenBytes
-	} else if !isStart && s.IsCompactShare() {
-		return appconsts.NamespaceSize + appconsts.ShareInfoBytes + appconsts.CompactShareReservedBytes
-	} else if !isStart && !s.IsCompactShare() {
-		return appconsts.NamespaceSize + appconsts.ShareInfoBytes
-	} else {
-		panic(fmt.Sprintf("unable to determine the rawDataStartIndex for share %s", s.data))
+	isCompact, err := s.IsCompactShare()
+	if err != nil {
+		panic(err)
 	}
+
+	index := appconsts.NamespaceSize + appconsts.ShareInfoBytes
+	if isStart {
+		index += appconsts.SequenceLenBytes
+	}
+	if isCompact {
+		index += appconsts.CompactShareReservedBytes
+	}
+	return index
+}
+
+// RawDataWithReserved returns the raw share data while taking reserved bytes into account.
+func (s *Share) RawDataUsingReserved() (rawData []byte, err error) {
+	rawDataStartIndexUsingReserved, err := s.rawDataStartIndexUsingReserved()
+	if err != nil {
+		return nil, err
+	}
+
+	// This means share is the last share and does not have any transaction beginning in it
+	if rawDataStartIndexUsingReserved == 0 {
+		return []byte{}, nil
+	}
+	if len(s.data) < rawDataStartIndexUsingReserved {
+		return rawData, fmt.Errorf("share %s is too short to contain raw data", s)
+	}
+
+	return s.data[rawDataStartIndexUsingReserved:], nil
+}
+
+// rawDataStartIndexUsingReserved returns the start index of raw data while accounting for
+// reserved bytes, if it exists in the share.
+func (s *Share) rawDataStartIndexUsingReserved() (int, error) {
+	isStart, err := s.IsSequenceStart()
+	if err != nil {
+		return 0, err
+	}
+	isCompact, err := s.IsCompactShare()
+	if err != nil {
+		return 0, err
+	}
+
+	index := appconsts.NamespaceSize + appconsts.ShareInfoBytes
+	if isStart {
+		index += appconsts.SequenceLenBytes
+	}
+
+	if isCompact {
+		reservedBytes, err := ParseReservedBytes(s.data[index : index+appconsts.CompactShareReservedBytes])
+		if err != nil {
+			return 0, err
+		}
+		return int(reservedBytes), nil
+	}
+	return index, nil
 }
 
 func ToBytes(shares []Share) (bytes [][]byte) {
@@ -175,10 +244,13 @@ func ToBytes(shares []Share) (bytes [][]byte) {
 	return bytes
 }
 
-func FromBytes(bytes [][]byte) (shares []Share) {
-	shares = make([]Share, len(bytes))
-	for i, b := range bytes {
-		shares[i] = Share{data: b}
+func FromBytes(bytes [][]byte) (shares []Share, err error) {
+	for _, b := range bytes {
+		share, err := NewShare(b)
+		if err != nil {
+			return nil, err
+		}
+		shares = append(shares, *share)
 	}
-	return shares
+	return shares, nil
 }

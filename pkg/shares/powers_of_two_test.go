@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRoundUpPowerOfTwo(t *testing.T) {
@@ -43,7 +44,8 @@ func TestRoundDownPowerOfTwo(t *testing.T) {
 		{input: 511, want: 256},
 	}
 	for _, tc := range testCases {
-		got := RoundDownPowerOfTwo(tc.input)
+		got, err := RoundDownPowerOfTwo(tc.input)
+		require.NoError(t, err)
 		assert.Equal(t, tc.want, got)
 	}
 }

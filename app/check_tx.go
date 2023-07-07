@@ -10,8 +10,8 @@ import (
 )
 
 // CheckTx implements the ABCI interface and executes a tx in CheckTx mode. This
-// method wraps the default Baseapp's method so that we can handle the parsing
-// and checking of blob containing transactions
+// method wraps the default Baseapp's method so that it can parse and check
+// transactions that contain blobs.
 func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	tx := req.Tx
 	// check if the transaction contains blobs
@@ -22,7 +22,7 @@ func (app *App) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 		if err != nil {
 			return sdkerrors.ResponseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false)
 		}
-		// reject transactions that have PFBs, but no blobs attached
+		// reject transactions that have a MsgPFB but no blobs attached to the tx
 		for _, msg := range sdkTx.GetMsgs() {
 			if _, ok := msg.(*blobtypes.MsgPayForBlobs); !ok {
 				continue

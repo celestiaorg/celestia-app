@@ -5,11 +5,11 @@ import (
 	"errors"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/nmt/namespace"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 )
 
 type Builder struct {
-	namespace      namespace.ID
+	namespace      appns.Namespace
 	shareVersion   uint8
 	isFirstShare   bool
 	isCompactShare bool
@@ -22,25 +22,28 @@ func NewEmptyBuilder() *Builder {
 	}
 }
 
-func NewBuilder(ns namespace.ID, shareVersion uint8, isFirstShare bool) *Builder {
-	b := Builder{
+// Init() needs to be called right after this method
+func NewBuilder(ns appns.Namespace, shareVersion uint8, isFirstShare bool) *Builder {
+	return &Builder{
 		namespace:      ns,
 		shareVersion:   shareVersion,
 		isFirstShare:   isFirstShare,
 		isCompactShare: isCompactShare(ns),
 	}
+}
 
+func (b *Builder) Init() (*Builder, error) {
 	if b.isCompactShare {
 		if err := b.prepareCompactShare(); err != nil {
-			panic(err)
+			return nil, err
 		}
 	} else {
 		if err := b.prepareSparseShare(); err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
-	return &b
+	return b, nil
 }
 
 func (b *Builder) AvailableBytes() int {
@@ -74,7 +77,7 @@ func (b *Builder) AddData(rawData []byte) (rawDataLeftOver []byte) {
 }
 
 func (b *Builder) Build() (*Share, error) {
-	return newShare(b.rawShareData)
+	return NewShare(b.rawShareData)
 }
 
 // IsEmptyShare returns true if no data has been written to the share
@@ -95,13 +98,13 @@ func (b *Builder) ZeroPadIfNecessary() (bytesOfPadding int) {
 }
 
 // isEmptyReservedBytes returns true if the reserved bytes are empty.
-func (b *Builder) isEmptyReservedBytes() bool {
+func (b *Builder) isEmptyReservedBytes() (bool, error) {
 	indexOfReservedBytes := b.indexOfReservedBytes()
 	reservedBytes, err := ParseReservedBytes(b.rawShareData[indexOfReservedBytes : indexOfReservedBytes+appconsts.CompactShareReservedBytes])
 	if err != nil {
-		panic(err)
+		return false, err
 	}
-	return reservedBytes == 0
+	return reservedBytes == 0, nil
 }
 
 // indexOfReservedBytes returns the index of the reserved bytes in the share.
@@ -128,7 +131,11 @@ func (b *Builder) MaybeWriteReservedBytes() error {
 		return errors.New("this is not a compact share")
 	}
 
-	if !b.isEmptyReservedBytes() {
+	empty, err := b.isEmptyReservedBytes()
+	if err != nil {
+		return err
+	}
+	if !empty {
 		return nil
 	}
 
@@ -182,7 +189,7 @@ func (b *Builder) prepareCompactShare() error {
 	placeholderSequenceLen := make([]byte, appconsts.SequenceLenBytes)
 	placeholderReservedBytes := make([]byte, appconsts.CompactShareReservedBytes)
 
-	shareData = append(shareData, b.namespace...)
+	shareData = append(shareData, b.namespace.Bytes()...)
 	shareData = append(shareData, byte(infoByte))
 
 	if b.isFirstShare {
@@ -204,7 +211,7 @@ func (b *Builder) prepareSparseShare() error {
 	}
 	placeholderSequenceLen := make([]byte, appconsts.SequenceLenBytes)
 
-	shareData = append(shareData, b.namespace...)
+	shareData = append(shareData, b.namespace.Bytes()...)
 	shareData = append(shareData, byte(infoByte))
 
 	if b.isFirstShare {
@@ -215,6 +222,6 @@ func (b *Builder) prepareSparseShare() error {
 	return nil
 }
 
-func isCompactShare(ns namespace.ID) bool {
-	return ns.Equal(appconsts.TxNamespaceID) || ns.Equal(appconsts.PayForBlobNamespaceID)
+func isCompactShare(ns appns.Namespace) bool {
+	return ns.IsTx() || ns.IsPayForBlob()
 }

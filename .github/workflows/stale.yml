@@ -1,5 +1,5 @@
 # TODO: Refactor to common workflow
-name: "Close stale issues & pull requests"
+name: stale
 on:
   schedule:
     - cron: "0 0 * * *"
@@ -8,7 +8,7 @@ jobs:
   stale:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/stale@v7
+      - uses: actions/stale@v8
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           stale-pr-message: >

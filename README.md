@@ -1,6 +1,7 @@
 # celestia-app
 
 [![Go Reference](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/celestiaorg/celestia-app)
+[![mdBook Specs](https://img.shields.io/badge/mdBook-specs-blue)](https://celestiaorg.github.io/celestia-app/)
 [![GitHub Release](https://img.shields.io/github/v/release/celestiaorg/celestia-app)](https://github.com/celestiaorg/celestia-app/releases/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/celestia-app)](https://goreportcard.com/report/github.com/celestiaorg/celestia-app)
 [![Lint](https://github.com/celestiaorg/celestia-app/actions/workflows/lint.yml/badge.svg)](https://github.com/celestiaorg/celestia-app/actions/workflows/lint.yml)
@@ -8,7 +9,10 @@
 [![codecov](https://codecov.io/gh/celestiaorg/celestia-app/branch/main/graph/badge.svg?token=CWGA4RLDS9)](https://app.codecov.io/gh/celestiaorg/celestia-app/tree/main)
 [![GitPOAP Badge](https://public-api.gitpoap.io/v1/repo/celestiaorg/celestia-app/badge)](https://www.gitpoap.io/gh/celestiaorg/celestia-app)
 
-**celestia-app** is a blockchain application built using Cosmos SDK and [celestia-core](https://github.com/celestiaorg/celestia-core) in place of Tendermint.
+celestia-app is a blockchain application built using parts of the Cosmos stack. celestia-app uses
+
+- [celestiaorg/cosmos-sdk](https://github.com/celestiaorg/cosmos-sdk) a fork of [cosmos/cosmos-sdk](https://github.com/cosmos/cosmos-sdk)
+- [celestiaorg/celestia-core](https://github.com/celestiaorg/celestia-core) a fork of [cometbft/cometbft](https://github.com/cometbft/cometbft)
 
 ## Diagram
 
@@ -23,7 +27,7 @@ Celestia        |  |            +      v           |  ^
 validator or    |  |                               |  |
 full consensus  |  |           Consensus           |  |
 node            |  |                               |  |
-                |  +-------------------------------+  |   celestia-core (fork of Tendermint Core)
+                |  +-------------------------------+  |   celestia-core (fork of CometBFT)
                 |  |                               |  |
                 |  |           Networking          |  |
                 |  |                               |  |
@@ -32,7 +36,7 @@ node            |  |                               |  |
 
 ## Install
 
-1. [Install Go](https://go.dev/doc/install) 1.18
+1. [Install Go](https://go.dev/doc/install) 1.20
 1. Clone this repo
 1. Install the celestia-app CLI
 
@@ -56,15 +60,18 @@ celestia-appd --help
 ### Create your own single node devnet
 
 ```sh
-# WARNING: this deletes config, data, and keyrings from previous local devnets
-rm -r ~/.celestia-app
 
-# Start a single node devnet
+# Start a single node devnet using the pre-installed celestia app
 ./scripts/single-node.sh
+
+# Build and start a single node devnet
+./scripts/build-run-single-node.sh
 
 # Post data to the local devnet
 celestia-appd tx blob PayForBlobs [hexNamespace] [hexBlob] [flags]
 ```
+
+**Note:** please note that the `./scripts/` commands above, created a random `tmp` directory and keeps all data/configs there.
 
 <!-- markdown-link-check-disable -->
 <!-- markdown-link encounters an HTTP 503 on this link even though it works. -->
@@ -74,12 +81,15 @@ See <https://docs.celestia.org/category/celestia-app> for more information
 
 ## Contributing
 
+This repo attempts to conform to [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) so PR titles should ideally start with `fix:`, `feat:`, `build:`, `chore:`, `ci:`, `docs:`, `style:`, `refactor:`, `perf:`, or `test:` because this helps with semantic versioning and changelog generation. It is especially important to include an `!` (e.g. `feat!:`) if the PR includes a breaking change.
+
 ### Tools
 
 1. Install [golangci-lint](https://golangci-lint.run/usage/install/)
 1. Install [markdownlint](https://github.com/DavidAnson/markdownlint)
 1. Install [hadolint](https://github.com/hadolint/hadolint)
 1. Install [yamllint](https://yamllint.readthedocs.io/en/stable/quickstart.html)
+1. Install [markdown-link-check](https://github.com/tcort/markdown-link-check)
 
 ### Helpful Commands
 
@@ -97,9 +107,14 @@ make fmt
 make proto-gen
 ```
 
-### Package-specific documentation
+### Docs
 
-- [Shares](https://pkg.go.dev/github.com/celestiaorg/celestia-app/pkg/shares)
+Package-specific READMEs aim to explain implementation details for developers that are contributing to these packages. The [specs](https://celestiaorg.github.io/celestia-app/) aim to explain the protocol as a whole for developers building on top of Celestia.
+
+- [pkg/shares](./pkg/shares/README.md)
+- [pkg/wrapper](./pkg/wrapper/README.md)
+- [x/blob](./x/blob/README.md)
+- [x/qgb](./x/qgb/README.md)
 
 ## Careers
 

@@ -16,26 +16,26 @@ In [`CreateCommitment`](https://github.com/celestiaorg/celestia-app/blob/8b9c4c9
 A square of 8x8 results in the following subtree roots: `H1 C D`
 [`HashFromByteSlices`](https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/crypto/merkle/tree.go#L7-L21) results now in the Merkleroot `Com'`, which is not equal to `Com`.
 
-![Old Commitment](./assets/size-dependent-commitment.png)
+![Old Commitment](./assets/adr008/size-dependent-commitment.png)
 
 To have a commitment independent of the square size, you would need to create a Merkle tree over subtree roots that are included in every possible square size.
 We agree on producing the commitment as if the message was put into the `msgMinSquareSize`. Therefore the subtree roots will be the same and the resulting commitment as well, no matter the square size. *This is because all the subtree roots in the `msgMinSquareSize` are also included in bigger square sizes*.
 You can see this in the updated version of the diagram above. Now the Merkle root will stay the same. This property results from the square width and length being a power of 2. The diagram below has a msgMinSquareSize of 4.
 
-![New Commitment](./assets/size-independent-commitment.png)
+![New Commitment](./assets/adr008/size-independent-commitment.png)
 
 You can see in the diagram below that no matter how the message is split up into rows, the hashes of the subtree roots stay the same.
 
-![Row Size Comparison](./assets/row-size-comparison.png)
+![Row Size Comparison](./assets/adr008/row-size-comparison.png)
 
 This scheme also works for interactive commitments as long as the index of when a message starts is the same in every square size. In other words, the leaf nodes and leaf node pairs are independent of the square size.
 For example, in the following diagram, you see the message starting at the second share and still having the same commitment. I marked the skipped blocks pink to show that both messages have the same starting index.
 
-![Interactive Commitment](./assets/interactive-commitment.png)
+![Interactive Commitment](./assets/adr008/interactive-commitment.png)
 
 If the message starting point index is larger than the row of `msgMinSquareSize`, you take the index mod `msgMinSquareSize`. The `msgMinSquareSize` is shown in green, and the skipped block is in pink. In both cases, the commitment stays the same.
 
-![Interactive Commitment 2](./assets/interactive-commitment2.png)
+![Interactive Commitment 2](./assets/adr008/interactive-commitment2.png)
 
 ## Alternative Approaches
 
@@ -72,7 +72,7 @@ func MinSquareSize(shareCount uint64) uint64 {
 ### Negative
 
 1. The amount of subtree roots per commitment is O(sqrt(n)), while n is the number of message shares. The worst case for the number of subtree roots is depicted in the diagram below - an entire block missing one share.
-  ![Interactive Commitment 2](./assets/complexity.png)
+  ![Interactive Commitment 2](./assets/adr008/complexity.png)
 The worst case for the current implementation depends on the square size. If it is the worst square size, as in `msgMinSquareSize`, it is O(sqrt(n)) as well. On the other hand, if the message is only in one row, then it is O(log(n)).
 Therefore the height of the tree over the subtree roots is in this implementation O(log(sqrt(n))), while n is the number of message shares. In the current implementation, it varies from O(log(sqrt(n))) to O(log(log(n))) depending on the square size.
 
@@ -97,7 +97,7 @@ Therefore the height of the tree over the subtree roots is in this implementatio
     2. It allows the Rollup node to continue running after Celestia halts, relying on soft commits with no data availability.
     3. It gives the Rollup the option to run asynchronously to Celestia because you don't have to wait for new Celestia blocks/commitments of the messages.
 6. Combining P2P Blocksync and the scheme in 3, we could have multiple roll-up blocks in one Celestia block. It could look like this:
-  ![multiple-blocks](./assets/multiple-blocks.png)
+  ![multiple-blocks](./assets/adr008/multiple-blocks.png)
 7. When submitting a message to Celestia, you only sign the message over one commitment and not all square sizes.
 
 We should note that Rollups can decide to do this scheme without changing the core-app apart from Number 4.

@@ -80,19 +80,21 @@ func TestPayForBlobGas(t *testing.T) {
 		},
 		{
 			name:            "3 blobs, 6 shares total",
-			msg:             types.MsgPayForBlobs{BlobSizes: []uint32{1024, 1000, 100}},
+			msg:             types.MsgPayForBlobs{BlobSizes: []uint32{1024, 800, 100}},
 			wantGasConsumed: uint64(6*appconsts.ShareSize*types.DefaultGasPerBlobByte + paramLookUpCost), // 6 shares * 512 bytes per share * 8 gas per byte + 1060 gas for fetching param = 25636 gas
 		},
 	}
 
 	for _, tc := range testCases {
-		k, stateStore := keeper(t)
-		ctx := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
-		_, err := k.PayForBlobs(sdk.WrapSDKContext(ctx), &tc.msg)
-		require.NoError(t, err)
-		if tc.wantGasConsumed != ctx.GasMeter().GasConsumed() {
-			t.Errorf("Gas consumed by %s: %d, want: %d", tc.name, ctx.GasMeter().GasConsumed(), tc.wantGasConsumed)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			k, stateStore := keeper(t)
+			ctx := sdk.NewContext(stateStore, tmproto.Header{}, false, nil)
+			_, err := k.PayForBlobs(sdk.WrapSDKContext(ctx), &tc.msg)
+			require.NoError(t, err)
+			if tc.wantGasConsumed != ctx.GasMeter().GasConsumed() {
+				t.Errorf("Gas consumed by %s: %d, want: %d", tc.name, ctx.GasMeter().GasConsumed(), tc.wantGasConsumed)
+			}
+		})
 	}
 }
 

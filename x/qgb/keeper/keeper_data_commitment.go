@@ -10,16 +10,34 @@ import (
 
 // TODO add unit tests for all the keepers
 
-// GetCurrentDataCommitment creates the latest data commitment at current height according to
-// the data commitment window specified
-func (k Keeper) GetCurrentDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
-	beginBlock := uint64(ctx.BlockHeight()) - k.GetDataCommitmentWindowParam(ctx)
-	// to avoid having overlapped ranges of data commitments such as: 0-400;400-800;800-1200
-	// we will commit to the previous block height so that the ranges are as follows: 0-399;400-799;800-1199
-	endBlock := uint64(ctx.BlockHeight()) - 1
+// NextDataCommitment returns the next data commitment that can be written to
+// state.
+func (k Keeper) NextDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
+	if !k.CheckLatestAttestationNonce(ctx) {
+		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
+	}
 	nonce := k.GetLatestAttestationNonce(ctx) + 1
+	dcWindow := k.GetDataCommitmentWindowParam(ctx)
+	hasDC, err := k.HasDataCommitmentInStore(ctx)
+	if err != nil {
+		return types.DataCommitment{}, err
+	}
+	// for a data commitment window of 400, the ranges will be: [1-401), [401-801), [801-1201)
+	var beginBlock, endBlock uint64
+	if hasDC {
+		latestDCC, err := k.GetLatestDataCommitment(ctx)
+		if err != nil {
+			return types.DataCommitment{}, err
+		}
+		beginBlock = latestDCC.EndBlock
+		endBlock = latestDCC.EndBlock + dcWindow
+	} else {
+		// only for the first data commitment range, which is: [1, data commitment window + 1)
+		beginBlock = 1
+		endBlock = dcWindow + 1
+	}
 
-	dataCommitment := types.NewDataCommitment(nonce, beginBlock, endBlock)
+	dataCommitment := types.NewDataCommitment(nonce, beginBlock, endBlock, ctx.BlockTime())
 	return *dataCommitment, nil
 }
 
@@ -33,22 +51,29 @@ func (k Keeper) GetDataCommitmentWindowParam(ctx sdk.Context) uint64 {
 
 // GetDataCommitmentForHeight returns the attestation containing the provided height.
 func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (types.DataCommitment, error) {
-	lastDC, err := k.GetLastDataCommitment(ctx)
+	latestDC, err := k.GetLatestDataCommitment(ctx)
 	if err != nil {
 		return types.DataCommitment{}, err
 	}
-	if lastDC.EndBlock < height {
+	if latestDC.EndBlock < height {
 		return types.DataCommitment{}, errors.Wrap(
 			types.ErrDataCommitmentNotGenerated,
 			fmt.Sprintf(
-				"Last height %d < %d",
-				lastDC.EndBlock,
+				"Latest height %d < %d",
+				latestDC.EndBlock,
 				height,
 			),
 		)
 	}
+	if !k.CheckLatestAttestationNonce(ctx) {
+		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
+	}
+	if !k.CheckEarliestAvailableAttestationNonce(ctx) {
+		return types.DataCommitment{}, types.ErrEarliestAvailableNonceStillNotInitialized
+	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
-	for i := latestNonce; i > 0; i-- {
+	earliestAvailableNonce := k.GetEarliestAvailableAttestationNonce(ctx)
+	for i := latestNonce; i >= earliestAvailableNonce; i-- {
 		// TODO better search
 		att, found, err := k.GetAttestationByNonce(ctx, i)
 		if err != nil {
@@ -61,23 +86,30 @@ func (k Keeper) GetDataCommitmentForHeight(ctx sdk.Context, height uint64) (type
 		if !ok {
 			continue
 		}
-		if dcc.BeginBlock <= height && dcc.EndBlock >= height {
+		if dcc.BeginBlock <= height && dcc.EndBlock > height {
 			return *dcc, nil
 		}
 	}
-	return types.DataCommitment{}, errors.Wrap(types.ErrDataCommitmentNotFound, "data commitment for height not found")
+	return types.DataCommitment{}, errors.Wrap(types.ErrDataCommitmentNotFound, "data commitment for height not found or was pruned")
 }
 
-// GetLastDataCommitment returns the last data commitment.
-func (k Keeper) GetLastDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
+// GetLatestDataCommitment returns the latest data commitment.
+func (k Keeper) GetLatestDataCommitment(ctx sdk.Context) (types.DataCommitment, error) {
+	if !k.CheckLatestAttestationNonce(ctx) {
+		return types.DataCommitment{}, types.ErrLatestAttestationNonceStillNotInitialized
+	}
+	if !k.CheckEarliestAvailableAttestationNonce(ctx) {
+		return types.DataCommitment{}, types.ErrEarliestAvailableNonceStillNotInitialized
+	}
 	latestNonce := k.GetLatestAttestationNonce(ctx)
-	for i := uint64(0); i < latestNonce; i++ {
-		att, found, err := k.GetAttestationByNonce(ctx, latestNonce-i)
+	earliestAvailableNonce := k.GetEarliestAvailableAttestationNonce(ctx)
+	for i := latestNonce; i >= earliestAvailableNonce; i-- {
+		att, found, err := k.GetAttestationByNonce(ctx, i)
 		if err != nil {
 			return types.DataCommitment{}, err
 		}
 		if !found {
-			return types.DataCommitment{}, errors.Wrapf(types.ErrAttestationNotFound, fmt.Sprintf("nonce %d", latestNonce-i))
+			return types.DataCommitment{}, errors.Wrapf(types.ErrAttestationNotFound, fmt.Sprintf("nonce %d", i))
 		}
 		dcc, ok := att.(*types.DataCommitment)
 		if !ok {
@@ -86,4 +118,31 @@ func (k Keeper) GetLastDataCommitment(ctx sdk.Context) (types.DataCommitment, er
 		return *dcc, nil
 	}
 	return types.DataCommitment{}, types.ErrDataCommitmentNotFound
+}
+
+// HasDataCommitmentInStore returns true if the store has at least one data commitment.
+func (k Keeper) HasDataCommitmentInStore(ctx sdk.Context) (bool, error) {
+	if !k.CheckLatestAttestationNonce(ctx) {
+		return false, nil
+	}
+	if !k.CheckEarliestAvailableAttestationNonce(ctx) {
+		return false, types.ErrEarliestAvailableNonceStillNotInitialized
+	}
+	latestNonce := k.GetLatestAttestationNonce(ctx)
+	earliestAvailableNonce := k.GetEarliestAvailableAttestationNonce(ctx)
+	for i := earliestAvailableNonce; i <= latestNonce; i++ {
+		att, found, err := k.GetAttestationByNonce(ctx, i)
+		if err != nil {
+			return false, err
+		}
+		if !found {
+			return false, errors.Wrapf(types.ErrAttestationNotFound, fmt.Sprintf("nonce %d", i))
+		}
+		_, ok := att.(*types.DataCommitment)
+		if !ok {
+			continue
+		}
+		return true, nil
+	}
+	return false, nil
 }

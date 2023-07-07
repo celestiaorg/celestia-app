@@ -25,11 +25,16 @@ const (
 	// AttestationRequestKey indexes attestation requests by nonce
 	AttestationRequestKey = "AttestationRequestKey"
 
-	// LastUnBondingBlockHeight indexes the last validator unbonding block height
-	LastUnBondingBlockHeight = "LastUnBondingBlockHeight"
+	// LatestUnBondingBlockHeight indexes the latest validator unbonding block
+	// height
+	LatestUnBondingBlockHeight = "LatestUnBondingBlockHeight"
 
 	// LatestAttestationtNonce indexes the latest attestation request nonce
 	LatestAttestationtNonce = "LatestAttestationNonce"
+
+	// EarliestAvailableAttestationNonce indexes the earliest available
+	// attestation nonce
+	EarliestAvailableAttestationNonce = "EarliestAvailableAttestationNonce"
 )
 
 // GetAttestationKey returns the following key format

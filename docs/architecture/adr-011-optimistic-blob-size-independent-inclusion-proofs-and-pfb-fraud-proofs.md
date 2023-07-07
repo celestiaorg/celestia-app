@@ -18,7 +18,14 @@ Validators check if the commitment in the PFB transaction matches the commitment
 
 ## Blob size independent inclusion proof - PFB inclusion proof
 
-A PFB transaction inclusion proof proves that a PFB transaction was included in a block. A PFB transaction inclusion proof contains the shares that have the PFB transaction and the inclusion proof that proves those shares are present in a Merkle tree with root `DataRoot`. Note that a PFB transaction inclusion proof does not scale with the size of the blob it pays for because the blob was separated from the PFB transaction before being written to the data square. In other words, a PFB transaction inclusion proof is blob size independent.
+A PFB transaction inclusion proof proves that a PFB transaction was included in a block. A PFB transaction inclusion proof contains the shares that have the PFB transaction and two distinct inclusion proofs:
+
+1. An NMT proof that proves the shares exist in a Merkle tree with root `RowRoot`.
+2. A Merkle proof that proves the `RowRoot` exists in a Merkle tree with root `DataRoot`.
+
+Note the second proof may not be necessary because light clients download the `DataAvailabilityHeader` which contains all `RowRoot`s of the block's extended data square (EDS).
+
+Note that a PFB transaction inclusion proof does not scale with the size of the blob it pays for because the blob was separated from the PFB transaction before being written to the data square. In other words, a PFB transaction inclusion proof is blob size independent.
 
 The verifier could do the following steps:
 
@@ -61,9 +68,15 @@ If the calculated commitment doesn't equal the commitment in the PFB transaction
 
 We are comparing the size of a PFB inclusion proof to a worst-case blob inclusion proof.
 
-The size of a normal PFB transaction is about 330 bytes. This PFB transaction can span over 2 shares because the start of a transaction can happen in the middle of a share. The worst case is if the transaction starts in the middle of the share of the last block in a row and continues to the first share of the row after. The picture below shows this scenario and what you need to prove the inclusion of those shares. It is a Merkle Proof of the shares to ROW1 and ROW2 and then a Merkle proof of ROW1 and ROW2 to the DataRoot. The blue nodes are additional nodes that are needed for the Merkle proof.
+The size of a normal PFB transaction is about 330 bytes. This PFB transaction can span over 2 shares because the start of a transaction can occur in the middle of a share. In the worst case scenario, a transaction starts in the middle of the last share in a row and continues to the first share of the next row. This worst case scenario is depicted by the pink squares in the diagram below. In order to prove the inclusion of the pink shares, one needs:
 
-![PFB Merkle Proof](./assets/pfd-merkle-proof.png)
+1. A NMT proof of the first share to ROW1's `RowRoot`.
+1. A NMT proof of the second share to ROW2's `RowRoot`.
+1. A Merkle proof of the `RowRoot`s from ROW1 and ROW2 to the `DataRoot`.
+
+Note: the blue nodes are additional nodes that are needed for the Merkle proofs.
+
+![PFB Merkle Proof](./assets/adr011/pfd-merkle-proof.png)
 
 Let's assume a square size of k. The amount of blue nodes from the shares to ROW1 is O(log(k)). The amount of blue nodes from ROW1 to the `DataRoot` is also O(log(k). You will have to include the shares themselves in the proof.
 Share size := 512 bytes
@@ -87,13 +100,13 @@ Huge PFB proof size in bytes
 
 The worst-case blob inclusion proof size will result from the biggest possible blob with the most amount of subtree roots. This blob is constructed as filling up the whole block and having the last row missing one share.
 
-![Blob Inclusion Proof](./assets/blob-merkle-proof.png)
+![Blob Inclusion Proof](./assets/adr011/blob-merkle-proof.png)
 
 With a blob of size n and a square size of k, this means that we have O(sqrt(n)) subtree row roots and O(log(k)) subtree row roots in the last row. As the whole block is filled up, sqrt(n) tends towards k. We will also require additional k blue parity nodes to prove the row roots.
 
 Worst case blob inclusion proof size
 = subtree roots (all rows) + subtree roots (last row) + blue nodes (parity shares)
-= (sqrt(n) + log(k) + k) \* NMT-Node size     | sqrt(n) => k
+= (sqrt(n) + log(k) + k) \* NMT-Node size | sqrt(n) => k
 = ( 2 \* k + log(k) ) \* 48
 
 ## Optimizations
@@ -134,10 +147,11 @@ Worst case commitment inclusion proof size over 2-4 share PFB
 = 96 + log(k) \* 96 + log(k) \* 32
 = 96 + 128 \* log(k)
 
-![Optimized Pfb Proofs](./assets/optimized-pfb-proofs.png)
+![Optimized Pfb Proofs](./assets/adr011/optimized-pfb-proofs.png)
 
 <!--- This does not need a fraud proof as it could be a validation rule that even light clients can check. This would require the light clients to know the sequencer set and whose turn it was. (not sure about this)
 --->
+
 The fraud proof for this would be to prove that the commitment of the PFB transaction does not equal the predicted commitment in the header. Therefore this is equivalent to a PFB transaction inclusion proof. This fraud proof would be optimistic as we would assume that the PFB commitment is correct. But realistically if the commitment over the PFB transaction is wrong then the PFB commitment is most likely wrong as well. Therefore the fraud poof would be a PFB Fraud Proof as described at the top.
 If we do not have a PFB transaction that can be predicted, we also need to slash double signing of 2 valid PFB transactions in Celestia. This is required so we don't create a valid fraud proof over a valid commitment over the PFB transaction.
 
@@ -145,7 +159,7 @@ The third optimization could be to SNARK the PFB Inclusion Proof to reduce the s
 
 ## Result
 
-![PFB Inclusion Proof](./assets/pfb-proof-size-result.png)
+![PFB Inclusion Proof](./assets/adr011/pfb-proof-size-result.png)
 
 For normal-sized PFBs the Proof size will be worth it from blob size x to y depending on how many shares the PFB occupies.
 If the PFB is guaranteed to be in one share then it is always worth from blob size x.

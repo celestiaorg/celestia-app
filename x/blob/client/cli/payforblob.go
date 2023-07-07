@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -18,26 +19,48 @@ import (
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
+const (
+	// FlagShareVersion allows the user to override the share version when
+	// submitting a PayForBlob.
+	FlagShareVersion = "share-version"
+
+	// FlagNamespaceVersion allows the user to override the namespace version when
+	// submitting a PayForBlob.
+	FlagNamespaceVersion = "namespace-version"
+)
+
 func CmdPayForBlob() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "PayForBlobs [hexNamespace] [hexBlob]",
+		Use:   "PayForBlobs [hexNamespaceID] [hexBlob]",
 		Short: "Pay for a data blob to be published to the Celestia blockchain",
-		Args:  cobra.ExactArgs(2),
+		Long: "Pay for a data blob to be published to the Celestia blockchain. " +
+			"[hexNamespaceID] must be a 10 byte hex encoded namespace ID. " +
+			"[hexBlob] can be an arbitrary length hex encoded data blob. " +
+			"This command only supports a single blob per invocation. ",
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// decode the namespace
-			namespace, err := hex.DecodeString(args[0])
+			namespaceID, err := hex.DecodeString(args[0])
 			if err != nil {
-				return fmt.Errorf("failure to decode hex namespace: %w", err)
+				return fmt.Errorf("failure to decode hex namespace ID: %w", err)
+			}
+			namespaceVersion, err := cmd.Flags().GetUint8(FlagNamespaceVersion)
+			if err != nil {
+				return err
+			}
+			namespace, err := getNamespace(namespaceID, namespaceVersion)
+			if err != nil {
+				return err
 			}
 
-			// decode the blob
+			shareVersion, _ := cmd.Flags().GetUint8(FlagShareVersion)
+
 			rawblob, err := hex.DecodeString(args[1])
 			if err != nil {
 				return fmt.Errorf("failure to decode hex blob: %w", err)
 			}
 
 			// TODO: allow for more than one blob to be sumbmitted via the cli
-			blob, err := types.NewBlob(namespace, rawblob)
+			blob, err := types.NewBlob(namespace, rawblob, shareVersion)
 			if err != nil {
 				return err
 			}
@@ -47,8 +70,21 @@ func CmdPayForBlob() *cobra.Command {
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
-
+	cmd.PersistentFlags().Uint8(FlagNamespaceVersion, 0, "Specify the namespace version")
+	cmd.PersistentFlags().Uint8(FlagShareVersion, 0, "Specify the share version")
 	return cmd
+}
+
+func getNamespace(namespaceID []byte, namespaceVersion uint8) (appns.Namespace, error) {
+	switch namespaceVersion {
+	case appns.NamespaceVersionZero:
+		id := make([]byte, 0, appns.NamespaceIDSize)
+		id = append(id, appns.NamespaceVersionZeroPrefix...)
+		id = append(id, namespaceID...)
+		return appns.New(namespaceVersion, id)
+	default:
+		return appns.Namespace{}, fmt.Errorf("namespace version %d is not supported", namespaceVersion)
+	}
 }
 
 // broadcastPFB creates the new PFB message type that will later be broadcast to tendermint nodes

@@ -1,19 +1,20 @@
 package types_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/testutil/blobfactory"
-	"github.com/celestiaorg/celestia-app/testutil/namespace"
+	"github.com/celestiaorg/celestia-app/pkg/namespace"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/libs/rand"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -22,6 +23,7 @@ func TestValidateBlobTx(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := "test"
 	signer := types.GenerateKeyringSigner(t, acc)
+	ns1 := namespace.MustNewV0(bytes.Repeat([]byte{0x01}, namespace.NamespaceVersionZeroIDSize))
 	signerAddr, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
 
@@ -35,9 +37,7 @@ func TestValidateBlobTx(t *testing.T) {
 		btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
 			encCfg.TxConfig.TxEncoder(),
 			signer,
-			[][]byte{
-				{1, 1, 1, 1, 1, 1, 1, 1},
-			},
+			[]namespace.Namespace{ns1},
 			[]int{10},
 		)[0]
 		return btx
@@ -58,7 +58,7 @@ func TestValidateBlobTx(t *testing.T) {
 			getTx: func() tmproto.BlobTx {
 				rawBtx := validRawBtx()
 				btx, _ := coretypes.UnmarshalBlobTx(rawBtx)
-				btx.Blobs[0].NamespaceId = namespace.RandomBlobNamespace()
+				btx.Blobs[0].NamespaceId = namespace.RandomBlobNamespace().ID
 				return btx
 			},
 			expectedErr: types.ErrNamespaceMismatch,
@@ -67,7 +67,7 @@ func TestValidateBlobTx(t *testing.T) {
 			name: "invalid transaction, no pfb",
 			getTx: func() tmproto.BlobTx {
 				sendTx := blobfactory.GenerateManyRawSendTxs(encCfg.TxConfig, 1)
-				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100))
+				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				return tmproto.BlobTx{
 					Tx:    sendTx[0],
@@ -81,7 +81,7 @@ func TestValidateBlobTx(t *testing.T) {
 			getTx: func() tmproto.BlobTx {
 				rawBtx := validRawBtx()
 				btx, _ := coretypes.UnmarshalBlobTx(rawBtx)
-				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100))
+				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				btx.Blobs = append(btx.Blobs, blob)
 				return btx
@@ -91,7 +91,7 @@ func TestValidateBlobTx(t *testing.T) {
 		{
 			name: "invalid share commitment",
 			getTx: func() tmproto.BlobTx {
-				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), rand.Bytes(100))
+				blob, err := types.NewBlob(namespace.RandomBlobNamespace(), tmrand.Bytes(100), appconsts.ShareVersionZero)
 				require.NoError(t, err)
 				msg, err := types.NewMsgPayForBlobs(
 					signerAddr.String(),
@@ -101,9 +101,10 @@ func TestValidateBlobTx(t *testing.T) {
 
 				badCommit, err := types.CreateCommitment(
 					&types.Blob{
-						NamespaceId:  namespace.RandomBlobNamespace(),
-						Data:         rand.Bytes(99),
-						ShareVersion: uint32(appconsts.ShareVersionZero),
+						NamespaceVersion: uint32(namespace.RandomBlobNamespace().Version),
+						NamespaceId:      namespace.RandomBlobNamespace().ID,
+						Data:             tmrand.Bytes(99),
+						ShareVersion:     uint32(appconsts.ShareVersionZero),
 					})
 				require.NoError(t, err)
 
@@ -132,6 +133,7 @@ func TestValidateBlobTx(t *testing.T) {
 				sendMsg := banktypes.NewMsgSend(signerAddr, signerAddr, sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10))))
 				tx := blobfactory.ComplexBlobTxWithOtherMsgs(
 					t,
+					tmrand.NewRand(),
 					signer.Keyring,
 					encCfg.TxConfig.TxEncoder(),
 					"test",
@@ -163,7 +165,7 @@ func TestValidateBlobTx(t *testing.T) {
 					signer,
 					0, 0,
 					blobfactory.RandBlobsWithNamespace(
-						[][]byte{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
+						[]namespace.Namespace{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
 						[]int{100, 100})...,
 				)
 				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
@@ -181,7 +183,7 @@ func TestValidateBlobTx(t *testing.T) {
 					signer,
 					0, 0,
 					blobfactory.RandBlobsWithNamespace(
-						[][]byte{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
+						[]namespace.Namespace{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
 						[]int{100000, 1000000})...,
 				)
 				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
@@ -200,7 +202,7 @@ func TestValidateBlobTx(t *testing.T) {
 					signer,
 					0, 0,
 					blobfactory.RandBlobsWithNamespace(
-						[][]byte{ns, ns},
+						[]namespace.Namespace{ns, ns},
 						[]int{100, 100})...,
 				)
 				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
@@ -215,7 +217,7 @@ func TestValidateBlobTx(t *testing.T) {
 				count := 100
 				ns := namespace.RandomBlobNamespace()
 				sizes := make([]int, count)
-				namespaces := make([][]byte, count)
+				namespaces := make([]namespace.Namespace, count)
 				for i := 0; i < count; i++ {
 					sizes[i] = 100
 					namespaces[i] = ns
@@ -238,9 +240,11 @@ func TestValidateBlobTx(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		err := types.ValidateBlobTx(encCfg.TxConfig, tt.getTx())
-		if tt.expectedErr != nil {
-			assert.ErrorIs(t, err, tt.expectedErr, tt.name)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			err := types.ValidateBlobTx(encCfg.TxConfig, tt.getTx())
+			if tt.expectedErr != nil {
+				assert.ErrorIs(t, err, tt.expectedErr, tt.name)
+			}
+		})
 	}
 }

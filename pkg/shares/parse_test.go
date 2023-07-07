@@ -1,164 +1,204 @@
 package shares
 
 import (
+	"bytes"
+	"crypto/rand"
 	"encoding/binary"
-	"math/rand"
 	"reflect"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/nmt/namespace"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/types"
 )
 
 func TestParseShares(t *testing.T) {
-	type testCase struct {
-		name      string
-		shares    []Share
-		want      []ShareSequence
-		expectErr bool
-	}
+	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+	ns2 := appns.MustNewV0(bytes.Repeat([]byte{2}, appns.NamespaceVersionZeroIDSize))
 
-	start := true
-	blobOneNamespace := namespace.ID{1, 1, 1, 1, 1, 1, 1, 1}
-	blobTwoNamespace := namespace.ID{2, 2, 2, 2, 2, 2, 2, 2}
-
-	txShares, _, _ := SplitTxs(generateRandomTxs(2, 1000))
+	txShares, _, _, err := SplitTxs(generateRandomTxs(2, 1000))
+	require.NoError(t, err)
 	txShareStart := txShares[0]
 	txShareContinuation := txShares[1]
 
-	blobOneShares, err := SplitBlobs(0, []uint32{}, []types.Blob{generateRandomBlobWithNamespace(blobOneNamespace, 1000)}, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	blobOneShares, err := SplitBlobs(generateRandomBlobWithNamespace(ns1, 1000))
+	require.NoError(t, err)
 	blobOneStart := blobOneShares[0]
 	blobOneContinuation := blobOneShares[1]
 
-	blobTwoShares, err := SplitBlobs(0, []uint32{}, []types.Blob{generateRandomBlobWithNamespace(blobTwoNamespace, 1000)}, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	blobTwoShares, err := SplitBlobs(generateRandomBlobWithNamespace(ns2, 1000))
+	require.NoError(t, err)
 	blobTwoStart := blobTwoShares[0]
 	blobTwoContinuation := blobTwoShares[1]
 
-	invalidShareBytes := generateRawShare(blobOneNamespace, start, 1)
-	invalidShareBytes = append(invalidShareBytes, []byte{0}...) // invalidShareBytes is now longer than the length of a valid share
-	invalidShare := Share{data: invalidShareBytes}
+	// invalidShare is longer than the length of a valid share
+	invalidShare := Share{data: append(generateRawShare(t, ns1, true, 1), []byte{0}...)}
 
-	b := NewBuilder(blobOneNamespace, appconsts.ShareVersionZero, start)
+	// tooLargeSequenceLen is a single share with too large of a sequence len
+	// because it takes more than one share to store a sequence of 1000 bytes
+	tooLargeSequenceLen := generateRawShare(t, ns1, true, uint32(1000))
 
-	largeSequenceLen := 1000 // it takes more than one share to store a sequence of 1000 bytes
-	oneShareWithTooLargeSequenceLenBytes := generateRawShare(blobOneNamespace, start, uint32(largeSequenceLen))
-	b.ImportRawShare(oneShareWithTooLargeSequenceLenBytes)
-	if err := b.WriteSequenceLen(uint32(largeSequenceLen)); err != nil {
-		t.Fatal(err)
-	}
+	ns1Padding, err := NamespacePaddingShare(ns1)
+	require.NoError(t, err)
 
-	oneShareWithTooLargeSequenceLen, err := b.Build()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	shortSequenceLen := 0
-	oneShareWithTooShortSequenceLenBytes := generateRawShare(blobOneNamespace, start, uint32(shortSequenceLen))
-	b.ImportRawShare(oneShareWithTooShortSequenceLenBytes)
-	if err := b.WriteSequenceLen(uint32(shortSequenceLen)); err != nil {
-		t.Fatal(err)
-	}
-	oneShareWithTooShortSequenceLen, err := b.Build()
-	if err != nil {
-		t.Fatal(err)
+	type testCase struct {
+		name          string
+		shares        []Share
+		ignorePadding bool
+		want          []ShareSequence
+		expectErr     bool
 	}
 
 	tests := []testCase{
 		{
-			"empty",
-			[]Share{},
-			[]ShareSequence{},
-			false,
+			name:          "empty",
+			shares:        []Share{},
+			ignorePadding: false,
+			want:          []ShareSequence{},
+			expectErr:     false,
 		},
 		{
-			"one transaction share",
-			[]Share{txShareStart},
-			[]ShareSequence{{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{txShareStart}}},
-			false,
+			name:          "one transaction share",
+			shares:        []Share{txShareStart},
+			ignorePadding: false,
+			want:          []ShareSequence{{Namespace: appns.TxNamespace, Shares: []Share{txShareStart}}},
+			expectErr:     false,
 		},
 		{
-			"two transaction shares",
-			[]Share{txShareStart, txShareContinuation},
-			[]ShareSequence{{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{txShareStart, txShareContinuation}}},
-			false,
+			name:          "two transaction shares",
+			shares:        []Share{txShareStart, txShareContinuation},
+			ignorePadding: false,
+			want:          []ShareSequence{{Namespace: appns.TxNamespace, Shares: []Share{txShareStart, txShareContinuation}}},
+			expectErr:     false,
 		},
 		{
-			"one blob share",
-			[]Share{blobOneStart},
-			[]ShareSequence{{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart}}},
-			false,
+			name:          "one blob share",
+			shares:        []Share{blobOneStart},
+			ignorePadding: false,
+			want:          []ShareSequence{{Namespace: ns1, Shares: []Share{blobOneStart}}},
+			expectErr:     false,
 		},
 		{
-			"two blob shares",
-			[]Share{blobOneStart, blobOneContinuation},
-			[]ShareSequence{{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart, blobOneContinuation}}},
-			false,
+			name:          "two blob shares",
+			shares:        []Share{blobOneStart, blobOneContinuation},
+			ignorePadding: false,
+			want:          []ShareSequence{{Namespace: ns1, Shares: []Share{blobOneStart, blobOneContinuation}}},
+			expectErr:     false,
 		},
 		{
-			"two blobs with two shares each",
-			[]Share{blobOneStart, blobOneContinuation, blobTwoStart, blobTwoContinuation},
-			[]ShareSequence{
-				{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart, blobOneContinuation}},
-				{NamespaceID: blobTwoNamespace, Shares: []Share{blobTwoStart, blobTwoContinuation}},
+			name:          "two blobs with two shares each",
+			shares:        []Share{blobOneStart, blobOneContinuation, blobTwoStart, blobTwoContinuation},
+			ignorePadding: false,
+			want: []ShareSequence{
+				{Namespace: ns1, Shares: []Share{blobOneStart, blobOneContinuation}},
+				{Namespace: ns2, Shares: []Share{blobTwoStart, blobTwoContinuation}},
 			},
-			false,
+			expectErr: false,
 		},
 		{
-			"one transaction, one blob",
-			[]Share{txShareStart, blobOneStart},
-			[]ShareSequence{
-				{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{txShareStart}},
-				{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart}},
+			name:          "one transaction, one blob",
+			shares:        []Share{txShareStart, blobOneStart},
+			ignorePadding: false,
+			want: []ShareSequence{
+				{Namespace: appns.TxNamespace, Shares: []Share{txShareStart}},
+				{Namespace: ns1, Shares: []Share{blobOneStart}},
 			},
-			false,
+			expectErr: false,
 		},
 		{
-			"one transaction, two blobs",
-			[]Share{txShareStart, blobOneStart, blobTwoStart},
-			[]ShareSequence{
-				{NamespaceID: appconsts.TxNamespaceID, Shares: []Share{txShareStart}},
-				{NamespaceID: blobOneNamespace, Shares: []Share{blobOneStart}},
-				{NamespaceID: blobTwoNamespace, Shares: []Share{blobTwoStart}},
+			name:          "one transaction, two blobs",
+			shares:        []Share{txShareStart, blobOneStart, blobTwoStart},
+			ignorePadding: false,
+			want: []ShareSequence{
+				{Namespace: appns.TxNamespace, Shares: []Share{txShareStart}},
+				{Namespace: ns1, Shares: []Share{blobOneStart}},
+				{Namespace: ns2, Shares: []Share{blobTwoStart}},
 			},
-			false,
+			expectErr: false,
 		},
 		{
-			"one share with invalid size",
-			[]Share{invalidShare},
-			[]ShareSequence{},
-			true,
+			name:          "one share with invalid size",
+			shares:        []Share{invalidShare},
+			ignorePadding: false,
+			want:          []ShareSequence{},
+			expectErr:     true,
 		},
 		{
-			"blob one start followed by blob two continuation",
-			[]Share{blobOneStart, blobTwoContinuation},
-			[]ShareSequence{},
-			true,
+			name:          "blob one start followed by blob two continuation",
+			shares:        []Share{blobOneStart, blobTwoContinuation},
+			ignorePadding: false,
+			want:          []ShareSequence{},
+			expectErr:     true,
 		},
 		{
-			"one share with too large sequence length",
-			[]Share{*oneShareWithTooLargeSequenceLen},
-			[]ShareSequence{},
-			true,
+			name:          "one share with too large sequence length",
+			shares:        []Share{{data: tooLargeSequenceLen}},
+			ignorePadding: false,
+			want:          []ShareSequence{},
+			expectErr:     true,
 		},
 		{
-			"one share with too short sequence length",
-			[]Share{*oneShareWithTooShortSequenceLen},
-			[]ShareSequence{},
-			true,
+			name:          "tail padding shares",
+			shares:        TailPaddingShares(2),
+			ignorePadding: false,
+			want: []ShareSequence{
+				{
+					Namespace: appns.TailPaddingNamespace,
+					Shares:    []Share{TailPaddingShare()},
+				},
+				{
+					Namespace: appns.TailPaddingNamespace,
+					Shares:    []Share{TailPaddingShare()},
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name:          "reserve padding shares",
+			shares:        ReservedPaddingShares(2),
+			ignorePadding: false,
+			want: []ShareSequence{
+				{
+					Namespace: appns.ReservedPaddingNamespace,
+					Shares:    []Share{ReservedPaddingShare()},
+				},
+				{
+					Namespace: appns.ReservedPaddingNamespace,
+					Shares:    []Share{ReservedPaddingShare()},
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name:          "namespace padding shares",
+			shares:        []Share{ns1Padding, ns1Padding},
+			ignorePadding: false,
+			want: []ShareSequence{
+				{
+					Namespace: ns1,
+					Shares:    []Share{ns1Padding},
+				},
+				{
+					Namespace: ns1,
+					Shares:    []Share{ns1Padding},
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name:          "ignores all types of padding shares",
+			shares:        []Share{TailPaddingShare(), ReservedPaddingShare(), ns1Padding},
+			ignorePadding: true,
+			want:          []ShareSequence{},
+			expectErr:     false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseShares(tt.shares)
+			got, err := ParseShares(tt.shares, tt.ignorePadding)
 			if tt.expectErr {
 				assert.Error(t, err)
 				return
@@ -170,23 +210,24 @@ func TestParseShares(t *testing.T) {
 	}
 }
 
-func generateRawShare(namespace namespace.ID, isSequenceStart bool, sequenceLen uint32) (rawShare []byte) {
+func generateRawShare(t *testing.T, namespace appns.Namespace, isSequenceStart bool, sequenceLen uint32) (rawShare []byte) {
 	infoByte, _ := NewInfoByte(appconsts.ShareVersionZero, isSequenceStart)
 
 	sequenceLenBuf := make([]byte, appconsts.SequenceLenBytes)
 	binary.BigEndian.PutUint32(sequenceLenBuf, sequenceLen)
 
-	rawShare = append(rawShare, namespace...)
+	rawShare = append(rawShare, namespace.Bytes()...)
 	rawShare = append(rawShare, byte(infoByte))
 	rawShare = append(rawShare, sequenceLenBuf...)
 
-	return padWithRandomBytes(rawShare)
+	return padWithRandomBytes(t, rawShare)
 }
 
-func padWithRandomBytes(partialShare []byte) (paddedShare []byte) {
+func padWithRandomBytes(t *testing.T, partialShare []byte) (paddedShare []byte) {
 	paddedShare = make([]byte, appconsts.ShareSize)
 	copy(paddedShare, partialShare)
-	rand.Read(paddedShare[len(partialShare):])
+	_, err := rand.Read(paddedShare[len(partialShare):])
+	require.NoError(t, err)
 	return paddedShare
 }
 
@@ -203,10 +244,12 @@ func generateRandomTxs(count, size int) types.Txs {
 	return txs
 }
 
-func generateRandomBlobWithNamespace(namespace namespace.ID, size int) types.Blob {
+func generateRandomBlobWithNamespace(namespace appns.Namespace, size int) types.Blob {
 	blob := types.Blob{
-		NamespaceID: namespace,
-		Data:        tmrand.Bytes(size),
+		NamespaceVersion: namespace.Version,
+		NamespaceID:      namespace.ID,
+		Data:             tmrand.Bytes(size),
+		ShareVersion:     appconsts.ShareVersionZero,
 	}
 	return blob
 }

@@ -6,7 +6,7 @@ Implemented
 
 ## Terminology
 
-- **compact share**: a type of share that can accommodate multiple units. Currently, compact shares are used for transactions, and evidence is to efficiently pack this information into as few shares as possible.
+- **compact share**: a type of share that can accommodate multiple units. Currently, compact shares are used for transactions to efficiently pack this information into as few shares as possible.
 - **sparse share**: a type of share that can accommodate zero or one unit. Currently, sparse shares are used for messages.
 - **share sequence**: an ordered list of shares
 
@@ -18,7 +18,7 @@ Implemented
 
 Where:
 
-- `reserved (1 byte)`: is the location of the first transaction or evidence in the share if there is one and `0` if there isn't one.
+- `reserved (1 byte)`: is the location of the first transaction in the share if there is one and `0` if there isn't one.
 - `data`: contains the raw bytes where each unit is prefixed with a varint 1 to 10 bytes that indicates how long the unit is in bytes.
 
 ### Current Sparse Share Schema

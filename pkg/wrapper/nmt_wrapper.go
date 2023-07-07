@@ -4,7 +4,9 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/nmt"
+	"github.com/celestiaorg/nmt/namespace"
 	"github.com/celestiaorg/rsmt2d"
 )
 
@@ -24,7 +26,7 @@ var (
 type ErasuredNamespacedMerkleTree struct {
 	squareSize uint64 // note: this refers to the width of the original square before erasure-coded
 	options    []nmt.Option
-	tree       *nmt.NamespacedMerkleTree
+	tree       Tree
 	// axisIndex is the index of the axis (row or column) that this tree is on. This is passed
 	// by rsmt2d and used to help determine which quadrant each leaf belongs to.
 	axisIndex uint64
@@ -36,17 +38,28 @@ type ErasuredNamespacedMerkleTree struct {
 	shareIndex uint64
 }
 
+// Tree is an interface that wraps the methods of the underlying
+// NamespaceMerkleTree that are used by ErasuredNamespacedMerkleTree. This
+// interface is mainly used for testing. It is not recommended to use this
+// interface by implementing a different implementation.
+type Tree interface {
+	Root() ([]byte, error)
+	Push(namespacedData namespace.PrefixedData) error
+	ProveRange(start, end int) (nmt.Proof, error)
+}
+
 // NewErasuredNamespacedMerkleTree creates a new ErasuredNamespacedMerkleTree
-// with an underlying NMT of namespace size `appconsts.NamespaceSize`. axisIndex
-// is the index of the row or column that this tree is committing to. squareSize
-// must be greater than zero.
-func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, setters ...nmt.Option) ErasuredNamespacedMerkleTree {
+// with an underlying NMT of namespace size `appconsts.NamespaceSize` and with
+// `ignoreMaxNamespace=true`. axisIndex is the index of the row or column that
+// this tree is committing to. squareSize must be greater than zero.
+func NewErasuredNamespacedMerkleTree(squareSize uint64, axisIndex uint, options ...nmt.Option) ErasuredNamespacedMerkleTree {
 	if squareSize == 0 {
 		panic("cannot create a ErasuredNamespacedMerkleTree of squareSize == 0")
 	}
-	setters = append(setters, nmt.NamespaceIDSize(appconsts.NamespaceSize))
-	tree := nmt.New(appconsts.NewBaseHashFunc(), setters...)
-	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: setters, tree: tree, axisIndex: uint64(axisIndex), shareIndex: 0}
+	options = append(options, nmt.NamespaceIDSize(appconsts.NamespaceSize))
+	options = append(options, nmt.IgnoreMaxNamespace(true))
+	tree := nmt.New(appconsts.NewBaseHashFunc(), options...)
+	return ErasuredNamespacedMerkleTree{squareSize: squareSize, options: options, tree: tree, axisIndex: uint64(axisIndex), shareIndex: 0}
 }
 
 type constructor struct {
@@ -77,9 +90,12 @@ func (c constructor) NewTree(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
 // namespace unless the data pushed to the second half of the tree. Fulfills the
 // rsmt.Tree interface. NOTE: panics if an error is encountered while pushing or
 // if the tree size is exceeded.
-func (w *ErasuredNamespacedMerkleTree) Push(data []byte) {
+func (w *ErasuredNamespacedMerkleTree) Push(data []byte) error {
 	if w.axisIndex+1 > 2*w.squareSize || w.shareIndex+1 > 2*w.squareSize {
-		panic(fmt.Sprintf("pushed past predetermined square size: boundary at %d index at %d %d", 2*w.squareSize, w.axisIndex, w.shareIndex))
+		return fmt.Errorf("pushed past predetermined square size: boundary at %d index at %d %d", 2*w.squareSize, w.axisIndex, w.shareIndex)
+	}
+	if len(data) < appconsts.NamespaceSize {
+		return fmt.Errorf("data is too short to contain namespace ID")
 	}
 	nidAndData := make([]byte, appconsts.NamespaceSize+len(data))
 	copy(nidAndData[appconsts.NamespaceSize:], data)
@@ -87,26 +103,24 @@ func (w *ErasuredNamespacedMerkleTree) Push(data []byte) {
 	if w.isQuadrantZero() {
 		copy(nidAndData[:appconsts.NamespaceSize], data[:appconsts.NamespaceSize])
 	} else {
-		copy(nidAndData[:appconsts.NamespaceSize], appconsts.ParitySharesNamespaceID)
+		copy(nidAndData[:appconsts.NamespaceSize], appns.ParitySharesNamespace.Bytes())
 	}
-	// push to the underlying tree
 	err := w.tree.Push(nidAndData)
-	// panic on error
 	if err != nil {
-		panic(err)
+		return err
 	}
 	w.incrementShareIndex()
+	return nil
 }
 
 // Root fulfills the rsmt.Tree interface by generating and returning the
 // underlying NamespaceMerkleTree Root.
-func (w *ErasuredNamespacedMerkleTree) Root() []byte {
-	return w.tree.Root()
-}
-
-// Prove returns a Merkle inclusion proof for the leaf at index `ind`.
-func (w *ErasuredNamespacedMerkleTree) Prove(ind int) (nmt.Proof, error) {
-	return w.tree.Prove(ind)
+func (w *ErasuredNamespacedMerkleTree) Root() ([]byte, error) {
+	root, err := w.tree.Root()
+	if err != nil {
+		return nil, err
+	}
+	return root, nil
 }
 
 // ProveRange returns a Merkle range proof for the leaf range [start, end] where `end` is non-inclusive.
@@ -123,4 +137,10 @@ func (w *ErasuredNamespacedMerkleTree) incrementShareIndex() {
 // in the original data square.
 func (w *ErasuredNamespacedMerkleTree) isQuadrantZero() bool {
 	return w.shareIndex < w.squareSize && w.axisIndex < w.squareSize
+}
+
+// SetTree sets the underlying tree to the provided tree. This is used for
+// testing purposes only.
+func (w *ErasuredNamespacedMerkleTree) SetTree(tree Tree) {
+	w.tree = tree
 }
