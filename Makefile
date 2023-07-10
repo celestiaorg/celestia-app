@@ -129,6 +129,21 @@ test-coverage:
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-coverage
 
+## txsim-install: Install the tx simulator/fuzzer.
+txsim-install:
+	@echo "--> Installing tx simulator"
+	@go build -mod=readonly ./test/cmd/txsim
+.PHONY: txsim-install
+
+## txsim-build: Build the txsim binary into the ./build directory.
+txsim-build: mod
+	@echo "--> Building tx simulator"
+	@cd ./test/cmd/txsim
+	@mkdir -p build/
+	@go build $(BUILD_FLAGS) -o build/ ./test/cmd/txsim
+	@go mod tidy -compat=1.20
+.PHONY: txsim-build
+
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo. Ex. `make adr-gen`
 adr-gen:
 	@echo "--> Downloading ADR template"
