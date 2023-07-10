@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,7 +38,7 @@ func TestCount(t *testing.T) {
 		}
 	}
 
-	css := NewCompactShareSplitter(namespace.TxNamespace, appconsts.ShareVersionZero)
+	css := NewCompactShareSplitter(appns.TxNamespace, appconsts.ShareVersionZero)
 	assert.Equal(t, 0, css.Count())
 }
 

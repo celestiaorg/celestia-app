@@ -36,8 +36,6 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	}
 	t := s.T()
 
-	cparams := DefaultParams()
-
 	accounts := make([]string, 40)
 	for i := 0; i < 40; i++ {
 		accounts[i] = tmrand.Str(10)
@@ -46,14 +44,12 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	blobGenState := blobtypes.DefaultGenesis()
 	blobGenState.Params.GovMaxSquareSize = uint64(appconsts.DefaultSquareSizeUpperBound)
-	cctx, _, _ := NewNetwork(
-		t,
-		cparams,
-		DefaultTendermintConfig(),
-		DefaultAppConfig(),
-		accounts,
-		SetBlobParams(ecfg.Codec, blobGenState.Params),
-	)
+
+	cfg := DefaultConfig().
+		WithAccounts(accounts).
+		WithGenesisOptions(SetBlobParams(ecfg.Codec, blobGenState.Params))
+
+	cctx, _, _ := NewNetwork(t, cfg)
 	s.cctx = cctx
 	s.accounts = accounts
 }

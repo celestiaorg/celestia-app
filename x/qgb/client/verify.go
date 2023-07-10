@@ -189,11 +189,11 @@ func sharesCmd() *cobra.Command {
 func VerifyShares(ctx context.Context, logger tmlog.Logger, config VerifyConfig, height uint64, startShare uint64, endShare uint64) (isCommittedTo bool, err error) {
 	trpc, err := http.New(config.TendermintRPC, "/websocket")
 	if err != nil {
-		return
+		return false, err
 	}
 	err = trpc.Start()
 	if err != nil {
-		return
+		return false, err
 	}
 	defer func(trpc *http.HTTP) {
 		err := trpc.Stop()

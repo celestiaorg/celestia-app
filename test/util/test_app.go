@@ -47,10 +47,10 @@ func (ao emptyAppOptions) Get(_ string) interface{} {
 	return nil
 }
 
-// SetupTestAppWithGenesisValSet initializes a new app with a validator set and genesis accounts
-// that also act as delegators. For simplicity, each validator is bonded with a delegation
-// of one consensus engine unit in the default token of the app from first genesis
-// account. A Nop logger is set in app.
+// SetupTestAppWithGenesisValSet initializes a new app with a validator set and
+// genesis accounts that also act as delegators. For simplicity, each validator
+// is bonded with a delegation of one consensus engine unit in the default token
+// of the app from first genesis account. A no-op logger is set in app.
 func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts ...string) (*app.App, keyring.Keyring) {
 	// var cache sdk.MultiStorePersistentCache
 	// EmptyAppOptions is a stub implementing AppOptions
@@ -88,9 +88,12 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 		Validator: &cparams.Validator,
 	}
 
+	genesisTime := time.Date(2023, 1, 1, 1, 1, 1, 1, time.UTC).UTC()
+
 	// init chain will set the validator set and initialize the genesis accounts
 	testApp.InitChain(
 		abci.RequestInitChain{
+			Time:            genesisTime,
 			Validators:      []abci.ValidatorUpdate{},
 			ConsensusParams: abciParams,
 			AppStateBytes:   stateBytes,
@@ -173,8 +176,8 @@ func AddGenesisAccount(addr sdk.AccAddress, appState app.GenesisState, cdc codec
 	return appState, nil
 }
 
-// GenesisStateWithSingleValidator initializes GenesisState with a single validator and genesis accounts
-// that also act as delegators.
+// GenesisStateWithSingleValidator initializes GenesisState with a single
+// validator and genesis accounts that also act as delegators.
 func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (app.GenesisState, *tmtypes.ValidatorSet, keyring.Keyring) {
 	privVal := mock.NewPV()
 	pubKey, err := privVal.GetPubKey()
