@@ -303,7 +303,6 @@ func extractBlobComponents(pblobs []*tmproto.Blob) (namespaceVersions []uint32, 
 //
 // https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/
 // https://github.com/opentimestamps/opentimestamps-server/blob/master/doc/merkle-mountain-range.md
-// TODO: potentially rename function because this doesn't return heights
 func merkleMountainRangeSizes(totalSize, maxTreeSize uint64) ([]uint64, error) {
 	var treeSizes []uint64
 
