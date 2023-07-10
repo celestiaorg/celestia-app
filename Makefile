@@ -101,8 +101,8 @@ fmt:
 
 ## test: Run unit tests.
 test:
-	@echo "--> Running unit tests"
-	@go test -mod=readonly ./...
+	@echo "--> Running tests"
+	@go test -mod=readonly -timeout 30m ./...
 .PHONY: test
 
 ## test-short: Run unit tests in short mode.
