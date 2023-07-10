@@ -332,7 +332,10 @@
 </div>
 <p>A proof for a leaf in a <a href="specs/data_structures.html#binary-merkle-tree">binary Merkle tree</a>, as per Section 2.1.1 of <a href="https://tools.ietf.org/html/rfc6962#section-2.1.1">Certificate Transparency (RFC-6962)</a>.</p>
 <h3 id="namespace-merkle-tree"><a class="header" href="#namespace-merkle-tree">Namespace Merkle Tree</a></h3>
+<!-- disable markdown link check for bitcointalk.org because it frequently fails --> 
+<!-- markdown-link-check-disable -->
 <p><a href="specs/./shares.html">Shares</a> in Celestia are associated with a provided <em>namespace</em>. The Namespace Merkle Tree (NMT) is a variation of the <a href="https://eprint.iacr.org/2018/642">Merkle Interval Tree</a>, which is itself an extension of the <a href="https://bitcointalk.org/index.php?topic=845978.0">Merkle Sum Tree</a>. It allows for compact proofs around the inclusion or exclusion of shares with particular namespace IDs.</p>
+<!-- markdown-link-check-enable -->
 <p>Nodes contain three fields:</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>n_min</code></td><td><a href="specs/./namespace.html">Namespace</a></td><td>Min namespace in subtree rooted at this node.</td></tr>
