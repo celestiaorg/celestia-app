@@ -21,7 +21,6 @@ import (
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/network"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/x/blob/client/cli"
 	paycli "github.com/celestiaorg/celestia-app/x/blob/client/cli"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
@@ -99,7 +98,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-				fmt.Sprintf("--%s=1", cli.FlagShareVersion),
+				fmt.Sprintf("--%s=1", paycli.FlagShareVersion),
 			},
 			expectErr:    true,
 			expectedCode: 0,
@@ -128,7 +127,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 				fmt.Sprintf("--%s=%s", flags.FlagBroadcastMode, flags.BroadcastBlock),
 				fmt.Sprintf("--%s=%s", flags.FlagFees, sdk.NewCoins(sdk.NewCoin(s.cfg.BondDenom, sdk.NewInt(2))).String()),
 				fmt.Sprintf("--%s=true", flags.FlagSkipConfirmation),
-				fmt.Sprintf("--%s=1", cli.FlagNamespaceVersion),
+				fmt.Sprintf("--%s=1", paycli.FlagNamespaceVersion),
 			},
 			expectErr:    true,
 			expectedCode: 0,

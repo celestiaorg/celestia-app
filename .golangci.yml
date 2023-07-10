@@ -10,6 +10,7 @@ linters:
     - nakedret
     - revive
     - prealloc
+    - stylecheck
 
 linters-settings:
   nakedret:

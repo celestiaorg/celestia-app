@@ -56,7 +56,7 @@ func RandBlobTxsWithAccounts(
 
 		// update the account info in the signer so the signature is valid
 		acc := DirectQueryAccount(capp, addr)
-		signer.SetAccountNumber(0)
+		signer.SetAccountNumber(acc.GetAccountNumber())
 		signer.SetSequence(acc.GetSequence())
 
 		if size <= 0 {
