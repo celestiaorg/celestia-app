@@ -79,6 +79,7 @@ func NewNode(
 	if err != nil {
 		return nil, err
 	}
+
 	return &Node{
 		Name:           name,
 		Instance:       instance,
@@ -92,7 +93,11 @@ func NewNode(
 	}, nil
 }
 
-func (n *Node) Init(genesis types.GenesisDoc) error {
+func (n *Node) Init(genesis types.GenesisDoc, peers []string) error {
+	if len(peers) == 0 {
+		return fmt.Errorf("no peers provided")
+	}
+
 	// Initialize file directories
 	rootDir := os.TempDir()
 	nodeDir := filepath.Join(rootDir, n.Name)
@@ -145,6 +150,12 @@ func (n *Node) Init(genesis types.GenesisDoc) error {
 	pvStatePath := filepath.Join(nodeDir, "data", "priv_validator_state.json")
 	(privval.NewFilePV(n.SignerKey, pvKeyPath, pvStatePath)).Save()
 
+	addrBookFile := filepath.Join(nodeDir, "config", "addrbook.json")
+	err = WriteAddressBook(peers, addrBookFile)
+	if err != nil {
+		return fmt.Errorf("writing address book: %w", err)
+	}
+
 	_, err = n.Instance.ExecuteCommand(fmt.Sprintf("mkdir -p %s/config", remoteRootDir))
 	if err != nil {
 		return fmt.Errorf("creating config directory: %w", err)
@@ -182,6 +193,11 @@ func (n *Node) Init(genesis types.GenesisDoc) error {
 	err = n.Instance.AddFile(nodeKeyFilePath, filepath.Join(remoteRootDir, "config", "node_key.json"), "10001:10001")
 	if err != nil {
 		return fmt.Errorf("adding node_key file: %w", err)
+	}
+
+	err = n.Instance.AddFile(addrBookFile, filepath.Join(remoteRootDir, "config", "addrbook.json"), "10001:10001")
+	if err != nil {
+		return fmt.Errorf("adding addrbook file: %w", err)
 	}
 
 	return n.Instance.Commit()

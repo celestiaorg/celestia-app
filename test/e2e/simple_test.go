@@ -18,8 +18,8 @@ const (
 )
 
 func TestE2ESimple(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping e2e test in short mode")
+	if !*e2eEnabled {
+		t.Skip("skipping e2e test. Use --e2e to run end to end tests")
 	}
 	identifier := fmt.Sprintf("%s_%s", t.Name(), time.Now().Format("20060102_150405"))
 	err := knuu.InitializeWithIdentifier(identifier)

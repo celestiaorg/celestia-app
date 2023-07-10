@@ -111,6 +111,11 @@ test-short:
 	@go test -mod=readonly ./... -short
 .PHONY: test-short
 
+test-e2e:
+	@echo "--> Running e2e tests"
+	@go test -mod=readonly ./test/e2e/... --e2e
+.PHONY: test-e2e
+
 ## test-race: Run unit tests in race mode.
 test-race:
 	@echo "--> Running tests in race mode"

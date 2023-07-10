@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"flag"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/app"
@@ -9,6 +10,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 )
+
+// flag to enable e2e tests
+var e2eEnabled = flag.Bool("e2e", false, "enable e2e tests")
 
 type Testnet struct {
 	seed            int64
@@ -94,7 +98,16 @@ func (t *Testnet) Setup() error {
 		return err
 	}
 	for _, node := range t.nodes {
-		err = node.Init(genesis)
+		// nodes are initialized with the addresses of all other
+		// nodes in their addressbook
+		peers := make([]string, 0, len(t.nodes)-1)
+		for _, peer := range t.nodes {
+			if peer.Name != node.Name {
+				peers = append(peers, peer.AddressP2P(true))
+			}
+		}
+
+		err = node.Init(genesis, peers)
 		if err != nil {
 			return err
 		}

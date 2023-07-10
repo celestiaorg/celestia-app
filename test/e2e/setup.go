@@ -153,7 +153,7 @@ func MakeConfig(node *Node) (*config.Config, error) {
 }
 
 func WriteAddressBook(peers []string, file string) error {
-	book := pex.NewAddrBook(file, true)
+	book := pex.NewAddrBook(file, false)
 	for _, peer := range peers {
 		addr, err := p2p.NewNetAddressString(peer)
 		if err != nil {
