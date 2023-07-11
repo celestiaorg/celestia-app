@@ -3,10 +3,20 @@ package malicious
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/pkg/da"
+	"github.com/celestiaorg/celestia-app/pkg/shares"
+	"github.com/celestiaorg/celestia-app/pkg/square"
 	"github.com/celestiaorg/celestia-app/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/x/blob"
+	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
+	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 )
 
@@ -55,12 +65,56 @@ func TestOutOfOrderNMT(t *testing.T) {
 	require.NotEqual(t, goodOrderedRoot, root) // quick sanity check to ensure the roots are different
 }
 
-func TestMaliciousNodeTestNode(t *testing.T) {
-	// TODO: flesh out this test further
-	cfg := testnode.DefaultConfig().
-		WithAppCreator(NewAppServer)
+// TestMaliciousTestNode runs a single validator network using the malicious
+// node. This will begin to produce out of order blocks after block height of 5.
+func TestMaliciousTestNode(t *testing.T) {
+	accounts := testfactory.RandomAccountNames(5)
+	cfg := OutOfOrderNamespaceConfig(5).
+		WithAccounts(accounts)
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
+	_, err := cctx.WaitForHeight(6)
+	require.NoError(t, err)
 
-	require.NoError(t, cctx.WaitForNextBlock())
+	// submit a multiblob tx where each blob is using a random namespace. This
+	// will result in the first two blobs being swapped in the square as per the
+	// malicious square builder.
+	signer := blobtypes.NewKeyringSigner(cctx.Keyring, accounts[0], cctx.ChainID)
+	blobs := blobfactory.ManyRandBlobs(t, tmrand.NewRand(), 10_000, 10_000, 10_000, 10_000, 10_000, 10_000, 10_000)
+	txres, err := blob.SubmitPayForBlob(
+		cctx.GoContext(),
+		signer,
+		cctx.GRPCClient,
+		blobs,
+		blobtypes.SetGasLimit(1_000_000),
+		blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(1_000_000)))),
+	)
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, txres.Code)
+
+	// fetch the block that included in the tx
+	inclusionHeight := txres.Height
+	block, err := cctx.Client.Block(cctx.GoContext(), &inclusionHeight)
+	require.NoError(t, err)
+
+	// check that we can recalculate the data root using the malicious code but
+	// not the correct code
+	s, err := Construct(block.Block.Txs.ToSliceOfBytes(), appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound, OutOfOrderExport)
+	require.NoError(t, err)
+
+	rawSquare := shares.ToBytes(s)
+	eds, err := ExtendShares(rawSquare)
+	require.NoError(t, err)
+
+	dah := da.NewDataAvailabilityHeader(eds)
+	require.Equal(t, block.Block.DataHash.Bytes(), dah.Hash())
+
+	correctSquare, err := square.Construct(block.Block.Txs.ToSliceOfBytes(), appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
+	require.NoError(t, err)
+
+	goodEds, err := da.ExtendShares(shares.ToBytes(correctSquare))
+	require.NoError(t, err)
+
+	goodDah := da.NewDataAvailabilityHeader(goodEds)
+	require.NotEqual(t, block.Block.DataHash.Bytes(), goodDah.Hash())
 }
