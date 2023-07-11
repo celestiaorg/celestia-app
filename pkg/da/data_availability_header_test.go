@@ -58,10 +58,11 @@ func TestNewDataAvailabilityHeader(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			eds, err := ExtendShares(tt.shares)
 			require.NoError(t, err)
-			resdah := NewDataAvailabilityHeader(eds)
-			require.Equal(t, tt.squareSize*2, uint64(len(resdah.ColumnRoots)), tt.name)
-			require.Equal(t, tt.squareSize*2, uint64(len(resdah.RowRoots)), tt.name)
-			require.Equal(t, tt.expectedHash, resdah.hash, tt.name)
+			got, err := NewDataAvailabilityHeader(eds)
+			require.NoError(t, err)
+			require.Equal(t, tt.squareSize*2, uint64(len(got.ColumnRoots)), tt.name)
+			require.Equal(t, tt.squareSize*2, uint64(len(got.RowRoots)), tt.name)
+			require.Equal(t, tt.expectedHash, got.hash, tt.name)
 		})
 	}
 }
@@ -106,7 +107,8 @@ func TestDataAvailabilityHeaderProtoConversion(t *testing.T) {
 	shares := generateShares(appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound)
 	eds, err := ExtendShares(shares)
 	require.NoError(t, err)
-	bigdah := NewDataAvailabilityHeader(eds)
+	bigdah, err := NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 
 	tests := []test{
 		{
@@ -143,7 +145,8 @@ func Test_DAHValidateBasic(t *testing.T) {
 	shares := generateShares(maxSize)
 	eds, err := ExtendShares(shares)
 	require.NoError(t, err)
-	bigdah := NewDataAvailabilityHeader(eds)
+	bigdah, err := NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 
 	// make a mutant dah that has too many roots
 	var tooBigDah DataAvailabilityHeader
