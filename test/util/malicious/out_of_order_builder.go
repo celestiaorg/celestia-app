@@ -20,7 +20,7 @@ type ExportFn func(builder *square.Builder) (square.Square, error)
 // not check the underlying validity of the transactions.
 // Errors should not occur and would reflect a violation in an invariant.
 func Build(txs [][]byte, appVersion uint64, maxSquareSize int, efn ExportFn) (square.Square, [][]byte, error) {
-	builder, err := square.NewBuilder(maxSquareSize, appVersion, txs...)
+	builder, err := square.NewBuilder(maxSquareSize, appVersion)
 	if err != nil {
 		return nil, nil, err
 	}
