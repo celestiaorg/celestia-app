@@ -4,5 +4,5 @@ import "time"
 
 const (
 	TimeoutPropose = time.Second * 10
-	TimeoutCommit  = time.Second * 15
+	TimeoutCommit  = time.Second * 11
 )
