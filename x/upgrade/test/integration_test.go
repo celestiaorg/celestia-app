@@ -68,8 +68,7 @@ func (s *UpgradeTestSuite) SetupSuite() {
 	s.cctx = cctx
 	require.NoError(t, s.cctx.WaitForNextBlock())
 
-	// set the gov module address
-	// retrieve the gov module account via grpc
+	// Retrieve the gov module account via grpc
 	aqc := authtypes.NewQueryClient(s.cctx.GRPCClient)
 	resp, err := aqc.ModuleAccountByName(
 		s.cctx.GoContext(), &authtypes.QueryModuleAccountByNameRequest{Name: "gov"},
@@ -79,6 +78,7 @@ func (s *UpgradeTestSuite) SetupSuite() {
 	err = s.ecfg.InterfaceRegistry.UnpackAny(resp.Account, &acc)
 	s.Require().NoError(err)
 
+	// Set the gov module address
 	s.govModuleAddress = acc.GetAddress().String()
 }
 
