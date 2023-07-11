@@ -6,8 +6,7 @@ import (
 )
 
 // InitGenesis initializes the x/mint store with data from the genesis state.
-func (k Keeper) InitGenesis(ctx sdk.Context, ak types.AccountKeeper, data *types.GenesisState) {
-	k.SetMinter(ctx, data.Minter)
+func (k Keeper) InitGenesis(ctx sdk.Context, ak types.AccountKeeper) {
 	// override the genesis time with the actual genesis time supplied in `InitChain`
 	blockTime := ctx.BlockTime()
 	gt := types.GenesisTime{
