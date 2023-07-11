@@ -22,8 +22,8 @@ func separateTxs(_ client.TxConfig, rawTxs [][]byte) ([][]byte, []tmproto.BlobTx
 	return normalTxs, blobTxs
 }
 
-// filterTxs applies the antehandler to all proposed transactions and removes transactions that return an error.
-func filterTxs(ctx sdk.Context, handler sdk.AnteHandler, txConfig client.TxConfig, txs [][]byte) [][]byte {
+// FilterTxs applies the antehandler to all proposed transactions and removes transactions that return an error.
+func FilterTxs(ctx sdk.Context, handler sdk.AnteHandler, txConfig client.TxConfig, txs [][]byte) [][]byte {
 	normalTxs, blobTxs := separateTxs(txConfig, txs)
 	normalTxs, ctx = filterStdTxs(txConfig.TxDecoder(), ctx, handler, normalTxs)
 	blobTxs, _ = filterBlobTxs(txConfig.TxDecoder(), ctx, handler, blobTxs)
