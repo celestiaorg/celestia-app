@@ -93,7 +93,7 @@ func (c *Config) WithSupressLogs(sl bool) *Config {
 
 func DefaultConfig() *Config {
 	tmcfg := DefaultTendermintConfig()
-	tmcfg.Consensus.TargetHeightDuration = 1 * time.Millisecond
+	tmcfg.Consensus.TimeoutCommit = 1 * time.Millisecond
 	cfg := &Config{}
 	return cfg.
 		WithAccounts([]string{}).
@@ -139,7 +139,7 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	tmCfg := tmconfig.DefaultConfig()
 	// Reduce the target height duration so that blocks are produced faster
 	// during tests.
-	tmCfg.Consensus.TargetHeightDuration = 300 * time.Millisecond
+	tmCfg.Consensus.TimeoutCommit = 300 * time.Millisecond
 	tmCfg.Consensus.TimeoutPropose = 200 * time.Millisecond
 
 	// set the mempool's MaxTxBytes to allow the testnode to accept a
