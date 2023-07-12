@@ -55,7 +55,7 @@ func (s *UpgradeTestSuite) SetupSuite() {
 	}
 
 	tmCfg := testnode.DefaultTendermintConfig()
-	tmCfg.Consensus.TargetHeightDuration = 3 * time.Second
+	tmCfg.Consensus.TimeoutCommit = 3 * time.Second
 
 	cfg := testnode.DefaultConfig().
 		WithAccounts(accounts).

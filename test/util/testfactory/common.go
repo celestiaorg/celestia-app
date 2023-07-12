@@ -35,3 +35,11 @@ func GenerateRandNamespacedRawData(count int) (result [][]byte) {
 func sortByteArrays(src [][]byte) {
 	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
 }
+
+func RandomAccountNames(count int) []string {
+	accounts := make([]string, 0, count)
+	for i := 0; i < count; i++ {
+		accounts = append(accounts, tmrand.Str(10))
+	}
+	return accounts
+}

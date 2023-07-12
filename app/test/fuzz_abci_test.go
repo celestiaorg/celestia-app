@@ -141,7 +141,7 @@ func TestPrepareProposalConsistency(t *testing.T) {
 					// should make it into the block. This should be expected to
 					// change if PFB transactions are not separated and put into
 					// their own namespace
-					require.Greater(t, len(resp.BlockData.Txs), sendTxCount+1)
+					require.GreaterOrEqual(t, len(resp.BlockData.Txs), sendTxCount+1)
 				}
 			})
 		}

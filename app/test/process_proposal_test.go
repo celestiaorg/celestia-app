@@ -288,7 +288,8 @@ func TestProcessProposal(t *testing.T) {
 				eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
 				require.NoError(t, err)
 
-				dah := da.NewDataAvailabilityHeader(eds)
+				dah, err := da.NewDataAvailabilityHeader(eds)
+				require.NoError(t, err)
 				// replace the hash of the prepare proposal response with the hash of a data
 				// square with a tampered sequence start indicator
 				d.Hash = dah.Hash()
@@ -323,6 +324,7 @@ func calculateNewDataHash(t *testing.T, txs [][]byte) []byte {
 	require.NoError(t, err)
 	eds, err := da.ExtendShares(shares.ToBytes(dataSquare))
 	require.NoError(t, err)
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 	return dah.Hash()
 }
