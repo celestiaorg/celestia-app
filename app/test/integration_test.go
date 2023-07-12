@@ -354,7 +354,8 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 func ExtendBlobTest(t *testing.T, block *coretypes.Block) {
 	eds, err := app.ExtendBlock(block.Data, block.Header.Version.App)
 	require.NoError(t, err)
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 	if !assert.Equal(t, dah.Hash(), block.DataHash.Bytes()) {
 		// save block to json file for further debugging if this occurs
 		b, err := json.MarshalIndent(block, "", "  ")
