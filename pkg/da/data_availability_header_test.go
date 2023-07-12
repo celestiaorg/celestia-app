@@ -216,40 +216,27 @@ func Test_DAHValidateBasic(t *testing.T) {
 
 func TestSquareSize(t *testing.T) {
 	type testCase struct {
-		name    string
-		dah     DataAvailabilityHeader
-		want    int
-		wantErr bool
+		name string
+		dah  DataAvailabilityHeader
+		want int
 	}
 
 	testCases := []testCase{
 		{
-			name:    "min data availability header has an original square size of 1",
-			dah:     MinDataAvailabilityHeader(),
-			want:    1,
-			wantErr: false,
+			name: "min data availability header has an original square size of 1",
+			dah:  MinDataAvailabilityHeader(),
+			want: 1,
 		},
 		{
-			name:    "max data availability header has an original square size of 128",
-			dah:     maxDataAvailabilityHeader(),
-			want:    128,
-			wantErr: false,
-		},
-		{
-			name:    "returns an error if the number of row roots is not divisible by two",
-			dah:     invalidDah(),
-			wantErr: true,
+			name: "max data availability header has an original square size of 128",
+			dah:  maxDataAvailabilityHeader(t),
+			want: 128,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := tc.dah.SquareSize()
-			if tc.wantErr {
-				assert.Error(t, err)
-				return
-			}
-			assert.NoError(t, err)
+			got := tc.dah.SquareSize()
 			assert.Equal(t, tc.want, got)
 		})
 	}
@@ -283,20 +270,14 @@ func sortByteArrays(arr [][]byte) {
 
 // maxDataAvailabilityHeader returns a DataAvailabilityHeader the maximum square
 // size. This should only be used for testing.
-func maxDataAvailabilityHeader() (dah DataAvailabilityHeader) {
+func maxDataAvailabilityHeader(t *testing.T) (dah DataAvailabilityHeader) {
 	shares := generateShares(appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound)
-	eds, err := ExtendShares(shares)
-	if err != nil {
-		panic(err)
-	}
-	dah = NewDataAvailabilityHeader(eds)
-	return dah
-}
 
-// invalidDah returns a DataAvailabilityHeader with an odd number of row roots.
-// This should only be used for testing.
-func invalidDah() (dah DataAvailabilityHeader) {
-	dah = MinDataAvailabilityHeader()
-	dah.RowRoots = append(dah.RowRoots, bytes.Repeat([]byte{1}, 32))
+	eds, err := ExtendShares(shares)
+	require.NoError(t, err)
+
+	dah, err = NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+
 	return dah
 }

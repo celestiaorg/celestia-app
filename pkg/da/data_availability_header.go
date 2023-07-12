@@ -168,11 +168,8 @@ func (dah *DataAvailabilityHeader) IsZero() bool {
 }
 
 // SquareSize returns the number of rows in the original data square.
-func (dah *DataAvailabilityHeader) SquareSize() (int, error) {
-	if len(dah.RowRoots)%2 != 0 {
-		return 0, fmt.Errorf("len row roots is not divisible by 2: %d", len(dah.RowRoots))
-	}
-	return len(dah.RowRoots) / 2, nil
+func (dah *DataAvailabilityHeader) SquareSize() int {
+	return len(dah.RowRoots) / 2
 }
 
 // MinDataAvailabilityHeader returns the minimum valid data availability header.
