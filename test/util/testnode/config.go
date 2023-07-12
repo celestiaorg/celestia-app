@@ -9,7 +9,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/tendermint/tendermint/config"
 	tmconfig "github.com/tendermint/tendermint/config"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -94,7 +93,7 @@ func (c *Config) WithSupressLogs(sl bool) *Config {
 
 func DefaultConfig() *Config {
 	tmcfg := DefaultTendermintConfig()
-	tmcfg.Consensus.TargetHeightDuration = 1 * time.Millisecond
+	tmcfg.Consensus.TimeoutCommit = 1 * time.Millisecond
 	cfg := &Config{}
 	return cfg.
 		WithAccounts([]string{}).
@@ -136,11 +135,11 @@ func DefaultParams() *tmproto.ConsensusParams {
 	return cparams
 }
 
-func DefaultTendermintConfig() *config.Config {
-	tmCfg := config.DefaultConfig()
+func DefaultTendermintConfig() *tmconfig.Config {
+	tmCfg := tmconfig.DefaultConfig()
 	// Reduce the target height duration so that blocks are produced faster
 	// during tests.
-	tmCfg.Consensus.TargetHeightDuration = 300 * time.Millisecond
+	tmCfg.Consensus.TimeoutCommit = 300 * time.Millisecond
 	tmCfg.Consensus.TimeoutPropose = 200 * time.Millisecond
 
 	// set the mempool's MaxTxBytes to allow the testnode to accept a

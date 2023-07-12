@@ -7,7 +7,6 @@ import (
 	"cosmossdk.io/errors"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/namespace"
 	appns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	appshares "github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/nmt"
@@ -146,7 +145,7 @@ func ValidateBlobNamespace(ns appns.Namespace) error {
 		return ErrTailPaddingNamespace
 	}
 
-	if ns.Version != namespace.NamespaceVersionZero {
+	if ns.Version != appns.NamespaceVersionZero {
 		return ErrInvalidNamespaceVersion
 	}
 
@@ -304,7 +303,6 @@ func extractBlobComponents(pblobs []*tmproto.Blob) (namespaceVersions []uint32, 
 //
 // https://docs.grin.mw/wiki/chain-state/merkle-mountain-range/
 // https://github.com/opentimestamps/opentimestamps-server/blob/master/doc/merkle-mountain-range.md
-// TODO: potentially rename function because this doesn't return heights
 func merkleMountainRangeSizes(totalSize, maxTreeSize uint64) ([]uint64, error) {
 	var treeSizes []uint64
 

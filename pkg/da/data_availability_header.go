@@ -38,18 +38,27 @@ type DataAvailabilityHeader struct {
 	hash []byte
 }
 
-// NewDataAvailabilityHeader generates a DataAvailability header using the provided square size and shares
-func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) DataAvailabilityHeader {
-	// generate the row and col roots using the EDS
-	dah := DataAvailabilityHeader{
-		RowRoots:    eds.RowRoots(),
-		ColumnRoots: eds.ColRoots(),
+// NewDataAvailabilityHeader generates a DataAvailability header using the
+// provided extended data square.
+func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) (DataAvailabilityHeader, error) {
+	rowRoots, err := eds.RowRoots()
+	if err != nil {
+		return DataAvailabilityHeader{}, err
+	}
+	colRoots, err := eds.ColRoots()
+	if err != nil {
+		return DataAvailabilityHeader{}, err
 	}
 
-	// generate the hash of the data using the new roots
+	dah := DataAvailabilityHeader{
+		RowRoots:    rowRoots,
+		ColumnRoots: colRoots,
+	}
+
+	// Generate the hash of the data using the new roots
 	dah.Hash()
 
-	return dah
+	return dah, nil
 }
 
 func ExtendShares(s [][]byte) (*rsmt2d.ExtendedDataSquare, error) {
@@ -158,6 +167,11 @@ func (dah *DataAvailabilityHeader) IsZero() bool {
 	return len(dah.ColumnRoots) == 0 || len(dah.RowRoots) == 0
 }
 
+// SquareSize returns the number of rows in the original data square.
+func (dah *DataAvailabilityHeader) SquareSize() int {
+	return len(dah.RowRoots) / 2
+}
+
 // MinDataAvailabilityHeader returns the minimum valid data availability header.
 // It is equal to the data availability header for a block with one tail padding
 // share.
@@ -167,7 +181,10 @@ func MinDataAvailabilityHeader() DataAvailabilityHeader {
 	if err != nil {
 		panic(err)
 	}
-	dah := NewDataAvailabilityHeader(eds)
+	dah, err := NewDataAvailabilityHeader(eds)
+	if err != nil {
+		panic(err)
+	}
 	return dah
 }
 
