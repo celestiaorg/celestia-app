@@ -111,7 +111,8 @@ func TestNewShareInclusionProof(t *testing.T) {
 
 	// create the new data root by creating the data availability header (merkle
 	// roots of each row and col of the erasure data).
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 	dataRoot := dah.Hash()
 
 	type test struct {

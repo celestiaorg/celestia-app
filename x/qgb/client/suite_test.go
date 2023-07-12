@@ -28,7 +28,7 @@ func (s *CLITestSuite) SetupSuite() {
 	cfg.EnableTMLogging = false
 	cfg.MinGasPrices = "0utia"
 	cfg.NumValidators = 1
-	cfg.TargetHeightDuration = time.Millisecond
+	cfg.TimeoutCommit = time.Millisecond
 	s.cfg = cfg
 
 	numAccounts := 120

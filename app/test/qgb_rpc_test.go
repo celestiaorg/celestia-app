@@ -16,7 +16,7 @@ func TestQGBRPCQueries(t *testing.T) {
 		t.Skip("skipping QGB integration test in short mode.")
 	}
 	tmCfg := testnode.DefaultTendermintConfig()
-	tmCfg.Consensus.TargetHeightDuration = time.Millisecond
+	tmCfg.Consensus.TimeoutCommit = time.Millisecond
 
 	cctx, _, _ := testnode.NewNetwork(
 		t,
