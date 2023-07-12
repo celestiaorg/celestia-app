@@ -4,12 +4,12 @@ Celestia app is built using the cosmos-sdk, and follows standard cosmos-sdk modu
 
 ## `celestia-app` Specific Modules
 
-- [blob](../../../x/blob/README.md)
-- [qgb](../../../x/qgb/README.md)
-- [mint](../../../x/mint/README.md)
-- [paramfilter](../../../x/paramfilter/README.md)
-- [upgrade](../../../x/upgrade/README.md)
-- [tokenfilter](../../../x/tokenfilter/README.md)
+- [blob](../../../../x/blob/README.md)
+- [qgb](../../../../x/qgb/README.md)
+- [mint](../../../../x/mint/README.md)
+- [paramfilter](../../../../x/paramfilter/README.md)
+- [upgrade](../../../../x/upgrade/README.md)
+- [tokenfilter](../../../../x/tokenfilter/README.md)
 
 ## Standard `cosmos-sdk` Modules
 
