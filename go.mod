@@ -27,7 +27,7 @@ require (
 require (
 	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/math v1.0.0-rc.0
-	github.com/celestiaorg/rsmt2d v0.9.0
+	github.com/celestiaorg/rsmt2d v0.10.0
 	github.com/cosmos/cosmos-proto v1.0.0-alpha8
 	github.com/cosmos/cosmos-sdk v0.46.13
 	github.com/cosmos/gogoproto v1.4.10
@@ -198,8 +198,8 @@ require (
 )
 
 replace (
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.15.0-sdk-v0.46.13
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.16.0-sdk-v0.46.13
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.23.0-tm-v0.34.28.0.20230711154044-fed383531085 // v1.23.0-tm-v0.34.28
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.24.0-tm-v0.34.28
 )

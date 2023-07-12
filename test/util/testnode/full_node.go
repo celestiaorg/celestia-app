@@ -150,7 +150,7 @@ func DefaultTendermintConfig() *config.Config {
 	tmCfg := config.DefaultConfig()
 	// Reduce the target height duration so that blocks are produced faster
 	// during tests.
-	tmCfg.Consensus.TargetHeightDuration = 300 * time.Millisecond
+	tmCfg.Consensus.TimeoutCommit = 100 * time.Millisecond
 	tmCfg.Consensus.TimeoutPropose = 200 * time.Millisecond
 
 	// set the mempool's MaxTxBytes to allow the testnode to accept a
@@ -266,7 +266,7 @@ func DefaultNetwork(t *testing.T) (accounts []string, cctx Context) {
 	}
 
 	tmCfg := DefaultTendermintConfig()
-	tmCfg.Consensus.TargetHeightDuration = time.Millisecond * 1
+	tmCfg.Consensus.TimeoutCommit = time.Millisecond * 1
 	appConf := DefaultAppConfig()
 
 	cctx, _, _ = NewNetwork(t, DefaultParams(), tmCfg, appConf, accounts)

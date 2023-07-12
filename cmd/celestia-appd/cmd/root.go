@@ -93,9 +93,8 @@ func NewRootCmd() *cobra.Command {
 			tmCfg.Mempool.MaxTxBytes = 2 * 1024 * 1024 // 2 MiB
 			tmCfg.Mempool.Version = "v1"               // prioritized mempool
 			tmCfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
-			tmCfg.Consensus.TargetHeightDuration = appconsts.TargetHeightDuration
+			tmCfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
 			tmCfg.Consensus.SkipTimeoutCommit = false
-			tmCfg.TxIndex.Indexer = "null"
 
 			customAppTemplate, customAppConfig := initAppConfig()
 
@@ -110,12 +109,7 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
-			err = setDefaultConsensusParams(cmd)
-			if err != nil {
-				return err
-			}
-
-			return overrideServerConfig(cmd)
+			return setDefaultConsensusParams(cmd)
 		},
 		SilenceUsage: true,
 	}

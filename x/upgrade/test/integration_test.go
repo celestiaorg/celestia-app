@@ -54,9 +54,9 @@ func (s *UpgradeTestSuite) SetupSuite() {
 	for i := 0; i < len(accounts); i++ {
 		accounts[i] = tmrand.Str(9)
 	}
-	blockTime := time.Millisecond * 300
+	blockTime := 3 * time.Second
 	tmCfg := config.DefaultConfig()
-	tmCfg.Consensus.TargetHeightDuration = blockTime
+	tmCfg.Consensus.TimeoutCommit = blockTime
 	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
 	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
 	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", getFreePort())
