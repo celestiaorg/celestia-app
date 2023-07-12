@@ -214,6 +214,47 @@ func Test_DAHValidateBasic(t *testing.T) {
 	}
 }
 
+func TestSquareSize(t *testing.T) {
+	type testCase struct {
+		name    string
+		dah     DataAvailabilityHeader
+		want    int
+		wantErr bool
+	}
+
+	testCases := []testCase{
+		{
+			name:    "min data availability header has an original square size of 1",
+			dah:     MinDataAvailabilityHeader(),
+			want:    1,
+			wantErr: false,
+		},
+		{
+			name:    "max data availability header has an original square size of 128",
+			dah:     maxDataAvailabilityHeader(),
+			want:    128,
+			wantErr: false,
+		},
+		{
+			name:    "returns an error if the number of row roots is not divisible by two",
+			dah:     invalidDah(),
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.dah.SquareSize()
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 // generateShares generates count number of shares with a constant namespace and
 // share contents.
 func generateShares(count int) (shares [][]byte) {
@@ -238,4 +279,24 @@ func sortByteArrays(arr [][]byte) {
 	sort.Slice(arr, func(i, j int) bool {
 		return bytes.Compare(arr[i], arr[j]) < 0
 	})
+}
+
+// maxDataAvailabilityHeader returns a DataAvailabilityHeader the maximum square
+// size. This should only be used for testing.
+func maxDataAvailabilityHeader() (dah DataAvailabilityHeader) {
+	shares := generateShares(appconsts.DefaultSquareSizeUpperBound * appconsts.DefaultSquareSizeUpperBound)
+	eds, err := ExtendShares(shares)
+	if err != nil {
+		panic(err)
+	}
+	dah = NewDataAvailabilityHeader(eds)
+	return dah
+}
+
+// invalidDah returns a DataAvailabilityHeader with an odd number of row roots.
+// This should only be used for testing.
+func invalidDah() (dah DataAvailabilityHeader) {
+	dah = MinDataAvailabilityHeader()
+	dah.RowRoots = append(dah.RowRoots, bytes.Repeat([]byte{1}, 32))
+	return dah
 }
