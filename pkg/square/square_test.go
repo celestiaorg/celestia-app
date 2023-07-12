@@ -224,7 +224,8 @@ func TestSquareShareCommitments(t *testing.T) {
 	cacher := inclusion.NewSubtreeCacher(uint64(dataSquare.Size()))
 	eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(dataSquare), appconsts.DefaultCodec(), cacher.Constructor)
 	require.NoError(t, err)
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 	decoder := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig.TxDecoder()
 
 	for pfbIndex := 0; pfbIndex < numTxs; pfbIndex++ {
