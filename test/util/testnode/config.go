@@ -138,8 +138,7 @@ func DefaultParams() *tmproto.ConsensusParams {
 func DefaultTendermintConfig() *tmconfig.Config {
 	tmCfg := tmconfig.DefaultConfig()
 	// TimeoutCommit sets the maximum duration the application waits for transactions to be committed. 
-	// This duration influences the time interval between blocks - 
-	// a smaller TimeoutCommit value could lead to faster block intervals.
+	// This duration influences the time interval between blocks - a smaller TimeoutCommit value could lead to faster block intervals.
 	tmCfg.Consensus.TimeoutCommit = 300 * time.Millisecond
 	tmCfg.Consensus.TimeoutPropose = 200 * time.Millisecond
 
