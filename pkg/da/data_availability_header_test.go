@@ -228,9 +228,9 @@ func TestSquareSize(t *testing.T) {
 			want: 1,
 		},
 		{
-			name: "max data availability header has an original square size of 128",
+			name: "max data availability header has an original square size of default square size upper bound",
 			dah:  maxDataAvailabilityHeader(t),
-			want: 128,
+			want: appconsts.DefaultSquareSizeUpperBound,
 		},
 	}
 
