@@ -99,7 +99,7 @@ fmt:
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
 
-## test: Run unit tests.
+## test: Run tests.
 test:
 	@echo "--> Running tests"
 	@go test -mod=readonly -timeout 30m ./...
