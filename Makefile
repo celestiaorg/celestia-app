@@ -113,7 +113,7 @@ test-short:
 
 test-e2e:
 	@echo "--> Running e2e tests"
-	@go test -mod=readonly ./test/e2e/... --e2e
+	@E2E=true go test -mod=readonly ./test/e2e/... -timeout 30m
 .PHONY: test-e2e
 
 ## test-race: Run unit tests in race mode.

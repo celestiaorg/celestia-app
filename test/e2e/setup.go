@@ -142,13 +142,8 @@ func MakeConfig(node *Node) (*config.Config, error) {
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.P2P.ExternalAddress = fmt.Sprintf("tcp://%v", node.AddressP2P(false))
 	cfg.P2P.PersistentPeers = strings.Join(node.InitialPeers, ",")
-
-	// TODO: when we use adaptive timeouts, add a parameter in the testnet manifest
-	// to set block times
-	// FIXME: This values get overridden by the timeout consts in the app package.
-	// We should modify this if we want to quicken the time of the blocks.
-	cfg.Consensus.TimeoutPropose = 1000 * time.Millisecond
-	cfg.Consensus.TargetHeightDuration = 300 * time.Millisecond
+	cfg.Consensus.TimeoutPropose = time.Second
+	cfg.Consensus.TimeoutCommit = time.Second
 	return cfg, nil
 }
 

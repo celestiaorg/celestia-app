@@ -7,26 +7,31 @@ import (
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
-	"github.com/celestiaorg/celestia-app/test/txsim"
+	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/rs/zerolog/log"
 )
 
 type Testnet struct {
 	seed            int64
 	nodes           []*Node
 	genesisAccounts []*GenesisAccount
-	sequences       []*txsim.Sequence
 	keygen          *keyGenerator
 }
 
-func New(seed int64) *Testnet {
+func New(name string, seed int64) (*Testnet, error) {
+	identifier := fmt.Sprintf("%s_%s", name, time.Now().Format("20060102_150405"))
+	if err := knuu.InitializeWithIdentifier(identifier); err != nil {
+		return nil, err
+	}
+
 	return &Testnet{
 		seed:            seed,
 		nodes:           make([]*Node, 0),
 		genesisAccounts: make([]*GenesisAccount, 0),
 		keygen:          newKeyGenerator(seed),
-	}
+	}, nil
 }
 
 func (t *Testnet) CreateGenesisNode(version string, selfDelegation int64) error {
@@ -78,10 +83,6 @@ func (t *Testnet) CreateGenesisAccount(name string, tokens int64) (keyring.Keyri
 		InitialTokens: tokens,
 	})
 	return kr, nil
-}
-
-func (t *Testnet) SetSequences(sequences []*txsim.Sequence) {
-	t.sequences = sequences
 }
 
 func (t *Testnet) Setup() error {
@@ -142,40 +143,35 @@ func (t *Testnet) Start() error {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
 	}
-	timer := time.NewTimer(time.Minute)
-	ticker := time.NewTicker(time.Second)
 	for _, node := range genesisNodes {
 		client, err := node.Client()
 		if err != nil {
 			return fmt.Errorf("failed to initialized node %s: %w", node.Name, err)
 		}
-		for {
-			select {
-			case <-timer.C:
-				return fmt.Errorf("node %s failed to start", node.Name)
-			case <-ticker.C:
-				resp, err := client.Status(context.Background())
-				if err != nil {
-					return fmt.Errorf("node %s status response: %w", node.Name, err)
-				}
-				if resp.SyncInfo.LatestBlockHeight > 0 {
-					break
-				}
+		for i := 0; i < 10; i++ {
+			resp, err := client.Status(context.Background())
+			if err != nil {
+				return fmt.Errorf("node %s status response: %w", node.Name, err)
 			}
+			if resp.SyncInfo.LatestBlockHeight > 0 {
+				break
+			}
+			if i == 9 {
+				return fmt.Errorf("failed to start node %s", node.Name)
+			}
+			time.Sleep(time.Second)
 		}
 	}
-
 	return nil
 }
 
-func (t *Testnet) Cleanup() error {
+func (t *Testnet) Cleanup() {
 	for _, node := range t.nodes {
 		err := node.Instance.Destroy()
 		if err != nil {
-			return fmt.Errorf("node %s failed to cleanup: %w", node.Name, err)
+			log.Err(err).Msg(fmt.Sprintf("node %s failed to cleanup", node.Name))
 		}
 	}
-	return nil
 }
 
 func (t *Testnet) Node(i int) *Node {
