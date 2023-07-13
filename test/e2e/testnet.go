@@ -1,8 +1,9 @@
 package e2e
 
 import (
-	"flag"
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -10,9 +11,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 )
-
-// flag to enable e2e tests
-var e2eEnabled = flag.Bool("e2e", false, "enable e2e tests")
 
 type Testnet struct {
 	seed            int64
@@ -144,6 +142,29 @@ func (t *Testnet) Start() error {
 			return fmt.Errorf("node %s failed to start: %w", node.Name, err)
 		}
 	}
+	timer := time.NewTimer(time.Minute)
+	ticker := time.NewTicker(time.Second)
+	for _, node := range genesisNodes {
+		client, err := node.Client()
+		if err != nil {
+			return fmt.Errorf("failed to initialized node %s: %w", node.Name, err)
+		}
+		for {
+			select {
+			case <-timer.C:
+				return fmt.Errorf("node %s failed to start", node.Name)
+			case <-ticker.C:
+				resp, err := client.Status(context.Background())
+				if err != nil {
+					return fmt.Errorf("node %s status response: %w", node.Name, err)
+				}
+				if resp.SyncInfo.LatestBlockHeight > 0 {
+					break
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -155,4 +176,8 @@ func (t *Testnet) Cleanup() error {
 		}
 	}
 	return nil
+}
+
+func (t *Testnet) Node(i int) *Node {
+	return t.nodes[i]
 }

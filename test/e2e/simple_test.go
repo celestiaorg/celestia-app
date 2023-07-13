@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/test/txsim"
+	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/celestiaorg/knuu/pkg/knuu"
 	"github.com/stretchr/testify/require"
 )
@@ -18,9 +19,6 @@ const (
 )
 
 func TestE2ESimple(t *testing.T) {
-	if !*e2eEnabled {
-		t.Skip("skipping e2e test. Use --e2e to run end to end tests")
-	}
 	identifier := fmt.Sprintf("%s_%s", t.Name(), time.Now().Format("20060102_150405"))
 	err := knuu.InitializeWithIdentifier(identifier)
 	testnet := New(seed)
@@ -29,7 +27,7 @@ func TestE2ESimple(t *testing.T) {
 	})
 	require.NoError(t, testnet.CreateGenesisNodes(4, latestVersion, 10000000))
 
-	kr, err := testnet.CreateGenesisAccount("alice", 10000000)
+	kr, err := testnet.CreateGenesisAccount("alice", 1e12)
 	require.NoError(t, err)
 
 	require.NoError(t, testnet.Setup())
@@ -40,6 +38,15 @@ func TestE2ESimple(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	err = txsim.Run(ctx, testnet.RPCEndpoints(), testnet.GRPCEndpoints(), kr, seed, 1*time.Second, sequences...)
+	err = txsim.Run(ctx, testnet.RPCEndpoints(), testnet.GRPCEndpoints(), kr, seed, 3*time.Second, sequences...)
 	require.True(t, errors.Is(err, context.DeadlineExceeded), err.Error())
+
+	blockchain, err := testnode.ReadBlockchain(context.Background(), testnet.Node(0).AddressRPC())
+	require.NoError(t, err)
+
+	totalTxs := 0
+	for _, block := range blockchain {
+		totalTxs += len(block.Data.Txs)
+	}
+	require.Greater(t, totalTxs, 10)
 }

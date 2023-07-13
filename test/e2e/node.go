@@ -140,7 +140,7 @@ func (n *Node) Init(genesis types.GenesisDoc, peers []string) error {
 		return err
 	}
 
-	err = os.Chmod(nodeKeyFilePath, 0777)
+	err = os.Chmod(nodeKeyFilePath, 0o777)
 	if err != nil {
 		return fmt.Errorf("chmod node key: %w", err)
 	}
@@ -218,20 +218,12 @@ func (n Node) AddressP2P(withID bool) string {
 
 // Address returns an RPC endpoint address for the node.
 func (n Node) AddressRPC() string {
-	ip, err := n.Instance.GetIP()
-	if err != nil {
-		panic(err)
-	}
-	return fmt.Sprintf("%v:%d", ip, rpcPort)
+	return fmt.Sprintf("http://127.0.0.1:%d", n.rpcProxyPort)
 }
 
 // Address returns a GRPC endpoint address for the node.
 func (n Node) AddressGRPC() string {
-	ip, err := n.Instance.GetIP()
-	if err != nil {
-		panic(err)
-	}
-	return fmt.Sprintf("%v:%d", ip, grpcPort)
+	return fmt.Sprintf("127.0.0.1:%d", n.grpcProxyPort)
 }
 
 func (n Node) IsValidator() bool {
@@ -239,7 +231,7 @@ func (n Node) IsValidator() bool {
 }
 
 func (n Node) Client() (*http.HTTP, error) {
-	return http.New(fmt.Sprintf("http://127.0.0.1:%v", n.rpcProxyPort), "/websocket")
+	return http.New(n.AddressRPC(), "/websocket")
 }
 
 func (n *Node) Start() error {
