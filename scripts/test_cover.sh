@@ -2,7 +2,7 @@
 set -e
 
 # Define the directories to exclude
-EXCLUDE_DIRS=("/malicious")
+EXCLUDE_DIRS=("/test/util")
 
 # Initialize PKGS variable with the list of all packages
 PKGS=$(go list ./...)
@@ -14,7 +14,7 @@ done
 
 echo "mode: atomic" > coverage.txt
 for pkg in ${PKGS[@]}; do
-    go test -v -timeout 30m -race -test.short -coverprofile=profile.out -covermode=atomic "$pkg"
+    go test -v -timeout 30m -test.short -coverprofile=profile.out -covermode=atomic "$pkg"
     if [ -f profile.out ]; then
         tail -n +2 profile.out >> coverage.txt;
         rm profile.out

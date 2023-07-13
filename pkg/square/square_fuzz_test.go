@@ -57,7 +57,8 @@ func FuzzSquare(f *testing.F) {
 		cacher := inclusion.NewSubtreeCacher(uint64(s.Size()))
 		eds, err := rsmt2d.ComputeExtendedDataSquare(shares.ToBytes(s), appconsts.DefaultCodec(), cacher.Constructor)
 		require.NoError(t, err)
-		dah := da.NewDataAvailabilityHeader(eds)
+		dah, err := da.NewDataAvailabilityHeader(eds)
+		require.NoError(t, err)
 
 		decoder := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig.TxDecoder()
 
