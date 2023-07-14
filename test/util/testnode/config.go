@@ -137,8 +137,10 @@ func DefaultParams() *tmproto.ConsensusParams {
 
 func DefaultTendermintConfig() *tmconfig.Config {
 	tmCfg := tmconfig.DefaultConfig()
-	// Reduce the target height duration so that blocks are produced faster
-	// during tests.
+	// TimeoutCommit is the duration the node waits after committing a block
+	// before starting the next height. This duration influences the time
+	// interval between blocks. A smaller TimeoutCommit value could lead to
+	// less time between blocks (i.e. shorter block intervals).
 	tmCfg.Consensus.TimeoutCommit = 300 * time.Millisecond
 	tmCfg.Consensus.TimeoutPropose = 200 * time.Millisecond
 
