@@ -19,6 +19,8 @@ import (
 type Config struct {
 	// ChainID is the chain ID of the network.
 	ChainID string
+	// GenesisTime is the genesis block time of the network.
+	GenesisTime time.Time
 	// TmConfig is the Tendermint configuration used for the network.
 	TmConfig *tmconfig.Config
 	// AppConfig is the application configuration of the test node.
