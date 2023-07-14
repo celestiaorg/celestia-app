@@ -72,14 +72,14 @@ func OutOfOrderExport(b *square.Builder) (square.Square, error) {
 	// sort the blobs in order of namespace. We use slice stable here to respect the
 	// order of multiple blobs within a namespace as per the priority of the PFB
 	sort.SliceStable(b.Blobs, func(i, j int) bool {
-		return bytes.Compare(square.FullNamespace(b.Blobs[i].Blob), square.FullNamespace(b.Blobs[j].Blob)) < 0
+		return bytes.Compare(b.Blobs[i].Blob.Namespace(), b.Blobs[j].Blob.Namespace()) < 0
 	})
 
 	if len(b.Blobs) > 1 {
 		// iterate through each blob and find the first two that have different
 		// namespaces and swap them.
 		for i := 0; i < len(b.Blobs)-1; i++ {
-			if !bytes.Equal(square.FullNamespace(b.Blobs[i].Blob), square.FullNamespace(b.Blobs[i+1].Blob)) {
+			if !bytes.Equal(b.Blobs[i].Blob.Namespace(), b.Blobs[i+1].Blob.Namespace()) {
 				b.Blobs[i], b.Blobs[i+1] = b.Blobs[i+1], b.Blobs[i]
 				break
 			}
