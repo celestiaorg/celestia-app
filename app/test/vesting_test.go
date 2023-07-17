@@ -542,7 +542,7 @@ func (s *VestingModuleTestSuite) testClaimDelegationReward(name string) {
 	balancesAfter, err := GetAccountSpendableBalance(s.cctx.GRPCClient, address)
 	assert.NoError(s.T(), err)
 
-	assert.GreaterOrEqual(s.T(), balancesAfter.AmountOf(app.BondDenom).Int64(), minExpectedBalance, "Minimum balance after claiming reward")
+	assert.GreaterOrEqual(s.T(), balancesAfter.AmountOf(app.BondDenom).Int64(), minExpectedBalance)
 }
 
 // initRegularAccounts initializes regular accounts for the VestingModuleTestSuite.
