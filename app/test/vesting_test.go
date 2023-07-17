@@ -115,7 +115,7 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsSpendableBalan
 		assert.NoError(s.T(), err)
 		expectedSpendableBal := initBalanceForGasFee
 		if alreadyVested {
-			expectedSpendableBal += testfactory.BaseAccountDefaultBalance
+			expectedSpendableBal += vestingAmount
 		}
 		assert.EqualValues(s.T(),
 			expectedSpendableBal,
