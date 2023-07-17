@@ -93,11 +93,18 @@ func (c *Config) WithSupressLogs(sl bool) *Config {
 	return c
 }
 
+// WithGensisTime sets the GenesisTime and returns the Config.
+func (c *Config) WithGensisTime(t time.Time) *Config {
+	c.GenesisTime = t
+	return c
+}
+
 func DefaultConfig() *Config {
 	tmcfg := DefaultTendermintConfig()
 	tmcfg.Consensus.TimeoutCommit = 1 * time.Millisecond
 	cfg := &Config{}
 	return cfg.
+		WithGensisTime(time.Now()).
 		WithAccounts([]string{}).
 		WithChainID(tmrand.Str(6)).
 		WithTendermintConfig(DefaultTendermintConfig()).
