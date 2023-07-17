@@ -33,9 +33,12 @@ ifeq ($(LEDGER_ENABLED),true)
   endif
 endif
 build_tags := $(strip $(build_tags))
-whitespace :=
-whitespace := $(whitespace) $(whitespace)
+
+empty :=
+whitespace := $(empty) $(empty)
 comma := ,
+
+# convert build_tags from a whitespace seperated list to a comma seperated list
 build_tags_comma_sep := $(subst $(whitespace),$(comma),$(build_tags))
 
 
