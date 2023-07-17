@@ -300,7 +300,7 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsClaimDelegati
 	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// find and test a vesting account that has some vesting (locked) balance
-	// 	to be on the safe side we select one that starts unlocking in at least 20 seconds
+	// to be on the safe side we select one that starts unlocking in at least 20 seconds
 	for {
 		name := s.unusedAccount(PeriodicVestingAccountType)
 		address := getAddress(name, s.cctx.Keyring).String()
