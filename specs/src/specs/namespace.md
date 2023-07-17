@@ -4,28 +4,32 @@
 
 ## Abstract
 
-One of Celestia's core data structures is the namespace. When a user submits a `MsgPayForBlobs` transaction to Celestia they MUST associate each blob with exactly one namespace. After their transaction has been included in a block, the namespace enables users to take an interest in a subset of the blobs published to Celestia by allowing the user to query for blobs by namespace.
+One of Celestia's core data structures is the namespace. When a user submits a transaction encapsulating a `MsgPayForBlobs` message to Celestia, they MUST associate each blob with exactly one namespace. After their transaction has been included in a block, the namespace enables users to take an interest in a subset of the blobs published to Celestia by allowing the user to query for blobs by namespace.
 
 In order to enable efficient retrieval of blobs by namespace, Celestia makes use of a [Namespaced Merkle Tree](https://github.com/celestiaorg/nmt). See section 5.2 of the [LazyLedger whitepaper](https://arxiv.org/pdf/1905.09274.pdf) for more details.
 
 ## Overview
 
-A namespace is composed of two fields: [version](#version) and [id](#id). A namespace is encoded as a byte slice with the version and id concatenated. Each [share](./shares.md) is prefixed with exactly one namespace.
+A namespace is composed of two fields: [version](#version) and [id](#id). A namespace is encoded as a byte slice with the version and id concatenated. 
 
 ![namespace](./figures/namespace.svg)
 
 ### Version
 
 The namespace version is an 8-bit unsigned integer that indicates the version of the namespace. 
-The version is used to determine the format of the namespace. 
-The only supported user-specifiable namespace version is `0`. 
+The version is used to determine the format of the namespace.
 The version is encoded as a single byte.
 
-A namespace with version `0` must contain an id with a prefix of 18 leading `0` bytes. The remaining 10 bytes of the id are user-specified.
+#### Version 0
+The only supported user-specifiable namespace version is `0`.
 
+A namespace with version `0` MUST contain an id with a prefix of 18 leading `0` bytes. The remaining 10 bytes of the id are user-specified.
+
+While version `0` is the only supported user-specifiable namespace version, Celestia MAY utilize other namespace versions for internal use.
+For more details, see the [Reserved Namespaces](#reserved-namespaces) section.
 ```go
 // Valid encoded namespaces
-0x0000000000000000000000000000000000000000000000000000000001 // transaction namespace
+0x0000000000000000000000000000000000000000000000000000000001 // transaction namespace [?] is this user-specified? I mean, when sending a transaction, does a user need to associate this namespace before submission of the tx to a validator? or is this namespace added later during the data square construction?
 0x0000000000000000000000000000000000000001010101010101010101 // valid blob namespace
 0x0000000000000000000000000000000000000011111111111111111111 // valid blob namespace
 
@@ -43,10 +47,10 @@ The namespace ID is a 28 byte identifier that uniquely identifies a namespace. T
 
 ## Reserved Namespaces
 Celestia reserves certain namespaces with specific meanings. 
-As a result, applications must refrain from using these reserved namespaces for their data. 
+As a result, applications MUST refrain from using these reserved namespaces for their blob data. 
 The rationale behind this is that these namespaces dictate the positioning of data within the Celestia block. 
-Thus, it is advisable for applications to avoid utilizing these reserved namespaces to ensure the desired placement of their data.
-Below is the list of reserved namespaces with a description of their meaning.
+Thus, applications ensure the desired placement of their blob data by avoiding utilizing these reserved namespaces.
+Below is the list of reserved namespaces with a brief description of their meaning.
 For more details regarding the meaning and application of the reserved namespaces, please see the [Data Square Layout](./data-square-layout.md) section.
 [//]: # (Note: The `PARITY_SHARE_NAMESPACE` uses the namespace version `255` so that it can be ignored via the `IgnoreMaxNamespace` feature from [nmt]&#40;https://github.com/celestiaorg/nmt&#41;. The `TAIL_PADDING_NAMESPACE` uses the namespace version `255` so that it remains ordered after all blob namespaces even in the case a new namespace version is introduced.)
 
