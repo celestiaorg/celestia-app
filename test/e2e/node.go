@@ -203,7 +203,9 @@ func (n *Node) Init(genesis types.GenesisDoc, peers []string) error {
 	return n.Instance.Commit()
 }
 
-// Address returns a P2P endpoint address for the node.
+// AddressP2P returns a P2P endpoint address for the node. This is used for
+// populating the address book. This will look something like:
+// 3314051954fc072a0678ec0cbac690ad8676ab98@61.108.66.220:26656
 func (n Node) AddressP2P(withID bool) string {
 	ip, err := n.Instance.GetIP()
 	if err != nil {
@@ -216,12 +218,14 @@ func (n Node) AddressP2P(withID bool) string {
 	return addr
 }
 
-// Address returns an RPC endpoint address for the node.
+// AddressRPC returns an RPC endpoint address for the node.
+// This returns the local proxy port that can be used to communicate with the node
 func (n Node) AddressRPC() string {
 	return fmt.Sprintf("http://127.0.0.1:%d", n.rpcProxyPort)
 }
 
-// Address returns a GRPC endpoint address for the node.
+// AddressGRPC returns a GRPC endpoint address for the node. This returns the
+// local proxy port that can be used to communicate with the node
 func (n Node) AddressGRPC() string {
 	return fmt.Sprintf("127.0.0.1:%d", n.grpcProxyPort)
 }
