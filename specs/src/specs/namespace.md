@@ -16,17 +16,22 @@ A namespace is composed of two fields: [version](#version) and [id](#id). A name
 
 ### Version
 
-The namespace version is an 8-bit unsigned integer that indicates the version of the namespace. 
-The version is used to determine the format of the namespace.
+The namespace version is an 8-bit unsigned integer that indicates the version of the namespace.
 The version is encoded as a single byte.
+The version is used to determine the format of the namespace.
+A new namespace version MUST be introduced if the namespace format changes in a backwards incompatible way.
+
+
+Below we enumerate and explain supported user-specifiable namespace version, however, we note that Celestia MAY utilize other namespace versions for internal use.
+For more details, see the [Reserved Namespaces](#reserved-namespaces) section.
 
 #### Version 0
 The only supported user-specifiable namespace version is `0`.
 
-A namespace with version `0` MUST contain an id with a prefix of 18 leading `0` bytes. The remaining 10 bytes of the id are user-specified.
+A namespace with version `0` MUST contain an id with a prefix of 18 leading `0` bytes. 
+The remaining 10 bytes of the id are user-specified.
+Below, we provide examples of valid and invalid encoded user-supplied namespaces with version `0`.
 
-While version `0` is the only supported user-specifiable namespace version, Celestia MAY utilize other namespace versions for internal use.
-For more details, see the [Reserved Namespaces](#reserved-namespaces) section.
 ```go
 // Valid encoded namespaces
 0x0000000000000000000000000000000000000000000000000000000001 // transaction namespace [?] is this user-specified? I mean, when sending a transaction, does a user need to associate this namespace before submission of the tx to a validator? or is this namespace added later during the data square construction?
@@ -38,12 +43,12 @@ For more details, see the [Reserved Namespaces](#reserved-namespaces) section.
 0x1000000000000000000000000000000000000000000000000000000000 // invalid because it does not have version 0
 0x1111111111111111111111111111111111111111111111111111111111 // invalid because it does not have version 0
 ```
-
-A new namespace version MUST be introduced if the namespace format changes in a backwards incompatible way (i.e. the number of leading `0` bytes in the id prefix is reduced).
+Any change in the number of leading `0` bytes in the id of a namespace with version `0` is considered a backwards incompatible change and MUST be introduced as a new namespace version.
 
 ### ID
 
-The namespace ID is a 28 byte identifier that uniquely identifies a namespace. The ID is encoded as a byte slice of length 28.
+The namespace ID is a 28 byte identifier that uniquely identifies a namespace. 
+The ID is encoded as a byte slice of length 28.
 
 ## Reserved Namespaces
 Celestia reserves certain namespaces with specific meanings. 
@@ -71,6 +76,10 @@ For more details regarding the meaning and application of the reserved namespace
 
 See [pkg/namespace](../../../pkg/namespace).
 
+
+## Protobuf Definition
+
+[//]: # (TODO: Add protobuf definition for namespace)
 ## References
 
 1. [ADR-014](../../../docs/architecture/adr-014-versioned-namespaces.md)
