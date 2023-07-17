@@ -16,9 +16,10 @@ A namespace is composed of two fields: [version](#version) and [id](#id). A name
 
 ### Version
 
-The namespace version is an 8-bit unsigned integer that indicates the version of the namespace. The version is used to determine the format of the namespace. The only supported user-specifiable namespace version is `0`. The version is encoded as a single byte.
-
-Note: The `PARITY_SHARE_NAMESPACE` uses the namespace version `255` so that it can be ignored via the `IgnoreMaxNamespace` feature from [nmt](https://github.com/celestiaorg/nmt). The `TAIL_PADDING_NAMESPACE` uses the namespace version `255` so that it remains ordered after all blob namespaces even in the case a new namespace version is introduced.
+The namespace version is an 8-bit unsigned integer that indicates the version of the namespace. 
+The version is used to determine the format of the namespace. 
+The only supported user-specifiable namespace version is `0`. 
+The version is encoded as a single byte.
 
 A namespace with version `0` must contain an id with a prefix of 18 leading `0` bytes. The remaining 10 bytes of the id are user-specified.
 
@@ -41,6 +42,14 @@ A new namespace version MUST be introduced if the namespace format changes in a 
 The namespace ID is a 28 byte identifier that uniquely identifies a namespace. The ID is encoded as a byte slice of length 28.
 
 ## Reserved Namespaces
+Celestia reserves certain namespaces with specific meanings. 
+As a result, applications must refrain from using these reserved namespaces for their data. 
+The rationale behind this is that these namespaces dictate the positioning of data within the Celestia block. 
+Thus, it is advisable for applications to avoid utilizing these reserved namespaces to ensure the desired placement of their data.
+Below is the list of reserved namespaces with a description of their meaning.
+For more details regarding the meaning and application of the reserved namespaces, please see the [Data Square Layout](./data-square-layout.md) section.
+[//]: # (Note: The `PARITY_SHARE_NAMESPACE` uses the namespace version `255` so that it can be ignored via the `IgnoreMaxNamespace` feature from [nmt]&#40;https://github.com/celestiaorg/nmt&#41;. The `TAIL_PADDING_NAMESPACE` uses the namespace version `255` so that it remains ordered after all blob namespaces even in the case a new namespace version is introduced.)
+
 
 | name                                | type        | value                                                          | description                                                                                          |
 |-------------------------------------|-------------|----------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
