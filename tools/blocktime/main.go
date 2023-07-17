@@ -42,11 +42,12 @@ func Run() error {
 		}
 	}
 	blockTimes := make([]time.Time, 0, queryRange)
-	for i := lastHeight - int64(queryRange); i < lastHeight; i++ {
-		if i < 2 {
-			continue
-		}
-		resp, err := c.Commit(context.Background(), &i)
+	firstHeight := lastHeight - int64(queryRange) + 1
+	if firstHeight < 1 {
+		firstHeight = 1
+	}
+	for height := firstHeight; height <= lastHeight; height++ {
+		resp, err := c.Commit(context.Background(), &height)
 		if err != nil {
 			return err
 		}
@@ -63,7 +64,7 @@ Block Time (from %d to %d):
 	Standard Deviation: %.3fs
 
 `, chainID,
-		lastHeight-int64(queryRange),
+		firstHeight,
 		lastHeight,
 		avgTime/1000,
 		minTime/1000,
@@ -73,12 +74,15 @@ Block Time (from %d to %d):
 	return nil
 }
 
+// analyzeBlockTimes returns the average, min, max, and standard deviation of the block times.
+// Units are in milliseconds.
 func analyzeBlockTimes(times []time.Time) (float64, float64, float64, float64) {
-	totalTime := times[len(times)-1].Sub(times[0])
-	averageTime := float64(totalTime.Milliseconds()) / float64(len(times)-1)
+	numberOfObservations := len(times) - 1
+	totalTime := times[numberOfObservations].Sub(times[0])
+	averageTime := float64(totalTime.Milliseconds()) / float64(numberOfObservations)
 	variance, minTime, maxTime := float64(0), float64(0), float64(0)
-	for i := 1; i < len(times); i++ {
-		diff := float64(times[i].Sub(times[i-1]).Milliseconds())
+	for i := 0; i < numberOfObservations; i++ {
+		diff := float64(times[i+1].Sub(times[i]).Milliseconds())
 		if minTime == 0 || diff < minTime {
 			minTime = diff
 		}
@@ -87,6 +91,6 @@ func analyzeBlockTimes(times []time.Time) (float64, float64, float64, float64) {
 		}
 		variance += math.Pow(averageTime-diff, 2)
 	}
-	stddev := math.Sqrt(variance / float64(len(times)-1))
+	stddev := math.Sqrt(variance / float64(numberOfObservations))
 	return averageTime, minTime, maxTime, stddev
 }
