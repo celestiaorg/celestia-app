@@ -144,6 +144,11 @@ txsim-build: mod
 	@go mod tidy -compat=1.20
 .PHONY: txsim-build
 
+## docker-txsim-build: Build the Docker container txsim .
+txsim-build-docker:
+	docker build -t ghcr.io/celestiaorg/txsim -f docker/Dockerfile_txsim  .
+.PHONY: txsim-build-docker
+
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo. Ex. `make adr-gen`
 adr-gen:
 	@echo "--> Downloading ADR template"
