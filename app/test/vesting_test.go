@@ -79,8 +79,8 @@ func (s *VestingModuleTestSuite) SetupSuite() {
 
 // startNewNetworkWithGenesisOpt creates a new test network with the specified genesis options for the VestingModuleTestSuite.
 // It initializes a default Tendermint configuration (tmCfg) and default application configuration (appConf).
-// The target block time is set to 1 millisecond. It applies the given genesis options.
-// The function returns the created client context (cctx).
+// The target block time is set to 1 millisecond. It applies the given genesis options to the test network
+// and stores the created client context (cctx) in the VestingModuleTestSuite.
 // The keyring of the context is set to the keyring (s.kr) of the VestingModuleTestSuite.
 //
 // Parameters:
