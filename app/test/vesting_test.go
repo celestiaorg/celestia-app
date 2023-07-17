@@ -497,7 +497,6 @@ func (s *VestingModuleTestSuite) testDelegatingVestingAmount(name string) {
 // testClaimDelegationReward tests the claiming of delegation rewards for a vesting account.
 // It takes the name of the vesting account (name) as an input.
 // It claims the delegation rewards and then retrieves the balances of the vesting account.
-// It asserts that the balance after claiming the reward.
 func (s *VestingModuleTestSuite) testClaimDelegationReward(name string) {
 	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
 
