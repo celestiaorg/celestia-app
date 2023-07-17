@@ -179,6 +179,10 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 		ShareVersion:     uint8(blob.ShareVersion),
 		NamespaceVersion: uint8(blob.NamespaceVersion),
 	}
+	namespace, err := appns.New(uint8(blob.NamespaceVersion), blob.NamespaceId)
+	if err != nil {
+		return nil, err
+	}
 
 	shares, err := appshares.SplitBlobs(coreblob)
 	if err != nil {
@@ -207,10 +211,6 @@ func CreateCommitment(blob *Blob) ([]byte, error) {
 		// create the nmt todo(evan) use nmt wrapper
 		tree := nmt.New(sha256.New(), nmt.NamespaceIDSize(appns.NamespaceSize), nmt.IgnoreMaxNamespace(true))
 		for _, leaf := range set {
-			namespace, err := appns.New(uint8(blob.NamespaceVersion), blob.NamespaceId)
-			if err != nil {
-				return nil, err
-			}
 			// the namespace must be added again here even though it is already
 			// included in the leaf to ensure that the hash will match that of
 			// the nmt wrapper (pkg/wrapper). Each namespace is added to keep
