@@ -28,6 +28,7 @@ import (
 const (
 	totalAccountsPerType = 300
 	initBalanceForGasFee = 10
+	vestingAmount        = testfactory.BaseAccountDefaultBalance
 )
 
 type accountDispenser struct {
@@ -445,7 +446,7 @@ func (s *VestingModuleTestSuite) testTransferVestingAmount(name string) {
 	msgSend := banktypes.NewMsgSend(
 		getAddress(name, s.cctx.Keyring),
 		getAddress(randomAcc, s.cctx.Keyring),
-		sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(testfactory.BaseAccountDefaultBalance))), // try to transfer the locked amount
+		sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(vestingAmount))), // try to transfer the locked amount
 	)
 	resTx, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, name, []sdk.Msg{msgSend}...)
 	assert.NoError(s.T(), err)
@@ -474,7 +475,7 @@ func (s *VestingModuleTestSuite) testDelegatingVestingAmount(name string) {
 	msgDelg := stakingtypes.NewMsgDelegate(
 		getAddress(name, s.cctx.Keyring),
 		validators[0].GetOperator(),
-		sdk.NewCoin(app.BondDenom, sdk.NewInt(testfactory.BaseAccountDefaultBalance)),
+		sdk.NewCoin(app.BondDenom, sdk.NewInt(vestingAmount)),
 	)
 	resTx, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, name, []sdk.Msg{msgDelg}...)
 	assert.NoError(s.T(), err)
@@ -488,7 +489,7 @@ func (s *VestingModuleTestSuite) testDelegatingVestingAmount(name string) {
 	assert.NoError(s.T(), err)
 	assert.NotEmpty(s.T(), del, "delegations must not be empty")
 	assert.EqualValues(s.T(),
-		testfactory.BaseAccountDefaultBalance,
+		vestingAmount,
 		del[0].Balance.Amount.Int64(),
 		"delegation amount must match")
 }
@@ -644,7 +645,7 @@ func (s *VestingModuleTestSuite) initPeriodicVestingAccounts(count int) testnode
 	s.accounts.Store(PeriodicVestingAccountType, accountDispenser{names: names})
 	bAccounts, balances := generateBaseAccounts(s.kr, names)
 
-	allocationPerPeriod := int64(testfactory.BaseAccountDefaultBalance / 4)
+	allocationPerPeriod := int64(vestingAmount / 4)
 	periods := vestingtypes.Periods{
 		vestingtypes.Period{Length: int64(6), Amount: sdk.Coins{sdk.NewInt64Coin(app.BondDenom, allocationPerPeriod)}},
 		vestingtypes.Period{Length: int64(6), Amount: sdk.Coins{sdk.NewInt64Coin(app.BondDenom, allocationPerPeriod)}},
