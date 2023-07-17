@@ -52,13 +52,14 @@ The ID is encoded as a byte slice of length 28.
 
 ## Reserved Namespaces
 Celestia reserves certain namespaces with specific meanings. 
-As a result, applications MUST refrain from using these reserved namespaces for their blob data. 
+Applications MUST refrain from using these reserved namespaces for their blob data. 
 The rationale behind this is that these namespaces dictate the positioning of data within the Celestia block. 
 Thus, applications ensure the desired placement of their blob data by avoiding utilizing these reserved namespaces.
-Below is the list of reserved namespaces with a brief description of their meaning.
+Below is the list of reserved namespaces with a brief description of each.
+As you can see in the table, the `PARITY_SHARE_NAMESPACE` and the `TAIL_PADDING_NAMESPACE` use the namespace version `255`, which is different from the supported user-specified versions. 
+This particular version can be ignored via the `IgnoreMaxNamespace` feature from [nmt]&#40;https://github.com/celestiaorg/nmt&#41;. 
+Likewise, the `TAIL_PADDING_NAMESPACE` uses the namespace version `255` so that it remains ordered after all blob namespaces even in the case a new namespace version is introduced.
 For more details regarding the meaning and application of the reserved namespaces, please see the [Data Square Layout](./data-square-layout.md) section.
-[//]: # (Note: The `PARITY_SHARE_NAMESPACE` uses the namespace version `255` so that it can be ignored via the `IgnoreMaxNamespace` feature from [nmt]&#40;https://github.com/celestiaorg/nmt&#41;. The `TAIL_PADDING_NAMESPACE` uses the namespace version `255` so that it remains ordered after all blob namespaces even in the case a new namespace version is introduced.)
-
 
 | name                                | type        | value                                                          | description                                                                                          |
 |-------------------------------------|-------------|----------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
