@@ -30,15 +30,15 @@ const (
 	initBalanceForGasFee = 10
 )
 
-type _accountDispenser struct {
+type accountDispenser struct {
 	names   []string
 	counter int
 }
 
-type _accountType int
+type accountType int
 
 const (
-	RegularAccountType _accountType = iota + 1
+	RegularAccountType accountType = iota + 1
 	DelayedVestingAccountType
 	PeriodicVestingAccountType
 	ContinuousVestingAccountType
@@ -56,6 +56,9 @@ type VestingModuleTestSuite struct {
 }
 
 func TestVestingModule(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping Vesting accounts test in short mode.")
+	}
 	suite.Run(t, new(VestingModuleTestSuite))
 }
 
@@ -82,9 +85,6 @@ func (s *VestingModuleTestSuite) SetupSuite() {
 //
 // Parameters:
 // - genesisOpts: The genesis options to be applied when creating the test network.
-//
-// Returns:
-// The created client context (testnode.Context) for the new network.
 func (s *VestingModuleTestSuite) startNewNetworkWithGenesisOpt(genesisOpts ...testnode.GenesisOption) {
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	cfg := testnode.DefaultConfig().WithGenesisOptions(testnode.ImmediateProposals(s.ecfg.Codec))
@@ -559,7 +559,7 @@ func (s *VestingModuleTestSuite) testClaimDelegationReward(name string) {
 // and returns the modified genesis state.
 func (s *VestingModuleTestSuite) initRegularAccounts(count int) testnode.GenesisOption {
 	names := testfactory.GenerateAccounts(count)
-	s.accounts.Store(RegularAccountType, _accountDispenser{names: names})
+	s.accounts.Store(RegularAccountType, accountDispenser{names: names})
 	bAccounts, balances := generateBaseAccounts(s.kr, names)
 
 	return func(gs map[string]json.RawMessage) map[string]json.RawMessage {
@@ -596,7 +596,7 @@ func (s *VestingModuleTestSuite) initRegularAccounts(count int) testnode.Genesis
 // and returns the modified genesis state.
 func (s *VestingModuleTestSuite) initDelayedVestingAccounts(count int) testnode.GenesisOption {
 	names := testfactory.GenerateAccounts(count)
-	s.accounts.Store(DelayedVestingAccountType, _accountDispenser{names: names})
+	s.accounts.Store(DelayedVestingAccountType, accountDispenser{names: names})
 	bAccounts, balances := generateBaseAccounts(s.kr, names)
 
 	initCoinsForGasFee := sdk.NewCoin(app.BondDenom, sdk.NewInt(initBalanceForGasFee))
@@ -641,7 +641,7 @@ func (s *VestingModuleTestSuite) initDelayedVestingAccounts(count int) testnode.
 // and balances to it, and returns the modified genesis state.
 func (s *VestingModuleTestSuite) initPeriodicVestingAccounts(count int) testnode.GenesisOption {
 	names := testfactory.GenerateAccounts(count)
-	s.accounts.Store(PeriodicVestingAccountType, _accountDispenser{names: names})
+	s.accounts.Store(PeriodicVestingAccountType, accountDispenser{names: names})
 	bAccounts, balances := generateBaseAccounts(s.kr, names)
 
 	allocationPerPeriod := int64(testfactory.BaseAccountDefaultBalance / 4)
@@ -694,7 +694,7 @@ func (s *VestingModuleTestSuite) initPeriodicVestingAccounts(count int) testnode
 // and balances to it, and returns the modified genesis state.
 func (s *VestingModuleTestSuite) initContinuousVestingAccounts(count int) testnode.GenesisOption {
 	names := testfactory.GenerateAccounts(count)
-	s.accounts.Store(ContinuousVestingAccountType, _accountDispenser{names: names})
+	s.accounts.Store(ContinuousVestingAccountType, accountDispenser{names: names})
 	bAccounts, balances := generateBaseAccounts(s.kr, names)
 
 	initCoinsForGasFee := sdk.NewCoin(app.BondDenom, sdk.NewInt(initBalanceForGasFee))
@@ -735,14 +735,14 @@ func (s *VestingModuleTestSuite) initContinuousVestingAccounts(count int) testno
 //
 // Returns:
 // The next unused account of the specified account type.
-func (s *VestingModuleTestSuite) unusedAccount(accType _accountType) string {
+func (s *VestingModuleTestSuite) unusedAccount(accType accountType) string {
 	s.accountsMut.Lock()
 	defer s.accountsMut.Unlock()
 
 	accountsAny, found := s.accounts.Load(accType)
 	assert.True(s.T(), found, fmt.Sprintf("account type `%s` not found", accType.String()))
 
-	accounts := accountsAny.(_accountDispenser)
+	accounts := accountsAny.(accountDispenser)
 	assert.Less(s.T(), accounts.counter, len(accounts.names), fmt.Sprintf("out of unused accounts for type `%s`", accType.String()))
 
 	name := accounts.names[accounts.counter]
@@ -752,7 +752,7 @@ func (s *VestingModuleTestSuite) unusedAccount(accType _accountType) string {
 	return name
 }
 
-func (t _accountType) String() string {
+func (t accountType) String() string {
 	switch t {
 	case RegularAccountType:
 		return "regular"
