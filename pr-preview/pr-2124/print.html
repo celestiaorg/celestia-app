@@ -548,13 +548,13 @@ The ID is encoded as a byte slice of length 28.</p>
 <h2 id="reserved-namespaces"><a class="header" href="#reserved-namespaces">Reserved Namespaces</a></h2>
 <p>Celestia reserves certain namespaces with specific meanings.
 Applications SHOULD refrain from using these reserved namespaces for their blob data. <!-- the implication of this is still under investigation, but it is prudent to advise app developers not using this namespace -->
-The rationale behind this is that these namespaces dictate the positioning of transactions and blobs data within the Celestia <a href="specs/./data-square-layout.html">data square</a>.
+The rationale behind this is that these namespaces dictate the positioning of transactions and blobs data within the Celestia <a href="specs/./data_square_layout.html">data square</a>.
 Therefore, by refraining from using these reserved namespaces, applications can guarantee the desired arrangement of their blob data.</p>
 <p>Below is a list of reserved namespaces, along with a brief description of each.
 In the table, you will notice that the <code>PARITY_SHARE_NAMESPACE</code> and <code>TAIL_PADDING_NAMESPACE</code> utilize the namespace version <code>255</code>, which differs from the supported user-specified versions.
 The reason for employing version <code>255</code> for the <code>PARITY_SHARE_NAMESPACE</code> is to enable more efficient proof generation within the context of <a href="https://github.com/celestiaorg/nmt">nmt</a>, where it is used in conjunction with the <code>IgnoreMaxNamespace</code> feature.
 Similarly, the <code>TAIL_PADDING_NAMESPACE</code> utilizes the namespace version <code>255</code> to ensure that padding shares are always properly ordered and placed at the end of the Celestia data square even if a new namespace version is introduced.
-For additional information on the significance and application of the reserved namespaces, please refer to the <a href="specs/./data-square-layout.html">Data Square Layout</a> section.</p>
+For additional information on the significance and application of the reserved namespaces, please refer to the <a href="specs/./data_square_layout.html">Data Square Layout</a> section.</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>value</th><th>description</th></tr></thead><tbody>
 <tr><td><code>TRANSACTION_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000001</code></td><td>Transactions: requests that modify the state.</td></tr>
 <tr><td><code>INTERMEDIATE_STATE_ROOT_NAMESPACE</code></td><td><code>Namespace</code></td><td><code>0x0000000000000000000000000000000000000000000000000000000002</code></td><td>Intermediate state roots, committed after every transaction.</td></tr>
@@ -577,7 +577,7 @@ For additional information on the significance and application of the reserved n
 <li><a href="specs/../../../docs/architecture/adr-015-namespace-id-size.html">ADR-015</a></li>
 <li><a href="https://github.com/celestiaorg/nmt">Namespaced Merkle Tree</a></li>
 <li><a href="https://arxiv.org/pdf/1905.09274.pdf">LazyLedger whitepaper</a></li>
-<li><a href="specs/./data-square-layout.html">Data Square Layout</a></li>
+<li><a href="specs/./data_square_layout.html">Data Square Layout</a></li>
 </ol>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="shares"><a class="header" href="#shares">Shares</a></h1>
 <!-- toc -->
