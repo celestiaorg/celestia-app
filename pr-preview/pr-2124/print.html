@@ -522,11 +522,11 @@ A namespace is encoded as a byte slice with the version and id concatenated. </p
 The version is encoded as a single byte.
 The version is used to determine the format of the namespace.
 A new namespace version MUST be introduced if the namespace format changes in a backwards incompatible way.</p>
-<p>Below we enumerate and explain supported user-specifiable namespace version, however, we note that Celestia MAY utilize other namespace versions for internal use.
+<p>Below we explain supported user-specifiable namespace versions, however, we note that Celestia MAY utilize other namespace versions for internal use.
 For more details, see the <a href="specs/namespace.html#reserved-namespaces">Reserved Namespaces</a> section.</p>
 <h4 id="version-0"><a class="header" href="#version-0">Version 0</a></h4>
-<p>The only supported user-specifiable namespace version is <code>0</code>.</p>
-<p>A namespace with version <code>0</code> MUST contain an id with a prefix of 18 leading <code>0</code> bytes. 
+<p>The only supported user-specifiable namespace version is <code>0</code>.
+A namespace with version <code>0</code> MUST contain an id with a prefix of 18 leading <code>0</code> bytes. 
 The remaining 10 bytes of the id are user-specified.
 Below, we provide examples of valid and invalid encoded user-supplied namespaces with version <code>0</code>.</p>
 <pre><code class="language-go">// Valid encoded namespaces
@@ -564,6 +564,7 @@ For more details regarding the meaning and application of the reserved namespace
 </tbody></table>
 </div>
 <h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
+<p>Application MUST refrain from using the reserved namespaces for their blob data.</p>
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
 <p>See <a href="specs/../../../pkg/namespace">pkg/namespace</a>.</p>
 <h2 id="protobuf-definition"><a class="header" href="#protobuf-definition">Protobuf Definition</a></h2>
