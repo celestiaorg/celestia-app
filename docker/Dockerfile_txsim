@@ -15,7 +15,8 @@ RUN make build && make txsim-build
 # Stage 2: create a minimal image with the binary
 FROM docker.io/alpine:3.18.2
 
-# Read here why UID 10001: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
+# Use UID 10,001 because UIDs below 10,000 are a security risk.
+# Ref: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000
 ARG UID=10001
 ARG USER_NAME=celestia
 
@@ -34,7 +35,7 @@ RUN apk update && apk add --no-cache \
     -s /sbin/nologin \
     -u ${UID}
 
-# Copy in the binary
+# Copy in the celestia-appd binary
 COPY --from=builder /celestia-app/build/celestia-appd /bin/celestia-appd
 COPY --from=builder /celestia-app/build/txsim /bin/txsim
 
