@@ -149,7 +149,7 @@ func (msg *MsgPayForBlobs) Gas(gasPerByte uint32) uint64 {
 	return GasToConsume(msg.BlobSizes, gasPerByte)
 }
 
-// GasToConsume works out the gas required to pay for a set of blobs in a PFB.
+// GasToConsume works out the extra gas charged to pay for a set of blobs in a PFB.
 // Note that tranasctions will incur other gas costs, such as the signature verification
 // and reads to the user's account.
 func GasToConsume(blobSizes []uint32, gasPerByte uint32) uint64 {
@@ -161,7 +161,7 @@ func GasToConsume(blobSizes []uint32, gasPerByte uint32) uint64 {
 	return totalSharesUsed * appconsts.ShareSize * uint64(gasPerByte)
 }
 
-// EstimateGas estimates the gas required to pay for a set of blobs in a PFB.
+// EstimateGas estimates the total gas required to pay for a set of blobs in a PFB.
 // It is based on a linear model that is dependent on the governance parameters:
 // gasPerByte and txSizeCost. It assumes other variables are constant. This includes
 // assuming the PFB is the only message in the transaction.
