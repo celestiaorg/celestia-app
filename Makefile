@@ -129,14 +129,14 @@ test-coverage:
 	@export VERSION=$(VERSION); bash -x scripts/test_cover.sh
 .PHONY: test-coverage
 
-## txsim-install: Install the tx simulator/fuzzer.
+## txsim-install: Install the tx simulator.
 txsim-install:
 	@echo "--> Installing tx simulator"
-	@go build -mod=readonly ./test/cmd/txsim
+	@go install -mod=readonly $(BUILD_FLAGS) ./test/cmd/txsim
 .PHONY: txsim-install
 
-## txsim-build: Build the txsim binary into the ./build directory.
-txsim-build: mod
+## txsim-build: Build the tx simulator binary into the ./build directory.
+txsim-build:
 	@echo "--> Building tx simulator"
 	@cd ./test/cmd/txsim
 	@mkdir -p build/
@@ -144,7 +144,7 @@ txsim-build: mod
 	@go mod tidy -compat=1.20
 .PHONY: txsim-build
 
-## docker-txsim-build: Build the Docker container txsim .
+## docker-txsim-build: Build the Docker image tx simulator.
 txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/Dockerfile_txsim  .
 .PHONY: txsim-build-docker

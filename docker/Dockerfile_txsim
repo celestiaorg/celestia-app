@@ -1,4 +1,4 @@
-# stage 1 Generate celestia-appd Binary
+# Stage 1: generate celestia-appd binary
 FROM docker.io/golang:1.20.6-alpine3.17 as builder
 # hadolint ignore=DL3018
 RUN apk update && apk add --no-cache \
@@ -8,11 +8,11 @@ RUN apk update && apk add --no-cache \
     musl-dev
 COPY . /celestia-app
 WORKDIR /celestia-app
-# we need the appd build as we might want to create an account
+# we need the celestia-appd build as we might want to create an account
 # internally for txsimulation
 RUN make build && make txsim-build
 
-# stage 2
+# Stage 2: create a minimal image with the binary
 FROM docker.io/alpine:3.18.2
 
 # Read here why UID 10001: https://github.com/hexops/dockerfile/blob/main/README.md#do-not-use-a-uid-below-10000

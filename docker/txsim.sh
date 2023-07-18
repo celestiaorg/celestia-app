@@ -81,7 +81,7 @@ if [ "$CREATE_KEY" -eq 1 ]; then
   sleep 5
 fi
 
-# Running a txsim on robusta chain
+# Running a tx simulator
 txsim --key-path $KEY_PATH \
  --rpc-endpoints $RPC_ENDPOINTS \
  --grpc-endpoints $GRPC_ENDPOINTS \

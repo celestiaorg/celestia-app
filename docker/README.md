@@ -3,7 +3,7 @@
 The `txsim` binary is a tool that can be used to simulate transactions on the Celestia network. It can be used to test the performance of the Celestia network.
 This guide provides instructions on how to use the Celestia `txsim` Docker image. The `txsim` Docker image is designed to run the `txsim` binary with a variety of configurable options.
 
-# Table of Contents
+## Table of Contents
 
 1. [Prerequisites](#prerequisites)
 2. [Running the Docker Image](#running-the-docker-image)
