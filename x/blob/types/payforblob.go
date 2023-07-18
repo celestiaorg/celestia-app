@@ -130,6 +130,19 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 	return nil
 }
 
+func (msg *MsgPayForBlobs) Gas(gasPerByte uint32) uint64 {
+	return GasToConsume(msg.BlobSizes, gasPerByte)
+}
+
+func GasToConsume(blobSizes []uint32, gasPerByte uint32) uint64 {
+	var totalSharesUsed uint64
+	for _, size := range blobSizes {
+		totalSharesUsed += uint64(appshares.SparseSharesNeeded(size))
+	}
+
+	return totalSharesUsed * appconsts.ShareSize * uint64(gasPerByte)
+}
+
 // ValidateBlobNamespace returns an error if the provided namespace is reserved,
 // parity shares, or tail padding.
 func ValidateBlobNamespace(ns appns.Namespace) error {
