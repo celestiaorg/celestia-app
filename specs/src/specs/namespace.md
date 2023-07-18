@@ -4,13 +4,17 @@
 
 ## Abstract
 
-One of Celestia's core data structures is the namespace. When a user submits a transaction encapsulating a `MsgPayForBlobs` message to Celestia, they MUST associate each blob with exactly one namespace. After their transaction has been included in a block, the namespace enables users to take an interest in a subset of the blobs published to Celestia by allowing the user to query for blobs by namespace.
+One of Celestia's core data structures is the namespace. 
+When a user submits a transaction encapsulating a `MsgPayForBlobs` message to Celestia, they MUST associate each blob with exactly one namespace. 
+After their transaction has been included in a block, the namespace enables users to take an interest in a subset of the blobs published to Celestia by allowing the user to query for blobs by namespace.
 
-In order to enable efficient retrieval of blobs by namespace, Celestia makes use of a [Namespaced Merkle Tree](https://github.com/celestiaorg/nmt). See section 5.2 of the [LazyLedger whitepaper](https://arxiv.org/pdf/1905.09274.pdf) for more details.
+In order to enable efficient retrieval of blobs by namespace, Celestia makes use of a [Namespaced Merkle Tree](https://github.com/celestiaorg/nmt). 
+See section 5.2 of the [LazyLedger whitepaper](https://arxiv.org/pdf/1905.09274.pdf) for more details.
 
 ## Overview
 
-A namespace is composed of two fields: [version](#version) and [id](#id). A namespace is encoded as a byte slice with the version and id concatenated. 
+A namespace is composed of two fields: [version](#version) and [id](#id). 
+A namespace is encoded as a byte slice with the version and id concatenated. 
 
 ![namespace](./figures/namespace.svg)
 
@@ -80,8 +84,11 @@ See [pkg/namespace](../../../pkg/namespace).
 
 ## Protobuf Definition
 
-[//]: # (TODO: Add protobuf definition for namespace)
+[//]: # (TODO: Add protobuf definition for namespace if any)
 ## References
 
 1. [ADR-014](../../../docs/architecture/adr-014-versioned-namespaces.md)
 1. [ADR-015](../../../docs/architecture/adr-015-namespace-id-size.md)
+1. [Namespaced Merkle Tree](https://github.com/celestiaorg/nmt)
+1. [LazyLedger whitepaper](https://arxiv.org/pdf/1905.09274.pdf)
+1. [Data Square Layout](./data-square-layout.md) 
