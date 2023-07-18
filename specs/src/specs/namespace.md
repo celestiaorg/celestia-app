@@ -4,17 +4,17 @@
 
 ## Abstract
 
-One of Celestia's core data structures is the namespace. 
-When a user submits a transaction encapsulating a `MsgPayForBlobs` message to Celestia, they MUST associate each blob with exactly one namespace. 
+One of Celestia's core data structures is the namespace.
+When a user submits a transaction encapsulating a `MsgPayForBlobs` message to Celestia, they MUST associate each blob with exactly one namespace.
 After their transaction has been included in a block, the namespace enables users to take an interest in a subset of the blobs published to Celestia by allowing the user to query for blobs by namespace.
 
-In order to enable efficient retrieval of blobs by namespace, Celestia makes use of a [Namespaced Merkle Tree](https://github.com/celestiaorg/nmt). 
+In order to enable efficient retrieval of blobs by namespace, Celestia makes use of a [Namespaced Merkle Tree](https://github.com/celestiaorg/nmt).
 See section 5.2 of the [LazyLedger whitepaper](https://arxiv.org/pdf/1905.09274.pdf) for more details.
 
 ## Overview
 
-A namespace is composed of two fields: [version](#version) and [id](#id). 
-A namespace is encoded as a byte slice with the version and id concatenated. 
+A namespace is composed of two fields: [version](#version) and [id](#id).
+A namespace is encoded as a byte slice with the version and id concatenated.
 
 ![namespace](./figures/namespace.svg)
 
@@ -23,17 +23,17 @@ A namespace is encoded as a byte slice with the version and id concatenated.
 The namespace version is an 8-bit unsigned integer that indicates the version of the namespace.
 The version is used to determine the format of the namespace and
 is encoded as a single byte.
-[//]: # (TODO: It may be useful to indicate the endianness of the encoding)
+<!-- It may be useful to indicate the endianness of the encoding) -->
 A new namespace version MUST be introduced if the namespace format changes in a backwards incompatible way.
 
-
-Below we explain supported user-specifiable namespace versions, 
+Below we explain supported user-specifiable namespace versions,
 however, we note that Celestia MAY utilize other namespace versions for internal use.
 For more details, see the [Reserved Namespaces](#reserved-namespaces) section.
 
 #### Version 0
+
 The only supported user-specifiable namespace version is `0`.
-A namespace with version `0` MUST contain an id with a prefix of 18 leading `0` bytes. 
+A namespace with version `0` MUST contain an id with a prefix of 18 leading `0` bytes.
 The remaining 10 bytes of the id are user-specified.
 Below, we provide examples of valid and invalid encoded user-supplied namespaces with version `0`.
 
@@ -48,17 +48,19 @@ Below, we provide examples of valid and invalid encoded user-supplied namespaces
 0x1000000000000000000000000000000000000000000000000000000000 // invalid because it does not have version 0
 0x1111111111111111111111111111111111111111111111111111111111 // invalid because it does not have version 0
 ```
+
 Any change in the number of leading `0` bytes in the id of a namespace with version `0` is considered a backwards incompatible change and MUST be introduced as a new namespace version.
 
 ### ID
 
-The namespace ID is a 28 byte identifier that uniquely identifies a namespace. 
-The ID is encoded as a byte slice of length 28. 
-[//]: # (TODO: It may be useful to indicate the endianness of the encoding)
+The namespace ID is a 28 byte identifier that uniquely identifies a namespace.
+The ID is encoded as a byte slice of length 28.
+<!-- It may be useful to indicate the endianness of the encoding) -->
 
 ## Reserved Namespaces
-Celestia reserves certain namespaces with specific meanings. 
-Applications SHOULD refrain from using these reserved namespaces for their blob data. [//]: # (TODO: the implication of this is still under investigation, but it is prudent to advise app developers not using this namespace)
+
+Celestia reserves certain namespaces with specific meanings.
+Applications SHOULD refrain from using these reserved namespaces for their blob data. <!-- the implication of this is still under investigation, but it is prudent to advise app developers not using this namespace -->
 The rationale behind this is that these namespaces dictate the positioning of transactions and blobs data within the Celestia [data square](./data-square-layout.md).
 Therefore, by refraining from using these reserved namespaces, applications can guarantee the desired arrangement of their blob data.
 
@@ -86,14 +88,14 @@ Applications SHOULD refrain from using the [reserved namespaces](#reserved-names
 
 See [pkg/namespace](../../../pkg/namespace).
 
-
 ## Protobuf Definition
 
 [//]: # (TODO: Add protobuf definition for namespace if any)
+
 ## References
 
 1. [ADR-014](../../../docs/architecture/adr-014-versioned-namespaces.md)
 1. [ADR-015](../../../docs/architecture/adr-015-namespace-id-size.md)
 1. [Namespaced Merkle Tree](https://github.com/celestiaorg/nmt)
 1. [LazyLedger whitepaper](https://arxiv.org/pdf/1905.09274.pdf)
-1. [Data Square Layout](./data-square-layout.md) 
+1. [Data Square Layout](./data-square-layout.md)
