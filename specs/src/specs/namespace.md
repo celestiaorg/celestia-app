@@ -26,12 +26,11 @@ The version is used to determine the format of the namespace.
 A new namespace version MUST be introduced if the namespace format changes in a backwards incompatible way.
 
 
-Below we enumerate and explain supported user-specifiable namespace version, however, we note that Celestia MAY utilize other namespace versions for internal use.
+Below we explain supported user-specifiable namespace versions, however, we note that Celestia MAY utilize other namespace versions for internal use.
 For more details, see the [Reserved Namespaces](#reserved-namespaces) section.
 
 #### Version 0
 The only supported user-specifiable namespace version is `0`.
-
 A namespace with version `0` MUST contain an id with a prefix of 18 leading `0` bytes. 
 The remaining 10 bytes of the id are user-specified.
 Below, we provide examples of valid and invalid encoded user-supplied namespaces with version `0`.
@@ -76,6 +75,8 @@ For more details regarding the meaning and application of the reserved namespace
 | `PARITY_SHARE_NAMESPACE`            | `Namespace` | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF` | Parity shares: extended shares in the available data matrix.                                         |
 
 ## Assumptions and Considerations
+
+Application MUST refrain from using the reserved namespaces for their blob data.
 
 ## Implementation
 
