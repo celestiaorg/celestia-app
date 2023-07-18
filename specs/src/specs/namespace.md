@@ -39,7 +39,6 @@ Below, we provide examples of valid and invalid encoded user-supplied namespaces
 
 ```go
 // Valid encoded namespaces
-0x0000000000000000000000000000000000000000000000000000000001 // transaction namespace [?] is this user-specified? I mean, when sending a transaction, does a user need to associate this namespace before submission of the tx to a validator? or is this namespace added later during the data square construction?
 0x0000000000000000000000000000000000000001010101010101010101 // valid blob namespace
 0x0000000000000000000000000000000000000011111111111111111111 // valid blob namespace
 
