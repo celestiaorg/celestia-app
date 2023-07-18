@@ -521,7 +521,7 @@ A namespace is encoded as a byte slice with the version and id concatenated. </p
 <p>The namespace version is an 8-bit unsigned integer that indicates the version of the namespace.
 The version is used to determine the format of the namespace and
 is encoded as a single byte.
-<a href="specs/namespace.html#" title="TODO: It may be useful to indicate the endianness of the encoding">//</a>: # (TODO: It may be useful to indicate the endianness of the encoding)
+<a href="specs/namespace.html#" title="TODO: Add protobuf definition for namespace if any">//</a>: # (TODO: It may be useful to indicate the endianness of the encoding)
 A new namespace version MUST be introduced if the namespace format changes in a backwards incompatible way.</p>
 <p>Below we explain supported user-specifiable namespace versions, 
 however, we note that Celestia MAY utilize other namespace versions for internal use.
@@ -544,10 +544,11 @@ Below, we provide examples of valid and invalid encoded user-supplied namespaces
 <p>Any change in the number of leading <code>0</code> bytes in the id of a namespace with version <code>0</code> is considered a backwards incompatible change and MUST be introduced as a new namespace version.</p>
 <h3 id="id"><a class="header" href="#id">ID</a></h3>
 <p>The namespace ID is a 28 byte identifier that uniquely identifies a namespace. 
-The ID is encoded as a byte slice of length 28. </p>
+The ID is encoded as a byte slice of length 28. 
+<a href="specs/namespace.html#" title="TODO: Add protobuf definition for namespace if any">//</a>: # (TODO: It may be useful to indicate the endianness of the encoding)</p>
 <h2 id="reserved-namespaces"><a class="header" href="#reserved-namespaces">Reserved Namespaces</a></h2>
 <p>Celestia reserves certain namespaces with specific meanings. 
-Applications SHOULD refrain from using these reserved namespaces for their blob data. <a href="specs/namespace.html#" title="TODO: It may be useful to indicate the endianness of the encoding">//</a>: # (TODO: the implication of this is still under investigation, but it is prudent to advise app developers not using this namespace)
+Applications SHOULD refrain from using these reserved namespaces for their blob data. <a href="specs/namespace.html#" title="TODO: Add protobuf definition for namespace if any">//</a>: # (TODO: the implication of this is still under investigation, but it is prudent to advise app developers not using this namespace)
 The rationale behind this is that these namespaces dictate the positioning of transactions and blobs data within the Celestia <a href="specs/./data-square-layout.html">data square</a>.
 Therefore, by refraining from using these reserved namespaces, applications can guarantee the desired arrangement of their blob data.</p>
 <p>Below is a list of reserved namespaces, along with a brief description of each.
