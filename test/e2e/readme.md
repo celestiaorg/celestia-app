@@ -4,7 +4,7 @@ Celestia uses the [knuu](https://github.com/celestiaorg/knuu) framework to orche
 
 ## Usage
 
-E2E tests can be simply run through go tests. They are distinguished from unit tets through an envornment variable. To run all e2e tests run:
+E2E tests can be simply run through go tests. They are distinguished from unit tets through an environment variable. To run all e2e tests run:
 
 ```shell
 E2E=true KNUU_NAMESPACE=celestia-app go test ./test/e2e/... -timeout 30m
