@@ -73,7 +73,7 @@ func (s *IntegrationTestSuite) TestInflationRate() {
 	require := s.Require()
 
 	type testCase struct {
-		year int
+		year int64
 		want sdktypes.Dec
 	}
 	testCases := []testCase{
