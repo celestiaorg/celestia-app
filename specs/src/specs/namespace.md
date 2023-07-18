@@ -89,7 +89,7 @@ See [pkg/namespace](../../../pkg/namespace).
 
 ## Protobuf Definition
 
-[//]: # (TODO: Add protobuf definition for namespace if any)
+<!-- TODO: Add protobuf definition for namespace -->
 
 ## References
 
