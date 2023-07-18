@@ -76,7 +76,7 @@ For more details regarding the meaning and application of the reserved namespace
 
 ## Assumptions and Considerations
 
-Application MUST refrain from using the reserved namespaces for their blob data.
+Applications MUST refrain from using the [reserved namespaces](#reserved-namespaces) for their blob data.
 
 ## Implementation
 
