@@ -54,7 +54,6 @@ Any change in the number of leading `0` bytes in the id of a namespace with vers
 
 The namespace ID is a 28 byte identifier that uniquely identifies a namespace. 
 The ID is encoded as a byte slice of length 28. 
-
 [//]: # (TODO: It may be useful to indicate the endianness of the encoding)
 
 ## Reserved Namespaces
