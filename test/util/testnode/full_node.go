@@ -82,7 +82,7 @@ func InitFiles(
 	genState map[string]json.RawMessage,
 	kr keyring.Keyring,
 	chainID string,
-	genTime time.Time,
+	genesisTime time.Time,
 ) (string, keyring.Keyring, error) {
 	baseDir, err := initFileStructure(t, tmCfg)
 	if err != nil {
@@ -101,12 +101,12 @@ func InitFiles(
 		return baseDir, kr, err
 	}
 
-	err = initGenFiles(cparams, genState, encCfg.Codec, tmCfg.GenesisFile(), chainID, genTime)
+	err = initGenFiles(cparams, genState, encCfg.Codec, tmCfg.GenesisFile(), chainID, genesisTime)
 	if err != nil {
 		return baseDir, kr, err
 	}
 
-	return baseDir, kr, collectGenFiles(tmCfg, encCfg, pubKey, nodeID, chainID, baseDir, genTime)
+	return baseDir, kr, collectGenFiles(tmCfg, encCfg, pubKey, nodeID, baseDir)
 }
 
 // DefaultGenesisState returns a default genesis state and a keyring with
