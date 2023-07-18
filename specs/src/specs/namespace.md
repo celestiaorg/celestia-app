@@ -60,14 +60,14 @@ The ID is encoded as a byte slice of length 28.
 
 Celestia reserves certain namespaces with specific meanings.
 Applications SHOULD refrain from using these reserved namespaces for their blob data. <!-- the implication of this is still under investigation, but it is prudent to advise app developers not using this namespace -->
-The rationale behind this is that these namespaces dictate the positioning of transactions and blobs data within the Celestia [data square](./data-square-layout.md).
+The rationale behind this is that these namespaces dictate the positioning of transactions and blobs data within the Celestia [data square](./data_square_layout.md).
 Therefore, by refraining from using these reserved namespaces, applications can guarantee the desired arrangement of their blob data.
 
 Below is a list of reserved namespaces, along with a brief description of each.
 In the table, you will notice that the `PARITY_SHARE_NAMESPACE` and `TAIL_PADDING_NAMESPACE` utilize the namespace version `255`, which differs from the supported user-specified versions.
 The reason for employing version `255` for the `PARITY_SHARE_NAMESPACE` is to enable more efficient proof generation within the context of [nmt](https://github.com/celestiaorg/nmt), where it is used in conjunction with the `IgnoreMaxNamespace` feature.
 Similarly, the `TAIL_PADDING_NAMESPACE` utilizes the namespace version `255` to ensure that padding shares are always properly ordered and placed at the end of the Celestia data square even if a new namespace version is introduced.
-For additional information on the significance and application of the reserved namespaces, please refer to the [Data Square Layout](./data-square-layout.md) section.
+For additional information on the significance and application of the reserved namespaces, please refer to the [Data Square Layout](./data_square_layout.md) section.
 
 | name                                | type        | value                                                          | description                                                                                          |
 |-------------------------------------|-------------|----------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
@@ -97,4 +97,4 @@ See [pkg/namespace](../../../pkg/namespace).
 1. [ADR-015](../../../docs/architecture/adr-015-namespace-id-size.md)
 1. [Namespaced Merkle Tree](https://github.com/celestiaorg/nmt)
 1. [LazyLedger whitepaper](https://arxiv.org/pdf/1905.09274.pdf)
-1. [Data Square Layout](./data-square-layout.md)
+1. [Data Square Layout](./data_square_layout.md)
