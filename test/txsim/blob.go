@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	ns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -107,12 +106,6 @@ func (r Range) Rand(rand *rand.Rand) int {
 	return rand.Intn(r.Max-r.Min) + r.Min
 }
 
-// This is a rough estimation of the gas that arises from several other places:
-// - signature verification
-// - tx size
-// - read access to accounts
-const pfbGasFixedCost     = 80000
-
 // estimateGas estimates the gas required to pay for a set of blobs in a PFB.
 func estimateGas(blobSizes []int) uint64 {
 	size := make([]uint32, len(blobSizes))
@@ -120,5 +113,5 @@ func estimateGas(blobSizes []int) uint64 {
 		size[i] = uint32(s)
 	}
 
-	return blob.GasToConsume(size, appconsts.DefaultGasPerBlobByte) + pfbGasFixedCost
+	return blob.DefaultEstimateGas(size)
 }

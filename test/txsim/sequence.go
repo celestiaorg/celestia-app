@@ -43,8 +43,8 @@ type Operation struct {
 
 const (
 	// set default gas limit to cover the costs of most transactions
-	// At 0.001 utia per gas, this equates to 1000utia per transaction
-	DefaultGasLimit = 1000000
+	// At 0.1 utia per gas, this equates to 20000utia per transaction
+	DefaultGasLimit = 200000
 )
 
 // ErrEndOfSequence is a special error which indicates that the sequence has been terminated

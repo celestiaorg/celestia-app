@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/nmt"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
+	auth "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
@@ -21,6 +22,20 @@ import (
 const (
 	URLMsgPayForBlobs = "/celestia.blob.v1.MsgPayForBlobs"
 	ShareSize         = appconsts.ShareSize
+
+	// PFBGasFixedCost is a rough estimation of the gas that arises from several other places:
+	// - signature verification
+	// - tx size
+	// - read access to accounts
+	// From modelling PFB gas consumption we arrive at the following formula:
+	// 8 * 512 * shares + 65000. This has a correlation coefficient of 0.996
+	// To be conservative, we round up to 75000 because the first tx always
+	// takes up 10,000 more gas.
+	PFBGasFixedCost = 75000
+
+	// BytesPerBlobInfo is the amount of extra bytes in information a blob
+	// adds to the size of the underlying transaction
+	BytesPerBlobInfo = 70
 )
 
 // MsgPayForBlobs implements the `LegacyMsg` interface.
@@ -134,6 +149,9 @@ func (msg *MsgPayForBlobs) Gas(gasPerByte uint32) uint64 {
 	return GasToConsume(msg.BlobSizes, gasPerByte)
 }
 
+// GasToConsume works out the gas required to pay for a set of blobs in a PFB.
+// Note that tranasctions will incur other gas costs, such as the signature verification
+// and reads to the user's account.
 func GasToConsume(blobSizes []uint32, gasPerByte uint32) uint64 {
 	var totalSharesUsed uint64
 	for _, size := range blobSizes {
@@ -141,6 +159,20 @@ func GasToConsume(blobSizes []uint32, gasPerByte uint32) uint64 {
 	}
 
 	return totalSharesUsed * appconsts.ShareSize * uint64(gasPerByte)
+}
+
+// EstimateGas estimates the gas required to pay for a set of blobs in a PFB.
+// It is based on a linear model that is dependent on the governance parameters:
+// gasPerByte and txSizeCost. It assumes other variables are constant. This includes
+// assuming the PFB is the only message in the transaction.
+func EstimateGas(blobSizes []uint32, gasPerByte uint32, txSizeCost uint64) uint64 {
+	return GasToConsume(blobSizes, gasPerByte) + (txSizeCost * BytesPerBlobInfo * uint64(len(blobSizes))) + PFBGasFixedCost
+}
+
+// DefaultEstimateGas runs EstimateGas with the system defaults. The network may change these values
+// through governance, thus this function should predominantly be used in testing.
+func DefaultEstimateGas(blobSizes []uint32) uint64 {
+	return EstimateGas(blobSizes, appconsts.DefaultGasPerBlobByte, auth.DefaultTxSizeCostPerByte)
 }
 
 // ValidateBlobNamespace returns an error if the provided namespace is reserved,
