@@ -21,12 +21,14 @@ A namespace is encoded as a byte slice with the version and id concatenated.
 ### Version
 
 The namespace version is an 8-bit unsigned integer that indicates the version of the namespace.
-The version is encoded as a single byte.
-The version is used to determine the format of the namespace.
+The version is used to determine the format of the namespace and
+is encoded as a single byte.
+[//]: # (TODO: It may be useful to indicate the endianness of the encoding)
 A new namespace version MUST be introduced if the namespace format changes in a backwards incompatible way.
 
 
-Below we explain supported user-specifiable namespace versions, however, we note that Celestia MAY utilize other namespace versions for internal use.
+Below we explain supported user-specifiable namespace versions, 
+however, we note that Celestia MAY utilize other namespace versions for internal use.
 For more details, see the [Reserved Namespaces](#reserved-namespaces) section.
 
 #### Version 0
@@ -51,18 +53,21 @@ Any change in the number of leading `0` bytes in the id of a namespace with vers
 ### ID
 
 The namespace ID is a 28 byte identifier that uniquely identifies a namespace. 
-The ID is encoded as a byte slice of length 28.
+The ID is encoded as a byte slice of length 28. 
+
+[//]: # (TODO: It may be useful to indicate the endianness of the encoding)
 
 ## Reserved Namespaces
 Celestia reserves certain namespaces with specific meanings. 
-Applications MUST refrain from using these reserved namespaces for their blob data. 
+Applications MUST refrain from using these reserved namespaces for their blob data. [//]: # (TODO: the implication of this is still under investigation, but it is prudent to advise app developers not using this namespace)
 The rationale behind this is that these namespaces dictate the positioning of data within the Celestia block. 
-Thus, applications ensure the desired placement of their blob data by avoiding utilizing these reserved namespaces.
-Below is the list of reserved namespaces with a brief description of each.
-As you can see in the table, the `PARITY_SHARE_NAMESPACE` and the `TAIL_PADDING_NAMESPACE` use the namespace version `255`, which is different from the supported user-specified versions. 
-This particular version can be ignored via the `IgnoreMaxNamespace` feature from [nmt]&#40;https://github.com/celestiaorg/nmt&#41;. 
-Likewise, the `TAIL_PADDING_NAMESPACE` uses the namespace version `255` so that it remains ordered after all blob namespaces even in the case a new namespace version is introduced.
-For more details regarding the meaning and application of the reserved namespaces, please see the [Data Square Layout](./data-square-layout.md) section.
+Thus, by avoiding utilizing these reserved namespaces, applications ensure the desired placement of their blob data.
+
+Below is a list of reserved namespaces, along with a brief description of each.
+In the table, you will notice that the `PARITY_SHARE_NAMESPACE` and `TAIL_PADDING_NAMESPACE` utilize the namespace version `255`, which differs from the supported user-specified versions.
+The reason for employing version `255` for the `PARITY_SHARE_NAMESPACE` is to enable more efficient proof generation within the context of [nmt](https://github.com/celestiaorg/nmt), where it is used in conjunction with the `IgnoreMaxNamespace` feature.
+Similarly, the `TAIL_PADDING_NAMESPACE` utilizes the namespace version `255` to ensure that padding shares are always properly ordered and placed at the end of the square even if a new namespace version is introduced.
+For additional information on the significance and application of the reserved namespaces, please refer to the [Data Square Layout](./data-square-layout.md) section.
 
 | name                                | type        | value                                                          | description                                                                                          |
 |-------------------------------------|-------------|----------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
