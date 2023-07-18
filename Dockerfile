@@ -4,6 +4,8 @@ FROM docker.io/golang:1.20.6-alpine3.17 as builder
 RUN apk update && apk add --no-cache \
     gcc \
     git \
+    # linux-headers are needed for Ledger support
+    linux-headers \
     make \
     musl-dev
 COPY . /celestia-app

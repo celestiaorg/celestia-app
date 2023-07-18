@@ -12,7 +12,7 @@ const (
 	// https://en.wikipedia.org/wiki/Year
 	DaysPerYear        = 365.2425
 	SecondsPerYear     = int(SecondsPerMinute * MinutesPerHour * HoursPerDay * DaysPerYear) // 31,556,952
-	NanosecondsPerYear = int(NanosecondsPerSecond * SecondsPerYear)                         // 31,556,952,000,000,000
+	NanosecondsPerYear = int64(NanosecondsPerSecond * SecondsPerYear)                       // 31,556,952,000,000,000
 
 	InitialInflationRate = 0.08
 	DisinflationRate     = 0.1
