@@ -23,7 +23,6 @@ A namespace is encoded as a byte slice with the version and id concatenated.
 The namespace version is an 8-bit unsigned integer that indicates the version of the namespace.
 The version is used to determine the format of the namespace and
 is encoded as a single byte.
-<!-- It may be useful to indicate the endianness of the encoding) -->
 A new namespace version MUST be introduced if the namespace format changes in a backwards incompatible way.
 
 Below we explain supported user-specifiable namespace versions,
