@@ -59,7 +59,7 @@ The ID is encoded as a byte slice of length 28.
 
 Celestia reserves certain namespaces with specific meanings.
 Celestia makes use of the reserved namespaces to properly organize and order transactions and blobs inside the [data square](./data_square_layout.md).
-Applications SHOULD refrain from using these reserved namespaces for their blob data. <!-- the implication of this is still under investigation, but it is prudent to advise app developers not using this namespace -->
+Applications MUST NOT use these reserved namespaces for their blob data. <!-- the implication of this is still under investigation, but it is prudent to advise app developers not using this namespace -->
 
 Below is a list of reserved namespaces, along with a brief description of each.
 In the table, you will notice that the `PARITY_SHARE_NAMESPACE` and `TAIL_PADDING_NAMESPACE` utilize the namespace version `255`, which differs from the supported user-specified versions.
@@ -79,7 +79,7 @@ For additional information on the significance and application of the reserved n
 
 ## Assumptions and Considerations
 
-Applications SHOULD refrain from using the [reserved namespaces](#reserved-namespaces) for their blob data.
+Applications MUST refrain from using the [reserved namespaces](#reserved-namespaces) for their blob data.
 
 ## Implementation
 
