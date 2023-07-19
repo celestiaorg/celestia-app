@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"cosmossdk.io/errors"
 	"github.com/celestiaorg/celestia-app/app"
 	apperr "github.com/celestiaorg/celestia-app/app/errors"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
@@ -77,24 +78,24 @@ func TestInsufficientMinGasPriceTable(t *testing.T) {
 		},
 		{
 			name:                         "not insufficient fee error",
-			err:                          sdkerrors.Wrap(sdkerrors.ErrInsufficientFee, "not enough gas to pay for blobs (minimum: 1000000, got: 100000)"),
+			err:                          errors.Wrap(sdkerrors.ErrInsufficientFee, "not enough gas to pay for blobs (minimum: 1000000, got: 100000)"),
 			isInsufficientMinGasPriceErr: false,
 		},
 		{
 			name:                         "not insufficient fee error 2",
-			err:                          sdkerrors.Wrap(sdkerrors.ErrInsufficientFunds, "not enough gas to pay for blobs (got: 1000000, required: 100000)"),
+			err:                          errors.Wrap(sdkerrors.ErrInsufficientFunds, "not enough gas to pay for blobs (got: 1000000, required: 100000)"),
 			isInsufficientMinGasPriceErr: false,
 		},
 		{
 			name:                         "insufficient fee error",
-			err:                          sdkerrors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 10utia required: 100utia"),
+			err:                          errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 10utia required: 100utia"),
 			inputGasPrice:                0.01,
 			expectedGasPrice:             0.1,
 			isInsufficientMinGasPriceErr: true,
 		},
 		{
 			name:                         "insufficient fee error with zero gas price",
-			err:                          sdkerrors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 0utia required: 100utia"),
+			err:                          errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 0utia required: 100utia"),
 			inputGasPrice:                0,
 			inputGasLimit:                100,
 			expectedGasPrice:             1,
@@ -102,7 +103,7 @@ func TestInsufficientMinGasPriceTable(t *testing.T) {
 		},
 		{
 			name:                         "insufficient fee error with zero gas price and zero gas limit",
-			err:                          sdkerrors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 0utia required: 100utia"),
+			err:                          errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 0utia required: 100utia"),
 			inputGasPrice:                0,
 			inputGasLimit:                0,
 			isInsufficientMinGasPriceErr: true,
@@ -110,14 +111,21 @@ func TestInsufficientMinGasPriceTable(t *testing.T) {
 		},
 		{
 			name:                         "incorrectly formatted error",
-			err:                          sdkerrors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 0uatom required: 100uatom"),
+			err:                          errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 0uatom required: 100uatom"),
 			isInsufficientMinGasPriceErr: false,
 		},
 		{
 			name:                         "error with zero required gas price",
-			err:                          sdkerrors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 10utia required: 0utia"),
+			err:                          errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 10utia required: 0utia"),
 			isInsufficientMinGasPriceErr: true,
 			expectParsingError:           true,
+		},
+		{
+			name:                         "error with extra wrapping",
+			err:                          errors.Wrap(errors.Wrap(sdkerrors.ErrInsufficientFee, "insufficient fees; got: 10utia required: 100utia"), "extra wrapping"),
+			inputGasPrice:                0.01,
+			expectedGasPrice:             0.1,
+			isInsufficientMinGasPriceErr: true,
 		},
 	}
 
