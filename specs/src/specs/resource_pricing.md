@@ -1,0 +1,175 @@
+# Resource Pricing
+
+For all standard cosmos-sdk transactions (staking, IBC, etc), Celestia utilizes
+the standard cosmos-sdk mechanisms for pricing resources. This involves
+incrementing a gas counter during transaction execution each time the state is
+read from/written to, or when specific costly operations occur such as signature
+verification or inclusion of data.
+
+```go
+// GasMeter interface to track gas consumption
+type GasMeter interface {
+	GasConsumed() Gas
+	GasConsumedToLimit() Gas
+	GasRemaining() Gas
+	Limit() Gas
+	ConsumeGas(amount Gas, descriptor string)
+	RefundGas(amount Gas, descriptor string)
+	IsPastLimit() bool
+	IsOutOfGas() bool
+	String() string
+}
+```
+
+We can see how this gas meter is used in practice by looking at the store.
+Notice where gas is consumed.
+
+```go
+// Implements KVStore.
+func (gs *Store) Get(key []byte) (value []byte) {
+	gs.gasMeter.ConsumeGas(gs.gasConfig.ReadCostFlat, types.GasReadCostFlatDesc)
+	value = gs.parent.Get(key)
+
+	// TODO overflow-safe math?
+	gs.gasMeter.ConsumeGas(gs.gasConfig.ReadCostPerByte*types.Gas(len(key)), types.GasReadPerByteDesc)
+	gs.gasMeter.ConsumeGas(gs.gasConfig.ReadCostPerByte*types.Gas(len(value)), types.GasReadPerByteDesc)
+
+	return value
+}
+
+// Implements KVStore.
+func (gs *Store) Set(key []byte, value []byte) {
+	types.AssertValidKey(key)
+	types.AssertValidValue(value)
+	gs.gasMeter.ConsumeGas(gs.gasConfig.WriteCostFlat, types.GasWriteCostFlatDesc)
+	// TODO overflow-safe math?
+	gs.gasMeter.ConsumeGas(gs.gasConfig.WriteCostPerByte*types.Gas(len(key)), types.GasWritePerByteDesc)
+	gs.gasMeter.ConsumeGas(gs.gasConfig.WriteCostPerByte*types.Gas(len(value)), types.GasWritePerByteDesc)
+	gs.parent.Set(key, value)
+}
+```
+
+The configuration for the gas meter used by Celestia is as follows.
+
+```go
+// KVGasConfig returns a default gas config for KVStores.
+func KVGasConfig() GasConfig {
+	return GasConfig{
+		HasCost:          1000,
+		DeleteCost:       1000,
+		ReadCostFlat:     1000,
+		ReadCostPerByte:  3,
+		WriteCostFlat:    2000,
+		WriteCostPerByte: 30,
+		IterNextCostFlat: 30,
+	}
+}
+
+// TransientGasConfig returns a default gas config for TransientStores.
+func TransientGasConfig() GasConfig {
+	return GasConfig{
+		HasCost:          100,
+		DeleteCost:       100,
+		ReadCostFlat:     100,
+		ReadCostPerByte:  0,
+		WriteCostFlat:    200,
+		WriteCostPerByte: 3,
+		IterNextCostFlat: 3,
+	}
+}
+```
+
+Two notable gas consumption events that are not Celestia specific are the
+total bytes used for a transaction and the verfication of the siganture
+
+```go
+func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+	sigTx, ok := tx.(authsigning.SigVerifiableTx)
+	if !ok {
+		return ctx, sdkerrors.Wrap(sdkerrors.ErrTxDecode, "invalid tx type")
+	}
+	params := cgts.ak.GetParams(ctx)
+
+	ctx.GasMeter().ConsumeGas(params.TxSizeCostPerByte*sdk.Gas(len(ctx.TxBytes())), "txSize")
+    ...
+}
+
+// DefaultSigVerificationGasConsumer is the default implementation of SignatureVerificationGasConsumer. It consumes gas
+// for signature verification based upon the public key type. The cost is fetched from the given params and is matched
+// by the concrete type.
+func DefaultSigVerificationGasConsumer(
+	meter sdk.GasMeter, sig signing.SignatureV2, params types.Params,
+) error {
+	pubkey := sig.PubKey
+	switch pubkey := pubkey.(type) {
+	case *ed25519.PubKey:
+		meter.ConsumeGas(params.SigVerifyCostED25519, "ante verify: ed25519")
+		return sdkerrors.Wrap(sdkerrors.ErrInvalidPubKey, "ED25519 public keys are unsupported")
+
+	case *secp256k1.PubKey:
+		meter.ConsumeGas(params.SigVerifyCostSecp256k1, "ante verify: secp256k1")
+		return nil
+
+	case *secp256r1.PubKey:
+		meter.ConsumeGas(params.SigVerifyCostSecp256r1(), "ante verify: secp256r1")
+		return nil
+
+	case multisig.PubKey:
+		multisignature, ok := sig.Data.(*signing.MultiSignatureData)
+		if !ok {
+			return fmt.Errorf("expected %T, got, %T", &signing.MultiSignatureData{}, sig.Data)
+		}
+		err := ConsumeMultisignatureVerificationGas(meter, multisignature, pubkey, params, sig.Sequence)
+		if err != nil {
+			return err
+		}
+		return nil
+
+	default:
+		return sdkerrors.Wrapf(sdkerrors.ErrInvalidPubKey, "unrecognized public key type: %T", pubkey)
+	}
+}
+```
+
+Since gas is consumed in this fashion and many of the cosmos-sdk transactions
+are composable, any given transaction can have a large window of possible gas
+consumption. For example, vesting accounts use more bytes of state than a normal
+account, so more gas is consumed each time a vesting account is read from or
+updated.
+
+## Gas Limit
+
+The gas limit must be included in each transaction. If the transaction exceeds
+this gas limit during the execution of the transaction, then the transaction
+will fail.
+
+> Note: When a transaction is submitted to the mempool, the transaction is not
+> fully executed. This can lead to a transaction getting accepted by the mempool
+> and eventually included in a block, yet failing because the transaction ends
+> up exceeding the gas limit.
+
+Fees are not currently refunded. While users can specify a gas price,
+the total fee is then calculated by simply multiplying the gas limit by the gas
+price. The entire fee is then deducted from the transaction no matter what.
+
+## Fee market
+
+By default, Celestia uses mempools that prioritize fees, however mempool usage
+cannot be enforced at the protocol level.
+
+## Estimating PFB cost
+
+The roughest way to estimate the total gas consumed by a PFB is by adding up the following:
+
+- The cost for the transaction itself (~60k gas)
+- The cost of the blob. (number of shares used * 4096 gas)
+
+## Tracing Gas Consumption
+
+This figure plots each instance of the gas meter being incremented over the
+execution lifecycle of a given transaction. The y-axis in units of gas and the
+x-axis is each individual instance of gas consumption. The legend shows which
+color indicates what the cause of the gas consumption was.
+
+
+
