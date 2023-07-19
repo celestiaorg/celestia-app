@@ -17,7 +17,7 @@ func TestCalculateInflationRate(t *testing.T) {
 	genesisTime := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	type testCase struct {
-		year int
+		year int64
 		want float64
 	}
 
@@ -66,7 +66,7 @@ func TestCalculateInflationRate(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		years := time.Duration(tc.year * NanosecondsPerYear * int(time.Nanosecond))
+		years := time.Duration(tc.year * NanosecondsPerYear * int64(time.Nanosecond))
 		blockTime := genesisTime.Add(years)
 		ctx := sdk.NewContext(nil, tmproto.Header{}, false, nil).WithBlockTime(blockTime)
 		inflationRate := minter.CalculateInflationRate(ctx, genesisTime)
