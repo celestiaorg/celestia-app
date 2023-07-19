@@ -178,9 +178,8 @@ The ID is encoded as a byte slice of length 28.</p>
 <!-- It may be useful to indicate the endianness of the encoding) -->
 <h2 id="reserved-namespaces"><a class="header" href="#reserved-namespaces">Reserved Namespaces</a></h2>
 <p>Celestia reserves certain namespaces with specific meanings.
-Applications SHOULD refrain from using these reserved namespaces for their blob data. <!-- the implication of this is still under investigation, but it is prudent to advise app developers not using this namespace -->
-The rationale behind this is that these namespaces dictate the positioning of transactions and blobs data within the Celestia <a href="./data_square_layout.html">data square</a>.
-Therefore, by refraining from using these reserved namespaces, applications can guarantee the desired arrangement of their blob data.</p>
+Celestia makes use of the reserved namespaces to properly organize and order transactions and blobs inside the <a href="./data_square_layout.html">data square</a>.
+Applications SHOULD refrain from using these reserved namespaces for their blob data. <!-- the implication of this is still under investigation, but it is prudent to advise app developers not using this namespace --></p>
 <p>Below is a list of reserved namespaces, along with a brief description of each.
 In the table, you will notice that the <code>PARITY_SHARE_NAMESPACE</code> and <code>TAIL_PADDING_NAMESPACE</code> utilize the namespace version <code>255</code>, which differs from the supported user-specified versions.
 The reason for employing version <code>255</code> for the <code>PARITY_SHARE_NAMESPACE</code> is to enable more efficient proof generation within the context of <a href="https://github.com/celestiaorg/nmt">nmt</a>, where it is used in conjunction with the <code>IgnoreMaxNamespace</code> feature.
