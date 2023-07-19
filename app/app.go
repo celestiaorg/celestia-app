@@ -533,6 +533,7 @@ func New(
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetEndBlocker(app.EndBlocker)
 	app.SetAnteHandler(NewAnteHandler(
+		appOpts,
 		app.AccountKeeper,
 		app.BankKeeper,
 		app.BlobKeeper,
@@ -767,4 +768,11 @@ func extractRegisters(m module.BasicManager, soloRegisters ...encoding.ModuleReg
 		s[i+len(m)] = v
 	}
 	return s
+}
+
+type EmptyAppOptions struct{}
+
+// Get implements AppOptions
+func (ao EmptyAppOptions) Get(_ string) interface{} {
+	return nil
 }

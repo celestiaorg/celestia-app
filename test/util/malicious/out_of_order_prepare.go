@@ -23,6 +23,7 @@ func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.Re
 	// and only check the state dependent checks like fees and nonces as all these transactions have already
 	// passed CheckTx.
 	handler := app.NewAnteHandler(
+		app.EmptyAppOptions{},
 		a.AccountKeeper,
 		a.BankKeeper,
 		a.BlobKeeper,

@@ -2,7 +2,7 @@
 set -e
 
 # Define the directories to exclude
-EXCLUDE_DIRS=("/test/util")
+EXCLUDE_DIRS=("test/util", "tools")
 
 # Initialize PKGS variable with the list of all packages
 PKGS=$(go list ./...)

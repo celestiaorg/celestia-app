@@ -33,6 +33,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	// so that the nonce number is always correctly incremented (which
 	// may affect the validity of future transactions).
 	handler := NewAnteHandler(
+		EmptyAppOptions{},
 		app.AccountKeeper,
 		app.BankKeeper,
 		app.BlobKeeper,

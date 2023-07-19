@@ -24,6 +24,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// and only check the state dependent checks like fees and nonces as all these transactions have already
 	// passed CheckTx.
 	handler := NewAnteHandler(
+		EmptyAppOptions{},
 		app.AccountKeeper,
 		app.BankKeeper,
 		app.BlobKeeper,

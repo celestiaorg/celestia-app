@@ -1,8 +1,10 @@
 package app
 
 import (
+	"github.com/celestiaorg/celestia-app/tools/gasmonitor"
 	blobante "github.com/celestiaorg/celestia-app/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/x/blob/keeper"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -12,6 +14,7 @@ import (
 )
 
 func NewAnteHandler(
+	appOpts servertypes.AppOptions,
 	accountKeeper ante.AccountKeeper,
 	bankKeeper authtypes.BankKeeper,
 	blobKeeper blob.Keeper,
@@ -20,7 +23,7 @@ func NewAnteHandler(
 	sigGasConsumer ante.SignatureVerificationGasConsumer,
 	channelKeeper *ibckeeper.Keeper,
 ) sdk.AnteHandler {
-	return sdk.ChainAnteDecorators(
+	decorators := []sdk.AnteDecorator{
 		ante.NewSetUpContextDecorator(), // outermost AnteDecorator. SetUpContext must be called first
 		// reject all tx extensions
 		ante.NewExtensionOptionsDecorator(nil),
@@ -38,5 +41,13 @@ func NewAnteHandler(
 		blobante.NewMinGasPFBDecorator(blobKeeper),
 		ante.NewIncrementSequenceDecorator(accountKeeper),
 		ibcante.NewRedundantRelayDecorator(channelKeeper),
-	)
+	}
+
+	if useGasMonitor := appOpts.Get(gasmonitor.AppOptionsKey); useGasMonitor != nil {
+		decorators = append(decorators, nil)
+		copy(decorators[2:], decorators[1:])
+		decorators[1] = gasmonitor.NewDecorator()
+	}
+
+	return sdk.ChainAnteDecorators(decorators...)
 }
