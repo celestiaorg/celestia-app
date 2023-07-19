@@ -33,8 +33,8 @@ const (
 	// takes up 10,000 more gas.
 	PFBGasFixedCost = 75000
 
-	// BytesPerBlobInfo is the amount of extra bytes in information a blob
-	// adds to the size of the underlying transaction
+	// BytesPerBlobInfo is a rough estimation for the amount of extra bytes in
+	// information a blob adds to the size of the underlying transaction.
 	BytesPerBlobInfo = 70
 )
 
