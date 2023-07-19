@@ -23,14 +23,20 @@ const (
 	URLMsgPayForBlobs = "/celestia.blob.v1.MsgPayForBlobs"
 	ShareSize         = appconsts.ShareSize
 
-	// PFBGasFixedCost is a rough estimation of the gas that arises from several other places:
-	// - signature verification
-	// - tx size
-	// - read access to accounts
-	// From modelling PFB gas consumption we arrive at the following formula:
-	// 8 * 512 * shares + 65000. This has a correlation coefficient of 0.996
-	// To be conservative, we round up to 75000 because the first tx always
-	// takes up 10,000 more gas.
+	// PFBGasFixedCost is a rough estimate for the "fixed cost" in the gas cost
+	// formula: gas cost = gas per byte * bytes per share * shares occupied by
+	// blob + "fixed cost". In this context, "fixed cost" accounts for the gas
+	// consumed by operations outside the blob's GasToConsume function (i.e.
+	// signature verification, tx size, read access to accounts).
+	//
+	// Since the gas cost of these operations is not easy to calculate, linear
+	// regression was performed on a set of observed data points to derive an
+	// approximate formula for gas cost. Assuming gas per byte = 8 and bytes per
+	// share = 512, we can solve for "fixed cost" and arrive at 65,000. gas cost
+	// = 8 * 512 * number of shares occupied by the blob + 65,000 has a
+	// correlation coefficient of 0.996. To be conservative, we round up "fixed
+	// cost" to 75,000 because the first tx always takes up 10,000 more gas than
+	// subsequent txs.
 	PFBGasFixedCost = 75000
 
 	// BytesPerBlobInfo is a rough estimation for the amount of extra bytes in
