@@ -157,7 +157,9 @@ type GasMeter interface {
 }
 </code></pre>
 <p>We can see how this gas meter is used in practice by looking at the store.
-Notice where gas is consumed.</p>
+Notice where gas is consumed each time we write or read, specifically a flat
+cost for initiating the action followed by a prorated cost for the amount of
+data read or written.</p>
 <pre><code class="language-go">// Implements KVStore.
 func (gs *Store) Get(key []byte) (value []byte) {
 	gs.gasMeter.ConsumeGas(gs.gasConfig.ReadCostFlat, types.GasReadCostFlatDesc)
@@ -279,11 +281,30 @@ price. The entire fee is then deducted from the transaction no matter what.</p>
 <p>By default, Celestia uses mempools that prioritize fees, however mempool usage
 cannot be enforced at the protocol level.</p>
 <h2 id="estimating-pfb-cost"><a class="header" href="#estimating-pfb-cost">Estimating PFB cost</a></h2>
-<p>The roughest way to estimate the total gas consumed by a PFB is by adding up the following:</p>
-<ul>
-<li>The cost for the transaction itself (~60k gas)</li>
-<li>The cost of the blob. (number of shares used * 4096 gas)</li>
-</ul>
+<p>Generally, the gas used by a PFB transaction involves a static &quot;fixed cost&quot; and
+a dynamic cost based on the size of each blob involved in the transaction. </p>
+<blockquote>
+<p>Note: For a general usecase of a normal account submitting a PFB, the static
+costs can be treated as such. However, due to the description of how gas works
+in the cosmos-sdk this is not always the case. Notably, if we use a vesting
+account or the <code>feegrant</code> modules, then these static costs change.</p>
+</blockquote>
+<p>The &quot;fixed cost&quot; is an approximation of the gas consumed by operations outside
+the function GasToConsume (for example, signature verification, tx size, read
+access to accounts), which has a default value of 65,000.</p>
+<blockquote>
+<p>Note: the first transaction sent by an account (sequence number == 0) has an
+additional one time gas cost of 10,000. If this is the case, this should be
+accounted for.</p>
+</blockquote>
+<p>Each blob in the PFB contributes to the total gas cost based on its size. The
+function GasToConsume calculates the total gas consumed by all the blobs
+involved in a PFB, where each blob's gas cost is computed by multiplying the
+blob size (in bytes) by the gasPerByte parameter, along with adding a static
+amount per blob.</p>
+<p>The gas cost per blob byte and gas cost per transaction byte are parameters that
+could potentially be adjusted through the system's governance mechanisms. Hence,
+actual costs may vary depending on the current settings of these parameters.</p>
 <h2 id="tracing-gas-consumption"><a class="header" href="#tracing-gas-consumption">Tracing Gas Consumption</a></h2>
 <p>This figure plots each instance of the gas meter being incremented over the
 execution lifecycle of a given transaction. The y-axis in units of gas and the
