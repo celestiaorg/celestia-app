@@ -1,8 +1,6 @@
 package ante
 
 import (
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 
 	"cosmossdk.io/errors"
@@ -38,7 +36,7 @@ func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 				// lazily fetch the gas per byte param
 				gasPerByte = d.k.GasPerBlobByte(ctx)
 			}
-			gasToConsume := gasToConsume(pfb, gasPerByte)
+			gasToConsume := pfb.Gas(gasPerByte)
 			if gasToConsume > txGas {
 				return ctx, errors.Wrapf(sdkerrors.ErrInsufficientFee, "not enough gas to pay for blobs (minimum: %d, got: %d)", gasToConsume, txGas)
 			}
@@ -46,15 +44,6 @@ func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 	}
 
 	return next(ctx, tx, simulate)
-}
-
-func gasToConsume(pfb *types.MsgPayForBlobs, gasPerByte uint32) uint64 {
-	var totalSharesUsed uint64
-	for _, size := range pfb.BlobSizes {
-		totalSharesUsed += uint64(shares.SparseSharesNeeded(size))
-	}
-
-	return totalSharesUsed * appconsts.ShareSize * uint64(gasPerByte)
 }
 
 type BlobKeeper interface {
