@@ -22,7 +22,9 @@ type GasMeter interface {
 ```
 
 We can see how this gas meter is used in practice by looking at the store.
-Notice where gas is consumed.
+Notice where gas is consumed each time we write or read, specifically a flat
+cost for initiating the action followed by a prorated cost for the amount of
+data read or written.
 
 ```go
 // Implements KVStore.
@@ -159,10 +161,31 @@ cannot be enforced at the protocol level.
 
 ## Estimating PFB cost
 
-The roughest way to estimate the total gas consumed by a PFB is by adding up the following:
+Generally, the gas used by a PFB transaction involves a static "fixed cost" and
+a dynamic cost based on the size of each blob involved in the transaction. 
 
-- The cost for the transaction itself (~60k gas)
-- The cost of the blob. (number of shares used * 4096 gas)
+> Note: For a general usecase of a normal account submitting a PFB, the static
+> costs can be treated as such. However, due to the description of how gas works
+> in the cosmos-sdk this is not always the case. Notably, if we use a vesting
+> account or the `feegrant` modules, then these static costs change.
+
+The "fixed cost" is an approximation of the gas consumed by operations outside
+the function GasToConsume (for example, signature verification, tx size, read
+access to accounts), which has a default value of 65,000.
+
+> Note: the first transaction sent by an account (sequence number == 0) has an
+> additional one time gas cost of 10,000. If this is the case, this should be
+> accounted for.
+
+Each blob in the PFB contributes to the total gas cost based on its size. The
+function GasToConsume calculates the total gas consumed by all the blobs
+involved in a PFB, where each blob's gas cost is computed by multiplying the
+blob size (in bytes) by the gasPerByte parameter, along with adding a static
+amount per blob.
+
+The gas cost per blob byte and gas cost per transaction byte are parameters that
+could potentially be adjusted through the system's governance mechanisms. Hence,
+actual costs may vary depending on the current settings of these parameters.
 
 ## Tracing Gas Consumption
 
