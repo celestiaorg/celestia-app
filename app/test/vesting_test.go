@@ -128,7 +128,7 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsTransfer() {
 	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// find and test a vesting account with endTime which is
-	// 	at least 10 seconds away time from now
+	// at least 10 seconds away time from now
 	for {
 		vAcc, name, err := s.getAnUnusedDelayedVestingAccount()
 		assert.NoError(s.T(), err)
