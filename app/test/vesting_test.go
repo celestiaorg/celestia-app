@@ -99,15 +99,9 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsSpendableBalan
 	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	for {
-		name := s.unusedAccount(DelayedVestingAccountType)
+		vAcc, name, err := s.getAnUnusedDelayedVestingAccount()
+		assert.NoError(s.T(), err)
 		address := getAddress(name, s.cctx.Keyring).String()
-
-		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
-		assert.NoError(s.T(), err)
-
-		var vAcc vestingtypes.DelayedVestingAccount
-		err = vAcc.Unmarshal(resAccBytes)
-		assert.NoError(s.T(), err)
 
 		alreadyVested := vAcc.EndTime < tmtime.Now().Unix()
 
@@ -136,14 +130,7 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsTransfer() {
 	// find and test a vesting account with endTime which is
 	// 	at least 10 seconds away time from now
 	for {
-		name := s.unusedAccount(DelayedVestingAccountType)
-		address := getAddress(name, s.cctx.Keyring).String()
-
-		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
-		assert.NoError(s.T(), err)
-
-		var vAcc vestingtypes.DelayedVestingAccount
-		err = vAcc.Unmarshal(resAccBytes)
+		vAcc, name, err := s.getAnUnusedDelayedVestingAccount()
 		assert.NoError(s.T(), err)
 
 		if vAcc.EndTime > tmtime.Now().Unix()+10 {
@@ -158,14 +145,7 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsDelegation() {
 
 	// find and test a vesting account that has some vesting (locked) balance
 	for {
-		name := s.unusedAccount(DelayedVestingAccountType)
-		address := getAddress(name, s.cctx.Keyring).String()
-
-		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
-		assert.NoError(s.T(), err)
-
-		var vAcc vestingtypes.DelayedVestingAccount
-		err = vAcc.Unmarshal(resAccBytes)
+		vAcc, name, err := s.getAnUnusedDelayedVestingAccount()
 		assert.NoError(s.T(), err)
 
 		// 10 seconds is chosen to be on the safe side
@@ -182,14 +162,7 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsClaimDelegatio
 	// find and test a vesting account with endTime which is
 	// 	at least 20 seconds away time from now
 	for {
-		name := s.unusedAccount(DelayedVestingAccountType)
-		address := getAddress(name, s.cctx.Keyring).String()
-
-		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
-		assert.NoError(s.T(), err)
-
-		var vAcc vestingtypes.DelayedVestingAccount
-		err = vAcc.Unmarshal(resAccBytes)
+		vAcc, name, err := s.getAnUnusedDelayedVestingAccount()
 		assert.NoError(s.T(), err)
 
 		if vAcc.EndTime > tmtime.Now().Unix()+20 {
@@ -206,15 +179,9 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsSpendableBala
 	initCoinsForGasFee := sdk.NewCoin(app.BondDenom, sdk.NewInt(initBalanceForGasFee))
 
 	for {
-		name := s.unusedAccount(PeriodicVestingAccountType)
+		vAcc, name, err := s.getAnUnusedPeriodicVestingAccount()
+		assert.NoError(s.T(), err)
 		address := getAddress(name, s.cctx.Keyring).String()
-
-		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
-		assert.NoError(s.T(), err)
-
-		var vAcc vestingtypes.PeriodicVestingAccount
-		err = vAcc.Unmarshal(resAccBytes)
-		assert.NoError(s.T(), err)
 
 		balances, err := testfactory.GetAccountSpendableBalance(s.cctx.GRPCClient, address)
 		assert.NoError(s.T(), err)
@@ -240,14 +207,7 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsDelegation() 
 
 	// find and test a vesting account that has some vesting (locked) balance
 	for {
-		name := s.unusedAccount(PeriodicVestingAccountType)
-		address := getAddress(name, s.cctx.Keyring).String()
-
-		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
-		assert.NoError(s.T(), err)
-
-		var vAcc vestingtypes.PeriodicVestingAccount
-		err = vAcc.Unmarshal(resAccBytes)
+		vAcc, name, err := s.getAnUnusedPeriodicVestingAccount()
 		assert.NoError(s.T(), err)
 
 		// 10 seconds is chosen to be on the safe side
@@ -266,14 +226,7 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsDelegationPar
 	// find and test a vesting account that has some vesting (locked) and
 	// some vested (unlocked) balance
 	for {
-		name := s.unusedAccount(PeriodicVestingAccountType)
-		address := getAddress(name, s.cctx.Keyring).String()
-
-		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
-		assert.NoError(s.T(), err)
-
-		var vAcc vestingtypes.PeriodicVestingAccount
-		err = vAcc.Unmarshal(resAccBytes)
+		vAcc, name, err := s.getAnUnusedPeriodicVestingAccount()
 		assert.NoError(s.T(), err)
 
 		firstPeriodTime := vAcc.StartTime + vAcc.VestingPeriods[0].GetLength()
@@ -301,14 +254,7 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsClaimDelegati
 	// find and test a vesting account that has some vesting (locked) balance
 	// to be on the safe side we select one that starts unlocking in at least 20 seconds
 	for {
-		name := s.unusedAccount(PeriodicVestingAccountType)
-		address := getAddress(name, s.cctx.Keyring).String()
-
-		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
-		assert.NoError(s.T(), err)
-
-		var vAcc vestingtypes.PeriodicVestingAccount
-		err = vAcc.Unmarshal(resAccBytes)
+		vAcc, name, err := s.getAnUnusedPeriodicVestingAccount()
 		assert.NoError(s.T(), err)
 
 		if vAcc.StartTime > tmtime.Now().Unix()+20 {
@@ -325,15 +271,9 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsSpendableBa
 	initCoinsForGasFee := sdk.NewCoin(app.BondDenom, sdk.NewInt(initBalanceForGasFee))
 
 	for {
-		name := s.unusedAccount(ContinuousVestingAccountType)
+		vAcc, name, err := s.getAnUnusedContinuousVestingAccount()
+		assert.NoError(s.T(), err)
 		address := getAddress(name, s.cctx.Keyring).String()
-
-		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
-		assert.NoError(s.T(), err)
-
-		var vAcc vestingtypes.ContinuousVestingAccount
-		err = vAcc.Unmarshal(resAccBytes)
-		assert.NoError(s.T(), err)
 
 		balances, err := testfactory.GetAccountSpendableBalance(s.cctx.GRPCClient, address)
 		assert.NoError(s.T(), err)
@@ -358,14 +298,7 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsDelegation(
 
 	// find and test a vesting account that has some vesting (locked) balance
 	for {
-		name := s.unusedAccount(ContinuousVestingAccountType)
-		address := getAddress(name, s.cctx.Keyring).String()
-
-		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
-		assert.NoError(s.T(), err)
-
-		var vAcc vestingtypes.ContinuousVestingAccount
-		err = vAcc.Unmarshal(resAccBytes)
+		vAcc, name, err := s.getAnUnusedContinuousVestingAccount()
 		assert.NoError(s.T(), err)
 
 		// 10 seconds is chosen to be on the safe side
@@ -384,14 +317,7 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsDelegationP
 	// find and test a vesting account that has some vesting (locked) and
 	// some vested (unlocked) balance
 	for {
-		name := s.unusedAccount(ContinuousVestingAccountType)
-		address := getAddress(name, s.cctx.Keyring).String()
-
-		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
-		assert.NoError(s.T(), err)
-
-		var vAcc vestingtypes.ContinuousVestingAccount
-		err = vAcc.Unmarshal(resAccBytes)
+		vAcc, name, err := s.getAnUnusedContinuousVestingAccount()
 		assert.NoError(s.T(), err)
 
 		if vAcc.StartTime < tmtime.Now().Unix() {
@@ -417,14 +343,7 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsClaimDelega
 	// find and test a vesting account that has some vesting (locked) balance
 	// to be on the safe side we select one that starts unlocking in at least 20 seconds
 	for {
-		name := s.unusedAccount(ContinuousVestingAccountType)
-		address := getAddress(name, s.cctx.Keyring).String()
-
-		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
-		assert.NoError(s.T(), err)
-
-		var vAcc vestingtypes.ContinuousVestingAccount
-		err = vAcc.Unmarshal(resAccBytes)
+		vAcc, name, err := s.getAnUnusedContinuousVestingAccount()
 		assert.NoError(s.T(), err)
 
 		if vAcc.StartTime > tmtime.Now().Unix()+20 {
@@ -691,6 +610,43 @@ func (s *VestingModuleTestSuite) unusedAccount(accType accountType) string {
 	s.accounts.Store(accType, accounts)
 
 	return name
+}
+
+// getAnUnusedContinuousVestingAccount retrieves an unused continuous vesting account.
+func (s *VestingModuleTestSuite) getAnUnusedContinuousVestingAccount() (vAcc vestingtypes.ContinuousVestingAccount, name string, err error) {
+	name = s.unusedAccount(ContinuousVestingAccountType)
+	address := getAddress(name, s.cctx.Keyring).String()
+	resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
+	if err != nil {
+		return vAcc, name, err
+	}
+
+	err = vAcc.Unmarshal(resAccBytes)
+	return vAcc, name, err
+}
+
+func (s *VestingModuleTestSuite) getAnUnusedPeriodicVestingAccount() (vAcc vestingtypes.PeriodicVestingAccount, name string, err error) {
+	name = s.unusedAccount(PeriodicVestingAccountType)
+	address := getAddress(name, s.cctx.Keyring).String()
+	resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
+	if err != nil {
+		return vAcc, name, err
+	}
+
+	err = vAcc.Unmarshal(resAccBytes)
+	return vAcc, name, err
+}
+
+func (s *VestingModuleTestSuite) getAnUnusedDelayedVestingAccount() (vAcc vestingtypes.DelayedVestingAccount, name string, err error) {
+	name = s.unusedAccount(DelayedVestingAccountType)
+	address := getAddress(name, s.cctx.Keyring).String()
+	resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
+	if err != nil {
+		return vAcc, name, err
+	}
+
+	err = vAcc.Unmarshal(resAccBytes)
+	return vAcc, name, err
 }
 
 func (t accountType) String() string {
