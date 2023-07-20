@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
@@ -52,12 +50,7 @@ func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 func (k Keeper) PayForBlobs(goCtx context.Context, msg *types.MsgPayForBlobs) (*types.MsgPayForBlobsResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
-	var totalSharesUsed uint64
-	for _, size := range msg.BlobSizes {
-		totalSharesUsed += uint64(shares.SparseSharesNeeded(size))
-	}
-
-	gasToConsume := totalSharesUsed * appconsts.ShareSize * uint64(k.GasPerBlobByte(ctx))
+	gasToConsume := types.GasToConsume(msg.BlobSizes, k.GasPerBlobByte(ctx))
 	ctx.GasMeter().ConsumeGas(gasToConsume, payForBlobGasDescriptor)
 
 	err := ctx.EventManager().EmitTypedEvent(
