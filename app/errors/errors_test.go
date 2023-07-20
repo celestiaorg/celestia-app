@@ -33,8 +33,8 @@ func TestInsufficientMinGasPriceIntegration(t *testing.T) {
 	ctx := testApp.NewContext(true, tmproto.Header{}).WithMinGasPrices(minGasPrice)
 	signer := blob.NewKeyringSigner(kr, account, testutil.ChainID)
 	builder := signer.NewTxBuilder()
-	builder.SetGasLimit(1_000_000)
-	builder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(10))))
+	builder.SetGasLimit(gasLimit)
+	builder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(feeAmount))))
 
 	address, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
