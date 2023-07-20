@@ -181,6 +181,7 @@ func leftPad(b []byte, size int) []byte {
 	return append(pad, b...)
 }
 
+// deepCopy returns a deep copy of the Namespace object.
 func (n Namespace) deepCopy() Namespace {
 	// Create a deep copy of the ID slice
 	copyID := make([]byte, len(n.ID))
