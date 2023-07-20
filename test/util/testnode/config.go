@@ -19,6 +19,8 @@ import (
 type Config struct {
 	// ChainID is the chain ID of the network.
 	ChainID string
+	// GenesisTime is the genesis block time of the network.
+	GenesisTime time.Time
 	// TmConfig is the Tendermint configuration used for the network.
 	TmConfig *tmconfig.Config
 	// AppConfig is the application configuration of the test node.
@@ -91,11 +93,18 @@ func (c *Config) WithSupressLogs(sl bool) *Config {
 	return c
 }
 
+// WithGensisTime sets the GenesisTime and returns the Config.
+func (c *Config) WithGensisTime(t time.Time) *Config {
+	c.GenesisTime = t
+	return c
+}
+
 func DefaultConfig() *Config {
 	tmcfg := DefaultTendermintConfig()
 	tmcfg.Consensus.TimeoutCommit = 1 * time.Millisecond
 	cfg := &Config{}
 	return cfg.
+		WithGensisTime(time.Now()).
 		WithAccounts([]string{}).
 		WithChainID(tmrand.Str(6)).
 		WithTendermintConfig(DefaultTendermintConfig()).
