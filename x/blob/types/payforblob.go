@@ -125,7 +125,7 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 		if err != nil {
 			return errors.Wrap(ErrInvalidNamespace, err.Error())
 		}
-		err = ValidateBlobNamespace(ns)
+		err = ns.ValidateBlobNamespace()
 		if err != nil {
 			return err
 		}
@@ -179,28 +179,6 @@ func EstimateGas(blobSizes []uint32, gasPerByte uint32, txSizeCost uint64) uint6
 // through governance, thus this function should predominantly be used in testing.
 func DefaultEstimateGas(blobSizes []uint32) uint64 {
 	return EstimateGas(blobSizes, appconsts.DefaultGasPerBlobByte, auth.DefaultTxSizeCostPerByte)
-}
-
-// ValidateBlobNamespace returns an error if the provided namespace is reserved,
-// parity shares, or tail padding.
-func ValidateBlobNamespace(ns appns.Namespace) error {
-	if ns.IsReserved() {
-		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", ns, appns.MaxReservedNamespace)
-	}
-
-	if ns.IsParityShares() {
-		return ErrParitySharesNamespace
-	}
-
-	if ns.IsTailPadding() {
-		return ErrTailPaddingNamespace
-	}
-
-	if ns.Version != appns.NamespaceVersionZero {
-		return ErrInvalidNamespaceVersion
-	}
-
-	return nil
 }
 
 // GetSignBytes fulfills the legacytx.LegacyMsg interface by returning a deterministic set

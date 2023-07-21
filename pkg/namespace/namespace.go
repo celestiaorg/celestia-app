@@ -3,6 +3,8 @@ package namespace
 import (
 	"bytes"
 	"fmt"
+
+	"golang.org/x/exp/slices"
 )
 
 type Namespace struct {
@@ -12,7 +14,7 @@ type Namespace struct {
 
 // New returns a new namespace with the provided version and id.
 func New(version uint8, id []byte) (Namespace, error) {
-	err := validateVersion(version)
+	err := validateVersionSupported(version)
 	if err != nil {
 		return Namespace{}, err
 	}
@@ -83,8 +85,13 @@ func (n Namespace) Bytes() []byte {
 	return append([]byte{n.Version}, n.ID...)
 }
 
-// ValidateBlobNamespace returns an error if this namespace is not a valid blob namespace.
+// ValidateBlobNamespace returns an error if this namespace is not a valid
+// user-specifiable blob namespace.
 func (n Namespace) ValidateBlobNamespace() error {
+	if !slices.Contains(SupportedBlobNamespaceVersions, n.Version) {
+		return fmt.Errorf("invalid blob namespace version: %v", n.Version)
+	}
+
 	if n.IsReserved() {
 		return fmt.Errorf("invalid blob namespace: %v cannot use a reserved namespace ID, want > %v", n.Bytes(), MaxReservedNamespace.Bytes())
 	}
@@ -100,8 +107,8 @@ func (n Namespace) ValidateBlobNamespace() error {
 	return nil
 }
 
-// validateVersion returns an error if the version is not supported.
-func validateVersion(version uint8) error {
+// validateVersionSupported returns an error if the version is not supported.
+func validateVersionSupported(version uint8) error {
 	if version != NamespaceVersionZero && version != NamespaceVersionMax {
 		return fmt.Errorf("unsupported namespace version %v", version)
 	}
