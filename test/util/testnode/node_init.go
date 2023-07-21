@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -26,25 +27,22 @@ import (
 	tmos "github.com/tendermint/tendermint/libs/os"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
-	tmtime "github.com/tendermint/tendermint/types/time"
 )
 
 // NodeEVMPrivateKey the key used to initialize the test node validator.
 // Its corresponding address is: "0x9c2B12b5a07FC6D719Ed7646e5041A7E85758329".
 var NodeEVMPrivateKey, _ = crypto.HexToECDSA("64a1d6f0e760a8d62b4afdde4096f16f51b401eaaecc915740f71770ea76a8ad")
 
-func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey cryptotypes.PubKey, nodeID, chainID, rootDir string) error {
-	genTime := tmtime.Now()
-
+func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey cryptotypes.PubKey, nodeID, rootDir string) error {
 	gentxsDir := filepath.Join(rootDir, "gentxs")
-
-	initCfg := genutiltypes.NewInitConfig(chainID, gentxsDir, nodeID, pubKey)
 
 	genFile := tmCfg.GenesisFile()
 	genDoc, err := types.GenesisDocFromFile(genFile)
 	if err != nil {
 		return err
 	}
+
+	initCfg := genutiltypes.NewInitConfig(genDoc.ChainID, gentxsDir, nodeID, pubKey)
 
 	appState, err := genutil.GenAppStateFromConfig(
 		encCfg.Codec,
@@ -59,8 +57,8 @@ func collectGenFiles(tmCfg *config.Config, encCfg encoding.Config, pubKey crypto
 	}
 
 	genDoc = &types.GenesisDoc{
-		GenesisTime:     genTime,
-		ChainID:         chainID,
+		GenesisTime:     genDoc.GenesisTime,
+		ChainID:         genDoc.ChainID,
 		Validators:      nil,
 		AppState:        appState,
 		ConsensusParams: genDoc.ConsensusParams,
@@ -79,6 +77,7 @@ func initGenFiles(
 	_ codec.Codec,
 	file,
 	chainID string,
+	genTime time.Time,
 ) error {
 	appGenStateJSON, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
@@ -86,6 +85,7 @@ func initGenFiles(
 	}
 
 	genDoc := types.GenesisDoc{
+		GenesisTime:     genTime,
 		ChainID:         chainID,
 		AppState:        appGenStateJSON,
 		ConsensusParams: cparams,
@@ -95,6 +95,8 @@ func initGenFiles(
 	return genDoc.SaveAs(file)
 }
 
+// createValidator creates a genesis transaction for adding a validator account.
+// The transaction is stored in the `test.json` file under the 'baseDir/gentxs`.
 func createValidator(
 	kr keyring.Keyring,
 	encCfg encoding.Config,

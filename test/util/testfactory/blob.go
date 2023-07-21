@@ -80,6 +80,6 @@ func DelimLen(size uint64) int {
 }
 
 func SortBlobs(blobs []types.Blob) []types.Blob {
-	sort.Slice(blobs, func(i, j int) bool { return bytes.Compare(blobs[i].NamespaceID, blobs[j].NamespaceID) < 0 })
+	sort.SliceStable(blobs, func(i, j int) bool { return bytes.Compare(blobs[i].Namespace(), blobs[j].Namespace()) < 0 })
 	return blobs
 }

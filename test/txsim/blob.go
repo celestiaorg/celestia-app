@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	ns "github.com/celestiaorg/celestia-app/pkg/namespace"
 	"github.com/celestiaorg/celestia-app/test/util/blobfactory"
 	blob "github.com/celestiaorg/celestia-app/x/blob/types"
@@ -86,7 +85,7 @@ func (s *BlobSequence) Next(_ context.Context, _ grpc.ClientConn, rand *rand.Ran
 	return Operation{
 		Msgs:     []types.Msg{msg},
 		Blobs:    blobs,
-		GasLimit: EstimateGas(sizes),
+		GasLimit: estimateGas(sizes),
 	}, nil
 }
 
@@ -107,18 +106,12 @@ func (r Range) Rand(rand *rand.Rand) int {
 	return rand.Intn(r.Max-r.Min) + r.Min
 }
 
-const (
-	perByteGasTolerance = 2
-	pfbGasFixedCost     = 80000
-)
-
-// EstimateGas estimates the gas required to pay for a set of blobs in a PFB.
-func EstimateGas(blobSizes []int) uint64 {
-	totalByteCount := 0
-	for _, size := range blobSizes {
-		totalByteCount += size
+// estimateGas estimates the gas required to pay for a set of blobs in a PFB.
+func estimateGas(blobSizes []int) uint64 {
+	size := make([]uint32, len(blobSizes))
+	for i, s := range blobSizes {
+		size[i] = uint32(s)
 	}
-	variableGasAmount := (appconsts.DefaultGasPerBlobByte + perByteGasTolerance) * totalByteCount
 
-	return uint64(variableGasAmount + pfbGasFixedCost)
+	return blob.DefaultEstimateGas(size)
 }

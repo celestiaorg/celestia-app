@@ -213,8 +213,7 @@ A proof for a leaf in a [binary Merkle tree](#binary-merkle-tree), as per Sectio
 
 ### Namespace Merkle Tree
 
-
-<!-- disable markdown link check for bitcointalk.org because it frequently fails --> 
+<!-- disable markdown link check for bitcointalk.org because it frequently fails -->
 <!-- markdown-link-check-disable -->
 [Shares](./shares.md) in Celestia are associated with a provided _namespace_. The Namespace Merkle Tree (NMT) is a variation of the [Merkle Interval Tree](https://eprint.iacr.org/2018/642), which is itself an extension of the [Merkle Sum Tree](https://bitcointalk.org/index.php?topic=845978.0). It allows for compact proofs around the inclusion or exclusion of shares with particular namespace IDs.
 <!-- markdown-link-check-enable -->

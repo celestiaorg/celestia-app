@@ -5,6 +5,42 @@ DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bu
 IMAGE := ghcr.io/tendermint/docker-build-proto:latest
 DOCKER_PROTO_BUILDER := docker run -v $(shell pwd):/workspace --workdir /workspace $(IMAGE)
 PROJECTNAME=$(shell basename "$(PWD)")
+LEDGER_ENABLED ?= true
+
+
+# process build tags
+build_tags =
+ifeq ($(LEDGER_ENABLED),true)
+  ifeq ($(OS),Windows_NT)
+    GCCEXE = $(shell where gcc.exe 2> NUL)
+    ifeq ($(GCCEXE),)
+      $(error gcc.exe not installed for ledger support, please install or set LEDGER_ENABLED=false)
+    else
+      build_tags += ledger
+    endif
+  else
+    UNAME_S = $(shell uname -s)
+    ifeq ($(UNAME_S),OpenBSD)
+      $(warning OpenBSD detected, disabling ledger support (https://github.com/cosmos/cosmos-sdk/issues/1988))
+    else
+      GCC = $(shell command -v gcc 2> /dev/null)
+      ifeq ($(GCC),)
+        $(error gcc not installed for ledger support, please install or set LEDGER_ENABLED=false)
+      else
+        build_tags += ledger
+      endif
+    endif
+  endif
+endif
+build_tags := $(strip $(build_tags))
+
+empty :=
+whitespace := $(empty) $(empty)
+comma := ,
+
+# convert build_tags from a whitespace seperated list to a comma seperated list
+build_tags_comma_sep := $(subst $(whitespace),$(comma),$(build_tags))
+
 
 # process linker flags
 ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
@@ -14,7 +50,7 @@ ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app \
 		  -X "github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma_sep)"
 ldflags += $(LDFLAGS)
 
-BUILD_FLAGS := -ldflags '$(ldflags)'
+BUILD_FLAGS := -tags "$(build_tags)" -ldflags '$(ldflags)'
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -99,7 +135,7 @@ fmt:
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
 
-## test: Run unit tests.
+## test: Run tests.
 test:
 	@echo "--> Running tests"
 	@go test -mod=readonly -timeout 30m ./...
@@ -110,6 +146,12 @@ test-short:
 	@echo "--> Running tests in short mode"
 	@go test -mod=readonly ./... -short
 .PHONY: test-short
+
+## test-e2e: Run end to end tests via knuu.
+test-e2e:
+	@echo "--> Running e2e tests"
+	@KNUU_NAMESPACE=celestia-app E2E=true go test -mod=readonly ./test/e2e/... -timeout 30m
+.PHONY: test-e2e
 
 ## test-race: Run unit tests in race mode.
 test-race:
