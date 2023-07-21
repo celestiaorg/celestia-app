@@ -127,7 +127,7 @@ func (msg *MsgPayForBlobs) ValidateBasic() error {
 		}
 		err = ns.ValidateBlobNamespace()
 		if err != nil {
-			return err
+			return errors.Wrap(ErrInvalidBlobNamespace, err.Error())
 		}
 	}
 
