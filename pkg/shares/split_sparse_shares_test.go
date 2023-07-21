@@ -48,7 +48,8 @@ func TestWriteNamespacePaddingShares(t *testing.T) {
 
 	err := sss.Write(blob1)
 	assert.NoError(t, err)
-	sss.WriteNamespacePaddingShares(1)
+	err = sss.WriteNamespacePaddingShares(1)
+	assert.NoError(t, err)
 
 	// got is expected to be [blob1, padding]
 	got := sss.Export()
