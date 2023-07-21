@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestRemoval verified that no handler exists for msg-based software upgrade
+// proposals.
 func TestRemoval(t *testing.T) {
 	app, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	sftwrUpgrd := sdkupgradetypes.MsgSoftwareUpgrade{}
 	router := app.MsgServiceRouter()
 	handler := router.Handler(&sftwrUpgrd)
 	require.Nil(t, handler)
-	// TODO should this also verify that no handler exists for a legacy software
-	// upgrade proposal?
 }
