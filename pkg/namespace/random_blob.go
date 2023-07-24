@@ -40,7 +40,7 @@ func RandomBlobNamespaces(rand *tmrand.Rand, count int) (namespaces []Namespace)
 	return namespaces
 }
 
-// ValidateBlobNamespace returns an error if this namespace is not a valid
+// validateBlobNamespace returns an error if this namespace is not a valid
 // user-specifiable blob namespace.
 func validateBlobNamespace(ns Namespace) error {
 	if ns.IsReserved() {
