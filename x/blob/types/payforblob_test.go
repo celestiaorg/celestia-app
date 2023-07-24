@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	sdkerrors "cosmossdk.io/errors"
@@ -176,27 +177,27 @@ func TestValidateBasic(t *testing.T) {
 		{
 			name:    "parity shares namespace",
 			msg:     paritySharesMsg,
-			wantErr: ErrInvalidBlobNamespace,
+			wantErr: ErrParitySharesNamespace,
 		},
 		{
 			name:    "tail padding namespace",
 			msg:     tailPaddingMsg,
-			wantErr: ErrInvalidBlobNamespace,
+			wantErr: ErrTailPaddingNamespace,
 		},
 		{
 			name:    "tx namespace",
 			msg:     txNamespaceMsg,
-			wantErr: ErrInvalidBlobNamespace,
+			wantErr: ErrReservedNamespace,
 		},
 		{
 			name:    "intermediate state root namespace",
 			msg:     intermediateStateRootsNamespaceMsg,
-			wantErr: ErrInvalidBlobNamespace,
+			wantErr: ErrReservedNamespace,
 		},
 		{
 			name:    "max reserved namespace",
 			msg:     maxReservedNamespaceMsg,
-			wantErr: ErrInvalidBlobNamespace,
+			wantErr: ErrReservedNamespace,
 		},
 		{
 			name:    "empty share commitment",
@@ -231,7 +232,7 @@ func TestValidateBasic(t *testing.T) {
 		{
 			name:    "invalid namespace version",
 			msg:     invalidNamespaceVersionMsgPayForBlobs(t),
-			wantErr: ErrInvalidBlobNamespace,
+			wantErr: ErrInvalidNamespaceVersion,
 		},
 	}
 
@@ -244,6 +245,7 @@ func TestValidateBasic(t *testing.T) {
 				space, code, log := sdkerrors.ABCIInfo(err, false)
 				assert.Equal(t, tt.wantErr.Codespace(), space)
 				assert.Equal(t, tt.wantErr.ABCICode(), code)
+				fmt.Printf("code %v", code)
 				t.Log(log)
 			}
 		})

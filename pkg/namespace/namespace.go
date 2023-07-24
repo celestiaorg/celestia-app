@@ -3,8 +3,6 @@ package namespace
 import (
 	"bytes"
 	"fmt"
-
-	"golang.org/x/exp/slices"
 )
 
 type Namespace struct {
@@ -83,28 +81,6 @@ func From(b []byte) (Namespace, error) {
 // Bytes returns this namespace as a byte slice.
 func (n Namespace) Bytes() []byte {
 	return append([]byte{n.Version}, n.ID...)
-}
-
-// ValidateBlobNamespace returns an error if this namespace is not a valid
-// user-specifiable blob namespace.
-func (n Namespace) ValidateBlobNamespace() error {
-	if !slices.Contains(SupportedBlobNamespaceVersions, n.Version) {
-		return fmt.Errorf("invalid blob namespace version: %v", n.Version)
-	}
-
-	if n.IsReserved() {
-		return fmt.Errorf("invalid blob namespace: %v cannot use a reserved namespace ID, want > %v", n.Bytes(), MaxReservedNamespace.Bytes())
-	}
-
-	if n.IsParityShares() {
-		return fmt.Errorf("invalid blob namespace: %v cannot use parity shares namespace ID", n.Bytes())
-	}
-
-	if n.IsTailPadding() {
-		return fmt.Errorf("invalid blob namespace: %v cannot use tail padding namespace ID", n.Bytes())
-	}
-
-	return nil
 }
 
 // validateVersionSupported returns an error if the version is not supported.
