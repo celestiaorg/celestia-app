@@ -173,6 +173,8 @@ func (n Namespace) IsGreaterOrEqualThan(n2 Namespace) bool {
 	return bytes.Compare(n.Bytes(), n2.Bytes()) > -1
 }
 
+// leftPad returns a new byte slice with the provided byte slice left-padded to the provided size.
+// If the provided byte slice is already larger than the provided size, the original byte slice is returned.
 func leftPad(b []byte, size int) []byte {
 	if len(b) >= size {
 		return b

@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"bytes"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -207,4 +208,34 @@ func TestBytes(t *testing.T) {
 	got := namespace.Bytes()
 
 	assert.Equal(t, want, got)
+}
+
+func TestLeftPad(t *testing.T) {
+	tests := []struct {
+		input    []byte
+		size     int
+		expected []byte
+	}{
+		// input smaller than pad size
+		{[]byte{1, 2, 3}, 10, []byte{0, 0, 0, 0, 0, 0, 0, 1, 2, 3}},
+		{[]byte{1}, 5, []byte{0, 0, 0, 0, 1}},
+		{[]byte{1, 2}, 4, []byte{0, 0, 1, 2}},
+
+		// input equal to pad size
+		{[]byte{1, 2, 3}, 3, []byte{1, 2, 3}},
+		{[]byte{1, 2, 3, 4}, 4, []byte{1, 2, 3, 4}},
+
+		// input larger than pad size
+		{[]byte{1, 2, 3, 4, 5}, 4, []byte{1, 2, 3, 4, 5}},
+		{[]byte{1, 2, 3, 4, 5, 6, 7}, 3, []byte{1, 2, 3, 4, 5, 6, 7}},
+
+		// input size 0
+		{[]byte{}, 8, []byte{0, 0, 0, 0, 0, 0, 0, 0}},
+		{[]byte{}, 0, []byte{}},
+	}
+
+	for _, test := range tests {
+		result := leftPad(test.input, test.size)
+		assert.True(t, reflect.DeepEqual(result, test.expected))
+	}
 }
