@@ -20,3 +20,11 @@ jobs:
     uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.2.2 # yamllint disable-line rule:line-length
     with:
       dockerfile: Dockerfile
+
+  docker-txsim-build:
+    permissions:
+      contents: write
+      packages: write
+    uses: celestiaorg/.github/.github/workflows/reusable_dockerfile_pipeline.yml@v0.2.2
+    with:
+      dockerfile: docker/Dockerfile_txsim
