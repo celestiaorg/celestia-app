@@ -73,6 +73,19 @@ func TestNew(t *testing.T) {
 	}
 }
 
+// TestRepeatNonMutability ensures that the output of Repeat method is not mutated when the original namespace is mutated.
+func TestRepeatNonMutability(t *testing.T) {
+	n := 10
+	namespace := Namespace{Version: NamespaceVersionMax, ID: []byte{1, 2, 3, 4}}
+	repeated := namespace.Repeat(n)
+	// mutate the original namespace
+	namespace.ID[0] = 5
+	// ensure the repeated namespaces are not mutated
+	for i := 0; i < n; i++ {
+		assert.NotEqual(t, repeated[i], namespace)
+	}
+}
+
 func TestNewV0(t *testing.T) {
 	type testCase struct {
 		name    string

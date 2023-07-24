@@ -148,7 +148,7 @@ func (n Namespace) IsPayForBlob() bool {
 func (n Namespace) Repeat(times int) []Namespace {
 	ns := make([]Namespace, times)
 	for i := 0; i < times; i++ {
-		ns[i] = n
+		ns[i] = n.deepCopy()
 	}
 	return ns
 }
@@ -179,4 +179,19 @@ func leftPad(b []byte, size int) []byte {
 	}
 	pad := make([]byte, size-len(b))
 	return append(pad, b...)
+}
+
+// deepCopy returns a deep copy of the Namespace object.
+func (n Namespace) deepCopy() Namespace {
+	// Create a deep copy of the ID slice
+	copyID := make([]byte, len(n.ID))
+	copy(copyID, n.ID)
+
+	// Create a new Namespace object with the copied fields
+	copyNamespace := Namespace{
+		Version: n.Version,
+		ID:      copyID,
+	}
+
+	return copyNamespace
 }
