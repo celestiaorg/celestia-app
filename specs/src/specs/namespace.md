@@ -62,6 +62,7 @@ Celestia makes use of the reserved namespaces to properly organize and order tra
 Applications MUST NOT use these reserved namespaces for their blob data. 
 
 Below is a list of reserved namespaces, along with a brief description of each.
+In addition to the items listed in this table, it should be noted that namespaces with values less than `0x00000000000000000000000000000000000000000000000000000000FF` are exclusively reserved for use within the Celestia protocols.
 In the table, you will notice that the `PARITY_SHARE_NAMESPACE` and `TAIL_PADDING_NAMESPACE` utilize the namespace version `255`, which differs from the supported user-specified versions.
 The reason for employing version `255` for the `PARITY_SHARE_NAMESPACE` is to enable more efficient proof generation within the context of [nmt](https://github.com/celestiaorg/nmt), where it is used in conjunction with the `IgnoreMaxNamespace` feature.
 Similarly, the `TAIL_PADDING_NAMESPACE` utilizes the namespace version `255` to ensure that padding shares are always properly ordered and placed at the end of the Celestia data square even if a new namespace version is introduced.
