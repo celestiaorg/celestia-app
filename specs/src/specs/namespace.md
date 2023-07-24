@@ -59,7 +59,7 @@ The ID is encoded as a byte slice of length 28.
 
 Celestia reserves certain namespaces with specific meanings.
 Celestia makes use of the reserved namespaces to properly organize and order transactions and blobs inside the [data square](./data_square_layout.md).
-Applications MUST NOT use these reserved namespaces for their blob data. 
+Applications MUST NOT use these reserved namespaces for their blob data.
 
 Below is a list of reserved namespaces, along with a brief description of each.
 In addition to the items listed in this table, it should be noted that namespaces with values less than `0x00000000000000000000000000000000000000000000000000000000FF` are exclusively reserved for use within the Celestia protocols.
