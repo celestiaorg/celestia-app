@@ -43,7 +43,7 @@ func (d *Decorator) SaveJSON() error {
 	return json.NewEncoder(file).Encode(d.Traces)
 }
 
-// NewMonitoredGasMeter wraps the provided context's gas meter with a monitored
+// NewGasConsumptionTrace wraps the provided context's gas meter with a monitored
 // version.
 func NewGasConsumptionTrace(ctx sdk.Context, tx sdk.Tx) (*GasConsumptionTrace, sdk.Context) {
 	meter := ctx.GasMeter()
@@ -106,8 +106,8 @@ func (gm *GasConsumptionTrace) RefundGas(amount sdk.Gas, descriptor string) {
 	gm.GasMeter.RefundGas(amount, descriptor)
 }
 
-// AnteHandle replaces the gas meter with the provided context with one that
-// monitors the amount of gas consumed it fulfills the ante.Decorator interface.
+// AnteHandle replaces the gas meter in the provided context with one that
+// monitors the amount of gas consumed. It fulfills the ante.Decorator interface.
 func (d *Decorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
 	if ctx.IsCheckTx() || ctx.IsReCheckTx() {
 		return next(ctx, tx, simulate)

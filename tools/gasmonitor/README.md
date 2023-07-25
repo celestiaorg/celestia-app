@@ -13,12 +13,11 @@ When creating a `testnode`, set the gas consumption trace decorator as an
 `appOption` with the specific key.
 
 ```go
-    cfg := testnode.DefaultConfig()
+	cfg := testnode.DefaultConfig()
 	dec := gasmonitor.NewDecorator()
-    // store the gas monitor to read from after execution
+	// store the gas monitor to read from after execution
 	s.gasMonitor = dec
 	cfg.AppOptions.Set(gasmonitor.AppOptionsKey, dec)
-```
 
 ### Saving Traces
 
