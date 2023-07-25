@@ -11,7 +11,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -48,6 +47,7 @@ func New(
 	t testing.TB,
 	cparams *tmproto.ConsensusParams,
 	tmCfg *config.Config,
+	appCfg *srvconfig.Config,
 	supressLog bool,
 	genState map[string]json.RawMessage,
 	kr keyring.Keyring,
@@ -99,8 +99,17 @@ func New(
 
 	appOpts := appOptions{
 		options: map[string]interface{}{
-			server.FlagPruning: pruningtypes.PruningOptionNothing,
-			flags.FlagHome:     baseDir,
+			server.FlagPruning:                     appCfg.Pruning,
+			server.FlagPruningKeepRecent:           appCfg.PruningKeepRecent,
+			server.FlagPruningInterval:             appCfg.PruningInterval,
+			flags.FlagHome:                         baseDir,
+			server.FlagMinGasPrices:                appCfg.MinGasPrices,
+			server.FlagMinRetainBlocks:             appCfg.MinRetainBlocks,
+			server.FlagIndexEvents:                 appCfg.IndexEvents,
+			server.FlagStateSyncSnapshotInterval:   appCfg.StateSync.SnapshotInterval,
+			server.FlagStateSyncSnapshotKeepRecent: appCfg.StateSync.SnapshotKeepRecent,
+			server.FlagHaltHeight:                  appCfg.HaltHeight,
+			server.FlagHaltTime:                    appCfg.HaltTime,
 		},
 	}
 
@@ -232,14 +241,14 @@ func NewNetwork(
 		genState = opt(genState)
 	}
 
-	tmNode, app, cctx, err := New(t, cparams, tmCfg, false, genState, kr, tmrand.Str(6))
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetFreePort())
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+
+	tmNode, app, cctx, err := New(t, cparams, tmCfg, appCfg, false, genState, kr, tmrand.Str(6))
 	require.NoError(t, err)
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)
-
-	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetFreePort())
-	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
 
 	cctx, cleanupGRPC, err := StartGRPCServer(app, appCfg, cctx)
 	require.NoError(t, err)
