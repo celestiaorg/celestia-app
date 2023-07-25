@@ -2,7 +2,6 @@ package types
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 
 	sdkerrors "cosmossdk.io/errors"
@@ -245,7 +244,6 @@ func TestValidateBasic(t *testing.T) {
 				space, code, log := sdkerrors.ABCIInfo(err, false)
 				assert.Equal(t, tt.wantErr.Codespace(), space)
 				assert.Equal(t, tt.wantErr.ABCICode(), code)
-				fmt.Printf("code %v", code)
 				t.Log(log)
 			}
 		})
