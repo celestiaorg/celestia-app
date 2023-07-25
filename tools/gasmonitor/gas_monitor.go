@@ -108,11 +108,11 @@ func (gm *GasConsumptionTrace) RefundGas(amount sdk.Gas, descriptor string) {
 
 // AnteHandle replaces the gas meter with the provided context with one that
 // monitors the amount of gas consumed it fulfills the ante.Decorator interface.
-func (h *Decorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
+func (d *Decorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
 	if ctx.IsCheckTx() || ctx.IsReCheckTx() {
 		return next(ctx, tx, simulate)
 	}
 	trace, ctx := NewGasConsumptionTrace(ctx, tx)
-	h.Traces = append(h.Traces, trace)
+	d.Traces = append(d.Traces, trace)
 	return next(ctx, tx, simulate)
 }
