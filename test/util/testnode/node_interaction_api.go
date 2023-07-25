@@ -327,6 +327,9 @@ func (c *Context) HeightForTimestamp(timestamp time.Time) (int64, error) {
 	return 0, fmt.Errorf("could not find block with timestamp after %v", timestamp)
 }
 
+// LatestBlock retrieves the latest block from the context.
+//
+// It returns a pointer to the latest block and an error if any.
 func (c *Context) LatestBlock() (*coretypes.Block, error) {
 	height, err := c.LatestHeight()
 	if err != nil {
