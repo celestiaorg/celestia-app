@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/tools/gasmonitor"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/testutil/mock"
@@ -56,7 +55,6 @@ func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 	}
 
 	cfg := testnode.DefaultConfig().WithAccounts(accounts)
-	cfg.AppOptions.Set(gasmonitor.AppOptionsKey, struct{}{}) // set the gas monitor
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
 	s.accounts = cfg.Accounts
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
