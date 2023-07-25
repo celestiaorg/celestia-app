@@ -35,7 +35,8 @@ func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
 	}
 
 	// First share
-	b, err := NewBuilder(blobNamespace, blob.ShareVersion, true).Init()
+	b := NewBuilder(blobNamespace, blob.ShareVersion, true)
+	err = b.Init()
 	if err != nil {
 		return err
 	}
@@ -57,7 +58,8 @@ func (sss *SparseShareSplitter) Write(blob coretypes.Blob) error {
 		}
 		sss.shares = append(sss.shares, *share)
 
-		b, err = NewBuilder(blobNamespace, blob.ShareVersion, false).Init()
+		b = NewBuilder(blobNamespace, blob.ShareVersion, false)
+		err = b.Init()
 		if err != nil {
 			return err
 		}
