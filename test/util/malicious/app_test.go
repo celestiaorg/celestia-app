@@ -68,6 +68,9 @@ func TestOutOfOrderNMT(t *testing.T) {
 // TestMaliciousTestNode runs a single validator network using the malicious
 // node. This will begin to produce out of order blocks after block height of 5.
 func TestMaliciousTestNode(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping MaliciousTestNode in short mode.")
+	}
 	accounts := testfactory.RandomAccountNames(5)
 	cfg := OutOfOrderNamespaceConfig(5).
 		WithAccounts(accounts)
