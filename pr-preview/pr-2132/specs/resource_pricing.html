@@ -139,7 +139,7 @@
                     <main>
                         <h1 id="resource-pricing"><a class="header" href="#resource-pricing">Resource Pricing</a></h1>
 <p>For all standard cosmos-sdk transactions (staking, IBC, etc), Celestia utilizes
-the default cosmos-sdk mechanisms for pricing resources. This involves
+the <a href="https://docs.cosmos.network/v0.46/basics/gas-fees.html">default cosmos-sdk mechanisms</a> for pricing resources. This involves
 incrementing a gas counter during transaction execution each time the state is
 read from/written to, or when specific costly operations occur such as signature
 verification or inclusion of data.</p>
@@ -264,6 +264,16 @@ are composable, any given transaction can have a large window of possible gas
 consumption. For example, vesting accounts use more bytes of state than a normal
 account, so more gas is consumed each time a vesting account is read from or
 updated.</p>
+<h2 id="parameters"><a class="header" href="#parameters">Parameters</a></h2>
+<p>There are three parameters that can be modified via governance to modify gas
+usage.</p>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Default Value</th><th>Description</th></tr></thead><tbody>
+<tr><td>consensus/max_gas</td><td>-1</td><td>The maximum gas allowed in a block. Default of -1 means this value is not capped.</td></tr>
+<tr><td>auth/tx_size_cost_per_byte</td><td>10</td><td>Gas used per each byte used by the transaction.</td></tr>
+<tr><td>auth/sig_verify_cost_secp256k1</td><td>1000</td><td>Gas used per verifying a secp256k1 signature</td></tr>
+<tr><td>blob/gas_per_blob_byte</td><td>8</td><td>Gas used per byte used by blob. Note that this value is applied to all encoding overhead, meaning things like the padding of the remaining share and namespace. See PFB gas estimation section for more details.</td></tr>
+</tbody></table>
+</div>
 <h2 id="gas-limit"><a class="header" href="#gas-limit">Gas Limit</a></h2>
 <p>The gas limit must be included in each transaction. If the transaction exceeds
 this gas limit during the execution of the transaction, then the transaction
