@@ -211,7 +211,7 @@ func (s *GasConsumptionTestSuite) submitPayForBlob() {
 
 	tests := []test{
 		{
-			"small random typical",
+			"single blob single share pfb",
 			blobfactory.ManyRandBlobs(t, tmrand.NewRand(), 1),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(9000)))),
@@ -219,7 +219,7 @@ func (s *GasConsumptionTestSuite) submitPayForBlob() {
 			},
 		},
 		{
-			"small random typical",
+			"two single share blobs pfb",
 			blobfactory.ManyRandBlobs(t, tmrand.NewRand(), 1, 1),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(9000)))),
@@ -227,7 +227,7 @@ func (s *GasConsumptionTestSuite) submitPayForBlob() {
 			},
 		},
 		{
-			"small random with memo",
+			"single blob single share pfb with memo",
 			blobfactory.ManyRandBlobs(t, tmrand.NewRand(), 1),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetMemo("lol I could stick the rollup block here if I wanted to"),
@@ -236,7 +236,7 @@ func (s *GasConsumptionTestSuite) submitPayForBlob() {
 			},
 		},
 		{
-			"large random typical",
+			"single large blob pfb",
 			blobfactory.ManyRandBlobs(t, tmrand.NewRand(), 100_000),
 			[]blobtypes.TxBuilderOption{
 				blobtypes.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(100000)))),
@@ -244,16 +244,14 @@ func (s *GasConsumptionTestSuite) submitPayForBlob() {
 			},
 		},
 	}
-	count := 0
-	for _, tc := range tests {
+	for i, tc := range tests {
 		s.Run(tc.name, func() {
-			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[count], s.cctx.ChainID)
+			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[i], s.cctx.ChainID)
 			res, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, tc.blobs, tc.opts...)
 			require.NoError(t, err)
 			require.NotNil(t, res)
 			require.Equal(t, abci.CodeTypeOK, res.Code, res.Codespace, res.Logs)
 		})
-		count++
 	}
 }
 
