@@ -43,10 +43,13 @@ func NewAnteHandler(
 		ibcante.NewRedundantRelayDecorator(channelKeeper),
 	}
 
-	if useGasMonitor := appOpts.Get(gasmonitor.AppOptionsKey); useGasMonitor != nil {
+	// record a gas consumption trace for each transaction executed. see
+	// tools/gasmonitor for more details
+	if gasConsumuptionMonitor := appOpts.Get(gasmonitor.AppOptionsKey); gasConsumuptionMonitor != nil {
+		gcm := gasConsumuptionMonitor.(*gasmonitor.Decorator)
 		decorators = append(decorators, nil)
 		copy(decorators[2:], decorators[1:])
-		decorators[1] = gasmonitor.NewDecorator()
+		decorators[1] = gcm
 	}
 
 	return sdk.ChainAnteDecorators(decorators...)
