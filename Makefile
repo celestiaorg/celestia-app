@@ -186,7 +186,7 @@ txsim-build:
 	@go mod tidy -compat=1.20
 .PHONY: txsim-build
 
-## docker-txsim-build: Build the Docker image tx simulator.
+## txsim-build-docker: Build the tx simulator Docker image. Requires Docker.
 txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/Dockerfile_txsim  .
 .PHONY: txsim-build-docker
