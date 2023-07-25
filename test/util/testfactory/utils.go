@@ -331,8 +331,8 @@ func GetAccountDelegations(grpcConn *grpc.ClientConn, address string) (stakingty
 // - address: The account address to retrieve the spendable balances for.
 //
 // Returns:
-// The spendable balances of the account as an sdk.Coins object, or nil and an error if the retrieval fails.
-func GetAccountSpendableBalance(grpcConn *grpc.ClientConn, address string) (sdk.Coins, error) {
+// The spendable balances of the account as an sdk.Coins object, query time, or nil and an error if the retrieval fails.
+func GetAccountSpendableBalance(grpcConn *grpc.ClientConn, address string) (balances sdk.Coins, queryTime int64, err error) {
 	cli := banktypes.NewQueryClient(grpcConn)
 	res, err := cli.SpendableBalances(
 		context.Background(),
@@ -341,9 +341,9 @@ func GetAccountSpendableBalance(grpcConn *grpc.ClientConn, address string) (sdk.
 		},
 	)
 	if err != nil || res == nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return res.GetBalances(), nil
+	return res.GetBalances(), res.QueryTime, nil
 }
 
 // GetRawAccountInfo retrieves the raw account information for the specified address using gRPC.
