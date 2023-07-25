@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -12,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	grpctypes "github.com/cosmos/cosmos-sdk/types/grpc"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -20,6 +22,7 @@ import (
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -331,8 +334,8 @@ func GetAccountDelegations(grpcConn *grpc.ClientConn, address string) (stakingty
 // - address: The account address to retrieve the spendable balances for.
 //
 // Returns:
-// The spendable balances of the account as an sdk.Coins object, query time, or nil and an error if the retrieval fails.
-func GetAccountSpendableBalance(grpcConn *grpc.ClientConn, address string) (balances sdk.Coins, queryTime int64, err error) {
+// The spendable balances of the account as an sdk.Coins object, or nil and an error if the retrieval fails.
+func GetAccountSpendableBalance(grpcConn *grpc.ClientConn, address string) (balances sdk.Coins, err error) {
 	cli := banktypes.NewQueryClient(grpcConn)
 	res, err := cli.SpendableBalances(
 		context.Background(),
@@ -341,9 +344,35 @@ func GetAccountSpendableBalance(grpcConn *grpc.ClientConn, address string) (bala
 		},
 	)
 	if err != nil || res == nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return res.GetBalances(), res.QueryTime, nil
+	return res.GetBalances(), nil
+}
+
+// GetAccountSpendableBalanceByHeight retrieves the spendable balance of an account for the specified address at the given height using gRPC.
+// It takes a gRPC client connection (grpcConn) and the account address (address) as inputs.
+// If the account is not found or an error occurs, it returns nil and the error.
+// Otherwise, it returns the spendable balances of the account as an sdk.Coins object.
+//
+// Parameters:
+// - grpcConn: A gRPC client connection.
+// - address: The account address to retrieve the spendable balances for.
+// - height: The height at which to retrieve the spendable balances.
+//
+// Returns:
+// The spendable balances of the account as an sdk.Coins object, or nil and an error if the retrieval fails.
+func GetAccountSpendableBalanceByHeight(grpcConn *grpc.ClientConn, address string, height int64) (balances sdk.Coins, err error) {
+	cli := banktypes.NewQueryClient(grpcConn)
+	res, err := cli.SpendableBalances(
+		metadata.AppendToOutgoingContext(context.Background(), grpctypes.GRPCBlockHeightHeader, fmt.Sprint(height)),
+		&banktypes.QuerySpendableBalancesRequest{
+			Address: address,
+		},
+	)
+	if err != nil || res == nil {
+		return nil, err
+	}
+	return res.GetBalances(), nil
 }
 
 // GetRawAccountInfo retrieves the raw account information for the specified address using gRPC.

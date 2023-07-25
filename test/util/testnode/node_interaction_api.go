@@ -326,3 +326,16 @@ func (c *Context) HeightForTimestamp(timestamp time.Time) (int64, error) {
 	}
 	return 0, fmt.Errorf("could not find block with timestamp after %v", timestamp)
 }
+
+func (c *Context) LatestBlock() (*coretypes.Block, error) {
+	height, err := c.LatestHeight()
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := c.Client.Block(context.Background(), &height)
+	if err != nil {
+		return nil, err
+	}
+	return result.Block, nil
+}

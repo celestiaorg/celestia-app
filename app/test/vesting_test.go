@@ -103,10 +103,13 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsSpendableBalan
 		assert.NoError(s.T(), err)
 		address := getAddress(name, s.cctx.Keyring).String()
 
-		balances, queryTime, err := testfactory.GetAccountSpendableBalance(s.cctx.GRPCClient, address)
+		block, err := s.cctx.LatestBlock()
 		assert.NoError(s.T(), err)
 
-		alreadyVested := vAcc.EndTime < queryTime
+		balances, err := testfactory.GetAccountSpendableBalanceByHeight(s.cctx.GRPCClient, address, block.Height)
+		assert.NoError(s.T(), err)
+
+		alreadyVested := vAcc.EndTime < block.Time.Unix()
 		expectedSpendableBal := initBalanceForGasFee
 		if alreadyVested {
 			expectedSpendableBal += vestingAmount
@@ -182,10 +185,13 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsSpendableBala
 		assert.NoError(s.T(), err)
 		address := getAddress(name, s.cctx.Keyring).String()
 
-		balances, queryTime, err := testfactory.GetAccountSpendableBalance(s.cctx.GRPCClient, address)
+		block, err := s.cctx.LatestBlock()
 		assert.NoError(s.T(), err)
 
-		vestedCoins := vAcc.GetVestedCoins(time.Unix(queryTime, 0))
+		balances, err := testfactory.GetAccountSpendableBalanceByHeight(s.cctx.GRPCClient, address, block.Height)
+		assert.NoError(s.T(), err)
+
+		vestedCoins := vAcc.GetVestedCoins(block.Time)
 		expectedSpendableCoins := vestedCoins.Add(initCoinsForGasFee)
 		assert.EqualValues(s.T(),
 			expectedSpendableCoins.AmountOf(app.BondDenom).Int64(),
@@ -274,10 +280,13 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsSpendableBa
 		assert.NoError(s.T(), err)
 		address := getAddress(name, s.cctx.Keyring).String()
 
-		balances, queryTime, err := testfactory.GetAccountSpendableBalance(s.cctx.GRPCClient, address)
+		block, err := s.cctx.LatestBlock()
 		assert.NoError(s.T(), err)
 
-		vestedCoins := vAcc.GetVestedCoins(time.Unix(queryTime, 0))
+		balances, err := testfactory.GetAccountSpendableBalanceByHeight(s.cctx.GRPCClient, address, block.Height)
+		assert.NoError(s.T(), err)
+
+		vestedCoins := vAcc.GetVestedCoins(block.Time)
 		maxExpectedSpendableBalCoins := vestedCoins.Add(initCoinsForGasFee)
 		assert.LessOrEqual(s.T(),
 			balances.AmountOf(app.BondDenom).Int64(),
@@ -433,7 +442,7 @@ func (s *VestingModuleTestSuite) testClaimDelegationReward(name string) {
 	rewardAmount := resR.Rewards[0].Reward.AmountOf(app.BondDenom).RoundInt().Int64()
 	assert.Greater(s.T(), rewardAmount, int64(0), "rewards must be more than zero")
 
-	balancesBefore, _, err := testfactory.GetAccountSpendableBalance(s.cctx.GRPCClient, address)
+	balancesBefore, err := testfactory.GetAccountSpendableBalance(s.cctx.GRPCClient, address)
 	assert.NoError(s.T(), err)
 
 	// minExpectedBalance is used because more tokens may be vested to the
@@ -456,7 +465,7 @@ func (s *VestingModuleTestSuite) testClaimDelegationReward(name string) {
 	assert.EqualValues(s.T(), 0, resQ.TxResult.Code, fmt.Sprintf("the claim reward TX must succeed: \n%s", resQ.TxResult.String()))
 
 	// Check if the reward amount in the account
-	balancesAfter, _, err := testfactory.GetAccountSpendableBalance(s.cctx.GRPCClient, address)
+	balancesAfter, err := testfactory.GetAccountSpendableBalance(s.cctx.GRPCClient, address)
 	assert.NoError(s.T(), err)
 
 	assert.GreaterOrEqual(s.T(), balancesAfter.AmountOf(app.BondDenom).Int64(), minExpectedBalance)
