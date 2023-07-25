@@ -107,7 +107,7 @@ func (css *CompactShareSplitter) stackPending() error {
 
 	// Now we need to create a new builder
 	css.shareBuilder = NewBuilder(css.namespace, css.shareVersion, false)
-	css.shareBuilder.Init()
+	err = css.shareBuilder.Init()
 	return err
 }
 
