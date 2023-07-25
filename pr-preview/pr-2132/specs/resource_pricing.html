@@ -139,7 +139,7 @@
                     <main>
                         <h1 id="resource-pricing"><a class="header" href="#resource-pricing">Resource Pricing</a></h1>
 <p>For all standard cosmos-sdk transactions (staking, IBC, etc), Celestia utilizes
-the standard cosmos-sdk mechanisms for pricing resources. This involves
+the default cosmos-sdk mechanisms for pricing resources. This involves
 incrementing a gas counter during transaction execution each time the state is
 read from/written to, or when specific costly operations occur such as signature
 verification or inclusion of data.</p>
@@ -210,8 +210,8 @@ func TransientGasConfig() GasConfig {
 	}
 }
 </code></pre>
-<p>Two notable gas consumption events that are not Celestia specific are the
-total bytes used for a transaction and the verfication of the siganture</p>
+<p>Two notable gas consumption events that are not Celestia specific are the total
+bytes used for a transaction and the verification of the signature</p>
 <pre><code class="language-go">func (cgts ConsumeTxSizeGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	sigTx, ok := tx.(authsigning.SigVerifiableTx)
 	if !ok {
@@ -274,23 +274,27 @@ fully executed. This can lead to a transaction getting accepted by the mempool
 and eventually included in a block, yet failing because the transaction ends
 up exceeding the gas limit.</p>
 </blockquote>
-<p>Fees are not currently refunded. While users can specify a gas price,
-the total fee is then calculated by simply multiplying the gas limit by the gas
-price. The entire fee is then deducted from the transaction no matter what.</p>
+<p>Fees are not currently refunded. While users can specify a gas price, the total
+fee is then calculated by simply multiplying the gas limit by the gas price. The
+entire fee is then deducted from the transaction no matter what.</p>
 <h2 id="fee-market"><a class="header" href="#fee-market">Fee market</a></h2>
-<p>By default, Celestia uses mempools that prioritize fees, however mempool usage
-cannot be enforced at the protocol level.</p>
+<p>By default, Celestia consensus nodes will use mempools that prioritize fees,
+however mempool usage cannot be enforced at the protocol level. There is
+currently no enforced minimum fee, this value is set by each consensus node in
+their <code>app.toml</code>. Transactions that do not exceed that given gas price will not
+be able to enter the that node's mempool, and thus they will also not be
+gossiped by that node.</p>
 <h2 id="estimating-pfb-cost"><a class="header" href="#estimating-pfb-cost">Estimating PFB cost</a></h2>
 <p>Generally, the gas used by a PFB transaction involves a static &quot;fixed cost&quot; and
-a dynamic cost based on the size of each blob involved in the transaction. </p>
+a dynamic cost based on the size of each blob involved in the transaction.</p>
 <blockquote>
-<p>Note: For a general usecase of a normal account submitting a PFB, the static
-costs can be treated as such. However, due to the description of how gas works
-in the cosmos-sdk this is not always the case. Notably, if we use a vesting
-account or the <code>feegrant</code> modules, then these static costs change.</p>
+<p>Note: For a general use case of a normal account submitting a PFB, the static
+costs can be treated as such. However, due to the description above of how gas
+works in the cosmos-sdk this is not always the case. Notably, if we use a
+vesting account or the <code>feegrant</code> modules, then these static costs change.</p>
 </blockquote>
 <p>The &quot;fixed cost&quot; is an approximation of the gas consumed by operations outside
-the function GasToConsume (for example, signature verification, tx size, read
+the function <code>GasToConsume</code> (for example, signature verification, tx size, read
 access to accounts), which has a default value of 65,000.</p>
 <blockquote>
 <p>Note: the first transaction sent by an account (sequence number == 0) has an
@@ -298,18 +302,37 @@ additional one time gas cost of 10,000. If this is the case, this should be
 accounted for.</p>
 </blockquote>
 <p>Each blob in the PFB contributes to the total gas cost based on its size. The
-function GasToConsume calculates the total gas consumed by all the blobs
+function <code>GasToConsume</code> calculates the total gas consumed by all the blobs
 involved in a PFB, where each blob's gas cost is computed by multiplying the
-blob size (in bytes) by the gasPerByte parameter, along with adding a static
+blob size (in bytes) by the <code>gasPerByte</code> parameter, along with adding a static
 amount per blob.</p>
 <p>The gas cost per blob byte and gas cost per transaction byte are parameters that
 could potentially be adjusted through the system's governance mechanisms. Hence,
 actual costs may vary depending on the current settings of these parameters.</p>
 <h2 id="tracing-gas-consumption"><a class="header" href="#tracing-gas-consumption">Tracing Gas Consumption</a></h2>
-<p>This figure plots each instance of the gas meter being incremented over the
-execution lifecycle of a given transaction. The y-axis in units of gas and the
-x-axis is each individual instance of gas consumption. The legend shows which
-color indicates what the cause of the gas consumption was.</p>
+<p>This figure plots each instance of the gas meter being incremented as a colored
+dot over the execution lifecycle of a given transaction. The y-axis in units of
+gas and the x-axis is cumulative gas consumption. The legend shows which color
+indicates what the cause of the gas consumption was.</p>
+<h3 id="msgsend"><a class="header" href="#msgsend">MsgSend</a></h3>
+<p>Here we can see the gas consumption trace of a common send transaction for
+1<code>utia</code></p>
+<p><img src="./figures/gas_consumption/msg_send_trace.png" alt="MsgSend" /></p>
+<h3 id="msgcreatevalidator"><a class="header" href="#msgcreatevalidator">MsgCreateValidator</a></h3>
+<p>Here we examine a more complex transaction.</p>
+<p><img src="./figures/gas_consumption/msg_create_validator_trace.png" alt="MsgCreateValidator" /></p>
+<h3 id="pfb-with-one-single-share-blob"><a class="header" href="#pfb-with-one-single-share-blob">PFB with One Single Share Blob</a></h3>
+<p><img src="./figures/gas_consumption/single_share_pfb_trace.png" alt="MsgPayForBlobs Single Share" /></p>
+<h3 id="pfb-with-two-single-share-blobs"><a class="header" href="#pfb-with-two-single-share-blobs">PFB with Two Single Share Blobs</a></h3>
+<p>This PFB transaction contains two single share blobs. Notice the gas cost for
+<code>pay for blob</code> is double what it is above due to two shares being used, and
+there is also additional cost from <code>txSize</code> since the transaction itself is
+larger to accomodate the second set of metadata in the PFB.</p>
+<p><img src="./figures/gas_consumption/pfb_with_two_single_share_blobs_trace.png" alt="MsgPayForBlobs with Two Blobs" /></p>
+<h3 id="100kib-single-blob-pfb"><a class="header" href="#100kib-single-blob-pfb">100KiB Single Blob PFB</a></h3>
+<p>Here we can see how the cost of a PFB with a large blob is quickly dominated by
+the cost of the blob.</p>
+<p><img src="./figures/gas_consumption/100kib_pfb_trace.png" alt="MsgPayForBlobs with One Large Blob" /></p>
 
                     </main>
 
