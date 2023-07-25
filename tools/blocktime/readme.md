@@ -8,13 +8,13 @@ To read up on starting a node and exposing the RPC endpoint go to the docs [here
 
 To compile the binary, run either `go install` or `go build`. The binary can then be used as follows:
 
-```
-$ ./blocktime <node_rpc> [query_range]
+```bash
+./blocktime <node_rpc> [query_range]
 ```
 
 As an example
 
-```
+```bash
 $ ./blocktime http://localhost:26657 1000
 
 Chain: mocha-3
