@@ -3,6 +3,7 @@ package test
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
@@ -53,8 +54,12 @@ func (s *UpgradeTestSuite) SetupSuite() {
 		accounts[i] = tmrand.Str(9)
 	}
 
+	tmCfg := testnode.DefaultTendermintConfig()
+	tmCfg.Consensus.TimeoutCommit = 3 * time.Second
+
 	cfg := testnode.DefaultConfig().
 		WithAccounts(accounts).
+		WithTendermintConfig(tmCfg).
 		WithGenesisOptions(testnode.ImmediateProposals(s.ecfg.Codec))
 
 	cctx, _, _ := testnode.NewNetwork(t, cfg)
