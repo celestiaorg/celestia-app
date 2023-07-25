@@ -19,7 +19,7 @@ func TestMonitoredGasMeter(t *testing.T) {
 		acc  = "signer"
 		acc2 = "signer2"
 	)
-	kr := testfactory.GenerateKeyring(acc)
+	kr := testfactory.GenerateKeyring(acc, acc2)
 	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	tx := util.SendTxWithManualSequence(t, nil, kr, acc, acc2, 1000000, "chainid", 1, 1)
 	ctx := sdk.NewContext(nil, types.Header{}, false, nil)
