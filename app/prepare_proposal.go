@@ -32,7 +32,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 		ante.DefaultSigVerificationGasConsumer,
 		app.IBCKeeper,
 	)
-	txs := filterTxs(sdkCtx, handler, app.txConfig, req.BlockData.Txs)
+	txs := FilterTxs(sdkCtx, handler, app.txConfig, req.BlockData.Txs)
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
@@ -56,7 +56,15 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 
 	// create the new data root by creating the data availability header (merkle
 	// roots of each row and col of the erasure data).
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	if err != nil {
+		app.Logger().Error(
+			"failure to create new data availability header",
+			"error",
+			err.Error(),
+		)
+		panic(err)
+	}
 
 	// tendermint doesn't need to use any of the erasure data, as only the
 	// protobuf encoded version of the block data is gossiped.

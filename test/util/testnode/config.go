@@ -19,6 +19,8 @@ import (
 type Config struct {
 	// ChainID is the chain ID of the network.
 	ChainID string
+	// GenesisTime is the genesis block time of the network.
+	GenesisTime time.Time
 	// TmConfig is the Tendermint configuration used for the network.
 	TmConfig *tmconfig.Config
 	// AppConfig is the application configuration of the test node.
@@ -91,11 +93,18 @@ func (c *Config) WithSupressLogs(sl bool) *Config {
 	return c
 }
 
+// WithGensisTime sets the GenesisTime and returns the Config.
+func (c *Config) WithGensisTime(t time.Time) *Config {
+	c.GenesisTime = t
+	return c
+}
+
 func DefaultConfig() *Config {
 	tmcfg := DefaultTendermintConfig()
-	tmcfg.Consensus.TargetHeightDuration = 1 * time.Millisecond
+	tmcfg.Consensus.TimeoutCommit = 1 * time.Millisecond
 	cfg := &Config{}
 	return cfg.
+		WithGensisTime(time.Now()).
 		WithAccounts([]string{}).
 		WithChainID(tmrand.Str(6)).
 		WithTendermintConfig(DefaultTendermintConfig()).
@@ -137,9 +146,11 @@ func DefaultParams() *tmproto.ConsensusParams {
 
 func DefaultTendermintConfig() *tmconfig.Config {
 	tmCfg := tmconfig.DefaultConfig()
-	// Reduce the target height duration so that blocks are produced faster
-	// during tests.
-	tmCfg.Consensus.TargetHeightDuration = 300 * time.Millisecond
+	// TimeoutCommit is the duration the node waits after committing a block
+	// before starting the next height. This duration influences the time
+	// interval between blocks. A smaller TimeoutCommit value could lead to
+	// less time between blocks (i.e. shorter block intervals).
+	tmCfg.Consensus.TimeoutCommit = 300 * time.Millisecond
 	tmCfg.Consensus.TimeoutPropose = 200 * time.Millisecond
 
 	// set the mempool's MaxTxBytes to allow the testnode to accept a

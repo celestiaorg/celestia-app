@@ -122,7 +122,11 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 		return reject()
 	}
 
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	if err != nil {
+		logInvalidPropBlockError(app.Logger(), req.Header, "failure to create new data availability header", err)
+		return reject()
+	}
 	// by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
 	// are identical and that square layout is consistent. This also means that the share commitment rules
 	// have been followed and thus each blobs share commitment should be valid

@@ -43,7 +43,7 @@ If the message starting point index is larger than the row of `msgMinSquareSize`
 
 ## Decision
 
-TODO
+Approved
 
 ## Detailed Design
 
