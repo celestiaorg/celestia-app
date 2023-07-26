@@ -73,7 +73,7 @@ func (s *UpgradeTestSuite) SetupSuite() {
 	// replace the default genesis state with the modified one
 	genState[gov.AppModuleBasic{}.Name()] = s.ecfg.Codec.MustMarshalJSON(gdgs)
 
-	tmNode, capp, cctx, err := testnode.New(t, testnode.DefaultParams(), tmCfg, false, genState, kr, tmrand.Str(6))
+	tmNode, capp, cctx, err := testnode.New(t, testnode.DefaultParams(), tmCfg, testnode.DefaultAppConfig(), false, genState, kr, tmrand.Str(6))
 	require.NoError(t, err)
 
 	cctx, stopNode, err := testnode.StartNode(tmNode, cctx)
