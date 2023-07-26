@@ -5,7 +5,6 @@ import (
 
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
-	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
 	srvtypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -25,7 +24,9 @@ type Config struct {
 	AppConfig *srvconfig.Config
 	// ConsensusParams are the consensus parameters of the test node.
 	ConsensusParams *tmproto.ConsensusParams
-	// AppOptions are the application options of the test node.
+	// AppOptions are the application options of the test node. Portions of the
+	// app config will automatically be set into the app option when the app
+	// config is set.
 	AppOptions *KVAppOptions
 	// GenesisOptions are the genesis options of the test node.
 	GenesisOptions []GenesisOption
@@ -50,8 +51,13 @@ func (c *Config) WithTendermintConfig(conf *tmconfig.Config) *Config {
 }
 
 // WithAppConfig sets the AppConfig and returns the Config.
+//
+// Warning: This method will also overwrite relevant portions of the app config
+// to the app options. See the SetFromAppConfig method for more information on
+// which values are overwritten.
 func (c *Config) WithAppConfig(conf *srvconfig.Config) *Config {
 	c.AppConfig = conf
+	c.AppOptions.SetFromAppConfig(conf)
 	return c
 }
 
@@ -62,6 +68,9 @@ func (c *Config) WithConsensusParams(params *tmproto.ConsensusParams) *Config {
 }
 
 // WithAppOptions sets the AppOptions and returns the Config.
+//
+// Warning: If the app config is set after this, it could overwrite some values.
+// See SetFromAppConfig for more information on which values are overwritten.
 func (c *Config) WithAppOptions(opts *KVAppOptions) *Config {
 	c.AppOptions = opts
 	return c
@@ -93,15 +102,15 @@ func (c *Config) WithSupressLogs(sl bool) *Config {
 
 func DefaultConfig() *Config {
 	tmcfg := DefaultTendermintConfig()
-	tmcfg.Consensus.TargetHeightDuration = 1 * time.Millisecond
+	tmcfg.Consensus.TimeoutCommit = 1 * time.Millisecond
 	cfg := &Config{}
 	return cfg.
 		WithAccounts([]string{}).
 		WithChainID(tmrand.Str(6)).
 		WithTendermintConfig(DefaultTendermintConfig()).
-		WithAppConfig(DefaultAppConfig()).
 		WithConsensusParams(DefaultParams()).
 		WithAppOptions(DefaultAppOptions()).
+		WithAppConfig(DefaultAppConfig()).
 		WithGenesisOptions().
 		WithAppCreator(cmd.NewAppServer).
 		WithSupressLogs(true)
@@ -109,6 +118,10 @@ func DefaultConfig() *Config {
 
 type KVAppOptions struct {
 	options map[string]interface{}
+}
+
+func NewKVAppOptions() *KVAppOptions {
+	return &KVAppOptions{options: make(map[string]interface{})}
 }
 
 // Get implements AppOptions
@@ -121,10 +134,35 @@ func (ao *KVAppOptions) Set(o string, v interface{}) {
 	ao.options[o] = v
 }
 
-// DefaultAppOptions returns the default application options.
+// SetMany adds an option to the KVAppOptions
+func (ao *KVAppOptions) SetMany(o map[string]interface{}) {
+	for k, v := range o {
+		ao.Set(k, v)
+	}
+}
+
+func (ao *KVAppOptions) SetFromAppConfig(appCfg *srvconfig.Config) {
+	opts := map[string]interface{}{
+		server.FlagPruning:                     appCfg.Pruning,
+		server.FlagPruningKeepRecent:           appCfg.PruningKeepRecent,
+		server.FlagPruningInterval:             appCfg.PruningInterval,
+		server.FlagMinGasPrices:                appCfg.MinGasPrices,
+		server.FlagMinRetainBlocks:             appCfg.MinRetainBlocks,
+		server.FlagIndexEvents:                 appCfg.IndexEvents,
+		server.FlagStateSyncSnapshotInterval:   appCfg.StateSync.SnapshotInterval,
+		server.FlagStateSyncSnapshotKeepRecent: appCfg.StateSync.SnapshotKeepRecent,
+		server.FlagHaltHeight:                  appCfg.HaltHeight,
+		server.FlagHaltTime:                    appCfg.HaltTime,
+	}
+	ao.SetMany(opts)
+}
+
+// DefaultAppOptions returns the default application options. The options are
+// set using the default app config. If the app config is set after this, it
+// will overwrite these values.
 func DefaultAppOptions() *KVAppOptions {
-	opts := &KVAppOptions{options: make(map[string]interface{})}
-	opts.Set(server.FlagPruning, pruningtypes.PruningOptionNothing)
+	opts := NewKVAppOptions()
+	opts.SetFromAppConfig(DefaultAppConfig())
 	return opts
 }
 
@@ -139,7 +177,7 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	tmCfg := tmconfig.DefaultConfig()
 	// Reduce the target height duration so that blocks are produced faster
 	// during tests.
-	tmCfg.Consensus.TargetHeightDuration = 300 * time.Millisecond
+	tmCfg.Consensus.TimeoutCommit = 100 * time.Millisecond
 	tmCfg.Consensus.TimeoutPropose = 200 * time.Millisecond
 
 	// set the mempool's MaxTxBytes to allow the testnode to accept a
