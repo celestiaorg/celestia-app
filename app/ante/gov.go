@@ -13,7 +13,7 @@ func NewGovProposalDecorator() GovProposalDecorator {
 	return GovProposalDecorator{}
 }
 
-// AnteHandle implements the AnteHandler interface. It ensures that MsgSubmitProposal
+// AnteHandle implements the AnteHandler interface. It ensures that MsgSubmitProposal has at least one message
 func (d GovProposalDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	for _, m := range tx.GetMsgs() {
 		if proposal, ok := m.(*govv1.MsgSubmitProposal); ok {
