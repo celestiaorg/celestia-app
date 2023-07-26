@@ -1,13 +1,13 @@
 syntax = "proto3";
-package cosmos.staking.v1beta1;
+package celestia.staking.v1beta1;
 
 import "cosmos/base/query/v1beta1/pagination.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
-import "cosmos/staking/v1beta1/staking.proto";
+import "celestia/staking/v1beta1/staking.proto";
 import "cosmos_proto/cosmos.proto";
 
-option go_package = "github.com/cosmos/cosmos-sdk/x/staking/types";
+option go_package = "github.com/celestiaorg/celestia-app/x/staking/types";
 
 // Query defines the gRPC querier service.
 service Query {
