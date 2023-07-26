@@ -90,8 +90,8 @@ func (s *UpgradeTestSuite) unusedAccount() string {
 	return acc
 }
 
-// TestLegacyGovUpgradeFailure verifies that a transaction with a software
-// upgrade proposal fails to execute.
+// TestLegacyGovUpgradeFailure verifies that a transaction with a legacy
+// software upgrade proposal fails to execute.
 func (s *UpgradeTestSuite) TestLegacyGovUpgradeFailure() {
 	t := s.T()
 

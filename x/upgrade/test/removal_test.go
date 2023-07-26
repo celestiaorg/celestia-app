@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestRemoval verified that no handler exists for msg-based software upgrade
+// TestRemoval verifies that no handler exists for msg-based software upgrade
 // proposals.
 func TestRemoval(t *testing.T) {
 	app, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
