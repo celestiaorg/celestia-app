@@ -22,19 +22,23 @@ func NewEmptyBuilder() *Builder {
 	}
 }
 
-// NewBuilder returns a new share builder. Init() needs to be called right after
-// this method.
-func NewBuilder(ns appns.Namespace, shareVersion uint8, isFirstShare bool) *Builder {
-	return &Builder{
+// NewBuilder returns a new share builder.
+func NewBuilder(ns appns.Namespace, shareVersion uint8, isFirstShare bool) (*Builder, error) {
+	b := Builder{
 		namespace:      ns,
 		shareVersion:   shareVersion,
 		isFirstShare:   isFirstShare,
 		isCompactShare: isCompactShare(ns),
 	}
+	err := b.init()
+	if err != nil {
+		return nil, err
+	}
+	return &b, nil
 }
 
-// Init initializes the share builder. It should be called right after NewBuilder.
-func (b *Builder) Init() error {
+// init initializes the share builder by populating rawShareData.
+func (b *Builder) init() error {
 	if b.isCompactShare {
 		return b.prepareCompactShare()
 	}

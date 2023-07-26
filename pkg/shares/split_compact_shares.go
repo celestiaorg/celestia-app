@@ -29,8 +29,7 @@ type CompactShareSplitter struct {
 // NewCompactShareSplitter returns a CompactShareSplitter using the provided
 // namespace and shareVersion.
 func NewCompactShareSplitter(ns appns.Namespace, shareVersion uint8) *CompactShareSplitter {
-	sb := NewBuilder(ns, shareVersion, true)
-	err := sb.Init()
+	sb, err := NewBuilder(ns, shareVersion, true)
 	if err != nil {
 		panic(err)
 	}
@@ -106,8 +105,7 @@ func (css *CompactShareSplitter) stackPending() error {
 	css.shares = append(css.shares, *pendingShare)
 
 	// Now we need to create a new builder
-	css.shareBuilder = NewBuilder(css.namespace, css.shareVersion, false)
-	err = css.shareBuilder.Init()
+	css.shareBuilder, err = NewBuilder(css.namespace, css.shareVersion, false)
 	return err
 }
 
@@ -165,8 +163,7 @@ func (css *CompactShareSplitter) writeSequenceLen(sequenceLen uint32) error {
 	}
 
 	// We may find a more efficient way to write seqLen
-	b := NewBuilder(css.namespace, css.shareVersion, true)
-	err := b.Init()
+	b, err := NewBuilder(css.namespace, css.shareVersion, true)
 	if err != nil {
 		return err
 	}
