@@ -241,7 +241,7 @@ Blobs](./figures/gas_consumption/pfb_with_two_single_share_blobs_trace.png)
 
 ### 100KiB Single Blob PFB
 
-Here we can see how the cost of a PFB with a large blob is quickly dominated by
+Here we can see how the cost of a PFB with a large blob (100KiB) is quickly dominated by
 the cost of the blob.
 
 ![MsgPayForBlobs with One Large
