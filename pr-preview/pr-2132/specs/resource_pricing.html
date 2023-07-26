@@ -292,7 +292,7 @@ entire fee is then deducted from the transaction no matter what.</p>
 however mempool usage cannot be enforced at the protocol level. There is
 currently no enforced minimum fee, this value is set by each consensus node in
 their <code>app.toml</code>. Transactions that do not exceed that given gas price will not
-be able to enter the that node's mempool, and thus they will also not be
+be able to enter that node's mempool, and thus they will also not be
 gossiped by that node.</p>
 <h2 id="estimating-pfb-cost"><a class="header" href="#estimating-pfb-cost">Estimating PFB cost</a></h2>
 <p>Generally, the gas used by a PFB transaction involves a static &quot;fixed cost&quot; and
@@ -313,15 +313,16 @@ accounted for.</p>
 </blockquote>
 <p>Each blob in the PFB contributes to the total gas cost based on its size. The
 function <code>GasToConsume</code> calculates the total gas consumed by all the blobs
-involved in a PFB, where each blob's gas cost is computed by multiplying the
-blob size (in bytes) by the <code>gasPerByte</code> parameter, along with adding a static
-amount per blob.</p>
+involved in a PFB, where each blob's gas cost is computed by first determining
+how many shares are needed to store the blob size. Then, it computes the product
+of the number of shares, the number of bytes per share, and the <code>gasPerByte</code>
+parameter. Finally, it adds a static amount per blob.</p>
 <p>The gas cost per blob byte and gas cost per transaction byte are parameters that
 could potentially be adjusted through the system's governance mechanisms. Hence,
 actual costs may vary depending on the current settings of these parameters.</p>
 <h2 id="tracing-gas-consumption"><a class="header" href="#tracing-gas-consumption">Tracing Gas Consumption</a></h2>
 <p>This figure plots each instance of the gas meter being incremented as a colored
-dot over the execution lifecycle of a given transaction. The y-axis in units of
+dot over the execution lifecycle of a given transaction. The y-axis is units of
 gas and the x-axis is cumulative gas consumption. The legend shows which color
 indicates what the cause of the gas consumption was.</p>
 <h3 id="msgsend"><a class="header" href="#msgsend">MsgSend</a></h3>
