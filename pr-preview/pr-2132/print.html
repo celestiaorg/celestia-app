@@ -1760,6 +1760,7 @@ actual costs may vary depending on the current settings of these parameters.</p>
 dot over the execution lifecycle of a given transaction. The y-axis is units of
 gas and the x-axis is cumulative gas consumption. The legend shows which color
 indicates what the cause of the gas consumption was.</p>
+<p>This code used to trace gas consumption can be found in the <code>tools/gasmonitor</code> of the branch for <a href="https://github.com/celestiaorg/celestia-app/pull/2131">#2131</a>, and the script to generate the plots below can be found <a href="https://gist.github.com/evan-forbes/948c8cf574f2f50b101c89a95ee1d43c">here</a> (warning: this script will not be maintained).</p>
 <h3 id="msgsend"><a class="header" href="#msgsend">MsgSend</a></h3>
 <p>Here we can see the gas consumption trace of a common send transaction for
 1<code>utia</code></p>
@@ -1776,7 +1777,7 @@ there is also additional cost from <code>txSize</code> since the transaction its
 larger to accomodate the second set of metadata in the PFB.</p>
 <p><img src="specs/./figures/gas_consumption/pfb_with_two_single_share_blobs_trace.png" alt="MsgPayForBlobs with Two Blobs" /></p>
 <h3 id="100kib-single-blob-pfb"><a class="header" href="#100kib-single-blob-pfb">100KiB Single Blob PFB</a></h3>
-<p>Here we can see how the cost of a PFB with a large blob is quickly dominated by
+<p>Here we can see how the cost of a PFB with a large blob (100KiB) is quickly dominated by
 the cost of the blob.</p>
 <p><img src="specs/./figures/gas_consumption/100kib_pfb_trace.png" alt="MsgPayForBlobs with One Large Blob" /></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="state-machine-modules"><a class="header" href="#state-machine-modules">State Machine Modules</a></h1>
