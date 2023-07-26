@@ -3,7 +3,6 @@ package testnode
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -155,11 +154,6 @@ func DefaultGenesisState(fundedAccounts ...string) (map[string]json.RawMessage, 
 func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr string) {
 	t.Helper()
 
-	tmCfg := cfg.TmConfig
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
-	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
-
 	genState, kr, err := DefaultGenesisState(cfg.Accounts...)
 	require.NoError(t, err)
 
@@ -169,22 +163,18 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 
 	chainID := cfg.ChainID
 
-	baseDir, kr, err := InitFiles(t, cfg.ConsensusParams, tmCfg, genState, kr, chainID)
+	baseDir, kr, err := InitFiles(t, cfg.ConsensusParams, cfg.TmConfig, genState, kr, chainID)
 	require.NoError(t, err)
 
 	tmNode, app, err := NewCometNode(t, baseDir, cfg)
 	require.NoError(t, err)
 
-	cctx = NewContext(context.TODO(), kr, tmCfg, chainID)
+	cctx = NewContext(context.TODO(), kr, cfg.TmConfig, chainID)
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	require.NoError(t, err)
 
-	appCfg := cfg.AppConfig
-	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetFreePort())
-	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
-
-	cctx, cleanupGRPC, err := StartGRPCServer(app, appCfg, cctx)
+	cctx, cleanupGRPC, err := StartGRPCServer(app, cfg.AppConfig, cctx)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -193,7 +183,7 @@ func NewNetwork(t testing.TB, cfg *Config) (cctx Context, rpcAddr, grpcAddr stri
 		require.NoError(t, cleanupGRPC())
 	})
 
-	return cctx, tmCfg.RPC.ListenAddress, appCfg.GRPC.Address
+	return cctx, cfg.TmConfig.RPC.ListenAddress, cfg.AppConfig.GRPC.Address
 }
 
 func GetFreePort() int {
