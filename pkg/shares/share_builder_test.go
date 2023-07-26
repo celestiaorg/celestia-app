@@ -312,7 +312,7 @@ func TestShareBuilderImportRawData(t *testing.T) {
 	}
 }
 
-// mustmustNewBuilder returns a new builder with the given parameters. It fails the test if an error is encountered.
+// mustNewBuilder returns a new builder with the given parameters. It fails the test if an error is encountered.
 func mustNewBuilder(t *testing.T, ns appns.Namespace, shareVersion uint8, isFirstShare bool) *Builder {
 	b, err := NewBuilder(ns, shareVersion, isFirstShare)
 	require.NoError(t, err)
