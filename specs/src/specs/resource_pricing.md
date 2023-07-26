@@ -151,7 +151,6 @@ usage.
 | auth/sig_verify_cost_secp256k1 | 1000 | Gas used per verifying a secp256k1 signature |
 | blob/gas_per_blob_byte | 8 | Gas used per byte used by blob. Note that this value is applied to all encoding overhead, meaning things like the padding of the remaining share and namespace. See PFB gas estimation section for more details. |
 
-
 ## Gas Limit
 
 The gas limit must be included in each transaction. If the transaction exceeds
@@ -173,7 +172,7 @@ By default, Celestia consensus nodes will use mempools that prioritize fees,
 however mempool usage cannot be enforced at the protocol level. There is
 currently no enforced minimum fee, this value is set by each consensus node in
 their `app.toml`. Transactions that do not exceed that given gas price will not
-be able to enter the that node's mempool, and thus they will also not be
+be able to enter that node's mempool, and thus they will also not be
 gossiped by that node.
 
 ## Estimating PFB cost
@@ -196,9 +195,10 @@ access to accounts), which has a default value of 65,000.
 
 Each blob in the PFB contributes to the total gas cost based on its size. The
 function `GasToConsume` calculates the total gas consumed by all the blobs
-involved in a PFB, where each blob's gas cost is computed by multiplying the
-blob size (in bytes) by the `gasPerByte` parameter, along with adding a static
-amount per blob.
+involved in a PFB, where each blob's gas cost is computed by first determining
+how many shares are needed to store the blob size. Then, it computes the product
+of the number of shares, the number of bytes per share, and the `gasPerByte`
+parameter. Finally, it adds a static amount per blob.
 
 The gas cost per blob byte and gas cost per transaction byte are parameters that
 could potentially be adjusted through the system's governance mechanisms. Hence,
@@ -207,7 +207,7 @@ actual costs may vary depending on the current settings of these parameters.
 ## Tracing Gas Consumption
 
 This figure plots each instance of the gas meter being incremented as a colored
-dot over the execution lifecycle of a given transaction. The y-axis in units of
+dot over the execution lifecycle of a given transaction. The y-axis is units of
 gas and the x-axis is cumulative gas consumption. The legend shows which color
 indicates what the cause of the gas consumption was.
 
