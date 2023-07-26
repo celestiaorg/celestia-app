@@ -20,9 +20,9 @@ func SubtreeRootThreshold(_ uint64) int {
 	return v1.SubtreeRootThreshold
 }
 
-// SquareSizeUpperBound is the maximum original square width possible
-// for a version of the state machine. The maximum is decided through
-// governance. See `DefaultGovMaxSquareSize`.
+// SquareSizeUpperBound is the maximum original square width possible for a
+// version of the state machine. In other words, this value acts as an upper
+// bound for GovMaxSquareSize.
 func SquareSizeUpperBound(_ uint64) int {
 	return v1.SquareSizeUpperBound
 }

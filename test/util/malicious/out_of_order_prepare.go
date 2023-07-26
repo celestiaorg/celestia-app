@@ -36,7 +36,7 @@ func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.Re
 
 	// build the square from the set of valid and prioritised transactions.
 	// The txs returned are the ones used in the square and block
-	dataSquare, txs, err := Build(txs, a.GetBaseApp().AppVersion(), a.GovSquareSizeUpperBound(sdkCtx), OutOfOrderExport)
+	dataSquare, txs, err := Build(txs, a.GetBaseApp().AppVersion(), a.GetMaxSquareSize(sdkCtx), OutOfOrderExport)
 	if err != nil {
 		panic(err)
 	}
