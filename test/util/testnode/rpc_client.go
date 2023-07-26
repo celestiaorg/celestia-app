@@ -53,6 +53,11 @@ func StartGRPCServer(app srvtypes.Application, appCfg *srvconfig.Config, cctx Co
 	// Add the tendermint queries service in the gRPC router.
 	app.RegisterTendermintService(cctx.Context)
 
+	// Add the node service queries to the grpc router.
+	if a, ok := app.(srvtypes.ApplicationQueryService); ok {
+		a.RegisterNodeService(cctx.Context)
+	}
+
 	grpcSrv, err := srvgrpc.StartGRPCServer(cctx.Context, app, appCfg.GRPC)
 	if err != nil {
 		return Context{}, emptycleanup, err
