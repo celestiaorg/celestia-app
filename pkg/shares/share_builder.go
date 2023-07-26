@@ -30,8 +30,7 @@ func NewBuilder(ns appns.Namespace, shareVersion uint8, isFirstShare bool) (*Bui
 		isFirstShare:   isFirstShare,
 		isCompactShare: isCompactShare(ns),
 	}
-	err := b.init()
-	if err != nil {
+	if err := b.init(); err != nil {
 		return nil, err
 	}
 	return &b, nil
