@@ -1,6 +1,7 @@
 package testnode
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/cmd/celestia-appd/cmd"
@@ -189,6 +190,11 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	// transactions and respond to very queries with large responses (~200MB was
 	// chosen only as an arbitrary large number).
 	tmCfg.RPC.MaxBodyBytes = 200_000_000
+
+	// set all the ports to random open ones
+	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
 
 	return tmCfg
 }

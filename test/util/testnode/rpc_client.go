@@ -2,6 +2,7 @@ package testnode
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path"
 	"strings"
@@ -79,7 +80,10 @@ func StartGRPCServer(app srvtypes.Application, appCfg *srvconfig.Config, cctx Co
 
 // DefaultAppConfig wraps the default config described in the server
 func DefaultAppConfig() *srvconfig.Config {
-	return srvconfig.DefaultConfig()
+	appCfg := srvconfig.DefaultConfig()
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetFreePort())
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetFreePort())
+	return appCfg
 }
 
 // removeDir removes the directory `rootDir`.
