@@ -62,7 +62,7 @@ func TestGovDecorator(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := types.Context{}
 			builder := encCfg.TxConfig.NewTxBuilder()
-			builder.SetMsgs(tc.msg...)
+			require.NoError(t, builder.SetMsgs(tc.msg...))
 			tx := builder.GetTx()
 			_, err := anteHandler(ctx, tx, false)
 			if tc.expErr {
@@ -72,5 +72,4 @@ func TestGovDecorator(t *testing.T) {
 			}
 		})
 	}
-
 }
