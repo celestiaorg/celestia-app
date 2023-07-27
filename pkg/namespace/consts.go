@@ -67,4 +67,7 @@ var (
 		Version: math.MaxUint8,
 		ID:      bytes.Repeat([]byte{0xFF}, NamespaceIDSize),
 	}
+
+	// SupportedBlobNamespaceVersions is a list of namespace versions that can be specified by a user for blobs.
+	SupportedBlobNamespaceVersions = []uint8{NamespaceVersionZero}
 )
