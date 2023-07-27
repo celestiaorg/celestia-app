@@ -34,7 +34,7 @@ func CmdPayForBlob() *cobra.Command {
 		Use:   "PayForBlobs [hexNamespaceID] [hexBlob]",
 		Short: "Pay for a data blob to be published to the Celestia blockchain",
 		Long: "Pay for a data blob to be published to the Celestia blockchain. " +
-			"[hexNamespaceID] must be a 10 byte hex encoded namespace ID. " +
+			"[hexNamespaceID] must be a 28 byte hex encoded namespace ID. " +
 			"[hexBlob] can be an arbitrary length hex encoded data blob. " +
 			"This command only supports a single blob per invocation. ",
 		Args: cobra.ExactArgs(2),
