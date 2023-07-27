@@ -6,18 +6,16 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
-	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
 
-// TestMaxBlobSize verifies that a blob size of MaxBlobSize can not fit in a
-// block.
-func TestMaxBlobSize(t *testing.T) {
+// TestBlobSizeUpperBound verifies that a blob of size BlobSizeUpperBound can
+// not fit in a block.
+func TestBlobSizeUpperBound(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping TestMaxBlobSize in short mode.")
 	}
@@ -29,15 +27,13 @@ func TestMaxBlobSize(t *testing.T) {
 
 	cparams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(cparams, accounts...)
-	ctx := sdk.NewContext(testApp.CommitMultiStore(), tmproto.Header{}, false, nil)
-
-	maxBlobSize := testApp.BlobSizeUpperBound(ctx)
+	size := app.BlobSizeUpperBound(testApp.AppVersion())
 	txs := testutil.RandBlobTxsWithAccounts(
 		t,
 		testApp,
 		encConf.TxConfig.TxEncoder(),
 		kr,
-		maxBlobSize,
+		size,
 		1,
 		false,
 		testutil.ChainID,
