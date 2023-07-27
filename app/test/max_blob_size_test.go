@@ -31,7 +31,7 @@ func TestMaxBlobSize(t *testing.T) {
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(cparams, accounts...)
 	ctx := sdk.NewContext(testApp.CommitMultiStore(), tmproto.Header{}, false, nil)
 
-	maxBlobSize := testApp.MaxBlobSize(ctx)
+	maxBlobSize := testApp.BlobSizeUpperBound(ctx)
 	txs := testutil.RandBlobTxsWithAccounts(
 		t,
 		testApp,
