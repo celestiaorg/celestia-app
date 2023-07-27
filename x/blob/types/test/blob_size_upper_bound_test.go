@@ -1,4 +1,4 @@
-package app_test
+package types_test
 
 import (
 	"testing"
@@ -6,6 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-app/app"
 	"github.com/celestiaorg/celestia-app/app/encoding"
 	testutil "github.com/celestiaorg/celestia-app/test/util"
+	"github.com/celestiaorg/celestia-app/x/blob/types"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
@@ -27,7 +28,7 @@ func TestBlobSizeUpperBound(t *testing.T) {
 
 	cparams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(cparams, accounts...)
-	size := app.BlobSizeUpperBound(testApp.AppVersion())
+	size := types.BlobSizeUpperBound(testApp.AppVersion())
 	txs := testutil.RandBlobTxsWithAccounts(
 		t,
 		testApp,

@@ -1,4 +1,4 @@
-package app
+package types
 
 import (
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
