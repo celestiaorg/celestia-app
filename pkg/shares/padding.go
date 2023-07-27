@@ -14,7 +14,7 @@ import (
 // provided should be the namespace and shareVersion of the blob that precedes
 // this padding in the data square.
 func NamespacePaddingShare(ns appns.Namespace, shareVersion uint8) (Share, error) {
-	b, err := NewBuilder(ns, shareVersion, true).Init()
+	b, err := NewBuilder(ns, shareVersion, true)
 	if err != nil {
 		return Share{}, err
 	}
