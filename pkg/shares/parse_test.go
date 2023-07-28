@@ -41,7 +41,7 @@ func TestParseShares(t *testing.T) {
 	// because it takes more than one share to store a sequence of 1000 bytes
 	tooLargeSequenceLen := generateRawShare(t, ns1, true, uint32(1000))
 
-	ns1Padding, err := NamespacePaddingShare(ns1)
+	ns1Padding, err := NamespacePaddingShare(ns1, appconsts.ShareVersionZero)
 	require.NoError(t, err)
 
 	type testCase struct {
