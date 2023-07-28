@@ -370,7 +370,7 @@ func MultiBlobTx(
 
 	builder := signer.NewTxBuilder(opts...)
 	builder.SetFeeAmount(sdk.NewCoins(coin))
-	builder.SetGasLimit(1)
+	builder.SetGasLimit(10000000)
 	for _, opt := range opts {
 		builder = opt(builder)
 	}
