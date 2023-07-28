@@ -41,16 +41,17 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
 		paramtypes.NewParamSetPair(KeyGasPerBlobByte, &p.GasPerBlobByte, validateGasPerBlobByte),
 		paramtypes.NewParamSetPair(KeyGovMaxSquareSize, &p.GovMaxSquareSize, validateGovMaxSquareSize),
+		// cannot use validateGovMaxSquareSize (value of type func(v interface{}, appVersion uint64) error) as "github.com/cosmos/cosmos-sdk/x/params/types".ValueValidatorFn value in argument to paramtypes.NewParamSetPair
 	}
 }
 
 // Validate validates the set of params
-func (p Params) Validate() error {
+func (p Params) Validate(appVersion uint64) error {
 	err := validateGasPerBlobByte(p.GasPerBlobByte)
 	if err != nil {
 		return err
 	}
-	return validateGovMaxSquareSize(p.GovMaxSquareSize)
+	return validateGovMaxSquareSize(p.GovMaxSquareSize, appVersion)
 }
 
 // String implements the Stringer interface.
@@ -74,7 +75,7 @@ func validateGasPerBlobByte(v interface{}) error {
 }
 
 // validateGovMaxSquareSize validates the GovMaxSquareSize param
-func validateGovMaxSquareSize(v interface{}) error {
+func validateGovMaxSquareSize(v interface{}, appVersion uint64) error {
 	govMaxSquareSize, ok := v.(uint64)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
@@ -89,6 +90,9 @@ func validateGovMaxSquareSize(v interface{}) error {
 			"gov max square size must be a power of two: %d",
 			govMaxSquareSize,
 		)
+	}
+	if govMaxSquareSize > uint64(appconsts.SquareSizeUpperBound(appVersion)) {
+		return fmt.Errorf("gov max square size cannot exceed %d", govMaxSquareSize)
 	}
 
 	return nil

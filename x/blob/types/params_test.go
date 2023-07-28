@@ -36,7 +36,7 @@ func Test_validateGovMaxSquareSize(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		err := validateGovMaxSquareSize(tt.input)
+		err := validateGovMaxSquareSize(tt.input, appconsts.LatestVersion)
 		if tt.expectErr {
 			assert.Error(t, err)
 		}
