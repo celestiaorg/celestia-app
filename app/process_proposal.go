@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
 	blobtypes "github.com/celestiaorg/celestia-app/x/blob/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
@@ -32,7 +32,7 @@ func (app *App) ProcessProposal(req abci.RequestProcessProposal) (resp abci.Resp
 	// transactions. All transactions need to be equally validated here
 	// so that the nonce number is always correctly incremented (which
 	// may affect the validity of future transactions).
-	handler := NewAnteHandler(
+	handler := ante.NewAnteHandler(
 		app.AccountKeeper,
 		app.BankKeeper,
 		app.BlobKeeper,
