@@ -1,10 +1,10 @@
 package app
 
 import (
+	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
 	"github.com/celestiaorg/celestia-app/pkg/square"
-	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
@@ -23,7 +23,7 @@ func (app *App) PrepareProposal(req abci.RequestPrepareProposal) abci.ResponsePr
 	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
 	// and only check the state dependent checks like fees and nonces as all these transactions have already
 	// passed CheckTx.
-	handler := NewAnteHandler(
+	handler := ante.NewAnteHandler(
 		app.AccountKeeper,
 		app.BankKeeper,
 		app.BlobKeeper,

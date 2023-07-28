@@ -19,7 +19,7 @@ func NewMinGasPFBDecorator(k BlobKeeper) MinGasPFBDecorator {
 	return MinGasPFBDecorator{k}
 }
 
-// AnteHandle implemnts the AnteHandler interface. It checks to see
+// AnteHandle implements the AnteHandler interface. It checks to see
 // if the transaction contains a MsgPayForBlobs and if so, checks that
 // the transaction has allocated enough gas.
 func (d MinGasPFBDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
