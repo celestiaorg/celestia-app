@@ -410,6 +410,7 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 <p><img src="specs/./figures/data_root.svg" alt="fig: Available data root." /></p>
 <h3 id="arranging-available-data-into-shares"><a class="header" href="#arranging-available-data-into-shares">Arranging Available Data Into Shares</a></h3>
 <p>The previous sections described how some original data, arranged into a <code>k * k</code> matrix, can be extended into a <code>2k * 2k</code> matrix and committed to with NMT roots. This section specifies how <a href="specs/data_structures.html#available-data">available data</a> (which includes <a href="specs/data_structures.html#transactiondata">transactions</a>, <a href="specs/data_structures.html#intermediatestaterootdata">intermediate state roots</a>, PayForBlob transactions, and <a href="specs/data_structures.html#blobdata">blobs</a>) is arranged into the matrix in the first place.</p>
+<p>Note that each <a href="specs/./shares.html">share</a> only has a single namespace, and that the list of concatenated shares is lexicographically ordered by namespace.</p>
 <p>Then,</p>
 <ol>
 <li>For each of <code>transactionData</code>, <code>intermediateStateRootData</code>, PayForBlob transactions, <a href="specs/data_structures.html#serialization">serialize</a>:
@@ -426,7 +427,6 @@ node.v = h(0x01, l.n_min, l.n_max, l.v, r.n_min, r.n_max, r.v)
 </li>
 <li>Concatenate the lists of shares in the order: transactions, intermediate state roots, PayForBlob transactions.</li>
 </ol>
-<p>Note that by construction, each share only has a single namespace, and that the list of concatenated shares is <a href="specs/consensus.html#reserved-namespace-ids">lexicographically ordered by namespace ID</a>.</p>
 <p>These shares are arranged in the <a href="specs/data_structures.html#2d-reed-solomon-encoding-scheme">first quadrant</a> (<code>Q0</code>) of the <code>availableDataOriginalSquareSize*2 * availableDataOriginalSquareSize*2</code> available data matrix in <em>row-major</em> order. In the example below, each reserved data element takes up exactly one share.</p>
 <p><img src="specs/./figures/rs2d_originaldata_reserved.svg" alt="fig: Original data: reserved." /></p>
 <p>Each blob in the list <code>blobData</code>:</p>
