@@ -377,8 +377,8 @@ func (s *IntegrationTestSuite) TestEmptyBlock() {
 	}
 }
 
-// TestSubmitPayForBlob_blobSizes tests what happens when SubmitPayForBlob is
-// invoked with different blob sizes.
+// TestSubmitPayForBlob_blobSizes verifies the tx response ABCI code when
+// SubmitPayForBlob is invoked with different blob sizes.
 func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 	t := s.T()
 	require.NoError(t, s.cctx.WaitForBlocks(3))
