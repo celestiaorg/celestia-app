@@ -374,3 +374,26 @@ func (s *IntegrationTestSuite) TestEmptyBlock() {
 		ExtendBlobTest(t, blockRes.Block)
 	}
 }
+
+// TestTooLargeBlob tests what happens when a blob is too large to be included
+// in a data square.
+func (s *IntegrationTestSuite) TestTooLargeBlob() {
+	t := s.T()
+	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
+
+	maxShares := appconsts.DefaultGovMaxSquareSize * appconsts.DefaultGovMaxSquareSize
+	maxBlobShares := maxShares - 1
+	maxBlobBytes := maxBlobShares * appconsts.ContinuationSparseShareContentSize
+	data := tmrand.Bytes(maxBlobBytes)
+
+	b, err := blobtypes.NewBlob(ns1, data, appconsts.ShareVersionZero)
+	require.NoError(t, err)
+
+	require.NoError(t, s.cctx.WaitForBlocks(3))
+	signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[141], s.cctx.ChainID)
+	res, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{b})
+
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, abci.CodeTypeOK, res.Code)
+}
