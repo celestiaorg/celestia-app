@@ -176,12 +176,12 @@ func TestValidateBasic(t *testing.T) {
 		{
 			name:    "parity shares namespace",
 			msg:     paritySharesMsg,
-			wantErr: ErrParitySharesNamespace,
+			wantErr: ErrReservedNamespace,
 		},
 		{
 			name:    "tail padding namespace",
 			msg:     tailPaddingMsg,
-			wantErr: ErrTailPaddingNamespace,
+			wantErr: ErrReservedNamespace,
 		},
 		{
 			name:    "tx namespace",
