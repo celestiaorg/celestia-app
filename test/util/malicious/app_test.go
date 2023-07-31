@@ -68,6 +68,9 @@ func TestOutOfOrderNMT(t *testing.T) {
 // TestMaliciousTestNode runs a single validator network using the malicious
 // node. This will begin to produce out of order blocks after block height of 5.
 func TestMaliciousTestNode(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping MaliciousTestNode in short mode.")
+	}
 	accounts := testfactory.RandomAccountNames(5)
 	cfg := OutOfOrderNamespaceConfig(5).
 		WithAccounts(accounts)
@@ -106,7 +109,8 @@ func TestMaliciousTestNode(t *testing.T) {
 	eds, err := ExtendShares(rawSquare)
 	require.NoError(t, err)
 
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
 	require.Equal(t, block.Block.DataHash.Bytes(), dah.Hash())
 
 	correctSquare, err := square.Construct(block.Block.Txs.ToSliceOfBytes(), appconsts.LatestVersion, appconsts.DefaultSquareSizeUpperBound)
@@ -115,6 +119,7 @@ func TestMaliciousTestNode(t *testing.T) {
 	goodEds, err := da.ExtendShares(shares.ToBytes(correctSquare))
 	require.NoError(t, err)
 
-	goodDah := da.NewDataAvailabilityHeader(goodEds)
+	goodDah, err := da.NewDataAvailabilityHeader(goodEds)
+	require.NoError(t, err)
 	require.NotEqual(t, block.Block.DataHash.Bytes(), goodDah.Hash())
 }

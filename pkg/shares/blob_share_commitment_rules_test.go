@@ -293,7 +293,7 @@ func TestNextShareIndex(t *testing.T) {
 	}
 }
 
-func Test_roundUpBy(t *testing.T) {
+func Test_roundUpByMultipleOf(t *testing.T) {
 	type test struct {
 		cursor, v     int
 		expectedIndex int

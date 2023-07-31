@@ -166,7 +166,7 @@ func TestValidateBlobTx(t *testing.T) {
 					0, 0,
 					blobfactory.RandBlobsWithNamespace(
 						[]namespace.Namespace{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
-						[]int{100, 100})...,
+						[]int{100, 100}),
 				)
 				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
@@ -184,7 +184,7 @@ func TestValidateBlobTx(t *testing.T) {
 					0, 0,
 					blobfactory.RandBlobsWithNamespace(
 						[]namespace.Namespace{namespace.RandomBlobNamespace(), namespace.RandomBlobNamespace()},
-						[]int{100000, 1000000})...,
+						[]int{100000, 1000000}),
 				)
 				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
@@ -203,7 +203,7 @@ func TestValidateBlobTx(t *testing.T) {
 					0, 0,
 					blobfactory.RandBlobsWithNamespace(
 						[]namespace.Namespace{ns, ns},
-						[]int{100, 100})...,
+						[]int{100, 100}),
 				)
 				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
@@ -230,7 +230,7 @@ func TestValidateBlobTx(t *testing.T) {
 					blobfactory.RandBlobsWithNamespace(
 						namespaces,
 						sizes,
-					)...)
+					))
 				btx, isBlobTx := coretypes.UnmarshalBlobTx(rawBtx)
 				require.True(t, isBlobTx)
 				return btx

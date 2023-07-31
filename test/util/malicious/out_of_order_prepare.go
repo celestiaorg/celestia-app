@@ -2,9 +2,9 @@ package malicious
 
 import (
 	"github.com/celestiaorg/celestia-app/app"
+	"github.com/celestiaorg/celestia-app/app/ante"
 	"github.com/celestiaorg/celestia-app/pkg/da"
 	"github.com/celestiaorg/celestia-app/pkg/shares"
-	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	abci "github.com/tendermint/tendermint/abci/types"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
@@ -22,7 +22,7 @@ func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.Re
 	// TODO: we can remove all state independent checks from the ante handler here such as signature verification
 	// and only check the state dependent checks like fees and nonces as all these transactions have already
 	// passed CheckTx.
-	handler := app.NewAnteHandler(
+	handler := ante.NewAnteHandler(
 		a.AccountKeeper,
 		a.BankKeeper,
 		a.BlobKeeper,
@@ -56,7 +56,10 @@ func (a *App) OutOfOrderPrepareProposal(req abci.RequestPrepareProposal) abci.Re
 
 	// create the new data root by creating the data availability header (merkle
 	// roots of each row and col of the erasure data).
-	dah := da.NewDataAvailabilityHeader(eds)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	if err != nil {
+		panic(err)
+	}
 
 	// tendermint doesn't need to use any of the erasure data, as only the
 	// protobuf encoded version of the block data is gossiped.

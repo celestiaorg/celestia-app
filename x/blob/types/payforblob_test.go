@@ -123,23 +123,23 @@ func TestValidateBasic(t *testing.T) {
 
 	validMsg := validMsgPayForBlobs(t)
 
-	// MsgPayForBlobs that uses parity shares namespace id
+	// MsgPayForBlobs that uses parity shares namespace
 	paritySharesMsg := validMsgPayForBlobs(t)
 	paritySharesMsg.Namespaces[0] = appns.ParitySharesNamespace.Bytes()
 
-	// MsgPayForBlobs that uses tail padding namespace id
+	// MsgPayForBlobs that uses tail padding namespace
 	tailPaddingMsg := validMsgPayForBlobs(t)
 	tailPaddingMsg.Namespaces[0] = appns.TailPaddingNamespace.Bytes()
 
-	// MsgPayForBlobs that uses transaction namespace id
+	// MsgPayForBlobs that uses transaction namespace
 	txNamespaceMsg := validMsgPayForBlobs(t)
 	txNamespaceMsg.Namespaces[0] = appns.TxNamespace.Bytes()
 
-	// MsgPayForBlobs that uses intermediateStateRoots namespace id
+	// MsgPayForBlobs that uses intermediateStateRoots namespace
 	intermediateStateRootsNamespaceMsg := validMsgPayForBlobs(t)
 	intermediateStateRootsNamespaceMsg.Namespaces[0] = appns.IntermediateStateRootsNamespace.Bytes()
 
-	// MsgPayForBlobs that uses the max reserved namespace id
+	// MsgPayForBlobs that uses the max reserved namespace
 	maxReservedNamespaceMsg := validMsgPayForBlobs(t)
 	maxReservedNamespaceMsg.Namespaces[0] = appns.MaxReservedNamespace.Bytes()
 
@@ -151,9 +151,9 @@ func TestValidateBasic(t *testing.T) {
 	invalidShareCommitmentSize := validMsgPayForBlobs(t)
 	invalidShareCommitmentSize.ShareCommitments[0] = bytes.Repeat([]byte{0x1}, 31)
 
-	// MsgPayForBlobs that has no namespace ids
-	noNamespaceIds := validMsgPayForBlobs(t)
-	noNamespaceIds.Namespaces = [][]byte{}
+	// MsgPayForBlobs that has no namespaces
+	noNamespaces := validMsgPayForBlobs(t)
+	noNamespaces.Namespaces = [][]byte{}
 
 	// MsgPayForBlobs that has no share versions
 	noShareVersions := validMsgPayForBlobs(t)
@@ -174,27 +174,27 @@ func TestValidateBasic(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			name:    "parity shares namespace id",
+			name:    "parity shares namespace",
 			msg:     paritySharesMsg,
 			wantErr: ErrParitySharesNamespace,
 		},
 		{
-			name:    "tail padding namespace id",
+			name:    "tail padding namespace",
 			msg:     tailPaddingMsg,
 			wantErr: ErrTailPaddingNamespace,
 		},
 		{
-			name:    "transaction namspace namespace id",
+			name:    "tx namespace",
 			msg:     txNamespaceMsg,
 			wantErr: ErrReservedNamespace,
 		},
 		{
-			name:    "intermediate state root namespace id",
+			name:    "intermediate state root namespace",
 			msg:     intermediateStateRootsNamespaceMsg,
 			wantErr: ErrReservedNamespace,
 		},
 		{
-			name:    "max reserved namespace id",
+			name:    "max reserved namespace",
 			msg:     maxReservedNamespaceMsg,
 			wantErr: ErrReservedNamespace,
 		},
@@ -210,7 +210,7 @@ func TestValidateBasic(t *testing.T) {
 		},
 		{
 			name:    "no namespace ids",
-			msg:     noNamespaceIds,
+			msg:     noNamespaces,
 			wantErr: ErrNoNamespaces,
 		},
 		{

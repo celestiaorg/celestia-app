@@ -167,6 +167,11 @@ func (dah *DataAvailabilityHeader) IsZero() bool {
 	return len(dah.ColumnRoots) == 0 || len(dah.RowRoots) == 0
 }
 
+// SquareSize returns the number of rows in the original data square.
+func (dah *DataAvailabilityHeader) SquareSize() int {
+	return len(dah.RowRoots) / 2
+}
+
 // MinDataAvailabilityHeader returns the minimum valid data availability header.
 // It is equal to the data availability header for a block with one tail padding
 // share.

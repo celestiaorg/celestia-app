@@ -64,14 +64,10 @@ func NextShareIndex(cursor, blobShareLen, subtreeRootThreshold int) int {
 // roundUpByMultipleOf rounds cursor up to the next multiple of v. If cursor is divisible
 // by v, then it returns cursor
 func roundUpByMultipleOf(cursor, v int) int {
-	switch {
-	case cursor == 0:
+	if cursor%v == 0 {
 		return cursor
-	case cursor%v == 0:
-		return cursor
-	default:
-		return ((cursor / v) + 1) * v
 	}
+	return ((cursor / v) + 1) * v
 }
 
 // BlobMinSquareSize returns the minimum square size that can contain shareCount
