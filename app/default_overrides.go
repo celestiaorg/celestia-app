@@ -167,7 +167,7 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
 	cfg.Mempool.TTLNumBlocks = 10
 	cfg.Mempool.MaxTxBytes = appconsts.DefaultMaxBytes
-	cfg.Mempool.Version = "v1"               // prioritized mempool
+	cfg.Mempool.Version = "v1" // prioritized mempool
 	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
 	cfg.Consensus.SkipTimeoutCommit = false
