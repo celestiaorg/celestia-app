@@ -20,6 +20,7 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	rpctypes "github.com/tendermint/tendermint/rpc/core/types"
+	coretypes "github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -148,15 +149,15 @@ func NewBaseAccount(kr keyring.Keyring, name string) (*authtypes.BaseAccount, sd
 // - bAccounts: A slice of authtypes.BaseAccount representing the generated base accounts.
 // - balances: A slice of banktypes.Balance representing the balances of the generated accounts.
 func GenerateBaseAccounts(kr keyring.Keyring, names []string, initExtraCoins ...sdk.Coin) ([]authtypes.BaseAccount, []banktypes.Balance) {
-	bAccounts := []authtypes.BaseAccount{}
-	balances := []banktypes.Balance{}
-	for _, name := range names {
+	bAccounts := make([]authtypes.BaseAccount, len(names))
+	balances := make([]banktypes.Balance, len(names))
+	for i, name := range names {
 		acc, coins := NewBaseAccount(kr, name)
-		bAccounts = append(bAccounts, *acc)
-		balances = append(balances, banktypes.Balance{
+		bAccounts[i] = *acc
+		balances[i] = banktypes.Balance{
 			Address: acc.GetAddress().String(),
 			Coins:   coins.Add(initExtraCoins...),
-		})
+		}
 	}
 
 	return bAccounts, balances
@@ -178,7 +179,8 @@ func GenerateDelayedVestingAccounts(kr keyring.Keyring, names []string, initUnlo
 
 	endTime := tmtime.Now().Add(-2 * time.Second)
 	for i := range bAccounts {
-		bal := FindBalanceByAddress(balances, bAccounts[i].GetAddress().String())
+		bal := balances[i]
+		// initUnlockedCoins are subbed to keep them unlocked
 		coins := bal.Coins.Sub(initUnlockedCoins...)
 		acc := vestingtypes.NewDelayedVestingAccount(&bAccounts[i], coins, endTime.Unix())
 		vAccounts = append(vAccounts, acc)
@@ -215,7 +217,8 @@ func GeneratePeriodicVestingAccounts(kr keyring.Keyring, names []string, initUnl
 
 	startTime := tmtime.Now()
 	for i := range bAccounts {
-		bal := FindBalanceByAddress(balances, bAccounts[i].GetAddress().String())
+		bal := balances[i]
+		// initUnlockedCoins are subbed to keep them unlocked
 		coins := bal.Coins.Sub(initUnlockedCoins...)
 		acc := vestingtypes.NewPeriodicVestingAccount(&bAccounts[i], coins, startTime.Unix(), periods)
 		vAccounts = append(vAccounts, acc)
@@ -244,10 +247,11 @@ func GenerateContinuousVestingAccounts(kr keyring.Keyring, names []string, initU
 	startTime := tmtime.Now()
 
 	for i := range bAccounts {
-		bal := FindBalanceByAddress(balances, bAccounts[i].GetAddress().String())
+		bal := balances[i]
+		// initUnlockedCoins are subbed to keep them unlocked
 		coins := bal.Coins.Sub(initUnlockedCoins...)
 
-		endTime := startTime.Add(10 * time.Second)
+		endTime := startTime.Add(20 * time.Second)
 		acc := vestingtypes.NewContinuousVestingAccount(&bAccounts[i], coins, startTime.Unix(), endTime.Unix())
 		vAccounts = append(vAccounts, acc)
 
@@ -328,13 +332,6 @@ func GetAccountDelegations(grpcConn *grpc.ClientConn, address string) (stakingty
 // It takes a gRPC client connection (grpcConn) and the account address (address) as inputs.
 // If the account is not found or an error occurs, it returns nil and the error.
 // Otherwise, it returns the spendable balances of the account as an sdk.Coins object.
-//
-// Parameters:
-// - grpcConn: A gRPC client connection.
-// - address: The account address to retrieve the spendable balances for.
-//
-// Returns:
-// The spendable balances of the account as an sdk.Coins object, or nil and an error if the retrieval fails.
 func GetAccountSpendableBalance(grpcConn *grpc.ClientConn, address string) (balances sdk.Coins, err error) {
 	cli := banktypes.NewQueryClient(grpcConn)
 	res, err := cli.SpendableBalances(
@@ -349,22 +346,16 @@ func GetAccountSpendableBalance(grpcConn *grpc.ClientConn, address string) (bala
 	return res.GetBalances(), nil
 }
 
-// GetAccountSpendableBalanceByHeight retrieves the spendable balance of an account for the specified address at the given height using gRPC.
+// GetAccountSpendableBalanceByBlock retrieves the spendable balance of an account for the specified address at the given height using gRPC.
 // It takes a gRPC client connection (grpcConn) and the account address (address) as inputs.
 // If the account is not found or an error occurs, it returns nil and the error.
 // Otherwise, it returns the spendable balances of the account as an sdk.Coins object.
-//
-// Parameters:
-// - grpcConn: A gRPC client connection.
-// - address: The account address to retrieve the spendable balances for.
-// - height: The height at which to retrieve the spendable balances.
-//
-// Returns:
-// The spendable balances of the account as an sdk.Coins object, or nil and an error if the retrieval fails.
-func GetAccountSpendableBalanceByHeight(grpcConn *grpc.ClientConn, address string, height int64) (balances sdk.Coins, err error) {
+func GetAccountSpendableBalanceByBlock(grpcConn *grpc.ClientConn, address string, block *coretypes.Block) (balances sdk.Coins, err error) {
 	cli := banktypes.NewQueryClient(grpcConn)
+	ctx := metadata.AppendToOutgoingContext(context.Background(), grpctypes.GRPCBlockHeightHeader, fmt.Sprint(block.Height))
+	ctx = metadata.AppendToOutgoingContext(ctx, grpctypes.GRPCBlockTimeHeader, fmt.Sprint(block.Time.Unix()))
 	res, err := cli.SpendableBalances(
-		metadata.AppendToOutgoingContext(context.Background(), grpctypes.GRPCBlockHeightHeader, fmt.Sprint(height)),
+		ctx,
 		&banktypes.QuerySpendableBalancesRequest{
 			Address: address,
 		},
@@ -379,13 +370,6 @@ func GetAccountSpendableBalanceByHeight(grpcConn *grpc.ClientConn, address strin
 // It takes a gRPC client connection (grpcConn) and the account address (address) as inputs.
 // If no account found or an error occurs, it returns nil and the error.
 // Otherwise, it returns the value field of the account in the response, which represents the raw account information.
-//
-// Parameters:
-// - grpcConn: A gRPC client connection.
-// - address: The account address to retrieve the raw information for.
-//
-// Returns:
-// The raw account information as a byte slice, or nil and an error if the retrieval fails.
 func GetRawAccountInfo(grpcConn *grpc.ClientConn, address string) ([]byte, error) {
 	cli := authtypes.NewQueryClient(grpcConn)
 	res, err := cli.Account(context.Background(), &authtypes.QueryAccountRequest{
@@ -397,24 +381,4 @@ func GetRawAccountInfo(grpcConn *grpc.ClientConn, address string) ([]byte, error
 	}
 
 	return res.Account.Value, nil
-}
-
-// FindBalanceByAddress finds a balance in the given slice of banktypes.Balance
-// by matching the address with the provided address string.
-// It iterates over the balances slice and returns the pointer to the first balance
-// that has a matching address. If no matching balance is found, it returns nil.
-//
-// Parameters:
-// - balances: A slice of banktypes.Balance to search within.
-// - address: The address string to match against balance addresses.
-//
-// Returns:
-// A pointer to the banktypes.Balance with a matching address, or nil if not found.
-func FindBalanceByAddress(balances []banktypes.Balance, address string) *banktypes.Balance {
-	for _, b := range balances {
-		if b.Address == address {
-			return &b
-		}
-	}
-	return nil
 }

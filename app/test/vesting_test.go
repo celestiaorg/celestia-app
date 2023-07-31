@@ -82,9 +82,6 @@ func (s *VestingModuleTestSuite) SetupSuite() {
 // The target block time is set to 1 millisecond. It applies the given genesis options to the test network
 // and stores the created client context (cctx) in the VestingModuleTestSuite.
 // The keyring of the context is set to the keyring (s.kr) of the VestingModuleTestSuite.
-//
-// Parameters:
-// - genesisOpts: The genesis options to be applied when creating the test network.
 func (s *VestingModuleTestSuite) startNewNetworkWithGenesisOpt(genesisOpts ...testnode.GenesisOption) {
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	cfg := testnode.DefaultConfig().WithGenesisOptions(testnode.ImmediateProposals(s.ecfg.Codec))
@@ -95,68 +92,68 @@ func (s *VestingModuleTestSuite) startNewNetworkWithGenesisOpt(genesisOpts ...te
 	s.cctx.Keyring = s.kr
 }
 
-func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsSpendableBalance() {
+func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsSpendableBalanceUnlocked() {
+	block, err := s.cctx.LatestBlock()
+	assert.NoError(s.T(), err)
+	// We need to wait for a block because sometimes querying based on the
+	// latest height throws an SDK error saying the height is in the future
 	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
 
-	for {
-		vAcc, name, err := s.getAnUnusedDelayedVestingAccount()
-		assert.NoError(s.T(), err)
-		address := getAddress(name, s.cctx.Keyring).String()
+	// find an unlocked delayed vesting account.
+	vAcc, name, err := s.getAnUnusedDelayedVestingAccount(0)
+	assert.NoError(s.T(), err)
 
-		block, err := s.cctx.LatestBlock()
-		assert.NoError(s.T(), err)
+	address := getAddress(name, s.cctx.Keyring).String()
+	balances, err := testfactory.GetAccountSpendableBalanceByBlock(s.cctx.GRPCClient, address, block)
+	assert.NoError(s.T(), err)
 
-		balances, err := testfactory.GetAccountSpendableBalanceByHeight(s.cctx.GRPCClient, address, block.Height)
-		assert.NoError(s.T(), err)
+	expectedSpendableBal := vAcc.GetVestedCoins(block.Time).AmountOf(app.BondDenom).Int64() + initBalanceForGasFee
+	assert.EqualValues(s.T(),
+		expectedSpendableBal,
+		balances.AmountOf(app.BondDenom).Int64(),
+		"spendable balance must match")
+}
 
-		alreadyVested := vAcc.EndTime < block.Time.Unix()
-		expectedSpendableBal := initBalanceForGasFee
-		if alreadyVested {
-			expectedSpendableBal += vestingAmount
-		}
-		assert.EqualValues(s.T(),
-			expectedSpendableBal,
-			balances.AmountOf(app.BondDenom).Int64(),
-			"spendable balance must match")
+func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsSpendableBalanceLocked() {
+	block, err := s.cctx.LatestBlock()
+	assert.NoError(s.T(), err)
+	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
 
-		// Continue testing until find an account with vesting (locked) balance
-		// because we want to test both vested & vesting accounts
-		if !alreadyVested {
-			break
-		}
-	}
+	// find a delayed vesting account that its end-time has not reached yet i.e. locked
+	vAcc, name, err := s.getAnUnusedDelayedVestingAccount(block.Time.Unix() + 10)
+	assert.NoError(s.T(), err)
+
+	address := getAddress(name, s.cctx.Keyring).String()
+	balances, err := testfactory.GetAccountSpendableBalanceByBlock(s.cctx.GRPCClient, address, block)
+	assert.NoError(s.T(), err)
+
+	expectedSpendableBal := vAcc.GetVestedCoins(block.Time).AmountOf(app.BondDenom).Int64() + initBalanceForGasFee
+	assert.EqualValues(s.T(),
+		expectedSpendableBal,
+		balances.AmountOf(app.BondDenom).Int64(),
+		"spendable balance must match")
 }
 
 func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsTransfer() {
 	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// find and test a vesting account with endTime which is
-	// at least 10 seconds away time from now
-	for {
-		vAcc, name, err := s.getAnUnusedDelayedVestingAccount()
-		assert.NoError(s.T(), err)
+	// at least 10 seconds away time from now to give the tx enough time to complete
+	_, name, err := s.getAnUnusedDelayedVestingAccount(tmtime.Now().Unix() + 10)
+	assert.NoError(s.T(), err)
 
-		if vAcc.EndTime > tmtime.Now().Unix()+10 {
-			s.testTransferVestingAmount(name)
-			return
-		}
-	}
+	s.testTransferVestingAmount(name)
 }
 
 func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsDelegation() {
 	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
 
-	// find and test a vesting account that has some vesting (locked) balance
-	for {
-		vAcc, name, err := s.getAnUnusedDelayedVestingAccount()
-		assert.NoError(s.T(), err)
+	// find and test a vesting account that has vesting (locked) balance
+	// 10 seconds is chosen to be on the safe side
+	_, name, err := s.getAnUnusedDelayedVestingAccount(tmtime.Now().Unix() + 10)
+	assert.NoError(s.T(), err)
 
-		// 10 seconds is chosen to be on the safe side
-		if vAcc.EndTime > tmtime.Now().Unix()+10 {
-			s.testDelegatingVestingAmount(name)
-			return
-		}
-	}
+	s.testDelegatingVestingAmount(name)
 }
 
 func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsClaimDelegationRewards() {
@@ -164,63 +161,69 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsClaimDelegatio
 
 	// find and test a vesting account with endTime which is
 	// 	at least 20 seconds away time from now
-	for {
-		vAcc, name, err := s.getAnUnusedDelayedVestingAccount()
-		assert.NoError(s.T(), err)
+	_, name, err := s.getAnUnusedDelayedVestingAccount(tmtime.Now().Unix() + 20)
+	assert.NoError(s.T(), err)
 
-		if vAcc.EndTime > tmtime.Now().Unix()+20 {
-			s.testDelegatingVestingAmount(name)
-			s.testClaimDelegationReward(name)
-			return
-		}
-	}
+	s.testDelegatingVestingAmount(name)
+	s.testClaimDelegationReward(name)
 }
 
-func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsSpendableBalance() {
+func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsSpendableBalancePartiallyUnlocked() {
+	// Find a periodic vesting account that has some vested (unlocked) balance (its start time has already passed)
+	vAcc, name, err := s.getAnUnusedPeriodicVestingAccount(tmtime.Now().Unix() - 5)
+	assert.NoError(s.T(), err)
+	address := getAddress(name, s.cctx.Keyring).String()
+
+	// Since we want a partially unlocked balance we need to wait until
+	// the first period has passed if not already
+	for vAcc.GetVestedCoins(tmtime.Now()).IsZero() {
+		time.Sleep(time.Second)
+	}
+
+	block, err := s.cctx.LatestBlock()
+	assert.NoError(s.T(), err)
 	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
 
-	initCoinsForGasFee := sdk.NewCoin(app.BondDenom, sdk.NewInt(initBalanceForGasFee))
-	for {
-		vAcc, name, err := s.getAnUnusedPeriodicVestingAccount()
-		assert.NoError(s.T(), err)
-		address := getAddress(name, s.cctx.Keyring).String()
+	balances, err := testfactory.GetAccountSpendableBalanceByBlock(s.cctx.GRPCClient, address, block)
+	assert.NoError(s.T(), err)
 
-		block, err := s.cctx.LatestBlock()
-		assert.NoError(s.T(), err)
+	expectedSpendableBal := vAcc.GetVestedCoins(block.Time).AmountOf(app.BondDenom).Int64() + initBalanceForGasFee
+	assert.EqualValues(s.T(),
+		expectedSpendableBal,
+		balances.AmountOf(app.BondDenom).Int64(),
+		"spendable balance must match")
+}
 
-		balances, err := testfactory.GetAccountSpendableBalanceByHeight(s.cctx.GRPCClient, address, block.Height)
-		assert.NoError(s.T(), err)
+func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsSpendableBalanceLocked() {
+	block, err := s.cctx.LatestBlock()
+	assert.NoError(s.T(), err)
+	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
 
-		vestedCoins := vAcc.GetVestedCoins(block.Time)
-		expectedSpendableCoins := vestedCoins.Add(initCoinsForGasFee)
-		assert.EqualValues(s.T(),
-			expectedSpendableCoins.AmountOf(app.BondDenom).Int64(),
-			balances.AmountOf(app.BondDenom).Int64(),
-			"spendable balance must match")
+	// Find a periodic vesting account that that is currently in a vesting (locked) state
+	// i.e. its start time yet to be reached.
+	vAcc, name, err := s.getAnUnusedPeriodicVestingAccount(block.Time.Unix() + 10)
+	assert.NoError(s.T(), err)
+	address := getAddress(name, s.cctx.Keyring).String()
 
-		// Stop testing once we hit an account with no spendable balance
-		if vestedCoins.IsZero() {
-			break
-		}
-		s.T().Log("waiting 3 seconds...")
-		time.Sleep(3 * time.Second)
-	}
+	balances, err := testfactory.GetAccountSpendableBalanceByBlock(s.cctx.GRPCClient, address, block)
+	assert.NoError(s.T(), err)
+
+	expectedSpendableBal := vAcc.GetVestedCoins(block.Time).AmountOf(app.BondDenom).Int64() + initBalanceForGasFee
+	assert.EqualValues(s.T(),
+		expectedSpendableBal,
+		balances.AmountOf(app.BondDenom).Int64(),
+		"spendable balance must match")
 }
 
 func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsDelegation() {
 	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
 
-	// find and test a vesting account that has some vesting (locked) balance
-	for {
-		vAcc, name, err := s.getAnUnusedPeriodicVestingAccount()
-		assert.NoError(s.T(), err)
+	// Find a periodic vesting account that that is currently in a vesting (locked) state
+	// i.e. its start time yet to be reached.
+	_, name, err := s.getAnUnusedPeriodicVestingAccount(tmtime.Now().Unix() + 10)
+	assert.NoError(s.T(), err)
 
-		// 10 seconds is chosen to be on the safe side
-		if vAcc.StartTime > tmtime.Now().Unix()+10 {
-			s.testDelegatingVestingAmount(name)
-			return
-		}
-	}
+	s.testDelegatingVestingAmount(name)
 }
 
 // This test function tests delegation of a periodic vesting account that
@@ -230,27 +233,15 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsDelegationPar
 
 	// find and test a vesting account that has some vesting (locked) and
 	// some vested (unlocked) balance
-	for {
-		vAcc, name, err := s.getAnUnusedPeriodicVestingAccount()
-		assert.NoError(s.T(), err)
+	vAcc, name, err := s.getAnUnusedPeriodicVestingAccount(tmtime.Now().Unix() - 5)
+	assert.NoError(s.T(), err)
 
-		firstPeriodTime := vAcc.StartTime + vAcc.VestingPeriods[0].GetLength()
-		if firstPeriodTime < tmtime.Now().Unix() {
-			continue
-		}
-
-		// an account that has its first period passed by just a little
-		// and so only a part of allocation is unlocked
-		if firstPeriodTime >= tmtime.Now().Unix() {
-			waitTime := firstPeriodTime - tmtime.Now().Unix() + 1
-			s.T().Logf("waiting %d seconds...", waitTime)
-			time.Sleep(time.Duration(waitTime) * time.Second)
-		}
-		assert.False(s.T(), vAcc.GetVestedCoins(tmtime.Now()).IsZero(), "unlocked balance amount must not be zero")
-
-		s.testDelegatingVestingAmount(name)
-		return
+	// Since we want a partially unlocked balance we need to wait until
+	// the first period has passed if not already
+	for vAcc.GetVestedCoins(tmtime.Now()).IsZero() {
+		time.Sleep(time.Second)
 	}
+	s.testDelegatingVestingAmount(name)
 }
 
 func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsClaimDelegationRewards() {
@@ -258,63 +249,67 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsClaimDelegati
 
 	// find and test a vesting account that has some vesting (locked) balance
 	// to be on the safe side we select one that starts unlocking in at least 20 seconds
-	for {
-		vAcc, name, err := s.getAnUnusedPeriodicVestingAccount()
-		assert.NoError(s.T(), err)
+	_, name, err := s.getAnUnusedPeriodicVestingAccount(tmtime.Now().Unix() + 20)
+	assert.NoError(s.T(), err)
 
-		if vAcc.StartTime > tmtime.Now().Unix()+20 {
-			s.testDelegatingVestingAmount(name)
-			s.testClaimDelegationReward(name)
-			return
-		}
-	}
+	s.testDelegatingVestingAmount(name)
+	s.testClaimDelegationReward(name)
 }
 
-func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsSpendableBalance() {
+func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsSpendableBalanceLocked() {
+	block, err := s.cctx.LatestBlock()
+	assert.NoError(s.T(), err)
 	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
 
-	initCoinsForGasFee := sdk.NewCoin(app.BondDenom, sdk.NewInt(initBalanceForGasFee))
+	// find a continuous vesting account with locked balance
+	vAcc, name, err := s.getAnUnusedContinuousVestingAccount(block.Time.Unix() + 10)
+	assert.NoError(s.T(), err)
+	address := getAddress(name, s.cctx.Keyring).String()
 
-	for {
-		vAcc, name, err := s.getAnUnusedContinuousVestingAccount()
-		assert.NoError(s.T(), err)
-		address := getAddress(name, s.cctx.Keyring).String()
+	balances, err := testfactory.GetAccountSpendableBalanceByBlock(s.cctx.GRPCClient, address, block)
+	assert.NoError(s.T(), err)
 
-		block, err := s.cctx.LatestBlock()
-		assert.NoError(s.T(), err)
+	expectedSpendableBalAmount := vAcc.GetVestedCoins(block.Time).AmountOf(app.BondDenom).Int64() + initBalanceForGasFee
+	assert.EqualValues(s.T(),
+		expectedSpendableBalAmount,
+		balances.AmountOf(app.BondDenom).Int64(),
+	)
+}
 
-		balances, err := testfactory.GetAccountSpendableBalanceByHeight(s.cctx.GRPCClient, address, block.Height)
-		assert.NoError(s.T(), err)
+func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsSpendableBalancePartiallyUnlocked() {
+	// find a continuous vesting account with partially unlocked balance
+	vAcc, name, err := s.getAnUnusedContinuousVestingAccount(tmtime.Now().Unix() - 5)
+	assert.NoError(s.T(), err)
+	address := getAddress(name, s.cctx.Keyring).String()
 
-		vestedCoins := vAcc.GetVestedCoins(block.Time)
-		maxExpectedSpendableBalCoins := vestedCoins.Add(initCoinsForGasFee)
-		assert.LessOrEqual(s.T(),
-			balances.AmountOf(app.BondDenom).Int64(),
-			maxExpectedSpendableBalCoins.AmountOf(app.BondDenom).Int64())
-
-		// Stop testing once we hit an account with no spendable balance
-		if vestedCoins.IsZero() {
-			break
-		}
-		s.T().Log("waiting 3 seconds...")
-		time.Sleep(3 * time.Second)
+	// Since we want a partially unlocked balance we need to wait until
+	// the start time just passes if not already
+	for vAcc.GetVestedCoins(tmtime.Now()).IsZero() {
+		time.Sleep(time.Second)
 	}
+
+	block, err := s.cctx.LatestBlock()
+	assert.NoError(s.T(), err)
+	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+
+	balances, err := testfactory.GetAccountSpendableBalanceByBlock(s.cctx.GRPCClient, address, block)
+	assert.NoError(s.T(), err)
+
+	expectedSpendableBalAmount := vAcc.GetVestedCoins(block.Time).AmountOf(app.BondDenom).Int64() + initBalanceForGasFee
+	assert.EqualValues(s.T(),
+		expectedSpendableBalAmount,
+		balances.AmountOf(app.BondDenom).Int64(),
+	)
 }
 
 func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsDelegation() {
 	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// find and test a vesting account that has some vesting (locked) balance
-	for {
-		vAcc, name, err := s.getAnUnusedContinuousVestingAccount()
-		assert.NoError(s.T(), err)
+	_, name, err := s.getAnUnusedContinuousVestingAccount(tmtime.Now().Unix() + 10)
+	assert.NoError(s.T(), err)
 
-		// 10 seconds is chosen to be on the safe side
-		if vAcc.StartTime > tmtime.Now().Unix()+10 {
-			s.testDelegatingVestingAmount(name)
-			return
-		}
-	}
+	s.testDelegatingVestingAmount(name)
 }
 
 // This test function tests delegation of a continuous vesting account that
@@ -322,27 +317,16 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsDelegation(
 func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsDelegationPartiallyVested() {
 	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
 
-	// find and test a vesting account that has some vesting (locked) and
-	// some vested (unlocked) balance
-	for {
-		vAcc, name, err := s.getAnUnusedContinuousVestingAccount()
-		assert.NoError(s.T(), err)
+	// find a continuous vesting account with partially unlocked balance
+	vAcc, name, err := s.getAnUnusedContinuousVestingAccount(tmtime.Now().Unix() - 5)
+	assert.NoError(s.T(), err)
 
-		if vAcc.StartTime < tmtime.Now().Unix() {
-			continue
-		}
-
-		// an account that has its start time passed by just a little
-		if vAcc.StartTime >= tmtime.Now().Unix() {
-			waitTime := vAcc.StartTime - tmtime.Now().Unix() + 1
-			s.T().Logf("waiting %d seconds...", waitTime)
-			time.Sleep(time.Duration(waitTime) * time.Second)
-		}
-		assert.False(s.T(), vAcc.GetVestedCoins(tmtime.Now()).IsZero(), "unlocked balance amount must not be zero")
-
-		s.testDelegatingVestingAmount(name)
-		return
+	// Since we want a partially unlocked balance we need to wait until
+	// the start time just passes if not already
+	for vAcc.GetVestedCoins(tmtime.Now()).IsZero() {
+		time.Sleep(time.Second)
 	}
+	s.testDelegatingVestingAmount(name)
 }
 
 func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsClaimDelegationRewards() {
@@ -350,16 +334,11 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsClaimDelega
 
 	// find and test a vesting account that has some vesting (locked) balance
 	// to be on the safe side we select one that starts unlocking in at least 20 seconds
-	for {
-		vAcc, name, err := s.getAnUnusedContinuousVestingAccount()
-		assert.NoError(s.T(), err)
+	_, name, err := s.getAnUnusedContinuousVestingAccount(tmtime.Now().Unix() + 20)
+	assert.NoError(s.T(), err)
 
-		if vAcc.StartTime > tmtime.Now().Unix()+20 {
-			s.testDelegatingVestingAmount(name)
-			s.testClaimDelegationReward(name)
-			return
-		}
-	}
+	s.testDelegatingVestingAmount(name)
+	s.testClaimDelegationReward(name)
 }
 
 // testTransferVestingAmount tests the transfer of vesting amounts (locked balance) from a vesting account
@@ -368,7 +347,9 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsClaimDelega
 // account to the random account. It asserts that the result code of the transaction is equal to 5,
 // indicating a failure in the transfer.
 func (s *VestingModuleTestSuite) testTransferVestingAmount(name string) {
-	randomAcc := s.unusedAccount(RegularAccountType)
+	randomAcc, err := s.unusedAccount(RegularAccountType)
+	assert.NoError(s.T(), err)
+
 	msgSend := banktypes.NewMsgSend(
 		getAddress(name, s.cctx.Keyring),
 		getAddress(randomAcc, s.cctx.Keyring),
@@ -424,7 +405,7 @@ func (s *VestingModuleTestSuite) testDelegatingVestingAmount(name string) {
 // It takes the name of the vesting account (name) as an input.
 // It claims the delegation rewards and then retrieves the balances of the vesting account.
 func (s *VestingModuleTestSuite) testClaimDelegationReward(name string) {
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	assert.NoError(s.T(), s.cctx.WaitForBlocks(5))
 
 	address := getAddress(name, s.cctx.Keyring).String()
 
@@ -464,6 +445,8 @@ func (s *VestingModuleTestSuite) testClaimDelegationReward(name string) {
 	assert.NoError(s.T(), err)
 	assert.EqualValues(s.T(), 0, resQ.TxResult.Code, fmt.Sprintf("the claim reward TX must succeed: \n%s", resQ.TxResult.String()))
 
+	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+
 	// Check if the reward amount in the account
 	balancesAfter, err := testfactory.GetAccountSpendableBalance(s.cctx.GRPCClient, address)
 	assert.NoError(s.T(), err)
@@ -476,20 +459,13 @@ func (s *VestingModuleTestSuite) testClaimDelegationReward(name string) {
 // of the VestingModuleTestSuite with RegularAccountType as the key. It also generates base accounts
 // and their default balances. The generated accounts and balances are added to the provided genesis
 // state. The genesis state modifier function is returned.
-//
-// Parameters:
-// - count: The number of regular accounts to generate.
-//
-// Returns:
-// A GenesisOption function that takes the current genesis state as input, adds the generated accounts and balances to it,
-// and returns the modified genesis state.
 func (s *VestingModuleTestSuite) initRegularAccounts(count int) testnode.GenesisOption {
 	names := testfactory.GenerateAccounts(count)
 	s.accounts.Store(RegularAccountType, accountDispenser{names: names})
 	bAccounts, balances := testfactory.GenerateBaseAccounts(s.kr, names)
 	gAccounts := authtypes.GenesisAccounts{}
 	for i := range bAccounts {
-		gAccounts = append(gAccounts, &bAccounts[i])
+		gAccounts = append(gAccounts, authtypes.GenesisAccount(&bAccounts[i]))
 	}
 
 	return func(gs map[string]json.RawMessage) map[string]json.RawMessage {
@@ -501,19 +477,7 @@ func (s *VestingModuleTestSuite) initRegularAccounts(count int) testnode.Genesis
 
 // initDelayedVestingAccounts initializes delayed vesting accounts for the VestingModuleTestSuite.
 // It generates the specified number of account names and stores them in the accounts map with
-// RegularAccountType as the key. The generated accounts and balances are delayed vesting accounts
-// with varying progressive end times which enables to have a number of vesting accounts (locked) and
-// some vested accounts (unlocked balances) to test various scenarios. A modifier function which
-// modifies genesis state, including the delayed vesting accounts and their balances, is returned
-// as a GenesisOption function that takes the current genesis state as input.
-//
-// Parameters:
-// - count: The number of delayed vesting accounts to generate.
-//
-// Returns:
-// A GenesisOption function that takes the current genesis state as input, creates delayed vesting accounts
-// with varying end times using the generated accounts and balances, adds them to the genesis state,
-// and returns the modified genesis state.
+// RegularAccountType as the key.
 func (s *VestingModuleTestSuite) initDelayedVestingAccounts(count int) testnode.GenesisOption {
 	initCoinsForGasFee := sdk.NewCoin(app.BondDenom, sdk.NewInt(initBalanceForGasFee))
 
@@ -522,7 +486,7 @@ func (s *VestingModuleTestSuite) initDelayedVestingAccounts(count int) testnode.
 	vAccounts, balances := testfactory.GenerateDelayedVestingAccounts(s.kr, names, initCoinsForGasFee)
 	gAccounts := authtypes.GenesisAccounts{}
 	for i := range vAccounts {
-		gAccounts = append(gAccounts, vAccounts[i])
+		gAccounts = append(gAccounts, authtypes.GenesisAccount(vAccounts[i]))
 	}
 
 	return func(gs map[string]json.RawMessage) map[string]json.RawMessage {
@@ -538,13 +502,6 @@ func (s *VestingModuleTestSuite) initDelayedVestingAccounts(count int) testnode.
 // generated data. The function then updates the genesis state with the generated vesting accounts
 // and balances. The startTime of each account increases progressively to ensure some accounts have
 // locked balances, catering to the testing requirements.
-//
-// Parameters:
-// - count: The number of regular accounts to generate.
-//
-// Returns:
-// A GenesisOption function that takes the current genesis state as input, adds the generated accounts
-// and balances to it, and returns the modified genesis state.
 func (s *VestingModuleTestSuite) initPeriodicVestingAccounts(count int) testnode.GenesisOption {
 	initCoinsForGasFee := sdk.NewCoin(app.BondDenom, sdk.NewInt(initBalanceForGasFee))
 
@@ -553,7 +510,7 @@ func (s *VestingModuleTestSuite) initPeriodicVestingAccounts(count int) testnode
 	vAccounts, balances := testfactory.GeneratePeriodicVestingAccounts(s.kr, names, initCoinsForGasFee)
 	gAccounts := authtypes.GenesisAccounts{}
 	for i := range vAccounts {
-		gAccounts = append(gAccounts, vAccounts[i])
+		gAccounts = append(gAccounts, authtypes.GenesisAccount(vAccounts[i]))
 	}
 
 	return func(gs map[string]json.RawMessage) map[string]json.RawMessage {
@@ -569,13 +526,6 @@ func (s *VestingModuleTestSuite) initPeriodicVestingAccounts(count int) testnode
 // then updates the genesis state with the generated vesting accounts and balances. The start & endTime
 // of each account increases progressively to ensure some accounts have locked balances, catering to the
 // testing requirements.
-//
-// Parameters:
-// - count: The number of regular accounts to generate.
-//
-// Returns:
-// A GenesisOption function that takes the current genesis state as input, adds the generated accounts
-// and balances to it, and returns the modified genesis state.
 func (s *VestingModuleTestSuite) initContinuousVestingAccounts(count int) testnode.GenesisOption {
 	initCoinsForGasFee := sdk.NewCoin(app.BondDenom, sdk.NewInt(initBalanceForGasFee))
 	names := testfactory.GenerateAccounts(count)
@@ -584,7 +534,7 @@ func (s *VestingModuleTestSuite) initContinuousVestingAccounts(count int) testno
 	vAccounts, balances := testfactory.GenerateContinuousVestingAccounts(s.kr, names, initCoinsForGasFee)
 	gAccounts := authtypes.GenesisAccounts{}
 	for i := range vAccounts {
-		gAccounts = append(gAccounts, vAccounts[i])
+		gAccounts = append(gAccounts, authtypes.GenesisAccount(vAccounts[i]))
 	}
 
 	return func(gs map[string]json.RawMessage) map[string]json.RawMessage {
@@ -597,64 +547,93 @@ func (s *VestingModuleTestSuite) initContinuousVestingAccounts(count int) testno
 // unusedAccount returns an unused account name of the specified account type
 // for the VestingModuleTestSuite. If the account type is not found, it panics
 // with an error message.
-//
-// Parameters:
-// - accType: The account type (_accountType) for which an unused account is requested.
-//
-// Returns:
-// The next unused account of the specified account type.
-func (s *VestingModuleTestSuite) unusedAccount(accType accountType) string {
+func (s *VestingModuleTestSuite) unusedAccount(accType accountType) (string, error) {
 	s.accountsMut.Lock()
 	defer s.accountsMut.Unlock()
 
 	accountsAny, found := s.accounts.Load(accType)
-	assert.True(s.T(), found, fmt.Sprintf("account type `%s` not found", accType.String()))
+	if !found {
+		return "", fmt.Errorf("account type `%s` not found", accType.String())
+	}
 
 	accounts := accountsAny.(accountDispenser)
-	assert.Less(s.T(), accounts.counter, len(accounts.names), fmt.Sprintf("out of unused accounts for type `%s`", accType.String()))
+	if accounts.counter >= len(accounts.names) {
+		return "", fmt.Errorf("out of unused accounts for type `%s`", accType.String())
+	}
 
 	name := accounts.names[accounts.counter]
 	accounts.counter++
 	s.accounts.Store(accType, accounts)
 
-	return name
+	return name, nil
 }
 
-// getAnUnusedContinuousVestingAccount retrieves an unused continuous vesting account.
-func (s *VestingModuleTestSuite) getAnUnusedContinuousVestingAccount() (vAcc vestingtypes.ContinuousVestingAccount, name string, err error) {
-	name = s.unusedAccount(ContinuousVestingAccountType)
-	address := getAddress(name, s.cctx.Keyring).String()
-	resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
-	if err != nil {
-		return vAcc, name, err
-	}
+// getAnUnusedContinuousVestingAccount returns an unused continuous vesting account and its name.
+//
+// It takes a minimum start-time as input and finds an unused account whose start time is greater than the input.
+func (s *VestingModuleTestSuite) getAnUnusedContinuousVestingAccount(minStartTime int64) (vAcc vestingtypes.ContinuousVestingAccount, name string, err error) {
+	for {
 
-	err = vAcc.Unmarshal(resAccBytes)
-	return vAcc, name, err
+		name, err = s.unusedAccount(ContinuousVestingAccountType)
+		if err != nil {
+			return vAcc, name, err
+		}
+		address := getAddress(name, s.cctx.Keyring).String()
+		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
+		if err != nil {
+			return vAcc, name, err
+		}
+
+		err = vAcc.Unmarshal(resAccBytes)
+		if err != nil || vAcc.StartTime > minStartTime {
+			return vAcc, name, err
+		}
+	}
 }
 
-func (s *VestingModuleTestSuite) getAnUnusedPeriodicVestingAccount() (vAcc vestingtypes.PeriodicVestingAccount, name string, err error) {
-	name = s.unusedAccount(PeriodicVestingAccountType)
-	address := getAddress(name, s.cctx.Keyring).String()
-	resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
-	if err != nil {
-		return vAcc, name, err
-	}
+// getAnUnusedPeriodicVestingAccount returns an unused periodic vesting account and its name.
+//
+// It takes a minimum start-time as input and finds an unused account whose start time is greater than the input.
+func (s *VestingModuleTestSuite) getAnUnusedPeriodicVestingAccount(minStartTime int64) (vAcc vestingtypes.PeriodicVestingAccount, name string, err error) {
+	for {
+		name, err = s.unusedAccount(PeriodicVestingAccountType)
+		if err != nil {
+			return vAcc, name, err
+		}
+		address := getAddress(name, s.cctx.Keyring).String()
+		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
+		if err != nil {
+			return vAcc, name, err
+		}
 
-	err = vAcc.Unmarshal(resAccBytes)
-	return vAcc, name, err
+		err = vAcc.Unmarshal(resAccBytes)
+		if err != nil || vAcc.StartTime > minStartTime {
+			return vAcc, name, err
+		}
+	}
 }
 
-func (s *VestingModuleTestSuite) getAnUnusedDelayedVestingAccount() (vAcc vestingtypes.DelayedVestingAccount, name string, err error) {
-	name = s.unusedAccount(DelayedVestingAccountType)
-	address := getAddress(name, s.cctx.Keyring).String()
-	resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
-	if err != nil {
-		return vAcc, name, err
-	}
+// getAnUnusedDelayedVestingAccount returns the name of an unused delayed vesting account.
+//
+// It takes a minimum end-time as input and finds an unused account whose end time is greater than the input.
+func (s *VestingModuleTestSuite) getAnUnusedDelayedVestingAccount(minEndTime int64) (vAcc vestingtypes.DelayedVestingAccount, name string, err error) {
+	for {
+		name, err = s.unusedAccount(DelayedVestingAccountType)
+		if err != nil {
+			return vAcc, name, err
+		}
 
-	err = vAcc.Unmarshal(resAccBytes)
-	return vAcc, name, err
+		address := getAddress(name, s.cctx.Keyring).String()
+		resAccBytes, err := testfactory.GetRawAccountInfo(s.cctx.GRPCClient, address)
+		if err != nil {
+			return vAcc, name, err
+		}
+
+		err = vAcc.Unmarshal(resAccBytes)
+		if err != nil || vAcc.EndTime > minEndTime {
+			return vAcc, name, err
+		}
+	}
 }
 
 func (t accountType) String() string {
@@ -674,15 +653,6 @@ func (t accountType) String() string {
 
 // AddGenesisAccountsWithBalancesToGenesisState adds the given genesis accounts and balances to the
 // provided genesis state. It returns the updated genesis state and an error if any occurred.
-//
-// Parameters:
-// - gs: A map representing the current genesis state.
-// - gAccounts: A slice of genesis accounts to be added.
-// - balances: A slice of balances to be added.
-//
-// Returns:
-// - gs: The updated genesis state after adding the accounts and balances.
-// - error: An error if any occurred during the process.
 func AddGenesisAccountsWithBalancesToGenesisState(
 	gs map[string]json.RawMessage,
 	gAccounts []authtypes.GenesisAccount,
@@ -700,6 +670,5 @@ func AddGenesisAccountsWithBalancesToGenesisState(
 	if err != nil {
 		return gs, err
 	}
-
 	return gs, nil
 }

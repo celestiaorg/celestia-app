@@ -172,8 +172,8 @@ github.com/c-bata/go-prompt v0.2.2/go.mod h1:VzqtzE2ksDBcdln8G7mk2RX9QyGjH+OVqOC
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
 github.com/celestiaorg/celestia-core v1.22.0-tm-v0.34.28 h1:idHJK9i4WCkYOf5PXVWZbOs8pWkCiHHQGI4MZr0iMtQ=
 github.com/celestiaorg/celestia-core v1.22.0-tm-v0.34.28/go.mod h1:LOxHW9nA++/9U8TgvTyKo9TO3F09sWv8asKQs00m73U=
-github.com/celestiaorg/cosmos-sdk v1.15.0-sdk-v0.46.13 h1:vaQKgaOm0w58JAvOgn2iDohqjH7kvvRqVKiMcBDWifA=
-github.com/celestiaorg/cosmos-sdk v1.15.0-sdk-v0.46.13/go.mod h1:G9XkhOJZde36FH0kt/1ayg4ZaioZEQmmRfMa/zQig0I=
+github.com/celestiaorg/cosmos-sdk v1.15.0-sdk-v0.46.13.0.20230731181258-40cbd617f1ba h1:lSCOt0cQiKyQP+ZaGdo0rL7u8/wPYRgcdH/dku2LS0k=
+github.com/celestiaorg/cosmos-sdk v1.15.0-sdk-v0.46.13.0.20230731181258-40cbd617f1ba/go.mod h1:G9XkhOJZde36FH0kt/1ayg4ZaioZEQmmRfMa/zQig0I=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n5MFP2MwK0gSRcOVlDlFdQJO1p+FqdxYzmvc=
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4/go.mod h1:fzuHnhzj1pUygGz+1ZkB3uQbEUL4htqCGJ4Qs2LwMZA=
 github.com/celestiaorg/nmt v0.18.0 h1:JUiKbAYVwGhPCN8Xn8+25A++luEb3q5K6KnReXihkIk=
