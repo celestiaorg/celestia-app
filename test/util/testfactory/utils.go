@@ -293,7 +293,11 @@ func GetAccountSpendableBalance(grpcConn *grpc.ClientConn, address string) (bala
 func GetAccountSpendableBalanceByBlock(grpcConn *grpc.ClientConn, address string, block *coretypes.Block) (balances sdk.Coins, err error) {
 	cli := banktypes.NewQueryClient(grpcConn)
 	ctx := metadata.AppendToOutgoingContext(context.Background(), grpctypes.GRPCBlockHeightHeader, fmt.Sprint(block.Height))
-	ctx = metadata.AppendToOutgoingContext(ctx, grpctypes.GRPCBlockTimeHeader, fmt.Sprint(block.Time.Unix()))
+
+	// Since the blockTime is not inferred from block height to the GRPC server, we use the following
+	// line; however, it is commented out because we do not want to modify the SDK code to support it
+	// ctx = metadata.AppendToOutgoingContext(ctx, grpctypes.GRPCBlockTimeHeader, fmt.Sprint(block.Time.Unix()))
+
 	res, err := cli.SpendableBalances(
 		ctx,
 		&banktypes.QuerySpendableBalancesRequest{
