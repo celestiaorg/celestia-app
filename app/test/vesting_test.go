@@ -96,15 +96,21 @@ func (s *VestingModuleTestSuite) startNewNetworkWithGenesisOpt(genesisOpts ...te
 }
 
 func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsSpendableBalanceUnlocked() {
+	// find an unlocked delayed vesting account.
+	vAcc, name, err := s.getAnUnusedDelayedVestingAccount(0)
+	assert.NoError(s.T(), err)
+
+	// It is possible in some cases the given account is not unlocked
+	// so if that's the case, we wait a bit here
+	for vAcc.GetVestedCoins(tmtime.Now()).IsZero() {
+		time.Sleep(time.Second)
+	}
+
 	block, err := s.cctx.LatestBlock()
 	require.NoError(s.T(), err)
 	// We need to wait for a block because sometimes querying based on the
 	// latest height throws an SDK error saying the height is in the future
 	require.NoError(s.T(), s.cctx.WaitForNextBlock())
-
-	// find an unlocked delayed vesting account.
-	vAcc, name, err := s.getAnUnusedDelayedVestingAccount(0)
-	assert.NoError(s.T(), err)
 
 	address := getAddress(name, s.cctx.Keyring).String()
 	balances, err := testfactory.GetAccountSpendableBalanceByBlock(s.cctx.GRPCClient, address, block)
