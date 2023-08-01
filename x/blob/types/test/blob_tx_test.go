@@ -248,17 +248,6 @@ func TestValidateBlobTx(t *testing.T) {
 			expectedErr: types.ErrZeroBlobSize,
 		},
 		{
-			name: "invalid blob tx because blob size is zero",
-			getTx: func() tmproto.BlobTx {
-				rawBtx := validRawBtx()
-				btx, isBlob := coretypes.UnmarshalBlobTx(rawBtx)
-				require.True(t, isBlob)
-				btx.Blobs[0].Data = []byte{}
-				return btx
-			},
-			expectedErr: types.ErrZeroBlobSize,
-		},
-		{
 			name: "invalid blob tx because blob size is too large",
 			getTx: func() tmproto.BlobTx {
 				rawBtx := validRawBtx()
