@@ -123,23 +123,23 @@ func TestValidateBasic(t *testing.T) {
 
 	validMsg := validMsgPayForBlobs(t)
 
-	// MsgPayForBlobs that uses parity shares namespace id
+	// MsgPayForBlobs that uses parity shares namespace
 	paritySharesMsg := validMsgPayForBlobs(t)
 	paritySharesMsg.Namespaces[0] = appns.ParitySharesNamespace.Bytes()
 
-	// MsgPayForBlobs that uses tail padding namespace id
+	// MsgPayForBlobs that uses tail padding namespace
 	tailPaddingMsg := validMsgPayForBlobs(t)
 	tailPaddingMsg.Namespaces[0] = appns.TailPaddingNamespace.Bytes()
 
-	// MsgPayForBlobs that uses transaction namespace id
+	// MsgPayForBlobs that uses transaction namespace
 	txNamespaceMsg := validMsgPayForBlobs(t)
 	txNamespaceMsg.Namespaces[0] = appns.TxNamespace.Bytes()
 
-	// MsgPayForBlobs that uses intermediateStateRoots namespace id
+	// MsgPayForBlobs that uses intermediateStateRoots namespace
 	intermediateStateRootsNamespaceMsg := validMsgPayForBlobs(t)
 	intermediateStateRootsNamespaceMsg.Namespaces[0] = appns.IntermediateStateRootsNamespace.Bytes()
 
-	// MsgPayForBlobs that uses the max reserved namespace id
+	// MsgPayForBlobs that uses the max reserved namespace
 	maxReservedNamespaceMsg := validMsgPayForBlobs(t)
 	maxReservedNamespaceMsg.Namespaces[0] = appns.MaxReservedNamespace.Bytes()
 
@@ -151,9 +151,9 @@ func TestValidateBasic(t *testing.T) {
 	invalidShareCommitmentSize := validMsgPayForBlobs(t)
 	invalidShareCommitmentSize.ShareCommitments[0] = bytes.Repeat([]byte{0x1}, 31)
 
-	// MsgPayForBlobs that has no namespace ids
-	noNamespaceIds := validMsgPayForBlobs(t)
-	noNamespaceIds.Namespaces = [][]byte{}
+	// MsgPayForBlobs that has no namespaces
+	noNamespaces := validMsgPayForBlobs(t)
+	noNamespaces.Namespaces = [][]byte{}
 
 	// MsgPayForBlobs that has no share versions
 	noShareVersions := validMsgPayForBlobs(t)
@@ -174,27 +174,27 @@ func TestValidateBasic(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			name:    "parity shares namespace id",
+			name:    "parity shares namespace",
 			msg:     paritySharesMsg,
 			wantErr: ErrParitySharesNamespace,
 		},
 		{
-			name:    "tail padding namespace id",
+			name:    "tail padding namespace",
 			msg:     tailPaddingMsg,
 			wantErr: ErrTailPaddingNamespace,
 		},
 		{
-			name:    "transaction namspace namespace id",
+			name:    "tx namespace",
 			msg:     txNamespaceMsg,
 			wantErr: ErrReservedNamespace,
 		},
 		{
-			name:    "intermediate state root namespace id",
+			name:    "intermediate state root namespace",
 			msg:     intermediateStateRootsNamespaceMsg,
 			wantErr: ErrReservedNamespace,
 		},
 		{
-			name:    "max reserved namespace id",
+			name:    "max reserved namespace",
 			msg:     maxReservedNamespaceMsg,
 			wantErr: ErrReservedNamespace,
 		},
@@ -210,7 +210,7 @@ func TestValidateBasic(t *testing.T) {
 		},
 		{
 			name:    "no namespace ids",
-			msg:     noNamespaceIds,
+			msg:     noNamespaces,
 			wantErr: ErrNoNamespaces,
 		},
 		{
@@ -227,6 +227,11 @@ func TestValidateBasic(t *testing.T) {
 			name:    "no share commitments",
 			msg:     noShareCommitments,
 			wantErr: ErrNoShareCommitments,
+		},
+		{
+			name:    "invalid namespace version",
+			msg:     invalidNamespaceVersionMsgPayForBlobs(t),
+			wantErr: ErrInvalidNamespaceVersion,
 		},
 	}
 
@@ -268,6 +273,45 @@ func validMsgPayForBlobs(t *testing.T) *MsgPayForBlobs {
 
 	pfb, err := NewMsgPayForBlobs(addr.String(), pblob)
 	assert.NoError(t, err)
+
+	return pfb
+}
+
+func invalidNamespaceVersionMsgPayForBlobs(t *testing.T) *MsgPayForBlobs {
+	signer := GenerateKeyringSigner(t, TestAccName)
+	ns1 := append(appns.NamespaceVersionZeroPrefix, bytes.Repeat([]byte{0x01}, appns.NamespaceVersionZeroIDSize)...)
+	blob := bytes.Repeat([]byte{2}, totalBlobSize(appconsts.ContinuationSparseShareContentSize*12))
+
+	addr, err := signer.GetSignerInfo().GetAddress()
+	require.NoError(t, err)
+
+	pblob := &tmproto.Blob{
+		Data:             blob,
+		NamespaceId:      ns1,
+		NamespaceVersion: uint32(255),
+		ShareVersion:     uint32(appconsts.ShareVersionZero),
+	}
+
+	blobs := []*Blob{pblob}
+
+	commitments, err := CreateCommitments(blobs)
+	require.NoError(t, err)
+
+	namespaceVersions, namespaceIds, sizes, shareVersions := extractBlobComponents(blobs)
+	namespaces := []appns.Namespace{}
+	for i := range namespaceVersions {
+		namespace, err := appns.New(uint8(namespaceVersions[i]), namespaceIds[i])
+		require.NoError(t, err)
+		namespaces = append(namespaces, namespace)
+	}
+
+	pfb := &MsgPayForBlobs{
+		Signer:           addr.String(),
+		Namespaces:       namespacesToBytes(namespaces),
+		ShareCommitments: commitments,
+		BlobSizes:        sizes,
+		ShareVersions:    shareVersions,
+	}
 
 	return pfb
 }

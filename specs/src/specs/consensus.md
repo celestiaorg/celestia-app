@@ -37,18 +37,6 @@
 | `VERSION_APP`                           | `uint64` | `1`          |         | Version of the Celestia application. Breaking changes (hard forks) must update this parameter.                                                                      |
 | `VERSION_BLOCK`                         | `uint64` | `1`          |         | Version of the Celestia chain. Breaking changes (hard forks) must update this parameter.                                                                            |
 
-### Reserved Namespaces
-
-| name                                | type        | value                                                          | description                                                                                          |
-|-------------------------------------|-------------|----------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
-| `TRANSACTION_NAMESPACE`             | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000001` | Transactions: requests that modify the state.                                                        |
-| `INTERMEDIATE_STATE_ROOT_NAMESPACE` | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000002` | Intermediate state roots, committed after every transaction.                                         |
-| `PAY_FOR_BLOB_NAMESPACE`            | `Namespace` | `0x0000000000000000000000000000000000000000000000000000000004` | Namespace reserved for transactions that contain a PayForBlob.                                       |
-| `RESERVED_PADDING_NAMESPACE`        | `Namespace` | `0x00000000000000000000000000000000000000000000000000000000FF` | Padding after all reserved namespaces but before blobs.                                              |
-| `MAX_RESERVED_NAMESPACE`            | `Namespace` | `0x00000000000000000000000000000000000000000000000000000000FF` | Max reserved namespace is lexicographically the largest namespace that is reserved for protocol use. |
-| `TAIL_PADDING_NAMESPACE`            | `Namespace` | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE` | Tail padding for blobs: padding after all blobs to fill up the original data square.                 |
-| `PARITY_SHARE_NAMESPACE`            | `Namespace` | `0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF` | Parity shares: extended shares in the available data matrix.                                         |
-
 ### Rewards and Penalties
 
 | name                     | type     | value       | unit   | description                                             |

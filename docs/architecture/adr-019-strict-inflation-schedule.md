@@ -69,7 +69,7 @@ Note: a time-based inflation schedule implemented isn't as battle-tested as the 
 
 ## Detailed Design
 
-1. Remove all governance modififable parameters from the module. The inflation schedule is fixed and can only be modified by a major upgrade.
+1. Remove all governance modifiable parameters from the module. The inflation schedule is fixed and can only be modified by a major upgrade.
 1. Every year
     1. Calculate inflation rate based on the number of years since genesis
     1. Calculate annual provisions for that year based on the new inflation rate
@@ -97,7 +97,7 @@ The `x/distribution` BeginBlock
 1. Moves the fees from the `x/auth` fee_collector module account to the `x/distribution` distribution module account
 1. The block proposer receives a fraction of the fees from the block based on the params `BaseProposerReward` and `BonusProposerReward`. Celestia has set `BaseProposerReward=0` and `BonusProposerReward=0` [here](https://github.com/celestiaorg/cosmos-sdk/commit/d931c27bdf9a6958618c541458ca2272a79de787) so this step does not apply.
 1. A community pool receives a fraction of the fees based on the params `CommunityTax`. Celestia has set `CommunityTax=.02`
-1. Validators receive the remainder of the fees from the block based on their voting power. Tokens don't actually leave the distribution module account at this step. At some point in the future when a validator or delegator trigger a withdrawl, tokens are withdrawn from the distribution module account.
+1. Validators receive the remainder of the fees from the block based on their voting power. Tokens don't actually leave the distribution module account at this step. At some point in the future when a validator or delegator trigger a withdrawal, tokens are withdrawn from the distribution module account.
 
 ![inflation flow of funds](./assets/inflation-flow-of-funds.png)
 
