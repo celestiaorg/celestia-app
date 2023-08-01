@@ -34,9 +34,14 @@ func Test_validateGovMaxSquareSize(t *testing.T) {
 			input:     uint64(0),
 			expectErr: true,
 		},
+		{
+			name:      "invalid if above the upper bound",
+			input:     uint64(256),
+			expectErr: true,
+		},
 	}
 	for _, tt := range tests {
-		err := validateGovMaxSquareSize(tt.input, appconsts.LatestVersion)
+		err := validateGovMaxSquareSize(tt.input)
 		if tt.expectErr {
 			assert.Error(t, err)
 		}
