@@ -49,7 +49,8 @@ const (
 type VestingModuleTestSuite struct {
 	suite.Suite
 
-	accounts    sync.Map // map[_accountType]_accountDispenser
+	// accounts is a map from accountType to accountDispenser
+	accounts    sync.Map
 	accountsMut sync.Mutex
 
 	kr   keyring.Keyring
