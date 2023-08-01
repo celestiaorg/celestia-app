@@ -347,15 +347,15 @@ func validateBlobData(data []byte) error {
 
 // blobSizeUpperBound returns an upper bound for the max valid blob size based
 // on the upper bounds for square size and block bytes. Note it is possible that
-// blobs of this size do not fit in a block because the limiting factor may be
-// square size (i.e. max square size is constrained by GovMaxSquareSize).
-// Additionally, even if the max square size is the upper bound for square size,
-// the number of shares available for blob bytes may be less than estimated in
-// this function (i.e. if the PFB tx shares occupy more than one share). As a
-// result, the upper bound returned by this function may over-estimate the max
-// valid blob size but it will not under-estimate. Consequently, it may be used
-// to immediately reject blobs that are too large but blobs smaller than this
-// upper bound may still fail to be included in a block.
+// blobs of this size do not fit in a block because the limiting factor may be a
+// parameter in application state (i.e. GovMaxSquareSize). Additionally, even if
+// the application state parameters are at their upper bounds, the number of
+// shares available for blob bytes may be less than estimated in this function
+// (i.e. if the PFB tx shares occupy more than one share). As a result, the
+// upper bound returned by this function may over-estimate the max valid blob
+// size but it should not under-estimate. Consequently, it may be used to
+// immediately reject blobs that are too large but blobs smaller than this upper
+// bound may still fail to be included in a block.
 func blobSizeUpperBound() int {
 	maxSquareSize := appconsts.SquareSizeUpperBound(appconsts.LatestVersion)
 	maxShares := maxSquareSize * maxSquareSize
