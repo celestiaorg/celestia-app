@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/stretchr/testify/suite"
 
@@ -388,6 +387,7 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 		blob *tmproto.Blob
 		// txResponseCode is the expected tx response ABCI code.
 		txResponseCode uint32
+		wantError      error
 	}
 	testCases := []testCase{
 		{
@@ -411,9 +411,9 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 			txResponseCode: abci.CodeTypeOK,
 		},
 		{
-			name:           "10,000,000 byte blob returns err tx too large",
-			blob:           mustNewBlob(t, 10_000_000),
-			txResponseCode: errors.ErrTxTooLarge.ABCICode(),
+			name:      "10,000,000 byte blob returns error blob size too large",
+			blob:      mustNewBlob(t, 10_000_000),
+			wantError: blobtypes.ErrBlobSizeTooLarge,
 		},
 	}
 
@@ -422,10 +422,13 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob_blobSizes() {
 			signer := blobtypes.NewKeyringSigner(s.cctx.Keyring, s.accounts[141], s.cctx.ChainID)
 			options := []blobtypes.TxBuilderOption{blobtypes.SetGasLimit(1_000_000_000)}
 			res, err := blob.SubmitPayForBlob(context.TODO(), signer, s.cctx.GRPCClient, []*blobtypes.Blob{tc.blob}, options...)
-
+			if tc.wantError != nil {
+				assert.ErrorIs(t, err, tc.wantError)
+				return
+			}
 			require.NoError(t, err)
 			require.NotNil(t, res)
-			require.Equal(t, tc.txResponseCode, res.Code, res.Logs)
+			assert.Equal(t, tc.txResponseCode, res.Code, res.Logs)
 		})
 	}
 }
