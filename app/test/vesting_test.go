@@ -20,6 +20,7 @@ import (
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	tmtime "github.com/tendermint/tendermint/types/time"
 )
@@ -28,6 +29,7 @@ const (
 	totalAccountsPerType = 300
 	initBalanceForGasFee = 10
 	vestingAmount        = testfactory.BaseAccountDefaultBalance
+	vestingDelayPerTx    = 10 // this is a safe time to wait for a tx to be executed while the vesting period is not over yet
 )
 
 type accountDispenser struct {
@@ -94,10 +96,10 @@ func (s *VestingModuleTestSuite) startNewNetworkWithGenesisOpt(genesisOpts ...te
 
 func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsSpendableBalanceUnlocked() {
 	block, err := s.cctx.LatestBlock()
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	// We need to wait for a block because sometimes querying based on the
 	// latest height throws an SDK error saying the height is in the future
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// find an unlocked delayed vesting account.
 	vAcc, name, err := s.getAnUnusedDelayedVestingAccount(0)
@@ -116,8 +118,8 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsSpendableBalan
 
 func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsSpendableBalanceLocked() {
 	block, err := s.cctx.LatestBlock()
-	assert.NoError(s.T(), err)
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	require.NoError(s.T(), err)
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// find a delayed vesting account that its end-time has not reached yet i.e. locked
 	vAcc, name, err := s.getAnUnusedDelayedVestingAccount(block.Time.Unix() + 10)
@@ -135,33 +137,31 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsSpendableBalan
 }
 
 func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsTransfer() {
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// find and test a vesting account with endTime which is
 	// at least 10 seconds away time from now to give the tx enough time to complete
-	_, name, err := s.getAnUnusedDelayedVestingAccount(tmtime.Now().Unix() + 10)
+	_, name, err := s.getAnUnusedDelayedVestingAccount(tmtime.Now().Unix() + vestingDelayPerTx)
 	assert.NoError(s.T(), err)
 
 	s.testTransferVestingAmount(name)
 }
 
 func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsDelegation() {
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// find and test a vesting account that has vesting (locked) balance
-	// 10 seconds is chosen to be on the safe side
-	_, name, err := s.getAnUnusedDelayedVestingAccount(tmtime.Now().Unix() + 10)
+	_, name, err := s.getAnUnusedDelayedVestingAccount(tmtime.Now().Unix() + vestingDelayPerTx)
 	assert.NoError(s.T(), err)
 
 	s.testDelegatingVestingAmount(name)
 }
 
 func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsClaimDelegationRewards() {
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// find and test a vesting account with endTime which is
-	// 	at least 20 seconds away time from now
-	_, name, err := s.getAnUnusedDelayedVestingAccount(tmtime.Now().Unix() + 20)
+	_, name, err := s.getAnUnusedDelayedVestingAccount(tmtime.Now().Unix() + vestingDelayPerTx*2)
 	assert.NoError(s.T(), err)
 
 	s.testDelegatingVestingAmount(name)
@@ -181,8 +181,8 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsSpendableBala
 	}
 
 	block, err := s.cctx.LatestBlock()
-	assert.NoError(s.T(), err)
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	require.NoError(s.T(), err)
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	balances, err := testfactory.GetAccountSpendableBalanceByBlock(s.cctx.GRPCClient, address, block)
 	assert.NoError(s.T(), err)
@@ -196,12 +196,12 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsSpendableBala
 
 func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsSpendableBalanceLocked() {
 	block, err := s.cctx.LatestBlock()
-	assert.NoError(s.T(), err)
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	require.NoError(s.T(), err)
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// Find a periodic vesting account that that is currently in a vesting (locked) state
 	// i.e. its start time yet to be reached.
-	vAcc, name, err := s.getAnUnusedPeriodicVestingAccount(block.Time.Unix() + 10)
+	vAcc, name, err := s.getAnUnusedPeriodicVestingAccount(block.Time.Unix() + vestingDelayPerTx)
 	assert.NoError(s.T(), err)
 	address := getAddress(name, s.cctx.Keyring).String()
 
@@ -216,11 +216,11 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsSpendableBala
 }
 
 func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsDelegation() {
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// Find a periodic vesting account that that is currently in a vesting (locked) state
 	// i.e. its start time yet to be reached.
-	_, name, err := s.getAnUnusedPeriodicVestingAccount(tmtime.Now().Unix() + 10)
+	_, name, err := s.getAnUnusedPeriodicVestingAccount(tmtime.Now().Unix() + vestingDelayPerTx)
 	assert.NoError(s.T(), err)
 
 	s.testDelegatingVestingAmount(name)
@@ -229,7 +229,7 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsDelegation() 
 // This test function tests delegation of a periodic vesting account that
 // has part of its allocation unlocked and part of it locked
 func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsDelegationPartiallyVested() {
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// find and test a vesting account that has some vesting (locked) and
 	// some vested (unlocked) balance
@@ -245,11 +245,11 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsDelegationPar
 }
 
 func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsClaimDelegationRewards() {
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// find and test a vesting account that has some vesting (locked) balance
-	// to be on the safe side we select one that starts unlocking in at least 20 seconds
-	_, name, err := s.getAnUnusedPeriodicVestingAccount(tmtime.Now().Unix() + 20)
+	// to be on the safe side we select one that starts unlocking in at least vestingDelayPerTx*2 seconds
+	_, name, err := s.getAnUnusedPeriodicVestingAccount(tmtime.Now().Unix() + vestingDelayPerTx*2)
 	assert.NoError(s.T(), err)
 
 	s.testDelegatingVestingAmount(name)
@@ -258,11 +258,11 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsClaimDelegati
 
 func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsSpendableBalanceLocked() {
 	block, err := s.cctx.LatestBlock()
-	assert.NoError(s.T(), err)
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	require.NoError(s.T(), err)
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// find a continuous vesting account with locked balance
-	vAcc, name, err := s.getAnUnusedContinuousVestingAccount(block.Time.Unix() + 10)
+	vAcc, name, err := s.getAnUnusedContinuousVestingAccount(block.Time.Unix() + vestingDelayPerTx)
 	assert.NoError(s.T(), err)
 	address := getAddress(name, s.cctx.Keyring).String()
 
@@ -289,8 +289,8 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsSpendableBa
 	}
 
 	block, err := s.cctx.LatestBlock()
-	assert.NoError(s.T(), err)
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	require.NoError(s.T(), err)
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	balances, err := testfactory.GetAccountSpendableBalanceByBlock(s.cctx.GRPCClient, address, block)
 	assert.NoError(s.T(), err)
@@ -303,10 +303,10 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsSpendableBa
 }
 
 func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsDelegation() {
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// find and test a vesting account that has some vesting (locked) balance
-	_, name, err := s.getAnUnusedContinuousVestingAccount(tmtime.Now().Unix() + 10)
+	_, name, err := s.getAnUnusedContinuousVestingAccount(tmtime.Now().Unix() + vestingDelayPerTx)
 	assert.NoError(s.T(), err)
 
 	s.testDelegatingVestingAmount(name)
@@ -315,7 +315,7 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsDelegation(
 // This test function tests delegation of a continuous vesting account that
 // has part of its allocation unlocked and part of it locked
 func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsDelegationPartiallyVested() {
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// find a continuous vesting account with partially unlocked balance
 	vAcc, name, err := s.getAnUnusedContinuousVestingAccount(tmtime.Now().Unix() - 5)
@@ -330,11 +330,11 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsDelegationP
 }
 
 func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsClaimDelegationRewards() {
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// find and test a vesting account that has some vesting (locked) balance
-	// to be on the safe side we select one that starts unlocking in at least 20 seconds
-	_, name, err := s.getAnUnusedContinuousVestingAccount(tmtime.Now().Unix() + 20)
+	// to be on the safe side we select one that starts unlocking in at least vestingDelayPerTx*2 seconds
+	_, name, err := s.getAnUnusedContinuousVestingAccount(tmtime.Now().Unix() + vestingDelayPerTx*2)
 	assert.NoError(s.T(), err)
 
 	s.testDelegatingVestingAmount(name)
@@ -356,10 +356,10 @@ func (s *VestingModuleTestSuite) testTransferVestingAmount(name string) {
 		sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(vestingAmount))), // try to transfer the locked amount
 	)
 	resTx, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, name, []sdk.Msg{msgSend}...)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	resQ, err := s.cctx.WaitForTx(resTx.TxHash, 10)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	assert.EqualValues(s.T(), 5, resQ.TxResult.Code, "the transfer TX must fail")
 }
@@ -385,10 +385,10 @@ func (s *VestingModuleTestSuite) testDelegatingVestingAmount(name string) {
 		sdk.NewCoin(app.BondDenom, sdk.NewInt(vestingAmount)),
 	)
 	resTx, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, name, []sdk.Msg{msgDelg}...)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	resQ, err := s.cctx.WaitForTx(resTx.TxHash, 10)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	assert.EqualValues(s.T(), 0, resQ.TxResult.Code, fmt.Sprintf("the delegation TX must succeed: \n%s", resQ.TxResult.String()))
 
 	// verify the delegations
@@ -416,7 +416,7 @@ func (s *VestingModuleTestSuite) testClaimDelegationReward(name string) {
 			DelegatorAddress: address,
 		},
 	)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	assert.NotEmpty(s.T(), resR, "empty staking rewards")
 	assert.NotEmpty(s.T(), resR.Rewards)
 
@@ -439,13 +439,13 @@ func (s *VestingModuleTestSuite) testClaimDelegationReward(name string) {
 		validators[0].GetOperator(),
 	)
 	resTx, err := testnode.SignAndBroadcastTx(s.ecfg, s.cctx.Context, name, []sdk.Msg{msg}...)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	resQ, err := s.cctx.WaitForTx(resTx.TxHash, 10)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	assert.EqualValues(s.T(), 0, resQ.TxResult.Code, fmt.Sprintf("the claim reward TX must succeed: \n%s", resQ.TxResult.String()))
 
-	assert.NoError(s.T(), s.cctx.WaitForNextBlock())
+	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
 	// Check if the reward amount in the account
 	balancesAfter, err := testfactory.GetAccountSpendableBalance(s.cctx.GRPCClient, address)
@@ -573,7 +573,6 @@ func (s *VestingModuleTestSuite) unusedAccount(accType accountType) (string, err
 // It takes a minimum start-time as input and finds an unused account whose start time is greater than the input.
 func (s *VestingModuleTestSuite) getAnUnusedContinuousVestingAccount(minStartTime int64) (vAcc vestingtypes.ContinuousVestingAccount, name string, err error) {
 	for {
-
 		name, err = s.unusedAccount(ContinuousVestingAccountType)
 		if err != nil {
 			return vAcc, name, err
