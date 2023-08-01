@@ -99,22 +99,24 @@ fmt:
 	@markdownlint --fix --quiet --config .markdownlint.yaml .
 .PHONY: fmt
 
-## test: Run unit tests.
+## test: Run tests.
 test:
-	@echo "--> Running unit tests"
+	@echo "--> Running tests"
 	@go test -mod=readonly ./...
 .PHONY: test
 
-## test-short: Run unit tests in short mode.
+## test-short: Run tests in short mode.
 test-short:
 	@echo "--> Running tests in short mode"
 	@go test -mod=readonly ./... -short
 .PHONY: test-short
 
-## test-race: Run unit tests in race mode.
+## test-race: Run tests in race mode.
 test-race:
 	@echo "--> Running tests in race mode"
-	@go test -mod=readonly -v -race ./... -skip "TestPrepareProposalConsistency/TestIntegrationTestSuite/TestQGBRPCQueries/TestSquareSizeIntegrationTest/TestStandardSDKIntegrationTestSuite/TestTxsimCommandFlags/TestTxsimCommandEnvVar/TestMintIntegrationTestSuite/TestQGBCLI/TestUpgrade"
+	# TODO: Remove the -skip flag once the following tests no longer contain data races.
+	# https://github.com/celestiaorg/celestia-app/issues/1369
+	@go test -mod=readonly -v ./... -skip "TestPrepareProposalConsistency/TestIntegrationTestSuite/TestQGBRPCQueries/TestSquareSizeIntegrationTest/TestStandardSDKIntegrationTestSuite/TestTxsimCommandFlags/TestTxsimCommandEnvVar/TestMintIntegrationTestSuite/TestQGBCLI/TestUpgrade/TestOnRecvPacket"
 .PHONY: test-race
 
 ## test-bench: Run unit tests in bench mode.
