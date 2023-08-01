@@ -141,7 +141,7 @@ func TestValidateBasic(t *testing.T) {
 
 	// MsgPayForBlobs that uses the max reserved namespace
 	maxReservedNamespaceMsg := validMsgPayForBlobs(t)
-	maxReservedNamespaceMsg.Namespaces[0] = appns.MaxReservedNamespace.Bytes()
+	maxReservedNamespaceMsg.Namespaces[0] = appns.MaxPrimaryReservedNamespace.Bytes()
 
 	// MsgPayForBlobs that has an empty share commitment
 	emptyShareCommitment := validMsgPayForBlobs(t)
