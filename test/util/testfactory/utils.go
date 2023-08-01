@@ -132,22 +132,6 @@ func NewBaseAccount(kr keyring.Keyring, name string) (*authtypes.BaseAccount, sd
 	return bacc, origCoins
 }
 
-// GenerateBaseAccounts generates base accounts and their corresponding balances.
-// It takes a keyring.Keyring instance and a slice of account names as inputs.
-// For each name in the names slice, it creates a new base account and adds it to
-// the bAccounts slice. It also creates a banktypes.Balance struct for the account,
-// with the account's address and coins including an initial coin for gas fee.
-// The balances are added to the balances slice.
-//
-// Parameters:
-// - kr: A keyring.Keyring instance used to create base accounts.
-// - names: A slice of account names.
-// - initExtraCoins: A slice of sdk.Coins representing the extra coins to be added to
-// the base accounts which can be used for example for gas fees.
-//
-// Returns:
-// - bAccounts: A slice of authtypes.BaseAccount representing the generated base accounts.
-// - balances: A slice of banktypes.Balance representing the balances of the generated accounts.
 func GenerateBaseAccounts(kr keyring.Keyring, names []string, initExtraCoins ...sdk.Coin) ([]authtypes.BaseAccount, []banktypes.Balance) {
 	bAccounts := make([]authtypes.BaseAccount, len(names))
 	balances := make([]banktypes.Balance, len(names))
@@ -163,16 +147,6 @@ func GenerateBaseAccounts(kr keyring.Keyring, names []string, initExtraCoins ...
 	return bAccounts, balances
 }
 
-// GenerateDelayedVestingAccounts generates delayed vesting accounts.
-//
-// Parameters:
-// - kr: The keyring.
-// - names: The names of the accounts.
-// - initUnlockedCoins: Optional initial unlocked coins for each account (e.g. for gas fees).
-//
-// Returns:
-// - []*vestingtypes.DelayedVestingAccount: The generated delayed vesting accounts.
-// - []banktypes.Balance: The balances of the accounts.
 func GenerateDelayedVestingAccounts(kr keyring.Keyring, names []string, initUnlockedCoins ...sdk.Coin) ([]*vestingtypes.DelayedVestingAccount, []banktypes.Balance) {
 	bAccounts, balances := GenerateBaseAccounts(kr, names, initUnlockedCoins...)
 	vAccounts := []*vestingtypes.DelayedVestingAccount{}
@@ -192,16 +166,6 @@ func GenerateDelayedVestingAccounts(kr keyring.Keyring, names []string, initUnlo
 	return vAccounts, balances
 }
 
-// GeneratePeriodicVestingAccounts generates periodic vesting accounts.
-//
-// Parameters:
-// - kr: The keyring used to generate the accounts.
-// - names: The names of the accounts to be generated.
-// - initUnlockedCoins: Optional initial unlocked coins for each account (e.g. for gas fees).
-//
-// Returns:
-// - vAccounts: The generated periodic vesting accounts.
-// - balances: The balances of the generated accounts.
 func GeneratePeriodicVestingAccounts(kr keyring.Keyring, names []string, initUnlockedCoins ...sdk.Coin) ([]*vestingtypes.PeriodicVestingAccount, []banktypes.Balance) {
 	bAccounts, balances := GenerateBaseAccounts(kr, names, initUnlockedCoins...)
 	vAccounts := []*vestingtypes.PeriodicVestingAccount{}
@@ -230,16 +194,6 @@ func GeneratePeriodicVestingAccounts(kr keyring.Keyring, names []string, initUnl
 	return vAccounts, balances
 }
 
-// GenerateContinuousVestingAccounts generates continuous vesting accounts.
-//
-// Parameters:
-// - kr: keyring.Keyring
-// - names: []string
-// - initUnlockedCoins: Optional initial unlocked coins for each account (e.g. for gas fees).
-//
-// Returns:
-// - vAccounts: The generated continuous vesting accounts.
-// - balances: The balances of the generated accounts.
 func GenerateContinuousVestingAccounts(kr keyring.Keyring, names []string, initUnlockedCoins ...sdk.Coin) ([]*vestingtypes.ContinuousVestingAccount, []banktypes.Balance) {
 	bAccounts, balances := GenerateBaseAccounts(kr, names, initUnlockedCoins...)
 	vAccounts := []*vestingtypes.ContinuousVestingAccount{}
@@ -300,9 +254,6 @@ func AddBalancesToGenesisState(encCfg encoding.Config, gs map[string]json.RawMes
 	return gs, nil
 }
 
-// GetValidators retrieves the validators from the staking module using the provided gRPC client connection (grpcConn).
-// It takes a gRPC client connection (grpcConn) as input.
-// Then, it returns the validators from the response.
 func GetValidators(grpcConn *grpc.ClientConn) (stakingtypes.Validators, error) {
 	scli := stakingtypes.NewQueryClient(grpcConn)
 	vres, err := scli.Validators(context.Background(), &stakingtypes.QueryValidatorsRequest{})
@@ -313,10 +264,6 @@ func GetValidators(grpcConn *grpc.ClientConn) (stakingtypes.Validators, error) {
 	return vres.Validators, err
 }
 
-// GetAccountDelegations retrieves the delegations for the specified account address using the provided gRPC client connection (grpcConn).
-// It takes a gRPC client connection (grpcConn) and the account address (address) as inputs.
-// If an error occurs during the request, it returns nil and the error.
-// Otherwise, it returns the delegation responses from the response.
 func GetAccountDelegations(grpcConn *grpc.ClientConn, address string) (stakingtypes.DelegationResponses, error) {
 	cli := stakingtypes.NewQueryClient(grpcConn)
 	res, err := cli.DelegatorDelegations(context.Background(),
@@ -328,10 +275,6 @@ func GetAccountDelegations(grpcConn *grpc.ClientConn, address string) (stakingty
 	return res.DelegationResponses, err
 }
 
-// GetAccountSpendableBalance retrieves the spendable balance of an account for the specified address using gRPC.
-// It takes a gRPC client connection (grpcConn) and the account address (address) as inputs.
-// If the account is not found or an error occurs, it returns nil and the error.
-// Otherwise, it returns the spendable balances of the account as an sdk.Coins object.
 func GetAccountSpendableBalance(grpcConn *grpc.ClientConn, address string) (balances sdk.Coins, err error) {
 	cli := banktypes.NewQueryClient(grpcConn)
 	res, err := cli.SpendableBalances(
@@ -346,10 +289,7 @@ func GetAccountSpendableBalance(grpcConn *grpc.ClientConn, address string) (bala
 	return res.GetBalances(), nil
 }
 
-// GetAccountSpendableBalanceByBlock retrieves the spendable balance of an account for the specified address at the given height using gRPC.
-// It takes a gRPC client connection (grpcConn) and the account address (address) as inputs.
-// If the account is not found or an error occurs, it returns nil and the error.
-// Otherwise, it returns the spendable balances of the account as an sdk.Coins object.
+// GetAccountSpendableBalanceByBlock retrieves the spendable balance of an account for the specified address at the given block using gRPC.
 func GetAccountSpendableBalanceByBlock(grpcConn *grpc.ClientConn, address string, block *coretypes.Block) (balances sdk.Coins, err error) {
 	cli := banktypes.NewQueryClient(grpcConn)
 	ctx := metadata.AppendToOutgoingContext(context.Background(), grpctypes.GRPCBlockHeightHeader, fmt.Sprint(block.Height))
@@ -366,10 +306,6 @@ func GetAccountSpendableBalanceByBlock(grpcConn *grpc.ClientConn, address string
 	return res.GetBalances(), nil
 }
 
-// GetRawAccountInfo retrieves the raw account information for the specified address using gRPC.
-// It takes a gRPC client connection (grpcConn) and the account address (address) as inputs.
-// If no account found or an error occurs, it returns nil and the error.
-// Otherwise, it returns the value field of the account in the response, which represents the raw account information.
 func GetRawAccountInfo(grpcConn *grpc.ClientConn, address string) ([]byte, error) {
 	cli := authtypes.NewQueryClient(grpcConn)
 	res, err := cli.Account(context.Background(), &authtypes.QueryAccountRequest{
