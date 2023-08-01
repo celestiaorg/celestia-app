@@ -60,7 +60,7 @@ type VestingModuleTestSuite struct {
 
 func TestVestingModule(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping Vesting accounts test in short mode.")
+		t.Skip("skipping vesting module test suite in short mode.")
 	}
 	suite.Run(t, new(VestingModuleTestSuite))
 }
