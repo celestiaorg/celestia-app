@@ -484,7 +484,7 @@ func (s *VestingModuleTestSuite) initRegularAccounts(count int) testnode.Genesis
 
 // initDelayedVestingAccounts initializes delayed vesting accounts for the VestingModuleTestSuite.
 // It generates the specified number of account names and stores them in the accounts map with
-// RegularAccountType as the key.
+// DelayedVestingAccountType as the key.
 func (s *VestingModuleTestSuite) initDelayedVestingAccounts(count int) testnode.GenesisOption {
 	initCoinsForGasFee := sdk.NewCoin(app.BondDenom, sdk.NewInt(initBalanceForGasFee))
 
