@@ -263,8 +263,8 @@ func RandBlobTxs(enc sdk.TxEncoder, rand *tmrand.Rand, count, blobsPerTx, size i
 // BlobTxWithSize returns a blobTx with a given size. It intentionally does not
 // use NewMsgPayForBlobs in order to bypass the ValidateBlobs() check which
 // would fail for large blobs.
-func BlobTxWithSize(t *testing.T, encoder sdk.TxEncoder, kr keyring.Keyring, chainId string, account string, size int) coretypes.Tx {
-	signer := blobtypes.NewKeyringSigner(kr, account, chainId)
+func BlobTxWithSize(t *testing.T, encoder sdk.TxEncoder, kr keyring.Keyring, chainID string, account string, size int) coretypes.Tx {
+	signer := blobtypes.NewKeyringSigner(kr, account, chainID)
 	address, err := signer.GetSignerInfo().GetAddress()
 	require.NoError(t, err)
 
