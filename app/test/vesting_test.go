@@ -368,7 +368,7 @@ func (s *VestingModuleTestSuite) testTransferVestingAmount(name string) {
 	resQ, err := s.cctx.WaitForTx(resTx.TxHash, 10)
 	require.NoError(s.T(), err)
 
-	assert.EqualValues(s.T(), 5, resQ.TxResult.Code, "the transfer TX must fail")
+	assert.EqualValues(s.T(), errors.ErrInsufficientFunds.ABCICode(), resQ.TxResult.Code, "the transfer TX must fail")
 }
 
 // testDelegatingVestingAmount tests the delegation of vesting amounts (locked) from a vesting account to a validator.
