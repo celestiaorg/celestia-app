@@ -260,6 +260,37 @@ func RandBlobTxs(enc sdk.TxEncoder, rand *tmrand.Rand, count, blobsPerTx, size i
 	return txs
 }
 
+// BlobTxWithSize returns a blobTx with a given size. This should strictly be
+// used for tests.
+func BlobTxWithSize(t *testing.T, encoder sdk.TxEncoder, kr keyring.Keyring, chainId string, account string, size int) coretypes.Tx {
+	signer := blobtypes.NewKeyringSigner(kr, account, chainId)
+	address, err := signer.GetSignerInfo().GetAddress()
+	require.NoError(t, err)
+
+	coin := sdk.Coin{
+		Denom:  bondDenom,
+		Amount: sdk.NewInt(10),
+	}
+	options := []blobtypes.TxBuilderOption{
+		blobtypes.SetFeeAmount(sdk.NewCoins(coin)),
+		blobtypes.SetGasLimit(10_000_000),
+	}
+	builder := signer.NewTxBuilder(options...)
+
+	namespace := appns.MustNewV0(bytes.Repeat([]byte{0x1}, appns.NamespaceVersionZeroIDSize))
+	msg, blob := RandMsgPayForBlobsWithNamespaceAndSigner(address.String(), namespace, size)
+
+	stx, err := signer.BuildSignedTx(builder, msg)
+	require.NoError(t, err)
+
+	rawTx, err := encoder(stx)
+	require.NoError(t, err)
+
+	blobTx, err := coretypes.MarshalBlobTx(rawTx, blob)
+	require.NoError(t, err)
+	return blobTx
+}
+
 func RandBlobTxsWithNamespaces(enc sdk.TxEncoder, namespaces []appns.Namespace, sizes []int) []coretypes.Tx {
 	const acc = "signer"
 	kr := testfactory.GenerateKeyring(acc)
