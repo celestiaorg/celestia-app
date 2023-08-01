@@ -24,7 +24,7 @@ func TestCheckTx(t *testing.T) {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	ns1 := appns.MustNewV0(bytes.Repeat([]byte{1}, appns.NamespaceVersionZeroIDSize))
 
-	accs := []string{"a", "b", "c", "d", "e", "f"}
+	accs := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}
 
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accs...)
 
@@ -105,6 +105,54 @@ func TestCheckTx(t *testing.T) {
 				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 10000, 10, true, testutil.ChainID, accs[3:4])[0]
 				return tx
 			},
+			expectedABCICode: abci.CodeTypeOK,
+		},
+		{
+			name:      "1,000 byte blob",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 1_000, 1, false, testutil.ChainID, accs[4:5])[0]
+				return tx
+			},
+			expectedABCICode: abci.CodeTypeOK,
+		},
+		{
+			name:      "10,000 byte blob",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 10_000, 1, false, testutil.ChainID, accs[5:6])[0]
+				return tx
+			},
+			expectedABCICode: abci.CodeTypeOK,
+		},
+		{
+			name:      "100,000 byte blob",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 100_000, 1, false, testutil.ChainID, accs[6:7])[0]
+				return tx
+			},
+			expectedABCICode: abci.CodeTypeOK,
+		},
+		{
+			name:      "1,000,000 byte blob",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 1_000_000, 1, false, testutil.ChainID, accs[7:8])[0]
+				return tx
+			},
+			expectedABCICode: abci.CodeTypeOK,
+		},
+		{
+			name:      "10,000,000 byte blob",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 10_000_000, 1, false, testutil.ChainID, accs[8:9])[0]
+				return tx
+			},
+			// TODO: consider modifying CheckTx to return an error for this case
+			// so that consensus nodes do not propagate blobs that are too
+			// large.
 			expectedABCICode: abci.CodeTypeOK,
 		},
 	}
