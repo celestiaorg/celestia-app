@@ -138,18 +138,14 @@ func TestCheckTx(t *testing.T) {
 			},
 			expectedABCICode: abci.CodeTypeOK,
 		},
-		// {
-		// 	name:      "10,000,000 byte blob",
-		// 	checkType: abci.CheckTxType_New,
-		// 	getTx: func() []byte {
-		// 		tx := blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 10_000_000, 1, false, testutil.ChainID, accs[8:9])[0]
-		// 		return tx
-		// 	},
-		// 	// TODO: consider modifying CheckTx to return an error for this case
-		// 	// so that consensus nodes do not propagate blobs that are too
-		// 	// large.
-		// 	expectedABCICode: abci.CodeTypeOK,
-		// },
+		{
+			name:      "10,000,000 byte blob",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				return blobfactory.BlobTxWithSize(t, encCfg.TxConfig.TxEncoder(), kr, testutil.ChainID, accs[8], 10_000_000)
+			},
+			expectedABCICode: blobtypes.ErrBlobSizeTooLarge.ABCICode(),
+		},
 	}
 
 	for _, tt := range tests {
