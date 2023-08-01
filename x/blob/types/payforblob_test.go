@@ -469,9 +469,19 @@ func TestValidateBlobs(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "empty blob",
+			name: "empty blob data",
 			blob: &Blob{
 				Data:             []byte{},
+				NamespaceId:      appns.RandomBlobNamespace().ID,
+				ShareVersion:     uint32(appconsts.DefaultShareVersion),
+				NamespaceVersion: uint32(appns.NamespaceVersionZero),
+			},
+			expectError: true,
+		},
+		{
+			name: "blob data too large",
+			blob: &Blob{
+				Data:             bytes.Repeat([]byte{1}, 10_000_000), // 10 MB
 				NamespaceId:      appns.RandomBlobNamespace().ID,
 				ShareVersion:     uint32(appconsts.DefaultShareVersion),
 				NamespaceVersion: uint32(appns.NamespaceVersionZero),
@@ -498,4 +508,12 @@ func TestValidateBlobs(t *testing.T) {
 			assert.NoError(t, err)
 		}
 	}
+}
+
+// Test_blobSizeUpperBound is contrived but it verifies that the blob size upper
+// bound is a constant value.
+func Test_blobSizeUpperBound(t *testing.T) {
+	got := blobSizeUpperBound()
+	want := 7_896_606
+	assert.Equal(t, want, got)
 }

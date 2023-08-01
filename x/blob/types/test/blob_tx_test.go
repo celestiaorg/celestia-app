@@ -237,6 +237,38 @@ func TestValidateBlobTx(t *testing.T) {
 			},
 			expectedErr: nil,
 		},
+		{
+			name: "invalid blob tx because blob size is zero",
+			getTx: func() tmproto.BlobTx {
+				rawBtx := validRawBtx()
+				btx, _ := coretypes.UnmarshalBlobTx(rawBtx)
+				btx.Blobs[0].Data = []byte{}
+				return btx
+			},
+			expectedErr: types.ErrZeroBlobSize,
+		},
+		{
+			name: "invalid blob tx because blob size is zero",
+			getTx: func() tmproto.BlobTx {
+				rawBtx := validRawBtx()
+				btx, isBlob := coretypes.UnmarshalBlobTx(rawBtx)
+				require.True(t, isBlob)
+				btx.Blobs[0].Data = []byte{}
+				return btx
+			},
+			expectedErr: types.ErrZeroBlobSize,
+		},
+		{
+			name: "invalid blob tx because blob size is too large",
+			getTx: func() tmproto.BlobTx {
+				rawBtx := validRawBtx()
+				btx, isBlob := coretypes.UnmarshalBlobTx(rawBtx)
+				require.True(t, isBlob)
+				btx.Blobs[0].Data = bytes.Repeat([]byte{0}, 10_000_000) // 10 MB
+				return btx
+			},
+			expectedErr: types.ErrBlobSizeTooLarge,
+		},
 	}
 
 	for _, tt := range tests {

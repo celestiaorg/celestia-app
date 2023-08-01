@@ -319,8 +319,9 @@ func ValidateBlobs(blobs ...*Blob) error {
 			return err
 		}
 
-		if len(blob.Data) == 0 {
-			return ErrZeroBlobSize
+		err = validateBlobData(blob.Data)
+		if err != nil {
+			return err
 		}
 
 		if !slices.Contains(appconsts.SupportedShareVersions, uint8(blob.ShareVersion)) {
@@ -329,6 +330,51 @@ func ValidateBlobs(blobs ...*Blob) error {
 	}
 
 	return nil
+}
+
+// validateBlobData returns an error if the size of data is zero or too large.
+func validateBlobData(data []byte) error {
+	if len(data) == 0 {
+		return ErrZeroBlobSize
+	}
+
+	maxBlobSize := blobSizeUpperBound()
+	if len(data) > maxBlobSize {
+		return ErrBlobSizeTooLarge.Wrapf("max blob size is %d bytes", maxBlobSize)
+	}
+	return nil
+}
+
+// blobSizeUpperBound returns an upper bound for the max valid blob size based
+// on the upper bounds for square size and block bytes. Note it is possible that
+// blobs of this size do not fit in a block because the limiting factor may be
+// square size (i.e. max square size is constrained by GovMaxSquareSize).
+// Additionally, even if the max square size is the upper bound for square size,
+// the number of shares available for blob bytes may be less than estimated in
+// this function (i.e. if the PFB tx shares occupy more than one share). As a
+// result, the upper bound returned by this function may over-estimate the max
+// valid blob size but it will not under-estimate. Consequently, it may be used
+// to immediately reject blobs that are too large but blobs smaller than this
+// upper bound may still fail to be included in a block.
+func blobSizeUpperBound() int {
+	maxSquareSize := appconsts.SquareSizeUpperBound(appconsts.LatestVersion)
+	maxShares := maxSquareSize * maxSquareSize
+
+	// Subtract one from maxShares because at least one share must be occupied
+	// by the PFB tx associated with this blob.
+	maxBlobShares := maxShares - 1
+	maxBlobBytes := maxBlobShares * appconsts.ContinuationSparseShareContentSize
+
+	return min(maxBlobBytes, coretypes.MaxBlockSizeBytes)
+}
+
+// min returns the minimum of two ints. This function can be removed once we
+// upgrade to Go 1.21.
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // extractBlobComponents separates and returns the components of a slice of
