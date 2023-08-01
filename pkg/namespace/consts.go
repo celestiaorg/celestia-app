@@ -51,7 +51,9 @@ var (
 	// (ordinary and PFBs) but before blobs.
 	ReservedPaddingNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 255})
 
-	// MaxPrimaryReservedNamespace is lexicographically the largest primary reserved namespaces which are reserved for protocol use.
+	// MaxPrimaryReservedNamespace represents the largest primary reserved
+	// namespace reserved for protocol use. Note that there may be other
+	// non-primary reserved namespaces beyond this upper limit.
 	MaxPrimaryReservedNamespace = MustNewV0([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 255})
 
 	// TailPaddingNamespace is the namespace reserved for tail padding. All data
