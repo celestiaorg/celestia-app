@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -45,6 +46,21 @@ const (
 	PeriodicVestingAccountType
 	ContinuousVestingAccountType
 )
+
+func (t accountType) String() string {
+	switch t {
+	case RegularAccountType:
+		return "regular"
+	case DelayedVestingAccountType:
+		return "delayed vesting"
+	case PeriodicVestingAccountType:
+		return "periodic vesting"
+	case ContinuousVestingAccountType:
+		return "continuous vesting"
+	default:
+		return "unknown"
+	}
+}
 
 type VestingModuleTestSuite struct {
 	suite.Suite
@@ -368,7 +384,7 @@ func (s *VestingModuleTestSuite) testTransferVestingAmount(name string) {
 	resQ, err := s.cctx.WaitForTx(resTx.TxHash, 10)
 	require.NoError(s.T(), err)
 
-	assert.EqualValues(s.T(), errors.ErrInsufficientFunds.ABCICode(), resQ.TxResult.Code, "the transfer TX must fail")
+	assert.EqualValues(s.T(), sdkerrors.ErrInsufficientFunds.ABCICode(), resQ.TxResult.Code, "the transfer TX must fail")
 }
 
 // testDelegatingVestingAmount tests the delegation of vesting amounts (locked) from a vesting account to a validator.
@@ -640,21 +656,6 @@ func (s *VestingModuleTestSuite) getAnUnusedDelayedVestingAccount(minEndTime int
 		if err != nil || vAcc.EndTime > minEndTime {
 			return vAcc, name, err
 		}
-	}
-}
-
-func (t accountType) String() string {
-	switch t {
-	case RegularAccountType:
-		return "regular"
-	case DelayedVestingAccountType:
-		return "delayed vesting"
-	case PeriodicVestingAccountType:
-		return "periodic vesting"
-	case ContinuousVestingAccountType:
-		return "continuous vesting"
-	default:
-		return "unknown"
 	}
 }
 
