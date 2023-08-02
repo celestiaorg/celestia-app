@@ -49,7 +49,7 @@ const (
 var _ legacytx.LegacyMsg = &MsgPayForBlobs{}
 
 func NewMsgPayForBlobs(signer string, blobs ...*Blob) (*MsgPayForBlobs, error) {
-	err := ValidateBlobs(blobs...)
+	err := ValidateBlobs(appconsts.LatestVersion, blobs...)
 	if err != nil {
 		return nil, err
 	}
@@ -301,7 +301,7 @@ func CreateCommitments(blobs []*Blob) ([][]byte, error) {
 }
 
 // ValidateBlobs performs basic checks over the components of one or more PFBs.
-func ValidateBlobs(blobs ...*Blob) error {
+func ValidateBlobs(appVersion uint64, blobs ...*Blob) error {
 	if len(blobs) == 0 {
 		return ErrNoBlobs
 	}
@@ -319,7 +319,7 @@ func ValidateBlobs(blobs ...*Blob) error {
 			return err
 		}
 
-		err = validateBlobData(blob.Data)
+		err = validateBlobData(appVersion, blob.Data)
 		if err != nil {
 			return err
 		}
@@ -333,12 +333,12 @@ func ValidateBlobs(blobs ...*Blob) error {
 }
 
 // validateBlobData returns an error if the size of data is zero or too large.
-func validateBlobData(data []byte) error {
+func validateBlobData(appVersion uint64, data []byte) error {
 	if len(data) == 0 {
 		return ErrZeroBlobSize
 	}
 
-	maxBlobSize := blobSizeUpperBound()
+	maxBlobSize := blobSizeUpperBound(appconsts.LatestVersion)
 	if len(data) > maxBlobSize {
 		return ErrBlobSizeTooLarge.Wrapf("max blob size is %d bytes", maxBlobSize)
 	}
@@ -356,8 +356,8 @@ func validateBlobData(data []byte) error {
 // size but it should not under-estimate. Consequently, it may be used to
 // immediately reject blobs that are too large but blobs smaller than this upper
 // bound may still fail to be included in a block.
-func blobSizeUpperBound() int {
-	maxSquareSize := appconsts.SquareSizeUpperBound(appconsts.LatestVersion)
+func blobSizeUpperBound(appVersion uint64) int {
+	maxSquareSize := appconsts.SquareSizeUpperBound(appVersion)
 	maxShares := maxSquareSize * maxSquareSize
 
 	// Subtract one from maxShares because at least one share must be occupied

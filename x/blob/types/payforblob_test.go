@@ -443,13 +443,15 @@ func TestNewMsgPayForBlobs(t *testing.T) {
 func TestValidateBlobs(t *testing.T) {
 	type test struct {
 		name        string
+		appVersion  uint64
 		blob        *Blob
 		expectError bool
 	}
 
 	tests := []test{
 		{
-			name: "valid blob",
+			name:       "valid blob",
+			appVersion: appconsts.LatestVersion,
 			blob: &Blob{
 				Data:             []byte{1},
 				NamespaceId:      appns.RandomBlobNamespace().ID,
@@ -459,7 +461,8 @@ func TestValidateBlobs(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "invalid share version",
+			name:       "invalid share version",
+			appVersion: appconsts.LatestVersion,
 			blob: &Blob{
 				Data:             []byte{1},
 				NamespaceId:      appns.RandomBlobNamespace().ID,
@@ -469,7 +472,8 @@ func TestValidateBlobs(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "empty blob data",
+			name:       "empty blob data",
+			appVersion: appconsts.LatestVersion,
 			blob: &Blob{
 				Data:             []byte{},
 				NamespaceId:      appns.RandomBlobNamespace().ID,
@@ -479,7 +483,8 @@ func TestValidateBlobs(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "blob data too large",
+			name:       "blob data too large",
+			appVersion: appconsts.LatestVersion,
 			blob: &Blob{
 				Data:             bytes.Repeat([]byte{1}, 10_000_000), // 10 MB
 				NamespaceId:      appns.RandomBlobNamespace().ID,
@@ -489,7 +494,8 @@ func TestValidateBlobs(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "invalid namespace",
+			name:       "invalid namespace",
+			appVersion: appconsts.LatestVersion,
 			blob: &Blob{
 				Data:             []byte{1},
 				NamespaceId:      appns.TxNamespace.ID,
@@ -501,7 +507,7 @@ func TestValidateBlobs(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		err := ValidateBlobs(tt.blob)
+		err := ValidateBlobs(tt.appVersion, tt.blob)
 		if tt.expectError {
 			assert.Error(t, err)
 		} else {
@@ -513,7 +519,7 @@ func TestValidateBlobs(t *testing.T) {
 // Test_blobSizeUpperBound is contrived but it verifies that the blob size upper
 // bound is a constant value.
 func Test_blobSizeUpperBound(t *testing.T) {
-	got := blobSizeUpperBound()
+	got := blobSizeUpperBound(appconsts.LatestVersion)
 	want := 7_896_606
 	assert.Equal(t, want, got)
 }
