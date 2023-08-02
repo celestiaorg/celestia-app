@@ -110,7 +110,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "1,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				return blobfactory.BlobTxWithSize(t, encCfg.TxConfig.TxEncoder(), kr, testutil.ChainID, accs[4], 1_000)
+				return blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 1_000, 1, false, testutil.ChainID, accs[4:5])[0]
 			},
 			expectedABCICode: abci.CodeTypeOK,
 		},
@@ -118,7 +118,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "10,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				return blobfactory.BlobTxWithSize(t, encCfg.TxConfig.TxEncoder(), kr, testutil.ChainID, accs[5], 10_000)
+				return blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 10_000, 1, false, testutil.ChainID, accs[5:6])[0]
 			},
 			expectedABCICode: abci.CodeTypeOK,
 		},
@@ -126,7 +126,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "100,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				return blobfactory.BlobTxWithSize(t, encCfg.TxConfig.TxEncoder(), kr, testutil.ChainID, accs[6], 100_000)
+				return blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 100_000, 1, false, testutil.ChainID, accs[6:7])[0]
 			},
 			expectedABCICode: abci.CodeTypeOK,
 		},
@@ -134,7 +134,7 @@ func TestCheckTx(t *testing.T) {
 			name:      "1,000,000 byte blob",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
-				return blobfactory.BlobTxWithSize(t, encCfg.TxConfig.TxEncoder(), kr, testutil.ChainID, accs[7], 1_000_000)
+				return blobfactory.RandBlobTxsWithAccounts(encCfg.TxConfig.TxEncoder(), tmrand.NewRand(), kr, nil, 1_000_000, 1, false, testutil.ChainID, accs[7:8])[0]
 			},
 			expectedABCICode: abci.CodeTypeOK,
 		},
