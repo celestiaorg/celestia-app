@@ -139,7 +139,7 @@ func TestValidateBasic(t *testing.T) {
 	intermediateStateRootsNamespaceMsg := validMsgPayForBlobs(t)
 	intermediateStateRootsNamespaceMsg.Namespaces[0] = appns.IntermediateStateRootsNamespace.Bytes()
 
-	// MsgPayForBlobs that uses the max reserved namespace
+	// MsgPayForBlobs that uses the max primary reserved namespace
 	maxReservedNamespaceMsg := validMsgPayForBlobs(t)
 	maxReservedNamespaceMsg.Namespaces[0] = appns.MaxPrimaryReservedNamespace.Bytes()
 
