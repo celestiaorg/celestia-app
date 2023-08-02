@@ -39,10 +39,10 @@ func TestRegisterEVMAddress(t *testing.T) {
 	// overide the previous EVM address with a new one
 	evmAddr := common.BytesToAddress([]byte("evm_address")).String()
 	msg, err = types.NewMsgRegisterEVMAddress(val.OperatorAddress, evmAddr)
+	require.NoError(t, err)
 	_, err = k.RegisterEVMAddress(sdkCtx, msg)
 	require.NoError(t, err)
 
 	addr, _ := k.GetEVMAddress(sdkCtx, val.OperatorAddress)
 	require.Equal(t, evmAddr, addr)
-
 }

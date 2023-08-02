@@ -209,7 +209,7 @@ func (k Keeper) SetEVMAddress(ctx sdk.Context, valAddress, evmAddress string) {
 func (k Keeper) GetEVMAddress(ctx sdk.Context, valAddress string) (string, bool) {
 	store := ctx.KVStore(k.storeKey)
 	if !store.Has(types.GetEVMKey(valAddress)) {
-		return "", false 
+		return "", false
 	}
 	return string(store.Get(types.GetEVMKey(valAddress))), true
 }
