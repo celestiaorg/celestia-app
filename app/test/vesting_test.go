@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	abci "github.com/tendermint/tendermint/abci/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
 )
 
@@ -30,7 +31,7 @@ const (
 	totalAccountsPerType = 300
 	initBalanceForGasFee = 10
 	vestingAmount        = testfactory.BaseAccountDefaultBalance
-	vestingDelayPerTx    = 10 // this is a safe time to wait for a tx to be executed while the vesting period is not over yet
+	vestingDelayPerTx    = 10 // this is a safe time (in seconds) to wait for a tx to be executed while the vesting period is not over yet
 )
 
 type accountDispenser struct {
@@ -117,7 +118,7 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsTransferLocked
 	// find and test a vesting account with endTime which is
 	// at least 10 seconds away from now to give the tx enough time to complete
 	_, name, err := s.getAnUnusedDelayedVestingAccount(tmtime.Now().Unix() + vestingDelayPerTx)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	s.testTransferMustFail(name, vestingAmount)
 }
@@ -127,7 +128,7 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsTransferUnLock
 
 	// find and test a vesting account with endTime which is already passed
 	vAcc, name, err := s.getAnUnusedDelayedVestingAccount(0)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	// It is possible in some cases the given account is not unlocked
 	// so if that's the case, we wait a bit here
@@ -146,7 +147,7 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsDelegation() {
 
 	// find and test a vesting account that has vesting (locked) balance
 	_, name, err := s.getAnUnusedDelayedVestingAccount(tmtime.Now().Unix() + vestingDelayPerTx)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	s.testDelegatingVestingAmount(name)
 }
@@ -154,9 +155,9 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsDelegation() {
 func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsClaimDelegationRewards() {
 	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
-	// find and test a vesting account with endTime which is
+	// find and test a vesting account with endTime which is vestingDelayPerTx*2 in future (locked)
 	_, name, err := s.getAnUnusedDelayedVestingAccount(tmtime.Now().Unix() + vestingDelayPerTx*2)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	s.testDelegatingVestingAmount(name)
 	s.testClaimDelegationReward(name)
@@ -165,7 +166,7 @@ func (s *VestingModuleTestSuite) TestGenesisDelayedVestingAccountsClaimDelegatio
 func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsTransferPartiallyUnlocked() {
 	// Find a periodic vesting account that has some vested (unlocked) balance (its start time has already passed)
 	vAcc, name, err := s.getAnUnusedPeriodicVestingAccount(tmtime.Now().Unix() - 5)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	// Since we want a partially unlocked balance we need to wait until
 	// the first period has passed if not already
@@ -183,7 +184,7 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsTransferLocke
 	// Find a periodic vesting account that that is currently in a vesting (locked) state
 	// i.e. its start time yet to be reached.
 	vAcc, name, err := s.getAnUnusedPeriodicVestingAccount(tmtime.Now().Unix() + vestingDelayPerTx)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	require.Zero(s.T(), vAcc.GetVestedCoins(tmtime.Now()).AmountOf(app.BondDenom).Int64())
 
 	s.testTransferMustFail(name, vestingAmount)
@@ -195,7 +196,7 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsDelegation() 
 	// Find a periodic vesting account that that is currently in a vesting (locked) state
 	// i.e. its start time yet to be reached.
 	_, name, err := s.getAnUnusedPeriodicVestingAccount(tmtime.Now().Unix() + vestingDelayPerTx)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	s.testDelegatingVestingAmount(name)
 }
@@ -208,7 +209,7 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsDelegationPar
 	// find and test a vesting account that has some vesting (locked) and
 	// some vested (unlocked) balance
 	vAcc, name, err := s.getAnUnusedPeriodicVestingAccount(tmtime.Now().Unix() - 5)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	// Since we want a partially unlocked balance we need to wait until
 	// the first period has passed if not already
@@ -224,7 +225,7 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsClaimDelegati
 	// find and test a vesting account that has some vesting (locked) balance
 	// to be on the safe side we select one that starts unlocking in at least vestingDelayPerTx*2 seconds
 	_, name, err := s.getAnUnusedPeriodicVestingAccount(tmtime.Now().Unix() + vestingDelayPerTx*2)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	s.testDelegatingVestingAmount(name)
 	s.testClaimDelegationReward(name)
@@ -233,7 +234,7 @@ func (s *VestingModuleTestSuite) TestGenesisPeriodicVestingAccountsClaimDelegati
 func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsTransferLocked() {
 	// find a continuous vesting account with locked balance
 	vAcc, name, err := s.getAnUnusedContinuousVestingAccount(tmtime.Now().Unix() + vestingDelayPerTx)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 	require.Zero(s.T(), vAcc.GetVestedCoins(tmtime.Now()).AmountOf(app.BondDenom).Int64())
 
 	s.testTransferMustFail(name, vestingAmount)
@@ -242,7 +243,7 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsTransferLoc
 func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsTransferPartiallyUnlocked() {
 	// find a continuous vesting account with partially unlocked balance
 	vAcc, name, err := s.getAnUnusedContinuousVestingAccount(tmtime.Now().Unix() - 5)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	// Since we want a partially unlocked balance we need to wait until
 	// the start time just passes if not already
@@ -261,7 +262,7 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsDelegation(
 
 	// find and test a vesting account that has some vesting (locked) balance
 	_, name, err := s.getAnUnusedContinuousVestingAccount(tmtime.Now().Unix() + vestingDelayPerTx)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	s.testDelegatingVestingAmount(name)
 }
@@ -273,7 +274,7 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsDelegationP
 
 	// find a continuous vesting account with partially unlocked balance
 	vAcc, name, err := s.getAnUnusedContinuousVestingAccount(tmtime.Now().Unix() - 5)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	// Since we want a partially unlocked balance we need to wait until
 	// the start time just passes if not already
@@ -289,7 +290,7 @@ func (s *VestingModuleTestSuite) TestGenesisContinuousVestingAccountsClaimDelega
 	// find and test a vesting account that has some vesting (locked) balance
 	// to be on the safe side we select one that starts unlocking in at least vestingDelayPerTx*2 seconds
 	_, name, err := s.getAnUnusedContinuousVestingAccount(tmtime.Now().Unix() + vestingDelayPerTx*2)
-	assert.NoError(s.T(), err)
+	require.NoError(s.T(), err)
 
 	s.testDelegatingVestingAmount(name)
 	s.testClaimDelegationReward(name)
@@ -310,7 +311,7 @@ func (s *VestingModuleTestSuite) testTransferMustFail(name string, amount int64)
 func (s *VestingModuleTestSuite) testTransferMustSucceed(name string, amount int64) {
 	txResultCode, err := s.submitTransferTx(name, amount)
 	assert.NoError(s.T(), err)
-	assert.EqualValues(s.T(), 0, txResultCode, "the transfer TX must succeed")
+	assert.EqualValues(s.T(), abci.CodeTypeOK, txResultCode, "the transfer TX must succeed")
 }
 
 // submitTransferTx submits a transfer transaction to a random account and returns the tx result code
@@ -416,7 +417,7 @@ func (s *VestingModuleTestSuite) testClaimDelegationReward(name string) {
 
 	resQ, err := s.cctx.WaitForTx(resTx.TxHash, 10)
 	require.NoError(s.T(), err)
-	assert.EqualValues(s.T(), 0, resQ.TxResult.Code, fmt.Sprintf("the claim reward TX must succeed: \n%s", resQ.TxResult.String()))
+	assert.EqualValues(s.T(), abci.CodeTypeOK, resQ.TxResult.Code, fmt.Sprintf("the claim reward TX must succeed: \n%s", resQ.TxResult.String()))
 
 	require.NoError(s.T(), s.cctx.WaitForNextBlock())
 
