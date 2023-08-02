@@ -6,7 +6,7 @@ import (
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 )
 
-// TypeRegister is used to register the upgrade modules types in the encoding
+// TypeRegister is used to register the upgrade module's types in the encoding
 // config without defining an entire module.
 type TypeRegister struct{}
 

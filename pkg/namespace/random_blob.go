@@ -2,6 +2,7 @@ package namespace
 
 import (
 	tmrand "github.com/tendermint/tendermint/libs/rand"
+	"golang.org/x/exp/slices"
 )
 
 func RandomBlobNamespaceID() []byte {
@@ -22,11 +23,9 @@ func RandomBlobNamespaceWithPRG(prg *tmrand.Rand) Namespace {
 	for {
 		id := RandomBlobNamespaceIDWithPRG(prg)
 		namespace := MustNewV0(id)
-		err := namespace.ValidateBlobNamespace()
-		if err != nil {
-			continue
+		if isBlobNamespace(namespace) {
+			return namespace
 		}
-		return namespace
 	}
 }
 
@@ -35,4 +34,26 @@ func RandomBlobNamespaces(rand *tmrand.Rand, count int) (namespaces []Namespace)
 		namespaces = append(namespaces, RandomBlobNamespaceWithPRG(rand))
 	}
 	return namespaces
+}
+
+// isBlobNamespace returns an true if this namespace is a valid user-specifiable
+// blob namespace.
+func isBlobNamespace(ns Namespace) bool {
+	if ns.IsReserved() {
+		return false
+	}
+
+	if ns.IsParityShares() {
+		return false
+	}
+
+	if ns.IsTailPadding() {
+		return false
+	}
+
+	if !slices.Contains(SupportedBlobNamespaceVersions, ns.Version) {
+		return false
+	}
+
+	return true
 }

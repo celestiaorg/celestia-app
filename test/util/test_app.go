@@ -104,6 +104,7 @@ func SetupTestAppWithGenesisValSet(cparams *tmproto.ConsensusParams, genAccounts
 	// commit genesis changes
 	testApp.Commit()
 	testApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		ChainID:            ChainID,
 		Height:             testApp.LastBlockHeight() + 1,
 		AppHash:            testApp.LastCommitID().Hash,
 		ValidatorsHash:     valSet.Hash(),

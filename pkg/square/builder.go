@@ -132,8 +132,9 @@ func (b *Builder) Export() (Square, error) {
 	// interblob padding used when the blobs are correctly ordered instead of using worst case padding.
 	ss := shares.BlobMinSquareSize(b.currentSize)
 
-	// sort the blobs in order of namespace. We use slice stable here to respect the
-	// order of multiple blobs within a namespace as per the priority of the PFB
+	// Sort the blobs by namespace. This uses SliceStable to preserve the order
+	// of blobs within a namespace because b.Blobs are already ordered by tx
+	// priority.
 	sort.SliceStable(b.Blobs, func(i, j int) bool {
 		return bytes.Compare(b.Blobs[i].Blob.Namespace(), b.Blobs[j].Blob.Namespace()) < 0
 	})

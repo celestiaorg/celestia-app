@@ -1,4 +1,4 @@
-VERSION := $(shell echo $(shell git describe --tags) | sed 's/^v//')
+VERSION := $(shell echo $(shell git describe --tags 2>/dev/null || git log -1 --format='%h') | sed 's/^v//')
 COMMIT := $(shell git log -1 --format='%H')
 DOCKER := $(shell which docker)
 DOCKER_BUF := $(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace bufbuild/buf
@@ -186,7 +186,7 @@ txsim-build:
 	@go mod tidy -compat=1.20
 .PHONY: txsim-build
 
-## docker-txsim-build: Build the Docker image tx simulator.
+## txsim-build-docker: Build the tx simulator Docker image. Requires Docker.
 txsim-build-docker:
 	docker build -t ghcr.io/celestiaorg/txsim -f docker/Dockerfile_txsim  .
 .PHONY: txsim-build-docker

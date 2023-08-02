@@ -181,8 +181,9 @@ func DefaultEstimateGas(blobSizes []uint32) uint64 {
 	return EstimateGas(blobSizes, appconsts.DefaultGasPerBlobByte, auth.DefaultTxSizeCostPerByte)
 }
 
-// ValidateBlobNamespace returns an error if the provided namespace is reserved,
-// parity shares, or tail padding.
+// ValidateBlobNamespace returns an error if the provided namespace is an
+// invalid user-specifiable blob namespace (e.g. reserved, parity shares, or
+// tail padding).
 func ValidateBlobNamespace(ns appns.Namespace) error {
 	if ns.IsReserved() {
 		return ErrReservedNamespace.Wrapf("got namespace: %x, want: > %x", ns, appns.MaxReservedNamespace)
@@ -196,7 +197,7 @@ func ValidateBlobNamespace(ns appns.Namespace) error {
 		return ErrTailPaddingNamespace
 	}
 
-	if ns.Version != appns.NamespaceVersionZero {
+	if !slices.Contains(appns.SupportedBlobNamespaceVersions, ns.Version) {
 		return ErrInvalidNamespaceVersion
 	}
 
@@ -313,7 +314,7 @@ func ValidateBlobs(blobs ...*Blob) error {
 		if err != nil {
 			return err
 		}
-		err = ns.ValidateBlobNamespace()
+		err = ValidateBlobNamespace(ns)
 		if err != nil {
 			return err
 		}

@@ -2,11 +2,14 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/x/mint"
 	minttypes "github.com/celestiaorg/celestia-app/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/codec"
+	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/bank"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -21,6 +24,7 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
 	ibcclientclient "github.com/cosmos/ibc-go/v6/modules/core/02-client/client"
+	tmcfg "github.com/tendermint/tendermint/config"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	coretypes "github.com/tendermint/tendermint/types"
 )
@@ -153,4 +157,34 @@ func DefaultBlockParams() tmproto.BlockParams {
 		MaxGas:     -1,
 		TimeIotaMs: 1, // 1ms
 	}
+}
+
+func DefaultConsensusConfig() *tmcfg.Config {
+	cfg := tmcfg.DefaultConfig()
+	// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
+	// TODO: make TimeoutBroadcastTx configurable per https://github.com/celestiaorg/celestia-app/issues/1034
+	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
+	cfg.RPC.MaxBodyBytes = int64(8388608) // 8 MiB
+	cfg.Mempool.TTLNumBlocks = 10
+	cfg.Mempool.MaxTxBytes = appconsts.DefaultMaxBytes
+	cfg.Mempool.Version = "v1" // prioritized mempool
+	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
+	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
+	cfg.Consensus.SkipTimeoutCommit = false
+	cfg.TxIndex.Indexer = "null"
+	return cfg
+}
+
+func DefaultAppConfig() *serverconfig.Config {
+	cfg := serverconfig.DefaultConfig()
+	cfg.API.Enable = true
+
+	// the default snapshot interval was determined by picking a large enough
+	// value as to not dramatically increase resource requirements while also
+	// being greater than zero so that there are more nodes that will serve
+	// snapshots to nodes that state sync
+	cfg.StateSync.SnapshotInterval = 1500
+	cfg.StateSync.SnapshotKeepRecent = 2
+	cfg.MinGasPrices = fmt.Sprintf("%v%s", appconsts.DefaultMinGasPrice, BondDenom)
+	return cfg
 }
