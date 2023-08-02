@@ -519,7 +519,6 @@ func (s *VestingModuleTestSuite) initContinuousVestingAccounts(count int) testno
 }
 
 // unusedAccount returns an unused account name of the specified account type
-// unusedAccount returns an unused account name of the specified account type
 // for the VestingModuleTestSuite. If the account type is not found, it returns
 // an error.
 func (s *VestingModuleTestSuite) unusedAccount(accType accountType) (string, error) {
